@@ -9,7 +9,7 @@ from __future__ import annotations
 import pytest
 from beartype import beartype
 
-from specfact_cli.backlog.template_detector import TemplateDetector
+from specfact_cli.backlog.template_detector import TemplateDetector, get_effective_required_sections
 from specfact_cli.models.backlog_item import BacklogItem
 from specfact_cli.templates.registry import BacklogTemplate, TemplateRegistry
 
@@ -223,3 +223,23 @@ to add features""",
         # Test without framework filter (should match default)
         result = detector.detect_template(item, provider="github", framework=None)
         assert result.template_id in ["user_story_v1", "scrum_story_v1"]  # Either could match
+
+    @beartype
+    def test_ado_effective_required_sections_ignores_structured_metric_sections(self) -> None:
+        """ADO should not require structured metric sections in markdown body."""
+        template = BacklogTemplate(
+            template_id="scrum_user_story_v1",
+            name="Scrum User Story",
+            required_sections=["As a", "I want", "So that", "Acceptance Criteria", "Story Points"],
+        )
+        item = BacklogItem(
+            id="8",
+            provider="ado",
+            url="https://dev.azure.com/org/project/_workitems/edit/8",
+            title="User Story",
+            body_markdown="## As a\nuser\n\n## I want\nvalue\n\n## So that\nbenefit\n\n## Acceptance Criteria\n- [ ] done",
+            state="Active",
+        )
+        effective = get_effective_required_sections(item, template)
+        assert "Story Points" not in effective
+        assert "Acceptance Criteria" in effective

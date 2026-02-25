@@ -41,7 +41,7 @@ from specfact_cli.adapters.registry import AdapterRegistry
 from specfact_cli.backlog.adapters.base import BacklogAdapter
 from specfact_cli.backlog.ai_refiner import BacklogAIRefiner
 from specfact_cli.backlog.filters import BacklogFilters
-from specfact_cli.backlog.template_detector import TemplateDetector
+from specfact_cli.backlog.template_detector import TemplateDetector, get_effective_required_sections
 from specfact_cli.models.backlog_item import BacklogItem
 from specfact_cli.models.dor_config import DefinitionOfReady
 from specfact_cli.models.plan import Product
@@ -557,12 +557,50 @@ def _upsert_backlog_provider_settings(
 
 
 @beartype
+def _resolve_backlog_provider_framework(provider: str) -> str | None:
+    """Resolve configured framework for a backlog provider from backlog-config and mapping files."""
+    normalized_provider = provider.strip().lower()
+    if not normalized_provider:
+        return None
+
+    cfg, _path = _load_backlog_module_config_file()
+    backlog_config = cfg.get("backlog_config")
+    if isinstance(backlog_config, dict):
+        providers = backlog_config.get("providers")
+        if isinstance(providers, dict):
+            provider_cfg = providers.get(normalized_provider)
+            if isinstance(provider_cfg, dict):
+                settings = provider_cfg.get("settings")
+                if isinstance(settings, dict):
+                    configured = str(settings.get("framework") or "").strip().lower()
+                    if configured:
+                        return configured
+
+    # ADO fallback: read framework from custom mapping file when provider settings are absent.
+    if normalized_provider == "ado":
+        mapping_path = Path.cwd() / ".specfact" / "templates" / "backlog" / "field_mappings" / "ado_custom.yaml"
+        if mapping_path.exists():
+            with contextlib.suppress(Exception):
+                from specfact_cli.backlog.mappers.template_config import FieldMappingConfig
+
+                config = FieldMappingConfig.from_file(mapping_path)
+                configured = str(config.framework or "").strip().lower()
+                if configured:
+                    return configured
+
+    return None
+
+
+@beartype
 def _resolve_standup_options(
     cli_state: str | None,
     cli_limit: int | None,
     cli_assignee: str | None,
     config: dict[str, Any] | None,
-) -> tuple[str, int, str | None]:
+    *,
+    state_filter_disabled: bool = False,
+    assignee_filter_disabled: bool = False,
+) -> tuple[str | None, int, str | None]:
     """
     Resolve effective state, limit, assignee from CLI options and config.
     CLI options override config; config overrides built-in defaults.
@@ -574,9 +612,9 @@ def _resolve_standup_options(
     default_assignee = cfg.get("default_assignee")
     if default_assignee is not None:
         default_assignee = str(default_assignee)
-    state = cli_state if cli_state is not None else default_state
+    state = None if state_filter_disabled else (cli_state if cli_state is not None else default_state)
     limit = cli_limit if cli_limit is not None else default_limit
-    assignee = cli_assignee if cli_assignee is not None else default_assignee
+    assignee = None if assignee_filter_disabled else (cli_assignee if cli_assignee is not None else default_assignee)
     return (state, limit, assignee)
 
 
@@ -595,6 +633,37 @@ def _resolve_post_fetch_assignee_filter(adapter: str, assignee: str | None) -> s
         if normalized == "me":
             return None
     return assignee
+
+
+@beartype
+def _normalize_state_filter_value(state: str | None) -> str | None:
+    """Normalize state filter literals and map `any` to no-filter."""
+    if state is None:
+        return None
+    normalized = BacklogFilters.normalize_filter_value(state)
+    if normalized in {"any", "all", "*"}:
+        return None
+    return state
+
+
+@beartype
+def _normalize_assignee_filter_value(assignee: str | None) -> str | None:
+    """Normalize assignee filter literals and map `any`/`@any` to no-filter."""
+    if assignee is None:
+        return None
+    normalized = BacklogFilters.normalize_filter_value(assignee.lstrip("@"))
+    if normalized in {"any", "all", "*"}:
+        return None
+    return assignee
+
+
+@beartype
+def _is_filter_disable_literal(value: str | None) -> bool:
+    """Return True when CLI filter literal explicitly disables filtering."""
+    if value is None:
+        return False
+    normalized = BacklogFilters.normalize_filter_value(value.lstrip("@"))
+    return normalized in {"any", "all", "*"}
 
 
 @beartype
@@ -883,6 +952,67 @@ def _resolve_daily_mode_state(
     if mode == "kanban":
         return None
     return effective_state
+
+
+@beartype
+def _format_daily_scope_summary(
+    *,
+    mode: str,
+    cli_state: str | None,
+    effective_state: str | None,
+    cli_assignee: str | None,
+    effective_assignee: str | None,
+    cli_limit: int | None,
+    effective_limit: int,
+    issue_id: str | None,
+    labels: list[str] | str | None,
+    sprint: str | None,
+    iteration: str | None,
+    release: str | None,
+    first_issues: int | None,
+    last_issues: int | None,
+) -> str:
+    """Build a compact scope summary for daily output with explicit/default source markers."""
+
+    def _source(*, cli_value: object | None, disabled: bool = False) -> str:
+        if disabled:
+            return "disabled by --id"
+        if cli_value is not None:
+            return "explicit"
+        return "default"
+
+    scope_parts: list[str] = [f"mode={mode} (explicit)"]
+
+    state_disabled = issue_id is not None and cli_state is None
+    state_value = effective_state if effective_state else "—"
+    scope_parts.append(f"state={state_value} ({_source(cli_value=cli_state, disabled=state_disabled)})")
+
+    assignee_disabled = issue_id is not None and cli_assignee is None
+    assignee_value = effective_assignee if effective_assignee else "—"
+    scope_parts.append(f"assignee={assignee_value} ({_source(cli_value=cli_assignee, disabled=assignee_disabled)})")
+
+    limit_source = _source(cli_value=cli_limit)
+    if first_issues is not None or last_issues is not None:
+        limit_source = "disabled by issue window"
+    scope_parts.append(f"limit={effective_limit} ({limit_source})")
+
+    if issue_id is not None:
+        scope_parts.append("id=" + issue_id + " (explicit)")
+    if labels:
+        labels_value = ", ".join(labels) if isinstance(labels, list) else labels
+        scope_parts.append("labels=" + labels_value + " (explicit)")
+    if sprint:
+        scope_parts.append("sprint=" + sprint + " (explicit)")
+    if iteration:
+        scope_parts.append("iteration=" + iteration + " (explicit)")
+    if release:
+        scope_parts.append("release=" + release + " (explicit)")
+    if first_issues is not None:
+        scope_parts.append(f"first_issues={first_issues} (explicit)")
+    if last_issues is not None:
+        scope_parts.append(f"last_issues={last_issues} (explicit)")
+
+    return "Applied filters: " + ", ".join(scope_parts)
 
 
 @beartype
@@ -1397,18 +1527,30 @@ def _build_refine_export_content(
         "For import readiness: the refined artifact (`--import-from-tmp`) must not include this instruction block; "
         "it should contain only the `## Item N:` sections and refined fields.\n\n"
     )
+    export_content += (
+        "Import contract: **ID** is mandatory in every item block and must remain unchanged from export; "
+        "ID lookup drives update mapping during `--import-from-tmp`.\n\n"
+    )
     export_content += "**Refinement Rules (same as interactive mode):**\n"
     export_content += "1. Preserve all original requirements, scope, and technical details\n"
     export_content += "2. Do NOT add new features or change the scope\n"
-    export_content += "3. Transform content to match the target template structure\n"
-    export_content += "4. If required information is missing, use a Markdown checkbox: `- [ ] describe what's needed`\n"
+    export_content += "3. Do NOT summarize, shorten, or drop details; keep full detail and intent\n"
+    export_content += "4. Transform content to match the target template structure\n"
+    export_content += "5. Story text must be explicit, specific, and unambiguous (SMART-style)\n"
+    export_content += "6. If required information is missing, use a Markdown checkbox: `- [ ] describe what's needed`\n"
     export_content += (
-        "5. If information is conflicting or ambiguous, add a `[NOTES]` section at the end explaining ambiguity\n"
+        "7. If information is conflicting or ambiguous, add a `[NOTES]` section at the end explaining ambiguity\n"
     )
-    export_content += "6. Use markdown headings for sections (`## Section Name`)\n"
-    export_content += "7. Include story points, business value, priority, and work item type when available\n"
-    export_content += "8. For high-complexity stories, suggest splitting when appropriate\n"
-    export_content += "9. Follow provider-aware formatting guidance listed per item\n\n"
+    export_content += "8. Use markdown headings for sections (`## Section Name`)\n"
+    export_content += "9. Include story points, business value, priority, and work item type when available\n"
+    export_content += "10. For high-complexity stories, suggest splitting when appropriate\n"
+    export_content += "11. Follow provider-aware formatting guidance listed per item\n\n"
+    export_content += "**Template Execution Rules (mandatory):**\n"
+    export_content += (
+        "1. Use `Target Template`, `Required Sections`, and `Optional Sections` as the exact structure contract\n"
+    )
+    export_content += "2. Keep all original requirements and constraints; do not silently drop details\n"
+    export_content += "3. Improve specificity and testability; avoid generic summaries that lose intent\n\n"
     export_content += "**Expected Output Scaffold (ordered):**\n"
     export_content += "```markdown\n"
     export_content += "## Work Item Properties / Metadata\n"
@@ -1463,7 +1605,8 @@ def _build_refine_export_content(
             export_content += "\n**Provider-aware formatting**:\n"
             export_content += "- GitHub: Use markdown headings in body (`## Section Name`).\n"
             export_content += (
-                "- ADO: Use markdown headings in body; adapter maps to provider fields during writeback.\n"
+                "- ADO: Keep metadata (Story Points/Business Value/Priority/Work Item Type) in `**Metrics**`; "
+                "do not add those as body headings. Keep description narrative in body markdown.\n"
             )
 
         if item.story_points is not None or item.business_value is not None or item.priority is not None:
@@ -1509,6 +1652,42 @@ def _resolve_target_template_for_refine_item(
         direct = registry.get_template(template_id)
         if direct is not None:
             return direct
+
+    # Provider steering: user-story-like item types should refine toward user story templates,
+    # not generic provider work-item/enabler templates.
+    if normalized_adapter in {"ado", "github"}:
+        normalized_tokens: set[str] = set()
+
+        work_item_type = (item.work_item_type or "").strip()
+        if work_item_type:
+            normalized_tokens.add(work_item_type.lower())
+
+        if normalized_adapter == "ado":
+            provider_fields = item.provider_fields.get("fields")
+            if isinstance(provider_fields, dict):
+                provider_type = str(provider_fields.get("System.WorkItemType") or "").strip().lower()
+                if provider_type:
+                    normalized_tokens.add(provider_type)
+        elif normalized_adapter == "github":
+            provider_issue_type = item.provider_fields.get("issue_type")
+            if isinstance(provider_issue_type, str) and provider_issue_type.strip():
+                normalized_tokens.add(provider_issue_type.strip().lower())
+            normalized_tokens.update(tag.strip().lower() for tag in item.tags if isinstance(tag, str) and tag.strip())
+
+        is_user_story_like = bool(
+            normalized_tokens.intersection({"user story", "story", "product backlog item", "pbi"})
+        )
+        if is_user_story_like:
+            preferred_ids = (
+                ["scrum_user_story_v1", "user_story_v1"]
+                if normalized_framework == "scrum"
+                else ["user_story_v1", "scrum_user_story_v1"]
+            )
+            for preferred_id in preferred_ids:
+                preferred = registry.get_template(preferred_id)
+                if preferred is not None:
+                    return preferred
+
     detection_result = detector.detect_template(
         item,
         provider=normalized_adapter,
@@ -1824,6 +2003,47 @@ def _build_adapter_kwargs(
     return kwargs
 
 
+@beartype
+def _load_ado_framework_template_config(framework: str) -> dict[str, Any]:
+    """
+    Load built-in ADO field mapping template config for a framework.
+
+    Returns a dict with keys: framework, field_mappings, work_item_type_mappings.
+    Falls back to ado_default.yaml when framework-specific file is unavailable.
+    """
+    normalized = (framework or "default").strip().lower() or "default"
+    candidates = [f"ado_{normalized}.yaml", "ado_default.yaml"]
+
+    candidate_roots: list[Path] = []
+    with contextlib.suppress(Exception):
+        from specfact_cli.utils.ide_setup import find_package_resources_path
+
+        packaged = find_package_resources_path("specfact_cli", "resources/templates/backlog/field_mappings")
+        if packaged and packaged.exists():
+            candidate_roots.append(packaged)
+
+    repo_root = Path(__file__).parent.parent.parent.parent.parent.parent
+    candidate_roots.append(repo_root / "resources" / "templates" / "backlog" / "field_mappings")
+
+    for root in candidate_roots:
+        if not root.exists():
+            continue
+        for filename in candidates:
+            file_path = root / filename
+            if file_path.exists():
+                with contextlib.suppress(Exception):
+                    from specfact_cli.backlog.mappers.template_config import FieldMappingConfig
+
+                    cfg = FieldMappingConfig.from_file(file_path)
+                    return cfg.model_dump()
+
+    return {
+        "framework": "default",
+        "field_mappings": {},
+        "work_item_type_mappings": {},
+    }
+
+
 def _extract_body_from_block(block: str) -> str:
     """
     Extract **Body** content from a refined export block, handling nested fenced code.
@@ -1875,10 +2095,14 @@ def _parse_refined_export_markdown(content: str) -> dict[str, dict[str, Any]]:
     business_value?, priority?).
     """
     result: dict[str, dict[str, Any]] = {}
-    blocks = re.split(r"\n## Item \d+:", content)
-    for block in blocks:
-        block = block.strip()
-        if not block or block.startswith("# SpecFact") or "**ID**:" not in block:
+    item_block_pattern = re.compile(
+        r"(?:^|\n)## Item \d+:\s*(?P<title>[^\n]*)\n(?P<body>.*?)(?=(?:\n## Item \d+:)|\Z)",
+        re.DOTALL,
+    )
+    for match in item_block_pattern.finditer(content):
+        block_title = match.group("title").strip()
+        block = match.group("body").strip()
+        if not block or "**ID**:" not in block:
             continue
         id_match = re.search(r"\*\*ID\*\*:\s*(.+?)(?:\n|$)", block)
         if not id_match:
@@ -1894,9 +2118,8 @@ def _parse_refined_export_markdown(content: str) -> dict[str, dict[str, Any]]:
         else:
             fields["acceptance_criteria"] = None
 
-        first_line = block.split("\n")[0].strip() if block else ""
-        if first_line and not first_line.startswith("**"):
-            fields["title"] = first_line
+        if block_title:
+            fields["title"] = block_title
 
         if "Story Points:" in block:
             sp_match = re.search(r"Story Points:\s*(\d+)", block)
@@ -1913,6 +2136,107 @@ def _parse_refined_export_markdown(content: str) -> dict[str, dict[str, Any]]:
 
         result[item_id] = fields
     return result
+
+
+_CONTENT_LOSS_STOPWORDS = {
+    "the",
+    "and",
+    "for",
+    "with",
+    "from",
+    "that",
+    "this",
+    "into",
+    "your",
+    "you",
+    "are",
+    "was",
+    "were",
+    "will",
+    "shall",
+    "must",
+    "can",
+    "should",
+    "have",
+    "has",
+    "had",
+    "not",
+    "but",
+    "all",
+    "any",
+    "our",
+    "out",
+    "use",
+    "using",
+    "used",
+    "need",
+    "needs",
+    "item",
+    "story",
+    "description",
+    "acceptance",
+    "criteria",
+    "work",
+    "points",
+    "value",
+    "priority",
+}
+
+
+@beartype
+@require(lambda text: isinstance(text, str), "text must be string")
+@ensure(lambda result: isinstance(result, set), "Must return set")
+def _extract_content_terms(text: str) -> set[str]:
+    """Extract meaningful lowercase terms from narrative text for loss checks."""
+    tokens = re.findall(r"[A-Za-z0-9][A-Za-z0-9_-]{2,}", text.lower())
+    return {token for token in tokens if token not in _CONTENT_LOSS_STOPWORDS}
+
+
+@beartype
+@require(lambda original: isinstance(original, str), "original must be string")
+@require(lambda refined: isinstance(refined, str), "refined must be string")
+@ensure(lambda result: isinstance(result, tuple) and len(result) == 2, "Must return (bool, str)")
+def _detect_significant_content_loss(original: str, refined: str) -> tuple[bool, str]:
+    """
+    Detect likely silent content loss (summarization/truncation) in refined body.
+
+    Returns (has_loss, reason). Conservative thresholds aim to catch substantial
+    detail drops while allowing normal structural cleanup.
+    """
+    original_text = original.strip()
+    refined_text = refined.strip()
+    if not original_text:
+        return (False, "")
+    if not refined_text:
+        return (True, "refined description is empty")
+
+    original_len = len(original_text)
+    refined_len = len(refined_text)
+    length_ratio = refined_len / max(1, original_len)
+
+    original_terms = _extract_content_terms(original_text)
+    if not original_terms:
+        # If original has no meaningful terms, rely only on empty/non-empty check above.
+        return (False, "")
+
+    refined_terms = _extract_content_terms(refined_text)
+    retained_terms = len(original_terms.intersection(refined_terms))
+    retention_ratio = retained_terms / len(original_terms)
+
+    # Strong signal of summarization/loss: body is much shorter and lost many terms.
+    if length_ratio < 0.65 and retention_ratio < 0.60:
+        reason = (
+            f"length ratio {length_ratio:.2f} and content-term retention {retention_ratio:.2f} "
+            "(likely summarized/truncated)"
+        )
+        return (True, reason)
+
+    # Extremely aggressive shrink, even if wording changed heavily.
+    if length_ratio < 0.45:
+        reason = f"length ratio {length_ratio:.2f} (refined description is much shorter than original)"
+        return (True, reason)
+
+    return (False, "")
 
 
 @beartype
@@ -2130,12 +2454,13 @@ def _item_needs_refinement(
     if detection_result.template_id:
         target = registry.get_template(detection_result.template_id) if detection_result.template_id else None
         if target and target.required_sections:
+            required_sections = get_effective_required_sections(item, target)
             has_checkboxes = bool(
                 re.search(r"^[\s]*- \[[ x]\]", item.body_markdown or "", re.MULTILINE | re.IGNORECASE)
             )
             all_present = all(
                 bool(re.search(rf"^#+\s+{re.escape(s)}\s*$", item.body_markdown or "", re.MULTILINE | re.IGNORECASE))
-                for s in target.required_sections
+                for s in required_sections
             )
             if has_checkboxes and all_present and not detection_result.missing_fields:
                 return False
@@ -2152,6 +2477,7 @@ def _fetch_backlog_items(
     iteration: str | None = None,
     sprint: str | None = None,
     release: str | None = None,
+    issue_id: str | None = None,
     limit: int | None = None,
     repo_owner: str | None = None,
     repo_name: str | None = None,
@@ -2173,6 +2499,7 @@ def _fetch_backlog_items(
         iteration: Filter by iteration path (post-fetch filtering)
         sprint: Filter by sprint (post-fetch filtering)
         release: Filter by release (post-fetch filtering)
+        issue_id: Filter by exact issue/work-item ID
         limit: Maximum number of items to fetch
 
     Returns:
@@ -2222,15 +2549,19 @@ def _fetch_backlog_items(
         msg = f"Adapter {adapter_name} does not implement BacklogAdapter interface"
         raise NotImplementedError(msg)
 
+    normalized_state = _normalize_state_filter_value(state)
+    normalized_assignee = _normalize_assignee_filter_value(assignee)
+
     # Create BacklogFilters from parameters
     filters = BacklogFilters(
-        assignee=assignee,
-        state=state,
+        assignee=normalized_assignee,
+        state=normalized_state,
         labels=labels,
         search=search_query,
         iteration=iteration,
         sprint=sprint,
         release=release,
+        issue_id=issue_id,
         limit=limit,
     )
 
@@ -2360,12 +2691,16 @@ def daily(
     assignee: str | None = typer.Option(
         None,
         "--assignee",
-        help="Filter by assignee (e.g. 'me' or username). Only matching items are listed.",
+        help="Filter by assignee (e.g. 'me' or username). Use 'any' to disable assignee filtering.",
     ),
     search: str | None = typer.Option(
         None, "--search", "-s", help="Search query to filter backlog items (provider-specific syntax)"
     ),
-    state: str | None = typer.Option(None, "--state", help="Filter by state (e.g. open, closed, Active)"),
+    state: str | None = typer.Option(
+        None,
+        "--state",
+        help="Filter by state (e.g. open, closed, Active). Use 'any' to disable state filtering.",
+    ),
     labels: list[str] | None = typer.Option(None, "--labels", "--tags", help="Filter by labels/tags"),
     release: str | None = typer.Option(None, "--release", help="Filter by release identifier"),
     issue_id: str | None = typer.Option(
@@ -2509,14 +2844,29 @@ def daily(
     if normalized_mode not in {"scrum", "kanban", "safe"}:
         console.print("[red]Invalid --mode. Use one of: scrum, kanban, safe.[/red]")
         raise typer.Exit(1)
+    normalized_cli_state = _normalize_state_filter_value(state)
+    normalized_cli_assignee = _normalize_assignee_filter_value(assignee)
+    state_filter_disabled = _is_filter_disable_literal(state)
+    assignee_filter_disabled = _is_filter_disable_literal(assignee)
     effective_state, effective_limit, effective_assignee = _resolve_standup_options(
-        state, limit, assignee, standup_config
+        normalized_cli_state,
+        limit,
+        normalized_cli_assignee,
+        standup_config,
+        state_filter_disabled=state_filter_disabled,
+        assignee_filter_disabled=assignee_filter_disabled,
     )
     effective_state = _resolve_daily_mode_state(
         mode=normalized_mode,
-        cli_state=state,
+        cli_state=normalized_cli_state,
         effective_state=effective_state,
     )
+    if issue_id is not None:
+        # ID-specific lookup should not be constrained by implicit standup defaults.
+        if normalized_cli_state is None:
+            effective_state = None
+        if normalized_cli_assignee is None:
+            effective_assignee = None
     fetch_limit = _resolve_daily_fetch_limit(
         effective_limit,
         first_issues=first_issues,
@@ -2534,6 +2884,7 @@ def daily(
         assignee=effective_assignee,
         labels=labels,
         release=release,
+        issue_id=issue_id,
         limit=fetch_limit,
         iteration=iteration,
         sprint=sprint,
@@ -2566,6 +2917,27 @@ def daily(
     except ValueError as exc:
         console.print(f"[red]{exc}.[/red]")
         raise typer.Exit(1) from exc
+
+    console.print(
+        "[dim]"
+        + _format_daily_scope_summary(
+            mode=normalized_mode,
+            cli_state=state,
+            effective_state=effective_state,
+            cli_assignee=assignee,
+            effective_assignee=effective_assignee,
+            cli_limit=limit,
+            effective_limit=effective_limit,
+            issue_id=issue_id,
+            labels=labels,
+            sprint=sprint,
+            iteration=iteration,
+            release=release,
+            first_issues=first_issues,
+            last_issues=last_issues,
+        )
+        + "[/dim]"
+    )
     if display_limit is not None and len(filtered) > display_limit:
         filtered = filtered[:display_limit]
 
@@ -2800,12 +3172,14 @@ def refine(
         None, "--labels", "--tags", help="Filter by labels/tags (can specify multiple)"
     ),
     state: str | None = typer.Option(
-        None, "--state", help="Filter by state (case-insensitive, e.g., 'open', 'closed', 'Active', 'New')"
+        None,
+        "--state",
+        help="Filter by state (case-insensitive, e.g., 'open', 'closed', 'Active', 'New'). Use 'any' to disable state filtering.",
     ),
     assignee: str | None = typer.Option(
         None,
         "--assignee",
-        help="Filter by assignee (case-insensitive). GitHub: login or @username. ADO: displayName, uniqueName, or mail",
+        help="Filter by assignee (case-insensitive). GitHub: login or @username. ADO: displayName, uniqueName, or mail. Use 'any' to disable assignee filtering.",
     ),
     # Iteration/sprint filters
     iteration: str | None = typer.Option(
@@ -2958,6 +3332,8 @@ def refine(
     """
     try:
         # Show initialization progress to provide feedback during setup
+        normalized_state_filter = _normalize_state_filter_value(state)
+        normalized_assignee_filter = _normalize_assignee_filter_value(assignee)
         with Progress(
             SpinnerColumn(),
             TextColumn("[progress.description]{task.description}"),
@@ -3052,6 +3428,8 @@ def refine(
             normalized_adapter = adapter.lower() if adapter else None
             normalized_framework = framework.lower() if framework else None
             normalized_persona = persona.lower() if persona else None
+            if normalized_adapter and not normalized_framework:
+                normalized_framework = _resolve_backlog_provider_framework(normalized_adapter)
 
             # Validate adapter-specific required parameters (use same resolution as daily: CLI > env > config > git)
             validate_task = init_progress.add_task("[cyan]Validating adapter configuration...[/cyan]", total=None)
@@ -3127,11 +3505,12 @@ def refine(
                 adapter,
                 search_query=search,
                 labels=labels,
-                state=state,
-                assignee=assignee,
+                state=normalized_state_filter,
+                assignee=normalized_assignee_filter,
                 iteration=iteration,
                 sprint=sprint,
                 release=release,
+                issue_id=issue_id,
                 limit=fetch_limit,
                 repo_owner=repo_owner,
                 repo_name=repo_name,
@@ -3146,10 +3525,10 @@ def refine(
         if not items:
             # Provide helpful message when no items found, especially if filters were used
             filter_info = []
-            if state:
-                filter_info.append(f"state={state}")
-            if assignee:
-                filter_info.append(f"assignee={assignee}")
+            if normalized_state_filter:
+                filter_info.append(f"state={normalized_state_filter}")
+            if normalized_assignee_filter:
+                filter_info.append(f"assignee={normalized_assignee_filter}")
             if iteration:
                 filter_info.append(f"iteration={iteration}")
             if sprint:
@@ -3249,12 +3628,21 @@ def refine(
                     normalized_persona=normalized_persona,
                 )
                 if target_template is not None:
+                    effective_required_sections = get_effective_required_sections(export_item, target_template)
+                    effective_optional_sections = list(target_template.optional_sections or [])
+                    if export_item.provider.lower() == "ado":
+                        ado_structured_optional_sections = {"Area Path", "Iteration Path"}
+                        effective_optional_sections = [
+                            section
+                            for section in effective_optional_sections
+                            if section not in ado_structured_optional_sections
+                        ]
                     template_guidance_by_item_id[export_item.id] = {
                         "template_id": target_template.template_id,
                         "name": target_template.name,
                         "description": target_template.description,
-                        "required_sections": list(target_template.required_sections or []),
-                        "optional_sections": list(target_template.optional_sections or []),
+                        "required_sections": list(effective_required_sections),
+                        "optional_sections": effective_optional_sections,
                     }
             export_content = _build_refine_export_content(
                 adapter,
@@ -3300,8 +3688,21 @@ def refine(
                 if item.id not in parsed_by_id:
                     continue
                 data = parsed_by_id[item.id]
-                body = data.get("body_markdown", item.body_markdown or "")
-                item.body_markdown = body if body is not None else (item.body_markdown or "")
+                original_body = item.body_markdown or ""
+                body = data.get("body_markdown", original_body)
+                refined_body = body if body is not None else original_body
+                has_loss, loss_reason = _detect_significant_content_loss(original_body, refined_body)
+                if has_loss:
+                    console.print(
+                        "[bold red]✗[/bold red] Refined content for "
+                        f"item {item.id} appears to drop important detail ({loss_reason})."
+                    )
+                    console.print(
+                        "[dim]Refinement must preserve full story detail and requirements. "
+                        "Update the tmp file with complete content and retry import.[/dim]"
+                    )
+                    raise typer.Exit(1)
+                item.body_markdown = refined_body
                 if "acceptance_criteria" in data:
                     item.acceptance_criteria = data["acceptance_criteria"]
                 if data.get("title"):
@@ -3313,6 +3714,13 @@ def refine(
                 if "priority" in data:
                     item.priority = data["priority"]
                 updated_items.append(item)
+
+            if parsed_by_id and not updated_items:
+                console.print("[bold red]✗[/bold red] None of the refined item IDs matched fetched backlog items.")
+                console.print(
+                    "[dim]Keep each exported `**ID**` unchanged in every `## Item N:` block, then retry import.[/dim]"
+                )
+                raise typer.Exit(1)
 
             if not write:
                 console.print(f"[green]Would update {len(updated_items)} item(s)[/green]")
@@ -3465,6 +3873,25 @@ def refine(
             detection_result = detector.detect_template(
                 item, provider=normalized_adapter, framework=normalized_framework, persona=normalized_persona
             )
+            resolved_target_template = _resolve_target_template_for_refine_item(
+                item,
+                detector=detector,
+                registry=registry,
+                template_id=template_id,
+                normalized_adapter=normalized_adapter,
+                normalized_framework=normalized_framework,
+                normalized_persona=normalized_persona,
+            )
+            if (
+                template_id is None
+                and resolved_target_template is not None
+                and detection_result.template_id != resolved_target_template.template_id
+            ):
+                detection_result.template_id = resolved_target_template.template_id
+                detection_result.confidence = 0.6 * detector._score_structural_fit(
+                    item, resolved_target_template
+                ) + 0.4 * detector._score_pattern_fit(item, resolved_target_template)
+                detection_result.missing_fields = detector._find_missing_fields(item, resolved_target_template)
 
             if detection_result.template_id:
                 template_id_str = detection_result.template_id
@@ -3487,7 +3914,8 @@ def refine(
                     )
                     # Check if all required sections are present
                     all_sections_present = True
-                    for section in target_template_for_check.required_sections:
+                    required_sections_for_check = get_effective_required_sections(item, target_template_for_check)
+                    for section in required_sections_for_check:
                         # Look for section heading (## Section Name or ### Section Name)
                         section_pattern = rf"^#+\s+{re.escape(section)}\s*$"
                         if not re.search(section_pattern, item.body_markdown, re.MULTILINE | re.IGNORECASE):
@@ -3522,23 +3950,11 @@ def refine(
                     console.print(f"[yellow]Template {template_id} not found, using auto-detection[/yellow]")
             elif detection_result.template_id:
                 target_template = registry.get_template(detection_result.template_id)
-            else:
-                # Use priority-based template resolution
-                # Use normalized values for case-insensitive template matching
-                target_template = registry.resolve_template(
-                    provider=normalized_adapter, framework=normalized_framework, persona=normalized_persona
-                )
+            if target_template is None:
+                target_template = resolved_target_template
                 if target_template:
                     resolved_id = target_template.template_id
                     console.print(f"[yellow]No template detected, using resolved template: {resolved_id}[/yellow]")
-                else:
-                    # Fallback: Use first available template as default
-                    templates = registry.list_templates(scope="corporate")
-                    if templates:
-                        target_template = templates[0]
-                        console.print(
-                            f"[yellow]No template resolved, using default: {target_template.template_id}[/yellow]"
-                        )
 
             if not target_template:
                 console.print("[yellow]No template available for refinement[/yellow]")
@@ -3572,8 +3988,9 @@ def refine(
 
                 # Always show acceptance criteria if it's a required section, even if empty
                 # This helps copilot understand what fields need to be added
+                required_sections_for_preview = get_effective_required_sections(item, target_template)
                 is_acceptance_criteria_required = (
-                    target_template.required_sections and "Acceptance Criteria" in target_template.required_sections
+                    bool(required_sections_for_preview) and "Acceptance Criteria" in required_sections_for_preview
                 )
                 if is_acceptance_criteria_required or item.acceptance_criteria:
                     console.print("\n[bold]Acceptance Criteria:[/bold]")
@@ -3875,6 +4292,7 @@ def init_config(
                     "adapter": "ado",
                     "project_id": "",
                     "settings": {
+                        "framework": "default",
                         "field_mapping_file": ".specfact/templates/backlog/field_mappings/ado_custom.yaml",
                     },
                 },
@@ -3901,6 +4319,11 @@ def map_fields(
     ),
     ado_base_url: str | None = typer.Option(
         None, "--ado-base-url", help="Azure DevOps base URL (defaults to https://dev.azure.com)"
+    ),
+    ado_framework: str | None = typer.Option(
+        None,
+        "--ado-framework",
+        help="ADO process style/framework for mapping/template steering (scrum, agile, safe, kanban, default)",
     ),
     provider: list[str] = typer.Option(
         [], "--provider", help="Provider(s) to configure: ado, github (repeatable)", show_default=False
@@ -4696,28 +5119,7 @@ def map_fields(
     # Sort fields by reference name
     relevant_fields.sort(key=lambda f: f.get("referenceName", ""))
 
-    # Canonical fields to map
-    canonical_fields = {
-        "description": "Description",
-        "acceptance_criteria": "Acceptance Criteria",
-        "story_points": "Story Points",
-        "business_value": "Business Value",
-        "priority": "Priority",
-        "work_item_type": "Work Item Type",
-    }
-
-    # Load default mappings from AdoFieldMapper
-    from specfact_cli.backlog.mappers.ado_mapper import AdoFieldMapper
-
-    default_mappings = AdoFieldMapper.DEFAULT_FIELD_MAPPINGS
-    # Reverse default mappings: canonical -> list of ADO fields
-    default_mappings_reversed: dict[str, list[str]] = {}
-    for ado_field, canonical in default_mappings.items():
-        if canonical not in default_mappings_reversed:
-            default_mappings_reversed[canonical] = []
-        default_mappings_reversed[canonical].append(ado_field)
-
-    # Handle --reset flag
+    # Handle --reset flag / existing custom mapping first (used for framework defaults too)
     current_dir = Path.cwd()
     custom_mapping_file = current_dir / ".specfact" / "templates" / "backlog" / "field_mappings" / "ado_custom.yaml"
 
@@ -4742,6 +5144,112 @@ def map_fields(
             console.print(f"[green]✓[/green] Loaded existing mapping from {custom_mapping_file}")
         except Exception as e:
             console.print(f"[yellow]⚠[/yellow] Failed to load existing mapping: {e}")
+
+    try:
+        import questionary  # type: ignore[reportMissingImports]
+    except ImportError:
+        console.print(
+            "[red]Interactive field mapping requires the 'questionary' package. Install with: pip install questionary[/red]"
+        )
+        raise typer.Exit(1) from None
+
+    allowed_frameworks = ["scrum", "agile", "safe", "kanban", "default"]
+
+    def _detect_ado_framework_from_work_item_types() -> str | None:
+        work_item_types_url = f"{base_url}/{ado_org}/{ado_project}/_apis/wit/workitemtypes?api-version=7.1"
+        try:
+            response = requests.get(work_item_types_url, headers=headers, timeout=30)
+            response.raise_for_status()
+            payload = response.json()
+            nodes = payload.get("value", [])
+            names = {
+                str(node.get("name") or "").strip().lower()
+                for node in nodes
+                if isinstance(node, dict) and str(node.get("name") or "").strip()
+            }
+            if not names:
+                return None
+            if "product backlog item" in names:
+                return "scrum"
+            if "capability" in names:
+                return "safe"
+            if "user story" in names:
+                return "agile"
+            if "issue" in names:
+                return "kanban"
+        except requests.exceptions.RequestException:
+            return None
+        return None
+
+    selected_framework = (ado_framework or "").strip().lower()
+    if selected_framework and selected_framework not in allowed_frameworks:
+        console.print(
+            f"[red]Error:[/red] Invalid --ado-framework '{ado_framework}'. "
+            f"Expected one of: {', '.join(allowed_frameworks)}"
+        )
+        raise typer.Exit(1)
+
+    detected_framework = _detect_ado_framework_from_work_item_types()
+    existing_framework = (
+        (existing_config.framework if existing_config else "").strip().lower() if existing_config else ""
+    )
+    framework_default = selected_framework or detected_framework or existing_framework or "default"
+
+    if not selected_framework:
+        framework_choices: list[Any] = []
+        for option in allowed_frameworks:
+            label = option
+            if option == detected_framework:
+                label = f"{option} (detected)"
+            elif option == existing_framework:
+                label = f"{option} (current)"
+            framework_choices.append(questionary.Choice(title=label, value=option))
+        try:
+            picked_framework = questionary.select(
+                "Select ADO process style/framework for mapping and refinement templates",
+                choices=framework_choices,
+                default=framework_default,
+                use_arrow_keys=True,
+                use_jk_keys=False,
+            ).ask()
+            selected_framework = str(picked_framework or framework_default).strip().lower()
+        except (KeyboardInterrupt, EOFError):
+            console.print("\n[yellow]Selection cancelled.[/yellow]")
+            raise typer.Exit(0) from None
+
+    if selected_framework not in allowed_frameworks:
+        selected_framework = "default"
+
+    console.print(f"[dim]Using ADO framework:[/dim] {selected_framework}")
+
+    framework_template = _load_ado_framework_template_config(selected_framework)
+    framework_field_mappings = framework_template.get("field_mappings", {})
+    framework_work_item_type_mappings = framework_template.get("work_item_type_mappings", {})
+
+    # Canonical fields to map
+    canonical_fields = {
+        "description": "Description",
+        "acceptance_criteria": "Acceptance Criteria",
+        "story_points": "Story Points",
+        "business_value": "Business Value",
+        "priority": "Priority",
+        "work_item_type": "Work Item Type",
+    }
+
+    # Load default mappings from AdoFieldMapper
+    from specfact_cli.backlog.mappers.ado_mapper import AdoFieldMapper
+
+    default_mappings = (
+        framework_field_mappings
+        if isinstance(framework_field_mappings, dict) and framework_field_mappings
+        else AdoFieldMapper.DEFAULT_FIELD_MAPPINGS
+    )
+    # Reverse default mappings: canonical -> list of ADO fields
+    default_mappings_reversed: dict[str, list[str]] = {}
+    for ado_field, canonical in default_mappings.items():
+        if canonical not in default_mappings_reversed:
+            default_mappings_reversed[canonical] = []
+        default_mappings_reversed[canonical].append(ado_field)
 
     # Build combined mapping: existing > default (checking which defaults exist in fetched fields)
     combined_mapping: dict[str, str] = {}
@@ -4776,14 +5284,6 @@ def map_fields(
     combined_mapping.update(existing_mapping)
 
     # Interactive mapping
-    try:
-        import questionary  # type: ignore[reportMissingImports]
-    except ImportError:
-        console.print(
-            "[red]Interactive field mapping requires the 'questionary' package. Install with: pip install questionary[/red]"
-        )
-        raise typer.Exit(1) from None
-
     console.print()
     console.print(Panel("[bold cyan]Interactive Field Mapping[/bold cyan]", border_style="cyan"))
     console.print("[dim]Use ↑↓ to navigate, ⏎ to select. Map ADO fields to canonical field names.[/dim]")
@@ -4880,11 +5380,15 @@ def map_fields(
 
     # Preserve existing work_item_type_mappings if they exist
     # This prevents erasing custom work item type mappings when updating field mappings
-    work_item_type_mappings = existing_work_item_type_mappings.copy() if existing_work_item_type_mappings else {}
+    work_item_type_mappings = (
+        dict(framework_work_item_type_mappings) if isinstance(framework_work_item_type_mappings, dict) else {}
+    )
+    if existing_work_item_type_mappings:
+        work_item_type_mappings.update(existing_work_item_type_mappings)
 
     # Create FieldMappingConfig
     config = FieldMappingConfig(
-        framework=existing_config.framework if existing_config else "default",
+        framework=selected_framework,
         field_mappings=final_mapping,
         work_item_type_mappings=work_item_type_mappings,
     )
@@ -4904,6 +5408,7 @@ def map_fields(
             "field_mapping_file": ".specfact/templates/backlog/field_mappings/ado_custom.yaml",
             "ado_org": ado_org,
             "ado_project": ado_project,
+            "framework": selected_framework,
         },
         project_id=f"{ado_org}/{ado_project}" if ado_org and ado_project else None,
         adapter="ado",

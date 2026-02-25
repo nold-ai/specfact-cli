@@ -10,6 +10,7 @@ from datetime import datetime
 
 import pytest
 from beartype import beartype
+from icontract.errors import ViolationError
 
 from specfact_cli.backlog.converter import convert_ado_work_item_to_backlog_item, convert_github_issue_to_backlog_item
 
@@ -156,7 +157,7 @@ Thanks!""",
             # Missing number and url
         }
 
-        with pytest.raises(ValueError, match="must have 'number' or 'id'"):
+        with pytest.raises((ValueError, ViolationError), match=r"number|id"):
             convert_github_issue_to_backlog_item(issue_data)
 
 
@@ -184,6 +185,24 @@ class TestADOWorkItemConverter:
         assert item.body_markdown == "Work item description"
         assert item.state == "new"
         assert item.canonical_url is None
+
+    @beartype
+    def test_convert_ado_work_item_converts_html_description_to_markdown(self) -> None:
+        """ADO HTML description should be normalized to markdown-like text."""
+        work_item_data = {
+            "id": 790,
+            "url": "https://dev.azure.com/org/project/_apis/wit/workitems/790",
+            "fields": {
+                "System.Title": "HTML Work Item",
+                "System.Description": "<h2>Summary</h2><p>This is <strong>important</strong>.</p>",
+                "System.State": "Active",
+            },
+        }
+
+        item = convert_ado_work_item_to_backlog_item(work_item_data)
+
+        assert "## Summary" in item.body_markdown
+        assert "**important**" in item.body_markdown
 
     @beartype
     def test_convert_ado_work_item_with_assignee(self) -> None:
@@ -364,7 +383,7 @@ Please prioritize.""",
             # Missing url and fields
         }
 
-        with pytest.raises(ValueError, match="must have 'url'"):
+        with pytest.raises((ValueError, ViolationError), match="url"):
             convert_ado_work_item_to_backlog_item(work_item_data)
 
     @beartype

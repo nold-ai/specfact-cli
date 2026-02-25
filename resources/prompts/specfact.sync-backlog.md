@@ -50,6 +50,32 @@ Sync OpenSpec change proposals to DevOps backlog tools (GitHub Issues, ADO, Line
 - `--tmp-file PATH` - Specify temporary file path (used with --export-to-tmp or --import-from-tmp)
   - Default: `/tmp/specfact-proposal-<change-id>.md` or `/tmp/specfact-proposal-<change-id>-sanitized.md`
 
+**Exact tmp structure contract (`sync bridge --import-from-tmp`)**:
+
+- Preserve proposal heading and section headers exactly:
+  - `# Change: <title>`
+  - `## Why`
+  - `## What Changes`
+- Keep a blank line after each section header (`## Why` and `## What Changes`) before content.
+- Do not rename, remove, or reorder these headers.
+- Keep sanitized content inside `## Why` and `## What Changes` sections only.
+- Do not add extra top-level sections before, between, or after these sections.
+- If headers are missing or renamed, parser extraction for rationale/description will be incomplete.
+
+Exact sanitized tmp example:
+
+```markdown
+# Change: Improve backlog refinement mapping
+
+## Why
+
+Short rationale text.
+
+## What Changes
+
+Sanitized proposal description text.
+```
+
 ### Code Change Tracking (Advanced)
 
 - `--track-code-changes/--no-track-code-changes` - Detect code changes (git commits, file modifications) and add progress comments to existing issues (default: False)

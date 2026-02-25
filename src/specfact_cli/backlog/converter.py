@@ -24,6 +24,14 @@ from specfact_cli.models.source_tracking import SourceTracking
 @beartype
 @require(lambda item_data: isinstance(item_data, dict), "Item data must be dict")
 @require(lambda provider: isinstance(provider, str) and len(provider) > 0, "Provider must be non-empty string")
+@require(
+    lambda item_data: bool(item_data.get("number") or item_data.get("id")),
+    "GitHub issue must include 'number' or 'id'",
+)
+@require(
+    lambda item_data: bool(item_data.get("html_url") or item_data.get("url")),
+    "GitHub issue must include 'html_url' or 'url'",
+)
 @ensure(lambda result: isinstance(result, BacklogItem), "Must return BacklogItem")
 def convert_github_issue_to_backlog_item(item_data: dict[str, Any], provider: str = "github") -> BacklogItem:
     """
@@ -156,6 +164,11 @@ def convert_github_issue_to_backlog_item(item_data: dict[str, Any], provider: st
 @beartype
 @require(lambda item_data: isinstance(item_data, dict), "Item data must be dict")
 @require(lambda provider: isinstance(provider, str) and len(provider) > 0, "Provider must be non-empty string")
+@require(lambda item_data: bool(item_data.get("id")), "ADO work item must include 'id'")
+@require(
+    lambda item_data: bool(item_data.get("url") or item_data.get("_links", {}).get("html", {}).get("href", "")),
+    "ADO work item must include 'url' or '_links.html.href'",
+)
 @ensure(lambda result: isinstance(result, BacklogItem), "Must return BacklogItem")
 def convert_ado_work_item_to_backlog_item(
     item_data: dict[str, Any],
@@ -207,7 +220,6 @@ def convert_ado_work_item_to_backlog_item(
         msg = "ADO work item must have 'System.Title' field"
         raise ValueError(msg)
 
-    body_markdown = fields.get("System.Description", "") or ""
     state = fields.get("System.State", "New").lower()
 
     # Extract fields using AdoFieldMapper (with optional custom mapping)
@@ -218,6 +230,12 @@ def convert_ado_work_item_to_backlog_item(
         custom_mapping_file = os.environ.get("SPECFACT_ADO_CUSTOM_MAPPING")
     ado_mapper = AdoFieldMapper(custom_mapping_file=custom_mapping_file)
     extracted_fields = ado_mapper.extract_fields(item_data)
+    extracted_description = extracted_fields.get("description")
+    body_markdown = (
+        extracted_description
+        if isinstance(extracted_description, str) and extracted_description
+        else (fields.get("System.Description", "") or "")
+    )
     acceptance_criteria = extracted_fields.get("acceptance_criteria")
     story_points = extracted_fields.get("story_points")
     business_value = extracted_fields.get("business_value")
@@ -359,7 +377,7 @@ def _parse_github_timestamp(timestamp: str | None) -> datetime:
         if dt.tzinfo is None:
             dt = dt.replace(tzinfo=UTC)
         return dt
-    except (ValueError, AttributeError):
+    except (TypeError, ValueError, AttributeError):
         return datetime.now(UTC)
 
 
@@ -385,5 +403,5 @@ def _parse_ado_timestamp(timestamp: str | None) -> datetime:
         if dt.tzinfo is None:
             dt = dt.replace(tzinfo=UTC)
         return dt
-    except (ValueError, AttributeError):
+    except (TypeError, ValueError, AttributeError):
         return datetime.now(UTC)

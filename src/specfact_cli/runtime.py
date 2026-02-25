@@ -11,6 +11,7 @@ import inspect
 import json
 import logging
 import os
+import sys
 from enum import StrEnum
 from logging.handlers import RotatingFileHandler
 from typing import Any
@@ -194,6 +195,42 @@ def get_configured_console() -> Console:
         _console_cache[mode] = Console(**config)
 
     return _console_cache[mode]
+
+
+@beartype
+def refresh_loaded_module_consoles() -> int:
+    """
+    Rebind loaded module-level `console` variables to the current configured Console.
+
+    This prevents stale Rich Console instances from referencing closed CliRunner capture
+    streams across sequential command invocations in tests.
+
+    Returns:
+        Number of module console attributes refreshed.
+    """
+    from rich.console import Console as RichConsole
+
+    refreshed = 0
+    fresh_console = get_configured_console()
+    for module in list(sys.modules.values()):
+        if module is None:
+            continue
+        module_name = getattr(module, "__name__", "")
+        if not isinstance(module_name, str) or not module_name.startswith("specfact_cli."):
+            continue
+        if not hasattr(module, "console"):
+            continue
+        try:
+            current_console = module.console
+        except Exception:
+            continue
+        if isinstance(current_console, RichConsole):
+            try:
+                module.console = fresh_console
+                refreshed += 1
+            except Exception:
+                continue
+    return refreshed
 
 
 def _get_debug_caller() -> str:

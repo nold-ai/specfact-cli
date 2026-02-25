@@ -1,5 +1,5 @@
 name: backlog
-version: 0.1.2
+version: 0.1.4
 commands:
   - backlog
 command_help:
@@ -28,5 +28,5 @@ publisher:
 description: Manage backlog ceremonies, refinement, and dependency insights.
 license: Apache-2.0
 integrity:
-  checksum: sha256:ef3febe90c62fa24b3da6b6b2f8a7b605c5b544db01aac10e5cfacc807bcca26
-  signature: 2b/UNbFlgRQiwJ+LrEQKyoYUi8lxeLGc4hrcTUdCinU9yXa1h6GvYpRkAkzRW8kxNNNsetphuf7hLZ3II3bNDQ==
+  checksum: sha256:8412dca4ad9c4ae2d2a80280a149b839976c5adc8b7138e94a0e397839baf6bd
+  signature: xylvv23Fyj+BKSBTwzqAGR/tp5wxGNQ3KLh/pzpR7bpQHpExzygAP75n7psvWwbsyHgOG/lHL6I+UzYCwg7+Dw==

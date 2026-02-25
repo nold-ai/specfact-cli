@@ -9,6 +9,7 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 import pytest
+import requests
 from beartype import beartype
 
 from specfact_cli.adapters.github import GitHubAdapter
@@ -96,6 +97,81 @@ class TestGitHubBacklogAdapter:
 
     @beartype
     @patch("specfact_cli.adapters.github.requests.get")
+    def test_fetch_backlog_items_does_not_plaintext_refilter_provider_search(self, mock_get: MagicMock) -> None:
+        """Provider search syntax should not be dropped by local title/body substring filtering."""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "items": [
+                {
+                    "number": 7,
+                    "html_url": "https://github.com/test/repo/issues/7",
+                    "title": "Fix OAuth callback",
+                    "body": "Investigate callback race condition",
+                    "state": "open",
+                    "assignees": [],
+                    "labels": [{"name": "bug"}],
+                }
+            ]
+        }
+        mock_response.raise_for_status = MagicMock()
+        mock_get.return_value = mock_response
+
+        adapter = GitHubAdapter(repo_owner="test", repo_name="repo", api_token="token")
+        items = adapter.fetch_backlog_items(BacklogFilters(search="label:bug"))
+
+        assert len(items) == 1
+        assert items[0].id == "7"
+
+    @beartype
+    @patch("specfact_cli.adapters.github.requests.get")
+    def test_fetch_backlog_items_issue_id_uses_direct_lookup(self, mock_get: MagicMock) -> None:
+        """Issue-id fetch should call the direct issue endpoint, not search."""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "number": 42,
+            "html_url": "https://github.com/test/repo/issues/42",
+            "title": "Direct issue",
+            "body": "Issue body",
+            "state": "open",
+            "assignees": [{"login": "alice"}],
+            "labels": [{"name": "feature"}],
+        }
+        mock_response.raise_for_status = MagicMock()
+        mock_get.return_value = mock_response
+
+        adapter = GitHubAdapter(repo_owner="test", repo_name="repo", api_token="token")
+        items = adapter.fetch_backlog_items(BacklogFilters(issue_id="42"))
+
+        assert len(items) == 1
+        assert items[0].id == "42"
+        request_url = mock_get.call_args[0][0]
+        assert request_url.endswith("/repos/test/repo/issues/42")
+        assert "/search/issues" not in request_url
+
+    @beartype
+    @patch("specfact_cli.adapters.github.requests.get")
+    def test_fetch_backlog_items_issue_id_respects_explicit_state_filter(self, mock_get: MagicMock) -> None:
+        """Direct issue lookup should still honor explicit post-filters."""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "number": 42,
+            "html_url": "https://github.com/test/repo/issues/42",
+            "title": "Direct issue",
+            "body": "Issue body",
+            "state": "open",
+            "assignees": [{"login": "alice"}],
+            "labels": [{"name": "feature"}],
+        }
+        mock_response.raise_for_status = MagicMock()
+        mock_get.return_value = mock_response
+
+        adapter = GitHubAdapter(repo_owner="test", repo_name="repo", api_token="token")
+        items = adapter.fetch_backlog_items(BacklogFilters(issue_id="42", state="closed"))
+
+        assert items == []
+
+    @beartype
+    @patch("specfact_cli.adapters.github.requests.get")
     def test_fetch_backlog_items_with_me_assignee_uses_at_me_query(self, mock_get: MagicMock) -> None:
         """`me` assignee maps to GitHub provider-relative `@me` search qualifier."""
         mock_response = MagicMock()
@@ -122,6 +198,36 @@ class TestGitHubBacklogAdapter:
         call_args = mock_get.call_args
         assert "assignee:@me" in call_args[1]["params"]["q"]
         assert len(items) == 1
+
+    @beartype
+    @patch("specfact_cli.adapters.github.requests.get")
+    def test_fetch_backlog_items_retries_transient_transport_errors(self, mock_get: MagicMock) -> None:
+        """Search fetch should retry transient transport failures before succeeding."""
+        success_response = MagicMock()
+        success_response.json.return_value = {
+            "items": [
+                {
+                    "number": 1,
+                    "html_url": "https://github.com/test/repo/issues/1",
+                    "title": "Recovered issue",
+                    "body": "Issue body",
+                    "state": "open",
+                    "assignees": [],
+                    "labels": [],
+                }
+            ]
+        }
+        success_response.raise_for_status = MagicMock()
+        empty_response = MagicMock()
+        empty_response.json.return_value = {"items": []}
+        empty_response.raise_for_status = MagicMock()
+        mock_get.side_effect = [requests.ConnectionError("temporary outage"), success_response, empty_response]
+
+        adapter = GitHubAdapter(repo_owner="test", repo_name="repo", api_token="token")
+        items = adapter.fetch_backlog_items(BacklogFilters(state="open"))
+
+        assert len(items) == 1
+        assert mock_get.call_count >= 2
 
     @beartype
     @patch("specfact_cli.adapters.github.requests.patch")
@@ -225,3 +331,51 @@ class TestGitHubBacklogAdapter:
 
         with pytest.raises(ValueError, match="repo_owner and repo_name required"):
             adapter.fetch_backlog_items(filters)
+
+    @beartype
+    def test_resolve_github_type_mapping_story_falls_back_to_feature(self) -> None:
+        """GitHub type mapping should fall back story -> feature when story is absent."""
+        mapping = {"feature": "IT_FEATURE_ID"}
+        resolved = GitHubAdapter._resolve_github_type_mapping_id(mapping, "story")
+        assert resolved == "IT_FEATURE_ID"
+
+    @beartype
+    @patch.object(GitHubAdapter, "_github_graphql")
+    def test_try_set_github_issue_type_uses_story_feature_fallback(self, mock_graphql: MagicMock) -> None:
+        """Issue type assignment should use feature id when story id is unavailable."""
+        adapter = GitHubAdapter(repo_owner="test", repo_name="repo", api_token="token")
+        adapter._try_set_github_issue_type(
+            "ISSUE_NODE_ID",
+            "story",
+            {"github_issue_types": {"type_ids": {"feature": "IT_FEATURE_ID"}}},
+        )
+
+        assert mock_graphql.called is True
+        variables = mock_graphql.call_args[0][1]
+        assert variables["issueTypeId"] == "IT_FEATURE_ID"
+
+    @beartype
+    @patch.object(GitHubAdapter, "_github_graphql")
+    def test_try_set_github_project_type_field_uses_story_feature_fallback(self, mock_graphql: MagicMock) -> None:
+        """ProjectV2 type assignment should use feature option when story option is unavailable."""
+        adapter = GitHubAdapter(repo_owner="test", repo_name="repo", api_token="token")
+        mock_graphql.side_effect = [
+            {"addProjectV2ItemById": {"item": {"id": "ITEM_NODE_ID"}}},
+            {"updateProjectV2ItemFieldValue": {"projectV2Item": {"id": "ITEM_NODE_ID"}}},
+        ]
+
+        adapter._try_set_github_project_type_field(
+            "ISSUE_NODE_ID",
+            "story",
+            {
+                "github_project_v2": {
+                    "project_id": "PVT_ID",
+                    "type_field_id": "FIELD_ID",
+                    "type_option_ids": {"feature": "OPT_FEATURE_ID"},
+                }
+            },
+        )
+
+        assert mock_graphql.call_count == 2
+        variables = mock_graphql.call_args_list[1][0][1]
+        assert variables["optionId"] == "OPT_FEATURE_ID"

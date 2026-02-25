@@ -370,8 +370,14 @@ def _has_github_repo_issue_type_mapping(provider_fields: dict[str, Any] | None, 
     type_ids = issue_cfg.get("type_ids")
     if not isinstance(type_ids, dict):
         return False
-    mapped = str(type_ids.get(issue_type) or type_ids.get(issue_type.lower()) or "").strip()
-    return bool(mapped)
+    normalized = issue_type.strip().lower()
+    mapped = str(type_ids.get(issue_type) or type_ids.get(normalized) or "").strip()
+    if mapped:
+        return True
+    if normalized == "story":
+        fallback = str(type_ids.get("feature") or type_ids.get("Feature") or "").strip()
+        return bool(fallback)
+    return False
 
 
 @beartype

@@ -40,6 +40,29 @@ Recommended command entrypoints:
 
 ## 🚀 Quick Start
 
+### Backlog Bridge in 60 Seconds
+
+SpecFact closes the drift gap between **backlog -> specs -> code**.
+
+```bash
+# 1) Initialize backlog config + field mapping
+specfact backlog init-config --force
+specfact backlog map-fields --provider ado --ado-org <org> --ado-project "<project>"
+
+# 2) Read and refine real backlog scope
+specfact backlog daily ado --ado-org <org> --ado-project "<project>" --state any --assignee any --limit 5
+specfact backlog refine ado --ado-org <org> --ado-project "<project>" --id <work-item-id> --preview
+
+# 3) Validate drift before implementation
+specfact policy validate --group-by-item
+```
+
+GitHub variant:
+`specfact backlog daily github --repo-owner <owner> --repo-name <repo> --state any --assignee any --limit 5`
+
+Deep dive:
+- **[Backlog Quickstart Demo (GitHub + ADO)](getting-started/tutorial-backlog-quickstart-demo.md)**
+
 ### New to SpecFact CLI?
 
 **Primary Use Case**: Understanding and improving existing codebases (and new projects)
@@ -235,6 +258,6 @@ See [CONTRIBUTING.md](https://github.com/nold-ai/specfact-cli/blob/main/CONTRIBU
 
 Copyright © 2025 Nold AI (Owner: Dominikus Nold)
 
-**Trademarks**: All product names, logos, and brands mentioned in this documentation are the property of their respective owners. NOLD AI (NOLDAI) is a registered trademark (wordmark) at the European Union Intellectual Property Office (EUIPO). See [TRADEMARKS.md](../TRADEMARKS.md) for more information.
+**Trademarks**: All product names, logos, and brands mentioned in this documentation are the property of their respective owners. NOLD AI (NOLDAI) is a registered trademark (wordmark) at the European Union Intellectual Property Office (EUIPO). See [TRADEMARKS.md](https://github.com/nold-ai/specfact-cli/blob/main/TRADEMARKS.md) for more information.
 
-**License**: See [LICENSE](../LICENSE) for licensing information.
+**License**: See [LICENSE](https://github.com/nold-ai/specfact-cli/blob/main/LICENSE) for licensing information.

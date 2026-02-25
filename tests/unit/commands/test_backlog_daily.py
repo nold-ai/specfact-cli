@@ -310,6 +310,22 @@ class TestDefaultStandupScope:
         assert limit == 10
         assert assignee is None
 
+    def test_resolve_standup_options_any_disables_default_filters(self) -> None:
+        """Explicit any/all/* should disable default state/assignee filters."""
+        from specfact_cli.modules.backlog.src.commands import _resolve_standup_options
+
+        state, limit, assignee = _resolve_standup_options(
+            None,
+            None,
+            None,
+            None,
+            state_filter_disabled=True,
+            assignee_filter_disabled=True,
+        )
+        assert state is None
+        assert limit == 20
+        assert assignee is None
+
     def test_apply_filters_with_state_open_excludes_closed(self) -> None:
         """Default state 'open' excludes closed items."""
         items = [

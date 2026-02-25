@@ -111,6 +111,31 @@ class TestBacklogAIRefiner:
         assert "do not emit placeholders" in prompt.lower()
 
     @beartype
+    def test_generate_refinement_prompt_for_ado_excludes_story_points_from_required_sections(
+        self, refiner: BacklogAIRefiner
+    ) -> None:
+        """ADO prompt should not require Story Points as body section."""
+        template = BacklogTemplate(
+            template_id="scrum_user_story_v1",
+            name="Scrum User Story",
+            description="",
+            required_sections=["As a", "I want", "So that", "Acceptance Criteria", "Story Points"],
+            optional_sections=["Area Path", "Iteration Path", "Notes"],
+        )
+        item = BacklogItem(
+            id="100",
+            provider="ado",
+            url="https://dev.azure.com/org/project/_workitems/edit/100",
+            title="Story",
+            body_markdown="Body",
+            state="Active",
+        )
+        prompt = refiner.generate_refinement_prompt(item, template)
+        required_section_block = prompt.split("Required Sections:")[1].split("Optional Sections:")[0]
+        assert "- Story Points" not in required_section_block
+        assert "- As a" in required_section_block
+
+    @beartype
     def test_validate_and_score_complete_refinement(
         self, refiner: BacklogAIRefiner, arbitrary_backlog_item: BacklogItem, user_story_template: BacklogTemplate
     ) -> None:

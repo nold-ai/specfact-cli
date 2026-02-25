@@ -100,6 +100,7 @@ These are derived extensions of the same 2026-02-15 plan and are required to ope
 | backlog-core | 02 | backlog-core-02-interactive-issue-creation (implemented 2026-02-22; archived) | [#173](https://github.com/nold-ai/specfact-cli/issues/173) | #116 (optional: #176, #177) |
 | backlog-core | 04 | backlog-core-04-installed-runtime-discovery-and-add-prompt (implemented 2026-02-23; archived) | [#295](https://github.com/nold-ai/specfact-cli/issues/295) | #173 |
 | backlog-core | 05 | backlog-core-05-user-modules-bootstrap (implemented 2026-02-23; pending archive) | [#298](https://github.com/nold-ai/specfact-cli/issues/298) | #173 |
+| backlog-core | 06 | backlog-core-06-refine-custom-field-writeback | [#310](https://github.com/nold-ai/specfact-cli/issues/310) | #173 |
 
 ### backlog-scrum
 

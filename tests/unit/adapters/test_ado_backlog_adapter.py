@@ -9,11 +9,13 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 import pytest
+import requests
 from beartype import beartype
 
 from specfact_cli.adapters.ado import AdoAdapter
 from specfact_cli.backlog.adapters.base import BacklogAdapter
 from specfact_cli.backlog.filters import BacklogFilters
+from specfact_cli.backlog.mappers.ado_mapper import AdoFieldMapper
 from specfact_cli.models.backlog_item import BacklogItem
 
 
@@ -83,6 +85,113 @@ class TestAdoBacklogAdapter:
         assert len(items) >= 0  # May be filtered further
 
     @beartype
+    @patch("specfact_cli.adapters.backlog_base.time.sleep", return_value=None)
+    @patch("specfact_cli.adapters.ado.requests.post")
+    @patch("specfact_cli.adapters.ado.requests.get")
+    def test_fetch_backlog_items_retries_transient_transport_errors(
+        self,
+        mock_get: MagicMock,
+        mock_post: MagicMock,
+        _mock_sleep: MagicMock,
+    ) -> None:
+        """fetch_backlog_items should retry transient WIQL/workitem transport failures."""
+        mock_wiql_response = MagicMock()
+        mock_wiql_response.status_code = 200
+        mock_wiql_response.raise_for_status = MagicMock()
+        mock_wiql_response.json.return_value = {"workItems": [{"id": 1}]}
+
+        mock_get_response = MagicMock()
+        mock_get_response.status_code = 200
+        mock_get_response.raise_for_status = MagicMock()
+        mock_get_response.json.return_value = {
+            "value": [
+                {
+                    "id": 1,
+                    "url": "https://dev.azure.com/test/project/_apis/wit/workitems/1",
+                    "fields": {
+                        "System.Title": "Retry Item",
+                        "System.Description": "Description 1",
+                        "System.State": "New",
+                    },
+                }
+            ]
+        }
+
+        mock_post.side_effect = [requests.ConnectionError("connection reset"), mock_wiql_response]
+        mock_get.side_effect = [requests.ConnectionError("remote closed"), mock_get_response]
+
+        adapter = AdoAdapter(org="test", project="project", api_token="token")
+        items = adapter.fetch_backlog_items(BacklogFilters(use_current_iteration_default=False))
+
+        assert len(items) == 1
+        assert mock_post.call_count == 2
+        assert mock_get.call_count == 2
+
+    @beartype
+    @patch("specfact_cli.adapters.ado.requests.post")
+    @patch("specfact_cli.adapters.ado.requests.get")
+    def test_fetch_backlog_items_issue_id_uses_direct_lookup(
+        self,
+        mock_get: MagicMock,
+        mock_post: MagicMock,
+    ) -> None:
+        """When issue_id is set, adapter should fetch directly by ID and bypass WIQL query path."""
+        mock_get_response = MagicMock()
+        mock_get_response.status_code = 200
+        mock_get_response.raise_for_status = MagicMock()
+        mock_get_response.json.return_value = {
+            "id": 185,
+            "url": "https://dev.azure.com/test/project/_apis/wit/workitems/185",
+            "fields": {
+                "System.Title": "Fix the error",
+                "System.State": "New",
+                "System.Description": "Description",
+            },
+        }
+        mock_get.return_value = mock_get_response
+        mock_post.side_effect = AssertionError("WIQL should not be called for direct issue_id lookup")
+
+        adapter = AdoAdapter(org="test", project="project", api_token="token")
+        adapter._get_current_iteration = MagicMock(side_effect=AssertionError("current iteration lookup not expected"))  # type: ignore[method-assign]
+        items = adapter.fetch_backlog_items(BacklogFilters(issue_id="185"))
+
+        assert len(items) == 1
+        assert items[0].id == "185"
+        assert mock_get.call_count == 1
+        assert mock_post.call_count == 0
+        first_url = mock_get.call_args.kwargs.get("url", mock_get.call_args.args[0] if mock_get.call_args.args else "")
+        assert "_apis/wit/workitems/185" in first_url
+
+    @beartype
+    @patch("specfact_cli.adapters.ado.requests.post")
+    @patch("specfact_cli.adapters.ado.requests.get")
+    def test_fetch_backlog_items_issue_id_respects_state_filter(
+        self,
+        mock_get: MagicMock,
+        mock_post: MagicMock,
+    ) -> None:
+        """Direct ID lookup still applies explicit post-fetch state filters."""
+        mock_get_response = MagicMock()
+        mock_get_response.status_code = 200
+        mock_get_response.raise_for_status = MagicMock()
+        mock_get_response.json.return_value = {
+            "id": 185,
+            "url": "https://dev.azure.com/test/project/_apis/wit/workitems/185",
+            "fields": {
+                "System.Title": "Fix the error",
+                "System.State": "New",
+                "System.Description": "Description",
+            },
+        }
+        mock_get.return_value = mock_get_response
+        mock_post.side_effect = AssertionError("WIQL should not be called for direct issue_id lookup")
+
+        adapter = AdoAdapter(org="test", project="project", api_token="token")
+        items = adapter.fetch_backlog_items(BacklogFilters(issue_id="185", state="Active"))
+
+        assert items == []
+
+    @beartype
     @patch("specfact_cli.adapters.ado.requests.patch")
     def test_update_backlog_item(self, mock_patch: MagicMock) -> None:
         """Test updating a backlog item."""
@@ -112,13 +221,10 @@ class TestAdoBacklogAdapter:
 
     @beartype
     @patch("specfact_cli.adapters.ado.requests.patch")
-    def test_update_backlog_item_multiple_field_mappings_prefers_system_fields(self, mock_patch: MagicMock) -> None:
-        """Test that update_backlog_item uses System.* fields when multiple mappings exist.
-
-        This test verifies the fix for the bug where reverse_mappings would use
-        Microsoft.VSTS.Common.* fields (last entry) but ado_fields would use System.*
-        fields (preferred), causing the membership check to fail and skipping updates.
-        """
+    def test_update_backlog_item_multiple_field_mappings_uses_resolved_write_target(
+        self, mock_patch: MagicMock
+    ) -> None:
+        """Test update_backlog_item uses mapper-resolved write targets for ambiguous canonical fields."""
         # Mock ADO API response
         mock_response = MagicMock()
         mock_response.json.return_value = {
@@ -134,22 +240,23 @@ class TestAdoBacklogAdapter:
         mock_response.raise_for_status = MagicMock()
         mock_patch.return_value = mock_response
 
-        adapter = AdoAdapter(org="test", project="project", api_token="token")
-        item = BacklogItem(
-            id="1",
-            provider="ado",
-            url="",
-            title="Test Item",
-            body_markdown="Description",
-            state="Active",
-            acceptance_criteria="Acceptance criteria",
-            story_points=5,
-        )
+        with patch.dict("os.environ", {}, clear=True):
+            adapter = AdoAdapter(org="test", project="project", api_token="token")
+            item = BacklogItem(
+                id="1",
+                provider="ado",
+                url="",
+                title="Test Item",
+                body_markdown="Description",
+                state="Active",
+                acceptance_criteria="Acceptance criteria",
+                story_points=5,
+            )
 
-        # Update with fields that have multiple mappings
-        result = adapter.update_backlog_item(
-            item, update_fields=["acceptance_criteria", "story_points", "body_markdown"]
-        )
+            # Update with fields that have multiple mappings
+            result = adapter.update_backlog_item(
+                item, update_fields=["acceptance_criteria", "story_points", "body_markdown"]
+            )
 
         # Verify the update was successful
         assert result.id == "1"
@@ -162,14 +269,12 @@ class TestAdoBacklogAdapter:
         call_args = mock_patch.call_args
         operations = call_args[1]["json"]  # JSON body contains operations
 
-        # Verify that System.* fields are used (not Microsoft.VSTS.Common.*)
-        # This ensures consistency with map_from_canonical preference logic
-        # Check that System.AcceptanceCriteria is used (not Microsoft.VSTS.Common.AcceptanceCriteria)
-        # The default mappings have both, but System.* should be preferred
+        # Verify that mapper-resolved acceptance criteria field is used.
         acceptance_criteria_ops = [op for op in operations if "AcceptanceCriteria" in op.get("path", "")]
         if acceptance_criteria_ops:
-            # Should use System.AcceptanceCriteria (preferred) not Microsoft.VSTS.Common.AcceptanceCriteria
-            assert any("System.AcceptanceCriteria" in op["path"] for op in acceptance_criteria_ops)
+            expected_acceptance_field = AdoFieldMapper().resolve_write_target_field("acceptance_criteria")
+            assert expected_acceptance_field is not None
+            assert any(expected_acceptance_field in op["path"] for op in acceptance_criteria_ops)
 
         # Check that story points field is used (could be either Microsoft.VSTS.Common.StoryPoints
         # or Microsoft.VSTS.Scheduling.StoryPoints, but should be consistent with map_from_canonical)
@@ -177,6 +282,115 @@ class TestAdoBacklogAdapter:
         if story_points_ops:
             # Verify story points update was included
             assert len(story_points_ops) > 0
+
+    @beartype
+    @patch("specfact_cli.adapters.ado.requests.patch")
+    def test_update_backlog_item_uses_custom_story_points_field_mapping(self, mock_patch: MagicMock, tmp_path) -> None:
+        """ADO writeback should use the configured custom story points target field."""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "id": 1,
+            "url": "https://dev.azure.com/test/project/_apis/wit/workitems/1",
+            "fields": {
+                "System.Title": "Test Item",
+                "System.Description": "Description",
+                "Microsoft.VSTS.Scheduling.StoryPoints": 8,
+            },
+        }
+        mock_response.raise_for_status = MagicMock()
+        mock_patch.return_value = mock_response
+
+        custom_mapping_file = tmp_path / "ado_custom.yaml"
+        custom_mapping_file.write_text(
+            """
+field_mappings:
+  Microsoft.VSTS.Scheduling.StoryPoints: story_points
+""".strip(),
+            encoding="utf-8",
+        )
+
+        adapter = AdoAdapter(org="test", project="project", api_token="token")
+        item = BacklogItem(
+            id="1",
+            provider="ado",
+            url="",
+            title="Test Item",
+            body_markdown="Description",
+            state="Active",
+            story_points=8,
+            provider_fields={"fields": {"Microsoft.VSTS.Scheduling.StoryPoints": 3}},
+        )
+
+        with patch.dict(
+            "os.environ",
+            {"SPECFACT_ADO_CUSTOM_MAPPING": str(custom_mapping_file)},
+            clear=False,
+        ):
+            adapter.update_backlog_item(item, update_fields=["story_points", "body_markdown"])
+
+        operations = mock_patch.call_args[1]["json"]
+        story_points_ops = [
+            op for op in operations if op.get("path") == "/fields/Microsoft.VSTS.Scheduling.StoryPoints"
+        ]
+        assert len(story_points_ops) == 1
+
+    @beartype
+    @patch("specfact_cli.adapters.ado.requests.patch")
+    def test_create_issue_uses_custom_mapped_fields_and_markdown_multiline_format(
+        self, mock_patch: MagicMock, tmp_path
+    ) -> None:
+        """ADO create_issue should honor custom field mapping and markdown format metadata."""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "id": 77,
+            "url": "https://dev.azure.com/test/project/_apis/wit/workitems/77",
+            "_links": {"html": {"href": "https://dev.azure.com/test/project/_workitems/edit/77"}},
+        }
+        mock_response.raise_for_status = MagicMock()
+        mock_patch.return_value = mock_response
+
+        custom_mapping_file = tmp_path / "ado_custom.yaml"
+        custom_mapping_file.write_text(
+            """
+field_mappings:
+  Custom.Description: description
+  Custom.AcceptanceNotes: acceptance_criteria
+  Custom.EstimatePoints: story_points
+  Custom.BacklogPriority: priority
+""".strip(),
+            encoding="utf-8",
+        )
+
+        adapter = AdoAdapter(org="test", project="project", api_token="token")
+        payload = {
+            "title": "Story with custom mapping",
+            "description": "## Description\\n\\nMarkdown body",
+            "description_format": "markdown",
+            "acceptance_criteria": "- [ ] done",
+            "story_points": 8,
+            "priority": 2,
+        }
+
+        with patch.dict(
+            "os.environ",
+            {"SPECFACT_ADO_CUSTOM_MAPPING": str(custom_mapping_file)},
+            clear=False,
+        ):
+            created = adapter.create_issue("test/project", payload)
+
+        assert created["id"] == "77"
+
+        operations = mock_patch.call_args.kwargs["json"]
+        assert {
+            "op": "add",
+            "path": "/fields/Custom.Description",
+            "value": "## Description\\n\\nMarkdown body",
+        } in operations
+        assert {"op": "add", "path": "/multilineFieldsFormat/Custom.Description", "value": "Markdown"} in operations
+        assert {"op": "add", "path": "/fields/Custom.AcceptanceNotes", "value": "- [ ] done"} in operations
+        assert {"op": "add", "path": "/multilineFieldsFormat/Custom.AcceptanceNotes", "value": "Markdown"} in operations
+        assert {"op": "add", "path": "/fields/Custom.EstimatePoints", "value": 8} in operations
+        assert {"op": "add", "path": "/fields/Custom.BacklogPriority", "value": 2} in operations
 
     @beartype
     @patch("specfact_cli.adapters.ado.requests.patch")
@@ -218,7 +432,41 @@ class TestAdoBacklogAdapter:
         assert description_op is not None
         assert description_op["value"] == "Clean description"
         assert acceptance_op is not None
-        assert acceptance_op["value"] == "- criterion"
+        assert any(op.get("value") == "- criterion" for op in operations if "AcceptanceCriteria" in op.get("path", ""))
+
+    @beartype
+    @patch("specfact_cli.adapters.ado.requests.patch")
+    def test_update_backlog_item_strips_leading_description_heading_for_ado(self, mock_patch: MagicMock) -> None:
+        """ADO description writeback strips a leading '## Description' scaffold heading."""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "id": 1,
+            "url": "https://dev.azure.com/test/project/_apis/wit/workitems/1",
+            "fields": {
+                "System.Title": "Story",
+                "System.Description": "Clean description",
+                "System.State": "Active",
+            },
+        }
+        mock_response.raise_for_status = MagicMock()
+        mock_patch.return_value = mock_response
+
+        adapter = AdoAdapter(org="test", project="project", api_token="token")
+        item = BacklogItem(
+            id="1",
+            provider="ado",
+            url="",
+            title="Story",
+            body_markdown="## Description\n\nClean description",
+            state="Active",
+        )
+
+        adapter.update_backlog_item(item, update_fields=["body_markdown"])
+
+        operations = mock_patch.call_args[1]["json"]
+        description_op = next((op for op in operations if op.get("path") == "/fields/System.Description"), None)
+        assert description_op is not None
+        assert description_op["value"] == "Clean description"
 
     @beartype
     def test_validate_round_trip(self) -> None:
@@ -415,6 +663,26 @@ class TestAdoBacklogAdapter:
         adapter.api_token = None
         headers = adapter._auth_headers()
         assert headers == {}
+
+    @beartype
+    @patch("specfact_cli.adapters.backlog_base.time.sleep", return_value=None)
+    @patch("specfact_cli.adapters.ado.requests.get")
+    def test_get_current_iteration_retries_transient_transport_error(
+        self, mock_get: MagicMock, _mock_sleep: MagicMock
+    ) -> None:
+        """Current iteration lookup retries on transient connection errors."""
+        retry_response = MagicMock()
+        retry_response.status_code = 200
+        retry_response.raise_for_status = MagicMock()
+        retry_response.json.return_value = {"value": [{"path": "Project\\Sprint 1"}]}
+
+        mock_get.side_effect = [requests.ConnectionError("connection reset"), retry_response]
+
+        adapter = AdoAdapter(org="test", project="project", team="Team A", api_token="token")
+        resolved = adapter._get_current_iteration()
+
+        assert resolved == "Project\\Sprint 1"
+        assert mock_get.call_count == 2
 
     @beartype
     @patch("specfact_cli.adapters.ado.requests.get")

@@ -39,7 +39,6 @@ class EnforcementConfig(BaseModel):
     enabled: bool = Field(default=True, description="Whether enforcement is enabled")
 
     @classmethod
-    @beartype
     @require(lambda preset: preset in EnforcementPreset, "Preset must be valid EnforcementPreset")
     @ensure(lambda result: isinstance(result, EnforcementConfig), "Must return EnforcementConfig")
     @ensure(lambda result: result.enabled is True, "Config must be enabled")
