@@ -349,3 +349,28 @@ Key workflows in `.github/workflows/`:
 - `specfact.yml` — contract validation on PR/push (`hatch run specfact repro --verbose`)
 - `pr-orchestrator.yml` — coordinates PR workflows
 - `build-and-push.yml` — Docker image building (depends on all above passing)
+
+## Cursor Cloud specific instructions
+
+### Environment overview
+
+SpecFact CLI is a self-contained Python CLI with **no required external services** (no databases, no Docker, no Redis). The VM update script installs system dependencies (`graphviz`, `python3.12-venv`), Hatch, and creates the default Hatch environment. After the update script runs, all `hatch run ...` commands are ready to use.
+
+### Gotchas discovered during setup
+
+- **virtualenv 21.x breaks Hatch**: `virtualenv>=21` removed `propose_interpreters`, causing `hatch env create` to fail. The update script pins `virtualenv>=20.26,<21`.
+- **PATH for Hatch**: `hatch` installs to `~/.local/bin`. Run `export PATH="$HOME/.local/bin:$PATH"` if the update script hasn't sourced `.bashrc` yet (the update script handles this, but interactive shells may need it).
+- **`python3.12-venv` required**: Without it, sidecar tests (e2e and integration Flask tests) fail because specfact creates virtualenvs internally.
+- **Semgrep timeout**: `hatch run specfact repro` may show semgrep as timed out; this is normal in constrained environments and does not indicate a broken setup.
+- **One pre-existing test failure**: `tests/unit/integrations/test_specmatic.py::TestCreateMockServer::test_create_mock_server` has a `RecursionError` from mocking `__import__` — this is a test-code bug, not an environment issue.
+
+### Quick-reference commands
+
+All commands documented in the Essential Commands section above work as-is. Key ones for a cloud agent session:
+
+- `hatch run format` — format and auto-fix
+- `hatch run type-check` — basedpyright strict
+- `hatch test --cover -v` — full test suite
+- `hatch run specfact --help` — CLI entry point
+- `hatch run specfact repro --verbose --repo .` — self-validation suite
+- `hatch run contract-test` — contract-first validation (primary gate)
