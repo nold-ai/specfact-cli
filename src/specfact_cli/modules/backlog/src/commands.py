@@ -1694,25 +1694,6 @@ def _resolve_target_template_for_refine_item(
         framework=normalized_framework,
         persona=normalized_persona,
     )
-    steered_target = _resolve_target_template_for_refine_item(
-        item,
-        detector=detector,
-        registry=registry,
-        template_id=template_id,
-        normalized_adapter=normalized_adapter,
-        normalized_framework=normalized_framework,
-        normalized_persona=normalized_persona,
-    )
-    if (
-        template_id is None
-        and steered_target is not None
-        and detection_result.template_id != steered_target.template_id
-    ):
-        detection_result.template_id = steered_target.template_id
-        detection_result.confidence = 0.6 * detector._score_structural_fit(
-            item, steered_target
-        ) + 0.4 * detector._score_pattern_fit(item, steered_target)
-        detection_result.missing_fields = detector._find_missing_fields(item, steered_target)
     if detection_result.template_id:
         detected = registry.get_template(detection_result.template_id)
         if detected is not None:

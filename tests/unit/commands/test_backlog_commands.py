@@ -1672,3 +1672,40 @@ class TestResolveTargetTemplateForRefineItem:
 
         assert resolved is not None
         assert resolved.template_id == "user_story_v1"
+
+    def test_non_story_item_does_not_recurse_and_resolves_detected_template(self) -> None:
+        """Non-story items should resolve without recursive fallback loops."""
+        registry = TemplateRegistry()
+        registry.register_template(
+            BacklogTemplate(
+                template_id="enabler_v1",
+                name="Enabler",
+                description="",
+                provider="github",
+                required_sections=["Description"],
+            )
+        )
+        detector = TemplateDetector(registry)
+        item = BacklogItem(
+            id="88",
+            provider="github",
+            url="https://github.com/o/r/issues/88",
+            title="Improve pipeline",
+            body_markdown="## Description\n\nImprove pipeline execution.",
+            state="open",
+            assignees=[],
+            tags=["enhancement"],
+        )
+
+        resolved = _resolve_target_template_for_refine_item(
+            item,
+            detector=detector,
+            registry=registry,
+            template_id=None,
+            normalized_adapter="github",
+            normalized_framework=None,
+            normalized_persona=None,
+        )
+
+        assert resolved is not None
+        assert resolved.template_id == "enabler_v1"

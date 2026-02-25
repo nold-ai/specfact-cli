@@ -2670,15 +2670,9 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
                 )
             ]
 
-        if filters.search:
-            normalized_search = BacklogFilters.normalize_filter_value(filters.search)
-            if normalized_search:
-                filtered_items = [
-                    item
-                    for item in filtered_items
-                    if normalized_search in (BacklogFilters.normalize_filter_value(item.title) or "")
-                    or normalized_search in (BacklogFilters.normalize_filter_value(item.body_markdown) or "")
-                ]
+        # Do not re-apply `filters.search` locally as plain-text matching.
+        # GitHub already evaluates provider-specific search syntax server-side
+        # (for example `label:bug`, `is:open`, `no:assignee`).
 
         if filters.iteration:
             filtered_items = [item for item in filtered_items if item.iteration and item.iteration == filters.iteration]

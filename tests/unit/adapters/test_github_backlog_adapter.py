@@ -97,6 +97,33 @@ class TestGitHubBacklogAdapter:
 
     @beartype
     @patch("specfact_cli.adapters.github.requests.get")
+    def test_fetch_backlog_items_does_not_plaintext_refilter_provider_search(self, mock_get: MagicMock) -> None:
+        """Provider search syntax should not be dropped by local title/body substring filtering."""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "items": [
+                {
+                    "number": 7,
+                    "html_url": "https://github.com/test/repo/issues/7",
+                    "title": "Fix OAuth callback",
+                    "body": "Investigate callback race condition",
+                    "state": "open",
+                    "assignees": [],
+                    "labels": [{"name": "bug"}],
+                }
+            ]
+        }
+        mock_response.raise_for_status = MagicMock()
+        mock_get.return_value = mock_response
+
+        adapter = GitHubAdapter(repo_owner="test", repo_name="repo", api_token="token")
+        items = adapter.fetch_backlog_items(BacklogFilters(search="label:bug"))
+
+        assert len(items) == 1
+        assert items[0].id == "7"
+
+    @beartype
+    @patch("specfact_cli.adapters.github.requests.get")
     def test_fetch_backlog_items_issue_id_uses_direct_lookup(self, mock_get: MagicMock) -> None:
         """Issue-id fetch should call the direct issue endpoint, not search."""
         mock_response = MagicMock()
