@@ -21,6 +21,7 @@ All notable changes to this project will be documented in this file.
 - Template and mapping steering for ADO now prefers user-story templates where applicable and includes explicit process/framework selection behavior in mapping workflows.
 - Backlog read commands now support `--state any` and `--assignee any` semantics to explicitly disable those filters and avoid confusing empty results caused by hidden defaults.
 - Fixed a `daily` regression where explicit `--state any` / `--assignee any` still fell back to standup defaults (`open`/configured assignee) instead of disabling filters.
+- GitHub backlog create/type assignment now falls back `story -> feature` by default when native `Story` type is not available in the repository, while preserving explicit mappings when present.
 - ADO transport/write paths were hardened with improved retry/diagnostic behavior and clearer default-filter visibility in command output for production-style environments.
 - Contract-exploration counterexamples were addressed by tightening converter preconditions and timestamp parsing robustness, and by hardening TODO-marker detection against regex edge cases.
 - `specfact module init` command-test assertions now handle isolated user-root output formatting consistently, avoiding brittle path-specific failures in CI and local runs.

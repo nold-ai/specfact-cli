@@ -2733,6 +2733,25 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         data = payload.get("data")
         return data if isinstance(data, dict) else {}
 
+    @staticmethod
+    @beartype
+    def _resolve_github_type_mapping_id(mapping: dict[str, Any], issue_type: str) -> str:
+        """
+        Resolve GitHub issue-type/project-type mapping id with fallback aliases.
+
+        Default alias fallback:
+        - `story` -> `feature` when `story` is unavailable in the repository.
+        """
+        normalized = issue_type.strip().lower()
+        candidate_keys = [issue_type, normalized]
+        if normalized == "story":
+            candidate_keys.extend(["feature", "Feature"])
+        for key in candidate_keys:
+            mapped = str(mapping.get(key) or "").strip()
+            if mapped:
+                return mapped
+        return ""
+
     @beartype
     def _try_set_github_issue_type(
         self,
@@ -2751,7 +2770,7 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         if not isinstance(type_ids, dict):
             return
 
-        issue_type_id = str(type_ids.get(issue_type) or type_ids.get(issue_type.lower()) or "").strip()
+        issue_type_id = self._resolve_github_type_mapping_id(type_ids, issue_type)
         if not issue_type_id:
             return
 
@@ -2839,7 +2858,7 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         if not isinstance(option_map, dict):
             return
 
-        option_id = str(option_map.get(issue_type) or option_map.get(issue_type.lower()) or "").strip()
+        option_id = self._resolve_github_type_mapping_id(option_map, issue_type)
         if not project_id or not type_field_id or not option_id:
             return
 
