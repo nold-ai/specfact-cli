@@ -96,6 +96,78 @@ fi
 if [[ "$ALLOW_SAME_VERSION" -eq 1 ]]; then
   ARGS+=(--allow-same-version)
 fi
+
+# Enforce version bump for changed module payload before any signing/key checks.
+if [[ "$ALLOW_SAME_VERSION" -ne 1 ]]; then
+  python3 - "$MANIFEST" <<'PY'
+from __future__ import annotations
+
+import subprocess
+import sys
+from pathlib import Path
+
+import yaml
+
+
+def _run(cmd: list[str]) -> str:
+    return subprocess.run(cmd, check=True, capture_output=True, text=True).stdout.strip()
+
+
+manifest = Path(sys.argv[1]).resolve()
+module_dir = manifest.parent
+
+try:
+    current_raw = yaml.safe_load(manifest.read_text(encoding="utf-8"))
+except Exception as exc:
+    print(f"Error: failed reading manifest {manifest}: {exc}", file=sys.stderr)
+    raise SystemExit(1) from exc
+
+if not isinstance(current_raw, dict):
+    print(f"Error: invalid manifest YAML (expected object): {manifest}", file=sys.stderr)
+    raise SystemExit(1)
+
+current_version = str(current_raw.get("version", "")).strip()
+if not current_version:
+    print(f"Error: manifest missing version: {manifest}", file=sys.stderr)
+    raise SystemExit(1)
+
+try:
+    manifest_rel = manifest.relative_to(Path.cwd().resolve()).as_posix()
+except ValueError:
+    # Outside current repo root: skip git-based preflight and let signer handle it.
+    raise SystemExit(0)
+try:
+    previous_text = _run(["git", "show", f"HEAD:{manifest_rel}"])
+except Exception:
+    raise SystemExit(0)
+
+try:
+    previous_raw = yaml.safe_load(previous_text)
+except Exception:
+    raise SystemExit(0)
+if not isinstance(previous_raw, dict):
+    raise SystemExit(0)
+
+previous_version = str(previous_raw.get("version", "")).strip()
+if not previous_version or previous_version != current_version:
+    raise SystemExit(0)
+
+try:
+    changed = _run(["git", "diff", "--name-only", "HEAD", "--", module_dir.as_posix()])
+    untracked = _run(["git", "ls-files", "--others", "--exclude-standard", "--", module_dir.as_posix()])
+except Exception:
+    raise SystemExit(0)
+
+if changed or untracked:
+    print(
+        "Error: Module version must be incremented before signing changed module contents: "
+        f"{manifest_rel} (current version {current_version}).",
+        file=sys.stderr,
+    )
+    raise SystemExit(1)
+PY
+fi
+
 python3 scripts/sign-modules.py "${ARGS[@]}" "$MANIFEST"
 
 # Emit checksum line for legacy pipeline compatibility.

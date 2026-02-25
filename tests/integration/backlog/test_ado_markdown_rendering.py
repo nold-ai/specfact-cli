@@ -44,9 +44,10 @@ class TestAdoMarkdownRendering:
             title="Test Work Item",
             body_markdown="# Title\n\nThis is **bold** text.",
             state="Active",
+            acceptance_criteria="- [ ] criterion one",
         )
 
-        result = adapter.update_backlog_item(item, update_fields=["body_markdown"])
+        result = adapter.update_backlog_item(item, update_fields=["body_markdown", "acceptance_criteria"])
 
         # Verify API was called
         assert mock_patch.called
@@ -74,6 +75,27 @@ class TestAdoMarkdownRendering:
         format_idx = operations.index(format_op)
         desc_idx = operations.index(description_op)
         assert format_idx < desc_idx, "Format operation should come before description operation"
+
+        ac_format_op = next(
+            (
+                op
+                for op in operations
+                if "/multilineFieldsFormat/" in op.get("path", "") and "AcceptanceCriteria" in op.get("path", "")
+            ),
+            None,
+        )
+        ac_replace_op = next(
+            (
+                op
+                for op in operations
+                if op.get("path", "").startswith("/fields/") and "AcceptanceCriteria" in op.get("path", "")
+            ),
+            None,
+        )
+        assert ac_format_op is not None
+        assert ac_format_op["value"] == "Markdown"
+        assert ac_replace_op is not None
+        assert ac_replace_op["value"] == "- [ ] criterion one"
 
         # Verify result
         assert result.id == "1"

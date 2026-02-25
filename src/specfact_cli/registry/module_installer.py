@@ -422,7 +422,10 @@ def install_module(
         with tarfile.open(archive_path, "r:gz") as archive:
             members = archive.getmembers()
             _validate_archive_members(members, extract_root)
-            archive.extractall(path=extract_root, members=members)
+            try:
+                archive.extractall(path=extract_root, members=members, filter="data")
+            except TypeError:
+                archive.extractall(path=extract_root, members=members)
 
         candidate_dirs = [p for p in extract_root.rglob("module-package.yaml") if p.is_file()]
         if not candidate_dirs:

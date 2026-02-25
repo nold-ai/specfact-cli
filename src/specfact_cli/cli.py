@@ -281,6 +281,13 @@ def main(
     - Auto-detect from terminal and CI environment
     """
     global _show_banner
+    global console
+
+    # Rebind root and loaded module consoles for each invocation to avoid stale
+    # closed capture streams across sequential CliRunner/pytest command runs.
+    console = get_configured_console()
+    runtime.refresh_loaded_module_consoles()
+
     # Set banner flag based on --banner option
     _show_banner = banner
 

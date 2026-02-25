@@ -58,10 +58,11 @@ Refine backlog items from DevOps tools (GitHub Issues, Azure DevOps, etc.) into 
 ### Filters
 
 - `--labels LABELS` or `--tags TAGS` - Filter by labels/tags (comma-separated, e.g., "feature,enhancement")
-- `--state STATE` - Filter by state (case-insensitive, e.g., "open", "closed", "Active", "New")
+- `--state STATE` - Filter by state (case-insensitive, e.g., "open", "closed", "Active", "New"). Use `--state any` to disable state filtering.
 - `--assignee USERNAME` - Filter by assignee (case-insensitive):
   - **GitHub**: Login or @username (e.g., "johndoe" or "@johndoe")
   - **ADO**: displayName, uniqueName, or mail (e.g., "Jane Doe" or `"jane.doe@example.com"`)
+  - Use `--assignee any` to disable assignee filtering.
 - `--iteration PATH` - Filter by iteration path (ADO format: "Project\\Sprint 1", case-insensitive)
 - `--sprint SPRINT` - Filter by sprint (case-insensitive):
   - **ADO**: Use full iteration path (e.g., "Project\\Sprint 1") to avoid ambiguity when multiple sprints share the same name
@@ -101,6 +102,155 @@ Refine backlog items from DevOps tools (GitHub Issues, Azure DevOps, etc.) into 
 3. Import refined: `specfact backlog refine --adapter github --import-from-tmp --repo-owner OWNER --repo-name NAME --write`
 
 When refining from an exported file, treat the embedded instructions in that file as the source of truth for required structure and formatting.
+
+**Critical content-preservation rule**:
+- Never summarize, shorten, or silently remove details from story content.
+- Preserve all existing requirements, constraints, business value, and feature intent.
+- Refinement must increase clarity/structure, not reduce scope/detail.
+
+**Exact tmp structure contract (`--import-from-tmp`)**:
+
+- Keep one section per item with this exact heading pattern: `## Item N: <title>`.
+- The first non-empty line of each item block MUST be the `## Item N: ...` heading.
+- Keep and preserve these metadata labels exactly (order may vary; labels must match):
+  - `**ID**: <original exported id>` (**mandatory and unchanged**)
+  - `**URL**: <url>`
+  - `**State**: <state>`
+  - `**Provider**: <provider>`
+- Keep body in this exact form (fence language must be `markdown`):
+  - `**Body**:`
+  - ```` ```markdown ... ``` ````
+- Optional parsed fields (if present) must use exact labels:
+  - `**Acceptance Criteria**:`
+  - `**Metrics**:` with lines containing `Story Points:`, `Business Value:`, `Priority:`
+- Do not prepend explanatory text, summaries, or headers before the first `## Item N:` block.
+- Do not rename labels (`**ID**`, `**Body**`, `**Acceptance Criteria**`, `**Metrics**`).
+
+Exact item example:
+
+````markdown
+## Item 1: Improve backlog refine import mapping
+
+**ID**: 123
+**URL**: https://dev.azure.com/org/project/_workitems/edit/123
+**State**: Active
+**Provider**: ado
+
+**Metrics**:
+- Story Points: 5
+- Business Value: 8
+- Priority: 2
+
+**Acceptance Criteria**:
+- [ ] Mapping uses configured story points field
+
+**Body**:
+```markdown
+## Description
+
+Refined body content.
+```
+````
+
+If `**ID**` is missing or changed, import cannot map refined content to backlog items and writeback will fail.
+
+**Provider-specific body contract (critical)**:
+
+- **GitHub**:
+  - Keep template narrative sections in `**Body**` markdown (for example `## As a`, `## I want`, `## So that`, `## Acceptance Criteria` when required by template).
+  - Metrics may be in `**Metrics**` and/or body sections if your template expects body headings.
+- **ADO**:
+  - Keep narrative/template sections in `**Body**` markdown.
+  - Keep structured metadata in `**Metrics**` (`Story Points`, `Business Value`, `Priority`).
+  - Do **not** add metadata-only headings (`## Story Points`, `## Business Value`, `## Priority`, `## Work Item Type`, `## Area Path`, `## Iteration Path`) inside body text.
+  - Do **not** duplicate `## Description` heading text into the narrative content.
+
+**Template-driven refinement method (mandatory)**:
+
+- Use exported `**Target Template**`, `**Required Sections**`, and `**Optional Sections**` as the authoritative contract for each item.
+- Preserve all functional and non-functional requirements; never silently drop details.
+- Improve clarity, specificity, and testability (SMART-style) without scope reduction.
+- If one story is too large, propose split candidates in `## Notes`; do not remove detail from the original item silently.
+
+**What to include / exclude boundaries**:
+
+- Include:
+  - All original business intent, user value, constraints, assumptions, dependencies, and acceptance signals.
+  - Explicit acceptance criteria and measurable outcomes.
+- Exclude:
+  - Generic summaries that replace detailed requirements.
+  - Placeholder text (`unspecified`, `TBD`, `no info`) when original detail exists.
+  - Extra wrapper prose outside `## Item N:` blocks.
+
+One-shot GitHub scaffold example:
+
+````markdown
+## Item 1: Improve authentication flow
+
+**ID**: 42
+**URL**: https://github.com/org/repo/issues/42
+**State**: open
+**Provider**: github
+
+**Metrics**:
+- Story Points: 8
+- Business Value: 13
+- Priority: 2
+
+**Acceptance Criteria**:
+- [ ] Token refresh handles expiry and retry behavior
+
+**Body**:
+```markdown
+## As a
+platform user
+
+## I want
+reliable authentication and token refresh behavior
+
+## So that
+I can access protected resources without disruption
+
+## Acceptance Criteria
+- [ ] Valid refresh token rotates and issues new access token
+- [ ] Expired/invalid token returns clear error and audit event
+```
+````
+
+One-shot ADO scaffold example:
+
+````markdown
+## Item 2: Harden login reliability
+
+**ID**: 108
+**URL**: https://dev.azure.com/org/project/_workitems/edit/108
+**State**: Active
+**Provider**: ado
+
+**Metrics**:
+- Story Points: 5
+- Business Value: 8
+- Priority: 2
+
+**Acceptance Criteria**:
+- [ ] All required acceptance checks are explicit and testable
+
+**Body**:
+```markdown
+## As a
+registered user
+
+## I want
+the login flow to handle token expiry and retries safely
+
+## So that
+I can complete authentication without ambiguity or data loss
+
+## Acceptance Criteria
+- [ ] Expired access token triggers refresh workflow
+- [ ] Failed refresh prompts re-authentication with clear guidance
+```
+````
 
 **Comment context in export**:
 

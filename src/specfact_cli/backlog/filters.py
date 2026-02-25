@@ -40,6 +40,8 @@ class BacklogFilters:
     """Filter by sprint identifier."""
     release: str | None = None
     """Filter by release identifier."""
+    issue_id: str | None = None
+    """Filter by a single issue/work item identifier."""
     limit: int | None = None
     """Maximum number of items to fetch (applied after filtering)."""
     use_current_iteration_default: bool = True

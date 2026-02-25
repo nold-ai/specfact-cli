@@ -2515,6 +2515,11 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             msg = "repo_owner and repo_name required to fetch backlog items"
             raise ValueError(msg)
 
+        if filters.issue_id:
+            direct_item = self._fetch_backlog_item_by_id(filters.issue_id)
+            direct_items = [direct_item] if direct_item is not None else []
+            return self._apply_backlog_post_filters(direct_items, filters)
+
         # Build GitHub search query
         # Note: GitHub search API is case-insensitive for state, but we'll apply
         # case-insensitive filtering post-fetch for assignee to handle display names
@@ -2556,7 +2561,7 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
 
         while True:
             params["page"] = page
-            response = requests.get(url, headers=headers, params=params, timeout=30)
+            response = self._request_with_retry(lambda: requests.get(url, headers=headers, params=params, timeout=30))
             response.raise_for_status()
             data = response.json()
 
@@ -2576,7 +2581,43 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
                 break
             page += 1
 
-        # Apply post-fetch filters that GitHub API doesn't support directly
+        return self._apply_backlog_post_filters(items, filters)
+
+    @beartype
+    def _fetch_backlog_item_by_id(self, issue_id: str) -> BacklogItem | None:
+        """Fetch a single GitHub issue by number for deterministic ID lookup flows."""
+        normalized_id = issue_id.strip().lstrip("#")
+        if not normalized_id:
+            return None
+
+        url = f"{self.base_url}/repos/{self.repo_owner}/{self.repo_name}/issues/{normalized_id}"
+        headers = {
+            "Authorization": f"token {self.api_token}",
+            "Accept": "application/vnd.github.v3+json",
+        }
+        try:
+            response = self._request_with_retry(lambda: requests.get(url, headers=headers, timeout=30))
+            response.raise_for_status()
+        except requests.HTTPError as exc:
+            status_code = exc.response.status_code if exc.response is not None else None
+            if status_code == 404:
+                return None
+            raise
+
+        issue_payload = response.json()
+        if not isinstance(issue_payload, dict):
+            return None
+        if issue_payload.get("pull_request") is not None:
+            # Backlog issue commands should not resolve pull requests.
+            return None
+
+        from specfact_cli.backlog.converter import convert_github_issue_to_backlog_item
+
+        return convert_github_issue_to_backlog_item(issue_payload, provider="github")
+
+    @beartype
+    def _apply_backlog_post_filters(self, items: list[BacklogItem], filters: BacklogFilters) -> list[BacklogItem]:
+        """Apply post-fetch filters for both search and direct ID lookup paths."""
         filtered_items = items
 
         # Case-insensitive state filtering (GitHub API may return mixed case)
@@ -2609,6 +2650,34 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
                         )
                         for assignee in item.assignees
                     )
+                ]
+
+        if filters.labels:
+            normalized_labels = {
+                normalized_label
+                for normalized_label in (
+                    BacklogFilters.normalize_filter_value(raw_label) for raw_label in filters.labels
+                )
+                if normalized_label
+            }
+            filtered_items = [
+                item
+                for item in filtered_items
+                if any(
+                    tag_value in normalized_labels
+                    for tag_value in (BacklogFilters.normalize_filter_value(tag) for tag in item.tags)
+                    if tag_value
+                )
+            ]
+
+        if filters.search:
+            normalized_search = BacklogFilters.normalize_filter_value(filters.search)
+            if normalized_search:
+                filtered_items = [
+                    item
+                    for item in filtered_items
+                    if normalized_search in (BacklogFilters.normalize_filter_value(item.title) or "")
+                    or normalized_search in (BacklogFilters.normalize_filter_value(item.body_markdown) or "")
                 ]
 
         if filters.iteration:

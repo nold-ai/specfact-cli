@@ -54,6 +54,29 @@ specfact validate sidecar init my-project /path/to/repo
 specfact validate sidecar run my-project /path/to/repo
 ```
 
+### Backlog Bridge (60 seconds)
+
+SpecFact's USP is closing the drift gap between **backlog -> specs -> code**.
+
+```bash
+# 1) Initialize backlog config + field mapping
+specfact backlog init-config --force
+specfact backlog map-fields --provider ado --ado-org <org> --ado-project "<project>"
+
+# 2) Run standup/refinement on real backlog scope
+specfact backlog daily ado --ado-org <org> --ado-project "<project>" --state any --assignee any --limit 5
+specfact backlog refine ado --ado-org <org> --ado-project "<project>" --id <work-item-id> --preview
+
+# 3) Keep backlog + spec intent aligned (avoid silent drift)
+specfact policy validate --group-by-item
+```
+
+For GitHub, replace adapter/org/project with:
+`specfact backlog daily github --repo-owner <owner> --repo-name <repo> ...`
+
+Deep dive:
+- **[Backlog Quickstart Demo (GitHub + ADO)](docs/getting-started/tutorial-backlog-quickstart-demo.md)**
+
 **AI IDE quick start**
 
 ```bash

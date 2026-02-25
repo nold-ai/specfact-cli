@@ -232,6 +232,57 @@ class TestAdoFieldMapper:
         fields = mapper.extract_fields(item_data)
         assert fields["acceptance_criteria"] == "AC1\nAC2"
 
+    def test_extract_acceptance_criteria_converts_html_to_markdown(self) -> None:
+        """HTML-rich acceptance criteria should be normalized to markdown-like text."""
+        mapper = AdoFieldMapper()
+        item_data = {
+            "fields": {
+                "System.Description": "<p>Description</p>",
+                "System.AcceptanceCriteria": "<p><strong>Given</strong> user logs in</p><ul><li>Then dashboard loads</li></ul>",
+                "System.Title": "Test Item",
+            }
+        }
+        fields = mapper.extract_fields(item_data)
+        assert "**Given** user logs in" in (fields["acceptance_criteria"] or "")
+        assert "- Then dashboard loads" in (fields["acceptance_criteria"] or "")
+
+    def test_extract_acceptance_criteria_preserves_br_line_breaks(self) -> None:
+        """BR tags should be converted into newline separators during normalization."""
+        mapper = AdoFieldMapper()
+        item_data = {
+            "fields": {
+                "System.Description": "Description",
+                "System.AcceptanceCriteria": "<p>Given user logs in<br />Then dashboard loads</p>",
+                "System.Title": "Test Item",
+            }
+        }
+        fields = mapper.extract_fields(item_data)
+        assert fields["acceptance_criteria"] == "Given user logs in\nThen dashboard loads"
+
+    def test_extract_description_preserves_non_html_angle_brackets(self) -> None:
+        """Plain text with angle brackets should not be treated as HTML and stripped."""
+        mapper = AdoFieldMapper()
+        item_data = {
+            "fields": {
+                "System.Description": "Validate x < y > z and keep <tenant_id> placeholder.",
+                "System.Title": "Test Item",
+            }
+        }
+        fields = mapper.extract_fields(item_data)
+        assert fields["description"] == "Validate x < y > z and keep <tenant_id> placeholder."
+
+    def test_extract_description_preserves_placeholders_inside_html_content(self) -> None:
+        """Known HTML normalization should not remove non-HTML placeholder tokens."""
+        mapper = AdoFieldMapper()
+        item_data = {
+            "fields": {
+                "System.Description": "<p>Use <tenant_id> from context.</p>",
+                "System.Title": "Test Item",
+            }
+        }
+        fields = mapper.extract_fields(item_data)
+        assert fields["description"] == "Use <tenant_id> from context."
+
     def test_extract_acceptance_criteria_from_microsoft_vsts_common(self) -> None:
         """Test extracting acceptance criteria from Microsoft.VSTS.Common.AcceptanceCriteria field."""
         mapper = AdoFieldMapper()
@@ -441,6 +492,24 @@ class TestAdoFieldMapper:
         assert ado_fields["Microsoft.VSTS.Common.Priority"] == 2
         assert "System.WorkItemType" in ado_fields
         assert ado_fields["System.WorkItemType"] == "User Story"
+
+    def test_resolve_write_target_prefers_custom_mapping_field(self, tmp_path: Path) -> None:
+        """Write target resolution should prioritize explicit custom field mapping."""
+        custom_mapping_file = tmp_path / "ado_custom.yaml"
+        custom_mapping_data = {
+            "field_mappings": {
+                "Microsoft.VSTS.Scheduling.StoryPoints": "story_points",
+            },
+        }
+        custom_mapping_file.write_text(yaml.dump(custom_mapping_data), encoding="utf-8")
+
+        mapper = AdoFieldMapper(custom_mapping_file=custom_mapping_file)
+        resolved = mapper.resolve_write_target_field(
+            canonical_field="story_points",
+            provider_field_names={"Microsoft.VSTS.Common.StoryPoints"},
+        )
+
+        assert resolved == "Microsoft.VSTS.Scheduling.StoryPoints"
 
 
 class TestCustomTemplateMapping:
