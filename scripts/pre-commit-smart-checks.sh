@@ -77,8 +77,11 @@ run_markdown_lint_if_needed() {
 
 run_format_safety() {
   info "🧹 Running formatter safety check (hatch run format)"
+  local before_unstaged after_unstaged
+  before_unstaged=$(git diff --name-only -- . | sort || true)
   if hatch run format; then
-    if ! git diff --quiet -- . || ! git diff --cached --quiet -- .; then
+    after_unstaged=$(git diff --name-only -- . | sort || true)
+    if [ "${before_unstaged}" != "${after_unstaged}" ]; then
       error "❌ Formatter changed files. Review and re-stage before committing."
       warn "💡 Run: hatch run format && git add -A"
       exit 1

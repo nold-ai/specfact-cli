@@ -2943,6 +2943,20 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
                     item for item in filtered_items if any(label in item.tags for label in filters.labels)
                 ]
 
+            if filters.iteration:
+                resolved_iteration = filters.iteration
+                if filters.iteration.lower() == "current":
+                    current_iteration = self._get_current_iteration()
+                    if current_iteration:
+                        resolved_iteration = current_iteration
+                    else:
+                        return []
+                filtered_items = [
+                    item
+                    for item in filtered_items
+                    if item.iteration and item.iteration == resolved_iteration
+                ]
+
             if filters.sprint:
                 _, filtered_items = self._resolve_sprint_filter(
                     filters.sprint,
