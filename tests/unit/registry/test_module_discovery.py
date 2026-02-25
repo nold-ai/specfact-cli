@@ -115,3 +115,35 @@ def test_discover_all_modules_project_scope_takes_priority_over_user(tmp_path: P
 
     sources = {entry.metadata.name: entry.source for entry in discovered}
     assert sources["backlog-core"] == "project"
+
+
+def test_project_shadow_warning_is_actionable_and_emitted_once(tmp_path: Path, monkeypatch) -> None:
+    """Project-over-user shadow guidance should be user-facing but deduplicated per process."""
+    repo_root = tmp_path / "repo"
+    project_root = repo_root / ".specfact" / "modules"
+    builtin_root = tmp_path / "builtin"
+    user_root = tmp_path / "user-modules"
+    _write_manifest(builtin_root, "init")
+    _write_manifest(project_root, "backlog-core")
+    _write_manifest(user_root, "backlog-core")
+
+    monkeypatch.chdir(repo_root)
+    warnings: list[str] = []
+    monkeypatch.setattr(module_discovery, "print_warning", warnings.append)
+    module_discovery._SHADOW_HINT_KEYS.clear()
+
+    discover_all_modules(
+        builtin_root=builtin_root,
+        user_root=user_root,
+        include_legacy_roots=True,
+    )
+    discover_all_modules(
+        builtin_root=builtin_root,
+        user_root=user_root,
+        include_legacy_roots=True,
+    )
+
+    assert len(warnings) == 1
+    assert "takes precedence over user-scoped module" in warnings[0]
+    assert "specfact module list --show-origin" in warnings[0]
+    assert "specfact module uninstall backlog-core --scope user" in warnings[0]

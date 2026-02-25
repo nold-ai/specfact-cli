@@ -4224,6 +4224,12 @@ def map_fields(
             if key and value:
                 cli_option_map[key] = value
 
+        issue_type_id_map = {
+            issue_type: repo_issue_types.get(issue_type, "")
+            for issue_type in ["epic", "feature", "story", "task", "bug"]
+            if repo_issue_types.get(issue_type)
+        }
+
         # Fast-path for fully specified non-interactive invocations.
         if project_ref and (github_type_field_id or "").strip() and cli_option_map:
             github_custom_mapping_file = _persist_github_custom_mapping_file(repo_issue_types)
@@ -4245,6 +4251,33 @@ def map_fields(
             )
             console.print(f"[green]✓[/green] GitHub ProjectV2 Type mapping saved to {config_path}")
             console.print(f"[green]Custom mapping:[/green] {github_custom_mapping_file}")
+            return
+
+        if not project_ref:
+            if cli_option_map or (github_type_field_id or "").strip():
+                console.print(
+                    "[yellow]⚠[/yellow] GitHub ProjectV2 Type options/field-id were provided, but no ProjectV2 "
+                    "number/ID was set. Skipping ProjectV2 mapping."
+                )
+            github_custom_mapping_file = _persist_github_custom_mapping_file(repo_issue_types)
+            initial_settings_update: dict[str, Any] = {
+                "github_issue_types": {"type_ids": issue_type_id_map},
+                # Clear stale ProjectV2 mapping when user explicitly skips ProjectV2 input.
+                "provider_fields": {"github_project_v2": None},
+                "field_mapping_file": ".specfact/templates/backlog/field_mappings/github_custom.yaml",
+            }
+            config_path = _upsert_backlog_provider_settings(
+                "github",
+                initial_settings_update,
+                project_id=project_context,
+                adapter="github",
+            )
+            console.print(f"[green]✓[/green] GitHub mapping saved to {config_path}")
+            console.print(f"[green]Custom mapping:[/green] {github_custom_mapping_file}")
+            console.print(
+                "[dim]ProjectV2 Type field mapping skipped; repository issue types were captured "
+                "(ProjectV2 is optional).[/dim]"
+            )
             return
 
         project_id = ""
@@ -4444,12 +4477,6 @@ def map_fields(
                 )
                 if option_name and option_name in option_name_to_id:
                     option_map[issue_type] = option_name_to_id[option_name]
-
-        issue_type_id_map = {
-            issue_type: repo_issue_types.get(issue_type, "")
-            for issue_type in ["epic", "feature", "story", "task", "bug"]
-            if repo_issue_types.get(issue_type)
-        }
 
         settings_update: dict[str, Any] = {}
         if issue_type_id_map:

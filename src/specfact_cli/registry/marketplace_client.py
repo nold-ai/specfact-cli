@@ -96,5 +96,5 @@ def download_module(
     file_name = Path(parsed.path).name or f"{module_id.replace('/', '-')}.tar.gz"
     target_path = target_dir / file_name
     target_path.write_bytes(content)
-    logger.info("Downloaded module '%s' to '%s'", module_id, target_path)
+    logger.debug("Downloaded module '%s' to '%s'", module_id, target_path)
     return target_path

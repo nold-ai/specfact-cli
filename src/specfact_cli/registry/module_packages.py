@@ -831,7 +831,7 @@ def register_module_package_commands(
                     f"schema version {meta.schema_version} required, current is {CURRENT_PROJECT_SCHEMA_VERSION}",
                 )
             )
-            logger.warning(
+            logger.debug(
                 "Module %s: Schema version %s required, but current is %s (skipped)",
                 meta.name,
                 meta.schema_version,
@@ -841,7 +841,7 @@ def register_module_package_commands(
         if meta.schema_version is None:
             logger.debug("Module %s: No schema version declared (assuming current)", meta.name)
         else:
-            logger.info("Module %s: Schema version %s (compatible)", meta.name, meta.schema_version)
+            logger.debug("Module %s: Schema version %s (compatible)", meta.name, meta.schema_version)
 
         if meta.schema_extensions:
             try:
@@ -892,7 +892,7 @@ def register_module_package_commands(
             elif operations:
                 partial_modules.append((meta.name, operations))
                 if is_debug_mode():
-                    logger.warning("Module %s: ModuleIOContract partial (%s)", meta.name, ", ".join(operations))
+                    logger.info("Module %s: ModuleIOContract partial (%s)", meta.name, ", ".join(operations))
                 protocol_partial += 1
             else:
                 legacy_modules.append(meta.name)

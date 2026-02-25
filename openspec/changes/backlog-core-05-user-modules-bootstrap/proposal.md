@@ -6,11 +6,15 @@
 
 
 
+
+
 `specfact backlog add` is still missing in installed-runtime contexts when command discovery depends on repository-local `modules/` folders. This makes behavior vary by working directory and machine.
 
 For production usage, shipped modules and their resources should be managed as user-level artifacts. We need a reliable path where `specfact module init` prepares a per-user module root (not repo-local) so command availability is stable.
 
 ## What Changes
+
+
 
 
 
@@ -54,4 +58,4 @@ For production usage, shipped modules and their resources should be managed as u
 - **Issue URL**: <https://github.com/nold-ai/specfact-cli/issues/298>
 - **Last Synced Status**: proposed
 - **Sanitized**: false
-<!-- content_hash: deb60d1fd1a5ed08 -->
+<!-- content_hash: 8809bb30c7849909 -->

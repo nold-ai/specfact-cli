@@ -798,3 +798,63 @@ def test_backlog_add_warns_when_github_issue_type_mapping_missing(monkeypatch) -
 
     assert result.exit_code == 0
     assert "repository issue-type mapping is not configured" in result.stdout
+
+
+def test_backlog_add_prefers_root_issue_type_ids_when_provider_fields_issue_types_empty(
+    monkeypatch, tmp_path: Path
+) -> None:
+    """backlog add should use root github_issue_types when provider_fields copy is empty."""
+    from specfact_cli.adapters.registry import AdapterRegistry
+
+    spec_dir = tmp_path / ".specfact"
+    spec_dir.mkdir(parents=True, exist_ok=True)
+    (spec_dir / "backlog-config.yaml").write_text(
+        """
+backlog_config:
+  providers:
+    github:
+      adapter: github
+      project_id: nold-ai/specfact-demo-repo
+      settings:
+        provider_fields:
+          github_issue_types:
+            type_ids: {}
+        github_issue_types:
+          type_ids:
+            task: IT_TASK_SPEC
+""".strip(),
+        encoding="utf-8",
+    )
+
+    created_payloads: list[dict] = []
+    adapter = _FakeAdapter(items=[], relationships=[], created=created_payloads)
+    monkeypatch.setattr(AdapterRegistry, "get_adapter", lambda _adapter: adapter)
+
+    result = runner.invoke(
+        backlog_app,
+        [
+            "add",
+            "--project-id",
+            "nold-ai/specfact-demo-repo",
+            "--adapter",
+            "github",
+            "--type",
+            "task",
+            "--title",
+            "Implement task",
+            "--body",
+            "Body",
+            "--non-interactive",
+            "--repo-path",
+            str(tmp_path),
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert created_payloads
+    provider_fields = created_payloads[0].get("provider_fields")
+    assert isinstance(provider_fields, dict)
+    github_issue_types = provider_fields.get("github_issue_types")
+    assert isinstance(github_issue_types, dict)
+    assert github_issue_types.get("type_ids", {}).get("task") == "IT_TASK_SPEC"
+    assert "repository issue-type mapping is not configured" not in result.stdout

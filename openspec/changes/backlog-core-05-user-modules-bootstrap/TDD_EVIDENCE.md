@@ -204,3 +204,60 @@
   - Full signing-artifacts suite: `15 passed`.
   - Changed-only automation bumped and re-signed changed bundled manifest (`backlog`), restoring runtime integrity sync.
   - Regression safety suites after module re-sign: `95 passed, 1 skipped`.
+
+## Follow-up failing run (project-over-user shadow warning noise + duplicate list state fetch)
+
+- Timestamp: 2026-02-25T09:17:24Z
+- Command(s): `hatch test -- tests/unit/registry/test_module_discovery.py tests/unit/modules/module_registry/test_commands.py -q`
+- Failure summary:
+  - `test_project_shadow_warning_is_actionable_and_emitted_once` failed because `module_discovery` did not provide one-time actionable user guidance for project-over-user module shadowing.
+  - `test_list_command_fetches_module_state_once` failed because `specfact module list` called `get_modules_with_state()` twice.
+  - Additional command-suite failures were environment-local and unrelated to this behavior change.
+
+## Follow-up passing run (shadow warning UX + debug/log-level cleanup)
+
+- Timestamp: 2026-02-25T09:19:03Z
+- Command(s):
+  - `python -m pytest tests/unit/registry/test_module_discovery.py -k "project_scope_takes_priority_over_user or project_shadow_warning_is_actionable_and_emitted_once" -q`
+  - `python -m pytest tests/unit/modules/module_registry/test_commands.py -k "list_command_fetches_module_state_once" -q`
+- Result summary:
+  - Project-over-user precedence warning behavior tests: `2 passed`.
+  - Module list duplicate state fetch regression test: `1 passed`.
+  - Shadow guidance is now actionable and emitted once per process; duplicate discovery noise is reduced by avoiding repeated module-state fetch in `module list`.
+
+## Follow-up failing run (GitHub ProjectV2 optionality for map-fields)
+
+- Timestamp: 2026-02-25T08:30:21Z
+- Command(s): `python -m pytest tests/unit/commands/test_backlog_commands.py -k "allows_blank_project_v2" -q`
+- Failure summary:
+  - `test_map_fields_github_provider_allows_blank_project_v2` failed because blank ProjectV2 input still triggered GraphQL ProjectV2 resolution and command exit with error.
+
+## Follow-up passing run (GitHub ProjectV2 optionality for map-fields)
+
+- Timestamp: 2026-02-25T08:30:21Z
+- Command(s):
+  - `python -m pytest tests/unit/commands/test_backlog_commands.py -k "allows_blank_project_v2 or persists_backlog_config or fails_when_issue_types_unavailable" -q`
+- Result summary:
+  - Targeted GitHub map-fields coverage: `3 passed`.
+  - Blank ProjectV2 input now skips optional ProjectV2 mapping and still persists repository issue-type IDs.
+
+## Follow-up failing run (stale ProjectV2 and issue-type precedence)
+
+- Timestamp: 2026-02-25T08:36:01Z
+- Command(s):
+  - `python -m pytest tests/unit/commands/test_backlog_commands.py -k "blank_project_v2_clears_stale_project_mapping" -q`
+  - `python -m pytest modules/backlog-core/tests/unit/test_add_command.py -k "prefers_root_issue_type_ids_when_provider_fields_issue_types_empty" -q`
+- Failure summary:
+  - `test_map_fields_blank_project_v2_clears_stale_project_mapping` failed because blank ProjectV2 input did not clear stale `provider_fields.github_project_v2`.
+  - `test_backlog_add_prefers_root_issue_type_ids_when_provider_fields_issue_types_empty` failed because `backlog add` preferred empty `provider_fields.github_issue_types` over populated root `github_issue_types`.
+
+## Follow-up passing run (stale ProjectV2 cleanup + issue-type precedence)
+
+- Timestamp: 2026-02-25T08:36:01Z
+- Command(s):
+  - `python -m pytest tests/unit/commands/test_backlog_commands.py -k "allows_blank_project_v2 or blank_project_v2_clears_stale_project_mapping or persists_backlog_config or fails_when_issue_types_unavailable" -q`
+  - `python -m pytest modules/backlog-core/tests/unit/test_add_command.py -k "prefers_root_issue_type_ids_when_provider_fields_issue_types_empty or forwards_github_project_v2_from_backlog_config or warns_when_github_issue_type_mapping_missing" -q`
+- Result summary:
+  - GitHub map-fields optional ProjectV2 and stale-cleanup coverage: `4 passed`.
+  - Backlog-core add mapping-precedence coverage: `3 passed`.
+  - Blank ProjectV2 flow now clears stale ProjectV2 mapping and `backlog add` now uses valid root `github_issue_types.type_ids` when provider-fields copy is empty.

@@ -83,6 +83,14 @@ Workspace project modules SHALL take precedence over user-scope modules.
 - **THEN** the discovered module source for `<module-id>` resolves to project scope
 - **AND** command behavior uses project module artifacts for that repo context.
 
+#### Scenario: Shadow guidance is actionable and emitted once per process
+
+- **GIVEN** `<repo>/.specfact/modules/<module-id>` exists
+- **AND** `<user-home>/.specfact/modules/<module-id>` exists
+- **WHEN** module discovery runs repeatedly in the same process
+- **THEN** CLI emits at most one user-facing warning that project scope takes precedence
+- **AND** the warning includes actionable guidance to inspect origins and optionally clean a stale user-scope module copy.
+
 ### Requirement: Startup Module Freshness Guidance
 
 Startup checks SHALL provide module freshness guidance for bundled modules across project and user scopes.
