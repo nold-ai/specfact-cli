@@ -141,6 +141,7 @@ Do not implement production code until tests exist and have been run (expecting 
   - [x] 6.2.3 Add validation, packaging, signing steps
   - [ ] 6.2.4 Add index.json update and PR creation
   - [ ] 6.2.5 Test workflow with test repository
+  - *Deferred: 6.2.4 and 6.2.5 to be done later (registry index update/PR and workflow test in repo).*
 
 ## 7. Quality gates
 
