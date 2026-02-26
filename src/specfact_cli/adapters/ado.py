@@ -2952,9 +2952,7 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
                     else:
                         return []
                 filtered_items = [
-                    item
-                    for item in filtered_items
-                    if item.iteration and item.iteration == resolved_iteration
+                    item for item in filtered_items if item.iteration and item.iteration == resolved_iteration
                 ]
 
             if filters.sprint:

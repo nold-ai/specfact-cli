@@ -493,6 +493,63 @@ class TestInteractiveMappingCommand:
 
     @patch("specfact_cli.utils.auth_tokens.get_token")
     @patch("requests.post")
+    def test_map_fields_github_provider_maps_story_from_user_story_type(
+        self, mock_post: MagicMock, mock_get_token: MagicMock, tmp_path
+    ) -> None:
+        """GitHub map-fields should map canonical story to discovered custom User Story type."""
+        mock_get_token.return_value = {"access_token": "gho_test", "token_type": "bearer"}
+        mock_response = MagicMock()
+        mock_response.raise_for_status.return_value = None
+        mock_response.json.return_value = {
+            "data": {
+                "repository": {
+                    "issueTypes": {
+                        "nodes": [
+                            {"id": "IT_FEATURE", "name": "Feature"},
+                            {"id": "IT_USER_STORY", "name": "User Story"},
+                            {"id": "IT_TASK", "name": "Task"},
+                        ]
+                    }
+                }
+            }
+        }
+        mock_post.return_value = mock_response
+
+        import os
+
+        cwd = Path.cwd()
+        try:
+            os.chdir(tmp_path)
+            result = runner.invoke(
+                backlog_app,
+                [
+                    "map-fields",
+                    "--provider",
+                    "github",
+                    "--github-project-id",
+                    "nold-ai/specfact-demo-repo",
+                    "--github-project-v2-id",
+                    "PVT_project_id",
+                    "--github-type-field-id",
+                    "PVT_type_field",
+                    "--github-type-option",
+                    "task=OPT_TASK",
+                ],
+            )
+        finally:
+            os.chdir(cwd)
+
+        assert result.exit_code == 0
+        assert "story => user story (fallback alias)" in result.stdout.lower()
+        cfg_file = tmp_path / ".specfact" / "backlog-config.yaml"
+        loaded = yaml.safe_load(cfg_file.read_text(encoding="utf-8"))
+        github_settings = loaded["backlog_config"]["providers"]["github"]["settings"]
+        issue_type_ids = github_settings["github_issue_types"]["type_ids"]
+        assert issue_type_ids["user story"] == "IT_USER_STORY"
+        assert issue_type_ids["story"] == "IT_USER_STORY"
+
+    @patch("specfact_cli.utils.auth_tokens.get_token")
+    @patch("requests.post")
     def test_map_fields_github_provider_fails_when_issue_types_unavailable(
         self, mock_post: MagicMock, mock_get_token: MagicMock, tmp_path
     ) -> None:

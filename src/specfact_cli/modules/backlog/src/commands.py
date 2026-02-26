@@ -4647,11 +4647,59 @@ def map_fields(
             if key and value:
                 cli_option_map[key] = value
 
-        issue_type_id_map = {
-            issue_type: repo_issue_types.get(issue_type, "")
-            for issue_type in ["epic", "feature", "story", "task", "bug"]
-            if repo_issue_types.get(issue_type)
+        canonical_issue_types = ["epic", "feature", "story", "task", "bug"]
+
+        def _resolve_issue_type_id(
+            mapping: dict[str, str],
+            canonical_issue_type: str,
+        ) -> str:
+            normalized_type = canonical_issue_type.strip().lower()
+            candidate_keys = [normalized_type]
+            if normalized_type == "story":
+                # Prefer exact "story", then GitHub custom "user story", then built-in fallback to "feature".
+                candidate_keys.extend(["user story", "feature"])
+            for key in candidate_keys:
+                resolved = str(mapping.get(key) or "").strip()
+                if resolved:
+                    return resolved
+            return ""
+
+        def _resolve_issue_type_source(
+            mapping: dict[str, str],
+            canonical_issue_type: str,
+        ) -> str:
+            normalized_type = canonical_issue_type.strip().lower()
+            candidate_keys = [normalized_type]
+            if normalized_type == "story":
+                candidate_keys.extend(["user story", "feature"])
+            for key in candidate_keys:
+                resolved = str(mapping.get(key) or "").strip()
+                if resolved:
+                    return key
+            return ""
+
+        def _print_story_mapping_hint(
+            *,
+            source_mapping: dict[str, str],
+            resolved_mapping: dict[str, str],
+            label: str = "GitHub issue-type mapping",
+        ) -> None:
+            story_id = str(resolved_mapping.get("story") or "").strip()
+            if not story_id:
+                return
+            story_source = _resolve_issue_type_source(source_mapping, "story") or "story"
+            fallback_note = "fallback alias" if story_source != "story" else "exact"
+            console.print(f"[dim]{label}: story => {story_source} ({fallback_note})[/dim]")
+
+        issue_type_id_map: dict[str, str] = {
+            issue_type_name: issue_type_id
+            for issue_type_name, issue_type_id in repo_issue_types.items()
+            if issue_type_name and issue_type_id
         }
+        for issue_type in canonical_issue_types:
+            resolved_issue_type_id = _resolve_issue_type_id(repo_issue_types, issue_type)
+            if resolved_issue_type_id and issue_type not in issue_type_id_map:
+                issue_type_id_map[issue_type] = resolved_issue_type_id
 
         # Fast-path for fully specified non-interactive invocations.
         if project_ref and (github_type_field_id or "").strip() and cli_option_map:
@@ -4667,13 +4715,14 @@ def map_fields(
                             "type_option_ids": cli_option_map,
                         }
                     },
-                    "github_issue_types": {"type_ids": repo_issue_types},
+                    "github_issue_types": {"type_ids": issue_type_id_map},
                 },
                 project_id=project_context,
                 adapter="github",
             )
             console.print(f"[green]✓[/green] GitHub ProjectV2 Type mapping saved to {config_path}")
             console.print(f"[green]Custom mapping:[/green] {github_custom_mapping_file}")
+            _print_story_mapping_hint(source_mapping=repo_issue_types, resolved_mapping=issue_type_id_map)
             return
 
         if not project_ref:
@@ -4697,6 +4746,7 @@ def map_fields(
             )
             console.print(f"[green]✓[/green] GitHub mapping saved to {config_path}")
             console.print(f"[green]Custom mapping:[/green] {github_custom_mapping_file}")
+            _print_story_mapping_hint(source_mapping=repo_issue_types, resolved_mapping=issue_type_id_map)
             console.print(
                 "[dim]ProjectV2 Type field mapping skipped; repository issue types were captured "
                 "(ProjectV2 is optional).[/dim]"
@@ -4882,18 +4932,24 @@ def map_fields(
         }
 
         if not option_map and option_name_to_id:
-            for issue_type in ["epic", "feature", "story", "task", "bug"]:
-                if issue_type in option_name_to_id:
-                    option_map[issue_type] = option_name_to_id[issue_type]
+            for issue_type in canonical_issue_types:
+                resolved_option_id = _resolve_issue_type_id(option_name_to_id, issue_type)
+                if resolved_option_id:
+                    option_map[issue_type] = resolved_option_id
 
         if not option_map and option_name_to_id:
             available_names = ", ".join(sorted(option_name_to_id.keys()))
             console.print(f"[cyan]Available Type options:[/cyan] {available_names}")
-            for issue_type in ["epic", "feature", "story", "task", "bug"]:
+            for issue_type in canonical_issue_types:
+                default_option_name = ""
+                if issue_type in option_name_to_id:
+                    default_option_name = issue_type
+                elif issue_type == "story" and "user story" in option_name_to_id:
+                    default_option_name = "user story"
                 option_name = (
                     typer.prompt(
                         f"Type option name for '{issue_type}' (optional)",
-                        default=issue_type if issue_type in option_name_to_id else "",
+                        default=default_option_name,
                     )
                     .strip()
                     .lower()
@@ -4938,6 +4994,7 @@ def map_fields(
         project_label = project_title or project_id
         console.print(f"[green]✓[/green] GitHub mapping saved to {config_path}")
         console.print(f"[green]Custom mapping:[/green] {github_custom_mapping_file}")
+        _print_story_mapping_hint(source_mapping=repo_issue_types, resolved_mapping=issue_type_id_map)
         if type_field_id:
             field_name = str(selected_type_field.get("name") or "") if isinstance(selected_type_field, dict) else ""
             console.print(f"[dim]Project: {project_label} | Type field: {field_name}[/dim]")
