@@ -3691,7 +3691,11 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         # Update story points using mapped field name (honors custom mappings)
         if update_fields is None or "story_points" in update_fields:
             story_points_field = ado_mapper.resolve_write_target_field("story_points", provider_field_names)
-            if story_points_field and item.story_points is not None:
+            if (
+                story_points_field
+                and item.story_points is not None
+                and story_points_field in provider_field_names
+            ):
                 operations.append(
                     {"op": "replace", "path": f"/fields/{story_points_field}", "value": item.story_points}
                 )
@@ -3699,7 +3703,11 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         # Update business value using mapped field name (honors custom mappings)
         if update_fields is None or "business_value" in update_fields:
             business_value_field = ado_mapper.resolve_write_target_field("business_value", provider_field_names)
-            if business_value_field and item.business_value is not None:
+            if (
+                business_value_field
+                and item.business_value is not None
+                and business_value_field in provider_field_names
+            ):
                 operations.append(
                     {"op": "replace", "path": f"/fields/{business_value_field}", "value": item.business_value}
                 )
@@ -3707,7 +3715,7 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         # Update priority using mapped field name (honors custom mappings)
         if update_fields is None or "priority" in update_fields:
             priority_field = ado_mapper.resolve_write_target_field("priority", provider_field_names)
-            if priority_field and item.priority is not None:
+            if priority_field and item.priority is not None and priority_field in provider_field_names:
                 operations.append({"op": "replace", "path": f"/fields/{priority_field}", "value": item.priority})
 
         if update_fields is None or "state" in update_fields:
