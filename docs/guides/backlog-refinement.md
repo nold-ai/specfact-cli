@@ -430,6 +430,7 @@ specfact backlog ceremony refinement <ADAPTER> [OPTIONS]
 **Options**:
 
 - `--search`, `-s` - Search query to filter backlog items
+- `--state any` / `--assignee any` - Explicitly disable state/assignee filtering when needed (for example ID-specific runs).
 - `--template`, `-t` - Target template ID (default: auto-detect)
 - `--ignore-refined` / `--no-ignore-refined` - When using `--limit N`, apply limit to items that need refinement (default: ignore already-refined items so you see N items that actually need work)
 - `--id` - Refine only the backlog item with the given issue or work item ID

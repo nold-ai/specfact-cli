@@ -15,6 +15,7 @@ REPO_ROOT = Path(__file__).resolve().parents[4]
 sys.path.insert(0, str(REPO_ROOT / "modules" / "backlog-core" / "src"))
 sys.path.insert(0, str(REPO_ROOT / "src"))
 
+from backlog_core.commands.add import _has_github_repo_issue_type_mapping
 from backlog_core.main import backlog_app
 
 
@@ -39,6 +40,18 @@ class _FakeAdapter:
         _ = project_id
         self.created.append(payload)
         return {"id": "123", "key": "123", "url": "https://example.test/issues/123"}
+
+
+def test_has_github_repo_issue_type_mapping_story_fallback_to_feature() -> None:
+    """When story is unavailable but feature exists, mapping should still be considered available."""
+    provider_fields = {"github_issue_types": {"type_ids": {"feature": "IT_FEATURE_ID"}}}
+    assert _has_github_repo_issue_type_mapping(provider_fields, "story") is True
+
+
+def test_has_github_repo_issue_type_mapping_story_missing_without_feature() -> None:
+    """When both story and feature are unavailable, mapping is unavailable."""
+    provider_fields = {"github_issue_types": {"type_ids": {"bug": "IT_BUG_ID"}}}
+    assert _has_github_repo_issue_type_mapping(provider_fields, "story") is False
 
 
 def test_backlog_add_non_interactive_requires_type_and_title(monkeypatch) -> None:

@@ -16,6 +16,33 @@ from specfact_cli.models.backlog_item import BacklogItem
 from specfact_cli.templates.registry import BacklogTemplate, TemplateRegistry
 
 
+@beartype
+@require(lambda item: isinstance(item, BacklogItem), "Item must be BacklogItem")
+@require(lambda template: isinstance(template, BacklogTemplate), "Template must be BacklogTemplate")
+@ensure(lambda result: isinstance(result, list), "Must return list")
+def get_effective_required_sections(item: BacklogItem, template: BacklogTemplate) -> list[str]:
+    """
+    Return required sections that should be validated in body content for this provider.
+
+    For ADO, structured fields are stored outside the description body and should not be
+    enforced as markdown body sections.
+    """
+    required_sections = list(template.required_sections or [])
+    if item.provider.lower() != "ado":
+        return required_sections
+
+    ado_structured_sections = {
+        "Story Points",
+        "Business Value",
+        "Priority",
+        "Work Item Type",
+        "Value Points",
+        "Area Path",
+        "Iteration Path",
+    }
+    return [section for section in required_sections if section not in ado_structured_sections]
+
+
 class TemplateDetectionResult:
     """Result of template detection with confidence and missing fields."""
 
@@ -72,13 +99,14 @@ class TemplateDetector:
         Returns:
             Structural fit score (0.0-1.0)
         """
-        if not template.required_sections:
+        required_sections = get_effective_required_sections(item, template)
+        if not required_sections:
             return 1.0  # No requirements = perfect match
 
         body_lower = item.body_markdown.lower()
         found_sections = 0
 
-        for section in template.required_sections:
+        for section in required_sections:
             # Check for exact heading match (markdown heading)
             section_lower = section.lower()
             # Match markdown headings: # Section, ## Section, ### Section, etc.
@@ -91,10 +119,10 @@ class TemplateDetector:
             if section_lower in body_lower:
                 found_sections += 1
 
-        if not template.required_sections:
+        if not required_sections:
             return 1.0
 
-        return found_sections / len(template.required_sections)
+        return found_sections / len(required_sections)
 
     @beartype
     @require(lambda self, item: isinstance(item, BacklogItem), "Item must be BacklogItem")
@@ -154,7 +182,7 @@ class TemplateDetector:
         missing: list[str] = []
         body_lower = item.body_markdown.lower()
 
-        for section in template.required_sections:
+        for section in get_effective_required_sections(item, template):
             section_lower = section.lower()
             # Check for exact heading match
             heading_pattern = rf"^#+\s+{re.escape(section_lower)}\s*$"

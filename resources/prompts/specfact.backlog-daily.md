@@ -35,8 +35,8 @@ When run from a **clone**, org/repo or org/project are inferred from `git remote
 
 ### Filters
 
-- `--state STATE` - Filter by state (e.g. open, Active)
-- `--assignee USERNAME` or `--assignee me` - Filter by assignee
+- `--state STATE` - Filter by state (e.g. open, Active). Use `--state any` to disable state filtering.
+- `--assignee USERNAME` or `--assignee me` - Filter by assignee. Use `--assignee any` to disable assignee filtering.
 - `--search QUERY` - Provider-specific search query
 - `--release RELEASE` - Filter by release identifier
 - `--id ISSUE_ID` - Filter to one exact backlog item ID
@@ -113,6 +113,12 @@ When the user has run `specfact backlog daily ... --summarize` or `--summarize-t
 - Execute `specfact backlog daily` (or equivalent) first; use its output as context.
 - Use `--interactive` for story-by-story walkthrough; use `--summarize` or `--summarize-to` when a standup summary prompt is needed.
 - Use `--copilot-export` when you need a file of item summaries for reference during standup.
+
+## Output Contract
+
+- This command does not support `--import-from-tmp`; do not invent a tmp import schema.
+- Do not instruct Copilot to produce `## Item N:` blocks or `**ID**`/`**Body**` tmp artifacts for this command.
+- If you write `--copilot-export` or `--summarize-to` artifacts, keep item sections and IDs unchanged from CLI output.
 
 ## Context
 

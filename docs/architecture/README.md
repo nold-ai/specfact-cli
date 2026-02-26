@@ -1,3 +1,10 @@
+---
+layout: default
+title: Architecture Docs Index
+description: Index of SpecFact CLI architecture deep-dive documents.
+permalink: /architecture/
+---
+
 # SpecFact CLI Architecture Documentation
 
 Architecture documents in this folder describe the current implementation and clearly separate planned features.

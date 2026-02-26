@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
 from typer.testing import CliRunner
 
 from specfact_cli.models.module_package import ModulePackageMetadata
@@ -12,6 +13,15 @@ from specfact_cli.registry.module_installer import USER_MODULES_ROOT
 
 
 runner = CliRunner()
+
+
+@pytest.fixture(autouse=True)
+def _isolate_user_modules_root(monkeypatch, tmp_path: Path) -> None:
+    """Isolate user module root so tests do not depend on machine-local installs."""
+    user_root = tmp_path / "user-modules"
+    user_root.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.USER_MODULES_ROOT", user_root)
+    monkeypatch.setattr("specfact_cli.registry.module_installer.USER_MODULES_ROOT", user_root, raising=False)
 
 
 def test_install_command_integration(monkeypatch, tmp_path: Path) -> None:
@@ -81,7 +91,7 @@ def test_install_command_skips_when_module_already_available_locally(monkeypatch
 
     assert result.exit_code == 0
     assert called["install"] is False
-    assert "already available" in result.stdout
+    assert "already installed" in result.stdout or "already available" in result.stdout
 
 
 def test_install_command_project_scope_installs_to_project_modules_root(monkeypatch, tmp_path: Path) -> None:
@@ -1096,7 +1106,8 @@ def test_module_init_bootstraps_user_modules(monkeypatch) -> None:
     result = runner.invoke(app, ["init"])
 
     assert result.exit_code == 0
-    assert f"Seeded 2 module(s) into {USER_MODULES_ROOT}" in result.stdout
+    assert "Seeded 2 module(s) into" in result.stdout
+    assert str(USER_MODULES_ROOT) in result.stdout or "user-modules" in result.stdout
 
 
 def test_module_init_project_scope_defaults_to_cwd_repo(monkeypatch, tmp_path: Path) -> None:

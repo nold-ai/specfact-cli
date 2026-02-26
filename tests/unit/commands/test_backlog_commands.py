@@ -22,17 +22,153 @@ from specfact_cli.modules.backlog.src.commands import (
     _build_refine_export_content,
     _build_refine_preview_comment_empty_panel,
     _build_refine_preview_comment_panels,
+    _detect_significant_content_loss,
     _item_needs_refinement,
     _parse_refined_export_markdown,
     _parse_refinement_output_fields,
+    _resolve_backlog_provider_framework,
     _resolve_refine_export_comment_window,
     _resolve_refine_preview_comment_window,
+    _resolve_target_template_for_refine_item,
     app as backlog_app,
 )
 from specfact_cli.templates.registry import BacklogTemplate, TemplateRegistry
 
 
 runner = CliRunner()
+
+
+@patch("specfact_cli.modules.backlog.src.commands._resolve_standup_options")
+@patch("specfact_cli.modules.backlog.src.commands._fetch_backlog_items")
+def test_daily_issue_id_bypasses_implicit_default_state(
+    mock_fetch_backlog_items: MagicMock,
+    mock_resolve_standup_options: MagicMock,
+) -> None:
+    """`backlog daily --id` should not apply implicit default state/assignee filters."""
+    mock_resolve_standup_options.return_value = ("open", 20, "me")
+    mock_fetch_backlog_items.return_value = [
+        BacklogItem(
+            id="185",
+            provider="ado",
+            url="https://dev.azure.com/org/project/_apis/wit/workitems/185",
+            title="Fix the error",
+            body_markdown="Description",
+            state="new",
+            assignees=["dominikus.nold@web.de"],
+        )
+    ]
+
+    result = runner.invoke(
+        backlog_app,
+        [
+            "daily",
+            "ado",
+            "--ado-org",
+            "dominikusnold",
+            "--ado-project",
+            "Specfact CLI",
+            "--id",
+            "185",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "No backlog item with id" not in result.stdout
+    assert mock_fetch_backlog_items.call_args.kwargs["state"] is None
+    assert mock_fetch_backlog_items.call_args.kwargs["assignee"] is None
+
+
+@patch("specfact_cli.modules.backlog.src.commands._resolve_standup_options")
+@patch("specfact_cli.modules.backlog.src.commands._fetch_backlog_items")
+def test_daily_reports_default_filters_when_no_items(
+    mock_fetch_backlog_items: MagicMock,
+    mock_resolve_standup_options: MagicMock,
+) -> None:
+    """`backlog daily` should show implicit defaults in UI output for empty results."""
+    mock_resolve_standup_options.return_value = ("open", 20, "me")
+    mock_fetch_backlog_items.return_value = []
+
+    result = runner.invoke(
+        backlog_app,
+        [
+            "daily",
+            "ado",
+            "--ado-org",
+            "dominikusnold",
+            "--ado-project",
+            "Specfact CLI",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "Applied filters:" in result.stdout
+    assert "state=open (default)" in result.stdout
+    assert "assignee=me" in result.stdout
+    assert "(default)" in result.stdout
+    assert "limit=20 (default)" in result.stdout
+
+
+@patch("specfact_cli.modules.backlog.src.commands._resolve_standup_options")
+@patch("specfact_cli.modules.backlog.src.commands._fetch_backlog_items")
+def test_daily_accepts_any_for_state_and_assignee_as_no_filter(
+    mock_fetch_backlog_items: MagicMock,
+    mock_resolve_standup_options: MagicMock,
+) -> None:
+    """`--state any` / `--assignee any` should disable both filters."""
+    mock_resolve_standup_options.return_value = (None, 20, None)
+    mock_fetch_backlog_items.return_value = []
+
+    result = runner.invoke(
+        backlog_app,
+        [
+            "daily",
+            "ado",
+            "--ado-org",
+            "dominikusnold",
+            "--ado-project",
+            "Specfact CLI",
+            "--state",
+            "any",
+            "--assignee",
+            "any",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert mock_resolve_standup_options.call_args.kwargs["state_filter_disabled"] is True
+    assert mock_resolve_standup_options.call_args.kwargs["assignee_filter_disabled"] is True
+    assert mock_fetch_backlog_items.call_args.kwargs["state"] is None
+    assert mock_fetch_backlog_items.call_args.kwargs["assignee"] is None
+
+
+@patch("specfact_cli.modules.backlog.src.commands._fetch_backlog_items")
+def test_daily_any_filters_render_as_disabled_scope(
+    mock_fetch_backlog_items: MagicMock,
+) -> None:
+    """`--state any --assignee any` should render disabled filter scope in output."""
+    mock_fetch_backlog_items.return_value = []
+
+    result = runner.invoke(
+        backlog_app,
+        [
+            "daily",
+            "ado",
+            "--ado-org",
+            "dominikusnold",
+            "--ado-project",
+            "Specfact CLI",
+            "--state",
+            "any",
+            "--assignee",
+            "any",
+        ],
+    )
+
+    assert result.exit_code == 0
+    output = " ".join(result.stdout.split())
+    assert "Applied filters:" in output
+    assert "state=— (explicit)" in output
+    assert "assignee=— (explicit)" in output
 
 
 class TestBacklogPreviewOutput:
@@ -116,7 +252,7 @@ class TestInteractiveMappingCommand:
         mock_select: MagicMock,
         mock_get: MagicMock,
     ) -> None:
-        """Test that map-fields command fetches fields from ADO API."""
+        """Test that map-fields command fetches ADO metadata endpoints."""
         # Mock ADO API response
         mock_response = MagicMock()
         mock_response.json.return_value = {
@@ -157,10 +293,11 @@ class TestInteractiveMappingCommand:
 
         # Should call ADO API
         assert mock_get.called
-        call_args = mock_get.call_args
-        assert "test-org" in call_args[0][0]
-        assert "test-project" in call_args[0][0]
-        assert "_apis/wit/fields" in call_args[0][0]
+        called_urls = [str(call.args[0]) for call in mock_get.call_args_list if call.args]
+        assert any("test-org" in url for url in called_urls)
+        assert any("test-project" in url for url in called_urls)
+        # map-fields now resolves/processes work-item type metadata before field mapping prompts
+        assert any("_apis/wit/workitemtypes" in url for url in called_urls)
 
     @patch("requests.get")
     @patch("questionary.select")
@@ -356,6 +493,63 @@ class TestInteractiveMappingCommand:
 
     @patch("specfact_cli.utils.auth_tokens.get_token")
     @patch("requests.post")
+    def test_map_fields_github_provider_maps_story_from_user_story_type(
+        self, mock_post: MagicMock, mock_get_token: MagicMock, tmp_path
+    ) -> None:
+        """GitHub map-fields should map canonical story to discovered custom User Story type."""
+        mock_get_token.return_value = {"access_token": "gho_test", "token_type": "bearer"}
+        mock_response = MagicMock()
+        mock_response.raise_for_status.return_value = None
+        mock_response.json.return_value = {
+            "data": {
+                "repository": {
+                    "issueTypes": {
+                        "nodes": [
+                            {"id": "IT_FEATURE", "name": "Feature"},
+                            {"id": "IT_USER_STORY", "name": "User Story"},
+                            {"id": "IT_TASK", "name": "Task"},
+                        ]
+                    }
+                }
+            }
+        }
+        mock_post.return_value = mock_response
+
+        import os
+
+        cwd = Path.cwd()
+        try:
+            os.chdir(tmp_path)
+            result = runner.invoke(
+                backlog_app,
+                [
+                    "map-fields",
+                    "--provider",
+                    "github",
+                    "--github-project-id",
+                    "nold-ai/specfact-demo-repo",
+                    "--github-project-v2-id",
+                    "PVT_project_id",
+                    "--github-type-field-id",
+                    "PVT_type_field",
+                    "--github-type-option",
+                    "task=OPT_TASK",
+                ],
+            )
+        finally:
+            os.chdir(cwd)
+
+        assert result.exit_code == 0
+        assert "story => user story (fallback alias)" in result.stdout.lower()
+        cfg_file = tmp_path / ".specfact" / "backlog-config.yaml"
+        loaded = yaml.safe_load(cfg_file.read_text(encoding="utf-8"))
+        github_settings = loaded["backlog_config"]["providers"]["github"]["settings"]
+        issue_type_ids = github_settings["github_issue_types"]["type_ids"]
+        assert issue_type_ids["user story"] == "IT_USER_STORY"
+        assert issue_type_ids["story"] == "IT_USER_STORY"
+
+    @patch("specfact_cli.utils.auth_tokens.get_token")
+    @patch("requests.post")
     def test_map_fields_github_provider_fails_when_issue_types_unavailable(
         self, mock_post: MagicMock, mock_get_token: MagicMock, tmp_path
     ) -> None:
@@ -508,6 +702,98 @@ backlog_config:
         provider_fields = github_settings.get("provider_fields", {})
         assert provider_fields.get("github_project_v2") is None
 
+    @patch("requests.get")
+    @patch("questionary.select")
+    def test_map_fields_ado_framework_cli_persists_to_config_and_mapping(
+        self, mock_select: MagicMock, mock_get: MagicMock, tmp_path
+    ) -> None:
+        """ADO map-fields should persist selected framework for deterministic refine steering."""
+        # ADO fields API response
+        mock_fields_response = MagicMock()
+        mock_fields_response.raise_for_status.return_value = None
+        mock_fields_response.json.return_value = {
+            "value": [
+                {"referenceName": "System.Description", "name": "Description"},
+                {"referenceName": "System.AcceptanceCriteria", "name": "Acceptance Criteria"},
+                {"referenceName": "Microsoft.VSTS.Scheduling.StoryPoints", "name": "Story Points"},
+            ]
+        }
+        # ADO work item types API response (detection call; should not override explicit CLI value)
+        mock_types_response = MagicMock()
+        mock_types_response.raise_for_status.return_value = None
+        mock_types_response.json.return_value = {
+            "value": [{"name": "Product Backlog Item"}, {"name": "Bug"}, {"name": "Task"}]
+        }
+        mock_get.side_effect = [mock_fields_response, mock_types_response]
+
+        # Field selection prompts: map none for all canonical fields
+        mock_select.return_value.ask.return_value = "<no mapping>"
+
+        import os
+
+        cwd = Path.cwd()
+        try:
+            os.chdir(tmp_path)
+            result = runner.invoke(
+                backlog_app,
+                [
+                    "map-fields",
+                    "--provider",
+                    "ado",
+                    "--ado-org",
+                    "test-org",
+                    "--ado-project",
+                    "test-project",
+                    "--ado-token",
+                    "test-token",
+                    "--ado-framework",
+                    "scrum",
+                ],
+            )
+        finally:
+            os.chdir(cwd)
+
+        assert result.exit_code == 0
+        ado_custom = tmp_path / ".specfact" / "templates" / "backlog" / "field_mappings" / "ado_custom.yaml"
+        assert ado_custom.exists()
+        custom_payload = yaml.safe_load(ado_custom.read_text(encoding="utf-8"))
+        assert custom_payload["framework"] == "scrum"
+
+        cfg_file = tmp_path / ".specfact" / "backlog-config.yaml"
+        assert cfg_file.exists()
+        loaded = yaml.safe_load(cfg_file.read_text(encoding="utf-8"))
+        ado_settings = loaded["backlog_config"]["providers"]["ado"]["settings"]
+        assert ado_settings["framework"] == "scrum"
+
+    def test_resolve_backlog_provider_framework_reads_backlog_config(self, tmp_path) -> None:
+        """Framework resolver should read provider framework from backlog-config settings."""
+        import os
+
+        spec_dir = tmp_path / ".specfact"
+        spec_dir.mkdir(parents=True, exist_ok=True)
+        (spec_dir / "backlog-config.yaml").write_text(
+            """
+backlog_config:
+  providers:
+    ado:
+      adapter: ado
+      project_id: test-org/test-project
+      settings:
+        framework: scrum
+        field_mapping_file: .specfact/templates/backlog/field_mappings/ado_custom.yaml
+""".strip(),
+            encoding="utf-8",
+        )
+
+        cwd = Path.cwd()
+        try:
+            os.chdir(tmp_path)
+            resolved = _resolve_backlog_provider_framework("ado")
+        finally:
+            os.chdir(cwd)
+
+        assert resolved == "scrum"
+
     def test_backlog_init_config_scaffolds_default_file(self, tmp_path) -> None:
         """Test backlog init-config creates default backlog-config scaffold."""
         import os
@@ -580,6 +866,25 @@ Refined body text here.
         assert "issue-42" in result
         assert result["issue-42"]["body_markdown"] == "Refined body text here."
         assert result["issue-42"].get("title") == "My Title"
+
+    def test_parses_item_when_file_starts_with_item_header(self) -> None:
+        """Parser handles item heading at file start and does not leak heading marker into title."""
+        content = """## Item 1: Story title from heading
+
+**ID**: 123
+**URL**: u
+**State**: open
+**Provider**: ado
+
+**Body**:
+```markdown
+Body content
+```
+"""
+        result = _parse_refined_export_markdown(content)
+        assert "123" in result
+        assert result["123"].get("title") == "Story title from heading"
+        assert result["123"].get("title", "").startswith("## Item") is False
 
     def test_parses_acceptance_criteria_and_metrics(self) -> None:
         """Parser extracts acceptance criteria and metrics when present."""
@@ -666,6 +971,32 @@ Then we see the error.
         assert "return 42" in body
         assert "```" in body
         assert "Then we see the error." in body
+
+
+class TestContentLossDetection:
+    """Tests for refined-content loss guard used by tmp import."""
+
+    def test_detects_significant_content_loss(self) -> None:
+        original = (
+            "Implement OAuth login with PKCE, refresh-token rotation, role-based access checks, "
+            "audit logging for login events, and explicit error handling for expired tokens."
+        )
+        refined = "Implement login support."
+        has_loss, reason = _detect_significant_content_loss(original, refined)
+        assert has_loss is True
+        assert reason
+
+    def test_allows_structured_rewrite_without_loss(self) -> None:
+        original = (
+            "As a platform user I need OAuth login with PKCE and refresh-token rotation so that "
+            "authentication remains secure and users can re-authenticate without credential prompts."
+        )
+        refined = (
+            "## Description\n\nAs a platform user I need OAuth login with PKCE and refresh-token rotation "
+            "so authentication stays secure and re-authentication works without credential prompts."
+        )
+        has_loss, _reason = _detect_significant_content_loss(original, refined)
+        assert has_loss is False
 
 
 class TestParseRefinementOutputFields:
@@ -980,6 +1311,23 @@ class TestBuildRefineExportContent:
         content = _build_refine_export_content(adapter="ado", items=[item], comments_by_item_id={})
         assert content.index("## Copilot Instructions") < content.index("## Item 1:")
 
+    def test_refine_export_marks_id_as_mandatory_for_import(self) -> None:
+        """Export guidance should state ID is required and immutable for import."""
+        item = BacklogItem(
+            id="42",
+            provider="ado",
+            url="https://dev.azure.com/org/project/_workitems/edit/42",
+            title="Story",
+            body_markdown="Body text",
+            state="Active",
+            assignees=[],
+        )
+        content = _build_refine_export_content(adapter="ado", items=[item], comments_by_item_id={})
+        assert "**ID** is mandatory" in content
+        assert "must remain unchanged" in content
+        assert "Do NOT summarize, shorten, or drop details" in content
+        assert "Template Execution Rules (mandatory)" in content
+
     def test_refine_export_includes_template_guidance_for_items(self) -> None:
         """Export includes template guidance similar to interactive prompts."""
         item = BacklogItem(
@@ -1040,6 +1388,119 @@ class TestRefineCommentWindowResolution:
         first_2, last_2 = _resolve_refine_export_comment_window(first_comments=None, last_comments=3)
         assert first_2 is None
         assert last_2 is None
+
+
+class TestRefineImportFromTmp:
+    """Tests for refine --import-from-tmp behavior."""
+
+    @patch("specfact_cli.modules.backlog.src.commands._fetch_backlog_items")
+    def test_import_from_tmp_fails_when_no_parsed_ids_match_fetched_items(
+        self, mock_fetch_items: MagicMock, tmp_path
+    ) -> None:
+        """Import should fail fast when refined IDs do not match fetched backlog items."""
+        mock_fetch_items.return_value = [
+            BacklogItem(
+                id="1",
+                provider="github",
+                url="https://github.com/org/repo/issues/1",
+                title="Issue 1",
+                body_markdown="Original body",
+                state="open",
+                assignees=[],
+            )
+        ]
+
+        refined_file = tmp_path / "refined.md"
+        refined_file.write_text(
+            """
+## Item 1: Edited Title
+
+**ID**: 999
+**URL**: https://github.com/org/repo/issues/999
+**State**: open
+**Provider**: github
+
+**Body**:
+```markdown
+Refined body
+```
+""".strip(),
+            encoding="utf-8",
+        )
+
+        result = runner.invoke(
+            backlog_app,
+            [
+                "refine",
+                "github",
+                "--repo-owner",
+                "org",
+                "--repo-name",
+                "repo",
+                "--import-from-tmp",
+                "--tmp-file",
+                str(refined_file),
+            ],
+        )
+
+        assert result.exit_code != 0
+        assert "None of the refined item IDs matched fetched backlog items" in result.stdout
+
+    @patch("specfact_cli.modules.backlog.src.commands._fetch_backlog_items")
+    def test_import_from_tmp_fails_when_refined_body_is_significantly_shortened(
+        self, mock_fetch_items: MagicMock, tmp_path
+    ) -> None:
+        """Import should fail when tmp refinement drops substantial original detail."""
+        mock_fetch_items.return_value = [
+            BacklogItem(
+                id="1",
+                provider="github",
+                url="https://github.com/org/repo/issues/1",
+                title="Issue 1",
+                body_markdown=(
+                    "Implement OAuth login with PKCE, refresh-token rotation, role-based checks, "
+                    "audit logging, and token-expiry handling."
+                ),
+                state="open",
+                assignees=[],
+            )
+        ]
+
+        refined_file = tmp_path / "refined.md"
+        refined_file.write_text(
+            """
+## Item 1: Edited Title
+
+**ID**: 1
+**URL**: https://github.com/org/repo/issues/1
+**State**: open
+**Provider**: github
+
+**Body**:
+```markdown
+Implement login support.
+```
+""".strip(),
+            encoding="utf-8",
+        )
+
+        result = runner.invoke(
+            backlog_app,
+            [
+                "refine",
+                "github",
+                "--repo-owner",
+                "org",
+                "--repo-name",
+                "repo",
+                "--import-from-tmp",
+                "--tmp-file",
+                str(refined_file),
+            ],
+        )
+
+        assert result.exit_code != 0
+        assert "appears to drop important detail" in result.stdout
 
 
 class TestRefinePreviewCommentUx:
@@ -1148,3 +1609,160 @@ class TestItemNeedsRefinement:
         )
         result = _item_needs_refinement(item, detector, registry, None, "github", None, None)
         assert result is False
+
+    def test_ado_does_not_require_story_points_heading_in_body_sections(self) -> None:
+        """ADO items should not be forced to include Story Points as markdown body heading."""
+        registry = TemplateRegistry()
+        registry.register_template(
+            BacklogTemplate(
+                template_id="scrum-story",
+                name="Scrum Story",
+                description="",
+                required_sections=["As a", "I want", "So that", "Acceptance Criteria", "Story Points"],
+            )
+        )
+        detector = TemplateDetector(registry)
+        item = BacklogItem(
+            id="10",
+            provider="ado",
+            url="https://dev.azure.com/org/project/_workitems/edit/10",
+            title="User Story",
+            body_markdown="## As a\nuser\n\n## I want\nvalue\n\n## So that\nbenefit\n\n## Acceptance Criteria\n- [ ] done",
+            state="Active",
+            assignees=[],
+            story_points=5,
+        )
+        # Should be considered already refined if no missing non-structured required sections.
+        assert _item_needs_refinement(item, detector, registry, None, "ado", "scrum", None) is False
+
+
+class TestResolveTargetTemplateForRefineItem:
+    """Tests for template steering helper used by backlog refine."""
+
+    def test_ado_user_story_type_prefers_user_story_template(self) -> None:
+        """ADO User Story/PBI items should prefer user_story_v1 over generic ado_work_item_v1."""
+        registry = TemplateRegistry()
+        registry.register_template(
+            BacklogTemplate(
+                template_id="ado_work_item_v1",
+                name="ADO Work Item",
+                description="",
+                provider="ado",
+                required_sections=["Description", "Acceptance Criteria"],
+            )
+        )
+        registry.register_template(
+            BacklogTemplate(
+                template_id="user_story_v1",
+                name="User Story",
+                description="",
+                required_sections=["As a", "I want", "So that", "Acceptance Criteria"],
+            )
+        )
+        detector = TemplateDetector(registry)
+        item = BacklogItem(
+            id="42",
+            provider="ado",
+            url="https://dev.azure.com/org/project/_workitems/edit/42",
+            title="User Story: refine mapping",
+            body_markdown="## Description\n\nBody\n\n## Acceptance Criteria\n- [ ] one",
+            state="Active",
+            assignees=[],
+            work_item_type="User Story",
+        )
+
+        resolved = _resolve_target_template_for_refine_item(
+            item,
+            detector=detector,
+            registry=registry,
+            template_id=None,
+            normalized_adapter="ado",
+            normalized_framework=None,
+            normalized_persona=None,
+        )
+
+        assert resolved is not None
+        assert resolved.template_id == "user_story_v1"
+
+    def test_github_story_tag_prefers_user_story_template(self) -> None:
+        """GitHub story-labeled items should prefer user_story_v1 over generic enabler templates."""
+        registry = TemplateRegistry()
+        registry.register_template(
+            BacklogTemplate(
+                template_id="enabler_v1",
+                name="Enabler",
+                description="",
+                provider="github",
+                required_sections=["Description"],
+            )
+        )
+        registry.register_template(
+            BacklogTemplate(
+                template_id="user_story_v1",
+                name="User Story",
+                description="",
+                provider=None,
+                required_sections=["As a", "I want", "So that", "Acceptance Criteria"],
+            )
+        )
+        detector = TemplateDetector(registry)
+        item = BacklogItem(
+            id="77",
+            provider="github",
+            url="https://github.com/o/r/issues/77",
+            title="Story: improve login flow",
+            body_markdown="## Description\n\nImprove flow",
+            state="open",
+            assignees=[],
+            tags=["story"],
+        )
+
+        resolved = _resolve_target_template_for_refine_item(
+            item,
+            detector=detector,
+            registry=registry,
+            template_id=None,
+            normalized_adapter="github",
+            normalized_framework=None,
+            normalized_persona=None,
+        )
+
+        assert resolved is not None
+        assert resolved.template_id == "user_story_v1"
+
+    def test_non_story_item_does_not_recurse_and_resolves_detected_template(self) -> None:
+        """Non-story items should resolve without recursive fallback loops."""
+        registry = TemplateRegistry()
+        registry.register_template(
+            BacklogTemplate(
+                template_id="enabler_v1",
+                name="Enabler",
+                description="",
+                provider="github",
+                required_sections=["Description"],
+            )
+        )
+        detector = TemplateDetector(registry)
+        item = BacklogItem(
+            id="88",
+            provider="github",
+            url="https://github.com/o/r/issues/88",
+            title="Improve pipeline",
+            body_markdown="## Description\n\nImprove pipeline execution.",
+            state="open",
+            assignees=[],
+            tags=["enhancement"],
+        )
+
+        resolved = _resolve_target_template_for_refine_item(
+            item,
+            detector=detector,
+            registry=registry,
+            template_id=None,
+            normalized_adapter="github",
+            normalized_framework=None,
+            normalized_persona=None,
+        )
+
+        assert resolved is not None
+        assert resolved.template_id == "enabler_v1"

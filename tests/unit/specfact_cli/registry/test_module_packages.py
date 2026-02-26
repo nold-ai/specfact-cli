@@ -348,15 +348,17 @@ def test_module_state_read_write(tmp_path: Path):
         os.environ.pop("SPECFACT_REGISTRY_DIR", None)
 
 
-def test_example_package_discovered_if_present():
-    """If modules/example exists with module-package.yaml, discovery finds it."""
-    root = get_modules_root()
-    if not root.exists():
-        pytest.skip("modules root not present")
-    packages = discover_package_metadata(root)
+def test_example_package_discovered_from_fixture(tmp_path: Path) -> None:
+    """Discovery should load an example package when present in a controlled fixture root."""
+    example_dir = tmp_path / "example"
+    example_dir.mkdir(parents=True, exist_ok=True)
+    (example_dir / "module-package.yaml").write_text(
+        "name: example\nversion: 0.1.0\ncommands: [example]\n",
+        encoding="utf-8",
+    )
+    packages = discover_package_metadata(tmp_path)
     example = [p for p in packages if p[1].name == "example"]
-    if not example:
-        pytest.skip("example package not present")
+    assert example
     _dir, meta = example[0]
     assert "example" in meta.commands
 

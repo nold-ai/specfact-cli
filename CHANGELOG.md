@@ -10,6 +10,29 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.37.5] - 2026-02-25
+
+### Fixed
+
+- Backlog refine/write-back now resolves ADO custom field targets deterministically across mapped canonical fields, preventing fallback to unintended defaults (for example Story Points field drift).
+- Backlog refine tmp import contract and parser guidance were aligned across backlog prompts, including mandatory stable `ID` usage and provider-specific structure requirements.
+- ADO markdown write-back and extraction handling were hardened: markdown-supported fields are formatted consistently, duplicate description headings are stripped, and rich-text normalization preserves line breaks and non-HTML angle-bracket content.
+- Refine import/update safeguards now prevent title pollution (`## Item ...`) and reject significant silent content loss during bulk refinement flows.
+- Template and mapping steering for ADO now prefers user-story templates where applicable and includes explicit process/framework selection behavior in mapping workflows.
+- Backlog read commands now support `--state any` and `--assignee any` semantics to explicitly disable those filters and avoid confusing empty results caused by hidden defaults.
+- Fixed a `daily` regression where explicit `--state any` / `--assignee any` still fell back to standup defaults (`open`/configured assignee) instead of disabling filters.
+- GitHub backlog create/type assignment now falls back `story -> feature` by default when native `Story` type is not available in the repository, while preserving explicit mappings when present.
+- ADO transport/write paths were hardened with improved retry/diagnostic behavior and clearer default-filter visibility in command output for production-style environments.
+- Contract-exploration counterexamples were addressed by tightening converter preconditions and timestamp parsing robustness, and by hardening TODO-marker detection against regex edge cases.
+- `specfact module init` command-test assertions now handle isolated user-root output formatting consistently, avoiding brittle path-specific failures in CI and local runs.
+- Enforcement preset factory return-path validation no longer triggers spurious beartype return violations in strict test runs.
+- Addressed integration/unit regressions in backlog command parsing/help wiring and ADO parent-candidate WIQL request handling introduced during hardening.
+- Removed module installer tar extraction deprecation warnings by using safer extraction mode with backward-compatible fallback.
+- Docs site rendering was corrected for linked architecture pages by adding missing Jekyll front matter and replacing non-doc relative links with stable GitHub URLs where appropriate.
+- Eliminated widespread `ValueError: I/O operation on closed file` CLI/E2E failures by rebinding module-level Rich consoles to the active invocation stream at CLI entry, preventing stale closed capture streams across sequential test runs.
+
+---
+
 ## [0.37.4] - 2026-02-25
 
 ### Changed

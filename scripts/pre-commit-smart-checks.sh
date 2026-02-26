@@ -29,6 +29,70 @@ has_staged_workflows() {
   staged_files | grep -E '^\.github/workflows/.*\\.ya?ml$' >/dev/null 2>&1
 }
 
+has_staged_markdown() {
+  staged_files | grep -E '\\.md$' >/dev/null 2>&1
+}
+
+run_module_signature_verification() {
+  info "🔐 Verifying bundled module signatures/version bumps"
+  if hatch run ./scripts/verify-modules-signature.py --require-signature --enforce-version-bump; then
+    success "✅ Module signature/version verification passed"
+  else
+    error "❌ Module signature/version verification failed"
+    warn "💡 Re-sign changed modules with version bump before commit"
+    exit 1
+  fi
+}
+
+run_markdown_lint_if_needed() {
+  if has_staged_markdown; then
+    info "📝 Markdown changes detected — running markdownlint"
+    local md_files
+    md_files=$(staged_files | grep -E '\\.md$' || true)
+    if [ -z "${md_files}" ]; then
+      info "ℹ️  No staged markdown files resolved — skipping markdownlint"
+      return
+    fi
+
+    if command -v markdownlint >/dev/null 2>&1; then
+      if echo "${md_files}" | xargs -r markdownlint --config .markdownlint.json; then
+        success "✅ Markdown lint passed"
+      else
+        error "❌ Markdown lint failed"
+        exit 1
+      fi
+    else
+      if echo "${md_files}" | xargs -r npx --yes markdownlint-cli --config .markdownlint.json; then
+        success "✅ Markdown lint passed (npx)"
+      else
+        error "❌ Markdown lint failed (npx)"
+        warn "💡 Install markdownlint-cli globally for faster hooks: npm i -g markdownlint-cli"
+        exit 1
+      fi
+    fi
+  else
+    info "ℹ️  No staged Markdown changes — skipping markdownlint"
+  fi
+}
+
+run_format_safety() {
+  info "🧹 Running formatter safety check (hatch run format)"
+  local before_unstaged after_unstaged
+  before_unstaged=$(git diff --name-only -- . | sort || true)
+  if hatch run format; then
+    after_unstaged=$(git diff --name-only -- . | sort || true)
+    if [ "${before_unstaged}" != "${after_unstaged}" ]; then
+      error "❌ Formatter changed files. Review and re-stage before committing."
+      warn "💡 Run: hatch run format && git add -A"
+      exit 1
+    fi
+    success "✅ Formatting check passed"
+  else
+    error "❌ Formatting check failed"
+    exit 1
+  fi
+}
+
 run_yaml_lint_if_needed() {
   if has_staged_yaml; then
     info "🔎 YAML changes detected — running yamllint (relaxed)"
@@ -108,7 +172,12 @@ check_safe_change() {
 
 warn "🔍 Running pre-commit checks (YAML/workflows + smart tests)"
 
+# Always enforce module signature/version policy before commit
+run_module_signature_verification
+run_format_safety
+
 # Always run lint checks when relevant files changed
+run_markdown_lint_if_needed
 run_yaml_lint_if_needed
 run_actionlint_if_needed
 

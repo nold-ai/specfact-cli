@@ -375,6 +375,22 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         return description_raw
 
     @beartype
+    @ensure(lambda result: isinstance(result, str), "Must return string")
+    def _strip_leading_description_heading(self, content: str) -> str:
+        """
+        Remove a leading Description heading/label from markdown content.
+
+        This prevents duplicated "Description" headers in ADO Description field
+        when refinement output includes a scaffold heading like `## Description`.
+        """
+        if not content:
+            return ""
+        normalized = content.lstrip()
+        normalized = re.sub(r"^(#{1,6}\s+Description\s*)\n+", "", normalized, count=1, flags=re.IGNORECASE)
+        normalized = re.sub(r"^Description:\s*\n+", "", normalized, count=1, flags=re.IGNORECASE)
+        return normalized.strip()
+
+    @beartype
     @require(lambda item_data: isinstance(item_data, dict), "Item data must be dict")
     @ensure(lambda result: isinstance(result, dict), "Must return dict with extracted fields")
     def extract_change_proposal_data(self, item_data: dict[str, Any]) -> dict[str, Any]:
@@ -1225,8 +1241,7 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
                 "Content-Type": "application/json",
                 **self._auth_headers(),
             }
-            response = requests.get(url, headers=headers, timeout=30)
-            response.raise_for_status()
+            response = self._ado_get(url, headers=headers, timeout=30)
             project_data = response.json()
 
             # Get process template ID
@@ -1397,6 +1412,50 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             return {"Authorization": f"Bearer {self.api_token}"}
         return {"Authorization": f"Basic {self._encode_pat(self.api_token)}"}
 
+    @beartype
+    @ensure(lambda result: hasattr(result, "raise_for_status"), "Result must support raise_for_status")
+    def _ado_get(
+        self,
+        url: str,
+        *,
+        headers: dict[str, str] | None = None,
+        params: dict[str, Any] | None = None,
+        timeout: int = 30,
+        retry_on_ambiguous_transport: bool = True,
+    ) -> Any:
+        """Execute an idempotent ADO GET with retry policy for transient failures."""
+        return cast(
+            Any,
+            self._request_with_retry(
+                lambda: requests.get(url, headers=headers, params=params, timeout=timeout),
+                retry_on_ambiguous_transport=retry_on_ambiguous_transport,
+            ),
+        )
+
+    @beartype
+    @ensure(lambda result: hasattr(result, "raise_for_status"), "Result must support raise_for_status")
+    def _ado_post(
+        self,
+        url: str,
+        *,
+        headers: dict[str, str] | None = None,
+        params: dict[str, Any] | None = None,
+        json: dict[str, Any] | None = None,
+        timeout: int = 30,
+        retry_on_ambiguous_transport: bool = True,
+    ) -> Any:
+        """Execute ADO POST with retry policy. Safe for read-only WIQL endpoints."""
+        request_kwargs: dict[str, Any] = {"headers": headers, "json": json, "timeout": timeout}
+        if params:
+            request_kwargs["params"] = params
+        return cast(
+            Any,
+            self._request_with_retry(
+                lambda: requests.post(url, **request_kwargs),
+                retry_on_ambiguous_transport=retry_on_ambiguous_transport,
+            ),
+        )
+
     def _work_item_exists(self, work_item_id: int | str, org: str, project: str) -> bool:
         """
         Check if a work item exists in Azure DevOps.
@@ -1426,15 +1485,16 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         }
 
         try:
-            response = requests.get(url, headers=headers, timeout=10)
-            # 200 = exists, 404 = doesn't exist (including deleted)
-            if response.status_code == 200:
-                # Check if work item is deleted (System.State == "Removed")
-                work_item_data = response.json()
-                fields = work_item_data.get("fields", {})
-                state = fields.get("System.State", "")
-                # Consider "Removed" as non-existent for our purposes
-                return state != "Removed"
+            response = self._ado_get(url, headers=headers, timeout=10)
+            # Check if work item is deleted (System.State == "Removed")
+            work_item_data = response.json()
+            fields = work_item_data.get("fields", {})
+            state = fields.get("System.State", "")
+            # Consider "Removed" as non-existent for our purposes
+            return state != "Removed"
+        except requests.HTTPError as e:
+            if e.response is not None and e.response.status_code == 404:
+                return False
             return False
         except requests.RequestException:
             # On any error, assume it doesn't exist (safer to allow creation)
@@ -1469,18 +1529,57 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         }
 
         try:
-            response = requests.get(url, headers=headers, timeout=10)
-            if response.status_code == 200:
-                work_item_data = response.json()
-                fields = work_item_data.get("fields", {})
-                return {
-                    "title": fields.get("System.Title", ""),
-                    "state": fields.get("System.State", ""),
-                    "description": fields.get("System.Description", ""),
-                }
+            response = self._ado_get(url, headers=headers, timeout=10)
+            work_item_data = response.json()
+            fields = work_item_data.get("fields", {})
+            return {
+                "title": fields.get("System.Title", ""),
+                "state": fields.get("System.State", ""),
+                "description": fields.get("System.Description", ""),
+            }
+        except requests.HTTPError as e:
+            if e.response is not None and e.response.status_code == 404:
+                return None
             return None
         except requests.RequestException:
             return None
+
+    @beartype
+    @require(
+        lambda self, issue_id: isinstance(issue_id, str) and len(issue_id.strip()) > 0, "issue_id must be non-empty"
+    )
+    @ensure(lambda result: result is None or isinstance(result, BacklogItem), "Must return BacklogItem or None")
+    def _fetch_backlog_item_by_id(self, issue_id: str) -> BacklogItem | None:
+        """Fetch a single ADO work item directly by ID (bypasses WIQL list queries)."""
+        normalized_id = issue_id.strip()
+        if not normalized_id.isdigit():
+            return None
+        if not self.org or not self.project:
+            return None
+
+        url = self._build_ado_url(f"_apis/wit/workitems/{int(normalized_id)}", api_version="7.1")
+        headers = {
+            **self._auth_headers(),
+            "Accept": "application/json",
+        }
+
+        try:
+            response = self._ado_get(url, headers=headers, params={"$expand": "all"}, timeout=30)
+            work_item = response.json()
+        except requests.HTTPError as e:
+            if e.response is not None and e.response.status_code == 404:
+                return None
+            raise
+
+        from specfact_cli.backlog.converter import convert_ado_work_item_to_backlog_item
+
+        return convert_ado_work_item_to_backlog_item(
+            work_item,
+            provider="ado",
+            base_url=self.base_url,
+            org=self.org,
+            project_name=self.project,
+        )
 
     def _find_work_item_by_change_id(self, change_id: str, org: str, project: str) -> dict[str, Any] | None:
         """
@@ -1513,7 +1612,7 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         }
 
         try:
-            response = requests.post(url, json=wiql, headers=headers, timeout=10)
+            response = self._ado_post(url, json=wiql, headers=headers, timeout=10)
             if is_debug_mode():
                 debug_log_operation(
                     "ado_wiql",
@@ -2379,8 +2478,7 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
                 if continuation_token:
                     params["continuationToken"] = continuation_token
 
-                response = requests.get(url, headers=headers, params=params, timeout=30)
-                response.raise_for_status()
+                response = self._ado_get(url, headers=headers, params=params, timeout=30)
                 response_data = response.json()
 
                 raw_comments = response_data.get("comments", [])
@@ -2556,16 +2654,18 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
                     **self._auth_headers(),
                     "Accept": "application/json",
                 }
-                project_response = requests.get(project_url, headers=project_headers, params=project_params, timeout=30)
-                project_response.raise_for_status()
+                project_response = self._ado_get(
+                    project_url, headers=project_headers, params=project_params, timeout=30
+                )
                 project_data = project_response.json()
                 project_id = project_data.get("id")
 
                 if project_id:
                     # Get teams for the project
                     teams_url = f"{self.base_url}/{self.org}/_apis/projects/{project_id}/teams"
-                    teams_response = requests.get(teams_url, headers=project_headers, params=project_params, timeout=30)
-                    teams_response.raise_for_status()
+                    teams_response = self._ado_get(
+                        teams_url, headers=project_headers, params=project_params, timeout=30
+                    )
                     teams_data = teams_response.json()
                     teams = teams_data.get("value", [])
                     if teams:
@@ -2593,8 +2693,7 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         }
 
         try:
-            response = requests.get(url, headers=headers, params=params, timeout=30)
-            response.raise_for_status()
+            response = self._ado_get(url, headers=headers, params=params, timeout=30)
             data = response.json()
             iterations = data.get("value", [])
             if iterations:
@@ -2611,8 +2710,7 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
                     f"{self.base_url}/{self.org}/{self.project}/{project_encoded}/_apis/work/teamsettings/iterations"
                 )
                 try:
-                    fallback_response = requests.get(fallback_url, headers=headers, params=params, timeout=30)
-                    fallback_response.raise_for_status()
+                    fallback_response = self._ado_get(fallback_url, headers=headers, params=params, timeout=30)
                     fallback_data = fallback_response.json()
                     fallback_iterations = fallback_data.get("value", [])
                     if fallback_iterations:
@@ -2651,15 +2749,17 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
                     **self._auth_headers(),
                     "Accept": "application/json",
                 }
-                project_response = requests.get(project_url, headers=project_headers, params=project_params, timeout=30)
-                project_response.raise_for_status()
+                project_response = self._ado_get(
+                    project_url, headers=project_headers, params=project_params, timeout=30
+                )
                 project_data = project_response.json()
                 project_id = project_data.get("id")
 
                 if project_id:
                     teams_url = f"{self.base_url}/{self.org}/_apis/projects/{project_id}/teams"
-                    teams_response = requests.get(teams_url, headers=project_headers, params=project_params, timeout=30)
-                    teams_response.raise_for_status()
+                    teams_response = self._ado_get(
+                        teams_url, headers=project_headers, params=project_params, timeout=30
+                    )
                     teams_data = teams_response.json()
                     teams = teams_data.get("value", [])
                     if teams:
@@ -2684,8 +2784,7 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         }
 
         try:
-            response = requests.get(url, headers=headers, params=params, timeout=30)
-            response.raise_for_status()
+            response = self._ado_get(url, headers=headers, params=params, timeout=30)
             data = response.json()
             iterations = data.get("value", [])
             return [it.get("path", "") for it in iterations if it.get("path")]
@@ -2811,6 +2910,71 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             msg = "project required to fetch backlog items. Provide via --ado-project option."
             raise ValueError(msg)
 
+        requested_issue_id = str(getattr(filters, "issue_id", "") or "").strip()
+        if requested_issue_id:
+            direct_item = self._fetch_backlog_item_by_id(requested_issue_id)
+            if direct_item is None:
+                return []
+
+            filtered_items = [direct_item]
+
+            # Apply post-fetch filters to preserve current command semantics when users also pass filters.
+            if filters.state:
+                normalized_state = BacklogFilters.normalize_filter_value(filters.state)
+                filtered_items = [
+                    item
+                    for item in filtered_items
+                    if BacklogFilters.normalize_filter_value(item.state) == normalized_state
+                ]
+
+            if filters.assignee:
+                normalized_assignee = BacklogFilters.normalize_filter_value(filters.assignee)
+                filtered_items = [
+                    item
+                    for item in filtered_items
+                    if any(
+                        BacklogFilters.normalize_filter_value(assignee) == normalized_assignee
+                        for assignee in item.assignees
+                    )
+                ]
+
+            if filters.labels:
+                filtered_items = [
+                    item for item in filtered_items if any(label in item.tags for label in filters.labels)
+                ]
+
+            if filters.iteration:
+                resolved_iteration = filters.iteration
+                if filters.iteration.lower() == "current":
+                    current_iteration = self._get_current_iteration()
+                    if current_iteration:
+                        resolved_iteration = current_iteration
+                    else:
+                        return []
+                filtered_items = [
+                    item for item in filtered_items if item.iteration and item.iteration == resolved_iteration
+                ]
+
+            if filters.sprint:
+                _, filtered_items = self._resolve_sprint_filter(
+                    filters.sprint,
+                    filtered_items,
+                    apply_current_when_missing=False,
+                )
+
+            if filters.release:
+                normalized_release = BacklogFilters.normalize_filter_value(filters.release)
+                filtered_items = [
+                    item
+                    for item in filtered_items
+                    if item.release and BacklogFilters.normalize_filter_value(item.release) == normalized_release
+                ]
+
+            if filters.limit is not None and len(filtered_items) > filters.limit:
+                filtered_items = filtered_items[: filters.limit]
+
+            return filtered_items
+
         # Build WIQL (Work Item Query Language) query
         # WIQL syntax: SELECT fields FROM WorkItems WHERE conditions
         # Use @project macro to reference the project context in project-scoped queries
@@ -2909,8 +3073,7 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             debug_print("[yellow]Warning: No Authorization header in request[/yellow]")
 
         try:
-            response = requests.post(url, headers=headers, json=payload, timeout=30)
-            response.raise_for_status()
+            response = self._ado_post(url, headers=headers, json=payload, timeout=30)
         except requests.HTTPError as e:
             # Provide user-friendly error message
             user_friendly_msg = None
@@ -3045,7 +3208,7 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             debug_print(f"[dim]ADO WorkItems URL: {url}&ids={ids_str}[/dim]")
 
             try:
-                response = requests.get(url, headers=workitems_headers, params=params, timeout=30)
+                response = self._ado_get(url, headers=workitems_headers, params=params, timeout=30)
                 if is_debug_mode():
                     debug_log_operation(
                         "ado_workitems_get",
@@ -3053,7 +3216,6 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
                         str(response.status_code),
                         error=None if response.ok else (response.text[:200] if response.text else None),
                     )
-                response.raise_for_status()
             except requests.HTTPError as e:
                 if is_debug_mode():
                     debug_log_operation(
@@ -3184,12 +3346,25 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         work_item_type = type_mapping.get(raw_type, "Task")
 
         description = str(payload.get("description") or payload.get("body") or "").strip()
+        description = self._strip_leading_description_heading(description)
         description_format = str(payload.get("description_format") or "markdown").strip().lower()
         field_rendering_format = "Markdown" if description_format != "classic" else "Html"
+
+        custom_mapping_file = os.environ.get("SPECFACT_ADO_CUSTOM_MAPPING")
+        ado_mapper = AdoFieldMapper(custom_mapping_file=custom_mapping_file)
+        description_field = ado_mapper.resolve_write_target_field("description") or "System.Description"
+        acceptance_criteria_field = (
+            ado_mapper.resolve_write_target_field("acceptance_criteria") or "Microsoft.VSTS.Common.AcceptanceCriteria"
+        )
+        priority_field = ado_mapper.resolve_write_target_field("priority") or "Microsoft.VSTS.Common.Priority"
+        story_points_field = (
+            ado_mapper.resolve_write_target_field("story_points") or "Microsoft.VSTS.Scheduling.StoryPoints"
+        )
+
         patch_document: list[dict[str, Any]] = [
             {"op": "add", "path": "/fields/System.Title", "value": title},
-            {"op": "add", "path": "/fields/System.Description", "value": description},
-            {"op": "add", "path": "/multilineFieldsFormat/System.Description", "value": field_rendering_format},
+            {"op": "add", "path": f"/fields/{description_field}", "value": description},
+            {"op": "add", "path": f"/multilineFieldsFormat/{description_field}", "value": field_rendering_format},
         ]
 
         acceptance_criteria = str(payload.get("acceptance_criteria") or "").strip()
@@ -3197,7 +3372,14 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             patch_document.append(
                 {
                     "op": "add",
-                    "path": "/fields/Microsoft.VSTS.Common.AcceptanceCriteria",
+                    "path": f"/multilineFieldsFormat/{acceptance_criteria_field}",
+                    "value": field_rendering_format,
+                }
+            )
+            patch_document.append(
+                {
+                    "op": "add",
+                    "path": f"/fields/{acceptance_criteria_field}",
                     "value": acceptance_criteria,
                 }
             )
@@ -3207,7 +3389,7 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             patch_document.append(
                 {
                     "op": "add",
-                    "path": "/fields/Microsoft.VSTS.Common.Priority",
+                    "path": f"/fields/{priority_field}",
                     "value": priority,
                 }
             )
@@ -3217,7 +3399,7 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             patch_document.append(
                 {
                     "op": "add",
-                    "path": "/fields/Microsoft.VSTS.Scheduling.StoryPoints",
+                    "path": f"/fields/{story_points_field}",
                     "value": story_points,
                 }
             )
@@ -3467,33 +3649,10 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         # Use AdoFieldMapper for field writeback (honor custom field mappings)
         custom_mapping_file = os.environ.get("SPECFACT_ADO_CUSTOM_MAPPING")
         ado_mapper = AdoFieldMapper(custom_mapping_file=custom_mapping_file)
-        canonical_fields: dict[str, Any] = {
-            "description": item.body_markdown,
-            "acceptance_criteria": item.acceptance_criteria,
-            "story_points": item.story_points,
-            "business_value": item.business_value,
-            "priority": item.priority,
-            "value_points": item.value_points,
-            "work_item_type": item.work_item_type,
-        }
-
-        # Map canonical fields to ADO fields (uses custom mappings if provided)
-        ado_fields = ado_mapper.map_from_canonical(canonical_fields)
-
-        # Get reverse mapping to find ADO field names for canonical fields
-        # Use same preference logic as map_from_canonical: prefer System.* over Microsoft.VSTS.Common.*
-        field_mappings = ado_mapper._get_field_mappings()
-        reverse_mappings: dict[str, str] = {}
-        for ado_field, canonical in field_mappings.items():
-            if canonical not in reverse_mappings:
-                # First mapping for this canonical field - use it
-                reverse_mappings[canonical] = ado_field
-            else:
-                # Multiple mappings exist - prefer System.* over Microsoft.VSTS.Common.*
-                current_ado_field = reverse_mappings[canonical]
-                # Prefer System.* fields for write operations (more common in Scrum)
-                if ado_field.startswith("System.") and not current_ado_field.startswith("System."):
-                    reverse_mappings[canonical] = ado_field
+        provider_field_names = set()
+        provider_fields_payload = item.provider_fields.get("fields")
+        if isinstance(provider_fields_payload, dict):
+            provider_field_names = {str(field_name) for field_name in provider_fields_payload}
 
         # Update description (body_markdown) - always use System.Description
         if update_fields is None or "body" in update_fields or "body_markdown" in update_fields:
@@ -3502,6 +3661,7 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             # Never send null: ADO rejects null for /fields/System.Description (HTTP 400)
             raw_body = item.body_markdown
             markdown_content = raw_body if raw_body is not None else ""
+            markdown_content = self._strip_leading_description_heading(markdown_content)
             # Convert TODO markers to proper Markdown checkboxes for ADO rendering
             todo_pattern = r"^(\s*)[-*]\s*\[TODO[:\s]+([^\]]+)\](.*)$"
             markdown_content = re.sub(
@@ -3511,44 +3671,50 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
                 flags=re.MULTILINE | re.IGNORECASE,
             )
 
-            description_field = reverse_mappings.get("description", "System.Description")
+            description_field = (
+                ado_mapper.resolve_write_target_field("description", provider_field_names) or "System.Description"
+            )
             # Set multiline field format to Markdown first (optional; many ADO instances return 400 for this path)
             operations.append({"op": "add", "path": f"/multilineFieldsFormat/{description_field}", "value": "Markdown"})
             operations.append({"op": "replace", "path": f"/fields/{description_field}", "value": markdown_content})
 
         # Update acceptance criteria using mapped field name (honors custom mappings)
         if update_fields is None or "acceptance_criteria" in update_fields:
-            acceptance_criteria_field = reverse_mappings.get("acceptance_criteria")
-            # Check if field exists in mapped fields (means it's available in ADO) and has value
-            if acceptance_criteria_field and item.acceptance_criteria and acceptance_criteria_field in ado_fields:
+            acceptance_criteria_field = ado_mapper.resolve_write_target_field(
+                "acceptance_criteria", provider_field_names
+            )
+            if acceptance_criteria_field and item.acceptance_criteria:
+                operations.append(
+                    {
+                        "op": "add",
+                        "path": f"/multilineFieldsFormat/{acceptance_criteria_field}",
+                        "value": "Markdown",
+                    }
+                )
                 operations.append(
                     {"op": "replace", "path": f"/fields/{acceptance_criteria_field}", "value": item.acceptance_criteria}
                 )
 
         # Update story points using mapped field name (honors custom mappings)
         if update_fields is None or "story_points" in update_fields:
-            story_points_field = reverse_mappings.get("story_points")
-            # Check if field exists in mapped fields (means it's available in ADO) and has value
-            # Handle both Microsoft.VSTS.Common.StoryPoints and Microsoft.VSTS.Scheduling.StoryPoints
-            if story_points_field and item.story_points is not None and story_points_field in ado_fields:
+            story_points_field = ado_mapper.resolve_write_target_field("story_points", provider_field_names)
+            if story_points_field and item.story_points is not None:
                 operations.append(
                     {"op": "replace", "path": f"/fields/{story_points_field}", "value": item.story_points}
                 )
 
         # Update business value using mapped field name (honors custom mappings)
         if update_fields is None or "business_value" in update_fields:
-            business_value_field = reverse_mappings.get("business_value")
-            # Check if field exists in mapped fields (means it's available in ADO) and has value
-            if business_value_field and item.business_value is not None and business_value_field in ado_fields:
+            business_value_field = ado_mapper.resolve_write_target_field("business_value", provider_field_names)
+            if business_value_field and item.business_value is not None:
                 operations.append(
                     {"op": "replace", "path": f"/fields/{business_value_field}", "value": item.business_value}
                 )
 
         # Update priority using mapped field name (honors custom mappings)
         if update_fields is None or "priority" in update_fields:
-            priority_field = reverse_mappings.get("priority")
-            # Check if field exists in mapped fields (means it's available in ADO) and has value
-            if priority_field and item.priority is not None and priority_field in ado_fields:
+            priority_field = ado_mapper.resolve_write_target_field("priority", provider_field_names)
+            if priority_field and item.priority is not None:
                 operations.append({"op": "replace", "path": f"/fields/{priority_field}", "value": item.priority})
 
         if update_fields is None or "state" in update_fields:
@@ -3611,29 +3777,41 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
                     # Third: HTML fallback (no multilineFieldsFormat, description as HTML)
                     import re as _re
 
-                    console.print("[yellow]⚠ Markdown format not supported, converting description to HTML[/yellow]")
+                    console.print(
+                        "[yellow]⚠ Markdown format metadata not supported, converting multiline markdown fields to HTML[/yellow]"
+                    )
+                    markdown_formatted_fields = {
+                        str(op.get("path", "")).replace("/multilineFieldsFormat/", "", 1)
+                        for op in operations
+                        if str(op.get("path", "")).startswith("/multilineFieldsFormat/")
+                        and str(op.get("value", "")).lower() == "markdown"
+                    }
+
+                    def _markdown_to_html(value: str) -> str:
+                        todo_pattern = r"^(\s*)[-*]\s*\[TODO[:\s]+([^\]]+)\](.*)$"
+                        normalized_markdown = _re.sub(
+                            todo_pattern,
+                            r"\1- [ ] \2",
+                            value,
+                            flags=_re.MULTILINE | _re.IGNORECASE,
+                        )
+                        try:
+                            import markdown
+
+                            return markdown.markdown(normalized_markdown, extensions=["fenced_code", "tables"])
+                        except ImportError:
+                            return normalized_markdown
+
                     operations_html = [
                         op for op in operations if not (op.get("path") or "").startswith("/multilineFieldsFormat/")
                     ]
-                    description_field = reverse_mappings.get("description", "System.Description")
-                    desc_path = f"/fields/{description_field}"
                     for op in operations_html:
-                        if op.get("path") == desc_path:
-                            markdown_for_html = op.get("value") or ""
-                            todo_pattern = r"^(\s*)[-*]\s*\[TODO[:\s]+([^\]]+)\](.*)$"
-                            markdown_for_html = _re.sub(
-                                todo_pattern,
-                                r"\1- [ ] \2",
-                                markdown_for_html,
-                                flags=_re.MULTILINE | _re.IGNORECASE,
-                            )
-                            try:
-                                import markdown
-
-                                op["value"] = markdown.markdown(markdown_for_html, extensions=["fenced_code", "tables"])
-                            except ImportError:
-                                pass
-                            break
+                        field_path = str(op.get("path", ""))
+                        if not field_path.startswith("/fields/"):
+                            continue
+                        field_name = field_path.replace("/fields/", "", 1)
+                        if field_name in markdown_formatted_fields:
+                            op["value"] = _markdown_to_html(str(op.get("value") or ""))
                     try:
                         resp = requests.patch(url, headers=headers, json=operations_html, timeout=30)
                         resp.raise_for_status()

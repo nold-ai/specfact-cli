@@ -79,6 +79,12 @@ specfact backlog add [OPTIONS]
 - Always execute `specfact backlog add` for creation.
 - Do not create provider issues/work items directly outside CLI unless user explicitly requests a manual path.
 
+## Input Contract
+
+- This command does not use `--export-to-tmp`/`--import-from-tmp` artifacts.
+- Provide values through CLI options or interactive prompts; do not fabricate external tmp-file schemas.
+- Do not ask Copilot to output `## Item N:` sections, `**ID**` labels, or markdown tmp files for this command.
+
 ## Context
 
 {ARGS}

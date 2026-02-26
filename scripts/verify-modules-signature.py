@@ -183,8 +183,8 @@ def _changed_manifests_from_git(base_ref: str) -> list[Path]:
                 "--name-only",
                 f"{base_ref}...HEAD",
                 "--",
-                "src/specfact_cli/modules/*/module-package.yaml",
-                "modules/*/module-package.yaml",
+                "src/specfact_cli/modules",
+                "modules",
             ],
             check=True,
             capture_output=True,
@@ -194,12 +194,20 @@ def _changed_manifests_from_git(base_ref: str) -> list[Path]:
         raise ValueError(f"Unable to diff manifests against base ref '{base_ref}': {exc}") from exc
 
     manifests: list[Path] = []
+    seen: set[Path] = set()
     for line in output.stdout.splitlines():
-        path = Path(line.strip())
-        if not path:
+        changed_path = Path(line.strip())
+        if not changed_path:
             continue
-        if path.exists():
-            manifests.append(path)
+        parts = changed_path.parts
+        manifest: Path | None = None
+        if len(parts) >= 4 and parts[0] == "src" and parts[1] == "specfact_cli" and parts[2] == "modules":
+            manifest = Path(*parts[:4]) / "module-package.yaml"
+        elif len(parts) >= 2 and parts[0] == "modules":
+            manifest = Path(*parts[:2]) / "module-package.yaml"
+        if manifest and manifest.exists() and manifest not in seen:
+            manifests.append(manifest)
+            seen.add(manifest)
     return manifests
 
 
@@ -280,20 +288,20 @@ def main() -> int:
         except Exception as exc:
             failures.append(f"FAIL {manifest}: {exc}")
 
-    if failures:
-        print("\n".join(failures))
-        return 1
-
+    version_failures: list[str] = []
     if args.enforce_version_bump:
         base_ref = _resolve_version_check_base(args.version_check_base)
         try:
             version_failures = _verify_version_bumps(base_ref)
         except ValueError as exc:
-            print(f"FAIL version-check: {exc}")
-            return 1
+            version_failures.append(f"FAIL version-check: {exc}")
+
+    if failures or version_failures:
+        if failures:
+            print("\n".join(failures))
         if version_failures:
             print("\n".join(version_failures))
-            return 1
+        return 1
 
     print(f"Verified {len(manifests)} module manifest(s).")
     return 0

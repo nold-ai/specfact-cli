@@ -8,6 +8,8 @@ with support for custom template field mappings.
 
 from __future__ import annotations
 
+import html
+import re
 from pathlib import Path
 from typing import Any
 
@@ -156,32 +158,51 @@ class AdoFieldMapper(FieldMapper):
         Returns:
             Dict mapping ADO field names to values
         """
-        # Use custom mapping if available, otherwise use defaults
-        field_mappings = self._get_field_mappings()
-
-        # Build reverse mapping with preference for System.* fields over Microsoft.VSTS.Common.*
-        # This ensures write operations use the more common System.* fields (better Scrum compatibility)
-        reverse_mappings: dict[str, str] = {}
-        for ado_field, canonical in field_mappings.items():
-            if canonical not in reverse_mappings:
-                # First mapping for this canonical field - use it
-                reverse_mappings[canonical] = ado_field
-            else:
-                # Multiple mappings exist - prefer System.* over Microsoft.VSTS.Common.*
-                current_ado_field = reverse_mappings[canonical]
-                # Prefer System.* fields for write operations (more common in Scrum)
-                if ado_field.startswith("System.") and not current_ado_field.startswith("System."):
-                    reverse_mappings[canonical] = ado_field
-
         ado_fields: dict[str, Any] = {}
 
         # Map each canonical field to ADO field
         for canonical_field, value in canonical_fields.items():
-            if canonical_field in reverse_mappings:
-                ado_field_name = reverse_mappings[canonical_field]
+            ado_field_name = self.resolve_write_target_field(canonical_field)
+            if ado_field_name:
                 ado_fields[ado_field_name] = value
 
         return ado_fields
+
+    @beartype
+    @require(lambda self, canonical_field: isinstance(canonical_field, str), "Canonical field must be str")
+    @require(
+        lambda self, provider_field_names: provider_field_names is None
+        or isinstance(provider_field_names, (set, frozenset)),
+        "provider_field_names must be set-like or None",
+    )
+    @ensure(lambda result: result is None or isinstance(result, str), "Must return str or None")
+    def resolve_write_target_field(
+        self,
+        canonical_field: str,
+        provider_field_names: set[str] | frozenset[str] | None = None,
+    ) -> str | None:
+        """
+        Resolve deterministic ADO write-target field for a canonical field.
+
+        Precedence:
+        1. Explicit custom mapping candidates (in custom mapping file order)
+        2. Provider-present candidates from mapped fields
+        3. Mapper fallback candidate order
+        """
+        custom_candidates = self._get_custom_write_target_candidates(canonical_field)
+        if custom_candidates:
+            return custom_candidates[0]
+
+        candidates = self._get_write_target_candidates(canonical_field)
+        if not candidates:
+            return None
+
+        provider_fields = {f for f in (provider_field_names or set()) if isinstance(f, str)}
+        for candidate in candidates:
+            if candidate in provider_fields:
+                return candidate
+
+        return candidates[0]
 
     @beartype
     @ensure(lambda result: isinstance(result, dict), "Must return dict")
@@ -198,6 +219,41 @@ class AdoFieldMapper(FieldMapper):
             mappings.update(self.custom_mapping.field_mappings)
             return mappings
         return self.DEFAULT_FIELD_MAPPINGS.copy()
+
+    @beartype
+    @require(lambda self, canonical_field: isinstance(canonical_field, str), "Canonical field must be str")
+    @ensure(lambda result: isinstance(result, list), "Must return list")
+    def _get_write_target_candidates(self, canonical_field: str) -> list[str]:
+        """Return ordered write-target candidates for a canonical field."""
+        ordered: list[str] = []
+        seen: set[str] = set()
+
+        def _add(ado_field: str) -> None:
+            if ado_field not in seen:
+                ordered.append(ado_field)
+                seen.add(ado_field)
+
+        for ado_field in self._get_custom_write_target_candidates(canonical_field):
+            _add(ado_field)
+
+        for ado_field, mapped_canonical in self._get_field_mappings().items():
+            if mapped_canonical == canonical_field:
+                _add(ado_field)
+
+        return ordered
+
+    @beartype
+    @require(lambda self, canonical_field: isinstance(canonical_field, str), "Canonical field must be str")
+    @ensure(lambda result: isinstance(result, list), "Must return list")
+    def _get_custom_write_target_candidates(self, canonical_field: str) -> list[str]:
+        """Return ordered candidates declared explicitly in custom mapping."""
+        if not (self.custom_mapping and self.custom_mapping.field_mappings):
+            return []
+        return [
+            ado_field
+            for ado_field, mapped_canonical in self.custom_mapping.field_mappings.items()
+            if mapped_canonical == canonical_field
+        ]
 
     @beartype
     @require(lambda self, fields_dict: isinstance(fields_dict, dict), "Fields dict must be dict")
@@ -228,7 +284,8 @@ class AdoFieldMapper(FieldMapper):
             if canonical == canonical_field:
                 value = fields_dict.get(ado_field)
                 if value is not None:
-                    return str(value).strip() if isinstance(value, str) else str(value)
+                    normalized_value = str(value).strip() if isinstance(value, str) else str(value)
+                    return self._normalize_rich_text_to_markdown(normalized_value)
         return None
 
     @beartype
@@ -261,6 +318,48 @@ class AdoFieldMapper(FieldMapper):
                     except (ValueError, TypeError):
                         return None
         return None
+
+    @beartype
+    @require(lambda self, value: isinstance(value, str), "Value must be str")
+    @ensure(lambda result: isinstance(result, str), "Must return str")
+    def _normalize_rich_text_to_markdown(self, value: str) -> str:
+        """Normalize ADO rich text content to markdown-like plain text."""
+        if not value:
+            return value
+
+        value = html.unescape(value)
+
+        rich_text_tag_pattern = re.compile(
+            r"</?(?:p|br|strong|b|em|i|pre|code|a|li|ul|ol|h[1-6]|div|span|blockquote)(?:\s[^<>]*)?>",
+            flags=re.IGNORECASE,
+        )
+        if not rich_text_tag_pattern.search(value):
+            return value
+
+        normalized = re.sub(r"<!--.*?-->", "", value, flags=re.DOTALL)
+        normalized = re.sub(r"<h([1-6])[^>]*>(.*?)</h[1-6]>", self._replace_heading, normalized, flags=re.DOTALL)
+        normalized = re.sub(r"<strong>(.*?)</strong>", r"**\1**", normalized, flags=re.DOTALL | re.IGNORECASE)
+        normalized = re.sub(r"<b>(.*?)</b>", r"**\1**", normalized, flags=re.DOTALL | re.IGNORECASE)
+        normalized = re.sub(r"<em>(.*?)</em>", r"*\1*", normalized, flags=re.DOTALL | re.IGNORECASE)
+        normalized = re.sub(r"<i>(.*?)</i>", r"*\1*", normalized, flags=re.DOTALL | re.IGNORECASE)
+        normalized = re.sub(r"<pre><code>(.*?)</code></pre>", r"```\n\1\n```", normalized, flags=re.DOTALL)
+        normalized = re.sub(r"<code>(.*?)</code>", r"`\1`", normalized, flags=re.DOTALL)
+        normalized = re.sub(r'<a href="([^"]+)">(.*?)</a>', r"[\2](\1)", normalized, flags=re.DOTALL)
+        normalized = re.sub(r"<li>(.*?)</li>", r"- \1", normalized, flags=re.DOTALL | re.IGNORECASE)
+        normalized = re.sub(r"<ul>|</ul>|<ol>|</ol>", "", normalized, flags=re.IGNORECASE)
+        normalized = re.sub(r"<p>(.*?)</p>", r"\1\n\n", normalized, flags=re.DOTALL | re.IGNORECASE)
+        normalized = re.sub(r"<br\s*/?>", "\n", normalized, flags=re.IGNORECASE)
+        normalized = rich_text_tag_pattern.sub("", normalized)
+        normalized = re.sub(r"\n{3,}", "\n\n", normalized)
+        return normalized.strip()
+
+    @staticmethod
+    @beartype
+    def _replace_heading(match: re.Match[str]) -> str:
+        """Convert HTML heading match to markdown heading."""
+        level = int(match.group(1))
+        content = match.group(2)
+        return f"\n{'#' * level} {content}\n"
 
     @beartype
     @require(lambda self, fields_dict: isinstance(fields_dict, dict), "Fields dict must be dict")

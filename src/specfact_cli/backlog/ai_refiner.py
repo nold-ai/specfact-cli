@@ -18,6 +18,7 @@ import re
 from beartype import beartype
 from icontract import ensure, require
 
+from specfact_cli.backlog.template_detector import get_effective_required_sections
 from specfact_cli.models.backlog_item import BacklogItem
 from specfact_cli.templates.registry import BacklogTemplate
 
@@ -96,11 +97,16 @@ class BacklogAIRefiner:
         Returns:
             Prompt string for IDE AI copilot
         """
-        required_sections_str = "\n".join(f"- {section}" for section in template.required_sections)
+        effective_required_sections = get_effective_required_sections(item, template)
+        required_sections_str = "\n".join(f"- {section}" for section in effective_required_sections) or "- None"
+        optional_sections = list(template.optional_sections or [])
+        if item.provider.lower() == "ado":
+            ado_structured_optional_sections = {"Area Path", "Iteration Path"}
+            optional_sections = [
+                section for section in optional_sections if section not in ado_structured_optional_sections
+            ]
         optional_sections_str = (
-            "\n".join(f"- {section}" for section in template.optional_sections)
-            if template.optional_sections
-            else "None"
+            "\n".join(f"- {section}" for section in optional_sections) if optional_sections else "None"
         )
 
         # Provider-specific instructions
@@ -111,9 +117,10 @@ For GitHub issues: Use markdown headings (## Section Name) in the body to struct
 Each required section should be a markdown heading with content below it."""
         elif item.provider == "ado":
             provider_instructions = """
-For Azure DevOps work items: Note that fields are separate (not markdown headings in body).
-However, for refinement purposes, structure the content as markdown headings in the body.
-The adapter will map these back to separate ADO fields during writeback."""
+For Azure DevOps work items: fields are structured and mapped separately.
+- Keep metadata values (Story Points, Business Value, Priority, Work Item Type) in the metadata block, not as body headings.
+- Keep the description body narrative clean (no duplicated metadata labels/headings inside description text).
+- The adapter maps metadata and acceptance fields back to ADO structured fields during writeback."""
 
         # Include story points, business value, priority if available
         metrics_info = ""
@@ -163,17 +170,18 @@ Optional Sections:
 Instructions:
 1. Preserve all original requirements, scope, and technical details
 2. Do NOT add new features or change the scope
-3. Transform the content to match the template structure
-4. If information is missing for a required section, use a Markdown checkbox: - [ ] describe what's needed
-5. If you detect conflicting or ambiguous information, add a [NOTES] section at the end explaining the ambiguity
-6. Use markdown formatting for sections (## Section Name)
-7. Include story points, business value, priority, and work item type if available in the appropriate sections
-8. For stories with high story points (>13 for Scrum, >21 for SAFe), consider suggesting story splitting
-9. Provider-aware formatting:
+3. Do NOT summarize, shorten, or silently drop details from the original story content
+4. Transform the content to match the template structure
+5. If information is missing for a required section, use a Markdown checkbox: - [ ] describe what's needed
+6. If you detect conflicting or ambiguous information, add a [NOTES] section at the end explaining the ambiguity
+7. Use markdown formatting for sections (## Section Name)
+8. Include story points, business value, priority, and work item type if available in the appropriate sections
+9. For stories with high story points (>13 for Scrum, >21 for SAFe), consider suggesting story splitting
+10. Provider-aware formatting:
    - **GitHub**: Use markdown headings in body (## Section Name)
    - **ADO**: Use markdown headings in body (will be mapped to separate ADO fields during writeback)
-10. Omit unknown metadata fields instead of placeholders (do not emit values like "unspecified", "no info provided", or "provide area path")
-11. Keep `## Description` focused on narrative body content; do not place metadata labels in description text.
+11. Omit unknown metadata fields instead of placeholders (do not emit values like "unspecified", "no info provided", or "provide area path")
+12. Keep `## Description` focused on narrative body content; do not place metadata labels in description text.
 
 Expected Output Scaffold (ordered):
 ## Work Item Properties / Metadata
@@ -225,9 +233,13 @@ Return ONLY the refined backlog item body content in markdown format. Do not inc
         if not template.required_sections:
             return True  # No requirements = valid
 
+        effective_required_sections = get_effective_required_sections(item, template)
+        if not effective_required_sections:
+            return True
+
         # Refined content is always markdown (from AI copilot), so check markdown headings
         body_lower = refined_body.lower()
-        for section in template.required_sections:
+        for section in effective_required_sections:
             section_lower = section.lower()
             # Check for markdown heading
             heading_pattern = rf"^#+\s+{re.escape(section_lower)}\s*$"
@@ -249,8 +261,11 @@ Return ONLY the refined backlog item body content in markdown format. Do not inc
         Returns:
             True if TODO markers are present, False otherwise
         """
+        # Use normalized uppercase text + case-sensitive regex to avoid regex engine
+        # edge-cases with IGNORECASE in symbolic/exploration contexts.
+        normalized_body = refined_body.upper()
         todo_pattern = r"\[TODO[:\s][^\]]+\]"
-        return bool(re.search(todo_pattern, refined_body, re.IGNORECASE))
+        return bool(re.search(todo_pattern, normalized_body))
 
     @beartype
     @require(lambda self, refined_body: isinstance(refined_body, str), "Refined body must be string")
@@ -325,7 +340,7 @@ Return ONLY the refined backlog item body content in markdown format. Do not inc
 
         # Validate required sections (provider-aware)
         if not self._validate_required_sections(refined_body, template, item):
-            msg = f"Refined content is missing required sections: {template.required_sections}"
+            msg = f"Refined content is missing required sections: {get_effective_required_sections(item, template)}"
             raise ValueError(msg)
 
         # Validate story points, business value, priority fields if present

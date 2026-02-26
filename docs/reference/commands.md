@@ -3978,8 +3978,8 @@ specfact backlog refine <ADAPTER> [OPTIONS]
 **Filtering Options:**
 
 - `--labels`, `--tags` - Filter by labels/tags (can specify multiple, e.g., `--labels feature,enhancement`)
-- `--state` - Filter by state (e.g., `open`, `closed`, `active`)
-- `--assignee` - Filter by assignee username
+- `--state` - Filter by state (e.g., `open`, `closed`, `active`). Use `any` to disable state filtering.
+- `--assignee` - Filter by assignee username. Use `any` to disable assignee filtering.
 - `--iteration` - Filter by iteration path (ADO format: `Project\\Sprint 1`)
 - `--sprint` - Filter by sprint identifier
 - `--release` - Filter by release identifier
