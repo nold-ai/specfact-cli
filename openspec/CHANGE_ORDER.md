@@ -75,6 +75,14 @@ These are derived extensions of the same 2026-02-15 plan and are required to ope
 | marketplace | 01 | ✅ marketplace-01-central-module-registry (implemented 2026-02-22; archived) | [#214](https://github.com/nold-ai/specfact-cli/issues/214) | #208 |
 | marketplace | 02 | marketplace-02-advanced-marketplace-features | [#215](https://github.com/nold-ai/specfact-cli/issues/215) | #214 |
 
+### Module migration (UX grouping and extraction)
+
+| Module | Order | Change folder | GitHub # | Blocked by |
+|--------|-------|---------------|----------|------------|
+| module-migration | 01 | module-migration-01-categorize-and-group | TBD | #215 (marketplace-02) |
+| module-migration | 02 | module-migration-02-bundle-extraction | TBD | module-migration-01 |
+| module-migration | 03 | module-migration-03-core-slimming | TBD | module-migration-02 |
+
 ### Cross-cutting foundations (no hard dependencies — implement early)
 
 | Module | Order | Change folder | GitHub # | Blocked by |
@@ -305,13 +313,16 @@ Dependencies flow left-to-right; a wave may start once all its hard blockers are
   - backlog-scrum-02, backlog-scrum-03, backlog-scrum-04 (need backlog-core-01)
   - backlog-kanban-01, backlog-safe-01 (need backlog-core-01)
 
-- **Wave 3 — Higher-order backlog + marketplace** (needs Wave 2):
+- **Wave 3 — Higher-order backlog + marketplace + module migration** (needs Wave 2):
   - marketplace-02 (needs marketplace-01)
   - backlog-scrum-01 ✅ (needs backlog-core-01; benefits from policy-engine-01 + patch-mode-01)
   - backlog-safe-02 (needs backlog-safe-01; integrates with scrum/kanban via bridge registry)
+  - module-migration-01-categorize-and-group (needs marketplace-02; adds category metadata + group commands)
+  - module-migration-02-bundle-extraction (needs module-migration-01; moves module source to bundle packages, publishes to marketplace registry)
 
-- **Wave 4 — Ceremony layer** (needs Wave 3):
+- **Wave 4 — Ceremony layer + module slimming** (needs Wave 3):
   - ceremony-cockpit-01 ✅ (probes installed backlog-* modules at runtime; no hard deps but best after Wave 3)
+  - module-migration-03-core-package-slimming (needs module-migration-02; removes bundled modules from core)
 
 - **Wave 5 — Foundations for business-first chain** (architecture integration):
   - profile-01
