@@ -2948,6 +2948,23 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
                     item for item in filtered_items if any(label in item.tags for label in filters.labels)
                 ]
 
+            if filters.iteration:
+                normalized_iteration = BacklogFilters.normalize_filter_value(filters.iteration)
+                if normalized_iteration not in (None, "any"):
+                    target_iteration = filters.iteration
+                    if normalized_iteration == "current":
+                        current_iteration = self._get_current_iteration()
+                        if not current_iteration:
+                            return []
+                        target_iteration = current_iteration
+
+                    filtered_items = [
+                        item
+                        for item in filtered_items
+                        if BacklogFilters.normalize_filter_value(item.iteration)
+                        == BacklogFilters.normalize_filter_value(target_iteration)
+                    ]
+
             if filters.sprint:
                 _, filtered_items = self._resolve_sprint_filter(
                     filters.sprint,
