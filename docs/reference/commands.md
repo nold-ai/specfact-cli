@@ -5119,14 +5119,20 @@ specfact module [OPTIONS] COMMAND [ARGS]...
 **Commands:**
 
 - `init [--scope user|project] [--repo PATH] [--trust-non-official]` - Seed bundled modules into user root (default) or project root under `.specfact/modules`
-- `install <name|namespace/name> [--scope user|project] [--source auto|bundled|marketplace] [--repo PATH] [--trust-non-official]` - Install module into user or project scope with explicit source selection
+- `install <name|namespace/name> [--scope user|project] [--source auto|bundled|marketplace] [--repo PATH] [--trust-non-official] [--skip-deps] [--force]` - Install module; `--skip-deps` skips dependency resolution, `--force` overrides dependency conflicts
 - `list [--source builtin|project|user|marketplace|custom] [--show-origin] [--show-bundled-available]` - List modules with `Trust`/`Publisher`, optional `Origin`, and optional bundled-not-installed section
 - `show <name>` - Show detailed module metadata and full command tree (with subcommands and short descriptions)
-- `search <query>` - Search marketplace registry and installed modules (`Scope` column)
+- `search <query>` - Search all configured registries and installed modules (results show `Registry` when multiple registries exist)
 - `enable <id> [--trust-non-official]` - Enable module in lifecycle state registry
 - `disable <id> [--force]` - Disable module in lifecycle state registry
 - `uninstall <name|namespace/name> [--scope user|project] [--repo PATH]` - Uninstall module from selected scope with ambiguity protection when module exists in both scopes
 - `upgrade [<name>] [--all]` - Upgrade one module or all marketplace-installed modules
+- `alias create <alias> <module> <command> [--force]` - Create command alias (e.g. `bp` → `backlog plan`)
+- `alias list` - List all aliases
+- `alias remove <alias>` - Remove an alias
+- `add-registry <url> [--id ID] [--priority N] [--trust always|prompt|never]` - Add custom registry
+- `list-registries` - List official and custom registries
+- `remove-registry <id>` - Remove a custom registry by id
 
 **Examples:**
 
@@ -5139,6 +5145,8 @@ specfact module init --scope project --repo /path/to/repo --trust-non-official
 
 # Install and inspect modules
 specfact module install specfact/backlog
+specfact module install backlog --skip-deps
+specfact module install backlog --force
 specfact module install backlog
 specfact module install backlog --source bundled
 specfact module install backlog --source marketplace
@@ -5149,8 +5157,18 @@ specfact module list --show-origin
 specfact module list --show-bundled-available
 specfact module show module-registry
 
-# Search and manage
+# Registries and search
+specfact module add-registry https://registry.example.com/index.json --id my-registry --trust always
+specfact module list-registries
 specfact module search backlog
+specfact module remove-registry my-registry
+
+# Aliases
+specfact module alias create bp backlog plan
+specfact module alias list
+specfact module alias remove bp
+
+# Enable, disable, uninstall, upgrade
 specfact module enable backlog
 specfact module disable backlog --force
 specfact module uninstall specfact/backlog

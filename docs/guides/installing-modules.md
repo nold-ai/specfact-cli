@@ -40,6 +40,43 @@ Notes:
 - If a module is already available locally (`built-in` or `custom`), install is skipped with a clear message.
 - Invalid ids show an explicit error (`name` or `namespace/name` only).
 
+## Dependency resolution
+
+Before installing a marketplace module, SpecFact resolves its dependencies (other modules and optional pip packages) from manifest `pip_dependencies` and `module_dependencies`. If conflicts are detected (e.g. incompatible versions), install fails unless you override.
+
+```bash
+# Install with dependency resolution (default)
+specfact module install specfact/backlog
+
+# Skip dependency resolution (install only the requested module)
+specfact module install specfact/backlog --skip-deps
+
+# Force install despite dependency conflicts (use with care)
+specfact module install specfact/backlog --force
+```
+
+- Use `--skip-deps` when you want to install a single module without pulling its dependencies or when you manage dependencies yourself.
+- Use `--force` to proceed when resolution reports conflicts (e.g. for local overrides or known-compatible versions). Enable/disable and dependency-aware cascades still respect `--force` where applicable.
+
+See [Dependency resolution](../reference/dependency-resolution.md) for how resolution works and conflict detection.
+
+## Command aliases
+
+You can alias a command name to a module-provided command so that a shorter or custom name invokes the same logic.
+
+```bash
+# Create an alias (e.g. "bp" for backlog’s "plan" command)
+specfact module alias create bp backlog plan
+
+# List all aliases
+specfact module alias list
+
+# Remove an alias
+specfact module alias remove bp
+```
+
+Aliases are stored under `~/.specfact/registry/aliases.json`. **Aliases do not create or resolve top-level CLI commands**—the CLI surface stays the same; aliases are for reference and organization only. When you run a command, the registry resolves aliases first; if an alias would shadow a built-in command, a warning is shown. Use `--force` on create to override the shadow warning.
+
 ## Security and Trust Controls
 
 - Denylist file: `~/.specfact/module-denylist.txt`
@@ -95,9 +132,11 @@ This prints detailed metadata:
 specfact module search bundle-mapper
 ```
 
+Search queries **all configured registries** (official first, then custom in priority order) plus locally discovered modules. Results show a **Registry** column when multiple registries are configured.
+
 Search includes both:
 
-- Marketplace registry entries (`scope=marketplace`)
+- Marketplace registry entries (`scope=marketplace`) from every registry
 - Locally discovered modules (`scope=installed`)
 
 Results are sorted alphabetically by module id.

@@ -171,8 +171,9 @@ class AdoFieldMapper(FieldMapper):
     @beartype
     @require(lambda self, canonical_field: isinstance(canonical_field, str), "Canonical field must be str")
     @require(
-        lambda self, provider_field_names: provider_field_names is None
-        or isinstance(provider_field_names, (set, frozenset)),
+        lambda self, provider_field_names: (
+            provider_field_names is None or isinstance(provider_field_names, (set, frozenset))
+        ),
         "provider_field_names must be set-like or None",
     )
     @ensure(lambda result: result is None or isinstance(result, str), "Must return str or None")
