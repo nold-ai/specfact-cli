@@ -131,7 +131,7 @@ jobs:
         if: needs.changes.outputs.skip_tests_dev_to_main != 'true'
         run: |
           python -m pip install --upgrade pip
-          pip install hatch coverage
+          pip install "hatch" "virtualenv<21" coverage
 
       - name: Cache hatch environments
         if: needs.changes.outputs.skip_tests_dev_to_main != 'true'
@@ -224,7 +224,7 @@ jobs:
       - name: Install hatch
         run: |
           python -m pip install --upgrade pip
-          pip install hatch
+          pip install "hatch" "virtualenv<21"
       - name: Cache hatch environments
         uses: actions/cache@v4
         with:
@@ -271,7 +271,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install hatch
+          pip install "hatch" "virtualenv<21"
       - name: Cache hatch environments
         uses: actions/cache@v4
         with:
@@ -403,7 +403,7 @@ jobs:
       - name: Install hatch
         run: |
           python -m pip install --upgrade pip
-          pip install hatch
+          pip install "hatch" "virtualenv<21"
       - name: Cache hatch environments
         uses: actions/cache@v4
         with:
@@ -451,7 +451,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install hatch
+          pip install "hatch" "virtualenv<21"
 
       - name: Cache hatch environments
         uses: actions/cache@v4
@@ -500,7 +500,7 @@ jobs:
       - name: Install build tools
         run: |
           python -m pip install --upgrade pip
-          pip install build twine hatch
+          pip install build twine "hatch" "virtualenv<21"
 
       - name: Build package
         run: |
