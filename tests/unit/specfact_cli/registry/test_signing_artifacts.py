@@ -16,6 +16,7 @@ SIGN_PYTHON_SCRIPT = REPO_ROOT / "scripts" / "sign-modules.py"
 VERIFY_PYTHON_SCRIPT = REPO_ROOT / "scripts" / "verify-modules-signature.py"
 SIGN_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "sign-modules.yml"
 PR_ORCHESTRATOR_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "pr-orchestrator.yml"
+PUBLISH_PYPI_SCRIPT = REPO_ROOT / ".github" / "workflows" / "scripts" / "check-and-publish-pypi.sh"
 
 
 def test_sign_module_script_exists():
@@ -504,3 +505,23 @@ def test_sign_modules_workflow_uses_private_key_and_passphrase_secrets():
     assert "SPECFACT_MODULE_PRIVATE_SIGN_KEY" in content
     assert "SPECFACT_MODULE_PRIVATE_SIGN_KEY_PASSPHRASE" in content
     assert "--enforce-version-bump" in content
+def test_pr_orchestrator_pins_virtualenv_below_21_for_hatch_jobs():
+    """PR orchestrator SHALL pin virtualenv<21 when installing hatch in CI jobs."""
+    if not PR_ORCHESTRATOR_WORKFLOW.exists():
+        pytest.skip("pr-orchestrator workflow not present")
+    content = PR_ORCHESTRATOR_WORKFLOW.read_text(encoding="utf-8")
+    install_commands = re.findall(r"pip install[^\n]*hatch[^\n]*", content)
+    assert install_commands, "Expected at least one pip install hatch command in workflow"
+    for command in install_commands:
+        assert "virtualenv<21" in command, f"Missing virtualenv<21 pin in command: {command}"
+
+
+def test_publish_script_pins_virtualenv_below_21_for_hatch_build():
+    """PyPI publish script SHALL pin virtualenv<21 when installing hatch."""
+    if not PUBLISH_PYPI_SCRIPT.exists():
+        pytest.skip("check-and-publish-pypi.sh not present")
+    content = PUBLISH_PYPI_SCRIPT.read_text(encoding="utf-8")
+    install_commands = re.findall(r"python -m pip install[^\n]*hatch[^\n]*", content)
+    assert install_commands, "Expected hatch install command in check-and-publish-pypi.sh"
+    for command in install_commands:
+        assert "virtualenv<21" in command, f"Missing virtualenv<21 pin in command: {command}"

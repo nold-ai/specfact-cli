@@ -64,3 +64,20 @@ The contract-first test system SHALL include CLI behavior contracts as a recogni
 - **WHEN** CLI behavior contract files exist in `tests/cli-contracts/`
 - **THEN** CLI scenario validation is included in the test run
 - **AND** results appear alongside existing contract/exploration/scenario tiers.
+### Requirement: Deterministic Hatch Toolchain in CI
+
+The CI pipeline SHALL install a deterministic, compatible Hatch toolchain for Python 3.12 jobs that execute Hatch environments.
+
+#### Scenario: Hatch install prevents virtualenv 21 incompatibility
+
+- **GIVEN** the workflow installs Hatch for Python 3.12 test execution
+- **WHEN** dependencies are resolved in CI
+- **THEN** the install command constrains `virtualenv` to `<21`
+- **AND** the workflow avoids the runtime error `module 'virtualenv.discovery.builtin' has no attribute 'propose_interpreters'`.
+
+#### Scenario: PyPI publish script prevents hatch-build virtualenv incompatibility
+
+- **GIVEN** the publish workflow invokes `check-and-publish-pypi.sh` to build distributions with Hatch
+- **WHEN** the script installs Hatch toolchain dependencies
+- **THEN** the install command constrains `virtualenv` to `<21`
+- **AND** the `hatch-build` environment avoids the runtime error `module 'virtualenv.discovery.builtin' has no attribute 'propose_interpreters'`.

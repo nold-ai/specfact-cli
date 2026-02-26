@@ -17,6 +17,7 @@ from specfact_cli.utils.bundle_loader import (
     load_project_bundle,
     save_project_bundle,
 )
+from tests.unit.utils.bundle_test_helpers import assert_core_bundle_files, make_test_bundle, write_minimal_bundle_files
 
 
 class TestLoadProjectBundle:
@@ -25,21 +26,7 @@ class TestLoadProjectBundle:
     def test_load_modular_bundle(self, tmp_path: Path):
         """Test loading modular bundle successfully."""
         bundle_dir = tmp_path / "test-bundle"
-        bundle_dir.mkdir()
-
-        # Create manifest
-        manifest_data = {
-            "versions": {"schema": "1.0", "project": "0.1.0"},
-            "bundle": {"format": "directory-based"},
-            "checksums": {"algorithm": "sha256", "files": {}},
-            "features": [],
-            "protocols": [],
-        }
-        (bundle_dir / "bundle.manifest.yaml").write_text(yaml.dump(manifest_data))
-
-        # Create product file
-        product_data = {"themes": [], "releases": []}
-        (bundle_dir / "product.yaml").write_text(yaml.dump(product_data))
+        write_minimal_bundle_files(bundle_dir)
 
         # Load bundle
         bundle = load_project_bundle(bundle_dir)
@@ -136,15 +123,8 @@ class TestLoadProjectBundle:
     def test_load_bundle_missing_product_raises_error(self, tmp_path: Path):
         """Test that missing product file raises error."""
         bundle_dir = tmp_path / "test-bundle"
-        bundle_dir.mkdir()
-
-        # Create manifest but no product
-        manifest_data = {
-            "versions": {"schema": "1.0", "project": "0.1.0"},
-            "bundle": {},
-            "checksums": {"algorithm": "sha256", "files": {}},
-        }
-        (bundle_dir / "bundle.manifest.yaml").write_text(yaml.dump(manifest_data))
+        write_minimal_bundle_files(bundle_dir, manifest_overrides={"bundle": {}, "protocols": []})
+        (bundle_dir / "product.yaml").unlink()
 
         with pytest.raises(BundleLoadError) as exc_info:
             load_project_bundle(bundle_dir)
@@ -172,42 +152,24 @@ class TestSaveProjectBundle:
     def test_save_bundle_atomic(self, tmp_path: Path):
         """Test saving bundle with atomic writes."""
         bundle_dir = tmp_path / "test-bundle"
-
-        # Create bundle
-        manifest = BundleManifest(
-            versions=BundleVersions(schema="1.0", project="0.1.0"),
-            schema_metadata=None,
-            project_metadata=None,
-        )
-        product = Product(themes=["Theme1"])
-        bundle = ProjectBundle(manifest=manifest, bundle_name="test-bundle", product=product)
+        bundle = make_test_bundle(themes=["Theme1"])
 
         # Save bundle
         save_project_bundle(bundle, bundle_dir, atomic=True)
 
         # Verify files created
-        assert (bundle_dir / "bundle.manifest.yaml").exists()
-        assert (bundle_dir / "product.yaml").exists()
+        assert_core_bundle_files(bundle_dir)
 
     def test_save_bundle_non_atomic(self, tmp_path: Path):
         """Test saving bundle without atomic writes."""
         bundle_dir = tmp_path / "test-bundle"
-
-        # Create bundle
-        manifest = BundleManifest(
-            versions=BundleVersions(schema="1.0", project="0.1.0"),
-            schema_metadata=None,
-            project_metadata=None,
-        )
-        product = Product(themes=["Theme1"])
-        bundle = ProjectBundle(manifest=manifest, bundle_name="test-bundle", product=product)
+        bundle = make_test_bundle(themes=["Theme1"])
 
         # Save bundle
         save_project_bundle(bundle, bundle_dir, atomic=False)
 
         # Verify files created
-        assert (bundle_dir / "bundle.manifest.yaml").exists()
-        assert (bundle_dir / "product.yaml").exists()
+        assert_core_bundle_files(bundle_dir)
 
     def test_save_bundle_with_features(self, tmp_path: Path):
         """Test saving bundle with features."""
@@ -258,15 +220,7 @@ class TestSaveProjectBundle:
     def test_save_bundle_updates_checksums(self, tmp_path: Path):
         """Test that saving bundle updates checksums in manifest."""
         bundle_dir = tmp_path / "test-bundle"
-
-        # Create bundle
-        manifest = BundleManifest(
-            versions=BundleVersions(schema="1.0", project="0.1.0"),
-            schema_metadata=None,
-            project_metadata=None,
-        )
-        product = Product(themes=["Theme1"])
-        bundle = ProjectBundle(manifest=manifest, bundle_name="test-bundle", product=product)
+        bundle = make_test_bundle(themes=["Theme1"])
 
         # Save bundle
         save_project_bundle(bundle, bundle_dir)
@@ -283,15 +237,7 @@ class TestLoadSaveRoundtrip:
     def test_roundtrip_basic_bundle(self, tmp_path: Path):
         """Test saving and loading bundle maintains data integrity."""
         bundle_dir = tmp_path / "test-bundle"
-
-        # Create and save bundle
-        manifest = BundleManifest(
-            versions=BundleVersions(schema="1.0", project="0.1.0"),
-            schema_metadata=None,
-            project_metadata=None,
-        )
-        product = Product(themes=["Theme1", "Theme2"])
-        bundle = ProjectBundle(manifest=manifest, bundle_name="test-bundle", product=product)
+        bundle = make_test_bundle(themes=["Theme1", "Theme2"])
 
         save_project_bundle(bundle, bundle_dir)
 
@@ -339,15 +285,7 @@ class TestHashValidation:
     def test_load_with_hash_validation_success(self, tmp_path: Path):
         """Test loading bundle with hash validation when hashes match."""
         bundle_dir = tmp_path / "test-bundle"
-
-        # Create and save bundle
-        manifest = BundleManifest(
-            versions=BundleVersions(schema="1.0", project="0.1.0"),
-            schema_metadata=None,
-            project_metadata=None,
-        )
-        product = Product(themes=["Theme1"])
-        bundle = ProjectBundle(manifest=manifest, bundle_name="test-bundle", product=product)
+        bundle = make_test_bundle(themes=["Theme1"])
 
         save_project_bundle(bundle, bundle_dir)
 
@@ -359,15 +297,7 @@ class TestHashValidation:
     def test_load_with_hash_validation_failure(self, tmp_path: Path):
         """Test loading bundle with hash validation fails when file is modified."""
         bundle_dir = tmp_path / "test-bundle"
-
-        # Create and save bundle
-        manifest = BundleManifest(
-            versions=BundleVersions(schema="1.0", project="0.1.0"),
-            schema_metadata=None,
-            project_metadata=None,
-        )
-        product = Product(themes=["Theme1"])
-        bundle = ProjectBundle(manifest=manifest, bundle_name="test-bundle", product=product)
+        bundle = make_test_bundle(themes=["Theme1"])
 
         save_project_bundle(bundle, bundle_dir)
 

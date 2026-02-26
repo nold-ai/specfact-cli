@@ -38,6 +38,8 @@ from specfact_cli.utils.auth_tokens import get_token, set_token
 
 
 _MAX_RESPONSE_BODY_LOG = 2048
+_ADO_STABLE_API_VERSION = "7.1"
+_ADO_COMMENTS_API_VERSION = "7.1-preview.4"
 
 console = Console()
 
@@ -203,7 +205,7 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         """
         return "dev.azure.com" not in self.base_url.lower()
 
-    def _build_ado_url(self, path: str, api_version: str = "7.1") -> str:
+    def _build_ado_url(self, path: str, api_version: str = _ADO_STABLE_API_VERSION) -> str:
         """
         Build Azure DevOps API URL with proper formatting.
 
@@ -2474,7 +2476,7 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             seen_tokens: set[str] = set()
 
             while True:
-                params: dict[str, Any] = {"api-version": "7.1-preview.4", "$top": 200, "order": "asc"}
+                params: dict[str, Any] = {"api-version": _ADO_COMMENTS_API_VERSION, "$top": 200, "order": "asc"}
                 if continuation_token:
                     params["continuationToken"] = continuation_token
 
@@ -2536,7 +2538,10 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             raise ValueError(msg)
 
         # Azure DevOps API for adding comments to work items
-        url = f"{self.base_url}/{org}/{project}/_apis/wit/workitems/{work_item_id}/comments?api-version=7.1"
+        url = (
+            f"{self.base_url}/{org}/{project}/_apis/wit/workitems/{work_item_id}/comments"
+            f"?api-version={_ADO_COMMENTS_API_VERSION}"
+        )
         headers = {
             "Content-Type": "application/json",
             **self._auth_headers(),

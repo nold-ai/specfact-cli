@@ -7,15 +7,13 @@ Tests for load_bundle_with_progress and save_bundle_with_progress functions.
 from pathlib import Path
 from unittest.mock import MagicMock
 
-import yaml
-
-from specfact_cli.models.plan import Product
-from specfact_cli.models.project import BundleManifest, BundleVersions, ProjectBundle
+from specfact_cli.models.project import ProjectBundle
 from specfact_cli.utils.progress import (
     create_progress_callback,
     load_bundle_with_progress,
     save_bundle_with_progress,
 )
+from tests.unit.utils.bundle_test_helpers import assert_core_bundle_files, make_test_bundle, write_minimal_bundle_files
 
 
 class TestCreateProgressCallback:
@@ -56,21 +54,7 @@ class TestLoadBundleWithProgress:
     def test_load_bundle_with_progress(self, tmp_path: Path):
         """Test loading bundle with progress display."""
         bundle_dir = tmp_path / "test-bundle"
-        bundle_dir.mkdir()
-
-        # Create manifest
-        manifest_data = {
-            "versions": {"schema": "1.0", "project": "0.1.0"},
-            "bundle": {"format": "directory-based"},
-            "checksums": {"algorithm": "sha256", "files": {}},
-            "features": [],
-            "protocols": [],
-        }
-        (bundle_dir / "bundle.manifest.yaml").write_text(yaml.dump(manifest_data))
-
-        # Create product file
-        product_data = {"themes": [], "releases": []}
-        (bundle_dir / "product.yaml").write_text(yaml.dump(product_data))
+        write_minimal_bundle_files(bundle_dir)
 
         # Load bundle with progress
         bundle = load_bundle_with_progress(bundle_dir)
@@ -82,21 +66,7 @@ class TestLoadBundleWithProgress:
     def test_load_bundle_with_progress_validate_hashes(self, tmp_path: Path):
         """Test loading bundle with progress and hash validation."""
         bundle_dir = tmp_path / "test-bundle"
-        bundle_dir.mkdir()
-
-        # Create manifest
-        manifest_data = {
-            "versions": {"schema": "1.0", "project": "0.1.0"},
-            "bundle": {"format": "directory-based"},
-            "checksums": {"algorithm": "sha256", "files": {}},
-            "features": [],
-            "protocols": [],
-        }
-        (bundle_dir / "bundle.manifest.yaml").write_text(yaml.dump(manifest_data))
-
-        # Create product file
-        product_data = {"themes": [], "releases": []}
-        (bundle_dir / "product.yaml").write_text(yaml.dump(product_data))
+        write_minimal_bundle_files(bundle_dir)
 
         # Load bundle with progress and hash validation
         bundle = load_bundle_with_progress(bundle_dir, validate_hashes=True)
@@ -107,21 +77,7 @@ class TestLoadBundleWithProgress:
     def test_load_bundle_with_progress_custom_console(self, tmp_path: Path):
         """Test loading bundle with progress using custom console."""
         bundle_dir = tmp_path / "test-bundle"
-        bundle_dir.mkdir()
-
-        # Create manifest
-        manifest_data = {
-            "versions": {"schema": "1.0", "project": "0.1.0"},
-            "bundle": {"format": "directory-based"},
-            "checksums": {"algorithm": "sha256", "files": {}},
-            "features": [],
-            "protocols": [],
-        }
-        (bundle_dir / "bundle.manifest.yaml").write_text(yaml.dump(manifest_data))
-
-        # Create product file
-        product_data = {"themes": [], "releases": []}
-        (bundle_dir / "product.yaml").write_text(yaml.dump(product_data))
+        write_minimal_bundle_files(bundle_dir)
 
         # Create custom console
         custom_console = MagicMock()
@@ -139,55 +95,29 @@ class TestSaveBundleWithProgress:
     def test_save_bundle_with_progress(self, tmp_path: Path):
         """Test saving bundle with progress display."""
         bundle_dir = tmp_path / "test-bundle"
-
-        # Create bundle
-        manifest = BundleManifest(
-            versions=BundleVersions(schema="1.0", project="0.1.0"),
-            schema_metadata=None,
-            project_metadata=None,
-        )
-        product = Product(themes=["Theme1"])
-        bundle = ProjectBundle(manifest=manifest, bundle_name="test-bundle", product=product)
+        bundle = make_test_bundle(themes=["Theme1"])
 
         # Save bundle with progress
         save_bundle_with_progress(bundle, bundle_dir)
 
         # Verify files created
-        assert (bundle_dir / "bundle.manifest.yaml").exists()
-        assert (bundle_dir / "product.yaml").exists()
+        assert_core_bundle_files(bundle_dir)
 
     def test_save_bundle_with_progress_non_atomic(self, tmp_path: Path):
         """Test saving bundle with progress without atomic writes."""
         bundle_dir = tmp_path / "test-bundle"
-
-        # Create bundle
-        manifest = BundleManifest(
-            versions=BundleVersions(schema="1.0", project="0.1.0"),
-            schema_metadata=None,
-            project_metadata=None,
-        )
-        product = Product(themes=["Theme1"])
-        bundle = ProjectBundle(manifest=manifest, bundle_name="test-bundle", product=product)
+        bundle = make_test_bundle(themes=["Theme1"])
 
         # Save bundle with progress (non-atomic)
         save_bundle_with_progress(bundle, bundle_dir, atomic=False)
 
         # Verify files created
-        assert (bundle_dir / "bundle.manifest.yaml").exists()
-        assert (bundle_dir / "product.yaml").exists()
+        assert_core_bundle_files(bundle_dir)
 
     def test_save_bundle_with_progress_custom_console(self, tmp_path: Path):
         """Test saving bundle with progress using custom console."""
         bundle_dir = tmp_path / "test-bundle"
-
-        # Create bundle
-        manifest = BundleManifest(
-            versions=BundleVersions(schema="1.0", project="0.1.0"),
-            schema_metadata=None,
-            project_metadata=None,
-        )
-        product = Product(themes=["Theme1"])
-        bundle = ProjectBundle(manifest=manifest, bundle_name="test-bundle", product=product)
+        bundle = make_test_bundle(themes=["Theme1"])
 
         # Create custom console
         custom_console = MagicMock()
@@ -196,8 +126,7 @@ class TestSaveBundleWithProgress:
         save_bundle_with_progress(bundle, bundle_dir, console_instance=custom_console)
 
         # Verify files created
-        assert (bundle_dir / "bundle.manifest.yaml").exists()
-        assert (bundle_dir / "product.yaml").exists()
+        assert_core_bundle_files(bundle_dir)
 
 
 class TestLoadSaveRoundtripWithProgress:
@@ -206,15 +135,7 @@ class TestLoadSaveRoundtripWithProgress:
     def test_roundtrip_with_progress(self, tmp_path: Path):
         """Test saving and loading bundle with progress maintains data integrity."""
         bundle_dir = tmp_path / "test-bundle"
-
-        # Create and save bundle
-        manifest = BundleManifest(
-            versions=BundleVersions(schema="1.0", project="0.1.0"),
-            schema_metadata=None,
-            project_metadata=None,
-        )
-        product = Product(themes=["Theme1", "Theme2"])
-        bundle = ProjectBundle(manifest=manifest, bundle_name="test-bundle", product=product)
+        bundle = make_test_bundle(themes=["Theme1", "Theme2"])
 
         save_bundle_with_progress(bundle, bundle_dir)
 

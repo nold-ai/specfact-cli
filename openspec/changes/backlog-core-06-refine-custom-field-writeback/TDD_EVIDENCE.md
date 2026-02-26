@@ -73,3 +73,33 @@ hatch test -- tests/unit/backlog/test_field_mappers.py -v
 - Passing summary:
   - `<br>`, `<br/>`, and `<br />` are normalized to newlines.
   - Rich text normalization only activates for known HTML tags, preventing accidental stripping of non-HTML placeholders and angle-bracket content.
+
+## Regression Fix: ADO Comment API Version Compatibility
+
+### Pre-Implementation Failing Run
+
+- Timestamp (UTC): 2026-02-26 18:40:42 UTC
+- Command:
+
+```bash
+hatch test -- tests/unit/adapters/test_ado.py -k "add_work_item_comment or build_ado_url_defaults_to_stable_api_version_for_standard_operations" -v
+```
+
+- Result: **FAILED (1 failed, 1 passed)**
+- Failure summary:
+  - `_add_work_item_comment` posted to `/workitems/{id}/comments` with `api-version=7.1` instead of `7.1-preview.4`.
+  - Standard endpoint helper default remained stable `7.1` as expected.
+
+### Post-Implementation Passing Run
+
+- Timestamp (UTC): 2026-02-26 18:41:27 UTC
+- Command:
+
+```bash
+hatch test -- tests/unit/adapters/test_ado.py -k "add_work_item_comment or build_ado_url_defaults_to_stable_api_version_for_standard_operations" -v
+```
+
+- Result: **PASSED (2 passed, 35 deselected)**
+- Passing summary:
+  - ADO comment POST path now targets `/comments?api-version=7.1-preview.4`.
+  - Standard endpoint URL builder default remains stable `api-version=7.1`.

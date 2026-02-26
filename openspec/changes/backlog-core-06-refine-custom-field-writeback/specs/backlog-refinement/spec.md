@@ -45,3 +45,14 @@ The system SHALL provide a `specfact backlog refine` command that enables teams 
 - **WHEN** the user passes `--state any` and/or `--assignee any`
 - **THEN** the system treats the respective filter as disabled (no filter applied)
 - **AND** command output/help makes this behavior explicit so default scoping is understandable.
+
+### Requirement: ADO comment activities use endpoint-compatible API versioning
+
+The system SHALL use the preview ADO comments API version for comment read/write activities while preserving stable `7.1` for standard work-item operations.
+
+#### Scenario: ADO daily/refine comment posting uses preview comments endpoint version
+
+- **GIVEN** a configured ADO adapter posts a comment to `/workitems/{id}/comments`
+- **WHEN** the adapter builds and executes the comment POST request
+- **THEN** the request targets `api-version=7.1-preview.4`
+- **AND** standard ADO work-item or WIQL operations continue using `api-version=7.1`.

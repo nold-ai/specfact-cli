@@ -37,3 +37,10 @@
 - [x] 5.7 Align prompt guidance with provider-specific field schemas (for example story points handling in ADO process templates).
 - [x] 5.8 Add/strengthen anti-summarization guardrails in refine prompting/import flow so bulk refine does not silently drop required detail.
 - [x] 5.9 Add explicit no-filter override semantics for backlog commands: `--state any` and `--assignee any` must disable filtering, and document this behavior in command/help docs.
+
+## 6. ADO Comment API Version Compatibility
+
+- [x] 6.1 Add/modify adapter tests to assert ADO comment POST (`/workitems/{id}/comments`) uses `api-version=7.1-preview.4`.
+- [x] 6.2 Record failing pre-implementation test evidence for the comment API-version mismatch in `TDD_EVIDENCE.md`.
+- [x] 6.3 Update ADO comment write path to use preview comments API version while preserving `7.1` on standard operations.
+- [x] 6.4 Re-run targeted tests and record passing evidence in `TDD_EVIDENCE.md`.
