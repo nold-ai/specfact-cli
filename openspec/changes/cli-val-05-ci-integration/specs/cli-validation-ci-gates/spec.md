@@ -66,7 +66,7 @@ The contract-first test system SHALL include CLI behavior contracts as a recogni
 - **AND** results appear alongside existing contract/exploration/scenario tiers.
 ### Requirement: Deterministic Hatch Toolchain in CI
 
-The CI pipeline SHALL install a deterministic, compatible Hatch toolchain for Python 3.12 jobs that execute Hatch environments.
+The CI pipeline SHALL install a deterministic, compatible Hatch toolchain for Python 3.12 test jobs.
 
 #### Scenario: Hatch install prevents virtualenv 21 incompatibility
 

@@ -340,6 +340,13 @@ class TestGitHubBacklogAdapter:
         assert resolved == "IT_FEATURE_ID"
 
     @beartype
+    def test_resolve_github_type_mapping_story_prefers_user_story(self) -> None:
+        """GitHub type mapping should prefer custom user story id before feature fallback."""
+        mapping = {"user story": "IT_USER_STORY_ID", "feature": "IT_FEATURE_ID"}
+        resolved = GitHubAdapter._resolve_github_type_mapping_id(mapping, "story")
+        assert resolved == "IT_USER_STORY_ID"
+
+    @beartype
     @patch.object(GitHubAdapter, "_github_graphql")
     def test_try_set_github_issue_type_uses_story_feature_fallback(self, mock_graphql: MagicMock) -> None:
         """Issue type assignment should use feature id when story id is unavailable."""

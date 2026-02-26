@@ -2734,12 +2734,13 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         Resolve GitHub issue-type/project-type mapping id with fallback aliases.
 
         Default alias fallback:
+        - `story` -> `user story` when custom type exists.
         - `story` -> `feature` when `story` is unavailable in the repository.
         """
         normalized = issue_type.strip().lower()
         candidate_keys = [issue_type, normalized]
         if normalized == "story":
-            candidate_keys.extend(["feature", "Feature"])
+            candidate_keys.extend(["user story", "feature", "Feature"])
         for key in candidate_keys:
             mapped = str(mapping.get(key) or "").strip()
             if mapped:

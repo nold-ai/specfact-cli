@@ -192,6 +192,68 @@ class TestAdoBacklogAdapter:
         assert items == []
 
     @beartype
+    @patch("specfact_cli.adapters.ado.requests.post")
+    @patch("specfact_cli.adapters.ado.requests.get")
+    def test_fetch_backlog_items_issue_id_respects_iteration_filter(
+        self,
+        mock_get: MagicMock,
+        mock_post: MagicMock,
+    ) -> None:
+        """Direct ID lookup should honor explicit iteration filter."""
+        mock_get_response = MagicMock()
+        mock_get_response.status_code = 200
+        mock_get_response.raise_for_status = MagicMock()
+        mock_get_response.json.return_value = {
+            "id": 185,
+            "url": "https://dev.azure.com/test/project/_apis/wit/workitems/185",
+            "fields": {
+                "System.Title": "Fix the error",
+                "System.State": "New",
+                "System.Description": "Description",
+                "System.IterationPath": "project\\Sprint 1",
+            },
+        }
+        mock_get.return_value = mock_get_response
+        mock_post.side_effect = AssertionError("WIQL should not be called for direct issue_id lookup")
+
+        adapter = AdoAdapter(org="test", project="project", api_token="token")
+        items = adapter.fetch_backlog_items(BacklogFilters(issue_id="185", iteration="project\\Sprint 2"))
+
+        assert items == []
+
+    @beartype
+    @patch("specfact_cli.adapters.ado.requests.post")
+    @patch("specfact_cli.adapters.ado.requests.get")
+    def test_fetch_backlog_items_issue_id_iteration_current_uses_current_iteration(
+        self,
+        mock_get: MagicMock,
+        mock_post: MagicMock,
+    ) -> None:
+        """Direct ID lookup should resolve iteration=current against current iteration."""
+        mock_get_response = MagicMock()
+        mock_get_response.status_code = 200
+        mock_get_response.raise_for_status = MagicMock()
+        mock_get_response.json.return_value = {
+            "id": 185,
+            "url": "https://dev.azure.com/test/project/_apis/wit/workitems/185",
+            "fields": {
+                "System.Title": "Fix the error",
+                "System.State": "New",
+                "System.Description": "Description",
+                "System.IterationPath": "project\\Sprint 1",
+            },
+        }
+        mock_get.return_value = mock_get_response
+        mock_post.side_effect = AssertionError("WIQL should not be called for direct issue_id lookup")
+
+        adapter = AdoAdapter(org="test", project="project", api_token="token")
+        adapter._get_current_iteration = MagicMock(return_value="project\\Sprint 1")  # type: ignore[method-assign]
+        items = adapter.fetch_backlog_items(BacklogFilters(issue_id="185", iteration="current"))
+
+        assert len(items) == 1
+        assert items[0].id == "185"
+
+    @beartype
     @patch("specfact_cli.adapters.ado.requests.patch")
     def test_update_backlog_item(self, mock_patch: MagicMock) -> None:
         """Test updating a backlog item."""
