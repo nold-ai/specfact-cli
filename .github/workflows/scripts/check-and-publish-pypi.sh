@@ -85,7 +85,7 @@ if [ "$SHOULD_PUBLISH" = "true" ]; then
     # Build package
     # Use hatch build to match the project's configured packaging flow.
     echo "📦 Building package..."
-    python -m pip install --upgrade hatch twine
+    python -m pip install --upgrade "hatch" "virtualenv<21" twine
     hatch build
     
     # Validate package

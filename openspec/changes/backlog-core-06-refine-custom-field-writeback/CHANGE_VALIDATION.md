@@ -35,3 +35,17 @@ Change is safe to implement with focused tests covering:
 1. custom mapping precedence for canonical write targets,
 2. adapter patch paths for mapped fields,
 3. tmp import ID mismatch failure behavior.
+
+## Validation Addendum (2026-02-26)
+
+### Delta Scope
+- Added ADO comment endpoint API-version compatibility coverage:
+  - comment activities (`/workitems/{id}/comments`) use `7.1-preview.4`
+  - standard work-item and WIQL operations remain on stable `7.1`
+
+### Validation Commands
+```bash
+openspec validate backlog-core-06-refine-custom-field-writeback --strict
+```
+
+Result: `Change 'backlog-core-06-refine-custom-field-writeback' is valid`.

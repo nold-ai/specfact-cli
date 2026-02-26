@@ -635,7 +635,17 @@ class TestAdoAdapter:
         mock_post.assert_called_once()
         call_args = mock_post.call_args
         assert "comments" in call_args[0][0]
+        assert "api-version=7.1-preview.4" in call_args[0][0]
         assert call_args[1]["json"]["text"] == "Test comment"
+
+    @beartype
+    def test_build_ado_url_defaults_to_stable_api_version_for_standard_operations(
+        self,
+        ado_adapter: AdoAdapter,
+    ) -> None:
+        """Standard work item endpoints default to stable 7.1 API version."""
+        url = ado_adapter._build_ado_url("_apis/wit/workitems/123")
+        assert "api-version=7.1" in url
 
     @beartype
     @patch("specfact_cli.adapters.ado.requests.post")
