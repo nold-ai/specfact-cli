@@ -48,11 +48,24 @@
 
 ## 6. Module publishing automation (publish-module.py + workflow)
 
-### Post-implementation (manual verification)
+### Pre-implementation (failing tests)
+
+- **Timestamp**: `2026-02-27T07:43:31Z`
+- **Command**: `hatch run pytest tests/unit/scripts/test_update_registry_index.py -q`
+- **Result**: 2 failed (`FileNotFoundError: scripts/update-registry-index.py` did not exist).
+
+### Post-implementation (passing + workflow simulation)
 
 - **Script**: `scripts/publish-module.py` — validates manifest (name, version, commands; optional namespace/publisher/tier), builds tarball, writes `.sha256`, optional `--sign` and `--index-fragment`. Contract fixes: `@require` lambdas use correct parameter names (`manifest_path`, `tarball_path`).
-- **Manual test**: `python scripts/publish-module.py /tmp/sample-module -o /tmp/pub-out` produced tarball and checksum; `--index-fragment /tmp/pub-out/entry.yaml` wrote index fragment.
-- **Workflow**: `.github/workflows/publish-modules.yml` — trigger on tags `*-v*` and workflow_dispatch; resolves module path from tag (e.g. `backlog-v0.1.0` → `src/specfact_cli/modules/backlog` or `modules/backlog`); runs publish script; uploads `dist/*.tar.gz` and `dist/*.sha256` as artifacts. 6.2.4 (index update/PR) and 6.2.5 (test in repo) left for follow-up.
+- **Script**: `scripts/update-registry-index.py` — upserts entry fragment into `registry/index.json`, keeps module IDs deterministic via sorted order, and emits change flag for workflow branching.
+- **Timestamp**: `2026-02-27T07:42:08Z`
+- **Command**: `hatch run pytest tests/unit/scripts/test_update_registry_index.py -q`
+- **Result**: 2 passed.
+- **Workflow (implemented)**: `.github/workflows/publish-modules.yml` now writes `dist/registry-entry.yaml`, checks out `nold-ai/specfact-cli-modules`, updates `registry/index.json`, and creates a registry PR via `gh pr create` when index changed.
+- **Local repo simulation**:
+  - Publish command: `python scripts/publish-module.py <sample-module> -o <dist> --index-fragment <dist>/registry-entry.yaml`
+  - Index update command: `python scripts/update-registry-index.py --index-path <test-repo>/registry/index.json --entry-fragment <dist>/registry-entry.yaml --changed-flag <tmp>/changed.txt`
+  - Result: `CHANGED=true`, branch `auto/publish-nold-ai-backlog-test`, commit `chore(registry): publish nold-ai/backlog v0.1.0`, index contains `nold-ai/backlog@0.1.0`.
 
 
 ### Re-signing module_registry for full tests
@@ -69,4 +82,3 @@ hatch run python scripts/sign-modules.py src/specfact_cli/modules/module_registr
 ```
 
 The publish-modules workflow uses the same env vars (via repository secrets) to optionally sign the manifest before packaging.
-

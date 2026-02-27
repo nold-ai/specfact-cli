@@ -23,6 +23,7 @@ __pycache__/
 *.pyo
 *.pyd
 *.py.bak
+.cache/
 
 # ChromaDB data files
 data/
