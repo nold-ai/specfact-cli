@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import re
 import shutil
 import sys
 import tarfile
@@ -21,7 +22,9 @@ from specfact_cli import __version__ as cli_version
 from specfact_cli.common import get_bridge_logger
 from specfact_cli.models.module_package import ModulePackageMetadata
 from specfact_cli.registry.crypto_validator import verify_checksum, verify_signature
+from specfact_cli.registry.dependency_resolver import DependencyConflictError, resolve_dependencies
 from specfact_cli.registry.marketplace_client import download_module
+from specfact_cli.registry.module_discovery import discover_all_modules
 from specfact_cli.registry.module_security import assert_module_allowed, ensure_publisher_trusted
 from specfact_cli.runtime import is_debug_mode
 
@@ -30,6 +33,36 @@ USER_MODULES_ROOT = Path.home() / ".specfact" / "modules"
 MARKETPLACE_MODULES_ROOT = Path.home() / ".specfact" / "marketplace-modules"
 _IGNORED_MODULE_DIR_NAMES = {"__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache", "logs"}
 _IGNORED_MODULE_FILE_SUFFIXES = {".pyc", ".pyo"}
+REGISTRY_ID_FILE = ".specfact-registry-id"
+_MARKETPLACE_NAMESPACE_PATTERN = re.compile(r"^[a-z][a-z0-9-]*/[a-z][a-z0-9-]+$")
+
+
+@beartype
+def _validate_marketplace_namespace_format(module_id: str) -> None:
+    """Raise ValueError if module_id does not match namespace/name (lowercase, alphanumeric + hyphens)."""
+    if not _MARKETPLACE_NAMESPACE_PATTERN.match(module_id.strip()):
+        raise ValueError(
+            f"Marketplace module id must match namespace/name (lowercase, alphanumeric and hyphens): {module_id!r}"
+        )
+
+
+@beartype
+def _check_namespace_collision(module_id: str, final_path: Path, reinstall: bool) -> None:
+    """Raise ValueError if final_path already contains a module installed from a different module_id."""
+    if reinstall or not final_path.exists():
+        return
+    id_file = final_path / REGISTRY_ID_FILE
+    if not id_file.exists():
+        return
+    try:
+        existing_id = id_file.read_text(encoding="utf-8").strip()
+    except OSError:
+        return
+    if existing_id and existing_id != module_id:
+        raise ValueError(
+            f"Module namespace collision: {module_id!r} conflicts with existing {existing_id!r}. "
+            "Use alias for disambiguation or uninstall the existing module first."
+        )
 
 
 @beartype
@@ -398,16 +431,20 @@ def install_module(
     install_root: Path | None = None,
     trust_non_official: bool = False,
     non_interactive: bool = False,
+    skip_deps: bool = False,
+    force: bool = False,
 ) -> Path:
     """Install a marketplace module from tarball into canonical user modules root."""
     logger = get_bridge_logger(__name__)
     target_root = install_root or USER_MODULES_ROOT
     target_root.mkdir(parents=True, exist_ok=True)
 
+    _validate_marketplace_namespace_format(module_id)
     _namespace, module_name = module_id.split("/", 1)
     final_path = target_root / module_name
     manifest_path = final_path / "module-package.yaml"
 
+    _check_namespace_collision(module_id, final_path, reinstall)
     if manifest_path.exists() and not reinstall:
         logger.debug("Module already installed (%s)", module_name)
         return final_path
@@ -462,6 +499,17 @@ def install_module(
                 version=str(metadata.get("version", "0.1.0")),
                 commands=[str(command) for command in metadata.get("commands", []) if str(command).strip()],
             )
+        if not skip_deps:
+            try:
+                all_metas = [e.metadata for e in discover_all_modules()]
+                all_metas.append(metadata_obj)
+                resolve_dependencies(all_metas)
+            except DependencyConflictError as dep_err:
+                if not force:
+                    raise ValueError(
+                        f"Dependency conflict: {dep_err}. Use --force to bypass or --skip-deps to skip resolution."
+                    ) from dep_err
+                logger.warning("Dependency conflict bypassed by --force: %s", dep_err)
         allow_unsigned = os.environ.get("SPECFACT_ALLOW_UNSIGNED", "").strip().lower() in {"1", "true", "yes"}
         if not verify_module_artifact(
             extracted_module_dir,
@@ -479,6 +527,7 @@ def install_module(
             if final_path.exists():
                 shutil.rmtree(final_path)
             staged_path.replace(final_path)
+            (final_path / REGISTRY_ID_FILE).write_text(module_id, encoding="utf-8")
         except Exception:
             if staged_path.exists():
                 shutil.rmtree(staged_path)

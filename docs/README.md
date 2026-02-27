@@ -105,6 +105,8 @@ For implementation details, see:
 - [Module Contracts](reference/module-contracts.md)
 - [Installing Modules](guides/installing-modules.md)
 - [Module Marketplace](guides/module-marketplace.md)
+- [Custom registries](guides/custom-registries.md)
+- [Publishing modules](guides/publishing-modules.md)
 - [Module Signing and Key Rotation](guides/module-signing-and-key-rotation.md)
 
 ---

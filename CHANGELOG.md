@@ -10,6 +10,19 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.38.0] - 2026-02-27
+
+### Added
+
+- **Module dependency resolution**: Install resolves `pip_dependencies` and `module_dependencies` before installing marketplace modules; conflict detection with clear errors. Use `--skip-deps` to bypass resolution or `--force` to override conflicts.
+- **Command aliases**: `specfact module alias create/list/remove` to map custom command names to module commands. Aliases stored in `~/.specfact/registry/aliases.json`. Aliases do not create top-level CLI commands (CLI surface unchanged).
+- **Custom registries**: `specfact module add-registry`, `list-registries`, `remove-registry` to configure additional module registries with priority and trust levels (`always` / `prompt` / `never`). Config in `~/.specfact/config/registries.yaml`. Search queries all configured registries and shows a **Registry** column when multiple exist.
+- **Namespace enforcement**: Marketplace modules must use `namespace/name` format; invalid format or name collisions are rejected with guidance (alias or uninstall).
+- **Module publishing**: `scripts/publish-module.py` to validate, package (tarball + SHA-256), optionally sign, and write registry index fragments. `.github/workflows/publish-modules.yml` runs on tags `*-v*` and workflow_dispatch, with optional signing via `SPECFACT_MODULE_PRIVATE_SIGN_KEY` and `SPECFACT_MODULE_PRIVATE_SIGN_KEY_PASSPHRASE` secrets.
+- **Documentation**: New guides publishing-modules.md, custom-registries.md, reference dependency-resolution.md. Updated installing-modules.md, module-marketplace.md, module-signing-and-key-rotation.md, and commands reference.
+
+---
+
 ## [0.37.5] - 2026-02-25
 
 ### Fixed

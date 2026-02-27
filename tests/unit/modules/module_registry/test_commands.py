@@ -220,7 +220,9 @@ def test_install_command_requires_explicit_trust_for_non_official_in_non_interac
     monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.discover_all_modules", list)
     monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.is_non_interactive", lambda: True)
 
-    def _install(module_id: str, version=None, install_root=None, trust_non_official=False, non_interactive=False):
+    def _install(
+        module_id: str, version=None, install_root=None, trust_non_official=False, non_interactive=False, **kwargs
+    ):
         if not trust_non_official and non_interactive:
             raise ValueError("requires --trust-non-official")
         return tmp_path / module_id.split("/")[-1]
@@ -243,7 +245,9 @@ def test_install_command_passes_trust_flag_to_marketplace_installer(monkeypatch,
     monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.is_non_interactive", lambda: True)
     captured: dict[str, bool | None] = {"trust_non_official": None, "non_interactive": None}
 
-    def _install(module_id: str, version=None, install_root=None, trust_non_official=False, non_interactive=False):
+    def _install(
+        module_id: str, version=None, install_root=None, trust_non_official=False, non_interactive=False, **kwargs
+    ):
         captured["trust_non_official"] = trust_non_official
         captured["non_interactive"] = non_interactive
         return tmp_path / module_id.split("/")[-1]
@@ -371,24 +375,29 @@ def test_uninstall_command_unknown_module_has_clear_guidance(monkeypatch) -> Non
 
 def test_search_command_filters_registry(monkeypatch) -> None:
     monkeypatch.setattr(
-        "specfact_cli.modules.module_registry.src.commands.fetch_registry_index",
-        lambda: {
-            "schema_version": "1.0.0",
-            "modules": [
+        "specfact_cli.modules.module_registry.src.commands.fetch_all_indexes",
+        lambda: [
+            (
+                "official",
                 {
-                    "id": "specfact/backlog",
-                    "description": "Backlog workflows",
-                    "latest_version": "0.1.0",
-                    "tags": ["backlog", "scrum"],
+                    "schema_version": "1.0.0",
+                    "modules": [
+                        {
+                            "id": "specfact/backlog",
+                            "description": "Backlog workflows",
+                            "latest_version": "0.1.0",
+                            "tags": ["backlog", "scrum"],
+                        },
+                        {
+                            "id": "specfact/policy",
+                            "description": "Policy engine",
+                            "latest_version": "0.1.0",
+                            "tags": ["governance"],
+                        },
+                    ],
                 },
-                {
-                    "id": "specfact/policy",
-                    "description": "Policy engine",
-                    "latest_version": "0.1.0",
-                    "tags": ["governance"],
-                },
-            ],
-        },
+            )
+        ],
     )
 
     result = runner.invoke(app, ["search", "backlog"])
@@ -402,7 +411,7 @@ def test_search_command_filters_registry(monkeypatch) -> None:
 
 def test_search_command_finds_installed_module_when_not_in_registry(monkeypatch) -> None:
     monkeypatch.setattr(
-        "specfact_cli.modules.module_registry.src.commands.fetch_registry_index", lambda: {"modules": []}
+        "specfact_cli.modules.module_registry.src.commands.fetch_all_indexes", lambda: [("official", {"modules": []})]
     )
 
     class _Meta:
@@ -427,7 +436,7 @@ def test_search_command_finds_installed_module_when_not_in_registry(monkeypatch)
 
 def test_search_command_reports_no_results_with_query_context(monkeypatch) -> None:
     monkeypatch.setattr(
-        "specfact_cli.modules.module_registry.src.commands.fetch_registry_index", lambda: {"modules": []}
+        "specfact_cli.modules.module_registry.src.commands.fetch_all_indexes", lambda: [("official", {"modules": []})]
     )
     monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.discover_all_modules", list)
 
@@ -439,14 +448,29 @@ def test_search_command_reports_no_results_with_query_context(monkeypatch) -> No
 
 def test_search_command_sorts_results_alphabetically(monkeypatch) -> None:
     monkeypatch.setattr(
-        "specfact_cli.modules.module_registry.src.commands.fetch_registry_index",
-        lambda: {
-            "schema_version": "1.0.0",
-            "modules": [
-                {"id": "specfact/zeta", "description": "Zeta module", "latest_version": "0.1.0", "tags": ["bundle"]},
-                {"id": "specfact/alpha", "description": "Alpha module", "latest_version": "0.1.0", "tags": ["bundle"]},
-            ],
-        },
+        "specfact_cli.modules.module_registry.src.commands.fetch_all_indexes",
+        lambda: [
+            (
+                "official",
+                {
+                    "schema_version": "1.0.0",
+                    "modules": [
+                        {
+                            "id": "specfact/zeta",
+                            "description": "Zeta module",
+                            "latest_version": "0.1.0",
+                            "tags": ["bundle"],
+                        },
+                        {
+                            "id": "specfact/alpha",
+                            "description": "Alpha module",
+                            "latest_version": "0.1.0",
+                            "tags": ["bundle"],
+                        },
+                    ],
+                },
+            )
+        ],
     )
     monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.discover_all_modules", list)
 

@@ -38,6 +38,8 @@ from specfact_cli.utils.auth_tokens import get_token, set_token
 
 
 _MAX_RESPONSE_BODY_LOG = 2048
+_ADO_STABLE_API_VERSION = "7.1"
+_ADO_COMMENTS_API_VERSION = "7.1-preview.4"
 
 console = Console()
 
@@ -203,7 +205,7 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         """
         return "dev.azure.com" not in self.base_url.lower()
 
-    def _build_ado_url(self, path: str, api_version: str = "7.1") -> str:
+    def _build_ado_url(self, path: str, api_version: str = _ADO_STABLE_API_VERSION) -> str:
         """
         Build Azure DevOps API URL with proper formatting.
 
@@ -2474,7 +2476,7 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             seen_tokens: set[str] = set()
 
             while True:
-                params: dict[str, Any] = {"api-version": "7.1-preview.4", "$top": 200, "order": "asc"}
+                params: dict[str, Any] = {"api-version": _ADO_COMMENTS_API_VERSION, "$top": 200, "order": "asc"}
                 if continuation_token:
                     params["continuationToken"] = continuation_token
 
@@ -2536,7 +2538,10 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             raise ValueError(msg)
 
         # Azure DevOps API for adding comments to work items
-        url = f"{self.base_url}/{org}/{project}/_apis/wit/workitems/{work_item_id}/comments?api-version=7.1"
+        url = (
+            f"{self.base_url}/{org}/{project}/_apis/wit/workitems/{work_item_id}/comments"
+            f"?api-version={_ADO_COMMENTS_API_VERSION}"
+        )
         headers = {
             "Content-Type": "application/json",
             **self._auth_headers(),
@@ -2944,16 +2949,21 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
                 ]
 
             if filters.iteration:
-                resolved_iteration = filters.iteration
-                if filters.iteration.lower() == "current":
-                    current_iteration = self._get_current_iteration()
-                    if current_iteration:
-                        resolved_iteration = current_iteration
-                    else:
-                        return []
-                filtered_items = [
-                    item for item in filtered_items if item.iteration and item.iteration == resolved_iteration
-                ]
+                normalized_iteration = BacklogFilters.normalize_filter_value(filters.iteration)
+                if normalized_iteration not in (None, "any"):
+                    target_iteration = filters.iteration
+                    if normalized_iteration == "current":
+                        current_iteration = self._get_current_iteration()
+                        if not current_iteration:
+                            return []
+                        target_iteration = current_iteration
+
+                    filtered_items = [
+                        item
+                        for item in filtered_items
+                        if BacklogFilters.normalize_filter_value(item.iteration)
+                        == BacklogFilters.normalize_filter_value(target_iteration)
+                    ]
 
             if filters.sprint:
                 _, filtered_items = self._resolve_sprint_filter(
@@ -3698,7 +3708,7 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         # Update story points using mapped field name (honors custom mappings)
         if update_fields is None or "story_points" in update_fields:
             story_points_field = ado_mapper.resolve_write_target_field("story_points", provider_field_names)
-            if story_points_field and item.story_points is not None:
+            if story_points_field and item.story_points is not None and story_points_field in provider_field_names:
                 operations.append(
                     {"op": "replace", "path": f"/fields/{story_points_field}", "value": item.story_points}
                 )
@@ -3706,7 +3716,11 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         # Update business value using mapped field name (honors custom mappings)
         if update_fields is None or "business_value" in update_fields:
             business_value_field = ado_mapper.resolve_write_target_field("business_value", provider_field_names)
-            if business_value_field and item.business_value is not None:
+            if (
+                business_value_field
+                and item.business_value is not None
+                and business_value_field in provider_field_names
+            ):
                 operations.append(
                     {"op": "replace", "path": f"/fields/{business_value_field}", "value": item.business_value}
                 )
@@ -3714,7 +3728,7 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         # Update priority using mapped field name (honors custom mappings)
         if update_fields is None or "priority" in update_fields:
             priority_field = ado_mapper.resolve_write_target_field("priority", provider_field_names)
-            if priority_field and item.priority is not None:
+            if priority_field and item.priority is not None and priority_field in provider_field_names:
                 operations.append({"op": "replace", "path": f"/fields/{priority_field}", "value": item.priority})
 
         if update_fields is None or "state" in update_fields:

@@ -58,6 +58,7 @@ from specfact_cli.modes import OperationalMode, detect_mode
 
 # Command groups are registered via CommandRegistry (bootstrap); no top-level command imports.
 from specfact_cli.registry import CommandRegistry
+from specfact_cli.registry.alias_manager import resolve_command
 from specfact_cli.registry.bootstrap import register_builtin_commands
 from specfact_cli.registry.metadata import CommandMetadata
 from specfact_cli.runtime import get_configured_console, init_debug_log_file, set_debug_mode
@@ -348,7 +349,8 @@ class _LazyDelegateGroup(click.Group):
             from typer.main import get_command
 
             ctx = click.get_current_context()
-            real_typer = CommandRegistry.get_typer(cmd_name)
+            resolved_name = resolve_command(cmd_name)
+            real_typer = CommandRegistry.get_typer(resolved_name)
             click_cmd = get_command(real_typer)
             # Build full prog name from root (e.g. "specfact sync") so usage shows "specfact sync bridge", not "sync sync bridge"
             parts: list[str] = []
@@ -407,7 +409,8 @@ class _LazyDelegateGroup(click.Group):
         """Load and return the real command's Click Group, or None on failure."""
         from typer.main import get_command
 
-        real_typer = CommandRegistry.get_typer(self._lazy_cmd_name)
+        resolved_name = resolve_command(self._lazy_cmd_name)
+        real_typer = CommandRegistry.get_typer(resolved_name)
         click_cmd = get_command(real_typer)
         if isinstance(click_cmd, click.Group):
             return click_cmd
@@ -417,7 +420,8 @@ class _LazyDelegateGroup(click.Group):
         """Show the real Typer's Rich help instead of plain Click group help."""
         from typer.main import get_command
 
-        real_typer = CommandRegistry.get_typer(self._lazy_cmd_name)
+        resolved_name = resolve_command(self._lazy_cmd_name)
+        real_typer = CommandRegistry.get_typer(resolved_name)
         click_cmd = get_command(real_typer)
         prog_name = (
             f"{ctx.parent.command.name} {self._lazy_cmd_name}"

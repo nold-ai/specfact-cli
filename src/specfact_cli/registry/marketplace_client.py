@@ -23,11 +23,26 @@ class SecurityError(RuntimeError):
 
 @beartype
 @ensure(lambda result: result is None or isinstance(result, dict), "Result must be dict or None")
-def fetch_registry_index(index_url: str = REGISTRY_INDEX_URL, timeout: float = 10.0) -> dict | None:
+def fetch_registry_index(
+    index_url: str | None = None, registry_id: str | None = None, timeout: float = 10.0
+) -> dict | None:
     """Fetch and parse marketplace registry index."""
     logger = get_bridge_logger(__name__)
+    url = index_url
+    if url is None and registry_id is not None:
+        from specfact_cli.registry.custom_registries import list_registries
+
+        for reg in list_registries():
+            if str(reg.get("id", "")) == registry_id:
+                url = str(reg.get("url", "")).strip()
+                break
+        if not url:
+            logger.warning("Registry %r not found", registry_id)
+            return None
+    if url is None:
+        url = REGISTRY_INDEX_URL
     try:
-        response = requests.get(index_url, timeout=timeout)
+        response = requests.get(url, timeout=timeout)
         response.raise_for_status()
     except Exception as exc:
         logger.warning("Registry unavailable, using offline mode: %s", exc)
@@ -58,7 +73,28 @@ def download_module(
 ) -> Path:
     """Download module tarball and verify SHA-256 checksum from registry metadata."""
     logger = get_bridge_logger(__name__)
-    registry_index = index if index is not None else fetch_registry_index()
+    if index is not None:
+        registry_index = index
+    else:
+        from specfact_cli.registry.custom_registries import fetch_all_indexes
+
+        registry_index = None
+        for _reg_id, idx in fetch_all_indexes(timeout=timeout):
+            if not isinstance(idx, dict):
+                continue
+            mods = idx.get("modules") or []
+            if not isinstance(mods, list):
+                continue
+            for c in mods:
+                if isinstance(c, dict) and c.get("id") == module_id:
+                    if version and c.get("latest_version") != version:
+                        continue
+                    registry_index = idx
+                    break
+            if registry_index is not None:
+                break
+        if registry_index is None:
+            registry_index = fetch_registry_index()
     if not registry_index:
         raise ValueError("Cannot install from marketplace (offline)")
 

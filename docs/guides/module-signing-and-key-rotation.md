@@ -43,6 +43,9 @@ openssl pkey -in module-signing-private.pem -pubout -out module-signing-public.p
 
 Preferred (strict, with private key):
 
+- **Key file**: `--key-file <path>` or set `SPECFACT_MODULE_PRIVATE_SIGN_KEY_FILE` (or legacy `SPECFACT_MODULE_SIGNING_PRIVATE_KEY_FILE`).
+- **Inline PEM**: Set `SPECFACT_MODULE_PRIVATE_SIGN_KEY` (or legacy `SPECFACT_MODULE_SIGNING_PRIVATE_KEY_PEM`) to the PEM string; no file needed. Useful in CI where the key is in a secret.
+
 ```bash
 KEY_FILE="${SPECFACT_MODULE_PRIVATE_SIGN_KEY_FILE:-.specfact/sign-keys/module-signing-private.pem}"
 python scripts/sign-modules.py --key-file "$KEY_FILE" src/specfact_cli/modules/*/module-package.yaml

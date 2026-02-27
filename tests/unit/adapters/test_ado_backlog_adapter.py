@@ -398,6 +398,40 @@ field_mappings:
 
     @beartype
     @patch("specfact_cli.adapters.ado.requests.patch")
+    def test_update_backlog_item_skips_story_points_patch_when_field_absent(self, mock_patch: MagicMock) -> None:
+        """Story points patch should be omitted when the resolved target field is not present on the item."""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "id": 1,
+            "url": "https://dev.azure.com/test/project/_apis/wit/workitems/1",
+            "fields": {
+                "System.Title": "Test Item",
+                "System.Description": "Description",
+                # Story points fields intentionally absent
+            },
+        }
+        mock_response.raise_for_status = MagicMock()
+        mock_patch.return_value = mock_response
+
+        adapter = AdoAdapter(org="test", project="project", api_token="token")
+        item = BacklogItem(
+            id="1",
+            provider="ado",
+            url="",
+            title="Test Item",
+            body_markdown="Description",
+            state="Active",
+            story_points=8,
+            provider_fields={"fields": {"System.Title": "Test Item", "System.Description": "Description"}},
+        )
+
+        adapter.update_backlog_item(item, update_fields=["story_points", "body_markdown"])
+
+        operations = mock_patch.call_args[1]["json"]
+        assert not any("StoryPoints" in op.get("path", "") for op in operations)
+
+    @beartype
+    @patch("specfact_cli.adapters.ado.requests.patch")
     def test_create_issue_uses_custom_mapped_fields_and_markdown_multiline_format(
         self, mock_patch: MagicMock, tmp_path
     ) -> None:

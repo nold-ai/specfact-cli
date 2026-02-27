@@ -106,6 +106,41 @@ def test_install_module_rejects_archive_path_traversal(monkeypatch, tmp_path: Pa
         install_module("specfact/policy", install_root=tmp_path / "marketplace-modules")
 
 
+def test_install_module_rejects_invalid_namespace_format(monkeypatch, tmp_path: Path) -> None:
+    """install_module raises ValueError for module_id not matching namespace/name (lowercase, alphanumeric + hyphens)."""
+    tarball = _create_module_tarball(tmp_path, "backlog")
+    monkeypatch.setattr("specfact_cli.registry.module_installer.download_module", lambda *_args, **_kwargs: tarball)
+    install_root = tmp_path / "marketplace-modules"
+    for invalid_id in ("NoCap/backlog", "specfact/Backlog", "123/name"):
+        with pytest.raises(ValueError, match=r"namespace/name|Marketplace module id"):
+            install_module(invalid_id, install_root=install_root)
+
+
+def test_install_module_accepts_valid_namespace_format(monkeypatch, tmp_path: Path) -> None:
+    """install_module accepts module_id matching namespace/name (lowercase, alphanumeric + hyphens)."""
+    tarball = _create_module_tarball(tmp_path, "backlog")
+    monkeypatch.setattr("specfact_cli.registry.module_installer.download_module", lambda *_args, **_kwargs: tarball)
+    install_root = tmp_path / "marketplace-modules"
+    install_module("specfact/backlog", install_root=install_root)
+    assert (install_root / "backlog" / "module-package.yaml").exists()
+    tarball2 = _create_module_tarball(tmp_path, "backlog-pro", module_version="0.1.0")
+    monkeypatch.setattr("specfact_cli.registry.module_installer.download_module", lambda *_args, **_kwargs: tarball2)
+    install_module("acme-corp/backlog-pro", install_root=install_root)
+    assert (install_root / "backlog-pro" / "module-package.yaml").exists()
+
+
+def test_install_module_namespace_collision_raises(monkeypatch, tmp_path: Path) -> None:
+    """When same name is already installed from a different module_id, install_module raises namespace collision."""
+    tarball = _create_module_tarball(tmp_path, "backlog")
+    monkeypatch.setattr("specfact_cli.registry.module_installer.download_module", lambda *_args, **_kwargs: tarball)
+    install_root = tmp_path / "marketplace-modules"
+    install_module("specfact/backlog", install_root=install_root)
+    tarball2 = _create_module_tarball(tmp_path, "backlog", module_version="0.2.0")
+    monkeypatch.setattr("specfact_cli.registry.module_installer.download_module", lambda *_args, **_kwargs: tarball2)
+    with pytest.raises(ValueError, match=r"namespace collision|conflicts with existing"):
+        install_module("acme-corp/backlog", install_root=install_root)
+
+
 def test_uninstall_module_removes_marketplace_module(tmp_path: Path) -> None:
     install_root = tmp_path / "marketplace-modules"
     module_dir = install_root / "backlog"
