@@ -11,9 +11,18 @@ SpecFact supports centralized marketplace distribution with local multi-source d
 
 ## Registry Overview
 
-- Registry repository: <https://github.com/nold-ai/specfact-cli-modules>
-- Index document: `registry/index.json`
-- Marketplace module id format: `namespace/name` (for example `specfact/backlog`)
+- **Official registry**: <https://github.com/nold-ai/specfact-cli-modules> (index: `registry/index.json`)
+- **Marketplace module id format**: `namespace/name` (e.g. `specfact/backlog`). Marketplace modules must use this format; flat names are allowed only for custom/local modules with a warning.
+- **Custom registries**: You can add private or third-party registries. See [Custom registries](custom-registries.md) for adding, listing, removing, trust levels, and priority.
+
+## Custom registries and search
+
+- **Add a registry**: `specfact module add-registry <index-url> [--id <id>] [--priority <n>] [--trust always|prompt|never]`
+- **List registries**: `specfact module list-registries` (official is always first; custom registries follow by priority)
+- **Remove a registry**: `specfact module remove-registry <registry-id>`
+- **Search**: `specfact module search <query>` queries all configured registries; results show which registry each module came from.
+
+Trust levels for custom registries: `always` (trust without prompt), `prompt` (ask once), `never` (do not use). Config is stored in `~/.specfact/config/registries.yaml`.
 
 ## Discovery and Priority
 
@@ -51,6 +60,11 @@ Install workflow enforces integrity and compatibility checks:
 
 Checksum mismatch blocks installation.
 
+**Namespace enforcement**:
+
+- Modules installed from the marketplace must use the `namespace/name` format (e.g. `specfact/backlog`). Invalid format is rejected.
+- If a module with the same logical name is already installed from a different source or namespace, install reports a collision and suggests using an alias or uninstalling the existing module.
+
 Additional local hardening:
 
 - Denylist enforcement via `~/.specfact/module-denylist.txt` (or `SPECFACT_MODULE_DENYLIST_FILE`)
@@ -67,7 +81,7 @@ Release signing automation:
 - Wrapper alternative: `bash scripts/sign-module.sh --key-file "$KEY_FILE" <manifest>`
 - Without key material, the script fails by default and recommends `--key-file`; checksum-only mode is explicit via `--allow-unsigned` (local testing only)
 - Encrypted keys are supported with passphrase via `--passphrase`, `--passphrase-stdin`, or `SPECFACT_MODULE_PRIVATE_SIGN_KEY_PASSPHRASE`
-- CI workflows inject private key material via `SPECFACT_MODULE_PRIVATE_SIGN_KEY` and passphrase via `SPECFACT_MODULE_PRIVATE_SIGN_KEY_PASSPHRASE`
+- CI workflows inject private key material via `SPECFACT_MODULE_PRIVATE_SIGN_KEY` (inline PEM string) or `SPECFACT_MODULE_PRIVATE_SIGN_KEY_FILE` (path), and passphrase via `SPECFACT_MODULE_PRIVATE_SIGN_KEY_PASSPHRASE`
 - Private signing keys must stay in CI secrets and never in repository history
 
 Public key for runtime verification:
@@ -79,7 +93,7 @@ Public key for runtime verification:
 Scope boundary:
 
 - This change set hardens local and bundled module safety.
-- The online multi-registry ecosystem and production marketplace rollout remain tracked in `marketplace-02`.
+- For publishing your own modules to a registry, see [Publishing modules](publishing-modules.md).
 
 ## Marketplace vs Local Modules
 

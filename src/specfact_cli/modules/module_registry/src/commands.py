@@ -12,7 +12,8 @@ from rich.console import Console
 from rich.table import Table
 
 from specfact_cli.modules import module_io_shim
-from specfact_cli.registry.marketplace_client import fetch_registry_index
+from specfact_cli.registry.alias_manager import create_alias, list_aliases, remove_alias
+from specfact_cli.registry.custom_registries import add_registry, fetch_all_indexes, list_registries, remove_registry
 from specfact_cli.registry.module_discovery import discover_all_modules
 from specfact_cli.registry.module_installer import (
     USER_MODULES_ROOT,
@@ -87,6 +88,16 @@ def install(
         "--trust-non-official",
         help="Trust and persist non-official publisher for this module install",
     ),
+    skip_deps: bool = typer.Option(
+        False,
+        "--skip-deps",
+        help="Skip dependency resolution before installing (install module only)",
+    ),
+    force: bool = typer.Option(
+        False,
+        "--force",
+        help="Force install even if dependency resolution reports conflicts",
+    ),
 ) -> None:
     """Install a module from bundled artifacts or marketplace registry."""
     scope_normalized = scope.strip().lower()
@@ -148,6 +159,8 @@ def install(
             install_root=target_root,
             trust_non_official=trust_non_official,
             non_interactive=is_non_interactive(),
+            skip_deps=skip_deps,
+            force=force,
         )
     except Exception as exc:
         console.print(f"[red]Failed installing {normalized}: {exc}[/red]")
@@ -243,6 +256,109 @@ def uninstall(
     console.print(f"[green]Uninstalled[/green] {normalized}")
 
 
+alias_app = typer.Typer(help="Manage command aliases (map name to namespaced module)")
+
+
+@alias_app.command(name="create")
+@beartype
+def alias_create(
+    alias_name: str = typer.Argument(..., help="Alias (command name) to map"),
+    command_name: str = typer.Argument(..., help="Command name to invoke (e.g. backlog, module)"),
+    force: bool = typer.Option(False, "--force", help="Allow alias to shadow built-in command"),
+) -> None:
+    """Create an alias mapping a custom name to a registered command."""
+    try:
+        create_alias(alias_name.strip(), command_name.strip(), force=force)
+    except ValueError as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(1) from exc
+    console.print(f"[green]Alias[/green] {alias_name!r} -> {command_name!r}")
+
+
+@alias_app.command(name="list")
+@beartype
+def alias_list() -> None:
+    """List all configured aliases."""
+    aliases = list_aliases()
+    if not aliases:
+        console.print("[dim]No aliases configured.[/dim]")
+        return
+    table = Table(title="Aliases")
+    table.add_column("Alias", style="cyan")
+    table.add_column("Command", style="green")
+    for alias, mod in sorted(aliases.items()):
+        table.add_row(alias, mod)
+    console.print(table)
+
+
+@alias_app.command(name="remove")
+@beartype
+def alias_remove(
+    alias_name: str = typer.Argument(..., help="Alias to remove"),
+) -> None:
+    """Remove an alias."""
+    remove_alias(alias_name.strip())
+    console.print(f"[green]Removed alias[/green] {alias_name!r}")
+
+
+if app.add_typer is not None:
+    app.add_typer(alias_app, name="alias")
+
+
+@app.command(name="add-registry")
+@beartype
+def add_registry_cmd(
+    url: str = typer.Argument(..., help="Registry index URL (e.g. https://company.com/index.json)"),
+    id: str | None = typer.Option(None, "--id", help="Registry id (default: derived from URL)"),
+    priority: int | None = typer.Option(None, "--priority", help="Priority (default: next available)"),
+    trust: str = typer.Option("prompt", "--trust", help="Trust level: always, prompt, or never"),
+) -> None:
+    """Add a custom registry to the config."""
+    if trust not in ("always", "prompt", "never"):
+        console.print("[red]trust must be one of: always, prompt, never.[/red]")
+        raise typer.Exit(1)
+    reg_id = (id or url.strip().rstrip("/").split("/")[-2] or "custom").strip() or "custom"
+    try:
+        add_registry(reg_id, url.strip(), priority=priority, trust=trust)
+    except Exception as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(1) from exc
+    console.print(f"[green]Added registry[/green] {reg_id!r} -> {url}")
+
+
+@app.command(name="list-registries")
+@beartype
+def list_registries_cmd() -> None:
+    """List all configured registries (official + custom)."""
+    registries = list_registries()
+    if not registries:
+        console.print("[dim]No registries configured.[/dim]")
+        return
+    table = Table(title="Registries")
+    table.add_column("Id", style="cyan")
+    table.add_column("URL", style="green")
+    table.add_column("Priority", style="dim")
+    table.add_column("Trust", style="yellow")
+    for r in registries:
+        table.add_row(
+            str(r.get("id", "")),
+            str(r.get("url", "")),
+            str(r.get("priority", "")),
+            str(r.get("trust", "")),
+        )
+    console.print(table)
+
+
+@app.command(name="remove-registry")
+@beartype
+def remove_registry_cmd(
+    registry_id: str = typer.Argument(..., help="Registry id to remove"),
+) -> None:
+    """Remove a custom registry from the config."""
+    remove_registry(registry_id.strip())
+    console.print(f"[green]Removed registry[/green] {registry_id!r}")
+
+
 @app.command()
 @beartype
 def enable(
@@ -320,25 +436,26 @@ def search(query: str = typer.Argument(..., help="Search query")) -> None:
     seen_ids: set[str] = set()
     rows: list[dict[str, str]] = []
 
-    index = fetch_registry_index() or {}
-    for entry in index.get("modules", []):
-        if not isinstance(entry, dict):
-            continue
-        module_id = str(entry.get("id", ""))
-        description = str(entry.get("description", ""))
-        tags = entry.get("tags", [])
-        tags_text = " ".join(str(t) for t in tags) if isinstance(tags, list) else ""
-        haystack = f"{module_id} {description} {tags_text}".lower()
-        if query_l in haystack and module_id not in seen_ids:
-            seen_ids.add(module_id)
-            rows.append(
-                {
-                    "id": module_id,
-                    "version": str(entry.get("latest_version", "")),
-                    "description": description,
-                    "scope": "marketplace",
-                }
-            )
+    for reg_id, index in fetch_all_indexes():
+        for entry in index.get("modules", []):
+            if not isinstance(entry, dict):
+                continue
+            module_id = str(entry.get("id", ""))
+            description = str(entry.get("description", ""))
+            tags = entry.get("tags", [])
+            tags_text = " ".join(str(t) for t in tags) if isinstance(tags, list) else ""
+            haystack = f"{module_id} {description} {tags_text}".lower()
+            if query_l in haystack and module_id not in seen_ids:
+                seen_ids.add(module_id)
+                rows.append(
+                    {
+                        "id": module_id,
+                        "version": str(entry.get("latest_version", "")),
+                        "description": description,
+                        "scope": "marketplace",
+                        "registry": reg_id,
+                    }
+                )
 
     for discovered in discover_all_modules():
         meta = discovered.metadata
@@ -372,9 +489,11 @@ def search(query: str = typer.Argument(..., help="Search query")) -> None:
     table.add_column("ID", style="cyan")
     table.add_column("Version", style="magenta")
     table.add_column("Scope", style="yellow")
+    table.add_column("Registry", style="dim")
     table.add_column("Description")
     for row in rows:
-        table.add_row(row["id"], row["version"], row["scope"], row["description"])
+        reg = row.get("registry", "")
+        table.add_row(row["id"], row["version"], row["scope"], reg, row["description"])
     console.print(table)
 
 

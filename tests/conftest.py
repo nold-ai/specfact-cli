@@ -13,6 +13,8 @@ if str(project_root) not in sys.path:
 
 # Set TEST_MODE globally for all tests to avoid interactive prompts
 os.environ["TEST_MODE"] = "true"
+# Allow loading bundled modules without signature in tests
+os.environ.setdefault("SPECFACT_ALLOW_UNSIGNED", "1")
 
 # Isolate registry state for test runs to avoid coupling with ~/.specfact/registry.
 # This prevents local module enable/disable settings from affecting command discovery in tests.

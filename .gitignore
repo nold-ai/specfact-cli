@@ -147,3 +147,5 @@ Language.ml
 Language.mli
 
 .artifacts
+registry.bak/
+.pr-body.md

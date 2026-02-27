@@ -131,6 +131,10 @@ def test_legacy_command_shims_reexport_public_symbols() -> None:
 def test_module_discovery_registers_commands_from_manifests(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Command registry includes all commands declared by module-package manifests after bootstrap."""
     monkeypatch.setenv("SPECFACT_REGISTRY_DIR", str(tmp_path))
+    monkeypatch.setattr(
+        "specfact_cli.registry.module_packages.verify_module_artifact",
+        lambda *args, **kwargs: True,
+    )
 
     expected_commands: set[str] = set()
     for module_name in _module_package_names():

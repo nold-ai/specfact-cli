@@ -505,6 +505,8 @@ def test_sign_modules_workflow_uses_private_key_and_passphrase_secrets():
     assert "SPECFACT_MODULE_PRIVATE_SIGN_KEY" in content
     assert "SPECFACT_MODULE_PRIVATE_SIGN_KEY_PASSPHRASE" in content
     assert "--enforce-version-bump" in content
+
+
 def test_pr_orchestrator_pins_virtualenv_below_21_for_hatch_jobs():
     """PR orchestrator SHALL pin virtualenv<21 when installing hatch in CI jobs."""
     if not PR_ORCHESTRATOR_WORKFLOW.exists():
