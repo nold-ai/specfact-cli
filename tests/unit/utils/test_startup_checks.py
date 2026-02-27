@@ -522,6 +522,7 @@ class TestPrintStartupChecks:
                     # It's a Panel, check its renderable content
                     renderable_str = str(arg.renderable)
                     if "IDE Templates Outdated" in renderable_str:
+                        assert "specfact init ide --force" in renderable_str
                         return
                 elif isinstance(arg, str) and "IDE Templates Outdated" in arg:
                     return
