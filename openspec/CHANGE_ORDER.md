@@ -74,6 +74,9 @@ These are derived extensions of the same 2026-02-15 plan and are required to ope
 |--------|-------|---------------|----------|------------|
 | marketplace | 01 | ✅ marketplace-01-central-module-registry (implemented 2026-02-22; archived) | [#214](https://github.com/nold-ai/specfact-cli/issues/214) | #208 |
 | marketplace | 02 | marketplace-02-advanced-marketplace-features | [#215](https://github.com/nold-ai/specfact-cli/issues/215) | #214 |
+| marketplace | 03 | marketplace-03-publisher-identity | [#327](https://github.com/nold-ai/specfact-cli/issues/327) | #215 (marketplace-02) |
+| marketplace | 04 | marketplace-04-revocation | [#328](https://github.com/nold-ai/specfact-cli/issues/328) | marketplace-03 |
+| marketplace | 05 | marketplace-05-registry-federation | [#329](https://github.com/nold-ai/specfact-cli/issues/329) | marketplace-03 |
 
 ### Module migration (UX grouping and extraction)
 
@@ -219,6 +222,9 @@ Set these in GitHub so issue dependencies are explicit. Optional dependencies ar
 | [#213](https://github.com/nold-ai/specfact-cli/issues/213) | arch-07 schema extensions | arch-04 ✅ (already implemented) |
 | [#214](https://github.com/nold-ai/specfact-cli/issues/214) | marketplace-01 registry | #208 |
 | [#215](https://github.com/nold-ai/specfact-cli/issues/215) | marketplace-02 advanced features | #214 |
+| [#327](https://github.com/nold-ai/specfact-cli/issues/327) | marketplace-03 publisher identity | #215 |
+| [#328](https://github.com/nold-ai/specfact-cli/issues/328) | marketplace-04 revocation | marketplace-03 (#327) |
+| [#329](https://github.com/nold-ai/specfact-cli/issues/329) | marketplace-05 registry federation | marketplace-03 (#327) |
 | [#173](https://github.com/nold-ai/specfact-cli/issues/173) | backlog-core-02 interactive create | #116 |
 | [#220](https://github.com/nold-ai/specfact-cli/issues/220) | backlog-scrum-01 standup | #116 |
 | [#170](https://github.com/nold-ai/specfact-cli/issues/170) | backlog-scrum-02 sprint planning | #116 |
@@ -319,6 +325,9 @@ Dependencies flow left-to-right; a wave may start once all its hard blockers are
   - backlog-safe-02 (needs backlog-safe-01; integrates with scrum/kanban via bridge registry)
   - module-migration-01-categorize-and-group (needs marketplace-02; adds category metadata + group commands)
   - module-migration-02-bundle-extraction (needs module-migration-01; moves module source to bundle packages, publishes to marketplace registry)
+  - marketplace-03-publisher-identity (needs marketplace-02; can run parallel with module-migration-01/02/03)
+  - marketplace-04-revocation (needs marketplace-03; must land before external publisher onboarding)
+  - marketplace-05-registry-federation (needs marketplace-03)
 
 - **Wave 4 — Ceremony layer + module slimming** (needs Wave 3):
   - ceremony-cockpit-01 ✅ (probes installed backlog-* modules at runtime; no hard deps but best after Wave 3)
