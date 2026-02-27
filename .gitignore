@@ -106,6 +106,8 @@ docs/internal/
 
 .github/prompts/specfact.*.md
 .github/prompts/opsx-*.md
+.github/skills/openspec-*/
+!.github/skills/openspec-workflows/
 
 .claude/commands/opsx/
 .claude/commands/specfact.*.md
