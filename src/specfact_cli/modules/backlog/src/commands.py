@@ -31,6 +31,7 @@ import yaml
 from beartype import beartype
 from icontract import ensure, require
 from rich.console import Console
+from rich.markdown import Markdown
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 from rich.prompt import Confirm
@@ -76,6 +77,18 @@ class _BacklogCommandGroup(TyperGroup):
     def list_commands(self, ctx: click.Context) -> list[str]:
         commands = list(super().list_commands(ctx))
         return sorted(commands, key=lambda name: (self._ORDER_PRIORITY.get(name, 1000), name))
+
+
+def _is_interactive_tty() -> bool:
+    """
+    Return True when running in an interactive TTY suitable for rich Markdown rendering.
+
+    CI and non-TTY environments should fall back to plain Markdown text to keep output machine-friendly.
+    """
+    try:
+        return sys.stdout.isatty()
+    except Exception:  # pragma: no cover - extremely defensive
+        return False
 
 
 class _CeremonyCommandGroup(TyperGroup):
@@ -1475,7 +1488,7 @@ def _build_summarize_prompt_content(
         )
         lines.append(f"- **Last updated:** {updated}")
         if include_comments:
-            body = (item.body_markdown or "").strip()
+            body = _normalize_markdown_text((item.body_markdown or "").strip())
             if body:
                 snippet = body[:_SUMMARIZE_BODY_TRUNCATE]
                 if len(body) > _SUMMARIZE_BODY_TRUNCATE:
@@ -1492,7 +1505,8 @@ def _build_summarize_prompt_content(
             if item_comments:
                 lines.append("- **Comments (annotations):**")
                 for c in item_comments:
-                    lines.append(f"  - {c}")
+                    normalized_comment = _normalize_markdown_text(c)
+                    lines.append(f"  - {normalized_comment}")
         if item.story_points is not None:
             lines.append(f"- **Story points:** {item.story_points}")
         if item.priority is not None:
@@ -1503,6 +1517,57 @@ def _build_summarize_prompt_content(
                 lines.append(f"- **Value score:** {score:.2f}")
         lines.append("")
     lines.append("--- END STANDUP PROMPT ---")
+    return "\n".join(lines).strip()
+
+
+_HTML_TAG_RE = re.compile(r"<[A-Za-z/][^>]*>")
+
+
+@beartype
+@ensure(lambda result: not _HTML_TAG_RE.search(result or ""), "Normalized text must not contain raw HTML tags")
+def _normalize_markdown_text(text: str) -> str:
+    """
+    Normalize provider-specific markup (HTML, entities) to Markdown-friendly text.
+
+    This is intentionally conservative: plain Markdown is left as-is, while common HTML constructs from
+    ADO-style bodies and comments are converted to readable Markdown and stripped of tags/entities.
+    """
+    if not text:
+        return ""
+
+    # Fast path: if no obvious HTML markers, return as-is.
+    if "<" not in text and "&" not in text:
+        return text
+
+    from html import unescape
+
+    # Unescape HTML entities first so we can treat content uniformly.
+    value = unescape(text)
+
+    # Replace common block/linebreak tags with newlines before stripping other tags.
+    # Handle several variants to cover typical ADO HTML.
+    value = re.sub(r"<\s*br\s*/?\s*>", "\n", value, flags=re.IGNORECASE)
+    value = re.sub(r"</\s*p\s*>", "\n\n", value, flags=re.IGNORECASE)
+    value = re.sub(r"<\s*p[^>]*>", "", value, flags=re.IGNORECASE)
+
+    # Turn list items into markdown bullets.
+    value = re.sub(r"<\s*li[^>]*>", "- ", value, flags=re.IGNORECASE)
+    value = re.sub(r"</\s*li\s*>", "\n", value, flags=re.IGNORECASE)
+    value = re.sub(r"<\s*ul[^>]*>", "", value, flags=re.IGNORECASE)
+    value = re.sub(r"</\s*ul\s*>", "\n", value, flags=re.IGNORECASE)
+    value = re.sub(r"<\s*ol[^>]*>", "", value, flags=re.IGNORECASE)
+    value = re.sub(r"</\s*ol\s*>", "\n", value, flags=re.IGNORECASE)
+
+    # Drop any remaining tags conservatively.
+    value = _HTML_TAG_RE.sub("", value)
+
+    # Normalize whitespace: collapse excessive blank lines but keep paragraph structure.
+    # First, normalize Windows-style newlines.
+    value = value.replace("\r\n", "\n").replace("\r", "\n")
+    # Collapse 3+ blank lines into 2.
+    value = re.sub(r"\n{3,}", "\n\n", value)
+    # Strip leading/trailing whitespace on each line.
+    lines = [line.rstrip() for line in value.split("\n")]
     return "\n".join(lines).strip()
 
 
@@ -2996,7 +3061,10 @@ def daily(
             Path(summarize_to).write_text(content, encoding="utf-8")
             console.print(f"[dim]Summarize prompt written to {summarize_to} ({len(filtered)} item(s))[/dim]")
         else:
-            console.print(content)
+            if _is_interactive_tty() and not os.environ.get("CI"):
+                console.print(Markdown(content))
+            else:
+                console.print(content)
         return
 
     if interactive:
