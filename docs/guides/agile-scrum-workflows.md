@@ -91,8 +91,10 @@ SpecFact CLI supports real-world agile/scrum practices through:
   to show suggested next item by value score (business_value / (story_points × priority)).
   **Copilot export**: Use `--copilot-export <path>` to write a summarized Markdown file of each story for
   Copilot. Add `--comments` (alias `--annotations`) to include descriptions and comment annotations in
-  `--copilot-export` and `--summarize` outputs when the adapter supports `get_comments` (GitHub, ADO). Use
-  `--first-comments N` or `--last-comments N` to scope comment volume when needed (default: include all).
+  `--copilot-export` and `--summarize` outputs when the adapter supports `get_comments` (GitHub, ADO). All
+  summarize/copilot-export content is **normalized to Markdown-only text** (no raw HTML tags or entities)
+  so ADO-style HTML fields and Markdown-native fields render consistently. Use `--first-comments N` or
+  `--last-comments N` to scope comment volume when needed (default: include all).
   Use `--first-issues N` or `--last-issues N` (mutually exclusive) to scope daily output to oldest/newest
   items by numeric issue/work-item ID.
   **Kanban**: omit iteration/sprint and use state + limit; unassigned = pullable work. **Scrum/SAFe**: use
@@ -158,8 +160,8 @@ specfact backlog ceremony standup github --interactive   # step-through; detail 
 # or
 specfact backlog ceremony standup github --copilot-export ./standup.md --comments --last-comments 5
 # or
-specfact backlog ceremony standup github --summarize --comments     # prompt to stdout for AI to generate standup summary
-specfact backlog ceremony standup github --summarize-to ./standup-prompt.md
+specfact backlog ceremony standup github --summarize --comments     # prompt to stdout for AI to generate standup summary (Markdown-only)
+specfact backlog ceremony standup github --summarize-to ./standup-prompt.md    # plain Markdown file (no HTML/ANSI)
 ```
 
 Use the **`specfact.backlog-daily`** (or `specfact.daily`) slash prompt for interactive walkthrough with the

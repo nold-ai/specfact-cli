@@ -328,6 +328,34 @@ When validation completes, results are automatically reported to GitHub Issues:
 
 ## CLI Usage
 
+### Export OpenSpec change to GitHub (create issue + Source Tracking)
+
+To create a GitHub issue from an OpenSpec change and have the issue number/URL written back into `proposal.md` (Source Tracking section), run from the repository that contains `openspec/changes/`:
+
+```bash
+# Export one or more changes; creates issues and updates proposal.md Source Tracking
+specfact sync bridge --adapter github --mode export-only \
+  --repo . \
+  --repo-owner nold-ai \
+  --repo-name specfact-cli \
+  --change-ids <change-id>
+
+# Example: export backlog-scrum-05-summarize-markdown-output
+specfact sync bridge --adapter github --mode export-only \
+  --repo . \
+  --repo-owner nold-ai \
+  --repo-name specfact-cli \
+  --change-ids backlog-scrum-05-summarize-markdown-output
+```
+
+- **`--repo .`**: Path to the repo with `openspec/changes/` (default is current directory).
+- **`--repo-owner` / `--repo-name`**: Target GitHub repo for new issues.
+- **`--change-ids`**: Comma-separated change IDs to export (omit to export all active proposals).
+
+After a successful run, each change’s `openspec/changes/<change-id>/proposal.md` will contain a **Source Tracking** block with the new issue number and URL. Use that section to link the PR and keep backlog in sync.
+
+For public repos, add `--sanitize` when exporting so content is sanitized before creating issues. See [DevOps Adapter Integration](../guides/devops-adapter-integration.md) and the [sync bridge command reference](../reference/commands.md#sync-bridge).
+
 ### Updating Archived Change Proposals
 
 When you improve comment logic or branch detection, use `--include-archived` to update existing GitHub issues for archived proposals:

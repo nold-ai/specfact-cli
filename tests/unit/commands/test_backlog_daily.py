@@ -828,6 +828,59 @@ class TestBuildSummarizePromptContent:
         assert content.strip().startswith("--- BEGIN STANDUP PROMPT ---")
         assert content.strip().endswith("--- END STANDUP PROMPT ---")
 
+    def test_summarize_prompt_normalizes_html_description_to_markdown(self) -> None:
+        """HTML descriptions (e.g. from ADO) are converted to Markdown-only text."""
+        html_body = "<p>Line 1<br />Line 2 &amp; more</p>"
+        items = [
+            _item(
+                "1",
+                "HTML body story",
+                state="open",
+                body_markdown=html_body,
+            ),
+        ]
+        content = _build_summarize_prompt_content(
+            items,
+            filter_context={"adapter": "ado", "state": "open", "sprint": "—", "assignee": "—", "limit": 10},
+            include_value_score=False,
+            comments_by_item_id={},
+            include_comments=True,
+        )
+        # Core text is preserved
+        assert "Line 1" in content
+        assert "Line 2" in content
+        assert "more" in content
+        # Raw HTML tags and entities are not present
+        assert "<p" not in content
+        assert "<br" not in content
+        assert "&amp;" not in content
+
+    def test_summarize_prompt_normalizes_html_comments_to_markdown(self) -> None:
+        """HTML comments are converted to Markdown-only text in the prompt."""
+        items = [
+            _item(
+                "1",
+                "Story with html comments",
+                state="open",
+                body_markdown="Body",
+            ),
+        ]
+        html_comment = "<div>Comment &amp; note<br>next line</div>"
+        comments_by_id = {"1": [html_comment]}
+        content = _build_summarize_prompt_content(
+            items,
+            filter_context={"adapter": "ado", "state": "open", "sprint": "—", "assignee": "—", "limit": 10},
+            include_value_score=False,
+            comments_by_item_id=comments_by_id,
+            include_comments=True,
+        )
+        assert "Comment" in content
+        assert "note" in content
+        assert "next line" in content
+        assert "<div" not in content
+        assert "<br" not in content
+        assert "&amp;" not in content
+
 
 class TestBacklogDailyPromptFile:
     """Prompt file specfact.backlog-daily.md exists and has expected sections (22.2)."""

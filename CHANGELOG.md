@@ -10,6 +10,18 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.38.2] - 2026-02-27
+
+### Added
+
+- **Daily standup summarize: Markdown-only output** (OpenSpec change `backlog-scrum-05-summarize-markdown-output`): `specfact backlog ceremony standup --summarize` and `--summarize-to <path>` now normalize backlog item bodies and comments to Markdown-only text (no raw HTML tags or entities from ADO/GitHub). In an interactive TTY, the summarize prompt is rendered with Rich Markdown; in CI or non-interactive environments, plain Markdown is emitted. Ensures standup summary prompts are readable for humans and LLMs.
+
+### Changed
+
+- Tutorial and agile guide docs updated to describe Markdown-only normalization and interactive vs CI behavior for `--summarize` / `--summarize-to`.
+
+---
+
 ## [0.38.1] - 2026-02-27
 
 ### Added

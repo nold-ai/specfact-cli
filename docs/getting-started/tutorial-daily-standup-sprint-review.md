@@ -27,7 +27,9 @@ Preferred command path is `specfact backlog ceremony standup ...`. The legacy `s
   the adapter supports fetching comments
 - Use **`--summarize`** or **`--summarize-to <path>`** to output a **prompt** (instruction + filter context
   + standup data) for a slash command (e.g. `specfact.daily`) or copy-paste to Copilot to **generate a
-  standup summary**; add **`--comments`**/**`--annotations`** to include comment annotations in the prompt
+  standup summary**; add **`--comments`**/**`--annotations`** to include comment annotations in the prompt.
+  The prompt content is always **normalized to Markdown-only text** (no raw HTML tags or HTML entities) so
+  ADO-style HTML descriptions/comments and GitHub/Markdown content render consistently.
 - Use the **`specfact.backlog-daily`** (or `specfact.daily`) slash prompt for interactive walkthrough with the DevOps team story-by-story (focus, issues, open questions, discussion notes as comments)
 - Filter by **`--assignee`**, **`--sprint`** / **`--iteration`**, **`--search`**, **`--release`**, **`--id`**, **`--first-issues`** / **`--last-issues`**, **`--blockers-first`**, and optional **`--suggest-next`**
 
@@ -142,18 +144,21 @@ the standup table (state, assignee, limit, etc.).
 To get a **prompt** you can paste into Copilot or feed to a slash command (e.g. `specfact.daily`) so an AI can **generate a short standup summary** (e.g. "Today: 3 in progress, 1 blocked, 2 pending commitment"):
 
 ```bash
-# Print prompt to stdout (copy-paste to Copilot)
+# Print prompt to stdout (copy-paste to Copilot). In an interactive terminal, SpecFact renders a
+# Markdown-formatted view; in CI/non-interactive environments the same normalized Markdown is printed
+# without ANSI formatting.
 specfact backlog ceremony standup github --summarize --comments
 
-# Write prompt to a file (e.g. for slash command)
+# Write prompt to a file (e.g. for slash command). The file always contains plain Markdown-only content
+# (no raw HTML, no ANSI control codes), suitable for IDE slash commands or copy/paste into Copilot.
 specfact backlog ceremony standup github --summarize-to ./standup-prompt.md --comments
 ```
 
 The output includes an instruction to generate a standup summary, the applied filter context (adapter,
 state, sprint, assignee, limit), and the same per-item data as `--copilot-export`. With
-`--comments`/`--annotations`, the prompt includes comment annotations when supported. Use it with the
-**`specfact.backlog-daily`** slash prompt for interactive team walkthrough (story-by-story, current focus,
-issues/open questions, discussion notes as comments).
+`--comments`/`--annotations`, the prompt includes normalized descriptions and comment annotations when
+supported. Use it with the **`specfact.backlog-daily`** slash prompt for interactive team walkthrough
+(story-by-story, current focus, issues/open questions, discussion notes as comments).
 
 ---
 
