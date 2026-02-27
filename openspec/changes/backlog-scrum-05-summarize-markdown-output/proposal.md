@@ -1,8 +1,14 @@
+# Change: Normalize daily summarize Markdown output
+
 ## Why
+
+
 
 The current `specfact backlog daily --summarize/--summarize-to` output often contains raw HTML fragments and entities from ADO work item comments, mixed with Markdown-formatted text from GitHub and ADO. This makes the standup summary prompt hard to read for humans and noisy for LLMs, even though the underlying data is correct.
 
 ## What Changes
+
+
 
 - Normalize backlog comments and descriptions used by `specfact backlog daily --summarize/--summarize-to` so that:
   - HTML-formatted content is converted into clean Markdown before it is included in the prompt.
@@ -16,7 +22,6 @@ The current `specfact backlog daily --summarize/--summarize-to` output often con
   - Non-interactive/CI usage (plain Markdown text, no color/control codes).
 
 ## Capabilities
-
 ### New Capabilities
 - `backlog-daily-markdown-normalization`: Normalize backlog item bodies and comments into Markdown-only text for daily standup summarize prompts, with environment-aware rendering (rich Markdown view in interactive terminals, plain Markdown in CI/non-interactive mode).
 
@@ -25,14 +30,14 @@ The current `specfact backlog daily --summarize/--summarize-to` output often con
   - Include only Markdown (no raw HTML fragments or entities) in per-item body/comment fields.
   - Prefer a Markdown-formatted view in interactive terminals while keeping the underlying output prompt-ready for LLMs.
 
-## Impact
 
-- Affects backlog daily summarize/export plumbing in the backlog module package (daily standup flows and prompt builders).
-- Touches comment/body normalization logic for ADO and GitHub adapters where they feed into `backlog daily` summarize/export paths.
-- May require:
-  - New or updated utility for HTML-to-Markdown conversion with predictable, testable output.
-  - Environment/TTY detection to decide between rich Markdown rendering and plain Markdown output.
-- Requires updates to:
-  - Contract/spec for `daily-standup` summarize behavior (normalization and rendering expectations).
-  - Tests that assert summarize outputs contain no raw HTML and behave deterministically across interactive vs CI modes.
+---
 
+## Source Tracking
+
+<!-- source_repo: nold-ai/specfact-cli -->
+- **GitHub Issue**: #324
+- **Issue URL**: <https://github.com/nold-ai/specfact-cli/issues/324>
+- **Last Synced Status**: proposed
+- **Sanitized**: false
+<!-- content_hash: da76bac5d7da3752 -->
