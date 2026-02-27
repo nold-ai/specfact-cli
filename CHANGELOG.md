@@ -10,6 +10,21 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.38.1] - 2026-02-27
+
+### Added
+
+- Publish workflow now updates `specfact-cli-modules/registry/index.json` using a generated registry entry fragment and opens an automated PR against `nold-ai/specfact-cli-modules` when the index changes.
+- Added `scripts/update-registry-index.py` to perform deterministic index upsert operations and emit a change flag for CI decision logic.
+- Added unit tests for registry index upsert behavior in `tests/unit/scripts/test_update_registry_index.py`.
+
+### Changed
+
+- `.github/workflows/publish-modules.yml` now includes registry-repo checkout, index update, and PR creation flow using `SPECFACT_MODULES_REPO_TOKEN`.
+- Marketplace-02 OpenSpec evidence/tasks were updated to mark tasks `6.2.4` and `6.2.5` complete with recorded TDD and local end-to-end validation.
+
+---
+
 ## [0.38.0] - 2026-02-27
 
 ### Added
