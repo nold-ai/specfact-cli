@@ -65,7 +65,7 @@ jobs:
           echo "module_path=${{ github.event.inputs.module_path }}" >> "$GITHUB_OUTPUT"
 
       - name: Sign module manifest (optional)
-        if: secrets.SPECFACT_MODULE_PRIVATE_SIGN_KEY != ""
+        if: env.SPECFACT_MODULE_PRIVATE_SIGN_KEY != ''
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             MODULE_PATH="${{ github.event.inputs.module_path }}"

@@ -372,7 +372,7 @@ def print_startup_checks(
                     f"IDE: [cyan]{template_result.ide}[/cyan]\n"
                     f"Location: [dim]{template_result.ide_dir}[/dim]\n\n"
                     f"{details_str}\n\n"
-                    f"Run [bold]specfact init --force[/bold] to update them.",
+                    f"Run [bold]specfact init ide --force[/bold] to update them.",
                     border_style="yellow",
                 )
             )
