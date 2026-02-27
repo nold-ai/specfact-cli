@@ -263,19 +263,16 @@ alias_app = typer.Typer(help="Manage command aliases (map name to namespaced mod
 @beartype
 def alias_create(
     alias_name: str = typer.Argument(..., help="Alias (command name) to map"),
-    module_id: str = typer.Argument(..., help="Namespaced module id (e.g. acme-corp/backlog-pro)"),
+    command_name: str = typer.Argument(..., help="Command name to invoke (e.g. backlog, module)"),
     force: bool = typer.Option(False, "--force", help="Allow alias to shadow built-in command"),
 ) -> None:
-    """Create an alias mapping a command name to a namespaced module."""
-    if "/" not in module_id.strip():
-        console.print("[red]module_id must be namespace/name (e.g. acme-corp/backlog-pro).[/red]")
-        raise typer.Exit(1)
+    """Create an alias mapping a custom name to a registered command."""
     try:
-        create_alias(alias_name.strip(), module_id.strip(), force=force)
+        create_alias(alias_name.strip(), command_name.strip(), force=force)
     except ValueError as exc:
         console.print(f"[red]{exc}[/red]")
         raise typer.Exit(1) from exc
-    console.print(f"[green]Alias[/green] {alias_name!r} -> {module_id!r}")
+    console.print(f"[green]Alias[/green] {alias_name!r} -> {command_name!r}")
 
 
 @alias_app.command(name="list")
@@ -288,7 +285,7 @@ def alias_list() -> None:
         return
     table = Table(title="Aliases")
     table.add_column("Alias", style="cyan")
-    table.add_column("Module", style="green")
+    table.add_column("Command", style="green")
     for alias, mod in sorted(aliases.items()):
         table.add_row(alias, mod)
     console.print(table)
@@ -312,7 +309,7 @@ if app.add_typer is not None:
 @beartype
 def add_registry_cmd(
     url: str = typer.Argument(..., help="Registry index URL (e.g. https://company.com/index.json)"),
-    id: str = typer.Option(None, "--id", help="Registry id (default: derived from URL)"),
+    id: str | None = typer.Option(None, "--id", help="Registry id (default: derived from URL)"),
     priority: int | None = typer.Option(None, "--priority", help="Priority (default: next available)"),
     trust: str = typer.Option("prompt", "--trust", help="Trust level: always, prompt, or never"),
 ) -> None:

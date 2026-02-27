@@ -1,4 +1,4 @@
-"""Alias storage and resolution: command name -> namespaced module ID."""
+"""Alias storage and resolution: alias -> command name."""
 
 from __future__ import annotations
 
@@ -30,12 +30,12 @@ def _builtin_command_names() -> set[str]:
 
 @beartype
 @require(lambda alias: alias.strip() != "", "alias must be non-empty")
-@require(lambda module_id: "/" in module_id and len(module_id.strip()) > 0, "module_id must be namespace/name")
+@require(lambda command_name: command_name.strip() != "", "command_name must be non-empty")
 @ensure(lambda: True, "no postcondition on void")
-def create_alias(alias: str, module_id: str, force: bool = False) -> None:
-    """Store alias -> module_id in aliases.json. Warn or raise if alias shadows built-in."""
+def create_alias(alias: str, command_name: str, force: bool = False) -> None:
+    """Store alias -> command_name in aliases.json. Warn or raise if alias shadows built-in."""
     alias = alias.strip()
-    module_id = module_id.strip()
+    command_name = command_name.strip()
     path = get_aliases_path()
     path.parent.mkdir(parents=True, exist_ok=True)
     builtin = _builtin_command_names()
@@ -45,7 +45,7 @@ def create_alias(alias: str, module_id: str, force: bool = False) -> None:
     data = {}
     if path.exists():
         data = json.loads(path.read_text(encoding="utf-8"))
-    data[alias] = module_id
+    data[alias] = command_name
     path.write_text(json.dumps(data, indent=2), encoding="utf-8")
     if alias in builtin:
         logger.warning("Alias will shadow built-in module: %s", alias)
@@ -54,7 +54,7 @@ def create_alias(alias: str, module_id: str, force: bool = False) -> None:
 @beartype
 @ensure(lambda result: isinstance(result, dict), "returns dict")
 def list_aliases() -> dict[str, str]:
-    """Return all alias -> module_id mappings. Empty dict if file missing."""
+    """Return all alias -> command name mappings. Empty dict if file missing."""
     path = get_aliases_path()
     if not path.exists():
         return {}
@@ -87,9 +87,8 @@ def remove_alias(alias: str) -> None:
 @require(lambda invoked_name: isinstance(invoked_name, str), "invoked_name must be str")
 @ensure(lambda result: isinstance(result, str) and len(result) > 0, "returns non-empty string")
 def resolve_command(invoked_name: str) -> str:
-    """If invoked_name is an alias, return the module command name (last segment of module_id); else return invoked_name."""
+    """If invoked_name is an alias, return the stored command name; else return invoked_name."""
     aliases = list_aliases()
     if invoked_name in aliases:
-        module_id = aliases[invoked_name]
-        return module_id.rsplit("/", 1)[-1] if "/" in module_id else module_id
+        return aliases[invoked_name]
     return invoked_name
