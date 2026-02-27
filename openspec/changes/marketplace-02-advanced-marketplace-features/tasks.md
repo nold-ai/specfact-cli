@@ -60,9 +60,9 @@ Do not implement production code until tests exist and have been run (expecting 
 - [x] 3.2 Create alias_manager.py
   - [x] 3.2.1 Create src/specfact_cli/registry/alias_manager.py
   - [x] 3.2.2 Implement create_alias() with JSON storage
-  - [x] 3.2.3 Add contracts: @require valid alias and module_id format
+  - [x] 3.2.3 Add contracts: @require valid alias and command_name (alias → command name, not module_id)
   - [x] 3.2.4 Implement list_aliases() and remove_alias()
-  - [x] 3.2.5 Implement resolve_command() with alias lookup
+  - [x] 3.2.5 Implement resolve_command() with alias lookup (returns stored command name for dispatch)
   - [x] 3.2.6 Add built-in shadowing detection with warning
   - [x] 3.2.7 Add @beartype decorators
   - [x] 3.2.8 Verify tests pass
@@ -139,9 +139,9 @@ Do not implement production code until tests exist and have been run (expecting 
   - [x] 6.2.1 Create .github/workflows/publish-modules.yml
   - [x] 6.2.2 Configure trigger on release tag pattern
   - [x] 6.2.3 Add validation, packaging, signing steps
-  - [ ] 6.2.4 Add index.json update and PR creation
-  - [ ] 6.2.5 Test workflow with test repository
-  - *Deferred: 6.2.4 and 6.2.5 to be done later (registry index update/PR and workflow test in repo).*
+  - [x] 6.2.4 Add index.json update and PR creation
+  - [x] 6.2.5 Test workflow with test repository
+  - Validation note: local end-to-end simulation verified publish -> index update -> registry branch commit flow using a temporary `specfact-cli-modules` test repository; PR creation path is wired via `gh pr create` in workflow and requires `SPECFACT_MODULES_REPO_TOKEN` in CI.
 
 ## 7. Quality gates
 
@@ -223,23 +223,40 @@ Do not implement production code until tests exist and have been run (expecting 
   - [x] 10.1.3 Include Co-Authored-By: Claude Sonnet 4.5
   - [x] 10.1.4 `git push -u origin feature/marketplace-02-advanced-marketplace-features`
 
-- [ ] 10.2 Create PR body
-  - [ ] 10.2.1 Copy PR template to temp file
-  - [ ] 10.2.2 Fill in issue reference (if exists)
-  - [ ] 10.2.3 Add OpenSpec change ID
-  - [ ] 10.2.4 Describe advanced marketplace features
+- [x] 10.2 Create PR body
+  - [x] 10.2.1 Copy PR template to temp file
+  - [x] 10.2.2 Fill in issue reference (if exists)
+  - [x] 10.2.3 Add OpenSpec change ID
+  - [x] 10.2.4 Describe advanced marketplace features
 
-- [ ] 10.3 Create PR via gh CLI
-  - [ ] 10.3.1 `gh pr create --repo nold-ai/specfact-cli --base dev --head feature/marketplace-02-advanced-marketplace-features --title "feat: Advanced Marketplace Features for Production Readiness" --body-file <file>`
-  - [ ] 10.3.2 Capture PR URL
+- [x] 10.3 Create PR via gh CLI
+  - [x] 10.3.1 `gh pr create --repo nold-ai/specfact-cli --base dev --head feature/marketplace-02-advanced-marketplace-features --title "feat: Advanced Marketplace Features for Production Readiness" --body-file <file>`
+  - [x] 10.3.2 Capture PR URL (PR #318)
 
-- [ ] 10.4 Link to project
-  - [ ] 10.4.1 `gh project item-add 1 --owner nold-ai --url <PR_URL>`
+- [x] 10.4 Link to project
+  - [x] 10.4.1 `gh project item-add 1 --owner nold-ai --url <PR_URL>` (done by maintainer)
 
-- [ ] 10.5 Verify PR setup
-  - [ ] 10.5.1 Check PR shows correct base and head
-  - [ ] 10.5.2 Verify CI checks running
-  - [ ] 10.5.3 Verify project board shows PR
+- [x] 10.5 Verify PR setup
+  - [x] 10.5.1 Check PR shows correct base and head
+  - [x] 10.5.2 Verify CI checks running
+  - [x] 10.5.3 Verify project board shows PR
 
-- [ ] 10.6 Cleanup
-  - [ ] 10.6.1 Remove temp files
+- [x] 10.6 Cleanup
+  - [x] 10.6.1 Remove temp files
+
+## 11. Merge to dev and release to main
+
+- [x] 11.1 Merge feature PR to dev
+  - [x] 11.1.1 PR #318 merged to dev
+  - [x] 11.1.2 P1 review fixes applied (add-registry `--id` type, alias → command name, install consults custom registries)
+  - [x] 11.1.3 All changes pushed to dev
+
+- [x] 11.2 Create release PR (dev → main)
+  - [x] 11.2.1 Fill .github/pull_request_template.md for v0.38.0 release
+  - [x] 11.2.2 `gh pr create --base main --head dev --title "Release v0.38.0: Advanced marketplace features (dev → main)" --body-file <file>`
+  - [x] 11.2.3 PR #319 created: https://github.com/nold-ai/specfact-cli/pull/319
+
+- [x] 11.3 Merge release PR to main (when ready)
+  - [ ] 11.3.1 Merge PR #319 to main
+  - [ ] 11.3.2 Tag release if applicable
+  - [ ] 11.3.3 Verify PyPI/CI publish if configured

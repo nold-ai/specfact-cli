@@ -24,6 +24,8 @@ jobs:
     env:
       SPECFACT_MODULE_PRIVATE_SIGN_KEY: ${{ secrets.SPECFACT_MODULE_PRIVATE_SIGN_KEY }}
       SPECFACT_MODULE_PRIVATE_SIGN_KEY_PASSPHRASE: ${{ secrets.SPECFACT_MODULE_PRIVATE_SIGN_KEY_PASSPHRASE }}
+      SPECFACT_MODULES_REPO_TOKEN: ${{ secrets.SPECFACT_MODULES_REPO_TOKEN }}
+      REGISTRY_REPO: nold-ai/specfact-cli-modules
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -76,6 +78,7 @@ jobs:
           fi
 
       - name: Publish module
+        id: publish
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             MODULE_PATH="${{ github.event.inputs.module_path }}"
@@ -83,7 +86,75 @@ jobs:
             MODULE_PATH="${{ steps.resolve.outputs.module_path }}"
           fi
           mkdir -p dist
-          python scripts/publish-module.py "$MODULE_PATH" -o dist
+          python scripts/publish-module.py "$MODULE_PATH" -o dist --index-fragment dist/registry-entry.yaml
+
+      - name: Read published module metadata
+        id: entry
+        run: |
+          python - <<'PY'
+          import os
+          from pathlib import Path
+          import yaml
+
+          data = yaml.safe_load(Path("dist/registry-entry.yaml").read_text(encoding="utf-8"))
+          module_id = str(data["id"])
+          module_version = str(data["latest_version"])
+          module_slug = module_id.replace("/", "-")
+
+          out = Path(os.environ["GITHUB_OUTPUT"])
+          with out.open("a", encoding="utf-8") as fp:
+              fp.write(f"module_id={module_id}\n")
+              fp.write(f"module_version={module_version}\n")
+              fp.write(f"module_slug={module_slug}\n")
+          PY
+
+      - name: Validate registry repo token
+        run: |
+          if [ -z "${SPECFACT_MODULES_REPO_TOKEN}" ]; then
+            echo "::error::Missing secret SPECFACT_MODULES_REPO_TOKEN."
+            exit 1
+          fi
+
+      - name: Checkout registry repository
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.REGISTRY_REPO }}
+          token: ${{ env.SPECFACT_MODULES_REPO_TOKEN }}
+          path: specfact-cli-modules
+
+      - name: Update registry index
+        id: update_index
+        run: |
+          python scripts/update-registry-index.py \
+            --index-path specfact-cli-modules/registry/index.json \
+            --entry-fragment dist/registry-entry.yaml \
+            --changed-flag /tmp/index_changed.txt
+          CHANGED=$(tr -d '\n' < /tmp/index_changed.txt)
+          echo "changed=${CHANGED}" >> "$GITHUB_OUTPUT"
+
+      - name: Create registry PR
+        if: steps.update_index.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ env.SPECFACT_MODULES_REPO_TOKEN }}
+        run: |
+          BRANCH="auto/publish-${{ steps.entry.outputs.module_slug }}-${{ github.run_id }}"
+          TITLE="chore(registry): publish ${{ steps.entry.outputs.module_id }} v${{ steps.entry.outputs.module_version }}"
+          BODY=$'Automated registry update from publish-modules workflow.\n\n- Module: `${{ steps.entry.outputs.module_id }}`\n- Version: `${{ steps.entry.outputs.module_version }}`\n- Source run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}'
+
+          cd specfact-cli-modules
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "${BRANCH}"
+          git add registry/index.json
+          git commit -m "${TITLE}"
+          git push origin "${BRANCH}"
+
+          gh pr create \
+            --repo "${REGISTRY_REPO}" \
+            --base main \
+            --head "${BRANCH}" \
+            --title "${TITLE}" \
+            --body "${BODY}"
 
       - name: Upload module artifacts
         uses: actions/upload-artifact@v4
@@ -92,3 +163,4 @@ jobs:
           path: |
             dist/*.tar.gz
             dist/*.sha256
+            dist/registry-entry.yaml
