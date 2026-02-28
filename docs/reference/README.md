@@ -23,6 +23,7 @@ Complete technical reference for SpecFact CLI.
 - **[Directory Structure](directory-structure.md)** - Project structure and organization
 - **[Schema Versioning](schema-versioning.md)** - Bundle schema versions and backward compatibility (v1.0, v1.1)
 - **[Module Security](module-security.md)** - Marketplace/module integrity and publisher metadata
+- **[Module Categories](module-categories.md)** - Category grouping model, canonical module assignments, bundles, and first-run profiles
 - **[Dependency resolution](dependency-resolution.md)** - How module/pip dependency resolution works and bypass options
 
 ## Quick Reference

@@ -52,6 +52,9 @@ specfact init ide --ide cursor
 # - .specfact/templates/backlog/field_mappings/ with default ADO field mapping templates
 # - IDE-specific command files for your AI assistant (Cursor in this example)
 
+# Optional first-run profile for bundle selection
+specfact init --profile solo-developer
+
 # Step 4: Use slash command in IDE chat
 /specfact.01-import legacy-api --repo .
 # Or let the AI assistant prompt you for bundle name
@@ -92,10 +95,10 @@ specfact init ide --ide cursor
 
 ```bash
 # Review the extracted bundle using CLI commands
-specfact plan review my-project
+specfact project plan review my-project
 
 # Or get structured findings for analysis
-specfact plan review my-project --list-findings --findings-format json
+specfact project plan review my-project --list-findings --findings-format json
 ```
 
 Review the auto-generated plan to understand what SpecFact discovered about your codebase.
@@ -112,10 +115,10 @@ specfact sdd constitution bootstrap --repo .
 
 ```bash
 # First-time setup: Configure CrossHair for contract exploration
-specfact repro setup
+specfact code repro setup
 
 # Analyze and validate your codebase
-specfact repro --verbose
+specfact code repro --verbose
 ```
 
 **What happens**:

@@ -43,6 +43,13 @@ uvx specfact-cli@latest plan init my-project --interactive
 
 **Note**: Interactive AI Assistant mode provides better feature detection and semantic understanding, but requires `pip install specfact-cli` and IDE setup. CLI-only mode works immediately with `uvx` but may show 0 features for simple test cases.
 
+First-run bundle selection examples:
+
+```bash
+specfact init --profile solo-developer
+specfact init --install backlog,codebase
+```
+
 ### Modernizing Legacy Code?
 
 **New to brownfield modernization?** See our **[Brownfield Engineer Guide](../guides/brownfield-engineer.md)** for a complete walkthrough of modernizing legacy Python code with SpecFact CLI.

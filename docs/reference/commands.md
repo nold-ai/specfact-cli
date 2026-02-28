@@ -5089,12 +5089,21 @@ specfact init [OPTIONS]
 
 - `--repo PATH` - Repository path (default: current directory)
 - `--install-deps` - Install contract enhancement dependencies (prefer `specfact init ide --install-deps`)
+- `--profile TEXT` - First-run bundle profile (`solo-developer`, `backlog-team`, `api-first-team`, `enterprise-full-stack`)
+- `--install TEXT` - First-run bundle selection by aliases (`project`, `backlog`, `codebase|code`, `spec`, `govern`) or `all`
 
 **Examples:**
 
 ```bash
 # Bootstrap only (no IDE prompt/template copy)
 specfact init
+
+# Bootstrap and install a profile preset (first run)
+specfact init --profile solo-developer
+
+# Bootstrap and install explicit bundles (first run)
+specfact init --install backlog,codebase
+specfact init --install all
 
 # Install dependencies during bootstrap
 specfact init --install-deps
@@ -5104,8 +5113,9 @@ specfact init --install-deps
 
 1. Initializes/updates user-level registry state under `~/.specfact/registry/`.
 2. Discovers installed modules and refreshes command help cache.
-3. Prints a header note that module management moved to `specfact module`.
-4. Reports IDE prompt status and points to `specfact init ide` for prompt/template setup.
+3. On first run, supports interactive bundle selection (or non-interactive `--profile` / `--install`).
+4. Prints a header note that module management moved to `specfact module`.
+5. Reports IDE prompt status and points to `specfact init ide` for prompt/template setup.
 
 
 ### `module` - Module Lifecycle and Marketplace Management

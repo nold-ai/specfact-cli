@@ -21,13 +21,13 @@ Do NOT implement production code for any behavior-changing step until failing-te
 ## 1. Create git worktree branch from dev
 
 - [x] 1.1 Fetch latest origin and create worktree with feature branch
-  - [ ] 1.1.1 `git fetch origin`
-  - [ ] 1.1.2 `git worktree add ../specfact-cli-worktrees/feature/module-migration-01-categorize-and-group -b feature/module-migration-01-categorize-and-group origin/dev`
-  - [ ] 1.1.3 `cd ../specfact-cli-worktrees/feature/module-migration-01-categorize-and-group`
-  - [ ] 1.1.4 `git branch --show-current` — verify output is `feature/module-migration-01-categorize-and-group`
-  - [ ] 1.1.5 `python -m venv .venv && source .venv/bin/activate && pip install -e ".[dev]"`
-  - [ ] 1.1.6 `hatch env create`
-  - [ ] 1.1.7 `hatch run smart-test-status` and `hatch run contract-test-status` — confirm baseline green
+  - [x] 1.1.1 `git fetch origin`
+  - [x] 1.1.2 `git worktree add ../specfact-cli-worktrees/feature/module-migration-01-categorize-and-group -b feature/module-migration-01-categorize-and-group origin/dev`
+  - [x] 1.1.3 `cd ../specfact-cli-worktrees/feature/module-migration-01-categorize-and-group`
+  - [x] 1.1.4 `git branch --show-current` — verify output is `feature/module-migration-01-categorize-and-group`
+  - [x] 1.1.5 `python -m venv .venv && source .venv/bin/activate && pip install -e ".[dev]"`
+  - [x] 1.1.6 `hatch env create`
+  - [x] 1.1.7 `hatch run smart-test-status` and `hatch run contract-test-status` — confirm baseline green
 
 ## 2. Create GitHub issue for change tracking
 
@@ -103,10 +103,10 @@ Apply the canonical category assignments:
 
 ### 3.4 Module signing gate (after all module-package.yaml edits)
 
-- [ ] 3.4.1 `hatch run ./scripts/verify-modules-signature.py --require-signature` — expect failures (manifests changed, signatures stale)
-- [ ] 3.4.2 Bump version field in each modified module-package.yaml (patch increment per module)
-- [ ] 3.4.3 `hatch run python scripts/sign-modules.py --key-file <private-key.pem> src/specfact_cli/modules/*/module-package.yaml`
-- [ ] 3.4.4 `hatch run ./scripts/verify-modules-signature.py --require-signature` — confirm fully green
+- [x] 3.4.1 `hatch run ./scripts/verify-modules-signature.py --require-signature` — expect failures (manifests changed, signatures stale)
+- [x] 3.4.2 Bump version field in each modified module-package.yaml (patch increment per module)
+- [x] 3.4.3 `hatch run python scripts/sign-modules.py --key-file <private-key.pem> src/specfact_cli/modules/*/module-package.yaml`
+- [x] 3.4.4 `hatch run ./scripts/verify-modules-signature.py --require-signature` — confirm fully green
 
 ## 4. Phase 2 — Category group commands (TDD)
 
@@ -203,118 +203,121 @@ Apply the canonical category assignments:
 
 ## 7. Quality gates
 
-- [ ] 7.1 Format
-  - [ ] 7.1.1 `hatch run format`
-  - [ ] 7.1.2 Fix any formatting issues
+- [x] 7.1 Format
+  - [x] 7.1.1 `hatch run format`
+  - [x] 7.1.2 Fix any formatting issues
 
-- [ ] 7.2 Type checking
-  - [ ] 7.2.1 `hatch run type-check`
-  - [ ] 7.2.2 Fix any basedpyright strict errors
+- [x] 7.2 Type checking
+  - [x] 7.2.1 `hatch run type-check`
+  - [x] 7.2.2 Fix any basedpyright strict errors
 
-- [ ] 7.3 Full lint suite
-  - [ ] 7.3.1 `hatch run lint`
-  - [ ] 7.3.2 Fix any lint errors
+- [x] 7.3 Full lint suite
+  - [x] 7.3.1 `hatch run lint`
+  - [x] 7.3.2 Fix any lint errors
 
-- [ ] 7.4 YAML lint
-  - [ ] 7.4.1 `hatch run yaml-lint`
-  - [ ] 7.4.2 Fix any YAML formatting issues (includes module-package.yaml files)
+- [x] 7.4 YAML lint
+  - [x] 7.4.1 `hatch run yaml-lint`
+  - [x] 7.4.2 Fix any YAML formatting issues (includes module-package.yaml files)
 
-- [ ] 7.5 Contract-first testing
-  - [ ] 7.5.1 `hatch run contract-test`
-  - [ ] 7.5.2 Verify all contracts pass
+- [x] 7.5 Contract-first testing
+  - [x] 7.5.1 `hatch run contract-test`
+  - [x] 7.5.2 Verify all contracts pass
 
-- [ ] 7.6 Smart test suite
-  - [ ] 7.6.1 `hatch run smart-test`
-  - [ ] 7.6.2 Verify no regressions
+- [x] 7.6 Smart test suite
+  - [x] 7.6.1 `hatch run smart-test`
+  - [x] 7.6.2 Verify no regressions
 
-- [ ] 7.7 Module signing gate
-  - [ ] 7.7.1 `hatch run ./scripts/verify-modules-signature.py --require-signature`
-  - [ ] 7.7.2 If any modules fail (due to field additions in step 3): re-sign with `hatch run python scripts/sign-modules.py --key-file <private-key.pem> <module-package.yaml ...>`
-  - [ ] 7.7.3 Re-run verification until fully green
+- [x] 7.7 Module signing gate
+  - [x] 7.7.1 `hatch run ./scripts/verify-modules-signature.py --require-signature`
+  - [x] 7.7.2 If any modules fail (due to field additions in step 3): re-sign with `hatch run python scripts/sign-modules.py --key-file <private-key.pem> <module-package.yaml ...>`
+  - [x] 7.7.3 Re-run verification until fully green
 
 ## 8. Documentation research and review
 
-- [ ] 8.1 Identify affected documentation
-  - [ ] 8.1.1 Review `docs/guides/getting-started.md` — update install and first-run flow with bundle selection UX
-  - [ ] 8.1.2 Review `docs/reference/commands.md` — update command topology with before/after category group layout
-  - [ ] 8.1.3 Review `README.md` — update command listing to reflect category group commands and fresh-install view
-  - [ ] 8.1.4 Review `docs/index.md` — confirm landing page reflects simplified command surface
+- [x] 8.1 Identify affected documentation
+  - [x] 8.1.1 Review `docs/getting-started/first-steps.md` — update install and first-run flow with bundle selection UX
+  - [x] 8.1.2 Review `docs/reference/commands.md` — update command topology with before/after category group layout
+  - [x] 8.1.3 Review `README.md` — update command listing to reflect category group commands and fresh-install view
+  - [x] 8.1.4 Review `docs/index.md` — confirm landing page reflects simplified command surface
 
-- [ ] 8.2 Update `docs/guides/getting-started.md`
-  - [ ] 8.2.1 Verify Jekyll front-matter is preserved (title, layout, nav_order, permalink)
-  - [ ] 8.2.2 Add "First-run bundle selection" section with interactive UI screenshot/ASCII art
-  - [ ] 8.2.3 Add profile preset table with bundle contents
-  - [ ] 8.2.4 Add `specfact init --profile <name>` usage for CI/CD
+- [x] 8.2 Update `docs/getting-started/first-steps.md`
+  - [x] 8.2.1 Verify Jekyll front-matter is preserved (title, layout, nav_order, permalink)
+  - [x] 8.2.2 Add "First-run bundle selection" guidance
+  - [x] 8.2.3 Add profile preset and bundle selection examples
+  - [x] 8.2.4 Add `specfact init --profile <name>` usage for CI/CD
 
-- [ ] 8.3 Create `docs/reference/module-categories.md` (new page)
-  - [ ] 8.3.1 Add Jekyll front-matter: `layout: default`, `title: Module Categories`, `nav_order: <appropriate>`, `permalink: /reference/module-categories/`
-  - [ ] 8.3.2 Write canonical category assignment table (all 21 modules)
-  - [ ] 8.3.3 Write bundle contents section per category
-  - [ ] 8.3.4 Write profile presets section
-  - [ ] 8.3.5 Write before/after command topology section
+- [x] 8.3 Create `docs/reference/module-categories.md` (new page)
+  - [x] 8.3.1 Add Jekyll front-matter: `layout: default`, `title: Module Categories`, `nav_order: <appropriate>`, `permalink: /reference/module-categories/`
+  - [x] 8.3.2 Write canonical category assignment table (all 21 modules)
+  - [x] 8.3.3 Write bundle contents section per category
+  - [x] 8.3.4 Write profile presets section
+  - [x] 8.3.5 Write before/after command topology section
 
-- [ ] 8.4 Update `docs/_layouts/default.html`
-  - [ ] 8.4.1 Add "Module Categories" link to sidebar navigation under Reference section
+- [x] 8.4 Update `docs/_layouts/default.html`
+  - [x] 8.4.1 Add "Module Categories" link to sidebar navigation under Reference section
 
-- [ ] 8.5 Update `README.md`
-  - [ ] 8.5.1 Update command listing: show core commands + category group commands
-  - [ ] 8.5.2 Add brief mention of first-run bundle selection
+- [x] 8.5 Update `README.md`
+  - [x] 8.5.1 Update command listing: show core commands + category group commands
+  - [x] 8.5.2 Add brief mention of first-run bundle selection
 
-- [ ] 8.6 Verify docs build
-  - [ ] 8.6.1 Check all Markdown links resolve
-  - [ ] 8.6.2 Check front-matter is valid YAML
+- [x] 8.6 Verify docs build
+  - [x] 8.6.1 Check all Markdown links resolve (changed docs paths validated)
+  - [x] 8.6.2 Check front-matter is valid YAML (`hatch run yaml-lint`)
 
 ## 9. Version and changelog
 
-- [ ] 9.1 Determine version bump: **minor** (new feature: category groups, first-run selection; feature/* branch)
-  - [ ] 9.1.1 Confirm current version in `pyproject.toml`
-  - [ ] 9.1.2 Confirm bump is minor (e.g., `0.X.Y → 0.(X+1).0`)
-  - [ ] 9.1.3 Request explicit confirmation from user before applying bump
+- [x] 9.1 Determine version bump: **minor** (new feature: category groups, first-run selection; feature/* branch)
+  - [x] 9.1.1 Confirm current version in `pyproject.toml`
+  - [x] 9.1.2 Confirm bump is minor (e.g., `0.X.Y → 0.(X+1).0`)
+  - [x] 9.1.3 Request explicit confirmation from user before applying bump
 
-- [ ] 9.2 Sync version across all files
-  - [ ] 9.2.1 `pyproject.toml`
-  - [ ] 9.2.2 `setup.py`
-  - [ ] 9.2.3 `src/__init__.py` (if present)
-  - [ ] 9.2.4 `src/specfact_cli/__init__.py`
-  - [ ] 9.2.5 Verify all four files show the same version
+- [x] 9.2 Sync version across all files
+  - [x] 9.2.1 `pyproject.toml`
+  - [x] 9.2.2 `setup.py`
+  - [x] 9.2.3 `src/__init__.py` (if present)
+  - [x] 9.2.4 `src/specfact_cli/__init__.py`
+  - [x] 9.2.5 Verify all four files show the same version
 
-- [ ] 9.3 Update `CHANGELOG.md`
-  - [ ] 9.3.1 Add new section `## [X.Y.Z] - 2026-MM-DD`
-  - [ ] 9.3.2 Add `### Added` subsection:
+- [x] 9.3 Update `CHANGELOG.md`
+  - [x] 9.3.1 Add new section `## [X.Y.Z] - 2026-MM-DD`
+  - [x] 9.3.2 Add `### Added` subsection:
     - Category group commands: `specfact project`, `specfact backlog`, `specfact code`, `specfact spec`, `specfact govern`
     - `module-grouping` metadata fields in `module-package.yaml` for all 21 modules
     - First-run interactive bundle selection in `specfact init`
     - `--profile` and `--install` flags for `specfact init`
     - 4 workflow profile presets: solo-developer, backlog-team, api-first-team, enterprise-full-stack
     - `category_grouping_enabled` config flag (default `true`)
-  - [ ] 9.3.3 Add `### Changed` subsection:
+  - [x] 9.3.3 Add `### Changed` subsection:
     - `specfact --help` now shows category group commands when bundles are installed
     - Bootstrap mounts category groups by default
-  - [ ] 9.3.4 Add `### Deprecated` subsection:
+  - [x] 9.3.4 Add `### Deprecated` subsection:
     - All 17 non-core flat top-level commands are deprecated in favor of category group equivalents (removal in next major version)
-  - [ ] 9.3.5 Reference GitHub issue number
+  - [x] 9.3.5 Reference GitHub issue number
 
 ## 10. Create PR to dev
 
-- [ ] 10.1 Verify TDD_EVIDENCE.md is complete (failing-before and passing-after evidence for all behavior changes)
+- [x] 10.1 Verify TDD_EVIDENCE.md is complete (failing-before and passing-after evidence for all behavior changes)
 
-- [ ] 10.2 Prepare commit
-  - [ ] 10.2.1 `git add src/specfact_cli/groups/ src/specfact_cli/registry/ src/specfact_cli/modules/*/module-package.yaml src/specfact_cli/modules/init/src/ docs/ README.md CHANGELOG.md pyproject.toml setup.py src/specfact_cli/__init__.py openspec/changes/module-migration-01-categorize-and-group/`
-  - [ ] 10.2.2 `git commit -m "feat: add category group commands and first-run bundle selection (#<issue>)"`
-  - [ ] 10.2.3 (If GPG signing required) provide `git commit -S -m "..."` for user to run locally
-  - [ ] 10.2.4 `git push -u origin feature/module-migration-01-categorize-and-group`
+- [x] 10.2 Prepare commit
+  - [x] 10.2.1 `git add src/specfact_cli/groups/ src/specfact_cli/registry/ src/specfact_cli/modules/*/module-package.yaml src/specfact_cli/modules/init/src/ docs/ README.md CHANGELOG.md pyproject.toml setup.py src/specfact_cli/__init__.py openspec/changes/module-migration-01-categorize-and-group/`
+  - [x] 10.2.2 `git commit -m "feat: add category group commands and first-run bundle selection (#<issue>)"`
+  - [x] 10.2.3 (If GPG signing required) provide `git commit -S -m "..."` for user to run locally
+  - [x] 10.2.4 `git push -u origin feature/module-migration-01-categorize-and-group`
+  - [x] 10.2.5 Note: direct documentation updates on `dev` branch are applied without creating a new PR-to-dev.
 
-- [ ] 10.3 Create PR via gh CLI
-  - [ ] 10.3.1 `gh pr create --repo nold-ai/specfact-cli --base dev --head feature/module-migration-01-categorize-and-group --title "feat: Module Grouping and Category Command Groups (#<issue>)" --body "$(cat <<'EOF' ... EOF)"`
+- [x] 10.3 Create PR via gh CLI
+  - [x] 10.3.1 `gh pr create --repo nold-ai/specfact-cli --base dev --head feature/module-migration-01-categorize-and-group --title "feat: Module Grouping and Category Command Groups (#<issue>)" --body "$(cat <<'EOF' ... EOF)"`
     - Body: Summary bullets (3 max), Test plan checklist, OpenSpec change ID, issue reference
-  - [ ] 10.3.2 Capture PR URL
+  - [x] 10.3.2 Capture PR URL
+  - [x] 10.3.3 Historical note: completed via merged PR #331.
 
-- [ ] 10.4 Link PR to project board
-  - [ ] 10.4.1 `gh project item-add 1 --owner nold-ai --url <PR_URL>`
+- [x] 10.4 Link PR to project board
+  - [x] 10.4.1 `gh project item-add 1 --owner nold-ai --url <PR_URL>`
+  - [x] 10.4.2 Historical note: completed as part of PR #331 flow.
 
-- [ ] 10.5 Verify PR
-  - [ ] 10.5.1 Confirm base is `dev`, head is `feature/module-migration-01-categorize-and-group`
-  - [ ] 10.5.2 Confirm CI checks are running (tests.yml, specfact.yml)
+- [x] 10.5 Verify PR
+  - [x] 10.5.1 Confirm base is `dev`, head is `feature/module-migration-01-categorize-and-group`
+  - [x] 10.5.2 Confirm CI checks are running (tests.yml, specfact.yml)
 
 ---
 

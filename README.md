@@ -37,6 +37,11 @@ pip install -U specfact-cli
 # Bootstrap module registry and local config (~/.specfact)
 specfact init
 
+# First-run bundle selection (examples)
+specfact init --profile solo-developer
+specfact init --install backlog,codebase
+specfact init --install all
+
 # Configure IDE prompts/templates (interactive selector by default)
 specfact init ide
 specfact init ide --ide cursor
@@ -47,11 +52,11 @@ specfact init ide --ide vscode
 
 ```bash
 # Analyze an existing codebase
-specfact import from-code my-project --repo .
+specfact project import from-code my-project --repo .
 
 # Validate external code without modifying source
-specfact validate sidecar init my-project /path/to/repo
-specfact validate sidecar run my-project /path/to/repo
+specfact code validate sidecar init my-project /path/to/repo
+specfact code validate sidecar run my-project /path/to/repo
 ```
 
 ### Backlog Bridge (60 seconds)
