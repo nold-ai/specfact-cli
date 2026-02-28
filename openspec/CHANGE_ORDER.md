@@ -83,7 +83,7 @@ These are derived extensions of the same 2026-02-15 plan and are required to ope
 | Module | Order | Change folder | GitHub # | Blocked by |
 |--------|-------|---------------|----------|------------|
 | module-migration | 01 | module-migration-01-categorize-and-group | [#315](https://github.com/nold-ai/specfact-cli/issues/315) | #215 ✅ (marketplace-02) |
-| module-migration | 02 | module-migration-02-bundle-extraction | TBD | module-migration-01 |
+| module-migration | 02 | module-migration-02-bundle-extraction | [#316](https://github.com/nold-ai/specfact-cli/issues/316) | module-migration-01 ✅ |
 | module-migration | 03 | module-migration-03-core-slimming | TBD | module-migration-02 |
 | module-migration | 04 | module-migration-04-remove-flat-shims | TBD | module-migration-01 |
 
