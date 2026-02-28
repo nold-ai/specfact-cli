@@ -1,7 +1,11 @@
 name: patch-mode
-version: 0.1.0
+version: 0.1.1
 commands:
   - patch
+category: govern
+bundle: specfact-govern
+bundle_group_command: govern
+bundle_sub_command: patch
 command_help:
   patch: Preview and apply patches (backlog body, OpenSpec, config); --apply local,
     --write upstream with confirmation.
@@ -12,9 +16,9 @@ core_compatibility: '>=0.28.0,<1.0.0'
 publisher:
   name: nold-ai
   url: https://github.com/nold-ai/specfact-cli-modules
-  email: oss@nold.ai
+  email: hello@noldai.com
 description: Prepare, review, and apply structured repository patches safely.
 license: Apache-2.0
 integrity:
-  checksum: sha256:9f6ceb4ea1a9539cd900d63065bcd36b8681d56d58dfca6835687ba5c58d5272
-  signature: 2f8u+wSUKnC5KTIvHt/Qcor0r1J7Pv3FDhdts2OsIEHPCeXtIwoN2XU3CyRlpr+Zyg3+T++OO4Rv7akiWPK1Bw==
+  checksum: sha256:874ad2c164a73e030fb58764a3b969fea254a3f362b8f8e213aab365ddc00cc3
+  signature: 9jrzryT8FGO61RnF1Z5IQVWoY0gR9MXnHXeod/xqblyiYd6osqOIivBbv642xvb6F1oLuG8VOxVNCwYYlAqbDw==

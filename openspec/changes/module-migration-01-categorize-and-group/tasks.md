@@ -20,7 +20,7 @@ Do NOT implement production code for any behavior-changing step until failing-te
 
 ## 1. Create git worktree branch from dev
 
-- [ ] 1.1 Fetch latest origin and create worktree with feature branch
+- [x] 1.1 Fetch latest origin and create worktree with feature branch
   - [ ] 1.1.1 `git fetch origin`
   - [ ] 1.1.2 `git worktree add ../specfact-cli-worktrees/feature/module-migration-01-categorize-and-group -b feature/module-migration-01-categorize-and-group origin/dev`
   - [ ] 1.1.3 `cd ../specfact-cli-worktrees/feature/module-migration-01-categorize-and-group`
@@ -31,49 +31,32 @@ Do NOT implement production code for any behavior-changing step until failing-te
 
 ## 2. Create GitHub issue for change tracking
 
-- [ ] 2.1 Create GitHub issue in nold-ai/specfact-cli
-  - [ ] 2.1.1 `gh issue create --repo nold-ai/specfact-cli --title "[Change] Module Grouping and Category Command Groups" --label "enhancement,change-proposal" --body "$(cat <<'EOF'`
-
-    ```text
-    ## Why
-
-    SpecFact CLI exposes 21 flat top-level commands, overwhelming new users. The marketplace foundation (marketplace-01, marketplace-02) now supports signed packages and bundle-level dependency resolution. This change introduces category grouping metadata, 5 umbrella group commands, and VS Code-style first-run bundle selection.
-
-    ## What Changes
-
-    - Add `category`, `bundle`, `bundle_group_command`, `bundle_sub_command` to all 21 `module-package.yaml` files
-    - Create `src/specfact_cli/groups/` with 5 category Typer apps
-    - Update `bootstrap.py` to mount category groups with compat shims
-    - Add `category_grouping_enabled` config flag (default `true`)
-    - Update `specfact init` with `--profile` and `--install` for first-run bundle selection
-
-    *OpenSpec Change Proposal: module-migration-01-categorize-and-group*
-    ```
-
-  - [ ] 2.1.2 Capture issue number and URL from output
-  - [ ] 2.1.3 Update `openspec/changes/module-migration-01-categorize-and-group/proposal.md` Source Tracking section with issue number, URL, and status `open`
+- [x] 2.1 Create GitHub issue in nold-ai/specfact-cli
+  - [x] 2.1.1 `gh issue create --repo nold-ai/specfact-cli ...`
+  - [x] 2.1.2 Capture issue number and URL from output
+  - [x] 2.1.3 Update `openspec/changes/module-migration-01-categorize-and-group/proposal.md` Source Tracking section with issue number, URL, and status `open`
 
 ## 3. Phase 1 — Add category metadata to all module-package.yaml files (TDD)
 
 ### 3.1 Write tests for manifest validation (expect failure)
 
-- [ ] 3.1.1 Create `tests/unit/registry/test_module_grouping.py`
-- [ ] 3.1.2 Test: `module-package.yaml` with `category: codebase` passes validation
-- [ ] 3.1.3 Test: `module-package.yaml` with `category: unknown` raises `ModuleManifestError`
-- [ ] 3.1.4 Test: `module-package.yaml` without `category` field mounts as ungrouped flat command (no error, warning logged)
-- [ ] 3.1.5 Test: `bundle_group_command` mismatch vs canonical category raises `ModuleManifestError`
-- [ ] 3.1.6 Test: core-category modules have no `bundle` or `bundle_group_command`
-- [ ] 3.1.7 Test: `registry.group_modules_by_category()` returns correct grouping dict from a list of module manifests
-- [ ] 3.1.8 Run tests: `hatch test -- tests/unit/registry/test_module_grouping.py -v` (expect failures — record in TDD_EVIDENCE.md)
+- [x] 3.1.1 Create `tests/unit/registry/test_module_grouping.py`
+- [x] 3.1.2 Test: `module-package.yaml` with `category: codebase` passes validation
+- [x] 3.1.3 Test: `module-package.yaml` with `category: unknown` raises `ModuleManifestError`
+- [x] 3.1.4 Test: `module-package.yaml` without `category` field mounts as ungrouped flat command (no error, warning logged)
+- [x] 3.1.5 Test: `bundle_group_command` mismatch vs canonical category raises `ModuleManifestError`
+- [x] 3.1.6 Test: core-category modules have no `bundle` or `bundle_group_command`
+- [x] 3.1.7 Test: `registry.group_modules_by_category()` returns correct grouping dict from a list of module manifests
+- [x] 3.1.8 Run tests: `hatch test -- tests/unit/registry/test_module_grouping.py -v` (expect failures — record in TDD_EVIDENCE.md)
 
 ### 3.2 Implement category field validation in registry
 
-- [ ] 3.2.1 Add `category`, `bundle`, `bundle_group_command`, `bundle_sub_command` fields (Optional[str]) to `ModulePackage` Pydantic model in `src/specfact_cli/registry/module_packages.py`
-- [ ] 3.2.2 Add validation: if `category` is set and not in `{"core","project","backlog","codebase","spec","govern"}` → raise `ModuleManifestError`
-- [ ] 3.2.3 Add validation: if `category` != `"core"` and `bundle_group_command` does not match canonical mapping → raise `ModuleManifestError`
-- [ ] 3.2.4 Add `group_modules_by_category()` function with `@require` and `@beartype` decorators
-- [ ] 3.2.5 Add warning log when `category` field is absent
-- [ ] 3.2.6 `hatch test -- tests/unit/registry/test_module_grouping.py -v` — verify tests pass
+- [x] 3.2.1 Add `category`, `bundle`, `bundle_group_command`, `bundle_sub_command` fields (Optional[str]) to `ModulePackage` Pydantic model in `src/specfact_cli/registry/module_packages.py`
+- [x] 3.2.2 Add validation: if `category` is set and not in `{"core","project","backlog","codebase","spec","govern"}` → raise `ModuleManifestError`
+- [x] 3.2.3 Add validation: if `category` != `"core"` and `bundle_group_command` does not match canonical mapping → raise `ModuleManifestError`
+- [x] 3.2.4 Add `group_modules_by_category()` function with `@require` and `@beartype` decorators
+- [x] 3.2.5 Add warning log when `category` field is absent
+- [x] 3.2.6 `hatch test -- tests/unit/registry/test_module_grouping.py -v` — verify tests pass
 
 ### 3.3 Add category metadata to all 21 module-package.yaml files
 
@@ -81,42 +64,42 @@ Apply the canonical category assignments:
 
 **Core (no bundle fields):**
 
-- [ ] 3.3.1 `modules/init/module-package.yaml` → `category: core`, `bundle_sub_command: init`
-- [ ] 3.3.2 `modules/auth/module-package.yaml` → `category: core`, `bundle_sub_command: auth`
-- [ ] 3.3.3 `modules/module_registry/module-package.yaml` → `category: core`, `bundle_sub_command: module`
-- [ ] 3.3.4 `modules/upgrade/module-package.yaml` → `category: core`, `bundle_sub_command: upgrade`
+- [x] 3.3.1 `modules/init/module-package.yaml` → `category: core`, `bundle_sub_command: init`
+- [x] 3.3.2 `modules/auth/module-package.yaml` → `category: core`, `bundle_sub_command: auth`
+- [x] 3.3.3 `modules/module_registry/module-package.yaml` → `category: core`, `bundle_sub_command: module`
+- [x] 3.3.4 `modules/upgrade/module-package.yaml` → `category: core`, `bundle_sub_command: upgrade`
 
 **Project bundle (`specfact-project`, group command `project`):**
 
-- [ ] 3.3.5 `modules/project/module-package.yaml` → `category: project`, `bundle: specfact-project`, `bundle_group_command: project`, `bundle_sub_command: project`
-- [ ] 3.3.6 `modules/plan/module-package.yaml` → `category: project`, `bundle: specfact-project`, `bundle_group_command: project`, `bundle_sub_command: plan`
-- [ ] 3.3.7 `modules/import_cmd/module-package.yaml` → `category: project`, `bundle: specfact-project`, `bundle_group_command: project`, `bundle_sub_command: import`
-- [ ] 3.3.8 `modules/sync/module-package.yaml` → `category: project`, `bundle: specfact-project`, `bundle_group_command: project`, `bundle_sub_command: sync`
-- [ ] 3.3.9 `modules/migrate/module-package.yaml` → `category: project`, `bundle: specfact-project`, `bundle_group_command: project`, `bundle_sub_command: migrate`
+- [x] 3.3.5 `modules/project/module-package.yaml` → `category: project`, `bundle: specfact-project`, `bundle_group_command: project`, `bundle_sub_command: project`
+- [x] 3.3.6 `modules/plan/module-package.yaml` → `category: project`, `bundle: specfact-project`, `bundle_group_command: project`, `bundle_sub_command: plan`
+- [x] 3.3.7 `modules/import_cmd/module-package.yaml` → `category: project`, `bundle: specfact-project`, `bundle_group_command: project`, `bundle_sub_command: import`
+- [x] 3.3.8 `modules/sync/module-package.yaml` → `category: project`, `bundle: specfact-project`, `bundle_group_command: project`, `bundle_sub_command: sync`
+- [x] 3.3.9 `modules/migrate/module-package.yaml` → `category: project`, `bundle: specfact-project`, `bundle_group_command: project`, `bundle_sub_command: migrate`
 
 **Backlog bundle (`specfact-backlog`, group command `backlog`):**
 
-- [ ] 3.3.10 `modules/backlog/module-package.yaml` → `category: backlog`, `bundle: specfact-backlog`, `bundle_group_command: backlog`, `bundle_sub_command: backlog`
-- [ ] 3.3.11 `modules/policy_engine/module-package.yaml` → `category: backlog`, `bundle: specfact-backlog`, `bundle_group_command: backlog`, `bundle_sub_command: policy`
+- [x] 3.3.10 `modules/backlog/module-package.yaml` → `category: backlog`, `bundle: specfact-backlog`, `bundle_group_command: backlog`, `bundle_sub_command: backlog`
+- [x] 3.3.11 `modules/policy_engine/module-package.yaml` → `category: backlog`, `bundle: specfact-backlog`, `bundle_group_command: backlog`, `bundle_sub_command: policy`
 
 **Codebase bundle (`specfact-codebase`, group command `code`):**
 
-- [ ] 3.3.12 `modules/analyze/module-package.yaml` → `category: codebase`, `bundle: specfact-codebase`, `bundle_group_command: code`, `bundle_sub_command: analyze`
-- [ ] 3.3.13 `modules/drift/module-package.yaml` → `category: codebase`, `bundle: specfact-codebase`, `bundle_group_command: code`, `bundle_sub_command: drift`
-- [ ] 3.3.14 `modules/validate/module-package.yaml` → `category: codebase`, `bundle: specfact-codebase`, `bundle_group_command: code`, `bundle_sub_command: validate`
-- [ ] 3.3.15 `modules/repro/module-package.yaml` → `category: codebase`, `bundle: specfact-codebase`, `bundle_group_command: code`, `bundle_sub_command: repro`
+- [x] 3.3.12 `modules/analyze/module-package.yaml` → `category: codebase`, `bundle: specfact-codebase`, `bundle_group_command: code`, `bundle_sub_command: analyze`
+- [x] 3.3.13 `modules/drift/module-package.yaml` → `category: codebase`, `bundle: specfact-codebase`, `bundle_group_command: code`, `bundle_sub_command: drift`
+- [x] 3.3.14 `modules/validate/module-package.yaml` → `category: codebase`, `bundle: specfact-codebase`, `bundle_group_command: code`, `bundle_sub_command: validate`
+- [x] 3.3.15 `modules/repro/module-package.yaml` → `category: codebase`, `bundle: specfact-codebase`, `bundle_group_command: code`, `bundle_sub_command: repro`
 
 **Spec bundle (`specfact-spec`, group command `spec`):**
 
-- [ ] 3.3.16 `modules/contract/module-package.yaml` → `category: spec`, `bundle: specfact-spec`, `bundle_group_command: spec`, `bundle_sub_command: contract`
-- [ ] 3.3.17 `modules/spec/module-package.yaml` → `category: spec`, `bundle: specfact-spec`, `bundle_group_command: spec`, `bundle_sub_command: api` (collision avoidance)
-- [ ] 3.3.18 `modules/sdd/module-package.yaml` → `category: spec`, `bundle: specfact-spec`, `bundle_group_command: spec`, `bundle_sub_command: sdd`
-- [ ] 3.3.19 `modules/generate/module-package.yaml` → `category: spec`, `bundle: specfact-spec`, `bundle_group_command: spec`, `bundle_sub_command: generate`
+- [x] 3.3.16 `modules/contract/module-package.yaml` → `category: spec`, `bundle: specfact-spec`, `bundle_group_command: spec`, `bundle_sub_command: contract`
+- [x] 3.3.17 `modules/spec/module-package.yaml` → `category: spec`, `bundle: specfact-spec`, `bundle_group_command: spec`, `bundle_sub_command: api` (collision avoidance)
+- [x] 3.3.18 `modules/sdd/module-package.yaml` → `category: spec`, `bundle: specfact-spec`, `bundle_group_command: spec`, `bundle_sub_command: sdd`
+- [x] 3.3.19 `modules/generate/module-package.yaml` → `category: spec`, `bundle: specfact-spec`, `bundle_group_command: spec`, `bundle_sub_command: generate`
 
 **Govern bundle (`specfact-govern`, group command `govern`):**
 
-- [ ] 3.3.20 `modules/enforce/module-package.yaml` → `category: govern`, `bundle: specfact-govern`, `bundle_group_command: govern`, `bundle_sub_command: enforce`
-- [ ] 3.3.21 `modules/patch_mode/module-package.yaml` → `category: govern`, `bundle: specfact-govern`, `bundle_group_command: govern`, `bundle_sub_command: patch`
+- [x] 3.3.20 `modules/enforce/module-package.yaml` → `category: govern`, `bundle: specfact-govern`, `bundle_group_command: govern`, `bundle_sub_command: enforce`
+- [x] 3.3.21 `modules/patch_mode/module-package.yaml` → `category: govern`, `bundle: specfact-govern`, `bundle_group_command: govern`, `bundle_sub_command: patch`
 
 ### 3.4 Module signing gate (after all module-package.yaml edits)
 
@@ -129,94 +112,94 @@ Apply the canonical category assignments:
 
 ### 4.1 Write tests for category group bootstrap (expect failure)
 
-- [ ] 4.1.1 Create `tests/unit/registry/test_category_groups.py`
-- [ ] 4.1.2 Test: with `category_grouping_enabled=True`, `bootstrap_cli()` registers `code`, `backlog`, `project`, `spec`, `govern` group commands
-- [ ] 4.1.3 Test: with `category_grouping_enabled=False`, bootstrap registers flat module commands (no group commands)
-- [ ] 4.1.4 Test: `specfact code analyze contracts` routes to the same handler as `specfact analyze contracts`
-- [ ] 4.1.5 Test: `specfact govern --help` when govern bundle not installed produces install suggestion
-- [ ] 4.1.6 Test: flat shim `specfact validate` emits deprecation warning in Copilot mode
-- [ ] 4.1.7 Test: flat shim `specfact validate` is silent in CI/CD mode
-- [ ] 4.1.8 Test: `specfact spec api validate` routes correctly (collision avoidance)
-- [ ] 4.1.9 Create `tests/unit/groups/test_codebase_group.py` — test group app has expected sub-commands
-- [ ] 4.1.10 Run tests: `hatch test -- tests/unit/registry/test_category_groups.py tests/unit/groups/ -v` (expect failures — record in TDD_EVIDENCE.md)
+- [x] 4.1.1 Create `tests/unit/registry/test_category_groups.py`
+- [x] 4.1.2 Test: with `category_grouping_enabled=True`, `bootstrap_cli()` registers `code`, `backlog`, `project`, `spec`, `govern` group commands
+- [x] 4.1.3 Test: with `category_grouping_enabled=False`, bootstrap registers flat module commands (no group commands)
+- [x] 4.1.4 Test: `specfact code analyze contracts` routes to the same handler as `specfact analyze contracts`
+- [x] 4.1.5 Test: `specfact govern --help` when govern bundle not installed produces install suggestion
+- [x] 4.1.6 Test: flat shim `specfact validate` emits deprecation warning in Copilot mode
+- [x] 4.1.7 Test: flat shim `specfact validate` is silent in CI/CD mode
+- [x] 4.1.8 Test: `specfact spec api validate` routes correctly (collision avoidance)
+- [x] 4.1.9 Create `tests/unit/groups/test_codebase_group.py` — test group app has expected sub-commands
+- [x] 4.1.10 Run tests: `hatch test -- tests/unit/registry/test_category_groups.py tests/unit/groups/ -v` (expect failures — record in TDD_EVIDENCE.md)
 
 ### 4.2 Create `src/specfact_cli/groups/` package
 
-- [ ] 4.2.1 Create `src/specfact_cli/groups/__init__.py`
-- [ ] 4.2.2 Create `src/specfact_cli/groups/project_group.py`
+- [x] 4.2.1 Create `src/specfact_cli/groups/__init__.py`
+- [x] 4.2.2 Create `src/specfact_cli/groups/project_group.py`
   - `app = typer.Typer(name="project", help="Project lifecycle commands.", no_args_is_help=True)`
   - Members: project, plan, import_cmd (as `import`), sync, migrate
   - `@require` and `@beartype` on `_register_members()`
-- [ ] 4.2.3 Create `src/specfact_cli/groups/backlog_group.py`
+- [x] 4.2.3 Create `src/specfact_cli/groups/backlog_group.py`
   - Members: backlog, policy_engine (as `policy`)
-- [ ] 4.2.4 Create `src/specfact_cli/groups/codebase_group.py`
+- [x] 4.2.4 Create `src/specfact_cli/groups/codebase_group.py`
   - Members: analyze, drift, validate, repro
-- [ ] 4.2.5 Create `src/specfact_cli/groups/spec_group.py`
+- [x] 4.2.5 Create `src/specfact_cli/groups/spec_group.py`
   - Members: contract, spec (as `api`), sdd, generate
-- [ ] 4.2.6 Create `src/specfact_cli/groups/govern_group.py`
+- [x] 4.2.6 Create `src/specfact_cli/groups/govern_group.py`
   - Members: enforce, patch_mode (as `patch`)
-- [ ] 4.2.7 All group files must use `@icontract` and `@beartype` on all public functions
+- [x] 4.2.7 All group files must use `@icontract` and `@beartype` on all public functions
 
 ### 4.3 Update `bootstrap.py` to mount category groups
 
-- [ ] 4.3.1 Read `category_grouping_enabled` from config (default `True`)
-- [ ] 4.3.2 If `True`: import and mount each group app via `app.add_typer()`; skip flat mounting for grouped modules
-- [ ] 4.3.3 Always mount core modules (init, auth, module, upgrade) as flat top-level commands
-- [ ] 4.3.4 Implement `_register_compat_shims(app)` for all 17 non-core modules:
+- [x] 4.3.1 Read `category_grouping_enabled` from config (default `True`)
+- [x] 4.3.2 If `True`: import and mount each group app via `app.add_typer()`; skip flat mounting for grouped modules
+- [x] 4.3.3 Always mount core modules (init, auth, module, upgrade) as flat top-level commands
+- [x] 4.3.4 Implement `_register_compat_shims(app)` for all 17 non-core modules:
   - Shim emits deprecation warning in Copilot mode, silent in CI/CD mode
   - Delegates to category group equivalent
-- [ ] 4.3.5 Add `@require`, `@ensure`, and `@beartype` to all modified/new bootstrap functions
+- [x] 4.3.5 Add `@require`, `@ensure`, and `@beartype` to all modified/new bootstrap functions
 
 ### 4.4 Update `cli.py` to register category groups
 
-- [ ] 4.4.1 Confirm category group apps are registered via `bootstrap.py` (no direct `cli.py` changes expected; verify and update if needed)
+- [x] 4.4.1 Confirm category group apps are registered via `bootstrap.py` (no direct `cli.py` changes expected; verify and update if needed)
 
 ### 4.5 Verify tests pass
 
-- [ ] 4.5.1 `hatch test -- tests/unit/registry/test_category_groups.py tests/unit/groups/ -v`
-- [ ] 4.5.2 Record passing-test results in TDD_EVIDENCE.md
+- [x] 4.5.1 `hatch test -- tests/unit/registry/test_category_groups.py tests/unit/groups/ -v`
+- [x] 4.5.2 Record passing-test results in TDD_EVIDENCE.md
 
 ## 5. Phase 3 — First-run module selection in `specfact init` (TDD)
 
 ### 5.1 Write tests for first-run selection (expect failure)
 
-- [ ] 5.1.1 Create `tests/unit/modules/init/test_first_run_selection.py`
-- [ ] 5.1.2 Test: `specfact init --profile solo-developer` installs only `specfact-codebase` (mock installer)
-- [ ] 5.1.3 Test: `specfact init --profile enterprise-full-stack` installs all 5 bundles
-- [ ] 5.1.4 Test: `specfact init --profile nonexistent` exits non-zero with error listing valid profiles
-- [ ] 5.1.5 Test: `specfact init --install backlog,codebase` installs `specfact-backlog` and `specfact-codebase`
-- [ ] 5.1.6 Test: `specfact init --install all` installs all 5 bundles
-- [ ] 5.1.7 Test: `specfact init --install widgets` exits non-zero with unknown bundle error
-- [ ] 5.1.8 Test: second run of init (bundles already installed) skips first-run selection flow
-- [ ] 5.1.9 Test: `spec` bundle installation triggers automatic `project` bundle dep install (mock marketplace-02 dep resolver)
-- [ ] 5.1.10 Run tests: `hatch test -- tests/unit/modules/init/test_first_run_selection.py -v` (expect failures — record in TDD_EVIDENCE.md)
+- [x] 5.1.1 Create `tests/unit/modules/init/test_first_run_selection.py`
+- [x] 5.1.2 Test: `specfact init --profile solo-developer` installs only `specfact-codebase` (mock installer)
+- [x] 5.1.3 Test: `specfact init --profile enterprise-full-stack` installs all 5 bundles
+- [x] 5.1.4 Test: `specfact init --profile nonexistent` exits non-zero with error listing valid profiles
+- [x] 5.1.5 Test: `specfact init --install backlog,codebase` installs `specfact-backlog` and `specfact-codebase`
+- [x] 5.1.6 Test: `specfact init --install all` installs all 5 bundles
+- [x] 5.1.7 Test: `specfact init --install widgets` exits non-zero with unknown bundle error
+- [x] 5.1.8 Test: second run of init (bundles already installed) skips first-run selection flow
+- [x] 5.1.9 Test: `spec` bundle installation triggers automatic `project` bundle dep install (mock marketplace-02 dep resolver)
+- [x] 5.1.10 Run tests: `hatch test -- tests/unit/modules/init/test_first_run_selection.py -v` (expect failures — record in TDD_EVIDENCE.md)
 
 ### 5.2 Implement first-run selection in `specfact init`
 
-- [ ] 5.2.1 Add `--profile` and `--install` parameters to `specfact init` command in `src/specfact_cli/modules/init/src/commands.py`
-- [ ] 5.2.2 Implement `is_first_run()` detection (no category bundle installed)
-- [ ] 5.2.3 Implement Copilot-mode interactive bundle selection UI using `rich` (multi-select checkboxes)
-- [ ] 5.2.4 Implement profile preset resolution: map profile name → bundle list
-- [ ] 5.2.5 Implement `--install` flag parsing: comma-separated bundle names + `all` alias
-- [ ] 5.2.6 Implement bundle installation by calling `module_installer.install_module()` for each selected bundle
-- [ ] 5.2.7 Implement graceful degradation when marketplace-02 dep resolver unavailable (warn, skip dep resolution)
-- [ ] 5.2.8 Add `@require`, `@ensure`, `@beartype` on all new public functions
-- [ ] 5.2.9 `hatch test -- tests/unit/modules/init/test_first_run_selection.py -v` — verify tests pass
+- [x] 5.2.1 Add `--profile` and `--install` parameters to `specfact init` command in `src/specfact_cli/modules/init/src/commands.py`
+- [x] 5.2.2 Implement `is_first_run()` detection (no category bundle installed)
+- [x] 5.2.3 Implement Copilot-mode interactive bundle selection UI using `rich` (multi-select checkboxes)
+- [x] 5.2.4 Implement profile preset resolution: map profile name → bundle list
+- [x] 5.2.5 Implement `--install` flag parsing: comma-separated bundle names + `all` alias
+- [x] 5.2.6 Implement bundle installation by calling `module_installer.install_module()` for each selected bundle
+- [x] 5.2.7 Implement graceful degradation when marketplace-02 dep resolver unavailable (warn, skip dep resolution)
+- [x] 5.2.8 Add `@require`, `@ensure`, `@beartype` on all new public functions
+- [x] 5.2.9 `hatch test -- tests/unit/modules/init/test_first_run_selection.py -v` — verify tests pass
 
 ### 5.3 Record passing-test evidence
 
-- [ ] 5.3.1 Update TDD_EVIDENCE.md with passing-test run for first-run selection (timestamp, command, summary)
+- [x] 5.3.1 Update TDD_EVIDENCE.md with passing-test run for first-run selection (timestamp, command, summary)
 
 ## 6. Integration and E2E tests
 
-- [ ] 6.1 Create `tests/integration/test_category_group_routing.py`
-  - [ ] 6.1.1 Test: `specfact code analyze --help` returns non-zero-error-free output (CLI integration)
-  - [ ] 6.1.2 Test: `specfact backlog --help` lists backlog and policy sub-commands
-  - [ ] 6.1.3 Test: deprecated flat command `specfact validate --help` still returns help without error
-- [ ] 6.2 Create `tests/e2e/test_first_run_init.py`
-  - [ ] 6.2.1 Test: `specfact init --profile solo-developer` in a temp workspace completes without error
-  - [ ] 6.2.2 Test: after `--profile solo-developer`, `specfact code analyze --help` is available
-- [ ] 6.3 Run integration and E2E suites: `hatch test -- tests/integration/test_category_group_routing.py tests/e2e/test_first_run_init.py -v`
+- [x] 6.1 Create `tests/integration/test_category_group_routing.py`
+  - [x] 6.1.1 Test: `specfact code analyze --help` returns non-zero-error-free output (CLI integration)
+  - [x] 6.1.2 Test: `specfact backlog --help` lists backlog and policy sub-commands
+  - [x] 6.1.3 Test: deprecated flat command `specfact validate --help` still returns help without error
+- [x] 6.2 Create `tests/e2e/test_first_run_init.py`
+  - [x] 6.2.1 Test: `specfact init --profile solo-developer` in a temp workspace completes without error
+  - [x] 6.2.2 Test: after `--profile solo-developer`, `specfact code analyze --help` is available
+- [x] 6.3 Run integration and E2E suites: `hatch test -- tests/integration/test_category_group_routing.py tests/e2e/test_first_run_init.py -v`
 
 ## 7. Quality gates
 

@@ -12,6 +12,7 @@ import os
 from pathlib import Path
 
 import pytest
+import typer
 
 from specfact_cli.models.module_package import (
     IntegrityInfo,
@@ -313,6 +314,57 @@ def test_unaffected_modules_register_when_one_fails_trust(monkeypatch, tmp_path:
     names = CommandRegistry.list_commands()
     assert "good_cmd" in names
     assert "bad_cmd" not in names
+
+
+def test_grouped_registration_merges_duplicate_command_extensions(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Grouped mode should merge duplicate module command trees instead of replacing earlier loaders."""
+    from specfact_cli.registry import module_packages as mp
+
+    packages = [
+        (
+            tmp_path / "base_backlog",
+            ModulePackageMetadata(name="base_backlog", version="0.1.0", commands=["backlog"], category="backlog"),
+        ),
+        (
+            tmp_path / "ext_backlog",
+            ModulePackageMetadata(name="ext_backlog", version="0.1.0", commands=["backlog"], category="backlog"),
+        ),
+    ]
+    monkeypatch.setattr(mp, "discover_all_package_metadata", lambda: packages)
+    monkeypatch.setattr(mp, "verify_module_artifact", lambda _dir, _meta, allow_unsigned=False: True)
+    monkeypatch.setattr(mp, "read_modules_state", dict)
+    monkeypatch.setattr(mp, "_check_protocol_compliance_from_source", lambda *_args: [])
+
+    def _build_typer(subcommand_name: str) -> typer.Typer:
+        app = typer.Typer()
+
+        @app.command(name=subcommand_name)
+        def _cmd() -> None:
+            return None
+
+        return app
+
+    def _fake_loader(_package_dir: Path, package_name: str, _cmd_name: str):
+        return (
+            (lambda: _build_typer("base_cmd")) if package_name == "base_backlog" else (lambda: _build_typer("ext_cmd"))
+        )
+
+    monkeypatch.setattr(mp, "_make_package_loader", _fake_loader)
+
+    mp.register_module_package_commands(category_grouping_enabled=True)
+
+    backlog_app = CommandRegistry.get_module_typer("backlog")
+    command_names = tuple(
+        sorted(
+            command_info.name
+            for command_info in backlog_app.registered_commands
+            if getattr(command_info, "name", None) is not None
+        )
+    )
+    assert "base_cmd" in command_names
+    assert "ext_cmd" in command_names
 
 
 def test_integrity_failure_shows_user_friendly_risk_warning(monkeypatch, tmp_path: Path) -> None:

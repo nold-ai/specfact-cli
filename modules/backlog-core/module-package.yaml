@@ -1,7 +1,11 @@
 name: backlog-core
-version: 0.1.5
+version: 0.1.6
 commands:
   - backlog
+category: backlog
+bundle: specfact-backlog
+bundle_group_command: backlog
+bundle_sub_command: core
 command_help:
   backlog: Backlog dependency analysis, delta workflows, and release readiness
 pip_dependencies: []
@@ -20,10 +24,10 @@ schema_extensions:
 publisher:
   name: nold-ai
   url: https://github.com/nold-ai/specfact-cli-modules
-  email: oss@nold.ai
+  email: hello@noldai.com
 integrity:
-  checksum: sha256:c6ae56b1e5f3cf4d4bc0d9d256f24e6377f08e4e82a1f8bead935c0e7cee7431
-  signature: FpTzbqYcR+6jiRUXjqvzfmqoLGeam7lLyLLc/ZfT7AokzRPz4cl5F/KO0b3XZmXQfHWfT+GFTJi5T/POkobJCg==
+  checksum: sha256:786a67c54f70930208265217499634ccd5e04cb8404d00762bce2e01904c55e4
+  signature: Q8CweUicTL/btp9p5QYTlBuXF3yoKvz9ZwaGK0yw3QSM72nni28ZBJ+FivGkmBfcH5zXWAGtASbqC4ry8m5DDQ==
 dependencies: []
 description: Provide advanced backlog analysis and readiness capabilities.
 license: Apache-2.0

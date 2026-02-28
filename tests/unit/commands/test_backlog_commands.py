@@ -9,6 +9,7 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pytest
 import yaml
 from rich.panel import Panel
 from typer.testing import CliRunner
@@ -36,6 +37,18 @@ from specfact_cli.templates.registry import BacklogTemplate, TemplateRegistry
 
 
 runner = CliRunner()
+
+
+@pytest.fixture(autouse=True)
+def _bootstrap_registry_for_backlog_commands():
+    """Ensure registry is bootstrapped so root 'backlog' resolves to the group with init-config, map-fields, etc."""
+    from specfact_cli.registry.bootstrap import register_builtin_commands
+    from specfact_cli.registry.registry import CommandRegistry
+
+    CommandRegistry._clear_for_testing()
+    register_builtin_commands()
+    yield
+    CommandRegistry._clear_for_testing()
 
 
 @patch("specfact_cli.modules.backlog.src.commands._resolve_standup_options")
@@ -376,7 +389,8 @@ class TestInteractiveMappingCommand:
 
         # Should fail with error about missing token
         assert result.exit_code != 0
-        assert "token required" in result.stdout.lower() or "error" in result.stdout.lower()
+        out = result.output or result.stdout or ""
+        assert "token required" in out.lower() or "error" in out.lower()
 
     @patch("questionary.checkbox")
     @patch("specfact_cli.utils.auth_tokens.get_token")
@@ -833,7 +847,7 @@ backlog_config:
         assert result.exit_code == 0
         content = cfg_file.read_text(encoding="utf-8")
         assert "adapter: github" in content
-        assert "already exists" in result.stdout.lower()
+        assert "already exists" in (result.output or result.stdout or "").lower()
 
 
 class TestParseRefinedExportMarkdown:

@@ -1,7 +1,11 @@
 name: contract
-version: 0.1.0
+version: 0.1.1
 commands:
   - contract
+category: spec
+bundle: specfact-spec
+bundle_group_command: spec
+bundle_sub_command: contract
 command_help:
   contract: Manage OpenAPI contracts for project bundles
 pip_dependencies: []
@@ -11,9 +15,9 @@ core_compatibility: '>=0.28.0,<1.0.0'
 publisher:
   name: nold-ai
   url: https://github.com/nold-ai/specfact-cli-modules
-  email: oss@nold.ai
+  email: hello@noldai.com
 description: Validate and manage API contracts for project bundles.
 license: Apache-2.0
 integrity:
-  checksum: sha256:ea7526559317a65684db0ecc8eaccd06a60dcb94361c95389e7a35cfd31279d3
-  signature: iJC2irFaSiWa9fdFjJYGpHlsyWKRNpoFmQSB+PY0ORS6y+gVHAPNGJL7iP5TFYB3I83szCWfmF+2hLeTyc1XDg==
+  checksum: sha256:e36b4d6b91ec88ec7586265457440babcce2e0ea29db20f25307797c0ffb19c0
+  signature: kPeqIYhcF4ri/0q+cKcrCVe4VUsEVT62GPL9uPTV2GJp58Rejkcq1rnaoO2zun0GRWzXI00DMutSCU85P+kECQ==

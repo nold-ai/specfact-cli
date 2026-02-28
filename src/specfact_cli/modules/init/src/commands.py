@@ -18,7 +18,9 @@ from rich.table import Table
 from specfact_cli import __version__
 from specfact_cli.contracts.module_interface import ModuleIOContract
 from specfact_cli.modules import module_io_shim
+from specfact_cli.modules.init.src import first_run_selection
 from specfact_cli.registry.help_cache import run_discovery_and_write_cache
+from specfact_cli.registry.module_installer import USER_MODULES_ROOT as INIT_USER_MODULES_ROOT
 from specfact_cli.registry.module_packages import get_discovered_modules_for_state
 from specfact_cli.registry.module_state import write_modules_state
 from specfact_cli.runtime import debug_log_operation, debug_print, is_debug_mode, is_non_interactive
@@ -31,6 +33,10 @@ from specfact_cli.utils.ide_setup import (
     detect_ide,
     find_package_resources_path,
 )
+
+
+install_bundles_for_init = first_run_selection.install_bundles_for_init
+is_first_run = first_run_selection.is_first_run
 
 
 def _copy_backlog_field_mapping_templates(repo_path: Path, force: bool, console: Console) -> None:
@@ -347,6 +353,63 @@ def _is_valid_repo_path(repo: Path) -> bool:
     return repo.exists() and repo.is_dir()
 
 
+def _interactive_first_run_bundle_selection() -> list[str]:
+    """Show first-run welcome and bundle selection; return list of canonical bundle ids to install (or empty)."""
+    try:
+        import questionary  # type: ignore[reportMissingImports]
+    except ImportError as e:
+        console.print(
+            "[red]Interactive bundle selection requires 'questionary'. Install with: pip install questionary[/red]"
+        )
+        raise typer.Exit(1) from e
+
+    console.print()
+    console.print(
+        Panel(
+            "[bold cyan]Welcome to SpecFact[/bold cyan]\n"
+            "Choose which workflow bundles to install. Core commands (init, auth, module, upgrade) are always available.",
+            border_style="cyan",
+        )
+    )
+    console.print("[dim]You can install more later with `specfact module install <bundle>`[/dim]")
+    console.print()
+
+    profile_choices = [f"{label}  [dim]({key})[/dim]" for key, label in first_run_selection.PROFILE_DISPLAY_ORDER]
+    profile_to_key = {f"{label}  [dim]({key})[/dim]": key for key, label in first_run_selection.PROFILE_DISPLAY_ORDER}
+    profile_to_key["Choose bundles manually"] = "_manual_"
+
+    choice = questionary.select(
+        "Select a profile or choose bundles manually:",
+        choices=[*profile_choices, "Choose bundles manually"],
+        style=_questionary_style(),
+    ).ask()
+
+    if not choice:
+        return []
+
+    if choice in profile_to_key:
+        key = profile_to_key[choice]
+        if key == "_manual_":
+            bundle_choices = [
+                f"{first_run_selection.BUNDLE_DISPLAY.get(bid, bid)}  [dim]({bid})[/dim]"
+                for bid in first_run_selection.CANONICAL_BUNDLES
+            ]
+            selected = questionary.checkbox(
+                "Select bundles to install:",
+                choices=bundle_choices,
+                style=_questionary_style(),
+            ).ask()
+            if not selected:
+                return []
+            return [bid for bid in first_run_selection.CANONICAL_BUNDLES if any(bid in s for s in selected)]
+        return list(first_run_selection.PROFILE_PRESETS.get(key, []))
+
+    for key, label in first_run_selection.PROFILE_DISPLAY_ORDER:
+        if choice.startswith(label) or f"({key})" in choice:
+            return list(first_run_selection.PROFILE_PRESETS.get(key, []))
+    return []
+
+
 @app.command("ide")
 @require(_is_valid_repo_path, "Repo path must exist and be directory")
 @ensure(lambda result: result is None, "Command should return None")
@@ -435,6 +498,16 @@ def init(
         file_okay=False,
         dir_okay=True,
     ),
+    profile: str | None = typer.Option(
+        None,
+        "--profile",
+        help="First-run profile preset: solo-developer, backlog-team, api-first-team, enterprise-full-stack",
+    ),
+    install: str | None = typer.Option(
+        None,
+        "--install",
+        help="Comma-separated bundle names or 'all' to install without prompting",
+    ),
     install_deps: bool = typer.Option(
         False,
         "--install-deps",
@@ -450,6 +523,42 @@ def init(
             return
 
         repo_path = repo.resolve()
+
+        if profile is not None or install is not None:
+            try:
+                if profile is not None:
+                    bundle_ids = first_run_selection.resolve_profile_bundles(profile)
+                else:
+                    bundle_ids = first_run_selection.resolve_install_bundles(install or "")
+                if bundle_ids:
+                    first_run_selection.install_bundles_for_init(
+                        bundle_ids,
+                        INIT_USER_MODULES_ROOT,
+                        non_interactive=is_non_interactive(),
+                    )
+            except ValueError as e:
+                console.print(f"[red]Error:[/red] {e}")
+                raise typer.Exit(1) from e
+        elif is_first_run(user_root=INIT_USER_MODULES_ROOT) and not is_non_interactive():
+            try:
+                bundle_ids = _interactive_first_run_bundle_selection()
+                if bundle_ids:
+                    first_run_selection.install_bundles_for_init(
+                        bundle_ids,
+                        INIT_USER_MODULES_ROOT,
+                        non_interactive=False,
+                    )
+                else:
+                    console.print(
+                        "[dim]Tip: Install bundles later with "
+                        "`specfact module install <bundle>` or `specfact init --profile <name>`[/dim]"
+                    )
+            except typer.Exit:
+                raise
+            except ValueError as e:
+                console.print(f"[red]Error:[/red] {e}")
+                raise typer.Exit(1) from e
+
         modules_list = get_discovered_modules_for_state(enable_ids=[], disable_ids=[])
         if modules_list:
             write_modules_state(modules_list)

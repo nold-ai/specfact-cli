@@ -43,7 +43,7 @@ class TestSpecValidateCommand:
         old_cwd = os.getcwd()
         try:
             os.chdir(tmp_path)
-            result = runner.invoke(app, ["spec", "validate", str(spec_path)])
+            result = runner.invoke(app, ["spec", "api", "validate", str(spec_path)])
         finally:
             os.chdir(old_cwd)
 
@@ -62,7 +62,7 @@ class TestSpecValidateCommand:
         old_cwd = os.getcwd()
         try:
             os.chdir(tmp_path)
-            result = runner.invoke(app, ["spec", "validate", str(spec_path)])
+            result = runner.invoke(app, ["spec", "api", "validate", str(spec_path)])
         finally:
             os.chdir(old_cwd)
 
@@ -94,7 +94,7 @@ class TestSpecValidateCommand:
         old_cwd = os.getcwd()
         try:
             os.chdir(tmp_path)
-            result = runner.invoke(app, ["spec", "validate", str(spec_path)])
+            result = runner.invoke(app, ["spec", "api", "validate", str(spec_path)])
         finally:
             os.chdir(old_cwd)
 
@@ -126,7 +126,7 @@ class TestSpecBackwardCompatCommand:
         old_cwd = os.getcwd()
         try:
             os.chdir(tmp_path)
-            result = runner.invoke(app, ["spec", "backward-compat", str(old_spec), str(new_spec)])
+            result = runner.invoke(app, ["spec", "api", "backward-compat", str(old_spec), str(new_spec)])
         finally:
             os.chdir(old_cwd)
 
@@ -154,7 +154,7 @@ class TestSpecBackwardCompatCommand:
         old_cwd = os.getcwd()
         try:
             os.chdir(tmp_path)
-            result = runner.invoke(app, ["spec", "backward-compat", str(old_spec), str(new_spec)])
+            result = runner.invoke(app, ["spec", "api", "backward-compat", str(old_spec), str(new_spec)])
         finally:
             os.chdir(old_cwd)
 
@@ -189,7 +189,7 @@ class TestSpecGenerateTestsCommand:
             output_dir.mkdir(parents=True, exist_ok=True)
             result = runner.invoke(
                 app,
-                ["spec", "generate-tests", str(spec_path), "--output", str(output_dir)],
+                ["spec", "api", "generate-tests", str(spec_path), "--output", str(output_dir)],
             )
         finally:
             os.chdir(old_cwd)
@@ -225,7 +225,7 @@ class TestSpecMockCommand:
             # Use timeout to prevent hanging
             result = runner.invoke(
                 app,
-                ["spec", "mock", "--spec", str(spec_path), "--port", "9000"],
+                ["spec", "api", "mock", "--spec", str(spec_path), "--port", "9000"],
                 input="\n",  # Send Enter to exit
             )
         finally:

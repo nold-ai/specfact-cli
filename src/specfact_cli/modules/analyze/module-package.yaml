@@ -1,7 +1,11 @@
 name: analyze
-version: 0.1.0
+version: 0.1.1
 commands:
   - analyze
+category: codebase
+bundle: specfact-codebase
+bundle_group_command: code
+bundle_sub_command: analyze
 command_help:
   analyze: Analyze codebase for contract coverage and quality
 pip_dependencies: []
@@ -11,9 +15,9 @@ core_compatibility: '>=0.28.0,<1.0.0'
 publisher:
   name: nold-ai
   url: https://github.com/nold-ai/specfact-cli-modules
-  email: oss@nold.ai
+  email: hello@noldai.com
 description: Analyze codebase quality, contracts, and architecture signals.
 license: Apache-2.0
 integrity:
-  checksum: sha256:49d908578ab91e142cff50a27d9b15fff3a30cf790597eecbea1910e38a754b6
-  signature: CqsLSUUx3DYa0a8F56/OW4QFt6TDhx1OueAwI0tYC892S7RlvaF5JEwKcUXujKD2IQRoOKUQ7d0Gdqs8Kwh2Cw==
+  checksum: sha256:d57826fb72253cf65a191bace15cb1a6b7551e844b80a4bef94e9cf861727bde
+  signature: /9/vp39C0v8ywsHOY3hBMyxbSNqYf5nbz1Fa9gw0KmNKclBIhfYj/JZzi7R56iYZaU5w8YsjLEj4/IspV2JdCg==

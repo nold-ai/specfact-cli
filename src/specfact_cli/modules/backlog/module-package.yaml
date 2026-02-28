@@ -1,7 +1,11 @@
 name: backlog
-version: 0.1.6
+version: 0.1.7
 commands:
   - backlog
+category: backlog
+bundle: specfact-backlog
+bundle_group_command: backlog
+bundle_sub_command: backlog
 command_help:
   backlog: Backlog refinement and template management
 pip_dependencies: []
@@ -24,9 +28,9 @@ service_bridges:
 publisher:
   name: nold-ai
   url: https://github.com/nold-ai/specfact-cli-modules
-  email: oss@nold.ai
+  email: hello@noldai.com
 description: Manage backlog ceremonies, refinement, and dependency insights.
 license: Apache-2.0
 integrity:
-  checksum: sha256:a3b033ef35a6a95e1c40ffe28e112cb1683af5051dd813038bacf1cd76bfd7ad
-  signature: gHQkRqNpRRpxwRmFiHSHaSpq8/rwKvv1v/4Wjt8pRl0Z2VFTVF1DStb2XwgZlE0Bpg77n++G5mIl7KkM7MyGBQ==
+  checksum: sha256:8e7c0b8636d5ef39ba3b3b1275d67f68bde017e1328efd38f091f97152256c7f
+  signature: RK6YZCqmWWfb8OWCsRX6Qic1jqiqGdaDrcJmOYLLI3epz48LWx7sx3ZcIHzYGNf8VLg1q0tAnpTfsxfC4nm7DQ==

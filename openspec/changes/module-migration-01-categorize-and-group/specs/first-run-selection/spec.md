@@ -49,6 +49,15 @@ On a fresh install where no bundles are installed, `specfact init` SHALL present
 - **THEN** the CLI SHALL NOT show the bundle selection UI
 - **AND** SHALL run the standard workspace re-initialisation flow
 
+#### Scenario: Workspace-local project-scoped modules suppress first-run flow
+
+- **GIVEN** a repository already contains category bundle modules under workspace-local `.specfact/modules`
+- **AND** those modules are discovered with source `project`
+- **WHEN** the user runs `specfact init`
+- **THEN** first-run detection SHALL treat the workspace as already initialized
+- **AND** the CLI SHALL NOT show first-run bundle selection again
+- **AND** SHALL run the standard workspace re-initialisation flow
+
 ### Requirement: `specfact init --profile <name>` installs a named preset non-interactively
 
 The system SHALL accept a `--profile <name>` argument on `specfact init` and MUST install the canonical bundle set for that profile without prompting, whether in CI/CD mode or interactive mode.

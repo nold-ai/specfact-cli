@@ -1,7 +1,11 @@
 name: import_cmd
-version: 0.1.0
+version: 0.1.1
 commands:
   - import
+category: project
+bundle: specfact-project
+bundle_group_command: project
+bundle_sub_command: import
 command_help:
   import: Import codebases and external tool projects (e.g., Spec-Kit, OpenSpec, generic-markdown)
 pip_dependencies: []
@@ -11,9 +15,9 @@ core_compatibility: '>=0.28.0,<1.0.0'
 publisher:
   name: nold-ai
   url: https://github.com/nold-ai/specfact-cli-modules
-  email: oss@nold.ai
+  email: hello@noldai.com
 description: Import projects and requirements from code and external tools.
 license: Apache-2.0
 integrity:
-  checksum: sha256:246f8402200e57947a50f61102ef8057dd75a6ad2768d359774600557daead8b
-  signature: sCgBiKEtN5r2br/6ZAYmII7XjjZ9Ru8WqqPfXXaE2shn0eQBiDxKKH/ATNBZphtYJbTfXEpQFZg3oVja4jITCg==
+  checksum: sha256:f1cdb18387d6e64bdbbc59eac070df7aa1e215f5684c82e3e5058e7f3bff2a78
+  signature: DeuBD5usns6KCBFNYAim9gDaUAZVWW0jgDeWW1+EpbtsDskiKTTP7MTU5fh4U2N/JHsXFTXZVMh4VaQHOyXMCg==
