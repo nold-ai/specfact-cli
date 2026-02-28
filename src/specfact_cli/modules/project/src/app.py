@@ -1,6 +1,6 @@
-"""Compatibility shim for legacy specfact_cli.modules.project.src.app module."""
+"""Module app entrypoint for project."""
 
-from specfact_project.project.commands import app
+from specfact_cli.modules.project.src.commands import app
 
 
 __all__ = ["app"]

@@ -1,6 +1,6 @@
-"""Compatibility shim for legacy specfact_cli.modules.enforce.src package."""
+"""Module source package for enforce."""
 
-from specfact_govern.enforce.commands import app
+from specfact_cli.modules.enforce.src.commands import app
 
 
 __all__ = ["app"]

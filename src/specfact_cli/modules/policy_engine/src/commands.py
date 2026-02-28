@@ -1,14 +1,6 @@
-"""Compatibility shim for legacy specfact_cli.modules.policy_engine.src.commands module."""
+"""Module-local command exports for policy_engine."""
 
-from importlib import import_module
-
-
-_target = import_module("specfact_backlog.policy_engine.commands")
-app = _target.app
-
-
-def __getattr__(name: str):
-    return getattr(_target, name)
+from specfact_cli.modules.policy_engine.src.policy_engine.main import app
 
 
 __all__ = ["app"]

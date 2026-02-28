@@ -1,6 +1,6 @@
-"""Compatibility shim for legacy specfact_cli.modules.analyze.src package."""
+"""Module source package for analyze."""
 
-from specfact_codebase.analyze.commands import app
+from specfact_cli.modules.analyze.src.commands import app
 
 
 __all__ = ["app"]

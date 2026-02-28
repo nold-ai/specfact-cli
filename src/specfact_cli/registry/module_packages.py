@@ -78,6 +78,7 @@ PROTOCOL_METHODS: dict[str, str] = {
 }
 PROTOCOL_INTERFACE_BINDINGS: tuple[str, ...] = ("runtime_interface", "commands_interface", "commands")
 BRIDGE_REGISTRY = BridgeRegistry()
+BUILTIN_MODULES_ROOT = (Path(__file__).resolve().parents[1] / "modules").resolve()
 
 
 def _normalized_module_name(package_name: str) -> str:
@@ -91,6 +92,15 @@ def get_modules_root() -> Path:
 
     pkg_dir = Path(specfact_cli.__path__[0]).resolve()
     return pkg_dir / "modules"
+
+
+def _is_builtin_module_package(package_dir: Path) -> bool:
+    """Return True when package directory belongs to built-in module tree."""
+    try:
+        package_dir.resolve().relative_to(BUILTIN_MODULES_ROOT)
+        return True
+    except ValueError:
+        return False
 
 
 def get_modules_roots() -> list[Path]:
@@ -692,12 +702,14 @@ def _check_protocol_compliance_from_source(package_dir: Path, package_name: str)
     exported_function_names: set[str] = set()
     class_method_names: dict[str, set[str]] = {}
     assigned_names: dict[str, ast.expr] = {}
+    scanned_sources: list[str] = []
     pending_paths = _resolve_protocol_source_paths(package_dir, package_name)
     scanned_paths = {path.resolve() for path in pending_paths}
 
     while pending_paths:
         source_path = pending_paths.pop(0)
         source = source_path.read_text(encoding="utf-8")
+        scanned_sources.append(source)
         tree = ast.parse(source, filename=str(source_path))
 
         for node in tree.body:
@@ -757,6 +769,22 @@ def _check_protocol_compliance_from_source(package_dir: Path, package_name: str)
     for operation, method_name in PROTOCOL_METHODS.items():
         if method_name in exported_function_names:
             operations.append(operation)
+    if operations:
+        return operations
+
+    # Migration compatibility shims proxy to split bundle repos and may not expose
+    # protocol methods in this local source file. Classify these as fully
+    # protocol-capable to avoid false "legacy module" reports in static scans.
+    joined_source = "\n".join(scanned_sources)
+    if (
+        (
+            "Compatibility shim for legacy specfact_cli.modules." in joined_source
+            or "Compatibility alias for legacy specfact_cli.modules." in joined_source
+        )
+        and "commands" in joined_source
+        and ("from specfact_" in joined_source or 'import_module("specfact_' in joined_source)
+    ):
+        return sorted(PROTOCOL_METHODS.keys())
     return operations
 
 
@@ -922,9 +950,11 @@ def register_module_package_commands(
             skipped.append((meta.name, f"missing dependencies: {', '.join(missing)}"))
             continue
         if not verify_module_artifact(package_dir, meta, allow_unsigned=allow_unsigned):
-            if is_test_mode and allow_unsigned:
+            # In test mode, allow built-in modules to load even when local manifests
+            # are intentionally modified during migration work.
+            if is_test_mode and allow_unsigned and _is_builtin_module_package(package_dir):
                 logger.debug(
-                    "TEST_MODE: allowing module '%s' despite failed integrity verification.",
+                    "TEST_MODE: allowing built-in module '%s' despite failed integrity verification.",
                     meta.name,
                 )
             else:

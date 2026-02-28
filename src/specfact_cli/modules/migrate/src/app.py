@@ -1,6 +1,6 @@
-"""Compatibility shim for legacy specfact_cli.modules.migrate.src.app module."""
+"""Module app entrypoint for migrate."""
 
-from specfact_project.migrate.commands import app
+from specfact_cli.modules.migrate.src.commands import app
 
 
 __all__ = ["app"]

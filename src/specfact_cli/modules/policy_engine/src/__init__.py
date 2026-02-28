@@ -1,6 +1,6 @@
-"""Compatibility shim for legacy specfact_cli.modules.policy_engine.src package."""
+"""Module source package for policy_engine."""
 
-from specfact_backlog.policy_engine.commands import app
+from specfact_cli.modules.policy_engine.src.commands import app
 
 
 __all__ = ["app"]

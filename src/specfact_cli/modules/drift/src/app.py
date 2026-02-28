@@ -1,6 +1,6 @@
-"""Compatibility shim for legacy specfact_cli.modules.drift.src.app module."""
+"""Module app entrypoint for drift."""
 
-from specfact_codebase.drift.commands import app
+from specfact_cli.modules.drift.src.commands import app
 
 
 __all__ = ["app"]

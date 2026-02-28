@@ -1,6 +1,6 @@
-"""Compatibility shim for legacy specfact_cli.modules.contract.src package."""
+"""Module source package for contract."""
 
-from specfact_spec.contract.commands import app
+from specfact_cli.modules.contract.src.commands import app
 
 
 __all__ = ["app"]

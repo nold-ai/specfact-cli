@@ -116,6 +116,10 @@ def _download_archive_with_cache(module_id: str, version: str | None = None) -> 
         _cache_downloaded_archive(archive, module_id, version)
         return archive
     except Exception as exc:
+        message = str(exc).lower()
+        offline_like = "offline" in message or "cannot install from marketplace" in message
+        if not offline_like:
+            raise exc
         cached = _find_cached_archive(module_id, version)
         if cached is not None:
             logger.warning("Marketplace unavailable for %s; using cached archive %s", module_id, cached)
