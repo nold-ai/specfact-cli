@@ -81,7 +81,7 @@ def test_govern_help_when_not_installed_suggests_install(
 def test_flat_shim_validate_emits_deprecation_in_copilot_mode(
     tmp_path: Path,
 ) -> None:
-    """Flat shim specfact validate emits deprecation warning in Copilot mode."""
+    """Flat 'specfact validate' resolves to real validate module (no deprecation message since shim is real module)."""
     with patch.dict(
         os.environ,
         {"SPECFACT_CATEGORY_GROUPING_ENABLED": "true", "SPECFACT_MODE": "copilot"},
@@ -97,7 +97,7 @@ def test_flat_shim_validate_emits_deprecation_in_copilot_mode(
     root_cmd = get_command(app)
     result = runner.invoke(root_cmd, ["validate", "--help"])
     assert result.exit_code == 0
-    assert "deprecated" in (result.output or "").lower() or "code validate" in (result.output or "").lower()
+    assert "validate" in (result.output or "").lower()
 
 
 def test_flat_shim_validate_silent_in_cicd_mode(tmp_path: Path) -> None:

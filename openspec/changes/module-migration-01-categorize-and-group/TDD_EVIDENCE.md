@@ -61,3 +61,27 @@ Implementation: `src/specfact_cli/modules/init/src/first_run_selection.py` and `
 
 **Integration:** `test_code_analyze_help_exits_zero`, `test_backlog_help_lists_subcommands`, `test_validate_shim_help_exits_zero`.  
 **E2E:** `test_init_profile_solo_developer_completes_in_temp_workspace`, `test_after_solo_developer_init_code_analyze_help_available` (install_bundles_for_init mocked).
+
+## Phase 4 — Regression fixes from review (grouped extension merge + project-scoped first-run)
+
+### 4.1 Failing tests (pre-implementation)
+
+**Timestamp:** 2026-02-28 01:00 UTC  
+**Command:** `hatch test -- tests/unit/specfact_cli/registry/test_module_packages.py::test_grouped_registration_merges_duplicate_command_extensions tests/unit/modules/init/test_first_run_selection.py::test_is_first_run_false_when_project_scoped_category_bundle_installed -v`  
+**Result:** 2 failed.
+
+**Failure summary:**
+
+- `test_grouped_registration_merges_duplicate_command_extensions` failed because grouped registration replaced the earlier `backlog` loader; observed commands were only `('ext_cmd',)` and `base_cmd` was missing.
+- `test_is_first_run_false_when_project_scoped_category_bundle_installed` failed because `is_first_run()` ignored modules discovered with source `project`, returning `True` for an already-initialized workspace.
+
+### 4.2 Passing tests (post-implementation)
+
+**Timestamp:** 2026-02-28 01:01 UTC  
+**Command:** `hatch test -- tests/unit/specfact_cli/registry/test_module_packages.py::test_grouped_registration_merges_duplicate_command_extensions tests/unit/modules/init/test_first_run_selection.py::test_is_first_run_false_when_project_scoped_category_bundle_installed -v`  
+**Result:** 2 passed.
+
+**Implementation summary:**
+
+- Updated `register_module_package_commands()` grouped path to merge duplicate command loaders via `_make_extending_loader` for module entries (and core root entries), instead of unconditional overwrite.
+- Updated `is_first_run()` source filter to include `project` modules in first-run detection.

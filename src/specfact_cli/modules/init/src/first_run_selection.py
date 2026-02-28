@@ -105,7 +105,7 @@ def is_first_run(
     root = user_root or USER_MODULES_ROOT
     discovered = discover_all_modules(user_root=root)
     for entry in discovered:
-        if entry.source not in ("user", "marketplace"):
+        if entry.source not in ("user", "marketplace", "project"):
             continue
         cat = entry.metadata.category
         if cat is not None and cat != "core" and cat in VALID_CATEGORIES:

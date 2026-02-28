@@ -1013,11 +1013,55 @@ def register_module_package_commands(
         for cmd_name in meta.commands:
             if category_grouping_enabled:
                 help_str = (meta.command_help or {}).get(cmd_name) or f"Module package: {meta.name}"
-                loader = _make_package_loader(package_dir, meta.name, cmd_name)
+                extension_loader = _make_package_loader(package_dir, meta.name, cmd_name)
                 cmd_meta = CommandMetadata(name=cmd_name, help=help_str, tier=meta.tier, addon_id=meta.addon_id)
-                CommandRegistry.register_module(cmd_name, loader, cmd_meta)
+                existing_module_entry = next(
+                    (entry for entry in CommandRegistry._module_entries if entry.get("name") == cmd_name),
+                    None,
+                )
+                if existing_module_entry is not None:
+                    base_loader = existing_module_entry.get("loader")
+                    if base_loader is None:
+                        logger.warning(
+                            "Module %s attempted to extend command '%s' but module base loader was missing; skipping.",
+                            meta.name,
+                            cmd_name,
+                        )
+                    else:
+                        existing_module_entry["loader"] = _make_extending_loader(
+                            base_loader,
+                            extension_loader,
+                            meta.name,
+                            cmd_name,
+                        )
+                        existing_module_entry["metadata"] = cmd_meta
+                        CommandRegistry._module_typer_cache.pop(cmd_name, None)
+                else:
+                    CommandRegistry.register_module(cmd_name, extension_loader, cmd_meta)
                 if cmd_name in CORE_NAMES:
-                    CommandRegistry.register(cmd_name, loader, cmd_meta)
+                    existing_root_entry = next(
+                        (entry for entry in CommandRegistry._entries if entry.get("name") == cmd_name),
+                        None,
+                    )
+                    if existing_root_entry is not None:
+                        base_loader = existing_root_entry.get("loader")
+                        if base_loader is None:
+                            logger.warning(
+                                "Module %s attempted to extend core command '%s' but base loader was missing; skipping.",
+                                meta.name,
+                                cmd_name,
+                            )
+                        else:
+                            existing_root_entry["loader"] = _make_extending_loader(
+                                base_loader,
+                                extension_loader,
+                                meta.name,
+                                cmd_name,
+                            )
+                            existing_root_entry["metadata"] = cmd_meta
+                            CommandRegistry._typer_cache.pop(cmd_name, None)
+                    else:
+                        CommandRegistry.register(cmd_name, extension_loader, cmd_meta)
                 continue
             existing_entry = next((entry for entry in CommandRegistry._entries if entry.get("name") == cmd_name), None)
             if existing_entry is not None:

@@ -114,6 +114,22 @@ def test_is_first_run_false_when_category_bundle_installed(monkeypatch: pytest.M
     assert frs.is_first_run(user_root=tmp_path) is False
 
 
+def test_is_first_run_false_when_project_scoped_category_bundle_installed(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    def _discover(_builtin=None, user_root=None, **_kwargs):
+        from specfact_cli.models.module_package import ModulePackageMetadata
+        from specfact_cli.registry.module_discovery import DiscoveredModule
+
+        meta_project = ModulePackageMetadata(
+            name="analyze", version="0.1.0", commands=["analyze"], category="codebase", bundle="specfact-codebase"
+        )
+        return [DiscoveredModule(tmp_path / "analyze", meta_project, "project")]
+
+    monkeypatch.setattr("specfact_cli.registry.module_discovery.discover_all_modules", _discover)
+    assert frs.is_first_run(user_root=tmp_path) is False
+
+
 # --- CLI: specfact init --profile (mock installer) ---
 
 
