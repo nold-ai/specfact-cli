@@ -12,6 +12,7 @@ import tarfile
 import tempfile
 from functools import lru_cache
 from pathlib import Path
+from typing import Any
 
 import yaml
 from beartype import beartype
@@ -32,6 +33,7 @@ from specfact_cli.runtime import is_debug_mode
 
 USER_MODULES_ROOT = Path.home() / ".specfact" / "modules"
 MARKETPLACE_MODULES_ROOT = Path.home() / ".specfact" / "marketplace-modules"
+MODULE_DOWNLOAD_CACHE_ROOT = Path.home() / ".specfact" / "downloads" / "cache"
 _IGNORED_MODULE_DIR_NAMES = {"__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache", "logs"}
 _IGNORED_MODULE_FILE_SUFFIXES = {".pyc", ".pyo"}
 REGISTRY_ID_FILE = ".specfact-registry-id"
@@ -64,6 +66,91 @@ def _check_namespace_collision(module_id: str, final_path: Path, reinstall: bool
             f"Module namespace collision: {module_id!r} conflicts with existing {existing_id!r}. "
             "Use alias for disambiguation or uninstall the existing module first."
         )
+
+
+@beartype
+def _cache_archive_name(module_id: str, version: str | None = None) -> str:
+    """Return deterministic archive cache filename for module id/version."""
+    suffix = version.strip() if isinstance(version, str) and version.strip() else "latest"
+    return f"{module_id.replace('/', '--')}--{suffix}.tar.gz"
+
+
+@beartype
+def _cache_downloaded_archive(archive_path: Path, module_id: str, version: str | None = None) -> Path:
+    """Copy downloaded archive into deterministic local cache location."""
+    logger = get_bridge_logger(__name__)
+    cached_path = MODULE_DOWNLOAD_CACHE_ROOT / _cache_archive_name(module_id, version)
+    try:
+        MODULE_DOWNLOAD_CACHE_ROOT.mkdir(parents=True, exist_ok=True)
+        if archive_path.resolve() == cached_path.resolve():
+            return cached_path
+        shutil.copy2(archive_path, cached_path)
+        return cached_path
+    except OSError as exc:
+        logger.debug("Skipping module archive cache write for %s: %s", module_id, exc)
+        return archive_path
+
+
+@beartype
+def _find_cached_archive(module_id: str, version: str | None = None) -> Path | None:
+    """Find cached archive for module id/version; return newest matching artifact."""
+    preferred: list[Path] = []
+    if isinstance(version, str) and version.strip():
+        preferred.append(MODULE_DOWNLOAD_CACHE_ROOT / _cache_archive_name(module_id, version))
+    preferred.append(MODULE_DOWNLOAD_CACHE_ROOT / _cache_archive_name(module_id, None))
+    for path in preferred:
+        if path.exists():
+            return path
+    wildcard = sorted(MODULE_DOWNLOAD_CACHE_ROOT.glob(f"{module_id.replace('/', '--')}--*.tar.gz"))
+    if wildcard:
+        return wildcard[-1]
+    return None
+
+
+@beartype
+def _download_archive_with_cache(module_id: str, version: str | None = None) -> Path:
+    """Download module archive and fallback to cached artifact when offline."""
+    logger = get_bridge_logger(__name__)
+    try:
+        archive = download_module(module_id, version=version)
+        _cache_downloaded_archive(archive, module_id, version)
+        return archive
+    except Exception as exc:
+        cached = _find_cached_archive(module_id, version)
+        if cached is not None:
+            logger.warning("Marketplace unavailable for %s; using cached archive %s", module_id, cached)
+            return cached
+        raise exc
+
+
+@beartype
+def _extract_bundle_dependencies(metadata: dict[str, Any]) -> list[str]:
+    """Extract validated bundle dependency module ids from raw manifest metadata."""
+    raw_dependencies = metadata.get("bundle_dependencies", [])
+    if not isinstance(raw_dependencies, list):
+        return []
+    dependencies: list[str] = []
+    for value in raw_dependencies:
+        dep = str(value).strip()
+        if not dep:
+            continue
+        _validate_marketplace_namespace_format(dep)
+        dependencies.append(dep)
+    return dependencies
+
+
+@beartype
+def _installed_dependency_version(manifest_path: Path) -> str:
+    """Return installed dependency version from manifest path."""
+    if not manifest_path.exists():
+        return "unknown"
+    try:
+        metadata = yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
+        if isinstance(metadata, dict):
+            return str(metadata.get("version", "unknown"))
+    except Exception:
+        return "unknown"
+    return "unknown"
 
 
 @beartype
@@ -520,7 +607,7 @@ def install_module(
         logger.debug("Module already installed (%s)", module_name)
         return final_path
 
-    archive_path = download_module(module_id, version=version)
+    archive_path = _download_archive_with_cache(module_id, version=version)
 
     with tempfile.TemporaryDirectory(prefix="specfact-module-install-") as tmp_dir:
         tmp_dir_path = Path(tmp_dir)
@@ -571,6 +658,28 @@ def install_module(
                 commands=[str(command) for command in metadata.get("commands", []) if str(command).strip()],
             )
         if not skip_deps:
+            for dependency_module_id in _extract_bundle_dependencies(metadata):
+                if dependency_module_id == module_id:
+                    continue
+                dependency_name = dependency_module_id.split("/", 1)[1]
+                dependency_manifest = target_root / dependency_name / "module-package.yaml"
+                if dependency_manifest.exists():
+                    dependency_version = _installed_dependency_version(dependency_manifest)
+                    logger.warning(
+                        "Dependency %s already satisfied (version %s)", dependency_module_id, dependency_version
+                    )
+                    continue
+                try:
+                    install_module(
+                        dependency_module_id,
+                        install_root=target_root,
+                        trust_non_official=trust_non_official,
+                        non_interactive=non_interactive,
+                        skip_deps=False,
+                        force=force,
+                    )
+                except Exception as dep_exc:
+                    raise ValueError(f"Dependency install failed for {dependency_module_id}: {dep_exc}") from dep_exc
             try:
                 all_metas = [e.metadata for e in discover_all_modules()]
                 all_metas.append(metadata_obj)

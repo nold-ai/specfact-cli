@@ -141,8 +141,17 @@ See [Module Categories](reference/module-categories.md) for full mappings and pr
 
 SpecFact now supports a central marketplace workflow for module installation and lifecycle management.
 
+Official bundles are now marketplace-distributed as `nold-ai/specfact-*` modules:
+
+- `nold-ai/specfact-project`
+- `nold-ai/specfact-backlog`
+- `nold-ai/specfact-codebase`
+- `nold-ai/specfact-spec`
+- `nold-ai/specfact-govern`
+
 - **[Installing Modules](guides/installing-modules.md)** - Install, list, uninstall, and upgrade modules
 - **[Module Marketplace](guides/module-marketplace.md)** - Registry model, security checks, and discovery priority
+- **[Marketplace Bundles](guides/marketplace.md)** - Official bundle ids, trust tiers, and dependency auto-install behavior
 - **[Module Signing and Key Rotation](guides/module-signing-and-key-rotation.md)** - Signing and key management runbook
 
 Module lifecycle note: use `specfact module` (`init`, `install`, `list`, `show`, `search`, `enable`, `disable`, `uninstall`, `upgrade`) for module management.

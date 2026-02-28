@@ -72,5 +72,5 @@ Without this extraction, the `specfact init --profile <name>` first-run selectio
 - **GitHub Issue**: #316
 - **Issue URL**: <https://github.com/nold-ai/specfact-cli/issues/316>
 - **Repository**: nold-ai/specfact-cli
-- **Last Synced Status**: proposed
+- **Last Synced Status**: open
 - **Sanitized**: false

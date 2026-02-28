@@ -1,5 +1,5 @@
 name: analyze
-version: 0.1.1
+version: 0.1.2
 commands:
   - analyze
 category: codebase
@@ -19,5 +19,5 @@ publisher:
 description: Analyze codebase quality, contracts, and architecture signals.
 license: Apache-2.0
 integrity:
-  checksum: sha256:d57826fb72253cf65a191bace15cb1a6b7551e844b80a4bef94e9cf861727bde
-  signature: /9/vp39C0v8ywsHOY3hBMyxbSNqYf5nbz1Fa9gw0KmNKclBIhfYj/JZzi7R56iYZaU5w8YsjLEj4/IspV2JdCg==
+  checksum: sha256:60d843f123600235aff2267924a4606a2c31356fc913ed20afb33bbd298f0a01
+  signature: UM9JXWFgHoDE2GJbLfAC4r86UnXHbArPlcNVqBryvnFbzxoOTGRkRzodoywwDCytcDZ6GfV0VFZqgN22I7kvBw==

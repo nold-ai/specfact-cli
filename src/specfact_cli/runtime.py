@@ -218,11 +218,11 @@ def refresh_loaded_module_consoles() -> int:
         module_name = getattr(module, "__name__", "")
         if not isinstance(module_name, str) or not module_name.startswith("specfact_cli."):
             continue
-        if not hasattr(module, "console"):
+        module_dict = getattr(module, "__dict__", None)
+        if not isinstance(module_dict, dict):
             continue
-        try:
-            current_console = module.console
-        except Exception:
+        current_console = module_dict.get("console")
+        if current_console is None:
             continue
         if isinstance(current_console, RichConsole):
             try:

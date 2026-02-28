@@ -50,6 +50,19 @@ specfact init --profile solo-developer
 specfact init --install backlog,codebase
 ```
 
+Marketplace bundle install examples:
+
+```bash
+specfact module install nold-ai/specfact-codebase
+specfact module install nold-ai/specfact-backlog
+```
+
+Official bundles are published in the `nold-ai/specfact-cli-modules` registry and verified as `official` tier during install.
+Some bundles install dependencies automatically:
+
+- `nold-ai/specfact-spec` -> pulls `nold-ai/specfact-project`
+- `nold-ai/specfact-govern` -> pulls `nold-ai/specfact-project`
+
 ### Modernizing Legacy Code?
 
 **New to brownfield modernization?** See our **[Brownfield Engineer Guide](../guides/brownfield-engineer.md)** for a complete walkthrough of modernizing legacy Python code with SpecFact CLI.

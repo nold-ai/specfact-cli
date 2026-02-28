@@ -7,6 +7,7 @@ from typing import Any
 from beartype import beartype
 from rich.console import Console
 from rich.table import Table
+from rich.text import Text
 
 from specfact_cli import __version__
 from specfact_cli.registry.help_cache import run_discovery_and_write_cache
@@ -129,7 +130,7 @@ def render_modules_table(console: Console, modules_list: list[dict[str, Any]], s
         state = "enabled" if enabled else "disabled"
         source = str(module.get("source", "unknown"))
         if bool(module.get("official", False)):
-            trust_label = "official"
+            trust_label = Text("[official]")
         elif source == "marketplace":
             trust_label = "community"
         else:

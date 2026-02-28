@@ -1,5 +1,5 @@
 name: contract
-version: 0.1.1
+version: 0.1.2
 commands:
   - contract
 category: spec
@@ -19,5 +19,5 @@ publisher:
 description: Validate and manage API contracts for project bundles.
 license: Apache-2.0
 integrity:
-  checksum: sha256:e36b4d6b91ec88ec7586265457440babcce2e0ea29db20f25307797c0ffb19c0
-  signature: kPeqIYhcF4ri/0q+cKcrCVe4VUsEVT62GPL9uPTV2GJp58Rejkcq1rnaoO2zun0GRWzXI00DMutSCU85P+kECQ==
+  checksum: sha256:021a1a062d42e10ff27cb0762474fed12a90353f549ab5b157505c73f73591d3
+  signature: Kv8wL+Tjme5eaXdMPvZz0iC/fXezKVy8vXCMb+8tL+29A9kRTSQAecY4BOdGZNj9uQC9RXbDDgiP06ORD0nQDA==

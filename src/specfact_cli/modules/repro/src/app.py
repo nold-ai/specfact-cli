@@ -1,6 +1,6 @@
-"""repro command entrypoint."""
+"""Compatibility shim for legacy specfact_cli.modules.repro.src.app module."""
 
-from specfact_cli.modules.repro.src.commands import app
+from specfact_codebase.repro.commands import app
 
 
 __all__ = ["app"]

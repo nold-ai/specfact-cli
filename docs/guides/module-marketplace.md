@@ -9,6 +9,9 @@ description: Registry model, discovery priority, trust semantics, and security c
 
 SpecFact supports centralized marketplace distribution with local multi-source discovery.
 
+For the curated official bundle list and trust/dependency quick reference, see
+[Marketplace Bundles](marketplace.md).
+
 ## Registry Overview
 
 - **Official registry**: <https://github.com/nold-ai/specfact-cli-modules> (index: `registry/index.json`)

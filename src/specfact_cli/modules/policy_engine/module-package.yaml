@@ -1,5 +1,5 @@
 name: policy-engine
-version: 0.1.1
+version: 0.1.2
 commands:
   - policy
 category: backlog
@@ -23,8 +23,8 @@ publisher:
   url: https://github.com/nold-ai/specfact-cli-modules
   email: hello@noldai.com
 integrity:
-  checksum: sha256:9220ad2598f2214092377baab52f8c91cdad1e642e60d6668ac6ba533cbb5153
-  signature: tjShituw5CDCYu+s2qbRYFheH9X7tjtFDIG/+ba1gPhP2vXvjDNhNyqYXa4A9wTLbbGpXUMoZ5Iu/fkhn6rVCw==
+  checksum: sha256:d2f68f29ffe1850b10840821a83b4f10a64f56798e813822247750f27ef9331c
+  signature: vaL3u7Dj4SFNKUHIWbcQueN8aTI1vIk1nLNnpXpG/HPjdIJsKKBSOfh3lch1z8b3kT3Kt6sxmLVwUB2zpJ5sCw==
 dependencies: []
 description: Run policy evaluations with recommendation and compliance outputs.
 license: Apache-2.0
