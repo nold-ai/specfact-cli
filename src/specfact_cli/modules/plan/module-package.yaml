@@ -1,7 +1,11 @@
 name: plan
-version: 0.1.0
+version: 0.1.1
 commands:
   - plan
+category: project
+bundle: specfact-project
+bundle_group_command: project
+bundle_sub_command: plan
 command_help:
   plan: Manage development plans
 pip_dependencies: []
@@ -12,9 +16,9 @@ core_compatibility: '>=0.28.0,<1.0.0'
 publisher:
   name: nold-ai
   url: https://github.com/nold-ai/specfact-cli-modules
-  email: oss@nold.ai
+  email: hello@noldai.com
 description: Create and manage implementation plans for project execution.
 license: Apache-2.0
 integrity:
-  checksum: sha256:f7d992a44b0bcee0a6cc3cb4857dbe9c57a3bbe314398893f1337c8c5e4070b6
-  signature: MI5BELFxfgZNusPlP6lLKSEdRZR5MdjyOE+IsVutMJHWESmCoO9SmlzycZbHYKBdz9v2BI04kcXsy/AI4+fjDQ==
+  checksum: sha256:07b2007ef96eab67c49d6a94032011b464d25ac9e5f851dedebdc00523d1749c
+  signature: LAT1OpTH0p+/0KGx6hvv5CCQGAeLHjgj5VagXXOtJ7nHkqMoAvqGKJygkZDu6h7dpAEbHhotcPet0o9CMqgWDg==

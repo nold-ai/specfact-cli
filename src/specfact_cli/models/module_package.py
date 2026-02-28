@@ -153,6 +153,19 @@ class ModulePackageMetadata(BaseModel):
     description: str | None = Field(default=None, description="Module description for user-facing module details")
     license: str | None = Field(default=None, description="SPDX license identifier or license name")
     source: str = Field(default="builtin", description="Module source: builtin, project, user, marketplace, or custom")
+    category: str | None = Field(
+        default=None,
+        description="Workflow category: core, project, backlog, codebase, spec, or govern.",
+    )
+    bundle: str | None = Field(default=None, description="Bundle id (e.g. specfact-codebase) for non-core modules.")
+    bundle_group_command: str | None = Field(
+        default=None,
+        description="Top-level group command for this category (e.g. code, backlog).",
+    )
+    bundle_sub_command: str | None = Field(
+        default=None,
+        description="Sub-command name within the group (e.g. analyze, validate).",
+    )
 
     @beartype
     @ensure(lambda result: isinstance(result, list), "Validated bridges must be returned as a list")

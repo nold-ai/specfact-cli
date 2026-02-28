@@ -425,6 +425,11 @@ def test_verify_module_artifact_fallback_emits_debug_in_debug_mode(
     mock_logger = MagicMock()
     monkeypatch.setattr(module_installer, "get_bridge_logger", lambda _name: mock_logger)
     monkeypatch.setattr(module_installer, "is_debug_mode", lambda: True, raising=False)
+    monkeypatch.setattr(
+        module_installer,
+        "_module_artifact_payload_signed",
+        lambda _: (_ for _ in ()).throw(ValueError("force fallback")),
+    )
 
     assert module_installer.verify_module_artifact(module_dir, metadata, allow_unsigned=False) is True
     mock_logger.info.assert_not_called()

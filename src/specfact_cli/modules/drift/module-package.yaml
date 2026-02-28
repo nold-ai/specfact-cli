@@ -1,7 +1,11 @@
 name: drift
-version: 0.1.0
+version: 0.1.1
 commands:
   - drift
+category: codebase
+bundle: specfact-codebase
+bundle_group_command: code
+bundle_sub_command: drift
 command_help:
   drift: Detect drift between code and specifications
 pip_dependencies: []
@@ -11,9 +15,9 @@ core_compatibility: '>=0.28.0,<1.0.0'
 publisher:
   name: nold-ai
   url: https://github.com/nold-ai/specfact-cli-modules
-  email: oss@nold.ai
+  email: hello@noldai.com
 description: Detect and report drift between code, plans, and specs.
 license: Apache-2.0
 integrity:
-  checksum: sha256:0bf406486ada20fa82273f62a46567a63231be00bca1aa0da335405081d868ee
-  signature: 22k+r94pdCPh7lP4UYZfvlNRlTQaSasXwzDJWE33I1Pzeq1hPRnyXBylx9x7IvdDqACLTnCIz5j6R8XKCu1WAQ==
+  checksum: sha256:3ba1feb48d85bb7e87b379ca630edcb2fabbeee998f63c4cbac46158d86c6667
+  signature: gcukNmz2mJt+G4sztoWqsQ0DtaXRq+D+Lfitjy0QIvJZUvis4SNdSrBApBsoVB5F079NHpLJNjl24piejZRHBA==

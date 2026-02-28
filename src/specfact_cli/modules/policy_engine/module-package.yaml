@@ -1,7 +1,11 @@
 name: policy-engine
-version: 0.1.0
+version: 0.1.1
 commands:
   - policy
+category: backlog
+bundle: specfact-backlog
+bundle_group_command: backlog
+bundle_sub_command: policy
 command_help:
   policy: Policy validation and suggestion workflows (DoR/DoD/Flow/PI)
 pip_dependencies: []
@@ -17,10 +21,10 @@ schema_extensions:
 publisher:
   name: nold-ai
   url: https://github.com/nold-ai/specfact-cli-modules
-  email: oss@nold.ai
+  email: hello@noldai.com
 integrity:
-  checksum: sha256:45d56fe74e32db9713d42ea622143da1c9b4403c7b22d148ada1fda0060226cf
-  signature: q0kWPGTaqZTTnFglm8OuHqJyngGLtXnAYeKJp69R/gzzX6QIVZ11bo6mtByG4NKX9KmjXKxOI3JVXWCu3sDOAw==
+  checksum: sha256:9220ad2598f2214092377baab52f8c91cdad1e642e60d6668ac6ba533cbb5153
+  signature: tjShituw5CDCYu+s2qbRYFheH9X7tjtFDIG/+ba1gPhP2vXvjDNhNyqYXa4A9wTLbbGpXUMoZ5Iu/fkhn6rVCw==
 dependencies: []
 description: Run policy evaluations with recommendation and compliance outputs.
 license: Apache-2.0

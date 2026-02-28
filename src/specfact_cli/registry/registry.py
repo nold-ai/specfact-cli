@@ -34,10 +34,14 @@ class CommandRegistry:
     Registry for CLI command groups (lazy load).
 
     Register by name with a loader and metadata; get_typer(name) invokes loader on first use.
+    When category grouping is enabled, _module_entries holds the 21 module loaders for group
+    sub-command resolution; _entries holds root-level commands (core + groups + shims).
     """
 
     _entries: list[_Entry] = []
     _typer_cache: dict[str, Any] = {}
+    _module_entries: list[_Entry] = []
+    _module_typer_cache: dict[str, Any] = {}
 
     @classmethod
     def _ensure_bootstrapped(cls) -> None:
@@ -63,6 +67,49 @@ class CommandRegistry:
                 cls._typer_cache.pop(name, None)
                 return
         cls._entries.append({"name": name, "loader": loader, "metadata": metadata})
+
+    @classmethod
+    @beartype
+    @require(lambda name: isinstance(name, str) and len(name) > 0, "Name must be non-empty string")
+    @require(lambda metadata: isinstance(metadata, CommandMetadata), "Metadata must be CommandMetadata")
+    @ensure(lambda result: result is None, "Must return None")
+    def register_module(cls, name: str, loader: Loader, metadata: CommandMetadata) -> None:
+        """Register a module command (for group sub-command resolution). Does not invoke loader."""
+        for e in cls._module_entries:
+            if e.get("name") == name:
+                e["loader"] = loader
+                e["metadata"] = metadata
+                cls._module_typer_cache.pop(name, None)
+                return
+        cls._module_entries.append({"name": name, "loader": loader, "metadata": metadata})
+
+    @classmethod
+    @beartype
+    @require(lambda name: isinstance(name, str) and len(name) > 0, "Name must be non-empty string")
+    def get_module_typer(cls, name: str) -> Any:
+        """Return Typer app for module name (from _module_entries); invoke loader on first use and cache."""
+        cls._ensure_bootstrapped()
+        if name in cls._module_typer_cache:
+            return cls._module_typer_cache[name]
+        for e in cls._module_entries:
+            if e.get("name") == name:
+                loader = e.get("loader")
+                if loader is None:
+                    raise ValueError(f"Module command '{name}' has no loader")
+                app = loader()
+                cls._module_typer_cache[name] = app
+                return app
+        registered = ", ".join(e.get("name", "") for e in cls._module_entries)
+        raise ValueError(f"Module command '{name}' not found. Registered modules: {registered or '(none)'}")
+
+    @classmethod
+    def get_module_metadata(cls, name: str) -> CommandMetadata | None:
+        """Return metadata for module name without invoking loader."""
+        cls._ensure_bootstrapped()
+        for e in cls._module_entries:
+            if e.get("name") == name:
+                return e.get("metadata")
+        return None
 
     @classmethod
     @beartype
@@ -113,3 +160,5 @@ class CommandRegistry:
         """Reset registry state (for tests only)."""
         cls._entries = []
         cls._typer_cache = {}
+        cls._module_entries = []
+        cls._module_typer_cache = {}

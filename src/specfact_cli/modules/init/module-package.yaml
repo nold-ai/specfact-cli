@@ -1,7 +1,9 @@
 name: init
-version: 0.1.0
+version: 0.1.1
 commands:
   - init
+category: core
+bundle_sub_command: init
 command_help:
   init: Bootstrap SpecFact and manage module lifecycle (use `init ide` for IDE setup)
 pip_dependencies: []
@@ -11,9 +13,9 @@ core_compatibility: '>=0.28.0,<1.0.0'
 publisher:
   name: nold-ai
   url: https://github.com/nold-ai/specfact-cli-modules
-  email: oss@nold.ai
+  email: hello@noldai.com
 description: Initialize SpecFact workspace and bootstrap local configuration.
 license: Apache-2.0
 integrity:
-  checksum: sha256:ebd53092241acd0bf53db40a001529b98ee001244b04223cfe855d7fdcbc607d
-  signature: NrPV9fl6k7W47hi4hkbNhsS8EX0CfB8zlAFucesUwbMYHgGZl9TvfsBwObeHWh+R1eqskTUf+sxivl6lv/1mAg==
+  checksum: sha256:9bde63aadfb093e6932c675d76b1555e122352126f5bd450c213cbabf5d83e19
+  signature: 7Kw2WPJ4QOBhckMYkS+HWY7XqEMXeCEHZs+o5xw76x9WsLJp8OkNXCbC8jAKhuww4xfgq0NNMtlF2p1SvMDkBA==

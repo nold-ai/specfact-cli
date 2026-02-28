@@ -82,6 +82,7 @@ These are derived extensions of the same 2026-02-15 plan and are required to ope
 | module-migration | 01 | module-migration-01-categorize-and-group | TBD | #215 (marketplace-02) |
 | module-migration | 02 | module-migration-02-bundle-extraction | TBD | module-migration-01 |
 | module-migration | 03 | module-migration-03-core-slimming | TBD | module-migration-02 |
+| module-migration | 04 | module-migration-04-remove-flat-shims | TBD | module-migration-01 |
 
 ### Cross-cutting foundations (no hard dependencies — implement early)
 
@@ -318,6 +319,7 @@ Dependencies flow left-to-right; a wave may start once all its hard blockers are
   - backlog-scrum-01 ✅ (needs backlog-core-01; benefits from policy-engine-01 + patch-mode-01)
   - backlog-safe-02 (needs backlog-safe-01; integrates with scrum/kanban via bridge registry)
   - module-migration-01-categorize-and-group (needs marketplace-02; adds category metadata + group commands)
+  - module-migration-04-remove-flat-shims (0.40.x; needs module-migration-01; removes flat shims, category-only CLI)
   - module-migration-02-bundle-extraction (needs module-migration-01; moves module source to bundle packages, publishes to marketplace registry)
 
 - **Wave 4 — Ceremony layer + module slimming** (needs Wave 3):
