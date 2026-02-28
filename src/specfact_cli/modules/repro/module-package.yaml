@@ -1,7 +1,11 @@
 name: repro
-version: 0.1.0
+version: 0.1.1
 commands:
   - repro
+category: codebase
+bundle: specfact-codebase
+bundle_group_command: code
+bundle_sub_command: repro
 command_help:
   repro: Run validation suite
 pip_dependencies: []
@@ -11,9 +15,9 @@ core_compatibility: '>=0.28.0,<1.0.0'
 publisher:
   name: nold-ai
   url: https://github.com/nold-ai/specfact-cli-modules
-  email: oss@nold.ai
+  email: hello@noldai.com
 description: Run reproducible validation and diagnostics workflows end-to-end.
 license: Apache-2.0
 integrity:
-  checksum: sha256:b7082bc1c0ed330a20b97ce52baf93f9686854babe28d412063e05821f3fbc62
-  signature: pY7zG/pOURam2csn6HH92scnRY553QMhPnNPEkcfiau8L3pfIauaXtdgt8L27Cq3ARteT6hUK8xkUffQujYBDg==
+  checksum: sha256:24b812744e3839086fa72001b1a6d47298c9a2f853f9027ab30ced1dcbc238b4
+  signature: g+1DnnYzrBt+J+J/tt5VY/0z49skGt5AGU70q9qL7l49sNCOpODiR7yP0e+p319C3lyI1us6OgXR029/qpzgCg==

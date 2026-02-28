@@ -6,6 +6,7 @@ import hashlib
 import os
 import re
 import shutil
+import subprocess
 import sys
 import tarfile
 import tempfile
@@ -196,6 +197,70 @@ def _module_artifact_payload_stable(package_dir: Path) -> bytes:
     return "\n".join(entries).encode("utf-8")
 
 
+def _module_artifact_payload_signed(package_dir: Path) -> bytes:
+    """Build payload identical to scripts/sign-modules.py so verification matches after signing.
+
+    Uses git ls-files when the module lives in a git repo (same file set and order as sign script);
+    otherwise falls back to rglob + same hashable/sort rules so checksums match for non-git use.
+    """
+    if not package_dir.exists() or not package_dir.is_dir():
+        raise ValueError(f"Module directory not found: {package_dir}")
+    module_dir_resolved = package_dir.resolve()
+
+    def _is_hashable(path: Path) -> bool:
+        rel = path.resolve().relative_to(module_dir_resolved)
+        if any(part in _IGNORED_MODULE_DIR_NAMES for part in rel.parts):
+            return False
+        return path.suffix.lower() not in _IGNORED_MODULE_FILE_SUFFIXES
+
+    files: list[Path]
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"],
+            cwd=package_dir,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=2,
+        )
+        if result.returncode != 0 or not result.stdout.strip():
+            raise FileNotFoundError("not in git repo")
+        git_root = Path(result.stdout.strip()).resolve()
+        rel_to_repo = module_dir_resolved.relative_to(git_root)
+        ls_result = subprocess.run(
+            ["git", "ls-files", "--", rel_to_repo.as_posix()],
+            cwd=git_root,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=2,
+        )
+        if ls_result.returncode != 0:
+            raise FileNotFoundError("git ls-files failed")
+        lines = [line.strip() for line in ls_result.stdout.splitlines() if line.strip()]
+        files = [git_root / line for line in lines]
+        files = [p for p in files if p.is_file() and _is_hashable(p)]
+        files.sort(key=lambda p: p.resolve().relative_to(module_dir_resolved).as_posix())
+    except (FileNotFoundError, ValueError, subprocess.TimeoutExpired):
+        files = sorted(
+            (p for p in package_dir.rglob("*") if p.is_file() and _is_hashable(p)),
+            key=lambda p: p.resolve().relative_to(module_dir_resolved).as_posix(),
+        )
+
+    entries: list[str] = []
+    for path in files:
+        rel = path.resolve().relative_to(module_dir_resolved).as_posix()
+        if rel in {"module-package.yaml", "metadata.yaml"}:
+            raw = yaml.safe_load(path.read_text(encoding="utf-8"))
+            if not isinstance(raw, dict):
+                raise ValueError(f"Invalid manifest YAML: {path}")
+            data = _canonical_manifest_payload(path)
+        else:
+            data = path.read_bytes()
+        entries.append(f"{rel}:{hashlib.sha256(data).hexdigest()}")
+    return "\n".join(entries).encode("utf-8")
+
+
 @beartype
 def _is_signature_backend_unavailable(error: ValueError) -> bool:
     """Return True when signature verification backend is unavailable in runtime."""
@@ -371,26 +436,32 @@ def verify_module_artifact(
             return False
         return True
 
+    verification_payload: bytes
     try:
-        legacy_payload = _module_artifact_payload(package_dir)
-        verify_checksum(legacy_payload, meta.integrity.checksum)
-        verification_payload = legacy_payload
-    except ValueError as exc:
+        signed_payload = _module_artifact_payload_signed(package_dir)
+        verify_checksum(signed_payload, meta.integrity.checksum)
+        verification_payload = signed_payload
+    except ValueError:
         try:
-            stable_payload = _module_artifact_payload_stable(package_dir)
-            verify_checksum(stable_payload, meta.integrity.checksum)
-            if _integrity_debug_details_enabled():
-                logger.debug(
-                    "Module %s: checksum matched with generated-file exclusions (cache/transient files ignored)",
-                    meta.name,
-                )
-            verification_payload = stable_payload
-        except ValueError:
-            if _integrity_debug_details_enabled():
-                logger.warning("Module %s: Integrity check failed: %s", meta.name, exc)
-            else:
-                logger.debug("Module %s: Integrity check failed: %s", meta.name, exc)
-            return False
+            legacy_payload = _module_artifact_payload(package_dir)
+            verify_checksum(legacy_payload, meta.integrity.checksum)
+            verification_payload = legacy_payload
+        except ValueError as exc:
+            try:
+                stable_payload = _module_artifact_payload_stable(package_dir)
+                verify_checksum(stable_payload, meta.integrity.checksum)
+                if _integrity_debug_details_enabled():
+                    logger.debug(
+                        "Module %s: checksum matched with generated-file exclusions (cache/transient files ignored)",
+                        meta.name,
+                    )
+                verification_payload = stable_payload
+            except ValueError:
+                if _integrity_debug_details_enabled():
+                    logger.warning("Module %s: Integrity check failed: %s", meta.name, exc)
+                else:
+                    logger.debug("Module %s: Integrity check failed: %s", meta.name, exc)
+                return False
 
     if meta.integrity.signature:
         key_material = _load_public_key_pem(public_key_pem)

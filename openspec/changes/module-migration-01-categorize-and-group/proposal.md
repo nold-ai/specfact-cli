@@ -63,5 +63,5 @@ This mirrors the VS Code model: ship a lean core, present workflow-domain groups
 - **GitHub Issue**: #315
 - **Issue URL**: <https://github.com/nold-ai/specfact-cli/issues/315>
 - **Repository**: nold-ai/specfact-cli
-- **Last Synced Status**: proposed
+- **Last Synced Status**: open
 - **Sanitized**: false

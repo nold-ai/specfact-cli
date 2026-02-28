@@ -26,6 +26,16 @@ Each category group SHALL expose its member modules as sub-commands, preserving 
 - **THEN** the command SHALL execute identically to the original `specfact analyze contracts`
 - **AND** the exit code, output format, and side effects SHALL be identical
 
+#### Scenario: Grouped registration preserves command extensions for duplicate command names
+
+- **GIVEN** `category_grouping_enabled` is `true`
+- **AND** a base module provides command group `backlog`
+- **AND** an extension module also declares command group `backlog`
+- **WHEN** module package commands are registered
+- **THEN** the registry SHALL merge extension subcommands into the existing `backlog` command tree
+- **AND** SHALL NOT replace the existing loader with only the extension loader
+- **AND** both base and extension subcommands SHALL remain accessible under `specfact backlog ...`
+
 #### Scenario: Category group command is absent when bundle not installed
 
 - **GIVEN** the `govern` bundle is NOT installed

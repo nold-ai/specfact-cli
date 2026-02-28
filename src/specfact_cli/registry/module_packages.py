@@ -36,6 +36,10 @@ from specfact_cli.models.module_package import (
 from specfact_cli.registry.bridge_registry import BridgeRegistry, SchemaConverter
 from specfact_cli.registry.extension_registry import get_extension_registry
 from specfact_cli.registry.metadata import CommandMetadata
+from specfact_cli.registry.module_grouping import (
+    ModuleManifestError,
+    validate_module_category_manifest,
+)
 from specfact_cli.registry.module_installer import verify_module_artifact
 from specfact_cli.registry.module_state import find_dependents, read_modules_state
 from specfact_cli.registry.registry import CommandRegistry
@@ -44,6 +48,7 @@ from specfact_cli.utils.prompts import print_warning
 
 
 # Display order for core modules (formerly built-in); others follow alphabetically.
+CORE_NAMES = ("init", "auth", "module", "upgrade")
 CORE_MODULE_ORDER: tuple[str, ...] = (
     "init",
     "auth",
@@ -260,8 +265,22 @@ def discover_package_metadata(modules_root: Path, source: str = "builtin") -> li
                 description=str(raw["description"]) if raw.get("description") else None,
                 license=str(raw["license"]) if raw.get("license") else None,
                 source=source,
+                category=str(raw["category"]) if raw.get("category") else None,
+                bundle=str(raw["bundle"]) if raw.get("bundle") else None,
+                bundle_group_command=str(raw["bundle_group_command"]) if raw.get("bundle_group_command") else None,
+                bundle_sub_command=str(raw["bundle_sub_command"]) if raw.get("bundle_sub_command") else None,
             )
+            if meta.category is None:
+                logger = get_bridge_logger(__name__)
+                logger.warning(
+                    "Module '%s' has no category field; mounting as flat top-level command.",
+                    meta.name,
+                )
+            else:
+                validate_module_category_manifest(meta)
             result.append((child, meta))
+        except ModuleManifestError:
+            raise
         except Exception:
             continue
     return result
@@ -756,10 +775,6 @@ def merge_module_state(
     enable_ids: list[str],
     disable_ids: list[str],
 ) -> dict[str, bool]:
-    """
-    Merge discovered (id, version) with state; apply enable/disable overrides.
-    Returns dict module_id -> enabled (bool).
-    """
     merged: dict[str, bool] = {}
     for mid, _version in discovered:
         if mid in state:
@@ -773,16 +788,105 @@ def merge_module_state(
     return merged
 
 
+# Flat command name -> (group_command, sub_command) for compat shims when category grouping is enabled.
+FLAT_TO_GROUP: dict[str, tuple[str, str]] = {
+    "analyze": ("code", "analyze"),
+    "drift": ("code", "drift"),
+    "validate": ("code", "validate"),
+    "repro": ("code", "repro"),
+    "backlog": ("backlog", "backlog"),
+    "policy": ("backlog", "policy"),
+    "project": ("project", "project"),
+    "plan": ("project", "plan"),
+    "import": ("project", "import"),
+    "sync": ("project", "sync"),
+    "migrate": ("project", "migrate"),
+    "contract": ("spec", "contract"),
+    "spec": ("spec", "api"),
+    "sdd": ("spec", "sdd"),
+    "generate": ("spec", "generate"),
+    "enforce": ("govern", "enforce"),
+    "patch": ("govern", "patch"),
+}
+
+
+def _make_shim_loader(
+    flat_name: str,
+    group_name: str,
+    sub_name: str,
+    help_str: str,
+) -> Any:
+    """Return a loader that returns the real module Typer so flat invocations like
+    'specfact sync bridge' work (subcommands come from the real module).
+    """
+
+    def loader() -> Any:
+        return CommandRegistry.get_module_typer(flat_name)
+
+    return loader
+
+
+def _register_category_groups_and_shims() -> None:
+    """Register category group typers and compat shims in CommandRegistry._entries."""
+    from specfact_cli.groups.backlog_group import build_app as build_backlog_app
+    from specfact_cli.groups.codebase_group import build_app as build_codebase_app
+    from specfact_cli.groups.govern_group import build_app as build_govern_app
+    from specfact_cli.groups.project_group import build_app as build_project_app
+    from specfact_cli.groups.spec_group import build_app as build_spec_app
+
+    group_apps = [
+        ("code", "Codebase quality commands: analyze, drift, validate, repro.", build_codebase_app),
+        ("backlog", "Backlog and policy commands.", build_backlog_app),
+        ("project", "Project lifecycle commands.", build_project_app),
+        ("spec", "Spec and contract commands: contract, api, sdd, generate.", build_spec_app),
+        ("govern", "Governance and quality gates: enforce, patch.", build_govern_app),
+    ]
+    for group_name, help_str, build_fn in group_apps:
+
+        def _make_group_loader(fn: Any) -> Any:
+            def _group_loader(_fn: Any = fn) -> Any:
+                return _fn()
+
+            return _group_loader
+
+        loader = _make_group_loader(build_fn)
+        cmd_meta = CommandMetadata(
+            name=group_name,
+            help=help_str,
+            tier="community",
+            addon_id=None,
+        )
+        CommandRegistry.register(group_name, loader, cmd_meta)
+
+    for flat_name, (group_name, sub_name) in FLAT_TO_GROUP.items():
+        if flat_name == group_name:
+            continue
+        meta = CommandRegistry.get_module_metadata(flat_name)
+        if meta is None:
+            continue
+        help_str = meta.help
+        shim_loader = _make_shim_loader(flat_name, group_name, sub_name, help_str)
+        cmd_meta = CommandMetadata(
+            name=flat_name,
+            help=help_str + " (deprecated; use specfact " + group_name + " " + sub_name + ")",
+            tier=meta.tier,
+            addon_id=meta.addon_id,
+        )
+        CommandRegistry.register(flat_name, shim_loader, cmd_meta)
+
+
 def register_module_package_commands(
     enable_ids: list[str] | None = None,
     disable_ids: list[str] | None = None,
     allow_unsigned: bool | None = None,
+    category_grouping_enabled: bool = True,
 ) -> None:
     """
     Discover module packages, merge with modules.json state, register only enabled packages' commands.
 
     Call after register_builtin_commands(). enable_ids/disable_ids from CLI (--enable-module/--disable-module).
     allow_unsigned: If True, allow modules without integrity metadata. Default from SPECFACT_ALLOW_UNSIGNED env.
+    category_grouping_enabled: If True, register category groups (code, backlog, project, spec, govern) and compat shims.
     """
     enable_ids = enable_ids or []
     disable_ids = disable_ids or []
@@ -907,6 +1011,58 @@ def register_module_package_commands(
             protocol_legacy += 1
 
         for cmd_name in meta.commands:
+            if category_grouping_enabled and meta.category is not None:
+                help_str = (meta.command_help or {}).get(cmd_name) or f"Module package: {meta.name}"
+                extension_loader = _make_package_loader(package_dir, meta.name, cmd_name)
+                cmd_meta = CommandMetadata(name=cmd_name, help=help_str, tier=meta.tier, addon_id=meta.addon_id)
+                existing_module_entry = next(
+                    (entry for entry in CommandRegistry._module_entries if entry.get("name") == cmd_name),
+                    None,
+                )
+                if existing_module_entry is not None:
+                    base_loader = existing_module_entry.get("loader")
+                    if base_loader is None:
+                        logger.warning(
+                            "Module %s attempted to extend command '%s' but module base loader was missing; skipping.",
+                            meta.name,
+                            cmd_name,
+                        )
+                    else:
+                        existing_module_entry["loader"] = _make_extending_loader(
+                            base_loader,
+                            extension_loader,
+                            meta.name,
+                            cmd_name,
+                        )
+                        existing_module_entry["metadata"] = cmd_meta
+                        CommandRegistry._module_typer_cache.pop(cmd_name, None)
+                else:
+                    CommandRegistry.register_module(cmd_name, extension_loader, cmd_meta)
+                if cmd_name in CORE_NAMES:
+                    existing_root_entry = next(
+                        (entry for entry in CommandRegistry._entries if entry.get("name") == cmd_name),
+                        None,
+                    )
+                    if existing_root_entry is not None:
+                        base_loader = existing_root_entry.get("loader")
+                        if base_loader is None:
+                            logger.warning(
+                                "Module %s attempted to extend core command '%s' but base loader was missing; skipping.",
+                                meta.name,
+                                cmd_name,
+                            )
+                        else:
+                            existing_root_entry["loader"] = _make_extending_loader(
+                                base_loader,
+                                extension_loader,
+                                meta.name,
+                                cmd_name,
+                            )
+                            existing_root_entry["metadata"] = cmd_meta
+                            CommandRegistry._typer_cache.pop(cmd_name, None)
+                    else:
+                        CommandRegistry.register(cmd_name, extension_loader, cmd_meta)
+                continue
             existing_entry = next((entry for entry in CommandRegistry._entries if entry.get("name") == cmd_name), None)
             if existing_entry is not None:
                 extension_loader = _make_package_loader(package_dir, meta.name, cmd_name)
@@ -932,6 +1088,8 @@ def register_module_package_commands(
             loader = _make_package_loader(package_dir, meta.name, cmd_name)
             cmd_meta = CommandMetadata(name=cmd_name, help=help_str, tier=meta.tier, addon_id=meta.addon_id)
             CommandRegistry.register(cmd_name, loader, cmd_meta)
+    if category_grouping_enabled:
+        _register_category_groups_and_shims()
     discovered_count = protocol_full + protocol_partial + protocol_legacy
     if discovered_count and (protocol_partial > 0 or protocol_legacy > 0):
         print_warning(

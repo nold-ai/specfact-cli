@@ -451,13 +451,26 @@ def _make_lazy_typer(cmd_name: str, help_str: str) -> typer.Typer:
 
 
 def _get_command(typer_instance: typer.Typer) -> click.Command:
-    """Wrapper around typer.main.get_command that returns LazyDelegateGroup for our lazy typers."""
+    """Wrapper around typer.main.get_command that returns LazyDelegateGroup for our lazy typers,
+    and applies flatten-same-name for Typers with _specfact_flatten_same_name.
+    """
     if getattr(typer_instance, "_specfact_lazy_delegate", False):
         cmd_name = getattr(typer_instance, "_specfact_lazy_cmd_name", "")
         help_str = getattr(typer_instance, "_specfact_lazy_help_str", "")
         return _build_lazy_delegate_group(cmd_name, help_str)
     assert _typer_get_command_original is not None
-    return _typer_get_command_original(typer_instance)
+    result = _typer_get_command_original(typer_instance)
+    flatten_name = getattr(typer_instance, "_specfact_flatten_same_name", None)
+    if isinstance(flatten_name, str) and isinstance(result, click.Group) and flatten_name in result.commands:
+        redundant = result.commands.pop(flatten_name)
+        if isinstance(redundant, click.Group):
+            for cmd_name, cmd in redundant.commands.items():
+                result.add_command(cmd, name=cmd_name)
+        if result.commands:
+            for cname in sorted(result.commands.keys()):
+                cmd = result.commands.pop(cname)
+                result.add_command(cmd, name=cname)
+    return result
 
 
 def _get_group_from_info_wrapper(
@@ -476,12 +489,23 @@ def _get_group_from_info_wrapper(
         help_str = getattr(typer_instance, "_specfact_lazy_help_str", "")
         return _build_lazy_delegate_group(cmd_name, help_str)
     assert _typer_get_group_from_info_original is not None
-    return _typer_get_group_from_info_original(
+    result = _typer_get_group_from_info_original(
         group_info,
         pretty_exceptions_short=pretty_exceptions_short,
         suggest_commands=suggest_commands,
         rich_markup_mode=rich_markup_mode,
     )
+    flatten_name = getattr(typer_instance, "_specfact_flatten_same_name", None) if typer_instance else None
+    if isinstance(flatten_name, str) and flatten_name in result.commands:
+        redundant = result.commands.pop(flatten_name)
+        if isinstance(redundant, click.Group):
+            for cmd_name, cmd in redundant.commands.items():
+                result.add_command(cmd, name=cmd_name)
+        if result.commands:
+            for name in sorted(result.commands.keys()):
+                cmd = result.commands.pop(name)
+                result.add_command(cmd, name=name)
+    return result
 
 
 # Original Typer build functions (set once by _patch_typer_build so re-import of cli doesn't overwrite with our wrapper).

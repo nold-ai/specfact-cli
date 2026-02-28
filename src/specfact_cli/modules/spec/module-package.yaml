@@ -1,7 +1,11 @@
 name: spec
-version: 0.1.0
+version: 0.1.1
 commands:
   - spec
+category: spec
+bundle: specfact-spec
+bundle_group_command: spec
+bundle_sub_command: api
 command_help:
   spec: Specmatic integration for API contract testing
 pip_dependencies: []
@@ -11,9 +15,9 @@ core_compatibility: '>=0.28.0,<1.0.0'
 publisher:
   name: nold-ai
   url: https://github.com/nold-ai/specfact-cli-modules
-  email: oss@nold.ai
+  email: hello@noldai.com
 description: Integrate and run API specification and contract checks.
 license: Apache-2.0
 integrity:
-  checksum: sha256:f14970c58bed5647cfcdc76933f4c7af22c186ef89f74d63bb97df3a5e4a09c4
-  signature: /V0wm4tU6gKoXZ29AX9FiICdF0loq/N9OVvQyQ5ICtVarJFBQLUPeYZJup5/PJgIrhjZxDr6Ih+wLG6gZBtLAg==
+  checksum: sha256:9a9a1c5ba8bd8c8e9c6f4f7de2763b6afc908345488c1c97c67f4947bff7b904
+  signature: mSzS1UmMwQKaf3Xv8hPlEA51+d65BppvKO+TJ7KH9UvPyftyKluNpspRXHk8Lz6sWBNHGRWEAbrHxewt5mT+DA==

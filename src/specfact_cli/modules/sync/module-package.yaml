@@ -1,7 +1,11 @@
 name: sync
-version: 0.1.0
+version: 0.1.1
 commands:
   - sync
+category: project
+bundle: specfact-project
+bundle_group_command: project
+bundle_sub_command: sync
 command_help:
   sync: Synchronize external tool artifacts and repository changes (Spec-Kit, OpenSpec,
     GitHub, ADO, Linear, Jira, etc.)
@@ -14,9 +18,9 @@ core_compatibility: '>=0.28.0,<1.0.0'
 publisher:
   name: nold-ai
   url: https://github.com/nold-ai/specfact-cli-modules
-  email: oss@nold.ai
+  email: hello@noldai.com
 description: Synchronize repository state with connected external systems.
 license: Apache-2.0
 integrity:
-  checksum: sha256:05023a72241101dd19a9c402fcb4882e40a925d0958b95b4b13217032ad8e31b
-  signature: rovvEszsr1+/kq2yy9R1g01fjhlG38R2eIwg/aXZy789SKq9ttBkBqJ6d1U+ysXYzOUBqgc6WwcfCI1X2Il7Dg==
+  checksum: sha256:c690b401e5469f8bac7bf36d278014e6dd1132453424bd9728769579a31a474b
+  signature: QtPgmc9urSzIgqLKqXVLRUpTu32UZ0Lns57ynHLnnZHoOI/46AcIFJ8GrHjVSgMAlCjmxTqjihe6FbuxmpmyBw==

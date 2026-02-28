@@ -1,7 +1,11 @@
 name: validate
-version: 0.1.0
+version: 0.1.1
 commands:
   - validate
+category: codebase
+bundle: specfact-codebase
+bundle_group_command: code
+bundle_sub_command: validate
 command_help:
   validate: Validation commands including sidecar validation
 pip_dependencies: []
@@ -11,9 +15,9 @@ core_compatibility: '>=0.28.0,<1.0.0'
 publisher:
   name: nold-ai
   url: https://github.com/nold-ai/specfact-cli-modules
-  email: oss@nold.ai
+  email: hello@noldai.com
 description: Run schema, contract, and workflow validation suites.
 license: Apache-2.0
 integrity:
-  checksum: sha256:01252349bfc86e36138b2acb4e82e60bcaaa84b0f60dc1bfcf4ca554a02bad67
-  signature: rU1JJUw057QUVp6YaEEM0vcx+/hrciNsh2A3SlD4xhZwbPyzf9O+RvaAh99q/iAns9EzmsqMDW9IYafLXmEYDQ==
+  checksum: sha256:9b8ade0253df16ed367e0992b483738d3b4379e92d05ba97d9f5dd6f7fc51715
+  signature: 3TD8nGRVXLDA7VgExKP/tK7H/gGCb7P7LuU1fQzwzsiuZAsEebIL2bSuZ54bD3vKwIvcMooVzyL/8a9w4cu+Cg==

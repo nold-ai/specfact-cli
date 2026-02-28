@@ -92,7 +92,8 @@ class TestCustomFieldMappingCLI:
         )
         # Should exit with error code (validation happens before adapter setup)
         assert result.exit_code != 0
-        assert "not found" in result.stdout.lower() or "error" in result.stdout.lower() or "Error" in result.stdout
+        out = result.output or result.stdout or ""
+        assert "not found" in out.lower() or "error" in out.lower() or "Error" in out
 
     def test_custom_field_mapping_file_validation_invalid_format(self, invalid_mapping_file: Path) -> None:
         """Test that invalid custom field mapping file format is rejected."""
@@ -112,7 +113,8 @@ class TestCustomFieldMappingCLI:
             ],
         )
         assert result.exit_code != 0
-        assert "invalid" in result.stdout.lower() or "error" in result.stdout.lower()
+        out = result.output or result.stdout or ""
+        assert "invalid" in out.lower() or "error" in out.lower()
 
     def test_custom_field_mapping_environment_variable(
         self, custom_mapping_file: Path, monkeypatch: pytest.MonkeyPatch

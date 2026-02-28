@@ -102,6 +102,26 @@ Why this matters:
 - Interfaces and contracts keep feature development isolated and safer to iterate.
 - Pending OpenSpec-driven module changes can land incrementally with lower migration risk.
 
+### Category Command Groups and First-Run Selection
+
+SpecFact now groups feature commands by workflow domain:
+
+- `specfact project ...`
+- `specfact backlog ...`
+- `specfact code ...`
+- `specfact spec ...`
+- `specfact govern ...`
+
+On a fresh setup, `specfact init` supports first-run bundle selection:
+
+```bash
+specfact init --profile solo-developer
+specfact init --install backlog,codebase
+specfact init --install all
+```
+
+See [Module Categories](reference/module-categories.md) for full mappings and profile presets.
+
 **Module security and extensions:**
 
 - **[Using Module Security and Extensions](guides/using-module-security-and-extensions.md)** - How to use verified modules (arch-06) and schema extensions (arch-07) from the CLI and as a module author

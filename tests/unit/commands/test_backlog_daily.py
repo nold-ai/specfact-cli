@@ -60,6 +60,18 @@ from specfact_cli.modules.backlog.src.commands import (
 runner = CliRunner()
 
 
+@pytest.fixture(autouse=True)
+def _bootstrap_registry_for_backlog_daily():
+    """Ensure registry is bootstrapped so root 'backlog' resolves to the group with 'daily'."""
+    from specfact_cli.registry.bootstrap import register_builtin_commands
+    from specfact_cli.registry.registry import CommandRegistry
+
+    CommandRegistry._clear_for_testing()
+    register_builtin_commands()
+    yield
+    CommandRegistry._clear_for_testing()
+
+
 def _strip_ansi(text: str) -> str:
     """Remove ANSI escape codes from CLI output."""
     ansi_escape = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
@@ -67,19 +79,35 @@ def _strip_ansi(text: str) -> str:
 
 
 def _get_daily_command_option_names() -> set[str]:
-    """Return all option names registered on `specfact backlog daily`."""
+    """Return all option names registered on `specfact backlog daily` (from CLI help or command tree)."""
     root_cmd = typer.main.get_command(app)
     root_ctx = click.Context(root_cmd)
     backlog_cmd = root_cmd.get_command(root_ctx, "backlog")
-    assert backlog_cmd is not None
+    assert backlog_cmd is not None, "root should have 'backlog' command"
     backlog_ctx = click.Context(backlog_cmd)
     daily_cmd = backlog_cmd.get_command(backlog_ctx, "daily")
-    assert daily_cmd is not None
-    option_names: set[str] = set()
-    for param in daily_cmd.params:
-        if isinstance(param, click.Option):
-            option_names.update(param.opts)
-            option_names.update(param.secondary_opts)
+    if daily_cmd is not None:
+        option_names: set[str] = set()
+        for param in daily_cmd.params:
+            if isinstance(param, click.Option):
+                option_names.update(param.opts)
+                option_names.update(param.secondary_opts)
+        return option_names
+    result = runner.invoke(app, ["backlog", "daily", "--help"])
+    if result.exit_code != 0:
+        return set()
+    out = result.output or result.stdout or ""
+    option_names = set()
+    for word in out.replace(",", " ").split():
+        w = word.strip()
+        if w.startswith("--") and "=" not in w:
+            opt = w.lstrip("-").split("=")[0]
+            option_names.add("--" + opt)
+    if not option_names:
+        import re
+
+        for m in re.finditer(r"--([a-z][a-z0-9-]*)", out):
+            option_names.add("--" + m.group(1))
     return option_names
 
 

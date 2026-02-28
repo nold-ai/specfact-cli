@@ -10,6 +10,20 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.39.0] - 2026-02-28
+
+### Added
+
+- **Category group commands** (OpenSpec change `module-migration-01-categorize-and-group`): Category grouping mounts commands under `code`, `backlog`, `project`, `spec`, and `govern`. Use `specfact code analyze`, `specfact backlog --help`, etc. Flat shims (e.g. `specfact validate`) remain with deprecation notice in Copilot mode. Configurable via `category_grouping_enabled` (default true).
+- **First-run module selection in `specfact init`**: `--profile solo-developer` and `--profile enterprise-full-stack`, plus `--install <bundles>` and interactive bundle selection on first run when no category bundle is installed.
+- **Integration and E2E tests**: `tests/integration/test_category_group_routing.py` and `tests/e2e/test_first_run_init.py` for category routing and init profile flows.
+
+### Fixed
+
+- `test_module_grouping.py` now imports `group_modules_by_category` from `module_grouping` instead of `module_packages`, fixing collection errors in the full test suite.
+
+---
+
 ## [0.38.2] - 2026-02-27
 
 ### Added
