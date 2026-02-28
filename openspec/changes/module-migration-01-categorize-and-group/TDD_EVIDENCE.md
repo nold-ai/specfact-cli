@@ -85,3 +85,26 @@ Implementation: `src/specfact_cli/modules/init/src/first_run_selection.py` and `
 
 - Updated `register_module_package_commands()` grouped path to merge duplicate command loaders via `_make_extending_loader` for module entries (and core root entries), instead of unconditional overwrite.
 - Updated `is_first_run()` source filter to include `project` modules in first-run detection.
+
+## Phase 5 — Regression fix from PR 331 (trust failure should not block unaffected legacy module registration)
+
+### 5.1 Failing test (pre-implementation)
+
+**Timestamp:** 2026-02-28 21:07 local  
+**Command:** `hatch test -- tests/unit/specfact_cli/registry/test_module_packages.py::test_unaffected_modules_register_when_one_fails_trust -v`  
+**Result:** 1 failed.
+
+**Failure summary:**
+
+- In grouped mode, a module without `category` metadata was routed into grouped registration, so `good_cmd` was not mounted as flat top-level despite warning text indicating flat mounting.
+
+### 5.2 Passing tests (post-implementation)
+
+**Timestamp:** 2026-02-28 21:09 local  
+**Command:** `hatch test -- tests/unit/specfact_cli/registry/test_module_packages.py::test_unaffected_modules_register_when_one_fails_trust tests/unit/specfact_cli/registry/test_module_packages.py::test_grouped_registration_merges_duplicate_command_extensions tests/unit/registry/test_module_grouping.py::test_module_package_yaml_without_category_mounts_ungrouped_warning_logged -v`  
+**Result:** 3 passed.
+
+**Implementation summary:**
+
+- Updated `register_module_package_commands()` to use grouped registration only when `category_grouping_enabled` is true and module metadata declares `category`.
+- Updated grouped-extension unit fixture metadata to include `category="backlog"` so the test reflects migration-era grouped manifests and remains aligned with category-driven grouping semantics.

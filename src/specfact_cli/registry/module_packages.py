@@ -1011,7 +1011,7 @@ def register_module_package_commands(
             protocol_legacy += 1
 
         for cmd_name in meta.commands:
-            if category_grouping_enabled:
+            if category_grouping_enabled and meta.category is not None:
                 help_str = (meta.command_help or {}).get(cmd_name) or f"Module package: {meta.name}"
                 extension_loader = _make_package_loader(package_dir, meta.name, cmd_name)
                 cmd_meta = CommandMetadata(name=cmd_name, help=help_str, tier=meta.tier, addon_id=meta.addon_id)

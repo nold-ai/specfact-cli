@@ -323,10 +323,13 @@ def test_grouped_registration_merges_duplicate_command_extensions(
     from specfact_cli.registry import module_packages as mp
 
     packages = [
-        (tmp_path / "base_backlog", ModulePackageMetadata(name="base_backlog", version="0.1.0", commands=["backlog"])),
+        (
+            tmp_path / "base_backlog",
+            ModulePackageMetadata(name="base_backlog", version="0.1.0", commands=["backlog"], category="backlog"),
+        ),
         (
             tmp_path / "ext_backlog",
-            ModulePackageMetadata(name="ext_backlog", version="0.1.0", commands=["backlog"]),
+            ModulePackageMetadata(name="ext_backlog", version="0.1.0", commands=["backlog"], category="backlog"),
         ),
     ]
     monkeypatch.setattr(mp, "discover_all_package_metadata", lambda: packages)
