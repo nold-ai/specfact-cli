@@ -1,5 +1,5 @@
 name: repro
-version: 0.1.3
+version: 0.1.4
 commands:
   - repro
 category: codebase
@@ -19,5 +19,5 @@ publisher:
 description: Run reproducible validation and diagnostics workflows end-to-end.
 license: Apache-2.0
 integrity:
-  checksum: sha256:42d8f5f44234ed670edaa1a86a07fe5c204edaa52379656f8b917997278758ff
-  signature: LdGhBe+8BU/JFWTC2GO6PTIFS93iHAUKHCQGPOIIEfR3EZHcvCI6w2x8NUQ8Ur0d3AeY8HsgviCa9pzQL9gODA==
+  checksum: sha256:acb4fe73b682043fbd0d12a84c3f2990b068837e0bc505c6ec5f7b178a110767
+  signature: rFmc2V6C02UzidMJREiBXySwgmvlQtKeKZpQOPPJqSQtiPA3c3d8JKvon4YW0/LDiROwQlBj/TniGaIGwjEABg==

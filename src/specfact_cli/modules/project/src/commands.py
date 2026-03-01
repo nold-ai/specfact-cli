@@ -1,14 +1,14 @@
-"""Compatibility shim for legacy specfact_cli.modules.project.src.commands module."""
+"""Compatibility alias for legacy specfact_cli.modules.project.src.commands module."""
 
+import sys
 from importlib import import_module
 
+from specfact_cli.modules._bundle_import import bootstrap_local_bundle_sources
 
+
+bootstrap_local_bundle_sources(__file__)
 _target = import_module("specfact_project.project.commands")
-app = _target.app
 
-
-def __getattr__(name: str):
-    return getattr(_target, name)
-
-
-__all__ = ["app"]
+# Ensure monkeypatch/mock targets on this legacy import path affect the real
+# command module used by Typer callbacks.
+sys.modules[__name__] = _target

@@ -3,7 +3,10 @@
 import sys
 from importlib import import_module
 
+from specfact_cli.modules._bundle_import import bootstrap_local_bundle_sources
 
+
+bootstrap_local_bundle_sources(__file__)
 _target = import_module("specfact_project.plan.commands")
 
 # Ensure monkeypatch/mock targets on this legacy import path affect the real

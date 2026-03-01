@@ -1,5 +1,5 @@
 name: migrate
-version: 0.1.3
+version: 0.1.4
 commands:
   - migrate
 category: project
@@ -19,5 +19,5 @@ publisher:
 description: Migrate project bundles across supported structure versions.
 license: Apache-2.0
 integrity:
-  checksum: sha256:2e5cb8888e39fda1bbe9ffc14d4d47c14649d8bdd3e31e4b0e1711637eb86999
-  signature: XWxBkBj3Q2tuFypgjGk9NweC5eeg7OvPOqMxRAuKiC4jcbEkD2niMw93ZfJlXhqVDzAy1y9BpAvYWOk6r093CQ==
+  checksum: sha256:23c0951d21572f61e020b8e91edd00ba90205290d1d08ed1822ef7eb15d1f636
+  signature: OHbkk1Kl3MagG06lsbTnrwIlwtZR7xLk6dzHQhU0YVpwUCoV1F6B8RUMVOsKhsj+G2SwDkscLq0yku/RyP54CQ==
