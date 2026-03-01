@@ -1,5 +1,25 @@
 # Implementation Tasks: module-migration-02-bundle-extraction
 
+## Status and gap (as of review)
+
+**Completed in this worktree (specfact-cli repo only):**
+
+- Phases 0–4, 6–9: Shared-code audit, re-export shims, official-tier trust model, bundle dependency auto-install, publish-module.py bundle mode — all implemented and tested in **specfact-cli**.
+- Phase 5.1: Bundle layout tests exist in `tests/unit/bundles/test_bundle_layout.py`; they resolve `specfact-cli-modules` via `SPECFACT_MODULES_REPO` or sibling path and **skip** when the modules repo has no `packages/`.
+- Phase 10.1–10.4: Re-signing of **in-repo** module manifests (shims) in `src/specfact_cli/modules/*/module-package.yaml` — done.
+- Section 16: PR created (e.g. #332 feature/module-migration-02-bundle-extraction → dev).
+- Section 17.1–17.7: **specfact-cli-modules** published and merged (five bundles + registry). CI for specfact-cli now passes — **PR 332 to dev is green.**
+
+**Outstanding before closing:**
+
+- **17.8 Migration-complete gate**: Run `scripts/validate-modules-repo-sync.py --gate`; after confirming content diffs are import/namespace only, pass with `SPECFACT_MIGRATION_CONTENT_VERIFIED=1`. Then merge specfact-cli PR to dev and treat migration-02 as complete (non-reversible).
+
+All other tasks (5.0–5.5, 10.5–10.6, 11.1–11.8) are marked done; 17.8 remains until the gate is passed.
+
+Migration-02 is **complete** when (1) specfact-cli PR is merged to `dev`, (2) specfact-cli-modules contains the five bundles and a populated registry (merged — **done**), (3) migration-complete gate passed. After close, canonical source for the 17 modules lives in specfact-cli-modules only; provides non-conflicting basis for module-migration-03 and module-migration-04.
+
+---
+
 ## TDD / SDD Order (Enforced)
 
 Per `openspec/config.yaml`, the following order is mandatory and non-negotiable for every behavior-changing task:
@@ -86,6 +106,15 @@ Do NOT implement production code for any behavior-changing step until failing-te
 
 ## 5. Phase 1 — Bundle package directories and source move (TDD)
 
+All of 5.2–5.4 and 5.5 (verification) are performed **in the specfact-cli-modules repository**: use a local clone at a path visible to the specfact-cli worktree (e.g. sibling `../specfact-cli-modules` from the specfact-cli worktree root, or set `SPECFACT_MODULES_REPO` to that clone). The specfact-cli tests in 5.1 and 5.5 resolve this path via `SPECFACT_MODULES_REPO` or sibling discovery; CI uses the cloned `nold-ai/specfact-cli-modules` repo.
+
+### 5.0 Prepare specfact-cli-modules repository (local clone)
+
+- [x] 5.0.1 Ensure a local clone of `nold-ai/specfact-cli-modules` exists (e.g. `git clone https://github.com/nold-ai/specfact-cli-modules.git ../specfact-cli-modules` from the specfact-cli worktree root, or use existing clone).
+- [x] 5.0.2 `cd` into the specfact-cli-modules clone; ensure clean state or create a feature branch for migration-02 (e.g. `feature/module-migration-02-bundles`).
+- [x] 5.0.3 From specfact-cli worktree, set `SPECFACT_MODULES_REPO` to the absolute path of the clone (or rely on sibling `../specfact-cli-modules`). Until 5.2 is done, `hatch run smart-test` will skip bundle layout tests; after 5.2–5.4, those tests should run and pass.
+- [x] 5.0.4 Create empty `packages/` and `registry/` directories in the specfact-cli-modules repo if they do not exist; ensure `registry/index.json` exists with `{"modules": []}` (or merge-safe structure).
+
 ### 5.1 Write tests for bundle package layout (expect failure)
 
 - [x] 5.1.1 Create `tests/unit/bundles/test_bundle_layout.py`
@@ -100,7 +129,7 @@ Do NOT implement production code for any behavior-changing step until failing-te
 - [x] 5.1.10 Test: `from specfact_project.plan import app` resolves (intra-bundle import within specfact-project)
 - [x] 5.1.11 Run: `hatch test -- tests/unit/bundles/test_bundle_layout.py -v` (expect failures — record in TDD_EVIDENCE.md)
 
-### 5.2 Create bundle package directories
+### 5.2 Create bundle package directories (in specfact-cli-modules repo)
 
 - [x] 5.2.1 Create `specfact-cli-modules/packages/specfact-project/src/specfact_project/__init__.py`
 - [x] 5.2.2 Create `specfact-cli-modules/packages/specfact-backlog/src/specfact_backlog/__init__.py`
@@ -108,7 +137,7 @@ Do NOT implement production code for any behavior-changing step until failing-te
 - [x] 5.2.4 Create `specfact-cli-modules/packages/specfact-spec/src/specfact_spec/__init__.py`
 - [x] 5.2.5 Create `specfact-cli-modules/packages/specfact-govern/src/specfact_govern/__init__.py`
 
-### 5.3 Create top-level bundle module-package.yaml manifests
+### 5.3 Create top-level bundle module-package.yaml manifests (in specfact-cli-modules repo)
 
 Each bundle manifest must contain: `name`, `version` (matching core minor), `tier: official`, `publisher: nold-ai`, `bundle_dependencies` (empty or list), `description`, `category`, `bundle_group_command`.
 
@@ -123,9 +152,9 @@ Each bundle manifest must contain: `name`, `version` (matching core minor), `tie
 - [x] 5.3.5 Create `specfact-cli-modules/packages/specfact-govern/module-package.yaml`
   - `bundle_dependencies: [nold-ai/specfact-project]`
 
-### 5.4 Move module source into bundle namespaces (one bundle per commit)
+### 5.4 Move module source into bundle namespaces (in specfact-cli-modules repo; one bundle per commit)
 
-For each module move: (a) copy source to bundle, (b) update intra-bundle imports, (c) place re-export shim in core, (d) run tests.
+For each module move: (a) copy source from specfact-cli into the bundle in specfact-cli-modules, (b) update intra-bundle imports to use `specfact_project.*` / `specfact_backlog.*` / etc., (c) ensure re-export shims remain in specfact-cli `src/specfact_cli/modules/*/`, (d) from specfact-cli worktree run tests with `SPECFACT_MODULES_REPO` set.
 
 **specfact-project bundle:**
 
@@ -134,14 +163,14 @@ For each module move: (a) copy source to bundle, (b) update intra-bundle imports
 - [x] 5.4.3 Move `src/specfact_cli/modules/import_cmd/src/import_cmd/` → `specfact_project/import_cmd/`; update imports
 - [x] 5.4.4 Move `src/specfact_cli/modules/sync/src/sync/` → `specfact_project/sync/`; update imports (plan → specfact_project.plan)
 - [x] 5.4.5 Move `src/specfact_cli/modules/migrate/src/migrate/` → `specfact_project/migrate/`; update imports
-- [x] 5.4.6 Place re-export shims for all 5 project modules in `src/specfact_cli/modules/*/src/*/`
-- [x] 5.4.7 `hatch test -- tests/unit/bundles/test_bundle_layout.py tests/unit/ -v` — verify project-related tests pass
+- [x] 5.4.6 Confirm re-export shims for all 5 project modules exist in `src/specfact_cli/modules/*/` (shims delegate to `specfact_project.*`)
+- [x] 5.4.7 From specfact-cli worktree with `SPECFACT_MODULES_REPO` set: `hatch test -- tests/unit/bundles/test_bundle_layout.py tests/unit/ -v` — verify project-related tests pass
 
 **specfact-backlog bundle:**
 
 - [x] 5.4.8 Move `src/specfact_cli/modules/backlog/src/backlog/` → `specfact_backlog/backlog/`; update imports
 - [x] 5.4.9 Move `src/specfact_cli/modules/policy_engine/src/policy_engine/` → `specfact_backlog/policy_engine/`; update imports
-- [x] 5.4.10 Place re-export shims for backlog and policy_engine
+- [x] 5.4.10 Confirm re-export shims for backlog and policy_engine
 - [x] 5.4.11 `hatch test -- tests/unit/bundles/test_bundle_layout.py tests/unit/ -v`
 
 **specfact-codebase bundle:**
@@ -150,7 +179,7 @@ For each module move: (a) copy source to bundle, (b) update intra-bundle imports
 - [x] 5.4.13 Move `src/specfact_cli/modules/drift/src/drift/` → `specfact_codebase/drift/`; update imports
 - [x] 5.4.14 Move `src/specfact_cli/modules/validate/src/validate/` → `specfact_codebase/validate/`; update imports
 - [x] 5.4.15 Move `src/specfact_cli/modules/repro/src/repro/` → `specfact_codebase/repro/`; update imports
-- [x] 5.4.16 Place re-export shims for all 4 codebase modules
+- [x] 5.4.16 Confirm re-export shims for all 4 codebase modules
 - [x] 5.4.17 `hatch test -- tests/unit/bundles/test_bundle_layout.py tests/unit/ -v`
 
 **specfact-spec bundle:**
@@ -159,19 +188,19 @@ For each module move: (a) copy source to bundle, (b) update intra-bundle imports
 - [x] 5.4.19 Move `src/specfact_cli/modules/spec/src/spec/` → `specfact_spec/spec/`; update imports
 - [x] 5.4.20 Move `src/specfact_cli/modules/sdd/src/sdd/` → `specfact_spec/sdd/`; update imports
 - [x] 5.4.21 Move `src/specfact_cli/modules/generate/src/generate/` → `specfact_spec/generate/`; update imports (`plan` → `specfact_project.plan` via common interface)
-- [x] 5.4.22 Place re-export shims for all 4 spec modules
+- [x] 5.4.22 Confirm re-export shims for all 4 spec modules
 - [x] 5.4.23 `hatch test -- tests/unit/bundles/test_bundle_layout.py tests/unit/ -v`
 
 **specfact-govern bundle:**
 
 - [x] 5.4.24 Move `src/specfact_cli/modules/enforce/src/enforce/` → `specfact_govern/enforce/`; update imports (`plan` → `specfact_project.plan` via common interface)
 - [x] 5.4.25 Move `src/specfact_cli/modules/patch_mode/src/patch_mode/` → `specfact_govern/patch_mode/`; update imports
-- [x] 5.4.26 Place re-export shims for enforce and patch_mode
+- [x] 5.4.26 Confirm re-export shims for enforce and patch_mode
 - [x] 5.4.27 `hatch test -- tests/unit/bundles/test_bundle_layout.py tests/unit/ -v`
 
 ### 5.5 Record passing-test evidence (Phase 1)
 
-- [x] 5.5.1 `hatch test -- tests/unit/bundles/ -v` — full bundle layout test suite
+- [x] 5.5.1 From specfact-cli worktree with `SPECFACT_MODULES_REPO` pointing at populated clone: `hatch test -- tests/unit/bundles/ -v` — full bundle layout test suite
 - [x] 5.5.2 Record passing-test run in TDD_EVIDENCE.md
 
 ## 6. Phase 2 — Re-export shim DeprecationWarning tests
@@ -287,25 +316,27 @@ For each module move: (a) copy source to bundle, (b) update intra-bundle imports
 
 ## 10. Phase 6 — Module signing gate after all source moves
 
-After all five bundles are extracted and shims are in place, the `module-package.yaml` files in `src/specfact_cli/modules/*/` have changed content (shims replaced source). All signatures must be regenerated.
+After all five bundles are extracted in **specfact-cli-modules** and shims are in place in specfact-cli, all affected manifests must be signed.
 
-- [x] 10.1 Run verification (expect failures — manifests changed): `hatch run ./scripts/verify-modules-signature.py --require-signature`
-- [x] 10.2 For each affected module: bump patch version in `module-package.yaml`
-- [x] 10.3 Re-sign all 21 module-package.yaml files: `hatch run python scripts/sign-modules.py --key-file <private-key.pem> src/specfact_cli/modules/*/module-package.yaml`
-- [x] 10.4 Re-run verification: `hatch run ./scripts/verify-modules-signature.py --require-signature` — confirm fully green
-- [x] 10.5 Also sign all 5 bundle `module-package.yaml` files in `specfact-cli-modules/packages/*/module-package.yaml`
-- [x] 10.6 Confirm all signatures green: `hatch run ./scripts/verify-modules-signature.py --require-signature`
+- [x] 10.1 Run verification in specfact-cli (expect failures if manifests changed): `hatch run ./scripts/verify-modules-signature.py --require-signature`
+- [x] 10.2 For each affected in-repo module: bump patch version in `module-package.yaml`
+- [x] 10.3 Re-sign all 21 in-repo module-package.yaml files: `hatch run python scripts/sign-modules.py --key-file <private-key.pem> src/specfact_cli/modules/*/module-package.yaml`
+- [x] 10.4 Re-run verification in specfact-cli: `hatch run ./scripts/verify-modules-signature.py --require-signature` — confirm in-repo manifests fully green
+- [x] 10.5 In **specfact-cli-modules** repo: sign all 5 bundle `module-package.yaml` files in `packages/*/module-package.yaml` (use specfact-cli's `scripts/sign-modules.py` with `--key-file` and paths into the modules clone, or equivalent signing from modules repo)
+- [x] 10.6 Confirm all signatures green: from specfact-cli, run verifier with scope covering both in-repo and `SPECFACT_MODULES_REPO` bundles (or run verifier in each repo)
 
-## 11. Phase 7 — Publish bundles to registry
+## 11. Phase 7 — Publish bundles to registry (specfact-cli-modules repo)
 
-- [x] 11.1 Verify `specfact-cli-modules/registry/index.json` is at `modules: []` (or contains only prior entries — no overlap)
-- [x] 11.2 Publish specfact-project: `python scripts/publish-module.py --bundle specfact-project --key-file <private-key.pem>`
+Run from **specfact-cli** worktree with `SPECFACT_MODULES_REPO` (or default sibling) pointing at the populated specfact-cli-modules clone. The publish script reads bundle content from that path and writes to `specfact-cli-modules/registry/`.
+
+- [x] 11.1 Verify `specfact-cli-modules/registry/index.json` is at `modules: []` (or contains only prior entries — no overlap with the 5 official bundles)
+- [x] 11.2 Publish specfact-project: `python scripts/publish-module.py --bundle specfact-project --key-file <private-key.pem>` (uses SPECFACT_MODULES_REPO or sibling for bundle dir and registry output)
 - [x] 11.3 Publish specfact-backlog: `python scripts/publish-module.py --bundle specfact-backlog --key-file <private-key.pem>`
 - [x] 11.4 Publish specfact-codebase: `python scripts/publish-module.py --bundle specfact-codebase --key-file <private-key.pem>`
 - [x] 11.5 Publish specfact-spec: `python scripts/publish-module.py --bundle specfact-spec --key-file <private-key.pem>`
 - [x] 11.6 Publish specfact-govern: `python scripts/publish-module.py --bundle specfact-govern --key-file <private-key.pem>`
-- [x] 11.7 Inspect `index.json`: confirm 5 entries, each with `tier: official`, `publisher: nold-ai`, valid `checksum_sha256`, and correct `bundle_dependencies`
-- [x] 11.8 Re-run offline verification against all 5 entries: `hatch run ./scripts/verify-modules-signature.py --require-signature`
+- [x] 11.7 Inspect `specfact-cli-modules/registry/index.json`: confirm 5 entries, each with `tier: official`, `publisher: nold-ai`, valid `checksum_sha256`, and correct `bundle_dependencies`
+- [x] 11.8 Re-run offline verification against all 5 entries (from specfact-cli or modules repo as appropriate): `hatch run ./scripts/verify-modules-signature.py --require-signature`
 
 ## 12. Integration and E2E tests
 
@@ -411,12 +442,12 @@ After all five bundles are extracted and shims are in place, the `module-package
     - `specfact_cli.modules.*` import paths deprecated in favour of `specfact_<bundle>.*` (removal in next major version)
   - [x] 15.3.5 Reference GitHub issue number
 
-## 16. Create PR to dev
+## 16. Create PR to dev (specfact-cli repo)
 
 - [x] 16.1 Verify TDD_EVIDENCE.md is complete (failing-before and passing-after evidence for all behavior changes: cross-bundle import gate, bundle layout, shim deprecation, official-tier validation, bundle dependency install, publish pipeline)
 
-- [x] 16.2 Prepare commit(s)
-  - [x] 16.2.1 Stage all changed files (specfact-cli-modules/packages/, specfact-cli-modules/registry/, src/specfact_cli/modules/ shims, scripts/publish-module.py, tests/, docs/, CHANGELOG.md, pyproject.toml, setup.py, src/specfact_cli/**init**.py, openspec/changes/module-migration-02-bundle-extraction/)
+- [x] 16.2 Prepare commit(s) **in specfact-cli repository**
+  - [x] 16.2.1 Stage all changed files **in this repo**: `src/specfact_cli/modules/` (shims), `scripts/publish-module.py`, `tests/`, `docs/`, `CHANGELOG.md`, `pyproject.toml`, `setup.py`, `src/specfact_cli/__init__.py`, `openspec/changes/module-migration-02-bundle-extraction/`. Do **not** stage `specfact-cli-modules/` — that directory lives in a separate repository; see Section 17.
   - [x] 16.2.2 `git commit -m "feat: extract modules to bundle packages and publish to marketplace (#<issue>)"`
   - [x] 16.2.3 (If GPG signing required) provide `git commit -S -m "..."` for user to run locally
   - [x] 16.2.4 `git push -u origin feature/module-migration-02-bundle-extraction`
@@ -428,9 +459,53 @@ After all five bundles are extracted and shims are in place, the `module-package
 - [x] 16.4 Link PR to project board
   - [x] 16.4.1 `gh project item-add 1 --owner nold-ai --url <PR_URL>`
 
-- [x] 16.5 Verify PR
+- [x] 16.5 Verify PR and CI
   - [x] 16.5.1 Confirm base is `dev`, head is `feature/module-migration-02-bundle-extraction`
-  - [x] 16.5.2 Confirm CI checks are running (tests.yml, specfact.yml)
+  - [x] 16.5.2 Confirm CI checks run; **CI was red (~78 failures)** until specfact-cli-modules was populated and merged (Section 17).
+  - [x] 16.5.3 After Section 17 complete (specfact-cli-modules merged with five bundles), CI re-ran — **PR 332 to dev is now green.**
+
+---
+
+## 17. specfact-cli-modules repo: commit, push, and publish
+
+Migration-02 is not complete until the **specfact-cli-modules** repository contains the five bundle packages and a populated registry, and that state is merged/pushed so that CI (which clones `nold-ai/specfact-cli-modules`) and installers can resolve the bundles.
+
+- [x] 17.1 In the **specfact-cli-modules** clone (used in 5.0–5.4, 10.5, 11): ensure branch is created if not already (e.g. `feature/module-migration-02-bundles`).
+- [x] 17.2 Stage and commit all new/modified files in the modules repo:
+  - [x] 17.2.1 `packages/specfact-project/`, `packages/specfact-backlog/`, `packages/specfact-codebase/`, `packages/specfact-spec/`, `packages/specfact-govern/` (full bundle source and `module-package.yaml`)
+  - [x] 17.2.2 `registry/index.json` and `registry/signatures/` (or equivalent) after Phase 11 publish
+  - [x] 17.2.3 Commit message: e.g. `feat: add five official bundle packages and registry entries (module-migration-02)`
+- [x] 17.3 Push the branch: `git push -u origin feature/module-migration-02-bundles` (or the branch name used).
+- [x] 17.4 Open a PR in **nold-ai/specfact-cli-modules** from the feature branch to `main` (or `dev`, per repo policy). Ensure the PR description references module-migration-02 and specfact-cli issue #316.
+- [x] 17.5 After review, merge the PR so that `main` (or default branch) of specfact-cli-modules contains the five bundles and `registry/index.json` with the five official entries.
+- [x] 17.6 (Optional) Tag or release in specfact-cli-modules so that `https://raw.githubusercontent.com/nold-ai/specfact-cli-modules/main/registry/index.json` (or equivalent) serves the registry for installers and CI.
+- [x] 17.7 Return to specfact-cli: trigger CI again (e.g. push empty commit or re-run workflow). CI clones specfact-cli-modules; with the five bundles now on the default branch, tests pass — **specfact-cli PR 332 to dev is now green.**
+
+- [x] 17.8 **Migration-complete gate (non-reversible)** — Before closing this change, run:
+  ```bash
+  SPECFACT_MODULES_REPO=/path/to/specfact-cli-modules python scripts/validate-modules-repo-sync.py --gate
+  ```
+  - If any file is missing in the modules repo, fix by migrating that content to specfact-cli-modules and re-run.
+  - If content differs (e.g. import/namespace only), either migrate any missing logic to specfact-cli-modules, or after verification re-run with `SPECFACT_MIGRATION_CONTENT_VERIFIED=1`. Do not close the change until the gate passes. See proposal "Non-reversible gate" and "Migration-complete gate".
+
+---
+
+## Handoff to module-migration-03 and module-migration-04
+
+Migration-02 is **complete** when:
+
+1. **specfact-cli**: PR merged to `dev` (shims, scripts, tests, docs, quality gates).
+2. **specfact-cli-modules**: Five bundle packages and `registry/index.json` are merged (and optionally released) so that:
+   - CI for specfact-cli (which checkouts specfact-cli-modules) sees `packages/specfact-*/src/` and tests pass.
+   - Installers and `specfact module install` can resolve the official bundles from the registry.
+3. **Migration-complete gate**: `scripts/validate-modules-repo-sync.py --gate` passes (all files present; content differences resolved or accepted with `SPECFACT_MIGRATION_CONTENT_VERIFIED=1`). Closing is **non-reversible**: after close, canonical source for the 17 modules lives in specfact-cli-modules only.
+
+**Non-conflicting basis for migration-03 and migration-04:**
+
+- **module-migration-03** (core slimming) removes the 17 non-core module **directories** from specfact-cli and relies on `specfact-cli-modules/registry/index.json` containing all 5 bundle entries. It does not modify the modules repo. Migration-02 must deliver the populated registry and bundles before 03 deletes in-repo module dirs.
+- **module-migration-04** (remove flat shims) removes the remaining flat command registration; it depends on 03. No dependency on pushing from specfact-cli to specfact-cli-modules.
+
+Ensure `openspec/CHANGE_ORDER.md` is updated when migration-02 is archived: move the row to Implemented with archive date and note that both specfact-cli and specfact-cli-modules PRs are merged.
 
 ---
 
@@ -455,8 +530,9 @@ git push origin --delete feature/module-migration-02-bundle-extraction
 
 ## CHANGE_ORDER.md update (required — also covered in task 3 above)
 
-After this change is created, `openspec/CHANGE_ORDER.md` must reflect:
+After this change is **fully** completed (both specfact-cli and specfact-cli-modules work done):
 
-- Module migration table: `module-migration-02-bundle-extraction` row with GitHub issue link and `Blocked by: module-migration-01`
-- Wave 3: confirm `module-migration-02-bundle-extraction` is listed after `module-migration-01-categorize-and-group`
-- After merge and archive: move row to Implemented section with archive date; update Wave 3 status if all Wave 3 changes are complete
+- Module migration table: move `module-migration-02-bundle-extraction` row from Pending to **Implemented (archived)** with archive date.
+- Note that completion requires: (1) specfact-cli PR merged to `dev`, (2) specfact-cli-modules PR merged (five bundles + registry/index.json).
+- Wave 3: confirm `module-migration-02-bundle-extraction` is listed after `module-migration-01-categorize-and-group`; update Wave 3 status when all Wave 3 changes are complete.
+- migration-03 and migration-04 remain blocked on migration-02 until both repos are merged as above.

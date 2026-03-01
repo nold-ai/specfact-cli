@@ -124,6 +124,7 @@ jobs:
         with:
           repository: nold-ai/specfact-cli-modules
           path: specfact-cli-modules
+          ref: ${{ (github.ref == 'refs/heads/main' || github.head_ref == 'main') && 'main' || 'dev' }}
 
       - name: Export module bundles path
         if: needs.changes.outputs.skip_tests_dev_to_main != 'true'
@@ -230,6 +231,7 @@ jobs:
         with:
           repository: nold-ai/specfact-cli-modules
           path: specfact-cli-modules
+          ref: ${{ (github.ref == 'refs/heads/main' || github.head_ref == 'main') && 'main' || 'dev' }}
       - name: Export module bundles path
         run: echo "SPECFACT_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" >> "$GITHUB_ENV"
       - name: Set up Python 3.11
@@ -284,6 +286,7 @@ jobs:
         with:
           repository: nold-ai/specfact-cli-modules
           path: specfact-cli-modules
+          ref: ${{ (github.ref == 'refs/heads/main' || github.head_ref == 'main') && 'main' || 'dev' }}
       - name: Export module bundles path
         run: echo "SPECFACT_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" >> "$GITHUB_ENV"
       - name: Set up Python 3.12

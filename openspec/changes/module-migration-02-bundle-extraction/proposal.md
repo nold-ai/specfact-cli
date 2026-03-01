@@ -66,11 +66,43 @@ Without this extraction, the `specfact init --profile <name>` first-run selectio
 
 ---
 
+## Non-reversible gate
+
+**Closing this change is a one-way gate.** After migration-02 is closed:
+
+- **Canonical source** for the 17 migrated modules (project, plan, import_cmd, sync, migrate, backlog, policy_engine, analyze, drift, validate, repro, contract, spec, sdd, generate, enforce, patch_mode) lives in **specfact-cli-modules** only. New work and fixes for those modules are done in that repo.
+- **specfact-cli** keeps only re-export shims under `src/specfact_cli/modules/*/` that delegate to the bundle packages; it no longer owns or maintains the implementation of those modules.
+- Reverting "who owns the code" would require a separate, explicit reverse-migration change (not in scope here).
+
+**Before closing this change**, the migration-complete gate must pass (see below). Do not close until all migrated module source is present and verified in specfact-cli-modules.
+
+See **`openspec/changes/module-migration-02-bundle-extraction/MIGRATION_GATE.md`** for expected gate output, why content differs, and the exact command to pass the gate when closing.
+
+---
+
+## Migration-complete gate
+
+Before marking migration-02 complete or merging the change:
+
+1. **Run the gate script** from the specfact-cli worktree (with `SPECFACT_MODULES_REPO` pointing at the specfact-cli-modules clone, on the branch that will be merged):
+   ```bash
+   SPECFACT_MODULES_REPO=/path/to/specfact-cli-modules python scripts/validate-modules-repo-sync.py --gate
+   ```
+2. **Gate criteria:**
+   - All 17 migrated modules have every source file **present** in specfact-cli-modules at the correct bundle path (script fails if any file is missing).
+   - **Content:** If any file’s content differs between worktree and modules repo, the script exits non-zero and lists differing files. Resolve by either (a) migrating missing logic into specfact-cli-modules and re-running, or (b) confirming that differences are only import/namespace and re-running with `SPECFACT_MIGRATION_CONTENT_VERIFIED=1`.
+3. **specfact-cli-modules** bundles and registry are merged to the target branch (e.g. `main`) so CI and installers use the canonical bundles.
+
+Only then should this change be closed and future work on those modules continue in specfact-cli-modules only.
+
+---
+
 ## Source Tracking
 
 <!-- source_repo: nold-ai/specfact-cli -->
 - **GitHub Issue**: #316
 - **Issue URL**: <https://github.com/nold-ai/specfact-cli/issues/316>
 - **Repository**: nold-ai/specfact-cli
-- **Last Synced Status**: open
+- **PR**: #332 (feature/module-migration-02-bundle-extraction → dev)
+- **Last Synced Status**: in progress — specfact-cli-modules published and merged; specfact-cli PR 332 CI is green. Pending: migration-complete gate (17.8) and merge of PR 332 to dev.
 - **Sanitized**: false

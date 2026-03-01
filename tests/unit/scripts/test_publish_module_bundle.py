@@ -214,7 +214,9 @@ def test_bundle_all_flag_publishes_all_five_bundles_in_sequence(
     key_file.write_text("dummy", encoding="utf-8")
     registry_dir = _init_registry_layout(tmp_path)
 
-    monkeypatch.setattr(module, "publish_bundle", lambda name, key_file, registry_dir: called.append(name))
+    monkeypatch.setattr(
+        module, "publish_bundle", lambda name, key_file, registry_dir, bump_version=None, **kwargs: called.append(name)
+    )
     monkeypatch.setattr(
         "sys.argv",
         [

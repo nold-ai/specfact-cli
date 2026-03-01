@@ -252,6 +252,7 @@ def publish_bundle(
     key_file: Path,
     registry_dir: Path,
     bundle_packages_root: Path | None = None,
+    bump_version: str | None = None,
 ) -> None:
     """Package, sign, verify, and publish single bundle into registry index."""
     effective_packages_root = bundle_packages_root if bundle_packages_root is not None else BUNDLE_PACKAGES_ROOT
@@ -261,9 +262,15 @@ def publish_bundle(
     if not key_file.exists():
         raise ValueError(f"Key file not found: {key_file}")
 
-    manifest = _load_manifest(bundle_dir / "module-package.yaml")
+    manifest_path = bundle_dir / "module-package.yaml"
+    manifest = _load_manifest(manifest_path)
     module_id = str(manifest.get("name", "")).strip()
     version = str(manifest.get("version", "")).strip()
+    if bump_version:
+        version = _bump_semver(version, bump_version)
+        manifest["version"] = version
+        _write_manifest(manifest_path, manifest)
+        print(f"{bundle_name}: version bumped to {version}")
     if not module_id or not version:
         raise ValueError("Bundle manifest must include name and version")
 
@@ -296,8 +303,42 @@ def publish_bundle(
         "tier": manifest.get("tier", "community"),
         "publisher": manifest.get("publisher", "unknown"),
         "bundle_dependencies": manifest.get("bundle_dependencies", []),
+        "description": (manifest.get("description") or "").strip(),
     }
     write_index_entry(index_path, entry)
+
+
+def _parse_semver(version: str) -> tuple[int, int, int]:
+    """Parse x.y.z into (major, minor, patch)."""
+    parts = version.split(".")
+    if len(parts) != 3 or any(not p.isdigit() for p in parts):
+        raise ValueError(f"Unsupported version format for bump (expected x.y.z): {version}")
+    return int(parts[0]), int(parts[1]), int(parts[2])
+
+
+def _bump_semver(version: str, bump_type: str) -> str:
+    """Return version string bumped by major, minor, or patch."""
+    major, minor, patch = _parse_semver(version)
+    if bump_type == "major":
+        return f"{major + 1}.0.0"
+    if bump_type == "minor":
+        return f"{major}.{minor + 1}.0"
+    if bump_type == "patch":
+        return f"{major}.{minor}.{patch + 1}"
+    raise ValueError(f"Unsupported bump type: {bump_type}")
+
+
+def _write_manifest(manifest_path: Path, data: dict) -> None:
+    """Write manifest YAML preserving key order."""
+    manifest_path.write_text(
+        yaml.dump(
+            data,
+            default_flow_style=False,
+            sort_keys=False,
+            allow_unicode=True,
+        ),
+        encoding="utf-8",
+    )
 
 
 def main() -> int:
@@ -349,6 +390,12 @@ def main() -> int:
         help="Publish bundle by name or 'all' for all official bundles",
     )
     parser.add_argument(
+        "--bump-version",
+        choices=("patch", "minor", "major"),
+        default=None,
+        help="Bump bundle version in module-package.yaml before publishing (bundle mode only).",
+    )
+    parser.add_argument(
         "--registry-dir",
         type=Path,
         default=None,
@@ -367,7 +414,7 @@ def main() -> int:
         BUNDLE_PACKAGES_ROOT = bundle_packages_root
         bundles = OFFICIAL_BUNDLES if args.bundle == "all" else [args.bundle]
         for bundle_name in bundles:
-            publish_bundle(bundle_name, args.key_file, registry_dir)
+            publish_bundle(bundle_name, args.key_file, registry_dir, bump_version=args.bump_version)
             print(f"Published bundle: {bundle_name}")
         return 0
 
