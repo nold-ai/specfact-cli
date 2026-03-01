@@ -1,5 +1,5 @@
 name: spec
-version: 0.1.4
+version: 0.1.5
 commands:
   - spec
 category: spec
@@ -19,5 +19,5 @@ publisher:
 description: Integrate and run API specification and contract checks.
 license: Apache-2.0
 integrity:
-  checksum: sha256:034e6c7a9081e7c36ad506bbc7aee8f83b98f7c86896c73ca3bb8ba97c33409e
-  signature: zz8ceQ4fQpVOGz2UsbIy6n+9PWbLxg0XKvgkzg1syZgRAlCQ9h7yGTWe0pyidNOkCIS+aBKR8yOSLPq2CUKmBw==
+  checksum: sha256:084cb34fcec54a8b52f257f54d32e37f7bc5e4041d50e817694893363012bb75
+  signature: Y9tvTvJdcQU73SpZyhty27+7TWVtj53I8QIr4882FQBE5mH2aZwXDGNqLB7XPbgB0DfbAkXSSY4oSfm/2o98DA==

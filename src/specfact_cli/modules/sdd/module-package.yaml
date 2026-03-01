@@ -1,5 +1,5 @@
 name: sdd
-version: 0.1.4
+version: 0.1.5
 commands:
   - sdd
 category: spec
@@ -19,5 +19,5 @@ publisher:
 description: Create and validate Spec-Driven Development manifests and mappings.
 license: Apache-2.0
 integrity:
-  checksum: sha256:8ef2b6a619092ddead75aaacd3d93d1ba4bd3fff58b2621e0d7ef3fa9509faed
-  signature: kIMUMwD1/hBEoOvy5L5Ggbi5AIK9WjngHLrUA8ZgepvCKxdCcvhNgEls2hGi2Az+iUkj/Z+N939B7EDIyStdCg==
+  checksum: sha256:5f636f155e7c12cbbd1238f2b767cc040e9e8ba483bd78827ea173d991747591
+  signature: nIDyByIckZx2hS7sWmqa40x/DlIaJc9bMQYNtQbMdcD6qWd37+ExwyLufyjYYYdJhJLVdR5ZPEy5dsLkJdIAAA==

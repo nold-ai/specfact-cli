@@ -4,10 +4,13 @@ import warnings
 from importlib import import_module
 
 
-_target = import_module("specfact_govern.patch_mode")
+_target = None
 
 
 def __getattr__(name: str):
+    global _target
+    if _target is None:
+        _target = import_module("specfact_govern.patch_mode")
     warnings.warn(
         "specfact_cli.modules.patch_mode is deprecated; use specfact_govern.patch_mode instead",
         DeprecationWarning,

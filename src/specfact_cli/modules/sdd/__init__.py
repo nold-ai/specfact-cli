@@ -4,10 +4,13 @@ import warnings
 from importlib import import_module
 
 
-_target = import_module("specfact_spec.sdd")
+_target = None
 
 
 def __getattr__(name: str):
+    global _target
+    if _target is None:
+        _target = import_module("specfact_spec.sdd")
     warnings.warn(
         "specfact_cli.modules.sdd is deprecated; use specfact_spec.sdd instead",
         DeprecationWarning,

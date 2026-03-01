@@ -4,10 +4,13 @@ import warnings
 from importlib import import_module
 
 
-_target = import_module("specfact_project.migrate")
+_target = None
 
 
 def __getattr__(name: str):
+    global _target
+    if _target is None:
+        _target = import_module("specfact_project.migrate")
     warnings.warn(
         "specfact_cli.modules.migrate is deprecated; use specfact_project.migrate instead",
         DeprecationWarning,

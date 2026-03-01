@@ -1,5 +1,5 @@
 name: patch-mode
-version: 0.1.4
+version: 0.1.5
 commands:
   - patch
 category: govern
@@ -20,5 +20,5 @@ publisher:
 description: Prepare, review, and apply structured repository patches safely.
 license: Apache-2.0
 integrity:
-  checksum: sha256:6d667ba20f010ff83aea0be19a7275f847cc1efc77dbb862dc52c124eb2b146e
-  signature: jrulLQk22cbm6aL2pMk5gk6o5G4A4yEt3es3i2H0ZptmRueWigxo43SJYZWTfmIKsMx0UFWf8DmOJ/tX896MCw==
+  checksum: sha256:cab42203c34c0a305aabd5ca98219adc6a501de6ad48998f2639c5e8db6c6e60
+  signature: tMN8zZkS6ZrqS9gAko2ixYahCggxSUfpHvXAdRD7lNbP3U0SPpg/UyuSomQCq+/KcxzHGOYv5UtE9VoFk5qMBg==

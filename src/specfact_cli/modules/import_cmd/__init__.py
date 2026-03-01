@@ -4,10 +4,13 @@ import warnings
 from importlib import import_module
 
 
-_target = import_module("specfact_project.import_cmd")
+_target = None
 
 
 def __getattr__(name: str):
+    global _target
+    if _target is None:
+        _target = import_module("specfact_project.import_cmd")
     warnings.warn(
         "specfact_cli.modules.import_cmd is deprecated; use specfact_project.import_cmd instead",
         DeprecationWarning,

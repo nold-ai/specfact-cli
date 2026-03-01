@@ -1,5 +1,5 @@
 name: generate
-version: 0.1.4
+version: 0.1.5
 commands:
   - generate
 category: spec
@@ -20,5 +20,5 @@ publisher:
 description: Generate implementation artifacts from plans and SDD.
 license: Apache-2.0
 integrity:
-  checksum: sha256:cd63833b78fb38e43d980bd93b35abc30a94727f05596004be6f53cda949cab6
-  signature: ov0oHQYDULDN88s18zuNXskw8/Y6mGgEk2ny9sYZ54tnlXM1k/y67pKroPod9hvp7ZxfTd84gPLufXFL9SDfCQ==
+  checksum: sha256:b6a198e78007de92f9df42ad1e71a7ac8bdc09cf394ae31da454ff4af904d2e9
+  signature: L7qWoXFQ/fGFC4fMtXQkuaoy1JO53rLuUEQMXO+GTC3Fsij7AMOpwCI90402ux1AIkiUyxfENKQ2A+N7MAqABw==
