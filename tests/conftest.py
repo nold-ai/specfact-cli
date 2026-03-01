@@ -6,10 +6,23 @@ import tempfile
 from pathlib import Path
 
 
-# Add project root to path for tools imports
-project_root = Path(__file__).parent.parent
-if str(project_root) not in sys.path:
-    sys.path.insert(0, str(project_root))
+# Use the repo that contains this conftest (worktree when tests run from worktree).
+# __file__ is always the conftest in the repo we're testing; avoid cwd so we're not affected by run dir.
+project_root = Path(__file__).resolve().parent.parent
+if not (project_root / "src" / "specfact_cli").exists():
+    _invoke_dir = Path.cwd().resolve()
+    if (_invoke_dir / "src" / "specfact_cli").exists():
+        project_root = _invoke_dir
+
+# Force module discovery to use this repo so we run worktree code, not site-packages.
+os.environ["SPECFACT_REPO_ROOT"] = str(project_root.resolve())
+
+# Add project root and src to path so specfact_cli and tests use repo code (not only site-packages).
+# Insert project_root first, then src_root, so src_root ends up at index 0 and specfact_cli loads from worktree.
+src_root = project_root / "src"
+for path in (project_root, src_root):
+    if path.exists() and str(path) not in sys.path:
+        sys.path.insert(0, str(path))
 
 
 def _resolve_modules_repo_root() -> Path:
@@ -38,6 +51,14 @@ if bundle_packages_root.exists():
 os.environ["TEST_MODE"] = "true"
 # Allow loading bundled modules without signature in tests
 os.environ.setdefault("SPECFACT_ALLOW_UNSIGNED", "1")
+# Point policy init at repo resources so template resolution works in tests/CI.
+policy_templates = project_root / "resources" / "templates" / "policies"
+if policy_templates.exists():
+    os.environ["SPECFACT_POLICY_TEMPLATES_DIR"] = str(policy_templates.resolve())
+else:
+    _cwd_templates = Path.cwd().resolve() / "resources" / "templates" / "policies"
+    if _cwd_templates.exists():
+        os.environ["SPECFACT_POLICY_TEMPLATES_DIR"] = str(_cwd_templates)
 
 # Isolate registry state for test runs to avoid coupling with ~/.specfact/registry.
 # This prevents local module enable/disable settings from affecting command discovery in tests.

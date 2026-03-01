@@ -7,6 +7,8 @@ import importlib
 import warnings
 from pathlib import Path
 
+import pytest
+
 
 def test_validate_shim_emits_deprecation_warning_on_attribute_access() -> None:
     with warnings.catch_warnings(record=True) as captured:
@@ -16,6 +18,7 @@ def test_validate_shim_emits_deprecation_warning_on_attribute_access() -> None:
     assert any(issubclass(item.category, DeprecationWarning) for item in captured)
 
 
+@pytest.mark.filterwarnings("ignore:specfact_cli.modules.analyze is deprecated")
 def test_legacy_analyze_import_resolves_without_import_error() -> None:
     from specfact_cli.modules.analyze import app
 

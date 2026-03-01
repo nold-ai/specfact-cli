@@ -87,7 +87,16 @@ def _normalized_module_name(package_name: str) -> str:
 
 
 def get_modules_root() -> Path:
-    """Return the modules root path (specfact_cli package dir / modules)."""
+    """Return the modules root path (specfact_cli package dir / modules).
+
+    When SPECFACT_REPO_ROOT is set (e.g. in tests/CI), use that repo so the
+    correct checkout/worktree is used instead of the installed package.
+    """
+    explicit_root = os.environ.get("SPECFACT_REPO_ROOT")
+    if explicit_root:
+        candidate = Path(explicit_root).expanduser().resolve() / "src" / "specfact_cli" / "modules"
+        if candidate.exists():
+            return candidate
     import specfact_cli
 
     pkg_dir = Path(specfact_cli.__path__[0]).resolve()
@@ -456,17 +465,26 @@ def _make_package_loader(package_dir: Path, package_name: str, command_name: str
             sys.path.insert(0, str(src_dir))
         normalized_name = _normalized_module_name(package_name)
         load_path: Path | None = None
-        if (src_dir / "app.py").exists():
-            load_path = src_dir / "app.py"
-        elif (src_dir / f"{normalized_name}.py").exists():
-            load_path = src_dir / f"{normalized_name}.py"
-        elif (src_dir / normalized_name / "__init__.py").exists():
-            load_path = src_dir / normalized_name / "__init__.py"
+        submodule_locations: list[str] | None = None
+        # In test/CI (SPECFACT_REPO_ROOT set), prefer local src/<name>/main.py so worktree
+        # code runs (e.g. env-aware templates) instead of the bundle delegate (app.py -> specfact_backlog).
+        if os.environ.get("SPECFACT_REPO_ROOT") and (src_dir / normalized_name / "main.py").exists():
+            load_path = src_dir / normalized_name / "main.py"
+            submodule_locations = [str(load_path.parent)]
+        if load_path is None:
+            if (src_dir / "app.py").exists():
+                load_path = src_dir / "app.py"
+            elif (src_dir / f"{normalized_name}.py").exists():
+                load_path = src_dir / f"{normalized_name}.py"
+            elif (src_dir / normalized_name / "__init__.py").exists():
+                load_path = src_dir / normalized_name / "__init__.py"
+                submodule_locations = [str(load_path.parent)]
         if load_path is None:
             raise ValueError(
                 f"Package {package_dir.name} has no src/app.py, src/{package_name}.py or src/{package_name}/"
             )
-        submodule_locations = [str(load_path.parent)] if load_path.name == "__init__.py" else None
+        if submodule_locations is None and load_path.name == "__init__.py":
+            submodule_locations = [str(load_path.parent)]
         module_token = _normalized_module_name(package_dir.name)
         spec = importlib.util.spec_from_file_location(
             f"_specfact_module_{module_token}",
