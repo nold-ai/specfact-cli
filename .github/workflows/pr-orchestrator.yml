@@ -151,7 +151,7 @@ jobs:
           path: |
             ~/.local/share/hatch
             ~/.cache/uv
-          key: ${{ runner.os }}-hatch-tests-py312-${{ hashFiles('pyproject.toml') }}
+          key: ${{ runner.os }}-hatch-tests-py312-${{ hashFiles('pyproject.toml', 'src/specfact_cli/modules/*/__init__.py') }}
           restore-keys: |
             ${{ runner.os }}-hatch-tests-py312-
             ${{ runner.os }}-hatch-
@@ -249,7 +249,7 @@ jobs:
           path: |
             ~/.local/share/hatch
             ~/.cache/uv
-          key: ${{ runner.os }}-hatch-compat-py311-${{ hashFiles('pyproject.toml') }}
+          key: ${{ runner.os }}-hatch-compat-py311-${{ hashFiles('pyproject.toml', 'src/specfact_cli/modules/*/__init__.py') }}
           restore-keys: |
             ${{ runner.os }}-hatch-compat-py311-
             ${{ runner.os }}-hatch-
@@ -303,7 +303,7 @@ jobs:
           path: |
             ~/.local/share/hatch
             ~/.cache/uv
-          key: ${{ runner.os }}-hatch-contract-first-py312-${{ hashFiles('pyproject.toml') }}
+          key: ${{ runner.os }}-hatch-contract-first-py312-${{ hashFiles('pyproject.toml', 'src/specfact_cli/modules/*/__init__.py') }}
           restore-keys: |
             ${{ runner.os }}-hatch-contract-first-py312-
             ${{ runner.os }}-hatch-
