@@ -4,10 +4,13 @@ import warnings
 from importlib import import_module
 
 
-_target = import_module("specfact_backlog.backlog")
+_target = None
 
 
 def __getattr__(name: str):
+    global _target
+    if _target is None:
+        _target = import_module("specfact_backlog.backlog")
     warnings.warn(
         "specfact_cli.modules.backlog is deprecated; use specfact_backlog.backlog instead",
         DeprecationWarning,

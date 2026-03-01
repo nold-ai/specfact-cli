@@ -338,18 +338,18 @@ After all five bundles are extracted and shims are in place, the `module-package
   - [x] 13.4.1 `hatch run yaml-lint`
   - [x] 13.4.2 Fix any YAML formatting issues (bundle module-package.yaml files must be valid)
 
-- [ ] 13.5 Contract-first testing
-  - [ ] 13.5.1 `hatch run contract-test`
-  - [ ] 13.5.2 Verify all `@icontract` contracts pass for new and modified public APIs
+- [x] 13.5 Contract-first testing
+  - [x] 13.5.1 `hatch run contract-test`
+  - [x] 13.5.2 Verify all `@icontract` contracts pass for new and modified public APIs
 
-- [ ] 13.6 Smart test suite
-  - [ ] 13.6.1 `hatch run smart-test`
-  - [ ] 13.6.2 Verify no regressions in existing commands (compat shims and group routing must still work)
+- [x] 13.6 Smart test suite
+  - [x] 13.6.1 `hatch run smart-test`
+  - [x] 13.6.2 Verify no regressions in existing commands (compat shims and group routing must still work)
 
-- [ ] 13.7 Module signing gate (final)
-  - [ ] 13.7.1 `hatch run ./scripts/verify-modules-signature.py --require-signature`
-  - [ ] 13.7.2 If any module fails: re-sign with `hatch run python scripts/sign-modules.py --key-file <private-key.pem> <module-package.yaml ...>`
-  - [ ] 13.7.3 Re-run verification until fully green
+- [x] 13.7 Module signing gate (final)
+  - [x] 13.7.1 `hatch run ./scripts/verify-modules-signature.py --require-signature`
+  - [x] 13.7.2 If any module fails: re-sign with `hatch run python scripts/sign-modules.py --key-file <private-key.pem> <module-package.yaml ...>`
+  - [x] 13.7.3 Re-run verification until fully green
 
 ## 14. Documentation research and review
 
@@ -413,24 +413,24 @@ After all five bundles are extracted and shims are in place, the `module-package
 
 ## 16. Create PR to dev
 
-- [ ] 16.1 Verify TDD_EVIDENCE.md is complete (failing-before and passing-after evidence for all behavior changes: cross-bundle import gate, bundle layout, shim deprecation, official-tier validation, bundle dependency install, publish pipeline)
+- [x] 16.1 Verify TDD_EVIDENCE.md is complete (failing-before and passing-after evidence for all behavior changes: cross-bundle import gate, bundle layout, shim deprecation, official-tier validation, bundle dependency install, publish pipeline)
 
-- [ ] 16.2 Prepare commit(s)
-  - [ ] 16.2.1 Stage all changed files (specfact-cli-modules/packages/, specfact-cli-modules/registry/, src/specfact_cli/modules/ shims, scripts/publish-module.py, tests/, docs/, CHANGELOG.md, pyproject.toml, setup.py, src/specfact_cli/**init**.py, openspec/changes/module-migration-02-bundle-extraction/)
-  - [ ] 16.2.2 `git commit -m "feat: extract modules to bundle packages and publish to marketplace (#<issue>)"`
-  - [ ] 16.2.3 (If GPG signing required) provide `git commit -S -m "..."` for user to run locally
-  - [ ] 16.2.4 `git push -u origin feature/module-migration-02-bundle-extraction`
+- [x] 16.2 Prepare commit(s)
+  - [x] 16.2.1 Stage all changed files (specfact-cli-modules/packages/, specfact-cli-modules/registry/, src/specfact_cli/modules/ shims, scripts/publish-module.py, tests/, docs/, CHANGELOG.md, pyproject.toml, setup.py, src/specfact_cli/**init**.py, openspec/changes/module-migration-02-bundle-extraction/)
+  - [x] 16.2.2 `git commit -m "feat: extract modules to bundle packages and publish to marketplace (#<issue>)"`
+  - [x] 16.2.3 (If GPG signing required) provide `git commit -S -m "..."` for user to run locally
+  - [x] 16.2.4 `git push -u origin feature/module-migration-02-bundle-extraction`
 
-- [ ] 16.3 Create PR via gh CLI
-  - [ ] 16.3.1 `gh pr create --repo nold-ai/specfact-cli --base dev --head feature/module-migration-02-bundle-extraction --title "feat: Bundle Extraction and Marketplace Publishing (#<issue>)" --body "..."` (body: summary bullets, test plan checklist, OpenSpec change ID, issue reference)
-  - [ ] 16.3.2 Capture PR URL
+- [x] 16.3 Create PR via gh CLI
+  - [x] 16.3.1 `gh pr create --repo nold-ai/specfact-cli --base dev --head feature/module-migration-02-bundle-extraction --title "feat: Bundle Extraction and Marketplace Publishing (#<issue>)" --body "..."` (body: summary bullets, test plan checklist, OpenSpec change ID, issue reference)
+  - [x] 16.3.2 Capture PR URL
 
-- [ ] 16.4 Link PR to project board
-  - [ ] 16.4.1 `gh project item-add 1 --owner nold-ai --url <PR_URL>`
+- [x] 16.4 Link PR to project board
+  - [x] 16.4.1 `gh project item-add 1 --owner nold-ai --url <PR_URL>`
 
-- [ ] 16.5 Verify PR
-  - [ ] 16.5.1 Confirm base is `dev`, head is `feature/module-migration-02-bundle-extraction`
-  - [ ] 16.5.2 Confirm CI checks are running (tests.yml, specfact.yml)
+- [x] 16.5 Verify PR
+  - [x] 16.5.1 Confirm base is `dev`, head is `feature/module-migration-02-bundle-extraction`
+  - [x] 16.5.2 Confirm CI checks are running (tests.yml, specfact.yml)
 
 ---
 
