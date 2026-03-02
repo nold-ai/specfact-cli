@@ -223,15 +223,15 @@ Do NOT implement production code for any behavior-changing step until failing-te
 
 ## 11. Phase 2 — Update bootstrap.py (shim removal + 4-core-only registration)
 
-- [ ] 11.1 Edit `src/specfact_cli/registry/bootstrap.py`:
-  - [ ] 11.1.1 Remove all import statements for the 17 deleted module packages
-  - [ ] 11.1.2 Remove all `register_module()` / `add_typer()` calls for the 17 deleted modules
-  - [ ] 11.1.3 Remove backward-compat flat command shim registration logic (entire shim block)
-  - [ ] 11.1.4 Add `_mount_installed_category_groups(cli_app)` call after the 4 core registrations
-  - [ ] 11.1.5 Implement `_mount_installed_category_groups(cli_app: typer.Typer) -> None` using `get_installed_bundles()` and `CATEGORY_GROUP_FACTORIES` mapping
-  - [ ] 11.1.6 Add `@beartype` to `bootstrap_modules()` and `_mount_installed_category_groups()`
-- [ ] 11.2 `hatch test -- tests/unit/registry/test_core_only_bootstrap.py -v` — verify passes
-- [ ] 11.3 Record passing-test result in TDD_EVIDENCE.md (Phase 2: bootstrap)
+- [x] 11.1 Edit `src/specfact_cli/registry/bootstrap.py`:
+  - [x] 11.1.1 Remove all import statements for the 17 deleted module packages
+  - [x] 11.1.2 Remove all `register_module()` / `add_typer()` calls for the 17 deleted modules
+  - [x] 11.1.3 Remove backward-compat flat command shim registration logic (entire shim block)
+  - [x] 11.1.4 Add `_mount_installed_category_groups(cli_app)` call after the 4 core registrations
+  - [x] 11.1.5 Implement `_mount_installed_category_groups(cli_app: typer.Typer) -> None` using `get_installed_bundles()` and `CATEGORY_GROUP_FACTORIES` mapping
+  - [x] 11.1.6 Add `@beartype` to `bootstrap_modules()` and `_mount_installed_category_groups()`
+- [x] 11.2 `hatch test -- tests/unit/registry/test_core_only_bootstrap.py -v` — verify passes
+- [x] 11.3 Record passing-test result in TDD_EVIDENCE.md (Phase 2: bootstrap)
 - [ ] 11.4 `git commit -m "feat(bootstrap): remove flat shims and non-core module registrations (migration-03)"`
 
 ## 12. Phase 3 — Update cli.py (conditional category group mounting)

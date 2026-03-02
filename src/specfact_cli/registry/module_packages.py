@@ -47,26 +47,12 @@ from specfact_cli.runtime import is_debug_mode
 from specfact_cli.utils.prompts import print_warning
 
 
-# Display order for core modules (formerly built-in); others follow alphabetically.
+# Display order for core modules (4 only after migration-03); others follow alphabetically.
 CORE_NAMES = ("init", "auth", "module", "upgrade")
 CORE_MODULE_ORDER: tuple[str, ...] = (
     "init",
     "auth",
-    "backlog",
-    "import_cmd",
-    "migrate",
-    "plan",
-    "project",
-    "generate",
-    "enforce",
-    "repro",
-    "sdd",
-    "spec",
-    "contract",
-    "sync",
-    "drift",
-    "analyze",
-    "validate",
+    "module-registry",
     "upgrade",
 )
 CURRENT_PROJECT_SCHEMA_VERSION = "1"
@@ -904,6 +890,7 @@ def _build_bundle_to_group() -> dict[str, tuple[str, str, Any]]:
     }
 
 
+@beartype
 def _mount_installed_category_groups(
     packages: list[tuple[Path, ModulePackageMetadata]],
     enabled_map: dict[str, bool],
@@ -934,55 +921,6 @@ def _mount_installed_category_groups(
     for flat_name, (group_name, sub_name) in FLAT_TO_GROUP.items():
         if group_name not in {bundle_to_group[b][0] for b in installed if b in bundle_to_group}:
             continue
-        if flat_name == group_name:
-            continue
-        meta = CommandRegistry.get_module_metadata(flat_name)
-        if meta is None:
-            continue
-        help_str = meta.help
-        shim_loader = _make_shim_loader(flat_name, group_name, sub_name, help_str)
-        cmd_meta = CommandMetadata(
-            name=flat_name,
-            help=help_str + " (deprecated; use specfact " + group_name + " " + sub_name + ")",
-            tier=meta.tier,
-            addon_id=meta.addon_id,
-        )
-        CommandRegistry.register(flat_name, shim_loader, cmd_meta)
-
-
-def _register_category_groups_and_shims() -> None:
-    """Register category group typers and compat shims in CommandRegistry._entries."""
-    from specfact_cli.groups.backlog_group import build_app as build_backlog_app
-    from specfact_cli.groups.codebase_group import build_app as build_codebase_app
-    from specfact_cli.groups.govern_group import build_app as build_govern_app
-    from specfact_cli.groups.project_group import build_app as build_project_app
-    from specfact_cli.groups.spec_group import build_app as build_spec_app
-
-    group_apps = [
-        ("code", "Codebase quality commands: analyze, drift, validate, repro.", build_codebase_app),
-        ("backlog", "Backlog and policy commands.", build_backlog_app),
-        ("project", "Project lifecycle commands.", build_project_app),
-        ("spec", "Spec and contract commands: contract, api, sdd, generate.", build_spec_app),
-        ("govern", "Governance and quality gates: enforce, patch.", build_govern_app),
-    ]
-    for group_name, help_str, build_fn in group_apps:
-
-        def _make_group_loader(fn: Any) -> Any:
-            def _group_loader(_fn: Any = fn) -> Any:
-                return _fn()
-
-            return _group_loader
-
-        loader = _make_group_loader(build_fn)
-        cmd_meta = CommandMetadata(
-            name=group_name,
-            help=help_str,
-            tier="community",
-            addon_id=None,
-        )
-        CommandRegistry.register(group_name, loader, cmd_meta)
-
-    for flat_name, (group_name, sub_name) in FLAT_TO_GROUP.items():
         if flat_name == group_name:
             continue
         meta = CommandRegistry.get_module_metadata(flat_name)
