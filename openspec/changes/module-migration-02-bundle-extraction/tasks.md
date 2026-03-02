@@ -1,6 +1,8 @@
 # Implementation Tasks: module-migration-02-bundle-extraction
 
-## Status and gap (as of review)
+## Status and gap (as of review — updated with gap analysis 2026-03-02)
+
+**Gap analysis artifact:** See `GAP_ANALYSIS.md` for the full findings (8 gaps, 3 critical) and the remediation actions taken in this file.
 
 **Completed in this worktree (specfact-cli repo only):**
 
@@ -10,11 +12,21 @@
 - Section 16: PR created (e.g. #332 feature/module-migration-02-bundle-extraction → dev).
 - Section 17.1–17.7: **specfact-cli-modules** published and merged (five bundles + registry). CI for specfact-cli now passes — **PR 332 to dev is green.**
 
-**Outstanding before closing:**
+**Outstanding before closing (updated):**
 
-- **17.8 Migration-complete gate**: Run `scripts/validate-modules-repo-sync.py --gate`; after confirming content diffs are import/namespace only, pass with `SPECFACT_MIGRATION_CONTENT_VERIFIED=1`. Then merge specfact-cli PR to dev and treat migration-02 as complete (non-reversible).
-- **Section 18 (test migration and quality parity)**: Inventory tests by bundle, add quality tooling (coverage, contract-test, smart-test, yaml-lint) to specfact-cli-modules, migrate tests, and align CI. See proposal "Test migration and quality parity (gap)".
-- **Section 19 (dependency decoupling)**: Categorize specfact_cli imports (CORE vs MIGRATE), migrate module-only dependencies to specfact-cli-modules, document allowed imports, add import gate. See proposal "Dependency decoupling (gap)" and `IMPORT_DEPENDENCY_ANALYSIS.md`.
+- **17.8.0 Pre-gate prerequisite**: Section 19.1 import categorization (all 85 imports in `IMPORT_DEPENDENCY_ANALYSIS.md` must be categorized CORE/MIGRATE/SHARED). **Blocks 17.8.** See Gap 1 in `GAP_ANALYSIS.md`.
+- **17.8 Migration-complete gate**: Run `scripts/validate-modules-repo-sync.py --gate` + behavioral smoke test; after confirming content diffs are import/namespace only, pass with `SPECFACT_MIGRATION_CONTENT_VERIFIED=1`. Then merge specfact-cli PR to dev and treat migration-02 as complete (non-reversible). Updated to include smoke test — see 17.8 below.
+- **17.9 Proposal consistency (migration-03/04 overlap)**: Reconcile flat-shim removal overlap between migration-03 and migration-04; update migration-03 proposal to explicitly declare Python import shim removal. See Gaps 2 and 3 in `GAP_ANALYSIS.md`.
+- **17.10 Create module-migration-05 change stub**: Scope, proposal, and tasks for sections 18–23. ✅ Done — see `openspec/changes/module-migration-05-modules-repo-quality/`.
+
+**Deferred to module-migration-05-modules-repo-quality:**
+
+- **Section 18** (test migration and quality parity): Inventory tests, add quality tooling, migrate tests, align CI. See `module-migration-05` tasks.md section 18.
+- **Section 19** (dependency decoupling): Categorize specfact_cli imports (19.1 — done as 17.8.0 prerequisite above), migrate MIGRATE-tier imports. See `module-migration-05` tasks.md section 19.
+- **Section 20** (docs migration): Migrate bundle docs to specfact-cli-modules with Jekyll. See `module-migration-05` tasks.md section 20.
+- **Section 21** (build pipeline): PR orchestrator workflow in specfact-cli-modules. **Must land before migration-03.** See `module-migration-05` tasks.md section 21.
+- **Section 22** (central config files): pyproject, ruff, basedpyright, pylint, pre-commit alignment. **Must land before migration-03.** See `module-migration-05` tasks.md section 22.
+- **Section 23** (license and contribution): LICENSE, CONTRIBUTING.md, CODE_OF_CONDUCT alignment. See `module-migration-05` tasks.md section 23.
 - **Section 20 (docs migration)**: Migrate bundle/module docs to specfact-cli-modules; Jekyll setup similar to specfact-cli. See proposal "Docs migration (gap)" and checklist (c).
 - **Section 21 (build pipeline)**: pr-orchestrator (or equivalent) for modules repo; CI gates aligned with specfact-cli. See proposal "Build pipeline (gap)" and checklist (d).
 - **Section 22 (central config)**: Root-level config files (pyproject, ruff, pyright, pylint, pre-commit) match specfact-cli. See proposal "Central config files (gap)" and checklist (e).
@@ -487,16 +499,69 @@ Migration-02 is not complete until the **specfact-cli-modules** repository conta
 - [x] 17.6 (Optional) Tag or release in specfact-cli-modules so that `https://raw.githubusercontent.com/nold-ai/specfact-cli-modules/main/registry/index.json` (or equivalent) serves the registry for installers and CI.
 - [x] 17.7 Return to specfact-cli: trigger CI again (e.g. push empty commit or re-run workflow). CI clones specfact-cli-modules; with the five bundles now on the default branch, tests pass — **specfact-cli PR 332 to dev is now green.**
 
-- [x] 17.8 **Migration-complete gate (non-reversible)** — Before closing this change, run:
+### 17.8.0 Pre-gate prerequisite: complete import dependency categorization (Gap 1)
+
+**Blocks 17.8.** Do not run the migration gate until this section is complete.
+
+- [ ] 17.8.0.1 Run `rg -e "from specfact_cli.* import" -o -IN --trim | sort | uniq` in specfact-cli-modules; confirm list matches the 85 entries in `IMPORT_DEPENDENCY_ANALYSIS.md`
+- [ ] 17.8.0.2 For each entry in `IMPORT_DEPENDENCY_ANALYSIS.md`, populate **Category** (CORE / MIGRATE / SHARED), **Target bundle** (if MIGRATE), and **Notes** using the suggested initial categorization in that file as a starting point; verify each assignment against actual usage in bundle code
+- [ ] 17.8.0.3 For each MIGRATE-tier import: confirm that the source code it references still exists in specfact-cli at `src/specfact_cli/<subsystem>/`; if migration-03 would delete it, the MIGRATE move **must** happen before migration-03 begins (add a task to module-migration-05 section 19.2 and note the dependency here)
+- [ ] 17.8.0.4 For each SHARED-tier import: document in Notes whether it stays in specfact-cli (bundles depend on core as package) or will be extracted to a shared package in specfact-cli-modules
+- [ ] 17.8.0.5 Commit the completed `IMPORT_DEPENDENCY_ANALYSIS.md`: `git add openspec/changes/module-migration-02-bundle-extraction/IMPORT_DEPENDENCY_ANALYSIS.md && git commit -m "docs: complete import dependency categorization for migration-02 gate"`
+
+### 17.8 Migration-complete gate (non-reversible) — updated with behavioral smoke test
+
+- [ ] 17.8.1 Confirm 17.8.0 (import categorization) is complete before proceeding
+- [ ] 17.8.2 **Behavioral smoke test** — Run from specfact-cli worktree with `SPECFACT_MODULES_REPO` set:
+  ```bash
+  hatch test -- tests/unit/bundles/ tests/integration/test_bundle_install.py -v
+  ```
+  Confirm: bundle layout tests pass, install lifecycle tests (official-tier verify, dependency resolution) pass via installed bundle paths — not shims. Record result.
+- [ ] 17.8.3 **Presence gate** — Run:
   ```bash
   SPECFACT_MODULES_REPO=/path/to/specfact-cli-modules python scripts/validate-modules-repo-sync.py --gate
   ```
   - If any file is missing in the modules repo, fix by migrating that content to specfact-cli-modules and re-run.
-  - If content differs (e.g. import/namespace only), either migrate any missing logic to specfact-cli-modules, or after verification re-run with `SPECFACT_MIGRATION_CONTENT_VERIFIED=1`. Do not close the change until the gate passes. See proposal "Non-reversible gate" and "Migration-complete gate".
+  - If content differs (e.g. import/namespace only), either migrate any missing logic to specfact-cli-modules, or after verification re-run with `SPECFACT_MIGRATION_CONTENT_VERIFIED=1`. Do not close the change until the gate passes. See proposal "Non-reversible gate" and `MIGRATION_GATE.md`.
+- [ ] 17.8.4 Merge specfact-cli PR #332 to dev. Migration-02 is now non-reversibly closed: canonical source for the 17 modules is specfact-cli-modules only.
 
 ---
 
-## 18. Test migration and quality parity (specfact-cli-modules)
+## 17.9 Proposal consistency: resolve migration-03 and migration-04 overlap (Gap 2 + Gap 3)
+
+After migration-02 closes, two proposal-level inconsistencies exist in the follow-up changes that could cause implementation conflicts or undeclared breaking changes. Resolve before migration-03 or migration-04 implementation begins.
+
+### 17.9.1 Reconcile flat-shim removal overlap between migration-03 and migration-04 (Gap 3)
+
+- [ ] 17.9.1.1 Review migration-04 "What Changes": it removes `FLAT_TO_GROUP` + `_make_shim_loader()` from `module_packages.py` (the shim machinery)
+- [ ] 17.9.1.2 Review migration-03 "What Changes": it claims to remove "backward-compat flat command shims registered by `bootstrap.py` in module-migration-01"
+- [ ] 17.9.1.3 Determine whether these target distinct code (migration-04: `module_packages.py` shim loop; migration-03: `bootstrap.py` registration) or the same code. If distinct, document the boundary clearly in both proposals. If overlapping, designate one change as the owner and remove the duplicate claim from the other.
+- [ ] 17.9.1.4 Update `openspec/changes/module-migration-03-core-slimming/proposal.md` "What Changes" to either (a) remove the flat-shim deletion claim if migration-04 handles it first, or (b) add a cross-reference: "Flat shim machinery (`FLAT_TO_GROUP`, `_make_shim_loader()`) removed by migration-04 (prerequisite); this change removes the `bootstrap.py` registration that called that machinery."
+- [ ] 17.9.1.5 Update `openspec/changes/module-migration-04-remove-flat-shims/proposal.md` to cross-reference migration-03 where needed; confirm the wave ordering in `CHANGE_ORDER.md` is consistent with the delineation above.
+- [ ] 17.9.1.6 Commit proposal updates: `git commit -m "docs: reconcile flat-shim removal overlap between migration-03 and migration-04"`
+
+### 17.9.2 Update migration-03 to explicitly declare Python import shim removal (Gap 2)
+
+- [ ] 17.9.2.1 Review `openspec/changes/module-migration-03-core-slimming/proposal.md` — confirm it does **not** explicitly state that `src/specfact_cli/modules/*/src/<name>/__init__.py` (`__getattr__` re-export shims created by migration-02) are removed when the module directories are deleted
+- [ ] 17.9.2.2 Add an explicit bullet to migration-03 "What Changes": "**REMOVE**: `specfact_cli.modules.*` Python import compatibility shims (the `__getattr__` re-export shims in `src/specfact_cli/modules/*/src/<name>/__init__.py` created by migration-02) — these directories are deleted in their entirety; `from specfact_cli.modules.<name> import X` will raise `ImportError` after this change."
+- [ ] 17.9.2.3 Add a "Migration path for import consumers" paragraph to migration-03's Backward compatibility section: any code using `from specfact_cli.modules.<name> import X` must switch to `from specfact_<bundle>.<name> import X` (direct bundle import) before migration-03 lands.
+- [ ] 17.9.2.4 Add a version-cycle justification to migration-03: state explicitly which version series constitutes "one major version cycle" as referenced in migration-02's deprecation notice (e.g. "0.2x series to 0.40 series = one deprecation cycle").
+- [ ] 17.9.2.5 Commit: `git commit -m "docs: migration-03 explicitly declares Python import shim removal and version-cycle justification"`
+
+---
+
+## 17.10 Create module-migration-05 change stub (Gap 4) — ✅ Done
+
+The following change stub has been created to own sections 18–23 (deferred from migration-02):
+
+- [x] 17.10.1 Created `openspec/changes/module-migration-05-modules-repo-quality/proposal.md`
+- [x] 17.10.2 Created `openspec/changes/module-migration-05-modules-repo-quality/tasks.md` (sections 18–24, with sections 21+22 marked as must-precede-migration-03)
+- [x] 17.10.3 CHANGE_ORDER.md updated with migration-05 entry (see CHANGE_ORDER.md edits)
+- [ ] 17.10.4 Create GitHub issue for migration-05; update migration-05 proposal.md Source Tracking with issue number and URL
+
+---
+
+## 18. Test migration and quality parity (specfact-cli-modules) — DEFERRED → module-migration-05
 
 Ensures that working on bundle code in specfact-cli-modules has the same quality standards and test scripts as in specfact-cli. See proposal section "Test migration and quality parity (gap)".
 
@@ -539,7 +604,9 @@ Ensures that working on bundle code in specfact-cli-modules has the same quality
 
 ---
 
-## 19. Dependency decoupling (specfact-cli-modules)
+## 19. Dependency decoupling (specfact-cli-modules) — DEFERRED → module-migration-05
+
+**Note:** Section 19.1 (import categorization) is a **prerequisite for gate 17.8** and must be done in this change (see task 17.8.0). Sections 19.2–19.4 (migration execution, gate, verification) are deferred to module-migration-05.
 
 Ensures bundle code in specfact-cli-modules does not hardcode imports from `specfact_cli.*` for module-only dependencies. See proposal "Dependency decoupling (gap)" and `IMPORT_DEPENDENCY_ANALYSIS.md`.
 
@@ -571,7 +638,7 @@ Ensures bundle code in specfact-cli-modules does not hardcode imports from `spec
 
 ---
 
-## 20. Docs migration (specfact-cli-modules)
+## 20. Docs migration (specfact-cli-modules) — DEFERRED → module-migration-05
 
 Migrate bundle/module docs to the modules repo and set up Jekyll so doc updates for modules do not require changes in the CLI core repo. See proposal "Docs migration (gap)" and checklist (c).
 
@@ -584,7 +651,9 @@ Migrate bundle/module docs to the modules repo and set up Jekyll so doc updates 
 
 ---
 
-## 21. Build pipeline (specfact-cli-modules)
+## 21. Build pipeline (specfact-cli-modules) — DEFERRED → module-migration-05 (MUST PRECEDE MIGRATION-03)
+
+**Timing constraint:** Must land before or simultaneously with `module-migration-03-core-slimming`. See Gap 5 in `GAP_ANALYSIS.md`.
 
 Add pr-orchestrator (or equivalent) and align CI with specfact-cli so that PRs to the modules repo run the same quality gates. See proposal "Build pipeline (gap)" and checklist (d).
 
@@ -595,7 +664,9 @@ Add pr-orchestrator (or equivalent) and align CI with specfact-cli so that PRs t
 
 ---
 
-## 22. Central config files (specfact-cli-modules)
+## 22. Central config files (specfact-cli-modules) — DEFERRED → module-migration-05 (MUST PRECEDE MIGRATION-03)
+
+**Timing constraint:** Must land before or simultaneously with `module-migration-03-core-slimming`. See Gap 5 in `GAP_ANALYSIS.md`.
 
 Ensure repo-root config files match specfact-cli so that format, lint, type-check, and test behavior are aligned. See proposal "Central config files (gap)" and checklist (e).
 
@@ -606,7 +677,7 @@ Ensure repo-root config files match specfact-cli so that format, lint, type-chec
 
 ---
 
-## 23. License and contribution (specfact-cli-modules)
+## 23. License and contribution (specfact-cli-modules) — DEFERRED → module-migration-05
 
 Align LICENSE and contribution artifacts with specfact-cli; clarify that this repo is for nold-ai official bundles only and third-party modules are not hosted here. See proposal "License and contribution (gap)" and checklist (f).
 

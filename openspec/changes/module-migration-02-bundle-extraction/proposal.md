@@ -37,12 +37,14 @@ The following dimensions SHALL be reviewed and validated before the migration is
 
 | # | Dimension | Status | Notes |
 |---|-----------|--------|-------|
-| a | **Source** of modules logic | Done (structure) | Bundle packages and re-export shims in place. Dependencies (models, analyzers, etc.) TBD per Section 19. |
-| b | **Tests** | TBD | Section 18: inventory, migrate tests, quality tooling parity. |
-| c | **Docs** | TBD | Section 20: migrate bundle/module docs to modules repo; Jekyll page setup similar to specfact-cli. |
-| d | **Build pipeline** | TBD | Section 21: pr-orchestrator (or equivalent) adjusted for modules repo; CI gates aligned. |
-| e | **Central config** at repo root | TBD | Section 22: config files (e.g. pyproject, ruff, pyright, pylint, pre-commit) match specfact-cli. |
-| f | **License & contribution** | TBD | Section 23: LICENSE, CONTRIBUTING, code of conduct, etc. match specfact-cli for nold-ai modules; clarify that third-party modules are not hosted in specfact-cli-modules. |
+| a | **Source** of modules logic | Done (structure) | Bundle packages and re-export shims in place. Import dependencies (19.1 categorization) required before gate 17.8. |
+| a2 | **Import dependency categorization** | Required before gate | 85 `specfact_cli.*` imports must be categorized CORE/MIGRATE/SHARED (tasks.md 17.8.0). Blocks gate 17.8. |
+| b | **Tests** | Deferred → migration-05 | Section 18 in module-migration-05-modules-repo-quality. |
+| c | **Docs** | Deferred → migration-05 | Section 20 in module-migration-05-modules-repo-quality. |
+| d | **Build pipeline** | Deferred → migration-05 (⚠️ before migration-03) | Section 21 in module-migration-05. Must precede migration-03. |
+| e | **Central config** at repo root | Deferred → migration-05 (⚠️ before migration-03) | Section 22 in module-migration-05. Must precede migration-03. |
+| f | **License & contribution** | Deferred → migration-05 | Section 23 in module-migration-05-modules-repo-quality. |
+| g | **Proposal consistency** (migration-03/04 overlap) | Required before migration-03 starts | Tasks.md 17.9 — reconcile flat-shim and Python import shim removal claims. |
 
 **Scope (both repos):** The specfact-cli (core) repo does not host third-party module source; it contains only the core CLI and re-export shims. The specfact-cli-modules repo hosts only nold-ai official bundle source; third-party modules are not hosted there—they are developed and published from their own repositories and registered in the marketplace/registry.
 
@@ -82,6 +84,21 @@ The following dimensions SHALL be reviewed and validated before the migration is
 - **Backward compatibility**: `specfact_cli.modules.*` import paths are preserved as re-export shims for one major version cycle. All 21 existing commands continue to function via the `groups/` category layer introduced in module-migration-01. No CLI-visible behavior changes. Bundle extraction is invisible to end users until module-migration-03 removes the bundled source from core.
 - **Rollback plan**: Delete the `specfact-cli-modules/packages/` directories, revert `index.json` to its empty state (`modules: []`), restore original module source from git history, and revert `scripts/publish-module.py` changes. The re-export shims in `src/specfact_cli/modules/*/src/` would also be reverted to the original implementation. No runtime behavior visible to end users changes — rollback is a source-level operation.
 - **Blocked by**: `module-migration-01-categorize-and-group` — category metadata in `module-package.yaml` (category, bundle, bundle_group_command, bundle_sub_command) and the `groups/` layer must be in place before extraction can target the correct bundle namespaces and command group assignments
+
+---
+
+## Gap analysis (2026-03-02)
+
+A structured review of the completed migration scope identified 8 gaps (3 critical, 2 important, 3 minor). The full findings are in **`GAP_ANALYSIS.md`** in this change folder. Key remediation actions taken:
+
+- **Gap 1 (critical)**: Import categorization added as a mandatory pre-gate step (tasks.md 17.8.0) — all 85 `specfact_cli.*` imports must be categorized CORE/MIGRATE/SHARED before gate 17.8 runs.
+- **Gap 2 (critical)**: Tasks.md 17.9.2 requires migration-03's proposal to explicitly declare Python import shim removal and provide a version-cycle justification.
+- **Gap 3 (critical)**: Tasks.md 17.9.1 requires reconciling the flat-shim removal overlap between migration-03 and migration-04 proposals.
+- **Gap 4 (important)**: Sections 18–23 deferred to new change `module-migration-05-modules-repo-quality` (stub created). Migration-02 closes at gate 17.8 without waiting for those sections.
+- **Gap 5 (important)**: Migration-05 sections 21 (build pipeline) and 22 (central config) carry a hard timing constraint: must land before or simultaneously with migration-03.
+- **Gap 6 (minor)**: Behavioral smoke test added to gate 17.8 checklist (tasks.md 17.8.2).
+- **Gap 7 (minor)**: PyPI publishing deferred without ownership — see "Open Questions" below.
+- **Gap 8 (minor)**: Bundle versioning policy added to migration-05 tasks.md section 24.
 
 ---
 
