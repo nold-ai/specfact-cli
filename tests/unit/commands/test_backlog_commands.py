@@ -14,6 +14,7 @@ import yaml
 from rich.panel import Panel
 from typer.testing import CliRunner
 
+pytest.importorskip("specfact_cli.modules.backlog.src.commands")
 from specfact_cli.backlog.template_detector import TemplateDetector
 from specfact_cli.cli import app
 from specfact_cli.models.backlog_item import BacklogItem

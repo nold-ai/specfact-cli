@@ -50,3 +50,11 @@
   - Output: Registry branch auto-detected **dev**; all 17 modules PASS (signature OK, download OK). `verify-modules-signature.py --require-signature`: 23 module manifests OK.
   - Notes: Gate uses `scripts/verify-bundle-published.py` with branch auto-detection (and optional `--branch dev|main`). Download URLs resolved via `resolve_download_url` against specfact-cli-modules dev registry. Phase 1 (Task 10) deletions may proceed.
 
+### Phase: Task 10 — Phase 1 deletions (package includes)
+
+- **Passing-after run**
+  - Command: `hatch test -- tests/unit/packaging/test_core_package_includes.py -v`
+  - Timestamp: 2026-03-02
+  - Result: **4 passed**
+  - Notes: All 17 non-core module directories deleted in 5 commits (specfact-project, specfact-backlog, specfact-codebase, specfact-spec, specfact-govern). Only 4 core modules remain (init, auth, module_registry, upgrade). Packaging tests confirm pyproject/setup/version sync and no force-include references to deleted modules.
+

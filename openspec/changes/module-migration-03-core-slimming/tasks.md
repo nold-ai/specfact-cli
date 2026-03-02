@@ -182,44 +182,44 @@ Do NOT implement production code for any behavior-changing step until failing-te
 
 ### 10.1 Delete specfact-project modules
 
-- [ ] 10.1.1 `git rm -r src/specfact_cli/modules/project/ src/specfact_cli/modules/plan/ src/specfact_cli/modules/import_cmd/ src/specfact_cli/modules/sync/ src/specfact_cli/modules/migrate/`
-- [ ] 10.1.2 Update `pyproject.toml` — remove the 5 project module paths from `packages` and `include`
-- [ ] 10.1.3 Update `setup.py` — remove corresponding `find_packages` / `package_data` entries
-- [ ] 10.1.4 `hatch test -- tests/unit/packaging/test_core_package_includes.py -v` — verify project modules absent
-- [ ] 10.1.5 `git commit -m "feat(core): delete specfact-project module source from core (migration-03)"`
+- [x] 10.1.1 `git rm -r src/specfact_cli/modules/project/ src/specfact_cli/modules/plan/ src/specfact_cli/modules/import_cmd/ src/specfact_cli/modules/sync/ src/specfact_cli/modules/migrate/`
+- [x] 10.1.2 Update `pyproject.toml` — remove the 5 project module paths from `packages` and `include`
+- [x] 10.1.3 Update `setup.py` — remove corresponding `find_packages` / `package_data` entries
+- [x] 10.1.4 `hatch test -- tests/unit/packaging/test_core_package_includes.py -v` — verify project modules absent
+- [x] 10.1.5 `git commit -m "feat(core): delete specfact-project module source from core (migration-03)"`
 
 ### 10.2 Delete specfact-backlog modules
 
-- [ ] 10.2.1 `git rm -r src/specfact_cli/modules/backlog/ src/specfact_cli/modules/policy_engine/`
-- [ ] 10.2.2 Update `pyproject.toml` and `setup.py` for backlog + policy_engine
-- [ ] 10.2.3 `hatch test -- tests/unit/packaging/test_core_package_includes.py -v`
-- [ ] 10.2.4 `git commit -m "feat(core): delete specfact-backlog module source from core (migration-03)"`
+- [x] 10.2.1 `git rm -r src/specfact_cli/modules/backlog/ src/specfact_cli/modules/policy_engine/`
+- [x] 10.2.2 Update `pyproject.toml` and `setup.py` for backlog + policy_engine
+- [x] 10.2.3 `hatch test -- tests/unit/packaging/test_core_package_includes.py -v`
+- [x] 10.2.4 `git commit -m "feat(core): delete specfact-backlog module source from core (migration-03)"`
 
 ### 10.3 Delete specfact-codebase modules
 
-- [ ] 10.3.1 `git rm -r src/specfact_cli/modules/analyze/ src/specfact_cli/modules/drift/ src/specfact_cli/modules/validate/ src/specfact_cli/modules/repro/`
-- [ ] 10.3.2 Update `pyproject.toml` and `setup.py` for codebase modules
-- [ ] 10.3.3 `hatch test -- tests/unit/packaging/test_core_package_includes.py -v`
-- [ ] 10.3.4 `git commit -m "feat(core): delete specfact-codebase module source from core (migration-03)"`
+- [x] 10.3.1 `git rm -r src/specfact_cli/modules/analyze/ src/specfact_cli/modules/drift/ src/specfact_cli/modules/validate/ src/specfact_cli/modules/repro/`
+- [x] 10.3.2 Update `pyproject.toml` and `setup.py` for codebase modules
+- [x] 10.3.3 `hatch test -- tests/unit/packaging/test_core_package_includes.py -v`
+- [x] 10.3.4 `git commit -m "feat(core): delete specfact-codebase module source from core (migration-03)"`
 
 ### 10.4 Delete specfact-spec modules
 
-- [ ] 10.4.1 `git rm -r src/specfact_cli/modules/contract/ src/specfact_cli/modules/spec/ src/specfact_cli/modules/sdd/ src/specfact_cli/modules/generate/`
-- [ ] 10.4.2 Update `pyproject.toml` and `setup.py` for spec modules
-- [ ] 10.4.3 `hatch test -- tests/unit/packaging/test_core_package_includes.py -v`
-- [ ] 10.4.4 `git commit -m "feat(core): delete specfact-spec module source from core (migration-03)"`
+- [x] 10.4.1 `git rm -r src/specfact_cli/modules/contract/ src/specfact_cli/modules/spec/ src/specfact_cli/modules/sdd/ src/specfact_cli/modules/generate/`
+- [x] 10.4.2 Update `pyproject.toml` and `setup.py` for spec modules
+- [x] 10.4.3 `hatch test -- tests/unit/packaging/test_core_package_includes.py -v`
+- [x] 10.4.4 `git commit -m "feat(core): delete specfact-spec module source from core (migration-03)"`
 
 ### 10.5 Delete specfact-govern modules
 
-- [ ] 10.5.1 `git rm -r src/specfact_cli/modules/enforce/ src/specfact_cli/modules/patch_mode/`
-- [ ] 10.5.2 Update `pyproject.toml` and `setup.py` for govern modules
-- [ ] 10.5.3 `hatch test -- tests/unit/packaging/test_core_package_includes.py -v` — all 17 modules absent, only 4 core remain
-- [ ] 10.5.4 `git commit -m "feat(core): delete specfact-govern module source from core (migration-03)"`
+- [x] 10.5.1 `git rm -r src/specfact_cli/modules/enforce/ src/specfact_cli/modules/patch_mode/`
+- [x] 10.5.2 Update `pyproject.toml` and `setup.py` for govern modules
+- [x] 10.5.3 `hatch test -- tests/unit/packaging/test_core_package_includes.py -v` — all 17 modules absent, only 4 core remain
+- [x] 10.5.4 `git commit -m "feat(core): delete specfact-govern module source from core (migration-03)"`
 
 ### 10.6 Verify all tests pass after all deletions
 
-- [ ] 10.6.1 `hatch test -- tests/unit/packaging/test_core_package_includes.py -v` — confirm full suite green
-- [ ] 10.6.2 Record passing-test result in TDD_EVIDENCE.md (Phase 1: package includes)
+- [x] 10.6.1 `hatch test -- tests/unit/packaging/test_core_package_includes.py -v` — confirm full suite green
+- [x] 10.6.2 Record passing-test result in TDD_EVIDENCE.md (Phase 1: package includes)
 
 ## 11. Phase 2 — Update bootstrap.py (shim removal + 4-core-only registration)
 
