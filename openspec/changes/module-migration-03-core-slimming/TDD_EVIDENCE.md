@@ -74,3 +74,11 @@
   - Result: **5 passed**
   - Notes: Root app uses _RootCLIGroup (extends ProgressiveDisclosureGroup). Unrecognised commands that match KNOWN_BUNDLE_GROUP_OR_SHIM_NAMES show actionable error (not installed + specfact init / specfact module install). Main help docstring includes init/module install hint for workflow bundles.
 
+### Phase: Task 13 — Phase 4 (init mandatory selection)
+
+- **Passing-after run**
+  - Command: `hatch test -- tests/unit/modules/init/test_mandatory_bundle_selection.py -v`
+  - Timestamp: 2026-03-02
+  - Result: **4 passed**
+  - Notes: VALID_PROFILES and PROFILE_BUNDLES in commands.py. init_command has @require(profile in VALID_PROFILES). _install_profile_bundles(profile) and _install_bundle_list(install_arg) implemented with @beartype; CI/CD gate and interactive first-run flow unchanged and passing.
+

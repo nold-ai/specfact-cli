@@ -246,19 +246,19 @@ Do NOT implement production code for any behavior-changing step until failing-te
 
 ## 13. Phase 4 — Update specfact init for mandatory bundle selection
 
-- [ ] 13.1 Edit `src/specfact_cli/modules/init/src/commands.py` (or equivalent init command file):
-  - [ ] 13.1.1 Add `VALID_PROFILES` constant: `frozenset({"solo-developer", "backlog-team", "api-first-team", "enterprise-full-stack"})`
-  - [ ] 13.1.2 Add `PROFILE_BUNDLES` mapping: profile name → list of bundle IDs
-  - [ ] 13.1.3 Update `init_command()` signature: add `profile: Optional[str]` and `install: Optional[str]` parameters (if not already present from module-migration-01)
-  - [ ] 13.1.4 Add CI/CD mode guard: if `_is_cicd_mode()` and profile is None and install is None → exit 1 with error
-  - [ ] 13.1.5 Add first-run detection: if `get_installed_bundles()` is empty and not CI/CD → enter interactive selection loop
-  - [ ] 13.1.6 Add interactive selection loop with confirmation prompt for core-only selection
-  - [ ] 13.1.7 Implement `_install_profile_bundles(profile: str) -> None` — resolves bundle list from `PROFILE_BUNDLES`, calls `module_installer.install_module()` for each
-  - [ ] 13.1.8 Implement `_install_bundle_list(install_arg: str) -> None` — parses comma-separated list or "all", validates bundle names, calls installer
-  - [ ] 13.1.9 Add `@require(lambda profile: profile is None or profile in VALID_PROFILES)` on `init_command`
-  - [ ] 13.1.10 Add `@beartype` on `init_command`, `_install_profile_bundles`, `_install_bundle_list`
-- [ ] 13.2 `hatch test -- tests/unit/modules/init/test_mandatory_bundle_selection.py -v` — verify all pass
-- [ ] 13.3 Record passing-test result in TDD_EVIDENCE.md (Phase 4: init mandatory selection)
+- [x] 13.1 Edit `src/specfact_cli/modules/init/src/commands.py` (or equivalent init command file):
+  - [x] 13.1.1 Add `VALID_PROFILES` constant: `frozenset({"solo-developer", "backlog-team", "api-first-team", "enterprise-full-stack"})`
+  - [x] 13.1.2 Add `PROFILE_BUNDLES` mapping: profile name → list of bundle IDs
+  - [x] 13.1.3 Update `init_command()` signature: add `profile: Optional[str]` and `install: Optional[str]` parameters (if not already present from module-migration-01)
+  - [x] 13.1.4 Add CI/CD mode guard: if `_is_cicd_mode()` and profile is None and install is None → exit 1 with error
+  - [x] 13.1.5 Add first-run detection: if `get_installed_bundles()` is empty and not CI/CD → enter interactive selection loop
+  - [x] 13.1.6 Add interactive selection loop with confirmation prompt for core-only selection
+  - [x] 13.1.7 Implement `_install_profile_bundles(profile: str) -> None` — resolves bundle list from `PROFILE_BUNDLES`, calls `module_installer.install_module()` for each
+  - [x] 13.1.8 Implement `_install_bundle_list(install_arg: str) -> None` — parses comma-separated list or "all", validates bundle names, calls installer
+  - [x] 13.1.9 Add `@require(lambda profile: profile is None or profile in VALID_PROFILES)` on `init_command`
+  - [x] 13.1.10 Add `@beartype` on `init_command`, `_install_profile_bundles`, `_install_bundle_list`
+- [x] 13.2 `hatch test -- tests/unit/modules/init/test_mandatory_bundle_selection.py -v` — verify all pass
+- [x] 13.3 Record passing-test result in TDD_EVIDENCE.md (Phase 4: init mandatory selection)
 - [ ] 13.4 `git commit -m "feat(init): enforce mandatory bundle selection and profile presets (migration-03)"`
 
 ## 14. Module signing gate
