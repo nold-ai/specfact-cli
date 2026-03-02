@@ -232,7 +232,7 @@ Do NOT implement production code for any behavior-changing step until failing-te
   - [x] 11.1.6 Add `@beartype` to `bootstrap_modules()` and `_mount_installed_category_groups()`
 - [x] 11.2 `hatch test -- tests/unit/registry/test_core_only_bootstrap.py -v` — verify passes
 - [x] 11.3 Record passing-test result in TDD_EVIDENCE.md (Phase 2: bootstrap)
-- [ ] 11.4 `git commit -m "feat(bootstrap): remove flat shims and non-core module registrations (migration-03)"`
+- [x] 11.4 `git commit -m "feat(bootstrap): remove flat shims and non-core module registrations (migration-03)"`
 
 ## 12. Phase 3 — Update cli.py (conditional category group mounting)
 
