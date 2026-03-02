@@ -13,8 +13,14 @@
 **Outstanding before closing:**
 
 - **17.8 Migration-complete gate**: Run `scripts/validate-modules-repo-sync.py --gate`; after confirming content diffs are import/namespace only, pass with `SPECFACT_MIGRATION_CONTENT_VERIFIED=1`. Then merge specfact-cli PR to dev and treat migration-02 as complete (non-reversible).
+- **Section 18 (test migration and quality parity)**: Inventory tests by bundle, add quality tooling (coverage, contract-test, smart-test, yaml-lint) to specfact-cli-modules, migrate tests, and align CI. See proposal "Test migration and quality parity (gap)".
+- **Section 19 (dependency decoupling)**: Categorize specfact_cli imports (CORE vs MIGRATE), migrate module-only dependencies to specfact-cli-modules, document allowed imports, add import gate. See proposal "Dependency decoupling (gap)" and `IMPORT_DEPENDENCY_ANALYSIS.md`.
+- **Section 20 (docs migration)**: Migrate bundle/module docs to specfact-cli-modules; Jekyll setup similar to specfact-cli. See proposal "Docs migration (gap)" and checklist (c).
+- **Section 21 (build pipeline)**: pr-orchestrator (or equivalent) for modules repo; CI gates aligned with specfact-cli. See proposal "Build pipeline (gap)" and checklist (d).
+- **Section 22 (central config)**: Root-level config files (pyproject, ruff, pyright, pylint, pre-commit) match specfact-cli. See proposal "Central config files (gap)" and checklist (e).
+- **Section 23 (license & contribution)**: LICENSE, CONTRIBUTING, CODE_OF_CONDUCT, etc. match specfact-cli; clarify repo is for nold-ai official bundles only; third-party modules are not hosted here. See proposal "License and contribution (gap)" and checklist (f).
 
-All other tasks (5.0–5.5, 10.5–10.6, 11.1–11.8) are marked done; 17.8 remains until the gate is passed.
+All other tasks (5.0–5.5, 10.5–10.6, 11.1–11.8) are marked done; 17.8 and Sections 18–23 remain until the gate is passed and full migration parity (source, tests, docs, build, config, license) is done.
 
 Migration-02 is **complete** when (1) specfact-cli PR is merged to `dev`, (2) specfact-cli-modules contains the five bundles and a populated registry (merged — **done**), (3) migration-complete gate passed. After close, canonical source for the 17 modules lives in specfact-cli-modules only; provides non-conflicting basis for module-migration-03 and module-migration-04.
 
@@ -487,6 +493,128 @@ Migration-02 is not complete until the **specfact-cli-modules** repository conta
   ```
   - If any file is missing in the modules repo, fix by migrating that content to specfact-cli-modules and re-run.
   - If content differs (e.g. import/namespace only), either migrate any missing logic to specfact-cli-modules, or after verification re-run with `SPECFACT_MIGRATION_CONTENT_VERIFIED=1`. Do not close the change until the gate passes. See proposal "Non-reversible gate" and "Migration-complete gate".
+
+---
+
+## 18. Test migration and quality parity (specfact-cli-modules)
+
+Ensures that working on bundle code in specfact-cli-modules has the same quality standards and test scripts as in specfact-cli. See proposal section "Test migration and quality parity (gap)".
+
+### 18.1 Inventory tests by bundle (in specfact-cli)
+
+- [ ] 18.1.1 Map each of the 17 migrated modules to its bundle (project→specfact-project, plan→specfact-project, …).
+- [ ] 18.1.2 List all tests under `tests/unit/` that exercise bundle code: e.g. `tests/unit/modules/{plan,backlog,sync,enforce,generate,patch_mode,module_registry,init}`, `tests/unit/backlog/`, `tests/unit/analyzers/`, `tests/unit/commands/`, `tests/unit/bundles/`, and any other module-related unit tests.
+- [ ] 18.1.3 List integration tests that invoke bundle commands: `tests/integration/commands/`, `tests/integration/test_bundle_install.py`, and any other integration tests touching the 17 modules.
+- [ ] 18.1.4 List e2e tests that depend on bundle behavior (e.g. `tests/e2e/test_bundle_extraction_e2e.py` or similar).
+- [ ] 18.1.5 Produce an inventory document (e.g. `openspec/changes/module-migration-02-bundle-extraction/TEST_INVENTORY.md`) with: file path, bundle(s) exercised, and migration target path in specfact-cli-modules (e.g. `tests/unit/specfact_project/` or `tests/unit/plan/`).
+
+### 18.2 Quality tooling in specfact-cli-modules
+
+- [ ] 18.2.1 Copy or adapt coverage config from specfact-cli into specfact-cli-modules: `[tool.coverage.run]`, `[tool.coverage.report]`, threshold (e.g. 80%); ensure pytest is configured with `addopts`, `testpaths`, `pythonpath` so that `packages/*/src` and `tests/` are covered.
+- [ ] 18.2.2 Add hatch env(s) for testing (e.g. default env or a `test` env) so that `hatch test` runs with correct PYTHONPATH for `packages/specfact-*/src`.
+- [ ] 18.2.3 Add contract-test script: either call specfact-cli's contract-test when specfact-cli is installed as dev dep, or copy/adapt `tools/contract_first_smart_test.py` (or equivalent) into specfact-cli-modules so that `hatch run contract-test` runs contract validation for bundle code.
+- [ ] 18.2.4 Add smart-test or equivalent: copy/adapt `tools/smart_test_coverage.py` (or a simplified incremental test runner that considers `packages/` and `tests/`) so that `hatch run smart-test` (or `hatch run test` with coverage) is available; document in README/AGENTS.md.
+- [ ] 18.2.5 Add yaml-lint script for `packages/*/module-package.yaml` and `registry/index.json` (or equivalent YAML/JSON validation); add to pre-commit or CI.
+- [ ] 18.2.6 Align ruff, basedpyright, and pylint config (and scripts) with specfact-cli so that `hatch run format`, `hatch run type-check`, `hatch run lint` match specfact-cli behavior; fix or document any intentional differences (e.g. type-check overrides for bundle packages).
+
+### 18.3 Migrate tests into specfact-cli-modules
+
+- [ ] 18.3.1 Create test layout in specfact-cli-modules (e.g. `tests/unit/specfact_project/`, `tests/unit/specfact_backlog/`, … or mirror specfact-cli under `tests/unit/` with paths adjusted). Add `tests/conftest.py` and any shared fixtures (e.g. `TEST_MODE`, temp dirs).
+- [ ] 18.3.2 Copy unit tests from the inventory into specfact-cli-modules; update imports from `specfact_cli.modules.*` to bundle namespaces (e.g. `specfact_project.plan`, `specfact_codebase.analyze`) and adjust paths (e.g. resources, registry) so tests run against packages in `packages/`.
+- [ ] 18.3.3 Copy integration tests that invoke bundle commands; ensure they run in the modules repo (e.g. via `pip install -e .` or hatch env that exposes bundle packages). Update any references to specfact-cli CLI to use the same entrypoint if available or document how to run.
+- [ ] 18.3.4 Copy or adapt e2e tests that depend on bundle behavior; if they require full CLI, document that they run in specfact-cli or adapt to run in modules repo with minimal harness.
+- [ ] 18.3.5 Run full test suite in specfact-cli-modules: `hatch test` (or `hatch run smart-test`); fix failing tests until all pass. Record any tests intentionally deferred or skipped (with reason) in TEST_INVENTORY.md or a short migration note.
+
+### 18.4 CI in specfact-cli-modules
+
+- [ ] 18.4.1 Add or update `.github/workflows/` in specfact-cli-modules so that CI runs: format, type-check, lint, test (and contract-test, coverage threshold where applicable). Mirror specfact-cli quality gates as far as feasible.
+- [ ] 18.4.2 Ensure CI uses the same Python version(s) as specfact-cli (e.g. 3.11, 3.12, 3.13) if matrix is desired.
+- [ ] 18.4.3 Document in specfact-cli-modules README and AGENTS.md the pre-commit checklist (format, type-check, lint, test, contract-test, smart-test) so contributors follow the same standards as specfact-cli.
+
+### 18.5 Verification and documentation
+
+- [ ] 18.5.1 From specfact-cli-modules repo: run full quality gate sequence (format, type-check, lint, test, contract-test if added, smart-test/coverage). All must pass.
+- [ ] 18.5.2 Update `openspec/changes/module-migration-02-bundle-extraction/proposal.md` Source Tracking (or status note) to record that test migration and quality parity are done; update `tasks.md` status header to include Section 18 in "Completed" when all 18.x tasks are done.
+- [ ] 18.5.3 Optionally add a short design or spec delta under this change (e.g. `specs/bundle-test-parity/spec.md` or a bullet in an existing spec) describing the test layout and quality parity contract for specfact-cli-modules.
+
+---
+
+## 19. Dependency decoupling (specfact-cli-modules)
+
+Ensures bundle code in specfact-cli-modules does not hardcode imports from `specfact_cli.*` for module-only dependencies. See proposal "Dependency decoupling (gap)" and `IMPORT_DEPENDENCY_ANALYSIS.md`.
+
+### 19.1 Categorize all specfact_cli imports
+
+- [ ] 19.1.1 Run `rg -e "from specfact_cli.* import" -o -IN --trim | sort | uniq` in specfact-cli-modules to obtain the full import list.
+- [ ] 19.1.2 For each import, determine category: **CORE** (stay in specfact-cli; bundles depend on specfact-cli), **MIGRATE** (used only by bundle code; move to modules repo), **SHARED** (used by both; decide TBD).
+- [ ] 19.1.3 Populate `IMPORT_DEPENDENCY_ANALYSIS.md` with: import path, category, target bundle (if MIGRATE), notes.
+- [ ] 19.1.4 Typical CORE: `common`, `contracts.module_interface`, `cli`, `registry.registry`, `modes`, `runtime`, `telemetry`, `versioning`, `models.*` (if shared). Typical MIGRATE candidates: `analyzers.*`, `backlog.*`, `comparators.*`, `enrichers.*`, `generators.*`, `importers.*`, `migrations.*`, `parsers.*`, `sync.*`, `validators.*`, bundle-specific `utils.*`.
+
+### 19.2 Migrate module-only dependencies
+
+- [ ] 19.2.1 For each MIGRATE item: identify transitive deps; copy source into target bundle or create shared package in specfact-cli-modules (e.g. `packages/specfact-cli-shared/` if cross-bundle).
+- [ ] 19.2.2 Update bundle imports: replace `from specfact_cli.X import Y` with `from specfact_project.X import Y` (or appropriate local path).
+- [ ] 19.2.3 Resolve circular deps: prefer factoring into shared package or extracting interfaces; document any remaining core deps.
+- [ ] 19.2.4 Run tests in specfact-cli-modules after each migration batch; fix breakages.
+
+### 19.3 Document allowed imports and add gate
+
+- [ ] 19.3.1 Produce `ALLOWED_IMPORTS.md` (or section in AGENTS.md) listing which `specfact_cli` imports are allowed (CORE only).
+- [ ] 19.3.2 Add lint/script (e.g. `scripts/check-bundle-imports.py`) that fails if bundle code imports from MIGRATE-tier paths; add to CI and pre-commit.
+- [ ] 19.3.3 Update bundle `pyproject.toml` / `module-package.yaml` so dependencies declare only `specfact-cli` (and other bundles); no hidden non-core imports.
+
+### 19.4 Verification
+
+- [ ] 19.4.1 Re-run `rg -e "from specfact_cli.* import"` in specfact-cli-modules; confirm only CORE imports remain (or document exceptions).
+- [ ] 19.4.2 Run full quality gate in specfact-cli-modules; all tests pass.
+- [ ] 19.4.3 Update `tasks.md` status header to include Section 19 in "Completed" when done.
+
+---
+
+## 20. Docs migration (specfact-cli-modules)
+
+Migrate bundle/module docs to the modules repo and set up Jekyll so doc updates for modules do not require changes in the CLI core repo. See proposal "Docs migration (gap)" and checklist (c).
+
+- [ ] 20.1 Identify docs in specfact-cli that describe the 17 migrated modules or the five bundles (guides, reference, getting-started sections that are bundle-specific); list paths and ownership.
+- [ ] 20.2 Copy or move those docs into specfact-cli-modules under `docs/`; adjust internal links, navigation, and any references to "core" vs "modules".
+- [ ] 20.3 Add Jekyll setup in specfact-cli-modules similar to specfact-cli: `docs/_config.yml`, `docs/_layouts/` (or equivalent), front-matter on pages, theme/assets as needed.
+- [ ] 20.4 Configure GitHub Pages (or equivalent) for the modules repo so that `docs/` builds and publishes; document URL (e.g. docs.specfact.io/modules/ or subpath).
+- [ ] 20.5 Update specfact-cli docs to link to module docs where appropriate (e.g. "For bundle-specific docs see …"); ensure no duplicated content that would drift.
+- [ ] 20.6 Document in specfact-cli-modules README that bundle/module doc changes are made in this repo; specfact-cli core docs cover install and high-level usage only for bundles.
+
+---
+
+## 21. Build pipeline (specfact-cli-modules)
+
+Add pr-orchestrator (or equivalent) and align CI with specfact-cli so that PRs to the modules repo run the same quality gates. See proposal "Build pipeline (gap)" and checklist (d).
+
+- [ ] 21.1 Add or adapt `.github/workflows/pr-orchestrator.yml` (or a single consolidated workflow) for specfact-cli-modules that triggers on PR/push and runs: format, type-check, lint, test, (contract-test, coverage, module-signature verification where applicable).
+- [ ] 21.2 Align job names, order, and failure behavior with specfact-cli workflows where it makes sense; document any intentional differences (e.g. no Docker image build if not used).
+- [ ] 21.3 Configure branch protection for default branches (e.g. `main`/`dev`) and required status checks so that merging requires pipeline success.
+- [ ] 21.4 Document in README/AGENTS.md the CI flow and how to re-run or debug failed checks.
+
+---
+
+## 22. Central config files (specfact-cli-modules)
+
+Ensure repo-root config files match specfact-cli so that format, lint, type-check, and test behavior are aligned. See proposal "Central config files (gap)" and checklist (e).
+
+- [ ] 22.1 Audit specfact-cli repo root for all config that affects format, lint, type-check, tests, pre-commit: `pyproject.toml`, ruff/basedpyright/pylint config, `.pre-commit-config.yaml`, coverage config, etc.
+- [ ] 22.2 Copy or adapt each config file to specfact-cli-modules root; adjust paths for `packages/`, `tests/`, and any module-specific excludes.
+- [ ] 22.3 Ensure `hatch run format`, `hatch run type-check`, `hatch run lint`, `hatch run test` in modules repo use the same rules and thresholds as specfact-cli (or document intentional differences).
+- [ ] 22.4 Add or update `.pre-commit-config.yaml` in specfact-cli-modules so that local pre-commit matches CI; document in CONTRIBUTING/README.
+
+---
+
+## 23. License and contribution (specfact-cli-modules)
+
+Align LICENSE and contribution artifacts with specfact-cli; clarify that this repo is for nold-ai official bundles only and third-party modules are not hosted here. See proposal "License and contribution (gap)" and checklist (f).
+
+- [ ] 23.1 Add or update LICENSE at repo root to match specfact-cli (same license type and copyright for nold-ai). All official bundle code in this repo is under that license.
+- [ ] 23.2 Add or update CONTRIBUTING.md to align with specfact-cli: how to contribute, branch policy, PR process, code standards. State explicitly that this repo is for **official nold-ai bundles**; third-party authors publish modules from their own repositories.
+- [ ] 23.3 Add any other root-level artifacts that specfact-cli has and that apply: e.g. CODE_OF_CONDUCT.md, SECURITY.md, .github/CODEOWNERS (for nold-ai).
+- [ ] 23.4 In README (or CONTRIBUTING), add a short "Scope" or "About" note: "This repository contains the source and documentation for the official SpecFact CLI bundles (nold-ai). Third-party modules are not hosted here; they are published to the registry from their own repositories."
+- [ ] 23.5 Validate that no third-party module hosting is implied by docs or config; clarify in proposal/docs that third-party modules live in their own repos and are only registered in the marketplace/registry.
 
 ---
 
