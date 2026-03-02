@@ -242,7 +242,7 @@ Do NOT implement production code for any behavior-changing step until failing-te
   - [x] 12.1.3 Add actionable error handling for unrecognised commands that match known bundle group names
 - [x] 12.2 `hatch test -- tests/unit/cli/test_lean_help_output.py -v` — verify lean help and missing-bundle errors pass
 - [x] 12.3 Record passing-test result in TDD_EVIDENCE.md (Phase 3: cli.py)
-- [ ] 12.4 `git commit -m "feat(cli): conditional category group mount from installed bundles (migration-03)"`
+- [x] 12.4 `git commit -m "feat(cli): conditional category group mount from installed bundles (migration-03)"`
 
 ## 13. Phase 4 — Update specfact init for mandatory bundle selection
 
