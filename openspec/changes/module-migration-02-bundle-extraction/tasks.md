@@ -507,7 +507,7 @@ Migration-02 is not complete until the **specfact-cli-modules** repository conta
 - [x] 17.8.0.2 For each entry in `IMPORT_DEPENDENCY_ANALYSIS.md`, populate **Category** (CORE / MIGRATE / SHARED), **Target bundle** (if MIGRATE), and **Notes** using the suggested initial categorization in that file as a starting point; verify each assignment against actual usage in bundle code
 - [x] 17.8.0.3 For each MIGRATE-tier import: confirm that the source code it references still exists in specfact-cli at `src/specfact_cli/<subsystem>/`; if migration-03 would delete it, the MIGRATE move **must** happen before migration-03 begins (add a task to module-migration-05 section 19.2 and note the dependency here)
 - [x] 17.8.0.4 For each SHARED-tier import: document in Notes whether it stays in specfact-cli (bundles depend on core as package) or will be extracted to a shared package in specfact-cli-modules
-- [ ] 17.8.0.5 Commit the completed `IMPORT_DEPENDENCY_ANALYSIS.md`: `git add openspec/changes/module-migration-02-bundle-extraction/IMPORT_DEPENDENCY_ANALYSIS.md && git commit -m "docs: complete import dependency categorization for migration-02 gate"`
+- [x] 17.8.0.5 Commit the completed `IMPORT_DEPENDENCY_ANALYSIS.md`: `git add openspec/changes/module-migration-02-bundle-extraction/IMPORT_DEPENDENCY_ANALYSIS.md && git commit -m "docs: complete import dependency categorization for migration-02 gate"`
 
 ### 17.8 Migration-complete gate (non-reversible) — updated with behavioral smoke test
 
