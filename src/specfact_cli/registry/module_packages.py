@@ -915,140 +915,6 @@ def _build_bundle_to_group() -> dict[str, tuple[str, str, Any]]:
     }
 
 
-def _mount_installed_category_groups(
-    packages: list[tuple[Path, ModulePackageMetadata]],
-    enabled_map: dict[str, bool],
-) -> None:
-    """Register category groups and compat shims only for installed bundles."""
-    installed = get_installed_bundles(packages, enabled_map)
-    bundle_to_group = _build_bundle_to_group()
-    for bundle in installed:
-        if bundle not in bundle_to_group:
-            continue
-        group_name, help_str, build_fn = bundle_to_group[bundle]
-
-        def _make_group_loader(fn: Any) -> Any:
-            def _group_loader(_fn: Any = fn) -> Any:
-                return _fn()
-
-            return _group_loader
-
-        loader = _make_group_loader(build_fn)
-        cmd_meta = CommandMetadata(
-            name=group_name,
-            help=help_str,
-            tier="community",
-            addon_id=None,
-        )
-        CommandRegistry.register(group_name, loader, cmd_meta)
-
-    for flat_name, (group_name, sub_name) in FLAT_TO_GROUP.items():
-        if group_name not in {bundle_to_group[b][0] for b in installed if b in bundle_to_group}:
-            continue
-        if flat_name == group_name:
-            continue
-        meta = CommandRegistry.get_module_metadata(flat_name)
-        if meta is None:
-            continue
-        help_str = meta.help
-        shim_loader = _make_shim_loader(flat_name, group_name, sub_name, help_str)
-        cmd_meta = CommandMetadata(
-            name=flat_name,
-            help=help_str + " (deprecated; use specfact " + group_name + " " + sub_name + ")",
-            tier=meta.tier,
-            addon_id=meta.addon_id,
-        )
-        CommandRegistry.register(flat_name, shim_loader, cmd_meta)
-
-
-def _register_category_groups_and_shims() -> None:
-    """Register category group typers and compat shims in CommandRegistry._entries."""
-    from specfact_cli.groups.backlog_group import build_app as build_backlog_app
-    from specfact_cli.groups.codebase_group import build_app as build_codebase_app
-    from specfact_cli.groups.govern_group import build_app as build_govern_app
-    from specfact_cli.groups.project_group import build_app as build_project_app
-    from specfact_cli.groups.spec_group import build_app as build_spec_app
-
-    return {
-        "specfact-backlog": ("backlog", "Backlog and policy commands.", build_backlog_app),
-        "specfact-codebase": (
-            "code",
-            "Codebase quality commands: analyze, drift, validate, repro.",
-            build_codebase_app,
-        ),
-        "specfact-project": ("project", "Project lifecycle commands.", build_project_app),
-        "specfact-spec": ("spec", "Spec and contract commands: contract, api, sdd, generate.", build_spec_app),
-        "specfact-govern": ("govern", "Governance and quality gates: enforce, patch.", build_govern_app),
-    }
-
-
-def _mount_installed_category_groups(
-    packages: list[tuple[Path, ModulePackageMetadata]],
-    enabled_map: dict[str, bool],
-) -> None:
-    """Register category groups and compat shims only for installed bundles."""
-    installed = get_installed_bundles(packages, enabled_map)
-    bundle_to_group = _build_bundle_to_group()
-    for bundle in installed:
-        if bundle not in bundle_to_group:
-            continue
-        group_name, help_str, build_fn = bundle_to_group[bundle]
-
-        def _make_group_loader(fn: Any) -> Any:
-            def _group_loader(_fn: Any = fn) -> Any:
-                return _fn()
-
-            return _group_loader
-
-        loader = _make_group_loader(build_fn)
-        cmd_meta = CommandMetadata(
-            name=group_name,
-            help=help_str,
-            tier="community",
-            addon_id=None,
-        )
-        CommandRegistry.register(group_name, loader, cmd_meta)
-
-    for flat_name, (group_name, sub_name) in FLAT_TO_GROUP.items():
-        if group_name not in {bundle_to_group[b][0] for b in installed if b in bundle_to_group}:
-            continue
-        if flat_name == group_name:
-            continue
-        meta = CommandRegistry.get_module_metadata(flat_name)
-        if meta is None:
-            continue
-        help_str = meta.help
-        shim_loader = _make_shim_loader(flat_name, group_name, sub_name, help_str)
-        cmd_meta = CommandMetadata(
-            name=flat_name,
-            help=help_str + " (deprecated; use specfact " + group_name + " " + sub_name + ")",
-            tier=meta.tier,
-            addon_id=meta.addon_id,
-        )
-        CommandRegistry.register(flat_name, shim_loader, cmd_meta)
-
-
-def _register_category_groups_and_shims() -> None:
-    """Register category group typers and compat shims in CommandRegistry._entries."""
-    from specfact_cli.groups.backlog_group import build_app as build_backlog_app
-    from specfact_cli.groups.codebase_group import build_app as build_codebase_app
-    from specfact_cli.groups.govern_group import build_app as build_govern_app
-    from specfact_cli.groups.project_group import build_app as build_project_app
-    from specfact_cli.groups.spec_group import build_app as build_spec_app
-
-    return {
-        "specfact-backlog": ("backlog", "Backlog and policy commands.", build_backlog_app),
-        "specfact-codebase": (
-            "code",
-            "Codebase quality commands: analyze, drift, validate, repro.",
-            build_codebase_app,
-        ),
-        "specfact-project": ("project", "Project lifecycle commands.", build_project_app),
-        "specfact-spec": ("spec", "Spec and contract commands: contract, api, sdd, generate.", build_spec_app),
-        "specfact-govern": ("govern", "Governance and quality gates: enforce, patch.", build_govern_app),
-    }
-
-
 @beartype
 def _mount_installed_category_groups(
     packages: list[tuple[Path, ModulePackageMetadata]],
@@ -1057,27 +923,10 @@ def _mount_installed_category_groups(
     """Register category groups and compat shims only for installed bundles."""
     installed = get_installed_bundles(packages, enabled_map)
     bundle_to_group = _build_bundle_to_group()
-    module_entries_by_name = {
-        entry.get("name"): entry for entry in getattr(CommandRegistry, "_module_entries", []) if entry.get("name")
-    }
-    module_meta_by_name = {name: entry.get("metadata") for name, entry in module_entries_by_name.items()}
-    seen_groups: set[str] = set()
     for bundle in installed:
-        group_info = bundle_to_group.get(bundle)
-        if group_info is None:
+        if bundle not in bundle_to_group:
             continue
-        group_name, help_str, build_fn = group_info
-        if group_name in seen_groups:
-            continue
-        seen_groups.add(group_name)
-        module_entry = module_entries_by_name.get(group_name)
-        if module_entry is not None:
-            # Prefer bundle-native group command apps when available and ensure they are mounted at root.
-            native_loader = module_entry.get("loader")
-            native_meta = module_entry.get("metadata")
-            if native_loader is not None and native_meta is not None:
-                CommandRegistry.register(group_name, native_loader, native_meta)
-            continue
+        group_name, help_str, build_fn = bundle_to_group[bundle]
 
         def _make_group_loader(fn: Any) -> Any:
             def _group_loader(_fn: Any = fn) -> Any:
@@ -1099,7 +948,7 @@ def _mount_installed_category_groups(
             continue
         if flat_name == group_name:
             continue
-        meta = module_meta_by_name.get(flat_name)
+        meta = CommandRegistry.get_module_metadata(flat_name)
         if meta is None:
             continue
         help_str = meta.help

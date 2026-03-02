@@ -58,3 +58,11 @@
   - Result: **4 passed**
   - Notes: All 17 non-core module directories deleted in 5 commits (specfact-project, specfact-backlog, specfact-codebase, specfact-spec, specfact-govern). Only 4 core modules remain (init, auth, module_registry, upgrade). Packaging tests confirm pyproject/setup/version sync and no force-include references to deleted modules.
 
+### Phase: Task 11 — Phase 2 (bootstrap)
+
+- **Passing-after run**
+  - Command: `hatch test -- tests/unit/registry/test_core_only_bootstrap.py -v`
+  - Timestamp: 2026-03-02
+  - Result: **7 passed**
+  - Notes: Removed _register_category_groups_and_shims (unconditional category/shim registration). CORE_MODULE_ORDER trimmed to 4 core (init, auth, module-registry, upgrade). _mount_installed_category_groups already used when category_grouping_enabled; added @beartype. Bootstrap registers only discovered packages; category groups and flat shims only for installed bundles.
+
