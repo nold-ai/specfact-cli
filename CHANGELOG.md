@@ -10,6 +10,28 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.40.0] - 2026-02-28
+
+### Added
+
+- Official marketplace bundle extraction (OpenSpec change `module-migration-02-bundle-extraction`, issue [#316](https://github.com/nold-ai/specfact-cli/issues/316)): five bundle packages (`specfact-project`, `specfact-backlog`, `specfact-codebase`, `specfact-spec`, `specfact-govern`) are now produced in the dedicated `nold-ai/specfact-cli-modules` repository.
+- Official-tier trust model in module validation and display: `official` tier verification path with `nold-ai` publisher allowlist and `[official]` module list badge.
+- Bundle dependency auto-install in module installer: installing `nold-ai/specfact-spec` or `nold-ai/specfact-govern` now auto-installs `nold-ai/specfact-project` when missing.
+- Bundle publishing mode in `scripts/publish-module.py` (`--bundle` and `--modules-repo-dir`) for packaging/signing/index updates against the dedicated modules repository.
+- New marketplace bundles guide: `docs/guides/marketplace.md`.
+
+### Changed
+
+- Module source relocation to bundle namespaces with compatibility shims: legacy `specfact_cli.modules.*` imports now re-export from `specfact_<bundle>.*` namespaces during migration.
+- Official module install output now explicitly confirms verification status (`Verified: official (nold-ai)`).
+- Documentation updates across getting-started, docs landing page, module categories, marketplace guides, layout navigation, and root README to reflect marketplace-distributed official bundles.
+
+### Deprecated
+
+- Legacy flat import paths under `specfact_cli.modules.*` are deprecated in favor of bundle namespaces (`specfact_project.*`, `specfact_backlog.*`, `specfact_codebase.*`, `specfact_spec.*`, `specfact_govern.*`) and are planned for removal in the next major release.
+
+---
+
 ## [0.39.0] - 2026-02-28
 
 ### Added

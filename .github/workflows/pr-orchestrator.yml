@@ -118,6 +118,18 @@ jobs:
       - uses: actions/checkout@v4
         if: needs.changes.outputs.skip_tests_dev_to_main != 'true'
 
+      - name: Checkout module bundles repo
+        if: needs.changes.outputs.skip_tests_dev_to_main != 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: nold-ai/specfact-cli-modules
+          path: specfact-cli-modules
+          ref: ${{ (github.ref == 'refs/heads/main' || github.head_ref == 'main') && 'main' || 'dev' }}
+
+      - name: Export module bundles path
+        if: needs.changes.outputs.skip_tests_dev_to_main != 'true'
+        run: echo "SPECFACT_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" >> "$GITHUB_ENV"
+
       - name: Set up Python 3.12
         if: needs.changes.outputs.skip_tests_dev_to_main != 'true'
         uses: actions/setup-python@v5
@@ -140,7 +152,7 @@ jobs:
           path: |
             ~/.local/share/hatch
             ~/.cache/uv
-          key: ${{ runner.os }}-hatch-tests-py312-${{ hashFiles('pyproject.toml') }}
+          key: ${{ runner.os }}-hatch-tests-py312-${{ hashFiles('pyproject.toml', 'src/specfact_cli/modules/*/__init__.py') }}
           restore-keys: |
             ${{ runner.os }}-hatch-tests-py312-
             ${{ runner.os }}-hatch-
@@ -214,6 +226,14 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v4
+      - name: Checkout module bundles repo
+        uses: actions/checkout@v4
+        with:
+          repository: nold-ai/specfact-cli-modules
+          path: specfact-cli-modules
+          ref: ${{ (github.ref == 'refs/heads/main' || github.head_ref == 'main') && 'main' || 'dev' }}
+      - name: Export module bundles path
+        run: echo "SPECFACT_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" >> "$GITHUB_ENV"
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
@@ -231,7 +251,7 @@ jobs:
           path: |
             ~/.local/share/hatch
             ~/.cache/uv
-          key: ${{ runner.os }}-hatch-compat-py311-${{ hashFiles('pyproject.toml') }}
+          key: ${{ runner.os }}-hatch-compat-py311-${{ hashFiles('pyproject.toml', 'src/specfact_cli/modules/*/__init__.py') }}
           restore-keys: |
             ${{ runner.os }}-hatch-compat-py311-
             ${{ runner.os }}-hatch-
@@ -261,6 +281,14 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v4
+      - name: Checkout module bundles repo
+        uses: actions/checkout@v4
+        with:
+          repository: nold-ai/specfact-cli-modules
+          path: specfact-cli-modules
+          ref: ${{ (github.ref == 'refs/heads/main' || github.head_ref == 'main') && 'main' || 'dev' }}
+      - name: Export module bundles path
+        run: echo "SPECFACT_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" >> "$GITHUB_ENV"
       - name: Set up Python 3.12
         uses: actions/setup-python@v5
         with:
@@ -278,7 +306,7 @@ jobs:
           path: |
             ~/.local/share/hatch
             ~/.cache/uv
-          key: ${{ runner.os }}-hatch-contract-first-py312-${{ hashFiles('pyproject.toml') }}
+          key: ${{ runner.os }}-hatch-contract-first-py312-${{ hashFiles('pyproject.toml', 'src/specfact_cli/modules/*/__init__.py') }}
           restore-keys: |
             ${{ runner.os }}-hatch-contract-first-py312-
             ${{ runner.os }}-hatch-

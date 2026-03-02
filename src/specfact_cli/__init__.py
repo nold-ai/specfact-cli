@@ -8,6 +8,40 @@ This package provides command-line tools for:
 - Supporting agile ceremonies and team workflows
 """
 
-__version__ = "0.39.0"
+from __future__ import annotations
+
+import os
+import sys
+from pathlib import Path
+
+
+def _candidate_modules_repo_roots() -> list[Path]:
+    configured = os.environ.get("SPECFACT_MODULES_REPO", "").strip()
+    roots: list[Path] = []
+    if configured:
+        roots.append(Path(configured).expanduser())
+
+    this_file = Path(__file__).resolve()
+    for base in (this_file.parent.parent.parent, *this_file.parents):
+        roots.append(base / "specfact-cli-modules")
+        roots.append(base.parent / "specfact-cli-modules")
+    return roots
+
+
+def _bootstrap_bundle_paths() -> None:
+    for root in _candidate_modules_repo_roots():
+        packages_root = root / "packages"
+        if not packages_root.exists():
+            continue
+        for src_dir in packages_root.glob("*/src"):
+            src = str(src_dir.resolve())
+            if src not in sys.path:
+                sys.path.insert(0, src)
+        break
+
+
+_bootstrap_bundle_paths()
+
+__version__ = "0.40.0"
 
 __all__ = ["__version__"]

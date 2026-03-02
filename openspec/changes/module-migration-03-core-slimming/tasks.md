@@ -58,7 +58,7 @@ Do NOT implement production code for any behavior-changing step until failing-te
 
 - [ ] 3.1 Open `openspec/CHANGE_ORDER.md`
   - [ ] 3.1.1 Locate the "Module migration" table in the Pending section
-  - [ ] 3.1.2 Update the row for `module-migration-03-core-package-slimming` to point to `module-migration-03-core-slimming`, add the GitHub issue number from step 2, and confirm `Blocked by: module-migration-02`
+  - [ ] 3.1.2 Update the row for `module-migration-03-core-package-slimming` to point to `module-migration-03-core-slimming`, add the GitHub issue number from step 2, and confirm blockers include `module-migration-02`, `module-migration-04`, and migration-05 sections 18-22
   - [ ] 3.1.3 Confirm Wave 4 description includes `module-migration-03-core-slimming` after `module-migration-02-bundle-extraction`
   - [ ] 3.1.4 Commit: `git add openspec/CHANGE_ORDER.md && git commit -m "docs: add module-migration-03-core-slimming to CHANGE_ORDER.md"`
 

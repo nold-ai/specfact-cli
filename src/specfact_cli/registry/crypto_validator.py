@@ -6,13 +6,32 @@ from __future__ import annotations
 
 import base64
 import hashlib
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from beartype import beartype
 from icontract import require
 
 
 _ArtifactInput = bytes | Path
+OFFICIAL_PUBLISHERS: frozenset[str] = frozenset({"nold-ai"})
+
+
+class SecurityError(RuntimeError):
+    """Raised when manifest provenance violates security policy."""
+
+
+class SignatureVerificationError(SecurityError):
+    """Raised when signature validation fails for trusted tiers."""
+
+
+@dataclass(frozen=True)
+class ValidationResult:
+    """Result of manifest-level tier validation."""
+
+    tier: str
+    signature_valid: bool
 
 
 def _algo_and_hex(expected_checksum: str) -> tuple[str, str]:
@@ -122,3 +141,46 @@ def verify_signature(
     if not ok:
         raise ValueError("Signature verification failed: signature does not match artifact or key")
     return True
+
+
+@beartype
+def _extract_publisher_name(manifest: dict[str, Any]) -> str:
+    """Normalize publisher name from manifest payload."""
+    publisher_raw = manifest.get("publisher")
+    if isinstance(publisher_raw, dict):
+        return str(publisher_raw.get("name", "")).strip().lower()
+    return str(publisher_raw or "").strip().lower()
+
+
+@beartype
+@require(
+    lambda manifest: str(manifest.get("tier", "unsigned")).strip().lower() in {"official", "community", "unsigned"},
+    "tier must be one of: official, community, unsigned",
+)
+def validate_module(
+    manifest: dict[str, Any], artifact: _ArtifactInput, public_key_pem: str | None = None
+) -> ValidationResult:
+    """Validate manifest trust tier and signature policy."""
+    tier = str(manifest.get("tier", "unsigned")).strip().lower()
+    publisher_name = _extract_publisher_name(manifest)
+
+    if tier == "official":
+        if publisher_name not in OFFICIAL_PUBLISHERS:
+            raise SecurityError(f"Official-tier publisher is not allowlisted: {publisher_name or '<missing>'}")
+        integrity = manifest.get("integrity")
+        signature = str(integrity.get("signature", "")).strip() if isinstance(integrity, dict) else ""
+        if not signature:
+            raise SignatureVerificationError("Official-tier manifest requires integrity.signature")
+        key_material = (public_key_pem or "").strip()
+        if not key_material:
+            raise SignatureVerificationError("Official-tier signature verification requires public key material")
+        try:
+            verify_signature(artifact, signature, key_material)
+        except ValueError as exc:
+            raise SignatureVerificationError(str(exc)) from exc
+        return ValidationResult(tier="official", signature_valid=True)
+
+    if tier == "community":
+        return ValidationResult(tier="community", signature_valid=False)
+
+    return ValidationResult(tier="unsigned", signature_valid=False)

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 from beartype import beartype
@@ -22,15 +23,28 @@ def list_policy_templates() -> list[str]:
 @ensure(lambda result: result is None or isinstance(result, Path), "Resolved template dir must be Path or None")
 def resolve_policy_template_dir() -> Path | None:
     """Resolve the built-in templates folder in both source and installed contexts."""
+    env_dir = os.environ.get("SPECFACT_POLICY_TEMPLATES_DIR")
+    if env_dir:
+        candidate = Path(env_dir).expanduser().resolve()
+        if candidate.is_dir() and any(candidate.glob("*.yaml")):
+            return candidate
     import specfact_cli
 
     pkg_root = Path(specfact_cli.__file__).resolve().parent
     packaged_dir = pkg_root / "resources" / "templates" / "policies"
     if packaged_dir.exists():
         return packaged_dir
-
+    for ancestor in (pkg_root, *pkg_root.parents):
+        candidate = ancestor / "resources" / "templates" / "policies"
+        if candidate.exists():
+            return candidate
     for parent in Path(__file__).resolve().parents:
         candidate = parent / "resources" / "templates" / "policies"
+        if candidate.exists():
+            return candidate
+    cwd = Path.cwd().resolve()
+    for base in (cwd, cwd.parent):
+        candidate = base / "resources" / "templates" / "policies"
         if candidate.exists():
             return candidate
     return None
@@ -48,7 +62,10 @@ def load_policy_template(template_name: str) -> tuple[str | None, str | None]:
 
     template_dir = resolve_policy_template_dir()
     if template_dir is None:
-        return None, "Built-in policy templates were not found under resources/templates/policies."
+        return None, (
+            "Built-in policy templates were not found under resources/templates/policies. "
+            "(Set SPECFACT_POLICY_TEMPLATES_DIR for tests/CI.)"
+        )
 
     template_path = template_dir / f"{normalized}.yaml"
     if not template_path.exists():

@@ -188,6 +188,27 @@ For technical architecture details (module lifecycle, registry internals, adapte
 - [Architecture Docs Index](docs/architecture/README.md)
 - [Architecture Implementation Status](docs/architecture/implementation-status.md)
 
+### Official Marketplace Bundles
+
+SpecFact ships official bundle packages via the dedicated marketplace registry repository
+`nold-ai/specfact-cli-modules`.
+
+Install examples:
+
+```bash
+specfact module install nold-ai/specfact-project
+specfact module install nold-ai/specfact-backlog
+specfact module install nold-ai/specfact-codebase
+specfact module install nold-ai/specfact-spec
+specfact module install nold-ai/specfact-govern
+```
+
+Official bundles are verified as `official` tier (`nold-ai` publisher). Some bundles
+auto-install dependencies:
+
+- `nold-ai/specfact-spec` pulls `nold-ai/specfact-project`
+- `nold-ai/specfact-govern` pulls `nold-ai/specfact-project`
+
 ---
 
 ## Where SpecFact Fits

@@ -83,9 +83,11 @@ These are derived extensions of the same 2026-02-15 plan and are required to ope
 | Module | Order | Change folder | GitHub # | Blocked by |
 |--------|-------|---------------|----------|------------|
 | module-migration | 01 | module-migration-01-categorize-and-group | [#315](https://github.com/nold-ai/specfact-cli/issues/315) | #215 ✅ (marketplace-02) |
-| module-migration | 02 | module-migration-02-bundle-extraction | TBD | module-migration-01 |
-| module-migration | 03 | module-migration-03-core-slimming | TBD | module-migration-02 |
-| module-migration | 04 | module-migration-04-remove-flat-shims | TBD | module-migration-01 |
+| module-migration | 02 | module-migration-02-bundle-extraction | [#316](https://github.com/nold-ai/specfact-cli/issues/316) | module-migration-01 ✅ |
+| module-migration | 03 | module-migration-03-core-slimming | [#317](https://github.com/nold-ai/specfact-cli/issues/317) | module-migration-02; migration-05 sections 18-22 (tests, decoupling, docs, pipeline/config) must precede deletion |
+| module-migration | 04 | module-migration-04-remove-flat-shims | [#330](https://github.com/nold-ai/specfact-cli/issues/330) | module-migration-01; see note on overlap with migration-03 (tasks.md 17.9.1) |
+| module-migration | 05 | module-migration-05-modules-repo-quality | [#334](https://github.com/nold-ai/specfact-cli/issues/334) | module-migration-02; sections 18-22 must precede migration-03 |
+| module-migration | 06 | module-migration-06-pypi-publishing (placeholder) | TBD | module-migration-03 (bundles must be installable before PyPI presence matters) |
 
 ### Cross-cutting foundations (no hard dependencies — implement early)
 
@@ -325,15 +327,17 @@ Dependencies flow left-to-right; a wave may start once all its hard blockers are
   - backlog-scrum-01 ✅ (needs backlog-core-01; benefits from policy-engine-01 + patch-mode-01)
   - backlog-safe-02 (needs backlog-safe-01; integrates with scrum/kanban via bridge registry)
   - module-migration-01-categorize-and-group (marketplace-02 dependency resolved; adds category metadata + group commands)
-  - module-migration-04-remove-flat-shims (0.40.x; needs module-migration-01; removes flat shims, category-only CLI)
+  - module-migration-04-remove-flat-shims (0.40.x; needs module-migration-01; removes flat shims, category-only CLI; see overlap note with migration-03 in tasks.md 17.9.1)
   - module-migration-02-bundle-extraction (needs module-migration-01; moves module source to bundle packages, publishes to marketplace registry)
   - marketplace-03-publisher-identity (needs marketplace-02; can run parallel with module-migration-01/02/03)
   - marketplace-04-revocation (needs marketplace-03; must land before external publisher onboarding)
   - marketplace-05-registry-federation (needs marketplace-03)
 
-- **Wave 4 — Ceremony layer + module slimming** (needs Wave 3):
+- **Wave 4 — Ceremony layer + module slimming + modules repo quality** (needs Wave 3):
   - ceremony-cockpit-01 ✅ (probes installed backlog-* modules at runtime; no hard deps but best after Wave 3)
-  - module-migration-03-core-package-slimming (needs module-migration-02; removes bundled modules from core)
+  - **module-migration-05-modules-repo-quality** (needs module-migration-02; sections 18-22 must land **before or simultaneously with** module-migration-03): quality tooling, tests, dependency decoupling, docs, pipeline/config for specfact-cli-modules
+  - module-migration-03-core-slimming (needs module-migration-02 AND migration-05 sections 18-22; removes bundled modules from core; see tasks.md 17.9 for proposal consistency requirements before implementation starts)
+  - **module-migration-06-pypi-publishing** (placeholder; needs module-migration-03; publishes bundle packages to PyPI)
 
 - **Wave 5 — Foundations for business-first chain** (architecture integration):
   - profile-01

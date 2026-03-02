@@ -1,5 +1,5 @@
 name: enforce
-version: 0.1.1
+version: 0.1.5
 commands:
   - enforce
 category: govern
@@ -20,5 +20,5 @@ publisher:
 description: Apply governance policies and quality gates to bundles.
 license: Apache-2.0
 integrity:
-  checksum: sha256:836e08acb3842480c909d95bba2dcfbb5914c33ceb64bd8b85e6e6a948c39ff3
-  signature: gOIb0KCdrUwEOSNWEkMCFQ/cne9KG0zT0s09R4SzGKCKmIN2ZI1eCQ4Py+EOU5fPjszMN9R6NEuMmRXaZ+MpCA==
+  checksum: sha256:4d5defa92c6b42e795258a7b290da846917ae5848eab5047e6aa7772dd1fdc68
+  signature: J5u5SCVSPeRXyL/m9RM6KBtb7KsdFZ8Ne0kO7EjcBQsgNvCZYo+w2RaJW7RkBAGlPfkVD2XCAZBlaMmihDx+Cg==

@@ -1,4 +1,4 @@
-"""import_cmd command entrypoint."""
+"""Module app entrypoint for import_cmd."""
 
 from specfact_cli.modules.import_cmd.src.commands import app
 

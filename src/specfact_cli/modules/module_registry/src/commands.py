@@ -29,13 +29,18 @@ from specfact_cli.registry.module_lifecycle import (
     render_modules_table,
     select_module_ids_interactive,
 )
-from specfact_cli.registry.module_security import ensure_publisher_trusted
+from specfact_cli.registry.module_security import ensure_publisher_trusted, is_official_publisher
 from specfact_cli.registry.registry import CommandRegistry
 from specfact_cli.runtime import is_non_interactive
 
 
 app = typer.Typer(help="Manage marketplace modules")
 console = Console()
+
+
+def _publisher_from_module_id(module_id: str) -> str:
+    """Extract normalized publisher namespace from module id."""
+    return module_id.split("/", 1)[0].strip().lower() if "/" in module_id else ""
 
 
 @app.command(name="init")
@@ -144,6 +149,9 @@ def install(
             non_interactive=is_non_interactive(),
         ):
             console.print(f"[green]Installed bundled module[/green] {requested_name} -> {target_root / requested_name}")
+            publisher = _publisher_from_module_id(normalized)
+            if is_official_publisher(publisher):
+                console.print(f"Verified: official ({publisher})")
             return
     except ValueError as exc:
         console.print(f"[red]{exc}[/red]")
@@ -166,6 +174,9 @@ def install(
         console.print(f"[red]Failed installing {normalized}: {exc}[/red]")
         raise typer.Exit(1) from exc
     console.print(f"[green]Installed[/green] {normalized} -> {installed_path}")
+    publisher = _publisher_from_module_id(normalized)
+    if is_official_publisher(publisher):
+        console.print(f"Verified: official ({publisher})")
 
 
 @app.command()

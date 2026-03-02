@@ -1,4 +1,4 @@
-"""sdd command entrypoint."""
+"""Module app entrypoint for sdd."""
 
 from specfact_cli.modules.sdd.src.commands import app
 

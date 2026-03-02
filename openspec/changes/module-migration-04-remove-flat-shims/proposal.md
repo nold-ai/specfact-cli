@@ -9,23 +9,34 @@ The 0.40.x series completes that migration: the top-level CLI surface should sho
 
 ## What Changes
 
-
-- **REMOVE**: Registration of compat shims for all 17 non-core flat commands. No more top-level `analyze`, `drift`, `validate`, `repro`, `backlog`, `policy`, `project`, `plan`, `import`, `sync`, `migrate`, `contract`, `spec`, `sdd`, `generate`, `enforce`, `patch` at root.
-- **MODIFY**: `_register_category_groups_and_shims()` in `module_packages.py` becomes category-group-only registration (no `FLAT_TO_GROUP` shim loop). Optionally rename to `_register_category_groups()`.
-- **REMOVE**: `FLAT_TO_GROUP` and `_make_shim_loader()` (and any shim-specific tests that assert deprecation or shim delegation).
-- **KEEP**: Core commands (`init`, `auth`, `module`, `upgrade`) and the five category groups with their sub-commands unchanged. `category_grouping_enabled` remains supported; when `false`, behavior can remain "flat" by mounting module commands directly (no groups, no shims).
-- **MODIFY**: Docs and CHANGELOG to state the breaking change and migration path (flat → category).
+- **REMOVE**: `FLAT_TO_GROUP` constant and `_make_shim_loader()` function from `module_packages.py` — the shim machinery that generates deprecated flat-command delegates.
+- **MODIFY**: `_register_category_groups_and_shims()` in `module_packages.py` — remove the `FLAT_TO_GROUP` shim registration loop; retain only the category group registration logic. Rename to `_register_category_groups()` to reflect the reduced responsibility.
+- **REMOVE**: Any shim-specific tests that assert flat-command deprecation warnings or shim delegation (e.g. tests that assert `specfact validate --help` exits 0 via a shim or that a `DeprecationWarning` is emitted for flat commands).
+- **KEEP**: Core commands (`init`, `auth`, `module`, `upgrade`) and the five category groups with their sub-commands unchanged. `category_grouping_enabled` remains supported; when `false`, behavior mounts module commands directly (no groups, no shims).
+- **MODIFY**: Docs and CHANGELOG to state the breaking change and migration path (flat → category group).
+- **Scope boundary — bootstrap.py is NOT modified by this change**: This change removes the shim *machinery* from `module_packages.py`. The dead shim *registration call sites* in `bootstrap.py` (which called `_make_shim_loader()` or equivalent) are cleaned up by `module-migration-03-core-slimming` (Wave 4), which follows this change. The call sites become unreachable/dead after this change but are not deleted here to keep the diff focused and to avoid coupling two unrelated deletion passes in one PR.
 
 ## Capabilities
+
 ### Modified Capabilities
 
 - `category-command-groups`: Sole top-level surface for non-core module commands. No flat shims; users must use `specfact code analyze`, `specfact backlog ceremony`, etc.
-- `command-registry`: Bootstrap no longer registers shim loaders; only group typers and (when grouping disabled) direct module commands.
+- `command-registry`: `module_packages.py` no longer contains the shim registration loop or shim factory. Only category group typers are registered (and, when grouping disabled, direct module commands).
 
 ### Removed Capabilities
 
-- Backward-compat shim layer (deprecation delegates) for the 17 flat command names.
+- Flat-command shim machinery (`FLAT_TO_GROUP`, `_make_shim_loader()`) — the infrastructure that generated deprecation-warning delegates for the 17 flat command names.
 
+## Impact
+
+- **Affected code**:
+  - `src/specfact_cli/modules/module_packages.py` — `FLAT_TO_GROUP` removed, `_make_shim_loader()` removed, `_register_category_groups_and_shims()` renamed to `_register_category_groups()` with shim loop deleted
+  - `tests/` — shim-specific tests removed; category group routing tests retained
+- **Affected code (NOT in this change)**: `src/specfact_cli/registry/bootstrap.py` shim call sites — cleaned up by `module-migration-03-core-slimming` (Wave 4, follows this change)
+- **Backward compatibility**: **Breaking** — `specfact analyze`, `specfact validate`, etc. no longer work as root-level commands. Users must use `specfact code analyze`, `specfact code validate`, etc. (or install the relevant bundle and use the category group).
+- **Blocked by**: `module-migration-01-categorize-and-group` — category groups must exist before the shim layer can be safely removed; `FLAT_TO_GROUP` references the group routing established in migration-01.
+- **Followed by**: `module-migration-03-core-slimming` — cleans up dead shim registration call sites from `bootstrap.py` after this change removes the machinery those calls referenced.
+- **Wave**: Wave 3 — parallel with or after `module-migration-02-bundle-extraction`; must complete before `module-migration-03-core-slimming` begins bootstrap.py cleanup.
 
 ---
 

@@ -1,5 +1,5 @@
 name: sync
-version: 0.1.1
+version: 0.1.5
 commands:
   - sync
 category: project
@@ -22,5 +22,5 @@ publisher:
 description: Synchronize repository state with connected external systems.
 license: Apache-2.0
 integrity:
-  checksum: sha256:c690b401e5469f8bac7bf36d278014e6dd1132453424bd9728769579a31a474b
-  signature: QtPgmc9urSzIgqLKqXVLRUpTu32UZ0Lns57ynHLnnZHoOI/46AcIFJ8GrHjVSgMAlCjmxTqjihe6FbuxmpmyBw==
+  checksum: sha256:ff1cc4c893923d9ec04fd01ef3dcd764b17f9f51eec39d2bfd3716489f45c0aa
+  signature: QPByNcWm9a12LgbWwehLFZCIRYquazaouz0HXORzeYIw1J/Rm+MJ2FDAxPCG8Nf1b+K2/XB4eR656S8r3rfVAQ==

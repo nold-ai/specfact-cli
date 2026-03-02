@@ -1,4 +1,4 @@
-"""project command entrypoint."""
+"""Module app entrypoint for project."""
 
 from specfact_cli.modules.project.src.commands import app
 

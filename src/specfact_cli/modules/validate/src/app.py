@@ -1,4 +1,4 @@
-"""validate command entrypoint."""
+"""Module app entrypoint for validate."""
 
 from specfact_cli.modules.validate.src.commands import app
 

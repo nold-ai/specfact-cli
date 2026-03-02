@@ -58,6 +58,25 @@ Category command groups:
 - `specfact-spec`: `contract`, `api`, `sdd`, `generate`
 - `specfact-govern`: `enforce`, `patch`
 
+## Bundle Package Layout and Namespaces
+
+Official bundle packages are published from the dedicated modules repository:
+
+- Repository: `nold-ai/specfact-cli-modules`
+- Package roots: `packages/specfact-project/`, `packages/specfact-backlog/`, `packages/specfact-codebase/`, `packages/specfact-spec/`, `packages/specfact-govern/`
+
+Namespace mapping:
+
+- `specfact-project` -> import namespace `specfact_project.*`
+- `specfact-backlog` -> import namespace `specfact_backlog.*`
+- `specfact-codebase` -> import namespace `specfact_codebase.*`
+- `specfact-spec` -> import namespace `specfact_spec.*`
+- `specfact-govern` -> import namespace `specfact_govern.*`
+
+Compatibility note:
+
+- Legacy `specfact_cli.modules.*` import paths remain as re-export shims during migration.
+
 ## First-Run Profiles
 
 `specfact init` supports profile presets and explicit bundle selection:

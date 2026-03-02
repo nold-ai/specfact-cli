@@ -373,6 +373,7 @@ scripts/publish-module.py --bundle specfact-codebase --key-file key.pem
 **Q1: Should bundle packages be published to PyPI in addition to the marketplace registry?**
 
 - Recommendation: Defer to module-migration-03. The marketplace registry is sufficient for the first publish. PyPI publishing adds complexity (PyPI accounts, twine, package names) that belongs in a separate change.
+- **Gap analysis update (2026-03-02):** Migration-03's proposal does not include PyPI publishing in its scope (Gap 7 in `GAP_ANALYSIS.md`). Ownership remains unresolved. If not added to migration-03's What Changes, a dedicated `module-migration-06-pypi-publishing` change should be created and added to `CHANGE_ORDER.md`. Without PyPI publishing, `pip install specfact-codebase` does not work — only the marketplace registry path is available.
 
 **Q2: Should specfact-cli-modules be a git submodule of specfact-cli?**
 
