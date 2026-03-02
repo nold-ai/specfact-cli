@@ -7,6 +7,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from typer.testing import CliRunner
 
+
 pytest.importorskip("specfact_cli.modules.plan.src.commands")
 from specfact_cli.cli import app
 

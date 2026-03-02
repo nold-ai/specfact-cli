@@ -292,9 +292,7 @@ def test_gate_is_idempotent(tmp_path: Path, capsys: pytest.CaptureFixture[str]) 
     assert first_output == second_output
 
 
-def test_resolve_registry_index_uses_specfact_modules_repo_env(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_resolve_registry_index_uses_specfact_modules_repo_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """When SPECFACT_MODULES_REPO is set, _resolve_registry_index_path returns <path>/registry/index.json."""
     module = _load_script_module()
     modules_repo = tmp_path / "specfact-cli-modules"
@@ -307,9 +305,7 @@ def test_resolve_registry_index_uses_specfact_modules_repo_env(
     assert index_path.exists()
 
 
-def test_resolve_registry_index_uses_worktree_sibling(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_resolve_registry_index_uses_worktree_sibling(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """When SPECFACT_REPO_ROOT points at a worktree root, resolver finds sibling specfact-cli-modules."""
     module = _load_script_module()
     worktree_root = tmp_path / "specfact-cli-worktrees" / "feature" / "branch"

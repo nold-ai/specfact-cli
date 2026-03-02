@@ -14,7 +14,6 @@ from specfact_cli.registry.marketplace_client import (
     download_module,
     fetch_registry_index,
     get_modules_branch,
-    get_registry_base_url,
     get_registry_index_url,
     resolve_download_url,
 )

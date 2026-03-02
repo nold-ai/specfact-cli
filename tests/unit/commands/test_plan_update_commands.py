@@ -6,6 +6,7 @@ Focus: Business logic and edge cases only (@beartype handles type validation).
 import pytest
 from typer.testing import CliRunner
 
+
 pytest.importorskip("specfact_cli.modules.plan.src.commands")
 from specfact_cli.cli import app
 from specfact_cli.models.plan import Idea, PlanBundle, Product

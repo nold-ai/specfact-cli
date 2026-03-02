@@ -12,6 +12,7 @@ from typing import Any
 import pytest
 from beartype import beartype
 
+
 pytest.importorskip("specfact_cli.modules.backlog.src.commands")
 from specfact_cli.backlog.converter import convert_github_issue_to_backlog_item
 from specfact_cli.models.backlog_item import BacklogItem
