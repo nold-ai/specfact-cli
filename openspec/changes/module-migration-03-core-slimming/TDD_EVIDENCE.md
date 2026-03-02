@@ -82,3 +82,11 @@
   - Result: **4 passed**
   - Notes: VALID_PROFILES and PROFILE_BUNDLES in commands.py. init_command has @require(profile in VALID_PROFILES). _install_profile_bundles(profile) and _install_bundle_list(install_arg) implemented with @beartype; CI/CD gate and interactive first-run flow unchanged and passing.
 
+### Phase: Task 14 — Module signing gate
+
+- **Verification run (passing)**
+  - Command: `hatch run ./scripts/verify-modules-signature.py --require-signature`
+  - Timestamp: 2026-03-02
+  - Result: **exit 0** — 6 manifest(s) verified (4 core: init, auth, module_registry, upgrade; 2 bundled: backlog-core, bundle-mapper).
+  - Notes: No re-sign required; 14.2 and 14.4 N/A.
+
