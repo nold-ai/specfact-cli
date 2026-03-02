@@ -11,6 +11,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from beartype import beartype
 
+
 pytest.importorskip("specfact_cli.modules.backlog.src.commands")
 from specfact_cli.backlog.filters import BacklogFilters
 from specfact_cli.models.backlog_item import BacklogItem

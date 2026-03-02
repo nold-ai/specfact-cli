@@ -202,9 +202,7 @@ def download_module(
     if entry is None:
         raise ValueError(f"Module '{module_id}' not found in registry")
 
-    full_download_url = resolve_download_url(
-        entry, registry_index, registry_index.get("_registry_index_url")
-    )
+    full_download_url = resolve_download_url(entry, registry_index, registry_index.get("_registry_index_url"))
     expected_checksum = str(entry.get("checksum_sha256", "")).strip().lower()
     if not full_download_url or not expected_checksum:
         raise ValueError("Invalid registry index format")

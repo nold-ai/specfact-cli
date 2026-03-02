@@ -6,6 +6,7 @@ import inspect
 
 import pytest
 
+
 pytest.importorskip("specfact_cli.modules.backlog.src.commands")
 from specfact_cli.modules.backlog.src import commands as module_commands
 

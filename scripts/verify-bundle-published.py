@@ -57,9 +57,9 @@ def _resolve_registry_index_path() -> Path:
     configured = os.environ.get("SPECFACT_MODULES_REPO")
     if configured:
         return Path(configured).expanduser().resolve() / "registry" / "index.json"
-    repo_root = Path(
-        os.environ.get("SPECFACT_REPO_ROOT", str(Path(__file__).resolve().parent.parent))
-    ).expanduser().resolve()
+    repo_root = (
+        Path(os.environ.get("SPECFACT_REPO_ROOT", str(Path(__file__).resolve().parent.parent))).expanduser().resolve()
+    )
     for candidate_base in (repo_root, *repo_root.parents):
         for sibling_dir in (
             candidate_base / "specfact-cli-modules",
@@ -187,9 +187,7 @@ def verify_bundle_published(
 
         download_ok: bool | None = None
         if not skip_download_check:
-            full_download_url = resolve_download_url(
-                entry, index_payload, index_payload.get("_registry_index_url")
-            )
+            full_download_url = resolve_download_url(entry, index_payload, index_payload.get("_registry_index_url"))
             if full_download_url:
                 download_ok = verify_bundle_download_url(full_download_url)
 
