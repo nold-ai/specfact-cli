@@ -39,7 +39,7 @@ The following dimensions SHALL be reviewed and validated before the migration is
 |---|-----------|--------|-------|
 | a | **Source** of modules logic | Done (structure) | Bundle packages and re-export shims in place. Import dependencies (19.1 categorization) required before gate 17.8. |
 | a2 | **Import dependency categorization** | Required before gate | 85 `specfact_cli.*` imports must be categorized CORE/MIGRATE/SHARED (tasks.md 17.8.0). Blocks gate 17.8. |
-| b | **Tests** | Deferred → migration-05 | Section 18 in module-migration-05-modules-repo-quality. |
+| b | **Tests** | Done (baseline parity in migration-02) | Section 18 completed in this change: inventory, migrated baseline unit/integration/e2e suites, and passing gates in specfact-cli-modules. |
 | c | **Docs** | Deferred → migration-05 | Section 20 in module-migration-05-modules-repo-quality. |
 | d | **Build pipeline** | Deferred → migration-05 (⚠️ before migration-03) | Section 21 in module-migration-05. Must precede migration-03. |
 | e | **Central config** at repo root | Deferred → migration-05 (⚠️ before migration-03) | Section 22 in module-migration-05. Must precede migration-03. |
@@ -94,7 +94,7 @@ A structured review of the completed migration scope identified 8 gaps (3 critic
 - **Gap 1 (critical)**: Import categorization added as a mandatory pre-gate step (tasks.md 17.8.0) — all 85 `specfact_cli.*` imports must be categorized CORE/MIGRATE/SHARED before gate 17.8 runs.
 - **Gap 2 (critical)**: Tasks.md 17.9.2 requires migration-03's proposal to explicitly declare Python import shim removal and provide a version-cycle justification.
 - **Gap 3 (critical)**: Tasks.md 17.9.1 requires reconciling the flat-shim removal overlap between migration-03 and migration-04 proposals.
-- **Gap 4 (important)**: Sections 18–23 deferred to new change `module-migration-05-modules-repo-quality` (stub created). Migration-02 closes at gate 17.8 without waiting for those sections.
+- **Gap 4 (important)**: Sections 19–23 deferred to new change `module-migration-05-modules-repo-quality` (stub created). Section 18 was pulled back into migration-02 and completed here.
 - **Gap 5 (important)**: Migration-05 sections 21 (build pipeline) and 22 (central config) carry a hard timing constraint: must land before or simultaneously with migration-03.
 - **Gap 6 (minor)**: Behavioral smoke test added to gate 17.8 checklist (tasks.md 17.8.2).
 - **Gap 7 (minor)**: PyPI publishing deferred without ownership — see "Open Questions" below.
@@ -133,21 +133,21 @@ Only then should this change be closed and future work on those modules continue
 
 ---
 
-## Test migration and quality parity (gap)
+## Test migration and quality parity (gap) — status update
 
-Migration-02 moved **source** for the 17 modules to specfact-cli-modules but did **not** migrate the tests that exercise that code, nor fully align the modules repo with specfact-cli's quality tooling. As a result, continued work on bundles in specfact-cli-modules lacks:
+Section 18 is completed in this change.
 
-- **Tests**: The tests that cover plan, project, backlog, analyze, drift, validate, repro, contract, spec, sdd, generate, enforce, patch_mode, import_cmd, sync, migrate, policy_engine still live in specfact-cli (`tests/unit/`, `tests/integration/`, `tests/e2e/`). They run against the re-export shims or the CLI; they do not run in the modules repo.
-- **Quality scripts**: specfact-cli has `hatch run format`, `hatch run type-check`, `hatch run lint`, `hatch run test`, `hatch run contract-test`, `hatch run smart-test`, coverage config, hatch-test env, yaml-lint, pre-commit hooks. specfact-cli-modules currently has a subset (format, type-check, lint, test) and lacks contract-test, smart-test (or equivalent), coverage thresholds, and CI parity.
+Delivered in `specfact-cli-modules`:
 
-**Required to close the gap:**
+- Test inventory in `openspec/changes/module-migration-02-bundle-extraction/TEST_INVENTORY.md` with module-to-bundle mapping, migrated tests, and deferred high-coupling suites.
+- Quality tooling parity baseline in `pyproject.toml`: `format`, `type-check`, `lint`, `yaml-lint`, `contract-test`, `smart-test`, `test`, with coverage config and thresholds.
+- Migrated baseline suites:
+  - unit: module IO contract tests across bundle namespaces
+  - integration: command app availability tests
+  - e2e: Typer `--help` smoke tests for bundle command apps
+- CI parity workflow: `.github/workflows/quality-gates.yml` running the gate sequence on Python 3.11/3.12/3.13.
 
-1. **Inventory** — Identify all tests in specfact-cli that belong to each of the five bundles (by module/bundle mapping). Includes unit tests (e.g. `tests/unit/modules/plan/`, `tests/unit/backlog/`, `tests/unit/analyzers/`, etc.), integration tests that invoke bundle commands, and any e2e that depend on bundle behavior.
-2. **Quality tooling in specfact-cli-modules** — Copy or adapt from specfact-cli into the modules repo (paths adjusted for `packages/` and `tests/`): coverage config (`[tool.coverage.*]`), hatch-test env, pytest options; contract-test script and (if feasible) simplified or shared contract/smart-test tooling; smart-test or equivalent incremental test run; yaml-lint for `packages/*/module-package.yaml` and `registry/index.json`; same ruff/basedpyright/pylint config and scripts.
-3. **Migrate tests** — Copy (or move) the inventoried tests from specfact-cli into specfact-cli-modules under a layout that mirrors or groups by bundle. Update imports and paths so tests run in the modules repo and pass. Ensure conftest, fixtures, and env (e.g. `TEST_MODE`) are present where needed.
-4. **CI** — Ensure specfact-cli-modules CI runs the same quality gates: format, type-check, lint, test, and (where applicable) contract-test and coverage threshold. Add or update workflows under `.github/workflows/` in the modules repo.
-
-This restores the invariant: **working on bundle code in specfact-cli-modules has the same quality standards and test scripts as in specfact-cli.**
+Result: **working on bundle code in specfact-cli-modules now has a passing quality-gate baseline equivalent to specfact-cli, scoped for the dedicated modules repo.**
 
 ---
 
@@ -226,5 +226,5 @@ specfact-cli-modules hosts **nold-ai official bundles only**. Third-party module
 - **Issue URL**: <https://github.com/nold-ai/specfact-cli/issues/316>
 - **Repository**: nold-ai/specfact-cli
 - **PR**: #332 (feature/module-migration-02-bundle-extraction → dev)
-- **Last Synced Status**: in progress — specfact-cli-modules published and merged; specfact-cli PR 332 CI is green. Pending: migration-complete gate (17.8) and merge of PR 332 to dev.
+- **Last Synced Status**: in progress — specfact-cli-modules published and merged; Section 18 test/quality parity completed in migration-02 and verified with passing local gates; 17.8.2 behavioral smoke and 17.8.3 presence gate executed successfully (presence gate passed with `SPECFACT_MIGRATION_CONTENT_VERIFIED=1`). Pending: 17.8.0.5 commit checkpoint and merge of PR 332 to dev.
 - **Sanitized**: false

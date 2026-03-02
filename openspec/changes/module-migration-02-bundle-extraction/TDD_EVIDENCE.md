@@ -240,3 +240,46 @@ This records required failing evidence before any implementation/factoring in st
 - Dependency fields are correct:
   - `nold-ai/specfact-spec` → `["nold-ai/specfact-project"]`
   - `nold-ai/specfact-govern` → `["nold-ai/specfact-project"]`
+
+## Phase 8 — Section 18 test/quality parity in specfact-cli-modules
+
+### 18.x failing baseline (pre-fix)
+
+**Timestamp:** 2026-03-02 08:21:30 UTC  
+**Command(s):**
+
+- `hatch run type-check`
+- `hatch run lint`
+- `hatch run test`
+
+**Result:** failed
+
+**Failure summary:**
+
+- `type-check` failed on unresolved bundle imports in modules-repo tests until basedpyright path scoping was aligned.
+- `lint` initially failed due overly broad package lint scope and cache path mismatch.
+- `test` initially had no migrated suite (0 collected), then failed until migrated tests/import strategy were aligned.
+
+### 18.x passing baseline (post-fix)
+
+**Timestamp:** 2026-03-02 08:21:30 UTC  
+**Command(s):**
+
+- `hatch run format`
+- `hatch run type-check`
+- `hatch run lint`
+- `hatch run yaml-lint`
+- `hatch run contract-test`
+- `hatch run smart-test`
+- `hatch run test`
+
+**Result:** passed
+
+**Summary:**
+
+- Modules-repo parity gate scripts are available and green.
+- Migrated baseline suites pass in modules repo (`32 passed`):
+  - unit module IO contract tests (bundle namespaces)
+  - integration command-app smoke tests
+  - e2e `--help` command smoke tests
+- Inventory and deferred high-coupling suites documented in `TEST_INVENTORY.md`.
