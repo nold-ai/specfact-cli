@@ -15,7 +15,7 @@ After migration-03 closes, specfact-cli-modules becomes the **canonical and only
 
 This is a quality regression against the project's own standard. This change closes that gap.
 
-**Timing constraint:** Sections 21 (build pipeline) and 22 (central config files) of this change **must be completed before or simultaneously with `module-migration-03-core-slimming`**. Once migration-03 closes, specfact-cli-modules is canonical; it must have quality guardrails before that happens. The remaining sections (tests, dependency decoupling, docs, license) may follow immediately after.
+**Timing constraint:** Sections 18-22 (tests, dependency decoupling/import boundaries, docs baseline, build pipeline, and central config files) of this change **must be completed before or simultaneously with `module-migration-03-core-slimming`**. Once migration-03 closes, specfact-cli-modules is canonical; it must already have equivalent guardrails and decoupling baselines in place.
 
 ## What Changes
 
@@ -27,6 +27,7 @@ This is a quality regression against the project's own standard. This change clo
 - **specfact-cli-modules/tests/** — create test layout mirroring specfact-cli; migrate unit, integration, and e2e tests from specfact-cli that exercise the 17 migrated modules; update imports from `specfact_cli.modules.*` to bundle namespaces
 - **specfact-cli-modules/scripts/check-bundle-imports.py** — import gate that fails if bundle code imports MIGRATE-tier paths; add to CI and pre-commit
 - **specfact-cli-modules/ALLOWED_IMPORTS.md** — document which `specfact_cli.*` imports are allowed (CORE only) in bundle code
+- **specfact-cli-modules package-boundary policy** — enforce high-level module-group boundaries (no lateral cross-group imports without explicit shared abstraction), so each group can be isolated into independent packages over time without hidden coupling
 - **IMPORT_DEPENDENCY_ANALYSIS.md** (migration-02 artifact) — fully populate Category, Target bundle, Notes columns for all 85 imports; execute MIGRATE-tier moves into specfact-cli-modules
 - **specfact-cli-modules/docs/** — migrate bundle/module docs from specfact-cli; add Jekyll setup; configure GitHub Pages
 - **specfact-cli-modules/LICENSE** — match specfact-cli license (nold-ai official bundles)
@@ -56,7 +57,7 @@ This is a quality regression against the project's own standard. This change clo
 - **Backward compatibility**: No CLI-visible changes. Import decoupling is internal to specfact-cli-modules packages. Specfact-cli remains the entry point; bundles continue to be installed via the marketplace registry.
 - **Rollback plan**: Quality tooling additions (CI, config files, tests) are purely additive in specfact-cli-modules; rollback is deleting the added files. Dependency decoupling (import moves) is a source-level operation; rollback is reverting the import updates.
 - **Blocked by**: `module-migration-02-bundle-extraction` — bundles must be present and canonical source in specfact-cli-modules before tests and tooling can be set up for them.
-- **Hard timing constraint**: Sections 21 (build pipeline) and 22 (central config) of this change **must land before `module-migration-03-core-slimming` closes**. Once migration-03 deletes the in-repo module source, specfact-cli-modules must already have quality gates or the project loses its quality standard.
+- **Hard timing constraint**: Sections 18-22 of this change **must land before `module-migration-03-core-slimming` closes**. Once migration-03 deletes the in-repo module source, specfact-cli-modules must already have test parity, decoupling/import boundaries, docs baseline, and quality gates or the project loses its quality standard.
 - **Wave**: Wave 4 — parallel with or immediately preceding `module-migration-03-core-slimming`
 
 ---
@@ -65,12 +66,12 @@ This is a quality regression against the project's own standard. This change clo
 
 | # | Dimension | Status | Notes |
 |---|-----------|--------|-------|
-| a | **Tests** in specfact-cli-modules | TBD | Section 18: inventory, migrate, verify |
-| b | **Quality tooling** (contract-test, smart-test, coverage, yaml-lint) | TBD | Section 18.2 |
-| c | **Dependency decoupling** (import categorization + MIGRATE moves) | TBD | Section 19; builds on migration-02 IMPORT_DEPENDENCY_ANALYSIS.md |
-| d | **Docs** migrated to specfact-cli-modules with Jekyll | TBD | Section 20 |
-| e | **Build pipeline** (PR orchestrator, branch protection) | TBD | Section 21 — must precede migration-03 |
-| f | **Central config files** (pyproject, ruff, basedpyright, pylint, pre-commit) | TBD | Section 22 — must precede migration-03 |
+| a | **Tests** in specfact-cli-modules | TBD | Section 18: inventory, migrate, verify — must precede migration-03 closure |
+| b | **Quality tooling** (contract-test, smart-test, coverage, yaml-lint) | TBD | Section 18.2 — must precede migration-03 closure |
+| c | **Dependency decoupling** (import categorization + MIGRATE moves) | TBD | Section 19; builds on migration-02 IMPORT_DEPENDENCY_ANALYSIS.md — must precede migration-03 closure |
+| d | **Docs** migrated to specfact-cli-modules with Jekyll | TBD | Section 20 — minimum docs baseline must precede migration-03 closure |
+| e | **Build pipeline** (PR orchestrator, branch protection) | TBD | Section 21 — must precede migration-03 closure |
+| f | **Central config files** (pyproject, ruff, basedpyright, pylint, pre-commit) | TBD | Section 22 — must precede migration-03 closure |
 | g | **License and contribution** artifacts | TBD | Section 23 |
 | h | **Bundle versioning policy** in AGENTS.md | TBD | Section 24 (new) |
 

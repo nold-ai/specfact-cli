@@ -84,9 +84,9 @@ These are derived extensions of the same 2026-02-15 plan and are required to ope
 |--------|-------|---------------|----------|------------|
 | module-migration | 01 | module-migration-01-categorize-and-group | [#315](https://github.com/nold-ai/specfact-cli/issues/315) | #215 ✅ (marketplace-02) |
 | module-migration | 02 | module-migration-02-bundle-extraction | [#316](https://github.com/nold-ai/specfact-cli/issues/316) | module-migration-01 ✅ |
-| module-migration | 03 | module-migration-03-core-slimming | [#317](https://github.com/nold-ai/specfact-cli/issues/317) | module-migration-02; migration-05 sections 21+22 (quality tooling must precede deletion) |
+| module-migration | 03 | module-migration-03-core-slimming | [#317](https://github.com/nold-ai/specfact-cli/issues/317) | module-migration-02; migration-05 sections 18-22 (tests, decoupling, docs, pipeline/config) must precede deletion |
 | module-migration | 04 | module-migration-04-remove-flat-shims | [#330](https://github.com/nold-ai/specfact-cli/issues/330) | module-migration-01; see note on overlap with migration-03 (tasks.md 17.9.1) |
-| module-migration | 05 | module-migration-05-modules-repo-quality | TBD | module-migration-02; sections 21+22 must precede migration-03 |
+| module-migration | 05 | module-migration-05-modules-repo-quality | TBD | module-migration-02; sections 18-22 must precede migration-03 |
 | module-migration | 06 | module-migration-06-pypi-publishing (placeholder) | TBD | module-migration-03 (bundles must be installable before PyPI presence matters) |
 
 ### Cross-cutting foundations (no hard dependencies — implement early)
@@ -335,8 +335,8 @@ Dependencies flow left-to-right; a wave may start once all its hard blockers are
 
 - **Wave 4 — Ceremony layer + module slimming + modules repo quality** (needs Wave 3):
   - ceremony-cockpit-01 ✅ (probes installed backlog-* modules at runtime; no hard deps but best after Wave 3)
-  - **module-migration-05-modules-repo-quality** (needs module-migration-02; sections 21+22 must land **before or simultaneously with** module-migration-03): quality tooling, tests, docs, pipeline, config, license for specfact-cli-modules
-  - module-migration-03-core-slimming (needs module-migration-02 AND migration-05 sections 21+22; removes bundled modules from core; see tasks.md 17.9 for proposal consistency requirements before implementation starts)
+  - **module-migration-05-modules-repo-quality** (needs module-migration-02; sections 18-22 must land **before or simultaneously with** module-migration-03): quality tooling, tests, dependency decoupling, docs, pipeline/config for specfact-cli-modules
+  - module-migration-03-core-slimming (needs module-migration-02 AND migration-05 sections 18-22; removes bundled modules from core; see tasks.md 17.9 for proposal consistency requirements before implementation starts)
   - **module-migration-06-pypi-publishing** (placeholder; needs module-migration-03; publishes bundle packages to PyPI)
 
 - **Wave 5 — Foundations for business-first chain** (architecture integration):

@@ -86,7 +86,7 @@ Ensure repo-root config files match specfact-cli so format, lint, type-check, an
 - [ ] 18.1.4 List e2e tests that depend on bundle behavior
 - [ ] 18.1.5 Produce `openspec/changes/module-migration-05-modules-repo-quality/TEST_INVENTORY.md`: file path, bundle(s) exercised, migration target path in specfact-cli-modules (e.g. `tests/unit/specfact_project/` or `tests/unit/plan/`)
 
-### 18.2 Quality tooling in specfact-cli-modules (most steps covered in sections 21 and 22 above)
+### 18.2 Quality tooling in specfact-cli-modules (partially covered in sections 21 and 22; complete parity required before migration-03 closure)
 
 - [ ] 18.2.1 Add hatch env(s) for testing (default env or `test` env) with correct PYTHONPATH for `packages/specfact-*/src`; confirm `hatch test` runs
 - [ ] 18.2.2 Add contract-test script: either call specfact-cli's contract-test when specfact-cli is installed as dev dep, or adapt `tools/contract_first_smart_test.py` so `hatch run contract-test` runs contract validation for bundle code
@@ -136,11 +136,14 @@ Ensures bundle code does not hardcode imports from MIGRATE-tier `specfact_cli.*`
 - [ ] 19.3.1 Produce `ALLOWED_IMPORTS.md` (or section in AGENTS.md) listing which `specfact_cli.*` imports are allowed (CORE only)
 - [ ] 19.3.2 Add `scripts/check-bundle-imports.py` that fails if bundle code imports MIGRATE-tier paths; add to CI and pre-commit
 - [ ] 19.3.3 Update each bundle's `pyproject.toml` / `module-package.yaml`: dependencies declare only `specfact-cli` (and other bundles); no hidden non-core imports
+- [ ] 19.3.4 Define module-group isolation rules (high level): disallow direct lateral imports between unrelated groups (e.g., backlog -> spec internals) unless routed via explicit shared abstractions
+- [ ] 19.3.5 Enforce isolation rules in `scripts/check-bundle-imports.py` with an allowlist matrix and fail-fast violations in CI
 
 ### 19.4 Verification
 
 - [ ] 19.4.1 Re-run `rg -e "from specfact_cli.* import"` in specfact-cli-modules; confirm only CORE imports remain (or document exceptions)
 - [ ] 19.4.2 Run full quality gate in specfact-cli-modules; all tests pass
+- [ ] 19.4.3 Produce `MODULE_GROUP_BOUNDARY_REPORT.md` summarizing remaining approved cross-group dependencies and rationale
 
 ---
 
@@ -206,4 +209,4 @@ Document and operationalize the versioning policy for independently released bun
 
 When archived, update `openspec/CHANGE_ORDER.md`:
 - Move `module-migration-05-modules-repo-quality` from Pending to Implemented with archive date
-- If timing constraint met (sections 21+22 before migration-03): update migration-03's row to remove the quality-tooling blocker note
+- If timing constraint met (sections 18-22 before migration-03): update migration-03's row to remove the quality-and-decoupling blocker note

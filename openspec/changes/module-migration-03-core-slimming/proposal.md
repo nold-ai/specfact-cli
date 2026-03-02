@@ -83,8 +83,8 @@ This mirrors the final VS Code model step: the core IDE ships without language e
 - **Blocked by**:
   - `module-migration-02-bundle-extraction` — all 17 module sources must be confirmed published and available in the marketplace registry with valid signatures before any source deletion is committed. The `module-removal-gate` spec and `scripts/verify-bundle-published.py` gate enforce this.
   - `module-migration-04-remove-flat-shims` — the `FLAT_TO_GROUP` shim machinery and `_make_shim_loader()` must be removed from `module_packages.py` before `bootstrap.py` shim registration call sites are deleted in this change (those sites reference the machinery migration-04 removes).
-  - `module-migration-05-modules-repo-quality` (sections 21 + 22) — the specfact-cli-modules build pipeline (PR orchestrator) and central config files must be in place before this change deletes the in-repo module source, so that quality gates exist in specfact-cli-modules at the moment it becomes the canonical source.
-- **Wave**: Wave 4 — after stable bundle release from Wave 3 (`module-migration-01` + `module-migration-02` complete, bundles available in marketplace registry); after migration-04 (flat shim machinery removed); after migration-05 sections 21+22 (modules repo quality pipeline in place)
+  - `module-migration-05-modules-repo-quality` (sections 18-22) — tests, dependency decoupling/import boundaries, docs baseline, build pipeline, and central config files in specfact-cli-modules must be in place before this change deletes the in-repo module source, so that the canonical repo has full guardrails at cutover time.
+- **Wave**: Wave 4 — after stable bundle release from Wave 3 (`module-migration-01` + `module-migration-02` complete, bundles available in marketplace registry); after migration-04 (flat shim machinery removed); after migration-05 sections 18-22 (modules repo quality and decoupling baseline in place)
 
 ---
 
