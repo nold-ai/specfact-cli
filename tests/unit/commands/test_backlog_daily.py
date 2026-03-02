@@ -30,7 +30,6 @@ import pytest
 import typer.main
 from typer.testing import CliRunner
 
-
 pytest.importorskip("specfact_cli.modules.backlog.src.commands")
 from specfact_cli.backlog.adapters.base import BacklogAdapter
 from specfact_cli.cli import app

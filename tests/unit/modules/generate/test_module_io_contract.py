@@ -6,7 +6,6 @@ import inspect
 
 import pytest
 
-
 pytest.importorskip("specfact_cli.modules.generate.src.commands")
 from specfact_cli.modules.generate.src import commands as module_commands
 

@@ -6,7 +6,6 @@ from pathlib import Path
 
 import pytest
 
-
 pytest.importorskip("specfact_cli.modules.backlog.src.adapters.ado")
 from specfact_cli.modules.backlog.src.adapters.ado import AdoConverter
 from specfact_cli.modules.backlog.src.adapters.github import GitHubConverter

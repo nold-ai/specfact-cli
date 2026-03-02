@@ -7,7 +7,6 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-
 pytest.importorskip("specfact_cli.modules.patch_mode.src.patch_mode.commands.apply")
 from specfact_cli.modules.patch_mode.src.patch_mode.commands.apply import app as patch_app
 from specfact_cli.modules.patch_mode.src.patch_mode.pipeline.applier import (

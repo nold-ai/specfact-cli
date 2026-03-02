@@ -13,7 +13,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-
 pytest.importorskip("specfact_cli.modules.backlog.src.commands")
 from specfact_cli.modules.backlog.src.commands import (
     _build_adapter_kwargs,
