@@ -66,3 +66,11 @@
   - Result: **7 passed**
   - Notes: Removed _register_category_groups_and_shims (unconditional category/shim registration). CORE_MODULE_ORDER trimmed to 4 core (init, auth, module-registry, upgrade). _mount_installed_category_groups already used when category_grouping_enabled; added @beartype. Bootstrap registers only discovered packages; category groups and flat shims only for installed bundles.
 
+### Phase: Task 12 — Phase 3 (cli.py)
+
+- **Passing-after run**
+  - Command: `hatch test -- tests/unit/cli/test_lean_help_output.py -v`
+  - Timestamp: 2026-03-02
+  - Result: **5 passed**
+  - Notes: Root app uses _RootCLIGroup (extends ProgressiveDisclosureGroup). Unrecognised commands that match KNOWN_BUNDLE_GROUP_OR_SHIM_NAMES show actionable error (not installed + specfact init / specfact module install). Main help docstring includes init/module install hint for workflow bundles.
+

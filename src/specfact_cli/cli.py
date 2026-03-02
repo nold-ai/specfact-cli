@@ -97,9 +97,9 @@ class _RootCLIGroup(ProgressiveDisclosureGroup):
 
     def resolve_command(
         self, ctx: click.Context, args: list[str]
-    ) -> tuple[str | None, click.Command | None, list[str]]:
+    ) -> tuple[click.Command | None, str | None, list[str]]:
         result = super().resolve_command(ctx, args)
-        _name, cmd, remaining = result
+        cmd, _cmd_name, remaining = result
         if cmd is not None or not remaining:
             return result
         invoked = remaining[0]

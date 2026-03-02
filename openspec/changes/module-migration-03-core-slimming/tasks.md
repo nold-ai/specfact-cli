@@ -236,10 +236,10 @@ Do NOT implement production code for any behavior-changing step until failing-te
 
 ## 12. Phase 3 — Update cli.py (conditional category group mounting)
 
-- [ ] 12.1 Edit `src/specfact_cli/cli.py`:
-  - [ ] 12.1.1 Remove any unconditional category group registrations for the 17 extracted module categories
-  - [ ] 12.1.2 Ensure `bootstrap_modules(cli_app)` is the single registration entry point (it now handles conditional mounting)
-  - [ ] 12.1.3 Add actionable error handling for unrecognised commands that match known bundle group names
+- [x] 12.1 Edit `src/specfact_cli/cli.py`:
+  - [x] 12.1.1 Remove any unconditional category group registrations for the 17 extracted module categories
+  - [x] 12.1.2 Ensure `bootstrap_modules(cli_app)` is the single registration entry point (it now handles conditional mounting)
+  - [x] 12.1.3 Add actionable error handling for unrecognised commands that match known bundle group names
 - [x] 12.2 `hatch test -- tests/unit/cli/test_lean_help_output.py -v` — verify lean help and missing-bundle errors pass
 - [x] 12.3 Record passing-test result in TDD_EVIDENCE.md (Phase 3: cli.py)
 - [ ] 12.4 `git commit -m "feat(cli): conditional category group mount from installed bundles (migration-03)"`
