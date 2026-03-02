@@ -1,0 +1,52 @@
+## module-migration-03-core-slimming — TDD Evidence
+
+### Phase: module-removal gate script (verify-bundle-published.py)
+
+- **Failing-before run**
+  - Command: `hatch test -- tests/unit/scripts/test_verify_bundle_published.py -v`
+  - Timestamp: 2026-03-02
+  - Result: **FAILED**
+  - Notes: Initial run failed because `scripts/verify-bundle-published.py` did not yet exist. Tests were added first per TDD requirements.
+
+- **Passing-after run**
+  - Command: `hatch test -- tests/unit/scripts/test_verify_bundle_published.py -v`
+  - Timestamp: 2026-03-02
+  - Result: **PASSED**
+  - Notes: Implemented `scripts/verify-bundle-published.py` with `verify_bundle_published` orchestrator, contract decorators, and supporting helpers. All gate script unit tests now pass.
+
+### Phase: bootstrap 4-core-only, init mandatory selection, lean help, packaging (tasks 5–8)
+
+- **Failing-before run**
+  - Command: `hatch test -- tests/unit/registry/test_core_only_bootstrap.py tests/unit/modules/init/test_mandatory_bundle_selection.py tests/unit/cli/test_lean_help_output.py tests/unit/packaging/test_core_package_includes.py -v`
+  - Timestamp: 2026-03-02
+  - Result: **3 failed, 13 passed, 4 skipped**
+  - Failures:
+    - `test_register_builtin_commands_registers_only_four_core_when_discovery_returns_four`: category groups (backlog, code, project, spec, govern) still registered via _register_category_groups_and_shims when only 4 core discovered.
+    - `test_bootstrap_does_not_register_extracted_modules_when_only_core_discovered`: same; extracted commands still in list until bootstrap mounts only installed bundles.
+    - `test_bootstrap_calls_mount_installed_category_groups`: bootstrap.py does not yet call _mount_installed_category_groups or get_installed_bundles.
+  - Skipped (expected until implementation): get_installed_bundles not implemented; category groups conditional on installed bundles; CI/CD gate in init; lean help hint.
+  - Notes: Tests added per tasks 5–8. Implementation will: (1) add get_installed_bundles and _mount_installed_category_groups; (2) register only 4 core from builtin and mount category groups only when bundle installed; (3) enforce init CI/CD gate and lean help.
+
+- **Passing-after run**
+  - Command: `hatch test -- tests/unit/registry/test_core_only_bootstrap.py tests/unit/modules/init/test_mandatory_bundle_selection.py tests/unit/cli/test_lean_help_output.py tests/unit/packaging/test_core_package_includes.py -v`
+  - Timestamp: 2026-03-02
+  - Result: **18 passed, 2 skipped**
+  - Notes: Implemented `get_installed_bundles(packages, enabled_map)`, `_build_bundle_to_group()`, and `_mount_installed_category_groups(packages, enabled_map)` in `module_packages.py`. Replaced unconditional `_register_category_groups_and_shims()` with `_mount_installed_category_groups()` when category_grouping_enabled. Bootstrap now registers only discovered packages (4 core when discovery returns 4) and mounts category groups (code, backlog, project, spec, govern) only for installed bundles. Skipped tests: init CI/CD gate (task 6), lean help when all modules still in tree (satisfied after Phase 1 deletion).
+
+### Phase: Task 6 — Init CI/CD gate (mandatory bundle selection)
+
+- **Passing-after run**
+  - Command: `hatch test -- tests/unit/modules/init/test_mandatory_bundle_selection.py -v`
+  - Timestamp: 2026-03-02
+  - Result: **4 passed**
+  - Notes: Enforced CI/CD gate in `init` command: when `is_first_run()` and `is_non_interactive()` and neither `--profile` nor `--install` is provided, init now exits 1 with message "In CI/CD (non-interactive) mode, first-run init requires --profile or --install to select workflow bundles." All four mandatory-bundle-selection tests pass.
+
+### Phase: Task 9 — Pre-deletion gate (verify-removal-gate)
+
+- **Pre-deletion gate run (passing)**
+  - Command: `hatch run verify-removal-gate`
+  - Timestamp: 2026-03-02
+  - Result: **exit 0**
+  - Output: Registry branch auto-detected **dev**; all 17 modules PASS (signature OK, download OK). `verify-modules-signature.py --require-signature`: 23 module manifests OK.
+  - Notes: Gate uses `scripts/verify-bundle-published.py` with branch auto-detection (and optional `--branch dev|main`). Download URLs resolved via `resolve_download_url` against specfact-cli-modules dev registry. Phase 1 (Task 10) deletions may proceed.
+

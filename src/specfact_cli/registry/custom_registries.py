@@ -11,7 +11,7 @@ from beartype import beartype
 from icontract import ensure, require
 
 from specfact_cli.common import get_bridge_logger
-from specfact_cli.registry.marketplace_client import REGISTRY_INDEX_URL
+from specfact_cli.registry.marketplace_client import get_registry_index_url
 
 
 logger = get_bridge_logger(__name__)
@@ -27,10 +27,10 @@ def get_registries_config_path() -> Path:
 
 
 def _default_official_entry() -> dict[str, Any]:
-    """Return the built-in official registry entry."""
+    """Return the built-in official registry entry (branch-aware: main vs dev)."""
     return {
         "id": OFFICIAL_REGISTRY_ID,
-        "url": REGISTRY_INDEX_URL,
+        "url": get_registry_index_url(),
         "priority": 1,
         "trust": "always",
     }
@@ -131,6 +131,7 @@ def fetch_all_indexes(timeout: float = 10.0) -> list[tuple[str, dict[str, Any]]]
             response.raise_for_status()
             payload = response.json()
             if isinstance(payload, dict):
+                payload["_registry_index_url"] = url
                 result.append((reg_id, payload))
             else:
                 logger.warning("Registry %s returned non-dict index", reg_id)

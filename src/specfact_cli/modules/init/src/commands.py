@@ -539,6 +539,16 @@ def init(
             except ValueError as e:
                 console.print(f"[red]Error:[/red] {e}")
                 raise typer.Exit(1) from e
+        elif is_first_run(user_root=INIT_USER_MODULES_ROOT) and is_non_interactive():
+            console.print(
+                "[red]Error:[/red] In CI/CD (non-interactive) mode, first-run init requires "
+                "--profile or --install to select workflow bundles."
+            )
+            console.print(
+                "[dim]Example: specfact init --repo . --profile solo-developer "
+                "or specfact init --repo . --install all[/dim]"
+            )
+            raise typer.Exit(1)
         elif is_first_run(user_root=INIT_USER_MODULES_ROOT) and not is_non_interactive():
             try:
                 bundle_ids = _interactive_first_run_bundle_selection()

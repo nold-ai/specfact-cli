@@ -8,7 +8,78 @@ from pathlib import Path
 
 import pytest
 
-from specfact_cli.registry.marketplace_client import SecurityError, download_module, fetch_registry_index
+from specfact_cli.registry.marketplace_client import (
+    REGISTRY_BASE_URL,
+    SecurityError,
+    download_module,
+    fetch_registry_index,
+    get_modules_branch,
+    get_registry_base_url,
+    get_registry_index_url,
+    resolve_download_url,
+)
+
+
+def test_get_modules_branch_env_main(monkeypatch: pytest.MonkeyPatch) -> None:
+    """SPECFACT_MODULES_BRANCH=main forces main branch."""
+    get_modules_branch.cache_clear()
+    try:
+        monkeypatch.setenv("SPECFACT_MODULES_BRANCH", "main")
+        assert get_modules_branch() == "main"
+    finally:
+        get_modules_branch.cache_clear()
+
+
+def test_get_modules_branch_env_dev(monkeypatch: pytest.MonkeyPatch) -> None:
+    """SPECFACT_MODULES_BRANCH=dev forces dev branch."""
+    get_modules_branch.cache_clear()
+    try:
+        monkeypatch.setenv("SPECFACT_MODULES_BRANCH", "dev")
+        assert get_modules_branch() == "dev"
+    finally:
+        get_modules_branch.cache_clear()
+
+
+def test_get_registry_index_url_uses_branch(monkeypatch: pytest.MonkeyPatch) -> None:
+    """get_registry_index_url returns dev or main URL per branch."""
+    get_modules_branch.cache_clear()
+    try:
+        monkeypatch.setenv("SPECFACT_MODULES_BRANCH", "dev")
+        url = get_registry_index_url()
+        assert "/dev/registry/index.json" in url
+        monkeypatch.setenv("SPECFACT_MODULES_BRANCH", "main")
+        get_modules_branch.cache_clear()
+        url = get_registry_index_url()
+        assert "/main/registry/index.json" in url
+    finally:
+        get_modules_branch.cache_clear()
+
+
+def test_resolve_download_url_absolute_unchanged() -> None:
+    """Absolute download_url is returned as-is."""
+    entry = {"download_url": "https://cdn.example/modules/foo-0.1.0.tar.gz"}
+    index: dict = {}
+    assert resolve_download_url(entry, index) == "https://cdn.example/modules/foo-0.1.0.tar.gz"
+
+
+def test_resolve_download_url_relative_uses_registry_base(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Relative download_url is resolved against branch-aware registry base when index has no base."""
+    monkeypatch.setenv("SPECFACT_MODULES_BRANCH", "main")
+    get_modules_branch.cache_clear()
+    try:
+        entry = {"download_url": "modules/specfact-backlog-0.1.0.tar.gz"}
+        index: dict = {}
+        got = resolve_download_url(entry, index)
+        assert got == f"{REGISTRY_BASE_URL}/modules/specfact-backlog-0.1.0.tar.gz"
+    finally:
+        get_modules_branch.cache_clear()
+
+
+def test_resolve_download_url_relative_uses_index_base() -> None:
+    """Relative download_url uses index registry_base_url when set."""
+    entry = {"download_url": "modules/bar-0.2.0.tar.gz"}
+    index = {"registry_base_url": "https://custom.registry/registry"}
+    assert resolve_download_url(entry, index) == "https://custom.registry/registry/modules/bar-0.2.0.tar.gz"
 
 
 class _DummyResponse:

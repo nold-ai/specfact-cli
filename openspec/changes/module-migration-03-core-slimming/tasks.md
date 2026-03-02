@@ -162,16 +162,19 @@ Do NOT implement production code for any behavior-changing step until failing-te
 
 ## 9. Run pre-deletion gate and record evidence
 
-- [ ] 9.1 Verify module-migration-02 is complete: `specfact-cli-modules/registry/index.json` contains all 5 bundle entries
-- [ ] 9.2 Run the module removal gate:
+- [x] 9.1 Verify module-migration-02 is complete: `specfact-cli-modules/registry/index.json` contains all 5 bundle entries
+- [x] 9.2 Run the module removal gate:
 
   ```bash
   hatch run verify-removal-gate
   ```
 
-  (or: `python scripts/verify-bundle-published.py --modules project,plan,import_cmd,sync,migrate,backlog,policy_engine,analyze,drift,validate,repro,contract,spec,sdd,generate,enforce,patch_mode`)
-- [ ] 9.3 Record gate output (table with all PASS rows) in `openspec/changes/module-migration-03-core-slimming/TDD_EVIDENCE.md` as pre-deletion evidence (timestamp + command + result)
-- [ ] 9.4 If any bundle fails: STOP — do not proceed until module-migration-02 is complete and all bundles are verified
+  If the registry index is not found (e.g. when specfact-cli-modules is not a sibling of the checkout), either:
+  - Set **SPECFACT_MODULES_REPO** to the modules repo root and run `hatch run verify-removal-gate`, or
+  - Run with an explicit path: `python scripts/verify-bundle-published.py --modules ... --registry-index /path/to/specfact-cli-modules/registry/index.json` then `python scripts/verify-modules-signature.py --require-signature`.
+  The script supports both formats: (a) SPECFACT_MODULES_REPO for explicit path; (b) fallback sibling search when unset. Use `--branch dev` or `--branch main` to force registry branch; otherwise auto-detects from current git branch.
+- [x] 9.3 Record gate output (table with all PASS rows) in `openspec/changes/module-migration-03-core-slimming/TDD_EVIDENCE.md` as pre-deletion evidence (timestamp + command + result)
+- [x] 9.4 If any bundle fails: STOP — do not proceed until module-migration-02 is complete and all bundles are verified
 
 ## 10. Phase 1 — Delete non-core module directories (one bundle per commit)
 
@@ -372,9 +375,11 @@ Do NOT implement production code for any behavior-changing step until failing-te
 
 ## 18. Version and changelog
 
+**Release version:** Use **0.40.0** as the combined release for all module-migration changes (migration-02, -03, -04, -05, etc.). Do not bump to 0.41.0 or 0.40.x for migration-03 alone; sync to 0.40.0 when updating version and changelog.
+
 - [ ] 18.1 Determine version bump: **minor** (feature removal: bundled modules are no longer included; first-run gate is new behavior; feature/* branch → minor increment)
   - [ ] 18.1.1 Confirm current version in `pyproject.toml`
-  - [ ] 18.1.2 Confirm bump is minor (e.g., `0.X.Y → 0.(X+1).0`)
+  - [ ] 18.1.2 **Use 0.40.0** for the combined module-migration release (do not apply a separate minor bump for this change only)
   - [ ] 18.1.3 Request explicit confirmation from user before applying bump
 
 - [ ] 18.2 Sync version across all files
@@ -385,7 +390,7 @@ Do NOT implement production code for any behavior-changing step until failing-te
   - [ ] 18.2.5 Verify all four files show the same version
 
 - [ ] 18.3 Update `CHANGELOG.md`
-  - [ ] 18.3.1 Add new section `## [X.Y.Z] - 2026-MM-DD`
+  - [ ] 18.3.1 Add new section `## [0.40.0] - 2026-MM-DD` (combined module-migration release)
   - [ ] 18.3.2 Add `### Added` subsection:
     - `scripts/verify-bundle-published.py` — pre-deletion gate for marketplace bundle verification
     - `hatch run verify-removal-gate` task alias
