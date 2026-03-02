@@ -12,7 +12,7 @@ from beartype import beartype
 from icontract import ensure, require
 
 from specfact_cli.common import get_bridge_logger
-from specfact_cli.registry.marketplace_client import REGISTRY_INDEX_URL, get_registry_index_url
+from specfact_cli.registry.marketplace_client import get_registry_index_url
 
 
 logger = get_bridge_logger(__name__)
@@ -36,10 +36,9 @@ def get_registries_config_path() -> Path:
 
 def _default_official_entry() -> dict[str, Any]:
     """Return the built-in official registry entry (branch-aware: main vs dev)."""
-    url = REGISTRY_INDEX_URL if _is_crosshair_runtime() else get_registry_index_url()
     return {
         "id": OFFICIAL_REGISTRY_ID,
-        "url": url,
+        "url": get_registry_index_url(),
         "priority": 1,
         "trust": "always",
     }
@@ -142,7 +141,15 @@ def fetch_all_indexes(timeout: float = 10.0) -> list[tuple[str, dict[str, Any]]]
         url = str(reg.get("url", "")).strip()
         if not url:
             continue
-        payload = fetch_registry_index(index_url=url, timeout=timeout)
-        if isinstance(payload, dict):
-            result.append((reg_id, payload))
+        try:
+            response = requests.get(url, timeout=timeout)
+            response.raise_for_status()
+            payload = response.json()
+            if isinstance(payload, dict):
+                payload["_registry_index_url"] = url
+                result.append((reg_id, payload))
+            else:
+                logger.warning("Registry %s returned non-dict index", reg_id)
+        except Exception as exc:
+            logger.warning("Registry %s unavailable: %s", reg_id, exc)
     return result

@@ -169,9 +169,12 @@ Do NOT implement production code for any behavior-changing step until failing-te
   hatch run verify-removal-gate
   ```
 
-  (or: `python scripts/verify-bundle-published.py --modules project,plan,import_cmd,sync,migrate,backlog,policy_engine,analyze,drift,validate,repro,contract,spec,sdd,generate,enforce,patch_mode`)
+  If the registry index is not found (e.g. when specfact-cli-modules is not a sibling of the checkout), either:
+  - Set **SPECFACT_MODULES_REPO** to the modules repo root and run `hatch run verify-removal-gate`, or
+  - Run with an explicit path: `python scripts/verify-bundle-published.py --modules ... --registry-index /path/to/specfact-cli-modules/registry/index.json` then `python scripts/verify-modules-signature.py --require-signature`.
+  The script supports both formats: (a) SPECFACT_MODULES_REPO for explicit path; (b) fallback sibling search when unset. Use `--branch dev` or `--branch main` to force registry branch; otherwise auto-detects from current git branch.
 - [x] 9.3 Record gate output (table with all PASS rows) in `openspec/changes/module-migration-03-core-slimming/TDD_EVIDENCE.md` as pre-deletion evidence (timestamp + command + result)
-- [ ] 9.4 If any bundle fails: STOP — do not proceed until module-migration-02 is complete and all bundles are verified
+- [x] 9.4 If any bundle fails: STOP — do not proceed until module-migration-02 is complete and all bundles are verified
 
 ## 10. Phase 1 — Delete non-core module directories (one bundle per commit)
 
@@ -384,18 +387,20 @@ Do NOT implement production code for any behavior-changing step until failing-te
 
 ## 18. Version and changelog
 
-- [x] 18.1 Determine version policy for this branch
-  - [x] 18.1.1 Confirm current version in `pyproject.toml` is `0.40.0`
-  - [x] 18.1.2 User decision: keep `0.40.0` unchanged for this first release line
-  - [x] 18.1.3 Do not apply SemVer bump in this change; capture behavior changes in changelog/release notes only
+**Release version:** Use **0.40.0** as the combined release for all module-migration changes (migration-02, -03, -04, -05, etc.). Do not bump to 0.41.0 or 0.40.x for migration-03 alone; sync to 0.40.0 when updating version and changelog.
+
+- [ ] 18.1 Determine version bump: **minor** (feature removal: bundled modules are no longer included; first-run gate is new behavior; feature/* branch → minor increment)
+  - [ ] 18.1.1 Confirm current version in `pyproject.toml`
+  - [ ] 18.1.2 **Use 0.40.0** for the combined module-migration release (do not apply a separate minor bump for this change only)
+  - [ ] 18.1.3 Request explicit confirmation from user before applying bump
 
 - [x] 18.2 Version sync action
   - [x] 18.2.1 No-op for this branch (version remains `0.40.0`)
   - [x] 18.2.2 Verify no unintended version drift across version files
 
-- [x] 18.3 Update `CHANGELOG.md`
-  - [x] 18.3.1 Update existing `## [0.40.0]` section (no `Unreleased` / no new version section for this branch)
-  - [x] 18.3.2 Add `### Added` subsection:
+- [ ] 18.3 Update `CHANGELOG.md`
+  - [ ] 18.3.1 Add new section `## [0.40.0] - 2026-MM-DD` (combined module-migration release)
+  - [ ] 18.3.2 Add `### Added` subsection:
     - `scripts/verify-bundle-published.py` — pre-deletion gate for marketplace bundle verification
     - `hatch run verify-removal-gate` task alias
     - Mandatory bundle selection enforcement in `specfact init` (CI/CD mode requires `--profile` or `--install`)

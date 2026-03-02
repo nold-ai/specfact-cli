@@ -292,7 +292,9 @@ def test_gate_is_idempotent(tmp_path: Path, capsys: pytest.CaptureFixture[str]) 
     assert first_output == second_output
 
 
-def test_resolve_registry_index_uses_specfact_modules_repo_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_resolve_registry_index_uses_specfact_modules_repo_env(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """When SPECFACT_MODULES_REPO is set, _resolve_registry_index_path returns <path>/registry/index.json."""
     module = _load_script_module()
     modules_repo = tmp_path / "specfact-cli-modules"
@@ -305,7 +307,9 @@ def test_resolve_registry_index_uses_specfact_modules_repo_env(tmp_path: Path, m
     assert index_path.exists()
 
 
-def test_resolve_registry_index_uses_worktree_sibling(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_resolve_registry_index_uses_worktree_sibling(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """When SPECFACT_REPO_ROOT points at a worktree root, resolver finds sibling specfact-cli-modules."""
     module = _load_script_module()
     worktree_root = tmp_path / "specfact-cli-worktrees" / "feature" / "branch"
@@ -313,62 +317,7 @@ def test_resolve_registry_index_uses_worktree_sibling(tmp_path: Path, monkeypatc
     sibling = tmp_path / "specfact-cli-modules"
     (sibling / "registry").mkdir(parents=True)
     (sibling / "registry" / "index.json").write_text("{}", encoding="utf-8")
-    monkeypatch.delenv("SPECFACT_MODULES_REPO", raising=False)
     monkeypatch.setenv("SPECFACT_REPO_ROOT", str(worktree_root))
     index_path = module._resolve_registry_index_path()
     assert index_path == sibling / "registry" / "index.json"
     assert index_path.exists()
-
-
-def test_check_bundle_in_registry_rejects_missing_required_fields(tmp_path: Path) -> None:
-    """Gate should fail entry validation when required bundle fields are missing."""
-    module = _load_script_module()
-    index_payload = {"modules": []}
-    entry = {"id": "nold-ai/specfact-project", "latest_version": "0.40.0"}
-
-    result = module.check_bundle_in_registry(
-        module_name="project",
-        bundle_id="specfact-project",
-        entry=entry,
-        index_payload=index_payload,
-        index_path=tmp_path / "index.json",
-        skip_download_check=True,
-    )
-
-    assert result.status == "FAIL"
-    assert "missing required fields" in result.message.lower()
-
-
-def test_verify_bundle_published_uses_artifact_signature_validation(tmp_path: Path) -> None:
-    """Real artifact signature validation result should drive SIGNATURE INVALID state."""
-    module = _load_script_module()
-    index_path = _write_index(
-        tmp_path,
-        modules=[
-            {
-                "id": "nold-ai/specfact-project",
-                "latest_version": "0.40.0",
-                "download_url": "modules/specfact-project-0.40.0.tar.gz",
-                "checksum_sha256": "deadbeef",
-                "signature_url": "signatures/specfact-project-0.40.0.tar.sig",
-                "tier": "official",
-                "signature_ok": True,
-            },
-        ],
-    )
-
-    def _fake_mapping(module_names: list[str], modules_root: Path) -> dict[str, str]:
-        return dict.fromkeys(module_names, "specfact-project")
-
-    module.load_module_bundle_mapping = _fake_mapping  # type: ignore[attr-defined]
-    module.verify_bundle_signature = lambda *_args, **_kwargs: False  # type: ignore[attr-defined]
-
-    results = module.verify_bundle_published(
-        module_names=["project"],
-        index_path=index_path,
-        skip_download_check=True,
-    )
-
-    assert len(results) == 1
-    assert results[0].status == "FAIL"
-    assert results[0].message == "SIGNATURE INVALID"

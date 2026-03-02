@@ -18,7 +18,6 @@ from specfact_cli.common import get_bridge_logger
 
 
 # Official registry URL template: {branch} is main or dev so specfact-cli and specfact-cli-modules stay in sync.
-# Override with SPECFACT_REGISTRY_INDEX_URL to use a local registry (path or file:// URL) for list/install.
 OFFICIAL_REGISTRY_INDEX_TEMPLATE = (
     "https://raw.githubusercontent.com/nold-ai/specfact-cli-modules/{branch}/registry/index.json"
 )
@@ -27,13 +26,6 @@ REGISTRY_INDEX_URL = OFFICIAL_REGISTRY_INDEX_TEMPLATE.format(branch="main")
 # specfact-cli-modules layout: registry/index.json, registry/modules/*.tar.gz; index entries use
 # relative download_url (e.g. "modules/specfact-project-0.40.1.tar.gz") resolved against this base.
 REGISTRY_BASE_URL = REGISTRY_INDEX_URL.rsplit("/", 1)[0]
-
-
-@beartype
-def _is_mainline_ref(ref_name: str) -> bool:
-    """Return True when a branch/ref should use main modules registry."""
-    normalized = ref_name.strip().lower()
-    return normalized == "main" or normalized.startswith("release/")
 
 
 @lru_cache(maxsize=1)
@@ -62,28 +54,7 @@ def get_modules_branch() -> str:
                 if out.returncode != 0 or not out.stdout:
                     return "main"
                 branch = out.stdout.strip()
-                if branch != "HEAD":
-                    return "main" if _is_mainline_ref(branch) else "dev"
-
-                # Detached HEAD is common in CI checkouts. Use CI refs when available
-                # so main/release pipelines do not accidentally resolve to dev registry.
-                ci_refs = [
-                    os.environ.get("GITHUB_HEAD_REF", "").strip(),
-                    os.environ.get("GITHUB_REF_NAME", "").strip(),
-                    os.environ.get("GITHUB_BASE_REF", "").strip(),
-                ]
-                github_ref = os.environ.get("GITHUB_REF", "").strip()
-                if github_ref.startswith("refs/heads/"):
-                    ci_refs.append(github_ref[len("refs/heads/") :].strip())
-
-                for ref in ci_refs:
-                    if not ref:
-                        continue
-                    if _is_mainline_ref(ref):
-                        return "main"
-                if any(ci_refs):
-                    return "dev"
-                return "main"
+                return "main" if branch == "main" else "dev"
             except (OSError, subprocess.TimeoutExpired):
                 return "main"
     return "main"
@@ -91,10 +62,7 @@ def get_modules_branch() -> str:
 
 @beartype
 def get_registry_index_url() -> str:
-    """Return registry index URL (official remote or SPECFACT_REGISTRY_INDEX_URL for local)."""
-    configured = os.environ.get("SPECFACT_REGISTRY_INDEX_URL", "").strip()
-    if configured:
-        return configured
+    """Return official registry index URL for the current branch (main or dev)."""
     return OFFICIAL_REGISTRY_INDEX_TEMPLATE.format(branch=get_modules_branch())
 
 
@@ -161,33 +129,12 @@ def fetch_registry_index(
             return None
     if url is None:
         url = get_registry_index_url()
-    content: bytes
-    url_str = str(url).strip()
-    if url_str.startswith("file://"):
-        path = Path(urlparse(url_str).path)
-        if not path.is_absolute():
-            path = path.resolve()
-        try:
-            content = path.read_bytes()
-        except OSError as exc:
-            logger.warning("Local registry index unavailable: %s", exc)
-            return None
-    elif os.path.isfile(url_str):
-        try:
-            content = Path(url_str).resolve().read_bytes()
-        except OSError as exc:
-            logger.warning("Local registry index unavailable: %s", exc)
-            return None
-    else:
-        try:
-            response = requests.get(url, timeout=timeout)
-            response.raise_for_status()
-            content = response.content
-            if not content and getattr(response, "text", ""):
-                content = str(response.text).encode("utf-8")
-        except Exception as exc:
-            logger.warning("Registry unavailable, using offline mode: %s", exc)
-            return None
+    try:
+        response = requests.get(url, timeout=timeout)
+        response.raise_for_status()
+    except Exception as exc:
+        logger.warning("Registry unavailable, using offline mode: %s", exc)
+        return None
 
     try:
         payload = json.loads(content.decode("utf-8"))
@@ -255,25 +202,16 @@ def download_module(
     if entry is None:
         raise ValueError(f"Module '{module_id}' not found in registry")
 
-    full_download_url = resolve_download_url(entry, registry_index, registry_index.get("_registry_index_url"))
+    full_download_url = resolve_download_url(
+        entry, registry_index, registry_index.get("_registry_index_url")
+    )
     expected_checksum = str(entry.get("checksum_sha256", "")).strip().lower()
     if not full_download_url or not expected_checksum:
         raise ValueError("Invalid registry index format")
 
-    if full_download_url.startswith("file://"):
-        try:
-            local_path = Path(urlparse(full_download_url).path)
-            if not local_path.is_absolute():
-                local_path = local_path.resolve()
-            content = local_path.read_bytes()
-        except OSError as exc:
-            raise ValueError(f"Cannot read module tarball from local registry: {exc}") from exc
-    elif os.path.isfile(full_download_url):
-        content = Path(full_download_url).resolve().read_bytes()
-    else:
-        response = requests.get(full_download_url, timeout=timeout)
-        response.raise_for_status()
-        content = response.content
+    response = requests.get(full_download_url, timeout=timeout)
+    response.raise_for_status()
+    content = response.content
 
     actual_checksum = hashlib.sha256(content).hexdigest()
     if actual_checksum != expected_checksum:
