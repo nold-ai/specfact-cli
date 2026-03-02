@@ -86,7 +86,7 @@ These are derived extensions of the same 2026-02-15 plan and are required to ope
 | module-migration | 02 | module-migration-02-bundle-extraction | [#316](https://github.com/nold-ai/specfact-cli/issues/316) | module-migration-01 ✅ |
 | module-migration | 03 | module-migration-03-core-slimming | [#317](https://github.com/nold-ai/specfact-cli/issues/317) | module-migration-02; migration-05 sections 18-22 (tests, decoupling, docs, pipeline/config) must precede deletion |
 | module-migration | 04 | module-migration-04-remove-flat-shims | [#330](https://github.com/nold-ai/specfact-cli/issues/330) | module-migration-01; see note on overlap with migration-03 (tasks.md 17.9.1) |
-| module-migration | 05 | module-migration-05-modules-repo-quality | TBD | module-migration-02; sections 18-22 must precede migration-03 |
+| module-migration | 05 | module-migration-05-modules-repo-quality | [#334](https://github.com/nold-ai/specfact-cli/issues/334) | module-migration-02; sections 18-22 must precede migration-03 |
 | module-migration | 06 | module-migration-06-pypi-publishing (placeholder) | TBD | module-migration-03 (bundles must be installable before PyPI presence matters) |
 
 ### Cross-cutting foundations (no hard dependencies — implement early)

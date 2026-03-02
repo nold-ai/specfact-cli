@@ -557,7 +557,7 @@ The following change stub has been created to own sections 18–23 (deferred fro
 - [x] 17.10.1 Created `openspec/changes/module-migration-05-modules-repo-quality/proposal.md`
 - [x] 17.10.2 Created `openspec/changes/module-migration-05-modules-repo-quality/tasks.md` (sections 18–24, with sections 21+22 marked as must-precede-migration-03)
 - [x] 17.10.3 CHANGE_ORDER.md updated with migration-05 entry (see CHANGE_ORDER.md edits)
-- [ ] 17.10.4 Create GitHub issue for migration-05; update migration-05 proposal.md Source Tracking with issue number and URL
+- [x] 17.10.4 Create GitHub issue for migration-05; update migration-05 proposal.md Source Tracking with issue number and URL
 
 ---
 

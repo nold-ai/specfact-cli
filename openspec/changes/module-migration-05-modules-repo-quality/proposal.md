@@ -80,8 +80,8 @@ This is a quality regression against the project's own standard. This change clo
 ## Source Tracking
 
 <!-- source_repo: nold-ai/specfact-cli -->
-- **GitHub Issue**: TBD (create from migration-02 change)
-- **Issue URL**: TBD
+- **GitHub Issue**: #334
+- **Issue URL**: <https://github.com/nold-ai/specfact-cli/issues/334>
 - **Repository**: nold-ai/specfact-cli (tasks in this repo) + nold-ai/specfact-cli-modules (all implementation)
 - **Last Synced Status**: proposed
 - **Sanitized**: false
