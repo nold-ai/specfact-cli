@@ -533,19 +533,19 @@ After migration-02 closes, two proposal-level inconsistencies exist in the follo
 
 ### 17.9.1 Reconcile flat-shim removal overlap between migration-03 and migration-04 (Gap 3)
 
-- [ ] 17.9.1.1 Review migration-04 "What Changes": it removes `FLAT_TO_GROUP` + `_make_shim_loader()` from `module_packages.py` (the shim machinery)
-- [ ] 17.9.1.2 Review migration-03 "What Changes": it claims to remove "backward-compat flat command shims registered by `bootstrap.py` in module-migration-01"
-- [ ] 17.9.1.3 Determine whether these target distinct code (migration-04: `module_packages.py` shim loop; migration-03: `bootstrap.py` registration) or the same code. If distinct, document the boundary clearly in both proposals. If overlapping, designate one change as the owner and remove the duplicate claim from the other.
-- [ ] 17.9.1.4 Update `openspec/changes/module-migration-03-core-slimming/proposal.md` "What Changes" to either (a) remove the flat-shim deletion claim if migration-04 handles it first, or (b) add a cross-reference: "Flat shim machinery (`FLAT_TO_GROUP`, `_make_shim_loader()`) removed by migration-04 (prerequisite); this change removes the `bootstrap.py` registration that called that machinery."
-- [ ] 17.9.1.5 Update `openspec/changes/module-migration-04-remove-flat-shims/proposal.md` to cross-reference migration-03 where needed; confirm the wave ordering in `CHANGE_ORDER.md` is consistent with the delineation above.
+- [x] 17.9.1.1 Review migration-04 "What Changes": it removes `FLAT_TO_GROUP` + `_make_shim_loader()` from `module_packages.py` (the shim machinery)
+- [x] 17.9.1.2 Review migration-03 "What Changes": it claims to remove "backward-compat flat command shims registered by `bootstrap.py` in module-migration-01"
+- [x] 17.9.1.3 Confirmed distinct: migration-04 owns `module_packages.py` shim *machinery*; migration-03 owns `bootstrap.py` dead call-site *cleanup* (the call sites become dead after migration-04 removes the machinery they reference). Boundary documented in both proposals.
+- [x] 17.9.1.4 Updated migration-03 proposal "What Changes": bootstrap.py cleanup scoped to dead shim call sites; cross-reference to migration-04 as prerequisite added. "Removed Capabilities" updated to reflect two-step removal.
+- [x] 17.9.1.5 Updated migration-04 proposal "What Changes": explicit scope boundary — `bootstrap.py` NOT modified by migration-04; migration-03 handles that cleanup. "Followed by" relationship with migration-03 added. Wave ordering confirmed consistent.
 - [ ] 17.9.1.6 Commit proposal updates: `git commit -m "docs: reconcile flat-shim removal overlap between migration-03 and migration-04"`
 
 ### 17.9.2 Update migration-03 to explicitly declare Python import shim removal (Gap 2)
 
-- [ ] 17.9.2.1 Review `openspec/changes/module-migration-03-core-slimming/proposal.md` — confirm it does **not** explicitly state that `src/specfact_cli/modules/*/src/<name>/__init__.py` (`__getattr__` re-export shims created by migration-02) are removed when the module directories are deleted
-- [ ] 17.9.2.2 Add an explicit bullet to migration-03 "What Changes": "**REMOVE**: `specfact_cli.modules.*` Python import compatibility shims (the `__getattr__` re-export shims in `src/specfact_cli/modules/*/src/<name>/__init__.py` created by migration-02) — these directories are deleted in their entirety; `from specfact_cli.modules.<name> import X` will raise `ImportError` after this change."
-- [ ] 17.9.2.3 Add a "Migration path for import consumers" paragraph to migration-03's Backward compatibility section: any code using `from specfact_cli.modules.<name> import X` must switch to `from specfact_<bundle>.<name> import X` (direct bundle import) before migration-03 lands.
-- [ ] 17.9.2.4 Add a version-cycle justification to migration-03: state explicitly which version series constitutes "one major version cycle" as referenced in migration-02's deprecation notice (e.g. "0.2x series to 0.40 series = one deprecation cycle").
+- [x] 17.9.2.1 Confirmed: migration-03 proposal did not state Python import shim removal; `__getattr__` shims were undeclared collateral of the directory DELETE.
+- [x] 17.9.2.2 Added explicit REMOVE bullet to migration-03 "What Changes": each DELETE line updated to include "entire directory including `__getattr__` re-export shim created by migration-02"; standalone REMOVE bullet added with ImportError consequence and module-to-bundle mapping.
+- [x] 17.9.2.3 Added "Migration path for import consumers" to migration-03 Backward compatibility section: full module → bundle namespace mapping for all 17 modules.
+- [x] 17.9.2.4 Added "Version-cycle definition" section to migration-03 proposal: 0.2x series = deprecation opened; 0.40 series = deprecation closed; rationale that 0.40 represents a new tens-series major UX transition.
 - [ ] 17.9.2.5 Commit: `git commit -m "docs: migration-03 explicitly declares Python import shim removal and version-cycle justification"`
 
 ---
