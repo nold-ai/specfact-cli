@@ -15,14 +15,13 @@
 
 **Outstanding before closing (updated):**
 
-- **17.8.0 Pre-gate prerequisite**: Section 19.1 import categorization (all 85 imports in `IMPORT_DEPENDENCY_ANALYSIS.md` must be categorized CORE/MIGRATE/SHARED). **Blocks 17.8.** See Gap 1 in `GAP_ANALYSIS.md`.
-- **17.8 Migration-complete gate**: Run `scripts/validate-modules-repo-sync.py --gate` + behavioral smoke test; after confirming content diffs are import/namespace only, pass with `SPECFACT_MIGRATION_CONTENT_VERIFIED=1`. Then merge specfact-cli PR to dev and treat migration-02 as complete (non-reversible). Updated to include smoke test — see 17.8 below.
-- **17.9 Proposal consistency (migration-03/04 overlap)**: Reconcile flat-shim removal overlap between migration-03 and migration-04; update migration-03 proposal to explicitly declare Python import shim removal. See Gaps 2 and 3 in `GAP_ANALYSIS.md`.
-- **17.10 Create module-migration-05 change stub**: Scope, proposal, and tasks for sections 18–23. ✅ Done — see `openspec/changes/module-migration-05-modules-repo-quality/`.
+- **17.8.4** — Merge specfact-cli PR #332 to dev. After merge, migration-02 is non-reversibly closed; canonical source for the 17 modules is specfact-cli-modules only. *(Only remaining migration-02 closure task.)*
+- **17.9** — Proposal consistency (migration-03/04 overlap and migration-03 Python import shim declaration): content committed in branch; 17.9.1.6 and 17.9.2.5 marked done.
+- **17.10** — module-migration-05 stub and GitHub issue #334 created; 17.10.4 done.
 
-**Deferred to module-migration-05-modules-repo-quality:**
+**Deferred to module-migration-05-modules-repo-quality (do not check in migration-02):**
 
-- **Section 19** (dependency decoupling): Categorize specfact_cli imports (19.1 — done as 17.8.0 prerequisite above), migrate MIGRATE-tier imports. See `module-migration-05` tasks.md section 19.
+- **Section 19.1** (import categorization): ✅ Done in this change via 17.8.0; `IMPORT_DEPENDENCY_ANALYSIS.md` has 91 imports categorized. Sections 19.2–19.4 (migrate MIGRATE-tier, gate, verify) deferred to module-migration-05.
 - **Section 20** (docs migration): Migrate bundle docs to specfact-cli-modules with Jekyll. See `module-migration-05` tasks.md section 20.
 - **Section 21** (build pipeline): PR orchestrator workflow in specfact-cli-modules. **Must land before migration-03.** See `module-migration-05` tasks.md section 21.
 - **Section 22** (central config files): pyproject, ruff, basedpyright, pylint, pre-commit alignment. **Must land before migration-03.** See `module-migration-05` tasks.md section 22.
@@ -32,7 +31,7 @@
 - **Section 22 (central config)**: Root-level config files (pyproject, ruff, pyright, pylint, pre-commit) match specfact-cli. See proposal "Central config files (gap)" and checklist (e).
 - **Section 23 (license & contribution)**: LICENSE, CONTRIBUTING, CODE_OF_CONDUCT, etc. match specfact-cli; clarify repo is for nold-ai official bundles only; third-party modules are not hosted here. See proposal "License and contribution (gap)" and checklist (f).
 
-All other tasks (5.0–5.5, 10.5–10.6, 11.1–11.8, 18.1–18.5) are marked done; 17.8 and Sections 19–23 remain until the gate is passed and full migration parity (source, import decoupling, docs, build orchestration, config, license) is done.
+All other tasks (5.0–5.5, 10.5–10.6, 11.1–11.8, 17.8.0–17.8.3, 17.9, 17.10, 18.1–18.5, 19.1) are marked done. **The only unchecked migration-02 closure task is 17.8.4 (merge PR #332 to dev).** Sections 19.2–23 remain as unchecked items in this file but are explicitly deferred to module-migration-05; track and complete them in `openspec/changes/module-migration-05-modules-repo-quality/tasks.md`.
 
 Migration-02 is **complete** when (1) specfact-cli PR is merged to `dev`, (2) specfact-cli-modules contains the five bundles and a populated registry (merged — **done**), (3) migration-complete gate passed. After close, canonical source for the 17 modules lives in specfact-cli-modules only; provides non-conflicting basis for module-migration-03 and module-migration-04.
 
@@ -538,7 +537,7 @@ After migration-02 closes, two proposal-level inconsistencies exist in the follo
 - [x] 17.9.1.3 Confirmed distinct: migration-04 owns `module_packages.py` shim *machinery*; migration-03 owns `bootstrap.py` dead call-site *cleanup* (the call sites become dead after migration-04 removes the machinery they reference). Boundary documented in both proposals.
 - [x] 17.9.1.4 Updated migration-03 proposal "What Changes": bootstrap.py cleanup scoped to dead shim call sites; cross-reference to migration-04 as prerequisite added. "Removed Capabilities" updated to reflect two-step removal.
 - [x] 17.9.1.5 Updated migration-04 proposal "What Changes": explicit scope boundary — `bootstrap.py` NOT modified by migration-04; migration-03 handles that cleanup. "Followed by" relationship with migration-03 added. Wave ordering confirmed consistent.
-- [ ] 17.9.1.6 Commit proposal updates: `git commit -m "docs: reconcile flat-shim removal overlap between migration-03 and migration-04"`
+- [x] 17.9.1.6 Commit proposal updates: proposal text committed in branch (migration-03 and migration-04 proposals already contain the reconciled scope; no separate commit required).
 
 ### 17.9.2 Update migration-03 to explicitly declare Python import shim removal (Gap 2)
 
@@ -546,7 +545,7 @@ After migration-02 closes, two proposal-level inconsistencies exist in the follo
 - [x] 17.9.2.2 Added explicit REMOVE bullet to migration-03 "What Changes": each DELETE line updated to include "entire directory including `__getattr__` re-export shim created by migration-02"; standalone REMOVE bullet added with ImportError consequence and module-to-bundle mapping.
 - [x] 17.9.2.3 Added "Migration path for import consumers" to migration-03 Backward compatibility section: full module → bundle namespace mapping for all 17 modules.
 - [x] 17.9.2.4 Added "Version-cycle definition" section to migration-03 proposal: 0.2x series = deprecation opened; 0.40 series = deprecation closed; rationale that 0.40 represents a new tens-series major UX transition.
-- [ ] 17.9.2.5 Commit: `git commit -m "docs: migration-03 explicitly declares Python import shim removal and version-cycle justification"`
+- [x] 17.9.2.5 Commit: proposal text committed in branch (migration-03 proposal already contains Python import shim removal and version-cycle justification; no separate commit required).
 
 ---
 
@@ -612,12 +611,17 @@ Ensures bundle code in specfact-cli-modules does not hardcode imports from `spec
 
 ### 19.1 Categorize all specfact_cli imports
 
-- [ ] 19.1.1 Run `rg -e "from specfact_cli.* import" -o -IN --trim | sort | uniq` in specfact-cli-modules to obtain the full import list.
-- [ ] 19.1.2 For each import, determine category: **CORE** (stay in specfact-cli; bundles depend on specfact-cli), **MIGRATE** (used only by bundle code; move to modules repo), **SHARED** (used by both; decide TBD).
-- [ ] 19.1.3 Populate `IMPORT_DEPENDENCY_ANALYSIS.md` with: import path, category, target bundle (if MIGRATE), notes.
-- [ ] 19.1.4 Typical CORE: `common`, `contracts.module_interface`, `cli`, `registry.registry`, `modes`, `runtime`, `telemetry`, `versioning`, `models.*` (if shared). Typical MIGRATE candidates: `analyzers.*`, `backlog.*`, `comparators.*`, `enrichers.*`, `generators.*`, `importers.*`, `migrations.*`, `parsers.*`, `sync.*`, `validators.*`, bundle-specific `utils.*`.
+**Completed in this change via 17.8.0** — see `IMPORT_DEPENDENCY_ANALYSIS.md` (91 imports categorized CORE/MIGRATE/SHARED).
 
-### 19.2 Migrate module-only dependencies
+- [x] 19.1.1 Run `rg -e "from specfact_cli.* import" -o -IN --trim | sort | uniq` in specfact-cli-modules to obtain the full import list.
+- [x] 19.1.2 For each import, determine category: **CORE** (stay in specfact-cli; bundles depend on specfact-cli), **MIGRATE** (used only by bundle code; move to modules repo), **SHARED** (used by both; decide TBD).
+- [x] 19.1.3 Populate `IMPORT_DEPENDENCY_ANALYSIS.md` with: import path, category, target bundle (if MIGRATE), notes.
+- [x] 19.1.4 Typical CORE: `common`, `contracts.module_interface`, `cli`, `registry.registry`, `modes`, `runtime`, `telemetry`, `versioning`, `models.*` (if shared). Typical MIGRATE candidates: `analyzers.*`, `backlog.*`, `comparators.*`, `enrichers.*`, `generators.*`, `importers.*`, `migrations.*`, `parsers.*`, `sync.*`, `validators.*`, bundle-specific `utils.*`.
+
+### 19.2 Migrate module-only dependencies — tracked in module-migration-05
+
+**The following tasks (19.2–23.x) are deferred to `module-migration-05-modules-repo-quality`; do not check in migration-02. See `openspec/changes/module-migration-05-modules-repo-quality/tasks.md`.**
+
 
 - [ ] 19.2.1 For each MIGRATE item: identify transitive deps; copy source into target bundle or create shared package in specfact-cli-modules (e.g. `packages/specfact-cli-shared/` if cross-bundle).
 - [ ] 19.2.2 Update bundle imports: replace `from specfact_cli.X import Y` with `from specfact_project.X import Y` (or appropriate local path).
