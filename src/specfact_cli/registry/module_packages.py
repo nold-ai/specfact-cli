@@ -939,10 +939,7 @@ def _mount_installed_category_groups(
     module_entries_by_name = {
         entry.get("name"): entry for entry in getattr(CommandRegistry, "_module_entries", []) if entry.get("name")
     }
-    module_meta_by_name = {
-        name: entry.get("metadata")
-        for name, entry in module_entries_by_name.items()
-    }
+    module_meta_by_name = {name: entry.get("metadata") for name, entry in module_entries_by_name.items()}
     seen_groups: set[str] = set()
     for bundle in installed:
         group_info = bundle_to_group.get(bundle)
