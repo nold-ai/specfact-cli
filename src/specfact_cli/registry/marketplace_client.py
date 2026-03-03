@@ -29,6 +29,13 @@ REGISTRY_INDEX_URL = OFFICIAL_REGISTRY_INDEX_TEMPLATE.format(branch="main")
 REGISTRY_BASE_URL = REGISTRY_INDEX_URL.rsplit("/", 1)[0]
 
 
+@beartype
+def _is_mainline_ref(ref_name: str) -> bool:
+    """Return True when a branch/ref should use main modules registry."""
+    normalized = ref_name.strip().lower()
+    return normalized == "main" or normalized.startswith("release/")
+
+
 @lru_cache(maxsize=1)
 def get_modules_branch() -> str:
     """Return branch to use for official registry (main or dev). Keeps specfact-cli and specfact-cli-modules in sync.
@@ -55,7 +62,28 @@ def get_modules_branch() -> str:
                 if out.returncode != 0 or not out.stdout:
                     return "main"
                 branch = out.stdout.strip()
-                return "main" if branch == "main" else "dev"
+                if branch != "HEAD":
+                    return "main" if _is_mainline_ref(branch) else "dev"
+
+                # Detached HEAD is common in CI checkouts. Use CI refs when available
+                # so main/release pipelines do not accidentally resolve to dev registry.
+                ci_refs = [
+                    os.environ.get("GITHUB_HEAD_REF", "").strip(),
+                    os.environ.get("GITHUB_REF_NAME", "").strip(),
+                    os.environ.get("GITHUB_BASE_REF", "").strip(),
+                ]
+                github_ref = os.environ.get("GITHUB_REF", "").strip()
+                if github_ref.startswith("refs/heads/"):
+                    ci_refs.append(github_ref[len("refs/heads/") :].strip())
+
+                for ref in ci_refs:
+                    if not ref:
+                        continue
+                    if _is_mainline_ref(ref):
+                        return "main"
+                if any(ci_refs):
+                    return "dev"
+                return "main"
             except (OSError, subprocess.TimeoutExpired):
                 return "main"
     return "main"

@@ -313,6 +313,7 @@ def test_resolve_registry_index_uses_worktree_sibling(tmp_path: Path, monkeypatc
     sibling = tmp_path / "specfact-cli-modules"
     (sibling / "registry").mkdir(parents=True)
     (sibling / "registry" / "index.json").write_text("{}", encoding="utf-8")
+    monkeypatch.delenv("SPECFACT_MODULES_REPO", raising=False)
     monkeypatch.setenv("SPECFACT_REPO_ROOT", str(worktree_root))
     index_path = module._resolve_registry_index_path()
     assert index_path == sibling / "registry" / "index.json"

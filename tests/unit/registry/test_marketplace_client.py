@@ -19,6 +19,41 @@ from specfact_cli.registry.marketplace_client import (
 )
 
 
+def test_get_modules_branch_detached_head_uses_ci_main_ref(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Detached HEAD in CI should still resolve main registry when CI ref is main."""
+    get_modules_branch.cache_clear()
+
+    class _Result:
+        returncode = 0
+        stdout = "HEAD\n"
+
+    try:
+        monkeypatch.delenv("SPECFACT_MODULES_BRANCH", raising=False)
+        monkeypatch.setenv("GITHUB_REF_NAME", "main")
+        monkeypatch.setattr("subprocess.run", lambda *args, **kwargs: _Result())
+        assert get_modules_branch() == "main"
+    finally:
+        get_modules_branch.cache_clear()
+
+
+def test_get_modules_branch_detached_head_uses_ci_dev_ref(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Detached HEAD in CI should resolve dev registry when CI refs are non-main."""
+    get_modules_branch.cache_clear()
+
+    class _Result:
+        returncode = 0
+        stdout = "HEAD\n"
+
+    try:
+        monkeypatch.delenv("SPECFACT_MODULES_BRANCH", raising=False)
+        monkeypatch.setenv("GITHUB_HEAD_REF", "feature/something")
+        monkeypatch.setenv("GITHUB_BASE_REF", "dev")
+        monkeypatch.setattr("subprocess.run", lambda *args, **kwargs: _Result())
+        assert get_modules_branch() == "dev"
+    finally:
+        get_modules_branch.cache_clear()
+
+
 def test_get_modules_branch_env_main(monkeypatch: pytest.MonkeyPatch) -> None:
     """SPECFACT_MODULES_BRANCH=main forces main branch."""
     get_modules_branch.cache_clear()
