@@ -226,5 +226,5 @@ specfact-cli-modules hosts **nold-ai official bundles only**. Third-party module
 - **Issue URL**: <https://github.com/nold-ai/specfact-cli/issues/316>
 - **Repository**: nold-ai/specfact-cli
 - **PR**: #332 (feature/module-migration-02-bundle-extraction → dev)
-- **Last Synced Status**: in progress — specfact-cli-modules published and merged; Section 18 test/quality parity completed in migration-02 and verified with passing local gates; 17.8.2 behavioral smoke and 17.8.3 presence gate executed successfully (presence gate passed with `SPECFACT_MIGRATION_CONTENT_VERIFIED=1`). Pending: 17.8.0.5 commit checkpoint and merge of PR 332 to dev.
+- **Last Synced Status**: complete in specfact-cli scope — specfact-cli-modules published and merged; Section 18 test/quality parity completed in migration-02 and verified with passing local gates; 17.8.2 behavioral smoke and 17.8.3 presence gate executed successfully (presence gate passed with `SPECFACT_MIGRATION_CONTENT_VERIFIED=1`); PR #332 merged to `dev` (commit `039da8b`). Deferred follow-up scope (19.2-23.5) is tracked in `module-migration-05-modules-repo-quality`.
 - **Sanitized**: false
