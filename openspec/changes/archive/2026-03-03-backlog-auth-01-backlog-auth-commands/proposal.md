@@ -26,5 +26,5 @@ Module-migration-03 removes the auth module from core and keeps only a central a
 <!-- source_repo: nold-ai/specfact-cli -->
 - **GitHub Issue**: #340
 - **Issue URL**: <https://github.com/nold-ai/specfact-cli/issues/340>
-- **Last Synced Status**: proposed
+- **Last Synced Status**: implemented — merged to `dev` in specfact-cli and specfact-cli-modules; backlog auth commands are available under `specfact backlog auth` and published in registry
 - **Sanitized**: false

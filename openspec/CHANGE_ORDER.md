@@ -89,7 +89,7 @@ These are derived extensions of the same 2026-02-15 plan and are required to ope
 | module-migration | 05 | module-migration-05-modules-repo-quality | [#334](https://github.com/nold-ai/specfact-cli/issues/334) | module-migration-02; sections 18-22 must precede migration-03; owns bundle-test migration to modules repo |
 | module-migration | 06 | module-migration-06-core-decoupling-cleanup | [#338](https://github.com/nold-ai/specfact-cli/issues/338) | module-migration-03; migration-05 bundle-parity baseline (remove remaining non-core coupling in specfact-cli core) |
 | module-migration | 07 | module-migration-07-test-migration-cleanup | [#339](https://github.com/nold-ai/specfact-cli/issues/339) | migration-03 phase 20 handoff; migration-04 and migration-05 residual specfact-cli test debt |
-| backlog-auth | 01 | backlog-auth-01-backlog-auth-commands | TBD | module-migration-03 (central auth interface in core; auth removed from core) |
+| backlog-auth | 01 | ✅ backlog-auth-01-backlog-auth-commands (implemented 2026-03-03; archived) | [#340](https://github.com/nold-ai/specfact-cli/issues/340) | module-migration-03 ✅ |
 
 ### Cross-cutting foundations (no hard dependencies — implement early)
 

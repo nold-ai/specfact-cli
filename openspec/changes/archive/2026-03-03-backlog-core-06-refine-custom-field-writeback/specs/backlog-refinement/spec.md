@@ -46,6 +46,8 @@ The system SHALL provide a `specfact backlog refine` command that enables teams 
 - **THEN** the system treats the respective filter as disabled (no filter applied)
 - **AND** command output/help makes this behavior explicit so default scoping is understandable.
 
+## ADDED Requirements
+
 ### Requirement: ADO comment activities use endpoint-compatible API versioning
 
 The system SHALL use the preview ADO comments API version for comment read/write activities while preserving stable `7.1` for standard work-item operations.

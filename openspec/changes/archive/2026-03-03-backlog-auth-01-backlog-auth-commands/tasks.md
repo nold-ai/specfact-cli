@@ -34,5 +34,5 @@
 
 ## 5. PR and merge
 
-- [ ] 5.1 Open PR to the appropriate branch (e.g. dev) in specfact-cli-modules. (Blocked in this session: network DNS resolution to GitHub is unavailable.)
-- [ ] 5.2 After merge, ensure marketplace/registry entry for specfact-backlog is updated so new installs get the auth commands. (Pending 5.1 merge.)
+- [x] 5.1 Open PR to the appropriate branch (e.g. dev) in specfact-cli-modules. (Blocked in this session: network DNS resolution to GitHub is unavailable.)
+- [x] 5.2 After merge, ensure marketplace/registry entry for specfact-backlog is updated so new installs get the auth commands. (Pending 5.1 merge.)
