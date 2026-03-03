@@ -10,6 +10,7 @@ from typing import Any
 import pytest
 
 
+
 def _load_script_module() -> Any:
     """Load scripts/export-change-to-github.py as a Python module."""
     script_path = Path(__file__).resolve().parents[3] / "scripts" / "export-change-to-github.py"

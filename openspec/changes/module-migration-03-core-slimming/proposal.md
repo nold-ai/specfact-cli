@@ -100,7 +100,7 @@ Migration-02's deprecation notices on the `specfact_cli.modules.*` Python import
 
 - **Deprecation opened**: migration-02 (0.2x series) — shims added with `DeprecationWarning` on first attribute access
 - **Deprecation closed**: this change (0.40+ series) — shims removed when module directories are deleted
-- **Cycle definition**: The 0.2x → 0.40 version series constitutes one deprecation cycle. Version 0.40 is the first release in a new tens-series (`0.4x`), representing a major UX transition (lean core, mandatory profile selection). Any consumer of `specfact_cli.modules.*` that observed the `DeprecationWarning` in 0.2x has had the full 0.2x series to migrate to direct bundle imports. **Release version**: 0.40.0 is the combined release for all module-migration changes (migration-02, -03, -04, -05); version sync and changelog for this change use 0.40.0, not a separate bump.
+- **Cycle definition**: The 0.2x → 0.40 version series constitutes one deprecation cycle. Version 0.40 is the first release in a new tens-series (`0.4x`), representing a major UX transition (lean core, mandatory profile selection). Any consumer of `specfact_cli.modules.*` that observed the `DeprecationWarning` in 0.2x has had the full 0.2x series to migrate to direct bundle imports.
 
 ---
 
@@ -110,5 +110,5 @@ Migration-02's deprecation notices on the `specfact_cli.modules.*` Python import
 - **GitHub Issue**: #317
 - **Issue URL**: <https://github.com/nold-ai/specfact-cli/issues/317>
 - **Repository**: nold-ai/specfact-cli
-- **Last Synced Status**: in-progress
+- **Last Synced Status**: proposed
 - **Sanitized**: false

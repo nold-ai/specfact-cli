@@ -18,6 +18,7 @@ from specfact_cli.common import get_bridge_logger
 
 
 # Official registry URL template: {branch} is main or dev so specfact-cli and specfact-cli-modules stay in sync.
+# Override with SPECFACT_REGISTRY_INDEX_URL to use a local registry (path or file:// URL) for list/install.
 OFFICIAL_REGISTRY_INDEX_TEMPLATE = (
     "https://raw.githubusercontent.com/nold-ai/specfact-cli-modules/{branch}/registry/index.json"
 )
@@ -62,7 +63,10 @@ def get_modules_branch() -> str:
 
 @beartype
 def get_registry_index_url() -> str:
-    """Return official registry index URL for the current branch (main or dev)."""
+    """Return registry index URL (official remote or SPECFACT_REGISTRY_INDEX_URL for local)."""
+    configured = os.environ.get("SPECFACT_REGISTRY_INDEX_URL", "").strip()
+    if configured:
+        return configured
     return OFFICIAL_REGISTRY_INDEX_TEMPLATE.format(branch=get_modules_branch())
 
 
@@ -129,12 +133,33 @@ def fetch_registry_index(
             return None
     if url is None:
         url = get_registry_index_url()
-    try:
-        response = requests.get(url, timeout=timeout)
-        response.raise_for_status()
-    except Exception as exc:
-        logger.warning("Registry unavailable, using offline mode: %s", exc)
-        return None
+    content: bytes
+    url_str = str(url).strip()
+    if url_str.startswith("file://"):
+        path = Path(urlparse(url_str).path)
+        if not path.is_absolute():
+            path = path.resolve()
+        try:
+            content = path.read_bytes()
+        except OSError as exc:
+            logger.warning("Local registry index unavailable: %s", exc)
+            return None
+    elif os.path.isfile(url_str):
+        try:
+            content = Path(url_str).resolve().read_bytes()
+        except OSError as exc:
+            logger.warning("Local registry index unavailable: %s", exc)
+            return None
+    else:
+        try:
+            response = requests.get(url, timeout=timeout)
+            response.raise_for_status()
+            content = response.content
+            if not content and getattr(response, "text", ""):
+                content = str(response.text).encode("utf-8")
+        except Exception as exc:
+            logger.warning("Registry unavailable, using offline mode: %s", exc)
+            return None
 
     try:
         payload = json.loads(content.decode("utf-8"))
@@ -207,9 +232,20 @@ def download_module(
     if not full_download_url or not expected_checksum:
         raise ValueError("Invalid registry index format")
 
-    response = requests.get(full_download_url, timeout=timeout)
-    response.raise_for_status()
-    content = response.content
+    if full_download_url.startswith("file://"):
+        try:
+            local_path = Path(urlparse(full_download_url).path)
+            if not local_path.is_absolute():
+                local_path = local_path.resolve()
+            content = local_path.read_bytes()
+        except OSError as exc:
+            raise ValueError(f"Cannot read module tarball from local registry: {exc}") from exc
+    elif os.path.isfile(full_download_url):
+        content = Path(full_download_url).resolve().read_bytes()
+    else:
+        response = requests.get(full_download_url, timeout=timeout)
+        response.raise_for_status()
+        content = response.content
 
     actual_checksum = hashlib.sha256(content).hexdigest()
     if actual_checksum != expected_checksum:

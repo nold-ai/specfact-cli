@@ -56,8 +56,8 @@ def test_get_registry_index_url_uses_branch(monkeypatch: pytest.MonkeyPatch) -> 
 
 def test_resolve_download_url_absolute_unchanged() -> None:
     """Absolute download_url is returned as-is."""
-    entry = {"download_url": "https://cdn.example/modules/foo-0.1.0.tar.gz"}
-    index: dict = {}
+    entry: dict[str, object] = {"download_url": "https://cdn.example/modules/foo-0.1.0.tar.gz"}
+    index: dict[str, object] = {}
     assert resolve_download_url(entry, index) == "https://cdn.example/modules/foo-0.1.0.tar.gz"
 
 
@@ -66,8 +66,8 @@ def test_resolve_download_url_relative_uses_registry_base(monkeypatch: pytest.Mo
     monkeypatch.setenv("SPECFACT_MODULES_BRANCH", "main")
     get_modules_branch.cache_clear()
     try:
-        entry = {"download_url": "modules/specfact-backlog-0.1.0.tar.gz"}
-        index: dict = {}
+        entry: dict[str, object] = {"download_url": "modules/specfact-backlog-0.1.0.tar.gz"}
+        index: dict[str, object] = {}
         got = resolve_download_url(entry, index)
         assert got == f"{REGISTRY_BASE_URL}/modules/specfact-backlog-0.1.0.tar.gz"
     finally:
@@ -76,8 +76,8 @@ def test_resolve_download_url_relative_uses_registry_base(monkeypatch: pytest.Mo
 
 def test_resolve_download_url_relative_uses_index_base() -> None:
     """Relative download_url uses index registry_base_url when set."""
-    entry = {"download_url": "modules/bar-0.2.0.tar.gz"}
-    index = {"registry_base_url": "https://custom.registry/registry"}
+    entry: dict[str, object] = {"download_url": "modules/bar-0.2.0.tar.gz"}
+    index: dict[str, object] = {"registry_base_url": "https://custom.registry/registry"}
     assert resolve_download_url(entry, index) == "https://custom.registry/registry/modules/bar-0.2.0.tar.gz"
 
 

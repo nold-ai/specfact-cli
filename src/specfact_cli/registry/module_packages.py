@@ -889,8 +889,21 @@ def get_installed_bundles(
     enabled_map: dict[str, bool],
 ) -> list[str]:
     """Return sorted list of bundle names from discovered packages that are enabled and have a bundle set."""
+
+    def _resolved_bundle(meta: ModulePackageMetadata) -> str | None:
+        if meta.bundle:
+            return meta.bundle
+        if "/" not in meta.name:
+            return None
+        tail = meta.name.split("/", 1)[1]
+        return tail if tail.startswith("specfact-") else None
+
     return sorted(
-        {meta.bundle for _dir, meta in packages if enabled_map.get(meta.name, True) and meta.bundle is not None}
+        {
+            resolved
+            for _dir, meta in packages
+            if enabled_map.get(meta.name, True) and (resolved := _resolved_bundle(meta)) is not None
+        }
     )
 
 
@@ -923,10 +936,30 @@ def _mount_installed_category_groups(
     """Register category groups and compat shims only for installed bundles."""
     installed = get_installed_bundles(packages, enabled_map)
     bundle_to_group = _build_bundle_to_group()
+    module_entries_by_name = {
+        entry.get("name"): entry for entry in getattr(CommandRegistry, "_module_entries", []) if entry.get("name")
+    }
+    module_meta_by_name = {
+        name: entry.get("metadata")
+        for name, entry in module_entries_by_name.items()
+    }
+    seen_groups: set[str] = set()
     for bundle in installed:
-        if bundle not in bundle_to_group:
+        group_info = bundle_to_group.get(bundle)
+        if group_info is None:
             continue
-        group_name, help_str, build_fn = bundle_to_group[bundle]
+        group_name, help_str, build_fn = group_info
+        if group_name in seen_groups:
+            continue
+        seen_groups.add(group_name)
+        module_entry = module_entries_by_name.get(group_name)
+        if module_entry is not None:
+            # Prefer bundle-native group command apps when available and ensure they are mounted at root.
+            native_loader = module_entry.get("loader")
+            native_meta = module_entry.get("metadata")
+            if native_loader is not None and native_meta is not None:
+                CommandRegistry.register(group_name, native_loader, native_meta)
+            continue
 
         def _make_group_loader(fn: Any) -> Any:
             def _group_loader(_fn: Any = fn) -> Any:
@@ -948,7 +981,7 @@ def _mount_installed_category_groups(
             continue
         if flat_name == group_name:
             continue
-        meta = CommandRegistry.get_module_metadata(flat_name)
+        meta = module_meta_by_name.get(flat_name)
         if meta is None:
             continue
         help_str = meta.help

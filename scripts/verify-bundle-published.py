@@ -29,17 +29,24 @@ specfact-cli-modules dev; main with main.
 from __future__ import annotations
 
 import argparse
+import hashlib
+import io
 import json
 import os
+import tarfile
+import tempfile
 from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
 import requests
+import yaml
 from beartype import beartype
 from icontract import ViolationError, require
 
+from specfact_cli.models.module_package import ModulePackageMetadata
 from specfact_cli.registry.marketplace_client import get_modules_branch, resolve_download_url
+from specfact_cli.registry.module_installer import verify_module_artifact
 
 
 _DEFAULT_INDEX_PATH = Path("../specfact-cli-modules/registry/index.json")
@@ -139,6 +146,161 @@ def _iter_module_entries(index_payload: dict[str, Any]) -> Iterable[dict[str, An
 
 
 @beartype
+def _resolve_local_download_path(download_url: str, index_path: Path) -> Path | None:
+    """Resolve local tarball path from absolute/file URL/relative index path."""
+    if download_url.startswith("file://"):
+        return Path(download_url[len("file://") :]).expanduser().resolve()
+    maybe_path = Path(download_url)
+    if maybe_path.is_absolute():
+        return maybe_path.resolve()
+    # Relative URL/path in index resolves against index.json parent.
+    return (index_path.parent / download_url).resolve()
+
+
+@beartype
+def _read_bundle_bytes(
+    entry: dict[str, Any],
+    index_payload: dict[str, Any],
+    index_path: Path,
+    *,
+    allow_remote: bool,
+) -> bytes | None:
+    """Read bundle bytes from local path when available; optionally remote fallback."""
+    full_download_url = resolve_download_url(entry, index_payload, index_payload.get("_registry_index_url"))
+    if not full_download_url:
+        return None
+    local_path = _resolve_local_download_path(full_download_url, index_path)
+    if local_path.exists():
+        try:
+            return local_path.read_bytes()
+        except OSError:
+            return None
+    if not allow_remote:
+        return None
+    try:
+        response = requests.get(full_download_url, timeout=10)
+        response.raise_for_status()
+    except Exception:
+        return None
+    return response.content
+
+
+@beartype
+def verify_bundle_signature(
+    entry: dict[str, Any],
+    index_payload: dict[str, Any],
+    index_path: Path,
+    *,
+    skip_download_check: bool,
+) -> bool | None:
+    """Verify artifact checksum+signature from bundle tarball when retrievable.
+
+    Returns:
+    - True/False when verification was executed.
+    - None when verification was not possible (e.g., no local tarball in skip mode).
+    """
+    bundle_bytes = _read_bundle_bytes(
+        entry,
+        index_payload,
+        index_path,
+        allow_remote=not skip_download_check,
+    )
+    if bundle_bytes is None:
+        return None
+
+    checksum_expected = str(entry.get("checksum_sha256", "")).strip().lower()
+    if not checksum_expected:
+        return False
+    checksum_actual = hashlib.sha256(bundle_bytes).hexdigest()
+    if checksum_actual != checksum_expected:
+        return False
+
+    try:
+        with tempfile.TemporaryDirectory(prefix="specfact-bundle-gate-") as tmp_dir:
+            tmp_root = Path(tmp_dir)
+            with tarfile.open(fileobj=io.BytesIO(bundle_bytes), mode="r:gz") as archive:
+                archive.extractall(tmp_root)
+            manifests = list(tmp_root.rglob("module-package.yaml"))
+            if not manifests:
+                return False
+            manifest_path = manifests[0]
+            raw = yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
+            if not isinstance(raw, dict):
+                return False
+            metadata = ModulePackageMetadata(**raw)
+            return verify_module_artifact(
+                package_dir=manifest_path.parent,
+                meta=metadata,
+                allow_unsigned=False,
+                require_signature=True,
+            )
+    except Exception:
+        return False
+
+
+@beartype
+def check_bundle_in_registry(
+    module_name: str,
+    bundle_id: str,
+    entry: dict[str, Any],
+    index_payload: dict[str, Any],
+    index_path: Path,
+    *,
+    skip_download_check: bool,
+) -> BundleCheckResult:
+    """Validate one bundle entry and return normalized status."""
+    required_fields = {"latest_version", "download_url", "checksum_sha256"}
+    missing = sorted(field for field in required_fields if not str(entry.get(field, "")).strip())
+    tier = str(entry.get("tier", "")).strip().lower()
+    has_signature_hint = bool(str(entry.get("signature_url", "")).strip()) or "signature_ok" in entry
+    if tier == "official" and not has_signature_hint:
+        missing.append("signature_url/signature_ok")
+    if missing:
+        return BundleCheckResult(
+            module_name=module_name,
+            bundle_id=bundle_id,
+            version=str(entry.get("latest_version", "") or None),
+            signature_ok=False,
+            download_ok=None,
+            status="FAIL",
+            message=f"Missing required fields: {', '.join(missing)}",
+        )
+
+    signature_result = verify_bundle_signature(
+        entry=entry,
+        index_payload=index_payload,
+        index_path=index_path,
+        skip_download_check=skip_download_check,
+    )
+    signature_ok = signature_result if signature_result is not None else bool(entry.get("signature_ok", True))
+
+    download_ok: bool | None = None
+    if not skip_download_check:
+        full_download_url = resolve_download_url(entry, index_payload, index_payload.get("_registry_index_url"))
+        if full_download_url:
+            download_ok = verify_bundle_download_url(full_download_url)
+
+    status = "PASS"
+    message = ""
+    if not signature_ok:
+        status = "FAIL"
+        message = "SIGNATURE INVALID"
+    elif download_ok is False:
+        status = "FAIL"
+        message = "DOWNLOAD ERROR"
+
+    return BundleCheckResult(
+        module_name=module_name,
+        bundle_id=bundle_id,
+        version=str(entry.get("latest_version", "") or None),
+        signature_ok=signature_ok,
+        download_ok=download_ok,
+        status=status,
+        message=message,
+    )
+
+
+@beartype
 @require(lambda module_names: len([m for m in module_names if m.strip()]) > 0, "module_names must not be empty")
 def verify_bundle_published(
     module_names: list[str],
@@ -146,7 +308,7 @@ def verify_bundle_published(
     *,
     modules_root: Path = _DEFAULT_MODULES_ROOT,
     skip_download_check: bool = False,
-) -> list[BundleCheckResult]:
+) -> list[Any]:
     """Verify that bundles for all given module names are present and valid in registry index."""
     if not index_path.exists():
         raise FileNotFoundError(f"Registry index not found at {index_path}")
@@ -182,33 +344,14 @@ def verify_bundle_published(
             )
             continue
 
-        version = str(entry.get("latest_version", "") or None)
-        signature_ok = bool(entry.get("signature_ok", True))
-
-        download_ok: bool | None = None
-        if not skip_download_check:
-            full_download_url = resolve_download_url(entry, index_payload, index_payload.get("_registry_index_url"))
-            if full_download_url:
-                download_ok = verify_bundle_download_url(full_download_url)
-
-        status = "PASS"
-        message = ""
-        if not signature_ok:
-            status = "FAIL"
-            message = "SIGNATURE INVALID"
-        elif download_ok is False:
-            status = "FAIL"
-            message = "DOWNLOAD ERROR"
-
         results.append(
-            BundleCheckResult(
+            check_bundle_in_registry(
                 module_name=module_key,
                 bundle_id=bundle_id,
-                version=version or None,
-                signature_ok=signature_ok,
-                download_ok=download_ok,
-                status=status,
-                message=message,
+                entry=entry,
+                index_payload=index_payload,
+                index_path=index_path,
+                skip_download_check=skip_download_check,
             )
         )
 

@@ -169,12 +169,9 @@ Do NOT implement production code for any behavior-changing step until failing-te
   hatch run verify-removal-gate
   ```
 
-  If the registry index is not found (e.g. when specfact-cli-modules is not a sibling of the checkout), either:
-  - Set **SPECFACT_MODULES_REPO** to the modules repo root and run `hatch run verify-removal-gate`, or
-  - Run with an explicit path: `python scripts/verify-bundle-published.py --modules ... --registry-index /path/to/specfact-cli-modules/registry/index.json` then `python scripts/verify-modules-signature.py --require-signature`.
-  The script supports both formats: (a) SPECFACT_MODULES_REPO for explicit path; (b) fallback sibling search when unset. Use `--branch dev` or `--branch main` to force registry branch; otherwise auto-detects from current git branch.
+  (or: `python scripts/verify-bundle-published.py --modules project,plan,import_cmd,sync,migrate,backlog,policy_engine,analyze,drift,validate,repro,contract,spec,sdd,generate,enforce,patch_mode`)
 - [x] 9.3 Record gate output (table with all PASS rows) in `openspec/changes/module-migration-03-core-slimming/TDD_EVIDENCE.md` as pre-deletion evidence (timestamp + command + result)
-- [x] 9.4 If any bundle fails: STOP — do not proceed until module-migration-02 is complete and all bundles are verified
+- [ ] 9.4 If any bundle fails: STOP — do not proceed until module-migration-02 is complete and all bundles are verified
 
 ## 10. Phase 1 — Delete non-core module directories (one bundle per commit)
 
@@ -186,77 +183,89 @@ Do NOT implement production code for any behavior-changing step until failing-te
 - [x] 10.1.2 Update `pyproject.toml` — remove the 5 project module paths from `packages` and `include`
 - [x] 10.1.3 Update `setup.py` — remove corresponding `find_packages` / `package_data` entries
 - [x] 10.1.4 `hatch test -- tests/unit/packaging/test_core_package_includes.py -v` — verify project modules absent
-- [x] 10.1.5 `git commit -m "feat(core): delete specfact-project module source from core (migration-03)"`
+- [ ] 10.1.5 `git commit -m "feat(core): delete specfact-project module source from core (migration-03)"`
 
 ### 10.2 Delete specfact-backlog modules
 
 - [x] 10.2.1 `git rm -r src/specfact_cli/modules/backlog/ src/specfact_cli/modules/policy_engine/`
 - [x] 10.2.2 Update `pyproject.toml` and `setup.py` for backlog + policy_engine
 - [x] 10.2.3 `hatch test -- tests/unit/packaging/test_core_package_includes.py -v`
-- [x] 10.2.4 `git commit -m "feat(core): delete specfact-backlog module source from core (migration-03)"`
+- [ ] 10.2.4 `git commit -m "feat(core): delete specfact-backlog module source from core (migration-03)"`
 
 ### 10.3 Delete specfact-codebase modules
 
 - [x] 10.3.1 `git rm -r src/specfact_cli/modules/analyze/ src/specfact_cli/modules/drift/ src/specfact_cli/modules/validate/ src/specfact_cli/modules/repro/`
 - [x] 10.3.2 Update `pyproject.toml` and `setup.py` for codebase modules
 - [x] 10.3.3 `hatch test -- tests/unit/packaging/test_core_package_includes.py -v`
-- [x] 10.3.4 `git commit -m "feat(core): delete specfact-codebase module source from core (migration-03)"`
+- [ ] 10.3.4 `git commit -m "feat(core): delete specfact-codebase module source from core (migration-03)"`
 
 ### 10.4 Delete specfact-spec modules
 
 - [x] 10.4.1 `git rm -r src/specfact_cli/modules/contract/ src/specfact_cli/modules/spec/ src/specfact_cli/modules/sdd/ src/specfact_cli/modules/generate/`
 - [x] 10.4.2 Update `pyproject.toml` and `setup.py` for spec modules
 - [x] 10.4.3 `hatch test -- tests/unit/packaging/test_core_package_includes.py -v`
-- [x] 10.4.4 `git commit -m "feat(core): delete specfact-spec module source from core (migration-03)"`
+- [ ] 10.4.4 `git commit -m "feat(core): delete specfact-spec module source from core (migration-03)"`
 
 ### 10.5 Delete specfact-govern modules
 
 - [x] 10.5.1 `git rm -r src/specfact_cli/modules/enforce/ src/specfact_cli/modules/patch_mode/`
 - [x] 10.5.2 Update `pyproject.toml` and `setup.py` for govern modules
-- [x] 10.5.3 `hatch test -- tests/unit/packaging/test_core_package_includes.py -v` — all 17 modules absent, only 4 core remain
-- [x] 10.5.4 `git commit -m "feat(core): delete specfact-govern module source from core (migration-03)"`
+- [x] 10.5.3 `hatch test -- tests/unit/packaging/test_core_package_includes.py -v` — all 17 modules absent, only 4 core remain (auth remains until 10.6 after backlog-auth-01)
+- [ ] 10.5.4 `git commit -m "feat(core): delete specfact-govern module source from core (migration-03)"`
 
 ### 10.6 Remove auth module from core (auth commands → backlog bundle) — **DEFERRED**
 
-- [x] 10.6.1 `hatch test -- tests/unit/packaging/test_core_package_includes.py -v` — confirm full suite green
-- [x] 10.6.2 Record passing-test result in TDD_EVIDENCE.md (Phase 1: package includes)
+**Do not implement 10.6 in this change.** Auth is removed from core only **after** `backlog-auth-01-backlog-auth-commands` is implemented in specfact-cli-modules and the backlog bundle provides `specfact backlog auth` (azure-devops, github, status, clear). That keeps a single, reliable auth implementation (today’s behaviour moved to backlog) and avoids a period with no auth or a divergent module. This change merges with **4 core** (init, auth, module_registry, upgrade). Execute 10.6 in a follow-up PR once backlog-auth-01 is done.
+
+- [ ] 10.6.1 Ensure central auth interface remains in core: `src/specfact_cli/utils/auth_tokens.py` (or a thin facade in `specfact_cli.auth`) with `get_token(provider)`, `set_token(provider, data)`, `clear_token(provider)`, `clear_all_tokens()` — used by bundles (e.g. backlog) for token storage. Adapters (in bundles) continue to import from `specfact_cli.utils.auth_tokens` or the facade.
+- [ ] 10.6.2 `git rm -r src/specfact_cli/modules/auth/`
+- [ ] 10.6.3 Remove `auth` from `CORE_NAMES` and any core-module list in `src/specfact_cli/registry/module_packages.py`
+- [ ] 10.6.4 Update `pyproject.toml` and `setup.py` — remove auth module path from packages
+- [ ] 10.6.5 Remove or update `src/specfact_cli/commands/auth.py` shim if it exists (point to backlog or remove)
+- [ ] 10.6.6 `hatch test -- tests/unit/packaging/test_core_package_includes.py -v` — confirm auth absent, 3 core only
+- [ ] 10.6.7 `git commit -m "feat(core): remove auth module from core; central auth interface only (migration-03)"`
+
+### 10.7 Verify all tests pass after all deletions
+
+- [x] 10.7.1 `hatch test -- tests/unit/packaging/test_core_package_includes.py -v` — confirm full suite green
+- [x] 10.7.2 Record passing-test result in TDD_EVIDENCE.md (Phase 1: package includes)
 
 ## 11. Phase 2 — Update bootstrap.py (shim removal + 4-core-only registration)
 
-- [x] 11.1 Edit `src/specfact_cli/registry/bootstrap.py`:
-  - [x] 11.1.1 Remove all import statements for the 17 deleted module packages
-  - [x] 11.1.2 Remove all `register_module()` / `add_typer()` calls for the 17 deleted modules
-  - [x] 11.1.3 Remove backward-compat flat command shim registration logic (entire shim block)
-  - [x] 11.1.4 Add `_mount_installed_category_groups(cli_app)` call after the 4 core registrations
-  - [x] 11.1.5 Implement `_mount_installed_category_groups(cli_app: typer.Typer) -> None` using `get_installed_bundles()` and `CATEGORY_GROUP_FACTORIES` mapping
-  - [x] 11.1.6 Add `@beartype` to `bootstrap_modules()` and `_mount_installed_category_groups()`
+- [ ] 11.1 Edit `src/specfact_cli/registry/bootstrap.py`:
+  - [ ] 11.1.1 Remove all import statements for the 17 deleted module packages
+  - [ ] 11.1.2 Remove all `register_module()` / `add_typer()` calls for the 17 deleted modules (keep auth registration)
+  - [ ] 11.1.3 Remove backward-compat flat command shim registration logic (entire shim block)
+  - [ ] 11.1.4 Add `_mount_installed_category_groups(cli_app)` call after the 4 core registrations
+  - [ ] 11.1.5 Implement `_mount_installed_category_groups(cli_app: typer.Typer) -> None` using `get_installed_bundles()` and `CATEGORY_GROUP_FACTORIES` mapping
+  - [ ] 11.1.6 Add `@beartype` to `bootstrap_modules()` and `_mount_installed_category_groups()`
 - [x] 11.2 `hatch test -- tests/unit/registry/test_core_only_bootstrap.py -v` — verify passes
 - [x] 11.3 Record passing-test result in TDD_EVIDENCE.md (Phase 2: bootstrap)
-- [x] 11.4 `git commit -m "feat(bootstrap): remove flat shims and non-core module registrations (migration-03)"`
+- [ ] 11.4 `git commit -m "feat(bootstrap): remove flat shims and non-core module registrations (migration-03)"`
 
 ## 12. Phase 3 — Update cli.py (conditional category group mounting)
 
-- [x] 12.1 Edit `src/specfact_cli/cli.py`:
-  - [x] 12.1.1 Remove any unconditional category group registrations for the 17 extracted module categories
-  - [x] 12.1.2 Ensure `bootstrap_modules(cli_app)` is the single registration entry point (it now handles conditional mounting)
-  - [x] 12.1.3 Add actionable error handling for unrecognised commands that match known bundle group names
+- [ ] 12.1 Edit `src/specfact_cli/cli.py`:
+  - [ ] 12.1.1 Remove any unconditional category group registrations for the 17 extracted module categories
+  - [ ] 12.1.2 Ensure `bootstrap_modules(cli_app)` is the single registration entry point (it now handles conditional mounting)
+  - [ ] 12.1.3 Add actionable error handling for unrecognised commands that match known bundle group names
 - [x] 12.2 `hatch test -- tests/unit/cli/test_lean_help_output.py -v` — verify lean help and missing-bundle errors pass
 - [x] 12.3 Record passing-test result in TDD_EVIDENCE.md (Phase 3: cli.py)
-- [x] 12.4 `git commit -m "feat(cli): conditional category group mount from installed bundles (migration-03)"`
+- [ ] 12.4 `git commit -m "feat(cli): conditional category group mount from installed bundles (migration-03)"`
 
 ## 13. Phase 4 — Update specfact init for mandatory bundle selection
 
-- [x] 13.1 Edit `src/specfact_cli/modules/init/src/commands.py` (or equivalent init command file):
-  - [x] 13.1.1 Add `VALID_PROFILES` constant: `frozenset({"solo-developer", "backlog-team", "api-first-team", "enterprise-full-stack"})`
-  - [x] 13.1.2 Add `PROFILE_BUNDLES` mapping: profile name → list of bundle IDs
-  - [x] 13.1.3 Update `init_command()` signature: add `profile: Optional[str]` and `install: Optional[str]` parameters (if not already present from module-migration-01)
-  - [x] 13.1.4 Add CI/CD mode guard: if `_is_cicd_mode()` and profile is None and install is None → exit 1 with error
-  - [x] 13.1.5 Add first-run detection: if `get_installed_bundles()` is empty and not CI/CD → enter interactive selection loop
-  - [x] 13.1.6 Add interactive selection loop with confirmation prompt for core-only selection
-  - [x] 13.1.7 Implement `_install_profile_bundles(profile: str) -> None` — resolves bundle list from `PROFILE_BUNDLES`, calls `module_installer.install_module()` for each
-  - [x] 13.1.8 Implement `_install_bundle_list(install_arg: str) -> None` — parses comma-separated list or "all", validates bundle names, calls installer
-  - [x] 13.1.9 Add `@require(lambda profile: profile is None or profile in VALID_PROFILES)` on `init_command`
-  - [x] 13.1.10 Add `@beartype` on `init_command`, `_install_profile_bundles`, `_install_bundle_list`
+- [ ] 13.1 Edit `src/specfact_cli/modules/init/src/commands.py` (or equivalent init command file):
+  - [ ] 13.1.1 Add `VALID_PROFILES` constant: `frozenset({"solo-developer", "backlog-team", "api-first-team", "enterprise-full-stack"})`
+  - [ ] 13.1.2 Add `PROFILE_BUNDLES` mapping: profile name → list of bundle IDs
+  - [ ] 13.1.3 Update `init_command()` signature: add `profile: Optional[str]` and `install: Optional[str]` parameters (if not already present from module-migration-01)
+  - [ ] 13.1.4 Add CI/CD mode guard: if `_is_cicd_mode()` and profile is None and install is None → exit 1 with error
+  - [ ] 13.1.5 Add first-run detection: if `get_installed_bundles()` is empty and not CI/CD → enter interactive selection loop
+  - [ ] 13.1.6 Add interactive selection loop with confirmation prompt for core-only selection
+  - [ ] 13.1.7 Implement `_install_profile_bundles(profile: str) -> None` — resolves bundle list from `PROFILE_BUNDLES`, calls `module_installer.install_module()` for each
+  - [ ] 13.1.8 Implement `_install_bundle_list(install_arg: str) -> None` — parses comma-separated list or "all", validates bundle names, calls installer
+  - [ ] 13.1.9 Add `@require(lambda profile: profile is None or profile in VALID_PROFILES)` on `init_command`
+  - [ ] 13.1.10 Add `@beartype` on `init_command`, `_install_profile_bundles`, `_install_bundle_list`
 - [x] 13.2 `hatch test -- tests/unit/modules/init/test_mandatory_bundle_selection.py -v` — verify all pass
 - [x] 13.3 Record passing-test result in TDD_EVIDENCE.md (Phase 4: init mandatory selection)
 - [ ] 13.4 `git commit -m "feat(init): enforce mandatory bundle selection and profile presets (migration-03)"`
@@ -375,20 +384,18 @@ Do NOT implement production code for any behavior-changing step until failing-te
 
 ## 18. Version and changelog
 
-**Release version:** Use **0.40.0** as the combined release for all module-migration changes (migration-02, -03, -04, -05, etc.). Do not bump to 0.41.0 or 0.40.x for migration-03 alone; sync to 0.40.0 when updating version and changelog.
-
-- [ ] 18.1 Determine version bump: **minor** (feature removal: bundled modules are no longer included; first-run gate is new behavior; feature/* branch → minor increment)
-  - [ ] 18.1.1 Confirm current version in `pyproject.toml`
-  - [ ] 18.1.2 **Use 0.40.0** for the combined module-migration release (do not apply a separate minor bump for this change only)
-  - [ ] 18.1.3 Request explicit confirmation from user before applying bump
+- [x] 18.1 Determine version policy for this branch
+  - [x] 18.1.1 Confirm current version in `pyproject.toml` is `0.40.0`
+  - [x] 18.1.2 User decision: keep `0.40.0` unchanged for this first release line
+  - [x] 18.1.3 Do not apply SemVer bump in this change; capture behavior changes in changelog/release notes only
 
 - [x] 18.2 Version sync action
   - [x] 18.2.1 No-op for this branch (version remains `0.40.0`)
   - [x] 18.2.2 Verify no unintended version drift across version files
 
-- [ ] 18.3 Update `CHANGELOG.md`
-  - [ ] 18.3.1 Add new section `## [0.40.0] - 2026-MM-DD` (combined module-migration release)
-  - [ ] 18.3.2 Add `### Added` subsection:
+- [x] 18.3 Update `CHANGELOG.md`
+  - [x] 18.3.1 Update existing `## [0.40.0]` section (no `Unreleased` / no new version section for this branch)
+  - [x] 18.3.2 Add `### Added` subsection:
     - `scripts/verify-bundle-published.py` — pre-deletion gate for marketplace bundle verification
     - `hatch run verify-removal-gate` task alias
     - Mandatory bundle selection enforcement in `specfact init` (CI/CD mode requires `--profile` or `--install`)

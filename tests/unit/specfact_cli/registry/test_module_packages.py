@@ -439,7 +439,7 @@ def test_mount_installed_groups_preserves_bundle_native_group_command(
     monkeypatch.setattr(mp, "verify_module_artifact", lambda _dir, _meta, allow_unsigned=False: True)
     monkeypatch.setattr(mp, "read_modules_state", dict)
     monkeypatch.setattr(mp, "_check_protocol_compliance_from_source", lambda *_args, **_kwargs: [])
-    monkeypatch.setattr(mp, "_make_package_loader", lambda *_args, **_kwargs: lambda: native_code_app)
+    monkeypatch.setattr(mp, "_make_package_loader", lambda *_args, **_kwargs: (lambda: native_code_app))
     monkeypatch.setattr(
         mp,
         "_build_bundle_to_group",
