@@ -1,4 +1,4 @@
-# Change: Bundle Extraction and Marketplace Publishing
+# Change: module-migration-02 - Bundle Extraction and Marketplace Publishing
 
 ## Why
 

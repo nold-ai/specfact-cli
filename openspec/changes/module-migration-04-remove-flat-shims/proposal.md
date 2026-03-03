@@ -1,4 +1,4 @@
-# Change: Remove Flat Shims — Category-Only CLI (0.40.x)
+# Change: module-migration-04 - Remove Flat Shims — Category-Only CLI (0.40.x)
 
 ## Why
 

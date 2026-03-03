@@ -1,4 +1,4 @@
-# Change: Core Package Slimming and Mandatory Profile Selection
+# Change: module-migration-03 - Core Package Slimming and Mandatory Profile Selection
 
 ## Why
 
