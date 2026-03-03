@@ -97,7 +97,7 @@ A structured review of the completed migration scope identified 8 gaps (3 critic
 - **Gap 4 (important)**: Sections 19–23 deferred to new change `module-migration-05-modules-repo-quality` (stub created). Section 18 was pulled back into migration-02 and completed here.
 - **Gap 5 (important)**: Migration-05 sections 21 (build pipeline) and 22 (central config) carry a hard timing constraint: must land before or simultaneously with migration-03.
 - **Gap 6 (minor)**: Behavioral smoke test added to gate 17.8 checklist (tasks.md 17.8.2).
-- **Gap 7 (minor)**: PyPI publishing deferred without ownership — see "Open Questions" below.
+- **Gap 7 (minor)**: Residual core decoupling cleanup assigned to `module-migration-06-core-decoupling-cleanup` (post migration-03/05) — see `GAP_ANALYSIS.md`.
 - **Gap 8 (minor)**: Bundle versioning policy added to migration-05 tasks.md section 24.
 
 ---

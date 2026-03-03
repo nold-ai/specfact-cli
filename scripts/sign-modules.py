@@ -18,6 +18,7 @@ import yaml
 
 _IGNORED_MODULE_DIR_NAMES = {"__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache", "logs"}
 _IGNORED_MODULE_FILE_SUFFIXES = {".pyc", ".pyo"}
+_PAYLOAD_FROM_FS_IGNORED_DIRS = _IGNORED_MODULE_DIR_NAMES | {".git", "tests"}
 
 
 class _IndentedSafeDumper(yaml.SafeDumper):
@@ -33,38 +34,45 @@ def _canonical_payload(manifest_data: dict[str, Any]) -> bytes:
     return yaml.safe_dump(payload, sort_keys=True, allow_unicode=False).encode("utf-8")
 
 
-def _module_payload(module_dir: Path) -> bytes:
+def _module_payload(module_dir: Path, payload_from_filesystem: bool = False) -> bytes:
     if not module_dir.exists() or not module_dir.is_dir():
         msg = f"Module directory not found: {module_dir}"
         raise ValueError(msg)
     module_dir_resolved = module_dir.resolve()
 
-    def _is_hashable(path: Path) -> bool:
+    def _is_hashable(path: Path, ignored_dirs: set[str]) -> bool:
         rel = path.resolve().relative_to(module_dir_resolved)
-        if any(part in _IGNORED_MODULE_DIR_NAMES for part in rel.parts):
+        if any(part in ignored_dirs for part in rel.parts):
             return False
         return path.suffix.lower() not in _IGNORED_MODULE_FILE_SUFFIXES
 
     entries: list[str] = []
+    ignored_dirs = _PAYLOAD_FROM_FS_IGNORED_DIRS if payload_from_filesystem else _IGNORED_MODULE_DIR_NAMES
 
     files: list[Path]
-    try:
-        listed = subprocess.run(
-            ["git", "ls-files", module_dir.as_posix()],
-            check=True,
-            capture_output=True,
-            text=True,
-        ).stdout.splitlines()
-        git_files = [(Path.cwd() / line.strip()) for line in listed if line.strip()]
+    if payload_from_filesystem:
         files = sorted(
-            (path for path in git_files if path.is_file() and _is_hashable(path)),
+            (p for p in module_dir.rglob("*") if p.is_file() and _is_hashable(p, ignored_dirs)),
             key=lambda p: p.resolve().relative_to(module_dir_resolved).as_posix(),
         )
-    except Exception:
-        files = sorted(
-            (path for path in module_dir.rglob("*") if path.is_file() and _is_hashable(path)),
-            key=lambda p: p.resolve().relative_to(module_dir_resolved).as_posix(),
-        )
+    else:
+        try:
+            listed = subprocess.run(
+                ["git", "ls-files", module_dir.as_posix()],
+                check=True,
+                capture_output=True,
+                text=True,
+            ).stdout.splitlines()
+            git_files = [(Path.cwd() / line.strip()) for line in listed if line.strip()]
+            files = sorted(
+                (path for path in git_files if path.is_file() and _is_hashable(path, ignored_dirs)),
+                key=lambda p: p.resolve().relative_to(module_dir_resolved).as_posix(),
+            )
+        except Exception:
+            files = sorted(
+                (path for path in module_dir.rglob("*") if path.is_file() and _is_hashable(path, ignored_dirs)),
+                key=lambda p: p.resolve().relative_to(module_dir_resolved).as_posix(),
+            )
 
     for path in files:
         rel = path.resolve().relative_to(module_dir_resolved).as_posix()
@@ -313,13 +321,13 @@ def _sign_payload(payload: bytes, private_key: Any) -> str:
     return base64.b64encode(signature).decode("ascii")
 
 
-def sign_manifest(manifest_path: Path, private_key: Any | None) -> None:
+def sign_manifest(manifest_path: Path, private_key: Any | None, *, payload_from_filesystem: bool = False) -> None:
     raw = yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
     if not isinstance(raw, dict):
         msg = f"Invalid manifest YAML: {manifest_path}"
         raise ValueError(msg)
 
-    payload = _module_payload(manifest_path.parent)
+    payload = _module_payload(manifest_path.parent, payload_from_filesystem=payload_from_filesystem)
     checksum = f"sha256:{hashlib.sha256(payload).hexdigest()}"
     integrity: dict[str, str] = {"checksum": checksum}
 
@@ -356,6 +364,11 @@ def main() -> int:
         "--allow-unsigned",
         action="store_true",
         help="Allow checksum-only signing without private key (local testing only).",
+    )
+    parser.add_argument(
+        "--payload-from-filesystem",
+        action="store_true",
+        help="Build payload from filesystem (rglob) with same excludes as publish tarball, so checksum matches install verification.",
     )
     parser.add_argument(
         "--allow-same-version",
@@ -428,7 +441,7 @@ def main() -> int:
                 allow_same_version=args.allow_same_version,
                 comparison_ref=args.base_ref if args.changed_only else "HEAD",
             )
-            sign_manifest(manifest_path, private_key)
+            sign_manifest(manifest_path, private_key, payload_from_filesystem=args.payload_from_filesystem)
         except ValueError as exc:
             parser.error(str(exc))
     return 0

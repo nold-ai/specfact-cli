@@ -59,6 +59,7 @@ This is a quality regression against the project's own standard. This change clo
 - **Blocked by**: `module-migration-02-bundle-extraction` — bundles must be present and canonical source in specfact-cli-modules before tests and tooling can be set up for them.
 - **Hard timing constraint**: Sections 18-22 of this change **must land before `module-migration-03-core-slimming` closes**. Once migration-03 deletes the in-repo module source, specfact-cli-modules must already have test parity, decoupling/import boundaries, docs baseline, and quality gates or the project loses its quality standard.
 - **Wave**: Wave 4 — parallel with or immediately preceding `module-migration-03-core-slimming`
+- **Test migration ownership**: This change is the primary owner for migrating bundle-related tests into `specfact-cli-modules` and establishing parity gates there. It does **not** fully own unrelated legacy test cleanup in `specfact-cli`; residual failures outside bundle-scope migration are tracked as follow-up change(s) from migration-03 phase 20.
 
 ---
 

@@ -2,8 +2,11 @@
 
 from unittest.mock import patch
 
+import pytest
 from typer.testing import CliRunner
 
+
+pytest.importorskip("specfact_cli.modules.plan.src.commands")
 from specfact_cli.cli import app
 from specfact_cli.models.plan import Feature
 from specfact_cli.models.project import ProjectBundle

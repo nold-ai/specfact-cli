@@ -8,8 +8,11 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
+import pytest
 from beartype import beartype
 
+
+pytest.importorskip("specfact_cli.modules.backlog.src.commands")
 from specfact_cli.backlog.filters import BacklogFilters
 from specfact_cli.models.backlog_item import BacklogItem
 from specfact_cli.modules.backlog.src.commands import _fetch_backlog_items

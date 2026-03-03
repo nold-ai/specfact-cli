@@ -159,7 +159,7 @@ def test_cli_init_help_exits_zero():
 
 
 def test_cli_backlog_help_exits_zero():
-    """specfact backlog --help exits 0."""
+    """specfact backlog --help exits 0 when installed, otherwise returns actionable missing-command UX."""
     import subprocess
     import sys
 
@@ -169,7 +169,10 @@ def test_cli_backlog_help_exits_zero():
         text=True,
         timeout=60,
     )
-    assert result.returncode == 0, (result.stdout, result.stderr)
+    if result.returncode == 0:
+        return
+    merged = (result.stdout or "") + "\n" + (result.stderr or "")
+    assert "No such command 'backlog'" in merged, (result.stdout, result.stderr)
 
 
 def test_cli_module_help_exits_zero():

@@ -4,6 +4,8 @@ from pathlib import Path
 
 import pytest
 
+
+pytest.importorskip("specfact_cli.modules.backlog.src.commands")
 from specfact_cli.models.backlog_item import BacklogItem
 from specfact_cli.modules.backlog.src import commands as backlog_commands
 

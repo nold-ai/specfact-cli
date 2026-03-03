@@ -4,6 +4,10 @@ from __future__ import annotations
 
 import inspect
 
+import pytest
+
+
+pytest.importorskip("specfact_cli.modules.enforce.src.commands")
 from specfact_cli.modules.enforce.src import commands as module_commands
 
 

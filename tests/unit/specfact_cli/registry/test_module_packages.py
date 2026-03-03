@@ -24,6 +24,7 @@ from specfact_cli.models.module_package import (
 from specfact_cli.registry import CommandRegistry
 from specfact_cli.registry.module_packages import (
     discover_package_metadata,
+    get_installed_bundles,
     get_modules_root,
     get_modules_roots,
     merge_module_state,
@@ -96,12 +97,54 @@ def test_discover_package_metadata_skips_dir_without_metadata(tmp_path: Path):
     assert len(result) == 0
 
 
+def test_resolve_package_load_path_supports_namespaced_manifest_name(tmp_path: Path) -> None:
+    """Namespaced manifest names should resolve to local src package path."""
+    from specfact_cli.registry import module_packages as module_packages_impl
+
+    package_dir = tmp_path / "specfact-backlog"
+    package_src = package_dir / "src" / "specfact_backlog"
+    package_src.mkdir(parents=True)
+    init_file = package_src / "__init__.py"
+    init_file.write_text("app = object()\n", encoding="utf-8")
+
+    resolved = module_packages_impl._resolve_package_load_path(package_dir, "nold-ai/specfact-backlog")
+    assert resolved == init_file
+
+
+def test_make_package_loader_supports_namespaced_nested_command_app(tmp_path: Path) -> None:
+    """Namespaced bundles should load command app from src/<pkg>/<command>/app.py when root app.py is absent."""
+    from specfact_cli.registry import module_packages as module_packages_impl
+
+    package_dir = tmp_path / "specfact-backlog"
+    nested_app = package_dir / "src" / "specfact_backlog" / "backlog" / "app.py"
+    nested_app.parent.mkdir(parents=True, exist_ok=True)
+    nested_app.write_text("import typer\napp = typer.Typer(name='backlog')\n", encoding="utf-8")
+
+    loader = module_packages_impl._make_package_loader(package_dir, "nold-ai/specfact-backlog", "backlog")
+    app = loader()
+
+    assert getattr(getattr(app, "info", None), "name", None) == "backlog"
+
+
 def test_merge_module_state_new_modules_enabled():
     """New discovered modules get enabled: true."""
     discovered = [("new_one", "1.0.0")]
     state = {}
     enabled = merge_module_state(discovered, state, [], [])
     assert enabled["new_one"] is True
+
+
+def test_get_installed_bundles_infers_bundle_from_namespaced_module_name() -> None:
+    """Installed bundle detection should infer specfact bundle id from namespaced module name."""
+    metadata = ModulePackageMetadata(
+        name="nold-ai/specfact-backlog",
+        version="0.40.9",
+        commands=["backlog"],
+        category="backlog",
+        bundle=None,
+    )
+    bundles = get_installed_bundles([(Path("/tmp/specfact-backlog"), metadata)], {"nold-ai/specfact-backlog": True})
+    assert "specfact-backlog" in bundles
 
 
 def test_merge_module_state_preserves_existing():
@@ -310,7 +353,7 @@ def test_unaffected_modules_register_when_one_fails_trust(monkeypatch, tmp_path:
     monkeypatch.setattr(mp, "verify_module_artifact", verify_may_fail)
     monkeypatch.setattr(mp, "get_modules_root", lambda: tmp_path)
     monkeypatch.setattr(mp, "read_modules_state", dict)
-    register_module_package_commands()
+    register_module_package_commands(allow_unsigned=False)
     names = CommandRegistry.list_commands()
     assert "good_cmd" in names
     assert "bad_cmd" not in names
@@ -335,7 +378,7 @@ def test_grouped_registration_merges_duplicate_command_extensions(
     monkeypatch.setattr(mp, "discover_all_package_metadata", lambda: packages)
     monkeypatch.setattr(mp, "verify_module_artifact", lambda _dir, _meta, allow_unsigned=False: True)
     monkeypatch.setattr(mp, "read_modules_state", dict)
-    monkeypatch.setattr(mp, "_check_protocol_compliance_from_source", lambda *_args: [])
+    monkeypatch.setattr(mp, "_check_protocol_compliance_from_source", lambda *_args, **_kwargs: [])
 
     def _build_typer(subcommand_name: str) -> typer.Typer:
         app = typer.Typer()
@@ -367,6 +410,55 @@ def test_grouped_registration_merges_duplicate_command_extensions(
     assert "ext_cmd" in command_names
 
 
+def test_mount_installed_groups_preserves_bundle_native_group_command(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Installed bundle-native group command should not be overridden by static fallback group app."""
+    from specfact_cli.registry import module_packages as mp
+
+    native_code_app = typer.Typer()
+
+    @native_code_app.command("native-sub")
+    def _native_sub() -> None:
+        return None
+
+    packages = [
+        (
+            tmp_path / "codebase",
+            ModulePackageMetadata(
+                name="nold-ai/specfact-codebase",
+                version="0.40.10",
+                commands=["code"],
+                category="codebase",
+                bundle="specfact-codebase",
+            ),
+        )
+    ]
+
+    monkeypatch.setattr(mp, "discover_all_package_metadata", lambda: packages)
+    monkeypatch.setattr(mp, "verify_module_artifact", lambda _dir, _meta, allow_unsigned=False: True)
+    monkeypatch.setattr(mp, "read_modules_state", dict)
+    monkeypatch.setattr(mp, "_check_protocol_compliance_from_source", lambda *_args, **_kwargs: [])
+    monkeypatch.setattr(mp, "_make_package_loader", lambda *_args, **_kwargs: lambda: native_code_app)
+    monkeypatch.setattr(
+        mp,
+        "_build_bundle_to_group",
+        lambda: {"specfact-codebase": ("code", "Codebase quality commands", lambda: typer.Typer())},
+    )
+
+    mp.register_module_package_commands(category_grouping_enabled=True)
+
+    code_app = CommandRegistry.get_typer("code")
+    command_names = tuple(
+        sorted(
+            command_info.name
+            for command_info in code_app.registered_commands
+            if getattr(command_info, "name", None) is not None
+        )
+    )
+    assert "native-sub" in command_names
+
+
 def test_integrity_failure_shows_user_friendly_risk_warning(monkeypatch, tmp_path: Path) -> None:
     """Integrity failure should emit concise risk guidance instead of raw checksum diagnostics."""
     from specfact_cli.registry import module_packages as mp
@@ -378,7 +470,7 @@ def test_integrity_failure_shows_user_friendly_risk_warning(monkeypatch, tmp_pat
     monkeypatch.setattr(mp, "read_modules_state", dict)
     monkeypatch.setattr(mp, "print_warning", shown_messages.append)
 
-    register_module_package_commands()
+    register_module_package_commands(allow_unsigned=False)
 
     assert any("failed integrity verification and was not loaded" in msg for msg in shown_messages)
     assert any("Run `specfact module init`" in msg for msg in shown_messages)
@@ -453,7 +545,7 @@ def test_protocol_reporting_classifies_full_partial_legacy_from_static_source(
     monkeypatch.setattr(
         module_packages_impl,
         "_check_protocol_compliance_from_source",
-        lambda package_dir, _package_name: (
+        lambda package_dir, _package_name, **_kwargs: (
             ["import", "export", "sync", "validate"]
             if package_dir.name == "full"
             else (["import"] if package_dir.name == "partial" else [])
@@ -479,7 +571,7 @@ def test_protocol_legacy_warning_emitted_once_per_module(monkeypatch, caplog, tm
     monkeypatch.setattr(module_packages_impl, "discover_all_package_metadata", lambda: packages)
     monkeypatch.setattr(module_packages_impl, "verify_module_artifact", lambda _dir, _meta, allow_unsigned=False: True)
     monkeypatch.setattr(module_packages_impl, "read_modules_state", dict)
-    monkeypatch.setattr(module_packages_impl, "_check_protocol_compliance_from_source", lambda *_args: [])
+    monkeypatch.setattr(module_packages_impl, "_check_protocol_compliance_from_source", lambda *_args, **_kwargs: [])
 
     module_packages_impl.register_module_package_commands()
 
@@ -501,7 +593,9 @@ def test_protocol_reporting_uses_static_source_operations(monkeypatch, caplog, t
     monkeypatch.setattr(module_packages_impl, "discover_all_package_metadata", lambda: packages)
     monkeypatch.setattr(module_packages_impl, "verify_module_artifact", lambda _dir, _meta, allow_unsigned=False: True)
     monkeypatch.setattr(module_packages_impl, "read_modules_state", dict)
-    monkeypatch.setattr(module_packages_impl, "_check_protocol_compliance_from_source", lambda *_args: ["import"])
+    monkeypatch.setattr(
+        module_packages_impl, "_check_protocol_compliance_from_source", lambda *_args, **_kwargs: ["import"]
+    )
 
     module_packages_impl.register_module_package_commands()
 
@@ -545,7 +639,7 @@ def test_protocol_reporting_is_quiet_when_all_modules_are_fully_compliant(monkey
     monkeypatch.setattr(
         module_packages_impl,
         "_check_protocol_compliance_from_source",
-        lambda *_args: ["import", "export", "sync", "validate"],
+        lambda *_args, **_kwargs: ["import", "export", "sync", "validate"],
     )
 
     module_packages_impl.register_module_package_commands()
@@ -566,7 +660,9 @@ def test_protocol_reporting_uses_user_friendly_messages_for_non_compliant_module
     monkeypatch.setattr(module_packages_impl, "discover_all_package_metadata", lambda: packages)
     monkeypatch.setattr(module_packages_impl, "verify_module_artifact", lambda _dir, _meta, allow_unsigned=False: True)
     monkeypatch.setattr(module_packages_impl, "read_modules_state", dict)
-    monkeypatch.setattr(module_packages_impl, "_check_protocol_compliance_from_source", lambda *_args: ["import"])
+    monkeypatch.setattr(
+        module_packages_impl, "_check_protocol_compliance_from_source", lambda *_args, **_kwargs: ["import"]
+    )
 
     module_packages_impl.register_module_package_commands()
 
@@ -658,6 +754,37 @@ runtime_interface = RuntimeInterface()
     )
 
     operations = module_packages_impl._check_protocol_compliance_from_source(package_dir, "sample")
+    assert sorted(operations) == ["import", "validate"]
+
+
+def test_protocol_source_scan_detects_operations_in_namespaced_nested_command_module(tmp_path: Path) -> None:
+    """Namespaced package should scan src/<pkg>/<command>/commands.py for protocol methods."""
+    from specfact_cli.registry import module_packages as module_packages_impl
+
+    package_dir = tmp_path / "specfact-backlog"
+    command_dir = package_dir / "src" / "specfact_backlog" / "backlog"
+    command_dir.mkdir(parents=True, exist_ok=True)
+    (command_dir / "commands.py").write_text(
+        """
+def import_to_bundle(source, config):
+    return source
+
+def validate_bundle(bundle, rules):
+    return []
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    (package_dir / "src" / "specfact_backlog" / "__init__.py").write_text(
+        '"""bundle package"""\n',
+        encoding="utf-8",
+    )
+
+    operations = module_packages_impl._check_protocol_compliance_from_source(
+        package_dir,
+        "nold-ai/specfact-backlog",
+        command_names=["backlog"],
+    )
     assert sorted(operations) == ["import", "validate"]
 
 

@@ -35,6 +35,16 @@ from specfact_cli.utils.ide_setup import (
 )
 
 
+VALID_PROFILES: frozenset[str] = frozenset(
+    {
+        "solo-developer",
+        "backlog-team",
+        "api-first-team",
+        "enterprise-full-stack",
+    }
+)
+PROFILE_BUNDLES: dict[str, list[str]] = first_run_selection.PROFILE_PRESETS
+
 install_bundles_for_init = first_run_selection.install_bundles_for_init
 is_first_run = first_run_selection.is_first_run
 
@@ -353,6 +363,30 @@ def _is_valid_repo_path(repo: Path) -> bool:
     return repo.exists() and repo.is_dir()
 
 
+@beartype
+def _install_profile_bundles(profile: str, install_root: Path, non_interactive: bool) -> None:
+    """Resolve profile to bundle list and install via module installer."""
+    bundle_ids = first_run_selection.resolve_profile_bundles(profile)
+    if bundle_ids:
+        install_bundles_for_init(
+            bundle_ids,
+            install_root,
+            non_interactive=non_interactive,
+        )
+
+
+@beartype
+def _install_bundle_list(install_arg: str, install_root: Path, non_interactive: bool) -> None:
+    """Parse comma-separated or 'all' and install bundles via module installer."""
+    bundle_ids = first_run_selection.resolve_install_bundles(install_arg)
+    if bundle_ids:
+        install_bundles_for_init(
+            bundle_ids,
+            install_root,
+            non_interactive=non_interactive,
+        )
+
+
 def _interactive_first_run_bundle_selection() -> list[str]:
     """Show first-run welcome and bundle selection; return list of canonical bundle ids to install (or empty)."""
     try:
@@ -486,6 +520,10 @@ def init_ide(
 
 @app.callback(invoke_without_command=True)
 @require(lambda repo: _is_valid_repo_path(repo), "Repo path must exist and be directory")
+@require(
+    lambda profile: profile is None or profile in VALID_PROFILES,
+    "profile must be one of: solo-developer, backlog-team, api-first-team, enterprise-full-stack",
+)
 @ensure(lambda result: result is None, "Command should return None")
 @beartype
 def init(
@@ -526,19 +564,32 @@ def init(
 
         if profile is not None or install is not None:
             try:
+                non_interactive = is_non_interactive()
                 if profile is not None:
-                    bundle_ids = first_run_selection.resolve_profile_bundles(profile)
-                else:
-                    bundle_ids = first_run_selection.resolve_install_bundles(install or "")
-                if bundle_ids:
-                    first_run_selection.install_bundles_for_init(
-                        bundle_ids,
+                    _install_profile_bundles(
+                        profile,
                         INIT_USER_MODULES_ROOT,
-                        non_interactive=is_non_interactive(),
+                        non_interactive=non_interactive,
+                    )
+                else:
+                    _install_bundle_list(
+                        install or "",
+                        INIT_USER_MODULES_ROOT,
+                        non_interactive=non_interactive,
                     )
             except ValueError as e:
                 console.print(f"[red]Error:[/red] {e}")
                 raise typer.Exit(1) from e
+        elif is_first_run(user_root=INIT_USER_MODULES_ROOT) and is_non_interactive():
+            console.print(
+                "[red]Error:[/red] In CI/CD (non-interactive) mode, first-run init requires "
+                "--profile or --install to select workflow bundles."
+            )
+            console.print(
+                "[dim]Example: specfact init --repo . --profile solo-developer "
+                "or specfact init --repo . --install all[/dim]"
+            )
+            raise typer.Exit(1)
         elif is_first_run(user_root=INIT_USER_MODULES_ROOT) and not is_non_interactive():
             try:
                 bundle_ids = _interactive_first_run_bundle_selection()

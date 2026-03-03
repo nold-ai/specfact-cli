@@ -115,6 +115,7 @@ If the user attempts to run a category group command (e.g., `specfact project`, 
 - **WHEN** the user runs any core command: `specfact init`, `specfact auth`, `specfact module`, `specfact upgrade`
 - **THEN** the command SHALL execute normally
 - **AND** SHALL NOT be gated by bundle installation state
+- **AND** auth commands SHALL remain available via `specfact auth` in this change
 
 ### Requirement: `specfact init --install all` still installs all five bundles
 

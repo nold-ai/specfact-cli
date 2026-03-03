@@ -56,6 +56,7 @@ def test_init_rejects_deprecated_disable_module_option(tmp_path: Path) -> None:
 def test_init_bootstrap_only_does_not_run_ide_setup(tmp_path: Path, monkeypatch) -> None:
     """Top-level init should not run template copy; it should stay bootstrap-only."""
 
+    monkeypatch.setattr("specfact_cli.modules.init.src.commands.is_first_run", lambda **_kwargs: False)
     monkeypatch.setattr(
         "specfact_cli.modules.init.src.commands.get_discovered_modules_for_state",
         lambda enable_ids=None, disable_ids=None: [
@@ -79,6 +80,7 @@ def test_init_bootstrap_only_does_not_run_ide_setup(tmp_path: Path, monkeypatch)
 def test_init_install_deps_runs_without_ide_template_copy(tmp_path: Path, monkeypatch) -> None:
     """Top-level init --install-deps installs dependencies without invoking IDE template copy."""
 
+    monkeypatch.setattr("specfact_cli.modules.init.src.commands.is_first_run", lambda **_kwargs: False)
     monkeypatch.setattr(
         "specfact_cli.modules.init.src.commands.get_discovered_modules_for_state",
         lambda enable_ids=None, disable_ids=None: [

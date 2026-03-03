@@ -48,6 +48,7 @@ First-run bundle selection examples:
 ```bash
 specfact init --profile solo-developer
 specfact init --install backlog,codebase
+specfact init --install all
 ```
 
 Marketplace bundle install examples:

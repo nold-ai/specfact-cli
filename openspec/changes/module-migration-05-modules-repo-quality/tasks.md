@@ -113,6 +113,12 @@ Ensure repo-root config files match specfact-cli so format, lint, type-check, an
 - [ ] 18.5.2 Update `proposal.md` Source Tracking to record test migration and quality parity complete
 - [ ] 18.5.3 Add spec delta or AGENTS.md section documenting test layout and quality parity contract for specfact-cli-modules
 
+### 18.6 Handoff for residual specfact-cli cleanup (explicit boundary)
+
+- [ ] 18.6.1 Produce a residual-failures list after bundle-test migration (items that are not bundle-scope and not fixable inside specfact-cli-modules).
+- [ ] 18.6.2 Link each residual item to a follow-up OpenSpec change created from migration-03 phase 20 (import-path migration, E2E topology updates, signing fixture hardening).
+- [ ] 18.6.3 Keep migration-05 acceptance criteria focused on modules-repo parity; do not block closure on unrelated specfact-cli legacy suite debt once handoff is complete.
+
 ---
 
 ## 19. Dependency decoupling in specfact-cli-modules

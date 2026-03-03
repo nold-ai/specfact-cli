@@ -45,6 +45,7 @@ def _resolve_modules_repo_root() -> Path:
 MODULES_REPO_ROOT = _resolve_modules_repo_root()
 BUNDLE_PACKAGES_ROOT = MODULES_REPO_ROOT / "packages"
 DEFAULT_REGISTRY_DIR = MODULES_REPO_ROOT / "registry"
+OFFICIAL_PUBLISHER_EMAIL = "hello@noldai.com"
 OFFICIAL_BUNDLES = [
     "specfact-project",
     "specfact-backlog",
@@ -145,6 +146,26 @@ def _run_sign_if_requested(manifest_path: Path, key_file: Path | None) -> bool:
     return result.returncode == 0
 
 
+def _update_manifest_integrity(
+    manifest_path: Path,
+    key_file: Path,
+    modules_repo_root: Path,
+    passphrase: str | None = None,
+) -> None:
+    """Recompute and write integrity checksum (and signature) so manifest matches bundle dir."""
+    script = Path(__file__).resolve().parent / "sign-modules.py"
+    if not script.exists():
+        raise FileNotFoundError(f"sign-modules.py not found: {script}")
+    cmd = [sys.executable, str(script), "--key-file", str(key_file), str(manifest_path.resolve())]
+    cmd.append("--payload-from-filesystem")
+    env = dict(os.environ)
+    if passphrase is not None:
+        env["SPECFACT_MODULE_PRIVATE_SIGN_KEY_PASSPHRASE"] = passphrase
+    result = subprocess.run(cmd, cwd=str(modules_repo_root), capture_output=True, text=True, env=env)
+    if result.returncode != 0:
+        raise RuntimeError(f"sign-modules.py failed (update integrity before pack): {result.stderr or result.stdout}")
+
+
 def _write_index_fragment(
     module_id: str,
     version: str,
@@ -161,6 +182,33 @@ def _write_index_fragment(
         "checksum_sha256": checksum,
     }
     out_path.write_text(yaml.dump(entry, default_flow_style=False, sort_keys=True), encoding="utf-8")
+
+
+@beartype
+@require(lambda manifest_path: manifest_path.exists() and manifest_path.is_file(), "Manifest file must exist")
+def _ensure_publisher_email(manifest_path: Path, manifest: dict) -> dict:
+    """Ensure manifest publisher has name and email; add default email for official publisher if missing. Returns manifest (possibly updated)."""
+    pub = manifest.get("publisher")
+    if isinstance(pub, str):
+        name = pub.strip()
+        pub = {"name": name} if name else None
+    if not isinstance(pub, dict):
+        return manifest
+    name = str(pub.get("name", "")).strip()
+    if not name:
+        return manifest
+    email = str(pub.get("email", "")).strip()
+    if email:
+        return manifest
+    email = os.environ.get("SPECFACT_PUBLISHER_EMAIL", "").strip()
+    if not email and name.lower() == "nold-ai":
+        email = OFFICIAL_PUBLISHER_EMAIL
+    if not email:
+        return manifest
+    manifest = dict(manifest)
+    manifest["publisher"] = {**pub, "name": name, "email": email}
+    _write_manifest(manifest_path, manifest)
+    return manifest
 
 
 @beartype
@@ -253,6 +301,7 @@ def publish_bundle(
     registry_dir: Path,
     bundle_packages_root: Path | None = None,
     bump_version: str | None = None,
+    passphrase: str | None = None,
 ) -> None:
     """Package, sign, verify, and publish single bundle into registry index."""
     effective_packages_root = bundle_packages_root if bundle_packages_root is not None else BUNDLE_PACKAGES_ROOT
@@ -264,6 +313,7 @@ def publish_bundle(
 
     manifest_path = bundle_dir / "module-package.yaml"
     manifest = _load_manifest(manifest_path)
+    manifest = _ensure_publisher_email(manifest_path, manifest)
     module_id = str(manifest.get("name", "")).strip()
     version = str(manifest.get("version", "")).strip()
     if bump_version:
@@ -273,6 +323,10 @@ def publish_bundle(
         print(f"{bundle_name}: version bumped to {version}")
     if not module_id or not version:
         raise ValueError("Bundle manifest must include name and version")
+
+    modules_repo_root = effective_packages_root.parent
+    _update_manifest_integrity(manifest_path, key_file, modules_repo_root, passphrase=passphrase)
+    manifest = _load_manifest(manifest_path)
 
     index_path = registry_dir / "index.json"
     if index_path.exists():
@@ -369,6 +423,17 @@ def main() -> int:
         help="Private key for signing (used with --sign or --bundle)",
     )
     parser.add_argument(
+        "--passphrase",
+        type=str,
+        default="",
+        help="Passphrase for encrypted signing key (avoids per-module prompt when --bundle; prefer env or --passphrase-stdin).",
+    )
+    parser.add_argument(
+        "--passphrase-stdin",
+        action="store_true",
+        help="Read signing key passphrase once from stdin (for --bundle all; no per-module prompt).",
+    )
+    parser.add_argument(
         "--index-fragment",
         type=Path,
         help="Write index.json module entry fragment to this file",
@@ -407,6 +472,20 @@ def main() -> int:
         if args.key_file is None:
             print("Error: --bundle requires --key-file", file=sys.stderr)
             return 1
+        passphrase = (args.passphrase or "").strip()
+        if not passphrase:
+            passphrase = os.environ.get("SPECFACT_MODULE_PRIVATE_SIGN_KEY_PASSPHRASE", "").strip()
+        if not passphrase:
+            passphrase = os.environ.get("SPECFACT_MODULE_SIGNING_PRIVATE_KEY_PASSPHRASE", "").strip()
+        if args.passphrase_stdin:
+            passphrase = sys.stdin.read().rstrip("\r\n") or passphrase
+        if not passphrase and sys.stdin.isatty():
+            try:
+                import getpass as _gp
+
+                passphrase = _gp.getpass("Signing key passphrase (used for all bundles): ")
+            except (EOFError, KeyboardInterrupt):
+                passphrase = ""
         modules_repo_dir = args.modules_repo_dir.resolve()
         bundle_packages_root = modules_repo_dir / "packages"
         registry_dir = args.registry_dir.resolve() if args.registry_dir is not None else modules_repo_dir / "registry"
@@ -414,7 +493,9 @@ def main() -> int:
         BUNDLE_PACKAGES_ROOT = bundle_packages_root
         bundles = OFFICIAL_BUNDLES if args.bundle == "all" else [args.bundle]
         for bundle_name in bundles:
-            publish_bundle(bundle_name, args.key_file, registry_dir, bump_version=args.bump_version)
+            publish_bundle(
+                bundle_name, args.key_file, registry_dir, bump_version=args.bump_version, passphrase=passphrase or None
+            )
             print(f"Published bundle: {bundle_name}")
         return 0
 
@@ -430,6 +511,7 @@ def main() -> int:
 
     manifest_path = module_dir / "module-package.yaml"
     manifest = _load_manifest(manifest_path)
+    manifest = _ensure_publisher_email(manifest_path, manifest)
     name = str(manifest.get("name", "")).strip()
     version = str(manifest.get("version", "")).strip()
     if not name or not version:

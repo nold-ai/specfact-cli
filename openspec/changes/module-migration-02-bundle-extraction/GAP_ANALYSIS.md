@@ -206,21 +206,21 @@ This verifies the bundle lifecycle (install, official-tier verify, dep resolutio
 
 ---
 
-## Gap 7 — PyPI publishing deferred without explicit change ownership (MINOR)
+## Gap 7 — Post-extraction cleanup ownership clarified (MINOR)
 
-**Location:** design.md Q1; migration-03 proposal
-**Severity:** Minor — deferred but not assigned
-**Status:** design.md says "defer to migration-03" but migration-03 proposal doesn't include it
+**Location:** design.md Q1; migration-03/05 handoff
+**Severity:** Minor — deferred scope boundary
+**Status:** ownership now assigned to migration-06 (repurposed)
 
 ### Finding
 
-`design.md` Q1 says: "Defer PyPI publishing to module-migration-03." But migration-03's "What Changes" does not include PyPI publishing. Without PyPI packages, `pip install specfact-codebase` doesn't work — only the marketplace registry path (`specfact module install nold-ai/specfact-codebase`) does.
+After bundle extraction and core slimming, residual non-core coupling may remain in specfact-cli core (for example models/utilities/helpers still only needed by extracted bundles). This cleanup scope was not explicitly owned in migration-03/05 task boundaries.
 
 ### Required action
 
-Either explicitly assign PyPI publishing to migration-03 (update its proposal) or create a dedicated change `module-migration-06-pypi-publishing` and add it to CHANGE_ORDER.md. Deferred-but-unassigned creates a permanent gap.
+Assign residual decoupling cleanup to a dedicated change: `module-migration-06-core-decoupling-cleanup`, sequenced after migration-03 with migration-05 quality baseline complete.
 
-**Captured as a note in proposal.md "Open Questions" and as a placeholder row in CHANGE_ORDER.md.**
+**Captured in CHANGE_ORDER.md as migration-06 repurposed scope.**
 
 ---
 
@@ -255,5 +255,5 @@ Add a "Bundle versioning policy" section to specfact-cli-modules `AGENTS.md` or 
 | 4. Sections 18–23 scope ambiguity | Important | New: module-migration-05 | Created migration-05 stub; marked 18–23 deferred in tasks.md |
 | 5. No quality baseline before migration-03 | Important | module-migration-05 + CHANGE_ORDER | Added migration-05 as prerequisite for migration-03 in CHANGE_ORDER.md |
 | 6. Gate lacks behavioral smoke test | Minor | migration-02 (17.8) | Added smoke test step to 17.8 checklist |
-| 7. PyPI publishing unassigned | Minor | Placeholder in CHANGE_ORDER.md | Added migration-06-pypi-publishing placeholder |
+| 7. Residual core decoupling cleanup unassigned | Minor | Assigned in CHANGE_ORDER.md | Repurposed migration-06 to core decoupling cleanup |
 | 8. No bundle version divergence policy | Minor | module-migration-05 (section 18.5.3) | Added task to migration-05 tasks.md |

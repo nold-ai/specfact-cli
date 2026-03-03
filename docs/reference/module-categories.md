@@ -75,7 +75,7 @@ Namespace mapping:
 
 Compatibility note:
 
-- Legacy `specfact_cli.modules.*` import paths remain as re-export shims during migration.
+- Flat top-level command shims were removed. Use category groups (`project`, `backlog`, `code`, `spec`, `govern`).
 
 ## First-Run Profiles
 
@@ -83,7 +83,7 @@ Compatibility note:
 
 - `solo-developer` -> `specfact-codebase`
 - `backlog-team` -> `specfact-backlog`, `specfact-project`, `specfact-codebase`
-- `api-first-team` -> `specfact-spec`, `specfact-codebase`
+- `api-first-team` -> `specfact-spec`, `specfact-codebase` (and `specfact-project` is auto-installed as a dependency)
 - `enterprise-full-stack` -> `specfact-project`, `specfact-backlog`, `specfact-codebase`, `specfact-spec`, `specfact-govern`
 
 Examples:
@@ -103,4 +103,4 @@ Before:
 After:
 
 - Core top-level commands plus grouped workflow families (`project`, `backlog`, `code`, `spec`, `govern`).
-- Backward-compatibility flat shims remain available during migration.
+- No backward-compatibility flat shims.

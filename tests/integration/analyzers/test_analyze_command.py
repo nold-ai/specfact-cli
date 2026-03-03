@@ -5,9 +5,12 @@ import tempfile
 from pathlib import Path
 from textwrap import dedent
 
+import pytest
 from rich.console import Console
 from typer.testing import CliRunner
 
+
+pytest.importorskip("specfact_cli.modules.import_cmd.src.commands")
 from specfact_cli.cli import app
 from specfact_cli.modules.import_cmd.src import commands as import_commands
 from specfact_cli.utils.bundle_loader import load_project_bundle

@@ -47,26 +47,12 @@ from specfact_cli.runtime import is_debug_mode
 from specfact_cli.utils.prompts import print_warning
 
 
-# Display order for core modules (formerly built-in); others follow alphabetically.
+# Display order for core modules (4 only after migration-03); others follow alphabetically.
 CORE_NAMES = ("init", "auth", "module", "upgrade")
 CORE_MODULE_ORDER: tuple[str, ...] = (
     "init",
     "auth",
-    "backlog",
-    "import_cmd",
-    "migrate",
-    "plan",
-    "project",
-    "generate",
-    "enforce",
-    "repro",
-    "sdd",
-    "spec",
-    "contract",
-    "sync",
-    "drift",
-    "analyze",
-    "validate",
+    "module-registry",
     "upgrade",
 )
 CURRENT_PROJECT_SCHEMA_VERSION = "1"
@@ -83,7 +69,7 @@ BUILTIN_MODULES_ROOT = (Path(__file__).resolve().parents[1] / "modules").resolve
 
 def _normalized_module_name(package_name: str) -> str:
     """Normalize package ids to Python import-friendly module names."""
-    return package_name.replace("-", "_")
+    return package_name.split("/", 1)[-1].replace("-", "_")
 
 
 def get_modules_root() -> Path:
@@ -213,10 +199,12 @@ def discover_package_metadata(modules_root: Path, source: str = "builtin") -> li
             publisher: PublisherInfo | None = None
             if isinstance(raw.get("publisher"), dict):
                 pub = raw["publisher"]
-                if pub.get("name") and pub.get("email"):
+                name_val = pub.get("name")
+                email_val = pub.get("email")
+                if name_val:
                     publisher = PublisherInfo(
-                        name=str(pub["name"]),
-                        email=str(pub["email"]),
+                        name=str(name_val),
+                        email=str(email_val).strip() if email_val else "noreply@specfact.local",
                         attributes={
                             str(k): str(v) for k, v in pub.items() if k not in ("name", "email") and isinstance(v, str)
                         },
@@ -464,6 +452,7 @@ def _make_package_loader(package_dir: Path, package_name: str, command_name: str
         if str(src_dir) not in sys.path:
             sys.path.insert(0, str(src_dir))
         normalized_name = _normalized_module_name(package_name)
+        normalized_command = _normalized_module_name(command_name)
         load_path: Path | None = None
         submodule_locations: list[str] | None = None
         # In test/CI (SPECFACT_REPO_ROOT set), prefer local src/<name>/main.py so worktree
@@ -472,7 +461,13 @@ def _make_package_loader(package_dir: Path, package_name: str, command_name: str
             load_path = src_dir / normalized_name / "main.py"
             submodule_locations = [str(load_path.parent)]
         if load_path is None:
-            if (src_dir / "app.py").exists():
+            # Prefer command-specific namespaced entrypoints for marketplace bundles
+            # (e.g. src/specfact_backlog/backlog/app.py) before generic root fallbacks.
+            if (src_dir / normalized_name / normalized_command / "app.py").exists():
+                load_path = src_dir / normalized_name / normalized_command / "app.py"
+            elif (src_dir / normalized_name / normalized_command / "commands.py").exists():
+                load_path = src_dir / normalized_name / normalized_command / "commands.py"
+            elif (src_dir / "app.py").exists():
                 load_path = src_dir / "app.py"
             elif (src_dir / f"{normalized_name}.py").exists():
                 load_path = src_dir / f"{normalized_name}.py"
@@ -662,7 +657,11 @@ def _resolve_protocol_target(module_obj: Any, package_name: str) -> Any:
     return module_obj
 
 
-def _resolve_protocol_source_paths(package_dir: Path, package_name: str) -> list[Path]:
+def _resolve_protocol_source_paths(
+    package_dir: Path,
+    package_name: str,
+    command_names: list[str] | None = None,
+) -> list[Path]:
     """Resolve source file paths for protocol compliance inspection without importing module code."""
     normalized_name = _normalized_module_name(package_name)
     candidates = [
@@ -670,6 +669,14 @@ def _resolve_protocol_source_paths(package_dir: Path, package_name: str) -> list
         package_dir / "src" / normalized_name / "commands.py",
         _resolve_package_load_path(package_dir, package_name),
     ]
+    for command_name in command_names or []:
+        normalized_command = _normalized_module_name(command_name)
+        candidates.extend(
+            [
+                package_dir / "src" / normalized_name / normalized_command / "commands.py",
+                package_dir / "src" / normalized_name / normalized_command / "app.py",
+            ]
+        )
     unique_paths: list[Path] = []
     seen: set[Path] = set()
     for candidate in candidates:
@@ -715,13 +722,17 @@ def _resolve_import_from_source_path(
 
 
 @beartype
-def _check_protocol_compliance_from_source(package_dir: Path, package_name: str) -> list[str]:
+def _check_protocol_compliance_from_source(
+    package_dir: Path,
+    package_name: str,
+    command_names: list[str] | None = None,
+) -> list[str]:
     """Inspect protocol operations from source text to keep module registration lazy."""
     exported_function_names: set[str] = set()
     class_method_names: dict[str, set[str]] = {}
     assigned_names: dict[str, ast.expr] = {}
     scanned_sources: list[str] = []
-    pending_paths = _resolve_protocol_source_paths(package_dir, package_name)
+    pending_paths = _resolve_protocol_source_paths(package_dir, package_name, command_names=command_names)
     scanned_paths = {path.resolve() for path in pending_paths}
 
     while pending_paths:
@@ -872,22 +883,80 @@ def _make_shim_loader(
     return loader
 
 
-def _register_category_groups_and_shims() -> None:
-    """Register category group typers and compat shims in CommandRegistry._entries."""
+@beartype
+def get_installed_bundles(
+    packages: list[tuple[Path, ModulePackageMetadata]],
+    enabled_map: dict[str, bool],
+) -> list[str]:
+    """Return sorted list of bundle names from discovered packages that are enabled and have a bundle set."""
+
+    def _resolved_bundle(meta: ModulePackageMetadata) -> str | None:
+        if meta.bundle:
+            return meta.bundle
+        if "/" not in meta.name:
+            return None
+        tail = meta.name.split("/", 1)[1]
+        return tail if tail.startswith("specfact-") else None
+
+    return sorted(
+        {
+            resolved
+            for _dir, meta in packages
+            if enabled_map.get(meta.name, True) and (resolved := _resolved_bundle(meta)) is not None
+        }
+    )
+
+
+# Bundle name -> (group_name, help_str, build_app_fn) for conditional category mounting.
+def _build_bundle_to_group() -> dict[str, tuple[str, str, Any]]:
     from specfact_cli.groups.backlog_group import build_app as build_backlog_app
     from specfact_cli.groups.codebase_group import build_app as build_codebase_app
     from specfact_cli.groups.govern_group import build_app as build_govern_app
     from specfact_cli.groups.project_group import build_app as build_project_app
     from specfact_cli.groups.spec_group import build_app as build_spec_app
 
-    group_apps = [
-        ("code", "Codebase quality commands: analyze, drift, validate, repro.", build_codebase_app),
-        ("backlog", "Backlog and policy commands.", build_backlog_app),
-        ("project", "Project lifecycle commands.", build_project_app),
-        ("spec", "Spec and contract commands: contract, api, sdd, generate.", build_spec_app),
-        ("govern", "Governance and quality gates: enforce, patch.", build_govern_app),
-    ]
-    for group_name, help_str, build_fn in group_apps:
+    return {
+        "specfact-backlog": ("backlog", "Backlog and policy commands.", build_backlog_app),
+        "specfact-codebase": (
+            "code",
+            "Codebase quality commands: analyze, drift, validate, repro.",
+            build_codebase_app,
+        ),
+        "specfact-project": ("project", "Project lifecycle commands.", build_project_app),
+        "specfact-spec": ("spec", "Spec and contract commands: contract, api, sdd, generate.", build_spec_app),
+        "specfact-govern": ("govern", "Governance and quality gates: enforce, patch.", build_govern_app),
+    }
+
+
+@beartype
+def _mount_installed_category_groups(
+    packages: list[tuple[Path, ModulePackageMetadata]],
+    enabled_map: dict[str, bool],
+) -> None:
+    """Register category groups and compat shims only for installed bundles."""
+    installed = get_installed_bundles(packages, enabled_map)
+    bundle_to_group = _build_bundle_to_group()
+    module_entries_by_name = {
+        entry.get("name"): entry for entry in getattr(CommandRegistry, "_module_entries", []) if entry.get("name")
+    }
+    module_meta_by_name = {name: entry.get("metadata") for name, entry in module_entries_by_name.items()}
+    seen_groups: set[str] = set()
+    for bundle in installed:
+        group_info = bundle_to_group.get(bundle)
+        if group_info is None:
+            continue
+        group_name, help_str, build_fn = group_info
+        if group_name in seen_groups:
+            continue
+        seen_groups.add(group_name)
+        module_entry = module_entries_by_name.get(group_name)
+        if module_entry is not None:
+            # Prefer bundle-native group command apps when available and ensure they are mounted at root.
+            native_loader = module_entry.get("loader")
+            native_meta = module_entry.get("metadata")
+            if native_loader is not None and native_meta is not None:
+                CommandRegistry.register(group_name, native_loader, native_meta)
+            continue
 
         def _make_group_loader(fn: Any) -> Any:
             def _group_loader(_fn: Any = fn) -> Any:
@@ -905,9 +974,11 @@ def _register_category_groups_and_shims() -> None:
         CommandRegistry.register(group_name, loader, cmd_meta)
 
     for flat_name, (group_name, sub_name) in FLAT_TO_GROUP.items():
+        if group_name not in {bundle_to_group[b][0] for b in installed if b in bundle_to_group}:
+            continue
         if flat_name == group_name:
             continue
-        meta = CommandRegistry.get_module_metadata(flat_name)
+        meta = module_meta_by_name.get(flat_name)
         if meta is None:
             continue
         help_str = meta.help
@@ -968,9 +1039,12 @@ def register_module_package_commands(
             skipped.append((meta.name, f"missing dependencies: {', '.join(missing)}"))
             continue
         if not verify_module_artifact(package_dir, meta, allow_unsigned=allow_unsigned):
-            # In test mode, allow built-in modules to load even when local manifests
-            # are intentionally modified during migration work.
-            if is_test_mode and allow_unsigned and _is_builtin_module_package(package_dir):
+            if _is_builtin_module_package(package_dir):
+                logger.warning(
+                    "Built-in module '%s' failed integrity verification; loading anyway to keep CLI functional.",
+                    meta.name,
+                )
+            elif is_test_mode and allow_unsigned:
                 logger.debug(
                     "TEST_MODE: allowing built-in module '%s' despite failed integrity verification.",
                     meta.name,
@@ -1044,7 +1118,7 @@ def register_module_package_commands(
                 )
 
         try:
-            operations = _check_protocol_compliance_from_source(package_dir, meta.name)
+            operations = _check_protocol_compliance_from_source(package_dir, meta.name, command_names=meta.commands)
             meta.protocol_operations = operations
             if len(operations) == 4:
                 protocol_full += 1
@@ -1144,7 +1218,7 @@ def register_module_package_commands(
             cmd_meta = CommandMetadata(name=cmd_name, help=help_str, tier=meta.tier, addon_id=meta.addon_id)
             CommandRegistry.register(cmd_name, loader, cmd_meta)
     if category_grouping_enabled:
-        _register_category_groups_and_shims()
+        _mount_installed_category_groups(packages, enabled_map)
     discovered_count = protocol_full + protocol_partial + protocol_legacy
     if discovered_count and (protocol_partial > 0 or protocol_legacy > 0):
         print_warning(

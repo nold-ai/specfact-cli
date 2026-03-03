@@ -85,9 +85,11 @@ These are derived extensions of the same 2026-02-15 plan and are required to ope
 | module-migration | 01 | module-migration-01-categorize-and-group | [#315](https://github.com/nold-ai/specfact-cli/issues/315) | #215 ✅ (marketplace-02) |
 | module-migration | 02 | module-migration-02-bundle-extraction | [#316](https://github.com/nold-ai/specfact-cli/issues/316) | module-migration-01 ✅ |
 | module-migration | 03 | module-migration-03-core-slimming | [#317](https://github.com/nold-ai/specfact-cli/issues/317) | module-migration-02; migration-05 sections 18-22 (tests, decoupling, docs, pipeline/config) must precede deletion |
-| module-migration | 04 | module-migration-04-remove-flat-shims | [#330](https://github.com/nold-ai/specfact-cli/issues/330) | module-migration-01; see note on overlap with migration-03 (tasks.md 17.9.1) |
-| module-migration | 05 | module-migration-05-modules-repo-quality | [#334](https://github.com/nold-ai/specfact-cli/issues/334) | module-migration-02; sections 18-22 must precede migration-03 |
-| module-migration | 06 | module-migration-06-pypi-publishing (placeholder) | TBD | module-migration-03 (bundles must be installable before PyPI presence matters) |
+| module-migration | 04 | module-migration-04-remove-flat-shims | [#330](https://github.com/nold-ai/specfact-cli/issues/330) | module-migration-01; shim-removal scope only (no broad legacy test migration) |
+| module-migration | 05 | module-migration-05-modules-repo-quality | [#334](https://github.com/nold-ai/specfact-cli/issues/334) | module-migration-02; sections 18-22 must precede migration-03; owns bundle-test migration to modules repo |
+| module-migration | 06 | module-migration-06-core-decoupling-cleanup | [#338](https://github.com/nold-ai/specfact-cli/issues/338) | module-migration-03; migration-05 bundle-parity baseline (remove remaining non-core coupling in specfact-cli core) |
+| module-migration | 07 | module-migration-07-test-migration-cleanup | [#339](https://github.com/nold-ai/specfact-cli/issues/339) | migration-03 phase 20 handoff; migration-04 and migration-05 residual specfact-cli test debt |
+| backlog-auth | 01 | backlog-auth-01-backlog-auth-commands | TBD | module-migration-03 (central auth interface in core; auth removed from core) |
 
 ### Cross-cutting foundations (no hard dependencies — implement early)
 
@@ -337,7 +339,7 @@ Dependencies flow left-to-right; a wave may start once all its hard blockers are
   - ceremony-cockpit-01 ✅ (probes installed backlog-* modules at runtime; no hard deps but best after Wave 3)
   - **module-migration-05-modules-repo-quality** (needs module-migration-02; sections 18-22 must land **before or simultaneously with** module-migration-03): quality tooling, tests, dependency decoupling, docs, pipeline/config for specfact-cli-modules
   - module-migration-03-core-slimming (needs module-migration-02 AND migration-05 sections 18-22; removes bundled modules from core; see tasks.md 17.9 for proposal consistency requirements before implementation starts)
-  - **module-migration-06-pypi-publishing** (placeholder; needs module-migration-03; publishes bundle packages to PyPI)
+  - **module-migration-06-core-decoupling-cleanup** (needs module-migration-03 + migration-05 baseline; removes residual non-core components/couplings from specfact-cli core, e.g. models/utilities tied only to extracted modules)
 
 - **Wave 5 — Foundations for business-first chain** (architecture integration):
   - profile-01

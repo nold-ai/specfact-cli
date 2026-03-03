@@ -234,6 +234,13 @@ smart-test-e2e = "python tools/smart_test_coverage.py run --level e2e {args}"
 smart-test-full = "python tools/smart_test_coverage.py run --level full {args}"
 smart-test-auto = "python tools/smart_test_coverage.py run --level auto {args}"
 
+# Module migration pre-deletion gate
+verify-removal-gate = [
+    "python scripts/verify-bundle-published.py --modules project,plan,import_cmd,sync,migrate,backlog,policy_engine,analyze,drift,validate,repro,contract,spec,sdd,generate,enforce,patch_mode",
+    "python scripts/verify-modules-signature.py --require-signature",
+]
+export-change-github = "python scripts/export-change-to-github.py {args}"
+
 # Contract-First Smart Test System Scripts
 contract-test = "python tools/contract_first_smart_test.py run --level auto {args}"
 contract-test-contracts = "python tools/contract_first_smart_test.py contracts"
