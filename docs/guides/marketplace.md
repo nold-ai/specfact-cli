@@ -15,6 +15,8 @@ SpecFact publishes official workflow bundles in the dedicated modules repository
 
 ## Official Bundles
 
+These bundles are the primary installation path for workflow commands. Fresh installs start with lean core commands only (`init`, `auth`, `module`, `upgrade`).
+
 Install commands:
 
 ```bash
@@ -52,6 +54,27 @@ Some bundles declare bundle-level dependencies that are auto-installed:
 - `nold-ai/specfact-govern` auto-installs `nold-ai/specfact-project`
 
 If a dependency bundle is already installed, installer skips it and continues.
+
+## First-Run and Refresh
+
+On first run, select bundles with profiles or explicit install:
+
+```bash
+specfact init --profile solo-developer
+specfact init --profile enterprise-full-stack
+specfact init --install backlog,codebase
+specfact init --install all
+```
+
+When you see a bundled-module refresh warning, reinitialize modules:
+
+```bash
+# project scope
+specfact module init --scope project
+
+# user scope
+specfact module init
+```
 
 ## See Also
 

@@ -34,11 +34,10 @@ pip install -U specfact-cli
 ### Bootstrap and IDE Setup
 
 ```bash
-# Bootstrap module registry and local config (~/.specfact)
-specfact init
-
-# First-run bundle selection (examples)
+# First run: install workflow bundles (required)
 specfact init --profile solo-developer
+
+# Other first-run options
 specfact init --install backlog,codebase
 specfact init --install all
 
@@ -201,6 +200,13 @@ specfact module install nold-ai/specfact-backlog
 specfact module install nold-ai/specfact-codebase
 specfact module install nold-ai/specfact-spec
 specfact module install nold-ai/specfact-govern
+```
+
+If startup warns that bundled modules are missing or outdated, run:
+
+```bash
+specfact module init --scope project
+specfact module init
 ```
 
 Official bundles are verified as `official` tier (`nold-ai` publisher). Some bundles

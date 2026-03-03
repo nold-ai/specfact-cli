@@ -37,6 +37,9 @@ MODULE_DOWNLOAD_CACHE_ROOT = Path.home() / ".specfact" / "downloads" / "cache"
 _IGNORED_MODULE_DIR_NAMES = {"__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache", "logs"}
 _IGNORED_MODULE_FILE_SUFFIXES = {".pyc", ".pyo"}
 REGISTRY_ID_FILE = ".specfact-registry-id"
+# Installer-written runtime files; excluded from payload so post-install verification matches
+INSTALL_VERIFIED_CHECKSUM_FILE = ".specfact-install-verified-checksum"
+_IGNORED_MODULE_FILE_NAMES = {REGISTRY_ID_FILE, INSTALL_VERIFIED_CHECKSUM_FILE}
 _MARKETPLACE_NAMESPACE_PATTERN = re.compile(r"^[a-z][a-z0-9-]*/[a-z][a-z0-9-]+$")
 
 
@@ -250,7 +253,7 @@ def _module_artifact_payload(package_dir: Path) -> bytes:
 
     entries: list[str] = []
     for path in sorted(
-        (p for p in package_dir.rglob("*") if p.is_file()),
+        (p for p in package_dir.rglob("*") if p.is_file() and p.name not in _IGNORED_MODULE_FILE_NAMES),
         key=lambda p: p.relative_to(package_dir).as_posix(),
     ):
         rel = path.relative_to(package_dir).as_posix()
@@ -271,6 +274,8 @@ def _module_artifact_payload_stable(package_dir: Path) -> bytes:
     def _is_hashable(path: Path) -> bool:
         rel = path.relative_to(package_dir)
         if any(part in _IGNORED_MODULE_DIR_NAMES for part in rel.parts):
+            return False
+        if path.name in _IGNORED_MODULE_FILE_NAMES:
             return False
         return path.suffix.lower() not in _IGNORED_MODULE_FILE_SUFFIXES
 
@@ -301,6 +306,8 @@ def _module_artifact_payload_signed(package_dir: Path) -> bytes:
     def _is_hashable(path: Path) -> bool:
         rel = path.resolve().relative_to(module_dir_resolved)
         if any(part in _IGNORED_MODULE_DIR_NAMES for part in rel.parts):
+            return False
+        if path.name in _IGNORED_MODULE_FILE_NAMES:
             return False
         return path.suffix.lower() not in _IGNORED_MODULE_FILE_SUFFIXES
 
@@ -527,6 +534,12 @@ def verify_module_artifact(
             return False
         return True
 
+    if (package_dir / REGISTRY_ID_FILE).exists() and _integrity_debug_details_enabled():
+        logger.debug(
+            "Excluding installer-written %s from verification payload",
+            REGISTRY_ID_FILE,
+        )
+
     verification_payload: bytes
     try:
         signed_payload = _module_artifact_payload_signed(package_dir)
@@ -552,7 +565,44 @@ def verify_module_artifact(
                     logger.warning("Module %s: Integrity check failed: %s", meta.name, exc)
                 else:
                     logger.debug("Module %s: Integrity check failed: %s", meta.name, exc)
-                return False
+                install_checksum_file = package_dir / INSTALL_VERIFIED_CHECKSUM_FILE
+                if install_checksum_file.is_file():
+                    try:
+                        legacy_payload = _module_artifact_payload(package_dir)
+                        computed = f"sha256:{hashlib.sha256(legacy_payload).hexdigest()}"
+                        stored = install_checksum_file.read_text(encoding="utf-8").strip()
+                        if stored and computed == stored:
+                            if _integrity_debug_details_enabled():
+                                logger.debug(
+                                    "Module %s: accepted via install-time verified checksum",
+                                    meta.name,
+                                )
+                            verification_payload = legacy_payload
+                        else:
+                            if _integrity_debug_details_enabled():
+                                logger.debug(
+                                    "Module %s: install-verified checksum mismatch (computed=%s, stored=%s)",
+                                    meta.name,
+                                    computed[:32] + "...",
+                                    stored[:32] + "..." if len(stored) > 32 else stored,
+                                )
+                            return False
+                    except (OSError, ValueError) as fallback_exc:
+                        if _integrity_debug_details_enabled():
+                            logger.debug(
+                                "Module %s: install-verified fallback error: %s",
+                                meta.name,
+                                fallback_exc,
+                            )
+                        return False
+                else:
+                    if _integrity_debug_details_enabled():
+                        logger.debug(
+                            "Module %s: no %s (reinstall to write it)",
+                            meta.name,
+                            INSTALL_VERIFIED_CHECKSUM_FILE,
+                        )
+                    return False
 
     if meta.integrity.signature:
         key_material = _load_public_key_pem(public_key_pem)
@@ -610,6 +660,17 @@ def install_module(
     if manifest_path.exists() and not reinstall:
         logger.debug("Module already installed (%s)", module_name)
         return final_path
+
+    if reinstall:
+        from specfact_cli.registry.marketplace_client import get_modules_branch
+
+        get_modules_branch.cache_clear()
+        for stale in MODULE_DOWNLOAD_CACHE_ROOT.glob(f"{module_id.replace('/', '--')}--*.tar.gz"):
+            try:
+                stale.unlink()
+                logger.debug("Cleared cached archive %s for reinstall", stale.name)
+            except OSError:
+                pass
 
     archive_path = _download_archive_with_cache(module_id, version=version)
 
@@ -702,6 +763,10 @@ def install_module(
         ):
             raise ValueError("Downloaded module failed integrity verification")
 
+        install_verified_checksum = (
+            f"sha256:{hashlib.sha256(_module_artifact_payload(extracted_module_dir)).hexdigest()}"
+        )
+
         staged_path = target_root / f".{module_name}.tmp-install"
         if staged_path.exists():
             shutil.rmtree(staged_path)
@@ -712,6 +777,7 @@ def install_module(
                 shutil.rmtree(final_path)
             staged_path.replace(final_path)
             (final_path / REGISTRY_ID_FILE).write_text(module_id, encoding="utf-8")
+            (final_path / INSTALL_VERIFIED_CHECKSUM_FILE).write_text(install_verified_checksum, encoding="utf-8")
         except Exception:
             if staged_path.exists():
                 shutil.rmtree(staged_path)

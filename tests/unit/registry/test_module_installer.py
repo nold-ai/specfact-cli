@@ -367,6 +367,58 @@ def test_verify_module_artifact_ignores_runtime_cache_files(tmp_path: Path) -> N
     assert module_installer.verify_module_artifact(module_dir, metadata, allow_unsigned=False) is True
 
 
+def test_verify_module_artifact_ignores_installer_written_registry_id_file(
+    tmp_path: Path,
+) -> None:
+    """Post-install dir contains .specfact-registry-id; verification must still pass."""
+    module_dir = tmp_path / "secure"
+    (module_dir / "src").mkdir(parents=True)
+    manifest = module_dir / "module-package.yaml"
+    source = module_dir / "src" / "main.py"
+    manifest.write_text("name: secure\nversion: '0.1.0'\ncommands: [secure]\n", encoding="utf-8")
+    source.write_text("print('v1')\n", encoding="utf-8")
+
+    payload = module_installer._module_artifact_payload(module_dir)
+    checksum = f"sha256:{__import__('hashlib').sha256(payload).hexdigest()}"
+    metadata = ModulePackageMetadata(
+        name="secure",
+        version="0.1.0",
+        commands=["secure"],
+        integrity=IntegrityInfo(checksum=checksum),
+    )
+
+    registry_id_file = module_dir / module_installer.REGISTRY_ID_FILE
+    registry_id_file.write_text("nold-ai/specfact-backlog", encoding="utf-8")
+
+    assert module_installer.verify_module_artifact(module_dir, metadata, allow_unsigned=False) is True
+
+
+def test_verify_module_artifact_accepts_install_verified_checksum_fallback(
+    tmp_path: Path,
+) -> None:
+    """When manifest checksum does not match (e.g. different sign tool), accept if .specfact-install-verified-checksum matches."""
+    module_dir = tmp_path / "secure"
+    (module_dir / "src").mkdir(parents=True)
+    manifest = module_dir / "module-package.yaml"
+    source = module_dir / "src" / "main.py"
+    manifest.write_text("name: secure\nversion: '0.1.0'\ncommands: [secure]\n", encoding="utf-8")
+    source.write_text("print('v1')\n", encoding="utf-8")
+
+    payload = module_installer._module_artifact_payload(module_dir)
+    correct_checksum = f"sha256:{__import__('hashlib').sha256(payload).hexdigest()}"
+    metadata = ModulePackageMetadata(
+        name="secure",
+        version="0.1.0",
+        commands=["secure"],
+        integrity=IntegrityInfo(checksum="sha256:0000000000000000000000000000000000000000000000000000000000000000"),
+    )
+
+    (module_dir / module_installer.REGISTRY_ID_FILE).write_text("nold-ai/specfact-backlog", encoding="utf-8")
+    (module_dir / module_installer.INSTALL_VERIFIED_CHECKSUM_FILE).write_text(correct_checksum, encoding="utf-8")
+
+    assert module_installer.verify_module_artifact(module_dir, metadata, allow_unsigned=False) is True
+
+
 def test_verify_module_artifact_fallback_does_not_emit_info_in_normal_mode(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:

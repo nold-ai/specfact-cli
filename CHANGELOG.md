@@ -19,16 +19,26 @@ All notable changes to this project will be documented in this file.
 - Bundle dependency auto-install in module installer: installing `nold-ai/specfact-spec` or `nold-ai/specfact-govern` now auto-installs `nold-ai/specfact-project` when missing.
 - Bundle publishing mode in `scripts/publish-module.py` (`--bundle` and `--modules-repo-dir`) for packaging/signing/index updates against the dedicated modules repository.
 - New marketplace bundles guide: `docs/guides/marketplace.md`.
+- Core-slimming verification gate: `scripts/verify-bundle-published.py` plus `hatch run verify-removal-gate` for signed-bundle publication checks before source deletion.
+- Core-slimming integration and E2E coverage: `tests/integration/test_core_slimming.py` and `tests/e2e/test_core_slimming_e2e.py`.
+- GitHub change-export helper: `scripts/export-change-to-github.py` and hatch alias `hatch run export-change-github -- ...` for `sync bridge` exports with optional in-place issue updates.
 
 ### Changed
 
 - Module source relocation to bundle namespaces with compatibility shims: legacy `specfact_cli.modules.*` imports now re-export from `specfact_<bundle>.*` namespaces during migration.
 - Official module install output now explicitly confirms verification status (`Verified: official (nold-ai)`).
 - Documentation updates across getting-started, docs landing page, module categories, marketplace guides, layout navigation, and root README to reflect marketplace-distributed official bundles.
+- Core help/registry behavior now mounts category groups only for installed bundles, preventing non-installed groups from appearing at top level.
+- Marketplace package loader now resolves namespaced command entrypoints (`src/<package>/<command>/app.py`) for installed modules.
+- Installed bundle detection now infers `specfact-*` bundle IDs from namespaced module names when manifest `bundle` metadata is absent.
 
 ### Deprecated
 
 - Legacy flat import paths under `specfact_cli.modules.*` are deprecated in favor of bundle namespaces (`specfact_project.*`, `specfact_backlog.*`, `specfact_codebase.*`, `specfact_spec.*`, `specfact_govern.*`) and are planned for removal in the next major release.
+
+### Migration
+
+- Continue using `0.40.0` in this branch; migration-03 closeout updates are tracked under this same release line (no new version section added yet).
 
 ---
 

@@ -2,11 +2,11 @@
 
 ## Purpose
 
-Defines the behaviour of the slimmed `specfact-cli` core package after the 17 non-core module directories are removed from `src/specfact_cli/modules/` and `pyproject.toml`. Covers the installed wheel contents, the `specfact --help` output on a fresh install, category group mount behaviour when bundles are absent, and the bootstrap registration contract for the 4 core modules only.
+Defines the behaviour of the slimmed `specfact-cli` core package after the 17 non-core module directories are removed from `src/specfact_cli/modules/` and `pyproject.toml`. Covers the installed wheel contents, the `specfact --help` output on a fresh install, category group mount behaviour when bundles are absent, and the bootstrap registration contract for the **4** core modules in this change (`init`, `auth`, `module_registry`, `upgrade`). Auth removal is deferred to `backlog-auth-01-backlog-auth-commands`.
 
 ## ADDED Requirements
 
-### Requirement: The installed specfact-cli wheel contains only the 4 core module directories
+### Requirement: The installed specfact-cli wheel contains only the 4 core module directories in this change
 
 After this change, the `specfact-cli` wheel SHALL include module source only for: `init`, `auth`, `module_registry`, `upgrade`. The remaining 17 module directories (project, plan, import_cmd, sync, migrate, backlog, policy_engine, analyze, drift, validate, repro, contract, spec, sdd, generate, enforce, patch_mode) SHALL NOT be present in the installed package.
 
@@ -21,7 +21,7 @@ After this change, the `specfact-cli` wheel SHALL include module source only for
 
 - **GIVEN** the updated `pyproject.toml`
 - **WHEN** `[tool.hatch.build.targets.wheel] packages` is inspected
-- **THEN** only the 4 core module source paths SHALL be listed
+- **THEN** only the 4 core module source paths SHALL be listed (`init`, `auth`, `module_registry`, `upgrade`)
 - **AND** no path matching `src/specfact_cli/modules/{project,plan,import_cmd,sync,migrate,backlog,policy_engine,analyze,drift,validate,repro,contract,spec,sdd,generate,enforce,patch_mode}` SHALL appear
 
 #### Scenario: setup.py is in sync with pyproject.toml

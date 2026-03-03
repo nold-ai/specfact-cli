@@ -43,14 +43,30 @@ pip install specfact-cli
 
 **Optional**: For enhanced graph-based dependency analysis, see [Enhanced Analysis Dependencies](../installation/enhanced-analysis-dependencies.md).
 
-**After installation**: Set up IDE integration for interactive mode:
+**After installation (required)**: select workflow bundles on first run:
 
 ```bash
 # Navigate to your project
 cd /path/to/your/project
 
+# Required on first run
+specfact init --profile solo-developer
+
+# Other valid profile presets
+specfact init --profile backlog-team
+specfact init --profile api-first-team
+specfact init --profile enterprise-full-stack
+
+# Or explicit bundle selection
+specfact init --install backlog,codebase
+specfact init --install all
+```
+
+Then set up IDE integration:
+
+```bash
 # Initialize IDE integration (one-time per project)
-specfact init
+specfact init ide
 
 # Or specify IDE explicitly
 specfact init ide --ide cursor
@@ -150,8 +166,8 @@ SpecFact CLI supports two operational modes:
   - May show 0 features for simple test cases (AST limitations)
   - Best for: CI/CD, quick testing, one-off commands
 
-- **Interactive AI Assistant Mode** (pip + specfact init): Enhanced semantic understanding
-  - Requires `pip install specfact-cli` and `specfact init`
+- **Interactive AI Assistant Mode** (pip + `specfact init --profile ...`): Enhanced semantic understanding
+  - Requires `pip install specfact-cli` and first-run bundle selection (`--profile` or `--install`)
   - Better feature detection and semantic understanding
   - IDE integration with slash commands
   - Automatically uses IDE workspace (no `--repo .` needed)
@@ -169,6 +185,49 @@ uvx specfact-cli@latest import from-code my-project --repo .
 ```
 
 **Note**: Mode is auto-detected based on whether `specfact` command is available and IDE integration is set up.
+
+### Installed Command Topology
+
+Fresh install exposes only core commands:
+
+- `specfact init`
+- `specfact auth`
+- `specfact module`
+- `specfact upgrade`
+
+Category groups appear after bundle installation:
+
+- `specfact project ...`
+- `specfact backlog ...`
+- `specfact code ...`
+- `specfact spec ...`
+- `specfact govern ...`
+
+Profile outcomes:
+
+| Profile | Installed bundles | Available groups |
+|---|---|---|
+| `solo-developer` | `specfact-codebase` | `code` |
+| `backlog-team` | `specfact-project`, `specfact-backlog`, `specfact-codebase` | `project`, `backlog`, `code` |
+| `api-first-team` | `specfact-spec`, `specfact-codebase` (+`specfact-project` dependency) | `project`, `code`, `spec` |
+| `enterprise-full-stack` | all five bundles | `project`, `backlog`, `code`, `spec`, `govern` |
+
+### Upgrading from Pre-Slimming Versions
+
+If you upgraded from a version where workflow modules were bundled in core, reinstall/refresh bundled modules:
+
+```bash
+specfact module init --scope project
+specfact module init
+```
+
+If CI/CD is non-interactive, ensure your bootstrap includes profile/install selection:
+
+```bash
+specfact init --profile enterprise-full-stack
+# or
+specfact init --install all
+```
 
 ### For Greenfield Projects
 

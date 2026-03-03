@@ -118,13 +118,11 @@ def test_fetch_all_indexes_returns_list_of_indexes_by_priority() -> None:
             {"id": "official", "url": "https://official/index.json", "priority": 1, "trust": "always"},
             {"id": "custom", "url": "https://custom/index.json", "priority": 2, "trust": "prompt"},
         ]
-        with patch("specfact_cli.registry.custom_registries.requests.get") as mock_get:
-            mock_get.return_value.status_code = 200
-            mock_get.return_value.json.side_effect = [
+        with patch("specfact_cli.registry.marketplace_client.fetch_registry_index") as mock_fetch:
+            mock_fetch.side_effect = [
                 {"modules": [{"id": "specfact/backlog"}]},
                 {"modules": [{"id": "acme/backlog-pro"}]},
             ]
-            mock_get.return_value.raise_for_status = lambda: None
             result = fetch_all_indexes()
     assert len(result) == 2
     assert result[0][0] == "official"
@@ -159,3 +157,17 @@ def test_trust_level_enforcement_always_prompt_never() -> None:
         assert trusts.get("a") == "always"
         assert trusts.get("b") == "prompt"
         assert trusts.get("c") == "never"
+
+
+def test_list_registries_crosshair_runtime_returns_official_only(monkeypatch) -> None:
+    """CrossHair runtime should avoid filesystem reads and return only official entry."""
+    monkeypatch.setenv("SPECFACT_CROSSHAIR_ANALYSIS", "true")
+    result = list_registries()
+    assert len(result) == 1
+    assert result[0]["id"] == "official"
+
+
+def test_fetch_all_indexes_crosshair_runtime_returns_empty(monkeypatch) -> None:
+    """CrossHair runtime should avoid network index fetches."""
+    monkeypatch.setenv("SPECFACT_CROSSHAIR_ANALYSIS", "true")
+    assert fetch_all_indexes() == []

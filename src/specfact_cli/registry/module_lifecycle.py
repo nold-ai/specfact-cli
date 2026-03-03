@@ -12,6 +12,7 @@ from rich.text import Text
 from specfact_cli import __version__
 from specfact_cli.registry.help_cache import run_discovery_and_write_cache
 from specfact_cli.registry.module_discovery import discover_all_modules
+from specfact_cli.registry.module_installer import REGISTRY_ID_FILE
 from specfact_cli.registry.module_packages import (
     discover_all_package_metadata,
     expand_disable_with_dependents,
@@ -42,12 +43,15 @@ def get_modules_with_state(
     modules_list: list[dict[str, Any]] = []
     for entry in discovered:
         publisher_name = entry.metadata.publisher.name if entry.metadata.publisher else "unknown"
+        source = entry.source
+        if source == "user" and (entry.package_dir / REGISTRY_ID_FILE).exists():
+            source = "marketplace"
         modules_list.append(
             {
                 "id": entry.metadata.name,
                 "version": entry.metadata.version,
                 "enabled": enabled_map.get(entry.metadata.name, True),
-                "source": entry.source,
+                "source": source,
                 "official": bool(publisher_name.strip().lower() == "nold-ai"),
                 "publisher": publisher_name,
             }

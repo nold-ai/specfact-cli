@@ -14,6 +14,7 @@ from rich.table import Table
 from specfact_cli.modules import module_io_shim
 from specfact_cli.registry.alias_manager import create_alias, list_aliases, remove_alias
 from specfact_cli.registry.custom_registries import add_registry, fetch_all_indexes, list_registries, remove_registry
+from specfact_cli.registry.marketplace_client import fetch_registry_index
 from specfact_cli.registry.module_discovery import discover_all_modules
 from specfact_cli.registry.module_installer import (
     USER_MODULES_ROOT,
@@ -103,6 +104,11 @@ def install(
         "--force",
         help="Force install even if dependency resolution reports conflicts",
     ),
+    reinstall: bool = typer.Option(
+        False,
+        "--reinstall",
+        help="Reinstall even if module is already present (e.g. to refresh integrity metadata)",
+    ),
 ) -> None:
     """Install a module from bundled artifacts or marketplace registry."""
     scope_normalized = scope.strip().lower()
@@ -123,7 +129,7 @@ def install(
         raise typer.Exit(1)
 
     requested_name = normalized.split("/", 1)[1]
-    if (target_root / requested_name / "module-package.yaml").exists():
+    if (target_root / requested_name / "module-package.yaml").exists() and not reinstall:
         console.print(f"[yellow]Module '{requested_name}' is already installed in {target_root}.[/yellow]")
         return
 
@@ -164,6 +170,7 @@ def install(
         installed_path = install_module(
             normalized,
             version=version,
+            reinstall=reinstall,
             install_root=target_root,
             trust_non_official=trust_non_official,
             non_interactive=is_non_interactive(),
@@ -637,6 +644,12 @@ def list_modules(
         "--show-bundled-available",
         help="Show bundled modules available in package artifacts but not installed in active roots",
     ),
+    show_marketplace: bool = typer.Option(
+        False,
+        "--marketplace",
+        "--available",
+        help="Show modules available from the marketplace registry (install with specfact module install <id>)",
+    ),
 ) -> None:
     """List installed modules with trust labels and optional origin details."""
     all_modules = get_modules_with_state()
@@ -644,6 +657,44 @@ def list_modules(
     if source:
         modules = [m for m in modules if str(m.get("source", "")) == source]
     render_modules_table(console, modules, show_origin=show_origin)
+
+    if show_marketplace:
+        index = fetch_registry_index()
+        if index is None:
+            console.print(
+                "[yellow]Marketplace registry unavailable (offline or network error). "
+                "Check connectivity or try again later.[/yellow]"
+            )
+        else:
+            registry_modules = index.get("modules") or []
+            if not isinstance(registry_modules, list):
+                registry_modules = []
+            if not registry_modules:
+                console.print("[dim]No modules listed in the marketplace registry.[/dim]")
+            else:
+                rows = []
+                for entry in registry_modules:
+                    if not isinstance(entry, dict):
+                        continue
+                    mod_id = str(entry.get("id", "")).strip()
+                    if not mod_id:
+                        continue
+                    version = str(entry.get("latest_version", "")).strip() or str(entry.get("version", "")).strip()
+                    desc = str(entry.get("description", "")).strip() if entry.get("description") else ""
+                    rows.append((mod_id, version, desc))
+                rows.sort(key=lambda r: r[0].lower())
+                table = Table(title="Marketplace Modules Available")
+                table.add_column("Module", style="cyan")
+                table.add_column("Version", style="magenta")
+                table.add_column("Description", style="white")
+                for mod_id, version, desc in rows:
+                    table.add_row(mod_id, version, desc)
+                console.print(table)
+                console.print(
+                    "[dim]Install: specfact module install <module-id>[/dim]\n"
+                    "[dim]Or use a profile: specfact init --profile solo-developer|backlog-team|api-first-team|enterprise-full-stack[/dim]"
+                )
+        return
 
     bundled = get_bundled_module_metadata()
     installed_ids = {str(module.get("id", "")).strip() for module in all_modules}
@@ -654,6 +705,7 @@ def list_modules(
                 "[dim]Bundled modules are available but not installed. "
                 "Use `specfact module list --show-bundled-available` to inspect them.[/dim]"
             )
+        console.print("[dim]See modules available from the marketplace: specfact module list --marketplace[/dim]")
         return
 
     if not available:

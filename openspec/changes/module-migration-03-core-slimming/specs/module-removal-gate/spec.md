@@ -74,7 +74,7 @@ The gate script is a mandatory pre-flight check. The module source deletion MUST
 - **GIVEN** the developer is ready to commit the deletion of 17 module directories
 - **WHEN** they run the pre-deletion checklist:
   1. `python scripts/verify-bundle-published.py --modules project,plan,import_cmd,sync,migrate,backlog,policy_engine,analyze,drift,validate,repro,contract,spec,sdd,generate,enforce,patch_mode`
-  2. `hatch run ./scripts/verify-modules-signature.py --require-signature` (for remaining 4 core modules)
+  2. `hatch run ./scripts/verify-modules-signature.py --require-signature` (for remaining 4 core modules in this change)
 - **THEN** both commands SHALL exit 0 before any `git add` of deleted files is permitted
 - **AND** the developer SHALL include the gate script output in `openspec/changes/module-migration-03-core-slimming/TDD_EVIDENCE.md` as pre-deletion evidence
 

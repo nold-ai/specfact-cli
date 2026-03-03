@@ -12,6 +12,7 @@ TDD/SDD order enforced. Version series: **0.40.x**.
 - [ ] 2.1 Add spec delta under `specs/category-command-groups/`: when `category_grouping_enabled` is true, root CLI SHALL list only core commands (init, auth, module, upgrade) and the five category groups (code, backlog, project, spec, govern). No flat shim commands.
 - [ ] 2.2 Update or add tests that assert root help contains only core + groups when grouping enabled; remove or rewrite tests that assert flat shim deprecation or `specfact validate --help` success for shim.
 - [ ] 2.3 Run tests and capture **failing** result (shims still present) in `TDD_EVIDENCE.md`.
+- [ ] 2.4 Scope note: restrict to shim-removal-focused tests in `specfact-cli`; do **not** absorb broad suite migration/cleanup failures here.
 
 ## 3. Implementation
 
@@ -25,7 +26,7 @@ TDD/SDD order enforced. Version series: **0.40.x**.
 - [ ] 4.2 `hatch run type-check` and fix
 - [ ] 4.3 `hatch run lint` and fix
 - [ ] 4.4 `hatch run contract-test` and fix
-- [ ] 4.5 `hatch run smart-test` (or smart-test-full) and fix
+- [ ] 4.5 `hatch run smart-test` for this change scope; if `smart-test-full` exposes unrelated migration debt, record and defer to follow-up change(s) per migration-03 phase 20.
 
 ## 5. Documentation and release
 

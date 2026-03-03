@@ -89,7 +89,7 @@ SpecFact now uses a module-first architecture to reduce hard-wired command coupl
 
 - Core runtime handles lifecycle, registry, contracts, and orchestration.
 - Feature behavior lives in module-local command implementations.
-- Legacy command-path shims remain for compatibility during migration windows.
+- Flat command-path shims were removed; use workflow command groups.
 
 Implementation layout:
 

@@ -37,6 +37,7 @@ The 0.40.x series completes that migration: the top-level CLI surface should sho
 - **Blocked by**: `module-migration-01-categorize-and-group` — category groups must exist before the shim layer can be safely removed; `FLAT_TO_GROUP` references the group routing established in migration-01.
 - **Followed by**: `module-migration-03-core-slimming` — cleans up dead shim registration call sites from `bootstrap.py` after this change removes the machinery those calls referenced.
 - **Wave**: Wave 3 — parallel with or after `module-migration-02-bundle-extraction`; must complete before `module-migration-03-core-slimming` begins bootstrap.py cleanup.
+- **Test migration boundary**: This change does **not** own broad test-suite migration or legacy test cleanup. It only updates shim-specific tests that directly validate flat-command removal and category-group routing. Modules-repo parity/migration belongs to `module-migration-05`; remaining unrelated full-suite cleanup is handled in follow-up change(s) tracked from migration-03 phase 20.
 
 ---
 
