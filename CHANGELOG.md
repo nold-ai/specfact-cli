@@ -15,6 +15,7 @@ All notable changes to this project will be documented in this file.
 ### Added
 
 - Official marketplace bundle extraction (OpenSpec change `module-migration-02-bundle-extraction`, issue [#316](https://github.com/nold-ai/specfact-cli/issues/316)): five bundle packages (`specfact-project`, `specfact-backlog`, `specfact-codebase`, `specfact-spec`, `specfact-govern`) are now produced in the dedicated `nold-ai/specfact-cli-modules` repository.
+- Backlog bundle auth command group (OpenSpec change `backlog-auth-01-backlog-auth-commands`, issue [#340](https://github.com/nold-ai/specfact-cli/issues/340)): `specfact backlog auth` now provides `azure-devops`, `github`, `status`, and `clear` using core `specfact_cli.utils.auth_tokens` storage.
 - Official-tier trust model in module validation and display: `official` tier verification path with `nold-ai` publisher allowlist and `[official]` module list badge.
 - Bundle dependency auto-install in module installer: installing `nold-ai/specfact-spec` or `nold-ai/specfact-govern` now auto-installs `nold-ai/specfact-project` when missing.
 - Bundle publishing mode in `scripts/publish-module.py` (`--bundle` and `--modules-repo-dir`) for packaging/signing/index updates against the dedicated modules repository.
