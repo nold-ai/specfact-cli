@@ -109,6 +109,8 @@ Migration-02's deprecation notices on the `specfact_cli.modules.*` Python import
 <!-- source_repo: nold-ai/specfact-cli -->
 - **GitHub Issue**: #317
 - **Issue URL**: <https://github.com/nold-ai/specfact-cli/issues/317>
+- **GitHub PR**: #343
+- **PR URL**: <https://github.com/nold-ai/specfact-cli/pull/343>
 - **Repository**: nold-ai/specfact-cli
-- **Last Synced Status**: proposed
+- **Last Synced Status**: in_review
 - **Sanitized**: false

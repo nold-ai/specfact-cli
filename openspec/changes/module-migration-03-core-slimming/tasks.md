@@ -419,22 +419,22 @@ Do NOT implement production code for any behavior-changing step until failing-te
   - Failing-before and passing-after evidence for: gate script, bootstrap core-only, init mandatory selection, lean help output, package includes
   - Passing E2E results
 
-- [ ] 19.2 Prepare commit(s)
-  - [ ] 19.2.1 Stage all changed files (see deletion commits in phase 10; `scripts/verify-bundle-published.py`, `src/specfact_cli/registry/bootstrap.py`, `src/specfact_cli/cli.py`, `src/specfact_cli/modules/init/`, `pyproject.toml`, `setup.py`, `src/specfact_cli/__init__.py`, `tests/`, `docs/`, `CHANGELOG.md`, `openspec/changes/module-migration-03-core-slimming/`)
-  - [ ] 19.2.2 `git commit -m "feat: slim core package, mandatory profile selection, remove non-core modules (#<issue>)"`
-  - [ ] 19.2.3 (If GPG signing required) provide `git commit -S -m "..."` for user to run locally
-  - [ ] 19.2.4 `git push -u origin feature/module-migration-03-core-slimming`
+- [x] 19.2 Prepare commit(s)
+  - [x] 19.2.1 Stage all changed files (see deletion commits in phase 10; `scripts/verify-bundle-published.py`, `src/specfact_cli/registry/bootstrap.py`, `src/specfact_cli/cli.py`, `src/specfact_cli/modules/init/`, `pyproject.toml`, `setup.py`, `src/specfact_cli/__init__.py`, `tests/`, `docs/`, `CHANGELOG.md`, `openspec/changes/module-migration-03-core-slimming/`)
+  - [x] 19.2.2 `git commit -m "feat: slim core package, mandatory profile selection, remove non-core modules (#<issue>)"`
+  - [x] 19.2.3 (If GPG signing required) provide `git commit -S -m "..."` for user to run locally
+  - [x] 19.2.4 `git push -u origin feature/module-migration-03-core-slimming`
 
-- [ ] 19.3 Create PR via gh CLI
-  - [ ] 19.3.1 `gh pr create --repo nold-ai/specfact-cli --base dev --head feature/module-migration-03-core-slimming --title "feat: Core Package Slimming — Lean Install and Mandatory Profile Selection (#<issue>)" --body "..."` (body: summary bullets, breaking changes, migration guide, test plan checklist, OpenSpec change ID, issue reference)
-  - [ ] 19.3.2 Capture PR URL
+- [x] 19.3 Create PR via gh CLI
+  - [x] 19.3.1 `gh pr create --repo nold-ai/specfact-cli --base dev --head feature/module-migration-03-core-slimming --title "feat: Core Package Slimming — Lean Install and Mandatory Profile Selection (#<issue>)" --body "..."` (body: summary bullets, breaking changes, migration guide, test plan checklist, OpenSpec change ID, issue reference)
+  - [x] 19.3.2 Capture PR URL (`https://github.com/nold-ai/specfact-cli/pull/343`)
 
-- [ ] 19.4 Link PR to project board
-  - [ ] 19.4.1 `gh project item-add 1 --owner nold-ai --url <PR_URL>`
+- [x] 19.4 Link PR to project board
+  - [x] 19.4.1 `gh project item-add 1 --owner nold-ai --url <PR_URL>`
 
-- [ ] 19.5 Verify PR
-  - [ ] 19.5.1 Confirm base is `dev`, head is `feature/module-migration-03-core-slimming`
-  - [ ] 19.5.2 Confirm CI checks are running (tests.yml, specfact.yml)
+- [x] 19.5 Verify PR
+  - [x] 19.5.1 Confirm base is `dev`, head is `feature/module-migration-03-core-slimming`
+  - [x] 19.5.2 Confirm CI checks are running (tests.yml, specfact.yml)
 
 ## 20. Deferred test migration and cleanup (follow-up changes)
 
