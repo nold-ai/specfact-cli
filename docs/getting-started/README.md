@@ -25,7 +25,7 @@ SpecFact runs on a lifecycle-managed module system.
 
 ```bash
 # CLI-only mode (works with uvx, no installation needed)
-uvx specfact-cli@latest import from-code my-project --repo .
+uvx specfact-cli@latest project import from-code my-project --repo .
 
 # Interactive AI Assistant mode (requires pip install + specfact init)
 # See First Steps guide for IDE integration setup
@@ -35,13 +35,21 @@ uvx specfact-cli@latest import from-code my-project --repo .
 
 ```bash
 # CLI-only mode (bundle name as positional argument)
-uvx specfact-cli@latest plan init my-project --interactive
+uvx specfact-cli@latest project plan init my-project --interactive
 
 # Interactive AI Assistant mode (recommended for better results)
 # Requires: pip install specfact-cli && specfact init
 ```
 
 **Note**: Interactive AI Assistant mode provides better feature detection and semantic understanding, but requires `pip install specfact-cli` and IDE setup. CLI-only mode works immediately with `uvx` but may show 0 features for simple test cases.
+
+### Migration Note (0.40.0)
+
+Flat root commands were removed. Use grouped command forms:
+
+- `specfact validate ...` -> `specfact code validate ...`
+- `specfact plan ...` -> `specfact project plan ...`
+- `specfact policy ...` -> `specfact backlog policy ...`
 
 First-run bundle selection examples:
 

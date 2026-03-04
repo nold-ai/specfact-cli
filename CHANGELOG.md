@@ -33,6 +33,10 @@ All notable changes to this project will be documented in this file.
 - Marketplace package loader now resolves namespaced command entrypoints (`src/<package>/<command>/app.py`) for installed modules.
 - Installed bundle detection now infers `specfact-*` bundle IDs from namespaced module names when manifest `bundle` metadata is absent.
 
+### Removed
+
+- **BREAKING**: Removed flat root command shims (OpenSpec change `module-migration-04-remove-flat-shims`, issue [#330](https://github.com/nold-ai/specfact-cli/issues/330)). Use grouped commands only, for example `specfact code validate` instead of `specfact validate`.
+
 ### Deprecated
 
 - Legacy flat import paths under `specfact_cli.modules.*` are deprecated in favor of bundle namespaces (`specfact_project.*`, `specfact_backlog.*`, `specfact_codebase.*`, `specfact_spec.*`, `specfact_govern.*`) and are planned for removal in the next major release.

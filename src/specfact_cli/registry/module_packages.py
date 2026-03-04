@@ -844,44 +844,6 @@ def merge_module_state(
     return merged
 
 
-# Flat command name -> (group_command, sub_command) for compat shims when category grouping is enabled.
-FLAT_TO_GROUP: dict[str, tuple[str, str]] = {
-    "analyze": ("code", "analyze"),
-    "drift": ("code", "drift"),
-    "validate": ("code", "validate"),
-    "repro": ("code", "repro"),
-    "backlog": ("backlog", "backlog"),
-    "policy": ("backlog", "policy"),
-    "project": ("project", "project"),
-    "plan": ("project", "plan"),
-    "import": ("project", "import"),
-    "sync": ("project", "sync"),
-    "migrate": ("project", "migrate"),
-    "contract": ("spec", "contract"),
-    "spec": ("spec", "api"),
-    "sdd": ("spec", "sdd"),
-    "generate": ("spec", "generate"),
-    "enforce": ("govern", "enforce"),
-    "patch": ("govern", "patch"),
-}
-
-
-def _make_shim_loader(
-    flat_name: str,
-    group_name: str,
-    sub_name: str,
-    help_str: str,
-) -> Any:
-    """Return a loader that returns the real module Typer so flat invocations like
-    'specfact sync bridge' work (subcommands come from the real module).
-    """
-
-    def loader() -> Any:
-        return CommandRegistry.get_module_typer(flat_name)
-
-    return loader
-
-
 @beartype
 def get_installed_bundles(
     packages: list[tuple[Path, ModulePackageMetadata]],
@@ -932,13 +894,12 @@ def _mount_installed_category_groups(
     packages: list[tuple[Path, ModulePackageMetadata]],
     enabled_map: dict[str, bool],
 ) -> None:
-    """Register category groups and compat shims only for installed bundles."""
+    """Register category groups only for installed bundles."""
     installed = get_installed_bundles(packages, enabled_map)
     bundle_to_group = _build_bundle_to_group()
     module_entries_by_name = {
         entry.get("name"): entry for entry in getattr(CommandRegistry, "_module_entries", []) if entry.get("name")
     }
-    module_meta_by_name = {name: entry.get("metadata") for name, entry in module_entries_by_name.items()}
     seen_groups: set[str] = set()
     for bundle in installed:
         group_info = bundle_to_group.get(bundle)
@@ -972,24 +933,6 @@ def _mount_installed_category_groups(
         )
         CommandRegistry.register(group_name, loader, cmd_meta)
 
-    for flat_name, (group_name, sub_name) in FLAT_TO_GROUP.items():
-        if group_name not in {bundle_to_group[b][0] for b in installed if b in bundle_to_group}:
-            continue
-        if flat_name == group_name:
-            continue
-        meta = module_meta_by_name.get(flat_name)
-        if meta is None:
-            continue
-        help_str = meta.help
-        shim_loader = _make_shim_loader(flat_name, group_name, sub_name, help_str)
-        cmd_meta = CommandMetadata(
-            name=flat_name,
-            help=help_str + " (deprecated; use specfact " + group_name + " " + sub_name + ")",
-            tier=meta.tier,
-            addon_id=meta.addon_id,
-        )
-        CommandRegistry.register(flat_name, shim_loader, cmd_meta)
-
 
 def register_module_package_commands(
     enable_ids: list[str] | None = None,
@@ -1002,7 +945,7 @@ def register_module_package_commands(
 
     Call after register_builtin_commands(). enable_ids/disable_ids from CLI (--enable-module/--disable-module).
     allow_unsigned: If True, allow modules without integrity metadata. Default from SPECFACT_ALLOW_UNSIGNED env.
-    category_grouping_enabled: If True, register category groups (code, backlog, project, spec, govern) and compat shims.
+    category_grouping_enabled: If True, register category groups (code, backlog, project, spec, govern).
     """
     enable_ids = enable_ids or []
     disable_ids = disable_ids or []

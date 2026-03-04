@@ -7,15 +7,21 @@ permalink: /reference/commands/
 # Command Reference
 
 SpecFact CLI now ships a lean core. Workflow commands are installed from marketplace bundles.
+Flat root-level compatibility shims were removed in `0.40.0`; use category-group commands only.
 
 ## Top-Level Commands
 
-Fresh install includes only:
+Root command surface includes core commands and installed category groups only:
 
 - `specfact init`
-- `specfact backlog auth`
+- `specfact auth`
 - `specfact module`
 - `specfact upgrade`
+- `specfact code ...`
+- `specfact backlog ...`
+- `specfact project ...`
+- `specfact spec ...`
+- `specfact govern ...`
 
 Use `specfact init --profile <name>` (or `--install <list>`) to install workflow bundles.
 
@@ -39,7 +45,7 @@ After bundle install, command groups are mounted by category:
 | `nold-ai/specfact-spec` | `spec` | `contract`, `api`, `sdd`, `generate` |
 | `nold-ai/specfact-govern` | `govern` | `enforce`, `patch` |
 
-## Removed Flat Commands
+## Migration: Removed Flat Commands
 
 Flat compatibility shims were removed in this change. Use grouped commands.
 
@@ -60,11 +66,6 @@ Flat compatibility shims were removed in this change. Use grouped commands.
 | `specfact generate ...` | `specfact spec generate ...` |
 | `specfact enforce ...` | `specfact govern enforce ...` |
 | `specfact patch ...` | `specfact govern patch ...` |
-
-Legacy reference kept for release-doc parity:
-
-- `specfact patch apply --dry-run`
-- `specfact patch apply --write`
 
 ## Common Flows
 

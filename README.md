@@ -58,6 +58,14 @@ specfact code validate sidecar init my-project /path/to/repo
 specfact code validate sidecar run my-project /path/to/repo
 ```
 
+### Migration Note (Flat Commands Removed)
+
+As of `0.40.0`, flat root commands are removed. Use grouped commands:
+
+- `specfact validate ...` -> `specfact code validate ...`
+- `specfact plan ...` -> `specfact project plan ...`
+- `specfact policy ...` -> `specfact backlog policy ...`
+
 ### Backlog Bridge (60 seconds)
 
 SpecFact's USP is closing the drift gap between **backlog -> specs -> code**.
@@ -72,7 +80,7 @@ specfact backlog daily ado --ado-org <org> --ado-project "<project>" --state any
 specfact backlog refine ado --ado-org <org> --ado-project "<project>" --id <work-item-id> --preview
 
 # 3) Keep backlog + spec intent aligned (avoid silent drift)
-specfact policy validate --group-by-item
+specfact backlog policy validate --group-by-item
 ```
 
 For GitHub, replace adapter/org/project with:
@@ -140,8 +148,8 @@ Most tools help **either** coders **or** agile teams. SpecFact does both:
 Recommended command entrypoints:
 - `specfact backlog ceremony standup ...`
 - `specfact backlog ceremony refinement ...`
-- `specfact policy validate ...`
-- `specfact policy suggest ...`
+- `specfact backlog policy validate ...`
+- `specfact backlog policy suggest ...`
 
 What the Policy Engine does in practice:
 - Turns team agreements (DoR, DoD, flow checks) into executable checks against your real backlog data.
@@ -149,9 +157,9 @@ What the Policy Engine does in practice:
 - Generates patch-ready suggestions so teams can fix policy gaps quickly without guessing.
 
 Start with:
-- `specfact policy init --template scrum`
-- `specfact policy validate --group-by-item`
-- `specfact policy suggest --group-by-item --limit 5`
+- `specfact backlog policy init --template scrum`
+- `specfact backlog policy validate --group-by-item`
+- `specfact backlog policy suggest --group-by-item --limit 5`
 
 **Try it now**
 

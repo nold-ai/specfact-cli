@@ -459,6 +459,49 @@ def test_mount_installed_groups_preserves_bundle_native_group_command(
     assert "native-sub" in command_names
 
 
+def test_grouped_registration_does_not_register_flat_shim_commands(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Grouped registration should not mount flat shim commands at root."""
+    from specfact_cli.registry import module_packages as mp
+
+    validate_app = typer.Typer(name="validate")
+
+    @validate_app.command("run")
+    def _validate_run() -> None:
+        return None
+
+    packages = [
+        (
+            tmp_path / "codebase_validate",
+            ModulePackageMetadata(
+                name="nold-ai/specfact-codebase",
+                version="0.40.10",
+                commands=["validate"],
+                category="codebase",
+                bundle="specfact-codebase",
+            ),
+        )
+    ]
+
+    monkeypatch.setattr(mp, "discover_all_package_metadata", lambda: packages)
+    monkeypatch.setattr(mp, "verify_module_artifact", lambda _dir, _meta, allow_unsigned=False: True)
+    monkeypatch.setattr(mp, "read_modules_state", dict)
+    monkeypatch.setattr(mp, "_check_protocol_compliance_from_source", lambda *_args, **_kwargs: [])
+    monkeypatch.setattr(mp, "_make_package_loader", lambda *_args, **_kwargs: lambda: validate_app)
+    monkeypatch.setattr(
+        mp,
+        "_build_bundle_to_group",
+        lambda: {"specfact-codebase": ("code", "Codebase quality commands", lambda: typer.Typer(name="code"))},
+    )
+
+    mp.register_module_package_commands(category_grouping_enabled=True)
+
+    names = set(CommandRegistry.list_commands())
+    assert "code" in names
+    assert "validate" not in names
+
+
 def test_integrity_failure_shows_user_friendly_risk_warning(monkeypatch, tmp_path: Path) -> None:
     """Integrity failure should emit concise risk guidance instead of raw checksum diagnostics."""
     from specfact_cli.registry import module_packages as mp
