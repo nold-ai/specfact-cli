@@ -199,6 +199,8 @@ For technical architecture details (module lifecycle, registry internals, adapte
 
 SpecFact ships official bundle packages via the dedicated marketplace registry repository
 `nold-ai/specfact-cli-modules`.
+Bundle/module docs now live in the modules repository docs site:
+`https://nold-ai.github.io/specfact-cli-modules/`.
 
 Install examples:
 
