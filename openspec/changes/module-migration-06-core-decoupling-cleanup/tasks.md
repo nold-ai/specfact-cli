@@ -32,4 +32,4 @@
 
 - [x] 5.1 Update docs/architecture boundary notes for core vs modules-repo ownership.
 - [x] 5.2 Update `openspec/CHANGE_ORDER.md` status/dependencies if scope changes.
-- [ ] 5.3 Create PR to `dev` with migration evidence and compatibility notes.
+- [x] 5.3 Create PR to `dev` with migration evidence and compatibility notes.
