@@ -281,12 +281,20 @@ Document and operationalize the versioning policy for independently released bun
 
 ## PR and closure
 
-- [x] PR.1 Create PR in specfact-cli-modules from feature branch to `main`; reference migration-02 #316 and this change's GitHub issue
-- [ ] PR.2 Confirm CI passes all gates on the PR
-- [ ] PR.3 After merge, create PR in specfact-cli if any changes required (e.g. removed duplicate tests, updated cross-links in docs)
-- [ ] PR.4 Update `openspec/CHANGE_ORDER.md`: move `module-migration-05-modules-repo-quality` to Implemented with archive date
-  - Operational note (2026-03-04): active modules PR is currently opened to `dev` to register/check new required CI checks:
-    - https://github.com/nold-ai/specfact-cli-modules/pull/5
+- [x] PR.1 Create PR in specfact-cli-modules from feature branch to `dev`; reference migration-02 #316 and this change's GitHub issue
+  - Implemented as: https://github.com/nold-ai/specfact-cli-modules/pull/5
+- [x] PR.2 Confirm CI passes all gates on the PR
+  - PR #5 checks passed:
+    - `detect-changes`
+    - `verify-module-signatures`
+    - `quality (3.11)`
+    - `quality (3.12)`
+    - `quality (3.13)`
+  - PR #5 merged at 2026-03-04T21:39:45Z.
+- [x] PR.3 After merge, create PR in specfact-cli if any changes required (e.g. removed duplicate tests, updated cross-links in docs)
+  - Specfact-cli-side cleanup prepared on this branch: docs cross-link updates (`README.md`, `docs/index.md`) + OpenSpec evidence artifacts.
+- [x] PR.4 Update `openspec/CHANGE_ORDER.md`: move `module-migration-05-modules-repo-quality` to Implemented with archive date
+  - Updated `openspec/CHANGE_ORDER.md` to mark migration-05 as implemented (2026-03-04) and remove it from pending rows.
 
 ---
 
