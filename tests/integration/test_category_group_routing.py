@@ -1,4 +1,4 @@
-"""Integration tests for category group routing (code, backlog, validate shim)."""
+"""Integration tests for category group routing when grouping is enabled."""
 
 from __future__ import annotations
 
@@ -49,10 +49,9 @@ def test_backlog_help_lists_subcommands() -> None:
     assert "policy" in out or "ceremony" in out
 
 
-def test_validate_shim_help_exits_zero() -> None:
-    """Deprecated flat command specfact validate --help still returns help without error."""
+def test_validate_flat_command_is_not_available() -> None:
+    """Flat command `specfact validate --help` is unavailable after shim removal."""
     result = runner.invoke(app, ["validate", "--help"])
-    assert result.exit_code == 0, (
-        f"Expected exit 0, got {result.exit_code}\nstdout: {result.stdout}\nstderr: {result.stderr}"
-    )
-    assert "validate" in (result.stdout or "").lower() or "usage" in (result.stdout or "").lower()
+    assert result.exit_code != 0
+    output = ((result.stdout or "") + (result.output or "")).lower()
+    assert "not installed" in output or "no such command" in output
