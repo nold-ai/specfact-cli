@@ -316,65 +316,65 @@ Dependencies flow left-to-right; a wave may start once all its hard blockers are
   - ✅ validation-01, ✅ sidecar-01, ✅ bundle-mapper-01
 
 - **Wave 1.5 — CLI end-user validation** (cross-cutting, parallel to Wave 2+):
-  - cli-val-01, cli-val-02 (no blockers — start immediately after Wave 1)
-  - cli-val-03, cli-val-06 (after cli-val-01)
-  - cli-val-04 (after cli-val-01 + cli-val-03)
-  - cli-val-05 (after cli-val-02 + cli-val-04 — capstone)
+  - cli-val-01 (#279), cli-val-02 (#280) (no blockers — start immediately after Wave 1)
+  - cli-val-03 (#281), cli-val-06 (#284) (after cli-val-01 #279)
+  - cli-val-04 (#282) (after cli-val-01 #279 + cli-val-03 #281)
+  - cli-val-05 (#283) (after cli-val-02 #280 + cli-val-04 #282 — capstone)
 
 - **Wave 2 — Marketplace + backlog module layer** (needs Wave 1):
-  - ✅ marketplace-01 (needs arch-06)
-  - ✅ backlog-core-02 (needs backlog-core-01)
+  - ✅ marketplace-01 (#214) (needs arch-06 #208)
+  - ✅ backlog-core-02 (#173) (needs backlog-core-01 #116)
   - ✅ backlog-core-03
   - ✅ backlog-core-04, ✅ backlog-core-05, ✅ backlog-core-06
-  - backlog-core-07 (needs backlog-core-06; issue #337)
-  - backlog-scrum-02, backlog-scrum-03, backlog-scrum-04 (need backlog-core-01)
-  - backlog-kanban-01, backlog-safe-01 (need backlog-core-01)
+  - backlog-core-07 (#337) (needs backlog-core-06 #310)
+  - backlog-scrum-02 (#170), backlog-scrum-03 (#171), backlog-scrum-04 (#169) (need backlog-core-01 #116)
+  - backlog-kanban-01 (#183), backlog-safe-01 (#184) (need backlog-core-01 #116)
 
 - **Wave 3 — Higher-order backlog + marketplace + module migration** (needs Wave 2):
-  - ✅ marketplace-02 (needs marketplace-01)
-  - ✅ backlog-scrum-01 (needs backlog-core-01; benefits from policy-engine-01 + patch-mode-01)
-  - backlog-safe-02 (needs backlog-safe-01; integrates with scrum/kanban via bridge registry)
-  - ✅ module-migration-01-categorize-and-group (marketplace-02 dependency resolved; adds category metadata + group commands)
-  - module-migration-04-remove-flat-shims (0.40.x; needs module-migration-01; removes flat shims, category-only CLI; see overlap note with migration-03 in tasks.md 17.9.1)
-  - ✅ module-migration-02-bundle-extraction (needs module-migration-01; moves module source to bundle packages, publishes to marketplace registry)
-  - marketplace-03-publisher-identity (needs marketplace-02; can run parallel with module-migration-01/02/03)
-  - marketplace-04-revocation (needs marketplace-03; must land before external publisher onboarding)
-  - marketplace-05-registry-federation (needs marketplace-03)
+  - ✅ marketplace-02 (#215) (needs marketplace-01 #214)
+  - ✅ backlog-scrum-01 (needs backlog-core-01 #116; benefits from policy-engine-01 #176 + patch-mode-01 #177)
+  - backlog-safe-02 (#182) (needs backlog-safe-01 #184; integrates with scrum/kanban via bridge registry)
+  - ✅ module-migration-01-categorize-and-group (#315) (marketplace-02 #215 dependency resolved; adds category metadata + group commands)
+  - module-migration-04-remove-flat-shims (#330) (0.40.x; needs module-migration-01 #315; removes flat shims, category-only CLI; see overlap note with migration-03 in tasks.md 17.9.1)
+  - ✅ module-migration-02-bundle-extraction (#316) (needs module-migration-01 #315; moves module source to bundle packages, publishes to marketplace registry)
+  - marketplace-03-publisher-identity (#327) (needs marketplace-02 #215; can run parallel with module-migration-01/02/03)
+  - marketplace-04-revocation (#328) (needs marketplace-03 #327; must land before external publisher onboarding)
+  - marketplace-05-registry-federation (#329) (needs marketplace-03 #327)
 
 - **Wave 4 — Ceremony layer + module slimming + modules repo quality** (needs Wave 3):
-  - ✅ ceremony-cockpit-01 (probes installed backlog-* modules at runtime; no hard deps but best after Wave 3)
-  - **module-migration-05-modules-repo-quality** (needs module-migration-02; sections 18-22 must land **before or simultaneously with** module-migration-03): quality tooling, tests, dependency decoupling, docs, pipeline/config for specfact-cli-modules
-  - module-migration-03-core-slimming (needs module-migration-02 AND migration-05 sections 18-22; removes bundled modules from core; see tasks.md 17.9 for proposal consistency requirements before implementation starts)
-  - **module-migration-06-core-decoupling-cleanup** (needs module-migration-03 + migration-05 baseline; removes residual non-core components/couplings from specfact-cli core, e.g. models/utilities tied only to extracted modules)
+  - ✅ ceremony-cockpit-01 (#185) (probes installed backlog-* modules at runtime; no hard deps but best after Wave 3)
+  - **module-migration-05-modules-repo-quality (#334)** (needs module-migration-02 #316; sections 18-22 must land **before or simultaneously with** module-migration-03 #317): quality tooling, tests, dependency decoupling, docs, pipeline/config for specfact-cli-modules
+  - module-migration-03-core-slimming (#317) (needs module-migration-02 #316 AND migration-05 (#334) sections 18-22; removes bundled modules from core; see tasks.md 17.9 for proposal consistency requirements before implementation starts)
+  - **module-migration-06-core-decoupling-cleanup (#338)** (needs module-migration-03 #317 + migration-05 #334 baseline; removes residual non-core components/couplings from specfact-cli core, e.g. models/utilities tied only to extracted modules)
 
 - **Wave 5 — Foundations for business-first chain** (architecture integration):
-  - profile-01
-  - requirements-01
-  - requirements-02 (after requirements-01 + arch-07)
+  - profile-01 (#237)
+  - requirements-01 (#238)
+  - requirements-02 (#239) (after requirements-01 #238 + arch-07 #213)
 
 - **Wave 6 — End-to-end chain and sync kernel**:
-  - architecture-01 (after requirements-01 + requirements-02)
-  - validation-02 (after architecture-01 + requirements-02 + policy-engine-01)
-  - traceability-01 (after architecture-01 + requirements-02)
-  - sync-01 (after patch-mode-01)
-  - requirements-03 (after requirements-02 + sync-01)
+  - architecture-01 (#240) (after requirements-01 #238 + requirements-02 #239)
+  - validation-02 (#241) (after architecture-01 #240 + requirements-02 #239 + policy-engine-01 #176)
+  - traceability-01 (#242) (after architecture-01 #240 + requirements-02 #239)
+  - sync-01 (#243) (after patch-mode-01 #177)
+  - requirements-03 (#244) (after requirements-02 #239 + sync-01 #243)
 
 - **Wave 7 — Governance and ceremony business context**:
-  - policy-02 (after profile-01 + policy-engine-01)
-  - governance-01 (after validation-02 + policy-02)
-  - governance-02 (after policy-02)
-  - ceremony-02 (after requirements-02 + ceremony-cockpit-01)
+  - policy-02 (#246) (after profile-01 #237 + policy-engine-01 #176)
+  - governance-01 (#247) (after validation-02 #241 + policy-02 #246)
+  - governance-02 (#248) (after policy-02 #246)
+  - ceremony-02 (#245) (after requirements-02 #239 + ceremony-cockpit-01 #185)
 
 - **Wave 8 — Enterprise profile maturity and AI interfaces**:
-  - profile-02 (after profile-01)
-  - profile-03 (after profile-01 + profile-02 + arch-07)
-  - ai-integration-01 (after validation-02)
-  - ai-integration-02 (after validation-02)
-  - ai-integration-03 (after ai-integration-01)
+  - profile-02 (#249) (after profile-01 #237)
+  - profile-03 (#250) (after profile-01 #237 + profile-02 #249 + arch-07 #213)
+  - ai-integration-01 (#251) (after validation-02 #241)
+  - ai-integration-02 (#252) (after validation-02 #241)
+  - ai-integration-03 (#253) (after ai-integration-01 #251)
 
 - **Wave 9 — Integration contract and product proof**:
-  - integration-01 (after profile-01 + requirements-02 + architecture-01 + validation-02 + policy-02)
-  - dogfooding-01 (after requirements-02 + architecture-01 + validation-02 + traceability-01 + governance-01)
+  - integration-01 (#254) (after profile-01 #237 + requirements-02 #239 + architecture-01 #240 + validation-02 #241 + policy-02 #246)
+  - dogfooding-01 (#255) (after requirements-02 #239 + architecture-01 #240 + validation-02 #241 + traceability-01 #242 + governance-01 #247)
 
 ---
 
