@@ -149,6 +149,9 @@ Official bundles are now marketplace-distributed as `nold-ai/specfact-*` modules
 - `nold-ai/specfact-spec`
 - `nold-ai/specfact-govern`
 
+Bundle/module documentation ownership has moved to `nold-ai/specfact-cli-modules`:
+`https://nold-ai.github.io/specfact-cli-modules/`.
+
 - **[Installing Modules](guides/installing-modules.md)** - Install, list, uninstall, and upgrade modules
 - **[Module Marketplace](guides/module-marketplace.md)** - Registry model, security checks, and discovery priority
 - **[Marketplace Bundles](guides/marketplace.md)** - Official bundle ids, trust tiers, and dependency auto-install behavior

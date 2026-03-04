@@ -84,6 +84,6 @@ This is a quality regression against the project's own standard. This change clo
 - **GitHub Issue**: #334
 - **Issue URL**: <https://github.com/nold-ai/specfact-cli/issues/334>
 - **Repository**: nold-ai/specfact-cli (tasks in this repo) + nold-ai/specfact-cli-modules (all implementation)
-- **Last Synced Status**: proposed
+- **Last Synced Status**: implementation complete in specfact-cli-modules (PR #5 merged to `dev` on 2026-03-04; specfact-cli tracking/docs cleanup in progress)
 - **Sanitized**: false
 - **Derived from**: `module-migration-02-bundle-extraction` sections 18–23 (deferred scope) + gap analysis 2026-03-02

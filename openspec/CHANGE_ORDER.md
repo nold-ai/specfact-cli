@@ -12,9 +12,9 @@ Changes are grouped by **module** and prefixed with **`<module>-NN-`** so implem
 
 ## Implementation status
 
-### Implemented (archived)
+### Implemented (archived or archive-pending)
 
-Only changes that are **archived** or shown as **✓ Complete** by `openspec list` are listed. Use ✅ in tables below only for these.
+Only changes that are **archived**, shown as **✓ Complete** by `openspec list`, or fully implemented and awaiting archive are listed. Use ✅ in tables below only for these.
 
 | Change | Status / Date |
 |--------|---------------|
@@ -44,6 +44,7 @@ Only changes that are **archived** or shown as **✓ Complete** by `openspec lis
 | ✅ marketplace-02-advanced-marketplace-features | implemented 2026-03-03 (archived) |
 | ✅ module-migration-01-categorize-and-group | implemented 2026-03-03 (archived) |
 | ✅ module-migration-02-bundle-extraction | implemented 2026-03-03 (archived) |
+| ✅ module-migration-05-modules-repo-quality | implemented 2026-03-04 (archive pending in specfact-cli) |
 | ✅ backlog-auth-01-backlog-auth-commands | implemented 2026-03-03 (archived) |
 | ✅ backlog-core-05-user-modules-bootstrap | implemented 2026-03-03 (archived) |
 | ✅ backlog-core-06-refine-custom-field-writeback | implemented 2026-03-03 (archived) |
@@ -90,7 +91,6 @@ These are derived extensions of the same 2026-02-15 plan and are required to ope
 | module-migration | 02 | module-migration-02-bundle-extraction | [#316](https://github.com/nold-ai/specfact-cli/issues/316) | module-migration-01 ✅ |
 | module-migration | 03 | module-migration-03-core-slimming | [#317](https://github.com/nold-ai/specfact-cli/issues/317) | module-migration-02; migration-05 sections 18-22 (tests, decoupling, docs, pipeline/config) must precede deletion |
 | module-migration | 04 | module-migration-04-remove-flat-shims | [#330](https://github.com/nold-ai/specfact-cli/issues/330) | module-migration-01; shim-removal scope only (no broad legacy test migration) |
-| module-migration | 05 | module-migration-05-modules-repo-quality | [#334](https://github.com/nold-ai/specfact-cli/issues/334) | module-migration-02; sections 18-22 must precede migration-03; owns bundle-test migration to modules repo |
 | module-migration | 06 | module-migration-06-core-decoupling-cleanup | [#338](https://github.com/nold-ai/specfact-cli/issues/338) | module-migration-03; migration-05 bundle-parity baseline (remove remaining non-core coupling in specfact-cli core) |
 | module-migration | 07 | module-migration-07-test-migration-cleanup | [#339](https://github.com/nold-ai/specfact-cli/issues/339) | migration-03 phase 20 handoff; migration-04 and migration-05 residual specfact-cli test debt |
 | backlog-auth | 01 | backlog-auth-01-backlog-auth-commands | TBD | module-migration-03 (central auth interface in core; auth removed from core) |
