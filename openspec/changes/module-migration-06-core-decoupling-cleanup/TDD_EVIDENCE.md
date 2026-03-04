@@ -42,3 +42,13 @@ Temporary violation removed. Core has no imports from `backlog_core` or `bundle_
 **Timestamp:** 2026-03-04
 
 Inventory confirmed no move candidates; core already decoupled. Boundary test prevents future coupling.
+
+### Extended scope (Phase 1) — 2026-03-04
+
+**Removed:** `templates.bridge_templates`, `tests/unit/templates/test_bridge_templates.py` (dead code; only tests used it).
+
+**Added:** `test_core_modules_do_not_import_migrate_tier` — core modules must not import MIGRATE-tier paths.
+
+**Command:** `hatch run pytest tests/unit/sync/ tests/unit/templates/ tests/unit/specfact_cli/test_module_boundary_imports.py -v`
+
+**Result:** 127 passed

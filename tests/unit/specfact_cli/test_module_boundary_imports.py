@@ -94,3 +94,55 @@ def test_core_does_not_import_from_bundle_packages() -> None:
         "Core must not import from bundle packages (backlog_core, bundle_mapper). "
         "Bundles depend on core; core must not depend on bundles.\n" + "\n".join(f"- {v}" for v in sorted(violations))
     )
+
+
+# MIGRATE-tier paths per IMPORT_DEPENDENCY_ANALYSIS; core must not add new ones.
+# These should eventually be removed; test prevents reintroduction.
+MIGRATE_TIER_PREFIXES = (
+    "specfact_cli.agents",
+    "specfact_cli.analyzers",
+    "specfact_cli.backlog",
+    "specfact_cli.comparators",
+    "specfact_cli.enrichers",
+    "specfact_cli.generators",
+    "specfact_cli.importers",
+    "specfact_cli.merge",
+    "specfact_cli.migrations",
+    "specfact_cli.parsers",
+    "specfact_cli.sync",
+    "specfact_cli.templates.registry",
+    "specfact_cli.validators.repro_checker",
+    "specfact_cli.validators.sidecar",
+)
+CORE_MODULE_DIRS = ("init", "module_registry", "upgrade")
+
+
+def test_core_modules_do_not_import_migrate_tier() -> None:
+    """Core modules (init, module_registry, upgrade) must not import MIGRATE-tier paths.
+
+    MIGRATE-tier code belongs in specfact-cli-modules. Core modules must only use
+    CORE/SHARED imports. Prevents reintroduction of bundle-only coupling.
+    """
+    violations: list[str] = []
+    modules_root = PROJECT_ROOT / "src" / "specfact_cli" / "modules"
+    if not modules_root.exists():
+        return
+
+    for module_name in CORE_MODULE_DIRS:
+        module_dir = modules_root / module_name
+        if not module_dir.exists():
+            continue
+        for py_file in module_dir.rglob("*.py"):
+            if "__pycache__" in py_file.parts:
+                continue
+            text = py_file.read_text(encoding="utf-8")
+            for line_no, line in enumerate(text.splitlines(), 1):
+                for prefix in MIGRATE_TIER_PREFIXES:
+                    if f"from {prefix}" in line or f"import {prefix}" in line:
+                        rel = py_file.relative_to(PROJECT_ROOT)
+                        violations.append(f"{rel}:{line_no}: {line.strip()[:80]}")
+
+    assert not violations, (
+        "Core modules (init, module_registry, upgrade) must not import MIGRATE-tier paths. "
+        "MIGRATE-tier code lives in specfact-cli-modules.\n" + "\n".join(f"- {v}" for v in sorted(violations))
+    )

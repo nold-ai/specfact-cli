@@ -24,9 +24,16 @@ Analysis date: 2026-03-04
 | `specfact_cli.contracts.module_interface` | **KEEP (interface)** | Already an interface contract. Bundles implement. |
 | `specfact_cli.modules.module_io_shim` | **KEEP (interface)** | Shim for bundle I/O. Core provides; bundles use. |
 
-### Move candidates
+### Move candidates (extended scope per #338)
 
-**None identified.** All `specfact_cli` components used by bundles are also used by core (validators, sync, versioning, registry, init, module_registry, upgrade). No bundle-only components remain in core.
+| Component | Status | Notes |
+|-----------|--------|-------|
+| `templates.bridge_templates` | **REMOVED** | Dead code; only tests used it. specfact-project has sync_runtime. |
+| `sync`, `agents`, `analyzers`, `backlog`, etc. | **PLANNED** | See `MIGRATION_REMOVAL_PLAN.md`. Migration-05 moved to specfact-cli-modules; removal from core is phased. |
+
+### Enforcement
+
+- `test_core_modules_do_not_import_migrate_tier` — core modules (init, module_registry, upgrade) must not import MIGRATE-tier paths.
 
 ### Interface contracts (already in place)
 

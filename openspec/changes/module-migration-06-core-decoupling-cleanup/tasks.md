@@ -33,3 +33,12 @@
 - [x] 5.1 Update docs/architecture boundary notes for core vs modules-repo ownership.
 - [x] 5.2 Update `openspec/CHANGE_ORDER.md` status/dependencies if scope changes.
 - [x] 5.3 Create PR to `dev` with migration evidence and compatibility notes.
+
+## 6. Extended scope: migrate package-specific artifacts (per #338)
+
+- [x] 6.1 Add `MIGRATION_REMOVAL_PLAN.md` with phased removal of MIGRATE-tier code.
+- [x] 6.2 Add `test_core_modules_do_not_import_migrate_tier` — core modules must not add MIGRATE imports.
+- [x] 6.3 Remove `templates.bridge_templates` (dead code; only tests used it; specfact-project has sync_runtime).
+- [x] 6.4 Remove `tests/unit/templates/test_bridge_templates.py`.
+- [x] 6.5 Update `CORE_DECOUPLING_INVENTORY.md` with MIGRATE-tier removal status.
+- [x] 6.6 Run quality gates; record evidence.

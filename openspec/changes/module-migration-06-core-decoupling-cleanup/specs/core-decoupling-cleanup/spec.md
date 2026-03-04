@@ -34,8 +34,16 @@ The `specfact-cli` core (`src/specfact_cli/`) SHALL NOT import from bundle packa
 
 ### Migration Acceptance Criteria
 
-- [ ] Inventory of candidate core components (keep/move/interface) produced and documented
-- [ ] No core file imports from `backlog_core` or `bundle_mapper`
-- [ ] Boundary regression tests pass
+- [x] Inventory of candidate core components (keep/move/interface) produced and documented
+- [x] No core file imports from `backlog_core` or `bundle_mapper`
+- [x] Boundary regression tests pass
 - [ ] Quality gates (format, type-check, lint, contract-test, smart-test) pass
-- [ ] docs/architecture updated with core vs modules-repo ownership boundary
+- [x] docs/architecture updated with core vs modules-repo ownership boundary
+
+### Requirement: MIGRATE-Tier Enforcement
+
+Core modules (init, module_registry, upgrade) SHALL NOT import from MIGRATE-tier paths. MIGRATE-tier code (agents, analyzers, backlog, sync, etc.) lives in specfact-cli-modules. Regression test `test_core_modules_do_not_import_migrate_tier` enforces this.
+
+### Requirement: Package-Specific Artifact Removal
+
+Package-specific artifacts not required by CLI core SHALL be removed from specfact-cli and live in respective packages (specfact-cli-modules). `MIGRATION_REMOVAL_PLAN.md` documents phased removal. Phase 1: remove dead code (e.g. `templates.bridge_templates`).
