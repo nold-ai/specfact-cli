@@ -13,7 +13,7 @@ SpecFact CLI now ships a lean core. Workflow commands are installed from marketp
 Fresh install includes only:
 
 - `specfact init`
-- `specfact auth`
+- `specfact backlog auth`
 - `specfact module`
 - `specfact upgrade`
 

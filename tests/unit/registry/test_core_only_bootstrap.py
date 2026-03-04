@@ -1,4 +1,4 @@
-"""Tests for 4-core-only bootstrap and installed-bundle category mounting (module-migration-03)."""
+"""Tests for 3-core-only bootstrap and installed-bundle category mounting (module-migration-03)."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ from specfact_cli.registry import CommandRegistry
 from specfact_cli.registry.bootstrap import register_builtin_commands
 
 
-CORE_FOUR = {"init", "auth", "module", "upgrade"}
+CORE_THREE = {"init", "module", "upgrade"}
 EXTRACTED_17_NAMES = {
     "project",
     "plan",
@@ -53,17 +53,16 @@ def _clear_registry():
     CommandRegistry._clear_for_testing()
 
 
-def test_register_builtin_commands_registers_only_four_core_when_discovery_returns_four(
+def test_register_builtin_commands_registers_only_three_core_when_discovery_returns_three(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    """After bootstrap with only 4 core modules discovered, list_commands has exactly init, auth, module, upgrade."""
+    """After bootstrap with only 3 core modules discovered, list_commands has exactly init, module, upgrade."""
     from specfact_cli.registry.module_discovery import DiscoveredModule
 
     def _discover(*, builtin_root=None, user_root=None, **kwargs):
         root = builtin_root or tmp_path
         return [
             DiscoveredModule(root / "init", _make_core_metadata("init"), "builtin"),
-            DiscoveredModule(root / "auth", _make_core_metadata("auth"), "builtin"),
             DiscoveredModule(root / "module_registry", _make_core_metadata("module_registry", ["module"]), "builtin"),
             DiscoveredModule(root / "upgrade", _make_core_metadata("upgrade"), "builtin"),
         ]
@@ -72,7 +71,6 @@ def test_register_builtin_commands_registers_only_four_core_when_discovery_retur
         "specfact_cli.registry.module_packages.discover_all_package_metadata",
         lambda: [
             (tmp_path / "init", _make_core_metadata("init")),
-            (tmp_path / "auth", _make_core_metadata("auth")),
             (tmp_path / "module_registry", _make_core_metadata("module_registry", ["module"])),
             (tmp_path / "upgrade", _make_core_metadata("upgrade")),
         ],
@@ -87,7 +85,8 @@ def test_register_builtin_commands_registers_only_four_core_when_discovery_retur
     )
     register_builtin_commands()
     names = set(CommandRegistry.list_commands())
-    assert names >= CORE_FOUR
+    assert names >= CORE_THREE
+    assert "auth" not in names
     for extracted in EXTRACTED_17_NAMES:
         assert extracted not in names, (
             f"Extracted module {extracted} must not be registered when only core is discovered"
@@ -97,12 +96,11 @@ def test_register_builtin_commands_registers_only_four_core_when_discovery_retur
 def test_bootstrap_does_not_register_extracted_modules_when_only_core_discovered(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    """Bootstrap with only 4 core does NOT register project, plan, backlog, code, spec, govern, etc."""
+    """Bootstrap with only 3 core does NOT register project, plan, backlog, code, spec, govern, etc."""
     monkeypatch.setattr(
         "specfact_cli.registry.module_packages.discover_all_package_metadata",
         lambda: [
             (tmp_path / "init", _make_core_metadata("init")),
-            (tmp_path / "auth", _make_core_metadata("auth")),
             (tmp_path / "module_registry", _make_core_metadata("module_registry", ["module"])),
             (tmp_path / "upgrade", _make_core_metadata("upgrade")),
         ],
@@ -117,6 +115,7 @@ def test_bootstrap_does_not_register_extracted_modules_when_only_core_discovered
     )
     register_builtin_commands()
     registered = CommandRegistry.list_commands()
+    assert "auth" not in registered
     for name in EXTRACTED_17_NAMES:
         assert name not in registered, f"Must not register extracted command {name} in core-only mode"
 
@@ -145,7 +144,6 @@ def test_flat_shim_plan_produces_actionable_error_after_shim_removal(
         "specfact_cli.registry.module_packages.discover_all_package_metadata",
         lambda: [
             (tmp_path / "init", _make_core_metadata("init")),
-            (tmp_path / "auth", _make_core_metadata("auth")),
             (tmp_path / "module_registry", _make_core_metadata("module_registry", ["module"])),
             (tmp_path / "upgrade", _make_core_metadata("upgrade")),
         ],
@@ -198,7 +196,6 @@ def test_mount_installed_category_groups_does_not_mount_code_when_codebase_not_i
         "specfact_cli.registry.module_packages.discover_all_package_metadata",
         lambda: [
             (tmp_path / "init", _make_core_metadata("init")),
-            (tmp_path / "auth", _make_core_metadata("auth")),
             (tmp_path / "module_registry", _make_core_metadata("module_registry", ["module"])),
             (tmp_path / "upgrade", _make_core_metadata("upgrade")),
         ],

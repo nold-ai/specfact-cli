@@ -38,7 +38,7 @@ Preferred command path is `specfact backlog ceremony standup ...`. The legacy `s
 ## Prerequisites
 
 - SpecFact CLI installed (`uvx specfact-cli@latest` or `pip install specfact-cli`)
-- **Authenticated** to your backlog provider: `specfact auth github` or Azure DevOps (PAT in env)
+- **Authenticated** to your backlog provider: `specfact backlog auth github` or Azure DevOps (PAT in env)
 - A **clone** of your repo (GitHub or Azure DevOps) so the CLI can auto-detect org/repo or org/project from `git remote origin`
 
 ---
@@ -167,7 +167,7 @@ supported. Use it with the **`specfact.backlog-daily`** slash prompt for interac
 1. **Authenticate once** (if not already):
 
    ```bash
-   specfact auth github
+   specfact backlog auth github
    ```
 
 2. **Open your repo** and run daily (repo auto-detected):

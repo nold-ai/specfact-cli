@@ -16,9 +16,9 @@
 
 - 17 module directories deleted from `src/specfact_cli/modules/`
 - Re-export shims deleted (one major version cycle elapsed)
-- `pyproject.toml` includes only 4 core module directories
-- `bootstrap.py` registers only 4 core modules
-- `specfact --help` on a fresh install shows ≤ 6 commands (4 core + at most `module` collapsing into `module_registry` + `upgrade`)
+- `pyproject.toml` includes only 3 core module directories
+- `bootstrap.py` registers only 3 core modules
+- `specfact --help` on a fresh install shows ≤ 5 commands (3 core + at most `module` and `upgrade`)
 - `specfact init` enforces bundle selection before workspace use completes
 
 **Constraints:**
@@ -33,8 +33,8 @@
 
 **Goals:**
 
-- Deliver a `specfact-cli` wheel that is 4-module lean
-- Make `specfact --help` show ≤ 6 commands on a fresh install
+- Deliver a `specfact-cli` wheel that is 3-module lean
+- Make `specfact --help` show ≤ 5 commands on a fresh install
 - Enforce mandatory bundle selection in `specfact init`
 - Remove the 17 module directories and all backward-compat shims
 - Write and run the `scripts/verify-bundle-published.py` gate before any deletion
@@ -198,7 +198,7 @@ Deletion (in one commit per bundle):
   Each commit: also update pyproject.toml + setup.py includes for that bundle's modules.
 
 Post-deletion:
-  Final commit: Update bootstrap.py (shim removal, 4-core-only), cli.py (conditional mount),
+  Final commit: Update bootstrap.py (shim removal, 3-core-only), cli.py (conditional mount),
                 init/commands.py (mandatory selection gate), CHANGELOG.md, version bump.
 ```
 
@@ -206,19 +206,17 @@ Post-deletion:
 
 ```python
 # BEFORE (module-migration-02 state): registers 21 modules + flat shims
-# AFTER (this change): registers 4 core modules only
+# AFTER (this change): registers 3 core modules only
 
 from specfact_cli.modules.init.src.init import app as init_app
-from specfact_cli.modules.auth.src.auth import app as auth_app
 from specfact_cli.modules.module_registry.src.module_registry import app as module_registry_app
 from specfact_cli.modules.upgrade.src.upgrade import app as upgrade_app
 
 
 @beartype
 def bootstrap_modules(cli_app: typer.Typer) -> None:
-    """Register the 4 permanent core modules."""
+    """Register the 3 permanent core modules."""
     cli_app.add_typer(init_app, name="init")
-    cli_app.add_typer(auth_app, name="auth")
     cli_app.add_typer(module_registry_app, name="module")
     cli_app.add_typer(upgrade_app, name="upgrade")
     _mount_installed_category_groups(cli_app)

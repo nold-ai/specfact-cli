@@ -1,6 +1,6 @@
 # CHANGE_VALIDATION: module-migration-03-core-slimming
 
-Date: 2026-03-03
+Date: 2026-03-04
 Validator: Codex (workflow parity with `/wf-validate-change`)
 
 ## Inputs Reviewed
@@ -25,8 +25,8 @@ openspec validate module-migration-03-core-slimming --strict
 Result: **PASS** (`Change 'module-migration-03-core-slimming' is valid`).
 
 2. Scope-consistency checks:
-- Confirmed this change remains aligned to 0.40.0 release constraints and current branch decision: **auth stays in core for migration-03** (deferred removal to backlog-auth-01).
-- Updated spec deltas that still described immediate 3-core/auth-removed behavior so they match accepted 4-core scope.
+- Confirmed this change remains aligned to 0.40.0 release constraints and updated branch decision: **auth removal executed in migration-03 task 10.6** after backlog-auth-01 parity merged.
+- Updated spec deltas/tasks/design to reflect accepted 3-core/auth-moved scope.
 
 3. Deferred-test baseline handoff:
 - Added concrete `smart-test-full` baseline reference to migration-06 and migration-07 proposals:

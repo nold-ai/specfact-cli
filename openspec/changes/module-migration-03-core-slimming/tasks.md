@@ -136,25 +136,25 @@ Do NOT implement production code for any behavior-changing step until failing-te
 - [ ] 6.12 Test: `init_command(install="all")` installs all 5 bundles (mock installer)
 - [ ] 6.13 Test: `init_command(install="backlog,codebase")` installs `specfact-backlog` and `specfact-codebase`
 - [ ] 6.14 Test: `init_command(install="widgets")` exits 1 with unknown bundle error
-- [ ] 6.15 Test: core commands (`specfact auth`, `specfact module`, `specfact upgrade`) work regardless of bundle installation state
+- [ ] 6.15 Test: core commands (`specfact init`, `specfact module`, `specfact upgrade`) work regardless of bundle installation state
 - [ ] 6.16 Test: `init_command` has `@require` and `@beartype` decorators on all new public parameters
 - [x] 6.17 Run: `hatch test -- tests/unit/modules/init/test_mandatory_bundle_selection.py -v` (expect failures — record in TDD_EVIDENCE.md)
 
 ## 7. Write tests for lean help output and missing-bundle error (TDD, expect failure)
 
 - [x] 7.1 Create `tests/unit/cli/test_lean_help_output.py`
-- [ ] 7.2 Test: `specfact --help` output (fresh install, no bundles) contains exactly 4 core commands and ≤ 6 total
+- [ ] 7.2 Test: `specfact --help` output (fresh install, no bundles) contains exactly 3 core commands and ≤ 5 total
 - [ ] 7.3 Test: `specfact --help` output does NOT contain: project, plan, backlog, code, spec, govern, validate, contract, sdd, generate, enforce, patch, migrate, repro, drift, analyze, policy (any of the 17 extracted)
 - [ ] 7.4 Test: `specfact --help` output contains hint: "Run `specfact init` to install workflow bundles"
 - [ ] 7.5 Test: `specfact backlog --help` when backlog bundle NOT installed → error "The 'backlog' bundle is not installed" + install command
 - [ ] 7.6 Test: `specfact code --help` when codebase bundle IS installed (mock) → shows `analyze`, `drift`, `validate`, `repro` sub-commands
-- [ ] 7.7 Test: `specfact --help` with all 5 bundles installed (mock) → shows 9 top-level commands (4 core + 5 category groups)
+- [ ] 7.7 Test: `specfact --help` with all 5 bundles installed (mock) → shows 8 top-level commands (3 core + 5 category groups)
 - [x] 7.8 Run: `hatch test -- tests/unit/cli/test_lean_help_output.py -v` (expect failures — record in TDD_EVIDENCE.md)
 
 ## 8. Write tests for pyproject.toml / setup.py package includes (TDD, expect failure)
 
 - [x] 8.1 Create `tests/unit/packaging/test_core_package_includes.py`
-- [ ] 8.2 Test: parse `pyproject.toml` — `packages` list contains only paths for `init`, `auth`, `module_registry`, `upgrade` core modules
+- [ ] 8.2 Test: parse `pyproject.toml` — `packages` list contains only paths for `init`, `module_registry`, `upgrade` core modules
 - [ ] 8.3 Test: parse `pyproject.toml` — no path contains any of the 17 deleted module names
 - [ ] 8.4 Test: `setup.py` `find_packages()` call with corrected `include` kwarg does not pick up the 17 deleted module directories (mock filesystem)
 - [ ] 8.5 Test: version in `pyproject.toml`, `setup.py`, `src/specfact_cli/__init__.py` are all identical
@@ -210,19 +210,19 @@ Do NOT implement production code for any behavior-changing step until failing-te
 
 - [x] 10.5.1 `git rm -r src/specfact_cli/modules/enforce/ src/specfact_cli/modules/patch_mode/`
 - [x] 10.5.2 Update `pyproject.toml` and `setup.py` for govern modules
-- [x] 10.5.3 `hatch test -- tests/unit/packaging/test_core_package_includes.py -v` — all 17 modules absent, only 4 core remain (auth remains until 10.6 after backlog-auth-01)
+- [x] 10.5.3 `hatch test -- tests/unit/packaging/test_core_package_includes.py -v` — all 17 modules absent, only 4 core remained pending task 10.6
 - [ ] 10.5.4 `git commit -m "feat(core): delete specfact-govern module source from core (migration-03)"`
 
-### 10.6 Remove auth module from core (auth commands → backlog bundle) — **DEFERRED**
+### 10.6 Remove auth module from core (auth commands → backlog bundle)
 
-**Do not implement 10.6 in this change.** Auth is removed from core only **after** `backlog-auth-01-backlog-auth-commands` is implemented in specfact-cli-modules and the backlog bundle provides `specfact backlog auth` (azure-devops, github, status, clear). That keeps a single, reliable auth implementation (today’s behaviour moved to backlog) and avoids a period with no auth or a divergent module. This change merges with **4 core** (init, auth, module_registry, upgrade). Execute 10.6 in a follow-up PR once backlog-auth-01 is done.
+`backlog-auth-01-backlog-auth-commands` is implemented and merged, so auth command parity now exists in the backlog bundle. Execute 10.6 in this change to finalize the 3-core model (`init`, `module_registry`, `upgrade`) while keeping the central auth token interface in core for bundle reuse.
 
-- [ ] 10.6.1 Ensure central auth interface remains in core: `src/specfact_cli/utils/auth_tokens.py` (or a thin facade in `specfact_cli.auth`) with `get_token(provider)`, `set_token(provider, data)`, `clear_token(provider)`, `clear_all_tokens()` — used by bundles (e.g. backlog) for token storage. Adapters (in bundles) continue to import from `specfact_cli.utils.auth_tokens` or the facade.
-- [ ] 10.6.2 `git rm -r src/specfact_cli/modules/auth/`
-- [ ] 10.6.3 Remove `auth` from `CORE_NAMES` and any core-module list in `src/specfact_cli/registry/module_packages.py`
-- [ ] 10.6.4 Update `pyproject.toml` and `setup.py` — remove auth module path from packages
-- [ ] 10.6.5 Remove or update `src/specfact_cli/commands/auth.py` shim if it exists (point to backlog or remove)
-- [ ] 10.6.6 `hatch test -- tests/unit/packaging/test_core_package_includes.py -v` — confirm auth absent, 3 core only
+- [x] 10.6.1 Ensure central auth interface remains in core: `src/specfact_cli/utils/auth_tokens.py` (or a thin facade in `specfact_cli.auth`) with `get_token(provider)`, `set_token(provider, data)`, `clear_token(provider)`, `clear_all_tokens()` — used by bundles (e.g. backlog) for token storage. Adapters (in bundles) continue to import from `specfact_cli.utils.auth_tokens` or the facade.
+- [x] 10.6.2 `git rm -r src/specfact_cli/modules/auth/`
+- [x] 10.6.3 Remove `auth` from `CORE_NAMES` and any core-module list in `src/specfact_cli/registry/module_packages.py`
+- [x] 10.6.4 Update `pyproject.toml` and `setup.py` — remove auth module path from packages
+- [x] 10.6.5 Remove or update `src/specfact_cli/commands/auth.py` shim if it exists (point to backlog or remove)
+- [x] 10.6.6 `hatch test -- tests/unit/packaging/test_core_package_includes.py -v` — confirm auth absent, 3 core only
 - [ ] 10.6.7 `git commit -m "feat(core): remove auth module from core; central auth interface only (migration-03)"`
 
 ### 10.7 Verify all tests pass after all deletions
@@ -230,13 +230,13 @@ Do NOT implement production code for any behavior-changing step until failing-te
 - [x] 10.7.1 `hatch test -- tests/unit/packaging/test_core_package_includes.py -v` — confirm full suite green
 - [x] 10.7.2 Record passing-test result in TDD_EVIDENCE.md (Phase 1: package includes)
 
-## 11. Phase 2 — Update bootstrap.py (shim removal + 4-core-only registration)
+## 11. Phase 2 — Update bootstrap.py (shim removal + 3-core-only registration)
 
 - [ ] 11.1 Edit `src/specfact_cli/registry/bootstrap.py`:
   - [ ] 11.1.1 Remove all import statements for the 17 deleted module packages
-  - [ ] 11.1.2 Remove all `register_module()` / `add_typer()` calls for the 17 deleted modules (keep auth registration)
+  - [ ] 11.1.2 Remove all `register_module()` / `add_typer()` calls for deleted modules, including auth
   - [ ] 11.1.3 Remove backward-compat flat command shim registration logic (entire shim block)
-  - [ ] 11.1.4 Add `_mount_installed_category_groups(cli_app)` call after the 4 core registrations
+  - [ ] 11.1.4 Add `_mount_installed_category_groups(cli_app)` call after the 3 core registrations
   - [ ] 11.1.5 Implement `_mount_installed_category_groups(cli_app: typer.Typer) -> None` using `get_installed_bundles()` and `CATEGORY_GROUP_FACTORIES` mapping
   - [ ] 11.1.6 Add `@beartype` to `bootstrap_modules()` and `_mount_installed_category_groups()`
 - [x] 11.2 `hatch test -- tests/unit/registry/test_core_only_bootstrap.py -v` — verify passes
@@ -278,7 +278,7 @@ Do NOT implement production code for any behavior-changing step until failing-te
   hatch run ./scripts/verify-modules-signature.py --require-signature
   ```
 
-- [ ] 14.2 If any of the 4 core modules fail (signatures may be stale after directory restructuring): bump patch version in their `module-package.yaml` and re-sign
+- [ ] 14.2 If any of the 3 core modules fail (signatures may be stale after directory restructuring): bump patch version in their `module-package.yaml` and re-sign
 
   ```bash
   hatch run python scripts/sign-modules.py --key-file <private-key.pem> src/specfact_cli/modules/init/module-package.yaml src/specfact_cli/modules/auth/module-package.yaml src/specfact_cli/modules/module_registry/module-package.yaml src/specfact_cli/modules/upgrade/module-package.yaml
@@ -295,7 +295,7 @@ Do NOT implement production code for any behavior-changing step until failing-te
 ## 15. Integration and E2E tests
 
 - [x] 15.1 Create `tests/integration/test_core_slimming.py`
-  - [ ] 15.1.1 Test: fresh install CLI app — `cli_app.registered_commands` contains only 4 core commands (mock no bundles installed)
+  - [ ] 15.1.1 Test: fresh install CLI app — `cli_app.registered_commands` contains only 3 core commands (mock no bundles installed)
   - [ ] 15.1.2 Test: `specfact module install nold-ai/specfact-backlog` (mock) → after install, `specfact backlog --help` resolves
   - [ ] 15.1.3 Test: `specfact init --profile solo-developer` → installs `specfact-codebase`, exits 0, `specfact code --help` resolves
   - [ ] 15.1.4 Test: `specfact init --profile enterprise-full-stack` → all 5 bundles installed, `specfact --help` shows 9 commands
@@ -306,7 +306,7 @@ Do NOT implement production code for any behavior-changing step until failing-te
 - [x] 15.2 Create `tests/e2e/test_core_slimming_e2e.py`
   - [ ] 15.2.1 Test: end-to-end `specfact init --profile solo-developer` in temp workspace → `specfact code analyze --help` resolves via installed codebase bundle
   - [ ] 15.2.2 Test: end-to-end `specfact init --profile api-first-team` → `specfact-project` auto-installed as dep of `specfact-spec`; `specfact spec contract --help` resolves
-  - [ ] 15.2.3 Test: end-to-end `specfact --help` output on fresh install contains ≤ 6 lines of commands
+  - [ ] 15.2.3 Test: end-to-end `specfact --help` output on fresh install contains ≤ 5 lines of commands
 - [x] 15.3 Run: `hatch test -- tests/integration/test_core_slimming.py tests/e2e/test_core_slimming_e2e.py -v`
 - [x] 15.4 Record passing E2E result in TDD_EVIDENCE.md
 
@@ -326,7 +326,7 @@ Do NOT implement production code for any behavior-changing step until failing-te
 
 - [x] 16.4 YAML lint
   - [x] 16.4.1 `hatch run yaml-lint`
-  - [x] 16.4.2 Fix any YAML formatting issues in the 4 core `module-package.yaml` files
+  - [x] 16.4.2 Fix any YAML formatting issues in the remaining core `module-package.yaml` files
 
 - [x] 16.5 Contract-first testing
   - [x] 16.5.1 `hatch run contract-test`
@@ -334,7 +334,7 @@ Do NOT implement production code for any behavior-changing step until failing-te
 
 - [ ] 16.6 Smart test suite
   - [ ] 16.6.1 `hatch run smart-test` (re-run blocked in restricted network sandbox: Hatch dependency sync cannot fetch `pip-tools`)
-  - [ ] 16.6.2 Verify no regressions in the 4 core commands (init, auth, module, upgrade)
+  - [ ] 16.6.2 Verify no regressions in the 3 core commands (init, module, upgrade)
 
 - [x] 16.7 Module signing gate (final confirmation)
   - [x] 16.7.1 `hatch run ./scripts/verify-modules-signature.py --require-signature`
@@ -346,7 +346,7 @@ Do NOT implement production code for any behavior-changing step until failing-te
 - [x] 17.1 Identify affected documentation
   - [x] 17.1.1 Review `docs/getting-started/installation.md` — major update required: install + first-run section now requires profile selection
   - [x] 17.1.2 Review `docs/guides/installation.md` — update install steps; add `specfact init --profile <name>` as mandatory post-install step
-  - [x] 17.1.3 Review `docs/reference/commands.md` — update command topology (4 core + category groups); mark removed flat shim commands as deleted
+  - [x] 17.1.3 Review `docs/reference/commands.md` — update command topology (3 core + category groups); mark removed flat shim commands as deleted
   - [x] 17.1.4 Review `docs/reference/module-categories.md` — note modules no longer ship in core; update install instructions to `specfact module install`
   - [x] 17.1.5 Review `docs/guides/marketplace.md` — update to reflect bundles are now the mandatory install path (not optional add-ons)
   - [x] 17.1.6 Review `README.md` — update "Getting started" to lead with profile selection; update command list to category groups
@@ -366,7 +366,7 @@ Do NOT implement production code for any behavior-changing step until failing-te
   - [x] 17.3.4 Document upgrade path from pre-slimming versions
 
 - [x] 17.4 Update `docs/reference/commands.md`
-  - [x] 17.4.1 Replace 21-command flat topology with 4 core + 5 category group topology
+  - [x] 17.4.1 Replace 21-command flat topology with 3 core + 5 category group topology
   - [x] 17.4.2 Add "Removed commands" section listing flat shim commands removed in this version and their category group replacements
 
 - [x] 17.5 Update `README.md`
@@ -401,22 +401,22 @@ Do NOT implement production code for any behavior-changing step until failing-te
     - Mandatory bundle selection enforcement in `specfact init` (CI/CD mode requires `--profile` or `--install`)
     - Actionable "bundle not installed" error for category group commands
   - [x] 18.3.3 Add `### Changed` subsection:
-    - `specfact --help` on fresh install now shows ≤ 6 commands (4 core + at most 2 core-adjacent); category groups appear only when bundle is installed
-    - `bootstrap.py` now registers 4 core modules only; category groups mounted dynamically from installed bundles
+    - `specfact --help` on fresh install now shows ≤ 5 commands (3 core + at most 2 core-adjacent); category groups appear only when bundle is installed
+    - `bootstrap.py` now registers 3 core modules only; category groups mounted dynamically from installed bundles
     - `specfact init` first-run experience now enforces bundle selection (interactive: prompt loop; CI/CD: exit 1 if no --profile/--install)
     - Profile presets fully activate marketplace bundle installation
   - [x] 18.3.4 Add `### Migration` subsection:
     - CI/CD pipelines: add `specfact init --profile enterprise` or `specfact init --install all` as a bootstrap step after install
     - Scripts using flat shim commands: replace `specfact plan` → `specfact project plan`, `specfact validate` → `specfact code validate`, etc.
     - Code importing `specfact_cli.modules.<name>`: update to `specfact_<bundle>.<name>`
-    - (After backlog-auth-01: scripts using `specfact auth` can switch to `specfact backlog auth` once that bundle is installed.)
+    - Top-level `specfact auth` is removed; scripts should use `specfact backlog auth` once the backlog bundle is installed.
   - [x] 18.3.5 Reference GitHub issue number
 
 ## 19. Create PR to dev
 
 - [x] 19.1 Verify TDD_EVIDENCE.md is complete with:
   - Pre-deletion gate output (gate script PASS for all 17 modules)
-  - Failing-before and passing-after evidence for: gate script, bootstrap 4-core-only, init mandatory selection, lean help output, package includes
+  - Failing-before and passing-after evidence for: gate script, bootstrap core-only, init mandatory selection, lean help output, package includes
   - Passing E2E results
 
 - [ ] 19.2 Prepare commit(s)

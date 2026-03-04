@@ -47,11 +47,10 @@ from specfact_cli.runtime import is_debug_mode
 from specfact_cli.utils.prompts import print_warning
 
 
-# Display order for core modules (4 only after migration-03); others follow alphabetically.
-CORE_NAMES = ("init", "auth", "module", "upgrade")
+# Display order for core modules (3 after migration-03); others follow alphabetically.
+CORE_NAMES = ("init", "module", "upgrade")
 CORE_MODULE_ORDER: tuple[str, ...] = (
     "init",
-    "auth",
     "module-registry",
     "upgrade",
 )

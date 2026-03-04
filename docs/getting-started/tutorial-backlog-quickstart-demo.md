@@ -32,9 +32,9 @@ Preferred ceremony aliases:
 - Auth configured:
 
 ```bash
-specfact auth github
-specfact auth azure-devops
-specfact auth status
+specfact backlog auth github
+specfact backlog auth azure-devops
+specfact backlog auth status
 ```
 
 Expected status should show both providers as valid.
@@ -207,7 +207,7 @@ Then verify retrieval by ID using `daily` or `refine --id <id>`.
 ## Quick Troubleshooting
 
 - DNS/network errors (`api.github.com`, `dev.azure.com`): verify outbound network access.
-- Auth errors: re-run `specfact auth status`.
+- Auth errors: re-run `specfact backlog auth status`.
 - ADO mapping issues: re-run `backlog map-fields` and confirm `--ado-framework` is correct.
 - Refine import mismatch: check `**ID**` was preserved exactly.
 

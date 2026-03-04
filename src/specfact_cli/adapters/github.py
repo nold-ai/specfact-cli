@@ -648,7 +648,7 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
                 "  2. Provide via --github-token option\n"
                 "  3. Use GitHub CLI: `gh auth login` (auto-detected if available)\n"
                 "  4. Use --use-gh-cli flag to explicitly use GitHub CLI token\n"
-                "  5. Run `specfact auth github` for device code authentication"
+                "  5. Run `specfact backlog auth github` for device code authentication"
             )
             raise ValueError(msg)
 
@@ -1114,7 +1114,7 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
                 "  1. Set GITHUB_TOKEN environment variable\n"
                 "  2. Use --github-token option\n"
                 "  3. Use GitHub CLI authentication (gh auth login)\n"
-                "  4. Store token via specfact auth github"
+                "  4. Store token via specfact backlog auth github"
             )
             raise ValueError(msg)
 
