@@ -191,7 +191,7 @@ uvx specfact-cli@latest import from-code my-project --repo .
 Fresh install exposes only core commands:
 
 - `specfact init`
-- `specfact auth`
+- `specfact backlog auth`
 - `specfact module`
 - `specfact upgrade`
 

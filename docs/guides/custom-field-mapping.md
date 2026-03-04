@@ -295,11 +295,11 @@ This command:
 
 **Token Resolution:**
 
-The command automatically uses stored tokens from `specfact auth azure-devops` if available. Token resolution priority:
+The command automatically uses stored tokens from `specfact backlog auth azure-devops` if available. Token resolution priority:
 
 1. Explicit `--ado-token` parameter
 2. `AZURE_DEVOPS_TOKEN` environment variable
-3. Stored token via `specfact auth azure-devops`
+3. Stored token via `specfact backlog auth azure-devops`
 4. Expired stored token (with warning and options to refresh)
 
 **Examples:**
@@ -593,14 +593,14 @@ If the interactive mapping command (`specfact backlog map-fields`) fails:
 1. **Check Token Resolution**: The command uses token resolution priority:
    - First: Explicit `--ado-token` parameter
    - Second: `AZURE_DEVOPS_TOKEN` environment variable
-   - Third: Stored token via `specfact auth azure-devops`
+   - Third: Stored token via `specfact backlog auth azure-devops`
    - Fourth: Expired stored token (shows warning with options)
 
    **Solutions:**
    - Use `--ado-token` to provide token explicitly
    - Set `AZURE_DEVOPS_TOKEN` environment variable
-   - Store token: `specfact auth azure-devops --pat your_pat_token`
-   - Re-authenticate: `specfact auth azure-devops`
+   - Store token: `specfact backlog auth azure-devops --pat your_pat_token`
+   - Re-authenticate: `specfact backlog auth azure-devops`
 
 2. **Check ADO Connection**: Verify you can connect to Azure DevOps
    - Test with: `curl -u ":{token}" "https://dev.azure.com/{org}/{project}/_apis/wit/fields?api-version=7.1"`
@@ -608,7 +608,7 @@ If the interactive mapping command (`specfact backlog map-fields`) fails:
 3. **Verify Permissions**: Ensure your PAT has "Work Items (Read)" permission
 
 4. **Check Token Expiration**: OAuth tokens expire after ~1 hour
-   - Use PAT token for longer expiration (up to 1 year): `specfact auth azure-devops --pat your_pat_token`
+   - Use PAT token for longer expiration (up to 1 year): `specfact backlog auth azure-devops --pat your_pat_token`
 
 5. **Verify Organization/Project**: Ensure the org and project names are correct
    - Check for typos in organization or project names

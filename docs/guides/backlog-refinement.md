@@ -1054,7 +1054,7 @@ specfact backlog ceremony refinement ado \
   --ado-token "your-pat-token"
 
 # Method 3: Stored token (via device code flow)
-specfact auth azure-devops  # Interactive device code flow
+specfact backlog auth azure-devops  # Interactive device code flow
 specfact backlog ceremony refinement ado --ado-org "my-org" --ado-project "my-project"
 ```
 

@@ -131,7 +131,7 @@ The adapter supports multiple authentication methods (in order of precedence):
 
 1. **Explicit token**: `api_token` parameter or `--ado-token` CLI flag
 2. **Environment variable**: `AZURE_DEVOPS_TOKEN` (also accepts `ADO_TOKEN` or `AZURE_DEVOPS_PAT`)
-3. **Stored auth token**: `specfact auth azure-devops` (device code flow or PAT token)
+3. **Stored auth token**: `specfact backlog auth azure-devops` (device code flow or PAT token)
 
 **Token Resolution Priority**:
 
@@ -139,7 +139,7 @@ When using ADO commands, tokens are resolved in this order:
 
 1. Explicit `--ado-token` parameter
 2. `AZURE_DEVOPS_TOKEN` environment variable
-3. Stored token via `specfact auth azure-devops`
+3. Stored token via `specfact backlog auth azure-devops`
 4. Expired stored token (shows warning with options to refresh)
 
 **Token Types**:

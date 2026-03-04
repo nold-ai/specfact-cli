@@ -77,7 +77,7 @@ The four profile presets SHALL resolve to the exact canonical bundle set and ins
 - **THEN** the CLI SHALL install all five bundles: `specfact-project`, `specfact-backlog`, `specfact-codebase`, `specfact-spec`, `specfact-govern`
 - **AND** `specfact-project` SHALL be installed before `specfact-spec` and `specfact-govern` (dependency order)
 - **AND** SHALL exit 0
-- **AND** `specfact --help` SHALL show all 9 top-level commands (4 core + 5 category groups)
+- **AND** `specfact --help` SHALL show all 8 top-level commands (3 core + 5 category groups)
 
 #### Scenario: Profile preset map is exhaustive and canonical
 
@@ -112,10 +112,10 @@ If the user attempts to run a category group command (e.g., `specfact project`, 
 #### Scenario: Core commands always work regardless of bundle installation state
 
 - **GIVEN** no bundles are installed
-- **WHEN** the user runs any core command: `specfact init`, `specfact auth`, `specfact module`, `specfact upgrade`
+- **WHEN** the user runs any core command: `specfact init`, `specfact module`, `specfact upgrade`
 - **THEN** the command SHALL execute normally
 - **AND** SHALL NOT be gated by bundle installation state
-- **AND** auth commands SHALL remain available via `specfact auth` in this change
+- **AND** auth commands SHALL be available via `specfact backlog auth` once the backlog bundle is installed
 
 ### Requirement: `specfact init --install all` still installs all five bundles
 

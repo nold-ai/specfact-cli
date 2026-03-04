@@ -1,5 +1,5 @@
 name: init
-version: 0.1.5
+version: 0.1.7
 commands:
   - init
 category: core
@@ -9,7 +9,7 @@ command_help:
 pip_dependencies: []
 module_dependencies: []
 tier: community
-core_compatibility: '>=0.28.0,<1.0.0'
+core_compatibility: '>=0.40.0,<1.0.0'
 publisher:
   name: nold-ai
   url: https://github.com/nold-ai/specfact-cli-modules
@@ -17,5 +17,5 @@ publisher:
 description: Initialize SpecFact workspace and bootstrap local configuration.
 license: Apache-2.0
 integrity:
-  checksum: sha256:e0e5dc26b1ebc31eaf237464f60de01b32a42c20a3d89b7b53c4cebab46144e1
-  signature: HLsBoes0t1KkiDFtLMsaNuhsLDlZ7SHXY+/YotQfHrFkPJtCmeki2LPtG5CgNhyhIyw86AC8NrBguGN3EsyxDQ==
+  checksum: sha256:f7b84b8134bb032432302204e328ed9790e987ba60d3d0924154426f205d8932
+  signature: e4MpqARZV+Zz1e6clxSdvdPzRc74jiqUZcz/s8Il9r6aWLjPFo5Exy6rD3+73v54iRh+q5C33q9K1+biNIyYBQ==

@@ -13,7 +13,7 @@ PYPROJECT = REPO_ROOT / "pyproject.toml"
 SETUP_PY = REPO_ROOT / "setup.py"
 INIT_PY = REPO_ROOT / "src" / "specfact_cli" / "__init__.py"
 
-CORE_MODULE_NAMES = {"init", "auth", "module_registry", "upgrade"}
+CORE_MODULE_NAMES = {"init", "module_registry", "upgrade"}
 DELETED_17_NAMES = {
     "project",
     "plan",
@@ -46,6 +46,7 @@ def test_pyproject_wheel_packages_exist() -> None:
 def test_pyproject_force_include_does_not_reference_deleted_modules() -> None:
     """force-include must not reference the 17 deleted module dirs (exact key match)."""
     raw = PYPROJECT.read_text(encoding="utf-8")
+    assert '"modules/auth"' not in raw
     for name in DELETED_17_NAMES:
         if re.search(r'"modules/' + re.escape(name) + r'"\s*=', raw):
             pytest.fail(f"pyproject force-include must not reference deleted module dir: modules/{name}")

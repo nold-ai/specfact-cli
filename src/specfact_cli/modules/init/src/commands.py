@@ -401,7 +401,7 @@ def _interactive_first_run_bundle_selection() -> list[str]:
     console.print(
         Panel(
             "[bold cyan]Welcome to SpecFact[/bold cyan]\n"
-            "Choose which workflow bundles to install. Core commands (init, auth, module, upgrade) are always available.",
+            "Choose which workflow bundles to install. Core commands (init, module, upgrade) are always available.",
             border_style="cyan",
         )
     )

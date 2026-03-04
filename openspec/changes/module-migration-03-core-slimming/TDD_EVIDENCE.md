@@ -192,3 +192,21 @@
     - Added `scripts/export-change-to-github.py` wrapper for `specfact sync bridge --adapter github --mode export-only`.
     - Added `--inplace-update` option that maps to `--update-existing`.
     - Added hatch alias `hatch run export-change-github -- ...`.
+
+### Phase: task 10.6 auth removal from core (2026-03-04)
+
+- **Failing-before run**
+  - Command: `hatch test -- tests/unit/packaging/test_core_package_includes.py tests/unit/registry/test_core_only_bootstrap.py tests/unit/cli/test_lean_help_output.py -v`
+  - Timestamp: 2026-03-04
+  - Result: **FAILED** (`1 failed, 14 passed, 1 skipped`)
+  - Failure summary:
+    - `tests/unit/cli/test_lean_help_output.py::test_specfact_help_fresh_install_contains_core_commands` failed because top-level `auth` still appears in `specfact --help`, proving auth is still registered as a core command before task 10.6 production changes.
+
+- **Passing-after run**
+  - Command: `hatch test -- tests/unit/packaging/test_core_package_includes.py tests/unit/registry/test_core_only_bootstrap.py tests/unit/cli/test_lean_help_output.py tests/unit/commands/test_auth_commands.py tests/integration/commands/test_auth_commands_integration.py -v`
+  - Timestamp: 2026-03-04
+  - Result: **PASSED** (`17 passed, 1 skipped`)
+  - Notes:
+    - Removed core auth module and shim from `specfact-cli`.
+    - Core registry now exposes only `init`, `module`, `upgrade`.
+    - Top-level `specfact auth` is no longer available; auth guidance now points to `specfact backlog auth`.

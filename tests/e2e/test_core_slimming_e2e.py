@@ -95,8 +95,8 @@ def test_e2e_init_profile_api_first_team_then_spec_contract_help(
     assert "contract" in (spec_help.stdout or "").lower() or "usage" in (spec_help.stdout or "").lower()
 
 
-def test_e2e_specfact_help_fresh_install_at_most_six_command_lines(monkeypatch: pytest.MonkeyPatch) -> None:
-    """E2E: specfact --help on fresh install shows ≤ 6 top-level commands (4 core when no bundles)."""
+def test_e2e_specfact_help_fresh_install_at_most_five_command_lines(monkeypatch: pytest.MonkeyPatch) -> None:
+    """E2E: specfact --help on fresh install shows ≤ 5 top-level commands (3 core when no bundles)."""
     monkeypatch.setattr(
         "specfact_cli.registry.module_packages.get_installed_bundles",
         lambda _p, _e: [],
@@ -107,10 +107,11 @@ def test_e2e_specfact_help_fresh_install_at_most_six_command_lines(monkeypatch: 
     CommandRegistry._clear_for_testing()
     register_builtin_commands()
     registered = CommandRegistry.list_commands()
-    assert len(registered) <= 6, f"Fresh install should have ≤6 commands, got {len(registered)}: {registered}"
+    assert len(registered) <= 5, f"Fresh install should have ≤5 commands, got {len(registered)}: {registered}"
     from specfact_cli.cli import app
 
     runner = CliRunner()
     result = runner.invoke(app, ["--help"], catch_exceptions=False)
     assert result.exit_code == 0
-    assert "init" in result.output and "auth" in result.output
+    assert "init" in result.output and "module" in result.output and "upgrade" in result.output
+    assert "auth" not in result.output

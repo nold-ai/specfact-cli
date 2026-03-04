@@ -142,7 +142,7 @@ Override with `.specfact/backlog.yaml`, environment variables (`SPECFACT_GITHUB_
 
 ```bash
 # 1. Authenticate once (if not already)
-specfact auth github
+specfact backlog auth github
 
 # 2. From repo root: view standup (repo auto-detected)
 cd /path/to/your-repo

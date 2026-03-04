@@ -1,4 +1,4 @@
-# Change: module-migration-06 - Core Decoupling Cleanup After Module Extraction
+# Change: Core Decoupling Cleanup After Module Extraction
 
 ## Why
 

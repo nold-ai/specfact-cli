@@ -174,8 +174,8 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
                         "[dim]Options:[/dim]\n"
                         "  1. Use a Personal Access Token (PAT) with longer expiration (up to 1 year):\n"
                         "     - Create PAT: https://dev.azure.com/{org}/_usersSettings/tokens\n"
-                        "     - Store PAT: specfact auth azure-devops --pat your_pat_token\n"
-                        "  2. Re-authenticate: specfact auth azure-devops\n"
+                        "     - Store PAT: specfact backlog auth azure-devops --pat your_pat_token\n"
+                        "  2. Re-authenticate: specfact backlog auth azure-devops\n"
                         "  3. Use --ado-token option with a valid token"
                     )
                     self.api_token = None
@@ -792,7 +792,7 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
                 "Azure DevOps API token required. Options:\n"
                 "  1. Set AZURE_DEVOPS_TOKEN environment variable\n"
                 "  2. Provide via --ado-token option\n"
-                "  3. Run `specfact auth azure-devops` for device code authentication"
+                "  3. Run `specfact backlog auth azure-devops` for device code authentication"
             )
             raise ValueError(msg)
 
@@ -2898,7 +2898,7 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
                 "Options:\n"
                 "  1. Set AZURE_DEVOPS_TOKEN environment variable\n"
                 "  2. Use --ado-token option\n"
-                "  3. Store token via specfact auth azure-devops"
+                "  3. Store token via specfact backlog auth azure-devops"
             )
             raise ValueError(msg)
 

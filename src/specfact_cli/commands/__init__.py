@@ -6,7 +6,6 @@ This package contains all CLI command implementations.
 
 from specfact_cli.commands import (
     analyze,
-    auth,
     contract_cmd,
     drift,
     enforce,
@@ -27,7 +26,6 @@ from specfact_cli.commands import (
 
 __all__ = [
     "analyze",
-    "auth",
     "contract_cmd",
     "drift",
     "enforce",

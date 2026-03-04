@@ -163,9 +163,9 @@ SpecFact CLI supports multiple authentication methods:
 **Option 1: Device Code (SSO-friendly)**
 
 ```bash
-specfact auth github
+specfact backlog auth github
 # or use a custom OAuth app
-specfact auth github --client-id YOUR_CLIENT_ID
+specfact backlog auth github --client-id YOUR_CLIENT_ID
 ```
 
 **Note:** The default client ID works only for `https://github.com`. For GitHub Enterprise, provide `--client-id` or set `SPECFACT_GITHUB_CLIENT_ID`.
@@ -1436,14 +1436,14 @@ Azure DevOps adapter (`--adapter ado`) is now available and supports:
 ### Prerequisites
 
 - Azure DevOps organization and project
-- Personal Access Token (PAT) with work item read/write permissions **or** device code auth via `specfact auth azure-devops`
+- Personal Access Token (PAT) with work item read/write permissions **or** device code auth via `specfact backlog auth azure-devops`
 - OpenSpec change proposals in `openspec/changes/<change-id>/proposal.md`
 
 ### Authentication
 
 ```bash
 # Option 1: Device Code (SSO-friendly)
-specfact auth azure-devops
+specfact backlog auth azure-devops
 
 # Option 2: Environment Variable
 export AZURE_DEVOPS_TOKEN=your_pat_token

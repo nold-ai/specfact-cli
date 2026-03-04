@@ -12,7 +12,7 @@ SpecFact groups feature modules into workflow-oriented command families.
 Core commands remain top-level:
 
 - `specfact init`
-- `specfact auth`
+- `specfact backlog auth`
 - `specfact module`
 - `specfact upgrade`
 

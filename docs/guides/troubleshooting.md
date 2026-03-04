@@ -659,9 +659,9 @@ FORCE_COLOR=1 specfact import from-code my-bundle
 1. **Use stored token** (recommended):
 
    ```bash
-   specfact auth azure-devops
+   specfact backlog auth azure-devops
    # Or use PAT token for longer expiration:
-   specfact auth azure-devops --pat your_pat_token
+   specfact backlog auth azure-devops --pat your_pat_token
    ```
 
 2. **Use explicit token**:
@@ -683,7 +683,7 @@ The command automatically uses tokens in this order:
 
 1. Explicit `--ado-token` parameter
 2. `AZURE_DEVOPS_TOKEN` environment variable
-3. Stored token via `specfact auth azure-devops`
+3. Stored token via `specfact backlog auth azure-devops`
 4. Expired stored token (shows warning with options)
 
 ### OAuth Token Expired
@@ -697,13 +697,13 @@ The command automatically uses tokens in this order:
 1. **Use PAT token** (recommended for automation, up to 1 year expiration):
 
    ```bash
-   specfact auth azure-devops --pat your_pat_token
+   specfact backlog auth azure-devops --pat your_pat_token
    ```
 
 2. **Re-authenticate**:
 
    ```bash
-   specfact auth azure-devops
+   specfact backlog auth azure-devops
    ```
 
 3. **Use explicit token**:

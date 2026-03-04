@@ -10,7 +10,7 @@ from specfact_cli.cli import app
 
 runner = CliRunner()
 
-CORE_FOUR = {"init", "auth", "module", "upgrade"}
+CORE_THREE = {"init", "module", "upgrade"}
 EXTRACTED_ANY = [
     "project",
     "plan",
@@ -33,11 +33,12 @@ EXTRACTED_ANY = [
 
 
 def test_specfact_help_fresh_install_contains_core_commands() -> None:
-    """specfact --help (fresh install) must list the 4 core commands."""
+    """specfact --help (fresh install) must list only the 3 core commands."""
     result = runner.invoke(app, ["--help"], catch_exceptions=False)
     assert result.exit_code == 0
-    for name in CORE_FOUR:
+    for name in CORE_THREE:
         assert name in result.output, f"Core command {name} must appear in --help"
+    assert "auth" not in result.output
 
 
 def test_specfact_help_does_not_show_extracted_as_top_level_when_lean(
@@ -84,12 +85,12 @@ def test_specfact_backlog_help_when_not_installed_shows_actionable_error(
         )
 
 
-def test_specfact_help_with_all_bundles_installed_shows_nine_commands(
+def test_specfact_help_with_all_bundles_installed_shows_eight_commands(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """With all 5 bundles installed, --help should show 4 core + 5 category groups = 9 top-level."""
+    """With all 5 bundles installed, --help should show 3 core + 5 category groups = 8 top-level."""
     result = runner.invoke(app, ["--help"], catch_exceptions=False)
     assert result.exit_code == 0
     if "backlog" in result.output and "code" in result.output and "project" in result.output:
-        core_and_groups = CORE_FOUR | {"backlog", "code", "project", "spec", "govern"}
-        assert len(core_and_groups) >= 9 or "init" in result.output
+        core_and_groups = CORE_THREE | {"backlog", "code", "project", "spec", "govern"}
+        assert len(core_and_groups) >= 8 or "init" in result.output
