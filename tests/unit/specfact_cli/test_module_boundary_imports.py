@@ -7,10 +7,14 @@ from pathlib import Path
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
+CORE_SRC_ROOT = PROJECT_ROOT / "src" / "specfact_cli"
 LEGACY_NON_APP_IMPORT_PATTERN = re.compile(r"from\s+specfact_cli\.commands\.[a-zA-Z0-9_]+\s+import\s+(?!app\b)")
 LEGACY_SYMBOL_REF_PATTERN = re.compile(r"specfact_cli\.commands\.[a-zA-Z0-9_]+")
 CROSS_MODULE_COMMAND_IMPORT_PATTERN = re.compile(
     r"from\s+specfact_cli\.modules\.([a-zA-Z0-9_]+)\.src\.commands\s+import\s+([^\n]+)"
+)
+BUNDLE_PACKAGE_IMPORT_PATTERN = re.compile(
+    r"(?:from\s+(backlog_core|bundle_mapper)(?:\.[a-zA-Z0-9_]+)*\s+import|import\s+(backlog_core|bundle_mapper))"
 )
 
 
@@ -65,4 +69,28 @@ def test_no_cross_module_non_app_command_imports_in_module_sources() -> None:
     assert not violations, (
         "Cross-module src.commands imports found (use specfact_cli.utils for shared helpers):\n"
         + "\n".join(f"- {v}" for v in sorted(violations))
+    )
+
+
+def test_core_does_not_import_from_bundle_packages() -> None:
+    """Block core from importing bundle packages (backlog_core, bundle_mapper).
+
+    Core (src/specfact_cli/) must remain decoupled from bundle implementation.
+    Bundles import from specfact_cli; core must not import from bundles.
+    """
+    violations: list[str] = []
+    if not CORE_SRC_ROOT.exists():
+        return
+
+    for py_file in CORE_SRC_ROOT.rglob("*.py"):
+        if "__pycache__" in py_file.parts:
+            continue
+        text = py_file.read_text(encoding="utf-8")
+        for match in BUNDLE_PACKAGE_IMPORT_PATTERN.finditer(text):
+            rel = py_file.relative_to(PROJECT_ROOT)
+            violations.append(f"{rel}: {match.group(0).strip()}")
+
+    assert not violations, (
+        "Core must not import from bundle packages (backlog_core, bundle_mapper). "
+        "Bundles depend on core; core must not depend on bundles.\n" + "\n".join(f"- {v}" for v in sorted(violations))
     )
