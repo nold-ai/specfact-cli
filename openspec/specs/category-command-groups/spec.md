@@ -44,54 +44,14 @@ Each category group SHALL expose its member modules as sub-commands, preserving 
 
 ### Requirement: Bootstrap mounts category groups when grouping is enabled
 
-`bootstrap.py` SHALL mount category group apps on the root Typer instance when `category_grouping_enabled` is `true`.
+Bootstrap SHALL mount only category group apps (and core commands) when `category_grouping_enabled` is true. It SHALL NOT register any shim loaders for flat command names.
 
-#### Scenario: Bootstrap mounts all installed category groups
-
-- **GIVEN** `category_grouping_enabled` is `true`
-- **AND** modules from multiple categories are installed
-- **WHEN** the CLI initialises
-- **THEN** `bootstrap.py` SHALL call `app.add_typer()` for each category group app that has at least one member module installed
-- **AND** SHALL NOT mount flat individual module apps for grouped modules
-- **AND** SHALL still mount `core` category modules as flat top-level commands
-
-#### Scenario: Category group lazy-loads member modules on first invocation
-
-- **GIVEN** a category group is mounted
-- **WHEN** the user runs a sub-command under the group
-- **THEN** the group SHALL defer importing member module sub-apps until the sub-command is invoked
-- **AND** the import SHALL succeed and the command SHALL execute
-- **AND** CLI startup time (for `specfact --help`) SHALL NOT increase by more than 50ms compared to pre-grouping baseline
-
-### Requirement: Backward-compat shims preserve all existing flat top-level commands
-
-All 17 non-core module commands that existed before this change SHALL remain functional as flat top-level commands during the migration window, but SHALL emit a deprecation warning in interactive mode.
-
-#### Scenario: Old flat command delegates to category group equivalent
+#### Scenario: No shim registration at bootstrap
 
 - **GIVEN** `category_grouping_enabled` is `true`
-- **AND** the `specfact validate` flat shim is active
-- **WHEN** the user runs `specfact validate sidecar run` in interactive (Copilot) mode
-- **THEN** the CLI SHALL print a yellow deprecation warning: "Note: `specfact validate` is deprecated. Use `specfact code validate` instead."
-- **AND** SHALL delegate the command to `specfact code validate sidecar run`
-- **AND** the command SHALL complete with the same exit code and output as the category group equivalent
-
-#### Scenario: Old flat command runs silently in CI/CD mode
-
-- **GIVEN** `category_grouping_enabled` is `true`
-- **AND** the CLI is running in CICD mode (detected from environment or `--cicd` flag)
-- **WHEN** the user runs `specfact plan init`
-- **THEN** the CLI SHALL execute `specfact project plan init` silently
-- **AND** SHALL NOT print any deprecation warning
-- **AND** the exit code and output SHALL be identical to the category group equivalent
-
-#### Scenario: All 17 non-core flat commands remain in help output during migration window
-
-- **GIVEN** `category_grouping_enabled` is `true`
-- **AND** the migration window is active (i.e., shims have not been removed)
-- **WHEN** the user runs `specfact --help`
-- **THEN** both the category group commands AND the flat shim commands SHALL appear in help
-- **AND** shim entries SHALL include a deprecation annotation in their help text
+- **WHEN** the CLI bootstrap runs
+- **THEN** the registry SHALL contain entries only for core commands and the five category group names
+- **AND** SHALL NOT contain entries for `analyze`, `drift`, `validate`, `repro`, `backlog`, `policy`, `project`, `plan`, `import`, `sync`, `migrate`, `contract`, `spec`, `sdd`, `generate`, `enforce`, `patch` as top-level commands
 
 ### Requirement: `category_grouping_enabled` config flag controls grouping behaviour
 
