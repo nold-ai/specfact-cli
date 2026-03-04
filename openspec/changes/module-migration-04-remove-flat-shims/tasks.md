@@ -24,7 +24,8 @@ TDD/SDD order enforced. Version series: **0.40.x**.
 
 - [x] 4.1 `hatch run format` and fix
 - [x] 4.2 `hatch run type-check` and fix
-- [ ] 4.3 `hatch run lint` and fix
+- [x] 4.3 `hatch run lint` and fix
+  - Deferred: remaining repository-wide pylint debt is tracked for follow-up changes `module-migration-06` / `module-migration-07`.
 - [x] 4.4 `hatch run contract-test` and fix
 - [x] 4.5 `hatch run smart-test` for this change scope; if `smart-test-full` exposes unrelated migration debt, record and defer to follow-up change(s) per migration-03 phase 20.
 
@@ -38,4 +39,4 @@ TDD/SDD order enforced. Version series: **0.40.x**.
 ## 6. PR
 
 - [x] 6.1 Create GitHub issue for change (title: `[Change] Remove flat shims — category-only CLI (0.40.x)`); link in proposal Source Tracking.
-- [ ] 6.2 Open PR to `dev`; reference this change and breaking-change migration path.
+- [x] 6.2 Open PR to `dev`; reference this change and breaking-change migration path.
