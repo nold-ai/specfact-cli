@@ -1,4 +1,4 @@
-"""Integration tests for core slimming (module-migration-03): 4-core-only, bundle mounting, init profiles."""
+"""Integration tests for core slimming (module-migration-03): 3-core-only, bundle mounting, init profiles."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from specfact_cli.registry import CommandRegistry
 from specfact_cli.registry.bootstrap import register_builtin_commands
 
 
-CORE_FOUR = {"init", "auth", "module", "upgrade"}
+CORE_THREE = {"init", "module", "upgrade"}
 ALL_FIVE_BUNDLES = [
     "specfact-backlog",
     "specfact-codebase",
@@ -30,15 +30,16 @@ def _reset_registry():
     CommandRegistry._clear_for_testing()
 
 
-def test_fresh_install_cli_app_registered_commands_only_four_core(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Fresh install: CLI app has only 4 core commands when no bundles installed."""
+def test_fresh_install_cli_app_registered_commands_only_three_core(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Fresh install: CLI app has only 3 core commands when no bundles installed."""
     monkeypatch.setattr(
         "specfact_cli.registry.module_packages.get_installed_bundles",
         lambda _packages, _enabled: [],
     )
     register_builtin_commands()
     names = set(CommandRegistry.list_commands())
-    assert names >= CORE_FOUR, f"Expected at least {CORE_FOUR}, got {names}"
+    assert names >= CORE_THREE, f"Expected at least {CORE_THREE}, got {names}"
+    assert "auth" not in names
     extracted = {"backlog", "code", "project", "spec", "govern", "plan", "validate"}
     for ex in extracted:
         assert ex not in names, f"Extracted command {ex} must not be registered when no bundles"
@@ -99,10 +100,10 @@ def test_init_profile_solo_developer_exits_zero_and_code_group_mounted(
     )
 
 
-def test_init_profile_enterprise_full_stack_help_shows_nine_commands(
+def test_init_profile_enterprise_full_stack_help_shows_eight_commands(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    """specfact init --profile enterprise-full-stack (mock); specfact --help shows 9 top-level commands."""
+    """specfact init --profile enterprise-full-stack (mock); specfact --help shows 8 top-level commands."""
     monkeypatch.setattr(
         "specfact_cli.modules.init.src.commands.install_bundles_for_init",
         lambda *_a, **_k: None,
@@ -130,8 +131,8 @@ def test_init_profile_enterprise_full_stack_help_shows_nine_commands(
     register_builtin_commands()
     result = runner.invoke(app, ["--help"], catch_exceptions=False)
     assert result.exit_code == 0
-    names = [c for c in (CORE_FOUR | {"backlog", "code", "project", "spec", "govern"}) if c in result.output]
-    assert len(names) >= 9 or ("init" in result.output and "backlog" in result.output)
+    names = [c for c in (CORE_THREE | {"backlog", "code", "project", "spec", "govern"}) if c in result.output]
+    assert len(names) >= 8 or ("init" in result.output and "backlog" in result.output)
 
 
 def test_init_install_all_same_as_enterprise(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
