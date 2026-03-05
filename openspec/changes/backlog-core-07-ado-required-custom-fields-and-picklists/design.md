@@ -4,6 +4,12 @@
 
 This change improves the ADO branch of the bridge adapter workflow while preserving provider-agnostic command structure.
 
+Current ownership after module migration:
+- `specfact-cli-modules` (`specfact-backlog`) owns `specfact backlog map-fields`.
+- `specfact-cli` owns `backlog-core add` command orchestration and shared ADO adapter create path.
+
+Design must keep these boundaries explicit so each repo change is independently testable, while the end-to-end behavior is validated together.
+
 ## Goals / Non-Goals
 
 **Goals:**
@@ -38,6 +44,11 @@ This change improves the ADO branch of the bridge adapter workflow while preserv
 - Decision: keep/extend `@icontract` and `@beartype` annotations on public validation/payload functions touched by the change.
 - Rationale: contract-first baseline for regression prevention.
 
+### 5. Cross-repo schema compatibility for provider metadata
+- Decision: persisted metadata keys for required/constrained fields are additive and backward-compatible so either repo can read safely during staged rollout.
+- Rationale: map-fields and add/create are split across repositories; temporary version skew must not crash commands.
+- Alternative considered: strict schema bump requiring lockstep release. Rejected due to operational friction and higher rollback risk.
+
 ## Risks / Trade-offs
 
 - **[ADO metadata API variability]** -> Mitigation: fallback to persisted metadata; emit clear warning when live lookup unavailable.
@@ -47,11 +58,11 @@ This change improves the ADO branch of the bridge adapter workflow while preserv
 
 ## Migration Plan
 
-1. Add additive metadata fields to mapping persistence logic (`required`, `allowed_values`, `constraint_source`).
-2. Update add-flow field resolution to consume these metadata fields with backward-compatible defaults.
+1. In `specfact-cli-modules`, add additive metadata fields to mapping persistence logic (`required`, `allowed_values`, `constraint_source`, work-item-type keying).
+2. In `specfact-cli`, update add-flow field resolution and adapter create path to consume metadata with backward-compatible defaults.
 3. Introduce interactive picker path for constrained fields and retain free-text prompts for unconstrained fields.
-4. Add/adjust tests in TDD order (failing first, passing after implementation).
-5. Update docs and changelog entry before PR.
+4. Add/adjust tests in TDD order (failing first, passing after implementation) across both repos.
+5. Coordinate docs/changelog updates in both repos before merge.
 
 Rollback: revert map/add metadata and validation path changes; config remains readable because new keys are additive.
 

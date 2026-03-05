@@ -75,6 +75,18 @@ The system SHALL provide a `specfact backlog add` command that supports interact
 
 **And**: The error message lists the allowed values for the field and suggests running interactive mode or correcting the provided value.
 
+#### Scenario: Repeatable custom fields are parsed and mapped before create
+
+**Given**: The user provides one or more `--custom-field key=value` options
+
+**And**: At least one provided key maps to an ADO custom field reference via configured mapping metadata
+
+**When**: `specfact backlog add --adapter ado` builds the create payload
+
+**Then**: Parsed custom values are merged into provider field payload for adapter create
+
+**And**: Unknown keys fail fast with actionable mapping guidance instead of being silently ignored.
+
 #### Scenario: Add enforces required mapped ADO custom fields before create
 
 **Given**: Mapped metadata marks one or more ADO custom fields as required for the selected work item type
@@ -84,3 +96,13 @@ The system SHALL provide a `specfact backlog add` command that supports interact
 **Then**: Validation fails before adapter create call
 
 **And**: The message identifies missing required fields and how to satisfy them.
+
+#### Scenario: ADO create defaults text fields to markdown rendering and normalizes html-like input
+
+**Given**: The selected adapter is ADO and the user does not pass `--description-format classic`
+
+**When**: The command builds the provider create payload from `--body` and `--acceptance-criteria`
+
+**Then**: The adapter sets multiline field format to `Markdown` for description and acceptance criteria by default
+
+**And**: If provided text contains html-like content, the adapter normalizes it to markdown before submit.
