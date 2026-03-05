@@ -32,17 +32,27 @@ The `specfact-cli` core (`src/specfact_cli/`) SHALL NOT import from bundle packa
 - **WHEN** boundary tests run
 - **THEN** any file under `src/specfact_cli/` that imports from `backlog_core` or `bundle_mapper` causes the test to fail.
 
-### Migration Acceptance Criteria
+### Requirement: Migration Acceptance Criteria
 
-- [x] Inventory of candidate core components (keep/move/interface) produced and documented
-- [x] No core file imports from `backlog_core` or `bundle_mapper`
-- [x] Boundary regression tests pass
-- [ ] Quality gates (format, type-check, lint, contract-test, smart-test) pass
-- [x] docs/architecture updated with core vs modules-repo ownership boundary
+The decoupling cleanup SHALL meet documented acceptance checks before archive and spec sync are finalized.
+
+#### Scenario: Archive readiness checks are satisfied
+
+- **GIVEN** migration implementation artifacts and boundary tests are complete
+- **WHEN** archive validation evaluates migration acceptance checks
+- **THEN** inventory/classification documentation exists
+- **AND** core import boundary tests pass
+- **AND** quality-gate status and documentation updates are recorded for the change.
 
 ### Requirement: MIGRATE-Tier Enforcement
 
 Core modules (init, module_registry, upgrade) SHALL NOT import from MIGRATE-tier paths. MIGRATE-tier code (agents, analyzers, backlog, sync, etc.) lives in specfact-cli-modules. Regression test `test_core_modules_do_not_import_migrate_tier` enforces this.
+
+#### Scenario: Core module imports from MIGRATE-tier paths are blocked
+
+- **GIVEN** core modules (`init`, `module_registry`, `upgrade`) are validated in CI and local quality gates
+- **WHEN** any of those modules imports from a MIGRATE-tier path
+- **THEN** `test_core_modules_do_not_import_migrate_tier` fails and prevents merge until the coupling is removed.
 
 ### Requirement: Package-Specific Artifact Removal
 
