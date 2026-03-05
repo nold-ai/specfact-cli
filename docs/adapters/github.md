@@ -6,6 +6,10 @@ permalink: /adapters/github/
 
 # GitHub Adapter
 
+
+> Temporary docs note: this bundle-focused page remains hosted in the core docs set for the
+> current release line and is planned to migrate to `specfact-cli-modules`.
+
 The GitHub adapter provides bidirectional synchronization between OpenSpec change proposals and GitHub Issues, enabling agile DevOps-driven workflow support.
 
 ## Overview
@@ -334,14 +338,14 @@ To create a GitHub issue from an OpenSpec change and have the issue number/URL w
 
 ```bash
 # Export one or more changes; creates issues and updates proposal.md Source Tracking
-specfact sync bridge --adapter github --mode export-only \
+specfact project sync bridge --adapter github --mode export-only \
   --repo . \
   --repo-owner nold-ai \
   --repo-name specfact-cli \
   --change-ids <change-id>
 
 # Example: export backlog-scrum-05-summarize-markdown-output
-specfact sync bridge --adapter github --mode export-only \
+specfact project sync bridge --adapter github --mode export-only \
   --repo . \
   --repo-owner nold-ai \
   --repo-name specfact-cli \
@@ -362,7 +366,7 @@ When you improve comment logic or branch detection, use `--include-archived` to 
 
 ```bash
 # Update all archived proposals with new comment logic
-specfact sync bridge --adapter github --mode export-only \
+specfact project sync bridge --adapter github --mode export-only \
   --repo-owner your-org \
   --repo-name your-repo \
   --include-archived \
@@ -370,7 +374,7 @@ specfact sync bridge --adapter github --mode export-only \
   --repo /path/to/openspec-repo
 
 # Update specific archived proposal
-specfact sync bridge --adapter github --mode export-only \
+specfact project sync bridge --adapter github --mode export-only \
   --repo-owner your-org \
   --repo-name your-repo \
   --change-ids add-code-change-tracking \

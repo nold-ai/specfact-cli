@@ -142,10 +142,10 @@ jobs:
         run: pip install specfact-cli
 
       - name: Set up CrossHair Configuration
-        run: specfact repro setup
+        run: specfact code repro setup
 
       - name: Run Contract Validation
-        run: specfact repro --verbose --budget 90
+        run: specfact code repro --verbose --budget 90
 
       - name: Generate PR Comment
         if: github.event_name == 'pull_request'
@@ -234,7 +234,7 @@ specfact init --install all
 Start a new contract-driven project:
 
 ```bash
-specfact plan init --interactive
+specfact project plan init --interactive
 ```
 
 This will guide you through creating:
@@ -278,16 +278,16 @@ Convert an existing GitHub Spec-Kit project:
 
 ```bash
 # Preview what will be migrated
-specfact import from-bridge --adapter speckit --repo ./my-speckit-project --dry-run
+specfact project import from-bridge --adapter speckit --repo ./my-speckit-project --dry-run
 
 # Execute migration (one-time import)
-specfact import from-bridge \
+specfact project import from-bridge \
   --adapter speckit \
   --repo ./my-speckit-project \
   --write
 
 # Ongoing bidirectional sync (after migration)
-specfact sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional --watch
+specfact project sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional --watch
 ```
 
 **Bidirectional Sync:**
@@ -296,13 +296,13 @@ Keep Spec-Kit and SpecFact artifacts synchronized:
 
 ```bash
 # One-time sync
-specfact sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional
+specfact project sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional
 
 # Continuous watch mode
-specfact sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional --watch
+specfact project sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional --watch
 ```
 
-**Note**: SpecFact CLI uses a plugin-based adapter registry pattern. All adapters (Spec-Kit, OpenSpec, GitHub, etc.) are registered in `AdapterRegistry` and accessed via `specfact sync bridge --adapter <adapter-name>`, making the architecture extensible for future tool integrations.
+**Note**: SpecFact CLI uses a plugin-based adapter registry pattern. All adapters (Spec-Kit, OpenSpec, GitHub, etc.) are registered in `AdapterRegistry` and accessed via `specfact project sync bridge --adapter <adapter-name>`, making the architecture extensible for future tool integrations.
 
 ### For Brownfield Projects
 
@@ -339,7 +339,7 @@ specfact init
 
 ```bash
 # Analyze repository (CI/CD mode - fast)
-specfact import from-code my-project \
+specfact project import from-code my-project \
   --repo ./my-project \
   --shadow-only \
   --report analysis.md
@@ -364,10 +364,10 @@ Keep plan artifacts updated as code changes:
 
 ```bash
 # One-time sync
-specfact sync repository --repo . --target .specfact
+specfact project sync repository --repo . --target .specfact
 
 # Continuous watch mode
-specfact sync repository --repo . --watch
+specfact project sync repository --repo . --watch
 ```
 
 ## Next Steps
@@ -390,7 +390,7 @@ specfact sync repository --repo . --watch
 - **Global flags**: Place `--no-banner` before the command: `specfact --no-banner <command>`
 - **Bridge adapter sync**: Use `sync bridge --adapter <adapter-name>` for external tool integration (Spec-Kit, OpenSpec, GitHub, etc.)
 - **Repository sync**: Use `sync repository` for code change tracking
-- **Semgrep (optional)**: Install `pip install semgrep` for async pattern detection in `specfact repro`
+- **Semgrep (optional)**: Install `pip install semgrep` for async pattern detection in `specfact code repro`
 
 ---
 
@@ -458,19 +458,19 @@ SpecFact CLI automatically detects source directories:
 ```bash
 # Hatch project
 cd /path/to/hatch-project
-specfact repro --repo .  # Automatically uses "hatch run" for tools
+specfact code repro --repo .  # Automatically uses "hatch run" for tools
 
 # Poetry project
 cd /path/to/poetry-project
-specfact repro --repo .  # Automatically uses "poetry run" for tools
+specfact code repro --repo .  # Automatically uses "poetry run" for tools
 
 # UV project
 cd /path/to/uv-project
-specfact repro --repo .  # Automatically uses "uv run" for tools
+specfact code repro --repo .  # Automatically uses "uv run" for tools
 
 # Pip project
 cd /path/to/pip-project
-specfact repro --repo .  # Uses direct tool invocation
+specfact code repro --repo .  # Uses direct tool invocation
 ```
 
 ### External Repository Support
@@ -501,16 +501,16 @@ specfact --help
 specfact <command> --help
 
 # Initialize plan (bundle name as positional argument)
-specfact plan init my-project --interactive
+specfact project plan init my-project --interactive
 
 # Add feature
-specfact plan add-feature --key FEATURE-001 --title "My Feature"
+specfact project plan add-feature --key FEATURE-001 --title "My Feature"
 
 # Validate everything
-specfact repro
+specfact code repro
 
 # Set enforcement level
-specfact enforce stage --preset balanced
+specfact govern enforce stage --preset balanced
 ```
 
 ## Getting Help

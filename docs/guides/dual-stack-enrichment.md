@@ -1,5 +1,9 @@
 # Dual-Stack Enrichment Pattern
 
+
+> Temporary docs note: this bundle-focused page remains hosted in the core docs set for the
+> current release line and is planned to migrate to `specfact-cli-modules`.
+
 **Status**: ✅ **AVAILABLE** (v0.13.0+)  
 **Last Updated**: 2025-12-23  
 **Version**: v0.20.4 (enrichment parser improvements: story merging, format validation)
@@ -186,7 +190,7 @@ The enrichment parser expects a specific Markdown format. Follow this structure 
 
 ```bash
 # Use enrichment to update plan via CLI
-specfact import from-code [<bundle-name>] --repo <path> --enrichment <enrichment-report> --no-interactive
+specfact project import from-code [<bundle-name>] --repo <path> --enrichment <enrichment-report> --no-interactive
 ```
 
 **Result**: Final artifacts are CLI-generated with validated enrichments
@@ -250,7 +254,7 @@ This is a real example of the validation loop pattern in action:
 ### Step 1: Generate Prompt
 
 ```bash
-specfact generate contracts-prompt src/auth/login.py --apply beartype,icontract --bundle legacy-api
+specfact spec generate contracts-prompt src/auth/login.py --apply beartype,icontract --bundle legacy-api
 ```
 
 **Result**: Prompt saved to `.specfact/projects/legacy-api/prompts/enhance-login-beartype-icontract.md`
@@ -266,7 +270,7 @@ specfact generate contracts-prompt src/auth/login.py --apply beartype,icontract 
 ### Step 3: Validate and Apply
 
 ```bash
-specfact generate contracts-apply enhanced_login.py --original src/auth/login.py
+specfact spec generate contracts-apply enhanced_login.py --original src/auth/login.py
 ```
 
 **Validation includes**:
@@ -321,15 +325,15 @@ specfact generate contracts-apply enhanced_login.py --original src/auth/login.py
 
 ## Available CLI Commands
 
-- `specfact plan init <bundle-name>` - Initialize project bundle
-- `specfact plan select <bundle-name>` - Set active plan (used as default for other commands)
-- `specfact import from-code [<bundle-name>] --repo <path>` - Import from codebase (uses active plan if bundle not specified)
-- `specfact plan review [<bundle-name>]` - Review plan (uses active plan if bundle not specified)
-- `specfact plan harden [<bundle-name>]` - Create SDD manifest (uses active plan if bundle not specified)
-- `specfact enforce sdd [<bundle-name>]` - Validate SDD (uses active plan if bundle not specified)
-- `specfact generate contracts-prompt <file> --apply <contracts>` - Generate contract enhancement prompt
-- `specfact generate contracts-apply <enhanced-file> --original <original-file>` - Validate and apply enhanced code
-- `specfact sync bridge --adapter <adapter> --repo <path>` - Sync with external tools
+- `specfact project plan init <bundle-name>` - Initialize project bundle
+- `specfact project plan select <bundle-name>` - Set active plan (used as default for other commands)
+- `specfact project import from-code [<bundle-name>] --repo <path>` - Import from codebase (uses active plan if bundle not specified)
+- `specfact project plan review [<bundle-name>]` - Review plan (uses active plan if bundle not specified)
+- `specfact project plan harden [<bundle-name>]` - Create SDD manifest (uses active plan if bundle not specified)
+- `specfact govern enforce sdd [<bundle-name>]` - Validate SDD (uses active plan if bundle not specified)
+- `specfact spec generate contracts-prompt <file> --apply <contracts>` - Generate contract enhancement prompt
+- `specfact spec generate contracts-apply <enhanced-file> --original <original-file>` - Validate and apply enhanced code
+- `specfact project sync bridge --adapter <adapter> --repo <path>` - Sync with external tools
 - See [Command Reference](../reference/commands.md) for full list
 
 **Note**: Most commands now support active plan fallback. If `--bundle` is not specified, commands automatically use the active plan set via `plan select`. This improves workflow efficiency in AI IDE environments.

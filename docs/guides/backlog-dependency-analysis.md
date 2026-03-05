@@ -6,6 +6,10 @@ permalink: /guides/backlog-dependency-analysis/
 
 # Backlog Dependency Analysis
 
+
+> Temporary docs note: this bundle-focused page remains hosted in the core docs set for the
+> current release line and is planned to migrate to `specfact-cli-modules`.
+
 Use SpecFact to build a provider-agnostic dependency graph from backlog tools and analyze execution risk before delivery.
 
 ## Commands

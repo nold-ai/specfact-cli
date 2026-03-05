@@ -2,12 +2,15 @@
 layout: default
 title: Module Signing and Key Rotation
 permalink: /guides/module-signing-and-key-rotation/
-description: Runbook for signing bundled modules, placing public keys, rotating keys, and revoking compromised keys.
+description: Runbook for signing official workflow bundles, placing public keys, rotating keys, and revoking compromised keys.
 ---
 
 # Module Signing and Key Rotation
 
-This runbook defines the repeatable process for signing bundled modules and verifying signatures in SpecFact CLI.
+This runbook defines the repeatable process for signing official workflow bundles and verifying signatures in SpecFact CLI.
+
+> Temporary docs note: module signing guidance is still hosted in this core docs set for the
+> current release line and is planned to migrate to `specfact-cli-modules`.
 
 ## Key Placement
 
@@ -39,7 +42,7 @@ openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:4096 -out module-signing
 openssl pkey -in module-signing-private.pem -pubout -out module-signing-public.pem
 ```
 
-## Sign Bundled Modules
+## Sign Official Bundles
 
 Preferred (strict, with private key):
 
@@ -49,21 +52,21 @@ Preferred (strict, with private key):
 ```bash
 KEY_FILE="${SPECFACT_MODULE_PRIVATE_SIGN_KEY_FILE:-.specfact/sign-keys/module-signing-private.pem}"
 python scripts/sign-modules.py --key-file "$KEY_FILE" src/specfact_cli/modules/*/module-package.yaml
-python scripts/sign-modules.py --key-file "$KEY_FILE" modules/*/module-package.yaml
+python scripts/sign-modules.py --key-file "$KEY_FILE" packages/*/module-package.yaml
 ```
 
 Encrypted private key options:
 
 ```bash
 # Prompt interactively for passphrase (TTY)
-python scripts/sign-modules.py --key-file "$KEY_FILE" modules/backlog-core/module-package.yaml
+python scripts/sign-modules.py --key-file "$KEY_FILE" packages/specfact-backlog/module-package.yaml
 
 # Explicit passphrase flag (avoid shell history when possible)
-python scripts/sign-modules.py --key-file "$KEY_FILE" --passphrase '***' modules/backlog-core/module-package.yaml
+python scripts/sign-modules.py --key-file "$KEY_FILE" --passphrase '***' packages/specfact-backlog/module-package.yaml
 
 # Passphrase over stdin (CI-safe pattern)
-printf '%s' "$SPECFACT_MODULE_PRIVATE_SIGN_KEY_PASSPHRASE" | \
-  python scripts/sign-modules.py --key-file "$KEY_FILE" --passphrase-stdin modules/backlog-core/module-package.yaml
+  printf '%s' "$SPECFACT_MODULE_PRIVATE_SIGN_KEY_PASSPHRASE" | \
+  python scripts/sign-modules.py --key-file "$KEY_FILE" --passphrase-stdin packages/specfact-backlog/module-package.yaml
 ```
 
 Versioning guard:
@@ -90,16 +93,16 @@ hatch run python scripts/verify-modules-signature.py --require-signature --enfor
 Wrapper for single manifest:
 
 ```bash
-bash scripts/sign-module.sh --key-file "$KEY_FILE" modules/backlog-core/module-package.yaml
+bash scripts/sign-module.sh --key-file "$KEY_FILE" packages/specfact-backlog/module-package.yaml
 # stdin passphrase:
 printf '%s' "$SPECFACT_MODULE_PRIVATE_SIGN_KEY_PASSPHRASE" | \
-  bash scripts/sign-module.sh --key-file "$KEY_FILE" --passphrase-stdin modules/backlog-core/module-package.yaml
+  bash scripts/sign-module.sh --key-file "$KEY_FILE" --passphrase-stdin packages/specfact-backlog/module-package.yaml
 ```
 
 Local test-only unsigned mode:
 
 ```bash
-python scripts/sign-modules.py --allow-unsigned modules/backlog-core/module-package.yaml
+python scripts/sign-modules.py --allow-unsigned packages/specfact-backlog/module-package.yaml
 ```
 
 ## Verify Signatures Locally
@@ -129,7 +132,7 @@ This runs on PR/push for `dev` and `main` and fails the pipeline if module signa
 
 1. Generate new keypair in secure environment.
 2. Replace `resources/keys/module-signing-public.pem` with new public key.
-3. Re-sign all bundled module manifests with the new private key.
+3. Re-sign all official bundle manifests with the new private key.
 4. Run verifier locally: `python scripts/verify-modules-signature.py --require-signature`.
 5. Commit public key + re-signed manifests in one change.
 6. Merge to `dev`, then `main` after CI passes.
@@ -141,7 +144,7 @@ If a private key is compromised:
 1. Treat all signatures from that key as untrusted.
 2. Generate new keypair immediately.
 3. Replace public key file in repo.
-4. Re-sign all bundled modules with new private key.
+4. Re-sign all official bundles with new private key.
 5. Merge emergency fix branch and invalidate prior release artifacts operationally.
 
 Current limitation:

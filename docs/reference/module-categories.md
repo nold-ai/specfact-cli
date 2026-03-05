@@ -12,7 +12,6 @@ SpecFact groups feature modules into workflow-oriented command families.
 Core commands remain top-level:
 
 - `specfact init`
-- `specfact backlog auth`
 - `specfact module`
 - `specfact upgrade`
 
@@ -29,7 +28,6 @@ Category command groups:
 | Module | Category | Bundle | Group Command | Sub-command |
 |---|---|---|---|---|
 | `init` | `core` | — | — | `init` |
-| `auth` | `core` | — | — | `auth` |
 | `module_registry` | `core` | — | — | `module` |
 | `upgrade` | `core` | — | — | `upgrade` |
 | `project` | `project` | `specfact-project` | `project` | `project` |
@@ -76,6 +74,10 @@ Namespace mapping:
 Compatibility note:
 
 - Flat top-level command shims were removed. Use category groups (`project`, `backlog`, `code`, `spec`, `govern`).
+- `specfact backlog auth ...` is provided by the backlog bundle, not by the permanent core command surface.
+
+> Temporary docs note: this bundle/category reference remains hosted in `specfact-cli` for the
+> current release line and is planned to migrate to `specfact-cli-modules`.
 
 ## First-Run Profiles
 

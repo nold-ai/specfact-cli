@@ -25,3 +25,12 @@ The command reference documentation SHALL distinguish permanent core commands fr
 - **THEN** the reference identifies which commands belong to core and which are provided by installed bundles
 - **AND** bundle command coverage is grouped by category or package boundary
 - **AND** readers can navigate from command docs to the relevant marketplace/module docs without ambiguity
+
+### Requirement: Markdown quality workflow auto-fixes low-risk issues before enforcement
+The documentation workflow SHALL automatically fix low-risk Markdown issues during pre-commit checks before enforcing markdown lint failures for non-fixable or higher-risk issues.
+
+#### Scenario: Contributor stages Markdown changes with trivial spacing issues
+- **WHEN** a contributor stages Markdown files and runs the repository pre-commit checks
+- **THEN** the workflow attempts safe markdown auto-fixes first using the configured markdown lint tooling
+- **AND** any auto-fixed Markdown files are re-staged automatically
+- **AND** markdown lint still runs afterward to fail on remaining non-fixable issues

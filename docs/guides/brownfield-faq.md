@@ -164,7 +164,7 @@ For large codebases, run CrossHair on critical functions first, then expand.
 
 **Recommended workflow:**
 
-1. **Extract specs** (`specfact import from-code`)
+1. **Extract specs** (`specfact project import from-code`)
 2. **Add contracts** to 3-5 critical functions
 3. **Run CrossHair** to discover edge cases
 4. **Refactor incrementally** (one function at a time)
@@ -254,7 +254,7 @@ See [Spec-Kit Comparison Guide](speckit-comparison.md) for details.
 - **GitHub Actions:** PR annotations, contract validation
 - **GitLab CI:** Pipeline integration
 - **Jenkins:** Plugin support (planned)
-- **Local CI:** Run `specfact enforce` in your pipeline
+- **Local CI:** Run `specfact govern enforce` in your pipeline
 
 Contracts can block merges if violations are detected (configurable).
 

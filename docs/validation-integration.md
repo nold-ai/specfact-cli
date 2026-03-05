@@ -153,7 +153,7 @@ When `external_base_path` is set:
 
 ```bash
 # In repository with OpenSpec
-specfact validate sidecar run my-bundle /path/to/repo
+specfact code validate sidecar run my-bundle /path/to/repo
 
 # System automatically:
 # 1. Detects OpenSpec repository
@@ -168,7 +168,7 @@ specfact validate sidecar run my-bundle /path/to/repo
 
 ```bash
 # With bridge_config.yaml specifying external_base_path
-specfact validate sidecar run my-bundle /path/to/repo --bridge-config bridge_config.yaml
+specfact code validate sidecar run my-bundle /path/to/repo --bridge-config bridge_config.yaml
 
 # System loads OpenSpec from external repository
 ```

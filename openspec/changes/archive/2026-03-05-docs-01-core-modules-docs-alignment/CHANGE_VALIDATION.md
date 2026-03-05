@@ -43,6 +43,29 @@ Results:
 - `openspec status` => all required artifacts complete
 - `openspec validate ... --strict` => **Change 'docs-01-core-modules-docs-alignment' is valid**
 
+## Implementation Validation
+
+Commands executed:
+
+```bash
+/bin/bash -lc 'HATCH_DATA_DIR=/tmp/hatch-data HATCH_CACHE_DIR=/tmp/hatch-cache VIRTUALENV_OVERRIDE_APP_DATA=/tmp/virtualenv-appdata hatch run pytest tests/unit/docs/test_release_docs_parity.py -q'
+/bin/bash -lc 'HATCH_DATA_DIR=/tmp/hatch-data HATCH_CACHE_DIR=/tmp/hatch-cache VIRTUALENV_OVERRIDE_APP_DATA=/tmp/virtualenv-appdata hatch run yaml-lint'
+```
+
+Results:
+
+- `pytest tests/unit/docs/test_release_docs_parity.py -q` => **7 passed**
+- `pytest tests/unit/scripts/test_pre_commit_smart_checks_docs.py -q` => **3 passed**
+- `hatch run yaml-lint` => **pass**
+
+## Implementation Notes
+
+- A full live-docs inventory was recorded in `DOCS_AUDIT_INVENTORY.md`.
+- Command examples across live Markdown were normalized to grouped command paths while keeping intentional migration-history pages intact.
+- Entry-point docs, marketplace/install/publish docs, architecture/reference docs, and bundle-specific guides were aligned to the lean-core plus `specfact-cli-modules` ownership model.
+- `scripts/pre-commit-smart-checks.sh` now runs `markdownlint --fix` (or `npx markdownlint-cli --fix`) before the existing markdown lint gate and re-stages changed Markdown files automatically.
+- The markdown auto-fix path now fails fast when a staged Markdown file also has unstaged hunks, preserving partial staging boundaries instead of broadening the commit.
+
 ## Outcome
 
-The change is apply-ready. Implementation can proceed with a full Markdown inventory, spec-first docs alignment, and final validation of navigation and docs parity.
+The change implementation is complete and validated locally. It is ready for PR review and later archive once repo workflow expectations are satisfied.

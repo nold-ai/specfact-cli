@@ -14,7 +14,6 @@ Flat root-level compatibility shims were removed in `0.40.0`; use category-group
 Root command surface includes core commands and installed category groups only:
 
 - `specfact init`
-- `specfact auth`
 - `specfact module`
 - `specfact upgrade`
 - `specfact code ...`
@@ -39,11 +38,11 @@ After bundle install, command groups are mounted by category:
 
 | Bundle ID | Group | Main command families |
 |---|---|---|
-| `nold-ai/specfact-project` | `project` | `project`, `plan`, `import`, `sync`, `migrate` |
-| `nold-ai/specfact-backlog` | `backlog` | `backlog`, `policy` |
-| `nold-ai/specfact-codebase` | `code` | `analyze`, `drift`, `validate`, `repro` |
-| `nold-ai/specfact-spec` | `spec` | `contract`, `api`, `sdd`, `generate` |
-| `nold-ai/specfact-govern` | `govern` | `enforce`, `patch` |
+| `nold-ai/specfact-project` | `project` | `project ...`, `project plan ...`, `project import ...`, `project sync ...`, `project migrate ...` |
+| `nold-ai/specfact-backlog` | `backlog` | `backlog ...`, `backlog policy ...`, `backlog auth ...` |
+| `nold-ai/specfact-codebase` | `code` | `code analyze ...`, `code drift ...`, `code validate ...`, `code repro ...` |
+| `nold-ai/specfact-spec` | `spec` | `spec contract ...`, `spec api ...`, `spec sdd ...`, `spec generate ...` |
+| `nold-ai/specfact-govern` | `govern` | `govern enforce ...`, `govern patch ...` |
 
 ## Migration: Removed Flat Commands
 
@@ -94,3 +93,6 @@ specfact backlog ceremony refinement --help
 - [Module Categories](module-categories.md)
 - [Marketplace Bundles](../guides/marketplace.md)
 - [Installing Modules](../guides/installing-modules.md)
+
+> Temporary docs note: bundle-specific command details are still hosted in this core docs set
+> for the current release line and are planned to migrate to `specfact-cli-modules`.

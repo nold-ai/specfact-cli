@@ -19,7 +19,7 @@ SpecFact CLI supports multiple feature key formats to accommodate different use 
 **Generation**:
 
 ```bash
-specfact import from-code --key-format classname
+specfact project import from-code --key-format classname
 ```
 
 ### 2. Sequential Format
@@ -33,13 +33,13 @@ specfact import from-code --key-format classname
 **Generation**:
 
 ```bash
-specfact import from-code --key-format sequential
+specfact project import from-code --key-format sequential
 ```
 
 **Manual creation**: When creating plans interactively, use `FEATURE-001` format:
 
 ```bash
-specfact plan init
+specfact project plan init
 # Enter feature key: FEATURE-001
 ```
 
@@ -86,7 +86,7 @@ normalize_feature_key("FEATURE-001")
 The `plan compare` command automatically normalizes keys:
 
 ```bash
-specfact plan compare --manual main.bundle.yaml --auto auto-derived.yaml
+specfact project plan compare --manual main.bundle.yaml --auto auto-derived.yaml
 ```
 
 **Behavior**: Features with different key formats but the same normalized key are matched correctly.
@@ -96,7 +96,7 @@ specfact plan compare --manual main.bundle.yaml --auto auto-derived.yaml
 When merging plans (e.g., via `sync bridge --adapter speckit`), normalization ensures features are matched correctly:
 
 ```bash
-specfact sync bridge --adapter speckit --bundle <bundle-name> --bidirectional
+specfact project sync bridge --adapter speckit --bundle <bundle-name> --bidirectional
 ```
 
 **Behavior**: Features are matched by normalized key, not exact key format.
@@ -125,7 +125,7 @@ A `plan normalize` command may be added in the future to convert existing plans:
 
 ```bash
 # (Future) Convert plan to sequential format
-specfact plan normalize --from main.bundle.yaml --to main-sequential.yaml --output-format sequential
+specfact project plan normalize --from main.bundle.yaml --to main-sequential.yaml --output-format sequential
 ```
 
 ## Best Practices
@@ -159,7 +159,7 @@ specfact plan normalize --from main.bundle.yaml --to main-sequential.yaml --outp
 When creating plans manually or interactively:
 
 ```bash
-specfact plan init
+specfact project plan init
 # Enter feature key: FEATURE-001  # ← Use sequential format
 # Enter feature title: User Authentication
 ```
@@ -171,7 +171,7 @@ specfact plan init
 When analyzing existing codebases:
 
 ```bash
-specfact import from-code --key-format classname  # ← Default, explicit for clarity
+specfact project import from-code --key-format classname  # ← Default, explicit for clarity
 ```
 
 **Why**: Classname format directly maps to codebase structure, making it easy to trace features back to classes.

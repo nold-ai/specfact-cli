@@ -108,7 +108,7 @@ Review the auto-generated plan to understand what SpecFact discovered about your
 **💡 Tip**: If you plan to sync with Spec-Kit later, the import command will suggest generating a bootstrap constitution. You can also run it manually:
 
 ```bash
-specfact sdd constitution bootstrap --repo .
+specfact spec sdd constitution bootstrap --repo .
 ```
 
 ### Step 3: Find and Fix Gaps
@@ -132,10 +132,10 @@ specfact code repro --verbose
 
 ```bash
 # Generate AI-ready prompt to fix a specific gap
-specfact generate fix-prompt GAP-001 --bundle my-project
+specfact spec generate fix-prompt GAP-001 --bundle my-project
 
 # Generate AI-ready prompt to add tests
-specfact generate test-prompt src/auth/login.py
+specfact spec generate test-prompt src/auth/login.py
 ```
 
 **What happens**:
@@ -149,10 +149,10 @@ specfact generate test-prompt src/auth/login.py
 
 ```bash
 # Start in shadow mode (observe only)
-specfact enforce stage --preset minimal
+specfact govern enforce stage --preset minimal
 
 # Validate the codebase
-specfact enforce sdd --bundle my-project
+specfact govern enforce sdd --bundle my-project
 ```
 
 See [Brownfield Engineer Guide](../guides/brownfield-engineer.md) for complete workflow.
@@ -168,7 +168,7 @@ See [Brownfield Engineer Guide](../guides/brownfield-engineer.md) for complete w
 ### Step 1: Initialize a Plan
 
 ```bash
-specfact plan init my-project --interactive
+specfact project plan init my-project --interactive
 ```
 
 **What happens**:
@@ -193,7 +193,7 @@ Enter project description: A project to demonstrate SpecFact CLI
 ### Step 2: Add Your First Feature
 
 ```bash
-specfact plan add-feature \
+specfact project plan add-feature \
   --bundle my-project \
   --key FEATURE-001 \
   --title "User Authentication" \
@@ -209,7 +209,7 @@ specfact plan add-feature \
 ### Step 3: Add Stories to the Feature
 
 ```bash
-specfact plan add-story \
+specfact project plan add-story \
   --bundle my-project \
   --feature FEATURE-001 \
   --title "As a user, I can login with email and password" \
@@ -226,7 +226,7 @@ specfact plan add-story \
 ### Step 4: Validate the Plan
 
 ```bash
-specfact repro
+specfact code repro
 ```
 
 **What happens**:
@@ -260,7 +260,7 @@ specfact repro
 ### Step 1: Preview Migration
 
 ```bash
-specfact import from-bridge \
+specfact project import from-bridge \
   --repo ./my-speckit-project \
   --adapter speckit \
   --dry-run
@@ -295,7 +295,7 @@ specfact import from-bridge \
 ### Step 2: Execute Migration
 
 ```bash
-specfact import from-bridge \
+specfact project import from-bridge \
   --repo ./my-speckit-project \
   --adapter speckit \
   --write
@@ -313,10 +313,10 @@ specfact import from-bridge \
 
 ```bash
 # Review the imported bundle
-specfact plan review <bundle-name>
+specfact project plan review <bundle-name>
 
 # Check bundle status
-specfact plan select
+specfact project plan select
 ```
 
 **What was created**:
@@ -333,13 +333,13 @@ Keep Spec-Kit and SpecFact synchronized:
 
 ```bash
 # Generate constitution if missing (auto-suggested during sync)
-specfact sdd constitution bootstrap --repo .
+specfact spec sdd constitution bootstrap --repo .
 
 # One-time bidirectional sync
-specfact sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional
+specfact project sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional
 
 # Continuous watch mode
-specfact sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional --watch --interval 5
+specfact project sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional --watch --interval 5
 ```
 
 **What happens**:
@@ -354,13 +354,13 @@ specfact sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirec
 
 ```bash
 # Start in shadow mode (observe only)
-specfact enforce stage --preset minimal
+specfact govern enforce stage --preset minimal
 
 # After stabilization, enable warnings
-specfact enforce stage --preset balanced
+specfact govern enforce stage --preset balanced
 
 # For production, enable strict mode
-specfact enforce stage --preset strict
+specfact govern enforce stage --preset strict
 ```
 
 **What happens**:

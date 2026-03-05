@@ -9,26 +9,44 @@ description: How to build and package SpecFact CLI modules.
 
 This guide defines the required structure and contracts for authoring SpecFact modules.
 
+> Temporary docs note: module-authoring guidance is still hosted in this core docs set for the
+> current release line and is planned to migrate to `specfact-cli-modules`.
+
+Official workflow bundle implementation now lives in the dedicated `nold-ai/specfact-cli-modules`
+repository. `specfact-cli` owns the lean runtime, registry, marketplace lifecycle, shared
+contracts, and bundle loading/orchestration surfaces consumed by installed bundles.
+
 ## Required structure
 
 ```text
-src/specfact_cli/modules/<module-name>/
-  module-package.yaml
-  src/
-    __init__.py
-    app.py
-    commands.py
+specfact-cli-modules/
+  packages/<bundle-package>/
+    pyproject.toml
+    src/<bundle_namespace>/<command_or_feature>/
+      __init__.py
+      app.py
+      commands.py
+
+specfact-cli/
+  src/specfact_cli/
+    registry/
+    groups/
+    common/
+    adapters/
+    models/
 ```
 
-For workspace-level modules, keep the same structure under the configured modules root.
+For local/project-scoped modules discovered by the CLI, keep the configured module root structure
+under `<repo>/.specfact/modules` or `~/.specfact/modules` and ensure marketplace metadata remains
+compatible with the runtime loader.
 
 ## `module-package.yaml` schema
 
 Required fields:
 
-- `name`: module identifier
+- `name`: module or bundle identifier
 - `version`: semantic version string
-- `commands`: top-level command names provided by this module
+- `commands`: command names provided by this module or package entrypoint
 
 Common optional fields:
 
@@ -63,10 +81,11 @@ Extension/security fields:
 
 ## Integration checklist
 
-1. Add `module-package.yaml`.
-2. Implement `src/app.py` and `src/commands.py`.
-3. Ensure loader/import path works with registry discovery.
-4. Run format/type-check/lint/contract checks.
+1. Add or update the package/module manifest (`module-package.yaml`) and package metadata in the modules repository.
+2. Implement command entrypoints in the bundle package namespace.
+3. Ensure runtime loader/import paths remain compatible with `specfact-cli` registry discovery and bundle grouping.
+4. Run format/type-check/lint/contract/signature checks in the owning repository.
+5. Keep core-only docs and runtime contracts in `specfact-cli`; keep bundle behavior/docs with the modules repo whenever possible.
 
 ## Related docs
 

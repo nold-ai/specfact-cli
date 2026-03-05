@@ -25,7 +25,7 @@ We built SpecFact CLI and wanted to validate that it actually works in the real 
 First, we analyzed the existing codebase to see what features it discovered:
 
 ```bash
-specfact import from-code specfact-cli --repo . --confidence 0.5
+specfact project import from-code specfact-cli --repo . --confidence 0.5
 ```
 
 **Output**:
@@ -89,7 +89,7 @@ Here's what the analyzer extracted from our `EnforcementConfig` class:
 Next, we configured quality gates to block HIGH severity violations:
 
 ```bash
-specfact enforce stage --preset balanced
+specfact govern enforce stage --preset balanced
 ```
 
 **Output**:
@@ -156,7 +156,7 @@ features:
 Now comes the magic - compare the manual plan against what's actually implemented:
 
 ```bash
-specfact plan compare
+specfact project plan compare
 ```
 
 ### Results
@@ -248,8 +248,8 @@ Fix the blocking deviations or adjust enforcement config
 Let's try again with **minimal enforcement** (never blocks):
 
 ```bash
-specfact enforce stage --preset minimal
-specfact plan compare
+specfact govern enforce stage --preset minimal
+specfact project plan compare
 ```
 
 ### New Enforcement Report
@@ -291,7 +291,7 @@ After validating the brownfield analysis workflow, we took it a step further: **
 First, we generated a structured prompt for our AI IDE (Cursor) to enhance the telemetry module:
 
 ```bash
-specfact generate contracts-prompt src/specfact_cli/telemetry.py --bundle specfact-cli-test --apply all-contracts --no-interactive
+specfact spec generate contracts-prompt src/specfact_cli/telemetry.py --bundle specfact-cli-test --apply all-contracts --no-interactive
 ```
 
 **Output**:
@@ -335,7 +335,7 @@ We copied the prompt to Cursor (our AI IDE), which:
 The AI IDE ran SpecFact CLI validation on the enhanced code:
 
 ```bash
-specfact generate contracts-apply enhanced_telemetry.py --original src/specfact_cli/telemetry.py
+specfact spec generate contracts-apply enhanced_telemetry.py --original src/specfact_cli/telemetry.py
 ```
 
 ### Validation Results
@@ -440,7 +440,7 @@ This demonstrates **real production use**:
 
 ```bash
 # 1. Generate prompt (1 second)
-specfact generate contracts-prompt src/specfact_cli/telemetry.py \
+specfact spec generate contracts-prompt src/specfact_cli/telemetry.py \
   --bundle specfact-cli-test \
   --apply all-contracts \
   --no-interactive
@@ -452,7 +452,7 @@ specfact generate contracts-prompt src/specfact_cli/telemetry.py \
 # - AI IDE writes to enhanced_telemetry.py
 
 # 3. Validate and apply (10 seconds)
-specfact generate contracts-apply enhanced_telemetry.py \
+specfact spec generate contracts-apply enhanced_telemetry.py \
   --original src/specfact_cli/telemetry.py
 # ✅ 7-step validation passed
 # ✅ All tests passed (10/10)
@@ -546,15 +546,15 @@ These are **actual questions** that need answers, not false positives!
 
 ```bash
 # 1. Analyze existing codebase (3 seconds)
-specfact import from-code specfact-cli --repo . --confidence 0.5
+specfact project import from-code specfact-cli --repo . --confidence 0.5
 # ✅ Discovers 19 features, 49 stories
 
 # 2. Set quality gates (1 second)
-specfact enforce stage --preset balanced
+specfact govern enforce stage --preset balanced
 # ✅ BLOCK HIGH, WARN MEDIUM, LOG LOW
 
 # 3. Compare plans (5 seconds) - uses active plan or default bundle
-specfact plan compare
+specfact project plan compare
 # ✅ Finds 24 deviations
 # ❌ BLOCKS execution (2 HIGH violations)
 

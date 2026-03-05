@@ -115,7 +115,7 @@ specfact spec validate --bundle legacy-api
 specfact spec validate --bundle legacy-api --no-interactive
 ```
 
-**CLI-First Pattern**: The command uses the active plan (from `specfact plan select`) as default, or you can specify `--bundle`. Never requires direct `.specfact` paths - always use the CLI interface.
+**CLI-First Pattern**: The command uses the active plan (from `specfact project plan select`) as default, or you can specify `--bundle`. Never requires direct `.specfact` paths - always use the CLI interface.
 
 **What it checks:**
 
@@ -248,7 +248,7 @@ Here's a full workflow from contract to tested implementation:
 
 ```bash
 # 1. Import existing code and extract contracts
-specfact import from-code user-api --repo .
+specfact project import from-code user-api --repo .
 
 # 2. Validate contracts are correct
 specfact spec validate --bundle user-api
@@ -422,7 +422,7 @@ When importing code, SpecFact auto-detects and validates OpenAPI/AsyncAPI specs:
 
 ```bash
 # Import with bundle (uses active plan if --bundle not specified)
-specfact import from-code legacy-api --repo .
+specfact project import from-code legacy-api --repo .
 
 # Automatically validates:
 # - Repo-level OpenAPI/AsyncAPI specs (openapi.yaml, asyncapi.yaml)
@@ -436,7 +436,7 @@ SDD enforcement includes Specmatic validation for all contracts referenced in th
 
 ```bash
 # Enforce SDD (uses active plan if --bundle not specified)
-specfact enforce sdd --bundle legacy-api
+specfact govern enforce sdd --bundle legacy-api
 
 # Automatically validates:
 # - All contract files referenced in bundle features
@@ -450,7 +450,7 @@ Repository sync validates specs before synchronization:
 
 ```bash
 # Sync bridge (uses active plan if --bundle not specified)
-specfact sync bridge --bundle legacy-api --repo .
+specfact project sync bridge --bundle legacy-api --repo .
 
 # Automatically validates:
 # - OpenAPI/AsyncAPI specs before sync operation
@@ -500,7 +500,7 @@ SpecFact calls Specmatic via subprocess:
 
 ```bash
 # Project has openapi.yaml
-specfact import from-code api-service --repo .
+specfact project import from-code api-service --repo .
 
 # Output:
 # ✓ Import complete!
@@ -528,7 +528,7 @@ specfact spec backward-compat api/v1/openapi.yaml api/v2/openapi.yaml
 
 ```bash
 # 1. Set active bundle
-specfact plan select api-service
+specfact project plan select api-service
 
 # 2. Validate all contracts in bundle (interactive selection)
 specfact spec validate

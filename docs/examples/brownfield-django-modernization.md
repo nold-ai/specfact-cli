@@ -29,7 +29,7 @@ You inherited a 3-year-old Django app with:
 
 ```bash
 # Analyze the legacy Django app
-specfact import from-code customer-portal \
+specfact project import from-code customer-portal \
   --repo ./legacy-django-app \
   --language python
 
@@ -85,7 +85,7 @@ After extracting the plan, create a hard SDD (Spec-Driven Development) manifest 
 
 ```bash
 # Create SDD manifest from the extracted plan
-specfact plan harden customer-portal
+specfact project plan harden customer-portal
 ```
 
 ### Output
@@ -127,7 +127,7 @@ Before starting modernization, validate that your SDD manifest matches your plan
 
 ```bash
 # Validate SDD manifest against plan
-specfact enforce sdd customer-portal
+specfact govern enforce sdd customer-portal
 ```
 
 ### Output
@@ -161,7 +161,7 @@ specfact enforce sdd customer-portal
    - 2 medium severity deviations
    - Fix: Add contracts to stories or adjust thresholds
 
-💡 Run 'specfact plan harden' to update SDD manifest
+💡 Run 'specfact project plan harden' to update SDD manifest
 ```
 
 ---
@@ -172,7 +172,7 @@ Review your plan to identify ambiguities and ensure SDD compliance:
 
 ```bash
 # Review plan (automatically checks SDD, bundle name as positional argument)
-specfact plan review customer-portal --max-questions 5
+specfact project plan review customer-portal --max-questions 5
 ```
 
 ### Output
@@ -193,7 +193,7 @@ specfact plan review customer-portal --max-questions 5
    ...
 
 ✅ Review complete: 5 questions identified
-💡 Run 'specfact plan review --answers answers.json' to resolve in bulk
+💡 Run 'specfact project plan review --answers answers.json' to resolve in bulk
 ```
 
 **SDD integration**: The review command automatically checks for SDD presence and validates coverage thresholds, warning you if thresholds aren't met.
@@ -206,7 +206,7 @@ Before starting modernization, promote your plan to "review" stage. This require
 
 ```bash
 # Promote plan to review stage (requires SDD, bundle name as positional argument)
-specfact plan promote customer-portal --stage review
+specfact project plan promote customer-portal --stage review
 ```
 
 ### Output (Success)
@@ -231,7 +231,7 @@ specfact plan promote customer-portal --stage review
 
 ```text
 ❌ SDD manifest is required for promotion to 'review' or higher stages
-💡 Run 'specfact plan harden' to create SDD manifest
+💡 Run 'specfact project plan harden' to create SDD manifest
 ```
 
 **Why this matters**: Plan promotion now enforces SDD presence, ensuring you have a hard spec before starting modernization work. This prevents drift and ensures coverage thresholds are met.
@@ -246,7 +246,7 @@ Review the extracted plan to identify high-risk functions:
 
 ```bash
 # Review extracted plan using CLI commands
-specfact plan review customer-portal
+specfact project plan review customer-portal
 
 ```
 
@@ -318,7 +318,7 @@ After adding contracts, re-validate your SDD to ensure coverage thresholds are m
 
 ```bash
 # Re-validate SDD after adding contracts
-specfact enforce sdd customer-portal
+specfact govern enforce sdd customer-portal
 ```
 
 This ensures your SDD manifest reflects the current state of your codebase and that coverage thresholds are maintained.

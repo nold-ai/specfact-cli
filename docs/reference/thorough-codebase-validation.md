@@ -13,28 +13,28 @@ This reference describes how to run thorough in-depth validation in different mo
 
 | Mode | When to use | Primary command(s) |
 |------|-------------|---------------------|
-| **Quick check** | Fast local/CI gate (lint, type-check, CrossHair with default budget) | `specfact repro --repo <path>` |
+| **Quick check** | Fast local/CI gate (lint, type-check, CrossHair with default budget) | `specfact code repro --repo <path>` |
 | **Thorough (contract-decorated)** | Repo already uses `@icontract` / `@beartype`; run full contract stack | `hatch run contract-test-full` |
-| **Sidecar (unmodified code)** | Third-party or legacy repo; no edits to target source | `specfact repro --repo <path> --sidecar --sidecar-bundle <bundle>` |
-| **Dogfooding** | Validate the specfact-cli repo with the same pipeline | `specfact repro --repo .` + `hatch run contract-test-full` (optional sidecar) |
+| **Sidecar (unmodified code)** | Third-party or legacy repo; no edits to target source | `specfact code repro --repo <path> --sidecar --sidecar-bundle <bundle>` |
+| **Dogfooding** | Validate the specfact-cli repo with the same pipeline | `specfact code repro --repo .` + `hatch run contract-test-full` (optional sidecar) |
 
-## 1. Quick check (`specfact repro`)
+## 1. Quick check (`specfact code repro`)
 
 Run the standard reproducibility suite (ruff, semgrep if config exists, basedpyright, CrossHair, optional pytest contracts/smoke):
 
 ```bash
-specfact repro --repo .
-specfact repro --repo /path/to/external/repo --verbose
+specfact code repro --repo .
+specfact code repro --repo /path/to/external/repo --verbose
 ```
 
 - **Time budget**: Default 120s; use `--budget N` (advanced) to change.
 - **Deep CrossHair**: To increase per-path timeout for CrossHair (e.g. for critical modules), use `--crosshair-per-path-timeout N` (seconds; N must be positive). Default behavior is unchanged when not set.
 
 ```bash
-specfact repro --repo . --crosshair-per-path-timeout 60
+specfact code repro --repo . --crosshair-per-path-timeout 60
 ```
 
-Required env: none. Optional: `[tool.crosshair]` in `pyproject.toml` (e.g. from `specfact repro setup`).
+Required env: none. Optional: `[tool.crosshair]` in `pyproject.toml` (e.g. from `specfact code repro setup`).
 
 ## 2. Thorough validation for contract-decorated codebases
 
@@ -63,7 +63,7 @@ Document this as the recommended thorough path for contract-decorated code; CI c
 For repositories you cannot or do not want to modify (no contract decorators added):
 
 ```bash
-specfact repro --repo <path> --sidecar --sidecar-bundle <bundle-name>
+specfact code repro --repo <path> --sidecar --sidecar-bundle <bundle-name>
 ```
 
 - Main repro checks run first (lint, semgrep, type-check, CrossHair if available).
@@ -79,14 +79,14 @@ Maintainers can validate the specfact-cli repository with the same pipeline:
 1. **Repro + contract-test-full** (recommended minimum):
 
    ```bash
-   specfact repro --repo .
+   specfact code repro --repo .
    hatch run contract-test-full
    ```
 
 2. **Optional sidecar** (to cover unannotated code in specfact-cli):
 
    ```bash
-   specfact repro --repo . --sidecar --sidecar-bundle <bundle-name>
+   specfact code repro --repo . --sidecar --sidecar-bundle <bundle-name>
    ```
 
 Use the same commands in a CI job or release checklist so specfact-cli validates itself before release. No repo-specific code is required beyond existing repro and contract-test tooling.
@@ -95,10 +95,10 @@ Use the same commands in a CI job or release checklist so specfact-cli validates
 
 | Goal | Commands |
 |------|----------|
-| Quick gate | `specfact repro --repo .` |
-| Deep CrossHair (repro) | `specfact repro --repo . --crosshair-per-path-timeout 60` |
+| Quick gate | `specfact code repro --repo .` |
+| Deep CrossHair (repro) | `specfact code repro --repo . --crosshair-per-path-timeout 60` |
 | Full contract stack | `hatch run contract-test-full` |
-| Unmodified repo | `specfact repro --repo <path> --sidecar --sidecar-bundle <name>` |
-| Dogfooding | `specfact repro --repo .` then `hatch run contract-test-full`; optionally add `--sidecar --sidecar-bundle <name>` to repro |
+| Unmodified repo | `specfact code repro --repo <path> --sidecar --sidecar-bundle <name>` |
+| Dogfooding | `specfact code repro --repo .` then `hatch run contract-test-full`; optionally add `--sidecar --sidecar-bundle <name>` to repro |
 
 Required env/config: optional `[tool.crosshair]` in `pyproject.toml`; for sidecar, a valid sidecar bundle and CrossHair installed when sidecar CrossHair is used.

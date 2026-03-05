@@ -2,15 +2,19 @@
 layout: default
 title: Module Bootstrap Checklist
 permalink: /getting-started/module-bootstrap-checklist/
-description: Quick checklist to verify bundled modules are installed and discoverable in user/project scope.
+description: Quick checklist to verify official workflow bundles are installed and discoverable in user/project scope.
 ---
 
 # Module Bootstrap Checklist
 
-Use this checklist right after installing or upgrading SpecFact CLI to ensure bundled modules are installed and discoverable.
+Use this checklist right after installing or upgrading SpecFact CLI to ensure official workflow bundles are installed and discoverable.
 Use plain `specfact ...` commands below (not `hatch run specfact ...`) so the steps work for pipx, pip, uv tool installs, and packaged environments.
 
-## 1. Initialize Bundled Modules
+Core ships the bootstrap/runtime needed to install bundles. The official bundle source of truth is
+the marketplace registry in `nold-ai/specfact-cli-modules`, even when `specfact module init`
+seeds bundled copies for the current CLI release line.
+
+## 1. Initialize Bundled Bundle Copies
 
 ### User scope (default)
 
@@ -18,7 +22,7 @@ Use plain `specfact ...` commands below (not `hatch run specfact ...`) so the st
 specfact module init
 ```
 
-This seeds bundled modules into `~/.specfact/modules`.
+This seeds bundled copies of the official bundles into `~/.specfact/modules`.
 
 ### Project scope (optional)
 
@@ -26,7 +30,7 @@ This seeds bundled modules into `~/.specfact/modules`.
 specfact module init --scope project --repo .
 ```
 
-This seeds bundled modules into `<repo>/.specfact/modules`.
+This seeds bundled copies of the official bundles into `<repo>/.specfact/modules`.
 
 Use project scope when modules should apply only to a specific codebase/customer repository.
 
@@ -36,7 +40,7 @@ Use project scope when modules should apply only to a specific codebase/customer
 specfact module list
 ```
 
-If bundled modules are still available but not installed, you'll see a hint to run:
+If bundled bundle copies are still available but not installed, you'll see a hint to run:
 
 ```bash
 specfact module list --show-bundled-available
@@ -55,13 +59,13 @@ This prints a separate bundled table plus install guidance.
 Install from bundled sources only:
 
 ```bash
-specfact module install backlog-core --source bundled
+specfact module install backlog --source bundled
 ```
 
 Install from marketplace only:
 
 ```bash
-specfact module install specfact/backlog --source marketplace
+specfact module install nold-ai/specfact-backlog --source marketplace
 ```
 
 Install with automatic source resolution (`bundled` first, then marketplace):
@@ -73,9 +77,9 @@ specfact module install backlog
 ## 5. Scope-Safe Uninstall
 
 ```bash
-specfact module uninstall backlog-core --scope user
+specfact module uninstall backlog --scope user
 # or
-specfact module uninstall backlog-core --scope project --repo .
+specfact module uninstall backlog --scope project --repo .
 ```
 
 If the same module exists in both user and project scope, SpecFact requires explicit `--scope` to prevent accidental removal.

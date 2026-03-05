@@ -34,7 +34,7 @@ SpecFact CLI provides slash commands that work with AI-assisted IDEs (Cursor, VS
 
 **Purpose**: Import from codebase (brownfield modernization)
 
-**Equivalent CLI**: `specfact import from-code`
+**Equivalent CLI**: `specfact project import from-code`
 
 **Example**:
 
@@ -50,7 +50,7 @@ SpecFact CLI provides slash commands that work with AI-assisted IDEs (Cursor, VS
 
 **Purpose**: Plan management (init, add-feature, add-story, update-idea, update-feature, update-story)
 
-**Equivalent CLI**: `specfact plan init/add-feature/add-story/update-idea/update-feature/update-story`
+**Equivalent CLI**: `specfact project plan init/add-feature/add-story/update-idea/update-feature/update-story`
 
 **Example**:
 
@@ -67,7 +67,7 @@ SpecFact CLI provides slash commands that work with AI-assisted IDEs (Cursor, VS
 
 **Purpose**: Review plan and promote
 
-**Equivalent CLI**: `specfact plan review`
+**Equivalent CLI**: `specfact project plan review`
 
 **Example**:
 
@@ -83,7 +83,7 @@ SpecFact CLI provides slash commands that work with AI-assisted IDEs (Cursor, VS
 
 **Purpose**: Create SDD manifest
 
-**Equivalent CLI**: `specfact enforce sdd`
+**Equivalent CLI**: `specfact govern enforce sdd`
 
 **Example**:
 
@@ -99,7 +99,7 @@ SpecFact CLI provides slash commands that work with AI-assisted IDEs (Cursor, VS
 
 **Purpose**: SDD enforcement
 
-**Equivalent CLI**: `specfact enforce sdd`
+**Equivalent CLI**: `specfact govern enforce sdd`
 
 **Example**:
 
@@ -115,7 +115,7 @@ SpecFact CLI provides slash commands that work with AI-assisted IDEs (Cursor, VS
 
 **Purpose**: Sync operations
 
-**Equivalent CLI**: `specfact sync bridge`
+**Equivalent CLI**: `specfact project sync bridge`
 
 **Example**:
 
@@ -131,7 +131,7 @@ SpecFact CLI provides slash commands that work with AI-assisted IDEs (Cursor, VS
 
 **Purpose**: Contract management (analyze, generate prompts, apply contracts sequentially)
 
-**Equivalent CLI**: `specfact generate contracts-prompt`
+**Equivalent CLI**: `specfact spec generate contracts-prompt`
 
 **Example**:
 
@@ -149,7 +149,7 @@ SpecFact CLI provides slash commands that work with AI-assisted IDEs (Cursor, VS
 
 **Purpose**: Compare plans
 
-**Equivalent CLI**: `specfact plan compare`
+**Equivalent CLI**: `specfact project plan compare`
 
 **Example**:
 
@@ -165,7 +165,7 @@ SpecFact CLI provides slash commands that work with AI-assisted IDEs (Cursor, VS
 
 **Purpose**: Validation suite
 
-**Equivalent CLI**: `specfact repro`
+**Equivalent CLI**: `specfact code repro`
 
 **Example**:
 

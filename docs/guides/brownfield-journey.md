@@ -35,7 +35,7 @@ This guide walks you through the complete brownfield modernization journey:
 
 ```bash
 # Analyze your legacy codebase
-specfact import from-code legacy-api --repo ./legacy-app
+specfact project import from-code legacy-api --repo ./legacy-app
 ```
 
 **What happens:**
@@ -61,7 +61,7 @@ specfact import from-code legacy-api --repo ./legacy-app
 ```bash
 # If suggested, accept to auto-generate
 # Or run manually:
-specfact sdd constitution bootstrap --repo .
+specfact spec sdd constitution bootstrap --repo .
 ```
 
 This is especially useful if you plan to sync with Spec-Kit later.
@@ -70,7 +70,7 @@ This is especially useful if you plan to sync with Spec-Kit later.
 
 ```bash
 # Review the extracted plan using CLI commands
-specfact plan review legacy-api
+specfact project plan review legacy-api
 ```
 
 **What to look for:**
@@ -84,7 +84,7 @@ specfact plan review legacy-api
 
 ```bash
 # Compare extracted plan to your understanding (bundle directory paths)
-specfact plan compare \
+specfact project plan compare \
   --manual .specfact/projects/manual-plan \
   --auto .specfact/projects/your-project
 ```
@@ -112,7 +112,7 @@ specfact plan compare \
 
 ```bash
 # Review plan using CLI commands
-specfact plan review legacy-api
+specfact project plan review legacy-api
 ```
 
 ### Step 2.2: Add Contracts Incrementally
@@ -143,7 +143,7 @@ def process_payment(user_id, amount, currency):
 
 ```bash
 # Run in shadow mode (observe only)
-specfact enforce --mode shadow
+specfact govern enforce --mode shadow
 ```
 
 **Benefits:**
@@ -265,7 +265,7 @@ process_payment(user_id=-1, amount=-50, currency="XYZ")
 hatch run contract-test-full
 
 # Check for violations
-specfact enforce --mode block
+specfact govern enforce --mode block
 ```
 
 **Success criteria:**
@@ -328,7 +328,7 @@ Legacy Django app:
 
 #### Week 1: Understand
 
-- Ran `specfact import from-code legacy-api --repo .` → 23 features extracted in 8 seconds
+- Ran `specfact project import from-code legacy-api --repo .` → 23 features extracted in 8 seconds
 - Reviewed extracted plan → Identified 5 critical features
 - Time: 2 hours (vs. 60 hours manual)
 
