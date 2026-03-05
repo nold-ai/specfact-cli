@@ -17,3 +17,9 @@ def test_pre_commit_markdown_checks_run_autofix_before_lint() -> None:
 def test_pre_commit_markdown_autofix_restages_files() -> None:
     script = _script_text()
     assert "xargs -r git add --" in script
+
+
+def test_pre_commit_markdown_autofix_rejects_partial_staging() -> None:
+    script = _script_text()
+    assert 'git diff --quiet -- "$file"' in script
+    assert "Cannot auto-fix Markdown with unstaged hunks" in script

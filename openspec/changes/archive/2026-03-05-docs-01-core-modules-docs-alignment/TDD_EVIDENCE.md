@@ -50,3 +50,28 @@
 ```
 
 - Result: passed (`2 passed`)
+
+## Pre-implementation failing run: markdown partial-staging safeguard
+
+- Timestamp: 2026-03-06
+- Command:
+
+```bash
+/bin/bash -lc 'HATCH_DATA_DIR=/tmp/hatch-data HATCH_CACHE_DIR=/tmp/hatch-cache VIRTUALENV_OVERRIDE_APP_DATA=/tmp/virtualenv-appdata hatch run pytest tests/unit/scripts/test_pre_commit_smart_checks_docs.py -q'
+```
+
+- Result: failed (`1 failed, 2 passed`)
+- Failure summary:
+  - `scripts/pre-commit-smart-checks.sh` re-staged Markdown after auto-fix without checking for unstaged hunks in the same file.
+  - This could silently collapse partial staging and include unintended Markdown edits in the commit.
+
+## Post-implementation passing run: markdown partial-staging safeguard
+
+- Timestamp: 2026-03-06
+- Command:
+
+```bash
+/bin/bash -lc 'HATCH_DATA_DIR=/tmp/hatch-data HATCH_CACHE_DIR=/tmp/hatch-cache VIRTUALENV_OVERRIDE_APP_DATA=/tmp/virtualenv-appdata hatch run pytest tests/unit/scripts/test_pre_commit_smart_checks_docs.py -q'
+```
+
+- Result: passed (`3 passed`)

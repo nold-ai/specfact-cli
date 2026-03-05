@@ -37,6 +37,26 @@ staged_markdown_files() {
   staged_files | grep -E '\\.md$' || true
 }
 
+fail_if_markdown_has_unstaged_hunks() {
+  local md_files
+  md_files=$(staged_markdown_files)
+  if [ -z "${md_files}" ]; then
+    return
+  fi
+
+  local file
+  while IFS= read -r file; do
+    [ -z "${file}" ] && continue
+    if ! git diff --quiet -- "$file"; then
+      error "❌ Cannot auto-fix Markdown with unstaged hunks: $file"
+      warn "💡 Stage the full file or stash/revert the unstaged Markdown changes before commit"
+      exit 1
+    fi
+  done <<EOF
+${md_files}
+EOF
+}
+
 run_module_signature_verification() {
   info "🔐 Verifying bundled module signatures/version bumps"
   if hatch run ./scripts/verify-modules-signature.py --require-signature --enforce-version-bump; then
@@ -57,6 +77,8 @@ run_markdown_autofix_if_needed() {
       info "ℹ️  No staged markdown files resolved — skipping markdown auto-fix"
       return
     fi
+
+    fail_if_markdown_has_unstaged_hunks
 
     if command -v markdownlint >/dev/null 2>&1; then
       if echo "${md_files}" | xargs -r markdownlint --fix --config .markdownlint.json; then

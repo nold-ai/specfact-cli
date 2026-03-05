@@ -55,7 +55,7 @@ Commands executed:
 Results:
 
 - `pytest tests/unit/docs/test_release_docs_parity.py -q` => **7 passed**
-- `pytest tests/unit/scripts/test_pre_commit_smart_checks_docs.py -q` => **2 passed**
+- `pytest tests/unit/scripts/test_pre_commit_smart_checks_docs.py -q` => **3 passed**
 - `hatch run yaml-lint` => **pass**
 
 ## Implementation Notes
@@ -64,6 +64,7 @@ Results:
 - Command examples across live Markdown were normalized to grouped command paths while keeping intentional migration-history pages intact.
 - Entry-point docs, marketplace/install/publish docs, architecture/reference docs, and bundle-specific guides were aligned to the lean-core plus `specfact-cli-modules` ownership model.
 - `scripts/pre-commit-smart-checks.sh` now runs `markdownlint --fix` (or `npx markdownlint-cli --fix`) before the existing markdown lint gate and re-stages changed Markdown files automatically.
+- The markdown auto-fix path now fails fast when a staged Markdown file also has unstaged hunks, preserving partial staging boundaries instead of broadening the commit.
 
 ## Outcome
 
