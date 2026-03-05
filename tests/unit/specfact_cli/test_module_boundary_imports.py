@@ -7,10 +7,14 @@ from pathlib import Path
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
+CORE_SRC_ROOT = PROJECT_ROOT / "src" / "specfact_cli"
 LEGACY_NON_APP_IMPORT_PATTERN = re.compile(r"from\s+specfact_cli\.commands\.[a-zA-Z0-9_]+\s+import\s+(?!app\b)")
 LEGACY_SYMBOL_REF_PATTERN = re.compile(r"specfact_cli\.commands\.[a-zA-Z0-9_]+")
 CROSS_MODULE_COMMAND_IMPORT_PATTERN = re.compile(
     r"from\s+specfact_cli\.modules\.([a-zA-Z0-9_]+)\.src\.commands\s+import\s+([^\n]+)"
+)
+BUNDLE_PACKAGE_IMPORT_PATTERN = re.compile(
+    r"(?:from\s+(backlog_core|bundle_mapper)(?:\.[a-zA-Z0-9_]+)*\s+import|import\s+(backlog_core|bundle_mapper))"
 )
 
 
@@ -65,4 +69,98 @@ def test_no_cross_module_non_app_command_imports_in_module_sources() -> None:
     assert not violations, (
         "Cross-module src.commands imports found (use specfact_cli.utils for shared helpers):\n"
         + "\n".join(f"- {v}" for v in sorted(violations))
+    )
+
+
+def test_core_does_not_import_from_bundle_packages() -> None:
+    """Block core from importing bundle packages (backlog_core, bundle_mapper).
+
+    Core (src/specfact_cli/) must remain decoupled from bundle implementation.
+    Bundles import from specfact_cli; core must not import from bundles.
+    """
+    violations: list[str] = []
+    if not CORE_SRC_ROOT.exists():
+        return
+
+    for py_file in CORE_SRC_ROOT.rglob("*.py"):
+        if "__pycache__" in py_file.parts:
+            continue
+        text = py_file.read_text(encoding="utf-8")
+        for match in BUNDLE_PACKAGE_IMPORT_PATTERN.finditer(text):
+            rel = py_file.relative_to(PROJECT_ROOT)
+            violations.append(f"{rel}: {match.group(0).strip()}")
+
+    assert not violations, (
+        "Core must not import from bundle packages (backlog_core, bundle_mapper). "
+        "Bundles depend on core; core must not depend on bundles.\n" + "\n".join(f"- {v}" for v in sorted(violations))
+    )
+
+
+# MIGRATE-tier paths per IMPORT_DEPENDENCY_ANALYSIS; core must not add new ones.
+# These should eventually be removed; test prevents reintroduction.
+MIGRATE_TIER_PREFIXES = (
+    "specfact_cli.agents",
+    "specfact_cli.analyzers",
+    "specfact_cli.backlog",
+    "specfact_cli.comparators",
+    "specfact_cli.enrichers",
+    "specfact_cli.generators",
+    "specfact_cli.importers",
+    "specfact_cli.merge",
+    "specfact_cli.migrations",
+    "specfact_cli.parsers",
+    "specfact_cli.sync",
+    "specfact_cli.templates.registry",
+    "specfact_cli.validators.repro_checker",
+    "specfact_cli.validators.sidecar",
+)
+CORE_MODULE_DIRS = ("init", "module_registry", "upgrade")
+
+
+def test_core_modules_do_not_import_migrate_tier() -> None:
+    """Core modules (init, module_registry, upgrade) must not import MIGRATE-tier paths.
+
+    MIGRATE-tier code belongs in specfact-cli-modules. Core modules must only use
+    CORE/SHARED imports. Prevents reintroduction of bundle-only coupling.
+    """
+    violations: list[str] = []
+    modules_root = PROJECT_ROOT / "src" / "specfact_cli" / "modules"
+    if not modules_root.exists():
+        return
+
+    for module_name in CORE_MODULE_DIRS:
+        module_dir = modules_root / module_name
+        if not module_dir.exists():
+            continue
+        for py_file in module_dir.rglob("*.py"):
+            if "__pycache__" in py_file.parts:
+                continue
+            text = py_file.read_text(encoding="utf-8")
+            for line_no, line in enumerate(text.splitlines(), 1):
+                for prefix in MIGRATE_TIER_PREFIXES:
+                    if f"from {prefix}" in line or f"import {prefix}" in line:
+                        rel = py_file.relative_to(PROJECT_ROOT)
+                        violations.append(f"{rel}:{line_no}: {line.strip()[:80]}")
+
+    assert not violations, (
+        "Core modules (init, module_registry, upgrade) must not import MIGRATE-tier paths. "
+        "MIGRATE-tier code lives in specfact-cli-modules.\n" + "\n".join(f"- {v}" for v in sorted(violations))
+    )
+
+
+def test_core_repo_does_not_host_sync_runtime_unit_tests() -> None:
+    """Sync runtime unit tests must live in specfact-cli-modules (specfact_project)."""
+    legacy_sync_tests_dir = PROJECT_ROOT / "tests" / "unit" / "sync"
+    if not legacy_sync_tests_dir.exists():
+        return
+
+    legacy_tests = sorted(
+        str(path.relative_to(PROJECT_ROOT))
+        for path in legacy_sync_tests_dir.glob("test_*.py")
+        if path.is_file()
+    )
+
+    assert not legacy_tests, (
+        "Sync runtime unit tests must be migrated out of specfact-cli into specfact-cli-modules.\n"
+        + "\n".join(f"- {path}" for path in legacy_tests)
     )

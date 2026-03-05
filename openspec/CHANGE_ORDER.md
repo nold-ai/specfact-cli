@@ -91,7 +91,7 @@ These are derived extensions of the same 2026-02-15 plan and are required to ope
 | module-migration | 02 | module-migration-02-bundle-extraction | [#316](https://github.com/nold-ai/specfact-cli/issues/316) | module-migration-01 ✅ |
 | module-migration | 03 | module-migration-03-core-slimming | [#317](https://github.com/nold-ai/specfact-cli/issues/317) | module-migration-02; migration-05 sections 18-22 (tests, decoupling, docs, pipeline/config) must precede deletion |
 | module-migration | 04 | module-migration-04-remove-flat-shims | [#330](https://github.com/nold-ai/specfact-cli/issues/330) | module-migration-01; shim-removal scope only (no broad legacy test migration) |
-| module-migration | 06 | module-migration-06-core-decoupling-cleanup | [#338](https://github.com/nold-ai/specfact-cli/issues/338) | module-migration-03; migration-05 bundle-parity baseline (remove remaining non-core coupling in specfact-cli core) |
+| module-migration | 06 | module-migration-06-core-decoupling-cleanup (in progress) | [#338](https://github.com/nold-ai/specfact-cli/issues/338) | module-migration-03 ✅; migration-05 ✅ bundle-parity baseline |
 | module-migration | 07 | module-migration-07-test-migration-cleanup | [#339](https://github.com/nold-ai/specfact-cli/issues/339) | migration-03 phase 20 handoff; migration-04 and migration-05 residual specfact-cli test debt |
 | backlog-auth | 01 | backlog-auth-01-backlog-auth-commands | TBD | module-migration-03 (central auth interface in core; auth removed from core) |
 
