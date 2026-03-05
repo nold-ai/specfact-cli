@@ -14,6 +14,14 @@ CORE_DIRS = [
     Path("src/specfact_cli/utils"),
     Path("src/specfact_cli/contracts"),
 ]
+EXTRACTED_MODULE_PREFIXES = (
+    "specfact_cli.modules.",
+    "specfact_backlog.",
+    "specfact_project.",
+    "specfact_codebase.",
+    "specfact_spec.",
+    "specfact_govern.",
+)
 
 
 def _collect_python_files(dirs: list[Path]) -> list[Path]:
@@ -66,6 +74,11 @@ def _format_violation(path: str, line_no: int, module: str) -> str:
     return f"{path}:{line_no} imports {module}"
 
 
+def _is_extracted_module_import(module_name: str) -> bool:
+    """Return True for imports targeting extracted module package namespaces."""
+    return module_name.startswith(EXTRACTED_MODULE_PREFIXES)
+
+
 def _find_core_module_import_violations(files: list[Path]) -> list[str]:
     """Scan Python files and return all direct core->module import violations."""
     violations: list[str] = []
@@ -80,7 +93,7 @@ def _find_core_module_import_violations(files: list[Path]) -> list[str]:
             if _is_in_type_checking_block(node, parent_map):
                 continue
             module_name = _get_module_name(node)
-            if not module_name.startswith("specfact_cli.modules."):
+            if not _is_extracted_module_import(module_name):
                 continue
             violations.append(
                 _format_violation(
@@ -112,7 +125,7 @@ if TYPE_CHECKING:
     )
     parent_map = {child: parent for parent in ast.walk(source) for child in ast.iter_child_nodes(parent)}
     imports = [node for node in ast.walk(source) if isinstance(node, (ast.Import, ast.ImportFrom))]
-    module_imports = [node for node in imports if _get_module_name(node).startswith("specfact_cli.modules.")]
+    module_imports = [node for node in imports if _is_extracted_module_import(_get_module_name(node))]
 
     assert module_imports
     assert all(_is_in_type_checking_block(node, parent_map) for node in module_imports)

@@ -77,6 +77,7 @@ _MIGRATED_TEST_PATTERNS: tuple[str, ...] = (
     # Backlog command behavior is module-owned after extraction.
     "tests/unit/commands/test_backlog_commands.py",
     "tests/unit/commands/test_backlog_daily.py",
+    "tests/unit/commands/test_project_cmd.py",
     # Legacy topology and extracted-module path assumptions retired from core.
     "tests/unit/groups/test_codebase_group.py",
     "tests/unit/modules/init/test_first_run_selection.py",
