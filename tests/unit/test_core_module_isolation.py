@@ -107,7 +107,7 @@ def test_excludes_type_checking_blocks() -> None:
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from specfact_cli.modules.backlog.src import commands
+    from specfact_backlog.backlog import commands
 """
     )
     parent_map = {child: parent for parent in ast.walk(source) for child in ast.iter_child_nodes(parent)}
@@ -121,8 +121,8 @@ if TYPE_CHECKING:
 def test_multiple_violations_reported_together() -> None:
     """Violation reporting aggregates all issues in a single error payload."""
     violations = [
-        _format_violation("src/specfact_cli/cli.py", 10, "specfact_cli.modules.backlog"),
-        _format_violation("src/specfact_cli/models/project.py", 42, "specfact_cli.modules.sync"),
+        _format_violation("src/specfact_cli/cli.py", 10, "specfact_backlog.backlog"),
+        _format_violation("src/specfact_cli/models/project.py", 42, "specfact_project.sync"),
     ]
     message = "\n".join([f"Found {len(violations)} core-to-module import violations", *violations])
 
@@ -133,6 +133,6 @@ def test_multiple_violations_reported_together() -> None:
 
 def test_violation_message_format() -> None:
     """Violation messages include file path, line number, and module name."""
-    violation = _format_violation("src/specfact_cli/cli.py", 42, "specfact_cli.modules.backlog.src.commands")
+    violation = _format_violation("src/specfact_cli/cli.py", 42, "specfact_backlog.backlog.commands")
 
-    assert violation == "src/specfact_cli/cli.py:42 imports specfact_cli.modules.backlog.src.commands"
+    assert violation == "src/specfact_cli/cli.py:42 imports specfact_backlog.backlog.commands"

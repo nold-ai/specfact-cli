@@ -1,6 +1,12 @@
-"""Backward-compatible app shim. Implementation moved to modules/sync/."""
+"""Backward-compatible app shim for project sync command."""
 
-from specfact_cli.modules.sync.src.commands import app
+from importlib import import_module
 
+from specfact_cli.modules._bundle_import import bootstrap_local_bundle_sources
+
+
+bootstrap_local_bundle_sources(__file__)
+
+app = import_module("specfact_project.sync.commands").app
 
 __all__ = ["app"]

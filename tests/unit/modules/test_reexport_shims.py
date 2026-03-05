@@ -13,14 +13,14 @@ import pytest
 def test_validate_shim_emits_deprecation_warning_on_attribute_access() -> None:
     with warnings.catch_warnings(record=True) as captured:
         warnings.simplefilter("always")
-        module = importlib.import_module("specfact_cli.modules.validate")
+        module = importlib.import_module("specfact_codebase.validate")
         _ = module.app
     assert any(issubclass(item.category, DeprecationWarning) for item in captured)
 
 
-@pytest.mark.filterwarnings("ignore:specfact_cli.modules.analyze is deprecated")
+@pytest.mark.filterwarnings("ignore:specfact_codebase.analyze is deprecated")
 def test_legacy_analyze_import_resolves_without_import_error() -> None:
-    from specfact_cli.modules.analyze import app
+    from specfact_codebase.analyze import app
 
     assert app is not None
 
@@ -36,5 +36,5 @@ def test_validate_shim_has_only_dunder_and_getattr_functions() -> None:
 
 
 def test_validate_shim_name_is_accessible_after_import() -> None:
-    module = importlib.import_module("specfact_cli.modules.validate")
-    assert module.__name__ == "specfact_cli.modules.validate"
+    module = importlib.import_module("specfact_codebase.validate")
+    assert module.__name__ == "specfact_codebase.validate"

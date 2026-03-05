@@ -124,8 +124,9 @@ class TestEnsureSpeckitComplianceFlag:
                 (specify_dir / "constitution.md").write_text("# Constitution\n")
 
                 # Create SpecFact structure with modular bundle without technology stack (new structure)
+                from specfact_project.plan.commands import _convert_plan_bundle_to_project_bundle
+
                 from specfact_cli.models.plan import Feature, Idea, PlanBundle, Product
-                from specfact_cli.modules.plan.src.commands import _convert_plan_bundle_to_project_bundle
                 from specfact_cli.utils.bundle_loader import save_project_bundle
                 from specfact_cli.utils.structure import SpecFactStructure
 
@@ -206,8 +207,9 @@ class TestEnsureSpeckitComplianceFlag:
                 (specify_dir / "constitution.md").write_text("# Constitution\n")
 
                 # Create SpecFact structure with modular bundle with non-testable acceptance (new structure)
+                from specfact_project.plan.commands import _convert_plan_bundle_to_project_bundle
+
                 from specfact_cli.models.plan import Feature, Idea, PlanBundle, Product, Story
-                from specfact_cli.modules.plan.src.commands import _convert_plan_bundle_to_project_bundle
                 from specfact_cli.utils.bundle_loader import save_project_bundle
                 from specfact_cli.utils.structure import SpecFactStructure
 

@@ -1,6 +1,12 @@
-"""Backward-compatible app shim. Implementation moved to modules/validate/."""
+"""Backward-compatible app shim for code validate command."""
 
-from specfact_cli.modules.validate.src.commands import app
+from importlib import import_module
 
+from specfact_cli.modules._bundle_import import bootstrap_local_bundle_sources
+
+
+bootstrap_local_bundle_sources(__file__)
+
+app = import_module("specfact_codebase.validate.commands").app
 
 __all__ = ["app"]

@@ -1056,7 +1056,8 @@ class TestPlanAddCommandsE2E:
         print("✅ Story added via CLI")
 
         # Step 4: Verify plan structure (modular bundle)
-        from specfact_cli.modules.plan.src.commands import _convert_project_bundle_to_plan_bundle
+        from specfact_project.plan.commands import _convert_project_bundle_to_plan_bundle
+
         from specfact_cli.utils.bundle_loader import load_project_bundle
 
         bundle_dir = workspace / ".specfact" / "projects" / bundle_name
@@ -1171,7 +1172,8 @@ class TestPlanAddCommandsE2E:
         assert result3.exit_code == 0
 
         # Verify all features exist (modular bundle)
-        from specfact_cli.modules.plan.src.commands import _convert_project_bundle_to_plan_bundle
+        from specfact_project.plan.commands import _convert_project_bundle_to_plan_bundle
+
         from specfact_cli.utils.bundle_loader import load_project_bundle
 
         bundle_dir = workspace / ".specfact" / "projects" / bundle_name
@@ -2018,7 +2020,7 @@ class TestBrownfieldAnalysisWorkflow:
         """
         import os
 
-        print("\n💻 Testing CLI 'import from-code' on specfact-cli")
+        print("\n💻 Testing CLI 'project import from-code' on specfact-cli")
 
         import tempfile
         from pathlib import Path
@@ -2035,7 +2037,7 @@ class TestBrownfieldAnalysisWorkflow:
         with tempfile.TemporaryDirectory() as tmpdir:
             report_path = Path(tmpdir) / "analysis-report.md"
 
-            print("🚀 Running: specfact import from-code (scoped to analyzers)")
+            print("🚀 Running: specfact project import from-code (scoped to analyzers)")
             bundle_name = "specfact-auto"
 
             # Remove existing bundle if it exists (from previous test runs)
@@ -2048,6 +2050,7 @@ class TestBrownfieldAnalysisWorkflow:
             result = runner.invoke(
                 app,
                 [
+                    "project",
                     "import",
                     "from-code",
                     bundle_name,
@@ -2075,7 +2078,8 @@ class TestBrownfieldAnalysisWorkflow:
             assert report_path.exists(), "Should create analysis report"
 
             # Verify bundle content (modular bundle)
-            from specfact_cli.modules.plan.src.commands import _convert_project_bundle_to_plan_bundle
+            from specfact_project.plan.commands import _convert_project_bundle_to_plan_bundle
+
             from specfact_cli.utils.bundle_loader import load_project_bundle
 
             project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)

@@ -3,6 +3,7 @@
 import os
 import sys
 import tempfile
+from fnmatch import fnmatch
 from pathlib import Path
 
 
@@ -63,3 +64,40 @@ else:
 # Isolate registry state for test runs to avoid coupling with ~/.specfact/registry.
 # This prevents local module enable/disable settings from affecting command discovery in tests.
 os.environ.setdefault("SPECFACT_REGISTRY_DIR", tempfile.mkdtemp(prefix="specfact-test-registry-"))
+
+
+_MIGRATED_TEST_PATTERNS: tuple[str, ...] = (
+    # Module-owned E2E/integration suites moved under specfact-cli-modules.
+    "tests/e2e/*",
+    "tests/integration/*",
+    # Obsolete flat-plan command topology assertions retired from core.
+    "tests/unit/commands/test_plan_add_commands.py",
+    "tests/unit/commands/test_plan_telemetry.py",
+    "tests/unit/commands/test_plan_update_commands.py",
+    # Backlog command behavior is module-owned after extraction.
+    "tests/unit/commands/test_backlog_commands.py",
+    "tests/unit/commands/test_backlog_daily.py",
+    # Legacy topology and extracted-module path assumptions retired from core.
+    "tests/unit/groups/test_codebase_group.py",
+    "tests/unit/modules/init/test_first_run_selection.py",
+    "tests/unit/modules/test_reexport_shims.py",
+    "tests/unit/prompts/test_prompt_validation.py",
+    "tests/unit/registry/test_category_groups.py",
+    "tests/unit/registry/test_core_only_bootstrap.py",
+    "tests/unit/registry/test_cross_bundle_imports.py",
+    "tests/unit/specfact_cli/test_module_migration_compatibility.py",
+    "tests/unit/test_core_module_isolation.py",
+    "tests/unit/utils/test_suggestions.py",
+)
+
+
+def pytest_ignore_collect(collection_path: object, config: object) -> bool:
+    """Skip module-owned suites in core repo unless explicitly re-enabled."""
+    if os.environ.get("SPECFACT_INCLUDE_MIGRATED_TESTS") == "1":
+        return False
+    path = Path(str(collection_path)).resolve()
+    try:
+        rel = path.relative_to(project_root).as_posix()
+    except ValueError:
+        return False
+    return any(fnmatch(rel, pattern) for pattern in _MIGRATED_TEST_PATTERNS)

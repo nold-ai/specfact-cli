@@ -6,8 +6,8 @@ import pytest
 from typer.testing import CliRunner
 
 
-pytest.importorskip("specfact_cli.modules.backlog.src.commands")
-from specfact_cli.modules.backlog.src import commands as backlog_commands
+pytest.importorskip("specfact_backlog.backlog.commands")
+from specfact_backlog.backlog import commands as backlog_commands
 
 
 runner = CliRunner()

@@ -7,8 +7,8 @@ import inspect
 import pytest
 
 
-pytest.importorskip("specfact_cli.modules.enforce.src.commands")
-from specfact_cli.modules.enforce.src import commands as module_commands
+pytest.importorskip("specfact_govern.enforce.commands")
+from specfact_govern.enforce import commands as module_commands
 
 
 REQUIRED_METHODS = [

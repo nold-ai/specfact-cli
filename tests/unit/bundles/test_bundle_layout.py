@@ -62,16 +62,16 @@ def test_import_from_specfact_codebase_analyze_resolves() -> None:
     assert hasattr(module, "app")
 
 
-def test_validate_shim_emits_deprecation_warning() -> None:
+def test_validate_package_import_has_no_deprecation_warning() -> None:
     with warnings.catch_warnings(record=True) as captured:
         warnings.simplefilter("always")
-        module = importlib.import_module("specfact_cli.modules.validate")
+        module = importlib.import_module("specfact_codebase.validate")
         _ = module.app
-    assert any(issubclass(item.category, DeprecationWarning) for item in captured)
+    assert not any(issubclass(item.category, DeprecationWarning) for item in captured)
 
 
 def test_validate_shim_resolves_without_import_error() -> None:
-    module = importlib.import_module("specfact_cli.modules.validate")
+    module = importlib.import_module("specfact_codebase.validate")
     assert module is not None
 
 

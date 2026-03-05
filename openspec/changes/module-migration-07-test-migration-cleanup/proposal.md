@@ -14,13 +14,18 @@ This follow-up change owns residual `specfact-cli` suite cleanup so migration wo
 ## What Changes
 
 - Migrate remaining legacy test imports from removed paths (for example `specfact_cli.modules.*`) to supported grouped/bundle interfaces.
-- Update E2E and integration tests that still assume flat shim commands or bundled-in-core modules.
+- Re-home module behavior E2E/integration tests from `specfact-cli` to `specfact-cli-modules` where they logically belong after extraction.
+- Keep only core-runtime contract tests in `specfact-cli` (bootstrap, module lifecycle, grouped command mounting, compatibility/deprecation shims).
+- Update or retire tests that still assume removed flat command topology where no supported runtime surface exists anymore.
 - Harden script/signing fixtures to avoid environment-coupled failures (for example malformed/missing test PEM inputs).
-- Establish deterministic test selectors for migration-scope validation vs full-suite validation.
+- Establish deterministic test selectors and independent green gates for `specfact-cli` and `specfact-cli-modules`.
 
 ## Scope
 
-- **In scope**: `specfact-cli` test code cleanup and fixture hardening tied to post-migration command/module topology.
+- **In scope**:
+  - `specfact-cli` test cleanup limited to core runtime ownership
+  - migration of extracted-module tests to `specfact-cli-modules`
+  - fixture hardening tied to post-migration command/module topology
 - **Out of scope**: feature behavior changes in runtime command implementations (those belong to feature changes).
 
 ## Baseline (from migration-03 handoff)
@@ -32,7 +37,8 @@ This follow-up change owns residual `specfact-cli` suite cleanup so migration wo
   - Captured on 2026-03-03 from `smart-test-full` path: `2738` collected, `359 failed`, `19 errors`, `22 skipped`.
 - Deferred failure buckets for this change:
   - import-path migration (`specfact_cli.modules.*` references in tests),
-  - command topology migration (flat command assumptions vs grouped commands),
+  - command topology migration (flat command assumptions vs grouped/available commands),
+  - repository ownership migration (module tests moved out of core repo),
   - signing/script fixture hardening (deterministic local assets in CI).
 
 ## Source Tracking

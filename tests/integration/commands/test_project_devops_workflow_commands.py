@@ -59,7 +59,7 @@ def test_project_devops_flow_plan_generate_roadmap(tmp_path: Path, monkeypatch) 
     _create_bundle(tmp_path, bundle_name)
     _link_backlog(tmp_path, bundle_name)
 
-    from specfact_cli.modules.project.src import commands as project_commands
+    from specfact_project.project import commands as project_commands
 
     monkeypatch.setattr(project_commands, "generate_roadmap", lambda **_kwargs: ["A-1", "A-2"])
 
@@ -92,7 +92,7 @@ def test_project_snapshot_writes_baseline(tmp_path: Path, monkeypatch) -> None:
     _create_bundle(tmp_path, bundle_name)
     _link_backlog(tmp_path, bundle_name)
 
-    from specfact_cli.modules.project.src import commands as project_commands
+    from specfact_project.project import commands as project_commands
 
     class _FakeGraph:
         def __init__(self) -> None:
@@ -127,7 +127,7 @@ def test_project_regenerate_and_export_roadmap(tmp_path: Path, monkeypatch) -> N
     _create_bundle(tmp_path, bundle_name)
     _link_backlog(tmp_path, bundle_name)
 
-    from specfact_cli.modules.project.src import commands as project_commands
+    from specfact_project.project import commands as project_commands
 
     monkeypatch.setattr(project_commands, "_fetch_backlog_graph", lambda **_kwargs: type("G", (), {"items": {}})())
     monkeypatch.setattr(project_commands, "merge_plans", lambda *_args, **_kwargs: {"merged": True})
@@ -173,7 +173,7 @@ def test_project_devops_flow_complete_stage_sequence(tmp_path: Path, monkeypatch
     _create_bundle(tmp_path, bundle_name)
     _link_backlog(tmp_path, bundle_name)
 
-    from specfact_cli.modules.project.src import commands as project_commands
+    from specfact_project.project import commands as project_commands
 
     calls: list[str] = []
     monkeypatch.setattr(project_commands, "generate_roadmap", lambda **_kwargs: ["CP-1"])

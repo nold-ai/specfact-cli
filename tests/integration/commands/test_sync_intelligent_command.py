@@ -27,7 +27,7 @@ class TestSyncIntelligentCommand:
 
     def test_sync_intelligent_no_bundle(self, tmp_path: Path) -> None:
         """Test sync intelligent when bundle doesn't exist."""
-        result = runner.invoke(app, ["sync", "intelligent", "nonexistent", "--repo", str(tmp_path)])
+        result = runner.invoke(app, ["project", "sync", "intelligent", "nonexistent", "--repo", str(tmp_path)])
 
         assert result.exit_code == 1  # Should fail with bundle not found
         assert "Project bundle not found" in result.stdout or "Bundle name required" in result.stdout
@@ -64,7 +64,7 @@ class TestSyncIntelligentCommand:
         save_project_bundle(project_bundle, bundle_dir, atomic=True)
 
         # Run sync intelligent
-        result = runner.invoke(app, ["sync", "intelligent", bundle_name, "--repo", str(tmp_path)])
+        result = runner.invoke(app, ["project", "sync", "intelligent", bundle_name, "--repo", str(tmp_path)])
 
         assert result.exit_code == 0
         assert "Intelligent Sync" in result.stdout

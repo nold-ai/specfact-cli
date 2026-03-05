@@ -7,11 +7,11 @@ from pathlib import Path
 import pytest
 
 
-pytest.importorskip("specfact_cli.modules.backlog.src.adapters.ado")
-from specfact_cli.modules.backlog.src.adapters.ado import AdoConverter
-from specfact_cli.modules.backlog.src.adapters.github import GitHubConverter
-from specfact_cli.modules.backlog.src.adapters.jira import JiraConverter
-from specfact_cli.modules.backlog.src.adapters.linear import LinearConverter
+pytest.importorskip("specfact_backlog.backlog.adapters.ado")
+from specfact_backlog.backlog.adapters.ado import AdoConverter
+from specfact_backlog.backlog.adapters.github import GitHubConverter
+from specfact_backlog.backlog.adapters.jira import JiraConverter
+from specfact_backlog.backlog.adapters.linear import LinearConverter
 
 
 def test_converters_implement_schema_converter_contract() -> None:

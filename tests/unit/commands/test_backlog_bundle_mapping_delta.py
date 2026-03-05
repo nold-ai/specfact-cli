@@ -5,9 +5,10 @@ from pathlib import Path
 import pytest
 
 
-pytest.importorskip("specfact_cli.modules.backlog.src.commands")
+pytest.importorskip("specfact_backlog.backlog.commands")
+from specfact_backlog.backlog import commands as backlog_commands
+
 from specfact_cli.models.backlog_item import BacklogItem
-from specfact_cli.modules.backlog.src import commands as backlog_commands
 
 
 def _item(item_id: str, *, tags: list[str] | None = None) -> BacklogItem:

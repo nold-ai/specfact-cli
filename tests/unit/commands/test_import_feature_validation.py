@@ -11,9 +11,10 @@ from pathlib import Path
 import pytest
 
 
-pytest.importorskip("specfact_cli.modules.import_cmd.src.commands")
+pytest.importorskip("specfact_project.import_cmd.commands")
+from specfact_project.import_cmd.commands import _validate_existing_features
+
 from specfact_cli.models.plan import Feature, PlanBundle, Product, SourceTracking, Story
-from specfact_cli.modules.import_cmd.src.commands import _validate_existing_features
 
 
 @pytest.fixture

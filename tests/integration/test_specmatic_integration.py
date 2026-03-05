@@ -242,7 +242,7 @@ coverage_thresholds:
         old_cwd = os.getcwd()
         try:
             os.chdir(tmp_path)
-            result = runner.invoke(app, ["enforce", "sdd", "test-bundle"])
+            result = runner.invoke(app, ["govern", "enforce", "sdd", "test-bundle"])
         finally:
             os.chdir(old_cwd)
 
@@ -320,7 +320,7 @@ coverage_thresholds:
         old_cwd = os.getcwd()
         try:
             os.chdir(tmp_path)
-            result = runner.invoke(app, ["enforce", "sdd", "test-bundle"])
+            result = runner.invoke(app, ["govern", "enforce", "sdd", "test-bundle"])
         finally:
             os.chdir(old_cwd)
 

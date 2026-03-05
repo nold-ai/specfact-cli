@@ -49,7 +49,9 @@ class TestPhase41ContextDetection:
     def test_context_detection_detects_python_project(self, runner: CliRunner, test_repo: Path) -> None:
         """Test that context detection identifies Python projects."""
         os.environ["TEST_MODE"] = "true"
-        result = runner.invoke(app, ["import", "from-code", "--repo", str(test_repo), "--bundle", "test-bundle"])
+        result = runner.invoke(
+            app, ["project", "import", "from-code", "--repo", str(test_repo), "--bundle", "test-bundle"]
+        )
         # Should detect Python and FastAPI
         assert result.exit_code in (0, 2)  # May exit with error if bundle already exists, but should detect context
 
@@ -75,7 +77,7 @@ class TestPhase42ProgressiveDisclosure:
 
     def test_help_hides_advanced_options(self, runner: CliRunner) -> None:
         """Test that regular help hides advanced options."""
-        result = runner.invoke(app, ["import", "from-code", "--help"])
+        result = runner.invoke(app, ["project", "import", "from-code", "--help"])
         # Advanced options like --confidence should not be visible in regular help
         # (They're marked with hidden=True)
         assert result.exit_code == 0
@@ -83,7 +85,7 @@ class TestPhase42ProgressiveDisclosure:
     def test_help_advanced_shows_all_options(self, runner: CliRunner) -> None:
         """Test that --help-advanced shows all options including advanced."""
         os.environ["SPECFACT_SHOW_ADVANCED"] = "true"
-        result = runner.invoke(app, ["import", "from-code", "--help"])
+        result = runner.invoke(app, ["project", "import", "from-code", "--help"])
         # With advanced help, all options should be visible
         assert result.exit_code == 0
         # Clean up

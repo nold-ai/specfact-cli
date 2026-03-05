@@ -85,7 +85,8 @@ def incomplete_plan(workspace: Path) -> Path:
     )
 
     # Convert to modular bundle
-    from specfact_cli.modules.plan.src.commands import _convert_plan_bundle_to_project_bundle
+    from specfact_project.plan.commands import _convert_plan_bundle_to_project_bundle
+
     from specfact_cli.utils.bundle_loader import save_project_bundle
 
     project_bundle = _convert_plan_bundle_to_project_bundle(bundle, bundle_name)
@@ -208,7 +209,8 @@ class TestPlanReviewNonInteractive:
         )
 
         # Convert to modular bundle
-        from specfact_cli.modules.plan.src.commands import _convert_plan_bundle_to_project_bundle
+        from specfact_project.plan.commands import _convert_plan_bundle_to_project_bundle
+
         from specfact_cli.utils.bundle_loader import save_project_bundle
 
         project_bundle = _convert_plan_bundle_to_project_bundle(bundle, bundle_name)
@@ -265,7 +267,8 @@ class TestPlanReviewNonInteractive:
         assert "Review complete" in result.stdout or "question(s) answered" in result.stdout
 
         # Verify plan was updated (modular bundle)
-        from specfact_cli.modules.plan.src.commands import _convert_project_bundle_to_plan_bundle
+        from specfact_project.plan.commands import _convert_project_bundle_to_plan_bundle
+
         from specfact_cli.utils.bundle_loader import load_project_bundle
 
         updated_project_bundle = load_project_bundle(incomplete_plan, validate_hashes=False)
@@ -405,7 +408,8 @@ class TestPlanReviewNonInteractive:
 
         # Verify integration
         # Load updated bundle (modular bundle)
-        from specfact_cli.modules.plan.src.commands import _convert_project_bundle_to_plan_bundle
+        from specfact_project.plan.commands import _convert_project_bundle_to_plan_bundle
+
         from specfact_cli.utils.bundle_loader import load_project_bundle
 
         updated_project_bundle = load_project_bundle(incomplete_plan, validate_hashes=False)
@@ -502,7 +506,8 @@ class TestPlanReviewNonInteractive:
 
         # Verify all answers were integrated
         # Load updated bundle (modular bundle)
-        from specfact_cli.modules.plan.src.commands import _convert_project_bundle_to_plan_bundle
+        from specfact_project.plan.commands import _convert_project_bundle_to_plan_bundle
+
         from specfact_cli.utils.bundle_loader import load_project_bundle
 
         updated_project_bundle = load_project_bundle(incomplete_plan, validate_hashes=False)
