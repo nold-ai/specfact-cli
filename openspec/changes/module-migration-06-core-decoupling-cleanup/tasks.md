@@ -42,3 +42,11 @@
 - [x] 6.4 Remove `tests/unit/templates/test_bridge_templates.py`.
 - [x] 6.5 Update `CORE_DECOUPLING_INVENTORY.md` with MIGRATE-tier removal status.
 - [x] 6.6 Run quality gates; record evidence.
+
+## 7. Cross-repo test migration continuation (2026-03-05)
+
+- [x] 7.1 Add failing core boundary test `test_core_repo_does_not_host_sync_runtime_unit_tests`.
+- [x] 7.2 Migrate legacy core sync-runtime unit tests from `tests/unit/sync/` to modules repo path `tests/unit/specfact_project/sync_runtime/`.
+- [x] 7.3 Remove migrated sync-runtime unit tests from `specfact-cli` core repository.
+- [x] 7.4 Verify post-migration: core boundary test passes and migrated modules tests pass.
+- [x] 7.5 Update `TDD_EVIDENCE.md`, `CORE_DECOUPLING_INVENTORY.md`, and `MIGRATION_REMOVAL_PLAN.md`.

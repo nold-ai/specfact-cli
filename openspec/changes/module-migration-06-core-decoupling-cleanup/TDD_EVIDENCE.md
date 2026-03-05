@@ -52,3 +52,42 @@ Inventory confirmed no move candidates; core already decoupled. Boundary test pr
 **Command:** `hatch run pytest tests/unit/sync/ tests/unit/templates/ tests/unit/specfact_cli/test_module_boundary_imports.py -v`
 
 **Result:** 127 passed
+
+### Extended scope continuation (sync-runtime unit test migration) — 2026-03-05
+
+#### Pre-implementation (failing) evidence
+
+Added boundary test: `test_core_repo_does_not_host_sync_runtime_unit_tests`.
+
+**Command:** `hatch run pytest tests/unit/specfact_cli/test_module_boundary_imports.py::test_core_repo_does_not_host_sync_runtime_unit_tests -v`
+
+**Result:** FAILED
+```
+AssertionError: Sync runtime unit tests must be migrated out of specfact-cli into specfact-cli-modules.
+  - tests/unit/sync/test_bridge_probe.py
+  - tests/unit/sync/test_bridge_sync.py
+  - tests/unit/sync/test_bridge_watch.py
+  - tests/unit/sync/test_drift_detector.py
+  - tests/unit/sync/test_repository_sync.py
+  - tests/unit/sync/test_watcher_enhanced.py
+```
+
+**Timestamp:** 2026-03-05 08:21:57Z
+
+#### Post-implementation (passing) evidence
+
+Migrated legacy core sync-runtime unit tests from:
+- `specfact-cli/tests/unit/sync/test_*.py`
+
+To modules repo:
+- `specfact-cli-modules/tests/unit/specfact_project/sync_runtime/test_*.py`
+
+Then removed migrated tests from `specfact-cli` core.
+
+**Core command:** `hatch run pytest tests/unit/specfact_cli/test_module_boundary_imports.py::test_core_repo_does_not_host_sync_runtime_unit_tests -v`
+
+**Core result:** PASSED (1 passed)
+
+**Modules command:** `hatch run pytest tests/unit/specfact_project/sync_runtime -v`
+
+**Modules result:** PASSED (102 passed)

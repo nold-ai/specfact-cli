@@ -146,3 +146,21 @@ def test_core_modules_do_not_import_migrate_tier() -> None:
         "Core modules (init, module_registry, upgrade) must not import MIGRATE-tier paths. "
         "MIGRATE-tier code lives in specfact-cli-modules.\n" + "\n".join(f"- {v}" for v in sorted(violations))
     )
+
+
+def test_core_repo_does_not_host_sync_runtime_unit_tests() -> None:
+    """Sync runtime unit tests must live in specfact-cli-modules (specfact_project)."""
+    legacy_sync_tests_dir = PROJECT_ROOT / "tests" / "unit" / "sync"
+    if not legacy_sync_tests_dir.exists():
+        return
+
+    legacy_tests = sorted(
+        str(path.relative_to(PROJECT_ROOT))
+        for path in legacy_sync_tests_dir.glob("test_*.py")
+        if path.is_file()
+    )
+
+    assert not legacy_tests, (
+        "Sync runtime unit tests must be migrated out of specfact-cli into specfact-cli-modules.\n"
+        + "\n".join(f"- {path}" for path in legacy_tests)
+    )

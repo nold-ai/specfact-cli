@@ -35,6 +35,11 @@ Components with **no** imports from core (cli, init, module_registry, upgrade, r
 - **`templates.bridge_templates`**: Only used by tests. `BridgeProbe` is in sync (MIGRATE). → Migrate tests to specfact-cli-modules; remove `bridge_templates.py`.
 - **`sync`** (after bridge_templates): Only used by bridge_templates and tests. specfact-project has `sync_runtime`. → Remove after bridge_templates; migrate sync tests.
 
+Phase 1 progress (2026-03-05):
+- `templates.bridge_templates` removed from core (completed earlier).
+- Legacy unit tests under `specfact-cli/tests/unit/sync/` migrated to `specfact-cli-modules/tests/unit/specfact_project/sync_runtime/` (102 tests passing in modules worktree).
+- Core now enforces this via `test_core_repo_does_not_host_sync_runtime_unit_tests`.
+
 ### Phase 2: Interface extraction (core keeps interface, impl moves)
 
 - **`utils.structure.update_plan_summary`**: Uses `PlanGenerator`. Extract to interface or delegate to bundle via `module_io_shim`. Minimal stub in core that raises "use bundle" or delegates.
@@ -53,7 +58,7 @@ After Phases 1–3, remove: `agents`, `analyzers`, `backlog`, `comparators`, `en
 
 1. Add `test_core_migrate_tier_allowlist` — fail if new MIGRATE-tier paths are added to core.
 2. Remove `templates.bridge_templates` (and its test) — move test to specfact-cli-modules or delete if covered there.
-3. Remove `sync` package — specfact-project has `sync_runtime`. Update `sync/__init__.py` to raise `ImportError` with migration message, or delete and fix any remaining imports.
+3. Remove `sync` package — specfact-project has `sync_runtime`. Update `sync/__init__.py` to raise `ImportError` with migration message, or delete and fix any remaining imports. (Unit test migration completed; source package removal pending.)
 4. Fix `utils.structure` — replace `PlanGenerator` usage with minimal implementation or interface.
 5. Run quality gates.
 

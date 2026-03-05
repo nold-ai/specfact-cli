@@ -47,3 +47,9 @@ Core modules (init, module_registry, upgrade) SHALL NOT import from MIGRATE-tier
 ### Requirement: Package-Specific Artifact Removal
 
 Package-specific artifacts not required by CLI core SHALL be removed from specfact-cli and live in respective packages (specfact-cli-modules). `MIGRATION_REMOVAL_PLAN.md` documents phased removal. Phase 1: remove dead code (e.g. `templates.bridge_templates`).
+
+#### Scenario: Sync-runtime unit tests are owned by modules repo
+
+- **GIVEN** `sync_runtime` implementation is owned by `specfact-project` in specfact-cli-modules
+- **WHEN** decoupling migration updates test ownership
+- **THEN** legacy core tests under `specfact-cli/tests/unit/sync/` are migrated to `specfact-cli-modules/tests/unit/specfact_project/sync_runtime/` and core boundary test `test_core_repo_does_not_host_sync_runtime_unit_tests` enforces this.
