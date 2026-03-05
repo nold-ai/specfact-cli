@@ -69,7 +69,11 @@ os.environ.setdefault("SPECFACT_REGISTRY_DIR", tempfile.mkdtemp(prefix="specfact
 _MIGRATED_TEST_PATTERNS: tuple[str, ...] = (
     # Module-owned E2E/integration suites moved under specfact-cli-modules.
     "tests/e2e/backlog/*",
+    "tests/e2e/test_auth_flow_e2e.py",
     "tests/e2e/test_brownfield_speckit_compliance.py",
+    "tests/e2e/test_bundle_extraction_e2e.py",
+    "tests/e2e/test_complete_workflow.py",
+    "tests/e2e/test_constitution_commands.py",
     "tests/e2e/test_directory_structure_workflow.py",
     "tests/e2e/test_enforcement_workflow.py",
     "tests/e2e/test_enrichment_workflow.py",

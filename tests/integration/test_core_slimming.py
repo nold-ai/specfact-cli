@@ -164,7 +164,8 @@ def test_init_install_all_same_as_enterprise(monkeypatch: pytest.MonkeyPatch, tm
     register_builtin_commands()
     result = runner.invoke(app, ["--help"], catch_exceptions=False)
     assert result.exit_code == 0
-    assert "backlog" in result.output or "code" in result.output
+    names = set(CommandRegistry.list_commands())
+    assert "backlog" in names or "code" in names
 
 
 def test_flat_shim_plan_exits_with_not_found_or_install_instructions() -> None:

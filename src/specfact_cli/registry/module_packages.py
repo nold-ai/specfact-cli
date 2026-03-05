@@ -311,12 +311,13 @@ def _resolve_converter_class(class_path: str) -> type[SchemaConverter]:
 
 
 @beartype
-def _check_core_compatibility(meta: ModulePackageMetadata, current_cli_version: str) -> bool:
+def _check_core_compatibility(meta: Any, current_cli_version: str) -> bool:
     """Return True when module is compatible with the running CLI core version."""
-    if not meta.core_compatibility:
+    core_compatibility = getattr(meta, "core_compatibility", None)
+    if not core_compatibility:
         return True
     try:
-        specifier = SpecifierSet(meta.core_compatibility)
+        specifier = SpecifierSet(str(core_compatibility))
         return Version(current_cli_version) in specifier
     except (InvalidVersion, Exception):
         # Keep malformed metadata non-blocking; emit details in debug logs at call site.
