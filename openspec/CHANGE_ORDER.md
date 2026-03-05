@@ -73,6 +73,12 @@ These are derived extensions of the same 2026-02-15 plan and are required to ope
 | — | — | ✅ arch-06, arch-07, arch-08 (see Implemented above) | — | — |
 | arch | 08 | ✅ arch-08-documentation-discrepancies-remediation (archived 2026-02-22) | [#291](https://github.com/nold-ai/specfact-cli/issues/291) | — |
 
+### Documentation and docs governance
+
+| Module | Order | Change folder | GitHub # | Blocked by |
+|--------|-------|---------------|----------|------------|
+| docs | 01 | docs-01-core-modules-docs-alignment | TBD | module-migration-01 ✅; module-migration-02 ✅; module-migration-03 ✅; module-migration-05 ✅; module-migration-06/07 outputs inform residual cleanup wording |
+
 ### Marketplace (module distribution)
 
 | Module | Order | Change folder | GitHub # | Blocked by |
@@ -346,6 +352,7 @@ Dependencies flow left-to-right; a wave may start once all its hard blockers are
   - **module-migration-05-modules-repo-quality** (needs module-migration-02; sections 18-22 must land **before or simultaneously with** module-migration-03): quality tooling, tests, dependency decoupling, docs, pipeline/config for specfact-cli-modules
   - module-migration-03-core-slimming (needs module-migration-02 AND migration-05 sections 18-22; removes bundled modules from core; see tasks.md 17.9 for proposal consistency requirements before implementation starts)
   - **module-migration-06-core-decoupling-cleanup** (needs module-migration-03 + migration-05 baseline; removes residual non-core components/couplings from specfact-cli core, e.g. models/utilities tied only to extracted modules)
+  - docs-01-core-modules-docs-alignment (after the module-migration baseline above; full live-docs alignment for lean core + marketplace bundles)
 
 - **Wave 5 — Foundations for business-first chain** (architecture integration):
   - profile-01 (#237)
