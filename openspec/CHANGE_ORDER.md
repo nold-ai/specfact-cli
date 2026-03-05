@@ -314,6 +314,9 @@ One parent issue per module group for grouping. Set **Type** to Epic on the proj
 | Sidecar validation | [Epic] Sidecar validation | [#191](https://github.com/nold-ai/specfact-cli/issues/191) |
 | Bundle mapping | [Epic] Bundle/spec mapping | [#192](https://github.com/nold-ai/specfact-cli/issues/192) |
 | Architecture + Marketplace | [Epic] Architecture (CLI structure, modularity, performance) | [#194](https://github.com/nold-ai/specfact-cli/issues/194) |
+| Architecture Layer Integration (Requirements to AI) | [Epic] Architecture Layer Integration | [#256](https://github.com/nold-ai/specfact-cli/issues/256) |
+| AI IDE Integration | [Epic] AI IDE Integration | [#257](https://github.com/nold-ai/specfact-cli/issues/257) |
+| Integration Governance and Dogfooding | [Epic] Integration Governance and Dogfooding | [#258](https://github.com/nold-ai/specfact-cli/issues/258) |
 | CLI end-user validation | [Epic] CLI End-User Validation | [#285](https://github.com/nold-ai/specfact-cli/issues/285) |
 
 ---
