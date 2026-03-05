@@ -782,7 +782,8 @@ The command automatically uses tokens in this order:
 
 3. **Fix field mapping** – If the error is about a missing or wrong field:
    - Ensure `.specfact/templates/backlog/field_mappings/ado_custom.yaml` exists and maps your canonical fields to the field names/paths that exist in your ADO project.
-   - Use `specfact backlog map-fields --ado-org <org> --ado-project <project>` to discover available fields in the project.
+   - Use `specfact backlog map-fields --provider ado --ado-org <org> --ado-project <project> --non-interactive` first to auto-map fields and persist required-field / allowed-values metadata.
+   - If auto-mapping exits with unresolved required fields, rerun `specfact backlog map-fields --ado-org <org> --ado-project <project>` interactively to correct mappings.
    - See [Custom Field Mapping](custom-field-mapping.md) and [Debug Logging – Examining ADO API Errors](../reference/debug-logging.md#examining-ado-api-errors).
 
 4. **Check project process template** – Custom ADO process templates can rename or remove fields. Align your mapping with the actual work item type and process in the project.

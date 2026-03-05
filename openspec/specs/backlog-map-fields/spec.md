@@ -38,3 +38,33 @@ The system SHALL verify auth context and discover provider fields/metadata befor
 - **THEN** stale `provider_fields.github_project_v2` configuration is cleared
 - **AND** subsequent `specfact backlog add` does not attempt ProjectV2 type-field updates from stale IDs.
 
+#### Scenario: ADO mapping persists required custom fields per work item type
+
+- **GIVEN** ADO provider mapping setup is requested for a selected work item type
+- **AND** ADO field metadata contains custom fields marked required for that work item type
+- **WHEN** `specfact backlog map-fields` persists ADO field mappings
+- **THEN** `.specfact/backlog-config.yaml` stores required custom field metadata for the mapped work item type
+- **AND** the metadata is available to `specfact backlog add` validation before create.
+
+#### Scenario: ADO mapping persists allowed values for constrained list fields
+
+- **GIVEN** a mapped ADO field has constrained picklist values
+- **WHEN** `specfact backlog map-fields` persists ADO mapping metadata
+- **THEN** the mapping stores eligible values for that field
+- **AND** add-time flows can validate user input against those values in interactive and non-interactive modes.
+
+#### Scenario: Non-interactive map-fields auto-maps or fails with interactive guidance
+
+- **GIVEN** the user runs `specfact backlog map-fields` in non-interactive mode
+- **WHEN** provider metadata can resolve canonical and required custom fields deterministically
+- **THEN** mapping and metadata are persisted without prompts
+- **AND** the command exits successfully.
+
+#### Scenario: Non-interactive map-fields fails when auto-mapping is incomplete
+
+- **GIVEN** the user runs non-interactive `specfact backlog map-fields`
+- **AND** one or more required fields cannot be mapped automatically
+- **WHEN** validation runs before persistence
+- **THEN** the command exits non-zero
+- **AND** the error explicitly lists unresolved fields and instructs the user to run interactive `specfact backlog map-fields`.
+

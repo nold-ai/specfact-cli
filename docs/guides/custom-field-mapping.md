@@ -28,6 +28,7 @@ Custom field mappings allow you to:
 - Support multiple agile frameworks (Scrum, SAFe, Kanban)
 - Normalize work item type names across different process templates
 - Maintain compatibility with SpecFact CLI's backlog refinement features
+- Persist required-field and constrained-value metadata for `specfact backlog add --adapter ado`
 
 ## Field Mapping Template Format
 
@@ -169,26 +170,60 @@ work_item_type_mappings:
 
 Before creating custom field mappings, you need to know which fields are available in your Azure DevOps project. There are two ways to discover available fields:
 
-### Method 1: Using Interactive Mapping Command (Recommended)
+### Method 1: Using Mapping Command (Recommended)
 
-The easiest way to discover and map ADO fields is using the interactive mapping command:
+The easiest way to discover and map ADO fields is using `specfact backlog map-fields`.
 
 ```bash
+# Interactive mapping
 specfact backlog map-fields --ado-org myorg --ado-project myproject
+
+# Automatic mapping for repeatable setup and CI
+specfact backlog map-fields \
+  --provider ado \
+  --ado-org myorg \
+  --ado-project myproject \
+  --ado-framework scrum \
+  --non-interactive
 ```
 
 This command will:
 
 1. Fetch all available fields from your Azure DevOps project
 2. Filter out system-only fields automatically
-3. Pre-populate default mappings from `AdoFieldMapper.DEFAULT_FIELD_MAPPINGS`
-4. Prefer `Microsoft.VSTS.Common.*` fields over `System.*` fields for better compatibility
-5. Use regex/fuzzy matching to suggest potential matches when no default exists
-6. Display an interactive menu with arrow-key navigation (↑↓ to navigate, Enter to select)
-7. Pre-select the best match (existing custom > default > fuzzy match > "<no mapping>")
-8. Guide you through mapping ADO fields to canonical field names
-9. Validate the mapping before saving
-10. Save the mapping to `.specfact/templates/backlog/field_mappings/ado_custom.yaml`
+3. Detect a story-like ADO work item type for create-time validation metadata
+4. Fetch required fields for that work item type
+5. Fetch constrained values for custom picklist fields and persist them for later validation
+6. Pre-populate default mappings from `AdoFieldMapper.DEFAULT_FIELD_MAPPINGS`
+7. Prefer `Microsoft.VSTS.Common.*` fields over `System.*` fields for better compatibility
+8. Use regex/fuzzy matching to suggest potential matches when no default exists
+9. In interactive mode, display an arrow-key menu with the best match pre-selected
+10. In non-interactive mode, apply deterministic mappings and fail only when required fields remain unresolved
+11. Save field mappings to `.specfact/templates/backlog/field_mappings/ado_custom.yaml`
+12. Save validation metadata to `.specfact/backlog-config.yaml`
+
+### Validation Metadata Written by `map-fields`
+
+In addition to the mapping file, the command now persists:
+
+- `selected_work_item_type`
+- `required_fields_by_work_item_type`
+- `allowed_values_by_work_item_type`
+
+`specfact backlog add --adapter ado` uses this metadata to:
+
+- reject missing required custom fields before submit
+- reject invalid picklist values before submit
+- print allowed-values hints in non-interactive mode
+
+### Non-Interactive Auto-Mapping
+
+`--non-interactive` is intended for automation and repeatable setup:
+
+- it requires explicit provider selection such as `--provider ado`
+- it auto-selects framework defaults and fuzzy matches where possible
+- it does not prompt
+- if required fields cannot be resolved automatically, it exits non-zero and tells you to rerun the command interactively
 
 **Interactive Menu Navigation:**
 

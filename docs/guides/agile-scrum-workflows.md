@@ -63,6 +63,7 @@ Key behavior:
 - supports multiline body and acceptance criteria capture (default sentinel `::END::`)
 - captures priority and story points for story-like items
 - supports description rendering mode (`markdown` or `classic`)
+- for ADO, supports repeatable `--custom-field key=value` and validates required custom fields / constrained values when mapping metadata exists
 - auto-selects template by adapter when omitted (`ado_scrum` for ADO, `github_projects` for GitHub)
 - creates via adapter protocol (`github` or `ado`) and prints created `id`, `key`, and `url`
 

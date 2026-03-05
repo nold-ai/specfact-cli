@@ -97,22 +97,34 @@ The adapter supports flexible field mapping to handle different ADO process temp
 - **Multiple Field Alternatives**: Supports multiple ADO field names mapping to the same canonical field (e.g., both `System.AcceptanceCriteria` and `Microsoft.VSTS.Common.AcceptanceCriteria` map to `acceptance_criteria`)
 - **Default Mappings**: Includes default mappings for common ADO fields (Scrum, Agile, SAFe, Kanban)
 - **Custom Mappings**: Supports per-project custom field mappings via `.specfact/templates/backlog/field_mappings/ado_custom.yaml`
-- **Interactive Mapping**: Use `specfact backlog map-fields` to interactively discover and map ADO fields for your project
+- **Interactive and Automatic Mapping**: Use `specfact backlog map-fields` to discover fields, persist required-field metadata, and capture constrained values for your project
 
-**Interactive Field Mapping Command**:
+**Field Mapping Commands**:
 
 ```bash
 # Discover and map ADO fields interactively
 specfact backlog map-fields --ado-org myorg --ado-project myproject
+
+# Auto-map using defaults/fuzzy matching and fail only if required fields remain unresolved
+specfact backlog map-fields --provider ado --ado-org myorg --ado-project myproject --non-interactive
 ```
 
 This command:
 
 - Fetches available fields from your ADO project
+- Detects the selected ADO work item type used for backlog-add validation
+- Persists required fields by work item type into `.specfact/backlog-config.yaml`
+- Persists allowed values for constrained custom fields (picklists) so `backlog add` can validate before submit
 - Pre-populates default mappings
-- Uses arrow-key navigation for field selection
+- Uses arrow-key navigation for field selection in interactive mode
 - Saves mappings to `.specfact/templates/backlog/field_mappings/ado_custom.yaml`
 - Automatically used by all subsequent backlog operations
+
+In `--non-interactive` mode the command:
+
+- chooses the framework automatically when not provided
+- auto-applies deterministic mappings from defaults and fuzzy matches
+- fails fast with guidance to rerun interactive mapping only when required fields cannot be resolved automatically
 
 See [Custom Field Mapping Guide](../guides/custom-field-mapping.md) for complete documentation.
 

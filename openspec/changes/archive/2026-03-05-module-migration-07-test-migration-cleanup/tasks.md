@@ -32,5 +32,5 @@
 
 ## 5. Closure
 
-- [ ] 5.1 Update CHANGELOG migration notes if test command expectations changed
+- [x] 5.1 Update CHANGELOG migration notes if test command expectations changed
 - [x] 5.2 Open coordinated PRs to `dev` in both repos and link migration-03/-04/-05 dependencies
