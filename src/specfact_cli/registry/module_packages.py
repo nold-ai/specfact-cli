@@ -326,12 +326,15 @@ def _check_core_compatibility(meta: Any, current_cli_version: str) -> bool:
 
 @beartype
 def _validate_module_dependencies(
-    meta: ModulePackageMetadata,
+    meta: Any,
     enabled_map: dict[str, bool],
 ) -> tuple[bool, list[str]]:
     """Validate that declared dependencies exist and are enabled."""
     missing: list[str] = []
-    for dep_id in meta.module_dependencies:
+    module_dependencies = getattr(meta, "module_dependencies", [])
+    if not isinstance(module_dependencies, list):
+        return False, ["invalid metadata: module_dependencies must be a list"]
+    for dep_id in module_dependencies:
         if dep_id not in enabled_map:
             missing.append(f"{dep_id} (not found)")
         elif not enabled_map[dep_id]:
