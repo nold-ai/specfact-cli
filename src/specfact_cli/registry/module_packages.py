@@ -869,7 +869,8 @@ def get_installed_bundles(
         {
             resolved
             for _dir, meta in packages
-            if enabled_map.get(str(getattr(meta, "name", "")), True) and (resolved := _resolved_bundle(meta)) is not None
+            if enabled_map.get(str(getattr(meta, "name", "")), True)
+            and (resolved := _resolved_bundle(meta)) is not None
         }
     )
 
