@@ -23,9 +23,9 @@
 ## 4. Quality gates
 
 - [x] 4.1 `hatch run format`
-- [ ] 4.2 `hatch run type-check`
-- [ ] 4.3 `hatch run lint`
-- [ ] 4.4 `hatch run contract-test`
+- [x] 4.2 `hatch run type-check`
+- [x] 4.3 `hatch run lint`
+- [x] 4.4 `hatch run contract-test`
 - [x] 4.5 `hatch run smart-test`
 - [x] 4.6 `hatch run smart-test-full` in `specfact-cli` (core-only migration verification pass)
 - [x] 4.7 full modules test run in `specfact-cli-modules` (`hatch run test -q`) (module test ownership verification pass)
@@ -33,4 +33,4 @@
 ## 5. Closure
 
 - [ ] 5.1 Update CHANGELOG migration notes if test command expectations changed
-- [ ] 5.2 Open coordinated PRs to `dev` in both repos and link migration-03/-04/-05 dependencies
+- [x] 5.2 Open coordinated PRs to `dev` in both repos and link migration-03/-04/-05 dependencies
