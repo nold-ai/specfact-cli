@@ -850,24 +850,26 @@ def merge_module_state(
 
 @beartype
 def get_installed_bundles(
-    packages: list[tuple[Path, ModulePackageMetadata]],
+    packages: list[tuple[Path, Any]],
     enabled_map: dict[str, bool],
 ) -> list[str]:
     """Return sorted list of bundle names from discovered packages that are enabled and have a bundle set."""
 
-    def _resolved_bundle(meta: ModulePackageMetadata) -> str | None:
-        if meta.bundle:
-            return meta.bundle
-        if "/" not in meta.name:
+    def _resolved_bundle(meta: Any) -> str | None:
+        bundle_name = getattr(meta, "bundle", None)
+        if isinstance(bundle_name, str) and bundle_name:
+            return bundle_name
+        module_name = getattr(meta, "name", None)
+        if not isinstance(module_name, str) or "/" not in module_name:
             return None
-        tail = meta.name.split("/", 1)[1]
+        tail = module_name.split("/", 1)[1]
         return tail if tail.startswith("specfact-") else None
 
     return sorted(
         {
             resolved
             for _dir, meta in packages
-            if enabled_map.get(meta.name, True) and (resolved := _resolved_bundle(meta)) is not None
+            if enabled_map.get(str(getattr(meta, "name", "")), True) and (resolved := _resolved_bundle(meta)) is not None
         }
     )
 
@@ -895,7 +897,7 @@ def _build_bundle_to_group() -> dict[str, tuple[str, str, Any]]:
 
 @beartype
 def _mount_installed_category_groups(
-    packages: list[tuple[Path, ModulePackageMetadata]],
+    packages: list[tuple[Path, Any]],
     enabled_map: dict[str, bool],
 ) -> None:
     """Register category groups only for installed bundles."""
