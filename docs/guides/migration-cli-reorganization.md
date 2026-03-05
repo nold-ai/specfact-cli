@@ -42,17 +42,17 @@ The CLI reorganization includes:
 **Before**:
 
 ```bash
-specfact generate contracts --base-path .
-specfact plan compare --bundle legacy-api --format json --out report.json
-specfact enforce sdd legacy-api --non-interactive
+specfact spec generate contracts --base-path .
+specfact project plan compare --bundle legacy-api --format json --out report.json
+specfact govern enforce sdd legacy-api --non-interactive
 ```
 
 **After**:
 
 ```bash
-specfact generate contracts --repo .
-specfact plan compare --bundle legacy-api --output-format json --out report.json
-specfact enforce sdd legacy-api --no-interactive
+specfact spec generate contracts --repo .
+specfact project plan compare --bundle legacy-api --output-format json --out report.json
+specfact govern enforce sdd legacy-api --no-interactive
 ```
 
 ---
@@ -122,15 +122,15 @@ The new numbered commands follow natural workflow progression:
 **Before** (positional argument):
 
 ```bash
-specfact plan init legacy-api
-specfact plan review legacy-api
+specfact project plan init legacy-api
+specfact project plan review legacy-api
 ```
 
 **After** (named parameter):
 
 ```bash
-specfact plan init legacy-api
-specfact plan review legacy-api
+specfact project plan init legacy-api
+specfact project plan review legacy-api
 ```
 
 ### Path Resolution Changes
@@ -199,7 +199,7 @@ Example: 'specfact constitution bootstrap' → 'specfact sdd constitution bootst
 ```bash
 specfact import from-code legacy-api --repo .
 specfact sdd constitution bootstrap --repo .
-specfact sync bridge --adapter speckit
+specfact project sync bridge --adapter speckit
 ```
 
 ### Constitution Management Workflow

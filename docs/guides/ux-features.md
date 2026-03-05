@@ -17,7 +17,7 @@ SpecFact CLI uses progressive disclosure to show the most important options firs
 By default, `--help` shows only the most commonly used options:
 
 ```bash
-specfact import from-code --help
+specfact project import from-code --help
 ```
 
 This displays:
@@ -32,7 +32,7 @@ This displays:
 To see all options including advanced configuration, use `--help-advanced` (alias: `-ha`):
 
 ```bash
-specfact import from-code --help-advanced
+specfact project import from-code --help-advanced
 ```
 
 This reveals:
@@ -88,10 +88,10 @@ The following options are hidden by default across commands:
 
 ```bash
 # This works even though --confidence is hidden in regular help:
-specfact import from-code my-bundle --confidence 0.7 --key-format sequential
+specfact project import from-code my-bundle --confidence 0.7 --key-format sequential
 
 # To see all options in help:
-specfact import from-code --help-advanced  # or -ha
+specfact project import from-code --help-advanced  # or -ha
 ```
 
 ## Context Detection
@@ -117,7 +117,7 @@ Based on detected context, SpecFact provides intelligent defaults:
 specfact spec validate --bundle <auto-detected>
 
 # If low contract coverage detected, suggests analysis
-specfact analyze --bundle <auto-detected>
+specfact code analyze --bundle <auto-detected>
 ```
 
 ### Explicit Context
@@ -126,7 +126,7 @@ You can also explicitly check your project context:
 
 ```bash
 # Context detection is automatic, but you can verify
-specfact import from-code my-bundle --repo .
+specfact project import from-code my-bundle --repo .
 # CLI automatically detects Python, FastAPI, existing specs, etc.
 ```
 
@@ -139,13 +139,13 @@ SpecFact provides context-aware suggestions to guide your workflow.
 After running commands, SpecFact suggests logical next steps:
 
 ```bash
-$ specfact import from-code legacy-api
+$ specfact project import from-code legacy-api
 ✓ Import complete
 
 💡 Suggested next steps:
-  • specfact analyze --bundle legacy-api  # Analyze contract coverage
-  • specfact enforce sdd --bundle legacy-api  # Enforce quality gates
-  • specfact sync intelligent --bundle legacy-api  # Sync code and specs
+  • specfact code analyze --bundle legacy-api  # Analyze contract coverage
+  • specfact govern enforce sdd --bundle legacy-api  # Enforce quality gates
+  • specfact project sync intelligent --bundle legacy-api  # Sync code and specs
 ```
 
 ### Error Fixes
@@ -153,12 +153,12 @@ $ specfact import from-code legacy-api
 When errors occur, SpecFact suggests specific fixes:
 
 ```bash
-$ specfact analyze --bundle missing-bundle
+$ specfact code analyze --bundle missing-bundle
 ✗ Error: Bundle 'missing-bundle' not found
 
 💡 Suggested fixes:
-  • specfact plan select  # Select an active plan bundle
-  • specfact import from-code missing-bundle  # Create a new bundle
+  • specfact project plan select  # Select an active plan bundle
+  • specfact project import from-code missing-bundle  # Create a new bundle
 ```
 
 ### Improvements
@@ -166,12 +166,12 @@ $ specfact analyze --bundle missing-bundle
 Based on analysis, SpecFact suggests improvements:
 
 ```bash
-$ specfact analyze --bundle legacy-api
+$ specfact code analyze --bundle legacy-api
 ⚠ Low contract coverage detected (30%)
 
 💡 Suggested improvements:
-  • specfact analyze --bundle legacy-api  # Identify missing contracts
-  • specfact import from-code legacy-api  # Extract contracts from code
+  • specfact code analyze --bundle legacy-api  # Identify missing contracts
+  • specfact project import from-code legacy-api  # Extract contracts from code
 ```
 
 ## Template-Driven Quality
@@ -214,7 +214,7 @@ Watch mode has been enhanced with intelligent change detection.
 Watch mode only processes files that actually changed:
 
 ```bash
-specfact sync intelligent --bundle my-bundle --watch
+specfact project sync intelligent --bundle my-bundle --watch
 ```
 
 **Features**:

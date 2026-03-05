@@ -35,7 +35,8 @@ The documentation set still carries drift from the pre-modularized CLI: some pag
 ## Source Tracking
 
 <!-- source_repo: nold-ai/specfact-cli -->
-- **GitHub Issue**: TBD
+- **GitHub Issue**: #348
+- **Issue URL**: <https://github.com/nold-ai/specfact-cli/issues/348>
 - **Repository**: nold-ai/specfact-cli
-- **Last Synced Status**: local-change-created
+- **Last Synced Status**: proposed
 - **Sanitized**: false

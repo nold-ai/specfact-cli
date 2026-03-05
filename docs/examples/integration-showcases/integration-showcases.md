@@ -220,7 +220,7 @@ jobs:
 **What This Does**:
 
 1. **Configure Enforcement**: Sets enforcement mode to `balanced` (blocks HIGH severity violations, warns on MEDIUM)
-2. **Run Validation**: Executes `specfact repro` which runs validation checks:
+2. **Run Validation**: Executes `specfact code repro` which runs validation checks:
 
    **Always runs**:
    - Linting (ruff) - checks code style and common Python issues

@@ -83,19 +83,19 @@ Start: What do you want to accomplish?
 
 ```bash
 # Step 1: Extract specifications from legacy code
-specfact import from-code legacy-api --repo .
+specfact project import from-code legacy-api --repo .
 
 # Step 2: Review the extracted plan
-specfact plan review legacy-api
+specfact project plan review legacy-api
 
 # Step 3: Update features based on review findings
-specfact plan update-feature --bundle legacy-api --feature <feature-id>
+specfact project plan update-feature --bundle legacy-api --feature <feature-id>
 
 # Step 4: Enforce SDD (Spec-Driven Development) compliance
-specfact enforce sdd --bundle legacy-api
+specfact govern enforce sdd --bundle legacy-api
 
 # Step 5: Run full validation suite
-specfact repro --verbose
+specfact code repro --verbose
 ```
 
 **Workflow Diagram**:
@@ -144,25 +144,25 @@ graph TD
 
 ```bash
 # Step 1: Initialize a new plan bundle
-specfact plan init new-feature --interactive
+specfact project plan init new-feature --interactive
 
 # Step 2: Add features to the plan
-specfact plan add-feature --bundle new-feature --name "User Authentication"
+specfact project plan add-feature --bundle new-feature --name "User Authentication"
 
 # Step 3: Add user stories to features
-specfact plan add-story --bundle new-feature --feature <feature-id> --story "As a user, I want to log in"
+specfact project plan add-story --bundle new-feature --feature <feature-id> --story "As a user, I want to log in"
 
 # Step 4: Review the plan for completeness
-specfact plan review new-feature
+specfact project plan review new-feature
 
 # Step 5: Harden the plan (finalize before implementation)
-specfact plan harden --bundle new-feature
+specfact project plan harden --bundle new-feature
 
 # Step 6: Generate contracts from the plan
-specfact generate contracts --bundle new-feature
+specfact spec generate contracts --bundle new-feature
 
 # Step 7: Enforce SDD compliance
-specfact enforce sdd --bundle new-feature
+specfact govern enforce sdd --bundle new-feature
 ```
 
 **Workflow Diagram**:
@@ -210,26 +210,26 @@ graph TD
 ```bash
 # For Code/Spec Adapters (Spec-Kit, OpenSpec, generic-markdown):
 # Step 1: Import from external tool via bridge adapter
-specfact import from-bridge --repo . --adapter speckit --write
+specfact project import from-bridge --repo . --adapter speckit --write
 
 # Step 2: Review the imported plan
-specfact plan review <bundle-name>
+specfact project plan review <bundle-name>
 
 # Step 3: Set up bidirectional sync (optional)
-specfact sync bridge --adapter speckit --bundle <bundle-name> --bidirectional --watch
+specfact project sync bridge --adapter speckit --bundle <bundle-name> --bidirectional --watch
 
 # Step 4: Enforce SDD compliance
-specfact enforce sdd --bundle <bundle-name>
+specfact govern enforce sdd --bundle <bundle-name>
 
 # For Backlog Adapters (GitHub Issues, ADO, Linear, Jira) - NEW FEATURE:
 # Step 1: Export OpenSpec change proposals to GitHub Issues
-specfact sync bridge --adapter github --bidirectional --repo-owner owner --repo-name repo
+specfact project sync bridge --adapter github --bidirectional --repo-owner owner --repo-name repo
 
 # Step 2: Import GitHub Issues as change proposals (if needed)
 # (Automatic when using --bidirectional)
 
 # Step 3: Track code changes automatically
-specfact sync bridge --adapter github --track-code-changes --repo-owner owner --repo-name repo
+specfact project sync bridge --adapter github --track-code-changes --repo-owner owner --repo-name repo
 ```
 
 **Workflow Diagram**:
@@ -289,7 +289,7 @@ specfact spec generate-tests --spec openapi.yaml --output tests/
 specfact spec mock --spec openapi.yaml --port 8080
 
 # Step 5: Verify contracts at runtime
-specfact contract verify --bundle api-bundle
+specfact spec contract verify --bundle api-bundle
 ```
 
 **Workflow Diagram**:
@@ -335,10 +335,10 @@ graph TD
 
 ```bash
 # Step 1: Initialize sidecar workspace
-specfact validate sidecar init <bundle-name> <repo-path>
+specfact code validate sidecar init <bundle-name> <repo-path>
 
 # Step 2: Run sidecar validation workflow
-specfact validate sidecar run <bundle-name> <repo-path>
+specfact code validate sidecar run <bundle-name> <repo-path>
 
 # Step 3: Review validation results
 # Results are saved to .specfact/projects/<bundle>/reports/sidecar/
@@ -393,13 +393,13 @@ graph TD
 
 ```bash
 # Step 1: Review the plan before promotion
-specfact plan review <bundle-name>
+specfact project plan review <bundle-name>
 
 # Step 2: Enforce SDD compliance
-specfact enforce sdd --bundle <bundle-name>
+specfact govern enforce sdd --bundle <bundle-name>
 
 # Step 3: Promote the plan to next stage
-specfact plan promote --bundle <bundle-name> --stage <next-stage>
+specfact project plan promote --bundle <bundle-name> --stage <next-stage>
 
 # Step 4: Bump version when releasing
 specfact project version bump --bundle <bundle-name> --type <major|minor|patch>
@@ -444,16 +444,16 @@ graph LR
 
 ```bash
 # Step 1: Import current code state
-specfact import from-code current-state --repo .
+specfact project import from-code current-state --repo .
 
 # Step 2: Compare code against plan
-specfact plan compare --bundle <plan-bundle> --code-vs-plan
+specfact project plan compare --bundle <plan-bundle> --code-vs-plan
 
 # Step 3: Detect drift
-specfact drift detect --bundle <bundle-name>
+specfact code drift detect --bundle <bundle-name>
 
 # Step 4: Sync repository (if drift found)
-specfact sync repository --bundle <bundle-name> --direction <code-to-plan|plan-to-code>
+specfact project sync repository --bundle <bundle-name> --direction <code-to-plan|plan-to-code>
 ```
 
 **Workflow Diagram**:
@@ -497,16 +497,16 @@ graph TD
 
 ```bash
 # Step 1: Generate contract prompt for AI IDE
-specfact generate contracts-prompt --bundle <bundle-name> --feature <feature-id>
+specfact spec generate contracts-prompt --bundle <bundle-name> --feature <feature-id>
 
 # Step 2: [In AI IDE] Use slash command to apply contracts
 # /specfact-cli/contracts-apply <prompt-file>
 
 # Step 3: Check contract coverage
-specfact contract coverage --bundle <bundle-name>
+specfact spec contract coverage --bundle <bundle-name>
 
 # Step 4: Run validation
-specfact repro --verbose
+specfact code repro --verbose
 ```
 
 **Workflow Diagram**:
@@ -548,7 +548,7 @@ graph TD
 
 ```bash
 # Step 1: Generate test prompt for AI IDE
-specfact generate test-prompt --bundle <bundle-name> --feature <feature-id>
+specfact spec generate test-prompt --bundle <bundle-name> --feature <feature-id>
 
 # Step 2: [In AI IDE] Use slash command to generate tests
 # /specfact-cli/test-generate <prompt-file>
@@ -601,16 +601,16 @@ graph TD
 
 ```bash
 # Step 1: Run validation with verbose output
-specfact repro --verbose
+specfact code repro --verbose
 
 # Step 2: Generate fix prompt for discovered gaps
-specfact generate fix-prompt --bundle <bundle-name> --gap <gap-id>
+specfact spec generate fix-prompt --bundle <bundle-name> --gap <gap-id>
 
 # Step 3: [In AI IDE] Use slash command to apply fixes
 # /specfact-cli/fix-apply <prompt-file>
 
 # Step 4: Enforce SDD compliance
-specfact enforce sdd --bundle <bundle-name>
+specfact govern enforce sdd --bundle <bundle-name>
 ```
 
 **Workflow Diagram**:
@@ -653,16 +653,16 @@ graph TD
 
 ```bash
 # Step 1: Bootstrap constitution from repository
-specfact sdd constitution bootstrap --repo .
+specfact spec sdd constitution bootstrap --repo .
 
 # Step 2: Enrich constitution with repository context
-specfact sdd constitution enrich --repo .
+specfact spec sdd constitution enrich --repo .
 
 # Step 3: Validate constitution completeness
-specfact sdd constitution validate
+specfact spec sdd constitution validate
 
 # Step 4: List SDD manifests
-specfact sdd list
+specfact spec sdd list
 ```
 
 **Workflow Diagram**:

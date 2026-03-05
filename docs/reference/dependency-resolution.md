@@ -13,12 +13,12 @@ SpecFact resolves dependencies for marketplace modules before installing. This r
 
 When you run `specfact module install <module-id>` (without `--skip-deps`), the CLI:
 
-1. Discovers all currently available modules (bundled + already installed) plus the module being installed.
+1. Discovers all currently available modules (installed modules plus any bundled candidates available to the current CLI release) and the module being installed.
 2. Reads each module’s `module_dependencies` and `pip_dependencies` from their manifests.
 3. Runs the dependency resolver to compute a consistent set of versions.
 4. If conflicts are found, install fails unless you pass `--force`.
 
-Resolution is used only for **marketplace** installs. Bundled and custom modules do not go through this resolution step for their dependencies.
+Resolution is used only for **marketplace** installs. Bundled bootstrap copies and custom/local modules do not go through the marketplace dependency resolver for their dependencies.
 
 ## Resolver behavior
 
@@ -38,8 +38,8 @@ Resolution is used only for **marketplace** installs. Bundled and custom modules
 
 ## Bypass options
 
-- **Skip resolution**: `specfact module install specfact/backlog --skip-deps` installs only `specfact/backlog` and does not pull or check its `pip_dependencies` / `module_dependencies`.
-- **Override conflicts**: `specfact module install specfact/backlog --force` proceeds even when the resolver reports conflicts. Enable/disable and dependency-aware cascades may still use `--force` where applicable.
+- **Skip resolution**: `specfact module install nold-ai/specfact-backlog --skip-deps` installs only `nold-ai/specfact-backlog` and does not pull or check its `pip_dependencies` / `module_dependencies`.
+- **Override conflicts**: `specfact module install nold-ai/specfact-backlog --force` proceeds even when the resolver reports conflicts. Enable/disable and dependency-aware cascades may still use `--force` where applicable.
 
 ## See also
 

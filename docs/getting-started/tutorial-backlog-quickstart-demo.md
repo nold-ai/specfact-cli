@@ -7,6 +7,10 @@ permalink: /getting-started/tutorial-backlog-quickstart-demo/
 
 # Tutorial: Backlog Quickstart Demo (GitHub + ADO)
 
+
+> Temporary docs note: this bundle-focused page remains hosted in the core docs set for the
+> current release line and is planned to migrate to `specfact-cli-modules`.
+
 This is a short, copy/paste-friendly demo for new users covering:
 
 1. `specfact backlog init-config`

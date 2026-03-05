@@ -30,18 +30,18 @@ Complete technical reference for SpecFact CLI.
 
 ### Commands
 
-- `specfact import from-bridge --adapter speckit` - Import from external tools via bridge adapter
-- `specfact import from-code <bundle-name>` - Reverse-engineer plans from code
-- `specfact plan init <bundle-name>` - Initialize new development plan
-- `specfact plan compare` - Compare manual vs auto plans
-- `specfact enforce stage` - Configure quality gates
-- `specfact repro` - Run full validation suite
-- `specfact sync bridge --adapter <adapter> --bundle <bundle-name>` - Sync with external tools via bridge adapter
+- `specfact project import from-bridge --adapter speckit` - Import from external tools via bridge adapter
+- `specfact project import from-code <bundle-name>` - Reverse-engineer plans from code
+- `specfact project plan init <bundle-name>` - Initialize new development plan
+- `specfact project plan compare` - Compare manual vs auto plans
+- `specfact govern enforce stage` - Configure quality gates
+- `specfact code repro` - Run full validation suite
+- `specfact project sync bridge --adapter <adapter> --bundle <bundle-name>` - Sync with external tools via bridge adapter
 - `specfact spec validate [--bundle <name>]` - Validate OpenAPI/AsyncAPI specifications
 - `specfact spec generate-tests [--bundle <name>]` - Generate contract tests from specifications
 - `specfact spec mock [--bundle <name>]` - Launch mock server for development
 - `specfact init ide --ide <cursor|vscode|copilot|...>` - Initialize IDE integration explicitly
-- `specfact module install <name|namespace/name> [--scope user|project] [--source auto|bundled|marketplace] [--repo PATH]` - Install modules with scope and source control (bare names normalize to `specfact/<name>`)
+- `specfact module install <name|namespace/name> [--scope user|project] [--source auto|bundled|marketplace] [--repo PATH]` - Install modules with scope and source control (bare names resolve through the configured source policy)
 - `specfact module list [--source ...] [--show-origin] [--show-bundled-available]` - List modules with trust/publisher, optional origin details, and optional bundled-not-installed section
 - `specfact module show <name>` - Show detailed module metadata and full command tree with short descriptions
 - `specfact module search <query>` - Search marketplace and installed modules
@@ -60,9 +60,9 @@ Complete technical reference for SpecFact CLI.
 ## Technical Details
 
 - **Architecture**: See [Architecture](architecture.md)
-- **Module Structure**: See [Architecture - Module Structure](architecture.md#module-structure)
+- **Command Registry and Module System**: See [Architecture - Command Registry and Module System](architecture.md#command-registry-and-module-system)
 - **Operational Modes**: See [Architecture - Operational Modes](architecture.md#operational-modes)
-- **Agent Modes**: See [Architecture - Agent Modes](architecture.md#agent-modes)
+- **Ownership Boundary**: See [Architecture - Core vs modules-repo ownership boundary](architecture.md#core-vs-modules-repo-ownership-boundary)
 
 ## Related Documentation
 

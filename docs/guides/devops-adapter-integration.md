@@ -6,6 +6,10 @@ permalink: /guides/devops-adapter-integration/
 
 # DevOps Adapter Integration Guide
 
+
+> Temporary docs note: this bundle-focused page remains hosted in the core docs set for the
+> current release line and is planned to migrate to `specfact-cli-modules`.
+
 > **🆕 NEW FEATURE: Integrate SpecFact into Agile DevOps Workflows**  
 > Bidirectional synchronization between OpenSpec change proposals and DevOps backlog tools enables seamless integration of specification-driven development into your existing agile workflows.
 
@@ -18,10 +22,10 @@ your backlog system:
 
 ```bash
 # Deterministic policy validation with JSON + Markdown output
-specfact policy validate --repo . --format both
+specfact backlog policy validate --repo . --format both
 
 # AI-assisted suggestions with confidence scores and patch-ready output
-specfact policy suggest --repo .
+specfact backlog policy suggest --repo .
 ```
 
 Both commands read `.specfact/policy.yaml`. `policy suggest` never writes changes automatically; it emits
@@ -113,7 +117,7 @@ EOF
 Export the change proposal to create a GitHub issue:
 
 ```bash
-specfact sync bridge --adapter github --mode export-only \
+specfact project sync bridge --adapter github --mode export-only \
   --repo-owner your-org \
   --repo-name your-repo \
   --repo /path/to/openspec-repo
@@ -128,7 +132,7 @@ As you implement the feature, track progress automatically:
 git commit -m "feat: implement add-feature-x - initial API design"
 
 # Track progress (detects commits and adds comments)
-specfact sync bridge --adapter github --mode export-only \
+specfact project sync bridge --adapter github --mode export-only \
   --repo-owner your-org \
   --repo-name your-repo \
   --track-code-changes \
@@ -174,7 +178,7 @@ specfact backlog auth github --client-id YOUR_CLIENT_ID
 
 ```bash
 # Uses gh auth token automatically
-specfact sync bridge --adapter github --mode export-only \
+specfact project sync bridge --adapter github --mode export-only \
   --repo-owner your-org \
   --repo-name your-repo \
   --use-gh-cli
@@ -184,7 +188,7 @@ specfact sync bridge --adapter github --mode export-only \
 
 ```bash
 export GITHUB_TOKEN=ghp_your_token_here
-specfact sync bridge --adapter github --mode export-only \
+specfact project sync bridge --adapter github --mode export-only \
   --repo-owner your-org \
   --repo-name your-repo
 ```
@@ -192,7 +196,7 @@ specfact sync bridge --adapter github --mode export-only \
 **Option 4: Command Line Flag**
 
 ```bash
-specfact sync bridge --adapter github --mode export-only \
+specfact project sync bridge --adapter github --mode export-only \
   --repo-owner your-org \
   --repo-name your-repo \
   --github-token ghp_your_token_here
@@ -204,7 +208,7 @@ specfact sync bridge --adapter github --mode export-only \
 
 ```bash
 # Export all active proposals to GitHub Issues
-specfact sync bridge --adapter github --mode export-only \
+specfact project sync bridge --adapter github --mode export-only \
   --repo-owner your-org \
   --repo-name your-repo \
   --repo /path/to/openspec-repo
@@ -214,7 +218,7 @@ specfact sync bridge --adapter github --mode export-only \
 
 ```bash
 # Detect code changes and add progress comments
-specfact sync bridge --adapter github --mode export-only \
+specfact project sync bridge --adapter github --mode export-only \
   --repo-owner your-org \
   --repo-name your-repo \
   --track-code-changes \
@@ -225,7 +229,7 @@ specfact sync bridge --adapter github --mode export-only \
 
 ```bash
 # Export only specific change proposals
-specfact sync bridge --adapter github --mode export-only \
+specfact project sync bridge --adapter github --mode export-only \
   --repo-owner your-org \
   --repo-name your-repo \
   --change-ids add-feature-x,update-api \
@@ -280,7 +284,7 @@ ado:
 
 So after authenticating once, **running from the repo root is enough** for both GitHub and ADO—org/repo or org/project are detected automatically from the git remote.
 
-Applies to all backlog commands: `specfact backlog daily`, `specfact backlog refine`, `specfact sync bridge`, etc.
+Applies to all backlog commands: `specfact backlog daily`, `specfact backlog refine`, `specfact project sync bridge`, etc.
 
 ---
 
@@ -298,7 +302,7 @@ Applies to all backlog commands: `specfact backlog daily`, `specfact backlog ref
 
 ```bash
 # ✅ CORRECT: Direct export from OpenSpec to GitHub
-specfact sync bridge --adapter github --mode export-only \
+specfact project sync bridge --adapter github --mode export-only \
   --repo-owner your-org \
   --repo-name your-repo \
   --change-ids add-feature-x \
@@ -328,7 +332,7 @@ specfact sync bridge --adapter github --mode export-only \
 
 ```bash
 # Step 1: Import GitHub issue into bundle (stores lossless content)
-specfact sync bridge --adapter github --mode bidirectional \
+specfact project sync bridge --adapter github --mode bidirectional \
   --repo-owner your-org --repo-name your-repo \
   --bundle migration-bundle \
   --backlog-ids 123
@@ -337,7 +341,7 @@ specfact sync bridge --adapter github --mode bidirectional \
 # Note the change_id from output
 
 # Step 2: Export from bundle to ADO (uses stored content)
-specfact sync bridge --adapter ado --mode export-only \
+specfact project sync bridge --adapter ado --mode export-only \
   --ado-org your-org --ado-project your-project \
   --bundle migration-bundle \
   --change-ids add-feature-x  # Use change_id from Step 1
@@ -361,7 +365,7 @@ specfact sync bridge --adapter ado --mode export-only \
 
 ```bash
 # ❌ WRONG: This will show "0 backlog items exported"
-specfact sync bridge --adapter github --mode export-only \
+specfact project sync bridge --adapter github --mode export-only \
   --repo-owner your-org --repo-name your-repo \
   --bundle some-bundle \
   --change-ids add-feature-x \
@@ -374,7 +378,7 @@ specfact sync bridge --adapter github --mode export-only \
 
 ```bash
 # ✅ CORRECT: Direct export (no --bundle)
-specfact sync bridge --adapter github --mode export-only \
+specfact project sync bridge --adapter github --mode export-only \
   --repo-owner your-org --repo-name your-repo \
   --change-ids add-feature-x \
   --repo /path/to/openspec-repo
@@ -413,13 +417,13 @@ When your OpenSpec change proposals are in a different repository than your sour
 # Source code in specfact-cli
 
 # Step 1: Create issue from proposal
-specfact sync bridge --adapter github --mode export-only \
+specfact project sync bridge --adapter github --mode export-only \
   --repo-owner nold-ai \
   --repo-name specfact-cli-internal \
   --repo /path/to/specfact-cli-internal
 
 # Step 2: Track code changes from source code repo
-specfact sync bridge --adapter github --mode export-only \
+specfact project sync bridge --adapter github --mode export-only \
   --repo-owner nold-ai \
   --repo-name specfact-cli-internal \
   --track-code-changes \
@@ -463,7 +467,7 @@ When exporting to public repositories, use content sanitization to protect inter
 
 ```bash
 # Public repository: sanitize content
-specfact sync bridge --adapter github --mode export-only \
+specfact project sync bridge --adapter github --mode export-only \
   --repo-owner your-org \
   --repo-name public-repo \
   --sanitize \
@@ -471,7 +475,7 @@ specfact sync bridge --adapter github --mode export-only \
   --repo /path/to/openspec-repo
 
 # Internal repository: use full content
-specfact sync bridge --adapter github --mode export-only \
+specfact project sync bridge --adapter github --mode export-only \
   --repo-owner your-org \
   --repo-name internal-repo \
   --no-sanitize \
@@ -571,7 +575,7 @@ When `--sanitize` is enabled, progress comments are sanitized:
 2. **Export to GitHub**:
 
    ```bash
-   specfact sync bridge --adapter github --mode export-only \
+   specfact project sync bridge --adapter github --mode export-only \
      --repo-owner your-org \
      --repo-name your-repo \
      --repo /path/to/openspec-repo
@@ -594,7 +598,7 @@ When `--sanitize` is enabled, progress comments are sanitized:
 2. **Track Progress**:
 
    ```bash
-   specfact sync bridge --adapter github --mode export-only \
+   specfact project sync bridge --adapter github --mode export-only \
      --repo-owner your-org \
      --repo-name your-repo \
      --track-code-changes \
@@ -613,7 +617,7 @@ When `--sanitize` is enabled, progress comments are sanitized:
 Add manual progress comments without code change detection:
 
 ```bash
-specfact sync bridge --adapter github --mode export-only \
+specfact project sync bridge --adapter github --mode export-only \
   --repo-owner your-org \
   --repo-name your-repo \
   --add-progress-comment \
@@ -638,7 +642,7 @@ SpecFact supports more than exporting and updating backlog items:
 Example: Import selected GitHub issues into a bundle and keep them in sync:
 
 ```bash
-specfact sync bridge --adapter github --mode bidirectional \
+specfact project sync bridge --adapter github --mode bidirectional \
   --repo-owner your-org --repo-name your-repo \
   --bundle main \
   --backlog-ids 111,112
@@ -672,7 +676,7 @@ Migrate a GitHub issue to Azure DevOps while preserving all content:
 ```bash
 # Step 1: Import GitHub issue into bundle (stores lossless content)
 # This creates a change proposal in the bundle and stores raw content
-specfact sync bridge --adapter github --mode bidirectional \
+specfact project sync bridge --adapter github --mode bidirectional \
   --repo-owner your-org --repo-name your-repo \
   --bundle main \
   --backlog-ids 123
@@ -692,7 +696,7 @@ ls /path/to/openspec-repo/openspec/changes/
 
 # Step 3: Export from bundle to ADO (uses stored lossless content)
 # Replace <change-id> with the actual change_id from Step 1
-specfact sync bridge --adapter ado --mode export-only \
+specfact project sync bridge --adapter ado --mode export-only \
   --ado-org your-org --ado-project your-project \
   --bundle main \
   --change-ids add-feature-x  # Use the actual change_id from Step 1
@@ -751,7 +755,7 @@ Keep proposals in sync across GitHub (public) and ADO (internal):
 ```bash
 # Day 1: Create proposal in OpenSpec, export to GitHub (public)
 # Assume change_id is "add-feature-x" (from openspec/changes/add-feature-x/proposal.md)
-specfact sync bridge --adapter github --mode export-only \
+specfact project sync bridge --adapter github --mode export-only \
   --repo-owner your-org --repo-name public-repo \
   --sanitize \
   --repo /path/to/openspec-repo \
@@ -762,7 +766,7 @@ specfact sync bridge --adapter github --mode export-only \
 
 # Day 2: Import GitHub issue into bundle (for internal team)
 # This stores lossless content in the bundle
-specfact sync bridge --adapter github --mode bidirectional \
+specfact project sync bridge --adapter github --mode bidirectional \
   --repo-owner your-org --repo-name public-repo \
   --bundle internal \
   --backlog-ids 123
@@ -772,7 +776,7 @@ specfact sync bridge --adapter github --mode bidirectional \
 
 # Day 3: Export to ADO for internal tracking (full content, no sanitization)
 # Uses the change_id from Day 2
-specfact sync bridge --adapter ado --mode export-only \
+specfact project sync bridge --adapter ado --mode export-only \
   --ado-org your-org --ado-project internal-project \
   --bundle internal \
   --change-ids add-feature-x
@@ -782,7 +786,7 @@ specfact sync bridge --adapter ado --mode export-only \
 
 # Day 4: Update in ADO, sync back to GitHub (status sync)
 # Import ADO work item to update bundle with latest status
-specfact sync bridge --adapter ado --mode bidirectional \
+specfact project sync bridge --adapter ado --mode bidirectional \
   --ado-org your-org --ado-project internal-project \
   --bundle internal \
   --backlog-ids 456
@@ -791,7 +795,7 @@ specfact sync bridge --adapter ado --mode bidirectional \
 # Bundle now has latest status from ADO
 
 # Then sync status back to GitHub
-specfact sync bridge --adapter github --mode export-only \
+specfact project sync bridge --adapter github --mode export-only \
   --repo-owner your-org --repo-name public-repo \
   --update-existing \
   --repo /path/to/openspec-repo \
@@ -853,7 +857,7 @@ export AZURE_DEVOPS_TOKEN='your-ado-token'
 
 # Step 1: Import GitHub issue into bundle
 # This stores the issue in a bundle with lossless content preservation
-specfact sync bridge --adapter github --mode bidirectional \
+specfact project sync bridge --adapter github --mode bidirectional \
   --repo-owner your-org --repo-name your-repo \
   --bundle migration-bundle \
   --backlog-ids 123
@@ -869,7 +873,7 @@ ls .specfact/projects/migration-bundle/change_tracking/proposals/
 
 # Step 3: Export to Azure DevOps
 # Use the change_id from Step 1
-specfact sync bridge --adapter ado --mode export-only \
+specfact project sync bridge --adapter ado --mode export-only \
   --ado-org your-org --ado-project your-project \
   --bundle migration-bundle \
   --change-ids add-feature-x
@@ -884,13 +888,13 @@ specfact sync bridge --adapter ado --mode export-only \
 # Content should match exactly (Why, What Changes sections, formatting)
 
 # Step 5: Optional - Round-trip back to GitHub to verify
-specfact sync bridge --adapter ado --mode bidirectional \
+specfact project sync bridge --adapter ado --mode bidirectional \
   --ado-org your-org --ado-project your-project \
   --bundle migration-bundle \
   --backlog-ids 456
 
 # Then export back to GitHub
-specfact sync bridge --adapter github --mode export-only \
+specfact project sync bridge --adapter github --mode export-only \
   --repo-owner your-org --repo-name your-repo \
   --bundle migration-bundle \
   --change-ids add-feature-x \
@@ -922,7 +926,7 @@ export AZURE_DEVOPS_TOKEN='your-ado-token'
 # Import GitHub issue #110 into bundle 'cross-sync-test'
 # Note: Bundle will be auto-created if it doesn't exist
 # This stores lossless content in the bundle
-specfact sync bridge --adapter github --mode bidirectional \
+specfact project sync bridge --adapter github --mode bidirectional \
   --repo-owner nold-ai --repo-name specfact-cli \
   --bundle cross-sync-test \
   --backlog-ids 110
@@ -943,7 +947,7 @@ ls /path/to/openspec-repo/openspec/changes/
 # ============================================================
 # Export the proposal to ADO using the change_id from Step 1
 # Replace <change-id> with the actual change_id from Step 1
-specfact sync bridge --adapter ado --mode export-only \
+specfact project sync bridge --adapter ado --mode export-only \
   --ado-org your-org --ado-project your-project \
   --bundle cross-sync-test \
   --change-ids <change-id>
@@ -959,7 +963,7 @@ specfact sync bridge --adapter ado --mode export-only \
 # Import the ADO work item back into the bundle
 # This updates the bundle with ADO's version of the content
 # Replace <ado-work-item-id> with the ID from Step 2
-specfact sync bridge --adapter ado --mode bidirectional \
+specfact project sync bridge --adapter ado --mode bidirectional \
   --ado-org your-org --ado-project your-project \
   --bundle cross-sync-test \
   --backlog-ids <ado-work-item-id>
@@ -973,7 +977,7 @@ specfact sync bridge --adapter ado --mode bidirectional \
 # ============================================================
 # Export back to GitHub to complete the round-trip
 # This updates the original GitHub issue with any changes from ADO
-specfact sync bridge --adapter github --mode export-only \
+specfact project sync bridge --adapter github --mode export-only \
   --repo-owner nold-ai --repo-name specfact-cli \
   --bundle cross-sync-test \
   --change-ids <change-id> \
@@ -1057,7 +1061,7 @@ The change proposal must have `source_tracking` metadata linking it to the GitHu
 To update a specific change proposal's linked issue:
 
 ```bash
-specfact sync bridge --adapter github --mode export-only \
+specfact project sync bridge --adapter github --mode export-only \
   --repo-owner your-org \
   --repo-name your-repo \
   --change-ids your-change-id \
@@ -1070,7 +1074,7 @@ specfact sync bridge --adapter github --mode export-only \
 ```bash
 cd /path/to/openspec-repo
 
-specfact sync bridge --adapter github --mode export-only \
+specfact project sync bridge --adapter github --mode export-only \
   --repo-owner nold-ai \
   --repo-name specfact-cli \
   --change-ids implement-adapter-enhancement-recommendations \
@@ -1083,7 +1087,7 @@ specfact sync bridge --adapter github --mode export-only \
 To update all change proposals that have linked GitHub issues:
 
 ```bash
-specfact sync bridge --adapter github --mode export-only \
+specfact project sync bridge --adapter github --mode export-only \
   --repo-owner your-org \
   --repo-name your-repo \
   --update-existing \
@@ -1134,7 +1138,7 @@ By default, archived change proposals (in `openspec/changes/archive/`) are exclu
 
 ```bash
 # Update all archived proposals with new comment logic
-specfact sync bridge --adapter github --mode export-only \
+specfact project sync bridge --adapter github --mode export-only \
   --repo-owner your-org \
   --repo-name your-repo \
   --include-archived \
@@ -1142,7 +1146,7 @@ specfact sync bridge --adapter github --mode export-only \
   --repo /path/to/openspec-repo
 
 # Update specific archived proposal
-specfact sync bridge --adapter github --mode export-only \
+specfact project sync bridge --adapter github --mode export-only \
   --repo-owner your-org \
   --repo-name your-repo \
   --change-ids add-code-change-tracking \
@@ -1164,7 +1168,7 @@ When `--include-archived` is used with `--update-existing`:
 
 ```bash
 # Update issue #107 with improved branch detection
-specfact sync bridge --adapter github --mode export-only \
+specfact project sync bridge --adapter github --mode export-only \
   --repo-owner nold-ai \
   --repo-name specfact-cli \
   --change-ids add-code-change-tracking \
@@ -1252,7 +1256,7 @@ Verify `openspec/changes/<change-id>/proposal.md` was updated:
 
    ```bash
    # ❌ WRONG: Using --bundle when exporting from OpenSpec
-   specfact sync bridge --adapter github --mode export-only \
+   specfact project sync bridge --adapter github --mode export-only \
      --repo-owner your-org --repo-name your-repo \
      --bundle some-bundle \
      --change-ids add-feature-x \
@@ -1270,7 +1274,7 @@ Verify `openspec/changes/<change-id>/proposal.md` was updated:
 
   ```bash
   # ✅ CORRECT: Direct export from OpenSpec
-  specfact sync bridge --adapter github --mode export-only \
+  specfact project sync bridge --adapter github --mode export-only \
     --repo-owner your-org --repo-name your-repo \
     --change-ids add-feature-x \
     --repo /path/to/openspec-repo
@@ -1280,13 +1284,13 @@ Verify `openspec/changes/<change-id>/proposal.md` was updated:
 
   ```bash
   # Step 1: Import from backlog into bundle
-  specfact sync bridge --adapter github --mode bidirectional \
+  specfact project sync bridge --adapter github --mode bidirectional \
     --repo-owner your-org --repo-name your-repo \
     --bundle your-bundle \
     --backlog-ids 123
   
   # Step 2: Export from bundle (now it will work)
-  specfact sync bridge --adapter ado --mode export-only \
+  specfact project sync bridge --adapter ado --mode export-only \
     --ado-org your-org --ado-project your-project \
     --bundle your-bundle \
     --change-ids <change-id-from-step-1>
@@ -1447,13 +1451,13 @@ specfact backlog auth azure-devops
 
 # Option 2: Environment Variable
 export AZURE_DEVOPS_TOKEN=your_pat_token
-specfact sync bridge --adapter ado --mode export-only \
+specfact project sync bridge --adapter ado --mode export-only \
   --ado-org your-org \
   --ado-project your-project \
   --repo /path/to/openspec-repo
 
 # Option 3: Command Line Flag
-specfact sync bridge --adapter ado --mode export-only \
+specfact project sync bridge --adapter ado --mode export-only \
   --ado-org your-org \
   --ado-project your-project \
   --ado-token your_pat_token \
@@ -1464,26 +1468,26 @@ specfact sync bridge --adapter ado --mode export-only \
 
 ```bash
 # Bidirectional sync (import work items AND export proposals)
-specfact sync bridge --adapter ado --bidirectional \
+specfact project sync bridge --adapter ado --bidirectional \
   --ado-org your-org \
   --ado-project your-project \
   --repo /path/to/openspec-repo
 
 # Export-only (one-way: OpenSpec → ADO)
-specfact sync bridge --adapter ado --mode export-only \
+specfact project sync bridge --adapter ado --mode export-only \
   --ado-org your-org \
   --ado-project your-project \
   --repo /path/to/openspec-repo
 
 # Export with explicit work item type
-specfact sync bridge --adapter ado --mode export-only \
+specfact project sync bridge --adapter ado --mode export-only \
   --ado-org your-org \
   --ado-project your-project \
   --ado-work-item-type "User Story" \
   --repo /path/to/openspec-repo
 
 # Track code changes and add progress comments
-specfact sync bridge --adapter ado --mode export-only \
+specfact project sync bridge --adapter ado --mode export-only \
   --ado-org your-org \
   --ado-project your-project \
   --track-code-changes \
@@ -1502,7 +1506,7 @@ The ADO adapter automatically derives work item type from your project's process
 You can override with `--ado-work-item-type`:
 
 ```bash
-specfact sync bridge --adapter ado --mode export-only \
+specfact project sync bridge --adapter ado --mode export-only \
   --ado-org your-org \
   --ado-project your-project \
   --ado-work-item-type "Bug" \

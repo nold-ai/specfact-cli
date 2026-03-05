@@ -33,6 +33,10 @@ has_staged_markdown() {
   staged_files | grep -E '\\.md$' >/dev/null 2>&1
 }
 
+staged_markdown_files() {
+  staged_files | grep -E '\\.md$' || true
+}
+
 run_module_signature_verification() {
   info "🔐 Verifying bundled module signatures/version bumps"
   if hatch run ./scripts/verify-modules-signature.py --require-signature --enforce-version-bump; then
@@ -44,11 +48,44 @@ run_module_signature_verification() {
   fi
 }
 
+run_markdown_autofix_if_needed() {
+  if has_staged_markdown; then
+    info "📝 Markdown changes detected — attempting safe auto-fix"
+    local md_files
+    md_files=$(staged_markdown_files)
+    if [ -z "${md_files}" ]; then
+      info "ℹ️  No staged markdown files resolved — skipping markdown auto-fix"
+      return
+    fi
+
+    if command -v markdownlint >/dev/null 2>&1; then
+      if echo "${md_files}" | xargs -r markdownlint --fix --config .markdownlint.json; then
+        echo "${md_files}" | xargs -r git add --
+        success "✅ Markdown auto-fix applied"
+      else
+        error "❌ Markdown auto-fix failed"
+        exit 1
+      fi
+    else
+      if echo "${md_files}" | xargs -r npx --yes markdownlint-cli --fix --config .markdownlint.json; then
+        echo "${md_files}" | xargs -r git add --
+        success "✅ Markdown auto-fix applied (npx)"
+      else
+        error "❌ Markdown auto-fix failed (npx)"
+        warn "💡 Install markdownlint-cli globally for faster hooks: npm i -g markdownlint-cli"
+        exit 1
+      fi
+    fi
+  else
+    info "ℹ️  No staged Markdown changes — skipping markdown auto-fix"
+  fi
+}
+
 run_markdown_lint_if_needed() {
   if has_staged_markdown; then
     info "📝 Markdown changes detected — running markdownlint"
     local md_files
-    md_files=$(staged_files | grep -E '\\.md$' || true)
+    md_files=$(staged_markdown_files)
     if [ -z "${md_files}" ]; then
       info "ℹ️  No staged markdown files resolved — skipping markdownlint"
       return
@@ -177,6 +214,7 @@ run_module_signature_verification
 run_format_safety
 
 # Always run lint checks when relevant files changed
+run_markdown_autofix_if_needed
 run_markdown_lint_if_needed
 run_yaml_lint_if_needed
 run_actionlint_if_needed

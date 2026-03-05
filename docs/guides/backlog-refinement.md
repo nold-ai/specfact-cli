@@ -6,6 +6,10 @@ permalink: /guides/backlog-refinement/
 
 # Backlog Refinement Guide
 
+
+> Temporary docs note: this bundle-focused page remains hosted in the core docs set for the
+> current release line and is planned to migrate to `specfact-cli-modules`.
+
 > **🆕 NEW FEATURE: AI-Assisted Template-Driven Backlog Refinement**  
 > Transform arbitrary DevOps backlog input into structured, template-compliant work items using AI-assisted refinement with template detection and validation.
 
@@ -553,7 +557,7 @@ The most common workflow is to refine backlog items and then sync them to extern
 **Workflow**: `backlog ceremony refinement` → `sync bridge`
 
 1. **Refine Backlog Items**: Use `specfact backlog ceremony refinement` to standardize backlog items with templates
-2. **Sync to External Tools**: Use `specfact sync bridge` to sync refined items back to backlog tools (GitHub, ADO, etc.)
+2. **Sync to External Tools**: Use `specfact project sync bridge` to sync refined items back to backlog tools (GitHub, ADO, etc.)
 
 ```bash
 # Complete command chaining workflow
@@ -565,7 +569,7 @@ specfact backlog ceremony refinement github \
   --state open
 
 # 2. Sync refined items to external tool (same or different adapter)
-specfact sync bridge --adapter github \
+specfact project sync bridge --adapter github \
   --repo-owner my-org --repo-name my-repo \
   --backlog-ids 123,456 \
   --mode export-only
@@ -576,7 +580,7 @@ specfact backlog ceremony refinement github \
   --write \
   --labels feature
 
-specfact sync bridge --adapter ado \
+specfact project sync bridge --adapter ado \
   --ado-org my-org --ado-project my-project \
   --backlog-ids 123,456 \
   --mode export-only
@@ -612,12 +616,12 @@ When syncing backlog items between different adapters (e.g., GitHub ↔ ADO), Sp
 
 ```bash
 # 1. Import closed GitHub issues into bundle (state "closed" is preserved)
-specfact sync bridge --adapter github --mode bidirectional \
+specfact project sync bridge --adapter github --mode bidirectional \
   --repo-owner nold-ai --repo-name specfact-cli \
   --backlog-ids 110,122
 
 # 2. Export to ADO (state is automatically mapped: closed → Closed)
-specfact sync bridge --adapter ado --mode export-only \
+specfact project sync bridge --adapter ado --mode export-only \
   --ado-org dominikusnold --ado-project "SpecFact CLI" \
   --bundle cross-sync-test --change-ids add-ado-backlog-adapter,add-template-driven-backlog-refinement
 
@@ -644,14 +648,14 @@ specfact sync bridge --adapter ado --mode export-only \
 
 Backlog refinement works seamlessly with the [DevOps Adapter Integration](../guides/devops-adapter-integration.md):
 
-1. **Import Backlog Items**: Use `specfact sync bridge` to import backlog items as OpenSpec proposals
+1. **Import Backlog Items**: Use `specfact project sync bridge` to import backlog items as OpenSpec proposals
 2. **Refine Items**: Use `specfact backlog ceremony refinement` to standardize imported items
-3. **Export Refined Items**: Use `specfact sync bridge` to export refined proposals back to backlog tools
+3. **Export Refined Items**: Use `specfact project sync bridge` to export refined proposals back to backlog tools
 
 ```bash
 # Complete workflow
 # 1. Import GitHub issues as OpenSpec proposals
-specfact sync bridge --adapter github --mode bidirectional \
+specfact project sync bridge --adapter github --mode bidirectional \
   --repo-owner my-org --repo-name my-repo \
   --backlog-ids 123,456
 
@@ -660,7 +664,7 @@ specfact backlog ceremony refinement github --bundle my-project --auto-bundle \
   --search "is:open"
 
 # 3. Export refined proposals back to GitHub
-specfact sync bridge --adapter github --mode export-only \
+specfact project sync bridge --adapter github --mode export-only \
   --bundle my-project --change-ids <refined-change-id>
 ```
 
@@ -936,11 +940,11 @@ If adapter search methods are not available:
 # "Note: GitHub issue fetching requires adapter.search_issues() implementation"
 ```
 
-**Workaround**: Use `specfact sync bridge` to import backlog items first, then refine:
+**Workaround**: Use `specfact project sync bridge` to import backlog items first, then refine:
 
 ```bash
 # 1. Import backlog items
-specfact sync bridge --adapter github --mode bidirectional \
+specfact project sync bridge --adapter github --mode bidirectional \
   --backlog-ids 123,456
 
 # 2. Refine imported items from bundle

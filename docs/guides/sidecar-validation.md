@@ -6,6 +6,10 @@ permalink: /guides/sidecar-validation/
 
 # Sidecar Validation Guide
 
+
+> Temporary docs note: this bundle-focused page remains hosted in the core docs set for the
+> current release line and is planned to migrate to `specfact-cli-modules`.
+
 Complete guide for using sidecar validation to validate external codebases without modifying source code.
 
 ## Overview
@@ -22,13 +26,13 @@ Sidecar validation enables contract-based validation of external codebases (libr
 ### 1. Initialize Sidecar Workspace
 
 ```bash
-specfact validate sidecar init <bundle-name> <repo-path>
+specfact code validate sidecar init <bundle-name> <repo-path>
 ```
 
 **Example:**
 
 ```bash
-specfact validate sidecar init legacy-api /path/to/django-project
+specfact code validate sidecar init legacy-api /path/to/django-project
 ```
 
 This will:
@@ -42,20 +46,20 @@ This will:
 ### 2. Run Validation
 
 ```bash
-specfact validate sidecar run <bundle-name> <repo-path>
+specfact code validate sidecar run <bundle-name> <repo-path>
 ```
 
 **Example:**
 
 ```bash
 # Run full validation (CrossHair + Specmatic)
-specfact validate sidecar run legacy-api /path/to/django-project
+specfact code validate sidecar run legacy-api /path/to/django-project
 
 # Run only CrossHair analysis
-specfact validate sidecar run legacy-api /path/to/django-project --no-run-specmatic
+specfact code validate sidecar run legacy-api /path/to/django-project --no-run-specmatic
 
 # Run only Specmatic validation
-specfact validate sidecar run legacy-api /path/to/django-project --no-run-crosshair
+specfact code validate sidecar run legacy-api /path/to/django-project --no-run-crosshair
 ```
 
 ## Workflow
@@ -122,8 +126,8 @@ Validation tools are executed:
 **Example:**
 
 ```bash
-specfact validate sidecar init django-app /path/to/django-project
-specfact validate sidecar run django-app /path/to/django-project
+specfact code validate sidecar init django-app /path/to/django-project
+specfact code validate sidecar run django-app /path/to/django-project
 ```
 
 ### FastAPI
@@ -141,8 +145,8 @@ specfact validate sidecar run django-app /path/to/django-project
 **Example:**
 
 ```bash
-specfact validate sidecar init fastapi-app /path/to/fastapi-project
-specfact validate sidecar run fastapi-app /path/to/fastapi-project
+specfact code validate sidecar init fastapi-app /path/to/fastapi-project
+specfact code validate sidecar run fastapi-app /path/to/fastapi-project
 ```
 
 ### Django REST Framework (DRF)
@@ -160,8 +164,8 @@ specfact validate sidecar run fastapi-app /path/to/fastapi-project
 **Example:**
 
 ```bash
-specfact validate sidecar init drf-api /path/to/drf-project
-specfact validate sidecar run drf-api /path/to/drf-project
+specfact code validate sidecar init drf-api /path/to/drf-project
+specfact code validate sidecar run drf-api /path/to/drf-project
 ```
 
 ### Flask
@@ -183,8 +187,8 @@ specfact validate sidecar run drf-api /path/to/drf-project
 **Example:**
 
 ```bash
-specfact validate sidecar init flask-app /path/to/flask-project
-specfact validate sidecar run flask-app /path/to/flask-project
+specfact code validate sidecar init flask-app /path/to/flask-project
+specfact code validate sidecar run flask-app /path/to/flask-project
 ```
 
 **Dependency Installation:**
@@ -216,8 +220,8 @@ Flask applications automatically have dependencies installed in an isolated venv
 **Example:**
 
 ```bash
-specfact validate sidecar init python-lib /path/to/python-library
-specfact validate sidecar run python-lib /path/to/python-library
+specfact code validate sidecar init python-lib /path/to/python-library
+specfact code validate sidecar run python-lib /path/to/python-library
 ```
 
 ## Configuration
@@ -302,7 +306,7 @@ You can force Specmatic to run even without service configuration using the `--r
 
 ```bash
 # Force Specmatic to run (may fail if no service available)
-specfact validate sidecar run legacy-api /path/to/repo --run-specmatic
+specfact code validate sidecar run legacy-api /path/to/repo --run-specmatic
 ```
 
 **Configuration:**
@@ -422,13 +426,13 @@ Specmatic requires a service endpoint to test against. If no service configurati
 3. **Re-run with Specmatic enabled**:
 
    ```bash
-   specfact validate sidecar run legacy-api /path/to/repo --run-specmatic
+   specfact code validate sidecar run legacy-api /path/to/repo --run-specmatic
    ```
 
 4. **Skip Specmatic explicitly** (if you only need CrossHair):
 
    ```bash
-   specfact validate sidecar run legacy-api /path/to/repo --no-run-specmatic
+   specfact code validate sidecar run legacy-api /path/to/repo --no-run-specmatic
    ```
 
 ### Module Resolution Errors
@@ -467,23 +471,23 @@ Specmatic requires a service endpoint to test against. If no service configurati
 
 ```bash
 # Initialize
-specfact validate sidecar init django-blog /path/to/django-blog
+specfact code validate sidecar init django-blog /path/to/django-blog
 
 # Run validation
-specfact validate sidecar run django-blog /path/to/django-blog
+specfact code validate sidecar run django-blog /path/to/django-blog
 ```
 
 ### Example 2: FastAPI API
 
 ```bash
 # Initialize
-specfact validate sidecar init fastapi-api /path/to/fastapi-api
+specfact code validate sidecar init fastapi-api /path/to/fastapi-api
 
 # Run only CrossHair (no HTTP endpoints - Specmatic auto-skipped)
-specfact validate sidecar run fastapi-api /path/to/fastapi-api --no-run-specmatic
+specfact code validate sidecar run fastapi-api /path/to/fastapi-api --no-run-specmatic
 
 # Or let auto-skip handle it (Specmatic will be skipped automatically)
-specfact validate sidecar run fastapi-api /path/to/fastapi-api
+specfact code validate sidecar run fastapi-api /path/to/fastapi-api
 ```
 
 **Note**: In this example, Specmatic is automatically skipped because no service configuration is provided. The validation will focus on CrossHair analysis only.
@@ -492,10 +496,10 @@ specfact validate sidecar run fastapi-api /path/to/fastapi-api
 
 ```bash
 # Initialize
-specfact validate sidecar init flask-app /path/to/flask-project
+specfact code validate sidecar init flask-app /path/to/flask-project
 
 # Run validation (dependencies automatically installed in isolated venv)
-specfact validate sidecar run flask-app /path/to/flask-project --no-run-specmatic
+specfact code validate sidecar run flask-app /path/to/flask-project --no-run-specmatic
 ```
 
 **Note**: Flask applications automatically have dependencies installed in `.specfact/venv/` during initialization. All HTTP methods are captured (e.g., routes with `methods=['GET','POST']` generate separate routes for each method).
@@ -504,21 +508,21 @@ specfact validate sidecar run flask-app /path/to/flask-project --no-run-specmati
 
 ```bash
 # Initialize
-specfact validate sidecar init python-lib /path/to/python-library
+specfact code validate sidecar init python-lib /path/to/python-library
 
 # Run validation
-specfact validate sidecar run python-lib /path/to/python-library
+specfact code validate sidecar run python-lib /path/to/python-library
 ```
 
 ## Repro Integration
 
-Sidecar validation can be integrated into the `specfact repro` command for validating unannotated code as part of the reproducibility suite.
+Sidecar validation can be integrated into the `specfact code repro` command for validating unannotated code as part of the reproducibility suite.
 
 ### Using Sidecar with Repro
 
 ```bash
 # Run repro with sidecar validation for unannotated code
-specfact repro --sidecar --sidecar-bundle legacy-api --repo /path/to/repo
+specfact code repro --sidecar --sidecar-bundle legacy-api --repo /path/to/repo
 ```
 
 **What it does:**
@@ -531,7 +535,7 @@ specfact repro --sidecar --sidecar-bundle legacy-api --repo /path/to/repo
 
 **Safe Defaults for Repro Mode:**
 
-When used with `specfact repro --sidecar`, sidecar validation automatically applies safe defaults:
+When used with `specfact code repro --sidecar`, sidecar validation automatically applies safe defaults:
 
 - **CrossHair timeout**: 30 seconds (vs 60 default)
 - **Per-path timeout**: 5 seconds
@@ -542,10 +546,10 @@ When used with `specfact repro --sidecar`, sidecar validation automatically appl
 
 ```bash
 # Initialize sidecar workspace first
-specfact validate sidecar init legacy-api /path/to/repo
+specfact code validate sidecar init legacy-api /path/to/repo
 
 # Then run repro with sidecar validation
-specfact repro --sidecar --sidecar-bundle legacy-api --repo /path/to/repo --verbose
+specfact code repro --sidecar --sidecar-bundle legacy-api --repo /path/to/repo --verbose
 ```
 
 **Output:**

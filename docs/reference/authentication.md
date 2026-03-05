@@ -6,6 +6,10 @@ permalink: /reference/authentication/
 
 # Authentication
 
+
+> Temporary docs note: this bundle-focused page remains hosted in the core docs set for the
+> current release line and is planned to migrate to `specfact-cli-modules`.
+
 SpecFact CLI supports device code authentication flows for GitHub and Azure DevOps to keep credentials out of scripts and CI logs.
 When the backlog bundle is installed, authentication commands are available under `specfact backlog auth`.
 

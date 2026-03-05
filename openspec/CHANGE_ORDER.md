@@ -77,7 +77,7 @@ These are derived extensions of the same 2026-02-15 plan and are required to ope
 
 | Module | Order | Change folder | GitHub # | Blocked by |
 |--------|-------|---------------|----------|------------|
-| docs | 01 | docs-01-core-modules-docs-alignment | TBD | module-migration-01 ✅; module-migration-02 ✅; module-migration-03 ✅; module-migration-05 ✅; module-migration-06/07 outputs inform residual cleanup wording |
+| docs | 01 | docs-01-core-modules-docs-alignment | [#348](https://github.com/nold-ai/specfact-cli/issues/348) | module-migration-01 ✅; module-migration-02 ✅; module-migration-03 ✅; module-migration-05 ✅; module-migration-06/07 outputs inform residual cleanup wording |
 
 ### Marketplace (module distribution)
 
@@ -207,6 +207,13 @@ These are derived extensions of the same 2026-02-15 plan and are required to ope
 | ai-integration | 01 | ai-integration-01-agent-skill | [#251](https://github.com/nold-ai/specfact-cli/issues/251) | #241 (validation-02) |
 | ai-integration | 02 | ai-integration-02-mcp-server | [#252](https://github.com/nold-ai/specfact-cli/issues/252) | #241 (validation-02) |
 | ai-integration | 03 | ai-integration-03-instruction-files | [#253](https://github.com/nold-ai/specfact-cli/issues/253) | #251 (ai-integration-01) |
+| ai-integration | 04 | ai-integration-04-intent-skills | [#349](https://github.com/nold-ai/specfact-cli/issues/349) | #251 (ai-integration-01); #239 (requirements-02) |
+
+### OpenSpec bridge integration (intent engineering plan, 2026-03-05)
+
+| Module | Order | Change folder | GitHub # | Blocked by |
+|--------|-------|---------------|----------|------------|
+| openspec | 01 | openspec-01-intent-trace | [#350](https://github.com/nold-ai/specfact-cli/issues/350) | #238 (requirements-01); #239 (requirements-02) |
 
 ### CLI end-user validation (validation gap plan, 2026-02-19)
 
@@ -265,6 +272,8 @@ Set these in GitHub so issue dependencies are explicit. Optional dependencies ar
 | [#251](https://github.com/nold-ai/specfact-cli/issues/251) | ai-integration-01 agent skill | #241 |
 | [#252](https://github.com/nold-ai/specfact-cli/issues/252) | ai-integration-02 mcp server | #241 |
 | [#253](https://github.com/nold-ai/specfact-cli/issues/253) | ai-integration-03 instruction files | #251 |
+| [#349](https://github.com/nold-ai/specfact-cli/issues/349) | ai-integration-04 intent skills | #251, #239 |
+| [#350](https://github.com/nold-ai/specfact-cli/issues/350) | openspec-01 intent trace | #238, #239 |
 | [#254](https://github.com/nold-ai/specfact-cli/issues/254) | integration-01 cross-change contracts | #237, #239, #240, #241, #246 |
 | [#255](https://github.com/nold-ai/specfact-cli/issues/255) | dogfooding-01 full-chain e2e proof | #239, #240, #241, #242, #247 |
 
@@ -378,6 +387,10 @@ Dependencies flow left-to-right; a wave may start once all its hard blockers are
   - ai-integration-01 (#251) (after validation-02 #241)
   - ai-integration-02 (#252) (after validation-02 #241)
   - ai-integration-03 (#253) (after ai-integration-01 #251)
+
+- **Wave 8 additions — Intent engineering layer (intent engineering plan, 2026-03-05)**:
+  - ai-integration-04 (#349) (after ai-integration-01 #251 + requirements-02 #239)
+  - openspec-01 (#350) (after requirements-01 #238 + requirements-02 #239; aligns with Wave 5/6)
 
 - **Wave 9 — Integration contract and product proof**:
   - integration-01 (#254) (after profile-01 #237 + requirements-02 #239 + architecture-01 #240 + validation-02 #241 + policy-02 #246)

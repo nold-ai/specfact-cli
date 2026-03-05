@@ -48,8 +48,8 @@ uvx specfact-cli@latest project plan init my-project --interactive
 Flat root commands were removed. Use grouped command forms:
 
 - `specfact validate ...` -> `specfact code validate ...`
-- `specfact plan ...` -> `specfact project plan ...`
-- `specfact policy ...` -> `specfact backlog policy ...`
+- `specfact project plan ...` -> `specfact project plan ...`
+- `specfact backlog policy ...` -> `specfact backlog policy ...`
 
 First-run bundle selection examples:
 
@@ -80,7 +80,7 @@ Some bundles install dependencies automatically:
 
 - 📖 **[Installation Guide](installation.md)** - Install SpecFact CLI
 - 📖 **[First Steps](first-steps.md)** - Step-by-step first commands
-- 📖 **[Module Bootstrap Checklist](module-bootstrap-checklist.md)** - Verify bundled modules are installed in user/project scope
+- 📖 **[Module Bootstrap Checklist](module-bootstrap-checklist.md)** - Verify official bundles are installed in user/project scope
 - 📖 **[Tutorial: Using SpecFact with OpenSpec or Spec-Kit](tutorial-openspec-speckit.md)** ⭐ **NEW** - Complete beginner-friendly tutorial
 - 📖 **[DevOps Backlog Integration](../guides/devops-adapter-integration.md)** 🆕 **NEW FEATURE** - Integrate SpecFact into agile DevOps workflows
 - 📖 **[Backlog Refinement](../guides/backlog-refinement.md)** 🆕 **NEW FEATURE** - AI-assisted template-driven refinement for standardizing work items

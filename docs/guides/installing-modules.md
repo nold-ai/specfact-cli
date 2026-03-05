@@ -14,9 +14,9 @@ Use plain `specfact ...` commands in this guide (not `hatch run specfact ...`) s
 
 ```bash
 # Marketplace id format
-specfact module install specfact/backlog
+specfact module install nold-ai/specfact-backlog
 
-# Bare names are accepted and normalized to specfact/<name>
+# Bare names are accepted and resolved through the configured source policy
 specfact module install backlog
 
 # Install into project scope instead of user scope
@@ -28,7 +28,7 @@ specfact module install backlog --source marketplace
 specfact module install backlog --source marketplace --trust-non-official
 
 # Install a specific version
-specfact module install specfact/backlog --version 0.35.0
+specfact module install nold-ai/specfact-backlog --version 0.40.0
 ```
 
 Notes:
@@ -46,13 +46,13 @@ Before installing a marketplace module, SpecFact resolves its dependencies (othe
 
 ```bash
 # Install with dependency resolution (default)
-specfact module install specfact/backlog
+specfact module install nold-ai/specfact-backlog
 
 # Skip dependency resolution (install only the requested module)
-specfact module install specfact/backlog --skip-deps
+specfact module install nold-ai/specfact-backlog --skip-deps
 
 # Force install despite dependency conflicts (use with care)
-specfact module install specfact/backlog --force
+specfact module install nold-ai/specfact-backlog --force
 ```
 
 - Use `--skip-deps` when you want to install a single module without pulling its dependencies or when you manage dependencies yourself.
@@ -155,7 +155,7 @@ Use `--force` to allow dependency-aware cascades when required.
 
 ```bash
 specfact module uninstall backlog
-specfact module uninstall specfact/backlog
+specfact module uninstall nold-ai/specfact-backlog
 specfact module uninstall backlog --scope project --repo /path/to/repo
 ```
 
@@ -179,3 +179,6 @@ specfact module upgrade --all
 ```
 
 Upgrade applies only to modules with origin `marketplace`.
+
+> Temporary docs note: module-specific install and bundle behavior docs remain hosted in this
+> core docs set for the current release line and are planned to migrate to `specfact-cli-modules`.

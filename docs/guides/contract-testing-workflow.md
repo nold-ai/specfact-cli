@@ -1,15 +1,19 @@
 # Contract Testing Workflow - Simple Guide for Developers
 
+
+> Temporary docs note: this bundle-focused page remains hosted in the core docs set for the
+> current release line and is planned to migrate to `specfact-cli-modules`.
+
 ## Quick Start: Verify Your Contract
 
 The easiest way to verify your OpenAPI contract works is with a single command:
 
 ```bash
 # Verify a specific contract
-specfact contract verify --bundle my-api --feature FEATURE-001
+specfact spec contract verify --bundle my-api --feature FEATURE-001
 
 # Verify all contracts in a bundle
-specfact contract verify --bundle my-api
+specfact spec contract verify --bundle my-api
 ```
 
 **What this does:**
@@ -28,7 +32,7 @@ specfact contract verify --bundle my-api
 Use `contract verify` to ensure your contract is correct:
 
 ```bash
-specfact contract verify --bundle my-api --feature FEATURE-001
+specfact spec contract verify --bundle my-api --feature FEATURE-001
 ```
 
 **Output:**
@@ -63,10 +67,10 @@ Start a mock server that generates responses from your contract:
 
 ```bash
 # Start mock server with examples
-specfact contract serve --bundle my-api --feature FEATURE-001 --examples
+specfact spec contract serve --bundle my-api --feature FEATURE-001 --examples
 
 # Or use the verify command (starts mock server automatically)
-specfact contract verify --bundle my-api --feature FEATURE-001
+specfact spec contract verify --bundle my-api --feature FEATURE-001
 ```
 
 **Use cases:**
@@ -81,10 +85,10 @@ Validate that your contract schema is correct:
 
 ```bash
 # Validate a specific contract
-specfact contract validate --bundle my-api --feature FEATURE-001
+specfact spec contract validate --bundle my-api --feature FEATURE-001
 
 # Check coverage across all contracts
-specfact contract coverage --bundle my-api
+specfact spec contract coverage --bundle my-api
 ```
 
 ## Complete Workflow Examples
@@ -93,13 +97,13 @@ specfact contract coverage --bundle my-api
 
 ```bash
 # 1. Create a new contract
-specfact contract init --bundle my-api --feature FEATURE-001
+specfact spec contract init --bundle my-api --feature FEATURE-001
 
 # 2. Edit the contract file
 # Edit: .specfact/projects/my-api/contracts/FEATURE-001.openapi.yaml
 
 # 3. Verify everything works
-specfact contract verify --bundle my-api --feature FEATURE-001
+specfact spec contract verify --bundle my-api --feature FEATURE-001
 
 # 4. Test your client code against the mock server
 curl http://localhost:9000/api/endpoint
@@ -109,20 +113,20 @@ curl http://localhost:9000/api/endpoint
 
 ```bash
 # Validate contracts without starting mock server
-specfact contract verify --bundle my-api --skip-mock --no-interactive
+specfact spec contract verify --bundle my-api --skip-mock --no-interactive
 
 # Or just validate
-specfact contract validate --bundle my-api --no-interactive
+specfact spec contract validate --bundle my-api --no-interactive
 ```
 
 ### Example 3: Multiple Contracts
 
 ```bash
 # Verify all contracts in a bundle
-specfact contract verify --bundle my-api
+specfact spec contract verify --bundle my-api
 
 # Check coverage
-specfact contract coverage --bundle my-api
+specfact spec contract coverage --bundle my-api
 ```
 
 ## What Requires a Real API
@@ -148,7 +152,7 @@ specmatic test \
 
 ```bash
 # 1. Generate test files
-specfact contract test --bundle my-api --feature FEATURE-001
+specfact spec contract test --bundle my-api --feature FEATURE-001
 
 # 2. Start your real API
 python -m uvicorn main:app --port 8000
@@ -166,7 +170,7 @@ specmatic test \
 The simplest way to verify your contract:
 
 ```bash
-specfact contract verify [OPTIONS]
+specfact spec contract verify [OPTIONS]
 
 Options:
   --bundle TEXT          Project bundle name
@@ -186,7 +190,7 @@ Options:
 ### `contract validate` - Schema Validation
 
 ```bash
-specfact contract validate --bundle my-api --feature FEATURE-001
+specfact spec contract validate --bundle my-api --feature FEATURE-001
 ```
 
 Validates the OpenAPI schema structure.
@@ -194,7 +198,7 @@ Validates the OpenAPI schema structure.
 ### `contract serve` - Mock Server
 
 ```bash
-specfact contract serve --bundle my-api --feature FEATURE-001 --examples
+specfact spec contract serve --bundle my-api --feature FEATURE-001 --examples
 ```
 
 Starts a mock server that generates responses from your contract.
@@ -202,7 +206,7 @@ Starts a mock server that generates responses from your contract.
 ### `contract coverage` - Coverage Report
 
 ```bash
-specfact contract coverage --bundle my-api
+specfact spec contract coverage --bundle my-api
 ```
 
 Shows contract coverage metrics across all features.
@@ -210,7 +214,7 @@ Shows contract coverage metrics across all features.
 ### `contract test` - Generate Tests
 
 ```bash
-specfact contract test --bundle my-api --feature FEATURE-001
+specfact spec contract test --bundle my-api --feature FEATURE-001
 ```
 
 Generates test files that can be run against a real API.
@@ -244,7 +248,7 @@ npm install -g @specmatic/specmatic
 cat .specfact/projects/my-api/contracts/FEATURE-001.openapi.yaml
 
 # Validate manually
-specfact contract validate --bundle my-api --feature FEATURE-001
+specfact spec contract validate --bundle my-api --feature FEATURE-001
 ```
 
 ### Examples Not Generated

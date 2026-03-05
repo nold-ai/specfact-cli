@@ -29,14 +29,14 @@ Detailed use cases and examples for SpecFact CLI.
 
 ```bash
 # CI/CD mode (fast, deterministic) - Full repository
-specfact import from-code \
+specfact project import from-code \
   --repo . \
   --shadow-only \
   --confidence 0.7 \
   --report analysis.md
 
 # Partial analysis (large codebases or monorepos)
-specfact import from-code \
+specfact project import from-code \
   --repo . \
   --entry-point src/core \
   --confidence 0.7 \
@@ -105,10 +105,10 @@ Keep plan artifacts updated as code changes:
 
 ```bash
 # One-time sync
-specfact sync repository --repo . --target .specfact
+specfact project sync repository --repo . --target .specfact
 
 # Continuous watch mode
-specfact sync repository --repo . --watch --interval 5
+specfact project sync repository --repo . --watch --interval 5
 ```
 
 **What it tracks:**
@@ -120,7 +120,7 @@ specfact sync repository --repo . --watch --interval 5
 #### 4. Compare with Manual Plan (if exists)
 
 ```bash
-specfact plan compare \
+specfact project plan compare \
   --manual .specfact/projects/manual-plan \
   --auto .specfact/projects/auto-derived \
   --output-format markdown \
@@ -180,13 +180,13 @@ Focus on:
 
 ```bash
 # Week 1-2: Shadow mode (observe)
-specfact enforce stage --preset minimal
+specfact govern enforce stage --preset minimal
 
 # Week 3-4: Balanced mode (warn on medium, block high)
-specfact enforce stage --preset balanced
+specfact govern enforce stage --preset balanced
 
 # Week 5+: Strict mode (block medium+)
-specfact enforce stage --preset strict
+specfact govern enforce stage --preset strict
 ```
 
 ### Expected Timeline (Brownfield Modernization)
@@ -210,7 +210,7 @@ specfact enforce stage --preset strict
 #### 1. Preview Migration
 
 ```bash
-specfact import from-bridge --adapter speckit --repo ./spec-kit-project --dry-run
+specfact project import from-bridge --adapter speckit --repo ./spec-kit-project --dry-run
 ```
 
 **Expected Output:**
@@ -236,7 +236,7 @@ specfact import from-bridge --adapter speckit --repo ./spec-kit-project --dry-ru
 #### 2. Execute Migration
 
 ```bash
-specfact import from-bridge \
+specfact project import from-bridge \
   --adapter speckit \
   --repo ./spec-kit-project \
   --write \
@@ -247,7 +247,7 @@ specfact import from-bridge \
 
 ```bash
 # Review using CLI commands
-specfact plan review <bundle-name>
+specfact project plan review <bundle-name>
 ```
 
 Review:
@@ -264,13 +264,13 @@ Before syncing, ensure you have a valid constitution:
 
 ```bash
 # Auto-generate from repository analysis (recommended for brownfield)
-specfact sdd constitution bootstrap --repo .
+specfact spec sdd constitution bootstrap --repo .
 
 # Validate completeness
-specfact sdd constitution validate
+specfact spec sdd constitution validate
 
 # Or enrich existing minimal constitution
-specfact sdd constitution enrich --repo .
+specfact spec sdd constitution enrich --repo .
 ```
 
 **Note**: The `sync bridge --adapter speckit` command will detect if the constitution is missing or minimal and suggest bootstrap automatically.
@@ -281,10 +281,10 @@ Keep Spec-Kit and SpecFact synchronized:
 
 ```bash
 # One-time bidirectional sync
-specfact sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional
+specfact project sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional
 
 # Continuous watch mode
-specfact sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional --watch --interval 5
+specfact project sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional --watch --interval 5
 ```
 
 **What it syncs:**
@@ -299,23 +299,23 @@ specfact sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirec
 
 ```bash
 # Start in shadow mode (observe only)
-specfact enforce stage --preset minimal
+specfact govern enforce stage --preset minimal
 
 # After stabilization, enable warnings
-specfact enforce stage --preset balanced
+specfact govern enforce stage --preset balanced
 
 # For production, enable strict mode
-specfact enforce stage --preset strict
+specfact govern enforce stage --preset strict
 ```
 
 #### 7. Validate
 
 ```bash
 # First-time setup: Configure CrossHair for contract exploration
-specfact repro setup
+specfact code repro setup
 
 # Run validation
-specfact repro --verbose
+specfact code repro --verbose
 ```
 
 ### Expected Timeline (Spec-Kit Migration)
@@ -340,7 +340,7 @@ specfact repro --verbose
 
 ```bash
 # Standard interactive mode
-specfact plan init --interactive
+specfact project plan init --interactive
 
 # CoPilot mode (enhanced prompts)
 specfact --mode copilot plan init --interactive
@@ -381,7 +381,7 @@ What are the release objectives? (comma-separated)
 
 ```bash
 # Add feature
-specfact plan add-feature \
+specfact project plan add-feature \
   --key FEATURE-001 \
   --title "WebSocket Server" \
   --outcomes "Handle 1000 concurrent connections" \
@@ -389,7 +389,7 @@ specfact plan add-feature \
   --acceptance "Given client connection, When message sent, Then delivered within 100ms"
 
 # Add story
-specfact plan add-story \
+specfact project plan add-story \
   --feature FEATURE-001 \
   --key STORY-001 \
   --title "Connection handling" \
@@ -439,20 +439,20 @@ transitions:
 #### 4. Enable Strict Enforcement
 
 ```bash
-specfact enforce stage --preset strict
+specfact govern enforce stage --preset strict
 ```
 
 #### 5. Validate Continuously
 
 ```bash
 # First-time setup: Configure CrossHair for contract exploration
-specfact repro setup
+specfact code repro setup
 
 # During development
-specfact repro
+specfact code repro
 
 # In CI/CD
-specfact repro --budget 120 --verbose
+specfact code repro --budget 120 --verbose
 ```
 
 ### Expected Timeline (Greenfield Development)
@@ -516,10 +516,10 @@ jobs:
         run: pip install specfact-cli
 
       - name: Set up CrossHair Configuration
-        run: specfact repro setup
+        run: specfact code repro setup
 
       - name: Run Contract Validation
-        run: specfact repro --verbose --budget 90
+        run: specfact code repro --verbose --budget 90
 
       - name: Generate PR Comment
         if: github.event_name == 'pull_request'
@@ -562,15 +562,15 @@ analysis:
 
 ```bash
 # Before pushing
-specfact repro --verbose
+specfact code repro --verbose
 
 # Apply auto-fixes for violations
-specfact repro --fix --verbose
+specfact code repro --fix --verbose
 
 # If issues found
-specfact enforce stage --preset minimal  # Temporarily allow
+specfact govern enforce stage --preset minimal  # Temporarily allow
 # Fix issues
-specfact enforce stage --preset balanced  # Re-enable
+specfact govern enforce stage --preset balanced  # Re-enable
 ```
 
 #### 4. Monitor PR Checks
@@ -605,10 +605,10 @@ In a shared repository:
 
 ```bash
 # Create shared plan
-specfact plan init --interactive
+specfact project plan init --interactive
 
 # Add common features
-specfact plan add-feature \
+specfact project plan add-feature \
   --key FEATURE-COMMON-001 \
   --title "API Standards" \
   --outcomes "Consistent REST patterns" \
@@ -629,7 +629,7 @@ cp ../shared-contracts/plan.bundle.yaml contracts/shared/
 
 ```bash
 # In each service
-specfact plan compare \
+specfact project plan compare \
   --manual contracts/shared/plan.bundle.yaml \
   --auto contracts/service/plan.bundle.yaml \
   --output-format markdown
@@ -639,11 +639,11 @@ specfact plan compare \
 
 ```bash
 # First-time setup: Configure CrossHair for contract exploration
-specfact repro setup
+specfact code repro setup
 
 # Add to CI
-specfact repro
-specfact plan compare --manual contracts/shared/plan.bundle.yaml --auto .
+specfact code repro
+specfact project plan compare --manual contracts/shared/plan.bundle.yaml --auto .
 ```
 
 ### Expected Benefits

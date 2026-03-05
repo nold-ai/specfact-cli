@@ -170,13 +170,12 @@ Start with:
 
 ## Modules and Capabilities
 
-**Core modules**
+**Core runtime**
 
-- **Analyze**: Extract specs and plans from existing code.
-- **Validate**: Enforce contracts, run reproducible checks, and block regressions.
-- **Report**: CI/CD summaries and evidence outputs.
+- **Permanent commands**: `init`, `module`, `upgrade`
+- **Core responsibilities**: lifecycle, registry, trust, contracts, orchestration, shared runtime utilities
 
-**Agile DevOps modules**
+**Marketplace-installed bundles**
 
 - **Backlog**: Refinement, dependency analysis, sprint summaries, risk rollups.
 - **Ceremony**: Standup, refinement, and planning entry points.
@@ -199,7 +198,8 @@ For technical architecture details (module lifecycle, registry internals, adapte
 
 SpecFact ships official bundle packages via the dedicated marketplace registry repository
 `nold-ai/specfact-cli-modules`.
-Bundle/module docs now live in the modules repository docs site:
+Bundle-specific docs are still temporarily hosted in this docs set while the long-term
+bundle docs home is prepared in the modules repository docs site:
 `https://nold-ai.github.io/specfact-cli-modules/`.
 
 Install examples:
@@ -224,6 +224,10 @@ auto-install dependencies:
 
 - `nold-ai/specfact-spec` pulls `nold-ai/specfact-project`
 - `nold-ai/specfact-govern` pulls `nold-ai/specfact-project`
+
+Use this repo's docs for the current CLI/runtime release branch. Module-specific guides
+will move to `specfact-cli-modules` so future bundle-only changes do not require ongoing
+docs maintenance in long-lived `specfact-cli` release branches.
 
 ---
 

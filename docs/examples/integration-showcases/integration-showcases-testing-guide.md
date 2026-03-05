@@ -159,7 +159,7 @@ def process_payment(request):
       - **Suggested plan name for Example 1**: `Payment Processing` or `Legacy Payment View`
    3. **CLI Execution**: The AI will:
       - Sanitize the name (lowercase, remove spaces/special chars)
-      - Run `specfact import from-code <sanitized-name> --repo <workspace> --confidence 0.5`
+      - Run `specfact project import from-code <sanitized-name> --repo <workspace> --confidence 0.5`
       - Capture CLI output and create a project bundle
    4. **CLI Output Summary**: The AI will present a summary showing:
       - Bundle name used
@@ -193,7 +193,7 @@ def process_payment(request):
    3. **Apply Enrichment**: The AI will run:
 
       ```bash
-      specfact import from-code <name> --repo <workspace> --enrichment .specfact/projects/<name>/reports/enrichment/<name>-<timestamp>.enrichment.md --confidence 0.5
+      specfact project import from-code <name> --repo <workspace> --enrichment .specfact/projects/<name>/reports/enrichment/<name>-<timestamp>.enrichment.md --confidence 0.5
       ```
 
    4. **Enriched Project Bundle**: The CLI will update:
@@ -229,7 +229,7 @@ uvx specfact-cli@latest --no-banner import from-code --repo . --output-format ya
 - **Important**: `--no-banner` is a global parameter and must come **before** the subcommand, not after
   - ✅ Correct: `specfact --no-banner enforce stage --preset balanced`
   - ✅ Correct: `uvx specfact-cli@latest --no-banner import from-code --repo . --output-format yaml`
-  - ❌ Wrong: `specfact enforce stage --preset balanced --no-banner`
+  - ❌ Wrong: `specfact govern enforce stage --preset balanced --no-banner`
   - ❌ Wrong: `uvx specfact-cli@latest import from-code --repo . --output-format yaml --no-banner`
 
 **Note**: The `import from-code` command analyzes the entire repository/directory, not individual files. It will automatically detect and analyze all Python files in the current directory.
@@ -238,7 +238,7 @@ uvx specfact-cli@latest --no-banner import from-code --repo . --output-format ya
 
 **CLI vs Interactive Mode**:
 
-- **CLI-only** (`uvx specfact-cli@latest import from-code` or `specfact import from-code`): Uses AST-based analyzer (CI/CD mode)
+- **CLI-only** (`uvx specfact-cli@latest import from-code` or `specfact project import from-code`): Uses AST-based analyzer (CI/CD mode)
   - May show "0 features" for minimal test cases
   - Limited to AST pattern matching
   - Works but may not detect all features in simple examples
@@ -1040,7 +1040,7 @@ Report written to: .specfact/projects/<bundle-name>/reports/enforcement/report-<
   - Type checking (basedpyright) - type annotations and type safety
 
 - **Conditionally runs** (only if present):
-  - Contract exploration (CrossHair) - only if `[tool.crosshair]` config exists in `pyproject.toml` (use `specfact repro setup` to generate) and `src/` directory exists (symbolic execution to find counterexamples, not runtime contract validation)
+  - Contract exploration (CrossHair) - only if `[tool.crosshair]` config exists in `pyproject.toml` (use `specfact code repro setup` to generate) and `src/` directory exists (symbolic execution to find counterexamples, not runtime contract validation)
   - Semgrep async patterns - only if `tools/semgrep/async.yml` exists (requires semgrep installed)
   - Property tests (pytest) - only if `tests/contracts/` directory exists
   - Smoke tests (pytest) - only if `tests/smoke/` directory exists
@@ -1048,7 +1048,7 @@ Report written to: .specfact/projects/<bundle-name>/reports/enforcement/report-<
 **CrossHair Setup**: Before running `repro` for the first time, set up CrossHair configuration:
 
 ```bash
-specfact repro setup
+specfact code repro setup
 ```
 This automatically generates `[tool.crosshair]` configuration in `pyproject.toml` to enable contract exploration.
 
@@ -1061,7 +1061,7 @@ This automatically generates `[tool.crosshair]` configuration in `pyproject.toml
 1. ✅ Created plan bundle from code (`import from-code`)
 2. ✅ Enriched plan with semantic understanding (if using interactive mode)
 3. ✅ Configured enforcement (balanced preset)
-4. ✅ Ran validation suite (`specfact repro`)
+4. ✅ Ran validation suite (`specfact code repro`)
 5. ✅ Validation checks executed (linting, type checking, contract exploration)
 
 **Expected Test Results**:
@@ -1078,7 +1078,7 @@ This automatically generates `[tool.crosshair]` configuration in `pyproject.toml
 - ✅ **Type Safety**: Type checking detects mismatches before merge
 - ✅ **PR Blocking**: Workflow fails (exit code 1) when violations are found
 
-**Validation Status**: Example 3 is **fully validated** in production CI/CD. The GitHub Actions workflow runs `specfact repro` in the specfact-cli repository and successfully:
+**Validation Status**: Example 3 is **fully validated** in production CI/CD. The GitHub Actions workflow runs `specfact code repro` in the specfact-cli repository and successfully:
 
 - ✅ Runs linting (ruff) checks
 - ✅ Runs async pattern detection (Semgrep)
@@ -1650,12 +1650,12 @@ rm -rf specfact-integration-tests
 
 ### Example 3: GitHub Actions Integration - ✅ **FULLY VALIDATED**
 
-**Status**: Fully validated in production CI/CD - workflow runs `specfact repro` in GitHub Actions and successfully blocks PRs when validation fails
+**Status**: Fully validated in production CI/CD - workflow runs `specfact code repro` in GitHub Actions and successfully blocks PRs when validation fails
 
 **What's Validated**:
 
-- ✅ GitHub Actions workflow configuration (uses `pip install specfact-cli`, includes `specfact repro`)
-- ✅ `specfact repro` command execution in CI/CD environment
+- ✅ GitHub Actions workflow configuration (uses `pip install specfact-cli`, includes `specfact code repro`)
+- ✅ `specfact code repro` command execution in CI/CD environment
 - ✅ Validation checks execution (linting, type checking, Semgrep, CrossHair)
 - ✅ Type checking error detection (basedpyright detects type mismatches)
 - ✅ PR blocking when validation fails (exit code 1 blocks merge)
@@ -1674,7 +1674,7 @@ rm -rf specfact-integration-tests
 - Type checking (basedpyright): ✗ FAILED (detects type errors correctly)
 - Contract exploration (CrossHair): ⊘ SKIPPED (signature analysis limitation, non-blocking)
 
-**Conclusion**: Example 3 is **fully validated** in production CI/CD. The GitHub Actions workflow successfully runs `specfact repro` and blocks PRs when validation fails. The workflow demonstrates how SpecFact integrates into CI/CD pipelines to prevent bad code from merging.
+**Conclusion**: Example 3 is **fully validated** in production CI/CD. The GitHub Actions workflow successfully runs `specfact code repro` and blocks PRs when validation fails. The workflow demonstrates how SpecFact integrates into CI/CD pipelines to prevent bad code from merging.
 
 ### Example 5: Agentic Workflows - ⏳ **PENDING VALIDATION**
 

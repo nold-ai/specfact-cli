@@ -144,7 +144,7 @@ Add new feature X to improve user experience.
 EOF
 
 # Step 2: Export to GitHub Issues
-specfact sync bridge --adapter github --mode export-only \
+specfact project sync bridge --adapter github --mode export-only \
   --repo-owner your-org \
   --repo-name your-repo \
   --repo /path/to/openspec-repo
@@ -167,7 +167,7 @@ sequenceDiagram
     participant GH as GitHub Issues
     
     Dev->>OS: Create change proposal<br/>openspec/changes/add-feature-x/
-    Dev->>SF: specfact sync bridge --adapter github
+    Dev->>SF: specfact project sync bridge --adapter github
     SF->>OS: Read proposal.md
     SF->>GH: Create issue from proposal
     GH-->>SF: Issue #123 created
@@ -176,7 +176,7 @@ sequenceDiagram
     Note over Dev,GH: Implementation Phase
     
     Dev->>Dev: Make commits with change ID
-    Dev->>SF: specfact sync bridge --track-code-changes
+    Dev->>SF: specfact project sync bridge --track-code-changes
     SF->>SF: Detect commits mentioning<br/>change ID
     SF->>GH: Add progress comment<br/>to issue #123
     GH-->>Dev: Progress visible in issue
@@ -208,7 +208,7 @@ Read-only sync from OpenSpec to SpecFact for change proposal tracking:
 
 ```bash
 # Sync OpenSpec change proposals to SpecFact
-specfact sync bridge --adapter openspec --mode read-only \
+specfact project sync bridge --adapter openspec --mode read-only \
   --bundle my-project \
   --repo /path/to/openspec-repo
 
@@ -264,7 +264,7 @@ Full bidirectional sync between OpenSpec and SpecFact:
 
 ```bash
 # Bidirectional sync (future)
-specfact sync bridge --adapter openspec --bidirectional \
+specfact project sync bridge --adapter openspec --bidirectional \
   --bundle my-project \
   --repo /path/to/openspec-repo \
   --watch
@@ -312,7 +312,7 @@ Here's how to use both tools together for legacy code modernization:
 
 ```bash
 # Step 1: Analyze legacy code with SpecFact
-specfact import from-code legacy-api --repo ./legacy-app
+specfact project import from-code legacy-api --repo ./legacy-app
 # → Extracts features from existing code
 # → Creates SpecFact bundle: .specfact/projects/legacy-api/
 
@@ -335,7 +335,7 @@ Legacy API needs modernization for better performance and maintainability.
 EOF
 
 # Step 3: Export proposal to GitHub Issues ✅ IMPLEMENTED
-specfact sync bridge --adapter github --mode export-only \
+specfact project sync bridge --adapter github --mode export-only \
   --repo-owner your-org \
   --repo-name your-repo \
   --repo /path/to/openspec-repo
@@ -344,7 +344,7 @@ specfact sync bridge --adapter github --mode export-only \
 git commit -m "feat: modernize-api - refactor endpoints"
 
 # Step 5: Track progress ✅ IMPLEMENTED
-specfact sync bridge --adapter github --mode export-only \
+specfact project sync bridge --adapter github --mode export-only \
   --repo-owner your-org \
   --repo-name your-repo \
   --track-code-changes \
@@ -352,14 +352,14 @@ specfact sync bridge --adapter github --mode export-only \
   --code-repo /path/to/source-code-repo
 
 # Step 6: Sync OpenSpec change proposals ✅ AVAILABLE
-specfact sync bridge --adapter openspec --mode read-only \
+specfact project sync bridge --adapter openspec --mode read-only \
   --bundle legacy-api \
   --repo /path/to/openspec-repo
 # → Generates alignment report
 # → Shows gaps between OpenSpec specs and code
 
 # Step 7: Add runtime contracts
-specfact enforce stage --preset balanced
+specfact govern enforce stage --preset balanced
 
 # Step 8: Archive completed change
 openspec archive modernize-api

@@ -75,12 +75,12 @@ SpecFact CLI **complements Spec-Kit** by adding automation and enforcement:
 
 ```bash
 # Read-only sync from OpenSpec to SpecFact (v0.22.0+)
-specfact sync bridge --adapter openspec --mode read-only \
+specfact project sync bridge --adapter openspec --mode read-only \
   --bundle my-project \
   --repo /path/to/openspec-repo
 
 # Export OpenSpec change proposals to GitHub Issues
-specfact sync bridge --adapter github --mode export-only \
+specfact project sync bridge --adapter github --mode export-only \
   --repo-owner your-org \
   --repo-name your-repo \
   --repo /path/to/openspec-repo
@@ -93,7 +93,7 @@ specfact sync bridge --adapter github --mode export-only \
 Already using Spec-Kit? SpecFact CLI **imports your work** in one command:
 
 ```bash
-specfact import from-bridge --adapter speckit --repo ./my-speckit-project --write
+specfact project import from-bridge --adapter speckit --repo ./my-speckit-project --write
 ```
 
 **Result**: Your Spec-Kit artifacts (spec.md, plan.md, tasks.md) become production-ready contracts with zero manual work.
@@ -102,24 +102,24 @@ specfact import from-bridge --adapter speckit --repo ./my-speckit-project --writ
 
 ```bash
 # Enable bidirectional sync (bridge-based, adapter-agnostic)
-specfact sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional --watch
+specfact project sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional --watch
 ```
 
 **Best of both worlds**: Interactive authoring (Spec-Kit) + Automated enforcement (SpecFact)
 
-**Note**: SpecFact CLI uses a plugin-based adapter registry pattern. All adapters (Spec-Kit, OpenSpec, GitHub, etc.) are registered in `AdapterRegistry` and accessed via `specfact sync bridge --adapter <adapter-name>`, making the architecture extensible for future tool integrations.
+**Note**: SpecFact CLI uses a plugin-based adapter registry pattern. All adapters (Spec-Kit, OpenSpec, GitHub, etc.) are registered in `AdapterRegistry` and accessed via `specfact project sync bridge --adapter <adapter-name>`, making the architecture extensible for future tool integrations.
 
 **Team collaboration**: **Shared structured plans** enable multiple developers to work on the same plan with automated deviation detection. Unlike Spec-Kit's manual markdown sharing, SpecFact provides automated bidirectional sync that keeps plans synchronized across team members:
 
 ```bash
 # Enable bidirectional sync for team collaboration
-specfact sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional --watch
+specfact project sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional --watch
 # → Automatically syncs Spec-Kit artifacts ↔ SpecFact project bundles
 # → Multiple developers can work on the same plan with automated synchronization
 # → No manual markdown sharing required
 
 # Detect code vs plan drift automatically
-specfact plan compare --bundle legacy-api --code-vs-plan
+specfact project plan compare --bundle legacy-api --code-vs-plan
 # → Compares intended design (manual plan = what you planned) vs actual implementation (code-derived plan = what's in your code)
 # → Auto-derived plans come from `import from-code` (code analysis), so comparison IS "code vs plan drift"
 # → Identifies deviations automatically (not just artifact consistency like Spec-Kit's /speckit.analyze)
@@ -209,7 +209,7 @@ transitions:
 
 ```bash
 # PR includes reproducible evidence
-specfact repro --budget 120 --report evidence.md
+specfact code repro --budget 120 --report evidence.md
 ```
 
 ### 3. Brownfield-First ⭐ PRIMARY
@@ -222,11 +222,11 @@ specfact repro --budget 120 --report evidence.md
 
 ```bash
 # Primary use case: Analyze legacy code
-specfact import from-code legacy-api --repo ./legacy-app
+specfact project import from-code legacy-api --repo ./legacy-app
 
 # Extract specs from existing code in < 10 seconds
 # Then enforce contracts to prevent regressions
-specfact enforce stage --preset balanced
+specfact govern enforce stage --preset balanced
 ```
 
 **How it complements Spec-Kit**: Spec-Kit focuses on new feature authoring (greenfield); SpecFact CLI's **primary focus** is brownfield code modernization with runtime enforcement.
@@ -241,7 +241,7 @@ specfact enforce stage --preset balanced
 
 ```bash
 # Detect code vs plan drift automatically
-specfact plan compare --bundle legacy-api --code-vs-plan
+specfact project plan compare --bundle legacy-api --code-vs-plan
 # → Compares intended design (manual plan = what you planned) vs actual implementation (code-derived plan = what's in your code)
 # → Auto-derived plans come from `import from-code` (code analysis), so comparison IS "code vs plan drift"
 # → Identifies deviations automatically (not just artifact consistency like Spec-Kit's /speckit.analyze)
@@ -259,7 +259,7 @@ specfact plan compare --bundle legacy-api --code-vs-plan
 
 ```bash
 # Generate reproducible evidence
-specfact repro --report evidence.md
+specfact code repro --report evidence.md
 ```
 
 ### 6. Offline-First
@@ -307,7 +307,7 @@ uvx specfact-cli@latest plan init --interactive
 
 ```bash
 # Primary use case: Analyze legacy codebase
-specfact import from-code legacy-api --repo ./legacy-app
+specfact project import from-code legacy-api --repo ./legacy-app
 ```
 
 See [Use Cases: Brownfield Modernization](use-cases.md#use-case-1-brownfield-code-modernization-primary) ⭐
@@ -317,7 +317,7 @@ See [Use Cases: Brownfield Modernization](use-cases.md#use-case-1-brownfield-cod
 **One-command import**:
 
 ```bash
-specfact import from-bridge --adapter speckit --repo . --write
+specfact project import from-bridge --adapter speckit --repo . --write
 ```
 
 See [Use Cases: Spec-Kit Migration](use-cases.md#use-case-2-github-spec-kit-migration-secondary)
@@ -327,9 +327,9 @@ See [Use Cases: Spec-Kit Migration](use-cases.md#use-case-2-github-spec-kit-migr
 **Add validation layer**:
 
 1. Let AI generate code as usual
-2. Run `specfact import from-code --repo .` (auto-detects CoPilot mode)
+2. Run `specfact project import from-code --repo .` (auto-detects CoPilot mode)
 3. Review auto-generated plan
-4. Enable `specfact enforce stage --preset balanced`
+4. Enable `specfact govern enforce stage --preset balanced`
 
 **With CoPilot Integration:**
 
@@ -351,7 +351,7 @@ SpecFact CLI automatically detects CoPilot and switches to enhanced mode.
 
 **Greenfield approach**:
 
-1. `specfact plan init legacy-api --interactive`
+1. `specfact project plan init legacy-api --interactive`
 2. Add features and stories
 3. Enable strict enforcement
 4. Let SpecFact guide development

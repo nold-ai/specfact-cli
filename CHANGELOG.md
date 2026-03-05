@@ -32,6 +32,7 @@ All notable changes to this project will be documented in this file.
 - Module source relocation to bundle namespaces with compatibility shims: legacy `specfact_cli.modules.*` imports now re-export from `specfact_<bundle>.*` namespaces during migration.
 - Official module install output now explicitly confirms verification status (`Verified: official (nold-ai)`).
 - Documentation updates across getting-started, docs landing page, module categories, marketplace guides, layout navigation, and root README to reflect marketplace-distributed official bundles.
+- Full docs alignment audit for the lean-core plus modules-repo architecture (OpenSpec change `docs-01-core-modules-docs-alignment`, issue [#348](https://github.com/nold-ai/specfact-cli/issues/348)): README, docs landing pages, reference pages, tutorials, and publishing/signing guidance were reviewed and corrected so command examples use grouped command paths, bundle ownership is attributed to `specfact-cli-modules`, and temporary-in-core module docs are explicitly marked for future migration.
 - Core help/registry behavior now mounts category groups only for installed bundles, preventing non-installed groups from appearing at top level.
 - Marketplace package loader now resolves namespaced command entrypoints (`src/<package>/<command>/app.py`) for installed modules.
 - Installed bundle detection now infers `specfact-*` bundle IDs from namespaced module names when manifest `bundle` metadata is absent.

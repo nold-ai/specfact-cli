@@ -22,8 +22,8 @@ Most tools help **either** coders **or** agile teams. SpecFact does both:
 Recommended command entrypoints:
 - `specfact backlog ceremony standup ...`
 - `specfact backlog ceremony refinement ...`
-- `specfact policy validate ...`
-- `specfact policy suggest ...`
+- `specfact backlog policy validate ...`
+- `specfact backlog policy suggest ...`
 
 What the Policy Engine does in practice:
 - Converts team working agreements (DoR, DoD, flow/PI readiness) into deterministic checks.
@@ -31,9 +31,9 @@ What the Policy Engine does in practice:
 - Produces patch-ready suggestions so teams can remediate quickly.
 
 Start with:
-- `specfact policy init --template scrum`
-- `specfact policy validate --group-by-item`
-- `specfact policy suggest --group-by-item --limit 5`
+- `specfact backlog policy init --template scrum`
+- `specfact backlog policy validate --group-by-item`
+- `specfact backlog policy suggest --group-by-item --limit 5`
 
 **Try it now**
 
@@ -55,13 +55,12 @@ Start with:
 
 ## Modules and Capabilities
 
-**Core modules**
+**Core runtime**
 
-- **Analyze**: Extract specs and plans from existing code.
-- **Validate**: Enforce contracts, run reproducible checks, and block regressions.
-- **Report**: CI/CD summaries and evidence outputs.
+- **Permanent commands**: `init`, `module`, `upgrade`
+- **Core responsibilities**: lifecycle, registry, trust, contracts, orchestration, shared runtime utilities
 
-**Agile DevOps modules**
+**Marketplace-installed bundles**
 
 - **Backlog**: Refinement, dependency analysis, sprint summaries, risk rollups.
 - **Ceremony**: Standup, refinement, and planning entry points.
@@ -85,12 +84,16 @@ SpecFact CLI uses a lifecycle-managed module system:
 
 This is the baseline for marketplace-driven module lifecycle and future community module distribution.
 
+Module-specific guides are still temporarily hosted in this docs set while the long-term
+bundle docs home is prepared in `nold-ai/specfact-cli-modules`.
+
 ### Why the Module System Is the Foundation
 
 This architecture intentionally separates the CLI core from feature modules:
 
 - Core provides lifecycle, registry, contracts, and orchestration.
-- Modules provide feature-specific command logic and integrations.
+- Official workflow bundles are authored and released from `nold-ai/specfact-cli-modules`.
+- This docs set still hosts bundle-specific guidance temporarily for the `0.40.x` release line.
 - Compatibility shims preserve legacy import paths during migration windows.
 
 Practical outcomes:

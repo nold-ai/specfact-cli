@@ -6,6 +6,10 @@ permalink: /guides/custom-field-mapping/
 
 # Custom Field Mapping Guide
 
+
+> Temporary docs note: this bundle-focused page remains hosted in the core docs set for the
+> current release line and is planned to migrate to `specfact-cli-modules`.
+
 > **Customize ADO field mappings** for your specific Azure DevOps process templates and agile frameworks.
 
 This guide explains how to create and use custom field mapping configurations to adapt SpecFact CLI to your organization's specific Azure DevOps field names and work item types.

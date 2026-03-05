@@ -29,7 +29,7 @@ This guide maps common user goals to recommended SpecFact CLI commands or comman
 **Quick Example**:
 
 ```bash
-specfact import from-code legacy-api --repo .
+specfact project import from-code legacy-api --repo .
 ```
 
 **Detailed Guide**: [Brownfield Engineer Guide](brownfield-engineer.md)
@@ -45,9 +45,9 @@ specfact import from-code legacy-api --repo .
 **Quick Example**:
 
 ```bash
-specfact plan init new-feature --interactive
-specfact plan add-feature --bundle new-feature --name "User Authentication"
-specfact plan add-story --bundle new-feature --feature <feature-id> --story "As a user, I want to log in"
+specfact project plan init new-feature --interactive
+specfact project plan add-feature --bundle new-feature --name "User Authentication"
+specfact project plan add-story --bundle new-feature --feature <feature-id> --story "As a user, I want to log in"
 ```
 
 **Detailed Guide**: [Agile/Scrum Workflows](agile-scrum-workflows.md)
@@ -63,8 +63,8 @@ specfact plan add-story --bundle new-feature --feature <feature-id> --story "As 
 **Quick Example**:
 
 ```bash
-specfact import from-bridge --repo . --adapter speckit --write
-specfact sync bridge --adapter speckit --bundle <bundle-name> --bidirectional --watch
+specfact project import from-bridge --repo . --adapter speckit --write
+specfact project sync bridge --adapter speckit --bundle <bundle-name> --bidirectional --watch
 ```
 
 **Detailed Guide**: [Spec-Kit Journey](speckit-journey.md) | [OpenSpec Journey](openspec-journey.md)
@@ -80,7 +80,7 @@ specfact sync bridge --adapter speckit --bundle <bundle-name> --bidirectional --
 **Quick Example**:
 
 ```bash
-specfact import from-code legacy-api --repo ./legacy-app
+specfact project import from-code legacy-api --repo ./legacy-app
 ```
 
 **Detailed Guide**: [Brownfield Engineer Guide](brownfield-engineer.md#step-1-understand-what-you-have)
@@ -94,8 +94,8 @@ specfact import from-code legacy-api --repo ./legacy-app
 **Quick Example**:
 
 ```bash
-specfact plan review legacy-api
-specfact plan update-feature --bundle legacy-api --feature <feature-id>
+specfact project plan review legacy-api
+specfact project plan update-feature --bundle legacy-api --feature <feature-id>
 ```
 
 **Detailed Guide**: [Brownfield Engineer Guide](brownfield-engineer.md#step-2-refine-your-plan)
@@ -111,9 +111,9 @@ specfact plan update-feature --bundle legacy-api --feature <feature-id>
 **Quick Example**:
 
 ```bash
-specfact import from-code current-state --repo .
-specfact plan compare --bundle <plan-bundle> --code-vs-plan
-specfact drift detect --bundle <bundle-name>
+specfact project import from-code current-state --repo .
+specfact project plan compare --bundle <plan-bundle> --code-vs-plan
+specfact code drift detect --bundle <bundle-name>
 ```
 
 **Detailed Guide**: [Drift Detection](../reference/commands.md#drift-detect)
@@ -129,9 +129,9 @@ specfact drift detect --bundle <bundle-name>
 **Quick Example**:
 
 ```bash
-specfact generate contracts-prompt --bundle <bundle-name> --feature <feature-id>
+specfact spec generate contracts-prompt --bundle <bundle-name> --feature <feature-id>
 # Then use AI IDE slash command: /specfact-cli/contracts-apply <prompt-file>
-specfact contract coverage --bundle <bundle-name>
+specfact spec contract coverage --bundle <bundle-name>
 ```
 
 **Detailed Guide**: [AI IDE Workflow](ai-ide-workflow.md)
@@ -167,10 +167,10 @@ specfact spec backward-compat --spec openapi.yaml --previous-spec openapi-v1.yam
 
 ```bash
 # Initialize sidecar workspace
-specfact validate sidecar init legacy-api /path/to/django-project
+specfact code validate sidecar init legacy-api /path/to/django-project
 
 # Run validation workflow
-specfact validate sidecar run legacy-api /path/to/django-project
+specfact code validate sidecar run legacy-api /path/to/django-project
 ```
 
 **What it does**:
@@ -278,9 +278,9 @@ specfact project version bump --bundle <bundle-name> --type minor
 **Quick Example**:
 
 ```bash
-specfact plan review <bundle-name>
-specfact enforce sdd --bundle <bundle-name>
-specfact plan promote --bundle <bundle-name> --stage approved
+specfact project plan review <bundle-name>
+specfact govern enforce sdd --bundle <bundle-name>
+specfact project plan promote --bundle <bundle-name> --stage approved
 ```
 
 **Detailed Guide**: [Agile/Scrum Workflows](agile-scrum-workflows.md)
@@ -294,7 +294,7 @@ specfact plan promote --bundle <bundle-name> --stage approved
 **Quick Example**:
 
 ```bash
-specfact plan compare --bundle plan-v1 plan-v2
+specfact project plan compare --bundle plan-v1 plan-v2
 ```
 
 **Detailed Guide**: [Plan Comparison](../reference/commands.md#plan-compare)
@@ -310,7 +310,7 @@ specfact plan compare --bundle plan-v1 plan-v2
 **Quick Example**:
 
 ```bash
-specfact repro --verbose
+specfact code repro --verbose
 ```
 
 **Detailed Guide**: [Validation Workflow](brownfield-engineer.md#step-3-validate-everything)
@@ -324,7 +324,7 @@ specfact repro --verbose
 **Quick Example**:
 
 ```bash
-specfact enforce sdd --bundle <bundle-name>
+specfact govern enforce sdd --bundle <bundle-name>
 ```
 
 **Detailed Guide**: [SDD Enforcement](../reference/commands.md#enforce-sdd)
@@ -340,8 +340,8 @@ specfact enforce sdd --bundle <bundle-name>
 **Quick Example**:
 
 ```bash
-specfact repro --verbose
-specfact generate fix-prompt --bundle <bundle-name> --gap <gap-id>
+specfact code repro --verbose
+specfact spec generate fix-prompt --bundle <bundle-name> --gap <gap-id>
 # Then use AI IDE to apply fixes
 ```
 
@@ -374,7 +374,7 @@ specfact init ide --ide cursor
 **Quick Example**:
 
 ```bash
-specfact generate test-prompt --bundle <bundle-name> --feature <feature-id>
+specfact spec generate test-prompt --bundle <bundle-name> --feature <feature-id>
 # Then use AI IDE slash command: /specfact-cli/test-generate <prompt-file>
 specfact spec generate-tests --spec <spec-file> --output tests/
 ```
@@ -395,12 +395,12 @@ specfact spec generate-tests --spec <spec-file> --output tests/
 
 ```bash
 # Export OpenSpec change proposals to GitHub Issues
-specfact sync bridge --adapter github --bidirectional \
+specfact project sync bridge --adapter github --bidirectional \
   --repo-owner your-org --repo-name your-repo
 
 # Import GitHub Issues as change proposals (automatic with --bidirectional)
 # Track code changes automatically
-specfact sync bridge --adapter github --track-code-changes \
+specfact project sync bridge --adapter github --track-code-changes \
   --repo-owner your-org --repo-name your-repo
 ```
 
@@ -514,15 +514,15 @@ rules:
 
 ```bash
 # Bidirectional sync (export AND import)
-specfact sync bridge --adapter github --bidirectional \
+specfact project sync bridge --adapter github --bidirectional \
   --repo-owner your-org --repo-name your-repo
 
 # Export-only (one-way: OpenSpec → GitHub)
-specfact sync bridge --adapter github --mode export-only \
+specfact project sync bridge --adapter github --mode export-only \
   --repo-owner your-org --repo-name your-repo
 
 # Update existing issue (when proposal already linked to issue)
-specfact sync bridge --adapter github --mode export-only \
+specfact project sync bridge --adapter github --mode export-only \
   --repo-owner your-org --repo-name your-repo \
   --change-ids your-change-id \
   --update-existing
@@ -547,7 +547,7 @@ specfact sync bridge --adapter github --mode export-only \
 
 ```bash
 # Update issue #105 for change proposal 'implement-adapter-enhancement-recommendations'
-specfact sync bridge --adapter github --mode export-only \
+specfact project sync bridge --adapter github --mode export-only \
   --repo-owner nold-ai \
   --repo-name specfact-cli \
   --change-ids implement-adapter-enhancement-recommendations \
@@ -575,7 +575,7 @@ specfact sync bridge --adapter github --mode export-only \
 **Quick Example**:
 
 ```bash
-specfact sync bridge --adapter github --mode export-only --project "SpecFact CLI Development Board"
+specfact project sync bridge --adapter github --mode export-only --project "SpecFact CLI Development Board"
 ```
 
 **Detailed Guide**: [DevOps Adapter Integration](devops-adapter-integration.md)
@@ -610,10 +610,10 @@ specfact --version
 
 ```bash
 # Run validation with verbose output
-specfact repro --verbose
+specfact code repro --verbose
 
 # Check plan for issues
-specfact plan review <bundle-name>
+specfact project plan review <bundle-name>
 ```
 
 **Detailed Guide**: [Troubleshooting](troubleshooting.md)

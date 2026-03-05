@@ -15,7 +15,7 @@ SpecFact publishes official workflow bundles in the dedicated modules repository
 
 ## Official Bundles
 
-These bundles are the primary installation path for workflow commands. Fresh installs start with lean core commands only (`init`, `auth`, `module`, `upgrade`).
+These bundles are the primary installation path for workflow commands. Fresh installs start with lean core commands only (`init`, `module`, `upgrade`).
 
 Install commands:
 
@@ -29,11 +29,11 @@ specfact module install nold-ai/specfact-govern
 
 Bundle overview:
 
-- `nold-ai/specfact-project`: project lifecycle commands (`project`, `plan`, `import`, `sync`, `migrate`)
-- `nold-ai/specfact-backlog`: backlog and policy workflows (`backlog`, `policy`)
-- `nold-ai/specfact-codebase`: codebase analysis and validation (`analyze`, `drift`, `validate`, `repro`)
-- `nold-ai/specfact-spec`: API/spec workflows (`contract`, `api`, `sdd`, `generate`)
-- `nold-ai/specfact-govern`: governance and patch workflows (`enforce`, `patch`)
+- `nold-ai/specfact-project`: grouped project workflows (`project`, `plan`, `import`, `sync`, `migrate`)
+- `nold-ai/specfact-backlog`: grouped backlog workflows (`backlog`, `policy`, `backlog auth`)
+- `nold-ai/specfact-codebase`: grouped code workflows (`analyze`, `drift`, `validate`, `repro`)
+- `nold-ai/specfact-spec`: grouped spec workflows (`contract`, `api`, `sdd`, `generate`)
+- `nold-ai/specfact-govern`: grouped governance workflows (`enforce`, `patch`)
 
 ## Trust Tiers
 
@@ -81,3 +81,6 @@ specfact module init
 - [Module Marketplace](module-marketplace.md)
 - [Installing Modules](installing-modules.md)
 - [Module Categories](../reference/module-categories.md)
+
+> Temporary docs note: bundle-specific marketplace guidance remains hosted in this core docs set
+> for the current release line and is planned to migrate to `specfact-cli-modules`.

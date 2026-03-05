@@ -122,7 +122,7 @@ Start: What do you need to migrate?
 specfact project export --bundle old-bundle --persona <persona>
 
 # Create new bundle
-specfact plan init new-bundle
+specfact project plan init new-bundle
 
 # Import to new bundle (manual editing may be required)
 specfact project import --bundle new-bundle --persona <persona> --source exported.md
@@ -142,10 +142,10 @@ specfact project import --bundle new-bundle --persona <persona> --source exporte
 
 ```bash
 # Upgrade all bundles
-specfact plan upgrade --all
+specfact project plan upgrade --all
 
 # Upgrade specific bundle
-specfact plan upgrade --bundle <bundle-name>
+specfact project plan upgrade --bundle <bundle-name>
 ```
 
 **Benefits**:
@@ -173,10 +173,10 @@ specfact --version
 pip install --upgrade specfact-cli
 
 # 4. Upgrade plan bundles
-specfact plan upgrade --all
+specfact project plan upgrade --all
 
 # 5. Test commands
-specfact plan select --last 5
+specfact project plan select --last 5
 ```
 
 ---
@@ -188,13 +188,13 @@ specfact plan select --last 5
 specfact import from-bridge --repo . --adapter speckit --write
 
 # 2. Review imported plan
-specfact plan review <bundle-name>
+specfact project plan review <bundle-name>
 
 # 3. Set up bidirectional sync (optional)
-specfact sync bridge --adapter speckit --bundle <bundle-name> --bidirectional --watch
+specfact project sync bridge --adapter speckit --bundle <bundle-name> --bidirectional --watch
 
 # 4. Enforce SDD compliance
-specfact enforce sdd --bundle <bundle-name>
+specfact govern enforce sdd --bundle <bundle-name>
 ```
 
 **Related**: [Spec-Kit Journey Guide](speckit-journey.md)
@@ -211,10 +211,10 @@ specfact enforce sdd --bundle <bundle-name>
 
 ```bash
 # Check bundle schema version
-specfact plan select --bundle <bundle-name> --json | jq '.schema_version'
+specfact project plan select --bundle <bundle-name> --json | jq '.schema_version'
 
 # Manual upgrade if needed
-specfact plan upgrade --bundle <bundle-name> --force
+specfact project plan upgrade --bundle <bundle-name> --force
 ```
 
 **Issue**: Imported plans have missing data

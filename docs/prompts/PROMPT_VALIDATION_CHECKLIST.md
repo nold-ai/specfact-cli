@@ -62,7 +62,7 @@ The validator checks:
 - [ ] **Command examples**: Examples show actual CLI usage with correct flags
 - [ ] **Flag documentation**: All flags are documented with defaults and descriptions
 - [ ] **Filter options documented** (for `plan select`): `--current`, `--stages`, `--last`, `--no-interactive` flags are documented with use cases and examples
-- [ ] **Positional vs option arguments**: Correctly distinguishes between positional arguments and `--option` flags (e.g., `specfact plan select 20` not `specfact plan select --plan 20`)
+- [ ] **Positional vs option arguments**: Correctly distinguishes between positional arguments and `--option` flags (e.g., `specfact project plan select 20` not `specfact project plan select --plan 20`)
 - [ ] **Boolean flags documented correctly**: Boolean flags use `--flag/--no-flag` syntax, not `--flag true/false`
   - ❌ **WRONG**: `--draft true` or `--draft false` (Typer boolean flags don't accept values)
   - ✅ **CORRECT**: `--draft` (sets True) or `--no-draft` (sets False) or omit (leaves unchanged)
@@ -112,7 +112,7 @@ The validator checks:
     - [ ] Review feature titles and descriptions for semantic similarity
     - [ ] Identify features that represent the same functionality with different names
     - [ ] Suggest consolidation when multiple features cover the same code/functionality
-    - [ ] Use `specfact plan update-feature` or `specfact plan add-feature` to consolidate
+    - [ ] Use `specfact project plan update-feature` or `specfact project plan add-feature` to consolidate
   - [ ] **Deduplication output**: CLI shows "✓ Removed N duplicate features" - LLM should acknowledge this
   - [ ] **Post-deduplication review**: LLM should review remaining features for semantic duplicates
 - [ ] **Execution steps**: Clear, sequential steps
@@ -189,7 +189,7 @@ For each prompt, test the following scenarios:
 
 1. Invoke `/specfact.03-review legacy-api` with a plan bundle
 2. Verify the LLM:
-   - ✅ Executes `specfact plan review` CLI command
+   - ✅ Executes `specfact project plan review` CLI command
    - ✅ Parses CLI output for ambiguity findings
    - ✅ Waits for user input when questions are asked
    - ✅ Does NOT create clarifications directly in YAML
@@ -202,13 +202,13 @@ For each prompt, test the following scenarios:
 2. Verify the LLM:
    - ✅ **Detects need for enrichment**: Recognizes vague patterns ("is implemented", "System MUST Helper class", generic tasks)
    - ✅ **Suggests or uses `--auto-enrich`**: Either suggests using `--auto-enrich` flag or automatically uses it based on plan quality indicators
-   - ✅ **Executes enrichment**: Runs `specfact plan review <bundle-name> --auto-enrich`
+   - ✅ **Executes enrichment**: Runs `specfact project plan review <bundle-name> --auto-enrich`
    - ✅ **Parses enrichment results**: Captures enrichment summary (features updated, stories updated, acceptance criteria enhanced, etc.)
    - ✅ **Analyzes enrichment quality**: Uses LLM reasoning to review what was enhanced
    - ✅ **Identifies generic patterns**: Finds placeholder text like "interact with the system" that needs refinement
    - ✅ **Proposes specific refinements**: Suggests domain-specific improvements using CLI commands
-   - ✅ **Executes refinements**: Uses `specfact plan update-feature --bundle <bundle-name>` to refine generic improvements
-   - ✅ **Re-runs review**: Executes `specfact plan review` again to verify improvements
+   - ✅ **Executes refinements**: Uses `specfact project plan update-feature --bundle <bundle-name>` to refine generic improvements
+   - ✅ **Re-runs review**: Executes `specfact project plan review` again to verify improvements
 3. Test with explicit enrichment request (e.g., "enrich the plan"):
    - ✅ Uses `--auto-enrich` flag immediately
    - ✅ Reviews enrichment results
@@ -216,9 +216,9 @@ For each prompt, test the following scenarios:
 
 #### Scenario 5: Plan Selection Workflow (for plan-select)
 
-1. Invoke `/specfact.02-plan select` (or use CLI: `specfact plan select`)
+1. Invoke `/specfact.02-plan select` (or use CLI: `specfact project plan select`)
 2. Verify the LLM:
-   - ✅ Executes `specfact plan select` CLI command
+   - ✅ Executes `specfact project plan select` CLI command
    - ✅ Formats plan list as copilot-friendly Markdown table (not Rich table)
    - ✅ Provides selection options (number, "number details", "q" to quit)
    - ✅ Waits for user response with `[WAIT FOR USER RESPONSE - DO NOT CONTINUE]`
@@ -228,16 +228,16 @@ For each prompt, test the following scenarios:
    - ✅ Asks if user wants to select the plan
    - ✅ Waits for user confirmation
 4. Select a plan (e.g., "20" or "y" after details):
-   - ✅ Uses **positional argument** syntax: `specfact plan select 20` (NOT `--plan 20`)
+   - ✅ Uses **positional argument** syntax: `specfact project plan select 20` (NOT `--plan 20`)
    - ✅ Confirms selection with CLI output
    - ✅ Does NOT create config.yaml directly
 5. Test filter options:
-   - ✅ Uses `--current` flag to show only active plan: `specfact plan select --current`
-   - ✅ Uses `--stages` flag to filter by stages: `specfact plan select --stages draft,review`
-   - ✅ Uses `--last N` flag to show recent plans: `specfact plan select --last 5`
+   - ✅ Uses `--current` flag to show only active plan: `specfact project plan select --current`
+   - ✅ Uses `--stages` flag to filter by stages: `specfact project plan select --stages draft,review`
+   - ✅ Uses `--last N` flag to show recent plans: `specfact project plan select --last 5`
 6. Test non-interactive mode (CI/CD):
-   - ✅ Uses `--no-interactive` flag with `--current`: `specfact plan select --no-interactive --current`
-   - ✅ Uses `--no-interactive` flag with `--last 1`: `specfact plan select --no-interactive --last 1`
+   - ✅ Uses `--no-interactive` flag with `--current`: `specfact project plan select --no-interactive --current`
+   - ✅ Uses `--no-interactive` flag with `--last 1`: `specfact project plan select --no-interactive --last 1`
    - ✅ Handles error when multiple plans match filters in non-interactive mode
    - ✅ Does NOT prompt for input when `--no-interactive` is used
 
@@ -245,14 +245,14 @@ For each prompt, test the following scenarios:
 
 1. Invoke `/specfact-plan-promote` with a plan that has missing critical categories
 2. Verify the LLM:
-   - ✅ Executes `specfact plan promote --stage review --validate` CLI command
+   - ✅ Executes `specfact project plan promote --stage review --validate` CLI command
    - ✅ Parses CLI output showing coverage validation errors
    - ✅ Shows which critical categories are Missing
-   - ✅ Suggests running `specfact plan review` to resolve ambiguities
+   - ✅ Suggests running `specfact project plan review` to resolve ambiguities
    - ✅ Does NOT attempt to bypass validation by creating artifacts directly
    - ✅ Waits for user decision (use `--force` or run `plan review` first)
 3. Invoke promotion with `--force` flag:
-   - ✅ Uses `--force` flag correctly: `specfact plan promote --stage review --force`
+   - ✅ Uses `--force` flag correctly: `specfact project plan promote --stage review --force`
    - ✅ Explains that `--force` bypasses validation (not recommended)
    - ✅ Does NOT create plan bundle directly
 
@@ -336,14 +336,14 @@ After testing, review:
 
 ### ❌ Wrong Argument Format (Positional vs Option)
 
-**Symptom**: LLM uses `--option` flag when command expects positional argument (e.g., `specfact plan select --plan 20` instead of `specfact plan select 20`)
+**Symptom**: LLM uses `--option` flag when command expects positional argument (e.g., `specfact project plan select --plan 20` instead of `specfact project plan select 20`)
 
 **Fix**:
 
 - Verify actual CLI command signature (use `specfact <command> --help`)
 - Update prompt to explicitly state positional vs option arguments
 - Add examples showing correct syntax
-- Add warning about common mistakes (e.g., "NOT `specfact plan select --plan 20` (this will fail)")
+- Add warning about common mistakes (e.g., "NOT `specfact project plan select --plan 20` (this will fail)")
 
 ### ❌ Wrong Boolean Flag Usage
 
