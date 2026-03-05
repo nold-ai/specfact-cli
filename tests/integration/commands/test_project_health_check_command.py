@@ -78,7 +78,7 @@ def test_project_health_check_linked_config_reports_metrics(tmp_path: Path, monk
     )
     assert link_result.exit_code == 0
 
-    from specfact_cli.modules.project.src import commands as project_commands
+    from specfact_project.project import commands as project_commands
 
     monkeypatch.setattr(
         project_commands,

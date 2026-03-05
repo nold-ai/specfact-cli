@@ -15,11 +15,8 @@ from rich.panel import Panel
 from typer.testing import CliRunner
 
 
-pytest.importorskip("specfact_cli.modules.backlog.src.commands")
-from specfact_cli.backlog.template_detector import TemplateDetector
-from specfact_cli.cli import app
-from specfact_cli.models.backlog_item import BacklogItem
-from specfact_cli.modules.backlog.src.commands import (
+pytest.importorskip("specfact_backlog.backlog.commands")
+from specfact_backlog.backlog.commands import (
     _apply_issue_window,
     _build_comment_fetch_progress_description,
     _build_refine_export_content,
@@ -35,6 +32,10 @@ from specfact_cli.modules.backlog.src.commands import (
     _resolve_target_template_for_refine_item,
     app as backlog_app,
 )
+
+from specfact_cli.backlog.template_detector import TemplateDetector
+from specfact_cli.cli import app
+from specfact_cli.models.backlog_item import BacklogItem
 from specfact_cli.templates.registry import BacklogTemplate, TemplateRegistry
 
 
@@ -53,8 +54,8 @@ def _bootstrap_registry_for_backlog_commands():
     CommandRegistry._clear_for_testing()
 
 
-@patch("specfact_cli.modules.backlog.src.commands._resolve_standup_options")
-@patch("specfact_cli.modules.backlog.src.commands._fetch_backlog_items")
+@patch("specfact_backlog.backlog.commands._resolve_standup_options")
+@patch("specfact_backlog.backlog.commands._fetch_backlog_items")
 def test_daily_issue_id_bypasses_implicit_default_state(
     mock_fetch_backlog_items: MagicMock,
     mock_resolve_standup_options: MagicMock,
@@ -93,8 +94,8 @@ def test_daily_issue_id_bypasses_implicit_default_state(
     assert mock_fetch_backlog_items.call_args.kwargs["assignee"] is None
 
 
-@patch("specfact_cli.modules.backlog.src.commands._resolve_standup_options")
-@patch("specfact_cli.modules.backlog.src.commands._fetch_backlog_items")
+@patch("specfact_backlog.backlog.commands._resolve_standup_options")
+@patch("specfact_backlog.backlog.commands._fetch_backlog_items")
 def test_daily_reports_default_filters_when_no_items(
     mock_fetch_backlog_items: MagicMock,
     mock_resolve_standup_options: MagicMock,
@@ -123,8 +124,8 @@ def test_daily_reports_default_filters_when_no_items(
     assert "limit=20 (default)" in result.stdout
 
 
-@patch("specfact_cli.modules.backlog.src.commands._resolve_standup_options")
-@patch("specfact_cli.modules.backlog.src.commands._fetch_backlog_items")
+@patch("specfact_backlog.backlog.commands._resolve_standup_options")
+@patch("specfact_backlog.backlog.commands._fetch_backlog_items")
 def test_daily_accepts_any_for_state_and_assignee_as_no_filter(
     mock_fetch_backlog_items: MagicMock,
     mock_resolve_standup_options: MagicMock,
@@ -156,7 +157,7 @@ def test_daily_accepts_any_for_state_and_assignee_as_no_filter(
     assert mock_fetch_backlog_items.call_args.kwargs["assignee"] is None
 
 
-@patch("specfact_cli.modules.backlog.src.commands._fetch_backlog_items")
+@patch("specfact_backlog.backlog.commands._fetch_backlog_items")
 def test_daily_any_filters_render_as_disabled_scope(
     mock_fetch_backlog_items: MagicMock,
 ) -> None:
@@ -604,7 +605,7 @@ class TestInteractiveMappingCommand:
         assert "repository issue types" in result.stdout.lower()
 
     @patch("questionary.checkbox")
-    @patch("specfact_cli.modules.backlog.src.commands.typer.prompt")
+    @patch("specfact_backlog.backlog.commands.typer.prompt")
     @patch("specfact_cli.utils.auth_tokens.get_token")
     @patch("requests.post")
     def test_map_fields_github_provider_allows_blank_project_v2(
@@ -659,7 +660,7 @@ class TestInteractiveMappingCommand:
             assert provider_fields.get("github_project_v2") is None
 
     @patch("questionary.checkbox")
-    @patch("specfact_cli.modules.backlog.src.commands.typer.prompt")
+    @patch("specfact_backlog.backlog.commands.typer.prompt")
     @patch("specfact_cli.utils.auth_tokens.get_token")
     @patch("requests.post")
     def test_map_fields_blank_project_v2_clears_stale_project_mapping(
@@ -1409,7 +1410,7 @@ class TestRefineCommentWindowResolution:
 class TestRefineImportFromTmp:
     """Tests for refine --import-from-tmp behavior."""
 
-    @patch("specfact_cli.modules.backlog.src.commands._fetch_backlog_items")
+    @patch("specfact_backlog.backlog.commands._fetch_backlog_items")
     def test_import_from_tmp_fails_when_no_parsed_ids_match_fetched_items(
         self, mock_fetch_items: MagicMock, tmp_path
     ) -> None:
@@ -1462,7 +1463,7 @@ Refined body
         assert result.exit_code != 0
         assert "None of the refined item IDs matched fetched backlog items" in result.stdout
 
-    @patch("specfact_cli.modules.backlog.src.commands._fetch_backlog_items")
+    @patch("specfact_backlog.backlog.commands._fetch_backlog_items")
     def test_import_from_tmp_fails_when_refined_body_is_significantly_shortened(
         self, mock_fetch_items: MagicMock, tmp_path
     ) -> None:

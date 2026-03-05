@@ -34,7 +34,7 @@ class TestSyncRepositoryCommandIntegration:
                 src_dir.mkdir(parents=True)
                 (src_dir / "__init__.py").write_text("")
 
-                result = runner.invoke(app, ["sync", "repository", "--repo", str(repo_path)])
+                result = runner.invoke(app, ["project", "sync", "repository", "--repo", str(repo_path)])
 
                 assert result.exit_code == 0
                 assert "Syncing repository changes" in result.stdout or "Repository sync complete" in result.stdout
@@ -58,7 +58,7 @@ class TestSyncRepositoryCommandIntegration:
 
                 result = runner.invoke(
                     app,
-                    ["sync", "repository", "--repo", str(repo_path), "--confidence", "0.7"],
+                    ["project", "sync", "repository", "--repo", str(repo_path), "--confidence", "0.7"],
                 )
 
                 assert result.exit_code == 0
@@ -92,7 +92,7 @@ class TestSyncRepositoryCommandIntegration:
                     # Handle case where streams are closed (expected in threading scenarios)
                     result_container["result"] = runner.invoke(
                         app,
-                        ["sync", "repository", "--repo", str(repo_path), "--watch", "--interval", "1"],
+                        ["project", "sync", "repository", "--repo", str(repo_path), "--watch", "--interval", "1"],
                     )
 
             thread = threading.Thread(target=run_command, daemon=True)
@@ -124,7 +124,7 @@ class TestSyncRepositoryCommandIntegration:
             try:
                 result = runner.invoke(
                     app,
-                    ["sync", "repository", "--repo", str(repo_path), "--target", str(target)],
+                    ["project", "sync", "repository", "--repo", str(repo_path), "--target", str(target)],
                 )
             except (ValueError, OSError) as e:
                 # Handle case where streams are closed (can happen in parallel test execution)

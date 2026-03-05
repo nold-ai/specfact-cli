@@ -135,7 +135,7 @@ I can access my account and protected resources
         assert backlog_item.refinement_applied is True
 
         # Step 7: Sync refined item to external tool (simulating sync bridge command)
-        # This simulates: specfact sync bridge --adapter github --backlog-ids 123
+        # This simulates: specfact project sync bridge --adapter github --backlog-ids 123
         with patch("specfact_cli.adapters.registry.AdapterRegistry.get_adapter", return_value=mock_github_adapter):
             # Update the backlog item in the external tool
             success = mock_github_adapter.update_backlog_item(backlog_item)
@@ -190,7 +190,7 @@ I can accomplish my goal
         backlog_item.apply_refinement()
 
         # Simulate sync bridge with OpenSpec comment (--openspec-comment flag)
-        # This simulates: specfact sync bridge --adapter github --backlog-ids 456 --openspec-comment
+        # This simulates: specfact project sync bridge --adapter github --backlog-ids 456 --openspec-comment
         openspec_comment = (
             "OpenSpec change proposal: add-new-feature\nSee: https://openspec.example.com/changes/add-new-feature"
         )
@@ -252,7 +252,7 @@ I can complete my tasks without delays
         mock_ado_adapter.provider = "ado"
         mock_ado_adapter.update_backlog_item = MagicMock(return_value=True)
 
-        # Step 3: Sync to ADO (simulating: specfact sync bridge --adapter ado --backlog-ids 789)
+        # Step 3: Sync to ADO (simulating: specfact project sync bridge --adapter ado --backlog-ids 789)
         with patch("specfact_cli.adapters.registry.AdapterRegistry.get_adapter", return_value=mock_ado_adapter):
             success = mock_ado_adapter.update_backlog_item(backlog_item)
 

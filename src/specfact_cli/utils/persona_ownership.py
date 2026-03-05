@@ -3,11 +3,10 @@
 from __future__ import annotations
 
 import fnmatch
+from typing import Any
 
 from beartype import beartype
 from icontract import ensure, require
-
-from specfact_cli.models.project import BundleManifest
 
 
 @beartype
@@ -22,13 +21,16 @@ def match_section_pattern(section_pattern: str, path: str) -> bool:
 
 @beartype
 @require(lambda persona: isinstance(persona, str), "Persona must be str")
-@require(lambda manifest: isinstance(manifest, BundleManifest), "Manifest must be BundleManifest")
+@require(lambda manifest: manifest is not None, "Manifest must be provided")
 @require(lambda section_path: isinstance(section_path, str), "Section path must be str")
 @ensure(lambda result: isinstance(result, bool), "Must return bool")
-def check_persona_ownership(persona: str, manifest: BundleManifest, section_path: str) -> bool:
+def check_persona_ownership(persona: str, manifest: Any, section_path: str) -> bool:
     """Check if persona owns a section."""
-    if persona not in manifest.personas:
+    personas = getattr(manifest, "personas", None)
+    if not isinstance(personas, dict):
+        return False
+    if persona not in personas:
         return False
 
-    persona_mapping = manifest.personas[persona]
+    persona_mapping = personas[persona]
     return any(match_section_pattern(pattern, section_path) for pattern in persona_mapping.owns)

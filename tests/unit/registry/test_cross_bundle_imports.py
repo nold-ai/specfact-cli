@@ -25,18 +25,18 @@ def _collect_import_targets(py_file: Path) -> set[str]:
 def test_analyze_module_has_no_cross_bundle_import_to_plan_module() -> None:
     """analyze (codebase) must not import project module internals."""
     imports = _collect_import_targets(REPO_ROOT / "src/specfact_cli/modules/analyze/src/commands.py")
-    assert not any(target.startswith("specfact_cli.modules.plan") for target in imports)
+    assert not any(target.startswith("specfact_project.plan") for target in imports)
 
 
 def test_generate_plan_access_uses_common_or_intra_bundle_only() -> None:
     """generate (spec bundle) must not access project plan via core private paths."""
     imports = _collect_import_targets(REPO_ROOT / "src/specfact_cli/modules/generate/src/commands.py")
-    banned_prefixes = ("specfact_cli.modules.plan", "specfact_cli.models.plan")
+    banned_prefixes = ("specfact_project.plan", "specfact_cli.models.plan")
     assert not any(target.startswith(banned_prefixes) for target in imports)
 
 
 def test_enforce_plan_access_uses_common_or_intra_bundle_only() -> None:
     """enforce (govern bundle) must not access project plan via core private paths."""
     imports = _collect_import_targets(REPO_ROOT / "src/specfact_cli/modules/enforce/src/commands.py")
-    banned_prefixes = ("specfact_cli.modules.plan", "specfact_cli.models.plan")
+    banned_prefixes = ("specfact_project.plan", "specfact_cli.models.plan")
     assert not any(target.startswith(banned_prefixes) for target in imports)

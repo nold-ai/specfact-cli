@@ -61,3 +61,13 @@ Result:
 ## Conclusion
 
 Validation passed. The change is valid and safe to proceed to implementation planning/execution under strict TDD order.
+
+## Scope Update Addendum (2026-03-05)
+
+Implementation execution clarified repository ownership boundaries:
+
+- extracted module behavior E2E/integration tests are migrated to `specfact-cli-modules`,
+- `specfact-cli` keeps only core runtime test ownership,
+- obsolete flat-command assertions are retired or rewritten to supported command topology.
+
+This addendum does not introduce runtime interface breaks; it narrows and relocates test ownership consistent with module extraction architecture.

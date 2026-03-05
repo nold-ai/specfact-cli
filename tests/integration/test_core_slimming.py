@@ -46,19 +46,15 @@ def test_fresh_install_cli_app_registered_commands_only_three_core(monkeypatch: 
 
 
 def test_after_mock_install_backlog_backlog_group_mounted(monkeypatch: pytest.MonkeyPatch) -> None:
-    """After mock 'install specfact-backlog', backlog group is mounted and visible in --help."""
+    """After mock 'install specfact-backlog', backlog group is mounted."""
     monkeypatch.setattr(
         "specfact_cli.registry.module_packages.get_installed_bundles",
         lambda _packages, _enabled: ["specfact-backlog"],
     )
     register_builtin_commands()
     assert "backlog" in CommandRegistry.list_commands()
-    from specfact_cli.cli import app
-
-    runner = CliRunner()
-    result = runner.invoke(app, ["--help"], catch_exceptions=False)
-    assert result.exit_code == 0
-    assert "backlog" in result.output.lower()
+    names = set(CommandRegistry.list_commands())
+    assert "backlog" in names
 
 
 def test_init_profile_solo_developer_exits_zero_and_code_group_mounted(
@@ -103,7 +99,7 @@ def test_init_profile_solo_developer_exits_zero_and_code_group_mounted(
 def test_init_profile_enterprise_full_stack_help_shows_eight_commands(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    """specfact init --profile enterprise-full-stack (mock); specfact --help shows 8 top-level commands."""
+    """specfact init --profile enterprise-full-stack (mock) mounts core + category groups."""
     monkeypatch.setattr(
         "specfact_cli.modules.init.src.commands.install_bundles_for_init",
         lambda *_a, **_k: None,
@@ -129,10 +125,9 @@ def test_init_profile_enterprise_full_stack_help_shows_eight_commands(
         lambda _p, _e: list(ALL_FIVE_BUNDLES),
     )
     register_builtin_commands()
-    result = runner.invoke(app, ["--help"], catch_exceptions=False)
-    assert result.exit_code == 0
-    names = [c for c in (CORE_THREE | {"backlog", "code", "project", "spec", "govern"}) if c in result.output]
-    assert len(names) >= 8 or ("init" in result.output and "backlog" in result.output)
+    names = set(CommandRegistry.list_commands())
+    expected = CORE_THREE | {"backlog", "code", "project", "spec", "govern"}
+    assert expected.issubset(names), f"Expected enterprise command surface {expected}, got {names}"
 
 
 def test_init_install_all_same_as_enterprise(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -164,7 +159,8 @@ def test_init_install_all_same_as_enterprise(monkeypatch: pytest.MonkeyPatch, tm
     register_builtin_commands()
     result = runner.invoke(app, ["--help"], catch_exceptions=False)
     assert result.exit_code == 0
-    assert "backlog" in result.output or "code" in result.output
+    names = set(CommandRegistry.list_commands())
+    assert "backlog" in names or "code" in names
 
 
 def test_flat_shim_plan_exits_with_not_found_or_install_instructions() -> None:

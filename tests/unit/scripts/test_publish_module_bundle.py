@@ -13,6 +13,7 @@ import pytest
 
 
 SCRIPT_PATH = Path(__file__).resolve().parents[3] / "scripts" / "publish-module.py"
+TEST_KEY_PATH = Path(__file__).resolve().parents[2] / "fixtures" / "keys" / "test_private_key.pem"
 
 
 def _load_script_module():
@@ -47,6 +48,11 @@ def _create_bundle_package(tmp_path: Path, bundle_name: str, version: str = "0.3
     return bundle_dir
 
 
+def _write_test_key(target_path: Path) -> Path:
+    target_path.write_text(TEST_KEY_PATH.read_text(encoding="utf-8"), encoding="utf-8")
+    return target_path
+
+
 def _init_registry_layout(tmp_path: Path) -> Path:
     registry_dir = tmp_path / "registry"
     (registry_dir / "modules").mkdir(parents=True, exist_ok=True)
@@ -60,8 +66,7 @@ def test_publish_bundle_creates_tarball_in_registry_modules(tmp_path: Path, monk
     packages_root = tmp_path / "packages"
     _create_bundle_package(tmp_path, "specfact-codebase")
     registry_dir = _init_registry_layout(tmp_path)
-    key_file = tmp_path / "private.pem"
-    key_file.write_text("dummy", encoding="utf-8")
+    key_file = _write_test_key(tmp_path / "private.pem")
 
     monkeypatch.setattr(module, "BUNDLE_PACKAGES_ROOT", packages_root)
     monkeypatch.setattr(
@@ -80,8 +85,7 @@ def test_tarball_checksum_matches_generated_index_entry(tmp_path: Path, monkeypa
     packages_root = tmp_path / "packages"
     _create_bundle_package(tmp_path, "specfact-codebase")
     registry_dir = _init_registry_layout(tmp_path)
-    key_file = tmp_path / "private.pem"
-    key_file.write_text("dummy", encoding="utf-8")
+    key_file = _write_test_key(tmp_path / "private.pem")
 
     monkeypatch.setattr(module, "BUNDLE_PACKAGES_ROOT", packages_root)
     monkeypatch.setattr(
@@ -113,8 +117,7 @@ def test_signature_file_created_in_registry_signatures(tmp_path: Path) -> None:
     module = _load_script_module()
     tarball = tmp_path / "sample.tar.gz"
     tarball.write_bytes(b"content")
-    key_file = tmp_path / "private.pem"
-    key_file.write_text("dummy", encoding="utf-8")
+    key_file = _write_test_key(tmp_path / "private.pem")
     registry_dir = _init_registry_layout(tmp_path)
 
     signature_path = module.sign_bundle(tarball, key_file, registry_dir)
@@ -127,8 +130,7 @@ def test_inline_verification_runs_before_index_write(tmp_path: Path, monkeypatch
     packages_root = tmp_path / "packages"
     _create_bundle_package(tmp_path, "specfact-codebase")
     registry_dir = _init_registry_layout(tmp_path)
-    key_file = tmp_path / "private.pem"
-    key_file.write_text("dummy", encoding="utf-8")
+    key_file = _write_test_key(tmp_path / "private.pem")
 
     monkeypatch.setattr(module, "BUNDLE_PACKAGES_ROOT", packages_root)
     monkeypatch.setattr(
@@ -145,8 +147,7 @@ def test_inline_verification_failure_does_not_modify_index(tmp_path: Path, monke
     packages_root = tmp_path / "packages"
     _create_bundle_package(tmp_path, "specfact-codebase")
     registry_dir = _init_registry_layout(tmp_path)
-    key_file = tmp_path / "private.pem"
-    key_file.write_text("dummy", encoding="utf-8")
+    key_file = _write_test_key(tmp_path / "private.pem")
 
     monkeypatch.setattr(module, "BUNDLE_PACKAGES_ROOT", packages_root)
     monkeypatch.setattr(
@@ -189,8 +190,7 @@ def test_publish_bundle_rejects_same_version_as_existing_latest(
     packages_root = tmp_path / "packages"
     _create_bundle_package(tmp_path, "specfact-codebase", version="0.39.0")
     registry_dir = _init_registry_layout(tmp_path)
-    key_file = tmp_path / "private.pem"
-    key_file.write_text("dummy", encoding="utf-8")
+    key_file = _write_test_key(tmp_path / "private.pem")
 
     existing = {
         "id": "nold-ai/specfact-codebase",
@@ -210,8 +210,7 @@ def test_bundle_all_flag_publishes_all_five_bundles_in_sequence(
 ) -> None:
     module = _load_script_module()
     called: list[str] = []
-    key_file = tmp_path / "private.pem"
-    key_file.write_text("dummy", encoding="utf-8")
+    key_file = _write_test_key(tmp_path / "private.pem")
     registry_dir = _init_registry_layout(tmp_path)
 
     monkeypatch.setattr(

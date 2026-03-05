@@ -7,8 +7,8 @@ import inspect
 import pytest
 
 
-pytest.importorskip("specfact_cli.modules.plan.src.commands")
-from specfact_cli.modules.plan.src import commands as module_commands
+pytest.importorskip("specfact_project.plan.commands")
+from specfact_project.plan import commands as module_commands
 
 
 REQUIRED_METHODS = [

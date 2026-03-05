@@ -14,6 +14,14 @@ CORE_DIRS = [
     Path("src/specfact_cli/utils"),
     Path("src/specfact_cli/contracts"),
 ]
+EXTRACTED_MODULE_PREFIXES = (
+    "specfact_cli.modules.",
+    "specfact_backlog.",
+    "specfact_project.",
+    "specfact_codebase.",
+    "specfact_spec.",
+    "specfact_govern.",
+)
 
 
 def _collect_python_files(dirs: list[Path]) -> list[Path]:
@@ -66,6 +74,11 @@ def _format_violation(path: str, line_no: int, module: str) -> str:
     return f"{path}:{line_no} imports {module}"
 
 
+def _is_extracted_module_import(module_name: str) -> bool:
+    """Return True for imports targeting extracted module package namespaces."""
+    return module_name.startswith(EXTRACTED_MODULE_PREFIXES)
+
+
 def _find_core_module_import_violations(files: list[Path]) -> list[str]:
     """Scan Python files and return all direct core->module import violations."""
     violations: list[str] = []
@@ -80,7 +93,7 @@ def _find_core_module_import_violations(files: list[Path]) -> list[str]:
             if _is_in_type_checking_block(node, parent_map):
                 continue
             module_name = _get_module_name(node)
-            if not module_name.startswith("specfact_cli.modules."):
+            if not _is_extracted_module_import(module_name):
                 continue
             violations.append(
                 _format_violation(
@@ -107,12 +120,12 @@ def test_excludes_type_checking_blocks() -> None:
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from specfact_cli.modules.backlog.src import commands
+    from specfact_backlog.backlog import commands
 """
     )
     parent_map = {child: parent for parent in ast.walk(source) for child in ast.iter_child_nodes(parent)}
     imports = [node for node in ast.walk(source) if isinstance(node, (ast.Import, ast.ImportFrom))]
-    module_imports = [node for node in imports if _get_module_name(node).startswith("specfact_cli.modules.")]
+    module_imports = [node for node in imports if _is_extracted_module_import(_get_module_name(node))]
 
     assert module_imports
     assert all(_is_in_type_checking_block(node, parent_map) for node in module_imports)
@@ -121,8 +134,8 @@ if TYPE_CHECKING:
 def test_multiple_violations_reported_together() -> None:
     """Violation reporting aggregates all issues in a single error payload."""
     violations = [
-        _format_violation("src/specfact_cli/cli.py", 10, "specfact_cli.modules.backlog"),
-        _format_violation("src/specfact_cli/models/project.py", 42, "specfact_cli.modules.sync"),
+        _format_violation("src/specfact_cli/cli.py", 10, "specfact_backlog.backlog"),
+        _format_violation("src/specfact_cli/models/project.py", 42, "specfact_project.sync"),
     ]
     message = "\n".join([f"Found {len(violations)} core-to-module import violations", *violations])
 
@@ -133,6 +146,6 @@ def test_multiple_violations_reported_together() -> None:
 
 def test_violation_message_format() -> None:
     """Violation messages include file path, line number, and module name."""
-    violation = _format_violation("src/specfact_cli/cli.py", 42, "specfact_cli.modules.backlog.src.commands")
+    violation = _format_violation("src/specfact_cli/cli.py", 42, "specfact_backlog.backlog.commands")
 
-    assert violation == "src/specfact_cli/cli.py:42 imports specfact_cli.modules.backlog.src.commands"
+    assert violation == "src/specfact_cli/cli.py:42 imports specfact_backlog.backlog.commands"

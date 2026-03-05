@@ -87,7 +87,7 @@ description: Import from code
 
 ## ⚠️ CRITICAL: CLI Usage Enforcement
 
-1. **ALWAYS execute CLI first**: Run `specfact import from-code` before any analysis
+1. **ALWAYS execute CLI first**: Run `specfact project import from-code` before any analysis
 2. **NEVER create YAML/JSON directly**: All artifacts must be CLI-generated
 3. **NEVER bypass CLI validation**: CLI ensures schema compliance and metadata
 4. **Use CLI output as grounding**: Parse CLI output, don't regenerate it

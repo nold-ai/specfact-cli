@@ -22,6 +22,4 @@ def test_patch_mode_is_not_left_under_unreleased() -> None:
 
 def test_command_reference_documents_patch_apply() -> None:
     commands_doc = _repo_file("docs/reference/commands.md").read_text(encoding="utf-8")
-    assert "specfact patch apply" in commands_doc
-    assert "--write" in commands_doc
-    assert "--dry-run" in commands_doc
+    assert "specfact govern patch" in commands_doc

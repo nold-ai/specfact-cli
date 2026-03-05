@@ -45,7 +45,7 @@ def test_metadata_supports_service_bridges() -> None:
         service_bridges=[
             ServiceBridgeMetadata(
                 id="ado",
-                converter_class="specfact_cli.modules.backlog.src.adapters.ado.AdoConverter",
+                converter_class="specfact_backlog.backlog.adapters.ado.AdoConverter",
             )
         ],
     )

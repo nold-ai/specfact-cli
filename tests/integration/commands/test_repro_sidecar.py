@@ -43,7 +43,7 @@ def unannotated_function(x):
 
     def test_repro_sidecar_without_bundle_fails(self, runner: CliRunner, temp_repo: Path) -> None:
         """Test that --sidecar without --sidecar-bundle fails."""
-        result = runner.invoke(app, ["repro", "--sidecar", "--repo", str(temp_repo)])
+        result = runner.invoke(app, ["code", "repro", "--sidecar", "--repo", str(temp_repo)])
 
         # Should fail with error about missing bundle
         assert result.exit_code != 0

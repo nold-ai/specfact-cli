@@ -50,7 +50,7 @@ def test_validate_sidecar_init_command(runner: CliRunner, test_repo: Path, tmp_p
     bundle_name = "test-bundle"
     result = runner.invoke(
         app,
-        ["validate", "sidecar", "init", bundle_name, str(test_repo)],
+        ["code", "validate", "sidecar", "init", bundle_name, str(test_repo)],
     )
 
     assert result.exit_code == 0
@@ -64,7 +64,7 @@ def test_validate_sidecar_init_command_invalid_path(runner: CliRunner, tmp_path:
     invalid_path = tmp_path / "nonexistent"
     result = runner.invoke(
         app,
-        ["validate", "sidecar", "init", bundle_name, str(invalid_path)],
+        ["code", "validate", "sidecar", "init", bundle_name, str(invalid_path)],
     )
 
     assert result.exit_code != 0
@@ -78,14 +78,14 @@ def test_validate_sidecar_run_command(runner: CliRunner, test_repo: Path, tmp_pa
     # First initialize
     init_result = runner.invoke(
         app,
-        ["validate", "sidecar", "init", bundle_name, str(test_repo)],
+        ["code", "validate", "sidecar", "init", bundle_name, str(test_repo)],
     )
     assert init_result.exit_code == 0
 
     # Then run validation
     result = runner.invoke(
         app,
-        ["validate", "sidecar", "run", bundle_name, str(test_repo), "--no-run-crosshair", "--no-run-specmatic"],
+        ["code", "validate", "sidecar", "run", bundle_name, str(test_repo), "--no-run-crosshair", "--no-run-specmatic"],
     )
 
     # Command should execute (may fail if tools not available, but should not crash)
@@ -94,7 +94,7 @@ def test_validate_sidecar_run_command(runner: CliRunner, test_repo: Path, tmp_pa
 
 def test_validate_sidecar_help(runner: CliRunner) -> None:
     """Test validate sidecar help text."""
-    result = runner.invoke(app, ["validate", "sidecar", "--help"])
+    result = runner.invoke(app, ["code", "validate", "sidecar", "--help"])
 
     assert result.exit_code == 0
     assert "init" in result.stdout
@@ -103,7 +103,7 @@ def test_validate_sidecar_help(runner: CliRunner) -> None:
 
 def test_validate_sidecar_init_help(runner: CliRunner) -> None:
     """Test validate sidecar init help text."""
-    result = runner.invoke(app, ["validate", "sidecar", "init", "--help"])
+    result = runner.invoke(app, ["code", "validate", "sidecar", "init", "--help"])
 
     assert result.exit_code == 0
     assert "Initialize sidecar workspace" in result.stdout
@@ -113,7 +113,7 @@ def test_validate_sidecar_run_help(runner: CliRunner) -> None:
     """Test validate sidecar run help text."""
     import re
 
-    result = runner.invoke(app, ["validate", "sidecar", "run", "--help"])
+    result = runner.invoke(app, ["code", "validate", "sidecar", "run", "--help"])
 
     assert result.exit_code == 0
     assert "Run sidecar validation workflow" in result.stdout
@@ -128,7 +128,7 @@ def test_validate_sidecar_init_command_flask(runner: CliRunner, flask_test_repo:
     bundle_name = "flask-bundle"
     result = runner.invoke(
         app,
-        ["validate", "sidecar", "init", bundle_name, str(flask_test_repo)],
+        ["code", "validate", "sidecar", "init", bundle_name, str(flask_test_repo)],
     )
 
     assert result.exit_code == 0
@@ -146,14 +146,23 @@ def test_validate_sidecar_run_command_flask(runner: CliRunner, flask_test_repo: 
     # First initialize
     init_result = runner.invoke(
         app,
-        ["validate", "sidecar", "init", bundle_name, str(flask_test_repo)],
+        ["code", "validate", "sidecar", "init", bundle_name, str(flask_test_repo)],
     )
     assert init_result.exit_code == 0
 
     # Then run validation
     result = runner.invoke(
         app,
-        ["validate", "sidecar", "run", bundle_name, str(flask_test_repo), "--no-run-crosshair", "--no-run-specmatic"],
+        [
+            "code",
+            "validate",
+            "sidecar",
+            "run",
+            bundle_name,
+            str(flask_test_repo),
+            "--no-run-crosshair",
+            "--no-run-specmatic",
+        ],
     )
 
     # Command should execute (may fail if tools not available, but should not crash)

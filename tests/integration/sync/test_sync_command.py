@@ -44,8 +44,9 @@ class TestSyncCommandIntegration:
             bundle_dir = projects_dir / bundle_name
             bundle_dir.mkdir()
 
+            from specfact_project.plan.commands import _convert_plan_bundle_to_project_bundle
+
             from specfact_cli.models.plan import PlanBundle, Product
-            from specfact_cli.modules.plan.src.commands import _convert_plan_bundle_to_project_bundle
             from specfact_cli.utils.bundle_loader import save_project_bundle
 
             plan_bundle = PlanBundle(
@@ -61,7 +62,18 @@ class TestSyncCommandIntegration:
             save_project_bundle(project_bundle, bundle_dir, atomic=True)
 
             result = runner.invoke(
-                app, ["sync", "bridge", "--repo", str(repo_path), "--adapter", "speckit", "--bundle", bundle_name]
+                app,
+                [
+                    "project",
+                    "sync",
+                    "bridge",
+                    "--repo",
+                    str(repo_path),
+                    "--adapter",
+                    "speckit",
+                    "--bundle",
+                    bundle_name,
+                ],
             )
 
             assert result.exit_code == 0
@@ -84,8 +96,9 @@ class TestSyncCommandIntegration:
             bundle_dir = projects_dir / bundle_name
             bundle_dir.mkdir()
 
+            from specfact_project.plan.commands import _convert_plan_bundle_to_project_bundle
+
             from specfact_cli.models.plan import PlanBundle, Product
-            from specfact_cli.modules.plan.src.commands import _convert_plan_bundle_to_project_bundle
             from specfact_cli.utils.bundle_loader import save_project_bundle
 
             plan_bundle = PlanBundle(
@@ -154,8 +167,9 @@ As a user, I want to test features so that I can validate functionality.
             bundle_dir = projects_dir / bundle_name
             bundle_dir.mkdir()
 
+            from specfact_project.plan.commands import _convert_plan_bundle_to_project_bundle
+
             from specfact_cli.models.plan import PlanBundle, Product
-            from specfact_cli.modules.plan.src.commands import _convert_plan_bundle_to_project_bundle
             from specfact_cli.utils.bundle_loader import save_project_bundle
 
             plan_bundle = PlanBundle(
@@ -205,8 +219,9 @@ As a user, I want to test features so that I can validate functionality.
             bundle_dir = projects_dir / bundle_name
             bundle_dir.mkdir()
 
+            from specfact_project.plan.commands import _convert_plan_bundle_to_project_bundle
+
             from specfact_cli.models.plan import PlanBundle, Product
-            from specfact_cli.modules.plan.src.commands import _convert_plan_bundle_to_project_bundle
             from specfact_cli.utils.bundle_loader import save_project_bundle
 
             plan_bundle = PlanBundle(
@@ -268,7 +283,7 @@ As a user, I want to test features so that I can validate functionality.
         """Test sync bridge with nonexistent repository."""
         result = runner.invoke(
             app,
-            ["sync", "bridge", "--adapter", "speckit", "--repo", "/nonexistent/path"],
+            ["project", "sync", "bridge", "--adapter", "speckit", "--repo", "/nonexistent/path"],
         )
 
         # Should fail gracefully
@@ -291,8 +306,9 @@ As a user, I want to test features so that I can validate functionality.
             bundle_dir = projects_dir / bundle_name
             bundle_dir.mkdir()
 
+            from specfact_project.plan.commands import _convert_plan_bundle_to_project_bundle
+
             from specfact_cli.models.plan import PlanBundle, Product
-            from specfact_cli.modules.plan.src.commands import _convert_plan_bundle_to_project_bundle
             from specfact_cli.utils.bundle_loader import save_project_bundle
 
             plan_bundle = PlanBundle(
@@ -344,8 +360,9 @@ As a user, I want to test features so that I can validate functionality.
             bundle_dir = projects_dir / bundle_name
             bundle_dir.mkdir()
 
+            from specfact_project.plan.commands import _convert_plan_bundle_to_project_bundle
+
             from specfact_cli.models.plan import PlanBundle, Product
-            from specfact_cli.modules.plan.src.commands import _convert_plan_bundle_to_project_bundle
             from specfact_cli.utils.bundle_loader import save_project_bundle
 
             plan_bundle = PlanBundle(
@@ -388,7 +405,7 @@ As a user, I want to test features so that I can validate functionality.
         """Test plan sync command requires --shared flag (deprecated, use sync bridge instead)."""
         result = runner.invoke(
             app,
-            ["plan", "sync"],
+            ["project", "plan", "sync"],
         )
 
         # The command should fail (either with --shared flag requirement or ImportError)
@@ -414,8 +431,9 @@ As a user, I want to test features so that I can validate functionality.
             bundle_dir = projects_dir / bundle_name
             bundle_dir.mkdir()
 
+            from specfact_project.plan.commands import _convert_plan_bundle_to_project_bundle
+
             from specfact_cli.models.plan import PlanBundle, Product
-            from specfact_cli.modules.plan.src.commands import _convert_plan_bundle_to_project_bundle
             from specfact_cli.utils.bundle_loader import save_project_bundle
 
             plan_bundle = PlanBundle(
@@ -506,7 +524,7 @@ As a user, I want to test features so that I can validate functionality.
                     # Handle case where streams are closed (expected in threading scenarios)
                     result_container["result"] = runner.invoke(
                         app,
-                        ["sync", "repository", "--repo", str(repo_path), "--watch", "--interval", "1"],
+                        ["project", "sync", "repository", "--repo", str(repo_path), "--watch", "--interval", "1"],
                         input="\n",  # Send empty input to simulate Ctrl+C
                     )
 

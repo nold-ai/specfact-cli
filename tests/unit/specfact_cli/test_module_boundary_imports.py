@@ -155,9 +155,7 @@ def test_core_repo_does_not_host_sync_runtime_unit_tests() -> None:
         return
 
     legacy_tests = sorted(
-        str(path.relative_to(PROJECT_ROOT))
-        for path in legacy_sync_tests_dir.glob("test_*.py")
-        if path.is_file()
+        str(path.relative_to(PROJECT_ROOT)) for path in legacy_sync_tests_dir.glob("test_*.py") if path.is_file()
     )
 
     assert not legacy_tests, (

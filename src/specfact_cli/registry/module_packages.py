@@ -311,12 +311,13 @@ def _resolve_converter_class(class_path: str) -> type[SchemaConverter]:
 
 
 @beartype
-def _check_core_compatibility(meta: ModulePackageMetadata, current_cli_version: str) -> bool:
+def _check_core_compatibility(meta: Any, current_cli_version: str) -> bool:
     """Return True when module is compatible with the running CLI core version."""
-    if not meta.core_compatibility:
+    core_compatibility = getattr(meta, "core_compatibility", None)
+    if not core_compatibility:
         return True
     try:
-        specifier = SpecifierSet(meta.core_compatibility)
+        specifier = SpecifierSet(str(core_compatibility))
         return Version(current_cli_version) in specifier
     except (InvalidVersion, Exception):
         # Keep malformed metadata non-blocking; emit details in debug logs at call site.
@@ -325,12 +326,15 @@ def _check_core_compatibility(meta: ModulePackageMetadata, current_cli_version: 
 
 @beartype
 def _validate_module_dependencies(
-    meta: ModulePackageMetadata,
+    meta: Any,
     enabled_map: dict[str, bool],
 ) -> tuple[bool, list[str]]:
     """Validate that declared dependencies exist and are enabled."""
     missing: list[str] = []
-    for dep_id in meta.module_dependencies:
+    module_dependencies = getattr(meta, "module_dependencies", [])
+    if not isinstance(module_dependencies, list):
+        return False, ["invalid metadata: module_dependencies must be a list"]
+    for dep_id in module_dependencies:
         if dep_id not in enabled_map:
             missing.append(f"{dep_id} (not found)")
         elif not enabled_map[dep_id]:
@@ -846,24 +850,26 @@ def merge_module_state(
 
 @beartype
 def get_installed_bundles(
-    packages: list[tuple[Path, ModulePackageMetadata]],
+    packages: list[tuple[Path, Any]],
     enabled_map: dict[str, bool],
 ) -> list[str]:
     """Return sorted list of bundle names from discovered packages that are enabled and have a bundle set."""
 
-    def _resolved_bundle(meta: ModulePackageMetadata) -> str | None:
-        if meta.bundle:
-            return meta.bundle
-        if "/" not in meta.name:
+    def _resolved_bundle(meta: Any) -> str | None:
+        bundle_name = getattr(meta, "bundle", None)
+        if isinstance(bundle_name, str) and bundle_name:
+            return bundle_name
+        module_name = getattr(meta, "name", None)
+        if not isinstance(module_name, str) or "/" not in module_name:
             return None
-        tail = meta.name.split("/", 1)[1]
+        tail = module_name.split("/", 1)[1]
         return tail if tail.startswith("specfact-") else None
 
     return sorted(
         {
             resolved
             for _dir, meta in packages
-            if enabled_map.get(meta.name, True) and (resolved := _resolved_bundle(meta)) is not None
+            if enabled_map.get(str(getattr(meta, "name", "")), True) and (resolved := _resolved_bundle(meta)) is not None
         }
     )
 
@@ -891,7 +897,7 @@ def _build_bundle_to_group() -> dict[str, tuple[str, str, Any]]:
 
 @beartype
 def _mount_installed_category_groups(
-    packages: list[tuple[Path, ModulePackageMetadata]],
+    packages: list[tuple[Path, Any]],
     enabled_map: dict[str, bool],
 ) -> None:
     """Register category groups only for installed bundles."""

@@ -133,14 +133,14 @@ class TestReproChecker:
             result = checker.run_check(
                 name="Contract exploration (CrossHair)",
                 tool="crosshair",
-                command=["python", "-m", "crosshair", "check", "specfact_cli.modules.repro.src.commands"],
+                command=["python", "-m", "crosshair", "check", "specfact_codebase.repro.commands"],
                 timeout=10,
                 skip_if_missing=False,
             )
 
             assert result.status == CheckStatus.SKIPPED
             assert "Target command:" in result.error
-            assert "specfact_cli.modules.repro.src.commands" in result.error
+            assert "specfact_codebase.repro.commands" in result.error
 
     def test_run_all_checks_with_ruff(self, tmp_path: Path):
         """Test run_all_checks executes ruff check."""

@@ -126,11 +126,11 @@ def test_bootstrap_source_has_no_import_of_17_deleted_module_packages() -> None:
     bootstrap_path = repo_root / "src" / "specfact_cli" / "registry" / "bootstrap.py"
     text = bootstrap_path.read_text(encoding="utf-8")
     deleted_imports = [
-        "specfact_cli.modules.project",
-        "specfact_cli.modules.plan",
-        "specfact_cli.modules.backlog",
-        "specfact_cli.modules.analyze",
-        "specfact_cli.modules.contract",
+        "specfact_project.project",
+        "specfact_project.plan",
+        "specfact_backlog.backlog",
+        "specfact_codebase.analyze",
+        "specfact_spec.contract",
     ]
     for imp in deleted_imports:
         assert imp not in text, f"bootstrap.py must not import {imp}"

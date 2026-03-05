@@ -169,7 +169,7 @@ class TestEnforceStageCommand:
             # Set initial config
             result1 = runner.invoke(
                 app,
-                ["enforce", "stage", "--preset", "minimal"],
+                ["govern", "enforce", "stage", "--preset", "minimal"],
             )
             assert result1.exit_code == 0
 
@@ -180,7 +180,7 @@ class TestEnforceStageCommand:
             # Overwrite with new config
             result2 = runner.invoke(
                 app,
-                ["enforce", "stage", "--preset", "strict"],
+                ["govern", "enforce", "stage", "--preset", "strict"],
             )
             assert result2.exit_code == 0
         finally:
@@ -198,7 +198,7 @@ class TestEnforceStageCommand:
             os.chdir(tmp_path)
             result = runner.invoke(
                 app,
-                ["enforce", "stage", "--preset", "balanced"],
+                ["govern", "enforce", "stage", "--preset", "balanced"],
             )
         finally:
             os.chdir(old_cwd)
@@ -224,11 +224,11 @@ class TestEnforceSddCommand:
         bundle_name = "test-bundle"
 
         # Create a plan and harden it
-        runner.invoke(app, ["plan", "init", bundle_name, "--no-interactive"])
-        runner.invoke(app, ["plan", "harden", bundle_name, "--no-interactive"])
+        runner.invoke(app, ["project", "plan", "init", bundle_name, "--no-interactive"])
+        runner.invoke(app, ["project", "plan", "harden", bundle_name, "--no-interactive"])
 
         # Enforce SDD validation
-        result = runner.invoke(app, ["enforce", "sdd", bundle_name, "--no-interactive"])
+        result = runner.invoke(app, ["govern", "enforce", "sdd", bundle_name, "--no-interactive"])
 
         assert result.exit_code == 0
         assert "Hash match verified" in result.stdout or "validation" in result.stdout.lower()
@@ -248,8 +248,8 @@ class TestEnforceSddCommand:
         bundle_name = "test-bundle"
 
         # Create a plan and harden it
-        runner.invoke(app, ["plan", "init", bundle_name, "--no-interactive"])
-        runner.invoke(app, ["plan", "harden", bundle_name, "--no-interactive"])
+        runner.invoke(app, ["project", "plan", "init", bundle_name, "--no-interactive"])
+        runner.invoke(app, ["project", "plan", "harden", bundle_name, "--no-interactive"])
 
         # Modify the plan bundle hash in the SDD manifest directly to simulate a mismatch
         # This is more reliable than modifying the plan YAML, which might not change the hash
@@ -265,7 +265,7 @@ class TestEnforceSddCommand:
         dump_structured_file(sdd_data, sdd_path, StructuredFormat.YAML)
 
         # Enforce SDD validation (should detect mismatch)
-        result = runner.invoke(app, ["enforce", "sdd", bundle_name, "--no-interactive"])
+        result = runner.invoke(app, ["govern", "enforce", "sdd", bundle_name, "--no-interactive"])
 
         # Hash mismatch should be detected (HIGH severity deviation)
         assert result.exit_code == 1, "Hash mismatch should cause exit code 1"
@@ -278,7 +278,7 @@ class TestEnforceSddCommand:
         bundle_name = "test-bundle"
 
         # Create a plan with features and stories
-        runner.invoke(app, ["plan", "init", bundle_name, "--no-interactive"])
+        runner.invoke(app, ["project", "plan", "init", bundle_name, "--no-interactive"])
         runner.invoke(
             app,
             [
@@ -311,10 +311,10 @@ class TestEnforceSddCommand:
         )
 
         # Harden the plan
-        runner.invoke(app, ["plan", "harden", bundle_name, "--no-interactive"])
+        runner.invoke(app, ["project", "plan", "harden", bundle_name, "--no-interactive"])
 
         # Enforce SDD validation
-        result = runner.invoke(app, ["enforce", "sdd", bundle_name, "--no-interactive"])
+        result = runner.invoke(app, ["govern", "enforce", "sdd", bundle_name, "--no-interactive"])
 
         # Should pass (default thresholds are low)
         assert result.exit_code == 0
@@ -328,10 +328,10 @@ class TestEnforceSddCommand:
         bundle_name = "test-bundle"
 
         # Create a plan but don't harden it
-        runner.invoke(app, ["plan", "init", bundle_name, "--no-interactive"])
+        runner.invoke(app, ["project", "plan", "init", bundle_name, "--no-interactive"])
 
         # Try to enforce SDD validation
-        result = runner.invoke(app, ["enforce", "sdd", bundle_name, "--no-interactive"])
+        result = runner.invoke(app, ["govern", "enforce", "sdd", bundle_name, "--no-interactive"])
 
         assert result.exit_code == 1
         assert "SDD manifest not found" in result.stdout or "SDD" in result.stdout
@@ -343,7 +343,7 @@ class TestEnforceSddCommand:
         bundle_name = "nonexistent-bundle"
 
         # Try to enforce SDD validation without creating bundle
-        result = runner.invoke(app, ["enforce", "sdd", bundle_name, "--no-interactive"])
+        result = runner.invoke(app, ["govern", "enforce", "sdd", bundle_name, "--no-interactive"])
 
         assert result.exit_code == 1
         assert "not found" in result.stdout.lower() or "bundle" in result.stdout.lower()
@@ -354,7 +354,7 @@ class TestEnforceSddCommand:
         bundle_name = "test-bundle"
 
         # Create a plan and harden it to custom location
-        runner.invoke(app, ["plan", "init", bundle_name, "--no-interactive"])
+        runner.invoke(app, ["project", "plan", "init", bundle_name, "--no-interactive"])
         custom_sdd = tmp_path / "custom-sdd.yaml"
         runner.invoke(
             app,
@@ -431,8 +431,8 @@ class TestEnforceSddCommand:
 
         bundle_name = "test-bundle"
         # Create a plan and harden it
-        runner.invoke(app, ["plan", "init", bundle_name, "--no-interactive"])
-        runner.invoke(app, ["plan", "harden", bundle_name, "--no-interactive"])
+        runner.invoke(app, ["project", "plan", "init", bundle_name, "--no-interactive"])
+        runner.invoke(app, ["project", "plan", "harden", bundle_name, "--no-interactive"])
 
         # Enforce SDD validation with markdown format
         result = runner.invoke(
@@ -467,8 +467,8 @@ class TestEnforceSddCommand:
 
         bundle_name = "test-bundle"
         # Create a plan and harden it
-        runner.invoke(app, ["plan", "init", bundle_name, "--no-interactive"])
-        runner.invoke(app, ["plan", "harden", bundle_name, "--no-interactive"])
+        runner.invoke(app, ["project", "plan", "init", bundle_name, "--no-interactive"])
+        runner.invoke(app, ["project", "plan", "harden", bundle_name, "--no-interactive"])
 
         # Enforce SDD validation with JSON format
         result = runner.invoke(
@@ -505,8 +505,8 @@ class TestEnforceSddCommand:
         bundle_name = "test-bundle"
 
         # Create a plan and harden it
-        runner.invoke(app, ["plan", "init", bundle_name, "--no-interactive"])
-        runner.invoke(app, ["plan", "harden", bundle_name, "--no-interactive"])
+        runner.invoke(app, ["project", "plan", "init", bundle_name, "--no-interactive"])
+        runner.invoke(app, ["project", "plan", "harden", bundle_name, "--no-interactive"])
 
         # Enforce SDD validation with custom output
         custom_output = tmp_path / "custom-report.yaml"
