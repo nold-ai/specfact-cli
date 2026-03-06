@@ -67,14 +67,21 @@ def get_modules_branch() -> str:
 
                 # Detached HEAD is common in CI checkouts. Use CI refs when available
                 # so main/release pipelines do not accidentally resolve to dev registry.
-                ci_refs = [
-                    os.environ.get("GITHUB_HEAD_REF", "").strip(),
-                    os.environ.get("GITHUB_REF_NAME", "").strip(),
-                    os.environ.get("GITHUB_BASE_REF", "").strip(),
-                ]
+                head_ref = os.environ.get("GITHUB_HEAD_REF", "").strip()
+                base_ref = os.environ.get("GITHUB_BASE_REF", "").strip()
+                ref_name = os.environ.get("GITHUB_REF_NAME", "").strip()
+                pr_refs = [ref for ref in (head_ref, base_ref) if ref]
+                if pr_refs:
+                    for ref in pr_refs:
+                        if _is_mainline_ref(ref):
+                            return "main"
+                    return "dev"
+
+                ci_refs: list[str] = []
                 github_ref = os.environ.get("GITHUB_REF", "").strip()
                 if github_ref.startswith("refs/heads/"):
                     ci_refs.append(github_ref[len("refs/heads/") :].strip())
+                ci_refs.append(ref_name)
 
                 for ref in ci_refs:
                     if not ref:
