@@ -192,7 +192,9 @@ def test_cli_backlog_help_exits_zero():
     if result.returncode == 0:
         return
     merged = (result.stdout or "") + "\n" + (result.stderr or "")
-    assert "No such command 'backlog'" in merged, (result.stdout, result.stderr)
+    assert "Command 'backlog' is not installed." in merged, (result.stdout, result.stderr)
+    assert "specfact init --profile <profile>" in merged, (result.stdout, result.stderr)
+    assert "module install <bundle>" in merged, (result.stdout, result.stderr)
 
 
 def test_cli_module_help_exits_zero():

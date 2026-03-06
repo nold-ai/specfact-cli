@@ -41,14 +41,16 @@ def test_code_group_is_registered_when_codebase_bundle_is_installed(monkeypatch:
 
 
 def test_backlog_help_lists_subcommands() -> None:
-    """specfact backlog --help lists backlog and policy sub-commands."""
+    """specfact backlog --help shows subcommands when installed, otherwise actionable install guidance."""
     result = runner.invoke(app, ["backlog", "--help"])
-    assert result.exit_code == 0, (
-        f"Expected exit 0, got {result.exit_code}\nstdout: {result.stdout}\nstderr: {result.stderr}"
-    )
     out = (result.stdout or "").lower()
-    assert "backlog" in out
-    assert "policy" in out or "ceremony" in out
+    if result.exit_code == 0:
+        assert "backlog" in out
+        assert "policy" in out or "ceremony" in out
+        return
+    assert "command 'backlog' is not installed." in out
+    assert "specfact init --profile <profile>" in out
+    assert "module install <bundle>" in out
 
 
 def test_validate_flat_command_is_not_available() -> None:
