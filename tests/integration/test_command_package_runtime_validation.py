@@ -13,7 +13,12 @@ SRC_ROOT = REPO_ROOT / "src"
 
 
 def _resolve_modules_repo() -> Path:
+    configured = os.environ.get("SPECFACT_MODULES_REPO", "").strip()
+    if configured:
+        return Path(configured).expanduser()
+
     candidates = [
+        REPO_ROOT / "specfact-cli-modules",
         REPO_ROOT.parent / "specfact-cli-modules",
         REPO_ROOT.parents[2] / "specfact-cli-modules",
     ]

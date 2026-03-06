@@ -15,11 +15,11 @@
 
 ### Module ownership that already exists
 
-- `/home/dom/git/nold-ai/specfact-cli-modules/packages/specfact-backlog/module-package.yaml`
+- `../specfact-cli-modules/packages/specfact-backlog/module-package.yaml`
   - Registers `nold-ai/specfact-backlog` as the official backlog bundle.
-- `/home/dom/git/nold-ai/specfact-cli-modules/packages/specfact-backlog/src/specfact_backlog/backlog/commands.py`
+- `../specfact-cli-modules/packages/specfact-backlog/src/specfact_backlog/backlog/commands.py`
   - Owns `backlog daily`, `backlog refine`, `backlog init-config`, `backlog map-fields`, ceremony aliases, and auth flows.
-- `/home/dom/git/nold-ai/specfact-cli-modules/packages/specfact-backlog/src/specfact_backlog/policy_engine/commands.py`
+- `../specfact-cli-modules/packages/specfact-backlog/src/specfact_backlog/policy_engine/commands.py`
   - Owns policy-engine command behavior for the backlog bundle.
 
 ## Prompt And Template Ownership
@@ -43,9 +43,9 @@
 
 ### Module-side prompt/template ownership that already exists
 
-- `/home/dom/git/nold-ai/specfact-cli-modules/packages/specfact-backlog/src/specfact_backlog/templates/registry.py`
-- `/home/dom/git/nold-ai/specfact-cli-modules/packages/specfact-backlog/src/specfact_backlog/backlog/template_detector.py`
-- `/home/dom/git/nold-ai/specfact-cli-modules/packages/specfact-backlog/src/specfact_backlog/backlog/mappers/template_config.py`
+- `../specfact-cli-modules/packages/specfact-backlog/src/specfact_backlog/templates/registry.py`
+- `../specfact-cli-modules/packages/specfact-backlog/src/specfact_backlog/backlog/template_detector.py`
+- `../specfact-cli-modules/packages/specfact-backlog/src/specfact_backlog/backlog/mappers/template_config.py`
 
 ## Runtime Helpers
 
@@ -96,11 +96,11 @@
 
 ### Module tests that should own backlog feature behavior after migration
 
-- `/home/dom/git/nold-ai/specfact-cli-modules/tests/unit/specfact_backlog/test_map_fields_command.py`
-- `/home/dom/git/nold-ai/specfact-cli-modules/tests/unit/specfact_backlog/test_auth_commands.py`
-- `/home/dom/git/nold-ai/specfact-cli-modules/tests/unit/specfact_backlog/test_refine_adapter_contract.py`
-- `/home/dom/git/nold-ai/specfact-cli-modules/tests/integration/specfact_backlog/test_command_apps.py`
-- `/home/dom/git/nold-ai/specfact-cli-modules/tests/e2e/specfact_backlog/test_help_smoke.py`
+- `../specfact-cli-modules/tests/unit/specfact_backlog/test_map_fields_command.py`
+- `../specfact-cli-modules/tests/unit/specfact_backlog/test_auth_commands.py`
+- `../specfact-cli-modules/tests/unit/specfact_backlog/test_refine_adapter_contract.py`
+- `../specfact-cli-modules/tests/integration/specfact_backlog/test_command_apps.py`
+- `../specfact-cli-modules/tests/e2e/specfact_backlog/test_help_smoke.py`
 
 ## Docs Impact
 
