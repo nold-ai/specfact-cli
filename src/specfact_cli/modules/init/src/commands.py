@@ -520,10 +520,6 @@ def init_ide(
 
 @app.callback(invoke_without_command=True)
 @require(lambda repo: _is_valid_repo_path(repo), "Repo path must exist and be directory")
-@require(
-    lambda profile: profile is None or profile in VALID_PROFILES,
-    "profile must be one of: solo-developer, backlog-team, api-first-team, enterprise-full-stack",
-)
 @ensure(lambda result: result is None, "Command should return None")
 @beartype
 def init(

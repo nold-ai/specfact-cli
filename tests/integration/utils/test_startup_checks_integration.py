@@ -15,6 +15,7 @@ class TestStartupChecksIntegration:
 
     @patch("specfact_cli.utils.startup_checks.get_last_checked_version", return_value=None)
     @patch("specfact_cli.utils.startup_checks.get_last_version_check_timestamp", return_value=None)
+    @patch("specfact_cli.utils.startup_checks.update_metadata")
     @patch("specfact_cli.utils.startup_checks.check_ide_templates")
     @patch("specfact_cli.utils.startup_checks.check_pypi_version")
     @patch("specfact_cli.utils.startup_checks.console")
@@ -23,6 +24,7 @@ class TestStartupChecksIntegration:
         mock_console: MagicMock,
         mock_version: MagicMock,
         mock_templates: MagicMock,
+        _mock_update_metadata: MagicMock,
         _mock_timestamp: MagicMock,
         _mock_version_meta: MagicMock,
     ):
@@ -72,6 +74,7 @@ class TestStartupChecksIntegration:
 
     @patch("specfact_cli.utils.startup_checks.get_last_checked_version", return_value=None)
     @patch("specfact_cli.utils.startup_checks.get_last_version_check_timestamp", return_value=None)
+    @patch("specfact_cli.utils.startup_checks.update_metadata")
     @patch("specfact_cli.utils.startup_checks.check_ide_templates")
     @patch("specfact_cli.utils.startup_checks.check_pypi_version")
     @patch("specfact_cli.utils.startup_checks.console")
@@ -80,6 +83,7 @@ class TestStartupChecksIntegration:
         mock_console: MagicMock,
         mock_version: MagicMock,
         mock_templates: MagicMock,
+        _mock_update_metadata: MagicMock,
         _mock_timestamp: MagicMock,
         _mock_version_meta: MagicMock,
         tmp_path: Path,

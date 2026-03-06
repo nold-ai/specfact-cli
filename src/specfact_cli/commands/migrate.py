@@ -1,12 +1,18 @@
 """Backward-compatible app shim for project migrate command."""
 
-from importlib import import_module
+from typing import TYPE_CHECKING, Any
 
-from specfact_cli.modules._bundle_import import bootstrap_local_bundle_sources
+from ._bundle_shim import load_bundle_app
 
 
-bootstrap_local_bundle_sources(__file__)
+if TYPE_CHECKING:
+    app: Any
 
-app = import_module("specfact_project.migrate.commands").app
+
+def __getattr__(name: str) -> Any:
+    if name == "app":
+        return load_bundle_app(__file__, "specfact_project.migrate.commands")
+    raise AttributeError(name)
+
 
 __all__ = ["app"]

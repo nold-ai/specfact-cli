@@ -6,10 +6,27 @@ Scenarios: register/get_typer (lazy), list_commands, unknown raises, metadata wi
 
 from __future__ import annotations
 
+import os
+from pathlib import Path
+
 import pytest
 import typer
 
 from specfact_cli.registry import CommandMetadata, CommandRegistry
+
+
+REPO_ROOT = Path(__file__).resolve().parents[4]
+SRC_ROOT = REPO_ROOT / "src"
+
+
+def _subprocess_env() -> dict[str, str]:
+    env = os.environ.copy()
+    existing = env.get("PYTHONPATH", "")
+    pythonpath_parts = [str(SRC_ROOT), str(REPO_ROOT)]
+    if existing:
+        pythonpath_parts.append(existing)
+    env["PYTHONPATH"] = os.pathsep.join(pythonpath_parts)
+    return env
 
 
 @pytest.fixture(autouse=True)
@@ -140,6 +157,7 @@ def test_cli_root_help_exits_zero():
         text=True,
         timeout=60,
         cwd=None,
+        env=_subprocess_env(),
     )
     assert result.returncode == 0, (result.stdout, result.stderr)
 
@@ -154,6 +172,7 @@ def test_cli_init_help_exits_zero():
         capture_output=True,
         text=True,
         timeout=60,
+        env=_subprocess_env(),
     )
     assert result.returncode == 0, (result.stdout, result.stderr)
 
@@ -168,6 +187,7 @@ def test_cli_backlog_help_exits_zero():
         capture_output=True,
         text=True,
         timeout=60,
+        env=_subprocess_env(),
     )
     if result.returncode == 0:
         return
@@ -185,6 +205,7 @@ def test_cli_module_help_exits_zero():
         capture_output=True,
         text=True,
         timeout=60,
+        env=_subprocess_env(),
     )
     if result.returncode != 0 and "failed integrity verification" in (result.stdout or ""):
         pytest.skip("module-registry not loaded (integrity verification failed); re-sign manifest to run this test")

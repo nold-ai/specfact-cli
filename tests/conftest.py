@@ -82,7 +82,6 @@ _MIGRATED_TEST_PATTERNS: tuple[str, ...] = (
     "tests/e2e/test_phase2_contracts_e2e.py",
     "tests/e2e/test_plan_review_batch_updates.py",
     "tests/e2e/test_plan_review_non_interactive.py",
-    "tests/e2e/test_first_run_init.py",
     "tests/e2e/test_openspec_bridge_workflow.py",
     "tests/e2e/test_quick_start_performance_e2e.py",
     "tests/e2e/test_semgrep_integration_e2e.py",
@@ -95,8 +94,6 @@ _MIGRATED_TEST_PATTERNS: tuple[str, ...] = (
     "tests/integration/importers/*",
     "tests/integration/sync/*",
     "tests/integration/analyzers/test_analyze_command.py",
-    "tests/integration/test_bundle_install.py",
-    "tests/integration/test_category_group_routing.py",
     "tests/integration/test_specmatic_integration.py",
     # Obsolete flat-plan command topology assertions retired from core.
     "tests/unit/commands/test_plan_add_commands.py",
@@ -107,14 +104,13 @@ _MIGRATED_TEST_PATTERNS: tuple[str, ...] = (
     "tests/unit/commands/test_backlog_daily.py",
     "tests/unit/commands/test_project_cmd.py",
     # Legacy topology and extracted-module path assumptions retired from core.
-    "tests/unit/groups/test_codebase_group.py",
-    "tests/unit/modules/init/test_first_run_selection.py",
-    "tests/unit/modules/test_reexport_shims.py",
     "tests/unit/prompts/test_prompt_validation.py",
-    "tests/unit/registry/test_cross_bundle_imports.py",
     "tests/unit/specfact_cli/test_module_migration_compatibility.py",
-    "tests/unit/utils/test_suggestions.py",
 )
+
+
+def _should_skip_migrated_test(rel_path: str) -> bool:
+    return any(fnmatch(rel_path, pattern) for pattern in _MIGRATED_TEST_PATTERNS)
 
 
 def pytest_ignore_collect(collection_path: object, config: object) -> bool:
@@ -126,4 +122,21 @@ def pytest_ignore_collect(collection_path: object, config: object) -> bool:
         rel = path.relative_to(project_root).as_posix()
     except ValueError:
         return False
-    return any(fnmatch(rel, pattern) for pattern in _MIGRATED_TEST_PATTERNS)
+    return _should_skip_migrated_test(rel)
+
+
+def pytest_collection_modifyitems(config: object, items: list[object]) -> None:
+    """Skip migrated suites even when runners select them explicitly by path."""
+    if os.environ.get("SPECFACT_INCLUDE_MIGRATED_TESTS") == "1":
+        return
+    import pytest
+
+    skip_marker = pytest.mark.skip(reason="Module-owned suite moved to specfact-cli-modules")
+    for item in items:
+        item_path = Path(str(getattr(item, "fspath", ""))).resolve()
+        try:
+            rel = item_path.relative_to(project_root).as_posix()
+        except ValueError:
+            continue
+        if _should_skip_migrated_test(rel):
+            item.add_marker(skip_marker)

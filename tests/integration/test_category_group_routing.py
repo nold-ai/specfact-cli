@@ -29,13 +29,15 @@ def _category_grouping_enabled() -> Generator[None, None, None]:
 runner = CliRunner()
 
 
-def test_code_analyze_help_exits_zero() -> None:
-    """specfact code analyze --help returns non-error exit (CLI integration)."""
-    result = runner.invoke(app, ["code", "analyze", "--help"])
-    assert result.exit_code == 0, (
-        f"Expected exit 0, got {result.exit_code}\nstdout: {result.stdout}\nstderr: {result.stderr}"
+def test_code_group_is_registered_when_codebase_bundle_is_installed(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Code group is mounted only when the codebase bundle is installed."""
+    CommandRegistry._clear_for_testing()
+    monkeypatch.setattr(
+        "specfact_cli.registry.module_packages.get_installed_bundles",
+        lambda _packages, _enabled: ["specfact-codebase"],
     )
-    assert "analyze" in (result.stdout or "").lower() or "usage" in (result.stdout or "").lower()
+    register_builtin_commands()
+    assert "code" in CommandRegistry.list_commands()
 
 
 def test_backlog_help_lists_subcommands() -> None:

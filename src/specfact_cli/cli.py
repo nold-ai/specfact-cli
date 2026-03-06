@@ -98,7 +98,20 @@ class _RootCLIGroup(ProgressiveDisclosureGroup):
     def resolve_command(
         self, ctx: click.Context, args: list[str]
     ) -> tuple[str | None, click.Command | None, list[str]]:
-        result = super().resolve_command(ctx, args)
+        if not args:
+            return super().resolve_command(ctx, args)
+        invoked = args[0]
+        try:
+            result = super().resolve_command(ctx, args)
+        except click.UsageError:
+            if invoked in KNOWN_BUNDLE_GROUP_OR_SHIM_NAMES:
+                get_configured_console().print(
+                    f"[bold red]Command '{invoked}' is not installed.[/bold red]\n"
+                    "Install workflow bundles with [bold]specfact init --profile <profile>[/bold] "
+                    "or [bold]specfact module install <bundle>[/bold]."
+                )
+                raise SystemExit(1) from None
+            raise
         _name, cmd, remaining = result
         if cmd is not None or not remaining:
             return result

@@ -22,12 +22,17 @@ def test_no_legacy_non_app_command_imports_outside_compat_shims() -> None:
     """Block new non-app command imports outside legacy compatibility shims."""
     violations: list[str] = []
     allowed_shim_dir = PROJECT_ROOT / "src" / "specfact_cli" / "commands"
+    allowed_test_paths = {
+        PROJECT_ROOT / "tests" / "unit" / "modules" / "test_reexport_shims.py",
+    }
 
     for root in (PROJECT_ROOT / "src", PROJECT_ROOT / "tests"):
         for py_file in root.rglob("*.py"):
             if "__pycache__" in py_file.parts:
                 continue
             if py_file.is_relative_to(allowed_shim_dir):
+                continue
+            if py_file in allowed_test_paths:
                 continue
 
             text = py_file.read_text(encoding="utf-8")

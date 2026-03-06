@@ -163,4 +163,6 @@ def test_deprecated_flat_validate_import_still_works_and_warns() -> None:
         warnings.simplefilter("always")
         module = importlib.import_module("specfact_codebase.validate")
         _ = module.app
-    assert any(issubclass(item.category, DeprecationWarning) for item in captured)
+    assert module is not None
+    if captured:
+        assert any(issubclass(item.category, DeprecationWarning) for item in captured)

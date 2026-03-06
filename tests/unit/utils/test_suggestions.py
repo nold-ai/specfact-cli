@@ -118,4 +118,4 @@ class TestPrintSuggestions:
         print_suggestions(suggestions, title="Test Suggestions")
         captured = capsys.readouterr()
         assert "Test Suggestions" in captured.out
-        assert "specfact analyze" in captured.out
+        assert "specfact code analyze" in captured.out

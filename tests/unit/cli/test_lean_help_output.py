@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+import click
 import pytest
 from typer.testing import CliRunner
 
-from specfact_cli.cli import app
+from specfact_cli.cli import _RootCLIGroup, app
 
 
 runner = CliRunner()
@@ -70,19 +71,19 @@ def test_specfact_help_contains_init_hint() -> None:
         pytest.skip("Init hint not yet in help; migration-03 will add it")
 
 
-def test_specfact_backlog_help_when_not_installed_shows_actionable_error(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """specfact backlog --help when backlog bundle not installed must show 'not installed' + install command."""
-    result = runner.invoke(app, ["backlog", "--help"], catch_exceptions=False)
-    if result.exit_code == 0 and "analyze" in result.output:
-        pytest.skip("Backlog group still from builtin; migration-03 will show not-installed error when absent")
-    if result.exit_code != 0:
-        assert (
-            "not installed" in result.output.lower()
-            or "install" in result.output.lower()
-            or "backlog" in result.output.lower()
-        )
+def test_root_group_unknown_bundle_command_shows_install_guidance(capsys: pytest.CaptureFixture[str]) -> None:
+    """Unknown bundle commands should show install guidance instead of raw Click errors."""
+    group = _RootCLIGroup(name="specfact")
+    ctx = click.Context(group)
+
+    with pytest.raises(SystemExit) as exc_info:
+        group.resolve_command(ctx, ["backlog", "--help"])
+
+    assert exc_info.value.code == 1
+    captured = capsys.readouterr()
+    assert "Command 'backlog' is not installed." in captured.out
+    assert "specfact init --profile <profile>" in captured.out
+    assert "module install <bundle>" in captured.out
 
 
 def test_specfact_help_with_all_bundles_installed_shows_eight_commands(
