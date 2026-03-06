@@ -100,6 +100,8 @@ These are derived extensions of the same 2026-02-15 plan and are required to ope
 | module-migration | 06 | module-migration-06-core-decoupling-cleanup (in progress) | [#338](https://github.com/nold-ai/specfact-cli/issues/338) | module-migration-03 ✅; migration-05 ✅ bundle-parity baseline |
 | module-migration | 07 | module-migration-07-test-migration-cleanup | [#339](https://github.com/nold-ai/specfact-cli/issues/339) | migration-03 phase 20 handoff; migration-04 and migration-05 residual specfact-cli test debt |
 | module-migration | 08 | module-migration-08-release-suite-stabilization | TBD | module-migration-03/04/06/07 merged; residual release-suite regressions after migration merge |
+| module-migration | 09 | backlog-module-ownership-cleanup | TBD | module-migration-06; backlog-core-07; cli-val-07 findings |
+| init-ide | 01 | init-ide-prompt-source-selection | TBD | backlog-module-ownership-cleanup |
 | backlog-auth | 01 | backlog-auth-01-backlog-auth-commands | TBD | module-migration-03 (central auth interface in core; auth removed from core) |
 
 ### Cross-cutting foundations (no hard dependencies — implement early)
@@ -232,6 +234,7 @@ These are derived extensions of the same 2026-02-15 plan and are required to ope
 | cli-val | 04 | cli-val-04-acceptance-test-runner | [#282](https://github.com/nold-ai/specfact-cli/issues/282) | #279, #281 |
 | cli-val | 05 | cli-val-05-ci-integration | [#283](https://github.com/nold-ai/specfact-cli/issues/283) | #280, #282 |
 | cli-val | 06 | cli-val-06-copilot-test-generation | [#284](https://github.com/nold-ai/specfact-cli/issues/284) | #279 (soft: #283) |
+| cli-val | 07 | cli-val-07-command-package-runtime-validation | TBD | marketplace-02 ✅; backlog-core-05 ✅; module-migration-08 ✅ |
 
 ### Integration governance and proof (architecture integration plan, 2026-02-15)
 

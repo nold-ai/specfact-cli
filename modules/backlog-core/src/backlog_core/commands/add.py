@@ -243,6 +243,131 @@ def _load_template_config(template: str) -> dict[str, Any]:
 
 
 @beartype
+def _load_provider_settings(repo_path: Path, adapter_name: str) -> dict[str, Any]:
+    backlog_cfg = load_backlog_config_from_backlog_file(repo_path / ".specfact" / "backlog-config.yaml")
+    spec_config = backlog_cfg or load_backlog_config_from_spec(repo_path / ".specfact" / "spec.yaml")
+    if spec_config is None:
+        return {}
+    provider = spec_config.providers.get(adapter_name.strip().lower())
+    if provider is None or not isinstance(provider.settings, dict):
+        return {}
+    return dict(provider.settings)
+
+
+@beartype
+def _load_field_mapping_payload(mapping_path: Path | None) -> dict[str, Any]:
+    if mapping_path is None or not mapping_path.exists():
+        return {}
+    loaded = yaml.safe_load(mapping_path.read_text(encoding="utf-8"))
+    return loaded if isinstance(loaded, dict) else {}
+
+
+@beartype
+def _resolve_saved_mapping_path(repo_path: Path, configured_path: str | None, adapter_name: str) -> Path | None:
+    raw_path = (configured_path or "").strip()
+    if raw_path:
+        candidate = Path(raw_path)
+        return candidate if candidate.is_absolute() else repo_path / candidate
+    default_candidate = DEFAULT_CUSTOM_MAPPING_FILES.get(adapter_name.strip().lower())
+    if default_candidate is None:
+        return None
+    return repo_path / default_candidate if not default_candidate.is_absolute() else default_candidate
+
+
+@beartype
+def _parse_custom_field_entries(entries: list[str] | None) -> dict[str, str]:
+    parsed: dict[str, str] = {}
+    for raw_entry in entries or []:
+        entry = raw_entry.strip()
+        if not entry or "=" not in entry:
+            raise ValueError("custom-field entries must use '<name>=<value>' format")
+        raw_name, raw_value = entry.split("=", 1)
+        name = raw_name.strip()
+        value = raw_value.strip()
+        if not name or not value:
+            raise ValueError("custom-field entries must use '<name>=<value>' format")
+        parsed[name] = value
+    return parsed
+
+
+@beartype
+def _resolve_ado_custom_fields(
+    repo_path: Path,
+    issue_type: str,
+    custom_fields: list[str] | None,
+) -> dict[str, Any] | None:
+    settings = _load_provider_settings(repo_path, "ado")
+    if not settings and not custom_fields:
+        return None
+
+    mapping_path = _resolve_saved_mapping_path(
+        repo_path,
+        str(settings.get("field_mapping_file") or "").strip() or None,
+        "ado",
+    )
+    mapping_payload = _load_field_mapping_payload(mapping_path)
+    field_mappings = mapping_payload.get("field_mappings")
+    provider_to_canonical = field_mappings if isinstance(field_mappings, dict) else {}
+
+    selected_work_item_type = str(settings.get("selected_work_item_type") or "").strip()
+    if not selected_work_item_type:
+        selected_work_item_type = "User Story" if issue_type == "story" else issue_type.replace("_", " ").title()
+
+    required_by_type = settings.get("required_fields_by_work_item_type")
+    required_refs = []
+    if isinstance(required_by_type, dict):
+        selected_required = required_by_type.get(selected_work_item_type)
+        if isinstance(selected_required, list):
+            required_refs = [str(item).strip() for item in selected_required if str(item).strip()]
+
+    allowed_by_type = settings.get("allowed_values_by_work_item_type")
+    allowed_values: dict[str, list[str]] = {}
+    if isinstance(allowed_by_type, dict):
+        selected_allowed = allowed_by_type.get(selected_work_item_type)
+        if isinstance(selected_allowed, dict):
+            for field_name, raw_values in selected_allowed.items():
+                if isinstance(raw_values, list):
+                    allowed_values[str(field_name).strip()] = [
+                        str(item).strip() for item in raw_values if str(item).strip()
+                    ]
+
+    alias_to_provider: dict[str, str] = {}
+    for provider_field, canonical_name in provider_to_canonical.items():
+        provider_key = str(provider_field).strip()
+        canonical_key = str(canonical_name).strip()
+        if provider_key:
+            alias_to_provider[provider_key.lower()] = provider_key
+        if canonical_key:
+            alias_to_provider[canonical_key.lower()] = provider_key
+    for provider_field in required_refs:
+        alias_to_provider.setdefault(provider_field.lower(), provider_field)
+
+    parsed_entries = _parse_custom_field_entries(custom_fields)
+    resolved_fields: dict[str, Any] = {}
+    for raw_name, value in parsed_entries.items():
+        provider_key = alias_to_provider.get(raw_name.strip().lower())
+        if provider_key is None:
+            raise ValueError(f"unknown custom field '{raw_name}'")
+        resolved_fields[provider_key] = value
+
+    for required_ref in required_refs:
+        if required_ref not in resolved_fields:
+            canonical = str(provider_to_canonical.get(required_ref) or "").strip()
+            label = canonical or required_ref
+            raise ValueError(f"missing required custom field '{label}'")
+
+    for provider_key, value in resolved_fields.items():
+        allowed = allowed_values.get(provider_key) or []
+        if allowed and value not in allowed:
+            allowed_text = ", ".join(allowed)
+            canonical = str(provider_to_canonical.get(provider_key) or "").strip()
+            label = canonical or provider_key
+            raise ValueError(f"invalid value for custom field '{label}'. Allowed values: {allowed_text}")
+
+    return {"fields": resolved_fields} if resolved_fields else None
+
+
+@beartype
 def _derive_creation_hierarchy(template_payload: dict[str, Any], custom_config: dict[str, Any]) -> dict[str, list[str]]:
     custom_hierarchy = custom_config.get("creation_hierarchy")
     if isinstance(custom_hierarchy, dict):
@@ -496,6 +621,12 @@ def add(
     custom_config: Annotated[
         Path | None, typer.Option("--custom-config", help="Path to custom hierarchy/config YAML")
     ] = None,
+    custom_field: Annotated[
+        list[str] | None,
+        typer.Option(
+            "--custom-field", help="Custom field entry '<canonical-or-provider-key>=<value>'", metavar="KEY=VALUE"
+        ),
+    ] = None,
 ) -> None:
     """Create a backlog item with optional parent hierarchy validation and DoR checks."""
     adapter_instance = AdapterRegistry.get_adapter(adapter)
@@ -614,6 +745,15 @@ def add(
         payload["sprint"] = sprint
 
     provider_fields = _resolve_provider_fields_for_create(adapter, template_payload, custom, repo_path)
+    if adapter.strip().lower() == "ado":
+        try:
+            ado_provider_fields = _resolve_ado_custom_fields(repo_path, issue_type, custom_field)
+        except ValueError as error:
+            print_error(str(error))
+            raise typer.Exit(code=1) from error
+        if ado_provider_fields:
+            provider_fields = dict(provider_fields or {})
+            provider_fields.update(ado_provider_fields)
     if provider_fields:
         payload["provider_fields"] = provider_fields
 

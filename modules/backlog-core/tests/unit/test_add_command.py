@@ -5,6 +5,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+import yaml
 from typer.testing import CliRunner
 
 
@@ -251,6 +252,163 @@ creation_hierarchy:
 
     assert result.exit_code == 0
     assert created_payloads and created_payloads[0]["parent_id"] == "42"
+
+
+def test_backlog_add_ado_requires_saved_required_custom_field(monkeypatch, tmp_path: Path) -> None:
+    """Add should fail before adapter create when saved metadata marks a custom ADO field as required."""
+    from specfact_cli.adapters.registry import AdapterRegistry
+
+    created_payloads: list[dict] = []
+    adapter = _FakeAdapter(items=[], relationships=[], created=created_payloads)
+    monkeypatch.setattr(AdapterRegistry, "get_adapter", lambda _adapter: adapter)
+    monkeypatch.chdir(tmp_path)
+
+    spec_dir = tmp_path / ".specfact"
+    spec_dir.mkdir(parents=True, exist_ok=True)
+    (spec_dir / "backlog-config.yaml").write_text(
+        yaml.safe_dump(
+            {
+                "backlog_config": {
+                    "providers": {
+                        "ado": {
+                            "adapter": "ado",
+                            "project_id": "test-org/test-project",
+                            "settings": {
+                                "selected_work_item_type": "User Story",
+                                "field_mapping_file": ".specfact/templates/backlog/field_mappings/ado_custom.yaml",
+                                "required_fields_by_work_item_type": {"User Story": ["Custom.FinOpsCategory"]},
+                                "allowed_values_by_work_item_type": {
+                                    "User Story": {"Custom.FinOpsCategory": ["Business", "Compliance"]}
+                                },
+                            },
+                        }
+                    }
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    mapping_file = spec_dir / "templates" / "backlog" / "field_mappings" / "ado_custom.yaml"
+    mapping_file.parent.mkdir(parents=True, exist_ok=True)
+    mapping_file.write_text(
+        yaml.safe_dump({"field_mappings": {"Custom.FinOpsCategory": "finops_category"}}),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        backlog_app,
+        [
+            "add",
+            "--project-id",
+            "test-org/test-project",
+            "--adapter",
+            "ado",
+            "--type",
+            "story",
+            "--title",
+            "Implement finops guardrail",
+            "--body",
+            "Body",
+            "--non-interactive",
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "missing required custom field" in result.stdout.lower()
+    assert "finops_category" in result.stdout.lower()
+    assert not created_payloads
+
+
+def test_backlog_add_ado_validates_and_forwards_custom_fields(monkeypatch, tmp_path: Path) -> None:
+    """Add should validate picklist values and forward resolved ADO custom field payload."""
+    from specfact_cli.adapters.registry import AdapterRegistry
+
+    created_payloads: list[dict] = []
+    adapter = _FakeAdapter(items=[], relationships=[], created=created_payloads)
+    monkeypatch.setattr(AdapterRegistry, "get_adapter", lambda _adapter: adapter)
+    monkeypatch.chdir(tmp_path)
+
+    spec_dir = tmp_path / ".specfact"
+    spec_dir.mkdir(parents=True, exist_ok=True)
+    (spec_dir / "backlog-config.yaml").write_text(
+        yaml.safe_dump(
+            {
+                "backlog_config": {
+                    "providers": {
+                        "ado": {
+                            "adapter": "ado",
+                            "project_id": "test-org/test-project",
+                            "settings": {
+                                "selected_work_item_type": "User Story",
+                                "field_mapping_file": ".specfact/templates/backlog/field_mappings/ado_custom.yaml",
+                                "required_fields_by_work_item_type": {"User Story": ["Custom.FinOpsCategory"]},
+                                "allowed_values_by_work_item_type": {
+                                    "User Story": {"Custom.FinOpsCategory": ["Business", "Compliance"]}
+                                },
+                            },
+                        }
+                    }
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    mapping_file = spec_dir / "templates" / "backlog" / "field_mappings" / "ado_custom.yaml"
+    mapping_file.parent.mkdir(parents=True, exist_ok=True)
+    mapping_file.write_text(
+        yaml.safe_dump({"field_mappings": {"Custom.FinOpsCategory": "finops_category"}}),
+        encoding="utf-8",
+    )
+
+    invalid_result = runner.invoke(
+        backlog_app,
+        [
+            "add",
+            "--project-id",
+            "test-org/test-project",
+            "--adapter",
+            "ado",
+            "--type",
+            "story",
+            "--title",
+            "Implement finops guardrail",
+            "--body",
+            "Body",
+            "--custom-field",
+            "finops_category=Wrong",
+            "--non-interactive",
+        ],
+    )
+
+    assert invalid_result.exit_code == 1
+    assert "allowed values" in invalid_result.stdout.lower()
+    assert "business" in invalid_result.stdout.lower()
+    assert "compliance" in invalid_result.stdout.lower()
+
+    created_payloads.clear()
+    result = runner.invoke(
+        backlog_app,
+        [
+            "add",
+            "--project-id",
+            "test-org/test-project",
+            "--adapter",
+            "ado",
+            "--type",
+            "story",
+            "--title",
+            "Implement finops guardrail",
+            "--body",
+            "Body",
+            "--custom-field",
+            "finops_category=Business",
+            "--non-interactive",
+        ],
+    )
+
+    assert result.exit_code == 0, result.stdout
+    assert created_payloads
+    assert created_payloads[0]["provider_fields"]["fields"]["Custom.FinOpsCategory"] == "Business"
 
 
 def test_backlog_add_check_dor_blocks_invalid_draft(monkeypatch, tmp_path: Path) -> None:

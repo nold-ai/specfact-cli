@@ -23,6 +23,7 @@ from specfact_backlog.backlog.commands import (
     _build_refine_preview_comment_empty_panel,
     _build_refine_preview_comment_panels,
     _detect_significant_content_loss,
+    _fetch_backlog_items,
     _item_needs_refinement,
     _parse_refined_export_markdown,
     _parse_refinement_output_fields,
@@ -33,6 +34,7 @@ from specfact_backlog.backlog.commands import (
     app as backlog_app,
 )
 
+from specfact_cli.backlog.adapters.base import BacklogAdapter as CoreBacklogAdapter
 from specfact_cli.backlog.template_detector import TemplateDetector
 from specfact_cli.cli import app
 from specfact_cli.models.backlog_item import BacklogItem
@@ -252,6 +254,52 @@ class TestBacklogPreviewOutput:
             ", ".join(item_unassigned.assignees) if item_unassigned.assignees else "Unassigned"
         )
         assert assignee_display_unassigned == "Unassigned"
+
+
+def test_fetch_backlog_items_accepts_core_backlog_adapter(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Bundle backlog commands must accept adapters implementing the core BacklogAdapter contract."""
+
+    class _CoreAdapter(CoreBacklogAdapter):
+        def name(self) -> str:
+            return "ado"
+
+        def supports_format(self, format_type: str) -> bool:
+            _ = format_type
+            return True
+
+        def fetch_backlog_items(self, filters):  # type: ignore[no-untyped-def]
+            _ = filters
+            return [
+                BacklogItem(
+                    id="185",
+                    provider="ado",
+                    url="https://dev.azure.com/org/project/_apis/wit/workitems/185",
+                    title="Fix the error",
+                    body_markdown="Description",
+                    state="New",
+                )
+            ]
+
+        def update_backlog_item(self, item: BacklogItem, update_fields: list[str] | None = None) -> BacklogItem:
+            _ = update_fields
+            return item
+
+    class _Registry:
+        def get_adapter(self, *_args, **_kwargs):  # type: ignore[no-untyped-def]
+            return _CoreAdapter()
+
+    monkeypatch.setattr("specfact_backlog.backlog.commands.AdapterRegistry", lambda: _Registry())
+
+    items = _fetch_backlog_items(
+        "ado",
+        ado_org="test-org",
+        ado_project="test-project",
+        ado_token="test-token",
+        limit=1,
+    )
+
+    assert len(items) == 1
+    assert items[0].id == "185"
 
 
 class TestInteractiveMappingCommand:

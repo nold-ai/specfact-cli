@@ -3414,6 +3414,21 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
                 }
             )
 
+        provider_fields = payload.get("provider_fields")
+        provider_field_values = provider_fields.get("fields") if isinstance(provider_fields, dict) else None
+        if isinstance(provider_field_values, dict):
+            for field_name, field_value in provider_field_values.items():
+                normalized_field = str(field_name).strip()
+                if not normalized_field:
+                    continue
+                patch_document.append(
+                    {
+                        "op": "add",
+                        "path": f"/fields/{normalized_field}",
+                        "value": field_value,
+                    }
+                )
+
         sprint = str(payload.get("sprint") or "").strip()
         if sprint:
             patch_document.append(

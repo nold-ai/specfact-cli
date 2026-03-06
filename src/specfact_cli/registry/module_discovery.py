@@ -56,7 +56,14 @@ def discover_all_modules(
     effective_custom_root = custom_root or CUSTOM_MODULES_ROOT
 
     roots: list[tuple[str, Path]] = [("builtin", effective_builtin_root)]
+    project_matches_user_root = False
     if effective_project_root is not None:
+        try:
+            project_matches_user_root = effective_project_root.resolve() == effective_user_root.resolve()
+        except OSError:
+            project_matches_user_root = effective_project_root == effective_user_root
+
+    if effective_project_root is not None and not project_matches_user_root:
         roots.append(("project", effective_project_root))
     roots.extend(
         [

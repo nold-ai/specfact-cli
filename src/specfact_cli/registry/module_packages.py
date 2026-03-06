@@ -518,6 +518,29 @@ def _command_info_name(command_info: Any) -> str:
 
 
 @beartype
+def _is_expected_duplicate_extension(owner_module: str, command_name: str, subcommand_name: str) -> bool:
+    """Return True when duplicate command overlap is an expected core+bundle composition case."""
+    if owner_module != "nold-ai/specfact-backlog":
+        return False
+    allowed_duplicates = {
+        ("backlog", "daily"),
+        ("backlog", "refine"),
+        ("backlog", "init-config"),
+        ("backlog", "map-fields"),
+        ("backlog ceremony", "standup"),
+        ("backlog ceremony", "refinement"),
+        ("backlog ceremony", "planning"),
+        ("backlog ceremony", "flow"),
+        ("backlog ceremony", "pi-summary"),
+        ("backlog auth", "azure-devops"),
+        ("backlog auth", "github"),
+        ("backlog auth", "status"),
+        ("backlog auth", "clear"),
+    }
+    return (command_name, subcommand_name) in allowed_duplicates
+
+
+@beartype
 def _merge_typer_apps(base_app: Any, extension_app: Any, owner_module: str, command_name: str) -> None:
     """Merge extension Typer commands/groups into an existing root Typer app."""
     logger = get_bridge_logger(__name__)
@@ -537,7 +560,12 @@ def _merge_typer_apps(base_app: Any, extension_app: Any, owner_module: str, comm
         if not subcommand_name:
             continue
         if subcommand_name in existing_command_names:
-            logger.warning(
+            log_fn = (
+                logger.debug
+                if _is_expected_duplicate_extension(owner_module, command_name, subcommand_name)
+                else logger.warning
+            )
+            log_fn(
                 "Module %s attempted to extend command '%s' with duplicate subcommand '%s'; skipping duplicate.",
                 owner_module,
                 command_name,
@@ -1171,26 +1199,20 @@ def register_module_package_commands(
     if category_grouping_enabled:
         _mount_installed_category_groups(packages, enabled_map)
     discovered_count = protocol_full + protocol_partial + protocol_legacy
-    if discovered_count and (protocol_partial > 0 or protocol_legacy > 0):
-        print_warning(
-            "Module compatibility check: "
-            f"{protocol_full + protocol_partial}/{discovered_count} compliant "
-            f"(full={protocol_full}, partial={protocol_partial}, legacy={protocol_legacy})."
+    if discovered_count and (protocol_partial > 0 or protocol_legacy > 0) and is_debug_mode():
+        logger.info(
+            "Module compatibility check: %s/%s compliant (full=%s, partial=%s, legacy=%s)",
+            protocol_full + protocol_partial,
+            discovered_count,
+            protocol_full,
+            protocol_partial,
+            protocol_legacy,
         )
         if partial_modules:
             partial_desc = ", ".join(f"{name} ({'/'.join(ops)})" for name, ops in sorted(partial_modules))
-            print_warning(f"Partially compliant modules: {partial_desc}")
+            logger.info("Partially compliant modules: %s", partial_desc)
         if legacy_modules:
-            print_warning(f"Legacy modules: {', '.join(sorted(set(legacy_modules)))}")
-        if is_debug_mode():
-            logger.info(
-                "Protocol-compliant: %s/%s modules (Full=%s, Partial=%s, Legacy=%s)",
-                protocol_full + protocol_partial,
-                discovered_count,
-                protocol_full,
-                protocol_partial,
-                protocol_legacy,
-            )
+            logger.info("Legacy modules: %s", ", ".join(sorted(set(legacy_modules))))
     for module_id, reason in skipped:
         logger.debug("Skipped module '%s': %s", module_id, reason)
 
