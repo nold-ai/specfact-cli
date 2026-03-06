@@ -61,7 +61,7 @@ SpecFact CLI supports **bidirectional synchronization** between OpenSpec change 
   (instruction + filter context + standup data) for slash command or Copilot to generate a standup summary.
   **Slash prompt** `specfact.backlog-daily` (or `specfact.daily`): use with IDE/Copilot for interactive
   team walkthrough story-by-story (current focus, issues/open questions, discussion notes as comments);
-  prompt file at `resources/prompts/specfact.backlog-daily.md`. **Sprint goal** is stored in your
+  the prompt is provided by the installed backlog bundle rather than the permanent core package. **Sprint goal** is stored in your
   board/sprint settings and is not displayed or edited by the CLI.
 - **Content Sanitization**: Protect internal information when syncing to public repositories
 - **Separate Repository Support**: Handle cases where OpenSpec proposals and source code are in different repositories

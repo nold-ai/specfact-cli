@@ -29,6 +29,9 @@ def test_get_modules_branch_detached_head_uses_ci_main_ref(monkeypatch: pytest.M
 
     try:
         monkeypatch.delenv("SPECFACT_MODULES_BRANCH", raising=False)
+        monkeypatch.delenv("GITHUB_HEAD_REF", raising=False)
+        monkeypatch.delenv("GITHUB_BASE_REF", raising=False)
+        monkeypatch.delenv("GITHUB_REF", raising=False)
         monkeypatch.setenv("GITHUB_REF_NAME", "main")
         monkeypatch.setattr("subprocess.run", lambda *args, **kwargs: _Result())
         assert get_modules_branch() == "main"

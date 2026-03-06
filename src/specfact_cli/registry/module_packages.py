@@ -518,29 +518,6 @@ def _command_info_name(command_info: Any) -> str:
 
 
 @beartype
-def _is_expected_duplicate_extension(owner_module: str, command_name: str, subcommand_name: str) -> bool:
-    """Return True when duplicate command overlap is an expected core+bundle composition case."""
-    if owner_module != "nold-ai/specfact-backlog":
-        return False
-    allowed_duplicates = {
-        ("backlog", "daily"),
-        ("backlog", "refine"),
-        ("backlog", "init-config"),
-        ("backlog", "map-fields"),
-        ("backlog ceremony", "standup"),
-        ("backlog ceremony", "refinement"),
-        ("backlog ceremony", "planning"),
-        ("backlog ceremony", "flow"),
-        ("backlog ceremony", "pi-summary"),
-        ("backlog auth", "azure-devops"),
-        ("backlog auth", "github"),
-        ("backlog auth", "status"),
-        ("backlog auth", "clear"),
-    }
-    return (command_name, subcommand_name) in allowed_duplicates
-
-
-@beartype
 def _merge_typer_apps(base_app: Any, extension_app: Any, owner_module: str, command_name: str) -> None:
     """Merge extension Typer commands/groups into an existing root Typer app."""
     logger = get_bridge_logger(__name__)
@@ -560,12 +537,7 @@ def _merge_typer_apps(base_app: Any, extension_app: Any, owner_module: str, comm
         if not subcommand_name:
             continue
         if subcommand_name in existing_command_names:
-            log_fn = (
-                logger.debug
-                if _is_expected_duplicate_extension(owner_module, command_name, subcommand_name)
-                else logger.warning
-            )
-            log_fn(
+            logger.warning(
                 "Module %s attempted to extend command '%s' with duplicate subcommand '%s'; skipping duplicate.",
                 owner_module,
                 command_name,
@@ -907,14 +879,24 @@ def get_installed_bundles(
 
 # Bundle name -> (group_name, help_str, build_app_fn) for conditional category mounting.
 def _build_bundle_to_group() -> dict[str, tuple[str, str, Any]]:
-    from specfact_cli.groups.backlog_group import build_app as build_backlog_app
     from specfact_cli.groups.codebase_group import build_app as build_codebase_app
     from specfact_cli.groups.govern_group import build_app as build_govern_app
+    from specfact_cli.groups.member_group import build_member_group
     from specfact_cli.groups.project_group import build_app as build_project_app
     from specfact_cli.groups.spec_group import build_app as build_spec_app
 
     return {
-        "specfact-backlog": ("backlog", "Backlog and policy commands.", build_backlog_app),
+        "specfact-backlog": (
+            "backlog",
+            "Backlog and policy commands.",
+            lambda: build_member_group(
+                name="backlog",
+                help_text="Backlog and policy commands.",
+                members=(("backlog", "backlog"), ("policy", "policy")),
+                flatten_same_name="backlog",
+                install_hint_module="nold-ai/specfact-backlog",
+            ),
+        ),
         "specfact-codebase": (
             "code",
             "Codebase quality commands: analyze, drift, validate, repro.",

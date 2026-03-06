@@ -238,8 +238,8 @@ class TestCopyTemplatesToIDE:
         content = (cursor_dir / "specfact.01-import.md").read_text()
         assert "New Content" in content or "# New Content" in content
 
-    def test_copy_templates_includes_backlog_add_prompt_when_template_exists(self, tmp_path):
-        """Copy flow should install backlog-add prompt into IDE target when template exists."""
+    def test_copy_templates_only_installs_prompt_ids_from_core_command_list(self, tmp_path):
+        """Core export only copies prompts explicitly listed in the core command registry."""
         templates_dir = tmp_path / "resources" / "prompts"
         templates_dir.mkdir(parents=True)
         (templates_dir / "specfact.backlog-add.md").write_text(
@@ -248,10 +248,13 @@ class TestCopyTemplatesToIDE:
 
         copied_files, _settings_path = copy_templates_to_ide(tmp_path, "cursor", templates_dir, force=True)
 
-        assert any(path.name == "specfact.backlog-add.md" for path in copied_files)
-        assert (tmp_path / ".cursor" / "commands" / "specfact.backlog-add.md").exists()
+        assert not any(path.name == "specfact.backlog-add.md" for path in copied_files)
+        assert not (tmp_path / ".cursor" / "commands" / "specfact.backlog-add.md").exists()
 
 
-def test_specfact_commands_includes_backlog_add_prompt() -> None:
-    """IDE setup command list includes backlog-add prompt template."""
-    assert "specfact.backlog-add" in SPECFACT_COMMANDS
+def test_specfact_commands_excludes_backlog_prompt_ids() -> None:
+    """Core IDE setup command list excludes backlog-owned prompt ids."""
+    assert "specfact.backlog-add" not in SPECFACT_COMMANDS
+    assert "specfact.backlog-daily" not in SPECFACT_COMMANDS
+    assert "specfact.backlog-refine" not in SPECFACT_COMMANDS
+    assert "specfact.sync-backlog" not in SPECFACT_COMMANDS

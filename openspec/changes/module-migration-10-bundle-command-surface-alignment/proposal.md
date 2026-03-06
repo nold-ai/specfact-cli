@@ -22,7 +22,6 @@ This must be treated as a product/runtime alignment issue first, not just a docs
 - `bundle-command-surface-alignment`: Official bundle command trees match the documented grouped CLI surface for shipped releases.
 
 ## Acceptance Criteria
-
 - Installed official bundles expose documented grouped commands such as `specfact project import from-code`, `specfact project plan ...`, and `specfact spec generate ...` when those commands are intended to be public in `v0.40.x`.
 - If a command path is intentionally not part of the shipped runtime surface, README/docs/release content no longer describe it as available.
 - Runtime validation fails when a documented grouped command path is missing from the installed official bundle command tree.
@@ -30,7 +29,6 @@ This must be treated as a product/runtime alignment issue first, not just a docs
 - Validation evidence distinguishes between runtime-surface fixes and docs-only removals.
 
 ## Dependencies
-
 - `module-migration-02-bundle-extraction` established the official bundle packaging model.
 - `module-migration-06-core-decoupling-cleanup` and `module-migration-07-test-migration-cleanup` established the current post-migration command ownership baseline.
 - `cli-val-07-command-package-runtime-validation` provides the runtime audit harness that should be extended to catch this drift.
@@ -42,8 +40,7 @@ This must be treated as a product/runtime alignment issue first, not just a docs
 ## Source Tracking
 
 <!-- source_repo: nold-ai/specfact-cli -->
-- **GitHub Issue**: TBD
-- **Issue URL**: TBD
+- **GitHub Issue**: #385
+- **Issue URL**: <https://github.com/nold-ai/specfact-cli/issues/385>
 - **Last Synced Status**: proposed
 - **Sanitized**: false
-<!-- content_hash: 93f47b34f46eb517 -->
