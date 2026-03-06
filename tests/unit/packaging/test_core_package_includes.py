@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import tomllib
 from pathlib import Path
 
 import pytest
@@ -41,6 +42,22 @@ def test_pyproject_wheel_packages_exist() -> None:
     raw = PYPROJECT.read_text(encoding="utf-8")
     assert "packages" in raw
     assert "specfact_cli" in raw
+
+
+def test_pyproject_wheel_explicitly_maps_src_package_root() -> None:
+    """Wheel build config must explicitly map the src package root for specfact_cli."""
+    data = tomllib.loads(PYPROJECT.read_text(encoding="utf-8"))
+    wheel = data["tool"]["hatch"]["build"]["targets"]["wheel"]
+    assert wheel.get("only-include") == ["src/specfact_cli"]
+    assert wheel.get("sources") == ["src"]
+
+
+def test_project_scripts_target_cli_main() -> None:
+    """Both console scripts must resolve to the importable CLI entrypoint."""
+    data = tomllib.loads(PYPROJECT.read_text(encoding="utf-8"))
+    scripts = data["project"]["scripts"]
+    assert scripts["specfact"] == "specfact_cli.cli:cli_main"
+    assert scripts["specfact-cli"] == "specfact_cli.cli:cli_main"
 
 
 def test_pyproject_force_include_does_not_reference_deleted_modules() -> None:
