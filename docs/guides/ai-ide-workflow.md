@@ -76,7 +76,7 @@ Once initialized, the following slash commands are available in your IDE:
 |---------------|---------|------------------------|
 | `/specfact.compare` | Compare plans | `specfact project plan compare` |
 | `/specfact.validate` | Validation suite | `specfact code repro` |
-| `/specfact.backlog-refine` | Backlog refinement (AI IDE interactive loop) | `specfact backlog refine github \| ado` |
+| `/specfact.backlog-refine` | Backlog refinement (AI IDE interactive loop, provided by the backlog bundle) | `specfact backlog refine github \| ado` |
 
 For an end-to-end tutorial on backlog refine with your AI IDE (story quality, underspecification, DoR, custom templates), see **[Tutorial: Backlog Refine with AI IDE](../getting-started/tutorial-backlog-refine-ai-ide.md)**.
 

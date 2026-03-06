@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import os
-import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -11,9 +10,21 @@ from specfact_cli.validation.command_audit import build_command_audit_cases, off
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SRC_ROOT = REPO_ROOT / "src"
-MODULES_REPO = REPO_ROOT.parent / "specfact-cli-modules"
+
+
+def _resolve_modules_repo() -> Path:
+    candidates = [
+        REPO_ROOT.parent / "specfact-cli-modules",
+        REPO_ROOT.parents[2] / "specfact-cli-modules",
+    ]
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+    return candidates[0]
+
+
+MODULES_REPO = _resolve_modules_repo()
 REGISTRY_INDEX = MODULES_REPO / "registry" / "index.json"
-BUILTIN_BACKLOG_CORE = REPO_ROOT / "modules" / "backlog-core"
 FORBIDDEN_OUTPUT = (
     "Module compatibility check:",
     "Partially compliant modules:",
@@ -32,7 +43,7 @@ def _subprocess_env(home_dir: Path) -> dict[str, str]:
     env["PYTHONPATH"] = os.pathsep.join(pythonpath_parts)
     env["HOME"] = str(home_dir)
     env["SPECFACT_REPO_ROOT"] = str(REPO_ROOT)
-    env["SPECFACT_REGISTRY_INDEX_URL"] = str(REGISTRY_INDEX)
+    env["SPECFACT_REGISTRY_INDEX_URL"] = REGISTRY_INDEX.resolve().as_uri()
     env["SPECFACT_ALLOW_UNSIGNED"] = "1"
     env["SPECFACT_REGISTRY_DIR"] = str(home_dir / ".specfact-test-registry")
     return env
@@ -80,14 +91,10 @@ def test_command_audit_help_cases_execute_cleanly_in_temp_home(tmp_path: Path) -
     assert not failures, "\n\n".join(failures)
 
 
-def test_backlog_core_and_marketplace_overlap_is_silent_in_normal_output(tmp_path: Path) -> None:
+def test_marketplace_backlog_bundle_registers_cleanly_without_core_overlap(tmp_path: Path) -> None:
     home_dir = tmp_path / "home"
     home_dir.mkdir(parents=True, exist_ok=True)
     env = _subprocess_env(home_dir)
-
-    target_root = home_dir / ".specfact" / "modules"
-    target_root.mkdir(parents=True, exist_ok=True)
-    shutil.copytree(BUILTIN_BACKLOG_CORE, target_root / "backlog-core")
 
     install_result = _run_cli(
         env,

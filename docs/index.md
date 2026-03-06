@@ -43,6 +43,8 @@ Recommended command entrypoints:
 ### Backlog Bridge in 60 Seconds
 
 SpecFact closes the drift gap between **backlog -> specs -> code**.
+These commands require the backlog bundle to be installed first, for example via
+`specfact init --profile backlog-team` or `specfact init --install backlog`.
 
 ```bash
 # 1) Initialize backlog config + field mapping

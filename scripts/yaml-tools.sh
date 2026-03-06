@@ -30,13 +30,17 @@ run_prettier_workflows() {
 
 run_yamllint() {
   # Lint only non-workflow YAML files, using root .yamllint
-  local files
-  files=$(git ls-files "*.yml" "*.yaml" | grep -v "^\.github/workflows/" || true)
-  if [[ -n "${files}" ]]; then
+  local files=()
+  while IFS= read -r file; do
+    [[ "${file}" =~ ^\.github/workflows/ ]] && continue
+    [[ -f "${file}" ]] || continue
+    files+=("${file}")
+  done < <(git ls-files "*.yml" "*.yaml")
+  if [[ ${#files[@]} -gt 0 ]]; then
     # Do not fail on warnings: print all findings, fail only when "error" severity is present
     set +e
     local out
-    out=$(yamllint -f standard -c "${REPO_ROOT}/.yamllint" ${files})
+    out=$(yamllint -f standard -c "${REPO_ROOT}/.yamllint" "${files[@]}")
     local rc=$?
     set -e
     printf "%s\n" "$out"

@@ -10,6 +10,20 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.40.2] - 2026-03-06
+
+### Changed
+
+- Finished the backlog ownership cleanup in core: built-in backlog command shims, bundled backlog prompts/templates, and the `backlog-core` package were removed so backlog functionality is owned by the marketplace module instead of `specfact-cli`.
+- Replaced backlog-specific command-group wiring with generic member-group registration so installed modules provide `backlog` and `policy` surfaces without core overlap rules.
+
+### Fixed
+
+- Removed the root cause of duplicate backlog command registration at startup by eliminating the split core-plus-module backlog ownership model.
+- Updated core validation and IDE prompt export expectations so backlog prompt assets are no longer treated as built-in core resources.
+
+---
+
 ## [0.40.1] - 2026-03-06
 
 ### Fixed

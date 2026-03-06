@@ -22,7 +22,6 @@ from __future__ import annotations
 
 import re
 from datetime import UTC, datetime
-from pathlib import Path
 from unittest.mock import MagicMock
 
 import click
@@ -911,24 +910,3 @@ class TestBuildSummarizePromptContent:
         assert "<div" not in content
         assert "<br" not in content
         assert "&amp;" not in content
-
-
-class TestBacklogDailyPromptFile:
-    """Prompt file specfact.backlog-daily.md exists and has expected sections (22.2)."""
-
-    def test_backlog_daily_prompt_file_exists(self) -> None:
-        """resources/prompts/specfact.backlog-daily.md exists."""
-        repo_root = Path(__file__).resolve().parent.parent.parent.parent
-        prompt_path = repo_root / "resources" / "prompts" / "specfact.backlog-daily.md"
-        assert prompt_path.is_file(), f"Expected prompt file at {prompt_path}"
-
-    def test_backlog_daily_prompt_contains_expected_sections(self) -> None:
-        """Prompt file contains purpose, story-by-story, discussion notes as comments."""
-        repo_root = Path(__file__).resolve().parent.parent.parent.parent
-        prompt_path = repo_root / "resources" / "prompts" / "specfact.backlog-daily.md"
-        if not prompt_path.is_file():
-            return
-        text = prompt_path.read_text(encoding="utf-8")
-        assert "daily" in text.lower() or "standup" in text.lower()
-        assert "story" in text.lower() or "item" in text.lower()
-        assert "comment" in text.lower() or "discussion" in text.lower()
