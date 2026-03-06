@@ -6,21 +6,26 @@ permalink: /reference/authentication/
 
 # Authentication
 
+
+> Temporary docs note: this bundle-focused page remains hosted in the core docs set for the
+> current release line and is planned to migrate to `specfact-cli-modules`.
+
 SpecFact CLI supports device code authentication flows for GitHub and Azure DevOps to keep credentials out of scripts and CI logs.
+When the backlog bundle is installed, authentication commands are available under `specfact backlog auth`.
 
 ## Quick Start
 
 ### GitHub (Device Code)
 
 ```bash
-specfact auth github
+specfact backlog auth github
 ```
 
 Use a custom OAuth client or GitHub Enterprise host:
 
 ```bash
-specfact auth github --client-id YOUR_CLIENT_ID
-specfact auth github --base-url https://github.example.com
+specfact backlog auth github --client-id YOUR_CLIENT_ID
+specfact backlog auth github --base-url https://github.example.com
 ```
 
 **Note:** The default client ID ships with the CLI and is only valid for `https://github.com`. For GitHub Enterprise, you must supply your own client ID via `--client-id` or `SPECFACT_GITHUB_CLIENT_ID`.
@@ -28,14 +33,14 @@ specfact auth github --base-url https://github.example.com
 ### Azure DevOps (Device Code)
 
 ```bash
-specfact auth azure-devops
+specfact backlog auth azure-devops
 ```
 
 **Note:** OAuth tokens expire after approximately 1 hour. For longer-lived authentication, use a Personal Access Token (PAT) with up to 1 year expiration:
 
 ```bash
 # Store PAT token (recommended for automation)
-specfact auth azure-devops --pat your_pat_token
+specfact backlog auth azure-devops --pat your_pat_token
 ```
 
 ### Azure DevOps Token Resolution Priority
@@ -44,7 +49,7 @@ When using Azure DevOps commands (e.g., `specfact backlog refine ado`, `specfact
 
 1. **Explicit token parameter**: `--ado-token` CLI flag
 2. **Environment variable**: `AZURE_DEVOPS_TOKEN`
-3. **Stored token**: Token stored via `specfact auth azure-devops` (checked automatically)
+3. **Stored token**: Token stored via `specfact backlog auth azure-devops` (checked automatically)
 4. **Expired stored token**: If stored token is expired, a warning is shown with options to refresh
 
 **Example:**
@@ -69,17 +74,17 @@ specfact backlog refine ado --ado-org myorg --ado-project myproject
 ## Check Status
 
 ```bash
-specfact auth status
+specfact backlog auth status
 ```
 
 ## Clear Stored Tokens
 
 ```bash
 # Clear one provider
-specfact auth clear --provider github
+specfact backlog auth clear --provider github
 
 # Clear all providers
-specfact auth clear
+specfact backlog auth clear
 ```
 
 ## Token Storage
@@ -98,7 +103,7 @@ Adapters resolve tokens in this order:
 
 - Explicit token parameter (CLI flag or code)
 - Environment variable (e.g., `GITHUB_TOKEN`, `AZURE_DEVOPS_TOKEN`)
-- Stored auth token (`specfact auth ...`)
+- Stored auth token (`specfact backlog auth ...`)
 - GitHub CLI (`gh auth token`) for GitHub if enabled
 
 **Azure DevOps Specific:**
@@ -109,20 +114,20 @@ For Azure DevOps commands, stored tokens are automatically used by:
 
 If a stored token is expired, you'll see a warning with options to:
 1. Use a PAT token (recommended for longer expiration)
-2. Re-authenticate via `specfact auth azure-devops`
+2. Re-authenticate via `specfact backlog auth azure-devops`
 3. Use `--ado-token` option with a valid token
 
 ## Troubleshooting
 
 ### Token Resolution Issues
 
-**Problem**: "Azure DevOps token required" error even after running `specfact auth azure-devops`
+**Problem**: "Azure DevOps token required" error even after running `specfact backlog auth azure-devops`
 
 **Solutions:**
 
 1. **Check token expiration**: OAuth tokens expire after ~1 hour. Use a PAT token for longer expiration:
    ```bash
-   specfact auth azure-devops --pat your_pat_token
+   specfact backlog auth azure-devops --pat your_pat_token
    ```
 
 2. **Use explicit token**: Override with `--ado-token` flag:
@@ -138,8 +143,8 @@ If a stored token is expired, you'll see a warning with options to:
 
 4. **Re-authenticate**: Clear and re-authenticate:
    ```bash
-   specfact auth clear --provider azure-devops
-   specfact auth azure-devops
+   specfact backlog auth clear --provider azure-devops
+   specfact backlog auth azure-devops
    ```
 
 For full adapter configuration details, see:

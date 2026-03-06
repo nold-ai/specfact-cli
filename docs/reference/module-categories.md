@@ -12,7 +12,6 @@ SpecFact groups feature modules into workflow-oriented command families.
 Core commands remain top-level:
 
 - `specfact init`
-- `specfact auth`
 - `specfact module`
 - `specfact upgrade`
 
@@ -29,7 +28,6 @@ Category command groups:
 | Module | Category | Bundle | Group Command | Sub-command |
 |---|---|---|---|---|
 | `init` | `core` | — | — | `init` |
-| `auth` | `core` | — | — | `auth` |
 | `module_registry` | `core` | — | — | `module` |
 | `upgrade` | `core` | — | — | `upgrade` |
 | `project` | `project` | `specfact-project` | `project` | `project` |
@@ -58,13 +56,36 @@ Category command groups:
 - `specfact-spec`: `contract`, `api`, `sdd`, `generate`
 - `specfact-govern`: `enforce`, `patch`
 
+## Bundle Package Layout and Namespaces
+
+Official bundle packages are published from the dedicated modules repository:
+
+- Repository: `nold-ai/specfact-cli-modules`
+- Package roots: `packages/specfact-project/`, `packages/specfact-backlog/`, `packages/specfact-codebase/`, `packages/specfact-spec/`, `packages/specfact-govern/`
+
+Namespace mapping:
+
+- `specfact-project` -> import namespace `specfact_project.*`
+- `specfact-backlog` -> import namespace `specfact_backlog.*`
+- `specfact-codebase` -> import namespace `specfact_codebase.*`
+- `specfact-spec` -> import namespace `specfact_spec.*`
+- `specfact-govern` -> import namespace `specfact_govern.*`
+
+Compatibility note:
+
+- Flat top-level command shims were removed. Use category groups (`project`, `backlog`, `code`, `spec`, `govern`).
+- `specfact backlog auth ...` is provided by the backlog bundle, not by the permanent core command surface.
+
+> Temporary docs note: this bundle/category reference remains hosted in `specfact-cli` for the
+> current release line and is planned to migrate to `specfact-cli-modules`.
+
 ## First-Run Profiles
 
 `specfact init` supports profile presets and explicit bundle selection:
 
 - `solo-developer` -> `specfact-codebase`
 - `backlog-team` -> `specfact-backlog`, `specfact-project`, `specfact-codebase`
-- `api-first-team` -> `specfact-spec`, `specfact-codebase`
+- `api-first-team` -> `specfact-spec`, `specfact-codebase` (and `specfact-project` is auto-installed as a dependency)
 - `enterprise-full-stack` -> `specfact-project`, `specfact-backlog`, `specfact-codebase`, `specfact-spec`, `specfact-govern`
 
 Examples:
@@ -84,4 +105,4 @@ Before:
 After:
 
 - Core top-level commands plus grouped workflow families (`project`, `backlog`, `code`, `spec`, `govern`).
-- Backward-compatibility flat shims remain available during migration.
+- No backward-compatibility flat shims.

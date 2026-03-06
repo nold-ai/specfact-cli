@@ -35,16 +35,16 @@ Use the new bridge commands instead:
 
 ```bash
 # Set up CrossHair for contract exploration (one-time setup, only available since v0.20.1)
-specfact repro setup
+specfact code repro setup
 
 # Analyze and validate your codebase
-specfact repro --verbose
+specfact code repro --verbose
 
 # Generate AI-ready prompt to fix a gap
-specfact generate fix-prompt GAP-001 --bundle my-bundle
+specfact spec generate fix-prompt GAP-001 --bundle my-bundle
 
 # Generate AI-ready prompt to add tests
-specfact generate test-prompt src/auth/login.py --bundle my-bundle
+specfact spec generate test-prompt src/auth/login.py --bundle my-bundle
 ```
 
 ### `run idea-to-ship` Removed
@@ -63,10 +63,10 @@ New commands that generate AI-ready prompts for your IDE:
 
 ```bash
 # Generate fix prompt for a gap
-specfact generate fix-prompt GAP-001
+specfact spec generate fix-prompt GAP-001
 
 # Generate test prompt for a file
-specfact generate test-prompt src/module.py --type unit
+specfact spec generate test-prompt src/module.py --type unit
 ```
 
 ### Version Management (v0.17.0)
@@ -119,7 +119,7 @@ If you were using `implement tasks` or `run idea-to-ship`, migrate to bridge com
 
 ```bash
 # REMOVED in v0.22.0 - Use Spec-Kit, OpenSpec, or other SDD tools instead
-# specfact generate tasks --bundle my-bundle
+# specfact spec generate tasks --bundle my-bundle
 # specfact implement tasks .specfact/projects/my-bundle/tasks.yaml
 ```
 
@@ -127,15 +127,15 @@ If you were using `implement tasks` or `run idea-to-ship`, migrate to bridge com
 
 ```bash
 # 1. Analyze and validate your codebase
-specfact repro --verbose
+specfact code repro --verbose
 
 # 2. Generate AI prompts for each gap
-specfact generate fix-prompt GAP-001 --bundle my-bundle
+specfact spec generate fix-prompt GAP-001 --bundle my-bundle
 
 # 3. Copy prompt to AI IDE, get fix, apply
 
 # 4. Validate
-specfact enforce sdd --bundle my-bundle
+specfact govern enforce sdd --bundle my-bundle
 ```
 
 ### Step 4: Update CI/CD (Optional)

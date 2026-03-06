@@ -4,7 +4,11 @@ from __future__ import annotations
 
 import inspect
 
-from specfact_cli.modules.enforce.src import commands as module_commands
+import pytest
+
+
+pytest.importorskip("specfact_govern.enforce.commands")
+from specfact_govern.enforce import commands as module_commands
 
 
 REQUIRED_METHODS = [

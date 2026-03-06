@@ -114,8 +114,8 @@ class TestPrintSuggestions:
 
     def test_print_suggestions_non_empty(self, capsys: pytest.CaptureFixture[str]) -> None:
         """Test printing non-empty suggestions."""
-        suggestions = ["specfact analyze", "specfact import"]
+        suggestions = ["specfact code analyze", "specfact project import"]
         print_suggestions(suggestions, title="Test Suggestions")
         captured = capsys.readouterr()
         assert "Test Suggestions" in captured.out
-        assert "specfact analyze" in captured.out
+        assert "specfact code analyze" in captured.out

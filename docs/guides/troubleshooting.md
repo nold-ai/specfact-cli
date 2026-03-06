@@ -30,7 +30,7 @@ Common issues and solutions for SpecFact CLI.
 
 ## Plan Select Command is Slow
 
-**Symptom**: `specfact plan select` takes a long time (5+ seconds) to list plans.
+**Symptom**: `specfact project plan select` takes a long time (5+ seconds) to list plans.
 
 **Cause**: Plan bundles may be missing summary metadata (older schema version 1.0).
 
@@ -38,10 +38,10 @@ Common issues and solutions for SpecFact CLI.
 
 ```bash
 # Upgrade all plan bundles to latest schema (adds summary metadata)
-specfact plan upgrade --all
+specfact project plan upgrade --all
 
 # Verify upgrade worked
-specfact plan select --last 5
+specfact project plan select --last 5
 ```
 
 **Performance Improvement**: After upgrade, `plan select` is 44% faster (3.6s vs 6.5s) and scales better with large plan bundles.
@@ -103,7 +103,7 @@ specfact plan select --last 5
 3. **Use explicit path**:
 
    ```bash
-   specfact import from-bridge --adapter speckit --repo /path/to/speckit-project
+   specfact project import from-bridge --adapter speckit --repo /path/to/speckit-project
    ```
 
 ### Code Analysis Fails (Brownfield) ⭐
@@ -115,13 +115,13 @@ specfact plan select --last 5
 1. **Check repository path**:
 
    ```bash
-   specfact import from-code legacy-api --repo . --verbose
+   specfact project import from-code legacy-api --repo . --verbose
    ```
 
 2. **Lower confidence threshold** (for legacy code with less structure):
 
    ```bash
-   specfact import from-code legacy-api --repo . --confidence 0.3
+   specfact project import from-code legacy-api --repo . --confidence 0.3
    ```
 
 3. **Check file structure**:
@@ -139,7 +139,7 @@ specfact plan select --last 5
 5. **For legacy codebases**, start with minimal confidence and review extracted features:
 
    ```bash
-   specfact import from-code legacy-api --repo . --confidence 0.2
+   specfact project import from-code legacy-api --repo . --confidence 0.2
    ```
 
 ---
@@ -155,7 +155,7 @@ specfact plan select --last 5
 1. **Check repository path**:
 
    ```bash
-   specfact sync bridge --adapter speckit --bundle <bundle-name> --repo . --watch --interval 5 --verbose
+   specfact project sync bridge --adapter speckit --bundle <bundle-name> --repo . --watch --interval 5 --verbose
    ```
 
 2. **Verify directory exists**:
@@ -174,7 +174,7 @@ specfact plan select --last 5
 4. **Try one-time sync first**:
 
    ```bash
-   specfact sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional
+   specfact project sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional
    ```
 
 ### Bidirectional Sync Conflicts
@@ -199,7 +199,7 @@ specfact plan select --last 5
 
    ```bash
    # Spec-Kit → SpecFact only
-   specfact sync bridge --adapter speckit --bundle <bundle-name> --repo .
+   specfact project sync bridge --adapter speckit --bundle <bundle-name> --repo .
 
    # SpecFact → Spec-Kit only (manual)
    # Edit Spec-Kit files manually
@@ -218,19 +218,19 @@ specfact plan select --last 5
 1. **Check enforcement configuration** (use CLI commands):
 
    ```bash
-   specfact enforce show-config
+   specfact govern enforce show-config
    ```
 
 2. **Verify enforcement mode**:
 
    ```bash
-   specfact enforce stage --preset balanced
+   specfact govern enforce stage --preset balanced
    ```
 
 3. **Run validation**:
 
    ```bash
-   specfact repro --verbose
+   specfact code repro --verbose
    ```
 
 4. **Check severity levels**:
@@ -248,25 +248,25 @@ specfact plan select --last 5
 1. **Review violation details**:
 
    ```bash
-   specfact repro --verbose
+   specfact code repro --verbose
    ```
 
 2. **Adjust confidence threshold**:
 
    ```bash
-   specfact import from-code legacy-api --repo . --confidence 0.7
+   specfact project import from-code legacy-api --repo . --confidence 0.7
    ```
 
 3. **Check enforcement rules** (use CLI commands):
 
    ```bash
-   specfact enforce show-config
+   specfact govern enforce show-config
    ```
 
 4. **Use minimal mode** (observe only):
 
    ```bash
-   specfact enforce stage --preset minimal
+   specfact govern enforce stage --preset minimal
    ```
 
 ---
@@ -282,7 +282,7 @@ specfact plan select --last 5
 1. **Auto-generate bootstrap constitution** (recommended for brownfield):
 
    ```bash
-   specfact sdd constitution bootstrap --repo .
+   specfact spec sdd constitution bootstrap --repo .
    ```
 
    This analyzes your repository (README.md, pyproject.toml, .cursor/rules/, docs/rules/) and generates a bootstrap constitution.
@@ -290,7 +290,7 @@ specfact plan select --last 5
 2. **Enrich existing minimal constitution**:
 
    ```bash
-   specfact sdd constitution enrich --repo .
+   specfact spec sdd constitution enrich --repo .
    ```
 
    This fills placeholders in an existing constitution with repository context.
@@ -298,7 +298,7 @@ specfact plan select --last 5
 3. **Validate constitution completeness**:
 
    ```bash
-   specfact sdd constitution validate
+   specfact spec sdd constitution validate
    ```
 
    This checks if the constitution is complete and ready for use.
@@ -316,7 +316,7 @@ specfact plan select --last 5
 
 ### Constitution Validation Fails
 
-**Issue**: `specfact sdd constitution validate` reports issues
+**Issue**: `specfact spec sdd constitution validate` reports issues
 
 **Solutions**:
 
@@ -329,13 +329,13 @@ specfact plan select --last 5
 2. **Run enrichment**:
 
    ```bash
-   specfact sdd constitution enrich --repo .
+   specfact spec sdd constitution enrich --repo .
    ```
 
 3. **Review validation output**:
 
    ```bash
-   specfact sdd constitution validate --constitution .specify/memory/constitution.md
+   specfact spec sdd constitution validate --constitution .specify/memory/constitution.md
    ```
 
    The output will list specific issues (missing sections, placeholders, etc.).
@@ -343,7 +343,7 @@ specfact plan select --last 5
 4. **Fix issues manually** or re-run bootstrap:
 
    ```bash
-   specfact sdd constitution bootstrap --repo . --overwrite
+   specfact spec sdd constitution bootstrap --repo . --overwrite
    ```
 
 ---
@@ -366,7 +366,7 @@ specfact plan select --last 5
 2. **Use explicit paths** (bundle directory paths):
 
    ```bash
-   specfact plan compare \
+   specfact project plan compare \
      --manual .specfact/projects/manual-plan \
      --auto .specfact/projects/auto-derived
    ```
@@ -374,7 +374,7 @@ specfact plan select --last 5
 3. **Generate auto-derived plan first**:
 
    ```bash
-   specfact import from-code legacy-api --repo .
+   specfact project import from-code legacy-api --repo .
    ```
 
 ### No Deviations Found (Expected Some)
@@ -391,13 +391,13 @@ specfact plan select --last 5
 2. **Verify plan contents** (use CLI commands):
 
    ```bash
-   specfact plan review <bundle-name>
+   specfact project plan review <bundle-name>
    ```
 
 3. **Use verbose mode**:
 
    ```bash
-   specfact plan compare --bundle legacy-api --verbose
+   specfact project plan compare --bundle legacy-api --verbose
    ```
 
 ---
@@ -481,7 +481,7 @@ specfact plan select --last 5
 
    ```bash
    export SPECFACT_MODE=copilot
-   specfact import from-code legacy-api --repo .
+   specfact project import from-code legacy-api --repo .
    ```
 
 4. **See [Operational Modes](../reference/modes.md)** for details
@@ -505,14 +505,14 @@ specfact plan select --last 5
 2. **Increase confidence threshold** (fewer features):
 
    ```bash
-   specfact import from-code legacy-api --repo . --confidence 0.8
+   specfact project import from-code legacy-api --repo . --confidence 0.8
    ```
 
 3. **Exclude directories**:
 
    ```bash
    # Use .gitignore or exclude patterns
-   specfact import from-code legacy-api --repo . --exclude "tests/"
+   specfact project import from-code legacy-api --repo . --exclude "tests/"
    ```
 
 ### Watch Mode High CPU
@@ -524,13 +524,13 @@ specfact plan select --last 5
 1. **Increase interval**:
 
    ```bash
-   specfact sync bridge --adapter speckit --bundle <bundle-name> --repo . --watch --interval 10
+   specfact project sync bridge --adapter speckit --bundle <bundle-name> --repo . --watch --interval 10
    ```
 
 2. **Use one-time sync**:
 
    ```bash
-   specfact sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional
+   specfact project sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional
    ```
 
 3. **Check file system events**:
@@ -588,17 +588,17 @@ You can override auto-detection using standard environment variables:
 
 ```bash
 # Auto-detection (default behavior)
-specfact import from-code my-bundle
+specfact project import from-code my-bundle
 # → Automatically detects terminal and uses appropriate mode
 
 # Manual override: Disable colors
-NO_COLOR=1 specfact import from-code my-bundle
+NO_COLOR=1 specfact project import from-code my-bundle
 
 # Manual override: Force colors in CI/CD
-FORCE_COLOR=1 specfact sync bridge
+FORCE_COLOR=1 specfact project sync bridge
 
 # Manual override: Explicit CI/CD mode
-CI=true specfact import from-code my-bundle
+CI=true specfact project import from-code my-bundle
 ```
 
 ### No Progress Visible in Embedded Terminals
@@ -631,7 +631,7 @@ CI=true specfact import from-code my-bundle
 
    ```bash
    # Force basic mode
-   CI=true specfact import from-code my-bundle
+   CI=true specfact project import from-code my-bundle
    ```
 
 ### Colors Not Working in CI/CD
@@ -643,7 +643,7 @@ CI=true specfact import from-code my-bundle
 **Solution**: This is expected behavior. CI/CD logs are more readable without colors. To force colors:
 
 ```bash
-FORCE_COLOR=1 specfact import from-code my-bundle
+FORCE_COLOR=1 specfact project import from-code my-bundle
 ```
 
 ---
@@ -659,9 +659,9 @@ FORCE_COLOR=1 specfact import from-code my-bundle
 1. **Use stored token** (recommended):
 
    ```bash
-   specfact auth azure-devops
+   specfact backlog auth azure-devops
    # Or use PAT token for longer expiration:
-   specfact auth azure-devops --pat your_pat_token
+   specfact backlog auth azure-devops --pat your_pat_token
    ```
 
 2. **Use explicit token**:
@@ -683,7 +683,7 @@ The command automatically uses tokens in this order:
 
 1. Explicit `--ado-token` parameter
 2. `AZURE_DEVOPS_TOKEN` environment variable
-3. Stored token via `specfact auth azure-devops`
+3. Stored token via `specfact backlog auth azure-devops`
 4. Expired stored token (shows warning with options)
 
 ### OAuth Token Expired
@@ -697,13 +697,13 @@ The command automatically uses tokens in this order:
 1. **Use PAT token** (recommended for automation, up to 1 year expiration):
 
    ```bash
-   specfact auth azure-devops --pat your_pat_token
+   specfact backlog auth azure-devops --pat your_pat_token
    ```
 
 2. **Re-authenticate**:
 
    ```bash
-   specfact auth azure-devops
+   specfact backlog auth azure-devops
    ```
 
 3. **Use explicit token**:
@@ -782,7 +782,8 @@ The command automatically uses tokens in this order:
 
 3. **Fix field mapping** – If the error is about a missing or wrong field:
    - Ensure `.specfact/templates/backlog/field_mappings/ado_custom.yaml` exists and maps your canonical fields to the field names/paths that exist in your ADO project.
-   - Use `specfact backlog map-fields --ado-org <org> --ado-project <project>` to discover available fields in the project.
+   - Use `specfact backlog map-fields --provider ado --ado-org <org> --ado-project <project> --non-interactive` first to auto-map fields and persist required-field / allowed-values metadata.
+   - If auto-mapping exits with unresolved required fields, rerun `specfact backlog map-fields --ado-org <org> --ado-project <project>` interactively to correct mappings.
    - See [Custom Field Mapping](custom-field-mapping.md) and [Debug Logging – Examining ADO API Errors](../reference/debug-logging.md#examining-ado-api-errors).
 
 4. **Check project process template** – Custom ADO process templates can rename or remove fields. Align your mapping with the actual work item type and process in the project.
@@ -810,7 +811,7 @@ When a PR or push runs the **PR Orchestrator** workflow, test and repro output a
    | `type-check-logs`    | Type Checking (basedpyright) | Full basedpyright type-check output.                              |
    | `lint-logs`          | Linting (ruff, pylint) | Full lint run output.                                                   |
    | `quality-gates-logs`| Quality Gates (Advisory) | Coverage percentage and advisory message.                          |
-   | `repro-logs`         | Contract-First CI | Full stdout/stderr of `specfact repro` (`logs/repro/`).                   |
+   | `repro-logs`         | Contract-First CI | Full stdout/stderr of `specfact code repro` (`logs/repro/`).                   |
    | `repro-reports`      | Contract-First CI | Repro report YAMLs from `.specfact/reports/enforcement/`.                |
 
 3. **How to use them**
@@ -832,7 +833,7 @@ If you're still experiencing issues:
 
    ```bash
    specfact --debug <command> <args>   # Writes to ~/.specfact/logs/specfact-debug.log
-   specfact repro --verbose 2>&1 | tee debug.log
+   specfact code repro --verbose 2>&1 | tee debug.log
    ```
 
 2. **Search documentation**:

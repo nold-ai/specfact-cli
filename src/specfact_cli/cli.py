@@ -66,6 +66,66 @@ from specfact_cli.utils.progressive_disclosure import ProgressiveDisclosureGroup
 from specfact_cli.utils.structured_io import StructuredFormat
 
 
+# Names of commands that come from installable bundles; when not registered, show actionable error.
+KNOWN_BUNDLE_GROUP_OR_SHIM_NAMES: frozenset[str] = frozenset(
+    {
+        "backlog",
+        "code",
+        "project",
+        "spec",
+        "govern",
+        "plan",
+        "validate",
+        "contract",
+        "sdd",
+        "generate",
+        "enforce",
+        "patch",
+        "migrate",
+        "repro",
+        "drift",
+        "analyze",
+        "policy",
+        "import",
+        "sync",
+    }
+)
+
+
+class _RootCLIGroup(ProgressiveDisclosureGroup):
+    """Root group that shows actionable error when an unknown command is a known bundle group/shim."""
+
+    def resolve_command(
+        self, ctx: click.Context, args: list[str]
+    ) -> tuple[str | None, click.Command | None, list[str]]:
+        if not args:
+            return super().resolve_command(ctx, args)
+        invoked = args[0]
+        try:
+            result = super().resolve_command(ctx, args)
+        except click.UsageError:
+            if invoked in KNOWN_BUNDLE_GROUP_OR_SHIM_NAMES:
+                get_configured_console().print(
+                    f"[bold red]Command '{invoked}' is not installed.[/bold red]\n"
+                    "Install workflow bundles with [bold]specfact init --profile <profile>[/bold] "
+                    "or [bold]specfact module install <bundle>[/bold]."
+                )
+                raise SystemExit(1) from None
+            raise
+        _name, cmd, remaining = result
+        if cmd is not None or not remaining:
+            return result
+        invoked = remaining[0]
+        if invoked not in KNOWN_BUNDLE_GROUP_OR_SHIM_NAMES:
+            return result
+        get_configured_console().print(
+            f"[bold red]Command '{invoked}' is not installed.[/bold red]\n"
+            "Install workflow bundles with [bold]specfact init --profile <profile>[/bold] "
+            "or [bold]specfact module install <bundle>[/bold]."
+        )
+        raise SystemExit(1)
+
+
 # Map shell names for completion support
 SHELL_MAP = {
     "sh": "bash",  # sh is bash-compatible
@@ -112,7 +172,7 @@ app = typer.Typer(
     add_completion=True,  # Enable Typer's built-in completion (works natively for bash/zsh/fish without extensions)
     rich_markup_mode="rich",
     context_settings={"help_option_names": ["-h", "--help", "--help-advanced", "-ha"]},  # Add aliases for help
-    cls=ProgressiveDisclosureGroup,  # Use custom group for progressive disclosure
+    cls=_RootCLIGroup,  # Progressive disclosure + actionable error for unknown bundle commands
 )
 
 console = get_configured_console()
@@ -268,6 +328,9 @@ def main(
 
     Transform your development workflow with automated quality gates,
     runtime contract validation, and state machine workflows.
+
+    Run **specfact init** or **specfact module install** to add workflow bundles
+    (backlog, code, project, spec, govern).
 
     **Backlog Management**: Use `specfact backlog refine` for AI-assisted template-driven
     refinement of backlog items from GitHub Issues, Azure DevOps, and other tools.

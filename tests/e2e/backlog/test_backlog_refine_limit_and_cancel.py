@@ -8,11 +8,15 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
+import pytest
 from beartype import beartype
+
+
+pytest.importorskip("specfact_backlog.backlog.commands")
+from specfact_backlog.backlog.commands import _fetch_backlog_items
 
 from specfact_cli.backlog.filters import BacklogFilters
 from specfact_cli.models.backlog_item import BacklogItem
-from specfact_cli.modules.backlog.src.commands import _fetch_backlog_items
 
 
 class TestBacklogRefineLimitAndCancel:
@@ -35,7 +39,7 @@ class TestBacklogRefineLimitAndCancel:
         ]
 
         # Mock adapter to return all items
-        with patch("specfact_cli.modules.backlog.src.commands.AdapterRegistry") as mock_registry:
+        with patch("specfact_backlog.backlog.commands.AdapterRegistry") as mock_registry:
             from specfact_cli.backlog.adapters.base import BacklogAdapter
 
             mock_adapter = MagicMock(spec=BacklogAdapter)
@@ -64,7 +68,7 @@ class TestBacklogRefineLimitAndCancel:
             for i in range(1, 11)  # 10 items
         ]
 
-        with patch("specfact_cli.modules.backlog.src.commands.AdapterRegistry") as mock_registry:
+        with patch("specfact_backlog.backlog.commands.AdapterRegistry") as mock_registry:
             from specfact_cli.backlog.adapters.base import BacklogAdapter
 
             mock_adapter = MagicMock(spec=BacklogAdapter)

@@ -9,6 +9,9 @@ description: Trust model, checksum and signature verification, and integrity lif
 
 Module packages carry **publisher** and **integrity** metadata so installation, bootstrap, and runtime discovery verify trust before enabling a module.
 
+> Temporary docs note: bundle-specific security guidance remains hosted in this core docs set for
+> the current release line and is planned to migrate to `specfact-cli-modules`.
+
 ## Trust model
 
 - **Manifest metadata**: `module-package.yaml` may include `publisher` (name, email, attributes) and `integrity` (checksum, optional signature).

@@ -79,7 +79,7 @@ When modernizing legacy code, you can use **both tools together** for maximum va
 
 ```bash
 # Step 1: Use SpecFact to extract specs from legacy code
-specfact import from-code customer-portal --repo ./legacy-app
+specfact project import from-code customer-portal --repo ./legacy-app
 
 # Output: Auto-generated project bundle from existing code
 # ✅ Analyzed 47 Python files
@@ -99,7 +99,7 @@ specfact import from-code customer-portal --repo ./legacy-app
 # Refactor knowing contracts will catch regressions
 
 # Step 5: Keep both in sync
-specfact sync bridge --adapter speckit --bundle customer-portal --repo . --bidirectional --watch
+specfact project sync bridge --adapter speckit --bundle customer-portal --repo . --bidirectional --watch
 ```
 
 ### **Why This Works**
@@ -155,13 +155,13 @@ Import your Spec-Kit project to see what SpecFact adds:
 
 ```bash
 # 1. Preview what will be imported
-specfact import from-bridge --adapter speckit --repo ./my-speckit-project --dry-run
+specfact project import from-bridge --adapter speckit --repo ./my-speckit-project --dry-run
 
 # 2. Execute import (one command) - bundle name will be auto-detected or you can specify with --bundle
-specfact import from-bridge --adapter speckit --repo ./my-speckit-project --write
+specfact project import from-bridge --adapter speckit --repo ./my-speckit-project --write
 
 # 3. Review generated bundle using CLI commands
-specfact plan review <bundle-name>
+specfact project plan review <bundle-name>
 ```
 
 **What was created**:
@@ -191,7 +191,7 @@ Keep using Spec-Kit interactively, sync automatically with SpecFact:
 
 ```bash
 # Enable bidirectional sync (bridge-based, adapter-agnostic)
-specfact sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional --watch
+specfact project sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional --watch
 ```
 
 **Workflow**:
@@ -209,13 +209,13 @@ specfact sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirec
 # → Enables shared plans for team collaboration
 
 # 3. Detect code vs plan drift automatically
-specfact plan compare --code-vs-plan
+specfact project plan compare --code-vs-plan
 # → Compares intended design (manual plan = what you planned) vs actual implementation (code-derived plan = what's in your code)
 # → Identifies deviations automatically (not just artifact consistency like Spec-Kit's /speckit.analyze)
 # → Auto-derived plans come from `import from-code` (code analysis), so comparison IS "code vs plan drift"
 
 # 4. Enable automated enforcement
-specfact enforce stage --preset balanced
+specfact govern enforce stage --preset balanced
 
 # 5. CI/CD automatically validates (GitHub Action)
 # → Runs on every PR
@@ -244,10 +244,10 @@ specfact enforce stage --preset balanced
 
 ```bash
 # Import existing Spec-Kit project
-specfact import from-bridge --adapter speckit --repo . --write
+specfact project import from-bridge --adapter speckit --repo . --write
 
 # Enable bidirectional sync (bridge-based, adapter-agnostic)
-specfact sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional --watch
+specfact project sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional --watch
 ```
 
 **Result**: Both tools working together seamlessly.
@@ -256,16 +256,16 @@ specfact sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirec
 
 ```bash
 # Start in shadow mode (observe only)
-specfact enforce stage --preset minimal
+specfact govern enforce stage --preset minimal
 
 # Set up CrossHair for contract exploration
-specfact repro setup
+specfact code repro setup
 
 # Review what would be blocked
-specfact repro --verbose
+specfact code repro --verbose
 
 # Apply auto-fixes for violations (if available)
-specfact repro --fix --verbose
+specfact code repro --fix --verbose
 ```
 
 **Result**: See what SpecFact would catch, no blocking yet. Auto-fixes can be applied for Semgrep violations.
@@ -274,15 +274,15 @@ specfact repro --fix --verbose
 
 ```bash
 # Enable balanced mode (block HIGH, warn MEDIUM)
-specfact enforce stage --preset balanced
+specfact govern enforce stage --preset balanced
 
 # Test with real PR
 git checkout -b test-enforcement
 # Make a change that violates contracts
-specfact repro  # Should block HIGH issues
+specfact code repro  # Should block HIGH issues
 
 # Or apply auto-fixes first
-specfact repro --fix  # Apply Semgrep auto-fixes, then validate
+specfact code repro --fix  # Apply Semgrep auto-fixes, then validate
 ```
 
 **Result**: Automated enforcement catching critical issues. Auto-fixes can be applied before validation.
@@ -291,11 +291,11 @@ specfact repro --fix  # Apply Semgrep auto-fixes, then validate
 
 ```bash
 # Enable strict enforcement
-specfact enforce stage --preset strict
+specfact govern enforce stage --preset strict
 
 # Full automation (CI/CD, brownfield analysis, etc.)
 # (CrossHair setup already done in Week 3)
-specfact repro --budget 120 --verbose
+specfact code repro --budget 120 --verbose
 ```
 
 **Result**: Complete SpecFact workflow - or keep using both tools together!
@@ -308,7 +308,7 @@ specfact repro --budget 120 --verbose
 
 ```bash
 # See what will be imported (safe - no changes)
-specfact import from-bridge --adapter speckit --repo ./my-speckit-project --dry-run
+specfact project import from-bridge --adapter speckit --repo ./my-speckit-project --dry-run
 ```
 
 **Expected Output**:
@@ -321,7 +321,7 @@ specfact import from-bridge --adapter speckit --repo ./my-speckit-project --dry-
 ✅ Found specs/001-user-authentication/tasks.md
 ✅ Found .specify/memory/constitution.md
 
-**💡 Tip**: If constitution is missing or minimal, run `specfact sdd constitution bootstrap --repo .` to auto-generate from repository analysis.
+**💡 Tip**: If constitution is missing or minimal, run `specfact spec sdd constitution bootstrap --repo .` to auto-generate from repository analysis.
 
 📊 Migration Preview:
   - Will create: .specfact/projects/<bundle-name>/ (modular project bundle)
@@ -337,7 +337,7 @@ specfact import from-bridge --adapter speckit --repo ./my-speckit-project --dry-
 
 ```bash
 # Execute migration (creates SpecFact artifacts)
-specfact import from-bridge \
+specfact project import from-bridge \
   --adapter speckit \
   --repo ./my-speckit-project \
   --write \
@@ -365,10 +365,10 @@ specfact import from-bridge \
 
 ```bash
 # Review plan bundle using CLI commands
-specfact plan review <bundle-name>
+specfact project plan review <bundle-name>
 
 # Review enforcement config using CLI commands
-specfact enforce show-config
+specfact govern enforce show-config
 
 # Review migration report
 cat migration-report.md
@@ -389,10 +389,10 @@ cat migration-report.md
 
 ```bash
 # One-time sync
-specfact sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional
+specfact project sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional
 
 # Continuous watch mode (recommended for team collaboration)
-specfact sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional --watch --interval 5
+specfact project sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional --watch --interval 5
 ```
 
 **What it syncs**:
@@ -409,23 +409,23 @@ specfact sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirec
 
 ```bash
 # Week 1-2: Shadow mode (observe only)
-specfact enforce stage --preset minimal
+specfact govern enforce stage --preset minimal
 
 # Week 3-4: Balanced mode (block HIGH, warn MEDIUM)
-specfact enforce stage --preset balanced
+specfact govern enforce stage --preset balanced
 
 # Week 5+: Strict mode (block MEDIUM+)
-specfact enforce stage --preset strict
+specfact govern enforce stage --preset strict
 ```
 
 ### **Step 6: Validate**
 
 ```bash
 # Set up CrossHair for contract exploration (one-time setup)
-specfact repro setup
+specfact code repro setup
 
 # Run all checks
-specfact repro --verbose
+specfact code repro --verbose
 
 # Check CI/CD integration
 git push origin feat/specfact-migration
@@ -441,8 +441,8 @@ git push origin feat/specfact-migration
 
 ```bash
 # Always start with shadow mode (no blocking)
-specfact enforce stage --preset minimal
-specfact repro
+specfact govern enforce stage --preset minimal
+specfact code repro
 ```
 
 **Why**: See what SpecFact would catch before enabling blocking.
@@ -451,7 +451,7 @@ specfact repro
 
 ```bash
 # Enable bidirectional sync for team collaboration
-specfact sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional --watch
+specfact project sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional --watch
 ```
 
 **Why**: **Shared structured plans** enable team collaboration with automated bidirectional sync. Unlike Spec-Kit's manual markdown sharing, SpecFact automatically keeps plans synchronized across team members. Continue using Spec-Kit interactively, get SpecFact automation automatically.
@@ -460,13 +460,13 @@ specfact sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirec
 
 ```bash
 # Week 1: Shadow (observe)
-specfact enforce stage --preset minimal
+specfact govern enforce stage --preset minimal
 
 # Week 2-3: Balanced (block HIGH)
-specfact enforce stage --preset balanced
+specfact govern enforce stage --preset balanced
 
 # Week 4+: Strict (block MEDIUM+)
-specfact enforce stage --preset strict
+specfact govern enforce stage --preset strict
 ```
 
 **Why**: Gradual adoption reduces disruption and builds team confidence.
@@ -537,10 +537,10 @@ specfact enforce stage --preset strict
 
 **Next Steps**:
 
-1. **Try it**: `specfact import from-bridge --adapter speckit --repo . --dry-run`
-2. **Import**: `specfact import from-bridge --adapter speckit --repo . --write`
-3. **Sync**: `specfact sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional --watch`
-4. **Enforce**: `specfact enforce stage --preset minimal` (start shadow mode)
+1. **Try it**: `specfact project import from-bridge --adapter speckit --repo . --dry-run`
+2. **Import**: `specfact project import from-bridge --adapter speckit --repo . --write`
+3. **Sync**: `specfact project sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional --watch`
+4. **Enforce**: `specfact govern enforce stage --preset minimal` (start shadow mode)
 
 ---
 

@@ -53,7 +53,7 @@ Choose `always` for fully controlled internal registries; use `prompt` for unkno
 
 ## Priority
 
-When multiple registries are configured, they are queried in order: official first, then custom registries by ascending priority number. Search and install use this order; the first matching module id wins. Use priority to prefer an internal registry over the official one for overlapping names (e.g. `specfact/backlog` from your mirror).
+When multiple registries are configured, they are queried in order: official first, then custom registries by ascending priority number. Search and install use this order; the first matching module id wins. Use priority to prefer an internal registry over the official one for overlapping names (e.g. `nold-ai/specfact-backlog` from your mirror).
 
 ## Search across registries
 

@@ -43,11 +43,11 @@ SpecFact CLI is designed specifically for your situation. It provides:
 
 ```bash
 # Analyze your legacy codebase
-specfact import from-code legacy-api --repo ./legacy-app
+specfact project import from-code legacy-api --repo ./legacy-app
 
 # For large codebases or multi-project repos, analyze specific modules:
-specfact import from-code core-module --repo ./legacy-app --entry-point src/core
-specfact import from-code api-module --repo ./legacy-app --entry-point src/api
+specfact project import from-code core-module --repo ./legacy-app --entry-point src/core
+specfact project import from-code api-module --repo ./legacy-app --entry-point src/api
 ```
 
 **What you get:**
@@ -81,10 +81,10 @@ For large codebases or monorepos with multiple projects, you can analyze specifi
 
 ```bash
 # Analyze only the core module
-specfact import from-code core-module --repo . --entry-point src/core
+specfact project import from-code core-module --repo . --entry-point src/core
 
 # Analyze only the API service
-specfact import from-code api-service --repo . --entry-point projects/api-service
+specfact project import from-code api-service --repo . --entry-point projects/api-service
 ```
 
 This enables:
@@ -99,7 +99,7 @@ This enables:
 ```bash
 # If suggested, accept to auto-generate
 # Or run manually:
-specfact sdd constitution bootstrap --repo .
+specfact spec sdd constitution bootstrap --repo .
 ```
 
 This is especially useful if you plan to sync with Spec-Kit later.
@@ -227,7 +227,7 @@ You inherited a 3-year-old Django app with:
 
 ```bash
 # Step 1: Extract specs
-specfact import from-code customer-portal --repo ./legacy-django-app
+specfact project import from-code customer-portal --repo ./legacy-django-app
 
 # Output:
 ✅ Analyzed 47 Python files
@@ -289,7 +289,7 @@ SpecFact CLI integrates seamlessly with your existing tools:
 Begin in shadow mode to observe without blocking:
 
 ```bash
-specfact import from-code legacy-api --repo . --shadow-only
+specfact project import from-code legacy-api --repo . --shadow-only
 ```
 
 ### 2. Add Contracts Incrementally

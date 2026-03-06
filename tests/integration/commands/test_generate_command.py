@@ -20,7 +20,7 @@ class TestGenerateContractsCommand:
         # Create a plan with features and stories that have contracts
         # First create minimal plan
         bundle_name = "test-bundle"
-        result_init = runner.invoke(app, ["plan", "init", bundle_name, "--no-interactive"])
+        result_init = runner.invoke(app, ["project", "plan", "init", bundle_name, "--no-interactive"])
         assert result_init.exit_code == 0, f"plan init failed: {result_init.stdout}\n{result_init.stderr}"
 
         # Read the plan and add a feature with contracts (modular bundle structure)
@@ -60,12 +60,12 @@ class TestGenerateContractsCommand:
         save_project_bundle(project_bundle, bundle_dir, atomic=True)
 
         # Harden the plan
-        result_harden = runner.invoke(app, ["plan", "harden", bundle_name, "--no-interactive"])
+        result_harden = runner.invoke(app, ["project", "plan", "harden", bundle_name, "--no-interactive"])
         assert result_harden.exit_code == 0, f"plan harden failed: {result_harden.stdout}\n{result_harden.stderr}"
 
         # Generate contracts
         bundle_dir = tmp_path / ".specfact" / "projects" / bundle_name
-        result = runner.invoke(app, ["generate", "contracts", "--plan", str(bundle_dir), "--no-interactive"])
+        result = runner.invoke(app, ["spec", "generate", "contracts", "--plan", str(bundle_dir), "--no-interactive"])
 
         if result.exit_code != 0:
             print(f"STDOUT: {result.stdout}")
@@ -120,11 +120,11 @@ class TestGenerateContractsCommand:
 
         # Create a plan but don't harden it
         bundle_name = "test-bundle"
-        runner.invoke(app, ["plan", "init", bundle_name, "--no-interactive"])
+        runner.invoke(app, ["project", "plan", "init", bundle_name, "--no-interactive"])
 
         # Try to generate contracts (should fail - no SDD)
         bundle_dir = tmp_path / ".specfact" / "projects" / bundle_name
-        result = runner.invoke(app, ["generate", "contracts", "--plan", str(bundle_dir), "--no-interactive"])
+        result = runner.invoke(app, ["spec", "generate", "contracts", "--plan", str(bundle_dir), "--no-interactive"])
 
         assert result.exit_code == 1
         assert "SDD manifest not found" in result.stdout or "No active plan found" in result.stdout
@@ -136,8 +136,8 @@ class TestGenerateContractsCommand:
 
         # Create a plan and harden it
         bundle_name = "test-bundle"
-        runner.invoke(app, ["plan", "init", bundle_name, "--no-interactive"])
-        runner.invoke(app, ["plan", "harden", bundle_name, "--no-interactive"])
+        runner.invoke(app, ["project", "plan", "init", bundle_name, "--no-interactive"])
+        runner.invoke(app, ["project", "plan", "harden", bundle_name, "--no-interactive"])
 
         # Generate contracts with explicit SDD path (bundle-specific location)
         from specfact_cli.utils.structure import SpecFactStructure
@@ -166,8 +166,8 @@ class TestGenerateContractsCommand:
 
         # Create a plan and harden it
         bundle_name = "test-bundle"
-        runner.invoke(app, ["plan", "init", bundle_name, "--no-interactive"])
-        runner.invoke(app, ["plan", "harden", bundle_name, "--no-interactive"])
+        runner.invoke(app, ["project", "plan", "init", bundle_name, "--no-interactive"])
+        runner.invoke(app, ["project", "plan", "harden", bundle_name, "--no-interactive"])
 
         # Find the bundle path (modular structure)
         bundle_dir = tmp_path / ".specfact" / "projects" / bundle_name
@@ -192,8 +192,8 @@ class TestGenerateContractsCommand:
 
         # Create a plan and harden it
         bundle_name = "test-bundle"
-        runner.invoke(app, ["plan", "init", bundle_name, "--no-interactive"])
-        runner.invoke(app, ["plan", "harden", bundle_name, "--no-interactive"])
+        runner.invoke(app, ["project", "plan", "init", bundle_name, "--no-interactive"])
+        runner.invoke(app, ["project", "plan", "harden", bundle_name, "--no-interactive"])
 
         # Modify the project bundle hash in the SDD manifest to simulate a mismatch
         from specfact_cli.utils.structure import SpecFactStructure
@@ -210,7 +210,7 @@ class TestGenerateContractsCommand:
 
         # Try to generate contracts (should fail on hash mismatch)
         bundle_dir = tmp_path / ".specfact" / "projects" / bundle_name
-        result = runner.invoke(app, ["generate", "contracts", "--plan", str(bundle_dir), "--no-interactive"])
+        result = runner.invoke(app, ["spec", "generate", "contracts", "--plan", str(bundle_dir), "--no-interactive"])
 
         assert result.exit_code == 1
         assert "hash does not match" in result.stdout or "hash mismatch" in result.stdout.lower()
@@ -221,7 +221,7 @@ class TestGenerateContractsCommand:
 
         # Create a plan with features and stories
         bundle_name = "test-bundle"
-        runner.invoke(app, ["plan", "init", bundle_name, "--no-interactive"])
+        runner.invoke(app, ["project", "plan", "init", bundle_name, "--no-interactive"])
         runner.invoke(
             app,
             [
@@ -254,11 +254,11 @@ class TestGenerateContractsCommand:
         )
 
         # Harden the plan
-        runner.invoke(app, ["plan", "harden", bundle_name, "--no-interactive"])
+        runner.invoke(app, ["project", "plan", "harden", bundle_name, "--no-interactive"])
 
         # Generate contracts
         bundle_dir = tmp_path / ".specfact" / "projects" / bundle_name
-        result = runner.invoke(app, ["generate", "contracts", "--plan", str(bundle_dir), "--no-interactive"])
+        result = runner.invoke(app, ["spec", "generate", "contracts", "--plan", str(bundle_dir), "--no-interactive"])
 
         assert result.exit_code == 0
         # Should report coverage statistics
@@ -270,7 +270,7 @@ class TestGenerateContractsCommand:
 
         # Create a plan with features and stories that have contracts
         bundle_name = "test-bundle"
-        runner.invoke(app, ["plan", "init", bundle_name, "--no-interactive"])
+        runner.invoke(app, ["project", "plan", "init", bundle_name, "--no-interactive"])
 
         # Add a feature with contracts (modular bundle structure)
         bundle_dir = tmp_path / ".specfact" / "projects" / bundle_name
@@ -304,11 +304,11 @@ class TestGenerateContractsCommand:
         project_bundle.features["FEATURE-001"] = feature
         save_project_bundle(project_bundle, bundle_dir, atomic=True)
 
-        runner.invoke(app, ["plan", "harden", bundle_name, "--no-interactive"])
+        runner.invoke(app, ["project", "plan", "harden", bundle_name, "--no-interactive"])
 
         # Generate contracts
         bundle_dir = tmp_path / ".specfact" / "projects" / bundle_name
-        result = runner.invoke(app, ["generate", "contracts", "--plan", str(bundle_dir), "--no-interactive"])
+        result = runner.invoke(app, ["spec", "generate", "contracts", "--plan", str(bundle_dir), "--no-interactive"])
         assert result.exit_code == 0
 
         # Check that Python files were created (if contracts exist in SDD) - bundle-specific location
@@ -337,12 +337,12 @@ class TestGenerateContractsCommand:
 
         # Create a plan and harden it
         bundle_name = "test-bundle"
-        runner.invoke(app, ["plan", "init", bundle_name, "--no-interactive"])
-        runner.invoke(app, ["plan", "harden", bundle_name, "--no-interactive"])
+        runner.invoke(app, ["project", "plan", "init", bundle_name, "--no-interactive"])
+        runner.invoke(app, ["project", "plan", "harden", bundle_name, "--no-interactive"])
 
         # Generate contracts
         bundle_dir = tmp_path / ".specfact" / "projects" / bundle_name
-        runner.invoke(app, ["generate", "contracts", "--plan", str(bundle_dir), "--no-interactive"])
+        runner.invoke(app, ["spec", "generate", "contracts", "--plan", str(bundle_dir), "--no-interactive"])
 
         # Check that files include metadata (bundle-specific location)
         contracts_dir = tmp_path / ".specfact" / "projects" / bundle_name / "contracts"
@@ -364,7 +364,7 @@ class TestGenerateFixPromptCommand:
 
         # Create a bundle with gap report
         bundle_name = "test-bundle"
-        runner.invoke(app, ["plan", "init", bundle_name, "--no-interactive"])
+        runner.invoke(app, ["project", "plan", "init", bundle_name, "--no-interactive"])
 
         # Create a mock gap report
         bundle_dir = tmp_path / ".specfact" / "projects" / bundle_name
@@ -390,7 +390,7 @@ class TestGenerateFixPromptCommand:
         (reports_dir / "gaps.json").write_text(json.dumps(gap_report))
 
         # Run fix-prompt without gap_id
-        result = runner.invoke(app, ["generate", "fix-prompt", "--bundle", bundle_name, "--no-interactive"])
+        result = runner.invoke(app, ["spec", "generate", "fix-prompt", "--bundle", bundle_name, "--no-interactive"])
 
         assert result.exit_code == 0
         assert "GAP-001" in result.stdout or "Available Gaps" in result.stdout
@@ -401,7 +401,7 @@ class TestGenerateFixPromptCommand:
 
         # Create a bundle with gap report
         bundle_name = "test-bundle"
-        runner.invoke(app, ["plan", "init", bundle_name, "--no-interactive"])
+        runner.invoke(app, ["project", "plan", "init", bundle_name, "--no-interactive"])
 
         # Create a mock gap report
         bundle_dir = tmp_path / ".specfact" / "projects" / bundle_name
@@ -427,7 +427,9 @@ class TestGenerateFixPromptCommand:
         (reports_dir / "gaps.json").write_text(json.dumps(gap_report))
 
         # Run fix-prompt with gap_id
-        result = runner.invoke(app, ["generate", "fix-prompt", "GAP-001", "--bundle", bundle_name, "--no-interactive"])
+        result = runner.invoke(
+            app, ["spec", "generate", "fix-prompt", "GAP-001", "--bundle", bundle_name, "--no-interactive"]
+        )
 
         assert result.exit_code == 0
         # Should create prompt file or show prompt content
@@ -444,10 +446,12 @@ class TestGenerateFixPromptCommand:
 
         # Create a bundle without gap report
         bundle_name = "test-bundle"
-        runner.invoke(app, ["plan", "init", bundle_name, "--no-interactive"])
+        runner.invoke(app, ["project", "plan", "init", bundle_name, "--no-interactive"])
 
         # Run fix-prompt (should fail or show helpful message)
-        result = runner.invoke(app, ["generate", "fix-prompt", "GAP-001", "--bundle", bundle_name, "--no-interactive"])
+        result = runner.invoke(
+            app, ["spec", "generate", "fix-prompt", "GAP-001", "--bundle", bundle_name, "--no-interactive"]
+        )
 
         # Should fail or provide helpful message
         assert result.exit_code != 0 or "no gaps" in result.stdout.lower() or "not found" in result.stdout.lower()
@@ -462,7 +466,7 @@ class TestGenerateTestPromptCommand:
 
         # Create a bundle and a source file
         bundle_name = "test-bundle"
-        runner.invoke(app, ["plan", "init", bundle_name, "--no-interactive"])
+        runner.invoke(app, ["project", "plan", "init", bundle_name, "--no-interactive"])
 
         # Create a source file
         src_dir = tmp_path / "src"
@@ -479,7 +483,7 @@ def login(username: str, password: str) -> bool:
         # Run test-prompt
         result = runner.invoke(
             app,
-            ["generate", "test-prompt", str(source_file), "--bundle", bundle_name, "--no-interactive"],
+            ["spec", "generate", "test-prompt", str(source_file), "--bundle", bundle_name, "--no-interactive"],
         )
 
         assert result.exit_code == 0
@@ -498,10 +502,10 @@ def login(username: str, password: str) -> bool:
 
         # Create a bundle
         bundle_name = "test-bundle"
-        runner.invoke(app, ["plan", "init", bundle_name, "--no-interactive"])
+        runner.invoke(app, ["project", "plan", "init", bundle_name, "--no-interactive"])
 
         # Run test-prompt without file argument
-        result = runner.invoke(app, ["generate", "test-prompt", "--bundle", bundle_name, "--no-interactive"])
+        result = runner.invoke(app, ["spec", "generate", "test-prompt", "--bundle", bundle_name, "--no-interactive"])
 
         # Should succeed and show help or list files
         assert result.exit_code == 0 or "file" in result.stdout.lower()
@@ -512,7 +516,7 @@ def login(username: str, password: str) -> bool:
 
         # Create a bundle and a source file
         bundle_name = "test-bundle"
-        runner.invoke(app, ["plan", "init", bundle_name, "--no-interactive"])
+        runner.invoke(app, ["project", "plan", "init", bundle_name, "--no-interactive"])
 
         # Create a source file
         src_dir = tmp_path / "src"

@@ -64,6 +64,15 @@ See also:
 - [Module Contracts](module-contracts.md)
 - [Module Security](module-security.md)
 
+### Core vs modules-repo ownership boundary
+
+After module extraction and core slimming (module-migration-02, migration-03), the ownership boundary is:
+
+- **specfact-cli (core)**: Owns runtime, lifecycle, bootstrap, registry, adapters, shared models (`ProjectBundle`, `PlanBundle`, etc.), and the three permanent core modules (`init`, `module_registry`, `upgrade`). Core must **not** import from bundle packages (`backlog_core`, `bundle_mapper`, etc.).
+- **specfact-cli-modules (bundles)**: Owns official bundle implementations (`specfact-backlog`, `specfact-project`, etc.). Bundles import from `specfact_cli` (adapters, models, utils, registry, contracts) as pip dependencies. Core provides interfaces; bundles implement and consume them.
+
+Boundary regression tests (`test_core_does_not_import_from_bundle_packages`) enforce that core remains decoupled from bundle implementation details.
+
 ## Operational Modes
 
 Mode detection currently exists via `src/specfact_cli/modes/detector.py` and CLI flags.

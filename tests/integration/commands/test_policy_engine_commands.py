@@ -3,11 +3,18 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 from typer.testing import CliRunner
 
 from specfact_cli.cli import app
+
+
+# Repo root for path constants (conftest sets SPECFACT_REPO_ROOT for module discovery).
+_REPO_ROOT = Path(__file__).resolve().parents[3]
+# Policy template dir for policy init (worktree resources)
+_TEST_POLICY_TEMPLATES = _REPO_ROOT / "resources" / "templates" / "policies"
 
 
 runner = CliRunner()
@@ -212,6 +219,12 @@ class TestPolicyEngineCommands:
 
     def test_policy_init_writes_selected_template_non_interactive(self, tmp_path: Path) -> None:
         """Init SHALL scaffold policy config from selected template in non-interactive mode."""
+        os.environ["SPECFACT_POLICY_TEMPLATES_DIR"] = str(_TEST_POLICY_TEMPLATES.resolve())
+        from specfact_cli.registry.bootstrap import register_builtin_commands
+        from specfact_cli.registry.registry import CommandRegistry
+
+        CommandRegistry._clear_for_testing()
+        register_builtin_commands()
         result = runner.invoke(
             app,
             [
@@ -223,7 +236,11 @@ class TestPolicyEngineCommands:
                 "scrum",
             ],
         )
-        assert result.exit_code == 0
+        assert result.exit_code == 0, result.stdout or result.stderr or "unknown error"
+        config_path = tmp_path / ".specfact" / "policy.yaml"
+        assert config_path.exists()
+        content = config_path.read_text(encoding="utf-8")
+        assert "scrum:" in content
         config_path = tmp_path / ".specfact" / "policy.yaml"
         assert config_path.exists()
         content = config_path.read_text(encoding="utf-8")
@@ -231,6 +248,12 @@ class TestPolicyEngineCommands:
 
     def test_policy_init_prompts_for_template_interactive(self, tmp_path: Path) -> None:
         """Init SHALL ask for template selection when template is omitted."""
+        os.environ["SPECFACT_POLICY_TEMPLATES_DIR"] = str(_TEST_POLICY_TEMPLATES.resolve())
+        from specfact_cli.registry.bootstrap import register_builtin_commands
+        from specfact_cli.registry.registry import CommandRegistry
+
+        CommandRegistry._clear_for_testing()
+        register_builtin_commands()
         result = runner.invoke(
             app,
             [

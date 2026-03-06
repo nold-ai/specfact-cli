@@ -74,7 +74,7 @@ class TestEnforcementWorkflow:
             # Step 3: Set enforcement to balanced mode (blocks HIGH)
             result = runner.invoke(
                 app,
-                ["enforce", "stage", "--preset", "balanced"],
+                ["govern", "enforce", "stage", "--preset", "balanced"],
             )
             assert result.exit_code == 0
             assert "Enforcement mode set to balanced" in result.stdout
@@ -153,7 +153,7 @@ class TestEnforcementWorkflow:
             # Step 3: Set enforcement to minimal (never blocks)
             result = runner.invoke(
                 app,
-                ["enforce", "stage", "--preset", "minimal"],
+                ["govern", "enforce", "stage", "--preset", "minimal"],
             )
             assert result.exit_code == 0
 
@@ -228,14 +228,15 @@ class ReportGenerator:
             # Step 3: Run brownfield analysis (no enforcement config set)
             result = runner.invoke(
                 app,
-                ["import", "from-code", "auto-derived", "--repo", str(tmp_path), "--confidence", "0.5"],
+                ["project", "import", "from-code", "auto-derived", "--repo", str(tmp_path), "--confidence", "0.5"],
             )
             assert result.exit_code == 0
 
             # Step 4: Compare plans without enforcement config (create temporary PlanBundle files)
+            from specfact_project.plan.commands import _convert_project_bundle_to_plan_bundle
+
             from specfact_cli.generators.plan_generator import PlanGenerator
             from specfact_cli.models.plan import PlanBundle
-            from specfact_cli.modules.plan.src.commands import _convert_project_bundle_to_plan_bundle
             from specfact_cli.utils.bundle_loader import load_project_bundle
 
             plans_dir = tmp_path / ".specfact" / "plans"
@@ -335,14 +336,14 @@ class ReportGenerator:
             # Step 2: Set enforcement to balanced
             result = runner.invoke(
                 app,
-                ["enforce", "stage", "--preset", "balanced"],
+                ["govern", "enforce", "stage", "--preset", "balanced"],
             )
             assert result.exit_code == 0
 
             # Step 3: Compare plans
             result = runner.invoke(
                 app,
-                ["plan", "compare", "--manual", str(manual_plan_path), "--auto", str(auto_plan_path)],
+                ["project", "plan", "compare", "--manual", str(manual_plan_path), "--auto", str(auto_plan_path)],
             )
 
             # Verify enforcement section is displayed when deviations exist

@@ -10,6 +10,57 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.40.0] - 2026-02-28
+
+### Added
+
+- Category command groups and first-run bundle selection (OpenSpec change `module-migration-01-categorize-and-group`, issue [#315](https://github.com/nold-ai/specfact-cli/issues/315)): `specfact` now organizes workflow commands under `project`, `backlog`, `code`, `spec`, and `govern`, with profile-driven and explicit bundle selection during `specfact init`.
+- Official marketplace bundle extraction (OpenSpec change `module-migration-02-bundle-extraction`, issue [#316](https://github.com/nold-ai/specfact-cli/issues/316)): five bundle packages (`specfact-project`, `specfact-backlog`, `specfact-codebase`, `specfact-spec`, `specfact-govern`) are now produced in the dedicated `nold-ai/specfact-cli-modules` repository.
+- Modules-repo quality parity baseline (OpenSpec change `module-migration-05-modules-repo-quality`, issue [#334](https://github.com/nold-ai/specfact-cli/issues/334)): the extracted bundle repo now carries mirrored quality gates, test layout, import-boundary checks, docs baseline, and CI orchestration so it can serve as the canonical home for official bundles.
+- Backlog bundle auth command group (OpenSpec change `backlog-auth-01-backlog-auth-commands`, issue [#340](https://github.com/nold-ai/specfact-cli/issues/340)): `specfact backlog auth` now provides `azure-devops`, `github`, `status`, and `clear` using core `specfact_cli.utils.auth_tokens` storage.
+- Official-tier trust model in module validation and display: `official` tier verification path with `nold-ai` publisher allowlist and `[official]` module list badge.
+- Bundle dependency auto-install in module installer: installing `nold-ai/specfact-spec` or `nold-ai/specfact-govern` now auto-installs `nold-ai/specfact-project` when missing.
+- Bundle publishing mode in `scripts/publish-module.py` (`--bundle` and `--modules-repo-dir`) for packaging/signing/index updates against the dedicated modules repository.
+- New marketplace bundles guide: `docs/guides/marketplace.md`.
+- Core-slimming verification gate: `scripts/verify-bundle-published.py` plus `hatch run verify-removal-gate` for signed-bundle publication checks before source deletion.
+- Core-slimming integration and E2E coverage: `tests/integration/test_core_slimming.py` and `tests/e2e/test_core_slimming_e2e.py`.
+- GitHub change-export helper: `scripts/export-change-to-github.py` and hatch alias `hatch run export-change-github -- ...` for `sync bridge` exports with optional in-place issue updates.
+
+### Changed
+
+- Core package slimming and mandatory bundle-first runtime (OpenSpec change `module-migration-03-core-slimming`, issue [#317](https://github.com/nold-ai/specfact-cli/issues/317)): the default install now stays lean, core keeps only permanent runtime/lifecycle commands, and `specfact init` requires an explicit profile or bundle selection before non-core workflows are available.
+- Module source relocation to bundle namespaces with compatibility shims: legacy `specfact_cli.modules.*` imports now re-export from `specfact_<bundle>.*` namespaces during migration.
+- Official module install output now explicitly confirms verification status (`Verified: official (nold-ai)`).
+- Documentation updates across getting-started, docs landing page, module categories, marketplace guides, layout navigation, and root README to reflect marketplace-distributed official bundles.
+- Full docs alignment audit for the lean-core plus modules-repo architecture (OpenSpec change `docs-01-core-modules-docs-alignment`, issue [#348](https://github.com/nold-ai/specfact-cli/issues/348)): README, docs landing pages, reference pages, tutorials, and publishing/signing guidance were reviewed and corrected so command examples use grouped command paths, bundle ownership is attributed to `specfact-cli-modules`, and temporary-in-core module docs are explicitly marked for future migration.
+- Core help/registry behavior now mounts category groups only for installed bundles, preventing non-installed groups from appearing at top level.
+- Marketplace package loader now resolves namespaced command entrypoints (`src/<package>/<command>/app.py`) for installed modules.
+- Installed bundle detection now infers `specfact-*` bundle IDs from namespaced module names when manifest `bundle` metadata is absent.
+- Core/module ownership boundaries were tightened after extraction (OpenSpec change `module-migration-06-core-decoupling-cleanup`, issue [#338](https://github.com/nold-ai/specfact-cli/issues/338)): residual non-core helpers, models, and import paths were reviewed and reduced so core focuses on bootstrap, lifecycle, trust, and shared runtime responsibilities.
+- Post-migration test ownership was clarified (OpenSpec change `module-migration-07-test-migration-cleanup`, issue [#339](https://github.com/nold-ai/specfact-cli/issues/339)): extracted-module behavior tests are being moved to `specfact-cli-modules`, while `specfact-cli` retains only core runtime and compatibility coverage.
+
+### Removed
+
+- **BREAKING**: Removed flat root command shims (OpenSpec change `module-migration-04-remove-flat-shims`, issue [#330](https://github.com/nold-ai/specfact-cli/issues/330)). Use grouped commands only, for example `specfact code validate` instead of `specfact validate`.
+
+### Deprecated
+
+- Legacy flat import paths under `specfact_cli.modules.*` are deprecated in favor of bundle namespaces (`specfact_project.*`, `specfact_backlog.*`, `specfact_codebase.*`, `specfact_spec.*`, `specfact_govern.*`) and are planned for removal in the next major release.
+
+### Fixed
+
+- Grouped command registration now preserves duplicate-command extension merging correctly, and first-run detection now treats project-scoped installed bundles as satisfying bundle availability checks in the new modular layout.
+- Azure DevOps backlog creation now validates required mapped custom fields and constrained picklist values before submit (OpenSpec change `backlog-core-07-ado-required-custom-fields-and-picklists`, issue [#337](https://github.com/nold-ai/specfact-cli/issues/337)).
+- `specfact backlog map-fields --non-interactive` now auto-discovers required ADO custom fields and picklist/list-backed allowed values, persists them into `.specfact/backlog-config.yaml`, and fails with guidance only when deterministic auto-mapping cannot resolve the field setup.
+- Azure DevOps description and acceptance-criteria text fields now default to Markdown rendering, with HTML-like input normalized to Markdown before create/write calls so add-time validation and downstream prompts operate on one text format.
+- Residual post-migration test and fixture failures were reduced by updating legacy test assumptions around removed flat commands, extracted-module import paths, and signing/script fixtures to match the decoupled modules architecture.
+
+### Migration
+
+- Continue using `0.40.0` in this branch; migration-03 closeout updates are tracked under this same release line (no new version section added yet).
+
+---
+
 ## [0.39.0] - 2026-02-28
 
 ### Added

@@ -6,6 +6,10 @@ permalink: /guides/agile-scrum-workflows/
 
 # Agile/Scrum Workflows with SpecFact CLI
 
+
+> Temporary docs note: this bundle-focused page remains hosted in the core docs set for the
+> current release line and is planned to migrate to `specfact-cli-modules`.
+
 This guide explains how to use SpecFact CLI for agile/scrum workflows, including backlog management, sprint planning, dependency tracking, and Definition of Ready (DoR) validation.
 
 Preferred command paths are `specfact backlog ceremony standup ...` and `specfact backlog ceremony refinement ...`. Legacy `backlog daily`/`backlog refine` remain available for compatibility.
@@ -63,6 +67,7 @@ Key behavior:
 - supports multiline body and acceptance criteria capture (default sentinel `::END::`)
 - captures priority and story points for story-like items
 - supports description rendering mode (`markdown` or `classic`)
+- for ADO, supports repeatable `--custom-field key=value` and validates required custom fields / constrained values when mapping metadata exists
 - auto-selects template by adapter when omitted (`ado_scrum` for ADO, `github_projects` for GitHub)
 - creates via adapter protocol (`github` or `ado`) and prints created `id`, `key`, and `url`
 
@@ -114,10 +119,10 @@ Use the `policy` command group to run deterministic readiness checks before spri
 
 ```bash
 # Validate configured policy rules against a snapshot
-specfact policy validate --repo . --format both
+specfact backlog policy validate --repo . --format both
 
 # Generate confidence-scored, patch-ready suggestions (no automatic writes)
-specfact policy suggest --repo .
+specfact backlog policy suggest --repo .
 ```
 
 Policy configuration is loaded from `.specfact/policy.yaml` and supports Scrum (`dor_required_fields`,
@@ -142,7 +147,7 @@ Override with `.specfact/backlog.yaml`, environment variables (`SPECFACT_GITHUB_
 
 ```bash
 # 1. Authenticate once (if not already)
-specfact auth github
+specfact backlog auth github
 
 # 2. From repo root: view standup (repo auto-detected)
 cd /path/to/your-repo

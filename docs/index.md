@@ -54,7 +54,7 @@ specfact backlog daily ado --ado-org <org> --ado-project "<project>" --state any
 specfact backlog refine ado --ado-org <org> --ado-project "<project>" --id <work-item-id> --preview
 
 # 3) Validate drift before implementation
-specfact policy validate --group-by-item
+specfact backlog policy validate --group-by-item
 ```
 
 GitHub variant:
@@ -69,7 +69,7 @@ Deep dive:
 
 1. **[Installation](getting-started/installation.md)** - Get started in 60 seconds
 2. **[First Steps](getting-started/first-steps.md)** - Run your first command
-3. **[Module Bootstrap Checklist](getting-started/module-bootstrap-checklist.md)** - Quickly verify bundled modules are installed for user/project scope
+3. **[Module Bootstrap Checklist](getting-started/module-bootstrap-checklist.md)** - Quickly verify official bundles are installed for user/project scope
 4. **[Tutorial: Backlog Refine with AI IDE](getting-started/tutorial-backlog-refine-ai-ide.md)** - Integrate backlog refinement with your AI IDE (agile DevOps)
 5. **[Tutorial: Daily Standup and Sprint Review](getting-started/tutorial-daily-standup-sprint-review.md)** - Daily standup view, post comments, and Copilot export (GitHub/ADO)
 6. **[Working With Existing Code](guides/brownfield-engineer.md)** ⭐ **PRIMARY** - Legacy-first guide
@@ -85,16 +85,17 @@ Deep dive:
 
 ## Module System Foundation
 
-SpecFact now uses a module-first architecture to reduce hard-wired command coupling.
+SpecFact now uses a lean-core plus bundle architecture to reduce hard-wired command coupling.
 
-- Core runtime handles lifecycle, registry, contracts, and orchestration.
-- Feature behavior lives in module-local command implementations.
-- Legacy command-path shims remain for compatibility during migration windows.
+- Core runtime (`specfact-cli`) handles lifecycle, registry, contracts, and orchestration.
+- Official workflow behavior lives in installable bundle packages from `nold-ai/specfact-cli-modules`.
+- Flat command-path shims were removed; use workflow command groups.
 
-Implementation layout:
+Implementation ownership:
 
-- Primary module commands: `src/specfact_cli/modules/<module>/src/commands.py`
-- Legacy compatibility shims: `src/specfact_cli/commands/*.py` (only `app` re-export is guaranteed)
+- Runtime and registry: `specfact-cli`
+- Official bundles and registry artifacts: `specfact-cli-modules`
+- Legacy compatibility shims in core: `src/specfact_cli/commands/*.py` (only `app` re-export is guaranteed)
 
 Why this matters:
 
@@ -141,8 +142,21 @@ See [Module Categories](reference/module-categories.md) for full mappings and pr
 
 SpecFact now supports a central marketplace workflow for module installation and lifecycle management.
 
+Official bundles are now marketplace-distributed as `nold-ai/specfact-*` modules:
+
+- `nold-ai/specfact-project`
+- `nold-ai/specfact-backlog`
+- `nold-ai/specfact-codebase`
+- `nold-ai/specfact-spec`
+- `nold-ai/specfact-govern`
+
+Bundle-specific documentation is still temporarily hosted in this docs set while the
+long-term bundle docs home is prepared in `nold-ai/specfact-cli-modules`:
+`https://nold-ai.github.io/specfact-cli-modules/`.
+
 - **[Installing Modules](guides/installing-modules.md)** - Install, list, uninstall, and upgrade modules
 - **[Module Marketplace](guides/module-marketplace.md)** - Registry model, security checks, and discovery priority
+- **[Marketplace Bundles](guides/marketplace.md)** - Official bundle ids, trust tiers, and dependency auto-install behavior
 - **[Module Signing and Key Rotation](guides/module-signing-and-key-rotation.md)** - Signing and key management runbook
 
 Module lifecycle note: use `specfact module` (`init`, `install`, `list`, `show`, `search`, `enable`, `disable`, `uninstall`, `upgrade`) for module management.
@@ -153,7 +167,7 @@ Module lifecycle note: use `specfact module` (`init`, `install`, `list`, `show`,
 
 - **[Command Chains](guides/command-chains.md)** ⭐ **NEW** - Complete workflows from start to finish
 - **[Agile/Scrum Workflows](guides/agile-scrum-workflows.md)** - Persona-based collaboration for teams
-- **[Policy Engine Commands](guides/policy-engine-commands.md)** - Scaffold policy config templates and run `policy init|validate|suggest`
+- **[Policy Engine Commands](guides/policy-engine-commands.md)** - Scaffold policy config templates and run `backlog policy init|validate|suggest`
 - **[DevOps Backlog Integration](guides/devops-adapter-integration.md)** 🆕 **NEW FEATURE** - Integrate SpecFact into agile DevOps workflows with bidirectional backlog sync
 - **[Backlog Refinement](guides/backlog-refinement.md)** 🆕 **NEW FEATURE** - AI-assisted template-driven backlog refinement for standardizing work items
 - **[Backlog Dependency Analysis](guides/backlog-dependency-analysis.md)** - Analyze critical path, cycles, orphans, and dependency impact from backlog graph data
@@ -204,17 +218,17 @@ Module lifecycle note: use `specfact module` (`init`, `install`, `list`, `show`,
 
 ```bash
 # Export OpenSpec proposals to GitHub Issues
-specfact sync bridge --adapter github --mode export-only \
+specfact project sync bridge --adapter github --mode export-only \
   --repo-owner your-org --repo-name your-repo
 
 # Export to Azure DevOps work items
-specfact sync bridge --adapter ado --mode export-only \
+specfact project sync bridge --adapter ado --mode export-only \
   --ado-org your-org --ado-project your-project
 
 # Cross-adapter sync: GitHub -> ADO (lossless round-trip)
-specfact sync bridge --adapter github --mode bidirectional \
+specfact project sync bridge --adapter github --mode bidirectional \
   --bundle main --backlog-ids 123
-specfact sync bridge --adapter ado --mode export-only \
+specfact project sync bridge --adapter ado --mode export-only \
   --bundle main --change-ids <change-id>
 ```
 

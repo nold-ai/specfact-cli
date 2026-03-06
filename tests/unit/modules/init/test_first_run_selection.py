@@ -141,9 +141,7 @@ def test_init_profile_solo_developer_calls_installer_with_specfact_codebase(
     def _fake_install_bundles(bundle_ids: list[str], install_root: Path, **kwargs: object) -> None:
         install_calls.append(list(bundle_ids))
 
-    monkeypatch.setattr(
-        "specfact_cli.modules.init.src.first_run_selection.install_bundles_for_init", _fake_install_bundles
-    )
+    monkeypatch.setattr("specfact_cli.modules.init.src.commands.install_bundles_for_init", _fake_install_bundles)
     monkeypatch.setattr("specfact_cli.modules.init.src.commands.is_first_run", lambda **_: True)
     monkeypatch.setattr(
         "specfact_cli.modules.init.src.commands.get_discovered_modules_for_state",
@@ -173,9 +171,7 @@ def test_init_profile_enterprise_full_stack_calls_installer_with_all_five(
     def _fake_install_bundles(bundle_ids: list[str], install_root: Path, **kwargs: object) -> None:
         install_calls.append(list(bundle_ids))
 
-    monkeypatch.setattr(
-        "specfact_cli.modules.init.src.first_run_selection.install_bundles_for_init", _fake_install_bundles
-    )
+    monkeypatch.setattr("specfact_cli.modules.init.src.commands.install_bundles_for_init", _fake_install_bundles)
     monkeypatch.setattr("specfact_cli.modules.init.src.commands.is_first_run", lambda **_: True)
     monkeypatch.setattr(
         "specfact_cli.modules.init.src.commands.get_discovered_modules_for_state",
@@ -233,9 +229,7 @@ def test_init_install_backlog_codebase_calls_installer_with_two_bundles(
     def _fake_install_bundles(bundle_ids: list[str], install_root: Path, **kwargs: object) -> None:
         install_calls.append(list(bundle_ids))
 
-    monkeypatch.setattr(
-        "specfact_cli.modules.init.src.first_run_selection.install_bundles_for_init", _fake_install_bundles
-    )
+    monkeypatch.setattr("specfact_cli.modules.init.src.commands.install_bundles_for_init", _fake_install_bundles)
     monkeypatch.setattr("specfact_cli.modules.init.src.commands.is_first_run", lambda **_: True)
     monkeypatch.setattr(
         "specfact_cli.modules.init.src.commands.get_discovered_modules_for_state",
@@ -263,9 +257,7 @@ def test_init_install_all_calls_installer_with_five_bundles(monkeypatch: pytest.
     def _fake_install_bundles(bundle_ids: list[str], install_root: Path, **kwargs: object) -> None:
         install_calls.append(list(bundle_ids))
 
-    monkeypatch.setattr(
-        "specfact_cli.modules.init.src.first_run_selection.install_bundles_for_init", _fake_install_bundles
-    )
+    monkeypatch.setattr("specfact_cli.modules.init.src.commands.install_bundles_for_init", _fake_install_bundles)
     monkeypatch.setattr("specfact_cli.modules.init.src.commands.is_first_run", lambda **_: True)
     monkeypatch.setattr(
         "specfact_cli.modules.init.src.commands.get_discovered_modules_for_state",

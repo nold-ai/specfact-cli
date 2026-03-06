@@ -280,28 +280,14 @@ The system SHALL provide a prompt file (e.g. `resources/prompts/specfact.backlog
 
 ### Requirement: Standup summary prompt (--summarize)
 
-The system SHALL support a `--summarize` flag on `specfact backlog daily` that produces a **prompt** (instructions plus applied filters and filtered standup output) suitable for use in an interactive slash command (e.g. `specfact.daily`) or copy-paste to Copilot, so an LLM can generate a meaningful **summary of the daily standup status**.
+The system SHALL support a `--summarize` flag on `specfact backlog daily` that produces a **prompt** (instructions plus applied filters and filtered standup output) suitable for use in an interactive slash command (e.g. `specfact.daily`) or copy-paste to Copilot, so an LLM can generate a meaningful **summary of the daily standup status**. The prompt content for item bodies and comments SHALL be provided as normalized Markdown text only (no raw HTML tags or entities), regardless of how the underlying provider stores or formats those fields.
 
-**Rationale**: Teams want one command that dumps the current standup view into a prompt-ready format, so Copilot or a slash command can then produce a short narrative summary (e.g. "Today's standup: 3 in progress, 1 blocked, 2 pending commitment …") without manually re-typing filters or data.
-
-#### Scenario: --summarize outputs prompt with filters and data
-
-**Given**: Backlog items in the current scope (same as standup: state, iteration/sprint, assignee, limit) and the user runs `specfact backlog daily --summarize` (stdout) or `--summarize-to <path>` (write to file)
-
-**When**: The command runs with the same filters as the standup view
-
-**Then**: The system outputs (to stdout or to the given path) a prompt that includes: (1) brief instruction that the following data is the current standup view and the LLM should generate a concise standup summary; (2) the applied filter context (adapter, state, sprint, assignee, limit); (3) per-item data including **body (description)** and **comments (annotations)** when available, plus ID, title, status, assignees, last updated, progress, blockers, optional value score, so the LLM can produce a **meaningful** summary
-
-**And**: The output is formatted so it can be pasted into Copilot or used as input to a slash command (e.g. `specfact.daily`) to produce a standup summary
-
-**Acceptance Criteria**:
-
-- `--summarize` uses the same fetched list and filters as the standup view (and as `--copilot-export`)
-- Output includes filter context and per-item data; **per-item data SHALL include body (description)** and **comments (annotations)** when the adapter supports fetching comments, so the LLM can create a meaningful summary
-- Format is prompt-ready (e.g. Markdown with clear "Generate a standup summary from the following" instruction)
-- When `--summarize` or `--summarize-to` is used, the command outputs **only** the prompt (no standup tables) and then exits
-- When `--summarize-to <path>` is given, write to file; when `--summarize` only is given, output to stdout
-- When both `--summarize` and `--copilot-export` are given, both outputs can be produced from the same fetched list
+#### Scenario: --summarize outputs prompt with filters and data (Markdown-only content)
+- **Given**: Backlog items in the current scope (same as standup: state, iteration/sprint, assignee, limit) and the user runs `specfact backlog daily --summarize` (stdout) or `--summarize-to <path>` (write to file)
+- **When**: The command runs with the same filters as the standup view
+- **Then**: The system outputs (to stdout or to the given path) a prompt that includes: (1) brief instruction that the following data is the current standup view and the LLM should generate a concise standup summary; (2) the applied filter context (adapter, state, sprint, assignee, limit); (3) per-item data including **body (description)** and **comments (annotations)** when available, plus ID, title, status, assignees, last updated, progress, blockers, optional value score, so the LLM can produce a **meaningful** summary
+- **And**: The per-item body and comment fields in the prompt are formatted as Markdown without raw HTML tags or HTML entities (e.g. no `<p>`, `<br />`, `&lt;div&gt;`)
+- **And**: The output is formatted so it can be pasted into Copilot or used as input to a slash command (e.g. `specfact.daily`) to produce a standup summary
 
 ### Requirement: Project backlog context (no secrets)
 

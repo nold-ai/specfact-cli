@@ -154,6 +154,13 @@ If remote cleanup is needed:
 git push origin --delete feature/<branch-slug>
 ```
 
+### Developing specfact-cli-modules (IDE dependencies)
+
+Bundle code in **specfact-cli-modules** imports from `specfact_cli` (models, runtime, validators, etc.). That repo uses **Hatch**: a `pyproject.toml` with optional dependency `.[dev]` pulls in `specfact-cli` from a sibling path (`file://../specfact-cli`). When opening the modules repo in Cursor/VS Code:
+
+- In **specfact-cli-modules**: run `hatch env create` (with specfact-cli at `../specfact-cli`, or symlink / edit path in pyproject), then in the IDE select **Python: Select Interpreter** → `.venv` in that repo.
+- See **specfact-cli-modules** `README.md` → "Local development (IDE / Cursor)" for sibling layout and worktree/symlink options.
+
 ### Pre-Commit Checklist
 
 Run all steps in order before committing. Every step must pass with no errors.

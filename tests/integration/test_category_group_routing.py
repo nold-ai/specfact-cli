@@ -1,4 +1,4 @@
-"""Integration tests for category group routing (code, backlog, validate shim)."""
+"""Integration tests for category group routing when grouping is enabled."""
 
 from __future__ import annotations
 
@@ -29,30 +29,33 @@ def _category_grouping_enabled() -> Generator[None, None, None]:
 runner = CliRunner()
 
 
-def test_code_analyze_help_exits_zero() -> None:
-    """specfact code analyze --help returns non-error exit (CLI integration)."""
-    result = runner.invoke(app, ["code", "analyze", "--help"])
-    assert result.exit_code == 0, (
-        f"Expected exit 0, got {result.exit_code}\nstdout: {result.stdout}\nstderr: {result.stderr}"
+def test_code_group_is_registered_when_codebase_bundle_is_installed(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Code group is mounted only when the codebase bundle is installed."""
+    CommandRegistry._clear_for_testing()
+    monkeypatch.setattr(
+        "specfact_cli.registry.module_packages.get_installed_bundles",
+        lambda _packages, _enabled: ["specfact-codebase"],
     )
-    assert "analyze" in (result.stdout or "").lower() or "usage" in (result.stdout or "").lower()
+    register_builtin_commands()
+    assert "code" in CommandRegistry.list_commands()
 
 
 def test_backlog_help_lists_subcommands() -> None:
-    """specfact backlog --help lists backlog and policy sub-commands."""
+    """specfact backlog --help shows subcommands when installed, otherwise actionable install guidance."""
     result = runner.invoke(app, ["backlog", "--help"])
-    assert result.exit_code == 0, (
-        f"Expected exit 0, got {result.exit_code}\nstdout: {result.stdout}\nstderr: {result.stderr}"
-    )
     out = (result.stdout or "").lower()
-    assert "backlog" in out
-    assert "policy" in out or "ceremony" in out
+    if result.exit_code == 0:
+        assert "backlog" in out
+        assert "policy" in out or "ceremony" in out
+        return
+    assert "command 'backlog' is not installed." in out
+    assert "specfact init --profile <profile>" in out
+    assert "module install <bundle>" in out
 
 
-def test_validate_shim_help_exits_zero() -> None:
-    """Deprecated flat command specfact validate --help still returns help without error."""
+def test_validate_flat_command_is_not_available() -> None:
+    """Flat command `specfact validate --help` is unavailable after shim removal."""
     result = runner.invoke(app, ["validate", "--help"])
-    assert result.exit_code == 0, (
-        f"Expected exit 0, got {result.exit_code}\nstdout: {result.stdout}\nstderr: {result.stderr}"
-    )
-    assert "validate" in (result.stdout or "").lower() or "usage" in (result.stdout or "").lower()
+    assert result.exit_code != 0
+    output = ((result.stdout or "") + (result.output or "")).lower()
+    assert "not installed" in output or "no such command" in output

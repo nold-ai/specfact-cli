@@ -64,7 +64,7 @@ You don’t run a separate “verify” command; verification happens automatica
 
    ```yaml
    module_dependencies_versioned:
-     - name: backlog-core
+     - name: nold-ai/specfact-backlog
        version_specifier: ">=0.2.0"
    pip_dependencies_versioned:
      - name: requests
@@ -90,7 +90,7 @@ Several commands already read or write extension data on `ProjectBundle` (and it
   specfact project health-check --bundle my-bundle
   ```
 
-Any command that loads a bundle (e.g. `specfact plan ...`, `specfact sync ...`, `specfact spec ...`) loads the full bundle including `extensions`; round-trip save keeps extension data. So you don’t need a special “extensions” command to benefit from them—they’re part of the bundle.
+Any command that loads a bundle (e.g. `specfact project plan ...`, `specfact project sync ...`, `specfact spec ...`) loads the full bundle including `extensions`; round-trip save keeps extension data. So you don’t need a special “extensions” command to benefit from them—they’re part of the bundle.
 
 **Introspecting registered extensions (programmatic):** There is no `specfact extensions list` CLI yet. From Python you can call:
 

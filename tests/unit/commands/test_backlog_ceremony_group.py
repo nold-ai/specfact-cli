@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import pytest
 from typer.testing import CliRunner
 
-from specfact_cli.modules.backlog.src import commands as backlog_commands
+
+pytest.importorskip("specfact_backlog.backlog.commands")
+from specfact_backlog.backlog import commands as backlog_commands
 
 
 runner = CliRunner()

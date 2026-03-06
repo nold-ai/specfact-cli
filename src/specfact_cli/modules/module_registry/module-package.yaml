@@ -1,5 +1,5 @@
 name: module-registry
-version: 0.1.6
+version: 0.1.9
 commands:
   - module
 category: core
@@ -9,7 +9,7 @@ command_help:
 pip_dependencies: []
 module_dependencies: []
 tier: community
-core_compatibility: '>=0.28.0,<1.0.0'
+core_compatibility: '>=0.40.0,<1.0.0'
 publisher:
   name: nold-ai
   url: https://github.com/nold-ai/specfact-cli-modules
@@ -17,5 +17,5 @@ publisher:
 description: 'Manage modules: search, list, show, install, and upgrade.'
 license: Apache-2.0
 integrity:
-  checksum: sha256:e195013a5624d8c06079133b040841a4851016cbde48039ac1e399477762e4dc
-  signature: UBkZjFECBomxFC9FleLacUZPSJkadwDXni2D6amPMiNULk0KzdQjYi1FOafLoInML+F/nuY/9KbGBVp940tcCA==
+  checksum: sha256:d8d4103bfe44bc638fd5affa2734bbb063f9c86f2873055f745beca9ee0a9db3
+  signature: OJtCXdfZfnLZhB543+ODtFRXgyYamZk6xrvLfHubE+kwU+jCPWaZDJ83YqheuR7kQlqMlRue5UZb3DbOu4pwBQ==

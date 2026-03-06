@@ -8,6 +8,16 @@ permalink: /directory-structure/
 
 This document defines the canonical directory structure for SpecFact CLI artifacts.
 
+This page covers runtime and workspace artifact layout under `.specfact/`.
+Source-repository ownership is now split:
+
+- `specfact-cli`: lean runtime, registry, shared contracts, adapters, docs site
+- `specfact-cli-modules`: official workflow bundle source packages and registry publishing automation
+
+Use this document for repository-local artifact placement. Use
+[Module Development](../guides/module-development.md) and
+[Publishing modules](../guides/publishing-modules.md) for source/package layout.
+
 > **Primary Use Case**: SpecFact CLI is designed for **brownfield code modernization** - reverse-engineering existing codebases into documented specs with runtime contract enforcement. The directory structure reflects this brownfield-first approach.
 
 **CLI-First Approach**: SpecFact works offline, requires no account, and integrates with your existing workflow. Works with VS Code, Cursor, GitHub Actions, pre-commit hooks, or any IDE. No platform to learn, no vendor lock-in.
@@ -42,7 +52,30 @@ All SpecFact artifacts are stored under `.specfact/` in the repository root. Thi
 - SpecFact does **not** auto-discover `<repo>/modules` to avoid assuming ownership of non-`.specfact` repository paths.
 - In repository context, `<repo>/.specfact/modules` has higher discovery precedence than `<user-home>/.specfact/modules`.
 
-For how the CLI discovers and loads commands from module packages (registry, module-package.yaml, lazy loading), see [Architecture – Modules design](architecture.md#modules-design).
+For how the CLI discovers and loads commands from module packages (registry, module-package.yaml, lazy loading), see [Architecture – Command Registry and Module System](architecture.md#command-registry-and-module-system).
+
+## Source repository layout
+
+Post-migration, implementation is split across two repositories:
+
+```text
+specfact-cli/
+  src/specfact_cli/
+  docs/
+  openspec/
+  tests/
+
+specfact-cli-modules/
+  packages/specfact-project/
+  packages/specfact-backlog/
+  packages/specfact-codebase/
+  packages/specfact-spec/
+  packages/specfact-govern/
+  registry/
+```
+
+The runtime loads bundle packages through manifests and registry metadata; it does not treat the
+source repositories themselves as runtime module roots.
 
 ## Canonical Structure
 
@@ -205,17 +238,17 @@ Plan bundles version 1.1 and later include summary metadata in the `metadata.sum
 
 **Upgrading Plan Bundles:**
 
-Use `specfact plan upgrade` to migrate older plan bundles to the latest schema:
+Use `specfact project plan upgrade` to migrate older plan bundles to the latest schema:
 
 ```bash
 # Upgrade active plan
-specfact plan upgrade
+specfact project plan upgrade
 
 # Upgrade all plans
-specfact plan upgrade --all
+specfact project plan upgrade --all
 
 # Preview upgrades
-specfact plan upgrade --dry-run
+specfact project plan upgrade --dry-run
 ```
 
 See [`plan upgrade`](../reference/commands.md#plan-upgrade) for details.
@@ -288,7 +321,7 @@ See [`plan upgrade`](../reference/commands.md#plan-upgrade) for details.
 - **Tasks**: `.specfact/projects/<bundle-name>/tasks.yaml` (versioned)
 - **Logs**: `.specfact/projects/<bundle-name>/logs/` (gitignored)
 
-**Migration**: Use `specfact migrate artifacts` to move existing artifacts from global locations to bundle-specific folders.
+**Migration**: Use `specfact project migrate artifacts` to move existing artifacts from global locations to bundle-specific folders.
 
 **Example**:
 
@@ -321,7 +354,7 @@ See [`plan upgrade`](../reference/commands.md#plan-upgrade) for details.
 - ❌ `.specfact/sdd/` - Removed (SDD manifests are bundle-specific)
 - ❌ `.specfact/tasks/` - Removed (task files are bundle-specific)
 
-**Migration**: Use `specfact migrate cleanup-legacy` to remove empty legacy directories, and `specfact migrate artifacts` to migrate existing artifacts to bundle-specific locations.
+**Migration**: Use `specfact project migrate cleanup-legacy` to remove empty legacy directories, and `specfact project migrate artifacts` to migrate existing artifacts to bundle-specific locations.
 
 ### `.specfact/gates/` (Versioned)
 
@@ -355,13 +388,13 @@ See [`plan upgrade`](../reference/commands.md#plan-upgrade) for details.
 
 ## Default Command Paths
 
-### `specfact import from-code` ⭐ PRIMARY
+### `specfact project import from-code` ⭐ PRIMARY
 
 **Primary use case**: Reverse-engineer existing codebases into project bundles.
 
 ```bash
 # Command syntax
-specfact import from-code <bundle-name> --repo . [OPTIONS]
+specfact project import from-code <bundle-name> --repo . [OPTIONS]
 
 # Creates modular bundle at:
 .specfact/projects/<bundle-name>/
@@ -382,7 +415,7 @@ specfact import from-code <bundle-name> --repo . [OPTIONS]
 
 ```bash
 # Analyze legacy codebase
-specfact import from-code legacy-api --repo . --confidence 0.7
+specfact project import from-code legacy-api --repo . --confidence 0.7
 
 # Creates:
 # - .specfact/projects/legacy-api/bundle.manifest.yaml (versioned)
@@ -391,13 +424,13 @@ specfact import from-code legacy-api --repo . --confidence 0.7
 # - .specfact/reports/brownfield/analysis-2025-10-31T14-30-00.md (gitignored)
 ```
 
-### `specfact plan init` (Alternative)
+### `specfact project plan init` (Alternative)
 
 **Alternative use case**: Create new project bundles for greenfield projects.
 
 ```bash
 # Command syntax
-specfact plan init <bundle-name> [OPTIONS]
+specfact project plan init <bundle-name> [OPTIONS]
 
 # Creates modular bundle at:
 .specfact/projects/<bundle-name>/
@@ -410,11 +443,11 @@ specfact plan init <bundle-name> [OPTIONS]
 .specfact/config.yaml
 ```
 
-### `specfact plan compare`
+### `specfact project plan compare`
 
 ```bash
 # Compare two bundles (explicit paths to bundle directories)
-specfact plan compare \
+specfact project plan compare \
   --manual .specfact/projects/manual-plan \
   --auto .specfact/projects/auto-derived \
   --out .specfact/reports/comparison/report-*.md
@@ -422,31 +455,31 @@ specfact plan compare \
 # Note: Commands accept bundle directory paths, not individual files
 ```
 
-### `specfact sync bridge`
+### `specfact project sync bridge`
 
 ```bash
 # Sync with external tools (Spec-Kit, Linear, Jira, etc.)
-specfact sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional
+specfact project sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional
 
 # Watch mode
-specfact sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional --watch --interval 5
+specfact project sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional --watch --interval 5
 
 # Sync files are tracked in .specfact/reports/sync/
 ```
 
-### `specfact sync repository`
+### `specfact project sync repository`
 
 ```bash
 # Sync code changes
-specfact sync repository --repo . --target .specfact
+specfact project sync repository --repo . --target .specfact
 
 # Watch mode
-specfact sync repository --repo . --watch --interval 5
+specfact project sync repository --repo . --watch --interval 5
 
 # Sync reports in .specfact/reports/sync/
 ```
 
-### `specfact enforce stage`
+### `specfact govern enforce stage`
 
 ```bash
 # Reads/writes
@@ -463,7 +496,7 @@ specfact init
 
 # Canonical lifecycle commands
 specfact module list
-specfact module install specfact/backlog
+specfact module install nold-ai/specfact-backlog
 specfact module uninstall backlog
 ```
 
@@ -665,7 +698,7 @@ If you have existing artifacts in other locations:
 # Migration
 mkdir -p .specfact/projects/my-project .specfact/reports/brownfield
 # Convert monolithic bundle to modular bundle structure
-# (Use 'specfact plan upgrade' or manual conversion)
+# (Use 'specfact project plan upgrade' or manual conversion)
 mv reports/analysis.md .specfact/reports/brownfield/
 ```
 
@@ -713,17 +746,17 @@ SpecFact supports multiple plan bundles for:
 
 ```bash
 # Step 1: Reverse-engineer legacy codebase
-specfact import from-code legacy-api \
+specfact project import from-code legacy-api \
   --repo src/legacy-api \
   --confidence 0.7
 
 # Step 2: Compare legacy vs modernized (use bundle directories, not files)
-specfact plan compare \
+specfact project plan compare \
   --manual .specfact/projects/legacy-api \
   --auto .specfact/projects/modernized-api
 
 # Step 3: Analyze specific legacy component
-specfact import from-code legacy-payment \
+specfact project import from-code legacy-payment \
   --repo src/legacy-payment \
   --confidence 0.7
 ```

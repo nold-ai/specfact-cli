@@ -7,14 +7,16 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-from specfact_cli.modules.patch_mode.src.patch_mode.commands.apply import app as patch_app
-from specfact_cli.modules.patch_mode.src.patch_mode.pipeline.applier import (
+
+pytest.importorskip("specfact_govern.patch_mode.patch_mode.commands.apply")
+from specfact_govern.patch_mode.patch_mode.commands.apply import app as patch_app
+from specfact_govern.patch_mode.patch_mode.pipeline.applier import (
     apply_patch_local,
     apply_patch_write,
     preflight_check,
 )
-from specfact_cli.modules.patch_mode.src.patch_mode.pipeline.generator import generate_unified_diff
-from specfact_cli.modules.patch_mode.src.patch_mode.pipeline.idempotency import check_idempotent, mark_applied
+from specfact_govern.patch_mode.patch_mode.pipeline.generator import generate_unified_diff
+from specfact_govern.patch_mode.patch_mode.pipeline.idempotency import check_idempotent, mark_applied
 
 
 runner = CliRunner()

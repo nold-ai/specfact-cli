@@ -7,6 +7,10 @@ permalink: /getting-started/tutorial-backlog-quickstart-demo/
 
 # Tutorial: Backlog Quickstart Demo (GitHub + ADO)
 
+
+> Temporary docs note: this bundle-focused page remains hosted in the core docs set for the
+> current release line and is planned to migrate to `specfact-cli-modules`.
+
 This is a short, copy/paste-friendly demo for new users covering:
 
 1. `specfact backlog init-config`
@@ -32,9 +36,9 @@ Preferred ceremony aliases:
 - Auth configured:
 
 ```bash
-specfact auth github
-specfact auth azure-devops
-specfact auth status
+specfact backlog auth github
+specfact backlog auth azure-devops
+specfact backlog auth status
 ```
 
 Expected status should show both providers as valid.
@@ -49,9 +53,18 @@ This creates `.specfact/backlog-config.yaml`.
 
 ## 2) Map Fields (ADO)
 
-Run field mapping for your ADO project. This command is interactive by design.
+Run field mapping for your ADO project. Start with automatic mapping and use interactive mode only if required fields remain unresolved.
 
 ```bash
+# Automatic mapping for repeatable setup
+specfact backlog map-fields \
+  --provider ado \
+  --ado-org dominikusnold \
+  --ado-project "Specfact CLI" \
+  --ado-framework scrum \
+  --non-interactive
+
+# Interactive mapping / manual correction
 specfact backlog map-fields \
   --provider ado \
   --ado-org dominikusnold \
@@ -63,7 +76,8 @@ Notes:
 
 - Select the process style intentionally (`--ado-framework scrum|agile|safe|kanban|default`).
 - Mapping is written to `.specfact/templates/backlog/field_mappings/ado_custom.yaml`.
-- Provider context is updated in `.specfact/backlog.yaml`.
+- Required fields, selected work item type, and constrained values are persisted in `.specfact/backlog-config.yaml`.
+- `--non-interactive` fails fast with guidance to rerun interactive mapping if required fields remain unresolved.
 
 Optional reset:
 
@@ -199,16 +213,24 @@ specfact backlog add \
   --title "SpecFact demo smoke test $(date +%Y-%m-%d-%H%M)" \
   --body "Demo item created by quickstart." \
   --acceptance-criteria "Demo item exists and is retrievable" \
+  --custom-field category=Architecture \
+  --custom-field subcategory="Runtime validation" \
   --non-interactive
 ```
 
 Then verify retrieval by ID using `daily` or `refine --id <id>`.
 
+For ADO projects with required custom fields or picklists:
+
+- run `backlog map-fields` first so `backlog add` has required-field and allowed-values metadata
+- use repeatable `--custom-field key=value` for mapped custom fields
+- non-interactive `backlog add` rejects invalid picklist values before create and prints accepted values
+
 ## Quick Troubleshooting
 
 - DNS/network errors (`api.github.com`, `dev.azure.com`): verify outbound network access.
-- Auth errors: re-run `specfact auth status`.
-- ADO mapping issues: re-run `backlog map-fields` and confirm `--ado-framework` is correct.
+- Auth errors: re-run `specfact backlog auth status`.
+- ADO mapping issues: re-run `backlog map-fields` and confirm `--ado-framework` is correct. Use interactive mode if auto-mapping cannot resolve required fields.
 - Refine import mismatch: check `**ID**` was preserved exactly.
 
 ## ADO Hardening Profile (Corporate Networks)

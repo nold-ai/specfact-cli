@@ -6,6 +6,10 @@ permalink: /adapters/azuredevops/
 
 # Azure DevOps Adapter
 
+
+> Temporary docs note: this bundle-focused page remains hosted in the core docs set for the
+> current release line and is planned to migrate to `specfact-cli-modules`.
+
 The Azure DevOps adapter provides bidirectional synchronization between OpenSpec change proposals and Azure DevOps work items, enabling agile DevOps-driven workflow support for enterprise teams.
 
 ## Overview
@@ -64,7 +68,7 @@ The adapter automatically derives work item type from your project's process tem
 You can override with `--ado-work-item-type`:
 
 ```bash
-specfact sync bridge --adapter ado --mode export-only \
+specfact project sync bridge --adapter ado --mode export-only \
   --ado-org your-org \
   --ado-project your-project \
   --ado-work-item-type "Bug" \
@@ -97,22 +101,34 @@ The adapter supports flexible field mapping to handle different ADO process temp
 - **Multiple Field Alternatives**: Supports multiple ADO field names mapping to the same canonical field (e.g., both `System.AcceptanceCriteria` and `Microsoft.VSTS.Common.AcceptanceCriteria` map to `acceptance_criteria`)
 - **Default Mappings**: Includes default mappings for common ADO fields (Scrum, Agile, SAFe, Kanban)
 - **Custom Mappings**: Supports per-project custom field mappings via `.specfact/templates/backlog/field_mappings/ado_custom.yaml`
-- **Interactive Mapping**: Use `specfact backlog map-fields` to interactively discover and map ADO fields for your project
+- **Interactive and Automatic Mapping**: Use `specfact backlog map-fields` to discover fields, persist required-field metadata, and capture constrained values for your project
 
-**Interactive Field Mapping Command**:
+**Field Mapping Commands**:
 
 ```bash
 # Discover and map ADO fields interactively
 specfact backlog map-fields --ado-org myorg --ado-project myproject
+
+# Auto-map using defaults/fuzzy matching and fail only if required fields remain unresolved
+specfact backlog map-fields --provider ado --ado-org myorg --ado-project myproject --non-interactive
 ```
 
 This command:
 
 - Fetches available fields from your ADO project
+- Detects the selected ADO work item type used for backlog-add validation
+- Persists required fields by work item type into `.specfact/backlog-config.yaml`
+- Persists allowed values for constrained custom fields (picklists) so `backlog add` can validate before submit
 - Pre-populates default mappings
-- Uses arrow-key navigation for field selection
+- Uses arrow-key navigation for field selection in interactive mode
 - Saves mappings to `.specfact/templates/backlog/field_mappings/ado_custom.yaml`
 - Automatically used by all subsequent backlog operations
+
+In `--non-interactive` mode the command:
+
+- chooses the framework automatically when not provided
+- auto-applies deterministic mappings from defaults and fuzzy matches
+- fails fast with guidance to rerun interactive mapping only when required fields cannot be resolved automatically
 
 See [Custom Field Mapping Guide](../guides/custom-field-mapping.md) for complete documentation.
 
@@ -131,7 +147,7 @@ The adapter supports multiple authentication methods (in order of precedence):
 
 1. **Explicit token**: `api_token` parameter or `--ado-token` CLI flag
 2. **Environment variable**: `AZURE_DEVOPS_TOKEN` (also accepts `ADO_TOKEN` or `AZURE_DEVOPS_PAT`)
-3. **Stored auth token**: `specfact auth azure-devops` (device code flow or PAT token)
+3. **Stored auth token**: `specfact backlog auth azure-devops` (device code flow or PAT token)
 
 **Token Resolution Priority**:
 
@@ -139,7 +155,7 @@ When using ADO commands, tokens are resolved in this order:
 
 1. Explicit `--ado-token` parameter
 2. `AZURE_DEVOPS_TOKEN` environment variable
-3. Stored token via `specfact auth azure-devops`
+3. Stored token via `specfact backlog auth azure-devops`
 4. Expired stored token (shows warning with options to refresh)
 
 **Token Types**:
@@ -434,7 +450,7 @@ This handles cases where:
 
 ```bash
 # Export OpenSpec change proposals to Azure DevOps work items
-specfact sync bridge --adapter ado --mode export-only \
+specfact project sync bridge --adapter ado --mode export-only \
   --ado-org your-org \
   --ado-project your-project \
   --repo /path/to/openspec-repo
@@ -444,7 +460,7 @@ specfact sync bridge --adapter ado --mode export-only \
 
 ```bash
 # Import work items AND export proposals
-specfact sync bridge --adapter ado --bidirectional \
+specfact project sync bridge --adapter ado --bidirectional \
   --ado-org your-org \
   --ado-project your-project \
   --repo /path/to/openspec-repo
@@ -454,7 +470,7 @@ specfact sync bridge --adapter ado --bidirectional \
 
 ```bash
 # Import specific work items into bundle
-specfact sync bridge --adapter ado --mode bidirectional \
+specfact project sync bridge --adapter ado --mode bidirectional \
   --ado-org your-org \
   --ado-project your-project \
   --bundle main \
@@ -466,7 +482,7 @@ specfact sync bridge --adapter ado --mode bidirectional \
 
 ```bash
 # Update existing work item with latest proposal content
-specfact sync bridge --adapter ado --mode export-only \
+specfact project sync bridge --adapter ado --mode export-only \
   --ado-org your-org \
   --ado-project your-project \
   --change-ids add-feature-x \
@@ -478,7 +494,7 @@ specfact sync bridge --adapter ado --mode export-only \
 
 ```bash
 # Detect code changes and add progress comments
-specfact sync bridge --adapter ado --mode export-only \
+specfact project sync bridge --adapter ado --mode export-only \
   --ado-org your-org \
   --ado-project your-project \
   --track-code-changes \
@@ -490,7 +506,7 @@ specfact sync bridge --adapter ado --mode export-only \
 
 ```bash
 # Export from bundle to ADO (uses stored lossless content)
-specfact sync bridge --adapter ado --mode export-only \
+specfact project sync bridge --adapter ado --mode export-only \
   --ado-org your-org \
   --ado-project your-project \
   --bundle main \

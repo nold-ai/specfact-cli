@@ -9,6 +9,9 @@ description: ModuleIOContract protocol, validation output model, and isolation r
 
 SpecFact modules integrate through a protocol-first interface and inversion-of-control loading.
 
+> Temporary docs note: bundle-specific contract guidance remains hosted in this core docs set for
+> the current release line and is planned to migrate to `specfact-cli-modules`.
+
 ## ModuleIOContract
 
 `ModuleIOContract` defines four operations:
@@ -30,10 +33,14 @@ Implementations should use runtime contracts (`@icontract`) and runtime type val
 
 ## Inversion of Control
 
-Core code must not import module code directly.
+Core runtime must not import external bundle package namespaces directly.
 
-- Allowed: core -> `CommandRegistry`
-- Forbidden: core -> `specfact_cli.modules.*`
+- Allowed:
+  - core runtime -> `CommandRegistry`
+  - bundle packages -> `specfact_cli` shared contracts, adapters, models, utils
+- Forbidden:
+  - core runtime -> `specfact_backlog.*`, `specfact_project.*`, `specfact_codebase.*`, or other external bundle package namespaces
+  - bundle packages reaching back into unpublished/private core internals outside supported contracts
 
 Module discovery and loading are done through registry-driven lazy loading.
 
@@ -41,10 +48,11 @@ Module discovery and loading are done through registry-driven lazy loading.
 
 During the migration from hard-wired command paths:
 
-- New feature logic belongs in `src/specfact_cli/modules/<module>/src/commands.py`.
+- Official workflow bundle logic now belongs in `nold-ai/specfact-cli-modules`.
 - Legacy files under `src/specfact_cli/commands/*.py` are shims for backward compatibility.
 - Only `app` re-export behavior is guaranteed from shim modules.
-- New code should import from module-local command paths, not shim paths.
+- Lean-core runtime code in `specfact-cli` should depend on shared contracts and loader interfaces, not on bundle implementation modules.
+- Bundle packages should import stable runtime surfaces from `specfact_cli` and expose their own entrypoints from package-local namespaces.
 
 This enables module-level evolution while keeping core interfaces stable.
 
@@ -64,3 +72,5 @@ def import_to_bundle(source: Path, config: dict[str, Any]) -> ProjectBundle:
 - Implement as many protocol operations as your module supports.
 - Declare `schema_version` when you depend on a specific bundle IO schema.
 - Keep module logic isolated from core; rely on registry entrypoints.
+- Follow the same ownership split used by `specfact-cli-modules`: bundle behavior lives outside
+  the core runtime repository whenever possible.

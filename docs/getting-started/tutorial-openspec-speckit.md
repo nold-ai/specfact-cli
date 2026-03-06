@@ -122,7 +122,7 @@ openspec init
 ```bash
 # Analyze legacy codebase
 cd /path/to/your-openspec-project
-specfact import from-code legacy-api --repo .
+specfact project import from-code legacy-api --repo .
 
 # Expected output:
 # 🔍 Analyzing codebase...
@@ -143,7 +143,7 @@ specfact import from-code legacy-api --repo .
 **Note**: If using `hatch run specfact`, run from the specfact-cli directory:
 ```bash
 cd /path/to/specfact-cli
-hatch run specfact import from-code legacy-api --repo /path/to/your-openspec-project
+hatch run specfact project import from-code legacy-api --repo /path/to/your-openspec-project
 ```
 
 ### Step 4: Create an OpenSpec Change Proposal
@@ -188,7 +188,7 @@ EOF
 
 ```bash
 # Export OpenSpec change proposal to GitHub Issues
-specfact sync bridge --adapter github --mode export-only \
+specfact project sync bridge --adapter github --mode export-only \
   --repo-owner your-org \
   --repo-name your-repo \
   --repo /path/to/openspec-repo
@@ -217,7 +217,7 @@ git commit -m "feat: modernize-api - refactor endpoints [change:modernize-api]"
 
 # Track progress (detects commits and adds comments to GitHub Issue)
 cd /path/to/openspec-repo
-specfact sync bridge --adapter github --mode export-only \
+specfact project sync bridge --adapter github --mode export-only \
   --repo-owner your-org \
   --repo-name your-repo \
   --track-code-changes \
@@ -238,7 +238,7 @@ specfact sync bridge --adapter github --mode export-only \
 ```bash
 # Sync OpenSpec change proposals to SpecFact (read-only)
 cd /path/to/openspec-repo
-specfact sync bridge --adapter openspec --mode read-only \
+specfact project sync bridge --adapter openspec --mode read-only \
   --bundle legacy-api \
   --repo .
 
@@ -264,7 +264,7 @@ specfact sync bridge --adapter openspec --mode read-only \
 ```bash
 # Configure enforcement (global setting, no --bundle or --repo needed)
 cd /path/to/your-project
-specfact enforce stage --preset balanced
+specfact govern enforce stage --preset balanced
 
 # Expected output:
 # Setting enforcement mode: balanced
@@ -351,7 +351,7 @@ ls specs/
 
 ```bash
 # Preview import
-specfact import from-bridge --adapter speckit --repo ./my-speckit-project --dry-run
+specfact project import from-bridge --adapter speckit --repo ./my-speckit-project --dry-run
 
 # Expected output:
 # 🔍 Analyzing Spec-Kit project via bridge adapter...
@@ -377,7 +377,7 @@ specfact import from-bridge --adapter speckit --repo ./my-speckit-project --dry-
 
 ```bash
 # Execute import
-specfact import from-bridge \
+specfact project import from-bridge \
   --adapter speckit \
   --repo ./my-speckit-project \
   --write
@@ -404,7 +404,7 @@ specfact import from-bridge \
 # Review plan bundle (bundle name is positional argument, not --bundle)
 # IMPORTANT: Must be in the project directory where .specfact/ exists
 cd /path/to/your-speckit-project
-specfact plan review <bundle-name>
+specfact project plan review <bundle-name>
 
 # Note: Bundle name is typically "main" for Spec-Kit imports
 # Check actual bundle name: ls .specfact/projects/
@@ -427,10 +427,10 @@ specfact plan review <bundle-name>
 ```bash
 # One-time sync (bundle name is typically "main" for Spec-Kit imports)
 cd /path/to/my-speckit-project
-specfact sync bridge --adapter speckit --bundle main --repo . --bidirectional
+specfact project sync bridge --adapter speckit --bundle main --repo . --bidirectional
 
 # Continuous watch mode (recommended for team collaboration)
-specfact sync bridge --adapter speckit --bundle main --repo . --bidirectional --watch --interval 5
+specfact project sync bridge --adapter speckit --bundle main --repo . --bidirectional --watch --interval 5
 
 # Expected output:
 # ✅ Detected speckit repository
@@ -473,7 +473,7 @@ specfact sync bridge --adapter speckit --bundle main --repo . --bidirectional --
 ```bash
 # Configure enforcement (global setting, no --bundle or --repo needed)
 cd /path/to/my-speckit-project
-specfact enforce stage --preset balanced
+specfact govern enforce stage --preset balanced
 
 # Expected output:
 # Setting enforcement mode: balanced
@@ -497,7 +497,7 @@ specfact enforce stage --preset balanced
 # Compare code vs plan (use --bundle to specify bundle name)
 # IMPORTANT: Must be in the project directory where .specfact/ exists
 cd /path/to/my-speckit-project
-specfact plan compare --code-vs-plan --bundle <bundle-name>
+specfact project plan compare --code-vs-plan --bundle <bundle-name>
 
 # Note: Bundle name is typically "main" for Spec-Kit imports
 # Check actual bundle name: ls .specfact/projects/
@@ -539,10 +539,10 @@ Bridge adapters are plugin-based connectors that sync between SpecFact and exter
 
 ```bash
 # View available adapters (shown in help text)
-specfact sync bridge --help
+specfact project sync bridge --help
 
 # Use an adapter
-specfact sync bridge --adapter <adapter-name> --mode <mode> --bundle <bundle-name> --repo .
+specfact project sync bridge --adapter <adapter-name> --mode <mode> --bundle <bundle-name> --repo .
 ```
 
 **Note**: Adapters are listed in the help text. There's no `--list-adapters` option, but adapters are shown when you use `--help` or when an adapter is not found (error message shows available adapters).
@@ -572,7 +572,7 @@ specfact sync bridge --adapter <adapter-name> --mode <mode> --bundle <bundle-nam
 
 ```bash
 # View available adapters in help text
-specfact sync bridge --help
+specfact project sync bridge --help
 
 # Or check error message when adapter is not found (shows available adapters)
 # Should show: openspec, speckit, github, generic-markdown

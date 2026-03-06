@@ -34,8 +34,12 @@ pip install -U specfact-cli
 ### Bootstrap and IDE Setup
 
 ```bash
-# Bootstrap module registry and local config (~/.specfact)
-specfact init
+# First run: install workflow bundles (required)
+specfact init --profile solo-developer
+
+# Other first-run options
+specfact init --install backlog,codebase
+specfact init --install all
 
 # First-run bundle selection (examples)
 specfact init --profile solo-developer
@@ -59,6 +63,14 @@ specfact code validate sidecar init my-project /path/to/repo
 specfact code validate sidecar run my-project /path/to/repo
 ```
 
+### Migration Note (Flat Commands Removed)
+
+As of `0.40.0`, flat root commands are removed. Use grouped commands:
+
+- `specfact validate ...` -> `specfact code validate ...`
+- `specfact plan ...` -> `specfact project plan ...`
+- `specfact policy ...` -> `specfact backlog policy ...`
+
 ### Backlog Bridge (60 seconds)
 
 SpecFact's USP is closing the drift gap between **backlog -> specs -> code**.
@@ -73,7 +85,7 @@ specfact backlog daily ado --ado-org <org> --ado-project "<project>" --state any
 specfact backlog refine ado --ado-org <org> --ado-project "<project>" --id <work-item-id> --preview
 
 # 3) Keep backlog + spec intent aligned (avoid silent drift)
-specfact policy validate --group-by-item
+specfact backlog policy validate --group-by-item
 ```
 
 For GitHub, replace adapter/org/project with:
@@ -141,8 +153,8 @@ Most tools help **either** coders **or** agile teams. SpecFact does both:
 Recommended command entrypoints:
 - `specfact backlog ceremony standup ...`
 - `specfact backlog ceremony refinement ...`
-- `specfact policy validate ...`
-- `specfact policy suggest ...`
+- `specfact backlog policy validate ...`
+- `specfact backlog policy suggest ...`
 
 What the Policy Engine does in practice:
 - Turns team agreements (DoR, DoD, flow checks) into executable checks against your real backlog data.
@@ -150,9 +162,9 @@ What the Policy Engine does in practice:
 - Generates patch-ready suggestions so teams can fix policy gaps quickly without guessing.
 
 Start with:
-- `specfact policy init --template scrum`
-- `specfact policy validate --group-by-item`
-- `specfact policy suggest --group-by-item --limit 5`
+- `specfact backlog policy init --template scrum`
+- `specfact backlog policy validate --group-by-item`
+- `specfact backlog policy suggest --group-by-item --limit 5`
 
 **Try it now**
 
@@ -163,13 +175,12 @@ Start with:
 
 ## Modules and Capabilities
 
-**Core modules**
+**Core runtime**
 
-- **Analyze**: Extract specs and plans from existing code.
-- **Validate**: Enforce contracts, run reproducible checks, and block regressions.
-- **Report**: CI/CD summaries and evidence outputs.
+- **Permanent commands**: `init`, `module`, `upgrade`
+- **Core responsibilities**: lifecycle, registry, trust, contracts, orchestration, shared runtime utilities
 
-**Agile DevOps modules**
+**Marketplace-installed bundles**
 
 - **Backlog**: Refinement, dependency analysis, sprint summaries, risk rollups.
 - **Ceremony**: Standup, refinement, and planning entry points.
@@ -187,6 +198,41 @@ For technical architecture details (module lifecycle, registry internals, adapte
 - [Architecture Reference](docs/reference/architecture.md)
 - [Architecture Docs Index](docs/architecture/README.md)
 - [Architecture Implementation Status](docs/architecture/implementation-status.md)
+
+### Official Marketplace Bundles
+
+SpecFact ships official bundle packages via the dedicated marketplace registry repository
+`nold-ai/specfact-cli-modules`.
+Bundle-specific docs are still temporarily hosted in this docs set while the long-term
+bundle docs home is prepared in the modules repository docs site:
+`https://nold-ai.github.io/specfact-cli-modules/`.
+
+Install examples:
+
+```bash
+specfact module install nold-ai/specfact-project
+specfact module install nold-ai/specfact-backlog
+specfact module install nold-ai/specfact-codebase
+specfact module install nold-ai/specfact-spec
+specfact module install nold-ai/specfact-govern
+```
+
+If startup warns that bundled modules are missing or outdated, run:
+
+```bash
+specfact module init --scope project
+specfact module init
+```
+
+Official bundles are verified as `official` tier (`nold-ai` publisher). Some bundles
+auto-install dependencies:
+
+- `nold-ai/specfact-spec` pulls `nold-ai/specfact-project`
+- `nold-ai/specfact-govern` pulls `nold-ai/specfact-project`
+
+Use this repo's docs for the current CLI/runtime release branch. Module-specific guides
+will move to `specfact-cli-modules` so future bundle-only changes do not require ongoing
+docs maintenance in long-lived `specfact-cli` release branches.
 
 ---
 

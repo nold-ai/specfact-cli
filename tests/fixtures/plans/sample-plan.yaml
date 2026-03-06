@@ -62,7 +62,7 @@ features:
       - key: "STORY-001"
         title: "As a developer, I can init a new plan"
         acceptance:
-          - "specfact plan init creates plan.bundle.yaml"
+          - "specfact project plan init creates plan.bundle.yaml"
           - "Generated plan passes validation"
         tags:
           - "cli"
@@ -72,7 +72,7 @@ features:
       - key: "STORY-002"
         title: "As a developer, I can validate an existing plan"
         acceptance:
-          - "specfact plan validate reports all errors"
+          - "specfact project plan validate reports all errors"
           - "Exit code 0 for valid plans"
         tags:
           - "cli"

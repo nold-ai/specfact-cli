@@ -5,11 +5,15 @@ import tempfile
 from pathlib import Path
 from textwrap import dedent
 
+import pytest
 from rich.console import Console
 from typer.testing import CliRunner
 
+
+pytest.importorskip("specfact_project.import_cmd.commands")
+from specfact_project.import_cmd import commands as import_commands
+
 from specfact_cli.cli import app
-from specfact_cli.modules.import_cmd.src import commands as import_commands
 from specfact_cli.utils.bundle_loader import load_project_bundle
 
 
@@ -17,7 +21,7 @@ runner = CliRunner()
 
 
 class TestAnalyzeCommand:
-    """Integration tests for 'specfact import from-code' command."""
+    """Integration tests for 'specfact project import from-code' command."""
 
     def test_code2spec_basic_repository(self):
         """Test analyzing a basic Python repository."""
@@ -47,6 +51,7 @@ class TestAnalyzeCommand:
             result = runner.invoke(
                 app,
                 [
+                    "project",
                     "import",
                     "from-code",
                     "test-bundle",

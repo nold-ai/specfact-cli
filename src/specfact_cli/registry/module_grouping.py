@@ -16,6 +16,9 @@ CATEGORY_TO_GROUP_COMMAND: dict[str, str] = {
     "spec": "spec",
     "govern": "govern",
 }
+LEGACY_GROUP_COMMAND_ALIASES: dict[tuple[str, str], str] = {
+    ("codebase", "codebase"): "code",
+}
 
 
 class ModuleManifestError(Exception):
@@ -58,3 +61,14 @@ def validate_module_category_manifest(meta: ModulePackageMetadata) -> None:
             f"Module '{meta.name}': bundle_group_command for category {meta.category!r} must be {expected!r}, "
             f"got {meta.bundle_group_command!r}"
         )
+
+
+@beartype
+def normalize_legacy_bundle_group_command(meta: ModulePackageMetadata) -> ModulePackageMetadata:
+    """Normalize known legacy bundle group values to canonical grouped commands."""
+    if meta.category is None or meta.bundle_group_command is None:
+        return meta
+    normalized = LEGACY_GROUP_COMMAND_ALIASES.get((meta.category, meta.bundle_group_command))
+    if normalized is not None:
+        meta.bundle_group_command = normalized
+    return meta

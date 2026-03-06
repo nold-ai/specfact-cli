@@ -1,6 +1,18 @@
-"""Backward-compatible app shim. Implementation moved to modules/sync/."""
+"""Backward-compatible app shim for project sync command."""
 
-from specfact_cli.modules.sync.src.commands import app
+from typing import TYPE_CHECKING, Any
+
+from ._bundle_shim import load_bundle_app
+
+
+if TYPE_CHECKING:
+    app: Any
+
+
+def __getattr__(name: str) -> Any:
+    if name == "app":
+        return load_bundle_app(__file__, "specfact_project.sync.commands")
+    raise AttributeError(name)
 
 
 __all__ = ["app"]

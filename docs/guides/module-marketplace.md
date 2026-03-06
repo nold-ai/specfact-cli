@@ -9,10 +9,13 @@ description: Registry model, discovery priority, trust semantics, and security c
 
 SpecFact supports centralized marketplace distribution with local multi-source discovery.
 
+For the curated official bundle list and trust/dependency quick reference, see
+[Marketplace Bundles](marketplace.md).
+
 ## Registry Overview
 
 - **Official registry**: <https://github.com/nold-ai/specfact-cli-modules> (index: `registry/index.json`)
-- **Marketplace module id format**: `namespace/name` (e.g. `specfact/backlog`). Marketplace modules must use this format; flat names are allowed only for custom/local modules with a warning.
+- **Marketplace module id format**: `namespace/name` (e.g. `nold-ai/specfact-backlog`). Marketplace modules must use this format; bare names are accepted only for local normalization and explicit source selection flows.
 - **Custom registries**: You can add private or third-party registries. See [Custom registries](custom-registries.md) for adding, listing, removing, trust levels, and priority.
 
 ## Custom registries and search
@@ -62,7 +65,7 @@ Checksum mismatch blocks installation.
 
 **Namespace enforcement**:
 
-- Modules installed from the marketplace must use the `namespace/name` format (e.g. `specfact/backlog`). Invalid format is rejected.
+- Modules installed from the marketplace must use the `namespace/name` format (for example `nold-ai/specfact-backlog`). Invalid format is rejected.
 - If a module with the same logical name is already installed from a different source or namespace, install reports a collision and suggests using an alias or uninstalling the existing module.
 
 Additional local hardening:
@@ -111,3 +114,6 @@ Scope boundary:
 - Module metadata (publisher, license, trust, origin, compatibility)
 - Full command tree, including subcommands
 - Short command descriptions derived from Typer command registration
+
+> Temporary docs note: marketplace and bundle-specific docs remain hosted in this core docs set
+> for the current release line and are planned to migrate to `specfact-cli-modules`.

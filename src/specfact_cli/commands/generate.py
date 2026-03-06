@@ -1,6 +1,18 @@
-"""Backward-compatible app shim. Implementation moved to modules/generate/."""
+"""Backward-compatible app shim for spec generate command."""
 
-from specfact_cli.modules.generate.src.commands import app
+from typing import TYPE_CHECKING, Any
+
+from ._bundle_shim import load_bundle_app
+
+
+if TYPE_CHECKING:
+    app: Any
+
+
+def __getattr__(name: str) -> Any:
+    if name == "app":
+        return load_bundle_app(__file__, "specfact_spec.generate.commands")
+    raise AttributeError(name)
 
 
 __all__ = ["app"]

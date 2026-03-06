@@ -4,7 +4,11 @@ from __future__ import annotations
 
 import inspect
 
-from specfact_cli.modules.plan.src import commands as module_commands
+import pytest
+
+
+pytest.importorskip("specfact_project.plan.commands")
+from specfact_project.plan import commands as module_commands
 
 
 REQUIRED_METHODS = [

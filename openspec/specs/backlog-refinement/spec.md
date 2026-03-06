@@ -7,16 +7,27 @@ TBD - created by archiving change add-template-driven-backlog-refinement. Update
 
 The system SHALL provide a `specfact backlog refine` command that enables teams to standardize backlog items using AI-assisted template matching and refinement.
 
-#### Scenario: Display assignee and acceptance criteria in preview output
+#### Scenario: Refined tmp import requires stable item IDs
 
-- **GIVEN** a backlog item with `assignees: ["John Doe"]` and `acceptance_criteria: "User can login"`
-- **WHEN** preview mode is displayed (`specfact backlog refine --preview`)
-- **THEN** the output should show `[bold]Assignee:[/bold] John Doe` after the Provider field
-- **AND** the output should show `[bold]Acceptance Criteria:[/bold]` with the acceptance criteria content
-- **AND** if acceptance criteria is required by the template but empty, it should show `(empty - required field)` indicator
-- **AND** if assignees list is empty, it should show `[bold]Assignee:[/bold] Unassigned`
-- **AND** required fields from the template are always displayed, even when empty, to help copilot identify missing elements
-- **AND** the assignee should be displayed before Story Metrics section
+- **GIVEN** a refined markdown artifact intended for `--import-from-tmp`
+- **WHEN** the artifact is parsed
+- **THEN** each `## Item N:` block MUST include an `**ID**` property copied from the export
+- **AND** import rejects artifacts that omit required IDs for item lookup.
+
+#### Scenario: Refined tmp import reports ID mismatch explicitly
+
+- **GIVEN** a refined markdown artifact with parsed item blocks
+- **AND** none of the parsed `**ID**` values match fetched backlog items for the current refine command filters
+- **WHEN** import processing runs
+- **THEN** the command exits with an explicit error describing the ID mismatch
+- **AND** the message instructs the user to preserve exported IDs unchanged.
+
+#### Scenario: `any` disables state/assignee filtering
+
+- **GIVEN** a user runs backlog commands that support state/assignee filters (for example `daily` or `refine`)
+- **WHEN** the user passes `--state any` and/or `--assignee any`
+- **THEN** the system treats the respective filter as disabled (no filter applied)
+- **AND** command output/help makes this behavior explicit so default scoping is understandable.
 
 ### Requirement: Backlog Item Domain Model
 
@@ -85,14 +96,21 @@ The system SHALL provide a template registry that manages backlog templates with
 
 The system SHALL provide an abstract field mapping layer that normalizes provider-specific field structures to canonical field names.
 
-#### Scenario: ADO field extraction from separate fields
+#### Scenario: ADO writeback resolves mapped story points field deterministically
 
-- **GIVEN** an ADO work item with `System.Description`, `System.AcceptanceCriteria`, `Microsoft.VSTS.Common.AcceptanceCriteria`, and `Microsoft.VSTS.Common.StoryPoints` fields
-- **WHEN** `AdoFieldMapper` extracts fields
-- **THEN** the `description` field is populated from `System.Description`
-- **AND** the `acceptance_criteria` field is populated from either `System.AcceptanceCriteria` or `Microsoft.VSTS.Common.AcceptanceCriteria` (checks all alternatives and uses first found value)
-- **AND** the `story_points` field is populated from `Microsoft.VSTS.Common.StoryPoints`
-- **AND** when writing updates back to ADO, the system prefers `System.*` fields over `Microsoft.VSTS.Common.*` fields for better Scrum template compatibility
+- **GIVEN** an ADO work item refine writeback with `story_points` set
+- **AND** multiple candidate ADO fields map to `story_points` (for example default and custom mappings)
+- **WHEN** writeback field resolution runs
+- **THEN** the system selects the effective write target with deterministic precedence: explicit custom mapping first, then provider-present mapped fields, then framework/default fallback
+- **AND** the PATCH operation uses the resolved mapped field (for example `Microsoft.VSTS.Scheduling.StoryPoints` or a custom field)
+- **AND** the system does not silently fall back to a non-selected default field.
+
+#### Scenario: ADO writeback resolves all mapped canonical fields consistently
+
+- **GIVEN** canonical update values for `acceptance_criteria`, `story_points`, `business_value`, and `priority`
+- **WHEN** ADO writeback builds PATCH operations
+- **THEN** each canonical field uses the same mapped write-target resolution strategy
+- **AND** custom mappings apply consistently across all canonical fields supported by ADO mapper configuration.
 
 ### Requirement: Enhanced BacklogItem Model
 
@@ -678,4 +696,15 @@ The system SHALL parse structured refinement output into canonical fields before
 - **WHEN** the command implementation is decomposed into smaller helper methods
 - **THEN** observable CLI behavior and writeback semantics remain unchanged for equivalent inputs
 - **AND** command complexity in the top-level `refine` function is reduced to keep the implementation readable and maintainable.
+
+### Requirement: ADO comment activities use endpoint-compatible API versioning
+
+The system SHALL use the preview ADO comments API version for comment read/write activities while preserving stable `7.1` for standard work-item operations.
+
+#### Scenario: ADO daily/refine comment posting uses preview comments endpoint version
+
+- **GIVEN** a configured ADO adapter posts a comment to `/workitems/{id}/comments`
+- **WHEN** the adapter builds and executes the comment POST request
+- **THEN** the request targets `api-version=7.1-preview.4`
+- **AND** standard ADO work-item or WIQL operations continue using `api-version=7.1`.
 

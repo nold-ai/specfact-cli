@@ -2,16 +2,17 @@
 
 from __future__ import annotations
 
+import os
+import sys
 from pathlib import Path
 from typing import Any
 
-import requests
 import yaml
 from beartype import beartype
 from icontract import ensure, require
 
 from specfact_cli.common import get_bridge_logger
-from specfact_cli.registry.marketplace_client import REGISTRY_INDEX_URL
+from specfact_cli.registry.marketplace_client import REGISTRY_INDEX_URL, get_registry_index_url
 
 
 logger = get_bridge_logger(__name__)
@@ -21,16 +22,24 @@ OFFICIAL_REGISTRY_ID = "official"
 TRUST_LEVELS = frozenset({"always", "prompt", "never"})
 
 
+def _is_crosshair_runtime() -> bool:
+    """Return True when running under CrossHair symbolic exploration."""
+    if os.getenv("SPECFACT_CROSSHAIR_ANALYSIS") == "true":
+        return True
+    return "crosshair" in sys.modules
+
+
 def get_registries_config_path() -> Path:
     """Return path to registries.yaml under ~/.specfact/config/."""
     return Path.home() / ".specfact" / "config" / _REGISTRIES_FILENAME
 
 
 def _default_official_entry() -> dict[str, Any]:
-    """Return the built-in official registry entry."""
+    """Return the built-in official registry entry (branch-aware: main vs dev)."""
+    url = REGISTRY_INDEX_URL if _is_crosshair_runtime() else get_registry_index_url()
     return {
         "id": OFFICIAL_REGISTRY_ID,
-        "url": REGISTRY_INDEX_URL,
+        "url": url,
         "priority": 1,
         "trust": "always",
     }
@@ -75,6 +84,8 @@ def add_registry(
 @ensure(lambda result: isinstance(result, list), "returns list")
 def list_registries() -> list[dict[str, Any]]:
     """Return all registries: official first, then custom from config, sorted by priority."""
+    if _is_crosshair_runtime():
+        return [_default_official_entry()]
     result: list[dict[str, Any]] = []
     path = get_registries_config_path()
     if path.exists():
@@ -119,6 +130,11 @@ def remove_registry(id: str) -> None:
 @ensure(lambda result: isinstance(result, list), "returns list")
 def fetch_all_indexes(timeout: float = 10.0) -> list[tuple[str, dict[str, Any]]]:
     """Fetch index from each registry in priority order. Returns list of (registry_id, index_dict)."""
+    from specfact_cli.registry.marketplace_client import fetch_registry_index
+
+    if _is_crosshair_runtime():
+        return []
+
     registries = list_registries()
     result: list[tuple[str, dict[str, Any]]] = []
     for reg in registries:
@@ -126,14 +142,7 @@ def fetch_all_indexes(timeout: float = 10.0) -> list[tuple[str, dict[str, Any]]]
         url = str(reg.get("url", "")).strip()
         if not url:
             continue
-        try:
-            response = requests.get(url, timeout=timeout)
-            response.raise_for_status()
-            payload = response.json()
-            if isinstance(payload, dict):
-                result.append((reg_id, payload))
-            else:
-                logger.warning("Registry %s returned non-dict index", reg_id)
-        except Exception as exc:
-            logger.warning("Registry %s unavailable: %s", reg_id, exc)
+        payload = fetch_registry_index(index_url=url, timeout=timeout)
+        if isinstance(payload, dict):
+            result.append((reg_id, payload))
     return result

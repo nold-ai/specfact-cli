@@ -105,7 +105,7 @@ def test_sidecar_init_run_workflow_fastapi(runner: CliRunner, fastapi_repo: Path
     # Step 1: Initialize
     init_result = runner.invoke(
         app,
-        ["validate", "sidecar", "init", bundle_name, str(fastapi_repo)],
+        ["code", "validate", "sidecar", "init", bundle_name, str(fastapi_repo)],
     )
 
     assert init_result.exit_code == 0
@@ -138,7 +138,7 @@ def test_sidecar_init_run_workflow_django(runner: CliRunner, django_repo: Path) 
     # Step 1: Initialize
     init_result = runner.invoke(
         app,
-        ["validate", "sidecar", "init", bundle_name, str(django_repo)],
+        ["code", "validate", "sidecar", "init", bundle_name, str(django_repo)],
     )
 
     assert init_result.exit_code == 0
@@ -171,7 +171,7 @@ def test_sidecar_init_run_workflow_flask(runner: CliRunner, flask_repo: Path) ->
     # Step 1: Initialize
     init_result = runner.invoke(
         app,
-        ["validate", "sidecar", "init", bundle_name, str(flask_repo)],
+        ["code", "validate", "sidecar", "init", bundle_name, str(flask_repo)],
     )
 
     assert init_result.exit_code == 0
@@ -204,7 +204,7 @@ def test_sidecar_framework_detection(runner: CliRunner, fastapi_repo: Path) -> N
 
     result = runner.invoke(
         app,
-        ["validate", "sidecar", "init", bundle_name, str(fastapi_repo)],
+        ["code", "validate", "sidecar", "init", bundle_name, str(fastapi_repo)],
     )
 
     assert result.exit_code == 0
@@ -218,7 +218,7 @@ def test_sidecar_framework_detection_flask(runner: CliRunner, flask_repo: Path) 
 
     result = runner.invoke(
         app,
-        ["validate", "sidecar", "init", bundle_name, str(flask_repo)],
+        ["code", "validate", "sidecar", "init", bundle_name, str(flask_repo)],
     )
 
     assert result.exit_code == 0
@@ -233,7 +233,7 @@ def test_sidecar_workflow_with_invalid_repo(runner: CliRunner, tmp_path: Path) -
 
     result = runner.invoke(
         app,
-        ["validate", "sidecar", "init", bundle_name, str(invalid_repo)],
+        ["code", "validate", "sidecar", "init", bundle_name, str(invalid_repo)],
     )
 
     assert result.exit_code != 0

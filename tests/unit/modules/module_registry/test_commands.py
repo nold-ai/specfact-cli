@@ -409,6 +409,44 @@ def test_search_command_filters_registry(monkeypatch) -> None:
     assert "specfact/policy" not in result.stdout
 
 
+def test_search_command_sorts_results_alphabetically(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "specfact_cli.modules.module_registry.src.commands.fetch_all_indexes",
+        lambda: [
+            (
+                "official",
+                {
+                    "schema_version": "1.0.0",
+                    "modules": [
+                        {
+                            "id": "specfact/zeta",
+                            "description": "Zeta module",
+                            "latest_version": "0.1.0",
+                            "tags": ["bundle"],
+                        },
+                        {
+                            "id": "specfact/alpha",
+                            "description": "Alpha module",
+                            "latest_version": "0.1.0",
+                            "tags": ["bundle"],
+                        },
+                    ],
+                },
+            )
+        ],
+    )
+    monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.discover_all_modules", list)
+
+    result = runner.invoke(app, ["search", "module"])
+
+    assert result.exit_code == 0
+    assert "specfact/alpha" in result.stdout
+    assert "specfact/zeta" in result.stdout
+    pos_alpha = result.stdout.index("specfact/alpha")
+    pos_zeta = result.stdout.index("specfact/zeta")
+    assert pos_alpha < pos_zeta
+
+
 def test_search_command_finds_installed_module_when_not_in_registry(monkeypatch) -> None:
     monkeypatch.setattr(
         "specfact_cli.modules.module_registry.src.commands.fetch_all_indexes", lambda: [("official", {"modules": []})]
@@ -444,40 +482,6 @@ def test_search_command_reports_no_results_with_query_context(monkeypatch) -> No
 
     assert result.exit_code == 0
     assert "No modules found for query 'does-not-exist'" in result.stdout
-
-
-def test_search_command_sorts_results_alphabetically(monkeypatch) -> None:
-    monkeypatch.setattr(
-        "specfact_cli.modules.module_registry.src.commands.fetch_all_indexes",
-        lambda: [
-            (
-                "official",
-                {
-                    "schema_version": "1.0.0",
-                    "modules": [
-                        {
-                            "id": "specfact/zeta",
-                            "description": "Zeta module",
-                            "latest_version": "0.1.0",
-                            "tags": ["bundle"],
-                        },
-                        {
-                            "id": "specfact/alpha",
-                            "description": "Alpha module",
-                            "latest_version": "0.1.0",
-                            "tags": ["bundle"],
-                        },
-                    ],
-                },
-            )
-        ],
-    )
-    monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.discover_all_modules", list)
-
-    result = runner.invoke(app, ["search", "module"])
-
-    assert result.exit_code == 0
-    assert result.stdout.index("specfact/alpha") < result.stdout.index("specfact/zeta")
 
 
 def test_list_command_sorts_modules_alphabetically(monkeypatch) -> None:
@@ -571,6 +575,39 @@ def test_list_command_shows_version_state_and_trust(monkeypatch) -> None:
     assert "community" in result.stdout
     assert "nold-ai" in result.stdout
     assert "community-dev" in result.stdout
+
+
+def test_list_command_marketplace_option_shows_registry_modules(monkeypatch) -> None:
+    """specfact module list --marketplace shows modules from the registry index."""
+    monkeypatch.setattr(
+        "specfact_cli.modules.module_registry.src.commands.fetch_registry_index",
+        lambda **_: {
+            "modules": [
+                {"id": "nold-ai/specfact-backlog", "latest_version": "0.40.0", "description": "Backlog workflows"},
+                {"id": "nold-ai/specfact-codebase", "latest_version": "0.40.0", "description": "Codebase analysis"},
+            ]
+        },
+    )
+    monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.get_modules_with_state", list)
+
+    result = runner.invoke(app, ["list", "--marketplace"])
+
+    assert result.exit_code == 0
+    assert "Marketplace Modules Available" in result.stdout
+    assert "nold-ai/specfact-backlog" in result.stdout
+    assert "nold-ai/specfact-codebase" in result.stdout
+    assert "specfact module install" in result.stdout
+
+
+def test_list_command_marketplace_option_offline_shows_warning(monkeypatch) -> None:
+    """specfact module list --marketplace when registry unavailable shows friendly message."""
+    monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.fetch_registry_index", lambda **_: None)
+    monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.get_modules_with_state", list)
+
+    result = runner.invoke(app, ["list", "--marketplace"])
+
+    assert result.exit_code == 0
+    assert "unavailable" in result.stdout.lower() or "offline" in result.stdout.lower()
 
 
 def test_list_command_shows_official_label_when_marked(monkeypatch) -> None:

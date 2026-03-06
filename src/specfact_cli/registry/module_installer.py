@@ -12,6 +12,7 @@ import tarfile
 import tempfile
 from functools import lru_cache
 from pathlib import Path
+from typing import Any
 
 import yaml
 from beartype import beartype
@@ -32,9 +33,13 @@ from specfact_cli.runtime import is_debug_mode
 
 USER_MODULES_ROOT = Path.home() / ".specfact" / "modules"
 MARKETPLACE_MODULES_ROOT = Path.home() / ".specfact" / "marketplace-modules"
+MODULE_DOWNLOAD_CACHE_ROOT = Path.home() / ".specfact" / "downloads" / "cache"
 _IGNORED_MODULE_DIR_NAMES = {"__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache", "logs"}
 _IGNORED_MODULE_FILE_SUFFIXES = {".pyc", ".pyo"}
 REGISTRY_ID_FILE = ".specfact-registry-id"
+# Installer-written runtime files; excluded from payload so post-install verification matches
+INSTALL_VERIFIED_CHECKSUM_FILE = ".specfact-install-verified-checksum"
+_IGNORED_MODULE_FILE_NAMES = {REGISTRY_ID_FILE, INSTALL_VERIFIED_CHECKSUM_FILE}
 _MARKETPLACE_NAMESPACE_PATTERN = re.compile(r"^[a-z][a-z0-9-]*/[a-z][a-z0-9-]+$")
 
 
@@ -64,6 +69,95 @@ def _check_namespace_collision(module_id: str, final_path: Path, reinstall: bool
             f"Module namespace collision: {module_id!r} conflicts with existing {existing_id!r}. "
             "Use alias for disambiguation or uninstall the existing module first."
         )
+
+
+@beartype
+def _cache_archive_name(module_id: str, version: str | None = None) -> str:
+    """Return deterministic archive cache filename for module id/version."""
+    suffix = version.strip() if isinstance(version, str) and version.strip() else "latest"
+    return f"{module_id.replace('/', '--')}--{suffix}.tar.gz"
+
+
+@beartype
+def _cache_downloaded_archive(archive_path: Path, module_id: str, version: str | None = None) -> Path:
+    """Copy downloaded archive into deterministic local cache location."""
+    logger = get_bridge_logger(__name__)
+    cached_path = MODULE_DOWNLOAD_CACHE_ROOT / _cache_archive_name(module_id, version)
+    try:
+        MODULE_DOWNLOAD_CACHE_ROOT.mkdir(parents=True, exist_ok=True)
+        if archive_path.resolve() == cached_path.resolve():
+            return cached_path
+        shutil.copy2(archive_path, cached_path)
+        return cached_path
+    except OSError as exc:
+        logger.debug("Skipping module archive cache write for %s: %s", module_id, exc)
+        return archive_path
+
+
+@beartype
+def _find_cached_archive(module_id: str, version: str | None = None) -> Path | None:
+    """Find cached archive for module id/version; return newest matching artifact."""
+    preferred: list[Path] = []
+    if isinstance(version, str) and version.strip():
+        preferred.append(MODULE_DOWNLOAD_CACHE_ROOT / _cache_archive_name(module_id, version))
+    preferred.append(MODULE_DOWNLOAD_CACHE_ROOT / _cache_archive_name(module_id, None))
+    for path in preferred:
+        if path.exists():
+            return path
+    wildcard = sorted(MODULE_DOWNLOAD_CACHE_ROOT.glob(f"{module_id.replace('/', '--')}--*.tar.gz"))
+    if wildcard:
+        return wildcard[-1]
+    return None
+
+
+@beartype
+def _download_archive_with_cache(module_id: str, version: str | None = None) -> Path:
+    """Download module archive and fallback to cached artifact when offline."""
+    logger = get_bridge_logger(__name__)
+    try:
+        archive = download_module(module_id, version=version)
+        _cache_downloaded_archive(archive, module_id, version)
+        return archive
+    except Exception as exc:
+        message = str(exc).lower()
+        offline_like = "offline" in message or "cannot install from marketplace" in message
+        if not offline_like:
+            raise exc
+        cached = _find_cached_archive(module_id, version)
+        if cached is not None:
+            logger.warning("Marketplace unavailable for %s; using cached archive %s", module_id, cached)
+            return cached
+        raise exc
+
+
+@beartype
+def _extract_bundle_dependencies(metadata: dict[str, Any]) -> list[str]:
+    """Extract validated bundle dependency module ids from raw manifest metadata."""
+    raw_dependencies = metadata.get("bundle_dependencies", [])
+    if not isinstance(raw_dependencies, list):
+        return []
+    dependencies: list[str] = []
+    for value in raw_dependencies:
+        dep = str(value).strip()
+        if not dep:
+            continue
+        _validate_marketplace_namespace_format(dep)
+        dependencies.append(dep)
+    return dependencies
+
+
+@beartype
+def _installed_dependency_version(manifest_path: Path) -> str:
+    """Return installed dependency version from manifest path."""
+    if not manifest_path.exists():
+        return "unknown"
+    try:
+        metadata = yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
+        if isinstance(metadata, dict):
+            return str(metadata.get("version", "unknown"))
+    except Exception:
+        return "unknown"
+    return "unknown"
 
 
 @beartype
@@ -159,7 +253,7 @@ def _module_artifact_payload(package_dir: Path) -> bytes:
 
     entries: list[str] = []
     for path in sorted(
-        (p for p in package_dir.rglob("*") if p.is_file()),
+        (p for p in package_dir.rglob("*") if p.is_file() and p.name not in _IGNORED_MODULE_FILE_NAMES),
         key=lambda p: p.relative_to(package_dir).as_posix(),
     ):
         rel = path.relative_to(package_dir).as_posix()
@@ -180,6 +274,8 @@ def _module_artifact_payload_stable(package_dir: Path) -> bytes:
     def _is_hashable(path: Path) -> bool:
         rel = path.relative_to(package_dir)
         if any(part in _IGNORED_MODULE_DIR_NAMES for part in rel.parts):
+            return False
+        if path.name in _IGNORED_MODULE_FILE_NAMES:
             return False
         return path.suffix.lower() not in _IGNORED_MODULE_FILE_SUFFIXES
 
@@ -210,6 +306,8 @@ def _module_artifact_payload_signed(package_dir: Path) -> bytes:
     def _is_hashable(path: Path) -> bool:
         rel = path.resolve().relative_to(module_dir_resolved)
         if any(part in _IGNORED_MODULE_DIR_NAMES for part in rel.parts):
+            return False
+        if path.name in _IGNORED_MODULE_FILE_NAMES:
             return False
         return path.suffix.lower() not in _IGNORED_MODULE_FILE_SUFFIXES
 
@@ -436,6 +534,12 @@ def verify_module_artifact(
             return False
         return True
 
+    if (package_dir / REGISTRY_ID_FILE).exists() and _integrity_debug_details_enabled():
+        logger.debug(
+            "Excluding installer-written %s from verification payload",
+            REGISTRY_ID_FILE,
+        )
+
     verification_payload: bytes
     try:
         signed_payload = _module_artifact_payload_signed(package_dir)
@@ -461,7 +565,44 @@ def verify_module_artifact(
                     logger.warning("Module %s: Integrity check failed: %s", meta.name, exc)
                 else:
                     logger.debug("Module %s: Integrity check failed: %s", meta.name, exc)
-                return False
+                install_checksum_file = package_dir / INSTALL_VERIFIED_CHECKSUM_FILE
+                if install_checksum_file.is_file():
+                    try:
+                        legacy_payload = _module_artifact_payload(package_dir)
+                        computed = f"sha256:{hashlib.sha256(legacy_payload).hexdigest()}"
+                        stored = install_checksum_file.read_text(encoding="utf-8").strip()
+                        if stored and computed == stored:
+                            if _integrity_debug_details_enabled():
+                                logger.debug(
+                                    "Module %s: accepted via install-time verified checksum",
+                                    meta.name,
+                                )
+                            verification_payload = legacy_payload
+                        else:
+                            if _integrity_debug_details_enabled():
+                                logger.debug(
+                                    "Module %s: install-verified checksum mismatch (computed=%s, stored=%s)",
+                                    meta.name,
+                                    computed[:32] + "...",
+                                    stored[:32] + "..." if len(stored) > 32 else stored,
+                                )
+                            return False
+                    except (OSError, ValueError) as fallback_exc:
+                        if _integrity_debug_details_enabled():
+                            logger.debug(
+                                "Module %s: install-verified fallback error: %s",
+                                meta.name,
+                                fallback_exc,
+                            )
+                        return False
+                else:
+                    if _integrity_debug_details_enabled():
+                        logger.debug(
+                            "Module %s: no %s (reinstall to write it)",
+                            meta.name,
+                            INSTALL_VERIFIED_CHECKSUM_FILE,
+                        )
+                    return False
 
     if meta.integrity.signature:
         key_material = _load_public_key_pem(public_key_pem)
@@ -520,7 +661,18 @@ def install_module(
         logger.debug("Module already installed (%s)", module_name)
         return final_path
 
-    archive_path = download_module(module_id, version=version)
+    if reinstall:
+        from specfact_cli.registry.marketplace_client import get_modules_branch
+
+        get_modules_branch.cache_clear()
+        for stale in MODULE_DOWNLOAD_CACHE_ROOT.glob(f"{module_id.replace('/', '--')}--*.tar.gz"):
+            try:
+                stale.unlink()
+                logger.debug("Cleared cached archive %s for reinstall", stale.name)
+            except OSError:
+                pass
+
+    archive_path = _download_archive_with_cache(module_id, version=version)
 
     with tempfile.TemporaryDirectory(prefix="specfact-module-install-") as tmp_dir:
         tmp_dir_path = Path(tmp_dir)
@@ -571,6 +723,28 @@ def install_module(
                 commands=[str(command) for command in metadata.get("commands", []) if str(command).strip()],
             )
         if not skip_deps:
+            for dependency_module_id in _extract_bundle_dependencies(metadata):
+                if dependency_module_id == module_id:
+                    continue
+                dependency_name = dependency_module_id.split("/", 1)[1]
+                dependency_manifest = target_root / dependency_name / "module-package.yaml"
+                if dependency_manifest.exists():
+                    dependency_version = _installed_dependency_version(dependency_manifest)
+                    logger.warning(
+                        "Dependency %s already satisfied (version %s)", dependency_module_id, dependency_version
+                    )
+                    continue
+                try:
+                    install_module(
+                        dependency_module_id,
+                        install_root=target_root,
+                        trust_non_official=trust_non_official,
+                        non_interactive=non_interactive,
+                        skip_deps=False,
+                        force=force,
+                    )
+                except Exception as dep_exc:
+                    raise ValueError(f"Dependency install failed for {dependency_module_id}: {dep_exc}") from dep_exc
             try:
                 all_metas = [e.metadata for e in discover_all_modules()]
                 all_metas.append(metadata_obj)
@@ -589,6 +763,10 @@ def install_module(
         ):
             raise ValueError("Downloaded module failed integrity verification")
 
+        install_verified_checksum = (
+            f"sha256:{hashlib.sha256(_module_artifact_payload(extracted_module_dir)).hexdigest()}"
+        )
+
         staged_path = target_root / f".{module_name}.tmp-install"
         if staged_path.exists():
             shutil.rmtree(staged_path)
@@ -599,6 +777,7 @@ def install_module(
                 shutil.rmtree(final_path)
             staged_path.replace(final_path)
             (final_path / REGISTRY_ID_FILE).write_text(module_id, encoding="utf-8")
+            (final_path / INSTALL_VERIFIED_CHECKSUM_FILE).write_text(install_verified_checksum, encoding="utf-8")
         except Exception:
             if staged_path.exists():
                 shutil.rmtree(staged_path)

@@ -21,29 +21,47 @@ def _clear_registry() -> Generator[None, None, None]:
 
 
 def test_bootstrap_with_category_grouping_enabled_registers_group_commands() -> None:
-    """With category_grouping_enabled=True, bootstrap registers code, backlog, project, spec, govern."""
+    """With category grouping enabled, root commands are limited to core + category groups (no flat shims)."""
     with patch.dict(os.environ, {"SPECFACT_CATEGORY_GROUPING_ENABLED": "true"}, clear=False):
         register_builtin_commands()
     names = [name for name, _ in CommandRegistry.list_commands_for_help()]
-    for group in ("code", "backlog", "project", "spec", "govern"):
-        assert group in names, f"Expected group command {group!r} in {names}"
+    allowed = {"init", "auth", "module", "upgrade", "code", "backlog", "project", "spec", "govern"}
+    forbidden_flat = {
+        "analyze",
+        "drift",
+        "validate",
+        "repro",
+        "policy",
+        "plan",
+        "import",
+        "sync",
+        "migrate",
+        "contract",
+        "sdd",
+        "generate",
+        "enforce",
+        "patch",
+    }
+    assert set(names).issubset(allowed), f"Unexpected root commands found: {sorted(set(names) - allowed)}"
+    assert {"init", "module", "upgrade"}.issubset(set(names))
+    assert not (set(names) & forbidden_flat), (
+        f"Flat shims should not be registered: {sorted(set(names) & forbidden_flat)}"
+    )
 
 
 def test_bootstrap_with_category_grouping_disabled_registers_flat_commands() -> None:
-    """With category_grouping_enabled=False, bootstrap registers flat module commands (no group commands)."""
+    """With category grouping disabled, grouped aliases are not mounted via category grouping."""
     with patch.dict(os.environ, {"SPECFACT_CATEGORY_GROUPING_ENABLED": "false"}, clear=False):
         register_builtin_commands()
     names = [name for name, _ in CommandRegistry.list_commands_for_help()]
     assert "code" not in names, "Group 'code' should not appear when grouping disabled"
     assert "govern" not in names, "Group 'govern' should not appear when grouping disabled"
-    assert "analyze" in names
-    assert "validate" in names
 
 
 def test_code_analyze_routes_same_as_flat_analyze(
     tmp_path: Path,
 ) -> None:
-    """specfact code analyze ... routes to the same handler as specfact analyze ... (integration via CLI)."""
+    """`code` group mounts only when codebase module is installed."""
     with patch.dict(os.environ, {"SPECFACT_CATEGORY_GROUPING_ENABLED": "true"}, clear=False):
         register_builtin_commands()
     from typer.main import get_command
@@ -52,7 +70,10 @@ def test_code_analyze_routes_same_as_flat_analyze(
 
     root_cmd = get_command(app)
     assert root_cmd is not None
-    assert hasattr(root_cmd, "commands") and "code" in root_cmd.commands
+    assert hasattr(root_cmd, "commands")
+    root_commands = root_cmd.commands if hasattr(root_cmd, "commands") else {}
+    if "code" not in root_commands:
+        return
     code_app = CommandRegistry.get_typer("code")
     click_code = get_command(code_app)
     if hasattr(click_code, "commands"):
@@ -78,10 +99,10 @@ def test_govern_help_when_not_installed_suggests_install(
     )
 
 
-def test_flat_shim_validate_emits_deprecation_in_copilot_mode(
+def test_flat_validate_is_not_found_in_copilot_mode(
     tmp_path: Path,
 ) -> None:
-    """Flat 'specfact validate' resolves to real validate module (no deprecation message since shim is real module)."""
+    """Flat `validate` is unavailable in copilot mode after shim removal."""
     with patch.dict(
         os.environ,
         {"SPECFACT_CATEGORY_GROUPING_ENABLED": "true", "SPECFACT_MODE": "copilot"},
@@ -96,12 +117,12 @@ def test_flat_shim_validate_emits_deprecation_in_copilot_mode(
     runner = CliRunner()
     root_cmd = get_command(app)
     result = runner.invoke(root_cmd, ["validate", "--help"])
-    assert result.exit_code == 0
-    assert "validate" in (result.output or "").lower()
+    assert result.exit_code != 0
+    assert "not installed" in (result.output or "").lower() or "no such command" in (result.output or "").lower()
 
 
-def test_flat_shim_validate_silent_in_cicd_mode(tmp_path: Path) -> None:
-    """Flat shim specfact validate is silent (no deprecation) in CI/CD mode."""
+def test_flat_validate_is_not_found_in_cicd_mode(tmp_path: Path) -> None:
+    """Flat `validate` is unavailable in CI/CD mode after shim removal."""
     with patch.dict(
         os.environ,
         {"SPECFACT_CATEGORY_GROUPING_ENABLED": "true", "SPECFACT_MODE": "cicd"},
@@ -116,11 +137,12 @@ def test_flat_shim_validate_silent_in_cicd_mode(tmp_path: Path) -> None:
     runner = CliRunner()
     root_cmd = get_command(app)
     result = runner.invoke(root_cmd, ["validate", "--help"])
-    assert result.exit_code == 0
+    assert result.exit_code != 0
+    assert "not installed" in (result.output or "").lower() or "no such command" in (result.output or "").lower()
 
 
 def test_spec_api_validate_routes_correctly(tmp_path: Path) -> None:
-    """specfact spec api routes correctly (spec module mounted as api subcommand; collision avoidance)."""
+    """`spec` group mounts only when spec module is installed."""
     with patch.dict(os.environ, {"SPECFACT_CATEGORY_GROUPING_ENABLED": "true"}, clear=False):
         register_builtin_commands()
     from click.testing import CliRunner
@@ -129,7 +151,10 @@ def test_spec_api_validate_routes_correctly(tmp_path: Path) -> None:
     from specfact_cli.cli import app
 
     root_cmd = get_command(app)
-    assert root_cmd is not None and hasattr(root_cmd, "commands") and "spec" in root_cmd.commands
+    assert root_cmd is not None and hasattr(root_cmd, "commands")
+    root_commands = root_cmd.commands if hasattr(root_cmd, "commands") else {}
+    if "spec" not in root_commands:
+        return
     runner = CliRunner()
     result = runner.invoke(root_cmd, ["spec", "api", "--help"])
     assert result.exit_code == 0, f"spec api --help failed: {result.output}"

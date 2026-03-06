@@ -24,6 +24,22 @@ from specfact_cli.registry.help_cache import (
 )
 
 
+REPO_ROOT = Path(__file__).resolve().parents[4]
+SRC_ROOT = REPO_ROOT / "src"
+
+
+def _subprocess_env(extra: dict[str, str] | None = None) -> dict[str, str]:
+    env = os.environ.copy()
+    existing = env.get("PYTHONPATH", "")
+    pythonpath_parts = [str(SRC_ROOT), str(REPO_ROOT)]
+    if existing:
+        pythonpath_parts.append(existing)
+    env["PYTHONPATH"] = os.pathsep.join(pythonpath_parts)
+    if extra:
+        env.update(extra)
+    return env
+
+
 @pytest.fixture
 def registry_dir(tmp_path: Path):
     """Use tmp_path as registry dir for tests."""
@@ -133,7 +149,7 @@ def test_cli_root_help_uses_cache_when_valid(registry_dir: Path):
         capture_output=True,
         text=True,
         timeout=30,
-        env={**os.environ, "SPECFACT_REGISTRY_DIR": str(registry_dir)},
+        env=_subprocess_env({"SPECFACT_REGISTRY_DIR": str(registry_dir)}),
     )
     assert result.returncode == 0, (result.stdout, result.stderr)
     assert "init" in result.stdout or "Initialize" in result.stdout.lower()

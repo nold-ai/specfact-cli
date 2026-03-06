@@ -415,7 +415,7 @@ class TestProjectLocks:
         repo_path, bundle_name = sample_bundle
         os.environ["TEST_MODE"] = "true"
 
-        from specfact_cli.modules.project.src import commands as project_commands
+        from specfact_project.project import commands as project_commands
 
         closed_stream = io.StringIO()
         closed_stream.close()
@@ -981,7 +981,7 @@ class TestProjectHealthCheck:
         )
         assert link_result.exit_code == 0
 
-        from specfact_cli.modules.project.src import commands as project_commands
+        from specfact_project.project import commands as project_commands
 
         monkeypatch.setattr(
             project_commands,
@@ -1028,7 +1028,7 @@ class TestProjectHealthCheck:
         """health-check forwards --repo path to spec-code alignment helper."""
         repo_path, bundle_name = sample_bundle
         os.environ["TEST_MODE"] = "true"
-        from specfact_cli.modules.project.src import commands as project_commands
+        from specfact_project.project import commands as project_commands
 
         link_result = runner.invoke(
             app,
@@ -1120,7 +1120,7 @@ class TestProjectDevOpsFlow:
         """devops-flow monitor/health-check delegates to project health-check."""
         repo_path, bundle_name = sample_bundle
         os.environ["TEST_MODE"] = "true"
-        from specfact_cli.modules.project.src import commands as project_commands
+        from specfact_project.project import commands as project_commands
 
         calls: list[tuple[str, str]] = []
 
@@ -1155,7 +1155,7 @@ class TestProjectDevOpsFlow:
         """devops-flow plan/generate-roadmap calls roadmap helper."""
         repo_path, bundle_name = sample_bundle
         os.environ["TEST_MODE"] = "true"
-        from specfact_cli.modules.project.src import commands as project_commands
+        from specfact_project.project import commands as project_commands
 
         link_result = runner.invoke(
             app,
@@ -1207,7 +1207,7 @@ class TestProjectDevOpsFlow:
         """devops-flow release/verify delegates release checks."""
         repo_path, bundle_name = sample_bundle
         os.environ["TEST_MODE"] = "true"
-        from specfact_cli.modules.project.src import commands as project_commands
+        from specfact_project.project import commands as project_commands
 
         link_result = runner.invoke(
             app,
@@ -1260,7 +1260,7 @@ class TestProjectDevOpsFlow:
         """devops-flow review/validate-pr exits non-zero on alignment failure."""
         repo_path, bundle_name = sample_bundle
         os.environ["TEST_MODE"] = "true"
-        from specfact_cli.modules.project.src import commands as project_commands
+        from specfact_project.project import commands as project_commands
 
         link_result = runner.invoke(
             app,
@@ -1316,7 +1316,7 @@ class TestProjectBacklogDerivedCommands:
         """snapshot stores backlog graph baseline JSON."""
         repo_path, bundle_name = sample_bundle
         os.environ["TEST_MODE"] = "true"
-        from specfact_cli.modules.project.src import commands as project_commands
+        from specfact_project.project import commands as project_commands
 
         link_result = runner.invoke(
             app,
@@ -1361,7 +1361,7 @@ class TestProjectBacklogDerivedCommands:
         """export-roadmap renders analyzer critical path output."""
         repo_path, bundle_name = sample_bundle
         os.environ["TEST_MODE"] = "true"
-        from specfact_cli.modules.project.src import commands as project_commands
+        from specfact_project.project import commands as project_commands
 
         link_result = runner.invoke(
             app,
@@ -1402,7 +1402,7 @@ class TestProjectBacklogDerivedCommands:
         """regenerate calls merge/conflict helpers over plan and backlog views."""
         repo_path, bundle_name = sample_bundle
         os.environ["TEST_MODE"] = "true"
-        from specfact_cli.modules.project.src import commands as project_commands
+        from specfact_project.project import commands as project_commands
 
         link_result = runner.invoke(
             app,
@@ -1453,7 +1453,7 @@ class TestProjectBacklogDerivedCommands:
         """regenerate reports mismatch summary without failing when --strict is not set."""
         repo_path, bundle_name = sample_bundle
         os.environ["TEST_MODE"] = "true"
-        from specfact_cli.modules.project.src import commands as project_commands
+        from specfact_project.project import commands as project_commands
 
         link_result = runner.invoke(
             app,
@@ -1503,7 +1503,7 @@ class TestProjectBacklogDerivedCommands:
         """regenerate --strict returns non-zero and --verbose prints conflict details."""
         repo_path, bundle_name = sample_bundle
         os.environ["TEST_MODE"] = "true"
-        from specfact_cli.modules.project.src import commands as project_commands
+        from specfact_project.project import commands as project_commands
 
         link_result = runner.invoke(
             app,

@@ -150,7 +150,7 @@ SpecFact's code2spec provides similar automation:
 
 **Solution:**
 
-1. Ran `specfact import from-code` → 47 features extracted in 12 seconds
+1. Ran `specfact project import from-code` → 47 features extracted in 12 seconds
 2. Added contracts to 23 critical data transformation functions
 3. CrossHair discovered 6 edge cases in legacy validation logic
 4. Enforced contracts during migration, blocked 11 regressions
@@ -199,7 +199,7 @@ Calculate your ROI:
 1. **Run code2spec** on your legacy codebase:
 
    ```bash
-   specfact import from-code legacy-api --repo ./your-legacy-app
+   specfact project import from-code legacy-api --repo ./your-legacy-app
    ```
 
 2. **Time the extraction** (typically < 10 seconds)

@@ -1,5 +1,5 @@
 name: upgrade
-version: 0.1.1
+version: 0.1.2
 commands:
   - upgrade
 category: core
@@ -9,7 +9,7 @@ command_help:
 pip_dependencies: []
 module_dependencies: []
 tier: community
-core_compatibility: '>=0.28.0,<1.0.0'
+core_compatibility: '>=0.40.0,<1.0.0'
 publisher:
   name: nold-ai
   url: https://github.com/nold-ai/specfact-cli-modules
@@ -17,5 +17,5 @@ publisher:
 description: Check and apply SpecFact CLI version upgrades.
 license: Apache-2.0
 integrity:
-  checksum: sha256:2ff659d146ad1ec80c56e40d79f5dbcc2c90cb5eb5ed3498f6f7690ec1171676
-  signature: I/BlgrSwWzXUt+Ib7snF/ukmRjXuu6w3bDBVOadWEtcwWzmP8WiaIkK4WYNxMVIKuXNV7TYDhJo1KCuLxZNRBA==
+  checksum: sha256:58cfbd73d234bc42940d5391c8d3d393f05ae47ed38f757f1ee9870041a48648
+  signature: dt4XfTzdxVJJrGXWQxR8DrNZVx84hQiTIvXaq+7Te21o+ccwzjGNTuINUSKcuHhYHxixSC5PSAirnBzEpZvsBw==

@@ -1,1 +1,0 @@
-"""Module package source namespace."""

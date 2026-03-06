@@ -29,21 +29,21 @@ Reverse engineer existing code and enforce contracts incrementally.
 
 ```bash
 # Full repository analysis
-specfact import from-code legacy-api --repo .
+specfact project import from-code legacy-api --repo .
 
 # For large codebases, analyze specific modules:
-specfact import from-code core-module --repo . --entry-point src/core
-specfact import from-code api-module --repo . --entry-point src/api
+specfact project import from-code core-module --repo . --entry-point src/core
+specfact project import from-code api-module --repo . --entry-point src/api
 ```
 
 ### Step 2: Review Extracted Specs
 
 ```bash
 # Review bundle to understand extracted specs
-specfact plan review legacy-api
+specfact project plan review legacy-api
 
 # Or get structured findings for analysis
-specfact plan review legacy-api --list-findings --findings-format json
+specfact project plan review legacy-api --list-findings --findings-format json
 ```
 
 **Note**: Use CLI commands to interact with bundles. The bundle structure (`.specfact/projects/<bundle-name>/`) is managed by SpecFact CLI - use commands like `plan review`, `plan add-feature`, `plan update-feature` to modify bundles, not direct file editing.
@@ -52,7 +52,7 @@ specfact plan review legacy-api --list-findings --findings-format json
 
 ```bash
 # Start in shadow mode
-specfact enforce stage --preset minimal
+specfact govern enforce stage --preset minimal
 ```
 
 See [Brownfield Journey Guide](brownfield-journey.md) for complete workflow.
@@ -63,13 +63,13 @@ For large codebases or monorepos with multiple projects, use `--entry-point` to 
 
 ```bash
 # Analyze individual projects in a monorepo
-specfact import from-code api-service --repo . --entry-point projects/api-service
-specfact import from-code web-app --repo . --entry-point projects/web-app
-specfact import from-code mobile-app --repo . --entry-point projects/mobile-app
+specfact project import from-code api-service --repo . --entry-point projects/api-service
+specfact project import from-code web-app --repo . --entry-point projects/web-app
+specfact project import from-code mobile-app --repo . --entry-point projects/mobile-app
 
 # Analyze specific modules for incremental modernization
-specfact import from-code core-module --repo . --entry-point src/core
-specfact import from-code integrations-module --repo . --entry-point src/integrations
+specfact project import from-code core-module --repo . --entry-point src/core
+specfact project import from-code integrations-module --repo . --entry-point src/integrations
 ```
 
 **Benefits:**
@@ -79,7 +79,7 @@ specfact import from-code integrations-module --repo . --entry-point src/integra
 - **Multi-bundle support** - Create separate project bundles for different projects/modules
 - **Better organization** - Keep bundles organized by project boundaries
 
-**Note:** When using `--entry-point`, each analysis creates a separate project bundle. Use `specfact plan compare` to compare different bundles.
+**Note:** When using `--entry-point`, each analysis creates a separate project bundle. Use `specfact project plan compare` to compare different bundles.
 
 ---
 
@@ -94,7 +94,7 @@ Keep SpecFact synchronized with external tools (Spec-Kit, OpenSpec, GitHub Issue
 - **GitHub Issues** (`--adapter github`) - Export change proposals to DevOps backlogs
 - **Future**: Linear, Jira, Azure DevOps, and more
 
-**Note**: SpecFact CLI uses a plugin-based adapter registry pattern. All adapters are registered in `AdapterRegistry` and accessed via `specfact sync bridge --adapter <adapter-name>`, making the architecture extensible for future tool integrations.
+**Note**: SpecFact CLI uses a plugin-based adapter registry pattern. All adapters are registered in `AdapterRegistry` and accessed via `specfact project sync bridge --adapter <adapter-name>`, making the architecture extensible for future tool integrations.
 
 ### Spec-Kit Bidirectional Sync
 
@@ -103,7 +103,7 @@ Keep Spec-Kit and SpecFact synchronized automatically.
 #### One-Time Sync
 
 ```bash
-specfact sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional
+specfact project sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional
 ```
 
 **What it does**:
@@ -121,7 +121,7 @@ specfact sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirec
 #### Watch Mode (Continuous Sync)
 
 ```bash
-specfact sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional --watch --interval 5
+specfact project sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional --watch --interval 5
 ```
 
 **What it does**:
@@ -140,7 +140,7 @@ specfact sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirec
 
 ```bash
 # Terminal 1: Start watch mode
-specfact sync bridge --adapter speckit --bundle my-project --repo . --bidirectional --watch --interval 5
+specfact project sync bridge --adapter speckit --bundle my-project --repo . --bidirectional --watch --interval 5
 
 # Terminal 2: Make changes in Spec-Kit
 echo "# New Feature" >> specs/002-new-feature/spec.md
@@ -165,7 +165,7 @@ Sync OpenSpec change proposals to SpecFact (v0.22.0+):
 
 ```bash
 # Read-only sync from OpenSpec to SpecFact
-specfact sync bridge --adapter openspec --mode read-only \
+specfact project sync bridge --adapter openspec --mode read-only \
   --bundle my-project \
   --repo /path/to/openspec-repo
 ```
@@ -193,7 +193,7 @@ Keep plan artifacts updated as code changes.
 ### One-Time Repository Sync
 
 ```bash
-specfact sync repository --repo . --target .specfact
+specfact project sync repository --repo . --target .specfact
 ```
 
 **What it does**:
@@ -211,7 +211,7 @@ specfact sync repository --repo . --target .specfact
 ### Repository Watch Mode (Continuous Sync)
 
 ```bash
-specfact sync repository --repo . --watch --interval 5
+specfact project sync repository --repo . --watch --interval 5
 ```
 
 **What it does**:
@@ -230,7 +230,7 @@ specfact sync repository --repo . --watch --interval 5
 
 ```bash
 # Terminal 1: Start watch mode
-specfact sync repository --repo . --watch --interval 5
+specfact project sync repository --repo . --watch --interval 5
 
 # Terminal 2: Make code changes
 echo "class NewService:" >> src/new_service.py
@@ -248,7 +248,7 @@ Progressive enforcement from observation to blocking.
 ### Step 1: Shadow Mode (Observe Only)
 
 ```bash
-specfact enforce stage --preset minimal
+specfact govern enforce stage --preset minimal
 ```
 
 **What it does**:
@@ -266,7 +266,7 @@ specfact enforce stage --preset minimal
 ### Step 2: Balanced Mode (Warn on Issues)
 
 ```bash
-specfact enforce stage --preset balanced
+specfact govern enforce stage --preset balanced
 ```
 
 **What it does**:
@@ -284,7 +284,7 @@ specfact enforce stage --preset balanced
 ### Step 3: Strict Mode (Block Everything)
 
 ```bash
-specfact enforce stage --preset strict
+specfact govern enforce stage --preset strict
 ```
 
 **What it does**:
@@ -303,16 +303,16 @@ specfact enforce stage --preset strict
 
 ```bash
 # First-time setup: Configure CrossHair for contract exploration
-specfact repro setup
+specfact code repro setup
 
 # Quick validation
-specfact repro
+specfact code repro
 
 # Verbose validation with budget
-specfact repro --verbose --budget 120
+specfact code repro --verbose --budget 120
 
 # Apply auto-fixes
-specfact repro --fix --budget 120
+specfact code repro --fix --budget 120
 ```
 
 **What it does**:
@@ -333,7 +333,7 @@ Compare manual plans vs auto-derived plans to detect deviations.
 ### Quick Comparison
 
 ```bash
-specfact plan compare --bundle legacy-api
+specfact project plan compare --bundle legacy-api
 ```
 
 **What it does**:
@@ -351,7 +351,7 @@ specfact plan compare --bundle legacy-api
 ### Detailed Comparison
 
 ```bash
-specfact plan compare \
+specfact project plan compare \
   --manual .specfact/projects/manual-plan \
   --auto .specfact/projects/auto-derived \
   --out comparison-report.md
@@ -374,7 +374,7 @@ specfact plan compare \
 ### Code vs Plan Comparison
 
 ```bash
-specfact plan compare --bundle legacy-api --code-vs-plan
+specfact project plan compare --bundle legacy-api --code-vs-plan
 ```
 
 **What it does**:
@@ -399,10 +399,10 @@ Typical workflow for daily development.
 
 ```bash
 # Validate everything
-specfact repro --verbose
+specfact code repro --verbose
 
 # Compare plans
-specfact plan compare --bundle legacy-api
+specfact project plan compare --bundle legacy-api
 ```
 
 **What it does**:
@@ -415,7 +415,7 @@ specfact plan compare --bundle legacy-api
 
 ```bash
 # Start watch mode for repository sync
-specfact sync repository --repo . --watch --interval 5
+specfact project sync repository --repo . --watch --interval 5
 ```
 
 **What it does**:
@@ -428,10 +428,10 @@ specfact sync repository --repo . --watch --interval 5
 
 ```bash
 # Run validation
-specfact repro
+specfact code repro
 
 # Compare plans
-specfact plan compare --bundle legacy-api
+specfact project plan compare --bundle legacy-api
 ```
 
 **What it does**:
@@ -444,7 +444,7 @@ specfact plan compare --bundle legacy-api
 
 ```bash
 # CI/CD pipeline runs
-specfact repro --verbose --budget 120
+specfact code repro --verbose --budget 120
 ```
 
 **What it does**:
@@ -464,7 +464,7 @@ Complete workflow for migrating from Spec-Kit or OpenSpec.
 #### Step 1: Preview
 
 ```bash
-specfact import from-bridge --adapter speckit --repo . --dry-run
+specfact project import from-bridge --adapter speckit --repo . --dry-run
 ```
 
 **What it does**:
@@ -476,7 +476,7 @@ specfact import from-bridge --adapter speckit --repo . --dry-run
 #### Step 2: Execute
 
 ```bash
-specfact import from-bridge --adapter speckit --repo . --write
+specfact project import from-bridge --adapter speckit --repo . --write
 ```
 
 **What it does**:
@@ -488,7 +488,7 @@ specfact import from-bridge --adapter speckit --repo . --write
 #### Step 3: Set Up Sync
 
 ```bash
-specfact sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional --watch --interval 5
+specfact project sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional --watch --interval 5
 ```
 
 **What it does**:
@@ -503,12 +503,12 @@ Sync with OpenSpec change proposals (v0.22.0+):
 
 ```bash
 # Read-only sync from OpenSpec to SpecFact
-specfact sync bridge --adapter openspec --mode read-only \
+specfact project sync bridge --adapter openspec --mode read-only \
   --bundle my-project \
   --repo /path/to/openspec-repo
 
 # Export OpenSpec change proposals to GitHub Issues
-specfact sync bridge --adapter github --mode export-only \
+specfact project sync bridge --adapter github --mode export-only \
   --repo-owner your-org \
   --repo-name your-repo \
   --repo /path/to/openspec-repo
@@ -526,13 +526,13 @@ See [OpenSpec Journey Guide](openspec-journey.md) for complete integration workf
 
 ```bash
 # Start in shadow mode
-specfact enforce stage --preset minimal
+specfact govern enforce stage --preset minimal
 
 # After stabilization, enable warnings
-specfact enforce stage --preset balanced
+specfact govern enforce stage --preset balanced
 
 # For production, enable strict mode
-specfact enforce stage --preset strict
+specfact govern enforce stage --preset strict
 ```
 
 **What it does**:

@@ -25,7 +25,7 @@ class TestReproSetupCommand:
         src_dir.mkdir(parents=True)
         (src_dir / "__init__.py").write_text("")
 
-        result = runner.invoke(app, ["repro", "setup", "--repo", str(tmp_path)])
+        result = runner.invoke(app, ["code", "repro", "setup", "--repo", str(tmp_path)])
 
         assert result.exit_code == 0
         assert "Setting up CrossHair configuration" in result.stdout
@@ -61,7 +61,7 @@ version = "0.1.0"
         src_dir.mkdir(parents=True)
         (src_dir / "__init__.py").write_text("")
 
-        result = runner.invoke(app, ["repro", "setup", "--repo", str(tmp_path)])
+        result = runner.invoke(app, ["code", "repro", "setup", "--repo", str(tmp_path)])
 
         assert result.exit_code == 0
         assert "Updated pyproject.toml" in result.stdout
@@ -95,7 +95,7 @@ per_condition_timeout = 5
         src_dir.mkdir(parents=True)
         (src_dir / "__init__.py").write_text("")
 
-        result = runner.invoke(app, ["repro", "setup", "--repo", str(tmp_path)])
+        result = runner.invoke(app, ["code", "repro", "setup", "--repo", str(tmp_path)])
 
         assert result.exit_code == 0
 
@@ -126,7 +126,7 @@ packages = ["src/test_package"]
         src_dir.mkdir(parents=True)
         (src_dir / "__init__.py").write_text("")
 
-        result = runner.invoke(app, ["repro", "setup", "--repo", str(tmp_path)])
+        result = runner.invoke(app, ["code", "repro", "setup", "--repo", str(tmp_path)])
 
         assert result.exit_code == 0
         assert "hatch" in result.stdout.lower() or "Detected" in result.stdout
@@ -148,7 +148,7 @@ version = "0.1.0"
         src_dir.mkdir(parents=True)
         (src_dir / "__init__.py").write_text("")
 
-        result = runner.invoke(app, ["repro", "setup", "--repo", str(tmp_path)])
+        result = runner.invoke(app, ["code", "repro", "setup", "--repo", str(tmp_path)])
 
         assert result.exit_code == 0
         # Should complete successfully regardless of poetry detection
@@ -162,7 +162,7 @@ version = "0.1.0"
         src_dir.mkdir(parents=True)
         (src_dir / "__init__.py").write_text("")
 
-        result = runner.invoke(app, ["repro", "setup", "--repo", str(tmp_path)])
+        result = runner.invoke(app, ["code", "repro", "setup", "--repo", str(tmp_path)])
 
         assert result.exit_code == 0
         assert "Detected source directories" in result.stdout
@@ -177,7 +177,7 @@ version = "0.1.0"
         lib_dir.mkdir(parents=True)
         (lib_dir / "__init__.py").write_text("")
 
-        result = runner.invoke(app, ["repro", "setup", "--repo", str(tmp_path)])
+        result = runner.invoke(app, ["code", "repro", "setup", "--repo", str(tmp_path)])
 
         assert result.exit_code == 0
         assert "Detected source directories" in result.stdout
@@ -190,12 +190,12 @@ version = "0.1.0"
         # Create root-level Python file
         (tmp_path / "module.py").write_text("def hello(): pass")
 
-        result = runner.invoke(app, ["repro", "setup", "--repo", str(tmp_path)])
+        result = runner.invoke(app, ["code", "repro", "setup", "--repo", str(tmp_path)])
 
         assert result.exit_code == 0
         # Should still complete successfully, using "." as fallback
 
-    @patch("specfact_cli.modules.repro.src.commands.check_tool_in_env")
+    @patch("specfact_codebase.repro.commands.check_tool_in_env")
     def test_setup_warns_when_crosshair_not_available(self, mock_check_tool, tmp_path: Path, monkeypatch):
         """Test setup warns when crosshair-tool is not available."""
         monkeypatch.chdir(tmp_path)
@@ -207,13 +207,13 @@ version = "0.1.0"
         src_dir.mkdir(parents=True)
         (src_dir / "__init__.py").write_text("")
 
-        result = runner.invoke(app, ["repro", "setup", "--repo", str(tmp_path)])
+        result = runner.invoke(app, ["code", "repro", "setup", "--repo", str(tmp_path)])
 
         assert result.exit_code == 0
         assert "crosshair-tool not available" in result.stdout
         assert "Tip:" in result.stdout
 
-    @patch("specfact_cli.modules.repro.src.commands.check_tool_in_env")
+    @patch("specfact_codebase.repro.commands.check_tool_in_env")
     def test_setup_shows_crosshair_available(self, mock_check_tool, tmp_path: Path, monkeypatch):
         """Test setup shows success when crosshair-tool is available."""
         monkeypatch.chdir(tmp_path)
@@ -225,13 +225,13 @@ version = "0.1.0"
         src_dir.mkdir(parents=True)
         (src_dir / "__init__.py").write_text("")
 
-        result = runner.invoke(app, ["repro", "setup", "--repo", str(tmp_path)])
+        result = runner.invoke(app, ["code", "repro", "setup", "--repo", str(tmp_path)])
 
         assert result.exit_code == 0
         assert "crosshair-tool is available" in result.stdout
 
     @patch("subprocess.run")
-    @patch("specfact_cli.modules.repro.src.commands.check_tool_in_env")
+    @patch("specfact_codebase.repro.commands.check_tool_in_env")
     def test_setup_installs_crosshair_when_requested(
         self, mock_check_tool, mock_subprocess, tmp_path: Path, monkeypatch
     ):
@@ -249,14 +249,14 @@ version = "0.1.0"
         src_dir.mkdir(parents=True)
         (src_dir / "__init__.py").write_text("")
 
-        result = runner.invoke(app, ["repro", "setup", "--repo", str(tmp_path), "--install-crosshair"])
+        result = runner.invoke(app, ["code", "repro", "setup", "--repo", str(tmp_path), "--install-crosshair"])
 
         assert result.exit_code == 0
         assert "Attempting to install crosshair-tool" in result.stdout
         mock_subprocess.assert_called_once()
 
     @patch("subprocess.run")
-    @patch("specfact_cli.modules.repro.src.commands.check_tool_in_env")
+    @patch("specfact_codebase.repro.commands.check_tool_in_env")
     def test_setup_handles_installation_failure(self, mock_check_tool, mock_subprocess, tmp_path: Path, monkeypatch):
         """Test setup handles crosshair-tool installation failure gracefully."""
         monkeypatch.chdir(tmp_path)
@@ -272,7 +272,7 @@ version = "0.1.0"
         src_dir.mkdir(parents=True)
         (src_dir / "__init__.py").write_text("")
 
-        result = runner.invoke(app, ["repro", "setup", "--repo", str(tmp_path), "--install-crosshair"])
+        result = runner.invoke(app, ["code", "repro", "setup", "--repo", str(tmp_path), "--install-crosshair"])
 
         assert result.exit_code == 0  # Setup still succeeds even if installation fails
         assert "Failed to install crosshair-tool" in result.stdout
@@ -296,10 +296,10 @@ packages = ["src/test_package"]
         src_dir.mkdir(parents=True)
         (src_dir / "__init__.py").write_text("")
 
-        with patch("specfact_cli.modules.repro.src.commands.check_tool_in_env") as mock_check:
+        with patch("specfact_codebase.repro.commands.check_tool_in_env") as mock_check:
             mock_check.return_value = (False, "Tool 'crosshair' not found")
 
-            result = runner.invoke(app, ["repro", "setup", "--repo", str(tmp_path)])
+            result = runner.invoke(app, ["code", "repro", "setup", "--repo", str(tmp_path)])
 
             assert result.exit_code == 0
             # Should mention hatch in installation guidance
@@ -313,7 +313,7 @@ packages = ["src/test_package"]
         src_dir.mkdir(parents=True)
         (src_dir / "__init__.py").write_text("")
 
-        result = runner.invoke(app, ["repro", "setup", "--repo", str(tmp_path)])
+        result = runner.invoke(app, ["code", "repro", "setup", "--repo", str(tmp_path)])
 
         assert result.exit_code == 0
         assert "Next steps:" in result.stdout
@@ -338,7 +338,7 @@ packages = ["src/test_package"]
             pyproject_path.chmod(0o555)
 
         try:
-            result = runner.invoke(app, ["repro", "setup", "--repo", str(tmp_path)])
+            result = runner.invoke(app, ["code", "repro", "setup", "--repo", str(tmp_path)])
 
             # Should fail with error message
             assert result.exit_code == 1
