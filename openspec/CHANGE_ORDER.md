@@ -118,6 +118,12 @@ These are derived extensions of the same 2026-02-15 plan and are required to ope
 |--------|-------|----------------|----------|------------|
 | — | — | ✅ ci-01 implemented 2026-02-16 (see Implemented above) | — | — |
 
+### Packaging and distribution
+
+| Module | Order | Change folder | GitHub # | Blocked by |
+|--------|-------|---------------|----------|------------|
+| packaging | 01 | packaging-01-wheel-package-inclusion | TBD | module-migration-06 ✅; release artifact regression discovered post-0.40.0 publish |
+
 ### Developer workflow (parallel branch operations)
 
 | Module | Order | Change folder | GitHub # | Blocked by |

@@ -10,6 +10,16 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.40.1] - 2026-03-06
+
+### Fixed
+
+- Restored the published `pip install specfact-cli` wheel payload so the core `specfact_cli` package is included again, including `specfact_cli/cli.py`.
+- Restored the standard `specfact` console command for installed users; both `specfact` and `specfact-cli` now resolve to `specfact_cli.cli:cli_main` from the built artifact.
+- Hardened Hatch wheel packaging for the `src/` layout by using explicit source mapping, preventing release artifacts that contain only force-included resources/modules without the actual CLI package code.
+
+---
+
 ## [0.40.0] - 2026-02-28
 
 ### Added
