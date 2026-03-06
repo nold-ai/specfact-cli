@@ -5,6 +5,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 from specfact_cli.validation.command_audit import build_command_audit_cases, official_marketplace_module_ids
 
 
@@ -66,6 +68,7 @@ def _run_cli(env: dict[str, str], *argv: str, cwd: Path | None = None) -> subpro
     )
 
 
+@pytest.mark.timeout(300)
 def test_command_audit_help_cases_execute_cleanly_in_temp_home(tmp_path: Path) -> None:
     home_dir = tmp_path / "home"
     home_dir.mkdir(parents=True, exist_ok=True)
