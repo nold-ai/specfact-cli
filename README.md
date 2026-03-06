@@ -74,6 +74,8 @@ As of `0.40.0`, flat root commands are removed. Use grouped commands:
 ### Backlog Bridge (60 seconds)
 
 SpecFact's USP is closing the drift gap between **backlog -> specs -> code**.
+These commands require the backlog bundle to be installed first, for example via
+`specfact init --profile backlog-team` or `specfact init --install backlog`.
 
 ```bash
 # 1) Initialize backlog config + field mapping

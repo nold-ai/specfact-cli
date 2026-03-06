@@ -191,7 +191,6 @@ uvx specfact-cli@latest import from-code my-project --repo .
 Fresh install exposes only core commands:
 
 - `specfact init`
-- `specfact backlog auth`
 - `specfact module`
 - `specfact upgrade`
 
@@ -202,6 +201,9 @@ Category groups appear after bundle installation:
 - `specfact code ...`
 - `specfact spec ...`
 - `specfact govern ...`
+
+Backlog authentication commands such as `specfact backlog auth ...` are provided by the
+installed backlog bundle, not by the permanent core command surface.
 
 Profile outcomes:
 

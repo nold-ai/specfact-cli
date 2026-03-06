@@ -9,6 +9,11 @@ The system SHALL treat `nold-ai/specfact-backlog` as the sole owner of user-faci
 - **THEN** user-facing backlog feature commands are provided by the installed backlog module
 - **AND** core does not ship a parallel built-in backlog command surface for the same feature commands.
 
+#### Scenario: Core keeps only shared backlog framework contracts
+- **WHEN** backlog ownership is resolved after migration
+- **THEN** core retains only shared provider integrations, generic data models, and minimal backlog contracts reused outside the backlog bundle
+- **AND** backlog-only command implementations, prompt resources, templates, and refinement helpers are not owned by core.
+
 ### Requirement: Backlog Prompt And Template Assets Must Be Module-Owned
 
 Backlog-specific prompts, prompt templates, and backlog template semantics SHALL be owned by the backlog module, not by `specfact-cli` core.

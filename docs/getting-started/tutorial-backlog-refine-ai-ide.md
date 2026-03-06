@@ -76,6 +76,8 @@ In Cursor, VS Code, or your IDE:
 2. Pass the same arguments you would use in the CLI, for example:
    - `/specfact.backlog-refine --adapter github --repo-owner OWNER --repo-name NAME --labels feature --limit 5`
 
+These slash prompts are provided by the installed backlog bundle, not by the permanent core CLI package.
+
 The AI will use the **SpecFact Backlog Refinement** prompt, which includes:
 
 - Template-driven refinement (user story, defect, spike, enabler)

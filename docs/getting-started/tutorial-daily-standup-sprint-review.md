@@ -35,6 +35,7 @@ Preferred command path is `specfact backlog ceremony standup ...`. The legacy `s
   The prompt content is always **normalized to Markdown-only text** (no raw HTML tags or HTML entities) so
   ADO-style HTML descriptions/comments and GitHub/Markdown content render consistently.
 - Use the **`specfact.backlog-daily`** (or `specfact.daily`) slash prompt for interactive walkthrough with the DevOps team story-by-story (focus, issues, open questions, discussion notes as comments)
+- The daily standup slash prompt is provided by the installed backlog bundle rather than the permanent core CLI package
 - Filter by **`--assignee`**, **`--sprint`** / **`--iteration`**, **`--search`**, **`--release`**, **`--id`**, **`--first-issues`** / **`--last-issues`**, **`--blockers-first`**, and optional **`--suggest-next`**
 
 ---
@@ -162,7 +163,8 @@ The output includes an instruction to generate a standup summary, the applied fi
 state, sprint, assignee, limit), and the same per-item data as `--copilot-export`. With
 `--comments`/`--annotations`, the prompt includes normalized descriptions and comment annotations when
 supported. Use it with the **`specfact.backlog-daily`** slash prompt for interactive team walkthrough
-(story-by-story, current focus, issues/open questions, discussion notes as comments).
+(story-by-story, current focus, issues/open questions, discussion notes as comments). The slash prompt
+itself is provided by the installed backlog bundle.
 
 ---
 
