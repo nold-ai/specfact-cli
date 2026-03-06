@@ -41,6 +41,11 @@ specfact init --profile solo-developer
 specfact init --install backlog,codebase
 specfact init --install all
 
+# First-run bundle selection (examples)
+specfact init --profile solo-developer
+specfact init --install backlog,codebase
+specfact init --install all
+
 # Configure IDE prompts/templates (interactive selector by default)
 specfact init ide
 specfact init ide --ide cursor
