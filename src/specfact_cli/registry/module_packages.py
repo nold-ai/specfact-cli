@@ -879,14 +879,24 @@ def get_installed_bundles(
 
 # Bundle name -> (group_name, help_str, build_app_fn) for conditional category mounting.
 def _build_bundle_to_group() -> dict[str, tuple[str, str, Any]]:
-    from specfact_cli.groups.backlog_group import build_app as build_backlog_app
     from specfact_cli.groups.codebase_group import build_app as build_codebase_app
     from specfact_cli.groups.govern_group import build_app as build_govern_app
+    from specfact_cli.groups.member_group import build_member_group
     from specfact_cli.groups.project_group import build_app as build_project_app
     from specfact_cli.groups.spec_group import build_app as build_spec_app
 
     return {
-        "specfact-backlog": ("backlog", "Backlog and policy commands.", build_backlog_app),
+        "specfact-backlog": (
+            "backlog",
+            "Backlog and policy commands.",
+            lambda: build_member_group(
+                name="backlog",
+                help_text="Backlog and policy commands.",
+                members=(("backlog", "backlog"), ("policy", "policy")),
+                flatten_same_name="backlog",
+                install_hint_module="nold-ai/specfact-backlog",
+            ),
+        ),
         "specfact-codebase": (
             "code",
             "Codebase quality commands: analyze, drift, validate, repro.",
@@ -1171,26 +1181,20 @@ def register_module_package_commands(
     if category_grouping_enabled:
         _mount_installed_category_groups(packages, enabled_map)
     discovered_count = protocol_full + protocol_partial + protocol_legacy
-    if discovered_count and (protocol_partial > 0 or protocol_legacy > 0):
-        print_warning(
-            "Module compatibility check: "
-            f"{protocol_full + protocol_partial}/{discovered_count} compliant "
-            f"(full={protocol_full}, partial={protocol_partial}, legacy={protocol_legacy})."
+    if discovered_count and (protocol_partial > 0 or protocol_legacy > 0) and is_debug_mode():
+        logger.info(
+            "Module compatibility check: %s/%s compliant (full=%s, partial=%s, legacy=%s)",
+            protocol_full + protocol_partial,
+            discovered_count,
+            protocol_full,
+            protocol_partial,
+            protocol_legacy,
         )
         if partial_modules:
             partial_desc = ", ".join(f"{name} ({'/'.join(ops)})" for name, ops in sorted(partial_modules))
-            print_warning(f"Partially compliant modules: {partial_desc}")
+            logger.info("Partially compliant modules: %s", partial_desc)
         if legacy_modules:
-            print_warning(f"Legacy modules: {', '.join(sorted(set(legacy_modules)))}")
-        if is_debug_mode():
-            logger.info(
-                "Protocol-compliant: %s/%s modules (Full=%s, Partial=%s, Legacy=%s)",
-                protocol_full + protocol_partial,
-                discovered_count,
-                protocol_full,
-                protocol_partial,
-                protocol_legacy,
-            )
+            logger.info("Legacy modules: %s", ", ".join(sorted(set(legacy_modules))))
     for module_id, reason in skipped:
         logger.debug("Skipped module '%s': %s", module_id, reason)
 

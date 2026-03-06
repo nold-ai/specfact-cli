@@ -597,7 +597,7 @@ def test_protocol_reporting_classifies_full_partial_legacy_from_static_source(
 
     module_packages_impl.register_module_package_commands()
 
-    assert "Full=1, Partial=1, Legacy=1" in caplog.text
+    assert "full=1, partial=1, legacy=1" in caplog.text
 
 
 def test_protocol_legacy_warning_emitted_once_per_module(monkeypatch, caplog, tmp_path: Path) -> None:
@@ -691,8 +691,8 @@ def test_protocol_reporting_is_quiet_when_all_modules_are_fully_compliant(monkey
     assert "Protocol-compliant:" not in caplog.text
 
 
-def test_protocol_reporting_uses_user_friendly_messages_for_non_compliant_modules(monkeypatch, tmp_path: Path) -> None:
-    """Non-compliant modules should emit concise user-facing warnings."""
+def test_protocol_reporting_is_silent_for_non_compliant_modules_when_debug_off(monkeypatch, tmp_path: Path) -> None:
+    """Non-compliant protocol details should stay hidden unless debug mode is enabled."""
     from specfact_cli.registry import module_packages as module_packages_impl
 
     shown_messages: list[str] = []
@@ -709,8 +709,7 @@ def test_protocol_reporting_uses_user_friendly_messages_for_non_compliant_module
 
     module_packages_impl.register_module_package_commands()
 
-    assert any("Module compatibility check:" in msg for msg in shown_messages)
-    assert any("Partially compliant modules:" in msg for msg in shown_messages)
+    assert shown_messages == []
 
 
 def test_protocol_source_scan_detects_runtime_interface_class_instance(tmp_path: Path) -> None:

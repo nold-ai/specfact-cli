@@ -19,7 +19,6 @@ MODULES_ROOT = PROJECT_ROOT / "src" / "specfact_cli" / "modules"
 LEGACY_SHIM_TO_MODULE: dict[str, str] = {
     "analyze": "analyze",
     "auth": "auth",
-    "backlog_commands": "backlog",
     "contract_cmd": "contract",
     "drift": "drift",
     "enforce": "enforce",

@@ -147,3 +147,29 @@ def test_project_shadow_warning_is_actionable_and_emitted_once(tmp_path: Path, m
     assert "takes precedence over user-scoped module" in warnings[0]
     assert "specfact module list --show-origin" in warnings[0]
     assert "specfact module uninstall backlog-core --scope user" in warnings[0]
+
+
+def test_canonical_user_root_is_not_reported_as_project_shadow(tmp_path: Path, monkeypatch) -> None:
+    """Running from home should not treat the canonical user root as a conflicting project root."""
+    home_root = tmp_path / "home"
+    builtin_root = tmp_path / "builtin"
+    user_root = home_root / ".specfact" / "modules"
+    _write_manifest(builtin_root, "init")
+    _write_manifest(user_root, "backlog-core")
+
+    monkeypatch.chdir(home_root)
+    monkeypatch.setattr(module_discovery, "USER_MODULES_ROOT", user_root)
+    warnings: list[str] = []
+    monkeypatch.setattr(module_discovery, "print_warning", warnings.append)
+    module_discovery._SHADOW_HINT_KEYS.clear()
+
+    discovered = discover_all_modules(
+        builtin_root=builtin_root,
+        user_root=user_root,
+        include_legacy_roots=False,
+    )
+
+    backlog_entries = [entry for entry in discovered if entry.metadata.name == "backlog-core"]
+    assert len(backlog_entries) == 1
+    assert backlog_entries[0].source == "user"
+    assert warnings == []

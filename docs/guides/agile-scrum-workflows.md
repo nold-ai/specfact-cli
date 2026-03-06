@@ -176,6 +176,7 @@ scope: **state=open**, **limit=20**; configure via `SPECFACT_STANDUP_*` or `.spe
 `--copilot-export <path>`, `--summarize`, `--summarize-to <path>`, `--comments`/`--annotations`, and optional
 `--first-comments`/`--last-comments` plus `--first-issues`/`--last-issues` as well as global filters
 `--search`, `--release`, and `--id` to narrow scope consistently with backlog ceremony refinement.
+The slash prompt itself is provided by the installed backlog bundle rather than the permanent core CLI package.
 See [Tutorial: Daily Standup and Sprint Review](../getting-started/tutorial-daily-standup-sprint-review.md)
 for the full walkthrough.
 

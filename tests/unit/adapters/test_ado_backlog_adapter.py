@@ -490,6 +490,38 @@ field_mappings:
 
     @beartype
     @patch("specfact_cli.adapters.ado.requests.patch")
+    def test_create_issue_applies_provider_custom_fields(self, mock_patch: MagicMock) -> None:
+        """ADO create_issue should append saved provider custom field values to the patch document."""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "id": 88,
+            "url": "https://dev.azure.com/test/project/_apis/wit/workitems/88",
+            "_links": {"html": {"href": "https://dev.azure.com/test/project/_workitems/edit/88"}},
+        }
+        mock_response.raise_for_status = MagicMock()
+        mock_patch.return_value = mock_response
+
+        adapter = AdoAdapter(org="test", project="project", api_token="token")
+        payload = {
+            "title": "Story with provider fields",
+            "description": "Body",
+            "provider_fields": {
+                "fields": {
+                    "Custom.FinOpsCategory": "Business",
+                    "Custom.PlatformName": "Core",
+                }
+            },
+        }
+
+        created = adapter.create_issue("test/project", payload)
+
+        assert created["id"] == "88"
+        operations = mock_patch.call_args.kwargs["json"]
+        assert {"op": "add", "path": "/fields/Custom.FinOpsCategory", "value": "Business"} in operations
+        assert {"op": "add", "path": "/fields/Custom.PlatformName", "value": "Core"} in operations
+
+    @beartype
+    @patch("specfact_cli.adapters.ado.requests.patch")
     def test_update_backlog_item_writes_description_and_acceptance_to_separate_fields(
         self, mock_patch: MagicMock
     ) -> None:
