@@ -38,6 +38,7 @@ from specfact_cli.registry.extension_registry import get_extension_registry
 from specfact_cli.registry.metadata import CommandMetadata
 from specfact_cli.registry.module_grouping import (
     ModuleManifestError,
+    normalize_legacy_bundle_group_command,
     validate_module_category_manifest,
 )
 from specfact_cli.registry.module_installer import verify_module_artifact
@@ -283,6 +284,7 @@ def discover_package_metadata(modules_root: Path, source: str = "builtin") -> li
                     meta.name,
                 )
             else:
+                meta = normalize_legacy_bundle_group_command(meta)
                 validate_module_category_manifest(meta)
             result.append((child, meta))
         except ModuleManifestError:
