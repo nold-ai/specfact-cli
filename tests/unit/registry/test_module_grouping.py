@@ -58,8 +58,6 @@ def test_module_package_yaml_with_category_codebase_passes_validation(tmp_path: 
     assert meta.bundle_sub_command == "analyze"
 
 
-
-
 def test_legacy_codebase_bundle_group_command_is_normalized(tmp_path: Path) -> None:
     """Legacy marketplace manifests using codebase as group command are normalized to code."""
     _write_manifest(
@@ -75,6 +73,7 @@ def test_legacy_codebase_bundle_group_command_is_normalized(tmp_path: Path) -> N
     meta = packages[0][1]
     assert meta.category == "codebase"
     assert meta.bundle_group_command == "code"
+
 
 def test_module_package_yaml_with_category_unknown_raises_module_manifest_error(
     tmp_path: Path,
