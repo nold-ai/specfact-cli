@@ -38,4 +38,10 @@ def _try_common_logger(name: str, level: str) -> logging.Logger | None:
         from specfact_cli.common.logger_setup import LoggerSetup  # type: ignore[import]
     except ImportError:
         return None
-    return LoggerSetup.create_logger(name, log_level=level)
+    try:
+        from specfact_cli.runtime import is_debug_mode  # type: ignore[import]
+
+        emit_to_console = is_debug_mode()
+    except ImportError:
+        emit_to_console = False
+    return LoggerSetup.create_logger(name, log_level=level, emit_to_console=emit_to_console)

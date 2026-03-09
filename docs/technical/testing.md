@@ -55,6 +55,53 @@ hatch test --cover -v tests/integration/test_directory_structure.py::TestDirecto
 hatch test --cover -v tests/integration/test_directory_structure.py::TestDirectoryStructure::test_ensure_structure_creates_directories
 ```
 
+### Release Runtime Validation
+
+Before cutting or approving a release, run the command-package runtime audit against the shipped core plus official bundles. This complements unit and contract coverage by checking the command surface users actually invoke.
+
+Recommended order:
+
+```bash
+# Core and bundle command-surface audit
+python -m pytest tests/unit/validation/test_command_audit.py tests/integration/test_command_package_runtime_validation.py -q
+
+# Registry/discovery noise regressions
+python -m pytest tests/unit/registry/test_module_discovery.py tests/unit/specfact_cli/registry/test_module_packages.py tests/unit/registry/test_module_installer.py -q
+
+# Backlog runtime regressions that depend on the split core + bundle architecture
+hatch run pytest modules/backlog-core/tests/unit/test_add_command.py tests/unit/adapters/test_ado_backlog_adapter.py -q
+```
+
+What this audit is expected to prove:
+
+- Core commands (`specfact`, `init`, `module`, `upgrade`) stay usable before bundle installation.
+- Official bundle roots (`project`, `spec`, `code`, `backlog`, `govern`) and their audited leaf commands are still registered.
+- Normal command output stays clean: no duplicate-module chatter, protocol-compliance chatter, or expected-overlap warnings without `--debug`.
+- Backlog split-runtime flows still work end to end, including `backlog refine ado`, `backlog map-fields`, and `backlog add`.
+
+For backlog marketplace-bundle regressions that live in the sibling modules repo, run the matching bundle tests from `../specfact-cli-modules` as part of the same release check:
+
+```bash
+cd ../specfact-cli-modules
+HATCH_DATA_DIR=/tmp/hatch-data HATCH_CACHE_DIR=/tmp/hatch-cache VIRTUALENV_OVERRIDE_APP_DATA=/tmp/virtualenv-appdata \
+  hatch run pytest tests/unit/specfact_backlog/test_map_fields_command.py tests/unit/specfact_backlog/test_refine_adapter_contract.py -q
+```
+
+### Quality Gate Order
+
+For behavior changes, keep the local quality gates in this order:
+
+```bash
+hatch run format
+hatch run type-check
+hatch run lint
+hatch run yaml-lint
+hatch run contract-test
+hatch run smart-test
+```
+
+If the change affects bundled command packaging, module discovery, or backlog split-runtime behavior, include the runtime-audit tests above before sign-off.
+
 ### Contract Testing (Brownfield & Greenfield)
 
 ```bash
@@ -758,6 +805,10 @@ def test_with_fixtures(tmp_repo, sample_plan):
 ```
 
 ## Best Practices
+
+- Add focused regression tests for any user-visible runtime noise. Clean non-debug output is a compatibility guarantee, not cosmetic polish.
+- Prefer targeted runtime-audit coverage for command registration, module discovery, bundled upgrade flows, and split core/bundle backlog paths.
+- When a command intentionally performs a long backend fetch, assert observable progress output so interactive runs do not appear hung.
 
 ### 1. Test Isolation
 

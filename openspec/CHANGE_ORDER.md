@@ -235,7 +235,7 @@ These are derived extensions of the same 2026-02-15 plan and are required to ope
 | cli-val | 04 | cli-val-04-acceptance-test-runner | [#282](https://github.com/nold-ai/specfact-cli/issues/282) | #279, #281 |
 | cli-val | 05 | cli-val-05-ci-integration | [#283](https://github.com/nold-ai/specfact-cli/issues/283) | #280, #282 |
 | cli-val | 06 | cli-val-06-copilot-test-generation | [#284](https://github.com/nold-ai/specfact-cli/issues/284) | #279 (soft: #283) |
-| cli-val | 07 | cli-val-07-command-package-runtime-validation | TBD | marketplace-02 ✅; backlog-core-05 ✅; module-migration-08 ✅ |
+| cli-val | 07 | cli-val-07-command-package-runtime-validation | implemented 2026-03-09 (archive pending) | marketplace-02 ✅; backlog-core-05 ✅; module-migration-08 ✅ |
 
 ### Integration governance and proof (architecture integration plan, 2026-02-15)
 

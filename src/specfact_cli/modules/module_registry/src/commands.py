@@ -7,6 +7,7 @@ import shutil
 from pathlib import Path
 
 import typer
+import yaml
 from beartype import beartype
 from rich.console import Console
 from rich.table import Table
@@ -37,6 +38,20 @@ from specfact_cli.runtime import is_non_interactive
 
 app = typer.Typer(help="Manage marketplace modules")
 console = Console()
+
+
+def _read_installed_module_version(module_dir: Path) -> str:
+    """Read installed module version from its manifest, if available."""
+    manifest_path = module_dir / "module-package.yaml"
+    if not manifest_path.exists():
+        return "unknown"
+    try:
+        loaded = yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
+    except Exception:
+        return "unknown"
+    if not isinstance(loaded, dict):
+        return "unknown"
+    return str(loaded.get("version", "unknown"))
 
 
 def _publisher_from_module_id(module_id: str) -> str:
@@ -803,19 +818,22 @@ def upgrade(
             # If module isn't discovered locally, still attempt marketplace install/upgrade by ID.
             target_ids = [prefixed]
 
-    upgraded: list[str] = []
+    upgraded: list[tuple[str, str, str]] = []
     failed: list[str] = []
     for target in target_ids:
         try:
             module_id = target if "/" in target else f"specfact/{target}"
-            install_module(module_id, reinstall=True)
-            upgraded.append(module_id)
+            previous_version = str(by_id.get(target, {}).get("version", "unknown"))
+            installed_path = install_module(module_id, reinstall=True)
+            upgraded.append((module_id, previous_version, _read_installed_module_version(installed_path)))
         except Exception as exc:
             console.print(f"[red]Failed upgrading {target}: {exc}[/red]")
             failed.append(target)
 
     if upgraded:
-        console.print(f"[green]Upgraded[/green] {', '.join(upgraded)}")
+        console.print("[green]Upgraded:[/green]")
+        for module_id, previous_version, new_version in upgraded:
+            console.print(f"  {module_id}: {previous_version} -> {new_version}")
     if failed:
         raise typer.Exit(1)
 
