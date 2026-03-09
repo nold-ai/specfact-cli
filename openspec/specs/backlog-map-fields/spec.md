@@ -53,6 +53,21 @@ The system SHALL verify auth context and discover provider fields/metadata befor
 - **THEN** the mapping stores eligible values for that field
 - **AND** add-time flows can validate user input against those values in interactive and non-interactive modes.
 
+#### Scenario: Interactive mapping reports selected-type metadata fetch progress
+
+- **GIVEN** the user selected an ADO work item type during `specfact backlog map-fields`
+- **WHEN** the command fetches required-field metadata and follow-up allowed-value or picklist details for that selected type
+- **THEN** the CLI prints status output before the next prompt gap
+- **AND** when multiple metadata items are resolved the status output includes incremental `N/M` progress for the pending items.
+
+#### Scenario: Built-in required hierarchy identifiers do not block successful mapping
+
+- **GIVEN** the selected ADO work item type marks built-in hierarchy identifiers such as `System.IterationId` or `System.AreaId` as required
+- **AND** those identifiers are system-managed and not valid interactive mapping targets
+- **WHEN** `specfact backlog map-fields` validates required-field metadata before saving mappings
+- **THEN** the command does not require explicit user mappings for those built-in identifiers
+- **AND** mapping still succeeds when every actually mappable required field is resolved.
+
 #### Scenario: Non-interactive map-fields auto-maps or fails with interactive guidance
 
 - **GIVEN** the user runs `specfact backlog map-fields` in non-interactive mode
@@ -67,4 +82,3 @@ The system SHALL verify auth context and discover provider fields/metadata befor
 - **WHEN** validation runs before persistence
 - **THEN** the command exits non-zero
 - **AND** the error explicitly lists unresolved fields and instructs the user to run interactive `specfact backlog map-fields`.
-

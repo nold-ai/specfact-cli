@@ -19,10 +19,15 @@ def _create_module_tarball(
     module_name: str,
     core_compatibility: str = ">=0.1.0,<1.0.0",
     module_version: str = "0.1.0",
+    bundle_dependencies: list[str] | None = None,
 ) -> Path:
     package_root = tmp_path / f"{module_name}-pkg"
     module_dir = package_root / module_name
     module_dir.mkdir(parents=True, exist_ok=True)
+    dependency_yaml = ""
+    if bundle_dependencies:
+        rendered_dependencies = ", ".join(f"'{dependency}'" for dependency in bundle_dependencies)
+        dependency_yaml = f"bundle_dependencies: [{rendered_dependencies}]\n"
     (module_dir / "module-package.yaml").write_text(
         f"name: {module_name}\n"
         f"version: '{module_version}'\n"
@@ -30,6 +35,11 @@ def _create_module_tarball(
         f'core_compatibility: "{core_compatibility}"\n',
         encoding="utf-8",
     )
+    if dependency_yaml:
+        (module_dir / "module-package.yaml").write_text(
+            (module_dir / "module-package.yaml").read_text(encoding="utf-8") + dependency_yaml,
+            encoding="utf-8",
+        )
     (module_dir / "src").mkdir(parents=True, exist_ok=True)
 
     tarball = tmp_path / f"{module_name}.tar.gz"
@@ -85,6 +95,42 @@ def test_install_module_replaces_existing_module_on_reinstall(monkeypatch, tmp_p
 
     manifest = (install_root / "sync" / "module-package.yaml").read_text(encoding="utf-8")
     assert "version: '0.2.0'" in manifest
+
+
+def test_install_module_logs_satisfied_dependencies_without_warning(monkeypatch, tmp_path: Path) -> None:
+    tarball = _create_module_tarball(
+        tmp_path,
+        "backlog",
+        bundle_dependencies=["nold-ai/specfact-project"],
+    )
+    monkeypatch.setattr("specfact_cli.registry.module_installer.download_module", lambda *_args, **_kwargs: tarball)
+    monkeypatch.setattr("specfact_cli.registry.module_installer.verify_module_artifact", lambda *_args, **_kwargs: True)
+    monkeypatch.setattr(
+        "specfact_cli.registry.module_installer.ensure_publisher_trusted", lambda *_args, **_kwargs: None
+    )
+    monkeypatch.setattr("specfact_cli.registry.module_installer.resolve_dependencies", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr("specfact_cli.registry.module_installer.discover_all_modules", list)
+
+    mock_logger = MagicMock()
+    monkeypatch.setattr(module_installer, "get_bridge_logger", lambda _name: mock_logger)
+
+    install_root = tmp_path / "marketplace-modules"
+    dependency_dir = install_root / "specfact-project"
+    dependency_dir.mkdir(parents=True, exist_ok=True)
+    (dependency_dir / "module-package.yaml").write_text(
+        "name: specfact-project\nversion: '0.40.16'\ncommands: [project]\n",
+        encoding="utf-8",
+    )
+
+    installed = install_module("nold-ai/specfact-backlog", install_root=install_root, reinstall=True)
+
+    assert installed.exists()
+    mock_logger.warning.assert_not_called()
+    mock_logger.info.assert_called_once_with(
+        "Dependency %s already satisfied (version %s)",
+        "nold-ai/specfact-project",
+        "0.40.16",
+    )
 
 
 def test_install_module_rejects_archive_path_traversal(monkeypatch, tmp_path: Path) -> None:

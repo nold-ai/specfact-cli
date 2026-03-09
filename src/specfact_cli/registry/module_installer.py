@@ -730,7 +730,7 @@ def install_module(
                 dependency_manifest = target_root / dependency_name / "module-package.yaml"
                 if dependency_manifest.exists():
                     dependency_version = _installed_dependency_version(dependency_manifest)
-                    logger.warning(
+                    logger.info(
                         "Dependency %s already satisfied (version %s)", dependency_module_id, dependency_version
                     )
                     continue

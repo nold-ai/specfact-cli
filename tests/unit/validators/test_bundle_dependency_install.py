@@ -144,8 +144,10 @@ def test_dependency_install_is_skipped_when_already_installed(monkeypatch: pytes
     install_module("nold-ai/specfact-spec", install_root=install_root)
 
     assert calls == ["nold-ai/specfact-spec"]
+    info_messages = " ".join(str(call.args[0]) for call in mock_logger.info.call_args_list)
     warning_messages = " ".join(str(call.args[0]) for call in mock_logger.warning.call_args_list)
-    assert "already satisfied" in warning_messages
+    assert "already satisfied" in info_messages
+    assert "already satisfied" not in warning_messages
 
 
 def test_requested_bundle_install_aborts_when_dependency_install_fails(

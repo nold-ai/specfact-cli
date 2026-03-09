@@ -1,5 +1,9 @@
-## ADDED Requirements
+# command-package-runtime-validation Specification
 
+## Purpose
+TBD - created by archiving change cli-val-07-command-package-runtime-validation. Update Purpose after archive.
+
+## Requirements
 ### Requirement: Command Inventory Covers Core And Official Bundles
 
 The system SHALL derive a validation inventory that covers the released core commands and every official command package shipped from `specfact-cli-modules`.
@@ -90,3 +94,10 @@ The system SHALL emit a report that maps findings to the responsible package, co
 - **THEN** each failure lists the owning package, command path, phase, exit code, and observed stdout/stderr summary
 - **AND** startup-noise failures are distinguishable from functional command failures
 - **AND** the report can be used to drive targeted fixes in core or `specfact-cli-modules`.
+
+#### Scenario: Upgrade command output stays readable for multiple modules
+
+- **GIVEN** `specfact module upgrade` upgrades more than one marketplace module in a single run
+- **WHEN** the command reports success
+- **THEN** it prints one line per upgraded module rather than a single comma-joined list
+- **AND** each line includes the module id plus the previous and resulting version in `old -> new` form.

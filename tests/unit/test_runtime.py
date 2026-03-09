@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import os
 import re
+from io import StringIO
 from pathlib import Path
 from unittest.mock import patch
 
@@ -250,3 +251,27 @@ class TestDebugMode:
         assert "api_request" in content
         assert "200" in content
         assert '"caller"' in content
+
+
+class TestBridgeLoggerOutput:
+    """Test shared bridge logger console visibility rules."""
+
+    def test_bridge_logger_stays_off_console_when_debug_disabled(self, capsys) -> None:
+        """Shared bridge logger should not emit raw log lines to console in normal mode."""
+        import specfact_cli.common.logger_setup as logger_setup_mod
+        from specfact_cli.common import get_bridge_logger
+
+        logger_name = "test.bridge.normal-output"
+        existing_listener = logger_setup_mod.LoggerSetup._log_listeners.pop(logger_name, None)
+        if existing_listener is not None:
+            existing_listener.stop()
+        logger_setup_mod.LoggerSetup._active_loggers.pop(logger_name, None)
+
+        fake_stream = StringIO()
+        set_debug_mode(False)
+        with patch("specfact_cli.common.logger_setup._safe_console_stream", return_value=fake_stream):
+            logger = get_bridge_logger(logger_name)
+            logger.warning("raw bridge diagnostic should stay hidden")
+            logger_setup_mod.LoggerSetup._log_listeners[logger_name].stop()
+
+        assert "raw bridge diagnostic should stay hidden" not in fake_stream.getvalue()

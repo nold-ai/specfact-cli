@@ -137,6 +137,16 @@ The system SHALL provide a `specfact backlog add` command that supports interact
 
 **And**: The message identifies missing required fields and how to satisfy them.
 
+#### Scenario: Add uses saved selected-type metadata for mapped provider fields
+
+**Given**: `specfact backlog map-fields` previously persisted the selected ADO work item type plus required-field and allowed-values metadata
+
+**When**: The user runs `specfact backlog add` for that provider
+
+**Then**: The command loads the saved selected-type metadata without requiring `map-fields` to run again
+
+**And**: create-time validation and payload construction use that persisted metadata consistently.
+
 #### Scenario: ADO create defaults text fields to markdown rendering and normalizes html-like input
 
 **Given**: The selected adapter is ADO and the user does not pass `--description-format classic`
@@ -211,4 +221,3 @@ The system SHALL support optional `--sprint <sprint-id>` so the created issue ca
 **Acceptance Criteria**:
 
 - Fuzzy match is used for discovery only; linking requires user confirmation; no silent writes.
-

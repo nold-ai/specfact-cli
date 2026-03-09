@@ -29,6 +29,14 @@ The system SHALL provide a `specfact backlog refine` command that enables teams 
 - **THEN** the system treats the respective filter as disabled (no filter applied)
 - **AND** command output/help makes this behavior explicit so default scoping is understandable.
 
+#### Scenario: Refinement accepts the core ADO adapter from the shared registry
+
+- **GIVEN** `backlog-core` and `nold-ai/specfact-backlog` are both installed in a normal user environment
+- **AND** the user invokes `specfact backlog refine ado` with valid ADO adapter configuration
+- **WHEN** the backlog bundle resolves the adapter from the shared registry
+- **THEN** it accepts the returned core adapter instance as a valid backlog adapter
+- **AND** it proceeds to fetch backlog items instead of failing with `Adapter ado does not implement BacklogAdapter interface`.
+
 ### Requirement: Backlog Item Domain Model
 
 The system SHALL provide a unified `BacklogItem` domain model that represents backlog items from any provider (GitHub, ADO, JIRA, etc.) with lossless data preservation.
@@ -707,4 +715,3 @@ The system SHALL use the preview ADO comments API version for comment read/write
 - **WHEN** the adapter builds and executes the comment POST request
 - **THEN** the request targets `api-version=7.1-preview.4`
 - **AND** standard ADO work-item or WIQL operations continue using `api-version=7.1`.
-

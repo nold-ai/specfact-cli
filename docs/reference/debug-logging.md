@@ -9,6 +9,20 @@ permalink: /debug-logging/
 
 When you run SpecFact CLI with the global `--debug` flag, the CLI writes debug output to your **console** and to a **rotating log file** under your user directory. This helps diagnose I/O, API, and template issues without cluttering normal output.
 
+## Normal Output vs Debug Output
+
+Normal command runs are expected to stay quiet unless there is actionable user work to do.
+
+Without `--debug`:
+
+- Internal module-discovery traces stay hidden.
+- Partial protocol-compliance diagnostics stay hidden.
+- Expected command ownership overlap between shipped core and official bundles stays hidden.
+- Routine bundled-upgrade notices such as "dependency already satisfied" stay informational, not warning-level.
+- Actionable security, integrity, trust, or real scope-conflict warnings still remain visible.
+
+Use `--debug` when you need to inspect discovery behavior, integrity fallback details, or the exact sequence of backend calls behind a long-running command.
+
 ## For Users
 
 ### Enabling Debug Mode
@@ -60,7 +74,9 @@ When `--debug` is on, the CLI logs:
 |----------|---------------------------------------------|
 | **auth azure-devops** | Start, success (PAT or OAuth), or error; key steps (OAuth flow, device code) when `--debug` is on. |
 | **init** | Template resolution: paths tried, success/failure, fallbacks (e.g. development path, package path, `importlib` fallbacks). |
+| **module discovery / installer** | Discovery roots, canonical user-root deduplication, integrity fallback details, bundle dependency checks, and cached-marketplace fallbacks. |
 | **backlog refine** | File read for import: path, success/error (e.g. `--import-from-tmp`). File write for export: path, success/error (e.g. `--export-to-tmp`). |
+| **backlog map-fields** | Selected work item type, metadata-fetch progress, and follow-up field/picklist resolution steps. |
 | **Azure DevOps adapter** | WIQL request (redacted URL, method, status); Work Items GET (redacted URL, status); Work Items PATCH (redacted URL, status). On PATCH failure: structured log with `operation=ado_patch`, `status=failed`, and `extra` containing `response_body` (redacted snippet of ADO error payload) and `patch_paths` (JSON Patch paths attempted). |
 | **GitHub adapter** | API request/response (redacted URL, method, status); on failure, redacted error snippet. |
 
@@ -91,6 +107,7 @@ When `--debug` is on, the CLI logs:
 2. Reproduce the issue, then open `~/.specfact/logs/specfact-debug.log`.
 3. Look for:
    - **template_resolution** – Where `init` looked for templates and whether it succeeded.
+   - **module discovery / installer** – Why a module was discovered, skipped, deduplicated, verified, or reused.
    - **file_read** / **file_write** – Paths and success/error for backlog export/import.
    - **ado_wiql**, **ado_get**, **ado_patch** – ADO API calls (URLs redacted, status/error present).
    - **api_request** – GitHub (or other) API calls with status and optional error.
@@ -117,6 +134,16 @@ To analyze an ADO API error:
 3. Open `~/.specfact/logs/specfact-debug.log` and search for `"operation": "ado_patch"` and `"status": "failed"`.
 4. In that line, use `extra.response_body` to see the server’s error text and `extra.patch_paths` to see which field paths were attempted.
 5. If the error is about a missing or invalid field (e.g. custom process template), update [custom field mapping](../guides/custom-field-mapping.md) (e.g. `.specfact/templates/backlog/field_mappings/ado_custom.yaml`) or see [Azure DevOps Issues](../guides/troubleshooting.md#azure-devops-issues) in Troubleshooting.
+
+### Interpreting Long `backlog map-fields` Runs
+
+`specfact backlog map-fields` now emits user-facing progress during the post-selection metadata fetch for the chosen ADO work item type.
+
+- The first status line tells you which work item type is being resolved.
+- Follow-up `N/M` lines show which field metadata lookup is currently pending.
+- Built-in ADO hierarchy identifiers such as `System.IterationId` and `System.AreaId` are system-managed and are not expected to be mapped interactively.
+
+If the command still appears stalled, rerun with `--debug` and inspect `~/.specfact/logs/specfact-debug.log` for the last field or API call reached.
 
 ---
 

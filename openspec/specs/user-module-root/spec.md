@@ -22,6 +22,15 @@ The system SHALL use a canonical per-user module root at `<user-home>/.specfact/
 - **THEN** modules from `<user-home>/.specfact/modules` are discovered
 - **AND** command availability does not depend on repository-local module folders.
 
+#### Scenario: Running from user home does not warn about canonical user modules
+
+- **GIVEN** the current working directory is `<user-home>`
+- **AND** `<user-home>/.specfact/modules/<module-id>` contains installed modules
+- **WHEN** module discovery runs during normal command startup
+- **THEN** the module is discovered exactly once
+- **AND** normal stdout/stderr contains no duplicate-module or shadow warning for that canonical user root
+- **AND** command availability remains unchanged.
+
 #### Scenario: Workspace root discovery is scoped to .specfact
 
 - **GIVEN** current working directory contains `<repo>/modules/<module-id>`
@@ -272,4 +281,3 @@ Bundled module release tooling SHALL support module-level versioning independent
 - **WHEN** module signing/version checks run
 - **THEN** bundled module version does not need to change
 - **AND** module versioning is enforced only by module payload change semantics.
-
