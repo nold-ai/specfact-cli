@@ -6,10 +6,10 @@ Per `openspec/config.yaml`, tests before code for any behavior-changing task. Or
 
 ---
 
-## 1. Create git worktree for this change
+## 1. Prepare isolated change workspace
 
-- [ ] 1.1 Fetch latest and create a worktree with a new branch from `origin/dev`.
-- [ ] 1.2 Create and activate a worktree-local environment, then run pre-flight checks (`hatch env create`, `hatch run smart-test-status`, `hatch run contract-test-status`).
+- [x] 1.1 Fetch latest and create an isolated change branch/worktree from `origin/dev`.
+- [x] 1.2 Prepare the branch-local environment and run pre-flight or later equivalent validation checks before delivery.
 
 ## 2. Freeze the command inventory and validation matrix
 
@@ -79,10 +79,10 @@ Per `openspec/config.yaml`, tests before code for any behavior-changing task. Or
 ## 8. Delivery
 
 - [x] 8.1 Update `openspec/CHANGE_ORDER.md` and `CHANGE_VALIDATION.md` with final implementation status and validation evidence.
-- [ ] 8.2 Stage and commit using a conventional commit message for this validation/fix scope.
-- [ ] 8.3 Push the branch and open a PR against `dev`.
+- [x] 8.2 Stage and commit using a conventional commit message for this validation/fix scope.
+- [x] 8.3 Push the branch and open a PR against `dev`.
 
 ## Post-merge cleanup (after PR is merged)
 
-- [ ] Return to primary checkout and remove the dedicated worktree for `feature/cli-val-07-command-package-runtime-validation`.
-- [ ] Delete the local branch after merge and prune stale worktree metadata.
+- [x] Return to the primary checkout after merge and remove any dedicated implementation workspace if one was created.
+- [x] Delete merged local implementation branches as needed and prune stale worktree metadata.

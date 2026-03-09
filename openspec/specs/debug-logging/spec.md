@@ -129,3 +129,28 @@ The system SHALL preserve existing behavior when debug mode is disabled.
 - **THEN** returns the same path as before (repo-relative logs or /app/logs in Docker)
 - **AND** behavior of LoggerSetup and existing loggers is unchanged
 
+### Requirement: Non-Debug Runtime Diagnostics Stay User-Facing
+
+The system SHALL keep raw internal runtime diagnostics out of normal command output and only show explicitly formatted user-facing messages when the user must take action.
+
+#### Scenario: Expected backlog command overlap stays quiet in normal output
+
+- **GIVEN** the built-in `backlog-core` module and the published `nold-ai/specfact-backlog` bundle both contribute to the public `backlog` command surface by design
+- **WHEN** a user runs a normal `specfact backlog ...` command without `--debug`
+- **THEN** expected overlap handling does not emit duplicate-subcommand warnings
+- **AND** only unexpected or actionable ownership conflicts remain visible.
+
+#### Scenario: Routine bundled dependency satisfaction stays non-warning
+
+- **GIVEN** `--debug` is not enabled
+- **AND** a bundled module upgrade sees that a declared bundled dependency is already installed at the required version
+- **WHEN** the upgrade completes without conflict, trust, or integrity problems
+- **THEN** normal output does not emit a warning for that already-satisfied dependency
+- **AND** any optional trace for the satisfied dependency is routed to debug or informational channels instead.
+
+#### Scenario: Bridge logger lines stay out of normal console output
+
+- **GIVEN** `--debug` is not enabled
+- **WHEN** internal bridge or registry code records non-actionable informational or warning diagnostics through the shared logger
+- **THEN** those raw logger lines do not appear in the user's console output
+- **AND** only explicitly formatted user-facing warnings remain visible when the user must take action.
