@@ -25,3 +25,18 @@ The system SHALL keep internal module-discovery diagnostics out of normal comman
 - **WHEN** module discovery encounters a security, trust, integrity, or real scope-precedence problem that requires user action
 - **THEN** the CLI still emits an actionable warning
 - **AND** the warning text explains the remediation instead of exposing raw internal diagnostics.
+
+#### Scenario: Routine bundled dependency satisfaction stays non-warning
+
+- **GIVEN** `--debug` is not enabled
+- **AND** a bundled module upgrade sees that a declared bundled dependency is already installed at the required version
+- **WHEN** the upgrade completes without conflict, trust, or integrity problems
+- **THEN** normal output does not emit a warning for that already-satisfied dependency
+- **AND** any optional trace for the satisfied dependency is routed to debug or informational channels instead.
+
+#### Scenario: Bridge logger lines stay out of normal console output
+
+- **GIVEN** `--debug` is not enabled
+- **WHEN** internal bridge or registry code records non-actionable informational or warning diagnostics through the shared logger
+- **THEN** those raw logger lines do not appear in the user's console output
+- **AND** only explicitly formatted user-facing warnings remain visible when the user must take action.

@@ -90,3 +90,10 @@ The system SHALL emit a report that maps findings to the responsible package, co
 - **THEN** each failure lists the owning package, command path, phase, exit code, and observed stdout/stderr summary
 - **AND** startup-noise failures are distinguishable from functional command failures
 - **AND** the report can be used to drive targeted fixes in core or `specfact-cli-modules`.
+
+#### Scenario: Upgrade command output stays readable for multiple modules
+
+- **GIVEN** `specfact module upgrade` upgrades more than one marketplace module in a single run
+- **WHEN** the command reports success
+- **THEN** it prints one line per upgraded module rather than a single comma-joined list
+- **AND** each line includes the module id plus the previous and resulting version in `old -> new` form.

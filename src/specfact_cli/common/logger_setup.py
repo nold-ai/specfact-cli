@@ -396,6 +396,7 @@ class LoggerSetup:
         use_rotating_file: bool = True,
         append_mode: bool = True,
         preserve_test_format: bool = False,
+        emit_to_console: bool = True,
     ) -> logging.Logger:
         """
         Creates a new logger or returns an existing one with the specified configuration.
@@ -513,15 +514,20 @@ class LoggerSetup:
             with contextlib.suppress(Exception):
                 logger.info("[LoggerSetup] File logger initialized: %s", log_file_path)
         else:
-            # If no log file is specified, set up a listener with a console handler
+            # If no log file is specified, stream to console only when explicitly requested.
             log_queue = Queue(-1)
             cls._log_queues[logger_name] = log_queue
 
-            console_handler = logging.StreamHandler(_safe_console_stream())
-            console_handler.setFormatter(log_format)
-            console_handler.setLevel(level)
+            sink_handler: logging.Handler
+            if emit_to_console:
+                sink_handler = logging.StreamHandler(_safe_console_stream())
+                sink_handler.setFormatter(log_format)
+                sink_handler.setLevel(level)
+            else:
+                sink_handler = logging.NullHandler()
+                sink_handler.setLevel(level)
 
-            listener = QueueListener(log_queue, console_handler, respect_handler_level=True)
+            listener = QueueListener(log_queue, sink_handler, respect_handler_level=True)
             listener.start()
             cls._log_listeners[logger_name] = listener
 

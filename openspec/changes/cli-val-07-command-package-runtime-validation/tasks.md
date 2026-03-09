@@ -28,6 +28,10 @@ Per `openspec/config.yaml`, tests before code for any behavior-changing task. Or
 - [x] 3.6 Add a failing regression test for `backlog map-fields` showing explicit progress after work-item-type selection and persisting required-field/picklist metadata for the selected type.
 - [x] 3.7 Add failing regression coverage for `backlog add` consuming saved required-field and allowed-values metadata, including `--custom-field` validation and forwarding.
 - [x] 3.8 Capture the new pre-implementation failing runs and summaries in `TDD_EVIDENCE.md`.
+- [x] 3.9 Add a failing regression test proving `backlog map-fields` ignores built-in required identifiers such as `System.IterationId` and `System.AreaId`, while reporting incremental metadata-fetch progress.
+- [x] 3.10 Add a failing regression test proving bundled module upgrades do not log routine already-satisfied dependencies as warnings during successful upgrade flows.
+- [x] 3.11 Add a failing regression test proving bridge logger diagnostics do not leak raw log-formatted lines to the console when `--debug` is off.
+- [x] 3.12 Add a failing regression test proving `specfact module upgrade` reports one upgraded module per line with `old -> new` versions.
 
 ## 4. Implement runtime-audit and output-cleanup fixes
 
@@ -40,6 +44,12 @@ Per `openspec/config.yaml`, tests before code for any behavior-changing task. Or
 - [x] 4.7 Make `backlog map-fields` surface progress while fetching required-field and picklist metadata after work-item-type selection.
 - [x] 4.8 Extend `backlog add` to consume saved required-field and allowed-values metadata, expose repeatable `--custom-field`, and fail with actionable guidance on missing or invalid required custom fields.
 - [x] 4.9 Re-run the new backlog validation tests and record the passing post-implementation evidence in `TDD_EVIDENCE.md`.
+- [x] 4.10 Exempt non-mappable built-in ADO hierarchy identifiers from required-field mapping failures, add incremental metadata-fetch status output, and demote already-satisfied bundled dependency upgrade messages out of warning severity.
+- [x] 4.11 Re-run the new regression tests and record the failing/passing evidence in `TDD_EVIDENCE.md`.
+- [x] 4.12 Keep shared bridge logger diagnostics off the normal console unless `--debug` is enabled, while preserving explicit user-facing warnings.
+- [x] 4.13 Re-run the logger-output regression tests and record the failing/passing evidence in `TDD_EVIDENCE.md`.
+- [x] 4.14 Make `specfact module upgrade` report per-module `old -> new` versions on separate lines for multi-module upgrades.
+- [x] 4.15 Re-run the module-upgrade output regression test and record the failing/passing evidence in `TDD_EVIDENCE.md`.
 
 ## 5. Cover each package in logical order
 
@@ -53,22 +63,22 @@ Per `openspec/config.yaml`, tests before code for any behavior-changing task. Or
 
 ## 6. Documentation and release-validation guidance
 
-- [ ] 6.1 Update docs for contributor/release workflows with the command-package audit procedure and command coverage expectations.
-- [ ] 6.2 Update docs/reference guidance for clean normal output versus `--debug` diagnostics if command-output behavior changes.
+- [x] 6.1 Update docs for contributor/release workflows with the command-package audit procedure and command coverage expectations.
+- [x] 6.2 Update docs/reference guidance for clean normal output versus `--debug` diagnostics if command-output behavior changes.
 
 ## 7. Quality gates
 
 - [x] 7.1 `hatch run format`
 - [x] 7.2 `hatch run type-check`
-- [ ] 7.3 `hatch run lint`
+- [x] 7.3 `hatch run lint`
 - [x] 7.4 `hatch run yaml-lint`
-- [ ] 7.5 `hatch run contract-test`
-- [ ] 7.6 `hatch run smart-test`
+- [x] 7.5 `hatch run contract-test`
+- [x] 7.6 `hatch run smart-test`
 - [x] 7.7 `openspec validate cli-val-07-command-package-runtime-validation --strict`
 
 ## 8. Delivery
 
-- [ ] 8.1 Update `openspec/CHANGE_ORDER.md` and `CHANGE_VALIDATION.md` with final implementation status and validation evidence.
+- [x] 8.1 Update `openspec/CHANGE_ORDER.md` and `CHANGE_VALIDATION.md` with final implementation status and validation evidence.
 - [ ] 8.2 Stage and commit using a conventional commit message for this validation/fix scope.
 - [ ] 8.3 Push the branch and open a PR against `dev`.
 

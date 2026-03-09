@@ -5,6 +5,40 @@
 - **Strict command:** `openspec validate cli-val-07-command-package-runtime-validation --strict`
 - **Result:** PASS
 
+## Implementation Finalization Update
+
+- **Updated on (UTC):** 2026-03-09T21:23:21Z
+- **Implementation status:** Implemented, archive pending
+- **Finalized scope additions during implementation:**
+  - `backlog map-fields` now ignores non-mappable built-in required ADO hierarchy identifiers (`System.IterationId`, `System.AreaId`)
+  - `backlog map-fields` now emits incremental `N/M` metadata-fetch progress after work item type selection
+  - shared bridge logger diagnostics are hidden from normal console output unless `--debug` is enabled
+  - `specfact module upgrade` now reports each upgraded module on its own line with `old -> new` versions
+- **Evidence updated:** `TDD_EVIDENCE.md` contains failing/passing runs for backlog mapping, bundled-upgrade warning severity, logger-output leakage, and module-upgrade output formatting
+- **Docs updated:** `docs/technical/testing.md` and `docs/reference/debug-logging.md`
+- **Version release target:** `0.40.3`
+
+## Final Validation Evidence
+
+- Focused regressions passed:
+  - `python -m pytest tests/unit/test_runtime.py -q -k bridge_logger_stays_off_console_when_debug_disabled`
+  - `python -m pytest tests/unit/registry/test_module_installer.py -q -k satisfied_dependencies_without_warning`
+  - `python -m pytest tests/unit/modules/module_registry/test_commands.py -q -k "upgrade_command or upgrade_without_module_name_upgrades_all_marketplace or one_line_per_module_with_versions"`
+  - `cd /home/dom/git/nold-ai/specfact-cli-modules && HATCH_DATA_DIR=/tmp/hatch-data HATCH_CACHE_DIR=/tmp/hatch-cache VIRTUALENV_OVERRIDE_APP_DATA=/tmp/virtualenv-appdata hatch run pytest tests/unit/specfact_backlog/test_map_fields_command.py -q -k "reports_progress_for_selected_work_item_type_metadata or interactive_ignores_builtin_required_hierarchy_ids"`
+- Local quality gates passed during implementation:
+  - `hatch run format`
+  - `hatch run type-check`
+  - `hatch run lint`
+  - `hatch run yaml-lint`
+  - `hatch run contract-test`
+  - `hatch run smart-test`
+
+## Final Assessment
+
+- Runtime-validation scope is now implemented and evidenced.
+- Normal non-debug output is cleaner and user-directed, while actionable warnings remain visible through explicit formatting paths.
+- The change is ready for commit/PR/archive workflow steps.
+
 ## Scope Summary
 
 - **New capabilities:** `command-package-runtime-validation`

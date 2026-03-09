@@ -10,6 +10,22 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.40.3] - 2026-03-09
+
+### Changed
+
+- Improved `specfact module upgrade` success output so multi-module upgrades print one module per line with explicit `old -> new` version transitions.
+- Updated contributor/testing docs to document the command-package runtime audit procedure and the normal-output vs `--debug` diagnostics policy.
+
+### Fixed
+
+- `specfact backlog map-fields` no longer blocks on non-mappable built-in required ADO hierarchy identifiers such as `System.IterationId` and `System.AreaId`.
+- `specfact backlog map-fields` now reports incremental metadata-fetch progress after work item type selection instead of appearing stalled during follow-up field lookups.
+- Shared bridge/registry logger diagnostics no longer leak raw log-formatted lines into normal console output when `--debug` is disabled.
+- Successful bundled module upgrades no longer emit routine `dependency already satisfied` notices as warnings.
+
+---
+
 ## [0.40.2] - 2026-03-06
 
 ### Changed

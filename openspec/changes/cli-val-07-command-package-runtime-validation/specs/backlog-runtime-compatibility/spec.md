@@ -28,7 +28,16 @@ The system SHALL keep the interactive `backlog map-fields` flow responsive and o
 - **GIVEN** the user selected an ADO work item type during `specfact backlog map-fields`
 - **WHEN** the command fetches work-item-type field metadata and follow-up allowed-value or picklist data
 - **THEN** the CLI emits progress or status text before the next prompt gap
+- **AND** when multiple metadata items must be resolved the status output shows incremental progress for the pending item count
 - **AND** the command does not appear to stop silently after the work item type selection.
+
+#### Scenario: Built-in required hierarchy identifiers do not block successful mapping
+
+- **GIVEN** the selected ADO work item type marks built-in hierarchy identifiers such as `System.IterationId` or `System.AreaId` as required
+- **AND** those fields are system-managed and are not valid interactive mapping targets
+- **WHEN** `specfact backlog map-fields` validates the selected-type required-field metadata
+- **THEN** the command does not require explicit user mappings for those built-in identifiers
+- **AND** it still succeeds when every actually mappable required field is resolved.
 
 #### Scenario: Selected work item type metadata is persisted for later create-time validation
 

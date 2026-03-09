@@ -1060,6 +1060,38 @@ def test_upgrade_without_module_name_upgrades_all_marketplace(monkeypatch, tmp_p
     assert "Upgraded" in result.stdout
 
 
+def test_upgrade_without_module_name_reports_one_line_per_module_with_versions(monkeypatch, tmp_path: Path) -> None:
+    installed: list[str] = []
+
+    def _install(module_id: str, version=None, reinstall: bool = False):
+        installed.append(module_id)
+        module_dir = tmp_path / module_id.split("/")[-1]
+        module_dir.mkdir(parents=True, exist_ok=True)
+        new_version = "0.3.0" if module_id.endswith("backlog") else "0.5.0"
+        (module_dir / "module-package.yaml").write_text(
+            f"name: {module_id.split('/')[-1]}\nversion: '{new_version}'\ncommands: [{module_id.split('/')[-1]}]\n",
+            encoding="utf-8",
+        )
+        return module_dir
+
+    monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.install_module", _install)
+    monkeypatch.setattr(
+        "specfact_cli.modules.module_registry.src.commands.get_modules_with_state",
+        lambda: [
+            {"id": "nold-ai/specfact-backlog", "version": "0.2.0", "enabled": True, "source": "marketplace"},
+            {"id": "nold-ai/specfact-project", "version": "0.4.0", "enabled": True, "source": "marketplace"},
+        ],
+    )
+
+    result = runner.invoke(app, ["upgrade"])
+
+    assert result.exit_code == 0
+    assert installed == ["nold-ai/specfact-backlog", "nold-ai/specfact-project"]
+    assert "Upgraded" in result.stdout
+    assert "nold-ai/specfact-backlog: 0.2.0 -> 0.3.0" in result.stdout
+    assert "nold-ai/specfact-project: 0.4.0 -> 0.5.0" in result.stdout
+
+
 def test_upgrade_rejects_non_marketplace_source(monkeypatch) -> None:
     monkeypatch.setattr(
         "specfact_cli.modules.module_registry.src.commands.get_modules_with_state",
