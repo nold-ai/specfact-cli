@@ -144,6 +144,7 @@ These are derived extensions of the same 2026-02-15 plan and are required to ope
 | backlog-core | 05 | ✅ backlog-core-05-user-modules-bootstrap (implemented 2026-03-03; archived) | [#298](https://github.com/nold-ai/specfact-cli/issues/298) | #173 |
 | backlog-core | 06 | ✅ backlog-core-06-refine-custom-field-writeback (implemented 2026-03-03; archived) | [#310](https://github.com/nold-ai/specfact-cli/issues/310) | #173 |
 | backlog-core | 07 | backlog-core-07-ado-required-custom-fields-and-picklists | [#337](https://github.com/nold-ai/specfact-cli/issues/337) | ✅ #310 |
+| bugfix | 01 | bugfix-backlog-html-export-validation | TBD | — |
 
 ### backlog-scrum
 
@@ -245,6 +246,22 @@ These are derived extensions of the same 2026-02-15 plan and are required to ope
 | integration | 01 | integration-01-cross-change-contracts | [#254](https://github.com/nold-ai/specfact-cli/issues/254) | #237 (profile-01), #239 (requirements-02), #240 (architecture-01), #241 (validation-02), #246 (policy-02) |
 | dogfooding | 01 | dogfooding-01-full-chain-e2e-proof | [#255](https://github.com/nold-ai/specfact-cli/issues/255) | #239 (requirements-02), #240 (architecture-01), #241 (validation-02), #242 (traceability-01), #247 (governance-01) |
 
+### Code review module (reward/penalize plan, 2026-03-10)
+
+Target repos: `nold-ai/specfact-cli-modules` (module implementation) + `nold-ai/specfact-cli` (skill wiring, SP-007/SP-009).
+
+| Module | Order | Change folder | GitHub # | Blocked by |
+|--------|-------|---------------|----------|------------|
+| code-review | 01 | code-review-01-module-scaffold | TBD | — |
+| code-review | 02 | code-review-02-ruff-radon-runners | TBD | code-review-01 |
+| code-review | 03 | code-review-03-type-governance-runners | TBD | code-review-01 |
+| code-review | 04 | code-review-04-contract-test-runners | TBD | code-review-01; code-review-02; code-review-03 |
+| code-review | 05 | code-review-05-semgrep-clean-code-rules | TBD | code-review-01 |
+| code-review | 06 | code-review-06-reward-ledger | TBD | code-review-01 |
+| code-review | 07 | code-review-07-house-rules-skill | TBD | code-review-01; code-review-06; ai-integration-01 (soft) |
+| code-review | 08 | code-review-08-review-run-integration | TBD | code-review-02; code-review-03; code-review-04; code-review-05 |
+| code-review | 09 | code-review-09-f4-automation-upgrade | TBD | code-review-01; code-review-02; code-review-03; code-review-04; code-review-06 |
+
 ---
 
 ## GitHub "Blocked by" relationships
@@ -289,6 +306,15 @@ Set these in GitHub so issue dependencies are explicit. Optional dependencies ar
 | [#254](https://github.com/nold-ai/specfact-cli/issues/254) | integration-01 cross-change contracts | #237, #239, #240, #241, #246 |
 | [#255](https://github.com/nold-ai/specfact-cli/issues/255) | dogfooding-01 full-chain e2e proof | #239, #240, #241, #242, #247 |
 
+| TBD | code-review-02 ruff/radon runners | code-review-01 |
+| TBD | code-review-03 type/governance runners | code-review-01 |
+| TBD | code-review-04 contract/test runners | code-review-01; code-review-02; code-review-03 |
+| TBD | code-review-05 semgrep rules | code-review-01 |
+| TBD | code-review-06 reward ledger | code-review-01 |
+| TBD | code-review-07 house-rules skill | code-review-01; code-review-06 |
+| TBD | code-review-08 review-run integration | code-review-02; code-review-03; code-review-04; code-review-05 |
+| TBD | code-review-09 F-4 automation upgrade | code-review-01; code-review-02; code-review-03; code-review-04; code-review-06 |
+
 **How to set in GitHub**: Open the issue → right sidebar **Relationships** → **Mark as blocked by** → search and select the blocking issue(s).
 
 ---
@@ -306,6 +332,10 @@ The following ownership boundaries are mandatory before implementation for overl
 | Architecture namespace extension on `ProjectBundle` (`src/specfact_cli/models/project.py`) | `architecture-01-solution-layer` | `validation-02-full-chain-engine`, `traceability-01-index-and-orphans` |
 | Requirements namespace extension on `ProjectBundle` (`src/specfact_cli/models/project.py`) | `requirements-01-data-model` | `requirements-02-module-commands`, `requirements-03-backlog-sync`, `architecture-01-solution-layer` |
 | Backlog requirements extraction/update adapter contract (`modules/backlog/src/adapters/`) | `requirements-02-module-commands` | `requirements-03-backlog-sync` |
+
+| ReviewReport evidence envelope (score, reward_delta, overall_verdict, ci_exit_code) | `code-review-01-module-scaffold` | code-review-02..09; governance-01 (compatible extension, not replacement) |
+| Skill file at `skills/specfact-code-review/SKILL.md` | `code-review-07-house-rules-skill` | ai-integration-01, ai-integration-03 (CLAUDE.md not touched by code-review-07) |
+| `ai_sync.review_runs` and `ai_sync.reward_ledger` Supabase tables | `code-review-06-reward-ledger` | code-review-07, code-review-09 |
 
 Pre-implementation rule:
 - No dependent change may redefine an owned surface. Any required semantic change must be proposed as a delta to the authoritative change first.
@@ -410,6 +440,14 @@ Dependencies flow left-to-right; a wave may start once all its hard blockers are
 - **Wave 9 — Integration contract and product proof**:
   - integration-01 (#254) (after profile-01 #237 + requirements-02 #239 + architecture-01 #240 + validation-02 #241 + policy-02 #246)
   - dogfooding-01 (#255) (after requirements-02 #239 + architecture-01 #240 + validation-02 #241 + traceability-01 #242 + governance-01 #247)
+
+- **Wave 9 additions — Code review reward/penalize module (reward/penalize plan, 2026-03-10)**:
+  - code-review-01 (no hard blockers — start after governance-01 spec is understood; governance-01-compatible from day 1)
+  - code-review-02, code-review-03, code-review-05, code-review-06 (after code-review-01)
+  - code-review-04 (after code-review-01/02/03 — needs runner orchestrator)
+  - code-review-07 (after code-review-01 + code-review-06; soft dep on ai-integration-01)
+  - code-review-08 (after code-review-02/03/04/05 — wires all runners end-to-end)
+  - code-review-09 (after code-review-01/02/03/04/06 — n8n F-4 upgrade)
 
 ---
 
