@@ -44,12 +44,29 @@ FORBIDDEN_OUTPUT = (
 def _subprocess_env(home_dir: Path) -> dict[str, str]:
     env = os.environ.copy()
     pythonpath_parts = [str(SRC_ROOT), str(REPO_ROOT)]
+    packages_root = MODULES_REPO / "packages"
+    if packages_root.exists():
+        for bundle_src in sorted(packages_root.glob("*/src")):
+            pythonpath_parts.append(str(bundle_src))
+    for entry in sys.path:
+        if not entry:
+            continue
+        if "site-packages" in entry or "dist-packages" in entry:
+            pythonpath_parts.append(entry)
     existing = env.get("PYTHONPATH", "")
     if existing:
         pythonpath_parts.append(existing)
-    env["PYTHONPATH"] = os.pathsep.join(pythonpath_parts)
+    deduped_parts: list[str] = []
+    seen: set[str] = set()
+    for part in pythonpath_parts:
+        if part in seen:
+            continue
+        seen.add(part)
+        deduped_parts.append(part)
+    env["PYTHONPATH"] = os.pathsep.join(deduped_parts)
     env["HOME"] = str(home_dir)
     env["SPECFACT_REPO_ROOT"] = str(REPO_ROOT)
+    env["SPECFACT_MODULES_REPO"] = str(MODULES_REPO.resolve())
     env["SPECFACT_REGISTRY_INDEX_URL"] = REGISTRY_INDEX.resolve().as_uri()
     env["SPECFACT_ALLOW_UNSIGNED"] = "1"
     env["SPECFACT_REGISTRY_DIR"] = str(home_dir / ".specfact-test-registry")

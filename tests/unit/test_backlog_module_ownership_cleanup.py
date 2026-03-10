@@ -9,6 +9,25 @@ from specfact_cli.utils.ide_setup import SPECFACT_COMMANDS
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
+def _contains_shipped_backlog_module_content(path: Path) -> bool:
+    """Return True when a backlog-core path still contains source/manifests, not generated residue."""
+    if not path.exists():
+        return False
+    if path.is_file():
+        return True
+    ignored_dirs = {"__pycache__", "logs", ".pytest_cache"}
+    ignored_suffixes = {".pyc", ".pyo"}
+    for child in path.rglob("*"):
+        if any(part in ignored_dirs for part in child.parts):
+            continue
+        if child.is_dir():
+            continue
+        if child.suffix in ignored_suffixes:
+            continue
+        return True
+    return False
+
+
 def test_core_repo_no_longer_ships_backlog_owned_command_surfaces() -> None:
     """Core should not retain backlog-owned command packages or shims after migration."""
     forbidden_paths = [
@@ -17,7 +36,9 @@ def test_core_repo_no_longer_ships_backlog_owned_command_surfaces() -> None:
         REPO_ROOT / "src" / "specfact_cli" / "groups" / "backlog_group.py",
     ]
 
-    existing = [str(path.relative_to(REPO_ROOT)) for path in forbidden_paths if path.exists()]
+    existing = [
+        str(path.relative_to(REPO_ROOT)) for path in forbidden_paths if _contains_shipped_backlog_module_content(path)
+    ]
     assert not existing, f"Core still ships backlog-owned command surfaces: {existing}"
 
 
