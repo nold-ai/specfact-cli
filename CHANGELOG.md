@@ -10,6 +10,15 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [Unreleased]
+
+### Fixed
+
+- Fixed Azure DevOps work item creation to use `POST` instead of `PATCH` API method, resolving 400 Bad Request errors when creating backlog items via `specfact backlog add`.
+- Fixed category grouping registration to always mount category groups (code, backlog, project, spec, govern) even when category grouping is disabled, ensuring flat command availability.
+
+---
+
 ## [0.40.3] - 2026-03-09
 
 ### Changed
