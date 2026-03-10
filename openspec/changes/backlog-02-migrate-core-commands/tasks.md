@@ -24,7 +24,10 @@
 - [x] 3.2 Update test imports to use specfact-backlog paths
 - [x] 3.3 Fix import paths in test files (sys.path updates)
 - [x] 3.4 Resolve circular import issues in backlog/__init__.py
-- [x] 3.5 Capture TDD_EVIDENCE.md with test results
+- [x] 3.5 Fix bare `backlog_core` imports in specfact_project/commands.py
+- [x] 3.6 Fix `importlib.import_module("backlog_core...")` calls in tests
+- [x] 3.7 Add conftest.py with PYTHONPATH setup for subprocess isolation
+- [x] 3.8 Capture TDD_EVIDENCE.md with test results (202 passed, 2 failed, 16 skipped)
 
 ## 4. Implementation
 
