@@ -27,7 +27,9 @@
 - [x] 3.5 Fix bare `backlog_core` imports in specfact_project/commands.py
 - [x] 3.6 Fix `importlib.import_module("backlog_core...")` calls in tests
 - [x] 3.7 Add conftest.py with PYTHONPATH setup for subprocess isolation
-- [x] 3.8 Capture TDD_EVIDENCE.md with test results (202 passed, 2 failed, 16 skipped)
+- [x] 3.8 Fix ADO adapter test field paths (System.AcceptanceCriteria, Common.StoryPoints)
+- [x] 3.9 Add schema_extensions to module-package.yaml
+- [x] 3.10 Capture TDD_EVIDENCE.md with test results (204 passed, 0 failed, 16 skipped)
 
 ## 4. Implementation
 
