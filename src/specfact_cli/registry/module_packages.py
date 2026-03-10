@@ -1178,7 +1178,8 @@ def register_module_package_commands(
             loader = _make_package_loader(package_dir, meta.name, cmd_name)
             cmd_meta = CommandMetadata(name=cmd_name, help=help_str, tier=meta.tier, addon_id=meta.addon_id)
             CommandRegistry.register(cmd_name, loader, cmd_meta)
-    _mount_installed_category_groups(packages, enabled_map)
+    if category_grouping_enabled:
+        _mount_installed_category_groups(packages, enabled_map)
     discovered_count = protocol_full + protocol_partial + protocol_legacy
     if discovered_count and (protocol_partial > 0 or protocol_legacy > 0) and is_debug_mode():
         logger.info(
