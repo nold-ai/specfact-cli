@@ -163,10 +163,10 @@ class TestAdoAdapter:
         assert result["rationale"] == ""
 
     @beartype
-    @patch("specfact_cli.adapters.ado.requests.patch")
+    @patch("specfact_cli.adapters.ado.requests.post")
     def test_create_work_item_from_proposal(
         self,
-        mock_patch: MagicMock,
+        mock_post: MagicMock,
         ado_adapter: AdoAdapter,
         bridge_config: BridgeConfig,
     ) -> None:
@@ -180,7 +180,7 @@ class TestAdoAdapter:
             },
         }
         mock_response.raise_for_status = MagicMock()
-        mock_patch.return_value = mock_response
+        mock_post.return_value = mock_response
 
         proposal_data = {
             "change_id": "add-feature-x",
@@ -199,7 +199,7 @@ class TestAdoAdapter:
         assert result["work_item_id"] == 123
         assert result["work_item_url"] == "https://dev.azure.com/test-org/test-project/_workitems/edit/123"
         assert result["state"] == "New"
-        mock_patch.assert_called_once()
+        mock_post.assert_called_once()
 
     @beartype
     @patch("specfact_cli.adapters.ado.requests.patch")
@@ -243,14 +243,14 @@ class TestAdoAdapter:
         mock_patch.assert_called_once()
 
     @beartype
-    @patch("specfact_cli.adapters.ado.requests.patch")
+    @patch("specfact_cli.adapters.ado.requests.post")
     @patch("specfact_cli.adapters.ado.requests.get")
     @patch("specfact_cli.adapters.ado.get_token")
     def test_missing_api_token(
         self,
         mock_get_token: MagicMock,
         mock_get: MagicMock,
-        mock_patch: MagicMock,
+        mock_post: MagicMock,
         bridge_config: BridgeConfig,
     ) -> None:
         """Test error when API token is missing."""
@@ -297,16 +297,16 @@ class TestAdoAdapter:
             )
 
     @beartype
-    @patch("specfact_cli.adapters.ado.requests.patch")
+    @patch("specfact_cli.adapters.ado.requests.post")
     def test_api_error_handling(
         self,
-        mock_patch: MagicMock,
+        mock_post: MagicMock,
         ado_adapter: AdoAdapter,
         bridge_config: BridgeConfig,
     ) -> None:
         """Test error handling for API failures."""
         # Mock API error
-        mock_patch.side_effect = requests.RequestException("API rate limit exceeded")
+        mock_post.side_effect = requests.RequestException("API rate limit exceeded")
 
         proposal_data = {
             "change_id": "test",
