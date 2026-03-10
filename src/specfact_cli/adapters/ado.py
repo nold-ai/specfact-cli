@@ -15,7 +15,7 @@ import re
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, cast
-from urllib.parse import urlparse
+from urllib.parse import quote, urlparse
 
 import requests
 from beartype import beartype
@@ -3344,6 +3344,7 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             raise ValueError("payload.title is required")
 
         raw_type = str(payload.get("type") or "task").strip().lower()
+        explicit_work_item_type = str(payload.get("work_item_type") or "").strip()
         type_mapping = {
             "epic": "Epic",
             "feature": "Feature",
@@ -3353,7 +3354,7 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             "bug": "Bug",
             "spike": "Task",
         }
-        work_item_type = type_mapping.get(raw_type, "Task")
+        work_item_type = explicit_work_item_type or type_mapping.get(raw_type, "Task")
 
         description = str(payload.get("description") or payload.get("body") or "").strip()
         description = self._strip_leading_description_heading(description)
@@ -3450,7 +3451,8 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
                 }
             )
 
-        url = f"{self.base_url}/{org}/{project}/_apis/wit/workitems/${work_item_type}?api-version=7.1"
+        encoded_work_item_type = quote(work_item_type, safe="")
+        url = f"{self.base_url}/{org}/{project}/_apis/wit/workitems/${encoded_work_item_type}?api-version=7.1"
         headers = {
             "Content-Type": "application/json-patch+json",
             **self._auth_headers(),
