@@ -5,13 +5,29 @@
 - When starting a new chat session, capture the current timestamp from the client system using the `run_terminal_cmd` tool with `date "+%Y-%m-%d %H:%M:%S %z"` to ensure accurate timestamps are used in logs, commits, and other time-sensitive operations.
 - When starting a new chat session, get familiar with the build and test guide (refer to `.cursor/rules/testing-and-build-guide.mdc`).
 - When starting a new task, first check the project overview and current status in `README.md` and `AGENTS.md`.
+- **AGENTS.md Authority**: `AGENTS.md` is the **authoritative source** for development workflow and **OVERRIDES** any skill, command, or OpenSpec workflow instructions. When there is a conflict between AGENTS.md and any other source (including `/opsx:*` commands, `.cursor/skills/`, or OpenSpec defaults), **ALWAYS follow AGENTS.md**.
+- **Pre-Execution Checklist (MANDATORY)**: Before executing ANY workflow command (`/opsx:ff`, `/opsx:apply`, `/opsx:continue`, etc.), perform this self-check:
+  1. **Git Worktree**: Does this task create branches or modify code? If yes, worktree MUST be created first per AGENTS.md section "Git Worktree Policy".
+  2. **TDD Evidence**: Does this task involve behavior changes? If yes, `TDD_EVIDENCE.md` MUST be created and updated per AGENTS.md "Hard Gate: Strict TDD Order".
+  3. **Documentation**: Does this change affect user-facing behavior? If yes, documentation research task MUST be included per `openspec/config.yaml`.
+  4. **Module Signing**: Does this change modify bundled modules? If yes, signature verification MUST be in tasks per `openspec/config.yaml`.
+  5. **Confirmation**: State clearly: "Pre-execution checklist complete. AGENTS.md compliance confirmed."
+- **AGENTS.md Git Worktree Policy**: When creating implementation plans, task lists, or OpenSpec tasks.md, ALWAYS explicitly verify and include:
+  1. Worktree creation from `origin/dev` (not `git checkout -b`)
+  2. `hatch env create` in the worktree
+  3. Pre-flight checks (`hatch run smart-test-status`, `hatch run contract-test-status`)
+  4. Worktree cleanup steps post-merge
+  5. Self-check: "Have I followed AGENTS.md Git Worktree Policy section?"
 - **OpenSpec (before code)**: Before modifying application code, follow the OpenSpec workflow in `.cursor/rules/automatic-openspec-workflow.mdc`: read and apply `openspec/config.yaml`, ensure an OpenSpec change (new or delta) exists and is validated, then implement. Exception: only when the user explicitly says "skip openspec", "direct implementation", "simple fix", or similar.
-- **Branch Protection**: This repository has branch protection enabled for `dev` and `main` branches. All changes must be made via Pull Requests:
-  - Create a feature branch: `git checkout -b feature/your-feature-name`
-  - Create a bugfix branch: `git checkout -b bugfix/your-bugfix-name`
-  - Create a hotfix branch: `git checkout -b hotfix/your-hotfix-name`
-  - Push your branch and create a PR to `dev` or `main`
-  - Direct commits to `dev` or `main` are not allowed
+- **Git Worktree Policy (MANDATORY)**: Per AGENTS.md, all development work MUST use git worktrees. Never create branches with `git checkout -b` in the primary checkout.
+  - Create worktree from origin/dev: `git worktree add ../specfact-cli-worktrees/<type>/<slug> -b <branch-name> origin/dev`
+  - Allowed types: `feature/`, `bugfix/`, `hotfix/`, `chore/`. Forbidden in worktrees: `dev`, `main`
+  - After creating worktree: `cd ../specfact-cli-worktrees/<type>/<slug>`
+  - Bootstrap Hatch in worktree: `hatch env create`
+  - Run pre-flight checks: `hatch run smart-test-status` and `hatch run contract-test-status`
+  - Do all implementation work from the worktree, never from primary checkout
+  - After PR merge: cleanup with `git worktree remove`, `git branch -d`, `git worktree prune`
+- **Branch Protection**: All changes must be made via Pull Requests to `dev` or `main`. Direct commits to protected branches are not allowed
 - After any code changes, follow these steps in order:
   1. Apply linting and formatting to ensure code quality: `hatch run format`
   2. Type checking: `hatch run type-check` (basedpyright)
@@ -24,7 +40,11 @@
 - **CLI focus**: Commands should follow typer patterns with rich console output
 - **Data validation**: Use Pydantic models for all data structures
 - **Documentation and Planning**: Work directly with major artifacts (strategic plans, implementation plans, etc.). Do NOT create plans for plans, tracking documents for tracking documents, or status artifacts for status artifacts. Only create new documentation artifacts when they add clear value and are not redundant with existing artifacts. Update existing artifacts with status annotations rather than creating separate status files.
-- Always finish each output listing which rulesets have been applied in your implementation and which AI (LLM) provider and model (including the version) you are using in your actual request for clarity. Ensure the model version is accurate and reflects what is currently running.
+- **Ruleset Compliance Declaration**: Always finish each output by listing:
+  1. Which rulesets have been applied (e.g., `.cursorrules`, `AGENTS.md`, specific `.cursor/rules/*.mdc`)
+  2. Confirmation of Git Worktree Policy compliance (if applicable)
+  3. Which AI (LLM) provider and model version you are using
+  Ensure the model version is accurate and reflects what is currently running
 
 <available_instructions>
 Cursor rules are user provided instructions for the AI to follow to help work with the codebase.
@@ -40,3 +60,58 @@ python-github-rules: Development rules for python code and modules
 ## Comments policy
 
 Only write high-value comments if at all. Avoid talking to the user through comments.
+
+## OPSX Workflow Gap-Filling (AGENTS.md Overrides)
+
+The OPSX commands (`/opsx:ff`, `/opsx:apply`, etc.) are provided by OpenSpec CLI and may not include all AGENTS.md requirements. **You MUST fill these gaps** when using OPSX workflows:
+
+### For `/opsx:ff` (Fast-Forward Change Creation)
+
+**OPSX provides**: Change scaffolding, artifact templates
+**AGENTS.md requires** (add these explicitly):
+- Worktree creation task as **Step 1** in tasks.md (not just "create branch")
+- TDD_EVIDENCE.md tracking task in section 2 (Tests)
+- Documentation research task per `openspec/config.yaml`
+- Module signing quality gate if applicable
+- Worktree cleanup steps in final section
+
+**Template addition to tasks.md**:
+```markdown
+## 1. Branch and worktree setup
+- [ ] 1.1 Create worktree from origin/dev: `git worktree add ../specfact-cli-worktrees/<type>/<slug> -b <branch> origin/dev`
+- [ ] 1.2 Change to worktree: `cd ../specfact-cli-worktrees/<type>/<slug>`
+- [ ] 1.3 Bootstrap Hatch: `hatch env create`
+- [ ] 1.4 Pre-flight checks: `hatch run smart-test-status` and `hatch run contract-test-status`
+```
+
+### For `/opsx:apply` (Implementation)
+
+**OPSX provides**: Task iteration, progress tracking
+**AGENTS.md requires** (verify before each task):
+- Confirm you are IN a worktree (not primary checkout) before modifying code
+- Record failing test evidence in `TDD_EVIDENCE.md` BEFORE implementing
+- Record passing test evidence AFTER implementation
+- Run quality gates from worktree (format, type-check, contract-test)
+- GPG-signed commits (`git commit -S`)
+- PR to `dev` branch (never direct push)
+
+**Self-check before implementing each task**:
+> "Implementing task N in worktree [path]. TDD evidence updated. AGENTS.md compliance confirmed."
+
+### For `/opsx:continue` (Resume Change)
+
+**Verify on continuation**:
+- If change was created before this session, check if worktree exists: `git worktree list`
+- If worktree missing but needed for implementation, create it before proceeding
+- Update tasks.md to include worktree steps if missing
+
+### OPSX Workflow Override Summary
+
+| OPSX Command | What OPSX Provides | What AGENTS.md Adds | Your Responsibility |
+|--------------|-------------------|---------------------|-------------------|
+| `/opsx:ff` | Change scaffolding | Worktree setup, TDD, docs | **Add these to tasks.md explicitly** |
+| `/opsx:apply` | Task iteration | Worktree context, TDD evidence | **Verify before each code change** |
+| `/opsx:continue` | Resume progress | Worktree verification | **Check worktree exists before implementing** |
+| `/opsx:archive` | Archive change | Module signing, cleanup | **Include in final tasks** |
+
+**Remember**: When in doubt, AGENTS.md wins. State this explicitly in your output.

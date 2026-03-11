@@ -431,9 +431,9 @@ field_mappings:
         assert not any("StoryPoints" in op.get("path", "") for op in operations)
 
     @beartype
-    @patch("specfact_cli.adapters.ado.requests.patch")
+    @patch("specfact_cli.adapters.ado.requests.post")
     def test_create_issue_uses_custom_mapped_fields_and_markdown_multiline_format(
-        self, mock_patch: MagicMock, tmp_path
+        self, mock_post: MagicMock, tmp_path
     ) -> None:
         """ADO create_issue should honor custom field mapping and markdown format metadata."""
         mock_response = MagicMock()
@@ -443,7 +443,7 @@ field_mappings:
             "_links": {"html": {"href": "https://dev.azure.com/test/project/_workitems/edit/77"}},
         }
         mock_response.raise_for_status = MagicMock()
-        mock_patch.return_value = mock_response
+        mock_post.return_value = mock_response
 
         custom_mapping_file = tmp_path / "ado_custom.yaml"
         custom_mapping_file.write_text(
@@ -476,7 +476,7 @@ field_mappings:
 
         assert created["id"] == "77"
 
-        operations = mock_patch.call_args.kwargs["json"]
+        operations = mock_post.call_args.kwargs["json"]
         assert {
             "op": "add",
             "path": "/fields/Custom.Description",
@@ -489,8 +489,8 @@ field_mappings:
         assert {"op": "add", "path": "/fields/Custom.BacklogPriority", "value": 2} in operations
 
     @beartype
-    @patch("specfact_cli.adapters.ado.requests.patch")
-    def test_create_issue_applies_provider_custom_fields(self, mock_patch: MagicMock) -> None:
+    @patch("specfact_cli.adapters.ado.requests.post")
+    def test_create_issue_applies_provider_custom_fields(self, mock_post: MagicMock) -> None:
         """ADO create_issue should append saved provider custom field values to the patch document."""
         mock_response = MagicMock()
         mock_response.json.return_value = {
@@ -499,7 +499,7 @@ field_mappings:
             "_links": {"html": {"href": "https://dev.azure.com/test/project/_workitems/edit/88"}},
         }
         mock_response.raise_for_status = MagicMock()
-        mock_patch.return_value = mock_response
+        mock_post.return_value = mock_response
 
         adapter = AdoAdapter(org="test", project="project", api_token="token")
         payload = {
@@ -516,7 +516,7 @@ field_mappings:
         created = adapter.create_issue("test/project", payload)
 
         assert created["id"] == "88"
-        operations = mock_patch.call_args.kwargs["json"]
+        operations = mock_post.call_args.kwargs["json"]
         assert {"op": "add", "path": "/fields/Custom.FinOpsCategory", "value": "Business"} in operations
         assert {"op": "add", "path": "/fields/Custom.PlatformName", "value": "Core"} in operations
 

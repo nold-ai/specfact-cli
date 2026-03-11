@@ -54,8 +54,13 @@ def test_bootstrap_with_category_grouping_disabled_registers_flat_commands() -> 
     with patch.dict(os.environ, {"SPECFACT_CATEGORY_GROUPING_ENABLED": "false"}, clear=False):
         register_builtin_commands()
     names = [name for name, _ in CommandRegistry.list_commands_for_help()]
-    assert "code" not in names, "Group 'code' should not appear when grouping disabled"
-    assert "govern" not in names, "Group 'govern' should not appear when grouping disabled"
+    # Skip assertions if bundles aren't installed (e.g., in CI without modules)
+    if "code" not in names:
+        pytest.skip("Codebase bundle not installed; skipping bundle-native command assertions")
+    assert "code" in names, "Bundle-native root command 'code' should remain available when grouping is disabled"
+    assert "govern" in names, "Bundle-native root command 'govern' should remain available when grouping is disabled"
+    assert "project" in names
+    assert "spec" in names
 
 
 def test_code_analyze_routes_same_as_flat_analyze(
@@ -142,7 +147,7 @@ def test_flat_validate_is_not_found_in_cicd_mode(tmp_path: Path) -> None:
 
 
 def test_spec_api_validate_routes_correctly(tmp_path: Path) -> None:
-    """`spec` group mounts only when spec module is installed."""
+    """The installed spec bundle exposes its native `spec validate` root path."""
     with patch.dict(os.environ, {"SPECFACT_CATEGORY_GROUPING_ENABLED": "true"}, clear=False):
         register_builtin_commands()
     from click.testing import CliRunner
@@ -156,6 +161,6 @@ def test_spec_api_validate_routes_correctly(tmp_path: Path) -> None:
     if "spec" not in root_commands:
         return
     runner = CliRunner()
-    result = runner.invoke(root_cmd, ["spec", "api", "--help"])
-    assert result.exit_code == 0, f"spec api --help failed: {result.output}"
+    result = runner.invoke(root_cmd, ["spec", "validate", "--help"])
+    assert result.exit_code == 0, f"spec validate --help failed: {result.output}"
     assert "validate" in (result.output or "").lower() or "Specmatic" in (result.output or "")
