@@ -49,6 +49,7 @@ Only changes that are **archived**, shown as **✓ Complete** by `openspec list`
 | ✅ backlog-core-05-user-modules-bootstrap | implemented 2026-03-03 (archived) |
 | ✅ backlog-core-06-refine-custom-field-writeback | implemented 2026-03-03 (archived) |
 | ✅ cli-val-07-command-package-runtime-validation | archived 2026-03-09 |
+| ✅ backlog-02-migrate-core-commands | archived 2026-03-11 |
 
 ### Pending
 

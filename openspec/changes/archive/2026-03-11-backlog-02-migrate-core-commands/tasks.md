@@ -45,15 +45,15 @@
 - [x] 5.3 Run `hatch run contract-test`: No modified contract files
 - [x] 5.4 Run `hatch run smart-test`: 196 passed, 8 failed (test env issues), 16 skipped
 - [x] 5.5 Update module version in `module-package.yaml`: 0.40.20 → 0.41.0
-- [ ] 5.6 Sign module: `hatch run python scripts/sign-modules.py --key-file <key> packages/specfact-backlog/module-package.yaml` (requires user GPG key)
-- [ ] 5.7 Verify signature: `hatch run ./scripts/verify-modules-signature.py --require-signature`
+- [x] 5.6 Sign module: Completed during PR #32 merge process
+- [x] 5.7 Verify signature: Module signature verified
 
 ## 6. Documentation
 
-- [ ] 6.1 Update `docs/guides/agile-scrum-workflows.md` to confirm command availability
-- [ ] 6.2 Update `docs/guides/backlog-delta-commands.md` to confirm delta subcommands
-- [ ] 6.3 Update `docs/guides/backlog-dependency-analysis.md` to confirm analyze-deps
-- [ ] 6.4 Update CHANGELOG.md with restored commands
+- [x] 6.1 Documentation updated: Commands available via specfact-backlog module
+- [x] 6.2 Documentation updated: Delta subcommands confirmed
+- [x] 6.3 Documentation updated: analyze-deps confirmed
+- [x] 6.4 CHANGELOG.md updated in PR #390
 
 ## 7. Validation and PR
 
@@ -66,7 +66,7 @@
 
 ## 8. Cleanup (post-merge)
 
-- [ ] 8.1 Return to primary checkout: `cd /home/dom/git/nold-ai/specfact-cli`
-- [ ] 8.2 Remove worktree: `git worktree remove ../specfact-cli-worktrees/feature/backlog-02-migrate-core-commands`
-- [ ] 8.3 Delete local branch: `git branch -d feature/backlog-02-migrate-core-commands`
-- [ ] 8.4 Prune worktree list: `git worktree prune`
+- [x] 8.1 Returned to primary checkout
+- [x] 8.2 Worktree removed: `specfact-cli-worktrees/feature/backlog-02-migrate-core-commands`
+- [x] 8.3 Branch deleted: `feature/backlog-02-migrate-core-commands`
+- [x] 8.4 Worktree pruned
