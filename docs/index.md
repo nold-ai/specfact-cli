@@ -159,6 +159,7 @@ long-term bundle docs home is prepared in `nold-ai/specfact-cli-modules`:
 - **[Installing Modules](guides/installing-modules.md)** - Install, list, uninstall, and upgrade modules
 - **[Module Marketplace](guides/module-marketplace.md)** - Registry model, security checks, and discovery priority
 - **[Marketplace Bundles](guides/marketplace.md)** - Official bundle ids, trust tiers, and dependency auto-install behavior
+- **[Code Review Module](modules/code-review.md)** - Install and use the `nold-ai/specfact-code-review` scaffold under `specfact code review`
 - **[Module Signing and Key Rotation](guides/module-signing-and-key-rotation.md)** - Signing and key management runbook
 
 Module lifecycle note: use `specfact module` (`init`, `install`, `list`, `show`, `search`, `enable`, `disable`, `uninstall`, `upgrade`) for module management.

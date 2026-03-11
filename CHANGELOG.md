@@ -10,6 +10,14 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.41.0] - 2026-03-11
+
+### Added
+
+- Added the `nold-ai/specfact-code-review` module scaffold (SP-001): structured `ReviewFinding` / `ReviewReport` models, review scoring helpers, and the `specfact code review` command surface documentation.
+
+---
+
 ## [0.40.4] - 2026-03-11
 
 ### Fixed

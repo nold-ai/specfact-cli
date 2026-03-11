@@ -11,58 +11,58 @@ Do not implement production code until tests exist and have been run (expecting 
 ## 1. Create git worktree for this change
 
 - [ ] 1.1 Fetch latest and create a worktree with a new branch from `origin/dev`.
-  - [ ] 1.1.1 `git fetch origin`
-  - [ ] 1.1.2 `git worktree add ../specfact-cli-worktrees/feature/code-review-01-module-scaffold -b feature/code-review-01-module-scaffold origin/dev`
-  - [ ] 1.1.3 Change into the worktree: `cd ../specfact-cli-worktrees/feature/code-review-01-module-scaffold`
+  - [x] 1.1.1 `git fetch origin`
+  - [x] 1.1.2 `git worktree add ../specfact-cli-worktrees/feature/code-review-01-module-scaffold -b feature/code-review-01-module-scaffold origin/dev`
+  - [x] 1.1.3 Change into the worktree: `cd ../specfact-cli-worktrees/feature/code-review-01-module-scaffold`
   - [ ] 1.1.4 Create virtual environment: `python -m venv .venv && source .venv/bin/activate && pip install -e ".[dev]"`
-  - [ ] 1.1.5 `git branch --show-current` (verify `feature/code-review-01-module-scaffold`)
+  - [x] 1.1.5 `git branch --show-current` (verify `feature/code-review-01-module-scaffold`)
 
 ## 2. Set up specfact-cli-modules worktree and package scaffold
 
 All following tasks run inside the worktree **and** require the `specfact-cli-modules` repository to be accessible.
 
-- [ ] 2.1 In `specfact-cli-modules`: create `packages/specfact-code-review/` directory structure
-  - [ ] 2.1.1 Create all directories per module package structure (see design.md)
-  - [ ] 2.1.2 Write `packages/specfact-code-review/module-package.yaml` with all required fields
+- [x] 2.1 In `specfact-cli-modules`: create `packages/specfact-code-review/` directory structure
+  - [x] 2.1.1 Create all directories per module package structure (see design.md)
+  - [x] 2.1.2 Write `packages/specfact-code-review/module-package.yaml` with all required fields
 
 ## 3. Write tests BEFORE implementation (TDD-first)
 
-- [ ] 3.1 Write `tests/unit/specfact_code_review/run/test_findings.py`
-  - [ ] 3.1.1 Test `ReviewFinding` field validation (valid/invalid severity, valid/invalid category)
-  - [ ] 3.1.2 Test `fixable` field defaults to `False`
-  - [ ] 3.1.3 Test `@require` contract on empty file/message
-- [ ] 3.2 Write `tests/unit/specfact_code_review/run/test_scorer.py`
-  - [ ] 3.2.1 Test clean run (zero findings) scores 100, reward_delta=20
-  - [ ] 3.2.2 Test single blocking error: score=85, reward_delta=5
-  - [ ] 3.2.3 Test single fixable error: score=95, reward_delta=15
-  - [ ] 3.2.4 Test warning deductions: 3 warnings → score=94
-  - [ ] 3.2.5 Test PASS/WARN/BLOCK verdict thresholds
-  - [ ] 3.2.6 Test all 5 bonus conditions
-  - [ ] 3.2.7 Test blocking error overrides score to FAIL regardless
-  - [ ] 3.2.8 Test score is capped at 120
-- [ ] 3.3 Run tests — expect failure (modules don't exist yet)
-  - [ ] 3.3.1 `hatch test -- tests/unit/specfact_code_review/run/ -v` → capture failing output
-  - [ ] 3.3.2 Record failing evidence in `openspec/changes/code-review-01-module-scaffold/TDD_EVIDENCE.md`
+- [x] 3.1 Write `tests/unit/specfact_code_review/run/test_findings.py`
+  - [x] 3.1.1 Test `ReviewFinding` field validation (valid/invalid severity, valid/invalid category)
+  - [x] 3.1.2 Test `fixable` field defaults to `False`
+  - [x] 3.1.3 Test `@require` contract on empty file/message
+- [x] 3.2 Write `tests/unit/specfact_code_review/run/test_scorer.py`
+  - [x] 3.2.1 Test clean run (zero findings) scores 100, reward_delta=20
+  - [x] 3.2.2 Test single blocking error: score=85, reward_delta=5
+  - [x] 3.2.3 Test single fixable error: score=95, reward_delta=15
+  - [x] 3.2.4 Test warning deductions: 3 warnings → score=94
+  - [x] 3.2.5 Test PASS/WARN/BLOCK verdict thresholds
+  - [x] 3.2.6 Test all 5 bonus conditions
+  - [x] 3.2.7 Test blocking error overrides score to FAIL regardless
+  - [x] 3.2.8 Test score is capped at 120
+- [x] 3.3 Run tests — expect failure (modules don't exist yet)
+  - [x] 3.3.1 `hatch test -- tests/unit/specfact_code_review/run/ -v` → capture failing output
+  - [x] 3.3.2 Record failing evidence in `openspec/changes/code-review-01-module-scaffold/TDD_EVIDENCE.md`
 
 ## 4. Implement module scaffold
 
-- [ ] 4.1 Create `packages/specfact-code-review/src/specfact_code_review/__init__.py`
-- [ ] 4.2 Create `run/findings.py` — `ReviewFinding` and `ReviewReport` Pydantic models with all governance-01 fields and review extensions; add `@require`/`@ensure`/`@beartype` to all public methods
-- [ ] 4.3 Create `run/scorer.py` — scoring algorithm; pure function with `@require`/`@ensure`
-- [ ] 4.4 Create `review/app.py` — Typer extension entrypoint; `module_io_shim` re-exports
-- [ ] 4.5 Create `review/commands.py` — review subgroup wiring (run/ledger/rules stubs)
-- [ ] 4.6 Create `run/commands.py` stub
+- [x] 4.1 Create `packages/specfact-code-review/src/specfact_code_review/__init__.py`
+- [x] 4.2 Create `run/findings.py` — `ReviewFinding` and `ReviewReport` Pydantic models with all governance-01 fields and review extensions; add `@require`/`@ensure`/`@beartype` to all public methods
+- [x] 4.3 Create `run/scorer.py` — scoring algorithm; pure function with `@require`/`@ensure`
+- [x] 4.4 Create `review/app.py` — Typer extension entrypoint; `module_io_shim` re-exports
+- [x] 4.5 Create `review/commands.py` — review subgroup wiring (run/ledger/rules stubs)
+- [x] 4.6 Create `run/commands.py` stub
 
 ## 5. Run tests and validate
 
-- [ ] 5.1 Run tests — expect passing
-  - [ ] 5.1.1 `hatch test -- tests/unit/specfact_code_review/run/ -v`
-  - [ ] 5.1.2 Record passing evidence in `TDD_EVIDENCE.md`
+- [x] 5.1 Run tests — expect passing
+  - [x] 5.1.1 `hatch test -- tests/unit/specfact_code_review/run/ -v`
+  - [x] 5.1.2 Record passing evidence in `TDD_EVIDENCE.md`
 - [ ] 5.2 `hatch run format` — ruff format + fix
 - [ ] 5.3 `hatch run type-check` — basedpyright strict
-- [ ] 5.4 `hatch run contract-test` — validate icontract decorators
+- [x] 5.4 `hatch run contract-test` — validate icontract decorators
 - [ ] 5.5 `hatch run lint` — full lint suite
-- [ ] 5.6 Verify `specfact code review --help` shows review subgroup
+- [x] 5.6 Verify `specfact code review --help` shows review subgroup
 
 ## 6. Module signing
 
@@ -72,23 +72,23 @@ All following tasks run inside the worktree **and** require the `specfact-cli-mo
 
 ## 7. Documentation
 
-- [ ] 7.1 Create `docs/modules/code-review.md` with: install command, command overview, scoring algorithm, JSON output schema, governance-01 alignment note
-- [ ] 7.2 Update `docs/index.md` and `docs/_layouts/default.html` sidebar to include the new code-review module page
-- [ ] 7.3 Verify front-matter: `layout`, `title`, `permalink`, `description`
+- [x] 7.1 Create `docs/modules/code-review.md` with: install command, command overview, scoring algorithm, JSON output schema, governance-01 alignment note
+- [x] 7.2 Update `docs/index.md` and `docs/_layouts/default.html` sidebar to include the new code-review module page
+- [x] 7.3 Verify front-matter: `layout`, `title`, `permalink`, `description`
 
 ## 8. Version and changelog
 
-- [ ] 8.1 Bump minor version (new feature): sync `pyproject.toml`, `setup.py`, `src/specfact_cli/__init__.py`
-- [ ] 8.2 Add CHANGELOG.md entry: `Added: specfact-code-review module scaffold (SP-001)`
+- [x] 8.1 Bump minor version (new feature): sync `pyproject.toml`, `setup.py`, `src/specfact_cli/__init__.py`
+- [x] 8.2 Add CHANGELOG.md entry: `Added: specfact-code-review module scaffold (SP-001)`
 
 ## 9. Create GitHub issue
 
-- [ ] 9.1 Create issue in `nold-ai/specfact-cli`:
+- [x] 9.1 Create issue in `nold-ai/specfact-cli`:
   - Title: `[Change] specfact-code-review module scaffold with ReviewFinding/ReviewReport models`
   - Labels: `enhancement`, `change-proposal`
   - Body: from proposal.md Why + What Changes sections
   - Footer: `*OpenSpec Change Proposal: code-review-01-module-scaffold*`
-- [ ] 9.2 Update `proposal.md` Source Tracking with issue number and URL
+- [x] 9.2 Update `proposal.md` Source Tracking with issue number and URL
 
 ## 10. Create PR
 
