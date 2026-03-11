@@ -1,4 +1,4 @@
-"""Backward-compatible app shim for project import command."""
+"""Backward-compatible app shim for code-owned import command."""
 
 from typing import TYPE_CHECKING, Any
 
@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 
 def __getattr__(name: str) -> Any:
     if name == "app":
-        return load_bundle_app(__file__, "specfact_project.import_cmd.commands")
+        return load_bundle_app(__file__, "specfact_codebase.import_cmd.commands")
     raise AttributeError(name)
 
 

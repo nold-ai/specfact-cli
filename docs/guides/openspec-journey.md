@@ -312,7 +312,7 @@ Here's how to use both tools together for legacy code modernization:
 
 ```bash
 # Step 1: Analyze legacy code with SpecFact
-specfact project import from-code legacy-api --repo ./legacy-app
+specfact code import legacy-api --repo ./legacy-app
 # → Extracts features from existing code
 # → Creates SpecFact bundle: .specfact/projects/legacy-api/
 

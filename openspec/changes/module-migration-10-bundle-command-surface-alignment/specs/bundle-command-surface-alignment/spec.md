@@ -7,7 +7,7 @@ The system SHALL ensure that grouped CLI commands documented for a shipped relea
 #### Scenario: Documented project subgroup commands resolve
 
 - **GIVEN** the official `nold-ai/specfact-project` bundle is installed
-- **WHEN** the user runs documented grouped command paths such as `specfact project import from-code --help` or `specfact project plan review --help`
+- **WHEN** the user runs documented grouped command paths such as `specfact code import --help` or `specfact project plan review --help`
 - **THEN** the command path resolves successfully from the installed bundle runtime
 - **AND** the help output reflects the mounted subgroup command rather than `No such command`.
 

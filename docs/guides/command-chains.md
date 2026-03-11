@@ -83,7 +83,7 @@ Start: What do you want to accomplish?
 
 ```bash
 # Step 1: Extract specifications from legacy code
-specfact project import from-code legacy-api --repo .
+specfact code import legacy-api --repo .
 
 # Step 2: Review the extracted plan
 specfact project plan review legacy-api
@@ -444,7 +444,7 @@ graph LR
 
 ```bash
 # Step 1: Import current code state
-specfact project import from-code current-state --repo .
+specfact code import current-state --repo .
 
 # Step 2: Compare code against plan
 specfact project plan compare --bundle <plan-bundle> --code-vs-plan

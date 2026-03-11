@@ -56,7 +56,7 @@ specfact init ide --ide vscode
 
 ```bash
 # Analyze an existing codebase
-specfact project import from-code my-project --repo .
+specfact code import my-project --repo .
 
 # Validate external code without modifying source
 specfact code validate sidecar init my-project /path/to/repo

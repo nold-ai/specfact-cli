@@ -57,7 +57,7 @@ class AnalyzeAgent(AgentMode):
         Examples:
             >>> agent = AnalyzeAgent()
             >>> prompt = agent.generate_prompt("import from-code", {"current_file": "src/main.py"})
-            >>> "specfact import from-code" in prompt.lower()
+            >>> "specfact code import" in prompt.lower()
             True
         """
         if context is None:
@@ -316,7 +316,7 @@ Dependencies: {len(dependencies)} dependency files found
         **Pragmatic Approach**: This method is designed for AI IDE integration (Cursor, CoPilot, etc.).
         The AI IDE's native LLM will:
         1. Understand the codebase semantically (using the prompt from `generate_prompt()`)
-        2. Call the SpecFact CLI (`specfact import from-code`) for structured analysis
+        2. Call the SpecFact CLI (`specfact code import`) for structured analysis
         3. Enhance results with semantic understanding
 
         This avoids the need for:
@@ -356,7 +356,7 @@ Dependencies: {len(dependencies)} dependency files found
 
         # In AI IDE mode, the AI will:
         # 1. Use the prompt to understand the codebase semantically
-        # 2. Call `specfact import from-code` with appropriate arguments
+        # 2. Call `specfact code import` with appropriate arguments
         # 3. Parse the CLI output and enhance with semantic understanding
         # 4. Present results to the user
 

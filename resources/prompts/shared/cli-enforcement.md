@@ -109,7 +109,7 @@ When generating or enhancing code via LLM, **ALWAYS** follow this pattern:
 
 - `specfact plan init <bundle-name>` - Initialize project bundle
 - `specfact plan select <bundle-name>` - Set active plan (used as default for other commands)
-- `specfact import from-code [<bundle-name>] --repo <path>` - Import from codebase (uses active plan if bundle not specified)
+- `specfact code import [<bundle-name>] --repo <path>` - Import from codebase (uses active plan if bundle not specified)
 - `specfact plan review [<bundle-name>]` - Review plan (uses active plan if bundle not specified)
 - `specfact plan harden [<bundle-name>]` - Create SDD manifest (uses active plan if bundle not specified)
 - `specfact enforce sdd [<bundle-name>]` - Validate SDD (uses active plan if bundle not specified)

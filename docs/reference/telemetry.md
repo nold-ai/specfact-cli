@@ -488,7 +488,7 @@ Only if you explicitly opt in. We recommend enabling telemetry in CI/CD to track
 **How do I verify telemetry is working?**
 
 1. Enable debug mode: `export SPECFACT_TELEMETRY_DEBUG=true`
-2. Run a command: `specfact project import from-code --repo .`
+2. Run a command: `specfact code import --repo .`
 3. Check local log: `tail -f ~/.specfact/telemetry.log`
 4. Verify events appear in your OTLP collector (if configured)
 

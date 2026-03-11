@@ -104,6 +104,7 @@ These are derived extensions of the same 2026-02-15 plan and are required to ope
 | module-migration | 08 | module-migration-08-release-suite-stabilization | TBD | module-migration-03/04/06/07 merged; residual release-suite regressions after migration merge |
 | module-migration | 09 | backlog-module-ownership-cleanup | TBD | module-migration-06; backlog-core-07; cli-val-07 findings |
 | module-migration | 10 | module-migration-10-bundle-command-surface-alignment | [#385](https://github.com/nold-ai/specfact-cli/issues/385) | module-migration-02 ✅; module-migration-06/07 baseline; cli-val-07 findings |
+| module-migration | 11 | module-migration-11-project-codebase-ownership-realignment | [#408](https://github.com/nold-ai/specfact-cli/issues/408) | module-migration-06 baseline; backlog-module-ownership-cleanup precedent; blocks final canonical import-path decisions in module-migration-10 |
 | init-ide | 01 | init-ide-prompt-source-selection | TBD | backlog-module-ownership-cleanup |
 | backlog-auth | 01 | backlog-auth-01-backlog-auth-commands | TBD | module-migration-03 (central auth interface in core; auth removed from core) |
 

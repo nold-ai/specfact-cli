@@ -2037,7 +2037,7 @@ class TestBrownfieldAnalysisWorkflow:
         with tempfile.TemporaryDirectory() as tmpdir:
             report_path = Path(tmpdir) / "analysis-report.md"
 
-            print("🚀 Running: specfact project import from-code (scoped to analyzers)")
+            print("🚀 Running: specfact code import (scoped to analyzers)")
             bundle_name = "specfact-auto"
 
             # Remove existing bundle if it exists (from previous test runs)

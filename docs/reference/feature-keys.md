@@ -19,7 +19,7 @@ SpecFact CLI supports multiple feature key formats to accommodate different use 
 **Generation**:
 
 ```bash
-specfact project import from-code --key-format classname
+specfact code import --key-format classname
 ```
 
 ### 2. Sequential Format
@@ -33,7 +33,7 @@ specfact project import from-code --key-format classname
 **Generation**:
 
 ```bash
-specfact project import from-code --key-format sequential
+specfact code import --key-format sequential
 ```
 
 **Manual creation**: When creating plans interactively, use `FEATURE-001` format:
@@ -171,7 +171,7 @@ specfact project plan init
 When analyzing existing codebases:
 
 ```bash
-specfact project import from-code --key-format classname  # ← Default, explicit for clarity
+specfact code import --key-format classname  # ← Default, explicit for clarity
 ```
 
 **Why**: Classname format directly maps to codebase structure, making it easy to trace features back to classes.

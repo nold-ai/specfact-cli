@@ -223,7 +223,7 @@ print(f'Execution mode: {result.execution_mode}')
 # In GitHub Actions or CI/CD
 # No environment variables set
 # Should auto-detect CI/CD mode (bundle name as positional argument)
-hatch run specfact project import from-code my-project --repo . --confidence 0.7
+hatch run specfact code import my-project --repo . --confidence 0.7
 
 # Expected: Mode: CI/CD (direct execution)
 ```
@@ -234,7 +234,7 @@ hatch run specfact project import from-code my-project --repo . --confidence 0.7
 # Developer running in VS Code/Cursor with CoPilot enabled
 # IDE environment variables automatically set
 # Should auto-detect CoPilot mode (bundle name as positional argument)
-hatch run specfact project import from-code my-project --repo . --confidence 0.7
+hatch run specfact code import my-project --repo . --confidence 0.7
 
 # Expected: Mode: CoPilot (agent routing)
 ```

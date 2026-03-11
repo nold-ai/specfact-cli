@@ -20,7 +20,7 @@ NO_COLOR=1 specfact --help
 
 # Or export for the entire session
 export NO_COLOR=1
-specfact project import from-code my-bundle
+specfact code import my-bundle
 unset NO_COLOR  # Re-enable colors
 ```
 
@@ -33,7 +33,7 @@ Simulate a CI/CD pipeline (BASIC mode):
 CI=true specfact --help
 
 # Or simulate GitHub Actions
-GITHUB_ACTIONS=true specfact project import from-code my-bundle
+GITHUB_ACTIONS=true specfact code import my-bundle
 ```
 
 ### Method 3: Use Dumb Terminal Type

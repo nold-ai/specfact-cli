@@ -19,6 +19,15 @@ def _resolve_modules_repo() -> Path:
     if configured:
         return Path(configured).expanduser()
 
+    root_parts = REPO_ROOT.resolve().parts
+    if "specfact-cli-worktrees" in root_parts:
+        idx = root_parts.index("specfact-cli-worktrees")
+        worktree_root = Path(*root_parts[:idx], "specfact-cli-modules-worktrees")
+        relative_tail = REPO_ROOT.resolve().relative_to(Path(*root_parts[: idx + 1]))
+        candidate = worktree_root / relative_tail.parts[0] / relative_tail.parts[1]
+        if candidate.exists():
+            return candidate
+
     candidates = [
         REPO_ROOT / "specfact-cli-modules",
         REPO_ROOT.parent / "specfact-cli-modules",

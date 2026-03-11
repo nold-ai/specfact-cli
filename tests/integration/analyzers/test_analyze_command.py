@@ -21,7 +21,7 @@ runner = CliRunner()
 
 
 class TestAnalyzeCommand:
-    """Integration tests for 'specfact project import from-code' command."""
+    """Integration tests for 'specfact code import' command."""
 
     def test_code2spec_basic_repository(self):
         """Test analyzing a basic Python repository."""
