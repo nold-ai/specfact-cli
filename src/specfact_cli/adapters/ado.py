@@ -1759,12 +1759,12 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
 
         try:
             response = self._request_with_retry(
-                lambda: requests.patch(url, json=patch_document, headers=headers, timeout=30),
+                lambda: requests.post(url, json=patch_document, headers=headers, timeout=30),
                 retry_on_ambiguous_transport=False,
             )
             if is_debug_mode():
                 debug_log_operation(
-                    "ado_patch",
+                    "ado_create",
                     url,
                     str(response.status_code),
                     error=None if response.ok else (response.text[:200] if response.text else None),
@@ -3456,7 +3456,7 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             **self._auth_headers(),
         }
         response = self._request_with_retry(
-            lambda: requests.patch(url, json=patch_document, headers=headers, timeout=30),
+            lambda: requests.post(url, json=patch_document, headers=headers, timeout=30),
             retry_on_ambiguous_transport=False,
         )
         created = response.json()
