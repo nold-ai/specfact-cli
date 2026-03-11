@@ -254,7 +254,7 @@ Target repos: `nold-ai/specfact-cli-modules` (module implementation) + `nold-ai/
 
 | Module | Order | Change folder | GitHub # | Blocked by |
 |--------|-------|---------------|----------|------------|
-| code-review | 01 | code-review-01-module-scaffold | TBD | — |
+| code-review | 01 | code-review-01-module-scaffold | [#398](https://github.com/nold-ai/specfact-cli/issues/398) | — |
 | code-review | 02 | code-review-02-ruff-radon-runners | TBD | code-review-01 |
 | code-review | 03 | code-review-03-type-governance-runners | TBD | code-review-01 |
 | code-review | 04 | code-review-04-contract-test-runners | TBD | code-review-01; code-review-02; code-review-03 |

@@ -52,7 +52,7 @@ reward_delta = score - 80  (range: -80..+20)
 ## Source Tracking
 
 <!-- source_repo: nold-ai/specfact-cli -->
-- **GitHub Issue**: TBD
-- **Issue URL**: TBD
+- **GitHub Issue**: [#398](https://github.com/nold-ai/specfact-cli/issues/398)
+- **Issue URL**: https://github.com/nold-ai/specfact-cli/issues/398
 - **Repository**: nold-ai/specfact-cli
-- **Last Synced Status**: proposed
+- **Last Synced Status**: in_progress
