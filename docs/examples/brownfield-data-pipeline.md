@@ -29,7 +29,7 @@ You inherited a 5-year-old Python data pipeline with:
 
 ```bash
 # Analyze the legacy data pipeline
-specfact project import from-code customer-etl \
+specfact code import customer-etl \
   --repo ./legacy-etl-pipeline \
   --language python
 
@@ -338,7 +338,7 @@ def transform_order(raw_order: Dict[str, Any]) -> Dict[str, Any]:
 
 **Solution:**
 
-1. Ran `specfact project import from-code` → 47 features extracted in 12 seconds
+1. Ran `specfact code import` → 47 features extracted in 12 seconds
 2. Added contracts to 23 critical data transformation functions
 3. CrossHair discovered 6 edge cases in legacy validation logic
 4. Enforced contracts during migration, blocked 11 regressions

@@ -35,7 +35,7 @@ This guide walks you through the complete brownfield modernization journey:
 
 ```bash
 # Analyze your legacy codebase
-specfact project import from-code legacy-api --repo ./legacy-app
+specfact code import legacy-api --repo ./legacy-app
 ```
 
 **What happens:**
@@ -328,7 +328,7 @@ Legacy Django app:
 
 #### Week 1: Understand
 
-- Ran `specfact project import from-code legacy-api --repo .` → 23 features extracted in 8 seconds
+- Ran `specfact code import legacy-api --repo .` → 23 features extracted in 8 seconds
 - Reviewed extracted plan → Identified 5 critical features
 - Time: 2 hours (vs. 60 hours manual)
 

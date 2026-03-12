@@ -7,7 +7,7 @@ The system SHALL treat commands whose primary input is a source codebase or runt
 #### Scenario: Brownfield import is code-owned
 - **WHEN** the user runs the canonical code-first brownfield import workflow
 - **THEN** the workflow resolves from the `specfact code ...` command surface
-- **AND** `import from-code` is treated as codebase-owned rather than project-owned in the target command model.
+- **AND** `specfact code import` is treated as the canonical codebase-owned entrypoint rather than a project-owned path in the target command model.
 
 #### Scenario: Compatibility alias is transitional only
 - **GIVEN** a temporary compatibility alias exists for a pre-realignment path such as `specfact project import from-code`

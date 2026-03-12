@@ -13,7 +13,7 @@ The migration wave established five grouped bundle families:
 But the `project` family inherited two different meanings:
 
 1. the old plan/bundle artifact workflow
-2. the brownfield code-ingestion entrypoint `import from-code`
+2. the brownfield code-ingestion entrypoint currently exposed as `import from-code`
 
 That mix became unstable during follow-up migration work. Archived artifacts disagree about where the brownfield analysis internals belong:
 
@@ -47,9 +47,9 @@ Command ownership SHALL follow the command's primary domain of analysis or manip
 
 This rule is more stable than deciding ownership from the output artifact. Many code-first commands emit project-bundle state, but that does not make them project-lifecycle commands.
 
-### 2. `import from-code` is codebase-owned in the target state
+### 2. `specfact code import` is codebase-owned in the target state
 
-`import from-code` is fundamentally a brownfield code-analysis workflow:
+The brownfield import workflow is fundamentally code-analysis-driven:
 
 - primary input: repository source tree
 - core work: analyze code, derive features/contracts/relationships, compare inferred structure
@@ -60,13 +60,15 @@ The command therefore belongs to `specfact code ...` in the target state.
 Target public path:
 
 ```text
-specfact code import from-code <bundle-name> --repo .
+specfact code import <bundle-name> --repo .
 ```
 
 Compatibility transition:
 
 - `specfact project import from-code ...` MAY remain temporarily as a deprecation alias during the migration window
-- docs, prompts, and validation inventory SHALL treat `specfact code import from-code ...` as the canonical path once this change lands
+- `specfact code import from-code ...` MAY exist temporarily as an internal compatibility shim if needed during rename rollout, but SHALL NOT be documented as canonical
+- docs, prompts, and validation inventory SHALL treat `specfact code import ...` as the canonical path once this change lands
+- mode distinctions such as bridge-driven import, shadow-only runs, enrichment, or future source-type variants SHALL be expressed as options or explicit alternate subcommands only when they represent materially different workflows
 
 ### 3. `project` is narrowed to bundle/workspace artifact lifecycle
 
@@ -85,7 +87,7 @@ The following subsystem families SHALL be treated as codebase-owned unless a nar
 - `analyzers`
 - `comparators`
 - brownfield-oriented `parsers`
-- code-analysis-specific agents/helpers used by `import from-code`
+- code-analysis-specific agents/helpers used by the brownfield import workflow
 
 Project-owned helpers remain in `specfact-project` only when they are about bundle transformation, editable artifact generation, or project lifecycle orchestration rather than codebase inspection.
 
@@ -93,7 +95,7 @@ Project-owned helpers remain in `specfact-project` only when they are about bund
 
 Until this ownership change is resolved, other active changes must not hard-code contradictory assumptions:
 
-- `module-migration-10-bundle-command-surface-alignment` must not treat `specfact project import from-code` as the final public command contract without referencing this decision
+- `module-migration-10-bundle-command-surface-alignment` must not treat `specfact project import from-code` or `specfact code import from-code` as the final public command contract without referencing this decision
 - docs/prompt alignment fixes must avoid re-asserting the old project-owned path as canonical
 - future decoupling or cleanup work must use the canonical owner defined here when moving internals
 

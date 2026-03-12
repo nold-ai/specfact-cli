@@ -32,7 +32,7 @@ REQUIRED_SECTIONS = [
 
 # CLI commands that should be referenced (new slash command names)
 CLI_COMMANDS = {
-    "specfact.01-import": "specfact import from-code",
+    "specfact.01-import": "specfact code import",
     "specfact.02-plan": "specfact plan <operation>",  # init, add-feature, add-story, update-idea, update-feature, update-story
     "specfact.03-review": "specfact plan review",  # Also handles promote
     "specfact.04-sdd": "specfact plan harden",
@@ -59,7 +59,7 @@ WAIT_STATE_RULES = [
 ]
 
 # Commands that should have dual-stack workflow
-DUAL_STACK_COMMANDS = ["specfact.01-import", "specfact-import-from-code"]  # New and legacy names
+DUAL_STACK_COMMANDS = ["specfact.01-import", "specfact-import-from-code"]  # New and legacy prompt ids
 
 
 class PromptValidator:

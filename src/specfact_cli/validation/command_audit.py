@@ -32,6 +32,15 @@ def _resolve_modules_repo_root() -> Path | None:
             return candidate
 
     current = Path(__file__).resolve()
+    current_parts = current.parts
+    if "specfact-cli-worktrees" in current_parts:
+        idx = current_parts.index("specfact-cli-worktrees")
+        worktree_root = Path(*current_parts[:idx], "specfact-cli-modules-worktrees")
+        relative_tail = current.relative_to(Path(*current_parts[: idx + 1]))
+        candidate = worktree_root / relative_tail.parts[0] / relative_tail.parts[1]
+        if candidate.exists():
+            return candidate.resolve()
+
     for parent in current.parents:
         sibling = parent.parent / "specfact-cli-modules"
         if sibling.exists():
@@ -89,6 +98,19 @@ def _collect_typer_paths(app: object, prefix: str) -> set[str]:
     return paths
 
 
+def _auditable_paths_for_prefix(app: object, prefix: str) -> set[str]:
+    """Return help-safe command paths for audit cases.
+
+    `code import` is implemented as a callback-driven command surface with optional
+    positional bundle input plus compatibility subcommands. The canonical audited
+    public path is `code import` itself, not nested help cases under that prefix.
+    """
+    paths = _collect_typer_paths(app, prefix)
+    if prefix == "code":
+        paths = {path for path in paths if not path.startswith("code import ")}
+    return paths
+
+
 def _import_typer(module_path: str, attr_name: str = "app") -> object:
     module = importlib.import_module(module_path)
     return getattr(module, attr_name)
@@ -111,6 +133,13 @@ def _explicit_cases() -> list[CommandAuditCase]:
         CommandAuditCase("project", ("project", "--help"), "project", "help-only", "nold-ai/specfact-project"),
         CommandAuditCase("spec", ("spec", "--help"), "spec", "help-only", "nold-ai/specfact-spec"),
         CommandAuditCase("code", ("code", "--help"), "code", "help-only", "nold-ai/specfact-codebase"),
+        CommandAuditCase(
+            "code import",
+            ("code", "import", "--help"),
+            "code",
+            "help-only",
+            "nold-ai/specfact-codebase",
+        ),
         CommandAuditCase("backlog", ("backlog", "--help"), "backlog", "help-only", "nold-ai/specfact-backlog"),
         CommandAuditCase("govern", ("govern", "--help"), "govern", "help-only", "nold-ai/specfact-govern"),
         CommandAuditCase(
@@ -149,7 +178,7 @@ def build_command_audit_cases() -> list[CommandAuditCase]:
             prefix,
             CommandAuditCase(prefix, (*tuple(prefix.split()), "--help"), phase, "help-only", owner),
         )
-        for command_path in sorted(_collect_typer_paths(app, prefix)):
+        for command_path in sorted(_auditable_paths_for_prefix(app, prefix)):
             cases.setdefault(
                 command_path,
                 CommandAuditCase(

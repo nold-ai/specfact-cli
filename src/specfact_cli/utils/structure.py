@@ -945,7 +945,7 @@ See `docs/directory-structure.md` for complete documentation.
 specfact plan init --interactive
 
 # Analyze existing code
-specfact import from-code --repo .
+specfact code import <bundle-name> --repo .
 
 # Compare plans
         specfact plan compare --manual .specfact/plans/main.bundle.yaml --auto .specfact/plans/auto-derived-<timestamp>.bundle.yaml

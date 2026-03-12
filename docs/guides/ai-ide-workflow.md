@@ -62,7 +62,7 @@ Once initialized, the following slash commands are available in your IDE:
 
 | Slash Command | Purpose | Equivalent CLI Command |
 |---------------|---------|------------------------|
-| `/specfact.01-import` | Import from codebase | `specfact project import from-code` |
+| `/specfact.01-import` | Import from codebase | `specfact code import` |
 | `/specfact.02-plan` | Plan management | `specfact project plan init/add-feature/add-story` |
 | `/specfact.03-review` | Review plan | `specfact project plan review` |
 | `/specfact.04-sdd` | Create SDD manifest | `specfact govern enforce sdd` |
@@ -104,7 +104,7 @@ graph TD
 
 ```bash
 # Import from codebase
-specfact project import from-code my-project --repo .
+specfact code import my-project --repo .
 
 # Run validation to find gaps
 specfact code repro --verbose
@@ -193,7 +193,7 @@ The AI IDE workflow integrates with several command chains:
 
 ```bash
 # 1. Analyze codebase
-specfact project import from-code legacy-api --repo .
+specfact code import legacy-api --repo .
 
 # 2. Find gaps
 specfact code repro --verbose

@@ -115,13 +115,13 @@ specfact project plan select --last 5
 1. **Check repository path**:
 
    ```bash
-   specfact project import from-code legacy-api --repo . --verbose
+   specfact code import legacy-api --repo . --verbose
    ```
 
 2. **Lower confidence threshold** (for legacy code with less structure):
 
    ```bash
-   specfact project import from-code legacy-api --repo . --confidence 0.3
+   specfact code import legacy-api --repo . --confidence 0.3
    ```
 
 3. **Check file structure**:
@@ -139,7 +139,7 @@ specfact project plan select --last 5
 5. **For legacy codebases**, start with minimal confidence and review extracted features:
 
    ```bash
-   specfact project import from-code legacy-api --repo . --confidence 0.2
+   specfact code import legacy-api --repo . --confidence 0.2
    ```
 
 ---
@@ -254,7 +254,7 @@ specfact project plan select --last 5
 2. **Adjust confidence threshold**:
 
    ```bash
-   specfact project import from-code legacy-api --repo . --confidence 0.7
+   specfact code import legacy-api --repo . --confidence 0.7
    ```
 
 3. **Check enforcement rules** (use CLI commands):
@@ -374,7 +374,7 @@ specfact project plan select --last 5
 3. **Generate auto-derived plan first**:
 
    ```bash
-   specfact project import from-code legacy-api --repo .
+   specfact code import legacy-api --repo .
    ```
 
 ### No Deviations Found (Expected Some)
@@ -481,7 +481,7 @@ specfact project plan select --last 5
 
    ```bash
    export SPECFACT_MODE=copilot
-   specfact project import from-code legacy-api --repo .
+   specfact code import legacy-api --repo .
    ```
 
 4. **See [Operational Modes](../reference/modes.md)** for details
@@ -505,14 +505,14 @@ specfact project plan select --last 5
 2. **Increase confidence threshold** (fewer features):
 
    ```bash
-   specfact project import from-code legacy-api --repo . --confidence 0.8
+   specfact code import legacy-api --repo . --confidence 0.8
    ```
 
 3. **Exclude directories**:
 
    ```bash
    # Use .gitignore or exclude patterns
-   specfact project import from-code legacy-api --repo . --exclude "tests/"
+   specfact code import legacy-api --repo . --exclude "tests/"
    ```
 
 ### Watch Mode High CPU
@@ -588,17 +588,17 @@ You can override auto-detection using standard environment variables:
 
 ```bash
 # Auto-detection (default behavior)
-specfact project import from-code my-bundle
+specfact code import my-bundle
 # → Automatically detects terminal and uses appropriate mode
 
 # Manual override: Disable colors
-NO_COLOR=1 specfact project import from-code my-bundle
+NO_COLOR=1 specfact code import my-bundle
 
 # Manual override: Force colors in CI/CD
 FORCE_COLOR=1 specfact project sync bridge
 
 # Manual override: Explicit CI/CD mode
-CI=true specfact project import from-code my-bundle
+CI=true specfact code import my-bundle
 ```
 
 ### No Progress Visible in Embedded Terminals
@@ -631,7 +631,7 @@ CI=true specfact project import from-code my-bundle
 
    ```bash
    # Force basic mode
-   CI=true specfact project import from-code my-bundle
+   CI=true specfact code import my-bundle
    ```
 
 ### Colors Not Working in CI/CD
@@ -643,7 +643,7 @@ CI=true specfact project import from-code my-bundle
 **Solution**: This is expected behavior. CI/CD logs are more readable without colors. To force colors:
 
 ```bash
-FORCE_COLOR=1 specfact project import from-code my-bundle
+FORCE_COLOR=1 specfact code import my-bundle
 ```
 
 ---

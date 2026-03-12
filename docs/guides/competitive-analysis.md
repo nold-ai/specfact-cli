@@ -222,7 +222,7 @@ specfact code repro --budget 120 --report evidence.md
 
 ```bash
 # Primary use case: Analyze legacy code
-specfact project import from-code legacy-api --repo ./legacy-app
+specfact code import legacy-api --repo ./legacy-app
 
 # Extract specs from existing code in < 10 seconds
 # Then enforce contracts to prevent regressions
@@ -307,7 +307,7 @@ uvx specfact-cli@latest plan init --interactive
 
 ```bash
 # Primary use case: Analyze legacy codebase
-specfact project import from-code legacy-api --repo ./legacy-app
+specfact code import legacy-api --repo ./legacy-app
 ```
 
 See [Use Cases: Brownfield Modernization](use-cases.md#use-case-1-brownfield-code-modernization-primary) ⭐
@@ -327,7 +327,7 @@ See [Use Cases: Spec-Kit Migration](use-cases.md#use-case-2-github-spec-kit-migr
 **Add validation layer**:
 
 1. Let AI generate code as usual
-2. Run `specfact project import from-code --repo .` (auto-detects CoPilot mode)
+2. Run `specfact code import --repo .` (auto-detects CoPilot mode)
 3. Review auto-generated plan
 4. Enable `specfact govern enforce stage --preset balanced`
 

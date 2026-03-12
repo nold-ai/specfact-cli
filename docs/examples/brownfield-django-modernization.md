@@ -29,7 +29,7 @@ You inherited a 3-year-old Django app with:
 
 ```bash
 # Analyze the legacy Django app
-specfact project import from-code customer-portal \
+specfact code import customer-portal \
   --repo ./legacy-django-app \
   --language python
 

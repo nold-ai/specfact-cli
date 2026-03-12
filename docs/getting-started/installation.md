@@ -341,7 +341,7 @@ specfact init
 
 ```bash
 # Analyze repository (CI/CD mode - fast)
-specfact project import from-code my-project \
+specfact code import my-project \
   --repo ./my-project \
   --shadow-only \
   --report analysis.md

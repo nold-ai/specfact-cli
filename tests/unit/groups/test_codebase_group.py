@@ -28,5 +28,5 @@ def test_codebase_group_has_expected_subcommands() -> None:
     click_code = get_command(code_app)
     assert hasattr(click_code, "commands")
     code_subcommands = list(click_code.commands.keys())
-    for expected in ("analyze", "drift", "validate", "repro"):
+    for expected in ("analyze", "drift", "validate", "repro", "import"):
         assert expected in code_subcommands, f"Expected sub-command {expected!r} in code group: {code_subcommands}"

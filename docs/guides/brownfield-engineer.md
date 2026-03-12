@@ -43,11 +43,11 @@ SpecFact CLI is designed specifically for your situation. It provides:
 
 ```bash
 # Analyze your legacy codebase
-specfact project import from-code legacy-api --repo ./legacy-app
+specfact code import legacy-api --repo ./legacy-app
 
 # For large codebases or multi-project repos, analyze specific modules:
-specfact project import from-code core-module --repo ./legacy-app --entry-point src/core
-specfact project import from-code api-module --repo ./legacy-app --entry-point src/api
+specfact code import core-module --repo ./legacy-app --entry-point src/core
+specfact code import api-module --repo ./legacy-app --entry-point src/api
 ```
 
 **What you get:**
@@ -81,10 +81,10 @@ For large codebases or monorepos with multiple projects, you can analyze specifi
 
 ```bash
 # Analyze only the core module
-specfact project import from-code core-module --repo . --entry-point src/core
+specfact code import core-module --repo . --entry-point src/core
 
 # Analyze only the API service
-specfact project import from-code api-service --repo . --entry-point projects/api-service
+specfact code import api-service --repo . --entry-point projects/api-service
 ```
 
 This enables:
@@ -227,7 +227,7 @@ You inherited a 3-year-old Django app with:
 
 ```bash
 # Step 1: Extract specs
-specfact project import from-code customer-portal --repo ./legacy-django-app
+specfact code import customer-portal --repo ./legacy-django-app
 
 # Output:
 ✅ Analyzed 47 Python files
@@ -289,7 +289,7 @@ SpecFact CLI integrates seamlessly with your existing tools:
 Begin in shadow mode to observe without blocking:
 
 ```bash
-specfact project import from-code legacy-api --repo . --shadow-only
+specfact code import legacy-api --repo . --shadow-only
 ```
 
 ### 2. Add Contracts Incrementally

@@ -29,14 +29,14 @@ Detailed use cases and examples for SpecFact CLI.
 
 ```bash
 # CI/CD mode (fast, deterministic) - Full repository
-specfact project import from-code \
+specfact code import \
   --repo . \
   --shadow-only \
   --confidence 0.7 \
   --report analysis.md
 
 # Partial analysis (large codebases or monorepos)
-specfact project import from-code \
+specfact code import \
   --repo . \
   --entry-point src/core \
   --confidence 0.7 \

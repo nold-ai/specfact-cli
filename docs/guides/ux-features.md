@@ -17,7 +17,7 @@ SpecFact CLI uses progressive disclosure to show the most important options firs
 By default, `--help` shows only the most commonly used options:
 
 ```bash
-specfact project import from-code --help
+specfact code import --help
 ```
 
 This displays:
@@ -32,7 +32,7 @@ This displays:
 To see all options including advanced configuration, use `--help-advanced` (alias: `-ha`):
 
 ```bash
-specfact project import from-code --help-advanced
+specfact code import --help-advanced
 ```
 
 This reveals:
@@ -88,10 +88,10 @@ The following options are hidden by default across commands:
 
 ```bash
 # This works even though --confidence is hidden in regular help:
-specfact project import from-code my-bundle --confidence 0.7 --key-format sequential
+specfact code import my-bundle --confidence 0.7 --key-format sequential
 
 # To see all options in help:
-specfact project import from-code --help-advanced  # or -ha
+specfact code import --help-advanced  # or -ha
 ```
 
 ## Context Detection
@@ -126,7 +126,7 @@ You can also explicitly check your project context:
 
 ```bash
 # Context detection is automatic, but you can verify
-specfact project import from-code my-bundle --repo .
+specfact code import my-bundle --repo .
 # CLI automatically detects Python, FastAPI, existing specs, etc.
 ```
 
@@ -139,7 +139,7 @@ SpecFact provides context-aware suggestions to guide your workflow.
 After running commands, SpecFact suggests logical next steps:
 
 ```bash
-$ specfact project import from-code legacy-api
+$ specfact code import legacy-api
 ✓ Import complete
 
 💡 Suggested next steps:
@@ -158,7 +158,7 @@ $ specfact code analyze --bundle missing-bundle
 
 💡 Suggested fixes:
   • specfact project plan select  # Select an active plan bundle
-  • specfact project import from-code missing-bundle  # Create a new bundle
+  • specfact code import missing-bundle  # Create a new bundle
 ```
 
 ### Improvements
@@ -171,7 +171,7 @@ $ specfact code analyze --bundle legacy-api
 
 💡 Suggested improvements:
   • specfact code analyze --bundle legacy-api  # Identify missing contracts
-  • specfact project import from-code legacy-api  # Extract contracts from code
+  • specfact code import legacy-api  # Extract contracts from code
 ```
 
 ## Template-Driven Quality
