@@ -34,7 +34,7 @@ SpecFact CLI provides slash commands that work with AI-assisted IDEs (Cursor, VS
 
 **Purpose**: Import from codebase (brownfield modernization)
 
-**Equivalent CLI**: `specfact project import from-code`
+**Equivalent CLI**: `specfact code import`
 
 **Example**:
 

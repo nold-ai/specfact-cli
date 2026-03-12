@@ -31,7 +31,7 @@ Mode is auto-detected based on environment, or you can explicitly set it with `-
 specfact --mode copilot import from-code legacy-api --repo . --confidence 0.7
 
 # Mode is auto-detected based on environment (IDE integration, CoPilot API availability)
-specfact project import from-code legacy-api --repo . --confidence 0.7  # Auto-detects CoPilot if available
+specfact code import legacy-api --repo . --confidence 0.7  # Auto-detects CoPilot if available
 ```
 
 ### What You Get with CoPilot Mode

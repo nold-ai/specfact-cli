@@ -190,7 +190,7 @@ The enrichment parser expects a specific Markdown format. Follow this structure 
 
 ```bash
 # Use enrichment to update plan via CLI
-specfact project import from-code [<bundle-name>] --repo <path> --enrichment <enrichment-report> --no-interactive
+specfact code import [<bundle-name>] --repo <path> --enrichment <enrichment-report> --no-interactive
 ```
 
 **Result**: Final artifacts are CLI-generated with validated enrichments
@@ -327,7 +327,7 @@ specfact spec generate contracts-apply enhanced_login.py --original src/auth/log
 
 - `specfact project plan init <bundle-name>` - Initialize project bundle
 - `specfact project plan select <bundle-name>` - Set active plan (used as default for other commands)
-- `specfact project import from-code [<bundle-name>] --repo <path>` - Import from codebase (uses active plan if bundle not specified)
+- `specfact code import [<bundle-name>] --repo <path>` - Import from codebase (uses active plan if bundle not specified)
 - `specfact project plan review [<bundle-name>]` - Review plan (uses active plan if bundle not specified)
 - `specfact project plan harden [<bundle-name>]` - Create SDD manifest (uses active plan if bundle not specified)
 - `specfact govern enforce sdd [<bundle-name>]` - Validate SDD (uses active plan if bundle not specified)

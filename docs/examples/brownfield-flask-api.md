@@ -27,7 +27,7 @@ You inherited a 2-year-old Flask REST API with:
 
 ```bash
 # Analyze the legacy Flask API
-specfact project import from-code customer-api \
+specfact code import customer-api \
   --repo ./legacy-flask-api \
   --language python
 

@@ -31,7 +31,7 @@ Complete technical reference for SpecFact CLI.
 ### Commands
 
 - `specfact project import from-bridge --adapter speckit` - Import from external tools via bridge adapter
-- `specfact project import from-code <bundle-name>` - Reverse-engineer plans from code
+- `specfact code import <bundle-name>` - Reverse-engineer plans from code
 - `specfact project plan init <bundle-name>` - Initialize new development plan
 - `specfact project plan compare` - Compare manual vs auto plans
 - `specfact govern enforce stage` - Configure quality gates

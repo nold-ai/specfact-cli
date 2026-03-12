@@ -1,12 +1,18 @@
 from __future__ import annotations
 
+import hashlib
+import json
 import os
+import shutil
 import subprocess
 import sys
+import tarfile
 from pathlib import Path
 
 import pytest
+import yaml
 
+from specfact_cli.registry.module_installer import _module_artifact_payload_signed
 from specfact_cli.validation.command_audit import build_command_audit_cases, official_marketplace_module_ids
 
 
@@ -18,6 +24,15 @@ def _resolve_modules_repo() -> Path:
     configured = os.environ.get("SPECFACT_MODULES_REPO", "").strip()
     if configured:
         return Path(configured).expanduser()
+
+    root_parts = REPO_ROOT.resolve().parts
+    if "specfact-cli-worktrees" in root_parts:
+        idx = root_parts.index("specfact-cli-worktrees")
+        worktree_root = Path(*root_parts[:idx], "specfact-cli-modules-worktrees")
+        relative_tail = REPO_ROOT.resolve().relative_to(Path(*root_parts[: idx + 1]))
+        candidate = worktree_root / relative_tail.parts[0] / relative_tail.parts[1]
+        if candidate.exists():
+            return candidate
 
     candidates = [
         REPO_ROOT / "specfact-cli-modules",
@@ -31,7 +46,6 @@ def _resolve_modules_repo() -> Path:
 
 
 MODULES_REPO = _resolve_modules_repo()
-REGISTRY_INDEX = MODULES_REPO / "registry" / "index.json"
 FORBIDDEN_OUTPUT = (
     "Module compatibility check:",
     "Partially compliant modules:",
@@ -39,6 +53,65 @@ FORBIDDEN_OUTPUT = (
     "takes precedence over user-scoped module",
     "attempted to extend command 'backlog' with duplicate subcommand",
 )
+
+
+def _build_local_registry(home_dir: Path) -> Path:
+    registry_root = home_dir / ".specfact-local-registry"
+    modules_dir = registry_root / "modules"
+    staging_dir = registry_root / ".staging"
+    modules_dir.mkdir(parents=True, exist_ok=True)
+    staging_dir.mkdir(parents=True, exist_ok=True)
+
+    modules_payload: list[dict[str, object]] = []
+    packages_root = MODULES_REPO / "packages"
+
+    for module_id in official_marketplace_module_ids():
+        bundle_name = module_id.split("/", 1)[1]
+        package_dir = packages_root / bundle_name
+        staged_package_dir = staging_dir / bundle_name
+        if staged_package_dir.exists():
+            shutil.rmtree(staged_package_dir)
+        shutil.copytree(package_dir, staged_package_dir)
+
+        staged_manifest_path = staged_package_dir / "module-package.yaml"
+        staged_manifest = yaml.safe_load(staged_manifest_path.read_text(encoding="utf-8"))
+        assert isinstance(staged_manifest, dict), f"Invalid manifest: {staged_manifest_path}"
+        staged_manifest["integrity"] = {
+            "checksum": f"sha256:{hashlib.sha256(_module_artifact_payload_signed(staged_package_dir)).hexdigest()}"
+        }
+        staged_manifest_path.write_text(
+            yaml.safe_dump(staged_manifest, sort_keys=False, allow_unicode=False),
+            encoding="utf-8",
+        )
+
+        manifest_path = package_dir / "module-package.yaml"
+        manifest = yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
+        assert isinstance(manifest, dict), f"Invalid manifest: {manifest_path}"
+
+        version = str(manifest["version"]).strip()
+        archive_name = f"{bundle_name}-{version}.tar.gz"
+        archive_path = modules_dir / archive_name
+
+        with tarfile.open(archive_path, "w:gz") as archive:
+            archive.add(staged_package_dir, arcname=bundle_name)
+
+        checksum = hashlib.sha256(archive_path.read_bytes()).hexdigest()
+        modules_payload.append(
+            {
+                "id": module_id,
+                "latest_version": version,
+                "download_url": f"modules/{archive_name}",
+                "checksum_sha256": checksum,
+                "tier": manifest.get("tier", "official"),
+                "publisher": manifest.get("publisher", {}),
+                "bundle_dependencies": manifest.get("bundle_dependencies", []),
+                "description": manifest.get("description", ""),
+            }
+        )
+
+    index_path = registry_root / "index.json"
+    index_path.write_text(json.dumps({"modules": modules_payload}, indent=2), encoding="utf-8")
+    return index_path
 
 
 def _subprocess_env(home_dir: Path) -> dict[str, str]:
@@ -67,7 +140,7 @@ def _subprocess_env(home_dir: Path) -> dict[str, str]:
     env["HOME"] = str(home_dir)
     env["SPECFACT_REPO_ROOT"] = str(REPO_ROOT)
     env["SPECFACT_MODULES_REPO"] = str(MODULES_REPO.resolve())
-    env["SPECFACT_REGISTRY_INDEX_URL"] = REGISTRY_INDEX.resolve().as_uri()
+    env["SPECFACT_REGISTRY_INDEX_URL"] = _build_local_registry(home_dir).resolve().as_uri()
     env["SPECFACT_ALLOW_UNSIGNED"] = "1"
     env["SPECFACT_REGISTRY_DIR"] = str(home_dir / ".specfact-test-registry")
     return env

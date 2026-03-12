@@ -22,7 +22,7 @@ This must be treated as a product/runtime alignment issue first, not just a docs
 - `bundle-command-surface-alignment`: Official bundle command trees match the documented grouped CLI surface for shipped releases.
 
 ## Acceptance Criteria
-- Installed official bundles expose documented grouped commands such as `specfact project import from-code`, `specfact project plan ...`, and `specfact spec generate ...` when those commands are intended to be public in `v0.40.x`.
+- Installed official bundles expose documented grouped commands such as `specfact code import`, `specfact project plan ...`, and `specfact spec generate ...` when those commands are intended to be public in `v0.40.x`.
 - If a command path is intentionally not part of the shipped runtime surface, README/docs/release content no longer describe it as available.
 - Runtime validation fails when a documented grouped command path is missing from the installed official bundle command tree.
 - Release-content examples no longer rely on slash-command-only fallbacks to paper over missing CLI registration.

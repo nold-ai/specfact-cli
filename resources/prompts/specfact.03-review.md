@@ -318,7 +318,7 @@ specfact plan update-idea --bundle [<bundle-name>] --value-hypothesis "..." --na
 #### Option C: Apply enrichment via import (only if bundle needs regeneration)
 
 ```bash
-specfact import from-code [<bundle-name>] --repo . --enrichment enrichment-report.md
+specfact code import [<bundle-name>] --repo . --enrichment enrichment-report.md
 ```
 
 **Note:**

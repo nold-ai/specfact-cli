@@ -122,7 +122,7 @@ openspec init
 ```bash
 # Analyze legacy codebase
 cd /path/to/your-openspec-project
-specfact project import from-code legacy-api --repo .
+specfact code import legacy-api --repo .
 
 # Expected output:
 # 🔍 Analyzing codebase...
@@ -143,7 +143,7 @@ specfact project import from-code legacy-api --repo .
 **Note**: If using `hatch run specfact`, run from the specfact-cli directory:
 ```bash
 cd /path/to/specfact-cli
-hatch run specfact project import from-code legacy-api --repo /path/to/your-openspec-project
+hatch run specfact code import legacy-api --repo /path/to/your-openspec-project
 ```
 
 ### Step 4: Create an OpenSpec Change Proposal

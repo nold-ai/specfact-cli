@@ -388,13 +388,13 @@ See [`plan upgrade`](../reference/commands.md#plan-upgrade) for details.
 
 ## Default Command Paths
 
-### `specfact project import from-code` ⭐ PRIMARY
+### `specfact code import` ⭐ PRIMARY
 
 **Primary use case**: Reverse-engineer existing codebases into project bundles.
 
 ```bash
 # Command syntax
-specfact project import from-code <bundle-name> --repo . [OPTIONS]
+specfact code import <bundle-name> --repo . [OPTIONS]
 
 # Creates modular bundle at:
 .specfact/projects/<bundle-name>/
@@ -415,7 +415,7 @@ specfact project import from-code <bundle-name> --repo . [OPTIONS]
 
 ```bash
 # Analyze legacy codebase
-specfact project import from-code legacy-api --repo . --confidence 0.7
+specfact code import legacy-api --repo . --confidence 0.7
 
 # Creates:
 # - .specfact/projects/legacy-api/bundle.manifest.yaml (versioned)
@@ -746,7 +746,7 @@ SpecFact supports multiple plan bundles for:
 
 ```bash
 # Step 1: Reverse-engineer legacy codebase
-specfact project import from-code legacy-api \
+specfact code import legacy-api \
   --repo src/legacy-api \
   --confidence 0.7
 
@@ -756,7 +756,7 @@ specfact project plan compare \
   --auto .specfact/projects/modernized-api
 
 # Step 3: Analyze specific legacy component
-specfact project import from-code legacy-payment \
+specfact code import legacy-payment \
   --repo src/legacy-payment \
   --confidence 0.7
 ```

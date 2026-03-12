@@ -161,7 +161,7 @@ Detailed instructions for the AI assistant...
 
 | Command | Description | CLI Equivalent |
 |---------|-------------|----------------|
-| `/specfact.01-import` | Import codebase into plan bundle | `specfact project import from-code <bundle-name>` |
+| `/specfact.01-import` | Import codebase into plan bundle | `specfact code import <bundle-name>` |
 | `/specfact.02-plan` | Plan management (init, add-feature, add-story, update-idea, update-feature, update-story) | `specfact project plan <operation> <bundle-name>` |
 | `/specfact.03-review` | Review plan and promote through stages | `specfact project plan review <bundle-name>`, `specfact project plan promote <bundle-name>` |
 | `/specfact.04-sdd` | Create SDD manifest from plan | `specfact project plan harden <bundle-name>` |

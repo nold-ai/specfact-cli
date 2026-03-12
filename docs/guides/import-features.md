@@ -64,10 +64,10 @@ When you restart an import on an existing bundle, the command automatically vali
 
 ```bash
 # First import
-specfact project import from-code my-project --repo .
+specfact code import my-project --repo .
 
 # Later, restart import (validates existing features automatically)
-specfact project import from-code my-project --repo .
+specfact code import my-project --repo .
 ```
 
 ### Validation Results
@@ -116,7 +116,7 @@ Features are saved immediately after the initial codebase analysis, before expen
 
 ```bash
 # Start import
-specfact project import from-code my-project --repo .
+specfact code import my-project --repo .
 
 # Output shows:
 # ✓ Found 3156 features
@@ -124,7 +124,7 @@ specfact project import from-code my-project --repo .
 # ✓ Features saved (can resume if interrupted)
 
 # If you press Ctrl+C during source linking, you can restart:
-specfact project import from-code my-project --repo .
+specfact code import my-project --repo .
 # The command will detect existing features and resume from checkpoint
 ```
 
@@ -169,7 +169,7 @@ Use `--revalidate-features` to force re-analysis even if source files haven't ch
 
 ```bash
 # Re-analyze all features even if files unchanged
-specfact project import from-code my-project --repo . --revalidate-features
+specfact code import my-project --repo . --revalidate-features
 
 # Output shows:
 # ⚠ --revalidate-features enabled: Will re-analyze features even if files unchanged

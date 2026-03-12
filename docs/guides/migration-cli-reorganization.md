@@ -197,7 +197,7 @@ Example: 'specfact constitution bootstrap' → 'specfact sdd constitution bootst
 ### Brownfield Import Workflow
 
 ```bash
-specfact import from-code legacy-api --repo .
+specfact code import legacy-api --repo .
 specfact sdd constitution bootstrap --repo .
 specfact project sync bridge --adapter speckit
 ```

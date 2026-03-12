@@ -29,7 +29,7 @@ This guide maps common user goals to recommended SpecFact CLI commands or comman
 **Quick Example**:
 
 ```bash
-specfact project import from-code legacy-api --repo .
+specfact code import legacy-api --repo .
 ```
 
 **Detailed Guide**: [Brownfield Engineer Guide](brownfield-engineer.md)
@@ -80,7 +80,7 @@ specfact project sync bridge --adapter speckit --bundle <bundle-name> --bidirect
 **Quick Example**:
 
 ```bash
-specfact project import from-code legacy-api --repo ./legacy-app
+specfact code import legacy-api --repo ./legacy-app
 ```
 
 **Detailed Guide**: [Brownfield Engineer Guide](brownfield-engineer.md#step-1-understand-what-you-have)
@@ -111,7 +111,7 @@ specfact project plan update-feature --bundle legacy-api --feature <feature-id>
 **Quick Example**:
 
 ```bash
-specfact project import from-code current-state --repo .
+specfact code import current-state --repo .
 specfact project plan compare --bundle <plan-bundle> --code-vs-plan
 specfact code drift detect --bundle <bundle-name>
 ```

@@ -164,7 +164,7 @@ For large codebases, run CrossHair on critical functions first, then expand.
 
 **Recommended workflow:**
 
-1. **Extract specs** (`specfact project import from-code`)
+1. **Extract specs** (`specfact code import`)
 2. **Add contracts** to 3-5 critical functions
 3. **Run CrossHair** to discover edge cases
 4. **Refactor incrementally** (one function at a time)

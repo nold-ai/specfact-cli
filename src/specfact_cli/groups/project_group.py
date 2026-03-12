@@ -1,4 +1,4 @@
-"""Project lifecycle category group (project, plan, import, sync, migrate)."""
+"""Project lifecycle category group (project, plan, sync, migrate)."""
 
 from __future__ import annotations
 
@@ -12,7 +12,6 @@ from specfact_cli.registry.registry import CommandRegistry
 _MEMBERS = [
     ("project", "project"),
     ("plan", "plan"),
-    ("import", "import"),
     ("sync", "sync"),
     ("migrate", "migrate"),
 ]

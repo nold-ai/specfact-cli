@@ -76,7 +76,7 @@ specfact init --profile solo-developer
 specfact module install nold-ai/specfact-backlog
 
 # Project workflow examples
-specfact project import from-code legacy-api --repo .
+specfact code import legacy-api --repo .
 specfact project plan review legacy-api
 
 # Code workflow examples

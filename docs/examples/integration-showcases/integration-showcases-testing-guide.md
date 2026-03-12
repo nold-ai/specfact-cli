@@ -159,7 +159,7 @@ def process_payment(request):
       - **Suggested plan name for Example 1**: `Payment Processing` or `Legacy Payment View`
    3. **CLI Execution**: The AI will:
       - Sanitize the name (lowercase, remove spaces/special chars)
-      - Run `specfact project import from-code <sanitized-name> --repo <workspace> --confidence 0.5`
+      - Run `specfact code import <sanitized-name> --repo <workspace> --confidence 0.5`
       - Capture CLI output and create a project bundle
    4. **CLI Output Summary**: The AI will present a summary showing:
       - Bundle name used
@@ -193,7 +193,7 @@ def process_payment(request):
    3. **Apply Enrichment**: The AI will run:
 
       ```bash
-      specfact project import from-code <name> --repo <workspace> --enrichment .specfact/projects/<name>/reports/enrichment/<name>-<timestamp>.enrichment.md --confidence 0.5
+      specfact code import <name> --repo <workspace> --enrichment .specfact/projects/<name>/reports/enrichment/<name>-<timestamp>.enrichment.md --confidence 0.5
       ```
 
    4. **Enriched Project Bundle**: The CLI will update:
@@ -238,7 +238,7 @@ uvx specfact-cli@latest --no-banner import from-code --repo . --output-format ya
 
 **CLI vs Interactive Mode**:
 
-- **CLI-only** (`uvx specfact-cli@latest import from-code` or `specfact project import from-code`): Uses AST-based analyzer (CI/CD mode)
+- **CLI-only** (`uvx specfact-cli@latest import from-code` or `specfact code import`): Uses AST-based analyzer (CI/CD mode)
   - May show "0 features" for minimal test cases
   - Limited to AST pattern matching
   - Works but may not detect all features in simple examples

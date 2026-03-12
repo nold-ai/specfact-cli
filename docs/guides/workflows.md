@@ -29,11 +29,11 @@ Reverse engineer existing code and enforce contracts incrementally.
 
 ```bash
 # Full repository analysis
-specfact project import from-code legacy-api --repo .
+specfact code import legacy-api --repo .
 
 # For large codebases, analyze specific modules:
-specfact project import from-code core-module --repo . --entry-point src/core
-specfact project import from-code api-module --repo . --entry-point src/api
+specfact code import core-module --repo . --entry-point src/core
+specfact code import api-module --repo . --entry-point src/api
 ```
 
 ### Step 2: Review Extracted Specs
@@ -63,13 +63,13 @@ For large codebases or monorepos with multiple projects, use `--entry-point` to 
 
 ```bash
 # Analyze individual projects in a monorepo
-specfact project import from-code api-service --repo . --entry-point projects/api-service
-specfact project import from-code web-app --repo . --entry-point projects/web-app
-specfact project import from-code mobile-app --repo . --entry-point projects/mobile-app
+specfact code import api-service --repo . --entry-point projects/api-service
+specfact code import web-app --repo . --entry-point projects/web-app
+specfact code import mobile-app --repo . --entry-point projects/mobile-app
 
 # Analyze specific modules for incremental modernization
-specfact project import from-code core-module --repo . --entry-point src/core
-specfact project import from-code integrations-module --repo . --entry-point src/integrations
+specfact code import core-module --repo . --entry-point src/core
+specfact code import integrations-module --repo . --entry-point src/integrations
 ```
 
 **Benefits:**
