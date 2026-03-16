@@ -10,11 +10,11 @@ Do not implement production code until tests exist and have been run (expecting 
 
 ## 1. Create git worktree for this change
 
-- [ ] 1.1 Fetch latest and create a worktree with a new branch from `origin/dev`.
+- [x] 1.1 Fetch latest and create a worktree with a new branch from `origin/dev`.
   - [x] 1.1.1 `git fetch origin`
   - [x] 1.1.2 `git worktree add ../specfact-cli-worktrees/feature/code-review-01-module-scaffold -b feature/code-review-01-module-scaffold origin/dev`
   - [x] 1.1.3 Change into the worktree: `cd ../specfact-cli-worktrees/feature/code-review-01-module-scaffold`
-  - [ ] 1.1.4 Create virtual environment: `python -m venv .venv && source .venv/bin/activate && pip install -e ".[dev]"`
+  - [x] 1.1.4 Create virtual environment: `python -m venv .venv && source .venv/bin/activate && pip install -e ".[dev]"`
   - [x] 1.1.5 `git branch --show-current` (verify `feature/code-review-01-module-scaffold`)
 
 ## 2. Set up specfact-cli-modules worktree and package scaffold
@@ -58,17 +58,17 @@ All following tasks run inside the worktree **and** require the `specfact-cli-mo
 - [x] 5.1 Run tests — expect passing
   - [x] 5.1.1 `hatch test -- tests/unit/specfact_code_review/run/ -v`
   - [x] 5.1.2 Record passing evidence in `TDD_EVIDENCE.md`
-- [ ] 5.2 `hatch run format` — ruff format + fix
-- [ ] 5.3 `hatch run type-check` — basedpyright strict
+- [x] 5.2 `hatch run format` — ruff format + fix
+- [x] 5.3 `hatch run type-check` — basedpyright strict
 - [x] 5.4 `hatch run contract-test` — validate icontract decorators
-- [ ] 5.5 `hatch run lint` — full lint suite
+- [x] 5.5 `hatch run lint` — full lint suite
 - [x] 5.6 Verify `specfact code review --help` shows review subgroup
 
 ## 6. Module signing
 
-- [ ] 6.1 `hatch run ./scripts/verify-modules-signature.py --require-signature`
-- [ ] 6.2 If failing: bump module version in `module-package.yaml`, re-sign with signing key
-- [ ] 6.3 Re-run verification until green
+- [x] 6.1 `hatch run ./scripts/verify-modules-signature.py --require-signature`
+- [x] 6.2 If failing: bump module version in `module-package.yaml`, re-sign with signing key
+- [x] 6.3 Re-run verification until green
 
 ## 7. Documentation
 
@@ -92,16 +92,16 @@ All following tasks run inside the worktree **and** require the `specfact-cli-mo
 
 ## 10. Create PR
 
-- [ ] 10.1 `git add` changed files (inside worktree)
-- [ ] 10.2 `git commit -m "feat: add specfact-code-review module scaffold with ReviewFinding/ReviewReport models"`
-- [ ] 10.3 `git push -u origin feature/code-review-01-module-scaffold`
-- [ ] 10.4 Create PR: `gh pr create --repo nold-ai/specfact-cli --base dev --head feature/code-review-01-module-scaffold --title "feat: specfact-code-review module scaffold (SP-001)"`
-- [ ] 10.5 Link PR to project: `gh project item-add 1 --owner nold-ai --url <PR_URL>`
+- [x] 10.1 `git add` changed files (inside worktree)
+- [x] 10.2 `git commit -m "feat: add specfact-code-review module scaffold with ReviewFinding/ReviewReport models"`
+- [x] 10.3 `git push -u origin feature/code-review-01-module-scaffold`
+- [x] 10.4 Create PR: `gh pr create --repo nold-ai/specfact-cli --base dev --head feature/code-review-01-module-scaffold --title "feat: specfact-code-review module scaffold (SP-001)"`
+- [x] 10.5 Link PR to project: `gh project item-add 1 --owner nold-ai --url <PR_URL>`
 
 ## Post-merge cleanup (after PR is merged)
 
-- [ ] Return to primary checkout: `cd .../specfact-cli`
-- [ ] `git fetch origin`
-- [ ] `git worktree remove ../specfact-cli-worktrees/feature/code-review-01-module-scaffold`
-- [ ] `git branch -d feature/code-review-01-module-scaffold`
-- [ ] `git worktree prune`
+- [x] Return to primary checkout: `cd .../specfact-cli`
+- [x] `git fetch origin`
+- [x] `git worktree remove ../specfact-cli-worktrees/feature/code-review-01-module-scaffold`
+- [x] `git branch -d feature/code-review-01-module-scaffold`
+- [x] `git worktree prune`

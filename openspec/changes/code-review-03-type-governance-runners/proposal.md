@@ -34,7 +34,9 @@ These runners complete the static analysis coverage for type safety and governan
 ## Source Tracking
 
 <!-- source_repo: nold-ai/specfact-cli -->
-- **GitHub Issue**: TBD
-- **Issue URL**: TBD
+- **GitHub Issue**: not created
+- **Issue URL**: n/a
 - **Repository**: nold-ai/specfact-cli
-- **Last Synced Status**: proposed
+- **Modules PR (dev)**: [#66](https://github.com/nold-ai/specfact-cli-modules/pull/66)
+- **Release PR (main)**: [#68](https://github.com/nold-ai/specfact-cli-modules/pull/68)
+- **Last Synced Status**: implemented in `specfact-cli-modules` and merged to `main`; OpenSpec change ready for manual push/archive
