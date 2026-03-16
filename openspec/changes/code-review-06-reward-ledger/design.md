@@ -2,6 +2,10 @@
 
 ## Supabase Schema
 
+The reviewed SQL source is stored with the bundle at
+`packages/specfact-code-review/src/specfact_code_review/resources/supabase/review_ledger_ddl.sql`
+so the module owns its own persistence setup artifact.
+
 ```sql
 CREATE TABLE ai_sync.review_runs (
     id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
