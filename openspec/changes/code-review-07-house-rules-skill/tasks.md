@@ -33,12 +33,12 @@ Tests before code. Do not implement until failing tests exist.
 
 ## 4. Create default SKILL.md
 
-- [ ] 4.1 Create `skills/specfact-code-review/SKILL.md` in `specfact-cli` repo with:
-  - [ ] 4.1.1 Valid ai-integration-01 YAML frontmatter (`name`, `description`, `allowed-tools`)
-  - [ ] 4.1.2 Default DO section (7 rules from plan)
-  - [ ] 4.1.3 Default DON'T section (7 rules from plan)
-  - [ ] 4.1.4 TOP VIOLATIONS auto-managed section (empty initially)
-  - [ ] 4.1.5 Verify line count <= 35
+- [x] 4.1 Create `skills/specfact-code-review/SKILL.md` in `specfact-cli` repo with:
+  - [x] 4.1.1 Valid ai-integration-01 YAML frontmatter (`name`, `description`, `allowed-tools`)
+  - [x] 4.1.2 Default DO section (7 rules from plan)
+  - [x] 4.1.3 Default DON'T section (7 rules from plan)
+  - [x] 4.1.4 TOP VIOLATIONS auto-managed section (empty initially)
+  - [x] 4.1.5 Verify line count <= 35
 
 ## 5. Implement updater and commands
 
@@ -68,4 +68,4 @@ Tests before code. Do not implement until failing tests exist.
 
 ## Post-merge cleanup
 
-- [ ] Remove worktree, delete branch, prune
+- [x] Remove worktree, delete branch, prune
