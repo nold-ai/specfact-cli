@@ -61,8 +61,8 @@ Tests before code. Do not implement until failing tests exist.
 ## 8. Create GitHub issue and PR
 
 - [x] 8.1 Link existing issue: `[Change] code-review-06 - Reward Ledger Supabase Persistence and ledger Subcommands` (#395)
-- [ ] 8.2 Update proposal.md Source Tracking; commit, push, create PR
+- [x] 8.2 Update proposal.md Source Tracking; commit, push, create PR
 
 ## Post-merge cleanup
 
-- [ ] Remove worktree, delete branch, prune
+- [x] Remove worktree, delete branch, prune
