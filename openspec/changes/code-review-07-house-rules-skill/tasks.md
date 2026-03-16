@@ -63,8 +63,8 @@ Tests before code. Do not implement until failing tests exist.
 
 ## 8. Create GitHub issue and PR
 
-- [ ] 8.1 Create issue: `[Change] Add house_rules skill (ai-integration-01 compliant) and auto-updater`
-- [ ] 8.2 Update proposal.md Source Tracking; commit, push, create PR
+- [x] 8.1 Create issue: `[Change] Add house_rules skill (ai-integration-01 compliant) and auto-updater`
+- [x] 8.2 Update proposal.md Source Tracking; commit, push, create PR
 
 ## Post-merge cleanup
 
