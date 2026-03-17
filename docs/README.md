@@ -1,3 +1,10 @@
+---
+layout: default
+title: Documentation Index
+permalink: /documentation-index/
+description: High-level index for the SpecFact CLI documentation sections and guides.
+---
+
 # SpecFact CLI Documentation
 
 > **The "swiss knife" CLI that turns any codebase into a clear, safe, and shippable workflow.**  
@@ -84,8 +91,12 @@ SpecFact CLI uses a lifecycle-managed module system:
 
 This is the baseline for marketplace-driven module lifecycle and future community module distribution.
 
-Module-specific guides are still temporarily hosted in this docs set while the long-term
-bundle docs home is prepared in `nold-ai/specfact-cli-modules`.
+`docs.specfact.io` is the canonical docs entry point for SpecFact, and this repository owns the
+core CLI/runtime section of that experience.
+
+The canonical modules docs site is currently published at
+`https://modules.specfact.io/`.
+Bundle-specific deep guides in this repo remain as release-line overview or handoff content rather than the long-term canonical source.
 
 ### Why the Module System Is the Foundation
 
@@ -93,7 +104,7 @@ This architecture intentionally separates the CLI core from feature modules:
 
 - Core provides lifecycle, registry, contracts, and orchestration.
 - Official workflow bundles are authored and released from `nold-ai/specfact-cli-modules`.
-- This docs set still hosts bundle-specific guidance temporarily for the `0.40.x` release line.
+- This docs set keeps release-line overview and handoff content for bundle workflows while the canonical modules docs site carries the deep bundle-specific guidance.
 - Compatibility shims preserve legacy import paths during migration windows.
 
 Practical outcomes:

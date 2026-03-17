@@ -44,8 +44,38 @@ def test_module_contracts_reference_external_bundle_boundary() -> None:
     assert "Core runtime must not import external bundle package namespaces" in contracts_doc
 
 
-def test_docs_note_module_docs_are_temporarily_hosted_in_core() -> None:
+def test_readme_and_docs_index_define_core_and_modules_split() -> None:
     readme = _repo_file("README.md").read_text(encoding="utf-8")
     docs_index = _repo_file("docs/index.md").read_text(encoding="utf-8")
-    assert "temporarily hosted" in readme
-    assert "temporarily hosted" in docs_index
+    assert "canonical docs entry point" in readme
+    assert "module-specific deep docs are canonically owned by `specfact-cli-modules`" in readme
+    assert "https://modules.specfact.io/" in readme
+    assert "Docs Home" in docs_index
+    assert "Core CLI" in docs_index
+    assert "Modules" in docs_index
+
+
+def test_top_navigation_exposes_docs_home_core_cli_and_modules() -> None:
+    layout = _repo_file("docs/_layouts/default.html").read_text(encoding="utf-8")
+    assert ">Docs Home<" in layout
+    assert ">Core CLI<" in layout
+    assert ">Modules<" in layout
+    assert "https://modules.specfact.io/" in layout
+
+
+def test_command_reference_and_docs_readme_link_to_modules_canonical_site() -> None:
+    docs_readme = _repo_file("docs/README.md").read_text(encoding="utf-8")
+    commands_doc = _repo_file("docs/reference/commands.md").read_text(encoding="utf-8")
+    assert "canonical modules docs site" in docs_readme
+    assert "https://modules.specfact.io/" in docs_readme
+    assert "canonical modules docs site" in commands_doc
+    assert "https://modules.specfact.io/" in commands_doc
+
+
+def test_bundle_focused_pages_use_handoff_note_instead_of_future_migration_language() -> None:
+    backlog_refinement = _repo_file("docs/guides/backlog-refinement.md").read_text(encoding="utf-8")
+    github_adapter = _repo_file("docs/adapters/github.md").read_text(encoding="utf-8")
+    assert "canonical modules docs site" in backlog_refinement
+    assert "canonical modules docs site" in github_adapter
+    assert "planned to migrate to `specfact-cli-modules`" not in backlog_refinement
+    assert "planned to migrate to `specfact-cli-modules`" not in github_adapter

@@ -115,5 +115,8 @@ Scope boundary:
 - Full command tree, including subcommands
 - Short command descriptions derived from Typer command registration
 
-> Temporary docs note: marketplace and bundle-specific docs remain hosted in this core docs set
+> Modules docs handoff: this page remains in the core docs set as release-line overview content.
+> Canonical bundle-specific deep guidance now lives in the canonical modules docs site, currently
+> published at `https://modules.specfact.io/`.
+
 > for the current release line and are planned to migrate to `specfact-cli-modules`.

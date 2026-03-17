@@ -9,8 +9,10 @@ description: ModuleIOContract protocol, validation output model, and isolation r
 
 SpecFact modules integrate through a protocol-first interface and inversion-of-control loading.
 
-> Temporary docs note: bundle-specific contract guidance remains hosted in this core docs set for
-> the current release line and is planned to migrate to `specfact-cli-modules`.
+> Modules docs handoff: this page remains in the core docs set because it documents runtime-facing
+> contracts and core isolation rules. Bundle-specific contract implementation guidance lives in the
+> canonical modules docs site, currently published at
+> `https://modules.specfact.io/`.
 
 ## ModuleIOContract
 

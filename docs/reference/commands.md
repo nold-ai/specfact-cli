@@ -93,6 +93,9 @@ specfact backlog ceremony refinement --help
 - [Module Categories](module-categories.md)
 - [Marketplace Bundles](../guides/marketplace.md)
 - [Installing Modules](../guides/installing-modules.md)
+- [Canonical modules docs site](https://modules.specfact.io/)
 
-> Temporary docs note: bundle-specific command details are still hosted in this core docs set
-> for the current release line and are planned to migrate to `specfact-cli-modules`.
+> Modules docs handoff: this command reference remains part of the core docs set because it
+> explains the lean-core command topology. Bundle-specific command details live in the
+> canonical modules docs site, currently published at
+> `https://modules.specfact.io/`.

@@ -1,8 +1,16 @@
+---
+layout: default
+title: Contract Testing Workflow
+permalink: /guides/contract-testing-workflow/
+description: Practical contract testing workflow guidance for SpecFact users and developers.
+---
+
 # Contract Testing Workflow - Simple Guide for Developers
 
 
-> Temporary docs note: this bundle-focused page remains hosted in the core docs set for the
-> current release line and is planned to migrate to `specfact-cli-modules`.
+> Modules docs handoff: this page remains in the core docs set as release-line overview content.
+> Canonical bundle-specific deep guidance now lives in the canonical modules docs site, currently
+> published at `https://modules.specfact.io/`.
 
 ## Quick Start: Verify Your Contract
 

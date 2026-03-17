@@ -9,8 +9,9 @@ description: How to build and package SpecFact CLI modules.
 
 This guide defines the required structure and contracts for authoring SpecFact modules.
 
-> Temporary docs note: module-authoring guidance is still hosted in this core docs set for the
-> current release line and is planned to migrate to `specfact-cli-modules`.
+> Modules docs handoff: this page remains in the core docs set as release-line overview content.
+> Canonical bundle-specific deep guidance now lives in the canonical modules docs site, currently
+> published at `https://modules.specfact.io/`.
 
 Official workflow bundle implementation now lives in the dedicated `nold-ai/specfact-cli-modules`
 repository. `specfact-cli` owns the lean runtime, registry, marketplace lifecycle, shared

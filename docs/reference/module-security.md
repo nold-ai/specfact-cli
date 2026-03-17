@@ -9,8 +9,9 @@ description: Trust model, checksum and signature verification, and integrity lif
 
 Module packages carry **publisher** and **integrity** metadata so installation, bootstrap, and runtime discovery verify trust before enabling a module.
 
-> Temporary docs note: bundle-specific security guidance remains hosted in this core docs set for
-> the current release line and is planned to migrate to `specfact-cli-modules`.
+> Modules docs handoff: this page remains in the core docs set as release-line overview content.
+> Canonical bundle-specific deep guidance now lives in the canonical modules docs site, currently
+> published at `https://modules.specfact.io/`.
 
 ## Trust model
 

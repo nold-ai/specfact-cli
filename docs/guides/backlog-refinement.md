@@ -7,8 +7,9 @@ permalink: /guides/backlog-refinement/
 # Backlog Refinement Guide
 
 
-> Temporary docs note: this bundle-focused page remains hosted in the core docs set for the
-> current release line and is planned to migrate to `specfact-cli-modules`.
+> Modules docs handoff: this page remains in the core docs set as release-line overview content.
+> Canonical bundle-specific deep guidance now lives in the canonical modules docs site, currently
+> published at `https://modules.specfact.io/`.
 
 > **🆕 NEW FEATURE: AI-Assisted Template-Driven Backlog Refinement**  
 > Transform arbitrary DevOps backlog input into structured, template-compliant work items using AI-assisted refinement with template detection and validation.
