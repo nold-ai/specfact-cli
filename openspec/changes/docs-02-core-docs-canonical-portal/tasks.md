@@ -27,4 +27,4 @@
 - [x] 5.1 Re-run the targeted docs validation checks and record passing evidence in `openspec/changes/docs-02-core-docs-canonical-portal/TDD_EVIDENCE.md`
 - [x] 5.2 Run `openspec validate docs-02-core-docs-canonical-portal --strict`
 - [x] 5.3 Run the relevant repo quality gates for touched docs/test files
-- [ ] 5.4 Open PR to `dev` from `feature/docs-02-core-docs-canonical-portal`
+- [x] 5.4 Open PR to `dev` from `feature/docs-02-core-docs-canonical-portal`
