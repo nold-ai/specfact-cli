@@ -116,14 +116,14 @@ SpecFact CLI supports real-world agile/scrum practices through:
 
 ## Policy Engine Commands (DoR/DoD/Flow/PI)
 
-Use the `policy` command group to run deterministic readiness checks before sprint and refinement ceremonies:
+Use the readiness and refinement commands to run deterministic readiness checks before sprint and refinement ceremonies:
 
 ```bash
-# Validate configured policy rules against a snapshot
-specfact backlog policy validate --repo . --format both
+# Validate configured readiness rules against a snapshot
+specfact backlog verify-readiness --repo .
 
-# Generate confidence-scored, patch-ready suggestions (no automatic writes)
-specfact backlog policy suggest --repo .
+# Generate AI-assisted refinement suggestions (no automatic writes)
+specfact backlog refine --repo .
 ```
 
 Policy configuration is loaded from `.specfact/policy.yaml` and supports Scrum (`dor_required_fields`,

@@ -30,13 +30,13 @@ pip install specfact-cli
 
 ```bash
 # Starting a new project?
-specfact project plan init my-project --interactive
+specfact project snapshot --bundle my-project
 
 # Have existing code?
 specfact code import my-project --repo .
 
 # Using GitHub Spec-Kit?
-specfact project import from-bridge --adapter speckit --repo ./my-project --dry-run
+specfact code import from-bridge --adapter speckit --repo ./my-project --dry-run
 
 ```
 
@@ -44,10 +44,10 @@ specfact project import from-bridge --adapter speckit --repo ./my-project --dry-
 
 ```bash
 # Preview migration
-specfact project import from-bridge --adapter speckit --repo ./spec-kit-project --dry-run
+specfact code import from-bridge --adapter speckit --repo ./spec-kit-project --dry-run
 
 # Execute migration
-specfact project import from-bridge --adapter speckit --repo ./spec-kit-project --write
+specfact code import from-bridge --adapter speckit --repo ./spec-kit-project --write
 
 ```
 
@@ -85,47 +85,25 @@ specfact code import large-project --repo . --confidence 0.5
 ## Plan Management
 
 ```bash
-# Initialize plan (bundle name as positional argument)
-specfact project plan init my-project --interactive
+# Initialize plan (create a snapshot for a new bundle)
+specfact project snapshot --bundle my-project
 
-# Add feature (bundle name via --bundle option)
-specfact project plan add-feature \
-  --bundle my-project \
-  --key FEATURE-001 \
-  --title "User Authentication" \
-  --outcomes "Users can login securely"
+# Enforce SDD (validates plan and coverage thresholds)
+specfact govern enforce sdd my-project
 
-# Add story (bundle name via --bundle option)
-specfact project plan add-story \
-  --bundle my-project \
-  --feature FEATURE-001 \
-  --title "As a user, I can login with email and password" \
-  --acceptance "Login form validates input"
+# Review plan (check health and SDD compliance)
+specfact project health-check
 
-# Create hard SDD manifest (required for promotion)
-specfact project plan harden my-project
-
-# Review plan (checks SDD automatically, bundle name as positional argument)
-specfact project plan review my-project --max-questions 5
-
-# Promote plan (requires SDD for review+ stages)
-specfact project plan promote my-project --stage review
+# Promote plan to review stage
+specfact project devops-flow --stage review --bundle my-project
 
 ```
 
 ## Plan Comparison
 
 ```bash
-# Quick comparison (auto-detects plans)
-specfact project plan compare --repo .
-
-# Explicit comparison (bundle directory paths)
-specfact project plan compare \
-  --manual .specfact/projects/manual-plan \
-  --auto .specfact/projects/auto-derived
-
-# Code vs plan comparison
-specfact project plan compare --code-vs-plan --repo .
+# Regenerate and compare plans
+specfact project regenerate
 
 ```
 
@@ -149,23 +127,17 @@ specfact project sync repository --repo . --watch --interval 5
 ## SDD (Spec-Driven Development) Workflow
 
 ```bash
-# Create hard SDD manifest from plan
-specfact project plan harden
-
 # Validate SDD manifest against plan
 specfact govern enforce sdd
 
 # Validate SDD with custom output format
 specfact govern enforce sdd --output-format json --out validation-report.json
 
-# Review plan (automatically checks SDD)
-specfact project plan review --max-questions 5
+# Review plan health (checks SDD automatically)
+specfact project health-check
 
-# Promote plan (requires SDD for review+ stages)
-specfact project plan promote --stage review
-
-# Force promotion despite SDD validation failures
-specfact project plan promote --stage review --force
+# Promote plan to review stage (requires SDD)
+specfact project devops-flow --stage review --bundle <bundle>
 ```
 
 ## Enforcement
@@ -243,14 +215,14 @@ specfact code import my-project --repo .
 ```bash
 # Morning: Check status
 specfact code repro --verbose
-specfact project plan compare --repo .
+specfact project regenerate
 
 # During development: Watch mode
 specfact project sync repository --repo . --watch --interval 5
 
 # Before committing: Validate
 specfact code repro
-specfact project plan compare --repo .
+specfact project regenerate
 
 ```
 
@@ -260,35 +232,32 @@ specfact project plan compare --repo .
 # Step 1: Extract specs from legacy code
 specfact code import my-project --repo .
 
-# Step 2: Create hard SDD manifest
-specfact project plan harden my-project
-
-# Step 3: Validate SDD before starting work
+# Step 2: Validate SDD and coverage thresholds
 specfact govern enforce sdd my-project
 
-# Step 4: Review plan (checks SDD automatically)
-specfact project plan review my-project --max-questions 5
+# Step 3: Review plan health (checks SDD automatically)
+specfact project health-check
 
-# Step 5: Promote plan (requires SDD for review+ stages)
-specfact project plan promote my-project --stage review
+# Step 4: Promote plan to review stage (requires SDD)
+specfact project devops-flow --stage review --bundle my-project
 
-# Step 6: Add contracts to critical paths
+# Step 5: Add contracts to critical paths
 # ... (add @icontract decorators to code)
 
-# Step 7: Re-validate SDD after adding contracts
+# Step 6: Re-validate SDD after adding contracts
 specfact govern enforce sdd my-project
 
-# Step 8: Continue modernization with SDD safety net
+# Step 7: Continue modernization with SDD safety net
 ```
 
 ### Migration from Spec-Kit
 
 ```bash
 # Step 1: Preview
-specfact project import from-bridge --adapter speckit --repo . --dry-run
+specfact code import from-bridge --adapter speckit --repo . --dry-run
 
 # Step 2: Execute
-specfact project import from-bridge --adapter speckit --repo . --write
+specfact code import from-bridge --adapter speckit --repo . --write
 
 # Step 3: Set up sync
 specfact project sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional --watch --interval 5
@@ -304,11 +273,11 @@ specfact govern enforce stage --preset minimal
 # Step 1: Analyze code
 specfact code import my-project --repo . --confidence 0.7
 
-# Step 2: Review plan using CLI commands
-specfact project plan review my-project
+# Step 2: Review plan health
+specfact project health-check
 
-# Step 3: Compare with manual plan
-specfact project plan compare --repo .
+# Step 3: Regenerate and compare plans
+specfact project regenerate
 
 # Step 4: Set up watch mode
 specfact project sync repository --repo . --watch --interval 5
@@ -331,8 +300,7 @@ specfact code import \
   --repo . \
   --report analysis-report.md
 
-specfact project plan compare \
-  --repo . \
+specfact project regenerate \
   --out comparison-report.md
 
 ```

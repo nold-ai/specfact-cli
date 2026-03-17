@@ -60,15 +60,14 @@ The following options are hidden by default across commands:
 - `--interval` - Watch mode interval tuning
 - `--confidence` - Feature detection threshold
 
-**Plan Commands:**
+**Project Commands:**
 
 - `--max-questions` - Review session limit
 - `--category` - Taxonomy category filtering
 - `--findings-format` - Output format for findings
 - `--answers` - Non-interactive JSON input
 - `--stages` - Filter by promotion stages
-- `--last` - Show last N plans
-- `--current` - Show only active plan
+- `--last` - Show last N items
 - `--name` - Exact bundle name matching
 - `--id` - Content hash ID matching
 
@@ -79,7 +78,7 @@ The following options are hidden by default across commands:
 **Other Commands:**
 
 - `repro --budget` - Time budget configuration
-- `generate contracts-prompt --output` - Custom output path
+- (Note: `generate contracts-prompt` is removed; use your AI IDE skill `/specfact.07-contracts` for contract enhancement workflows)
 - `init --ide` - IDE selection override (auto-detection works)
 
 **Tip**: Advanced options are still functional even when hidden - you can use them directly without `--help-advanced`/`-ha`. The flag only affects what's shown in help text.
@@ -157,7 +156,7 @@ $ specfact code analyze --bundle missing-bundle
 ✗ Error: Bundle 'missing-bundle' not found
 
 💡 Suggested fixes:
-  • specfact project plan select  # Select an active plan bundle
+  • specfact project health-check  # Check available bundles
   • specfact code import missing-bundle  # Create a new bundle
 ```
 

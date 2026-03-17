@@ -95,10 +95,10 @@ specfact init --profile solo-developer
 
 ```bash
 # Review the extracted bundle using CLI commands
-specfact project plan review my-project
+specfact project health-check
 
 # Or get structured findings for analysis
-specfact project plan review my-project --list-findings --findings-format json
+specfact project health-check
 ```
 
 Review the auto-generated plan to understand what SpecFact discovered about your codebase.
@@ -108,7 +108,7 @@ Review the auto-generated plan to understand what SpecFact discovered about your
 **💡 Tip**: If you plan to sync with Spec-Kit later, the import command will suggest generating a bootstrap constitution. You can also run it manually:
 
 ```bash
-specfact spec sdd constitution bootstrap --repo .
+# specfact spec sdd constitution commands are removed; use specfact govern enforce sdd [BUNDLE] for SDD enforcement
 ```
 
 ### Step 3: Find and Fix Gaps
@@ -131,16 +131,12 @@ specfact code repro --verbose
 ### Step 4: Use AI to Fix Gaps (New in 0.17+)
 
 ```bash
-# Generate AI-ready prompt to fix a specific gap
-specfact spec generate fix-prompt GAP-001 --bundle my-project
-
-# Generate AI-ready prompt to add tests
-specfact spec generate test-prompt src/auth/login.py
+# Use your AI IDE skill (/specfact.07-contracts) for contract enhancement workflows
 ```
 
 **What happens**:
 
-- Creates structured prompt file in `.specfact/prompts/`
+- Use your AI IDE's `/specfact.07-contracts` skill to generate contract enhancement prompts
 - Copy prompt to your AI IDE (Cursor, Copilot, Claude)
 - AI generates the fix
 - Validate with SpecFact enforcement
@@ -165,65 +161,39 @@ See [Brownfield Engineer Guide](../guides/brownfield-engineer.md) for complete w
 
 **Time**: 5-10 minutes
 
-### Step 1: Initialize a Plan
+### Step 1: Initialize a Project Snapshot
 
 ```bash
-specfact project plan init my-project --interactive
+specfact project snapshot --bundle my-project
 ```
 
 **What happens**:
 
 - Creates `.specfact/` directory structure
-- Prompts you for project title and description
 - Creates modular project bundle at `.specfact/projects/my-project/`
 - Copies default ADO field mapping templates to `.specfact/templates/backlog/field_mappings/` for review and customization
 
 **Example output**:
 
 ```bash
-📋 Initializing new development plan...
+📋 Initializing new project snapshot...
 
-Enter project title: My Awesome Project
-Enter project description: A project to demonstrate SpecFact CLI
-
-✅ Plan initialized successfully!
+✅ Snapshot created successfully!
 📁 Project bundle: .specfact/projects/my-project/
 ```
 
-### Step 2: Add Your First Feature
+### Step 2: Import Code to Populate the Bundle
 
 ```bash
-specfact project plan add-feature \
-  --bundle my-project \
-  --key FEATURE-001 \
-  --title "User Authentication" \
-  --outcomes "Users can login securely"
+specfact code import my-project --repo .
 ```
 
 **What happens**:
 
-- Adds a new feature to your project bundle
-- Creates a feature with key `FEATURE-001`
-- Sets the title and outcomes
+- Analyzes your codebase and extracts features and stories
+- Populates the project bundle at `.specfact/projects/my-project/`
 
-### Step 3: Add Stories to the Feature
-
-```bash
-specfact project plan add-story \
-  --bundle my-project \
-  --feature FEATURE-001 \
-  --title "As a user, I can login with email and password" \
-  --acceptance "Login form validates input" \
-  --acceptance "User is redirected after successful login"
-```
-
-**What happens**:
-
-- Adds a user story to the feature
-- Defines acceptance criteria
-- Links the story to the feature
-
-### Step 4: Validate the Plan
+### Step 3: Validate the Plan
 
 ```bash
 specfact code repro
@@ -260,7 +230,7 @@ specfact code repro
 ### Step 1: Preview Migration
 
 ```bash
-specfact project import from-bridge \
+specfact code import from-bridge \
   --repo ./my-speckit-project \
   --adapter speckit \
   --dry-run
@@ -295,7 +265,7 @@ specfact project import from-bridge \
 ### Step 2: Execute Migration
 
 ```bash
-specfact project import from-bridge \
+specfact code import from-bridge \
   --repo ./my-speckit-project \
   --adapter speckit \
   --write
@@ -313,10 +283,7 @@ specfact project import from-bridge \
 
 ```bash
 # Review the imported bundle
-specfact project plan review <bundle-name>
-
-# Check bundle status
-specfact project plan select
+specfact project health-check
 ```
 
 **What was created**:
@@ -325,7 +292,7 @@ specfact project plan select
 - `.specfact/protocols/workflow.protocol.yaml` - FSM definition (if protocol detected)
 - `.specfact/gates/config.yaml` - Quality gates configuration
 
-**Note**: Use CLI commands (`plan review`, `plan add-feature`, etc.) to interact with bundles. Do not edit `.specfact` files directly.
+**Note**: Use CLI commands (`project health-check`, `code import`, etc.) to interact with bundles. Do not edit `.specfact` files directly.
 
 ### Step 4: Set Up Bidirectional Sync (Optional)
 
@@ -333,7 +300,7 @@ Keep Spec-Kit and SpecFact synchronized:
 
 ```bash
 # Generate constitution if missing (auto-suggested during sync)
-specfact spec sdd constitution bootstrap --repo .
+# specfact spec sdd constitution commands are removed; use specfact govern enforce sdd [BUNDLE] for SDD enforcement
 
 # One-time bidirectional sync
 specfact project sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional

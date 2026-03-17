@@ -16,14 +16,14 @@ Always document commands exactly as implemented by `specfact <command> --help` i
 - Do not assume all commands use the same bundle argument style.
 - Do not convert positional bundle arguments to `--bundle` unless the command explicitly supports it.
 
-## Bundle Argument Conventions (v0.30.x baseline)
+## Bundle Argument Conventions
 
 - Positional bundle argument:
   - `specfact code import [BUNDLE]`
-  - `specfact project plan init BUNDLE`
-  - `specfact project plan review [BUNDLE]`
+  - `specfact project snapshot --bundle <bundle-name>`
+  - `specfact project devops-flow --stage <plan|develop|review|release|monitor>`
 - `--bundle` option:
-  - Supported by many plan mutation commands (for example `plan add-feature`, `plan add-story`, `plan update-feature`)
+  - Supported by many spec and govern commands (for example `spec validate`, `spec generate-tests`, `govern enforce sdd`)
   - Not universally supported across all commands
 
 ## IDE Init Syntax
@@ -44,8 +44,9 @@ Before merging command docs updates:
 
 ```bash
 hatch run specfact code import --help
-hatch run specfact project plan init --help
-hatch run specfact project plan review --help
-hatch run specfact project plan add-feature --help
+hatch run specfact project snapshot --help
+hatch run specfact project devops-flow --help
+hatch run specfact govern enforce --help
+hatch run specfact spec validate --help
 ```
 

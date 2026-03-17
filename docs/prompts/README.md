@@ -50,7 +50,7 @@ SpecFact CLI provides slash commands that work with AI-assisted IDEs (Cursor, VS
 
 **Purpose**: Plan management (init, add-feature, add-story, update-idea, update-feature, update-story)
 
-**Equivalent CLI**: `specfact project plan init/add-feature/add-story/update-idea/update-feature/update-story`
+**Equivalent CLI**: `specfact project snapshot --bundle <bundle>` / `specfact project health-check` (plan editing subcommands removed)
 
 **Example**:
 
@@ -67,7 +67,7 @@ SpecFact CLI provides slash commands that work with AI-assisted IDEs (Cursor, VS
 
 **Purpose**: Review plan and promote
 
-**Equivalent CLI**: `specfact project plan review`
+**Equivalent CLI**: `specfact project devops-flow --stage develop --bundle <bundle>` or `specfact project health-check --bundle <bundle>`
 
 **Example**:
 
@@ -131,7 +131,7 @@ SpecFact CLI provides slash commands that work with AI-assisted IDEs (Cursor, VS
 
 **Purpose**: Contract management (analyze, generate prompts, apply contracts sequentially)
 
-**Equivalent CLI**: `specfact spec generate contracts-prompt`
+**Equivalent CLI**: `specfact govern enforce sdd [BUNDLE]` (contract enhancement workflows are handled via this slash command)
 
 **Example**:
 
@@ -149,7 +149,7 @@ SpecFact CLI provides slash commands that work with AI-assisted IDEs (Cursor, VS
 
 **Purpose**: Compare plans
 
-**Equivalent CLI**: `specfact project plan compare`
+**Equivalent CLI**: `specfact project regenerate --bundle <bundle>`
 
 **Example**:
 

@@ -155,13 +155,13 @@ Import your Spec-Kit project to see what SpecFact adds:
 
 ```bash
 # 1. Preview what will be imported
-specfact project import from-bridge --adapter speckit --repo ./my-speckit-project --dry-run
+specfact code import from-bridge --adapter speckit --repo ./my-speckit-project --dry-run
 
 # 2. Execute import (one command) - bundle name will be auto-detected or you can specify with --bundle
-specfact project import from-bridge --adapter speckit --repo ./my-speckit-project --write
+specfact code import from-bridge --adapter speckit --repo ./my-speckit-project --write
 
 # 3. Review generated bundle using CLI commands
-specfact project plan review <bundle-name>
+specfact project devops-flow --stage develop --bundle <bundle-name>
 ```
 
 **What was created**:
@@ -209,10 +209,10 @@ specfact project sync bridge --adapter speckit --bundle <bundle-name> --repo . -
 # → Enables shared plans for team collaboration
 
 # 3. Detect code vs plan drift automatically
-specfact project plan compare --code-vs-plan
-# → Compares intended design (manual plan = what you planned) vs actual implementation (code-derived plan = what's in your code)
+specfact project regenerate
+# → Regenerates project artifacts from current code state
 # → Identifies deviations automatically (not just artifact consistency like Spec-Kit's /speckit.analyze)
-# → Auto-derived plans come from `import from-code` (code analysis), so comparison IS "code vs plan drift"
+# → Auto-derived plans come from `import from-code` (code analysis), so regeneration reflects current drift
 
 # 4. Enable automated enforcement
 specfact govern enforce stage --preset balanced
@@ -244,7 +244,7 @@ specfact govern enforce stage --preset balanced
 
 ```bash
 # Import existing Spec-Kit project
-specfact project import from-bridge --adapter speckit --repo . --write
+specfact code import from-bridge --adapter speckit --repo . --write
 
 # Enable bidirectional sync (bridge-based, adapter-agnostic)
 specfact project sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional --watch
@@ -308,7 +308,7 @@ specfact code repro --budget 120 --verbose
 
 ```bash
 # See what will be imported (safe - no changes)
-specfact project import from-bridge --adapter speckit --repo ./my-speckit-project --dry-run
+specfact code import from-bridge --adapter speckit --repo ./my-speckit-project --dry-run
 ```
 
 **Expected Output**:
@@ -321,7 +321,7 @@ specfact project import from-bridge --adapter speckit --repo ./my-speckit-projec
 ✅ Found specs/001-user-authentication/tasks.md
 ✅ Found .specify/memory/constitution.md
 
-**💡 Tip**: If constitution is missing or minimal, run `specfact spec sdd constitution bootstrap --repo .` to auto-generate from repository analysis.
+**💡 Tip**: If constitution is missing or minimal, use `specfact govern enforce sdd [BUNDLE]` for SDD enforcement. Note: `specfact spec sdd constitution` commands are removed.
 
 📊 Migration Preview:
   - Will create: .specfact/projects/<bundle-name>/ (modular project bundle)
@@ -337,7 +337,7 @@ specfact project import from-bridge --adapter speckit --repo ./my-speckit-projec
 
 ```bash
 # Execute migration (creates SpecFact artifacts)
-specfact project import from-bridge \
+specfact code import from-bridge \
   --adapter speckit \
   --repo ./my-speckit-project \
   --write \
@@ -365,7 +365,7 @@ specfact project import from-bridge \
 
 ```bash
 # Review plan bundle using CLI commands
-specfact project plan review <bundle-name>
+specfact project devops-flow --stage develop --bundle <bundle-name>
 
 # Review enforcement config using CLI commands
 specfact govern enforce show-config
@@ -537,8 +537,8 @@ specfact govern enforce stage --preset strict
 
 **Next Steps**:
 
-1. **Try it**: `specfact project import from-bridge --adapter speckit --repo . --dry-run`
-2. **Import**: `specfact project import from-bridge --adapter speckit --repo . --write`
+1. **Try it**: `specfact code import from-bridge --adapter speckit --repo . --dry-run`
+2. **Import**: `specfact code import from-bridge --adapter speckit --repo . --write`
 3. **Sync**: `specfact project sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional --watch`
 4. **Enforce**: `specfact govern enforce stage --preset minimal` (start shadow mode)
 

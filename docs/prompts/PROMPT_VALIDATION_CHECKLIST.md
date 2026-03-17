@@ -61,8 +61,8 @@ The validator checks:
 - [ ] **CORRECT examples present**: Prompt shows examples of what TO do (using CLI commands)
 - [ ] **Command examples**: Examples show actual CLI usage with correct flags
 - [ ] **Flag documentation**: All flags are documented with defaults and descriptions
-- [ ] **Filter options documented** (for `plan select`): `--current`, `--stages`, `--last`, `--no-interactive` flags are documented with use cases and examples
-- [ ] **Positional vs option arguments**: Correctly distinguishes between positional arguments and `--option` flags (e.g., `specfact project plan select 20` not `specfact project plan select --plan 20`)
+- [ ] **Filter options documented** (for bundle selection): `--bundle`, `--no-interactive` flags are documented with use cases and examples
+- [ ] **Positional vs option arguments**: Correctly distinguishes between positional arguments and `--option` flags
 - [ ] **Boolean flags documented correctly**: Boolean flags use `--flag/--no-flag` syntax, not `--flag true/false`
   - ❌ **WRONG**: `--draft true` or `--draft false` (Typer boolean flags don't accept values)
   - ✅ **CORRECT**: `--draft` (sets True) or `--no-draft` (sets False) or omit (leaves unchanged)
@@ -92,7 +92,7 @@ The validator checks:
     - [ ] Explanation: Stories are required for promotion validation
   - [ ] Phase 3: CLI Artifact Creation documented
   - [ ] Enrichment report location specified (`.specfact/projects/<bundle-name>/reports/enrichment/`, bundle-specific, Phase 8.5)
-- [ ] **Auto-enrichment workflow** (for `plan review`):
+- [ ] **Auto-enrichment workflow** (for `project devops-flow --stage develop`):
   - [ ] `--auto-enrich` flag documented with when to use it
   - [ ] LLM reasoning guidance for detecting when enrichment is needed
   - [ ] Post-enrichment analysis steps documented
@@ -102,7 +102,7 @@ The validator checks:
   - [ ] Examples of enrichment output and refinement process
   - [ ] **Generic criteria detection**: Instructions to identify and replace generic patterns ("interact with the system", "works correctly")
   - [ ] **Code-specific criteria generation**: Instructions to research codebase and create testable criteria with method names, parameters, return values
-- [ ] **Feature deduplication** (for `sync`, `plan review`, `import from-code`):
+- [ ] **Feature deduplication** (for `sync`, `project devops-flow --stage develop`, `import from-code`):
   - [ ] **Automated deduplication documented**: CLI automatically deduplicates features using normalized key matching
   - [ ] **Deduplication scope explained**:
     - [ ] Exact normalized key matches (e.g., `FEATURE-001` vs `001_FEATURE_NAME`)
@@ -112,15 +112,15 @@ The validator checks:
     - [ ] Review feature titles and descriptions for semantic similarity
     - [ ] Identify features that represent the same functionality with different names
     - [ ] Suggest consolidation when multiple features cover the same code/functionality
-    - [ ] Use `specfact project plan update-feature` or `specfact project plan add-feature` to consolidate
+    - [ ] Use `specfact project devops-flow --stage develop` to consolidate
   - [ ] **Deduplication output**: CLI shows "✓ Removed N duplicate features" - LLM should acknowledge this
   - [ ] **Post-deduplication review**: LLM should review remaining features for semantic duplicates
 - [ ] **Execution steps**: Clear, sequential steps
 - [ ] **Error handling**: Instructions for handling errors
 - [ ] **Validation**: CLI validation steps documented
-- [ ] **Coverage validation** (for `plan promote`): Documentation of coverage status checks (critical vs important categories)
+- [ ] **Coverage validation** (for `project devops-flow --stage review`): Documentation of coverage status checks (critical vs important categories)
 - [ ] **Copilot-friendly formatting** (if applicable): Instructions for formatting output as Markdown tables for better readability
-- [ ] **Interactive workflows** (if applicable): Support for "details" requests and other interactive options (e.g., "20 details" for plan selection)
+- [ ] **Interactive workflows** (if applicable): Support for "details" requests and other interactive options (e.g., bundle details for bundle selection)
 
 ### 5. Consistency
 
@@ -189,7 +189,7 @@ For each prompt, test the following scenarios:
 
 1. Invoke `/specfact.03-review legacy-api` with a plan bundle
 2. Verify the LLM:
-   - ✅ Executes `specfact project plan review` CLI command
+   - ✅ Executes `specfact project devops-flow --stage develop --bundle <bundle-name>` CLI command
    - ✅ Parses CLI output for ambiguity findings
    - ✅ Waits for user input when questions are asked
    - ✅ Does NOT create clarifications directly in YAML
@@ -202,57 +202,50 @@ For each prompt, test the following scenarios:
 2. Verify the LLM:
    - ✅ **Detects need for enrichment**: Recognizes vague patterns ("is implemented", "System MUST Helper class", generic tasks)
    - ✅ **Suggests or uses `--auto-enrich`**: Either suggests using `--auto-enrich` flag or automatically uses it based on plan quality indicators
-   - ✅ **Executes enrichment**: Runs `specfact project plan review <bundle-name> --auto-enrich`
+   - ✅ **Executes enrichment**: Runs `specfact project devops-flow --stage develop --bundle <bundle-name> --auto-enrich`
    - ✅ **Parses enrichment results**: Captures enrichment summary (features updated, stories updated, acceptance criteria enhanced, etc.)
    - ✅ **Analyzes enrichment quality**: Uses LLM reasoning to review what was enhanced
    - ✅ **Identifies generic patterns**: Finds placeholder text like "interact with the system" that needs refinement
    - ✅ **Proposes specific refinements**: Suggests domain-specific improvements using CLI commands
-   - ✅ **Executes refinements**: Uses `specfact project plan update-feature --bundle <bundle-name>` to refine generic improvements
-   - ✅ **Re-runs review**: Executes `specfact project plan review` again to verify improvements
+   - ✅ **Executes refinements**: Uses `specfact project devops-flow --stage develop --bundle <bundle-name>` to refine generic improvements
+   - ✅ **Re-runs review**: Executes `specfact project devops-flow --stage develop` again to verify improvements
 3. Test with explicit enrichment request (e.g., "enrich the plan"):
    - ✅ Uses `--auto-enrich` flag immediately
    - ✅ Reviews enrichment results
    - ✅ Suggests further improvements if needed
 
-#### Scenario 5: Plan Selection Workflow (for plan-select)
+#### Scenario 5: Bundle Selection Workflow
 
-1. Invoke `/specfact.02-plan select` (or use CLI: `specfact project plan select`)
+1. Invoke `specfact project health-check` (or use CLI to list bundles)
 2. Verify the LLM:
-   - ✅ Executes `specfact project plan select` CLI command
-   - ✅ Formats plan list as copilot-friendly Markdown table (not Rich table)
-   - ✅ Provides selection options (number, "number details", "q" to quit)
-   - ✅ Waits for user response with `[WAIT FOR USER RESPONSE - DO NOT CONTINUE]`
-3. Request plan details (e.g., "20 details"):
-   - ✅ Loads plan bundle YAML file
+   - ✅ Executes `specfact project health-check` CLI command
+   - ✅ Formats bundle list as copilot-friendly Markdown table (not Rich table)
+   - ✅ Provides selection options and waits for user response with `[WAIT FOR USER RESPONSE - DO NOT CONTINUE]`
+3. Request bundle details:
+   - ✅ Loads bundle information via CLI
    - ✅ Extracts and displays detailed information (idea, themes, top features, business context)
-   - ✅ Asks if user wants to select the plan
+   - ✅ Asks if user wants to use the bundle
    - ✅ Waits for user confirmation
-4. Select a plan (e.g., "20" or "y" after details):
-   - ✅ Uses **positional argument** syntax: `specfact project plan select 20` (NOT `--plan 20`)
+4. Select a bundle (specify `--bundle <name>`):
+   - ✅ Uses `--bundle <bundle-name>` parameter syntax
    - ✅ Confirms selection with CLI output
    - ✅ Does NOT create config.yaml directly
-5. Test filter options:
-   - ✅ Uses `--current` flag to show only active plan: `specfact project plan select --current`
-   - ✅ Uses `--stages` flag to filter by stages: `specfact project plan select --stages draft,review`
-   - ✅ Uses `--last N` flag to show recent plans: `specfact project plan select --last 5`
-6. Test non-interactive mode (CI/CD):
-   - ✅ Uses `--no-interactive` flag with `--current`: `specfact project plan select --no-interactive --current`
-   - ✅ Uses `--no-interactive` flag with `--last 1`: `specfact project plan select --no-interactive --last 1`
-   - ✅ Handles error when multiple plans match filters in non-interactive mode
+5. Test non-interactive mode (CI/CD):
+   - ✅ Uses `--no-interactive` flag: `specfact project health-check --no-interactive`
    - ✅ Does NOT prompt for input when `--no-interactive` is used
 
 #### Scenario 6: Plan Promotion with Coverage Validation (for plan-promote)
 
-1. Invoke `/specfact-plan-promote` with a plan that has missing critical categories
+1. Invoke `/specfact.03-review legacy-api` to promote through review stage
 2. Verify the LLM:
-   - ✅ Executes `specfact project plan promote --stage review --validate` CLI command
+   - ✅ Executes `specfact project devops-flow --stage review --bundle <bundle-name>` CLI command
    - ✅ Parses CLI output showing coverage validation errors
    - ✅ Shows which critical categories are Missing
-   - ✅ Suggests running `specfact project plan review` to resolve ambiguities
+   - ✅ Suggests running `specfact project devops-flow --stage develop` to resolve ambiguities
    - ✅ Does NOT attempt to bypass validation by creating artifacts directly
-   - ✅ Waits for user decision (use `--force` or run `plan review` first)
+   - ✅ Waits for user decision (use `--force` or run develop stage first)
 3. Invoke promotion with `--force` flag:
-   - ✅ Uses `--force` flag correctly: `specfact project plan promote --stage review --force`
+   - ✅ Uses `--force` flag correctly: `specfact project devops-flow --stage review --bundle <bundle-name> --force`
    - ✅ Explains that `--force` bypasses validation (not recommended)
    - ✅ Does NOT create plan bundle directly
 
@@ -280,8 +273,8 @@ After testing, review:
   - [ ] Analyzes enrichment results with reasoning
   - [ ] Proposes and executes specific refinements using CLI commands
   - [ ] Iterates until plan quality meets standards
-- [ ] **Selection workflow** (if applicable): Copilot-friendly table formatting, details option, correct CLI syntax (positional arguments), filter options (`--current`, `--stages`, `--last`), non-interactive mode (`--no-interactive`)
-- [ ] **Promotion workflow** (if applicable): Coverage validation respected, suggestions to run `plan review` when categories are Missing
+- [ ] **Selection workflow** (if applicable): Copilot-friendly table formatting, details option, correct CLI syntax (`--bundle`), non-interactive mode (`--no-interactive`)
+- [ ] **Promotion workflow** (if applicable): Coverage validation respected, suggestions to run `project devops-flow --stage develop` when categories are Missing
 - [ ] **Error handling**: Errors handled gracefully without assumptions
 
 ## Common Issues to Watch For
@@ -336,14 +329,14 @@ After testing, review:
 
 ### ❌ Wrong Argument Format (Positional vs Option)
 
-**Symptom**: LLM uses `--option` flag when command expects positional argument (e.g., `specfact project plan select --plan 20` instead of `specfact project plan select 20`)
+**Symptom**: LLM uses incorrect argument format when command expects a specific syntax (e.g., positional vs named arguments)
 
 **Fix**:
 
 - Verify actual CLI command signature (use `specfact <command> --help`)
 - Update prompt to explicitly state positional vs option arguments
 - Add examples showing correct syntax
-- Add warning about common mistakes (e.g., "NOT `specfact project plan select --plan 20` (this will fail)")
+- Add warning about common mistakes
 
 ### ❌ Wrong Boolean Flag Usage
 
@@ -365,7 +358,7 @@ After testing, review:
 
 ### ❌ Missing Coverage Validation
 
-**Symptom**: LLM promotes plans without checking coverage status, or doesn't suggest running `plan review` when categories are Missing
+**Symptom**: LLM promotes plans without checking coverage status, or doesn't suggest running `project devops-flow --stage develop` when categories are Missing
 
 **Fix**:
 
@@ -421,7 +414,7 @@ The following prompts are available for SpecFact CLI commands:
 - `specfact.04-sdd.md` - Create SDD manifest (new, based on `plan harden`)
 - `specfact.05-enforce.md` - SDD enforcement (replaces `specfact-enforce.md`)
 - `specfact.06-sync.md` - Sync operations (replaces `specfact-sync.md`)
-- `specfact.07-contracts.md` - Contract enhancement workflow: analyze → generate prompts → apply contracts sequentially (new, based on `analyze contracts`, `generate contracts-prompt`, `generate contracts-apply`)
+- `specfact.07-contracts.md` - Contract enhancement workflow: analyze → generate prompts → apply contracts sequentially (use `specfact govern enforce sdd [BUNDLE]` for SDD enforcement; contract prompt generation is handled via this IDE skill)
 
 ### Advanced Commands (No Numbering)
 
@@ -444,7 +437,7 @@ The following prompts are available for SpecFact CLI commands:
 
 - Added `specfact.07-contracts.md` to available prompts list
 - New contract enhancement workflow prompt for sequential contract application
-- Workflow: analyze contracts → generate prompts → apply contracts with careful review
+- Workflow: analyze contracts → apply contracts with careful review (via IDE skill; use `specfact govern enforce sdd [BUNDLE]` for SDD enforcement)
 
 ### Version 1.10 (2025-01-XX)
 

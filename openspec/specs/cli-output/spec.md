@@ -263,7 +263,7 @@ debug_print(f"[dim]ADO Auth: {auth_header_preview}[/dim]")
 
 ### Requirement: Command Reference Completeness
 
-The system SHALL keep command reference documentation aligned with shipped CLI command surfaces for each release.
+The system SHALL keep authored docs parity validation aligned with the shipped CLI command surfaces for each release, including checks that removed command-syntax families stay absent from authored docs.
 
 #### Scenario: Shipped patch command documented in command reference
 
@@ -271,6 +271,13 @@ The system SHALL keep command reference documentation aligned with shipped CLI c
 - **WHEN** command reference documentation is published for that release
 - **THEN** reference docs include `specfact patch apply` options and usage semantics
 - **AND** docs do not describe unavailable command variants as fully implemented behavior.
+
+#### Scenario: Docs parity checks run after command-surface changes
+
+- **GIVEN** authored docs contain user-facing command examples in `README.md` and `docs/`
+- **WHEN** docs parity validation runs for a release
+- **THEN** validation fails if authored docs still reference removed or transitional syntax families such as `project plan`, `project import from-bridge`, `backlog policy`, or retired `spec` subgroup trees
+- **AND** validation passes only when current docs examples align with the shipped command groups and the supported parameter forms documented for that release
 
 ### Requirement: Changelog Release Integrity
 

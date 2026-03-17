@@ -56,13 +56,7 @@ specfact code import legacy-api --repo ./legacy-app
 
 **Time saved:** 60-120 hours of manual documentation → **8 seconds**
 
-**💡 Tip**: After importing, the CLI may suggest generating a bootstrap constitution for Spec-Kit integration. This auto-generates a constitution from your repository analysis:
-
-```bash
-# If suggested, accept to auto-generate
-# Or run manually:
-specfact spec sdd constitution bootstrap --repo .
-```
+**💡 Tip**: After importing, the CLI may suggest generating a bootstrap constitution for Spec-Kit integration. This auto-generates a constitution from your repository analysis. Use `specfact govern enforce sdd [BUNDLE]` for SDD enforcement when working with Spec-Kit bundles.
 
 This is especially useful if you plan to sync with Spec-Kit later.
 
@@ -70,7 +64,7 @@ This is especially useful if you plan to sync with Spec-Kit later.
 
 ```bash
 # Review the extracted plan using CLI commands
-specfact project plan review legacy-api
+specfact project snapshot legacy-api
 ```
 
 **What to look for:**
@@ -84,7 +78,9 @@ specfact project plan review legacy-api
 
 ```bash
 # Compare extracted plan to your understanding (bundle directory paths)
-specfact project plan compare \
+specfact project devops-flow \
+  --stage plan \
+  --action compare \
   --manual .specfact/projects/manual-plan \
   --auto .specfact/projects/your-project
 ```
@@ -112,7 +108,7 @@ specfact project plan compare \
 
 ```bash
 # Review plan using CLI commands
-specfact project plan review legacy-api
+specfact project snapshot legacy-api
 ```
 
 ### Step 2.2: Add Contracts Incrementally

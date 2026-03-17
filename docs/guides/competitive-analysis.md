@@ -93,7 +93,7 @@ specfact project sync bridge --adapter github --mode export-only \
 Already using Spec-Kit? SpecFact CLI **imports your work** in one command:
 
 ```bash
-specfact project import from-bridge --adapter speckit --repo ./my-speckit-project --write
+specfact code import from-bridge --adapter speckit --repo ./my-speckit-project --write
 ```
 
 **Result**: Your Spec-Kit artifacts (spec.md, plan.md, tasks.md) become production-ready contracts with zero manual work.
@@ -119,7 +119,7 @@ specfact project sync bridge --adapter speckit --bundle <bundle-name> --repo . -
 # → No manual markdown sharing required
 
 # Detect code vs plan drift automatically
-specfact project plan compare --bundle legacy-api --code-vs-plan
+specfact project devops-flow --stage plan --action compare --bundle legacy-api --code-vs-plan
 # → Compares intended design (manual plan = what you planned) vs actual implementation (code-derived plan = what's in your code)
 # → Auto-derived plans come from `import from-code` (code analysis), so comparison IS "code vs plan drift"
 # → Identifies deviations automatically (not just artifact consistency like Spec-Kit's /speckit.analyze)
@@ -241,7 +241,7 @@ specfact govern enforce stage --preset balanced
 
 ```bash
 # Detect code vs plan drift automatically
-specfact project plan compare --bundle legacy-api --code-vs-plan
+specfact project devops-flow --stage plan --action compare --bundle legacy-api --code-vs-plan
 # → Compares intended design (manual plan = what you planned) vs actual implementation (code-derived plan = what's in your code)
 # → Auto-derived plans come from `import from-code` (code analysis), so comparison IS "code vs plan drift"
 # → Identifies deviations automatically (not just artifact consistency like Spec-Kit's /speckit.analyze)
@@ -317,7 +317,7 @@ See [Use Cases: Brownfield Modernization](use-cases.md#use-case-1-brownfield-cod
 **One-command import**:
 
 ```bash
-specfact project import from-bridge --adapter speckit --repo . --write
+specfact code import from-bridge --adapter speckit --repo . --write
 ```
 
 See [Use Cases: Spec-Kit Migration](use-cases.md#use-case-2-github-spec-kit-migration-secondary)
@@ -351,7 +351,7 @@ SpecFact CLI automatically detects CoPilot and switches to enhanced mode.
 
 **Greenfield approach**:
 
-1. `specfact project plan init legacy-api --interactive`
+1. `specfact project devops-flow --stage plan --action init --bundle legacy-api --interactive`
 2. Add features and stories
 3. Enable strict enforcement
 4. Let SpecFact guide development
