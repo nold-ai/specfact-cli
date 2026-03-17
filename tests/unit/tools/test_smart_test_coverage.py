@@ -605,6 +605,39 @@ show_missing = true
         assert test_count == 0
         assert coverage_percentage == 0
 
+    @patch("subprocess.Popen")
+    def test_run_coverage_tests_falls_back_when_hatch_env_cache_is_broken(self, mock_popen):
+        """Fallback to direct pytest when Hatch returns a broken cached env error."""
+        hatch_process = Mock()
+        hatch_process.stdout = Mock()
+        hatch_process.stdout.readline.side_effect = [
+            "Checking dependencies\n",
+            "Syncing dependencies\n",
+            "error: Failed to inspect Python interpreter from active virtual environment at `/tmp/hatch/bin/python3`\n",
+            "  Caused by: Broken symlink at `/tmp/hatch/bin/python3`\n",
+            "",
+        ]
+        hatch_process.wait.return_value = 2
+
+        pytest_process = Mock()
+        pytest_process.stdout = Mock()
+        pytest_process.stdout.readline.side_effect = [
+            "test_module.py::test_function PASSED [100%]\n",
+            "TOTAL 1 passed in 0.01s\n",
+            "TOTAL 85.5%\n",
+            "",
+        ]
+        pytest_process.wait.return_value = 0
+
+        mock_popen.side_effect = [hatch_process, pytest_process]
+
+        success, test_count, coverage_percentage = self.manager._run_coverage_tests()
+
+        assert success is True
+        assert test_count == 1
+        assert coverage_percentage == 85.5
+        assert mock_popen.call_count == 2
+
     def test_update_cache_with_threshold_error(self):
         """Test update cache when coverage threshold is not met."""
         # Set a high threshold

@@ -56,6 +56,12 @@ class CoverageThresholdError(Exception):
 
 
 class SmartCoverageManager:
+    _HATCH_ENV_BROKEN_MARKERS = (
+        "Failed to inspect Python interpreter",
+        "Broken symlink",
+        "underlying Python interpreter removed",
+    )
+
     def __init__(self, project_root: str = ".", coverage_threshold: float | None = None):
         self.project_root = Path(project_root).resolve()
         self.cache_dir = self.project_root / ".coverage_cache"
@@ -195,6 +201,17 @@ class SmartCoverageManager:
         except ValueError:
             timeout_seconds = default_timeout
         return max(timeout_seconds, 60)
+
+    def _should_fallback_from_hatch(
+        self, return_code: int | None, output_lines: list[str], startup_error: Exception | None
+    ) -> bool:
+        """Detect Hatch startup/env failures that should fall back to direct pytest."""
+        if startup_error is not None or return_code is None:
+            return True
+        if return_code == 0:
+            return False
+        combined_output = "\n".join(output_lines)
+        return any(marker in combined_output for marker in self._HATCH_ENV_BROKEN_MARKERS)
 
     def _get_coverage_threshold(self) -> float:
         """Get coverage threshold from pyproject.toml or environment variable."""
@@ -791,11 +808,11 @@ class SmartCoverageManager:
                     hatch_cmd = self._build_hatch_test_cmd(with_coverage=True, parallel=True)
                     rc, out, err = run_and_stream(hatch_cmd)
                     output_lines.extend(out)
-                    # Only fall back to pytest if hatch failed to start or had a critical error
-                    # Don't fall back for non-zero exit codes that might be due to coverage threshold failures
-                    if err is not None or rc is None:
-                        print("⚠️  Hatch test failed to start; falling back to pytest.")
-                        log_file.write("Hatch test failed to start; falling back to pytest.\n")
+                    # Fall back to direct pytest when Hatch cannot start or when a cached Hatch
+                    # environment is broken (for example, a broken python symlink in CI cache).
+                    if self._should_fallback_from_hatch(rc, out, err):
+                        print("⚠️  Hatch test failed to start cleanly; falling back to pytest.")
+                        log_file.write("Hatch test failed to start cleanly; falling back to pytest.\n")
                         pytest_cmd = self._build_pytest_cmd(with_coverage=True, parallel=True)
                         rc2, out2, _ = run_and_stream(pytest_cmd)
                         output_lines.extend(out2)
