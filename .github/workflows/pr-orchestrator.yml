@@ -199,7 +199,7 @@ jobs:
       - name: Generate coverage XML for quality gates
         if: needs.changes.outputs.skip_tests_dev_to_main != 'true' && env.RUN_UNIT_COVERAGE == 'true'
         run: |
-          hatch -e hatch-test.py3.12 run xml
+          python -m coverage xml -o logs/tests/coverage/coverage.xml --data-file=logs/tests/coverage/.coverage
 
       - name: Upload test logs
         if: needs.changes.outputs.skip_tests_dev_to_main != 'true'
