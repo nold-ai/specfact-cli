@@ -1,6 +1,11 @@
 repos:
   - repo: local
     hooks:
+      - id: specfact-code-review-gate
+        name: Run code review gate on staged Python files
+        entry: hatch run python scripts/pre_commit_code_review.py
+        language: system
+        files: \.pyi?$
       - id: verify-module-signatures
         name: Verify module signatures and version bumps
         entry: hatch run ./scripts/verify-modules-signature.py --require-signature --enforce-version-bump

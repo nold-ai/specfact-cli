@@ -75,6 +75,10 @@ hatch test --cover -v
 ### Pre-commit Checks
 
 ```bash
+# Install repo hooks
+pre-commit install
+scripts/setup-git-hooks.sh
+
 # Format code
 hatch run format
 
@@ -87,6 +91,10 @@ hatch run lint
 # Run contract-first tests
 hatch run contract-test-full
 ```
+
+The repo-owned pre-commit flow now also runs `specfact code review run` on
+staged Python files and blocks commits only when the review verdict is
+blocking.
 
 ## Contributor License Agreement (CLA)
 
