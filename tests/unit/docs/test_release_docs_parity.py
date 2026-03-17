@@ -95,7 +95,6 @@ def test_bundle_focused_pages_use_handoff_note_instead_of_future_migration_langu
 # docs-03-command-syntax-parity: removed syntax families must be absent
 # ---------------------------------------------------------------------------
 
-_AUTHORED_DOC_ROOTS = ["README.md", "docs"]
 
 
 def _scan_authored_docs(pattern: str) -> list[tuple[str, int, str]]:
