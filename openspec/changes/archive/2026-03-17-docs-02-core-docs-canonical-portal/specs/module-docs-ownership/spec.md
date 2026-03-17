@@ -11,7 +11,7 @@ The documentation SHALL state which documentation concerns remain owned by `spec
 - **AND** they explain that bundle-specific command and workflow docs are canonically owned by `specfact-cli-modules`
 - **AND** they do not describe the core docs set as the permanent home for module-specific deep guidance.
 
-### Requirement: Core-hosted module pages use a handoff model during migration
+### Requirement: Module-specific docs carry a migration note while hosted in core
 
 Any live module-specific guide or reference page that remains in `specfact-cli` SHALL either provide core-owned overview context or a clear handoff to the canonical modules docs page.
 
