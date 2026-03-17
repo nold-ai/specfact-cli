@@ -180,5 +180,8 @@ specfact module upgrade --all
 
 Upgrade applies only to modules with origin `marketplace`.
 
-> Temporary docs note: module-specific install and bundle behavior docs remain hosted in this
+> Modules docs handoff: this page remains in the core docs set as release-line overview content.
+> Canonical bundle-specific deep guidance now lives in the canonical modules docs site, currently
+> published at `https://modules.specfact.io/`.
+
 > core docs set for the current release line and are planned to migrate to `specfact-cli-modules`.

@@ -50,9 +50,9 @@ Tests before code. Do not implement until failing tests exist.
 
 - [x] 6.1 Run targeted tests/validation -> expect passing; record in `TDD_EVIDENCE.md`
 - [x] 6.2 Run `pre-commit run --all-files` or an equivalent targeted pre-commit validation pass
-- [ ] 6.3 `hatch run format`
-- [ ] 6.4 `hatch run type-check`
-- [ ] 6.5 `hatch run lint`
+- [x] 6.3 `hatch run format`
+- [x] 6.4 `hatch run type-check`
+- [x] 6.5 `hatch run lint`
 
 ## 7. Version and changelog
 
@@ -61,8 +61,8 @@ Tests before code. Do not implement until failing tests exist.
 ## 8. GitHub issue and PR
 
 - [x] 8.1 Update issue #393 to match the rewritten change scope
-- [ ] 8.2 Update proposal.md Source Tracking if needed; commit, push, create PR
+- [x] 8.2 Update proposal.md Source Tracking if needed; commit, push, create PR
 
 ## Post-merge cleanup
 
-- [ ] Remove worktree, delete branch, prune
+- [x] Remove worktree, delete branch, prune

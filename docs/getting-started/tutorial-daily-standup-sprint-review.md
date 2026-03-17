@@ -8,8 +8,9 @@ permalink: /getting-started/tutorial-daily-standup-sprint-review/
 # Tutorial: Daily Standup and Sprint Review with SpecFact CLI
 
 
-> Temporary docs note: this bundle-focused page remains hosted in the core docs set for the
-> current release line and is planned to migrate to `specfact-cli-modules`.
+> Modules docs handoff: this page remains in the core docs set as release-line overview content.
+> Canonical bundle-specific deep guidance now lives in the canonical modules docs site, currently
+> published at `https://modules.specfact.io/`.
 
 This tutorial walks you through a complete **daily standup and sprint review** workflow using SpecFact CLI: view your backlog items, optionally post standup comments to issues, use interactive step-through and Copilot export—with **no need to pass org/repo or org/project** when you run from your cloned repo.
 

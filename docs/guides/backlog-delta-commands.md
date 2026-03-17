@@ -7,8 +7,9 @@ permalink: /guides/backlog-delta-commands/
 # Backlog Delta Commands
 
 
-> Temporary docs note: this bundle-focused page remains hosted in the core docs set for the
-> current release line and is planned to migrate to `specfact-cli-modules`.
+> Modules docs handoff: this page remains in the core docs set as release-line overview content.
+> Canonical bundle-specific deep guidance now lives in the canonical modules docs site, currently
+> published at `https://modules.specfact.io/`.
 
 `delta` commands are grouped under backlog because they describe backlog graph drift and impact, not source-code diffs.
 

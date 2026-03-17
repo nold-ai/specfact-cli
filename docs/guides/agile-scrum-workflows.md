@@ -7,8 +7,9 @@ permalink: /guides/agile-scrum-workflows/
 # Agile/Scrum Workflows with SpecFact CLI
 
 
-> Temporary docs note: this bundle-focused page remains hosted in the core docs set for the
-> current release line and is planned to migrate to `specfact-cli-modules`.
+> Modules docs handoff: this page remains in the core docs set as release-line overview content.
+> Canonical bundle-specific deep guidance now lives in the canonical modules docs site, currently
+> published at `https://modules.specfact.io/`.
 
 This guide explains how to use SpecFact CLI for agile/scrum workflows, including backlog management, sprint planning, dependency tracking, and Definition of Ready (DoR) validation.
 
