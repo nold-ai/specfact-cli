@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "specfact-cli"
-version = "0.41.0"
+version = "0.42.1"
 description = "The swiss knife CLI for agile DevOps teams. Keep backlog, specs, tests, and code in sync with validation and contract enforcement for new projects and long-lived codebases."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -88,6 +88,7 @@ dependencies = [
     
     # Code analysis
     "ruff>=0.14.2",
+    "radon>=6.0.1",
     
     # File system watching
     "watchdog>=6.0.0",
@@ -108,6 +109,7 @@ dev = [
     "isort>=7.0.0",
     "pylint>=4.0.2",
     "ruff>=0.14.2",
+    "radon>=6.0.1",
     "tomlkit>=0.13.3",  # Style-preserving TOML library (recommended successor to pytoml)
     "types-PyYAML>=6.0.12.20250516",
     "pip-tools>=7.5.1",
@@ -175,6 +177,7 @@ dependencies = [
     "basedpyright>=1.32.1",
     "pylint>=4.0.2",
     "ruff>=0.14.2",
+    "radon>=6.0.1",
     "yamllint>=1.37.1",
     "semgrep>=1.144.0",  # Latest version compatible with rich~=13.5.2
     # Contract-First Development Dependencies

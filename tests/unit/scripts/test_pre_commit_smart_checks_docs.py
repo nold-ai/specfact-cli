@@ -23,3 +23,10 @@ def test_pre_commit_markdown_autofix_rejects_partial_staging() -> None:
     script = _script_text()
     assert 'git diff --quiet -- "$file"' in script
     assert "Cannot auto-fix Markdown with unstaged hunks" in script
+
+
+def test_pre_commit_runs_code_review_gate_before_contract_tests() -> None:
+    script = _script_text()
+    assert "run_code_review_gate" in script
+    assert "hatch run python scripts/pre_commit_code_review.py" in script
+    assert "run_code_review_gate\n\n# Contract-first test flow" in script

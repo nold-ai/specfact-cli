@@ -10,6 +10,22 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.42.1] - 2026-03-17
+
+### Added
+
+- Integrated `specfact code review run` into this repository's pre-commit flow through a staged-file review gate and helper script, so blocking review verdicts fail commit validation while advisory verdicts remain green.
+
+### Changed
+
+- Expanded `docs/modules/code-review.md` with repo-local pre-commit setup, portable adoption guidance for other projects, optional `house_rules` workflow guidance, and JSON-first reward-ledger documentation with optional backend persistence.
+
+### Fixed
+
+- Declared `radon` in the runtime, dev, and Hatch default environments so `specfact code review run` can resolve its complexity runner consistently in fresh local bootstraps and worktrees.
+
+---
+
 ## [0.41.0] - 2026-03-11
 
 ### Added

@@ -33,6 +33,10 @@ has_staged_markdown() {
   staged_files | grep -E '\\.md$' >/dev/null 2>&1
 }
 
+staged_python_files() {
+  staged_files | grep -E '\\.pyi?$' || true
+}
+
 staged_markdown_files() {
   staged_files | grep -E '\\.md$' || true
 }
@@ -180,6 +184,24 @@ run_actionlint_if_needed() {
   fi
 }
 
+run_code_review_gate() {
+  local py_files
+  py_files=$(staged_python_files)
+  if [ -z "${py_files}" ]; then
+    info "ℹ️  No staged Python files — skipping code review gate"
+    return
+  fi
+
+  info "🛡️ Running code review gate on staged Python files"
+  if echo "${py_files}" | xargs -r hatch run python scripts/pre_commit_code_review.py; then
+    success "✅ Code review gate passed"
+  else
+    error "❌ Code review gate failed"
+    warn "💡 Fix blocking review findings or run the gate manually with: hatch run python scripts/pre_commit_code_review.py <files>"
+    exit 1
+  fi
+}
+
 check_safe_change() {
   local files
   files=$(staged_files)
@@ -247,6 +269,8 @@ if check_safe_change; then
   info "💡 Only version numbers, docs/test infra, or YAML/workflows changed"
   exit 0
 fi
+
+run_code_review_gate
 
 # Contract-first test flow
 if [ ! -f "tools/contract_first_smart_test.py" ]; then

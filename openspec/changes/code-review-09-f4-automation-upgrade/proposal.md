@@ -1,60 +1,63 @@
-# Change: Upgrade F-4 (Code Review) to Use specfact code review run
+# Change: Integrate specfact code review into Pre-Commit and Portable Project Workflows
 
 ## Why
 
-The current F-4 node in the n8n coding automation workflow uses a generic `codex review` pass with no structured scoring, no ledger update, and no pre-commit BLOCK gate. This change replaces that with `specfact code review run --json`, wires the output to the reward ledger, injects `house_rules.md` context into F-2 container launches, and adds a pre-commit gate in stage 6 of the coding container script.
+The current `specfact-cli` repository does not wire `specfact code review run`
+into its own `.pre-commit-config.yaml`, so contributors can still commit code
+without the governed review pass that the new module was built to provide.
+There is also no grounded, copyable guidance for how other projects should add
+the same gate before a commit is considered green.
 
-This closes the feedback loop: AI generates code → review runs automatically → ledger updates → house_rules improves → next session benefits.
+This change replaces the stale F-4 automation framing with a repository-owned
+integration: run code review as part of pre-commit in this repo, document the
+same pattern for any project, and treat the reward ledger as local JSON by
+default with optional backend persistence when configured.
 
 ## What Changes
 
-**n8n F-2 workflow:**
-- Read `house_rules.md` at container launch; inject as `HOUSE_RULES` env var
-
-**n8n F-4 workflow:**
-- Replace "Run Codex Review" node with "Run specfact code review run --json"
-- Replace parse logic with `ReviewReport` schema parser (SP-001 models)
-- Wire `overall_verdict` (PASS/PASS_WITH_ADVISORY/FAIL) to branch routing
-- Add "Update Reward Ledger" node: pipe review JSON to `specfact code review ledger update`
-- Replace "Run Codex Auto-Fix" with "Run specfact code review run --fix"
-
-**coding-workflow.js container script:**
-- Stage 5: include `HOUSE_RULES` content in coding CLI stdin JSON as `context.house_rules` field
-- Stage 6 (new pre-commit gate):
-  - Run `specfact code review run --score-only` on changed files
-  - Exit code 1 (BLOCK): do not commit; fire callback `REVIEW_BLOCKED`
-  - Exit code 0 (PASS/WARN): proceed with git commit
+- Add a repository-local pre-commit hook in `.pre-commit-config.yaml` that runs
+  `specfact code review run` on the relevant staged files before a commit can
+  pass.
+- Add any repo-owned helper or wrapper logic needed to make the pre-commit
+  review gate deterministic, actionable, and compatible with this repo's local
+  environment.
+- Document how to add the same review gate to any project later, including a
+  copyable pre-commit example and commit-blocking semantics.
+- Document optional `house_rules` workflow usage for projects that want the
+  review gate to include project-specific guidance.
+- Document that the reward ledger is expected to be local JSON in most cases,
+  while Supabase or another database backend remains optional when configured.
 
 ## Capabilities
 
 ### New Capabilities
 
-- `f4-specfact-review`: n8n F-4 node using `specfact code review run` instead of `codex review`
-- `f4-ledger-update`: Automatic reward ledger update after every F-4 execution
-- `f2-house-rules-injection`: `HOUSE_RULES` env var injected into every F-2 container launch
-- `container-pre-commit-gate`: Stage 6 gate in coding-workflow.js preventing BLOCK commits
+- `pre-commit-review-gate`: repository-local pre-commit enforcement using
+  `specfact code review run`
+- `portable-review-adoption`: reusable guidance for adding the review gate to
+  other projects
 
 ### Modified Capabilities
 
-- `coding-automation-f4`: Replaced with specfact review run; branch routing on PASS/WARN/BLOCK
-- `coding-automation-f2`: Extended with house_rules context injection
-- `coding-automation-container-script`: Stage 5 + stage 6 modifications
+- `reward-ledger`: document and validate JSON-first local usage with optional
+  configured backend support
 
 ---
 
 ## Impact
 
 - Depends on `code-review-01-module-scaffold`, `code-review-02-ruff-radon-runners`, `code-review-03-type-governance-runners`, `code-review-04-contract-test-runners`, `code-review-06-reward-ledger`
-- Replaces `codex` CLI in F-4 fully (codex not run in parallel)
-- BLOCK verdict stops auto-commit and triggers human notification — 100% gate, no bypass
-- VPS resource note: semgrep + crosshair are CPU-heavy; max concurrent `specfact code review run` processes must be defined
-- `crosshair` availability in `specfact-coding-worker` Docker image must be confirmed
-- **Documentation**: Add automation upgrade notes to internal runbook; update `docs/modules/code-review.md` with CI/automation integration section
+- Affects `.pre-commit-config.yaml`, review-gate integration helpers, and
+  `docs/modules/code-review.md`
+- Keeps the commit gate local and repo-owned instead of assuming external n8n
+  workflow nodes that are not present in the current codebase
+- Clarifies the recommended deployment posture for the ledger: local JSON by
+  default, optional remote persistence when explicitly configured
 
 ## Source Tracking
 
 <!-- source_repo: nold-ai/specfact-cli -->
-- **GitHub Issue**: TBD
-- **Issue URL**: TBD
+- **GitHub Issue**: #393
+- **Issue URL**: https://github.com/nold-ai/specfact-cli/issues/393
 - **Repository**: nold-ai/specfact-cli
-- **Last Synced Status**: proposed
+- **Last Synced Status**: synced after rewrite

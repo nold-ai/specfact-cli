@@ -99,3 +99,84 @@ The scaffolded `ReviewReport` envelope carries these fields:
 - `schema_version`, `run_id`, `timestamp`, `overall_verdict`, and `ci_exit_code` are always present.
 - Review-specific fields (`score`, `reward_delta`, `findings`, `summary`, `house_rules_updates`) extend the standard evidence shape without replacing it.
 - CI can treat `ci_exit_code` as the contract-bound gate result from the start.
+
+## Pre-Commit Review Gate
+
+This repository wires `specfact code review run` into pre-commit before a
+commit is considered green.
+
+The local hook entry lives in `.pre-commit-config.yaml`:
+
+```yaml
+repos:
+  - repo: local
+    hooks:
+      - id: specfact-code-review-gate
+        name: Run code review gate on staged Python files
+        entry: hatch run python scripts/pre_commit_code_review.py
+        language: system
+        files: \.pyi?$
+```
+
+The helper script scopes the gate to staged Python files only and then runs:
+
+```bash
+specfact code review run --score-only <staged-python-files>
+```
+
+Commit behavior:
+
+- `PASS` keeps the commit green
+- `PASS_WITH_ADVISORY` keeps the commit green
+- `FAIL` blocks the commit
+
+To install the repo-owned hook flow:
+
+```bash
+pre-commit install
+scripts/setup-git-hooks.sh
+```
+
+## Add to Any Project
+
+For another project, you can use the same gate without this repo's helper
+script by adding a local pre-commit hook that runs `specfact` directly:
+
+```yaml
+repos:
+  - repo: local
+    hooks:
+      - id: specfact-code-review
+        name: specfact code review gate
+        entry: specfact code review run --score-only
+        language: system
+        files: \.pyi?$
+```
+
+This makes code review part of commit validation before the commit is green.
+Pre-commit passes the staged matching files as arguments to the command.
+
+## Optional house_rules Workflow
+
+If a project maintains `house_rules`, keep that guidance current with:
+
+```bash
+specfact code review rules update
+specfact code review rules show
+```
+
+The pre-commit gate does not require a `house_rules` file, but projects can use
+the generated guidance as part of their broader coding workflow.
+
+## Ledger Storage
+
+For most local and offline use cases, the reward ledger should be treated as a
+JSON file stored at:
+
+```text
+~/.specfact/ledger.json
+```
+
+That local JSON path is the default assumption for day-to-day usage. Supabase
+remains optional when a team explicitly configures remote persistence or wants a
+shared backend-backed ledger.
