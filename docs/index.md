@@ -36,6 +36,7 @@ Most tools help **either** coders **or** agile teams. SpecFact does both:
 Recommended command entrypoints:
 - `specfact backlog ceremony standup ...`
 - `specfact backlog ceremony refinement ...`
+- `specfact backlog verify-readiness --bundle <bundle-name>`
 
 **Try it now**
 
@@ -62,7 +63,7 @@ specfact backlog daily ado --ado-org <org> --ado-project "<project>" --state any
 specfact backlog refine ado --ado-org <org> --ado-project "<project>" --id <work-item-id> --preview
 
 # 3) Validate drift before implementation
-specfact backlog policy validate --group-by-item
+specfact backlog verify-readiness --bundle <bundle-name>
 ```
 
 GitHub variant:
@@ -176,7 +177,7 @@ Module lifecycle note: use `specfact module` (`init`, `install`, `list`, `show`,
 
 - **[Command Chains](guides/command-chains.md)** ⭐ **NEW** - Complete workflows from start to finish
 - **[Agile/Scrum Workflows](guides/agile-scrum-workflows.md)** - Persona-based collaboration for teams
-- **[Policy Engine Commands](guides/policy-engine-commands.md)** - Scaffold policy config templates and run `backlog policy init|validate|suggest`
+- **[Policy Engine Commands](guides/policy-engine-commands.md)** - Run backlog readiness and ceremony workflows
 - **[DevOps Backlog Integration](guides/devops-adapter-integration.md)** 🆕 **NEW FEATURE** - Integrate SpecFact into agile DevOps workflows with bidirectional backlog sync
 - **[Backlog Refinement](guides/backlog-refinement.md)** 🆕 **NEW FEATURE** - AI-assisted template-driven backlog refinement for standardizing work items
 - **[Backlog Dependency Analysis](guides/backlog-dependency-analysis.md)** - Analyze critical path, cycles, orphans, and dependency impact from backlog graph data

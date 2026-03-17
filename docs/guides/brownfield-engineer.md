@@ -94,12 +94,11 @@ This enables:
 - **Multi-plan support** - Create separate plan bundles for different projects/modules
 - **Better organization** - Keep plans organized by project boundaries
 
-**💡 Tip**: After importing, the CLI may suggest generating a bootstrap constitution for Spec-Kit integration. This auto-generates a constitution from your repository analysis:
+**💡 Tip**: After importing, the CLI may suggest enforcing SDD compliance for Spec-Kit integration. Run SDD enforcement to validate compliance:
 
 ```bash
-# If suggested, accept to auto-generate
-# Or run manually:
-specfact spec sdd constitution bootstrap --repo .
+# Enforce SDD compliance for your bundle
+specfact govern enforce sdd <bundle-name>
 ```
 
 This is especially useful if you plan to sync with Spec-Kit later.

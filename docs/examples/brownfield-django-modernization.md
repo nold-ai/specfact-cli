@@ -85,7 +85,7 @@ After extracting the plan, create a hard SDD (Spec-Driven Development) manifest 
 
 ```bash
 # Create SDD manifest from the extracted plan
-specfact project plan harden customer-portal
+specfact govern enforce sdd customer-portal
 ```
 
 ### Output
@@ -161,7 +161,7 @@ specfact govern enforce sdd customer-portal
    - 2 medium severity deviations
    - Fix: Add contracts to stories or adjust thresholds
 
-💡 Run 'specfact project plan harden' to update SDD manifest
+💡 Run 'specfact govern enforce sdd <bundle>' to enforce SDD
 ```
 
 ---
@@ -172,13 +172,13 @@ Review your plan to identify ambiguities and ensure SDD compliance:
 
 ```bash
 # Review plan (automatically checks SDD, bundle name as positional argument)
-specfact project plan review customer-portal --max-questions 5
+specfact project devops-flow --stage develop --bundle customer-portal
 ```
 
 ### Output
 
 ```text
-📋 SpecFact CLI - Plan Review
+📋 SpecFact CLI - DevOps Flow (develop stage)
 
 ✅ Loading project bundle: .specfact/projects/customer-portal/
 ✅ Current stage: draft
@@ -193,10 +193,9 @@ specfact project plan review customer-portal --max-questions 5
    ...
 
 ✅ Review complete: 5 questions identified
-💡 Run 'specfact project plan review --answers answers.json' to resolve in bulk
 ```
 
-**SDD integration**: The review command automatically checks for SDD presence and validates coverage thresholds, warning you if thresholds aren't met.
+**SDD integration**: The devops-flow develop stage automatically checks for SDD presence and validates coverage thresholds, warning you if thresholds aren't met.
 
 ---
 
@@ -206,13 +205,13 @@ Before starting modernization, promote your plan to "review" stage. This require
 
 ```bash
 # Promote plan to review stage (requires SDD, bundle name as positional argument)
-specfact project plan promote customer-portal --stage review
+specfact project devops-flow --stage review --bundle customer-portal
 ```
 
 ### Output (Success)
 
 ```text
-📋 SpecFact CLI - Plan Promotion
+📋 SpecFact CLI - DevOps Flow (review stage)
 
 ✅ Loading project bundle: .specfact/projects/customer-portal/
 ✅ Current stage: draft
@@ -231,7 +230,7 @@ specfact project plan promote customer-portal --stage review
 
 ```text
 ❌ SDD manifest is required for promotion to 'review' or higher stages
-💡 Run 'specfact project plan harden' to create SDD manifest
+💡 Run 'specfact govern enforce sdd <bundle>' to enforce SDD
 ```
 
 **Why this matters**: Plan promotion now enforces SDD presence, ensuring you have a hard spec before starting modernization work. This prevents drift and ensures coverage thresholds are met.
@@ -246,7 +245,7 @@ Review the extracted plan to identify high-risk functions:
 
 ```bash
 # Review extracted plan using CLI commands
-specfact project plan review customer-portal
+specfact project health-check
 
 ```
 

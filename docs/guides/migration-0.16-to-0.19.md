@@ -40,11 +40,8 @@ specfact code repro setup
 # Analyze and validate your codebase
 specfact code repro --verbose
 
-# Generate AI-ready prompt to fix a gap
-specfact spec generate fix-prompt GAP-001 --bundle my-bundle
-
-# Generate AI-ready prompt to add tests
-specfact spec generate test-prompt src/auth/login.py --bundle my-bundle
+# Use your AI IDE skill (/specfact.07-contracts) for contract enhancement workflows
+# These AI IDE prompt generation commands were removed; use /specfact.07-contracts skill instead
 ```
 
 ### `run idea-to-ship` Removed
@@ -59,14 +56,11 @@ The `run idea-to-ship` command has been removed in v0.17.0.
 
 ### Bridge Commands (v0.17.0)
 
-New commands that generate AI-ready prompts for your IDE:
+AI-ready prompts for your IDE are now generated via the AI IDE skill workflow:
 
 ```bash
-# Generate fix prompt for a gap
-specfact spec generate fix-prompt GAP-001
-
-# Generate test prompt for a file
-specfact spec generate test-prompt src/module.py --type unit
+# Use your AI IDE skill (/specfact.07-contracts) for contract enhancement workflows
+# These AI IDE prompt generation commands were removed; use /specfact.07-contracts skill instead
 ```
 
 ### Version Management (v0.17.0)
@@ -119,8 +113,8 @@ If you were using `implement tasks` or `run idea-to-ship`, migrate to bridge com
 
 ```bash
 # REMOVED in v0.22.0 - Use Spec-Kit, OpenSpec, or other SDD tools instead
-# specfact spec generate tasks --bundle my-bundle
-# specfact implement tasks .specfact/projects/my-bundle/tasks.yaml
+# These task generation commands were removed; use specfact govern enforce sdd --bundle my-bundle instead
+# specfact implement tasks was also removed in v0.22.0
 ```
 
 **New workflow:**
@@ -129,8 +123,7 @@ If you were using `implement tasks` or `run idea-to-ship`, migrate to bridge com
 # 1. Analyze and validate your codebase
 specfact code repro --verbose
 
-# 2. Generate AI prompts for each gap
-specfact spec generate fix-prompt GAP-001 --bundle my-bundle
+# 2. Use your AI IDE skill (/specfact.07-contracts) for contract enhancement workflows
 
 # 3. Copy prompt to AI IDE, get fix, apply
 

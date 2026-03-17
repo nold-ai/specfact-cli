@@ -156,7 +156,7 @@ features:
 Now comes the magic - compare the manual plan against what's actually implemented:
 
 ```bash
-specfact project plan compare
+specfact project regenerate
 ```
 
 ### Results
@@ -249,7 +249,7 @@ Let's try again with **minimal enforcement** (never blocks):
 
 ```bash
 specfact govern enforce stage --preset minimal
-specfact project plan compare
+specfact project regenerate
 ```
 
 ### New Enforcement Report
@@ -291,7 +291,8 @@ After validating the brownfield analysis workflow, we took it a step further: **
 First, we generated a structured prompt for our AI IDE (Cursor) to enhance the telemetry module:
 
 ```bash
-specfact spec generate contracts-prompt src/specfact_cli/telemetry.py --bundle specfact-cli-test --apply all-contracts --no-interactive
+# Use your AI IDE skill (/specfact.07-contracts) for contract enhancement workflows
+/specfact.07-contracts specfact-cli-test --apply all-contracts
 ```
 
 **Output**:
@@ -335,7 +336,7 @@ We copied the prompt to Cursor (our AI IDE), which:
 The AI IDE ran SpecFact CLI validation on the enhanced code:
 
 ```bash
-specfact spec generate contracts-apply enhanced_telemetry.py --original src/specfact_cli/telemetry.py
+# Use your AI IDE skill (/specfact.07-contracts) for contract enhancement workflows
 ```
 
 ### Validation Results
@@ -439,25 +440,10 @@ This demonstrates **real production use**:
 ## Complete Contract Enhancement Workflow
 
 ```bash
-# 1. Generate prompt (1 second)
-specfact spec generate contracts-prompt src/specfact_cli/telemetry.py \
-  --bundle specfact-cli-test \
-  --apply all-contracts \
-  --no-interactive
-# ✅ Prompt saved to: .specfact/projects/specfact-cli-test/prompts/
-
-# 2. AI IDE enhancement (2-3 minutes)
-# - Copy prompt to Cursor/CoPilot/etc.
-# - AI IDE reads file and adds contracts
-# - AI IDE writes to enhanced_telemetry.py
-
-# 3. Validate and apply (10 seconds)
-specfact spec generate contracts-apply enhanced_telemetry.py \
-  --original src/specfact_cli/telemetry.py
-# ✅ 7-step validation passed
-# ✅ All tests passed (10/10)
-# ✅ Code quality checks passed
-# ✅ Changes applied to original file
+# 1. Generate prompt and apply contracts via AI IDE skill (2-3 minutes)
+# Use your AI IDE skill (/specfact.07-contracts) for contract enhancement workflows
+/specfact.07-contracts specfact-cli-test --apply all-contracts
+# ✅ Prompt generated, contracts analyzed, and applied through IDE skill
 
 # Total time: ~3 minutes (mostly AI IDE processing)
 # Total value: Production-ready contract-enhanced code
@@ -553,8 +539,8 @@ specfact code import specfact-cli --repo . --confidence 0.5
 specfact govern enforce stage --preset balanced
 # ✅ BLOCK HIGH, WARN MEDIUM, LOG LOW
 
-# 3. Compare plans (5 seconds) - uses active plan or default bundle
-specfact project plan compare
+# 3. Regenerate/compare plans (5 seconds) - uses active plan or default bundle
+specfact project regenerate
 # ✅ Finds 24 deviations
 # ❌ BLOCKS execution (2 HIGH violations)
 
@@ -578,7 +564,7 @@ specfact project plan compare
 
 **Problem**: "How do I prevent bad code from merging?"
 
-**Solution**: Set enforcement preset → configure CI to run `plan compare`
+**Solution**: Set enforcement preset → configure CI to run `project regenerate`
 
 **Result**: PRs blocked automatically if they violate contracts
 
@@ -611,7 +597,7 @@ hatch run python -c "import sys; sys.path.insert(0, 'src'); from specfact_cli.cl
 hatch run python -c "import sys; sys.path.insert(0, 'src'); from specfact_cli.cli import app; app()" enforce stage --preset balanced
 
 # Compare plans
-hatch run python -c "import sys; sys.path.insert(0, 'src'); from specfact_cli.cli import app; app()" plan compare
+hatch run python -c "import sys; sys.path.insert(0, 'src'); from specfact_cli.cli import app; app()" project regenerate
 ```
 
 ### Learn More

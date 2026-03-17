@@ -10,6 +10,15 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.42.2] - 2026-03-18
+
+### Fixed
+
+- Corrected all authored docs (`README.md`, `docs/`) to use shipped command surfaces after the lean-core and modules split. Removed or replaced stale syntax families (`project plan`, `project import from-bridge`, `backlog policy`, `spec contract`, `spec sdd`, `spec generate` prompt subcommands) with current equivalents (`code import from-bridge`, `backlog verify-readiness`, `spec validate`, `spec generate-tests`, `govern enforce sdd`).
+- Added docs parity tests that fail when removed syntax families reappear in authored docs, guarding against future regression.
+
+---
+
 ## [0.42.1] - 2026-03-17
 
 ### Added

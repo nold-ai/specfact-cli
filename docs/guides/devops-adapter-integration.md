@@ -22,14 +22,14 @@ You can validate policy readiness (DoR/DoD, Kanban flow gates, SAFe PI hooks) be
 your backlog system:
 
 ```bash
-# Deterministic policy validation with JSON + Markdown output
-specfact backlog policy validate --repo . --format both
+# Deterministic readiness validation
+specfact backlog verify-readiness --repo .
 
-# AI-assisted suggestions with confidence scores and patch-ready output
-specfact backlog policy suggest --repo .
+# AI-assisted refinement suggestions (no automatic writes)
+specfact backlog refine --repo .
 ```
 
-Both commands read `.specfact/policy.yaml`. `policy suggest` never writes changes automatically; it emits
+Both commands read `.specfact/policy.yaml`. `backlog refine` never writes changes automatically; it emits
 recommendations you can review and apply explicitly in your normal workflow.
 
 ## Overview

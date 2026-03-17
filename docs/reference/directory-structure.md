@@ -238,20 +238,14 @@ Plan bundles version 1.1 and later include summary metadata in the `metadata.sum
 
 **Upgrading Plan Bundles:**
 
-Use `specfact project plan upgrade` to migrate older plan bundles to the latest schema:
+Use `specfact project regenerate` to re-derive project state from the current bundle:
 
 ```bash
-# Upgrade active plan
-specfact project plan upgrade
-
-# Upgrade all plans
-specfact project plan upgrade --all
-
-# Preview upgrades
-specfact project plan upgrade --dry-run
+# Re-derive project state
+specfact project regenerate --bundle <bundle-name>
 ```
 
-See [`plan upgrade`](../reference/commands.md#plan-upgrade) for details.
+See the [Command Reference](../reference/commands.md) for details.
 
 **Example**:
 
@@ -424,35 +418,22 @@ specfact code import legacy-api --repo . --confidence 0.7
 # - .specfact/reports/brownfield/analysis-2025-10-31T14-30-00.md (gitignored)
 ```
 
-### `specfact project plan init` (Alternative)
+### Creating Project Bundles (Greenfield)
 
-**Alternative use case**: Create new project bundles for greenfield projects.
+For greenfield projects, use `code import` with your source, or create a bundle structure manually:
 
 ```bash
-# Command syntax
-specfact project plan init <bundle-name> [OPTIONS]
+# Analyze a new codebase and create a bundle
+specfact code import <bundle-name> --repo .
 
 # Creates modular bundle at:
 .specfact/projects/<bundle-name>/
 ├── bundle.manifest.yaml  # Bundle metadata and versioning
-├── product.yaml         # Product definition (required)
-├── idea.yaml           # Product vision (if provided via prompts)
-└── features/           # Empty features directory (created when first feature added)
+├── product.yaml         # Product definition
+└── features/           # Features directory
 
-# Also creates (if --interactive):
-.specfact/config.yaml
-```
-
-### `specfact project plan compare`
-
-```bash
-# Compare two bundles (explicit paths to bundle directories)
-specfact project plan compare \
-  --manual .specfact/projects/manual-plan \
-  --auto .specfact/projects/auto-derived \
-  --out .specfact/reports/comparison/report-*.md
-
-# Note: Commands accept bundle directory paths, not individual files
+# Snapshot current state
+specfact project snapshot --bundle <bundle-name>
 ```
 
 ### `specfact project sync bridge`
@@ -698,7 +679,7 @@ If you have existing artifacts in other locations:
 # Migration
 mkdir -p .specfact/projects/my-project .specfact/reports/brownfield
 # Convert monolithic bundle to modular bundle structure
-# (Use 'specfact project plan upgrade' or manual conversion)
+# (Use 'specfact project regenerate' or manual conversion)
 mv reports/analysis.md .specfact/reports/brownfield/
 ```
 
@@ -750,10 +731,9 @@ specfact code import legacy-api \
   --repo src/legacy-api \
   --confidence 0.7
 
-# Step 2: Compare legacy vs modernized (use bundle directories, not files)
-specfact project plan compare \
-  --manual .specfact/projects/legacy-api \
-  --auto .specfact/projects/modernized-api
+# Step 2: Snapshot and regenerate project state
+specfact project snapshot --bundle legacy-api
+specfact project regenerate --bundle legacy-api
 
 # Step 3: Analyze specific legacy component
 specfact code import legacy-payment \

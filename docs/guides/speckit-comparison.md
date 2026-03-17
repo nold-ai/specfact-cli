@@ -213,7 +213,7 @@ permalink: /guides/speckit-comparison/
 # (Interactive slash commands in GitHub)
 
 # Step 2: Import Spec-Kit artifacts into SpecFact (via bridge adapter)
-specfact project import from-bridge --adapter speckit --repo ./my-project
+specfact code import from-bridge --adapter speckit --repo ./my-project
 
 # Step 3: Add runtime contracts to critical Python paths
 # (SpecFact contract decorators)
@@ -301,7 +301,7 @@ All adapters are registered in `AdapterRegistry` and accessed via `specfact proj
 **Yes.** SpecFact can import Spec-Kit artifacts:
 
 ```bash
-specfact project import from-bridge --adapter speckit --repo ./my-project
+specfact code import from-bridge --adapter speckit --repo ./my-project
 ```
 
 You can also keep using both tools with bidirectional sync via the adapter registry pattern.

@@ -29,18 +29,18 @@ Most tools help **either** coders **or** agile teams. SpecFact does both:
 Recommended command entrypoints:
 - `specfact backlog ceremony standup ...`
 - `specfact backlog ceremony refinement ...`
-- `specfact backlog policy validate ...`
-- `specfact backlog policy suggest ...`
+- `specfact backlog verify-readiness --bundle <bundle-name>`
+- `specfact backlog analyze-deps --bundle <bundle-name>`
 
-What the Policy Engine does in practice:
+What the backlog ceremony and readiness commands do in practice:
 - Converts team working agreements (DoR, DoD, flow/PI readiness) into deterministic checks.
-- Flags exact policy gaps per backlog item with actionable evidence pointers.
-- Produces patch-ready suggestions so teams can remediate quickly.
+- Flags exact readiness gaps per backlog item with actionable evidence pointers.
+- Runs structured ceremony workflows (standup, refinement) against live backlog data.
 
 Start with:
-- `specfact backlog policy init --template scrum`
-- `specfact backlog policy validate --group-by-item`
-- `specfact backlog policy suggest --group-by-item --limit 5`
+- `specfact backlog ceremony standup --help`
+- `specfact backlog verify-readiness --bundle <bundle-name>`
+- `specfact backlog refine --help`
 
 **Try it now**
 

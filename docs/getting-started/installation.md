@@ -236,7 +236,7 @@ specfact init --install all
 Start a new contract-driven project:
 
 ```bash
-specfact project plan init --interactive
+specfact project snapshot
 ```
 
 This will guide you through creating:
@@ -280,10 +280,10 @@ Convert an existing GitHub Spec-Kit project:
 
 ```bash
 # Preview what will be migrated
-specfact project import from-bridge --adapter speckit --repo ./my-speckit-project --dry-run
+specfact code import from-bridge --adapter speckit --repo ./my-speckit-project --dry-run
 
 # Execute migration (one-time import)
-specfact project import from-bridge \
+specfact code import from-bridge \
   --adapter speckit \
   --repo ./my-speckit-project \
   --write
@@ -502,11 +502,8 @@ specfact --version
 specfact --help
 specfact <command> --help
 
-# Initialize plan (bundle name as positional argument)
-specfact project plan init my-project --interactive
-
-# Add feature
-specfact project plan add-feature --key FEATURE-001 --title "My Feature"
+# Initialize project snapshot
+specfact project snapshot --bundle my-project
 
 # Validate everything
 specfact code repro

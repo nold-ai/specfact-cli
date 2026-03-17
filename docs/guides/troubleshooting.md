@@ -28,23 +28,23 @@ Common issues and solutions for SpecFact CLI.
    pip install --upgrade specfact-cli
    ```
 
-## Plan Select Command is Slow
+## Plan Bundles are Slow or Outdated
 
-**Symptom**: `specfact project plan select` takes a long time (5+ seconds) to list plans.
+**Symptom**: Project commands take a long time or return stale data.
 
 **Cause**: Plan bundles may be missing summary metadata (older schema version 1.0).
 
 **Solution**:
 
 ```bash
-# Upgrade all plan bundles to latest schema (adds summary metadata)
-specfact project plan upgrade --all
+# Regenerate all plan bundles to latest schema
+specfact project regenerate
 
-# Verify upgrade worked
-specfact project plan select --last 5
+# Verify with health check
+specfact project health-check
 ```
 
-**Performance Improvement**: After upgrade, `plan select` is 44% faster (3.6s vs 6.5s) and scales better with large plan bundles.
+**Performance Improvement**: After regenerating, bundles are updated and scale better with large projects.
 
 1. **Use uvx** (no installation needed):
 
@@ -103,7 +103,7 @@ specfact project plan select --last 5
 3. **Use explicit path**:
 
    ```bash
-   specfact project import from-bridge --adapter speckit --repo /path/to/speckit-project
+   specfact code import from-bridge --adapter speckit --repo /path/to/speckit-project
    ```
 
 ### Code Analysis Fails (Brownfield) ⭐
@@ -277,46 +277,31 @@ specfact project plan select --last 5
 
 **Issue**: `Constitution required` or `Constitution is minimal` when running `sync bridge --adapter speckit`
 
+> **Note**: `specfact spec sdd constitution` commands are removed; use `specfact govern enforce sdd [BUNDLE]` for SDD enforcement.
+
 **Solutions**:
 
-1. **Auto-generate bootstrap constitution** (recommended for brownfield):
+1. **Enforce SDD** (recommended):
 
    ```bash
-   specfact spec sdd constitution bootstrap --repo .
+   specfact govern enforce sdd <bundle-name>
    ```
 
-   This analyzes your repository (README.md, pyproject.toml, .cursor/rules/, docs/rules/) and generates a bootstrap constitution.
+   This validates SDD compliance for your bundle.
 
-2. **Enrich existing minimal constitution**:
-
-   ```bash
-   specfact spec sdd constitution enrich --repo .
-   ```
-
-   This fills placeholders in an existing constitution with repository context.
-
-3. **Validate constitution completeness**:
-
-   ```bash
-   specfact spec sdd constitution validate
-   ```
-
-   This checks if the constitution is complete and ready for use.
-
-4. **Manual creation** (for greenfield):
+2. **Manual creation** (for greenfield):
 
    - Run `/speckit.constitution` command in your AI assistant
    - Fill in the constitution template manually
 
 **When to use each option**:
 
-- **Bootstrap** (brownfield): Use when you want to extract principles from existing codebase
-- **Enrich** (existing constitution): Use when you have a minimal constitution with placeholders
+- **SDD enforcement** (all cases): Use `specfact govern enforce sdd [BUNDLE]` to validate compliance
 - **Manual** (greenfield): Use when starting a new project and want full control
 
 ### Constitution Validation Fails
 
-**Issue**: `specfact spec sdd constitution validate` reports issues
+**Issue**: Constitution validation reports issues
 
 **Solutions**:
 
@@ -326,25 +311,16 @@ specfact project plan select --last 5
    grep -r "\[.*\]" .specify/memory/constitution.md
    ```
 
-2. **Run enrichment**:
+2. **Run SDD enforcement**:
 
    ```bash
-   specfact spec sdd constitution enrich --repo .
-   ```
-
-3. **Review validation output**:
-
-   ```bash
-   specfact spec sdd constitution validate --constitution .specify/memory/constitution.md
+   # specfact spec sdd constitution commands are removed; use specfact govern enforce sdd [BUNDLE] for SDD enforcement
+   specfact govern enforce sdd <bundle-name>
    ```
 
    The output will list specific issues (missing sections, placeholders, etc.).
 
-4. **Fix issues manually** or re-run bootstrap:
-
-   ```bash
-   specfact spec sdd constitution bootstrap --repo . --overwrite
-   ```
+3. **Fix issues manually** or re-run enforcement.
 
 ---
 
@@ -366,7 +342,7 @@ specfact project plan select --last 5
 2. **Use explicit paths** (bundle directory paths):
 
    ```bash
-   specfact project plan compare \
+   specfact project devops-flow --stage plan --action compare \
      --manual .specfact/projects/manual-plan \
      --auto .specfact/projects/auto-derived
    ```
@@ -391,13 +367,13 @@ specfact project plan select --last 5
 2. **Verify plan contents** (use CLI commands):
 
    ```bash
-   specfact project plan review <bundle-name>
+   specfact project devops-flow --stage develop --bundle <bundle-name>
    ```
 
 3. **Use verbose mode**:
 
    ```bash
-   specfact project plan compare --bundle legacy-api --verbose
+   specfact project devops-flow --stage plan --action compare --bundle legacy-api --verbose
    ```
 
 ---

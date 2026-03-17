@@ -80,9 +80,9 @@ specfact code validate sidecar run my-project /path/to/repo
 
 As of `0.40.0`, flat root commands are removed. Use grouped commands:
 
-- `specfact validate ...` -> `specfact code validate ...`
-- `specfact plan ...` -> `specfact project plan ...`
-- `specfact policy ...` -> `specfact backlog policy ...`
+- `specfact validate ...` → `specfact code validate ...`
+- `specfact plan ...` → removed; use `specfact project devops-flow` or `specfact project snapshot`
+- `specfact policy ...` → removed; use `specfact backlog verify-readiness`
 
 ### Backlog Bridge (60 seconds)
 
@@ -100,7 +100,7 @@ specfact backlog daily ado --ado-org <org> --ado-project "<project>" --state any
 specfact backlog refine ado --ado-org <org> --ado-project "<project>" --id <work-item-id> --preview
 
 # 3) Keep backlog + spec intent aligned (avoid silent drift)
-specfact backlog policy validate --group-by-item
+specfact backlog verify-readiness --bundle <bundle-name>
 ```
 
 For GitHub, replace adapter/org/project with:
@@ -168,18 +168,18 @@ Most tools help **either** coders **or** agile teams. SpecFact does both:
 Recommended command entrypoints:
 - `specfact backlog ceremony standup ...`
 - `specfact backlog ceremony refinement ...`
-- `specfact backlog policy validate ...`
-- `specfact backlog policy suggest ...`
+- `specfact backlog verify-readiness --bundle <bundle-name>`
+- `specfact backlog analyze-deps --bundle <bundle-name>`
 
-What the Policy Engine does in practice:
+What the backlog readiness and ceremony commands do in practice:
 - Turns team agreements (DoR, DoD, flow checks) into executable checks against your real backlog data.
 - Shows exactly what is missing per item (for example missing acceptance criteria or definition of done).
-- Generates patch-ready suggestions so teams can fix policy gaps quickly without guessing.
+- Run structured ceremony workflows (standup, refinement, retrospective) directly from the CLI.
 
 Start with:
-- `specfact backlog policy init --template scrum`
-- `specfact backlog policy validate --group-by-item`
-- `specfact backlog policy suggest --group-by-item --limit 5`
+- `specfact backlog ceremony standup --help`
+- `specfact backlog verify-readiness --bundle <bundle-name>`
+- `specfact backlog refine --help`
 
 **Try it now**
 

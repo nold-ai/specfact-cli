@@ -115,7 +115,7 @@ specfact spec validate --bundle legacy-api
 specfact spec validate --bundle legacy-api --no-interactive
 ```
 
-**CLI-First Pattern**: The command uses the active plan (from `specfact project plan select`) as default, or you can specify `--bundle`. Never requires direct `.specfact` paths - always use the CLI interface.
+**CLI-First Pattern**: The command uses the current bundle (specified via --bundle) as default. Never requires direct `.specfact` paths - always use the CLI interface.
 
 **What it checks:**
 
@@ -154,7 +154,7 @@ specfact spec generate-tests --bundle legacy-api
 specfact spec generate-tests --bundle legacy-api --output tests/contract/
 ```
 
-**CLI-First Pattern**: Uses active plan as default, or specify `--bundle`. Never requires direct `.specfact` paths.
+**CLI-First Pattern**: Uses the current bundle (specified via --bundle). Never requires direct `.specfact` paths.
 
 ### What Can You Do With Generated Tests?
 
@@ -401,7 +401,7 @@ specfact spec mock --bundle legacy-api
 specfact spec mock --bundle legacy-api --no-interactive
 ```
 
-**CLI-First Pattern**: Uses active plan as default, or specify `--bundle`. Interactive selection when multiple contracts available.
+**CLI-First Pattern**: Uses the current bundle (specified via --bundle). Interactive selection when multiple contracts available.
 
 **Mock server features:**
 
@@ -421,7 +421,7 @@ Specmatic validation is automatically integrated into:
 When importing code, SpecFact auto-detects and validates OpenAPI/AsyncAPI specs:
 
 ```bash
-# Import with bundle (uses active plan if --bundle not specified)
+# Import with bundle
 specfact code import legacy-api --repo .
 
 # Automatically validates:
@@ -435,7 +435,7 @@ specfact code import legacy-api --repo .
 SDD enforcement includes Specmatic validation for all contracts referenced in the bundle:
 
 ```bash
-# Enforce SDD (uses active plan if --bundle not specified)
+# Enforce SDD
 specfact govern enforce sdd --bundle legacy-api
 
 # Automatically validates:
@@ -449,7 +449,7 @@ specfact govern enforce sdd --bundle legacy-api
 Repository sync validates specs before synchronization:
 
 ```bash
-# Sync bridge (uses active plan if --bundle not specified)
+# Sync bridge
 specfact project sync bridge --bundle legacy-api --repo .
 
 # Automatically validates:
@@ -527,11 +527,8 @@ specfact spec backward-compat api/v1/openapi.yaml api/v2/openapi.yaml
 ### Example 3: Development Workflow with Bundle
 
 ```bash
-# 1. Set active bundle
-specfact project plan select api-service
-
-# 2. Validate all contracts in bundle (interactive selection)
-specfact spec validate
+# 1. Validate all contracts in bundle (interactive selection)
+specfact spec validate --bundle api-service
 # Shows list of contracts, select by number or 'all'
 
 # 3. Start mock server from bundle (interactive selection)

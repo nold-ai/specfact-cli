@@ -40,14 +40,14 @@ specfact code import legacy-api --repo .
 
 **Recommended**: [Greenfield Planning Chain](command-chains.md#2-greenfield-planning-chain)
 
-**Command**: `plan init` → `plan add-feature` → `plan add-story`
+**Command**: `project devops-flow --stage plan --action init` → `add-feature` → `add-story`
 
 **Quick Example**:
 
 ```bash
-specfact project plan init new-feature --interactive
-specfact project plan add-feature --bundle new-feature --name "User Authentication"
-specfact project plan add-story --bundle new-feature --feature <feature-id> --story "As a user, I want to log in"
+specfact project devops-flow --stage plan --action init --bundle new-feature --interactive
+specfact project devops-flow --stage plan --action add-feature --bundle new-feature --name "User Authentication"
+specfact project devops-flow --stage plan --action add-story --bundle new-feature --feature <feature-id> --story "As a user, I want to log in"
 ```
 
 **Detailed Guide**: [Agile/Scrum Workflows](agile-scrum-workflows.md)
@@ -58,12 +58,12 @@ specfact project plan add-story --bundle new-feature --feature <feature-id> --st
 
 **Recommended**: [External Tool Integration Chain](command-chains.md#3-external-tool-integration-chain)
 
-**Command**: `import from-bridge` → `sync bridge`
+**Command**: `code import from-bridge` → `sync bridge`
 
 **Quick Example**:
 
 ```bash
-specfact project import from-bridge --repo . --adapter speckit --write
+specfact code import from-bridge --repo . --adapter speckit --write
 specfact project sync bridge --adapter speckit --bundle <bundle-name> --bidirectional --watch
 ```
 
@@ -89,13 +89,13 @@ specfact code import legacy-api --repo ./legacy-app
 
 ### I want to review and update extracted features
 
-**Recommended**: `plan review` → `plan update-feature`
+**Recommended**: `project snapshot` → `project devops-flow --stage plan --action update-feature`
 
 **Quick Example**:
 
 ```bash
-specfact project plan review legacy-api
-specfact project plan update-feature --bundle legacy-api --feature <feature-id>
+specfact project snapshot legacy-api
+specfact project devops-flow --stage plan --action update-feature --bundle legacy-api --feature <feature-id>
 ```
 
 **Detailed Guide**: [Brownfield Engineer Guide](brownfield-engineer.md#step-2-refine-your-plan)
@@ -106,13 +106,13 @@ specfact project plan update-feature --bundle legacy-api --feature <feature-id>
 
 **Recommended**: [Code-to-Plan Comparison Chain](command-chains.md#6-code-to-plan-comparison-chain)
 
-**Command**: `plan compare` → `drift detect`
+**Command**: `project devops-flow compare` → `drift detect`
 
 **Quick Example**:
 
 ```bash
 specfact code import current-state --repo .
-specfact project plan compare --bundle <plan-bundle> --code-vs-plan
+specfact project devops-flow --stage plan --action compare --bundle <plan-bundle> --code-vs-plan
 specfact code drift detect --bundle <bundle-name>
 ```
 
@@ -124,14 +124,14 @@ specfact code drift detect --bundle <bundle-name>
 
 **Recommended**: [AI-Assisted Code Enhancement Chain](command-chains.md#7-ai-assisted-code-enhancement-chain-emerging)
 
-**Command**: `generate contracts-prompt` → [AI IDE] → `contracts-apply`
+**Command**: AI IDE skill `/specfact.07-contracts` → `spec validate`
 
 **Quick Example**:
 
 ```bash
-specfact spec generate contracts-prompt --bundle <bundle-name> --feature <feature-id>
-# Then use AI IDE slash command: /specfact-cli/contracts-apply <prompt-file>
-specfact spec contract coverage --bundle <bundle-name>
+# Use your AI IDE skill (/specfact.07-contracts) for contract enhancement workflows
+# /specfact.07-contracts <bundle-name> <feature-id>
+specfact spec validate --bundle <bundle-name>
 ```
 
 **Detailed Guide**: [AI IDE Workflow](ai-ide-workflow.md)
@@ -273,14 +273,14 @@ specfact project version bump --bundle <bundle-name> --type minor
 
 **Recommended**: [Plan Promotion & Release Chain](command-chains.md#5-plan-promotion--release-chain)
 
-**Command**: `plan review` → `enforce sdd` → `plan promote`
+**Command**: `project snapshot` → `enforce sdd` → `project devops-flow release promote`
 
 **Quick Example**:
 
 ```bash
-specfact project plan review <bundle-name>
+specfact project snapshot <bundle-name>
 specfact govern enforce sdd --bundle <bundle-name>
-specfact project plan promote --bundle <bundle-name> --stage approved
+specfact project devops-flow --stage release --action promote --bundle <bundle-name> --stage approved
 ```
 
 **Detailed Guide**: [Agile/Scrum Workflows](agile-scrum-workflows.md)
@@ -289,12 +289,12 @@ specfact project plan promote --bundle <bundle-name> --stage approved
 
 ### I want to compare two plans
 
-**Recommended**: `plan compare`
+**Recommended**: `project devops-flow compare`
 
 **Quick Example**:
 
 ```bash
-specfact project plan compare --bundle plan-v1 plan-v2
+specfact project devops-flow --stage plan --action compare --bundle plan-v1 plan-v2
 ```
 
 **Detailed Guide**: [Plan Comparison](../reference/commands.md#plan-compare)
@@ -335,14 +335,13 @@ specfact govern enforce sdd --bundle <bundle-name>
 
 **Recommended**: [Gap Discovery & Fixing Chain](command-chains.md#9-gap-discovery--fixing-chain-emerging)
 
-**Command**: `repro --verbose` → `generate fix-prompt`
+**Command**: `repro --verbose` → AI IDE skill `/specfact.07-contracts`
 
 **Quick Example**:
 
 ```bash
 specfact code repro --verbose
-specfact spec generate fix-prompt --bundle <bundle-name> --gap <gap-id>
-# Then use AI IDE to apply fixes
+# Use your AI IDE skill (/specfact.07-contracts) for contract enhancement workflows
 ```
 
 **Detailed Guide**: [AI IDE Workflow](ai-ide-workflow.md)
@@ -369,13 +368,13 @@ specfact init ide --ide cursor
 
 **Recommended**: [Test Generation from Specifications Chain](command-chains.md#8-test-generation-from-specifications-chain-emerging)
 
-**Command**: `generate test-prompt` → [AI IDE] → `spec generate-tests`
+**Command**: AI IDE skill `/specfact.07-contracts` → `spec generate-tests`
 
 **Quick Example**:
 
 ```bash
-specfact spec generate test-prompt --bundle <bundle-name> --feature <feature-id>
-# Then use AI IDE slash command: /specfact-cli/test-generate <prompt-file>
+# Use your AI IDE skill (/specfact.07-contracts) for contract enhancement workflows
+# /specfact.07-contracts <bundle-name> <feature-id>
 specfact spec generate-tests --spec <spec-file> --output tests/
 ```
 
@@ -613,7 +612,7 @@ specfact --version
 specfact code repro --verbose
 
 # Check plan for issues
-specfact project plan review <bundle-name>
+specfact project snapshot <bundle-name>
 ```
 
 **Detailed Guide**: [Troubleshooting](troubleshooting.md)

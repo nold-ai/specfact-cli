@@ -216,10 +216,10 @@ specfact code import [<bundle-name>] --repo <path> --enrichment <enrichment-repo
 When generating or enhancing code via LLM, **ALWAYS** follow this pattern:
 
 ```text
-1. CLI Prompt Generation (Required)
+1. AI IDE Skill Invocation (Required)
    ↓
-   CLI generates structured prompt → saved to .specfact/prompts/
-   (e.g., `generate contracts-prompt`, future: `generate code-prompt`)
+   Use AI IDE skill `/specfact.07-contracts` for contract enhancement workflows
+   (future: `generate code-prompt`)
 
 2. LLM Execution (Required - AI IDE Only)
    ↓
@@ -250,7 +250,7 @@ When generating or enhancing code via LLM, **ALWAYS** follow this pattern:
 
 **This pattern must be used for**:
 
-- ✅ Contract enhancement (`generate contracts-prompt` / `contracts-apply`) - Already implemented
+- ✅ Contract enhancement (AI IDE skill `/specfact.07-contracts`) - Use your AI IDE skill for contract enhancement workflows
 - ⏳ Code generation (future: `generate code-prompt` / `code-apply`) - Needs implementation
 - ⏳ Plan enrichment (future: `plan enrich-prompt` / `enrich-apply`) - Needs implementation
 - ⏳ Any LLM-enhanced artifact modification - Needs implementation
@@ -262,14 +262,15 @@ This is a real example of the validation loop pattern in action:
 ### Step 1: Generate Prompt
 
 ```bash
-specfact spec generate contracts-prompt src/auth/login.py --apply beartype,icontract --bundle legacy-api
+# Use your AI IDE skill (/specfact.07-contracts) for contract enhancement workflows
+# /specfact.07-contracts src/auth/login.py --apply beartype,icontract --bundle legacy-api
 ```
 
-**Result**: Prompt saved to `.specfact/projects/legacy-api/prompts/enhance-login-beartype-icontract.md`
+**Result**: Prompt generated via AI IDE skill `/specfact.07-contracts`
 
 ### Step 2: LLM Enhances Code
 
-1. AI IDE reads the prompt file
+1. AI IDE reads the contract enhancement context
 2. AI IDE reads the original file (`src/auth/login.py`)
 3. AI IDE generates enhanced code with contracts
 4. AI IDE writes to temporary file: `enhanced_login.py`
@@ -278,7 +279,8 @@ specfact spec generate contracts-prompt src/auth/login.py --apply beartype,icont
 ### Step 3: Validate and Apply
 
 ```bash
-specfact spec generate contracts-apply enhanced_login.py --original src/auth/login.py
+# Use your AI IDE skill (/specfact.07-contracts) to validate and apply enhanced code
+# enhanced_login.py → src/auth/login.py (after validation)
 ```
 
 **Validation includes**:
@@ -333,14 +335,13 @@ specfact spec generate contracts-apply enhanced_login.py --original src/auth/log
 
 ## Available CLI Commands
 
-- `specfact project plan init <bundle-name>` - Initialize project bundle
-- `specfact project plan select <bundle-name>` - Set active plan (used as default for other commands)
+- `specfact project devops-flow --stage plan --action init --bundle <bundle-name>` - Initialize project bundle
+- `specfact project snapshot <bundle-name>` - Set active plan / review plan state (used as default for other commands)
 - `specfact code import [<bundle-name>] --repo <path>` - Import from codebase (uses active plan if bundle not specified)
-- `specfact project plan review [<bundle-name>]` - Review plan (uses active plan if bundle not specified)
-- `specfact project plan harden [<bundle-name>]` - Create SDD manifest (uses active plan if bundle not specified)
+- `specfact project snapshot [<bundle-name>]` - Review plan (uses active plan if bundle not specified)
+- `specfact project devops-flow --stage plan --action harden --bundle [<bundle-name>]` - Create SDD manifest (uses active plan if bundle not specified)
 - `specfact govern enforce sdd [<bundle-name>]` - Validate SDD (uses active plan if bundle not specified)
-- `specfact spec generate contracts-prompt <file> --apply <contracts>` - Generate contract enhancement prompt
-- `specfact spec generate contracts-apply <enhanced-file> --original <original-file>` - Validate and apply enhanced code
+- Use AI IDE skill `/specfact.07-contracts` for contract enhancement workflows (prompt generation, validation, and apply)
 - `specfact project sync bridge --adapter <adapter> --repo <path>` - Sync with external tools
 - See [Command Reference](../reference/commands.md) for full list
 

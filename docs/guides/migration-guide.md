@@ -122,7 +122,7 @@ Start: What do you need to migrate?
 specfact project export --bundle old-bundle --persona <persona>
 
 # Create new bundle
-specfact project plan init new-bundle
+specfact code import new-bundle --repo .
 
 # Import to new bundle (manual editing may be required)
 specfact project import --bundle new-bundle --persona <persona> --source exported.md
@@ -141,20 +141,20 @@ specfact project import --bundle new-bundle --persona <persona> --source exporte
 **Command**:
 
 ```bash
-# Upgrade all bundles
-specfact project plan upgrade --all
+# Regenerate all bundles
+specfact project regenerate
 
-# Upgrade specific bundle
-specfact project plan upgrade --bundle <bundle-name>
+# Regenerate specific bundle
+specfact project regenerate --bundle <bundle-name>
 ```
 
 **Benefits**:
 
-- Improved performance (44% faster `plan select`)
+- Improved performance
 - New features and metadata
 - Better compatibility
 
-**Related**: [Plan Upgrade](../reference/commands.md#plan-upgrade)
+**Related**: [Project Commands](../reference/commands.md#project---project-bundle-management)
 
 ---
 
@@ -172,11 +172,11 @@ specfact --version
 # 3. Upgrade SpecFact CLI
 pip install --upgrade specfact-cli
 
-# 4. Upgrade plan bundles
-specfact project plan upgrade --all
+# 4. Regenerate plan bundles
+specfact project regenerate
 
 # 5. Test commands
-specfact project plan select --last 5
+specfact project health-check
 ```
 
 ---
@@ -185,10 +185,10 @@ specfact project plan select --last 5
 
 ```bash
 # 1. Import from Spec-Kit
-specfact import from-bridge --repo . --adapter speckit --write
+specfact code import from-bridge --repo . --adapter speckit --write
 
 # 2. Review imported plan
-specfact project plan review <bundle-name>
+specfact project devops-flow --stage develop --bundle <bundle-name>
 
 # 3. Set up bidirectional sync (optional)
 specfact project sync bridge --adapter speckit --bundle <bundle-name> --bidirectional --watch
@@ -205,16 +205,16 @@ specfact govern enforce sdd --bundle <bundle-name>
 
 ### Common Issues
 
-**Issue**: Plan bundles fail to upgrade
+**Issue**: Plan bundles fail to regenerate
 
 **Solution**:
 
 ```bash
-# Check bundle schema version
-specfact project plan select --bundle <bundle-name> --json | jq '.schema_version'
+# Check bundle health
+specfact project health-check
 
-# Manual upgrade if needed
-specfact project plan upgrade --bundle <bundle-name> --force
+# Regenerate if needed
+specfact project regenerate --bundle <bundle-name>
 ```
 
 **Issue**: Imported plans have missing data
@@ -222,8 +222,8 @@ specfact project plan upgrade --bundle <bundle-name> --force
 **Solution**:
 
 1. Review import logs
-2. Use `plan review` to identify gaps
-3. Use `plan update-feature` to fill missing data
+2. Use `project devops-flow --stage develop` to identify gaps
+3. Use `project health-check` to check status
 4. Re-import if needed
 
 **Related**: [Troubleshooting Guide](troubleshooting.md)

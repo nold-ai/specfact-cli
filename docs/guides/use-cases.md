@@ -120,9 +120,8 @@ specfact project sync repository --repo . --watch --interval 5
 #### 4. Compare with Manual Plan (if exists)
 
 ```bash
-specfact project plan compare \
-  --manual .specfact/projects/manual-plan \
-  --auto .specfact/projects/auto-derived \
+specfact project regenerate \
+  --bundle <bundle-name> \
   --output-format markdown \
   --out .specfact/projects/<bundle-name>/reports/comparison/deviation-report.md
 ```
@@ -210,7 +209,7 @@ specfact govern enforce stage --preset strict
 #### 1. Preview Migration
 
 ```bash
-specfact project import from-bridge --adapter speckit --repo ./spec-kit-project --dry-run
+specfact code import from-bridge --adapter speckit --repo ./spec-kit-project --dry-run
 ```
 
 **Expected Output:**
@@ -236,7 +235,7 @@ specfact project import from-bridge --adapter speckit --repo ./spec-kit-project 
 #### 2. Execute Migration
 
 ```bash
-specfact project import from-bridge \
+specfact code import from-bridge \
   --adapter speckit \
   --repo ./spec-kit-project \
   --write \
@@ -247,7 +246,7 @@ specfact project import from-bridge \
 
 ```bash
 # Review using CLI commands
-specfact project plan review <bundle-name>
+specfact project devops-flow --stage develop --bundle <bundle-name>
 ```
 
 Review:
@@ -260,17 +259,11 @@ Review:
 
 #### 4: Generate Constitution (If Missing)
 
-Before syncing, ensure you have a valid constitution:
+Before syncing, ensure you have a valid constitution. Use SDD enforcement to validate:
 
 ```bash
-# Auto-generate from repository analysis (recommended for brownfield)
-specfact spec sdd constitution bootstrap --repo .
-
-# Validate completeness
-specfact spec sdd constitution validate
-
-# Or enrich existing minimal constitution
-specfact spec sdd constitution enrich --repo .
+# specfact spec sdd constitution commands are removed; use specfact govern enforce sdd [BUNDLE] for SDD enforcement
+specfact govern enforce sdd <bundle-name>
 ```
 
 **Note**: The `sync bridge --adapter speckit` command will detect if the constitution is missing or minimal and suggest bootstrap automatically.
@@ -340,10 +333,10 @@ specfact code repro --verbose
 
 ```bash
 # Standard interactive mode
-specfact project plan init --interactive
+specfact project snapshot --interactive
 
 # CoPilot mode (enhanced prompts)
-specfact --mode copilot plan init --interactive
+specfact --mode copilot project snapshot --interactive
 ```
 
 **With CoPilot (IDE Integration):**
@@ -380,22 +373,11 @@ What are the release objectives? (comma-separated)
 #### 2. Add Features and Stories
 
 ```bash
-# Add feature
-specfact project plan add-feature \
-  --key FEATURE-001 \
-  --title "WebSocket Server" \
-  --outcomes "Handle 1000 concurrent connections" \
-  --outcomes "< 100ms message latency" \
-  --acceptance "Given client connection, When message sent, Then delivered within 100ms"
+# Add feature (via project snapshot with feature spec)
+specfact project snapshot --bundle <bundle-name>
 
-# Add story
-specfact project plan add-story \
-  --feature FEATURE-001 \
-  --key STORY-001 \
-  --title "Connection handling" \
-  --acceptance "Accept WebSocket connections" \
-  --acceptance "Maintain heartbeat every 30s" \
-  --acceptance "Graceful disconnect cleanup"
+# Use project devops-flow to enrich features through the develop stage
+specfact project devops-flow --stage develop --bundle <bundle-name>
 ```
 
 #### 3. Define Protocol
@@ -605,14 +587,7 @@ In a shared repository:
 
 ```bash
 # Create shared plan
-specfact project plan init --interactive
-
-# Add common features
-specfact project plan add-feature \
-  --key FEATURE-COMMON-001 \
-  --title "API Standards" \
-  --outcomes "Consistent REST patterns" \
-  --outcomes "Standardized error responses"
+specfact project snapshot --interactive
 ```
 
 #### 2. Distribute to Services
@@ -629,10 +604,8 @@ cp ../shared-contracts/plan.bundle.yaml contracts/shared/
 
 ```bash
 # In each service
-specfact project plan compare \
-  --manual contracts/shared/plan.bundle.yaml \
-  --auto contracts/service/plan.bundle.yaml \
-  --output-format markdown
+specfact project regenerate --bundle <service-bundle>
+specfact project health-check
 ```
 
 #### 4. Enforce Consistency
@@ -643,7 +616,7 @@ specfact code repro setup
 
 # Add to CI
 specfact code repro
-specfact project plan compare --manual contracts/shared/plan.bundle.yaml --auto .
+specfact project regenerate
 ```
 
 ### Expected Benefits

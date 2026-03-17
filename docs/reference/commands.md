@@ -38,31 +38,29 @@ After bundle install, command groups are mounted by category:
 
 | Bundle ID | Group | Main command families |
 |---|---|---|
-| `nold-ai/specfact-project` | `project` | `project ...`, `project plan ...`, `project import ...`, `project sync ...`, `project migrate ...` |
-| `nold-ai/specfact-backlog` | `backlog` | `backlog ...`, `backlog policy ...`, `backlog auth ...` |
-| `nold-ai/specfact-codebase` | `code` | `code analyze ...`, `code drift ...`, `code validate ...`, `code repro ...` |
-| `nold-ai/specfact-spec` | `spec` | `spec contract ...`, `spec api ...`, `spec sdd ...`, `spec generate ...` |
-| `nold-ai/specfact-govern` | `govern` | `govern enforce ...`, `govern patch ...` |
+| `nold-ai/specfact-project` | `project` | `project link-backlog`, `project health-check`, `project devops-flow`, `project snapshot`, `project regenerate`, `project export-roadmap`, `project import`, `project export`, `project sync` |
+| `nold-ai/specfact-backlog` | `backlog` | `backlog ceremony`, `backlog refine`, `backlog daily`, `backlog sync`, `backlog auth`, `backlog analyze-deps`, `backlog verify-readiness`, `backlog delta`, `backlog add` |
+| `nold-ai/specfact-codebase` | `code` | `code analyze`, `code drift`, `code validate`, `code repro`, `code import`, `code review` |
+| `nold-ai/specfact-spec` | `spec` | `spec validate`, `spec backward-compat`, `spec generate-tests`, `spec mock` |
+| `nold-ai/specfact-govern` | `govern` | `govern enforce`, `govern patch` |
 
 ## Migration: Removed Flat Commands
 
-Flat compatibility shims were removed in this change. Use grouped commands.
+Flat compatibility shims were removed in `0.40.0`. Use grouped commands.
 
 | Removed | Replacement |
 |---|---|
-| `specfact plan ...` | `specfact project plan ...` |
-| `specfact import ...` | `specfact project import ...` |
+| `specfact plan ...` | Removed — use `specfact project devops-flow` or `specfact project snapshot` |
+| `specfact import ...` | `specfact code import ...` (codebase import) or `specfact project import ...` (persona Markdown) |
 | `specfact sync ...` | `specfact project sync ...` |
-| `specfact migrate ...` | `specfact project migrate ...` |
 | `specfact backlog ...` (flat module) | `specfact backlog ...` (bundle group) |
 | `specfact analyze ...` | `specfact code analyze ...` |
 | `specfact drift ...` | `specfact code drift ...` |
 | `specfact validate ...` | `specfact code validate ...` |
 | `specfact repro ...` | `specfact code repro ...` |
-| `specfact contract ...` | `specfact spec contract ...` |
-| `specfact spec ...` (flat module) | `specfact spec api ...` |
-| `specfact sdd ...` | `specfact spec sdd ...` |
-| `specfact generate ...` | `specfact spec generate ...` |
+| `specfact contract ...` | Removed — use `specfact spec validate` |
+| `specfact sdd ...` | Removed — use `specfact govern enforce sdd [BUNDLE]` |
+| `specfact generate ...` | Removed — no direct replacement; use AI IDE skills for prompt generation |
 | `specfact enforce ...` | `specfact govern enforce ...` |
 | `specfact patch ...` | `specfact govern patch ...` |
 
@@ -77,7 +75,7 @@ specfact module install nold-ai/specfact-backlog
 
 # Project workflow examples
 specfact code import legacy-api --repo .
-specfact project plan review legacy-api
+specfact project snapshot --bundle legacy-api
 
 # Code workflow examples
 specfact code validate sidecar init legacy-api /path/to/repo
@@ -86,6 +84,10 @@ specfact code repro --verbose
 # Backlog workflow examples
 specfact backlog ceremony standup --help
 specfact backlog ceremony refinement --help
+
+# Spec validation examples
+specfact spec validate --bundle my-api
+specfact spec generate-tests --bundle my-api --output tests/
 ```
 
 ## See Also

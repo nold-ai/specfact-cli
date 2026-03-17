@@ -63,18 +63,18 @@ Once initialized, the following slash commands are available in your IDE:
 | Slash Command | Purpose | Equivalent CLI Command |
 |---------------|---------|------------------------|
 | `/specfact.01-import` | Import from codebase | `specfact code import` |
-| `/specfact.02-plan` | Plan management | `specfact project plan init/add-feature/add-story` |
-| `/specfact.03-review` | Review plan | `specfact project plan review` |
+| `/specfact.02-plan` | Plan management | `specfact project snapshot` |
+| `/specfact.03-review` | Review plan | `specfact project snapshot` |
 | `/specfact.04-sdd` | Create SDD manifest | `specfact govern enforce sdd` |
 | `/specfact.05-enforce` | SDD enforcement | `specfact govern enforce sdd` |
 | `/specfact.06-sync` | Sync operations | `specfact project sync bridge` |
-| `/specfact.07-contracts` | Contract management | `specfact spec generate contracts-prompt` |
+| `/specfact.07-contracts` | Contract management | See AI IDE skill `/specfact.07-contracts` |
 
 ### Advanced Commands
 
 | Slash Command | Purpose | Equivalent CLI Command |
 |---------------|---------|------------------------|
-| `/specfact.compare` | Compare plans | `specfact project plan compare` |
+| `/specfact.compare` | Compare plans | `specfact project devops-flow --stage plan --action compare` |
 | `/specfact.validate` | Validation suite | `specfact code repro` |
 | `/specfact.backlog-refine` | Backlog refinement (AI IDE interactive loop, provided by the backlog bundle) | `specfact backlog refine github \| ado` |
 
@@ -113,14 +113,8 @@ specfact code repro --verbose
 #### 2. Generate AI-Ready Prompt
 
 ```bash
-# Generate fix prompt for a specific gap
-specfact spec generate fix-prompt GAP-001 --bundle my-project
-
-# Or generate contract prompt
-specfact spec generate contracts-prompt --bundle my-project --feature FEATURE-001
-
-# Or generate test prompt
-specfact spec generate test-prompt src/auth/login.py --bundle my-project
+# Use your AI IDE skill (/specfact.07-contracts) for contract enhancement workflows
+# Use your AI IDE skill (/specfact.07-contracts) for fix and test prompt workflows
 ```
 
 #### 3. Use AI IDE to Apply Fixes
@@ -147,11 +141,11 @@ cat .specfact/prompts/fix-prompt-GAP-001.md
 #### 4. Validate with SpecFact
 
 ```bash
-# Check contract coverage
-specfact spec contract coverage --bundle my-project
-
 # Run validation
 specfact code repro --verbose
+
+# Validate spec compliance
+specfact spec validate --bundle my-project
 
 # Enforce SDD compliance
 specfact govern enforce sdd --bundle my-project
@@ -169,19 +163,19 @@ The AI IDE workflow integrates with several command chains:
 
 ### AI-Assisted Code Enhancement Chain
 
-**Workflow**: `generate contracts-prompt` → [AI IDE] → `contracts-apply` → `contract coverage` → `repro`
+**Workflow**: `/specfact.07-contracts` (AI IDE skill) → `spec validate` → `repro`
 
 **Related**: [AI-Assisted Code Enhancement Chain](command-chains.md#7-ai-assisted-code-enhancement-chain-emerging)
 
 ### Test Generation from Specifications Chain
 
-**Workflow**: `generate test-prompt` → [AI IDE] → `spec generate-tests` → `pytest`
+**Workflow**: `/specfact.07-contracts` (AI IDE skill) → `spec generate-tests` → `pytest`
 
 **Related**: [Test Generation from Specifications Chain](command-chains.md#8-test-generation-from-specifications-chain-emerging)
 
 ### Gap Discovery & Fixing Chain
 
-**Workflow**: `repro --verbose` → `generate fix-prompt` → [AI IDE] → `enforce sdd`
+**Workflow**: `repro --verbose` → `/specfact.07-contracts` (AI IDE skill) → `enforce sdd`
 
 **Related**: [Gap Discovery & Fixing Chain](command-chains.md#9-gap-discovery--fixing-chain-emerging)
 
@@ -198,16 +192,12 @@ specfact code import legacy-api --repo .
 # 2. Find gaps
 specfact code repro --verbose
 
-# 3. Generate contract prompt
-specfact spec generate contracts-prompt --bundle legacy-api --feature FEATURE-001
+# 3. Use AI IDE skill for contract enhancement
+# Use your AI IDE skill (/specfact.07-contracts) for contract enhancement workflows
+# /specfact.07-contracts legacy-api FEATURE-001
 
-# 4. [In AI IDE] Use slash command or paste prompt
-# /specfact.generate-contracts-prompt legacy-api FEATURE-001
-# AI generates contracts
-# Apply contracts to code
-
-# 5. Validate
-specfact spec contract coverage --bundle legacy-api
+# 4. Validate
+specfact spec validate --bundle legacy-api
 specfact code repro --verbose
 specfact govern enforce sdd --bundle legacy-api
 ```
