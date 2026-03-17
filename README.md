@@ -19,6 +19,19 @@
 
 ---
 
+## Documentation Topology
+
+`docs.specfact.io` is the canonical docs entry point for SpecFact.
+
+- Core CLI/runtime/platform documentation remains owned by `specfact-cli`.
+- Module-specific deep docs are canonically owned by `specfact-cli-modules`.
+- The live modules docs site is currently published at `https://modules.specfact.io/`.
+
+Use this repository's docs for core runtime, lifecycle, registry, trust, and architecture guidance. Use the modules docs site for bundle-specific workflow and module-authoring deep dives.
+In short, module-specific deep docs are canonically owned by `specfact-cli-modules`.
+
+---
+
 ## Start Here (60 seconds)
 
 ### Install
@@ -205,9 +218,10 @@ For technical architecture details (module lifecycle, registry internals, adapte
 
 SpecFact ships official bundle packages via the dedicated marketplace registry repository
 `nold-ai/specfact-cli-modules`.
-Bundle-specific docs are still temporarily hosted in this docs set while the long-term
-bundle docs home is prepared in the modules repository docs site:
-`https://nold-ai.github.io/specfact-cli-modules/`.
+
+This core docs set remains the canonical docs entry point and release-line overview for marketplace concepts.
+Bundle-specific deep docs are canonically owned by `specfact-cli-modules` and are currently published at:
+`https://modules.specfact.io/`.
 
 Install examples:
 
@@ -232,9 +246,8 @@ auto-install dependencies:
 - `nold-ai/specfact-spec` pulls `nold-ai/specfact-project`
 - `nold-ai/specfact-govern` pulls `nold-ai/specfact-project`
 
-Use this repo's docs for the current CLI/runtime release branch. Module-specific guides
-will move to `specfact-cli-modules` so future bundle-only changes do not require ongoing
-docs maintenance in long-lived `specfact-cli` release branches.
+Use this repo's docs for the current CLI/runtime release branch and for marketplace lifecycle overview content.
+Use the modules docs site for bundle-specific deep guidance so bundle-only changes can ship without rebuilding the core docs release branch.
 
 ---
 

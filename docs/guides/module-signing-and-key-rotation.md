@@ -9,8 +9,9 @@ description: Runbook for signing official workflow bundles, placing public keys,
 
 This runbook defines the repeatable process for signing official workflow bundles and verifying signatures in SpecFact CLI.
 
-> Temporary docs note: module signing guidance is still hosted in this core docs set for the
-> current release line and is planned to migrate to `specfact-cli-modules`.
+> Modules docs handoff: this page remains in the core docs set as release-line overview content.
+> Canonical bundle-specific deep guidance now lives in the canonical modules docs site, currently
+> published at `https://modules.specfact.io/`.
 
 ## Key Placement
 

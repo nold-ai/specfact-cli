@@ -7,8 +7,9 @@ permalink: /guides/devops-adapter-integration/
 # DevOps Adapter Integration Guide
 
 
-> Temporary docs note: this bundle-focused page remains hosted in the core docs set for the
-> current release line and is planned to migrate to `specfact-cli-modules`.
+> Modules docs handoff: this page remains in the core docs set as release-line overview content.
+> Canonical bundle-specific deep guidance now lives in the canonical modules docs site, currently
+> published at `https://modules.specfact.io/`.
 
 > **🆕 NEW FEATURE: Integrate SpecFact into Agile DevOps Workflows**  
 > Bidirectional synchronization between OpenSpec change proposals and DevOps backlog tools enables seamless integration of specification-driven development into your existing agile workflows.

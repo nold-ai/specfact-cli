@@ -9,8 +9,9 @@ description: Package and publish SpecFact modules to a registry (tarball, checks
 
 This guide describes how to package a SpecFact module for registry publishing: validate structure, create a tarball and checksum, optionally sign the manifest, and automate publishing in the dedicated modules repository.
 
-> Temporary docs note: module publishing guidance is still hosted in this core docs set for the
-> current release line and is planned to migrate to `specfact-cli-modules`.
+> Modules docs handoff: this page remains in the core docs set as release-line overview content.
+> Canonical bundle-specific deep guidance now lives in the canonical modules docs site, currently
+> published at `https://modules.specfact.io/`.
 
 ## Repository ownership
 

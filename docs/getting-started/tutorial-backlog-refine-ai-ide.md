@@ -8,8 +8,9 @@ permalink: /getting-started/tutorial-backlog-refine-ai-ide/
 # Tutorial: Backlog Refine with Your AI IDE (Agile DevOps Teams)
 
 
-> Temporary docs note: this bundle-focused page remains hosted in the core docs set for the
-> current release line and is planned to migrate to `specfact-cli-modules`.
+> Modules docs handoff: this page remains in the core docs set as release-line overview content.
+> Canonical bundle-specific deep guidance now lives in the canonical modules docs site, currently
+> published at `https://modules.specfact.io/`.
 
 This tutorial walks agile DevOps teams through integrating SpecFact CLI backlog refinement with their AI IDE (Cursor, VS Code + Copilot, Claude Code, etc.) using the interactive slash prompt. You will improve backlog story quality, make informed decisions about underspecification, split stories when too big, fix ambiguities, respect Definition of Ready (DoR), and optionally use custom template mapping for advanced teams.
 

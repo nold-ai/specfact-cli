@@ -82,5 +82,6 @@ specfact module init
 - [Installing Modules](installing-modules.md)
 - [Module Categories](../reference/module-categories.md)
 
-> Temporary docs note: bundle-specific marketplace guidance remains hosted in this core docs set
-> for the current release line and is planned to migrate to `specfact-cli-modules`.
+> Modules docs handoff: this page remains in the core docs set as release-line overview content.
+> Canonical bundle-specific deep guidance now lives in the canonical modules docs site, currently
+> published at `https://modules.specfact.io/`.

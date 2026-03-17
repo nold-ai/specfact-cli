@@ -7,6 +7,12 @@ permalink: /
 
 # SpecFact CLI Documentation
 
+**Docs Home**: `docs.specfact.io` currently serves as the canonical docs entry point and, until the dedicated portal cutover lands, also hosts the Core CLI section.
+
+**Core CLI**: this site owns runtime, lifecycle, registry, trust, and architecture guidance for `specfact-cli`.
+
+**Modules**: bundle-specific deep docs are canonically owned by `specfact-cli-modules` and are currently published at `https://modules.specfact.io/`.
+
 **The "swiss knife" CLI that turns any codebase into a clear, safe, and shippable workflow**  
 Keep backlog, specs, tests, and code in sync so AI-assisted changes don’t break production.
 
@@ -152,9 +158,9 @@ Official bundles are now marketplace-distributed as `nold-ai/specfact-*` modules
 - `nold-ai/specfact-spec`
 - `nold-ai/specfact-govern`
 
-Bundle-specific documentation is still temporarily hosted in this docs set while the
-long-term bundle docs home is prepared in `nold-ai/specfact-cli-modules`:
-`https://nold-ai.github.io/specfact-cli-modules/`.
+This page remains the core-side overview for marketplace concepts and docs navigation.
+Bundle-specific deep documentation is canonically owned by `specfact-cli-modules` and is currently published at:
+`https://modules.specfact.io/`.
 
 - **[Installing Modules](guides/installing-modules.md)** - Install, list, uninstall, and upgrade modules
 - **[Module Marketplace](guides/module-marketplace.md)** - Registry model, security checks, and discovery priority
