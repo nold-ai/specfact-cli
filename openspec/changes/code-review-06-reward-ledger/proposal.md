@@ -15,7 +15,7 @@ A local JSON fallback (`~/.specfact/ledger.json`) ensures the feature works offl
 - **NEW**: `specfact code review ledger status` — prints coins (2dp), streak_pass, streak_block, last verdict, top-3 violations
 - **NEW**: `specfact code review ledger reset` — resets local ledger (requires `--confirm`)
 - **NEW**: Coin update formula: `coins += reward_delta / 10.0`; streak bonuses: pass>=5 → +0.5, block>=3 → -1.0
-- **NEW**: Supabase DDL migration file: `infra/supabase/review_ledger_ddl.sql`
+- **NEW**: Bundle-local Supabase DDL file: `packages/specfact-code-review/src/specfact_code_review/resources/supabase/review_ledger_ddl.sql`
 - **NEW**: Unit tests for `LedgerClient` and ledger commands (TDD-first)
 
 ## Capabilities
@@ -38,7 +38,7 @@ A local JSON fallback (`~/.specfact/ledger.json`) ensures the feature works offl
 ## Source Tracking
 
 <!-- source_repo: nold-ai/specfact-cli -->
-- **GitHub Issue**: TBD
-- **Issue URL**: TBD
+- **GitHub Issue**: #395
+- **Issue URL**: https://github.com/nold-ai/specfact-cli/issues/395
 - **Repository**: nold-ai/specfact-cli
-- **Last Synced Status**: proposed
+- **Last Synced Status**: in-progress
