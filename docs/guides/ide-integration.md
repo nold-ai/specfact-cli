@@ -162,20 +162,20 @@ Detailed instructions for the AI assistant...
 | Command | Description | CLI Equivalent |
 |---------|-------------|----------------|
 | `/specfact.01-import` | Import codebase into plan bundle | `specfact code import <bundle-name>` |
-| `/specfact.02-plan` | Plan management (init, add-feature, add-story, update-idea, update-feature, update-story) | `specfact project plan <operation> <bundle-name>` |
-| `/specfact.03-review` | Review plan and promote through stages | `specfact project plan review <bundle-name>`, `specfact project plan promote <bundle-name>` |
-| `/specfact.04-sdd` | Create SDD manifest from plan | `specfact project plan harden <bundle-name>` |
+| `/specfact.02-plan` | Plan management (init, add-feature, add-story, update-idea, update-feature, update-story) | `specfact project snapshot --bundle <bundle-name>` |
+| `/specfact.03-review` | Review plan and promote through stages | `specfact project devops-flow --stage develop --bundle <bundle-name>`, `specfact project health-check` |
+| `/specfact.04-sdd` | Create SDD manifest from plan | `specfact project snapshot <bundle-name>` |
 | `/specfact.05-enforce` | Validate SDD and contracts | `specfact govern enforce sdd <bundle-name>` |
 | `/specfact.06-sync` | Sync with external tools or repository | `specfact project sync bridge --adapter <adapter>` |
-| `/specfact.07-contracts` | Contract enhancement workflow: analyze → generate prompts → apply sequentially | `specfact code analyze contracts`, `specfact spec generate contracts-prompt`, `specfact spec generate contracts-apply` |
+| `/specfact.07-contracts` | Contract enhancement workflow: analyze → generate prompts → apply sequentially | `specfact code analyze contracts` (use your AI IDE skill `/specfact.07-contracts` for contract enhancement workflows) |
 
 **Advanced Commands** (no numbering):
 
 | Command | Description | CLI Equivalent |
 |---------|-------------|----------------|
-| `/specfact.compare` | Compare manual vs auto plans | `specfact project plan compare` |
+| `/specfact.compare` | Compare manual vs auto plans | `specfact project regenerate` |
 | `/specfact.validate` | Run validation suite | `specfact code repro` |
-| `/specfact.generate-contracts-prompt` | Generate AI IDE prompt for adding contracts | `specfact spec generate contracts-prompt <file> --apply <contracts>` |
+| `/specfact.generate-contracts-prompt` | Generate AI IDE prompt for adding contracts | Use your AI IDE skill (`/specfact.07-contracts`) for contract enhancement workflows |
 
 ---
 

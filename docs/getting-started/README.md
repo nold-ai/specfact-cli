@@ -35,7 +35,7 @@ uvx specfact-cli@latest project import from-code my-project --repo .
 
 ```bash
 # CLI-only mode (bundle name as positional argument)
-uvx specfact-cli@latest project plan init my-project --interactive
+uvx specfact-cli@latest project snapshot --bundle my-project
 
 # Interactive AI Assistant mode (recommended for better results)
 # Requires: pip install specfact-cli && specfact init
@@ -48,8 +48,8 @@ uvx specfact-cli@latest project plan init my-project --interactive
 Flat root commands were removed. Use grouped command forms:
 
 - `specfact validate ...` -> `specfact code validate ...`
-- `specfact project plan ...` -> `specfact project plan ...`
-- `specfact backlog policy ...` -> `specfact backlog policy ...`
+- `specfact plan ...` → removed; use `specfact project devops-flow` or `specfact project snapshot`
+- `specfact policy ...` → removed; use `specfact backlog verify-readiness`
 
 First-run bundle selection examples:
 

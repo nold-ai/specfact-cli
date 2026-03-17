@@ -11,47 +11,26 @@ permalink: /guides/policy-engine-commands/
 > Canonical bundle-specific deep guidance now lives in the canonical modules docs site, currently
 > published at `https://modules.specfact.io/`.
 
-Use SpecFact policy commands to scaffold, validate, and improve policy configuration for common frameworks.
+> **Note**: `backlog policy` commands were removed. The equivalent workflows are now under `backlog verify-readiness`, `backlog refine`, and `backlog ceremony`.
+
+Use SpecFact policy commands to validate readiness, refine backlog items, and run agile ceremonies.
 
 ## Overview
 
 The policy engine currently supports:
 
-- `specfact backlog policy init` to scaffold `.specfact/policy.yaml` from a built-in template.
-- `specfact backlog policy validate` to evaluate configured rules deterministically against policy input artifacts.
-- `specfact backlog policy suggest` to generate confidence-scored, patch-ready recommendations (no automatic writes).
+- `specfact backlog verify-readiness` to evaluate configured rules deterministically against policy input artifacts.
+- `specfact backlog refine` to generate confidence-scored, patch-ready recommendations (no automatic writes).
+- `specfact backlog ceremony` to run agile ceremonies (standup, refinement, etc.).
 
 ## Commands
 
-### Initialize Policy Config
+### Verify Readiness
 
-Create a starter policy configuration file:
-
-```bash
-specfact backlog policy init --repo . --template scrum
-```
-
-Supported templates:
-
-- `scrum`
-- `kanban`
-- `safe`
-- `mixed`
-
-Interactive mode (template prompt):
+Check that backlog items meet Definition of Ready / Definition of Done criteria:
 
 ```bash
-specfact backlog policy init --repo .
-```
-
-The command writes `.specfact/policy.yaml`. Use `--force` to overwrite an existing file.
-
-### Validate Policies
-
-Run policy checks with deterministic output:
-
-```bash
-specfact backlog policy validate --repo . --format both
+specfact backlog verify-readiness --repo . --format both
 ```
 
 Artifact resolution order when `--snapshot` is omitted:
@@ -62,20 +41,20 @@ Artifact resolution order when `--snapshot` is omitted:
 You can still override with an explicit path:
 
 ```bash
-specfact backlog policy validate --repo . --snapshot ./snapshot.json --format both
+specfact backlog verify-readiness --repo . --snapshot ./snapshot.json --format both
 ```
 
 Filter and scope output:
 
 ```bash
 # only one rule family, max 20 findings
-specfact backlog policy validate --repo . --rule scrum.dor --limit 20 --format json
+specfact backlog verify-readiness --repo . --rule scrum.dor --limit 20 --format json
 
 # item-centric grouped output
-specfact backlog policy validate --repo . --group-by-item --format both
+specfact backlog verify-readiness --repo . --group-by-item --format both
 
 # in grouped mode, --limit applies to item groups
-specfact backlog policy validate --repo . --group-by-item --limit 4 --format json
+specfact backlog verify-readiness --repo . --group-by-item --limit 4 --format json
 ```
 
 Output formats:
@@ -86,28 +65,37 @@ Output formats:
 
 When config is missing or invalid, the command prints a docs hint pointing back to this policy format guidance.
 
-### Suggest Policy Fixes
+### Refine Backlog Items
 
-Generate suggestions from validation findings:
+Generate suggestions from readiness findings:
 
 ```bash
-specfact backlog policy suggest --repo .
+specfact backlog refine --repo .
 ```
 
 Suggestion shaping options:
 
 ```bash
 # suggestions for one rule family, limited output
-specfact backlog policy suggest --repo . --rule scrum.dod --limit 10
+specfact backlog refine --repo . --rule scrum.dod --limit 10
 
 # grouped suggestions by backlog item index
-specfact backlog policy suggest --repo . --group-by-item
+specfact backlog refine --repo . --group-by-item
 
 # grouped mode limits item groups, not per-item fields
-specfact backlog policy suggest --repo . --group-by-item --limit 4
+specfact backlog refine --repo . --group-by-item --limit 4
 ```
 
 Suggestions include confidence scores and patch-ready structure, but no file is modified automatically.
+
+### Run Agile Ceremonies
+
+Run standup or refinement ceremonies:
+
+```bash
+specfact backlog ceremony standup
+specfact backlog ceremony refinement
+```
 
 ## Policy File Location and Format
 

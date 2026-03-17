@@ -81,7 +81,7 @@ After extracting the plan, create a hard SDD manifest:
 
 ```bash
 # Create SDD manifest from the extracted plan
-specfact project plan harden customer-etl
+specfact govern enforce sdd customer-etl
 ```
 
 ### Output
@@ -131,7 +131,7 @@ Promote your plan to "review" stage (requires valid SDD):
 
 ```bash
 # Promote plan to review stage
-specfact project plan promote customer-etl --stage review
+specfact project devops-flow --stage review --bundle customer-etl
 ```
 
 **Why this matters**: Plan promotion enforces SDD presence, ensuring you have a hard spec before starting modernization work.

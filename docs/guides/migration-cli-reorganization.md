@@ -24,7 +24,7 @@ The CLI reorganization includes:
 
 | Old Name | New Name | Commands Affected |
 |----------|----------|-------------------|
-| `--base-path` | `--repo` | `generate contracts` |
+| `--base-path` | `--repo` | `code import` and other commands (note: `generate contracts` is removed) |
 | `--output` | `--out` | `bridge constitution bootstrap` |
 | `--format` | `--output-format` | `enforce sdd`, `plan compare` |
 | `--non-interactive` | `--no-interactive` | All commands |
@@ -42,18 +42,18 @@ The CLI reorganization includes:
 **Before**:
 
 ```bash
-specfact spec generate contracts --base-path .
-specfact project plan compare --bundle legacy-api --format json --out report.json
+# Old: project plan compare (removed) → use: specfact project regenerate
 specfact govern enforce sdd legacy-api --non-interactive
 ```
 
 **After**:
 
 ```bash
-specfact spec generate contracts --repo .
-specfact project plan compare --bundle legacy-api --output-format json --out report.json
+specfact project regenerate --bundle legacy-api --output-format json --out report.json
 specfact govern enforce sdd legacy-api --no-interactive
 ```
+
+**Note**: `specfact spec generate contracts` is removed. Use your AI IDE skill (`/specfact.07-contracts`) for contract enhancement workflows.
 
 ---
 
@@ -122,15 +122,15 @@ The new numbered commands follow natural workflow progression:
 **Before** (positional argument):
 
 ```bash
-specfact project plan init legacy-api
-specfact project plan review legacy-api
+# Old: project plan init (removed) → use: specfact code import legacy-api --repo .
+# Old: project plan review (removed) → use: specfact project devops-flow --stage develop --bundle legacy-api
 ```
 
 **After** (named parameter):
 
 ```bash
-specfact project plan init legacy-api
-specfact project plan review legacy-api
+specfact code import legacy-api --repo .
+specfact project devops-flow --stage develop --bundle legacy-api
 ```
 
 ### Path Resolution Changes

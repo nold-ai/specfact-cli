@@ -40,13 +40,13 @@ specfact code import api-module --repo . --entry-point src/api
 
 ```bash
 # Review bundle to understand extracted specs
-specfact project plan review legacy-api
+specfact project devops-flow --stage develop --bundle legacy-api
 
-# Or get structured findings for analysis
-specfact project plan review legacy-api --list-findings --findings-format json
+# Or check project health for structured findings
+specfact project health-check
 ```
 
-**Note**: Use CLI commands to interact with bundles. The bundle structure (`.specfact/projects/<bundle-name>/`) is managed by SpecFact CLI - use commands like `plan review`, `plan add-feature`, `plan update-feature` to modify bundles, not direct file editing.
+**Note**: Use CLI commands to interact with bundles. The bundle structure (`.specfact/projects/<bundle-name>/`) is managed by SpecFact CLI - use commands like `project devops-flow`, `project health-check`, `project snapshot` to manage bundles, not direct file editing.
 
 ### Step 3: Add Contracts Incrementally
 
@@ -79,7 +79,7 @@ specfact code import integrations-module --repo . --entry-point src/integrations
 - **Multi-bundle support** - Create separate project bundles for different projects/modules
 - **Better organization** - Keep bundles organized by project boundaries
 
-**Note:** When using `--entry-point`, each analysis creates a separate project bundle. Use `specfact project plan compare` to compare different bundles.
+**Note:** When using `--entry-point`, each analysis creates a separate project bundle. Use `specfact project devops-flow --stage plan --action compare` to compare different bundles.
 
 ---
 
@@ -333,7 +333,7 @@ Compare manual plans vs auto-derived plans to detect deviations.
 ### Quick Comparison
 
 ```bash
-specfact project plan compare --bundle legacy-api
+specfact project devops-flow --stage plan --action compare --bundle legacy-api
 ```
 
 **What it does**:
@@ -351,7 +351,7 @@ specfact project plan compare --bundle legacy-api
 ### Detailed Comparison
 
 ```bash
-specfact project plan compare \
+specfact project devops-flow --stage plan --action compare \
   --manual .specfact/projects/manual-plan \
   --auto .specfact/projects/auto-derived \
   --out comparison-report.md
@@ -374,7 +374,7 @@ specfact project plan compare \
 ### Code vs Plan Comparison
 
 ```bash
-specfact project plan compare --bundle legacy-api --code-vs-plan
+specfact project devops-flow --stage plan --action compare --bundle legacy-api --code-vs-plan
 ```
 
 **What it does**:
@@ -402,7 +402,7 @@ Typical workflow for daily development.
 specfact code repro --verbose
 
 # Compare plans
-specfact project plan compare --bundle legacy-api
+specfact project devops-flow --stage plan --action compare --bundle legacy-api
 ```
 
 **What it does**:
@@ -431,7 +431,7 @@ specfact project sync repository --repo . --watch --interval 5
 specfact code repro
 
 # Compare plans
-specfact project plan compare --bundle legacy-api
+specfact project devops-flow --stage plan --action compare --bundle legacy-api
 ```
 
 **What it does**:
@@ -464,7 +464,7 @@ Complete workflow for migrating from Spec-Kit or OpenSpec.
 #### Step 1: Preview
 
 ```bash
-specfact project import from-bridge --adapter speckit --repo . --dry-run
+specfact code import from-bridge --adapter speckit --repo . --dry-run
 ```
 
 **What it does**:
@@ -476,7 +476,7 @@ specfact project import from-bridge --adapter speckit --repo . --dry-run
 #### Step 2: Execute
 
 ```bash
-specfact project import from-bridge --adapter speckit --repo . --write
+specfact code import from-bridge --adapter speckit --repo . --write
 ```
 
 **What it does**:

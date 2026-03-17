@@ -351,7 +351,7 @@ ls specs/
 
 ```bash
 # Preview import
-specfact project import from-bridge --adapter speckit --repo ./my-speckit-project --dry-run
+specfact code import from-bridge --adapter speckit --repo ./my-speckit-project --dry-run
 
 # Expected output:
 # 🔍 Analyzing Spec-Kit project via bridge adapter...
@@ -377,7 +377,7 @@ specfact project import from-bridge --adapter speckit --repo ./my-speckit-projec
 
 ```bash
 # Execute import
-specfact project import from-bridge \
+specfact code import from-bridge \
   --adapter speckit \
   --repo ./my-speckit-project \
   --write
@@ -401,10 +401,10 @@ specfact project import from-bridge \
 **Review what was created:**
 
 ```bash
-# Review plan bundle (bundle name is positional argument, not --bundle)
+# Review project health (check bundle health and SDD compliance)
 # IMPORTANT: Must be in the project directory where .specfact/ exists
 cd /path/to/your-speckit-project
-specfact project plan review <bundle-name>
+specfact project health-check
 
 # Note: Bundle name is typically "main" for Spec-Kit imports
 # Check actual bundle name: ls .specfact/projects/
@@ -415,8 +415,8 @@ specfact project plan review <bundle-name>
 # ✅ Plan bundle reviewed successfully
 ```
 
-**Note**: 
-- `plan review` takes the bundle name as a positional argument (not `--bundle`)
+**Note**:
+- `project health-check` checks the project state and SDD compliance
 - It uses the current directory to find `.specfact/projects/` (no `--repo` option)
 - You must be in the project directory where the bundle was created
 
@@ -494,10 +494,10 @@ specfact govern enforce stage --preset balanced
 **Compare intended design vs actual implementation:**
 
 ```bash
-# Compare code vs plan (use --bundle to specify bundle name)
+# Regenerate and compare plans to detect drift
 # IMPORTANT: Must be in the project directory where .specfact/ exists
 cd /path/to/my-speckit-project
-specfact project plan compare --code-vs-plan --bundle <bundle-name>
+specfact project regenerate
 
 # Note: Bundle name is typically "main" for Spec-Kit imports
 # Check actual bundle name: ls .specfact/projects/
@@ -514,9 +514,8 @@ specfact project plan compare --code-vs-plan --bundle <bundle-name>
 - Identifies deviations automatically
 - Helps catch drift between design and code
 
-**Note**: 
-- `plan compare` takes `--bundle` as an option (not positional)
-- It uses the current directory to find bundles (no `--repo` option)
+**Note**:
+- `project regenerate` uses the current directory to find bundles
 - You must be in the project directory where the bundle was created
 
 ---

@@ -36,12 +36,8 @@ specfact code import --key-format classname
 specfact code import --key-format sequential
 ```
 
-**Manual creation**: When creating plans interactively, use `FEATURE-001` format:
-
-```bash
-specfact project plan init
-# Enter feature key: FEATURE-001
-```
+**Manual creation**: When creating project state interactively, use `FEATURE-001` format and
+manage it via `project snapshot` or `project devops-flow`.
 
 ### 3. Underscore Format (Legacy)
 
@@ -83,11 +79,7 @@ normalize_feature_key("FEATURE-001")
 
 ### Plan Comparison
 
-The `plan compare` command automatically normalizes keys:
-
-```bash
-specfact project plan compare --manual main.bundle.yaml --auto auto-derived.yaml
-```
+Key normalization is applied automatically when comparing or merging bundle data.
 
 **Behavior**: Features with different key formats but the same normalized key are matched correctly.
 
@@ -119,13 +111,12 @@ features_seq = convert_feature_keys(features, target_format="sequential", start_
 features_class = convert_feature_keys(features, target_format="classname")
 ```
 
-### Command-Line (Future)
+### Command-Line
 
-A `plan normalize` command may be added in the future to convert existing plans:
+Use `project regenerate` to re-derive project state from the current bundle:
 
 ```bash
-# (Future) Convert plan to sequential format
-specfact project plan normalize --from main.bundle.yaml --to main-sequential.yaml --output-format sequential
+specfact project regenerate --bundle <bundle-name>
 ```
 
 ## Best Practices
@@ -156,13 +147,7 @@ specfact project plan normalize --from main.bundle.yaml --to main-sequential.yam
 
 ### 3. Use Sequential for Manual Plans
 
-When creating plans manually or interactively:
-
-```bash
-specfact project plan init
-# Enter feature key: FEATURE-001  # ← Use sequential format
-# Enter feature title: User Authentication
-```
+When creating project bundles manually, use `FEATURE-001` sequential format for feature keys.
 
 **Why**: Sequential format is easier to reference and understand in documentation.
 

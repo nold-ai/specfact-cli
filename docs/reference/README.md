@@ -30,10 +30,10 @@ Complete technical reference for SpecFact CLI.
 
 ### Commands
 
-- `specfact project import from-bridge --adapter speckit` - Import from external tools via bridge adapter
+- `specfact code import from-bridge --adapter speckit` - Import from external tools via bridge adapter
 - `specfact code import <bundle-name>` - Reverse-engineer plans from code
-- `specfact project plan init <bundle-name>` - Initialize new development plan
-- `specfact project plan compare` - Compare manual vs auto plans
+- `specfact project snapshot --bundle <bundle-name>` - Save current backlog graph as baseline snapshot
+- `specfact project devops-flow --stage <plan|develop|review|release|monitor>` - Run integrated DevOps stage actions
 - `specfact govern enforce stage` - Configure quality gates
 - `specfact code repro` - Run full validation suite
 - `specfact project sync bridge --adapter <adapter> --bundle <bundle-name>` - Sync with external tools via bridge adapter

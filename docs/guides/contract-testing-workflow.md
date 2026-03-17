@@ -17,11 +17,11 @@ description: Practical contract testing workflow guidance for SpecFact users and
 The easiest way to verify your OpenAPI contract works is with a single command:
 
 ```bash
-# Verify a specific contract
-specfact spec contract verify --bundle my-api --feature FEATURE-001
+# Validate a specific contract bundle
+specfact spec validate --bundle my-api --feature FEATURE-001
 
-# Verify all contracts in a bundle
-specfact spec contract verify --bundle my-api
+# Validate all contracts in a bundle
+specfact spec validate --bundle my-api
 ```
 
 **What this does:**
@@ -35,12 +35,12 @@ specfact spec contract verify --bundle my-api
 
 ## What You Can Do Without a Real API
 
-### ✅ Contract Verification (No API Needed)
+### ✅ Contract Validation (No API Needed)
 
-Use `contract verify` to ensure your contract is correct:
+Use `spec validate` to ensure your contract is correct:
 
 ```bash
-specfact spec contract verify --bundle my-api --feature FEATURE-001
+specfact spec validate --bundle my-api --feature FEATURE-001
 ```
 
 **Output:**
@@ -75,10 +75,10 @@ Start a mock server that generates responses from your contract:
 
 ```bash
 # Start mock server with examples
-specfact spec contract serve --bundle my-api --feature FEATURE-001 --examples
+specfact spec mock --bundle my-api --feature FEATURE-001 --examples
 
-# Or use the verify command (starts mock server automatically)
-specfact spec contract verify --bundle my-api --feature FEATURE-001
+# Or use the validate command (starts mock server automatically)
+specfact spec validate --bundle my-api --feature FEATURE-001
 ```
 
 **Use cases:**
@@ -93,10 +93,10 @@ Validate that your contract schema is correct:
 
 ```bash
 # Validate a specific contract
-specfact spec contract validate --bundle my-api --feature FEATURE-001
+specfact spec validate --bundle my-api --feature FEATURE-001
 
-# Check coverage across all contracts
-specfact spec contract coverage --bundle my-api
+# Check test coverage across all contracts
+specfact spec generate-tests --bundle my-api
 ```
 
 ## Complete Workflow Examples
@@ -104,14 +104,14 @@ specfact spec contract coverage --bundle my-api
 ### Example 1: New Contract Development
 
 ```bash
-# 1. Create a new contract
-specfact spec contract init --bundle my-api --feature FEATURE-001
+# 1. Set up validation for a new bundle
+specfact spec validate --bundle my-api
 
 # 2. Edit the contract file
 # Edit: .specfact/projects/my-api/contracts/FEATURE-001.openapi.yaml
 
-# 3. Verify everything works
-specfact spec contract verify --bundle my-api --feature FEATURE-001
+# 3. Validate everything works
+specfact spec validate --bundle my-api --feature FEATURE-001
 
 # 4. Test your client code against the mock server
 curl http://localhost:9000/api/endpoint
@@ -121,20 +121,20 @@ curl http://localhost:9000/api/endpoint
 
 ```bash
 # Validate contracts without starting mock server
-specfact spec contract verify --bundle my-api --skip-mock --no-interactive
+specfact spec validate --bundle my-api --skip-mock --no-interactive
 
 # Or just validate
-specfact spec contract validate --bundle my-api --no-interactive
+specfact spec validate --bundle my-api --no-interactive
 ```
 
 ### Example 3: Multiple Contracts
 
 ```bash
-# Verify all contracts in a bundle
-specfact spec contract verify --bundle my-api
+# Validate all contracts in a bundle
+specfact spec validate --bundle my-api
 
-# Check coverage
-specfact spec contract coverage --bundle my-api
+# Generate tests from contracts
+specfact spec generate-tests --bundle my-api
 ```
 
 ## What Requires a Real API
@@ -160,7 +160,7 @@ specmatic test \
 
 ```bash
 # 1. Generate test files
-specfact spec contract test --bundle my-api --feature FEATURE-001
+specfact spec generate-tests --bundle my-api --feature FEATURE-001
 
 # 2. Start your real API
 python -m uvicorn main:app --port 8000
@@ -173,12 +173,12 @@ specmatic test \
 
 ## Command Reference
 
-### `contract verify` - All-in-One Verification
+### `spec validate` - All-in-One Verification
 
 The simplest way to verify your contract:
 
 ```bash
-specfact spec contract verify [OPTIONS]
+specfact spec validate [OPTIONS]
 
 Options:
   --bundle TEXT          Project bundle name
@@ -195,34 +195,26 @@ Options:
 3. Starts mock server (unless `--skip-mock`)
 4. Tests connectivity
 
-### `contract validate` - Schema Validation
+### `spec validate` - Schema Validation
 
 ```bash
-specfact spec contract validate --bundle my-api --feature FEATURE-001
+specfact spec validate --bundle my-api --feature FEATURE-001
 ```
 
 Validates the OpenAPI schema structure.
 
-### `contract serve` - Mock Server
+### `spec mock` - Mock Server
 
 ```bash
-specfact spec contract serve --bundle my-api --feature FEATURE-001 --examples
+specfact spec mock --bundle my-api --feature FEATURE-001 --examples
 ```
 
 Starts a mock server that generates responses from your contract.
 
-### `contract coverage` - Coverage Report
+### `spec generate-tests` - Generate Tests
 
 ```bash
-specfact spec contract coverage --bundle my-api
-```
-
-Shows contract coverage metrics across all features.
-
-### `contract test` - Generate Tests
-
-```bash
-specfact spec contract test --bundle my-api --feature FEATURE-001
+specfact spec generate-tests --bundle my-api --feature FEATURE-001
 ```
 
 Generates test files that can be run against a real API.
@@ -231,11 +223,11 @@ Generates test files that can be run against a real API.
 
 | Task | Requires Real API? | Command |
 |------|-------------------|---------|
-| **Contract Verification** | ❌ No | `contract verify` |
-| **Schema Validation** | ❌ No | `contract validate` |
-| **Mock Server** | ❌ No | `contract serve` |
-| **Example Generation** | ❌ No | `contract verify` (automatic) |
-| **Contract Testing** | ✅ Yes | `specmatic test` (after `contract test`) |
+| **Contract Validation** | ❌ No | `spec validate` |
+| **Schema Validation** | ❌ No | `spec validate` |
+| **Mock Server** | ❌ No | `spec mock` |
+| **Example Generation** | ❌ No | `spec validate` (automatic) |
+| **Contract Testing** | ✅ Yes | `specmatic test` (after `spec generate-tests`) |
 
 ## Troubleshooting
 
@@ -256,7 +248,7 @@ npm install -g @specmatic/specmatic
 cat .specfact/projects/my-api/contracts/FEATURE-001.openapi.yaml
 
 # Validate manually
-specfact spec contract validate --bundle my-api --feature FEATURE-001
+specfact spec validate --bundle my-api --feature FEATURE-001
 ```
 
 ### Examples Not Generated
@@ -265,11 +257,11 @@ Examples are generated automatically from your OpenAPI schema. If generation fai
 
 - Check that your schema has proper request/response definitions
 - Ensure data types are properly defined
-- Run `contract verify` to see detailed error messages
+- Run `spec validate` to see detailed error messages
 
 ## Best Practices
 
-1. **Start with `contract verify`** - It does everything you need
+1. **Start with `spec validate`** - It does everything you need
 2. **Use mock servers for development** - No need to wait for backend
 3. **Validate in CI/CD** - Use `--skip-mock --no-interactive` for fast validation
 4. **Test against real API** - Use `specmatic test` after implementation

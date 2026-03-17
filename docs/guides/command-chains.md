@@ -86,10 +86,10 @@ Start: What do you want to accomplish?
 specfact code import legacy-api --repo .
 
 # Step 2: Review the extracted plan
-specfact project plan review legacy-api
+specfact project snapshot legacy-api
 
 # Step 3: Update features based on review findings
-specfact project plan update-feature --bundle legacy-api --feature <feature-id>
+specfact project devops-flow --stage plan --action update-feature --bundle legacy-api --feature <feature-id>
 
 # Step 4: Enforce SDD (Spec-Driven Development) compliance
 specfact govern enforce sdd --bundle legacy-api
@@ -114,8 +114,8 @@ graph TD
 
 **Decision Points**:
 
-- **After `import from-code`**: Review the extracted plan. If features are incomplete or incorrect, use `plan update-feature` to refine them.
-- **After `plan review`**: If ambiguities are found, resolve them before proceeding to enforcement.
+- **After `import from-code`**: Review the extracted plan. If features are incomplete or incorrect, use `project devops-flow --stage plan --action update-feature` to refine them.
+- **After `project snapshot`**: If ambiguities are found, resolve them before proceeding to enforcement.
 - **After `enforce sdd`**: If compliance fails, update the plan and re-run enforcement.
 - **After `repro`**: If validation fails, fix issues and re-run the chain from the appropriate step.
 
@@ -144,22 +144,21 @@ graph TD
 
 ```bash
 # Step 1: Initialize a new plan bundle
-specfact project plan init new-feature --interactive
+specfact project devops-flow --stage plan --action init --bundle new-feature --interactive
 
 # Step 2: Add features to the plan
-specfact project plan add-feature --bundle new-feature --name "User Authentication"
+specfact project devops-flow --stage plan --action add-feature --bundle new-feature --name "User Authentication"
 
 # Step 3: Add user stories to features
-specfact project plan add-story --bundle new-feature --feature <feature-id> --story "As a user, I want to log in"
+specfact project devops-flow --stage plan --action add-story --bundle new-feature --feature <feature-id> --story "As a user, I want to log in"
 
 # Step 4: Review the plan for completeness
-specfact project plan review new-feature
+specfact project snapshot new-feature
 
 # Step 5: Harden the plan (finalize before implementation)
-specfact project plan harden --bundle new-feature
+specfact project devops-flow --stage plan --action harden --bundle new-feature
 
-# Step 6: Generate contracts from the plan
-specfact spec generate contracts --bundle new-feature
+# Step 6: Use your AI IDE skill (/specfact.07-contracts) for contract enhancement workflows
 
 # Step 7: Enforce SDD compliance
 specfact govern enforce sdd --bundle new-feature
@@ -181,10 +180,10 @@ graph TD
 
 **Decision Points**:
 
-- **After `plan init`**: Choose interactive mode to get guided prompts, or use flags for automation.
-- **After `plan add-feature`**: Add multiple features before adding stories, or add stories immediately.
-- **After `plan review`**: If ambiguities are found, add more details or stories before hardening.
-- **After `plan harden`**: Once hardened, the plan is locked. Generate contracts before enforcement.
+- **After `devops-flow plan init`**: Choose interactive mode to get guided prompts, or use flags for automation.
+- **After `devops-flow plan add-feature`**: Add multiple features before adding stories, or add stories immediately.
+- **After `project snapshot`**: If ambiguities are found, add more details or stories before hardening.
+- **After `devops-flow plan harden`**: Once hardened, the plan is locked. Use the AI IDE skill for contract enhancement before enforcement.
 
 **Expected Outcomes**:
 
@@ -210,10 +209,10 @@ graph TD
 ```bash
 # For Code/Spec Adapters (Spec-Kit, OpenSpec, generic-markdown):
 # Step 1: Import from external tool via bridge adapter
-specfact project import from-bridge --repo . --adapter speckit --write
+specfact code import from-bridge --repo . --adapter speckit --write
 
 # Step 2: Review the imported plan
-specfact project plan review <bundle-name>
+specfact project snapshot <bundle-name>
 
 # Step 3: Set up bidirectional sync (optional)
 specfact project sync bridge --adapter speckit --bundle <bundle-name> --bidirectional --watch
@@ -245,7 +244,7 @@ graph LR
 
 **Decision Points**:
 
-- **After `import from-bridge`**: Review the imported plan. If it needs refinement, use `plan update-feature`.
+- **After `import from-bridge`**: Review the imported plan. If it needs refinement, use `project devops-flow --stage plan --action update-feature`.
 - **Bidirectional sync**: Use `--watch` mode for continuous synchronization, or run sync manually as needed.
 - **Adapter selection**: 
   - **Code/Spec adapters** (use `import from-bridge`): `speckit`, `openspec`, `generic-markdown`
@@ -288,8 +287,8 @@ specfact spec generate-tests --spec openapi.yaml --output tests/
 # Step 4: Generate mock server (optional)
 specfact spec mock --spec openapi.yaml --port 8080
 
-# Step 5: Verify contracts at runtime
-specfact spec contract verify --bundle api-bundle
+# Step 5: Validate contracts at runtime
+specfact spec validate --bundle api-bundle
 ```
 
 **Workflow Diagram**:
@@ -393,13 +392,13 @@ graph TD
 
 ```bash
 # Step 1: Review the plan before promotion
-specfact project plan review <bundle-name>
+specfact project snapshot <bundle-name>
 
 # Step 2: Enforce SDD compliance
 specfact govern enforce sdd --bundle <bundle-name>
 
 # Step 3: Promote the plan to next stage
-specfact project plan promote --bundle <bundle-name> --stage <next-stage>
+specfact project devops-flow --stage release --action promote --bundle <bundle-name> --stage <next-stage>
 
 # Step 4: Bump version when releasing
 specfact project version bump --bundle <bundle-name> --type <major|minor|patch>
@@ -417,7 +416,7 @@ graph LR
 
 **Decision Points**:
 
-- **After `plan review`**: If issues are found, fix them before promotion.
+- **After `project snapshot`**: If issues are found, fix them before promotion.
 - **SDD enforcement**: Ensure compliance before promoting to production stages.
 - **Version bumping**: Choose appropriate version type (major/minor/patch) based on changes.
 
@@ -447,7 +446,7 @@ graph LR
 specfact code import current-state --repo .
 
 # Step 2: Compare code against plan
-specfact project plan compare --bundle <plan-bundle> --code-vs-plan
+specfact project devops-flow --stage plan --action compare --bundle <plan-bundle> --code-vs-plan
 
 # Step 3: Detect drift
 specfact code drift detect --bundle <bundle-name>
@@ -470,7 +469,7 @@ graph TD
 
 **Decision Points**:
 
-- **After `plan compare`**: Review the comparison results to understand differences.
+- **After `devops-flow compare`**: Review the comparison results to understand differences.
 - **Drift detection**: If drift is detected, decide whether to sync code-to-plan or plan-to-code.
 - **Sync direction**: Choose `code-to-plan` to update plan from code, or `plan-to-code` to update code from plan.
 
@@ -496,16 +495,13 @@ graph TD
 **Command Sequence**:
 
 ```bash
-# Step 1: Generate contract prompt for AI IDE
-specfact spec generate contracts-prompt --bundle <bundle-name> --feature <feature-id>
+# Step 1: Use your AI IDE skill (/specfact.07-contracts) for contract enhancement workflows
+# /specfact.07-contracts <bundle-name> <feature-id>
 
-# Step 2: [In AI IDE] Use slash command to apply contracts
-# /specfact-cli/contracts-apply <prompt-file>
+# Step 2: Validate spec compliance
+specfact spec validate --bundle <bundle-name>
 
-# Step 3: Check contract coverage
-specfact spec contract coverage --bundle <bundle-name>
-
-# Step 4: Run validation
+# Step 3: Run validation
 specfact code repro --verbose
 ```
 
@@ -521,8 +517,8 @@ graph TD
 
 **Decision Points**:
 
-- **After generating prompt**: Review the prompt in your AI IDE before applying.
-- **Contract coverage**: Ensure coverage meets your requirements before validation.
+- **After using AI IDE skill**: Review the AI-generated contracts before applying.
+- **Spec validation**: Ensure coverage meets your requirements before validation.
 - **Validation**: If validation fails, review and fix contracts, then re-run.
 
 **Expected Outcomes**:
@@ -547,16 +543,13 @@ graph TD
 **Command Sequence**:
 
 ```bash
-# Step 1: Generate test prompt for AI IDE
-specfact spec generate test-prompt --bundle <bundle-name> --feature <feature-id>
+# Step 1: Use your AI IDE skill (/specfact.07-contracts) for contract enhancement workflows
+# /specfact.07-contracts <bundle-name> <feature-id>
 
-# Step 2: [In AI IDE] Use slash command to generate tests
-# /specfact-cli/test-generate <prompt-file>
-
-# Step 3: Generate tests from specification
+# Step 2: Generate tests from specification
 specfact spec generate-tests --spec <spec-file> --output tests/
 
-# Step 4: Run tests
+# Step 3: Run tests
 pytest tests/
 ```
 
@@ -574,7 +567,7 @@ graph TD
 
 **Decision Points**:
 
-- **Test generation method**: Use AI IDE for custom tests, or `spec generate-tests` for specification-based tests.
+- **Test generation method**: Use AI IDE skill `/specfact.07-contracts` for custom tests, or `spec generate-tests` for specification-based tests.
 - **Test coverage**: Review generated tests to ensure they cover all scenarios.
 - **Test execution**: Run tests in CI/CD for continuous validation.
 
@@ -603,13 +596,10 @@ graph TD
 # Step 1: Run validation with verbose output
 specfact code repro --verbose
 
-# Step 2: Generate fix prompt for discovered gaps
-specfact spec generate fix-prompt --bundle <bundle-name> --gap <gap-id>
+# Step 2: Use your AI IDE skill (/specfact.07-contracts) for contract enhancement workflows
+# /specfact.07-contracts <bundle-name> <gap-id>
 
-# Step 3: [In AI IDE] Use slash command to apply fixes
-# /specfact-cli/fix-apply <prompt-file>
-
-# Step 4: Enforce SDD compliance
+# Step 3: Enforce SDD compliance
 specfact govern enforce sdd --bundle <bundle-name>
 ```
 
@@ -627,7 +617,7 @@ graph TD
 **Decision Points**:
 
 - **After `repro --verbose`**: Review discovered gaps and prioritize fixes.
-- **Fix application**: Review AI-suggested fixes before applying.
+- **Fix application**: Review AI-suggested fixes from `/specfact.07-contracts` before applying.
 - **SDD enforcement**: Ensure compliance after fixes are applied.
 
 **Expected Outcomes**:
@@ -652,35 +642,24 @@ graph TD
 **Command Sequence**:
 
 ```bash
-# Step 1: Bootstrap constitution from repository
-specfact spec sdd constitution bootstrap --repo .
-
-# Step 2: Enrich constitution with repository context
-specfact spec sdd constitution enrich --repo .
-
-# Step 3: Validate constitution completeness
-specfact spec sdd constitution validate
-
-# Step 4: List SDD manifests
-specfact spec sdd list
+# Use specfact govern enforce sdd [BUNDLE] for SDD enforcement
+specfact govern enforce sdd <bundle-name>
 ```
 
 **Workflow Diagram**:
 
 ```mermaid
 graph TD
-    A[Repository] -->|sdd constitution bootstrap| B[Bootstrap Constitution]
-    B -->|sdd constitution enrich| C[Enrich Constitution]
-    C -->|sdd constitution validate| D[Validate Constitution]
-    D -->|sdd list| E[SDD Manifests]
-    D -->|Issues Found| C
+    A[Repository] -->|govern enforce sdd| B[SDD Enforcement]
+    B -->|Pass| C[SDD Compliant]
+    B -->|Issues Found| D[Fix Issues]
+    D --> B
 ```
 
 **Decision Points**:
 
-- **Bootstrap vs Enrich**: Use `bootstrap` for new constitutions, `enrich` for existing ones.
-- **Validation**: Run validation after bootstrap/enrich to ensure completeness.
-- **Spec-Kit Compatibility**: These commands are for Spec-Kit format only. SpecFact uses modular project bundles internally.
+- **SDD Enforcement**: Use `specfact govern enforce sdd [BUNDLE]` for all SDD enforcement workflows.
+- **Spec-Kit Compatibility**: SDD constitution commands are removed. SpecFact uses modular project bundles internally.
 
 **Expected Outcomes**:
 
@@ -729,21 +708,21 @@ The following commands are now integrated into documented workflows:
 
 ---
 
-### `sdd list`
+### `govern enforce sdd`
 
 **Integrated into**: [SDD Constitution Management Chain](#10-sdd-constitution-management-chain)
 
-**When to use**: List SDD manifests in repository.
+**When to use**: Enforce SDD compliance for a bundle.
 
-**Workflow**: Use after constitution management to verify manifests.
+**Workflow**: Use after plan hardening to validate SDD compliance.
 
 ---
 
-### `contract verify`
+### `spec validate`
 
 **Integrated into**: [API Contract Development Chain](#4-api-contract-development-chain)
 
-**When to use**: Verify contracts at runtime.
+**When to use**: Validate contracts at runtime.
 
 **Workflow**: Use as final step in API Contract Development Chain.
 
