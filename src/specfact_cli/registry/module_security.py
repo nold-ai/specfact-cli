@@ -8,6 +8,7 @@ from pathlib import Path
 
 import typer
 from beartype import beartype
+from icontract import ensure, require
 
 from specfact_cli.utils.metadata import get_metadata, update_metadata
 
@@ -19,6 +20,7 @@ _TRUTHY = {"1", "true", "yes"}
 
 
 @beartype
+@ensure(lambda result: isinstance(result, bool))
 def is_official_publisher(publisher_name: str | None) -> bool:
     """Return True when publisher is official."""
     normalized = (publisher_name or "").strip().lower()
@@ -26,6 +28,7 @@ def is_official_publisher(publisher_name: str | None) -> bool:
 
 
 @beartype
+@ensure(lambda result: isinstance(result, Path))
 def get_denylist_path() -> Path:
     """Return configured module denylist path."""
     configured = os.environ.get("SPECFACT_MODULE_DENYLIST_FILE", "").strip()
@@ -35,6 +38,7 @@ def get_denylist_path() -> Path:
 
 
 @beartype
+@ensure(lambda result: all(s == s.lower() for s in result), "All module IDs must be lowercase")
 def get_denylisted_modules(path: Path | None = None) -> set[str]:
     """Load denylisted module ids from file."""
     denylist_path = path or get_denylist_path()
@@ -49,11 +53,10 @@ def get_denylisted_modules(path: Path | None = None) -> set[str]:
 
 
 @beartype
+@require(lambda module_name: module_name.strip() != "", "Module name must not be blank")
 def assert_module_allowed(module_name: str) -> None:
     """Raise when module is denylisted."""
     normalized = module_name.strip().lower()
-    if not normalized:
-        raise ValueError("Module name must be non-empty")
     denylisted = get_denylisted_modules()
     if normalized not in denylisted:
         return
@@ -64,6 +67,7 @@ def assert_module_allowed(module_name: str) -> None:
 
 
 @beartype
+@ensure(lambda result: all(s == s.lower() for s in result), "All publisher IDs must be lowercase")
 def get_trusted_publishers() -> set[str]:
     """Return persisted trusted non-official publishers."""
     metadata = get_metadata()
@@ -80,12 +84,17 @@ def _persist_trusted_publishers(publishers: set[str]) -> None:
 
 
 @beartype
+@ensure(lambda result: isinstance(result, bool))
 def trust_flag_enabled() -> bool:
     """Return True when explicit trust env override is enabled."""
     return os.environ.get("SPECFACT_TRUST_NON_OFFICIAL", "").strip().lower() in _TRUTHY
 
 
 @beartype
+@require(
+    lambda publisher_name: publisher_name is None or len(publisher_name) > 0,
+    "publisher_name must be non-empty if provided",
+)
 def ensure_publisher_trusted(
     publisher_name: str | None,
     *,

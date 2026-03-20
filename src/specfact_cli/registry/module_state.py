@@ -11,17 +11,20 @@ from pathlib import Path
 from typing import Any
 
 from beartype import beartype
-from icontract import require
+from icontract import ensure, require
 
 from specfact_cli.registry.help_cache import get_registry_dir
 
 
+@beartype
+@ensure(lambda result: isinstance(result, Path))
 def get_modules_state_path() -> Path:
     """Return path to modules state file (modules.json)."""
     return get_registry_dir() / "modules.json"
 
 
 @beartype
+@ensure(lambda result: isinstance(result, dict))
 def read_modules_state() -> dict[str, dict[str, Any]]:
     """
     Read modules.json if present. Returns dict mapping module_id -> {version, enabled}.
@@ -51,6 +54,7 @@ def read_modules_state() -> dict[str, dict[str, Any]]:
 
 
 @beartype
+@require(lambda modules: isinstance(modules, list))
 def write_modules_state(modules: list[dict[str, Any]]) -> None:
     """
     Write modules.json with list of {id, version, enabled}.

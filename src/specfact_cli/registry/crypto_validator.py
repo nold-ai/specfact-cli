@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from beartype import beartype
-from icontract import require
+from icontract import ensure, require
 
 
 _ArtifactInput = bytes | Path
@@ -115,6 +115,9 @@ def _verify_signature_impl(artifact: bytes, signature_b64: str, public_key_pem: 
 
 
 @beartype
+@require(lambda signature_b64: isinstance(signature_b64, str), "signature_b64 must be a string")
+@require(lambda public_key_pem: isinstance(public_key_pem, str), "public_key_pem must be a string")
+@ensure(lambda result: isinstance(result, bool), "Must return a bool")
 def verify_signature(
     artifact: _ArtifactInput,
     signature_b64: str,

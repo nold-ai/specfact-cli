@@ -37,6 +37,8 @@ def _is_mainline_ref(ref_name: str) -> bool:
 
 
 @lru_cache(maxsize=1)
+@beartype
+@ensure(lambda result: result in ("main", "dev") or len(result) > 0, "Must return a non-empty branch name")
 def get_modules_branch() -> str:
     """Return branch to use for official registry (main or dev). Keeps specfact-cli and specfact-cli-modules in sync.
 
@@ -97,6 +99,7 @@ def get_modules_branch() -> str:
 
 
 @beartype
+@ensure(lambda result: result.strip() != "", "Must return a non-empty URL string")
 def get_registry_index_url() -> str:
     """Return registry index URL (official remote or SPECFACT_REGISTRY_INDEX_URL for local)."""
     configured = os.environ.get("SPECFACT_REGISTRY_INDEX_URL", "").strip()
@@ -106,12 +109,15 @@ def get_registry_index_url() -> str:
 
 
 @beartype
+@ensure(lambda result: result.strip() != "", "Must return a non-empty base URL string")
 def get_registry_base_url() -> str:
     """Return official registry base URL (for resolving relative download_url) for the current branch."""
     return get_registry_index_url().rsplit("/", 1)[0]
 
 
 @beartype
+@require(lambda entry: isinstance(entry, dict), "entry must be a dict")
+@require(lambda index_payload: isinstance(index_payload, dict), "index_payload must be a dict")
 def resolve_download_url(
     entry: dict[str, object],
     index_payload: dict[str, object],

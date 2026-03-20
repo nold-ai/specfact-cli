@@ -77,6 +77,79 @@ class SourceArtifactScanner:
 
         return artifact_map
 
+    def _resolve_matched_paths(
+        self,
+        feature_key_lower: str,
+        feature_title_words: list[str],
+        files_by_stem: dict[str, list[Path]],
+        stems_by_substring: dict[str, set[str]],
+        repo_path: Path,
+    ) -> set[str]:
+        """
+        Use inverted-index lookups to find all repo-relative file paths matching a feature.
+
+        Searches by exact key match, exact title-word match, and then by substring index.
+
+        Args:
+            feature_key_lower: Lowercased feature key
+            feature_title_words: Lowercased title words (len > 3)
+            files_by_stem: Stem -> file paths index
+            stems_by_substring: Substring -> stem set inverted index
+            repo_path: Repository root for computing relative paths
+
+        Returns:
+            Set of repo-relative path strings
+        """
+        matched: set[str] = set()
+        # Exact key match
+        for fp in files_by_stem.get(feature_key_lower, []):
+            matched.add(str(fp.relative_to(repo_path)))
+        # Exact title-word matches
+        for word in feature_title_words:
+            for fp in files_by_stem.get(word, []):
+                matched.add(str(fp.relative_to(repo_path)))
+        # Inverted-index expansion for substring matches
+        sets_to_union: list[set[str]] = []
+        if feature_key_lower in stems_by_substring:
+            sets_to_union.append(stems_by_substring[feature_key_lower])
+        for word in feature_title_words:
+            if word in stems_by_substring:
+                sets_to_union.append(stems_by_substring[word])
+        candidate_stems = set().union(*sets_to_union) if sets_to_union else set()
+        for stem in candidate_stems:
+            for fp in files_by_stem.get(stem, []):
+                matched.add(str(fp.relative_to(repo_path)))
+        return matched
+
+    def _register_matched_files(
+        self,
+        matched_rel_paths: set[str],
+        tracked_list: list[str],
+        source_tracking: SourceTracking,
+        file_hashes_cache: dict[str, str],
+        repo_path: Path,
+    ) -> None:
+        """
+        Add newly matched file paths to a source tracking list and update hashes.
+
+        Args:
+            matched_rel_paths: Repo-relative paths to register
+            tracked_list: The list to append new paths to (mutated in-place)
+            source_tracking: SourceTracking object (for hash updates)
+            file_hashes_cache: Pre-computed hash cache
+            repo_path: Repository root for resolving absolute paths
+        """
+        for rel_path in matched_rel_paths:
+            if rel_path in tracked_list:
+                continue
+            tracked_list.append(rel_path)
+            if rel_path in file_hashes_cache:
+                source_tracking.file_hashes[rel_path] = file_hashes_cache[rel_path]
+            else:
+                file_path = repo_path / rel_path
+                if file_path.exists():
+                    source_tracking.update_hash(file_path)
+
     def _link_feature_to_specs(
         self,
         feature: Feature,
@@ -109,156 +182,39 @@ class SourceArtifactScanner:
         if source_tracking is None:
             return
 
-        # Initialize caches if not provided (for backward compatibility)
-        if file_functions_cache is None:
-            file_functions_cache = {}
-        if file_test_functions_cache is None:
-            file_test_functions_cache = {}
-        if file_hashes_cache is None:
-            file_hashes_cache = {}
-        if impl_files_by_stem is None:
-            impl_files_by_stem = {}
-        if test_files_by_stem is None:
-            test_files_by_stem = {}
-        if impl_stems_by_substring is None:
-            impl_stems_by_substring = {}
-        if test_stems_by_substring is None:
-            test_stems_by_substring = {}
+        file_functions_cache = file_functions_cache or {}
+        file_test_functions_cache = file_test_functions_cache or {}
+        file_hashes_cache = file_hashes_cache or {}
+        impl_files_by_stem = impl_files_by_stem or {}
+        test_files_by_stem = test_files_by_stem or {}
+        impl_stems_by_substring = impl_stems_by_substring or {}
+        test_stems_by_substring = test_stems_by_substring or {}
 
-        # Try to match feature key/title to files
         feature_key_lower = feature.key.lower()
         feature_title_words = [w for w in feature.title.lower().split() if len(w) > 3]
 
-        # Use indexed lookup for O(1) file matching instead of O(n) iteration
-        # This is much faster for large codebases with many features
-        matched_impl_files: set[str] = set()
-        matched_test_files: set[str] = set()
+        matched_impl = self._resolve_matched_paths(
+            feature_key_lower, feature_title_words, impl_files_by_stem, impl_stems_by_substring, repo_path
+        )
+        self._register_matched_files(
+            matched_impl, source_tracking.implementation_files, source_tracking, file_hashes_cache, repo_path
+        )
 
-        # Strategy: Use inverted index for O(1) candidate lookup instead of O(n) iteration
-        # This eliminates the slowdown that occurs when iterating through all stems
+        matched_test = self._resolve_matched_paths(
+            feature_key_lower, feature_title_words, test_files_by_stem, test_stems_by_substring, repo_path
+        )
+        self._register_matched_files(
+            matched_test, source_tracking.test_files, source_tracking, file_hashes_cache, repo_path
+        )
 
-        # 1. Check if feature key matches any file stem directly (fastest path - O(1))
-        if feature_key_lower in impl_files_by_stem:
-            for file_path in impl_files_by_stem[feature_key_lower]:
-                rel_path = str(file_path.relative_to(repo_path))
-                matched_impl_files.add(rel_path)
-
-        # 2. Check if any title word matches file stems exactly (O(k) where k = number of title words)
-        for word in feature_title_words:
-            if word in impl_files_by_stem:
-                for file_path in impl_files_by_stem[word]:
-                    rel_path = str(file_path.relative_to(repo_path))
-                    matched_impl_files.add(rel_path)
-
-        # 3. Use inverted index for O(1) candidate stem lookup (much faster than O(n) iteration)
-        # Build candidate stems using the inverted index
-        # Optimization: Use set union instead of multiple updates to avoid repeated hash operations
-        candidate_stems: set[str] = set()
-
-        # Collect all sets to union in one operation (more efficient than multiple updates)
-        sets_to_union: list[set[str]] = []
-
-        # Check feature key in inverted index
-        if feature_key_lower in impl_stems_by_substring:
-            sets_to_union.append(impl_stems_by_substring[feature_key_lower])
-
-        # Check each title word in inverted index
-        for word in feature_title_words:
-            if word in impl_stems_by_substring:
-                sets_to_union.append(impl_stems_by_substring[word])
-
-        # Union all sets at once (more efficient than multiple updates)
-        if sets_to_union:
-            candidate_stems = set().union(*sets_to_union)
-
-        # Check only candidate stems (much smaller set, found via O(1) lookup)
-        for stem in candidate_stems:
-            if stem in impl_files_by_stem:
-                for file_path in impl_files_by_stem[stem]:
-                    rel_path = str(file_path.relative_to(repo_path))
-                    matched_impl_files.add(rel_path)
-
-        # Add matched implementation files to feature
-        for rel_path in matched_impl_files:
-            if rel_path not in source_tracking.implementation_files:
-                source_tracking.implementation_files.append(rel_path)
-                # Use cached hash if available (all hashes should be pre-computed)
-                if rel_path in file_hashes_cache:
-                    source_tracking.file_hashes[rel_path] = file_hashes_cache[rel_path]
-                else:
-                    # Fallback: compute hash if not in cache (shouldn't happen, but safe fallback)
-                    file_path = repo_path / rel_path
-                    if file_path.exists():
-                        source_tracking.update_hash(file_path)
-
-        # Check if feature key matches any test file stem directly (O(1))
-        if feature_key_lower in test_files_by_stem:
-            for file_path in test_files_by_stem[feature_key_lower]:
-                rel_path = str(file_path.relative_to(repo_path))
-                matched_test_files.add(rel_path)
-
-        # Check if any title word matches test file stems exactly (O(k))
-        for word in feature_title_words:
-            if word in test_files_by_stem:
-                for file_path in test_files_by_stem[word]:
-                    rel_path = str(file_path.relative_to(repo_path))
-                    matched_test_files.add(rel_path)
-
-        # Use inverted index for O(1) candidate test stem lookup
-        # Optimization: Use set union instead of multiple updates
-        candidate_test_stems: set[str] = set()
-
-        # Collect all sets to union in one operation (more efficient than multiple updates)
-        test_sets_to_union: list[set[str]] = []
-
-        # Check feature key in inverted index
-        if feature_key_lower in test_stems_by_substring:
-            test_sets_to_union.append(test_stems_by_substring[feature_key_lower])
-
-        # Check each title word in inverted index
-        for word in feature_title_words:
-            if word in test_stems_by_substring:
-                test_sets_to_union.append(test_stems_by_substring[word])
-
-        # Union all sets at once (more efficient than multiple updates)
-        if test_sets_to_union:
-            candidate_test_stems = set().union(*test_sets_to_union)
-
-        # Check only candidate test stems (found via O(1) lookup)
-        for stem in candidate_test_stems:
-            if stem in test_files_by_stem:
-                for file_path in test_files_by_stem[stem]:
-                    rel_path = str(file_path.relative_to(repo_path))
-                    matched_test_files.add(rel_path)
-
-        # Add matched test files to feature
-        for rel_path in matched_test_files:
-            if rel_path not in source_tracking.test_files:
-                source_tracking.test_files.append(rel_path)
-                # Use cached hash if available (all hashes should be pre-computed)
-                if rel_path in file_hashes_cache:
-                    source_tracking.file_hashes[rel_path] = file_hashes_cache[rel_path]
-                else:
-                    # Fallback: compute hash if not in cache (shouldn't happen, but safe fallback)
-                    file_path = repo_path / rel_path
-                    if file_path.exists():
-                        source_tracking.update_hash(file_path)
-
-        # Extract function mappings for stories using cached results
-        # Optimization: Use sets for O(1) lookups instead of O(n) list membership checks
-        # This prevents slowdown as stories accumulate more function mappings
         for story in feature.stories:
-            # Convert to sets for fast lookups (only if we need to add many items)
-            # For small lists, the overhead isn't worth it, but for large lists it's critical
             source_functions_set = set(story.source_functions) if story.source_functions else set()
             test_functions_set = set(story.test_functions) if story.test_functions else set()
 
             for impl_file in source_tracking.implementation_files:
-                # Use cached functions if available (all functions should be pre-computed)
                 if impl_file in file_functions_cache:
                     functions = file_functions_cache[impl_file]
                 else:
-                    # Fallback: compute if not in cache (shouldn't happen, but safe fallback)
                     file_path = repo_path / impl_file
                     functions = self.extract_function_mappings(file_path) if file_path.exists() else []
 

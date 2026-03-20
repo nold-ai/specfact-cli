@@ -16,6 +16,8 @@ logger = get_bridge_logger(__name__)
 _ALIASES_FILENAME = "aliases.json"
 
 
+@beartype
+@ensure(lambda result: isinstance(result, Path))
 def get_aliases_path() -> Path:
     """Return path to aliases.json under ~/.specfact/registry/."""
     return Path.home() / ".specfact" / "registry" / _ALIASES_FILENAME

@@ -204,6 +204,23 @@ class OpenSpecParser:
 
         return sorted(changes)
 
+    def _flush_section(
+        self,
+        sections: dict[str, Any],
+        section_key: str,
+        current_content: list[str],
+    ) -> None:
+        """Write accumulated content lines into the sections dict for the given key."""
+        if section_key not in sections:
+            return
+        if section_key in ("purpose", "context"):
+            content_text = "\n".join(current_content).strip()
+            sections[section_key] = (
+                [item.strip() for item in content_text.split("\n") if item.strip()] if content_text else []
+            )
+        else:
+            sections[section_key] = "\n".join(current_content).strip()
+
     @beartype
     @require(lambda content: isinstance(content, str), "Content must be str")
     @ensure(lambda result: isinstance(result, dict), "Must return dict")
@@ -228,45 +245,36 @@ class OpenSpecParser:
         current_content: list[str] = []
 
         for line in content.splitlines():
-            # Check for section headers (## or ###)
             if line.startswith("##"):
-                # Save previous section
                 if current_section:
-                    section_key = current_section.lower()
-                    if section_key in sections:
-                        if section_key in ("purpose", "context"):
-                            # Store as list for these sections (always a list)
-                            content_text = "\n".join(current_content).strip()
-                            if content_text:
-                                sections[section_key] = [
-                                    item.strip() for item in content_text.split("\n") if item.strip()
-                                ]
-                            else:
-                                sections[section_key] = []
-                        else:
-                            sections[section_key] = "\n".join(current_content).strip()
-                # Start new section
+                    self._flush_section(sections, current_section.lower(), current_content)
                 current_section = line.lstrip("#").strip().lower()
                 current_content = []
-            else:
-                if current_section:
-                    current_content.append(line)
+            elif current_section:
+                current_content.append(line)
 
-        # Save last section
         if current_section:
-            section_key = current_section.lower()
-            if section_key in sections:
-                if section_key in ("purpose", "context"):
-                    # Store as list for these sections (always a list)
-                    content_text = "\n".join(current_content).strip()
-                    if content_text:
-                        sections[section_key] = [item.strip() for item in content_text.split("\n") if item.strip()]
-                    else:
-                        sections[section_key] = []
-                else:
-                    sections[section_key] = "\n".join(current_content).strip()
+            self._flush_section(sections, current_section.lower(), current_content)
 
         return sections
+
+    def _flush_spec_section(
+        self,
+        section: str | None,
+        current_text: list[str],
+        current_items: list[str],
+        overview: str,
+        requirements: list[str],
+        scenarios: list[str],
+    ) -> tuple[str, list[str], list[str]]:
+        """Commit accumulated content for the current spec section and return updated accumulators."""
+        if section == "overview":
+            overview = "\n".join(current_text).strip()
+        elif section == "requirements":
+            requirements = current_items
+        elif section == "scenarios":
+            scenarios = current_items
+        return overview, requirements, scenarios
 
     @beartype
     @require(lambda content: isinstance(content, str), "Content must be str")
@@ -290,38 +298,24 @@ class OpenSpecParser:
         current_text: list[str] = []
 
         for line in content.splitlines():
-            # Check for section headers
             if line.startswith("##"):
-                # Save previous section
-                if current_section == "overview":
-                    overview = "\n".join(current_text).strip()
-                elif current_section == "requirements":
-                    requirements = current_items
-                elif current_section == "scenarios":
-                    scenarios = current_items
-                # Start new section
+                overview, requirements, scenarios = self._flush_spec_section(
+                    current_section, current_text, current_items, overview, requirements, scenarios
+                )
                 current_section = line.lstrip("#").strip().lower()
                 current_items = []
                 current_text = []
             elif line.strip().startswith("-") or line.strip().startswith("*"):
-                # List item
                 item = line.strip().lstrip("-*").strip()
                 if item:
                     current_items.append(item)
             elif current_section:
-                if current_section == "overview":
-                    current_text.append(line)
-                elif current_section in ("requirements", "scenarios") and line.strip():
-                    # Also handle text before list items
+                if current_section == "overview" or (current_section in ("requirements", "scenarios") and line.strip()):
                     current_text.append(line)
 
-        # Save last section
-        if current_section == "overview":
-            overview = "\n".join(current_text).strip()
-        elif current_section == "requirements":
-            requirements = current_items
-        elif current_section == "scenarios":
-            scenarios = current_items
+        overview, requirements, scenarios = self._flush_spec_section(
+            current_section, current_text, current_items, overview, requirements, scenarios
+        )
 
         return {
             "overview": overview,

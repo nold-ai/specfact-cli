@@ -20,7 +20,7 @@ from pathlib import Path
 from typing import Any
 
 from beartype import beartype
-from icontract import require
+from icontract import ensure, require
 from rich.console import Console
 
 
@@ -39,6 +39,7 @@ class SpecValidationResult:
     warnings: list[str] = field(default_factory=list)
     breaking_changes: list[str] = field(default_factory=list)
 
+    @ensure(lambda result: isinstance(result, dict), "Must return dict")
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
         return {
@@ -51,6 +52,7 @@ class SpecValidationResult:
             "breaking_changes": self.breaking_changes,
         }
 
+    @ensure(lambda result: isinstance(result, str), "Must return str")
     def to_json(self, indent: int = 2) -> str:
         """Convert to JSON string."""
         return json.dumps(self.to_dict(), indent=indent)
@@ -114,6 +116,7 @@ def _get_specmatic_command() -> list[str] | None:
 
 
 @beartype
+@ensure(lambda result: isinstance(result, tuple), "Must return tuple")
 def check_specmatic_available() -> tuple[bool, str | None]:
     """
     Check if Specmatic CLI is available (either directly or via npx).
@@ -377,12 +380,14 @@ class MockServer:
     process: subprocess.Popen[str] | None = None
     spec_path: Path | None = None
 
+    @ensure(lambda result: isinstance(result, bool), "Must return bool")
     def is_running(self) -> bool:
         """Check if mock server is running."""
         if self.process is None:
             return False
         return self.process.poll() is None
 
+    @ensure(lambda result: result is None, "Must return None")
     def stop(self) -> None:
         """Stop the mock server."""
         if self.process:

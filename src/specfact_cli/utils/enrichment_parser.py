@@ -53,6 +53,113 @@ class EnrichmentReport:
             self.business_context[category].extend(items)
 
 
+def _extract_feature_title(feature_text: str) -> str:
+    """Extract title from bold text or number-prefixed bold text."""
+    title_match = re.search(r"^\*\*([^*]+)\*\*", feature_text, re.MULTILINE)
+    if not title_match:
+        title_match = re.search(r"^\d+\.\s*\*\*([^*]+)\*\*", feature_text, re.MULTILINE)
+    return title_match.group(1).strip() if title_match else ""
+
+
+def _extract_feature_key(feature_text: str, title: str) -> str:
+    """Extract or generate a feature key from the text."""
+    key_match = re.search(r"\(Key:\s*([A-Z0-9_-]+)\)", feature_text, re.IGNORECASE)
+    if not key_match:
+        key_match = re.search(r"(?:key|Key):\s*([A-Z0-9_-]+)", feature_text, re.IGNORECASE)
+    if key_match:
+        return key_match.group(1)
+    if title:
+        return f"FEATURE-{title.upper().replace(' ', '').replace('-', '')[:20]}"
+    return ""
+
+
+def _extract_feature_outcomes(feature_text: str) -> list[str]:
+    """Extract outcomes and business reason/value from feature text."""
+    outcomes: list[str] = []
+    outcomes_match = re.search(
+        r"(?:outcomes?|Outcomes?):\s*(.+?)(?:\n\s*(?:stories?|Stories?):|\Z)",
+        feature_text,
+        re.IGNORECASE | re.DOTALL,
+    )
+    if outcomes_match:
+        outcomes_text = outcomes_match.group(1).strip()
+        outcomes = [
+            o.strip() for o in re.split(r"\n|,", outcomes_text) if o.strip() and not o.strip().startswith("- Stories:")
+        ]
+
+    reason_match = re.search(
+        r"(?:reason|Reason|Business value):\s*(.+?)(?:\n(?:stories?|Stories?)|$)",
+        feature_text,
+        re.IGNORECASE | re.DOTALL,
+    )
+    if reason_match:
+        reason = reason_match.group(1).strip()
+        if reason and reason not in outcomes:
+            outcomes.append(reason)
+    return outcomes
+
+
+def _extract_story_title(story_text: str) -> str:
+    """Extract story title from bold text, a title field, or the first line."""
+    title_match = re.search(r"^\*\*([^*]+)\*\*", story_text, re.MULTILINE)
+    if title_match:
+        return title_match.group(1).strip()
+
+    title_kw = re.search(r"(?:title|Title):\s*(.+?)(?:\n|$)", story_text, re.IGNORECASE)
+    if title_kw:
+        return title_kw.group(1).strip()
+
+    first_line = next((line.strip() for line in story_text.splitlines() if line.strip()), "")
+    return re.sub(r"^\d+\.\s*", "", first_line).strip()
+
+
+def _extract_story_acceptance(story_text: str, title: str) -> list[str]:
+    """Extract acceptance criteria from a story block."""
+    acceptance: list[str] = []
+    acceptance_match = re.search(
+        r"(?:acceptance(?:\s+criteria)?|criteria):\s*(.+?)(?:\n(?:tasks?|Tasks?|story\s+points?|Story\s+points?)|$)",
+        story_text,
+        re.IGNORECASE | re.DOTALL,
+    )
+    if acceptance_match:
+        acceptance_text = acceptance_match.group(1).strip()
+        acceptance = [item.strip(" -*") for item in re.split(r"\n|;", acceptance_text) if item.strip(" -*")]
+
+    if not acceptance and title:
+        bullet_acceptance = [
+            line.strip(" -*")
+            for line in story_text.splitlines()
+            if line.strip().startswith(("-", "*")) and len(line.strip()) > 1
+        ]
+        acceptance.extend(item for item in bullet_acceptance if item and item != title)
+
+    return acceptance
+
+
+def _extract_story_points(story_text: str) -> tuple[float | int | None, float | int | None]:
+    """Extract story points and value points from a story block."""
+    points_match = re.search(
+        r"(?:story\s+points?|points?)\s*[:=]\s*([0-9]+(?:\.[0-9]+)?)",
+        story_text,
+        re.IGNORECASE,
+    )
+    value_points_match = re.search(
+        r"(?:value\s+points?|value)\s*[:=]\s*([0-9]+(?:\.[0-9]+)?)",
+        story_text,
+        re.IGNORECASE,
+    )
+
+    def _parse_number(match: re.Match[str] | None) -> float | int | None:
+        if not match:
+            return None
+        value = match.group(1)
+        if "." in value:
+            return float(value)
+        return int(value)
+
+    return _parse_number(points_match), _parse_number(value_points_match)
+
+
 class EnrichmentParser:
     """Parser for Markdown enrichment reports."""
 
@@ -135,81 +242,29 @@ class EnrichmentParser:
             "stories": [],
         }
 
-        # Extract title first (from bold text: "**Title** (Key: ...)" or "1. **Title** (Key: ...)")
-        # Feature text may or may not include the leading number (depends on extraction pattern)
-        title_match = re.search(r"^\*\*([^*]+)\*\*", feature_text, re.MULTILINE)
-        if not title_match:
-            # Try with optional number prefix
-            title_match = re.search(r"^\d+\.\s*\*\*([^*]+)\*\*", feature_text, re.MULTILINE)
-        if title_match:
-            feature["title"] = title_match.group(1).strip()
-
-        # Extract key (e.g., "FEATURE-IDEINTEGRATION" or "(Key: FEATURE-IDEINTEGRATION)")
-        # Try parentheses format first: (Key: FEATURE-XXX)
-        key_match = re.search(r"\(Key:\s*([A-Z0-9_-]+)\)", feature_text, re.IGNORECASE)
-        if not key_match:
-            # Try without parentheses: Key: FEATURE-XXX
-            key_match = re.search(r"(?:key|Key):\s*([A-Z0-9_-]+)", feature_text, re.IGNORECASE)
-        if key_match:
-            feature["key"] = key_match.group(1)
-        else:
-            # Generate key from title if we have one
-            if feature["title"]:
-                feature["key"] = f"FEATURE-{feature['title'].upper().replace(' ', '').replace('-', '')[:20]}"
-
-        # Extract title from "Title:" keyword if not found in bold text
+        feature["title"] = _extract_feature_title(feature_text)
+        feature["key"] = _extract_feature_key(feature_text, feature["title"])
         if not feature["title"]:
-            title_match = re.search(r"(?:title|Title):\s*(.+?)(?:\n|$)", feature_text, re.IGNORECASE)
-            if title_match:
-                feature["title"] = title_match.group(1).strip()
+            title_kw = re.search(r"(?:title|Title):\s*(.+?)(?:\n|$)", feature_text, re.IGNORECASE)
+            if title_kw:
+                feature["title"] = title_kw.group(1).strip()
 
-        # Extract confidence
         confidence_match = re.search(r"(?:confidence|Confidence):\s*([0-9.]+)", feature_text, re.IGNORECASE)
         if confidence_match:
             with suppress(ValueError):
                 feature["confidence"] = float(confidence_match.group(1))
 
-        # Extract outcomes (stop at Stories: section to avoid capturing story text)
-        outcomes_match = re.search(
-            r"(?:outcomes?|Outcomes?):\s*(.+?)(?:\n\s*(?:stories?|Stories?):|\Z)",
-            feature_text,
-            re.IGNORECASE | re.DOTALL,
-        )
-        if outcomes_match:
-            outcomes_text = outcomes_match.group(1).strip()
-            # Split by lines or commas, filter out empty strings and story markers
-            outcomes = [
-                o.strip()
-                for o in re.split(r"\n|,", outcomes_text)
-                if o.strip() and not o.strip().startswith("- Stories:")
-            ]
-            feature["outcomes"] = outcomes
+        feature["outcomes"] = _extract_feature_outcomes(feature_text)
 
-        # Extract business value or reason
-        reason_match = re.search(
-            r"(?:reason|Reason|Business value):\s*(.+?)(?:\n(?:stories?|Stories?)|$)",
-            feature_text,
-            re.IGNORECASE | re.DOTALL,
-        )
-        if reason_match:
-            reason = reason_match.group(1).strip()
-            if reason and reason not in feature["outcomes"]:
-                feature["outcomes"].append(reason)
-
-        # Extract stories (REQUIRED for features to pass promotion validation)
-        # Stop at next feature (numbered with bold title) or section header
         stories_match = re.search(
             r"(?:stories?|Stories?):\s*(.+?)(?=\n\d+\.\s*\*\*|\n##|\Z)", feature_text, re.IGNORECASE | re.DOTALL
         )
         if stories_match:
             stories_text = stories_match.group(1).strip()
-            stories = self._parse_stories_from_text(stories_text, feature.get("key", ""))
-            feature["stories"] = stories
+            feature["stories"] = self._parse_stories_from_text(stories_text, feature.get("key", ""))
 
-        # Only return if we have at least a key or title
         if feature["key"] or feature["title"]:
             return feature
-
         return None
 
     @beartype
@@ -258,85 +313,25 @@ class EnrichmentParser:
             "confidence": 0.8,
         }
 
-        # Generate story key from feature key and number
         if feature_key:
-            # Extract base from feature key (e.g., "FEATURE-DUALSTACK" -> "DUALSTACK")
             base = feature_key.replace("FEATURE-", "").upper()
             story["key"] = f"STORY-{base}-{story_number:03d}"
         else:
             story["key"] = f"STORY-{story_number:03d}"
 
-        # Extract title (first line or after "Title:")
-        title_match = re.search(r"(?:title|Title):\s*(.+?)(?:\n|$)", story_text, re.IGNORECASE)
-        if title_match:
-            story["title"] = title_match.group(1).strip()
-        else:
-            # Use first line as title (remove leading number/bullet if present)
-            first_line = story_text.split("\n")[0].strip()
-            # Remove leading number/bullet: "1. Title" -> "Title" or "- Title" -> "Title"
-            first_line = re.sub(r"^(?:\d+\.|\*|\-)\s*", "", first_line).strip()
-            # Remove story key prefix if present: "STORY-XXX: Title" -> "Title"
-            first_line = re.sub(r"^STORY-[A-Z0-9-]+:\s*", "", first_line, flags=re.IGNORECASE).strip()
-            if first_line and not first_line.startswith("#") and not first_line.startswith("-"):
-                story["title"] = first_line
+        story["title"] = _extract_story_title(story_text)
+        story["acceptance"] = _extract_story_acceptance(story_text, story.get("title", ""))
 
-        # Extract acceptance criteria
-        # Handle both "- Acceptance: ..." and "Acceptance: ..." formats
-        # Pattern matches: "- Acceptance: ..." or "Acceptance: ..." (with optional indentation and dash)
-        # Use simple pattern that matches "Acceptance:" and captures until end or next numbered item
-        acceptance_match = re.search(
-            r"(?:acceptance|Acceptance|criteria|Criteria):\s*(.+?)(?=\n\s*\d+\.|\n\s*(?:tasks?|Tasks?|points?|Points?|##)|\Z)",
-            story_text,
-            re.IGNORECASE | re.DOTALL,
-        )
-        if acceptance_match:
-            acceptance_text = acceptance_match.group(1).strip()
-            # Split by commas (common format: "criterion1, criterion2, criterion3")
-            # Use lookahead to split on comma-space before capital letter (sentence boundaries)
-            # Also split on newlines for multi-line format
-            acceptance = [
-                a.strip()
-                for a in re.split(r",\s+(?=[A-Z][a-z])|\n", acceptance_text)
-                if a.strip() and not a.strip().startswith("-") and not a.strip().startswith("Acceptance:")
-            ]
-            # If splitting didn't work well, try simpler comma split
-            if not acceptance or len(acceptance) == 1:
-                acceptance = [
-                    a.strip() for a in acceptance_text.split(",") if a.strip() and not a.strip().startswith("-")
-                ]
-            # If still empty after splitting, use the whole text as one criterion
-            if not acceptance:
-                acceptance = [acceptance_text]
-            story["acceptance"] = acceptance
-        else:
-            # Default acceptance if none found
-            story["acceptance"] = [f"{story.get('title', 'Story')} works as expected"]
-
-        # Extract tasks
         tasks_match = re.search(
             r"(?:tasks?|Tasks?):\s*(.+?)(?:\n(?:points?|Points?|$))", story_text, re.IGNORECASE | re.DOTALL
         )
         if tasks_match:
-            tasks_text = tasks_match.group(1)
-            tasks = [t.strip() for t in re.split(r"\n|,", tasks_text) if t.strip()]
-            story["tasks"] = tasks
+            story["tasks"] = [t.strip() for t in re.split(r"\n|,", tasks_match.group(1)) if t.strip()]
 
-        # Extract story points
-        story_points_match = re.search(r"(?:story\s+points?|Story\s+Points?):\s*(\d+)", story_text, re.IGNORECASE)
-        if story_points_match:
-            with suppress(ValueError):
-                story["story_points"] = int(story_points_match.group(1))
+        story["story_points"], story["value_points"] = _extract_story_points(story_text)
 
-        # Extract value points
-        value_points_match = re.search(r"(?:value\s+points?|Value\s+Points?):\s*(\d+)", story_text, re.IGNORECASE)
-        if value_points_match:
-            with suppress(ValueError):
-                story["value_points"] = int(value_points_match.group(1))
-
-        # Only return if we have at least a title
         if story["title"]:
             return story
-
         return None
 
     @beartype

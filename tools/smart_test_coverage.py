@@ -27,7 +27,9 @@ import argparse
 import contextlib
 import hashlib
 import json
+import logging
 import os
+import re
 import shlex
 import shutil
 import subprocess
@@ -35,6 +37,11 @@ import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Any
+
+from icontract import ensure, require
+
+
+logger = logging.getLogger(__name__)
 
 
 # TOML parsing - prefer tomlkit (style-preserving, widely used), fallback to tomllib (Python 3.11+)
@@ -221,7 +228,7 @@ class SmartCoverageManager:
             try:
                 return float(env_threshold)
             except ValueError:
-                print(f"⚠️  Invalid COVERAGE_THRESHOLD environment variable: {env_threshold}")
+                logger.warning("Invalid COVERAGE_THRESHOLD environment variable: %s", env_threshold)
 
         # Try to read from pyproject.toml
         pyproject_path = self.project_root / "pyproject.toml"
@@ -248,7 +255,7 @@ class SmartCoverageManager:
                 if fail_under is not None:
                     return float(fail_under)
             except (KeyError, ValueError, AttributeError) as e:
-                print(f"⚠️  Could not read coverage threshold from pyproject.toml: {e}")
+                logger.warning("Could not read coverage threshold from pyproject.toml: %s", e)
 
         # Default fallback (used only when env and pyproject are unavailable/invalid)
         # Note: When pyproject.toml provides fail_under, that value (e.g., 70) takes precedence.
@@ -413,46 +420,212 @@ class SmartCoverageManager:
                 config_files.append(config_path)
         return config_files
 
+    def _path_is_under_roots(self, path: Path, roots: list[str]) -> bool:
+        """Return whether a path is located under any configured repository root."""
+        return any(str(path).startswith(str(self.project_root / root)) for root in roots)
+
+    def _has_changed_file(
+        self,
+        file_path: Path,
+        cached_hashes: dict[str, str],
+        *,
+        allow_version_only: bool = False,
+    ) -> bool:
+        """Return whether a tracked file differs from the cached hash."""
+        rel = str(file_path.relative_to(self.project_root))
+        current_hash = self._get_file_hash(file_path)
+        if not current_hash:
+            return False
+        cached_hash = cached_hashes.get(rel, "")
+        if cached_hash == current_hash:
+            return False
+        return not allow_version_only or not self._is_version_only_change(rel, cached_hash, current_hash)
+
+    def _collect_changed_files(
+        self,
+        *,
+        cached_hashes: dict[str, str],
+        candidate_paths: list[Path],
+        allow_version_only: bool = False,
+    ) -> list[Path]:
+        """Collect candidate files whose contents differ from the cached hash."""
+        changed: list[Path] = []
+        for path in candidate_paths:
+            if self._should_exclude_file(path):
+                continue
+            if self._has_changed_file(path, cached_hashes, allow_version_only=allow_version_only):
+                changed.append(path)
+        return changed
+
+    def _git_candidate_files(self, roots: list[str] | None = None) -> list[Path]:
+        """Return changed files from git filtered to repository roots when provided."""
+        candidates: list[Path] = []
+        for rel in self._git_changed_paths():
+            path = self.project_root / rel
+            if not path.exists() or not path.is_file() or self._should_exclude_file(path):
+                continue
+            if roots is not None and not self._path_is_under_roots(path, roots):
+                continue
+            candidates.append(path)
+        return candidates
+
+    def _count_non_version_lines(self, content: str, version_pattern: str) -> int:
+        """Count content lines that do not contain a version assignment."""
+        return sum(
+            1 for line in content.splitlines() if "version" not in line.lower() or not re.search(version_pattern, line)
+        )
+
+    def _version_pattern_matches(self, content: str, version_pattern: str) -> list[str]:
+        """Return semantic-version matches for a given regex pattern."""
+        return [match for match in re.findall(version_pattern, content) if re.match(r"^\d+\.\d+\.\d+$", match)]
+
+    def _is_version_only_pyproject(self, content: str) -> bool:
+        version_pattern = r'version\s*=\s*["\'](\d+\.\d+\.\d+)["\']'
+        return (
+            len(self._version_pattern_matches(content, version_pattern)) == 1
+            and self._count_non_version_lines(content, version_pattern) > 10
+        )
+
+    def _is_version_only_setup(self, content: str) -> bool:
+        version_pattern = r'version\s*=\s*["\'](\d+\.\d+\.\d+)["\']'
+        return (
+            len(self._version_pattern_matches(content, version_pattern)) == 1
+            and self._count_non_version_lines(content, version_pattern) > 5
+        )
+
+    def _is_version_only_init(self, content: str) -> bool:
+        version_pattern = r'__version__\s*=\s*["\'](\d+\.\d+\.\d+)["\']'
+        if len(self._version_pattern_matches(content, version_pattern)) != 1:
+            return False
+        non_version_lines = [
+            line
+            for line in content.splitlines()
+            if "version" not in line.lower()
+            and not line.strip().startswith("#")
+            and not line.strip().startswith('"""')
+            and not line.strip().startswith("'''")
+            and line.strip()
+        ]
+        return len(non_version_lines) <= 2
+
+    def _source_file_for_test(self, test_file: Path) -> Path | None:
+        """Resolve the source file a unit test targets."""
+        if not test_file.name.startswith("test_"):
+            return None
+        source_name = test_file.name[5:]
+        test_str = str(test_file)
+        if "tools" in test_str:
+            return self.project_root / "tools" / source_name
+        if "tests" not in test_str or "unit" not in test_str:
+            return None
+        try:
+            unit_index = test_file.parts.index("unit")
+        except ValueError:
+            return None
+        if unit_index + 1 >= len(test_file.parts):
+            return None
+        return self.project_root / "src" / test_file.parts[unit_index + 1] / source_name
+
+    def _tested_source_files(self, test_files: list[Path]) -> set[str]:
+        """Resolve source file paths covered by a set of unit tests."""
+        tested_source_files: set[str] = set()
+        for test_file in test_files:
+            source_file = self._source_file_for_test(test_file)
+            if source_file is not None and source_file.exists():
+                tested_source_files.add(str(source_file.relative_to(self.project_root)))
+        return tested_source_files
+
+    def _parse_coverage_row(self, line: str) -> tuple[str, int, int] | None:
+        """Parse a coverage table row into file name and statement counts."""
+        parts = line.split()
+        if len(parts) < 3:
+            return None
+        try:
+            return parts[0], int(parts[1]), int(parts[2])
+        except ValueError:
+            return None
+
+    def _parse_logs_count(self, argv: list[str]) -> int:
+        """Parse the optional count argument for the logs command."""
+        if len(argv) <= 2:
+            return 5
+        return int(argv[2])
+
+    def _log_status_summary(self, status: dict[str, Any]) -> None:
+        """Render the current smart-test status summary."""
+        logger.info("Coverage Status:")
+        logger.info("   Last Run: %s", status["last_run"] or "Never")
+        logger.info("   Coverage: %.1f%%", status["coverage_percentage"])
+        logger.info("   Test Count: %s", status["test_count"])
+        logger.info("   Source Changed: %s", status["source_changed"])
+        logger.info("   Test Changed: %s", status["test_changed"])
+        logger.info("   Config Changed: %s", status["config_changed"])
+        logger.info("   Needs Full Run: %s", status["needs_full_run"])
+        logger.info("   Threshold: %.1f%%", self.coverage_threshold)
+        if status["coverage_percentage"] < self.coverage_threshold:
+            logger.warning("   Coverage below threshold!")
+        else:
+            logger.info("   Coverage meets threshold")
+
+    def _handle_threshold_command(self) -> int:
+        """Evaluate the current cached coverage against the configured threshold."""
+        status = self.get_status()
+        current_coverage = status["coverage_percentage"]
+        logger.info("Coverage Threshold Check:")
+        logger.info("   Current Coverage: %.1f%%", current_coverage)
+        logger.info("   Required Threshold: %.1f%%", self.coverage_threshold)
+        if current_coverage < self.coverage_threshold:
+            logger.error("   Coverage below threshold!")
+            logger.info("   Difference: %.1f%% needed", self.coverage_threshold - current_coverage)
+            return 1
+        logger.info("   Coverage meets threshold!")
+        logger.info("   Margin: %.1f%% above threshold", current_coverage - self.coverage_threshold)
+        return 0
+
+    def _accumulate_tested_coverage(self, output_lines: list[str], tested_source_files: set[str]) -> tuple[int, int]:
+        """Aggregate covered statement counts for the tested source file set."""
+        total_statements = 0
+        total_missed = 0
+        in_coverage_table = False
+        for line in output_lines:
+            if "Name" in line and "Stmts" in line and "Miss" in line and "Cover" in line:
+                in_coverage_table = True
+                continue
+            if in_coverage_table and line.startswith("---"):
+                continue
+            if in_coverage_table and "TOTAL" in line:
+                break
+            if not in_coverage_table or not line.strip():
+                continue
+            parsed = self._parse_coverage_row(line)
+            if parsed is None:
+                continue
+            file_name, statements, missed = parsed
+            if any(tested_file in file_name for tested_file in tested_source_files):
+                total_statements += statements
+                total_missed += missed
+        return total_statements, total_missed
+
     def _get_modified_files(self) -> list[Path]:
         """Get list of modified source files.
         Prefer git candidates; fallback to full scan when git is unavailable or reports no changes."""
         if not self.cache.get("last_full_run"):
             return []
 
-        modified_files: list[Path] = []
         cached_hashes = self.cache.get("file_hashes", {})
-        git_changed = self._git_changed_paths()
-        if git_changed:
-            for rel in git_changed:
-                p = self.project_root / rel
-                if not p.exists() or not p.is_file() or self._should_exclude_file(p):
-                    continue
-                # Only consider source roots (src, tools)
-                if not any(str(p).startswith(str(self.project_root / d)) for d in self.source_dirs):
-                    continue
-                current_hash = self._get_file_hash(p)
-                if current_hash:
-                    cached_hash = cached_hashes.get(rel)
-                    # Skip version-only changes
-                    if cached_hash != current_hash and not self._is_version_only_change(
-                        rel, cached_hash or "", current_hash
-                    ):
-                        modified_files.append(p)
-            return modified_files
+        git_candidates = self._git_candidate_files(self.source_dirs)
+        if git_candidates:
+            return self._collect_changed_files(
+                cached_hashes=cached_hashes,
+                candidate_paths=git_candidates,
+                allow_version_only=True,
+            )
         # Fallback: scan all known source files and compare hashes
-        for p in self._get_source_files():
-            if self._should_exclude_file(p):
-                continue
-            rel = str(p.relative_to(self.project_root))
-            current_hash = self._get_file_hash(p)
-            cached_hash = cached_hashes.get(rel, "")
-            if (
-                current_hash
-                and cached_hash != current_hash
-                and not self._is_version_only_change(rel, cached_hash or "", current_hash)
-            ):
-                modified_files.append(p)
-        return modified_files
+        return self._collect_changed_files(
+            cached_hashes=cached_hashes,
+            candidate_paths=self._get_source_files(),
+            allow_version_only=True,
+        )
 
     def _get_modified_folders(self) -> set[Path]:
         """Get set of parent folders containing modified files."""
@@ -565,36 +738,13 @@ class SmartCoverageManager:
         if not self.cache.get("last_full_run"):
             return True
         cached_hashes = self.cache.get("file_hashes", {})
-        git_changed = self._git_changed_paths()
-        if git_changed:
-            for rel in git_changed:
-                # Limit to source roots
-                p = self.project_root / rel
-                if not p.exists() or self._should_exclude_file(p):
-                    continue
-                if not any(str(p).startswith(str(self.project_root / d)) for d in self.source_dirs):
-                    continue
-                h = self._get_file_hash(p)
-                if (
-                    h
-                    and cached_hashes.get(rel) != h
-                    and not self._is_version_only_change(rel, cached_hashes.get(rel, ""), h)
-                ):
-                    return True
-            return False
+        git_candidates = self._git_candidate_files(self.source_dirs)
+        if git_candidates:
+            return any(self._has_changed_file(path, cached_hashes, allow_version_only=True) for path in git_candidates)
         # Fallback: compare all source files against cache
-        for p in self._get_source_files():
-            if self._should_exclude_file(p):
-                continue
-            rel = str(p.relative_to(self.project_root))
-            h = self._get_file_hash(p)
-            if (
-                h
-                and cached_hashes.get(rel) != h
-                and not self._is_version_only_change(rel, cached_hashes.get(rel, ""), h)
-            ):
-                return True
-        return False
+        return any(
+            self._has_changed_file(path, cached_hashes, allow_version_only=True) for path in self._get_source_files()
+        )
 
     def _has_test_changes(self) -> bool:
         """Check if any test files have changed since last coverage run.
@@ -639,73 +789,12 @@ class SmartCoverageManager:
             with open(current_file, encoding="utf-8") as f:
                 current_content = f.read()
 
-            # For pyproject.toml, check if only version line changed
             if file_path.endswith("pyproject.toml"):
-                # Look for version = "x.y.z" pattern
-                import re
-
-                version_pattern = r'version\s*=\s*["\'](\d+\.\d+\.\d+)["\']'
-                version_matches = re.findall(version_pattern, current_content)
-
-                # If we found exactly one version match and it looks like a version number
-                if len(version_matches) == 1:
-                    version = version_matches[0]
-                    # Check if it's a valid semantic version pattern
-                    if re.match(r"^\d+\.\d+\.\d+$", version):
-                        # Count non-version lines that might have changed
-                        lines = current_content.split("\n")
-                        non_version_lines = [
-                            line
-                            for line in lines
-                            if "version" not in line.lower() or not re.search(version_pattern, line)
-                        ]
-                        # If most lines are not version-related, it's likely just a version change
-                        if len(non_version_lines) > 10:  # pyproject.toml should have many other lines
-                            return True
-
-            # For setup.py, check for version parameter
-            elif file_path.endswith("setup.py"):
-                import re
-
-                version_pattern = r'version\s*=\s*["\'](\d+\.\d+\.\d+)["\']'
-                version_matches = re.findall(version_pattern, current_content)
-
-                if len(version_matches) == 1:
-                    version = version_matches[0]
-                    if re.match(r"^\d+\.\d+\.\d+$", version):
-                        # Count non-version lines
-                        lines = current_content.split("\n")
-                        non_version_lines = [
-                            line
-                            for line in lines
-                            if "version" not in line.lower() or not re.search(version_pattern, line)
-                        ]
-                        if len(non_version_lines) > 5:  # setup.py should have other content
-                            return True
-
-            # For __init__.py, check for __version__ assignment
-            elif file_path.endswith("src/__init__.py"):
-                import re
-
-                version_pattern = r'__version__\s*=\s*["\'](\d+\.\d+\.\d+)["\']'
-                version_matches = re.findall(version_pattern, current_content)
-
-                if len(version_matches) == 1:
-                    version = version_matches[0]
-                    if re.match(r"^\d+\.\d+\.\d+$", version):
-                        # For __init__.py, if it's mostly just version and docstring, it's likely version-only
-                        lines = current_content.split("\n")
-                        non_version_lines = [
-                            line
-                            for line in lines
-                            if "version" not in line.lower()
-                            and not line.strip().startswith("#")
-                            and not line.strip().startswith('"""')
-                            and not line.strip().startswith("'''")
-                            and line.strip()
-                        ]
-                        if len(non_version_lines) <= 2:  # Should be minimal content beyond version
-                            return True
+                return self._is_version_only_pyproject(current_content)
+            if file_path.endswith("setup.py"):
+                return self._is_version_only_setup(current_content)
+            if file_path.endswith("src/__init__.py"):
+                return self._is_version_only_init(current_content)
 
         except Exception:
             # If we can't read or parse the file, assume it's not version-only
@@ -719,34 +808,20 @@ class SmartCoverageManager:
         if not self.cache.get("last_full_run"):
             return True
         cached_config_hashes = self.cache.get("config_file_hashes", {})
-        git_changed = self._git_changed_paths()
-        if git_changed:
-            for rel in git_changed:
-                p = self.project_root / rel
-                if not p.exists() or self._should_exclude_file(p):
-                    continue
-                if p.name not in self.config_files:
-                    continue
-                h = self._get_file_hash(p)
-                if h:
-                    cached_hash = cached_config_hashes.get(rel)
-                    if cached_hash != h and not self._is_version_only_change(rel, cached_hash or "", h):
-                        return True
-            return False
+        git_candidates = [path for path in self._git_candidate_files() if path.name in self.config_files]
+        if git_candidates:
+            return any(
+                self._has_changed_file(path, cached_config_hashes, allow_version_only=True) for path in git_candidates
+            )
         # Fallback: compare all config files against cache
-        for p in self._get_config_files():
-            if self._should_exclude_file(p):
-                continue
-            rel = str(p.relative_to(self.project_root))
-            h = self._get_file_hash(p)
-            cached_hash = cached_config_hashes.get(rel, "")
-            if h and cached_hash != h and not self._is_version_only_change(rel, cached_hash or "", h):
-                return True
-        return False
+        return any(
+            self._has_changed_file(path, cached_config_hashes, allow_version_only=True)
+            for path in self._get_config_files()
+        )
 
     def _run_coverage_tests(self) -> tuple[bool, int, float]:
         """Run full coverage tests and return (success, test_count, coverage_percentage)."""
-        print("🔄 Running full test suite with coverage...")
+        logger.info("Running full test suite with coverage...")
 
         # Create logs directory if it doesn't exist
         logs_dir = self.project_root / "logs" / "tests"
@@ -759,8 +834,8 @@ class SmartCoverageManager:
 
         try:
             # Run tests with coverage - capture both stdout and stderr
-            print(f"📝 Test output will be logged to: {test_log_file}")
-            print(f"📊 Coverage details will be logged to: {coverage_log_file}")
+            logger.info("Test output will be logged to: %s", test_log_file)
+            logger.info("Coverage details will be logged to: %s", coverage_log_file)
 
             with open(test_log_file, "w") as log_file, open(coverage_log_file, "w") as cov_file:
                 # Write header to log files
@@ -790,7 +865,7 @@ class SmartCoverageManager:
                     assert proc.stdout is not None
                     for line in iter(proc.stdout.readline, ""):
                         if line:
-                            print(line.rstrip())
+                            logger.debug("%s", line.rstrip())
                             log_file.write(line)
                             log_file.flush()
                             output_local.append(line)
@@ -811,7 +886,7 @@ class SmartCoverageManager:
                     # Fall back to direct pytest when Hatch cannot start or when a cached Hatch
                     # environment is broken (for example, a broken python symlink in CI cache).
                     if self._should_fallback_from_hatch(rc, out, err):
-                        print("⚠️  Hatch test failed to start cleanly; falling back to pytest.")
+                        logger.warning("Hatch test failed to start cleanly; falling back to pytest.")
                         log_file.write("Hatch test failed to start cleanly; falling back to pytest.\n")
                         pytest_cmd = self._build_pytest_cmd(with_coverage=True, parallel=True)
                         rc2, out2, _ = run_and_stream(pytest_cmd)
@@ -878,32 +953,32 @@ class SmartCoverageManager:
 
             # Full tests - coverage threshold is enforced
             if success:
-                print(f"✅ Tests completed: {test_count} tests, {coverage_percentage:.1f}% coverage")
-                print(f"📝 Full test log: {test_log_file}")
-                print(f"📊 Coverage log: {coverage_log_file}")
+                logger.info("Tests completed: %d tests, %.1f%% coverage", test_count, coverage_percentage)
+                logger.info("Full test log: %s", test_log_file)
+                logger.info("Coverage log: %s", coverage_log_file)
             else:
-                print(f"❌ Tests failed with exit code {return_code}")
-                print(f"📝 Check test log for details: {test_log_file}")
-                print(f"📊 Check coverage log for details: {coverage_log_file}")
+                logger.error("Tests failed with exit code %s", return_code)
+                logger.info("Check test log for details: %s", test_log_file)
+                logger.info("Check coverage log for details: %s", coverage_log_file)
 
             return success, test_count, coverage_percentage
 
         except subprocess.TimeoutExpired:
-            print("❌ Test run timed out after 10 minutes")
+            logger.error("Test run timed out after 10 minutes")
             return False, 0, 0
         except Exception as e:
-            print(f"❌ Error running tests: {e}")
+            logger.error("Error running tests: %s", e)
             return False, 0, 0
 
     def _run_tests(self, test_files: list[Path], test_level: str) -> tuple[bool, int, float]:
         """Run tests for specific files and return (success, test_count, coverage_percentage)."""
         if not test_files:
-            print(f"ℹ️  No {test_level} tests found to run")
+            logger.info("No %s tests found to run", test_level)
             return True, 0, 100.0
 
-        print(f"🔄 Running {test_level} tests for {len(test_files)} files...")
+        logger.info("Running %s tests for %d files...", test_level, len(test_files))
         timeout_seconds = self._get_test_timeout_seconds(test_level)
-        print(f"⏱️  Test subprocess timeout: {timeout_seconds}s")
+        logger.debug("Test subprocess timeout: %ds", timeout_seconds)
 
         # Create logs directory if it doesn't exist
         logs_dir = self.project_root / "logs" / "tests"
@@ -918,8 +993,8 @@ class SmartCoverageManager:
             # Convert Path objects to strings for pytest
             test_file_strings = [str(f) for f in test_files]
 
-            print(f"📝 {test_level.title()} test output will be logged to: {test_log_file}")
-            print(f"📊 {test_level.title()} coverage details will be logged to: {coverage_log_file}")
+            logger.info("%s test output will be logged to: %s", test_level.title(), test_log_file)
+            logger.info("%s coverage details will be logged to: %s", test_level.title(), coverage_log_file)
 
             with open(test_log_file, "w") as log_file, open(coverage_log_file, "w") as cov_file:
                 # Write header to log files
@@ -949,7 +1024,7 @@ class SmartCoverageManager:
                     assert proc.stdout is not None
                     for line in iter(proc.stdout.readline, ""):
                         if line:
-                            print(line.rstrip())
+                            logger.debug("%s", line.rstrip())
                             log_file.write(line)
                             log_file.flush()
                             output_local.append(line)
@@ -969,17 +1044,17 @@ class SmartCoverageManager:
                 if self.use_hatch:
                     hatch_cmd = self._build_hatch_test_cmd(with_coverage=want_coverage, extra_args=test_file_strings)
                     selected_env = self.hatch_test_env if self.hatch_test_env else "default hatch-test matrix/env"
-                    print(f"ℹ️  Using hatch for {test_level} tests (env selector: {selected_env})")
-                    print(f"ℹ️  Executing: {shlex.join(hatch_cmd)}")
+                    logger.info("Using hatch for %s tests (env selector: %s)", test_level, selected_env)
+                    logger.debug("Executing: %s", shlex.join(hatch_cmd))
                     rc, out, err = run_and_stream(hatch_cmd)
                     output_lines.extend(out)
                     # Only fall back to pytest if hatch failed to start or had a critical error
                     # Don't fall back for non-zero exit codes that might be due to coverage threshold failures
                     if err is not None or rc is None:
-                        print("⚠️  Hatch test failed to start; falling back to pytest.")
+                        logger.warning("Hatch test failed to start; falling back to pytest.")
                         log_file.write("Hatch test failed to start; falling back to pytest.\n")
                         pytest_cmd = self._build_pytest_cmd(with_coverage=want_coverage, extra_args=test_file_strings)
-                        print(f"ℹ️  Executing fallback: {shlex.join(pytest_cmd)}")
+                        logger.debug("Executing fallback: %s", shlex.join(pytest_cmd))
                         rc2, out2, _ = run_and_stream(pytest_cmd)
                         output_lines.extend(out2)
                         return_code = rc2 if rc2 is not None else 1
@@ -987,7 +1062,7 @@ class SmartCoverageManager:
                         return_code = rc
                 else:
                     pytest_cmd = self._build_pytest_cmd(with_coverage=want_coverage, extra_args=test_file_strings)
-                    print(f"ℹ️  Hatch disabled; executing pytest directly: {shlex.join(pytest_cmd)}")
+                    logger.info("Hatch disabled; executing pytest directly: %s", shlex.join(pytest_cmd))
                     rc, out, _ = run_and_stream(pytest_cmd)
                     output_lines.extend(out)
                     return_code = rc if rc is not None else 1
@@ -1073,38 +1148,51 @@ class SmartCoverageManager:
                 if coverage_threshold_failure:
                     # This is a coverage threshold failure, not a test failure
                     success = True  # Treat as success for unit/folder tests
-                    print(
-                        f"⚠️  Warning: Overall coverage {coverage_percentage:.1f}% is below threshold of {self.coverage_threshold:.1f}%"
+                    logger.warning(
+                        "Overall coverage %.1f%% is below threshold of %.1f%%",
+                        coverage_percentage,
+                        self.coverage_threshold,
                     )
-                    print("💡 This is expected for unit/folder tests. Full test run will enforce the threshold.")
+                    logger.info("This is expected for unit/folder tests. Full test run will enforce the threshold.")
 
             # For unit/folder tests, also check tested code coverage against threshold
             if test_level in ["unit", "folder"] and tested_coverage_percentage > 0:
                 if tested_coverage_percentage < self.coverage_threshold:
-                    print(
-                        f"⚠️  Warning: Tested code coverage {tested_coverage_percentage:.1f}% is below threshold of {self.coverage_threshold:.1f}%"
+                    logger.warning(
+                        "Tested code coverage %.1f%% is below threshold of %.1f%%",
+                        tested_coverage_percentage,
+                        self.coverage_threshold,
                     )
-                    print("💡 Consider adding more tests for the modified files.")
+                    logger.info("Consider adding more tests for the modified files.")
                 else:
-                    print(
-                        f"✅ Tested code coverage {tested_coverage_percentage:.1f}% meets threshold of {self.coverage_threshold:.1f}%"
+                    logger.info(
+                        "Tested code coverage %.1f%% meets threshold of %.1f%%",
+                        tested_coverage_percentage,
+                        self.coverage_threshold,
                     )
 
             if success:
                 if test_level in ["unit", "folder"] and tested_coverage_percentage > 0:
-                    print(
-                        f"✅ {test_level.title()} tests completed: {test_count} tests, {coverage_percentage:.1f}% overall, {tested_coverage_percentage:.1f}% tested code coverage"
+                    logger.info(
+                        "%s tests completed: %d tests, %.1f%% overall, %.1f%% tested code coverage",
+                        test_level.title(),
+                        test_count,
+                        coverage_percentage,
+                        tested_coverage_percentage,
                     )
                 else:
-                    print(
-                        f"✅ {test_level.title()} tests completed: {test_count} tests, {coverage_percentage:.1f}% coverage"
+                    logger.info(
+                        "%s tests completed: %d tests, %.1f%% coverage",
+                        test_level.title(),
+                        test_count,
+                        coverage_percentage,
                     )
-                print(f"📝 Full {test_level} test log: {test_log_file}")
-                print(f"📊 {test_level.title()} coverage log: {coverage_log_file}")
+                logger.info("Full %s test log: %s", test_level, test_log_file)
+                logger.info("%s coverage log: %s", test_level.title(), coverage_log_file)
             else:
-                print(f"❌ {test_level.title()} tests failed with exit code {return_code}")
-                print(f"📝 Check {test_level} test log for details: {test_log_file}")
-                print(f"📊 Check {test_level} coverage log for details: {coverage_log_file}")
+                logger.error("%s tests failed with exit code %s", test_level.title(), return_code)
+                logger.info("Check %s test log for details: %s", test_level, test_log_file)
+                logger.info("Check %s coverage log for details: %s", test_level, coverage_log_file)
 
             # Cleanup generated test files after test run
             self._cleanup_generated_test_files()
@@ -1112,12 +1200,12 @@ class SmartCoverageManager:
             return success, test_count, coverage_percentage
 
         except subprocess.TimeoutExpired:
-            print(f"❌ {test_level.title()} test run timed out after 10 minutes")
+            logger.error("%s test run timed out after 10 minutes", test_level.title())
             # Cleanup even on timeout
             self._cleanup_generated_test_files()
             return False, 0, 0
         except Exception as e:
-            print(f"❌ Error running {test_level} tests: {e}")
+            logger.error("Error running %s tests: %s", test_level, e)
             # Cleanup even on error
             self._cleanup_generated_test_files()
             return False, 0, 0
@@ -1129,99 +1217,31 @@ class SmartCoverageManager:
             test_files = list(self.project_root.glob("test_*_contract.py"))
 
             if test_files:
-                print(f"🧹 Cleaning up {len(test_files)} generated test files...")
+                logger.debug("Cleaning up %d generated test files...", len(test_files))
                 for test_file in test_files:
                     try:
                         test_file.unlink()
-                        print(f"   Removed: {test_file.name}")
+                        logger.debug("Removed: %s", test_file.name)
                     except OSError as e:
-                        print(f"   Warning: Could not remove {test_file.name}: {e}")
-                print("✅ Cleanup completed")
+                        logger.warning("Could not remove %s: %s", test_file.name, e)
+                logger.debug("Cleanup completed")
             else:
-                print("ℹ️  No generated test files to clean up")
+                logger.debug("No generated test files to clean up")
 
         except Exception as e:
-            print(f"⚠️  Warning: Error during cleanup: {e}")
+            logger.warning("Error during cleanup: %s", e)
 
     def _calculate_tested_coverage(self, test_files: list[Path], output_lines: list[str]) -> float:
         """Calculate coverage percentage for only the tested files."""
         if not test_files:
             return 0.0
 
-        # Get the source files that were actually tested
-        tested_source_files = set()
-        for test_file in test_files:
-            # Convert test file path to source file path
-            # e.g., tests/unit/tools/test_smart_test_coverage.py -> tools/smart_test_coverage.py
-            if test_file.name.startswith("test_"):
-                source_name = test_file.name[5:]  # Remove 'test_' prefix
-                # For tools directory tests
-                if "tools" in str(test_file):
-                    source_file = self.project_root / "tools" / source_name
-                # For src directory tests (tests/unit/module/test_file.py -> src/module/file.py)
-                elif "tests" in str(test_file) and "unit" in str(test_file):
-                    # Extract the module path from test file
-                    # e.g., tests/unit/common/test_logger_setup.py -> src/common/logger_setup.py
-                    test_parts = test_file.parts
-                    # Find the index of 'unit' and get the next part as module_path
-                    try:
-                        unit_index = test_parts.index("unit")
-                        if unit_index + 1 < len(test_parts):
-                            module_path = test_parts[unit_index + 1]  # 'common'
-                            source_file = self.project_root / "src" / module_path / source_name
-                        else:
-                            continue
-                    except ValueError:
-                        continue
-                else:
-                    continue
-
-                if source_file.exists():
-                    tested_source_files.add(str(source_file.relative_to(self.project_root)))
+        tested_source_files = self._tested_source_files(test_files)
 
         if not tested_source_files:
             return 0.0
 
-        # Parse coverage data from output lines
-        total_statements = 0
-        total_missed = 0
-        total_branches = 0
-        total_branch_parts = 0
-
-        in_coverage_table = False
-        for line in output_lines:
-            # Look for the coverage table header
-            if "Name" in line and "Stmts" in line and "Miss" in line and "Cover" in line:
-                in_coverage_table = True
-                continue
-
-            # Skip the separator line
-            if in_coverage_table and line.startswith("---"):
-                continue
-
-            # Look for the TOTAL line to stop parsing
-            if in_coverage_table and "TOTAL" in line:
-                break
-
-            # Parse coverage data for each file
-            if in_coverage_table and line.strip():
-                parts = line.split()
-                if len(parts) >= 4:
-                    try:
-                        file_name = parts[0]
-                        # Check if this file is one of our tested files
-                        if any(tested_file in file_name for tested_file in tested_source_files):
-                            statements = int(parts[1])
-                            missed = int(parts[2])
-                            branches = int(parts[3]) if len(parts) > 3 else 0
-                            branch_parts = int(parts[4]) if len(parts) > 4 else 0
-
-                            total_statements += statements
-                            total_missed += missed
-                            total_branches += branches
-                            total_branch_parts += branch_parts
-                    except (ValueError, IndexError):
-                        continue
+        total_statements, total_missed = self._accumulate_tested_coverage(output_lines, tested_source_files)
 
         # Calculate coverage percentage
         if total_statements > 0:
@@ -1258,10 +1278,12 @@ class SmartCoverageManager:
         if success and enforce_threshold:
             self._check_coverage_threshold(coverage_percentage)
         elif success and not enforce_threshold and coverage_percentage < self.coverage_threshold:
-            print(
-                f"⚠️  Warning: Coverage {coverage_percentage:.1f}% is below threshold of {self.coverage_threshold:.1f}%"
+            logger.warning(
+                "Coverage %.1f%% is below threshold of %.1f%%",
+                coverage_percentage,
+                self.coverage_threshold,
             )
-            print("💡 This is expected for unit/folder tests. Full test run will enforce the threshold.")
+            logger.info("This is expected for unit/folder tests. Full test run will enforce the threshold.")
 
         # Prepare existing maps
         file_hashes: dict[str, str] = dict(self.cache.get("file_hashes", {}))
@@ -1311,6 +1333,7 @@ class SmartCoverageManager:
 
         self._save_cache()
 
+    @ensure(lambda result: isinstance(result, bool), "check_if_full_test_needed must return bool")
     def check_if_full_test_needed(self) -> bool:
         """Check if a full test run is needed.
         For local smart-test runs we NEVER require a full run; CI will run the full suite."""
@@ -1319,7 +1342,7 @@ class SmartCoverageManager:
         config_changed = self._has_config_changes()
 
         if config_changed:
-            print("🔄 Configuration or infra changes detected - will run changed-only tests (no full run)")
+            logger.info("Configuration or infra changes detected - will run changed-only tests (no full run)")
             return False
 
         if source_changed or test_changed:
@@ -1328,13 +1351,14 @@ class SmartCoverageManager:
                 reasons.append("source files")
             if test_changed:
                 reasons.append("test files")
-            print(f"🔄 {'/'.join(reasons)} have changed - running changed-only tests")
+            logger.info("%s have changed - running changed-only tests", "/".join(reasons))
             return False
 
-        print("✅ No relevant changes detected - using cached coverage data")
+        logger.info("No relevant changes detected - using cached coverage data")
         return False
 
-    def get_status(self) -> dict:
+    @ensure(lambda result: isinstance(result, dict), "get_status must return dict")
+    def get_status(self) -> dict[str, Any]:
         """Get current coverage status."""
         return {
             "last_run": self.cache.get("last_full_run"),
@@ -1346,6 +1370,8 @@ class SmartCoverageManager:
             "needs_full_run": self.check_if_full_test_needed(),
         }
 
+    @require(lambda count: count >= 0, "count must be non-negative")
+    @ensure(lambda result: isinstance(result, list), "get_recent_logs must return list")
     def get_recent_logs(self, count: int = 5) -> list[Path]:
         """Get recent test log files."""
         logs_dir = self.project_root / "logs" / "tests"
@@ -1357,44 +1383,46 @@ class SmartCoverageManager:
         log_files.sort(key=lambda x: x.stat().st_mtime, reverse=True)
         return log_files[:count]
 
-    def show_recent_logs(self, count: int = 3):
+    @require(lambda count: count >= 0, "count must be non-negative")
+    @ensure(lambda result: result is None, "show_recent_logs must return None")
+    def show_recent_logs(self, count: int = 3) -> None:
         """Show recent test log files and their status."""
         recent_logs = self.get_recent_logs(count)
 
         if not recent_logs:
-            print("📝 No test logs found")
+            logger.info("No test logs found")
             return
 
-        print(f"📝 Recent test logs (last {len(recent_logs)}):")
+        logger.info("Recent test logs (last %d):", len(recent_logs))
         for i, log_file in enumerate(recent_logs, 1):
             # Get file modification time
             mtime = datetime.fromtimestamp(log_file.stat().st_mtime)
 
             # Try to determine success/failure from log content
-            status = "❓ Unknown"
+            status = "Unknown"
             try:
                 with open(log_file) as f:
                     content = f.read()
                     if "Exit Code: 0" in content:
-                        status = "✅ Passed"
+                        status = "Passed"
                     elif "Exit Code:" in content:
-                        status = "❌ Failed"
+                        status = "Failed"
             except Exception:
                 pass
 
-            print(f"   {i}. {log_file.name} - {mtime.strftime('%Y-%m-%d %H:%M:%S')} - {status}")
+            logger.info("   %d. %s - %s - %s", i, log_file.name, mtime.strftime("%Y-%m-%d %H:%M:%S"), status)
 
-    def show_latest_log(self):
+    @ensure(lambda result: result is None, "show_latest_log must return None")
+    def show_latest_log(self) -> None:
         """Show the latest test log content."""
         recent_logs = self.get_recent_logs(1)
 
         if not recent_logs:
-            print("📝 No test logs found")
+            logger.info("No test logs found")
             return
 
         latest_log = recent_logs[0]
-        print(f"📝 Latest test log: {latest_log.name}")
-        print("=" * 80)
+        logger.info("Latest test log: %s", latest_log.name)
 
         try:
             file_mode = latest_log.stat().st_mode
@@ -1405,12 +1433,14 @@ class SmartCoverageManager:
                 # Show last 50 lines to avoid overwhelming output
                 lines = content.split("\n")
                 if len(lines) > 50:
-                    print("... (showing last 50 lines)")
+                    logger.debug("... (showing last 50 lines)")
                     lines = lines[-50:]
-                print("\n".join(lines))
+                logger.info("%s", "\n".join(lines))
         except Exception as e:
-            print(f"❌ Error reading log file: {e}")
+            logger.error("Error reading log file: %s", e)
 
+    @require(lambda test_level: test_level in {"unit", "folder", "integration", "e2e", "full", "auto"})
+    @ensure(lambda result: isinstance(result, bool), "run_smart_tests must return bool")
     def run_smart_tests(self, test_level: str = "auto", force: bool = False) -> bool:
         """Run tests with smart change detection and specified level."""
         if test_level == "auto":
@@ -1423,8 +1453,10 @@ class SmartCoverageManager:
                 return self._run_changed_only()
             # No changes - use cached data
             status = self.get_status()
-            print(
-                f"📊 Using cached results: {status['test_count']} tests, {status['coverage_percentage']:.1f}% coverage"
+            logger.info(
+                "Using cached results: %d tests, %.1f%% coverage",
+                status["test_count"],
+                status["coverage_percentage"],
             )
             return status.get("success", False)
         if force:
@@ -1432,6 +1464,8 @@ class SmartCoverageManager:
             return self.run_tests_by_level(test_level)
         return self.run_tests_by_level(test_level)
 
+    @require(lambda test_level: test_level in {"unit", "folder", "integration", "e2e", "full", "auto"})
+    @ensure(lambda result: isinstance(result, bool), "run_tests_by_level must return bool")
     def run_tests_by_level(self, test_level: str) -> bool:
         """Run tests by specified level: unit, folder, integration, e2e, or full."""
         if test_level == "unit":
@@ -1444,37 +1478,37 @@ class SmartCoverageManager:
             return self._run_e2e_tests()
         if test_level == "full":
             return self._run_full_tests()
-        print(f"❌ Unknown test level: {test_level}")
+        logger.error("Unknown test level: %s", test_level)
         return False
 
     def _run_unit_tests(self) -> bool:
         """Run unit tests for modified files only."""
         modified_files = self._get_modified_files()
         if not modified_files:
-            print("ℹ️  No modified files detected - no unit tests to run")
+            logger.info("No modified files detected - no unit tests to run")
             return True
 
-        print(f"🔍 Found {len(modified_files)} modified files:")
+        logger.info("Found %d modified files:", len(modified_files))
         for file_path in modified_files:
             try:
                 relative_path = file_path.relative_to(self.project_root)
-                print(f"   - {relative_path}")
+                logger.info("   - %s", relative_path)
             except ValueError:
-                print(f"   - {file_path}")
+                logger.info("   - %s", file_path)
 
         unit_tests = self._get_unit_tests_for_files(modified_files)
         if not unit_tests:
-            print("⚠️  No unit tests found for modified files")
-            print("💡 Consider adding unit tests for:")
+            logger.warning("No unit tests found for modified files")
+            logger.info("Consider adding unit tests for:")
             for file_path in modified_files:
                 try:
                     relative_path = file_path.relative_to(self.project_root)
-                    print(f"   - {relative_path}")
+                    logger.info("   - %s", relative_path)
                 except ValueError:
-                    print(f"   - {file_path}")
+                    logger.info("   - %s", file_path)
             return True
 
-        print(f"🧪 Running unit tests for {len(unit_tests)} test files...")
+        logger.info("Running unit tests for %d test files...", len(unit_tests))
         success, test_count, coverage_percentage = self._run_tests(unit_tests, "unit")
 
         # Update cache hashes only for files covered by successful unit batch
@@ -1488,9 +1522,9 @@ class SmartCoverageManager:
                 updated_sources=modified_files,
                 updated_tests=unit_tests,
             )
-            print(f"✅ Unit tests completed: {test_count} tests, {coverage_percentage:.1f}% coverage")
+            logger.info("Unit tests completed: %d tests, %.1f%% coverage", test_count, coverage_percentage)
         else:
-            print("❌ Unit tests failed")
+            logger.error("Unit tests failed")
 
         return success
 
@@ -1498,45 +1532,45 @@ class SmartCoverageManager:
         """Run unit tests for all files in modified folders."""
         modified_folders = self._get_modified_folders()
         if not modified_folders:
-            print("ℹ️  No modified folders detected - no folder tests to run")
+            logger.info("No modified folders detected - no folder tests to run")
             return True
 
-        print(f"📁 Found {len(modified_folders)} modified folders:")
+        logger.info("Found %d modified folders:", len(modified_folders))
         for folder in modified_folders:
             try:
                 relative_path = folder.relative_to(self.project_root)
-                print(f"   - {relative_path}")
+                logger.info("   - %s", relative_path)
             except ValueError:
-                print(f"   - {folder}")
+                logger.info("   - %s", folder)
 
         # Get all source files in the modified folders
         folder_files = self._get_files_in_folders(modified_folders)
         if not folder_files:
-            print("ℹ️  No source files found in modified folders")
+            logger.info("No source files found in modified folders")
             return True
 
-        print(f"🔍 Found {len(folder_files)} source files in modified folders:")
+        logger.info("Found %d source files in modified folders:", len(folder_files))
         for file_path in folder_files:
             try:
                 relative_path = file_path.relative_to(self.project_root)
-                print(f"   - {relative_path}")
+                logger.info("   - %s", relative_path)
             except ValueError:
-                print(f"   - {file_path}")
+                logger.info("   - %s", file_path)
 
         # Get unit tests for all files in the modified folders
         folder_tests = self._get_unit_tests_for_files(folder_files)
         if not folder_tests:
-            print("⚠️  No unit tests found for files in modified folders")
-            print("💡 Consider adding unit tests for:")
+            logger.warning("No unit tests found for files in modified folders")
+            logger.info("Consider adding unit tests for:")
             for file_path in folder_files:
                 try:
                     relative_path = file_path.relative_to(self.project_root)
-                    print(f"   - {relative_path}")
+                    logger.info("   - %s", relative_path)
                 except ValueError:
-                    print(f"   - {file_path}")
+                    logger.info("   - %s", file_path)
             return True
 
-        print(f"🧪 Running unit tests for {len(folder_tests)} test files in modified folders...")
+        logger.info("Running unit tests for %d test files in modified folders...", len(folder_tests))
         success, test_count, coverage_percentage = self._run_tests(folder_tests, "folder")
 
         # Update cache only for files in modified folders when tests passed
@@ -1550,9 +1584,9 @@ class SmartCoverageManager:
                 updated_sources=folder_files,
                 updated_tests=folder_tests,
             )
-            print(f"✅ Folder tests completed: {test_count} tests, {coverage_percentage:.1f}% coverage")
+            logger.info("Folder tests completed: %d tests, %.1f%% coverage", test_count, coverage_percentage)
         else:
-            print("❌ Folder tests failed")
+            logger.error("Folder tests failed")
 
         return success
 
@@ -1560,18 +1594,18 @@ class SmartCoverageManager:
         """Run all integration tests."""
         integration_tests = self._get_test_files_by_level("integration")
         if not integration_tests:
-            print("ℹ️  No integration tests found")
+            logger.info("No integration tests found")
             return True
 
-        print(f"🔗 Found {len(integration_tests)} integration test files:")
+        logger.info("Found %d integration test files:", len(integration_tests))
         for test_file in integration_tests:
             try:
                 relative_path = test_file.relative_to(self.project_root)
-                print(f"   - {relative_path}")
+                logger.info("   - %s", relative_path)
             except ValueError:
-                print(f"   - {test_file}")
+                logger.info("   - %s", test_file)
 
-        print("🧪 Running integration tests...")
+        logger.info("Running integration tests...")
         success, test_count, coverage_percentage = self._run_tests(integration_tests, "integration")
 
         # Update cache for integration tests (test file hashes only)
@@ -1584,10 +1618,12 @@ class SmartCoverageManager:
                 update_only=True,
                 updated_tests=integration_tests,
             )
-            print(f"✅ Integration tests completed: {test_count} tests, {coverage_percentage:.1f}% coverage")
-            print("ℹ️  Note: Integration test coverage is not enforced - focus is on component interaction validation")
+            logger.info("Integration tests completed: %d tests, %.1f%% coverage", test_count, coverage_percentage)
+            logger.info(
+                "Note: Integration test coverage is not enforced - focus is on component interaction validation"
+            )
         else:
-            print("❌ Integration tests failed")
+            logger.error("Integration tests failed")
 
         return success
 
@@ -1595,18 +1631,18 @@ class SmartCoverageManager:
         """Run end-to-end tests only."""
         e2e_tests = self._get_test_files_by_level("e2e")
         if not e2e_tests:
-            print("ℹ️  No e2e tests found")
+            logger.info("No e2e tests found")
             return True
 
-        print(f"🌐 Found {len(e2e_tests)} e2e test files:")
+        logger.info("Found %d e2e test files:", len(e2e_tests))
         for test_file in e2e_tests:
             try:
                 relative_path = test_file.relative_to(self.project_root)
-                print(f"   - {relative_path}")
+                logger.info("   - %s", relative_path)
             except ValueError:
-                print(f"   - {test_file}")
+                logger.info("   - %s", test_file)
 
-        print("🧪 Running e2e tests...")
+        logger.info("Running e2e tests...")
         success, test_count, coverage_percentage = self._run_tests(e2e_tests, "e2e")
 
         # Update cache for e2e tests (test file hashes only)
@@ -1619,10 +1655,10 @@ class SmartCoverageManager:
                 update_only=True,
                 updated_tests=e2e_tests,
             )
-            print(f"✅ E2E tests completed: {test_count} tests, {coverage_percentage:.1f}% coverage")
-            print("ℹ️  Note: E2E test coverage is not enforced - focus is on full workflow validation")
+            logger.info("E2E tests completed: %d tests, %.1f%% coverage", test_count, coverage_percentage)
+            logger.info("Note: E2E test coverage is not enforced - focus is on full workflow validation")
         else:
-            print("❌ E2E tests failed")
+            logger.error("E2E tests failed")
 
         return success
 
@@ -1700,16 +1736,18 @@ class SmartCoverageManager:
             overall_success = overall_success and ok
 
         if not ran_any:
-            print("ℹ️  No changed files detected that map to tests - skipping test execution")
+            logger.info("No changed files detected that map to tests - skipping test execution")
             # Still keep cache timestamp to allow future git comparisons
             self._update_cache(True, 0, self.cache.get("coverage_percentage", 0.0), enforce_threshold=False)
             return True
 
         return overall_success
 
+    @require(lambda test_level: test_level in {"unit", "folder", "integration", "e2e", "full", "auto"})
+    @ensure(lambda result: isinstance(result, bool), "force_full_run must return bool")
     def force_full_run(self, test_level: str = "full") -> bool:
         """Force a test run regardless of file changes."""
-        print(f"🔄 Forcing {test_level} test run...")
+        logger.info("Forcing %s test run...", test_level)
         if test_level == "full":
             success, test_count, coverage_percentage = self._run_coverage_tests()
             self._update_cache(success, test_count, coverage_percentage, enforce_threshold=True)
@@ -1744,8 +1782,45 @@ class SmartCoverageManager:
         self._git_changed_cache = set(changed)
         return set(changed)
 
+    def _handle_cli_command(self, args: argparse.Namespace) -> int:
+        """Execute the requested CLI command and return its exit code."""
+        if args.command == "check":
+            return 0 if not self.check_if_full_test_needed() else 1
+        if args.command == "run":
+            return 0 if self.run_smart_tests(args.level, args.force) else 1
+        if args.command == "force":
+            return 0 if self.run_smart_tests(args.level, force=True) else 1
+        if args.command == "status":
+            self._log_status_summary(self.get_status())
+            self.show_recent_logs(3)
+            return 0
+        if args.command == "threshold":
+            return self._handle_threshold_command()
+        if args.command == "logs":
+            try:
+                count = self._parse_logs_count(sys.argv)
+            except ValueError:
+                logger.error("logs count must be a number")
+                return 1
+            self.show_recent_logs(count)
+            return 0
+        if args.command == "latest":
+            self.show_latest_log()
+            return 0
+        if args.command == "index":
+            logger.info("Indexing current project hashes as baseline (no tests run)...")
+            cur_cov = self.cache.get("coverage_percentage", 0.0)
+            cur_cnt = self.cache.get("test_count", 0)
+            self._update_cache(True, cur_cnt, cur_cov, enforce_threshold=False, update_only=False)
+            logger.info("Baseline updated. Future smart runs will consider only new changes.")
+            return 0
+        logger.error("Unknown command: %s", args.command)
+        logger.info("Use 'python tools/smart_test_coverage.py' without arguments to see usage")
+        return 1
 
-def main():
+
+@ensure(lambda result: result is None, "main must return None")
+def main() -> None:
     parser = argparse.ArgumentParser(description="Smart Test Coverage Management System")
     parser.add_argument(
         "command",
@@ -1769,100 +1844,19 @@ def main():
     manager = SmartCoverageManager()
 
     try:
-        if args.command == "check":
-            needs_full_run = manager.check_if_full_test_needed()
-            sys.exit(0 if not needs_full_run else 1)
-
-        elif args.command == "run":
-            success = manager.run_smart_tests(args.level, args.force)
-            sys.exit(0 if success else 1)
-
-        elif args.command == "force":
-            success = manager.run_smart_tests(args.level, force=True)
-            sys.exit(0 if success else 1)
-
-        elif args.command == "status":
-            status = manager.get_status()
-            print("📊 Coverage Status:")
-            print(f"   Last Run: {status['last_run'] or 'Never'}")
-            print(f"   Coverage: {status['coverage_percentage']:.1f}%")
-            print(f"   Test Count: {status['test_count']}")
-            print(f"   Source Changed: {status['source_changed']}")
-            print(f"   Test Changed: {status['test_changed']}")
-            print(f"   Config Changed: {status['config_changed']}")
-            print(f"   Needs Full Run: {status['needs_full_run']}")
-            print(f"   Threshold: {manager.coverage_threshold:.1f}%")
-
-            # Check if current coverage meets threshold
-            current_coverage = status["coverage_percentage"]
-            if current_coverage < manager.coverage_threshold:
-                print("   ⚠️  Coverage below threshold!")
-            else:
-                print("   ✅ Coverage meets threshold")
-
-            print()
-            manager.show_recent_logs(3)
-            sys.exit(0)
-
-        elif args.command == "threshold":
-            """Check if current coverage meets threshold without running tests."""
-            status = manager.get_status()
-            current_coverage = status["coverage_percentage"]
-
-            print("📊 Coverage Threshold Check:")
-            print(f"   Current Coverage: {current_coverage:.1f}%")
-            print(f"   Required Threshold: {manager.coverage_threshold:.1f}%")
-
-            if current_coverage < manager.coverage_threshold:
-                print("   ❌ Coverage below threshold!")
-                print(f"   Difference: {manager.coverage_threshold - current_coverage:.1f}% needed")
-                sys.exit(1)
-            else:
-                print("   ✅ Coverage meets threshold!")
-                print(f"   Margin: {current_coverage - manager.coverage_threshold:.1f}% above threshold")
-                sys.exit(0)
-
-        elif args.command == "logs":
-            # For logs command, we need to handle additional arguments manually
-            # since argparse doesn't handle positional arguments after subcommands well
-            count = 5
-            if len(sys.argv) > 2:
-                try:
-                    count = int(sys.argv[2])
-                except ValueError:
-                    print("Error: logs count must be a number")
-                    sys.exit(1)
-            manager.show_recent_logs(count)
-            sys.exit(0)
-
-        elif args.command == "latest":
-            manager.show_latest_log()
-            sys.exit(0)
-
-        elif args.command == "index":
-            # Refresh baseline hashes without executing tests
-            print("📦 Indexing current project hashes as baseline (no tests run)...")
-            cur_cov = manager.cache.get("coverage_percentage", 0.0)
-            cur_cnt = manager.cache.get("test_count", 0)
-            manager._update_cache(True, cur_cnt, cur_cov, enforce_threshold=False, update_only=False)
-            print("✅ Baseline updated. Future smart runs will consider only new changes.")
-            sys.exit(0)
-
-        else:
-            print(f"Unknown command: {args.command}")
-            print("Use 'python tools/smart_test_coverage.py' without arguments to see usage")
-            sys.exit(1)
+        sys.exit(manager._handle_cli_command(args))
 
     except CoverageThresholdError as e:
-        print("❌ Coverage threshold not met!")
-        print(f"{e}")
-        print("\n💡 To fix this issue:")
-        print("   1. Add more unit tests to increase coverage")
-        print("   2. Improve existing test coverage")
-        print("   3. Check for untested code paths")
-        print("   4. Run 'hatch run smart-test-status' to see detailed coverage")
+        logger.error("Coverage threshold not met!")
+        logger.error("%s", e)
+        logger.info("To fix this issue:")
+        logger.info("   1. Add more unit tests to increase coverage")
+        logger.info("   2. Improve existing test coverage")
+        logger.info("   3. Check for untested code paths")
+        logger.info("   4. Run 'hatch run smart-test-status' to see detailed coverage")
         sys.exit(1)
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
     main()

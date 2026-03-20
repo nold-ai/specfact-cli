@@ -6,18 +6,26 @@ This script helps diagnose performance issues in contract extraction.
 """
 
 import cProfile
+import logging
 import pstats
 import time
 from io import StringIO
 from pathlib import Path
 
 import yaml
+from beartype import beartype
+from icontract import require
 
 from specfact_cli.generators.openapi_extractor import OpenAPIExtractor
 from specfact_cli.models.plan import Feature
 from specfact_cli.models.source_tracking import SourceTracking
 
 
+logger = logging.getLogger(__name__)
+
+
+@beartype
+@require(lambda repo_path: isinstance(repo_path, Path), "repo_path must be a Path")
 def profile_extraction(repo_path: Path, feature: Feature) -> None:
     """Profile a single feature extraction."""
     extractor = OpenAPIExtractor(repo_path)
@@ -35,20 +43,23 @@ def profile_extraction(repo_path: Path, feature: Feature) -> None:
     ps = pstats.Stats(profiler, stream=s).sort_stats("cumulative")
     ps.print_stats(30)
 
-    print(f"\n=== Extraction Profile for {feature.key} ===")
-    print(f"Total time: {elapsed:.3f}s")
-    print(f"Files processed: {len(feature.source_tracking.implementation_files) if feature.source_tracking else 0}")
-    print(f"Paths extracted: {len(result.get('paths', {}))}")
-    print(f"Schemas extracted: {len(result.get('components', {}).get('schemas', {}))}")
-    print("\nTop 30 time consumers:")
-    print(s.getvalue())
+    logger.info("=== Extraction Profile for %s ===", feature.key)
+    logger.info("Total time: %.3fs", elapsed)
+    logger.info(
+        "Files processed: %d", len(feature.source_tracking.implementation_files) if feature.source_tracking else 0
+    )
+    logger.info("Paths extracted: %d", len(result.get("paths", {})))
+    logger.info("Schemas extracted: %d", len(result.get("components", {}).get("schemas", {})))
+    logger.info("Top 30 time consumers:")
+    logger.info("%s", s.getvalue())
 
 
 if __name__ == "__main__":
     import sys
 
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
     if len(sys.argv) < 3:
-        print("Usage: profile_contract_extraction.py <repo_path> <feature_yaml>")
+        logger.error("Usage: profile_contract_extraction.py <repo_path> <feature_yaml>")
         sys.exit(1)
 
     repo_path = Path(sys.argv[1])
@@ -69,5 +80,5 @@ if __name__ == "__main__":
         protocol=feature_data.get("protocol"),
     )
 
-    print(f"Profiling extraction for {feature.key}")
+    logger.info("Profiling extraction for %s", feature.key)
     profile_extraction(repo_path, feature)

@@ -29,6 +29,8 @@ def _is_crosshair_runtime() -> bool:
     return "crosshair" in sys.modules
 
 
+@beartype
+@ensure(lambda result: result.name == _REGISTRIES_FILENAME, "Must return a path ending in the registries filename")
 def get_registries_config_path() -> Path:
     """Return path to registries.yaml under ~/.specfact/config/."""
     return Path.home() / ".specfact" / "config" / _REGISTRIES_FILENAME

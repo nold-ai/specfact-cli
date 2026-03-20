@@ -73,6 +73,7 @@ class FileHashCache:
     dependencies: dict[str, list[str]] = field(default_factory=dict)  # file_path -> [dependencies]
 
     @beartype
+    @require(lambda self: isinstance(self.cache_file, Path), "cache_file must be a Path")
     def load(self) -> None:
         """Load hash cache from disk."""
         if not self.cache_file.exists():
@@ -99,6 +100,7 @@ class FileHashCache:
             print_warning(f"Failed to load hash cache: {e}")
 
     @beartype
+    @require(lambda self: isinstance(self.cache_file, Path), "cache_file must be a Path")
     def save(self) -> None:
         """Save hash cache to disk."""
         try:
@@ -122,27 +124,32 @@ class FileHashCache:
             print_warning(f"Failed to save hash cache: {e}")
 
     @beartype
+    @ensure(lambda result: result is None or len(result) > 0, "Hash must be non-empty if present")
     def get_hash(self, file_path: Path) -> str | None:
         """Get cached hash for a file."""
         return self.hashes.get(str(file_path))
 
     @beartype
+    @require(lambda file_hash: file_hash.strip() != "", "file_hash must not be empty")
     def set_hash(self, file_path: Path, file_hash: str) -> None:
         """Set hash for a file."""
         self.hashes[str(file_path)] = file_hash
 
     @beartype
+    @ensure(lambda result: isinstance(result, list))
     def get_dependencies(self, file_path: Path) -> list[Path]:
         """Get dependencies for a file."""
         deps = self.dependencies.get(str(file_path), [])
         return [Path(d) for d in deps]
 
     @beartype
+    @require(lambda dependencies: isinstance(dependencies, list))
     def set_dependencies(self, file_path: Path, dependencies: list[Path]) -> None:
         """Set dependencies for a file."""
         self.dependencies[str(file_path)] = [str(d) for d in dependencies]
 
     @beartype
+    @ensure(lambda result: isinstance(result, bool))
     def has_changed(self, file_path: Path, current_hash: str) -> bool:
         """Check if file has changed based on hash."""
         cached_hash = self.get_hash(file_path)
@@ -150,6 +157,7 @@ class FileHashCache:
 
 
 @beartype
+@ensure(lambda result: result is None or len(result) > 0, "Hash must be non-empty if returned")
 def compute_file_hash(file_path: Path) -> str | None:
     """
     Compute SHA256 hash of file content.
@@ -434,10 +442,9 @@ class EnhancedSyncWatcher:
 
         self.running = False
 
-        observer: Observer | None = self.observer  # type: ignore[assignment]
-        if observer is not None:
-            observer.stop()  # type: ignore[unknown-member-type]
-            observer.join(timeout=5)  # type: ignore[unknown-member-type]
+        if self.observer is not None:
+            self.observer.stop()  # type: ignore[unknown-member-type]
+            self.observer.join(timeout=5)  # type: ignore[unknown-member-type]
             self.observer = None
 
         # Save hash cache

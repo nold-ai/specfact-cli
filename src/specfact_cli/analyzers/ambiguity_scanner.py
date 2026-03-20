@@ -12,6 +12,7 @@ import re
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
+from typing import Any
 
 from beartype import beartype
 from icontract import ensure, require
@@ -699,6 +700,219 @@ class AmbiguityScanner:
 
         return findings
 
+    _EXCLUDED_PERSONA_TERMS: frozenset[str] = frozenset(
+        {
+            "a",
+            "an",
+            "the",
+            "i",
+            "can",
+            "user",
+            "users",
+            "developer",
+            "feature",
+            "system",
+            "application",
+            "software",
+            "code",
+            "test",
+            "detecting",
+            "data",
+            "pipeline",
+            "pipelines",
+            "devops",
+            "script",
+            "scripts",
+        }
+    )
+
+    def _personas_from_pyproject(self) -> set[str]:
+        """
+        Extract persona suggestions from pyproject.toml classifiers.
+
+        Returns:
+            Set of candidate persona strings
+        """
+        excluded = self._EXCLUDED_PERSONA_TERMS
+        result: set[str] = set()
+        if not self.repo_path:
+            return result
+        pyproject_path = self.repo_path / "pyproject.toml"
+        if not pyproject_path.exists():
+            return result
+        try:
+            try:
+                import tomllib
+            except ImportError:
+                try:
+                    import tomli as tomllib  # type: ignore[no-redef]
+                except ImportError:
+                    return result
+            data = tomllib.loads(pyproject_path.read_text(encoding="utf-8"))
+            for classifier in data.get("project", {}).get("classifiers", []):
+                if "Intended Audience ::" in classifier:
+                    audience = classifier.split("::")[-1].strip()
+                    if audience and audience.lower() not in excluded and len(audience) > 3 and not audience.isupper():
+                        result.add(audience)
+        except Exception:
+            pass
+        return result
+
+    def _personas_from_readme(self) -> set[str]:
+        """
+        Extract persona suggestions from README.md target-user patterns.
+
+        Returns:
+            Set of candidate persona strings
+        """
+        excluded = self._EXCLUDED_PERSONA_TERMS
+        result: set[str] = set()
+        if not self.repo_path:
+            return result
+        readme_path = self.repo_path / "README.md"
+        if not readme_path.exists():
+            return result
+        try:
+            content = readme_path.read_text(encoding="utf-8")
+            m = re.search(r"(?:Perfect for|Target users?|For|Audience):\s*(.+?)(?:\n|$)", content, re.IGNORECASE)
+            if not m:
+                return result
+            use_case_terms = ["pipeline", "script", "system", "application", "code", "api", "service"]
+            for user in re.split(r"[,;]|\sand\s", m.group(1)):
+                user_clean = re.sub(r"^\*\*?|\*\*?$", "", user.strip()).strip()
+                user_lower = user_clean.lower()
+                if any(uc in user_lower for uc in use_case_terms):
+                    continue
+                if user_clean and len(user_clean) > 2 and user_lower not in excluded and len(user_clean.split()) <= 3:
+                    result.add(user_clean.title())
+        except Exception:
+            pass
+        return result
+
+    def _personas_from_story_titles(self, plan_bundle: Any) -> set[str]:
+        """
+        Extract persona suggestions from "As a X" story title patterns.
+
+        Args:
+            plan_bundle: Plan bundle containing features and stories
+
+        Returns:
+            Set of candidate persona strings
+        """
+        excluded = self._EXCLUDED_PERSONA_TERMS
+        result: set[str] = set()
+        for feature in plan_bundle.features:
+            for story in feature.stories:
+                m = re.search(r"as (?:a|an) ([^,\.]+?)(?:\s+(?:i|can|want|need|should|will)|$)", story.title.lower())
+                if m:
+                    user_type = m.group(1).strip()
+                    if (
+                        user_type
+                        and len(user_type) > 2
+                        and user_type.lower() not in excluded
+                        and not user_type.isupper()
+                        and len(user_type.split()) <= 3
+                    ):
+                        result.add(user_type.title())
+        return result
+
+    def _personas_from_codebase(self) -> set[str]:
+        """
+        Extract persona suggestions by scanning user/role model class names in the codebase.
+
+        Only searches in directories likely to contain user models. Returns empty set if
+        no specific model directories are found.
+
+        Returns:
+            Set of candidate persona strings
+        """
+        excluded = self._EXCLUDED_PERSONA_TERMS
+        result: set[str] = set()
+        if not self.repo_path:
+            return result
+        try:
+            user_model_dirs = ["models", "auth", "users", "accounts", "roles", "permissions", "user"]
+            search_paths = [
+                self.repo_path / d
+                for d in user_model_dirs
+                if (self.repo_path / d).exists() and (self.repo_path / d).is_dir()
+            ]
+            if not search_paths:
+                return result
+            for search_path in search_paths:
+                for py_file in search_path.rglob("*.py"):
+                    if not py_file.is_file():
+                        continue
+                    try:
+                        tree = ast.parse(py_file.read_text(encoding="utf-8"), filename=str(py_file))
+                        for node in ast.walk(tree):
+                            if not isinstance(node, ast.ClassDef):
+                                continue
+                            cn = node.name.lower()
+                            if cn.endswith(("user", "role", "persona")) or cn.startswith(("user", "role", "persona")):
+                                if cn.endswith("user"):
+                                    role = cn[:-4].strip()
+                                elif cn.startswith("user"):
+                                    role = cn[4:].strip()
+                                elif cn.endswith("role"):
+                                    role = cn[:-4].strip()
+                                elif cn.startswith("role"):
+                                    role = cn[4:].strip()
+                                else:
+                                    role = cn.replace("persona", "").strip()
+                                role = re.sub(r"[_-]", " ", role).strip()
+                                if (
+                                    role
+                                    and role.lower() not in excluded
+                                    and len(role) > 2
+                                    and len(role.split()) <= 2
+                                    and not role.isupper()
+                                    and not re.match(r"^[A-Z][a-z]+[A-Z]", role)
+                                ):
+                                    result.add(role.title())
+                            for item in node.body:
+                                if not (isinstance(item, ast.Assign) and item.targets):
+                                    continue
+                                for target in item.targets:
+                                    if not isinstance(target, ast.Name):
+                                        continue
+                                    attr_name = target.id.lower()
+                                    if ("role" in attr_name or "permission" in attr_name) and isinstance(
+                                        item.value, ast.Constant
+                                    ):
+                                        role_value = item.value.value
+                                        if isinstance(role_value, str) and len(role_value) > 2:
+                                            role_clean = role_value.strip().lower()
+                                            if role_clean not in excluded and len(role_clean.split()) <= 2:
+                                                result.add(role_value.title())
+                    except Exception:
+                        continue
+        except Exception:
+            pass
+        return result
+
+    def _personas_from_outcomes(self, plan_bundle: Any) -> set[str]:
+        """
+        Extract single-word persona suggestions from feature outcome sentences.
+
+        Very conservative: only matches patterns like "allows X to" or "enables X to".
+
+        Args:
+            plan_bundle: Plan bundle containing features
+
+        Returns:
+            Set of candidate persona strings
+        """
+        excluded = self._EXCLUDED_PERSONA_TERMS
+        result: set[str] = set()
+        for feature in plan_bundle.features:
+            for outcome in feature.outcomes:
+                for match in re.findall(r"(?:allows|enables|for) ([a-z]+) (?:to|can)", outcome.lower()):
+                    m = match.strip()
+                    if m and len(m) > 2 and m not in excluded and len(m.split()) == 1:
+                        result.add(m.title())
+        return result
+
     @beartype
     def _extract_target_users(self, plan_bundle: PlanBundle) -> list[str]:
         """
@@ -720,242 +934,22 @@ class AmbiguityScanner:
             return []
 
         suggested_users: set[str] = set()
+        suggested_users |= self._personas_from_pyproject()
+        suggested_users |= self._personas_from_readme()
+        suggested_users |= self._personas_from_story_titles(plan_bundle)
 
-        # Common false positives to exclude (terms that aren't user personas)
-        excluded_terms = {
-            "a",
-            "an",
-            "the",
-            "i",
-            "can",
-            "user",  # Too generic
-            "users",  # Too generic
-            "developer",  # Too generic - often refers to code developer, not persona
-            "feature",
-            "system",
-            "application",
-            "software",
-            "code",
-            "test",
-            "detecting",  # Technical term, not a persona
-            "data",  # Too generic
-            "pipeline",  # Use case, not a persona
-            "pipelines",  # Use case, not a persona
-            "devops",  # Use case, not a persona
-            "script",  # Technical term, not a persona
-            "scripts",  # Technical term, not a persona
-        }
+        if len(suggested_users) < 2:
+            suggested_users |= self._personas_from_codebase()
 
-        # 1. Extract from pyproject.toml (classifiers and keywords) - MOST RELIABLE
-        pyproject_path = self.repo_path / "pyproject.toml"
-        if pyproject_path.exists():
-            try:
-                # Try standard library first (Python 3.11+)
-                try:
-                    import tomllib
-                except ImportError:
-                    # Fall back to tomli for older Python versions
-                    try:
-                        import tomli as tomllib
-                    except ImportError:
-                        # If neither is available, skip TOML parsing
-                        tomllib = None
+        suggested_users |= self._personas_from_outcomes(plan_bundle)
 
-                if tomllib:
-                    content = pyproject_path.read_text(encoding="utf-8")
-                    data = tomllib.loads(content)
-
-                    # Extract from classifiers (e.g., "Intended Audience :: Developers")
-                    if "project" in data and "classifiers" in data["project"]:
-                        for classifier in data["project"]["classifiers"]:
-                            if "Intended Audience ::" in classifier:
-                                audience = classifier.split("::")[-1].strip()
-                                # Only add if it's a meaningful persona (not generic)
-                                if (
-                                    audience
-                                    and audience.lower() not in excluded_terms
-                                    and len(audience) > 3
-                                    and not audience.isupper()
-                                ):
-                                    suggested_users.add(audience)
-
-                    # Skip keywords extraction - too unreliable (contains technical terms)
-                    # Keywords are typically technical terms, not user personas
-                    # We rely on classifiers and README.md instead
-            except Exception:
-                # If pyproject.toml parsing fails, continue with other sources
-                pass
-
-        # 2. Extract from README.md ("Perfect for:", "Target users:", etc.) - VERY RELIABLE
-        readme_path = self.repo_path / "README.md"
-        if readme_path.exists():
-            try:
-                content = readme_path.read_text(encoding="utf-8")
-
-                # Look for "Perfect for:" or "Target users:" patterns
-                perfect_for_match = re.search(
-                    r"(?:Perfect for|Target users?|For|Audience):\s*(.+?)(?:\n|$)", content, re.IGNORECASE
-                )
-                if perfect_for_match:
-                    users_text = perfect_for_match.group(1)
-                    # Split by commas, semicolons, or "and"
-                    users = re.split(r"[,;]|\sand\s", users_text)
-                    for user in users:
-                        user_clean = user.strip()
-                        # Remove markdown formatting and common prefixes
-                        user_clean = re.sub(r"^\*\*?|\*\*?$", "", user_clean).strip()
-                        # Check if it's a persona (not a use case or technical term)
-                        user_lower = user_clean.lower()
-                        # Skip if it's a use case (e.g., "data pipelines", "devops scripts")
-                        if any(
-                            use_case in user_lower
-                            for use_case in ["pipeline", "script", "system", "application", "code", "api", "service"]
-                        ):
-                            continue
-                        if (
-                            user_clean
-                            and len(user_clean) > 2
-                            and user_lower not in excluded_terms
-                            and len(user_clean.split()) <= 3
-                        ):
-                            suggested_users.add(user_clean.title())
-            except Exception:
-                # If README.md parsing fails, continue with other sources
-                pass
-
-        # 3. Extract from story titles (e.g., "As a user, I can...") - RELIABLE
-        for feature in plan_bundle.features:
-            for story in feature.stories:
-                # Look for "As a X" or "As an X" patterns - be more precise
-                match = re.search(
-                    r"as (?:a|an) ([^,\.]+?)(?:\s+(?:i|can|want|need|should|will)|$)", story.title.lower()
-                )
-                if match:
-                    user_type = match.group(1).strip()
-                    # Only add if it's a reasonable persona (not a technical term)
-                    if (
-                        user_type
-                        and len(user_type) > 2
-                        and user_type.lower() not in excluded_terms
-                        and not user_type.isupper()
-                        and len(user_type.split()) <= 3
-                    ):
-                        suggested_users.add(user_type.title())
-
-        # 4. Extract from codebase (user models, roles, permissions) - OPTIONAL FALLBACK
-        # Only look in specific directories that typically contain user models
-        # Skip if we already have good suggestions from metadata
-        if self.repo_path and len(suggested_users) < 2:
-            try:
-                user_model_dirs = ["models", "auth", "users", "accounts", "roles", "permissions", "user"]
-                search_paths = []
-                for subdir in user_model_dirs:
-                    potential_path = self.repo_path / subdir
-                    if potential_path.exists() and potential_path.is_dir():
-                        search_paths.append(potential_path)
-
-                # If no specific directories found, skip codebase extraction (too risky)
-                if not search_paths:
-                    # Only extract from story titles - codebase extraction is too unreliable
-                    pass
-                else:
-                    for search_path in search_paths:
-                        for py_file in search_path.rglob("*.py"):
-                            if py_file.is_file():
-                                try:
-                                    content = py_file.read_text(encoding="utf-8")
-                                    tree = ast.parse(content, filename=str(py_file))
-
-                                    for node in ast.walk(tree):
-                                        # Look for class definitions with "user" in name (most specific)
-                                        if isinstance(node, ast.ClassDef):
-                                            class_name = node.name
-                                            class_name_lower = class_name.lower()
-
-                                            # Only consider classes that are clearly user models
-                                            # Pattern: *User, User*, *Role, Role*, *Persona, Persona*
-                                            if class_name_lower.endswith(
-                                                ("user", "role", "persona")
-                                            ) or class_name_lower.startswith(("user", "role", "persona")):
-                                                # Extract role from class name (e.g., "AdminUser" -> "Admin")
-                                                if class_name_lower.endswith("user"):
-                                                    role = class_name_lower[:-4].strip()
-                                                elif class_name_lower.startswith("user"):
-                                                    role = class_name_lower[4:].strip()
-                                                elif class_name_lower.endswith("role"):
-                                                    role = class_name_lower[:-4].strip()
-                                                elif class_name_lower.startswith("role"):
-                                                    role = class_name_lower[4:].strip()
-                                                else:
-                                                    role = class_name_lower.replace("persona", "").strip()
-
-                                                # Clean up role name
-                                                role = re.sub(r"[_-]", " ", role).strip()
-                                                if (
-                                                    role
-                                                    and role.lower() not in excluded_terms
-                                                    and len(role) > 2
-                                                    and len(role.split()) <= 2
-                                                    and not role.isupper()
-                                                    and not re.match(r"^[A-Z][a-z]+[A-Z]", role)
-                                                ):
-                                                    suggested_users.add(role.title())
-
-                                            # Look for role/permission enum values or constants
-                                            for item in node.body:
-                                                if isinstance(item, ast.Assign) and item.targets:
-                                                    for target in item.targets:
-                                                        if isinstance(target, ast.Name):
-                                                            attr_name = target.id.lower()
-                                                            # Look for role/permission constants (e.g., ADMIN = "admin")
-                                                            if (
-                                                                "role" in attr_name or "permission" in attr_name
-                                                            ) and isinstance(item.value, ast.Constant):
-                                                                role_value = item.value.value
-                                                                if isinstance(role_value, str) and len(role_value) > 2:
-                                                                    role_clean = role_value.strip().lower()
-                                                                    if (
-                                                                        role_clean not in excluded_terms
-                                                                        and len(role_clean.split()) <= 2
-                                                                    ):
-                                                                        suggested_users.add(role_value.title())
-
-                                except (SyntaxError, UnicodeDecodeError, Exception):
-                                    # Skip files that can't be parsed
-                                    continue
-            except Exception:
-                # If codebase analysis fails, continue with story-based extraction
-                pass
-
-        # 3. Extract from feature outcomes/acceptance - VERY CONSERVATIVE
-        # Only look for clear persona patterns (single words only)
-        for feature in plan_bundle.features:
-            for outcome in feature.outcomes:
-                # Look for patterns like "allows [persona] to..." or "enables [persona] to..."
-                # But be very selective - only single-word personas
-                matches = re.findall(r"(?:allows|enables|for) ([a-z]+) (?:to|can)", outcome.lower())
-                for match in matches:
-                    match_clean = match.strip()
-                    if (
-                        match_clean
-                        and len(match_clean) > 2
-                        and match_clean not in excluded_terms
-                        and len(match_clean.split()) == 1  # Only single words
-                    ):
-                        suggested_users.add(match_clean.title())
-
-        # Final filtering: remove any remaining technical terms
-        cleaned_users: list[str] = []
-        for user in suggested_users:
-            user_lower = user.lower()
-            # Skip if it's in excluded terms or looks technical
-            if (
-                user_lower not in excluded_terms
-                and len(user.split()) <= 2
-                and not user.isupper()
-                and not re.match(r"^[A-Z][a-z]+[A-Z]", user)
-            ):
-                cleaned_users.append(user)
-
-        # Return top 3 most common suggestions (reduced from 5 for quality)
+        excluded = self._EXCLUDED_PERSONA_TERMS
+        cleaned_users = [
+            u
+            for u in suggested_users
+            if u.lower() not in excluded
+            and len(u.split()) <= 2
+            and not u.isupper()
+            and not re.match(r"^[A-Z][a-z]+[A-Z]", u)
+        ]
         return sorted(set(cleaned_users))[:3]

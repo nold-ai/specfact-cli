@@ -52,6 +52,7 @@ def convert_plan_bundle_to_project_bundle(plan_bundle: PlanBundle, bundle_name: 
 
 
 @beartype
+@ensure(lambda result: isinstance(result, bool), "Must return bool")
 def is_constitution_minimal(constitution_path: Path) -> bool:
     """Return True when constitution content is missing or effectively placeholder-only."""
     if not constitution_path.exists():

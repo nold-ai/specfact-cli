@@ -187,6 +187,7 @@ def install_update(method: InstallationMethod, yes: bool = False) -> bool:
 
 @app.callback(invoke_without_command=True)
 @beartype
+@ensure(lambda result: result is None, "upgrade must return None")
 def upgrade(
     check_only: bool = typer.Option(
         False,

@@ -16,6 +16,7 @@ from typing import Any, NamedTuple
 
 import requests
 from beartype import beartype
+from icontract import ensure, require
 from rich.console import Console
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
@@ -67,6 +68,8 @@ class ModuleFreshnessCheckResult(NamedTuple):
 
 
 @beartype
+@require(lambda file_path: file_path.exists(), "file_path must exist")
+@ensure(lambda result: len(result) == 64, "Must return 64-char SHA256 hex string")
 def calculate_file_hash(file_path: Path) -> str:
     """
     Calculate SHA256 hash of a file.
@@ -85,6 +88,7 @@ def calculate_file_hash(file_path: Path) -> str:
 
 
 @beartype
+@require(lambda repo_path: repo_path is None or repo_path.exists(), "repo_path must exist if provided")
 def check_ide_templates(repo_path: Path | None = None) -> TemplateCheckResult | None:
     """
     Check if IDE template files exist and compare with our templates.
@@ -187,6 +191,8 @@ def check_ide_templates(repo_path: Path | None = None) -> TemplateCheckResult | 
 
 
 @beartype
+@require(lambda package_name: package_name.strip() != "", "package_name must not be empty")
+@require(lambda timeout: timeout > 0, "timeout must be positive")
 def check_pypi_version(package_name: str = "specfact-cli", timeout: int = 3) -> VersionCheckResult:
     """
     Check PyPI for available version updates.
@@ -281,6 +287,7 @@ def check_pypi_version(package_name: str = "specfact-cli", timeout: int = 3) -> 
 
 
 @beartype
+@require(lambda repo_path: repo_path is None or repo_path.exists(), "repo_path must exist if provided")
 def check_module_freshness(repo_path: Path | None = None) -> ModuleFreshnessCheckResult:
     """Check bundled module freshness for project and user scopes."""
     if repo_path is None:
@@ -303,6 +310,7 @@ def check_module_freshness(repo_path: Path | None = None) -> ModuleFreshnessChec
 
 
 @beartype
+@require(lambda repo_path: repo_path is None or repo_path.exists(), "repo_path must exist if provided")
 def print_startup_checks(
     repo_path: Path | None = None,
     check_version: bool = True,

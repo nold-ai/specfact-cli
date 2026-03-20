@@ -134,6 +134,7 @@ class BacklogAdapter(ABC):
         )
 
     @beartype
+    @ensure(lambda result: result is None or hasattr(result, "id"), "Must return BacklogItem or None")
     def create_backlog_item_from_spec(self) -> BacklogItem | None:
         """
         Create a backlog item from an OpenSpec change proposal (optional).
@@ -162,6 +163,8 @@ class BacklogAdapter(ABC):
         return False
 
     @beartype
+    @require(lambda comment: comment.strip() != "", "comment must not be empty")
+    @ensure(lambda result: isinstance(result, bool), "Must return bool")
     def add_comment(self, item: BacklogItem, comment: str) -> bool:
         """
         Add a comment to a backlog item (optional).
@@ -180,6 +183,7 @@ class BacklogAdapter(ABC):
         return False
 
     @beartype
+    @ensure(lambda result: isinstance(result, list), "Must return list")
     def get_comments(self, item: BacklogItem) -> list[str]:
         """
         Fetch comments for a backlog item (optional).

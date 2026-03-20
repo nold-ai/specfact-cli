@@ -360,6 +360,47 @@ class OpenSpecAdapter(BridgeAdapter):
         msg = "OpenSpec adapter save_change_proposal is not implemented in Phase 1 (read-only sync). Use Phase 4 for bidirectional sync."
         raise NotImplementedError(msg)
 
+    def _apply_parsed_title(self, feature: Feature, parsed: dict[str, Any]) -> None:
+        """Update feature title from the first H1 header in raw_content."""
+        if not (parsed and parsed.get("raw_content")):
+            return
+        for line in parsed["raw_content"].splitlines():
+            if line.startswith("# ") and not line.startswith("##"):
+                title = line.lstrip("#").strip()
+                if title:
+                    feature.title = title
+                    break
+
+    def _apply_parsed_outcomes(self, feature: Feature, parsed: dict[str, Any]) -> None:
+        """Populate feature outcomes from overview and requirements sections."""
+        if parsed and parsed.get("overview"):
+            overview_text = parsed["overview"] if isinstance(parsed["overview"], str) else str(parsed["overview"])
+            if overview_text and not feature.outcomes:
+                feature.outcomes = [overview_text]
+        if parsed and parsed.get("requirements"):
+            if not feature.outcomes:
+                feature.outcomes = parsed["requirements"]
+            else:
+                feature.outcomes.extend(parsed["requirements"])
+
+    def _build_spec_source_tracking(
+        self,
+        spec_path: Path,
+        feature_id: str,
+        bridge_config: BridgeConfig | None,
+        base_path: Path | None,
+    ) -> tuple[str, dict[str, Any]]:
+        """Build source metadata dict and resolved openspec_path for a spec file."""
+        openspec_path = str(spec_path.relative_to(base_path)) if base_path else f"openspec/specs/{feature_id}/spec.md"
+        source_metadata: dict[str, Any] = {
+            "path": openspec_path,
+            "openspec_path": openspec_path,
+            "openspec_type": "specification",
+        }
+        if bridge_config and bridge_config.external_base_path:
+            source_metadata["openspec_base_path"] = str(bridge_config.external_base_path)
+        return openspec_path, source_metadata
+
     def _import_specification(
         self,
         spec_path: Path,
@@ -376,41 +417,11 @@ class OpenSpecAdapter(BridgeAdapter):
         # Find or create feature
         feature = self._find_or_create_feature(project_bundle, feature_id)
 
-        # Extract feature title from markdown header (# Title) if available
-        if parsed and parsed.get("raw_content"):
-            content = parsed["raw_content"]
-            for line in content.splitlines():
-                if line.startswith("# ") and not line.startswith("##"):
-                    # Found main title
-                    title = line.lstrip("#").strip()
-                    if title:
-                        feature.title = title
-                        break
-
-        # Update feature description from overview if available
-        if parsed and parsed.get("overview"):
-            overview_text = parsed["overview"] if isinstance(parsed["overview"], str) else str(parsed["overview"])
-            # Store overview as description or in outcomes
-            if overview_text and not feature.outcomes:
-                feature.outcomes = [overview_text]
-
-        # Update feature with parsed content
-        if parsed and parsed.get("requirements"):
-            # Add requirements to feature outcomes or acceptance criteria
-            if not feature.outcomes:
-                feature.outcomes = parsed["requirements"]
-            else:
-                feature.outcomes.extend(parsed["requirements"])
+        self._apply_parsed_title(feature, parsed or {})
+        self._apply_parsed_outcomes(feature, parsed or {})
 
         # Store OpenSpec path in source_tracking
-        openspec_path = str(spec_path.relative_to(base_path)) if base_path else f"openspec/specs/{feature_id}/spec.md"
-        source_metadata = {
-            "path": openspec_path,  # Test expects "path"
-            "openspec_path": openspec_path,
-            "openspec_type": "specification",
-        }
-        if bridge_config and bridge_config.external_base_path:
-            source_metadata["openspec_base_path"] = str(bridge_config.external_base_path)
+        _, source_metadata = self._build_spec_source_tracking(spec_path, feature_id, bridge_config, base_path)
 
         if not feature.source_tracking:
             feature.source_tracking = SourceTracking(tool="openspec", source_metadata=source_metadata)
@@ -490,6 +501,87 @@ class OpenSpecAdapter(BridgeAdapter):
                 project_bundle.change_tracking = ChangeTracking()
             project_bundle.change_tracking.proposals[change_name] = proposal
 
+    def _resolve_change_type(self, parsed: dict[str, Any]) -> ChangeType:
+        """Map parsed type string to ChangeType enum, defaulting to MODIFIED."""
+        change_type_map = {
+            "ADDED": ChangeType.ADDED,
+            "MODIFIED": ChangeType.MODIFIED,
+            "REMOVED": ChangeType.REMOVED,
+        }
+        return change_type_map.get(parsed.get("type", "MODIFIED").upper(), ChangeType.MODIFIED)
+
+    def _build_delta_source_tracking(
+        self,
+        delta_path: Path,
+        base_path: Path | None,
+        bridge_config: BridgeConfig | None,
+    ) -> SourceTracking:
+        """Build SourceTracking for a change spec delta file."""
+        effective_base = base_path if base_path else delta_path.parent.parent.parent
+        openspec_path = str(delta_path.relative_to(effective_base))
+        source_metadata: dict[str, Any] = {
+            "openspec_path": openspec_path,
+            "openspec_type": "change_spec_delta",
+        }
+        if bridge_config and bridge_config.external_base_path:
+            source_metadata["openspec_base_path"] = str(bridge_config.external_base_path)
+        return SourceTracking(tool="openspec", source_metadata=source_metadata)
+
+    def _build_feature_delta(
+        self,
+        feature_id: str,
+        change_type: ChangeType,
+        feature: Feature,
+        parsed: dict[str, Any],
+        source_tracking: SourceTracking,
+    ) -> FeatureDelta:
+        """Construct a FeatureDelta for a given change type."""
+        feature_title = feature.title if hasattr(feature, "title") else feature_id.replace("-", " ").title()
+        feature_outcomes = feature.outcomes if hasattr(feature, "outcomes") else []
+        content_outcomes = [parsed.get("content", "")] if parsed.get("content") else []
+        now = datetime.now(UTC).isoformat()
+
+        if change_type == ChangeType.ADDED:
+            proposed = Feature(key=feature_id, title=feature_id.replace("-", " ").title(), outcomes=content_outcomes)
+            return FeatureDelta(
+                feature_key=feature_id,
+                change_type=change_type,
+                original_feature=None,
+                proposed_feature=proposed,
+                change_rationale=None,
+                change_date=now,
+                validation_status=None,
+                validation_results=None,
+                source_tracking=source_tracking,
+            )
+        if change_type == ChangeType.MODIFIED:
+            original = Feature(key=feature_id, title=feature_title, outcomes=feature_outcomes)
+            proposed = Feature(key=feature_id, title=feature_title, outcomes=content_outcomes)
+            return FeatureDelta(
+                feature_key=feature_id,
+                change_type=change_type,
+                original_feature=original,
+                proposed_feature=proposed,
+                change_rationale=None,
+                change_date=now,
+                validation_status=None,
+                validation_results=None,
+                source_tracking=source_tracking,
+            )
+        # REMOVED
+        original = Feature(key=feature_id, title=feature_title, outcomes=feature_outcomes)
+        return FeatureDelta(
+            feature_key=feature_id,
+            change_type=change_type,
+            original_feature=original,
+            proposed_feature=None,
+            change_rationale=None,
+            change_date=now,
+            validation_status=None,
+            validation_results=None,
+            source_tracking=source_tracking,
+        )
+
     def _import_change_spec_delta(
         self,
         delta_path: Path,
@@ -508,88 +600,10 @@ class OpenSpecAdapter(BridgeAdapter):
         change_name = delta_path.parent.parent.name
         feature_id = delta_path.parent.name
 
-        # Find or get the feature for the delta
         feature = self._find_or_create_feature(project_bundle, feature_id)
-
-        # Determine change type
-        change_type_str = parsed.get("type", "MODIFIED")  # Use "type" not "change_type"
-        change_type_map = {
-            "ADDED": ChangeType.ADDED,
-            "MODIFIED": ChangeType.MODIFIED,
-            "REMOVED": ChangeType.REMOVED,
-        }
-        change_type = change_type_map.get(change_type_str.upper(), ChangeType.MODIFIED)
-
-        # Create FeatureDelta based on change type
-        openspec_path = str(delta_path.relative_to(base_path if base_path else delta_path.parent.parent.parent))
-        source_metadata = {
-            "openspec_path": openspec_path,
-            "openspec_type": "change_spec_delta",
-        }
-        if bridge_config and bridge_config.external_base_path:
-            source_metadata["openspec_base_path"] = str(bridge_config.external_base_path)
-
-        source_tracking = SourceTracking(tool="openspec", source_metadata=source_metadata)
-
-        if change_type == ChangeType.ADDED:
-            # For ADDED, we need proposed_feature
-            proposed_feature = Feature(
-                key=feature_id,
-                title=feature_id.replace("-", " ").title(),
-                outcomes=[parsed.get("content", "")] if parsed.get("content") else [],
-            )
-            feature_delta = FeatureDelta(
-                feature_key=feature_id,
-                change_type=change_type,
-                original_feature=None,
-                proposed_feature=proposed_feature,
-                change_rationale=None,
-                change_date=datetime.now(UTC).isoformat(),
-                validation_status=None,
-                validation_results=None,
-                source_tracking=source_tracking,
-            )
-        elif change_type == ChangeType.MODIFIED:
-            # For MODIFIED, we need both original and proposed
-            original_feature = Feature(
-                key=feature_id,
-                title=feature.title if hasattr(feature, "title") else feature_id.replace("-", " ").title(),
-                outcomes=feature.outcomes if hasattr(feature, "outcomes") else [],
-            )
-            proposed_feature = Feature(
-                key=feature_id,
-                title=feature.title if hasattr(feature, "title") else feature_id.replace("-", " ").title(),
-                outcomes=[parsed.get("content", "")] if parsed.get("content") else [],
-            )
-            feature_delta = FeatureDelta(
-                feature_key=feature_id,
-                change_type=change_type,
-                original_feature=original_feature,
-                proposed_feature=proposed_feature,
-                change_rationale=None,
-                change_date=datetime.now(UTC).isoformat(),
-                validation_status=None,
-                validation_results=None,
-                source_tracking=source_tracking,
-            )
-        else:  # REMOVED
-            # For REMOVED, we need original_feature
-            original_feature = Feature(
-                key=feature_id,
-                title=feature.title if hasattr(feature, "title") else feature_id.replace("-", " ").title(),
-                outcomes=feature.outcomes if hasattr(feature, "outcomes") else [],
-            )
-            feature_delta = FeatureDelta(
-                feature_key=feature_id,
-                change_type=change_type,
-                original_feature=original_feature,
-                proposed_feature=None,
-                change_rationale=None,
-                change_date=datetime.now(UTC).isoformat(),
-                validation_status=None,
-                validation_results=None,
-                source_tracking=source_tracking,
-            )
+        change_type = self._resolve_change_type(parsed)
+        source_tracking = self._build_delta_source_tracking(delta_path, base_path, bridge_config)
+        feature_delta = self._build_feature_delta(feature_id, change_type, feature, parsed, source_tracking)
 
         # Add to change tracking
         if hasattr(project_bundle, "change_tracking"):
@@ -598,6 +612,39 @@ class OpenSpecAdapter(BridgeAdapter):
             if change_name not in project_bundle.change_tracking.feature_deltas:
                 project_bundle.change_tracking.feature_deltas[change_name] = []
             project_bundle.change_tracking.feature_deltas[change_name].append(feature_delta)
+
+    def _extract_title_from_raw(self, feature_id: str, parsed: dict[str, Any] | None) -> str:
+        """Return the first H1 title from raw_content, falling back to feature_id."""
+        title = feature_id.replace("-", " ").title()
+        if parsed and parsed.get("raw_content"):
+            for line in parsed["raw_content"].splitlines():
+                if line.startswith("# ") and not line.startswith("##"):
+                    title = line.lstrip("#").strip()
+                    break
+        return title
+
+    def _build_feature_dict(
+        self,
+        feature_id: str,
+        spec_path: Path,
+        base_path: Path,
+        parsed: dict[str, Any] | None,
+    ) -> dict[str, Any]:
+        """Assemble the feature dictionary entry for discover_features."""
+        title = self._extract_title_from_raw(feature_id, parsed)
+        feature_dict: dict[str, Any] = {
+            "feature_key": feature_id,
+            "key": feature_id,
+            "feature_title": title,
+            "spec_path": str(spec_path.relative_to(base_path)),
+            "openspec_path": f"openspec/specs/{feature_id}/spec.md",
+        }
+        if parsed:
+            if parsed.get("overview"):
+                feature_dict["overview"] = parsed["overview"]
+            if parsed.get("requirements"):
+                feature_dict["requirements"] = parsed["requirements"]
+        return feature_dict
 
     @beartype
     @require(lambda repo_path: repo_path.exists(), "Repository path must exist")
@@ -626,45 +673,15 @@ class OpenSpecAdapter(BridgeAdapter):
         if not specs_dir.exists() or not specs_dir.is_dir():
             return features
 
-        # Scan for feature directories
         for feature_dir in specs_dir.iterdir():
             if not feature_dir.is_dir():
                 continue
-
             spec_path = feature_dir / "spec.md"
             if not spec_path.exists():
                 continue
-
-            # Extract feature ID from directory name
             feature_id = feature_dir.name
-
-            # Parse spec to get title
             parsed = self.parser.parse_spec_md(spec_path)
-            title = feature_id.replace("-", " ").title()
-            if parsed and parsed.get("raw_content"):
-                content = parsed["raw_content"]
-                for line in content.splitlines():
-                    if line.startswith("# ") and not line.startswith("##"):
-                        title = line.lstrip("#").strip()
-                        break
-
-            # Create feature dictionary
-            feature_dict: dict[str, Any] = {
-                "feature_key": feature_id,
-                "key": feature_id,  # Alias for compatibility
-                "feature_title": title,
-                "spec_path": str(spec_path.relative_to(base_path)),
-                "openspec_path": f"openspec/specs/{feature_id}/spec.md",
-            }
-
-            # Add parsed content if available
-            if parsed:
-                if parsed.get("overview"):
-                    feature_dict["overview"] = parsed["overview"]
-                if parsed.get("requirements"):
-                    feature_dict["requirements"] = parsed["requirements"]
-
-            features.append(feature_dict)
+            features.append(self._build_feature_dict(feature_id, spec_path, base_path, parsed))
 
         return features
 

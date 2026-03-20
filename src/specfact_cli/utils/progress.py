@@ -14,6 +14,8 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+from beartype import beartype
+from icontract import ensure, require
 from rich.console import Console
 from rich.progress import Progress
 
@@ -48,6 +50,8 @@ def _safe_progress_display(display_console: Console) -> bool:
     return True
 
 
+@beartype
+@ensure(lambda result: callable(result), "must return callback")
 def create_progress_callback(progress: Progress, task_id: Any, prefix: str = "") -> Callable[[int, int, str], None]:
     """
     Create a standardized progress callback function.
@@ -82,6 +86,8 @@ def create_progress_callback(progress: Progress, task_id: Any, prefix: str = "")
     return callback
 
 
+@beartype
+@require(lambda bundle_dir: bundle_dir.exists(), "bundle_dir must exist")
 def load_bundle_with_progress(
     bundle_dir: Path,
     validate_hashes: bool = False,
@@ -154,6 +160,9 @@ def load_bundle_with_progress(
     )
 
 
+@beartype
+@require(lambda bundle_dir: bundle_dir.exists(), "bundle_dir must exist")
+@ensure(lambda result: result is None, "save returns None")
 def save_bundle_with_progress(
     bundle: ProjectBundle,
     bundle_dir: Path,

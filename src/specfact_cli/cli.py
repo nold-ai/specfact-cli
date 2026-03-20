@@ -50,7 +50,7 @@ except ImportError:
 import click
 import typer
 from beartype import beartype
-from icontract import ViolationError
+from icontract import ViolationError, ensure, require
 from rich.panel import Panel
 
 from specfact_cli import __version__, runtime
@@ -95,6 +95,7 @@ KNOWN_BUNDLE_GROUP_OR_SHIM_NAMES: frozenset[str] = frozenset(
 class _RootCLIGroup(ProgressiveDisclosureGroup):
     """Root group that shows actionable error when an unknown command is a known bundle group/shim."""
 
+    @ensure(lambda result: isinstance(result, tuple) and len(result) == 3, "result must be a 3-tuple")
     def resolve_command(
         self, ctx: click.Context, args: list[str]
     ) -> tuple[str | None, click.Command | None, list[str]]:
@@ -138,6 +139,8 @@ SHELL_MAP = {
 }
 
 
+@beartype
+@ensure(lambda: isinstance(sys.argv, list), "sys.argv must remain a list after normalization")
 def normalize_shell_in_argv() -> None:
     """Normalize shell names in sys.argv before Typer processes them.
 
@@ -184,6 +187,8 @@ _current_mode: OperationalMode | None = None
 _show_banner: bool = False
 
 
+@beartype
+@ensure(lambda: console is not None, "console must be configured before printing banner")
 def print_banner() -> None:
     """Print SpecFact CLI ASCII art banner with smooth gradient effect."""
     from rich.text import Text
@@ -225,11 +230,17 @@ def print_banner() -> None:
             console.print()  # Empty line
 
 
+@beartype
+@require(
+    lambda: __version__ is not None and len(__version__) > 0, "__version__ must be set before printing version line"
+)
 def print_version_line() -> None:
     """Print simple version line like other CLIs."""
     console.print(f"[dim]SpecFact CLI - v{__version__}[/dim]")
 
 
+@beartype
+@require(lambda value: isinstance(value, bool), "value must be a bool")
 def version_callback(value: bool) -> None:
     """Show version information."""
     if value:
@@ -237,6 +248,8 @@ def version_callback(value: bool) -> None:
         raise typer.Exit()
 
 
+@beartype
+@require(lambda value: value is None or len(value) > 0, "value must be non-empty if provided")
 def mode_callback(value: str | None) -> None:
     """Handle --mode flag callback."""
     global _current_mode
@@ -251,6 +264,7 @@ def mode_callback(value: str | None) -> None:
 
 
 @beartype
+@ensure(lambda result: result is not None, "operational mode must not be None")
 def get_current_mode() -> OperationalMode:
     """
     Get the current operational mode.
@@ -268,6 +282,7 @@ def get_current_mode() -> OperationalMode:
 
 
 @app.callback(invoke_without_command=True)
+@require(lambda ctx: ctx is not None, "ctx must not be None")
 def main(
     ctx: typer.Context,
     version: bool = typer.Option(
@@ -446,6 +461,10 @@ class _LazyDelegateGroup(click.Group):
             add_help_option=False,  # Pass --help through to real Typer so "specfact backlog daily ado --help" shows correct usage
         )
 
+    @require(
+        lambda self: self._lazy_cmd_name is not None and len(self._lazy_cmd_name) > 0, "lazy command name must be set"
+    )
+    @ensure(lambda result: isinstance(result, tuple) and len(result) == 3, "result must be a 3-tuple")
     def resolve_command(
         self, ctx: click.Context, args: list[str]
     ) -> tuple[str | None, click.Command | None, list[str]]:
@@ -454,6 +473,7 @@ class _LazyDelegateGroup(click.Group):
             return None, None, []
         return self._delegate_cmd.name, self._delegate_cmd, list(args)
 
+    @ensure(lambda result: isinstance(result, list), "result must be a list of command names")
     def list_commands(self, ctx: click.Context) -> list[str]:
         # Lazy-load real typer so help and completion show real subcommands.
         real_group = self._get_real_click_group()
@@ -461,6 +481,7 @@ class _LazyDelegateGroup(click.Group):
             return list(real_group.commands.keys())
         return []
 
+    @require(lambda self, cmd_name: cmd_name is not None and len(cmd_name) > 0, "cmd_name must be non-empty")
     def get_command(self, ctx: click.Context, cmd_name: str) -> click.Command | None:
         # Delegate to real typer so format_commands() can show each subcommand's help.
         real_group = self._get_real_click_group()
@@ -479,6 +500,10 @@ class _LazyDelegateGroup(click.Group):
             return click_cmd
         return None
 
+    @require(
+        lambda self: self._lazy_cmd_name is not None and len(self._lazy_cmd_name) > 0,
+        "lazy command name must be set before formatting help",
+    )
     def format_help(self, ctx: click.Context, formatter: click.HelpFormatter) -> None:
         """Show the real Typer's Rich help instead of plain Click group help."""
         from typer.main import get_command
@@ -507,9 +532,9 @@ def _build_lazy_delegate_group(cmd_name: str, help_str: str) -> click.Group:
 def _make_lazy_typer(cmd_name: str, help_str: str) -> typer.Typer:
     """Return a Typer that, when built as Click, becomes a LazyDelegateGroup (see patched get_command)."""
     lazy = typer.Typer(invoke_without_command=True, help=help_str)
-    lazy._specfact_lazy_delegate = True
-    lazy._specfact_lazy_cmd_name = cmd_name
-    lazy._specfact_lazy_help_str = help_str
+    lazy._specfact_lazy_delegate = True  # type: ignore[attr-defined]
+    lazy._specfact_lazy_cmd_name = cmd_name  # type: ignore[attr-defined]
+    lazy._specfact_lazy_help_str = help_str  # type: ignore[attr-defined]
     return lazy
 
 
@@ -625,6 +650,8 @@ for _name, _meta in _grouped_command_order(CommandRegistry.list_commands_for_hel
     app.add_typer(_make_lazy_typer(_name, _meta.help), name=_name, help=_meta.help)
 
 
+@beartype
+@require(lambda: len(sys.argv) >= 1, "sys.argv must be populated before CLI entry")
 def cli_main() -> None:
     """Entry point for the CLI application."""
     # Intercept --help-advanced before Typer processes it

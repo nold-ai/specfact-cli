@@ -252,7 +252,7 @@ class RepositorySync:
                         ),
                         "description": deviation.description,
                         "location": deviation.location or "",
-                        "fix_hint": deviation.suggestion or "",
+                        "fix_hint": deviation.suggestion or "",  # type: ignore[attr-defined]
                     }
                 )
         except Exception:

@@ -11,8 +11,11 @@ from pathlib import Path
 from typing import Any
 
 from beartype import beartype
+from icontract import ensure, require
 
 
+@beartype
+@ensure(lambda result: isinstance(result, Path), "Must return Path")
 def get_registry_dir() -> Path:
     """Return registry directory (~/.specfact/registry). Uses SPECFACT_REGISTRY_DIR if set (e.g. tests)."""
     env_dir = __registry_dir_override()
@@ -21,6 +24,8 @@ def get_registry_dir() -> Path:
     return Path.home() / ".specfact" / "registry"
 
 
+@beartype
+@ensure(lambda result: result is None or bool(result.strip()), "override must be non-empty when set")
 def __registry_dir_override() -> str | None:
     """Return override directory from env (for tests); None to use default."""
     import os
@@ -28,12 +33,16 @@ def __registry_dir_override() -> str | None:
     return os.environ.get("SPECFACT_REGISTRY_DIR")
 
 
+@beartype
+@ensure(lambda result: isinstance(result, Path), "Must return Path")
 def get_commands_cache_path() -> Path:
     """Return path to commands cache file (commands.json)."""
     return get_registry_dir() / "commands.json"
 
 
 @beartype
+@require(lambda version: bool(version), "version must be non-empty")
+@ensure(lambda result: result is None, "returns None")
 def write_commands_cache(
     commands: list[tuple[str, str, str]],
     version: str,
@@ -56,6 +65,7 @@ def write_commands_cache(
 
 
 @beartype
+@ensure(lambda result: result is None or isinstance(result, tuple), "returns cache tuple or None")
 def read_commands_cache() -> tuple[list[tuple[str, str, str]], str] | None:
     """
     Read commands cache if present and well-formed.
@@ -86,6 +96,7 @@ def read_commands_cache() -> tuple[list[tuple[str, str, str]], str] | None:
 
 
 @beartype
+@require(lambda current_version: bool(current_version), "current_version must be non-empty")
 def is_cache_valid(current_version: str) -> bool:
     """Return True if cache exists and its version matches current_version."""
     parsed = read_commands_cache()
@@ -95,6 +106,8 @@ def is_cache_valid(current_version: str) -> bool:
     return cache_version == current_version
 
 
+@beartype
+@ensure(lambda result: result is None, "returns None")
 def print_root_help_from_cache() -> None:
     """
     Print root help (Usage + Commands) from cache and exit.
@@ -129,6 +142,8 @@ def print_root_help_from_cache() -> None:
     console.print(table)
 
 
+@beartype
+@require(lambda version: isinstance(version, str) and bool(version), "version must be non-empty string")
 def run_discovery_and_write_cache(version: str) -> None:
     """
     Run discovery from CommandRegistry and write commands.json.

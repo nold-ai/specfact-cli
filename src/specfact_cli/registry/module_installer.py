@@ -380,6 +380,9 @@ def _warn_signature_backend_unavailable_once(error_message: str) -> None:
 
 
 @beartype
+@require(lambda module_name: module_name.strip() != "", "module_name must not be empty")
+@require(lambda target_root: isinstance(target_root, Path), "target_root must be a Path")
+@ensure(lambda result: isinstance(result, bool), "Must return a bool")
 def install_bundled_module(
     module_name: str,
     target_root: Path,
@@ -508,6 +511,9 @@ def _validate_archive_members(members: list[tarfile.TarInfo], extract_root: Path
 
 
 @beartype
+@require(lambda package_dir: isinstance(package_dir, Path), "package_dir must be a Path")
+@require(lambda meta: isinstance(meta, ModulePackageMetadata), "meta must be a ModulePackageMetadata instance")
+@ensure(lambda result: isinstance(result, bool), "Must return a bool")
 def verify_module_artifact(
     package_dir: Path,
     meta: ModulePackageMetadata,

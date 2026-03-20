@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from beartype import beartype
-from icontract import require
+from icontract import ensure, require
 
 from specfact_cli.models.module_package import ModulePackageMetadata
 
@@ -41,6 +41,7 @@ def group_modules_by_category(
 
 
 @beartype
+@require(lambda meta: isinstance(meta, ModulePackageMetadata), "meta must be a ModulePackageMetadata instance")
 def validate_module_category_manifest(meta: ModulePackageMetadata) -> None:
     """Validate category and bundle_group_command; raise ModuleManifestError if invalid."""
     if meta.category is None:
@@ -64,6 +65,8 @@ def validate_module_category_manifest(meta: ModulePackageMetadata) -> None:
 
 
 @beartype
+@require(lambda meta: isinstance(meta, ModulePackageMetadata), "meta must be a ModulePackageMetadata instance")
+@ensure(lambda result: isinstance(result, ModulePackageMetadata), "Must return a ModulePackageMetadata instance")
 def normalize_legacy_bundle_group_command(meta: ModulePackageMetadata) -> ModulePackageMetadata:
     """Normalize known legacy bundle group values to canonical grouped commands."""
     if meta.category is None or meta.bundle_group_command is None:

@@ -295,6 +295,383 @@ class OpenAPIExtractor:
         except Exception:
             return None
 
+    def _is_apirouter_assignment(self, node: ast.AST) -> bool:
+        """Return True if node is a module-level ``router = APIRouter(...)`` assignment."""
+        return (
+            isinstance(node, ast.Assign)
+            and bool(node.targets)
+            and isinstance(node.targets[0], ast.Name)
+            and isinstance(node.value, ast.Call)
+            and isinstance(node.value.func, ast.Name)
+            and node.value.func.id == "APIRouter"
+        )
+
+    def _parse_apirouter_keywords(self, keywords: list[ast.keyword]) -> tuple[str, list[str]]:
+        """
+        Parse ``prefix`` and ``tags`` keyword arguments from an APIRouter call.
+
+        Args:
+            keywords: Keyword argument list from the AST Call node
+
+        Returns:
+            Tuple of (prefix_string, tags_list)
+        """
+        prefix = ""
+        tags_list: list[str] = []
+        for kw in keywords:
+            if kw.arg == "prefix" and isinstance(kw.value, ast.Constant):
+                prefix_value = kw.value.value
+                if isinstance(prefix_value, str):
+                    prefix = prefix_value
+            elif kw.arg == "tags" and isinstance(kw.value, ast.List):
+                tags_list = [
+                    str(elt.value)
+                    for elt in kw.value.elts
+                    if isinstance(elt, ast.Constant) and isinstance(elt.value, str)
+                ]
+        return prefix, tags_list
+
+    def _collect_router_prefixes(self, tree: ast.AST) -> tuple[dict[str, str], dict[str, list[str]]]:
+        """
+        Collect APIRouter instances and their prefix/tags from module-level assignments.
+
+        Args:
+            tree: Parsed AST of the module
+
+        Returns:
+            Tuple of (router_prefixes, router_tags) mappings
+        """
+        router_prefixes: dict[str, str] = {}
+        router_tags: dict[str, list[str]] = {}
+        for node in ast.iter_child_nodes(tree):
+            if not self._is_apirouter_assignment(node):
+                continue
+            assign_node = node  # type: ignore[assignment]
+            router_name = assign_node.targets[0].id
+            prefix, tags_list = self._parse_apirouter_keywords(assign_node.value.keywords)
+            if prefix:
+                router_prefixes[router_name] = prefix
+            if tags_list:
+                router_tags[router_name] = tags_list
+        return router_prefixes, router_tags
+
+    def _resolve_fastapi_path_and_tags(
+        self,
+        decorator: ast.Call,
+        router_prefixes: dict[str, str],
+        router_tags: dict[str, list[str]],
+    ) -> tuple[str, list[str]] | None:
+        """
+        Resolve the full path and tags for a FastAPI route decorator.
+
+        Returns None if the path cannot be determined (missing or non-string constant arg).
+
+        Args:
+            decorator: FastAPI route decorator Call node
+            router_prefixes: Known router prefix mappings
+            router_tags: Known router tag mappings
+
+        Returns:
+            Tuple of (resolved_path, tags) or None
+        """
+        if not decorator.args:
+            return None
+        path_arg = decorator.args[0]
+        if not isinstance(path_arg, ast.Constant):
+            return None
+        path = path_arg.value
+        if not isinstance(path, str):
+            return None
+
+        # Apply router prefix
+        if isinstance(decorator.func.value, ast.Name):
+            router_name = decorator.func.value.id
+            if router_name in router_prefixes:
+                path = router_prefixes[router_name] + path
+
+        # Resolve tags: router-level first, then decorator-level (overrides)
+        tags: list[str] = []
+        if isinstance(decorator.func.value, ast.Name):
+            router_name = decorator.func.value.id
+            if router_name in router_tags:
+                tags = router_tags[router_name]
+        for kw in decorator.keywords:
+            if kw.arg == "tags" and isinstance(kw.value, ast.List):
+                tags = [
+                    str(elt.value)
+                    for elt in kw.value.elts
+                    if isinstance(elt, ast.Constant) and isinstance(elt.value, str)
+                ]
+        return path, tags
+
+    def _extract_fastapi_function_endpoint(
+        self,
+        node: ast.FunctionDef,
+        decorator: ast.Call,
+        openapi_spec: dict[str, Any],
+        router_prefixes: dict[str, str],
+        router_tags: dict[str, list[str]],
+    ) -> None:
+        """
+        Extract a FastAPI route decorator endpoint from a function definition.
+
+        Args:
+            node: Function AST node
+            decorator: Decorator call node (e.g. @app.get("/path"))
+            openapi_spec: OpenAPI spec to update
+            router_prefixes: Known router prefix mappings
+            router_tags: Known router tag mappings
+        """
+        if not isinstance(decorator.func, ast.Attribute):
+            return
+        if decorator.func.attr not in ("get", "post", "put", "delete", "patch", "head", "options"):
+            return
+        method = decorator.func.attr.upper()
+
+        resolved = self._resolve_fastapi_path_and_tags(decorator, router_prefixes, router_tags)
+        if resolved is None:
+            return
+        raw_path, tags = resolved
+        path, path_params = self._extract_path_parameters(raw_path)
+
+        status_code = self._extract_status_code_from_decorator(decorator)
+        security = self._extract_security_from_decorator(decorator)
+        self._add_operation(
+            openapi_spec,
+            path,
+            method,
+            node,
+            path_params=path_params,
+            tags=tags,
+            status_code=status_code,
+            security=security,
+        )
+
+    def _extract_flask_function_endpoint(
+        self,
+        node: ast.FunctionDef,
+        decorator: ast.Call,
+        openapi_spec: dict[str, Any],
+    ) -> None:
+        """
+        Extract a Flask @app.route decorator endpoint from a function definition.
+
+        Args:
+            node: Function AST node
+            decorator: Decorator call node (e.g. @app.route("/path", methods=["GET"]))
+            openapi_spec: OpenAPI spec to update
+        """
+        if not isinstance(decorator.func, ast.Attribute) or decorator.func.attr != "route":
+            return
+        path = ""
+        methods: list[str] = ["GET"]
+        if decorator.args and isinstance(decorator.args[0], ast.Constant):
+            path = decorator.args[0].value
+        for kw in decorator.keywords:
+            if kw.arg == "methods" and isinstance(kw.value, ast.List):
+                methods = [
+                    elt.value.upper()
+                    for elt in kw.value.elts
+                    if isinstance(elt, ast.Constant) and isinstance(elt.value, str)
+                ]
+        if path and isinstance(path, str):
+            path, path_params = self._extract_path_parameters(path, flask_format=True)
+            for method in methods:
+                self._add_operation(openapi_spec, path, method, node, path_params=path_params)
+
+    def _infer_http_method(self, method_name_lower: str) -> str:
+        """
+        Infer HTTP method from a Python method name using CRUD verb heuristics.
+
+        Args:
+            method_name_lower: Lower-cased method name
+
+        Returns:
+            HTTP method string (``"GET"``, ``"POST"``, ``"PUT"``, or ``"DELETE"``)
+        """
+        if any(verb in method_name_lower for verb in ["create", "add", "new", "post"]):
+            return "POST"
+        if any(verb in method_name_lower for verb in ["update", "modify", "edit", "put", "patch"]):
+            return "PUT"
+        if any(verb in method_name_lower for verb in ["delete", "remove", "destroy"]):
+            return "DELETE"
+        return "GET"
+
+    def _append_id_path_segments(self, base_path: str, args: ast.arguments) -> str:
+        """
+        Append ``{param}`` segments to a path for ID-like positional arguments.
+
+        Args:
+            base_path: Starting path string
+            args: Function argument spec
+
+        Returns:
+            Extended path with ``{param}`` segments appended
+        """
+        path = base_path
+        for arg in args.args:
+            if arg.arg != "self" and arg.arg not in ["cls"] and arg.arg in ["id", "key", "name", "slug", "uuid"]:
+                path = f"{path}/{{{arg.arg}}}"
+        return path
+
+    def _extract_interface_endpoints(self, node: ast.ClassDef, openapi_spec: dict[str, Any]) -> None:
+        """
+        Extract endpoints from an abstract interface class (ABC/Protocol).
+
+        Each abstract method becomes a potential endpoint with an inferred HTTP method
+        and path derived from the method name.
+
+        Args:
+            node: ClassDef node that represents an interface
+            openapi_spec: OpenAPI spec to update
+        """
+        abstract_methods = [
+            child
+            for child in node.body
+            if isinstance(child, ast.FunctionDef)
+            and any(isinstance(dec, ast.Name) and dec.id == "abstractmethod" for dec in child.decorator_list)
+        ]
+        if not abstract_methods:
+            return
+        base_path = f"/{re.sub(r'(?<!^)(?=[A-Z])', '-', node.name).lower()}"
+        for method in abstract_methods:
+            method_path = self._append_id_path_segments(base_path, method.args)
+            http_method = self._infer_http_method(method.name.lower())
+            path, path_params = self._extract_path_parameters(method_path)
+            self._add_operation(
+                openapi_spec,
+                path,
+                http_method,
+                method,
+                path_params=path_params,
+                tags=[node.name],
+                status_code=None,
+                security=None,
+            )
+
+    def _collect_class_api_methods(self, node: ast.ClassDef) -> list[ast.FunctionDef]:
+        """
+        Collect public methods from a class that look like API endpoints.
+
+        Returns an empty list if the class looks like a utility/library class
+        (too many methods) or if no CRUD-like methods are found.
+
+        Args:
+            node: ClassDef AST node
+
+        Returns:
+            List of FunctionDef nodes that are candidate API methods
+        """
+        skip_method_patterns = [
+            "processor",
+            "adapter",
+            "factory",
+            "builder",
+            "helper",
+            "validator",
+            "converter",
+            "serializer",
+            "deserializer",
+            "get_",
+            "set_",
+            "has_",
+            "is_",
+            "can_",
+            "should_",
+            "copy",
+            "clone",
+            "adapt",
+            "coerce",
+            "compare",
+            "compile",
+            "dialect",
+            "variant",
+            "resolve",
+            "literal",
+            "bind",
+            "result",
+        ]
+        class_methods: list[ast.FunctionDef] = []
+        for child in node.body:
+            if not isinstance(child, ast.FunctionDef) or child.name.startswith("_"):
+                continue
+            method_name_lower = child.name.lower()
+            if any(pattern in method_name_lower for pattern in skip_method_patterns):
+                continue
+            is_crud_like = any(
+                verb in method_name_lower
+                for verb in ["create", "add", "update", "delete", "remove", "fetch", "list", "save"]
+            )
+            is_short_api_like = len(method_name_lower.split("_")) <= 2 and method_name_lower not in [
+                "copy",
+                "clone",
+                "adapt",
+                "coerce",
+            ]
+            if is_crud_like or is_short_api_like:
+                class_methods.append(child)
+        max_methods_per_class = 15
+        if len(class_methods) > max_methods_per_class:
+            return []
+        return class_methods
+
+    def _resolve_method_path_segment(self, method_name_lower: str, base_path: str) -> str:
+        """
+        Compute the path segment for a class method, stripping common CRUD prefixes.
+
+        Args:
+            method_name_lower: Lower-cased method name
+            base_path: Base path derived from class name
+
+        Returns:
+            Full path string including any sub-resource segment
+        """
+        canonical_names = {"create", "list", "get", "update", "delete"}
+        if method_name_lower in canonical_names:
+            return base_path
+        method_segment = method_name_lower.replace("_", "-")
+        for prefix in ["get_", "create_", "update_", "delete_", "fetch_", "retrieve_"]:
+            if method_segment.startswith(prefix):
+                method_segment = method_segment[len(prefix) :]
+                break
+        if method_segment:
+            return f"{base_path}/{method_segment}"
+        return base_path
+
+    def _extract_class_method_endpoint(
+        self,
+        node: ast.ClassDef,
+        method: ast.FunctionDef,
+        base_path: str,
+        openapi_spec: dict[str, Any],
+    ) -> None:
+        """
+        Extract a single class method as an API endpoint.
+
+        Args:
+            node: Parent ClassDef node (used for tag name)
+            method: FunctionDef node to convert to an endpoint
+            base_path: Base path derived from class name (e.g. "/user-manager")
+            openapi_spec: OpenAPI spec to update
+        """
+        if method.name.startswith("__") and method.name != "__init__":
+            return
+        method_name_lower = method.name.lower()
+        http_method = self._infer_http_method(method_name_lower)
+        method_path = self._resolve_method_path_segment(method_name_lower, base_path)
+        method_path = self._append_id_path_segments(method_path, method.args)
+        path, path_params = self._extract_path_parameters(method_path)
+        self._add_operation(
+            openapi_spec,
+            path,
+            http_method,
+            method,
+            path_params=path_params,
+            tags=[node.name],
+            status_code=None,
+            security=None,
+        )
+
     def _extract_endpoints_from_file(self, file_path: Path, openapi_spec: dict[str, Any]) -> None:
         """
         Extract API endpoints from a Python file using AST.
@@ -306,8 +683,6 @@ class OpenAPIExtractor:
         # Note: Early exit optimization disabled - too aggressive for class-based APIs
         # The extractor also processes class-based APIs and interfaces, not just decorator-based APIs
         # Early exit would skip these valid cases. AST caching provides sufficient performance benefit.
-        # if not self._has_api_endpoints(file_path):
-        #     return
 
         # Use cached AST or parse and cache
         tree = self._get_or_parse_file(file_path)
@@ -315,375 +690,120 @@ class OpenAPIExtractor:
             return
 
         try:
-            # Track router instances and their prefixes
-            router_prefixes: dict[str, str] = {}  # router_name -> prefix
-            router_tags: dict[str, list[str]] = {}  # router_name -> tags
+            router_prefixes, router_tags = self._collect_router_prefixes(tree)
 
-            # Single-pass optimization: Combine all extraction in one traversal
-            # Use iter_child_nodes for module-level items (more efficient than ast.walk for top-level)
             for node in ast.iter_child_nodes(tree):
                 # Extract Pydantic models (BaseModel subclasses)
                 if isinstance(node, ast.ClassDef) and self._is_pydantic_model(node):
                     self._extract_pydantic_model_schema(node, openapi_spec)
 
-                # Find router instances and their prefixes
-                if (
-                    isinstance(node, ast.Assign)
-                    and node.targets
-                    and isinstance(node.targets[0], ast.Name)
-                    and isinstance(node.value, ast.Call)
-                    and isinstance(node.value.func, ast.Name)
-                    and node.value.func.id == "APIRouter"
-                ):
-                    # Check for APIRouter instantiation: router = APIRouter(prefix="/api")
-                    router_name = node.targets[0].id
-                    prefix = ""
-                    router_tags_list: list[str] = []
-                    # Extract prefix from keyword arguments
-                    for kw in node.value.keywords:
-                        if kw.arg == "prefix" and isinstance(kw.value, ast.Constant):
-                            prefix_value = kw.value.value
-                            if isinstance(prefix_value, str):
-                                prefix = prefix_value
-                        elif kw.arg == "tags" and isinstance(kw.value, ast.List):
-                            router_tags_list = [
-                                str(elt.value)
-                                for elt in kw.value.elts
-                                if isinstance(elt, ast.Constant) and isinstance(elt.value, str)
-                            ]
-                    if prefix:
-                        router_prefixes[router_name] = prefix
-                    if router_tags_list:
-                        router_tags[router_name] = router_tags_list
-
-                # Extract endpoints from function definitions (module-level) - COMBINED with first pass
+                # Skip router-prefix assignments (already handled above)
                 elif isinstance(node, ast.FunctionDef):
-                    # Check for decorators that indicate HTTP routes
                     for decorator in node.decorator_list:
-                        if isinstance(decorator, ast.Call) and isinstance(decorator.func, ast.Attribute):
-                            # FastAPI: @app.get("/path") or @router.get("/path")
-                            if decorator.func.attr in ("get", "post", "put", "delete", "patch", "head", "options"):
-                                method = decorator.func.attr.upper()
-                                # Extract path from first argument
-                                if decorator.args:
-                                    path_arg = decorator.args[0]
-                                    if isinstance(path_arg, ast.Constant):
-                                        path = path_arg.value
-                                        if isinstance(path, str):
-                                            # Check if this is a router method (router.get vs app.get)
-                                            if isinstance(decorator.func.value, ast.Name):
-                                                router_name = decorator.func.value.id
-                                                if router_name in router_prefixes:
-                                                    path = router_prefixes[router_name] + path
-                                            # Extract path parameters
-                                            path, path_params = self._extract_path_parameters(path)
-                                            # Extract tags if router has them
-                                            tags: list[str] = []
-                                            if isinstance(decorator.func.value, ast.Name):
-                                                router_name = decorator.func.value.id
-                                                if router_name in router_tags:
-                                                    tags = router_tags[router_name]
-                                            # Extract tags from decorator kwargs
-                                            for kw in decorator.keywords:
-                                                if kw.arg == "tags" and isinstance(kw.value, ast.List):
-                                                    tags = [
-                                                        str(elt.value)
-                                                        for elt in kw.value.elts
-                                                        if isinstance(elt, ast.Constant) and isinstance(elt.value, str)
-                                                    ]
-                                            # Extract status code
-                                            status_code = self._extract_status_code_from_decorator(decorator)
-                                            # Extract security
-                                            security = self._extract_security_from_decorator(decorator)
-                                            self._add_operation(
-                                                openapi_spec,
-                                                path,
-                                                method,
-                                                node,
-                                                path_params=path_params,
-                                                tags=tags,
-                                                status_code=status_code,
-                                                security=security,
-                                            )
-                            # Flask: @app.route("/path", methods=["GET"])
-                            elif decorator.func.attr == "route":
-                                # Extract path from first argument
-                                path = ""
-                                methods: list[str] = ["GET"]  # Default to GET
-                                if decorator.args:
-                                    path_arg = decorator.args[0]
-                                    if isinstance(path_arg, ast.Constant):
-                                        path = path_arg.value
-                                # Extract methods from keyword arguments
-                                for kw in decorator.keywords:
-                                    if kw.arg == "methods" and isinstance(kw.value, ast.List):
-                                        methods = [
-                                            elt.value.upper()
-                                            for elt in kw.value.elts
-                                            if isinstance(elt, ast.Constant) and isinstance(elt.value, str)
-                                        ]
-                                if path and isinstance(path, str):
-                                    # Extract path parameters (Flask: /users/<int:user_id>)
-                                    path, path_params = self._extract_path_parameters(path, flask_format=True)
-                                    for method in methods:
-                                        self._add_operation(openapi_spec, path, method, node, path_params=path_params)
-
-                # Extract from class definitions (class-based APIs) - CONTINUED from single pass
-                elif isinstance(node, ast.ClassDef):
-                    # Skip private classes and test classes
-                    if node.name.startswith("_") or node.name.startswith("Test"):
-                        continue
-
-                    # Performance optimization: Skip non-API class types
-                    # These are common in ORM/library code and not API endpoints
-                    skip_class_patterns = [
-                        "Protocol",
-                        "TypedDict",
-                        "Enum",
-                        "ABC",
-                        "AbstractBase",
-                        "Mixin",
-                        "Base",
-                        "Meta",
-                        "Descriptor",
-                        "Property",
-                    ]
-                    if any(pattern in node.name for pattern in skip_class_patterns):
-                        continue
-
-                    # Check if class is an abstract base class or protocol (interface)
-                    # IMPORTANT: Check for interfaces FIRST before skipping ABC classes
-                    # Interfaces (ABC/Protocol with abstract methods) should be processed
-                    is_interface = False
-                    for base in node.bases:
-                        if isinstance(base, ast.Name) and base.id in ["ABC", "Protocol", "AbstractBase", "Interface"]:
-                            # Check for ABC, Protocol, or abstract base classes
-                            is_interface = True
-                            break
-                        if isinstance(base, ast.Attribute) and base.attr in ["Protocol", "ABC"]:
-                            # Check for typing.Protocol, abc.ABC, etc.
-                            is_interface = True
-                            break
-
-                    # If it's an interface, we'll process it below (skip the base class skip logic)
-                    # Only skip non-interface ABC/Protocol classes
-                    if not is_interface:
-                        # Skip classes that inherit from non-API base types (but not interfaces)
-                        skip_base_patterns = ["Protocol", "TypedDict", "Enum", "ABC"]
-                        should_skip_class = False
-                        for base in node.bases:
-                            base_name = ""
-                            if isinstance(base, ast.Name):
-                                base_name = base.id
-                            elif isinstance(base, ast.Attribute):
-                                base_name = base.attr
-                            if any(pattern in base_name for pattern in skip_base_patterns):
-                                should_skip_class = True
-                                break
-                        if should_skip_class:
+                        if not (isinstance(decorator, ast.Call) and isinstance(decorator.func, ast.Attribute)):
                             continue
-
-                    # For interfaces, extract abstract methods as potential endpoints
-                    if is_interface:
-                        abstract_methods = [
-                            child
-                            for child in node.body
-                            if isinstance(child, ast.FunctionDef)
-                            and any(
-                                isinstance(dec, ast.Name) and dec.id == "abstractmethod" for dec in child.decorator_list
+                        if decorator.func.attr in ("get", "post", "put", "delete", "patch", "head", "options"):
+                            self._extract_fastapi_function_endpoint(
+                                node, decorator, openapi_spec, router_prefixes, router_tags
                             )
-                        ]
-                        if abstract_methods:
-                            # Generate base path from interface name
-                            base_path = re.sub(r"(?<!^)(?=[A-Z])", "-", node.name).lower()
-                            base_path = f"/{base_path}"
+                        elif decorator.func.attr == "route":
+                            self._extract_flask_function_endpoint(node, decorator, openapi_spec)
 
-                            for method in abstract_methods:
-                                # Generate path from method name
-                                method_name_lower = method.name.lower()
-                                method_path = base_path
-
-                                # Determine HTTP method from method name
-                                http_method = "GET"
-                                if any(verb in method_name_lower for verb in ["create", "add", "new", "post"]):
-                                    http_method = "POST"
-                                elif any(
-                                    verb in method_name_lower for verb in ["update", "modify", "edit", "put", "patch"]
-                                ):
-                                    http_method = "PUT"
-                                elif any(verb in method_name_lower for verb in ["delete", "remove", "destroy"]):
-                                    http_method = "DELETE"
-
-                                # Extract path parameters
-                                path_param_names = set()
-                                for arg in method.args.args:
-                                    if (
-                                        arg.arg != "self"
-                                        and arg.arg not in ["cls"]
-                                        and arg.arg in ["id", "key", "name", "slug", "uuid"]
-                                    ):
-                                        path_param_names.add(arg.arg)
-                                        method_path = f"{method_path}/{{{arg.arg}}}"
-
-                                path, path_params = self._extract_path_parameters(method_path)
-
-                                # Use interface name as tag
-                                tags = [node.name]
-
-                                # Add operation
-                                self._add_operation(
-                                    openapi_spec,
-                                    path,
-                                    http_method,
-                                    method,
-                                    path_params=path_params,
-                                    tags=tags,
-                                    status_code=None,
-                                    security=None,
-                                )
-                        continue  # Skip regular class processing for interfaces
-
-                    # Check if class has methods that could be API endpoints
-                    # Look for public methods (not starting with _)
-                    # Performance optimization: Be very selective - only process methods that strongly suggest API endpoints
-                    class_methods = []
-                    for child in node.body:
-                        if isinstance(child, ast.FunctionDef) and not child.name.startswith("_"):
-                            method_name_lower = child.name.lower()
-
-                            # Skip methods that are clearly utility/library methods
-                            skip_method_patterns = [
-                                "processor",
-                                "adapter",
-                                "factory",
-                                "builder",
-                                "helper",
-                                "validator",
-                                "converter",
-                                "serializer",
-                                "deserializer",
-                                "get_",
-                                "set_",
-                                "has_",
-                                "is_",
-                                "can_",
-                                "should_",
-                                "copy",
-                                "clone",
-                                "adapt",
-                                "coerce",
-                                "compare",
-                                "compile",
-                                "dialect",
-                                "variant",
-                                "resolve",
-                                "literal",
-                                "bind",
-                                "result",
-                            ]
-                            if any(pattern in method_name_lower for pattern in skip_method_patterns):
-                                continue
-
-                            # Only include methods that strongly suggest API endpoints
-                            # Must match CRUD patterns or be very short (likely API methods)
-                            is_crud_like = any(
-                                verb in method_name_lower
-                                for verb in ["create", "add", "update", "delete", "remove", "fetch", "list", "save"]
-                            )
-                            is_short_api_like = len(method_name_lower.split("_")) <= 2 and method_name_lower not in [
-                                "copy",
-                                "clone",
-                                "adapt",
-                                "coerce",
-                            ]
-
-                            if is_crud_like or is_short_api_like:
-                                class_methods.append(child)
-
-                    # Performance optimization: Limit number of methods processed per class
-                    # Large classes with many methods are likely not API endpoints
-                    max_methods_per_class = 15
-                    if len(class_methods) > max_methods_per_class:
-                        # Too many methods - likely a utility/library class, not an API
-                        continue
-
-                    if class_methods:
-                        # Generate base path from class name (e.g., UserManager -> /users)
-                        # Convert CamelCase to kebab-case for path
-                        base_path = re.sub(r"(?<!^)(?=[A-Z])", "-", node.name).lower()
-                        base_path = f"/{base_path}"
-
-                        # Extract endpoints from class methods
-                        for method in class_methods:
-                            # Skip special methods except __init__
-                            if method.name.startswith("__") and method.name != "__init__":
-                                continue
-
-                            # Generate path from method name
-                            # Pattern: get_user -> GET /users/user, create_user -> POST /users
-                            method_name_lower = method.name.lower()
-                            method_path = base_path
-
-                            # Determine HTTP method from method name
-                            http_method = "GET"  # Default
-                            if any(verb in method_name_lower for verb in ["create", "add", "new", "post"]):
-                                http_method = "POST"
-                            elif any(
-                                verb in method_name_lower for verb in ["update", "modify", "edit", "put", "patch"]
-                            ):
-                                http_method = "PUT"
-                            elif any(verb in method_name_lower for verb in ["delete", "remove", "destroy"]):
-                                http_method = "DELETE"
-                            elif any(
-                                verb in method_name_lower for verb in ["get", "fetch", "retrieve", "read", "list"]
-                            ):
-                                http_method = "GET"
-
-                            # Add method-specific path segment for non-CRUD operations
-                            if method_name_lower not in ["create", "list", "get", "update", "delete"]:
-                                # Extract resource name from method (e.g., get_user_by_id -> user-by-id)
-                                method_segment = method_name_lower.replace("_", "-")
-                                # Remove common prefixes
-                                for prefix in ["get_", "create_", "update_", "delete_", "fetch_", "retrieve_"]:
-                                    if method_segment.startswith(prefix):
-                                        method_segment = method_segment[len(prefix) :]
-                                        break
-                                if method_segment:
-                                    method_path = f"{base_path}/{method_segment}"
-
-                            # Extract path parameters from method signature
-                            path_param_names = set()
-                            for arg in method.args.args:
-                                if (
-                                    arg.arg != "self"
-                                    and arg.arg not in ["cls"]
-                                    and arg.arg in ["id", "key", "name", "slug", "uuid"]
-                                ):
-                                    # Check if it's a path parameter (common patterns: id, key, name)
-                                    path_param_names.add(arg.arg)
-                                    method_path = f"{method_path}/{{{arg.arg}}}"
-
-                            # Extract path parameters
-                            path, path_params = self._extract_path_parameters(method_path)
-
-                            # Use class name as tag
-                            tags = [node.name]
-
-                            # Add operation
-                            self._add_operation(
-                                openapi_spec,
-                                path,
-                                http_method,
-                                method,
-                                path_params=path_params,
-                                tags=tags,
-                                status_code=None,
-                                security=None,
-                            )
+                elif isinstance(node, ast.ClassDef):
+                    self._extract_endpoints_from_class(node, openapi_spec)
 
         except (SyntaxError, UnicodeDecodeError):
             # Skip files with syntax errors
             pass
+
+    def _is_interface_class(self, node: ast.ClassDef) -> bool:
+        """
+        Return True if the class explicitly inherits from ABC, Protocol, AbstractBase, or Interface.
+
+        Args:
+            node: ClassDef AST node to inspect
+        """
+        for base in node.bases:
+            if isinstance(base, ast.Name) and base.id in ["ABC", "Protocol", "AbstractBase", "Interface"]:
+                return True
+            if isinstance(base, ast.Attribute) and base.attr in ["Protocol", "ABC"]:
+                return True
+        return False
+
+    def _has_skip_base(self, node: ast.ClassDef) -> bool:
+        """
+        Return True if any base class name matches patterns that should be skipped.
+
+        Args:
+            node: ClassDef AST node to inspect
+        """
+        skip_base_patterns = ["Protocol", "TypedDict", "Enum", "ABC"]
+        for base in node.bases:
+            base_name = (
+                base.id if isinstance(base, ast.Name) else (base.attr if isinstance(base, ast.Attribute) else "")
+            )
+            if any(pattern in base_name for pattern in skip_base_patterns):
+                return True
+        return False
+
+    def _extract_endpoints_from_class(self, node: ast.ClassDef, openapi_spec: dict[str, Any]) -> None:
+        """
+        Extract API endpoints from a single class definition (interface or class-based API).
+
+        Args:
+            node: ClassDef AST node
+            openapi_spec: OpenAPI spec dictionary to update
+        """
+        # Skip private classes and test classes
+        if node.name.startswith("_") or node.name.startswith("Test"):
+            return
+
+        skip_class_patterns = [
+            "Protocol",
+            "TypedDict",
+            "Enum",
+            "ABC",
+            "AbstractBase",
+            "Mixin",
+            "Base",
+            "Meta",
+            "Descriptor",
+            "Property",
+        ]
+        if any(pattern in node.name for pattern in skip_class_patterns):
+            return
+
+        # Check for interface (ABC/Protocol) — must be checked before skip-base-pattern guard
+        is_interface = False
+        for base in node.bases:
+            if isinstance(base, ast.Name) and base.id in ["ABC", "Protocol", "AbstractBase", "Interface"]:
+                is_interface = True
+                break
+            if isinstance(base, ast.Attribute) and base.attr in ["Protocol", "ABC"]:
+                is_interface = True
+                break
+
+        if not is_interface:
+            skip_base_patterns = ["Protocol", "TypedDict", "Enum", "ABC"]
+            for base in node.bases:
+                base_name = (
+                    base.id if isinstance(base, ast.Name) else (base.attr if isinstance(base, ast.Attribute) else "")
+                )
+                if any(pattern in base_name for pattern in skip_base_patterns):
+                    return
+
+        if is_interface:
+            self._extract_interface_endpoints(node, openapi_spec)
+            return
+
+        class_methods = self._collect_class_api_methods(node)
+        if not class_methods:
+            return
+
+        base_path = re.sub(r"(?<!^)(?=[A-Z])", "-", node.name).lower()
+        base_path = f"/{base_path}"
+        for method in class_methods:
+            self._extract_class_method_endpoint(node, method, base_path, openapi_spec)
 
     def _extract_path_parameters(self, path: str, flask_format: bool = False) -> tuple[str, list[dict[str, Any]]]:
         """

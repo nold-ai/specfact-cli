@@ -6,7 +6,10 @@ import os
 import sys
 from pathlib import Path
 
+from icontract import require
 
+
+@require(lambda anchor_file: anchor_file.strip() != "", "anchor_file must not be empty")
 def bootstrap_local_bundle_sources(anchor_file: str) -> None:
     """Add local `specfact-cli-modules` package sources to `sys.path` if present."""
     anchor = Path(anchor_file).resolve()

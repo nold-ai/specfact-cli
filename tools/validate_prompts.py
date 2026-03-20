@@ -12,6 +12,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from beartype import beartype
+from icontract import ensure, require
 from rich.console import Console
 from rich.table import Table
 
@@ -74,6 +76,8 @@ class PromptValidator:
         self.warnings: list[str] = []
         self.checks: list[dict[str, Any]] = []
 
+    @beartype
+    @ensure(lambda result: isinstance(result, bool), "validate_structure must return bool")
     def validate_structure(self) -> bool:
         """Validate prompt structure (required sections)."""
         passed = True
@@ -94,6 +98,8 @@ class PromptValidator:
 
         return passed
 
+    @beartype
+    @ensure(lambda result: isinstance(result, bool), "validate_cli_alignment must return bool")
     def validate_cli_alignment(self) -> bool:
         """Validate CLI command alignment."""
         passed = True
@@ -133,6 +139,8 @@ class PromptValidator:
 
         return passed
 
+    @beartype
+    @ensure(lambda result: isinstance(result, bool), "validate_wait_states must return bool")
     def validate_wait_states(self) -> bool:
         """Validate wait state rules (optional - only warnings)."""
         passed = True
@@ -184,6 +192,8 @@ class PromptValidator:
 
         return passed
 
+    @beartype
+    @ensure(lambda result: isinstance(result, bool), "validate_dual_stack_workflow must return bool")
     def validate_dual_stack_workflow(self) -> bool:
         """Validate dual-stack enrichment workflow (if applicable)."""
         if self.prompt_name not in DUAL_STACK_COMMANDS:
@@ -243,6 +253,8 @@ class PromptValidator:
 
         return passed
 
+    @beartype
+    @ensure(lambda result: isinstance(result, bool), "validate_consistency must return bool")
     def validate_consistency(self) -> bool:
         """Validate consistency with other prompts."""
         passed = True
@@ -300,6 +312,8 @@ class PromptValidator:
 
         return passed
 
+    @beartype
+    @ensure(lambda result: isinstance(result, dict), "validate_all must return a dict")
     def validate_all(self) -> dict[str, Any]:
         """Run all validations."""
         results = {
@@ -328,6 +342,9 @@ class PromptValidator:
         return results
 
 
+@beartype
+@require(lambda prompts_dir: prompts_dir is None or prompts_dir.is_dir(), "prompts_dir must be a directory if provided")
+@ensure(lambda result: isinstance(result, list), "validate_all_prompts must return a list")
 def validate_all_prompts(prompts_dir: Path | None = None) -> list[dict[str, Any]]:
     """Validate all prompt templates."""
     if prompts_dir is None:
@@ -342,6 +359,9 @@ def validate_all_prompts(prompts_dir: Path | None = None) -> list[dict[str, Any]
     return results
 
 
+@beartype
+@require(lambda results: isinstance(results, list), "results must be a list")
+@ensure(lambda result: isinstance(result, int), "print_validation_report must return an int")
 def print_validation_report(results: list[dict[str, Any]]) -> int:
     """Print validation report.
 
@@ -400,6 +420,8 @@ def print_validation_report(results: list[dict[str, Any]]) -> int:
     return 0
 
 
+@beartype
+@ensure(lambda result: isinstance(result, int), "main must return an int")
 def main() -> int:
     """Main entry point."""
     results = validate_all_prompts()

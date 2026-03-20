@@ -275,6 +275,7 @@ class PlanBundle(BaseModel):
 
         return normalized
 
+    @ensure(lambda result: result is not None, "Must return PlanSummary")
     def compute_summary(self, include_hash: bool = False) -> PlanSummary:
         """
         Compute summary metadata for fast access without full parsing.
@@ -322,6 +323,7 @@ class PlanBundle(BaseModel):
             computed_at=datetime.now().isoformat(),
         )
 
+    @ensure(lambda result: result is None, "update_summary must return None")
     def update_summary(self, include_hash: bool = False) -> None:
         """
         Update the summary metadata in this plan bundle.

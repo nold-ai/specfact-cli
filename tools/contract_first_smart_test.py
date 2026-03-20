@@ -22,6 +22,7 @@ Usage:
 import argparse
 import hashlib
 import json
+import logging
 import re
 import subprocess
 import sys
@@ -29,7 +30,11 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from icontract import ensure
 from smart_test_coverage import SmartCoverageManager
+
+
+logger = logging.getLogger(__name__)
 
 
 class ContractFirstTestManager(SmartCoverageManager):
@@ -225,14 +230,14 @@ class ContractFirstTestManager(SmartCoverageManager):
         force: bool = False,
     ) -> tuple[bool, list[dict[str, Any]]]:
         """Run contract validation on modified files."""
-        print("🔍 Running contract validation...")
+        logger.info("Running contract validation...")
 
         # Check tool availability
         tool_status = self._check_contract_tools()
         missing_tools = [tool for tool, available in tool_status.items() if not available]
         if missing_tools:
-            print(f"⚠️  Missing contract tools: {', '.join(missing_tools)}")
-            print("💡 Install missing tools: pip install icontract beartype crosshair hypothesis")
+            logger.warning("Missing contract tools: %s", ", ".join(missing_tools))
+            logger.info("Install missing tools: pip install icontract beartype crosshair hypothesis")
             return False, []
 
         violations = []
@@ -256,10 +261,10 @@ class ContractFirstTestManager(SmartCoverageManager):
                 and cache_entry.get("hash") == file_hash
                 and cache_entry.get("status") == "success"
             ):
-                print(f"   ⏭️  Skipping {file_path.name}; validation cache hit")
+                logger.debug("   Skipping %s; validation cache hit", file_path.name)
                 continue
 
-            print(f"   Validating contracts in: {file_path.name}")
+            logger.debug("   Validating contracts in: %s", file_path.name)
 
             try:
                 relative_path = file_path.relative_to(self.project_root)
@@ -338,11 +343,11 @@ class ContractFirstTestManager(SmartCoverageManager):
         self._save_contract_cache()
 
         if success:
-            print("✅ Contract validation passed")
+            logger.info("Contract validation passed")
         else:
-            print(f"❌ Contract validation failed: {len(violations)} violations")
+            logger.error("Contract validation failed: %d violations", len(violations))
             for violation in violations:
-                print(f"   - {violation['file']}: {violation['error']}")
+                logger.error("   - %s: %s", violation["file"], violation["error"])
 
         return success, violations
 
@@ -353,7 +358,7 @@ class ContractFirstTestManager(SmartCoverageManager):
         force: bool = False,
     ) -> tuple[bool, dict[str, Any]]:
         """Run CrossHair exploration on modified files."""
-        print("🔍 Running contract exploration with CrossHair...")
+        logger.info("Running contract exploration with CrossHair...")
 
         exploration_results = {}
         success = True
@@ -370,11 +375,11 @@ class ContractFirstTestManager(SmartCoverageManager):
             seen_paths.add(key)
             unique_files.append(file_path)
         if len(unique_files) < len(modified_files):
-            print(f"   ℹ️  De-duplicated {len(modified_files) - len(unique_files)} repeated file entries")
+            logger.debug("   De-duplicated %d repeated file entries", len(modified_files) - len(unique_files))
 
         for file_path in unique_files:
             display_path = self._format_display_path(file_path)
-            print(f"   Exploring contracts in: {display_path}")
+            logger.debug("   Exploring contracts in: %s", display_path)
 
             file_key = str(file_path)
             file_hash: str | None = None
@@ -399,7 +404,7 @@ class ContractFirstTestManager(SmartCoverageManager):
                     and cache_entry.get("hash") == file_hash
                     and cache_entry.get("status") == "success"
                 ):
-                    print(f"      ⏭️  Cached result found, skipping CrossHair run for {display_path}")
+                    logger.debug("      Cached result found, skipping CrossHair run for %s", display_path)
                     exploration_results[file_key] = {
                         "return_code": cache_entry.get("return_code", 0),
                         "stdout": cache_entry.get("stdout", ""),
@@ -411,7 +416,7 @@ class ContractFirstTestManager(SmartCoverageManager):
                     continue
 
                 if self._is_crosshair_skipped(file_path):
-                    print(f"      ⏭️  CrossHair skipped for {display_path} (file marked 'CrossHair: skip')")
+                    logger.debug("      CrossHair skipped for %s (file marked 'CrossHair: skip')", display_path)
                     exploration_results[file_key] = {
                         "return_code": 0,
                         "stdout": "",
@@ -436,9 +441,9 @@ class ContractFirstTestManager(SmartCoverageManager):
                     continue
 
                 if self._is_typer_command_module(file_path):
-                    print(
-                        f"      ⏭️  CrossHair skipped for {display_path} "
-                        "(Typer command module; signature analysis unsupported)"
+                    logger.debug(
+                        "      CrossHair skipped for %s (Typer command module; signature analysis unsupported)",
+                        display_path,
                     )
                     exploration_results[file_key] = {
                         "return_code": 0,
@@ -473,7 +478,7 @@ class ContractFirstTestManager(SmartCoverageManager):
                         timeout=None if use_fast else self.STANDARD_CROSSHAIR_TIMEOUT,
                     )
                 except subprocess.TimeoutExpired:
-                    print("      ⏳ CrossHair standard run timed out; retrying with fast settings")
+                    logger.warning("      CrossHair standard run timed out; retrying with fast settings")
                     timed_out = True
                     use_fast = True
                     prefer_fast = True
@@ -507,7 +512,7 @@ class ContractFirstTestManager(SmartCoverageManager):
                 if is_signature_issue:
                     status = "skipped"
                     signature_skips.append(display_path)
-                    print(f"      ⏭️  CrossHair skipped for {display_path} (signature analysis limitation)")
+                    logger.debug("      CrossHair skipped for %s (signature analysis limitation)", display_path)
                     # Don't set success = False for signature issues
                 else:
                     status = "success" if result.returncode == 0 else "failure"
@@ -525,31 +530,31 @@ class ContractFirstTestManager(SmartCoverageManager):
                 }
 
                 if result.returncode != 0 and not is_signature_issue:
-                    print(f"   ⚠️  CrossHair found issues in {display_path}")
+                    logger.warning("   CrossHair found issues in %s", display_path)
                     if result.stdout.strip():
-                        print("      ├─ stdout:")
+                        logger.warning("      stdout:")
                         for line in result.stdout.strip().splitlines():
-                            print(f"      │   {line}")
+                            logger.warning("      │   %s", line)
                     if result.stderr.strip():
-                        print("      └─ stderr:")
+                        logger.warning("      stderr:")
                         for line in result.stderr.strip().splitlines():
-                            print(f"          {line}")
+                            logger.warning("          %s", line)
 
                     if "No module named crosshair.__main__" in result.stderr:
-                        print(
-                            "      ℹ️  Detected legacy 'crosshair' package (SSH client). Install CrossHair tooling via:"
+                        logger.info(
+                            "      Detected legacy 'crosshair' package (SSH client). Install CrossHair tooling via:"
                         )
-                        print("         pip install crosshair-tool")
+                        logger.info("         pip install crosshair-tool")
 
                     success = False
                 else:
                     if timed_out:
-                        print(f"   ✅ CrossHair exploration passed for {display_path} (fast retry)")
+                        logger.info("   CrossHair exploration passed for %s (fast retry)", display_path)
                     elif is_signature_issue:
                         pass
                     else:
                         mode_label = "fast" if use_fast else "standard"
-                        print(f"   ✅ CrossHair exploration passed for {display_path} ({mode_label})")
+                        logger.info("   CrossHair exploration passed for %s (%s)", display_path, mode_label)
 
             except subprocess.TimeoutExpired:
                 exploration_results[file_key] = {
@@ -597,16 +602,16 @@ class ContractFirstTestManager(SmartCoverageManager):
         self._save_contract_cache()
 
         if signature_skips:
-            print(
-                f"   ℹ️  CrossHair signature-limited files skipped: {len(signature_skips)} "
-                "(non-blocking; grouped summary)"
+            logger.info(
+                "   CrossHair signature-limited files skipped: %d (non-blocking; grouped summary)",
+                len(signature_skips),
             )
 
         return success, exploration_results
 
     def _run_scenario_tests(self) -> tuple[bool, int, float]:
         """Run scenario tests (integration tests with contract references)."""
-        print("🔗 Running scenario tests...")
+        logger.info("Running scenario tests...")
 
         # Get integration tests that reference contracts
         integration_tests = self._get_test_files_by_level("integration")
@@ -629,27 +634,28 @@ class ContractFirstTestManager(SmartCoverageManager):
                 continue
 
         if not scenario_tests:
-            print("ℹ️  No scenario tests found (integration tests with contract references)")
+            logger.info("No scenario tests found (integration tests with contract references)")
             return True, 0, 100.0
 
-        print(f"📋 Found {len(scenario_tests)} scenario tests:")
+        logger.info("Found %d scenario tests:", len(scenario_tests))
         for test_file in scenario_tests:
             try:
                 relative_path = test_file.relative_to(self.project_root)
-                print(f"   - {relative_path}")
+                logger.info("   - %s", relative_path)
             except ValueError:
-                print(f"   - {test_file}")
+                logger.info("   - %s", test_file)
 
         # Run scenario tests using parent class method
         success, test_count, coverage_percentage = self._run_tests(scenario_tests, "scenarios")
 
         if success:
-            print(f"✅ Scenario tests completed: {test_count} tests")
+            logger.info("Scenario tests completed: %d tests", test_count)
         else:
-            print("❌ Scenario tests failed")
+            logger.error("Scenario tests failed")
 
         return success, test_count, coverage_percentage
 
+    @ensure(lambda result: isinstance(result, bool), "run_contract_first_tests must return bool")
     def run_contract_first_tests(self, test_level: str = "auto", force: bool = False) -> bool:
         """Run contract-first tests with the 3-layer quality model."""
 
@@ -657,7 +663,7 @@ class ContractFirstTestManager(SmartCoverageManager):
             # Auto-detect based on changes
             modified_files = self._get_modified_files()
             if not modified_files:
-                print("ℹ️  No modified files detected - using cached results")
+                logger.info("No modified files detected - using cached results")
                 return True
 
             # Run all layers in sequence
@@ -666,7 +672,7 @@ class ContractFirstTestManager(SmartCoverageManager):
         if test_level == "contracts":
             modified_files = self._get_modified_files()
             if not modified_files:
-                print("ℹ️  No modified files detected")
+                logger.info("No modified files detected")
                 return True
             success, _ = self._run_contract_validation(modified_files, force=force)
             return success
@@ -674,7 +680,7 @@ class ContractFirstTestManager(SmartCoverageManager):
         if test_level == "exploration":
             modified_files = self._get_modified_files()
             if not modified_files:
-                print("ℹ️  No modified files detected")
+                logger.info("No modified files detected")
                 return True
             success, _ = self._run_contract_exploration(modified_files, force=force)
             return success
@@ -690,47 +696,49 @@ class ContractFirstTestManager(SmartCoverageManager):
         if test_level == "full":
             modified_files = self._get_modified_files()
             if not modified_files:
-                print("ℹ️  No modified files detected")
+                logger.info("No modified files detected")
                 return True
             return self._run_all_contract_layers(modified_files, force=force)
 
-        print(f"❌ Unknown test level: {test_level}")
+        logger.error("Unknown test level: %s", test_level)
         return False
 
     def _run_all_contract_layers(self, modified_files: list[Path], *, force: bool = False) -> bool:
         """Run all contract-first layers in sequence."""
-        print("🚀 Running contract-first test layers...")
+        logger.info("Running contract-first test layers...")
 
         # Layer 1: Runtime contracts
-        print("\n📋 Layer 1: Runtime Contract Validation")
+        logger.info("Layer 1: Runtime Contract Validation")
         contract_success, _violations = self._run_contract_validation(modified_files, force=force)
         if not contract_success:
-            print("❌ Contract validation failed - stopping here")
+            logger.error("Contract validation failed - stopping here")
             return False
 
         # Layer 2: Automated exploration
-        print("\n🔍 Layer 2: Automated Contract Exploration")
+        logger.info("Layer 2: Automated Contract Exploration")
         exploration_success, _exploration_results = self._run_contract_exploration(modified_files, force=force)
         if not exploration_success:
-            print("⚠️  Contract exploration found issues - continuing to scenarios")
+            logger.warning("Contract exploration found issues - continuing to scenarios")
 
         # Layer 3: Scenario tests
-        print("\n🔗 Layer 3: Scenario Tests")
+        logger.info("Layer 3: Scenario Tests")
         scenario_success, test_count, _coverage = self._run_scenario_tests()
         if not scenario_success:
-            print("❌ Scenario tests failed")
+            logger.error("Scenario tests failed")
             return False
 
         # Summary
-        print("\n📊 Contract-First Test Summary:")
-        print(f"   ✅ Runtime contracts: {'PASS' if contract_success else 'FAIL'}")
-        print(
-            f"   {'✅' if exploration_success else '⚠️ '} Contract exploration: {'PASS' if exploration_success else 'ISSUES FOUND'}"
+        logger.info("Contract-First Test Summary:")
+        logger.info("   Runtime contracts: %s", "PASS" if contract_success else "FAIL")
+        logger.info(
+            "   Contract exploration: %s",
+            "PASS" if exploration_success else "ISSUES FOUND",
         )
-        print(f"   ✅ Scenario tests: {'PASS' if scenario_success else 'FAIL'} ({test_count} tests)")
+        logger.info("   Scenario tests: %s (%d tests)", "PASS" if scenario_success else "FAIL", test_count)
 
         return contract_success and scenario_success
 
+    @ensure(lambda result: isinstance(result, dict), "get_contract_status must return dict")
     def get_contract_status(self) -> dict[str, Any]:
         """Get contract-first test status."""
         status = self.get_status()
@@ -742,7 +750,8 @@ class ContractFirstTestManager(SmartCoverageManager):
         }
 
 
-def main():
+@ensure(lambda result: result is None, "main must return None")
+def main() -> None:
     parser = argparse.ArgumentParser(description="Contract-First Smart Test System")
     parser.add_argument(
         "command", choices=["run", "status", "contracts", "exploration", "scenarios"], help="Command to execute"
@@ -775,21 +784,21 @@ def main():
 
         elif args.command == "status":
             status = manager.get_contract_status()
-            print("📊 Contract-First Test Status:")
-            print(f"   Last Run: {status['last_run'] or 'Never'}")
-            print(f"   Coverage: {status['coverage_percentage']:.1f}%")
-            print(f"   Test Count: {status['test_count']}")
-            print(f"   Source Changed: {status['source_changed']}")
-            print("   Tool Availability:")
+            logger.info("Contract-First Test Status:")
+            logger.info("   Last Run: %s", status["last_run"] or "Never")
+            logger.info("   Coverage: %.1f%%", status["coverage_percentage"])
+            logger.info("   Test Count: %s", status["test_count"])
+            logger.info("   Source Changed: %s", status["source_changed"])
+            logger.info("   Tool Availability:")
             for tool, available in status["tool_availability"].items():
-                print(f"     - {tool}: {'✅' if available else '❌'}")
-            print(f"   Contract Violations: {len(status['contract_cache'].get('contract_violations', []))}")
+                logger.info("     - %s: %s", tool, "available" if available else "unavailable")
+            logger.info("   Contract Violations: %s", len(status["contract_cache"].get("contract_violations", [])))
             sys.exit(0)
 
         elif args.command == "contracts":
             modified_files = manager._get_modified_files()
             if not modified_files:
-                print("ℹ️  No modified files detected")
+                logger.info("No modified files detected")
                 sys.exit(0)
             success, _ = manager._run_contract_validation(modified_files, force=args.force)
             sys.exit(0 if success else 1)
@@ -797,7 +806,7 @@ def main():
         elif args.command == "exploration":
             modified_files = manager._get_modified_files()
             if not modified_files:
-                print("ℹ️  No modified files detected")
+                logger.info("No modified files detected")
                 sys.exit(0)
             success, _ = manager._run_contract_exploration(modified_files, force=args.force)
             sys.exit(0 if success else 1)
@@ -807,13 +816,14 @@ def main():
             sys.exit(0 if success else 1)
 
         else:
-            print(f"Unknown command: {args.command}")
+            logger.error("Unknown command: %s", args.command)
             sys.exit(1)
 
     except Exception as e:
-        print(f"❌ Error: {e}")
+        logger.error("Error: %s", e)
         sys.exit(1)
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
     main()

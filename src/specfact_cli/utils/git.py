@@ -46,6 +46,7 @@ class GitOperations:
         except InvalidGitRepositoryError:
             return False
 
+    @ensure(lambda result: result is None, "init must return None")
     def init(self) -> None:
         """Initialize a new Git repository."""
         self.repo = Repo.init(self.repo_path)

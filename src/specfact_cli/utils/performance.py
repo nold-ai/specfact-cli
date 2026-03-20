@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from beartype import beartype
+from icontract import ensure, require
 from rich.console import Console
 
 
@@ -27,6 +28,8 @@ class PerformanceMetric:
     duration: float
     metadata: dict[str, Any] = field(default_factory=dict)
 
+    @beartype
+    @ensure(lambda result: isinstance(result, dict), "Must return a dictionary")
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
         return {
@@ -46,12 +49,16 @@ class PerformanceReport:
     slow_operations: list[PerformanceMetric] = field(default_factory=list)
     threshold: float = 5.0  # Operations taking > 5 seconds are considered slow
 
+    @beartype
+    @require(lambda metric: isinstance(metric, PerformanceMetric), "metric must be PerformanceMetric")
     def add_metric(self, metric: PerformanceMetric) -> None:
         """Add a performance metric."""
         self.metrics.append(metric)
         if metric.duration > self.threshold:
             self.slow_operations.append(metric)
 
+    @beartype
+    @ensure(lambda result: isinstance(result, dict), "Must return a dictionary summary")
     def get_summary(self) -> dict[str, Any]:
         """Get summary of performance report."""
         return {
@@ -69,6 +76,8 @@ class PerformanceReport:
             ],
         }
 
+    @beartype
+    @ensure(lambda result: result is None, "print_summary must return None")
     def print_summary(self) -> None:
         """Print performance summary to console."""
         console.print(f"\n[bold cyan]Performance Report: {self.command}[/bold cyan]")
@@ -102,6 +111,7 @@ class PerformanceMonitor:
         self._enabled = True
 
     @beartype
+    @ensure(lambda result: result is None, "start must return None")
     def start(self) -> None:
         """Start performance monitoring."""
         if not self._enabled:
@@ -109,6 +119,7 @@ class PerformanceMonitor:
         self.start_time = time.time()
 
     @beartype
+    @ensure(lambda result: result is None, "stop must return None")
     def stop(self) -> None:
         """Stop performance monitoring."""
         if not self.start_time:
@@ -116,6 +127,7 @@ class PerformanceMonitor:
         self.start_time = None
 
     @beartype
+    @require(lambda operation: operation.strip() != "", "operation must not be empty")
     @contextmanager
     def track(self, operation: str, metadata: dict[str, Any] | None = None):
         """
@@ -145,6 +157,7 @@ class PerformanceMonitor:
             self.metrics.append(metric)
 
     @beartype
+    @ensure(lambda result: result is not None, "get_report must return a PerformanceReport")
     def get_report(self) -> PerformanceReport:
         """
         Get performance report.
@@ -168,11 +181,13 @@ class PerformanceMonitor:
         return report
 
     @beartype
+    @ensure(lambda result: result is None, "disable must return None")
     def disable(self) -> None:
         """Disable performance monitoring."""
         self._enabled = False
 
     @beartype
+    @ensure(lambda result: result is None, "enable must return None")
     def enable(self) -> None:
         """Enable performance monitoring."""
         self._enabled = True
@@ -183,12 +198,19 @@ _performance_monitor: PerformanceMonitor | None = None
 
 
 @beartype
+@ensure(
+    lambda result: result is None or isinstance(result, PerformanceMonitor), "must return PerformanceMonitor or None"
+)
 def get_performance_monitor() -> PerformanceMonitor | None:
     """Get global performance monitor instance."""
     return _performance_monitor
 
 
 @beartype
+@require(
+    lambda monitor: monitor is None or isinstance(monitor, PerformanceMonitor),
+    "monitor must be PerformanceMonitor or None",
+)
 def set_performance_monitor(monitor: PerformanceMonitor | None) -> None:
     """Set global performance monitor instance."""
     global _performance_monitor
@@ -196,6 +218,8 @@ def set_performance_monitor(monitor: PerformanceMonitor | None) -> None:
 
 
 @beartype
+@require(lambda command: command.strip() != "", "command must not be empty")
+@require(lambda threshold: threshold > 0, "threshold must be positive")
 @contextmanager
 def track_performance(command: str, threshold: float = 5.0):
     """

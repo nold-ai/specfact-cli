@@ -403,6 +403,7 @@ Dependencies: {len(dependencies)} dependency files found
 # CrossHair: skip (side-effectful imports via GitPython)
 # These functions are designed for CrossHair symbolic execution analysis
 @beartype
+@require(lambda command: command.strip() != "", "command must not be empty")
 def test_generate_prompt_property(command: str, context: dict[str, Any] | None) -> None:
     """CrossHair property test for generate_prompt method."""
     agent = AnalyzeAgent()
@@ -414,6 +415,7 @@ def test_generate_prompt_property(command: str, context: dict[str, Any] | None) 
 
 
 @beartype
+@require(lambda command: command.strip() != "", "command must not be empty")
 def test_execute_property(command: str, args: dict[str, Any] | None, context: dict[str, Any] | None) -> None:
     """CrossHair property test for execute method."""
     agent = AnalyzeAgent()
@@ -424,6 +426,7 @@ def test_execute_property(command: str, args: dict[str, Any] | None, context: di
 
 
 @beartype
+@ensure(lambda result: result is None, "Must return None")
 def test_inject_context_property(context: dict[str, Any] | None) -> None:
     """CrossHair property test for inject_context method."""
     agent = AnalyzeAgent()
@@ -434,6 +437,7 @@ def test_inject_context_property(context: dict[str, Any] | None) -> None:
 
 
 @beartype
+@require(lambda confidence: 0.0 <= confidence <= 1.0, "confidence must be in [0.0, 1.0]")
 def test_analyze_codebase_property(repo_path: Path, confidence: float, plan_name: str | None) -> None:
     """CrossHair property test for analyze_codebase method."""
     # Only test if repo_path exists and is a directory

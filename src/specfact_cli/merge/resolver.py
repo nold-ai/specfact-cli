@@ -238,6 +238,99 @@ class PersonaMergeResolver:
 
         return merged
 
+    def _find_feature_conflicts(
+        self,
+        base: ProjectBundle,
+        ours: ProjectBundle,
+        theirs: ProjectBundle,
+    ) -> dict[str, tuple[Any, Any, Any]]:
+        """Find title and story-description conflicts across all features."""
+        conflicts: dict[str, tuple[Any, Any, Any]] = {}
+        all_feature_keys = set(base.features.keys()) | set(ours.features.keys()) | set(theirs.features.keys())
+
+        for key in all_feature_keys:
+            base_feature = base.features.get(key)
+            ours_feature = ours.features.get(key)
+            theirs_feature = theirs.features.get(key)
+
+            if not (
+                base_feature
+                and ours_feature
+                and theirs_feature
+                and base_feature.title != ours_feature.title
+                and base_feature.title != theirs_feature.title
+                and ours_feature.title != theirs_feature.title
+            ):
+                continue
+
+            conflicts[f"features.{key}.title"] = (base_feature.title, ours_feature.title, theirs_feature.title)
+
+            base_story_keys = {s.key for s in (base_feature.stories or [])}
+            ours_story_keys = {s.key for s in (ours_feature.stories or [])}
+            theirs_story_keys = {s.key for s in (theirs_feature.stories or [])}
+
+            common_stories = (ours_story_keys & theirs_story_keys) - base_story_keys
+            for story_key in common_stories:
+                ours_story = next((s for s in (ours_feature.stories or []) if s.key == story_key), None)
+                theirs_story = next((s for s in (theirs_feature.stories or []) if s.key == story_key), None)
+                if ours_story and theirs_story and ours_story.description != theirs_story.description:  # type: ignore[attr-defined]
+                    conflicts[f"features.{key}.stories.{story_key}.description"] = (
+                        None,
+                        ours_story.description,  # type: ignore[attr-defined]
+                        theirs_story.description,  # type: ignore[attr-defined]
+                    )
+
+        return conflicts
+
+    def _find_flat_section_conflicts(
+        self,
+        base: ProjectBundle,
+        ours: ProjectBundle,
+        theirs: ProjectBundle,
+    ) -> dict[str, tuple[Any, Any, Any]]:
+        """Find conflicts in idea, business, and product sections."""
+        conflicts: dict[str, tuple[Any, Any, Any]] = {}
+
+        if (
+            base.idea
+            and ours.idea
+            and theirs.idea
+            and base.idea.title != ours.idea.title
+            and base.idea.title != theirs.idea.title
+            and ours.idea.title != theirs.idea.title
+        ):
+            conflicts["idea.title"] = (base.idea.title, ours.idea.title, theirs.idea.title)
+
+        if (
+            base.business
+            and ours.business
+            and theirs.business
+            and base.business.value_proposition != ours.business.value_proposition  # type: ignore[attr-defined]
+            and base.business.value_proposition != theirs.business.value_proposition  # type: ignore[attr-defined]
+            and ours.business.value_proposition != theirs.business.value_proposition  # type: ignore[attr-defined]
+        ):
+            conflicts["business.value_proposition"] = (
+                base.business.value_proposition,  # type: ignore[attr-defined]
+                ours.business.value_proposition,  # type: ignore[attr-defined]
+                theirs.business.value_proposition,  # type: ignore[attr-defined]
+            )
+
+        if (
+            base.product
+            and ours.product
+            and theirs.product
+            and ours.product.themes != theirs.product.themes
+            and ours.product.themes != base.product.themes
+            and theirs.product.themes != base.product.themes
+        ):
+            conflicts["product.themes"] = (
+                list(base.product.themes),
+                list(ours.product.themes),
+                list(theirs.product.themes),
+            )
+
+        return conflicts
+
     @beartype
     @require(lambda base: isinstance(base, ProjectBundle), "Base must be ProjectBundle")
     @require(lambda ours: isinstance(ours, ProjectBundle), "Ours must be ProjectBundle")
@@ -258,84 +351,8 @@ class PersonaMergeResolver:
             Dictionary mapping field paths to (base_value, ours_value, theirs_value) tuples
         """
         conflicts: dict[str, tuple[Any, Any, Any]] = {}
-
-        # Compare features
-        all_feature_keys = set(base.features.keys()) | set(ours.features.keys()) | set(theirs.features.keys())
-
-        for key in all_feature_keys:
-            base_feature = base.features.get(key)
-            ours_feature = ours.features.get(key)
-            theirs_feature = theirs.features.get(key)
-
-            if (
-                base_feature
-                and ours_feature
-                and theirs_feature
-                and base_feature.title != ours_feature.title
-                and base_feature.title != theirs_feature.title
-                and ours_feature.title != theirs_feature.title
-            ):
-                conflicts[f"features.{key}.title"] = (base_feature.title, ours_feature.title, theirs_feature.title)
-
-                # Compare stories
-                base_story_keys = {s.key for s in (base_feature.stories or [])}
-                ours_story_keys = {s.key for s in (ours_feature.stories or [])}
-                theirs_story_keys = {s.key for s in (theirs_feature.stories or [])}
-
-                # Check for story conflicts (added/modified in both)
-                common_stories = (ours_story_keys & theirs_story_keys) - base_story_keys
-                for story_key in common_stories:
-                    ours_story = next((s for s in (ours_feature.stories or []) if s.key == story_key), None)
-                    theirs_story = next((s for s in (theirs_feature.stories or []) if s.key == story_key), None)
-                    if ours_story and theirs_story and ours_story.description != theirs_story.description:
-                        conflicts[f"features.{key}.stories.{story_key}.description"] = (
-                            None,  # New story, no base
-                            ours_story.description,
-                            theirs_story.description,
-                        )
-
-        # Compare idea, business, product
-        if (
-            base.idea
-            and ours.idea
-            and theirs.idea
-            and base.idea.title != ours.idea.title
-            and base.idea.title != theirs.idea.title
-            and ours.idea.title != theirs.idea.title
-        ):
-            conflicts["idea.title"] = (base.idea.title, ours.idea.title, theirs.idea.title)
-
-        if (
-            base.business
-            and ours.business
-            and theirs.business
-            and base.business.value_proposition != ours.business.value_proposition
-            and base.business.value_proposition != theirs.business.value_proposition
-            and ours.business.value_proposition != theirs.business.value_proposition
-        ):
-            conflicts["business.value_proposition"] = (
-                base.business.value_proposition,
-                ours.business.value_proposition,
-                theirs.business.value_proposition,
-            )
-
-        # Product conflicts - compare themes
-        if (
-            base.product
-            and ours.product
-            and theirs.product
-            and ours.product.themes != theirs.product.themes
-            and (ours.product.themes != base.product.themes or theirs.product.themes != base.product.themes)
-            and ours.product.themes != base.product.themes
-            and theirs.product.themes != base.product.themes
-        ):
-            # Only report conflict if both changed differently
-            conflicts["product.themes"] = (
-                list(base.product.themes),
-                list(ours.product.themes),
-                list(theirs.product.themes),
-            )
-
+        conflicts.update(self._find_feature_conflicts(base, ours, theirs))
+        conflicts.update(self._find_flat_section_conflicts(base, ours, theirs))
         return conflicts
 
     @beartype
@@ -405,7 +422,7 @@ class PersonaMergeResolver:
                 bundle.idea.title = value
         elif parts[0] == "business" and bundle.business:
             if len(parts) > 1 and parts[1] == "value_proposition":
-                bundle.business.value_proposition = value
+                bundle.business.value_proposition = value  # type: ignore[attr-defined]
         elif (
             parts[0] == "product"
             and bundle.product
@@ -426,4 +443,4 @@ class PersonaMergeResolver:
                         if feature.stories:
                             story = next((s for s in feature.stories if s.key == story_key), None)
                             if story and len(parts) > 4 and parts[4] == "description":
-                                story.description = value
+                                story.description = value  # type: ignore[attr-defined]

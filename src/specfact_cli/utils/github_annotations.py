@@ -15,7 +15,11 @@ from typing import Any
 from beartype import beartype
 from icontract import ensure, require
 
+from specfact_cli.common import get_bridge_logger
 from specfact_cli.utils.structured_io import load_structured_file
+
+
+_logger = get_bridge_logger(__name__)
 
 
 @beartype
@@ -65,7 +69,7 @@ def create_annotation(
 
     parts.append(f"::{message}")
 
-    print("".join(parts), file=sys.stdout)
+    sys.stdout.write("".join(parts) + "\n")
 
 
 @beartype
@@ -376,7 +380,7 @@ def main() -> int:
                 if reports:
                     report_path = reports[0]
                 else:
-                    print("No repro report found in bundle-specific location", file=sys.stderr)
+                    _logger.warning("No repro report found in bundle-specific location")
                     return 1
             else:
                 # Bundle-specific directory doesn't exist, try global fallback
@@ -393,14 +397,14 @@ def main() -> int:
                 if reports:
                     report_path = reports[0]
                 else:
-                    print("No repro report found", file=sys.stderr)
+                    _logger.warning("No repro report found")
                     return 1
             else:
-                print("No repro report directory found", file=sys.stderr)
+                _logger.warning("No repro report directory found")
                 return 1
 
     if not report_path.exists():
-        print(f"Report file not found: {report_path}", file=sys.stderr)
+        _logger.error("Report file not found: %s", report_path)
         return 1
 
     # Parse report
@@ -418,7 +422,7 @@ def main() -> int:
         comment_path.parent.mkdir(parents=True, exist_ok=True)
         comment_path.write_text(comment, encoding="utf-8")
 
-        print(f"PR comment written to: {comment_path}", file=sys.stderr)
+        _logger.debug("PR comment written to: %s", comment_path)
 
     return 1 if has_failures else 0
 

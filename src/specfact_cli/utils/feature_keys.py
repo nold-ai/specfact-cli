@@ -9,9 +9,11 @@ import re
 from typing import Any
 
 from beartype import beartype
+from icontract import require
 
 
 @beartype
+@require(lambda key: len(key) > 0, "key must not be empty")
 def normalize_feature_key(key: str) -> str:
     """
     Normalize feature keys for comparison by removing prefixes and underscores.
@@ -53,6 +55,7 @@ def normalize_feature_key(key: str) -> str:
 
 
 @beartype
+@require(lambda index: index >= 1, "index must be 1-based positive")
 def to_sequential_key(key: str, index: int) -> str:
     """
     Convert any feature key to sequential format (FEATURE-001, FEATURE-002, ...).
@@ -74,6 +77,7 @@ def to_sequential_key(key: str, index: int) -> str:
 
 
 @beartype
+@require(lambda class_name: class_name.strip() != "", "class_name must not be empty")
 def to_classname_key(class_name: str) -> str:
     """
     Convert class name to feature key format (FEATURE-CLASSNAME).
@@ -94,6 +98,7 @@ def to_classname_key(class_name: str) -> str:
 
 
 @beartype
+@require(lambda title: title.strip() != "", "title must not be empty")
 def to_underscore_key(title: str, prefix: str = "000") -> str:
     """
     Convert feature title to underscore format (000_FEATURE_NAME).
@@ -118,6 +123,7 @@ def to_underscore_key(title: str, prefix: str = "000") -> str:
 
 
 @beartype
+@require(lambda target_key: target_key.strip() != "", "target_key must not be empty")
 def find_feature_by_normalized_key(features: list, target_key: str) -> dict | None:
     """
     Find a feature in a list by matching normalized keys.
@@ -150,6 +156,7 @@ def find_feature_by_normalized_key(features: list, target_key: str) -> dict | No
 
 
 @beartype
+@require(lambda start_index: start_index >= 1, "start_index must be positive")
 def convert_feature_keys(features: list, target_format: str = "sequential", start_index: int = 1) -> list:
     """
     Convert feature keys to a consistent format.

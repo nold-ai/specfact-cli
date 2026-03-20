@@ -10,6 +10,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from beartype import beartype
+from icontract import ensure, require
 from rich.console import Console
 from rich.panel import Panel
 
@@ -20,6 +21,8 @@ console = Console()
 
 
 @beartype
+@require(lambda repo_path: repo_path.exists(), "repo_path must exist")
+@ensure(lambda result: isinstance(result, list), "Must return list")
 def suggest_next_steps(repo_path: Path, context: ProjectContext | None = None) -> list[str]:
     """
     Suggest next commands based on project context.
@@ -63,6 +66,8 @@ def suggest_next_steps(repo_path: Path, context: ProjectContext | None = None) -
 
 
 @beartype
+@require(lambda error_message: error_message.strip() != "", "error_message must not be empty")
+@ensure(lambda result: isinstance(result, list), "Must return list")
 def suggest_fixes(error_message: str, context: ProjectContext | None = None) -> list[str]:
     """
     Suggest fixes for common errors.
@@ -101,6 +106,7 @@ def suggest_fixes(error_message: str, context: ProjectContext | None = None) -> 
 
 
 @beartype
+@ensure(lambda result: isinstance(result, list), "Must return list")
 def suggest_improvements(context: ProjectContext) -> list[str]:
     """
     Suggest improvements based on analysis.
@@ -134,6 +140,7 @@ def suggest_improvements(context: ProjectContext) -> list[str]:
 
 
 @beartype
+@require(lambda suggestions: isinstance(suggestions, list), "suggestions must be a list")
 def print_suggestions(suggestions: list[str], title: str = "💡 Suggestions") -> None:
     """
     Print suggestions in a formatted panel.

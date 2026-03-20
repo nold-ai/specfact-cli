@@ -72,6 +72,8 @@ def _normalized_module_name(package_name: str) -> str:
     return package_name.split("/", 1)[-1].replace("-", "_")
 
 
+@beartype
+@ensure(lambda result: isinstance(result, Path), "Must return a Path")
 def get_modules_root() -> Path:
     """Return the modules root path (specfact_cli package dir / modules).
 
@@ -98,6 +100,8 @@ def _is_builtin_module_package(package_dir: Path) -> bool:
         return False
 
 
+@beartype
+@ensure(lambda result: isinstance(result, list), "Must return a list of paths")
 def get_modules_roots() -> list[Path]:
     """Return all module discovery roots in priority order."""
     roots: list[Path] = []
@@ -130,6 +134,8 @@ def get_modules_roots() -> list[Path]:
     return roots
 
 
+@beartype
+@require(lambda base_path: base_path is None or isinstance(base_path, Path), "base_path must be a Path or None")
 def get_workspace_modules_root(base_path: Path | None = None) -> Path | None:
     """Return nearest workspace-local .specfact/modules root from base path upward."""
     start = base_path.resolve() if base_path is not None else Path.cwd().resolve()
@@ -147,6 +153,7 @@ def get_workspace_modules_root(base_path: Path | None = None) -> Path | None:
 
 
 @beartype
+@ensure(lambda result: isinstance(result, list), "Must return a list of (Path, metadata) tuples")
 def discover_all_package_metadata() -> list[tuple[Path, ModulePackageMetadata]]:
     """Discover module package metadata across built-in/marketplace/custom roots."""
     from specfact_cli.registry.module_discovery import discover_all_modules
@@ -166,6 +173,8 @@ def _package_sort_key(item: tuple[Path, ModulePackageMetadata]) -> tuple[int, st
 
 
 @beartype
+@require(lambda source: bool(source.strip()), "source must not be empty")
+@ensure(lambda result: isinstance(result, list), "Must return a list of (Path, metadata) tuples")
 def discover_package_metadata(modules_root: Path, source: str = "builtin") -> list[tuple[Path, ModulePackageMetadata]]:
     """
     Scan modules root for package dirs that have module-package.yaml; parse and return (dir, metadata).
@@ -345,6 +354,8 @@ def _validate_module_dependencies(
 
 
 @beartype
+@require(lambda disable_ids: isinstance(disable_ids, list), "disable_ids must be a list")
+@ensure(lambda result: isinstance(result, dict), "Must return a dict mapping module ids to dependent lists")
 def validate_disable_safe(
     disable_ids: list[str],
     packages: list[tuple[Path, ModulePackageMetadata]],
@@ -368,6 +379,8 @@ def validate_disable_safe(
 
 
 @beartype
+@require(lambda enable_ids: isinstance(enable_ids, list), "enable_ids must be a list")
+@ensure(lambda result: isinstance(result, dict), "Must return a dict mapping module ids to unmet dependency lists")
 def validate_enable_safe(
     enable_ids: list[str],
     packages: list[tuple[Path, ModulePackageMetadata]],
@@ -392,6 +405,8 @@ def validate_enable_safe(
 
 
 @beartype
+@require(lambda disable_ids: isinstance(disable_ids, list), "disable_ids must be a list")
+@ensure(lambda result: isinstance(result, list), "Must return a list of module id strings")
 def expand_disable_with_dependents(
     disable_ids: list[str],
     packages: list[tuple[Path, ModulePackageMetadata]],
@@ -424,6 +439,8 @@ def expand_disable_with_dependents(
 
 
 @beartype
+@require(lambda enable_ids: isinstance(enable_ids, list), "enable_ids must be a list")
+@ensure(lambda result: isinstance(result, list), "Must return a list of module id strings including transitive deps")
 def expand_enable_with_dependencies(
     enable_ids: list[str],
     packages: list[tuple[Path, ModulePackageMetadata]],
@@ -831,6 +848,8 @@ def _check_schema_compatibility(module_schema: str | None, current: str) -> bool
     return module_schema.strip() == current.strip()
 
 
+@beartype
+@ensure(lambda result: isinstance(result, dict), "Must return a dict mapping module name to enabled state")
 def merge_module_state(
     discovered: list[tuple[str, str]],
     state: dict[str, dict[str, Any]],
@@ -851,6 +870,8 @@ def merge_module_state(
 
 
 @beartype
+@require(lambda packages: isinstance(packages, list), "packages must be a list")
+@ensure(lambda result: isinstance(result, list), "Must return a sorted list of bundle name strings")
 def get_installed_bundles(
     packages: list[tuple[Path, Any]],
     enabled_map: dict[str, bool],
@@ -953,6 +974,11 @@ def _mount_installed_category_groups(
         CommandRegistry.register(group_name, loader, cmd_meta)
 
 
+@beartype
+@require(
+    lambda enable_ids, disable_ids: not (set(enable_ids or []) & set(disable_ids or [])),
+    "enable_ids and disable_ids must not overlap",
+)
 def register_module_package_commands(
     enable_ids: list[str] | None = None,
     disable_ids: list[str] | None = None,
@@ -1199,6 +1225,8 @@ def register_module_package_commands(
         logger.debug("Skipped module '%s': %s", module_id, reason)
 
 
+@beartype
+@ensure(lambda result: isinstance(result, list), "Must return a list of module state dicts")
 def get_discovered_modules_for_state(
     enable_ids: list[str] | None = None,
     disable_ids: list[str] | None = None,

@@ -94,9 +94,9 @@ jobs:
             BASE_REF="origin/${{ github.event.pull_request.base.ref }}"
           fi
           if [ -n "$BASE_REF" ]; then
-            python scripts/verify-modules-signature.py --require-signature --enforce-version-bump --version-check-base "$BASE_REF"
+            python scripts/verify-modules-signature.py --require-signature --enforce-version-bump --payload-from-filesystem --version-check-base "$BASE_REF"
           else
-            python scripts/verify-modules-signature.py --require-signature --enforce-version-bump
+            python scripts/verify-modules-signature.py --require-signature --enforce-version-bump --payload-from-filesystem
           fi
 
   tests:
@@ -661,7 +661,7 @@ jobs:
           fi
           git rev-parse --verify "$BASE_REF" >/dev/null 2>&1 || BASE_REF="HEAD~1"
           echo "Using module-signing base ref: $BASE_REF"
-          python scripts/sign-modules.py --changed-only --base-ref "$BASE_REF" --bump-version patch
+          python scripts/sign-modules.py --changed-only --base-ref "$BASE_REF" --bump-version patch --payload-from-filesystem
 
       - name: Get version from PyPI publish step
         id: get_version

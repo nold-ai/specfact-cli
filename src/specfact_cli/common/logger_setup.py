@@ -297,6 +297,7 @@ class LoggerSetup:
     _log_listeners: dict[str, QueueListener] = {}
 
     @classmethod
+    @ensure(lambda result: result is None, "shutdown_listeners must return None")
     def shutdown_listeners(cls):
         """Shuts down all active queue listeners."""
         for listener in cls._log_listeners.values():
@@ -372,7 +373,7 @@ class LoggerSetup:
         logger.addHandler(queue_handler)
 
         # Add trace method to logger instance for convenience
-        logger.trace = lambda message, *args, **kwargs: logger.log(5, message, *args, **kwargs)
+        logger.trace = lambda message, *args, **kwargs: logger.log(5, message, *args, **kwargs)  # type: ignore[attr-defined]
 
         cls._active_loggers[logger_name] = logger
 
@@ -547,12 +548,13 @@ class LoggerSetup:
             logger.addHandler(console_handler)
 
         # Add trace method to logger instance for convenience
-        logger.trace = lambda message, *args, **kwargs: logger.log(5, message, *args, **kwargs)
+        logger.trace = lambda message, *args, **kwargs: logger.log(5, message, *args, **kwargs)  # type: ignore[attr-defined]
 
         cls._active_loggers[logger_name] = logger
         return logger
 
     @classmethod
+    @ensure(lambda result: result is None, "flush_all_loggers must return None")
     def flush_all_loggers(cls) -> None:
         """
         Flush all active loggers to ensure their output is written

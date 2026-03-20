@@ -134,6 +134,7 @@ class CommandRouter:
         return mode == OperationalMode.CICD
 
 
+@ensure(lambda result: result is not None, "Must return CommandRouter instance")
 def get_router() -> CommandRouter:
     """
     Get the global command router instance.

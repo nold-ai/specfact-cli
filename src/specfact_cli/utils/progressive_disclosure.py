@@ -13,6 +13,7 @@ from typing import Any
 
 from beartype import beartype
 from click.core import Command, Context as ClickContext
+from icontract import ensure
 from rich.console import Console
 from typer.core import TyperCommand, TyperGroup
 
@@ -28,18 +29,21 @@ _original_make_context = Command.make_context
 
 
 @beartype
+@ensure(lambda result: isinstance(result, bool), "Must return bool")
 def is_advanced_help_requested() -> bool:
     """Check if --help-advanced flag is present in sys.argv."""
     return "--help-advanced" in sys.argv or "-ha" in sys.argv or os.environ.get("SPECFACT_SHOW_ADVANCED") == "true"
 
 
 @beartype
+@ensure(lambda result: isinstance(result, bool), "Must return bool")
 def should_show_advanced() -> bool:
     """Check if advanced options should be shown."""
     return _show_advanced_help or is_advanced_help_requested()
 
 
 @beartype
+@ensure(lambda result: result is None, "setter returns None")
 def set_advanced_help(enabled: bool) -> None:
     """Set advanced help display mode."""
     global _show_advanced_help
@@ -47,6 +51,7 @@ def set_advanced_help(enabled: bool) -> None:
 
 
 @beartype
+@ensure(lambda result: result is None, "interceptor returns None")
 def intercept_help_advanced() -> None:
     """
     Intercept --help-advanced flag and set environment variable.
@@ -77,6 +82,7 @@ def intercept_help_advanced() -> None:
         sys.argv[:] = normalized_args
 
 
+@beartype
 def _is_help_context(ctx: ClickContext | None) -> bool:
     """Check if this context is for showing help."""
     if ctx is None:
@@ -92,6 +98,7 @@ def _is_help_context(ctx: ClickContext | None) -> bool:
     return bool(hasattr(ctx, "info_name") and ctx.info_name and "help" in str(ctx.info_name).lower())
 
 
+@beartype
 def _is_advanced_help_context(ctx: ClickContext | None) -> bool:
     """Check if this context is for showing advanced help."""
     # Check sys.argv directly first
@@ -108,6 +115,8 @@ def _is_advanced_help_context(ctx: ClickContext | None) -> bool:
 class ProgressiveDisclosureGroup(TyperGroup):
     """Custom Typer group that shows hidden options when advanced help is requested."""
 
+    @beartype
+    @ensure(lambda result: isinstance(result, list), "returns param list")
     def get_params(self, ctx: ClickContext) -> list[Any]:
         """
         Override get_params to include hidden options when advanced help is requested.
@@ -133,56 +142,68 @@ class ProgressiveDisclosureGroup(TyperGroup):
             # Un-hide advanced params for this help rendering
             for param in all_params:
                 if getattr(param, "hidden", False):
-                    param.hidden = False
+                    param.hidden = False  # type: ignore[attr-defined]
             return all_params
 
         # Otherwise, filter out hidden params (default behavior)
         return [param for param in all_params if not getattr(param, "hidden", False)]
 
 
+def _filter_advanced_sections(help_text: str) -> str:
+    """Return help text with Advanced/Configuration sections removed."""
+    lines = help_text.split("\n")
+    filtered: list[str] = []
+    skip = False
+    for line in lines:
+        if "**Advanced/Configuration**" in line or "Advanced/Configuration:" in line:
+            skip = True
+            continue
+        if skip and (line.strip().startswith("**") or not line.strip()):
+            skip = False
+        if not skip:
+            filtered.append(line)
+    return "\n".join(filtered)
+
+
 class ProgressiveDisclosureCommand(TyperCommand):
     """Custom Typer command that shows hidden options when advanced help is requested."""
 
+    @beartype
+    @ensure(lambda result: bool(result), "help text must be non-empty")
+    def _get_help_text(self) -> str:
+        """Return the current help string (pure query — no mutation)."""
+        return self.help or ""
+
+    @beartype
+    @ensure(lambda result: result is None, "setter returns None")
+    def _set_help_text(self, text: str) -> None:
+        """Set the help string (pure command — no prior read)."""
+        self.help = text
+
+    @beartype
+    @ensure(lambda result: result is None, "formatter returns None")
     def format_help(self, ctx: ClickContext, formatter: Any) -> None:
         """
         Override format_help to conditionally show advanced options in docstring.
 
-        This filters out the "Advanced/Configuration" section from the docstring
-        when regular help is shown, but includes it when --help-advanced is used.
+        Filters the Advanced/Configuration section from the docstring when regular
+        help is shown, but includes it when --help-advanced is used.
         """
-        # Check if advanced help is requested
         is_advanced = _is_advanced_help_context(ctx)
 
-        # If not advanced help, temporarily modify the help text to remove advanced sections
         if not is_advanced and hasattr(self, "help") and self.help:
-            original_help = self.help
-            # Remove lines containing "Advanced/Configuration" section
-            lines = original_help.split("\n")
-            filtered_lines: list[str] = []
-            skip_advanced_section = False
-            for line in lines:
-                # Check if this line starts an advanced section
-                if "**Advanced/Configuration**" in line or "Advanced/Configuration:" in line:
-                    skip_advanced_section = True
-                    continue
-                # Check if we've moved past the advanced section (next ** section or end)
-                if skip_advanced_section and (line.strip().startswith("**") or not line.strip()):
-                    skip_advanced_section = False
-                # Skip lines in advanced section
-                if skip_advanced_section:
-                    continue
-                filtered_lines.append(line)
-            # Temporarily set filtered help
-            self.help = "\n".join(filtered_lines)
+            # Use query/command helpers to avoid get-modify-same-method pattern.
+            original = self._get_help_text()
+            self._set_help_text(_filter_advanced_sections(original))
             try:
                 super().format_help(ctx, formatter)
             finally:
-                # Restore original help
-                self.help = original_help
+                self._set_help_text(original)
         else:
-            # Advanced help - show everything
             super().format_help(ctx, formatter)
 
+    @beartype
+    @ensure(lambda result: isinstance(result, list), "returns param list")
     def get_params(self, ctx: ClickContext) -> list[Any]:
         """
         Override get_params to include hidden options when advanced help is requested.
@@ -208,7 +229,7 @@ class ProgressiveDisclosureCommand(TyperCommand):
             # Un-hide advanced params for this help rendering
             for param in all_params:
                 if getattr(param, "hidden", False):
-                    param.hidden = False
+                    param.hidden = False  # type: ignore[attr-defined]
             return all_params
 
         # Otherwise, filter out hidden params (default behavior)
@@ -216,12 +237,14 @@ class ProgressiveDisclosureCommand(TyperCommand):
 
 
 @beartype
+@ensure(lambda result: bool(result), "message must be non-empty")
 def get_help_advanced_message() -> str:
     """Get message explaining how to access advanced help."""
     return "\n[dim]💡 Tip: Use [bold]--help-advanced[/bold] (alias: [bold]-ha[/bold]) to see all options including advanced configuration.[/dim]"
 
 
 @beartype
+@ensure(lambda result: isinstance(result, bool), "Must return bool")
 def get_hidden_value() -> bool:
     """
     Get the hidden value for advanced options.
@@ -237,6 +260,7 @@ def get_hidden_value() -> bool:
     return os.environ.get("SPECFACT_SHOW_ADVANCED") != "true"
 
 
+@beartype
 def _patched_get_params(self: Command, ctx: ClickContext) -> list[Any]:
     """
     Patched get_params that includes hidden options when advanced help is requested.
@@ -262,13 +286,14 @@ def _patched_get_params(self: Command, ctx: ClickContext) -> list[Any]:
         # Un-hide advanced params for this help rendering
         for param in all_params:
             if getattr(param, "hidden", False):
-                param.hidden = False
+                param.hidden = False  # type: ignore[attr-defined]
         return all_params
 
     # Otherwise, use original behavior (filter out hidden params)
     return _original_get_params(self, ctx)
 
 
+@beartype
 def _ensure_help_advanced_in_context_settings(self: Command) -> None:
     """Ensure --help-advanced and --help are in context_settings.help_option_names."""
     # Get or create context settings
@@ -297,6 +322,7 @@ def _ensure_help_advanced_in_context_settings(self: Command) -> None:
 # Remove parse_args patch - we handle it in intercept_help_advanced instead
 
 
+@beartype
 def _patched_make_context(
     self: Command,
     info_name: str | None = None,

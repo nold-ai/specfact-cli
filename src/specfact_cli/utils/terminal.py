@@ -18,6 +18,11 @@ from beartype import beartype
 from icontract import ensure, require
 from rich.progress import BarColumn, SpinnerColumn, TextColumn, TimeElapsedColumn
 
+from specfact_cli.common import get_bridge_logger
+
+
+_logger = get_bridge_logger(__name__)
+
 
 @dataclass(frozen=True)
 class TerminalCapabilities:
@@ -182,6 +187,6 @@ def print_progress(description: str, current: int, total: int) -> None:
     """
     if total > 0:
         percentage = (current / total) * 100
-        print(f"{description}... {percentage:.0f}% ({current}/{total})", flush=True)
+        _logger.info("%s... %.0f%% (%d/%d)", description, percentage, current, total)
     else:
-        print(f"{description}...", flush=True)
+        _logger.info("%s...", description)

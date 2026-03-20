@@ -16,6 +16,8 @@ from typing import TYPE_CHECKING
 from beartype import beartype
 from icontract import ensure, require
 
+from specfact_cli.common import get_bridge_logger
+
 
 if TYPE_CHECKING:
     from watchdog.observers import Observer
@@ -26,6 +28,9 @@ from specfact_cli.models.bridge import BridgeConfig
 from specfact_cli.sync.bridge_probe import BridgeProbe
 from specfact_cli.sync.bridge_sync import BridgeSync
 from specfact_cli.sync.watcher import FileChange, SyncEventHandler
+
+
+_logger = get_bridge_logger(__name__)
 
 
 class BridgeWatchEventHandler(SyncEventHandler):
@@ -228,11 +233,13 @@ class BridgeWatch:
                     try:
                         result = self.bridge_sync.import_artifact(artifact_key, feature_id, self.bundle_name)
                         if result.success:
-                            print(f"✓ Imported {artifact_key} for {feature_id}")
+                            _logger.info("Imported %s for %s", artifact_key, feature_id)
                         else:
-                            print(f"✗ Failed to import {artifact_key} for {feature_id}: {', '.join(result.errors)}")
+                            _logger.warning(
+                                "Failed to import %s for %s: %s", artifact_key, feature_id, ", ".join(result.errors)
+                            )
                     except Exception as e:
-                        print(f"✗ Error importing {artifact_key} for {feature_id}: {e}")
+                        _logger.error("Error importing %s for %s: %s", artifact_key, feature_id, e)
 
         return sync_callback
 
@@ -366,17 +373,17 @@ class BridgeWatch:
     def start(self) -> None:
         """Start watching for file system changes."""
         if self.running:
-            print("Watcher is already running")
+            _logger.debug("Watcher is already running")
             return
 
         if self.bridge_config is None:
-            print("Bridge config not initialized")
+            _logger.warning("Bridge config not initialized")
             return
 
         watch_paths = self._resolve_watch_paths()
 
         if not watch_paths:
-            print("No watch paths found. Check bridge configuration.")
+            _logger.warning("No watch paths found. Check bridge configuration.")
             return
 
         observer = Observer()
@@ -390,7 +397,7 @@ class BridgeWatch:
 
         self.observer = observer
         self.running = True
-        print(f"Watching for changes in: {', '.join(str(p) for p in watch_paths)}")
+        _logger.info("Watching for changes in: %s", ", ".join(str(p) for p in watch_paths))
 
     @beartype
     @ensure(lambda result: result is None, "Must return None")
@@ -406,7 +413,7 @@ class BridgeWatch:
             self.observer.join(timeout=5)
             self.observer = None
 
-        print("Watch mode stopped")
+        _logger.info("Watch mode stopped")
 
     @beartype
     @ensure(lambda result: result is None, "Must return None")
@@ -423,7 +430,7 @@ class BridgeWatch:
                 time.sleep(self.interval)
                 self._process_pending_changes()
         except KeyboardInterrupt:
-            print("\nStopping watch mode...")
+            _logger.info("Stopping watch mode...")
         finally:
             self.stop()
 
@@ -441,8 +448,8 @@ class BridgeWatch:
             changes.append(self.change_queue.popleft())
 
         if changes and self.sync_callback:
-            print(f"Detected {len(changes)} file change(s), triggering sync...")
+            _logger.debug("Detected %d file change(s), triggering sync...", len(changes))
             try:
                 self.sync_callback(changes)
             except Exception as e:
-                print(f"Sync callback failed: {e}")
+                _logger.error("Sync callback failed: %s", e)

@@ -7,6 +7,7 @@ import argparse
 import base64
 import getpass
 import hashlib
+import logging
 import os
 import subprocess
 import sys
@@ -14,11 +15,16 @@ from pathlib import Path
 from typing import Any
 
 import yaml
+from beartype import beartype
+from icontract import ensure, require
 
 
-_IGNORED_MODULE_DIR_NAMES = {"__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache", "logs"}
+logger = logging.getLogger(__name__)
+
+
+_IGNORED_MODULE_DIR_NAMES = {"__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache", "logs", "tests"}
 _IGNORED_MODULE_FILE_SUFFIXES = {".pyc", ".pyo"}
-_PAYLOAD_FROM_FS_IGNORED_DIRS = _IGNORED_MODULE_DIR_NAMES | {".git", "tests"}
+_PAYLOAD_FROM_FS_IGNORED_DIRS = _IGNORED_MODULE_DIR_NAMES | {".git"}
 
 
 class _IndentedSafeDumper(yaml.SafeDumper):
@@ -34,78 +40,97 @@ def _canonical_payload(manifest_data: dict[str, Any]) -> bytes:
     return yaml.safe_dump(payload, sort_keys=True, allow_unicode=False).encode("utf-8")
 
 
+def _is_hashable_path(path: Path, module_dir_resolved: Path, ignored_dirs: set[str]) -> bool:
+    """Return whether a path should contribute to the module payload hash."""
+    rel = path.resolve().relative_to(module_dir_resolved)
+    if any(part in ignored_dirs for part in rel.parts):
+        return False
+    return path.suffix.lower() not in _IGNORED_MODULE_FILE_SUFFIXES
+
+
+def _filesystem_payload_files(module_dir: Path, module_dir_resolved: Path, ignored_dirs: set[str]) -> list[Path]:
+    """Collect payload files directly from the filesystem."""
+    return sorted(
+        (p for p in module_dir.rglob("*") if p.is_file() and _is_hashable_path(p, module_dir_resolved, ignored_dirs)),
+        key=lambda p: p.resolve().relative_to(module_dir_resolved).as_posix(),
+    )
+
+
+def _git_payload_files(module_dir: Path, module_dir_resolved: Path, ignored_dirs: set[str]) -> list[Path]:
+    """Collect payload files from git, falling back to filesystem on failure."""
+    try:
+        listed = subprocess.run(
+            ["git", "ls-files", module_dir.as_posix()],
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.splitlines()
+    except Exception:
+        return _filesystem_payload_files(module_dir, module_dir_resolved, ignored_dirs)
+    git_files = [(Path.cwd() / line.strip()) for line in listed if line.strip()]
+    return sorted(
+        (path for path in git_files if path.is_file() and _is_hashable_path(path, module_dir_resolved, ignored_dirs)),
+        key=lambda p: p.resolve().relative_to(module_dir_resolved).as_posix(),
+    )
+
+
+def _payload_files(
+    module_dir: Path, module_dir_resolved: Path, payload_from_filesystem: bool, ignored_dirs: set[str]
+) -> list[Path]:
+    """Collect payload files from the requested source."""
+    if payload_from_filesystem:
+        return _filesystem_payload_files(module_dir, module_dir_resolved, ignored_dirs)
+    return _git_payload_files(module_dir, module_dir_resolved, ignored_dirs)
+
+
+def _payload_entry_bytes(path: Path) -> bytes:
+    """Load bytes used for a single payload entry."""
+    rel_name = path.name
+    if rel_name in {"module-package.yaml", "metadata.yaml"}:
+        raw = yaml.safe_load(path.read_text(encoding="utf-8"))
+        if not isinstance(raw, dict):
+            msg = f"Invalid manifest YAML: {path}"
+            raise ValueError(msg)
+        return _canonical_payload(raw)
+    return path.read_bytes()
+
+
 def _module_payload(module_dir: Path, payload_from_filesystem: bool = False) -> bytes:
     if not module_dir.exists() or not module_dir.is_dir():
         msg = f"Module directory not found: {module_dir}"
         raise ValueError(msg)
     module_dir_resolved = module_dir.resolve()
 
-    def _is_hashable(path: Path, ignored_dirs: set[str]) -> bool:
-        rel = path.resolve().relative_to(module_dir_resolved)
-        if any(part in ignored_dirs for part in rel.parts):
-            return False
-        return path.suffix.lower() not in _IGNORED_MODULE_FILE_SUFFIXES
-
     entries: list[str] = []
     ignored_dirs = _PAYLOAD_FROM_FS_IGNORED_DIRS if payload_from_filesystem else _IGNORED_MODULE_DIR_NAMES
-
-    files: list[Path]
-    if payload_from_filesystem:
-        files = sorted(
-            (p for p in module_dir.rglob("*") if p.is_file() and _is_hashable(p, ignored_dirs)),
-            key=lambda p: p.resolve().relative_to(module_dir_resolved).as_posix(),
-        )
-    else:
-        try:
-            listed = subprocess.run(
-                ["git", "ls-files", module_dir.as_posix()],
-                check=True,
-                capture_output=True,
-                text=True,
-            ).stdout.splitlines()
-            git_files = [(Path.cwd() / line.strip()) for line in listed if line.strip()]
-            files = sorted(
-                (path for path in git_files if path.is_file() and _is_hashable(path, ignored_dirs)),
-                key=lambda p: p.resolve().relative_to(module_dir_resolved).as_posix(),
-            )
-        except Exception:
-            files = sorted(
-                (path for path in module_dir.rglob("*") if path.is_file() and _is_hashable(path, ignored_dirs)),
-                key=lambda p: p.resolve().relative_to(module_dir_resolved).as_posix(),
-            )
-
+    files = _payload_files(module_dir, module_dir_resolved, payload_from_filesystem, ignored_dirs)
     for path in files:
         rel = path.resolve().relative_to(module_dir_resolved).as_posix()
-        if rel in {"module-package.yaml", "metadata.yaml"}:
-            raw = yaml.safe_load(path.read_text(encoding="utf-8"))
-            if not isinstance(raw, dict):
-                msg = f"Invalid manifest YAML: {path}"
-                raise ValueError(msg)
-            data = _canonical_payload(raw)
-        else:
-            data = path.read_bytes()
+        data = _payload_entry_bytes(path)
         entries.append(f"{rel}:{hashlib.sha256(data).hexdigest()}")
     return "\n".join(entries).encode("utf-8")
 
 
-def _load_private_key(
-    key_file: Path | None = None,
-    *,
-    passphrase: str | None = None,
-    prompt_for_passphrase: bool = False,
-) -> Any | None:
-    pem = os.environ.get("SPECFACT_MODULE_PRIVATE_SIGN_KEY", "").strip()
-    if not pem:
-        pem = os.environ.get("SPECFACT_MODULE_SIGNING_PRIVATE_KEY_PEM", "").strip()
+def _configured_key_file(key_file: Path | None) -> Path | None:
+    """Resolve the configured private key file from args or environment."""
     configured_file = os.environ.get("SPECFACT_MODULE_PRIVATE_SIGN_KEY_FILE", "").strip()
     if not configured_file:
         configured_file = os.environ.get("SPECFACT_MODULE_SIGNING_PRIVATE_KEY_FILE", "").strip()
-    effective_file = key_file or (Path(configured_file) if configured_file else None)
+    return key_file or (Path(configured_file) if configured_file else None)
+
+
+def _private_key_pem(effective_file: Path | None) -> str:
+    """Resolve PEM text from environment or the configured file."""
+    pem = os.environ.get("SPECFACT_MODULE_PRIVATE_SIGN_KEY", "").strip()
+    if not pem:
+        pem = os.environ.get("SPECFACT_MODULE_SIGNING_PRIVATE_KEY_PEM", "").strip()
     if not pem and effective_file:
         pem = effective_file.read_text(encoding="utf-8")
-    if not pem:
-        return None
+    return pem
 
+
+def _load_serialization_module() -> Any:
+    """Import the cryptography serialization backend."""
     try:
         from cryptography.hazmat.primitives import serialization
     except Exception as exc:
@@ -114,21 +139,35 @@ def _load_private_key(
             "Install signing dependencies (`python3 -m pip install cryptography cffi`) "
             "or run via project environment (`hatch run python scripts/sign-modules.py ...`)."
         ) from exc
+    return serialization
 
+
+def _load_private_key_bytes(serialization: Any, pem: str, password_bytes: bytes | None) -> Any:
+    """Load a private key from PEM bytes with the provided password."""
+    return serialization.load_pem_private_key(pem.encode("utf-8"), password=password_bytes)
+
+
+def _load_private_key(
+    key_file: Path | None = None,
+    *,
+    passphrase: str | None = None,
+    prompt_for_passphrase: bool = False,
+) -> Any | None:
+    effective_file = _configured_key_file(key_file)
+    pem = _private_key_pem(effective_file)
+    if not pem:
+        return None
+    serialization = _load_serialization_module()
     password_bytes = passphrase.encode("utf-8") if passphrase is not None else None
-
     try:
-        return serialization.load_pem_private_key(pem.encode("utf-8"), password=password_bytes)
+        return _load_private_key_bytes(serialization, pem, password_bytes)
     except Exception as exc:
         message = str(exc).lower()
         needs_password = "password was not given" in message or "private key is encrypted" in message
         if needs_password and prompt_for_passphrase:
             prompted = getpass.getpass("Enter signing key passphrase: ")
             try:
-                return serialization.load_pem_private_key(
-                    pem.encode("utf-8"),
-                    password=prompted.encode("utf-8"),
-                )
+                return _load_private_key_bytes(serialization, pem, prompted.encode("utf-8"))
             except Exception as retry_exc:
                 raise ValueError(f"Failed to load private key from PEM: {retry_exc}") from retry_exc
         if needs_password and passphrase is None:
@@ -277,7 +316,7 @@ def _auto_bump_manifest_version(manifest_path: Path, *, base_ref: str, bump_type
     bumped = _bump_semver(current_version, bump_type)
     raw["version"] = bumped
     _write_manifest(manifest_path, raw)
-    print(f"{manifest_path}: version {current_version} -> {bumped}")
+    logger.info("%s: version %s -> %s", manifest_path, current_version, bumped)
     return True
 
 
@@ -321,6 +360,7 @@ def _sign_payload(payload: bytes, private_key: Any) -> str:
     return base64.b64encode(signature).decode("ascii")
 
 
+@require(lambda manifest_path: manifest_path.suffix == ".yaml", "manifest_path must point to YAML")
 def sign_manifest(manifest_path: Path, private_key: Any | None, *, payload_from_filesystem: bool = False) -> None:
     raw = yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
     if not isinstance(raw, dict):
@@ -338,9 +378,51 @@ def sign_manifest(manifest_path: Path, private_key: Any | None, *, payload_from_
     _write_manifest(manifest_path, raw)
 
     status = "checksum+signature" if "signature" in integrity else "checksum"
-    print(f"{manifest_path}: {status}")
+    logger.info("%s: %s", manifest_path, status)
 
 
+def _resolve_manifests(args: argparse.Namespace, parser: argparse.ArgumentParser) -> list[Path]:
+    """Resolve the set of manifests to sign from CLI arguments."""
+    if args.manifests:
+        return [Path(manifest) for manifest in args.manifests]
+    if not args.changed_only:
+        parser.error("Provide one or more manifests, or use --changed-only.")
+    try:
+        _ensure_valid_git_ref(args.base_ref)
+    except ValueError as exc:
+        parser.error(str(exc))
+    return [manifest for manifest in _iter_manifests() if _module_has_git_changes_since(manifest.parent, args.base_ref)]
+
+
+def _sign_requested_manifests(
+    args: argparse.Namespace, parser: argparse.ArgumentParser, private_key: Any | None
+) -> int:
+    """Sign the resolved manifest set."""
+    manifests = _resolve_manifests(args, parser)
+    if args.changed_only and not manifests:
+        logger.info("No changed module manifests detected since %s.", args.base_ref)
+        return 0
+    for manifest_path in manifests:
+        try:
+            if args.changed_only and args.bump_version:
+                _auto_bump_manifest_version(
+                    manifest_path,
+                    base_ref=args.base_ref,
+                    bump_type=args.bump_version,
+                )
+            _enforce_version_bump_before_signing(
+                manifest_path,
+                allow_same_version=args.allow_same_version,
+                comparison_ref=args.base_ref if args.changed_only else "HEAD",
+            )
+            sign_manifest(manifest_path, private_key, payload_from_filesystem=args.payload_from_filesystem)
+        except ValueError as exc:
+            parser.error(str(exc))
+    return 0
+
+
+@beartype
+@ensure(lambda result: result >= 0, "exit code must be non-negative")
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -409,43 +491,9 @@ def main() -> int:
             "or set SPECFACT_MODULE_PRIVATE_SIGN_KEY / SPECFACT_MODULE_PRIVATE_SIGN_KEY_FILE. "
             "For local testing only, re-run with --allow-unsigned."
         )
-
-    manifests: list[Path]
-    if args.manifests:
-        manifests = [Path(manifest) for manifest in args.manifests]
-    elif args.changed_only:
-        try:
-            _ensure_valid_git_ref(args.base_ref)
-        except ValueError as exc:
-            parser.error(str(exc))
-        manifests = [
-            manifest for manifest in _iter_manifests() if _module_has_git_changes_since(manifest.parent, args.base_ref)
-        ]
-    else:
-        parser.error("Provide one or more manifests, or use --changed-only.")
-
-    if args.changed_only and not manifests:
-        print(f"No changed module manifests detected since {args.base_ref}.")
-        return 0
-
-    for manifest_path in manifests:
-        try:
-            if args.changed_only and args.bump_version:
-                _auto_bump_manifest_version(
-                    manifest_path,
-                    base_ref=args.base_ref,
-                    bump_type=args.bump_version,
-                )
-            _enforce_version_bump_before_signing(
-                manifest_path,
-                allow_same_version=args.allow_same_version,
-                comparison_ref=args.base_ref if args.changed_only else "HEAD",
-            )
-            sign_manifest(manifest_path, private_key, payload_from_filesystem=args.payload_from_filesystem)
-        except ValueError as exc:
-            parser.error(str(exc))
-    return 0
+    return _sign_requested_manifests(args, parser, private_key)
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
     raise SystemExit(main())

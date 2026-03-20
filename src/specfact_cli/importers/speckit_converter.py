@@ -474,6 +474,157 @@ class SpecKitConverter:
 
         return features_converted
 
+    def _gwt_from_acceptance(self, acc: str) -> tuple[str, str, str]:
+        """
+        Parse or synthesise Given/When/Then components from an acceptance criterion string.
+
+        Args:
+            acc: Acceptance criterion text
+
+        Returns:
+            Tuple of (given, when, then) strings
+        """
+        if "Given" in acc and "When" in acc and "Then" in acc:
+            gwt_pattern = r"Given\s+(.+?),\s*When\s+(.+?),\s*Then\s+(.+?)(?:$|,)"
+            m = re.search(gwt_pattern, acc, re.IGNORECASE | re.DOTALL)
+            if m:
+                return m.group(1).strip(), m.group(2).strip(), m.group(3).strip()
+            parts = acc.split(", ")
+            given = parts[0].replace("Given ", "").strip() if len(parts) > 0 else ""
+            when = parts[1].replace("When ", "").strip() if len(parts) > 1 else ""
+            then = parts[2].replace("Then ", "").strip() if len(parts) > 2 else ""
+            return given, when, then
+
+        acc_lower = acc.lower()
+        if "must" in acc_lower or "should" in acc_lower or "will" in acc_lower:
+            if "verify" in acc_lower or "validate" in acc_lower:
+                action = (
+                    acc.replace("Must verify", "")
+                    .replace("Must validate", "")
+                    .replace("Should verify", "")
+                    .replace("Should validate", "")
+                    .strip()
+                )
+                return "user performs action", f"system {action}", f"{action} succeeds"
+            if "handle" in acc_lower or "display" in acc_lower:
+                action = (
+                    acc.replace("Must handle", "")
+                    .replace("Must display", "")
+                    .replace("Should handle", "")
+                    .replace("Should display", "")
+                    .strip()
+                )
+                return "error condition occurs", "system processes error", f"system {action}"
+            return (
+                "user interacts with system",
+                "action is performed",
+                acc.replace("Must", "").replace("Should", "").replace("Will", "").strip(),
+            )
+        return "", "", ""
+
+    def _categorise_scenario(
+        self,
+        scenario_text: str,
+        acc_lower: str,
+        primaries: list[str],
+        alternates: list[str],
+        exceptions: list[str],
+        recoveries: list[str],
+    ) -> None:
+        """
+        Append a scenario text to the correct category bucket in-place.
+
+        Args:
+            scenario_text: Scenario text to categorise
+            acc_lower: Lower-cased acceptance criterion for keyword matching
+            primaries: Primary scenario bucket
+            alternates: Alternate scenario bucket
+            exceptions: Exception scenario bucket
+            recoveries: Recovery scenario bucket
+        """
+        if any(kw in acc_lower for kw in ["error", "exception", "fail", "invalid", "reject", "handle error"]):
+            exceptions.append(scenario_text)
+        elif any(kw in acc_lower for kw in ["recover", "retry", "fallback"]):
+            recoveries.append(scenario_text)
+        elif any(kw in acc_lower for kw in ["alternate", "alternative", "different", "optional"]):
+            alternates.append(scenario_text)
+        else:
+            primaries.append(scenario_text)
+
+    def _render_story_acceptance(self, story: Any, feature_outcomes: list[str], lines: list[str]) -> None:
+        """
+        Render the acceptance criteria and scenario sections for a single story.
+
+        Appends lines to `lines` in-place.
+
+        Args:
+            story: Story model instance
+            feature_outcomes: Parent feature outcomes (used as fallback for priority rationale)
+            lines: Line buffer to append to
+        """
+        priority_rationale = "Core functionality"
+        if story.tags:
+            for tag in story.tags:
+                if tag.startswith(("priority:", "rationale:")):
+                    priority_rationale = tag.split(":", 1)[1].strip()
+                    break
+        if priority_rationale == "Core functionality" and feature_outcomes:
+            priority_rationale = feature_outcomes[0] if len(feature_outcomes[0]) < 100 else "Core functionality"
+
+        lines += [
+            f"Users can {story.title}",
+            "",
+            f"**Why this priority**: {priority_rationale}",
+            "",
+            "**Independent**: YES",
+            "**Negotiable**: YES",
+            "**Valuable**: YES",
+            "**Estimable**: YES",
+            "**Small**: YES",
+            "**Testable**: YES",
+            "",
+            "**Acceptance Criteria:**",
+            "",
+        ]
+
+        primaries: list[str] = []
+        alternates: list[str] = []
+        exceptions: list[str] = []
+        recoveries: list[str] = []
+
+        for acc_idx, acc in enumerate(story.acceptance, start=1):
+            given, when, then = self._gwt_from_acceptance(acc)
+            if given or when or then:
+                lines.append(f"{acc_idx}. **Given** {given}, **When** {when}, **Then** {then}")
+                self._categorise_scenario(
+                    f"{given}, {when}, {then}", acc.lower(), primaries, alternates, exceptions, recoveries
+                )
+            else:
+                lines.append(f"{acc_idx}. {acc}")
+                self._categorise_scenario(acc, acc.lower(), primaries, alternates, exceptions, recoveries)
+
+        lines.append("")
+        if primaries or alternates or exceptions or recoveries:
+            lines += ["**Scenarios:**", ""]
+            for s in primaries:
+                lines.append(f"- **Primary Scenario**: {s}")
+            if not primaries:
+                lines.append("- **Primary Scenario**: Standard user flow")
+            for s in alternates:
+                lines.append(f"- **Alternate Scenario**: {s}")
+            if not alternates:
+                lines.append("- **Alternate Scenario**: Alternative user flow")
+            for s in exceptions:
+                lines.append(f"- **Exception Scenario**: {s}")
+            if not exceptions:
+                lines.append("- **Exception Scenario**: Error handling")
+            for s in recoveries:
+                lines.append(f"- **Recovery Scenario**: {s}")
+            if not recoveries:
+                lines.append("- **Recovery Scenario**: Recovery from errors")
+            lines.append("")
+        lines.append("")
+
     @beartype
     @require(lambda feature: isinstance(feature, Feature), "Must be Feature instance")
     @require(
@@ -492,18 +643,13 @@ class SpecKitConverter:
         """
         from datetime import datetime
 
-        # Extract feature branch from feature key (FEATURE-001 -> 001-feature-name)
-        # Use provided feature_num if available, otherwise extract from key (with fallback to 1)
         if feature_num is None:
             feature_num = self._extract_feature_number(feature.key)
             if feature_num == 0:
-                # Fallback: use 1 if no number found (shouldn't happen if called from convert_to_speckit)
                 feature_num = 1
-        feature_name = self._to_feature_dir_name(feature.title)
-        feature_branch = f"{feature_num:03d}-{feature_name}"
+        feature_branch = f"{feature_num:03d}-{self._to_feature_dir_name(feature.title)}"
 
-        # Generate frontmatter (CRITICAL for Spec-Kit compatibility)
-        lines = [
+        lines: list[str] = [
             "---",
             f"**Feature Branch**: `{feature_branch}`",
             f"**Created**: {datetime.now().strftime('%Y-%m-%d')}",
@@ -514,208 +660,32 @@ class SpecKitConverter:
             "",
         ]
 
-        # Add stories
         if feature.stories:
-            lines.append("## User Scenarios & Testing")
-            lines.append("")
-
+            lines += ["## User Scenarios & Testing", ""]
             for idx, story in enumerate(feature.stories, start=1):
-                # Extract priority from tags or default to P3
                 priority = "P3"
                 if story.tags:
                     for tag in story.tags:
                         if tag.startswith("P") and tag[1:].isdigit():
                             priority = tag
                             break
-
                 lines.append(f"### User Story {idx} - {story.title} (Priority: {priority})")
-                lines.append(f"Users can {story.title}")
-                lines.append("")
-                # Extract priority rationale from story tags, feature outcomes, or use default
-                priority_rationale = "Core functionality"
-                if story.tags:
-                    for tag in story.tags:
-                        if tag.startswith(("priority:", "rationale:")):
-                            priority_rationale = tag.split(":", 1)[1].strip()
-                            break
-                if (not priority_rationale or priority_rationale == "Core functionality") and feature.outcomes:
-                    # Try to extract from feature outcomes
-                    priority_rationale = feature.outcomes[0] if len(feature.outcomes[0]) < 100 else "Core functionality"
-                lines.append(f"**Why this priority**: {priority_rationale}")
-                lines.append("")
+                self._render_story_acceptance(story, feature.outcomes, lines)
 
-                # INVSEST criteria (CRITICAL for /speckit.analyze and /speckit.checklist)
-                lines.append("**Independent**: YES")
-                lines.append("**Negotiable**: YES")
-                lines.append("**Valuable**: YES")
-                lines.append("**Estimable**: YES")
-                lines.append("**Small**: YES")
-                lines.append("**Testable**: YES")
-                lines.append("")
-
-                lines.append("**Acceptance Criteria:**")
-                lines.append("")
-
-                scenarios_primary: list[str] = []
-                scenarios_alternate: list[str] = []
-                scenarios_exception: list[str] = []
-                scenarios_recovery: list[str] = []
-
-                for acc_idx, acc in enumerate(story.acceptance, start=1):
-                    # Parse Given/When/Then if available
-                    if "Given" in acc and "When" in acc and "Then" in acc:
-                        # Use regex to properly extract Given/When/Then parts
-                        # This handles commas inside type hints (e.g., "dict[str, Any]")
-                        gwt_pattern = r"Given\s+(.+?),\s*When\s+(.+?),\s*Then\s+(.+?)(?:$|,)"
-                        match = re.search(gwt_pattern, acc, re.IGNORECASE | re.DOTALL)
-                        if match:
-                            given = match.group(1).strip()
-                            when = match.group(2).strip()
-                            then = match.group(3).strip()
-                        else:
-                            # Fallback to simple split if regex fails
-                            parts = acc.split(", ")
-                            given = parts[0].replace("Given ", "").strip() if len(parts) > 0 else ""
-                            when = parts[1].replace("When ", "").strip() if len(parts) > 1 else ""
-                            then = parts[2].replace("Then ", "").strip() if len(parts) > 2 else ""
-                        lines.append(f"{acc_idx}. **Given** {given}, **When** {when}, **Then** {then}")
-
-                        # Categorize scenarios based on keywords
-                        scenario_text = f"{given}, {when}, {then}"
-                        acc_lower = acc.lower()
-                        if any(keyword in acc_lower for keyword in ["error", "exception", "fail", "invalid", "reject"]):
-                            scenarios_exception.append(scenario_text)
-                        elif any(keyword in acc_lower for keyword in ["recover", "retry", "fallback", "retry"]):
-                            scenarios_recovery.append(scenario_text)
-                        elif any(
-                            keyword in acc_lower for keyword in ["alternate", "alternative", "different", "optional"]
-                        ):
-                            scenarios_alternate.append(scenario_text)
-                        else:
-                            scenarios_primary.append(scenario_text)
-                    else:
-                        # Convert simple acceptance to Given/When/Then format for better scenario extraction
-                        acc_lower = acc.lower()
-
-                        # Generate Given/When/Then from simple acceptance
-                        if "must" in acc_lower or "should" in acc_lower or "will" in acc_lower:
-                            # Extract action and outcome
-                            if "verify" in acc_lower or "validate" in acc_lower:
-                                action = (
-                                    acc.replace("Must verify", "")
-                                    .replace("Must validate", "")
-                                    .replace("Should verify", "")
-                                    .replace("Should validate", "")
-                                    .strip()
-                                )
-                                given = "user performs action"
-                                when = f"system {action}"
-                                then = f"{action} succeeds"
-                            elif "handle" in acc_lower or "display" in acc_lower:
-                                action = (
-                                    acc.replace("Must handle", "")
-                                    .replace("Must display", "")
-                                    .replace("Should handle", "")
-                                    .replace("Should display", "")
-                                    .strip()
-                                )
-                                given = "error condition occurs"
-                                when = "system processes error"
-                                then = f"system {action}"
-                            else:
-                                # Generic conversion
-                                given = "user interacts with system"
-                                when = "action is performed"
-                                then = acc.replace("Must", "").replace("Should", "").replace("Will", "").strip()
-
-                            lines.append(f"{acc_idx}. **Given** {given}, **When** {when}, **Then** {then}")
-
-                            # Categorize based on keywords
-                            scenario_text = f"{given}, {when}, {then}"
-                            if any(
-                                keyword in acc_lower
-                                for keyword in ["error", "exception", "fail", "invalid", "reject", "handle error"]
-                            ):
-                                scenarios_exception.append(scenario_text)
-                            elif any(keyword in acc_lower for keyword in ["recover", "retry", "fallback"]):
-                                scenarios_recovery.append(scenario_text)
-                            elif any(
-                                keyword in acc_lower
-                                for keyword in ["alternate", "alternative", "different", "optional"]
-                            ):
-                                scenarios_alternate.append(scenario_text)
-                            else:
-                                scenarios_primary.append(scenario_text)
-                        else:
-                            # Keep original format but still categorize
-                            lines.append(f"{acc_idx}. {acc}")
-                            acc_lower = acc.lower()
-                            if any(keyword in acc_lower for keyword in ["error", "exception", "fail", "invalid"]):
-                                scenarios_exception.append(acc)
-                            elif any(keyword in acc_lower for keyword in ["recover", "retry", "fallback"]):
-                                scenarios_recovery.append(acc)
-                            elif any(keyword in acc_lower for keyword in ["alternate", "alternative", "different"]):
-                                scenarios_alternate.append(acc)
-                            else:
-                                scenarios_primary.append(acc)
-
-                lines.append("")
-
-                # Scenarios section (CRITICAL for /speckit.analyze and /speckit.checklist)
-                if scenarios_primary or scenarios_alternate or scenarios_exception or scenarios_recovery:
-                    lines.append("**Scenarios:**")
-                    lines.append("")
-
-                    if scenarios_primary:
-                        for scenario in scenarios_primary:
-                            lines.append(f"- **Primary Scenario**: {scenario}")
-                    else:
-                        lines.append("- **Primary Scenario**: Standard user flow")
-
-                    if scenarios_alternate:
-                        for scenario in scenarios_alternate:
-                            lines.append(f"- **Alternate Scenario**: {scenario}")
-                    else:
-                        lines.append("- **Alternate Scenario**: Alternative user flow")
-
-                    if scenarios_exception:
-                        for scenario in scenarios_exception:
-                            lines.append(f"- **Exception Scenario**: {scenario}")
-                    else:
-                        lines.append("- **Exception Scenario**: Error handling")
-
-                    if scenarios_recovery:
-                        for scenario in scenarios_recovery:
-                            lines.append(f"- **Recovery Scenario**: {scenario}")
-                    else:
-                        lines.append("- **Recovery Scenario**: Recovery from errors")
-
-                    lines.append("")
-                lines.append("")
-
-        # Add functional requirements from outcomes
         if feature.outcomes:
-            lines.append("## Functional Requirements")
-            lines.append("")
-
+            lines += ["## Functional Requirements", ""]
             for idx, outcome in enumerate(feature.outcomes, start=1):
                 lines.append(f"**FR-{idx:03d}**: System MUST {outcome}")
             lines.append("")
 
-        # Add success criteria from acceptance
         if feature.acceptance:
-            lines.append("## Success Criteria")
-            lines.append("")
-
+            lines += ["## Success Criteria", ""]
             for idx, acc in enumerate(feature.acceptance, start=1):
                 lines.append(f"**SC-{idx:03d}**: {acc}")
             lines.append("")
 
-        # Add edge cases from constraints
         if feature.constraints:
-            lines.append("### Edge Cases")
-            lines.append("")
-
+            lines += ["### Edge Cases", ""]
             for constraint in feature.constraints:
                 lines.append(f"- {constraint}")
             lines.append("")

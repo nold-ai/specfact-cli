@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import logging
 import os
 import re
 import subprocess
@@ -18,6 +19,9 @@ import yaml
 from beartype import beartype
 from icontract import ensure, require
 from packaging.version import Version
+
+
+logger = logging.getLogger(__name__)
 
 
 _MARKETPLACE_NAMESPACE_PATTERN = re.compile(r"^[a-z][a-z0-9-]*/[a-z][a-z0-9-]+$")
@@ -293,6 +297,49 @@ def write_index_entry(index_path: Path, entry: dict) -> None:
     os.replace(tmp_path, index_path)
 
 
+def _load_bundle_publish_state(bundle_dir: Path) -> tuple[Path, dict, str, str]:
+    """Load manifest state for publishing a bundle."""
+    manifest_path = bundle_dir / "module-package.yaml"
+    manifest = _load_manifest(manifest_path)
+    manifest = _ensure_publisher_email(manifest_path, manifest)
+    module_id = str(manifest.get("name", "")).strip()
+    version = str(manifest.get("version", "")).strip()
+    return manifest_path, manifest, module_id, version
+
+
+def _ensure_publish_version_progression(index_path: Path, module_id: str, version: str) -> None:
+    """Reject publishes that do not advance the registry version."""
+    if not index_path.exists():
+        return
+
+    payload = json.loads(index_path.read_text(encoding="utf-8"))
+    modules = payload.get("modules", []) if isinstance(payload, dict) else []
+    for existing in modules:
+        if not isinstance(existing, dict) or existing.get("id") != module_id:
+            continue
+        existing_version = str(existing.get("latest_version", "")).strip()
+        if not existing_version:
+            continue
+        if Version(existing_version) >= Version(version):
+            raise ValueError(
+                f"Refusing publish with same version or downgrade: existing latest={existing_version}, new={version}"
+            )
+
+
+def _build_publish_entry(manifest: dict, module_id: str, version: str, tarball: Path, checksum: str) -> dict:
+    """Build the registry entry for a published bundle."""
+    return {
+        "id": module_id,
+        "latest_version": version,
+        "download_url": f"modules/{tarball.name}",
+        "checksum_sha256": checksum,
+        "tier": manifest.get("tier", "community"),
+        "publisher": manifest.get("publisher", "unknown"),
+        "bundle_dependencies": manifest.get("bundle_dependencies", []),
+        "description": (manifest.get("description") or "").strip(),
+    }
+
+
 @beartype
 @require(lambda bundle_name: bundle_name.strip() != "", "bundle_name must be non-empty")
 def publish_bundle(
@@ -311,16 +358,12 @@ def publish_bundle(
     if not key_file.exists():
         raise ValueError(f"Key file not found: {key_file}")
 
-    manifest_path = bundle_dir / "module-package.yaml"
-    manifest = _load_manifest(manifest_path)
-    manifest = _ensure_publisher_email(manifest_path, manifest)
-    module_id = str(manifest.get("name", "")).strip()
-    version = str(manifest.get("version", "")).strip()
+    manifest_path, manifest, module_id, version = _load_bundle_publish_state(bundle_dir)
     if bump_version:
         version = _bump_semver(version, bump_version)
         manifest["version"] = version
         _write_manifest(manifest_path, manifest)
-        print(f"{bundle_name}: version bumped to {version}")
+        logger.info("%s: version bumped to %s", bundle_name, version)
     if not module_id or not version:
         raise ValueError("Bundle manifest must include name and version")
 
@@ -329,19 +372,7 @@ def publish_bundle(
     manifest = _load_manifest(manifest_path)
 
     index_path = registry_dir / "index.json"
-    if index_path.exists():
-        payload = json.loads(index_path.read_text(encoding="utf-8"))
-        modules = payload.get("modules", []) if isinstance(payload, dict) else []
-        for existing in modules:
-            if not isinstance(existing, dict) or existing.get("id") != module_id:
-                continue
-            existing_version = str(existing.get("latest_version", "")).strip()
-            if not existing_version:
-                continue
-            if Version(existing_version) >= Version(version):
-                raise ValueError(
-                    f"Refusing publish with same version or downgrade: existing latest={existing_version}, new={version}"
-                )
+    _ensure_publish_version_progression(index_path, module_id, version)
 
     tarball = package_bundle(bundle_dir, registry_dir=registry_dir)
     signature_file = sign_bundle(tarball, key_file, registry_dir)
@@ -349,16 +380,7 @@ def publish_bundle(
         raise ValueError("Bundle verification failed; index.json not modified")
 
     checksum = _checksum_sha256(tarball)
-    entry = {
-        "id": module_id,
-        "latest_version": version,
-        "download_url": f"modules/{tarball.name}",
-        "checksum_sha256": checksum,
-        "tier": manifest.get("tier", "community"),
-        "publisher": manifest.get("publisher", "unknown"),
-        "bundle_dependencies": manifest.get("bundle_dependencies", []),
-        "description": (manifest.get("description") or "").strip(),
-    }
+    entry = _build_publish_entry(manifest, module_id, version, tarball, checksum)
     write_index_entry(index_path, entry)
 
 
@@ -395,6 +417,95 @@ def _write_manifest(manifest_path: Path, data: dict) -> None:
     )
 
 
+def _resolve_bundle_passphrase(args: argparse.Namespace) -> str:
+    """Resolve bundle publish passphrase from args, env, stdin, or TTY prompt."""
+    passphrase = (args.passphrase or "").strip()
+    if not passphrase:
+        passphrase = os.environ.get("SPECFACT_MODULE_PRIVATE_SIGN_KEY_PASSPHRASE", "").strip()
+    if not passphrase:
+        passphrase = os.environ.get("SPECFACT_MODULE_SIGNING_PRIVATE_KEY_PASSPHRASE", "").strip()
+    if args.passphrase_stdin:
+        passphrase = sys.stdin.read().rstrip("\r\n") or passphrase
+    if passphrase or not sys.stdin.isatty():
+        return passphrase
+    try:
+        import getpass as _gp
+
+        return _gp.getpass("Signing key passphrase (used for all bundles): ")
+    except (EOFError, KeyboardInterrupt):
+        return ""
+
+
+def _publish_bundles(args: argparse.Namespace) -> int:
+    """Handle bundle publish mode."""
+    if args.key_file is None:
+        logger.error("--bundle requires --key-file")
+        return 1
+
+    passphrase = _resolve_bundle_passphrase(args)
+    modules_repo_dir = args.modules_repo_dir.resolve()
+    bundle_packages_root = modules_repo_dir / "packages"
+    registry_dir = args.registry_dir.resolve() if args.registry_dir is not None else modules_repo_dir / "registry"
+    global BUNDLE_PACKAGES_ROOT
+    BUNDLE_PACKAGES_ROOT = bundle_packages_root
+    bundles = OFFICIAL_BUNDLES if args.bundle == "all" else [args.bundle]
+    for bundle_name in bundles:
+        publish_bundle(
+            bundle_name, args.key_file, registry_dir, bump_version=args.bump_version, passphrase=passphrase or None
+        )
+        logger.info("Published bundle: %s", bundle_name)
+    return 0
+
+
+def _publish_single_module(args: argparse.Namespace) -> int:
+    """Handle single-module packaging mode."""
+    if args.module_path is None:
+        logger.error("module_path is required when --bundle is not used")
+        return 1
+
+    try:
+        module_dir = _find_module_dir(args.module_path.resolve())
+    except ValueError as e:
+        logger.error("%s", e)
+        return 1
+
+    manifest_path = module_dir / "module-package.yaml"
+    manifest = _load_manifest(manifest_path)
+    manifest = _ensure_publisher_email(manifest_path, manifest)
+    name = str(manifest.get("name", "")).strip()
+    version = str(manifest.get("version", "")).strip()
+    if not name or not version:
+        logger.error("name and version required in manifest")
+        return 1
+
+    try:
+        _validate_namespace_for_marketplace(manifest, module_dir)
+    except ValueError as e:
+        logger.error("Validation: %s", e)
+        return 1
+
+    tarball_name = f"{name.replace('/', '-')}-{version}.tar.gz"
+    args.output_dir.mkdir(parents=True, exist_ok=True)
+    output_path = args.output_dir / tarball_name
+    _create_tarball(module_dir, output_path, name, version)
+    checksum = _checksum_sha256(output_path)
+    (args.output_dir / f"{tarball_name}.sha256").write_text(f"{checksum}  {tarball_name}\n", encoding="utf-8")
+    logger.info("Created %s (sha256=%s)", output_path, checksum)
+
+    if args.sign:
+        if _run_sign_if_requested(manifest_path, args.key_file):
+            logger.info("Manifest signed.")
+        else:
+            logger.warning("Signing skipped or failed.")
+
+    if args.index_fragment:
+        _write_index_fragment(name, version, tarball_name, checksum, args.download_base_url, args.index_fragment)
+        logger.info("Wrote index fragment to %s", args.index_fragment)
+    return 0
+
+
+@beartype
+@ensure(lambda result: result >= 0, "exit code must be non-negative")
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Validate and package a SpecFact module for registry publishing.",
@@ -469,81 +580,10 @@ def main() -> int:
     args = parser.parse_args()
 
     if args.bundle:
-        if args.key_file is None:
-            print("Error: --bundle requires --key-file", file=sys.stderr)
-            return 1
-        passphrase = (args.passphrase or "").strip()
-        if not passphrase:
-            passphrase = os.environ.get("SPECFACT_MODULE_PRIVATE_SIGN_KEY_PASSPHRASE", "").strip()
-        if not passphrase:
-            passphrase = os.environ.get("SPECFACT_MODULE_SIGNING_PRIVATE_KEY_PASSPHRASE", "").strip()
-        if args.passphrase_stdin:
-            passphrase = sys.stdin.read().rstrip("\r\n") or passphrase
-        if not passphrase and sys.stdin.isatty():
-            try:
-                import getpass as _gp
-
-                passphrase = _gp.getpass("Signing key passphrase (used for all bundles): ")
-            except (EOFError, KeyboardInterrupt):
-                passphrase = ""
-        modules_repo_dir = args.modules_repo_dir.resolve()
-        bundle_packages_root = modules_repo_dir / "packages"
-        registry_dir = args.registry_dir.resolve() if args.registry_dir is not None else modules_repo_dir / "registry"
-        global BUNDLE_PACKAGES_ROOT
-        BUNDLE_PACKAGES_ROOT = bundle_packages_root
-        bundles = OFFICIAL_BUNDLES if args.bundle == "all" else [args.bundle]
-        for bundle_name in bundles:
-            publish_bundle(
-                bundle_name, args.key_file, registry_dir, bump_version=args.bump_version, passphrase=passphrase or None
-            )
-            print(f"Published bundle: {bundle_name}")
-        return 0
-
-    if args.module_path is None:
-        print("Error: module_path is required when --bundle is not used", file=sys.stderr)
-        return 1
-
-    try:
-        module_dir = _find_module_dir(args.module_path.resolve())
-    except ValueError as e:
-        print(f"Error: {e}", file=sys.stderr)
-        return 1
-
-    manifest_path = module_dir / "module-package.yaml"
-    manifest = _load_manifest(manifest_path)
-    manifest = _ensure_publisher_email(manifest_path, manifest)
-    name = str(manifest.get("name", "")).strip()
-    version = str(manifest.get("version", "")).strip()
-    if not name or not version:
-        print("Error: name and version required in manifest", file=sys.stderr)
-        return 1
-
-    try:
-        _validate_namespace_for_marketplace(manifest, module_dir)
-    except ValueError as e:
-        print(f"Validation: {e}", file=sys.stderr)
-        return 1
-
-    tarball_name = f"{name.replace('/', '-')}-{version}.tar.gz"
-    args.output_dir.mkdir(parents=True, exist_ok=True)
-    output_path = args.output_dir / tarball_name
-    _create_tarball(module_dir, output_path, name, version)
-    checksum = _checksum_sha256(output_path)
-    (args.output_dir / f"{tarball_name}.sha256").write_text(f"{checksum}  {tarball_name}\n", encoding="utf-8")
-    print(f"Created {output_path} (sha256={checksum})")
-
-    if args.sign:
-        if _run_sign_if_requested(manifest_path, args.key_file):
-            print("Manifest signed.")
-        else:
-            print("Warning: signing skipped or failed.", file=sys.stderr)
-
-    if args.index_fragment:
-        _write_index_fragment(name, version, tarball_name, checksum, args.download_base_url, args.index_fragment)
-        print(f"Wrote index fragment to {args.index_fragment}")
-
-    return 0
+        return _publish_bundles(args)
+    return _publish_single_module(args)
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
     sys.exit(main())

@@ -16,10 +16,12 @@ from icontract import ensure, require
 class SchemaConverter(Protocol):
     """Protocol for bidirectional schema conversion."""
 
+    @require(lambda external_data: isinstance(external_data, dict), "external_data must be a dict")
     def to_bundle(self, external_data: dict) -> dict:
         """Convert external service payload into bundle-compatible payload."""
         ...
 
+    @require(lambda bundle_data: isinstance(bundle_data, dict), "bundle_data must be a dict")
     def from_bundle(self, bundle_data: dict) -> dict:
         """Convert bundle payload into service-specific payload."""
         ...
@@ -60,16 +62,19 @@ class BridgeRegistry:
         return self._converters[bridge_id]
 
     @beartype
+    @ensure(lambda result: result is None or isinstance(result, str))
     def get_owner(self, bridge_id: str) -> str | None:
         """Return module owner for a bridge ID."""
         return self._owners.get(bridge_id)
 
     @beartype
+    @ensure(lambda result: isinstance(result, list))
     def list_bridge_ids(self) -> list[str]:
         """Return sorted bridge IDs currently registered."""
         return sorted(self._converters.keys())
 
     @beartype
+    @ensure(lambda result: isinstance(result, Mapping))
     def as_mapping(self) -> Mapping[str, SchemaConverter]:
         """Expose read-only mapping for introspection/tests."""
         return dict(self._converters)

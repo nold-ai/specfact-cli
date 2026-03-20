@@ -191,7 +191,7 @@ class SpecToCodeSync:
         """Detect bundle name from repository."""
         from specfact_cli.utils.structure import SpecFactStructure
 
-        projects_dir = SpecFactStructure.projects_dir(base_path=repo_path)
+        projects_dir = SpecFactStructure.projects_dir(base_path=repo_path)  # type: ignore[attr-defined]
         if projects_dir.exists():
             bundles = [d.name for d in projects_dir.iterdir() if d.is_dir()]
             if bundles:

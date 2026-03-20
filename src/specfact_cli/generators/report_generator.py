@@ -173,6 +173,7 @@ class ReportGenerator:
         """Generate YAML report."""
         dump_structured_file(report.model_dump(mode="json"), output_path, StructuredFormat.YAML)
 
+    @ensure(lambda result: isinstance(result, str), "Must return str")
     def render_markdown_string(self, report: ValidationReport | DeviationReport) -> str:
         """
         Render report to markdown string without writing to file.

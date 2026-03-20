@@ -87,6 +87,145 @@ class PersonaExporter:
             lstrip_blocks=True,
         )
 
+    def _build_story_dict(self, story: Any) -> tuple[dict[str, Any], int]:
+        """
+        Build the template dictionary for a single story, including DoR status.
+
+        Args:
+            story: Story model instance
+
+        Returns:
+            Tuple of (story_dict, story_points) where story_points is 0 if not set
+        """
+        story_dict = story.model_dump()
+        dor_status: dict[str, bool] = {}
+        if hasattr(story, "story_points"):
+            dor_status["story_points"] = story.story_points is not None
+        if hasattr(story, "value_points"):
+            dor_status["value_points"] = story.value_points is not None
+        if hasattr(story, "priority"):
+            dor_status["priority"] = story.priority is not None
+        if hasattr(story, "depends_on_stories") and hasattr(story, "blocks_stories"):
+            dor_status["dependencies"] = len(story.depends_on_stories) > 0 or len(story.blocks_stories) > 0
+        if hasattr(story, "business_value_description"):
+            dor_status["business_value"] = story.business_value_description is not None
+        if hasattr(story, "due_date"):
+            dor_status["target_date"] = story.due_date is not None
+        if hasattr(story, "target_sprint"):
+            dor_status["target_sprint"] = story.target_sprint is not None
+        story_dict["definition_of_ready"] = dor_status
+        for field in ("tasks", "scenarios", "contracts", "source_functions", "test_functions"):
+            if hasattr(story, field) and getattr(story, field):
+                story_dict[field] = getattr(story, field)
+        points = story.story_points if (hasattr(story, "story_points") and story.story_points is not None) else 0
+        return story_dict, points
+
+    def _build_feature_dict(self, feature: Any, persona_mapping: PersonaMapping) -> dict[str, Any]:
+        """
+        Build the template dictionary for a single feature with persona-owned sections filtered in.
+
+        Args:
+            feature: Feature model instance from the bundle
+            persona_mapping: Persona mapping with owned sections
+
+        Returns:
+            Feature context dictionary
+        """
+        from specfact_cli.utils.persona_ownership import match_section_pattern
+
+        feature_dict: dict[str, Any] = {"key": feature.key, "title": feature.title}
+        if feature.outcomes:
+            feature_dict["outcomes"] = feature.outcomes
+        for field in (
+            "priority",
+            "rank",
+            "business_value_score",
+            "target_release",
+            "business_value_description",
+            "target_users",
+            "success_metrics",
+            "depends_on_features",
+            "blocks_features",
+        ):
+            value = getattr(feature, field, None)
+            if value is not None and value != [] and value != "":
+                feature_dict[field] = value
+
+        if any(match_section_pattern(p, "features.*.stories") for p in persona_mapping.owns) and feature.stories:
+            story_dicts = []
+            total_story_points = 0
+            for story in feature.stories:
+                story_dict, points = self._build_story_dict(story)
+                story_dicts.append(story_dict)
+                total_story_points += points
+            feature_dict["stories"] = story_dicts
+            feature_dict["estimated_story_points"] = total_story_points if total_story_points > 0 else None
+
+        if any(match_section_pattern(p, "features.*.outcomes") for p in persona_mapping.owns) and feature.outcomes:
+            feature_dict["outcomes"] = feature.outcomes
+        if (
+            any(match_section_pattern(p, "features.*.constraints") for p in persona_mapping.owns)
+            and feature.constraints
+        ):
+            feature_dict["constraints"] = feature.constraints
+        if any(match_section_pattern(p, "features.*.acceptance") for p in persona_mapping.owns) and feature.acceptance:
+            feature_dict["acceptance"] = feature.acceptance
+        if any(match_section_pattern(p, "features.*.implementation") for p in persona_mapping.owns):
+            implementation = getattr(feature, "implementation", None)
+            if implementation:
+                feature_dict["implementation"] = implementation
+        return feature_dict
+
+    def _load_bundle_protocols(self, bundle_dir: Path) -> dict[str, Any]:
+        """
+        Load protocol YAML files from the bundle's protocols directory.
+
+        Args:
+            bundle_dir: Bundle directory path
+
+        Returns:
+            Mapping of protocol_name -> protocol data dict
+        """
+        from specfact_cli.utils.structured_io import load_structured_file
+
+        protocols: dict[str, Any] = {}
+        protocols_dir = bundle_dir / "protocols"
+        if not protocols_dir.exists():
+            return protocols
+        for protocol_file in protocols_dir.glob("*.yaml"):
+            try:
+                protocol_data = load_structured_file(protocol_file)
+                protocol_name = protocol_file.stem.replace(".protocol", "")
+                protocols[protocol_name] = protocol_data
+            except Exception:
+                pass
+        return protocols
+
+    def _load_bundle_contracts(self, bundle_dir: Path) -> dict[str, Any]:
+        """
+        Load contract YAML files from the bundle's contracts directory.
+
+        Args:
+            bundle_dir: Bundle directory path
+
+        Returns:
+            Mapping of contract_name -> contract data dict
+        """
+        from specfact_cli.utils.structured_io import load_structured_file
+
+        contracts: dict[str, Any] = {}
+        contracts_dir = bundle_dir / "contracts"
+        if not contracts_dir.exists():
+            return contracts
+        for contract_file in contracts_dir.glob("*.yaml"):
+            try:
+                contract_data = load_structured_file(contract_file)
+                contract_name = contract_file.stem.replace(".openapi", "").replace(".asyncapi", "")
+                contracts[contract_name] = contract_data
+            except Exception:
+                pass
+        return contracts
+
     @beartype
     @require(lambda bundle: isinstance(bundle, ProjectBundle), "Bundle must be ProjectBundle")
     @require(
@@ -114,178 +253,41 @@ class PersonaExporter:
             "bundle_name": bundle.bundle_name,
             "persona_name": persona_name,
             "created_at": datetime.now(UTC).isoformat(),
-            "updated_at": datetime.now(UTC).isoformat(),  # Use current time as manifest doesn't track this
+            "updated_at": datetime.now(UTC).isoformat(),
             "status": "active",
         }
 
-        # Filter idea if persona owns it
         if bundle.idea and any(match_section_pattern(p, "idea") for p in persona_mapping.owns):
             context["idea"] = bundle.idea.model_dump()
-
-        # Filter business if persona owns it
         if bundle.business and any(match_section_pattern(p, "business") for p in persona_mapping.owns):
             context["business"] = bundle.business.model_dump()
-
-        # Filter product if persona owns it
         if any(match_section_pattern(p, "product") for p in persona_mapping.owns):
             context["product"] = bundle.product.model_dump() if bundle.product else None
 
-        # Filter features by persona ownership
         filtered_features: dict[str, Any] = {}
         for feature_key, feature in bundle.features.items():
-            feature_dict: dict[str, Any] = {"key": feature.key, "title": feature.title}
-
-            # Feature model doesn't have description, but may have outcomes
-            if feature.outcomes:
-                feature_dict["outcomes"] = feature.outcomes
-
-            # Include all feature fields (prioritization, business value, dependencies, planning)
-            if hasattr(feature, "priority") and feature.priority:
-                feature_dict["priority"] = feature.priority
-            if hasattr(feature, "rank") and feature.rank is not None:
-                feature_dict["rank"] = feature.rank
-            if hasattr(feature, "business_value_score") and feature.business_value_score is not None:
-                feature_dict["business_value_score"] = feature.business_value_score
-            if hasattr(feature, "target_release") and feature.target_release:
-                feature_dict["target_release"] = feature.target_release
-            if hasattr(feature, "business_value_description") and feature.business_value_description:
-                feature_dict["business_value_description"] = feature.business_value_description
-            if hasattr(feature, "target_users") and feature.target_users:
-                feature_dict["target_users"] = feature.target_users
-            if hasattr(feature, "success_metrics") and feature.success_metrics:
-                feature_dict["success_metrics"] = feature.success_metrics
-            if hasattr(feature, "depends_on_features") and feature.depends_on_features:
-                feature_dict["depends_on_features"] = feature.depends_on_features
-            if hasattr(feature, "blocks_features") and feature.blocks_features:
-                feature_dict["blocks_features"] = feature.blocks_features
-
-            # Filter stories if persona owns stories
-            if any(match_section_pattern(p, "features.*.stories") for p in persona_mapping.owns) and feature.stories:
-                story_dicts = []
-                total_story_points = 0
-                for story in feature.stories:
-                    story_dict = story.model_dump()
-                    # Calculate DoR completion status
-                    dor_status: dict[str, bool] = {}
-                    if hasattr(story, "story_points"):
-                        dor_status["story_points"] = story.story_points is not None
-                    if hasattr(story, "value_points"):
-                        dor_status["value_points"] = story.value_points is not None
-                    if hasattr(story, "priority"):
-                        dor_status["priority"] = story.priority is not None
-                    if hasattr(story, "depends_on_stories") and hasattr(story, "blocks_stories"):
-                        dor_status["dependencies"] = len(story.depends_on_stories) > 0 or len(story.blocks_stories) > 0
-                    if hasattr(story, "business_value_description"):
-                        dor_status["business_value"] = story.business_value_description is not None
-                    if hasattr(story, "due_date"):
-                        dor_status["target_date"] = story.due_date is not None
-                    if hasattr(story, "target_sprint"):
-                        dor_status["target_sprint"] = story.target_sprint is not None
-                    story_dict["definition_of_ready"] = dor_status
-
-                    # Include developer-specific fields (tasks, scenarios, contracts, source/test functions)
-                    # These are always included if they exist, regardless of persona ownership
-                    # (developers need this info to implement)
-                    if hasattr(story, "tasks") and story.tasks:
-                        story_dict["tasks"] = story.tasks
-                    if hasattr(story, "scenarios") and story.scenarios:
-                        story_dict["scenarios"] = story.scenarios
-                    if hasattr(story, "contracts") and story.contracts:
-                        story_dict["contracts"] = story.contracts
-                    if hasattr(story, "source_functions") and story.source_functions:
-                        story_dict["source_functions"] = story.source_functions
-                    if hasattr(story, "test_functions") and story.test_functions:
-                        story_dict["test_functions"] = story.test_functions
-
-                    story_dicts.append(story_dict)
-                    # Sum story points for feature total
-                    if hasattr(story, "story_points") and story.story_points is not None:
-                        total_story_points += story.story_points
-                feature_dict["stories"] = story_dicts
-                # Set estimated story points (sum of all stories)
-                feature_dict["estimated_story_points"] = total_story_points if total_story_points > 0 else None
-
-            # Filter outcomes if persona owns outcomes
-            if any(match_section_pattern(p, "features.*.outcomes") for p in persona_mapping.owns) and feature.outcomes:
-                feature_dict["outcomes"] = feature.outcomes
-
-            # Filter constraints if persona owns constraints
-            if (
-                any(match_section_pattern(p, "features.*.constraints") for p in persona_mapping.owns)
-                and feature.constraints
-            ):
-                feature_dict["constraints"] = feature.constraints
-
-            # Filter acceptance if persona owns acceptance
-            if (
-                any(match_section_pattern(p, "features.*.acceptance") for p in persona_mapping.owns)
-                and feature.acceptance
-            ):
-                feature_dict["acceptance"] = feature.acceptance
-
-            # Filter implementation if persona owns implementation
-            # Note: Feature model doesn't have implementation field yet, but we check for it for future compatibility
-            if any(match_section_pattern(p, "features.*.implementation") for p in persona_mapping.owns):
-                implementation = getattr(feature, "implementation", None)
-                if implementation:
-                    feature_dict["implementation"] = implementation
-
+            feature_dict = self._build_feature_dict(feature, persona_mapping)
             if feature_dict:
                 filtered_features[feature_key] = feature_dict
-
         if filtered_features:
             context["features"] = filtered_features
 
-        # Load protocols and contracts from bundle directory if persona owns them
-        protocols: dict[str, Any] = {}
-        contracts: dict[str, Any] = {}
-
-        # Check if persona owns protocols or contracts
         owns_protocols = any(match_section_pattern(p, "protocols") for p in persona_mapping.owns)
         owns_contracts = any(match_section_pattern(p, "contracts") for p in persona_mapping.owns)
-
+        protocols: dict[str, Any] = {}
+        contracts: dict[str, Any] = {}
         if owns_protocols or owns_contracts:
-            # Get bundle directory path (construct directly to avoid type checker issues)
             from specfact_cli.utils.structure import SpecFactStructure
 
-            # Construct path directly: .specfact/projects/<bundle_name>/
             bundle_dir = Path(".") / SpecFactStructure.PROJECTS / bundle.bundle_name
-
             if bundle_dir.exists():
-                # Load protocols if persona owns them
                 if owns_protocols:
-                    protocols_dir = bundle_dir / "protocols"
-                    if protocols_dir.exists():
-                        from specfact_cli.utils.structured_io import load_structured_file
-
-                        for protocol_file in protocols_dir.glob("*.yaml"):
-                            try:
-                                protocol_data = load_structured_file(protocol_file)
-                                protocol_name = protocol_file.stem.replace(".protocol", "")
-                                protocols[protocol_name] = protocol_data
-                            except Exception:
-                                # Skip invalid protocol files
-                                pass
-
-                # Load contracts if persona owns them
+                    protocols = self._load_bundle_protocols(bundle_dir)
                 if owns_contracts:
-                    contracts_dir = bundle_dir / "contracts"
-                    if contracts_dir.exists():
-                        from specfact_cli.utils.structured_io import load_structured_file
-
-                        for contract_file in contracts_dir.glob("*.yaml"):
-                            try:
-                                contract_data = load_structured_file(contract_file)
-                                contract_name = contract_file.stem.replace(".openapi", "").replace(".asyncapi", "")
-                                contracts[contract_name] = contract_data
-                            except Exception:
-                                # Skip invalid contract files
-                                pass
+                    contracts = self._load_bundle_contracts(bundle_dir)
 
         context["protocols"] = protocols
         context["contracts"] = contracts
-
-        # Add locks information
         context["locks"] = [lock.model_dump() for lock in bundle.manifest.locks]
 
         return context

@@ -55,6 +55,7 @@ class ContractDensityMetrics:
         self.features_with_openapi = features_with_openapi
         self.total_openapi_contracts = total_openapi_contracts
 
+    @ensure(lambda result: isinstance(result, dict), "Must return dict")
     def to_dict(self) -> dict[str, float | int]:
         """Convert metrics to dictionary."""
         return {

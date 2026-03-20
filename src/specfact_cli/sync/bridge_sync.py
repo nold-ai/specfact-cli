@@ -9,11 +9,15 @@ to adapter-specific parsers/generators.
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
+import json
+import logging
 import re
 import subprocess
 import tempfile
 from dataclasses import dataclass
+from typing import cast
 from urllib.parse import urlparse
 
 
@@ -40,6 +44,18 @@ from specfact_cli.utils.terminal import get_progress_config
 
 
 console = get_configured_console()
+
+
+def _repo_path_exists(repo_path: Path) -> bool:
+    return repo_path.exists()
+
+
+def _repo_path_is_dir(repo_path: Path) -> bool:
+    return repo_path.is_dir()
+
+
+def _bridge_config_set(self: BridgeSync) -> bool:
+    return self.bridge_config is not None
 
 
 @dataclass
@@ -75,9 +91,80 @@ class BridgeSync:
     be created to move any remaining adapter-specific logic out of this class.
     """
 
+    def _resolve_alignment_adapter(self) -> tuple[Any | None, str]:
+        """Return the configured adapter instance and display name for alignment reporting."""
+        if not self.bridge_config:
+            return None, "External Tool"
+
+        adapter_name = self.bridge_config.adapter.value
+        adapter = AdapterRegistry.get_adapter(adapter_name)
+        return adapter, adapter_name.upper()
+
+    def _load_alignment_report_inputs(self, bundle_name: str) -> tuple[set[str], set[str], str] | None:
+        """Load external and SpecFact feature IDs for an alignment report."""
+        from specfact_cli.utils.structure import SpecFactStructure
+
+        adapter, adapter_name = self._resolve_alignment_adapter()
+        if not self.bridge_config or not adapter:
+            return None
+
+        bundle_dir = self.repo_path / SpecFactStructure.PROJECTS / bundle_name
+        if not bundle_dir.exists():
+            return None
+
+        project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
+        base_path = self.bridge_config.external_base_path if self.bridge_config.external_base_path else self.repo_path
+        adapter_any = cast(Any, adapter)
+        external_features: list[dict[str, Any]] = adapter_any.discover_features(base_path, self.bridge_config)
+        external_feature_ids = {
+            str(feature.get("feature_key") or feature.get("key") or "")
+            for feature in external_features
+            if str(feature.get("feature_key") or feature.get("key") or "")
+        }
+        specfact_feature_ids = set(project_bundle.features.keys()) if project_bundle.features else set()
+        return external_feature_ids, specfact_feature_ids, adapter_name
+
+    def _render_alignment_gaps(self, gaps: set[str], heading: str) -> None:
+        """Render a gap table when there are missing features."""
+        if not gaps:
+            return
+
+        console.print(f"\n[bold yellow]⚠ {heading}[/bold yellow]")
+        gaps_table = Table(show_header=True, header_style="bold yellow")
+        gaps_table.add_column("Feature ID", style="cyan")
+        for feature_id in sorted(gaps):
+            gaps_table.add_row(feature_id)
+        console.print(gaps_table)
+
+    def _build_alignment_report_content(
+        self,
+        adapter_name: str,
+        external_feature_ids: set[str],
+        specfact_feature_ids: set[str],
+        aligned: set[str],
+        gaps_in_specfact: set[str],
+        gaps_in_external: set[str],
+        coverage: float,
+    ) -> str:
+        """Build markdown content for a saved alignment report."""
+        return f"""# Alignment Report: SpecFact vs {adapter_name}
+
+## Summary
+- {adapter_name} Specs: {len(external_feature_ids)}
+- SpecFact Features: {len(specfact_feature_ids)}
+- Aligned: {len(aligned)}
+- Coverage: {coverage:.1f}%
+
+## Gaps in SpecFact
+{chr(10).join(f"- {fid}" for fid in sorted(gaps_in_specfact)) if gaps_in_specfact else "None"}
+
+## Gaps in {adapter_name}
+{chr(10).join(f"- {fid}" for fid in sorted(gaps_in_external)) if gaps_in_external else "None"}
+"""
+
     @beartype
-    @require(lambda repo_path: repo_path.exists(), "Repository path must exist")
-    @require(lambda repo_path: repo_path.is_dir(), "Repository path must be a directory")
+    @require(_repo_path_exists, "Repository path must exist")
+    @require(_repo_path_is_dir, "Repository path must be a directory")
     def __init__(self, repo_path: Path, bridge_config: BridgeConfig | None = None) -> None:
         """
         Initialize bridge sync.
@@ -86,6 +173,8 @@ class BridgeSync:
             repo_path: Path to repository root
             bridge_config: Bridge configuration (auto-detected if None)
         """
+        assert repo_path.exists(), "Repository path must exist"
+        assert repo_path.is_dir(), "Repository path must be a directory"
         self.repo_path = Path(repo_path).resolve()
         self.bridge_config = bridge_config
 
@@ -169,7 +258,7 @@ class BridgeSync:
         return bridge_config
 
     @beartype
-    @require(lambda self: self.bridge_config is not None, "Bridge config must be set")
+    @require(_bridge_config_set, "Bridge config must be set")
     @require(lambda bundle_name: isinstance(bundle_name, str) and len(bundle_name) > 0, "Bundle name must be non-empty")
     @require(lambda feature_id: isinstance(feature_id, str) and len(feature_id) > 0, "Feature ID must be non-empty")
     @ensure(lambda result: isinstance(result, Path), "Must return Path")
@@ -381,7 +470,7 @@ class BridgeSync:
         )
 
     @beartype
-    @require(lambda self: self.bridge_config is not None, "Bridge config must be set")
+    @require(_bridge_config_set, "Bridge config must be set")
     @require(lambda bundle_name: isinstance(bundle_name, str) and len(bundle_name) > 0, "Bundle name must be non-empty")
     @ensure(lambda result: result is None, "Must return None")
     def generate_alignment_report(self, bundle_name: str, output_file: Path | None = None) -> None:
@@ -395,24 +484,17 @@ class BridgeSync:
             bundle_name: Project bundle name
             output_file: Optional file path to save report (if None, only prints to console)
         """
-        from specfact_cli.utils.structure import SpecFactStructure
-
-        # Check if adapter supports alignment reports (adapter-agnostic)
         if not self.bridge_config:
             console.print("[yellow]⚠[/yellow] Bridge config not available for alignment report")
             return
 
-        adapter = AdapterRegistry.get_adapter(self.bridge_config.adapter.value)
-        if not adapter:
-            console.print(
-                f"[yellow]⚠[/yellow] Adapter '{self.bridge_config.adapter.value}' not found for alignment report"
-            )
+        inputs = self._load_alignment_report_inputs(bundle_name)
+        if not inputs:
+            adapter_name = self.bridge_config.adapter.value.upper() if self.bridge_config else "External Tool"
+            console.print(f"[bold red]✗[/bold red] Could not load alignment inputs for {adapter_name}")
             return
 
-        bundle_dir = self.repo_path / SpecFactStructure.PROJECTS / bundle_name
-        if not bundle_dir.exists():
-            console.print(f"[bold red]✗[/bold red] Project bundle not found: {bundle_dir}")
-            return
+        external_feature_ids, specfact_feature_ids, adapter_name = inputs
 
         progress_columns, progress_kwargs = get_progress_config()
         with Progress(
@@ -421,29 +503,6 @@ class BridgeSync:
             **progress_kwargs,
         ) as progress:
             task = progress.add_task("Generating alignment report...", total=None)
-
-            # Load project bundle
-            project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
-
-            # Determine base path for external tool
-            base_path = (
-                self.bridge_config.external_base_path
-                if self.bridge_config and self.bridge_config.external_base_path
-                else self.repo_path
-            )
-
-            # Get external tool features using adapter (adapter-agnostic)
-            external_features = adapter.discover_features(base_path, self.bridge_config)
-            external_feature_ids: set[str] = set()
-            for feature in external_features:
-                feature_key = feature.get("feature_key") or feature.get("key", "")
-                if feature_key:
-                    external_feature_ids.add(feature_key)
-
-            # Get SpecFact features
-            specfact_feature_ids: set[str] = set(project_bundle.features.keys()) if project_bundle.features else set()
-
-            # Calculate alignment
             aligned = specfact_feature_ids & external_feature_ids
             gaps_in_specfact = external_feature_ids - specfact_feature_ids
             gaps_in_external = specfact_feature_ids - external_feature_ids
@@ -454,7 +513,6 @@ class BridgeSync:
             progress.update(task, completed=1)
 
         # Generate Rich-formatted report (adapter-agnostic)
-        adapter_name = self.bridge_config.adapter.value.upper() if self.bridge_config else "External Tool"
         console.print(f"\n[bold]Alignment Report: SpecFact vs {adapter_name}[/bold]\n")
 
         # Summary table
@@ -470,47 +528,29 @@ class BridgeSync:
         console.print(summary_table)
 
         # Gaps table
-        if gaps_in_specfact:
-            console.print(f"\n[bold yellow]⚠ Gaps in SpecFact ({adapter_name} specs not extracted):[/bold yellow]")
-            gaps_table = Table(show_header=True, header_style="bold yellow")
-            gaps_table.add_column("Feature ID", style="cyan")
-            for feature_id in sorted(gaps_in_specfact):
-                gaps_table.add_row(feature_id)
-            console.print(gaps_table)
-
-        if gaps_in_external:
-            console.print(
-                f"\n[bold yellow]⚠ Gaps in {adapter_name} (SpecFact features not in {adapter_name}):[/bold yellow]"
-            )
-            gaps_table = Table(show_header=True, header_style="bold yellow")
-            gaps_table.add_column("Feature ID", style="cyan")
-            for feature_id in sorted(gaps_in_external):
-                gaps_table.add_row(feature_id)
-            console.print(gaps_table)
+        self._render_alignment_gaps(gaps_in_specfact, f"Gaps in SpecFact ({adapter_name} specs not extracted):")
+        self._render_alignment_gaps(
+            gaps_in_external,
+            f"Gaps in {adapter_name} (SpecFact features not in {adapter_name}):",
+        )
 
         # Save to file if requested
         if output_file:
-            adapter_name = self.bridge_config.adapter.value.upper() if self.bridge_config else "External Tool"
-            report_content = f"""# Alignment Report: SpecFact vs {adapter_name}
-
-## Summary
-- {adapter_name} Specs: {len(external_feature_ids)}
-- SpecFact Features: {len(specfact_feature_ids)}
-- Aligned: {len(aligned)}
-- Coverage: {coverage:.1f}%
-
-## Gaps in SpecFact
-{chr(10).join(f"- {fid}" for fid in sorted(gaps_in_specfact)) if gaps_in_specfact else "None"}
-
-## Gaps in {adapter_name}
-{chr(10).join(f"- {fid}" for fid in sorted(gaps_in_external)) if gaps_in_external else "None"}
-"""
+            report_content = self._build_alignment_report_content(
+                adapter_name,
+                external_feature_ids,
+                specfact_feature_ids,
+                aligned,
+                gaps_in_specfact,
+                gaps_in_external,
+                coverage,
+            )
             output_file.parent.mkdir(parents=True, exist_ok=True)
             output_file.write_text(report_content, encoding="utf-8")
             console.print(f"\n[bold green]✓[/bold green] Report saved to {output_file}")
 
     @beartype
-    @require(lambda self: self.bridge_config is not None, "Bridge config must be set")
+    @require(_bridge_config_set, "Bridge config must be set")
     @require(
         lambda adapter_type: isinstance(adapter_type, str) and adapter_type in ("github", "ado", "linear", "jira"),
         "Adapter must be DevOps type",
@@ -749,7 +789,8 @@ class BridgeSync:
                             and hasattr(adapter, "_work_item_exists")
                         ):
                             try:
-                                work_item_exists = adapter._work_item_exists(issue_number, ado_org, ado_project)
+                                adapter_any = cast(Any, adapter)
+                                work_item_exists = adapter_any._work_item_exists(issue_number, ado_org, ado_project)
                                 if not work_item_exists:
                                     # Work item was deleted - clear source_id to allow recreation
                                     warnings.append(
@@ -761,7 +802,7 @@ class BridgeSync:
                                     issue_number = None
                                     work_item_was_deleted = True
                                     # Also clear it from target_entry for this sync operation
-                                    target_entry = {**target_entry, "source_id": None}
+                                    target_entry = cast(dict[str, Any], {**target_entry, "source_id": None})
                             except Exception as e:
                                 # On error checking existence, log warning but allow creation (safer)
                                 warnings.append(
@@ -864,7 +905,9 @@ class BridgeSync:
                         and ado_project
                         and hasattr(adapter, "_find_work_item_by_change_id")
                     ):
-                        found_entry = adapter._find_work_item_by_change_id(change_id, ado_org, ado_project)
+                        found_entry: dict[str, Any] | None = cast(Any, adapter)._find_work_item_by_change_id(
+                            change_id, ado_org, ado_project
+                        )
                         if found_entry:
                             target_entry = found_entry
                             issue_number = found_entry.get("source_id")
@@ -1268,7 +1311,8 @@ class BridgeSync:
                                             # Use proper URL parsing to validate ADO URLs
                                             try:
                                                 parsed = urlparse(source_url)
-                                                if parsed.hostname and parsed.hostname.lower() == "dev.azure.com":
+                                                parsed_hostname: str | None = cast(str | None, parsed.hostname)
+                                                if parsed_hostname and parsed_hostname.lower() == "dev.azure.com":
                                                     # For ADO, we can't reliably extract project name from URL (GUID)
                                                     # The source_repo should have been saved in the hidden comment
                                                     # If not, we'll need to match by org only later
@@ -1538,168 +1582,151 @@ class BridgeSync:
         Returns:
             Matching entry dict or None if not found
         """
-        if not source_tracking:
+        entries = [source_tracking] if isinstance(source_tracking, dict) else source_tracking or []
+        for raw_entry in entries:
+            if isinstance(raw_entry, dict) and self._source_tracking_entry_matches_repo(raw_entry, target_repo):
+                return raw_entry
+        return source_tracking if isinstance(source_tracking, dict) and not target_repo else None
+
+    def _source_tracking_entry_matches_repo(self, entry: dict[str, Any], target_repo: str | None) -> bool:
+        """Return whether a source-tracking entry matches the requested repository."""
+        if not target_repo:
+            return True
+
+        entry_repo = entry.get("source_repo")
+        entry_type = str(entry.get("source_type", "")).lower()
+        source_url = str(entry.get("source_url", ""))
+        if entry_repo == target_repo:
+            return True
+        if not entry_repo and self._source_url_matches_target_repo(source_url, target_repo, entry_type):
+            return True
+        return self._ado_repo_matches_target(entry_repo, target_repo, entry_type, source_url, entry.get("source_id"))
+
+    def _source_url_matches_target_repo(self, source_url: str, target_repo: str, entry_type: str) -> bool:
+        """Match GitHub and ADO source URLs back to a target repository identifier."""
+        if not source_url:
+            return False
+
+        url_repo_match = re.search(r"github\.com/([^/]+/[^/]+)/", source_url)
+        if url_repo_match:
+            return url_repo_match.group(1) == target_repo
+
+        if "/" not in target_repo:
+            return False
+
+        try:
+            parsed = urlparse(source_url)
+            hostname = cast(str | None, parsed.hostname)
+            if not hostname or hostname.lower() != "dev.azure.com":
+                return False
+            ado_org_match = re.search(r"dev\.azure\.com/([^/]+)/", source_url)
+            return bool(
+                ado_org_match and ado_org_match.group(1) == target_repo.split("/")[0] and entry_type in {"ado", ""}
+            )
+        except Exception:
+            return False
+
+    def _ado_repo_matches_target(
+        self,
+        entry_repo: Any,
+        target_repo: str,
+        entry_type: str,
+        source_url: str,
+        source_id: Any,
+    ) -> bool:
+        """Handle fallback matching for ADO entries whose URLs may contain GUIDs instead of project names."""
+        if not entry_repo or entry_type != "ado" or "/" not in target_repo or not source_id:
+            return False
+
+        entry_repo_str = str(entry_repo)
+        entry_org = entry_repo_str.split("/")[0] if "/" in entry_repo_str else None
+        target_org = target_repo.split("/")[0]
+        entry_project = entry_repo_str.split("/", 1)[1] if "/" in entry_repo_str else None
+        target_project = target_repo.split("/", 1)[1] if "/" in target_repo else None
+        entry_has_guid = bool(
+            source_url and re.search(r"dev\.azure\.com/[^/]+/[0-9a-f-]{36}", source_url, re.IGNORECASE)
+        )
+        project_unknown = self._ado_project_identifier_unknown(entry_project, target_project, entry_has_guid)
+        return bool(entry_org and entry_org == target_org and project_unknown)
+
+    def _ado_project_identifier_unknown(
+        self,
+        entry_project: str | None,
+        target_project: str | None,
+        entry_has_guid: bool,
+    ) -> bool:
+        """Return whether an ADO project identifier is too ambiguous to compare directly."""
+        if not entry_project or not target_project or entry_has_guid:
+            return True
+        return self._looks_like_guid(entry_project) or self._looks_like_guid(target_project)
+
+    @staticmethod
+    def _looks_like_guid(value: str | None) -> bool:
+        """Return whether the value resembles a GUID-style identifier."""
+        return bool(value and len(value) == 36 and "-" in value)
+
+    @staticmethod
+    def _artifact_key_for_adapter(adapter_type: str) -> str | None:
+        """Return the backlog import artifact key for a supported adapter."""
+        return {"github": "github_issue", "ado": "ado_work_item"}.get(adapter_type)
+
+    @staticmethod
+    def _clean_backlog_item_ref(item_ref: str) -> tuple[str, str]:
+        """Return the raw backlog reference and its trailing identifier."""
+        item_ref_str = str(item_ref)
+        return item_ref_str, item_ref_str.split("/")[-1]
+
+    def _proposal_matches_backlog_item(self, proposal: Any, item_ref_str: str, item_ref_clean: str) -> bool:
+        """Return whether a proposal contains source tracking for the requested backlog item."""
+        if not proposal.source_tracking:
+            return False
+        source_metadata_raw = proposal.source_tracking.source_metadata
+        if not isinstance(source_metadata_raw, dict):
+            return False
+        backlog_entries = cast(dict[str, Any], source_metadata_raw).get("backlog_entries") or []
+        for entry in backlog_entries:
+            if not isinstance(entry, dict):
+                continue
+            entry_id = entry.get("source_id")
+            if not entry_id:
+                continue
+            entry_id_str = str(entry_id)
+            if entry_id_str in (item_ref_str, item_ref_clean) or item_ref_str.endswith(
+                (f"/{entry_id_str}", f"#{entry_id_str}")
+            ):
+                return True
+        return False
+
+    def _fallback_imported_proposal(self, project_bundle: Any, adapter_type: str) -> Any | None:
+        """Return the most recently imported proposal as a fallback for backlog import."""
+        proposal_list = list(project_bundle.change_tracking.proposals.values())
+        if not proposal_list:
             return None
+        imported_proposal = proposal_list[-1]
+        if not imported_proposal.source_tracking:
+            return imported_proposal
+        source_tool = imported_proposal.source_tracking.tool
+        if source_tool != adapter_type:
+            logger = logging.getLogger(__name__)
+            logger.debug(
+                "Fallback proposal has different source tool (%s vs %s), but using it anyway as it's the most recent proposal",
+                source_tool,
+                adapter_type,
+            )
+        return imported_proposal
 
-        # Handle backward compatibility: single dict -> convert to list
-        if isinstance(source_tracking, dict):
-            entry_type = source_tracking.get("source_type", "").lower()
-            entry_repo = source_tracking.get("source_repo")
+    def _find_imported_proposal_for_item(self, project_bundle: Any, item_ref: str, adapter_type: str) -> Any | None:
+        """Find the proposal imported for a backlog item by ID match or recency fallback."""
+        logger = logging.getLogger(__name__)
+        item_ref_str, item_ref_clean = self._clean_backlog_item_ref(item_ref)
+        logger.debug("Looking for proposal matching backlog item '%s' (clean: '%s')", item_ref, item_ref_clean)
 
-            # Primary match: exact source_repo match
-            if entry_repo == target_repo:
-                return source_tracking
+        for proposal in project_bundle.change_tracking.proposals.values():
+            if self._proposal_matches_backlog_item(proposal, item_ref_str, item_ref_clean):
+                logger.debug("Found proposal '%s' by source_id match", proposal.name)
+                return proposal
 
-            # Check if it matches target_repo (extract from source_url if available)
-            if target_repo:
-                source_url = source_tracking.get("source_url", "")
-                if source_url:
-                    # Try GitHub URL pattern
-                    url_repo_match = re.search(r"github\.com/([^/]+/[^/]+)/", source_url)
-                    if url_repo_match:
-                        source_repo = url_repo_match.group(1)
-                        if source_repo == target_repo:
-                            return source_tracking
-                    # Try ADO URL pattern (ADO URLs contain GUIDs, not project names)
-                    # For ADO, match by org if target_repo contains the org
-                    elif "/" in target_repo:
-                        try:
-                            parsed = urlparse(source_url)
-                            if parsed.hostname and parsed.hostname.lower() == "dev.azure.com":
-                                target_org = target_repo.split("/")[0]
-                                ado_org_match = re.search(r"dev\.azure\.com/([^/]+)/", source_url)
-                                # Org matches and source_type is "ado" - return entry (project name may differ due to GUID in URL)
-                                if (
-                                    ado_org_match
-                                    and ado_org_match.group(1) == target_org
-                                    and (entry_type == "ado" or entry_type == "")
-                                ):
-                                    return source_tracking
-                        except Exception:
-                            pass
-
-                # Tertiary match: for ADO, only match by org when project is truly unknown (GUID-only URLs)
-                # This prevents cross-project matches when both entry_repo and target_repo have project names
-                if entry_repo and target_repo and entry_type == "ado":
-                    entry_org = entry_repo.split("/")[0] if "/" in entry_repo else None
-                    target_org = target_repo.split("/")[0] if "/" in target_repo else None
-                    entry_project = entry_repo.split("/", 1)[1] if "/" in entry_repo else None
-                    target_project = target_repo.split("/", 1)[1] if "/" in target_repo else None
-
-                    # Only use org-only match when:
-                    # 1. Org matches
-                    # 2. source_id exists (for single dict, check source_tracking dict)
-                    # 3. AND (project is unknown in entry OR project is unknown in target OR both contain GUIDs)
-                    # This prevents matching org/project-a with org/project-b when both have known project names
-                    source_url = source_tracking.get("source_url", "") if isinstance(source_tracking, dict) else ""
-                    entry_has_guid = source_url and re.search(
-                        r"dev\.azure\.com/[^/]+/[0-9a-f-]{36}", source_url, re.IGNORECASE
-                    )
-                    project_unknown = (
-                        not entry_project  # Entry has no project part
-                        or not target_project  # Target has no project part
-                        or entry_has_guid  # Entry URL contains GUID (project name unknown)
-                        or (
-                            entry_project and len(entry_project) == 36 and "-" in entry_project
-                        )  # Entry project is a GUID
-                        or (
-                            target_project and len(target_project) == 36 and "-" in target_project
-                        )  # Target project is a GUID
-                    )
-
-                    if (
-                        entry_org
-                        and target_org
-                        and entry_org == target_org
-                        and (isinstance(source_tracking, dict) and source_tracking.get("source_id"))
-                        and project_unknown
-                    ):
-                        return source_tracking
-
-            # If no target_repo specified or doesn't match, return the single entry
-            # (for backward compatibility when no target_repo is specified)
-            if not target_repo:
-                return source_tracking
-            return None
-
-        # Handle list of entries
-        if isinstance(source_tracking, list):
-            for entry in source_tracking:
-                if isinstance(entry, dict):
-                    entry_repo = entry.get("source_repo")
-                    entry_type = entry.get("source_type", "").lower()
-
-                    # Primary match: exact source_repo match
-                    if entry_repo == target_repo:
-                        return entry
-
-                    # Secondary match: extract from source_url if source_repo not set
-                    if not entry_repo and target_repo:
-                        source_url = entry.get("source_url", "")
-                        if source_url:
-                            # Try GitHub URL pattern
-                            url_repo_match = re.search(r"github\.com/([^/]+/[^/]+)/", source_url)
-                            if url_repo_match:
-                                source_repo = url_repo_match.group(1)
-                                if source_repo == target_repo:
-                                    return entry
-                            # Try ADO URL pattern (but note: ADO URLs contain GUIDs, not project names)
-                            # For ADO, match by org if target_repo contains the org
-                            elif "/" in target_repo:
-                                try:
-                                    parsed = urlparse(source_url)
-                                    if parsed.hostname and parsed.hostname.lower() == "dev.azure.com":
-                                        target_org = target_repo.split("/")[0]
-                                        ado_org_match = re.search(r"dev\.azure\.com/([^/]+)/", source_url)
-                                        # Org matches and source_type is "ado" - return entry (project name may differ due to GUID in URL)
-                                        if (
-                                            ado_org_match
-                                            and ado_org_match.group(1) == target_org
-                                            and (entry_type == "ado" or entry_type == "")
-                                        ):
-                                            return entry
-                                except Exception:
-                                    pass
-
-                    # Tertiary match: for ADO, only match by org when project is truly unknown (GUID-only URLs)
-                    # This prevents cross-project matches when both entry_repo and target_repo have project names
-                    if entry_repo and target_repo and entry_type == "ado":
-                        entry_org = entry_repo.split("/")[0] if "/" in entry_repo else None
-                        target_org = target_repo.split("/")[0] if "/" in target_repo else None
-                        entry_project = entry_repo.split("/", 1)[1] if "/" in entry_repo else None
-                        target_project = target_repo.split("/", 1)[1] if "/" in target_repo else None
-
-                        # Only use org-only match when:
-                        # 1. Org matches
-                        # 2. source_id exists
-                        # 3. AND (project is unknown in entry OR project is unknown in target OR both contain GUIDs)
-                        # This prevents matching org/project-a with org/project-b when both have known project names
-                        source_url = entry.get("source_url", "")
-                        entry_has_guid = source_url and re.search(
-                            r"dev\.azure\.com/[^/]+/[0-9a-f-]{36}", source_url, re.IGNORECASE
-                        )
-                        project_unknown = (
-                            not entry_project  # Entry has no project part
-                            or not target_project  # Target has no project part
-                            or entry_has_guid  # Entry URL contains GUID (project name unknown)
-                            or (
-                                entry_project and len(entry_project) == 36 and "-" in entry_project
-                            )  # Entry project is a GUID
-                            or (
-                                target_project and len(target_project) == 36 and "-" in target_project
-                            )  # Target project is a GUID
-                        )
-
-                        if (
-                            entry_org
-                            and target_org
-                            and entry_org == target_org
-                            and entry.get("source_id")
-                            and project_unknown
-                        ):
-                            return entry
-
-        return None
+        return self._fallback_imported_proposal(project_bundle, adapter_type)
 
     @beartype
     @require(lambda bundle_name: isinstance(bundle_name, str) and len(bundle_name) > 0, "Bundle name must be non-empty")
@@ -1730,8 +1757,7 @@ class BridgeSync:
 
         adapter_kwargs = adapter_kwargs or {}
         adapter = AdapterRegistry.get_adapter(adapter_type, **adapter_kwargs)
-        artifact_key_map = {"github": "github_issue", "ado": "ado_work_item"}
-        artifact_key = artifact_key_map.get(adapter_type)
+        artifact_key = self._artifact_key_for_adapter(adapter_type)
         if not artifact_key:
             errors.append(f"Unsupported backlog adapter: {adapter_type}")
             return SyncResult(success=False, operations=operations, errors=errors, warnings=warnings)
@@ -1752,74 +1778,18 @@ class BridgeSync:
 
         for item_ref in backlog_items:
             try:
-                item_data = adapter.fetch_backlog_item(item_ref)
+                item_data = cast(Any, adapter).fetch_backlog_item(item_ref)
                 adapter.import_artifact(artifact_key, item_data, project_bundle, bridge_config)
 
                 # Get the imported proposal from bundle to create OpenSpec files
                 if hasattr(project_bundle, "change_tracking") and project_bundle.change_tracking:
-                    # Find the proposal that was just imported
-                    # The adapter stores it with proposal.name as the key
-                    imported_proposal = None
-
-                    # Try to find by matching source tracking (backlog entry ID)
-                    item_ref_clean = str(item_ref).split("/")[-1]  # Extract number from URL if needed
-                    item_ref_str = str(item_ref)
-
-                    import logging
-
-                    logger = logging.getLogger(__name__)
-                    logger.debug(f"Looking for proposal matching backlog item '{item_ref}' (clean: '{item_ref_clean}')")
-
-                    for proposal in project_bundle.change_tracking.proposals.values():
-                        if proposal.source_tracking:
-                            source_metadata = proposal.source_tracking.source_metadata
-                            if isinstance(source_metadata, dict):
-                                backlog_entries = source_metadata.get("backlog_entries", [])
-                                for entry in backlog_entries:
-                                    if isinstance(entry, dict):
-                                        entry_id = entry.get("source_id")
-                                        # Match by issue number (item_ref could be "111" or full URL)
-                                        if entry_id:
-                                            entry_id_str = str(entry_id)
-                                            # Try multiple matching strategies
-                                            if entry_id_str in (item_ref_str, item_ref_clean) or item_ref_str.endswith(
-                                                (f"/{entry_id_str}", f"#{entry_id_str}")
-                                            ):
-                                                imported_proposal = proposal
-                                                logger.debug(f"Found proposal '{proposal.name}' by source_id match")
-                                                break
-                        if imported_proposal:
-                            break
-
-                    # If not found by ID, use the most recently added proposal
-                    # (the one we just imported should be the last one)
-                    if not imported_proposal and project_bundle.change_tracking.proposals:
-                        # Get proposals as list and take the last one
-                        proposal_list = list(project_bundle.change_tracking.proposals.values())
-                        if proposal_list:
-                            imported_proposal = proposal_list[-1]
-                            # Verify this proposal was just imported by checking if it has source_tracking
-                            # and matches the adapter type
-                            if imported_proposal.source_tracking:
-                                source_tool = imported_proposal.source_tracking.tool
-                                if source_tool != adapter_type:
-                                    # Tool mismatch - might not be the right one, but log and use as fallback
-                                    import logging
-
-                                    logger = logging.getLogger(__name__)
-                                    logger.debug(
-                                        f"Fallback proposal has different source tool ({source_tool} vs {adapter_type}), "
-                                        f"but using it anyway as it's the most recent proposal"
-                                    )
+                    imported_proposal = self._find_imported_proposal_for_item(project_bundle, item_ref, adapter_type)
 
                     # Create OpenSpec files from proposal
                     if imported_proposal:
                         file_warnings = self._write_openspec_change_from_proposal(imported_proposal, bridge_config)
                         warnings.extend(file_warnings)
                     else:
-                        # Log warning if proposal not found
-                        import logging
-
                         logger = logging.getLogger(__name__)
                         warning_msg = (
                             f"Could not find imported proposal for backlog item '{item_ref}'. "
@@ -2087,9 +2057,10 @@ class BridgeSync:
         """
         if not hasattr(proposal, "source_tracking") or not proposal.source_tracking:
             return []
-        source_metadata = proposal.source_tracking.source_metadata
-        if not isinstance(source_metadata, dict):
+        raw_source_metadata = proposal.source_tracking.source_metadata
+        if not isinstance(raw_source_metadata, dict):
             return []
+        source_metadata: dict[str, Any] = cast(dict[str, Any], raw_source_metadata)
         entries = source_metadata.get("backlog_entries")
         if isinstance(entries, list):
             return [entry for entry in entries if isinstance(entry, dict)]
@@ -2271,12 +2242,13 @@ class BridgeSync:
             from specfact_cli.adapters.registry import AdapterRegistry
 
             adapter_instance = AdapterRegistry.get_adapter("github")
-            if adapter_instance and hasattr(adapter_instance, "api_token") and adapter_instance.api_token:
+            adapter_instance_any = cast(Any, adapter_instance)
+            if adapter_instance and hasattr(adapter_instance, "api_token") and adapter_instance_any.api_token:
                 # Search for issues containing the change proposal ID in the footer
-                search_url = f"{adapter_instance.base_url}/search/issues"
+                search_url = f"{adapter_instance_any.base_url}/search/issues"
                 search_query = f'repo:{repo_owner}/{repo_name} "OpenSpec Change Proposal: `{change_id}`" in:body'
                 headers = {
-                    "Authorization": f"token {adapter_instance.api_token}",
+                    "Authorization": f"token {adapter_instance_any.api_token}",
                     "Accept": "application/vnd.github.v3+json",
                 }
                 params = {"q": search_query}
@@ -2360,9 +2332,7 @@ class BridgeSync:
             warnings: Warnings list to append to
         """
         # Issue exists - check if status changed or metadata needs update
-        source_metadata = target_entry.get("source_metadata", {})
-        if not isinstance(source_metadata, dict):
-            source_metadata = {}
+        source_metadata = self._source_metadata_dict(target_entry)
         last_synced_status = source_metadata.get("last_synced_status")
         current_status = proposal.get("status")
 
@@ -2384,39 +2354,18 @@ class BridgeSync:
             )
 
         # Always update metadata to ensure it reflects the current sync operation
-        source_metadata = target_entry.get("source_metadata", {})
-        if not isinstance(source_metadata, dict):
-            source_metadata = {}
-        updated_entry = {
-            **target_entry,
-            "source_metadata": {
-                **source_metadata,
-                "last_synced_status": current_status,
-                "sanitized": should_sanitize if should_sanitize is not None else False,
-            },
-        }
+        updated_entry = self._updated_target_entry(target_entry, current_status, should_sanitize)
 
         # Always update source_tracking metadata to reflect current sync operation
-        if target_repo:
-            source_tracking_list = self._update_source_tracking_entry(source_tracking_list, target_repo, updated_entry)
-            proposal["source_tracking"] = source_tracking_list
-        else:
-            # Backward compatibility: update single dict entry directly
-            if isinstance(source_tracking_raw, dict):
-                proposal["source_tracking"] = updated_entry
-            else:
-                # List of entries - update the matching entry
-                for i, entry in enumerate(source_tracking_list):
-                    if isinstance(entry, dict):
-                        entry_id = entry.get("source_id")
-                        entry_repo = entry.get("source_repo")
-                        updated_id = updated_entry.get("source_id")
-                        updated_repo = updated_entry.get("source_repo")
+        source_tracking_list = self._store_updated_source_tracking(
+            proposal,
+            source_tracking_raw,
+            source_tracking_list,
+            target_repo,
+            updated_entry,
+        )
 
-                        if (entry_id and entry_id == updated_id) or (entry_repo and entry_repo == updated_repo):
-                            source_tracking_list[i] = updated_entry
-                            break
-                proposal["source_tracking"] = source_tracking_list
+        target_entry = updated_entry
 
         # Track metadata update operation (even if status didn't change)
         if last_synced_status == current_status:
@@ -2466,6 +2415,207 @@ class BridgeSync:
                 warnings,
             )
 
+    def _proposal_update_hash(self, proposal: dict[str, Any], import_from_tmp: bool, tmp_file: Path | None) -> str:
+        """Calculate the proposal hash, optionally using sanitized temporary content."""
+        if not import_from_tmp:
+            return self._calculate_content_hash(proposal)
+
+        change_id = proposal.get("change_id", "unknown")
+        sanitized_file = tmp_file or (Path(tempfile.gettempdir()) / f"specfact-proposal-{change_id}-sanitized.md")
+        if not sanitized_file.exists():
+            return self._calculate_content_hash(proposal)
+
+        sanitized_content = sanitized_file.read_text(encoding="utf-8")
+        return self._calculate_content_hash({"rationale": "", "description": sanitized_content})
+
+    def _proposal_update_payload(
+        self,
+        proposal: dict[str, Any],
+        import_from_tmp: bool,
+        tmp_file: Path | None,
+    ) -> dict[str, Any]:
+        """Build the proposal payload used for backlog update operations."""
+        if not import_from_tmp:
+            return proposal
+
+        change_id = proposal.get("change_id", "unknown")
+        sanitized_file = tmp_file or (Path(tempfile.gettempdir()) / f"specfact-proposal-{change_id}-sanitized.md")
+        if not sanitized_file.exists():
+            return proposal
+
+        sanitized_content = sanitized_file.read_text(encoding="utf-8")
+        return {**proposal, "description": sanitized_content, "rationale": ""}
+
+    def _fetch_issue_sync_state(
+        self,
+        adapter_type: str,
+        issue_num: str | int,
+        repo_owner: str | None,
+        repo_name: str | None,
+        ado_org: str | None,
+        ado_project: str | None,
+        proposal_title: str,
+        proposal_status: str,
+    ) -> tuple[bool, bool, bool]:
+        """Return title/state update flags and whether an applied comment is needed."""
+        from specfact_cli.adapters.registry import AdapterRegistry
+
+        adapter_instance = AdapterRegistry.get_adapter(adapter_type)
+        adapter_inst_any = cast(Any, adapter_instance)
+        if not adapter_instance or not hasattr(adapter_instance, "api_token"):
+            return False, False, False
+
+        if adapter_type.lower() == "github" and repo_owner and repo_name and adapter_inst_any.api_token:
+            return self._fetch_github_issue_sync_state(
+                adapter_inst_any,
+                issue_num,
+                repo_owner,
+                repo_name,
+                proposal_title,
+                proposal_status,
+            )
+
+        if (
+            adapter_type.lower() == "ado"
+            and hasattr(adapter_instance, "_get_work_item_data")
+            and ado_org
+            and ado_project
+        ):
+            return self._fetch_ado_issue_sync_state(
+                adapter_inst_any,
+                issue_num,
+                ado_org,
+                ado_project,
+                proposal_title,
+                proposal_status,
+            )
+
+        return False, False, False
+
+    def _fetch_github_issue_sync_state(
+        self,
+        adapter_inst_any: Any,
+        issue_num: str | int,
+        repo_owner: str,
+        repo_name: str,
+        proposal_title: str,
+        proposal_status: str,
+    ) -> tuple[bool, bool, bool]:
+        """Return title/state update flags for a GitHub issue."""
+        import requests
+
+        url = f"{adapter_inst_any.base_url}/repos/{repo_owner}/{repo_name}/issues/{issue_num}"
+        headers = {
+            "Authorization": f"token {adapter_inst_any.api_token}",
+            "Accept": "application/vnd.github.v3+json",
+        }
+        response = requests.get(url, headers=headers, timeout=30)
+        response.raise_for_status()
+        issue_data = response.json()
+        current_issue_title = issue_data.get("title", "")
+        current_issue_state = issue_data.get("state", "open")
+        desired_state = "closed" if proposal_status in ("applied", "deprecated", "discarded") else "open"
+        needs_comment_for_applied = proposal_status == "applied" and current_issue_state == "closed"
+        return (
+            bool(current_issue_title and proposal_title and current_issue_title != proposal_title),
+            current_issue_state != desired_state,
+            needs_comment_for_applied,
+        )
+
+    def _fetch_ado_issue_sync_state(
+        self,
+        adapter_inst_any: Any,
+        issue_num: str | int,
+        ado_org: str,
+        ado_project: str,
+        proposal_title: str,
+        proposal_status: str,
+    ) -> tuple[bool, bool, bool]:
+        """Return title/state update flags for an ADO work item."""
+        work_item_data: dict[str, Any] | None = adapter_inst_any._get_work_item_data(issue_num, ado_org, ado_project)
+        if not work_item_data:
+            return False, False, False
+        current_issue_title = work_item_data.get("title", "")
+        current_issue_state = work_item_data.get("state", "")
+        desired_ado_state: str = adapter_inst_any.map_openspec_status_to_backlog(proposal_status)
+        return (
+            bool(current_issue_title and proposal_title and current_issue_title != proposal_title),
+            current_issue_state != desired_ado_state,
+            False,
+        )
+
+    @staticmethod
+    def _source_metadata_dict(entry: dict[str, Any]) -> dict[str, Any]:
+        """Return a normalized source_metadata mapping."""
+        source_metadata = entry.get("source_metadata", {})
+        return cast(dict[str, Any], source_metadata) if isinstance(source_metadata, dict) else {}
+
+    def _updated_target_entry(
+        self,
+        target_entry: dict[str, Any],
+        current_status: Any,
+        should_sanitize: bool | None,
+    ) -> dict[str, Any]:
+        """Build the updated source-tracking entry for the current sync."""
+        source_metadata = self._source_metadata_dict(target_entry)
+        return {
+            **target_entry,
+            "source_metadata": {
+                **source_metadata,
+                "last_synced_status": current_status,
+                "sanitized": should_sanitize if should_sanitize is not None else False,
+            },
+        }
+
+    def _store_updated_source_tracking(
+        self,
+        proposal: dict[str, Any],
+        source_tracking_raw: dict[str, Any] | list[dict[str, Any]],
+        source_tracking_list: list[dict[str, Any]],
+        target_repo: str | None,
+        updated_entry: dict[str, Any],
+    ) -> list[dict[str, Any]]:
+        """Persist an updated source-tracking entry back to the proposal payload."""
+        if target_repo:
+            updated_list = self._update_source_tracking_entry(source_tracking_list, target_repo, updated_entry)
+            proposal["source_tracking"] = updated_list
+            return updated_list
+
+        if isinstance(source_tracking_raw, dict):
+            proposal["source_tracking"] = updated_entry
+            return source_tracking_list
+
+        for index, entry in enumerate(source_tracking_list):
+            if not isinstance(entry, dict):
+                continue
+            entry_id = entry.get("source_id")
+            entry_repo = entry.get("source_repo")
+            updated_id = updated_entry.get("source_id")
+            updated_repo = updated_entry.get("source_repo")
+            if (entry_id and entry_id == updated_id) or (entry_repo and entry_repo == updated_repo):
+                source_tracking_list[index] = updated_entry
+                break
+        proposal["source_tracking"] = source_tracking_list
+        return source_tracking_list
+
+    def _update_issue_content_hash(
+        self,
+        proposal: dict[str, Any],
+        target_entry: dict[str, Any],
+        target_repo: str | None,
+        source_tracking_list: list[dict[str, Any]],
+        current_hash: str,
+    ) -> None:
+        """Persist the latest content hash in source-tracking metadata."""
+        source_metadata = target_entry.get("source_metadata", {})
+        if not isinstance(source_metadata, dict):
+            source_metadata = {}
+        updated_entry = {**target_entry, "source_metadata": {**source_metadata, "content_hash": current_hash}}
+        if target_repo:
+            proposal["source_tracking"] = self._update_source_tracking_entry(
+                source_tracking_list, target_repo, updated_entry
+            )
+
     def _update_issue_content_if_needed(
         self,
         proposal: dict[str, Any],
@@ -2504,122 +2654,35 @@ class BridgeSync:
             operations: Operations list to append to
             errors: Errors list to append to
         """
-        # Handle sanitized content updates (when import_from_tmp is used)
-        if import_from_tmp:
-            change_id = proposal.get("change_id", "unknown")
-            sanitized_file = tmp_file or (Path(tempfile.gettempdir()) / f"specfact-proposal-{change_id}-sanitized.md")
-            if sanitized_file.exists():
-                sanitized_content = sanitized_file.read_text(encoding="utf-8")
-                proposal_for_hash = {
-                    "rationale": "",
-                    "description": sanitized_content,
-                }
-                current_hash = self._calculate_content_hash(proposal_for_hash)
-            else:
-                current_hash = self._calculate_content_hash(proposal)
-        else:
-            current_hash = self._calculate_content_hash(proposal)
+        current_hash = self._proposal_update_hash(proposal, import_from_tmp, tmp_file)
 
         # Get stored hash from target repository entry
         stored_hash = None
-        source_metadata = target_entry.get("source_metadata", {})
-        if isinstance(source_metadata, dict):
-            stored_hash = source_metadata.get("content_hash")
+        _sm_hash = target_entry.get("source_metadata")
+        if isinstance(_sm_hash, dict):
+            stored_hash = cast(dict[str, Any], _sm_hash).get("content_hash")
 
-        # Check if title or state needs update
-        current_issue_title = None
-        current_issue_state = None
         needs_title_update = False
         needs_state_update = False
-        if target_entry:
-            issue_num = target_entry.get("source_id")
-            if issue_num:
-                try:
-                    from specfact_cli.adapters.registry import AdapterRegistry
-
-                    adapter_instance = AdapterRegistry.get_adapter(adapter_type)
-                    if adapter_instance and hasattr(adapter_instance, "api_token"):
-                        proposal_title = proposal.get("title", "")
-                        proposal_status = proposal.get("status", "proposed")
-
-                        if adapter_type.lower() == "github":
-                            import requests
-
-                            url = f"{adapter_instance.base_url}/repos/{repo_owner}/{repo_name}/issues/{issue_num}"
-                            headers = {
-                                "Authorization": f"token {adapter_instance.api_token}",
-                                "Accept": "application/vnd.github.v3+json",
-                            }
-                            response = requests.get(url, headers=headers, timeout=30)
-                            response.raise_for_status()
-                            issue_data = response.json()
-                            current_issue_title = issue_data.get("title", "")
-                            current_issue_state = issue_data.get("state", "open")
-                            needs_title_update = (
-                                current_issue_title and proposal_title and current_issue_title != proposal_title
-                            )
-                            should_close = proposal_status in ("applied", "deprecated", "discarded")
-                            desired_state = "closed" if should_close else "open"
-                            needs_state_update = current_issue_state != desired_state
-                        elif adapter_type.lower() == "ado":
-                            if hasattr(adapter_instance, "_get_work_item_data") and ado_org and ado_project:
-                                work_item_data = adapter_instance._get_work_item_data(issue_num, ado_org, ado_project)
-                                if work_item_data:
-                                    current_issue_title = work_item_data.get("title", "")
-                                    current_issue_state = work_item_data.get("state", "")
-                                    needs_title_update = (
-                                        current_issue_title and proposal_title and current_issue_title != proposal_title
-                                    )
-                                    desired_ado_state = adapter_instance.map_openspec_status_to_backlog(proposal_status)
-                                    needs_state_update = current_issue_state != desired_ado_state
-                except Exception:
-                    pass
-
-        # Check if we need to add a comment for applied status
         needs_comment_for_applied = False
-        if proposal.get("status") == "applied" and target_entry:
-            issue_num = target_entry.get("source_id")
-            if issue_num and adapter_type.lower() == "github":
-                try:
-                    import requests
-
-                    from specfact_cli.adapters.registry import AdapterRegistry
-
-                    adapter_instance = AdapterRegistry.get_adapter(adapter_type)
-                    if adapter_instance and hasattr(adapter_instance, "api_token") and adapter_instance.api_token:
-                        url = f"{adapter_instance.base_url}/repos/{repo_owner}/{repo_name}/issues/{issue_num}"
-                        headers = {
-                            "Authorization": f"token {adapter_instance.api_token}",
-                            "Accept": "application/vnd.github.v3+json",
-                        }
-                        response = requests.get(url, headers=headers, timeout=30)
-                        response.raise_for_status()
-                        issue_data = response.json()
-                        current_issue_state = issue_data.get("state", "open")
-                        if current_issue_state == "closed":
-                            needs_comment_for_applied = True
-                except Exception:
-                    pass
+        issue_num = target_entry.get("source_id") if target_entry else None
+        if issue_num:
+            with contextlib.suppress(Exception):
+                needs_title_update, needs_state_update, needs_comment_for_applied = self._fetch_issue_sync_state(
+                    adapter_type,
+                    issue_num,
+                    repo_owner,
+                    repo_name,
+                    ado_org,
+                    ado_project,
+                    str(proposal.get("title", "")),
+                    str(proposal.get("status", "proposed")),
+                )
 
         if stored_hash != current_hash or needs_title_update or needs_state_update or needs_comment_for_applied:
             # Content changed, title needs update, state needs update, or need to add comment
             try:
-                if import_from_tmp:
-                    change_id = proposal.get("change_id", "unknown")
-                    sanitized_file = tmp_file or (
-                        Path(tempfile.gettempdir()) / f"specfact-proposal-{change_id}-sanitized.md"
-                    )
-                    if sanitized_file.exists():
-                        sanitized_content = sanitized_file.read_text(encoding="utf-8")
-                        proposal_for_update = {
-                            **proposal,
-                            "description": sanitized_content,
-                            "rationale": "",
-                        }
-                    else:
-                        proposal_for_update = proposal
-                else:
-                    proposal_for_update = proposal
+                proposal_for_update = self._proposal_update_payload(proposal, import_from_tmp, tmp_file)
 
                 # Determine code repository path for branch verification
                 code_repo_path = None
@@ -2651,23 +2714,10 @@ class BridgeSync:
                         bridge_config=self.bridge_config,
                     )
 
-                # Update stored hash in target repository entry
                 if target_entry:
-                    source_metadata = target_entry.get("source_metadata", {})
-                    if not isinstance(source_metadata, dict):
-                        source_metadata = {}
-                    updated_entry = {
-                        **target_entry,
-                        "source_metadata": {
-                            **source_metadata,
-                            "content_hash": current_hash,
-                        },
-                    }
-                    if target_repo:
-                        source_tracking_list = self._update_source_tracking_entry(
-                            source_tracking_list, target_repo, updated_entry
-                        )
-                        proposal["source_tracking"] = source_tracking_list
+                    self._update_issue_content_hash(
+                        proposal, target_entry, target_repo, source_tracking_list, current_hash
+                    )
 
                 operations.append(
                     SyncOperation(
@@ -2711,9 +2761,9 @@ class BridgeSync:
             try:
                 last_detection = None
                 if target_entry:
-                    source_metadata = target_entry.get("source_metadata", {})
-                    if isinstance(source_metadata, dict):
-                        last_detection = source_metadata.get("last_code_change_detected")
+                    _sm = target_entry.get("source_metadata")
+                    if isinstance(_sm, dict):
+                        last_detection = cast(dict[str, Any], _sm).get("last_code_change_detected")
 
                 code_repo = code_repo_path if code_repo_path else self.repo_path
                 code_changes = detect_code_changes(
@@ -2745,14 +2795,16 @@ class BridgeSync:
             )
             comment_hash = calculate_comment_hash(comment_text)
 
-            progress_comments = []
+            progress_comments: list[dict[str, Any]] = []
             if target_entry:
-                source_metadata = target_entry.get("source_metadata", {})
-                if isinstance(source_metadata, dict):
-                    progress_comments = source_metadata.get("progress_comments", [])
+                _sm_raw = target_entry.get("source_metadata")
+                if isinstance(_sm_raw, dict):
+                    _pc_raw = cast(dict[str, Any], _sm_raw).get("progress_comments")
+                    if isinstance(_pc_raw, list):
+                        progress_comments = [c for c in _pc_raw if isinstance(c, dict)]
 
             is_duplicate = False
-            if isinstance(progress_comments, list):
+            if progress_comments:
                 for existing_comment in progress_comments:
                     if isinstance(existing_comment, dict):
                         existing_hash = existing_comment.get("comment_hash")
@@ -2775,12 +2827,14 @@ class BridgeSync:
                     )
 
                     if target_entry:
-                        source_metadata = target_entry.get("source_metadata", {})
-                        if not isinstance(source_metadata, dict):
-                            source_metadata = {}
-                        progress_comments = source_metadata.get("progress_comments", [])
-                        if not isinstance(progress_comments, list):
-                            progress_comments = []
+                        _sm_raw2 = target_entry.get("source_metadata")
+                        source_metadata2: dict[str, Any] = (
+                            cast(dict[str, Any], _sm_raw2) if isinstance(_sm_raw2, dict) else {}
+                        )
+                        _pc_raw2 = source_metadata2.get("progress_comments")
+                        progress_comments = (
+                            [c for c in _pc_raw2 if isinstance(c, dict)] if isinstance(_pc_raw2, list) else []
+                        )
 
                         progress_comments.append(
                             {
@@ -2793,7 +2847,7 @@ class BridgeSync:
                         updated_entry = {
                             **target_entry,
                             "source_metadata": {
-                                **source_metadata,
+                                **source_metadata2,
                                 "progress_comments": progress_comments,
                                 "last_code_change_detected": progress_data.get("detection_timestamp"),
                             },
@@ -2840,46 +2894,98 @@ class BridgeSync:
         if "source_repo" not in entry_data:
             entry_data["source_repo"] = target_repo
 
-        entry_type = entry_data.get("source_type", "").lower()
-        new_source_id = entry_data.get("source_id")
-
-        # Find existing entry for this repo
         for i, entry in enumerate(source_tracking_list):
             if not isinstance(entry, dict):
                 continue
-
-            entry_repo = entry.get("source_repo")
-            entry_type_existing = entry.get("source_type", "").lower()
-
-            # Primary match: exact source_repo match
-            if entry_repo == target_repo:
-                # Update existing entry
-                source_tracking_list[i] = {**entry, **entry_data}
+            if self._source_tracking_entries_match(entry, entry_data, target_repo):
+                updated_entry = {**entry, **entry_data}
+                if self._ado_repo_matches_target(
+                    entry.get("source_repo"),
+                    target_repo,
+                    str(entry_data.get("source_type", "")).lower(),
+                    str(entry.get("source_url", "")),
+                    entry.get("source_id") or entry_data.get("source_id"),
+                ):
+                    updated_entry["source_repo"] = target_repo
+                source_tracking_list[i] = updated_entry
                 return source_tracking_list
-
-            # Secondary match: for ADO, match by org + source_id if project name differs
-            # This handles cases where ADO URLs contain GUIDs instead of project names
-            if entry_type == "ado" and entry_type_existing == "ado" and entry_repo and target_repo:
-                entry_org = entry_repo.split("/")[0] if "/" in entry_repo else None
-                target_org = target_repo.split("/")[0] if "/" in target_repo else None
-                entry_source_id = entry.get("source_id")
-
-                if entry_org and target_org and entry_org == target_org:
-                    # Org matches
-                    if entry_source_id and new_source_id and entry_source_id == new_source_id:
-                        # Same work item - update existing entry
-                        source_tracking_list[i] = {**entry, **entry_data}
-                        return source_tracking_list
-                    # Org matches but different/no source_id - update repo identifier to match target
-                    # This handles project name changes or encoding differences
-                    updated_entry = {**entry, **entry_data}
-                    updated_entry["source_repo"] = target_repo  # Update to correct repo identifier
-                    source_tracking_list[i] = updated_entry
-                    return source_tracking_list
 
         # No existing entry found - add new one
         source_tracking_list.append(entry_data)
         return source_tracking_list
+
+    def _source_tracking_entries_match(
+        self,
+        existing_entry: dict[str, Any],
+        new_entry: dict[str, Any],
+        target_repo: str,
+    ) -> bool:
+        """Return whether two source-tracking entries refer to the same repository item."""
+        existing_repo = existing_entry.get("source_repo")
+        existing_id = existing_entry.get("source_id")
+        new_id = new_entry.get("source_id")
+        if existing_repo == target_repo:
+            return True
+        return bool(
+            self._ado_repo_matches_target(
+                existing_repo,
+                target_repo,
+                str(new_entry.get("source_type", existing_entry.get("source_type", ""))).lower(),
+                str(existing_entry.get("source_url", "")),
+                existing_id or new_id,
+            )
+            and (not existing_id or not new_id or existing_id == new_id)
+        )
+
+    def _entry_source_metadata(self, entry: dict[str, Any]) -> dict[str, Any]:
+        """Return a mutable source_metadata dict for a tracking entry."""
+        source_metadata = entry.get("source_metadata")
+        if not isinstance(source_metadata, dict):
+            source_metadata = {}
+            entry["source_metadata"] = source_metadata
+        return cast(dict[str, Any], source_metadata)
+
+    def _populate_source_repo_from_url(self, entry: dict[str, Any], source_url: str) -> None:
+        """Infer a repository identifier from a source URL when metadata omitted it."""
+        url_repo_match = re.search(r"github\.com/([^/]+/[^/]+)/", source_url)
+        if url_repo_match:
+            entry["source_repo"] = url_repo_match.group(1)
+            return
+
+        ado_repo_match = re.search(r"dev\.azure\.com/([^/]+)/([^/]+)/", source_url)
+        if ado_repo_match:
+            entry["source_repo"] = f"{ado_repo_match.group(1)}/{ado_repo_match.group(2)}"
+
+    def _apply_source_tracking_metadata(self, entry: dict[str, Any], entry_content: str) -> None:
+        """Extract source-tracking metadata comments and fields from markdown content."""
+        metadata_patterns: list[tuple[str, str, Any]] = [
+            (r"\*\*Last Synced Status\*\*:\s*(\w+)", "last_synced_status", lambda value: value),
+            (r"\*\*Sanitized\*\*:\s*(true|false)", "sanitized", lambda value: value.lower() == "true"),
+            (r"<!--\s*content_hash:\s*([a-f0-9]{16})\s*-->", "content_hash", lambda value: value),
+            (r"<!--\s*last_code_change_detected:\s*([^\s]+)\s*-->", "last_code_change_detected", lambda value: value),
+        ]
+        source_metadata = self._entry_source_metadata(entry)
+        for pattern, key, converter in metadata_patterns:
+            match = re.search(pattern, entry_content, re.IGNORECASE)
+            if match:
+                source_metadata[key] = converter(match.group(1))
+
+        progress_comments_match = re.search(r"<!--\s*progress_comments:\s*(\[.*?\])\s*-->", entry_content, re.DOTALL)
+        if progress_comments_match:
+            with contextlib.suppress(json.JSONDecodeError, ValueError):
+                source_metadata["progress_comments"] = json.loads(progress_comments_match.group(1))
+
+    def _apply_source_repo_override(self, entry: dict[str, Any], entry_content: str) -> None:
+        """Load hidden source_repo metadata when explicit repository headers are absent."""
+        source_repo_match = re.search(r"<!--\s*source_repo:\s*([^>]+?)\s*-->", entry_content)
+        if source_repo_match:
+            entry["source_repo"] = source_repo_match.group(1).strip()
+            return
+
+        if not entry.get("source_repo"):
+            source_repo_in_content = re.search(r"source_repo[:\s]+([^\n]+)", entry_content, re.IGNORECASE)
+            if source_repo_in_content:
+                entry["source_repo"] = source_repo_in_content.group(1).strip()
 
     def _parse_source_tracking_entry(self, entry_content: str, repo_name: str | None) -> dict[str, Any] | None:
         """
@@ -2905,76 +3011,16 @@ class BridgeSync:
         url_match = re.search(r"\*\*Issue URL\*\*:\s*<?(https://[^\s>]+)>?", entry_content)
         if url_match:
             entry["source_url"] = url_match.group(1)
-            # If no repo_name provided, try to extract from URL
             if not repo_name:
-                # Try GitHub URL pattern
-                url_repo_match = re.search(r"github\.com/([^/]+/[^/]+)/", entry["source_url"])
-                if url_repo_match:
-                    entry["source_repo"] = url_repo_match.group(1)
-                else:
-                    # Try ADO URL pattern: dev.azure.com/{org}/{project}/...
-                    ado_repo_match = re.search(r"dev\.azure\.com/([^/]+)/([^/]+)/", entry["source_url"])
-                    if ado_repo_match:
-                        entry["source_repo"] = f"{ado_repo_match.group(1)}/{ado_repo_match.group(2)}"
+                self._populate_source_repo_from_url(entry, entry["source_url"])
 
         # Extract source type
         type_match = re.search(r"\*\*(\w+)\s+Issue\*\*:", entry_content)
         if type_match:
             entry["source_type"] = type_match.group(1).lower()
 
-        # Extract last synced status
-        status_match = re.search(r"\*\*Last Synced Status\*\*:\s*(\w+)", entry_content)
-        if status_match:
-            if "source_metadata" not in entry:
-                entry["source_metadata"] = {}
-            entry["source_metadata"]["last_synced_status"] = status_match.group(1)
-
-        # Extract sanitized flag
-        sanitized_match = re.search(r"\*\*Sanitized\*\*:\s*(true|false)", entry_content, re.IGNORECASE)
-        if sanitized_match:
-            if "source_metadata" not in entry:
-                entry["source_metadata"] = {}
-            entry["source_metadata"]["sanitized"] = sanitized_match.group(1).lower() == "true"
-
-        # Extract content_hash from HTML comment
-        hash_match = re.search(r"<!--\s*content_hash:\s*([a-f0-9]{16})\s*-->", entry_content)
-        if hash_match:
-            if "source_metadata" not in entry:
-                entry["source_metadata"] = {}
-            entry["source_metadata"]["content_hash"] = hash_match.group(1)
-
-        # Extract progress_comments from HTML comment
-        progress_comments_match = re.search(r"<!--\s*progress_comments:\s*(\[.*?\])\s*-->", entry_content, re.DOTALL)
-        if progress_comments_match:
-            import json
-
-            try:
-                progress_comments = json.loads(progress_comments_match.group(1))
-                if "source_metadata" not in entry:
-                    entry["source_metadata"] = {}
-                entry["source_metadata"]["progress_comments"] = progress_comments
-            except (json.JSONDecodeError, ValueError):
-                # Ignore invalid JSON
-                pass
-
-        # Extract last_code_change_detected from HTML comment
-        last_detection_match = re.search(r"<!--\s*last_code_change_detected:\s*([^\s]+)\s*-->", entry_content)
-        if last_detection_match:
-            if "source_metadata" not in entry:
-                entry["source_metadata"] = {}
-            entry["source_metadata"]["last_code_change_detected"] = last_detection_match.group(1)
-
-        # Extract source_repo from hidden comment (for single entries)
-        # This is critical for ADO where URLs contain GUIDs instead of project names
-        source_repo_match = re.search(r"<!--\s*source_repo:\s*([^>]+?)\s*-->", entry_content)
-        if source_repo_match:
-            entry["source_repo"] = source_repo_match.group(1).strip()
-        # Also check for source_repo in the content itself (might be in a comment or elsewhere)
-        elif not entry.get("source_repo"):
-            # Try to find it in the content as a fallback
-            source_repo_in_content = re.search(r"source_repo[:\s]+([^\n]+)", entry_content, re.IGNORECASE)
-            if source_repo_in_content:
-                entry["source_repo"] = source_repo_in_content.group(1).strip()
+        self._apply_source_tracking_metadata(entry, entry_content)
+        self._apply_source_repo_override(entry, entry_content)
 
         # Only return entry if it has at least source_id or source_url
         if entry.get("source_id") or entry.get("source_url"):
@@ -2999,6 +3045,132 @@ class BridgeSync:
         # Return first 16 chars for storage efficiency
         return hash_obj.hexdigest()[:16]
 
+    def _find_proposal_file(self, openspec_changes_dir: Path, change_id: str) -> Path | None:
+        """Locate the proposal.md path for an active or archived OpenSpec change."""
+        proposal_file = openspec_changes_dir / change_id / "proposal.md"
+        if proposal_file.exists():
+            return proposal_file
+
+        archive_dir = openspec_changes_dir / "archive"
+        if not archive_dir.exists() or not archive_dir.is_dir():
+            return None
+
+        for archive_subdir in archive_dir.iterdir():
+            if not archive_subdir.is_dir() or "-" not in archive_subdir.name:
+                continue
+            parts = archive_subdir.name.split("-", 3)
+            if len(parts) >= 4 and parts[3] == change_id:
+                candidate = archive_subdir / "proposal.md"
+                if candidate.exists():
+                    return candidate
+        return None
+
+    def _source_type_display_name(self, source_type_raw: Any) -> str:
+        """Return the markdown display name for a source type."""
+        source_type_capitalization = {
+            "github": "GitHub",
+            "ado": "ADO",
+            "linear": "Linear",
+            "jira": "Jira",
+            "unknown": "Unknown",
+        }
+        return source_type_capitalization.get(str(source_type_raw).lower(), "Unknown")
+
+    def _build_source_tracking_entry_lines(
+        self,
+        entry: dict[str, Any],
+        index: int,
+        total_entries: int,
+    ) -> list[str]:
+        """Build markdown lines for a single source-tracking entry."""
+        lines: list[str] = []
+        source_repo = entry.get("source_repo")
+        if source_repo:
+            if total_entries > 1 or index > 0:
+                lines.extend([f"### Repository: {source_repo}", ""])
+            elif total_entries == 1:
+                lines.append(f"<!-- source_repo: {source_repo} -->")
+
+        source_id = entry.get("source_id")
+        source_url = entry.get("source_url")
+        if source_id:
+            lines.append(
+                f"- **{self._source_type_display_name(entry.get('source_type', 'unknown'))} Issue**: #{source_id}"
+            )
+        if source_url:
+            lines.append(f"- **Issue URL**: <{source_url}>")
+
+        source_metadata = entry.get("source_metadata") if isinstance(entry.get("source_metadata"), dict) else {}
+        if isinstance(source_metadata, dict):
+            last_synced_status = source_metadata.get("last_synced_status")
+            if last_synced_status:
+                lines.append(f"- **Last Synced Status**: {last_synced_status}")
+            sanitized = source_metadata.get("sanitized")
+            if sanitized is not None:
+                lines.append(f"- **Sanitized**: {str(sanitized).lower()}")
+            content_hash = source_metadata.get("content_hash")
+            if content_hash:
+                lines.append(f"<!-- content_hash: {content_hash} -->")
+            progress_comments = source_metadata.get("progress_comments")
+            if isinstance(progress_comments, list) and progress_comments:
+                lines.append(f"<!-- progress_comments: {json.dumps(progress_comments, separators=(',', ':'))} -->")
+            last_detection = source_metadata.get("last_code_change_detected")
+            if last_detection:
+                lines.append(f"<!-- last_code_change_detected: {last_detection} -->")
+        return lines
+
+    def _build_source_tracking_metadata_section(self, source_tracking_list: list[dict[str, Any]]) -> str:
+        """Build the markdown source-tracking section for a proposal file."""
+        metadata_lines: list[str] = ["", "---", "", "## Source Tracking", ""]
+        for index, entry in enumerate(source_tracking_list):
+            if not isinstance(entry, dict):
+                continue
+            metadata_lines.extend(self._build_source_tracking_entry_lines(entry, index, len(source_tracking_list)))
+            if index < len(source_tracking_list) - 1:
+                metadata_lines.extend(["", "---", ""])
+        metadata_lines.append("")
+        return "\n".join(metadata_lines)
+
+    def _replace_markdown_section(self, content: str, section_name: str, section_body: str) -> str:
+        """Replace or append a markdown section while preserving surrounding content."""
+        if not section_body:
+            return content
+
+        section_header = f"## {section_name}"
+        replacement = f"{section_header}\n\n{section_body}\n"
+        section_pattern = (
+            rf"(##\s+{re.escape(section_name)}\s*\n)(.*?)(?=\n##\s+|\n---\s*\n\s*##\s+Source\s+Tracking|\Z)"
+        )
+        if re.search(section_pattern, content, flags=re.DOTALL | re.IGNORECASE):
+            return re.sub(section_pattern, replacement, content, flags=re.DOTALL | re.IGNORECASE)
+
+        insert_before = re.search(r"(##\s+(What Changes|Source Tracking))", content, re.IGNORECASE)
+        if section_name == "Why" and insert_before:
+            insert_pos = insert_before.start()
+            return content[:insert_pos] + replacement + "\n" + content[insert_pos:]
+
+        if section_name == "What Changes":
+            insert_after_why = re.search(r"(##\s+Why\s*\n.*?\n)(?=##\s+|$)", content, re.DOTALL | re.IGNORECASE)
+            if insert_after_why:
+                insert_pos = insert_after_why.end()
+                return content[:insert_pos] + replacement + "\n" + content[insert_pos:]
+
+        if "## Source Tracking" in content:
+            return content.replace("## Source Tracking", replacement + "\n## Source Tracking", 1)
+        return f"{content.rstrip()}\n\n{replacement}"
+
+    def _upsert_source_tracking_section(self, content: str, metadata_section: str) -> str:
+        """Replace or append the source-tracking metadata block."""
+        pattern_with_sep = r"\n---\n\n## Source Tracking.*?(?=\n## |\Z)"
+        if re.search(pattern_with_sep, content, flags=re.DOTALL):
+            return re.sub(pattern_with_sep, "\n" + metadata_section.rstrip(), content, flags=re.DOTALL)
+
+        pattern_no_sep = r"\n## Source Tracking.*?(?=\n## |\Z)"
+        if re.search(pattern_no_sep, content, flags=re.DOTALL):
+            return re.sub(pattern_no_sep, "\n" + metadata_section.rstrip(), content, flags=re.DOTALL)
+
+        return content.rstrip() + "\n" + metadata_section
+
     def _save_openspec_change_proposal(self, proposal: dict[str, Any]) -> None:
         """
         Save updated change proposal back to OpenSpec proposal.md file.
@@ -3013,240 +3185,20 @@ class BridgeSync:
         if not change_id:
             return  # Cannot save without change ID
 
-        # Find openspec/changes directory
-        openspec_changes_dir = None
-        openspec_dir = self.repo_path / "openspec" / "changes"
-        if openspec_dir.exists() and openspec_dir.is_dir():
-            openspec_changes_dir = openspec_dir
-        else:
-            # Check for external base path in bridge config
-            if self.bridge_config and hasattr(self.bridge_config, "external_base_path"):
-                external_path = getattr(self.bridge_config, "external_base_path", None)
-                if external_path:
-                    openspec_changes_dir = Path(external_path) / "openspec" / "changes"
-                    if not openspec_changes_dir.exists():
-                        openspec_changes_dir = None
-
+        openspec_changes_dir = self._get_openspec_changes_dir()
         if not openspec_changes_dir or not openspec_changes_dir.exists():
             return  # Cannot save without OpenSpec directory
 
-        # Try active changes directory first
-        proposal_file = openspec_changes_dir / change_id / "proposal.md"
-        if not proposal_file.exists():
-            # Try archive directory (format: YYYY-MM-DD-<change-id>)
-            archive_dir = openspec_changes_dir / "archive"
-            if archive_dir.exists() and archive_dir.is_dir():
-                for archive_subdir in archive_dir.iterdir():
-                    if archive_subdir.is_dir():
-                        archive_name = archive_subdir.name
-                        # Extract change_id from "2025-12-29-add-devops-backlog-tracking"
-                        if "-" in archive_name:
-                            parts = archive_name.split("-", 3)
-                            if len(parts) >= 4 and parts[3] == change_id:
-                                proposal_file = archive_subdir / "proposal.md"
-                                break
-
-        if not proposal_file.exists():
+        proposal_file = self._find_proposal_file(openspec_changes_dir, str(change_id))
+        if not proposal_file or not proposal_file.exists():
             return  # Proposal file doesn't exist
 
         try:
             # Read existing content
             content = proposal_file.read_text(encoding="utf-8")
-
-            # Extract source_tracking info (normalize to list)
-            source_tracking_raw = proposal.get("source_tracking", {})
-            source_tracking_list = self._normalize_source_tracking(source_tracking_raw)
-            if not source_tracking_list:
-                return  # No source tracking to save
-
-            # Map source types to proper capitalization (MD034 compliance for URLs)
-            source_type_capitalization = {
-                "github": "GitHub",
-                "ado": "ADO",
-                "linear": "Linear",
-                "jira": "Jira",
-                "unknown": "Unknown",
-            }
-
-            metadata_lines = [
-                "",
-                "---",
-                "",
-                "## Source Tracking",
-                "",
-            ]
-
-            # Write each entry (one per repository)
-            for i, entry in enumerate(source_tracking_list):
-                if not isinstance(entry, dict):
-                    continue
-
-                # Add repository header if multiple entries or if source_repo is present
-                # Always include source_repo for ADO to ensure proper matching (ADO URLs contain GUIDs, not project names)
-                source_repo = entry.get("source_repo")
-                if source_repo:
-                    if len(source_tracking_list) > 1 or i > 0:
-                        metadata_lines.append(f"### Repository: {source_repo}")
-                        metadata_lines.append("")
-                    # For single entries, save source_repo as a hidden comment for matching
-                    elif len(source_tracking_list) == 1:
-                        metadata_lines.append(f"<!-- source_repo: {source_repo} -->")
-
-                source_type_raw = entry.get("source_type", "unknown")
-                source_type_display = source_type_capitalization.get(source_type_raw.lower(), "Unknown")
-
-                source_id = entry.get("source_id")
-                source_url = entry.get("source_url")
-
-                if source_id:
-                    metadata_lines.append(f"- **{source_type_display} Issue**: #{source_id}")
-                if source_url:
-                    # Enclose URL in angle brackets for MD034 compliance
-                    metadata_lines.append(f"- **Issue URL**: <{source_url}>")
-
-                source_metadata = entry.get("source_metadata", {})
-                if isinstance(source_metadata, dict) and source_metadata:
-                    last_synced_status = source_metadata.get("last_synced_status")
-                    if last_synced_status:
-                        metadata_lines.append(f"- **Last Synced Status**: {last_synced_status}")
-                    sanitized = source_metadata.get("sanitized")
-                    if sanitized is not None:
-                        metadata_lines.append(f"- **Sanitized**: {str(sanitized).lower()}")
-                    # Save content_hash as a hidden HTML comment for persistence
-                    # Format: <!-- content_hash: <hash> -->
-                    content_hash = source_metadata.get("content_hash")
-                    if content_hash:
-                        metadata_lines.append(f"<!-- content_hash: {content_hash} -->")
-
-                    # Save progress_comments and last_code_change_detected as hidden HTML comments
-                    # Format: <!-- progress_comments: <json> --> and <!-- last_code_change_detected: <timestamp> -->
-                    progress_comments = source_metadata.get("progress_comments")
-                    if progress_comments and isinstance(progress_comments, list) and len(progress_comments) > 0:
-                        import json
-
-                        # Save as JSON in HTML comment for persistence
-                        progress_comments_json = json.dumps(progress_comments, separators=(",", ":"))
-                        metadata_lines.append(f"<!-- progress_comments: {progress_comments_json} -->")
-
-                    last_code_change_detected = source_metadata.get("last_code_change_detected")
-                    if last_code_change_detected:
-                        metadata_lines.append(f"<!-- last_code_change_detected: {last_code_change_detected} -->")
-
-                # Add separator between entries (except for last one)
-                if i < len(source_tracking_list) - 1:
-                    metadata_lines.append("")
-                    metadata_lines.append("---")
-                    metadata_lines.append("")
-
-            metadata_lines.append("")
-            metadata_section = "\n".join(metadata_lines)
-
-            # Update title, description, and rationale if they're provided in the proposal
-            # This ensures the proposal.md file stays in sync with the proposal data
-            title = proposal.get("title")
-            description = proposal.get("description", "")
-            rationale = proposal.get("rationale", "")
-
-            if title:
-                # Update title line (# Change: ...)
-                title_pattern = r"^#\s+Change:\s*.*$"
-                if re.search(title_pattern, content, re.MULTILINE):
-                    content = re.sub(title_pattern, f"# Change: {title}", content, flags=re.MULTILINE)
-                else:
-                    # Title line doesn't exist, add it at the beginning
-                    content = f"# Change: {title}\n\n{content}"
-
-            # Update Why section - use more precise pattern to stop at correct boundaries
-            if rationale:
-                rationale_clean = rationale.strip()
-                if "## Why" in content:
-                    # Replace existing Why section - stop at next ## section (not Why) or ---\n\n## Source Tracking
-                    # Pattern: ## Why\n...content... until next ## (excluding Why) or ---\n\n## Source Tracking
-                    why_pattern = r"(##\s+Why\s*\n)(.*?)(?=\n##\s+(?!Why\s)|(?:\n---\s*\n\s*##\s+Source\s+Tracking)|\Z)"
-                    if re.search(why_pattern, content, re.DOTALL | re.IGNORECASE):
-                        # Replace content but preserve header
-                        content = re.sub(
-                            why_pattern, r"\1\n" + rationale_clean + r"\n", content, flags=re.DOTALL | re.IGNORECASE
-                        )
-                    else:
-                        # Fallback: simpler pattern
-                        why_pattern_simple = r"(##\s+Why\s*\n)(.*?)(?=\n##\s+|\Z)"
-                        content = re.sub(
-                            why_pattern_simple,
-                            r"\1\n" + rationale_clean + r"\n",
-                            content,
-                            flags=re.DOTALL | re.IGNORECASE,
-                        )
-                else:
-                    # Why section doesn't exist, add it before What Changes or Source Tracking
-                    insert_before = re.search(r"(##\s+(What Changes|Source Tracking))", content, re.IGNORECASE)
-                    if insert_before:
-                        insert_pos = insert_before.start()
-                        content = content[:insert_pos] + f"## Why\n\n{rationale_clean}\n\n" + content[insert_pos:]
-                    else:
-                        # No sections found, add at end (before Source Tracking if it exists)
-                        if "## Source Tracking" in content:
-                            content = content.replace(
-                                "## Source Tracking", f"## Why\n\n{rationale_clean}\n\n## Source Tracking"
-                            )
-                        else:
-                            content = f"{content}\n\n## Why\n\n{rationale_clean}\n"
-
-            # Update What Changes section - use more precise pattern to stop at correct boundaries
-            if description:
-                description_clean = self._dedupe_duplicate_sections(description.strip())
-                if "## What Changes" in content:
-                    # Replace existing What Changes section - stop at Source Tracking or end
-                    what_pattern = r"(##\s+What\s+Changes\s*\n)(.*?)(?=(?:\n---\s*\n\s*##\s+Source\s+Tracking)|\Z)"
-                    if re.search(what_pattern, content, re.DOTALL | re.IGNORECASE):
-                        content = re.sub(
-                            what_pattern,
-                            r"\1\n" + description_clean + r"\n",
-                            content,
-                            flags=re.DOTALL | re.IGNORECASE,
-                        )
-                    else:
-                        what_pattern_simple = (
-                            r"(##\s+What\s+Changes\s*\n)(.*?)(?=(?:\n---\s*\n\s*##\s+Source\s+Tracking)|\Z)"
-                        )
-                        content = re.sub(
-                            what_pattern_simple,
-                            r"\1\n" + description_clean + r"\n",
-                            content,
-                            flags=re.DOTALL | re.IGNORECASE,
-                        )
-                else:
-                    # What Changes section doesn't exist, add it after Why or before Source Tracking
-                    insert_after_why = re.search(r"(##\s+Why\s*\n.*?\n)(?=##\s+|$)", content, re.DOTALL | re.IGNORECASE)
-                    if insert_after_why:
-                        insert_pos = insert_after_why.end()
-                        content = (
-                            content[:insert_pos] + f"## What Changes\n\n{description_clean}\n\n" + content[insert_pos:]
-                        )
-                    elif "## Source Tracking" in content:
-                        content = content.replace(
-                            "## Source Tracking",
-                            f"## What Changes\n\n{description_clean}\n\n## Source Tracking",
-                        )
-                    else:
-                        content = f"{content}\n\n## What Changes\n\n{description_clean}\n"
-
-            # Check if metadata section already exists
-            if "## Source Tracking" in content:
-                # Replace existing metadata section
-                # Pattern matches: optional --- separator, then ## Source Tracking and everything until next ## section or end
-                # The metadata_section already includes the --- separator, so we match and replace the entire block
-                # Try with --- separator first (most common case)
-                pattern_with_sep = r"\n---\n\n## Source Tracking.*?(?=\n## |\Z)"
-                if re.search(pattern_with_sep, content, flags=re.DOTALL):
-                    content = re.sub(pattern_with_sep, "\n" + metadata_section.rstrip(), content, flags=re.DOTALL)
-                else:
-                    # Fallback: no --- separator before section
-                    pattern_no_sep = r"\n## Source Tracking.*?(?=\n## |\Z)"
-                    content = re.sub(pattern_no_sep, "\n" + metadata_section.rstrip(), content, flags=re.DOTALL)
-            else:
-                # Append new metadata section
-                content = content.rstrip() + "\n" + metadata_section
+            content = self._proposal_content_with_source_tracking(content, proposal)
+            if not content:
+                return
 
             # Write back to file
             proposal_file.write_text(content, encoding="utf-8")
@@ -3258,6 +3210,36 @@ class BridgeSync:
             logger = logging.getLogger(__name__)
             logger.warning(f"Failed to save source tracking to {proposal_file}: {e}")
 
+    def _proposal_content_with_source_tracking(self, content: str, proposal: dict[str, Any]) -> str | None:
+        """Return updated proposal markdown including proposal fields and source tracking."""
+        source_tracking_raw = proposal.get("source_tracking", {})
+        source_tracking_list = self._normalize_source_tracking(source_tracking_raw)
+        if not source_tracking_list:
+            return None
+
+        metadata_section = self._build_source_tracking_metadata_section(source_tracking_list)
+        content = self._apply_proposal_title(content, proposal.get("title"))
+        content = self._apply_proposal_sections(content, proposal.get("rationale", ""), proposal.get("description", ""))
+        return self._upsert_source_tracking_section(content, metadata_section)
+
+    def _apply_proposal_title(self, content: str, title: Any) -> str:
+        """Replace or insert the proposal title in markdown content."""
+        if not title:
+            return content
+        title_pattern = r"^#\s+Change:\s*.*$"
+        if re.search(title_pattern, content, re.MULTILINE):
+            return re.sub(title_pattern, f"# Change: {title}", content, flags=re.MULTILINE)
+        return f"# Change: {title}\n\n{content}"
+
+    def _apply_proposal_sections(self, content: str, rationale: str, description: str) -> str:
+        """Keep Why and What Changes sections in sync with proposal data."""
+        if rationale:
+            content = self._replace_markdown_section(content, "Why", rationale.strip())
+        if description:
+            description_clean = self._dedupe_duplicate_sections(description.strip())
+            content = self._replace_markdown_section(content, "What Changes", description_clean)
+        return content
+
     def _format_proposal_for_export(self, proposal: dict[str, Any]) -> str:
         """
         Format proposal as markdown for export to temporary file.
@@ -3268,7 +3250,7 @@ class BridgeSync:
         Returns:
             Markdown-formatted proposal content
         """
-        lines = []
+        lines: list[str] = []
         lines.append(f"# Change: {proposal.get('title', 'Untitled')}")
         lines.append("")
 
@@ -3380,7 +3362,7 @@ class BridgeSync:
 
         # Try to extract meaningful requirement from "What Changes" section
         # Look for bullet points that describe what the system should do
-        requirement_lines = []
+        requirement_lines: list[str] = []
 
         def _extract_section_details(section_content: str | None) -> list[str]:
             if not section_content:
@@ -3935,10 +3917,11 @@ class BridgeSync:
         Returns:
             Markdown content for tasks.md file
         """
-        lines = ["# Tasks: " + self._format_proposal_title(proposal.title), ""]
+        proposal_title: str = str(proposal.title) if proposal.title else ""
+        lines: list[str] = ["# Tasks: " + self._format_proposal_title(proposal_title), ""]
 
         # Try to extract tasks from description, focusing on "Acceptance Criteria" section
-        description = proposal.description or ""
+        description: str = str(proposal.description) if proposal.description else ""
         tasks_found = False
         marker_pattern = re.compile(
             r"^-\s*\*\*(NEW|EXTEND|FIX|ADD|MODIFY|UPDATE|REMOVE|REFACTOR)\*\*:\s*(.+)$",
@@ -4099,7 +4082,7 @@ class BridgeSync:
         # If no Acceptance Criteria found, look for any task lists in description
         if not tasks_found and ("- [ ]" in description or "- [x]" in description or "[ ]" in description):
             # Extract all task-like items
-            task_items = []
+            task_items: list[str] = []
             for line in description.split("\n"):
                 stripped = line.strip()
                 if stripped.startswith(("- [ ]", "- [x]", "[ ]", "[x]")):
@@ -4213,7 +4196,7 @@ class BridgeSync:
             return description.strip()
 
         lines = description.split("\n")
-        formatted_lines = []
+        formatted_lines: list[str] = []
 
         # Keywords that indicate NEW functionality
         new_keywords = ["new", "add", "introduce", "create", "implement", "support"]
@@ -4266,7 +4249,7 @@ class BridgeSync:
                 i += 1
 
                 # Process content under this subsection
-                subsection_content = []
+                subsection_content: list[str] = []
                 while i < len(lines):
                     next_line = lines[i]
                     next_stripped = next_line.strip()
@@ -4412,7 +4395,7 @@ class BridgeSync:
         ]
 
         lines = description.split("\n")
-        what_changes_lines = []
+        what_changes_lines: list[str] = []
 
         for line in lines:
             stripped = line.strip()
@@ -4474,7 +4457,7 @@ class BridgeSync:
             deps_content = deps_match.group(1).strip()
             # Remove leading "- " from lines if present (from bullet conversion)
             lines = deps_content.split("\n")
-            cleaned_lines = []
+            cleaned_lines: list[str] = []
             for line in lines:
                 stripped = line.strip()
                 if stripped.startswith("- "):
@@ -4551,7 +4534,7 @@ class BridgeSync:
             change_dir.mkdir(parents=True, exist_ok=True)
 
             # Write proposal.md
-            proposal_lines = []
+            proposal_lines: list[str] = []
             proposal_lines.append(f"# Change: {self._format_proposal_title(proposal.title)}")
             proposal_lines.append("")
             proposal_lines.append("## Why")
@@ -4623,14 +4606,16 @@ class BridgeSync:
                 if proposal.source_tracking.template_id or proposal.source_tracking.refinement_confidence is not None:
                     proposal_lines.append("")
                 if isinstance(source_metadata, dict):
-                    backlog_entries = source_metadata.get("backlog_entries", [])
+                    source_metadata_d: dict[str, Any] = cast(dict[str, Any], source_metadata)
+                    backlog_entries = source_metadata_d.get("backlog_entries", [])
                     if backlog_entries:
                         for entry in backlog_entries:
                             if isinstance(entry, dict):
-                                source_repo = entry.get("source_repo", "")
-                                source_id = entry.get("source_id", "")
-                                source_url = entry.get("source_url", "")
-                                source_type = entry.get("source_type", "unknown")
+                                entry_d2: dict[str, Any] = cast(dict[str, Any], entry)
+                                source_repo = entry_d2.get("source_repo", "")
+                                source_id = entry_d2.get("source_id", "")
+                                source_url = entry_d2.get("source_url", "")
+                                source_type = entry_d2.get("source_type", "unknown")
 
                                 if source_repo:
                                     proposal_lines.append(f"<!-- source_repo: {source_repo} -->")
@@ -4674,7 +4659,7 @@ class BridgeSync:
                 spec_dir = specs_dir / spec_id
                 spec_dir.mkdir(exist_ok=True)
 
-                spec_lines = []
+                spec_lines: list[str] = []
                 spec_lines.append(f"# {spec_id} Specification")
                 spec_lines.append("")
                 spec_lines.append("## Purpose")
@@ -4793,7 +4778,7 @@ class BridgeSync:
         )
 
     @beartype
-    @require(lambda self: self.bridge_config is not None, "Bridge config must be set")
+    @require(_bridge_config_set, "Bridge config must be set")
     @ensure(lambda result: isinstance(result, list), "Must return list")
     def _discover_feature_ids(self) -> list[str]:
         """

@@ -135,7 +135,7 @@ class BacklogAdapterMixin(ABC):
         # Special handling for GitHub adapter: use issue state method instead of labels
         if hasattr(target_adapter, "map_openspec_status_to_issue_state"):
             # GitHub adapter: use issue state mapping (open/closed)
-            return target_adapter.map_openspec_status_to_issue_state(openspec_status)
+            return target_adapter.map_openspec_status_to_issue_state(openspec_status)  # type: ignore[attr-defined]
 
         target_state = target_adapter.map_openspec_status_to_backlog(openspec_status)
 

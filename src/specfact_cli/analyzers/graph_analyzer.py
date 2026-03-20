@@ -129,6 +129,90 @@ class GraphAnalyzer:
 
         return dict(call_graph)
 
+    def _compute_max_workers(self, python_files: list[Path]) -> int:
+        """Compute worker count for thread pool based on environment and file count."""
+        import multiprocessing
+        import os
+
+        if os.environ.get("TEST_MODE") == "true":
+            return max(1, min(2, len(python_files)))
+        return max(1, min(multiprocessing.cpu_count() or 4, 16, len(python_files)))
+
+    def _build_import_edges(
+        self,
+        graph: nx.DiGraph,
+        python_files: list[Path],
+        known_modules: list[str],
+        max_workers: int,
+        wait_on_shutdown: bool,
+        progress_callback: Any | None,
+    ) -> None:
+        """Populate graph with edges derived from AST import analysis (parallel phase 1)."""
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+
+        def process_imports(file_path: Path) -> list[tuple[str, str]]:
+            module_name = self._path_to_module_name(file_path)
+            imports = self._extract_imports_from_ast(file_path)
+            edges: list[tuple[str, str]] = []
+            for imported in imports:
+                if imported in known_modules:
+                    edges.append((module_name, imported))
+                else:
+                    matching_module = self._find_matching_module(imported, known_modules)
+                    if matching_module:
+                        edges.append((module_name, matching_module))
+            return edges
+
+        executor = ThreadPoolExecutor(max_workers=max_workers)
+        completed = 0
+        try:
+            future_to_file = {executor.submit(process_imports, fp): fp for fp in python_files}
+            for future in as_completed(future_to_file):
+                try:
+                    edges = future.result()
+                    for module_name, matching_module in edges:
+                        graph.add_edge(module_name, matching_module)
+                except Exception:
+                    pass
+                completed += 1
+                if progress_callback:
+                    progress_callback(completed, len(python_files))
+        finally:
+            executor.shutdown(wait=wait_on_shutdown)
+
+    def _build_call_graph_edges(
+        self,
+        graph: nx.DiGraph,
+        python_files: list[Path],
+        max_workers: int,
+        wait_on_shutdown: bool,
+        progress_callback: Any | None,
+    ) -> None:
+        """Populate graph with edges derived from pyan call graphs (parallel phase 2)."""
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+
+        executor = ThreadPoolExecutor(max_workers=max_workers)
+        completed = 0
+        try:
+            future_to_file = {executor.submit(self.extract_call_graph, fp): fp for fp in python_files}
+            for future in as_completed(future_to_file):
+                file_path = future_to_file[future]
+                try:
+                    call_graph = future.result()
+                    module_name = self._path_to_module_name(file_path)
+                    for _caller, callees in call_graph.items():
+                        for callee in callees:
+                            callee_module = self._resolve_module_from_function(callee, python_files)
+                            if callee_module and callee_module in graph:
+                                graph.add_edge(module_name, callee_module)
+                except Exception:
+                    pass
+                completed += 1
+                if progress_callback:
+                    progress_callback(len(python_files) + completed, len(python_files) * 2)
+        finally:
+            executor.shutdown(wait=wait_on_shutdown)
+
     @beartype
     @require(lambda python_files: isinstance(python_files, list), "Python files must be list")
     @ensure(lambda result: isinstance(result, nx.DiGraph), "Must return DiGraph")
@@ -146,102 +230,19 @@ class GraphAnalyzer:
         Returns:
             NetworkX directed graph of module dependencies
         """
-        graph = nx.DiGraph()
+        import os
 
-        # Add nodes (modules)
+        graph = nx.DiGraph()
         for file_path in python_files:
             module_name = self._path_to_module_name(file_path)
             graph.add_node(module_name, path=str(file_path))
 
-        # Add edges from AST imports (parallelized for performance)
-        import multiprocessing
-
-        # In test mode, use fewer workers to avoid resource contention
-        import os
-        from concurrent.futures import ThreadPoolExecutor, as_completed
-
-        if os.environ.get("TEST_MODE") == "true":
-            max_workers = max(1, min(2, len(python_files)))  # Max 2 workers in test mode
-        else:
-            max_workers = max(
-                1, min(multiprocessing.cpu_count() or 4, 16, len(python_files))
-            )  # Increased for faster processing, ensure at least 1
-
-        # Get list of known modules for matching (needed for parallel processing)
+        max_workers = self._compute_max_workers(python_files)
         known_modules = list(graph.nodes())
-
-        # Process AST imports in parallel
-        def process_imports(file_path: Path) -> list[tuple[str, str]]:
-            """Process imports for a single file and return (module_name, matching_module) tuples."""
-            module_name = self._path_to_module_name(file_path)
-            imports = self._extract_imports_from_ast(file_path)
-            edges: list[tuple[str, str]] = []
-            for imported in imports:
-                # Try exact match first
-                if imported in known_modules:
-                    edges.append((module_name, imported))
-                else:
-                    # Try to find matching module (intelligent matching)
-                    matching_module = self._find_matching_module(imported, known_modules)
-                    if matching_module:
-                        edges.append((module_name, matching_module))
-            return edges
-
-        # Process AST imports in parallel
-        import os
-
-        executor1 = ThreadPoolExecutor(max_workers=max_workers)
         wait_on_shutdown = os.environ.get("TEST_MODE") != "true"
-        completed_imports = 0
-        try:
-            future_to_file = {executor1.submit(process_imports, file_path): file_path for file_path in python_files}
 
-            for future in as_completed(future_to_file):
-                try:
-                    edges = future.result()
-                    for module_name, matching_module in edges:
-                        graph.add_edge(module_name, matching_module)
-                    completed_imports += 1
-                    if progress_callback:
-                        progress_callback(completed_imports, len(python_files))
-                except Exception:
-                    completed_imports += 1
-                    if progress_callback:
-                        progress_callback(completed_imports, len(python_files))
-                    continue
-        finally:
-            executor1.shutdown(wait=wait_on_shutdown)
-
-        # Extract call graphs using pyan (if available) - parallelized for performance
-        executor2 = ThreadPoolExecutor(max_workers=max_workers)
-        completed_call_graphs = 0
-        try:
-            future_to_file = {
-                executor2.submit(self.extract_call_graph, file_path): file_path for file_path in python_files
-            }
-
-            for future in as_completed(future_to_file):
-                file_path = future_to_file[future]
-                try:
-                    call_graph = future.result()
-                    module_name = self._path_to_module_name(file_path)
-                    for _caller, callees in call_graph.items():
-                        for callee in callees:
-                            callee_module = self._resolve_module_from_function(callee, python_files)
-                            if callee_module and callee_module in graph:
-                                graph.add_edge(module_name, callee_module)
-                    completed_call_graphs += 1
-                    if progress_callback:
-                        # Report progress as phase 2 (after imports phase)
-                        progress_callback(len(python_files) + completed_call_graphs, len(python_files) * 2)
-                except Exception:
-                    # Skip if call graph extraction fails for this file
-                    completed_call_graphs += 1
-                    if progress_callback:
-                        progress_callback(len(python_files) + completed_call_graphs, len(python_files) * 2)
-                    continue
-        finally:
-            executor2.shutdown(wait=wait_on_shutdown)
+        self._build_import_edges(graph, python_files, known_modules, max_workers, wait_on_shutdown, progress_callback)
+        self._build_call_graph_edges(graph, python_files, max_workers, wait_on_shutdown, progress_callback)
 
         self.dependency_graph = graph
         return graph
@@ -265,40 +266,8 @@ class GraphAnalyzer:
         self.module_name_cache[file_key] = module_name
         return module_name
 
-    @beartype
-    @require(lambda file_path: isinstance(file_path, Path), "File path must be Path")
-    @ensure(lambda result: isinstance(result, list), "Must return list")
-    def _extract_imports_from_ast(self, file_path: Path) -> list[str]:
-        """
-        Extract imported module names from AST (cached by file hash).
-
-        Extracts full import paths (not just root modules) to enable proper matching.
-        """
-        import ast
-        import hashlib
-
-        # Compute file hash for caching
-        file_hash = ""
-        try:
-            file_key = str(file_path.relative_to(self.repo_path))
-        except ValueError:
-            file_key = str(file_path)
-
-        if file_key in self.file_hashes_cache:
-            file_hash = self.file_hashes_cache[file_key]
-        elif file_path.exists():
-            try:
-                file_hash = hashlib.sha256(file_path.read_bytes()).hexdigest()
-                self.file_hashes_cache[file_key] = file_hash
-            except Exception:
-                pass
-
-        # Check cache first
-        if file_hash and file_hash in self.imports_cache:
-            return self.imports_cache[file_hash]
-
-        imports: set[str] = set()
-        stdlib_modules = {
+    _STDLIB_MODULES: frozenset[str] = frozenset(
+        {
             "sys",
             "os",
             "json",
@@ -330,32 +299,65 @@ class GraphAnalyzer:
             "site",
             "pkgutil",
         }
+    )
 
+    def _resolve_file_hash(self, file_path: Path) -> str:
+        """Return cached or freshly-computed SHA-256 hash for a file, or '' on failure."""
+        import hashlib
+
+        try:
+            file_key = str(file_path.relative_to(self.repo_path))
+        except ValueError:
+            file_key = str(file_path)
+
+        if file_key in self.file_hashes_cache:
+            return self.file_hashes_cache[file_key]
+        if not file_path.exists():
+            return ""
+        try:
+            file_hash = hashlib.sha256(file_path.read_bytes()).hexdigest()
+            self.file_hashes_cache[file_key] = file_hash
+            return file_hash
+        except Exception:
+            return ""
+
+    def _parse_non_stdlib_imports(self, file_path: Path) -> set[str]:
+        """Parse AST of file and return non-stdlib import paths."""
+        import ast
+
+        imports: set[str] = set()
         try:
             content = file_path.read_text(encoding="utf-8")
             tree = ast.parse(content)
-
             for node in ast.walk(tree):
                 if isinstance(node, ast.Import):
                     for alias in node.names:
-                        # Extract full import path, not just root
                         import_path = alias.name
-                        # Skip stdlib modules
-                        root_module = import_path.split(".")[0]
-                        if root_module not in stdlib_modules:
+                        if import_path.split(".")[0] not in self._STDLIB_MODULES:
                             imports.add(import_path)
                 elif isinstance(node, ast.ImportFrom) and node.module:
-                    # Extract full import path
                     import_path = node.module
-                    # Skip stdlib modules
-                    root_module = import_path.split(".")[0]
-                    if root_module not in stdlib_modules:
+                    if import_path.split(".")[0] not in self._STDLIB_MODULES:
                         imports.add(import_path)
         except (SyntaxError, UnicodeDecodeError):
             pass
+        return imports
 
-        result = list(imports)
-        # Cache result
+    @beartype
+    @require(lambda file_path: isinstance(file_path, Path), "File path must be Path")
+    @ensure(lambda result: isinstance(result, list), "Must return list")
+    def _extract_imports_from_ast(self, file_path: Path) -> list[str]:
+        """
+        Extract imported module names from AST (cached by file hash).
+
+        Extracts full import paths (not just root modules) to enable proper matching.
+        """
+        file_hash = self._resolve_file_hash(file_path)
+
+        if file_hash and file_hash in self.imports_cache:
+            return self.imports_cache[file_hash]
+
+        result = list(self._parse_non_stdlib_imports(file_path))
         if file_hash:
             self.imports_cache[file_hash] = result
         return result

@@ -42,6 +42,8 @@ SEMVER_PATTERN = re.compile(r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:[-+].*
 
 
 @beartype
+@require(lambda version: version.strip() != "", "version must not be empty")
+@ensure(lambda result: len(result) == 3, "Must return (major, minor, patch) tuple")
 def validate_semver(version: str) -> tuple[int, int, int]:
     """
     Validate SemVer string and return numeric parts.
@@ -143,6 +145,8 @@ class ChangeAnalyzer:
         return untracked
 
     @beartype
+    @require(lambda bundle_dir: bundle_dir.exists(), "bundle_dir must exist")
+    @ensure(lambda result: result is not None, "Must return VersionAnalysis")
     def analyze(self, bundle_dir: Path, bundle: ProjectBundle | None = None) -> VersionAnalysis:
         """
         Analyze bundle changes and recommend a version bump.

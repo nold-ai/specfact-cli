@@ -131,6 +131,7 @@ class SDDManifest(BaseModel):
         return True
 
     @beartype
+    @ensure(lambda result: result is None, "update_timestamp must return None")
     def update_timestamp(self) -> None:
         """Update the updated_at timestamp."""
         self.updated_at = datetime.now(UTC).isoformat()

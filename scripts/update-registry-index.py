@@ -5,12 +5,16 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import sys
 from pathlib import Path
 
 import yaml
 from beartype import beartype
 from icontract import ensure, require
+
+
+logger = logging.getLogger(__name__)
 
 
 @beartype
@@ -63,6 +67,8 @@ def _upsert_entry(index_payload: dict, entry: dict) -> bool:
 
 
 @beartype
+@require(lambda argv: argv is None or isinstance(argv, list), "argv must be a list or None")
+@ensure(lambda result: result >= 0, "exit code must be non-negative")
 def main(argv: list[str] | None = None) -> int:
     """CLI entry point."""
     parser = argparse.ArgumentParser(description="Upsert one module entry into registry index.json")
@@ -76,14 +82,14 @@ def main(argv: list[str] | None = None) -> int:
         entry = _load_entry(args.entry_fragment.resolve())
         changed = _upsert_entry(index_payload, entry)
     except (ValueError, json.JSONDecodeError) as exc:
-        print(f"Error: {exc}", file=sys.stderr)
+        logger.error("%s", exc)
         return 1
 
     if changed:
         args.index_path.write_text(json.dumps(index_payload, indent=2, sort_keys=False) + "\n", encoding="utf-8")
-        print(f"Updated {args.index_path}")
+        logger.info("Updated %s", args.index_path)
     else:
-        print(f"No changes needed in {args.index_path}")
+        logger.info("No changes needed in %s", args.index_path)
 
     if args.changed_flag:
         args.changed_flag.write_text("true\n" if changed else "false\n", encoding="utf-8")
@@ -92,4 +98,5 @@ def main(argv: list[str] | None = None) -> int:
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
     sys.exit(main())

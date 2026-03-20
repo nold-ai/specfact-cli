@@ -126,6 +126,8 @@ class EnrichmentContext:
         return "\n".join(lines)
 
 
+@require(lambda plan_bundle: plan_bundle is not None, "plan_bundle must not be None")
+@ensure(lambda result: result is not None, "Must return EnrichmentContext")
 def build_enrichment_context(
     plan_bundle: PlanBundle,
     relationships: dict[str, Any] | None = None,

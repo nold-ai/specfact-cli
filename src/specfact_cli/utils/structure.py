@@ -61,12 +61,20 @@ class SpecFactStructure:
     PLAN_SUFFIXES = tuple({".bundle.yaml", ".bundle.yml", ".bundle.json"})
 
     @classmethod
+    @beartype
+    @ensure(
+        lambda result: isinstance(result, str) and result.startswith("."),
+        "Must return a string suffix starting with '.'",
+    )
     def plan_suffix(cls, format: StructuredFormat | None = None) -> str:
         """Return canonical plan suffix for format (defaults to YAML)."""
         fmt = format or StructuredFormat.YAML
         return cls.PLAN_SUFFIX_MAP.get(fmt, ".bundle.yaml")
 
     @classmethod
+    @beartype
+    @require(lambda plan_name: isinstance(plan_name, str) and len(plan_name) > 0, "Plan name must be non-empty string")
+    @ensure(lambda result: isinstance(result, str) and len(result) > 0, "Must return non-empty string")
     def ensure_plan_filename(cls, plan_name: str, format: StructuredFormat | None = None) -> str:
         """Ensure a plan filename includes the correct suffix."""
         lower = plan_name.lower()
@@ -77,6 +85,9 @@ class SpecFactStructure:
         return f"{plan_name}{cls.plan_suffix(format)}"
 
     @classmethod
+    @beartype
+    @require(lambda plan_name: isinstance(plan_name, str), "Plan name must be a string")
+    @ensure(lambda result: isinstance(result, str), "Must return a string")
     def strip_plan_suffix(cls, plan_name: str) -> str:
         """Remove known plan suffix from filename."""
         for suffix in cls.PLAN_SUFFIXES:
@@ -89,6 +100,8 @@ class SpecFactStructure:
         return plan_name
 
     @classmethod
+    @beartype
+    @ensure(lambda result: isinstance(result, str) and len(result) > 0, "Must return non-empty string")
     def default_plan_filename(cls, format: StructuredFormat | None = None) -> str:
         """Compute default plan filename for requested format."""
         return cls.ensure_plan_filename(cls.DEFAULT_PLAN_NAME, format)
@@ -174,11 +187,17 @@ class SpecFactStructure:
         return directory / f"report-{timestamp}.{extension}"
 
     @classmethod
+    @beartype
+    @require(lambda base_path: base_path is None or isinstance(base_path, Path), "Base path must be None or Path")
+    @ensure(lambda result: isinstance(result, Path), "Must return Path")
     def get_brownfield_analysis_path(cls, base_path: Path | None = None) -> Path:
         """Get path for brownfield analysis report."""
         return cls.get_timestamped_report_path("brownfield", base_path, "md")
 
     @classmethod
+    @beartype
+    @require(lambda base_path: base_path is None or isinstance(base_path, Path), "Base path must be None or Path")
+    @ensure(lambda result: isinstance(result, Path), "Must return Path")
     def get_brownfield_plan_path(cls, base_path: Path | None = None) -> Path:
         """Get path for auto-derived brownfield plan."""
         return cls.get_timestamped_report_path("brownfield", base_path, "yaml")
@@ -472,6 +491,8 @@ class SpecFactStructure:
 
     @classmethod
     @beartype
+    @require(lambda plan_path: plan_path is not None, "plan_path must not be None")
+    @ensure(lambda result: isinstance(result, bool), "Must return bool")
     def update_plan_summary(cls, plan_path: Path, base_path: Path | None = None) -> bool:
         """
         Update summary metadata for an existing plan bundle.
@@ -519,6 +540,9 @@ class SpecFactStructure:
             return False
 
     @classmethod
+    @beartype
+    @require(lambda base_path: base_path is None or isinstance(base_path, Path), "Base path must be None or Path")
+    @ensure(lambda result: isinstance(result, Path), "Must return Path")
     def get_enforcement_config_path(cls, base_path: Path | None = None) -> Path:
         """Get path to enforcement configuration file."""
         if base_path is None:
@@ -884,6 +908,8 @@ class SpecFactStructure:
         return None
 
     @classmethod
+    @beartype
+    @require(lambda base_path: base_path is None or isinstance(base_path, Path), "Base path must be None or Path")
     def create_gitignore(cls, base_path: Path | None = None) -> None:
         """
         Create .gitignore for .specfact directory.
@@ -907,6 +933,8 @@ cache/
         gitignore_path.write_text(gitignore_content)
 
     @classmethod
+    @beartype
+    @require(lambda base_path: base_path is None or isinstance(base_path, Path), "Base path must be None or Path")
     def create_readme(cls, base_path: Path | None = None) -> None:
         """
         Create README for .specfact directory.
@@ -954,6 +982,8 @@ specfact code import <bundle-name> --repo .
         readme_path.write_text(readme_content)
 
     @classmethod
+    @beartype
+    @require(lambda base_path: base_path is None or isinstance(base_path, Path), "Base path must be None or Path")
     def scaffold_project(cls, base_path: Path | None = None) -> None:
         """
         Create complete .specfact directory structure.

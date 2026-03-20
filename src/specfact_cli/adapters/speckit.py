@@ -335,32 +335,12 @@ class SpecKitAdapter(BridgeAdapter):
 
     # Private helper methods for import/export
 
-    def _import_specification(
-        self,
-        spec_path: Path,
-        project_bundle: Any,  # ProjectBundle
-        scanner: SpecKitScanner,
-        converter: SpecKitConverter,
-        bridge_config: BridgeConfig | None,
-    ) -> None:
-        """Import specification from Spec-Kit spec.md."""
-        from specfact_cli.models.plan import Feature, Story
-        from specfact_cli.models.source_tracking import SourceTracking
-        from specfact_cli.utils.feature_keys import normalize_feature_key
-
-        # Parse spec.md
-        spec_data = scanner.parse_spec_markdown(spec_path)
-        if not spec_data:
-            return
-
-        # Extract feature information
-        feature_key = spec_data.get("feature_key", spec_path.parent.name.upper().replace("-", "_"))
+    def _resolve_feature_title(self, spec_data: dict[str, Any], spec_path: Path) -> str:
+        """Return the feature title from spec_data, falling back to H1 parsing, then 'Unknown Feature'."""
         feature_title = spec_data.get("feature_title")
-        # If feature_title not found, try to extract from first H1 header in spec.md
         if not feature_title:
             try:
                 content = spec_path.read_text(encoding="utf-8")
-                # Try multiple patterns: "Feature Specification: Title", "# Title", etc.
                 title_match = (
                     re.search(r"^#\s+Feature Specification:\s*(.+)$", content, re.MULTILINE)
                     or re.search(r"^#\s+(.+?)\s+Feature", content, re.MULTILINE)
@@ -370,118 +350,170 @@ class SpecKitAdapter(BridgeAdapter):
                     feature_title = title_match.group(1).strip()
             except Exception:
                 pass
-        # Ensure feature_title is never None (Pydantic validation requirement)
         if not feature_title or feature_title.strip() == "":
-            feature_title = "Unknown Feature"
+            return "Unknown Feature"
+        return feature_title
 
-        # Extract stories
-        stories: list[Story] = []
-        spec_stories = spec_data.get("stories", [])
-        for story_data in spec_stories:
+    def _build_stories_from_spec(self, spec_data: dict[str, Any]) -> list[Any]:
+        """Convert raw spec story dicts into Story model instances."""
+        from specfact_cli.models.plan import Story
+
+        priority_map = {"P1": 8, "P2": 5, "P3": 3, "P4": 1}
+        stories = []
+        for story_data in spec_data.get("stories", []):
             story_key = story_data.get("key", "UNKNOWN")
             story_title = story_data.get("title", "Unknown Story")
             priority = story_data.get("priority", "P3")
             acceptance = story_data.get("acceptance", [])
-
-            # Calculate story points from priority
-            priority_map = {"P1": 8, "P2": 5, "P3": 3, "P4": 1}
             story_points = priority_map.get(priority, 3)
-
-            story = Story(
-                key=story_key,
-                title=story_title,
-                acceptance=acceptance if acceptance else [f"{story_title} is implemented"],
-                tags=[priority],
-                story_points=story_points,
-                value_points=story_points,
-                tasks=[],
-                confidence=0.8,
-                draft=False,
-                scenarios=story_data.get("scenarios"),
-                contracts=None,
+            stories.append(
+                Story(
+                    key=story_key,
+                    title=story_title,
+                    acceptance=acceptance if acceptance else [f"{story_title} is implemented"],
+                    tags=[priority],
+                    story_points=story_points,
+                    value_points=story_points,
+                    tasks=[],
+                    confidence=0.8,
+                    draft=False,
+                    scenarios=story_data.get("scenarios"),
+                    contracts=None,
+                )
             )
-            stories.append(story)
+        return stories
 
-        # Extract outcomes from requirements
-        requirements = spec_data.get("requirements", [])
-        outcomes: list[str] = []
-        for req in requirements:
-            if isinstance(req, dict):
-                outcomes.append(req.get("text", ""))
-            elif isinstance(req, str):
-                outcomes.append(req)
+    def _extract_text_list(self, items: list[Any]) -> list[str]:
+        """Flatten a list of dicts-with-text or plain strings into a list of strings."""
+        result = []
+        for item in items:
+            if isinstance(item, dict):
+                result.append(item.get("text", ""))
+            elif isinstance(item, str):
+                result.append(item)
+        return result
 
-        # Extract acceptance criteria from success criteria
-        success_criteria = spec_data.get("success_criteria", [])
-        acceptance: list[str] = []
-        for sc in success_criteria:
-            if isinstance(sc, dict):
-                acceptance.append(sc.get("text", ""))
-            elif isinstance(sc, str):
-                acceptance.append(sc)
+    def _build_speckit_source_tracking(self, spec_path: Path, bridge_config: BridgeConfig | None) -> Any:
+        """Build a SourceTracking instance for a Spec-Kit spec file."""
+        from specfact_cli.models.source_tracking import SourceTracking
 
-        # Create or update feature
+        base_path = spec_path.parent.parent.parent
+        speckit_path = str(spec_path.relative_to(base_path))
+        source_metadata: dict[str, Any] = {
+            "path": speckit_path,
+            "speckit_path": speckit_path,
+            "speckit_type": "specification",
+        }
+        if bridge_config and bridge_config.external_base_path:
+            source_metadata["speckit_base_path"] = str(bridge_config.external_base_path)
+        return SourceTracking(tool="speckit", source_metadata=source_metadata)
+
+    def _upsert_feature(
+        self,
+        project_bundle: Any,
+        feature_key: str,
+        feature_title: str,
+        outcomes: list[str],
+        acceptance: list[str],
+        stories: list[Any],
+        spec_data: dict[str, Any],
+        spec_path: Path,
+        bridge_config: BridgeConfig | None,
+    ) -> None:
+        """Insert a new Feature or update the existing one in project_bundle.features."""
+        from specfact_cli.models.plan import Feature
+        from specfact_cli.utils.feature_keys import normalize_feature_key
+
         if not hasattr(project_bundle, "features") or project_bundle.features is None:
             project_bundle.features = {}
 
-        # Normalize key for matching
         normalized_key = normalize_feature_key(feature_key)
         existing_feature = None
         if isinstance(project_bundle.features, dict):
-            # Try to find existing feature by normalized key
             for key, feat in project_bundle.features.items():
                 if normalize_feature_key(key) == normalized_key:
                     existing_feature = feat
                     break
 
         if existing_feature:
-            # Update existing feature
             existing_feature.title = feature_title
             existing_feature.outcomes = outcomes if outcomes else existing_feature.outcomes
             existing_feature.acceptance = acceptance if acceptance else existing_feature.acceptance
             existing_feature.stories = stories
             existing_feature.constraints = spec_data.get("edge_cases", [])
-        else:
-            # Create new feature
-            feature = Feature(
-                key=feature_key,
-                title=feature_title,
-                outcomes=outcomes if outcomes else [f"Provides {feature_title} functionality"],
-                acceptance=acceptance if acceptance else [f"{feature_title} is functional"],
-                constraints=spec_data.get("edge_cases", []),
-                stories=stories,
-                confidence=0.8,
-                draft=False,
-                source_tracking=None,
-                contract=None,
-                protocol=None,
-            )
+            return
 
-            # Store Spec-Kit path in source_tracking
-            base_path = spec_path.parent.parent.parent if bridge_config and bridge_config.external_base_path else None
-            if base_path is None:
-                base_path = spec_path.parent.parent.parent
+        feature = Feature(
+            key=feature_key,
+            title=feature_title,
+            outcomes=outcomes if outcomes else [f"Provides {feature_title} functionality"],
+            acceptance=acceptance if acceptance else [f"{feature_title} is functional"],
+            constraints=spec_data.get("edge_cases", []),
+            stories=stories,
+            confidence=0.8,
+            draft=False,
+            source_tracking=None,
+            contract=None,
+            protocol=None,
+        )
+        feature.source_tracking = self._build_speckit_source_tracking(spec_path, bridge_config)
+        if isinstance(project_bundle.features, dict):
+            project_bundle.features[feature_key] = feature
 
-            speckit_path = (
-                str(spec_path.relative_to(base_path)) if base_path else f"specs/{spec_path.parent.name}/spec.md"
-            )
-            source_metadata = {
-                "path": speckit_path,
-                "speckit_path": speckit_path,
-                "speckit_type": "specification",
-            }
-            if bridge_config and bridge_config.external_base_path:
-                source_metadata["speckit_base_path"] = str(bridge_config.external_base_path)
+    def _import_specification(
+        self,
+        spec_path: Path,
+        project_bundle: Any,  # ProjectBundle
+        scanner: SpecKitScanner,
+        converter: SpecKitConverter,
+        bridge_config: BridgeConfig | None,
+    ) -> None:
+        """Import specification from Spec-Kit spec.md."""
+        spec_data = scanner.parse_spec_markdown(spec_path)
+        if not spec_data:
+            return
 
-            feature.source_tracking = SourceTracking(tool="speckit", source_metadata=source_metadata)
+        feature_key = spec_data.get("feature_key", spec_path.parent.name.upper().replace("-", "_"))
+        feature_title = self._resolve_feature_title(spec_data, spec_path)
+        stories = self._build_stories_from_spec(spec_data)
+        outcomes = self._extract_text_list(spec_data.get("requirements", []))
+        acceptance = self._extract_text_list(spec_data.get("success_criteria", []))
 
-            if isinstance(project_bundle.features, dict):
-                project_bundle.features[feature_key] = feature
-            else:
-                if project_bundle.features is None:
-                    project_bundle.features = {}
-                if isinstance(project_bundle.features, dict):
-                    project_bundle.features[feature_key] = feature
+        self._upsert_feature(
+            project_bundle,
+            feature_key,
+            feature_title,
+            outcomes,
+            acceptance,
+            stories,
+            spec_data,
+            spec_path,
+            bridge_config,
+        )
+
+    def _read_plan_title(self, plan_path: Path) -> str:
+        """Extract title from the first H1 header in plan.md, or return 'Unknown Feature'."""
+        try:
+            content = plan_path.read_text(encoding="utf-8")
+            title_match = re.search(r"^#\s+(.+)$", content, re.MULTILINE)
+            return title_match.group(1).strip() if title_match else "Unknown Feature"
+        except Exception:
+            return "Unknown Feature"
+
+    def _build_plan_source_tracking(self, plan_path: Path, bridge_config: BridgeConfig | None) -> Any:
+        """Build SourceTracking for a Spec-Kit plan file."""
+        from specfact_cli.models.source_tracking import SourceTracking
+
+        base_path = plan_path.parent.parent.parent
+        speckit_path = str(plan_path.relative_to(base_path))
+        source_metadata: dict[str, Any] = {
+            "path": speckit_path,
+            "speckit_path": speckit_path,
+            "speckit_type": "plan",
+        }
+        if bridge_config and bridge_config.external_base_path:
+            source_metadata["speckit_base_path"] = str(bridge_config.external_base_path)
+        return SourceTracking(tool="speckit", source_metadata=source_metadata)
 
     @beartype
     @require(lambda plan_path: plan_path.exists(), "Plan path must exist")
@@ -498,19 +530,15 @@ class SpecKitAdapter(BridgeAdapter):
     ) -> None:
         """Import plan from Spec-Kit plan.md."""
         from specfact_cli.models.plan import Feature
-        from specfact_cli.models.source_tracking import SourceTracking
         from specfact_cli.utils.feature_keys import normalize_feature_key
 
-        # Parse plan.md
         plan_data = scanner.parse_plan_markdown(plan_path)
         if not plan_data:
             return
 
-        # Extract feature ID from path (specs/{feature_id}/plan.md)
         feature_id = plan_path.parent.name
         normalized_feature_id = normalize_feature_key(feature_id)
 
-        # Find or create feature in bundle
         if not hasattr(project_bundle, "features") or project_bundle.features is None:
             project_bundle.features = {}
 
@@ -521,16 +549,9 @@ class SpecKitAdapter(BridgeAdapter):
                     matching_feature = feat
                     break
 
-        # If feature doesn't exist, create minimal feature from plan
         if not matching_feature:
             feature_key = feature_id.upper().replace("-", "_")
-            # Try to extract title from plan.md first line
-            try:
-                content = plan_path.read_text(encoding="utf-8")
-                title_match = re.search(r"^#\s+(.+)$", content, re.MULTILINE)
-                feature_title = title_match.group(1).strip() if title_match else "Unknown Feature"
-            except Exception:
-                feature_title = "Unknown Feature"
+            feature_title = self._read_plan_title(plan_path)
 
             matching_feature = Feature(
                 key=feature_key,
@@ -545,24 +566,7 @@ class SpecKitAdapter(BridgeAdapter):
                 contract=None,
                 protocol=None,
             )
-
-            # Store Spec-Kit path in source_tracking
-            base_path = plan_path.parent.parent.parent if bridge_config and bridge_config.external_base_path else None
-            if base_path is None:
-                base_path = plan_path.parent.parent.parent
-
-            speckit_path = (
-                str(plan_path.relative_to(base_path)) if base_path else f"specs/{plan_path.parent.name}/plan.md"
-            )
-            source_metadata = {
-                "path": speckit_path,
-                "speckit_path": speckit_path,
-                "speckit_type": "plan",
-            }
-            if bridge_config and bridge_config.external_base_path:
-                source_metadata["speckit_base_path"] = str(bridge_config.external_base_path)
-
-            matching_feature.source_tracking = SourceTracking(tool="speckit", source_metadata=source_metadata)
+            matching_feature.source_tracking = self._build_plan_source_tracking(plan_path, bridge_config)
 
             if isinstance(project_bundle.features, dict):
                 project_bundle.features[feature_key] = matching_feature

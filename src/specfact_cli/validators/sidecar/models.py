@@ -62,6 +62,7 @@ class TimeoutConfig(BaseModel):
 
     @classmethod
     @beartype
+    @ensure(lambda result: result is not None, "Must return TimeoutConfig")
     def safe_defaults_for_repro(cls) -> TimeoutConfig:
         """
         Create TimeoutConfig with safe defaults for repro sidecar mode.

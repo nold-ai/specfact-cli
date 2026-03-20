@@ -28,6 +28,7 @@ LATEST_SCHEMA_VERSION = CURRENT_SCHEMA_VERSION
 
 
 @beartype
+@ensure(lambda result: result.strip() != "", "Must return non-empty schema version")
 def get_current_schema_version() -> str:
     """
     Get the current plan bundle schema version.
@@ -39,6 +40,7 @@ def get_current_schema_version() -> str:
 
 
 @beartype
+@ensure(lambda result: result.strip() != "", "Must return non-empty schema version")
 def get_latest_schema_version() -> str:
     """
     Get the latest schema version for new bundles.

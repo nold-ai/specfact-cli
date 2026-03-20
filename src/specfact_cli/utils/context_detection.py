@@ -39,6 +39,7 @@ class ProjectContext:
     contract_coverage: float = 0.0
     last_enforcement: str | None = None
 
+    @ensure(lambda result: isinstance(result, dict), "Must return dict")
     def to_dict(self) -> dict[str, Any]:
         """Convert context to dictionary."""
         return {

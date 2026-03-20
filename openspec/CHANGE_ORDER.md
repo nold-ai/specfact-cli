@@ -265,6 +265,7 @@ Target repos: `nold-ai/specfact-cli-modules` (module implementation) + `nold-ai/
 | code-review | 07 | code-review-07-house-rules-skill | TBD | code-review-01; code-review-06; ai-integration-01 (soft) |
 | code-review | 08 | code-review-08-review-run-integration | TBD | code-review-02; code-review-03; code-review-04; code-review-05 |
 | code-review | 09 | code-review-09-f4-automation-upgrade | TBD | code-review-01; code-review-02; code-review-03; code-review-04; code-review-06 |
+| code-review | 10 | code-review-zero-findings | TBD | code-review-08 |
 
 ---
 

@@ -20,6 +20,215 @@ from icontract import ensure, require
 from specfact_cli.models.plan import Feature
 
 
+def _extract_source_tracking_section(
+    file_path: Path,
+) -> dict[str, Any] | None:
+    """
+    Extract only the source_tracking YAML section from a feature file without parsing the whole file.
+
+    Args:
+        file_path: Path to the feature YAML file
+
+    Returns:
+        Parsed source_tracking dict, or None if not found
+    """
+    from specfact_cli.utils.structured_io import load_structured_file
+
+    try:
+        content = file_path.read_text(encoding="utf-8")
+        lines = content.split("\n")
+        in_section = False
+        section_lines: list[str] = []
+        indent_level = 0
+        for line in lines:
+            stripped = line.lstrip()
+            if not stripped or stripped.startswith("#"):
+                if in_section:
+                    section_lines.append(line)
+                continue
+            current_indent = len(line) - len(stripped)
+            if stripped.startswith("source_tracking:"):
+                in_section = True
+                indent_level = current_indent
+                section_lines.append(line)
+                continue
+            if in_section:
+                if current_indent <= indent_level and ":" in stripped and not stripped.startswith("- "):
+                    break
+                section_lines.append(line)
+        if not section_lines:
+            return None
+        from specfact_cli.utils.structured_io import StructuredFormat, loads_structured_data
+
+        section_data = loads_structured_data("\n".join(section_lines), StructuredFormat.YAML)
+        return section_data.get("source_tracking") if isinstance(section_data, dict) else None
+    except Exception:
+        try:
+            feature_data = load_structured_file(file_path)
+            return feature_data.get("source_tracking") if isinstance(feature_data, dict) else None
+        except Exception:
+            return None
+
+
+def _load_features_from_manifest(
+    bundle_dir: Path,
+    progress_callback: Callable[[int, int, str], None] | None,
+) -> list[Feature]:
+    """
+    Load minimal Feature objects (source_tracking only) from a bundle manifest using parallel I/O.
+
+    Args:
+        bundle_dir: Path to the project bundle directory
+        progress_callback: Optional progress callback (current, total, message)
+
+    Returns:
+        List of minimal Feature objects with source_tracking populated
+
+    Raises:
+        Exception: Propagates any loading failure so the caller can fall back
+    """
+    from specfact_cli.models.plan import Feature
+    from specfact_cli.models.project import BundleManifest, FeatureIndex
+    from specfact_cli.models.source_tracking import SourceTracking
+    from specfact_cli.utils.structured_io import load_structured_file
+
+    manifest_path = bundle_dir / "bundle.manifest.yaml"
+    if not manifest_path.exists():
+        raise FileNotFoundError("bundle.manifest.yaml not found")
+    manifest = BundleManifest.model_validate(load_structured_file(manifest_path))
+    num_features = len(manifest.features)
+    estimated_total = 1 + num_features + (num_features * 2)
+    if progress_callback:
+        progress_callback(1, estimated_total, "Loading manifest...")
+    features_dir = bundle_dir / "features"
+    if not features_dir.exists():
+        raise FileNotFoundError("features/ directory not found")
+
+    def _load_one(feature_index: FeatureIndex) -> Feature | None:
+        """Load source_tracking-only Feature for a single index entry."""
+        feature_path = features_dir / feature_index.file
+        if not feature_path.exists():
+            return None
+        try:
+            st_data = _extract_source_tracking_section(feature_path)
+            source_tracking = SourceTracking.model_validate(st_data) if st_data else None
+            return Feature(
+                key=feature_index.key,
+                title=feature_index.title or "",
+                source_tracking=source_tracking,
+                contract=None,
+                protocol=None,
+            )
+        except Exception:
+            return Feature(
+                key=feature_index.key,
+                title=feature_index.title or "",
+                source_tracking=None,
+                contract=None,
+                protocol=None,
+            )
+
+    in_test = os.environ.get("TEST_MODE") == "true"
+    max_workers = max(1, min(2, num_features)) if in_test else min(os.cpu_count() or 4, 8, max(1, num_features))
+    wait_on_shutdown = not in_test
+    features: list[Feature] = []
+    executor = ThreadPoolExecutor(max_workers=max_workers)
+    try:
+        future_to_index = {executor.submit(_load_one, fi): fi for fi in manifest.features}
+        completed = 0
+        for future in as_completed(future_to_index):
+            try:
+                feat = future.result()
+                if feat:
+                    features.append(feat)
+                completed += 1
+                if progress_callback:
+                    progress_callback(
+                        1 + completed, estimated_total, f"Loading features... ({completed}/{num_features})"
+                    )
+            except KeyboardInterrupt:
+                for f in future_to_index:
+                    f.cancel()
+                raise
+    except KeyboardInterrupt:
+        executor.shutdown(wait=False, cancel_futures=True)
+        raise
+    finally:
+        with contextlib.suppress(RuntimeError):
+            executor.shutdown(wait=wait_on_shutdown)
+    return features
+
+
+def _run_parallel_file_checks(
+    check_tasks: list[tuple[Feature, Path, str]],
+    progress_callback: Callable[[int, int, str], None] | None,
+    num_features_loaded: int,
+    actual_total: int,
+) -> bool:
+    """
+    Check all file tasks in parallel and return True if any file has changed.
+
+    Args:
+        check_tasks: List of (feature, file_path, file_type) tuples
+        progress_callback: Optional progress callback
+        num_features_loaded: Number of features already loaded (for progress offset)
+        actual_total: Total expected steps (for progress reporting)
+
+    Returns:
+        True if any source file has changed or been deleted
+    """
+
+    def _check_one(task: tuple[Feature, Path, str]) -> bool:
+        feat, file_path, _ = task
+        if not file_path.exists():
+            return True
+        if not feat.source_tracking:
+            return True
+        return feat.source_tracking.has_changed(file_path)
+
+    in_test = os.environ.get("TEST_MODE") == "true"
+    max_workers = max(1, min(2, len(check_tasks))) if in_test else min(os.cpu_count() or 4, 8, len(check_tasks))
+    wait_on_shutdown = not in_test
+    source_files_changed = False
+    interrupted = False
+    executor = ThreadPoolExecutor(max_workers=max_workers)
+    try:
+        future_to_task = {executor.submit(_check_one, task): task for task in check_tasks}
+        completed_checks = 0
+        try:
+            for future in as_completed(future_to_task):
+                try:
+                    if future.result():
+                        source_files_changed = True
+                        break
+                    completed_checks += 1
+                    if progress_callback and num_features_loaded > 0:
+                        progress_callback(
+                            1 + num_features_loaded + completed_checks,
+                            actual_total,
+                            f"Checking files... ({completed_checks}/{len(check_tasks)})",
+                        )
+                except KeyboardInterrupt:
+                    interrupted = True
+                    for f in future_to_task:
+                        if not f.done():
+                            f.cancel()
+                    break
+        except KeyboardInterrupt:
+            interrupted = True
+            for f in future_to_task:
+                if not f.done():
+                    f.cancel()
+        if interrupted:
+            raise KeyboardInterrupt
+    except KeyboardInterrupt:
+        executor.shutdown(wait=False, cancel_futures=True)
+        raise
+    finally:
+        executor.shutdown(wait=False if interrupted else wait_on_shutdown)
+    return source_files_changed
+
+
 @beartype
 @require(lambda bundle_dir: isinstance(bundle_dir, Path), "Bundle directory must be Path")
 @ensure(lambda result: isinstance(result, dict), "Must return dict")
@@ -46,7 +255,7 @@ def check_incremental_changes(
         - 'enrichment_context': True if enrichment context needs regeneration
         - 'bundle': True if bundle needs saving
     """
-    result = {
+    result: dict[str, bool] = {
         "relationships": True,
         "contracts": True,
         "graph": True,
@@ -54,293 +263,52 @@ def check_incremental_changes(
         "bundle": True,
     }
 
-    # If bundle doesn't exist, everything needs to be generated
     if not bundle_dir.exists():
         return result
 
-    # Load only source_tracking sections from feature files (optimization: don't load full features)
-    # This avoids loading and validating entire Feature models just to check file hashes
     if features is None:
         try:
-            from specfact_cli.models.plan import Feature
-            from specfact_cli.models.project import BundleManifest, FeatureIndex
-            from specfact_cli.models.source_tracking import SourceTracking
-            from specfact_cli.utils.structured_io import load_structured_file
-
-            # Load manifest first (fast, single file)
-            manifest_path = bundle_dir / "bundle.manifest.yaml"
-            if not manifest_path.exists():
-                return result
-
-            manifest_data = load_structured_file(manifest_path)
-            manifest = BundleManifest.model_validate(manifest_data)
-
-            # Calculate estimated total for progress tracking (will be refined when we know actual file count)
-            num_features = len(manifest.features)
-            estimated_total = 1 + num_features + (num_features * 2)  # ~2 files per feature average
-
-            if progress_callback:
-                progress_callback(1, estimated_total, "Loading manifest...")
-
-            # Load only source_tracking sections from feature files in parallel
-            features_dir = bundle_dir / "features"
-            if not features_dir.exists():
-                return result
-
-            def extract_source_tracking_section(file_path: Path) -> dict[str, Any] | None:
-                """Extract only source_tracking section from YAML file without parsing entire file."""
-                try:
-                    content = file_path.read_text(encoding="utf-8")
-                    # Find source_tracking section using text parsing (much faster than full YAML parse)
-                    lines = content.split("\n")
-                    in_section = False
-                    section_lines: list[str] = []
-                    indent_level = 0
-
-                    for line in lines:
-                        stripped = line.lstrip()
-                        if not stripped or stripped.startswith("#"):
-                            if in_section:
-                                section_lines.append(line)
-                            continue
-
-                        current_indent = len(line) - len(stripped)
-
-                        # Check if this is the source_tracking key
-                        if stripped.startswith("source_tracking:"):
-                            in_section = True
-                            indent_level = current_indent
-                            section_lines.append(line)
-                            continue
-
-                        # If we're in the section, check if we've hit the next top-level key
-                        if in_section:
-                            if current_indent <= indent_level and ":" in stripped and not stripped.startswith("- "):
-                                # Hit next top-level key, stop
-                                break
-                            section_lines.append(line)
-
-                    if not section_lines:
-                        return None
-
-                    # Parse only the extracted section
-                    section_text = "\n".join(section_lines)
-                    from specfact_cli.utils.structured_io import StructuredFormat, loads_structured_data
-
-                    section_data = loads_structured_data(section_text, StructuredFormat.YAML)
-                    return section_data.get("source_tracking") if isinstance(section_data, dict) else None
-                except Exception:
-                    # Fallback to full parse if text extraction fails
-                    try:
-                        feature_data = load_structured_file(file_path)
-                        return feature_data.get("source_tracking") if isinstance(feature_data, dict) else None
-                    except Exception:
-                        return None
-
-            def load_feature_source_tracking(feature_index: FeatureIndex) -> Feature | None:
-                """Load only source_tracking section from a feature file (optimized - no full YAML parse)."""
-                feature_path = features_dir / feature_index.file
-                if not feature_path.exists():
-                    return None
-                try:
-                    # Extract only source_tracking section (fast text-based extraction)
-                    source_tracking_data = extract_source_tracking_section(feature_path)
-
-                    if source_tracking_data:
-                        source_tracking = SourceTracking.model_validate(source_tracking_data)
-                        # Create minimal Feature object with just what we need
-                        return Feature(
-                            key=feature_index.key,
-                            title=feature_index.title or "",
-                            source_tracking=source_tracking,
-                            contract=None,  # Don't need contract for hash checking
-                            protocol=None,  # Don't need protocol for hash checking
-                        )
-                    # No source_tracking means we should regenerate
-                    return Feature(
-                        key=feature_index.key,
-                        title=feature_index.title or "",
-                        source_tracking=None,
-                        contract=None,
-                        protocol=None,
-                    )
-                except Exception:
-                    # If we can't load, assume it changed
-                    return Feature(
-                        key=feature_index.key,
-                        title=feature_index.title or "",
-                        source_tracking=None,
-                        contract=None,
-                        protocol=None,
-                    )
-
-            # Load source_tracking sections in parallel
-            # In test mode, use fewer workers to avoid resource contention
-            if os.environ.get("TEST_MODE") == "true":
-                max_workers = max(1, min(2, len(manifest.features)))  # Max 2 workers in test mode
-            else:
-                max_workers = min(os.cpu_count() or 4, 8, len(manifest.features))
-            features = []
-            executor = ThreadPoolExecutor(max_workers=max_workers)
-            # In test mode, use wait=False to avoid hanging on shutdown
-            wait_on_shutdown = os.environ.get("TEST_MODE") != "true"
-            try:
-                future_to_index = {executor.submit(load_feature_source_tracking, fi): fi for fi in manifest.features}
-                completed_features = 0
-                for future in as_completed(future_to_index):
-                    try:
-                        feature = future.result()
-                        if feature:
-                            features.append(feature)
-                        completed_features += 1
-                        if progress_callback:
-                            # Use estimated_total for now (will be refined when we know actual file count)
-                            progress_callback(
-                                1 + completed_features,
-                                estimated_total,
-                                f"Loading features... ({completed_features}/{num_features})",
-                            )
-                    except KeyboardInterrupt:
-                        # Cancel remaining tasks and re-raise
-                        for f in future_to_index:
-                            f.cancel()
-                        raise
-            except KeyboardInterrupt:
-                # Gracefully shutdown executor on interrupt (cancel pending tasks)
-                executor.shutdown(wait=False, cancel_futures=True)
-                raise
-            finally:
-                # Ensure executor is properly shutdown (shutdown() is safe to call multiple times)
-                with contextlib.suppress(RuntimeError):
-                    executor.shutdown(wait=wait_on_shutdown)
-
+            features = _load_features_from_manifest(bundle_dir, progress_callback)
         except Exception:
-            # Bundle exists but can't be loaded - regenerate everything
             return result
 
-    # Check if any source files changed (parallelized for performance)
     source_files_changed = False
     contracts_exist = True
     contracts_changed = False
+    check_tasks: list[tuple[Feature, Path, str]] = []
+    contract_checks: list[tuple[Feature, Path]] = []
+    num_features_loaded = len(features)
 
-    # Collect all file check tasks for parallel processing
-    check_tasks: list[tuple[Feature, Path, str]] = []  # (feature, file_path, file_type)
-    contract_checks: list[tuple[Feature, Path]] = []  # (feature, contract_path)
-
-    num_features_loaded = len(features) if features else 0
-
-    # Collect all file check tasks first
     for feature in features:
         if not feature.source_tracking:
             source_files_changed = True
             continue
-
-        # Collect implementation files to check
         for impl_file in feature.source_tracking.implementation_files:
-            file_path = repo / impl_file
-            check_tasks.append((feature, file_path, "implementation"))
-
-        # Collect contract checks
+            check_tasks.append((feature, repo / impl_file, "implementation"))
         if feature.contract:
-            contract_path = bundle_dir / feature.contract
-            contract_checks.append((feature, contract_path))
+            contract_checks.append((feature, bundle_dir / feature.contract))
 
-    # Calculate actual total for progress tracking
-    # If we loaded features from manifest, we already counted manifest (1) + features (num_features_loaded)
-    # If features were passed directly, we need to account for that differently
-    if num_features_loaded > 0:
-        # Features were loaded from manifest, so we already counted: manifest (1) + features loaded
-        actual_total = 1 + num_features_loaded + len(check_tasks)
-    else:
-        # Features were passed directly, estimate total
-        actual_total = len(check_tasks) if check_tasks else 100
+    actual_total = (
+        (1 + num_features_loaded + len(check_tasks)) if num_features_loaded > 0 else (len(check_tasks) or 100)
+    )
 
-    # Update progress before starting file checks (use actual_total, which may be more accurate than estimated_total)
     if progress_callback and num_features_loaded > 0:
-        # Update to actual total (this will refine the estimate based on real file count)
-        # This is important: actual_total may be different from estimated_total
         progress_callback(1 + num_features_loaded, actual_total, f"Checking {len(check_tasks)} file(s) for changes...")
     elif progress_callback and not num_features_loaded and check_tasks:
-        # Features passed directly, start progress tracking
         progress_callback(0, actual_total, f"Checking {len(check_tasks)} file(s) for changes...")
 
-    # Check files in parallel (early exit if any change detected)
-    if check_tasks:
-        # In test mode, use fewer workers to avoid resource contention
-        if os.environ.get("TEST_MODE") == "true":
-            max_workers = max(1, min(2, len(check_tasks)))  # Max 2 workers in test mode
-        else:
-            max_workers = min(os.cpu_count() or 4, 8, len(check_tasks))  # Cap at 8 workers
+    if check_tasks and not source_files_changed:
+        source_files_changed = _run_parallel_file_checks(
+            check_tasks, progress_callback, num_features_loaded, actual_total
+        )
 
-        def check_file_change(task: tuple[Feature, Path, str]) -> bool:
-            """Check if a single file has changed (thread-safe)."""
-            feature, file_path, _file_type = task
-            if not file_path.exists():
-                return True  # File deleted
-            if not feature.source_tracking:
-                return True  # No tracking means we should regenerate
-            return feature.source_tracking.has_changed(file_path)
-
-        executor = ThreadPoolExecutor(max_workers=max_workers)
-        interrupted = False
-        # In test mode, use wait=False to avoid hanging on shutdown
-        wait_on_shutdown = os.environ.get("TEST_MODE") != "true"
-        try:
-            # Submit all tasks
-            future_to_task = {executor.submit(check_file_change, task): task for task in check_tasks}
-
-            # Check results as they complete (early exit on first change)
-            completed_checks = 0
-            try:
-                for future in as_completed(future_to_task):
-                    try:
-                        if future.result():
-                            source_files_changed = True
-                            # Cancel remaining tasks (they'll complete but we won't wait)
-                            break
-                        completed_checks += 1
-                        # Update progress as file checks complete
-                        if progress_callback and num_features_loaded > 0:
-                            current_progress = 1 + num_features_loaded + completed_checks
-                            progress_callback(
-                                current_progress,
-                                actual_total,
-                                f"Checking files... ({completed_checks}/{len(check_tasks)})",
-                            )
-                    except KeyboardInterrupt:
-                        interrupted = True
-                        for f in future_to_task:
-                            if not f.done():
-                                f.cancel()
-                        break
-            except KeyboardInterrupt:
-                interrupted = True
-                for f in future_to_task:
-                    if not f.done():
-                        f.cancel()
-            if interrupted:
-                raise KeyboardInterrupt
-        except KeyboardInterrupt:
-            interrupted = True
-            executor.shutdown(wait=False, cancel_futures=True)
-            raise
-        finally:
-            # Ensure executor is properly shutdown (safe to call multiple times)
-            if not interrupted:
-                executor.shutdown(wait=wait_on_shutdown)
-            else:
-                executor.shutdown(wait=False)
-
-    # Check contracts (sequential, fast operation)
     for _feature, contract_path in contract_checks:
         if not contract_path.exists():
             contracts_exist = False
             contracts_changed = True
         elif source_files_changed:
-            # If source changed, contract might be outdated
             contracts_changed = True
 
-    # If no source files changed and contracts exist, we can skip some processing
     if not source_files_changed and contracts_exist and not contracts_changed:
         result["relationships"] = False
         result["contracts"] = False
@@ -348,28 +316,25 @@ def check_incremental_changes(
         result["enrichment_context"] = False
         result["bundle"] = False
 
-    # Check if enrichment context file exists
     enrichment_context_path = bundle_dir / "enrichment_context.md"
     if enrichment_context_path.exists() and not source_files_changed:
         result["enrichment_context"] = False
 
-    # Check if contracts directory exists and has files
     contracts_dir = bundle_dir / "contracts"
-    if contracts_dir.exists() and contracts_dir.is_dir():
-        contract_files = list(contracts_dir.glob("*.openapi.yaml"))
-        if contract_files and not contracts_changed:
-            result["contracts"] = False
+    if (
+        contracts_dir.exists()
+        and contracts_dir.is_dir()
+        and list(contracts_dir.glob("*.openapi.yaml"))
+        and not contracts_changed
+    ):
+        result["contracts"] = False
 
-    # Final progress update (use already calculated actual_total)
     if progress_callback:
         if num_features_loaded > 0 and actual_total > 0:
-            # Features loaded from manifest: use calculated total
             progress_callback(actual_total, actual_total, "Change check complete")
         elif check_tasks:
-            # Features passed directly: use check_tasks count
             progress_callback(len(check_tasks), len(check_tasks), "Change check complete")
         else:
-            # No files to check, just mark complete
             progress_callback(1, 1, "Change check complete")
 
     return result

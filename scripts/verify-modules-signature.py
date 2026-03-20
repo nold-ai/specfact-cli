@@ -6,16 +6,23 @@ from __future__ import annotations
 import argparse
 import base64
 import hashlib
+import logging
 import os
 import subprocess
 from pathlib import Path
 from typing import Any
 
 import yaml
+from beartype import beartype
+from icontract import ensure, require
 
 
-_IGNORED_MODULE_DIR_NAMES = {"__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache", "logs"}
+logger = logging.getLogger(__name__)
+
+
+_IGNORED_MODULE_DIR_NAMES = {"__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache", "logs", "tests"}
 _IGNORED_MODULE_FILE_SUFFIXES = {".pyc", ".pyo"}
+_PAYLOAD_FROM_FS_IGNORED_DIRS = _IGNORED_MODULE_DIR_NAMES | {".git"}
 
 
 def _canonical_manifest_payload(manifest_data: dict[str, Any]) -> bytes:
@@ -24,34 +31,41 @@ def _canonical_manifest_payload(manifest_data: dict[str, Any]) -> bytes:
     return yaml.safe_dump(payload, sort_keys=True, allow_unicode=False).encode("utf-8")
 
 
-def _module_payload(module_dir: Path) -> bytes:
+def _module_payload(module_dir: Path, payload_from_filesystem: bool = False) -> bytes:
     module_dir_resolved = module_dir.resolve()
+    ignored_dirs = _PAYLOAD_FROM_FS_IGNORED_DIRS if payload_from_filesystem else _IGNORED_MODULE_DIR_NAMES
 
     def _is_hashable(path: Path) -> bool:
         rel = path.resolve().relative_to(module_dir_resolved)
-        if any(part in _IGNORED_MODULE_DIR_NAMES for part in rel.parts):
+        if any(part in ignored_dirs for part in rel.parts):
             return False
         return path.suffix.lower() not in _IGNORED_MODULE_FILE_SUFFIXES
 
     entries: list[str] = []
     files: list[Path]
-    try:
-        listed = subprocess.run(
-            ["git", "ls-files", module_dir.as_posix()],
-            check=True,
-            capture_output=True,
-            text=True,
-        ).stdout.splitlines()
-        git_files = [(Path.cwd() / line.strip()) for line in listed if line.strip()]
-        files = sorted(
-            (path for path in git_files if path.is_file() and _is_hashable(path)),
-            key=lambda p: p.resolve().relative_to(module_dir_resolved).as_posix(),
-        )
-    except Exception:
+    if payload_from_filesystem:
         files = sorted(
             (path for path in module_dir.rglob("*") if path.is_file() and _is_hashable(path)),
             key=lambda p: p.resolve().relative_to(module_dir_resolved).as_posix(),
         )
+    else:
+        try:
+            listed = subprocess.run(
+                ["git", "ls-files", module_dir.as_posix()],
+                check=True,
+                capture_output=True,
+                text=True,
+            ).stdout.splitlines()
+            git_files = [(Path.cwd() / line.strip()) for line in listed if line.strip()]
+            files = sorted(
+                (path for path in git_files if path.is_file() and _is_hashable(path)),
+                key=lambda p: p.resolve().relative_to(module_dir_resolved).as_posix(),
+            )
+        except Exception:
+            files = sorted(
+                (path for path in module_dir.rglob("*") if path.is_file() and _is_hashable(path)),
+                key=lambda p: p.resolve().relative_to(module_dir_resolved).as_posix(),
+            )
 
     for path in files:
         rel = path.resolve().relative_to(module_dir_resolved).as_posix()
@@ -225,7 +239,16 @@ def _verify_version_bumps(base_ref: str) -> list[str]:
     return failures
 
 
-def verify_manifest(manifest_path: Path, *, require_signature: bool, public_key_pem: str) -> None:
+@beartype
+@require(lambda manifest_path: manifest_path.exists(), "manifest_path must exist")
+@ensure(lambda result: result is None, "verification raises or returns None")
+def verify_manifest(
+    manifest_path: Path,
+    *,
+    require_signature: bool,
+    public_key_pem: str,
+    payload_from_filesystem: bool = False,
+) -> None:
     raw = yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
     if not isinstance(raw, dict):
         raise ValueError("manifest YAML must be object")
@@ -237,7 +260,7 @@ def verify_manifest(manifest_path: Path, *, require_signature: bool, public_key_
     if not checksum:
         raise ValueError("missing integrity.checksum")
     algo, digest = _parse_checksum(checksum)
-    payload = _module_payload(manifest_path.parent)
+    payload = _module_payload(manifest_path.parent, payload_from_filesystem=payload_from_filesystem)
     actual = hashlib.new(algo, payload).hexdigest().lower()
     if actual != digest:
         raise ValueError("checksum mismatch")
@@ -251,6 +274,8 @@ def verify_manifest(manifest_path: Path, *, require_signature: bool, public_key_
         _verify_signature(payload, signature, public_key_pem)
 
 
+@beartype
+@ensure(lambda result: result >= 0, "exit code must be non-negative")
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -268,6 +293,11 @@ def main() -> int:
         help="Fail when changed module manifests keep the same version as base ref",
     )
     parser.add_argument(
+        "--payload-from-filesystem",
+        action="store_true",
+        help="Build payload from filesystem (rglob) with the same excludes as the signing path.",
+    )
+    parser.add_argument(
         "--version-check-base",
         default="",
         help="Git base ref for version-bump checks (default: origin/$GITHUB_BASE_REF or HEAD~1)",
@@ -277,14 +307,19 @@ def main() -> int:
     public_key_pem = _resolve_public_key(args)
     manifests = _iter_manifests()
     if not manifests:
-        print("No module-package.yaml manifests found.")
+        logger.info("No module-package.yaml manifests found.")
         return 0
 
     failures: list[str] = []
     for manifest in manifests:
         try:
-            verify_manifest(manifest, require_signature=args.require_signature, public_key_pem=public_key_pem)
-            print(f"OK  {manifest}")
+            verify_manifest(
+                manifest,
+                require_signature=args.require_signature,
+                public_key_pem=public_key_pem,
+                payload_from_filesystem=args.payload_from_filesystem,
+            )
+            logger.info("OK  %s", manifest)
         except Exception as exc:
             failures.append(f"FAIL {manifest}: {exc}")
 
@@ -297,15 +332,16 @@ def main() -> int:
             version_failures.append(f"FAIL version-check: {exc}")
 
     if failures or version_failures:
-        if failures:
-            print("\n".join(failures))
-        if version_failures:
-            print("\n".join(version_failures))
+        for line in failures:
+            logger.error("%s", line)
+        for line in version_failures:
+            logger.error("%s", line)
         return 1
 
-    print(f"Verified {len(manifests)} module manifest(s).")
+    logger.info("Verified %d module manifest(s).", len(manifests))
     return 0
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
     raise SystemExit(main())

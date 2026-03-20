@@ -96,7 +96,6 @@ def test_bundle_focused_pages_use_handoff_note_instead_of_future_migration_langu
 # ---------------------------------------------------------------------------
 
 
-
 def _scan_authored_docs(pattern: str) -> list[tuple[str, int, str]]:
     """Return list of (relative_path, line_number, line_text) for pattern hits.
 

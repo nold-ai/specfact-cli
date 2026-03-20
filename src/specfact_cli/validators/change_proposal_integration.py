@@ -383,7 +383,7 @@ def report_validation_results_to_backlog(
 
         with suppress(Exception):
             # Log but don't fail - reporting is non-critical
-            adapter_instance._add_issue_comment(repo_owner, repo_name, issue_number_int, comment_text)
+            adapter_instance._add_issue_comment(repo_owner, repo_name, issue_number_int, comment_text)  # type: ignore[attr-defined]
 
         # Update issue labels based on validation status
         if proposal_validation_status == "failed":
@@ -391,9 +391,9 @@ def report_validation_results_to_backlog(
             with suppress(Exception):
                 # Log but don't fail - label update is non-critical
                 # Get current issue
-                url = f"{adapter_instance.base_url}/repos/{repo_owner}/{repo_name}/issues/{issue_number_int}"
+                url = f"{adapter_instance.base_url}/repos/{repo_owner}/{repo_name}/issues/{issue_number_int}"  # type: ignore[attr-defined]
                 headers = {
-                    "Authorization": f"token {adapter_instance.api_token}",
+                    "Authorization": f"token {adapter_instance.api_token}",  # type: ignore[attr-defined]
                     "Accept": "application/vnd.github.v3+json",
                 }
                 response = requests.get(url, headers=headers, timeout=30)
@@ -406,7 +406,7 @@ def report_validation_results_to_backlog(
                 # Add validation-failed label if not present
                 if "validation-failed" not in current_labels:
                     all_labels = [*current_labels, "validation-failed"]
-                    patch_url = f"{adapter_instance.base_url}/repos/{repo_owner}/{repo_name}/issues/{issue_number_int}"
+                    patch_url = f"{adapter_instance.base_url}/repos/{repo_owner}/{repo_name}/issues/{issue_number_int}"  # type: ignore[attr-defined]
                     patch_payload = {"labels": all_labels}
                     patch_response = requests.patch(patch_url, json=patch_payload, headers=headers, timeout=30)
                     patch_response.raise_for_status()

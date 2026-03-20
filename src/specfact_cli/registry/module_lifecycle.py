@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from beartype import beartype
+from icontract import ensure, require
 from rich.console import Console
 from rich.table import Table
 from rich.text import Text
@@ -24,12 +25,14 @@ from specfact_cli.registry.module_packages import (
 from specfact_cli.registry.module_state import read_modules_state, write_modules_state
 
 
+@beartype
 def _sort_modules_by_id(modules_list: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Return modules sorted alphabetically by module id (case-insensitive)."""
     return sorted(modules_list, key=lambda module: str(module.get("id", "")).lower())
 
 
 @beartype
+@ensure(lambda result: isinstance(result, list), "Must return a list of module state dicts")
 def get_modules_with_state(
     enable_ids: list[str] | None = None,
     disable_ids: list[str] | None = None,
@@ -60,6 +63,11 @@ def get_modules_with_state(
 
 
 @beartype
+@require(
+    lambda enable_ids, disable_ids: not (set(enable_ids) & set(disable_ids)),
+    "enable_ids and disable_ids must not overlap",
+)
+@ensure(lambda result: isinstance(result, list), "Must return a list of module state dicts")
 def apply_module_state_update(*, enable_ids: list[str], disable_ids: list[str], force: bool) -> list[dict[str, Any]]:
     """Apply lifecycle updates with dependency safety and return resulting module state."""
     packages = discover_all_package_metadata()
@@ -94,6 +102,7 @@ def apply_module_state_update(*, enable_ids: list[str], disable_ids: list[str], 
     return get_modules_with_state()
 
 
+@beartype
 def _questionary_style() -> Any:
     """Return a shared questionary color theme for interactive selectors."""
     try:
@@ -117,6 +126,7 @@ def _questionary_style() -> Any:
 
 
 @beartype
+@require(lambda modules_list: isinstance(modules_list, list), "modules_list must be a list")
 def render_modules_table(console: Console, modules_list: list[dict[str, Any]], show_origin: bool = False) -> None:
     """Render module table with id, version, state, trust, publisher, and optional origin."""
     table = Table(title="Installed Modules")
@@ -150,6 +160,8 @@ def render_modules_table(console: Console, modules_list: list[dict[str, Any]], s
 
 
 @beartype
+@require(lambda action: action in ("enable", "disable"), "action must be 'enable' or 'disable'")
+@ensure(lambda result: isinstance(result, list), "Must return a list of module id strings")
 def select_module_ids_interactive(action: str, modules_list: list[dict[str, Any]], console: Console) -> list[str]:
     """Select module ids interactively for enable/disable operations."""
     try:

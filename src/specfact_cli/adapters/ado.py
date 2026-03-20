@@ -1016,7 +1016,7 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             # Extract sanitize flag from artifact_data or bridge_config
             sanitize = artifact_data.get("sanitize", False)
             if bridge_config and hasattr(bridge_config, "sanitize"):
-                sanitize = bridge_config.sanitize if bridge_config.sanitize is not None else sanitize
+                sanitize = bridge_config.sanitize if bridge_config.sanitize is not None else sanitize  # type: ignore[attr-defined]
 
             return self._add_progress_comment(artifact_data, org, project, work_item_id, sanitize=sanitize)
         msg = (
@@ -1101,6 +1101,108 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             raw_body = raw_body or source_metadata.get("raw_body")
 
         return raw_title, raw_body
+
+    def _build_change_proposal_body(
+        self,
+        title: str,
+        rationale: str,
+        description: str,
+        impact: str,
+        change_id: str,
+    ) -> str:
+        """Build the canonical markdown body used for ADO change proposal work items."""
+        body_parts: list[str] = []
+        display_title = re.sub(r"^\[change\]\s*", "", title, flags=re.IGNORECASE).strip()
+        if display_title:
+            body_parts.extend([f"# {display_title}", ""])
+
+        for heading, content in (("Why", rationale), ("What Changes", description), ("Impact", impact)):
+            if not content:
+                continue
+            body_parts.extend([f"## {heading}", "", *content.strip().split("\n"), ""])
+
+        if not body_parts or not any((rationale, description, impact)):
+            body_parts.extend(["No description provided.", ""])
+
+        body_parts.extend(["---", f"*OpenSpec Change Proposal: `{change_id}`*"])
+        return "\n".join(body_parts)
+
+    def _resolve_proposal_ado_state(self, proposal_data: dict[str, Any]) -> str:
+        """Resolve the ADO state for a proposal, preserving cross-adapter state when present."""
+        source_state = proposal_data.get("source_state")
+        source_type = proposal_data.get("source_type")
+        if source_state and source_type and source_type != "ado":
+            return self.map_backlog_state_between_adapters(source_state, source_type, self)
+        status = proposal_data.get("status", "proposed")
+        return self.map_openspec_status_to_backlog(status)
+
+    def _require_api_token(self) -> None:
+        """Ensure an API token is configured before ADO write operations."""
+        if not self.api_token:
+            raise ValueError("Azure DevOps API token is required")
+
+    def _find_work_item_id_in_source_tracking(self, source_tracking: Any, target_repo: str) -> Any:
+        """Locate a work item identifier inside source tracking structures."""
+        if isinstance(source_tracking, dict):
+            return source_tracking.get("source_id")
+
+        if isinstance(source_tracking, list):
+            for entry in source_tracking:
+                if not isinstance(entry, dict):
+                    continue
+                entry_repo = entry.get("source_repo")
+                if entry_repo == target_repo:
+                    return entry.get("source_id")
+                source_url = entry.get("source_url", "")
+                if not entry_repo and source_url and target_repo in source_url:
+                    return entry.get("source_id")
+
+        return None
+
+    def _coerce_work_item_id(self, work_item_id: Any) -> int:
+        """Normalize source-tracking work item IDs to integers."""
+        if isinstance(work_item_id, int):
+            return work_item_id
+        if isinstance(work_item_id, str):
+            try:
+                return int(work_item_id)
+            except ValueError:
+                raise ValueError(f"Invalid work item ID format: {work_item_id}") from None
+        raise ValueError(f"Invalid work item ID format: {work_item_id}")
+
+    def _get_source_tracking_work_item_id(self, source_tracking: Any, target_repo: str) -> int:
+        """Resolve the tracked work item ID for the target repository."""
+        work_item_id = self._find_work_item_id_in_source_tracking(source_tracking, target_repo)
+        if not work_item_id:
+            msg = (
+                f"Work item ID not found in source_tracking for repository {target_repo}. "
+                "Work item must be created first."
+            )
+            raise ValueError(msg)
+        return self._coerce_work_item_id(work_item_id)
+
+    def _patch_work_item(
+        self,
+        org: str,
+        project: str,
+        work_item_id: int,
+        patch_document: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        """Patch an ADO work item and return the response payload."""
+        self._require_api_token()
+        url = f"{self.base_url}/{org}/{project}/_apis/wit/workitems/{work_item_id}?api-version=7.1"
+        headers = {"Content-Type": "application/json-patch+json", **self._auth_headers()}
+        try:
+            response = self._request_with_retry(
+                lambda: requests.patch(url, json=patch_document, headers=headers, timeout=30)
+            )
+        except requests.RequestException as exc:
+            resp = getattr(exc, "response", None)
+            user_msg = _log_ado_patch_failure(resp, patch_document, url)
+            exc.ado_user_message = user_msg  # type: ignore[attr-defined]
+            console.print(f"[bold red]✗[/bold red] {user_msg}")
+            raise
+        return response.json()
 
     @beartype
     @require(lambda repo_path: repo_path.exists(), "Repository path must exist")
@@ -1658,84 +1760,22 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         Returns:
             Dict with work item data: {"work_item_id": int, "work_item_url": str, "state": str}
         """
-        import re as _re
-
         title = proposal_data.get("title", "Untitled Change Proposal")
         description = proposal_data.get("description", "")
         rationale = proposal_data.get("rationale", "")
         impact = proposal_data.get("impact", "")
-        status = proposal_data.get("status", "proposed")
         change_id = proposal_data.get("change_id", "unknown")
         raw_title, raw_body = self._extract_raw_fields(proposal_data)
         if raw_title:
             title = raw_title
 
-        # Build properly formatted work item description (prefer raw content when available)
-        if raw_body:
-            body = raw_body
-        else:
-            body_parts = []
-
-            display_title = _re.sub(r"^\[change\]\s*", "", title, flags=_re.IGNORECASE).strip()
-            if display_title:
-                body_parts.append(f"# {display_title}")
-                body_parts.append("")
-
-            # Add Why section (rationale) - preserve markdown formatting
-            if rationale:
-                body_parts.append("## Why")
-                body_parts.append("")
-                rationale_lines = rationale.strip().split("\n")
-                for line in rationale_lines:
-                    body_parts.append(line)
-                body_parts.append("")  # Blank line
-
-            # Add What Changes section (description) - preserve markdown formatting
-            if description:
-                body_parts.append("## What Changes")
-                body_parts.append("")
-                description_lines = description.strip().split("\n")
-                for line in description_lines:
-                    body_parts.append(line)
-                body_parts.append("")  # Blank line
-
-            if impact:
-                body_parts.append("## Impact")
-                body_parts.append("")
-                impact_lines = impact.strip().split("\n")
-                for line in impact_lines:
-                    body_parts.append(line)
-                body_parts.append("")
-
-            # If no content, add placeholder
-            if not body_parts or (not rationale and not description and not impact):
-                body_parts.append("No description provided.")
-                body_parts.append("")
-
-            # Add OpenSpec metadata footer
-            body_parts.append("---")
-            body_parts.append(f"*OpenSpec Change Proposal: `{change_id}`*")
-
-            body = "\n".join(body_parts)
+        body = raw_body or self._build_change_proposal_body(title, rationale, description, impact, change_id)
 
         # Get work item type
         work_item_type = self._get_work_item_type(org, project)
 
-        # Map status to ADO state
-        # Check if source_state and source_type are provided (from cross-adapter sync)
-        source_state = proposal_data.get("source_state")
-        source_type = proposal_data.get("source_type")
-        if source_state and source_type and source_type != "ado":
-            # Use generic cross-adapter state mapping (preserves original state from source adapter)
-            ado_state = self.map_backlog_state_between_adapters(source_state, source_type, self)
-        else:
-            # Use OpenSpec status mapping (default behavior)
-            ado_state = self.map_openspec_status_to_backlog(status)
-
-        # Ensure API token is available
-        if not self.api_token:
-            msg = "Azure DevOps API token is required"
-            raise ValueError(msg)
+        ado_state = self._resolve_proposal_ado_state(proposal_data)
+        self._require_api_token()
 
         # Create work item via Azure DevOps API
         url = f"{self.base_url}/{org}/{project}/_apis/wit/workitems/${work_item_type}?api-version=7.1"
@@ -1816,7 +1856,7 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         except requests.RequestException as e:
             resp = getattr(e, "response", None)
             user_msg = _log_ado_patch_failure(resp, patch_document, url)
-            e.ado_user_message = user_msg
+            e.ado_user_message = user_msg  # type: ignore[attr-defined]
             console.print(f"[bold red]✗[/bold red] {user_msg}")
             raise
 
@@ -1877,50 +1917,17 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
                 msg = f"Invalid work item ID format: {work_item_id}"
                 raise ValueError(msg) from None
 
-        status = proposal_data.get("status", "proposed")
-
-        # Map status to ADO state
-        # Check if source_state and source_type are provided (from cross-adapter sync)
-        source_state = proposal_data.get("source_state")
-        source_type = proposal_data.get("source_type")
-        if source_state and source_type and source_type != "ado":
-            # Use generic cross-adapter state mapping (preserves original state from source adapter)
-            ado_state = self.map_backlog_state_between_adapters(source_state, source_type, self)
-        else:
-            # Use OpenSpec status mapping (default behavior)
-            ado_state = self.map_openspec_status_to_backlog(status)
-
-        # Ensure API token is available
-        if not self.api_token:
-            msg = "Azure DevOps API token is required"
-            raise ValueError(msg)
-
-        # Update work item state via Azure DevOps API
-        url = f"{self.base_url}/{org}/{project}/_apis/wit/workitems/{work_item_id}?api-version=7.1"
-        headers = {
-            "Content-Type": "application/json-patch+json",
-            **self._auth_headers(),
-        }
-        patch_document = [{"op": "replace", "path": "/fields/System.State", "value": ado_state}]
-
-        try:
-            response = self._request_with_retry(
-                lambda: requests.patch(url, json=patch_document, headers=headers, timeout=30)
-            )
-            work_item_data = response.json()
-
-            work_item_url = work_item_data.get("_links", {}).get("html", {}).get("href", "")
-
-            return {
-                "work_item_id": work_item_id,
-                "work_item_url": work_item_url,
-                "state": ado_state,
-            }
-        except requests.RequestException as e:
-            resp = getattr(e, "response", None)
-            user_msg = _log_ado_patch_failure(resp, patch_document, url)
-            console.print(f"[bold red]✗[/bold red] {user_msg}")
-            raise
+        target_repo = f"{org}/{project}"
+        work_item_id = self._get_source_tracking_work_item_id(proposal_data.get("source_tracking", {}), target_repo)
+        ado_state = self._resolve_proposal_ado_state(proposal_data)
+        work_item_data = self._patch_work_item(
+            org,
+            project,
+            work_item_id,
+            [{"op": "replace", "path": "/fields/System.State", "value": ado_state}],
+        )
+        work_item_url = work_item_data.get("_links", {}).get("html", {}).get("href", "")
+        return {"work_item_id": work_item_id, "work_item_url": work_item_url, "state": ado_state}
 
     def _update_work_item_body(
         self,
@@ -1941,81 +1948,19 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         Returns:
             Dict with updated work item data: {"work_item_id": int, "work_item_url": str, "state": str}
         """
-        import re as _re
-
         title = proposal_data.get("title", "Untitled Change Proposal")
         description = proposal_data.get("description", "")
         rationale = proposal_data.get("rationale", "")
         impact = proposal_data.get("impact", "")
-        status = proposal_data.get("status", "proposed")
         change_id = proposal_data.get("change_id", "unknown")
         raw_title, raw_body = self._extract_raw_fields(proposal_data)
         if raw_title:
             title = raw_title
 
-        # Build properly formatted work item description (same format as creation)
-        if raw_body:
-            body = raw_body
-        else:
-            body_parts = []
+        body = raw_body or self._build_change_proposal_body(title, rationale, description, impact, change_id)
 
-            display_title = _re.sub(r"^\[change\]\s*", "", title, flags=_re.IGNORECASE).strip()
-            if display_title:
-                body_parts.append(f"# {display_title}")
-                body_parts.append("")
-
-            # Add Why section (rationale) - preserve markdown formatting
-            if rationale:
-                body_parts.append("## Why")
-                body_parts.append("")
-                rationale_lines = rationale.strip().split("\n")
-                for line in rationale_lines:
-                    body_parts.append(line)
-                body_parts.append("")  # Blank line
-
-            # Add What Changes section (description) - preserve markdown formatting
-            if description:
-                body_parts.append("## What Changes")
-                body_parts.append("")
-                description_lines = description.strip().split("\n")
-                for line in description_lines:
-                    body_parts.append(line)
-                body_parts.append("")  # Blank line
-
-            if impact:
-                body_parts.append("## Impact")
-                body_parts.append("")
-                impact_lines = impact.strip().split("\n")
-                for line in impact_lines:
-                    body_parts.append(line)
-                body_parts.append("")
-
-            # If no content, add placeholder
-            if not body_parts or (not rationale and not description and not impact):
-                body_parts.append("No description provided.")
-                body_parts.append("")
-
-            # Add OpenSpec metadata footer
-            body_parts.append("---")
-            body_parts.append(f"*OpenSpec Change Proposal: `{change_id}`*")
-
-            body = "\n".join(body_parts)
-
-        # Map status to ADO state
-        # Check if source_state and source_type are provided (from cross-adapter sync)
-        source_state = proposal_data.get("source_state")
-        source_type = proposal_data.get("source_type")
-        if source_state and source_type and source_type != "ado":
-            # Use generic cross-adapter state mapping (preserves original state from source adapter)
-            ado_state = self.map_backlog_state_between_adapters(source_state, source_type, self)
-        else:
-            # Use OpenSpec status mapping (default behavior)
-            ado_state = self.map_openspec_status_to_backlog(status)
-
-        # Ensure API token is available
-        if not self.api_token:
-            msg = "Azure DevOps API token is required"
-            raise ValueError(msg)
+        ado_state = self._resolve_proposal_ado_state(proposal_data)
+        self._require_api_token()
 
         # Update work item body and state via Azure DevOps API
         url = f"{self.base_url}/{org}/{project}/_apis/wit/workitems/{work_item_id}?api-version=7.1"
@@ -2084,87 +2029,30 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             ValueError: If work item ID not found in source_tracking
             requests.RequestException: If Azure DevOps API call fails
         """
-        # Extract status and source_tracking
-        if isinstance(proposal, ChangeProposal):
-            status = proposal.status
-            source_tracking = proposal.source_tracking
-        else:
-            status = proposal.get("status", "proposed")
-            source_tracking = proposal.get("source_tracking")
-
+        source_tracking = (
+            proposal.source_tracking if isinstance(proposal, ChangeProposal) else proposal.get("source_tracking")
+        )
         if not source_tracking:
-            msg = "Source tracking required for status sync (work item must be created first)"
-            raise ValueError(msg)
+            raise ValueError("Source tracking required for status sync (work item must be created first)")
 
-        # Get work item ID from source_tracking (handle both dict and list formats)
-        work_item_id = None
         target_repo = f"{org}/{project}"
-
-        if isinstance(source_tracking, dict):
-            work_item_id = source_tracking.get("source_id")
-        elif isinstance(source_tracking, list):
-            for entry in source_tracking:
-                if isinstance(entry, dict):
-                    entry_repo = entry.get("source_repo")
-                    if entry_repo == target_repo:
-                        work_item_id = entry.get("source_id")
-                        break
-                    if not entry_repo:
-                        source_url = entry.get("source_url", "")
-                        if source_url and target_repo in source_url:
-                            work_item_id = entry.get("source_id")
-                            break
-
-        if not work_item_id:
-            msg = f"Work item ID not found in source_tracking for repository {target_repo}"
-            raise ValueError(msg)
-
-        # Ensure work_item_id is an integer
-        if isinstance(work_item_id, str):
-            try:
-                work_item_id = int(work_item_id)
-            except ValueError:
-                msg = f"Invalid work item ID format: {work_item_id}"
-                raise ValueError(msg) from None
-
-        # Map OpenSpec status to ADO state
-        ado_state = self.map_openspec_status_to_backlog(status)
-
-        # Ensure API token is available
-        if not self.api_token:
-            msg = "Azure DevOps API token is required"
-            raise ValueError(msg)
-
-        # Update work item state via Azure DevOps API
-        url = f"{self.base_url}/{org}/{project}/_apis/wit/workitems/{work_item_id}?api-version=7.1"
-        headers = {
-            "Content-Type": "application/json-patch+json",
-            **self._auth_headers(),
+        work_item_id = self._get_source_tracking_work_item_id(source_tracking, target_repo)
+        ado_state = self.map_openspec_status_to_backlog(
+            proposal.status if isinstance(proposal, ChangeProposal) else proposal.get("status", "proposed")
+        )
+        work_item_data = self._patch_work_item(
+            org,
+            project,
+            work_item_id,
+            [{"op": "replace", "path": "/fields/System.State", "value": ado_state}],
+        )
+        work_item_url = work_item_data.get("_links", {}).get("html", {}).get("href", "")
+        return {
+            "work_item_id": work_item_id,
+            "work_item_url": work_item_url,
+            "state_updated": True,
+            "new_state": ado_state,
         }
-
-        # Build JSON Patch document for state update
-        patch_document = [{"op": "replace", "path": "/fields/System.State", "value": ado_state}]
-
-        try:
-            response = self._request_with_retry(
-                lambda: requests.patch(url, json=patch_document, headers=headers, timeout=30)
-            )
-            work_item_data = response.json()
-
-            work_item_url = work_item_data.get("_links", {}).get("html", {}).get("href", "")
-
-            return {
-                "work_item_id": work_item_id,
-                "work_item_url": work_item_url,
-                "state_updated": True,
-                "new_state": ado_state,
-            }
-        except requests.RequestException as e:
-            resp = getattr(e, "response", None)
-            user_msg = _log_ado_patch_failure(resp, patch_document, url)
-            e.ado_user_message = user_msg
-            console.print(f"[bold red]✗[/bold red] {user_msg}")
-            raise
 
     @beartype
     @require(lambda work_item_data: isinstance(work_item_data, dict), "Work item data must be dict")
@@ -2189,20 +2077,12 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         Returns:
             Resolved OpenSpec status string
         """
-        # Extract ADO state from work item fields
         fields = work_item_data.get("fields", {})
         ado_state = fields.get("System.State", "New")
-
-        # Map ADO state to OpenSpec status
         openspec_status_from_ado = self.map_backlog_status_to_openspec(ado_state)
-
-        # Get current OpenSpec status
-        if isinstance(proposal, ChangeProposal):
-            openspec_status = proposal.status
-        else:
-            openspec_status = proposal.get("status", "proposed")
-
-        # Resolve conflict if status differs
+        openspec_status = (
+            proposal.status if isinstance(proposal, ChangeProposal) else proposal.get("status", "proposed")
+        )
         return self.resolve_status_conflict(openspec_status, openspec_status_from_ado, strategy)
 
     def _get_status_comment(
@@ -2446,7 +2326,7 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             return False
         except Exception as e:
             # If we can't check (git not available, etc.), return False to be safe
-            self.console.log(f"[bold yellow]Warning:[/bold yellow] Error checking branch existence: {e}")
+            self.console.log(f"[bold yellow]Warning:[/bold yellow] Error checking branch existence: {e}")  # type: ignore[attr-defined]
             return False
 
     def _get_work_item_comments(self, org: str, project: str, work_item_id: int) -> list[dict[str, Any]]:
@@ -2567,7 +2447,7 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         except requests.RequestException as e:
             resp = getattr(e, "response", None)
             user_msg = _log_ado_patch_failure(resp, [], url)
-            e.ado_user_message = user_msg
+            e.ado_user_message = user_msg  # type: ignore[attr-defined]
             console.print(f"[bold red]✗[/bold red] {user_msg}")
             raise
 
@@ -2644,7 +2524,7 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             return None
 
         # If team is not set, fetch the default team from the project
-        team_to_use = self.team
+        team_to_use = self.team or getattr(self, "_auto_resolved_team", None)
         if not team_to_use:
             # Try to get the default team for the project
             try:
@@ -2677,7 +2557,7 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
                         # Use the first team (usually the default team)
                         team_to_use = teams[0].get("name")
                         # Cache it for future use
-                        self.team = team_to_use
+                        self._auto_resolved_team = team_to_use
             except requests.RequestException:
                 # If team lookup fails, we can't proceed
                 return None
@@ -2741,7 +2621,7 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             return []
 
         # If team is not set, try to get it (same logic as _get_current_iteration)
-        team_to_use = self.team
+        team_to_use = self.team or getattr(self, "_auto_resolved_team", None)
         if not team_to_use:
             # Try to get the default team for the project (same logic as _get_current_iteration)
             try:
@@ -2769,7 +2649,7 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
                     teams = teams_data.get("value", [])
                     if teams:
                         team_to_use = teams[0].get("name")
-                        self.team = team_to_use
+                        self._auto_resolved_team = team_to_use
             except requests.RequestException:
                 return []
 
@@ -3471,20 +3351,28 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             "url": html_url or fallback_url,
         }
 
+    def _get_org_project(self) -> tuple[str | None, str | None]:
+        """Query: return current org and project without mutation."""
+        return self.org, self.project
+
+    def _set_org_project(self, org: str | None, project: str | None) -> None:
+        """Command: set org and project without reading current state."""
+        self.org = org
+        self.project = project
+
     @beartype
     @require(lambda project_id: isinstance(project_id, str) and len(project_id) > 0, "project_id must be non-empty")
     @ensure(lambda result: isinstance(result, list), "Must return list")
     def fetch_all_issues(self, project_id: str, filters: dict[str, Any] | None = None) -> list[dict[str, Any]]:
         """Fetch all ADO work items as provider-agnostic dictionaries for graph building."""
-        original_org = self.org
-        original_project = self.project
-        self.org, self.project = self._resolve_graph_project_context(project_id)
+        resolved_org, resolved_project = self._resolve_graph_project_context(project_id)
+        saved_org, saved_project = self._get_org_project()
+        self._set_org_project(resolved_org, resolved_project)
         try:
             backlog_filters = BacklogFilters(**(filters or {}))
             return [item.model_dump() for item in self.fetch_backlog_items(backlog_filters)]
         finally:
-            self.org = original_org
-            self.project = original_project
+            self._set_org_project(saved_org, saved_project)
 
     @beartype
     @require(lambda project_id: isinstance(project_id, str) and len(project_id) > 0, "project_id must be non-empty")
@@ -3575,11 +3463,15 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         return match.group(1) if match else ""
 
     @beartype
+    @ensure(lambda result: isinstance(result, bool), "Must return bool")
     def supports_add_comment(self) -> bool:
         """Whether this adapter can add comments (requires token, org, project)."""
         return bool(self.api_token and self.org and self.project)
 
     @beartype
+    @require(lambda item: isinstance(item, BacklogItem), "item must be BacklogItem")
+    @require(lambda comment: isinstance(comment, str) and bool(comment.strip()), "comment must be non-empty string")
+    @ensure(lambda result: isinstance(result, bool), "Must return bool")
     def add_comment(self, item: BacklogItem, comment: str) -> bool:
         """
         Add a comment to an Azure DevOps work item.
@@ -3605,6 +3497,8 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             return False
 
     @beartype
+    @require(lambda item: isinstance(item, BacklogItem), "item must be BacklogItem")
+    @ensure(lambda result: isinstance(result, list), "Must return list")
     def get_comments(self, item: BacklogItem) -> list[str]:
         """
         Fetch comments for an Azure DevOps work item.
@@ -3756,7 +3650,7 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             )
         except requests.HTTPError as e:
             user_msg = _log_ado_patch_failure(e.response, operations, url)
-            e.ado_user_message = user_msg
+            e.ado_user_message = user_msg  # type: ignore[attr-defined]
             response = None
             if e.response and e.response.status_code in (400, 422):
                 error_message = ""

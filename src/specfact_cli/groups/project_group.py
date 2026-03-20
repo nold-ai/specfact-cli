@@ -31,6 +31,7 @@ def _register_members(app: typer.Typer) -> None:
             pass
 
 
+@ensure(lambda result: result is not None, "Must return Typer app")
 def build_app() -> typer.Typer:
     """Build the project group Typer with members (lazy; registry must be populated)."""
     app = typer.Typer(
@@ -39,7 +40,7 @@ def build_app() -> typer.Typer:
         no_args_is_help=True,
     )
     _register_members(app)
-    app._specfact_flatten_same_name = "project"
+    app._specfact_flatten_same_name = "project"  # type: ignore[attr-defined]
     return app
 
 

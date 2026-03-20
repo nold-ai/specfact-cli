@@ -9,6 +9,7 @@ from pathlib import Path
 import typer
 import yaml
 from beartype import beartype
+from icontract import require
 from rich.console import Console
 from rich.table import Table
 
@@ -61,6 +62,7 @@ def _publisher_from_module_id(module_id: str) -> str:
 
 @app.command(name="init")
 @beartype
+@require(lambda scope: bool(scope), "scope must not be empty")
 def init_modules(
     scope: str = typer.Option("user", "--scope", help="Bootstrap scope: user or project"),
     repo: Path | None = typer.Option(None, "--repo", help="Repository path for project scope (default: current dir)"),
@@ -98,6 +100,7 @@ def init_modules(
 
 @app.command()
 @beartype
+@require(lambda module_id: bool(module_id.strip()), "module_id must not be empty")
 def install(
     module_id: str = typer.Argument(..., help="Module id (name or namespace/name format)"),
     version: str | None = typer.Option(None, "--version", help="Install a specific version"),
@@ -203,6 +206,7 @@ def install(
 
 @app.command()
 @beartype
+@require(lambda module_name: bool(module_name.strip()), "module_name must not be empty")
 def uninstall(
     module_name: str = typer.Argument(..., help="Installed module name (name or namespace/name)"),
     scope: str | None = typer.Option(None, "--scope", help="Uninstall scope: user or project"),
@@ -294,6 +298,8 @@ alias_app = typer.Typer(help="Manage command aliases (map name to namespaced mod
 
 @alias_app.command(name="create")
 @beartype
+@require(lambda alias_name: bool(alias_name.strip()), "alias_name must not be empty")
+@require(lambda command_name: bool(command_name.strip()), "command_name must not be empty")
 def alias_create(
     alias_name: str = typer.Argument(..., help="Alias (command name) to map"),
     command_name: str = typer.Argument(..., help="Command name to invoke (e.g. backlog, module)"),
@@ -310,6 +316,7 @@ def alias_create(
 
 @alias_app.command(name="list")
 @beartype
+@require(lambda: callable(list_aliases), "list_aliases helper must be callable")
 def alias_list() -> None:
     """List all configured aliases."""
     aliases = list_aliases()
@@ -326,6 +333,7 @@ def alias_list() -> None:
 
 @alias_app.command(name="remove")
 @beartype
+@require(lambda alias_name: bool(alias_name.strip()), "alias_name must not be empty")
 def alias_remove(
     alias_name: str = typer.Argument(..., help="Alias to remove"),
 ) -> None:
@@ -340,6 +348,7 @@ if app.add_typer is not None:
 
 @app.command(name="add-registry")
 @beartype
+@require(lambda url: url.strip() != "", "url must not be empty")
 def add_registry_cmd(
     url: str = typer.Argument(..., help="Registry index URL (e.g. https://company.com/index.json)"),
     id: str | None = typer.Option(None, "--id", help="Registry id (default: derived from URL)"),
@@ -361,6 +370,7 @@ def add_registry_cmd(
 
 @app.command(name="list-registries")
 @beartype
+@require(lambda: callable(list_registries), "list_registries helper must be callable")
 def list_registries_cmd() -> None:
     """List all configured registries (official + custom)."""
     registries = list_registries()
@@ -384,6 +394,7 @@ def list_registries_cmd() -> None:
 
 @app.command(name="remove-registry")
 @beartype
+@require(lambda registry_id: registry_id.strip() != "", "registry_id must not be empty")
 def remove_registry_cmd(
     registry_id: str = typer.Argument(..., help="Registry id to remove"),
 ) -> None:
@@ -394,6 +405,7 @@ def remove_registry_cmd(
 
 @app.command()
 @beartype
+@require(lambda module_id: module_id is None or module_id.strip() != "", "module_id must be non-empty if provided")
 def enable(
     module_id: str | None = typer.Argument(None, help="Module id to enable; omit in interactive mode to select"),
     force: bool = typer.Option(False, "--force", help="Override dependency checks and cascade dependencies"),
@@ -436,6 +448,7 @@ def enable(
 
 @app.command()
 @beartype
+@require(lambda module_id: module_id is None or module_id.strip() != "", "module_id must be non-empty if provided")
 def disable(
     module_id: str | None = typer.Argument(None, help="Module id to disable; omit in interactive mode to select"),
     force: bool = typer.Option(False, "--force", help="Override dependency checks and cascade dependents"),
@@ -463,6 +476,7 @@ def disable(
 
 @app.command()
 @beartype
+@require(lambda query: bool(query.strip()), "query must not be empty")
 def search(query: str = typer.Argument(..., help="Search query")) -> None:
     """Search marketplace and installed modules by id/description/tags."""
     query_l = query.lower().strip()
@@ -649,6 +663,10 @@ def _derive_module_command_entries(metadata: object) -> list[tuple[str, str]]:
 
 @app.command(name="list")
 @beartype
+@require(
+    lambda source: source is None or source in ("builtin", "project", "user", "marketplace", "custom"),
+    "source must be one of: builtin, project, user, marketplace, custom",
+)
 def list_modules(
     source: str | None = typer.Option(
         None, "--source", help="Filter by origin: builtin, project, user, marketplace, custom"
@@ -741,6 +759,7 @@ def list_modules(
 
 @app.command()
 @beartype
+@require(lambda module_name: bool(module_name.strip()), "module_name must not be empty")
 def show(module_name: str = typer.Argument(..., help="Installed module name")) -> None:
     """Show detailed metadata for an installed module."""
     modules = get_modules_with_state()
@@ -787,6 +806,10 @@ def show(module_name: str = typer.Argument(..., help="Installed module name")) -
 
 @app.command()
 @beartype
+@require(
+    lambda module_name: module_name is None or module_name.strip() != "",
+    "module_name must be non-empty if provided",
+)
 def upgrade(
     module_name: str | None = typer.Argument(
         None, help="Installed module name (optional; omit to upgrade all marketplace modules)"

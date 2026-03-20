@@ -718,6 +718,7 @@ class SpecKitScanner:
         except Exception as e:
             raise ValueError(f"Failed to parse tasks.md: {e}") from e
 
+    @ensure(lambda result: isinstance(result, dict), "Must return dict")
     def parse_memory_files(self, memory_dir: Path) -> dict[str, Any]:
         """
         Parse Spec-Kit memory files (constitution.md, etc.).
