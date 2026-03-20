@@ -1,7 +1,9 @@
 ---
 layout: default
 title: Use Cases
-permalink: /use-cases/
+permalink: /guides/use-cases/
+redirect_from:
+  - /use-cases/
 ---
 
 # Use Cases

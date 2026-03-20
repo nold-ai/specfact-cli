@@ -1,7 +1,9 @@
 ---
 layout: default
 title: Competitive Analysis
-permalink: /competitive-analysis/
+permalink: /guides/competitive-analysis/
+redirect_from:
+  - /competitive-analysis/
 ---
 
 # What You Gain with SpecFact CLI

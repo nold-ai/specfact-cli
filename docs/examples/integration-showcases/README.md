@@ -39,7 +39,7 @@ This folder contains everything you need to understand and test SpecFact CLI int
 
 ### Setup Script
 
-1. **[`setup-integration-tests.sh`](setup-integration-tests.sh)** 🚀 **AUTOMATED SETUP**
+1. **[`setup-integration-tests.sh`](https://github.com/nold-ai/specfact-cli/blob/main/docs/examples/integration-showcases/setup-integration-tests.sh)** 🚀 **AUTOMATED SETUP**
 
    - **Purpose**: Automated script to create test cases for all examples
    - **Content**: Creates test directories, sample code, and configuration files
@@ -59,7 +59,7 @@ This gives you a complete overview of what SpecFact can do with real examples.
 
 **Step 2**: Choose your path:
 
-- **Want to test the examples?** → Use [`setup-integration-tests.sh`](setup-integration-tests.sh) then follow [`integration-showcases-testing-guide.md`](integration-showcases-testing-guide.md)
+- **Want to test the examples?** → Use [`setup-integration-tests.sh`](https://github.com/nold-ai/specfact-cli/blob/main/docs/examples/integration-showcases/setup-integration-tests.sh) then follow [`integration-showcases-testing-guide.md`](integration-showcases-testing-guide.md)
 
 - **Just need quick commands?** → Check [`integration-showcases-quick-reference.md`](integration-showcases-quick-reference.md)
 
