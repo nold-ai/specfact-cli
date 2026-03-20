@@ -89,8 +89,10 @@ These are derived extensions of the same 2026-02-15 plan and are required to ope
 | Module | Order | Change folder | GitHub # | Blocked by |
 |--------|-------|---------------|----------|------------|
 | docs | 01 | docs-01-core-modules-docs-alignment | [#348](https://github.com/nold-ai/specfact-cli/issues/348) | module-migration-01 ✅; module-migration-02 ✅; module-migration-03 ✅; module-migration-05 ✅; module-migration-06/07 outputs inform residual cleanup wording |
+| docs | 02 | doc-frontmatter-schema | pending | — |
 | docs | 03 | ✅ docs-03-command-syntax-parity (archived 2026-03-18) | pending | docs-01 ✅; docs-02 ✅ |
 | docs | 04 | docs-04-docs-review-gate-and-link-integrity | pending | docs-03 ✅ |
+| docs | 05 | ci-docs-sync-check | pending | docs-02 (doc-frontmatter-schema) |
 
 ### Marketplace (module distribution)
 
@@ -319,6 +321,8 @@ Set these in GitHub so issue dependencies are explicit. Optional dependencies ar
 | [#350](https://github.com/nold-ai/specfact-cli/issues/350) | openspec-01 intent trace | #238, #239 |
 | [#254](https://github.com/nold-ai/specfact-cli/issues/254) | integration-01 cross-change contracts | #237, #239, #240, #241, #246 |
 | [#255](https://github.com/nold-ai/specfact-cli/issues/255) | dogfooding-01 full-chain e2e proof | #239, #240, #241, #242, #247 |
+| TBD | doc-frontmatter-schema | — |
+| TBD | ci-docs-sync-check | doc-frontmatter-schema |
 
 | TBD | code-review-02 ruff/radon runners | code-review-01 |
 | TBD | code-review-03 type/governance runners | code-review-01 |
@@ -417,6 +421,8 @@ Dependencies flow left-to-right; a wave may start once all its hard blockers are
 
 - **Wave 4 — Ceremony layer + module slimming + modules repo quality** (needs Wave 3):
   - ceremony-cockpit-01 ✅ (probes installed backlog-* modules at runtime; no hard deps but best after Wave 3)
+  - **doc-frontmatter-schema** (foundational documentation ownership; no hard deps — can start immediately)
+  - **ci-docs-sync-check** (needs doc-frontmatter-schema; CI enforcement for documentation synchronization)
   - **module-migration-05-modules-repo-quality** (needs module-migration-02; sections 18-22 must land **before or simultaneously with** module-migration-03): quality tooling, tests, dependency decoupling, docs, pipeline/config for specfact-cli-modules
   - module-migration-03-core-slimming (needs module-migration-02 AND migration-05 sections 18-22; removes bundled modules from core; see tasks.md 17.9 for proposal consistency requirements before implementation starts)
   - **module-migration-06-core-decoupling-cleanup** (needs module-migration-03 + migration-05 baseline; removes residual non-core components/couplings from specfact-cli core, e.g. models/utilities tied only to extracted modules)
