@@ -1,7 +1,9 @@
 ---
 layout: default
 title: Testing Terminal Output Modes
-permalink: /testing-terminal-output/
+permalink: /guides/testing-terminal-output/
+redirect_from:
+  - /testing-terminal-output/
 ---
 
 # Testing Terminal Output Modes

@@ -237,9 +237,9 @@ def generate_contracts(
 
 ## 🔗 Related Documentation
 
-- **[CLI Reorganization Implementation Plan](../../specfact-cli-internal/docs/internal/implementation/CLI_REORGANIZATION_IMPLEMENTATION_PLAN.md)** - Full reorganization plan
-- **[Command Reference](./commands.md)** - Complete command reference
-- **[Project Bundle Refactoring Plan](../../specfact-cli-internal/docs/internal/implementation/PROJECT_BUNDLE_REFACTORING_PLAN.md)** - Bundle parameter requirements
+- **[Command Reference](./commands.md)** - Complete command reference and current parameter surfaces
+- **[Directory Structure](./directory-structure.md)** - Repository and workspace parameter context
+- **[Architecture](./architecture.md)** - Runtime and adapter architecture context for parameter design
 
 ---
 

@@ -1,7 +1,9 @@
 ---
 layout: default
 title: Schema Versioning
-permalink: /schema-versioning/
+permalink: /reference/schema-versioning/
+redirect_from:
+  - /schema-versioning/
 ---
 
 # Schema Versioning
@@ -174,5 +176,5 @@ schema_metadata:
 ## Related Documentation
 
 - [Architecture - Change Tracking Models](../reference/architecture.md#change-tracking-models-v11-schema) - Technical details
-- [Architecture - Bridge Adapter Interface](../reference/architecture.md#bridge-adapter-interface) - Adapter implementation guide
+- [Architecture - Required Adapter Interface](../reference/architecture.md#required-adapter-interface) - Adapter implementation guide
 - [Directory Structure](directory-structure.md) - Bundle file organization

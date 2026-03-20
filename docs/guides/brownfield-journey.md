@@ -1,7 +1,9 @@
 ---
 layout: default
 title: Brownfield Modernization Journey
-permalink: /brownfield-journey/
+permalink: /guides/brownfield-journey/
+redirect_from:
+  - /brownfield-journey/
 ---
 
 # Brownfield Modernization Journey

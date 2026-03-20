@@ -90,6 +90,7 @@ These are derived extensions of the same 2026-02-15 plan and are required to ope
 |--------|-------|---------------|----------|------------|
 | docs | 01 | docs-01-core-modules-docs-alignment | [#348](https://github.com/nold-ai/specfact-cli/issues/348) | module-migration-01 ✅; module-migration-02 ✅; module-migration-03 ✅; module-migration-05 ✅; module-migration-06/07 outputs inform residual cleanup wording |
 | docs | 03 | ✅ docs-03-command-syntax-parity (archived 2026-03-18) | pending | docs-01 ✅; docs-02 ✅ |
+| docs | 04 | docs-04-docs-review-gate-and-link-integrity | pending | docs-03 ✅ |
 
 ### Marketplace (module distribution)
 

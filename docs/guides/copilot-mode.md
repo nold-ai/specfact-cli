@@ -1,7 +1,9 @@
 ---
 layout: default
 title: Using CoPilot Mode
-permalink: /copilot-mode/
+permalink: /guides/copilot-mode/
+redirect_from:
+  - /copilot-mode/
 ---
 
 # Using CoPilot Mode

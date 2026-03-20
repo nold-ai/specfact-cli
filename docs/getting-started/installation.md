@@ -541,4 +541,4 @@ hatch run format
 hatch run lint
 ```
 
-See [CONTRIBUTING.md](../../CONTRIBUTING.md) for detailed contribution guidelines.
+See [CONTRIBUTING.md](https://github.com/nold-ai/specfact-cli/blob/main/CONTRIBUTING.md) for detailed contribution guidelines.

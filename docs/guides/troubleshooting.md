@@ -1,7 +1,9 @@
 ---
 layout: default
 title: Troubleshooting
-permalink: /troubleshooting/
+permalink: /guides/troubleshooting/
+redirect_from:
+  - /troubleshooting/
 ---
 
 # Troubleshooting
