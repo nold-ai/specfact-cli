@@ -55,7 +55,7 @@ Canonical modules site: `https://modules.specfact.io/`
 
 ```bash
 # Install and bootstrap official bundles
-uvx specfact-cli@latest
+pip install -U specfact-cli
 specfact init --profile solo-developer
 
 # Analyze an existing repository
