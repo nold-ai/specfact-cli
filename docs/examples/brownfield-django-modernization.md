@@ -1,3 +1,9 @@
+---
+layout: default
+title: Brownfield Django Modernization
+permalink: /examples/brownfield-django-modernization/
+---
+
 # Brownfield Example: Modernizing Legacy Django Code
 
 > **Complete walkthrough: From undocumented legacy Django app to contract-enforced modern codebase**

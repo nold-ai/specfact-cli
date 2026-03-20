@@ -1,3 +1,9 @@
+---
+layout: default
+title: Module System
+permalink: /architecture/module-system/
+---
+
 # SpecFact CLI Module System Architecture
 
 ## Status

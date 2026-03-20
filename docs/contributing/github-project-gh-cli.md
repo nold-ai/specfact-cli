@@ -1,3 +1,9 @@
+---
+layout: default
+title: Github Project Gh Cli
+permalink: /contributing/github-project-gh-cli/
+---
+
 # SpecFact CLI project – gh CLI automation
 
 How to set **Projects** and project fields (Status, Type, Parent issue) that appear on each issue/PR **sidebar** for the [SpecFact CLI project](https://github.com/orgs/nold-ai/projects/1). All of this can be done with the GitHub CLI (`gh`).

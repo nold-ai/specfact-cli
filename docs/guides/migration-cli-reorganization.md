@@ -1,3 +1,9 @@
+---
+layout: default
+title: Migration Cli Reorganization
+permalink: /guides/migration-cli-reorganization/
+---
+
 # CLI Reorganization Migration Guide
 
 **Date**: 2025-11-27  

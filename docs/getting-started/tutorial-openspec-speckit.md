@@ -1,3 +1,9 @@
+---
+layout: default
+title: Tutorial Openspec Speckit
+permalink: /getting-started/tutorial-openspec-speckit/
+---
+
 # Tutorial: Using SpecFact with OpenSpec or Spec-Kit
 
 > **Complete step-by-step guide for new users**  

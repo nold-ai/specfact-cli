@@ -1,3 +1,9 @@
+---
+layout: default
+title: Parameter Standard
+permalink: /reference/parameter-standard/
+---
+
 # Parameter Standard
 
 **Date**: 2025-11-26  

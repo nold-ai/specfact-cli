@@ -1,3 +1,9 @@
+---
+layout: default
+title: Integration Showcases Quick Reference
+permalink: /examples/integration-showcases/integration-showcases-quick-reference/
+---
+
 # Integration Showcases - Quick Reference
 
 > **Quick command reference** for testing all 5 integration examples
