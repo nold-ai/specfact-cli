@@ -50,6 +50,7 @@ class TestBridgeSyncImport:
 
         with (
             patch.object(adapter, "_ado_get", return_value=mock_response),
+            patch.object(adapter, "generate_bridge_config", return_value=BridgeConfig.preset_ado()),
             patch.object(adapter, "_get_work_item_comments", return_value=[]),
             patch("specfact_cli.sync.bridge_sync.AdapterRegistry.get_adapter", return_value=adapter),
             patch.object(sync, "_write_openspec_change_from_proposal", return_value=[]),

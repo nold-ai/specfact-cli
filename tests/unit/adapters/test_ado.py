@@ -898,3 +898,70 @@ class TestAdoAdapter:
         assert proposal.title == "Add Feature X"
         assert proposal.source_tracking is not None
         assert proposal.source_tracking.source_metadata["backlog_entries"][0]["source_id"] == "123"
+
+    @beartype
+    @patch.object(AdoAdapter, "_get_work_item_comments", return_value=[])
+    def test_import_artifact_ado_work_item_reimport_keeps_original_slug(
+        self,
+        _mock_get_comments: MagicMock,
+        ado_adapter: AdoAdapter,
+        tmp_path: Path,
+    ) -> None:
+        """Re-importing the same work item should keep the original proposal name."""
+        project_bundle = MagicMock()
+        project_bundle.change_tracking = ChangeTracking(
+            proposals={
+                "add-feature-x": ChangeProposal(
+                    name="add-feature-x",
+                    title="Add Feature X",
+                    description="Existing",
+                    rationale="Existing rationale",
+                    timeline=None,
+                    owner=None,
+                    status="proposed",
+                    created_at="2025-01-01T10:00:00+00:00",
+                    applied_at=None,
+                    archived_at=None,
+                    source_tracking=SourceTracking(
+                        tool="ado",
+                        source_metadata={
+                            "source_id": 123,
+                            "source_url": "https://dev.azure.com/test-org/test-project/_workitems/edit/123",
+                            "source_type": "ado",
+                            "backlog_entries": [
+                                {
+                                    "source_id": "123",
+                                    "source_url": "https://dev.azure.com/test-org/test-project/_workitems/edit/123",
+                                    "source_type": "ado",
+                                }
+                            ],
+                        },
+                    ),
+                )
+            }
+        )
+        project_bundle.bundle_dir = tmp_path
+
+        work_item_data = {
+            "id": 123,
+            "fields": {
+                "System.Title": "Add Feature X",
+                "System.Description": "## Why\n\nNeeded\n\n## What Changes\n\nImplement",
+                "System.State": "New",
+                "System.CreatedDate": "2025-01-01T10:00:00Z",
+                "System.WorkItemType": "User Story",
+            },
+            "_links": {
+                "html": {"href": "https://dev.azure.com/test-org/test-project/_workitems/edit/123"},
+            },
+        }
+
+        ado_adapter.import_artifact(
+            artifact_key="ado_work_item",
+            artifact_path=work_item_data,
+            project_bundle=project_bundle,
+        )
+
+        assert "add-feature-x" in project_bundle.change_tracking.proposals
+        assert "add-feature-x-123" not in project_bundle.change_tracking.proposals
+        assert len(project_bundle.change_tracking.proposals) == 1

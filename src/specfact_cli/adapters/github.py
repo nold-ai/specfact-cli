@@ -554,16 +554,14 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             pass  # Path operations will respect external_base_path in OpenSpec adapter
 
         # Import GitHub issue as change proposal using backlog adapter pattern
-        existing_change_ids = (
-            set(project_bundle.change_tracking.proposals.keys())
-            if getattr(project_bundle, "change_tracking", None)
-            else set()
+        existing_proposals = (
+            dict(project_bundle.change_tracking.proposals) if getattr(project_bundle, "change_tracking", None) else {}
         )
         proposal = self.import_backlog_item_as_proposal(
             artifact_path,
             "github",
             bridge_config,
-            existing_change_ids=existing_change_ids,
+            existing_proposals=existing_proposals,
         )
 
         if not proposal:
