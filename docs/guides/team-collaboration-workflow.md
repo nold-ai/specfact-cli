@@ -1,7 +1,9 @@
 ---
 layout: default
 title: Team Collaboration Workflow
-permalink: /team-collaboration-workflow/
+permalink: /guides/team-collaboration-workflow/
+redirect_from:
+  - /team-collaboration-workflow/
 ---
 
 # Team Collaboration Workflow

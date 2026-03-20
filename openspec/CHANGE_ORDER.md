@@ -56,6 +56,14 @@ Only changes that are **archived**, shown as **✓ Complete** by `openspec list`
 
 Entries in the tables below are pending unless explicitly marked as implemented (archived).
 
+## Dogfooding
+
+| Module | Order | Change folder | GitHub # | Blocked by |
+|--------|-------|---------------|----------|------------|
+| dogfooding | 02 | code-review-zero-findings | #423 | — |
+
+---
+
 ## Plan-derived addendum (2026-02-15 architecture integration plan)
 
 The source plan inventory listed 17 new changes. Two additional cross-cutting changes were intentionally added during proposal creation to close integration governance and proof gaps discovered in dependency review:
@@ -82,6 +90,7 @@ These are derived extensions of the same 2026-02-15 plan and are required to ope
 |--------|-------|---------------|----------|------------|
 | docs | 01 | docs-01-core-modules-docs-alignment | [#348](https://github.com/nold-ai/specfact-cli/issues/348) | module-migration-01 ✅; module-migration-02 ✅; module-migration-03 ✅; module-migration-05 ✅; module-migration-06/07 outputs inform residual cleanup wording |
 | docs | 03 | ✅ docs-03-command-syntax-parity (archived 2026-03-18) | pending | docs-01 ✅; docs-02 ✅ |
+| docs | 04 | docs-04-docs-review-gate-and-link-integrity | pending | docs-03 ✅ |
 
 ### Marketplace (module distribution)
 
@@ -149,6 +158,7 @@ These are derived extensions of the same 2026-02-15 plan and are required to ope
 | backlog-core | 06 | ✅ backlog-core-06-refine-custom-field-writeback (implemented 2026-03-03; archived) | [#310](https://github.com/nold-ai/specfact-cli/issues/310) | #173 |
 | backlog-core | 07 | backlog-core-07-ado-required-custom-fields-and-picklists | [#337](https://github.com/nold-ai/specfact-cli/issues/337) | ✅ #310 |
 | bugfix | 01 | bugfix-backlog-html-export-validation | TBD | — |
+| bugfix | 02 | bugfix-02-ado-import-payload-slugging | [#427](https://github.com/nold-ai/specfact-cli/issues/427) | — |
 
 ### backlog-scrum
 

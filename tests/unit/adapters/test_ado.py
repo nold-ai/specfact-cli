@@ -16,6 +16,8 @@ from beartype import beartype
 
 from specfact_cli.adapters.ado import AdoAdapter
 from specfact_cli.models.bridge import AdapterType, BridgeConfig
+from specfact_cli.models.change import ChangeProposal, ChangeTracking
+from specfact_cli.models.source_tracking import SourceTracking
 
 
 @pytest.fixture
@@ -362,8 +364,8 @@ class TestAdoAdapter:
             project_bundle=project_bundle,
         )
 
-        assert "123" in project_bundle.change_tracking.proposals
-        proposal = project_bundle.change_tracking.proposals["123"]
+        assert "add-feature-x" in project_bundle.change_tracking.proposals
+        proposal = project_bundle.change_tracking.proposals["add-feature-x"]
         assert proposal.title == "Add Feature X"
         assert proposal.status == "proposed"
         assert proposal.source_tracking is not None
@@ -809,3 +811,225 @@ class TestAdoAdapter:
 
         assert ado_adapter._verify_branch_exists("feature/test", tmp_path) is True
         assert ado_adapter._verify_branch_exists("nonexistent", tmp_path) is False
+
+    @beartype
+    @patch.object(AdoAdapter, "_ado_get")
+    def test_fetch_backlog_item_preserves_native_payload(  # pylint: disable=redefined-outer-name
+        self,
+        mock_ado_get: MagicMock,
+        ado_adapter: AdoAdapter,
+    ) -> None:
+        """Selective fetch should keep the native ADO payload for proposal import."""
+        work_item_data = {
+            "id": 123,
+            "fields": {
+                "System.Title": "Add Feature X",
+                "System.Description": "<p>Implement feature X</p>",
+                "System.State": "New",
+            },
+            "_links": {
+                "html": {"href": "https://dev.azure.com/test-org/test-project/_workitems/edit/123"},
+            },
+        }
+        mock_response = MagicMock()
+        mock_response.json.return_value = work_item_data
+        mock_response.raise_for_status = MagicMock()
+        mock_ado_get.return_value = mock_response
+
+        result = ado_adapter.fetch_backlog_item("123")
+
+        assert result["id"] == 123
+        assert result["fields"]["System.Title"] == "Add Feature X"
+        assert result["title"] == "Add Feature X"
+        assert result["state"] == "New"
+        assert result["description"] == "<p>Implement feature X</p>"
+
+    @beartype
+    @patch.object(AdoAdapter, "_get_work_item_comments", return_value=[])
+    def test_import_artifact_ado_work_item_collision_uses_source_suffix(  # pylint: disable=redefined-outer-name
+        self,
+        _mock_get_comments: MagicMock,
+        ado_adapter: AdoAdapter,
+        tmp_path: Path,
+    ) -> None:
+        """Duplicate imported slugs should keep the title and append the source ID."""
+        project_bundle = MagicMock()
+        project_bundle.change_tracking = ChangeTracking(
+            proposals={
+                "add-feature-x": ChangeProposal(
+                    name="add-feature-x",
+                    title="Existing Feature X",
+                    description="Existing",
+                    rationale="Existing rationale",
+                    timeline=None,
+                    owner=None,
+                    status="proposed",
+                    created_at="2025-01-01T10:00:00+00:00",
+                    applied_at=None,
+                    archived_at=None,
+                    source_tracking=SourceTracking(tool="ado"),
+                )
+            }
+        )
+        project_bundle.bundle_dir = tmp_path
+
+        work_item_data = {
+            "id": 123,
+            "fields": {
+                "System.Title": "Add Feature X",
+                "System.Description": "## Why\n\nNeeded\n\n## What Changes\n\nImplement",
+                "System.State": "New",
+                "System.CreatedDate": "2025-01-01T10:00:00Z",
+                "System.WorkItemType": "User Story",
+            },
+            "_links": {
+                "html": {"href": "https://dev.azure.com/test-org/test-project/_workitems/edit/123"},
+            },
+        }
+
+        ado_adapter.import_artifact(
+            artifact_key="ado_work_item",
+            artifact_path=work_item_data,
+            project_bundle=project_bundle,
+        )
+
+        assert "add-feature-x-123" in project_bundle.change_tracking.proposals
+        proposal = project_bundle.change_tracking.proposals["add-feature-x-123"]
+        assert proposal.title == "Add Feature X"
+        assert proposal.source_tracking is not None
+        assert proposal.source_tracking.source_metadata["backlog_entries"][0]["source_id"] == "123"
+
+    @beartype
+    @patch.object(AdoAdapter, "_get_work_item_comments", return_value=[])
+    def test_import_artifact_ado_work_item_reimport_keeps_original_slug(
+        self,
+        _mock_get_comments: MagicMock,
+        ado_adapter: AdoAdapter,
+        tmp_path: Path,
+    ) -> None:
+        """Re-importing the same work item should keep the original proposal name."""
+        project_bundle = MagicMock()
+        project_bundle.change_tracking = ChangeTracking(
+            proposals={
+                "add-feature-x": ChangeProposal(
+                    name="add-feature-x",
+                    title="Add Feature X",
+                    description="Existing",
+                    rationale="Existing rationale",
+                    timeline=None,
+                    owner=None,
+                    status="proposed",
+                    created_at="2025-01-01T10:00:00+00:00",
+                    applied_at=None,
+                    archived_at=None,
+                    source_tracking=SourceTracking(
+                        tool="ado",
+                        source_metadata={
+                            "source_id": 123,
+                            "source_url": "https://dev.azure.com/test-org/test-project/_workitems/edit/123",
+                            "source_type": "ado",
+                            "backlog_entries": [
+                                {
+                                    "source_id": "123",
+                                    "source_url": "https://dev.azure.com/test-org/test-project/_workitems/edit/123",
+                                    "source_type": "ado",
+                                }
+                            ],
+                        },
+                    ),
+                )
+            }
+        )
+        project_bundle.bundle_dir = tmp_path
+
+        work_item_data = {
+            "id": 123,
+            "fields": {
+                "System.Title": "Add Feature X",
+                "System.Description": "## Why\n\nNeeded\n\n## What Changes\n\nImplement",
+                "System.State": "New",
+                "System.CreatedDate": "2025-01-01T10:00:00Z",
+                "System.WorkItemType": "User Story",
+            },
+            "_links": {
+                "html": {"href": "https://dev.azure.com/test-org/test-project/_workitems/edit/123"},
+            },
+        }
+
+        ado_adapter.import_artifact(
+            artifact_key="ado_work_item",
+            artifact_path=work_item_data,
+            project_bundle=project_bundle,
+        )
+
+        assert "add-feature-x" in project_bundle.change_tracking.proposals
+        assert "add-feature-x-123" not in project_bundle.change_tracking.proposals
+        assert len(project_bundle.change_tracking.proposals) == 1
+
+    @beartype
+    @patch.object(AdoAdapter, "_get_work_item_comments", return_value=[])
+    def test_import_artifact_ado_work_item_reimport_with_renamed_title_keeps_original_slug(
+        self,
+        _mock_get_comments: MagicMock,
+        ado_adapter: AdoAdapter,
+        tmp_path: Path,
+    ) -> None:
+        """Re-importing the same work item with a new title should keep the original proposal name."""
+        project_bundle = MagicMock()
+        project_bundle.change_tracking = ChangeTracking(
+            proposals={
+                "add-feature-x": ChangeProposal(
+                    name="add-feature-x",
+                    title="Add Feature X",
+                    description="Existing",
+                    rationale="Existing rationale",
+                    timeline=None,
+                    owner=None,
+                    status="proposed",
+                    created_at="2025-01-01T10:00:00+00:00",
+                    applied_at=None,
+                    archived_at=None,
+                    source_tracking=SourceTracking(
+                        tool="ado",
+                        source_metadata={
+                            "source_id": 123,
+                            "source_url": "https://dev.azure.com/test-org/test-project/_workitems/edit/123",
+                            "source_type": "ado",
+                            "backlog_entries": [
+                                {
+                                    "source_id": "123",
+                                    "source_url": "https://dev.azure.com/test-org/test-project/_workitems/edit/123",
+                                    "source_type": "ado",
+                                }
+                            ],
+                        },
+                    ),
+                )
+            }
+        )
+        project_bundle.bundle_dir = tmp_path
+
+        work_item_data = {
+            "id": 123,
+            "fields": {
+                "System.Title": "Rename Feature X",
+                "System.Description": "## Why\n\nNeeded\n\n## What Changes\n\nImplement",
+                "System.State": "New",
+                "System.CreatedDate": "2025-01-01T10:00:00Z",
+                "System.WorkItemType": "User Story",
+            },
+            "_links": {
+                "html": {"href": "https://dev.azure.com/test-org/test-project/_workitems/edit/123"},
+            },
+        }
+
+        ado_adapter.import_artifact(
+            artifact_key="ado_work_item",
+            artifact_path=work_item_data,
+            project_bundle=project_bundle,
+        )
+
+        assert "add-feature-x" in project_bundle.change_tracking.proposals
+        assert "rename-feature-x" not in project_bundle.change_tracking.proposals
+        assert "rename-feature-x-123" not in project_bundle.change_tracking.proposals
+        assert len(project_bundle.change_tracking.proposals) == 1

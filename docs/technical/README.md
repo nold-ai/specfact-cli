@@ -17,7 +17,7 @@ Technical documentation for contributors and developers working on SpecFact CLI.
 
 ### Maintenance Scripts
 
-For maintenance scripts and developer utilities, see the [Contributing Guide](../../CONTRIBUTING.md#developer-tools) section on Developer Tools. This includes:
+For maintenance scripts and developer utilities, see the [Contributing Guide](https://github.com/nold-ai/specfact-cli/blob/main/CONTRIBUTING.md#developer-tools) section on Developer Tools. This includes:
 
 - **Cleanup Acceptance Criteria Script** - Removes duplicate replacement instruction text from acceptance criteria
 - Other maintenance and development utilities in the `scripts/` directory

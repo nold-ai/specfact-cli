@@ -1,7 +1,9 @@
 ---
 layout: default
 title: Operational Modes
-permalink: /modes/
+permalink: /reference/modes/
+redirect_from:
+  - /modes/
 ---
 
 # Operational Modes

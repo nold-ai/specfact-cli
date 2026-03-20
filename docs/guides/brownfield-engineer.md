@@ -1,7 +1,9 @@
 ---
 layout: default
 title: Modernizing Legacy Code (Brownfield Engineer Guide)
-permalink: /brownfield-engineer/
+permalink: /guides/brownfield-engineer/
+redirect_from:
+  - /brownfield-engineer/
 ---
 
 # Guide for Legacy Modernization Engineers

@@ -1,7 +1,9 @@
 ---
 layout: default
 title: SpecFact CLI Directory Structure
-permalink: /directory-structure/
+permalink: /reference/directory-structure/
+redirect_from:
+  - /directory-structure/
 ---
 
 # SpecFact CLI Directory Structure

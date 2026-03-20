@@ -11,6 +11,7 @@ functionality for status mapping, metadata extraction, and conflict resolution.
 
 from __future__ import annotations
 
+import re
 import time
 from abc import ABC, abstractmethod
 from datetime import UTC, datetime
@@ -239,6 +240,163 @@ class BacklogAdapterMixin(ABC):
         """
 
     @beartype
+    @ensure(lambda result: isinstance(result, str), "Must return string")
+    def _slugify_imported_change_title(self, title: str) -> str:
+        """Return a stable kebab-case slug for imported backlog titles."""
+        normalized = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")
+        normalized = re.sub(r"-{2,}", "-", normalized)
+        return normalized or "change"
+
+    @beartype
+    @ensure(lambda result: isinstance(result, str) and len(result) > 0, "Must return non-empty change id")
+    def _normalize_imported_change_id(
+        self,
+        proposal_data: dict[str, Any],
+        item_data: dict[str, Any],
+        tool_name: str,
+        existing_proposals: dict[str, ChangeProposal] | None = None,
+    ) -> str:
+        """Normalize imported change IDs so title-based slugs win over numeric fallbacks."""
+        raw_change_id = self._get_imported_change_id_seed(proposal_data, item_data)
+        title = str(proposal_data.get("title") or item_data.get("title") or "").strip()
+        candidate = self._prefer_imported_title_slug(raw_change_id, title)
+        proposals = existing_proposals or {}
+        return self._dedupe_imported_change_id(candidate, raw_change_id, item_data, tool_name, proposals)
+
+    @beartype
+    @ensure(lambda result: isinstance(result, str) and len(result) > 0, "Must return non-empty seed")
+    def _get_imported_change_id_seed(self, proposal_data: dict[str, Any], item_data: dict[str, Any]) -> str:
+        return str(proposal_data.get("change_id") or item_data.get("id") or item_data.get("number") or "unknown")
+
+    @beartype
+    @ensure(lambda result: isinstance(result, str) and len(result) > 0, "Must return non-empty candidate")
+    def _prefer_imported_title_slug(self, raw_change_id: str, title: str) -> str:
+        if raw_change_id and raw_change_id != "unknown" and not raw_change_id.isdigit():
+            return raw_change_id
+        if not title:
+            return raw_change_id or "unknown"
+        return self._slugify_imported_change_title(title)
+
+    @beartype
+    @ensure(lambda result: isinstance(result, str) and len(result) > 0, "Must return non-empty change id")
+    def _dedupe_imported_change_id(
+        self,
+        candidate: str,
+        raw_change_id: str,
+        item_data: dict[str, Any],
+        tool_name: str,
+        existing_proposals: dict[str, ChangeProposal],
+    ) -> str:
+        existing_change_id = self._find_existing_imported_change_id_by_source(
+            item_data,
+            tool_name,
+            existing_proposals,
+        )
+        if existing_change_id:
+            return existing_change_id
+
+        existing_proposal = existing_proposals.get(candidate)
+        if existing_proposal is None:
+            return candidate or raw_change_id or "unknown"
+
+        if self._matches_existing_import_source(existing_proposal, item_data, tool_name):
+            return candidate
+
+        source_id = item_data.get("id") or item_data.get("number")
+        if source_id is None:
+            return candidate or raw_change_id or "unknown"
+
+        deduped_candidate = f"{candidate}-{source_id}"
+        existing_deduped = existing_proposals.get(deduped_candidate)
+        if existing_deduped and self._matches_existing_import_source(existing_deduped, item_data, tool_name):
+            return deduped_candidate
+        return deduped_candidate
+
+    @beartype
+    @ensure(lambda result: result is None or isinstance(result, str), "Must return change id or None")
+    def _find_existing_imported_change_id_by_source(
+        self,
+        item_data: dict[str, Any],
+        tool_name: str,
+        existing_proposals: dict[str, ChangeProposal],
+    ) -> str | None:
+        for change_id, proposal in existing_proposals.items():
+            if self._matches_existing_import_source(proposal, item_data, tool_name):
+                return change_id
+        return None
+
+    @beartype
+    @ensure(lambda result: isinstance(result, str), "Must return source URL string")
+    def _get_import_source_url(self, item_data: dict[str, Any]) -> str:
+        html_url = item_data.get("html_url")
+        if isinstance(html_url, str) and html_url:
+            return html_url
+
+        url = item_data.get("url")
+        if isinstance(url, str) and url:
+            return url
+
+        links = item_data.get("_links")
+        if not isinstance(links, dict):
+            return ""
+        html_link = links.get("html")
+        if not isinstance(html_link, dict):
+            return ""
+        href = html_link.get("href")
+        return href if isinstance(href, str) else ""
+
+    @beartype
+    @ensure(lambda result: isinstance(result, bool), "Must return match flag")
+    def _matches_existing_import_source(
+        self,
+        proposal: ChangeProposal,
+        item_data: dict[str, Any],
+        tool_name: str,
+    ) -> bool:
+        source_tracking = proposal.source_tracking
+        if source_tracking is None or not isinstance(source_tracking.source_metadata, dict):
+            return False
+
+        source_id = item_data.get("id") or item_data.get("number")
+        source_id_str = str(source_id) if source_id is not None else None
+        source_url = self._get_import_source_url(item_data)
+        source_type = tool_name.lower()
+        source_metadata = source_tracking.source_metadata
+        backlog_entries = source_metadata.get("backlog_entries")
+        if isinstance(backlog_entries, list):
+            for entry in backlog_entries:
+                if isinstance(entry, dict) and self._source_metadata_matches(
+                    entry, source_type, source_id_str, source_url
+                ):
+                    return True
+
+        fallback_metadata = dict(source_metadata)
+        fallback_metadata.setdefault("source_type", source_tracking.tool)
+        return self._source_metadata_matches(fallback_metadata, source_type, source_id_str, source_url)
+
+    @beartype
+    @ensure(lambda result: isinstance(result, bool), "Must return match flag")
+    def _source_metadata_matches(
+        self,
+        source_metadata: dict[str, Any],
+        source_type: str,
+        source_id: str | None,
+        source_url: str,
+    ) -> bool:
+        entry_type = str(source_metadata.get("source_type") or source_metadata.get("tool") or "").lower()
+        if entry_type and entry_type != source_type:
+            return False
+
+        entry_url = source_metadata.get("source_url")
+        if source_url and isinstance(entry_url, str) and entry_url == source_url:
+            return True
+
+        entry_id = source_metadata.get("source_id")
+        if source_id is None or entry_id is None:
+            return False
+        return str(entry_id) == source_id
+
+    @beartype
     @require(lambda item_data: isinstance(item_data, dict), "Item data must be dict")
     @require(lambda tool_name: isinstance(tool_name, str) and len(tool_name) > 0, "Tool name must be non-empty")
     @ensure(lambda result: isinstance(result, SourceTracking), "Must return SourceTracking")
@@ -265,20 +423,16 @@ class BacklogAdapterMixin(ABC):
         """
         source_metadata: dict[str, Any] = {}
 
-        # Extract common fields (ID, URL) if present
         source_id = None
         if tool_name.lower() == "github":
             source_id = item_data.get("number") or item_data.get("id")
-            # GitHub: convert to string for consistency (GitHub issue numbers are strings)
             if source_id is not None:
                 source_metadata["source_id"] = str(source_id)
         else:
-            # For ADO and other adapters: preserve original type
-            # ADO work item IDs are integers, so keep as int
             source_id = item_data.get("id") or item_data.get("number")
             if source_id is not None:
                 source_metadata["source_id"] = source_id
-        # Prefer html_url (user-friendly) over url (API URL)
+
         if "html_url" in item_data:
             source_metadata["source_url"] = item_data.get("html_url")
         elif "url" in item_data:
@@ -291,7 +445,6 @@ class BacklogAdapterMixin(ABC):
                 assignees = [item_data["assignee"]] if item_data["assignee"] else []
             source_metadata["assignees"] = assignees
 
-        # Add cross-repo support if bridge_config has external_base_path
         if bridge_config and hasattr(bridge_config, "external_base_path") and bridge_config.external_base_path:
             source_metadata["external_base_path"] = str(bridge_config.external_base_path)
 
@@ -303,7 +456,8 @@ class BacklogAdapterMixin(ABC):
         "Status must be non-empty",
     )
     @require(
-        lambda backlog_status: isinstance(backlog_status, str) and len(backlog_status) > 0, "Status must be non-empty"
+        lambda backlog_status: isinstance(backlog_status, str) and len(backlog_status) > 0,
+        "Status must be non-empty",
     )
     @ensure(lambda result: isinstance(result, str), "Must return conflict resolution strategy name")
     def resolve_status_conflict(
@@ -335,7 +489,6 @@ class BacklogAdapterMixin(ABC):
         if strategy == "prefer_backlog":
             return backlog_status
         if strategy == "merge":
-            # Status priority: applied > in-progress > proposed > deprecated > discarded
             status_priority = {
                 "applied": 5,
                 "in-progress": 4,
@@ -347,7 +500,6 @@ class BacklogAdapterMixin(ABC):
             backlog_priority = status_priority.get(backlog_status, 0)
             return openspec_status if openspec_priority >= backlog_priority else backlog_status
 
-        # Default: prefer OpenSpec
         return openspec_status
 
     @beartype
@@ -355,7 +507,11 @@ class BacklogAdapterMixin(ABC):
     @require(lambda tool_name: isinstance(tool_name, str) and len(tool_name) > 0, "Tool name must be non-empty")
     @ensure(lambda result: isinstance(result, ChangeProposal) or result is None, "Must return ChangeProposal or None")
     def import_backlog_item_as_proposal(
-        self, item_data: dict[str, Any], tool_name: str, bridge_config: Any = None
+        self,
+        item_data: dict[str, Any],
+        tool_name: str,
+        bridge_config: Any = None,
+        existing_proposals: dict[str, ChangeProposal] | None = None,
     ) -> ChangeProposal | None:
         """
         Import backlog item as OpenSpec change proposal (reusable pattern).
@@ -370,6 +526,7 @@ class BacklogAdapterMixin(ABC):
             item_data: Backlog item data (tool-specific format)
             tool_name: Tool identifier (e.g., "github", "ado", "jira", "linear")
             bridge_config: Optional bridge configuration (for cross-repo support)
+            existing_proposals: Existing proposals used for collision-safe and idempotent imported IDs
 
         Returns:
             ChangeProposal instance if successful, None if data is invalid
@@ -383,22 +540,16 @@ class BacklogAdapterMixin(ABC):
             and map_backlog_status_to_openspec().
         """
         try:
-            # Extract change proposal data (tool-specific parsing)
             proposal_data = self.extract_change_proposal_data(item_data)
 
-            # Get status from extracted data or map from backlog item
             if "status" in proposal_data:
                 openspec_status = proposal_data["status"]
             else:
-                # Map backlog status to OpenSpec status
                 backlog_status = item_data.get("state") or item_data.get("status") or "open"
                 openspec_status = self.map_backlog_status_to_openspec(backlog_status)
 
-            # Create source tracking
             source_tracking = self.create_source_tracking(item_data, tool_name, bridge_config)
-
-            # Create change proposal
-            change_id = proposal_data.get("change_id") or item_data.get("id") or item_data.get("number") or "unknown"
+            change_id = self._normalize_imported_change_id(proposal_data, item_data, tool_name, existing_proposals)
             return ChangeProposal(
                 name=change_id,
                 title=proposal_data.get("title", "Untitled Change Proposal"),

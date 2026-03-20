@@ -342,4 +342,4 @@ The `specfact init` command handles all conversions automatically.
 
 ---
 
-**Trademarks**: All product names, logos, and brands mentioned in this guide are the property of their respective owners. NOLD AI (NOLDAI) is a registered trademark (wordmark) at the European Union Intellectual Property Office (EUIPO). See [TRADEMARKS.md](../../TRADEMARKS.md) for more information.
+**Trademarks**: All product names, logos, and brands mentioned in this guide are the property of their respective owners. NOLD AI (NOLDAI) is a registered trademark (wordmark) at the European Union Intellectual Property Office (EUIPO). See [TRADEMARKS.md](/TRADEMARKS/) for more information.
