@@ -6,66 +6,58 @@ permalink: /reference/
 
 # Reference Documentation
 
-Complete technical reference for SpecFact CLI.
+Complete technical reference for the **core SpecFact CLI platform**.
 
-## Available References
+This section documents the stable runtime, command topology, contracts, registry model, and ownership boundaries that `specfact-cli` owns directly.
+For bundle-specific deep command guides and runbooks, use the canonical modules docs site at `https://modules.specfact.io/`.
 
-- **[Commands](commands.md)** - Complete command reference with all options
-- **[Thorough Codebase Validation](thorough-codebase-validation.md)** - Quick check, contract-decorated, sidecar, and dogfooding
+## Core Reference Topics
+
+- **[Commands](commands.md)** - Exact grouped command topology and migration mapping
 - **[Command Syntax Policy](command-syntax-policy.md)** - Source-of-truth argument syntax conventions for docs
-- **[Authentication](authentication.md)** - Device code auth flows and token storage
 - **[Architecture](architecture.md)** - Technical design, module structure, and internals
+- **[Authentication](authentication.md)** - Device code auth flows and token storage
 - **[Debug Logging](debug-logging.md)** - Where and what is logged when using `--debug`
 - **[Operational Modes](modes.md)** - CI/CD vs CoPilot modes
-- **[Specmatic API](specmatic.md)** - Specmatic integration API reference (functions, classes, integration points)
-- **[Telemetry](telemetry.md)** - Opt-in analytics and privacy guarantees
-- **[Feature Keys](feature-keys.md)** - Key normalization and formats
-- **[Directory Structure](directory-structure.md)** - Project structure and organization
-- **[Schema Versioning](schema-versioning.md)** - Bundle schema versions and backward compatibility (v1.0, v1.1)
+- **[Module Categories](module-categories.md)** - Category grouping model and canonical bundle assignments
+- **[Module Contracts](module-contracts.md)** - Runtime-facing interfaces and ownership boundary
 - **[Module Security](module-security.md)** - Marketplace/module integrity and publisher metadata
-- **[Module Categories](module-categories.md)** - Category grouping model, canonical module assignments, bundles, and first-run profiles
-- **[Dependency resolution](dependency-resolution.md)** - How module/pip dependency resolution works and bypass options
+- **[Bridge Registry](bridge-registry.md)** - Registry-facing bridge converter declarations
+- **[Directory Structure](directory-structure.md)** - Project structure and organization
+- **[Feature Keys](feature-keys.md)** - Key normalization and formats
+- **[Dependency Resolution](dependency-resolution.md)** - Module/pip dependency resolution behavior
+- **[Thorough Codebase Validation](thorough-codebase-validation.md)** - Validation strategy overview
 
-## Quick Reference
+## Live Command Topology Summary
 
-### Commands
+Current top-level commands in the shipped CLI:
 
-- `specfact code import from-bridge --adapter speckit` - Import from external tools via bridge adapter
-- `specfact code import <bundle-name>` - Reverse-engineer plans from code
-- `specfact project snapshot --bundle <bundle-name>` - Save current backlog graph as baseline snapshot
-- `specfact project devops-flow --stage <plan|develop|review|release|monitor>` - Run integrated DevOps stage actions
-- `specfact govern enforce stage` - Configure quality gates
-- `specfact code repro` - Run full validation suite
-- `specfact project sync bridge --adapter <adapter> --bundle <bundle-name>` - Sync with external tools via bridge adapter
-- `specfact spec validate [--bundle <name>]` - Validate OpenAPI/AsyncAPI specifications
-- `specfact spec generate-tests [--bundle <name>]` - Generate contract tests from specifications
-- `specfact spec mock [--bundle <name>]` - Launch mock server for development
-- `specfact init ide --ide <cursor|vscode|copilot|...>` - Initialize IDE integration explicitly
-- `specfact module install <name|namespace/name> [--scope user|project] [--source auto|bundled|marketplace] [--repo PATH]` - Install modules with scope and source control (bare names resolve through the configured source policy)
-- `specfact module list [--source ...] [--show-origin] [--show-bundled-available]` - List modules with trust/publisher, optional origin details, and optional bundled-not-installed section
-- `specfact module show <name>` - Show detailed module metadata and full command tree with short descriptions
-- `specfact module search <query>` - Search marketplace and installed modules
-- `specfact module uninstall <name|namespace/name>` / `specfact module upgrade [<name>|--all]` - Manage module lifecycle with source-aware behavior
+- `specfact init`
+- `specfact module`
+- `specfact upgrade`
+- `specfact project ...`
+- `specfact backlog ...`
+- `specfact code ...`
+- `specfact spec ...`
+- `specfact govern ...`
 
-### Modes
+Selected current command examples:
 
-- **CI/CD Mode** - Fast, deterministic execution
-- **CoPilot Mode** - Enhanced prompts with context injection
+- `specfact code import from-bridge --adapter speckit --repo .`
+- `specfact project sync bridge --adapter github --bundle <bundle-name>`
+- `specfact project import <markdown-file> --bundle <bundle-name>`
+- `specfact spec validate --bundle <bundle-name>`
+- `specfact spec generate-tests --bundle <bundle-name> --output tests/`
+- `specfact govern enforce sdd [BUNDLE]`
+- `specfact module install <name|namespace/name> [--scope user|project]`
 
-### IDE Integration
+## Ownership Boundary
 
-- `specfact init ide --ide <cursor|vscode|copilot|...>` - Set up slash commands in IDE
-- See [IDE Integration Guide](../guides/ide-integration.md) for details
+- Core docs site: command topology, runtime lifecycle, contracts, registry, trust, architecture
+- Canonical modules docs site: in-depth bundle commands, workflow tutorials, adapters, official module operations
 
-## Technical Details
+See also:
 
-- **Architecture**: See [Architecture](architecture.md)
-- **Command Registry and Module System**: See [Architecture - Command Registry and Module System](architecture.md#command-registry-and-module-system)
-- **Operational Modes**: See [Architecture - Operational Modes](architecture.md#operational-modes)
-- **Ownership Boundary**: See [Architecture - Core vs modules-repo ownership boundary](architecture.md#core-vs-modules-repo-ownership-boundary)
-
-## Related Documentation
-
-- [Getting Started](../getting-started/README.md) - Installation and first steps
-- [Guides](../guides/README.md) - Usage guides and examples
-- [Examples](../examples/README.md) - Real-world examples
+- [Getting Started](../getting-started/README.md)
+- [Documentation Index](../README.md)
+- [Canonical modules docs site](https://modules.specfact.io/)

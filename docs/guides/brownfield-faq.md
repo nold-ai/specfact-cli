@@ -1,3 +1,9 @@
+---
+layout: default
+title: Brownfield Faq
+permalink: /guides/brownfield-faq/
+---
+
 # Brownfield Modernization FAQ
 
 > **Frequently asked questions about using SpecFact CLI for legacy code modernization**

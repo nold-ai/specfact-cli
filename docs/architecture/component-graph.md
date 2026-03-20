@@ -1,3 +1,9 @@
+---
+layout: default
+title: Component Graph
+permalink: /architecture/component-graph/
+---
+
 # SpecFact CLI Component Graph
 
 ## High-level components

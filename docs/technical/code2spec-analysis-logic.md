@@ -1,3 +1,9 @@
+---
+layout: default
+title: Code2spec Analysis Logic
+permalink: /technical/code2spec-analysis-logic/
+---
+
 # Code2Spec Analysis Logic: How It Works
 
 > **TL;DR**: SpecFact CLI uses **AI-first approach** via AI IDE integration (Cursor, CoPilot, etc.) for semantic understanding, with **AST-based fallback** for CI/CD mode. The AI IDE's native LLM understands the codebase semantically, then calls the SpecFact CLI for structured analysis. This avoids separate LLM API setup, langchain, or additional API keys while providing high-quality, semantic-aware analysis that works with all languages and generates Spec-Kit compatible artifacts.

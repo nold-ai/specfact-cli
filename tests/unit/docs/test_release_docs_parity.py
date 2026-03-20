@@ -205,3 +205,16 @@ def test_current_backlog_subcommands_documented_in_commands_reference() -> None:
     commands_doc = _repo_file("docs/reference/commands.md").read_text(encoding="utf-8")
     for sub in ("backlog ceremony", "backlog refine", "backlog daily", "backlog sync"):
         assert sub in commands_doc, f"Current subcommand '{sub}' missing from commands reference"
+
+
+def test_all_published_docs_markdown_files_have_jekyll_front_matter() -> None:
+    repo_root = Path(__file__).resolve().parents[3]
+    docs_root = repo_root / "docs"
+    missing: list[str] = []
+    for path in sorted(docs_root.rglob("*.md")):
+        if "_site" in path.parts or "vendor" in path.parts:
+            continue
+        first_line = path.read_text(encoding="utf-8").splitlines()[0] if path.read_text(encoding="utf-8") else ""
+        if first_line != "---":
+            missing.append(str(path.relative_to(repo_root)))
+    assert not missing, "Docs files missing front matter:\n" + "\n".join(missing)

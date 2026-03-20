@@ -1,3 +1,9 @@
+---
+layout: default
+title: Interface Contracts
+permalink: /architecture/interface-contracts/
+---
+
 # SpecFact CLI Interface Contracts
 
 ## Command Registry contract

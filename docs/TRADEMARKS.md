@@ -1,3 +1,9 @@
+---
+layout: default
+title: TRADEMARKS
+permalink: /TRADEMARKS/
+---
+
 # Trademarks
 
 ## NOLD AI Trademark

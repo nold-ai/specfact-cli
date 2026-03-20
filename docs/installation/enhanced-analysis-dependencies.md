@@ -1,3 +1,9 @@
+---
+layout: default
+title: Enhanced Analysis Dependencies
+permalink: /installation/enhanced-analysis-dependencies/
+---
+
 # Enhanced Analysis Dependencies
 
 ## Python Package Dependencies

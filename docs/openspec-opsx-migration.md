@@ -1,3 +1,9 @@
+---
+layout: default
+title: Openspec Opsx Migration
+permalink: /openspec-opsx-migration/
+---
+
 # OpenSpec OPSX Migration
 
 SpecFact CLI has migrated to **OpenSpec OPSX** (fluid, action-based workflow). Project context and configuration now use `openspec/config.yaml` as the primary source; `openspec/project.md` is supported as a legacy fallback so existing repos keep working.

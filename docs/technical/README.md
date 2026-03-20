@@ -1,3 +1,9 @@
+---
+layout: default
+title: Technical
+permalink: /technical/
+---
+
 # Technical Deep Dives
 
 Technical documentation for contributors and developers working on SpecFact CLI.

@@ -1,3 +1,9 @@
+---
+layout: default
+title: Brownfield Flask Api
+permalink: /examples/brownfield-flask-api/
+---
+
 # Brownfield Example: Modernizing Legacy Flask API
 
 > **Complete walkthrough: From undocumented Flask API to contract-enforced modern service**

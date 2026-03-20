@@ -1,3 +1,9 @@
+---
+layout: default
+title: Specmatic
+permalink: /reference/specmatic/
+---
+
 # Specmatic API Reference
 
 > **API Reference for Specmatic Integration**  

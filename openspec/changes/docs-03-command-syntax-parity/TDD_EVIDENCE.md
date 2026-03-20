@@ -1,52 +1,76 @@
 # TDD Evidence: docs-03-command-syntax-parity
 
-## Pre-Implementation Failing Run
+## Existing Syntax-Parity Evidence (2026-03-18)
+
+### Pre-Implementation Failing Run
 
 **Timestamp**: 2026-03-18
 
 **Command**:
-```
+```bash
 cd /home/dom/git/nold-ai/specfact-cli-worktrees/feature/docs-03-command-syntax-parity
 hatch test -- tests/unit/docs/test_release_docs_parity.py -v -k "removed or current"
 ```
 
 **Result**: 9 FAILED, 3 PASSED
 
-**Failing tests**:
+**Failure summary**:
 
-- `test_removed_project_plan_syntax_absent_from_authored_docs` — 'specfact project plan' still present in authored docs
-- `test_removed_project_import_from_bridge_syntax_absent_from_authored_docs` — 'project import from-bridge' still present
-- `test_removed_backlog_policy_syntax_absent_from_authored_docs` — 'backlog policy' still present
-- `test_removed_spec_contract_syntax_absent_from_authored_docs` — 'spec contract' still present
-- `test_removed_spec_api_syntax_absent_from_authored_docs` — 'spec api' still present
-- `test_removed_spec_sdd_syntax_absent_from_authored_docs` — 'spec sdd' still present
-- `test_removed_spec_generate_syntax_absent_from_authored_docs` — 'spec generate <subcommand>' still present
-- `test_current_spec_commands_documented_in_commands_reference` — 'spec validate' missing from commands.md (stale bundle mapping table still shows old spec commands)
-- `test_current_backlog_subcommands_documented_in_commands_reference` — 'backlog refine' missing from commands reference
+- removed syntax families still appeared in authored docs
+- command reference still reflected stale grouped-command mappings
 
-## Post-Implementation Passing Run
+### Post-Implementation Passing Run
 
 **Timestamp**: 2026-03-18
 
 **Command**:
-```
+```bash
 cd /home/dom/git/nold-ai/specfact-cli-worktrees/feature/docs-03-command-syntax-parity
 hatch test -- tests/unit/docs/test_release_docs_parity.py -v
 ```
 
-**Result**: 21 PASSED (all)
+**Result**: 21 PASSED
 
-All new parity tests pass:
-- `test_removed_project_plan_syntax_absent_from_authored_docs` ✓
-- `test_removed_project_import_from_bridge_syntax_absent_from_authored_docs` ✓
-- `test_removed_backlog_policy_syntax_absent_from_authored_docs` ✓
-- `test_removed_spec_contract_syntax_absent_from_authored_docs` ✓
-- `test_removed_spec_api_syntax_absent_from_authored_docs` ✓
-- `test_removed_spec_sdd_syntax_absent_from_authored_docs` ✓
-- `test_removed_spec_generate_syntax_absent_from_authored_docs` ✓
-- `test_current_code_import_from_bridge_documented` ✓
-- `test_current_spec_commands_documented_in_commands_reference` ✓
-- `test_current_govern_enforce_sdd_documented` ✓
-- `test_current_backlog_subcommands_documented_in_commands_reference` ✓
+That earlier work established the command-syntax parity baseline for the change.
 
-All 10 pre-existing tests also pass.
+## Front-Matter Integrity Follow-Up (2026-03-20)
+
+### Pre-Fix Failing Run
+
+**Timestamp**: 2026-03-20T10:45:52+01:00
+
+**Command**:
+```bash
+cd /home/dom/git/nold-ai/specfact-cli-worktrees/feature/docs-03-command-syntax-parity
+PATH=/home/dom/git/nold-ai/specfact-cli/.venv/bin:$PATH \
+PYTHONPATH=/home/dom/git/nold-ai/specfact-cli-worktrees/feature/docs-03-command-syntax-parity/src \
+/home/dom/git/nold-ai/specfact-cli/.venv/bin/python -m pytest tests/unit/docs/test_release_docs_parity.py -q
+```
+
+**Result**: 1 FAILED, 21 PASSED
+
+**Failure summary**:
+
+- new docs integrity coverage showed 41 published Markdown pages under `docs/` missing Jekyll front matter
+- missing pages included architecture deep dives, examples, prompts, technical docs, and multiple guide/reference pages
+
+### Post-Fix Passing Run
+
+**Timestamp**: 2026-03-20T10:45:52+01:00
+
+**Command**:
+```bash
+cd /home/dom/git/nold-ai/specfact-cli-worktrees/feature/docs-03-command-syntax-parity
+PATH=/home/dom/git/nold-ai/specfact-cli/.venv/bin:$PATH \
+PYTHONPATH=/home/dom/git/nold-ai/specfact-cli-worktrees/feature/docs-03-command-syntax-parity/src \
+/home/dom/git/nold-ai/specfact-cli/.venv/bin/python -m pytest tests/unit/docs/test_release_docs_parity.py -q
+```
+
+**Result**: 22 PASSED
+
+**Verification summary**:
+
+- command-syntax parity checks pass
+- core/modules docs split checks pass
+- canonical modules-site handoff checks pass
+- all published Markdown docs now have Jekyll front matter

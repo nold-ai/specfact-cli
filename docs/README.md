@@ -2,181 +2,77 @@
 layout: default
 title: Documentation Index
 permalink: /documentation-index/
-description: High-level index for the SpecFact CLI documentation sections and guides.
+description: High-level index for the SpecFact core CLI docs and canonical modules docs handoff.
 ---
 
 # SpecFact CLI Documentation
 
-> **The "swiss knife" CLI that turns any codebase into a clear, safe, and shippable workflow.**  
-> Keep backlog, specs, tests, and code in sync so AI-assisted changes don’t break production.  
-> Works for brand-new projects and long-lived codebases — even if you’re new to coding.
+This repository owns the **core CLI** documentation set for SpecFact.
+It explains the overall process of using SpecFact CLI, the platform runtime, and how official modules integrate into the grouped command surface.
 
-**Built for both worlds**
+For **module-specific deep functionality**, use the canonical modules docs site at `https://modules.specfact.io/`.
+The canonical modules docs site owns the detailed guides for bundle workflows, adapters, and module authoring.
 
-- **Vibe coders and new builders** who want to ship fast with guardrails and confidence.
-- **Legacy professionals** who want AI speed without lowering standards, plus end-to-end spec -> backlog -> code sync.
+## Core Docs Scope
 
----
+Use this docs set for:
 
-## The Missing Link (Coder + DevOps Bridge)
+- CLI bootstrap, lifecycle, and upgrade flows
+- module registry, trust, and ownership boundaries
+- overall workflow topology across `project`, `backlog`, `code`, `spec`, and `govern`
+- runtime and architecture reference for the lean-core platform
 
-Most tools help **either** coders **or** agile teams. SpecFact does both:
+## Modules Docs Scope
 
-- **Backlog sync that is actually strong**: round-trip sync + refinement for GitHub, Azure DevOps, Jira, Linear.
-- **Ceremony support teams can run**: standup, refinement, sprint planning, flow metrics (Scrum/Kanban/SAFe).
-- **Policy + validation**: DoR/DoD/flow checks plus contract enforcement for production-grade safety.
+Use the canonical modules docs site for:
 
-Recommended command entrypoints:
+- backlog refinement, ceremony, dependency-analysis, and delta workflows
+- project bundle and bridge-sync runbooks
+- spec bundle deep dives and govern bundle deep dives
+- adapter-specific behavior and official bundle tutorials
+- module development, publishing, signing, and marketplace operations
+
+The canonical modules docs site is currently published at `https://modules.specfact.io/`.
+This docs set keeps release-line overview and handoff content for bundle workflows while the canonical modules docs site carries the deep bundle-specific guidance.
+
+## Core Entry Points
+
+- [Docs Home](index.md)
+- [Getting Started](getting-started/README.md)
+- [Command Reference](reference/commands.md)
+- [Reference Index](reference/README.md)
+- [Architecture Reference](reference/architecture.md)
+
+## Current Core Command Topology
+
+The live CLI groups installed workflow commands by category:
+
+- `specfact init`
+- `specfact module`
+- `specfact upgrade`
+- `specfact project ...`
+- `specfact backlog ...`
+- `specfact code ...`
+- `specfact spec ...`
+- `specfact govern ...`
+
+Preferred backlog workflow entrypoints:
+
 - `specfact backlog ceremony standup ...`
 - `specfact backlog ceremony refinement ...`
 - `specfact backlog verify-readiness --bundle <bundle-name>`
 - `specfact backlog analyze-deps --bundle <bundle-name>`
 
-What the backlog ceremony and readiness commands do in practice:
-- Converts team working agreements (DoR, DoD, flow/PI readiness) into deterministic checks.
-- Flags exact readiness gaps per backlog item with actionable evidence pointers.
-- Runs structured ceremony workflows (standup, refinement) against live backlog data.
+Compatibility note: `specfact backlog daily ...` and `specfact backlog refine ...` remain available, but the ceremony forms are the preferred command path.
 
-Start with:
-- `specfact backlog ceremony standup --help`
-- `specfact backlog verify-readiness --bundle <bundle-name>`
-- `specfact backlog refine --help`
+## Core vs Modules Navigation
 
-**Try it now**
+- **Core CLI docs**: runtime, lifecycle, contracts, command topology, architecture
+- **Canonical modules docs site**: bundle-specific tutorials, command details, adapters, module authoring
 
-- **Coders**: [AI IDE Workflow](guides/ai-ide-workflow.md)
-- **Agile teams**: [Agile/Scrum Workflows](guides/agile-scrum-workflows.md)
+### Recommended next reads
 
----
-
-## Start Here (Pick Your Path)
-
-**Pick your path**
-
-- **Working with existing code**: [Getting Started](getting-started/README.md) and [Legacy Engineer Guide](guides/brownfield-engineer.md)
-- **Agile team workflows**: [Agile/Scrum Workflows](guides/agile-scrum-workflows.md) and [Backlog Refinement](guides/backlog-refinement.md)
-- **AI IDE workflow**: [AI IDE Workflow Guide](guides/ai-ide-workflow.md)
-- **Integrations**: [Integrations Overview](guides/integrations-overview.md)
-
----
-
-## Modules and Capabilities
-
-**Core runtime**
-
-- **Permanent commands**: `init`, `module`, `upgrade`
-- **Core responsibilities**: lifecycle, registry, trust, contracts, orchestration, shared runtime utilities
-
-**Marketplace-installed bundles**
-
-- **Backlog**: Refinement, dependency analysis, sprint summaries, risk rollups.
-- **Ceremony**: Standup, refinement, and planning entry points.
-- **Policy**: DoR, DoD, flow, PI readiness checks.
-- **Patch**: Preview, apply, and write changes safely.
-
-**Adapters and bridges**
-
-- **Specs**: Spec-Kit and OpenSpec
-- **Backlogs**: GitHub Issues, Azure DevOps, Jira, Linear
-- **Contracts**: Specmatic, OpenAPI
-
-## Module Lifecycle System
-
-SpecFact CLI uses a lifecycle-managed module system:
-
-- `specfact init` bootstraps local state.
-- `specfact init ide` handles IDE prompt/template installation and updates.
-- `specfact module` is the canonical lifecycle surface for install/list/show/search/enable/disable/uninstall/upgrade.
-- Dependency and compatibility guards prevent invalid module states; `--force` enables dependency-aware cascades.
-
-This is the baseline for marketplace-driven module lifecycle and future community module distribution.
-
-`docs.specfact.io` is the canonical docs entry point for SpecFact, and this repository owns the
-core CLI/runtime section of that experience.
-
-The canonical modules docs site is currently published at
-`https://modules.specfact.io/`.
-Bundle-specific deep guides in this repo remain as release-line overview or handoff content rather than the long-term canonical source.
-
-### Why the Module System Is the Foundation
-
-This architecture intentionally separates the CLI core from feature modules:
-
-- Core provides lifecycle, registry, contracts, and orchestration.
-- Official workflow bundles are authored and released from `nold-ai/specfact-cli-modules`.
-- This docs set keeps release-line overview and handoff content for bundle workflows while the canonical modules docs site carries the deep bundle-specific guidance.
-- Compatibility shims preserve legacy import paths during migration windows.
-
-Practical outcomes:
-
-- Feature modules can be developed and released at different speeds.
-- Module teams can iterate without repeatedly rebuilding core command wiring.
-- Stable contracts/interfaces keep migrations predictable and reduce regressions.
-
-For implementation details, see:
-
-- [Architecture](reference/architecture.md)
-- [Module Contracts](reference/module-contracts.md)
 - [Installing Modules](guides/installing-modules.md)
-- [Module Marketplace](guides/module-marketplace.md)
-- [Custom registries](guides/custom-registries.md)
-- [Publishing modules](guides/publishing-modules.md)
-- [Module Signing and Key Rotation](guides/module-signing-and-key-rotation.md)
-
----
-
-## Documentation Sections
-
-### Getting Started
-
-- [Installation](getting-started/installation.md)
-- [First Steps](getting-started/first-steps.md)
-- [Enhanced Analysis Dependencies](installation/enhanced-analysis-dependencies.md)
-
-### Guides
-
-- [Agile/Scrum Workflows](guides/agile-scrum-workflows.md)
-- [Backlog Refinement](guides/backlog-refinement.md)
-- [Backlog Dependency Analysis](guides/backlog-dependency-analysis.md)
-- [Backlog Delta Commands](guides/backlog-delta-commands.md)
-- [Policy Engine Commands](guides/policy-engine-commands.md)
-- [Project DevOps Flow](guides/project-devops-flow.md)
-- [DevOps Adapter Integration](guides/devops-adapter-integration.md)
-- [AI IDE Workflow](guides/ai-ide-workflow.md)
-- [Sidecar Validation](guides/sidecar-validation.md)
-- [Use Cases](guides/use-cases.md)
-
-### Integrations
-
-- [Spec-Kit Journey](guides/speckit-journey.md)
-- [OpenSpec Journey](guides/openspec-journey.md)
-- [Specmatic Integration](guides/specmatic-integration.md)
-- [Custom Field Mapping](guides/custom-field-mapping.md)
-
-### Reference
-
-- [Command Reference](reference/commands.md)
-- [Architecture](reference/architecture.md)
-- [Debug Logging](reference/debug-logging.md)
-
-### Contributing
-
-- [Development Setup](getting-started/installation.md#development-setup)
-- [Testing Procedures](technical/testing.md)
-- [Technical Deep Dives](technical/README.md)
-
----
-
-## Helpful Shortcuts
-
-- **Command Chains**: [guides/command-chains.md](guides/command-chains.md)
-- **Common Tasks**: [guides/common-tasks.md](guides/common-tasks.md)
-- **Online Docs**: https://docs.specfact.io/
-
----
-
-## Need Help?
-
-- **GitHub Discussions**: https://github.com/nold-ai/specfact-cli/discussions
-- **GitHub Issues**: https://github.com/nold-ai/specfact-cli/issues
-- **Email**: hello@noldai.com
+- [Module Categories](reference/module-categories.md)
+- [Module Contracts](reference/module-contracts.md)
+- [Canonical modules docs site](https://modules.specfact.io/)

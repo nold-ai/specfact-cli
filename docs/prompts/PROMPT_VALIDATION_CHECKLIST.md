@@ -1,3 +1,9 @@
+---
+layout: default
+title: PROMPT VALIDATION CHECKLIST
+permalink: /prompts/PROMPT_VALIDATION_CHECKLIST/
+---
+
 # Prompt Validation Checklist
 
 This checklist helps ensure prompt templates are correct, aligned with CLI commands, and provide good UX.
