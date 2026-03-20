@@ -1,3 +1,9 @@
+---
+layout: default
+title: Data Flow
+permalink: /architecture/data-flow/
+---
+
 # SpecFact CLI Data Flow Architecture
 
 ## Command execution flow

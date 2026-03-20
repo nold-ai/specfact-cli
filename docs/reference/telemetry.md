@@ -1,3 +1,9 @@
+---
+layout: default
+title: Telemetry
+permalink: /reference/telemetry/
+---
+
 # Privacy-First Telemetry (Optional)
 
 > **Opt-in analytics that highlight how SpecFact prevents brownfield regressions.**

@@ -1,3 +1,9 @@
+---
+layout: default
+title: Dual Stack Pattern
+permalink: /technical/dual-stack-pattern/
+---
+
 # Dual-Stack Enrichment Pattern - Technical Specification
 
 **Status**: ✅ **IMPLEMENTED** (v0.13.0+)  

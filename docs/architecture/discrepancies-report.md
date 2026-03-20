@@ -1,3 +1,9 @@
+---
+layout: default
+title: Discrepancies Report
+permalink: /architecture/discrepancies-report/
+---
+
 # SpecFact CLI Architecture Discrepancies Report
 
 ## Executive Summary

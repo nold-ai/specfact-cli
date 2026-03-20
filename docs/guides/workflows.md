@@ -1,3 +1,9 @@
+---
+layout: default
+title: Workflows
+permalink: /guides/workflows/
+---
+
 # Common Workflows
 
 Daily workflows for using SpecFact CLI effectively.

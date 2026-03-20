@@ -1,3 +1,9 @@
+---
+layout: default
+title: Dogfooding Specfact Cli
+permalink: /examples/dogfooding-specfact-cli/
+---
+
 # Real-World Example: SpecFact CLI Analyzing Itself
 
 > **TL;DR**: We ran SpecFact CLI on its own codebase in two ways: (1) **Brownfield analysis** discovered **19 features** and **49 stories** in **under 3 seconds**, found **24 deviations**, and blocked the merge (as configured). (2) **Contract enhancement** added beartype, icontract, and CrossHair contracts to our core telemetry module with **7-step validation** (all tests passed, code quality maintained). Total time: **< 10 seconds** for analysis, **~3 minutes** for contract enhancement. 🚀

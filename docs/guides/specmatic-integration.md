@@ -1,3 +1,9 @@
+---
+layout: default
+title: Specmatic Integration
+permalink: /guides/specmatic-integration/
+---
+
 # Specmatic Integration Guide
 
 > **API Contract Testing with Specmatic**  

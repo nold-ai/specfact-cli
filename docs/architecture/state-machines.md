@@ -1,3 +1,9 @@
+---
+layout: default
+title: State Machines
+permalink: /architecture/state-machines/
+---
+
 # SpecFact CLI State Machine Logic
 
 ## CLI command lifecycle
