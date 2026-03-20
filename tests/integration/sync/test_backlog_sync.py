@@ -100,8 +100,8 @@ class TestBidirectionalBacklogSync:
             project_bundle=project_bundle,
         )
 
-        assert "123" in project_bundle.change_tracking.proposals
-        proposal = project_bundle.change_tracking.proposals["123"]
+        assert "add-feature-x" in project_bundle.change_tracking.proposals
+        proposal = project_bundle.change_tracking.proposals["add-feature-x"]
         assert proposal.title == "Add Feature X"
         assert proposal.status == "proposed"
         assert proposal.source_tracking is not None

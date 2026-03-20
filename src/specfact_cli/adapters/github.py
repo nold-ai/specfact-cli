@@ -265,7 +265,7 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             Change ID extraction priority:
             1. Body footer (legacy format): *OpenSpec Change Proposal: `id`*
             2. Comments (new format): **Change ID**: `id` in OpenSpec Change Proposal Reference comment
-            3. Issue number (fallback)
+            3. Issue number (fallback, normalized during shared proposal import)
         """
         if not isinstance(item_data, dict):
             msg = "GitHub issue data must be dict"
@@ -554,7 +554,17 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             pass  # Path operations will respect external_base_path in OpenSpec adapter
 
         # Import GitHub issue as change proposal using backlog adapter pattern
-        proposal = self.import_backlog_item_as_proposal(artifact_path, "github", bridge_config)
+        existing_change_ids = (
+            set(project_bundle.change_tracking.proposals.keys())
+            if getattr(project_bundle, "change_tracking", None)
+            else set()
+        )
+        proposal = self.import_backlog_item_as_proposal(
+            artifact_path,
+            "github",
+            bridge_config,
+            existing_change_ids=existing_change_ids,
+        )
 
         if not proposal:
             msg = "Failed to import GitHub issue as change proposal"
