@@ -287,6 +287,14 @@ class BacklogAdapterMixin(ABC):
         tool_name: str,
         existing_proposals: dict[str, ChangeProposal],
     ) -> str:
+        existing_change_id = self._find_existing_imported_change_id_by_source(
+            item_data,
+            tool_name,
+            existing_proposals,
+        )
+        if existing_change_id:
+            return existing_change_id
+
         existing_proposal = existing_proposals.get(candidate)
         if existing_proposal is None:
             return candidate or raw_change_id or "unknown"
@@ -303,6 +311,19 @@ class BacklogAdapterMixin(ABC):
         if existing_deduped and self._matches_existing_import_source(existing_deduped, item_data, tool_name):
             return deduped_candidate
         return deduped_candidate
+
+    @beartype
+    @ensure(lambda result: result is None or isinstance(result, str), "Must return change id or None")
+    def _find_existing_imported_change_id_by_source(
+        self,
+        item_data: dict[str, Any],
+        tool_name: str,
+        existing_proposals: dict[str, ChangeProposal],
+    ) -> str | None:
+        for change_id, proposal in existing_proposals.items():
+            if self._matches_existing_import_source(proposal, item_data, tool_name):
+                return change_id
+        return None
 
     @beartype
     @ensure(lambda result: isinstance(result, str), "Must return source URL string")
