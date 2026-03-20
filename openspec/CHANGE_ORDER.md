@@ -56,6 +56,14 @@ Only changes that are **archived**, shown as **✓ Complete** by `openspec list`
 
 Entries in the tables below are pending unless explicitly marked as implemented (archived).
 
+## Dogfooding
+
+| Module | Order | Change folder | GitHub # | Blocked by |
+|--------|-------|---------------|----------|------------|
+| dogfooding | 02 | code-review-zero-findings | #423 | — |
+
+---
+
 ## Plan-derived addendum (2026-02-15 architecture integration plan)
 
 The source plan inventory listed 17 new changes. Two additional cross-cutting changes were intentionally added during proposal creation to close integration governance and proof gaps discovered in dependency review:
