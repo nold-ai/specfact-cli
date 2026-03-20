@@ -95,8 +95,6 @@ def test_bundle_focused_pages_use_handoff_note_instead_of_future_migration_langu
 # docs-03-command-syntax-parity: removed syntax families must be absent
 # ---------------------------------------------------------------------------
 
-_AUTHORED_DOC_ROOTS = ["README.md", "docs"]
-
 
 def _scan_authored_docs(pattern: str) -> list[tuple[str, int, str]]:
     """Return list of (relative_path, line_number, line_text) for pattern hits.
@@ -120,13 +118,13 @@ def _scan_authored_docs(pattern: str) -> list[tuple[str, int, str]]:
             if pattern not in line:
                 continue
             stripped = line.strip()
-            # Skip comment lines in code blocks
-            if stripped.startswith("#"):
+            # Skip code-block comment lines, but do not ignore Markdown headings.
+            if stripped.startswith("#") and not stripped.startswith(
+                ("# ", "## ", "### ", "#### ", "##### ", "###### ")
+            ):
                 continue
-            # Skip blockquote lines (historical/migration notes)
             if stripped.startswith(">"):
                 continue
-            # Skip lines that explicitly label the pattern as removed
             lower = stripped.lower()
             if "removed" in lower or "(removed)" in lower or "is removed" in lower:
                 continue
@@ -139,19 +137,16 @@ def _fmt_hits(hits: list[tuple[str, int, str]]) -> str:
 
 
 def test_removed_project_plan_syntax_absent_from_authored_docs() -> None:
-    """specfact project plan is not a shipped command; must not appear as current syntax."""
     hits = _scan_authored_docs("specfact project plan")
     assert not hits, f"Removed syntax 'specfact project plan' still present:\n{_fmt_hits(hits)}"
 
 
 def test_removed_project_import_from_bridge_syntax_absent_from_authored_docs() -> None:
-    """project import from-bridge moved to code import from-bridge; old path must not appear."""
     hits = _scan_authored_docs("project import from-bridge")
     assert not hits, f"Removed syntax 'project import from-bridge' still present:\n{_fmt_hits(hits)}"
 
 
 def test_removed_backlog_policy_syntax_absent_from_authored_docs() -> None:
-    """backlog policy is not a shipped subcommand; must not appear as current syntax."""
     hits = _scan_authored_docs("backlog policy")
     assert not hits, f"Removed syntax 'backlog policy' still present:\n{_fmt_hits(hits)}"
 
@@ -162,7 +157,6 @@ def test_removed_spec_contract_syntax_absent_from_authored_docs() -> None:
 
 
 def test_removed_spec_api_syntax_absent_from_authored_docs() -> None:
-    # Search for "specfact spec api" to avoid false positives from --spec api/openapi.yaml paths
     hits = _scan_authored_docs("specfact spec api")
     assert not hits, f"Removed syntax 'specfact spec api' still present:\n{_fmt_hits(hits)}"
 
@@ -173,8 +167,6 @@ def test_removed_spec_sdd_syntax_absent_from_authored_docs() -> None:
 
 
 def test_removed_spec_generate_syntax_absent_from_authored_docs() -> None:
-    # "spec generate " (space) catches stale subcommands like fix-prompt, test-prompt,
-    # contracts-prompt etc. without matching the valid "spec generate-tests" (hyphen).
     hits = _scan_authored_docs("spec generate ")
     assert not hits, f"Removed syntax 'spec generate <subcommand>' still present:\n{_fmt_hits(hits)}"
 
@@ -185,7 +177,6 @@ def test_removed_spec_generate_syntax_absent_from_authored_docs() -> None:
 
 
 def test_current_code_import_from_bridge_documented() -> None:
-    """Bridge import moved to code import from-bridge; at least one authored doc must show this."""
     hits = _scan_authored_docs("code import")
     assert hits, "Current syntax 'code import' must appear in at least one authored doc"
 

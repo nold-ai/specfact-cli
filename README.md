@@ -75,6 +75,14 @@ specfact code validate sidecar init my-project /path/to/repo
 specfact code validate sidecar run my-project /path/to/repo
 ```
 
+### Migration Note (Flat Commands Removed)
+
+As of `0.40.0`, flat root commands are removed. Use grouped commands:
+
+- `specfact validate ...` -> `specfact code validate ...`
+- `specfact plan ...` -> removed; use `specfact project devops-flow` or `specfact project snapshot`
+- `specfact policy ...` -> removed; use `specfact backlog verify-readiness`
+
 ### Backlog Bridge (60 seconds)
 
 SpecFact's USP is closing the drift gap between **backlog -> specs -> code**.
@@ -90,7 +98,7 @@ specfact backlog map-fields --provider ado --ado-org <org> --ado-project "<proje
 specfact backlog ceremony standup ado --ado-org <org> --ado-project "<project>" --state any --assignee any --limit 5
 specfact backlog ceremony refinement ado --ado-org <org> --ado-project "<project>" --id <work-item-id> --preview
 
-# 3) Keep backlog + spec intent aligned
+# 3) Keep backlog + spec intent aligned (avoid silent drift)
 specfact backlog verify-readiness --bundle <bundle-name>
 ```
 
@@ -111,6 +119,40 @@ For GitHub, replace adapter/org/project with:
 - **[Core CLI docs](docs/index.md)**
 - **[Reference: command topology](docs/reference/commands.md)**
 - **[Canonical modules docs site](https://modules.specfact.io/)**
+
+---
+
+## Who It Is For
+
+- **Vibe coders and new builders** who want to ship fast with guardrails and confidence.
+- **Legacy professionals** who want AI speed without lowering standards.
+- **DevOps and engineering leaders** who need evidence and repeatable workflows.
+
+---
+
+## The Missing Link (Coder + DevOps Bridge)
+
+Most tools help **either** coders **or** agile teams. SpecFact does both:
+
+- **Backlog sync that is actually strong**: round-trip sync + refinement with GitHub, Azure DevOps, Jira, Linear.
+- **Ceremony support teams can run**: standup, refinement, sprint planning, flow metrics (Scrum/Kanban/SAFe).
+- **Policy + validation**: DoR/DoD/flow checks plus contract enforcement for production-grade stability.
+
+Recommended command entrypoints:
+- `specfact backlog ceremony standup ...`
+- `specfact backlog ceremony refinement ...`
+- `specfact backlog verify-readiness --bundle <bundle-name>`
+- `specfact backlog analyze-deps --bundle <bundle-name>`
+
+What the backlog readiness and ceremony commands do in practice:
+- Turns team agreements (DoR, DoD, flow checks) into executable checks against your real backlog data.
+- Shows exactly what is missing per item (for example missing acceptance criteria or definition of done).
+- Runs structured ceremony workflows directly from the CLI.
+
+Start with:
+- `specfact backlog ceremony standup --help`
+- `specfact backlog verify-readiness --bundle <bundle-name>`
+- `specfact backlog refine --help`
 
 ---
 

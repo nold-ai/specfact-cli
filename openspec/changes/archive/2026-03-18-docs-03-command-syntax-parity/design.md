@@ -64,9 +64,9 @@ For each stale example, implementation must choose one of three outcomes:
 
 ## Validation Strategy
 
-Implementation should add lightweight regression checks for:
+Implementation should add or extend docs parity tests that:
 
-- landing page and README ownership language
-- authored-doc command syntax for removed command families
-- command reference and migration pages that must route users to current group surfaces
-- marketplace/reference pages that must distinguish core commands from bundle-delivered commands
+- scan authored docs only (`README.md` and `docs/`, excluding generated/vendor output)
+- fail when removed syntax families reappear
+- assert the command reference and selected landing/reference pages continue to show the shipped core and bundle groups
+- verify bridge-import and backlog docs use the correct command families after remediation

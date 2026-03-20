@@ -139,16 +139,17 @@ Flat compatibility shims were removed in `0.40.0`. Use grouped commands.
 
 | Removed | Replacement |
 |---|---|
-| `specfact plan ...` | Removed - use `specfact project devops-flow` or `specfact project snapshot` |
+| `specfact plan ...` | Removed — use `specfact project devops-flow` or `specfact project snapshot` |
 | `specfact import ...` | `specfact code import ...` (codebase import) or `specfact project import ...` (persona Markdown import) |
 | `specfact sync ...` | `specfact project sync ...` |
+| `specfact backlog ...` (flat module) | `specfact backlog ...` (bundle group) |
 | `specfact analyze ...` | `specfact code analyze ...` |
 | `specfact drift ...` | `specfact code drift ...` |
 | `specfact validate ...` | `specfact code validate ...` |
 | `specfact repro ...` | `specfact code repro ...` |
-| `specfact contract ...` | Removed - use `specfact spec validate` |
-| `specfact sdd ...` | Removed - use `specfact govern enforce sdd [BUNDLE]` |
-| `specfact generate ...` | Removed - use the active grouped workflow or IDE skill instead |
+| `specfact contract ...` | Removed — use `specfact spec validate` |
+| `specfact sdd ...` | Removed — use `specfact govern enforce sdd [BUNDLE]` |
+| `specfact generate ...` | Removed — no direct replacement; use AI IDE skills for prompt generation |
 | `specfact enforce ...` | `specfact govern enforce ...` |
 | `specfact patch ...` | `specfact govern patch ...` |
 
@@ -173,9 +174,9 @@ specfact backlog verify-readiness --bundle legacy-api
 # Bridge synchronization
 specfact project sync bridge --adapter github --bundle legacy-api --mode export-only
 
-# Spec validation
-specfact spec validate --bundle legacy-api
-specfact spec generate-tests --bundle legacy-api --output tests/
+# Spec validation examples
+specfact spec validate --bundle my-api
+specfact spec generate-tests --bundle my-api --output tests/
 ```
 
 ## Handoff To Canonical Modules Docs

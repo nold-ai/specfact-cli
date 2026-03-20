@@ -65,6 +65,16 @@ Preferred backlog workflow entrypoints:
 
 Compatibility note: `specfact backlog daily ...` and `specfact backlog refine ...` remain available, but the ceremony forms are the preferred command path.
 
+What the backlog ceremony and readiness commands do in practice:
+- Converts team working agreements (DoR, DoD, flow/PI readiness) into deterministic checks.
+- Flags exact readiness gaps per backlog item with actionable evidence pointers.
+- Runs structured ceremony workflows against live backlog data.
+
+Start with:
+- `specfact backlog ceremony standup --help`
+- `specfact backlog verify-readiness --bundle <bundle-name>`
+- `specfact backlog refine --help`
+
 ## Core vs Modules Navigation
 
 - **Core CLI docs**: runtime, lifecycle, contracts, command topology, architecture

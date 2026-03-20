@@ -65,4 +65,4 @@ This change is appropriately scoped as a documentation-alignment and docs-parity
 ## Validation Status
 
 - Command: `openspec validate docs-03-command-syntax-parity --strict`
-- Result: pending re-run in feature worktree
+- Result: passed

@@ -50,6 +50,7 @@ Only changes that are **archived**, shown as **✓ Complete** by `openspec list`
 | ✅ backlog-core-06-refine-custom-field-writeback | implemented 2026-03-03 (archived) |
 | ✅ cli-val-07-command-package-runtime-validation | archived 2026-03-09 |
 | ✅ backlog-02-migrate-core-commands | archived 2026-03-11 |
+| ✅ docs-03-command-syntax-parity | archived 2026-03-18 |
 
 ### Pending
 
@@ -80,7 +81,7 @@ These are derived extensions of the same 2026-02-15 plan and are required to ope
 | Module | Order | Change folder | GitHub # | Blocked by |
 |--------|-------|---------------|----------|------------|
 | docs | 01 | docs-01-core-modules-docs-alignment | [#348](https://github.com/nold-ai/specfact-cli/issues/348) | module-migration-01 ✅; module-migration-02 ✅; module-migration-03 ✅; module-migration-05 ✅; module-migration-06/07 outputs inform residual cleanup wording |
-| docs | 03 | docs-03-command-syntax-parity | pending | docs-01 ✅; docs-02 ✅ |
+| docs | 03 | ✅ docs-03-command-syntax-parity (archived 2026-03-18) | pending | docs-01 ✅; docs-02 ✅ |
 
 ### Marketplace (module distribution)
 

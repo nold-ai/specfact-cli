@@ -44,12 +44,23 @@ Current top-level commands in the shipped CLI:
 Selected current command examples:
 
 - `specfact code import from-bridge --adapter speckit --repo .`
-- `specfact project sync bridge --adapter github --bundle <bundle-name>`
+- `specfact code import <bundle-name> --repo .`
+- `specfact project snapshot --bundle <bundle-name>`
+- `specfact project devops-flow --stage <plan|develop|review|release|monitor>`
+- `specfact project sync bridge --adapter <adapter> --bundle <bundle-name>`
 - `specfact project import <markdown-file> --bundle <bundle-name>`
 - `specfact spec validate --bundle <bundle-name>`
 - `specfact spec generate-tests --bundle <bundle-name> --output tests/`
+- `specfact spec mock --bundle <bundle-name>`
 - `specfact govern enforce sdd [BUNDLE]`
-- `specfact module install <name|namespace/name> [--scope user|project]`
+- `specfact code repro`
+- `specfact init ide --ide <cursor|vscode|copilot|...>`
+- `specfact module install <name|namespace/name> [--scope user|project] [--source auto|bundled|marketplace] [--repo PATH]`
+- `specfact module list [--source ...] [--show-origin] [--show-bundled-available]`
+- `specfact module show <name>`
+- `specfact module search <query>`
+- `specfact module uninstall <name|namespace/name>`
+- `specfact module upgrade [<name>|--all]`
 
 ## Ownership Boundary
 

@@ -32,6 +32,11 @@ The `specfact-cli` repository owns the stable platform surface:
 - Runtime contracts, module discovery, registry bootstrapping, publisher trust, and shared orchestration.
 - The grouped command topology that mounts installed workflows under `project`, `backlog`, `code`, `spec`, and `govern`.
 
+Recommended command entrypoints:
+- `specfact backlog ceremony standup ...`
+- `specfact backlog ceremony refinement ...`
+- `specfact backlog verify-readiness --bundle <bundle-name>`
+
 ## What The Modules Docs Own
 
 The canonical modules docs site covers the official bundle-specific deep guidance:
@@ -59,10 +64,10 @@ specfact code import my-project --repo .
 # Snapshot project state
 specfact project snapshot --bundle my-project
 
-# Run backlog ceremony workflow
-specfact backlog ceremony refinement github --search "is:open label:feature" --preview
+# Validate drift before implementation
+specfact backlog verify-readiness --bundle <bundle-name>
 
-# Validate before implementation or release
+# Validate contracts before release
 specfact spec validate --bundle my-project
 specfact govern enforce sdd my-project
 ```
@@ -102,3 +107,18 @@ Use [Reference: Command Topology](reference/commands.md) for the exact grouped s
 - **[Project DevOps Flow Guide](https://modules.specfact.io/guides/project-devops-flow/)**
 - **[Module Development Guide](https://modules.specfact.io/guides/module-development/)**
 - **[Publishing Modules Guide](https://modules.specfact.io/guides/publishing-modules/)**
+
+## For Technical Readers
+
+- **[Architecture Reference](reference/architecture.md)** - Current architecture model and interfaces
+- **[Architecture Docs Index](architecture/README.md)** - Component graph, module system, data flow, state machines
+- **[Architecture Implementation Status](architecture/implementation-status.md)** - Implemented vs planned features
+- **[Architecture ADRs](architecture/adr/README.md)** - Decision records and template
+
+## Additional Core Guides
+
+- **[Installing Modules](guides/installing-modules.md)** - Install, list, uninstall, and upgrade modules
+- **[Module Marketplace](guides/module-marketplace.md)** - Registry model, security checks, and discovery priority
+- **[Marketplace Bundles](guides/marketplace.md)** - Official bundle ids, trust tiers, and dependency auto-install behavior
+- **[Code Review Module](modules/code-review.md)** - Install and use the `nold-ai/specfact-code-review` scaffold under `specfact code review`
+- **[Module Signing and Key Rotation](guides/module-signing-and-key-rotation.md)** - Signing and key management runbook
