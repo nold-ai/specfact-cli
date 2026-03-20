@@ -158,6 +158,7 @@ These are derived extensions of the same 2026-02-15 plan and are required to ope
 | backlog-core | 06 | ✅ backlog-core-06-refine-custom-field-writeback (implemented 2026-03-03; archived) | [#310](https://github.com/nold-ai/specfact-cli/issues/310) | #173 |
 | backlog-core | 07 | backlog-core-07-ado-required-custom-fields-and-picklists | [#337](https://github.com/nold-ai/specfact-cli/issues/337) | ✅ #310 |
 | bugfix | 01 | bugfix-backlog-html-export-validation | TBD | — |
+| bugfix | 02 | bugfix-02-ado-import-payload-slugging | [#427](https://github.com/nold-ai/specfact-cli/issues/427) | — |
 
 ### backlog-scrum
 
