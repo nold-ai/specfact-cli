@@ -53,13 +53,6 @@ jobs:
           bundle config set --local path 'vendor/bundle'
           bundle install --jobs 1 --retry 3
 
-      - name: Copy root files to docs
-        run: |
-          # Copy important root files to docs directory for inclusion in GitHub Pages
-          cp LICENSE docs/LICENSE
-          cp TRADEMARKS.md docs/TRADEMARKS.md
-          cp _config.yml docs/_config.yml
-
       - name: Build with Jekyll
         run: |
           cd docs
