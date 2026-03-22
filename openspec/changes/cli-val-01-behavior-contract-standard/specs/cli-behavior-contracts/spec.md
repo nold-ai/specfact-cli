@@ -61,3 +61,14 @@ The system SHALL provide a validation tool that checks scenario YAML files again
 - **THEN** all scenario files are validated against the schema
 - **AND** errors are reported with file path and line context
 - **AND** exit code is 0 when all files pass, non-zero when any fail.
+
+### Requirement: Scenario Schema Can Express Clean-Code Expectations
+
+The system SHALL allow CLI behavior scenarios to declare expected clean-code finding categories when a command includes review output.
+
+#### Scenario: Review scenario records expected clean-code categories
+
+- **GIVEN** a scenario for `specfact review` or a command that emits code-quality results
+- **WHEN** the scenario YAML is validated
+- **THEN** it may include an optional list of expected clean-code categories such as `naming` and `kiss`
+- **AND** the schema rejects unknown clean-code category names

@@ -1,307 +1,124 @@
 ---
 layout: default
 title: SpecFact CLI Documentation
-description: The swiss knife CLI that keeps backlog, specs, tests, and code in sync. Works for new and long-lived projects.
+description: Core CLI docs for runtime lifecycle, command topology, and official module integration.
 permalink: /
 ---
 
 # SpecFact CLI Documentation
 
-**Docs Home**: `docs.specfact.io` currently serves as the canonical docs entry point and, until the dedicated portal cutover lands, also hosts the Core CLI section.
+**Docs Home**: `docs.specfact.io` is the canonical docs entry point for SpecFact.
 
-**Core CLI**: this site owns runtime, lifecycle, registry, trust, and architecture guidance for `specfact-cli`.
+**Core CLI**: this site owns runtime, lifecycle, registry, trust, command-topology, and architecture guidance for `specfact-cli`.
 
 **Modules**: bundle-specific deep docs are canonically owned by `specfact-cli-modules` and are currently published at `https://modules.specfact.io/`.
 
-**The "swiss knife" CLI that turns any codebase into a clear, safe, and shippable workflow**  
-Keep backlog, specs, tests, and code in sync so AI-assisted changes don’t break production.
+This core docs site should answer two questions:
 
-**Built for both worlds**
+- How does the SpecFact platform work end to end?
+- How do the official modules plug into the core CLI runtime?
 
-- **Vibe coders and new builders** who want to ship fast with guardrails and confidence.
-- **Legacy professionals** who want AI speed without lowering standards, plus end-to-end spec -> backlog -> code sync.
-
-**Core promise**: Works for new and long-lived projects with contract enforcement and validation.
+Use the modules docs site when you need the in-depth workflows for backlog, project, code, spec, govern, adapters, or module authoring.
 
 ---
 
-## The Missing Link (Coder + DevOps Bridge)
+## What The Core CLI Owns
 
-Most tools help **either** coders **or** agile teams. SpecFact does both:
+The `specfact-cli` repository owns the stable platform surface:
 
-- **Backlog sync that is actually strong**: round-trip sync + refinement with GitHub, Azure DevOps, Jira, Linear.
-- **Ceremony support teams can run**: standup, refinement, sprint planning, flow metrics (Scrum/Kanban/SAFe).
-- **Policy + validation**: DoR/DoD/flow checks plus contract enforcement for production-grade stability.
+- `specfact init` for bootstrap and IDE setup.
+- `specfact module` for lifecycle management of official and marketplace modules.
+- `specfact upgrade` for CLI updates.
+- Runtime contracts, module discovery, registry bootstrapping, publisher trust, and shared orchestration.
+- The grouped command topology that mounts installed workflows under `project`, `backlog`, `code`, `spec`, and `govern`.
 
 Recommended command entrypoints:
 - `specfact backlog ceremony standup ...`
 - `specfact backlog ceremony refinement ...`
 - `specfact backlog verify-readiness --bundle <bundle-name>`
 
-**Try it now**
+## What The Modules Docs Own
 
-- **Coders**: [AI IDE Workflow](guides/ai-ide-workflow.md)
-- **Agile teams**: [Agile/Scrum Workflows](guides/agile-scrum-workflows.md)
+The canonical modules docs site covers the official bundle-specific deep guidance:
+
+- backlog ceremonies, refinement, dependency analysis, delta workflows, and adapter specifics
+- project bundle workflows and bridge synchronization
+- spec validation, mock, backward-compatibility, and contract-test details
+- govern enforcement, patch workflows, and bundle-focused runbooks
+- module development, publishing, signing, registries, and marketplace operations
+
+Canonical modules site: `https://modules.specfact.io/`
 
 ---
 
-## 🚀 Quick Start
-
-### Backlog Bridge in 60 Seconds
-
-SpecFact closes the drift gap between **backlog -> specs -> code**.
-These commands require the backlog bundle to be installed first, for example via
-`specfact init --profile backlog-team` or `specfact init --install backlog`.
+## Quick Start
 
 ```bash
-# 1) Initialize backlog config + field mapping
-specfact backlog init-config --force
-specfact backlog map-fields --provider ado --ado-org <org> --ado-project "<project>"
+# Install and bootstrap official bundles
+pip install -U specfact-cli
+specfact init --profile solo-developer
 
-# 2) Read and refine real backlog scope
-specfact backlog daily ado --ado-org <org> --ado-project "<project>" --state any --assignee any --limit 5
-specfact backlog refine ado --ado-org <org> --ado-project "<project>" --id <work-item-id> --preview
+# Analyze an existing repository
+specfact code import my-project --repo .
 
-# 3) Validate drift before implementation
+# Snapshot project state
+specfact project snapshot --bundle my-project
+
+# Validate drift before implementation
 specfact backlog verify-readiness --bundle <bundle-name>
+
+# Validate contracts before release
+specfact spec validate --bundle my-project
+specfact govern enforce sdd my-project
 ```
 
-GitHub variant:
-`specfact backlog daily github --repo-owner <owner> --repo-name <repo> --state any --assignee any --limit 5`
+Compatibility note: `specfact backlog daily ...` and `specfact backlog refine ...` remain available, but the preferred workflow entrypoints are `specfact backlog ceremony standup ...` and `specfact backlog ceremony refinement ...`.
 
-Deep dive:
-- **[Backlog Quickstart Demo (GitHub + ADO)](getting-started/tutorial-backlog-quickstart-demo.md)**
+## Current Command Groups
 
-### New to SpecFact CLI?
+The live CLI currently exposes these top-level commands:
 
-**Primary Use Case**: Understanding and improving existing codebases (and new projects)
-
-1. **[Installation](getting-started/installation.md)** - Get started in 60 seconds
-2. **[First Steps](getting-started/first-steps.md)** - Run your first command
-3. **[Module Bootstrap Checklist](getting-started/module-bootstrap-checklist.md)** - Quickly verify official bundles are installed for user/project scope
-4. **[Tutorial: Backlog Refine with AI IDE](getting-started/tutorial-backlog-refine-ai-ide.md)** - Integrate backlog refinement with your AI IDE (agile DevOps)
-5. **[Tutorial: Daily Standup and Sprint Review](getting-started/tutorial-daily-standup-sprint-review.md)** - Daily standup view, post comments, and Copilot export (GitHub/ADO)
-6. **[Working With Existing Code](guides/brownfield-engineer.md)** ⭐ **PRIMARY** - Legacy-first guide
-7. **[The Existing Code Journey](guides/brownfield-journey.md)** ⭐ - Complete modernization workflow
-
-### Using GitHub Spec-Kit or OpenSpec?
-
-**Secondary Use Case**: Add automated enforcement to your Spec-Kit or OpenSpec projects
-
-- **[From Spec-Kit to SpecFact](guides/speckit-journey.md)** - Add enforcement to Spec-Kit projects
-- **[Spec-Kit Comparison](guides/speckit-comparison.md)** - Understand when to use each tool
-- **[From OpenSpec to SpecFact](guides/openspec-journey.md)** - Add enforcement to OpenSpec projects
-
-## Module System Foundation
-
-SpecFact now uses a lean-core plus bundle architecture to reduce hard-wired command coupling.
-
-- Core runtime (`specfact-cli`) handles lifecycle, registry, contracts, and orchestration.
-- Official workflow behavior lives in installable bundle packages from `nold-ai/specfact-cli-modules`.
-- Flat command-path shims were removed; use workflow command groups.
-
-Implementation ownership:
-
-- Runtime and registry: `specfact-cli`
-- Official bundles and registry artifacts: `specfact-cli-modules`
-- Legacy compatibility shims in core: `src/specfact_cli/commands/*.py` (only `app` re-export is guaranteed)
-
-Why this matters:
-
-- Modules can evolve at different speeds without repeatedly changing CLI core wiring.
-- Interfaces and contracts keep feature development isolated and safer to iterate.
-- Pending OpenSpec-driven module changes can land incrementally with lower migration risk.
-
-### Category Command Groups and First-Run Selection
-
-SpecFact now groups feature commands by workflow domain:
-
+- `specfact init`
+- `specfact module`
+- `specfact upgrade`
 - `specfact project ...`
 - `specfact backlog ...`
 - `specfact code ...`
 - `specfact spec ...`
 - `specfact govern ...`
 
-On a fresh setup, `specfact init` supports first-run bundle selection:
+Use [Reference: Command Topology](reference/commands.md) for the exact grouped surfaces and migration mapping.
 
-```bash
-specfact init --profile solo-developer
-specfact init --install backlog,codebase
-specfact init --install all
-```
+## Core Docs Start Points
 
-See [Module Categories](reference/module-categories.md) for full mappings and profile presets.
+- **[Getting Started](getting-started/README.md)**
+- **[Command Reference](reference/commands.md)**
+- **[Reference Index](reference/README.md)**
+- **[Architecture Reference](reference/architecture.md)**
+- **[Module Categories](reference/module-categories.md)**
+- **[Module Contracts](reference/module-contracts.md)**
+- **[Installing Modules](guides/installing-modules.md)**
 
-**Module security and extensions:**
+## Canonical Modules Docs Start Points
 
-- **[Using Module Security and Extensions](guides/using-module-security-and-extensions.md)** - How to use verified modules (arch-06) and schema extensions (arch-07) from the CLI and as a module author
-- **[Extending ProjectBundle](guides/extending-projectbundle.md)** - Declare and use namespaced extension fields on Feature/ProjectBundle
-- **[Module Signing and Key Rotation](guides/module-signing-and-key-rotation.md)** - Runbook for public key placement, signing, CI verification, key rotation, and emergency revocation
-- **[Module Security](reference/module-security.md)** - Publisher, integrity (checksum/signature), and versioned dependencies
+- **[Modules Docs Home](https://modules.specfact.io/)**
+- **[Modules Command Reference](https://modules.specfact.io/reference/commands/)**
+- **[Backlog Refinement Guide](https://modules.specfact.io/guides/backlog-refinement/)**
+- **[Project DevOps Flow Guide](https://modules.specfact.io/guides/project-devops-flow/)**
+- **[Module Development Guide](https://modules.specfact.io/guides/module-development/)**
+- **[Publishing Modules Guide](https://modules.specfact.io/guides/publishing-modules/)**
 
-### For Technical Readers
+## For Technical Readers
 
 - **[Architecture Reference](reference/architecture.md)** - Current architecture model and interfaces
 - **[Architecture Docs Index](architecture/README.md)** - Component graph, module system, data flow, state machines
 - **[Architecture Implementation Status](architecture/implementation-status.md)** - Implemented vs planned features
 - **[Architecture ADRs](architecture/adr/README.md)** - Decision records and template
 
-
-## Module Marketplace
-
-SpecFact now supports a central marketplace workflow for module installation and lifecycle management.
-
-Official bundles are now marketplace-distributed as `nold-ai/specfact-*` modules:
-
-- `nold-ai/specfact-project`
-- `nold-ai/specfact-backlog`
-- `nold-ai/specfact-codebase`
-- `nold-ai/specfact-spec`
-- `nold-ai/specfact-govern`
-
-This page remains the core-side overview for marketplace concepts and docs navigation.
-Bundle-specific deep documentation is canonically owned by `specfact-cli-modules` and is currently published at:
-`https://modules.specfact.io/`.
+## Additional Core Guides
 
 - **[Installing Modules](guides/installing-modules.md)** - Install, list, uninstall, and upgrade modules
 - **[Module Marketplace](guides/module-marketplace.md)** - Registry model, security checks, and discovery priority
 - **[Marketplace Bundles](guides/marketplace.md)** - Official bundle ids, trust tiers, and dependency auto-install behavior
 - **[Code Review Module](modules/code-review.md)** - Install and use the `nold-ai/specfact-code-review` scaffold under `specfact code review`
 - **[Module Signing and Key Rotation](guides/module-signing-and-key-rotation.md)** - Signing and key management runbook
-
-Module lifecycle note: use `specfact module` (`init`, `install`, `list`, `show`, `search`, `enable`, `disable`, `uninstall`, `upgrade`) for module management.
-
-## 📚 Documentation
-
-### Guides
-
-- **[Command Chains](guides/command-chains.md)** ⭐ **NEW** - Complete workflows from start to finish
-- **[Agile/Scrum Workflows](guides/agile-scrum-workflows.md)** - Persona-based collaboration for teams
-- **[Policy Engine Commands](guides/policy-engine-commands.md)** - Run backlog readiness and ceremony workflows
-- **[DevOps Backlog Integration](guides/devops-adapter-integration.md)** 🆕 **NEW FEATURE** - Integrate SpecFact into agile DevOps workflows with bidirectional backlog sync
-- **[Backlog Refinement](guides/backlog-refinement.md)** 🆕 **NEW FEATURE** - AI-assisted template-driven backlog refinement for standardizing work items
-- **[Backlog Dependency Analysis](guides/backlog-dependency-analysis.md)** - Analyze critical path, cycles, orphans, and dependency impact from backlog graph data
-- **[Backlog Delta Commands](guides/backlog-delta-commands.md)** - Track backlog graph changes under `specfact backlog delta`
-- **[Project DevOps Flow](guides/project-devops-flow.md)** - Run plan/develop/review/release/monitor stage actions from one command surface
-- **[Extending ProjectBundle](guides/extending-projectbundle.md)** - Add namespaced custom fields to Feature/ProjectBundle (arch-07)
-- **[Using Module Security and Extensions](guides/using-module-security-and-extensions.md)** - Use arch-06 (module security) and arch-07 (schema extensions) from CLI and as a module author
-- **[Sidecar Validation](guides/sidecar-validation.md)** 🆕 - Validate external codebases without modifying source
-- **[Thorough Codebase Validation](reference/thorough-codebase-validation.md)** - Quick check, contract-full, sidecar, dogfooding
-- **[UX Features](guides/ux-features.md)** - Progressive disclosure, context detection, intelligent suggestions
-- **[Use Cases](guides/use-cases.md)** - Real-world scenarios and workflows
-- **[IDE Integration](guides/ide-integration.md)** - Set up slash commands in your IDE
-- **[CoPilot Mode](guides/copilot-mode.md)** - Using `--mode copilot` on CLI
-- **[Template Customization](guides/template-customization.md)** 🆕 **NEW** - Create and customize backlog templates for your team
-- **[Troubleshooting](guides/troubleshooting.md)** - Common issues and solutions
-- **[Competitive Analysis](guides/competitive-analysis.md)** - How SpecFact compares
-
-### DevOps & Backlog Sync 🚀
-
-**For Developers & DevOps Teams**: Keep your backlogs in sync with feature branches, code changes, and validations.
-
-- **[DevOps Integration Guide](guides/devops-adapter-integration.md)** ⭐ - Complete guide for GitHub Issues and Azure DevOps integration
-  - **Cross-Adapter Sync**: Lossless round-trip migration between backlog tools (GitHub ↔ ADO)
-  - **Bidirectional Sync**: Import backlog items as proposals, export proposals as backlog items
-  - **Code Change Tracking**: Automatically detect commits and add progress comments
-  - **Status Synchronization**: Keep OpenSpec and backlog status in sync
-
-- **[Backlog Refinement Guide](guides/backlog-refinement.md)** 🆕 **NEW** - AI-assisted template-driven refinement for standardizing work items
-  - **[Tutorial: Backlog Refine with AI IDE](getting-started/tutorial-backlog-refine-ai-ide.md)** - End-to-end tutorial for agile DevOps teams (slash prompt, DoR, split stories, underspec/overspec)
-  - **[Tutorial: Daily Standup and Sprint Review](getting-started/tutorial-daily-standup-sprint-review.md)** - Daily standup view, post yesterday/today/blockers, interactive mode, Copilot export (GitHub/ADO)
-  - **Template Detection**: Automatically detect which template matches a backlog item with priority-based resolution
-  - **AI-Assisted Refinement**: Generate prompts for IDE AI copilots to refine unstructured input
-  - **Confidence Scoring**: Validate refined content and provide confidence scores
-  - **Lossless Preservation**: Preserve original backlog data for round-trip synchronization
-  - **Agile Filtering** 🆕: Filter by sprint, release, iteration, labels, state, assignee for agile workflows
-  - **Persona/Framework Support** 🆕: Filter templates by persona (product-owner, architect, developer) and framework (scrum, safe, kanban)
-  - **Definition of Ready (DoR)** 🆕: Validate sprint readiness with repo-level DoR configuration
-  - **Preview/Write Safety** 🆕: Preview mode by default, explicit `--write` flag for writeback
-  - **OpenSpec Integration** 🆕: Add OpenSpec reference comments with `--openspec-comment` flag (preserves original body)
-  - **Template Customization** 🆕: Create custom templates for your team - see [Template Customization Guide](guides/template-customization.md)
-
-- **[Authentication](reference/authentication.md)** - Device code auth for GitHub and Azure DevOps
-- **[GitHub Adapter](adapters/github.md)** - GitHub Issues adapter reference
-- **[Azure DevOps Adapter](adapters/azuredevops.md)** - Azure DevOps work items adapter reference
-- **[Backlog Adapter Patterns](adapters/backlog-adapter-patterns.md)** - Patterns for implementing backlog adapters
-
-**Quick Start for DevOps Teams:**
-
-```bash
-# Export OpenSpec proposals to GitHub Issues
-specfact project sync bridge --adapter github --mode export-only \
-  --repo-owner your-org --repo-name your-repo
-
-# Export to Azure DevOps work items
-specfact project sync bridge --adapter ado --mode export-only \
-  --ado-org your-org --ado-project your-project
-
-# Cross-adapter sync: GitHub -> ADO (lossless round-trip)
-specfact project sync bridge --adapter github --mode bidirectional \
-  --bundle main --backlog-ids 123
-specfact project sync bridge --adapter ado --mode export-only \
-  --bundle main --change-ids <change-id>
-```
-
-### Reference
-
-- **[Reference Documentation](reference/)** - Complete technical reference index
-- **[Command Reference](reference/commands.md)** - Complete command documentation
-- **[Authentication](reference/authentication.md)** - Device code auth flows and token storage
-- **[Architecture](reference/architecture.md)** - Technical design and principles
-- **[Architecture Docs Index](architecture/README.md)** - Deep-dive architecture documentation
-- **[Architecture Implementation Status](architecture/implementation-status.md)** - Current vs planned architecture scope
-- **[Architecture ADRs](architecture/adr/README.md)** - Architecture decision records
-- **[Bridge Registry](reference/bridge-registry.md)** 🆕 - Module-declared bridge converters and lifecycle registration
-- **[Operational Modes](reference/modes.md)** - CI/CD vs CoPilot modes
-- **[Directory Structure](reference/directory-structure.md)** - Project structure
-
-### Module Protocol Reporting
-
-- Lifecycle protocol compliance reporting now classifies modules using the effective runtime interface and
-  emits a single aggregate summary line for full/partial/legacy status.
-
-### Examples
-
-- **[Brownfield Examples](examples/)** - Real-world modernization examples
-- **[Quick Examples](examples/quick-examples.md)** - Code snippets and patterns
-
----
-
-## 🆘 Getting Help
-
-### Documentation
-
-You're here! Browse the guides above.
-
-### Community
-
-- 💬 [GitHub Discussions](https://github.com/nold-ai/specfact-cli/discussions) - Ask questions
-- 🐛 [GitHub Issues](https://github.com/nold-ai/specfact-cli/issues) - Report bugs
-
-### Direct Support
-
-- 📧 Email: [hello@noldai.com](mailto:hello@noldai.com)
-
----
-
-## 🤝 Contributing
-
-Found an error or want to improve the docs?
-
-1. Fork the repository
-2. Edit the markdown files in `docs/`
-3. Submit a pull request
-
-See [CONTRIBUTING.md](https://github.com/nold-ai/specfact-cli/blob/main/CONTRIBUTING.md) for guidelines.
-
----
-
-**Happy building!** 🚀
-
----
-
-Copyright © 2025 Nold AI (Owner: Dominikus Nold)
-
-**Trademarks**: All product names, logos, and brands mentioned in this documentation are the property of their respective owners. NOLD AI (NOLDAI) is a registered trademark (wordmark) at the European Union Intellectual Property Office (EUIPO). See [TRADEMARKS.md](https://github.com/nold-ai/specfact-cli/blob/main/TRADEMARKS.md) for more information.
-
-**License**: See [LICENSE](https://github.com/nold-ai/specfact-cli/blob/main/LICENSE) for licensing information.

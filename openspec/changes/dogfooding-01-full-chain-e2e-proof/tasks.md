@@ -16,6 +16,7 @@
 
 - [ ] 3.1 Implement minimal changes required for full-chain proof generation.
 - [ ] 3.2 Generate evidence outputs and traceability matrix artifacts.
+- [ ] 3.2.1 Extend the proof run to collect clean-code review output alongside the full-chain evidence bundle.
 - [ ] 3.3 Re-run tests and quality gates until all proof scenarios pass.
 
 ## 4. Delivery

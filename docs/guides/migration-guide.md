@@ -1,7 +1,9 @@
 ---
 layout: default
 title: Migration Guide
-permalink: /migration-guide/
+permalink: /guides/migration-guide/
+redirect_from:
+  - /migration-guide/
 ---
 
 # Migration Guide

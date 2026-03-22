@@ -657,8 +657,8 @@ class TestGitHubAdapter:
             project_bundle=project_bundle,
         )
 
-        assert "123" in project_bundle.change_tracking.proposals
-        proposal = project_bundle.change_tracking.proposals["123"]
+        assert "add-feature-x" in project_bundle.change_tracking.proposals
+        proposal = project_bundle.change_tracking.proposals["add-feature-x"]
         assert proposal.title == "Add Feature X"
         assert proposal.status == "proposed"
         assert proposal.source_tracking is not None
@@ -811,3 +811,30 @@ class TestGitHubAdapter:
         assert source_tracking.source_metadata["source_url"] == "https://github.com/test-owner/test-repo/issues/123"
         assert source_tracking.source_metadata["source_state"] == "open"
         assert len(source_tracking.source_metadata["assignees"]) == 1
+
+    @beartype
+    @patch("specfact_cli.adapters.github.requests.get")
+    def test_fetch_backlog_item_preserves_native_issue_payload(  # pylint: disable=redefined-outer-name
+        self,
+        mock_get: MagicMock,
+        github_adapter: GitHubAdapter,
+    ) -> None:
+        """Similar selective fetch path should keep the native GitHub issue payload."""
+        issue_data = {
+            "number": 123,
+            "title": "Add Feature X",
+            "body": "## Why\n\nNeeded\n\n## What Changes\n\nImplement",
+            "state": "open",
+            "html_url": "https://github.com/test-owner/test-repo/issues/123",
+        }
+        mock_response = MagicMock()
+        mock_response.json.return_value = issue_data
+        mock_response.raise_for_status = MagicMock()
+        mock_response.ok = True
+        mock_get.return_value = mock_response
+
+        result = github_adapter.fetch_backlog_item("123")
+
+        assert result == issue_data
+        assert result["title"] == "Add Feature X"
+        assert result["body"].startswith("## Why")

@@ -273,9 +273,16 @@ adapter.import_artifact(
 )
 
 # Access imported proposal
-proposal = project_bundle.change_tracking.proposals["123"]
+proposal = project_bundle.change_tracking.proposals["add-feature-x"]
 print(f"Imported: {proposal.title} - {proposal.status}")
 ```
+
+Selective imports preserve the native Azure DevOps payload, including
+`fields`, so the imported work item remains valid input for proposal parsing and
+bridge sync flows. When no OpenSpec metadata is present, imported proposal names
+fall back to a title-derived slug such as `add-feature-x`; if that slug already
+exists, the adapter appends the source work item ID (for example,
+`add-feature-x-123`) to keep the proposal name stable and readable.
 
 ### Status Synchronization
 

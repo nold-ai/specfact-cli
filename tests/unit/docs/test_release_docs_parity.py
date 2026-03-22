@@ -1,13 +1,28 @@
 from __future__ import annotations
 
+import re
 from pathlib import Path
+from urllib.parse import unquote, urlparse
 
 
 MODULES_DOCS_HOST = "modules.specfact.io"
+DOCS_HOST = "docs.specfact.io"
+MARKDOWN_LINK_RE = re.compile(r"(?<!!)\[[^\]]+\]\(([^)]+)\)")
+HTML_HREF_RE = re.compile(r'href="([^"]+)"')
+JEKYLL_RELATIVE_URL_RE = re.compile(r'\{\{\s*[\'"]([^\'"]+)[\'"]\s*\|\s*relative_url\s*\}\}')
+REQUIRED_NAV_FRONT_MATTER_KEYS = ("layout", "title", "permalink")
+
+
+def _repo_root() -> Path:
+    return Path(__file__).resolve().parents[3]
 
 
 def _repo_file(path: str) -> Path:
-    return Path(__file__).resolve().parents[3] / path
+    return _repo_root() / path
+
+
+def _docs_root() -> Path:
+    return _repo_root() / "docs"
 
 
 def _assert_mentions_modules_docs_site(content: str) -> None:
@@ -15,6 +30,208 @@ def _assert_mentions_modules_docs_site(content: str) -> None:
     assert host_index != -1
     assert content[max(0, host_index - 8) : host_index] == "https://"
     assert content[host_index + len(MODULES_DOCS_HOST)] == "/"
+
+
+def _is_docs_markdown(path: Path) -> bool:
+    return path.suffix == ".md" and "_site" not in path.parts and "vendor" not in path.parts
+
+
+def _iter_docs_markdown_paths() -> list[Path]:
+    return sorted(path.resolve() for path in _docs_root().rglob("*.md") if _is_docs_markdown(path))
+
+
+def _read_text(path: Path) -> str:
+    return path.read_text(encoding="utf-8")
+
+
+def _split_front_matter(text: str) -> tuple[dict[str, str], str]:
+    if not text.startswith("---\n"):
+        return {}, text
+
+    lines = text.splitlines()
+    end_index = None
+    for index in range(1, len(lines)):
+        if lines[index].strip() == "---":
+            end_index = index
+            break
+    if end_index is None:
+        return {}, text
+
+    metadata: dict[str, str] = {}
+    for raw_line in lines[1:end_index]:
+        if ":" not in raw_line:
+            continue
+        key, value = raw_line.split(":", 1)
+        metadata[key.strip()] = value.strip().strip('"').strip("'")
+
+    body = "\n".join(lines[end_index + 1 :])
+    return metadata, body
+
+
+def _normalize_route(route: str) -> str:
+    cleaned = unquote(route.strip())
+    if not cleaned:
+        return "/"
+    if not cleaned.startswith("/"):
+        cleaned = "/" + cleaned
+    cleaned = re.sub(r"/{2,}", "/", cleaned)
+    if cleaned != "/" and not cleaned.endswith("/"):
+        cleaned += "/"
+    return cleaned
+
+
+def _published_route_for_path(path: Path, metadata: dict[str, str]) -> str:
+    permalink = metadata.get("permalink")
+    if permalink:
+        return _normalize_route(permalink)
+    return _normalize_route(f"/{path.stem}/")
+
+
+def _build_published_docs_index() -> tuple[dict[str, Path], dict[Path, dict[str, str]], dict[Path, str]]:
+    route_to_path: dict[str, Path] = {}
+    path_to_metadata: dict[Path, dict[str, str]] = {}
+    path_to_route: dict[Path, str] = {}
+
+    for path in _iter_docs_markdown_paths():
+        metadata, _ = _split_front_matter(_read_text(path))
+        route = _published_route_for_path(path, metadata)
+        route_to_path[route] = path
+        path_to_metadata[path] = metadata
+        path_to_route[path] = route
+
+    return route_to_path, path_to_metadata, path_to_route
+
+
+def _extract_links(source: Path, content: str) -> list[str]:
+    if source.suffix == ".html":
+        return HTML_HREF_RE.findall(content)
+    return MARKDOWN_LINK_RE.findall(content)
+
+
+def _normalize_jekyll_relative_url(link: str) -> str:
+    match = JEKYLL_RELATIVE_URL_RE.fullmatch(link.strip())
+    if match:
+        return match.group(1)
+    return link
+
+
+def _is_published_docs_route_candidate(route: str) -> bool:
+    return route not in {"/assets/main.css/", "/feed.xml/"}
+
+
+def _resolve_internal_docs_target(
+    source: Path,
+    raw_link: str,
+    route_to_path: dict[str, Path],
+    path_to_route: dict[Path, str],
+) -> tuple[str | None, Path | None, str | None]:
+    stripped = _normalize_jekyll_relative_url(raw_link.strip())
+    if not stripped or stripped.startswith("#"):
+        return None, None, None
+
+    parsed = urlparse(stripped)
+    if parsed.scheme in {"mailto", "javascript", "tel"}:
+        return None, None, None
+    if parsed.scheme in {"http", "https"}:
+        if parsed.netloc != DOCS_HOST:
+            return None, None, None
+        route = _normalize_route(parsed.path or "/")
+        if not _is_published_docs_route_candidate(route):
+            return None, None, None
+        target = route_to_path.get(route)
+        if target is None:
+            return route, None, f"{source.relative_to(_repo_root())} -> {route}"
+        return route, target, None
+    if parsed.scheme:
+        return None, None, None
+
+    target_value = unquote(parsed.path)
+    if not target_value:
+        return None, None, None
+
+    if target_value.startswith("/"):
+        route = _normalize_route(target_value)
+        if not _is_published_docs_route_candidate(route):
+            return None, None, None
+        target = route_to_path.get(route)
+        if target is None:
+            return route, None, f"{source.relative_to(_repo_root())} -> {route}"
+        return route, target, None
+
+    candidate = (source.parent / target_value).resolve()
+    if candidate.is_dir():
+        readme_candidate = (candidate / "README.md").resolve()
+        if readme_candidate.is_file() and _is_docs_markdown(readme_candidate):
+            route = path_to_route.get(readme_candidate)
+            if route is None:
+                return None, None, f"{source.relative_to(_repo_root())} -> {target_value}"
+            return route, readme_candidate, None
+        return None, None, None
+
+    if candidate.is_file() and _is_docs_markdown(candidate):
+        route = path_to_route.get(candidate)
+        if route is None:
+            return None, None, f"{source.relative_to(_repo_root())} -> {target_value}"
+        return route, candidate, None
+
+    if not candidate.suffix:
+        markdown_candidate = candidate.with_suffix(".md")
+        if markdown_candidate.is_file() and _is_docs_markdown(markdown_candidate):
+            resolved_candidate = markdown_candidate.resolve()
+            route = path_to_route.get(resolved_candidate)
+            if route is None:
+                return None, None, f"{source.relative_to(_repo_root())} -> {target_value}"
+            return route, resolved_candidate, None
+
+    route = _normalize_route(target_value)
+    if not _is_published_docs_route_candidate(route):
+        return None, None, None
+    target = route_to_path.get(route)
+    if target is None:
+        return route, None, f"{source.relative_to(_repo_root())} -> {target_value} (normalized: {route})"
+    return route, target, None
+
+
+def _navigation_sources() -> list[Path]:
+    return [
+        _repo_file("docs/index.md").resolve(),
+        _repo_file("docs/_layouts/default.html").resolve(),
+    ]
+
+
+def _scan_navigation_targets() -> tuple[list[str], set[Path]]:
+    route_to_path, _, path_to_route = _build_published_docs_index()
+    failures: list[str] = []
+    targets: set[Path] = set()
+
+    for source in _navigation_sources():
+        for link in _extract_links(source, _read_text(source)):
+            _, target, failure = _resolve_internal_docs_target(source, link, route_to_path, path_to_route)
+            if failure:
+                failures.append(failure)
+            if target is not None:
+                targets.add(target)
+
+    return failures, targets
+
+
+def _scan_authored_doc_link_failures() -> tuple[list[str], set[Path]]:
+    route_to_path, _, path_to_route = _build_published_docs_index()
+    failures: list[str] = []
+    targets: set[Path] = set()
+
+    for source in _iter_docs_markdown_paths():
+        metadata, body = _split_front_matter(_read_text(source))
+        if not metadata:
+            continue
+        for link in _extract_links(source, body):
+            _, target, failure = _resolve_internal_docs_target(source, link, route_to_path, path_to_route)
+            if failure:
+                failures.append(failure)
+            if target is not None:
+                targets.add(target)
+
+    return failures, targets
 
 
 def test_changelog_has_single_0340_release_header() -> None:
@@ -105,12 +322,12 @@ def _scan_authored_docs(pattern: str) -> list[tuple[str, int, str]]:
     - Any line where the pattern co-occurs with the word "removed" or "(removed)"
     """
     hits: list[tuple[str, int, str]] = []
-    repo_root = Path(__file__).resolve().parents[3]
+    repo_root = _repo_root()
     sources: list[Path] = [repo_root / "README.md"]
     docs_dir = repo_root / "docs"
-    for p in docs_dir.rglob("*.md"):
-        if "_site" not in p.parts and "vendor" not in p.parts:
-            sources.append(p)
+    for path in docs_dir.rglob("*.md"):
+        if "_site" not in path.parts and "vendor" not in path.parts:
+            sources.append(path)
     for src in sources:
         if not src.exists():
             continue
@@ -118,13 +335,12 @@ def _scan_authored_docs(pattern: str) -> list[tuple[str, int, str]]:
             if pattern not in line:
                 continue
             stripped = line.strip()
-            # Skip comment lines in code blocks
-            if stripped.startswith("#"):
+            if stripped.startswith("#") and not stripped.startswith(
+                ("# ", "## ", "### ", "#### ", "##### ", "###### ")
+            ):
                 continue
-            # Skip blockquote lines (historical/migration notes)
             if stripped.startswith(">"):
                 continue
-            # Skip lines that explicitly label the pattern as removed
             lower = stripped.lower()
             if "removed" in lower or "(removed)" in lower or "is removed" in lower:
                 continue
@@ -133,23 +349,20 @@ def _scan_authored_docs(pattern: str) -> list[tuple[str, int, str]]:
 
 
 def _fmt_hits(hits: list[tuple[str, int, str]]) -> str:
-    return "\n".join(f"  {p}:{n}  {line}" for p, n, line in hits)
+    return "\n".join(f"  {path}:{lineno}  {line}" for path, lineno, line in hits)
 
 
 def test_removed_project_plan_syntax_absent_from_authored_docs() -> None:
-    """specfact project plan is not a shipped command; must not appear as current syntax."""
     hits = _scan_authored_docs("specfact project plan")
     assert not hits, f"Removed syntax 'specfact project plan' still present:\n{_fmt_hits(hits)}"
 
 
 def test_removed_project_import_from_bridge_syntax_absent_from_authored_docs() -> None:
-    """project import from-bridge moved to code import from-bridge; old path must not appear."""
     hits = _scan_authored_docs("project import from-bridge")
     assert not hits, f"Removed syntax 'project import from-bridge' still present:\n{_fmt_hits(hits)}"
 
 
 def test_removed_backlog_policy_syntax_absent_from_authored_docs() -> None:
-    """backlog policy is not a shipped subcommand; must not appear as current syntax."""
     hits = _scan_authored_docs("backlog policy")
     assert not hits, f"Removed syntax 'backlog policy' still present:\n{_fmt_hits(hits)}"
 
@@ -160,7 +373,6 @@ def test_removed_spec_contract_syntax_absent_from_authored_docs() -> None:
 
 
 def test_removed_spec_api_syntax_absent_from_authored_docs() -> None:
-    # Search for "specfact spec api" to avoid false positives from --spec api/openapi.yaml paths
     hits = _scan_authored_docs("specfact spec api")
     assert not hits, f"Removed syntax 'specfact spec api' still present:\n{_fmt_hits(hits)}"
 
@@ -171,8 +383,6 @@ def test_removed_spec_sdd_syntax_absent_from_authored_docs() -> None:
 
 
 def test_removed_spec_generate_syntax_absent_from_authored_docs() -> None:
-    # "spec generate " (space) catches stale subcommands like fix-prompt, test-prompt,
-    # contracts-prompt etc. without matching the valid "spec generate-tests" (hyphen).
     hits = _scan_authored_docs("spec generate ")
     assert not hits, f"Removed syntax 'spec generate <subcommand>' still present:\n{_fmt_hits(hits)}"
 
@@ -183,7 +393,6 @@ def test_removed_spec_generate_syntax_absent_from_authored_docs() -> None:
 
 
 def test_current_code_import_from_bridge_documented() -> None:
-    """Bridge import moved to code import from-bridge; at least one authored doc must show this."""
     hits = _scan_authored_docs("code import")
     assert hits, "Current syntax 'code import' must appear in at least one authored doc"
 
@@ -203,3 +412,41 @@ def test_current_backlog_subcommands_documented_in_commands_reference() -> None:
     commands_doc = _repo_file("docs/reference/commands.md").read_text(encoding="utf-8")
     for sub in ("backlog ceremony", "backlog refine", "backlog daily", "backlog sync"):
         assert sub in commands_doc, f"Current subcommand '{sub}' missing from commands reference"
+
+
+def test_all_published_docs_markdown_files_have_jekyll_front_matter() -> None:
+    missing: list[str] = []
+    for path in _iter_docs_markdown_paths():
+        first_line = _read_text(path).splitlines()[0] if _read_text(path) else ""
+        if first_line != "---":
+            missing.append(str(path.relative_to(_repo_root())))
+    assert not missing, "Docs files missing front matter:\n" + "\n".join(missing)
+
+
+# ---------------------------------------------------------------------------
+# docs-04-docs-review-gate-and-link-integrity
+# ---------------------------------------------------------------------------
+
+
+def test_navigation_links_resolve_to_published_docs_routes() -> None:
+    failures, _ = _scan_navigation_targets()
+    assert not failures, "Broken navigation docs links:\n" + "\n".join(sorted(failures))
+
+
+def test_authored_internal_docs_links_resolve_to_published_docs_targets() -> None:
+    failures, _ = _scan_authored_doc_link_failures()
+    assert not failures, "Broken authored docs links:\n" + "\n".join(sorted(failures))
+
+
+def test_navigation_link_targets_have_required_front_matter_keys() -> None:
+    _, targets = _scan_navigation_targets()
+    _, path_to_metadata, _ = _build_published_docs_index()
+    missing: list[str] = []
+
+    for target in sorted(targets):
+        metadata = path_to_metadata[target]
+        missing_keys = [key for key in REQUIRED_NAV_FRONT_MATTER_KEYS if not metadata.get(key)]
+        if missing_keys:
+            missing.append(f"{target.relative_to(_repo_root())}: missing {', '.join(missing_keys)}")
+
+    assert not missing, "Navigation-linked docs missing required front matter keys:\n" + "\n".join(missing)

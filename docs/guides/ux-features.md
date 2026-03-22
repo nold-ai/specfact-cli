@@ -1,7 +1,9 @@
 ---
 layout: default
 title: UX Features Guide
-permalink: /ux-features/
+permalink: /guides/ux-features/
+redirect_from:
+  - /ux-features/
 ---
 
 # UX Features Guide

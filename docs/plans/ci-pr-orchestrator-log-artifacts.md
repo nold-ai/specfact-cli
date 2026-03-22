@@ -1,3 +1,9 @@
+---
+layout: default
+title: Ci Pr Orchestrator Log Artifacts
+permalink: /plans/ci-pr-orchestrator-log-artifacts/
+---
+
 # Plan: PR Orchestrator — Attach Test and Repro Logs to CI Runs
 
 **Repository**: `nold-ai/specfact-cli` (public)

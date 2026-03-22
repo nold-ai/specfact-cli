@@ -15,6 +15,12 @@ The system SHALL resolve configuration using deterministic layer precedence.
 - **THEN** policy mode defaults to enterprise-grade enforcement
 - **AND** requirements schema includes enterprise-required fields.
 
+#### Scenario: Clean-code defaults are inherited from the selected tier
+- **GIVEN** `specfact init --profile startup`
+- **WHEN** profile config is generated
+- **THEN** the clean-code policy pack defaults to advisory mode with gradual promotion to mixed
+- **AND** no separate clean-code profile selector is required in the resolved config
+
 #### Scenario: Invalid profile is rejected
 - **GIVEN** `specfact init --profile unknown`
 - **WHEN** command validation runs

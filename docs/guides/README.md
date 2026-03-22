@@ -1,3 +1,9 @@
+---
+layout: default
+title: Guides
+permalink: /guides/
+---
+
 # Guides
 
 Practical guides for using SpecFact CLI effectively.

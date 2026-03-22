@@ -1,3 +1,9 @@
+---
+layout: default
+title: Brownfield Data Pipeline
+permalink: /examples/brownfield-data-pipeline/
+---
+
 # Brownfield Example: Modernizing Legacy Data Pipeline
 
 > **Complete walkthrough: From undocumented ETL pipeline to contract-enforced data processing**

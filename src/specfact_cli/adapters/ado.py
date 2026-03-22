@@ -920,7 +920,7 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             Change ID extraction priority:
             1. Description footer (legacy format): *OpenSpec Change Proposal: `id`*
             2. Comments (new format): **Change ID**: `id` in OpenSpec Change Proposal Reference comment
-            3. Work item ID (fallback)
+            3. Work item ID (fallback, normalized during shared proposal import)
         """
         if not isinstance(item_data, dict):
             msg = "ADO work item data must be dict"
@@ -1149,7 +1149,15 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             pass  # Path operations will respect external_base_path in OpenSpec adapter
 
         # Import ADO work item as change proposal using backlog adapter pattern
-        proposal = self.import_backlog_item_as_proposal(artifact_path, "ado", bridge_config)
+        existing_proposals = (
+            dict(project_bundle.change_tracking.proposals) if getattr(project_bundle, "change_tracking", None) else {}
+        )
+        proposal = self.import_backlog_item_as_proposal(
+            artifact_path,
+            "ado",
+            bridge_config,
+            existing_proposals=existing_proposals,
+        )
 
         if not proposal:
             msg = "Failed to import ADO work item as change proposal"
@@ -1971,12 +1979,14 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         try:
             response = self._ado_get(url, headers=headers, timeout=10)
             work_item_data = response.json()
+            if not isinstance(work_item_data, dict):
+                return None
             fields = work_item_data.get("fields", {})
-            return {
-                "title": fields.get("System.Title", ""),
-                "state": fields.get("System.State", ""),
-                "description": fields.get("System.Description", ""),
-            }
+            if isinstance(fields, dict):
+                work_item_data.setdefault("title", fields.get("System.Title", ""))
+                work_item_data.setdefault("state", fields.get("System.State", ""))
+                work_item_data.setdefault("description", fields.get("System.Description", ""))
+            return work_item_data
         except requests.HTTPError as e:
             if e.response is not None and e.response.status_code == 404:
                 return None

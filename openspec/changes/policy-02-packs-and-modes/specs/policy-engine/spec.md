@@ -14,3 +14,9 @@ The policy engine SHALL support advisory, mixed, and hard enforcement modes with
 - **WHEN** that rule fails
 - **THEN** command exits non-zero
 - **AND** non-blocking rule failures remain advisory.
+
+#### Scenario: Clean-code rules use policy-engine mode mapping
+- **GIVEN** the `specfact/clean-code-principles` pack is installed with mixed mode
+- **WHEN** a clean-code rule such as `banned-generic-public-names` is overridden to `hard`
+- **THEN** the policy engine evaluates that rule as blocking
+- **AND** other clean-code rules continue using their configured per-rule modes

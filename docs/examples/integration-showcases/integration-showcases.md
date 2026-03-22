@@ -1,3 +1,9 @@
+---
+layout: default
+title: Integration Showcases
+permalink: /examples/integration-showcases/integration-showcases/
+---
+
 # Integration Showcases: Bugs Fixed via CLI Integrations
 
 > **Core USP**: SpecFact CLI works seamlessly with VS Code, Cursor, GitHub Actions, and any agentic workflow. This document showcases real examples of bugs that were caught and fixed through different integration points.

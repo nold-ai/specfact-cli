@@ -1,3 +1,9 @@
+---
+layout: default
+title: Feature Keys
+permalink: /reference/feature-keys/
+---
+
 # Feature Key Normalization
 
 Reference documentation for feature key formats and normalization in SpecFact CLI.

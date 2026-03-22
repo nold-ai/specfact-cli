@@ -15,18 +15,18 @@
 
 ## 3. Implementation
 
-- [ ] 3.1 Resolve branch-local type errors and remaining remediation regressions in touched files (2026-03-22: fixed `cli.py` `--version` / `None` callback crash; see TDD_EVIDENCE).
+- [x] 3.1 Resolve branch-local type errors and remaining remediation regressions in touched files (2026-03-22: fixed `cli.py` `--version` / `None` callback crash; see TDD_EVIDENCE).
 - [x] 3.2 Continue reducing `reportUnknownMemberType`, contract, and clean-code findings in the branch scope (basedpyright clean on `src`/`tools`/`scripts`/`modules`; CC≥16 and blocking tool errors cleared; optional Radon CC13–15 warnings remain).
-- [ ] 3.3 Keep the branch aligned with the dogfood review success criteria while avoiding unrelated code churn.
+- [x] 3.3 Keep the branch aligned with the dogfood review success criteria while avoiding unrelated code churn.
 
 ## 4. Validation
 
-- [ ] 4.1 Re-run targeted analyzers/tests for the touched files and update `TDD_EVIDENCE.md`.
-- [ ] 4.2 Run the dogfood review command in a branch environment that exposes `specfact code review run`.
-- [ ] 4.3 Confirm post-fix evidence reaches `overall_verdict: PASS` with zero findings for the tracked categories.
-- [ ] 4.4 After the baseline zero-finding proof is green, re-run the expanded clean-code categories and record zero `naming`, `kiss`, `yagni`, `dry`, and `solid` findings.
+- [x] 4.1 Re-run targeted analyzers/tests for the touched files and update `TDD_EVIDENCE.md`.
+- [x] 4.2 Run the dogfood review command in a branch environment that exposes `specfact code review run`.
+- [x] 4.3 Confirm post-fix evidence reaches `overall_verdict: PASS` with zero findings for the tracked categories.
+- [x] 4.4 After the baseline zero-finding proof is green, re-run the expanded clean-code categories and record zero `naming`, `kiss`, `yagni`, `dry`, and `solid` findings.
 
 ## 5. Delivery
 
-- [ ] 5.1 Keep `openspec/CHANGE_ORDER.md` current with this change status.
-- [ ] 5.2 Prepare the branch for commit/PR once the validation evidence is complete.
+- [x] 5.1 Keep `openspec/CHANGE_ORDER.md` current with this change status.
+- [x] 5.2 Prepare the branch for commit/PR once the validation evidence is complete.

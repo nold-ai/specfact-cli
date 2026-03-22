@@ -1,7 +1,9 @@
 ---
 layout: default
 title: AI IDE Workflow Guide
-permalink: /ai-ide-workflow/
+permalink: /guides/ai-ide-workflow/
+redirect_from:
+  - /ai-ide-workflow/
 ---
 
 # AI IDE Workflow Guide

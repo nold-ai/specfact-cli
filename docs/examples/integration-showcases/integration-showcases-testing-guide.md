@@ -1,3 +1,9 @@
+---
+layout: default
+title: Integration Showcases Testing Guide
+permalink: /examples/integration-showcases/integration-showcases-testing-guide/
+---
+
 # Integration Showcases Testing Guide
 
 > **Purpose**: Step-by-step guide to test and validate all 5 integration examples from `integration-showcases.md`

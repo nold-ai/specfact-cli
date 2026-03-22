@@ -1,3 +1,9 @@
+---
+layout: default
+title: Tutorial Openspec Speckit
+permalink: /getting-started/tutorial-openspec-speckit/
+---
+
 # Tutorial: Using SpecFact with OpenSpec or Spec-Kit
 
 > **Complete step-by-step guide for new users**  
@@ -682,4 +688,4 @@ gh repo view your-org/your-repo
 
 Copyright © 2025-2026 Nold AI (Owner: Dominikus Nold)
 
-**Trademarks**: All product names, logos, and brands mentioned in this documentation are the property of their respective owners. NOLD AI (NOLDAI) is a registered trademark (wordmark) at the European Union Intellectual Property Office (EUIPO). See [TRADEMARKS.md](../../TRADEMARKS.md) for more information.
+**Trademarks**: All product names, logos, and brands mentioned in this documentation are the property of their respective owners. NOLD AI (NOLDAI) is a registered trademark (wordmark) at the European Union Intellectual Property Office (EUIPO). See [TRADEMARKS.md](/TRADEMARKS/) for more information.

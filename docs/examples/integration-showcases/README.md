@@ -1,3 +1,9 @@
+---
+layout: default
+title: Integration Showcases
+permalink: /examples/integration-showcases/
+---
+
 # Integration Showcases
 
 > **Core USP**: SpecFact CLI works seamlessly with VS Code, Cursor, GitHub Actions, and any agentic workflow. This folder contains real examples of bugs that were caught and fixed through different integration points.
@@ -33,7 +39,7 @@ This folder contains everything you need to understand and test SpecFact CLI int
 
 ### Setup Script
 
-1. **[`setup-integration-tests.sh`](setup-integration-tests.sh)** 🚀 **AUTOMATED SETUP**
+1. **[`setup-integration-tests.sh`](https://github.com/nold-ai/specfact-cli/blob/main/docs/examples/integration-showcases/setup-integration-tests.sh)** 🚀 **AUTOMATED SETUP**
 
    - **Purpose**: Automated script to create test cases for all examples
    - **Content**: Creates test directories, sample code, and configuration files
@@ -53,7 +59,7 @@ This gives you a complete overview of what SpecFact can do with real examples.
 
 **Step 2**: Choose your path:
 
-- **Want to test the examples?** → Use [`setup-integration-tests.sh`](setup-integration-tests.sh) then follow [`integration-showcases-testing-guide.md`](integration-showcases-testing-guide.md)
+- **Want to test the examples?** → Use [`setup-integration-tests.sh`](https://github.com/nold-ai/specfact-cli/blob/main/docs/examples/integration-showcases/setup-integration-tests.sh) then follow [`integration-showcases-testing-guide.md`](integration-showcases-testing-guide.md)
 
 - **Just need quick commands?** → Check [`integration-showcases-quick-reference.md`](integration-showcases-quick-reference.md)
 

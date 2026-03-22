@@ -1,3 +1,9 @@
+---
+layout: default
+title: Testing
+permalink: /technical/testing/
+---
+
 # Testing Guide
 
 This document provides comprehensive guidance on testing the SpecFact CLI, including examples of how to test the `.specfact/` directory structure.

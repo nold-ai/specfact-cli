@@ -24,6 +24,7 @@ Each AI IDE has its own instruction file format (`.cursor/rules/*.mdc`, `.github
 - **NEW**: `specfact ide setup --update` — regenerate instruction files to match latest skill content
 - **NEW**: Glob-based auto-attachment: instruction files activate automatically when developer works on spec-related files (`*.yaml`, `*.json`, `**/openapi*`, `**/asyncapi*`)
 - **NEW**: Instruction file template system: instruction content is generated from a single source template, ensuring consistency across all platform formats
+- **MODIFY**: Generated instruction files stay lightweight and MUST reference clean-code enforcement through a one-line alias to the canonical `specfact-code-review` skill instead of embedding the full 7-principle charter inline
 
 ## Capabilities
 ### New Capabilities
@@ -32,7 +33,7 @@ Each AI IDE has its own instruction file format (`.cursor/rules/*.mdc`, `.github
 
 ### Modified Capabilities
 
-(none)
+- `cross-platform-instructions`: Extended so generated aliases can reference clean-code enforcement without breaking the lightweight token budget for IDE instruction surfaces
 
 
 ---

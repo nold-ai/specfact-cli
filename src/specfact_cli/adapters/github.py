@@ -721,7 +721,7 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             Change ID extraction priority:
             1. Body footer (legacy format): *OpenSpec Change Proposal: `id`*
             2. Comments (new format): **Change ID**: `id` in OpenSpec Change Proposal Reference comment
-            3. Issue number (fallback)
+            3. Issue number (fallback, normalized during shared proposal import)
         """
         if not isinstance(item_data, dict):
             msg = "GitHub issue data must be dict"

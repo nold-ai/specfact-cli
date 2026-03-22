@@ -1,3 +1,9 @@
+---
+layout: default
+title: Validation Integration
+permalink: /validation-integration/
+---
+
 # Validation Integration with Change Proposals
 
 This document describes how SpecFact validation integrates with OpenSpec change proposals to validate against proposed specifications.

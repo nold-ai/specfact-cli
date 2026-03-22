@@ -19,6 +19,7 @@ Policy enforcement today is binary — pass or fail. Different team sizes need d
 - **NEW**: Gradual escalation path: new policies start in shadow mode for a configurable period (default 2 weeks), then auto-promote to the profile's default mode. Manual override available.
 - **NEW**: Policy packs — installable bundles of related policy rules:
   - `specfact policy install specfact/dor-dod-basics` — install built-in DoR/DoD policy pack
+  - `specfact policy install specfact/clean-code-principles` — install the built-in clean-code pack that maps the 7 principles to concrete review rules
   - `specfact policy install org/payments-compliance` — install org-specific policy pack
   - Pack format: YAML manifest + rule definitions, versioned, signable (arch-06)
 - **NEW**: `specfact policy list --show-mode` — list active policies with their current enforcement mode (shadow/advisory/mixed/hard) and escalation schedule
@@ -32,7 +33,7 @@ Policy enforcement today is binary — pass or fail. Different team sizes need d
         require-business-value: advisory
   ```
 - **EXTEND**: Policy engine (policy-engine-01) extended with mode-aware execution — `policy.validate` respects the configured mode per rule and per pack
-- **EXTEND**: Profile integration — each profile tier has a default enforcement mode (solo=advisory, startup=advisory→mixed, mid-size=mixed, enterprise=hard)
+- **EXTEND**: Profile integration — each profile tier has a default enforcement mode (solo=advisory, startup=advisory→mixed, mid-size=mixed, enterprise=hard), and the clean-code pack inherits those defaults instead of defining a parallel clean-code profile system
 - **NEW**: Ownership authority — this change is authoritative for policy mode execution semantics; dependent governance changes must consume this contract without redefining mode behavior.
 
 ## Capabilities
@@ -43,6 +44,7 @@ Policy enforcement today is binary — pass or fail. Different team sizes need d
 ### Modified Capabilities
 
 - `policy-engine`: Extended with mode-aware execution (advisory/mixed/hard per rule), shadow-start for new policies, and gradual escalation scheduling
+- `policy-packs-and-modes`: Extended with the built-in `specfact/clean-code-principles` pack and per-rule mode mapping for clean-code review findings
 
 
 ---

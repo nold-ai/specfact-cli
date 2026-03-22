@@ -34,6 +34,7 @@ Per `openspec/config.yaml`, tests before code for any behavior-changing task. Or
 - [ ] 4.1 Create `tests/cli-contracts/schema/cli-scenario.schema.yaml` — the JSON Schema for scenario files.
 - [ ] 4.2 Create `tools/validate_cli_contracts.py` — validates scenario YAML against schema, reports errors with context.
 - [ ] 4.3 Add `validate-cli-contracts` script to `pyproject.toml` hatch scripts.
+- [ ] 4.3.1 Extend the schema and validator with optional clean-code finding category expectations for review workflows.
 - [ ] 4.4 Re-run tests until passing; record in `TDD_EVIDENCE.md`.
 
 ## 5. Pilot scenario files

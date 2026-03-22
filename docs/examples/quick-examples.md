@@ -1,7 +1,9 @@
 ---
 layout: default
 title: Quick Examples
-permalink: /quick-examples/
+permalink: /examples/quick-examples/
+redirect_from:
+  - /quick-examples/
 ---
 
 # Quick Examples

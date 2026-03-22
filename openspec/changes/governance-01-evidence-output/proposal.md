@@ -25,6 +25,11 @@ Enterprise environments require machine-readable evidence that policies were enf
       "layers": { ... },
       "orphans": { ... }
     },
+    "code_quality": {
+      "clean_code_score": 95,
+      "findings_by_category": { "naming": 0, "kiss": 1, "yagni": 0, "dry": 0, "solid": 0 },
+      "verdict": "PASS_WITH_ADVISORY"
+    },
     "coverage": {
       "req_to_arch": "92%",
       "arch_to_spec": "100%",
@@ -43,6 +48,7 @@ Enterprise environments require machine-readable evidence that policies were enf
 - **NEW**: Evidence artifact naming: `{timestamp}_{run_id}_evidence.json` for audit trail
 - **NEW**: Evidence summary on terminal: human-readable table alongside JSON output
 - **EXTEND**: Full-chain validation (validation-02) extended to produce evidence artifacts
+- **EXTEND**: Full-chain validation can append `code_quality` as a parallel section when the run includes review-based clean-code checks
 - **EXTEND**: Policy engine results formatted as evidence-compatible structures
 - **NEW**: Ownership authority — this change is authoritative for evidence JSON envelope/schema; sibling governance changes may add fields only through this envelope contract.
 
@@ -55,6 +61,7 @@ Enterprise environments require machine-readable evidence that policies were enf
 
 - `full-chain-validation`: Extended with evidence artifact generation via `--evidence-dir` and `--ci-mode` flags
 - `policy-engine`: Results formatted as evidence-compatible structures with run_id and timestamps
+- `governance-evidence-output`: Extended with a `code_quality` section that remains parallel to `validation_results` rather than introducing a new traceability layer
 
 
 ---

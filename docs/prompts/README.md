@@ -1,3 +1,9 @@
+---
+layout: default
+title: Prompts
+permalink: /prompts/
+---
+
 # Prompt Templates and Slash Commands Reference
 
 This directory contains documentation and tools for validating slash command prompts, as well as a reference for all available slash commands.

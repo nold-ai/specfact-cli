@@ -1,7 +1,9 @@
 ---
 layout: default
 title: Common Tasks Quick Reference
-permalink: /common-tasks/
+permalink: /guides/common-tasks/
+redirect_from:
+  - /common-tasks/
 ---
 
 # Common Tasks Quick Reference
