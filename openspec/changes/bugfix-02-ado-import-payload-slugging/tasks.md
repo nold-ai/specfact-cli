@@ -36,7 +36,7 @@
 - [x] 4.1 Re-run the targeted adapter and bridge tests; record passing results in `TDD_EVIDENCE.md`
 - [x] 4.2 Run `hatch run format`
 - [x] 4.3 Run `hatch run type-check`
-- [ ] 4.4 Run `hatch run lint`
+- [x] 4.4 Run `hatch run lint`
 - [x] 4.5 Run `hatch run yaml-lint`
 - [x] 4.6 Run `hatch run contract-test`
 - [x] 4.7 Run `hatch run smart-test`
@@ -45,17 +45,17 @@
 
 - [x] 5.1 Review affected docs in `docs/`, `README.md`, and command references for selective bridge import and ADO adapter behavior
 - [x] 5.2 Update the relevant ADO sync/import documentation to describe the corrected selective import behavior and title-based change-ID fallback
-- [ ] 5.3 If new or moved docs are required, verify front matter and sidebar navigation entries in `docs/_layouts/default.html`
+- [x] 5.3 If new or moved docs are required, verify front matter and sidebar navigation entries in `docs/_layouts/default.html`
 
 ## 6. Module signing, version, and changelog
 
-- [ ] 6.1 Run `hatch run ./scripts/verify-modules-signature.py --require-signature`
-- [ ] 6.2 If any module manifests changed, bump module versions and re-sign before re-running verification
-- [ ] 6.3 Bump patch version across the required version files
-- [ ] 6.4 Add a `CHANGELOG.md` entry for the bugfix release describing the ADO import contract fix and title-based slugging correction
+- [x] 6.1 Run `hatch run ./scripts/verify-modules-signature.py --require-signature`
+- [x] 6.2 If any module manifests changed, bump module versions and re-sign before re-running verification
+- [x] 6.3 Bump patch version across the required version files
+- [x] 6.4 Add a `CHANGELOG.md` entry for the bugfix release describing the ADO import contract fix and title-based slugging correction
 
 ## 7. PR and cleanup
 
-- [ ] 7.1 Open a PR from `bugfix/bugfix-02-ado-import-payload-slugging` to `dev`
-- [ ] 7.2 Ensure CI passes and the PR links both the synced change issue and bug `#425`
-- [ ] 7.3 After merge, remove the worktree and delete the local branch
+- [x] 7.1 Open a PR from `bugfix/bugfix-02-ado-import-payload-slugging` to `dev`
+- [x] 7.2 Ensure CI passes and the PR links both the synced change issue and bug `#425`
+- [x] 7.3 After merge, remove the worktree and delete the local branch

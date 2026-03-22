@@ -13,80 +13,80 @@ Do not implement production code until tests exist and have been run (expecting 
 
 ## 1. Create git worktree for this change
 
-- [ ] 1.1 Fetch latest and create a worktree with a new branch from `origin/dev`
-  - [ ] 1.1.1 `git fetch origin`
-  - [ ] 1.1.2 `git worktree add ../specfact-cli-worktrees/feature/doc-frontmatter-schema -b feature/doc-frontmatter-schema origin/dev`
-  - [ ] 1.1.3 Change into the worktree: `cd ../specfact-cli-worktrees/feature/doc-frontmatter-schema`
-  - [ ] 1.1.4 Create a virtual environment: `python -m venv .venv && source .venv/bin/activate && pip install -e ".[dev]"`
-  - [ ] 1.1.5 `git branch --show-current` (verify correct branch)
+- [x] 1.1 Fetch latest and create a worktree with a new branch from `origin/dev`
+  - [x] 1.1.1 `git fetch origin`
+  - [x] 1.1.2 `git worktree add ../specfact-cli-worktrees/feature/doc-frontmatter-schema -b feature/doc-frontmatter-schema origin/dev`
+  - [x] 1.1.3 Change into the worktree: `cd ../specfact-cli-worktrees/feature/doc-frontmatter-schema`
+  - [x] 1.1.4 Create a virtual environment: `python -m venv .venv && source .venv/bin/activate && pip install -e ".[dev]"`
+  - [x] 1.1.5 `git branch --show-current` (verify correct branch)
 
 ## 2. Test Infrastructure Setup
 
-- [ ] 2.1 Create test directory structure
-  - [ ] 2.1.1 `mkdir -p tests/unit/scripts/test_doc_frontmatter`
-  - [ ] 2.1.2 `mkdir -p tests/integration/scripts/test_doc_frontmatter`
+- [x] 2.1 Create test directory structure
+  - [x] 2.1.1 `mkdir -p tests/unit/scripts/test_doc_frontmatter`
+  - [x] 2.1.2 `mkdir -p tests/integration/scripts/test_doc_frontmatter`
 
-- [ ] 2.2 Add test dependencies
-  - [ ] 2.2.1 Ensure PyYAML is in requirements: `pip install pyyaml`
+- [x] 2.2 Add test dependencies
+  - [x] 2.2.1 Ensure PyYAML is in requirements: `pip install pyyaml`
   - [ ] 2.2.2 Add to project dependencies if needed
 
 ## 3. Test Implementation (TDD - Create Tests First)
 
 ### 3.1 Frontmatter Schema Tests
-- [ ] 3.1.1 Create `tests/unit/scripts/test_doc_frontmatter/test_schema.py`
-  - [ ] 3.1.1.1 Test valid frontmatter parsing
-  - [ ] 3.1.1.2 Test missing required fields detection
-  - [ ] 3.1.1.3 Test owner identifier resolution
-  - [ ] 3.1.1.4 Test glob pattern validation
-  - [ ] 3.1.1.5 Test exemption handling
+- [x] 3.1.1 Create `tests/unit/scripts/test_doc_frontmatter/test_schema.py`
+  - [x] 3.1.1.1 Test valid frontmatter parsing
+  - [x] 3.1.1.2 Test missing required fields detection
+  - [x] 3.1.1.3 Test owner identifier resolution
+  - [x] 3.1.1.4 Test glob pattern validation
+  - [x] 3.1.1.5 Test exemption handling
 
-- [ ] 3.1.2 Run tests and expect failure (record in TDD_EVIDENCE.md)
-  - [ ] 3.1.2.1 `pytest tests/unit/scripts/test_doc_frontmatter/test_schema.py -v`
-  - [ ] 3.1.2.2 Capture failure output in `openspec/changes/doc-frontmatter-schema/TDD_EVIDENCE.md`
+- [x] 3.1.2 Run tests and expect failure (record in TDD_EVIDENCE.md)
+  - [x] 3.1.2.1 `pytest tests/unit/scripts/test_doc_frontmatter/test_schema.py -v`
+  - [x] 3.1.2.2 Capture failure output in `openspec/changes/doc-frontmatter-schema/TDD_EVIDENCE.md`
 
 ### 3.2 Validation Logic Tests
-- [ ] 3.2.1 Create `tests/unit/scripts/test_doc_frontmatter/test_validation.py`
-  - [ ] 3.2.1.1 Test missing doc_owner detection
-  - [ ] 3.2.1.2 Test invalid owner resolution
-  - [ ] 3.2.1.3 Test fix hint generation
-  - [ ] 3.2.1.4 Test file discovery logic
-  - [ ] 3.2.1.5 Test exempt file handling
+- [x] 3.2.1 Create `tests/unit/scripts/test_doc_frontmatter/test_validation.py`
+  - [x] 3.2.1.1 Test missing doc_owner detection
+  - [x] 3.2.1.2 Test invalid owner resolution
+  - [x] 3.2.1.3 Test fix hint generation
+  - [x] 3.2.1.4 Test file discovery logic
+  - [x] 3.2.1.5 Test exempt file handling
 
-- [ ] 3.2.2 Run tests and expect failure (record in TDD_EVIDENCE.md)
-  - [ ] 3.2.2.1 `pytest tests/unit/scripts/test_doc_frontmatter/test_validation.py -v`
-  - [ ] 3.2.2.2 Capture failure output
+- [x] 3.2.2 Run tests and expect failure (record in TDD_EVIDENCE.md)
+  - [x] 3.2.2.1 `pytest tests/unit/scripts/test_doc_frontmatter/test_validation.py -v`
+  - [x] 3.2.2.2 Capture failure output
 
 ### 3.3 Integration Tests
-- [ ] 3.3.1 Create `tests/integration/scripts/test_doc_frontmatter/test_integration.py`
-  - [ ] 3.3.1.1 Test end-to-end validation workflow
-  - [ ] 3.3.1.2 Test multiple file scenarios
-  - [ ] 3.3.1.3 Test performance with many files
+- [x] 3.3.1 Create `tests/integration/scripts/test_doc_frontmatter/test_integration.py`
+  - [x] 3.3.1.1 Test end-to-end validation workflow
+  - [x] 3.3.1.2 Test multiple file scenarios
+  - [x] 3.3.1.3 Test performance with many files
 
-- [ ] 3.3.2 Run integration tests and expect failure (record in TDD_EVIDENCE.md)
-  - [ ] 3.3.2.1 `pytest tests/integration/scripts/test_doc_frontmatter/ -v`
-  - [ ] 3.3.2.2 Capture failure output
+- [x] 3.3.2 Run integration tests and expect failure (record in TDD_EVIDENCE.md)
+  - [x] 3.3.2.1 `pytest tests/integration/scripts/test_doc_frontmatter/ -v`
+  - [x] 3.3.2.2 Capture failure output
 
 ## 4. Implementation (Create Code to Pass Tests)
 
 ### 4.1 Frontmatter Schema Implementation
-- [ ] 4.1.1 Create `scripts/check-doc-frontmatter.py`
-  - [ ] 4.1.1.1 Implement `parse_frontmatter()` function with `@icontract` and `@beartype`
-  - [ ] 4.1.1.2 Implement `extract_doc_owner()` function
-  - [ ] 4.1.1.3 Implement `resolve_owner()` function
-  - [ ] 4.1.1.4 Implement `validate_glob_patterns()` function
-  - [ ] 4.1.1.5 Implement `suggest_frontmatter()` function
+- [x] 4.1.1 Create `scripts/check-doc-frontmatter.py`
+  - [x] 4.1.1.1 Implement `parse_frontmatter()` function with `@icontract` and `@beartype`
+  - [x] 4.1.1.2 Implement `extract_doc_owner()` function
+  - [x] 4.1.1.3 Implement `resolve_owner()` function
+  - [x] 4.1.1.4 Implement `validate_glob_patterns()` function
+  - [x] 4.1.1.5 Implement `suggest_frontmatter()` function
 
 ### 4.2 Validation Logic Implementation
-- [ ] 4.2.1 Complete `check-doc-frontmatter.py` validation logic
-  - [ ] 4.2.1.1 Implement `get_all_md_files()` function
-  - [ ] 4.2.1.2 Implement `rg_missing_doc_owner()` function
-  - [ ] 4.2.1.3 Implement main validation loop
-  - [ ] 4.2.1.4 Implement error reporting with color coding
+- [x] 4.2.1 Complete `check-doc-frontmatter.py` validation logic
+  - [x] 4.2.1.1 Implement `get_all_md_files()` function
+  - [x] 4.2.1.2 Implement `rg_missing_doc_owner()` function
+  - [x] 4.2.1.3 Implement main validation loop
+  - [x] 4.2.1.4 Implement error reporting with color coding
 
 ### 4.3 Command-Line Interface
-- [ ] 4.3.1 Add argument parsing with `--fix-hint` flag
-  - [ ] 4.3.1.1 Use `argparse` for CLI arguments
-  - [ ] 4.3.1.2 Implement help text and usage examples
+- [x] 4.3.1 Add argument parsing with `--fix-hint` flag
+  - [x] 4.3.1.1 Use `argparse` for CLI arguments
+  - [x] 4.3.1.2 Implement help text and usage examples
 
 ### 4.4 Test Execution and Evidence
 - [ ] 4.4.1 Run all tests and verify they now pass
