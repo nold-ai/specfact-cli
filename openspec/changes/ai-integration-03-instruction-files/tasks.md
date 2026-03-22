@@ -17,6 +17,7 @@
 - [ ] 3.1 Implement minimal production code required to satisfy the new scenarios.
 - [ ] 3.2 Add/update contract decorators and type enforcement on public APIs.
 - [ ] 3.3 Update command wiring, adapters, and models required by this change scope only.
+- [ ] 3.4 Keep generated aliases lightweight by emitting a one-line `specfact-code-review` clean-code reference instead of copying the full charter into every IDE instruction file.
 
 ## 4. Validation and documentation
 

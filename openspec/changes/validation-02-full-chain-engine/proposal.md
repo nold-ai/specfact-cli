@@ -48,6 +48,7 @@ modules/validate/
   - Spec → Code: Existing spec-delta validation (unchanged)
   - Code → Tests: Contract coverage, test existence checks
   - Orphan detection: Specs with no requirement, code with no spec
+- **EXTEND**: Optional `--with-code-quality` side-channel runs `specfact review` during full-chain validation and passes its clean-code summary into the governance evidence envelope without redefining the chain layers.
 - **NEW**: Full-chain validation orchestrator in `modules/validate/src/validate/engine/full_chain.py` — runs all layer transition checks, aggregates results, computes coverage metrics
 - **NEW**: Layer transition rules with profile-dependent severity: solo gets advisory-only, enterprise gets hard-fail with evidence
 - **NEW**: Machine-readable evidence output (JSON) for CI gates:
@@ -77,6 +78,7 @@ modules/validate/
 ### Modified Capabilities
 
 - `sidecar-validation`: Extended with `--full-chain` flag; existing spec-delta validation preserved as-is when flag is omitted
+- `full-chain-validation`: Extended with optional code-quality side-channel reporting that remains parallel to the Req → Arch → Spec → Code → Tests transitions
 
 
 ---

@@ -18,6 +18,7 @@
 - [ ] 3.1 Implement minimal production code required to satisfy the new scenarios.
 - [ ] 3.2 Add/update contract decorators and type enforcement on public APIs.
 - [ ] 3.3 Update command wiring, adapters, and models required by this change scope only.
+- [ ] 3.4 Add the built-in `specfact/clean-code-principles` pack definition and wire its per-rule modes through the existing policy-engine path rather than a new clean-code-specific severity mechanism.
 
 ## 4. Validation and documentation
 

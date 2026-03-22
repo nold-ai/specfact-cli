@@ -51,6 +51,15 @@ Only changes that are **archived**, shown as **✓ Complete** by `openspec list`
 | ✅ cli-val-07-command-package-runtime-validation | archived 2026-03-09 |
 | ✅ backlog-02-migrate-core-commands | archived 2026-03-11 |
 | ✅ docs-03-command-syntax-parity | archived 2026-03-18 |
+| ✅ code-review-01-module-scaffold | archived 2026-03-17 |
+| ✅ code-review-02-ruff-radon-runners | archived 2026-03-17 |
+| ✅ code-review-03-type-governance-runners | archived 2026-03-17 |
+| ✅ code-review-04-contract-test-runners | archived 2026-03-17 |
+| ✅ code-review-05-semgrep-clean-code-rules | archived 2026-03-17 |
+| ✅ code-review-06-reward-ledger | archived 2026-03-17 |
+| ✅ code-review-07-house-rules-skill | archived 2026-03-17 |
+| ✅ code-review-08-review-run-integration | archived 2026-03-17 |
+| ✅ code-review-09-f4-automation-upgrade | archived 2026-03-17 |
 
 ### Pending
 
@@ -72,6 +81,17 @@ The source plan inventory listed 17 new changes. Two additional cross-cutting ch
 - `dogfooding-01-full-chain-e2e-proof`: defines reproducible end-to-end evidence for running the full chain on real SpecFact backlog slices.
 
 These are derived extensions of the same 2026-02-15 plan and are required to operationalize the plan's end-to-end positioning rather than optional scope expansion.
+
+---
+
+## Plan-derived addendum (2026-03-22 clean code enforcement plan)
+
+The 2026-03-22 clean-code plan adds one new cross-repo change pair and re-sequences existing governance, profile, validation, dogfooding, and IDE-instruction changes around it:
+
+- `clean-code-02-expanded-review-module` in `nold-ai/specfact-cli-modules` expands the review engine, finding schema, review skill, and policy-pack payload.
+- `clean-code-01-principle-gates` in `nold-ai/specfact-cli` consumes those review capabilities to harden specfact-cli instruction surfaces and repo-local gates.
+- `code-review-zero-findings` remains the prerequisite dogfood baseline before the new clean-code gates are enforced.
+- Existing changes `profile-01`, `policy-02`, `governance-01`, `governance-02`, `validation-02`, `ai-integration-03`, `dogfooding-01`, and `cli-val-01` now carry explicit clean-code deltas. Their base ownership stays unchanged; the clean-code work is sequenced through delta updates rather than new parallel changes.
 
 ---
 
@@ -268,15 +288,21 @@ Target repos: `nold-ai/specfact-cli-modules` (module implementation) + `nold-ai/
 
 | Module | Order | Change folder | GitHub # | Blocked by |
 |--------|-------|---------------|----------|------------|
-| code-review | 01 | code-review-01-module-scaffold | [#398](https://github.com/nold-ai/specfact-cli/issues/398) | — |
-| code-review | 02 | code-review-02-ruff-radon-runners | TBD | code-review-01 |
-| code-review | 03 | code-review-03-type-governance-runners | TBD | code-review-01 |
-| code-review | 04 | code-review-04-contract-test-runners | TBD | code-review-01; code-review-02; code-review-03 |
-| code-review | 05 | code-review-05-semgrep-clean-code-rules | TBD | code-review-01 |
-| code-review | 06 | code-review-06-reward-ledger | TBD | code-review-01 |
-| code-review | 07 | code-review-07-house-rules-skill | TBD | code-review-01; code-review-06; ai-integration-01 (soft) |
-| code-review | 08 | code-review-08-review-run-integration | TBD | code-review-02; code-review-03; code-review-04; code-review-05 |
-| code-review | 09 | code-review-09-f4-automation-upgrade | TBD | code-review-01; code-review-02; code-review-03; code-review-04; code-review-06 |
+| code-review | 01 | ✅ code-review-01-module-scaffold (archived 2026-03-17) | [#398](https://github.com/nold-ai/specfact-cli/issues/398) | — |
+| code-review | 02 | ✅ code-review-02-ruff-radon-runners (archived 2026-03-17) | [#397](https://github.com/nold-ai/specfact-cli/issues/397) | code-review-01 ✅ |
+| code-review | 03 | ✅ code-review-03-type-governance-runners (archived 2026-03-17) | [#401](https://github.com/nold-ai/specfact-cli/issues/401) | code-review-01 ✅ |
+| code-review | 04 | ✅ code-review-04-contract-test-runners (archived 2026-03-17) | [#400](https://github.com/nold-ai/specfact-cli/issues/400) | code-review-01 ✅; code-review-02 ✅; code-review-03 ✅ |
+| code-review | 05 | ✅ code-review-05-semgrep-clean-code-rules (archived 2026-03-17) | [#399](https://github.com/nold-ai/specfact-cli/issues/399) | code-review-01 ✅ |
+| code-review | 06 | ✅ code-review-06-reward-ledger (archived 2026-03-17) | [#395](https://github.com/nold-ai/specfact-cli/issues/395) | code-review-01 ✅ |
+| code-review | 07 | ✅ code-review-07-house-rules-skill (archived 2026-03-17) | [#394](https://github.com/nold-ai/specfact-cli/issues/394) | code-review-01 ✅; code-review-06 ✅; ai-integration-01 (soft) |
+| code-review | 08 | ✅ code-review-08-review-run-integration (archived 2026-03-17) | [#396](https://github.com/nold-ai/specfact-cli/issues/396) | code-review-02 ✅; code-review-03 ✅; code-review-04 ✅; code-review-05 ✅ |
+| code-review | 09 | ✅ code-review-09-f4-automation-upgrade (archived 2026-03-17) | [#393](https://github.com/nold-ai/specfact-cli/issues/393) | code-review-01 ✅; code-review-02 ✅; code-review-03 ✅; code-review-04 ✅; code-review-06 ✅ |
+
+### Clean code enforcement (2026-03-22 plan)
+
+| Module | Order | Change folder | GitHub # | Blocked by |
+|--------|-------|---------------|----------|------------|
+| clean-code | 01 | clean-code-01-principle-gates | [#434](https://github.com/nold-ai/specfact-cli/issues/434) | code-review-zero-findings (#423); clean-code-02-expanded-review-module (modules repo #94) |
 
 ---
 

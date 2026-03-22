@@ -14,3 +14,9 @@ The system SHALL support explicit, tracked, and time-bound governance exceptions
 - **WHEN** matching policy violation occurs
 - **THEN** violation is treated per normal mode semantics
 - **AND** output identifies the exception as expired.
+
+#### Scenario: Clean-code exceptions target policy rule identifiers
+- **GIVEN** `.specfact/exceptions.yaml` contains `policy: clean-code-principles/banned-generic-public-names`
+- **WHEN** a matching naming finding is emitted within the declared scope
+- **THEN** that specific rule is suppressed according to the exception lifecycle
+- **AND** no separate `principle` field is required in the exception schema

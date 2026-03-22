@@ -20,3 +20,9 @@ The system SHALL validate Requirement -> Architecture -> Spec -> Code -> Test tr
 - **WHEN** full-chain validation runs
 - **THEN** orphan entries are listed in evidence
 - **AND** orphan summary is included in overall status computation.
+
+#### Scenario: Code quality can be included without becoming a chain layer
+- **GIVEN** `specfact validate --full-chain --with-code-quality` is executed
+- **WHEN** the validation run completes
+- **THEN** the evidence output includes a `code_quality` summary sourced from `specfact review`
+- **AND** the traceability layers remain limited to `req_to_arch`, `arch_to_spec`, `spec_to_code`, and `code_to_tests`

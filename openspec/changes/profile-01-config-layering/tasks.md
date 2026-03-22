@@ -17,6 +17,7 @@
 - [ ] 3.1 Implement minimal production code required to satisfy the new scenarios.
 - [ ] 3.2 Add/update contract decorators and type enforcement on public APIs.
 - [ ] 3.3 Update command wiring, adapters, and models required by this change scope only.
+- [ ] 3.4 Map tier profiles to clean-code defaults in the shared resolver so downstream consumers inherit one source of truth for clean-code mode selection.
 
 ## 4. Validation and documentation
 

@@ -7,6 +7,7 @@ Every SpecFact CLI feature should have a single artifact that answers: "What doe
 ## What Changes
 
 - **NEW**: YAML schema definition for CLI behavior scenarios (`tests/cli-contracts/schema/cli-scenario.schema.yaml`) — defines the contract format for command groups
+- **EXTEND**: Scenario schema gains optional clean-code metadata so review workflows can declare expected finding categories and quality verdicts alongside argv and output expectations
 - **NEW**: Scenario files for pilot command groups stored in `tests/cli-contracts/` — one YAML file per command group recording patterns (happy paths) and anti-patterns (misuse/invalid input)
 - **NEW**: Schema validation utility (`tools/validate_cli_contracts.py`) that validates scenario YAML files against the schema
 - **EXTEND**: `openspec/config.yaml` context to reference CLI behavior contracts as a recognized artifact type
@@ -17,12 +18,13 @@ Every SpecFact CLI feature should have a single artifact that answers: "What doe
 ### New Capabilities
 
 - `cli-behavior-contracts`: A YAML-based schema and authoring standard for declaring CLI command behavior expectations — exact argv, required context, expected exit class (success/failure), stdout/stderr patterns, and filesystem diff expectations — separated into patterns (happy paths) and anti-patterns (misuse).
+- `cli-behavior-contracts`: Extended with optional clean-code finding category metadata for review and code-quality scenarios
 
 ## Impact
 
 - **Affected specs**: No existing specs modified; new spec delta defines the schema and authoring process
 - **Affected code**: New schema file and validation tool only; no production CLI code changes
-- **Integration points**: Consumed by cli-val-03 (anti-patterns), cli-val-04 (acceptance runner), cli-val-06 (copilot generation)
+- **Integration points**: Consumed by cli-val-03 (anti-patterns), cli-val-04 (acceptance runner), cli-val-06 (copilot generation), and clean-code proof scenarios that need stable category assertions
 - **Documentation impact**: New page in `docs/` describing the CLI behavior contract format for contributors
 
 ## Dependencies

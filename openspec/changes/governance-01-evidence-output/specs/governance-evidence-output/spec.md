@@ -14,3 +14,9 @@ The system SHALL produce machine-readable governance evidence suitable for CI an
 - **WHEN** governance evidence is emitted
 - **THEN** each layer contains pass/fail/advisory counts and coverage percentages
 - **AND** overall verdict is derivable from the evidence alone.
+
+#### Scenario: Evidence carries clean-code results as a parallel quality dimension
+- **GIVEN** a validation run includes `specfact review` clean-code output
+- **WHEN** governance evidence is emitted
+- **THEN** the envelope includes a top-level `code_quality` section with category counts and verdict
+- **AND** clean-code data does not redefine or replace the traceability `validation_results.layers` structure
