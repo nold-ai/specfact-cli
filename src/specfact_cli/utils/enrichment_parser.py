@@ -10,12 +10,88 @@ from __future__ import annotations
 import re
 from contextlib import suppress
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from beartype import beartype
 from icontract import ensure, require
 
 from specfact_cli.models.plan import Feature, PlanBundle, Story
+
+
+def _story_from_dict_with_key(story_data: dict[str, Any], key: str) -> Story:
+    return Story(
+        key=key,
+        title=story_data.get("title", "Untitled Story"),
+        acceptance=story_data.get("acceptance", []),
+        story_points=story_data.get("story_points"),
+        value_points=story_data.get("value_points"),
+        tasks=story_data.get("tasks", []),
+        confidence=story_data.get("confidence", 0.8),
+        draft=False,
+        scenarios=None,
+        contracts=None,
+    )
+
+
+def _merge_missing_stories_into_feature(
+    existing_feature: Feature, stories_data: list[Any], existing_story_keys: set[str]
+) -> None:
+    for story_data in stories_data:
+        if not isinstance(story_data, dict):
+            continue
+        story_d: dict[str, Any] = cast(dict[str, Any], story_data)
+        story_key = story_d.get("key", "")
+        if not story_key or story_key in existing_story_keys:
+            continue
+        existing_feature.stories.append(_story_from_dict_with_key(story_data, story_key))
+        existing_story_keys.add(story_key)
+
+
+def _merge_missing_into_existing_feature(
+    existing_feature: Feature,
+    missing_feature_data: dict[str, Any],
+) -> None:
+    if "confidence" in missing_feature_data:
+        existing_feature.confidence = missing_feature_data["confidence"]
+    if "title" in missing_feature_data and missing_feature_data["title"] and not existing_feature.title:
+        existing_feature.title = missing_feature_data["title"]
+    if "outcomes" in missing_feature_data:
+        for outcome in missing_feature_data["outcomes"]:
+            if outcome not in existing_feature.outcomes:
+                existing_feature.outcomes.append(outcome)
+    stories_data = missing_feature_data.get("stories", [])
+    if not stories_data:
+        return
+    existing_story_keys = {s.key for s in existing_feature.stories}
+    _merge_missing_stories_into_feature(existing_feature, stories_data, existing_story_keys)
+
+
+def _append_new_feature_from_missing(enriched: PlanBundle, missing_feature_data: dict[str, Any]) -> None:
+    stories_data = missing_feature_data.get("stories", [])
+    stories: list[Story] = []
+    for story_data in stories_data:
+        if isinstance(story_data, dict):
+            sd: dict[str, Any] = cast(dict[str, Any], story_data)
+            stories.append(
+                _story_from_dict_with_key(
+                    sd,
+                    sd.get("key", f"STORY-{len(stories) + 1:03d}"),
+                )
+            )
+    feature = Feature(
+        key=missing_feature_data.get("key", f"FEATURE-{len(enriched.features) + 1:03d}"),
+        title=missing_feature_data.get("title", "Untitled Feature"),
+        outcomes=missing_feature_data.get("outcomes", []),
+        acceptance=[],
+        constraints=[],
+        stories=stories,
+        confidence=missing_feature_data.get("confidence", 0.5),
+        draft=False,
+        source_tracking=None,
+        contract=None,
+        protocol=None,
+    )
+    enriched.features.append(feature)
 
 
 class EnrichmentReport:
@@ -113,25 +189,39 @@ def _extract_story_title(story_text: str) -> str:
     return re.sub(r"^\d+\.\s*", "", first_line).strip()
 
 
+def _acceptance_items_from_field_text(acceptance_text: str) -> list[str]:
+    items: list[str] = []
+    for segment in re.split(r"\n|;", acceptance_text):
+        for piece in re.split(r",\s*", segment):
+            p = piece.strip(" -*")
+            if p:
+                items.append(p)
+    return items
+
+
+def _bullet_acceptance_lines(story_text: str, title: str) -> list[str]:
+    bullet_acceptance = [
+        line.strip(" -*")
+        for line in story_text.splitlines()
+        if line.strip().startswith(("-", "*")) and len(line.strip()) > 1
+    ]
+    return [item for item in bullet_acceptance if item and item != title]
+
+
 def _extract_story_acceptance(story_text: str, title: str) -> list[str]:
     """Extract acceptance criteria from a story block."""
-    acceptance: list[str] = []
     acceptance_match = re.search(
         r"(?:acceptance(?:\s+criteria)?|criteria):\s*(.+?)(?:\n(?:tasks?|Tasks?|story\s+points?|Story\s+points?)|$)",
         story_text,
         re.IGNORECASE | re.DOTALL,
     )
+    acceptance: list[str] = []
     if acceptance_match:
         acceptance_text = acceptance_match.group(1).strip()
-        acceptance = [item.strip(" -*") for item in re.split(r"\n|;", acceptance_text) if item.strip(" -*")]
+        acceptance = _acceptance_items_from_field_text(acceptance_text)
 
     if not acceptance and title:
-        bullet_acceptance = [
-            line.strip(" -*")
-            for line in story_text.splitlines()
-            if line.strip().startswith(("-", "*")) and len(line.strip()) > 1
-        ]
-        acceptance.extend(item for item in bullet_acceptance if item and item != title)
+        acceptance = _bullet_acceptance_lines(story_text, title)
 
     return acceptance
 
@@ -364,7 +454,6 @@ class EnrichmentParser:
     @require(lambda report: isinstance(report, EnrichmentReport), "Report must be EnrichmentReport")
     def _parse_business_context(self, content: str, report: EnrichmentReport) -> None:
         """Parse business context section from enrichment report."""
-        # Look for "Business Context" section
         pattern = r"##\s*Business\s+Context\s*\n(.*?)(?=##|\Z)"
         match = re.search(pattern, content, re.IGNORECASE | re.DOTALL)
         if not match:
@@ -372,38 +461,17 @@ class EnrichmentParser:
 
         section = match.group(1)
 
-        # Extract priorities
-        priorities_match = re.search(
-            r"(?:Priorities?|Priority):\s*(.+?)(?:\n(?:Constraints?|Unknowns?)|$)", section, re.IGNORECASE | re.DOTALL
-        )
-        if priorities_match:
-            priorities_text = priorities_match.group(1)
-            priorities = [
-                p.strip() for p in re.split(r"\n|,", priorities_text) if p.strip() and not p.strip().startswith("-")
-            ]
-            report.add_business_context("priorities", priorities)
+        def _add_list_from_heading(regex: str, category: str) -> None:
+            m = re.search(regex, section, re.IGNORECASE | re.DOTALL)
+            if not m:
+                return
+            text = m.group(1)
+            items = [x.strip() for x in re.split(r"\n|,", text) if x.strip() and not x.strip().startswith("-")]
+            report.add_business_context(category, items)
 
-        # Extract constraints
-        constraints_match = re.search(
-            r"(?:Constraints?|Constraint):\s*(.+?)(?:\n(?:Unknowns?|Priorities?)|$)", section, re.IGNORECASE | re.DOTALL
-        )
-        if constraints_match:
-            constraints_text = constraints_match.group(1)
-            constraints = [
-                c.strip() for c in re.split(r"\n|,", constraints_text) if c.strip() and not c.strip().startswith("-")
-            ]
-            report.add_business_context("constraints", constraints)
-
-        # Extract unknowns
-        unknowns_match = re.search(
-            r"(?:Unknowns?|Unknown):\s*(.+?)(?:\n(?:Priorities?|Constraints?)|$)", section, re.IGNORECASE | re.DOTALL
-        )
-        if unknowns_match:
-            unknowns_text = unknowns_match.group(1)
-            unknowns = [
-                u.strip() for u in re.split(r"\n|,", unknowns_text) if u.strip() and not u.strip().startswith("-")
-            ]
-            report.add_business_context("unknowns", unknowns)
+        _add_list_from_heading(r"(?:Priorities?|Priority):\s*(.+?)(?:\n(?:Constraints?|Unknowns?)|$)", "priorities")
+        _add_list_from_heading(r"(?:Constraints?|Constraint):\s*(.+?)(?:\n(?:Unknowns?|Priorities?)|$)", "constraints")
+        _add_list_from_heading(r"(?:Unknowns?|Unknown):\s*(.+?)(?:\n(?:Priorities?|Constraints?)|$)", "unknowns")
 
 
 @beartype
@@ -432,80 +500,12 @@ def apply_enrichment(plan_bundle: PlanBundle, enrichment: EnrichmentReport) -> P
 
     # Add missing features
     for missing_feature_data in enrichment.missing_features:
-        # Check if feature already exists
         feature_key = missing_feature_data.get("key", "")
         if feature_key and feature_key in feature_keys:
-            # Update existing feature instead of adding duplicate
             existing_idx = feature_keys[feature_key]
-            existing_feature = enriched.features[existing_idx]
-            # Update confidence if provided
-            if "confidence" in missing_feature_data:
-                existing_feature.confidence = missing_feature_data["confidence"]
-            # Update title if provided and empty
-            if "title" in missing_feature_data and missing_feature_data["title"] and not existing_feature.title:
-                existing_feature.title = missing_feature_data["title"]
-            # Merge outcomes
-            if "outcomes" in missing_feature_data:
-                for outcome in missing_feature_data["outcomes"]:
-                    if outcome not in existing_feature.outcomes:
-                        existing_feature.outcomes.append(outcome)
-            # Merge stories (add new stories that don't already exist)
-            stories_data = missing_feature_data.get("stories", [])
-            if stories_data:
-                existing_story_keys = {s.key for s in existing_feature.stories}
-                for story_data in stories_data:
-                    if isinstance(story_data, dict):
-                        story_key = story_data.get("key", "")
-                        # Only add story if it doesn't already exist
-                        if story_key and story_key not in existing_story_keys:
-                            story = Story(
-                                key=story_key,
-                                title=story_data.get("title", "Untitled Story"),
-                                acceptance=story_data.get("acceptance", []),
-                                story_points=story_data.get("story_points"),
-                                value_points=story_data.get("value_points"),
-                                tasks=story_data.get("tasks", []),
-                                confidence=story_data.get("confidence", 0.8),
-                                draft=False,
-                                scenarios=None,
-                                contracts=None,
-                            )
-                            existing_feature.stories.append(story)
-                            existing_story_keys.add(story_key)
+            _merge_missing_into_existing_feature(enriched.features[existing_idx], missing_feature_data)
         else:
-            # Create new feature with stories (if provided)
-            stories_data = missing_feature_data.get("stories", [])
-            stories: list[Story] = []
-            for story_data in stories_data:
-                if isinstance(story_data, dict):
-                    story = Story(
-                        key=story_data.get("key", f"STORY-{len(stories) + 1:03d}"),
-                        title=story_data.get("title", "Untitled Story"),
-                        acceptance=story_data.get("acceptance", []),
-                        story_points=story_data.get("story_points"),
-                        value_points=story_data.get("value_points"),
-                        tasks=story_data.get("tasks", []),
-                        confidence=story_data.get("confidence", 0.8),
-                        draft=False,
-                        scenarios=None,
-                        contracts=None,
-                    )
-                    stories.append(story)
-
-            feature = Feature(
-                key=missing_feature_data.get("key", f"FEATURE-{len(enriched.features) + 1:03d}"),
-                title=missing_feature_data.get("title", "Untitled Feature"),
-                outcomes=missing_feature_data.get("outcomes", []),
-                acceptance=[],
-                constraints=[],
-                stories=stories,  # Include parsed stories
-                confidence=missing_feature_data.get("confidence", 0.5),
-                draft=False,
-                source_tracking=None,
-                contract=None,
-                protocol=None,
-            )
-            enriched.features.append(feature)
+            _append_new_feature_from_missing(enriched, missing_feature_data)
 
     # Apply business context to idea if present
     if enriched.idea and enrichment.business_context and enrichment.business_context.get("constraints"):

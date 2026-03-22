@@ -8,7 +8,7 @@ DoR rules that are checked before backlog items are ready for sprint planning.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from beartype import beartype
 from icontract import ensure, require
@@ -46,52 +46,72 @@ class DefinitionOfReady(BaseModel):
         Returns:
             List of validation errors (empty if all DoR rules satisfied)
         """
-        errors: list[str] = []
         item_id = item_data.get("id") or item_data.get("number") or "UNKNOWN"
         context = f"Backlog item {item_id}"
-
-        # Check story points (if rule enabled)
-        if self.rules.get("story_points", False):
-            story_points = item_data.get("story_points") or item_data.get("provider_fields", {}).get("story_points")
-            if story_points is None:
-                errors.append(f"{context}: Missing story points (required for DoR)")
-
-        # Check value points (if rule enabled)
-        if self.rules.get("value_points", False):
-            value_points = item_data.get("value_points") or item_data.get("provider_fields", {}).get("value_points")
-            if value_points is None:
-                errors.append(f"{context}: Missing value points (required for DoR)")
-
-        # Check priority (if rule enabled)
-        if self.rules.get("priority", False):
-            priority = item_data.get("priority") or item_data.get("provider_fields", {}).get("priority")
-            if priority is None:
-                errors.append(f"{context}: Missing priority (required for DoR)")
-
-        # Check business value (if rule enabled)
-        if self.rules.get("business_value", False):
-            business_value = item_data.get("business_value") or item_data.get("body_markdown", "")
-            # Check if body contains business value section
-            if "business value" not in business_value.lower() and "value proposition" not in business_value.lower():
-                errors.append(f"{context}: Missing business value description (required for DoR)")
-
-        # Check acceptance criteria (if rule enabled)
-        if self.rules.get("acceptance_criteria", False):
-            body = item_data.get("body_markdown", "")
-            # Check if body contains acceptance criteria section
-            if "acceptance criteria" not in body.lower() and "acceptance" not in body.lower():
-                errors.append(f"{context}: Missing acceptance criteria (required for DoR)")
-
-        # Check dependencies are documented (if rule enabled)
-        if self.rules.get("dependencies", False):
-            # Dependencies might be in provider_fields or body
-            dependencies = item_data.get("dependencies") or item_data.get("provider_fields", {}).get("dependencies", [])
-            body = item_data.get("body_markdown", "")
-            # Check if dependencies are mentioned in body or explicitly set
-            if not dependencies and "depend" not in body.lower() and "block" not in body.lower():
-                errors.append(f"{context}: Missing dependency documentation (required for DoR)")
-
+        errors: list[str] = []
+        for err in (
+            self._dor_error_story_points(item_data, context),
+            self._dor_error_value_points(item_data, context),
+            self._dor_error_priority(item_data, context),
+            self._dor_error_business_value(item_data, context),
+            self._dor_error_acceptance_criteria(item_data, context),
+            self._dor_error_dependencies(item_data, context),
+        ):
+            if err:
+                errors.append(err)
         return errors
+
+    def _dor_error_story_points(self, item_data: dict[str, Any], context: str) -> str | None:
+        if not self.rules.get("story_points", False):
+            return None
+        story_points = item_data.get("story_points") or item_data.get("provider_fields", {}).get("story_points")
+        if story_points is None:
+            return f"{context}: Missing story points (required for DoR)"
+        return None
+
+    def _dor_error_value_points(self, item_data: dict[str, Any], context: str) -> str | None:
+        if not self.rules.get("value_points", False):
+            return None
+        value_points = item_data.get("value_points") or item_data.get("provider_fields", {}).get("value_points")
+        if value_points is None:
+            return f"{context}: Missing value points (required for DoR)"
+        return None
+
+    def _dor_error_priority(self, item_data: dict[str, Any], context: str) -> str | None:
+        if not self.rules.get("priority", False):
+            return None
+        priority = item_data.get("priority") or item_data.get("provider_fields", {}).get("priority")
+        if priority is None:
+            return f"{context}: Missing priority (required for DoR)"
+        return None
+
+    def _dor_error_business_value(self, item_data: dict[str, Any], context: str) -> str | None:
+        if not self.rules.get("business_value", False):
+            return None
+        business_value = item_data.get("business_value") or item_data.get("body_markdown", "")
+        body_lower = business_value.lower()
+        if "business value" not in body_lower and "value proposition" not in body_lower:
+            return f"{context}: Missing business value description (required for DoR)"
+        return None
+
+    def _dor_error_acceptance_criteria(self, item_data: dict[str, Any], context: str) -> str | None:
+        if not self.rules.get("acceptance_criteria", False):
+            return None
+        body = item_data.get("body_markdown", "")
+        body_lower = body.lower()
+        if "acceptance criteria" not in body_lower and "acceptance" not in body_lower:
+            return f"{context}: Missing acceptance criteria (required for DoR)"
+        return None
+
+    def _dor_error_dependencies(self, item_data: dict[str, Any], context: str) -> str | None:
+        if not self.rules.get("dependencies", False):
+            return None
+        dependencies = item_data.get("dependencies") or item_data.get("provider_fields", {}).get("dependencies", [])
+        body = item_data.get("body_markdown", "")
+        body_lower = body.lower()
+        if not dependencies and "depend" not in body_lower and "block" not in body_lower:
+            return f"{context}: Missing dependency documentation (required for DoR)"
+        return None
 
     @classmethod
     @require(lambda cls, config_path: isinstance(config_path, Path), "Config path must be Path")
@@ -123,11 +143,13 @@ class DefinitionOfReady(BaseModel):
                     msg = f"DoR config file must contain a YAML dict: {config_path}"
                     raise ValueError(msg)
 
+                raw: dict[str, Any] = cast(dict[str, Any], data)
+                repo_raw = raw.get("repo_path")
                 return cls(
-                    rules=data.get("rules", {}),
-                    repo_path=Path(data.get("repo_path", "")) if data.get("repo_path") else None,
-                    team_id=data.get("team_id"),
-                    project_id=data.get("project_id"),
+                    rules=cast(dict[str, bool], raw.get("rules", {})),
+                    repo_path=Path(str(repo_raw)) if repo_raw else None,
+                    team_id=cast(str | None, raw.get("team_id")),
+                    project_id=cast(str | None, raw.get("project_id")),
                 )
         except yaml.YAMLError as e:
             msg = f"Failed to parse DoR config YAML: {config_path}: {e}"

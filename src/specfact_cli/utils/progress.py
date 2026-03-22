@@ -21,6 +21,7 @@ from rich.progress import Progress
 
 from specfact_cli.models.project import ProjectBundle
 from specfact_cli.utils.bundle_loader import load_project_bundle, save_project_bundle
+from specfact_cli.utils.contract_predicates import bundle_dir_exists
 
 
 def _is_test_mode() -> bool:
@@ -52,12 +53,12 @@ def _safe_progress_display(display_console: Console) -> bool:
 
 @beartype
 @ensure(lambda result: callable(result), "must return callback")
-def create_progress_callback(progress: Progress, task_id: Any, prefix: str = "") -> Callable[[int, int, str], None]:
+def create_progress_callback(progress: Any, task_id: Any, prefix: str = "") -> Callable[[int, int, str], None]:
     """
     Create a standardized progress callback function.
 
     Args:
-        progress: Rich Progress instance
+        progress: Rich Progress instance (``Any`` so tests may pass mocks)
         task_id: Task ID from progress.add_task()
         prefix: Optional prefix for progress messages (e.g., "Loading", "Saving")
 
@@ -87,11 +88,11 @@ def create_progress_callback(progress: Progress, task_id: Any, prefix: str = "")
 
 
 @beartype
-@require(lambda bundle_dir: bundle_dir.exists(), "bundle_dir must exist")
+@require(bundle_dir_exists, "bundle_dir must exist")
 def load_bundle_with_progress(
     bundle_dir: Path,
     validate_hashes: bool = False,
-    console_instance: Console | None = None,
+    console_instance: Any | None = None,
 ) -> ProjectBundle:
     """
     Load project bundle with unified progress display.
@@ -161,13 +162,16 @@ def load_bundle_with_progress(
 
 
 @beartype
-@require(lambda bundle_dir: bundle_dir.exists(), "bundle_dir must exist")
+@require(
+    lambda bundle_dir: isinstance(bundle_dir, Path) and bundle_dir.parent.exists(),
+    "bundle_dir must be a path whose parent exists (directory may be created on save)",
+)
 @ensure(lambda result: result is None, "save returns None")
 def save_bundle_with_progress(
     bundle: ProjectBundle,
     bundle_dir: Path,
     atomic: bool = True,
-    console_instance: Console | None = None,
+    console_instance: Any | None = None,
 ) -> None:
     """
     Save project bundle with unified progress display.

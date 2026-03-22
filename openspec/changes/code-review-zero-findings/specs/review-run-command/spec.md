@@ -1,6 +1,7 @@
 ## MODIFIED Requirements
 
 ### Requirement: End-to-End specfact code review run Command
+The `specfact code review run` workflow SHALL support the dogfood self-review proof for the SpecFact CLI repository and emit a governed zero-finding report when remediation is complete.
 
 #### Scenario: Dogfood self-review on SpecFact CLI reaches zero tracked findings
 - **GIVEN** the SpecFact CLI repository under the `code-review-zero-findings` remediation branch

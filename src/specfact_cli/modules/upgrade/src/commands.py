@@ -13,7 +13,7 @@ import subprocess
 import sys
 from datetime import UTC
 from pathlib import Path
-from typing import NamedTuple
+from typing import Any, NamedTuple
 
 import typer
 from beartype import beartype
@@ -185,6 +185,93 @@ def install_update(method: InstallationMethod, yes: bool = False) -> bool:
         return False
 
 
+def _upgrade_log_started(check_only: bool, yes: bool) -> None:
+    if is_debug_mode():
+        debug_log_operation(
+            "command",
+            "upgrade",
+            "started",
+            extra={"check_only": check_only, "yes": yes},
+        )
+        debug_print("[dim]upgrade: started[/dim]")
+
+
+def _upgrade_handle_check_failure(version_result: Any) -> None:
+    if is_debug_mode():
+        debug_log_operation(
+            "command",
+            "upgrade",
+            "failed",
+            error=version_result.error or "Unknown error",
+            extra={"reason": "check_error"},
+        )
+    console.print(f"[red]Error checking for updates: {version_result.error}[/red]")
+    sys.exit(1)
+
+
+def _upgrade_handle_up_to_date(version_result: Any) -> None:
+    if is_debug_mode():
+        debug_log_operation(
+            "command",
+            "upgrade",
+            "success",
+            extra={"reason": "up_to_date", "version": version_result.current_version},
+        )
+        debug_print("[dim]upgrade: success (up to date)[/dim]")
+    console.print(f"[green]✓ You're up to date![/green] (version {version_result.current_version})")
+    from datetime import datetime
+
+    update_metadata(
+        last_checked_version=__version__,
+        last_version_check_timestamp=datetime.now(UTC).isoformat(),
+    )
+
+
+def _upgrade_render_update_panel(version_result: Any) -> None:
+    update_type_color = "red" if version_result.update_type == "major" else "yellow"
+    update_type_icon = "🔴" if version_result.update_type == "major" else "🟡"
+    update_info = (
+        f"[bold {update_type_color}]{update_type_icon} Update Available[/bold {update_type_color}]\n\n"
+        f"Current: [cyan]{version_result.current_version}[/cyan]\n"
+        f"Latest: [green]{version_result.latest_version}[/green]\n"
+    )
+    if version_result.update_type == "major":
+        update_info += (
+            "\n[bold red]⚠ Breaking changes may be present![/bold red]\nReview release notes before upgrading.\n"
+        )
+    console.print()
+    console.print(Panel(update_info, border_style=update_type_color))
+
+
+def _upgrade_install_or_check_only(version_result: Any, check_only: bool, yes: bool) -> None:
+    if check_only:
+        method = detect_installation_method()
+        console.print(f"\n[yellow]To upgrade, run:[/yellow] [cyan]{method.command}[/cyan]")
+        console.print("[dim]Or run:[/dim] [cyan]specfact upgrade --yes[/cyan]")
+        return
+    method = detect_installation_method()
+    console.print(f"\n[cyan]Installation method detected:[/cyan] [bold]{method.method}[/bold]")
+    success = install_update(method, yes=yes)
+    if success:
+        if is_debug_mode():
+            debug_log_operation("command", "upgrade", "success", extra={"reason": "installed"})
+            debug_print("[dim]upgrade: success[/dim]")
+        console.print("\n[green]✓ Update complete![/green]")
+        console.print("[dim]Run 'specfact --version' to verify the new version.[/dim]")
+        return
+    if is_debug_mode():
+        debug_log_operation(
+            "command",
+            "upgrade",
+            "failed",
+            error="Update was not installed",
+            extra={"reason": "install_failed"},
+        )
+    console.print("\n[yellow]Update was not installed.[/yellow]")
+    console.print("[dim]You can manually update using the command shown above.[/dim]")
+    sys.exit(1)
+
+
 @app.callback(invoke_without_command=True)
 @beartype
 @ensure(lambda result: result is None, "upgrade must return None")
@@ -219,97 +306,18 @@ def upgrade(
         # Check and install without confirmation
         specfact upgrade --yes
     """
-    if is_debug_mode():
-        debug_log_operation(
-            "command",
-            "upgrade",
-            "started",
-            extra={"check_only": check_only, "yes": yes},
-        )
-        debug_print("[dim]upgrade: started[/dim]")
+    _upgrade_log_started(check_only, yes)
 
-    # Check for updates
     console.print("[cyan]Checking for updates...[/cyan]")
     version_result = check_pypi_version()
 
     if version_result.error:
-        if is_debug_mode():
-            debug_log_operation(
-                "command",
-                "upgrade",
-                "failed",
-                error=version_result.error or "Unknown error",
-                extra={"reason": "check_error"},
-            )
-        console.print(f"[red]Error checking for updates: {version_result.error}[/red]")
-        sys.exit(1)
+        _upgrade_handle_check_failure(version_result)
 
     if not version_result.update_available:
-        if is_debug_mode():
-            debug_log_operation(
-                "command",
-                "upgrade",
-                "success",
-                extra={"reason": "up_to_date", "version": version_result.current_version},
-            )
-            debug_print("[dim]upgrade: success (up to date)[/dim]")
-        console.print(f"[green]✓ You're up to date![/green] (version {version_result.current_version})")
-        # Update metadata even if no update available
-        from datetime import datetime
-
-        update_metadata(
-            last_checked_version=__version__,
-            last_version_check_timestamp=datetime.now(UTC).isoformat(),
-        )
+        _upgrade_handle_up_to_date(version_result)
         return
 
-    # Update available
     if version_result.latest_version and version_result.update_type:
-        update_type_color = "red" if version_result.update_type == "major" else "yellow"
-        update_type_icon = "🔴" if version_result.update_type == "major" else "🟡"
-
-        update_info = (
-            f"[bold {update_type_color}]{update_type_icon} Update Available[/bold {update_type_color}]\n\n"
-            f"Current: [cyan]{version_result.current_version}[/cyan]\n"
-            f"Latest: [green]{version_result.latest_version}[/green]\n"
-        )
-
-        if version_result.update_type == "major":
-            update_info += (
-                "\n[bold red]⚠ Breaking changes may be present![/bold red]\nReview release notes before upgrading.\n"
-            )
-
-        console.print()
-        console.print(Panel(update_info, border_style=update_type_color))
-
-        if check_only:
-            # Detect installation method for user info
-            method = detect_installation_method()
-            console.print(f"\n[yellow]To upgrade, run:[/yellow] [cyan]{method.command}[/cyan]")
-            console.print("[dim]Or run:[/dim] [cyan]specfact upgrade --yes[/cyan]")
-            return
-
-        # Install update
-        method = detect_installation_method()
-        console.print(f"\n[cyan]Installation method detected:[/cyan] [bold]{method.method}[/bold]")
-
-        success = install_update(method, yes=yes)
-
-        if success:
-            if is_debug_mode():
-                debug_log_operation("command", "upgrade", "success", extra={"reason": "installed"})
-                debug_print("[dim]upgrade: success[/dim]")
-            console.print("\n[green]✓ Update complete![/green]")
-            console.print("[dim]Run 'specfact --version' to verify the new version.[/dim]")
-        else:
-            if is_debug_mode():
-                debug_log_operation(
-                    "command",
-                    "upgrade",
-                    "failed",
-                    error="Update was not installed",
-                    extra={"reason": "install_failed"},
-                )
-            console.print("\n[yellow]Update was not installed.[/yellow]")
-            console.print("[dim]You can manually update using the command shown above.[/dim]")
-            sys.exit(1)
+        _upgrade_render_update_panel(version_result)
+        _upgrade_install_or_check_only(version_result, check_only, yes)

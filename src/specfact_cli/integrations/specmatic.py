@@ -23,6 +23,12 @@ from beartype import beartype
 from icontract import ensure, require
 from rich.console import Console
 
+from specfact_cli.utils.icontract_helpers import (
+    require_new_spec_exists,
+    require_old_spec_exists,
+    require_spec_path_exists,
+)
+
 
 console = Console()
 
@@ -134,7 +140,7 @@ def check_specmatic_available() -> tuple[bool, str | None]:
 
 
 @beartype
-@require(lambda spec_path: spec_path.exists(), "Spec file must exist")
+@require(require_spec_path_exists, "Spec file must exist")
 async def validate_spec_with_specmatic(
     spec_path: Path,
     previous_version: Path | None = None,
@@ -175,7 +181,17 @@ async def validate_spec_with_specmatic(
         examples_valid=True,
     )
 
-    # Schema validation
+    await _specmatic_apply_schema_validation(specmatic_cmd, spec_path, result)
+    await _specmatic_apply_examples_validation(specmatic_cmd, spec_path, result)
+    if previous_version and previous_version.exists():
+        await _specmatic_apply_backward_compat(specmatic_cmd, spec_path, previous_version, result)
+
+    return result
+
+
+async def _specmatic_apply_schema_validation(
+    specmatic_cmd: list[str], spec_path: Path, result: SpecValidationResult
+) -> None:
     try:
         schema_result = await asyncio.to_thread(
             subprocess.run,
@@ -197,7 +213,10 @@ async def validate_spec_with_specmatic(
         result.errors.append(f"Schema validation error: {e!s}")
         result.is_valid = False
 
-    # Example generation test
+
+async def _specmatic_apply_examples_validation(
+    specmatic_cmd: list[str], spec_path: Path, result: SpecValidationResult
+) -> None:
     try:
         examples_result = await asyncio.to_thread(
             subprocess.run,
@@ -219,46 +238,44 @@ async def validate_spec_with_specmatic(
         result.errors.append(f"Example generation error: {e!s}")
         result.is_valid = False
 
-    # Backward compatibility check (if previous version provided)
-    if previous_version and previous_version.exists():
-        try:
-            compat_result = await asyncio.to_thread(
-                subprocess.run,
-                [
-                    *specmatic_cmd,
-                    "backward-compatibility-check",
-                    str(previous_version),
-                    str(spec_path),
-                ],
-                capture_output=True,
-                text=True,
-                timeout=60,
-            )
-            result.backward_compatible = compat_result.returncode == 0
-            if not result.backward_compatible:
-                # Parse breaking changes from output
-                output_lines = compat_result.stdout.split("\n") + compat_result.stderr.split("\n")
-                breaking = [
-                    line for line in output_lines if "breaking" in line.lower() or "incompatible" in line.lower()
-                ]
-                result.breaking_changes = breaking
-                result.errors.append("Backward compatibility check failed")
-                result.is_valid = False
-        except subprocess.TimeoutExpired:
-            result.backward_compatible = False
-            result.errors.append("Backward compatibility check timed out")
-            result.is_valid = False
-        except Exception as e:
-            result.backward_compatible = False
-            result.errors.append(f"Backward compatibility check error: {e!s}")
-            result.is_valid = False
 
-    return result
+async def _specmatic_apply_backward_compat(
+    specmatic_cmd: list[str], spec_path: Path, previous_version: Path, result: SpecValidationResult
+) -> None:
+    try:
+        compat_result = await asyncio.to_thread(
+            subprocess.run,
+            [
+                *specmatic_cmd,
+                "backward-compatibility-check",
+                str(previous_version),
+                str(spec_path),
+            ],
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+        result.backward_compatible = compat_result.returncode == 0
+        if result.backward_compatible:
+            return
+        output_lines = compat_result.stdout.split("\n") + compat_result.stderr.split("\n")
+        breaking = [line for line in output_lines if "breaking" in line.lower() or "incompatible" in line.lower()]
+        result.breaking_changes = breaking
+        result.errors.append("Backward compatibility check failed")
+        result.is_valid = False
+    except subprocess.TimeoutExpired:
+        result.backward_compatible = False
+        result.errors.append("Backward compatibility check timed out")
+        result.is_valid = False
+    except Exception as e:
+        result.backward_compatible = False
+        result.errors.append(f"Backward compatibility check error: {e!s}")
+        result.is_valid = False
 
 
 @beartype
-@require(lambda old_spec: old_spec.exists(), "Old spec file must exist")
-@require(lambda new_spec: new_spec.exists(), "New spec file must exist")
+@require(require_old_spec_exists, "Old spec file must exist")
+@require(require_new_spec_exists, "New spec file must exist")
 async def check_backward_compatibility(
     old_spec: Path,
     new_spec: Path,
@@ -278,7 +295,7 @@ async def check_backward_compatibility(
 
 
 @beartype
-@require(lambda spec_path: spec_path.exists(), "Spec file must exist")
+@require(require_spec_path_exists, "Spec file must exist")
 async def generate_specmatic_examples(spec_path: Path, examples_dir: Path | None = None) -> Path:
     """
     Generate example JSON files from OpenAPI specification using Specmatic.
@@ -333,7 +350,7 @@ async def generate_specmatic_examples(spec_path: Path, examples_dir: Path | None
 
 
 @beartype
-@require(lambda spec_path: spec_path.exists(), "Spec file must exist")
+@require(require_spec_path_exists, "Spec file must exist")
 async def generate_specmatic_tests(spec_path: Path, output_dir: Path | None = None) -> Path:
     """
     Generate Specmatic test suite from specification.
@@ -398,8 +415,59 @@ class MockServer:
                 self.process.kill()
 
 
+def _build_specmatic_stub_command(
+    specmatic_cmd: list[str],
+    spec_path: Path,
+    port: int,
+    strict_mode: bool,
+    has_examples: bool,
+    examples_dir: Path,
+) -> list[str]:
+    cmd = [*specmatic_cmd, "stub", str(spec_path), "--port", str(port)]
+    if strict_mode:
+        cmd.append("--strict")
+        if has_examples:
+            cmd.extend(["--examples", str(examples_dir)])
+    elif has_examples:
+        cmd.extend(["--examples", str(examples_dir)])
+    return cmd
+
+
+def _tcp_localhost_port_open(port: int, timeout: float) -> bool:
+    try:
+        import socket
+
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(timeout)
+        result = sock.connect_ex(("localhost", port))
+        sock.close()
+        return result == 0
+    except Exception:
+        return False
+
+
+async def _wait_for_specmatic_mock_port(
+    process: subprocess.Popen[str],
+    port: int,
+    *,
+    max_wait: float = 10.0,
+    wait_interval: float = 0.5,
+) -> None:
+    waited = 0.0
+    while waited < max_wait:
+        if process.poll() is not None:
+            raise RuntimeError(
+                f"Mock server failed to start (exited with code {process.returncode}). "
+                "Check that Specmatic is installed and the contract file is valid."
+            )
+        if _tcp_localhost_port_open(port, 0.5):
+            return
+        await asyncio.sleep(wait_interval)
+        waited += wait_interval
+
+
 @beartype
-@require(lambda spec_path: spec_path.exists(), "Spec file must exist")
+@require(require_spec_path_exists, "Spec file must exist")
 async def create_mock_server(
     spec_path: Path,
     port: int = 9000,
@@ -416,101 +484,34 @@ async def create_mock_server(
     Returns:
         MockServer instance
     """
-    # Get specmatic command (direct or npx)
     specmatic_cmd = _get_specmatic_command()
     if not specmatic_cmd:
         _, error_msg = check_specmatic_available()
         raise RuntimeError(f"Specmatic not available: {error_msg}")
 
-    # Auto-detect examples directory if available
     examples_dir = spec_path.parent / f"{spec_path.stem}_examples"
     has_examples = examples_dir.exists() and any(examples_dir.iterdir())
-
-    # Build command
-    cmd = [*specmatic_cmd, "stub", str(spec_path), "--port", str(port)]
-    if strict_mode:
-        # Strict mode: only accept requests that match exact examples
-        cmd.append("--strict")
-        if has_examples:
-            # In strict mode, use pre-generated examples if available
-            cmd.extend(["--examples", str(examples_dir)])
-    else:
-        # Examples mode: Specmatic generates responses from schema automatically
-        # If we have pre-generated examples, use them; otherwise Specmatic generates on-the-fly
-        if has_examples:
-            # Use pre-generated examples directory
-            cmd.extend(["--examples", str(examples_dir)])
-        # If no examples directory, Specmatic will generate responses from schema automatically
-        # (no --examples flag needed - this is the default behavior when not in strict mode)
+    cmd = _build_specmatic_stub_command(specmatic_cmd, spec_path, port, strict_mode, has_examples, examples_dir)
 
     try:
-        # For long-running server processes, don't capture stdout/stderr
-        # This prevents buffer blocking and allows the server to run properly
-        # Output will go to the terminal, which is fine for a server
         process = await asyncio.to_thread(
             subprocess.Popen,
             cmd,
-            stdout=None,  # Let output go to terminal
-            stderr=None,  # Let errors go to terminal
+            stdout=None,
+            stderr=None,
             text=True,
         )
 
-        # Wait for server to start - Specmatic (Java) can take 3-5 seconds to fully start
-        # Poll the port to verify it's actually listening
-        max_wait = 10  # Maximum 10 seconds to wait
-        wait_interval = 0.5  # Check every 0.5 seconds
-        waited = 0
+        max_wait = 10.0
+        await _wait_for_specmatic_mock_port(process, port, max_wait=max_wait, wait_interval=0.5)
 
-        while waited < max_wait:
-            # Check if process exited (error)
-            if process.poll() is not None:
-                raise RuntimeError(
-                    f"Mock server failed to start (exited with code {process.returncode}). "
-                    "Check that Specmatic is installed and the contract file is valid."
-                )
-
-            # Check if port is listening (server is ready)
-            try:
-                import socket
-
-                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                sock.settimeout(0.5)
-                result = sock.connect_ex(("localhost", port))
-                sock.close()
-                if result == 0:
-                    # Port is open - server is ready!
-                    break
-            except Exception:
-                # Socket check failed, continue waiting
-                # Don't log every attempt to avoid noise
-                pass
-
-            await asyncio.sleep(wait_interval)
-            waited += wait_interval
-
-        # Check if we successfully found the port (broke out of loop early)
-        port_ready = False
-        try:
-            import socket
-
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock.settimeout(1)
-            result = sock.connect_ex(("localhost", port))
-            sock.close()
-            port_ready = result == 0
-        except Exception:
-            port_ready = False
-
-        # Final check: process must still be running
+        port_ready = _tcp_localhost_port_open(port, 1.0)
         if process.poll() is not None:
             raise RuntimeError(
                 f"Mock server process exited during startup (code {process.returncode}). "
                 "Check that Specmatic is installed and the contract file is valid."
             )
-
-        # Verify port is accessible (final check)
         if not port_ready:
-            # Port still not accessible after max wait
             raise RuntimeError(
                 f"Mock server process is running but port {port} is not accessible after {max_wait}s. "
                 "The server may have failed to bind to the port or is still starting. "

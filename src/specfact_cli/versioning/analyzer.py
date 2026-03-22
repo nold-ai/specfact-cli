@@ -8,9 +8,11 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import StrEnum
 from pathlib import Path
+from typing import cast
 
 from beartype import beartype
 from git import Repo
+from git.diff import Diff
 from git.exc import InvalidGitRepositoryError, NoSuchPathError
 from icontract import ensure, require
 
@@ -42,7 +44,7 @@ SEMVER_PATTERN = re.compile(r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:[-+].*
 
 
 @beartype
-@require(lambda version: version.strip() != "", "version must not be empty")
+@require(lambda version: cast(str, version).strip() != "", "version must not be empty")
 @ensure(lambda result: len(result) == 3, "Must return (major, minor, patch) tuple")
 def validate_semver(version: str) -> tuple[int, int, int]:
     """
@@ -119,7 +121,7 @@ class ChangeAnalyzer:
             return None
 
     @staticmethod
-    def _diff_paths(diff_entries: Iterable, bundle_dir: Path, workdir: Path) -> list[tuple[str, str]]:
+    def _diff_paths(diff_entries: Iterable[Diff], bundle_dir: Path, workdir: Path) -> list[tuple[str, str]]:
         """Return (status, path) tuples filtered to bundle_dir."""
         bundle_dir = bundle_dir.resolve()
         filtered: list[tuple[str, str]] = []
@@ -130,7 +132,7 @@ class ChangeAnalyzer:
                 continue
             abs_path = workdir.joinpath(raw_path).resolve()
             if bundle_dir in abs_path.parents or abs_path == bundle_dir:
-                filtered.append((entry.change_type.upper(), raw_path))
+                filtered.append(((entry.change_type or "").upper(), raw_path))
         return filtered
 
     @staticmethod
@@ -145,7 +147,7 @@ class ChangeAnalyzer:
         return untracked
 
     @beartype
-    @require(lambda bundle_dir: bundle_dir.exists(), "bundle_dir must exist")
+    @require(lambda bundle_dir: cast(Path, bundle_dir).exists(), "bundle_dir must exist")
     @ensure(lambda result: result is not None, "Must return VersionAnalysis")
     def analyze(self, bundle_dir: Path, bundle: ProjectBundle | None = None) -> VersionAnalysis:
         """
@@ -158,37 +160,7 @@ class ChangeAnalyzer:
         Returns:
             VersionAnalysis with change_type and recommendation
         """
-        repo = self._load_repo()
-        changed_files: list[str] = []
-        reasons: list[str] = []
-        change_type = ChangeType.NONE
-
-        if repo:
-            workdir = Path(repo.working_tree_dir or ".").resolve()
-            # Staged, unstaged, and untracked changes scoped to the bundle
-            staged = self._diff_paths(repo.index.diff("HEAD"), bundle_dir, workdir)
-            unstaged = self._diff_paths(repo.index.diff(None), bundle_dir, workdir)
-            untracked = self._collect_untracked(repo, bundle_dir)
-
-            changed_files = [path for _, path in staged + unstaged] + untracked
-
-            has_breaking = any(status == "D" for status, _ in staged + unstaged)
-            has_additive = any(status == "A" for status, _ in staged + unstaged) or bool(untracked)
-            has_modified = any(status == "M" for status, _ in staged + unstaged)
-
-            if has_breaking:
-                change_type = ChangeType.BREAKING
-                reasons.append("Detected deletions in bundle files (breaking).")
-            elif has_additive:
-                change_type = ChangeType.ADDITIVE
-                reasons.append("Detected new bundle files (additive).")
-            elif has_modified:
-                change_type = ChangeType.PATCH
-                reasons.append("Detected modified bundle files (patch).")
-            else:
-                reasons.append("No Git changes detected for bundle.")
-        else:
-            reasons.append("Git repository not found; falling back to hash comparison.")
+        changed_files, change_type, reasons = self._analyze_git_changes(bundle_dir)
 
         content_hash: str | None = None
         try:
@@ -196,13 +168,9 @@ class ChangeAnalyzer:
             summary = bundle_obj.compute_summary(include_hash=True)
             content_hash = summary.content_hash
             baseline_hash = bundle_obj.manifest.bundle.get("content_hash")
-
-            if change_type == ChangeType.NONE:
-                if baseline_hash and content_hash and baseline_hash != content_hash:
-                    change_type = ChangeType.PATCH
-                    reasons.append("Bundle content hash changed since last recorded hash.")
-                elif not baseline_hash:
-                    reasons.append("No baseline content hash recorded; recommend setting via version bump or set.")
+            change_type, reasons = self._refine_change_type_with_content_hash(
+                change_type, reasons, baseline_hash, content_hash
+            )
         except Exception as exc:  # pragma: no cover - defensive logging
             reasons.append(f"Skipped bundle hash analysis: {exc}")
 
@@ -215,6 +183,44 @@ class ChangeAnalyzer:
             reasons=reasons,
             content_hash=content_hash,
         )
+
+    def _analyze_git_changes(self, bundle_dir: Path) -> tuple[list[str], ChangeType, list[str]]:
+        repo = self._load_repo()
+        if not repo:
+            return [], ChangeType.NONE, ["Git repository not found; falling back to hash comparison."]
+        workdir = Path(repo.working_tree_dir or ".").resolve()
+        staged = self._diff_paths(repo.index.diff("HEAD"), bundle_dir, workdir)
+        unstaged = self._diff_paths(repo.index.diff(None), bundle_dir, workdir)
+        untracked = self._collect_untracked(repo, bundle_dir)
+        changed_files = [path for _, path in staged + unstaged] + untracked
+        combined = staged + unstaged
+        has_breaking = any(status == "D" for status, _ in combined)
+        has_additive = any(status == "A" for status, _ in combined) or bool(untracked)
+        has_modified = any(status == "M" for status, _ in combined)
+        if has_breaking:
+            return changed_files, ChangeType.BREAKING, ["Detected deletions in bundle files (breaking)."]
+        if has_additive:
+            return changed_files, ChangeType.ADDITIVE, ["Detected new bundle files (additive)."]
+        if has_modified:
+            return changed_files, ChangeType.PATCH, ["Detected modified bundle files (patch)."]
+        return changed_files, ChangeType.NONE, ["No Git changes detected for bundle."]
+
+    @staticmethod
+    def _refine_change_type_with_content_hash(
+        change_type: ChangeType,
+        reasons: list[str],
+        baseline_hash: str | None,
+        content_hash: str | None,
+    ) -> tuple[ChangeType, list[str]]:
+        if change_type != ChangeType.NONE:
+            return change_type, reasons
+        out_reasons = list(reasons)
+        if baseline_hash and content_hash and baseline_hash != content_hash:
+            out_reasons.append("Bundle content hash changed since last recorded hash.")
+            return ChangeType.PATCH, out_reasons
+        if not baseline_hash:
+            out_reasons.append("No baseline content hash recorded; recommend setting via version bump or set.")
+        return change_type, out_reasons
 
     @staticmethod
     @beartype

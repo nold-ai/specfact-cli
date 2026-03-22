@@ -26,14 +26,22 @@ class RoutingResult:
     command: str
 
 
+def _routing_result_exec_mode_ok(result: RoutingResult) -> bool:
+    return result.execution_mode in ("direct", "agent")
+
+
+def _routing_result_mode_ok(result: RoutingResult) -> bool:
+    return result.mode in (OperationalMode.CICD, OperationalMode.COPILOT)
+
+
 class CommandRouter:
     """Routes commands based on operational mode."""
 
     @beartype
     @require(lambda command: bool(command), "Command must be non-empty")
     @require(lambda mode: isinstance(mode, OperationalMode), "Mode must be OperationalMode")
-    @ensure(lambda result: result.execution_mode in ("direct", "agent"), "Execution mode must be direct or agent")
-    @ensure(lambda result: result.mode in (OperationalMode.CICD, OperationalMode.COPILOT), "Mode must be valid")
+    @ensure(_routing_result_exec_mode_ok, "Execution mode must be direct or agent")
+    @ensure(_routing_result_mode_ok, "Mode must be valid")
     def route(self, command: str, mode: OperationalMode, context: dict[str, Any] | None = None) -> RoutingResult:
         """
         Route a command based on operational mode.
@@ -67,7 +75,7 @@ class CommandRouter:
 
     @beartype
     @require(lambda command: bool(command), "Command must be non-empty")
-    @ensure(lambda result: result.mode in (OperationalMode.CICD, OperationalMode.COPILOT), "Mode must be valid")
+    @ensure(_routing_result_mode_ok, "Mode must be valid")
     def route_with_auto_detect(
         self, command: str, explicit_mode: OperationalMode | None = None, context: dict[str, Any] | None = None
     ) -> RoutingResult:

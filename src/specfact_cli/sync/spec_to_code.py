@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any, cast
 
 from beartype import beartype
 from icontract import ensure, require
@@ -23,9 +24,9 @@ class LLMPromptContext:
     """Context prepared for LLM code generation."""
 
     changes: list[SpecChange] = field(default_factory=list)
-    existing_patterns: dict = field(default_factory=dict)  # Codebase style patterns
+    existing_patterns: dict[str, Any] = field(default_factory=dict)  # Codebase style patterns
     dependencies: list[str] = field(default_factory=list)  # From requirements.txt
-    style_guide: dict = field(default_factory=dict)  # Detected style patterns
+    style_guide: dict[str, Any] = field(default_factory=dict)  # Detected style patterns
     target_files: list[str] = field(default_factory=list)  # Files to generate/modify
     feature_specs: dict[str, Feature] = field(default_factory=dict)  # Feature specifications
 
@@ -109,14 +110,18 @@ class SpecToCodeSync:
         Returns:
             Formatted prompt string for LLM
         """
-        prompt_parts = []
+        prompt_parts: list[str] = []
+        self._prompt_append_header_and_changes(prompt_parts, context)
+        self._prompt_append_feature_specs(prompt_parts, context)
+        self._prompt_append_json_section(prompt_parts, "## Existing Codebase Patterns", context.existing_patterns)
+        self._prompt_append_dependencies(prompt_parts, context)
+        self._prompt_append_json_section(prompt_parts, "## Style Guide", context.style_guide)
+        self._prompt_append_target_files(prompt_parts, context)
+        self._prompt_append_instructions(prompt_parts)
+        return "\n".join(prompt_parts)
 
-        # Header
-        prompt_parts.append("# Code Generation Request")
-        prompt_parts.append("")
-        prompt_parts.append("## Specification Changes")
-        prompt_parts.append("")
-
+    def _prompt_append_header_and_changes(self, prompt_parts: list[str], context: LLMPromptContext) -> None:
+        prompt_parts.extend(["# Code Generation Request", "", "## Specification Changes", ""])
         for change in context.changes:
             prompt_parts.append(f"### Feature: {change.feature_key}")
             if change.contract_path:
@@ -125,80 +130,67 @@ class SpecToCodeSync:
                 prompt_parts.append(f"- Protocol changed: {change.protocol_path}")
             prompt_parts.append("")
 
-        # Feature specifications
-        if context.feature_specs:
-            prompt_parts.append("## Feature Specifications")
-            prompt_parts.append("")
-            for feature_key, feature in context.feature_specs.items():
-                if any(c.feature_key == feature_key for c in context.changes):
-                    prompt_parts.append(f"### {feature.title} ({feature_key})")
-                    prompt_parts.append(f"**Outcomes:** {', '.join(feature.outcomes)}")
-                    prompt_parts.append(f"**Constraints:** {', '.join(feature.constraints)}")
-                    prompt_parts.append("**Stories:**")
-                    for story in feature.stories:
-                        prompt_parts.append(f"- {story.title}")
-                        if story.acceptance:
-                            prompt_parts.append(f"  - {story.acceptance[0]}")
-                    prompt_parts.append("")
-
-        # Existing patterns
-        if context.existing_patterns:
-            prompt_parts.append("## Existing Codebase Patterns")
-            prompt_parts.append("")
-            prompt_parts.append("```json")
-            prompt_parts.append(json.dumps(context.existing_patterns, indent=2))
-            prompt_parts.append("```")
+    def _prompt_append_feature_specs(self, prompt_parts: list[str], context: LLMPromptContext) -> None:
+        if not context.feature_specs:
+            return
+        prompt_parts.extend(["## Feature Specifications", ""])
+        for feature_key, feature in context.feature_specs.items():
+            if not any(c.feature_key == feature_key for c in context.changes):
+                continue
+            prompt_parts.append(f"### {feature.title} ({feature_key})")
+            prompt_parts.append(f"**Outcomes:** {', '.join(feature.outcomes)}")
+            prompt_parts.append(f"**Constraints:** {', '.join(feature.constraints)}")
+            prompt_parts.append("**Stories:**")
+            for story in feature.stories:
+                prompt_parts.append(f"- {story.title}")
+                if story.acceptance:
+                    prompt_parts.append(f"  - {story.acceptance[0]}")
             prompt_parts.append("")
 
-        # Dependencies
-        if context.dependencies:
-            prompt_parts.append("## Dependencies")
-            prompt_parts.append("")
-            prompt_parts.append("```")
-            for dep in context.dependencies:
-                prompt_parts.append(dep)
-            prompt_parts.append("```")
-            prompt_parts.append("")
+    def _prompt_append_json_section(self, prompt_parts: list[str], title: str, data: dict[str, Any]) -> None:
+        if not data:
+            return
+        prompt_parts.extend([title, "", "```json", json.dumps(data, indent=2), "```", ""])
 
-        # Style guide
-        if context.style_guide:
-            prompt_parts.append("## Style Guide")
-            prompt_parts.append("")
-            prompt_parts.append("```json")
-            prompt_parts.append(json.dumps(context.style_guide, indent=2))
-            prompt_parts.append("```")
-            prompt_parts.append("")
+    def _prompt_append_dependencies(self, prompt_parts: list[str], context: LLMPromptContext) -> None:
+        if not context.dependencies:
+            return
+        prompt_parts.extend(["## Dependencies", "", "```"])
+        prompt_parts.extend(context.dependencies)
+        prompt_parts.extend(["```", ""])
 
-        # Target files
-        if context.target_files:
-            prompt_parts.append("## Target Files")
-            prompt_parts.append("")
-            for target_file in context.target_files:
-                prompt_parts.append(f"- {target_file}")
-            prompt_parts.append("")
-
-        # Instructions
-        prompt_parts.append("## Instructions")
-        prompt_parts.append("")
-        prompt_parts.append("Generate or update the code files listed above based on the specification changes.")
-        prompt_parts.append("Follow the existing codebase patterns and style guide.")
-        prompt_parts.append("Ensure all contracts and protocols are properly implemented.")
+    def _prompt_append_target_files(self, prompt_parts: list[str], context: LLMPromptContext) -> None:
+        if not context.target_files:
+            return
+        prompt_parts.extend(["## Target Files", ""])
+        for target_file in context.target_files:
+            prompt_parts.append(f"- {target_file}")
         prompt_parts.append("")
 
-        return "\n".join(prompt_parts)
+    def _prompt_append_instructions(self, prompt_parts: list[str]) -> None:
+        prompt_parts.extend(
+            [
+                "## Instructions",
+                "",
+                "Generate or update the code files listed above based on the specification changes.",
+                "Follow the existing codebase patterns and style guide.",
+                "Ensure all contracts and protocols are properly implemented.",
+                "",
+            ]
+        )
 
     def _detect_bundle_name(self, repo_path: Path) -> str | None:
         """Detect bundle name from repository."""
         from specfact_cli.utils.structure import SpecFactStructure
 
-        projects_dir = SpecFactStructure.projects_dir(base_path=repo_path)  # type: ignore[attr-defined]
+        projects_dir = cast(Path, SpecFactStructure.projects_dir(base_path=repo_path))  # type: ignore[attr-defined]
         if projects_dir.exists():
             bundles = [d.name for d in projects_dir.iterdir() if d.is_dir()]
             if bundles:
                 return bundles[0]  # Return first bundle found
         return None
 
-    def _analyze_codebase_patterns(self, repo_path: Path) -> dict:
+    def _analyze_codebase_patterns(self, repo_path: Path) -> dict[str, Any]:
         """Analyze codebase to extract patterns."""
         # Simple pattern detection - can be enhanced
         return {
@@ -224,7 +216,8 @@ class SpecToCodeSync:
                 import tomli
 
                 with pyproject_file.open("rb") as f:
-                    data = tomli.load(f)
+                    _tomli = cast(Any, tomli)
+                    data = cast(dict[str, Any], _tomli.load(f))
                     if "project" in data and "dependencies" in data["project"]:
                         dependencies.extend(data["project"]["dependencies"])
             except Exception:
@@ -232,7 +225,7 @@ class SpecToCodeSync:
 
         return dependencies
 
-    def _detect_style_patterns(self, repo_path: Path) -> dict:
+    def _detect_style_patterns(self, repo_path: Path) -> dict[str, Any]:
         """Detect code style patterns from existing code."""
         # Simple style detection - can be enhanced
         return {

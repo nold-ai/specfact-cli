@@ -11,7 +11,7 @@ import ast
 import json
 import os
 import subprocess
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Any
 
@@ -73,7 +73,7 @@ class OpenAPITestConverter:
             return self._extract_examples_from_ast(test_files)
 
         # Extract unique test file paths
-        test_paths = set()
+        test_paths: set[Path] = set()
         for test_ref in test_files:
             file_path = test_ref.split("::")[0] if "::" in test_ref else test_ref
             test_paths.add(self.repo_path / file_path)
@@ -86,34 +86,47 @@ class OpenAPITestConverter:
             # No valid test files, fall back to AST
             return self._extract_examples_from_ast(test_files)
 
-        # Parallelize Semgrep calls for faster processing in production
-        max_workers = min(len(test_paths_list), 4)  # Cap at 4 workers for Semgrep (I/O bound)
+        examples.update(self._merge_semgrep_examples(test_paths_list))
+
+        if not examples:
+            examples = self._extract_examples_from_ast(test_files)
+
+        return examples
+
+    @staticmethod
+    def _cancel_pending_futures(future_to_path: dict[Future[Any], Path]) -> None:
+        for f in future_to_path:
+            if not f.done():
+                f.cancel()
+
+    def _collect_semgrep_results_from_futures(
+        self, future_to_path: dict[Future[Any], Path], examples: dict[str, Any]
+    ) -> bool:
+        try:
+            for future in as_completed(future_to_path):
+                test_path = future_to_path[future]
+                try:
+                    semgrep_results = future.result()
+                    file_examples = self._parse_semgrep_results(semgrep_results, test_path)
+                    examples.update(file_examples)
+                except KeyboardInterrupt:
+                    self._cancel_pending_futures(future_to_path)
+                    return True
+                except Exception:
+                    continue
+        except KeyboardInterrupt:
+            self._cancel_pending_futures(future_to_path)
+            return True
+        return False
+
+    def _merge_semgrep_examples(self, test_paths_list: list[Path]) -> dict[str, Any]:
+        examples: dict[str, Any] = {}
+        max_workers = min(len(test_paths_list), 4)
         executor = ThreadPoolExecutor(max_workers=max_workers)
         interrupted = False
         try:
             future_to_path = {executor.submit(self._run_semgrep, test_path): test_path for test_path in test_paths_list}
-
-            try:
-                for future in as_completed(future_to_path):
-                    test_path = future_to_path[future]
-                    try:
-                        semgrep_results = future.result()
-                        file_examples = self._parse_semgrep_results(semgrep_results, test_path)
-                        examples.update(file_examples)
-                    except KeyboardInterrupt:
-                        interrupted = True
-                        for f in future_to_path:
-                            if not f.done():
-                                f.cancel()
-                        break
-                    except Exception:
-                        # Fall back to AST if Semgrep fails for this file
-                        continue
-            except KeyboardInterrupt:
-                interrupted = True
-                for f in future_to_path:
-                    if not f.done():
-                        f.cancel()
+            interrupted = self._collect_semgrep_results_from_futures(future_to_path, examples)
             if interrupted:
                 raise KeyboardInterrupt
         except KeyboardInterrupt:
@@ -125,10 +138,6 @@ class OpenAPITestConverter:
                 executor.shutdown(wait=True)
             else:
                 executor.shutdown(wait=False)
-
-        # If Semgrep didn't find anything, fall back to AST
-        if not examples:
-            examples = self._extract_examples_from_ast(test_files)
 
         return examples
 

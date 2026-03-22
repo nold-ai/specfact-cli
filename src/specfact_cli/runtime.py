@@ -14,7 +14,7 @@ import os
 import sys
 from enum import StrEnum
 from logging.handlers import RotatingFileHandler
-from typing import Any
+from typing import Any, cast
 
 from beartype import beartype
 from icontract import ensure, require
@@ -238,7 +238,8 @@ def refresh_loaded_module_consoles() -> int:
         module_dict = getattr(module, "__dict__", None)
         if not isinstance(module_dict, dict):
             continue
-        current_console = module_dict.get("console")
+        module_ns: dict[str, Any] = cast(dict[str, Any], module_dict)
+        current_console = module_ns.get("console")
         if current_console is None:
             continue
         if isinstance(current_console, RichConsole):

@@ -11,19 +11,13 @@ import time
 from collections import deque
 from collections.abc import Callable
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import Protocol, cast
 
 from beartype import beartype
 from icontract import ensure, require
+from watchdog.observers import Observer
 
 from specfact_cli.common import get_bridge_logger
-
-
-if TYPE_CHECKING:
-    from watchdog.observers import Observer
-else:
-    from watchdog.observers import Observer
-
 from specfact_cli.models.bridge import BridgeConfig
 from specfact_cli.sync.bridge_probe import BridgeProbe
 from specfact_cli.sync.bridge_sync import BridgeSync
@@ -31,6 +25,24 @@ from specfact_cli.sync.watcher import FileChange, SyncEventHandler
 
 
 _logger = get_bridge_logger(__name__)
+
+
+class _RunningObserver(Protocol):
+    @require(lambda self, handler, path: isinstance(path, str))
+    @ensure(lambda result: result is None)
+    def schedule(self, handler: object, path: str, *, recursive: bool = False) -> None: ...
+
+    @require(lambda self: self is not None)
+    @ensure(lambda result: result is None)
+    def start(self) -> None: ...
+
+    @require(lambda self: self is not None)
+    @ensure(lambda result: result is None)
+    def stop(self) -> None: ...
+
+    @require(lambda self, timeout: self is not None)
+    @ensure(lambda result: result is None)
+    def join(self, timeout: float | None = None) -> None: ...
 
 
 class BridgeWatchEventHandler(SyncEventHandler):
@@ -123,8 +135,8 @@ class BridgeWatch:
     """
 
     @beartype
-    @require(lambda repo_path: repo_path.exists(), "Repository path must exist")
-    @require(lambda repo_path: repo_path.is_dir(), "Repository path must be a directory")
+    @require(lambda repo_path: cast(Path, repo_path).exists(), "Repository path must exist")
+    @require(lambda repo_path: cast(Path, repo_path).is_dir(), "Repository path must be a directory")
     @require(lambda interval: isinstance(interval, (int, float)) and interval >= 1, "Interval must be >= 1")
     @require(
         lambda sync_callback: callable(sync_callback) or sync_callback is None,
@@ -153,9 +165,9 @@ class BridgeWatch:
         self.bundle_name = bundle_name
         self.sync_callback = sync_callback
         self.interval = interval
-        self.observer: Observer | None = None  # type: ignore[assignment]
+        self.observer: _RunningObserver | None = None
         self.change_queue: deque[FileChange] = deque()
-        self.running = False
+        self.running: bool = False
         self.bridge_sync: BridgeSync | None = None
 
         if self.bridge_config is None:
@@ -191,7 +203,10 @@ class BridgeWatch:
         return bridge_config
 
     @beartype
-    @require(lambda self: self.bundle_name is not None, "Bundle name must be set for default sync callback")
+    @require(
+        lambda self: cast("BridgeWatch", self).bundle_name is not None,
+        "Bundle name must be set for default sync callback",
+    )
     @ensure(lambda result: callable(result), "Must return callable")
     def _create_default_sync_callback(self) -> Callable[[list[FileChange]], None]:
         """
@@ -208,40 +223,42 @@ class BridgeWatch:
             """Default sync callback that imports changed artifacts."""
             if not changes:
                 return
-
-            # Group changes by artifact type
-            artifact_changes: dict[str, list[str]] = {}  # artifact_key -> [feature_ids]
-            for change in changes:
-                if change.change_type == "spec_kit" and change.event_type in ("created", "modified"):
-                    # Extract feature_id from path (simplified - could be enhanced)
-                    feature_id = self._extract_feature_id_from_path(change.file_path)
-                    if feature_id:
-                        # Determine artifact key from file path
-                        artifact_key = self._determine_artifact_key(change.file_path)
-                        if artifact_key:
-                            if artifact_key not in artifact_changes:
-                                artifact_changes[artifact_key] = []
-                            if feature_id not in artifact_changes[artifact_key]:
-                                artifact_changes[artifact_key].append(feature_id)
-
-            # Import changed artifacts
-            if self.bridge_sync is None or self.bundle_name is None:
-                return
-
-            for artifact_key, feature_ids in artifact_changes.items():
-                for feature_id in feature_ids:
-                    try:
-                        result = self.bridge_sync.import_artifact(artifact_key, feature_id, self.bundle_name)
-                        if result.success:
-                            _logger.info("Imported %s for %s", artifact_key, feature_id)
-                        else:
-                            _logger.warning(
-                                "Failed to import %s for %s: %s", artifact_key, feature_id, ", ".join(result.errors)
-                            )
-                    except Exception as e:
-                        _logger.error("Error importing %s for %s: %s", artifact_key, feature_id, e)
+            artifact_changes = self._group_spec_kit_changes_by_artifact(changes)
+            self._import_grouped_artifact_changes(artifact_changes)
 
         return sync_callback
+
+    def _group_spec_kit_changes_by_artifact(self, changes: list[FileChange]) -> dict[str, list[str]]:
+        artifact_changes: dict[str, list[str]] = {}
+        for change in changes:
+            if change.change_type != "spec_kit" or change.event_type not in ("created", "modified"):
+                continue
+            feature_id = self._extract_feature_id_from_path(change.file_path)
+            if not feature_id:
+                continue
+            artifact_key = self._determine_artifact_key(change.file_path)
+            if not artifact_key:
+                continue
+            artifact_changes.setdefault(artifact_key, [])
+            if feature_id not in artifact_changes[artifact_key]:
+                artifact_changes[artifact_key].append(feature_id)
+        return artifact_changes
+
+    def _import_grouped_artifact_changes(self, artifact_changes: dict[str, list[str]]) -> None:
+        if self.bridge_sync is None or self.bundle_name is None:
+            return
+        for artifact_key, feature_ids in artifact_changes.items():
+            for feature_id in feature_ids:
+                try:
+                    result = self.bridge_sync.import_artifact(artifact_key, feature_id, self.bundle_name)
+                    if result.success:
+                        _logger.info("Imported %s for %s", artifact_key, feature_id)
+                    else:
+                        _logger.warning(
+                            "Failed to import %s for %s: %s", artifact_key, feature_id, ", ".join(result.errors)
+                        )
+                except Exception as e:
+                    _logger.error("Error importing %s for %s: %s", artifact_key, feature_id, e)
 
     @beartype
     @require(lambda self, file_path: isinstance(file_path, Path), "File path must be Path")
@@ -386,7 +403,7 @@ class BridgeWatch:
             _logger.warning("No watch paths found. Check bridge configuration.")
             return
 
-        observer = Observer()
+        observer = cast(_RunningObserver, Observer())
         handler = BridgeWatchEventHandler(self.repo_path, self.change_queue, self.bridge_config)
 
         # Watch all resolved paths
@@ -435,7 +452,10 @@ class BridgeWatch:
             self.stop()
 
     @beartype
-    @require(lambda self: isinstance(self.running, bool), "Watcher running state must be bool")
+    @require(
+        lambda self: isinstance(cast("BridgeWatch", self).running, bool),
+        "Watcher running state must be bool",
+    )
     @ensure(lambda result: result is None, "Must return None")
     def _process_pending_changes(self) -> None:
         """Process pending file changes and trigger sync."""

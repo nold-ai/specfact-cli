@@ -13,6 +13,14 @@ from beartype import beartype
 from icontract import ensure, require
 
 
+_BASIC_JSON_SCHEMA_BY_NAME: dict[str, dict[str, Any]] = {
+    "str": {"type": "string"},
+    "int": {"type": "integer"},
+    "float": {"type": "number"},
+    "bool": {"type": "boolean"},
+}
+
+
 class ContractExtractor:
     """
     Extracts API contracts from function signatures, type hints, and validation logic.
@@ -354,47 +362,42 @@ class ContractExtractor:
 
         return schema
 
-    @beartype
-    @ensure(lambda result: isinstance(result, dict), "Must return dict")
-    def _type_to_json_schema(self, type_str: str) -> dict[str, Any]:
-        """Convert Python type string to JSON Schema type."""
-        type_str = type_str.strip()
+    def _optional_union_to_json_schema(self, type_str: str) -> dict[str, Any]:
+        """Map Optional[X] / Union[..., None] to JSON Schema."""
+        inner_type = type_str.split("[")[1].rstrip("]").split(",")[0].strip()
+        if "None" in inner_type:
+            inner_type = next(
+                (t.strip() for t in type_str.split("[")[1].rstrip("]").split(",") if "None" not in t),
+                inner_type,
+            )
+        return {"anyOf": [self._type_to_json_schema(inner_type), {"type": "null"}]}
 
-        # Basic types
-        if type_str == "str":
-            return {"type": "string"}
-        if type_str == "int":
-            return {"type": "integer"}
-        if type_str == "float":
-            return {"type": "number"}
-        if type_str == "bool":
-            return {"type": "boolean"}
-        if type_str == "None" or type_str == "NoneType":
-            return {"type": "null"}
-
-        # Optional types
-        if type_str.startswith("Optional[") or (type_str.startswith("Union[") and "None" in type_str):
-            inner_type = type_str.split("[")[1].rstrip("]").split(",")[0].strip()
-            if "None" in inner_type:
-                inner_type = next(
-                    (t.strip() for t in type_str.split("[")[1].rstrip("]").split(",") if "None" not in t),
-                    inner_type,
-                )
-            return {"anyOf": [self._type_to_json_schema(inner_type), {"type": "null"}]}
-
-        # List types
+    def _collection_type_to_json_schema(self, type_str: str) -> dict[str, Any] | None:
+        """Map list[...] / dict[...] to JSON Schema, or None if not a collection."""
         if type_str.startswith(("list[", "List[")):
             inner_type = type_str.split("[")[1].rstrip("]")
             return {"type": "array", "items": self._type_to_json_schema(inner_type)}
-
-        # Dict types
         if type_str.startswith(("dict[", "Dict[")):
             parts = type_str.split("[")[1].rstrip("]").split(",")
             if len(parts) >= 2:
                 value_type = parts[1].strip()
                 return {"type": "object", "additionalProperties": self._type_to_json_schema(value_type)}
+        return None
 
-        # Default: any type
+    @beartype
+    @ensure(lambda result: isinstance(result, dict), "Must return dict")
+    def _type_to_json_schema(self, type_str: str) -> dict[str, Any]:
+        """Convert Python type string to JSON Schema type."""
+        type_str = type_str.strip()
+        if type_str in _BASIC_JSON_SCHEMA_BY_NAME:
+            return _BASIC_JSON_SCHEMA_BY_NAME[type_str]
+        if type_str in ("None", "NoneType"):
+            return {"type": "null"}
+        if type_str.startswith("Optional[") or (type_str.startswith("Union[") and "None" in type_str):
+            return self._optional_union_to_json_schema(type_str)
+        collection = self._collection_type_to_json_schema(type_str)
+        if collection is not None:
+            return collection
         return {"type": "object"}
 
     @beartype

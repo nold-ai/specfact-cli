@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Any, Protocol, runtime_checkable
+from typing import Any, Protocol, cast, runtime_checkable
 from urllib.parse import quote, unquote
 
 import yaml
@@ -112,8 +112,8 @@ def _parse_legacy_key(k: str) -> tuple[str, str, str]:
 
 
 @beartype
-@require(lambda key_a: bool(key_a.strip()), "key_a must be non-empty")
-@require(lambda key_b: bool(key_b.strip()), "key_b must be non-empty")
+@require(lambda key_a: bool(cast(str, key_a).strip()), "key_a must be non-empty")
+@require(lambda key_b: bool(cast(str, key_b).strip()), "key_b must be non-empty")
 def item_keys_similar(key_a: str, key_b: str) -> bool:
     """Return True if keys share at least 2 of 3 non-empty components (area, assignee, tags). Empty fields are ignored to avoid matching unrelated items."""
     parser = _parse_modern_key if ";" in key_a else _parse_legacy_key
@@ -131,7 +131,10 @@ def item_keys_similar(key_a: str, key_b: str) -> bool:
 
 
 @beartype
-@require(lambda config_path: config_path is None or config_path.exists() or not config_path.exists(), "Path valid")
+@require(
+    lambda config_path: config_path is None or cast(Path, config_path).exists() or not cast(Path, config_path).exists(),
+    "Path valid",
+)
 @ensure(lambda result: result is None, "Returns None")
 def save_user_confirmed_mapping(
     item: _ItemLike,
@@ -150,7 +153,8 @@ def save_user_confirmed_mapping(
     data: dict[str, Any] = {}
     if config_path.exists():
         with open(config_path, encoding="utf-8") as f:
-            data = yaml.safe_load(f) or {}
+            raw = yaml.safe_load(f)
+            data = cast(dict[str, Any], raw if isinstance(raw, dict) else {})
     backlog = data.setdefault("backlog", {})
     bm = backlog.setdefault("bundle_mapping", {})
     history = bm.setdefault("history", {})
@@ -171,8 +175,12 @@ def load_bundle_mapping_config(config_path: Path | None = None) -> dict[str, Any
     data: dict[str, Any] = {}
     if config_path.exists():
         with open(config_path, encoding="utf-8") as f:
-            data = yaml.safe_load(f) or {}
-    bm = (data.get("backlog") or {}).get("bundle_mapping") or {}
+            raw = yaml.safe_load(f)
+            data = cast(dict[str, Any], raw if isinstance(raw, dict) else {})
+    backlog_raw = data.get("backlog")
+    backlog = cast(dict[str, Any], backlog_raw) if isinstance(backlog_raw, dict) else {}
+    bm_raw = backlog.get("bundle_mapping")
+    bm = cast(dict[str, Any], bm_raw) if isinstance(bm_raw, dict) else {}
 
     def _safe_float(value: Any, default: float) -> float:
         try:
@@ -180,9 +188,11 @@ def load_bundle_mapping_config(config_path: Path | None = None) -> dict[str, Any
         except (TypeError, ValueError):
             return default
 
+    hist_raw = bm.get("history", {})
+    history_norm: dict[str, Any] = cast(dict[str, Any], hist_raw) if isinstance(hist_raw, dict) else {}
     return {
         "rules": bm.get("rules", []),
-        "history": bm.get("history", {}),
+        "history": history_norm,
         "explicit_label_prefix": bm.get("explicit_label_prefix", DEFAULT_LABEL_PREFIX),
         "auto_assign_threshold": _safe_float(bm.get("auto_assign_threshold"), DEFAULT_AUTO_ASSIGN_THRESHOLD),
         "confirm_threshold": _safe_float(bm.get("confirm_threshold"), DEFAULT_CONFIRM_THRESHOLD),

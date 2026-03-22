@@ -15,13 +15,18 @@ from rich.console import Console
 from rich.panel import Panel
 
 from specfact_cli.utils.context_detection import ProjectContext, detect_project_context
+from specfact_cli.utils.contract_predicates import repo_path_exists
 
 
 console = Console()
 
 
+def _suggest_fixes_error_nonempty(error_message: str, context: ProjectContext | None) -> bool:
+    return error_message.strip() != ""
+
+
 @beartype
-@require(lambda repo_path: repo_path.exists(), "repo_path must exist")
+@require(repo_path_exists, "repo_path must exist")
 @ensure(lambda result: isinstance(result, list), "Must return list")
 def suggest_next_steps(repo_path: Path, context: ProjectContext | None = None) -> list[str]:
     """
@@ -66,7 +71,7 @@ def suggest_next_steps(repo_path: Path, context: ProjectContext | None = None) -
 
 
 @beartype
-@require(lambda error_message: error_message.strip() != "", "error_message must not be empty")
+@require(_suggest_fixes_error_nonempty, "error_message must not be empty")
 @ensure(lambda result: isinstance(result, list), "Must return list")
 def suggest_fixes(error_message: str, context: ProjectContext | None = None) -> list[str]:
     """

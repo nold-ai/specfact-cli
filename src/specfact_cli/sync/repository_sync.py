@@ -10,7 +10,7 @@ from __future__ import annotations
 import hashlib
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from beartype import beartype
 from icontract import ensure, require
@@ -20,6 +20,16 @@ from specfact_cli.comparators.plan_comparator import PlanComparator
 from specfact_cli.models.plan import PlanBundle
 from specfact_cli.utils.structure import SpecFactStructure
 from specfact_cli.validators.schema import validate_plan_bundle
+
+
+def _sync_deviation_dict(deviation: Any) -> dict[str, Any]:
+    return {
+        "type": deviation.type.value if hasattr(deviation.type, "value") else str(deviation.type),
+        "severity": (deviation.severity.value if hasattr(deviation.severity, "value") else str(deviation.severity)),
+        "description": deviation.description,
+        "location": deviation.location or "",
+        "fix_hint": deviation.suggestion or "",  # type: ignore[attr-defined]
+    }
 
 
 @dataclass
@@ -73,10 +83,13 @@ class RepositorySync:
         self.analyzer = CodeAnalyzer(self.repo_path, confidence_threshold)
 
     @beartype
-    @require(lambda repo_path: repo_path.exists(), "Repository path must exist")
-    @require(lambda repo_path: repo_path.is_dir(), "Repository path must be a directory")
+    @require(lambda repo_path: cast(Path, repo_path).exists(), "Repository path must exist")
+    @require(lambda repo_path: cast(Path, repo_path).is_dir(), "Repository path must be a directory")
     @ensure(lambda result: isinstance(result, RepositorySyncResult), "Must return RepositorySyncResult")
-    @ensure(lambda result: result.status in ["success", "deviation_detected", "error"], "Status must be valid")
+    @ensure(
+        lambda result: cast(RepositorySyncResult, result).status in ["success", "deviation_detected", "error"],
+        "Status must be valid",
+    )
     def sync_repository_changes(self, repo_path: Path | None = None) -> RepositorySyncResult:
         """
         Sync code changes to SpecFact artifacts.
@@ -110,7 +123,7 @@ class RepositorySync:
         )
 
     @beartype
-    @require(lambda repo_path: repo_path.exists(), "Repository path must exist")
+    @require(lambda repo_path: cast(Path, repo_path).exists(), "Repository path must exist")
     @ensure(lambda result: isinstance(result, list), "Must return list")
     def detect_code_changes(self, repo_path: Path) -> list[dict[str, Any]]:
         """
@@ -240,21 +253,7 @@ class RepositorySync:
             comparator = PlanComparator()
             comparison = comparator.compare(manual_plan, auto_plan)
 
-            # Convert comparison deviations to sync deviations
-            for deviation in comparison.deviations:
-                deviations.append(
-                    {
-                        "type": deviation.type.value if hasattr(deviation.type, "value") else str(deviation.type),
-                        "severity": (
-                            deviation.severity.value
-                            if hasattr(deviation.severity, "value")
-                            else str(deviation.severity)
-                        ),
-                        "description": deviation.description,
-                        "location": deviation.location or "",
-                        "fix_hint": deviation.suggestion or "",  # type: ignore[attr-defined]
-                    }
-                )
+            deviations.extend(_sync_deviation_dict(d) for d in comparison.deviations)
         except Exception:
             # If comparison fails, continue without deviations
             pass

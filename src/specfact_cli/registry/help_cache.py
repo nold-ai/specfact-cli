@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from beartype import beartype
 from icontract import ensure, require
@@ -25,7 +25,7 @@ def get_registry_dir() -> Path:
 
 
 @beartype
-@ensure(lambda result: result is None or bool(result.strip()), "override must be non-empty when set")
+@ensure(lambda result: result is None or bool(cast(str, result).strip()), "override must be non-empty when set")
 def __registry_dir_override() -> str | None:
     """Return override directory from env (for tests); None to use default."""
     import os
@@ -82,14 +82,16 @@ def read_commands_cache() -> tuple[list[tuple[str, str, str]], str] | None:
         return None
     if not isinstance(data, dict) or "version" not in data or "commands" not in data:
         return None
-    version = str(data["version"])
-    raw = data.get("commands")
+    data_dict = cast(dict[str, Any], data)
+    version = str(data_dict["version"])
+    raw = data_dict.get("commands")
     if not isinstance(raw, list):
         return None
     out: list[tuple[str, str, str]] = []
     for item in raw:
         if isinstance(item, dict) and "name" in item and "help" in item:
-            out.append((str(item["name"]), str(item.get("help", "")), str(item.get("tier", "community"))))
+            row = cast(dict[str, Any], item)
+            out.append((str(row["name"]), str(row.get("help", "")), str(row.get("tier", "community"))))
         else:
             return None
     return (out, version)

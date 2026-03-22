@@ -8,7 +8,7 @@ and stories following the CLI-First specification.
 from __future__ import annotations
 
 import re
-from typing import Any
+from typing import Any, cast
 
 from beartype import beartype
 from icontract import ensure, require
@@ -145,7 +145,9 @@ class Feature(BaseModel):
     @beartype
     @require(lambda module_name: bool(MODULE_NAME_RE.match(module_name)), "Invalid module name format")
     @require(lambda field: bool(FIELD_NAME_RE.match(field)), "Invalid field name format")
-    @ensure(lambda self, module_name, field: f"{module_name}.{field}" in self.extensions)
+    @ensure(
+        lambda self, module_name, field: f"{module_name}.{field}" in cast(Feature, self).extensions,
+    )
     def set_extension(self, module_name: str, field: str, value: Any) -> None:
         """Store extension value at module.field."""
         if "." in module_name:
@@ -261,7 +263,7 @@ class PlanBundle(BaseModel):
         if not isinstance(data, dict):
             return data
 
-        normalized = dict(data)
+        normalized: dict[str, Any] = dict(data)
         for key in ("idea", "business", "product", "metadata", "clarifications"):
             value = normalized.get(key)
             if value is not None and isinstance(value, BaseModel):
@@ -300,17 +302,20 @@ class PlanBundle(BaseModel):
             # Compute hash of plan content (excluding summary itself to avoid circular dependency)
             # NOTE: Also exclude clarifications - they are review metadata, not plan content
             # This ensures hash stability across review sessions (clarifications change but plan doesn't)
-            plan_dict = self.model_dump(exclude={"metadata": {"summary"}})
+            plan_dict: dict[str, Any] = self.model_dump(exclude={"metadata": {"summary"}})
             # Remove clarifications from dict (they are review metadata, not plan content)
-            if "clarifications" in plan_dict:
-                del plan_dict["clarifications"]
+            plan_dict.pop("clarifications", None)
             # IMPORTANT: Sort features by key to ensure deterministic hash regardless of list order
             # Features are stored as list, so we need to sort by feature.key
             if "features" in plan_dict and isinstance(plan_dict["features"], list):
-                plan_dict["features"] = sorted(
-                    plan_dict["features"],
-                    key=lambda f: f.get("key", "") if isinstance(f, dict) else getattr(f, "key", ""),
-                )
+                raw_features: list[Any] = plan_dict["features"]
+
+                def _feature_sort_key(feat: Any) -> str:
+                    if isinstance(feat, dict):
+                        return str(cast(dict[str, Any], feat).get("key", ""))
+                    return str(getattr(feat, "key", ""))
+
+                plan_dict["features"] = sorted(raw_features, key=_feature_sort_key)
             plan_json = json.dumps(plan_dict, sort_keys=True, default=str)
             content_hash = hashlib.sha256(plan_json.encode("utf-8")).hexdigest()
 

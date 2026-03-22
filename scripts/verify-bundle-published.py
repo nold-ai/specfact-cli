@@ -38,7 +38,7 @@ import tarfile
 import tempfile
 from collections.abc import Iterable
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import requests
 import yaml
@@ -106,7 +106,8 @@ class BundleCheckResult:
 
 @beartype
 @require(
-    lambda module_names: any(name.strip() for name in module_names), "module_names must contain at least one value"
+    lambda module_names: any(cast(str, name).strip() for name in module_names),
+    "module_names must contain at least one value",
 )
 @ensure(lambda result: isinstance(result, dict), "returns mapping dictionary")
 def load_module_bundle_mapping(module_names: list[str], modules_root: Path) -> dict[str, str]:
@@ -136,7 +137,7 @@ def load_module_bundle_mapping(module_names: list[str], modules_root: Path) -> d
 
 
 @beartype
-@require(lambda download_url: bool(download_url.strip()), "download_url must be non-empty")
+@require(lambda download_url: bool(cast(str, download_url).strip()), "download_url must be non-empty")
 def verify_bundle_download_url(download_url: str) -> bool:
     """Return True when a HEAD request to download_url succeeds."""
     try:
@@ -250,6 +251,29 @@ def verify_bundle_signature(
         return False
 
 
+def _registry_entry_missing_fields(entry: dict[str, Any]) -> list[str]:
+    """Return sorted list of missing required registry fields for an entry."""
+    required_fields = {"latest_version", "download_url", "checksum_sha256"}
+    missing = sorted(field for field in required_fields if not str(entry.get(field, "")).strip())
+    tier = str(entry.get("tier", "")).strip().lower()
+    has_signature_hint = bool(str(entry.get("signature_url", "")).strip()) or "signature_ok" in entry
+    if tier == "official" and not has_signature_hint:
+        missing.append("signature_url/signature_ok")
+    return missing
+
+
+def _bundle_check_status_after_verification(
+    signature_ok: bool,
+    download_ok: bool | None,
+) -> tuple[str, str]:
+    """Return (status, message) from signature and optional download result."""
+    if not signature_ok:
+        return "FAIL", "SIGNATURE INVALID"
+    if download_ok is False:
+        return "FAIL", "DOWNLOAD ERROR"
+    return "PASS", ""
+
+
 @beartype
 @ensure(lambda result: isinstance(result, BundleCheckResult), "returns BundleCheckResult")
 def check_bundle_in_registry(
@@ -262,12 +286,7 @@ def check_bundle_in_registry(
     skip_download_check: bool,
 ) -> BundleCheckResult:
     """Validate one bundle entry and return normalized status."""
-    required_fields = {"latest_version", "download_url", "checksum_sha256"}
-    missing = sorted(field for field in required_fields if not str(entry.get(field, "")).strip())
-    tier = str(entry.get("tier", "")).strip().lower()
-    has_signature_hint = bool(str(entry.get("signature_url", "")).strip()) or "signature_ok" in entry
-    if tier == "official" and not has_signature_hint:
-        missing.append("signature_url/signature_ok")
+    missing = _registry_entry_missing_fields(entry)
     if missing:
         return BundleCheckResult(
             module_name=module_name,
@@ -293,14 +312,7 @@ def check_bundle_in_registry(
         if full_download_url:
             download_ok = verify_bundle_download_url(full_download_url)
 
-    status = "PASS"
-    message = ""
-    if not signature_ok:
-        status = "FAIL"
-        message = "SIGNATURE INVALID"
-    elif download_ok is False:
-        status = "FAIL"
-        message = "DOWNLOAD ERROR"
+    status, message = _bundle_check_status_after_verification(signature_ok, download_ok)
 
     return BundleCheckResult(
         module_name=module_name,
@@ -314,7 +326,10 @@ def check_bundle_in_registry(
 
 
 @beartype
-@require(lambda module_names: len([m for m in module_names if m.strip()]) > 0, "module_names must not be empty")
+@require(
+    lambda module_names: len([m for m in module_names if cast(str, m).strip()]) > 0,
+    "module_names must not be empty",
+)
 @ensure(lambda result: isinstance(result, list), "returns result list")
 def verify_bundle_published(
     module_names: list[str],

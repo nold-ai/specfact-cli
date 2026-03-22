@@ -215,6 +215,57 @@ Focus on semantic understanding, not just structural parsing. Generate the plan 
 
         return enhanced
 
+    @staticmethod
+    def _analyze_repo_structure(repo_path: Path) -> dict[str, Any]:
+        try:
+            src_dirs = list(repo_path.glob("src/**")) if (repo_path / "src").exists() else []  # type: ignore[reportUnknownMemberType]
+            test_dirs = list(repo_path.glob("tests/**")) if (repo_path / "tests").exists() else []  # type: ignore[reportUnknownMemberType]
+            return {
+                "src_dirs": [str(d.relative_to(repo_path)) for d in src_dirs[:20]],
+                "test_dirs": [str(d.relative_to(repo_path)) for d in test_dirs[:20]],
+            }
+        except Exception:
+            return {}
+
+    @staticmethod
+    def _collect_filtered_code_paths(repo_path: Path) -> list[Path]:
+        code_extensions = {".py", ".ts", ".tsx", ".js", ".jsx", ".ps1", ".psm1", ".go", ".rs", ".java", ".kt"}
+        code_files: list[Path] = []
+        for ext in code_extensions:
+            code_files.extend(list(repo_path.rglob(f"*{ext}")))
+        ignore_patterns = {
+            "__pycache__",
+            ".git",
+            "venv",
+            ".venv",
+            "node_modules",
+            ".pytest_cache",
+            "dist",
+            "build",
+            ".eggs",
+        }
+        return [f for f in code_files[:100] if not any(pattern in str(f) for pattern in ignore_patterns)]
+
+    @staticmethod
+    def _read_dependency_snippets(repo_path: Path) -> list[str]:
+        dependency_files = [
+            repo_path / "requirements.txt",
+            repo_path / "package.json",
+            repo_path / "pom.xml",
+            repo_path / "go.mod",
+            repo_path / "Cargo.toml",
+            repo_path / "pyproject.toml",
+        ]
+        dependencies: list[str] = []
+        for dep_file in dependency_files:
+            if dep_file.exists():  # type: ignore[reportUnknownMemberType]
+                try:
+                    content = dep_file.read_text(encoding="utf-8")[:500]
+                    dependencies.append(f"{dep_file.name}: {content[:100]}...")
+                except Exception:
+                    pass
+        return dependencies
+
     @beartype
     @require(lambda repo_path: repo_path.exists() and repo_path.is_dir(), "Repo path must exist and be directory")  # type: ignore[reportUnknownMemberType]
     @ensure(lambda result: isinstance(result, dict), "Result must be a dictionary")
@@ -235,71 +286,16 @@ Focus on semantic understanding, not just structural parsing. Generate the plan 
             "summary": "",
         }
 
-        # Load directory structure
-        try:
-            src_dirs = list(repo_path.glob("src/**")) if (repo_path / "src").exists() else []  # type: ignore[reportUnknownMemberType]
-            test_dirs = list(repo_path.glob("tests/**")) if (repo_path / "tests").exists() else []  # type: ignore[reportUnknownMemberType]
-            context["structure"] = {
-                "src_dirs": [str(d.relative_to(repo_path)) for d in src_dirs[:20]],
-                "test_dirs": [str(d.relative_to(repo_path)) for d in test_dirs[:20]],
-            }
-        except Exception:
-            context["structure"] = {}
-
-        # Load code files (all languages)
-        code_extensions = {".py", ".ts", ".tsx", ".js", ".jsx", ".ps1", ".psm1", ".go", ".rs", ".java", ".kt"}
-        code_files: list[Path] = []
-        for ext in code_extensions:
-            code_files.extend(list(repo_path.rglob(f"*{ext}")))
-
-        # Filter out common ignore patterns
-        ignore_patterns = {
-            "__pycache__",
-            ".git",
-            "venv",
-            ".venv",
-            "node_modules",
-            ".pytest_cache",
-            "dist",
-            "build",
-            ".eggs",
-        }
-
-        filtered_files = [
-            f
-            for f in code_files[:100]  # Limit to first 100 files
-            if not any(pattern in str(f) for pattern in ignore_patterns)
-        ]
-
+        context["structure"] = self._analyze_repo_structure(repo_path)
+        filtered_files = self._collect_filtered_code_paths(repo_path)
         context["files"] = [str(f.relative_to(repo_path)) for f in filtered_files]
+        context["dependencies"] = self._read_dependency_snippets(repo_path)
 
-        # Load dependencies
-        dependency_files = [
-            repo_path / "requirements.txt",
-            repo_path / "package.json",
-            repo_path / "pom.xml",
-            repo_path / "go.mod",
-            repo_path / "Cargo.toml",
-            repo_path / "pyproject.toml",
-        ]
-
-        dependencies: list[str] = []
-        for dep_file in dependency_files:
-            if dep_file.exists():  # type: ignore[reportUnknownMemberType]
-                try:
-                    content = dep_file.read_text(encoding="utf-8")[:500]  # First 500 chars
-                    dependencies.append(f"{dep_file.name}: {content[:100]}...")
-                except Exception:
-                    pass
-
-        context["dependencies"] = dependencies
-
-        # Generate summary
         context["summary"] = f"""
 Repository: {repo_path.name}
 Total code files: {len(filtered_files)}
 Languages detected: {", ".join({f.suffix for f in filtered_files[:20]})}
-Dependencies: {len(dependencies)} dependency files found
+Dependencies: {len(context["dependencies"])} dependency files found
 """
 
         return context
@@ -402,8 +398,14 @@ Dependencies: {len(dependencies)} dependency files found
 # CrossHair property-based test functions
 # CrossHair: skip (side-effectful imports via GitPython)
 # These functions are designed for CrossHair symbolic execution analysis
+
+
+def _analyze_command_nonempty(command: str) -> bool:
+    return command.strip() != ""
+
+
 @beartype
-@require(lambda command: command.strip() != "", "command must not be empty")
+@require(_analyze_command_nonempty, "command must not be empty")
 def test_generate_prompt_property(command: str, context: dict[str, Any] | None) -> None:
     """CrossHair property test for generate_prompt method."""
     agent = AnalyzeAgent()
@@ -415,7 +417,7 @@ def test_generate_prompt_property(command: str, context: dict[str, Any] | None) 
 
 
 @beartype
-@require(lambda command: command.strip() != "", "command must not be empty")
+@require(_analyze_command_nonempty, "command must not be empty")
 def test_execute_property(command: str, args: dict[str, Any] | None, context: dict[str, Any] | None) -> None:
     """CrossHair property test for execute method."""
     agent = AnalyzeAgent()

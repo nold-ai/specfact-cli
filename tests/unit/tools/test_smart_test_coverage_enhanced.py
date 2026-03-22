@@ -15,6 +15,7 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 import pytest
+from icontract.errors import ViolationError
 
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -193,8 +194,8 @@ class TestSmartCoverageManagerEnhanced:
 
     def test_run_tests_by_level_invalid(self):
         """Test running tests with invalid level."""
-        result = self.manager.run_tests_by_level("invalid")
-        assert result is False
+        with pytest.raises(ViolationError):
+            self.manager.run_tests_by_level("invalid")
 
     def test_run_smart_tests_auto_with_changes(self):
         """Test smart tests in auto mode with changes detected (changed-only)."""

@@ -12,7 +12,7 @@ import tarfile
 import tempfile
 from functools import lru_cache
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import yaml
 from beartype import beartype
@@ -154,7 +154,7 @@ def _installed_dependency_version(manifest_path: Path) -> str:
     try:
         metadata = yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
         if isinstance(metadata, dict):
-            return str(metadata.get("version", "unknown"))
+            return str(cast(dict[str, Any], metadata).get("version", "unknown"))
     except Exception:
         return "unknown"
     return "unknown"
@@ -241,7 +241,7 @@ def _canonical_manifest_payload(manifest_path: Path) -> bytes:
     parsed = yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
     if not isinstance(parsed, dict):
         raise ValueError("Invalid module manifest format")
-    parsed.pop("integrity", None)
+    cast(dict[str, Any], parsed).pop("integrity", None)
     return yaml.safe_dump(parsed, sort_keys=True, allow_unicode=False).encode("utf-8")
 
 
@@ -293,25 +293,16 @@ def _module_artifact_payload_stable(package_dir: Path) -> bytes:
     return "\n".join(entries).encode("utf-8")
 
 
-def _module_artifact_payload_signed(package_dir: Path) -> bytes:
-    """Build payload identical to scripts/sign-modules.py so verification matches after signing.
+def _signed_payload_is_hashable(path: Path, module_dir_resolved: Path) -> bool:
+    rel = path.resolve().relative_to(module_dir_resolved)
+    if any(part in _IGNORED_MODULE_DIR_NAMES for part in rel.parts):
+        return False
+    if path.name in _IGNORED_MODULE_FILE_NAMES:
+        return False
+    return path.suffix.lower() not in _IGNORED_MODULE_FILE_SUFFIXES
 
-    Uses git ls-files when the module lives in a git repo (same file set and order as sign script);
-    otherwise falls back to rglob + same hashable/sort rules so checksums match for non-git use.
-    """
-    if not package_dir.exists() or not package_dir.is_dir():
-        raise ValueError(f"Module directory not found: {package_dir}")
-    module_dir_resolved = package_dir.resolve()
 
-    def _is_hashable(path: Path) -> bool:
-        rel = path.resolve().relative_to(module_dir_resolved)
-        if any(part in _IGNORED_MODULE_DIR_NAMES for part in rel.parts):
-            return False
-        if path.name in _IGNORED_MODULE_FILE_NAMES:
-            return False
-        return path.suffix.lower() not in _IGNORED_MODULE_FILE_SUFFIXES
-
-    files: list[Path]
+def _git_tracked_module_files(package_dir: Path, module_dir_resolved: Path) -> list[Path] | None:
     try:
         result = subprocess.run(
             ["git", "rev-parse", "--show-toplevel"],
@@ -337,14 +328,21 @@ def _module_artifact_payload_signed(package_dir: Path) -> bytes:
             raise FileNotFoundError("git ls-files failed")
         lines = [line.strip() for line in ls_result.stdout.splitlines() if line.strip()]
         files = [git_root / line for line in lines]
-        files = [p for p in files if p.is_file() and _is_hashable(p)]
+        files = [p for p in files if p.is_file() and _signed_payload_is_hashable(p, module_dir_resolved)]
         files.sort(key=lambda p: p.resolve().relative_to(module_dir_resolved).as_posix())
+        return files
     except (FileNotFoundError, ValueError, subprocess.TimeoutExpired):
-        files = sorted(
-            (p for p in package_dir.rglob("*") if p.is_file() and _is_hashable(p)),
-            key=lambda p: p.resolve().relative_to(module_dir_resolved).as_posix(),
-        )
+        return None
 
+
+def _rglob_signed_module_files(package_dir: Path, module_dir_resolved: Path) -> list[Path]:
+    return sorted(
+        (p for p in package_dir.rglob("*") if p.is_file() and _signed_payload_is_hashable(p, module_dir_resolved)),
+        key=lambda p: p.resolve().relative_to(module_dir_resolved).as_posix(),
+    )
+
+
+def _signed_payload_entries_for_files(files: list[Path], module_dir_resolved: Path) -> list[str]:
     entries: list[str] = []
     for path in files:
         rel = path.resolve().relative_to(module_dir_resolved).as_posix()
@@ -356,7 +354,22 @@ def _module_artifact_payload_signed(package_dir: Path) -> bytes:
         else:
             data = path.read_bytes()
         entries.append(f"{rel}:{hashlib.sha256(data).hexdigest()}")
-    return "\n".join(entries).encode("utf-8")
+    return entries
+
+
+def _module_artifact_payload_signed(package_dir: Path) -> bytes:
+    """Build payload identical to scripts/sign-modules.py so verification matches after signing.
+
+    Uses git ls-files when the module lives in a git repo (same file set and order as sign script);
+    otherwise falls back to rglob + same hashable/sort rules so checksums match for non-git use.
+    """
+    if not package_dir.exists() or not package_dir.is_dir():
+        raise ValueError(f"Module directory not found: {package_dir}")
+    module_dir_resolved = package_dir.resolve()
+    files = _git_tracked_module_files(package_dir, module_dir_resolved)
+    if files is None:
+        files = _rglob_signed_module_files(package_dir, module_dir_resolved)
+    return "\n".join(_signed_payload_entries_for_files(files, module_dir_resolved)).encode("utf-8")
 
 
 @beartype
@@ -380,7 +393,7 @@ def _warn_signature_backend_unavailable_once(error_message: str) -> None:
 
 
 @beartype
-@require(lambda module_name: module_name.strip() != "", "module_name must not be empty")
+@require(lambda module_name: cast(str, module_name).strip() != "", "module_name must not be empty")
 @require(lambda target_root: isinstance(target_root, Path), "target_root must be a Path")
 @ensure(lambda result: isinstance(result, bool), "Must return a bool")
 def install_bundled_module(
@@ -510,6 +523,120 @@ def _validate_archive_members(members: list[tarfile.TarInfo], extract_root: Path
             raise ValueError(f"Downloaded module archive contains unsafe archive path: {member.name}")
 
 
+def _resolve_checksum_verification_payload(
+    package_dir: Path,
+    meta: ModulePackageMetadata,
+    logger: Any,
+) -> bytes | None:
+    assert meta.integrity is not None
+    try:
+        signed_payload = _module_artifact_payload_signed(package_dir)
+        verify_checksum(signed_payload, meta.integrity.checksum)
+        return signed_payload
+    except ValueError:
+        pass
+    try:
+        legacy_payload = _module_artifact_payload(package_dir)
+        verify_checksum(legacy_payload, meta.integrity.checksum)
+        return legacy_payload
+    except ValueError as exc:
+        legacy_exc = exc
+        try:
+            stable_payload = _module_artifact_payload_stable(package_dir)
+            verify_checksum(stable_payload, meta.integrity.checksum)
+            if _integrity_debug_details_enabled():
+                logger.debug(
+                    "Module %s: checksum matched with generated-file exclusions (cache/transient files ignored)",
+                    meta.name,
+                )
+            return stable_payload
+        except ValueError:
+            if _integrity_debug_details_enabled():
+                logger.warning("Module %s: Integrity check failed: %s", meta.name, legacy_exc)
+            else:
+                logger.debug("Module %s: Integrity check failed: %s", meta.name, legacy_exc)
+            return _install_verified_checksum_fallback(package_dir, meta, logger)
+
+
+def _install_verified_checksum_fallback(
+    package_dir: Path,
+    meta: ModulePackageMetadata,
+    logger: Any,
+) -> bytes | None:
+    install_checksum_file = package_dir / INSTALL_VERIFIED_CHECKSUM_FILE
+    if not install_checksum_file.is_file():
+        if _integrity_debug_details_enabled():
+            logger.debug(
+                "Module %s: no %s (reinstall to write it)",
+                meta.name,
+                INSTALL_VERIFIED_CHECKSUM_FILE,
+            )
+        return None
+    try:
+        legacy_payload = _module_artifact_payload(package_dir)
+        computed = f"sha256:{hashlib.sha256(legacy_payload).hexdigest()}"
+        stored = install_checksum_file.read_text(encoding="utf-8").strip()
+        if stored and computed == stored:
+            if _integrity_debug_details_enabled():
+                logger.debug(
+                    "Module %s: accepted via install-time verified checksum",
+                    meta.name,
+                )
+            return legacy_payload
+        if _integrity_debug_details_enabled():
+            logger.debug(
+                "Module %s: install-verified checksum mismatch (computed=%s, stored=%s)",
+                meta.name,
+                computed[:32] + "...",
+                stored[:32] + "..." if len(stored) > 32 else stored,
+            )
+        return None
+    except (OSError, ValueError) as fallback_exc:
+        if _integrity_debug_details_enabled():
+            logger.debug(
+                "Module %s: install-verified fallback error: %s",
+                meta.name,
+                fallback_exc,
+            )
+        return None
+
+
+def _verify_signature_if_present(
+    meta: ModulePackageMetadata,
+    verification_payload: bytes,
+    public_key_pem: str | None,
+    allow_unsigned: bool,
+    require_signature: bool,
+    logger: Any,
+) -> bool:
+    if meta.integrity and meta.integrity.signature:
+        key_material = _load_public_key_pem(public_key_pem)
+        if not key_material:
+            if require_signature and not allow_unsigned:
+                logger.warning("Module %s: Signature verification requires public key material", meta.name)
+                return False
+            logger.warning(
+                "Module %s: Signature present but no public key configured; checksum-only verification", meta.name
+            )
+            return True
+        try:
+            verify_signature(verification_payload, meta.integrity.signature, key_material)
+        except ValueError as exc:
+            if _is_signature_backend_unavailable(exc):
+                if require_signature and not allow_unsigned:
+                    logger.warning("Module %s: signature is required but backend is unavailable", meta.name)
+                    return False
+                _warn_signature_backend_unavailable_once(str(exc))
+                return True
+            logger.warning("Module %s: Signature check failed: %s", meta.name, exc)
+            return False
+        return True
+    if require_signature and not allow_unsigned:
+        logger.warning("Module %s: Signature is required but missing", meta.name)
+        return False
+    return True
+
+
 @beartype
 @require(lambda package_dir: isinstance(package_dir, Path), "package_dir must be a Path")
 @require(lambda meta: isinstance(meta, ModulePackageMetadata), "meta must be a ModulePackageMetadata instance")
@@ -546,101 +673,165 @@ def verify_module_artifact(
             REGISTRY_ID_FILE,
         )
 
-    verification_payload: bytes
-    try:
-        signed_payload = _module_artifact_payload_signed(package_dir)
-        verify_checksum(signed_payload, meta.integrity.checksum)
-        verification_payload = signed_payload
-    except ValueError:
-        try:
-            legacy_payload = _module_artifact_payload(package_dir)
-            verify_checksum(legacy_payload, meta.integrity.checksum)
-            verification_payload = legacy_payload
-        except ValueError as exc:
-            try:
-                stable_payload = _module_artifact_payload_stable(package_dir)
-                verify_checksum(stable_payload, meta.integrity.checksum)
-                if _integrity_debug_details_enabled():
-                    logger.debug(
-                        "Module %s: checksum matched with generated-file exclusions (cache/transient files ignored)",
-                        meta.name,
-                    )
-                verification_payload = stable_payload
-            except ValueError:
-                if _integrity_debug_details_enabled():
-                    logger.warning("Module %s: Integrity check failed: %s", meta.name, exc)
-                else:
-                    logger.debug("Module %s: Integrity check failed: %s", meta.name, exc)
-                install_checksum_file = package_dir / INSTALL_VERIFIED_CHECKSUM_FILE
-                if install_checksum_file.is_file():
-                    try:
-                        legacy_payload = _module_artifact_payload(package_dir)
-                        computed = f"sha256:{hashlib.sha256(legacy_payload).hexdigest()}"
-                        stored = install_checksum_file.read_text(encoding="utf-8").strip()
-                        if stored and computed == stored:
-                            if _integrity_debug_details_enabled():
-                                logger.debug(
-                                    "Module %s: accepted via install-time verified checksum",
-                                    meta.name,
-                                )
-                            verification_payload = legacy_payload
-                        else:
-                            if _integrity_debug_details_enabled():
-                                logger.debug(
-                                    "Module %s: install-verified checksum mismatch (computed=%s, stored=%s)",
-                                    meta.name,
-                                    computed[:32] + "...",
-                                    stored[:32] + "..." if len(stored) > 32 else stored,
-                                )
-                            return False
-                    except (OSError, ValueError) as fallback_exc:
-                        if _integrity_debug_details_enabled():
-                            logger.debug(
-                                "Module %s: install-verified fallback error: %s",
-                                meta.name,
-                                fallback_exc,
-                            )
-                        return False
-                else:
-                    if _integrity_debug_details_enabled():
-                        logger.debug(
-                            "Module %s: no %s (reinstall to write it)",
-                            meta.name,
-                            INSTALL_VERIFIED_CHECKSUM_FILE,
-                        )
-                    return False
-
-    if meta.integrity.signature:
-        key_material = _load_public_key_pem(public_key_pem)
-        if not key_material:
-            if require_signature and not allow_unsigned:
-                logger.warning("Module %s: Signature verification requires public key material", meta.name)
-                return False
-            logger.warning(
-                "Module %s: Signature present but no public key configured; checksum-only verification", meta.name
-            )
-            return True
-        try:
-            verify_signature(verification_payload, meta.integrity.signature, key_material)
-        except ValueError as exc:
-            if _is_signature_backend_unavailable(exc):
-                if require_signature and not allow_unsigned:
-                    logger.warning("Module %s: signature is required but backend is unavailable", meta.name)
-                    return False
-                _warn_signature_backend_unavailable_once(str(exc))
-                return True
-            logger.warning("Module %s: Signature check failed: %s", meta.name, exc)
-            return False
-    elif require_signature and not allow_unsigned:
-        logger.warning("Module %s: Signature is required but missing", meta.name)
+    assert meta.integrity is not None
+    verification_payload = _resolve_checksum_verification_payload(package_dir, meta, logger)
+    if verification_payload is None:
         return False
+    return _verify_signature_if_present(
+        meta, verification_payload, public_key_pem, allow_unsigned, require_signature, logger
+    )
 
-    return True
+
+def _clear_reinstall_download_cache(module_id: str, logger: Any) -> None:
+    from specfact_cli.registry.marketplace_client import get_modules_branch
+
+    get_modules_branch.cache_clear()
+    for stale in MODULE_DOWNLOAD_CACHE_ROOT.glob(f"{module_id.replace('/', '--')}--*.tar.gz"):
+        try:
+            stale.unlink()
+            logger.debug("Cleared cached archive %s for reinstall", stale.name)
+        except OSError:
+            pass
+
+
+def _extract_marketplace_archive(archive_path: Path, extract_root: Path) -> None:
+    with tarfile.open(archive_path, "r:gz") as archive:
+        members = archive.getmembers()
+        _validate_archive_members(members, extract_root)
+        try:
+            archive.extractall(path=extract_root, members=members, filter="data")
+        except TypeError:
+            archive.extractall(path=extract_root, members=members)
+
+
+def _load_first_extracted_module_manifest(extract_root: Path) -> tuple[Path, dict[str, Any]]:
+    candidate_dirs = [p for p in extract_root.rglob("module-package.yaml") if p.is_file()]
+    if not candidate_dirs:
+        raise ValueError("Downloaded module archive does not contain module-package.yaml")
+    extracted_manifest = candidate_dirs[0]
+    metadata = yaml.safe_load(extracted_manifest.read_text(encoding="utf-8"))
+    if not isinstance(metadata, dict):
+        raise ValueError("Invalid module manifest format")
+    return extracted_manifest.parent, metadata
+
+
+def _validate_install_manifest_constraints(
+    metadata: dict[str, Any],
+    module_name: str,
+    trust_non_official: bool,
+    non_interactive: bool,
+) -> str:
+    manifest_module_name = str(metadata.get("name", module_name)).strip() or module_name
+    assert_module_allowed(manifest_module_name)
+    compatibility = str(metadata.get("core_compatibility", "")).strip()
+    if compatibility and Version(cli_version) not in SpecifierSet(compatibility):
+        raise ValueError("Module is incompatible with current SpecFact CLI version")
+    publisher_name: str | None = None
+    publisher_raw = metadata.get("publisher")
+    if isinstance(publisher_raw, dict):
+        publisher_name = str(cast(dict[str, Any], publisher_raw).get("name", "")).strip() or None
+    ensure_publisher_trusted(
+        publisher_name,
+        trust_non_official=trust_non_official,
+        non_interactive=non_interactive,
+    )
+    return manifest_module_name
+
+
+def _metadata_obj_from_install_dict(metadata: dict[str, Any], manifest_module_name: str) -> ModulePackageMetadata:
+    try:
+        return ModulePackageMetadata(**metadata)
+    except Exception:
+        return ModulePackageMetadata(
+            name=manifest_module_name,
+            version=str(metadata.get("version", "0.1.0")),
+            commands=[str(command) for command in metadata.get("commands", []) if str(command).strip()],
+        )
+
+
+def _install_bundle_dependencies_for_module(
+    module_id: str,
+    metadata: dict[str, Any],
+    metadata_obj: ModulePackageMetadata,
+    target_root: Path,
+    trust_non_official: bool,
+    non_interactive: bool,
+    force: bool,
+    logger: Any,
+) -> None:
+    for dependency_module_id in _extract_bundle_dependencies(metadata):
+        if dependency_module_id == module_id:
+            continue
+        dependency_name = dependency_module_id.split("/", 1)[1]
+        dependency_manifest = target_root / dependency_name / "module-package.yaml"
+        if dependency_manifest.exists():
+            dependency_version = _installed_dependency_version(dependency_manifest)
+            logger.info("Dependency %s already satisfied (version %s)", dependency_module_id, dependency_version)
+            continue
+        try:
+            install_module(
+                dependency_module_id,
+                install_root=target_root,
+                trust_non_official=trust_non_official,
+                non_interactive=non_interactive,
+                skip_deps=False,
+                force=force,
+            )
+        except Exception as dep_exc:
+            raise ValueError(f"Dependency install failed for {dependency_module_id}: {dep_exc}") from dep_exc
+    try:
+        all_metas = [e.metadata for e in discover_all_modules()]
+        all_metas.append(metadata_obj)
+        resolve_dependencies(all_metas)
+    except DependencyConflictError as dep_err:
+        if not force:
+            raise ValueError(
+                f"Dependency conflict: {dep_err}. Use --force to bypass or --skip-deps to skip resolution."
+            ) from dep_err
+        logger.warning("Dependency conflict bypassed by --force: %s", dep_err)
+
+
+def _atomic_place_verified_module(
+    extracted_module_dir: Path,
+    metadata_obj: ModulePackageMetadata,
+    module_name: str,
+    module_id: str,
+    target_root: Path,
+    final_path: Path,
+) -> None:
+    allow_unsigned = os.environ.get("SPECFACT_ALLOW_UNSIGNED", "").strip().lower() in {"1", "true", "yes"}
+    if not verify_module_artifact(
+        extracted_module_dir,
+        metadata_obj,
+        allow_unsigned=allow_unsigned,
+    ):
+        raise ValueError("Downloaded module failed integrity verification")
+
+    install_verified_checksum = f"sha256:{hashlib.sha256(_module_artifact_payload(extracted_module_dir)).hexdigest()}"
+
+    staged_path = target_root / f".{module_name}.tmp-install"
+    if staged_path.exists():
+        shutil.rmtree(staged_path)
+    shutil.copytree(extracted_module_dir, staged_path)
+
+    try:
+        if final_path.exists():
+            shutil.rmtree(final_path)
+        staged_path.replace(final_path)
+        (final_path / REGISTRY_ID_FILE).write_text(module_id, encoding="utf-8")
+        (final_path / INSTALL_VERIFIED_CHECKSUM_FILE).write_text(install_verified_checksum, encoding="utf-8")
+    except Exception:
+        if staged_path.exists():
+            shutil.rmtree(staged_path)
+        raise
 
 
 @beartype
-@require(lambda module_id: "/" in module_id and len(module_id.split("/")) == 2, "module_id must be namespace/name")
-@ensure(lambda result: result.exists(), "Installed module path must exist")
+@require(
+    lambda module_id: "/" in cast(str, module_id) and len(cast(str, module_id).split("/")) == 2,
+    "module_id must be namespace/name",
+)
+@ensure(lambda result: cast(Path, result).exists(), "Installed module path must exist")
 def install_module(
     module_id: str,
     *,
@@ -668,15 +859,7 @@ def install_module(
         return final_path
 
     if reinstall:
-        from specfact_cli.registry.marketplace_client import get_modules_branch
-
-        get_modules_branch.cache_clear()
-        for stale in MODULE_DOWNLOAD_CACHE_ROOT.glob(f"{module_id.replace('/', '--')}--*.tar.gz"):
-            try:
-                stale.unlink()
-                logger.debug("Cleared cached archive %s for reinstall", stale.name)
-            except OSError:
-                pass
+        _clear_reinstall_download_cache(module_id, logger)
 
     archive_path = _download_archive_with_cache(module_id, version=version)
 
@@ -685,116 +868,41 @@ def install_module(
         extract_root = tmp_dir_path / "extract"
         extract_root.mkdir(parents=True, exist_ok=True)
 
-        with tarfile.open(archive_path, "r:gz") as archive:
-            members = archive.getmembers()
-            _validate_archive_members(members, extract_root)
-            try:
-                archive.extractall(path=extract_root, members=members, filter="data")
-            except TypeError:
-                archive.extractall(path=extract_root, members=members)
+        _extract_marketplace_archive(archive_path, extract_root)
 
-        candidate_dirs = [p for p in extract_root.rglob("module-package.yaml") if p.is_file()]
-        if not candidate_dirs:
-            raise ValueError("Downloaded module archive does not contain module-package.yaml")
-
-        extracted_manifest = candidate_dirs[0]
-        extracted_module_dir = extracted_manifest.parent
-
-        metadata = yaml.safe_load(extracted_manifest.read_text(encoding="utf-8"))
-        if not isinstance(metadata, dict):
-            raise ValueError("Invalid module manifest format")
-        manifest_module_name = str(metadata.get("name", module_name)).strip() or module_name
-        assert_module_allowed(manifest_module_name)
-
-        compatibility = str(metadata.get("core_compatibility", "")).strip()
-        if compatibility and Version(cli_version) not in SpecifierSet(compatibility):
-            raise ValueError("Module is incompatible with current SpecFact CLI version")
-
-        publisher_name: str | None = None
-        publisher_raw = metadata.get("publisher")
-        if isinstance(publisher_raw, dict):
-            publisher_name = str(publisher_raw.get("name", "")).strip() or None
-        ensure_publisher_trusted(
-            publisher_name,
-            trust_non_official=trust_non_official,
-            non_interactive=non_interactive,
+        extracted_module_dir, metadata = _load_first_extracted_module_manifest(extract_root)
+        manifest_module_name = _validate_install_manifest_constraints(
+            metadata, module_name, trust_non_official, non_interactive
         )
+        metadata_obj = _metadata_obj_from_install_dict(metadata, manifest_module_name)
 
-        try:
-            metadata_obj = ModulePackageMetadata(**metadata)
-        except Exception:
-            metadata_obj = ModulePackageMetadata(
-                name=manifest_module_name,
-                version=str(metadata.get("version", "0.1.0")),
-                commands=[str(command) for command in metadata.get("commands", []) if str(command).strip()],
-            )
         if not skip_deps:
-            for dependency_module_id in _extract_bundle_dependencies(metadata):
-                if dependency_module_id == module_id:
-                    continue
-                dependency_name = dependency_module_id.split("/", 1)[1]
-                dependency_manifest = target_root / dependency_name / "module-package.yaml"
-                if dependency_manifest.exists():
-                    dependency_version = _installed_dependency_version(dependency_manifest)
-                    logger.info(
-                        "Dependency %s already satisfied (version %s)", dependency_module_id, dependency_version
-                    )
-                    continue
-                try:
-                    install_module(
-                        dependency_module_id,
-                        install_root=target_root,
-                        trust_non_official=trust_non_official,
-                        non_interactive=non_interactive,
-                        skip_deps=False,
-                        force=force,
-                    )
-                except Exception as dep_exc:
-                    raise ValueError(f"Dependency install failed for {dependency_module_id}: {dep_exc}") from dep_exc
-            try:
-                all_metas = [e.metadata for e in discover_all_modules()]
-                all_metas.append(metadata_obj)
-                resolve_dependencies(all_metas)
-            except DependencyConflictError as dep_err:
-                if not force:
-                    raise ValueError(
-                        f"Dependency conflict: {dep_err}. Use --force to bypass or --skip-deps to skip resolution."
-                    ) from dep_err
-                logger.warning("Dependency conflict bypassed by --force: %s", dep_err)
-        allow_unsigned = os.environ.get("SPECFACT_ALLOW_UNSIGNED", "").strip().lower() in {"1", "true", "yes"}
-        if not verify_module_artifact(
+            _install_bundle_dependencies_for_module(
+                module_id,
+                metadata,
+                metadata_obj,
+                target_root,
+                trust_non_official,
+                non_interactive,
+                force,
+                logger,
+            )
+
+        _atomic_place_verified_module(
             extracted_module_dir,
             metadata_obj,
-            allow_unsigned=allow_unsigned,
-        ):
-            raise ValueError("Downloaded module failed integrity verification")
-
-        install_verified_checksum = (
-            f"sha256:{hashlib.sha256(_module_artifact_payload(extracted_module_dir)).hexdigest()}"
+            module_name,
+            module_id,
+            target_root,
+            final_path,
         )
-
-        staged_path = target_root / f".{module_name}.tmp-install"
-        if staged_path.exists():
-            shutil.rmtree(staged_path)
-        shutil.copytree(extracted_module_dir, staged_path)
-
-        try:
-            if final_path.exists():
-                shutil.rmtree(final_path)
-            staged_path.replace(final_path)
-            (final_path / REGISTRY_ID_FILE).write_text(module_id, encoding="utf-8")
-            (final_path / INSTALL_VERIFIED_CHECKSUM_FILE).write_text(install_verified_checksum, encoding="utf-8")
-        except Exception:
-            if staged_path.exists():
-                shutil.rmtree(staged_path)
-            raise
 
     logger.debug("Installed marketplace module '%s' to '%s'", module_id, final_path)
     return final_path
 
 
 @beartype
-@require(lambda module_name: module_name.strip() != "", "module_name must be non-empty")
+@require(lambda module_name: cast(str, module_name).strip() != "", "module_name must be non-empty")
 def uninstall_module(
     module_name: str,
     *,

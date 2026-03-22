@@ -6,8 +6,16 @@ from beartype import beartype
 from icontract import ensure, require
 
 from specfact_cli.models.deviation import Deviation, DeviationReport, DeviationSeverity, DeviationType
-from specfact_cli.models.plan import PlanBundle
+from specfact_cli.models.plan import Feature, PlanBundle, Story
 from specfact_cli.utils.feature_keys import normalize_feature_key
+
+
+def _compare_returns_deviation_report(result: DeviationReport) -> bool:
+    return isinstance(result, DeviationReport)
+
+
+def _report_has_plan_labels(result: DeviationReport) -> bool:
+    return len(result.manual_plan) > 0 and len(result.auto_plan) > 0
 
 
 class PlanComparator:
@@ -28,9 +36,8 @@ class PlanComparator:
     @require(
         lambda auto_label: isinstance(auto_label, str) and len(auto_label) > 0, "Auto label must be non-empty string"
     )
-    @ensure(lambda result: isinstance(result, DeviationReport), "Must return DeviationReport")
-    @ensure(lambda result: len(result.manual_plan) > 0, "Manual plan label must be non-empty")
-    @ensure(lambda result: len(result.auto_plan) > 0, "Auto plan label must be non-empty")
+    @ensure(_compare_returns_deviation_report, "Must return DeviationReport")
+    @ensure(_report_has_plan_labels, "Manual and auto plan labels must be non-empty")
     def compare(
         self,
         manual_plan: PlanBundle,
@@ -187,64 +194,73 @@ class PlanComparator:
 
         return deviations
 
+    def _compare_features_missing_in_auto(
+        self,
+        manual_features_by_norm: dict[str, Feature],
+        auto_features_by_norm: dict[str, Feature],
+    ) -> list[Deviation]:
+        out: list[Deviation] = []
+        for norm_key in manual_features_by_norm:
+            if norm_key in auto_features_by_norm:
+                continue
+            manual_feature = manual_features_by_norm[norm_key]
+            severity = DeviationSeverity.HIGH if manual_feature.stories else DeviationSeverity.MEDIUM
+            out.append(
+                Deviation(
+                    type=DeviationType.MISSING_FEATURE,
+                    severity=severity,
+                    description=f"Feature '{manual_feature.key}' ({manual_feature.title}) in manual plan but not implemented",
+                    location=f"features[{manual_feature.key}]",
+                    fix_hint=f"Implement feature '{manual_feature.key}' or update manual plan",
+                )
+            )
+        return out
+
+    @staticmethod
+    def _extra_feature_severity(auto_feature: Feature) -> DeviationSeverity:
+        if len(auto_feature.stories) > 3 or auto_feature.confidence >= 0.8:
+            return DeviationSeverity.HIGH
+        if len(auto_feature.stories) == 0 or auto_feature.confidence < 0.5:
+            return DeviationSeverity.LOW
+        return DeviationSeverity.MEDIUM
+
+    def _compare_features_extra_in_auto(
+        self,
+        manual_features_by_norm: dict[str, Feature],
+        auto_features_by_norm: dict[str, Feature],
+    ) -> list[Deviation]:
+        out: list[Deviation] = []
+        for norm_key in auto_features_by_norm:
+            if norm_key in manual_features_by_norm:
+                continue
+            auto_feature = auto_features_by_norm[norm_key]
+            severity = self._extra_feature_severity(auto_feature)
+            out.append(
+                Deviation(
+                    type=DeviationType.EXTRA_IMPLEMENTATION,
+                    severity=severity,
+                    description=f"Feature '{auto_feature.key}' ({auto_feature.title}) found in code but not in manual plan",
+                    location=f"features[{auto_feature.key}]",
+                    fix_hint=f"Add feature '{auto_feature.key}' to manual plan or remove from code",
+                )
+            )
+        return out
+
     def _compare_features(self, manual: PlanBundle, auto: PlanBundle) -> list[Deviation]:
         """Compare features between two plans using normalized keys."""
-        deviations: list[Deviation] = []
-
-        # Build feature maps by normalized key for comparison
         manual_features_by_norm = {normalize_feature_key(f.key): f for f in manual.features}
         auto_features_by_norm = {normalize_feature_key(f.key): f for f in auto.features}
 
-        # Also build by original key for display
-        # manual_features = {f.key: f for f in manual.features}  # Not used yet
-        # auto_features = {f.key: f for f in auto.features}  # Not used yet
+        deviations: list[Deviation] = []
+        deviations.extend(self._compare_features_missing_in_auto(manual_features_by_norm, auto_features_by_norm))
+        deviations.extend(self._compare_features_extra_in_auto(manual_features_by_norm, auto_features_by_norm))
 
-        # Check for missing features (in manual but not in auto) using normalized keys
-        for norm_key in manual_features_by_norm:
-            if norm_key not in auto_features_by_norm:
-                manual_feature = manual_features_by_norm[norm_key]
-                # Higher severity if feature has stories
-                severity = DeviationSeverity.HIGH if manual_feature.stories else DeviationSeverity.MEDIUM
-
-                deviations.append(
-                    Deviation(
-                        type=DeviationType.MISSING_FEATURE,
-                        severity=severity,
-                        description=f"Feature '{manual_feature.key}' ({manual_feature.title}) in manual plan but not implemented",
-                        location=f"features[{manual_feature.key}]",
-                        fix_hint=f"Implement feature '{manual_feature.key}' or update manual plan",
-                    )
-                )
-
-        # Check for extra features (in auto but not in manual) using normalized keys
-        for norm_key in auto_features_by_norm:
-            if norm_key not in manual_features_by_norm:
-                auto_feature = auto_features_by_norm[norm_key]
-                # Higher severity if feature has many stories or high confidence
-                severity = DeviationSeverity.MEDIUM
-                if len(auto_feature.stories) > 3 or auto_feature.confidence >= 0.8:
-                    severity = DeviationSeverity.HIGH
-                elif len(auto_feature.stories) == 0 or auto_feature.confidence < 0.5:
-                    severity = DeviationSeverity.LOW
-
-                deviations.append(
-                    Deviation(
-                        type=DeviationType.EXTRA_IMPLEMENTATION,
-                        severity=severity,
-                        description=f"Feature '{auto_feature.key}' ({auto_feature.title}) found in code but not in manual plan",
-                        location=f"features[{auto_feature.key}]",
-                        fix_hint=f"Add feature '{auto_feature.key}' to manual plan or remove from code",
-                    )
-                )
-
-        # Compare common features using normalized keys
         common_norm_keys = set(manual_features_by_norm.keys()) & set(auto_features_by_norm.keys())
         for norm_key in common_norm_keys:
             manual_feature = manual_features_by_norm[norm_key]
             auto_feature = auto_features_by_norm[norm_key]
-            key = manual_feature.key  # Use manual key for display
+            key = manual_feature.key
 
-            # Compare feature titles
             if manual_feature.title != auto_feature.title:
                 deviations.append(
                     Deviation(
@@ -256,136 +272,166 @@ class PlanComparator:
                     )
                 )
 
-            # Compare stories
             deviations.extend(self._compare_stories(manual_feature, auto_feature, key))
 
         return deviations
 
-    def _compare_stories(self, manual_feature, auto_feature, feature_key: str) -> list[Deviation]:
-        """Compare stories within a feature with enhanced detection."""
-        deviations: list[Deviation] = []
+    def _compare_stories_missing(
+        self,
+        manual_stories: dict[str, Story],
+        auto_stories: dict[str, Story],
+        feature_key: str,
+    ) -> list[Deviation]:
+        out: list[Deviation] = []
+        for key in manual_stories:
+            if key in auto_stories:
+                continue
+            manual_story = manual_stories[key]
+            value_points = manual_story.value_points or 0
+            severity = (
+                DeviationSeverity.HIGH if (value_points >= 8 or not manual_story.draft) else DeviationSeverity.MEDIUM
+            )
+            out.append(
+                Deviation(
+                    type=DeviationType.MISSING_STORY,
+                    severity=severity,
+                    description=f"Story '{key}' ({manual_story.title}) in manual plan but not implemented",
+                    location=f"features[{feature_key}].stories[{key}]",
+                    fix_hint=f"Implement story '{key}' or update manual plan",
+                )
+            )
+        return out
 
-        # Build story maps by key
+    def _compare_stories_extra(
+        self,
+        manual_stories: dict[str, Story],
+        auto_stories: dict[str, Story],
+        feature_key: str,
+    ) -> list[Deviation]:
+        out: list[Deviation] = []
+        for key in auto_stories:
+            if key in manual_stories:
+                continue
+            auto_story = auto_stories[key]
+            value_points = auto_story.value_points or 0
+            severity = (
+                DeviationSeverity.MEDIUM
+                if (auto_story.confidence >= 0.8 or value_points >= 8)
+                else DeviationSeverity.LOW
+            )
+            out.append(
+                Deviation(
+                    type=DeviationType.EXTRA_IMPLEMENTATION,
+                    severity=severity,
+                    description=f"Story '{key}' ({auto_story.title}) found in code but not in manual plan",
+                    location=f"features[{feature_key}].stories[{key}]",
+                    fix_hint=f"Add story '{key}' to manual plan or remove from code",
+                )
+            )
+        return out
+
+    def _compare_story_acceptance_sets(
+        self,
+        key: str,
+        manual_story: Story,
+        auto_story: Story,
+        feature_key: str,
+    ) -> list[Deviation]:
+        out: list[Deviation] = []
+        manual_acceptance = set(manual_story.acceptance or [])
+        auto_acceptance = set(auto_story.acceptance or [])
+        if manual_acceptance == auto_acceptance:
+            return out
+        missing_criteria = manual_acceptance - auto_acceptance
+        extra_criteria = auto_acceptance - manual_acceptance
+        if missing_criteria:
+            out.append(
+                Deviation(
+                    type=DeviationType.ACCEPTANCE_DRIFT,
+                    severity=DeviationSeverity.HIGH,
+                    description=f"Story '{key}' missing acceptance criteria: {', '.join(missing_criteria)}",
+                    location=f"features[{feature_key}].stories[{key}].acceptance",
+                    fix_hint=f"Ensure all acceptance criteria are implemented: {', '.join(missing_criteria)}",
+                )
+            )
+        if extra_criteria:
+            out.append(
+                Deviation(
+                    type=DeviationType.ACCEPTANCE_DRIFT,
+                    severity=DeviationSeverity.MEDIUM,
+                    description=f"Story '{key}' has extra acceptance criteria in code: {', '.join(extra_criteria)}",
+                    location=f"features[{feature_key}].stories[{key}].acceptance",
+                    fix_hint=f"Update manual plan to include: {', '.join(extra_criteria)}",
+                )
+            )
+        return out
+
+    def _compare_one_common_story(
+        self,
+        key: str,
+        manual_story: Story,
+        auto_story: Story,
+        feature_key: str,
+    ) -> list[Deviation]:
+        out: list[Deviation] = []
+        if manual_story.title != auto_story.title:
+            out.append(
+                Deviation(
+                    type=DeviationType.MISMATCH,
+                    severity=DeviationSeverity.LOW,
+                    description=f"Story '{key}' title differs: manual='{manual_story.title}', auto='{auto_story.title}'",
+                    location=f"features[{feature_key}].stories[{key}].title",
+                    fix_hint="Update story title in code or manual plan",
+                )
+            )
+
+        out.extend(self._compare_story_acceptance_sets(key, manual_story, auto_story, feature_key))
+
+        manual_points = manual_story.story_points or 0
+        auto_points = auto_story.story_points or 0
+        if abs(manual_points - auto_points) >= 3:
+            out.append(
+                Deviation(
+                    type=DeviationType.MISMATCH,
+                    severity=DeviationSeverity.MEDIUM,
+                    description=f"Story '{key}' story points differ significantly: manual={manual_points}, auto={auto_points}",
+                    location=f"features[{feature_key}].stories[{key}].story_points",
+                    fix_hint="Re-evaluate story complexity or update manual plan",
+                )
+            )
+
+        manual_value = manual_story.value_points or 0
+        auto_value = auto_story.value_points or 0
+        if abs(manual_value - auto_value) >= 5:
+            out.append(
+                Deviation(
+                    type=DeviationType.MISMATCH,
+                    severity=DeviationSeverity.MEDIUM,
+                    description=f"Story '{key}' value points differ significantly: manual={manual_value}, auto={auto_value}",
+                    location=f"features[{feature_key}].stories[{key}].value_points",
+                    fix_hint="Re-evaluate business value or update manual plan",
+                )
+            )
+        return out
+
+    def _compare_stories(self, manual_feature: Feature, auto_feature: Feature, feature_key: str) -> list[Deviation]:
+        """Compare stories within a feature with enhanced detection."""
         manual_stories = {s.key: s for s in manual_feature.stories}
         auto_stories = {s.key: s for s in auto_feature.stories}
 
-        # Check for missing stories
-        for key in manual_stories:
-            if key not in auto_stories:
-                manual_story = manual_stories[key]
-                # Higher severity if story has high value points or is not a draft
-                value_points = manual_story.value_points or 0
-                severity = (
-                    DeviationSeverity.HIGH
-                    if (value_points >= 8 or not manual_story.draft)
-                    else DeviationSeverity.MEDIUM
-                )
+        deviations: list[Deviation] = []
+        deviations.extend(self._compare_stories_missing(manual_stories, auto_stories, feature_key))
+        deviations.extend(self._compare_stories_extra(manual_stories, auto_stories, feature_key))
 
-                deviations.append(
-                    Deviation(
-                        type=DeviationType.MISSING_STORY,
-                        severity=severity,
-                        description=f"Story '{key}' ({manual_story.title}) in manual plan but not implemented",
-                        location=f"features[{feature_key}].stories[{key}]",
-                        fix_hint=f"Implement story '{key}' or update manual plan",
-                    )
-                )
-
-        # Check for extra stories
-        for key in auto_stories:
-            if key not in manual_stories:
-                auto_story = auto_stories[key]
-                # Medium severity if story has high confidence or value points
-                value_points = auto_story.value_points or 0
-                severity = (
-                    DeviationSeverity.MEDIUM
-                    if (auto_story.confidence >= 0.8 or value_points >= 8)
-                    else DeviationSeverity.LOW
-                )
-
-                deviations.append(
-                    Deviation(
-                        type=DeviationType.EXTRA_IMPLEMENTATION,
-                        severity=severity,
-                        description=f"Story '{key}' ({auto_story.title}) found in code but not in manual plan",
-                        location=f"features[{feature_key}].stories[{key}]",
-                        fix_hint=f"Add story '{key}' to manual plan or remove from code",
-                    )
-                )
-
-        # Compare common stories
         common_keys = set(manual_stories.keys()) & set(auto_stories.keys())
         for key in common_keys:
-            manual_story = manual_stories[key]
-            auto_story = auto_stories[key]
-
-            # Title mismatch
-            if manual_story.title != auto_story.title:
-                deviations.append(
-                    Deviation(
-                        type=DeviationType.MISMATCH,
-                        severity=DeviationSeverity.LOW,
-                        description=f"Story '{key}' title differs: manual='{manual_story.title}', auto='{auto_story.title}'",
-                        location=f"features[{feature_key}].stories[{key}].title",
-                        fix_hint="Update story title in code or manual plan",
-                    )
+            deviations.extend(
+                self._compare_one_common_story(
+                    key,
+                    manual_stories[key],
+                    auto_stories[key],
+                    feature_key,
                 )
-
-            # Acceptance criteria drift
-            manual_acceptance = set(manual_story.acceptance or [])
-            auto_acceptance = set(auto_story.acceptance or [])
-            if manual_acceptance != auto_acceptance:
-                missing_criteria = manual_acceptance - auto_acceptance
-                extra_criteria = auto_acceptance - manual_acceptance
-
-                if missing_criteria:
-                    deviations.append(
-                        Deviation(
-                            type=DeviationType.ACCEPTANCE_DRIFT,
-                            severity=DeviationSeverity.HIGH,
-                            description=f"Story '{key}' missing acceptance criteria: {', '.join(missing_criteria)}",
-                            location=f"features[{feature_key}].stories[{key}].acceptance",
-                            fix_hint=f"Ensure all acceptance criteria are implemented: {', '.join(missing_criteria)}",
-                        )
-                    )
-
-                if extra_criteria:
-                    deviations.append(
-                        Deviation(
-                            type=DeviationType.ACCEPTANCE_DRIFT,
-                            severity=DeviationSeverity.MEDIUM,
-                            description=f"Story '{key}' has extra acceptance criteria in code: {', '.join(extra_criteria)}",
-                            location=f"features[{feature_key}].stories[{key}].acceptance",
-                            fix_hint=f"Update manual plan to include: {', '.join(extra_criteria)}",
-                        )
-                    )
-
-            # Story points mismatch (if significant)
-            manual_points = manual_story.story_points or 0
-            auto_points = auto_story.story_points or 0
-            if abs(manual_points - auto_points) >= 3:
-                deviations.append(
-                    Deviation(
-                        type=DeviationType.MISMATCH,
-                        severity=DeviationSeverity.MEDIUM,
-                        description=f"Story '{key}' story points differ significantly: manual={manual_points}, auto={auto_points}",
-                        location=f"features[{feature_key}].stories[{key}].story_points",
-                        fix_hint="Re-evaluate story complexity or update manual plan",
-                    )
-                )
-
-            # Value points mismatch (if significant)
-            manual_value = manual_story.value_points or 0
-            auto_value = auto_story.value_points or 0
-            if abs(manual_value - auto_value) >= 5:
-                deviations.append(
-                    Deviation(
-                        type=DeviationType.MISMATCH,
-                        severity=DeviationSeverity.MEDIUM,
-                        description=f"Story '{key}' value points differ significantly: manual={manual_value}, auto={auto_value}",
-                        location=f"features[{feature_key}].stories[{key}].value_points",
-                        fix_hint="Re-evaluate business value or update manual plan",
-                    )
-                )
+            )
 
         return deviations

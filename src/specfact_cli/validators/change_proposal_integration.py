@@ -27,9 +27,180 @@ from specfact_cli.models.bridge import BridgeConfig
 from specfact_cli.models.change import ChangeProposal, ChangeTracking, FeatureDelta
 
 
+def _parse_github_issue_refs(
+    source_tracking: Any,
+) -> tuple[Any, str | None, str | None]:
+    """Return issue_number, repo_owner, repo_name from proposal source tracking."""
+    raw_meta = getattr(source_tracking, "source_metadata", None) if source_tracking else None
+    source_metadata: dict[str, Any] = raw_meta if isinstance(raw_meta, dict) else {}
+    issue_number = source_metadata.get("source_id")
+    source_url = str(source_metadata.get("source_url", "") or "")
+
+    if not issue_number and source_url:
+        match = re.search(r"/issues/(\d+)", source_url)
+        if match:
+            issue_number = match.group(1)
+
+    repo_owner = None
+    repo_name = None
+    if source_url:
+        match = re.search(r"github\.com/([^/]+)/([^/]+)", source_url)
+        if match:
+            repo_owner = match.group(1)
+            repo_name = match.group(2)
+
+    return issue_number, repo_owner, repo_name
+
+
+def _aggregate_proposal_validation(
+    change_name: str,
+    change_tracking: ChangeTracking,
+    validation_results: dict[str, Any],
+) -> tuple[str, dict[str, Any]]:
+    """Return proposal_validation_status and proposal_validation_results for a change."""
+    proposal_validation_status = "pending"
+    proposal_validation_results: dict[str, Any] = {}
+
+    if change_name not in change_tracking.feature_deltas:
+        return proposal_validation_status, proposal_validation_results
+
+    for delta in change_tracking.feature_deltas[change_name]:
+        feature_key = delta.feature_key
+        if feature_key not in validation_results:
+            continue
+        feature_result = validation_results[feature_key]
+        if isinstance(feature_result, dict):
+            fr: dict[str, Any] = feature_result
+            success = fr.get("success", False)
+            if not success:
+                proposal_validation_status = "failed"
+            elif proposal_validation_status == "pending":
+                proposal_validation_status = "passed"
+        elif isinstance(feature_result, bool):
+            if not feature_result:
+                proposal_validation_status = "failed"
+            elif proposal_validation_status == "pending":
+                proposal_validation_status = "passed"
+        proposal_validation_results[feature_key] = feature_result
+
+    return proposal_validation_status, proposal_validation_results
+
+
+def _try_report_proposal_to_github_backlog(
+    change_name: str,
+    proposal: ChangeProposal,
+    change_tracking: ChangeTracking,
+    validation_results: dict[str, Any],
+    bridge_config: BridgeConfig | None,
+    adapter_instance: Any,
+) -> None:
+    """If proposal is linked to GitHub, post validation results for one change."""
+    source_tracking = proposal.source_tracking
+    if not source_tracking:
+        return
+
+    issue_number, repo_owner, repo_name = _parse_github_issue_refs(source_tracking)
+    if not issue_number:
+        return
+
+    if (not repo_owner or not repo_name) and bridge_config:
+        repo_owner = repo_owner or getattr(bridge_config, "repo_owner", None)
+        repo_name = repo_name or getattr(bridge_config, "repo_name", None)
+
+    if not repo_owner or not repo_name:
+        return
+
+    proposal_validation_status, proposal_validation_results = _aggregate_proposal_validation(
+        change_name, change_tracking, validation_results
+    )
+
+    try:
+        issue_number_int = int(issue_number) if isinstance(issue_number, str) else issue_number
+    except (ValueError, TypeError):
+        return
+
+    _post_github_validation_comment_and_labels(
+        adapter_instance,
+        repo_owner,
+        repo_name,
+        issue_number_int,
+        proposal_validation_status,
+        proposal_validation_results,
+    )
+
+
+def _post_github_validation_comment_and_labels(
+    adapter_instance: Any,
+    repo_owner: str,
+    repo_name: str,
+    issue_number_int: int,
+    proposal_validation_status: str,
+    proposal_validation_results: dict[str, Any],
+) -> None:
+    """Post validation comment and optional GitHub labels."""
+    comment_parts = [
+        "## Validation Results",
+        "",
+        f"**Status**: {proposal_validation_status.upper()}",
+        "",
+    ]
+
+    if proposal_validation_results:
+        comment_parts.append("**Feature Validation**:")
+        for feature_key, result in proposal_validation_results.items():
+            if isinstance(result, dict):
+                rd: dict[str, Any] = result
+                success = rd.get("success", False)
+            else:
+                success = bool(result)
+            status_icon = "✅" if success else "❌"
+            comment_parts.append(f"- {status_icon} {feature_key}")
+
+    comment_text = "\n".join(comment_parts)
+
+    with suppress(Exception):
+        adapter_instance._add_issue_comment(repo_owner, repo_name, issue_number_int, comment_text)  # type: ignore[attr-defined]
+
+    if proposal_validation_status != "failed":
+        return
+
+    with suppress(Exception):
+        url = f"{adapter_instance.base_url}/repos/{repo_owner}/{repo_name}/issues/{issue_number_int}"  # type: ignore[attr-defined]
+        headers = {
+            "Authorization": f"token {adapter_instance.api_token}",  # type: ignore[attr-defined]
+            "Accept": "application/vnd.github.v3+json",
+        }
+        response = requests.get(url, headers=headers, timeout=30)
+        response.raise_for_status()
+        payload = response.json()
+        if not isinstance(payload, dict):
+            return
+        issue_payload: dict[str, Any] = payload
+        labels_raw = issue_payload.get("labels", [])
+        label_list = labels_raw if isinstance(labels_raw, list) else []
+        current_labels: list[str] = []
+        for label in label_list:
+            if isinstance(label, dict):
+                lbl: dict[str, Any] = label
+                current_labels.append(str(lbl.get("name", "")))
+
+        if "validation-failed" not in current_labels:
+            all_labels = [*current_labels, "validation-failed"]
+            patch_url = f"{adapter_instance.base_url}/repos/{repo_owner}/{repo_name}/issues/{issue_number_int}"  # type: ignore[attr-defined]
+            patch_payload = {"labels": all_labels}
+            patch_response = requests.patch(patch_url, json=patch_payload, headers=headers, timeout=30)
+            patch_response.raise_for_status()
+
+
 @beartype
-@require(lambda repo_path: repo_path.exists(), "Repository path must exist")
-@require(lambda repo_path: repo_path.is_dir(), "Repository path must be a directory")
+@require(
+    lambda repo_path: isinstance(repo_path, Path) and repo_path.exists(),
+    "Repository path must exist",
+)
+@require(
+    lambda repo_path: isinstance(repo_path, Path) and repo_path.is_dir(),
+    "Repository path must be a directory",
+)
 @ensure(lambda result: result is None or isinstance(result, ChangeTracking), "Must return ChangeTracking or None")
 def load_active_change_proposals(repo_path: Path, bridge_config: BridgeConfig | None = None) -> ChangeTracking | None:
     """
@@ -97,6 +268,41 @@ def load_active_change_proposals(repo_path: Path, bridge_config: BridgeConfig | 
 
 
 @beartype
+@require(lambda feature: feature is not None, "Feature must not be None")
+@ensure(lambda result: isinstance(result, dict), "Must return dict with spec content")
+def _feature_to_spec_content(feature: Any) -> dict[str, Any]:
+    """Convert Feature to spec content dict (internal helper)."""
+    if hasattr(feature, "model_dump"):
+        return feature.model_dump()
+    if hasattr(feature, "dict"):
+        return feature.dict()
+    if isinstance(feature, dict):
+        return feature
+    return {"key": getattr(feature, "key", "unknown"), "title": getattr(feature, "title", "")}
+
+
+def _merge_single_delta_into_specs(
+    merged_specs: dict[str, Any],
+    delta: FeatureDelta,
+    change_name: str,
+    modified_features: dict[str, list[str]],
+) -> None:
+    feature_key = delta.feature_key
+    kind = delta.change_type.value
+    if kind == "added":
+        if delta.proposed_feature:
+            merged_specs[feature_key] = _feature_to_spec_content(delta.proposed_feature)
+        return
+    if kind == "modified":
+        if delta.proposed_feature:
+            merged_specs[feature_key] = _feature_to_spec_content(delta.proposed_feature)
+            modified_features.setdefault(feature_key, []).append(change_name)
+        return
+    if kind == "removed" and feature_key in merged_specs:
+        del merged_specs[feature_key]
+
+
+@beartype
 @require(
     lambda current_specs: isinstance(current_specs, dict), "Current specs must be dict (feature_key -> spec_content)"
 )
@@ -130,26 +336,9 @@ def merge_specs_with_change_proposals(current_specs: dict[str, Any], change_trac
     # Track conflicts (same feature modified in multiple proposals)
     modified_features: dict[str, list[str]] = {}  # feature_key -> [change_names]
 
-    # Process feature deltas from all active proposals
     for change_name, feature_deltas in change_tracking.feature_deltas.items():
         for delta in feature_deltas:
-            feature_key = delta.feature_key
-
-            if delta.change_type.value == "added":
-                # ADDED: Include in validation set
-                if delta.proposed_feature:
-                    merged_specs[feature_key] = _feature_to_spec_content(delta.proposed_feature)
-            elif delta.change_type.value == "modified":
-                # MODIFIED: Replace existing with proposed
-                if delta.proposed_feature:
-                    merged_specs[feature_key] = _feature_to_spec_content(delta.proposed_feature)
-                    # Track for conflict detection
-                    if feature_key not in modified_features:
-                        modified_features[feature_key] = []
-                    modified_features[feature_key].append(change_name)
-            elif delta.change_type.value == "removed" and feature_key in merged_specs:
-                # REMOVED: Exclude from validation set
-                del merged_specs[feature_key]
+            _merge_single_delta_into_specs(merged_specs, delta, change_name, modified_features)
 
     # Check for conflicts
     conflicts = {feature_key: changes for feature_key, changes in modified_features.items() if len(changes) > 1}
@@ -162,30 +351,6 @@ def merge_specs_with_change_proposals(current_specs: dict[str, Any], change_trac
         raise ValueError(msg)
 
     return merged_specs
-
-
-@beartype
-@require(lambda feature: feature is not None, "Feature must not be None")
-@ensure(lambda result: isinstance(result, dict), "Must return dict with spec content")
-def _feature_to_spec_content(feature: Any) -> dict[str, Any]:
-    """
-    Convert Feature to spec content dict (internal helper).
-
-    Args:
-        feature: Feature instance
-
-    Returns:
-        Dict with spec content
-    """
-    # Extract feature data as dict
-    if hasattr(feature, "model_dump"):
-        return feature.model_dump()
-    if hasattr(feature, "dict"):
-        return feature.dict()
-    if isinstance(feature, dict):
-        return feature
-    # Fallback: create minimal dict
-    return {"key": getattr(feature, "key", "unknown"), "title": getattr(feature, "title", "")}
 
 
 @beartype
@@ -226,7 +391,8 @@ def update_validation_status(
                 feature_result = validation_results[feature_key]
                 # Update validation status
                 if isinstance(feature_result, dict):
-                    success = feature_result.get("success", False)
+                    fr: dict[str, Any] = feature_result
+                    success = fr.get("success", False)
                     delta.validation_status = "passed" if success else "failed"
                     delta.validation_results = feature_result
                 elif isinstance(feature_result, bool):
@@ -292,121 +458,12 @@ def report_validation_results_to_backlog(
     if bridge_config and bridge_config.adapter and bridge_config.adapter.value != "github":
         return  # Not using GitHub adapter
 
-    # Report validation results for each proposal
     for change_name, proposal in change_tracking.proposals.items():
-        # Check if proposal has GitHub issue tracking
-        source_tracking = proposal.source_tracking
-        if not source_tracking:
-            continue
-
-        # Extract GitHub issue info from source_tracking
-        source_metadata = getattr(source_tracking, "source_metadata", {}) if source_tracking else {}
-        issue_number = source_metadata.get("source_id") if isinstance(source_metadata, dict) else None
-        source_url = source_metadata.get("source_url", "") if isinstance(source_metadata, dict) else ""
-
-        if not issue_number and source_url:
-            # Try to extract issue number from URL
-            match = re.search(r"/issues/(\d+)", source_url)
-            if match:
-                issue_number = match.group(1)  # Keep as string, convert to int when needed
-
-        if not issue_number:
-            continue  # No GitHub issue linked
-
-        # Extract repo owner/name from source_url or bridge_config
-        repo_owner = None
-        repo_name = None
-
-        if source_url:
-            # Extract from URL: https://github.com/{owner}/{repo}/issues/{number}
-            match = re.search(r"github\.com/([^/]+)/([^/]+)", source_url)
-            if match:
-                repo_owner = match.group(1)
-                repo_name = match.group(2)
-
-        if (not repo_owner or not repo_name) and bridge_config:
-            # Try bridge_config
-            repo_owner = getattr(bridge_config, "repo_owner", None)
-            repo_name = getattr(bridge_config, "repo_name", None)
-
-        if not repo_owner or not repo_name:
-            continue  # Cannot determine repository
-
-        # Get validation status for this proposal
-        proposal_validation_status = "pending"
-        proposal_validation_results = {}
-
-        # Check feature deltas for this proposal
-        if change_name in change_tracking.feature_deltas:
-            for delta in change_tracking.feature_deltas[change_name]:
-                feature_key = delta.feature_key
-                # Check for key presence to handle False and empty dict results correctly
-                if feature_key in validation_results:
-                    feature_result = validation_results[feature_key]
-                    if isinstance(feature_result, dict):
-                        success = feature_result.get("success", False)
-                        if not success:
-                            proposal_validation_status = "failed"
-                        elif proposal_validation_status == "pending":
-                            proposal_validation_status = "passed"
-                    elif isinstance(feature_result, bool):
-                        if not feature_result:
-                            proposal_validation_status = "failed"
-                        elif proposal_validation_status == "pending":
-                            proposal_validation_status = "passed"
-
-                    proposal_validation_results[feature_key] = feature_result
-
-        # Create validation comment
-        comment_parts = [
-            "## Validation Results",
-            "",
-            f"**Status**: {proposal_validation_status.upper()}",
-            "",
-        ]
-
-        if proposal_validation_results:
-            comment_parts.append("**Feature Validation**:")
-            for feature_key, result in proposal_validation_results.items():
-                success = result.get("success", False) if isinstance(result, dict) else bool(result)
-                status_icon = "✅" if success else "❌"
-                comment_parts.append(f"- {status_icon} {feature_key}")
-
-        comment_text = "\n".join(comment_parts)
-
-        # Add comment to GitHub issue
-        # Convert issue_number to int if it's a string
-        try:
-            issue_number_int = int(issue_number) if isinstance(issue_number, str) else issue_number
-        except (ValueError, TypeError):
-            continue  # Invalid issue number
-
-        with suppress(Exception):
-            # Log but don't fail - reporting is non-critical
-            adapter_instance._add_issue_comment(repo_owner, repo_name, issue_number_int, comment_text)  # type: ignore[attr-defined]
-
-        # Update issue labels based on validation status
-        if proposal_validation_status == "failed":
-            # Add "validation-failed" label
-            with suppress(Exception):
-                # Log but don't fail - label update is non-critical
-                # Get current issue
-                url = f"{adapter_instance.base_url}/repos/{repo_owner}/{repo_name}/issues/{issue_number_int}"  # type: ignore[attr-defined]
-                headers = {
-                    "Authorization": f"token {adapter_instance.api_token}",  # type: ignore[attr-defined]
-                    "Accept": "application/vnd.github.v3+json",
-                }
-                response = requests.get(url, headers=headers, timeout=30)
-                response.raise_for_status()
-                current_issue = response.json()
-
-                # Get current labels
-                current_labels = [label.get("name", "") for label in current_issue.get("labels", [])]
-
-                # Add validation-failed label if not present
-                if "validation-failed" not in current_labels:
-                    all_labels = [*current_labels, "validation-failed"]
-                    patch_url = f"{adapter_instance.base_url}/repos/{repo_owner}/{repo_name}/issues/{issue_number_int}"  # type: ignore[attr-defined]
-                    patch_payload = {"labels": all_labels}
-                    patch_response = requests.patch(patch_url, json=patch_payload, headers=headers, timeout=30)
-                    patch_response.raise_for_status()
+        _try_report_proposal_to_github_backlog(
+            change_name,
+            proposal,
+            change_tracking,
+            validation_results,
+            bridge_config,
+            adapter_instance,
+        )

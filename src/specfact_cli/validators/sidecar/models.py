@@ -136,9 +136,18 @@ class SidecarConfig(BaseModel):
 
     @classmethod
     @beartype
-    @require(lambda bundle_name: bundle_name and len(bundle_name.strip()) > 0, "Bundle name must be non-empty")
-    @require(lambda repo_path: repo_path.exists(), "Repository path must exist")
-    @require(lambda repo_path: repo_path.is_dir(), "Repository path must be a directory")
+    @require(
+        lambda bundle_name: isinstance(bundle_name, str) and len(bundle_name.strip()) > 0,
+        "Bundle name must be non-empty",
+    )
+    @require(
+        lambda repo_path: isinstance(repo_path, Path) and repo_path.exists(),
+        "Repository path must exist",
+    )
+    @require(
+        lambda repo_path: isinstance(repo_path, Path) and repo_path.is_dir(),
+        "Repository path must be a directory",
+    )
     @ensure(lambda result: isinstance(result, SidecarConfig), "Must return SidecarConfig")
     def create(
         cls,

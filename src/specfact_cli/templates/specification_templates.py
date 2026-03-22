@@ -14,6 +14,20 @@ from beartype import beartype
 from icontract import ensure, require
 
 
+def _feature_spec_keys_nonblank(
+    feature_key: str, feature_name: str, user_needs: list[str], business_value: str
+) -> bool:
+    return feature_key.strip() != "" and feature_name.strip() != ""
+
+
+def _plan_key_nonblank(plan_key: str, _high_level_steps: list[str], _implementation_details_path: str) -> bool:
+    return plan_key.strip() != ""
+
+
+def _contract_paths_nonblank(contract_key: str, openapi_spec_path: str) -> bool:
+    return contract_key.strip() != "" and openapi_spec_path.strip() != ""
+
+
 @dataclass
 class FeatureSpecificationTemplate:
     """Template for feature specifications (brownfield enhancement)."""
@@ -84,8 +98,7 @@ class ContractExtractionTemplate:
 
 
 @beartype
-@require(lambda feature_key: feature_key.strip() != "", "feature_key must not be empty")
-@require(lambda feature_name: feature_name.strip() != "", "feature_name must not be empty")
+@require(_feature_spec_keys_nonblank, "feature_key and feature_name must not be empty")
 @ensure(lambda result: result is not None, "Must return FeatureSpecificationTemplate")
 def create_feature_specification_template(
     feature_key: str, feature_name: str, user_needs: list[str], business_value: str
@@ -115,7 +128,7 @@ def create_feature_specification_template(
 
 
 @beartype
-@require(lambda plan_key: plan_key.strip() != "", "plan_key must not be empty")
+@require(_plan_key_nonblank, "plan_key must not be empty")
 @ensure(lambda result: result is not None, "Must return ImplementationPlanTemplate")
 def create_implementation_plan_template(
     plan_key: str, high_level_steps: list[str], implementation_details_path: str
@@ -138,8 +151,7 @@ def create_implementation_plan_template(
 
 
 @beartype
-@require(lambda contract_key: contract_key.strip() != "", "contract_key must not be empty")
-@require(lambda openapi_spec_path: openapi_spec_path.strip() != "", "openapi_spec_path must not be empty")
+@require(_contract_paths_nonblank, "contract_key and openapi_spec_path must not be empty")
 @ensure(lambda result: result is not None, "Must return ContractExtractionTemplate")
 def create_contract_extraction_template(contract_key: str, openapi_spec_path: str) -> ContractExtractionTemplate:
     """

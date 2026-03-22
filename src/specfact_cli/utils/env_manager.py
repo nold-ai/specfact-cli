@@ -12,9 +12,12 @@ import shutil
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
+from typing import Any, cast
 
 from beartype import beartype
 from icontract import ensure, require
+
+from specfact_cli.utils.contract_predicates import repo_path_exists, repo_path_is_dir
 
 
 class EnvManager(StrEnum):
@@ -37,9 +40,66 @@ class EnvManagerInfo:
     message: str | None = None
 
 
+def _env_info_from_pyproject_toml(pyproject_toml: Path) -> EnvManagerInfo | None:
+    try:
+        import tomllib
+
+        with pyproject_toml.open("rb") as f:
+            pyproject_data = tomllib.load(f)
+    except Exception:
+        return None
+    tool = pyproject_data.get("tool", {})
+    if "hatch" in tool:
+        hatch_available = shutil.which("hatch") is not None
+        if hatch_available:
+            return EnvManagerInfo(
+                manager=EnvManager.HATCH,
+                available=True,
+                command_prefix=["hatch", "run"],
+                message="Detected hatch environment manager",
+            )
+        return EnvManagerInfo(
+            manager=EnvManager.HATCH,
+            available=False,
+            command_prefix=[],
+            message="Detected hatch in pyproject.toml but hatch not found in PATH",
+        )
+    if "poetry" in tool:
+        poetry_available = shutil.which("poetry") is not None
+        if poetry_available:
+            return EnvManagerInfo(
+                manager=EnvManager.POETRY,
+                available=True,
+                command_prefix=["poetry", "run"],
+                message="Detected poetry environment manager",
+            )
+        return EnvManagerInfo(
+            manager=EnvManager.POETRY,
+            available=False,
+            command_prefix=[],
+            message="Detected poetry in pyproject.toml but poetry not found in PATH",
+        )
+    if "uv" in tool:
+        uv_available = shutil.which("uv") is not None
+        if uv_available:
+            return EnvManagerInfo(
+                manager=EnvManager.UV,
+                available=True,
+                command_prefix=["uv", "run"],
+                message="Detected uv environment manager",
+            )
+        return EnvManagerInfo(
+            manager=EnvManager.UV,
+            available=False,
+            command_prefix=[],
+            message="Detected uv in pyproject.toml but uv not found in PATH",
+        )
+    return None
+
+
 @beartype
-@require(lambda repo_path: repo_path.exists(), "Repository path must exist")
-@require(lambda repo_path: repo_path.is_dir(), "Repository path must be a directory")
+@require(repo_path_exists, "Repository path must exist")
+@require(repo_path_is_dir, "Repository path must be a directory")
 @ensure(lambda result: isinstance(result, EnvManagerInfo), "Must return EnvManagerInfo")
 def detect_env_manager(repo_path: Path) -> EnvManagerInfo:
     """
@@ -67,68 +127,10 @@ def detect_env_manager(repo_path: Path) -> EnvManagerInfo:
     requirements_txt = repo_path / "requirements.txt"
     setup_py = repo_path / "setup.py"
 
-    # 1. Check pyproject.toml for tool sections
     if pyproject_toml.exists():
-        try:
-            import tomllib
-
-            with pyproject_toml.open("rb") as f:
-                pyproject_data = tomllib.load(f)
-
-            # Check for hatch
-            if "tool" in pyproject_data and "hatch" in pyproject_data["tool"]:
-                hatch_available = shutil.which("hatch") is not None
-                if hatch_available:
-                    return EnvManagerInfo(
-                        manager=EnvManager.HATCH,
-                        available=True,
-                        command_prefix=["hatch", "run"],
-                        message="Detected hatch environment manager",
-                    )
-                return EnvManagerInfo(
-                    manager=EnvManager.HATCH,
-                    available=False,
-                    command_prefix=[],
-                    message="Detected hatch in pyproject.toml but hatch not found in PATH",
-                )
-
-            # Check for poetry
-            if "tool" in pyproject_data and "poetry" in pyproject_data["tool"]:
-                poetry_available = shutil.which("poetry") is not None
-                if poetry_available:
-                    return EnvManagerInfo(
-                        manager=EnvManager.POETRY,
-                        available=True,
-                        command_prefix=["poetry", "run"],
-                        message="Detected poetry environment manager",
-                    )
-                return EnvManagerInfo(
-                    manager=EnvManager.POETRY,
-                    available=False,
-                    command_prefix=[],
-                    message="Detected poetry in pyproject.toml but poetry not found in PATH",
-                )
-
-            # Check for uv
-            if "tool" in pyproject_data and "uv" in pyproject_data["tool"]:
-                uv_available = shutil.which("uv") is not None
-                if uv_available:
-                    return EnvManagerInfo(
-                        manager=EnvManager.UV,
-                        available=True,
-                        command_prefix=["uv", "run"],
-                        message="Detected uv environment manager",
-                    )
-                return EnvManagerInfo(
-                    manager=EnvManager.UV,
-                    available=False,
-                    command_prefix=[],
-                    message="Detected uv in pyproject.toml but uv not found in PATH",
-                )
-
-        except Exception:
-            # If we can't parse pyproject.toml, continue with other checks
-            pass
+        pyproject_hit = _env_info_from_pyproject_toml(pyproject_toml)
+        if pyproject_hit is not None:
+            return pyproject_hit
 
     # 2. Check for uv.lock or uv.toml
     if uv_lock.exists() or uv_toml.exists():
@@ -226,7 +228,7 @@ def build_tool_command(env_info: EnvManagerInfo, tool_command: list[str]) -> lis
 
 
 @beartype
-@require(lambda repo_path: repo_path.exists(), "Repository path must exist")
+@require(repo_path_exists, "Repository path must exist")
 @require(lambda tool_name: isinstance(tool_name, str) and len(tool_name) > 0, "Tool name must be non-empty string")
 @ensure(lambda result: isinstance(result, tuple) and len(result) == 2, "Must return (bool, str | None) tuple")
 def check_tool_in_env(
@@ -261,7 +263,7 @@ def check_tool_in_env(
 
 
 @beartype
-@require(lambda repo_path: repo_path.exists(), "Repository path must exist")
+@require(repo_path_exists, "Repository path must exist")
 @ensure(lambda result: isinstance(result, list), "Must return list")
 def detect_source_directories(repo_path: Path) -> list[str]:
     """
@@ -288,54 +290,61 @@ def detect_source_directories(repo_path: Path) -> list[str]:
     if (repo_path / "lib").exists():
         source_dirs.append("lib/")
 
-    # Try to detect package name from pyproject.toml
     pyproject_toml = repo_path / "pyproject.toml"
     if pyproject_toml.exists():
-        try:
-            import tomllib
+        extra = _source_dirs_from_pyproject_name(repo_path, pyproject_toml)
+        source_dirs.extend(extra)
 
-            with pyproject_toml.open("rb") as f:
-                pyproject_data = tomllib.load(f)
-
-            # Check for package name in [project] or [tool.poetry]
-            package_name = None
-            if "project" in pyproject_data and "name" in pyproject_data["project"]:
-                package_name = pyproject_data["project"]["name"]
-            elif (
-                "tool" in pyproject_data
-                and "poetry" in pyproject_data["tool"]
-                and "name" in pyproject_data["tool"]["poetry"]
-            ):
-                package_name = pyproject_data["tool"]["poetry"]["name"]
-
-            if package_name:
-                # Package names in pyproject.toml may use dashes, but directories use underscores
-                # Try both the original name and the normalized version
-                package_variants = [
-                    package_name,  # Original name (e.g., "my-package")
-                    package_name.replace("-", "_"),  # Normalized (e.g., "my_package")
-                    package_name.replace("_", "-"),  # Reverse normalized (e.g., "my-package" from "my_package")
-                ]
-                # Remove duplicates while preserving order
-                seen = set()
-                package_variants = [v for v in package_variants if v not in seen and not seen.add(v)]
-
-                for variant in package_variants:
-                    package_dir = repo_path / variant
-                    if package_dir.exists() and package_dir.is_dir():
-                        source_dirs.append(f"{variant}/")
-                        break  # Use first match
-
-        except Exception:
-            # If we can't parse, continue
-            pass
-
-    # If no standard directories found, return empty list (caller should handle)
     return source_dirs
 
 
+def _package_name_from_pyproject_data(pyproject_data: dict[str, Any]) -> str | None:
+    project_raw = pyproject_data.get("project")
+    if isinstance(project_raw, dict):
+        project = cast(dict[str, Any], project_raw)
+        if "name" in project:
+            name = project.get("name")
+            return str(name) if name is not None else None
+    tool_raw = pyproject_data.get("tool")
+    if isinstance(tool_raw, dict):
+        tool = cast(dict[str, Any], tool_raw)
+        poetry_raw = tool.get("poetry")
+        if isinstance(poetry_raw, dict):
+            poetry = cast(dict[str, Any], poetry_raw)
+            if "name" in poetry:
+                name = poetry.get("name")
+                return str(name) if name is not None else None
+    return None
+
+
+def _source_dirs_from_pyproject_name(repo_path: Path, pyproject_toml: Path) -> list[str]:
+    try:
+        import tomllib
+
+        with pyproject_toml.open("rb") as f:
+            raw = tomllib.load(f)
+    except Exception:
+        return []
+    pyproject_data = raw if isinstance(raw, dict) else {}
+    package_name = _package_name_from_pyproject_data(pyproject_data)
+    if not package_name:
+        return []
+    package_variants = [
+        package_name,
+        package_name.replace("-", "_"),
+        package_name.replace("_", "-"),
+    ]
+    seen: set[str] = set()
+    unique_variants = [v for v in package_variants if v not in seen and not seen.add(v)]
+    for variant in unique_variants:
+        package_dir = repo_path / variant
+        if package_dir.exists() and package_dir.is_dir():
+            return [f"{variant}/"]
+    return []
+
+
 @beartype
-@require(lambda repo_path: repo_path.exists(), "Repository path must exist")
+@require(repo_path_exists, "Repository path must exist")
 @require(lambda source_file_rel: isinstance(source_file_rel, Path), "source_file_rel must be Path")
 @ensure(lambda result: isinstance(result, list), "Must return list")
 def detect_test_directories(repo_path: Path, source_file_rel: Path) -> list[Path]:
@@ -396,7 +405,7 @@ def detect_test_directories(repo_path: Path, source_file_rel: Path) -> list[Path
 
 
 @beartype
-@require(lambda repo_path: repo_path.exists(), "Repository path must exist")
+@require(repo_path_exists, "Repository path must exist")
 @require(lambda source_file: isinstance(source_file, Path), "source_file must be Path")
 @ensure(lambda result: isinstance(result, list), "Must return list")
 def find_test_files_for_source(repo_path: Path, source_file: Path) -> list[Path]:

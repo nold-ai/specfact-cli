@@ -14,7 +14,7 @@ import os
 import re
 from pathlib import Path
 from threading import Lock
-from typing import Any
+from typing import Any, cast
 
 import yaml
 from beartype import beartype
@@ -22,6 +22,101 @@ from icontract import ensure, require
 
 from specfact_cli.integrations.specmatic import SpecValidationResult, validate_spec_with_specmatic
 from specfact_cli.models.plan import Feature
+
+
+def _fastapi_decorator_first_path_str(decorator: ast.Call) -> str | None:
+    if not decorator.args:
+        return None
+    path_arg = decorator.args[0]
+    if not isinstance(path_arg, ast.Constant):
+        return None
+    path = path_arg.value
+    if not isinstance(path, str):
+        return None
+    return path
+
+
+def _fastapi_apply_router_prefix(path: str, decorator: ast.Call, router_prefixes: dict[str, str]) -> str:
+    dec_func = decorator.func
+    if isinstance(dec_func, ast.Attribute) and isinstance(dec_func.value, ast.Name):
+        router_name = dec_func.value.id
+        if router_name in router_prefixes:
+            return router_prefixes[router_name] + path
+    return path
+
+
+def _fastapi_resolve_route_tags(decorator: ast.Call, router_tags: dict[str, list[str]]) -> list[str]:
+    tags: list[str] = []
+    dec_func = decorator.func
+    if isinstance(dec_func, ast.Attribute) and isinstance(dec_func.value, ast.Name):
+        router_name = dec_func.value.id
+        if router_name in router_tags:
+            tags = router_tags[router_name]
+    for kw in decorator.keywords:
+        if kw.arg == "tags" and isinstance(kw.value, ast.List):
+            tags = [
+                str(elt.value) for elt in kw.value.elts if isinstance(elt, ast.Constant) and isinstance(elt.value, str)
+            ]
+    return tags
+
+
+def _merge_request_test_example_into_operation(operation: dict[str, Any], example_data: dict[str, Any]) -> None:
+    if "request" not in example_data or "requestBody" not in operation:
+        return
+    request_body_any = example_data["request"]
+    if not isinstance(request_body_any, dict):
+        return
+    request_body = cast(dict[str, Any], request_body_any)
+    if "body" not in request_body:
+        return
+    rb_any = operation.get("requestBody")
+    if not isinstance(rb_any, dict):
+        return
+    request_body_spec = cast(dict[str, Any], rb_any)
+    content_any = request_body_spec.get("content", {})
+    if not isinstance(content_any, dict):
+        return
+    content = cast(dict[str, Any], content_any)
+    for _content_type, content_schema_any in content.items():
+        if not isinstance(content_schema_any, dict):
+            continue
+        content_schema = cast(dict[str, Any], content_schema_any)
+        if "examples" not in content_schema:
+            content_schema["examples"] = {}
+        content_schema["examples"]["test-example"] = {
+            "summary": "Example from test",
+            "value": request_body["body"],
+        }
+
+
+def _merge_response_test_example_into_operation(operation: dict[str, Any], example_data: dict[str, Any]) -> None:
+    if "response" not in example_data:
+        return
+    status_code = str(example_data.get("status_code", 200))
+    responses_any = operation.get("responses", {})
+    if not isinstance(responses_any, dict):
+        return
+    responses = cast(dict[str, Any], responses_any)
+    if status_code not in responses:
+        return
+    response_any = responses[status_code]
+    if not isinstance(response_any, dict):
+        return
+    response = cast(dict[str, Any], response_any)
+    content_any = response.get("content", {})
+    if not isinstance(content_any, dict):
+        return
+    content = cast(dict[str, Any], content_any)
+    for _content_type, content_schema_any in content.items():
+        if not isinstance(content_schema_any, dict):
+            continue
+        content_schema = cast(dict[str, Any], content_schema_any)
+        if "examples" not in content_schema:
+            content_schema["examples"] = {}
+        content_schema["examples"]["test-example"] = {
+            "summary": "Example from test",
+            "value": example_data["response"],
+        }
 
 
 class OpenAPIExtractor:
@@ -129,6 +224,37 @@ class OpenAPIExtractor:
 
         return openapi_spec
 
+    def _collect_py_files_and_init_files(self, repo_path: Path, feature: Feature) -> tuple[list[Path], set[Path]]:
+        files_to_process: list[Path] = []
+        init_files: set[Path] = set()
+        if not feature.source_tracking:
+            return files_to_process, init_files
+        for impl_file in feature.source_tracking.implementation_files:
+            file_path = repo_path / impl_file
+            if file_path.exists() and file_path.suffix == ".py":
+                files_to_process.append(file_path)
+        impl_dirs: set[Path] = set()
+        for impl_file in feature.source_tracking.implementation_files:
+            file_path = repo_path / impl_file
+            if file_path.exists():
+                impl_dirs.add(file_path.parent)
+        for impl_dir in impl_dirs:
+            init_file = impl_dir / "__init__.py"
+            if init_file.exists():
+                init_files.add(init_file)
+        return files_to_process, init_files
+
+    def _run_extract_endpoints_on_files(
+        self, all_files: list[Path], openapi_spec: dict[str, Any], *, test_mode: bool
+    ) -> None:
+        if test_mode or len(all_files) == 0:
+            for file_path in all_files:
+                self._extract_endpoints_from_file(file_path, openapi_spec)
+            return
+        for file_path in all_files:
+            with contextlib.suppress(Exception):
+                self._extract_endpoints_from_file(file_path, openapi_spec)
+
     @beartype
     @require(lambda self, repo_path: isinstance(repo_path, Path), "Repository path must be Path")
     @require(lambda self, feature: isinstance(feature, Feature), "Feature must be Feature instance")
@@ -156,46 +282,10 @@ class OpenAPIExtractor:
             "components": {"schemas": {}},
         }
 
-        # Collect all files to process
-        files_to_process: list[Path] = []
-        init_files: set[Path] = set()
-
-        if feature.source_tracking:
-            # Collect implementation files
-            for impl_file in feature.source_tracking.implementation_files:
-                file_path = repo_path / impl_file
-                if file_path.exists() and file_path.suffix == ".py":
-                    files_to_process.append(file_path)
-
-            # Collect __init__.py files in the same directories
-            impl_dirs = set()
-            for impl_file in feature.source_tracking.implementation_files:
-                file_path = repo_path / impl_file
-                if file_path.exists():
-                    impl_dirs.add(file_path.parent)
-
-            for impl_dir in impl_dirs:
-                init_file = impl_dir / "__init__.py"
-                if init_file.exists():
-                    init_files.add(init_file)
-
-        # Process files in parallel (sequential in test mode to avoid deadlocks)
+        files_to_process, init_files = self._collect_py_files_and_init_files(repo_path, feature)
         test_mode = os.environ.get("TEST_MODE") == "true" or os.environ.get("PYTEST_CURRENT_TEST") is not None
-
         all_files = list(files_to_process) + list(init_files)
-
-        if test_mode or len(all_files) == 0:
-            # Sequential processing in test mode
-            for file_path in all_files:
-                self._extract_endpoints_from_file(file_path, openapi_spec)
-        else:
-            # Sequential file processing within feature
-            # NOTE: Features are already processed in parallel at the command level,
-            # so nested parallelism here creates GIL contention and overhead.
-            # Most features have 1 file anyway, so sequential processing is faster.
-            for file_path in all_files:
-                with contextlib.suppress(Exception):
-                    self._extract_endpoints_from_file(file_path, openapi_spec)
+        self._run_extract_endpoints_on_files(all_files, openapi_spec, test_mode=test_mode)
 
         return openapi_spec
 
@@ -346,9 +436,15 @@ class OpenAPIExtractor:
         for node in ast.iter_child_nodes(tree):
             if not self._is_apirouter_assignment(node):
                 continue
-            assign_node = node  # type: ignore[assignment]
-            router_name = assign_node.targets[0].id
-            prefix, tags_list = self._parse_apirouter_keywords(assign_node.value.keywords)
+            assign_node = cast(ast.Assign, node)
+            target0 = assign_node.targets[0]
+            if not isinstance(target0, ast.Name):
+                continue
+            router_name = target0.id
+            val = assign_node.value
+            if not isinstance(val, ast.Call):
+                continue
+            prefix, tags_list = self._parse_apirouter_keywords(val.keywords)
             if prefix:
                 router_prefixes[router_name] = prefix
             if tags_list:
@@ -374,34 +470,11 @@ class OpenAPIExtractor:
         Returns:
             Tuple of (resolved_path, tags) or None
         """
-        if not decorator.args:
+        path_raw = _fastapi_decorator_first_path_str(decorator)
+        if path_raw is None:
             return None
-        path_arg = decorator.args[0]
-        if not isinstance(path_arg, ast.Constant):
-            return None
-        path = path_arg.value
-        if not isinstance(path, str):
-            return None
-
-        # Apply router prefix
-        if isinstance(decorator.func.value, ast.Name):
-            router_name = decorator.func.value.id
-            if router_name in router_prefixes:
-                path = router_prefixes[router_name] + path
-
-        # Resolve tags: router-level first, then decorator-level (overrides)
-        tags: list[str] = []
-        if isinstance(decorator.func.value, ast.Name):
-            router_name = decorator.func.value.id
-            if router_name in router_tags:
-                tags = router_tags[router_name]
-        for kw in decorator.keywords:
-            if kw.arg == "tags" and isinstance(kw.value, ast.List):
-                tags = [
-                    str(elt.value)
-                    for elt in kw.value.elts
-                    if isinstance(elt, ast.Constant) and isinstance(elt.value, str)
-                ]
+        path = _fastapi_apply_router_prefix(path_raw, decorator, router_prefixes)
+        tags = _fastapi_resolve_route_tags(decorator, router_tags)
         return path, tags
 
     def _extract_fastapi_function_endpoint(
@@ -447,6 +520,24 @@ class OpenAPIExtractor:
             security=security,
         )
 
+    @staticmethod
+    def _flask_route_path_from_decorator(decorator: ast.Call) -> str:
+        if decorator.args and isinstance(decorator.args[0], ast.Constant):
+            raw = decorator.args[0].value
+            return raw if isinstance(raw, str) else ""
+        return ""
+
+    @staticmethod
+    def _flask_methods_from_decorator(decorator: ast.Call) -> list[str]:
+        for kw in decorator.keywords:
+            if kw.arg == "methods" and isinstance(kw.value, ast.List):
+                return [
+                    elt.value.upper()
+                    for elt in kw.value.elts
+                    if isinstance(elt, ast.Constant) and isinstance(elt.value, str)
+                ]
+        return ["GET"]
+
     def _extract_flask_function_endpoint(
         self,
         node: ast.FunctionDef,
@@ -463,21 +554,13 @@ class OpenAPIExtractor:
         """
         if not isinstance(decorator.func, ast.Attribute) or decorator.func.attr != "route":
             return
-        path = ""
-        methods: list[str] = ["GET"]
-        if decorator.args and isinstance(decorator.args[0], ast.Constant):
-            path = decorator.args[0].value
-        for kw in decorator.keywords:
-            if kw.arg == "methods" and isinstance(kw.value, ast.List):
-                methods = [
-                    elt.value.upper()
-                    for elt in kw.value.elts
-                    if isinstance(elt, ast.Constant) and isinstance(elt.value, str)
-                ]
-        if path and isinstance(path, str):
-            path, path_params = self._extract_path_parameters(path, flask_format=True)
-            for method in methods:
-                self._add_operation(openapi_spec, path, method, node, path_params=path_params)
+        path = self._flask_route_path_from_decorator(decorator)
+        methods = self._flask_methods_from_decorator(decorator)
+        if not path:
+            return
+        path, path_params = self._extract_path_parameters(path, flask_format=True)
+        for method in methods:
+            self._add_operation(openapi_spec, path, method, node, path_params=path_params)
 
     def _infer_http_method(self, method_name_lower: str) -> str:
         """
@@ -672,6 +755,28 @@ class OpenAPIExtractor:
             security=None,
         )
 
+    def _process_top_level_node_for_endpoints(
+        self,
+        node: ast.AST,
+        openapi_spec: dict[str, Any],
+        router_prefixes: dict[str, str],
+        router_tags: dict[str, list[str]],
+    ) -> None:
+        if isinstance(node, ast.ClassDef) and self._is_pydantic_model(node):
+            self._extract_pydantic_model_schema(node, openapi_spec)
+            return
+        if isinstance(node, ast.FunctionDef):
+            for decorator in node.decorator_list:
+                if not (isinstance(decorator, ast.Call) and isinstance(decorator.func, ast.Attribute)):
+                    continue
+                if decorator.func.attr in ("get", "post", "put", "delete", "patch", "head", "options"):
+                    self._extract_fastapi_function_endpoint(node, decorator, openapi_spec, router_prefixes, router_tags)
+                elif decorator.func.attr == "route":
+                    self._extract_flask_function_endpoint(node, decorator, openapi_spec)
+            return
+        if isinstance(node, ast.ClassDef):
+            self._extract_endpoints_from_class(node, openapi_spec)
+
     def _extract_endpoints_from_file(self, file_path: Path, openapi_spec: dict[str, Any]) -> None:
         """
         Extract API endpoints from a Python file using AST.
@@ -691,26 +796,8 @@ class OpenAPIExtractor:
 
         try:
             router_prefixes, router_tags = self._collect_router_prefixes(tree)
-
             for node in ast.iter_child_nodes(tree):
-                # Extract Pydantic models (BaseModel subclasses)
-                if isinstance(node, ast.ClassDef) and self._is_pydantic_model(node):
-                    self._extract_pydantic_model_schema(node, openapi_spec)
-
-                # Skip router-prefix assignments (already handled above)
-                elif isinstance(node, ast.FunctionDef):
-                    for decorator in node.decorator_list:
-                        if not (isinstance(decorator, ast.Call) and isinstance(decorator.func, ast.Attribute)):
-                            continue
-                        if decorator.func.attr in ("get", "post", "put", "delete", "patch", "head", "options"):
-                            self._extract_fastapi_function_endpoint(
-                                node, decorator, openapi_spec, router_prefixes, router_tags
-                            )
-                        elif decorator.func.attr == "route":
-                            self._extract_flask_function_endpoint(node, decorator, openapi_spec)
-
-                elif isinstance(node, ast.ClassDef):
-                    self._extract_endpoints_from_class(node, openapi_spec)
+                self._process_top_level_node_for_endpoints(node, openapi_spec, router_prefixes, router_tags)
 
         except (SyntaxError, UnicodeDecodeError):
             # Skip files with syntax errors
@@ -746,19 +833,11 @@ class OpenAPIExtractor:
                 return True
         return False
 
-    def _extract_endpoints_from_class(self, node: ast.ClassDef, openapi_spec: dict[str, Any]) -> None:
-        """
-        Extract API endpoints from a single class definition (interface or class-based API).
-
-        Args:
-            node: ClassDef AST node
-            openapi_spec: OpenAPI spec dictionary to update
-        """
-        # Skip private classes and test classes
-        if node.name.startswith("_") or node.name.startswith("Test"):
-            return
-
-        skip_class_patterns = [
+    @staticmethod
+    def _should_skip_endpoint_class_name(name: str) -> bool:
+        if name.startswith(("_", "Test")):
+            return True
+        skip_class_patterns = (
             "Protocol",
             "TypedDict",
             "Enum",
@@ -769,28 +848,23 @@ class OpenAPIExtractor:
             "Meta",
             "Descriptor",
             "Property",
-        ]
-        if any(pattern in node.name for pattern in skip_class_patterns):
+        )
+        return any(pattern in name for pattern in skip_class_patterns)
+
+    def _extract_endpoints_from_class(self, node: ast.ClassDef, openapi_spec: dict[str, Any]) -> None:
+        """
+        Extract API endpoints from a single class definition (interface or class-based API).
+
+        Args:
+            node: ClassDef AST node
+            openapi_spec: OpenAPI spec dictionary to update
+        """
+        if self._should_skip_endpoint_class_name(node.name):
             return
 
-        # Check for interface (ABC/Protocol) — must be checked before skip-base-pattern guard
-        is_interface = False
-        for base in node.bases:
-            if isinstance(base, ast.Name) and base.id in ["ABC", "Protocol", "AbstractBase", "Interface"]:
-                is_interface = True
-                break
-            if isinstance(base, ast.Attribute) and base.attr in ["Protocol", "ABC"]:
-                is_interface = True
-                break
-
-        if not is_interface:
-            skip_base_patterns = ["Protocol", "TypedDict", "Enum", "ABC"]
-            for base in node.bases:
-                base_name = (
-                    base.id if isinstance(base, ast.Name) else (base.attr if isinstance(base, ast.Attribute) else "")
-                )
-                if any(pattern in base_name for pattern in skip_base_patterns):
-                    return
+        is_interface = self._is_interface_class(node)
+        if not is_interface and self._has_skip_base(node):
+            return
 
         if is_interface:
             self._extract_interface_endpoints(node, openapi_spec)
@@ -848,6 +922,43 @@ class OpenAPIExtractor:
 
         return normalized_path, path_params
 
+    def _type_hint_schema_from_name(self, type_node: ast.Name) -> dict[str, Any]:
+        type_name = type_node.id
+        type_map = {
+            "str": "string",
+            "int": "integer",
+            "float": "number",
+            "bool": "boolean",
+            "dict": "object",
+            "list": "array",
+            "Any": "object",
+        }
+        if type_name in type_map:
+            return {"type": type_map[type_name]}
+        return {"$ref": f"#/components/schemas/{type_name}"}
+
+    def _type_hint_schema_from_subscript(self, type_node: ast.Subscript) -> dict[str, Any] | None:
+        if not isinstance(type_node.value, ast.Name):
+            return None
+        value_id = type_node.value.id
+        if value_id in ("Optional", "Union"):
+            if isinstance(type_node.slice, ast.Tuple) and type_node.slice.elts:
+                return self._extract_type_hint_schema(type_node.slice.elts[0])
+            if isinstance(type_node.slice, ast.Name):
+                return self._extract_type_hint_schema(type_node.slice)
+            return None
+        if value_id == "list":
+            if isinstance(type_node.slice, ast.Name):
+                item_schema = self._extract_type_hint_schema(type_node.slice)
+                return {"type": "array", "items": item_schema}
+            if isinstance(type_node.slice, ast.Subscript):
+                item_schema = self._extract_type_hint_schema(type_node.slice)
+                return {"type": "array", "items": item_schema}
+            return None
+        if value_id == "dict":
+            return {"type": "object", "additionalProperties": True}
+        return None
+
     def _extract_type_hint_schema(self, type_node: ast.expr | None) -> dict[str, Any]:
         """
         Extract OpenAPI schema from AST type hint.
@@ -861,48 +972,15 @@ class OpenAPIExtractor:
         if type_node is None:
             return {"type": "object"}
 
-        # Handle basic types
         if isinstance(type_node, ast.Name):
-            type_name = type_node.id
-            type_map = {
-                "str": "string",
-                "int": "integer",
-                "float": "number",
-                "bool": "boolean",
-                "dict": "object",
-                "list": "array",
-                "Any": "object",
-            }
-            if type_name in type_map:
-                return {"type": type_map[type_name]}
-            # Check if it's a Pydantic model (BaseModel subclass)
-            # We'll detect this by checking if it's imported from pydantic
-            return {"$ref": f"#/components/schemas/{type_name}"}
+            return self._type_hint_schema_from_name(type_node)
 
-        # Handle Optional/Union types
-        if isinstance(type_node, ast.Subscript) and isinstance(type_node.value, ast.Name):
-            if type_node.value.id in ("Optional", "Union"):
-                # Extract the first type from Optional/Union
-                if isinstance(type_node.slice, ast.Tuple) and type_node.slice.elts:
-                    return self._extract_type_hint_schema(type_node.slice.elts[0])
-                if isinstance(type_node.slice, ast.Name):
-                    return self._extract_type_hint_schema(type_node.slice)
-            elif type_node.value.id == "list":
-                # Handle List[Type]
-                if isinstance(type_node.slice, ast.Name):
-                    item_schema = self._extract_type_hint_schema(type_node.slice)
-                    return {"type": "array", "items": item_schema}
-                if isinstance(type_node.slice, ast.Subscript):
-                    # Handle List[Optional[Type]] or nested types
-                    item_schema = self._extract_type_hint_schema(type_node.slice)
-                    return {"type": "array", "items": item_schema}
-            elif type_node.value.id == "dict":
-                # Handle Dict[K, V] - simplified to object
-                return {"type": "object", "additionalProperties": True}
+        if isinstance(type_node, ast.Subscript):
+            sub = self._type_hint_schema_from_subscript(type_node)
+            if sub is not None:
+                return sub
 
-        # Handle generic types
         if isinstance(type_node, ast.Constant):
-            # This shouldn't happen for type hints, but handle it
             return {"type": "object"}
 
         return {"type": "object"}
@@ -930,6 +1008,35 @@ class OpenAPIExtractor:
                     return True
         return False
 
+    def _pydantic_ann_assign_to_schema(self, item: ast.AnnAssign, schema: dict[str, Any]) -> None:
+        if not item.target or not isinstance(item.target, ast.Name):
+            return
+        field_name = item.target.id
+        field_schema = self._extract_type_hint_schema(item.annotation)
+        schema["properties"][field_name] = field_schema
+        if item.value is None:
+            schema["required"].append(field_name)
+            return
+        default_value = self._extract_default_value(item.value)
+        if default_value is not None:
+            schema["properties"][field_name]["default"] = default_value
+
+    def _pydantic_assign_to_schema(self, item: ast.Assign, schema: dict[str, Any]) -> None:
+        for target in item.targets:
+            if not isinstance(target, ast.Name):
+                continue
+            field_name = target.id
+            if not item.value:
+                continue
+            field_schema = self._infer_schema_from_value(item.value)
+            if field_schema:
+                schema["properties"][field_name] = field_schema
+                default_value = self._extract_default_value(item.value)
+                if default_value is not None:
+                    schema["properties"][field_name]["default"] = default_value
+            else:
+                schema["properties"][field_name] = {"type": "object"}
+
     def _extract_pydantic_model_schema(self, class_node: ast.ClassDef, openapi_spec: dict[str, Any]) -> None:
         """
         Extract OpenAPI schema from a Pydantic model class definition.
@@ -950,47 +1057,12 @@ class OpenAPIExtractor:
         if docstring:
             schema["description"] = docstring
 
-        # Extract fields from class body
         for item in class_node.body:
-            # Handle annotated assignments: name: str = Field(...)
             if isinstance(item, ast.AnnAssign):
-                if item.target and isinstance(item.target, ast.Name):
-                    field_name = item.target.id
-                    field_schema = self._extract_type_hint_schema(item.annotation)
-                    schema["properties"][field_name] = field_schema
-
-                    # Check if field is required (no default value)
-                    if item.value is None:
-                        schema["required"].append(field_name)
-                    else:
-                        # Field has default value, extract it if possible
-                        default_value = self._extract_default_value(item.value)
-                        if default_value is not None:
-                            schema["properties"][field_name]["default"] = default_value
-
-            # Handle simple assignments: name: str (type annotation only)
+                self._pydantic_ann_assign_to_schema(item, schema)
             elif isinstance(item, ast.Assign):
-                for target in item.targets:
-                    if isinstance(target, ast.Name):
-                        field_name = target.id
-                        # Try to infer type from value
-                        if item.value:
-                            field_schema = self._infer_schema_from_value(item.value)
-                            if field_schema:
-                                schema["properties"][field_name] = field_schema
-                                # If value is provided, it's not required
-                                default_value = self._extract_default_value(item.value)
-                                if default_value is not None:
-                                    schema["properties"][field_name]["default"] = default_value
-                            else:
-                                # Default to object if type can't be inferred
-                                schema["properties"][field_name] = {"type": "object"}
+                self._pydantic_assign_to_schema(item, schema)
 
-        # Add schema to components
-        # Note: openapi_spec is per-feature, but files within a feature are processed in parallel
-        # Use lock to ensure thread-safe dict updates
-        # However, since each feature has its own openapi_spec, contention is minimal
-        # We could use a per-feature lock, but for simplicity, use a lightweight check-then-set pattern
         if "components" not in openapi_spec:
             openapi_spec["components"] = {}
         if "schemas" not in openapi_spec["components"]:
@@ -1166,6 +1238,53 @@ class OpenAPIExtractor:
 
         return request_body, query_params, response_schema
 
+    @staticmethod
+    def _merge_standard_error_responses(operation: dict[str, Any], method: str) -> None:
+        responses = operation["responses"]
+        if method in ("POST", "PUT", "PATCH"):
+            responses["400"] = {"description": "Bad Request"}
+            responses["422"] = {"description": "Validation Error"}
+        if method in ("GET", "PUT", "PATCH", "DELETE"):
+            responses["404"] = {"description": "Not Found"}
+        if method in ("POST", "PUT", "PATCH", "DELETE"):
+            responses["401"] = {"description": "Unauthorized"}
+            responses["403"] = {"description": "Forbidden"}
+            responses["500"] = {"description": "Internal Server Error"}
+
+    def _ensure_bearer_security_scheme(
+        self, openapi_spec: dict[str, Any], security: list[dict[str, list[str]]] | None
+    ) -> None:
+        if not security:
+            return
+        if not any("bearerAuth" in sec_req for sec_req in security):
+            return
+        openapi_spec.setdefault("components", {}).setdefault("securitySchemes", {})["bearerAuth"] = {
+            "type": "http",
+            "scheme": "bearer",
+            "bearerFormat": "JWT",
+        }
+
+    @staticmethod
+    def _attach_operation_request_body(
+        operation: dict[str, Any], method: str, request_body: dict[str, Any] | None
+    ) -> None:
+        if method not in ("POST", "PUT", "PATCH"):
+            return
+        if request_body:
+            operation["requestBody"] = request_body
+            return
+        operation["requestBody"] = {
+            "required": True,
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "type": "object",
+                        "properties": {},
+                    }
+                }
+            },
+        }
+
     def _add_operation(
         self,
         openapi_spec: dict[str, Any],
@@ -1188,21 +1307,12 @@ class OpenAPIExtractor:
             path_params: Path parameters (if any)
             tags: Operation tags (if any)
         """
-        # Path addition - openapi_spec is per-feature, but files within feature are parallel
-        # Use dict.setdefault for atomic initialization
         openapi_spec["paths"].setdefault(path, {})
-
-        # Extract path parameter names
         path_param_names = {p["name"] for p in (path_params or [])}
-
-        # Extract request body, query parameters, and response schema
         request_body, query_params, response_schema = self._extract_function_parameters(func_node, path_param_names)
-
-        operation_id = func_node.name
-        # Use extracted status code or default to 200
         default_status = status_code or 200
         operation: dict[str, Any] = {
-            "operationId": operation_id,
+            "operationId": func_node.name,
             "summary": func_node.name.replace("_", " ").title(),
             "description": ast.get_docstring(func_node) or "",
             "responses": {
@@ -1216,66 +1326,17 @@ class OpenAPIExtractor:
                 }
             },
         }
-
-        # Add additional common status codes for error cases
-        if method in ("POST", "PUT", "PATCH"):
-            operation["responses"]["400"] = {"description": "Bad Request"}
-            operation["responses"]["422"] = {"description": "Validation Error"}
-        if method in ("GET", "PUT", "PATCH", "DELETE"):
-            operation["responses"]["404"] = {"description": "Not Found"}
-        if method in ("POST", "PUT", "PATCH", "DELETE"):
-            operation["responses"]["401"] = {"description": "Unauthorized"}
-            operation["responses"]["403"] = {"description": "Forbidden"}
-        if method in ("POST", "PUT", "PATCH", "DELETE"):
-            operation["responses"]["500"] = {"description": "Internal Server Error"}
-
-        # Add path parameters
+        self._merge_standard_error_responses(operation, method)
         all_params = list(path_params or [])
-        # Add query parameters
         all_params.extend(query_params)
         if all_params:
             operation["parameters"] = all_params
-
-        # Add tags
         if tags:
             operation["tags"] = tags
-
-        # Add security requirements (thread-safe)
         if security:
             operation["security"] = security
-            # Ensure security schemes are defined in components
-            if "components" not in openapi_spec:
-                openapi_spec["components"] = {}
-            if "securitySchemes" not in openapi_spec["components"]:
-                openapi_spec["components"]["securitySchemes"] = {}
-            # Add bearerAuth scheme if used
-            for sec_req in security:
-                if "bearerAuth" in sec_req:
-                    openapi_spec["components"]["securitySchemes"]["bearerAuth"] = {
-                        "type": "http",
-                        "scheme": "bearer",
-                        "bearerFormat": "JWT",
-                    }
-
-        # Add request body for POST/PUT/PATCH if found
-        if method in ("POST", "PUT", "PATCH") and request_body:
-            operation["requestBody"] = request_body
-        elif method in ("POST", "PUT", "PATCH") and not request_body:
-            # Fallback: create empty request body
-            operation["requestBody"] = {
-                "required": True,
-                "content": {
-                    "application/json": {
-                        "schema": {
-                            "type": "object",
-                            "properties": {},
-                        }
-                    }
-                },
-            }
-
-        # Operation addition - openapi_spec is per-feature
-        # Dict assignment is atomic in Python, so no lock needed for single assignment
+            self._ensure_bearer_security_scheme(openapi_spec, security)
+        self._attach_operation_request_body(operation, method, request_body)
         openapi_spec["paths"][path][method.lower()] = operation
 
     @beartype
@@ -1311,44 +1372,30 @@ class OpenAPIExtractor:
             Updated OpenAPI specification with examples
         """
         # Add examples to operations
-        for _path, path_item in openapi_spec.get("paths", {}).items():
-            for _method, operation in path_item.items():
-                if not isinstance(operation, dict):
+        paths_raw = openapi_spec.get("paths", {})
+        if not isinstance(paths_raw, dict):
+            return openapi_spec
+        paths_dict: dict[str, Any] = cast(dict[str, Any], paths_raw)
+        for _path, path_item_any in paths_dict.items():
+            if not isinstance(path_item_any, dict):
+                continue
+            path_item: dict[str, Any] = cast(dict[str, Any], path_item_any)
+            for _method, operation_any in path_item.items():
+                if not isinstance(operation_any, dict):
                     continue
+                operation: dict[str, Any] = cast(dict[str, Any], operation_any)
 
                 operation_id = operation.get("operationId")
                 if not operation_id or operation_id not in test_examples:
                     continue
 
-                example_data = test_examples[operation_id]
+                example_data_any = test_examples[operation_id]
+                if not isinstance(example_data_any, dict):
+                    continue
+                example_data: dict[str, Any] = cast(dict[str, Any], example_data_any)
 
-                # Add request example
-                if "request" in example_data and "requestBody" in operation:
-                    request_body = example_data["request"]
-                    if "body" in request_body:
-                        # Add example to request body
-                        content = operation["requestBody"].get("content", {})
-                        for _content_type, content_schema in content.items():
-                            if "examples" not in content_schema:
-                                content_schema["examples"] = {}
-                            content_schema["examples"]["test-example"] = {
-                                "summary": "Example from test",
-                                "value": request_body["body"],
-                            }
-
-                # Add response example
-                if "response" in example_data:
-                    status_code = str(example_data.get("status_code", 200))
-                    if status_code in operation.get("responses", {}):
-                        response = operation["responses"][status_code]
-                        content = response.get("content", {})
-                        for _content_type, content_schema in content.items():
-                            if "examples" not in content_schema:
-                                content_schema["examples"] = {}
-                            content_schema["examples"]["test-example"] = {
-                                "summary": "Example from test",
-                                "value": example_data["response"],
-                            }
+                _merge_request_test_example_into_operation(operation, example_data)
+                _merge_response_test_example_into_operation(operation, example_data)
 
         return openapi_spec
 

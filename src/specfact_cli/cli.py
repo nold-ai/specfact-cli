@@ -11,8 +11,10 @@ import sys
 from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, cast
 
+
+_DetectShellFn = Callable[..., tuple[str | None, str | None]]
 
 # Patch shellingham before Typer imports it to normalize "sh" to "bash"
 # This fixes auto-detection on Ubuntu where /bin/sh points to dash
@@ -20,11 +22,11 @@ try:
     import shellingham
 
     # Store original function
-    _original_detect_shell = shellingham.detect_shell
+    _original_detect_shell: _DetectShellFn = cast(_DetectShellFn, shellingham.detect_shell)
 
-    def _normalized_detect_shell(pid=None, max_depth=10):  # type: ignore[misc]
+    def _normalized_detect_shell(pid: int | None = None, max_depth: int = 10) -> tuple[str | None, str | None]:
         """Normalized shell detection that maps 'sh' to 'bash'."""
-        shell_name, shell_path = _original_detect_shell(pid, max_depth)  # type: ignore[misc]
+        shell_name, shell_path = _original_detect_shell(pid, max_depth)
         if shell_name:
             shell_lower = shell_name.lower()
             # Map shell names using our normalization
@@ -240,8 +242,8 @@ def print_version_line() -> None:
 
 
 @beartype
-@require(lambda value: isinstance(value, bool), "value must be a bool")
-def version_callback(value: bool) -> None:
+@require(lambda value: value is None or isinstance(value, bool), "value must be bool or None")
+def version_callback(value: bool | None) -> None:
     """Show version information."""
     if value:
         console.print(f"[bold cyan]SpecFact CLI[/bold cyan] version [green]{__version__}[/green]")
@@ -285,7 +287,7 @@ def get_current_mode() -> OperationalMode:
 @require(lambda ctx: ctx is not None, "ctx must not be None")
 def main(
     ctx: typer.Context,
-    version: bool = typer.Option(
+    version: bool | None = typer.Option(
         None,
         "--version",
         "-v",
@@ -407,8 +409,16 @@ def main(
 # Global options (e.g. --no-interactive, --debug) must be passed before the command: specfact [OPTIONS] COMMAND [ARGS]...
 
 
+def _lazy_delegate_cmd_name_ready(self: _LazyDelegateGroup) -> bool:
+    return len(self._lazy_cmd_name) > 0
+
+
 class _LazyDelegateGroup(click.Group):
     """Click Group that delegates all args to the real command (lazy-loaded)."""
+
+    _lazy_cmd_name: str
+    _lazy_help_str: str
+    _delegate_cmd: click.Command
 
     def __init__(self, cmd_name: str, help_str: str, name: str | None = None, help: str | None = None) -> None:
         super().__init__(
@@ -461,9 +471,7 @@ class _LazyDelegateGroup(click.Group):
             add_help_option=False,  # Pass --help through to real Typer so "specfact backlog daily ado --help" shows correct usage
         )
 
-    @require(
-        lambda self: self._lazy_cmd_name is not None and len(self._lazy_cmd_name) > 0, "lazy command name must be set"
-    )
+    @require(_lazy_delegate_cmd_name_ready, "lazy command name must be set")
     @ensure(lambda result: isinstance(result, tuple) and len(result) == 3, "result must be a 3-tuple")
     def resolve_command(
         self, ctx: click.Context, args: list[str]
@@ -500,10 +508,7 @@ class _LazyDelegateGroup(click.Group):
             return click_cmd
         return None
 
-    @require(
-        lambda self: self._lazy_cmd_name is not None and len(self._lazy_cmd_name) > 0,
-        "lazy command name must be set before formatting help",
-    )
+    @require(_lazy_delegate_cmd_name_ready, "lazy command name must be set before formatting help")
     def format_help(self, ctx: click.Context, formatter: click.HelpFormatter) -> None:
         """Show the real Typer's Rich help instead of plain Click group help."""
         from typer.main import get_command
@@ -529,6 +534,18 @@ def _build_lazy_delegate_group(cmd_name: str, help_str: str) -> click.Group:
     return _LazyDelegateGroup(cmd_name, help_str, name=cmd_name, help=help_str)
 
 
+def _flatten_specfact_nested_subgroup(result: click.Group, flatten_name: str) -> None:
+    """Merge a nested subgroup named `flatten_name` into its parent and re-sort command order."""
+    redundant = result.commands.pop(flatten_name)
+    if isinstance(redundant, click.Group):
+        for cmd_name, cmd in redundant.commands.items():
+            result.add_command(cmd, name=cmd_name)
+    if result.commands:
+        for cname in sorted(result.commands.keys()):
+            cmd = result.commands.pop(cname)
+            result.add_command(cmd, name=cname)
+
+
 def _make_lazy_typer(cmd_name: str, help_str: str) -> typer.Typer:
     """Return a Typer that, when built as Click, becomes a LazyDelegateGroup (see patched get_command)."""
     lazy = typer.Typer(invoke_without_command=True, help=help_str)
@@ -550,14 +567,7 @@ def _get_command(typer_instance: typer.Typer) -> click.Command:
     result = _typer_get_command_original(typer_instance)
     flatten_name = getattr(typer_instance, "_specfact_flatten_same_name", None)
     if isinstance(flatten_name, str) and isinstance(result, click.Group) and flatten_name in result.commands:
-        redundant = result.commands.pop(flatten_name)
-        if isinstance(redundant, click.Group):
-            for cmd_name, cmd in redundant.commands.items():
-                result.add_command(cmd, name=cmd_name)
-        if result.commands:
-            for cname in sorted(result.commands.keys()):
-                cmd = result.commands.pop(cname)
-                result.add_command(cmd, name=cname)
+        _flatten_specfact_nested_subgroup(result, flatten_name)
     return result
 
 
@@ -585,14 +595,7 @@ def _get_group_from_info_wrapper(
     )
     flatten_name = getattr(typer_instance, "_specfact_flatten_same_name", None) if typer_instance else None
     if isinstance(flatten_name, str) and flatten_name in result.commands:
-        redundant = result.commands.pop(flatten_name)
-        if isinstance(redundant, click.Group):
-            for cmd_name, cmd in redundant.commands.items():
-                result.add_command(cmd, name=cmd_name)
-        if result.commands:
-            for name in sorted(result.commands.keys()):
-                cmd = result.commands.pop(name)
-                result.add_command(cmd, name=name)
+        _flatten_specfact_nested_subgroup(result, flatten_name)
     return result
 
 
@@ -650,175 +653,147 @@ for _name, _meta in _grouped_command_order(CommandRegistry.list_commands_for_hel
     app.add_typer(_make_lazy_typer(_name, _meta.help), name=_name, help=_meta.help)
 
 
-@beartype
-@require(lambda: len(sys.argv) >= 1, "sys.argv must be populated before CLI entry")
-def cli_main() -> None:
-    """Entry point for the CLI application."""
-    # Intercept --help-advanced before Typer processes it
-    from specfact_cli.utils.progressive_disclosure import intercept_help_advanced
+_CLI_SKIP_OUTPUT_ARGS: frozenset[str] = frozenset(
+    ("--help", "-h", "--version", "-v", "--show-completion", "--install-completion")
+)
 
-    intercept_help_advanced()
 
-    # Normalize shell names in argv for Typer's built-in completion commands
-    normalize_shell_in_argv()
+def _cli_is_test_mode() -> bool:
+    return os.environ.get("TEST_MODE") == "true" or os.environ.get("PYTEST_CURRENT_TEST") is not None
 
-    # Initialize debug mode early so --debug works even for eager flags like --help/--version.
+
+def _cli_argv_skips_pre_typer_output() -> bool:
+    return any(arg in _CLI_SKIP_OUTPUT_ARGS for arg in sys.argv[1:])
+
+
+def _cli_should_show_timing() -> bool:
+    return len(sys.argv) > 1 and sys.argv[1] not in _CLI_SKIP_OUTPUT_ARGS and not sys.argv[1].startswith("_")
+
+
+def _cli_init_debug_from_argv() -> None:
     debug_requested = "--debug" in sys.argv[1:]
-    if debug_requested:
-        set_debug_mode(True)
-        init_debug_log_file()
-        debug_log_path = runtime.get_debug_log_path()
-        if debug_log_path:
-            sys.stderr.write(f"[debug] log file: {debug_log_path}\n")
-        else:
-            sys.stderr.write("[debug] log file unavailable (no writable debug log path)\n")
-        runtime.debug_log_operation(
-            "cli_start",
-            "specfact",
-            "started",
-            extra={"argv": sys.argv[1:], "pid": os.getpid()},
-        )
+    if not debug_requested:
+        return
+    set_debug_mode(True)
+    init_debug_log_file()
+    debug_log_path = runtime.get_debug_log_path()
+    if debug_log_path:
+        sys.stderr.write(f"[debug] log file: {debug_log_path}\n")
+    else:
+        sys.stderr.write("[debug] log file unavailable (no writable debug log path)\n")
+    runtime.debug_log_operation(
+        "cli_start",
+        "specfact",
+        "started",
+        extra={"argv": sys.argv[1:], "pid": os.getpid()},
+    )
 
-    # Check if --banner flag is present (before Typer processes it)
-    banner_requested = "--banner" in sys.argv
 
-    # Check if this is first run (no ~/.specfact folder exists)
-    # Use Path.home() directly to avoid importing metadata module (which creates the directory)
-    specfact_dir = Path.home() / ".specfact"
-    is_first_run = not specfact_dir.exists()
-
-    # Show banner if:
-    # 1. --banner flag is explicitly requested, OR
-    # 2. This is the first run (no ~/.specfact folder exists)
-    # Otherwise, show simple version line
-    show_banner = banner_requested or is_first_run
-
-    # Intercept Typer's shell detection for --show-completion and --install-completion
-    # when no shell is provided (auto-detection case)
-    # On Ubuntu, shellingham detects "sh" (dash) instead of "bash", so we force "bash"
+def _cli_patch_completion_argv() -> None:
     if len(sys.argv) >= 2 and sys.argv[1] in ("--show-completion", "--install-completion") and len(sys.argv) == 2:
-        # Auto-detection case: Typer will use shellingham to detect shell
-        # On Ubuntu, this often detects "sh" (dash) instead of "bash"
-        # Force "bash" if SHELL env var suggests bash/sh to avoid "sh not supported" error
         shell_env = os.environ.get("SHELL", "").lower()
         if "sh" in shell_env or "bash" in shell_env:
-            # Force bash by adding it to argv before Typer's auto-detection runs
             sys.argv.append("bash")
 
-    # Intercept completion environment variable and normalize shell names
-    # (This handles completion scripts generated by Typer's built-in commands)
     completion_env = os.environ.get("_SPECFACT_COMPLETE")
-    if completion_env:
-        # Extract shell name from completion env var (format: "shell_source" or "shell")
-        shell_name = completion_env[:-7] if completion_env.endswith("_source") else completion_env
+    if not completion_env:
+        return
+    shell_name = completion_env[:-7] if completion_env.endswith("_source") else completion_env
+    shell_normalized = shell_name.lower().strip()
+    mapped_shell = SHELL_MAP.get(shell_normalized, shell_normalized)
+    if mapped_shell == shell_normalized:
+        return
+    if completion_env.endswith("_source"):
+        os.environ["_SPECFACT_COMPLETE"] = f"{mapped_shell}_source"
+    else:
+        os.environ["_SPECFACT_COMPLETE"] = mapped_shell
 
-        # Normalize shell name using our mapping
-        shell_normalized = shell_name.lower().strip()
-        mapped_shell = SHELL_MAP.get(shell_normalized, shell_normalized)
 
-        # Update environment variable with normalized shell name
-        if mapped_shell != shell_normalized:
-            if completion_env.endswith("_source"):
-                os.environ["_SPECFACT_COMPLETE"] = f"{mapped_shell}_source"
-            else:
-                os.environ["_SPECFACT_COMPLETE"] = mapped_shell
-
-    # Show banner or version line before Typer processes the command
-    # Skip for help/version/completion commands and in test mode to avoid cluttering output
-    skip_output_commands = ("--help", "-h", "--version", "-v", "--show-completion", "--install-completion")
-    is_help_or_version = any(arg in skip_output_commands for arg in sys.argv[1:])
-    # Check test mode using same pattern as terminal.py
-    is_test_mode = os.environ.get("TEST_MODE") == "true" or os.environ.get("PYTEST_CURRENT_TEST") is not None
-
-    if show_banner and not is_help_or_version and not is_test_mode:
+def _cli_maybe_print_banner_or_version(*, show_banner: bool) -> None:
+    if _cli_argv_skips_pre_typer_output() or _cli_is_test_mode():
+        return
+    if show_banner:
         print_banner()
-        console.print()  # Empty line after banner
-    elif not is_help_or_version and not is_test_mode:
-        # Show simple version line like other CLIs (skip for help/version commands and in test mode)
-        # Printed before startup checks so users see output immediately (important with slow checks e.g. xagt)
-        print_version_line()
+        console.print()
+        return
+    print_version_line()
 
-    # Run startup checks (template validation and version check)
-    # Only run for actual commands, not for help/version/completion
-    should_run_checks = (
-        len(sys.argv) > 1
-        and sys.argv[1] not in ("--help", "-h", "--version", "-v", "--show-completion", "--install-completion")
-        and not sys.argv[1].startswith("_")  # Skip completion internals
-    )
-    if should_run_checks:
-        from specfact_cli.utils.startup_checks import print_startup_checks
 
-        # Determine repo path (use current directory or find from git root)
-        repo_path = Path.cwd()
-        # Try to find git root
-        current = repo_path
-        while current.parent != current:
-            if (current / ".git").exists():
-                repo_path = current
-                break
-            current = current.parent
+def _cli_find_repo_path_for_startup_checks() -> Path:
+    repo_path = Path.cwd()
+    current = repo_path
+    while current.parent != current:
+        if (current / ".git").exists():
+            return current
+        current = current.parent
+    return repo_path
 
-        # Run checks (version check may be slow, so we do it async or with timeout)
-        import contextlib
 
-        # Check if --skip-checks flag is present
-        skip_checks_flag = "--skip-checks" in sys.argv
+def _cli_run_startup_checks_if_needed() -> None:
+    if len(sys.argv) <= 1 or sys.argv[1] in _CLI_SKIP_OUTPUT_ARGS or sys.argv[1].startswith("_"):
+        return
+    import contextlib
 
-        with contextlib.suppress(Exception):
-            print_startup_checks(repo_path=repo_path, check_version=True, skip_checks=skip_checks_flag)
+    from specfact_cli.utils.startup_checks import print_startup_checks
 
-    # Record start time for command execution
-    start_time = datetime.now()
-    start_timestamp = start_time.strftime("%Y-%m-%d %H:%M:%S")
+    repo_path = _cli_find_repo_path_for_startup_checks()
+    skip_checks_flag = "--skip-checks" in sys.argv
+    with contextlib.suppress(Exception):
+        print_startup_checks(repo_path=repo_path, check_version=True, skip_checks=skip_checks_flag)
 
-    # Only show timing for actual commands (not help, version, or completion)
-    show_timing = (
-        len(sys.argv) > 1
-        and sys.argv[1] not in ("--help", "-h", "--version", "-v", "--show-completion", "--install-completion")
-        and not sys.argv[1].startswith("_")  # Skip completion internals
-    )
 
-    if show_timing:
-        console.print(f"[dim]⏱️  Started: {start_timestamp}[/dim]")
+def _cli_format_duration_seconds(duration_seconds: float) -> str:
+    if duration_seconds < 60:
+        return f"{duration_seconds:.2f}s"
+    if duration_seconds < 3600:
+        minutes = int(duration_seconds // 60)
+        seconds = duration_seconds % 60
+        return f"{minutes}m {seconds:.2f}s"
+    hours = int(duration_seconds // 3600)
+    minutes = int((duration_seconds % 3600) // 60)
+    seconds = duration_seconds % 60
+    return f"{hours}h {minutes}m {seconds:.2f}s"
 
+
+def _cli_print_timing_footer(
+    *,
+    start_time: datetime,
+    end_time: datetime,
+    exit_code: int,
+    style_nonzero_exit: bool,
+) -> None:
+    end_timestamp = end_time.strftime("%Y-%m-%d %H:%M:%S")
+    duration_seconds = (end_time - start_time).total_seconds()
+    duration_str = _cli_format_duration_seconds(duration_seconds)
+    status_icon = "✓" if exit_code == 0 else "✗"
+    line = f"\n[dim]{status_icon} Finished: {end_timestamp} | Duration: {duration_str}[/dim]"
+    if style_nonzero_exit and exit_code != 0:
+        console.print(line, style="red")
+    else:
+        console.print(line)
+
+
+def _cli_run_app_with_handling(*, start_time: datetime, show_timing: bool) -> int:
     exit_code = 0
-    timing_shown = False  # Track if timing was already shown (for typer.Exit case)
+    timing_shown = False
     try:
         app()
     except KeyboardInterrupt:
         console.print("\n[yellow]Operation cancelled by user[/yellow]")
         exit_code = 130
     except typer.Exit as e:
-        # Typer.Exit is used for clean exits (e.g., --version, --help)
         exit_code = e.exit_code if hasattr(e, "exit_code") else 0
-        # Show timing before re-raising (finally block will execute, but we show it here to ensure it's shown)
         if show_timing:
-            end_time = datetime.now()
-            end_timestamp = end_time.strftime("%Y-%m-%d %H:%M:%S")
-            duration = end_time - start_time
-            duration_seconds = duration.total_seconds()
-
-            # Format duration nicely
-            if duration_seconds < 60:
-                duration_str = f"{duration_seconds:.2f}s"
-            elif duration_seconds < 3600:
-                minutes = int(duration_seconds // 60)
-                seconds = duration_seconds % 60
-                duration_str = f"{minutes}m {seconds:.2f}s"
-            else:
-                hours = int(duration_seconds // 3600)
-                minutes = int((duration_seconds % 3600) // 60)
-                seconds = duration_seconds % 60
-                duration_str = f"{hours}h {minutes}m {seconds:.2f}s"
-
-            status_icon = "✓" if exit_code == 0 else "✗"
-            console.print(f"\n[dim]{status_icon} Finished: {end_timestamp} | Duration: {duration_str}[/dim]")
+            _cli_print_timing_footer(
+                start_time=start_time,
+                end_time=datetime.now(),
+                exit_code=exit_code,
+                style_nonzero_exit=False,
+            )
             timing_shown = True
-        raise  # Re-raise to let Typer handle it properly
+        raise
     except ViolationError as e:
-        # Extract user-friendly error message from ViolationError
         error_msg = str(e)
-        # Try to extract the contract message (after ":\n")
         if ":\n" in error_msg:
             contract_msg = error_msg.split(":\n", 1)[0]
             console.print(f"[bold red]✗[/bold red] {contract_msg}", style="red")
@@ -826,39 +801,46 @@ def cli_main() -> None:
             console.print(f"[bold red]✗[/bold red] {error_msg}", style="red")
         exit_code = 1
     except Exception as e:
-        # Escape any Rich markup in the error message to prevent markup errors
         error_str = str(e).replace("[", "\\[").replace("]", "\\]")
         console.print(f"[bold red]Error:[/bold red] {error_str}", style="red")
         exit_code = 1
     finally:
-        # Record end time and display timing information (if not already shown)
         if show_timing and not timing_shown:
-            end_time = datetime.now()
-            end_timestamp = end_time.strftime("%Y-%m-%d %H:%M:%S")
-            duration = end_time - start_time
-            duration_seconds = duration.total_seconds()
-
-            # Format duration nicely
-            if duration_seconds < 60:
-                duration_str = f"{duration_seconds:.2f}s"
-            elif duration_seconds < 3600:
-                minutes = int(duration_seconds // 60)
-                seconds = duration_seconds % 60
-                duration_str = f"{minutes}m {seconds:.2f}s"
-            else:
-                hours = int(duration_seconds // 3600)
-                minutes = int((duration_seconds % 3600) // 60)
-                seconds = duration_seconds % 60
-                duration_str = f"{hours}h {minutes}m {seconds:.2f}s"
-
-            # Show timing summary
-            status_icon = "✓" if exit_code == 0 else "✗"
-            status_color = "green" if exit_code == 0 else "red"
-            console.print(
-                f"\n[dim]{status_icon} Finished: {end_timestamp} | Duration: {duration_str}[/dim]",
-                style=status_color if exit_code != 0 else None,
+            _cli_print_timing_footer(
+                start_time=start_time,
+                end_time=datetime.now(),
+                exit_code=exit_code,
+                style_nonzero_exit=True,
             )
+    return exit_code
 
+
+@beartype
+@require(lambda: len(sys.argv) >= 1, "sys.argv must be populated before CLI entry")
+def cli_main() -> None:
+    """Entry point for the CLI application."""
+    from specfact_cli.utils.progressive_disclosure import intercept_help_advanced
+
+    intercept_help_advanced()
+    normalize_shell_in_argv()
+    _cli_init_debug_from_argv()
+
+    banner_requested = "--banner" in sys.argv
+    specfact_dir = Path.home() / ".specfact"
+    is_first_run = not specfact_dir.exists()
+    show_banner = banner_requested or is_first_run
+
+    _cli_patch_completion_argv()
+    _cli_maybe_print_banner_or_version(show_banner=show_banner)
+    _cli_run_startup_checks_if_needed()
+
+    start_time = datetime.now()
+    start_timestamp = start_time.strftime("%Y-%m-%d %H:%M:%S")
+    show_timing = _cli_should_show_timing()
+    if show_timing:
+        console.print(f"[dim]⏱️  Started: {start_timestamp}[/dim]")
+
+    exit_code = _cli_run_app_with_handling(start_time=start_time, show_timing=show_timing)
     if exit_code != 0:
         sys.exit(exit_code)
 

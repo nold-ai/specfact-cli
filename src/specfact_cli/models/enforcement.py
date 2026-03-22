@@ -23,6 +23,26 @@ class EnforcementPreset(StrEnum):
     STRICT = "strict"  # Block HIGH+MEDIUM, warn LOW
 
 
+def _preset_is_valid(preset: EnforcementPreset) -> bool:
+    return preset in EnforcementPreset
+
+
+def _severity_is_hml(severity: str) -> bool:
+    return severity.upper() in ("HIGH", "MEDIUM", "LOW")
+
+
+def _to_summary_dict_valid(result: dict[str, str]) -> bool:
+    if not isinstance(result, dict):
+        return False
+    if set(result.keys()) != {"HIGH", "MEDIUM", "LOW"}:
+        return False
+    return all(isinstance(k, str) and isinstance(v, str) for k, v in result.items())
+
+
+def _enforcement_config_is_enabled(result: "EnforcementConfig") -> bool:
+    return result.enabled is True
+
+
 class EnforcementConfig(BaseModel):
     """Configuration for contract enforcement and quality gates."""
 
@@ -39,9 +59,9 @@ class EnforcementConfig(BaseModel):
     enabled: bool = Field(default=True, description="Whether enforcement is enabled")
 
     @classmethod
-    @require(lambda preset: preset in EnforcementPreset, "Preset must be valid EnforcementPreset")
+    @require(_preset_is_valid, "Preset must be valid EnforcementPreset")
     @ensure(lambda result: isinstance(result, EnforcementConfig), "Must return EnforcementConfig")
-    @ensure(lambda result: result.enabled is True, "Config must be enabled")
+    @ensure(_enforcement_config_is_enabled, "Config must be enabled")
     def from_preset(cls, preset: EnforcementPreset) -> "EnforcementConfig":
         """
         Create an enforcement config from a preset.
@@ -81,7 +101,7 @@ class EnforcementConfig(BaseModel):
 
     @beartype
     @require(lambda severity: isinstance(severity, str) and len(severity) > 0, "Severity must be non-empty string")
-    @require(lambda severity: severity.upper() in ("HIGH", "MEDIUM", "LOW"), "Severity must be HIGH/MEDIUM/LOW")
+    @require(_severity_is_hml, "Severity must be HIGH/MEDIUM/LOW")
     @ensure(lambda result: isinstance(result, bool), "Must return boolean")
     def should_block_deviation(self, severity: str) -> bool:
         """
@@ -107,7 +127,7 @@ class EnforcementConfig(BaseModel):
 
     @beartype
     @require(lambda severity: isinstance(severity, str) and len(severity) > 0, "Severity must be non-empty string")
-    @require(lambda severity: severity.upper() in ("HIGH", "MEDIUM", "LOW"), "Severity must be HIGH/MEDIUM/LOW")
+    @require(_severity_is_hml, "Severity must be HIGH/MEDIUM/LOW")
     @ensure(lambda result: isinstance(result, EnforcementAction), "Must return EnforcementAction")
     def get_action(self, severity: str) -> EnforcementAction:
         """
@@ -129,12 +149,7 @@ class EnforcementConfig(BaseModel):
         return EnforcementAction.LOG
 
     @beartype
-    @ensure(lambda result: isinstance(result, dict), "Must return dictionary")
-    @ensure(
-        lambda result: all(isinstance(k, str) and isinstance(v, str) for k, v in result.items()),
-        "All keys and values must be strings",
-    )
-    @ensure(lambda result: set(result.keys()) == {"HIGH", "MEDIUM", "LOW"}, "Must have all three severity levels")
+    @ensure(_to_summary_dict_valid, "Summary dict must map HIGH/MEDIUM/LOW to string actions")
     def to_summary_dict(self) -> dict[str, str]:
         """
         Convert config to a summary dictionary for display.
@@ -143,7 +158,7 @@ class EnforcementConfig(BaseModel):
             Dictionary mapping severity to action
         """
         return {
-            "HIGH": self.high_action.value,
-            "MEDIUM": self.medium_action.value,
-            "LOW": self.low_action.value,
+            "HIGH": str(self.high_action.value),
+            "MEDIUM": str(self.medium_action.value),
+            "LOW": str(self.low_action.value),
         }

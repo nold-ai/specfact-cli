@@ -12,7 +12,7 @@ import os
 import subprocess
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import yaml
 from beartype import beartype
@@ -30,8 +30,13 @@ _PAYLOAD_FROM_FS_IGNORED_DIRS = _IGNORED_MODULE_DIR_NAMES | {".git"}
 class _IndentedSafeDumper(yaml.SafeDumper):
     """Safe dumper that indents sequence items under their parent key."""
 
-    def increase_indent(self, flow: bool = False, indentless: bool = False):
-        return super().increase_indent(flow=flow, indentless=False)
+    @beartype
+    @require(lambda self: self is not None, "Dumper must be bound")
+    @require(lambda flow: isinstance(flow, bool), "flow must be bool")
+    @require(lambda indentless: isinstance(indentless, bool), "indentless must be bool")
+    @ensure(lambda result: result is None, "PyYAML increase_indent returns None")
+    def increase_indent(self, flow: bool = False, indentless: bool = False) -> None:
+        super().increase_indent(flow=flow, indentless=False)
 
 
 def _canonical_payload(manifest_data: dict[str, Any]) -> bytes:
@@ -197,7 +202,8 @@ def _read_manifest_version(path: Path) -> str | None:
     raw = yaml.safe_load(path.read_text(encoding="utf-8"))
     if not isinstance(raw, dict):
         return None
-    value = raw.get("version")
+    data = cast(dict[str, Any], raw)
+    value = data.get("version")
     if value is None:
         return None
     version = str(value).strip()
@@ -220,7 +226,8 @@ def _read_manifest_version_from_git(git_ref: str, path: Path) -> str | None:
         return None
     if not isinstance(raw, dict):
         return None
-    value = raw.get("version")
+    data = cast(dict[str, Any], raw)
+    value = data.get("version")
     if value is None:
         return None
     version = str(value).strip()
@@ -360,7 +367,7 @@ def _sign_payload(payload: bytes, private_key: Any) -> str:
     return base64.b64encode(signature).decode("ascii")
 
 
-@require(lambda manifest_path: manifest_path.suffix == ".yaml", "manifest_path must point to YAML")
+@require(lambda manifest_path: cast(Path, manifest_path).suffix == ".yaml", "manifest_path must point to YAML")
 def sign_manifest(manifest_path: Path, private_key: Any | None, *, payload_from_filesystem: bool = False) -> None:
     raw = yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
     if not isinstance(raw, dict):

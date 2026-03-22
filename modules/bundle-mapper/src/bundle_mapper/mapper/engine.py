@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from beartype import beartype
 from icontract import ensure, require
@@ -190,7 +190,7 @@ class BundleMapper:
     @beartype
     @require(lambda item: item is not None, "Item must not be None")
     @ensure(
-        lambda result: 0.0 <= result.confidence <= 1.0,
+        lambda result: 0.0 <= cast(BundleMapping, result).confidence <= 1.0,
         "Confidence in [0, 1]",
     )
     def compute_mapping(self, item: BacklogItem) -> BundleMapping:

@@ -17,7 +17,7 @@ from __future__ import annotations
 import logging
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from beartype import beartype
 from icontract import ensure, require
@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 
 
 @beartype
-@require(lambda acceptance: bool(acceptance.strip()), "acceptance must be non-empty")
+@require(lambda acceptance: bool(cast(str, acceptance).strip()), "acceptance must be non-empty")
 def should_remove_criteria(acceptance: str) -> bool:
     """
     Check if acceptance criteria should be removed.

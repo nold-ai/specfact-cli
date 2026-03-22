@@ -317,10 +317,35 @@ def _configure_span_processors(provider: Any, exporter: Any, debug: bool) -> Non
         logging.getLogger("opentelemetry.exporter.otlp.proto.http.trace_exporter").setLevel(logging.CRITICAL)
 
 
+def _telemetry_manager_constructed(self: TelemetryManager, result: None) -> bool:
+    return (
+        hasattr(self, "_settings")
+        and hasattr(self, "_enabled")
+        and hasattr(self, "_session_id")
+        and isinstance(self._session_id, str)
+        and len(self._session_id) > 0
+    )
+
+
+def _telemetry_has_settings(self: TelemetryManager) -> bool:
+    return hasattr(self, "_settings") and isinstance(self._settings, TelemetrySettings)
+
+
+def _telemetry_last_event_written(self: TelemetryManager, result: None) -> bool:
+    return self._last_event is not None
+
+
 class TelemetryManager:
     """Privacy-first telemetry helper."""
 
     TELEMETRY_VERSION = "1.0"
+
+    _settings: TelemetrySettings
+    _local_path: Path
+    _enabled: bool
+    _session_id: str
+    _tracer: Any
+    _last_event: dict[str, Any] | None
 
     @classmethod
     @beartype
@@ -334,16 +359,7 @@ class TelemetryManager:
         lambda self, settings: settings is None or isinstance(settings, TelemetrySettings),
         "Settings must be None or TelemetrySettings",
     )
-    @ensure(
-        lambda self, result: (
-            hasattr(self, "_settings")
-            and hasattr(self, "_enabled")
-            and hasattr(self, "_session_id")
-            and isinstance(self._session_id, str)
-            and len(self._session_id) > 0
-        ),
-        "Must initialize all required instance attributes",
-    )
+    @ensure(_telemetry_manager_constructed, "Must initialize all required instance attributes")
     def __init__(self, settings: object | None = None) -> None:
         settings_value: TelemetrySettings
         if settings is None:
@@ -358,7 +374,7 @@ class TelemetryManager:
         self._enabled = self._settings.enabled
         self._session_id = uuid4().hex
         self._tracer = None
-        self._last_event: dict[str, Any] | None = None
+        self._last_event = None
 
         if not self._enabled:
             return
@@ -381,10 +397,7 @@ class TelemetryManager:
         return self._last_event
 
     @beartype
-    @require(
-        lambda self: hasattr(self, "_settings") and isinstance(self._settings, TelemetrySettings),
-        "Settings must be initialized",
-    )
+    @require(_telemetry_has_settings, "Settings must be initialized")
     @ensure(lambda self, result: result is None, "Must return None")
     def _prepare_storage(self) -> None:
         """Ensure local telemetry directory exists."""
@@ -399,10 +412,7 @@ class TelemetryManager:
                 LOGGER.warning("Failed to prepare telemetry directory: %s (fallback: %s)", exc, fallback_exc)
 
     @beartype
-    @require(
-        lambda self: hasattr(self, "_settings") and isinstance(self._settings, TelemetrySettings),
-        "Settings must be initialized",
-    )
+    @require(_telemetry_has_settings, "Settings must be initialized")
     @ensure(lambda self, result: result is None, "Must return None")
     def _initialize_tracer(self) -> None:
         """Configure OpenTelemetry exporter if endpoint is provided."""
@@ -518,10 +528,7 @@ class TelemetryManager:
     @beartype
     @require(lambda self, event: hasattr(self, "_settings"), "Manager must be initialized")
     @require(lambda self, event: isinstance(event, MutableMapping), "Event must be MutableMapping")
-    @ensure(
-        lambda self, result: hasattr(self, "_last_event") and self._last_event is not None,
-        "Must set _last_event after emitting",
-    )
+    @ensure(_telemetry_last_event_written, "Must set _last_event after emitting")
     def _emit_event(self, event: MutableMapping[str, Any]) -> None:
         """Emit sanitized event to local storage and optional OTLP exporter."""
         event.setdefault("cli_version", __version__)
@@ -706,18 +713,26 @@ def _assert_normalized_value_type(value: Any, result: Any) -> None:
     """Assert that result is the correctly normalized form of value."""
     if isinstance(value, bool) or (isinstance(value, int) and not isinstance(value, bool)):
         assert result == value
-    elif isinstance(value, float):
+        return
+    if isinstance(value, float):
         assert isinstance(result, float)
-    elif isinstance(value, str):
-        if value.strip():
-            assert isinstance(result, str)
-            assert len(result) <= 128
-        else:
-            assert result is None
-    elif value is None:
+        return
+    if isinstance(value, str):
+        _assert_normalized_string_value(value, result)
+        return
+    if value is None:
         assert result is None
-    elif isinstance(value, (list, tuple)):
+        return
+    if isinstance(value, (list, tuple)):
         assert isinstance(result, int)
+
+
+def _assert_normalized_string_value(value: str, result: Any) -> None:
+    if value.strip():
+        assert isinstance(result, str)
+        assert len(result) <= 128
+    else:
+        assert result is None
 
 
 @beartype

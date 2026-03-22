@@ -10,6 +10,7 @@ and enforcement budgets.
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import Literal
 
 from beartype import beartype
 from icontract import ensure, require
@@ -81,8 +82,8 @@ class SDDManifest(BaseModel):
     """SDD manifest with WHY/WHAT/HOW, hashes, and coverage thresholds."""
 
     version: str = Field("1.0.0", description="SDD manifest schema version")
-    plan_bundle_id: str = Field(..., description="Linked plan bundle ID (content hash)")
-    plan_bundle_hash: str = Field(..., description="Plan bundle content hash")
+    plan_bundle_id: str = Field(..., min_length=1, description="Linked plan bundle ID (content hash)")
+    plan_bundle_hash: str = Field(..., min_length=1, description="Plan bundle content hash")
     created_at: str = Field(default_factory=lambda: datetime.now(UTC).isoformat(), description="Creation timestamp")
     updated_at: str = Field(default_factory=lambda: datetime.now(UTC).isoformat(), description="Last update timestamp")
 
@@ -111,16 +112,15 @@ class SDDManifest(BaseModel):
     frozen_sections: list[str] = Field(
         default_factory=list, description="Frozen section IDs (cannot be edited without hash bump)"
     )
-    promotion_status: str = Field("draft", description="Promotion status (draft, review, approved, released)")
+    promotion_status: Literal["draft", "review", "approved", "released"] = Field(
+        "draft", description="Promotion status (draft, review, approved, released)"
+    )
 
     provenance: dict[str, str] = Field(default_factory=dict, description="Provenance metadata (source, author, etc.)")
 
+    @require(lambda self: self is not None)
+    @ensure(lambda result: isinstance(result, bool))
     @beartype
-    @require(
-        lambda self: self.promotion_status in ("draft", "review", "approved", "released"), "Invalid promotion status"
-    )
-    @ensure(lambda self: len(self.plan_bundle_hash) > 0, "Plan bundle hash must not be empty")
-    @ensure(lambda self: len(self.plan_bundle_id) > 0, "Plan bundle ID must not be empty")
     def validate_structure(self) -> bool:
         """
         Validate SDD manifest structure (custom validation beyond Pydantic).
@@ -130,8 +130,9 @@ class SDDManifest(BaseModel):
         """
         return True
 
+    @require(lambda self: self is not None)
+    @ensure(lambda result: result is None)
     @beartype
-    @ensure(lambda result: result is None, "update_timestamp must return None")
     def update_timestamp(self) -> None:
         """Update the updated_at timestamp."""
         self.updated_at = datetime.now(UTC).isoformat()

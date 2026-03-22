@@ -7,7 +7,9 @@ and scoping capabilities (corporate, team, user).
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
+from typing import Any, cast
 
 from beartype import beartype
 from icontract import ensure, require
@@ -51,6 +53,83 @@ class BacklogTemplate(BaseModel):
     title_patterns: list[str] = Field(default_factory=list, description="Regex patterns for title matching")
     schema_ref: str | None = Field(
         default=None, description="OpenSpec schema reference (e.g., 'openspec/templates/user_story_v1/')"
+    )
+
+
+def _tpl_match_pfp(t: BacklogTemplate, provider: str | None, framework: str | None, persona: str | None) -> bool:
+    return bool(
+        provider
+        and t.provider == provider
+        and framework
+        and t.framework == framework
+        and persona
+        and persona in t.personas
+    )
+
+
+def _tpl_match_pf(t: BacklogTemplate, provider: str | None, framework: str | None, _persona: str | None) -> bool:
+    return bool(provider and t.provider == provider and framework and t.framework == framework)
+
+
+def _tpl_match_fp(t: BacklogTemplate, _provider: str | None, framework: str | None, persona: str | None) -> bool:
+    return bool(framework and t.framework == framework and persona and persona in t.personas)
+
+
+def _tpl_match_f(t: BacklogTemplate, _provider: str | None, framework: str | None, _persona: str | None) -> bool:
+    return bool(framework and t.framework == framework)
+
+
+def _tpl_match_pp(t: BacklogTemplate, provider: str | None, _framework: str | None, persona: str | None) -> bool:
+    return bool(provider and t.provider == provider and persona and persona in t.personas)
+
+
+def _tpl_match_persona(t: BacklogTemplate, _provider: str | None, _framework: str | None, persona: str | None) -> bool:
+    return bool(persona and persona in t.personas)
+
+
+def _tpl_match_provider(t: BacklogTemplate, provider: str | None, _framework: str | None, _persona: str | None) -> bool:
+    return bool(provider and t.provider == provider)
+
+
+def _tpl_match_default(t: BacklogTemplate, _provider: str | None, _framework: str | None, _persona: str | None) -> bool:
+    return not t.framework and not t.personas and not t.provider
+
+
+_TEMPLATE_PRIORITY_PREDICATES: tuple[
+    tuple[str, Callable[[BacklogTemplate, str | None, str | None, str | None], bool]], ...
+] = (
+    ("provider+framework+persona", _tpl_match_pfp),
+    ("provider+framework", _tpl_match_pf),
+    ("framework+persona", _tpl_match_fp),
+    ("framework", _tpl_match_f),
+    ("provider+persona", _tpl_match_pp),
+    ("persona", _tpl_match_persona),
+    ("provider", _tpl_match_provider),
+    ("default", _tpl_match_default),
+)
+
+
+def _str_list_from_yaml(raw_val: Any) -> list[str]:
+    return [str(x) for x in raw_val] if isinstance(raw_val, list) else []
+
+
+def _backlog_template_from_yaml_raw(raw: dict[str, Any], template_path: Path) -> BacklogTemplate:
+    body_pat = raw.get("body_patterns", {})
+    body_patterns: dict[str, str] = {str(k): str(v) for k, v in body_pat.items()} if isinstance(body_pat, dict) else {}
+    return BacklogTemplate(
+        template_id=str(raw.get("template_id", template_path.stem)),
+        name=str(raw.get("name", "")),
+        description=str(raw.get("description", "")),
+        scope=str(raw.get("scope", "corporate")),
+        team_id=cast(str | None, raw.get("team_id")),
+        personas=_str_list_from_yaml(raw.get("personas", [])),
+        framework=cast(str | None, raw.get("framework")),
+        provider=cast(str | None, raw.get("provider")),
+        required_sections=_str_list_from_yaml(raw.get("required_sections", [])),
+        optional_sections=_str_list_from_yaml(raw.get("optional_sections", [])),
+        body_patterns=body_patterns,
+        title_patterns=_str_list_from_yaml(raw.get("title_patterns", [])),
+        schema_ref=cast(str | None, raw.get("schema_ref")),
     )
 
 
@@ -149,22 +228,8 @@ class TemplateRegistry:
                     msg = f"Template file must contain a YAML dict: {template_path}"
                     raise ValueError(msg)
 
-                template = BacklogTemplate(
-                    template_id=data.get("template_id", template_path.stem),
-                    name=data.get("name", ""),
-                    description=data.get("description", ""),
-                    scope=data.get("scope", "corporate"),
-                    team_id=data.get("team_id"),
-                    personas=data.get("personas", []),
-                    framework=data.get("framework"),
-                    provider=data.get("provider"),
-                    required_sections=data.get("required_sections", []),
-                    optional_sections=data.get("optional_sections", []),
-                    body_patterns=data.get("body_patterns", {}),
-                    title_patterns=data.get("title_patterns", []),
-                    schema_ref=data.get("schema_ref"),
-                )
-                self.register_template(template)
+                raw = cast(dict[str, Any], data)
+                self.register_template(_backlog_template_from_yaml_raw(raw, template_path))
         except yaml.YAMLError as e:
             msg = f"Failed to parse template YAML: {template_path}: {e}"
             raise ValueError(msg) from e
@@ -186,49 +251,24 @@ class TemplateRegistry:
             msg = f"Template directory not found: {template_dir}"
             raise FileNotFoundError(msg)
 
-        # Load templates from defaults/ subdirectory (if it exists)
         defaults_dir = template_dir / "defaults"
-        if defaults_dir.exists():
-            for template_file in defaults_dir.glob("*.yaml"):
-                self.load_template_from_file(template_file)
-            for template_file in defaults_dir.glob("*.yml"):
-                self.load_template_from_file(template_file)
-        else:
-            # Fallback: Load templates directly from directory root (for backward compatibility)
-            for template_file in template_dir.glob("*.yaml"):
-                self.load_template_from_file(template_file)
-            for template_file in template_dir.glob("*.yml"):
+        root_to_scan = defaults_dir if defaults_dir.exists() else template_dir
+        self._load_yaml_templates_in_dir(root_to_scan)
+
+        for sub in ("frameworks", "personas", "providers"):
+            self._load_yaml_templates_from_subdirs(template_dir / sub)
+
+    def _load_yaml_templates_in_dir(self, directory: Path) -> None:
+        for pattern in ("*.yaml", "*.yml"):
+            for template_file in directory.glob(pattern):
                 self.load_template_from_file(template_file)
 
-        # Load templates from frameworks/ subdirectory
-        frameworks_dir = template_dir / "frameworks"
-        if frameworks_dir.exists():
-            for framework_dir in frameworks_dir.iterdir():
-                if framework_dir.is_dir():
-                    for template_file in framework_dir.glob("*.yaml"):
-                        self.load_template_from_file(template_file)
-                    for template_file in framework_dir.glob("*.yml"):
-                        self.load_template_from_file(template_file)
-
-        # Load templates from personas/ subdirectory
-        personas_dir = template_dir / "personas"
-        if personas_dir.exists():
-            for persona_dir in personas_dir.iterdir():
-                if persona_dir.is_dir():
-                    for template_file in persona_dir.glob("*.yaml"):
-                        self.load_template_from_file(template_file)
-                    for template_file in persona_dir.glob("*.yml"):
-                        self.load_template_from_file(template_file)
-
-        # Load templates from providers/ subdirectory
-        providers_dir = template_dir / "providers"
-        if providers_dir.exists():
-            for provider_dir in providers_dir.iterdir():
-                if provider_dir.is_dir():
-                    for template_file in provider_dir.glob("*.yaml"):
-                        self.load_template_from_file(template_file)
-                    for template_file in provider_dir.glob("*.yml"):
-                        self.load_template_from_file(template_file)
+    def _load_yaml_templates_from_subdirs(self, base_dir: Path) -> None:
+        if not base_dir.is_dir():
+            return
+        for child in base_dir.iterdir():
+            if child.is_dir():
+                self._load_yaml_templates_in_dir(child)
 
     @beartype
     @require(lambda self, provider: provider is None or isinstance(provider, str), "Provider must be str or None")
@@ -264,58 +304,12 @@ class TemplateRegistry:
         Returns:
             BacklogTemplate if found, None otherwise
         """
-        # If explicit template_id provided, return it directly
         if template_id:
             return self.get_template(template_id)
 
-        # Priority-based resolution with fallback chain
-        candidates: list[BacklogTemplate] = []
         all_templates = self.list_templates(scope="corporate")
-
-        # Try each priority level
-        priority_checks = [
-            # 1. provider+framework+persona (most specific)
-            (
-                lambda t: (
-                    (provider and t.provider == provider)
-                    and (framework and t.framework == framework)
-                    and (persona and persona in t.personas)
-                ),
-                "provider+framework+persona",
-            ),
-            # 2. provider+framework
-            (
-                lambda t: (provider and t.provider == provider) and (framework and t.framework == framework),
-                "provider+framework",
-            ),
-            # 3. framework+persona
-            (
-                lambda t: (framework and t.framework == framework) and (persona and persona in t.personas),
-                "framework+persona",
-            ),
-            # 4. framework
-            (lambda t: framework and t.framework == framework, "framework"),
-            # 5. provider+persona
-            (
-                lambda t: (provider and t.provider == provider) and (persona and persona in t.personas),
-                "provider+persona",
-            ),
-            # 6. persona
-            (lambda t: persona and persona in t.personas, "persona"),
-            # 7. provider
-            (lambda t: provider and t.provider == provider, "provider"),
-            # 8. default (framework-agnostic, persona-agnostic, provider-agnostic)
-            (
-                lambda t: not t.framework and not t.personas and not t.provider,
-                "default",
-            ),
-        ]
-
-        for check_func, _priority_name in priority_checks:
-            candidates = [t for t in all_templates if check_func(t)]
-            if candidates:
-                # Return first match (can be enhanced to pick best match if multiple)
-                return candidates[0]
-
-        # No match found
+        for _name, check_func in _TEMPLATE_PRIORITY_PREDICATES:
+            for t in all_templates:
+                if check_func(t, provider, framework, persona):
+                    return t
         return None

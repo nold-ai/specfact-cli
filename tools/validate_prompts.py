@@ -32,7 +32,15 @@ REQUIRED_SECTIONS = [
     ("Context", "## Context"),
 ]
 
+
 # CLI commands that should be referenced (new slash command names)
+def _prompts_dir_is_valid(prompts_dir: Path | None) -> bool:
+    """Return True when *prompts_dir* is unset or an existing directory."""
+    if prompts_dir is None:
+        return True
+    return prompts_dir.is_dir()
+
+
 CLI_COMMANDS = {
     "specfact.01-import": "specfact code import",
     "specfact.02-plan": "specfact plan <operation>",  # init, add-feature, add-story, update-idea, update-feature, update-story
@@ -343,14 +351,14 @@ class PromptValidator:
 
 
 @beartype
-@require(lambda prompts_dir: prompts_dir is None or prompts_dir.is_dir(), "prompts_dir must be a directory if provided")
+@require(_prompts_dir_is_valid, "prompts_dir must be a directory if provided")
 @ensure(lambda result: isinstance(result, list), "validate_all_prompts must return a list")
 def validate_all_prompts(prompts_dir: Path | None = None) -> list[dict[str, Any]]:
     """Validate all prompt templates."""
     if prompts_dir is None:
         prompts_dir = Path(__file__).parent.parent / "resources" / "prompts"
 
-    results = []
+    results: list[dict[str, Any]] = []
     # Match both specfact.*.md and specfact-*.md patterns
     for prompt_file in sorted(prompts_dir.glob("specfact.*.md")):
         validator = PromptValidator(prompt_file)
@@ -359,18 +367,7 @@ def validate_all_prompts(prompts_dir: Path | None = None) -> list[dict[str, Any]
     return results
 
 
-@beartype
-@require(lambda results: isinstance(results, list), "results must be a list")
-@ensure(lambda result: isinstance(result, int), "print_validation_report must return an int")
-def print_validation_report(results: list[dict[str, Any]]) -> int:
-    """Print validation report.
-
-    Returns:
-        Exit code: 0 if all prompts passed, 1 if any failed
-    """
-    console.print("\n[bold cyan]Prompt Validation Report[/bold cyan]\n")
-
-    # Summary table
+def _print_prompt_validation_summary_table(results: list[dict[str, Any]]) -> None:
     summary_table = Table(title="Validation Summary", show_header=True, header_style="bold magenta")
     summary_table.add_column("Prompt", style="cyan")
     summary_table.add_column("Status", style="green")
@@ -390,25 +387,44 @@ def print_validation_report(results: list[dict[str, Any]]) -> int:
 
     console.print(summary_table)
 
-    # Detailed errors
+
+def _print_prompt_validation_errors(results: list[dict[str, Any]]) -> None:
     all_errors = [r for r in results if r["errors"]]
-    if all_errors:
-        console.print("\n[bold red]Errors:[/bold red]\n")
-        for result in all_errors:
-            console.print(f"[red]✗ {result['prompt']}[/red]")
-            for error in result["errors"]:
-                console.print(f"  - {error}")
+    if not all_errors:
+        return
+    console.print("\n[bold red]Errors:[/bold red]\n")
+    for result in all_errors:
+        console.print(f"[red]✗ {result['prompt']}[/red]")
+        for error in result["errors"]:
+            console.print(f"  - {error}")
 
-    # Detailed warnings
+
+def _print_prompt_validation_warnings(results: list[dict[str, Any]]) -> None:
     all_warnings = [r for r in results if r["warnings"]]
-    if all_warnings:
-        console.print("\n[bold yellow]Warnings:[/bold yellow]\n")
-        for result in all_warnings:
-            console.print(f"[yellow]⚠ {result['prompt']}[/yellow]")
-            for warning in result["warnings"]:
-                console.print(f"  - {warning}")
+    if not all_warnings:
+        return
+    console.print("\n[bold yellow]Warnings:[/bold yellow]\n")
+    for result in all_warnings:
+        console.print(f"[yellow]⚠ {result['prompt']}[/yellow]")
+        for warning in result["warnings"]:
+            console.print(f"  - {warning}")
 
-    # Overall status
+
+@beartype
+@require(lambda results: isinstance(results, list), "results must be a list")
+@ensure(lambda result: isinstance(result, int), "print_validation_report must return an int")
+def print_validation_report(results: list[dict[str, Any]]) -> int:
+    """Print validation report.
+
+    Returns:
+        Exit code: 0 if all prompts passed, 1 if any failed
+    """
+    console.print("\n[bold cyan]Prompt Validation Report[/bold cyan]\n")
+
+    _print_prompt_validation_summary_table(results)
+    _print_prompt_validation_errors(results)
+    _print_prompt_validation_warnings(results)
+
     total_passed = sum(1 for r in results if r["passed"])
     total_failed = len(results) - total_passed
 

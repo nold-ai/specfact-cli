@@ -10,6 +10,7 @@ Tests the SmartCoverageManager class and its functionality including:
 """
 
 import json
+import logging
 import os
 import shutil
 import subprocess
@@ -400,7 +401,7 @@ class TestSmartCoverageManager:
         assert recent_logs[0].name == "test_run_20250101_140000.log"
         assert recent_logs[1].name == "test_run_20250101_130000.log"
 
-    def test_show_recent_logs(self, capsys):
+    def test_show_recent_logs(self, caplog):
         """Test showing recent log files."""
         # Create test log files
         logs_dir = self.temp_path / "logs" / "tests"
@@ -410,14 +411,15 @@ class TestSmartCoverageManager:
         log1.write_text("Test Run Completed: 2025-01-01T12:00:00\nExit Code: 0")
         log2.write_text("Test Run Completed: 2025-01-01T13:00:00\nExit Code: 1")
 
-        self.manager.show_recent_logs(2)
+        with caplog.at_level(logging.INFO):
+            self.manager.show_recent_logs(2)
 
-        captured = capsys.readouterr()
-        assert "Recent test logs" in captured.out
-        assert "test_run_20250101_130000.log" in captured.out
-        assert "test_run_20250101_120000.log" in captured.out
+        text = caplog.text
+        assert "Recent test logs" in text
+        assert "test_run_20250101_130000.log" in text
+        assert "test_run_20250101_120000.log" in text
 
-    def test_show_latest_log(self, capsys):
+    def test_show_latest_log(self, caplog):
         """Test showing latest log content."""
         # Create test log file
         logs_dir = self.temp_path / "logs" / "tests"
@@ -434,12 +436,13 @@ class TestSmartCoverageManager:
         )
         log_file.write_text(log_content)
 
-        self.manager.show_latest_log()
+        with caplog.at_level(logging.INFO):
+            self.manager.show_latest_log()
 
-        captured = capsys.readouterr()
-        assert "Latest test log" in captured.out
-        assert "Test output line 1" in captured.out
-        assert "Test output line 2" in captured.out
+        text = caplog.text
+        assert "Latest test log" in text
+        assert "Test output line 1" in text
+        assert "Test output line 2" in text
 
     @patch.object(SmartCoverageManager, "_run_changed_only")
     def test_run_smart_tests_with_changes(self, mock_changed_only):
@@ -496,14 +499,14 @@ class TestSmartCoverageManager:
             threshold = self.manager._get_coverage_threshold()
             assert threshold == 90.5
 
-    def test_get_coverage_threshold_invalid_env(self, capsys):
+    def test_get_coverage_threshold_invalid_env(self, caplog):
         """Test handling invalid environment variable."""
         with patch.dict(os.environ, {"COVERAGE_THRESHOLD": "invalid"}):
-            threshold = self.manager._get_coverage_threshold()
+            with caplog.at_level(logging.WARNING):
+                threshold = self.manager._get_coverage_threshold()
             assert threshold == 80.0  # Should fallback to default
 
-            captured = capsys.readouterr()
-            assert "Invalid COVERAGE_THRESHOLD environment variable" in captured.out
+            assert "Invalid COVERAGE_THRESHOLD environment variable" in caplog.text
 
     def test_get_coverage_threshold_from_pyproject(self):
         """Test getting coverage threshold from pyproject.toml."""
@@ -520,7 +523,7 @@ fail_under = 85.0
         threshold = manager._get_coverage_threshold()
         assert threshold == 85.0
 
-    def test_get_coverage_threshold_pyproject_invalid_toml(self, capsys):
+    def test_get_coverage_threshold_pyproject_invalid_toml(self, caplog):
         """Test handling invalid TOML in pyproject.toml."""
         # Create invalid TOML
         pyproject_path = self.temp_path / "pyproject.toml"
@@ -528,11 +531,11 @@ fail_under = 85.0
 
         # Create new manager to test pyproject reading
         manager = SmartCoverageManager(str(self.temp_path))
-        threshold = manager._get_coverage_threshold()
+        with caplog.at_level(logging.WARNING):
+            threshold = manager._get_coverage_threshold()
         assert threshold == 80.0  # Should fallback to default
 
-        captured = capsys.readouterr()
-        assert "Could not read coverage threshold from pyproject.toml" in captured.out
+        assert "Could not read coverage threshold from pyproject.toml" in caplog.text
 
     def test_get_coverage_threshold_pyproject_missing_section(self):
         """Test handling missing coverage section in pyproject.toml."""
@@ -649,31 +652,31 @@ show_missing = true
 
         assert "Coverage 75.0% is below required threshold" in str(exc_info.value)
 
-    def test_show_recent_logs_no_logs(self, capsys):
+    def test_show_recent_logs_no_logs(self, caplog):
         """Test showing recent logs when no logs exist."""
         # Remove logs directory
         logs_dir = self.temp_path / "logs" / "tests"
         if logs_dir.exists():
             shutil.rmtree(logs_dir)
 
-        self.manager.show_recent_logs()
+        with caplog.at_level(logging.INFO):
+            self.manager.show_recent_logs()
 
-        captured = capsys.readouterr()
-        assert "No test logs found" in captured.out
+        assert "No test logs found" in caplog.text
 
-    def test_show_latest_log_no_logs(self, capsys):
+    def test_show_latest_log_no_logs(self, caplog):
         """Test showing latest log when no logs exist."""
         # Remove logs directory
         logs_dir = self.temp_path / "logs" / "tests"
         if logs_dir.exists():
             shutil.rmtree(logs_dir)
 
-        self.manager.show_latest_log()
+        with caplog.at_level(logging.INFO):
+            self.manager.show_latest_log()
 
-        captured = capsys.readouterr()
-        assert "No test logs found" in captured.out
+        assert "No test logs found" in caplog.text
 
-    def test_show_latest_log_read_error(self, capsys):
+    def test_show_latest_log_read_error(self, caplog):
         """Test showing latest log with read error."""
         # Create a log file that will cause read error
         logs_dir = self.temp_path / "logs" / "tests"
@@ -684,15 +687,15 @@ show_missing = true
         log_file.chmod(0o000)  # Remove read permission
 
         try:
-            self.manager.show_latest_log()
+            with caplog.at_level(logging.ERROR):
+                self.manager.show_latest_log()
 
-            captured = capsys.readouterr()
-            assert "Error reading log file" in captured.out
+            assert "Error reading log file" in caplog.text
         finally:
             # Restore permissions for cleanup
             log_file.chmod(0o644)
 
-    def test_show_recent_logs_with_status_detection(self, capsys):
+    def test_show_recent_logs_with_status_detection(self, caplog):
         """Test showing recent logs with status detection."""
         # Create test log files with different statuses
         logs_dir = self.temp_path / "logs" / "tests"
@@ -707,13 +710,14 @@ show_missing = true
         # Log with unknown status
         log3.write_text("Test Run Started: 2025-01-01T14:00:00\nTest output")
 
-        self.manager.show_recent_logs(3)
+        with caplog.at_level(logging.INFO):
+            self.manager.show_recent_logs(3)
 
-        captured = capsys.readouterr()
-        assert "Recent test logs" in captured.out
-        assert "✅ Passed" in captured.out
-        assert "❌ Failed" in captured.out
-        assert "❓ Unknown" in captured.out
+        text = caplog.text
+        assert "Recent test logs" in text
+        assert "Passed" in text
+        assert "Failed" in text
+        assert "Unknown" in text
 
     def test_should_exclude_file(self):
         """Test file exclusion logic."""
@@ -1181,10 +1185,10 @@ class TestMainFunction:
     @patch("tools.smart_test_coverage.SmartCoverageManager")
     def test_main_status_command(self, mock_manager_class):
         """Test main function with status command."""
-        mock_manager = Mock()
-        mock_manager_class.return_value = mock_manager
-        mock_manager.coverage_threshold = 80.0
-        mock_manager.get_status.return_value = {
+        real_manager = SmartCoverageManager(str(self.temp_path))
+        mock_manager_class.return_value = real_manager
+        real_manager.coverage_threshold = 80.0
+        status_payload = {
             "last_run": "2025-01-01T12:00:00",
             "coverage_percentage": 85.5,
             "test_count": 150,
@@ -1194,75 +1198,87 @@ class TestMainFunction:
             "needs_full_run": False,
         }
 
-        with patch("tools.smart_test_coverage.sys.exit") as mock_exit:
+        with (
+            patch.object(real_manager, "get_status", return_value=status_payload) as mock_get_status,
+            patch("tools.smart_test_coverage.sys.exit") as mock_exit,
+        ):
             from tools.smart_test_coverage import main
 
             main()
 
-        mock_manager.get_status.assert_called_once()
+        mock_get_status.assert_called_once()
         mock_exit.assert_called_once_with(0)
 
     @patch("sys.argv", ["smart_test_coverage.py", "check"])
     @patch("tools.smart_test_coverage.SmartCoverageManager")
     def test_main_check_command(self, mock_manager_class):
         """Test main function with check command."""
-        mock_manager = Mock()
-        mock_manager_class.return_value = mock_manager
-        mock_manager.check_if_full_test_needed.return_value = True
+        real_manager = SmartCoverageManager(str(self.temp_path))
+        mock_manager_class.return_value = real_manager
 
-        with patch("tools.smart_test_coverage.sys.exit") as mock_exit:
+        with (
+            patch.object(real_manager, "check_if_full_test_needed", return_value=True) as mock_check,
+            patch("tools.smart_test_coverage.sys.exit") as mock_exit,
+        ):
             from tools.smart_test_coverage import main
 
             main()
 
-        mock_manager.check_if_full_test_needed.assert_called_once()
+        mock_check.assert_called_once()
         mock_exit.assert_called_once_with(1)  # Exit code 1 when full test needed
 
     @patch("sys.argv", ["smart_test_coverage.py", "run"])
     @patch("tools.smart_test_coverage.SmartCoverageManager")
     def test_main_run_command(self, mock_manager_class):
         """Test main function with run command."""
-        mock_manager = Mock()
-        mock_manager_class.return_value = mock_manager
-        mock_manager.run_smart_tests.return_value = True
+        real_manager = SmartCoverageManager(str(self.temp_path))
+        mock_manager_class.return_value = real_manager
 
-        with patch("tools.smart_test_coverage.sys.exit") as mock_exit:
+        with (
+            patch.object(real_manager, "run_smart_tests", return_value=True) as mock_run,
+            patch("tools.smart_test_coverage.sys.exit") as mock_exit,
+        ):
             from tools.smart_test_coverage import main
 
             main()
 
-        mock_manager.run_smart_tests.assert_called_once()
+        mock_run.assert_called_once()
         mock_exit.assert_called_once_with(0)
 
     @patch("sys.argv", ["smart_test_coverage.py", "force"])
     @patch("tools.smart_test_coverage.SmartCoverageManager")
     def test_main_force_command(self, mock_manager_class):
         """Test main function with force command."""
-        mock_manager = Mock()
-        mock_manager_class.return_value = mock_manager
-        mock_manager.run_smart_tests.return_value = True
+        real_manager = SmartCoverageManager(str(self.temp_path))
+        mock_manager_class.return_value = real_manager
 
-        with patch("tools.smart_test_coverage.sys.exit") as mock_exit:
+        with (
+            patch.object(real_manager, "run_smart_tests", return_value=True) as mock_run,
+            patch("tools.smart_test_coverage.sys.exit") as mock_exit,
+        ):
             from tools.smart_test_coverage import main
 
             main()
 
-        mock_manager.run_smart_tests.assert_called_once_with("auto", force=True)
+        mock_run.assert_called_once_with("auto", force=True)
         mock_exit.assert_called_once_with(0)
 
     @patch("sys.argv", ["smart_test_coverage.py", "logs", "3"])
     @patch("tools.smart_test_coverage.SmartCoverageManager")
     def test_main_logs_command(self, mock_manager_class):
         """Test main function with logs command."""
-        mock_manager = Mock()
-        mock_manager_class.return_value = mock_manager
+        real_manager = SmartCoverageManager(str(self.temp_path))
+        mock_manager_class.return_value = real_manager
 
-        with patch("tools.smart_test_coverage.sys.exit") as mock_exit:
+        with (
+            patch.object(real_manager, "show_recent_logs") as mock_logs,
+            patch("tools.smart_test_coverage.sys.exit") as mock_exit,
+        ):
             from tools.smart_test_coverage import main
 
             main()
 
-        mock_manager.show_recent_logs.assert_called_once_with(3)
+        mock_logs.assert_called_once_with(3)
         # The logs command calls sys.exit(0) at the end
         mock_exit.assert_called_with(0)
 
@@ -1270,15 +1286,18 @@ class TestMainFunction:
     @patch("tools.smart_test_coverage.SmartCoverageManager")
     def test_main_latest_command(self, mock_manager_class):
         """Test main function with latest command."""
-        mock_manager = Mock()
-        mock_manager_class.return_value = mock_manager
+        real_manager = SmartCoverageManager(str(self.temp_path))
+        mock_manager_class.return_value = real_manager
 
-        with patch("tools.smart_test_coverage.sys.exit") as mock_exit:
+        with (
+            patch.object(real_manager, "show_latest_log") as mock_latest,
+            patch("tools.smart_test_coverage.sys.exit") as mock_exit,
+        ):
             from tools.smart_test_coverage import main
 
             main()
 
-        mock_manager.show_latest_log.assert_called_once()
+        mock_latest.assert_called_once()
         mock_exit.assert_called_once_with(0)
 
     @patch("sys.argv", ["smart_test_coverage.py"])
@@ -1313,104 +1332,118 @@ class TestMainFunction:
     @patch("tools.smart_test_coverage.SmartCoverageManager")
     def test_main_threshold_command_success(self, mock_manager_class):
         """Test main function with threshold command when coverage meets threshold."""
-        mock_manager = Mock()
-        mock_manager_class.return_value = mock_manager
-        mock_manager.coverage_threshold = 80.0
-        mock_manager.get_status.return_value = {"coverage_percentage": 85.0}
+        real_manager = SmartCoverageManager(str(self.temp_path))
+        mock_manager_class.return_value = real_manager
+        real_manager.coverage_threshold = 80.0
 
-        with patch("tools.smart_test_coverage.sys.exit") as mock_exit:
+        with (
+            patch.object(real_manager, "get_status", return_value={"coverage_percentage": 85.0}) as mock_gs,
+            patch("tools.smart_test_coverage.sys.exit") as mock_exit,
+        ):
             from tools.smart_test_coverage import main
 
             main()
 
-        mock_manager.get_status.assert_called_once()
+        mock_gs.assert_called_once()
         mock_exit.assert_called_once_with(0)
 
     @patch("sys.argv", ["smart_test_coverage.py", "threshold"])
     @patch("tools.smart_test_coverage.SmartCoverageManager")
     def test_main_threshold_command_failure(self, mock_manager_class):
         """Test main function with threshold command when coverage is below threshold."""
-        mock_manager = Mock()
-        mock_manager_class.return_value = mock_manager
-        mock_manager.coverage_threshold = 80.0
-        mock_manager.get_status.return_value = {"coverage_percentage": 75.0}
+        real_manager = SmartCoverageManager(str(self.temp_path))
+        mock_manager_class.return_value = real_manager
+        real_manager.coverage_threshold = 80.0
 
-        with patch("tools.smart_test_coverage.sys.exit") as mock_exit:
+        with (
+            patch.object(real_manager, "get_status", return_value={"coverage_percentage": 75.0}) as mock_gs,
+            patch("tools.smart_test_coverage.sys.exit") as mock_exit,
+        ):
             from tools.smart_test_coverage import main
 
             main()
 
-        mock_manager.get_status.assert_called_once()
+        mock_gs.assert_called_once()
         mock_exit.assert_called_once_with(1)
 
     @patch("sys.argv", ["smart_test_coverage.py", "threshold"])
     @patch("tools.smart_test_coverage.SmartCoverageManager")
-    def test_main_threshold_command_output(self, mock_manager_class, capsys):
+    def test_main_threshold_command_output(self, mock_manager_class, caplog):
         """Test main function with threshold command output."""
-        mock_manager = Mock()
-        mock_manager_class.return_value = mock_manager
-        mock_manager.coverage_threshold = 80.0
-        mock_manager.get_status.return_value = {"coverage_percentage": 85.0}
+        real_manager = SmartCoverageManager(str(self.temp_path))
+        mock_manager_class.return_value = real_manager
+        real_manager.coverage_threshold = 80.0
 
-        with patch("tools.smart_test_coverage.sys.exit", side_effect=SystemExit(0)):
+        with (
+            patch.object(real_manager, "get_status", return_value={"coverage_percentage": 85.0}),
+            patch("tools.smart_test_coverage.sys.exit", side_effect=SystemExit(0)),
+            caplog.at_level(logging.INFO),
+            contextlib.suppress(SystemExit),
+        ):
             from tools.smart_test_coverage import main
 
-            with contextlib.suppress(SystemExit):
-                main()
+            main()
 
-        captured = capsys.readouterr()
-        assert "Coverage Threshold Check:" in captured.out
-        assert "Current Coverage: 85.0%" in captured.out
-        assert "Required Threshold: 80.0%" in captured.out
-        assert "✅ Coverage meets threshold!" in captured.out
-        assert "Margin: 5.0% above threshold" in captured.out
+        text = caplog.text
+        assert "Coverage Threshold Check:" in text
+        assert "Current Coverage: 85.0%" in text
+        assert "Required Threshold: 80.0%" in text
+        assert "Coverage meets threshold!" in text
+        assert "Margin: 5.0% above threshold" in text
 
     @patch("sys.argv", ["smart_test_coverage.py", "threshold"])
     @patch("tools.smart_test_coverage.SmartCoverageManager")
-    def test_main_threshold_command_below_threshold_output(self, mock_manager_class, capsys):
+    def test_main_threshold_command_below_threshold_output(self, mock_manager_class, caplog):
         """Test main function with threshold command output when below threshold."""
-        mock_manager = Mock()
-        mock_manager_class.return_value = mock_manager
-        mock_manager.coverage_threshold = 80.0
-        mock_manager.get_status.return_value = {"coverage_percentage": 75.0}
+        real_manager = SmartCoverageManager(str(self.temp_path))
+        mock_manager_class.return_value = real_manager
+        real_manager.coverage_threshold = 80.0
 
-        with patch("tools.smart_test_coverage.sys.exit", side_effect=SystemExit(1)):
+        with (
+            patch.object(real_manager, "get_status", return_value={"coverage_percentage": 75.0}),
+            patch("tools.smart_test_coverage.sys.exit", side_effect=SystemExit(1)),
+            caplog.at_level(logging.INFO),
+            contextlib.suppress(SystemExit),
+        ):
             from tools.smart_test_coverage import main
 
-            with contextlib.suppress(SystemExit):
-                main()
+            main()
 
-        captured = capsys.readouterr()
-        assert "Coverage Threshold Check:" in captured.out
-        assert "Current Coverage: 75.0%" in captured.out
-        assert "Required Threshold: 80.0%" in captured.out
-        assert "❌ Coverage below threshold!" in captured.out
-        assert "Difference: 5.0% needed" in captured.out
+        text = caplog.text
+        assert "Coverage Threshold Check:" in text
+        assert "Current Coverage: 75.0%" in text
+        assert "Required Threshold: 80.0%" in text
+        assert "Coverage below threshold!" in text
+        assert "Difference: 5.0% needed" in text
 
     @patch("sys.argv", ["smart_test_coverage.py", "run"])
     @patch("tools.smart_test_coverage.SmartCoverageManager")
-    def test_main_run_command_with_threshold_error(self, mock_manager_class, capsys):
+    def test_main_run_command_with_threshold_error(self, mock_manager_class, caplog):
         """Test main function with run command when threshold error occurs."""
         from tools.smart_test_coverage import CoverageThresholdError
 
-        mock_manager = Mock()
-        mock_manager_class.return_value = mock_manager
-        mock_manager.run_smart_tests.side_effect = CoverageThresholdError(
-            "Coverage 75.0% is below required threshold of 80.0%"
-        )
+        real_manager = SmartCoverageManager(str(self.temp_path))
+        mock_manager_class.return_value = real_manager
 
-        with patch("tools.smart_test_coverage.sys.exit", side_effect=SystemExit(1)):
+        with (
+            patch.object(
+                real_manager,
+                "run_smart_tests",
+                side_effect=CoverageThresholdError("Coverage 75.0% is below required threshold of 80.0%"),
+            ),
+            patch("tools.smart_test_coverage.sys.exit", side_effect=SystemExit(1)),
+        ):
             from tools.smart_test_coverage import main
 
-            with contextlib.suppress(SystemExit):
+            with caplog.at_level(logging.INFO), contextlib.suppress(SystemExit):
                 main()
 
-        captured = capsys.readouterr()
-        assert "❌ Coverage threshold not met!" in captured.out
-        assert "Coverage 75.0% is below required threshold" in captured.out
-        assert "💡 To fix this issue:" in captured.out
-        assert "Add more unit tests to increase coverage" in captured.out
-        assert "Run 'hatch run smart-test-status' to see detailed coverage" in captured.out
+        text = caplog.text
+        assert "Coverage threshold not met!" in text
+        assert "Coverage 75.0% is below required threshold" in text
+        assert "To fix this issue:" in text
+        assert "Add more unit tests to increase coverage" in text
+        assert "Run 'hatch run smart-test-status' to see detailed coverage" in text
 
 
 if __name__ == "__main__":

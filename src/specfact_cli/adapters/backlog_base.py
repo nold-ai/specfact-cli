@@ -177,29 +177,38 @@ class BacklogAdapterMixin(ABC):
             try:
                 response = request_callable()
                 status_code = int(getattr(response, "status_code", 0) or 0)
-                if status_code in self.RETRYABLE_HTTP_STATUSES and attempt < max_attempts:
-                    time.sleep(delay * (2 ** (attempt - 1)))
+                if self._should_retry_http_status(status_code, attempt, max_attempts):
+                    self._backoff_sleep(delay, attempt)
                     continue
                 response.raise_for_status()
                 return response
             except requests.HTTPError as error:
-                status_code = int(getattr(error.response, "status_code", 0) or 0)
-                is_transient = status_code in self.RETRYABLE_HTTP_STATUSES
                 last_error = error
-                if is_transient and attempt < max_attempts:
-                    time.sleep(delay * (2 ** (attempt - 1)))
+                if self._http_error_is_retryable_transient(error, attempt, max_attempts):
+                    self._backoff_sleep(delay, attempt)
                     continue
                 raise
             except (requests.Timeout, requests.ConnectionError) as error:
                 last_error = error
                 if retry_on_ambiguous_transport and attempt < max_attempts:
-                    time.sleep(delay * (2 ** (attempt - 1)))
+                    self._backoff_sleep(delay, attempt)
                     continue
                 raise
 
         if last_error is not None:
             raise last_error
         raise RuntimeError("Retry logic failed without response or error")
+
+    @staticmethod
+    def _backoff_sleep(delay: float, attempt: int) -> None:
+        time.sleep(delay * (2 ** (attempt - 1)))
+
+    def _should_retry_http_status(self, status_code: int, attempt: int, max_attempts: int) -> bool:
+        return status_code in self.RETRYABLE_HTTP_STATUSES and attempt < max_attempts
+
+    def _http_error_is_retryable_transient(self, error: requests.HTTPError, attempt: int, max_attempts: int) -> bool:
+        status_code = int(getattr(error.response, "status_code", 0) or 0)
+        return status_code in self.RETRYABLE_HTTP_STATUSES and attempt < max_attempts
 
     @abstractmethod
     @beartype
@@ -264,38 +273,39 @@ class BacklogAdapterMixin(ABC):
             Each adapter should call this method and add tool-specific fields to source_metadata.
         """
         source_metadata: dict[str, Any] = {}
+        self._merge_source_id_into_metadata(tool_name, item_data, source_metadata)
+        self._merge_source_urls_state_assignees(item_data, source_metadata)
+        if bridge_config and hasattr(bridge_config, "external_base_path") and bridge_config.external_base_path:
+            source_metadata["external_base_path"] = str(bridge_config.external_base_path)
 
-        # Extract common fields (ID, URL) if present
-        source_id = None
+        return SourceTracking(tool=tool_name, source_metadata=source_metadata)
+
+    def _merge_source_id_into_metadata(
+        self, tool_name: str, item_data: dict[str, Any], source_metadata: dict[str, Any]
+    ) -> None:
         if tool_name.lower() == "github":
             source_id = item_data.get("number") or item_data.get("id")
-            # GitHub: convert to string for consistency (GitHub issue numbers are strings)
             if source_id is not None:
                 source_metadata["source_id"] = str(source_id)
-        else:
-            # For ADO and other adapters: preserve original type
-            # ADO work item IDs are integers, so keep as int
-            source_id = item_data.get("id") or item_data.get("number")
-            if source_id is not None:
-                source_metadata["source_id"] = source_id
-        # Prefer html_url (user-friendly) over url (API URL)
+            return
+        source_id = item_data.get("id") or item_data.get("number")
+        if source_id is not None:
+            source_metadata["source_id"] = source_id
+
+    @staticmethod
+    def _merge_source_urls_state_assignees(item_data: dict[str, Any], source_metadata: dict[str, Any]) -> None:
         if "html_url" in item_data:
             source_metadata["source_url"] = item_data.get("html_url")
         elif "url" in item_data:
             source_metadata["source_url"] = item_data.get("url")
         if "state" in item_data:
             source_metadata["source_state"] = item_data.get("state")
-        if "assignees" in item_data or "assignee" in item_data:
-            assignees = item_data.get("assignees", [])
-            if not assignees and "assignee" in item_data:
-                assignees = [item_data["assignee"]] if item_data["assignee"] else []
-            source_metadata["assignees"] = assignees
-
-        # Add cross-repo support if bridge_config has external_base_path
-        if bridge_config and hasattr(bridge_config, "external_base_path") and bridge_config.external_base_path:
-            source_metadata["external_base_path"] = str(bridge_config.external_base_path)
-
-        return SourceTracking(tool=tool_name, source_metadata=source_metadata)
+        if "assignees" not in item_data and "assignee" not in item_data:
+            return
+        assignees = item_data.get("assignees", [])
+        if not assignees and "assignee" in item_data:
+            assignees = [item_data["assignee"]] if item_data["assignee"] else []
+        source_metadata["assignees"] = assignees
 
     @beartype
     @require(

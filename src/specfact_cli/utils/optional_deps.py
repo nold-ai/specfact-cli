@@ -16,6 +16,48 @@ from beartype import beartype
 from icontract import ensure, require
 
 
+def _resolve_cli_tool_executable(tool_name: str) -> str | None:
+    tool_path = shutil.which(tool_name)
+    if tool_path is not None:
+        return tool_path
+    python_bin_dir = Path(sys.executable).parent
+    potential_path = python_bin_dir / tool_name
+    if potential_path.exists() and potential_path.is_file():
+        return str(potential_path)
+    scripts_dir = python_bin_dir / "Scripts"
+    if scripts_dir.exists():
+        win_path = scripts_dir / tool_name
+        if win_path.exists() and win_path.is_file():
+            return str(win_path)
+    return None
+
+
+def _probe_cli_tool_runs(tool_path: str, tool_name: str, version_flag: str, timeout: int) -> tuple[bool, str | None]:
+    try:
+        result = subprocess.run(
+            [tool_path, version_flag],
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
+        if result.returncode == 0:
+            return True, None
+        if version_flag == "--version":
+            result = subprocess.run(
+                [tool_path],
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+            )
+            if result.returncode in (0, 2):
+                return True, None
+        return False, f"{tool_name} found but version check failed (exit code: {result.returncode})"
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return False, f"{tool_name} not found or timed out"
+    except Exception as e:
+        return False, f"{tool_name} check failed: {e}"
+
+
 @beartype
 @require(lambda tool_name: isinstance(tool_name, str) and len(tool_name) > 0, "Tool name must be non-empty string")
 @ensure(lambda result: isinstance(result, tuple) and len(result) == 2, "Must return (bool, str | None) tuple")
@@ -38,58 +80,13 @@ def check_cli_tool_available(
         - is_available: True if tool is available, False otherwise
         - error_message: None if available, installation hint if not available
     """
-    # First check if tool exists in system PATH
-    tool_path = shutil.which(tool_name)
-
-    # If not in system PATH, check Python environment's bin directory
-    # This handles cases where tools are installed in the same environment as the CLI
-    if tool_path is None:
-        python_bin_dir = Path(sys.executable).parent
-        potential_path = python_bin_dir / tool_name
-        if potential_path.exists() and potential_path.is_file():
-            tool_path = str(potential_path)
-        else:
-            # Also check Scripts directory on Windows
-            scripts_dir = python_bin_dir / "Scripts"
-            if scripts_dir.exists():
-                potential_path = scripts_dir / tool_name
-                if potential_path.exists() and potential_path.is_file():
-                    tool_path = str(potential_path)
-
+    tool_path = _resolve_cli_tool_executable(tool_name)
     if tool_path is None:
         return (
             False,
             f"{tool_name} not found in PATH or Python environment. Install with: pip install {tool_name}",
         )
-
-    # Try to run the tool to verify it works
-    # Some tools (like pyan3) don't support --version, so we try that first,
-    # then fall back to just running the tool without arguments
-    try:
-        result = subprocess.run(
-            [tool_path, version_flag],
-            capture_output=True,
-            text=True,
-            timeout=timeout,
-        )
-        if result.returncode == 0:
-            return True, None
-        # If --version fails, try running without arguments (for tools like pyan3)
-        if version_flag == "--version":
-            result = subprocess.run(
-                [tool_path],
-                capture_output=True,
-                text=True,
-                timeout=timeout,
-            )
-            # pyan3 returns exit code 2 when run without args (shows usage), which means it's available
-            if result.returncode in (0, 2):
-                return True, None
-        return False, f"{tool_name} found but version check failed (exit code: {result.returncode})"
-    except (FileNotFoundError, subprocess.TimeoutExpired):
-        return False, f"{tool_name} not found or timed out"
-    except Exception as e:
-        return False, f"{tool_name} check failed: {e}"
+    return _probe_cli_tool_runs(tool_path, tool_name, version_flag, timeout)
 
 
 @beartype

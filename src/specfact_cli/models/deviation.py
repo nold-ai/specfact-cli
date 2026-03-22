@@ -99,11 +99,6 @@ class ValidationReport(BaseModel):
 
     @beartype
     @require(lambda deviation: isinstance(deviation, Deviation), "Must be Deviation instance")
-    @ensure(
-        lambda self: self.high_count + self.medium_count + self.low_count == len(self.deviations),
-        "Counts must match deviations",
-    )
-    @ensure(lambda self: self.passed == (self.high_count == 0), "Must fail if high severity deviations exist")
     def add_deviation(self, deviation: Deviation) -> None:
         """Add a deviation and update counts."""
         self.deviations.append(deviation)

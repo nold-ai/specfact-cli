@@ -20,7 +20,10 @@ from specfact_cli.validators.sidecar.models import FrameworkType
 
 @beartype
 @require(lambda venv_path: isinstance(venv_path, Path), "venv_path must be Path")
-@require(lambda repo_path: repo_path.exists(), "Repository path must exist")
+@require(
+    lambda repo_path: isinstance(repo_path, Path) and repo_path.exists(),
+    "Repository path must exist",
+)
 @ensure(lambda result: isinstance(result, bool), "Must return bool")
 def create_sidecar_venv(venv_path: Path, repo_path: Path) -> bool:
     """
@@ -71,8 +74,14 @@ def create_sidecar_venv(venv_path: Path, repo_path: Path) -> bool:
 
 
 @beartype
-@require(lambda venv_path: venv_path.exists(), "Venv path must exist")
-@require(lambda repo_path: repo_path.exists(), "Repository path must exist")
+@require(
+    lambda venv_path: isinstance(venv_path, Path) and venv_path.exists(),
+    "Venv path must exist",
+)
+@require(
+    lambda repo_path: isinstance(repo_path, Path) and repo_path.exists(),
+    "Repository path must exist",
+)
 @ensure(lambda result: isinstance(result, bool), "Must return bool")
 def install_dependencies(venv_path: Path, repo_path: Path, framework_type: FrameworkType | None = None) -> bool:
     """

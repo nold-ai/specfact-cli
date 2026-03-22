@@ -10,6 +10,7 @@ from specfact_cli.analyzers.ambiguity_scanner import (
     AmbiguityScanner,
     AmbiguityStatus,
     TaxonomyCategory,
+    _pyproject_classifier_strings_from_text,
 )
 from specfact_cli.models.plan import Feature, Idea, PlanBundle, Product, Story
 
@@ -284,3 +285,12 @@ def test_scan_coverage_status() -> None:
     assert report.coverage is not None
     clear_categories = [cat for cat, status in report.coverage.items() if status == AmbiguityStatus.CLEAR]
     assert len(clear_categories) > 0
+
+
+def test_pyproject_classifier_strings_from_text() -> None:
+    """project.classifiers are parsed as string list from valid TOML."""
+    text = '[project]\nclassifiers = ["Intended Audience :: Developers", "Topic :: Software Development"]\n'
+    assert _pyproject_classifier_strings_from_text(text) == [
+        "Intended Audience :: Developers",
+        "Topic :: Software Development",
+    ]

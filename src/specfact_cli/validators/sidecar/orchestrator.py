@@ -295,6 +295,21 @@ def get_extractor(
     return None
 
 
+def _detect_repo_venv_python(repo_path: Path) -> str | None:
+    for rel in (".venv/bin/python", "venv/bin/python"):
+        candidate = repo_path / rel
+        if candidate.exists():
+            return str(candidate)
+    return None
+
+
+def _prepend_venv_site_packages(pythonpath_parts: list[str], venv_python: str) -> None:
+    venv_dir = Path(venv_python).parent.parent
+    site_dirs = list(venv_dir.glob("lib/python*/site-packages"))
+    if site_dirs:
+        pythonpath_parts.append(str(site_dirs[0]))
+
+
 @ensure(lambda result: isinstance(result, bool), "Must return bool")
 def initialize_sidecar_workspace(config: SidecarConfig) -> bool:
     """
@@ -320,13 +335,7 @@ def initialize_sidecar_workspace(config: SidecarConfig) -> bool:
     # Detect environment manager and set Python command/path
     env_info = detect_env_manager(config.repo_path)
 
-    # Set Python command based on detected environment
-    # Check for .venv or venv first
-    venv_python = None
-    if (config.repo_path / ".venv" / "bin" / "python").exists():
-        venv_python = str(config.repo_path / ".venv" / "bin" / "python")
-    elif (config.repo_path / "venv" / "bin" / "python").exists():
-        venv_python = str(config.repo_path / "venv" / "bin" / "python")
+    venv_python = _detect_repo_venv_python(config.repo_path)
 
     if venv_python:
         config.python_cmd = venv_python
@@ -336,15 +345,10 @@ def initialize_sidecar_workspace(config: SidecarConfig) -> bool:
         config.python_cmd = "python3"  # Will be prefixed with env manager
 
     # Set PYTHONPATH based on detected environment
-    pythonpath_parts = []
+    pythonpath_parts: list[str] = []
 
-    # Add venv site-packages if venv exists
     if venv_python:
-        venv_dir = Path(venv_python).parent.parent
-        # Find actual Python version directory
-        python_version_dirs = list(venv_dir.glob("lib/python*/site-packages"))
-        if python_version_dirs:
-            pythonpath_parts.append(str(python_version_dirs[0]))
+        _prepend_venv_site_packages(pythonpath_parts, venv_python)
 
     # Add source directories
     for source_dir in config.paths.source_dirs:

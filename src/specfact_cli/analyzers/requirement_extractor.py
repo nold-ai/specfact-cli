@@ -191,43 +191,36 @@ class RequirementExtractor:
         Returns:
             List of NFR statements
         """
-        nfrs: list[str] = []
-
-        # Analyze class body for NFR patterns
         class_code = ast.unparse(class_node) if hasattr(ast, "unparse") else str(class_node)
         class_code_lower = class_code.lower()
+        nfrs: list[str] = []
+        nfrs.extend(self._nfrs_from_pattern_categories(class_code_lower))
+        nfrs.extend(self._nfrs_from_async_methods(class_node))
+        nfrs.extend(self._nfrs_from_type_hints(class_node))
+        return nfrs
 
-        # Performance NFRs
+    def _nfrs_from_pattern_categories(self, class_code_lower: str) -> list[str]:
+        out: list[str] = []
         if any(pattern in class_code_lower for pattern in self.PERFORMANCE_PATTERNS):
-            nfrs.append("The system must meet performance requirements (async operations, caching, optimization)")
-
-        # Security NFRs
+            out.append("The system must meet performance requirements (async operations, caching, optimization)")
         if any(pattern in class_code_lower for pattern in self.SECURITY_PATTERNS):
-            nfrs.append("The system must meet security requirements (authentication, authorization, encryption)")
-
-        # Reliability NFRs
+            out.append("The system must meet security requirements (authentication, authorization, encryption)")
         if any(pattern in class_code_lower for pattern in self.RELIABILITY_PATTERNS):
-            nfrs.append("The system must meet reliability requirements (error handling, retry logic, resilience)")
-
-        # Maintainability NFRs
+            out.append("The system must meet reliability requirements (error handling, retry logic, resilience)")
         if any(pattern in class_code_lower for pattern in self.MAINTAINABILITY_PATTERNS):
-            nfrs.append("The system must meet maintainability requirements (documentation, type hints, testing)")
+            out.append("The system must meet maintainability requirements (documentation, type hints, testing)")
+        return out
 
-        # Check for async methods
-        async_methods = [item for item in class_node.body if isinstance(item, ast.AsyncFunctionDef)]
-        if async_methods:
-            nfrs.append("The system must support asynchronous operations for improved performance")
+    def _nfrs_from_async_methods(self, class_node: ast.ClassDef) -> list[str]:
+        if any(isinstance(item, ast.AsyncFunctionDef) for item in class_node.body):
+            return ["The system must support asynchronous operations for improved performance"]
+        return []
 
-        # Check for type hints
-        has_type_hints = False
+    def _nfrs_from_type_hints(self, class_node: ast.ClassDef) -> list[str]:
         for item in class_node.body:
             if isinstance(item, ast.FunctionDef) and (item.returns or any(arg.annotation for arg in item.args.args)):
-                has_type_hints = True
-                break
-        if has_type_hints:
-            nfrs.append("The system must use type hints for improved code maintainability and IDE support")
-
-        return nfrs
+                return ["The system must use type hints for improved code maintainability and IDE support"]
+        return []
 
     @beartype
     def _parse_docstring_to_requirement(

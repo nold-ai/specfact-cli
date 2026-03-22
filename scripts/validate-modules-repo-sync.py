@@ -290,30 +290,30 @@ def _report_content_diffs(
     return 0
 
 
-@beartype
-@ensure(lambda result: result >= 0, "exit code must be non-negative")
-def main() -> int:
-    gate = "--gate" in sys.argv
-    modified_after = "--modified-after" in sys.argv
-    worktree = Path(__file__).resolve().parent.parent
-    modules_root = _resolve_modules_root(worktree)
+def _validate_modules_repo_layout(worktree: Path, modules_root: Path) -> tuple[Path, Path] | None:
+    """Return (cli_modules, packages_root) or None if layout invalid."""
     if not modules_root.is_dir():
         logger.error("Modules repo not found: %s", modules_root)
-        return 1
-
+        return None
     cli_modules = worktree / "src" / "specfact_cli" / "modules"
     if not cli_modules.is_dir():
         logger.error("Worktree modules not found: %s", cli_modules)
-        return 1
-
+        return None
     packages_root = modules_root / "packages"
     if not packages_root.is_dir():
         logger.error("packages/ not found in modules repo: %s", packages_root)
-        return 1
+        return None
+    return cli_modules, packages_root
 
-    missing, file_pairs, present_count, total_worktree = _collect_presence_data(cli_modules, packages_root)
-    only_in_modules = _collect_only_in_modules(cli_modules, packages_root)
 
+def _log_presence_report(
+    worktree: Path,
+    modules_root: Path,
+    total_worktree: int,
+    present_count: int,
+    missing: list[tuple[str, Path, Path]],
+    only_in_modules: list[Path],
+) -> None:
     logger.info("=== specfact-cli-modules validation vs worktree ===")
     logger.info("Worktree:     %s", worktree)
     logger.info("Modules repo: %s", modules_root)
@@ -323,12 +323,10 @@ def main() -> int:
     logger.info("Present in modules repo:          %d", present_count)
     logger.info("Missing in modules repo:          %d", len(missing))
     logger.info("Only in modules repo:             %d", len(only_in_modules))
-
     if missing:
         logger.info("--- MISSING in specfact-cli-modules (in worktree but not in repo) ---")
         for mod_name, wt_path, mod_path in sorted(missing, key=lambda x: (x[0], str(x[1]))):
             logger.info("  %s: %s -> %s", mod_name, wt_path.relative_to(worktree), mod_path.relative_to(modules_root))
-
     if only_in_modules:
         logger.info("--- ONLY in specfact-cli-modules (not in worktree under same module) ---")
         for p in sorted(only_in_modules)[:30]:
@@ -336,12 +334,37 @@ def main() -> int:
         if len(only_in_modules) > 30:
             logger.info("  ... and %d more", len(only_in_modules) - 30)
 
+
+def _presence_phase_exit_code(missing: list[tuple[str, Path, Path]], total_worktree: int) -> int | None:
+    """Return exit code when presence phase ends early, or None to continue."""
     if missing:
         logger.error("Result: FAIL - some worktree files are missing in modules repo.")
         return 1
     if total_worktree == 0:
         logger.info("Result: SKIP - no migrated module source found under worktree src/specfact_cli/modules/*/src/")
         return 0
+    return None
+
+
+@beartype
+@ensure(lambda result: result >= 0, "exit code must be non-negative")
+def main() -> int:
+    gate = "--gate" in sys.argv
+    modified_after = "--modified-after" in sys.argv
+    worktree = Path(__file__).resolve().parent.parent
+    modules_root = _resolve_modules_root(worktree)
+    layout = _validate_modules_repo_layout(worktree, modules_root)
+    if layout is None:
+        return 1
+    cli_modules, packages_root = layout
+
+    missing, file_pairs, present_count, total_worktree = _collect_presence_data(cli_modules, packages_root)
+    only_in_modules = _collect_only_in_modules(cli_modules, packages_root)
+    _log_presence_report(worktree, modules_root, total_worktree, present_count, missing, only_in_modules)
+
+    early = _presence_phase_exit_code(missing, total_worktree)
+    if early is not None:
+        return early
 
     if modified_after:
         return _report_modified_after(worktree, modules_root, file_pairs)

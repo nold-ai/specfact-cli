@@ -19,7 +19,7 @@ import subprocess
 from collections.abc import Iterator
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 from urllib.parse import urlparse
 
 import requests
@@ -40,9 +40,50 @@ from specfact_cli.models.source_tracking import SourceTracking
 from specfact_cli.registry.bridge_registry import BRIDGE_PROTOCOL_REGISTRY
 from specfact_cli.runtime import debug_log_operation, is_debug_mode
 from specfact_cli.utils.auth_tokens import get_token
+from specfact_cli.utils.icontract_helpers import (
+    ensure_backlog_update_preserves_identity,
+    require_bundle_dir_exists,
+    require_repo_path_exists,
+    require_repo_path_is_dir,
+)
 
 
 console = Console()
+
+
+def _as_str_dict(obj: dict[Any, Any]) -> dict[str, Any]:
+    """Narrow a runtime ``dict`` to ``dict[str, Any]`` for static analysis."""
+    return cast(dict[str, Any], obj)
+
+
+def _github_resolve_linked_issue_id_from_dict(linked: dict[str, Any]) -> str:
+    linked_id = str(linked.get("id") or linked.get("number") or "").strip()
+    if linked_id:
+        return linked_id
+    linked_url = str(linked.get("url") or "")
+    linked_match = re.search(r"/issues/(\d+)", linked_url, flags=re.IGNORECASE)
+    return linked_match.group(1) if linked_match else ""
+
+
+def _github_tuple_for_linked_relation(relation: str, issue_id: str, linked_id: str) -> tuple[str, str, str]:
+    rel = relation.strip().lower()
+    if rel in {"blocks", "block"}:
+        return issue_id, linked_id, "blocks"
+    if rel in {"blocked_by", "blocked by"}:
+        return linked_id, issue_id, "blocks"
+    if rel in {"parent", "parent_of"}:
+        return linked_id, issue_id, "parent"
+    if rel in {"child", "child_of"}:
+        return issue_id, linked_id, "parent"
+    return issue_id, linked_id, "relates"
+
+
+def _github_linked_issue_edge(issue_id: str, linked: dict[str, Any]) -> tuple[str, str, str] | None:
+    relation = str(linked.get("relation") or linked.get("type") or "").strip().lower()
+    linked_id = _github_resolve_linked_issue_id_from_dict(linked)
+    if not linked_id:
+        return None
+    return _github_tuple_for_linked_relation(relation, issue_id, linked_id)
 
 
 def _get_github_token_from_gh_cli() -> str | None:
@@ -196,7 +237,7 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
     def _entry_branch_candidates(entry: dict[str, Any]) -> list[str]:
         """Collect branch-like fields from a source-tracking entry."""
         source_metadata = entry.get("source_metadata")
-        metadata_dict = source_metadata if isinstance(source_metadata, dict) else {}
+        metadata_dict: dict[str, Any] = source_metadata if isinstance(source_metadata, dict) else {}
         values = [
             entry.get("branch"),
             entry.get("source_branch"),
@@ -396,12 +437,15 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         """Extract optional timeline, owner, and stakeholder values from issue data."""
         timeline = self._extract_markdown_section(body, "When", r"\n##\s") if body else None
         owner, stakeholders = self._extract_stakeholders_from_body(body)
-        assignees = item_data.get("assignees", [])
+        assignees_raw = item_data.get("assignees", [])
+        assignees = assignees_raw if isinstance(assignees_raw, list) else []
         if assignees and not owner:
-            owner = assignees[0].get("login", "") if isinstance(assignees[0], dict) else str(assignees[0])
+            first = assignees[0]
+            owner = _as_str_dict(first).get("login", "") if isinstance(first, dict) else str(first)
         if assignees:
             stakeholders.extend(
-                assignee.get("login", "") if isinstance(assignee, dict) else str(assignee) for assignee in assignees
+                _as_str_dict(assignee).get("login", "") if isinstance(assignee, dict) else str(assignee)
+                for assignee in assignees
             )
         return timeline, owner, self._dedupe_strings(stakeholders)
 
@@ -414,7 +458,9 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
 
     def _status_from_labels(self, labels: list[Any]) -> str:
         """Resolve OpenSpec status from GitHub labels."""
-        label_names = [label.get("name", "") if isinstance(label, dict) else str(label) for label in labels]
+        label_names = [
+            _as_str_dict(label).get("name", "") if isinstance(label, dict) else str(label) for label in labels
+        ]
         for label_name in label_names:
             mapped_status = self.map_backlog_status_to_openspec(label_name)
             if mapped_status != "proposed":
@@ -509,9 +555,11 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         """Extract GitHub Projects v2 type configuration if present."""
         if not isinstance(provider_fields, dict):
             return None
-        project_cfg = provider_fields.get("github_project_v2")
-        if not isinstance(project_cfg, dict):
+        pf = _as_str_dict(provider_fields)
+        project_cfg_raw = pf.get("github_project_v2")
+        if not isinstance(project_cfg_raw, dict):
             return None
+        project_cfg = _as_str_dict(project_cfg_raw)
         project_id = str(project_cfg.get("project_id") or "").strip()
         type_field_id = str(project_cfg.get("type_field_id") or "").strip()
         option_map = project_cfg.get("type_option_ids")
@@ -709,8 +757,8 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         }
 
     @beartype
-    @require(lambda repo_path: repo_path.exists(), "Repository path must exist")
-    @require(lambda repo_path: repo_path.is_dir(), "Repository path must be a directory")
+    @require(require_repo_path_exists, "Repository path must exist")
+    @require(require_repo_path_is_dir, "Repository path must be a directory")
     @ensure(lambda result: isinstance(result, bool), "Must return bool")
     def detect(self, repo_path: Path, bridge_config: BridgeConfig | None = None) -> bool:
         """
@@ -758,8 +806,8 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         return bool(bridge_config and bridge_config.adapter.value == "github")
 
     @beartype
-    @require(lambda repo_path: repo_path.exists(), "Repository path must exist")
-    @require(lambda repo_path: repo_path.is_dir(), "Repository path must be a directory")
+    @require(require_repo_path_exists, "Repository path must exist")
+    @require(require_repo_path_is_dir, "Repository path must be a directory")
     @ensure(lambda result: isinstance(result, ToolCapabilities), "Must return ToolCapabilities")
     def get_capabilities(self, repo_path: Path, bridge_config: BridgeConfig | None = None) -> ToolCapabilities:
         """
@@ -907,8 +955,8 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         source_repo: str | None,
     ) -> list[dict[str, Any]]:
         """Merge an imported backlog entry into the existing list by repo or source id."""
-        normalized_entries = (
-            [dict(existing) for existing in existing_entries if isinstance(existing, dict)]
+        normalized_entries: list[dict[str, Any]] = (
+            [_as_str_dict(existing) for existing in existing_entries if isinstance(existing, dict)]
             if isinstance(existing_entries, list)
             else []
         )
@@ -933,6 +981,31 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             project_bundle.change_tracking = ChangeTracking()
         project_bundle.change_tracking.proposals[proposal.name] = proposal
 
+    def _issue_number_from_source_tracking_model(self, source_tracking: SourceTracking, target_repo: str) -> Any | None:
+        source_metadata = source_tracking.source_metadata
+        if not isinstance(source_metadata, dict):
+            return None
+        if source_metadata.get("source_repo") == target_repo:
+            return source_metadata.get("source_id")
+        source_url = source_metadata.get("source_url", "")
+        if source_url and target_repo in str(source_url):
+            return source_metadata.get("source_id")
+        return source_metadata.get("source_id")
+
+    def _issue_number_from_tracking_entries(self, entries: list[Any], target_repo: str) -> Any | None:
+        for entry in entries:
+            if not isinstance(entry, dict):
+                continue
+            ed = _as_str_dict(entry)
+            entry_repo = ed.get("source_repo")
+            if entry_repo == target_repo:
+                return ed.get("source_id")
+            if not entry_repo:
+                source_url = ed.get("source_url", "")
+                if source_url and target_repo in source_url:
+                    return ed.get("source_id")
+        return None
+
     def _resolve_issue_number_from_tracking(
         self,
         source_tracking: SourceTracking | dict[str, Any] | list[Any],
@@ -942,27 +1015,11 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         """Resolve issue number for a specific repository from source_tracking (list or dict)."""
         target_repo = f"{repo_owner}/{repo_name}"
         if isinstance(source_tracking, SourceTracking):
-            source_metadata = source_tracking.source_metadata
-            if isinstance(source_metadata, dict):
-                if source_metadata.get("source_repo") == target_repo:
-                    return source_metadata.get("source_id")
-                source_url = source_metadata.get("source_url", "")
-                if source_url and target_repo in str(source_url):
-                    return source_metadata.get("source_id")
-                return source_metadata.get("source_id")
-            return None
+            return self._issue_number_from_source_tracking_model(source_tracking, target_repo)
         if isinstance(source_tracking, list):
-            for entry in source_tracking:
-                if isinstance(entry, dict):
-                    entry_repo = entry.get("source_repo")
-                    if entry_repo == target_repo:
-                        return entry.get("source_id")
-                    if not entry_repo:
-                        source_url = entry.get("source_url", "")
-                        if source_url and target_repo in source_url:
-                            return entry.get("source_id")
-        elif isinstance(source_tracking, dict):
-            return source_tracking.get("source_id")
+            return self._issue_number_from_tracking_entries(source_tracking, target_repo)
+        if isinstance(source_tracking, dict):
+            return _as_str_dict(source_tracking).get("source_id")
         return None
 
     def _handle_proposal_comment_artifact(
@@ -986,20 +1043,26 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
 
         # Add change_id to source_tracking entries for branch inference
         if isinstance(source_tracking, list):
-            source_tracking_with_id = []
+            st_list: list[Any] = []
             for entry in source_tracking:
-                entry_copy = dict(entry) if isinstance(entry, dict) else entry
-                if isinstance(entry_copy, dict) and not entry_copy.get("change_id"):
+                if not isinstance(entry, dict):
+                    st_list.append(entry)
+                    continue
+                ed = _as_str_dict(entry)
+                entry_copy = dict(ed)
+                if not entry_copy.get("change_id"):
                     entry_copy["change_id"] = change_id
-                source_tracking_with_id.append(entry_copy)
+                st_list.append(entry_copy)
+            source_tracking_resolved = st_list
         elif isinstance(source_tracking, dict):
-            source_tracking_with_id = dict(source_tracking)
-            if not source_tracking_with_id.get("change_id"):
-                source_tracking_with_id["change_id"] = change_id
+            st_dict: dict[str, Any] = dict(_as_str_dict(source_tracking))
+            if not st_dict.get("change_id"):
+                st_dict["change_id"] = change_id
+            source_tracking_resolved = st_dict
         else:
-            source_tracking_with_id = source_tracking
+            source_tracking_resolved = source_tracking
 
-        comment_text = self._get_status_comment(status, title, source_tracking_with_id, code_repo_path)
+        comment_text = self._get_status_comment(status, title, source_tracking_resolved, code_repo_path)
         if comment_text:
             comment_note = (
                 f"{comment_text}\n\n"
@@ -1030,6 +1093,39 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             sanitize = bridge_config.sanitize if bridge_config.sanitize is not None else sanitize  # type: ignore[attr-defined]
 
         return self._add_progress_comment(artifact_data, repo_owner, repo_name, int(issue_number), sanitize=sanitize)
+
+    def _export_change_proposal_update_artifact(
+        self, artifact_data: Any, repo_owner: str, repo_name: str
+    ) -> dict[str, Any]:
+        source_tracking = artifact_data.get("source_tracking", {})
+        issue_number = self._resolve_issue_number_from_tracking(source_tracking, repo_owner, repo_name)
+        if not issue_number:
+            msg = "Issue number required for content update (missing in source_tracking for this repository)"
+            raise ValueError(msg)
+        code_repo_path_str = artifact_data.get("_code_repo_path")
+        code_repo_path = Path(code_repo_path_str) if code_repo_path_str else None
+        return self._update_issue_body(artifact_data, repo_owner, repo_name, int(issue_number), code_repo_path)
+
+    def _export_github_artifact_dispatch(
+        self,
+        artifact_key: str,
+        artifact_data: Any,
+        repo_owner: str,
+        repo_name: str,
+        bridge_config: BridgeConfig | None,
+    ) -> dict[str, Any]:
+        if artifact_key == "change_proposal":
+            return self._create_issue_from_proposal(artifact_data, repo_owner, repo_name)
+        if artifact_key == "change_status":
+            return self._update_issue_status(artifact_data, repo_owner, repo_name)
+        if artifact_key == "change_proposal_update":
+            return self._export_change_proposal_update_artifact(artifact_data, repo_owner, repo_name)
+        if artifact_key == "change_proposal_comment":
+            return self._handle_proposal_comment_artifact(artifact_data, repo_owner, repo_name)
+        if artifact_key == "code_change_progress":
+            return self._handle_code_change_progress_artifact(artifact_data, repo_owner, repo_name, bridge_config)
+        msg = f"Unsupported artifact key: {artifact_key}. Supported: change_proposal, change_status, change_proposal_update, code_change_progress"
+        raise ValueError(msg)
 
     @beartype
     @require(
@@ -1076,25 +1172,7 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             msg = "GitHub repository owner and name required. Provide via --repo-owner and --repo-name or bridge config"
             raise ValueError(msg)
 
-        if artifact_key == "change_proposal":
-            return self._create_issue_from_proposal(artifact_data, repo_owner, repo_name)
-        if artifact_key == "change_status":
-            return self._update_issue_status(artifact_data, repo_owner, repo_name)
-        if artifact_key == "change_proposal_update":
-            source_tracking = artifact_data.get("source_tracking", {})
-            issue_number = self._resolve_issue_number_from_tracking(source_tracking, repo_owner, repo_name)
-            if not issue_number:
-                msg = "Issue number required for content update (missing in source_tracking for this repository)"
-                raise ValueError(msg)
-            code_repo_path_str = artifact_data.get("_code_repo_path")
-            code_repo_path = Path(code_repo_path_str) if code_repo_path_str else None
-            return self._update_issue_body(artifact_data, repo_owner, repo_name, int(issue_number), code_repo_path)
-        if artifact_key == "change_proposal_comment":
-            return self._handle_proposal_comment_artifact(artifact_data, repo_owner, repo_name)
-        if artifact_key == "code_change_progress":
-            return self._handle_code_change_progress_artifact(artifact_data, repo_owner, repo_name, bridge_config)
-        msg = f"Unsupported artifact key: {artifact_key}. Supported: change_proposal, change_status, change_proposal_update, code_change_progress"
-        raise ValueError(msg)
+        return self._export_github_artifact_dispatch(artifact_key, artifact_data, repo_owner, repo_name, bridge_config)
 
     @beartype
     @require(lambda item_ref: isinstance(item_ref, str) and len(item_ref) > 0, "Item reference must be non-empty")
@@ -1208,19 +1286,20 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         source_tracking = proposal_data.get("source_tracking")
         source_metadata = None
         if isinstance(source_tracking, dict):
-            source_metadata = source_tracking.get("source_metadata")
+            source_metadata = _as_str_dict(source_tracking).get("source_metadata")
         elif source_tracking is not None and hasattr(source_tracking, "source_metadata"):
             source_metadata = source_tracking.source_metadata
 
         if isinstance(source_metadata, dict):
-            raw_title = raw_title or source_metadata.get("raw_title")
-            raw_body = raw_body or source_metadata.get("raw_body")
+            sm = _as_str_dict(source_metadata)
+            raw_title = raw_title or sm.get("raw_title")
+            raw_body = raw_body or sm.get("raw_body")
 
         return raw_title, raw_body
 
     @beartype
-    @require(lambda repo_path: repo_path.exists(), "Repository path must exist")
-    @require(lambda repo_path: repo_path.is_dir(), "Repository path must be a directory")
+    @require(require_repo_path_exists, "Repository path must exist")
+    @require(require_repo_path_is_dir, "Repository path must be a directory")
     @ensure(lambda result: isinstance(result, BridgeConfig), "Must return BridgeConfig")
     def generate_bridge_config(self, repo_path: Path) -> BridgeConfig:
         """
@@ -1238,7 +1317,7 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
 
     @beartype
     @require(lambda bundle_dir: isinstance(bundle_dir, Path), "Bundle directory must be Path")
-    @require(lambda bundle_dir: bundle_dir.exists(), "Bundle directory must exist")
+    @require(require_bundle_dir_exists, "Bundle directory must exist")
     @ensure(lambda result: result is None, "GitHub adapter does not support change tracking loading")
     def load_change_tracking(
         self, bundle_dir: Path, bridge_config: BridgeConfig | None = None
@@ -1260,7 +1339,7 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
 
     @beartype
     @require(lambda bundle_dir: isinstance(bundle_dir, Path), "Bundle directory must be Path")
-    @require(lambda bundle_dir: bundle_dir.exists(), "Bundle directory must exist")
+    @require(require_bundle_dir_exists, "Bundle directory must exist")
     @require(
         lambda change_tracking: isinstance(change_tracking, ChangeTracking), "Change tracking must be ChangeTracking"
     )
@@ -1283,7 +1362,7 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
 
     @beartype
     @require(lambda bundle_dir: isinstance(bundle_dir, Path), "Bundle directory must be Path")
-    @require(lambda bundle_dir: bundle_dir.exists(), "Bundle directory must exist")
+    @require(require_bundle_dir_exists, "Bundle directory must exist")
     @require(lambda change_name: isinstance(change_name, str) and len(change_name) > 0, "Change name must be non-empty")
     @ensure(lambda result: result is None, "GitHub adapter does not support change proposal loading")
     def load_change_proposal(
@@ -1307,7 +1386,7 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
 
     @beartype
     @require(lambda bundle_dir: isinstance(bundle_dir, Path), "Bundle directory must be Path")
-    @require(lambda bundle_dir: bundle_dir.exists(), "Bundle directory must exist")
+    @require(require_bundle_dir_exists, "Bundle directory must exist")
     @require(lambda proposal: isinstance(proposal, ChangeProposal), "Proposal must be ChangeProposal")
     @ensure(lambda result: result is None, "Must return None")
     def save_change_proposal(
@@ -1891,10 +1970,13 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             Future backlog adapters should implement similar sync methods for their tools.
         """
         # Extract GitHub status from labels
-        labels = issue_data.get("labels", [])
+        labels_raw = issue_data.get("labels", [])
+        labels = labels_raw if isinstance(labels_raw, list) else []
         github_status = "open"  # Default
         if labels:
-            label_names = [label.get("name", "") if isinstance(label, dict) else str(label) for label in labels]
+            label_names = [
+                _as_str_dict(label).get("name", "") if isinstance(label, dict) else str(label) for label in labels
+            ]
             for label_name in label_names:
                 mapped_status = self.map_backlog_status_to_openspec(label_name)
                 if mapped_status != "proposed":  # Use first non-default status
@@ -2499,7 +2581,8 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         issue_payload = response.json()
         if not isinstance(issue_payload, dict):
             return None
-        if issue_payload.get("pull_request") is not None:
+        ip = _as_str_dict(issue_payload)
+        if ip.get("pull_request") is not None:
             # Backlog issue commands should not resolve pull requests.
             return None
 
@@ -2595,30 +2678,14 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
     @staticmethod
     def _linked_issue_edge(issue_id: str, linked: dict[str, Any]) -> tuple[str, str, str] | None:
         """Normalize a provider linked-issue record into a relationship edge."""
-        relation = str(linked.get("relation") or linked.get("type") or "").strip().lower()
-        linked_id = str(linked.get("id") or linked.get("number") or "").strip()
-        if not linked_id:
-            linked_url = str(linked.get("url") or "")
-            linked_match = re.search(r"/issues/(\d+)", linked_url, flags=re.IGNORECASE)
-            linked_id = linked_match.group(1) if linked_match else ""
-        if not linked_id:
-            return None
-        if relation in {"blocks", "block"}:
-            return issue_id, linked_id, "blocks"
-        if relation in {"blocked_by", "blocked by"}:
-            return linked_id, issue_id, "blocks"
-        if relation in {"parent", "parent_of"}:
-            return linked_id, issue_id, "parent"
-        if relation in {"child", "child_of"}:
-            return issue_id, linked_id, "parent"
-        return issue_id, linked_id, "relates"
+        return _github_linked_issue_edge(issue_id, linked)
 
     def _issue_relationship_edges(self, issue: dict[str, Any], issue_id: str) -> list[tuple[str, str, str]]:
         """Collect relationship edges from provider fields and body text."""
         edges: list[tuple[str, str, str]] = []
         provider_fields = issue.get("provider_fields")
         if isinstance(provider_fields, dict):
-            linked_issues = provider_fields.get("linked_issues", [])
+            linked_issues = _as_str_dict(provider_fields).get("linked_issues", [])
             if isinstance(linked_issues, list):
                 for linked in linked_issues:
                     if isinstance(linked, dict):
@@ -2648,9 +2715,10 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
                 timeout=30,
             )
         )
-        payload = response.json()
-        if not isinstance(payload, dict):
+        payload_raw = response.json()
+        if not isinstance(payload_raw, dict):
             raise ValueError("GitHub GraphQL response must be an object")
+        payload = _as_str_dict(payload_raw)
         errors = payload.get("errors")
         if isinstance(errors, list) and errors:
             raise ValueError(f"GitHub GraphQL errors: {errors}")
@@ -2688,9 +2756,11 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         if not issue_node_id or not isinstance(provider_fields, dict):
             return
 
-        issue_cfg = provider_fields.get("github_issue_types")
-        if not isinstance(issue_cfg, dict):
+        pf = _as_str_dict(provider_fields)
+        issue_cfg_raw = pf.get("github_issue_types")
+        if not isinstance(issue_cfg_raw, dict):
             return
+        issue_cfg = _as_str_dict(issue_cfg_raw)
         type_ids = issue_cfg.get("type_ids")
         if not isinstance(type_ids, dict):
             return
@@ -2751,9 +2821,12 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
                 parent_query,
                 {"owner": owner, "repo": repo, "number": parent_number},
             )
-            repository = parent_data.get("repository") if isinstance(parent_data, dict) else None
-            issue = repository.get("issue") if isinstance(repository, dict) else None
-            parent_issue_id = str(issue.get("id") or "").strip() if isinstance(issue, dict) else ""
+            pd = _as_str_dict(parent_data)
+            repository = pd.get("repository")
+            repository_d = _as_str_dict(repository) if isinstance(repository, dict) else None
+            issue = repository_d.get("issue") if repository_d is not None else None
+            issue_d = _as_str_dict(issue) if isinstance(issue, dict) else None
+            parent_issue_id = str(issue_d.get("id") or "").strip() if issue_d is not None else ""
             if not parent_issue_id:
                 return
             self._github_graphql(
@@ -2802,9 +2875,12 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
                 add_item_mutation,
                 {"projectId": project_id, "contentId": issue_node_id},
             )
-            add_result = add_data.get("addProjectV2ItemById") if isinstance(add_data, dict) else None
-            item = add_result.get("item") if isinstance(add_result, dict) else None
-            item_id = str(item.get("id") or "").strip() if isinstance(item, dict) else ""
+            add_d = _as_str_dict(add_data)
+            add_result = add_d.get("addProjectV2ItemById")
+            add_result_d = _as_str_dict(add_result) if isinstance(add_result, dict) else None
+            item = add_result_d.get("item") if add_result_d is not None else None
+            item_d = _as_str_dict(item) if isinstance(item, dict) else None
+            item_id = str(item_d.get("id") or "").strip() if item_d is not None else ""
             if not item_id:
                 return
             self._github_graphql(
@@ -2838,7 +2914,6 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         title = self._required_issue_title(payload)
         issue_type = str(payload.get("type") or "task").strip().lower()
         body = self._create_issue_body(payload)
-        parent_id = payload.get("parent_id")
         labels = self._labels_from_payload(
             issue_type, str(payload.get("priority") or "").strip(), payload.get("story_points")
         )
@@ -2857,14 +2932,7 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             retry_on_ambiguous_transport=False,
         )
         created = response.json()
-        issue_node_id = str(created.get("node_id") or "").strip()
-        if parent_id:
-            self._try_link_github_sub_issue(owner, repo, parent_id, issue_node_id)
-
-        provider_fields = payload.get("provider_fields")
-        if isinstance(provider_fields, dict):
-            self._try_set_github_issue_type(issue_node_id, issue_type, provider_fields)
-            self._try_set_github_project_type_field(issue_node_id, issue_type, provider_fields)
+        self._apply_create_issue_post_hooks(owner, repo, created, payload, issue_type)
 
         canonical_issue_number = str(created.get("number") or created.get("id") or "")
         return {
@@ -2872,6 +2940,24 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             "key": canonical_issue_number,
             "url": str(created.get("html_url") or created.get("url") or ""),
         }
+
+    def _apply_create_issue_post_hooks(
+        self,
+        owner: str,
+        repo: str,
+        created: dict[str, Any],
+        payload: dict[str, Any],
+        issue_type: str,
+    ) -> None:
+        issue_node_id = str(created.get("node_id") or "").strip()
+        parent_id = payload.get("parent_id")
+        if parent_id:
+            self._try_link_github_sub_issue(owner, repo, parent_id, issue_node_id)
+        provider_fields = payload.get("provider_fields")
+        if not isinstance(provider_fields, dict):
+            return
+        self._try_set_github_issue_type(issue_node_id, issue_type, provider_fields)
+        self._try_set_github_project_type_field(issue_node_id, issue_type, provider_fields)
 
     @staticmethod
     def _required_issue_title(payload: dict[str, Any]) -> str:
@@ -2970,8 +3056,9 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             if isinstance(value, str):
                 yield value
             elif isinstance(value, dict):
+                vd = _as_str_dict(value)
                 for candidate_key in ("name", "title"):
-                    candidate_value = value.get(candidate_key)
+                    candidate_value = vd.get(candidate_key)
                     if isinstance(candidate_value, str):
                         yield candidate_value
         tags = issue_payload.get("tags")
@@ -3081,7 +3168,7 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
     )
     @ensure(lambda result: isinstance(result, BacklogItem), "Must return BacklogItem")
     @ensure(
-        lambda result, item: result.id == item.id and result.provider == item.provider,
+        lambda result, item: ensure_backlog_update_preserves_identity(result, item),
         "Updated item must preserve id and provider",
     )
     def update_backlog_item(self, item: BacklogItem, update_fields: list[str] | None = None) -> BacklogItem:

@@ -15,7 +15,7 @@ import importlib.util
 import os
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from beartype import beartype
 from icontract import ensure, require
@@ -172,8 +172,164 @@ def _package_sort_key(item: tuple[Path, ModulePackageMetadata]) -> tuple[int, st
         return (len(CORE_MODULE_ORDER), meta.name)
 
 
+def _publisher_info_from_raw(raw: dict[str, Any]) -> PublisherInfo | None:
+    pub_raw = raw.get("publisher")
+    if not isinstance(pub_raw, dict):
+        return None
+    pub_dict = cast(dict[str, Any], pub_raw)
+    name_val = pub_dict.get("name")
+    if not name_val:
+        return None
+    email_val = pub_dict.get("email")
+    return PublisherInfo(
+        name=str(name_val),
+        email=str(email_val).strip() if email_val else "noreply@specfact.local",
+        attributes={str(k): str(v) for k, v in pub_dict.items() if k not in ("name", "email") and isinstance(v, str)},
+    )
+
+
+def _integrity_info_from_raw(raw: dict[str, Any]) -> IntegrityInfo | None:
+    integ_raw = raw.get("integrity")
+    if not isinstance(integ_raw, dict):
+        return None
+    integ = cast(dict[str, Any], integ_raw)
+    if not integ.get("checksum"):
+        return None
+    return IntegrityInfo(
+        checksum=str(integ["checksum"]),
+        signature=str(integ["signature"]) if integ.get("signature") else None,
+    )
+
+
+def _versioned_module_dependencies_from_raw(raw: dict[str, Any]) -> list[VersionedModuleDependency]:
+    out: list[VersionedModuleDependency] = []
+    mdv = raw.get("module_dependencies_versioned", [])
+    for entry in cast(list[Any], mdv if isinstance(mdv, list) else []):
+        if isinstance(entry, dict) and cast(dict[str, Any], entry).get("name"):
+            ent = cast(dict[str, Any], entry)
+            out.append(
+                VersionedModuleDependency(
+                    name=str(ent["name"]),
+                    version_specifier=str(ent["version_specifier"]) if ent.get("version_specifier") else None,
+                )
+            )
+    return out
+
+
+def _versioned_pip_dependencies_from_raw(raw: dict[str, Any]) -> list[VersionedPipDependency]:
+    out: list[VersionedPipDependency] = []
+    pdv = raw.get("pip_dependencies_versioned", [])
+    for entry in cast(list[Any], pdv if isinstance(pdv, list) else []):
+        if isinstance(entry, dict) and cast(dict[str, Any], entry).get("name"):
+            ent = cast(dict[str, Any], entry)
+            out.append(
+                VersionedPipDependency(
+                    name=str(ent["name"]),
+                    version_specifier=str(ent["version_specifier"]) if ent.get("version_specifier") else None,
+                )
+            )
+    return out
+
+
+def _validated_service_bridges_from_raw(raw: dict[str, Any]) -> list[ServiceBridgeMetadata]:
+    out: list[ServiceBridgeMetadata] = []
+    for bridge_entry in raw.get("service_bridges", []) or []:
+        try:
+            out.append(ServiceBridgeMetadata.model_validate(bridge_entry))
+        except Exception:
+            continue
+    return out
+
+
+def _validated_schema_extensions_from_raw(raw: dict[str, Any]) -> list[SchemaExtension]:
+    out: list[SchemaExtension] = []
+    for ext_entry in raw.get("schema_extensions", []) or []:
+        try:
+            if isinstance(ext_entry, dict):
+                out.append(SchemaExtension.model_validate(ext_entry))
+        except Exception:
+            continue
+    return out
+
+
+def _apply_category_manifest_postprocess(meta: ModulePackageMetadata) -> ModulePackageMetadata:
+    if meta.category is None:
+        logger = get_bridge_logger(__name__)
+        logger.warning(
+            "Module '%s' has no category field; mounting as flat top-level command.",
+            meta.name,
+        )
+        return meta
+    meta = normalize_legacy_bundle_group_command(meta)
+    validate_module_category_manifest(meta)
+    return meta
+
+
+def _raw_opt_str(raw: dict[str, Any], key: str) -> str | None:
+    v = raw.get(key)
+    return str(v) if v else None
+
+
+def _raw_schema_version_str(raw: dict[str, Any]) -> str | None:
+    if raw.get("schema_version") is None:
+        return None
+    return str(raw["schema_version"])
+
+
+def _module_package_metadata_from_raw_dict(raw: dict[str, Any], source: str) -> ModulePackageMetadata:
+    raw_help = raw.get("command_help")
+    command_help = {str(k): str(v) for k, v in raw_help.items()} if isinstance(raw_help, dict) else None
+    meta = ModulePackageMetadata(
+        name=str(raw["name"]),
+        version=str(raw.get("version", "0.1.0")),
+        commands=[str(c) for c in raw.get("commands", [])],
+        command_help=command_help,
+        pip_dependencies=[str(d) for d in raw.get("pip_dependencies", [])],
+        module_dependencies=[str(d) for d in raw.get("module_dependencies", [])],
+        core_compatibility=_raw_opt_str(raw, "core_compatibility"),
+        tier=str(raw.get("tier", "community")),
+        addon_id=_raw_opt_str(raw, "addon_id"),
+        schema_version=_raw_schema_version_str(raw),
+        publisher=_publisher_info_from_raw(raw),
+        integrity=_integrity_info_from_raw(raw),
+        module_dependencies_versioned=_versioned_module_dependencies_from_raw(raw),
+        pip_dependencies_versioned=_versioned_pip_dependencies_from_raw(raw),
+        service_bridges=_validated_service_bridges_from_raw(raw),
+        schema_extensions=_validated_schema_extensions_from_raw(raw),
+        description=_raw_opt_str(raw, "description"),
+        license=_raw_opt_str(raw, "license"),
+        source=source,
+        category=_raw_opt_str(raw, "category"),
+        bundle=_raw_opt_str(raw, "bundle"),
+        bundle_group_command=_raw_opt_str(raw, "bundle_group_command"),
+        bundle_sub_command=_raw_opt_str(raw, "bundle_sub_command"),
+    )
+    return _apply_category_manifest_postprocess(meta)
+
+
+def _try_discover_one_package(child: Path, source: str, yaml_mod: Any) -> tuple[Path, ModulePackageMetadata] | None:
+    meta_file = child / "module-package.yaml"
+    if not meta_file.exists():
+        meta_file = child / "metadata.yaml"
+    if not meta_file.exists():
+        return None
+    try:
+        raw = yaml_mod.safe_load(meta_file.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+    if not isinstance(raw, dict) or "name" not in raw or "commands" not in raw:
+        return None
+    try:
+        meta = _module_package_metadata_from_raw_dict(raw, source)
+    except ModuleManifestError:
+        raise
+    except Exception:
+        return None
+    return (child, meta)
+
+
 @beartype
-@require(lambda source: bool(source.strip()), "source must not be empty")
+@require(lambda source: bool(cast(str, source).strip()), "source must not be empty")
 @ensure(lambda result: isinstance(result, list), "Must return a list of (Path, metadata) tuples")
 def discover_package_metadata(modules_root: Path, source: str = "builtin") -> list[tuple[Path, ModulePackageMetadata]]:
     """
@@ -189,122 +345,14 @@ def discover_package_metadata(modules_root: Path, source: str = "builtin") -> li
     for child in sorted(modules_root.iterdir()):
         if not child.is_dir():
             continue
-        meta_file = child / "module-package.yaml"
-        if not meta_file.exists():
-            meta_file = child / "metadata.yaml"
-        if not meta_file.exists():
-            continue
-        try:
-            raw = yaml.safe_load(meta_file.read_text(encoding="utf-8"))
-        except Exception:
-            continue
-        if not isinstance(raw, dict) or "name" not in raw or "commands" not in raw:
-            continue
-        try:
-            raw_help = raw.get("command_help")
-            command_help = None
-            if isinstance(raw_help, dict):
-                command_help = {str(k): str(v) for k, v in raw_help.items()}
-            publisher: PublisherInfo | None = None
-            if isinstance(raw.get("publisher"), dict):
-                pub = raw["publisher"]
-                name_val = pub.get("name")
-                email_val = pub.get("email")
-                if name_val:
-                    publisher = PublisherInfo(
-                        name=str(name_val),
-                        email=str(email_val).strip() if email_val else "noreply@specfact.local",
-                        attributes={
-                            str(k): str(v) for k, v in pub.items() if k not in ("name", "email") and isinstance(v, str)
-                        },
-                    )
-            integrity: IntegrityInfo | None = None
-            if isinstance(raw.get("integrity"), dict):
-                integ = raw["integrity"]
-                if integ.get("checksum"):
-                    integrity = IntegrityInfo(
-                        checksum=str(integ["checksum"]),
-                        signature=str(integ["signature"]) if integ.get("signature") else None,
-                    )
-            module_deps_versioned: list[VersionedModuleDependency] = []
-            for entry in raw.get("module_dependencies_versioned") or []:
-                if isinstance(entry, dict) and entry.get("name"):
-                    module_deps_versioned.append(
-                        VersionedModuleDependency(
-                            name=str(entry["name"]),
-                            version_specifier=str(entry["version_specifier"])
-                            if entry.get("version_specifier")
-                            else None,
-                        )
-                    )
-            pip_deps_versioned: list[VersionedPipDependency] = []
-            for entry in raw.get("pip_dependencies_versioned") or []:
-                if isinstance(entry, dict) and entry.get("name"):
-                    pip_deps_versioned.append(
-                        VersionedPipDependency(
-                            name=str(entry["name"]),
-                            version_specifier=str(entry["version_specifier"])
-                            if entry.get("version_specifier")
-                            else None,
-                        )
-                    )
-            validated_service_bridges: list[ServiceBridgeMetadata] = []
-            for bridge_entry in raw.get("service_bridges", []) or []:
-                try:
-                    validated_service_bridges.append(ServiceBridgeMetadata.model_validate(bridge_entry))
-                except Exception:
-                    continue
-            validated_schema_extensions: list[SchemaExtension] = []
-            for ext_entry in raw.get("schema_extensions", []) or []:
-                try:
-                    if isinstance(ext_entry, dict):
-                        validated_schema_extensions.append(SchemaExtension.model_validate(ext_entry))
-                except Exception:
-                    continue
-            meta = ModulePackageMetadata(
-                name=str(raw["name"]),
-                version=str(raw.get("version", "0.1.0")),
-                commands=[str(c) for c in raw.get("commands", [])],
-                command_help=command_help,
-                pip_dependencies=[str(d) for d in raw.get("pip_dependencies", [])],
-                module_dependencies=[str(d) for d in raw.get("module_dependencies", [])],
-                core_compatibility=str(raw["core_compatibility"]) if raw.get("core_compatibility") else None,
-                tier=str(raw.get("tier", "community")),
-                addon_id=str(raw["addon_id"]) if raw.get("addon_id") else None,
-                schema_version=str(raw["schema_version"]) if raw.get("schema_version") is not None else None,
-                publisher=publisher,
-                integrity=integrity,
-                module_dependencies_versioned=module_deps_versioned,
-                pip_dependencies_versioned=pip_deps_versioned,
-                service_bridges=validated_service_bridges,
-                schema_extensions=validated_schema_extensions,
-                description=str(raw["description"]) if raw.get("description") else None,
-                license=str(raw["license"]) if raw.get("license") else None,
-                source=source,
-                category=str(raw["category"]) if raw.get("category") else None,
-                bundle=str(raw["bundle"]) if raw.get("bundle") else None,
-                bundle_group_command=str(raw["bundle_group_command"]) if raw.get("bundle_group_command") else None,
-                bundle_sub_command=str(raw["bundle_sub_command"]) if raw.get("bundle_sub_command") else None,
-            )
-            if meta.category is None:
-                logger = get_bridge_logger(__name__)
-                logger.warning(
-                    "Module '%s' has no category field; mounting as flat top-level command.",
-                    meta.name,
-                )
-            else:
-                meta = normalize_legacy_bundle_group_command(meta)
-                validate_module_category_manifest(meta)
-            result.append((child, meta))
-        except ModuleManifestError:
-            raise
-        except Exception:
-            continue
+        loaded = _try_discover_one_package(child, source, yaml)
+        if loaded is not None:
+            result.append(loaded)
     return result
 
 
 @beartype
-@require(lambda class_path: class_path.strip() != "", "Converter class path must not be empty")
+@require(lambda class_path: cast(str, class_path).strip() != "", "Converter class path must not be empty")
 @require(lambda class_path: "." in class_path, "Converter class path must include module and class name")
 @ensure(lambda result: isinstance(result, type), "Resolved converter must be a class")
 def _resolve_converter_class(class_path: str) -> type[SchemaConverter]:
@@ -464,44 +512,62 @@ def expand_enable_with_dependencies(
     return list(expanded)
 
 
+def _loader_path_from_repo_root(src_dir: Path, normalized_name: str) -> tuple[Path, list[str]] | None:
+    if not (os.environ.get("SPECFACT_REPO_ROOT") and (src_dir / normalized_name / "main.py").exists()):
+        return None
+    load_path = src_dir / normalized_name / "main.py"
+    return load_path, [str(load_path.parent)]
+
+
+def _loader_path_standard_candidates(
+    src_dir: Path, normalized_name: str, normalized_command: str
+) -> tuple[Path, list[str] | None] | None:
+    candidates: list[tuple[Path, list[str] | None]] = [
+        (src_dir / normalized_name / normalized_command / "app.py", None),
+        (src_dir / normalized_name / normalized_command / "commands.py", None),
+        (src_dir / "app.py", None),
+        (src_dir / f"{normalized_name}.py", None),
+        (src_dir / normalized_name / "__init__.py", [str((src_dir / normalized_name).resolve())]),
+    ]
+    for path, sub in candidates:
+        if path.exists():
+            return path, sub
+    return None
+
+
+def _resolve_command_loader_path(
+    package_dir: Path, package_name: str, command_name: str
+) -> tuple[Path, list[str] | None]:
+    """Resolve module entrypoint path and optional submodule search locations."""
+    src_dir = package_dir / "src"
+    if not src_dir.exists():
+        raise ValueError(f"Package {package_dir.name} has no src/")
+    normalized_name = _normalized_module_name(package_name)
+    normalized_command = _normalized_module_name(command_name)
+    submodule_locations: list[str] | None = None
+    from_repo = _loader_path_from_repo_root(src_dir, normalized_name)
+    if from_repo is not None:
+        load_path, submodule_locations = from_repo
+    else:
+        standard = _loader_path_standard_candidates(src_dir, normalized_name, normalized_command)
+        if standard is None:
+            raise ValueError(
+                f"Package {package_dir.name} has no src/app.py, src/{package_name}.py or src/{package_name}/"
+            )
+        load_path, submodule_locations = standard
+    if submodule_locations is None and load_path.name == "__init__.py":
+        submodule_locations = [str(load_path.parent)]
+    return load_path, submodule_locations
+
+
 def _make_package_loader(package_dir: Path, package_name: str, command_name: str) -> Any:
     """Return a callable that loads the package's app (from src/app.py or src/<name>/__init__.py)."""
 
     def loader() -> Any:
         src_dir = package_dir / "src"
-        if not src_dir.exists():
-            raise ValueError(f"Package {package_dir.name} has no src/")
         if str(src_dir) not in sys.path:
             sys.path.insert(0, str(src_dir))
-        normalized_name = _normalized_module_name(package_name)
-        normalized_command = _normalized_module_name(command_name)
-        load_path: Path | None = None
-        submodule_locations: list[str] | None = None
-        # In test/CI (SPECFACT_REPO_ROOT set), prefer local src/<name>/main.py so worktree
-        # code runs (e.g. env-aware templates) instead of the bundle delegate (app.py -> specfact_backlog).
-        if os.environ.get("SPECFACT_REPO_ROOT") and (src_dir / normalized_name / "main.py").exists():
-            load_path = src_dir / normalized_name / "main.py"
-            submodule_locations = [str(load_path.parent)]
-        if load_path is None:
-            # Prefer command-specific namespaced entrypoints for marketplace bundles
-            # (e.g. src/specfact_backlog/backlog/app.py) before generic root fallbacks.
-            if (src_dir / normalized_name / normalized_command / "app.py").exists():
-                load_path = src_dir / normalized_name / normalized_command / "app.py"
-            elif (src_dir / normalized_name / normalized_command / "commands.py").exists():
-                load_path = src_dir / normalized_name / normalized_command / "commands.py"
-            elif (src_dir / "app.py").exists():
-                load_path = src_dir / "app.py"
-            elif (src_dir / f"{normalized_name}.py").exists():
-                load_path = src_dir / f"{normalized_name}.py"
-            elif (src_dir / normalized_name / "__init__.py").exists():
-                load_path = src_dir / normalized_name / "__init__.py"
-                submodule_locations = [str(load_path.parent)]
-        if load_path is None:
-            raise ValueError(
-                f"Package {package_dir.name} has no src/app.py, src/{package_name}.py or src/{package_name}/"
-            )
-        if submodule_locations is None and load_path.name == "__init__.py":
-            submodule_locations = [str(load_path.parent)]
+        load_path, submodule_locations = _resolve_command_loader_path(package_dir, package_name, command_name)
         module_token = _normalized_module_name(package_dir.name)
         spec = importlib.util.spec_from_file_location(
             f"_specfact_module_{module_token}",
@@ -534,18 +600,9 @@ def _command_info_name(command_info: Any) -> str:
     return callback_name.replace("_", "-") if callback_name else ""
 
 
-@beartype
-def _merge_typer_apps(base_app: Any, extension_app: Any, owner_module: str, command_name: str) -> None:
-    """Merge extension Typer commands/groups into an existing root Typer app."""
+def _merge_typer_registered_commands(base_app: Any, extension_app: Any, owner_module: str, command_name: str) -> None:
+    """Append extension commands onto base Typer app when names do not collide."""
     logger = get_bridge_logger(__name__)
-    if not hasattr(base_app, "registered_commands") or not hasattr(extension_app, "registered_commands"):
-        logger.warning(
-            "Module %s attempted to extend command '%s' with a non-Typer app; skipping extension.",
-            owner_module,
-            command_name,
-        )
-        return
-
     existing_command_names = {
         _command_info_name(command_info) for command_info in getattr(base_app, "registered_commands", [])
     }
@@ -564,9 +621,12 @@ def _merge_typer_apps(base_app: Any, extension_app: Any, owner_module: str, comm
         base_app.registered_commands.append(command_info)
         existing_command_names.add(subcommand_name)
 
+
+def _merge_typer_registered_groups(base_app: Any, extension_app: Any, owner_module: str, command_name: str) -> None:
+    """Merge extension groups into base Typer app recursively."""
+    logger = get_bridge_logger(__name__)
     if not hasattr(base_app, "registered_groups") or not hasattr(extension_app, "registered_groups"):
         return
-
     existing_groups = {getattr(group_info, "name", ""): group_info for group_info in base_app.registered_groups}
     for group_info in extension_app.registered_groups:
         group_name = getattr(group_info, "name", "") or ""
@@ -593,6 +653,21 @@ def _merge_typer_apps(base_app: Any, extension_app: Any, owner_module: str, comm
             continue
         base_app.registered_groups.append(group_info)
         existing_groups[group_name] = group_info
+
+
+@beartype
+def _merge_typer_apps(base_app: Any, extension_app: Any, owner_module: str, command_name: str) -> None:
+    """Merge extension Typer commands/groups into an existing root Typer app."""
+    logger = get_bridge_logger(__name__)
+    if not hasattr(base_app, "registered_commands") or not hasattr(extension_app, "registered_commands"):
+        logger.warning(
+            "Module %s attempted to extend command '%s' with a non-Typer app; skipping extension.",
+            owner_module,
+            command_name,
+        )
+        return
+    _merge_typer_registered_commands(base_app, extension_app, owner_module, command_name)
+    _merge_typer_registered_groups(base_app, extension_app, owner_module, command_name)
 
 
 def _make_extending_loader(
@@ -661,7 +736,7 @@ def _check_protocol_compliance(module_class: Any) -> list[str]:
 
 
 @beartype
-@require(lambda package_name: package_name.strip() != "", "Package name must not be empty")
+@require(lambda package_name: cast(str, package_name).strip() != "", "Package name must not be empty")
 @ensure(lambda result: result is not None, "Protocol inspection target must be resolved")
 def _resolve_protocol_target(module_obj: Any, package_name: str) -> Any:
     """Resolve runtime interface used for protocol inspection."""
@@ -743,6 +818,96 @@ def _resolve_import_from_source_path(
     return None
 
 
+def _protocol_record_assignments(
+    node: ast.stmt,
+    assigned_names: dict[str, ast.expr],
+    exported_function_names: set[str],
+) -> None:
+    if isinstance(node, ast.Assign):
+        targets = node.targets
+        value = node.value
+    elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
+        targets = [node.target]
+        value = node.value
+    else:
+        return
+    if value is None:
+        return
+    for target in targets:
+        if not isinstance(target, ast.Name):
+            continue
+        assigned_names[target.id] = value
+        if isinstance(value, (ast.Attribute, ast.Name)):
+            exported_function_names.add(target.id)
+
+
+def _protocol_process_top_level_node(
+    node: ast.stmt,
+    package_dir: Path,
+    package_name: str,
+    source_path: Path,
+    pending_paths: list[Path],
+    scanned_paths: set[Path],
+    exported_function_names: set[str],
+    class_method_names: dict[str, set[str]],
+    assigned_names: dict[str, ast.expr],
+) -> None:
+    if isinstance(node, ast.ClassDef):
+        methods: set[str] = set()
+        for class_node in node.body:
+            if isinstance(class_node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                methods.add(class_node.name)
+        class_method_names[node.name] = methods
+        return
+    if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+        exported_function_names.add(node.name)
+        return
+    if isinstance(node, ast.ImportFrom):
+        imported_names = {alias.name for alias in node.names}
+        if set(PROTOCOL_INTERFACE_BINDINGS).isdisjoint(imported_names):
+            return
+        imported_source = _resolve_import_from_source_path(package_dir, package_name, source_path, node)
+        if imported_source is None:
+            return
+        resolved = imported_source.resolve()
+        if resolved in scanned_paths:
+            return
+        scanned_paths.add(resolved)
+        pending_paths.append(imported_source)
+        return
+    _protocol_record_assignments(node, assigned_names, exported_function_names)
+
+
+def _protocol_merge_binding_methods(
+    assigned_names: dict[str, ast.expr],
+    class_method_names: dict[str, set[str]],
+    exported_function_names: set[str],
+) -> None:
+    for binding_name in PROTOCOL_INTERFACE_BINDINGS:
+        binding_value = assigned_names.get(binding_name)
+        if binding_value is None:
+            continue
+        if isinstance(binding_value, ast.Name):
+            exported_function_names.update(class_method_names.get(binding_value.id, set()))
+            referenced_value = assigned_names.get(binding_value.id)
+            if isinstance(referenced_value, ast.Call) and isinstance(referenced_value.func, ast.Name):
+                exported_function_names.update(class_method_names.get(referenced_value.func.id, set()))
+        elif isinstance(binding_value, ast.Call) and isinstance(binding_value.func, ast.Name):
+            exported_function_names.update(class_method_names.get(binding_value.func.id, set()))
+
+
+def _protocol_shim_full_match(scanned_sources: list[str]) -> bool:
+    joined_source = "\n".join(scanned_sources)
+    return (
+        (
+            "Compatibility shim for legacy specfact_cli.modules." in joined_source
+            or "Compatibility alias for legacy specfact_cli.modules." in joined_source
+        )
+        and "commands" in joined_source
+        and ("from specfact_" in joined_source or 'import_module("specfact_' in joined_source)
+    )
+
+
 @beartype
 def _check_protocol_compliance_from_source(
     package_dir: Path,
@@ -762,59 +927,20 @@ def _check_protocol_compliance_from_source(
         source = source_path.read_text(encoding="utf-8")
         scanned_sources.append(source)
         tree = ast.parse(source, filename=str(source_path))
-
         for node in tree.body:
-            if isinstance(node, ast.ClassDef):
-                methods: set[str] = set()
-                for class_node in node.body:
-                    if isinstance(class_node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                        methods.add(class_node.name)
-                class_method_names[node.name] = methods
-                continue
-            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                exported_function_names.add(node.name)
-                continue
-            if isinstance(node, ast.ImportFrom):
-                imported_names = {alias.name for alias in node.names}
-                if set(PROTOCOL_INTERFACE_BINDINGS).isdisjoint(imported_names):
-                    continue
-                imported_source = _resolve_import_from_source_path(package_dir, package_name, source_path, node)
-                if imported_source is None:
-                    continue
-                resolved = imported_source.resolve()
-                if resolved in scanned_paths:
-                    continue
-                scanned_paths.add(resolved)
-                pending_paths.append(imported_source)
-                continue
-            if isinstance(node, ast.Assign):
-                targets = node.targets
-                value = node.value
-            elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
-                targets = [node.target]
-                value = node.value
-            else:
-                continue
-            if value is None:
-                continue
-            for target in targets:
-                if not isinstance(target, ast.Name):
-                    continue
-                assigned_names[target.id] = value
-                if isinstance(value, (ast.Attribute, ast.Name)):
-                    exported_function_names.add(target.id)
+            _protocol_process_top_level_node(
+                node,
+                package_dir,
+                package_name,
+                source_path,
+                pending_paths,
+                scanned_paths,
+                exported_function_names,
+                class_method_names,
+                assigned_names,
+            )
 
-    for binding_name in PROTOCOL_INTERFACE_BINDINGS:
-        binding_value = assigned_names.get(binding_name)
-        if binding_value is None:
-            continue
-        if isinstance(binding_value, ast.Name):
-            exported_function_names.update(class_method_names.get(binding_value.id, set()))
-            referenced_value = assigned_names.get(binding_value.id)
-            if isinstance(referenced_value, ast.Call) and isinstance(referenced_value.func, ast.Name):
-                exported_function_names.update(class_method_names.get(referenced_value.func.id, set()))
-        elif isinstance(binding_value, ast.Call) and isinstance(binding_value.func, ast.Name):
-            exported_function_names.update(class_method_names.get(binding_value.func.id, set()))
+    _protocol_merge_binding_methods(assigned_names, class_method_names, exported_function_names)
 
     operations: list[str] = []
     for operation, method_name in PROTOCOL_METHODS.items():
@@ -822,19 +948,7 @@ def _check_protocol_compliance_from_source(
             operations.append(operation)
     if operations:
         return operations
-
-    # Migration compatibility shims proxy to split bundle repos and may not expose
-    # protocol methods in this local source file. Classify these as fully
-    # protocol-capable to avoid false "legacy module" reports in static scans.
-    joined_source = "\n".join(scanned_sources)
-    if (
-        (
-            "Compatibility shim for legacy specfact_cli.modules." in joined_source
-            or "Compatibility alias for legacy specfact_cli.modules." in joined_source
-        )
-        and "commands" in joined_source
-        and ("from specfact_" in joined_source or 'import_module("specfact_' in joined_source)
-    ):
+    if _protocol_shim_full_match(scanned_sources):
         return sorted(PROTOCOL_METHODS.keys())
     return operations
 
@@ -974,6 +1088,314 @@ def _mount_installed_category_groups(
         CommandRegistry.register(group_name, loader, cmd_meta)
 
 
+def _register_schema_extensions_safe(meta: Any, logger: Any) -> None:
+    if not meta.schema_extensions:
+        return
+    try:
+        get_extension_registry().register(meta.name, meta.schema_extensions)
+        targets = sorted({e.target for e in meta.schema_extensions})
+        logger.debug(
+            "Module %s registered %d schema extensions for %s",
+            meta.name,
+            len(meta.schema_extensions),
+            targets,
+        )
+    except ValueError as exc:
+        logger.error(
+            "Module %s: Schema extension collision - %s (skipping extensions)",
+            meta.name,
+            exc,
+        )
+
+
+def _register_service_bridges_safe(meta: Any, bridge_owner_map: dict[str, str], logger: Any) -> None:
+    for bridge in meta.validate_service_bridges():
+        existing_owner = bridge_owner_map.get(bridge.id)
+        if existing_owner:
+            logger.warning(
+                "Duplicate bridge ID '%s' declared by module '%s'; already declared by '%s' (skipped).",
+                bridge.id,
+                meta.name,
+                existing_owner,
+            )
+            continue
+        try:
+            converter_class = _resolve_converter_class(bridge.converter_class)
+            converter: SchemaConverter = converter_class()
+            BRIDGE_REGISTRY.register_converter(bridge.id, converter, meta.name)
+            bridge_owner_map[bridge.id] = meta.name
+        except Exception as exc:
+            logger.warning(
+                "Module %s: Skipping bridge '%s' (converter: %s): %s",
+                meta.name,
+                bridge.id,
+                bridge.converter_class,
+                exc,
+            )
+
+
+def _module_integrity_allows_load(
+    package_dir: Path,
+    meta: Any,
+    allow_unsigned: bool,
+    is_test_mode: bool,
+    logger: Any,
+    skipped: list[tuple[str, str]],
+) -> bool:
+    if verify_module_artifact(package_dir, meta, allow_unsigned=allow_unsigned):
+        return True
+    if _is_builtin_module_package(package_dir):
+        logger.warning(
+            "Built-in module '%s' failed integrity verification; loading anyway to keep CLI functional.",
+            meta.name,
+        )
+        return True
+    if is_test_mode and allow_unsigned:
+        logger.debug(
+            "TEST_MODE: allowing built-in module '%s' despite failed integrity verification.",
+            meta.name,
+        )
+        return True
+    print_warning(
+        f"Security check: module '{meta.name}' failed integrity verification and was not loaded. "
+        "This may indicate tampering or an outdated local module copy. "
+        "Run `specfact module init` to restore trusted bundled modules."
+    )
+    skipped.append((meta.name, "integrity/trust check failed"))
+    return False
+
+
+def _record_protocol_compliance_result(
+    package_dir: Path,
+    meta: Any,
+    logger: Any,
+    protocol_full: list[int],
+    protocol_partial: list[int],
+    protocol_legacy: list[int],
+    partial_modules: list[tuple[str, list[str]]],
+    legacy_modules: list[str],
+) -> None:
+    try:
+        operations = _check_protocol_compliance_from_source(package_dir, meta.name, command_names=meta.commands)
+        meta.protocol_operations = operations
+        if len(operations) == 4:
+            protocol_full[0] += 1
+        elif operations:
+            partial_modules.append((meta.name, operations))
+            if is_debug_mode():
+                logger.info("Module %s: ModuleIOContract partial (%s)", meta.name, ", ".join(operations))
+            protocol_partial[0] += 1
+        else:
+            legacy_modules.append(meta.name)
+            if is_debug_mode():
+                logger.warning("Module %s: No ModuleIOContract (legacy mode)", meta.name)
+            protocol_legacy[0] += 1
+    except Exception as exc:
+        legacy_modules.append(meta.name)
+        if is_debug_mode():
+            logger.warning("Module %s: Unable to inspect protocol compliance (%s)", meta.name, exc)
+        meta.protocol_operations = []
+        protocol_legacy[0] += 1
+
+
+def _register_command_category_path(
+    package_dir: Path,
+    meta: Any,
+    cmd_name: str,
+    logger: Any,
+) -> None:
+    ch = getattr(meta, "command_help", None)
+    cmd_help = cast(dict[str, Any], ch) if isinstance(ch, dict) else {}
+    help_str = str(cmd_help.get(cmd_name) or f"Module package: {meta.name}")
+    extension_loader = _make_package_loader(package_dir, meta.name, cmd_name)
+    cmd_meta = CommandMetadata(name=cmd_name, help=help_str, tier=meta.tier, addon_id=meta.addon_id)
+    existing_module_entry = next(
+        (entry for entry in CommandRegistry._module_entries if entry.get("name") == cmd_name),
+        None,
+    )
+    if existing_module_entry is not None:
+        base_loader = existing_module_entry.get("loader")
+        if base_loader is None:
+            logger.warning(
+                "Module %s attempted to extend command '%s' but module base loader was missing; skipping.",
+                meta.name,
+                cmd_name,
+            )
+        else:
+            existing_module_entry["loader"] = _make_extending_loader(
+                base_loader,
+                extension_loader,
+                meta.name,
+                cmd_name,
+            )
+            existing_module_entry["metadata"] = cmd_meta
+            CommandRegistry._module_typer_cache.pop(cmd_name, None)
+    else:
+        CommandRegistry.register_module(cmd_name, extension_loader, cmd_meta)
+    if cmd_name not in CORE_NAMES:
+        return
+    existing_root_entry = next(
+        (entry for entry in CommandRegistry._entries if entry.get("name") == cmd_name),
+        None,
+    )
+    if existing_root_entry is None:
+        CommandRegistry.register(cmd_name, extension_loader, cmd_meta)
+        return
+    base_loader = existing_root_entry.get("loader")
+    if base_loader is None:
+        logger.warning(
+            "Module %s attempted to extend core command '%s' but base loader was missing; skipping.",
+            meta.name,
+            cmd_name,
+        )
+        return
+    existing_root_entry["loader"] = _make_extending_loader(
+        base_loader,
+        extension_loader,
+        meta.name,
+        cmd_name,
+    )
+    existing_root_entry["metadata"] = cmd_meta
+    CommandRegistry._typer_cache.pop(cmd_name, None)
+
+
+def _register_command_flat_path(package_dir: Path, meta: Any, cmd_name: str, logger: Any) -> None:
+    existing_entry = next((entry for entry in CommandRegistry._entries if entry.get("name") == cmd_name), None)
+    if existing_entry is not None:
+        extension_loader = _make_package_loader(package_dir, meta.name, cmd_name)
+        base_loader = existing_entry.get("loader")
+        if base_loader is None:
+            logger.warning(
+                "Module %s attempted to extend command '%s' but base loader was missing; skipping.",
+                meta.name,
+                cmd_name,
+            )
+            return
+        existing_entry["loader"] = _make_extending_loader(
+            base_loader,
+            extension_loader,
+            meta.name,
+            cmd_name,
+        )
+        CommandRegistry._typer_cache.pop(cmd_name, None)
+        if is_debug_mode():
+            logger.debug("Module %s extended command group '%s'.", meta.name, cmd_name)
+        return
+    ch = getattr(meta, "command_help", None)
+    cmd_help = cast(dict[str, Any], ch) if isinstance(ch, dict) else {}
+    help_str = str(cmd_help.get(cmd_name) or f"Module package: {meta.name}")
+    loader = _make_package_loader(package_dir, meta.name, cmd_name)
+    cmd_meta = CommandMetadata(name=cmd_name, help=help_str, tier=meta.tier, addon_id=meta.addon_id)
+    CommandRegistry.register(cmd_name, loader, cmd_meta)
+
+
+def _register_commands_for_package(
+    package_dir: Path,
+    meta: Any,
+    category_grouping_enabled: bool,
+    logger: Any,
+) -> None:
+    for cmd_name in meta.commands:
+        if category_grouping_enabled and meta.category is not None:
+            _register_command_category_path(package_dir, meta, cmd_name, logger)
+        else:
+            _register_command_flat_path(package_dir, meta, cmd_name, logger)
+
+
+def _register_one_package_if_eligible(
+    package_dir: Path,
+    meta: Any,
+    enabled_map: dict[str, bool],
+    allow_unsigned: bool,
+    is_test_mode: bool,
+    logger: Any,
+    skipped: list[tuple[str, str]],
+    bridge_owner_map: dict[str, str],
+    category_grouping_enabled: bool,
+    protocol_full: list[int],
+    protocol_partial: list[int],
+    protocol_legacy: list[int],
+    partial_modules: list[tuple[str, list[str]]],
+    legacy_modules: list[str],
+) -> None:
+    if not enabled_map.get(meta.name, True):
+        return
+    compatible = _check_core_compatibility(meta, cli_version)
+    if not compatible:
+        skipped.append((meta.name, f"requires {meta.core_compatibility}, cli is {cli_version}"))
+        return
+    deps_ok, missing = _validate_module_dependencies(meta, enabled_map)
+    if not deps_ok:
+        skipped.append((meta.name, f"missing dependencies: {', '.join(missing)}"))
+        return
+    if not _module_integrity_allows_load(package_dir, meta, allow_unsigned, is_test_mode, logger, skipped):
+        return
+    if not _check_schema_compatibility(meta.schema_version, CURRENT_PROJECT_SCHEMA_VERSION):
+        skipped.append(
+            (
+                meta.name,
+                f"schema version {meta.schema_version} required, current is {CURRENT_PROJECT_SCHEMA_VERSION}",
+            )
+        )
+        logger.debug(
+            "Module %s: Schema version %s required, but current is %s (skipped)",
+            meta.name,
+            meta.schema_version,
+            CURRENT_PROJECT_SCHEMA_VERSION,
+        )
+        return
+    if meta.schema_version is None:
+        logger.debug("Module %s: No schema version declared (assuming current)", meta.name)
+    else:
+        logger.debug("Module %s: Schema version %s (compatible)", meta.name, meta.schema_version)
+
+    _register_schema_extensions_safe(meta, logger)
+    _register_service_bridges_safe(meta, bridge_owner_map, logger)
+    _record_protocol_compliance_result(
+        package_dir,
+        meta,
+        logger,
+        protocol_full,
+        protocol_partial,
+        protocol_legacy,
+        partial_modules,
+        legacy_modules,
+    )
+    _register_commands_for_package(package_dir, meta, category_grouping_enabled, logger)
+
+
+def _log_protocol_compatibility_footer(
+    logger: Any,
+    protocol_full: list[int],
+    protocol_partial: list[int],
+    protocol_legacy: list[int],
+    partial_modules: list[tuple[str, list[str]]],
+    legacy_modules: list[str],
+) -> None:
+    pf, pp, pl = protocol_full[0], protocol_partial[0], protocol_legacy[0]
+    discovered_count = pf + pp + pl
+    if not discovered_count or not (pp > 0 or pl > 0) or not is_debug_mode():
+        return
+    logger.info(
+        "Module compatibility check: %s/%s compliant (full=%s, partial=%s, legacy=%s)",
+        pf + pp,
+        discovered_count,
+        pf,
+        pp,
+        pl,
+    )
+    if partial_modules:
+        partial_desc = ", ".join(f"{name} ({'/'.join(ops)})" for name, ops in sorted(partial_modules))
+        logger.info("Partially compliant modules: %s", partial_desc)
+    if legacy_modules:
+        logger.info("Legacy modules: %s", ", ".join(sorted(set(legacy_modules))))
+
+
+def _log_skipped_modules_debug(logger: Any, skipped: list[tuple[str, str]]) -> None:
+    for module_id, reason in skipped:
+        logger.debug("Skipped module '%s': %s", module_id, reason)
+
+
 @beartype
 @require(
     lambda enable_ids, disable_ids: not (set(enable_ids or []) & set(disable_ids or [])),
@@ -1006,223 +1428,42 @@ def register_module_package_commands(
     enabled_map = merge_module_state(discovered_list, state, enable_ids, disable_ids)
     logger = get_bridge_logger(__name__)
     skipped: list[tuple[str, str]] = []
-    protocol_full = 0
-    protocol_partial = 0
-    protocol_legacy = 0
+    protocol_full = [0]
+    protocol_partial = [0]
+    protocol_legacy = [0]
     partial_modules: list[tuple[str, list[str]]] = []
     legacy_modules: list[str] = []
     bridge_owner_map: dict[str, str] = {
         bridge_id: BRIDGE_REGISTRY.get_owner(bridge_id) or "unknown" for bridge_id in BRIDGE_REGISTRY.list_bridge_ids()
     }
     for package_dir, meta in packages:
-        if not enabled_map.get(meta.name, True):
-            continue
-        compatible = _check_core_compatibility(meta, cli_version)
-        if not compatible:
-            skipped.append((meta.name, f"requires {meta.core_compatibility}, cli is {cli_version}"))
-            continue
-        deps_ok, missing = _validate_module_dependencies(meta, enabled_map)
-        if not deps_ok:
-            skipped.append((meta.name, f"missing dependencies: {', '.join(missing)}"))
-            continue
-        if not verify_module_artifact(package_dir, meta, allow_unsigned=allow_unsigned):
-            if _is_builtin_module_package(package_dir):
-                logger.warning(
-                    "Built-in module '%s' failed integrity verification; loading anyway to keep CLI functional.",
-                    meta.name,
-                )
-            elif is_test_mode and allow_unsigned:
-                logger.debug(
-                    "TEST_MODE: allowing built-in module '%s' despite failed integrity verification.",
-                    meta.name,
-                )
-            else:
-                print_warning(
-                    f"Security check: module '{meta.name}' failed integrity verification and was not loaded. "
-                    "This may indicate tampering or an outdated local module copy. "
-                    "Run `specfact module init` to restore trusted bundled modules."
-                )
-                skipped.append((meta.name, "integrity/trust check failed"))
-                continue
-        if not _check_schema_compatibility(meta.schema_version, CURRENT_PROJECT_SCHEMA_VERSION):
-            skipped.append(
-                (
-                    meta.name,
-                    f"schema version {meta.schema_version} required, current is {CURRENT_PROJECT_SCHEMA_VERSION}",
-                )
-            )
-            logger.debug(
-                "Module %s: Schema version %s required, but current is %s (skipped)",
-                meta.name,
-                meta.schema_version,
-                CURRENT_PROJECT_SCHEMA_VERSION,
-            )
-            continue
-        if meta.schema_version is None:
-            logger.debug("Module %s: No schema version declared (assuming current)", meta.name)
-        else:
-            logger.debug("Module %s: Schema version %s (compatible)", meta.name, meta.schema_version)
-
-        if meta.schema_extensions:
-            try:
-                get_extension_registry().register(meta.name, meta.schema_extensions)
-                targets = sorted({e.target for e in meta.schema_extensions})
-                logger.debug(
-                    "Module %s registered %d schema extensions for %s",
-                    meta.name,
-                    len(meta.schema_extensions),
-                    targets,
-                )
-            except ValueError as exc:
-                logger.error(
-                    "Module %s: Schema extension collision - %s (skipping extensions)",
-                    meta.name,
-                    exc,
-                )
-
-        for bridge in meta.validate_service_bridges():
-            existing_owner = bridge_owner_map.get(bridge.id)
-            if existing_owner:
-                logger.warning(
-                    "Duplicate bridge ID '%s' declared by module '%s'; already declared by '%s' (skipped).",
-                    bridge.id,
-                    meta.name,
-                    existing_owner,
-                )
-                continue
-            try:
-                converter_class = _resolve_converter_class(bridge.converter_class)
-                converter: SchemaConverter = converter_class()
-                BRIDGE_REGISTRY.register_converter(bridge.id, converter, meta.name)
-                bridge_owner_map[bridge.id] = meta.name
-            except Exception as exc:
-                logger.warning(
-                    "Module %s: Skipping bridge '%s' (converter: %s): %s",
-                    meta.name,
-                    bridge.id,
-                    bridge.converter_class,
-                    exc,
-                )
-
-        try:
-            operations = _check_protocol_compliance_from_source(package_dir, meta.name, command_names=meta.commands)
-            meta.protocol_operations = operations
-            if len(operations) == 4:
-                protocol_full += 1
-            elif operations:
-                partial_modules.append((meta.name, operations))
-                if is_debug_mode():
-                    logger.info("Module %s: ModuleIOContract partial (%s)", meta.name, ", ".join(operations))
-                protocol_partial += 1
-            else:
-                legacy_modules.append(meta.name)
-                if is_debug_mode():
-                    logger.warning("Module %s: No ModuleIOContract (legacy mode)", meta.name)
-                protocol_legacy += 1
-        except Exception as exc:
-            legacy_modules.append(meta.name)
-            if is_debug_mode():
-                logger.warning("Module %s: Unable to inspect protocol compliance (%s)", meta.name, exc)
-            meta.protocol_operations = []
-            protocol_legacy += 1
-
-        for cmd_name in meta.commands:
-            if category_grouping_enabled and meta.category is not None:
-                help_str = (meta.command_help or {}).get(cmd_name) or f"Module package: {meta.name}"
-                extension_loader = _make_package_loader(package_dir, meta.name, cmd_name)
-                cmd_meta = CommandMetadata(name=cmd_name, help=help_str, tier=meta.tier, addon_id=meta.addon_id)
-                existing_module_entry = next(
-                    (entry for entry in CommandRegistry._module_entries if entry.get("name") == cmd_name),
-                    None,
-                )
-                if existing_module_entry is not None:
-                    base_loader = existing_module_entry.get("loader")
-                    if base_loader is None:
-                        logger.warning(
-                            "Module %s attempted to extend command '%s' but module base loader was missing; skipping.",
-                            meta.name,
-                            cmd_name,
-                        )
-                    else:
-                        existing_module_entry["loader"] = _make_extending_loader(
-                            base_loader,
-                            extension_loader,
-                            meta.name,
-                            cmd_name,
-                        )
-                        existing_module_entry["metadata"] = cmd_meta
-                        CommandRegistry._module_typer_cache.pop(cmd_name, None)
-                else:
-                    CommandRegistry.register_module(cmd_name, extension_loader, cmd_meta)
-                if cmd_name in CORE_NAMES:
-                    existing_root_entry = next(
-                        (entry for entry in CommandRegistry._entries if entry.get("name") == cmd_name),
-                        None,
-                    )
-                    if existing_root_entry is not None:
-                        base_loader = existing_root_entry.get("loader")
-                        if base_loader is None:
-                            logger.warning(
-                                "Module %s attempted to extend core command '%s' but base loader was missing; skipping.",
-                                meta.name,
-                                cmd_name,
-                            )
-                        else:
-                            existing_root_entry["loader"] = _make_extending_loader(
-                                base_loader,
-                                extension_loader,
-                                meta.name,
-                                cmd_name,
-                            )
-                            existing_root_entry["metadata"] = cmd_meta
-                            CommandRegistry._typer_cache.pop(cmd_name, None)
-                    else:
-                        CommandRegistry.register(cmd_name, extension_loader, cmd_meta)
-                continue
-            existing_entry = next((entry for entry in CommandRegistry._entries if entry.get("name") == cmd_name), None)
-            if existing_entry is not None:
-                extension_loader = _make_package_loader(package_dir, meta.name, cmd_name)
-                base_loader = existing_entry.get("loader")
-                if base_loader is None:
-                    logger.warning(
-                        "Module %s attempted to extend command '%s' but base loader was missing; skipping.",
-                        meta.name,
-                        cmd_name,
-                    )
-                    continue
-                existing_entry["loader"] = _make_extending_loader(
-                    base_loader,
-                    extension_loader,
-                    meta.name,
-                    cmd_name,
-                )
-                CommandRegistry._typer_cache.pop(cmd_name, None)
-                if is_debug_mode():
-                    logger.debug("Module %s extended command group '%s'.", meta.name, cmd_name)
-                continue
-            help_str = (meta.command_help or {}).get(cmd_name) or f"Module package: {meta.name}"
-            loader = _make_package_loader(package_dir, meta.name, cmd_name)
-            cmd_meta = CommandMetadata(name=cmd_name, help=help_str, tier=meta.tier, addon_id=meta.addon_id)
-            CommandRegistry.register(cmd_name, loader, cmd_meta)
-    if category_grouping_enabled:
-        _mount_installed_category_groups(packages, enabled_map)
-    discovered_count = protocol_full + protocol_partial + protocol_legacy
-    if discovered_count and (protocol_partial > 0 or protocol_legacy > 0) and is_debug_mode():
-        logger.info(
-            "Module compatibility check: %s/%s compliant (full=%s, partial=%s, legacy=%s)",
-            protocol_full + protocol_partial,
-            discovered_count,
+        _register_one_package_if_eligible(
+            package_dir,
+            meta,
+            enabled_map,
+            allow_unsigned,
+            is_test_mode,
+            logger,
+            skipped,
+            bridge_owner_map,
+            category_grouping_enabled,
             protocol_full,
             protocol_partial,
             protocol_legacy,
+            partial_modules,
+            legacy_modules,
         )
-        if partial_modules:
-            partial_desc = ", ".join(f"{name} ({'/'.join(ops)})" for name, ops in sorted(partial_modules))
-            logger.info("Partially compliant modules: %s", partial_desc)
-        if legacy_modules:
-            logger.info("Legacy modules: %s", ", ".join(sorted(set(legacy_modules))))
-    for module_id, reason in skipped:
-        logger.debug("Skipped module '%s': %s", module_id, reason)
+    if category_grouping_enabled:
+        _mount_installed_category_groups(packages, enabled_map)
+    _log_protocol_compatibility_footer(
+        logger,
+        protocol_full,
+        protocol_partial,
+        protocol_legacy,
+        partial_modules,
+        legacy_modules,
+    )
+    _log_skipped_modules_debug(logger, skipped)
 
 
 @beartype

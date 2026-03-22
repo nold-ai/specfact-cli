@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from beartype import beartype
 from icontract import ensure, require
@@ -39,16 +39,18 @@ def read_modules_state() -> dict[str, dict[str, Any]]:
         return {}
     if not isinstance(data, dict):
         return {}
-    modules = data.get("modules")
+    data_dict = cast(dict[str, Any], data)
+    modules = data_dict.get("modules")
     if not isinstance(modules, list):
         return {}
     out: dict[str, dict[str, Any]] = {}
     for item in modules:
         if isinstance(item, dict) and "id" in item:
-            mid = str(item["id"])
+            row = cast(dict[str, Any], item)
+            mid = str(row["id"])
             out[mid] = {
-                "version": str(item.get("version", "")),
-                "enabled": bool(item.get("enabled", True)),
+                "version": str(row.get("version", "")),
+                "enabled": bool(row.get("enabled", True)),
             }
     return out
 

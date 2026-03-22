@@ -13,6 +13,10 @@ from specfact_cli.models.project import ProjectBundle
 from specfact_cli.models.validation import ValidationReport
 
 
+def _external_source_nonempty(external_source: str) -> bool:
+    return external_source.strip() != ""
+
+
 class ModuleIOContract(Protocol):
     """Protocol for module implementations that exchange data via ProjectBundle."""
 
@@ -30,7 +34,7 @@ class ModuleIOContract(Protocol):
 
     @abstractmethod
     @beartype
-    @require(lambda external_source: external_source.strip() != "", "external_source must not be empty")
+    @require(_external_source_nonempty, "external_source must not be empty")
     def sync_with_bundle(self, bundle: ProjectBundle, external_source: str, config: dict[str, Any]) -> ProjectBundle:
         """Synchronize a bundle with an external source and return the updated bundle."""
 

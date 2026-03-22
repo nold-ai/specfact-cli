@@ -11,7 +11,7 @@ import subprocess
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import networkx as nx
 from beartype import beartype
@@ -84,6 +84,36 @@ class CodeAnalyzer:
         ("Comparison", ("compare", "diff", "match")),
     )
 
+    @staticmethod
+    def _resolve_analyzer_entry_point(repo_path: Path, entry_point: Path | None) -> Path | None:
+        if entry_point is None:
+            return None
+        resolved = entry_point if entry_point.is_absolute() else (repo_path / entry_point).resolve()
+        if not resolved.exists():
+            raise ValueError(f"Entry point does not exist: {resolved}")
+        if not str(resolved).startswith(str(repo_path)):
+            raise ValueError(f"Entry point must be within repository: {resolved}")
+        return resolved
+
+    def _init_semgrep_configs(self) -> None:
+        self.semgrep_enabled = True
+        self.semgrep_config = None
+        self.semgrep_quality_config = None
+        resources_config = Path(__file__).parent.parent / "resources" / "semgrep" / "feature-detection.yml"
+        tools_config = self.repo_path / "tools" / "semgrep" / "feature-detection.yml"
+        resources_quality_config = Path(__file__).parent.parent / "resources" / "semgrep" / "code-quality.yml"
+        tools_quality_config = self.repo_path / "tools" / "semgrep" / "code-quality.yml"
+        self.semgrep_config = (
+            resources_config if resources_config.exists() else (tools_config if tools_config.exists() else None)
+        )
+        self.semgrep_quality_config = (
+            resources_quality_config
+            if resources_quality_config.exists()
+            else (tools_quality_config if tools_quality_config.exists() else None)
+        )
+        if os.environ.get("TEST_MODE") == "true" or self.semgrep_config is None or not self._check_semgrep_available():
+            self.semgrep_enabled = False
+
     @beartype
     @require(lambda repo_path: repo_path is not None and isinstance(repo_path, Path), "Repo path must be Path")
     @require(lambda confidence_threshold: 0.0 <= confidence_threshold <= 1.0, "Confidence threshold must be 0.0-1.0")
@@ -117,18 +147,7 @@ class CodeAnalyzer:
         self.key_format = key_format
         self.plan_name = plan_name
         self.incremental_callback = incremental_callback
-        self.entry_point: Path | None = None
-        if entry_point is not None:
-            # Resolve entry point relative to repo_path
-            if entry_point.is_absolute():
-                self.entry_point = entry_point
-            else:
-                self.entry_point = (self.repo_path / entry_point).resolve()
-            # Validate entry point exists and is within repo
-            if not self.entry_point.exists():
-                raise ValueError(f"Entry point does not exist: {self.entry_point}")
-            if not str(self.entry_point).startswith(str(self.repo_path)):
-                raise ValueError(f"Entry point must be within repository: {self.entry_point}")
+        self.entry_point = self._resolve_analyzer_entry_point(self.repo_path, entry_point)
         self.features: list[Feature] = []
         self.themes: set[str] = set()
         self.dependency_graph: nx.DiGraph[str] = nx.DiGraph()  # Module dependency graph
@@ -143,27 +162,7 @@ class CodeAnalyzer:
         self.requirement_extractor = RequirementExtractor()
         self.contract_extractor = ContractExtractor()
 
-        # Semgrep integration
-        self.semgrep_enabled = True
-        # Try to find Semgrep config: check resources first (runtime), then tools (development)
-        self.semgrep_config: Path | None = None
-        self.semgrep_quality_config: Path | None = None
-        resources_config = Path(__file__).parent.parent / "resources" / "semgrep" / "feature-detection.yml"
-        tools_config = self.repo_path / "tools" / "semgrep" / "feature-detection.yml"
-        resources_quality_config = Path(__file__).parent.parent / "resources" / "semgrep" / "code-quality.yml"
-        tools_quality_config = self.repo_path / "tools" / "semgrep" / "code-quality.yml"
-        if resources_config.exists():
-            self.semgrep_config = resources_config
-        elif tools_config.exists():
-            self.semgrep_config = tools_config
-        if resources_quality_config.exists():
-            self.semgrep_quality_config = resources_quality_config
-        elif tools_quality_config.exists():
-            self.semgrep_quality_config = tools_quality_config
-        # Disable if Semgrep not available or config missing
-        # Check TEST_MODE first to avoid any subprocess calls in tests
-        if os.environ.get("TEST_MODE") == "true" or self.semgrep_config is None or not self._check_semgrep_available():
-            self.semgrep_enabled = False
+        self._init_semgrep_configs()
 
     @beartype
     @ensure(lambda result: isinstance(result, PlanBundle), "Must return PlanBundle")
@@ -782,8 +781,11 @@ class CodeAnalyzer:
 
     def _semgrep_finding_line(self, finding: dict[str, Any]) -> int:
         """Extract the start line from a Semgrep finding."""
-        start = finding.get("start", {})
-        return start.get("line", 0) if isinstance(start, dict) else 0
+        raw_start = finding.get("start", {})
+        if not isinstance(raw_start, dict):
+            return 0
+        start: dict[str, Any] = raw_start
+        return int(start.get("line", 0))
 
     def _apply_semgrep_evidence_flag(self, evidence: dict[str, Any], rule_id: str) -> None:
         """Apply the first matching evidence flag for a rule id."""
@@ -962,8 +964,10 @@ class CodeAnalyzer:
             "api", "model", "auth", "crud", "antipattern", "codesmell", or "".
         """
         rule_id = str(finding.get("check_id", "")).lower()
-        extra = finding.get("extra", {})
-        metadata = extra.get("metadata", {}) if isinstance(extra, dict) else {}
+        extra_raw = finding.get("extra", {})
+        extra: dict[str, Any] = extra_raw if isinstance(extra_raw, dict) else {}
+        metadata_raw = extra.get("metadata", {})
+        metadata: dict[str, Any] = metadata_raw if isinstance(metadata_raw, dict) else {}
         category_builders = (
             self._categorise_api_finding,
             self._categorise_model_finding,
@@ -1034,7 +1038,11 @@ class CodeAnalyzer:
 
     def _extract_crud_entity(self, finding: dict[str, Any], extra: Any) -> str:
         """Extract the target entity from a CRUD finding."""
-        func_name = str(extra.get("message", "")) if isinstance(extra, dict) else ""
+        if isinstance(extra, dict):
+            extra_d: dict[str, Any] = cast(dict[str, Any], extra)
+            func_name = str(extra_d.get("message", ""))
+        else:
+            func_name = ""
         if func_name:
             parts = func_name.split("_")
             return "_".join(parts[1:]) if len(parts) > 1 else ""
@@ -1484,6 +1492,23 @@ class CodeAnalyzer:
         name = name.replace("_", " ").replace("-", " ")
         return name.title()
 
+    _REPO_IMPORT_PREFIXES: tuple[str, ...] = ("src.", "lib.", "app.", "main.", "core.")
+
+    def _resolve_import_to_known_module(self, imported_module: str, modules: dict[str, Path]) -> str | None:
+        if imported_module in modules:
+            return imported_module
+        for known_module in modules:
+            if imported_module == known_module.split(".")[-1]:
+                return known_module
+        return None
+
+    def _maybe_record_external_dependency(self, imported_module: str) -> None:
+        if not self.entry_point:
+            return
+        if any(imported_module.startswith(prefix) for prefix in self._REPO_IMPORT_PREFIXES):
+            return
+        self.external_dependencies.add(imported_module)
+
     def _build_dependency_graph(self, python_files: list[Path]) -> None:
         """
         Build module dependency graph using AST imports.
@@ -1510,28 +1535,11 @@ class CodeAnalyzer:
                 # Extract imports
                 imports = self._extract_imports_from_ast(tree, file_path)
                 for imported_module in imports:
-                    # Only add edges for modules we know about (within repo)
-                    # Try exact match first, then partial match
-                    if imported_module in modules:
-                        self.dependency_graph.add_edge(module_name, imported_module)
+                    target = self._resolve_import_to_known_module(imported_module, modules)
+                    if target:
+                        self.dependency_graph.add_edge(module_name, target)
                     else:
-                        # Try to find matching module (e.g., "module_a" matches "src.module_a")
-                        matching_module = None
-                        for known_module in modules:
-                            # Check if imported name matches the module name (last part)
-                            if imported_module == known_module.split(".")[-1]:
-                                matching_module = known_module
-                                break
-                        if matching_module:
-                            self.dependency_graph.add_edge(module_name, matching_module)
-                        elif self.entry_point and not any(
-                            imported_module.startswith(prefix) for prefix in ["src.", "lib.", "app.", "main.", "core."]
-                        ):
-                            # Track external dependencies when using entry point
-                            # Check if it's a standard library or third-party import
-                            # (heuristic: if it doesn't start with known repo patterns)
-                            # Likely external dependency
-                            self.external_dependencies.add(imported_module)
+                        self._maybe_record_external_dependency(imported_module)
             except (SyntaxError, UnicodeDecodeError):
                 # Skip files that can't be parsed
                 continue
@@ -1720,6 +1728,29 @@ class CodeAnalyzer:
 
         return async_methods
 
+    def _apply_commit_hash_to_matching_features(self, feature_num: str, commit_hash: str) -> None:
+        for feature in self.features:
+            if not re.search(rf"feature[-\s]?{feature_num}", feature.key, re.IGNORECASE):
+                continue
+            if feature.key not in self.commit_bounds:
+                self.commit_bounds[feature.key] = (commit_hash, commit_hash)
+            else:
+                first_commit, _last_commit = self.commit_bounds[feature.key]
+                self.commit_bounds[feature.key] = (first_commit, commit_hash)
+            break
+
+    def _process_commit_for_feature_bounds(self, commit: Any) -> None:
+        commit_message = commit.message
+        if isinstance(commit_message, bytes):
+            commit_message = commit_message.decode("utf-8", errors="ignore")
+        message = commit_message.lower()
+        if "feat" not in message and "feature" not in message:
+            return
+        feature_match = re.search(r"feature[-\s]?(\d+)", message, re.IGNORECASE)
+        if not feature_match:
+            return
+        self._apply_commit_hash_to_matching_features(feature_match.group(1), commit.hexsha[:8])
+
     def _analyze_commit_history(self) -> None:
         """
         Mine commit history to identify feature boundaries.
@@ -1749,33 +1780,7 @@ class CodeAnalyzer:
             # Analyze commit messages for feature references
             for commit in commits:
                 try:
-                    # Skip commits that can't be accessed (corrupted or too old)
-                    # Use commit.message which is lazy-loaded but faster than full commit object
-                    commit_message = commit.message
-                    if isinstance(commit_message, bytes):
-                        commit_message = commit_message.decode("utf-8", errors="ignore")
-                    message = commit_message.lower()
-                    # Look for feature patterns (e.g., FEATURE-001, feat:, feature:)
-                    if "feat" in message or "feature" in message:
-                        # Try to extract feature keys from commit message
-                        feature_match = re.search(r"feature[-\s]?(\d+)", message, re.IGNORECASE)
-                        if feature_match:
-                            feature_num = feature_match.group(1)
-                            commit_hash = commit.hexsha[:8]  # Short hash
-
-                            # Find feature by key format (FEATURE-001, FEATURE-1, etc.)
-                            for feature in self.features:
-                                # Match feature key patterns: FEATURE-001, FEATURE-1, Feature-001, etc.
-                                if re.search(rf"feature[-\s]?{feature_num}", feature.key, re.IGNORECASE):
-                                    # Update commit bounds for this feature
-                                    if feature.key not in self.commit_bounds:
-                                        # First commit found for this feature
-                                        self.commit_bounds[feature.key] = (commit_hash, commit_hash)
-                                    else:
-                                        # Update last commit (commits are in reverse chronological order)
-                                        first_commit, _last_commit = self.commit_bounds[feature.key]
-                                        self.commit_bounds[feature.key] = (first_commit, commit_hash)
-                                    break
+                    self._process_commit_for_feature_bounds(commit)
                 except Exception:
                     # Skip individual commits that fail (corrupted, etc.)
                     continue

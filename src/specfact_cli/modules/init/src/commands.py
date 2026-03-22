@@ -49,6 +49,36 @@ install_bundles_for_init = first_run_selection.install_bundles_for_init
 is_first_run = first_run_selection.is_first_run
 
 
+def _resolve_field_mapping_templates_dir(repo_path: Path) -> Path | None:
+    """Locate backlog field mapping templates (dev checkout or installed package)."""
+    dev_templates_dir = (repo_path / "resources" / "templates" / "backlog" / "field_mappings").resolve()
+    if dev_templates_dir.exists():
+        return dev_templates_dir
+    try:
+        import importlib.resources
+
+        resources_ref = importlib.resources.files("specfact_cli")
+        templates_ref = resources_ref / "resources" / "templates" / "backlog" / "field_mappings"
+        package_templates_dir = Path(str(templates_ref)).resolve()
+        if package_templates_dir.exists():
+            return package_templates_dir
+    except Exception:
+        try:
+            import importlib.util
+
+            spec = importlib.util.find_spec("specfact_cli")
+            if spec and spec.origin:
+                package_root = Path(spec.origin).parent.resolve()
+                package_templates_dir = (
+                    package_root / "resources" / "templates" / "backlog" / "field_mappings"
+                ).resolve()
+                if package_templates_dir.exists():
+                    return package_templates_dir
+        except Exception:
+            pass
+    return None
+
+
 def _copy_backlog_field_mapping_templates(repo_path: Path, force: bool, console: Console) -> None:
     """
     Copy backlog field mapping templates to .specfact/templates/backlog/field_mappings/.
@@ -60,41 +90,7 @@ def _copy_backlog_field_mapping_templates(repo_path: Path, force: bool, console:
     """
     import shutil
 
-    # Find backlog field mapping templates directory
-    # Priority order:
-    # 1. Development: relative to project root (resources/templates/backlog/field_mappings)
-    # 2. Installed package: use importlib.resources to find package location
-    templates_dir: Path | None = None
-
-    # Try 1: Development mode - relative to repo root
-    dev_templates_dir = (repo_path / "resources" / "templates" / "backlog" / "field_mappings").resolve()
-    if dev_templates_dir.exists():
-        templates_dir = dev_templates_dir
-    else:
-        # Try 2: Installed package - use importlib.resources
-        try:
-            import importlib.resources
-
-            resources_ref = importlib.resources.files("specfact_cli")
-            templates_ref = resources_ref / "resources" / "templates" / "backlog" / "field_mappings"
-            package_templates_dir = Path(str(templates_ref)).resolve()
-            if package_templates_dir.exists():
-                templates_dir = package_templates_dir
-        except Exception:
-            # Fallback: try importlib.util.find_spec()
-            try:
-                import importlib.util
-
-                spec = importlib.util.find_spec("specfact_cli")
-                if spec and spec.origin:
-                    package_root = Path(spec.origin).parent.resolve()
-                    package_templates_dir = (
-                        package_root / "resources" / "templates" / "backlog" / "field_mappings"
-                    ).resolve()
-                    if package_templates_dir.exists():
-                        templates_dir = package_templates_dir
-            except Exception:
-                pass
+    templates_dir = _resolve_field_mapping_templates_dir(repo_path)
 
     if not templates_dir or not templates_dir.exists():
         # Templates not found - this is not critical, just skip
@@ -196,6 +192,39 @@ def _render_modules_table(modules_list: list[dict[str, Any]]) -> None:
     console.print(table)
 
 
+def _module_checkbox_rows(candidates: list[dict[str, Any]]) -> tuple[dict[str, str], list[str]]:
+    display_to_id: dict[str, str] = {}
+    choices: list[str] = []
+    for module in candidates:
+        module_id = str(module.get("id", ""))
+        version = str(module.get("version", ""))
+        state = "enabled" if bool(module.get("enabled", True)) else "disabled"
+        marker = "✗" if state == "disabled" else "✓"
+        display = f"{marker} {module_id:<14}  [{state}]  v{version}"
+        display_to_id[display] = module_id
+        choices.append(display)
+    return display_to_id, choices
+
+
+def _run_module_checkbox_prompt(
+    action: str,
+    display_to_id: dict[str, str],
+    choices: list[str],
+    questionary: Any,
+) -> list[str]:
+    action_title = "Enable" if action == "enable" else "Disable"
+    current_state = "disabled" if action == "enable" else "enabled"
+    selected: list[str] | None = questionary.checkbox(
+        f"{action_title} module(s) from currently {current_state}:",
+        choices=choices,
+        instruction="(multi-select)",
+        style=_questionary_style(),
+    ).ask()
+    if not selected:
+        return []
+    return [display_to_id[s] for s in selected if s in display_to_id]
+
+
 def _select_module_ids_interactive(action: str, modules_list: list[dict[str, Any]]) -> list[str]:
     """Select one or more module IDs interactively via arrow-key checkbox menu."""
     try:
@@ -226,28 +255,8 @@ def _select_module_ids_interactive(action: str, modules_list: list[dict[str, Any
         "[dim]Controls: ↑↓ navigate • Space toggle • Enter confirm • Type to search/filter • Ctrl+C cancel[/dim]"
     )
 
-    action_title = "Enable" if action == "enable" else "Disable"
-    current_state = "disabled" if action == "enable" else "enabled"
-    display_to_id: dict[str, str] = {}
-    choices: list[str] = []
-    for module in candidates:
-        module_id = str(module.get("id", ""))
-        version = str(module.get("version", ""))
-        state = "enabled" if bool(module.get("enabled", True)) else "disabled"
-        marker = "✗" if state == "disabled" else "✓"
-        display = f"{marker} {module_id:<14}  [{state}]  v{version}"
-        display_to_id[display] = module_id
-        choices.append(display)
-
-    selected: list[str] | None = questionary.checkbox(
-        f"{action_title} module(s) from currently {current_state}:",
-        choices=choices,
-        instruction="(multi-select)",
-        style=_questionary_style(),
-    ).ask()
-    if not selected:
-        return []
-    return [display_to_id[s] for s in selected if s in display_to_id]
+    display_to_id, choices = _module_checkbox_rows(candidates)
+    return _run_module_checkbox_prompt(action, display_to_id, choices, questionary)
 
 
 def _resolve_templates_dir(repo_path: Path) -> Path | None:
@@ -274,18 +283,36 @@ def _resolve_templates_dir(repo_path: Path) -> Path | None:
     return find_package_resources_path("specfact_cli", "resources/prompts")
 
 
+def _expected_ide_prompt_basenames(format_type: str) -> list[str]:
+    if format_type == "prompt.md":
+        return [f"{cmd}.prompt.md" for cmd in SPECFACT_COMMANDS]
+    if format_type == "toml":
+        return [f"{cmd}.toml" for cmd in SPECFACT_COMMANDS]
+    return [f"{cmd}.md" for cmd in SPECFACT_COMMANDS]
+
+
+def _count_outdated_ide_prompts(ide_dir: Path, templates_dir: Path, format_type: str) -> int:
+    outdated = 0
+    for cmd in SPECFACT_COMMANDS:
+        src = templates_dir / f"{cmd}.md"
+        if format_type == "prompt.md":
+            dest = ide_dir / f"{cmd}.prompt.md"
+        elif format_type == "toml":
+            dest = ide_dir / f"{cmd}.toml"
+        else:
+            dest = ide_dir / f"{cmd}.md"
+        if src.exists() and dest.exists() and dest.stat().st_mtime < src.stat().st_mtime:
+            outdated += 1
+    return outdated
+
+
 def _audit_prompt_installation(repo_path: Path) -> None:
     """Report prompt installation health and next steps without mutating files."""
     detected_ide = detect_ide("auto")
     config = IDE_CONFIG[detected_ide]
     ide_dir = repo_path / str(config["folder"])
     format_type = str(config["format"])
-    if format_type == "prompt.md":
-        expected_files = [f"{cmd}.prompt.md" for cmd in SPECFACT_COMMANDS]
-    elif format_type == "toml":
-        expected_files = [f"{cmd}.toml" for cmd in SPECFACT_COMMANDS]
-    else:
-        expected_files = [f"{cmd}.md" for cmd in SPECFACT_COMMANDS]
+    expected_files = _expected_ide_prompt_basenames(format_type)
 
     if not ide_dir.exists():
         console.print(
@@ -296,18 +323,7 @@ def _audit_prompt_installation(repo_path: Path) -> None:
 
     missing = [name for name in expected_files if not (ide_dir / name).exists()]
     templates_dir = _resolve_templates_dir(repo_path)
-    outdated = 0
-    if templates_dir:
-        for cmd in SPECFACT_COMMANDS:
-            src = templates_dir / f"{cmd}.md"
-            if format_type == "prompt.md":
-                dest = ide_dir / f"{cmd}.prompt.md"
-            elif format_type == "toml":
-                dest = ide_dir / f"{cmd}.toml"
-            else:
-                dest = ide_dir / f"{cmd}.md"
-            if src.exists() and dest.exists() and dest.stat().st_mtime < src.stat().st_mtime:
-                outdated += 1
+    outdated = _count_outdated_ide_prompts(ide_dir, templates_dir, format_type) if templates_dir else 0
 
     if not missing and outdated == 0:
         console.print(f"[green]Prompt status:[/green] {detected_ide} prompts are present and up to date.")
@@ -387,6 +403,67 @@ def _install_bundle_list(install_arg: str, install_root: Path, non_interactive: 
         )
 
 
+def _apply_profile_or_install_bundles(profile: str | None, install: str | None) -> None:
+    try:
+        non_interactive = is_non_interactive()
+        if profile is not None:
+            _install_profile_bundles(profile, INIT_USER_MODULES_ROOT, non_interactive=non_interactive)
+        else:
+            _install_bundle_list(install or "", INIT_USER_MODULES_ROOT, non_interactive=non_interactive)
+    except ValueError as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+
+
+def _run_interactive_first_run_install() -> None:
+    try:
+        bundle_ids = _interactive_first_run_bundle_selection()
+        if bundle_ids:
+            first_run_selection.install_bundles_for_init(
+                bundle_ids,
+                INIT_USER_MODULES_ROOT,
+                non_interactive=False,
+            )
+        else:
+            console.print(
+                "[dim]Tip: Install bundles later with "
+                "`specfact module install <bundle>` or `specfact init --profile <name>`[/dim]"
+            )
+    except typer.Exit:
+        raise
+    except ValueError as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+
+
+def _manual_bundle_ids_from_questionary(questionary: Any) -> list[str]:
+    bundle_choices = [
+        f"{first_run_selection.BUNDLE_DISPLAY.get(bid, bid)}  [dim]({bid})[/dim]"
+        for bid in first_run_selection.CANONICAL_BUNDLES
+    ]
+    selected = questionary.checkbox(
+        "Select bundles to install:",
+        choices=bundle_choices,
+        style=_questionary_style(),
+    ).ask()
+    if not selected:
+        return []
+    return [bid for bid in first_run_selection.CANONICAL_BUNDLES if any(bid in s for s in selected)]
+
+
+def _bundle_ids_for_first_run_choice(choice: str, profile_to_key: dict[str, str], questionary: Any) -> list[str]:
+    if choice in profile_to_key:
+        key = profile_to_key[choice]
+        if key == "_manual_":
+            return _manual_bundle_ids_from_questionary(questionary)
+        return list(first_run_selection.PROFILE_PRESETS.get(key, []))
+
+    for key, label in first_run_selection.PROFILE_DISPLAY_ORDER:
+        if choice.startswith(label) or f"({key})" in choice:
+            return list(first_run_selection.PROFILE_PRESETS.get(key, []))
+    return []
+
+
 def _interactive_first_run_bundle_selection() -> list[str]:
     """Show first-run welcome and bundle selection; return list of canonical bundle ids to install (or empty)."""
     try:
@@ -421,27 +498,7 @@ def _interactive_first_run_bundle_selection() -> list[str]:
     if not choice:
         return []
 
-    if choice in profile_to_key:
-        key = profile_to_key[choice]
-        if key == "_manual_":
-            bundle_choices = [
-                f"{first_run_selection.BUNDLE_DISPLAY.get(bid, bid)}  [dim]({bid})[/dim]"
-                for bid in first_run_selection.CANONICAL_BUNDLES
-            ]
-            selected = questionary.checkbox(
-                "Select bundles to install:",
-                choices=bundle_choices,
-                style=_questionary_style(),
-            ).ask()
-            if not selected:
-                return []
-            return [bid for bid in first_run_selection.CANONICAL_BUNDLES if any(bid in s for s in selected)]
-        return list(first_run_selection.PROFILE_PRESETS.get(key, []))
-
-    for key, label in first_run_selection.PROFILE_DISPLAY_ORDER:
-        if choice.startswith(label) or f"({key})" in choice:
-            return list(first_run_selection.PROFILE_PRESETS.get(key, []))
-    return []
+    return _bundle_ids_for_first_run_choice(choice, profile_to_key, questionary)
 
 
 @app.command("ide")
@@ -559,23 +616,7 @@ def init(
         repo_path = repo.resolve()
 
         if profile is not None or install is not None:
-            try:
-                non_interactive = is_non_interactive()
-                if profile is not None:
-                    _install_profile_bundles(
-                        profile,
-                        INIT_USER_MODULES_ROOT,
-                        non_interactive=non_interactive,
-                    )
-                else:
-                    _install_bundle_list(
-                        install or "",
-                        INIT_USER_MODULES_ROOT,
-                        non_interactive=non_interactive,
-                    )
-            except ValueError as e:
-                console.print(f"[red]Error:[/red] {e}")
-                raise typer.Exit(1) from e
+            _apply_profile_or_install_bundles(profile, install)
         elif is_first_run(user_root=INIT_USER_MODULES_ROOT) and is_non_interactive():
             console.print(
                 "[red]Error:[/red] In CI/CD (non-interactive) mode, first-run init requires "
@@ -587,24 +628,7 @@ def init(
             )
             raise typer.Exit(1)
         elif is_first_run(user_root=INIT_USER_MODULES_ROOT) and not is_non_interactive():
-            try:
-                bundle_ids = _interactive_first_run_bundle_selection()
-                if bundle_ids:
-                    first_run_selection.install_bundles_for_init(
-                        bundle_ids,
-                        INIT_USER_MODULES_ROOT,
-                        non_interactive=False,
-                    )
-                else:
-                    console.print(
-                        "[dim]Tip: Install bundles later with "
-                        "`specfact module install <bundle>` or `specfact init --profile <name>`[/dim]"
-                    )
-            except typer.Exit:
-                raise
-            except ValueError as e:
-                console.print(f"[red]Error:[/red] {e}")
-                raise typer.Exit(1) from e
+            _run_interactive_first_run_install()
 
         modules_list = get_discovered_modules_for_state(enable_ids=[], disable_ids=[])
         if modules_list:

@@ -6,7 +6,7 @@ CrossHair: skip (missing-lookup behavior intentionally raises LookupError by des
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, Protocol, runtime_checkable
+from typing import Any, Protocol, cast, runtime_checkable
 
 from beartype import beartype
 from icontract import ensure, require
@@ -36,10 +36,13 @@ class BridgeRegistry:
         self._owners: dict[str, str] = {}
 
     @beartype
-    @require(lambda bridge_id: bridge_id.strip() != "", "Bridge ID must not be empty")
-    @require(lambda owner: owner.strip() != "", "Bridge owner must not be empty")
+    @require(lambda bridge_id: cast(str, bridge_id).strip() != "", "Bridge ID must not be empty")
+    @require(lambda owner: cast(str, owner).strip() != "", "Bridge owner must not be empty")
     @require(lambda converter: isinstance(converter, SchemaConverter), "Converter must satisfy SchemaConverter")
-    @ensure(lambda self, bridge_id: bridge_id in self._converters, "Registered bridge must be present in registry")
+    @ensure(
+        lambda self, bridge_id: bridge_id in cast(BridgeRegistry, self)._converters,
+        "Registered bridge must be present in registry",
+    )
     def register_converter(self, bridge_id: str, converter: SchemaConverter, owner: str) -> None:
         """Register converter for a bridge ID."""
         if bridge_id in self._converters:
@@ -53,7 +56,7 @@ class BridgeRegistry:
         self._owners[bridge_id] = owner
 
     @beartype
-    @require(lambda bridge_id: bridge_id.strip() != "", "Bridge ID must not be empty")
+    @require(lambda bridge_id: cast(str, bridge_id).strip() != "", "Bridge ID must not be empty")
     @ensure(lambda result: isinstance(result, SchemaConverter), "Lookup result must satisfy SchemaConverter")
     def get_converter(self, bridge_id: str) -> SchemaConverter:
         """Return converter for bridge ID or raise LookupError for missing registrations."""
@@ -89,22 +92,22 @@ class BridgeProtocolRegistry:
         self._implementations: dict[str, dict[str, type[Any]]] = {}
 
     @beartype
-    @require(lambda protocol_id: protocol_id.strip() != "", "Protocol ID must not be empty")
+    @require(lambda protocol_id: cast(str, protocol_id).strip() != "", "Protocol ID must not be empty")
     @require(lambda protocol_type: isinstance(protocol_type, type), "Protocol type must be a class")
     def register_protocol(self, protocol_id: str, protocol_type: type[Any]) -> None:
         """Register a protocol type under a protocol ID."""
         self._protocols[protocol_id] = protocol_type
 
     @beartype
-    @require(lambda protocol_id: protocol_id.strip() != "", "Protocol ID must not be empty")
-    @require(lambda adapter_id: adapter_id.strip() != "", "Adapter ID must not be empty")
+    @require(lambda protocol_id: cast(str, protocol_id).strip() != "", "Protocol ID must not be empty")
+    @require(lambda adapter_id: cast(str, adapter_id).strip() != "", "Adapter ID must not be empty")
     @require(lambda implementation_type: isinstance(implementation_type, type), "Implementation must be a class")
     def register_implementation(self, protocol_id: str, adapter_id: str, implementation_type: type[Any]) -> None:
         """Register adapter implementation type for a protocol."""
         self._implementations.setdefault(protocol_id, {})[adapter_id] = implementation_type
 
     @beartype
-    @require(lambda protocol_id: protocol_id.strip() != "", "Protocol ID must not be empty")
+    @require(lambda protocol_id: cast(str, protocol_id).strip() != "", "Protocol ID must not be empty")
     def get_protocol(self, protocol_id: str) -> type[Any]:
         """Resolve protocol class for a protocol ID."""
         if protocol_id not in self._protocols:
@@ -112,8 +115,8 @@ class BridgeProtocolRegistry:
         return self._protocols[protocol_id]
 
     @beartype
-    @require(lambda protocol_id: protocol_id.strip() != "", "Protocol ID must not be empty")
-    @require(lambda adapter_id: adapter_id.strip() != "", "Adapter ID must not be empty")
+    @require(lambda protocol_id: cast(str, protocol_id).strip() != "", "Protocol ID must not be empty")
+    @require(lambda adapter_id: cast(str, adapter_id).strip() != "", "Adapter ID must not be empty")
     def get_implementation(self, protocol_id: str, adapter_id: str) -> type[Any]:
         """Resolve registered adapter implementation type for a protocol."""
         adapter_map = self._implementations.get(protocol_id, {})
@@ -122,7 +125,7 @@ class BridgeProtocolRegistry:
         return adapter_map[adapter_id]
 
     @beartype
-    @require(lambda protocol_id: protocol_id.strip() != "", "Protocol ID must not be empty")
+    @require(lambda protocol_id: cast(str, protocol_id).strip() != "", "Protocol ID must not be empty")
     def list_implementations(self, protocol_id: str) -> list[str]:
         """List adapter IDs that implement a registered protocol."""
         return sorted(self._implementations.get(protocol_id, {}).keys())

@@ -34,9 +34,10 @@ import shlex
 import shutil
 import subprocess
 import sys
+from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, TextIO, cast
 
 from icontract import ensure, require
 
@@ -141,7 +142,7 @@ class SmartCoverageManager:
         self.cache_dir.mkdir(exist_ok=True)
 
         # Load existing cache
-        self.cache = self._load_cache()
+        self.cache: dict[str, Any] = self._load_cache()
 
         # Optional: allow selecting a specific hatch test environment via env var
         # Examples:
@@ -261,12 +262,14 @@ class SmartCoverageManager:
         # Note: When pyproject.toml provides fail_under, that value (e.g., 70) takes precedence.
         return 80.0
 
-    def _load_cache(self) -> dict:
+    def _load_cache(self) -> dict[str, Any]:
         """Load coverage cache from file."""
         if self.cache_file.exists():
             try:
                 with open(self.cache_file) as f:
-                    return json.load(f)
+                    loaded = json.load(f)
+                    if isinstance(loaded, dict):
+                        return cast(dict[str, Any], loaded)
             except (json.JSONDecodeError, FileNotFoundError):
                 pass
         return {
@@ -318,7 +321,7 @@ class SmartCoverageManager:
 
     def _get_source_files(self) -> list[Path]:
         """Get all source files that affect coverage."""
-        source_files = []
+        source_files: list[Path] = []
         for source_dir in self.source_dirs:
             source_path = self.project_root / source_dir
             if source_path.exists():
@@ -329,7 +332,7 @@ class SmartCoverageManager:
 
     def _get_test_files(self) -> list[Path]:
         """Get all test files including fixtures and helpers."""
-        test_files = []
+        test_files: list[Path] = []
         for test_dir in self.test_dirs:
             test_path = self.project_root / test_dir
             if test_path.exists():
@@ -342,26 +345,21 @@ class SmartCoverageManager:
                         test_files.append(py_file)
         return test_files
 
-    def _get_modified_test_files(self) -> list[Path]:
-        """Get modified test files using git candidates; fallback to full scan if git unavailable."""
-        if not self.cache.get("last_full_run"):
-            return []
+    def _git_modified_test_files(self, cached: dict[str, str]) -> list[Path]:
         modified: list[Path] = []
-        cached = self.cache.get("test_file_hashes", {})
-        git_changed = self._git_changed_paths()
-        if git_changed:
-            for rel in git_changed:
-                p = self.project_root / rel
-                if not p.exists() or self._should_exclude_file(p):
-                    continue
-                # Only consider test tree
-                if not any(str(p).startswith(str(self.project_root / d)) for d in self.test_dirs):
-                    continue
-                h = self._get_file_hash(p)
-                if h and cached.get(rel) != h:
-                    modified.append(p)
-            return modified
-        # Fallback: scan all known test files and compare hashes
+        for rel in self._git_changed_paths():
+            p = self.project_root / rel
+            if not p.exists() or self._should_exclude_file(p):
+                continue
+            if not any(str(p).startswith(str(self.project_root / d)) for d in self.test_dirs):
+                continue
+            h = self._get_file_hash(p)
+            if h and cached.get(rel) != h:
+                modified.append(p)
+        return modified
+
+    def _scan_modified_test_files(self, cached: dict[str, str]) -> list[Path]:
+        modified: list[Path] = []
         for p in self._get_test_files():
             rel = str(p.relative_to(self.project_root))
             if self._should_exclude_file(p):
@@ -370,6 +368,16 @@ class SmartCoverageManager:
             if h and cached.get(rel) != h:
                 modified.append(p)
         return modified
+
+    def _get_modified_test_files(self) -> list[Path]:
+        """Get modified test files using git candidates; fallback to full scan if git unavailable."""
+        if not self.cache.get("last_full_run"):
+            return []
+        cached: dict[str, str] = cast(dict[str, str], self.cache.get("test_file_hashes", {}))
+        git_changed = self._git_changed_paths()
+        if git_changed:
+            return self._git_modified_test_files(cached)
+        return self._scan_modified_test_files(cached)
 
     def _split_tests_by_level(self, test_paths: list[Path]) -> tuple[list[Path], list[Path], list[Path]]:
         """Split provided test paths into (unit, integration, e2e) buckets.
@@ -394,7 +402,7 @@ class SmartCoverageManager:
 
     def _get_test_files_by_level(self, test_level: str) -> list[Path]:
         """Get test files for a specific test level (unit, integration, e2e)."""
-        test_files = []
+        test_files: list[Path] = []
         test_dir = self.test_level_dirs.get(test_level)
         if not test_dir:
             return test_files
@@ -413,7 +421,7 @@ class SmartCoverageManager:
 
     def _get_config_files(self) -> list[Path]:
         """Get all configuration files that affect test behavior."""
-        config_files = []
+        config_files: list[Path] = []
         for config_file in self.config_files:
             config_path = self.project_root / config_file
             if config_path.exists():
@@ -582,10 +590,18 @@ class SmartCoverageManager:
         logger.info("   Margin: %.1f%% above threshold", current_coverage - self.coverage_threshold)
         return 0
 
-    def _accumulate_tested_coverage(self, output_lines: list[str], tested_source_files: set[str]) -> tuple[int, int]:
-        """Aggregate covered statement counts for the tested source file set."""
-        total_statements = 0
-        total_missed = 0
+    def _coverage_row_adds_to_tested(self, line: str, tested_source_files: set[str]) -> tuple[int, int] | None:
+        parsed = self._parse_coverage_row(line)
+        if parsed is None:
+            return None
+        file_name, statements, missed = parsed
+        if any(tested_file in file_name for tested_file in tested_source_files):
+            return statements, missed
+        return None
+
+    def _iter_coverage_table_data_lines(self, output_lines: list[str]) -> list[str]:
+        """Lines between the coverage header row and the TOTAL row (exclusive)."""
+        data_lines: list[str] = []
         in_coverage_table = False
         for line in output_lines:
             if "Name" in line and "Stmts" in line and "Miss" in line and "Cover" in line:
@@ -595,16 +611,255 @@ class SmartCoverageManager:
                 continue
             if in_coverage_table and "TOTAL" in line:
                 break
-            if not in_coverage_table or not line.strip():
-                continue
-            parsed = self._parse_coverage_row(line)
-            if parsed is None:
-                continue
-            file_name, statements, missed = parsed
-            if any(tested_file in file_name for tested_file in tested_source_files):
-                total_statements += statements
-                total_missed += missed
+            if in_coverage_table and line.strip():
+                data_lines.append(line)
+        return data_lines
+
+    def _accumulate_tested_coverage(self, output_lines: list[str], tested_source_files: set[str]) -> tuple[int, int]:
+        """Aggregate covered statement counts for the tested source file set."""
+        total_statements = 0
+        total_missed = 0
+        for line in self._iter_coverage_table_data_lines(output_lines):
+            add = self._coverage_row_adds_to_tested(line, tested_source_files)
+            if add is not None:
+                st, ms = add
+                total_statements += st
+                total_missed += ms
         return total_statements, total_missed
+
+    def _popen_stream_to_log(
+        self,
+        cmd: list[str],
+        log_file: TextIO,
+        *,
+        timeout: int,
+    ) -> tuple[int | None, list[str], Exception | None]:
+        """Run ``cmd``, stream stdout to *log_file* and return (rc, lines, spawn_error)."""
+        output_local: list[str] = []
+        try:
+            proc = subprocess.Popen(
+                cmd,
+                cwd=self.project_root,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                bufsize=1,
+                universal_newlines=True,
+            )
+        except Exception as exc:
+            return None, output_local, exc
+
+        assert proc.stdout is not None
+        for line in iter(proc.stdout.readline, ""):
+            if line:
+                logger.debug("%s", line.rstrip())
+                log_file.write(line)
+                log_file.flush()
+                output_local.append(line)
+        try:
+            rc = proc.wait(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            with contextlib.suppress(Exception):
+                proc.kill()
+            raise
+        return rc, output_local, None
+
+    @staticmethod
+    def _parse_total_coverage_percent(output_lines: list[str]) -> float:
+        """Best-effort parse of overall coverage %% from pytest/coverage output lines."""
+        coverage_percentage = 0.0
+        for line in output_lines:
+            if "TOTAL" not in line or "%" not in line:
+                continue
+            for part in line.split():
+                if part.endswith("%"):
+                    try:
+                        return float(part[:-1])
+                    except ValueError:
+                        pass
+        return coverage_percentage
+
+    @staticmethod
+    def _pytest_count_from_banner_line(line: str) -> int | None:
+        """Parse count from ``======== N passed`` style summary lines."""
+        if not line.startswith("========") or (" passed" not in line and " failed" not in line):
+            return None
+        words = line.split()
+        for i, word in enumerate(words):
+            if word in ("passed", "passed,", "failed", "failed,") and i > 0 and words[i - 1] != "subtests":
+                try:
+                    return int(words[i - 1])
+                except ValueError:
+                    return None
+        return None
+
+    @staticmethod
+    def _pytest_count_from_plain_summary_line(line: str) -> int | None:
+        """Parse count from looser pytest output lines (non-banner)."""
+        if (" passed" not in line and " failed" not in line) or "subtests passed" in line:
+            return None
+        words = line.split()
+        for i, word in enumerate(words):
+            if word in ("passed", "failed") and i > 0:
+                try:
+                    return int(words[i - 1])
+                except ValueError:
+                    return None
+        return None
+
+    @classmethod
+    def _try_parse_pytest_summary_test_count(cls, line: str) -> int | None:
+        """Parse test count from a pytest summary line, if present."""
+        if " passed" not in line and " failed" not in line:
+            return None
+        n = cls._pytest_count_from_banner_line(line)
+        if n is not None:
+            return n
+        return cls._pytest_count_from_plain_summary_line(line)
+
+    def _parse_pytest_test_count(self, output_lines: list[str]) -> int:
+        test_count = 0
+        for line in output_lines:
+            n = self._try_parse_pytest_summary_test_count(line)
+            if n is not None:
+                test_count = n
+        return test_count
+
+    @staticmethod
+    def _line_indicates_coverage_threshold_failure(line: str) -> bool:
+        low = line.lower()
+        return (
+            "coverage failure" in low
+            or "fail_under" in low
+            or "less than fail-under" in low
+            or ("total of" in line and "is less than fail-under" in line)
+        )
+
+    def _run_coverage_hatch_or_pytest(self, log_file: TextIO) -> tuple[int | None, list[str]]:
+        """Execute full-suite hatch (optional fallback to pytest) with streaming logs."""
+        output_lines: list[str] = []
+        timeout_full = 600
+        if self.use_hatch:
+            hatch_cmd = self._build_hatch_test_cmd(with_coverage=True, parallel=True)
+            rc, out, err = self._popen_stream_to_log(hatch_cmd, log_file, timeout=timeout_full)
+            output_lines.extend(out)
+            if self._should_fallback_from_hatch(rc, out, err):
+                logger.warning("Hatch test failed to start cleanly; falling back to pytest.")
+                log_file.write("Hatch test failed to start cleanly; falling back to pytest.\n")
+                pytest_cmd = self._build_pytest_cmd(with_coverage=True, parallel=True)
+                rc2, out2, _ = self._popen_stream_to_log(pytest_cmd, log_file, timeout=timeout_full)
+                output_lines.extend(out2)
+                return rc2 if rc2 is not None else 1, output_lines
+            return rc, output_lines
+        pytest_cmd = self._build_pytest_cmd(with_coverage=True, parallel=True)
+        rc, out, _ = self._popen_stream_to_log(pytest_cmd, log_file, timeout=timeout_full)
+        output_lines.extend(out)
+        return rc if rc is not None else 1, output_lines
+
+    def _run_leveled_hatch_or_pytest(
+        self,
+        log_file: TextIO,
+        test_level: str,
+        test_file_strings: list[str],
+        want_coverage: bool,
+        timeout_seconds: int,
+    ) -> tuple[int | None, list[str]]:
+        """Run hatch or pytest for a specific test level and file list."""
+        output_lines: list[str] = []
+        if self.use_hatch:
+            hatch_cmd = self._build_hatch_test_cmd(with_coverage=want_coverage, extra_args=test_file_strings)
+            selected_env = self.hatch_test_env if self.hatch_test_env else "default hatch-test matrix/env"
+            logger.info("Using hatch for %s tests (env selector: %s)", test_level, selected_env)
+            logger.debug("Executing: %s", shlex.join(hatch_cmd))
+            rc, out, err = self._popen_stream_to_log(hatch_cmd, log_file, timeout=timeout_seconds)
+            output_lines.extend(out)
+            if err is not None or rc is None:
+                logger.warning("Hatch test failed to start; falling back to pytest.")
+                log_file.write("Hatch test failed to start; falling back to pytest.\n")
+                pytest_cmd = self._build_pytest_cmd(with_coverage=want_coverage, extra_args=test_file_strings)
+                logger.debug("Executing fallback: %s", shlex.join(pytest_cmd))
+                rc2, out2, _ = self._popen_stream_to_log(pytest_cmd, log_file, timeout=timeout_seconds)
+                output_lines.extend(out2)
+                return rc2 if rc2 is not None else 1, output_lines
+            return rc, output_lines
+        pytest_cmd = self._build_pytest_cmd(with_coverage=want_coverage, extra_args=test_file_strings)
+        logger.info("Hatch disabled; executing pytest directly: %s", shlex.join(pytest_cmd))
+        rc, out, _ = self._popen_stream_to_log(pytest_cmd, log_file, timeout=timeout_seconds)
+        output_lines.extend(out)
+        return rc if rc is not None else 1, output_lines
+
+    def _adjust_success_for_coverage_threshold(
+        self,
+        success: bool,
+        test_level: str,
+        test_count: int,
+        coverage_percentage: float,
+        output_lines: list[str],
+    ) -> bool:
+        """Treat threshold-only failures as success for unit/folder runs when appropriate."""
+        if success or test_level not in ("unit", "folder") or test_count <= 0 or coverage_percentage <= 0:
+            return success
+        if not any(self._line_indicates_coverage_threshold_failure(line) for line in output_lines):
+            return success
+        logger.warning(
+            "Overall coverage %.1f%% is below threshold of %.1f%%",
+            coverage_percentage,
+            self.coverage_threshold,
+        )
+        logger.info("This is expected for unit/folder tests. Full test run will enforce the threshold.")
+        return True
+
+    def _log_completed_test_run(
+        self,
+        success: bool,
+        test_level: str,
+        test_count: int,
+        coverage_percentage: float,
+        tested_coverage_percentage: float,
+        test_log_file: Path,
+        coverage_log_file: Path,
+        return_code: int | None,
+    ) -> None:
+        """Emit summary log lines after a leveled test run."""
+        if success:
+            if test_level in ("unit", "folder") and tested_coverage_percentage > 0:
+                logger.info(
+                    "%s tests completed: %d tests, %.1f%% overall, %.1f%% tested code coverage",
+                    test_level.title(),
+                    test_count,
+                    coverage_percentage,
+                    tested_coverage_percentage,
+                )
+            else:
+                logger.info(
+                    "%s tests completed: %d tests, %.1f%% coverage",
+                    test_level.title(),
+                    test_count,
+                    coverage_percentage,
+                )
+            logger.info("Full %s test log: %s", test_level, test_log_file)
+            logger.info("%s coverage log: %s", test_level.title(), coverage_log_file)
+        else:
+            logger.error("%s tests failed with exit code %s", test_level.title(), return_code)
+            logger.info("Check %s test log for details: %s", test_level, test_log_file)
+            logger.info("Check %s coverage log for details: %s", test_level, coverage_log_file)
+
+    def _log_tested_coverage_vs_threshold(self, test_level: str, tested_coverage_percentage: float) -> None:
+        if test_level not in ("unit", "folder") or tested_coverage_percentage <= 0:
+            return
+        if tested_coverage_percentage < self.coverage_threshold:
+            logger.warning(
+                "Tested code coverage %.1f%% is below threshold of %.1f%%",
+                tested_coverage_percentage,
+                self.coverage_threshold,
+            )
+            logger.info("Consider adding more tests for the modified files.")
+        else:
+            logger.info(
+                "Tested code coverage %.1f%% meets threshold of %.1f%%",
+                tested_coverage_percentage,
+                self.coverage_threshold,
+            )
 
     def _get_modified_files(self) -> list[Path]:
         """Get list of modified source files.
@@ -612,7 +867,7 @@ class SmartCoverageManager:
         if not self.cache.get("last_full_run"):
             return []
 
-        cached_hashes = self.cache.get("file_hashes", {})
+        cached_hashes: dict[str, str] = cast(dict[str, str], self.cache.get("file_hashes", {}))
         git_candidates = self._git_candidate_files(self.source_dirs)
         if git_candidates:
             return self._collect_changed_files(
@@ -630,7 +885,7 @@ class SmartCoverageManager:
     def _get_modified_folders(self) -> set[Path]:
         """Get set of parent folders containing modified files."""
         modified_files = self._get_modified_files()
-        modified_folders = set()
+        modified_folders: set[Path] = set()
 
         for file_path in modified_files:
             # Get parent folder
@@ -646,7 +901,7 @@ class SmartCoverageManager:
 
     def _get_unit_tests_for_files(self, modified_files: list[Path]) -> list[Path]:
         """Get unit test files for specific modified source files."""
-        unit_tests = []
+        unit_tests: list[Path] = []
 
         for source_file in modified_files:
             # Convert source file path to test file path
@@ -702,7 +957,7 @@ class SmartCoverageManager:
 
     def _get_files_in_folders(self, modified_folders: set[Path]) -> list[Path]:
         """Get all source files in the modified folders."""
-        folder_files = []
+        folder_files: list[Path] = []
 
         for folder in modified_folders:
             # Find all Python files in the folder and subfolders
@@ -737,7 +992,7 @@ class SmartCoverageManager:
         Uses git candidates when available; otherwise falls back to full scan of source dirs."""
         if not self.cache.get("last_full_run"):
             return True
-        cached_hashes = self.cache.get("file_hashes", {})
+        cached_hashes: dict[str, str] = cast(dict[str, str], self.cache.get("file_hashes", {}))
         git_candidates = self._git_candidate_files(self.source_dirs)
         if git_candidates:
             return any(self._has_changed_file(path, cached_hashes, allow_version_only=True) for path in git_candidates)
@@ -746,25 +1001,19 @@ class SmartCoverageManager:
             self._has_changed_file(path, cached_hashes, allow_version_only=True) for path in self._get_source_files()
         )
 
-    def _has_test_changes(self) -> bool:
-        """Check if any test files have changed since last coverage run.
-        Uses git candidates when available; otherwise falls back to full scan of test dirs."""
-        if not self.cache.get("last_full_run"):
-            return True
-        cached_test_hashes = self.cache.get("test_file_hashes", {})
-        git_changed = self._git_changed_paths()
-        if git_changed:
-            for rel in git_changed:
-                p = self.project_root / rel
-                if not p.exists() or self._should_exclude_file(p):
-                    continue
-                if not any(str(p).startswith(str(self.project_root / d)) for d in self.test_dirs):
-                    continue
-                h = self._get_file_hash(p)
-                if h and cached_test_hashes.get(rel) != h:
-                    return True
-            return False
-        # Fallback: compare all test files against cache
+    def _git_test_changes_detected(self, cached_test_hashes: dict[str, str]) -> bool:
+        for rel in self._git_changed_paths():
+            p = self.project_root / rel
+            if not p.exists() or self._should_exclude_file(p):
+                continue
+            if not any(str(p).startswith(str(self.project_root / d)) for d in self.test_dirs):
+                continue
+            h = self._get_file_hash(p)
+            if h and cached_test_hashes.get(rel) != h:
+                return True
+        return False
+
+    def _scan_test_changes_detected(self, cached_test_hashes: dict[str, str]) -> bool:
         for p in self._get_test_files():
             if self._should_exclude_file(p):
                 continue
@@ -773,6 +1022,17 @@ class SmartCoverageManager:
             if h and cached_test_hashes.get(rel) != h:
                 return True
         return False
+
+    def _has_test_changes(self) -> bool:
+        """Check if any test files have changed since last coverage run.
+        Uses git candidates when available; otherwise falls back to full scan of test dirs."""
+        if not self.cache.get("last_full_run"):
+            return True
+        cached_test_hashes: dict[str, str] = cast(dict[str, str], self.cache.get("test_file_hashes", {}))
+        git_changed = self._git_changed_paths()
+        if git_changed:
+            return self._git_test_changes_detected(cached_test_hashes)
+        return self._scan_test_changes_detected(cached_test_hashes)
 
     def _is_version_only_change(self, file_path: str, cached_hash: str, current_hash: str) -> bool:
         """Check if the change is only a version number update."""
@@ -807,7 +1067,7 @@ class SmartCoverageManager:
         Uses git candidates when available; otherwise falls back to full scan of config files."""
         if not self.cache.get("last_full_run"):
             return True
-        cached_config_hashes = self.cache.get("config_file_hashes", {})
+        cached_config_hashes: dict[str, str] = cast(dict[str, str], self.cache.get("config_file_hashes", {}))
         git_candidates = [path for path in self._git_candidate_files() if path.name in self.config_files]
         if git_candidates:
             return any(
@@ -844,61 +1104,7 @@ class SmartCoverageManager:
                 cov_file.write(f"Coverage Analysis Started: {datetime.now().isoformat()}\n")
                 cov_file.write("=" * 80 + "\n")
 
-                # Run tests with real-time output to both console and log
-                # Implement robust fallback: try Hatch first (if enabled), then fall back to pytest
-
-                def run_and_stream(cmd_to_run: list[str]) -> tuple[int | None, list[str], Exception | None]:
-                    output_local: list[str] = []
-                    try:
-                        proc = subprocess.Popen(
-                            cmd_to_run,
-                            cwd=self.project_root,
-                            stdout=subprocess.PIPE,
-                            stderr=subprocess.STDOUT,
-                            text=True,
-                            bufsize=1,
-                            universal_newlines=True,
-                        )
-                    except Exception as e:  # FileNotFoundError, OSError, etc.
-                        return None, output_local, e
-
-                    assert proc.stdout is not None
-                    for line in iter(proc.stdout.readline, ""):
-                        if line:
-                            logger.debug("%s", line.rstrip())
-                            log_file.write(line)
-                            log_file.flush()
-                            output_local.append(line)
-                    try:
-                        rc = proc.wait(timeout=600)  # 10 minute timeout
-                    except subprocess.TimeoutExpired:
-                        with contextlib.suppress(Exception):
-                            proc.kill()
-                        raise
-                    return rc, output_local, None
-
-                output_lines = []
-                return_code: int | None = None
-                if self.use_hatch:
-                    hatch_cmd = self._build_hatch_test_cmd(with_coverage=True, parallel=True)
-                    rc, out, err = run_and_stream(hatch_cmd)
-                    output_lines.extend(out)
-                    # Fall back to direct pytest when Hatch cannot start or when a cached Hatch
-                    # environment is broken (for example, a broken python symlink in CI cache).
-                    if self._should_fallback_from_hatch(rc, out, err):
-                        logger.warning("Hatch test failed to start cleanly; falling back to pytest.")
-                        log_file.write("Hatch test failed to start cleanly; falling back to pytest.\n")
-                        pytest_cmd = self._build_pytest_cmd(with_coverage=True, parallel=True)
-                        rc2, out2, _ = run_and_stream(pytest_cmd)
-                        output_lines.extend(out2)
-                        return_code = rc2 if rc2 is not None else 1
-                    else:
-                        return_code = rc
-                else:
-                    pytest_cmd = self._build_pytest_cmd(with_coverage=True, parallel=True)
-                    rc, out, _ = run_and_stream(pytest_cmd)
-                    output_lines.extend(out)
-                    return_code = rc if rc is not None else 1
+                return_code, output_lines = self._run_coverage_hatch_or_pytest(log_file)
 
                 # Write footer to log files
                 log_file.write("\n" + "=" * 80 + "\n")
@@ -908,48 +1114,9 @@ class SmartCoverageManager:
                 cov_file.write(f"Coverage Analysis Completed: {datetime.now().isoformat()}\n")
                 cov_file.write(f"Exit Code: {return_code}\n")
 
-            # Parse coverage percentage from output
-            coverage_percentage = 0
-            test_count = 0
+            coverage_percentage = self._parse_total_coverage_percent(output_lines)
+            test_count = self._parse_pytest_test_count(output_lines)
             success = return_code == 0
-
-            # Extract coverage from output
-            for line in output_lines:
-                if "TOTAL" in line and "%" in line:
-                    # Extract percentage
-                    parts = line.split()
-                    for part in parts:
-                        if part.endswith("%"):
-                            try:
-                                coverage_percentage = float(part[:-1])
-                                break
-                            except ValueError:
-                                pass
-
-                # Count tests (look for "passed" or "failed")
-                if " passed" in line or " failed" in line:
-                    try:
-                        # Look for the summary line format: "======== 2779 passed, 2 skipped, 8 subtests passed in 120.46s ========"
-                        if line.startswith("========") and (" passed" in line or " failed" in line):
-                            # Extract the first number before "passed" or "failed" (not "subtests passed")
-                            words = line.split()
-                            for i, word in enumerate(words):
-                                if (
-                                    (word == "passed" or word == "passed," or word == "failed" or word == "failed,")
-                                    and i > 0
-                                    and words[i - 1] != "subtests"
-                                ):
-                                    test_count = int(words[i - 1])
-                                    break
-                        # Fallback for other formats
-                        elif (" passed" in line or " failed" in line) and "subtests passed" not in line:
-                            words = line.split()
-                            for i, word in enumerate(words):
-                                if (word == "passed" or word == "failed") and i > 0:
-                                    test_count = int(words[i - 1])
-                                    break
-                    except (ValueError, IndexError):
-                        pass
 
             # Full tests - coverage threshold is enforced
             if success:
@@ -1003,69 +1170,14 @@ class SmartCoverageManager:
                 cov_file.write(f"{test_level.title()} Coverage Analysis Started: {datetime.now().isoformat()}\n")
                 cov_file.write("=" * 80 + "\n")
 
-                # Run tests with real-time output to both console and log
-                # Implement robust fallback: try Hatch first (if enabled), then fall back to pytest
-
-                def run_and_stream(cmd_to_run: list[str]) -> tuple[int | None, list[str], Exception | None]:
-                    output_local: list[str] = []
-                    try:
-                        proc = subprocess.Popen(
-                            cmd_to_run,
-                            cwd=self.project_root,
-                            stdout=subprocess.PIPE,
-                            stderr=subprocess.STDOUT,
-                            text=True,
-                            bufsize=1,
-                            universal_newlines=True,
-                        )
-                    except Exception as e:  # FileNotFoundError, OSError, etc.
-                        return None, output_local, e
-
-                    assert proc.stdout is not None
-                    for line in iter(proc.stdout.readline, ""):
-                        if line:
-                            logger.debug("%s", line.rstrip())
-                            log_file.write(line)
-                            log_file.flush()
-                            output_local.append(line)
-                    try:
-                        rc = proc.wait(timeout=timeout_seconds)
-                    except subprocess.TimeoutExpired:
-                        with contextlib.suppress(Exception):
-                            proc.kill()
-                        raise
-                    return rc, output_local, None
-
-                output_lines = []
-                return_code: int | None = None
-                # Option A: Only collect coverage for classic unit/folder tests.
-                # Contract layers (integration/e2e/scenarios) should NOT collect line coverage.
-                want_coverage = test_level in ["unit", "folder"]
-                if self.use_hatch:
-                    hatch_cmd = self._build_hatch_test_cmd(with_coverage=want_coverage, extra_args=test_file_strings)
-                    selected_env = self.hatch_test_env if self.hatch_test_env else "default hatch-test matrix/env"
-                    logger.info("Using hatch for %s tests (env selector: %s)", test_level, selected_env)
-                    logger.debug("Executing: %s", shlex.join(hatch_cmd))
-                    rc, out, err = run_and_stream(hatch_cmd)
-                    output_lines.extend(out)
-                    # Only fall back to pytest if hatch failed to start or had a critical error
-                    # Don't fall back for non-zero exit codes that might be due to coverage threshold failures
-                    if err is not None or rc is None:
-                        logger.warning("Hatch test failed to start; falling back to pytest.")
-                        log_file.write("Hatch test failed to start; falling back to pytest.\n")
-                        pytest_cmd = self._build_pytest_cmd(with_coverage=want_coverage, extra_args=test_file_strings)
-                        logger.debug("Executing fallback: %s", shlex.join(pytest_cmd))
-                        rc2, out2, _ = run_and_stream(pytest_cmd)
-                        output_lines.extend(out2)
-                        return_code = rc2 if rc2 is not None else 1
-                    else:
-                        return_code = rc
-                else:
-                    pytest_cmd = self._build_pytest_cmd(with_coverage=want_coverage, extra_args=test_file_strings)
-                    logger.info("Hatch disabled; executing pytest directly: %s", shlex.join(pytest_cmd))
-                    rc, out, _ = run_and_stream(pytest_cmd)
-                    output_lines.extend(out)
-                    return_code = rc if rc is not None else 1
+                want_coverage = test_level in ("unit", "folder")
+                return_code, output_lines = self._run_leveled_hatch_or_pytest(
+                    log_file,
+                    test_level,
+                    test_file_strings,
+                    want_coverage,
+                    timeout_seconds,
+                )
 
                 # Write footer to log files
                 log_file.write("\n" + "=" * 80 + "\n")
@@ -1075,124 +1187,34 @@ class SmartCoverageManager:
                 cov_file.write(f"{test_level.title()} Coverage Analysis Completed: {datetime.now().isoformat()}\n")
                 cov_file.write(f"Exit Code: {return_code}\n")
 
-            # Parse coverage percentage from output
-            coverage_percentage = 0
-            tested_coverage_percentage = 0
-            test_count = 0
+            test_count = self._parse_pytest_test_count(output_lines)
             success = return_code == 0
 
-            # For integration/E2E tests, set coverage to 100% since we don't measure it
-            if test_level in ["integration", "e2e"]:
+            if test_level in ("integration", "e2e"):
                 coverage_percentage = 100.0
                 tested_coverage_percentage = 100.0
             else:
-                # Extract coverage from output for unit/folder/full tests
-                for line in output_lines:
-                    if "TOTAL" in line and "%" in line:
-                        # Extract percentage
-                        parts = line.split()
-                        for part in parts:
-                            if part.endswith("%"):
-                                try:
-                                    coverage_percentage = float(part[:-1])
-                                    break
-                                except ValueError:
-                                    pass
+                coverage_percentage = self._parse_total_coverage_percent(output_lines)
 
-            # Count tests (look for "passed" or "failed") - works for all test levels
-            for line in output_lines:
-                if " passed" in line or " failed" in line:
-                    try:
-                        # Look for the summary line format: "======== 2779 passed, 2 skipped, 8 subtests passed in 120.46s ========"
-                        if line.startswith("========") and (" passed" in line or " failed" in line):
-                            # Extract the first number before "passed" or "failed" (not "subtests passed")
-                            words = line.split()
-                            for i, word in enumerate(words):
-                                if (
-                                    (word == "passed" or word == "passed," or word == "failed" or word == "failed,")
-                                    and i > 0
-                                    and words[i - 1] != "subtests"
-                                ):
-                                    test_count = int(words[i - 1])
-                                    break
-                        # Fallback for other formats
-                        elif (" passed" in line or " failed" in line) and "subtests passed" not in line:
-                            words = line.split()
-                            for i, word in enumerate(words):
-                                if (word == "passed" or word == "failed") and i > 0:
-                                    test_count = int(words[i - 1])
-                                    break
-                    except (ValueError, IndexError):
-                        pass
-
-            # Calculate tested code coverage for unit/folder tests
-            if test_level in ["unit", "folder"] and test_files:
+            if test_level in ("unit", "folder") and test_files:
                 tested_coverage_percentage = self._calculate_tested_coverage(test_files, output_lines)
             else:
                 tested_coverage_percentage = coverage_percentage
 
-            # For unit/folder tests, check if failure is due to coverage threshold
-            if not success and test_level in ["unit", "folder"] and test_count > 0 and coverage_percentage > 0:
-                # Check if the failure is due to coverage threshold
-                coverage_threshold_failure = False
-                for line in output_lines:
-                    if (
-                        "coverage failure" in line.lower()
-                        or "fail_under" in line.lower()
-                        or "less than fail-under" in line.lower()
-                        or ("total of" in line and "is less than fail-under" in line)
-                    ):
-                        coverage_threshold_failure = True
-                        break
-
-                if coverage_threshold_failure:
-                    # This is a coverage threshold failure, not a test failure
-                    success = True  # Treat as success for unit/folder tests
-                    logger.warning(
-                        "Overall coverage %.1f%% is below threshold of %.1f%%",
-                        coverage_percentage,
-                        self.coverage_threshold,
-                    )
-                    logger.info("This is expected for unit/folder tests. Full test run will enforce the threshold.")
-
-            # For unit/folder tests, also check tested code coverage against threshold
-            if test_level in ["unit", "folder"] and tested_coverage_percentage > 0:
-                if tested_coverage_percentage < self.coverage_threshold:
-                    logger.warning(
-                        "Tested code coverage %.1f%% is below threshold of %.1f%%",
-                        tested_coverage_percentage,
-                        self.coverage_threshold,
-                    )
-                    logger.info("Consider adding more tests for the modified files.")
-                else:
-                    logger.info(
-                        "Tested code coverage %.1f%% meets threshold of %.1f%%",
-                        tested_coverage_percentage,
-                        self.coverage_threshold,
-                    )
-
-            if success:
-                if test_level in ["unit", "folder"] and tested_coverage_percentage > 0:
-                    logger.info(
-                        "%s tests completed: %d tests, %.1f%% overall, %.1f%% tested code coverage",
-                        test_level.title(),
-                        test_count,
-                        coverage_percentage,
-                        tested_coverage_percentage,
-                    )
-                else:
-                    logger.info(
-                        "%s tests completed: %d tests, %.1f%% coverage",
-                        test_level.title(),
-                        test_count,
-                        coverage_percentage,
-                    )
-                logger.info("Full %s test log: %s", test_level, test_log_file)
-                logger.info("%s coverage log: %s", test_level.title(), coverage_log_file)
-            else:
-                logger.error("%s tests failed with exit code %s", test_level.title(), return_code)
-                logger.info("Check %s test log for details: %s", test_level, test_log_file)
-                logger.info("Check %s coverage log for details: %s", test_level, coverage_log_file)
+            success = self._adjust_success_for_coverage_threshold(
+                success, test_level, test_count, coverage_percentage, output_lines
+            )
+            self._log_tested_coverage_vs_threshold(test_level, tested_coverage_percentage)
+            self._log_completed_test_run(
+                success,
+                test_level,
+                test_count,
+                coverage_percentage,
+                tested_coverage_percentage,
+                test_log_file,
+                coverage_log_file,
+                return_code,
+            )
 
             # Cleanup generated test files after test run
             self._cleanup_generated_test_files()
@@ -1259,6 +1281,38 @@ class SmartCoverageManager:
                 f"Please add more tests or improve existing test coverage to reach at least {self.coverage_threshold:.1f}%"
             )
 
+    def _maybe_warn_subthreshold_non_full(
+        self, success: bool, enforce_threshold: bool, coverage_percentage: float
+    ) -> None:
+        if success and enforce_threshold:
+            self._check_coverage_threshold(coverage_percentage)
+        elif success and not enforce_threshold and coverage_percentage < self.coverage_threshold:
+            logger.warning(
+                "Coverage %.1f%% is below threshold of %.1f%%",
+                coverage_percentage,
+                self.coverage_threshold,
+            )
+            logger.info("This is expected for unit/folder tests. Full test run will enforce the threshold.")
+
+    def _refresh_all_tracked_hashes(
+        self,
+        file_hashes: dict[str, str],
+        test_file_hashes: dict[str, str],
+        config_file_hashes: dict[str, str],
+    ) -> None:
+        for file_path in self._get_source_files():
+            h = self._get_file_hash(file_path)
+            if h:
+                file_hashes[str(file_path.relative_to(self.project_root))] = h
+        for file_path in self._get_test_files():
+            h = self._get_file_hash(file_path)
+            if h:
+                test_file_hashes[str(file_path.relative_to(self.project_root))] = h
+        for file_path in self._get_config_files():
+            h = self._get_file_hash(file_path)
+            if h:
+                config_file_hashes[str(file_path.relative_to(self.project_root))] = h
+
     def _update_cache(
         self,
         success: bool,
@@ -1274,21 +1328,12 @@ class SmartCoverageManager:
         If update_only is True, only update hashes for provided file lists (when their tests passed).
         Otherwise, refresh all known hashes.
         """
-        # Only enforce coverage threshold for full test runs and when tests succeeded
-        if success and enforce_threshold:
-            self._check_coverage_threshold(coverage_percentage)
-        elif success and not enforce_threshold and coverage_percentage < self.coverage_threshold:
-            logger.warning(
-                "Coverage %.1f%% is below threshold of %.1f%%",
-                coverage_percentage,
-                self.coverage_threshold,
-            )
-            logger.info("This is expected for unit/folder tests. Full test run will enforce the threshold.")
+        self._maybe_warn_subthreshold_non_full(success, enforce_threshold, coverage_percentage)
 
         # Prepare existing maps
-        file_hashes: dict[str, str] = dict(self.cache.get("file_hashes", {}))
-        test_file_hashes: dict[str, str] = dict(self.cache.get("test_file_hashes", {}))
-        config_file_hashes: dict[str, str] = dict(self.cache.get("config_file_hashes", {}))
+        file_hashes: dict[str, str] = dict(cast(dict[str, str], self.cache.get("file_hashes", {})))
+        test_file_hashes: dict[str, str] = dict(cast(dict[str, str], self.cache.get("test_file_hashes", {})))
+        config_file_hashes: dict[str, str] = dict(cast(dict[str, str], self.cache.get("config_file_hashes", {})))
 
         def update_map(paths: list[Path] | None, target: dict[str, str]):
             if not paths:
@@ -1304,19 +1349,7 @@ class SmartCoverageManager:
             update_map(updated_tests, test_file_hashes)
             update_map(updated_configs, config_file_hashes)
         else:
-            # Refresh entire tree
-            for file_path in self._get_source_files():
-                h = self._get_file_hash(file_path)
-                if h:
-                    file_hashes[str(file_path.relative_to(self.project_root))] = h
-            for file_path in self._get_test_files():
-                h = self._get_file_hash(file_path)
-                if h:
-                    test_file_hashes[str(file_path.relative_to(self.project_root))] = h
-            for file_path in self._get_config_files():
-                h = self._get_file_hash(file_path)
-                if h:
-                    config_file_hashes[str(file_path.relative_to(self.project_root))] = h
+            self._refresh_all_tracked_hashes(file_hashes, test_file_hashes, config_file_hashes)
 
         # Update cache; keep last_full_run as the last index time (not necessarily a full suite)
         self.cache.update(
@@ -1346,7 +1379,7 @@ class SmartCoverageManager:
             return False
 
         if source_changed or test_changed:
-            reasons = []
+            reasons: list[str] = []
             if source_changed:
                 reasons.append("source files")
             if test_changed:
@@ -1782,41 +1815,59 @@ class SmartCoverageManager:
         self._git_changed_cache = set(changed)
         return set(changed)
 
+    def _cli_smart_check_exit(self) -> int:
+        return 0 if not self.check_if_full_test_needed() else 1
+
+    def _cli_smart_run_exit(self, args: argparse.Namespace) -> int:
+        return 0 if self.run_smart_tests(args.level, args.force) else 1
+
+    def _cli_smart_force_exit(self, args: argparse.Namespace) -> int:
+        return 0 if self.run_smart_tests(args.level, force=True) else 1
+
+    def _cli_status_with_logs(self) -> int:
+        self._log_status_summary(self.get_status())
+        self.show_recent_logs(3)
+        return 0
+
+    def _cli_logs_paginated(self) -> int:
+        try:
+            count = self._parse_logs_count(sys.argv)
+        except ValueError:
+            logger.error("logs count must be a number")
+            return 1
+        self.show_recent_logs(count)
+        return 0
+
+    def _cli_show_latest_log(self) -> int:
+        self.show_latest_log()
+        return 0
+
+    def _cli_index_baseline(self) -> int:
+        logger.info("Indexing current project hashes as baseline (no tests run)...")
+        cur_cov = self.cache.get("coverage_percentage", 0.0)
+        cur_cnt = self.cache.get("test_count", 0)
+        self._update_cache(True, cur_cnt, cur_cov, enforce_threshold=False, update_only=False)
+        logger.info("Baseline updated. Future smart runs will consider only new changes.")
+        return 0
+
     def _handle_cli_command(self, args: argparse.Namespace) -> int:
         """Execute the requested CLI command and return its exit code."""
-        if args.command == "check":
-            return 0 if not self.check_if_full_test_needed() else 1
-        if args.command == "run":
-            return 0 if self.run_smart_tests(args.level, args.force) else 1
-        if args.command == "force":
-            return 0 if self.run_smart_tests(args.level, force=True) else 1
-        if args.command == "status":
-            self._log_status_summary(self.get_status())
-            self.show_recent_logs(3)
-            return 0
-        if args.command == "threshold":
-            return self._handle_threshold_command()
-        if args.command == "logs":
-            try:
-                count = self._parse_logs_count(sys.argv)
-            except ValueError:
-                logger.error("logs count must be a number")
-                return 1
-            self.show_recent_logs(count)
-            return 0
-        if args.command == "latest":
-            self.show_latest_log()
-            return 0
-        if args.command == "index":
-            logger.info("Indexing current project hashes as baseline (no tests run)...")
-            cur_cov = self.cache.get("coverage_percentage", 0.0)
-            cur_cnt = self.cache.get("test_count", 0)
-            self._update_cache(True, cur_cnt, cur_cov, enforce_threshold=False, update_only=False)
-            logger.info("Baseline updated. Future smart runs will consider only new changes.")
-            return 0
-        logger.error("Unknown command: %s", args.command)
-        logger.info("Use 'python tools/smart_test_coverage.py' without arguments to see usage")
-        return 1
+        dispatch: dict[str, Callable[[], int]] = {
+            "check": self._cli_smart_check_exit,
+            "run": lambda: self._cli_smart_run_exit(args),
+            "force": lambda: self._cli_smart_force_exit(args),
+            "status": self._cli_status_with_logs,
+            "threshold": self._handle_threshold_command,
+            "logs": self._cli_logs_paginated,
+            "latest": self._cli_show_latest_log,
+            "index": self._cli_index_baseline,
+        }
+        handler = dispatch.get(args.command)
+        if handler is None:
+            logger.error("Unknown command: %s", args.command)
+            logger.info("Use 'python tools/smart_test_coverage.py' without arguments to see usage")
+            return 1
+        return handler()
 
 
 @ensure(lambda result: result is None, "main must return None")

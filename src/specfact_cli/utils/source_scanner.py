@@ -12,18 +12,96 @@ import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 from beartype import beartype
 from icontract import ensure, require
 from rich.console import Console
 from rich.progress import Progress
 
-from specfact_cli.models.plan import Feature
+from specfact_cli.models.plan import Feature, Story
 from specfact_cli.models.source_tracking import SourceTracking
 from specfact_cli.utils.terminal import get_progress_config
 
 
 console = Console()
+
+
+def _impl_functions_for_file(
+    scanner: SourceArtifactScanner,
+    impl_file: str,
+    repo_path: Path,
+    file_functions_cache: dict[str, list[str]],
+) -> list[str]:
+    if impl_file in file_functions_cache:
+        return file_functions_cache[impl_file]
+    file_path = repo_path / impl_file
+    return scanner.extract_function_mappings(file_path) if file_path.exists() else []
+
+
+def _test_functions_for_file(
+    scanner: SourceArtifactScanner,
+    test_file: str,
+    repo_path: Path,
+    file_test_functions_cache: dict[str, list[str]],
+) -> list[str]:
+    if test_file in file_test_functions_cache:
+        return file_test_functions_cache[test_file]
+    file_path = repo_path / test_file
+    return scanner.extract_test_mappings(file_path) if file_path.exists() else []
+
+
+def _cancel_future_map(future_to_feature: dict[Any, Any]) -> None:
+    for f in future_to_feature:
+        if not f.done():
+            f.cancel()
+
+
+def _drain_feature_link_futures(
+    future_to_feature: dict[Any, Any],
+    progress: Progress,
+    task: Any,
+    total_features: int,
+) -> bool:
+    """Return True if interrupted (KeyboardInterrupt)."""
+    completed_count = 0
+    interrupted = False
+    try:
+        for future in as_completed(future_to_feature):
+            try:
+                future.result()
+                completed_count += 1
+                progress.update(
+                    task,
+                    completed=completed_count,
+                    description=(
+                        f"[cyan]Linking features to source files... ({completed_count}/{total_features} features)"
+                    ),
+                )
+            except KeyboardInterrupt:
+                interrupted = True
+                _cancel_future_map(future_to_feature)
+                break
+            except Exception:
+                completed_count += 1
+                progress.update(
+                    task,
+                    completed=completed_count,
+                    description=f"[cyan]Linking features to source files... ({completed_count}/{total_features})",
+                )
+    except KeyboardInterrupt:
+        interrupted = True
+        _cancel_future_map(future_to_feature)
+    return interrupted
+
+
+def _scanner_repo_ready(self: Any) -> bool:
+    p: Path = self.repo_path
+    return p.exists() and p.is_dir()
+
+
+def _scan_repo_returns_map(self: Any, result: SourceArtifactMap) -> bool:
+    return isinstance(result, SourceArtifactMap)
 
 
 @dataclass
@@ -36,8 +114,38 @@ class SourceArtifactMap:
     test_mappings: dict[str, list[str]] = field(default_factory=dict)  # "test_file.py::test_func" -> [story_keys]
 
 
+def _resolve_linking_caches(
+    file_functions_cache: dict[str, list[str]] | None,
+    file_test_functions_cache: dict[str, list[str]] | None,
+    file_hashes_cache: dict[str, str] | None,
+    impl_files_by_stem: dict[str, list[Path]] | None,
+    test_files_by_stem: dict[str, list[Path]] | None,
+    impl_stems_by_substring: dict[str, set[str]] | None,
+    test_stems_by_substring: dict[str, set[str]] | None,
+) -> tuple[
+    dict[str, list[str]],
+    dict[str, list[str]],
+    dict[str, str],
+    dict[str, list[Path]],
+    dict[str, list[Path]],
+    dict[str, set[str]],
+    dict[str, set[str]],
+]:
+    return (
+        file_functions_cache or {},
+        file_test_functions_cache or {},
+        file_hashes_cache or {},
+        impl_files_by_stem or {},
+        test_files_by_stem or {},
+        impl_stems_by_substring or {},
+        test_stems_by_substring or {},
+    )
+
+
 class SourceArtifactScanner:
     """Scanner for discovering and linking source artifacts to specifications."""
+
+    repo_path: Path
 
     def __init__(self, repo_path: Path) -> None:
         """
@@ -49,9 +157,8 @@ class SourceArtifactScanner:
         self.repo_path = repo_path.resolve()
 
     @beartype
-    @require(lambda self: self.repo_path.exists(), "Repository path must exist")
-    @require(lambda self: self.repo_path.is_dir(), "Repository path must be directory")
-    @ensure(lambda self, result: isinstance(result, SourceArtifactMap), "Must return SourceArtifactMap")
+    @require(_scanner_repo_ready, "Repository path must exist and be a directory")
+    @ensure(_scan_repo_returns_map, "Must return SourceArtifactMap")
     def scan_repository(self) -> SourceArtifactMap:
         """
         Discover existing files and their current state.
@@ -150,6 +257,32 @@ class SourceArtifactScanner:
                 if file_path.exists():
                     source_tracking.update_hash(file_path)
 
+    def _link_feature_impl_and_test_paths(
+        self,
+        feature_key_lower: str,
+        feature_title_words: list[str],
+        impl_files_by_stem: dict[str, list[Path]],
+        test_files_by_stem: dict[str, list[Path]],
+        impl_stems_by_substring: dict[str, set[str]],
+        test_stems_by_substring: dict[str, set[str]],
+        repo_path: Path,
+        source_tracking: SourceTracking,
+        file_hashes_cache: dict[str, str],
+    ) -> None:
+        matched_impl = self._resolve_matched_paths(
+            feature_key_lower, feature_title_words, impl_files_by_stem, impl_stems_by_substring, repo_path
+        )
+        self._register_matched_files(
+            matched_impl, source_tracking.implementation_files, source_tracking, file_hashes_cache, repo_path
+        )
+
+        matched_test = self._resolve_matched_paths(
+            feature_key_lower, feature_title_words, test_files_by_stem, test_stems_by_substring, repo_path
+        )
+        self._register_matched_files(
+            matched_test, source_tracking.test_files, source_tracking, file_hashes_cache, repo_path
+        )
+
     def _link_feature_to_specs(
         self,
         feature: Feature,
@@ -182,67 +315,79 @@ class SourceArtifactScanner:
         if source_tracking is None:
             return
 
-        file_functions_cache = file_functions_cache or {}
-        file_test_functions_cache = file_test_functions_cache or {}
-        file_hashes_cache = file_hashes_cache or {}
-        impl_files_by_stem = impl_files_by_stem or {}
-        test_files_by_stem = test_files_by_stem or {}
-        impl_stems_by_substring = impl_stems_by_substring or {}
-        test_stems_by_substring = test_stems_by_substring or {}
+        (
+            file_functions_cache,
+            file_test_functions_cache,
+            file_hashes_cache,
+            impl_files_by_stem,
+            test_files_by_stem,
+            impl_stems_by_substring,
+            test_stems_by_substring,
+        ) = _resolve_linking_caches(
+            file_functions_cache,
+            file_test_functions_cache,
+            file_hashes_cache,
+            impl_files_by_stem,
+            test_files_by_stem,
+            impl_stems_by_substring,
+            test_stems_by_substring,
+        )
 
         feature_key_lower = feature.key.lower()
         feature_title_words = [w for w in feature.title.lower().split() if len(w) > 3]
 
-        matched_impl = self._resolve_matched_paths(
-            feature_key_lower, feature_title_words, impl_files_by_stem, impl_stems_by_substring, repo_path
-        )
-        self._register_matched_files(
-            matched_impl, source_tracking.implementation_files, source_tracking, file_hashes_cache, repo_path
-        )
-
-        matched_test = self._resolve_matched_paths(
-            feature_key_lower, feature_title_words, test_files_by_stem, test_stems_by_substring, repo_path
-        )
-        self._register_matched_files(
-            matched_test, source_tracking.test_files, source_tracking, file_hashes_cache, repo_path
+        self._link_feature_impl_and_test_paths(
+            feature_key_lower,
+            feature_title_words,
+            impl_files_by_stem,
+            test_files_by_stem,
+            impl_stems_by_substring,
+            test_stems_by_substring,
+            repo_path,
+            source_tracking,
+            file_hashes_cache,
         )
 
         for story in feature.stories:
-            source_functions_set = set(story.source_functions) if story.source_functions else set()
-            test_functions_set = set(story.test_functions) if story.test_functions else set()
-
-            for impl_file in source_tracking.implementation_files:
-                if impl_file in file_functions_cache:
-                    functions = file_functions_cache[impl_file]
-                else:
-                    file_path = repo_path / impl_file
-                    functions = self.extract_function_mappings(file_path) if file_path.exists() else []
-
-                for func_name in functions:
-                    func_mapping = f"{impl_file}::{func_name}"
-                    if func_mapping not in source_functions_set:
-                        source_functions_set.add(func_mapping)
-
-            for test_file in source_tracking.test_files:
-                # Use cached test functions if available (all test functions should be pre-computed)
-                if test_file in file_test_functions_cache:
-                    test_functions = file_test_functions_cache[test_file]
-                else:
-                    # Fallback: compute if not in cache (shouldn't happen, but safe fallback)
-                    file_path = repo_path / test_file
-                    test_functions = self.extract_test_mappings(file_path) if file_path.exists() else []
-
-                for test_func_name in test_functions:
-                    test_mapping = f"{test_file}::{test_func_name}"
-                    if test_mapping not in test_functions_set:
-                        test_functions_set.add(test_mapping)
-
-            # Convert back to lists (Pydantic models expect lists)
-            story.source_functions = list(source_functions_set)
-            story.test_functions = list(test_functions_set)
+            self._collect_story_function_mappings(
+                story,
+                repo_path,
+                source_tracking,
+                file_functions_cache,
+                file_test_functions_cache,
+            )
 
         # Update sync timestamp
         source_tracking.update_sync_timestamp()
+
+    def _collect_story_function_mappings(
+        self,
+        story: Story,
+        repo_path: Path,
+        source_tracking: SourceTracking,
+        file_functions_cache: dict[str, list[str]],
+        file_test_functions_cache: dict[str, list[str]],
+    ) -> None:
+        """Populate story source/test function mappings from tracked files."""
+        source_functions_set: set[str] = set(story.source_functions) if story.source_functions else set()
+        test_functions_set: set[str] = set(story.test_functions) if story.test_functions else set()
+
+        for impl_file in source_tracking.implementation_files:
+            functions = _impl_functions_for_file(self, impl_file, repo_path, file_functions_cache)
+            for func_name in functions:
+                func_mapping = f"{impl_file}::{func_name}"
+                if func_mapping not in source_functions_set:
+                    source_functions_set.add(func_mapping)
+
+        for test_file in source_tracking.test_files:
+            test_functions = _test_functions_for_file(self, test_file, repo_path, file_test_functions_cache)
+            for test_func_name in test_functions:
+                test_mapping = f"{test_file}::{test_func_name}"
+                if test_mapping not in test_functions_set:
+                    test_functions_set.add(test_mapping)
+
+        story.source_functions = list(source_functions_set)
+        story.test_functions = list(test_functions_set)
 
     @beartype
     @require(lambda self, features: isinstance(features, list), "Features must be list")
@@ -292,98 +437,147 @@ class SourceArtifactScanner:
         impl_stems_by_substring: dict[str, set[str]] = {}  # substring -> {stems}
         test_stems_by_substring: dict[str, set[str]] = {}  # substring -> {stems}
 
-        # Pre-parse all implementation files once and index by stem
         for file_path in impl_files:
-            if self._is_implementation_file(file_path):
-                rel_path = str(file_path.relative_to(repo_path))
-                stem = file_path.stem.lower()
+            self._index_impl_file_for_link_cache(
+                file_path,
+                repo_path,
+                file_functions_cache,
+                file_hashes_cache,
+                impl_files_by_stem,
+                impl_stems_by_substring,
+            )
 
-                # Index by stem for fast lookup
-                if stem not in impl_files_by_stem:
-                    impl_files_by_stem[stem] = []
-                impl_files_by_stem[stem].append(file_path)
-
-                # Build inverted index: extract all meaningful substrings from stem
-                # (words separated by underscores, and the full stem)
-                stem_parts = stem.split("_")
-                for part in stem_parts:
-                    if len(part) > 2:  # Only index meaningful substrings
-                        if part not in impl_stems_by_substring:
-                            impl_stems_by_substring[part] = set()
-                        impl_stems_by_substring[part].add(stem)
-                # Also index the full stem
-                if stem not in impl_stems_by_substring:
-                    impl_stems_by_substring[stem] = set()
-                impl_stems_by_substring[stem].add(stem)
-
-                # Cache functions
-                if rel_path not in file_functions_cache:
-                    functions = self.extract_function_mappings(file_path)
-                    file_functions_cache[rel_path] = functions
-
-                # Cache hash
-                if rel_path not in file_hashes_cache and file_path.exists():
-                    try:
-                        source_tracking = SourceTracking()
-                        source_tracking.update_hash(file_path)
-                        file_hashes_cache[rel_path] = source_tracking.file_hashes.get(rel_path, "")
-                    except Exception:
-                        pass  # Skip files that can't be hashed
-
-        # Pre-parse all test files once and index by stem
         for file_path in test_files:
-            if self._is_test_file(file_path):
-                rel_path = str(file_path.relative_to(repo_path))
-                stem = file_path.stem.lower()
-
-                # Index by stem for fast lookup
-                if stem not in test_files_by_stem:
-                    test_files_by_stem[stem] = []
-                test_files_by_stem[stem].append(file_path)
-
-                # Build inverted index for test files
-                stem_parts = stem.split("_")
-                for part in stem_parts:
-                    if len(part) > 2:  # Only index meaningful substrings
-                        if part not in test_stems_by_substring:
-                            test_stems_by_substring[part] = set()
-                        test_stems_by_substring[part].add(stem)
-                # Also index the full stem
-                if stem not in test_stems_by_substring:
-                    test_stems_by_substring[stem] = set()
-                test_stems_by_substring[stem].add(stem)
-
-                # Cache test functions
-                if rel_path not in file_test_functions_cache:
-                    test_functions = self.extract_test_mappings(file_path)
-                    file_test_functions_cache[rel_path] = test_functions
-
-                # Cache hash
-                if rel_path not in file_hashes_cache and file_path.exists():
-                    try:
-                        source_tracking = SourceTracking()
-                        source_tracking.update_hash(file_path)
-                        file_hashes_cache[rel_path] = source_tracking.file_hashes.get(rel_path, "")
-                    except Exception:
-                        pass  # Skip files that can't be hashed
+            self._index_test_file_for_link_cache(
+                file_path,
+                repo_path,
+                file_test_functions_cache,
+                file_hashes_cache,
+                test_files_by_stem,
+                test_stems_by_substring,
+            )
 
         console.print(
             f"[dim]✓ Cached {len(file_functions_cache)} implementation files, {len(file_test_functions_cache)} test files[/dim]"
         )
 
-        # Process features in parallel with progress reporting
-        # In test mode, use fewer workers to avoid resource contention
+        self._run_parallel_feature_linking(
+            features,
+            repo_path,
+            impl_files,
+            test_files,
+            file_functions_cache,
+            file_test_functions_cache,
+            file_hashes_cache,
+            impl_files_by_stem,
+            test_files_by_stem,
+            impl_stems_by_substring,
+            test_stems_by_substring,
+        )
+
+    def _index_impl_file_for_link_cache(
+        self,
+        file_path: Path,
+        repo_path: Path,
+        file_functions_cache: dict[str, list[str]],
+        file_hashes_cache: dict[str, str],
+        impl_files_by_stem: dict[str, list[Path]],
+        impl_stems_by_substring: dict[str, set[str]],
+    ) -> None:
+        if not self._is_implementation_file(file_path):
+            return
+        rel_path = str(file_path.relative_to(repo_path))
+        stem = file_path.stem.lower()
+
+        if stem not in impl_files_by_stem:
+            impl_files_by_stem[stem] = []
+        impl_files_by_stem[stem].append(file_path)
+
+        stem_parts = stem.split("_")
+        for part in stem_parts:
+            if len(part) > 2:
+                if part not in impl_stems_by_substring:
+                    impl_stems_by_substring[part] = set()
+                impl_stems_by_substring[part].add(stem)
+        if stem not in impl_stems_by_substring:
+            impl_stems_by_substring[stem] = set()
+        impl_stems_by_substring[stem].add(stem)
+
+        if rel_path not in file_functions_cache:
+            functions = self.extract_function_mappings(file_path)
+            file_functions_cache[rel_path] = functions
+
+        if rel_path not in file_hashes_cache and file_path.exists():
+            try:
+                source_tracking = SourceTracking()
+                source_tracking.update_hash(file_path)
+                file_hashes_cache[rel_path] = source_tracking.file_hashes.get(rel_path, "")
+            except Exception:
+                pass
+
+    def _index_test_file_for_link_cache(
+        self,
+        file_path: Path,
+        repo_path: Path,
+        file_test_functions_cache: dict[str, list[str]],
+        file_hashes_cache: dict[str, str],
+        test_files_by_stem: dict[str, list[Path]],
+        test_stems_by_substring: dict[str, set[str]],
+    ) -> None:
+        if not self._is_test_file(file_path):
+            return
+        rel_path = str(file_path.relative_to(repo_path))
+        stem = file_path.stem.lower()
+
+        if stem not in test_files_by_stem:
+            test_files_by_stem[stem] = []
+        test_files_by_stem[stem].append(file_path)
+
+        stem_parts = stem.split("_")
+        for part in stem_parts:
+            if len(part) > 2:
+                if part not in test_stems_by_substring:
+                    test_stems_by_substring[part] = set()
+                test_stems_by_substring[part].add(stem)
+        if stem not in test_stems_by_substring:
+            test_stems_by_substring[stem] = set()
+        test_stems_by_substring[stem].add(stem)
+
+        if rel_path not in file_test_functions_cache:
+            test_functions = self.extract_test_mappings(file_path)
+            file_test_functions_cache[rel_path] = test_functions
+
+        if rel_path not in file_hashes_cache and file_path.exists():
+            try:
+                source_tracking = SourceTracking()
+                source_tracking.update_hash(file_path)
+                file_hashes_cache[rel_path] = source_tracking.file_hashes.get(rel_path, "")
+            except Exception:
+                pass
+
+    def _run_parallel_feature_linking(
+        self,
+        features: list[Feature],
+        repo_path: Path,
+        impl_files: list[Path],
+        test_files: list[Path],
+        file_functions_cache: dict[str, list[str]],
+        file_test_functions_cache: dict[str, list[str]],
+        file_hashes_cache: dict[str, str],
+        impl_files_by_stem: dict[str, list[Path]],
+        test_files_by_stem: dict[str, list[Path]],
+        impl_stems_by_substring: dict[str, set[str]],
+        test_stems_by_substring: dict[str, set[str]],
+    ) -> None:
         if os.environ.get("TEST_MODE") == "true":
-            max_workers = max(1, min(2, len(features)))  # Max 2 workers in test mode
+            max_workers = max(1, min(2, len(features)))
         else:
-            max_workers = min(os.cpu_count() or 4, 8, len(features))  # Cap at 8 workers
+            max_workers = min(os.cpu_count() or 4, 8, len(features))
 
         executor = ThreadPoolExecutor(max_workers=max_workers)
         interrupted = False
-        # In test mode, use wait=False to avoid hanging on shutdown
         wait_on_shutdown = os.environ.get("TEST_MODE") != "true"
 
-        # Add progress reporting
         progress_columns, progress_kwargs = get_progress_config()
         with Progress(
             *progress_columns,
@@ -413,37 +607,7 @@ class SourceArtifactScanner:
                     ): feature
                     for feature in features
                 }
-                completed_count = 0
-                try:
-                    for future in as_completed(future_to_feature):
-                        try:
-                            future.result()  # Wait for completion
-                            completed_count += 1
-                            # Update progress with meaningful description
-                            progress.update(
-                                task,
-                                completed=completed_count,
-                                description=f"[cyan]Linking features to source files... ({completed_count}/{len(features)} features)",
-                            )
-                        except KeyboardInterrupt:
-                            interrupted = True
-                            for f in future_to_feature:
-                                if not f.done():
-                                    f.cancel()
-                            break
-                        except Exception:
-                            # Suppress other exceptions but still count as completed
-                            completed_count += 1
-                            progress.update(
-                                task,
-                                completed=completed_count,
-                                description=f"[cyan]Linking features to source files... ({completed_count}/{len(features)})",
-                            )
-                except KeyboardInterrupt:
-                    interrupted = True
-                    for f in future_to_feature:
-                        if not f.done():
-                            f.cancel()
+                interrupted = _drain_feature_link_futures(future_to_feature, progress, task, len(features))
                 if interrupted:
                     raise KeyboardInterrupt
             except KeyboardInterrupt:

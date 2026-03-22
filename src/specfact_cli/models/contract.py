@@ -25,6 +25,8 @@ from beartype import beartype
 from icontract import ensure, require
 from pydantic import BaseModel, Field
 
+from specfact_cli.utils.icontract_helpers import require_contract_path_exists
+
 
 class ContractStatus(StrEnum):
     """Contract status levels."""
@@ -62,7 +64,7 @@ class ContractIndex(BaseModel):
 
 @beartype
 @require(lambda contract_path: isinstance(contract_path, Path), "Contract path must be Path")
-@require(lambda contract_path: contract_path.exists(), "Contract file must exist")
+@require(require_contract_path_exists, "Contract file must exist")
 @ensure(lambda result: isinstance(result, dict), "Must return dict")
 def load_openapi_contract(contract_path: Path) -> dict[str, Any]:
     """

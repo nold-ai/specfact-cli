@@ -20,6 +20,14 @@ from rich.console import Console
 console = Console()
 
 
+def _track_operation_nonblank(self: Any, operation: str, metadata: dict[str, Any] | None) -> bool:
+    return operation.strip() != ""
+
+
+def _track_perf_command_valid(command: str, threshold: float) -> bool:
+    return command.strip() != "" and threshold > 0
+
+
 @dataclass
 class PerformanceMetric:
     """Performance metric for a single operation."""
@@ -127,7 +135,7 @@ class PerformanceMonitor:
         self.start_time = None
 
     @beartype
-    @require(lambda operation: operation.strip() != "", "operation must not be empty")
+    @require(_track_operation_nonblank, "operation must not be empty")
     @contextmanager
     def track(self, operation: str, metadata: dict[str, Any] | None = None):
         """
@@ -218,8 +226,7 @@ def set_performance_monitor(monitor: PerformanceMonitor | None) -> None:
 
 
 @beartype
-@require(lambda command: command.strip() != "", "command must not be empty")
-@require(lambda threshold: threshold > 0, "threshold must be positive")
+@require(_track_perf_command_valid, "command must be non-empty and threshold must be positive")
 @contextmanager
 def track_performance(command: str, threshold: float = 5.0):
     """

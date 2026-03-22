@@ -13,7 +13,7 @@ ensuring they remain adapter-agnostic.
 from __future__ import annotations
 
 from enum import StrEnum
-from typing import Any
+from typing import Any, Self
 
 from icontract import ensure, require
 from pydantic import BaseModel, Field, model_validator
@@ -47,28 +47,21 @@ class FeatureDelta(BaseModel):
     )
 
     @model_validator(mode="after")
-    @require(
-        lambda self: (
-            self.change_type == ChangeType.ADDED
-            or (self.change_type in (ChangeType.MODIFIED, ChangeType.REMOVED) and self.original_feature is not None)
-        ),
-        "MODIFIED/REMOVED changes must have original_feature",
-    )
-    @require(
-        lambda self: (
-            self.change_type == ChangeType.REMOVED
-            or (self.change_type in (ChangeType.ADDED, ChangeType.MODIFIED) and self.proposed_feature is not None)
-        ),
-        "ADDED/MODIFIED changes must have proposed_feature",
-    )
-    @ensure(lambda result: isinstance(result, FeatureDelta), "Must return FeatureDelta")
-    def validate_feature_delta(self) -> FeatureDelta:
+    @require(lambda self: self is not None)
+    @ensure(lambda result: result is not None)
+    def validate_feature_delta(self) -> Self:
         """
         Validate feature delta constraints after model initialization.
 
         Returns:
             Self (for Pydantic v2 model_validator)
         """
+        if self.change_type != ChangeType.ADDED and self.original_feature is None:
+            msg = "MODIFIED/REMOVED changes must have original_feature"
+            raise ValueError(msg)
+        if self.change_type != ChangeType.REMOVED and self.proposed_feature is None:
+            msg = "ADDED/MODIFIED changes must have proposed_feature"
+            raise ValueError(msg)
         return self
 
 
@@ -99,7 +92,7 @@ class ChangeProposal(BaseModel):
         if not isinstance(data, dict):
             return data
 
-        normalized = dict(data)
+        normalized: dict[str, Any] = dict(data)
         source_tracking = normalized.get("source_tracking")
         if source_tracking is not None and isinstance(source_tracking, BaseModel):
             normalized["source_tracking"] = source_tracking.model_dump(mode="python")

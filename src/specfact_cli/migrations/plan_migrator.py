@@ -7,6 +7,7 @@ Handles migration from older plan bundle schema versions to current version.
 from __future__ import annotations
 
 from pathlib import Path
+from typing import cast
 
 from beartype import beartype
 from icontract import ensure, require
@@ -28,7 +29,7 @@ LATEST_SCHEMA_VERSION = CURRENT_SCHEMA_VERSION
 
 
 @beartype
-@ensure(lambda result: result.strip() != "", "Must return non-empty schema version")
+@ensure(lambda result: cast(str, result).strip() != "", "Must return non-empty schema version")
 def get_current_schema_version() -> str:
     """
     Get the current plan bundle schema version.
@@ -40,7 +41,7 @@ def get_current_schema_version() -> str:
 
 
 @beartype
-@ensure(lambda result: result.strip() != "", "Must return non-empty schema version")
+@ensure(lambda result: cast(str, result).strip() != "", "Must return non-empty schema version")
 def get_latest_schema_version() -> str:
     """
     Get the latest schema version for new bundles.
@@ -55,7 +56,7 @@ def get_latest_schema_version() -> str:
 
 
 @beartype
-@require(lambda plan_path: plan_path.exists(), "Plan path must exist")
+@require(lambda plan_path: cast(Path, plan_path).exists(), "Plan path must exist")
 @ensure(lambda result: result is not None, "Must return PlanBundle")
 def load_plan_bundle(plan_path: Path) -> PlanBundle:
     """
@@ -102,7 +103,7 @@ def migrate_plan_bundle(bundle: PlanBundle, from_version: str, to_version: str) 
         return bundle
 
     # Build migration path
-    migrations = []
+    migrations: list[tuple[str, str]] = []
     current_version = from_version
 
     # Define migration steps
@@ -163,7 +164,7 @@ class PlanMigrator:
     """
 
     @beartype
-    @require(lambda plan_path: plan_path.exists(), "Plan path must exist")
+    @require(lambda plan_path: cast(Path, plan_path).exists(), "Plan path must exist")
     @ensure(lambda result: result is not None, "Must return PlanBundle")
     def load_and_migrate(self, plan_path: Path, dry_run: bool = False) -> tuple[PlanBundle, bool]:
         """
@@ -204,7 +205,7 @@ class PlanMigrator:
         return bundle, was_migrated
 
     @beartype
-    @require(lambda plan_path: plan_path.exists(), "Plan path must exist")
+    @require(lambda plan_path: cast(Path, plan_path).exists(), "Plan path must exist")
     def check_migration_needed(self, plan_path: Path) -> tuple[bool, str]:
         """
         Check if plan bundle needs migration.

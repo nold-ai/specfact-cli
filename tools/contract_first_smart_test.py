@@ -26,6 +26,7 @@ import logging
 import re
 import subprocess
 import sys
+from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -223,6 +224,92 @@ class ContractFirstTestManager(SmartCoverageManager):
                 tool_status[tool] = False
         return tool_status
 
+    def _contract_validation_file_key(self, file_path: Path) -> str:
+        try:
+            return str(file_path.relative_to(self.project_root))
+        except ValueError:
+            return str(file_path)
+
+    def _contract_validation_skipped_by_cache(
+        self, force: bool, cache_entry: dict[str, Any], file_hash: str, file_name: str
+    ) -> bool:
+        if (
+            not force
+            and cache_entry
+            and cache_entry.get("hash") == file_hash
+            and cache_entry.get("status") == "success"
+        ):
+            logger.debug("   Skipping %s; validation cache hit", file_name)
+            return True
+        return False
+
+    def _validate_contract_import_for_file(
+        self,
+        file_path: Path,
+        file_key: str,
+        file_hash: str,
+        validation_cache: dict[str, Any],
+    ) -> tuple[bool, dict[str, Any] | None]:
+        """Validate import for one file. Returns (success, violation_or_none)."""
+        try:
+            relative_path = file_path.relative_to(self.project_root)
+            module_path = str(relative_path).replace("/", ".").replace(".py", "")
+
+            result = subprocess.run(
+                ["hatch", "run", "python", "-c", f"import {module_path}; print('Contracts loaded successfully')"],
+                cwd=self.project_root,
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+
+            if result.returncode != 0:
+                validation_cache[file_key] = {
+                    "hash": file_hash,
+                    "status": "failure",
+                    "timestamp": datetime.now().isoformat(),
+                    "stderr": result.stderr,
+                }
+                return False, {
+                    "file": str(file_path),
+                    "tool": "icontract",
+                    "error": result.stderr,
+                    "timestamp": datetime.now().isoformat(),
+                }
+
+            validation_cache[file_key] = {
+                "hash": file_hash,
+                "status": "success",
+                "timestamp": datetime.now().isoformat(),
+            }
+            return True, None
+
+        except subprocess.TimeoutExpired:
+            validation_cache[file_key] = {
+                "hash": file_hash,
+                "status": "timeout",
+                "timestamp": datetime.now().isoformat(),
+            }
+            return False, {
+                "file": str(file_path),
+                "tool": "icontract",
+                "error": "Contract validation timed out",
+                "timestamp": datetime.now().isoformat(),
+            }
+        except Exception as e:
+            validation_cache[file_key] = {
+                "hash": file_hash,
+                "status": "error",
+                "timestamp": datetime.now().isoformat(),
+                "stderr": str(e),
+            }
+            return False, {
+                "file": str(file_path),
+                "tool": "icontract",
+                "error": str(e),
+                "timestamp": datetime.now().isoformat(),
+            }
+
     def _run_contract_validation(
         self,
         modified_files: list[Path],
@@ -240,97 +327,25 @@ class ContractFirstTestManager(SmartCoverageManager):
             logger.info("Install missing tools: pip install icontract beartype crosshair hypothesis")
             return False, []
 
-        violations = []
+        violations: list[dict[str, Any]] = []
         success = True
 
         validation_cache: dict[str, Any] = self.contract_cache.setdefault("validation_cache", {})
 
         for file_path in modified_files:
-            try:
-                relative_path = file_path.relative_to(self.project_root)
-                file_key = str(relative_path)
-            except ValueError:
-                file_key = str(file_path)
-
+            file_key = self._contract_validation_file_key(file_path)
             file_hash = self._compute_file_hash(file_path)
             cache_entry = validation_cache.get(file_key, {})
 
-            if (
-                not force
-                and cache_entry
-                and cache_entry.get("hash") == file_hash
-                and cache_entry.get("status") == "success"
-            ):
-                logger.debug("   Skipping %s; validation cache hit", file_path.name)
+            if self._contract_validation_skipped_by_cache(force, cache_entry, file_hash, file_path.name):
                 continue
 
             logger.debug("   Validating contracts in: %s", file_path.name)
 
-            try:
-                relative_path = file_path.relative_to(self.project_root)
-                module_path = str(relative_path).replace("/", ".").replace(".py", "")
-
-                result = subprocess.run(
-                    ["hatch", "run", "python", "-c", f"import {module_path}; print('Contracts loaded successfully')"],
-                    cwd=self.project_root,
-                    capture_output=True,
-                    text=True,
-                    timeout=30,
-                )
-
-                if result.returncode != 0:
-                    violations.append(
-                        {
-                            "file": str(file_path),
-                            "tool": "icontract",
-                            "error": result.stderr,
-                            "timestamp": datetime.now().isoformat(),
-                        }
-                    )
-                    validation_cache[file_key] = {
-                        "hash": file_hash,
-                        "status": "failure",
-                        "timestamp": datetime.now().isoformat(),
-                        "stderr": result.stderr,
-                    }
-                    success = False
-                else:
-                    validation_cache[file_key] = {
-                        "hash": file_hash,
-                        "status": "success",
-                        "timestamp": datetime.now().isoformat(),
-                    }
-
-            except subprocess.TimeoutExpired:
-                violations.append(
-                    {
-                        "file": str(file_path),
-                        "tool": "icontract",
-                        "error": "Contract validation timed out",
-                        "timestamp": datetime.now().isoformat(),
-                    }
-                )
-                validation_cache[file_key] = {
-                    "hash": file_hash,
-                    "status": "timeout",
-                    "timestamp": datetime.now().isoformat(),
-                }
-                success = False
-            except Exception as e:
-                violations.append(
-                    {
-                        "file": str(file_path),
-                        "tool": "icontract",
-                        "error": str(e),
-                        "timestamp": datetime.now().isoformat(),
-                    }
-                )
-                validation_cache[file_key] = {
-                    "hash": file_hash,
-                    "status": "error",
-                    "timestamp": datetime.now().isoformat(),
-                    "stderr": str(e),
-                }
+            ok, violation = self._validate_contract_import_for_file(file_path, file_key, file_hash, validation_cache)
+            if violation is not None:
+                violations.append(violation)
+            if not ok:
                 success = False
 
         # Update contract cache
@@ -351,6 +366,268 @@ class ContractFirstTestManager(SmartCoverageManager):
 
         return success, violations
 
+    @staticmethod
+    def _dedupe_paths_by_resolve(paths: list[Path]) -> list[Path]:
+        unique: list[Path] = []
+        seen: set[str] = set()
+        for p in paths:
+            key = str(p.resolve())
+            if key in seen:
+                continue
+            seen.add(key)
+            unique.append(p)
+        return unique
+
+    def _exploration_file_key(self, file_path: Path) -> str:
+        try:
+            return str(file_path.relative_to(self.project_root))
+        except ValueError:
+            return str(file_path)
+
+    def _exploration_store_static_skip(
+        self,
+        file_key: str,
+        file_hash: str | None,
+        reason: str,
+        exploration_cache: dict[str, Any],
+        exploration_results: dict[str, Any],
+    ) -> None:
+        exploration_results[file_key] = {
+            "return_code": 0,
+            "stdout": "",
+            "stderr": "",
+            "timestamp": datetime.now().isoformat(),
+            "cached": False,
+            "fast_mode": False,
+            "skipped": True,
+            "reason": reason,
+        }
+        exploration_cache[file_key] = {
+            "hash": file_hash,
+            "status": "skipped",
+            "fast_mode": False,
+            "prefer_fast": False,
+            "timestamp": datetime.now().isoformat(),
+            "return_code": 0,
+            "stdout": "",
+            "stderr": "",
+            "reason": reason,
+        }
+
+    def _run_crosshair_subprocess(
+        self, file_path: Path, use_fast: bool
+    ) -> tuple[subprocess.CompletedProcess[str], bool, bool, bool]:
+        """Run CrossHair; on standard-mode timeout, retry once with fast settings."""
+        prefer_fast = False
+        timed_out = False
+        cmd = self._build_crosshair_command(file_path, fast=use_fast)
+        try:
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=None if use_fast else self.STANDARD_CROSSHAIR_TIMEOUT,
+            )
+        except subprocess.TimeoutExpired:
+            logger.warning("      CrossHair standard run timed out; retrying with fast settings")
+            timed_out = True
+            use_fast = True
+            prefer_fast = True
+            cmd = self._build_crosshair_command(file_path, fast=True)
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=None,
+            )
+        return result, timed_out, use_fast, prefer_fast
+
+    def _log_crosshair_process_failure(
+        self, result: subprocess.CompletedProcess[str], display_path: str, is_signature_issue: bool
+    ) -> None:
+        if result.returncode == 0 or is_signature_issue:
+            return
+        logger.warning("   CrossHair found issues in %s", display_path)
+        if result.stdout.strip():
+            logger.warning("      stdout:")
+            for line in result.stdout.strip().splitlines():
+                logger.warning("      │   %s", line)
+        if result.stderr.strip():
+            logger.warning("      stderr:")
+            for line in result.stderr.strip().splitlines():
+                logger.warning("          %s", line)
+        if "No module named crosshair.__main__" in result.stderr:
+            logger.info(
+                "      Detected legacy 'crosshair' package (SSH client). Install CrossHair tooling via:",
+            )
+            logger.info("         pip install crosshair-tool")
+
+    def _log_crosshair_process_success(
+        self, timed_out: bool, is_signature_issue: bool, use_fast: bool, display_path: str
+    ) -> None:
+        if timed_out:
+            logger.info("   CrossHair exploration passed for %s (fast retry)", display_path)
+        elif not is_signature_issue:
+            mode_label = "fast" if use_fast else "standard"
+            logger.info("   CrossHair exploration passed for %s (%s)", display_path, mode_label)
+
+    def _apply_crosshair_result(
+        self,
+        file_key: str,
+        file_hash: str | None,
+        result: subprocess.CompletedProcess[str],
+        timed_out: bool,
+        use_fast: bool,
+        prefer_fast: bool,
+        display_path: str,
+        exploration_cache: dict[str, Any],
+        exploration_results: dict[str, Any],
+        signature_skips: list[str],
+    ) -> bool:
+        """Update caches from a CrossHair run. Returns False when the overall exploration should fail."""
+        signature_detail = self._extract_signature_limitation_detail(result.stderr, result.stdout)
+        is_signature_issue = signature_detail is not None
+
+        exploration_results[file_key] = {
+            "return_code": result.returncode,
+            "stdout": result.stdout,
+            "stderr": result.stderr,
+            "timestamp": datetime.now().isoformat(),
+            "fast_mode": use_fast,
+            "timed_out_fallback": timed_out,
+            "skipped": is_signature_issue,
+            "reason": "Signature analysis limitation" if is_signature_issue else None,
+        }
+
+        if is_signature_issue:
+            status = "skipped"
+            signature_skips.append(display_path)
+            logger.debug("      CrossHair skipped for %s (signature analysis limitation)", display_path)
+        else:
+            status = "success" if result.returncode == 0 else "failure"
+
+        exploration_cache[file_key] = {
+            "hash": file_hash,
+            "status": status,
+            "fast_mode": use_fast,
+            "prefer_fast": prefer_fast or timed_out,
+            "timestamp": datetime.now().isoformat(),
+            "return_code": result.returncode,
+            "stdout": result.stdout,
+            "stderr": result.stderr,
+            "reason": "Signature analysis limitation" if is_signature_issue else None,
+        }
+
+        self._log_crosshair_process_failure(result, display_path, is_signature_issue)
+        if result.returncode != 0 and not is_signature_issue:
+            return False
+        self._log_crosshair_process_success(timed_out, is_signature_issue, use_fast, display_path)
+        return True
+
+    def _exploration_record_timeout(
+        self,
+        file_key: str,
+        file_hash: str | None,
+        exploration_cache: dict[str, Any],
+        exploration_results: dict[str, Any],
+    ) -> None:
+        exploration_results[file_key] = {
+            "return_code": -1,
+            "stdout": "",
+            "stderr": "CrossHair exploration timed out",
+            "timestamp": datetime.now().isoformat(),
+        }
+        exploration_cache[file_key] = {
+            "hash": file_hash,
+            "status": "timeout",
+            "fast_mode": False,
+            "prefer_fast": True,
+            "timestamp": datetime.now().isoformat(),
+            "return_code": -1,
+            "stdout": "",
+            "stderr": "CrossHair exploration timed out",
+        }
+
+    def _exploration_record_error(
+        self,
+        file_key: str,
+        file_hash: str | None,
+        exc: Exception,
+        use_fast: bool,
+        prefer_fast: bool,
+        exploration_cache: dict[str, Any],
+        exploration_results: dict[str, Any],
+    ) -> None:
+        exploration_results[file_key] = {
+            "return_code": -1,
+            "stdout": "",
+            "stderr": str(exc),
+            "timestamp": datetime.now().isoformat(),
+        }
+        exploration_cache[file_key] = {
+            "hash": file_hash,
+            "status": "error",
+            "fast_mode": use_fast if file_hash is not None else False,
+            "prefer_fast": prefer_fast,
+            "timestamp": datetime.now().isoformat(),
+            "return_code": -1,
+            "stdout": "",
+            "stderr": str(exc),
+        }
+
+    def _exploration_use_cached_success(
+        self,
+        force: bool,
+        cache_entry: dict[str, Any],
+        file_hash: str | None,
+        file_key: str,
+        display_path: str,
+        exploration_results: dict[str, Any],
+    ) -> bool:
+        if (
+            not force
+            and cache_entry
+            and cache_entry.get("hash") == file_hash
+            and cache_entry.get("status") == "success"
+        ):
+            logger.debug("      Cached result found, skipping CrossHair run for %s", display_path)
+            exploration_results[file_key] = {
+                "return_code": cache_entry.get("return_code", 0),
+                "stdout": cache_entry.get("stdout", ""),
+                "stderr": cache_entry.get("stderr", ""),
+                "timestamp": datetime.now().isoformat(),
+                "cached": True,
+                "fast_mode": cache_entry.get("fast_mode", False),
+            }
+            return True
+        return False
+
+    def _exploration_apply_static_skips(
+        self,
+        file_path: Path,
+        file_key: str,
+        file_hash: str | None,
+        display_path: str,
+        exploration_cache: dict[str, Any],
+        exploration_results: dict[str, Any],
+    ) -> bool:
+        if self._is_crosshair_skipped(file_path):
+            logger.debug("      CrossHair skipped for %s (file marked 'CrossHair: skip')", display_path)
+            self._exploration_store_static_skip(
+                file_key, file_hash, "CrossHair skip marker", exploration_cache, exploration_results
+            )
+            return True
+        if self._is_typer_command_module(file_path):
+            logger.debug(
+                "      CrossHair skipped for %s (Typer command module; signature analysis unsupported)",
+                display_path,
+            )
+            self._exploration_store_static_skip(
+                file_key, file_hash, "Typer command module", exploration_cache, exploration_results
+            )
+            return True
+        return False
+
     def _run_contract_exploration(
         self,
         modified_files: list[Path],
@@ -360,20 +637,13 @@ class ContractFirstTestManager(SmartCoverageManager):
         """Run CrossHair exploration on modified files."""
         logger.info("Running contract exploration with CrossHair...")
 
-        exploration_results = {}
+        exploration_results: dict[str, Any] = {}
         success = True
 
         exploration_cache: dict[str, Any] = self.contract_cache.setdefault("exploration_cache", {})
         signature_skips: list[str] = []
 
-        unique_files: list[Path] = []
-        seen_paths: set[str] = set()
-        for file_path in modified_files:
-            key = str(file_path.resolve())
-            if key in seen_paths:
-                continue
-            seen_paths.add(key)
-            unique_files.append(file_path)
+        unique_files = self._dedupe_paths_by_resolve(modified_files)
         if len(unique_files) < len(modified_files):
             logger.debug("   De-duplicated %d repeated file entries", len(modified_files) - len(unique_files))
 
@@ -387,210 +657,44 @@ class ContractFirstTestManager(SmartCoverageManager):
             prefer_fast = False
 
             try:
-                try:
-                    relative_path = file_path.relative_to(self.project_root)
-                    file_key = str(relative_path)
-                except ValueError:
-                    file_key = str(file_path)
-
+                file_key = self._exploration_file_key(file_path)
                 file_hash = self._compute_file_hash(file_path)
                 cache_entry = exploration_cache.get(file_key, {})
                 prefer_fast = bool(cache_entry.get("prefer_fast", False))
                 use_fast = self.crosshair_fast or prefer_fast
 
-                if (
-                    not force
-                    and cache_entry
-                    and cache_entry.get("hash") == file_hash
-                    and cache_entry.get("status") == "success"
+                if self._exploration_use_cached_success(
+                    force, cache_entry, file_hash, file_key, display_path, exploration_results
                 ):
-                    logger.debug("      Cached result found, skipping CrossHair run for %s", display_path)
-                    exploration_results[file_key] = {
-                        "return_code": cache_entry.get("return_code", 0),
-                        "stdout": cache_entry.get("stdout", ""),
-                        "stderr": cache_entry.get("stderr", ""),
-                        "timestamp": datetime.now().isoformat(),
-                        "cached": True,
-                        "fast_mode": cache_entry.get("fast_mode", False),
-                    }
                     continue
 
-                if self._is_crosshair_skipped(file_path):
-                    logger.debug("      CrossHair skipped for %s (file marked 'CrossHair: skip')", display_path)
-                    exploration_results[file_key] = {
-                        "return_code": 0,
-                        "stdout": "",
-                        "stderr": "",
-                        "timestamp": datetime.now().isoformat(),
-                        "cached": False,
-                        "fast_mode": False,
-                        "skipped": True,
-                        "reason": "CrossHair skip marker",
-                    }
-                    exploration_cache[file_key] = {
-                        "hash": file_hash,
-                        "status": "skipped",
-                        "fast_mode": False,
-                        "prefer_fast": False,
-                        "timestamp": datetime.now().isoformat(),
-                        "return_code": 0,
-                        "stdout": "",
-                        "stderr": "",
-                        "reason": "CrossHair skip marker",
-                    }
+                if self._exploration_apply_static_skips(
+                    file_path, file_key, file_hash, display_path, exploration_cache, exploration_results
+                ):
                     continue
 
-                if self._is_typer_command_module(file_path):
-                    logger.debug(
-                        "      CrossHair skipped for %s (Typer command module; signature analysis unsupported)",
-                        display_path,
-                    )
-                    exploration_results[file_key] = {
-                        "return_code": 0,
-                        "stdout": "",
-                        "stderr": "",
-                        "timestamp": datetime.now().isoformat(),
-                        "cached": False,
-                        "fast_mode": False,
-                        "skipped": True,
-                        "reason": "Typer command module",
-                    }
-                    exploration_cache[file_key] = {
-                        "hash": file_hash,
-                        "status": "skipped",
-                        "fast_mode": False,
-                        "prefer_fast": False,
-                        "timestamp": datetime.now().isoformat(),
-                        "return_code": 0,
-                        "stdout": "",
-                        "stderr": "",
-                        "reason": "Typer command module",
-                    }
-                    continue
-
-                timed_out = False
-                cmd = self._build_crosshair_command(file_path, fast=use_fast)
-                try:
-                    result = subprocess.run(
-                        cmd,
-                        capture_output=True,
-                        text=True,
-                        timeout=None if use_fast else self.STANDARD_CROSSHAIR_TIMEOUT,
-                    )
-                except subprocess.TimeoutExpired:
-                    logger.warning("      CrossHair standard run timed out; retrying with fast settings")
-                    timed_out = True
-                    use_fast = True
-                    prefer_fast = True
-                    cmd = self._build_crosshair_command(file_path, fast=True)
-                    result = subprocess.run(
-                        cmd,
-                        capture_output=True,
-                        text=True,
-                        timeout=None,
-                    )
-
-                # Dynamically detect signature analysis limitations (not real contract violations)
-                # CrossHair has known limitations with:
-                # - Typer decorators: signature transformation issues
-                # - Complex Path parameter handling: keyword-only parameter ordering
-                # - Function signatures with variadic arguments: wrong parameter order
-                signature_detail = self._extract_signature_limitation_detail(result.stderr, result.stdout)
-                is_signature_issue = signature_detail is not None
-
-                exploration_results[file_key] = {
-                    "return_code": result.returncode,
-                    "stdout": result.stdout,
-                    "stderr": result.stderr,
-                    "timestamp": datetime.now().isoformat(),
-                    "fast_mode": use_fast,
-                    "timed_out_fallback": timed_out,
-                    "skipped": is_signature_issue,
-                    "reason": "Signature analysis limitation" if is_signature_issue else None,
-                }
-
-                if is_signature_issue:
-                    status = "skipped"
-                    signature_skips.append(display_path)
-                    logger.debug("      CrossHair skipped for %s (signature analysis limitation)", display_path)
-                    # Don't set success = False for signature issues
-                else:
-                    status = "success" if result.returncode == 0 else "failure"
-
-                exploration_cache[file_key] = {
-                    "hash": file_hash,
-                    "status": status,
-                    "fast_mode": use_fast,
-                    "prefer_fast": prefer_fast or timed_out,
-                    "timestamp": datetime.now().isoformat(),
-                    "return_code": result.returncode,
-                    "stdout": result.stdout,
-                    "stderr": result.stderr,
-                    "reason": "Signature analysis limitation" if is_signature_issue else None,
-                }
-
-                if result.returncode != 0 and not is_signature_issue:
-                    logger.warning("   CrossHair found issues in %s", display_path)
-                    if result.stdout.strip():
-                        logger.warning("      stdout:")
-                        for line in result.stdout.strip().splitlines():
-                            logger.warning("      │   %s", line)
-                    if result.stderr.strip():
-                        logger.warning("      stderr:")
-                        for line in result.stderr.strip().splitlines():
-                            logger.warning("          %s", line)
-
-                    if "No module named crosshair.__main__" in result.stderr:
-                        logger.info(
-                            "      Detected legacy 'crosshair' package (SSH client). Install CrossHair tooling via:"
-                        )
-                        logger.info("         pip install crosshair-tool")
-
+                result, timed_out, use_fast, prefer_fast = self._run_crosshair_subprocess(file_path, use_fast)
+                if not self._apply_crosshair_result(
+                    file_key,
+                    file_hash,
+                    result,
+                    timed_out,
+                    use_fast,
+                    prefer_fast,
+                    display_path,
+                    exploration_cache,
+                    exploration_results,
+                    signature_skips,
+                ):
                     success = False
-                else:
-                    if timed_out:
-                        logger.info("   CrossHair exploration passed for %s (fast retry)", display_path)
-                    elif is_signature_issue:
-                        pass
-                    else:
-                        mode_label = "fast" if use_fast else "standard"
-                        logger.info("   CrossHair exploration passed for %s (%s)", display_path, mode_label)
 
             except subprocess.TimeoutExpired:
-                exploration_results[file_key] = {
-                    "return_code": -1,
-                    "stdout": "",
-                    "stderr": "CrossHair exploration timed out",
-                    "timestamp": datetime.now().isoformat(),
-                }
-                exploration_cache[file_key] = {
-                    "hash": file_hash,
-                    "status": "timeout",
-                    "fast_mode": False,
-                    "prefer_fast": True,
-                    "timestamp": datetime.now().isoformat(),
-                    "return_code": -1,
-                    "stdout": "",
-                    "stderr": "CrossHair exploration timed out",
-                }
+                self._exploration_record_timeout(file_key, file_hash, exploration_cache, exploration_results)
                 success = False
             except Exception as e:
-                exploration_results[file_key] = {
-                    "return_code": -1,
-                    "stdout": "",
-                    "stderr": str(e),
-                    "timestamp": datetime.now().isoformat(),
-                }
-                exploration_cache[file_key] = {
-                    "hash": file_hash,
-                    "status": "error",
-                    "fast_mode": use_fast if file_hash is not None else False,
-                    "prefer_fast": prefer_fast,
-                    "timestamp": datetime.now().isoformat(),
-                    "return_code": -1,
-                    "stdout": "",
-                    "stderr": str(e),
-                }
+                self._exploration_record_error(
+                    file_key, file_hash, e, use_fast, prefer_fast, exploration_cache, exploration_results
+                )
                 success = False
 
         # Update contract cache
@@ -615,7 +719,7 @@ class ContractFirstTestManager(SmartCoverageManager):
 
         # Get integration tests that reference contracts
         integration_tests = self._get_test_files_by_level("integration")
-        scenario_tests = []
+        scenario_tests: list[Path] = []
 
         for test_file in integration_tests:
             try:
@@ -750,6 +854,48 @@ class ContractFirstTestManager(SmartCoverageManager):
         }
 
 
+def _contract_cli_run(manager: ContractFirstTestManager, args: argparse.Namespace) -> None:
+    success = manager.run_contract_first_tests(args.level, args.force)
+    sys.exit(0 if success else 1)
+
+
+def _contract_cli_status(manager: ContractFirstTestManager) -> None:
+    status = manager.get_contract_status()
+    logger.info("Contract-First Test Status:")
+    logger.info("   Last Run: %s", status["last_run"] or "Never")
+    logger.info("   Coverage: %.1f%%", status["coverage_percentage"])
+    logger.info("   Test Count: %s", status["test_count"])
+    logger.info("   Source Changed: %s", status["source_changed"])
+    logger.info("   Tool Availability:")
+    for tool, available in status["tool_availability"].items():
+        logger.info("     - %s: %s", tool, "available" if available else "unavailable")
+    logger.info("   Contract Violations: %s", len(status["contract_cache"].get("contract_violations", [])))
+    sys.exit(0)
+
+
+def _contract_cli_contracts(manager: ContractFirstTestManager, args: argparse.Namespace) -> None:
+    modified_files = manager._get_modified_files()
+    if not modified_files:
+        logger.info("No modified files detected")
+        sys.exit(0)
+    success, _ = manager._run_contract_validation(modified_files, force=args.force)
+    sys.exit(0 if success else 1)
+
+
+def _contract_cli_exploration(manager: ContractFirstTestManager, args: argparse.Namespace) -> None:
+    modified_files = manager._get_modified_files()
+    if not modified_files:
+        logger.info("No modified files detected")
+        sys.exit(0)
+    success, _ = manager._run_contract_exploration(modified_files, force=args.force)
+    sys.exit(0 if success else 1)
+
+
+def _contract_cli_scenarios(manager: ContractFirstTestManager) -> None:
+    success, _, _ = manager._run_scenario_tests()
+    sys.exit(0 if success else 1)
+
+
 @ensure(lambda result: result is None, "main must return None")
 def main() -> None:
     parser = argparse.ArgumentParser(description="Contract-First Smart Test System")
@@ -777,48 +923,16 @@ def main() -> None:
 
     manager = ContractFirstTestManager(crosshair_fast=args.crosshair_fast)
 
+    handlers: dict[str, Callable[[], None]] = {
+        "run": lambda: _contract_cli_run(manager, args),
+        "status": lambda: _contract_cli_status(manager),
+        "contracts": lambda: _contract_cli_contracts(manager, args),
+        "exploration": lambda: _contract_cli_exploration(manager, args),
+        "scenarios": lambda: _contract_cli_scenarios(manager),
+    }
+
     try:
-        if args.command == "run":
-            success = manager.run_contract_first_tests(args.level, args.force)
-            sys.exit(0 if success else 1)
-
-        elif args.command == "status":
-            status = manager.get_contract_status()
-            logger.info("Contract-First Test Status:")
-            logger.info("   Last Run: %s", status["last_run"] or "Never")
-            logger.info("   Coverage: %.1f%%", status["coverage_percentage"])
-            logger.info("   Test Count: %s", status["test_count"])
-            logger.info("   Source Changed: %s", status["source_changed"])
-            logger.info("   Tool Availability:")
-            for tool, available in status["tool_availability"].items():
-                logger.info("     - %s: %s", tool, "available" if available else "unavailable")
-            logger.info("   Contract Violations: %s", len(status["contract_cache"].get("contract_violations", [])))
-            sys.exit(0)
-
-        elif args.command == "contracts":
-            modified_files = manager._get_modified_files()
-            if not modified_files:
-                logger.info("No modified files detected")
-                sys.exit(0)
-            success, _ = manager._run_contract_validation(modified_files, force=args.force)
-            sys.exit(0 if success else 1)
-
-        elif args.command == "exploration":
-            modified_files = manager._get_modified_files()
-            if not modified_files:
-                logger.info("No modified files detected")
-                sys.exit(0)
-            success, _ = manager._run_contract_exploration(modified_files, force=args.force)
-            sys.exit(0 if success else 1)
-
-        elif args.command == "scenarios":
-            success, _, _ = manager._run_scenario_tests()
-            sys.exit(0 if success else 1)
-
-        else:
-            logger.error("Unknown command: %s", args.command)
-            sys.exit(1)
-
+        handlers[args.command]()
     except Exception as e:
         logger.error("Error: %s", e)
         sys.exit(1)

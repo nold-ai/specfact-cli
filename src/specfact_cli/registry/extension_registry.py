@@ -6,6 +6,8 @@ Maps module name to list of SchemaExtension; enforces namespace collision detect
 
 from __future__ import annotations
 
+from typing import cast
+
 from beartype import beartype
 from icontract import ensure, require
 
@@ -37,7 +39,7 @@ class ExtensionRegistry:
         self._registry = {}
 
     @beartype
-    @require(lambda module_name: module_name.strip() != "", "module_name must not be empty")
+    @require(lambda module_name: cast(str, module_name).strip() != "", "module_name must not be empty")
     def register(self, module_name: str, extensions: list[SchemaExtension]) -> None:
         """Register schema extensions for a module. Raises ValueError on namespace collision."""
         _check_collision(module_name, extensions, self._registry)

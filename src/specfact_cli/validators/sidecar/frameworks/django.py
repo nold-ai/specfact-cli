@@ -21,8 +21,14 @@ class DjangoExtractor(BaseFrameworkExtractor):
     """Django framework extractor."""
 
     @beartype
-    @require(lambda repo_path: repo_path.exists(), "Repository path must exist")
-    @require(lambda repo_path: repo_path.is_dir(), "Repository path must be a directory")
+    @require(
+        lambda repo_path: isinstance(repo_path, Path) and repo_path.exists(),
+        "Repository path must exist",
+    )
+    @require(
+        lambda repo_path: isinstance(repo_path, Path) and repo_path.is_dir(),
+        "Repository path must be a directory",
+    )
     @ensure(lambda result: isinstance(result, bool), "Must return bool")
     def detect(self, repo_path: Path) -> bool:
         """
@@ -42,8 +48,14 @@ class DjangoExtractor(BaseFrameworkExtractor):
         return len(urls_files) > 0
 
     @beartype
-    @require(lambda repo_path: repo_path.exists(), "Repository path must exist")
-    @require(lambda repo_path: repo_path.is_dir(), "Repository path must be a directory")
+    @require(
+        lambda repo_path: isinstance(repo_path, Path) and repo_path.exists(),
+        "Repository path must exist",
+    )
+    @require(
+        lambda repo_path: isinstance(repo_path, Path) and repo_path.is_dir(),
+        "Repository path must be a directory",
+    )
     @ensure(lambda result: isinstance(result, list), "Must return list")
     def extract_routes(self, repo_path: Path) -> list[RouteInfo]:
         """
@@ -62,7 +74,10 @@ class DjangoExtractor(BaseFrameworkExtractor):
         return self._extract_urls_from_file(repo_path, urls_file)
 
     @beartype
-    @require(lambda repo_path: repo_path.exists(), "Repository path must exist")
+    @require(
+        lambda repo_path: isinstance(repo_path, Path) and repo_path.exists(),
+        "Repository path must exist",
+    )
     @require(lambda routes: isinstance(routes, list), "Routes must be a list")
     @ensure(lambda result: isinstance(result, dict), "Must return dict")
     def extract_schemas(self, repo_path: Path, routes: list[RouteInfo]) -> dict[str, dict[str, Any]]:

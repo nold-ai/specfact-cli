@@ -45,7 +45,15 @@ class GitHubFieldMapper(FieldMapper):
         body = item_data.get("body", "") or ""
         labels_raw = item_data.get("labels", [])
         labels = labels_raw if isinstance(labels_raw, list) else []
-        label_names = [label.get("name", "") if isinstance(label, dict) else str(label) for label in labels if label]
+        label_names: list[str] = []
+        for label in labels:
+            if not label:
+                continue
+            if isinstance(label, dict):
+                ld: dict[str, Any] = label
+                label_names.append(str(ld.get("name", "")))
+            else:
+                label_names.append(str(label))
 
         fields: dict[str, Any] = {}
 
@@ -72,29 +80,25 @@ class GitHubFieldMapper(FieldMapper):
         priority = self._extract_numeric_field(body, "Priority")
         fields["priority"] = priority if priority is not None else None
 
-        # Calculate value points (SAFe-specific: business_value / story_points)
-        business_value_val: int | None = fields.get("business_value")
-        story_points_val: int | None = fields.get("story_points")
-        if (
-            business_value_val is not None
-            and story_points_val is not None
-            and story_points_val != 0
-            and isinstance(business_value_val, int)
-            and isinstance(story_points_val, int)
-        ):
-            try:
-                value_points = int(business_value_val / story_points_val)
-                fields["value_points"] = value_points
-            except (ZeroDivisionError, TypeError):
-                fields["value_points"] = None
-        else:
-            fields["value_points"] = None
+        fields["value_points"] = self._compute_value_points_from_numeric_fields(fields)
 
         # Extract work item type from labels or issue metadata
         work_item_type = self._extract_work_item_type(label_names, item_data)
         fields["work_item_type"] = work_item_type
 
         return fields
+
+    def _compute_value_points_from_numeric_fields(self, fields: dict[str, Any]) -> int | None:
+        business_value_val: int | None = fields.get("business_value")
+        story_points_val: int | None = fields.get("story_points")
+        if business_value_val is None or story_points_val is None or story_points_val == 0:
+            return None
+        if not isinstance(business_value_val, int) or not isinstance(story_points_val, int):
+            return None
+        try:
+            return int(business_value_val / story_points_val)
+        except (ZeroDivisionError, TypeError):
+            return None
 
     @beartype
     @require(lambda self, canonical_fields: isinstance(canonical_fields, dict), "Canonical fields must be dict")
@@ -193,6 +197,49 @@ class GitHubFieldMapper(FieldMapper):
 
         return "\n".join(result_lines).strip()
 
+    @staticmethod
+    def _parse_first_int_after_heading(lines: list[str], start_idx: int) -> int | None:
+        for next_line in lines[start_idx + 1 :]:
+            candidate = next_line.strip()
+            if not candidate:
+                continue
+            match = re.match(r"^(\d+)", candidate)
+            if match:
+                try:
+                    return int(match.group(1))
+                except (ValueError, IndexError):
+                    return None
+            break
+        return None
+
+    @staticmethod
+    def _extract_numeric_from_heading_section(lines: list[str], normalized_field: str) -> int | None:
+        for idx, raw_line in enumerate(lines):
+            line = raw_line.strip()
+            if not line.startswith("##"):
+                continue
+            heading = line.lstrip("#").strip().lower()
+            if heading != normalized_field:
+                continue
+            return GitHubFieldMapper._parse_first_int_after_heading(lines, idx)
+        return None
+
+    @staticmethod
+    def _extract_numeric_from_inline_label(lines: list[str], normalized_field: str) -> int | None:
+        inline_prefix = f"**{normalized_field}:**"
+        for raw_line in lines:
+            line = raw_line.strip()
+            if not line.lower().startswith(inline_prefix):
+                continue
+            remainder = line[len(inline_prefix) :].strip()
+            match = re.match(r"^(\d+)", remainder)
+            if match:
+                try:
+                    return int(match.group(1))
+                except (ValueError, IndexError):
+                    return None
+        return None
+
     @beartype
     @require(lambda self, body: isinstance(body, str), "Body must be str")
     @require(lambda self, field_name: isinstance(field_name, str), "Field name must be str")
@@ -217,41 +264,10 @@ class GitHubFieldMapper(FieldMapper):
             return None
 
         lines = body.splitlines()
-
-        # Pattern 1: markdown section heading followed by a numeric line.
-        for idx, raw_line in enumerate(lines):
-            line = raw_line.strip()
-            if not line.startswith("##"):
-                continue
-            heading = line.lstrip("#").strip().lower()
-            if heading != normalized_field:
-                continue
-            for next_line in lines[idx + 1 :]:
-                candidate = next_line.strip()
-                if not candidate:
-                    continue
-                match = re.match(r"^(\d+)", candidate)
-                if match:
-                    try:
-                        return int(match.group(1))
-                    except (ValueError, IndexError):
-                        return None
-                break
-
-        # Pattern 2: inline markdown label, e.g. **Field Name:** 8
-        inline_prefix = f"**{normalized_field}:**"
-        for raw_line in lines:
-            line = raw_line.strip()
-            if line.lower().startswith(inline_prefix):
-                remainder = line[len(inline_prefix) :].strip()
-                match = re.match(r"^(\d+)", remainder)
-                if match:
-                    try:
-                        return int(match.group(1))
-                    except (ValueError, IndexError):
-                        return None
-
-        return None
+        heading_val = self._extract_numeric_from_heading_section(lines, normalized_field)
+        if heading_val is not None:
+            return heading_val
+        return self._extract_numeric_from_inline_label(lines, normalized_field)
 
     @beartype
     @require(lambda self, label_names: isinstance(label_names, list), "Label names must be list")
@@ -293,8 +309,9 @@ class GitHubFieldMapper(FieldMapper):
         if isinstance(issue_type, str) and issue_type.strip():
             return issue_type.strip()
         if isinstance(issue_type, dict):
+            it: dict[str, Any] = issue_type
             for key in ("name", "title"):
-                candidate = issue_type.get(key)
+                candidate = it.get(key)
                 if isinstance(candidate, str) and candidate.strip():
                     return candidate.strip()
 

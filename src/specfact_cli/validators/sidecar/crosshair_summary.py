@@ -16,6 +16,105 @@ from beartype import beartype
 from icontract import ensure
 
 
+def _summary_output_path_exists(result: Path) -> bool:
+    return result.exists()
+
+
+def _parse_counterexample_key_value(part: str) -> tuple[str, Any]:
+    key, value = part.split("=", 1)
+    key = key.strip()
+    value = value.strip()
+    try:
+        if value.startswith('"') and value.endswith('"'):
+            return key, value[1:-1]
+        if value.lower() in ("true", "false"):
+            return key, value.lower() == "true"
+        if "." in value:
+            return key, float(value)
+        return key, int(value)
+    except (ValueError, AttributeError):
+        return key, value
+
+
+def _collect_counterexample_violations(
+    counterexamples: list[tuple[str, str]],
+) -> list[dict[str, Any]]:
+    violation_details: list[dict[str, Any]] = []
+    for func_name, counterexample_str in counterexamples:
+        counterexample_dict: dict[str, Any] = {}
+        for part in counterexample_str.split(","):
+            part = part.strip()
+            if "=" not in part:
+                continue
+            k, v = _parse_counterexample_key_value(part)
+            counterexample_dict[k] = v
+
+        violation_details.append(
+            {
+                "function": func_name.strip(),
+                "counterexample": counterexample_dict,
+                "raw": f"{func_name}: Rejected (counterexample: {counterexample_str})",
+            }
+        )
+    return violation_details
+
+
+def _count_lines_by_status(
+    lines: list[str],
+    confirmed_pattern: re.Pattern[str],
+    rejected_pattern: re.Pattern[str],
+    unknown_pattern: re.Pattern[str],
+    function_name_pattern: re.Pattern[str],
+    violation_details: list[dict[str, Any]],
+) -> tuple[int, int, int]:
+    confirmed = 0
+    not_confirmed = 0
+    violations = 0
+    for line in lines:
+        if confirmed_pattern.search(line):
+            confirmed += 1
+        elif rejected_pattern.search(line):
+            violations += 1
+            if not any(v["function"] in line for v in violation_details):
+                match = function_name_pattern.match(line)
+                if match:
+                    func_name = match.group(1).strip()
+                    if "/" not in func_name and not func_name.startswith("/"):
+                        violation_details.append({"function": func_name, "counterexample": {}, "raw": line.strip()})
+        elif unknown_pattern.search(line):
+            not_confirmed += 1
+    return confirmed, not_confirmed, violations
+
+
+def _apply_crosshair_fallback_heuristic(
+    combined_output: str,
+    function_name_pattern: re.Pattern[str],
+    confirmed: int,
+    not_confirmed: int,
+    violations: int,
+    violation_details: list[dict[str, Any]],
+) -> tuple[int, int, int]:
+    if confirmed != 0 or not_confirmed != 0 or violations != 0:
+        return confirmed, not_confirmed, violations
+    lower = combined_output.lower()
+    if any(k in lower for k in ("error", "violation", "counterexample", "failed", "rejected")):
+        violations = 1
+        match = function_name_pattern.search(combined_output)
+        if match:
+            func_name = match.group(1).strip()
+            if "/" not in func_name and not func_name.startswith("/"):
+                violation_details.append(
+                    {
+                        "function": func_name,
+                        "counterexample": {},
+                        "raw": combined_output.strip()[:200],
+                    }
+                )
+    elif combined_output.strip() and "not found" not in lower:
+        not_confirmed = 1
+    return confirmed, not_confirmed, violations
+
+
 @beartype
 @ensure(lambda result: isinstance(result, dict), "Must return dict")
 @ensure(lambda result: "confirmed" in result, "Must include confirmed count")
@@ -43,117 +142,35 @@ def parse_crosshair_output(stdout: str, stderr: str) -> dict[str, Any]:
         - total: int - Total number of contracts analyzed
         - violation_details: list[dict] - Detailed violation information with counterexamples
     """
-    confirmed = 0
-    not_confirmed = 0
-    violations = 0
-    violation_details: list[dict[str, Any]] = []
-
-    # Combine stdout and stderr for parsing
     combined_output = stdout + "\n" + stderr
 
-    # Pattern for CrossHair output lines
-    # Examples:
-    # "function_name: Confirmed" or "function_name: Confirmed over all paths"
-    # "function_name: Rejected (counterexample: ...)"
-    # "function_name: Unknown" or "function_name: Not confirmed"
-    # "function_name: <status>"
     confirmed_pattern = re.compile(r":\s*Confirmed", re.IGNORECASE)
     rejected_pattern = re.compile(r":\s*Rejected\b", re.IGNORECASE)
     unknown_pattern = re.compile(r":\s*(Unknown|Not confirmed)", re.IGNORECASE)
-
-    # Pattern for extracting function name and counterexample
-    # Format: "function_name: Rejected (counterexample: x=5, result=-5)"
     counterexample_pattern = re.compile(
         r"^([^:]+):\s*Rejected\s*\(counterexample:\s*(.+?)\)", re.IGNORECASE | re.MULTILINE
     )
-
-    # Pattern for extracting function name from status lines
     function_name_pattern = re.compile(r"^([^:]+):", re.MULTILINE)
 
-    # Extract counterexamples first
-    counterexamples = counterexample_pattern.findall(combined_output)
-    for func_name, counterexample_str in counterexamples:
-        # Parse counterexample string (e.g., "x=5, result=-5")
-        counterexample_dict: dict[str, Any] = {}
-        for part in counterexample_str.split(","):
-            part = part.strip()
-            if "=" in part:
-                key, value = part.split("=", 1)
-                key = key.strip()
-                value = value.strip()
-                # Try to parse value as appropriate type
-                try:
-                    if value.startswith('"') and value.endswith('"'):
-                        counterexample_dict[key] = value[1:-1]  # String
-                    elif value.lower() in ("true", "false"):
-                        counterexample_dict[key] = value.lower() == "true"
-                    elif "." in value:
-                        counterexample_dict[key] = float(value)
-                    else:
-                        counterexample_dict[key] = int(value)
-                except (ValueError, AttributeError):
-                    counterexample_dict[key] = value  # Keep as string if parsing fails
+    violation_details = _collect_counterexample_violations(counterexample_pattern.findall(combined_output))
 
-        violation_details.append(
-            {
-                "function": func_name.strip(),
-                "counterexample": counterexample_dict,
-                "raw": f"{func_name}: Rejected (counterexample: {counterexample_str})",
-            }
-        )
+    confirmed, not_confirmed, violations = _count_lines_by_status(
+        combined_output.split("\n"),
+        confirmed_pattern,
+        rejected_pattern,
+        unknown_pattern,
+        function_name_pattern,
+        violation_details,
+    )
 
-    # Count by status
-    lines = combined_output.split("\n")
-    for line in lines:
-        if confirmed_pattern.search(line):
-            confirmed += 1
-        elif rejected_pattern.search(line):
-            violations += 1
-            # If we haven't captured this violation yet, try to extract function name
-            if not any(v["function"] in line for v in violation_details):
-                match = function_name_pattern.match(line)
-                if match:
-                    func_name = match.group(1).strip()
-                    # Filter out paths - only keep valid function names
-                    # Skip if it looks like a path (contains / or starts with /)
-                    if "/" not in func_name and not func_name.startswith("/"):
-                        violation_details.append(
-                            {
-                                "function": func_name,
-                                "counterexample": {},
-                                "raw": line.strip(),
-                            }
-                        )
-        elif unknown_pattern.search(line):
-            not_confirmed += 1
-
-    # If no explicit status found but there's output, check for error patterns
-    # CrossHair may report violations in different formats
-    if confirmed == 0 and not_confirmed == 0 and violations == 0:
-        # Check for error/violation indicators
-        if any(
-            keyword in combined_output.lower()
-            for keyword in ["error", "violation", "counterexample", "failed", "rejected"]
-        ):
-            # Likely violations but not in standard format
-            violations = 1
-            # Try to extract function name from error
-            match = function_name_pattern.search(combined_output)
-            if match:
-                func_name = match.group(1).strip()
-                # Filter out paths - only keep valid function names
-                # Skip if it looks like a path (contains / or starts with /)
-                if "/" not in func_name and not func_name.startswith("/"):
-                    violation_details.append(
-                        {
-                            "function": func_name,
-                            "counterexample": {},
-                            "raw": combined_output.strip()[:200],  # First 200 chars
-                        }
-                    )
-        elif combined_output.strip() and "not found" not in combined_output.lower():
-            # Has output but no clear status - likely unknown/not confirmed
-            not_confirmed = 1
+    confirmed, not_confirmed, violations = _apply_crosshair_fallback_heuristic(
+        combined_output,
+        function_name_pattern,
+        confirmed,
+        not_confirmed,
+        violations,
+        violation_details,
+    )
 
     total = confirmed + not_confirmed + violations
 
@@ -172,7 +189,7 @@ def parse_crosshair_output(stdout: str, stderr: str) -> dict[str, Any]:
 
 
 @beartype
-@ensure(lambda result: result.exists() if result else True, "Summary file path must be valid")
+@ensure(_summary_output_path_exists, "Summary file path must be valid")
 def generate_summary_file(
     summary: dict[str, Any],
     reports_dir: Path,
@@ -217,6 +234,25 @@ def generate_summary_file(
     return summary_file
 
 
+def _is_violation_function_displayable(func_name: str) -> bool:
+    if "/" in func_name or func_name.startswith("/") or func_name == "unknown":
+        return False
+    return func_name.replace("_", "").replace(".", "").isalnum() or func_name.startswith("harness_")
+
+
+def _preview_violation_function_names(violation_details: list[dict[str, Any]], head: int = 3) -> str | None:
+    names: list[str] = []
+    for v in violation_details[:head]:
+        func_name = v.get("function", "unknown")
+        if _is_violation_function_displayable(str(func_name)):
+            names.append(str(func_name))
+    if not names:
+        return None
+    if len(violation_details) > head:
+        names.append(f"... ({len(violation_details) - head} more)")
+    return f"({', '.join(names)})"
+
+
 @beartype
 @ensure(lambda result: isinstance(result, str), "Must return string")
 def format_summary_line(summary: dict[str, Any]) -> str:
@@ -233,35 +269,22 @@ def format_summary_line(summary: dict[str, Any]) -> str:
     not_confirmed = summary.get("not_confirmed", 0)
     violations = summary.get("violations", 0)
     total = summary.get("total", 0)
-    violation_details = summary.get("violation_details", [])
+    violation_details_raw = summary.get("violation_details", [])
+    violation_details: list[dict[str, Any]] = [
+        v for v in (violation_details_raw if isinstance(violation_details_raw, list) else []) if isinstance(v, dict)
+    ]
 
-    parts = []
+    parts: list[str] = []
     if confirmed > 0:
         parts.append(f"{confirmed} confirmed")
     if not_confirmed > 0:
         parts.append(f"{not_confirmed} not confirmed")
     if violations > 0:
         parts.append(f"{violations} violations")
-        # Add violation details if available
         if violation_details:
-            # Filter out paths and invalid function names (only keep valid Python identifiers)
-            violation_funcs = []
-            for v in violation_details[:3]:
-                func_name = v.get("function", "unknown")
-                # Skip if it looks like a path (contains / or starts with /)
-                # Only include if it looks like a valid function name (alphanumeric + underscore)
-                if (
-                    "/" not in func_name
-                    and not func_name.startswith("/")
-                    and func_name != "unknown"
-                    and (func_name.replace("_", "").replace(".", "").isalnum() or func_name.startswith("harness_"))
-                ):
-                    violation_funcs.append(func_name)
-
-            if violation_funcs:
-                if len(violation_details) > 3:
-                    violation_funcs.append(f"... ({len(violation_details) - 3} more)")
-                parts.append(f"({', '.join(violation_funcs)})")
+            preview = _preview_violation_function_names(violation_details)
+            if preview:
+                parts.append(preview)
     if total == 0:
         parts.append("no contracts analyzed")
 

@@ -78,12 +78,14 @@ class OpenSpecParser:
 
         try:
             content = path.read_text(encoding="utf-8")
-            data = yaml.safe_load(content) or {}
+            raw = yaml.safe_load(content) or {}
+            data: dict[str, Any] = raw if isinstance(raw, dict) else {}
             result: dict[str, Any] = {"purpose": [], "context": [], "raw_content": content}
-            if isinstance(data.get("context"), str):
-                result["context"] = [data["context"].strip()]
-            elif isinstance(data.get("context"), list):
-                result["context"] = [str(c).strip() for c in data["context"] if c]
+            ctx = data.get("context")
+            if isinstance(ctx, str):
+                result["context"] = [ctx.strip()]
+            elif isinstance(ctx, list):
+                result["context"] = [str(c).strip() for c in ctx if c]
             return result
         except Exception:
             return None

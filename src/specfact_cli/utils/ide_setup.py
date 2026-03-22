@@ -12,12 +12,20 @@ import re
 import site
 import sys
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal, cast
 
 import yaml
 from beartype import beartype
 from icontract import ensure, require
 from rich.console import Console
+
+from specfact_cli.utils.contract_predicates import (
+    repo_path_exists,
+    repo_path_is_dir,
+    template_path_exists,
+    template_path_is_file,
+    vscode_settings_result_ok,
+)
 
 
 console = Console()
@@ -169,8 +177,8 @@ def detect_ide(ide: str = "auto") -> str:
 
 
 @beartype
-@require(lambda template_path: template_path.exists(), "Template path must exist")
-@require(lambda template_path: template_path.is_file(), "Template path must be a file")
+@require(template_path_exists, "Template path must exist")
+@require(template_path_is_file, "Template path must be a file")
 @ensure(
     lambda result: isinstance(result, dict) and "description" in result and "content" in result,
     "Result must be dict with description and content",
@@ -199,8 +207,9 @@ def read_template(template_path: Path) -> dict[str, str]:
     if frontmatter_match:
         frontmatter_str = frontmatter_match.group(1)
         body = frontmatter_match.group(2)
-        frontmatter = yaml.safe_load(frontmatter_str) or {}
-        description = frontmatter.get("description", "")
+        frontmatter_raw = yaml.safe_load(frontmatter_str) or {}
+        frontmatter: dict[str, Any] = frontmatter_raw if isinstance(frontmatter_raw, dict) else {}
+        description = str(frontmatter.get("description", ""))
     else:
         # No frontmatter, use entire content as body
         description = ""
@@ -246,8 +255,8 @@ def process_template(content: str, description: str, format_type: Literal["md", 
 
 
 @beartype
-@require(lambda repo_path: repo_path.exists(), "Repo path must exist")
-@require(lambda repo_path: repo_path.is_dir(), "Repo path must be a directory")
+@require(repo_path_exists, "Repo path must exist")
+@require(repo_path_is_dir, "Repo path must be a directory")
 @require(lambda ide: ide in IDE_CONFIG, "IDE must be valid")
 @ensure(
     lambda result: (
@@ -288,7 +297,7 @@ def copy_templates_to_ide(
     ide_dir = repo_path / ide_folder
     ide_dir.mkdir(parents=True, exist_ok=True)
 
-    copied_files = []
+    copied_files: list[Path] = []
 
     # Copy each template
     for command in SPECFACT_COMMANDS:
@@ -330,9 +339,9 @@ def copy_templates_to_ide(
 
 
 @beartype
-@require(lambda repo_path: repo_path.exists(), "Repo path must exist")
-@require(lambda repo_path: repo_path.is_dir(), "Repo path must be a directory")
-@ensure(lambda result: result is None or result.exists(), "Settings file must exist if returned")
+@require(repo_path_exists, "Repo path must exist")
+@require(repo_path_is_dir, "Repo path must be a directory")
+@ensure(lambda result: vscode_settings_result_ok(result), "Settings file must exist if returned")
 def create_vscode_settings(repo_path: Path, settings_file: str) -> Path | None:
     """
     Create or merge VS Code settings.json with prompt file recommendations.
@@ -372,9 +381,12 @@ def create_vscode_settings(repo_path: Path, settings_file: str) -> Path | None:
     if "chat" not in existing_settings:
         existing_settings["chat"] = {}
 
-    existing_recommendations = existing_settings["chat"].get("promptFilesRecommendations", [])
+    chat_block = existing_settings["chat"]
+    chat_dict: dict[str, Any] = cast(dict[str, Any], chat_block) if isinstance(chat_block, dict) else {}
+    existing_recommendations = chat_dict.get("promptFilesRecommendations", [])
     merged_recommendations = list(set(existing_recommendations + prompt_files))
-    existing_settings["chat"]["promptFilesRecommendations"] = merged_recommendations
+    chat_dict["promptFilesRecommendations"] = merged_recommendations
+    existing_settings["chat"] = chat_dict
 
     # Write merged settings
     with open(settings_path, "w", encoding="utf-8") as f:
@@ -388,6 +400,25 @@ def create_vscode_settings(repo_path: Path, settings_file: str) -> Path | None:
 
     console.print(f"[green]Updated:[/green] {settings_path}")
     return settings_path
+
+
+def _package_path_in_site_packages(site_packages_dir: Path, package_name: str) -> Path | None:
+    if not site_packages_dir.is_dir():
+        return None
+    pkg_path = site_packages_dir / package_name
+    return pkg_path.resolve() if pkg_path.exists() else None
+
+
+def _find_package_paths_under_archive(archive_dir: Path, package_name: str) -> list[Path]:
+    out: list[Path] = []
+    try:
+        for site_packages_dir in archive_dir.rglob("site-packages"):
+            resolved = _package_path_in_site_packages(site_packages_dir, package_name)
+            if resolved is not None:
+                out.append(resolved)
+    except (FileNotFoundError, PermissionError, OSError):
+        pass
+    return out
 
 
 def _search_uvx_cache_base(package_name: str, uvx_cache_base: Path) -> list[Path]:
@@ -411,17 +442,7 @@ def _search_uvx_cache_base(package_name: str, uvx_cache_base: Path) -> list[Path
                     continue
                 if "typeshed" in archive_dir.name.lower() or "stubs" in archive_dir.name.lower():
                     continue
-                try:
-                    for site_packages_dir in archive_dir.rglob("site-packages"):
-                        try:
-                            if site_packages_dir.is_dir():
-                                pkg_path = site_packages_dir / package_name
-                                if pkg_path.exists():
-                                    found.append(pkg_path.resolve())
-                        except (FileNotFoundError, PermissionError, OSError):
-                            continue
-                except (FileNotFoundError, PermissionError, OSError):
-                    continue
+                found.extend(_find_package_paths_under_archive(archive_dir, package_name))
             except (FileNotFoundError, PermissionError, OSError):
                 continue
     except (FileNotFoundError, PermissionError, OSError):

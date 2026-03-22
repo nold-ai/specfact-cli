@@ -14,6 +14,15 @@ from specfact_cli.registry import module_installer
 from specfact_cli.registry.module_installer import install_module, uninstall_module
 
 
+@pytest.fixture(autouse=True)
+def _no_op_resolve_dependencies(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Avoid invoking pip-based resolver in unit tests (Hatch env may lack pip module)."""
+    monkeypatch.setattr(
+        "specfact_cli.registry.module_installer.resolve_dependencies",
+        lambda *_a, **_k: None,
+    )
+
+
 def _create_module_tarball(
     tmp_path: Path,
     module_name: str,

@@ -16,10 +16,91 @@ from beartype import beartype
 from icontract import ensure, require
 
 from specfact_cli.common import get_bridge_logger
+from specfact_cli.utils.contract_predicates import report_path_is_parseable_repro
 from specfact_cli.utils.structured_io import load_structured_file
 
 
 _logger = get_bridge_logger(__name__)
+
+
+def _pr_comment_valid_markdown(result: str) -> bool:
+    return isinstance(result, str) and len(result) > 0 and result.startswith("##")
+
+
+def _append_pr_failed_check_details(lines: list[str], check: dict[str, Any]) -> None:
+    name = check.get("name", "Unknown")
+    tool = check.get("tool", "unknown")
+    error = check.get("error")
+    output = check.get("output")
+    lines.append(f"#### {name} ({tool})\n\n")
+    if error:
+        lines.append(f"**Error**: `{error}`\n\n")
+    if output:
+        lines.append("<details>\n<summary>Output</summary>\n\n")
+        lines.append("```\n")
+        lines.append(output[:2000])
+        if len(output) > 2000:
+            lines.append("\n... (truncated)")
+        lines.append("\n```\n\n")
+        lines.append("</details>\n\n")
+    if tool == "semgrep":
+        lines.append(
+            "💡 **Auto-fix available**: Run `specfact repro --fix` to apply automatic fixes for violations with fix capabilities.\n\n"
+        )
+
+
+def _emit_repro_check_annotation(check: dict[str, Any]) -> bool:
+    """Emit GitHub annotation for one repro check. Returns True if this counts as a failure."""
+    status = check.get("status", "unknown")
+    name = check.get("name", "Unknown check")
+    tool = check.get("tool", "unknown")
+    error = check.get("error", "")
+    output = check.get("output", "")
+    is_signature_issue = status == "failed" and _is_crosshair_signature_limitation(tool, error, output)
+
+    if status == "failed" and not is_signature_issue:
+        message = f"{name} ({tool}) failed"
+        if error:
+            message += f": {error}"
+        elif output:
+            truncated = output[:500] + "..." if len(output) > 500 else output
+            message += f": {truncated}"
+        create_annotation(message=message, level="error", title=f"{name} failed")
+        return True
+    if status == "failed" and is_signature_issue:
+        create_annotation(
+            message=f"{name} ({tool}) - signature analysis limitation (non-blocking, runtime contracts valid)",
+            level="notice",
+            title=f"{name} skipped (signature limitation)",
+        )
+        return False
+    if status == "timeout":
+        create_annotation(
+            message=f"{name} ({tool}) timed out",
+            level="warning",
+            title=f"{name} timeout",
+        )
+        return True
+    if status == "skipped":
+        create_annotation(
+            message=f"{name} ({tool}) was skipped",
+            level="notice",
+            title=f"{name} skipped",
+        )
+        return False
+    return False
+
+
+def _is_crosshair_signature_limitation(tool: str, error: str, output: str) -> bool:
+    if tool.lower() != "crosshair":
+        return False
+    combined = f"{error} {output}".lower()
+    return (
+        "wrong parameter order" in combined
+        or "keyword-only parameter" in combined
+        or "valueerror: wrong parameter" in combined
+        or ("signature" in combined and ("error" in combined or "failure" in combined))
+    )
 
 
 @beartype
@@ -73,12 +154,7 @@ def create_annotation(
 
 
 @beartype
-@require(lambda report_path: report_path.exists(), "Report path must exist")
-@require(
-    lambda report_path: report_path.suffix in (".yaml", ".yml", ".json"),
-    "Report must be YAML or JSON file",
-)
-@require(lambda report_path: report_path.is_file(), "Report path must be a file")
+@require(report_path_is_parseable_repro, "Report path must be a YAML or JSON file")
 @ensure(lambda result: isinstance(result, dict), "Must return dictionary")
 @ensure(lambda result: "checks" in result or "total_checks" in result, "Report must contain checks or total_checks")
 def parse_repro_report(report_path: Path) -> dict[str, Any]:
@@ -120,64 +196,9 @@ def create_annotations_from_report(report: dict[str, Any]) -> bool:
     """
     checks = report.get("checks", [])
     has_failures = False
-
     for check in checks:
-        status = check.get("status", "unknown")
-        name = check.get("name", "Unknown check")
-        tool = check.get("tool", "unknown")
-        error = check.get("error", "")
-        output = check.get("output", "")
-
-        # Check if this is a CrossHair signature analysis limitation (not a real failure)
-        is_signature_issue = False
-        if tool.lower() == "crosshair" and status == "failed":
-            # Check for signature analysis limitation patterns
-            combined_output = f"{error} {output}".lower()
-            is_signature_issue = (
-                "wrong parameter order" in combined_output
-                or "keyword-only parameter" in combined_output
-                or "valueerror: wrong parameter" in combined_output
-                or ("signature" in combined_output and ("error" in combined_output or "failure" in combined_output))
-            )
-
-        if status == "failed" and not is_signature_issue:
+        if _emit_repro_check_annotation(check):
             has_failures = True
-
-            # Create error annotation
-            message = f"{name} ({tool}) failed"
-            if error:
-                message += f": {error}"
-            elif output:
-                # Truncate output for annotation
-                truncated = output[:500] + "..." if len(output) > 500 else output
-                message += f": {truncated}"
-
-            create_annotation(
-                message=message,
-                level="error",
-                title=f"{name} failed",
-            )
-        elif status == "failed" and is_signature_issue:
-            # CrossHair signature analysis limitation - treat as skipped, not failed
-            create_annotation(
-                message=f"{name} ({tool}) - signature analysis limitation (non-blocking, runtime contracts valid)",
-                level="notice",
-                title=f"{name} skipped (signature limitation)",
-            )
-        elif status == "timeout":
-            has_failures = True
-            create_annotation(
-                message=f"{name} ({tool}) timed out",
-                level="warning",
-                title=f"{name} timeout",
-            )
-        elif status == "skipped":
-            # Explicitly skipped checks - don't treat as failures
-            create_annotation(
-                message=f"{name} ({tool}) was skipped",
-                level="notice",
-                title=f"{name} skipped",
-            )
 
     # Create summary annotation
     total_checks = report.get("total_checks", 0)
@@ -210,12 +231,77 @@ def create_annotations_from_report(report: dict[str, Any]) -> bool:
     return has_failures
 
 
+def _pr_comment_partition_failed_checks(
+    checks: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    failed_checks_list: list[dict[str, Any]] = []
+    signature_issues_list: list[dict[str, Any]] = []
+    for check in checks:
+        if check.get("status") != "failed":
+            continue
+        tool = check.get("tool", "unknown").lower()
+        error = check.get("error", "")
+        output = check.get("output", "")
+        if tool == "crosshair" and _is_crosshair_signature_limitation(tool, error, output):
+            signature_issues_list.append(check)
+        else:
+            failed_checks_list.append(check)
+    return failed_checks_list, signature_issues_list
+
+
+def _append_pr_comment_detail_sections(
+    lines: list[str],
+    report: dict[str, Any],
+    failed_checks_list: list[dict[str, Any]],
+    signature_issues_list: list[dict[str, Any]],
+    checks: list[dict[str, Any]],
+) -> None:
+    failed_checks = report.get("failed_checks", 0)
+    budget_exceeded = report.get("budget_exceeded", False)
+
+    if failed_checks_list:
+        lines.append("### ❌ Failed Checks\n\n")
+        for check in failed_checks_list:
+            _append_pr_failed_check_details(lines, check)
+
+    if signature_issues_list:
+        lines.append("### ⚠️ Signature Analysis Limitations (Non-blocking)\n\n")
+        lines.append(
+            "The following checks encountered CrossHair signature analysis limitations. "
+            "These are non-blocking issues related to complex function signatures (Typer decorators, keyword-only parameters) "
+            "and do not indicate actual contract violations. Runtime contracts remain valid.\n\n"
+        )
+        for check in signature_issues_list:
+            name = check.get("name", "Unknown")
+            tool = check.get("tool", "unknown")
+            lines.append(f"- **{name}** ({tool}) - signature analysis limitation\n")
+        lines.append("\n")
+
+    timeout_checks_list = [c for c in checks if c.get("status") == "timeout"]
+    if timeout_checks_list:
+        lines.append("### ⏱️ Timeout Checks\n\n")
+        for check in timeout_checks_list:
+            name = check.get("name", "Unknown")
+            tool = check.get("tool", "unknown")
+            lines.append(f"- **{name}** ({tool}) - timed out\n")
+        lines.append("\n")
+
+    if budget_exceeded:
+        lines.append("### ⚠️ Budget Exceeded\n\n")
+        lines.append("The validation budget was exceeded. Consider increasing the budget or optimizing the checks.\n\n")
+
+    if failed_checks > 0:
+        lines.append("### 💡 Suggestions\n\n")
+        lines.append("1. Review the failed checks above")
+        lines.append("2. Fix the issues in your code")
+        lines.append("3. Re-run validation: `specfact repro --budget 90`\n\n")
+        lines.append("To run in warn mode (non-blocking), set `mode: warn` in your workflow configuration.\n\n")
+
+
 @beartype
 @require(lambda report: isinstance(report, dict), "Report must be dictionary")
 @require(lambda report: "total_checks" in report or "checks" in report, "Report must contain total_checks or checks")
-@ensure(lambda result: isinstance(result, str), "Must return string")
-@ensure(lambda result: len(result) > 0, "Comment must not be empty")
-@ensure(lambda result: result.startswith("##"), "Comment must start with markdown header")
+@ensure(_pr_comment_valid_markdown, "Comment must be non-empty markdown starting with ##")
 def generate_pr_comment(report: dict[str, Any]) -> str:
     """
     Generate a PR comment from a repro report.
@@ -255,95 +341,9 @@ def generate_pr_comment(report: dict[str, Any]) -> str:
         lines.append(f" ({skipped_checks} skipped)")
     lines.append("\n\n")
 
-    # Failed checks (excluding signature analysis limitations)
     checks = report.get("checks", [])
-    failed_checks_list = []
-    signature_issues_list = []
-
-    for check in checks:
-        if check.get("status") == "failed":
-            tool = check.get("tool", "unknown").lower()
-            error = check.get("error", "")
-            output = check.get("output", "")
-
-            # Check if this is a CrossHair signature analysis limitation
-            is_signature_issue = False
-            if tool == "crosshair":
-                combined_output = f"{error} {output}".lower()
-                is_signature_issue = (
-                    "wrong parameter order" in combined_output
-                    or "keyword-only parameter" in combined_output
-                    or "valueerror: wrong parameter" in combined_output
-                    or ("signature" in combined_output and ("error" in combined_output or "failure" in combined_output))
-                )
-
-            if is_signature_issue:
-                signature_issues_list.append(check)
-            else:
-                failed_checks_list.append(check)
-
-    if failed_checks_list:
-        lines.append("### ❌ Failed Checks\n\n")
-        for check in failed_checks_list:
-            name = check.get("name", "Unknown")
-            tool = check.get("tool", "unknown")
-            error = check.get("error")
-            output = check.get("output")
-
-            lines.append(f"#### {name} ({tool})\n\n")
-            if error:
-                lines.append(f"**Error**: `{error}`\n\n")
-            if output:
-                lines.append("<details>\n<summary>Output</summary>\n\n")
-                lines.append("```\n")
-                lines.append(output[:2000])  # Limit output size
-                if len(output) > 2000:
-                    lines.append("\n... (truncated)")
-                lines.append("\n```\n\n")
-                lines.append("</details>\n\n")
-
-            # Add fix suggestions for Semgrep checks
-            if tool == "semgrep":
-                lines.append(
-                    "💡 **Auto-fix available**: Run `specfact repro --fix` to apply automatic fixes for violations with fix capabilities.\n\n"
-                )
-
-    # Signature analysis limitations (non-blocking)
-    if signature_issues_list:
-        lines.append("### ⚠️ Signature Analysis Limitations (Non-blocking)\n\n")
-        lines.append(
-            "The following checks encountered CrossHair signature analysis limitations. "
-            "These are non-blocking issues related to complex function signatures (Typer decorators, keyword-only parameters) "
-            "and do not indicate actual contract violations. Runtime contracts remain valid.\n\n"
-        )
-        for check in signature_issues_list:
-            name = check.get("name", "Unknown")
-            tool = check.get("tool", "unknown")
-            lines.append(f"- **{name}** ({tool}) - signature analysis limitation\n")
-        lines.append("\n")
-
-    # Timeout checks
-    timeout_checks_list = [c for c in checks if c.get("status") == "timeout"]
-    if timeout_checks_list:
-        lines.append("### ⏱️ Timeout Checks\n\n")
-        for check in timeout_checks_list:
-            name = check.get("name", "Unknown")
-            tool = check.get("tool", "unknown")
-            lines.append(f"- **{name}** ({tool}) - timed out\n")
-        lines.append("\n")
-
-    # Budget exceeded
-    if budget_exceeded:
-        lines.append("### ⚠️ Budget Exceeded\n\n")
-        lines.append("The validation budget was exceeded. Consider increasing the budget or optimizing the checks.\n\n")
-
-    # Suggestions
-    if failed_checks > 0:
-        lines.append("### 💡 Suggestions\n\n")
-        lines.append("1. Review the failed checks above")
-        lines.append("2. Fix the issues in your code")
-        lines.append("3. Re-run validation: `specfact repro --budget 90`\n\n")
-        lines.append("To run in warn mode (non-blocking), set `mode: warn` in your workflow configuration.\n\n")
+    failed_checks_list, signature_issues_list = _pr_comment_partition_failed_checks(checks)
+    _append_pr_comment_detail_sections(lines, report, failed_checks_list, signature_issues_list, checks)
 
     return "".join(lines)
 

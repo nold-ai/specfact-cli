@@ -293,7 +293,7 @@ class LoggerSetup:
 
     # Store active loggers for management
     _active_loggers: dict[str, logging.Logger] = {}
-    _log_queues: dict[str, Queue] = {}
+    _log_queues: dict[str, Queue[logging.LogRecord]] = {}
     _log_listeners: dict[str, QueueListener] = {}
 
     @classmethod
@@ -380,6 +380,143 @@ class LoggerSetup:
         return logger
 
     @classmethod
+    def _reuse_or_teardown_cached_logger(
+        cls,
+        logger_name: str,
+        log_file: str | None,
+        log_level: str | None,
+    ) -> logging.Logger | None:
+        if logger_name not in cls._active_loggers:
+            return None
+        existing_logger = cls._active_loggers[logger_name]
+        if log_file:
+            existing_listener = cls._log_listeners.pop(logger_name, None)
+            if existing_listener:
+                with contextlib.suppress(Exception):
+                    existing_listener.stop()
+            with contextlib.suppress(Exception):
+                for handler in list(existing_logger.handlers):
+                    with contextlib.suppress(Exception):
+                        handler.close()
+                    existing_logger.removeHandler(handler)
+            with contextlib.suppress(Exception):
+                cls._active_loggers.pop(logger_name, None)
+            return None
+        if log_level and existing_logger.level != logging.getLevelName(log_level.upper()):
+            existing_logger.setLevel(log_level.upper())
+        return existing_logger
+
+    @classmethod
+    def _attach_file_output_pipeline(
+        cls,
+        logger_name: str,
+        logger: logging.Logger,
+        level: int,
+        log_format: MessageFlowFormatter,
+        log_file: str,
+        use_rotating_file: bool,
+        append_mode: bool,
+    ) -> None:
+        log_queue = Queue(-1)
+        cls._log_queues[logger_name] = log_queue
+
+        log_file_path = log_file
+        if not os.path.isabs(log_file):
+            logs_dir = get_runtime_logs_dir()
+            log_file_path = os.path.join(logs_dir, log_file)
+
+        log_file_dir = os.path.dirname(log_file_path)
+        os.makedirs(log_file_dir, mode=0o777, exist_ok=True)
+        try:
+            with open(log_file_path, "a", encoding="utf-8"):
+                pass
+        except Exception:
+            pass
+
+        try:
+            if use_rotating_file:
+                handler: logging.Handler = RotatingFileHandler(
+                    log_file_path,
+                    maxBytes=10 * 1024 * 1024,
+                    backupCount=5,
+                    mode="a" if append_mode else "w",
+                )
+            else:
+                handler = logging.FileHandler(log_file_path, mode="a" if append_mode else "w")
+        except (FileNotFoundError, OSError):
+            fallback_dir = os.getcwd()
+            fallback_path = os.path.join(fallback_dir, os.path.basename(log_file_path))
+            if use_rotating_file:
+                handler = RotatingFileHandler(
+                    fallback_path,
+                    maxBytes=10 * 1024 * 1024,
+                    backupCount=5,
+                    mode="a" if append_mode else "w",
+                )
+            else:
+                handler = logging.FileHandler(fallback_path, mode="a" if append_mode else "w")
+
+        handler.setFormatter(log_format)
+        handler.setLevel(level)
+
+        listener = QueueListener(log_queue, handler, respect_handler_level=True)
+        listener.start()
+        cls._log_listeners[logger_name] = listener
+
+        queue_handler = QueueHandler(log_queue)
+        logger.addHandler(queue_handler)
+
+        with contextlib.suppress(Exception):
+            logger.info("[LoggerSetup] File logger initialized: %s", log_file_path)
+
+    @classmethod
+    def _attach_console_queue_pipeline(
+        cls,
+        logger_name: str,
+        logger: logging.Logger,
+        level: int,
+        log_format: MessageFlowFormatter,
+        emit_to_console: bool,
+    ) -> None:
+        log_queue = Queue(-1)
+        cls._log_queues[logger_name] = log_queue
+
+        sink_handler: logging.Handler
+        if emit_to_console:
+            sink_handler = logging.StreamHandler(_safe_console_stream())
+            sink_handler.setFormatter(log_format)
+            sink_handler.setLevel(level)
+        else:
+            sink_handler = logging.NullHandler()
+            sink_handler.setLevel(level)
+
+        listener = QueueListener(log_queue, sink_handler, respect_handler_level=True)
+        listener.start()
+        cls._log_listeners[logger_name] = listener
+
+        queue_handler = QueueHandler(log_queue)
+        logger.addHandler(queue_handler)
+
+    @classmethod
+    def _maybe_add_direct_console_handler(
+        cls,
+        logger_name: str,
+        logger: logging.Logger,
+        log_format: MessageFlowFormatter,
+        level: int,
+    ) -> None:
+        if (
+            "pytest" in sys.modules
+            or logger_name in cls._log_listeners
+            or any(isinstance(h, logging.StreamHandler) for h in logger.handlers)
+        ):
+            return
+        console_handler = logging.StreamHandler(_safe_console_stream())
+        console_handler.setFormatter(log_format)
+        console_handler.setLevel(level)
+        logger.addHandler(console_handler)
+
+    @classmethod
     @beartype
     @require(lambda name: isinstance(name, str) and len(name) > 0, "Name must be non-empty string")
     @require(
@@ -404,150 +541,50 @@ class LoggerSetup:
         This method is process-safe and suitable for multi-agent environments.
         """
         logger_name = name
-        if logger_name in cls._active_loggers:
-            existing_logger = cls._active_loggers[logger_name]
-            # If a file log was requested now but the existing logger was created without one,
-            # rebuild the logger with file backing to ensure per-agent files are created.
-            if log_file:
-                # Stop and discard any existing listener
-                existing_listener = cls._log_listeners.pop(logger_name, None)
-                if existing_listener:
-                    with contextlib.suppress(Exception):
-                        existing_listener.stop()
+        reused = cls._reuse_or_teardown_cached_logger(logger_name, log_file, log_level)
+        if reused is not None:
+            return reused
 
-                # Remove all handlers from the existing logger
-                with contextlib.suppress(Exception):
-                    for handler in list(existing_logger.handlers):
-                        with contextlib.suppress(Exception):
-                            handler.close()
-                        existing_logger.removeHandler(handler)
-
-                # Remove from cache and proceed to full (re)creation below
-                with contextlib.suppress(Exception):
-                    cls._active_loggers.pop(logger_name, None)
-            else:
-                # No file requested: just ensure level is updated and reuse existing logger
-                if log_level and existing_logger.level != logging.getLevelName(log_level.upper()):
-                    existing_logger.setLevel(log_level.upper())
-                return existing_logger
-
-        # Determine log level
         log_level_str = (log_level or os.environ.get("LOG_LEVEL", cls.DEFAULT_LOG_LEVEL)).upper()
-        # Strip inline comments
         log_level_clean = log_level_str.split("#")[0].strip()
-
         level = logging.getLevelName(log_level_clean)
 
-        # Create logger
         logger = logging.getLogger(logger_name)
         logger.setLevel(level)
-        logger.propagate = False  # Prevent duplicate logs in parent loggers
+        logger.propagate = False
 
-        # Clear existing handlers to prevent duplication
         if logger.hasHandlers():
             for handler in logger.handlers:
                 handler.close()
                 logger.removeHandler(handler)
 
-        # Prepare formatter
         log_format = MessageFlowFormatter(
             agent_name=agent_name or name,
             session_id=session_id,
             preserve_newlines=not preserve_test_format,
         )
 
-        # Create a queue and listener for this logger if a file is specified
         if log_file:
-            log_queue = Queue(-1)
-            cls._log_queues[logger_name] = log_queue
-
-            log_file_path = log_file
-            if not os.path.isabs(log_file):
-                logs_dir = get_runtime_logs_dir()
-                log_file_path = os.path.join(logs_dir, log_file)
-
-            # Ensure the directory for the log file exists
-            log_file_dir = os.path.dirname(log_file_path)
-            os.makedirs(log_file_dir, mode=0o777, exist_ok=True)
-            # Proactively create/touch the file so it exists even before first write
-            try:
-                with open(log_file_path, "a", encoding="utf-8"):
-                    pass
-            except Exception:
-                # Non-fatal; handler will attempt to open the file next
-                pass
-
-            try:
-                if use_rotating_file:
-                    handler: logging.Handler = RotatingFileHandler(
-                        log_file_path,
-                        maxBytes=10 * 1024 * 1024,
-                        backupCount=5,
-                        mode="a" if append_mode else "w",
-                    )
-                else:
-                    handler = logging.FileHandler(log_file_path, mode="a" if append_mode else "w")
-            except (FileNotFoundError, OSError):
-                # Fallback for test environments where makedirs is mocked or paths are not writable
-                fallback_dir = os.getcwd()
-                fallback_path = os.path.join(fallback_dir, os.path.basename(log_file_path))
-                if use_rotating_file:
-                    handler = RotatingFileHandler(
-                        fallback_path,
-                        maxBytes=10 * 1024 * 1024,
-                        backupCount=5,
-                        mode="a" if append_mode else "w",
-                    )
-                else:
-                    handler = logging.FileHandler(fallback_path, mode="a" if append_mode else "w")
-
-            handler.setFormatter(log_format)
-            handler.setLevel(level)
-
-            listener = QueueListener(log_queue, handler, respect_handler_level=True)
-            listener.start()
-            cls._log_listeners[logger_name] = listener
-
-            queue_handler = QueueHandler(log_queue)
-            logger.addHandler(queue_handler)
-
-            # Emit a one-time initialization line so users can see where logs go
-            with contextlib.suppress(Exception):
-                logger.info("[LoggerSetup] File logger initialized: %s", log_file_path)
+            cls._attach_file_output_pipeline(
+                logger_name,
+                logger,
+                level,
+                log_format,
+                log_file,
+                use_rotating_file,
+                append_mode,
+            )
         else:
-            # If no log file is specified, stream to console only when explicitly requested.
-            log_queue = Queue(-1)
-            cls._log_queues[logger_name] = log_queue
+            cls._attach_console_queue_pipeline(
+                logger_name,
+                logger,
+                level,
+                log_format,
+                emit_to_console,
+            )
 
-            sink_handler: logging.Handler
-            if emit_to_console:
-                sink_handler = logging.StreamHandler(_safe_console_stream())
-                sink_handler.setFormatter(log_format)
-                sink_handler.setLevel(level)
-            else:
-                sink_handler = logging.NullHandler()
-                sink_handler.setLevel(level)
+        cls._maybe_add_direct_console_handler(logger_name, logger, log_format, level)
 
-            listener = QueueListener(log_queue, sink_handler, respect_handler_level=True)
-            listener.start()
-            cls._log_listeners[logger_name] = listener
-
-            queue_handler = QueueHandler(log_queue)
-            logger.addHandler(queue_handler)
-
-        # Add a direct console handler only when no queue listener is active for this logger.
-        # Otherwise logs are already streamed by the QueueListener handler and would be duplicated.
-        if (
-            "pytest" not in sys.modules
-            and logger_name not in cls._log_listeners
-            and not any(isinstance(h, logging.StreamHandler) for h in logger.handlers)
-        ):
-            console_handler = logging.StreamHandler(_safe_console_stream())
-            console_handler.setFormatter(log_format)
-            console_handler.setLevel(level)
-            logger.addHandler(console_handler)
-
-        # Add trace method to logger instance for convenience
         logger.trace = lambda message, *args, **kwargs: logger.log(5, message, *args, **kwargs)  # type: ignore[attr-defined]
 
         cls._active_loggers[logger_name] = logger
@@ -688,6 +725,9 @@ class LoggerSetup:
         if isinstance(obj, dict):
             redacted = {}
             for k, v in obj.items():
+                if not isinstance(k, str):
+                    redacted[k] = LoggerSetup.redact_secrets(v)
+                    continue
                 if any(s in k.lower() for s in sensitive_keys):
                     if isinstance(v, str) and len(v) > 4:
                         redacted[k] = f"*** MASKED (ends with '{v[-4:]}') ***"

@@ -23,6 +23,7 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from specfact_cli import __version__
 from specfact_cli.registry.module_installer import get_outdated_or_missing_bundled_modules
+from specfact_cli.utils.contract_predicates import file_path_exists, optional_repo_path_exists
 from specfact_cli.utils.ide_setup import IDE_CONFIG, detect_ide, find_package_resources_path
 from specfact_cli.utils.metadata import (
     get_last_checked_version,
@@ -34,6 +35,10 @@ from specfact_cli.utils.metadata import (
 
 
 console = Console()
+
+
+def _pypi_check_args_valid(package_name: str, timeout: int) -> bool:
+    return package_name.strip() != "" and timeout > 0
 
 
 class TemplateCheckResult(NamedTuple):
@@ -68,7 +73,7 @@ class ModuleFreshnessCheckResult(NamedTuple):
 
 
 @beartype
-@require(lambda file_path: file_path.exists(), "file_path must exist")
+@require(file_path_exists, "file_path must exist")
 @ensure(lambda result: len(result) == 64, "Must return 64-char SHA256 hex string")
 def calculate_file_hash(file_path: Path) -> str:
     """
@@ -87,8 +92,59 @@ def calculate_file_hash(file_path: Path) -> str:
     return sha256_hash.hexdigest()
 
 
+def _resolve_templates_dir(repo_path: Path) -> Path | None:
+    templates_dir = find_package_resources_path("specfact_cli", "resources/prompts")
+    if templates_dir is not None:
+        return templates_dir
+    repo_root = repo_path
+    while repo_root.parent != repo_root:
+        dev_templates = repo_root / "resources" / "prompts"
+        if dev_templates.exists():
+            return dev_templates
+        repo_root = repo_root.parent
+    return None
+
+
+def _expected_ide_template_filenames(format_type: str) -> list[str]:
+    from specfact_cli.utils.ide_setup import SPECFACT_COMMANDS
+
+    expected_files: list[str] = []
+    for command in SPECFACT_COMMANDS:
+        if format_type == "prompt.md":
+            expected_files.append(f"{command}.prompt.md")
+        elif format_type == "toml":
+            expected_files.append(f"{command}.toml")
+        else:
+            expected_files.append(f"{command}.md")
+    return expected_files
+
+
+def _scan_ide_template_drift(
+    ide_dir: Path,
+    templates_dir: Path,
+    expected_files: list[str],
+) -> tuple[list[str], list[str]]:
+    missing_templates: list[str] = []
+    outdated_templates: list[str] = []
+    for expected_file in expected_files:
+        ide_file = ide_dir / expected_file
+        source_template_name = expected_file.replace(".prompt.md", ".md").replace(".toml", ".md")
+        source_file = templates_dir / source_template_name
+        if not ide_file.exists():
+            missing_templates.append(expected_file)
+            continue
+        if not source_file.exists():
+            continue
+        with contextlib.suppress(Exception):
+            source_mtime = source_file.stat().st_mtime
+            ide_mtime = ide_file.stat().st_mtime
+            if source_mtime > ide_mtime + 1.0:
+                outdated_templates.append(expected_file)
+    return missing_templates, outdated_templates
+
+
 @beartype
-@require(lambda repo_path: repo_path is None or repo_path.exists(), "repo_path must exist if provided")
+@require(optional_repo_path_exists, "repo_path must exist if provided")
 def check_ide_templates(repo_path: Path | None = None) -> TemplateCheckResult | None:
     """
     Check if IDE template files exist and compare with our templates.
@@ -118,66 +174,13 @@ def check_ide_templates(repo_path: Path | None = None) -> TemplateCheckResult | 
     if not ide_dir.exists():
         return None
 
-    # Find our template resources
-    templates_dir = find_package_resources_path("specfact_cli", "resources/prompts")
+    templates_dir = _resolve_templates_dir(repo_path)
     if templates_dir is None:
-        # Fallback: try to find in development environment
-        from specfact_cli.utils.ide_setup import SPECFACT_COMMANDS
-
-        # Check if we're in a development environment
-        repo_root = repo_path
-        while repo_root.parent != repo_root:
-            dev_templates = repo_root / "resources" / "prompts"
-            if dev_templates.exists():
-                templates_dir = dev_templates
-                break
-            repo_root = repo_root.parent
-
-        if templates_dir is None:
-            return None
-
-    # Get list of template files we expect
-    from specfact_cli.utils.ide_setup import SPECFACT_COMMANDS
+        return None
 
     format_type = str(config["format"])
-    expected_files: list[str] = []
-    for command in SPECFACT_COMMANDS:
-        if format_type == "prompt.md":
-            expected_files.append(f"{command}.prompt.md")
-        elif format_type == "toml":
-            expected_files.append(f"{command}.toml")
-        else:
-            expected_files.append(f"{command}.md")
-
-    # Check each expected template file
-    missing_templates: list[str] = []
-    outdated_templates: list[str] = []
-
-    for expected_file in expected_files:
-        ide_file = ide_dir / expected_file
-        # Get source template name (remove format-specific extensions to get base command name)
-        # e.g., "specfact.01-import.prompt.md" -> "specfact.01-import.md"
-        source_template_name = expected_file.replace(".prompt.md", ".md").replace(".toml", ".md")
-        source_file = templates_dir / source_template_name
-
-        if not ide_file.exists():
-            missing_templates.append(expected_file)
-            continue
-
-        if not source_file.exists():
-            # Source template doesn't exist, skip comparison
-            continue
-
-        # Compare modification times as a heuristic
-        # If source template is newer, IDE template might be outdated
-        with contextlib.suppress(Exception):
-            source_mtime = source_file.stat().st_mtime
-            ide_mtime = ide_file.stat().st_mtime
-
-            # If source is significantly newer (more than 1 second), consider outdated
-            # This accounts for the fact that processed templates will have different content
-            if source_mtime > ide_mtime + 1.0:
-                outdated_templates.append(expected_file)
+    expected_files = _expected_ide_template_filenames(format_type)
+    missing_templates, outdated_templates = _scan_ide_template_drift(ide_dir, templates_dir, expected_files)
 
     templates_outdated = len(outdated_templates) > 0 or len(missing_templates) > 0
 
@@ -191,8 +194,7 @@ def check_ide_templates(repo_path: Path | None = None) -> TemplateCheckResult | 
 
 
 @beartype
-@require(lambda package_name: package_name.strip() != "", "package_name must not be empty")
-@require(lambda timeout: timeout > 0, "timeout must be positive")
+@require(_pypi_check_args_valid, "package_name must not be empty and timeout must be positive")
 def check_pypi_version(package_name: str = "specfact-cli", timeout: int = 3) -> VersionCheckResult:
     """
     Check PyPI for available version updates.
@@ -287,7 +289,7 @@ def check_pypi_version(package_name: str = "specfact-cli", timeout: int = 3) -> 
 
 
 @beartype
-@require(lambda repo_path: repo_path is None or repo_path.exists(), "repo_path must exist if provided")
+@require(optional_repo_path_exists, "repo_path must exist if provided")
 def check_module_freshness(repo_path: Path | None = None) -> ModuleFreshnessCheckResult:
     """Check bundled module freshness for project and user scopes."""
     if repo_path is None:
@@ -309,8 +311,138 @@ def check_module_freshness(repo_path: Path | None = None) -> ModuleFreshnessChec
     )
 
 
+def _print_template_outdated_panel(template_result: TemplateCheckResult) -> None:
+    details: list[str] = []
+    if template_result.missing_templates:
+        details.append(f"Missing: {len(template_result.missing_templates)} template(s)")
+    if template_result.outdated_templates:
+        details.append(f"Outdated: {len(template_result.outdated_templates)} template(s)")
+    details_str = "\n".join(details) if details else "Templates differ from current version"
+    console.print()
+    console.print(
+        Panel(
+            f"[bold yellow]⚠ IDE Templates Outdated[/bold yellow]\n\n"
+            f"IDE: [cyan]{template_result.ide}[/cyan]\n"
+            f"Location: [dim]{template_result.ide_dir}[/dim]\n\n"
+            f"{details_str}\n\n"
+            f"Run [bold]specfact init ide --force[/bold] to update them.",
+            border_style="yellow",
+        )
+    )
+
+
+def _print_version_update_panel(version_result: VersionCheckResult) -> None:
+    if not (version_result.update_available and version_result.latest_version and version_result.update_type):
+        return
+    update_type_color = "red" if version_result.update_type == "major" else "yellow"
+    update_type_icon = "🔴" if version_result.update_type == "major" else "🟡"
+    update_message = (
+        f"[bold {update_type_color}]{update_type_icon} {version_result.update_type.upper()} Update Available[/bold {update_type_color}]\n\n"
+        f"Current: [cyan]{version_result.current_version}[/cyan]\n"
+        f"Latest: [green]{version_result.latest_version}[/green]\n\n"
+    )
+    if version_result.update_type == "major":
+        update_message += (
+            "[bold red]⚠ Breaking changes may be present![/bold red]\nReview release notes before upgrading.\n\n"
+        )
+    update_message += "Upgrade with: [bold]specfact upgrade[/bold] or [bold]pip install --upgrade specfact-cli[/bold]"
+    console.print()
+    console.print(Panel(update_message, border_style=update_type_color))
+
+
+def _print_module_freshness_panel(module_result: ModuleFreshnessCheckResult) -> None:
+    if not (module_result.project_outdated or module_result.user_outdated):
+        return
+    guidance: list[str] = []
+    if module_result.project_outdated:
+        guidance.append(
+            f"- Project scope ({module_result.project_modules_root}): [bold]specfact module init --scope project[/bold]"
+        )
+    if module_result.user_outdated:
+        guidance.append(f"- User scope ({module_result.user_modules_root}): [bold]specfact module init[/bold]")
+    guidance_text = "\n".join(guidance)
+    console.print()
+    console.print(
+        Panel(
+            "[bold yellow]⚠ Bundled Modules Need Refresh[/bold yellow]\n\n"
+            "Some bundled modules are missing or outdated.\n\n"
+            f"{guidance_text}",
+            border_style="yellow",
+        )
+    )
+
+
+def _startup_progress_task(progress: Progress, show_progress: bool, label: str):
+    return progress.add_task(label, total=None) if show_progress else None
+
+
+def _run_startup_templates_segment(progress: Progress, repo_path: Path, show_progress: bool) -> None:
+    task = _startup_progress_task(progress, show_progress, "[cyan]Checking IDE templates...[/cyan]")
+    template_result = check_ide_templates(repo_path)
+    if task:
+        progress.update(task, description="[green]✓[/green] Checked IDE templates")
+    if template_result and template_result.templates_outdated:
+        _print_template_outdated_panel(template_result)
+
+
+def _run_startup_version_segment(progress: Progress, show_progress: bool) -> None:
+    task = _startup_progress_task(progress, show_progress, "[cyan]Checking for updates...[/cyan]")
+    version_result = check_pypi_version()
+    if task:
+        progress.update(task, description="[green]✓[/green] Checked for updates")
+    _print_version_update_panel(version_result)
+
+
+def _run_startup_modules_segment(progress: Progress, repo_path: Path, show_progress: bool) -> None:
+    task = _startup_progress_task(progress, show_progress, "[cyan]Checking bundled modules...[/cyan]")
+    module_result = check_module_freshness(repo_path)
+    if task:
+        progress.update(task, description="[green]✓[/green] Checked bundled modules")
+    if module_result:
+        _print_module_freshness_panel(module_result)
+
+
+def _run_startup_progress_block(
+    repo_path: Path,
+    show_progress: bool,
+    should_check_templates: bool,
+    should_check_version: bool,
+    should_check_modules: bool,
+) -> None:
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        console=console,
+        transient=True,
+    ) as progress:
+        if should_check_templates:
+            _run_startup_templates_segment(progress, repo_path, show_progress)
+        if should_check_version:
+            _run_startup_version_segment(progress, show_progress)
+        if should_check_modules:
+            _run_startup_modules_segment(progress, repo_path, show_progress)
+
+
+def _flush_startup_metadata(
+    should_check_templates: bool,
+    should_check_version: bool,
+    should_check_modules: bool,
+) -> None:
+    from datetime import datetime
+
+    metadata_updates: dict[str, Any] = {}
+    if should_check_templates or should_check_version:
+        metadata_updates["last_checked_version"] = __version__
+    if should_check_version:
+        metadata_updates["last_version_check_timestamp"] = datetime.now(UTC).isoformat()
+    if should_check_modules:
+        metadata_updates["last_module_freshness_check_timestamp"] = datetime.now(UTC).isoformat()
+    if metadata_updates:
+        update_metadata(**metadata_updates)
+
+
 @beartype
-@require(lambda repo_path: repo_path is None or repo_path.exists(), "repo_path must exist if provided")
+@require(optional_repo_path_exists, "repo_path must exist if provided")
 def print_startup_checks(
     repo_path: Path | None = None,
     check_version: bool = True,
@@ -347,113 +479,11 @@ def print_startup_checks(
     last_module_freshness_check_timestamp = get_last_module_freshness_check_timestamp()
     should_check_modules = should_check_templates or is_version_check_needed(last_module_freshness_check_timestamp)
 
-    # Use progress indicator for checks that might take time
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        console=console,
-        transient=True,  # Hide progress when done
-    ) as progress:
-        # Check IDE templates (only if version changed)
-        template_result = None
-        if should_check_templates:
-            template_task = (
-                progress.add_task("[cyan]Checking IDE templates...[/cyan]", total=None) if show_progress else None
-            )
-            template_result = check_ide_templates(repo_path)
-            if template_task:
-                progress.update(template_task, description="[green]✓[/green] Checked IDE templates")
-
-        if template_result and template_result.templates_outdated:
-            details = []
-            if template_result.missing_templates:
-                details.append(f"Missing: {len(template_result.missing_templates)} template(s)")
-            if template_result.outdated_templates:
-                details.append(f"Outdated: {len(template_result.outdated_templates)} template(s)")
-
-            details_str = "\n".join(details) if details else "Templates differ from current version"
-
-            console.print()
-            console.print(
-                Panel(
-                    f"[bold yellow]⚠ IDE Templates Outdated[/bold yellow]\n\n"
-                    f"IDE: [cyan]{template_result.ide}[/cyan]\n"
-                    f"Location: [dim]{template_result.ide_dir}[/dim]\n\n"
-                    f"{details_str}\n\n"
-                    f"Run [bold]specfact init ide --force[/bold] to update them.",
-                    border_style="yellow",
-                )
-            )
-
-        # Check version updates (only if >= 24 hours since last check)
-        version_result = None
-        if should_check_version:
-            version_task = (
-                progress.add_task("[cyan]Checking for updates...[/cyan]", total=None) if show_progress else None
-            )
-            version_result = check_pypi_version()
-            if version_task:
-                progress.update(version_task, description="[green]✓[/green] Checked for updates")
-
-            if version_result.update_available and version_result.latest_version and version_result.update_type:
-                update_type_color = "red" if version_result.update_type == "major" else "yellow"
-                update_type_icon = "🔴" if version_result.update_type == "major" else "🟡"
-                update_message = (
-                    f"[bold {update_type_color}]{update_type_icon} {version_result.update_type.upper()} Update Available[/bold {update_type_color}]\n\n"
-                    f"Current: [cyan]{version_result.current_version}[/cyan]\n"
-                    f"Latest: [green]{version_result.latest_version}[/green]\n\n"
-                )
-                if version_result.update_type == "major":
-                    update_message += (
-                        "[bold red]⚠ Breaking changes may be present![/bold red]\n"
-                        "Review release notes before upgrading.\n\n"
-                    )
-                update_message += (
-                    "Upgrade with: [bold]specfact upgrade[/bold] or [bold]pip install --upgrade specfact-cli[/bold]"
-                )
-
-                console.print()
-                console.print(Panel(update_message, border_style=update_type_color))
-
-        module_result = None
-        if should_check_modules:
-            modules_task = (
-                progress.add_task("[cyan]Checking bundled modules...[/cyan]", total=None) if show_progress else None
-            )
-            module_result = check_module_freshness(repo_path)
-            if modules_task:
-                progress.update(modules_task, description="[green]✓[/green] Checked bundled modules")
-
-        if module_result and (module_result.project_outdated or module_result.user_outdated):
-            guidance: list[str] = []
-            if module_result.project_outdated:
-                guidance.append(
-                    f"- Project scope ({module_result.project_modules_root}): "
-                    "[bold]specfact module init --scope project[/bold]"
-                )
-            if module_result.user_outdated:
-                guidance.append(f"- User scope ({module_result.user_modules_root}): [bold]specfact module init[/bold]")
-            guidance_text = "\n".join(guidance)
-            console.print()
-            console.print(
-                Panel(
-                    "[bold yellow]⚠ Bundled Modules Need Refresh[/bold yellow]\n\n"
-                    "Some bundled modules are missing or outdated.\n\n"
-                    f"{guidance_text}",
-                    border_style="yellow",
-                )
-            )
-
-        # Update metadata after checks complete
-        from datetime import datetime
-
-        metadata_updates: dict[str, Any] = {}
-        if should_check_templates or should_check_version:
-            metadata_updates["last_checked_version"] = __version__
-        if should_check_version:
-            metadata_updates["last_version_check_timestamp"] = datetime.now(UTC).isoformat()
-        if should_check_modules:
-            metadata_updates["last_module_freshness_check_timestamp"] = datetime.now(UTC).isoformat()
-
-        if metadata_updates:
-            update_metadata(**metadata_updates)
+    _run_startup_progress_block(
+        repo_path,
+        show_progress,
+        should_check_templates,
+        should_check_version,
+        should_check_modules,
+    )
+    _flush_startup_metadata(should_check_templates, should_check_version, should_check_modules)

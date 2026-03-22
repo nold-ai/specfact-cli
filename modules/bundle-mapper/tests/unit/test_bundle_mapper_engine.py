@@ -1,3 +1,4 @@
+# pyright: reportUnknownMemberType=false
 """Unit tests for BundleMapper engine."""
 
 from __future__ import annotations
@@ -6,6 +7,7 @@ from pathlib import Path
 
 import yaml
 from bundle_mapper.mapper.engine import BundleMapper
+from bundle_mapper.models.bundle_mapping import BundleMapping
 
 from specfact_cli.models.backlog_item import BacklogItem
 
@@ -32,40 +34,40 @@ def _item(
 
 
 def test_explicit_label_valid_bundle() -> None:
-    mapper = BundleMapper(available_bundle_ids=["backend-services"])
+    mapper: BundleMapper = BundleMapper(available_bundle_ids=["backend-services"])
     item = _item(tags=["bundle:backend-services"])
-    m = mapper.compute_mapping(item)
+    m: BundleMapping = mapper.compute_mapping(item)
     assert m.primary_bundle_id == "backend-services"
     assert m.confidence >= 0.8
 
 
 def test_explicit_label_invalid_bundle_ignored() -> None:
-    mapper = BundleMapper(available_bundle_ids=["backend-services"])
+    mapper: BundleMapper = BundleMapper(available_bundle_ids=["backend-services"])
     item = _item(tags=["bundle:nonexistent"])
-    m = mapper.compute_mapping(item)
+    m: BundleMapping = mapper.compute_mapping(item)
     assert m.primary_bundle_id is None
     assert m.confidence == 0.0
 
 
 def test_no_signals_returns_none_zero_confidence() -> None:
-    mapper = BundleMapper(available_bundle_ids=[])
+    mapper: BundleMapper = BundleMapper(available_bundle_ids=[])
     item = _item(tags=[], title="Generic task")
-    m = mapper.compute_mapping(item)
+    m: BundleMapping = mapper.compute_mapping(item)
     assert m.primary_bundle_id is None
     assert m.confidence == 0.0
 
 
 def test_confidence_in_bounds() -> None:
-    mapper = BundleMapper(available_bundle_ids=["b"])
+    mapper: BundleMapper = BundleMapper(available_bundle_ids=["b"])
     item = _item(tags=["bundle:b"])
-    m = mapper.compute_mapping(item)
+    m: BundleMapping = mapper.compute_mapping(item)
     assert 0.0 <= m.confidence <= 1.0
 
 
 def test_weighted_calculation_explicit_dominates() -> None:
-    mapper = BundleMapper(available_bundle_ids=["backend"])
+    mapper: BundleMapper = BundleMapper(available_bundle_ids=["backend"])
     item = _item(tags=["bundle:backend"])
-    m = mapper.compute_mapping(item)
+    m: BundleMapping = mapper.compute_mapping(item)
     assert m.primary_bundle_id == "backend"
     assert m.confidence >= 0.8
 
@@ -94,15 +96,15 @@ def test_historical_mapping_ignores_stale_bundle_ids(tmp_path: Path) -> None:
         encoding="utf-8",
     )
 
-    mapper = BundleMapper(available_bundle_ids=["backend-services"], config_path=config_path)
+    mapper: BundleMapper = BundleMapper(available_bundle_ids=["backend-services"], config_path=config_path)
     item = _item(assignees=["alice"], area="backend", tags=["bug", "login"])
-    mapping = mapper.compute_mapping(item)
+    mapping: BundleMapping = mapper.compute_mapping(item)
 
     assert mapping.primary_bundle_id == "backend-services"
 
 
 def test_conflicting_content_signal_does_not_increase_primary_confidence() -> None:
-    mapper = BundleMapper(
+    mapper: BundleMapper = BundleMapper(
         available_bundle_ids=["alpha", "beta"],
         bundle_spec_keywords={"beta": {"beta"}},
     )
@@ -111,7 +113,7 @@ def test_conflicting_content_signal_does_not_increase_primary_confidence() -> No
         title="beta",
     )
 
-    mapping = mapper.compute_mapping(item)
+    mapping: BundleMapping = mapper.compute_mapping(item)
 
     assert mapping.primary_bundle_id == "alpha"
     assert mapping.confidence == 0.8

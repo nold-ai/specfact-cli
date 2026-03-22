@@ -14,6 +14,7 @@ import sys
 import tarfile
 import tempfile
 from pathlib import Path
+from typing import Any, cast
 
 import yaml
 from beartype import beartype
@@ -60,7 +61,7 @@ OFFICIAL_BUNDLES = [
 
 
 @beartype
-@require(lambda path: path.exists(), "Path must exist")
+@require(lambda path: cast(Path, path).exists(), "Path must exist")
 def _find_module_dir(path: Path) -> Path:
     """Return directory containing module-package.yaml."""
     if path.is_dir() and (path / "module-package.yaml").exists():
@@ -71,9 +72,12 @@ def _find_module_dir(path: Path) -> Path:
 
 
 @beartype
-@require(lambda manifest_path: manifest_path.exists() and manifest_path.is_file(), "Manifest file must exist")
+@require(
+    lambda manifest_path: cast(Path, manifest_path).exists() and cast(Path, manifest_path).is_file(),
+    "Manifest file must exist",
+)
 @ensure(lambda result: isinstance(result, dict), "Returns dict")
-def _load_manifest(manifest_path: Path) -> dict:
+def _load_manifest(manifest_path: Path) -> dict[str, Any]:
     """Load and return manifest as dict. Raises ValueError if invalid."""
     raw = yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
     if not isinstance(raw, dict):
@@ -84,7 +88,7 @@ def _load_manifest(manifest_path: Path) -> dict:
 
 
 @beartype
-def _validate_namespace_for_marketplace(manifest: dict, module_dir: Path) -> None:
+def _validate_namespace_for_marketplace(manifest: dict[str, Any], module_dir: Path) -> None:
     """If manifest suggests marketplace (has publisher or tier), validate namespace/name format."""
     _ = module_dir
     name = str(manifest.get("name", "")).strip()
@@ -101,7 +105,7 @@ def _validate_namespace_for_marketplace(manifest: dict, module_dir: Path) -> Non
 
 
 @beartype
-@require(lambda module_dir: module_dir.is_dir(), "module_dir must be a directory")
+@require(lambda module_dir: cast(Path, module_dir).is_dir(), "module_dir must be a directory")
 def _create_tarball(
     module_dir: Path,
     output_path: Path,
@@ -126,7 +130,10 @@ def _create_tarball(
 
 
 @beartype
-@require(lambda tarball_path: tarball_path.exists() and tarball_path.is_file(), "Tarball path must exist")
+@require(
+    lambda tarball_path: cast(Path, tarball_path).exists() and cast(Path, tarball_path).is_file(),
+    "Tarball path must exist",
+)
 @ensure(lambda result: isinstance(result, str) and len(result) == 64, "Returns SHA-256 hex")
 def _checksum_sha256(tarball_path: Path) -> str:
     """Return SHA-256 hex digest of file."""
@@ -189,8 +196,11 @@ def _write_index_fragment(
 
 
 @beartype
-@require(lambda manifest_path: manifest_path.exists() and manifest_path.is_file(), "Manifest file must exist")
-def _ensure_publisher_email(manifest_path: Path, manifest: dict) -> dict:
+@require(
+    lambda manifest_path: cast(Path, manifest_path).exists() and cast(Path, manifest_path).is_file(),
+    "Manifest file must exist",
+)
+def _ensure_publisher_email(manifest_path: Path, manifest: dict[str, Any]) -> dict[str, Any]:
     """Ensure manifest publisher has name and email; add default email for official publisher if missing. Returns manifest (possibly updated)."""
     pub = manifest.get("publisher")
     if isinstance(pub, str):
@@ -198,10 +208,11 @@ def _ensure_publisher_email(manifest_path: Path, manifest: dict) -> dict:
         pub = {"name": name} if name else None
     if not isinstance(pub, dict):
         return manifest
-    name = str(pub.get("name", "")).strip()
+    pub_dict = cast(dict[str, Any], pub)
+    name = str(pub_dict.get("name", "")).strip()
     if not name:
         return manifest
-    email = str(pub.get("email", "")).strip()
+    email = str(pub_dict.get("email", "")).strip()
     if email:
         return manifest
     email = os.environ.get("SPECFACT_PUBLISHER_EMAIL", "").strip()
@@ -210,14 +221,17 @@ def _ensure_publisher_email(manifest_path: Path, manifest: dict) -> dict:
     if not email:
         return manifest
     manifest = dict(manifest)
-    manifest["publisher"] = {**pub, "name": name, "email": email}
+    manifest["publisher"] = {**pub_dict, "name": name, "email": email}
     _write_manifest(manifest_path, manifest)
     return manifest
 
 
 @beartype
-@require(lambda bundle_dir: bundle_dir.exists() and bundle_dir.is_dir(), "bundle_dir must exist")
-@ensure(lambda result: result.exists(), "Tarball must exist")
+@require(
+    lambda bundle_dir: cast(Path, bundle_dir).exists() and cast(Path, bundle_dir).is_dir(),
+    "bundle_dir must exist",
+)
+@ensure(lambda result: cast(Path, result).exists(), "Tarball must exist")
 def package_bundle(bundle_dir: Path, registry_dir: Path | None = None) -> Path:
     """Package a bundle directory into tarball under registry/modules (or bundle dir when omitted)."""
     manifest = _load_manifest(bundle_dir / "module-package.yaml")
@@ -235,9 +249,9 @@ def package_bundle(bundle_dir: Path, registry_dir: Path | None = None) -> Path:
 
 
 @beartype
-@require(lambda tarball: tarball.exists(), "tarball must exist")
-@require(lambda key_file: key_file.exists(), "key file must exist")
-@ensure(lambda result: result.exists(), "signature file must exist")
+@require(lambda tarball: cast(Path, tarball).exists(), "tarball must exist")
+@require(lambda key_file: cast(Path, key_file).exists(), "key file must exist")
+@ensure(lambda result: cast(Path, result).exists(), "signature file must exist")
 def sign_bundle(tarball: Path, key_file: Path, registry_dir: Path) -> Path:
     """Create detached signature file for bundle tarball."""
     signatures_dir = registry_dir / "signatures"
@@ -249,10 +263,10 @@ def sign_bundle(tarball: Path, key_file: Path, registry_dir: Path) -> Path:
 
 
 @beartype
-@require(lambda tarball: tarball.exists(), "tarball must exist")
-@require(lambda signature_file: signature_file.exists(), "signature file must exist")
+@require(lambda tarball: cast(Path, tarball).exists(), "tarball must exist")
+@require(lambda signature_file: cast(Path, signature_file).exists(), "signature file must exist")
 @ensure(lambda result: isinstance(result, bool), "result must be bool")
-def verify_bundle(tarball: Path, signature_file: Path, manifest: dict) -> bool:
+def verify_bundle(tarball: Path, signature_file: Path, manifest: dict[str, Any]) -> bool:
     """Verify tarball signature and archive safety constraints before index update."""
     _ = manifest
     if not signature_file.read_text(encoding="utf-8").strip():
@@ -266,23 +280,25 @@ def verify_bundle(tarball: Path, signature_file: Path, manifest: dict) -> bool:
 
 
 @beartype
-@require(lambda index_path: index_path.suffix == ".json", "index_path must be json file")
-def write_index_entry(index_path: Path, entry: dict) -> None:
+@require(lambda index_path: cast(Path, index_path).suffix == ".json", "index_path must be json file")
+def write_index_entry(index_path: Path, entry: dict[str, Any]) -> None:
     """Write/replace module entry into registry index using atomic file replace."""
     if index_path.exists():
-        payload = json.loads(index_path.read_text(encoding="utf-8"))
-        if not isinstance(payload, dict):
+        raw_payload = json.loads(index_path.read_text(encoding="utf-8"))
+        if not isinstance(raw_payload, dict):
             raise ValueError("index.json must contain object payload")
+        payload = cast(dict[str, Any], raw_payload)
     else:
-        payload = {"modules": []}
+        payload = cast(dict[str, Any], {"modules": []})
 
-    modules = payload.get("modules", [])
-    if not isinstance(modules, list):
+    modules_raw = payload.get("modules", [])
+    if not isinstance(modules_raw, list):
         raise ValueError("index.json 'modules' must be a list")
+    modules = cast(list[Any], modules_raw)
 
     updated = False
     for idx, existing in enumerate(modules):
-        if isinstance(existing, dict) and existing.get("id") == entry.get("id"):
+        if isinstance(existing, dict) and cast(dict[str, Any], existing).get("id") == entry.get("id"):
             modules[idx] = entry
             updated = True
             break
@@ -297,7 +313,7 @@ def write_index_entry(index_path: Path, entry: dict) -> None:
     os.replace(tmp_path, index_path)
 
 
-def _load_bundle_publish_state(bundle_dir: Path) -> tuple[Path, dict, str, str]:
+def _load_bundle_publish_state(bundle_dir: Path) -> tuple[Path, dict[str, Any], str, str]:
     """Load manifest state for publishing a bundle."""
     manifest_path = bundle_dir / "module-package.yaml"
     manifest = _load_manifest(manifest_path)
@@ -312,12 +328,20 @@ def _ensure_publish_version_progression(index_path: Path, module_id: str, versio
     if not index_path.exists():
         return
 
-    payload = json.loads(index_path.read_text(encoding="utf-8"))
-    modules = payload.get("modules", []) if isinstance(payload, dict) else []
-    for existing in modules:
-        if not isinstance(existing, dict) or existing.get("id") != module_id:
+    raw_payload = json.loads(index_path.read_text(encoding="utf-8"))
+    if not isinstance(raw_payload, dict):
+        return
+    payload = cast(dict[str, Any], raw_payload)
+    modules_raw = payload.get("modules", [])
+    if not isinstance(modules_raw, list):
+        return
+    for existing in modules_raw:
+        if not isinstance(existing, dict):
             continue
-        existing_version = str(existing.get("latest_version", "")).strip()
+        ex = cast(dict[str, Any], existing)
+        if ex.get("id") != module_id:
+            continue
+        existing_version = str(ex.get("latest_version", "")).strip()
         if not existing_version:
             continue
         if Version(existing_version) >= Version(version):
@@ -326,7 +350,9 @@ def _ensure_publish_version_progression(index_path: Path, module_id: str, versio
             )
 
 
-def _build_publish_entry(manifest: dict, module_id: str, version: str, tarball: Path, checksum: str) -> dict:
+def _build_publish_entry(
+    manifest: dict[str, Any], module_id: str, version: str, tarball: Path, checksum: str
+) -> dict[str, Any]:
     """Build the registry entry for a published bundle."""
     return {
         "id": module_id,
@@ -341,7 +367,7 @@ def _build_publish_entry(manifest: dict, module_id: str, version: str, tarball: 
 
 
 @beartype
-@require(lambda bundle_name: bundle_name.strip() != "", "bundle_name must be non-empty")
+@require(lambda bundle_name: cast(str, bundle_name).strip() != "", "bundle_name must be non-empty")
 def publish_bundle(
     bundle_name: str,
     key_file: Path,
@@ -404,7 +430,7 @@ def _bump_semver(version: str, bump_type: str) -> str:
     raise ValueError(f"Unsupported bump type: {bump_type}")
 
 
-def _write_manifest(manifest_path: Path, data: dict) -> None:
+def _write_manifest(manifest_path: Path, data: dict[str, Any]) -> None:
     """Write manifest YAML preserving key order."""
     manifest_path.write_text(
         yaml.dump(

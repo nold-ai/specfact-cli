@@ -152,6 +152,27 @@ class RelationshipMapper:
                 imports.append(node.module)
         return imports
 
+    @staticmethod
+    def _class_def_interface_info(node: ast.ClassDef, rel_file: str) -> dict[str, Any] | None:
+        is_interface = False
+        base_classes: list[str] = []
+        for base in node.bases:
+            if isinstance(base, ast.Name):
+                base_classes.append(base.id)
+                if base.id in ("ABC", "Protocol", "Interface"):
+                    is_interface = True
+        for decorator in node.decorator_list:
+            if isinstance(decorator, ast.Name) and decorator.id == "abstractmethod":
+                is_interface = True
+        if not (is_interface or any("Protocol" in b for b in base_classes)):
+            return None
+        return {
+            "name": node.name,
+            "file": rel_file,
+            "methods": [item.name for item in node.body if isinstance(item, ast.FunctionDef)],
+            "base_classes": base_classes,
+        }
+
     def _extract_interfaces_from_tree(self, tree: ast.AST, rel_file: str) -> list[dict[str, Any]]:
         """
         Walk an AST and collect interface (abstract class / Protocol) definitions.
@@ -167,25 +188,9 @@ class RelationshipMapper:
         for node in ast.walk(tree):
             if not isinstance(node, ast.ClassDef):
                 continue
-            is_interface = False
-            base_classes: list[str] = []
-            for base in node.bases:
-                if isinstance(base, ast.Name):
-                    base_classes.append(base.id)
-                    if base.id in ("ABC", "Protocol", "Interface"):
-                        is_interface = True
-            for decorator in node.decorator_list:
-                if isinstance(decorator, ast.Name) and decorator.id == "abstractmethod":
-                    is_interface = True
-            if is_interface or any("Protocol" in b for b in base_classes):
-                interfaces.append(
-                    {
-                        "name": node.name,
-                        "file": rel_file,
-                        "methods": [item.name for item in node.body if isinstance(item, ast.FunctionDef)],
-                        "base_classes": base_classes,
-                    }
-                )
+            info = self._class_def_interface_info(node, rel_file)
+            if info:
+                interfaces.append(info)
         return interfaces
 
     def _extract_fastapi_route(
@@ -247,6 +252,36 @@ class RelationshipMapper:
                     routes.extend(self._extract_flask_routes(decorator, node, rel_file))
         return routes
 
+    def _analyze_file_parallel_cached_ast(
+        self,
+        file_path: Path,
+        file_key: str,
+        file_hash: str,
+        tree: ast.AST,
+    ) -> tuple[str, dict[str, Any]]:
+        rel_file = self._file_key(file_path)
+        interfaces_list = self._extract_interfaces_from_tree(tree, rel_file)
+        result: dict[str, Any] = {
+            "imports": self._extract_imports_from_tree(tree),
+            "dependencies": [],
+            "interfaces": {info["name"]: info for info in interfaces_list},
+            "routes": self._extract_routes_from_tree(tree, rel_file),
+        }
+        if file_hash:
+            self.analysis_cache[file_hash] = result
+        return (file_key, result)
+
+    def _analyze_file_parallel_large_body(self, tree: ast.AST, file_hash: str) -> dict[str, Any]:
+        result = {
+            "imports": self._extract_imports_from_tree(tree),
+            "dependencies": [],
+            "interfaces": {},
+            "routes": [],
+        }
+        if file_hash:
+            self.analysis_cache[file_hash] = result
+        return result
+
     def _analyze_file_parallel(self, file_path: Path) -> tuple[str, dict[str, Any]]:
         """
         Analyze a single file for relationships (thread-safe version with caching).
@@ -282,28 +317,10 @@ class RelationshipMapper:
                 tree = ast.parse(content, filename=str(file_path))
                 # For large files (>100KB), only extract imports
                 if len(content) > 100 * 1024:
-                    result: dict[str, Any] = {
-                        "imports": self._extract_imports_from_tree(tree),
-                        "dependencies": [],
-                        "interfaces": {},
-                        "routes": [],
-                    }
-                    if file_hash:
-                        self.analysis_cache[file_hash] = result
-                    return (file_key, result)
+                    return (file_key, self._analyze_file_parallel_large_body(tree, file_hash))
                 self.ast_cache[file_key] = tree
 
-            rel_file = self._file_key(file_path)
-            interfaces_list = self._extract_interfaces_from_tree(tree, rel_file)
-            result = {
-                "imports": self._extract_imports_from_tree(tree),
-                "dependencies": [],
-                "interfaces": {info["name"]: info for info in interfaces_list},
-                "routes": self._extract_routes_from_tree(tree, rel_file),
-            }
-            if file_hash:
-                self.analysis_cache[file_hash] = result
-            return (file_key, result)
+            return self._analyze_file_parallel_cached_ast(file_path, file_key, file_hash, tree)
 
         except (SyntaxError, UnicodeDecodeError):
             if file_hash:

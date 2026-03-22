@@ -52,12 +52,24 @@ class PlanAgent(AgentMode):
         workspace = context.get("workspace", "")
 
         if command in ("plan promote", "plan adopt"):
-            auto_plan_path = context.get("auto_plan_path", "")
-            auto_plan_content = ""
-            if auto_plan_path and Path(auto_plan_path).exists():
-                auto_plan_content = Path(auto_plan_path).read_text()[:500]  # Limit length
+            prompt = self._prompt_plan_promote_adopt(context, current_file, selection, workspace)
+        elif command == "plan init":
+            prompt = self._prompt_plan_init(current_file, selection, workspace)
+        elif command == "plan compare":
+            prompt = self._prompt_plan_compare(current_file, selection, workspace)
+        else:
+            prompt = f"Execute plan command: {command}"
 
-            prompt = f"""
+        return prompt.strip()
+
+    def _prompt_plan_promote_adopt(
+        self, context: dict[str, Any], current_file: str, selection: str, workspace: str
+    ) -> str:
+        auto_plan_path = context.get("auto_plan_path", "")
+        auto_plan_content = ""
+        if auto_plan_path and Path(auto_plan_path).exists():
+            auto_plan_content = Path(auto_plan_path).read_text()[:500]
+        return f"""
 Analyze the repository and cross-validate identified features/stories.
 
 Repository Context:
@@ -85,8 +97,10 @@ Output Format:
 - Theme categorization suggestions
 - Business context extraction (idea, target users, value hypothesis)
 """
-        elif command == "plan init":
-            prompt = f"""
+
+    @staticmethod
+    def _prompt_plan_init(current_file: str, selection: str, workspace: str) -> str:
+        return f"""
 Initialize plan bundle with interactive wizard.
 
 Context:
@@ -102,8 +116,10 @@ Extract from context:
 
 Generate interactive prompts for missing information.
 """
-        elif command == "plan compare":
-            prompt = f"""
+
+    @staticmethod
+    def _prompt_plan_compare(current_file: str, selection: str, workspace: str) -> str:
+        return f"""
 Compare manual vs auto-derived plans.
 
 Context:
@@ -118,10 +134,6 @@ Focus on:
 
 Generate rich console output with explanations.
 """
-        else:
-            prompt = f"Execute plan command: {command}"
-
-        return prompt.strip()
 
     @beartype
     @require(lambda command: bool(command), "Command must be non-empty")

@@ -7,6 +7,7 @@ bundles to well-structured Markdown files using Jinja2 templates.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -87,17 +88,8 @@ class PersonaExporter:
             lstrip_blocks=True,
         )
 
-    def _build_story_dict(self, story: Any) -> tuple[dict[str, Any], int]:
-        """
-        Build the template dictionary for a single story, including DoR status.
-
-        Args:
-            story: Story model instance
-
-        Returns:
-            Tuple of (story_dict, story_points) where story_points is 0 if not set
-        """
-        story_dict = story.model_dump()
+    @staticmethod
+    def _dor_status_for_story(story: Any) -> dict[str, bool]:
         dor_status: dict[str, bool] = {}
         if hasattr(story, "story_points"):
             dor_status["story_points"] = story.story_points is not None
@@ -113,10 +105,27 @@ class PersonaExporter:
             dor_status["target_date"] = story.due_date is not None
         if hasattr(story, "target_sprint"):
             dor_status["target_sprint"] = story.target_sprint is not None
-        story_dict["definition_of_ready"] = dor_status
+        return dor_status
+
+    @staticmethod
+    def _merge_nonempty_story_fields(story: Any, story_dict: dict[str, Any]) -> None:
         for field in ("tasks", "scenarios", "contracts", "source_functions", "test_functions"):
             if hasattr(story, field) and getattr(story, field):
                 story_dict[field] = getattr(story, field)
+
+    def _build_story_dict(self, story: Any) -> tuple[dict[str, Any], int]:
+        """
+        Build the template dictionary for a single story, including DoR status.
+
+        Args:
+            story: Story model instance
+
+        Returns:
+            Tuple of (story_dict, story_points) where story_points is 0 if not set
+        """
+        story_dict = story.model_dump()
+        story_dict["definition_of_ready"] = self._dor_status_for_story(story)
+        self._merge_nonempty_story_fields(story, story_dict)
         points = story.story_points if (hasattr(story, "story_points") and story.story_points is not None) else 0
         return story_dict, points
 
@@ -131,11 +140,16 @@ class PersonaExporter:
         Returns:
             Feature context dictionary
         """
-        from specfact_cli.utils.persona_ownership import match_section_pattern
 
         feature_dict: dict[str, Any] = {"key": feature.key, "title": feature.title}
         if feature.outcomes:
             feature_dict["outcomes"] = feature.outcomes
+        self._merge_feature_scalar_fields(feature, feature_dict)
+        self._merge_feature_stories_if_owned(feature, persona_mapping, feature_dict)
+        self._merge_feature_optional_sections(feature, persona_mapping, feature_dict)
+        return feature_dict
+
+    def _merge_feature_scalar_fields(self, feature: Any, feature_dict: dict[str, Any]) -> None:
         for field in (
             "priority",
             "rank",
@@ -151,30 +165,61 @@ class PersonaExporter:
             if value is not None and value != [] and value != "":
                 feature_dict[field] = value
 
-        if any(match_section_pattern(p, "features.*.stories") for p in persona_mapping.owns) and feature.stories:
-            story_dicts = []
-            total_story_points = 0
-            for story in feature.stories:
-                story_dict, points = self._build_story_dict(story)
-                story_dicts.append(story_dict)
-                total_story_points += points
-            feature_dict["stories"] = story_dicts
-            feature_dict["estimated_story_points"] = total_story_points if total_story_points > 0 else None
+    def _merge_feature_stories_if_owned(
+        self, feature: Any, persona_mapping: PersonaMapping, feature_dict: dict[str, Any]
+    ) -> None:
+        from specfact_cli.utils.persona_ownership import match_section_pattern
 
-        if any(match_section_pattern(p, "features.*.outcomes") for p in persona_mapping.owns) and feature.outcomes:
-            feature_dict["outcomes"] = feature.outcomes
-        if (
-            any(match_section_pattern(p, "features.*.constraints") for p in persona_mapping.owns)
-            and feature.constraints
-        ):
-            feature_dict["constraints"] = feature.constraints
-        if any(match_section_pattern(p, "features.*.acceptance") for p in persona_mapping.owns) and feature.acceptance:
-            feature_dict["acceptance"] = feature.acceptance
-        if any(match_section_pattern(p, "features.*.implementation") for p in persona_mapping.owns):
-            implementation = getattr(feature, "implementation", None)
-            if implementation:
-                feature_dict["implementation"] = implementation
-        return feature_dict
+        if not (any(match_section_pattern(p, "features.*.stories") for p in persona_mapping.owns) and feature.stories):
+            return
+        story_dicts: list[dict[str, Any]] = []
+        total_story_points = 0
+        for story in feature.stories:
+            story_dict, points = self._build_story_dict(story)
+            story_dicts.append(story_dict)
+            total_story_points += points
+        feature_dict["stories"] = story_dicts
+        feature_dict["estimated_story_points"] = total_story_points if total_story_points > 0 else None
+
+    def _merge_owned_feature_field(
+        self,
+        owns: Sequence[str],
+        pattern: str,
+        feature: Any,
+        feature_dict: dict[str, Any],
+        field_name: str,
+        *,
+        value: Any | None = None,
+        use_getattr: bool = False,
+    ) -> None:
+        from specfact_cli.utils.persona_ownership import match_section_pattern
+
+        if not any(match_section_pattern(p, pattern) for p in owns):
+            return
+        if use_getattr:
+            val = getattr(feature, field_name, None)
+            if val:
+                feature_dict[field_name] = val
+            return
+        if value:
+            feature_dict[field_name] = value
+
+    def _merge_feature_optional_sections(
+        self, feature: Any, persona_mapping: PersonaMapping, feature_dict: dict[str, Any]
+    ) -> None:
+        owns = persona_mapping.owns
+        self._merge_owned_feature_field(
+            owns, "features.*.outcomes", feature, feature_dict, "outcomes", value=feature.outcomes
+        )
+        self._merge_owned_feature_field(
+            owns, "features.*.constraints", feature, feature_dict, "constraints", value=feature.constraints
+        )
+        self._merge_owned_feature_field(
+            owns, "features.*.acceptance", feature, feature_dict, "acceptance", value=feature.acceptance
+        )
+        self._merge_owned_feature_field(
+            owns, "features.*.implementation", feature, feature_dict, "implementation", use_getattr=True
+        )
 
     def _load_bundle_protocols(self, bundle_dir: Path) -> dict[str, Any]:
         """
@@ -226,6 +271,33 @@ class PersonaExporter:
                 pass
         return contracts
 
+    def _base_template_context(self, bundle: ProjectBundle, persona_name: str) -> dict[str, Any]:
+        return {
+            "bundle_name": bundle.bundle_name,
+            "persona_name": persona_name,
+            "created_at": datetime.now(UTC).isoformat(),
+            "updated_at": datetime.now(UTC).isoformat(),
+            "status": "active",
+        }
+
+    def _merge_owned_bundle_sections(self, context: dict[str, Any], bundle: ProjectBundle, owns: Sequence[str]) -> None:
+        from specfact_cli.utils.persona_ownership import match_section_pattern
+
+        if bundle.idea and any(match_section_pattern(p, "idea") for p in owns):
+            context["idea"] = bundle.idea.model_dump()
+        if bundle.business and any(match_section_pattern(p, "business") for p in owns):
+            context["business"] = bundle.business.model_dump()
+        if any(match_section_pattern(p, "product") for p in owns):
+            context["product"] = bundle.product.model_dump() if bundle.product else None
+
+    def _filtered_features_for_context(self, bundle: ProjectBundle, persona_mapping: PersonaMapping) -> dict[str, Any]:
+        filtered: dict[str, Any] = {}
+        for feature_key, feature in bundle.features.items():
+            feature_dict = self._build_feature_dict(feature, persona_mapping)
+            if feature_dict:
+                filtered[feature_key] = feature_dict
+        return filtered
+
     @beartype
     @require(lambda bundle: isinstance(bundle, ProjectBundle), "Bundle must be ProjectBundle")
     @require(
@@ -247,50 +319,36 @@ class PersonaExporter:
         Returns:
             Template context dictionary
         """
-        from specfact_cli.utils.persona_ownership import match_section_pattern
-
-        context: dict[str, Any] = {
-            "bundle_name": bundle.bundle_name,
-            "persona_name": persona_name,
-            "created_at": datetime.now(UTC).isoformat(),
-            "updated_at": datetime.now(UTC).isoformat(),
-            "status": "active",
-        }
-
-        if bundle.idea and any(match_section_pattern(p, "idea") for p in persona_mapping.owns):
-            context["idea"] = bundle.idea.model_dump()
-        if bundle.business and any(match_section_pattern(p, "business") for p in persona_mapping.owns):
-            context["business"] = bundle.business.model_dump()
-        if any(match_section_pattern(p, "product") for p in persona_mapping.owns):
-            context["product"] = bundle.product.model_dump() if bundle.product else None
-
-        filtered_features: dict[str, Any] = {}
-        for feature_key, feature in bundle.features.items():
-            feature_dict = self._build_feature_dict(feature, persona_mapping)
-            if feature_dict:
-                filtered_features[feature_key] = feature_dict
+        context = self._base_template_context(bundle, persona_name)
+        owns = persona_mapping.owns
+        self._merge_owned_bundle_sections(context, bundle, owns)
+        filtered_features = self._filtered_features_for_context(bundle, persona_mapping)
         if filtered_features:
             context["features"] = filtered_features
 
-        owns_protocols = any(match_section_pattern(p, "protocols") for p in persona_mapping.owns)
-        owns_contracts = any(match_section_pattern(p, "contracts") for p in persona_mapping.owns)
-        protocols: dict[str, Any] = {}
-        contracts: dict[str, Any] = {}
-        if owns_protocols or owns_contracts:
-            from specfact_cli.utils.structure import SpecFactStructure
-
-            bundle_dir = Path(".") / SpecFactStructure.PROJECTS / bundle.bundle_name
-            if bundle_dir.exists():
-                if owns_protocols:
-                    protocols = self._load_bundle_protocols(bundle_dir)
-                if owns_contracts:
-                    contracts = self._load_bundle_contracts(bundle_dir)
-
+        protocols, contracts = self._protocols_and_contracts_for_context(bundle, persona_mapping)
         context["protocols"] = protocols
         context["contracts"] = contracts
         context["locks"] = [lock.model_dump() for lock in bundle.manifest.locks]
 
         return context
+
+    def _protocols_and_contracts_for_context(
+        self, bundle: ProjectBundle, persona_mapping: PersonaMapping
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
+        from specfact_cli.utils.persona_ownership import match_section_pattern
+        from specfact_cli.utils.structure import SpecFactStructure
+
+        owns_protocols = any(match_section_pattern(p, "protocols") for p in persona_mapping.owns)
+        owns_contracts = any(match_section_pattern(p, "contracts") for p in persona_mapping.owns)
+        if not owns_protocols and not owns_contracts:
+            return {}, {}
+        bundle_dir = Path(".") / SpecFactStructure.PROJECTS / bundle.bundle_name
+        if not bundle_dir.exists():
+            return {}, {}
+        protocols = self._load_bundle_protocols(bundle_dir) if owns_protocols else {}
+        contracts = self._load_bundle_contracts(bundle_dir) if owns_contracts else {}
+        return protocols, contracts
 
     @beartype
     @require(lambda persona_name: isinstance(persona_name, str), "Persona name must be str")

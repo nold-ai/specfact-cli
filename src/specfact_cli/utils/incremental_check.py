@@ -10,14 +10,37 @@ from __future__ import annotations
 import contextlib
 import os
 from collections.abc import Callable
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from beartype import beartype
 from icontract import ensure, require
 
 from specfact_cli.models.plan import Feature
+
+
+def _collect_source_tracking_yaml_lines(lines: list[str]) -> list[str]:
+    in_section = False
+    section_lines: list[str] = []
+    indent_level = 0
+    for line in lines:
+        stripped = line.lstrip()
+        if not stripped or stripped.startswith("#"):
+            if in_section:
+                section_lines.append(line)
+            continue
+        current_indent = len(line) - len(stripped)
+        if stripped.startswith("source_tracking:"):
+            in_section = True
+            indent_level = current_indent
+            section_lines.append(line)
+            continue
+        if in_section:
+            if current_indent <= indent_level and ":" in stripped and not stripped.startswith("- "):
+                break
+            section_lines.append(line)
+    return section_lines
 
 
 def _extract_source_tracking_section(
@@ -36,36 +59,21 @@ def _extract_source_tracking_section(
 
     try:
         content = file_path.read_text(encoding="utf-8")
-        lines = content.split("\n")
-        in_section = False
-        section_lines: list[str] = []
-        indent_level = 0
-        for line in lines:
-            stripped = line.lstrip()
-            if not stripped or stripped.startswith("#"):
-                if in_section:
-                    section_lines.append(line)
-                continue
-            current_indent = len(line) - len(stripped)
-            if stripped.startswith("source_tracking:"):
-                in_section = True
-                indent_level = current_indent
-                section_lines.append(line)
-                continue
-            if in_section:
-                if current_indent <= indent_level and ":" in stripped and not stripped.startswith("- "):
-                    break
-                section_lines.append(line)
+        section_lines = _collect_source_tracking_yaml_lines(content.split("\n"))
         if not section_lines:
             return None
         from specfact_cli.utils.structured_io import StructuredFormat, loads_structured_data
 
         section_data = loads_structured_data("\n".join(section_lines), StructuredFormat.YAML)
-        return section_data.get("source_tracking") if isinstance(section_data, dict) else None
+        if not isinstance(section_data, dict):
+            return None
+        return cast(dict[str, Any], section_data).get("source_tracking")
     except Exception:
         try:
             feature_data = load_structured_file(file_path)
-            return feature_data.get("source_tracking") if isinstance(feature_data, dict) else None
+            if not isinstance(feature_data, dict):
+                return None
+            return cast(dict[str, Any], feature_data).get("source_tracking")
         except Exception:
             return None
 
@@ -131,25 +139,10 @@ def _load_features_from_manifest(
     in_test = os.environ.get("TEST_MODE") == "true"
     max_workers = max(1, min(2, num_features)) if in_test else min(os.cpu_count() or 4, 8, max(1, num_features))
     wait_on_shutdown = not in_test
-    features: list[Feature] = []
     executor = ThreadPoolExecutor(max_workers=max_workers)
     try:
         future_to_index = {executor.submit(_load_one, fi): fi for fi in manifest.features}
-        completed = 0
-        for future in as_completed(future_to_index):
-            try:
-                feat = future.result()
-                if feat:
-                    features.append(feat)
-                completed += 1
-                if progress_callback:
-                    progress_callback(
-                        1 + completed, estimated_total, f"Loading features... ({completed}/{num_features})"
-                    )
-            except KeyboardInterrupt:
-                for f in future_to_index:
-                    f.cancel()
-                raise
+        features = _execute_manifest_feature_loads(future_to_index, progress_callback, estimated_total, num_features)
     except KeyboardInterrupt:
         executor.shutdown(wait=False, cancel_futures=True)
         raise
@@ -157,6 +150,69 @@ def _load_features_from_manifest(
         with contextlib.suppress(RuntimeError):
             executor.shutdown(wait=wait_on_shutdown)
     return features
+
+
+def _cancel_pending_futures(future_to_task: dict[Future[Any], Any]) -> None:
+    for f in future_to_task:
+        if not f.done():
+            f.cancel()
+
+
+def _execute_manifest_feature_loads(
+    future_to_index: dict[Future[Any], Any],
+    progress_callback: Callable[[int, int, str], None] | None,
+    estimated_total: int,
+    num_features: int,
+) -> list[Feature]:
+    features: list[Feature] = []
+    completed = 0
+    for future in as_completed(future_to_index):
+        try:
+            feat = future.result()
+            if feat:
+                features.append(feat)
+            completed += 1
+            if progress_callback:
+                progress_callback(1 + completed, estimated_total, f"Loading features... ({completed}/{num_features})")
+        except KeyboardInterrupt:
+            for f in future_to_index:
+                f.cancel()
+            raise
+    return features
+
+
+def _parallel_drain_file_check_futures(
+    future_to_task: dict[Future[Any], Any],
+    progress_callback: Callable[[int, int, str], None] | None,
+    num_features_loaded: int,
+    actual_total: int,
+) -> tuple[bool, bool]:
+    """Return (any_file_changed, interrupted)."""
+    source_files_changed = False
+    interrupted = False
+    completed_checks = 0
+    total_tasks = len(future_to_task)
+    try:
+        for future in as_completed(future_to_task):
+            try:
+                if future.result():
+                    source_files_changed = True
+                    break
+                completed_checks += 1
+                if progress_callback and num_features_loaded > 0:
+                    progress_callback(
+                        1 + num_features_loaded + completed_checks,
+                        actual_total,
+                        f"Checking files... ({completed_checks}/{total_tasks})",
+                    )
+            except KeyboardInterrupt:
+                interrupted = True
+                _cancel_pending_futures(future_to_task)
+                break
+    except KeyboardInterrupt:
+        interrupted = True
+        _cancel_pending_futures(future_to_task)
+    return source_files_changed, interrupted
 
 
 def _run_parallel_file_checks(
@@ -189,36 +245,13 @@ def _run_parallel_file_checks(
     in_test = os.environ.get("TEST_MODE") == "true"
     max_workers = max(1, min(2, len(check_tasks))) if in_test else min(os.cpu_count() or 4, 8, len(check_tasks))
     wait_on_shutdown = not in_test
-    source_files_changed = False
     interrupted = False
     executor = ThreadPoolExecutor(max_workers=max_workers)
     try:
         future_to_task = {executor.submit(_check_one, task): task for task in check_tasks}
-        completed_checks = 0
-        try:
-            for future in as_completed(future_to_task):
-                try:
-                    if future.result():
-                        source_files_changed = True
-                        break
-                    completed_checks += 1
-                    if progress_callback and num_features_loaded > 0:
-                        progress_callback(
-                            1 + num_features_loaded + completed_checks,
-                            actual_total,
-                            f"Checking files... ({completed_checks}/{len(check_tasks)})",
-                        )
-                except KeyboardInterrupt:
-                    interrupted = True
-                    for f in future_to_task:
-                        if not f.done():
-                            f.cancel()
-                    break
-        except KeyboardInterrupt:
-            interrupted = True
-            for f in future_to_task:
-                if not f.done():
-                    f.cancel()
+        source_files_changed, interrupted = _parallel_drain_file_check_futures(
+            future_to_task, progress_callback, num_features_loaded, actual_total
+        )
         if interrupted:
             raise KeyboardInterrupt
     except KeyboardInterrupt:
@@ -227,6 +260,70 @@ def _run_parallel_file_checks(
     finally:
         executor.shutdown(wait=False if interrupted else wait_on_shutdown)
     return source_files_changed
+
+
+def _build_incremental_check_work(
+    features: list[Feature],
+    repo: Path,
+    bundle_dir: Path,
+) -> tuple[list[tuple[Feature, Path, str]], list[tuple[Feature, Path]], bool]:
+    """Collect parallel check tasks and contract paths; set source_files_changed if tracking missing."""
+    check_tasks: list[tuple[Feature, Path, str]] = []
+    contract_checks: list[tuple[Feature, Path]] = []
+    source_files_changed = False
+    for feature in features:
+        if not feature.source_tracking:
+            source_files_changed = True
+            continue
+        for impl_file in feature.source_tracking.implementation_files:
+            check_tasks.append((feature, repo / impl_file, "implementation"))
+        if feature.contract:
+            contract_checks.append((feature, bundle_dir / feature.contract))
+    return check_tasks, contract_checks, source_files_changed
+
+
+def _scan_contract_drift(
+    contract_checks: list[tuple[Feature, Path]],
+    source_files_changed: bool,
+) -> tuple[bool, bool]:
+    contracts_exist = True
+    contracts_changed = False
+    for _feature, contract_path in contract_checks:
+        if not contract_path.exists():
+            contracts_exist = False
+            contracts_changed = True
+        elif source_files_changed:
+            contracts_changed = True
+    return contracts_exist, contracts_changed
+
+
+def _maybe_mark_all_artifacts_clean(
+    result: dict[str, bool],
+    source_files_changed: bool,
+    contracts_exist: bool,
+    contracts_changed: bool,
+) -> None:
+    if not source_files_changed and contracts_exist and not contracts_changed:
+        result["relationships"] = False
+        result["contracts"] = False
+        result["graph"] = False
+        result["enrichment_context"] = False
+        result["bundle"] = False
+
+
+def _incremental_notify_file_check_progress(
+    progress_callback: Callable[[int, int, str], None] | None,
+    num_features_loaded: int,
+    check_tasks: list[tuple[Feature, Path, str]],
+    actual_total: int,
+) -> None:
+    if not progress_callback:
+        return
+    msg = f"Checking {len(check_tasks)} file(s) for changes..."
+    if num_features_loaded > 0:
+        progress_callback(1 + num_features_loaded, actual_total, msg)
+    elif check_tasks:
+        progress_callback(0, actual_total, msg)
 
 
 @beartype
@@ -272,50 +369,37 @@ def check_incremental_changes(
         except Exception:
             return result
 
-    source_files_changed = False
-    contracts_exist = True
-    contracts_changed = False
-    check_tasks: list[tuple[Feature, Path, str]] = []
-    contract_checks: list[tuple[Feature, Path]] = []
+    check_tasks, contract_checks, source_files_changed = _build_incremental_check_work(features, repo, bundle_dir)
     num_features_loaded = len(features)
-
-    for feature in features:
-        if not feature.source_tracking:
-            source_files_changed = True
-            continue
-        for impl_file in feature.source_tracking.implementation_files:
-            check_tasks.append((feature, repo / impl_file, "implementation"))
-        if feature.contract:
-            contract_checks.append((feature, bundle_dir / feature.contract))
 
     actual_total = (
         (1 + num_features_loaded + len(check_tasks)) if num_features_loaded > 0 else (len(check_tasks) or 100)
     )
 
-    if progress_callback and num_features_loaded > 0:
-        progress_callback(1 + num_features_loaded, actual_total, f"Checking {len(check_tasks)} file(s) for changes...")
-    elif progress_callback and not num_features_loaded and check_tasks:
-        progress_callback(0, actual_total, f"Checking {len(check_tasks)} file(s) for changes...")
+    _incremental_notify_file_check_progress(progress_callback, num_features_loaded, check_tasks, actual_total)
 
     if check_tasks and not source_files_changed:
         source_files_changed = _run_parallel_file_checks(
             check_tasks, progress_callback, num_features_loaded, actual_total
         )
 
-    for _feature, contract_path in contract_checks:
-        if not contract_path.exists():
-            contracts_exist = False
-            contracts_changed = True
-        elif source_files_changed:
-            contracts_changed = True
+    contracts_exist, contracts_changed = _scan_contract_drift(contract_checks, source_files_changed)
 
-    if not source_files_changed and contracts_exist and not contracts_changed:
-        result["relationships"] = False
-        result["contracts"] = False
-        result["graph"] = False
-        result["enrichment_context"] = False
-        result["bundle"] = False
+    _maybe_mark_all_artifacts_clean(result, source_files_changed, contracts_exist, contracts_changed)
 
+    _apply_enrichment_and_contracts_flags(bundle_dir, source_files_changed, contracts_changed, result)
+
+    _emit_incremental_progress_complete(progress_callback, num_features_loaded, actual_total, check_tasks)
+
+    return result
+
+
+def _apply_enrichment_and_contracts_flags(
+    bundle_dir: Path,
+    source_files_changed: bool,
+    contracts_changed: bool,
+    result: dict[str, bool],
+) -> None:
     enrichment_context_path = bundle_dir / "enrichment_context.md"
     if enrichment_context_path.exists() and not source_files_changed:
         result["enrichment_context"] = False
@@ -329,15 +413,21 @@ def check_incremental_changes(
     ):
         result["contracts"] = False
 
-    if progress_callback:
-        if num_features_loaded > 0 and actual_total > 0:
-            progress_callback(actual_total, actual_total, "Change check complete")
-        elif check_tasks:
-            progress_callback(len(check_tasks), len(check_tasks), "Change check complete")
-        else:
-            progress_callback(1, 1, "Change check complete")
 
-    return result
+def _emit_incremental_progress_complete(
+    progress_callback: Callable[[int, int, str], None] | None,
+    num_features_loaded: int,
+    actual_total: int,
+    check_tasks: list[tuple[Feature, Path, str]],
+) -> None:
+    if not progress_callback:
+        return
+    if num_features_loaded > 0 and actual_total > 0:
+        progress_callback(actual_total, actual_total, "Change check complete")
+    elif check_tasks:
+        progress_callback(len(check_tasks), len(check_tasks), "Change check complete")
+    else:
+        progress_callback(1, 1, "Change check complete")
 
 
 @beartype

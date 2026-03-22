@@ -11,9 +11,15 @@ import subprocess
 import tempfile
 from collections import defaultdict
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-import networkx as nx
+from networkx import DiGraph
+
+
+if TYPE_CHECKING:
+    StrDiGraph = DiGraph[str]
+else:
+    StrDiGraph = DiGraph
 from beartype import beartype
 from icontract import ensure, require
 
@@ -38,7 +44,7 @@ class GraphAnalyzer:
         """
         self.repo_path = repo_path.resolve()
         self.call_graphs: dict[str, dict[str, list[str]]] = {}  # file -> {function -> [called_functions]}
-        self.dependency_graph: nx.DiGraph = nx.DiGraph()
+        self.dependency_graph: StrDiGraph = DiGraph()
         # Cache for file hashes and import extraction results
         self.file_hashes_cache: dict[str, str] = file_hashes_cache or {}
         self.imports_cache: dict[str, list[str]] = {}  # file_hash -> [imports]
@@ -140,7 +146,7 @@ class GraphAnalyzer:
 
     def _build_import_edges(
         self,
-        graph: nx.DiGraph,
+        graph: StrDiGraph,
         python_files: list[Path],
         known_modules: list[str],
         max_workers: int,
@@ -182,7 +188,7 @@ class GraphAnalyzer:
 
     def _build_call_graph_edges(
         self,
-        graph: nx.DiGraph,
+        graph: StrDiGraph,
         python_files: list[Path],
         max_workers: int,
         wait_on_shutdown: bool,
@@ -215,8 +221,8 @@ class GraphAnalyzer:
 
     @beartype
     @require(lambda python_files: isinstance(python_files, list), "Python files must be list")
-    @ensure(lambda result: isinstance(result, nx.DiGraph), "Must return DiGraph")
-    def build_dependency_graph(self, python_files: list[Path], progress_callback: Any | None = None) -> nx.DiGraph:
+    @ensure(lambda result: isinstance(result, DiGraph), "Must return DiGraph")
+    def build_dependency_graph(self, python_files: list[Path], progress_callback: Any | None = None) -> StrDiGraph:
         """
         Build comprehensive dependency graph using NetworkX.
 
@@ -232,7 +238,7 @@ class GraphAnalyzer:
         """
         import os
 
-        graph = nx.DiGraph()
+        graph: StrDiGraph = DiGraph()
         for file_path in python_files:
             module_name = self._path_to_module_name(file_path)
             graph.add_node(module_name, path=str(file_path))
@@ -366,6 +372,29 @@ class GraphAnalyzer:
     @require(lambda imported: isinstance(imported, str), "Imported name must be str")
     @require(lambda known_modules: isinstance(known_modules, list), "Known modules must be list")
     @ensure(lambda result: result is None or isinstance(result, str), "Must return None or str")
+    def _find_matching_module_last_part(self, imported: str, known_modules: list[str]) -> str | None:
+        imported_last = imported.split(".")[-1]
+        for module in known_modules:
+            if module.endswith(f".{imported_last}") or module == imported_last:
+                return module
+        return None
+
+    def _find_matching_module_prefix(self, imported: str, known_modules: list[str]) -> str | None:
+        for module in known_modules:
+            if module.startswith(imported + ".") or module == imported:
+                return module
+            if imported.startswith(module + "."):
+                return module
+        return None
+
+    def _find_matching_module_suffix_overlap(self, imported: str, known_modules: list[str]) -> str | None:
+        imported_parts = imported.split(".")
+        for module in known_modules:
+            module_parts = module.split(".")
+            if len(imported_parts) >= 2 and len(module_parts) >= 2 and imported_parts[-2:] == module_parts[-2:]:
+                return module
+        return None
+
     def _find_matching_module(self, imported: str, known_modules: list[str]) -> str | None:
         """
         Find matching module from known modules using intelligent matching.
@@ -382,37 +411,15 @@ class GraphAnalyzer:
         Returns:
             Matching module name or None
         """
-        # Strategy 1: Exact match (already checked in caller, but keep for completeness)
         if imported in known_modules:
             return imported
-
-        # Strategy 2: Last part match
-        # e.g., "import_cmd" matches "src.specfact_cli.modules.import_cmd.src.commands"
-        imported_last = imported.split(".")[-1]
-        for module in known_modules:
-            if module.endswith(f".{imported_last}") or module == imported_last:
-                return module
-
-        # Strategy 3: Partial path match
-        # e.g., "specfact_cli.commands" matches "src.specfact_cli.modules.import_cmd.src.commands"
-        for module in known_modules:
-            # Check if imported is a prefix of module
-            if module.startswith(imported + ".") or module == imported:
-                return module
-            # Check if module is a prefix of imported
-            if imported.startswith(module + "."):
-                return module
-
-        # Strategy 4: Check if any part of imported matches any part of known modules
-        imported_parts = imported.split(".")
-        for module in known_modules:
-            module_parts = module.split(".")
-            # Check if there's overlap in the path
-            # e.g., "commands.import_cmd" might match "src.specfact_cli.modules.import_cmd.src.commands"
-            if len(imported_parts) >= 2 and len(module_parts) >= 2 and imported_parts[-2:] == module_parts[-2:]:
-                return module
-
-        return None
+        last = self._find_matching_module_last_part(imported, known_modules)
+        if last:
+            return last
+        prefix = self._find_matching_module_prefix(imported, known_modules)
+        if prefix:
+            return prefix
+        return self._find_matching_module_suffix_overlap(imported, known_modules)
 
     @beartype
     @require(lambda function_name: isinstance(function_name, str), "Function name must be str")

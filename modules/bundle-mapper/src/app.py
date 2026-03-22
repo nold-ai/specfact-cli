@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 import typer
 from beartype import beartype
@@ -27,7 +27,7 @@ class _BundleMapperIO:
         export_from_bundle(bundle, target, config)
 
     @beartype
-    @require(lambda external_source: bool(external_source.strip()), "external_source must be non-empty")
+    @require(lambda external_source: bool(cast(str, external_source).strip()), "external_source must be non-empty")
     @require(lambda config: isinstance(config, dict), "config must be a dictionary")
     def sync_with_bundle(self, bundle: Any, external_source: str, config: dict[str, Any]) -> Any:
         return sync_with_bundle(bundle, external_source, config)

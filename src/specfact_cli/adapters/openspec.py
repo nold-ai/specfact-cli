@@ -21,7 +21,13 @@ from specfact_cli.models.bridge import BridgeConfig
 from specfact_cli.models.capabilities import ToolCapabilities
 from specfact_cli.models.change import ChangeProposal, ChangeTracking, ChangeType, FeatureDelta
 from specfact_cli.models.plan import Feature
+from specfact_cli.models.project import ProjectBundle
 from specfact_cli.models.source_tracking import SourceTracking
+from specfact_cli.utils.icontract_helpers import (
+    require_bundle_dir_exists,
+    require_repo_path_exists,
+    require_repo_path_is_dir,
+)
 
 
 class OpenSpecAdapter(BridgeAdapter):
@@ -38,8 +44,8 @@ class OpenSpecAdapter(BridgeAdapter):
         self.parser = OpenSpecParser()
 
     @beartype
-    @require(lambda repo_path: repo_path.exists(), "Repository path must exist")
-    @require(lambda repo_path: repo_path.is_dir(), "Repository path must be a directory")
+    @require(require_repo_path_exists, "Repository path must exist")
+    @require(require_repo_path_is_dir, "Repository path must be a directory")
     @ensure(lambda result: isinstance(result, bool), "Must return bool")
     def detect(self, repo_path: Path, bridge_config: BridgeConfig | None = None) -> bool:
         """
@@ -65,8 +71,8 @@ class OpenSpecAdapter(BridgeAdapter):
         return config_yaml.exists() or project_md.exists() or (specs_dir.exists() and specs_dir.is_dir())
 
     @beartype
-    @require(lambda repo_path: repo_path.exists(), "Repository path must exist")
-    @require(lambda repo_path: repo_path.is_dir(), "Repository path must be a directory")
+    @require(require_repo_path_exists, "Repository path must exist")
+    @require(require_repo_path_is_dir, "Repository path must be a directory")
     @ensure(lambda result: isinstance(result, ToolCapabilities), "Must return ToolCapabilities")
     def get_capabilities(self, repo_path: Path, bridge_config: BridgeConfig | None = None) -> ToolCapabilities:
         """
@@ -165,8 +171,8 @@ class OpenSpecAdapter(BridgeAdapter):
         raise NotImplementedError(msg)
 
     @beartype
-    @require(lambda repo_path: repo_path.exists(), "Repository path must exist")
-    @require(lambda repo_path: repo_path.is_dir(), "Repository path must be a directory")
+    @require(require_repo_path_exists, "Repository path must exist")
+    @require(require_repo_path_is_dir, "Repository path must be a directory")
     @ensure(lambda result: isinstance(result, BridgeConfig), "Must return BridgeConfig")
     def generate_bridge_config(self, repo_path: Path) -> BridgeConfig:
         """
@@ -191,7 +197,7 @@ class OpenSpecAdapter(BridgeAdapter):
 
     @beartype
     @require(lambda bundle_dir: isinstance(bundle_dir, Path), "Bundle directory must be Path")
-    @require(lambda bundle_dir: bundle_dir.exists(), "Bundle directory must exist")
+    @require(require_bundle_dir_exists, "Bundle directory must exist")
     @ensure(lambda result: result is None or isinstance(result, ChangeTracking), "Must return ChangeTracking or None")
     def load_change_tracking(
         self, bundle_dir: Path, bridge_config: BridgeConfig | None = None
@@ -238,7 +244,7 @@ class OpenSpecAdapter(BridgeAdapter):
 
     @beartype
     @require(lambda bundle_dir: isinstance(bundle_dir, Path), "Bundle directory must be Path")
-    @require(lambda bundle_dir: bundle_dir.exists(), "Bundle directory must exist")
+    @require(require_bundle_dir_exists, "Bundle directory must exist")
     @require(
         lambda change_tracking: isinstance(change_tracking, ChangeTracking), "Change tracking must be ChangeTracking"
     )
@@ -262,7 +268,7 @@ class OpenSpecAdapter(BridgeAdapter):
 
     @beartype
     @require(lambda bundle_dir: isinstance(bundle_dir, Path), "Bundle directory must be Path")
-    @require(lambda bundle_dir: bundle_dir.exists(), "Bundle directory must exist")
+    @require(require_bundle_dir_exists, "Bundle directory must exist")
     @require(lambda change_name: isinstance(change_name, str) and len(change_name) > 0, "Change name must be non-empty")
     @ensure(lambda result: result is None or isinstance(result, ChangeProposal), "Must return ChangeProposal or None")
     def load_change_proposal(
@@ -304,18 +310,7 @@ class OpenSpecAdapter(BridgeAdapter):
         if bridge_config and bridge_config.external_base_path:
             source_metadata["openspec_base_path"] = str(bridge_config.external_base_path)
 
-        # Use summary for title if available, otherwise use what_changes or change_name
-        title = change_name
-        if parsed.get("summary"):
-            title = parsed["summary"].split("\n")[0] if isinstance(parsed["summary"], str) else str(parsed["summary"])
-        elif parsed.get("what_changes"):
-            title = (
-                parsed["what_changes"].split("\n")[0]
-                if isinstance(parsed["what_changes"], str)
-                else str(parsed["what_changes"])
-            )
-
-        # Use rationale if available, otherwise use why
+        title = self._openspec_proposal_title_from_parsed(parsed, change_name)
         rationale = parsed.get("rationale", "") or parsed.get("why", "")
         description = parsed.get("what_changes", "") or parsed.get("summary", "")
 
@@ -340,7 +335,7 @@ class OpenSpecAdapter(BridgeAdapter):
 
     @beartype
     @require(lambda bundle_dir: isinstance(bundle_dir, Path), "Bundle directory must be Path")
-    @require(lambda bundle_dir: bundle_dir.exists(), "Bundle directory must exist")
+    @require(require_bundle_dir_exists, "Bundle directory must exist")
     @require(lambda proposal: isinstance(proposal, ChangeProposal), "Proposal must be ChangeProposal")
     @ensure(lambda result: result is None, "Must return None")
     def save_change_proposal(
@@ -359,6 +354,17 @@ class OpenSpecAdapter(BridgeAdapter):
         """
         msg = "OpenSpec adapter save_change_proposal is not implemented in Phase 1 (read-only sync). Use Phase 4 for bidirectional sync."
         raise NotImplementedError(msg)
+
+    def _openspec_proposal_title_from_parsed(self, parsed: dict[str, Any], change_name: str) -> str:
+        if parsed.get("summary"):
+            return parsed["summary"].split("\n")[0] if isinstance(parsed["summary"], str) else str(parsed["summary"])
+        if parsed.get("what_changes"):
+            return (
+                parsed["what_changes"].split("\n")[0]
+                if isinstance(parsed["what_changes"], str)
+                else str(parsed["what_changes"])
+            )
+        return change_name
 
     def _apply_parsed_title(self, feature: Feature, parsed: dict[str, Any]) -> None:
         """Update feature title from the first H1 header in raw_content."""
@@ -428,6 +434,17 @@ class OpenSpecAdapter(BridgeAdapter):
         else:
             feature.source_tracking.source_metadata.update(source_metadata)
 
+    def _merge_parsed_into_project_idea(self, project_bundle: Any, parsed: dict[str, Any]) -> None:
+        if parsed.get("purpose"):
+            purpose_list = parsed["purpose"] if isinstance(parsed["purpose"], list) else [parsed["purpose"]]
+            project_bundle.idea.narrative = "\n".join(purpose_list) if purpose_list else ""
+        if parsed.get("context"):
+            context_list = parsed["context"] if isinstance(parsed["context"], list) else [parsed["context"]]
+            if project_bundle.idea.narrative:
+                project_bundle.idea.narrative += "\n\n" + "\n".join(context_list)
+            else:
+                project_bundle.idea.narrative = "\n".join(context_list)
+
     def _import_project_context(
         self,
         project_md_path: Path,
@@ -454,20 +471,8 @@ class OpenSpecAdapter(BridgeAdapter):
                 metrics=None,
             )
 
-        # Update idea with parsed content
         if parsed:
-            # Use purpose as narrative
-            if parsed.get("purpose"):
-                purpose_list = parsed["purpose"] if isinstance(parsed["purpose"], list) else [parsed["purpose"]]
-                project_bundle.idea.narrative = "\n".join(purpose_list) if purpose_list else ""
-
-            # Use context as additional narrative
-            if parsed.get("context"):
-                context_list = parsed["context"] if isinstance(parsed["context"], list) else [parsed["context"]]
-                if project_bundle.idea.narrative:
-                    project_bundle.idea.narrative += "\n\n" + "\n".join(context_list)
-                else:
-                    project_bundle.idea.narrative = "\n".join(context_list)
+            self._merge_parsed_into_project_idea(project_bundle, parsed)
 
         # Store OpenSpec path in source_tracking (if bundle has source_tracking)
         openspec_path = str(project_md_path.relative_to(base_path if base_path else project_md_path.parent))
@@ -647,8 +652,8 @@ class OpenSpecAdapter(BridgeAdapter):
         return feature_dict
 
     @beartype
-    @require(lambda repo_path: repo_path.exists(), "Repository path must exist")
-    @require(lambda repo_path: repo_path.is_dir(), "Repository path must be a directory")
+    @require(require_repo_path_exists, "Repository path must exist")
+    @require(require_repo_path_is_dir, "Repository path must be a directory")
     def discover_features(self, repo_path: Path, bridge_config: BridgeConfig | None = None) -> list[dict[str, Any]]:
         """
         Discover features from OpenSpec repository.
@@ -685,20 +690,12 @@ class OpenSpecAdapter(BridgeAdapter):
 
         return features
 
-    def _find_or_create_feature(self, project_bundle: Any, feature_id: str) -> Feature:  # ProjectBundle
+    def _find_or_create_feature(self, project_bundle: ProjectBundle, feature_id: str) -> Feature:
         """Find existing feature or create new one."""
-        if hasattr(project_bundle, "features") and project_bundle.features:
-            # features is a dict[str, Feature]
-            if isinstance(project_bundle.features, dict):
-                if feature_id in project_bundle.features:
-                    return project_bundle.features[feature_id]
-            else:
-                # Fallback for list (shouldn't happen but handle gracefully)
-                for feature in project_bundle.features:
-                    if hasattr(feature, "key") and feature.key == feature_id:
-                        return feature
+        existing = project_bundle.features.get(feature_id)
+        if existing is not None:
+            return existing
 
-        # Create new feature
         feature = Feature(
             key=feature_id,
             title=feature_id.replace("-", " ").title(),
@@ -707,21 +704,7 @@ class OpenSpecAdapter(BridgeAdapter):
             constraints=[],
             stories=[],
         )
-
-        if hasattr(project_bundle, "features"):
-            if project_bundle.features is None:
-                project_bundle.features = {}
-            # features is a dict[str, Feature]
-            if isinstance(project_bundle.features, dict):
-                project_bundle.features[feature_id] = feature
-            else:
-                # Fallback for list (shouldn't happen but handle gracefully)
-                if not hasattr(project_bundle.features, "append"):
-                    project_bundle.features = {}
-                    project_bundle.features[feature_id] = feature
-                else:
-                    project_bundle.features.append(feature)
-
+        project_bundle.features[feature_id] = feature
         return feature
 
     def _load_feature_deltas(
