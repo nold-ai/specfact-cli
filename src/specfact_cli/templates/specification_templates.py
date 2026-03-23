@@ -20,8 +20,8 @@ def _feature_spec_keys_nonblank(
     return feature_key.strip() != "" and feature_name.strip() != ""
 
 
-def _plan_key_nonblank(plan_key: str, _high_level_steps: list[str], _implementation_details_path: str) -> bool:
-    return plan_key.strip() != ""
+def _plan_key_nonblank(plan_key: str, high_level_steps: list[str], implementation_details_path: str) -> bool:
+    return bool(plan_key.strip()) and len(high_level_steps) > 0 and implementation_details_path.strip() != ""
 
 
 def _contract_paths_nonblank(contract_key: str, openapi_spec_path: str) -> bool:

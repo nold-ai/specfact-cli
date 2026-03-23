@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from _pytest.logging import LogCaptureFixture
 
 
 def _load_script_module() -> Any:
@@ -28,7 +29,7 @@ def _write_index(tmp_path: Path, modules: list[dict[str, Any]] | None = None) ->
     return index_path
 
 
-def test_gate_exits_zero_when_all_bundles_present(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+def test_gate_exits_zero_when_all_bundles_present(tmp_path: Path, caplog: LogCaptureFixture) -> None:
     """Calling gate with non-empty module list and valid index exits 0."""
     module = _load_script_module()
     index_path = _write_index(
@@ -51,6 +52,7 @@ def test_gate_exits_zero_when_all_bundles_present(tmp_path: Path, capsys: pytest
 
     module.load_module_bundle_mapping = _fake_mapping  # type: ignore[attr-defined]
 
+    caplog.set_level("INFO")
     exit_code = module.main(
         [
             "--modules",
@@ -60,18 +62,17 @@ def test_gate_exits_zero_when_all_bundles_present(tmp_path: Path, capsys: pytest
             "--skip-download-check",
         ]
     )
-    captured = capsys.readouterr().out
-
     assert exit_code == 0
-    assert "PASS" in captured
-    assert "specfact-project" in captured
+    assert "PASS" in caplog.text
+    assert "specfact-project" in caplog.text
 
 
-def test_gate_fails_when_registry_index_missing(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+def test_gate_fails_when_registry_index_missing(tmp_path: Path, caplog: LogCaptureFixture) -> None:
     """Calling gate when index.json is missing exits 1 with an error message."""
     module = _load_script_module()
     missing_index = tmp_path / "missing-index.json"
 
+    caplog.set_level("INFO")
     exit_code = module.main(
         [
             "--modules",
@@ -81,13 +82,11 @@ def test_gate_fails_when_registry_index_missing(tmp_path: Path, capsys: pytest.C
             "--skip-download-check",
         ]
     )
-    captured = capsys.readouterr().out
-
     assert exit_code == 1
-    assert "Registry index not found" in captured
+    assert "Registry index not found" in caplog.text
 
 
-def test_gate_fails_when_bundle_entry_missing(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+def test_gate_fails_when_bundle_entry_missing(tmp_path: Path, caplog: LogCaptureFixture) -> None:
     """Calling gate when a module's bundle has no entry in index.json exits 1."""
     module = _load_script_module()
     index_path = _write_index(tmp_path, modules=[])
@@ -97,6 +96,7 @@ def test_gate_fails_when_bundle_entry_missing(tmp_path: Path, capsys: pytest.Cap
 
     module.load_module_bundle_mapping = _fake_mapping  # type: ignore[attr-defined]
 
+    caplog.set_level("INFO")
     exit_code = module.main(
         [
             "--modules",
@@ -106,14 +106,12 @@ def test_gate_fails_when_bundle_entry_missing(tmp_path: Path, capsys: pytest.Cap
             "--skip-download-check",
         ]
     )
-    captured = capsys.readouterr().out
-
     assert exit_code == 1
-    assert "MISSING" in captured
-    assert "specfact-project" in captured
+    assert "MISSING" in caplog.text
+    assert "specfact-project" in caplog.text
 
 
-def test_gate_fails_when_signature_verification_fails(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+def test_gate_fails_when_signature_verification_fails(tmp_path: Path, caplog: LogCaptureFixture) -> None:
     """Signature failure for a bundle entry should cause exit 1 and mention SIGNATURE INVALID."""
     module = _load_script_module()
     index_path = _write_index(
@@ -134,6 +132,7 @@ def test_gate_fails_when_signature_verification_fails(tmp_path: Path, capsys: py
 
     module.load_module_bundle_mapping = _fake_mapping  # type: ignore[attr-defined]
 
+    caplog.set_level("INFO")
     exit_code = module.main(
         [
             "--modules",
@@ -143,17 +142,16 @@ def test_gate_fails_when_signature_verification_fails(tmp_path: Path, capsys: py
             "--skip-download-check",
         ]
     )
-    captured = capsys.readouterr().out
-
     assert exit_code == 1
-    assert "SIGNATURE INVALID" in captured
+    assert "SIGNATURE INVALID" in caplog.text
 
 
-def test_empty_module_list_violates_precondition(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+def test_empty_module_list_violates_precondition(tmp_path: Path, caplog: LogCaptureFixture) -> None:
     """Calling gate with empty module list should violate precondition and exit 1."""
     module = _load_script_module()
     index_path = _write_index(tmp_path, modules=[])
 
+    caplog.set_level("INFO")
     exit_code = module.main(
         [
             "--modules",
@@ -163,10 +161,8 @@ def test_empty_module_list_violates_precondition(tmp_path: Path, capsys: pytest.
             "--skip-download-check",
         ]
     )
-    captured = capsys.readouterr().out
-
     assert exit_code == 1
-    assert "precondition" in captured.lower()
+    assert "precondition" in caplog.text.lower()
 
 
 def test_load_module_bundle_mapping_reads_bundle_field(tmp_path: Path) -> None:

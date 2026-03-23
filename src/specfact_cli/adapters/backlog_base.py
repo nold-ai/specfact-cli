@@ -14,8 +14,9 @@ from __future__ import annotations
 import re
 import time
 from abc import ABC, abstractmethod
+from collections.abc import Mapping
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, cast
 
 import requests
 from beartype import beartype
@@ -346,12 +347,12 @@ class BacklogAdapterMixin(ABC):
             return url
 
         links = item_data.get("_links")
-        if not isinstance(links, dict):
+        if not isinstance(links, Mapping):
             return ""
-        html_link = links.get("html")
-        if not isinstance(html_link, dict):
+        html_link = cast(Mapping[str, Any], links).get("html")
+        if not isinstance(html_link, Mapping):
             return ""
-        href = html_link.get("href")
+        href = cast(Mapping[str, Any], html_link).get("href")
         return href if isinstance(href, str) else ""
 
     @beartype

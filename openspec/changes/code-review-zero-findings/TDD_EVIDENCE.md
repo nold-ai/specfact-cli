@@ -137,3 +137,50 @@ hatch run specfact code review run --scope full --json --out /tmp/baseline-revie
 **Command:** `hatch run specfact code review run --scope full --json --out /tmp/review-final.json`
 **Timestamp:** 2026-03-22 23:59:52 UTC (local) / 2026-03-22T23:00:57Z (report `timestamp` field)
 **Result:** `overall_verdict: PASS`, **`findings: []`**, summary: "Review completed with no findings."
+
+---
+
+## Verification refresh (2026-03-23)
+
+**Command:** `hatch run basedpyright src/specfact_cli/adapters/backlog_base.py src/specfact_cli/adapters/ado.py`
+**Timestamp:** 2026-03-23T00:45:37+01:00
+**Result:** PASS — `0 errors, 0 warnings, 0 notes`
+  - cleared the remaining `reportUnknownMemberType` warnings in `src/specfact_cli/adapters/backlog_base.py`
+
+**Command:** `hatch run radon cc -s -n C src/specfact_cli/adapters/ado.py`
+**Timestamp:** 2026-03-23T00:45:37+01:00
+**Result:** PASS — `_get_work_item_data` no longer appears in the CC13 warning band
+
+**Command:** `hatch run specfact code review run --scope full`
+**Timestamp:** 2026-03-23 00:45:44 +0100 start / 2026-03-23 00:46:20 +0100 finish
+**Result:** PASS — `Review completed with no findings.`
+  - Verdict: `PASS`
+  - CI exit: `0`
+  - Score: `115`
+  - Reward delta: `35`
+
+---
+
+## Regression-fix verification refresh (2026-03-23)
+
+**Command:** `hatch run python -c "from pathlib import Path; from specfact_cli.registry.module_installer import get_bundled_module_metadata, verify_module_artifact; meta=get_bundled_module_metadata()['bundle-mapper']; print(verify_module_artifact(Path('modules/bundle-mapper'), meta, allow_unsigned=True, require_integrity=True))"`
+**Timestamp:** 2026-03-23T00:59:25+01:00
+**Result:** PASS — `True`
+  - aligned runtime artifact verification with the module signing payload by excluding `tests/` from hashed module directories
+  - confirmed the manually re-signed `modules/bundle-mapper/module-package.yaml` now passes bundled-module integrity checks
+
+**Command:** `hatch run basedpyright src/specfact_cli/templates/specification_templates.py src/specfact_cli/registry/module_installer.py tests/integration/test_command_package_runtime_validation.py tests/unit/scripts/test_verify_bundle_published.py`
+**Timestamp:** 2026-03-23T00:59:25+01:00
+**Result:** PASS — `0 errors, 0 warnings, 0 notes`
+
+**Command:** `hatch run pytest tests/integration/test_command_package_runtime_validation.py::test_command_audit_help_cases_execute_cleanly_in_temp_home -q`
+**Timestamp:** 2026-03-23 ~01:00 CET
+**Result:** PASS — `1 passed in 23.57s`
+  - optimized the command-audit proof by seeding marketplace modules from local package fixtures and running `help-only` audit cases in-process while keeping fixture-backed cases subprocess-isolated
+
+**Command:** `hatch run pytest tests/unit/scripts/test_verify_bundle_published.py tests/unit/specfact_cli/test_module_boundary_imports.py tests/unit/templates/test_specification_templates.py tests/integration/test_command_package_runtime_validation.py -q`
+**Timestamp:** 2026-03-23 ~01:00 CET
+**Result:** PASS — `29 passed in 27.48s`
+  - `verify-bundle-published` tests updated to assert structured log output instead of stdout
+  - stale core-repo sync runtime unit tests removed to satisfy module-boundary migration gate
+  - implementation-plan template contract helper fixed so factory calls no longer fail with unset condition arguments

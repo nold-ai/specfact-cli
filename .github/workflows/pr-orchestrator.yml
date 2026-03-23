@@ -85,7 +85,7 @@ jobs:
       - name: Install verifier dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install pyyaml cryptography cffi
+          python -m pip install pyyaml beartype icontract cryptography cffi
 
       - name: Verify bundled module checksums and signatures
         run: |
@@ -647,13 +647,15 @@ jobs:
             exit 1
           fi
           python -m pip install --upgrade pip
-          python -m pip install pyyaml cryptography cffi
+          python -m pip install pyyaml beartype icontract cryptography cffi
           python - <<'PY'
+          import beartype
           import cffi
           import cryptography
+          import icontract
           import yaml
 
-          print("✅ signing dependencies available:", yaml.__version__, cryptography.__version__, cffi.__version__)
+          print("✅ signing dependencies available:", yaml.__version__, cryptography.__version__, cffi.__version__, beartype.__version__, icontract.__version__)
           PY
           BASE_REF="${{ github.event.before }}"
           if [ -z "$BASE_REF" ] || [ "$BASE_REF" = "0000000000000000000000000000000000000000" ]; then

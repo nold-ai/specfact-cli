@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import os
 import re
+from collections.abc import Mapping
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, NoReturn, cast
@@ -53,6 +54,20 @@ console = Console()
 def _as_str_dict(obj: dict[Any, Any]) -> dict[str, Any]:
     """Narrow a runtime ``dict`` to ``dict[str, Any]`` for static analysis."""
     return cast(dict[str, Any], obj)
+
+
+def _normalize_work_item_data(raw: object) -> dict[str, Any] | None:
+    """Return work item payload with common top-level fields mirrored from ``fields``."""
+    if not isinstance(raw, dict):
+        return None
+
+    work_item_data = cast(dict[str, Any], raw)
+    fields_raw = work_item_data.get("fields", {})
+    fields = cast(dict[str, Any], fields_raw) if isinstance(fields_raw, dict) else {}
+    work_item_data.setdefault("title", str(fields.get("System.Title", "") or ""))
+    work_item_data.setdefault("state", str(fields.get("System.State", "") or ""))
+    work_item_data.setdefault("description", str(fields.get("System.Description", "") or ""))
+    return work_item_data
 
 
 def _log_ado_patch_failure(
@@ -335,7 +350,7 @@ def _ado_project_paths_ambiguous(source_url: str, entry_project: str | None, tar
 
 
 def _ado_uncertain_org_match_conditions(
-    entry: dict[str, Any],
+    entry: Mapping[str, Any],
     entry_repo: str,
     target_repo: str,
     source_url: str,
@@ -355,7 +370,7 @@ def _ado_uncertain_org_match_conditions(
 
 
 def _content_update_match_ado_org_project_uncertain(
-    entry: dict[str, Any], entry_repo: str, target_repo: str
+    entry: Mapping[str, Any], entry_repo: str, target_repo: str
 ) -> Any | None:
     """Match by org when project identity is ambiguous (GUID URLs, etc.)."""
     if str(entry.get("source_type", "") or "").lower() != "ado":
@@ -1978,15 +1993,7 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
 
         try:
             response = self._ado_get(url, headers=headers, timeout=10)
-            work_item_data = response.json()
-            if not isinstance(work_item_data, dict):
-                return None
-            fields = work_item_data.get("fields", {})
-            if isinstance(fields, dict):
-                work_item_data.setdefault("title", fields.get("System.Title", ""))
-                work_item_data.setdefault("state", fields.get("System.State", ""))
-                work_item_data.setdefault("description", fields.get("System.Description", ""))
-            return work_item_data
+            return _normalize_work_item_data(response.json())
         except requests.HTTPError as e:
             if e.response is not None and e.response.status_code == 404:
                 return None
