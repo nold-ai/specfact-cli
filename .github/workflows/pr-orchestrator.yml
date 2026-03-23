@@ -183,19 +183,17 @@ jobs:
             fi
           fi
 
-      - name: Run full test suite (smart-test-full)
+      - name: Run full test suite (direct smart-test-full)
         if: needs.changes.outputs.skip_tests_dev_to_main != 'true'
         shell: bash
         env:
           CONTRACT_FIRST_TESTING: "true"
           TEST_MODE: "true"
-          HATCH_TEST_ENV: "py3.12"
           SMART_TEST_TIMEOUT_SECONDS: "1800"
           PYTEST_ADDOPTS: "-r fEw"
         run: |
-          echo "🧪 Running full test suite (smart-test-full, Python 3.12)..."
-          echo "ℹ️ HATCH_TEST_ENV=${HATCH_TEST_ENV}"
-          hatch run smart-test-full
+          echo "🧪 Running full test suite (direct smart-test-full, Python 3.12)..."
+          python tools/smart_test_coverage.py run --level full
 
       - name: Generate coverage XML for quality gates
         if: needs.changes.outputs.skip_tests_dev_to_main != 'true' && env.RUN_UNIT_COVERAGE == 'true'
