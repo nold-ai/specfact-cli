@@ -653,6 +653,8 @@ class SmartCoverageManager:
         for line in iter(proc.stdout.readline, ""):
             if line:
                 logger.debug("%s", line.rstrip())
+                sys.stdout.write(line)
+                sys.stdout.flush()
                 log_file.write(line)
                 log_file.flush()
                 output_local.append(line)

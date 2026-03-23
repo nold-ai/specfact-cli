@@ -184,3 +184,27 @@ hatch run specfact code review run --scope full --json --out /tmp/baseline-revie
   - `verify-bundle-published` tests updated to assert structured log output instead of stdout
   - stale core-repo sync runtime unit tests removed to satisfy module-boundary migration gate
   - implementation-plan template contract helper fixed so factory calls no longer fail with unset condition arguments
+
+---
+
+## CI progress regression TDD (2026-03-23)
+
+**Command:** `hatch run pytest tests/unit/tools/test_smart_test_coverage.py -q -k popen_stream_to_log_streams_to_stdout_and_log_file`
+**Timestamp:** 2026-03-23T01:15:35+01:00
+**Result:** FAIL — `1 failed, 75 deselected`
+  - failure reproduced the CI regression after switching the workflow to direct `python tools/smart_test_coverage.py run --level full`
+  - `_popen_stream_to_log()` wrote subprocess lines into the persistent log buffer, but `captured.out` stayed empty, so GitHub Actions no longer showed live pytest progress
+
+**Command:** `hatch run pytest tests/unit/tools/test_smart_test_coverage.py -q -k popen_stream_to_log_streams_to_stdout_and_log_file`
+**Timestamp:** 2026-03-23T01:16:48+01:00
+**Result:** PASS — `1 passed, 75 deselected`
+  - `_popen_stream_to_log()` now tees each subprocess line to stdout while still appending it to the persistent log file
+
+**Command:** `hatch run pytest tests/unit/tools/test_smart_test_coverage.py tests/unit/tools/test_smart_test_coverage_enhanced.py -q`
+**Timestamp:** 2026-03-23T01:16:48+01:00
+**Result:** PASS — `107 passed in 1.70s`
+  - verified the stdout tee does not break the existing smart-test runner behaviors around full, unit, folder, integration, fallback, and threshold handling
+
+**Command:** `hatch run basedpyright tools/smart_test_coverage.py`
+**Timestamp:** 2026-03-23T01:16:48+01:00
+**Result:** PASS — `0 errors, 0 warnings, 0 notes`

@@ -9,6 +9,7 @@ Tests the SmartCoverageManager class and its functionality including:
 - Status reporting
 """
 
+import io
 import json
 import logging
 import os
@@ -276,6 +277,31 @@ class TestSmartCoverageManager:
         test_file.write_text("def test_modified(): pass")
 
         assert self.manager._has_test_changes() is True
+
+    @patch("subprocess.Popen")
+    def test_popen_stream_to_log_streams_to_stdout_and_log_file(self, mock_popen, capsys):
+        """Test subprocess output is streamed both to stdout and the persistent log."""
+        mock_process = Mock()
+        mock_process.stdout = Mock()
+        mock_process.stdout.readline.side_effect = ["first line\n", "second line\n", ""]
+        mock_process.wait.return_value = 0
+        mock_popen.return_value = mock_process
+
+        log_buffer = io.StringIO()
+
+        return_code, output_lines, startup_error = self.manager._popen_stream_to_log(
+            ["python", "-m", "pytest"],
+            log_buffer,
+            timeout=30,
+        )
+
+        captured = capsys.readouterr()
+
+        assert return_code == 0
+        assert startup_error is None
+        assert output_lines == ["first line\n", "second line\n"]
+        assert log_buffer.getvalue() == "first line\nsecond line\n"
+        assert captured.out == "first line\nsecond line\n"
 
     @patch("subprocess.Popen")
     def test_run_coverage_tests_success(self, mock_popen):
