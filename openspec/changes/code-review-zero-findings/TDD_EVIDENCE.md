@@ -208,3 +208,27 @@ hatch run specfact code review run --scope full --json --out /tmp/baseline-revie
 **Command:** `hatch run basedpyright tools/smart_test_coverage.py`
 **Timestamp:** 2026-03-23T01:16:48+01:00
 **Result:** PASS — `0 errors, 0 warnings, 0 notes`
+
+---
+
+## Command audit temp-home CI regression TDD (2026-03-23)
+
+**Command:** `HOME=/tmp/specfact-ci-empty-home SPECFACT_MODULES_REPO=/home/dom/git/nold-ai/specfact-cli-modules PYTHONPATH=/home/dom/git/nold-ai/specfact-cli-worktrees/bugfix/code-review-zero-findings/src:/home/dom/git/nold-ai/specfact-cli-worktrees/bugfix/code-review-zero-findings /home/dom/git/nold-ai/specfact-cli/.venv/bin/python -m pytest tests/integration/test_command_package_runtime_validation.py -q -k test_command_audit_help_cases_execute_cleanly_in_temp_home`
+**Timestamp:** 2026-03-23T01:26:45+01:00
+**Result:** FAIL — `1 failed, 1 deselected in 13.31s`
+  - reproduced the GitHub Actions failure under a clean `HOME`
+  - the optimized in-process `help-only` path reused a root CLI app that had been imported against the original process home, so bundle commands like `project`, `spec`, `code`, `backlog`, and `govern` were missing even though the temp-home marketplace modules had been seeded correctly
+
+**Command:** `hatch run pytest tests/integration/test_command_package_runtime_validation.py -q`
+**Timestamp:** 2026-03-23T01:26:45+01:00
+**Result:** PASS — `2 passed in 24.87s`
+  - the help-only audit now rebuilds the existing root Typer app once per temp-home test run after resetting `CommandRegistry` and pointing discovery/installer roots at the temporary home
+
+**Command:** `HOME=/tmp/specfact-ci-empty-home SPECFACT_MODULES_REPO=/home/dom/git/nold-ai/specfact-cli-modules PYTHONPATH=/home/dom/git/nold-ai/specfact-cli-worktrees/bugfix/code-review-zero-findings/src:/home/dom/git/nold-ai/specfact-cli-worktrees/bugfix/code-review-zero-findings /home/dom/git/nold-ai/specfact-cli/.venv/bin/python -m pytest tests/integration/test_command_package_runtime_validation.py -q -k test_command_audit_help_cases_execute_cleanly_in_temp_home`
+**Timestamp:** 2026-03-23T01:26:45+01:00
+**Result:** PASS — `1 passed, 1 deselected in 14.19s`
+  - confirms the CI-equivalent clean-home environment now sees the seeded workflow bundles during the fast in-process help audit path
+
+**Command:** `hatch run basedpyright tests/integration/test_command_package_runtime_validation.py`
+**Timestamp:** 2026-03-23T01:26:45+01:00
+**Result:** PASS — `0 errors, 0 warnings, 0 notes`

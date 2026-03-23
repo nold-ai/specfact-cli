@@ -11,10 +11,10 @@ from pathlib import Path
 from typing import Any, cast
 
 import pytest
+import typer
 import yaml
 from typer.testing import CliRunner
 
-from specfact_cli.cli import app
 from specfact_cli.registry.module_installer import _module_artifact_payload_signed
 from specfact_cli.validation.command_audit import (
     CommandAuditCase,
@@ -192,8 +192,44 @@ def _run_cli(env: dict[str, str], *argv: str, cwd: Path | None = None) -> subpro
     )
 
 
+def _load_cli_app_for_home(home_dir: Path) -> typer.Typer:
+    user_modules_root = home_dir / ".specfact" / "modules"
+    marketplace_modules_root = home_dir / ".specfact" / "marketplace-modules"
+    custom_modules_root = home_dir / ".specfact" / "custom-modules"
+    download_cache_root = home_dir / ".specfact" / "downloads" / "cache"
+    config_path = home_dir / ".specfact" / "config.yaml"
+
+    import specfact_cli.cli as cli_module
+    import specfact_cli.registry.bootstrap as bootstrap_module
+    import specfact_cli.registry.module_discovery as module_discovery
+    import specfact_cli.registry.module_installer as module_installer
+    from specfact_cli.registry.registry import CommandRegistry
+
+    module_discovery.USER_MODULES_ROOT = user_modules_root
+    module_discovery.MARKETPLACE_MODULES_ROOT = marketplace_modules_root
+    module_discovery.CUSTOM_MODULES_ROOT = custom_modules_root
+
+    module_installer.USER_MODULES_ROOT = user_modules_root
+    module_installer.MARKETPLACE_MODULES_ROOT = marketplace_modules_root
+    module_installer.MODULE_DOWNLOAD_CACHE_ROOT = download_cache_root
+
+    bootstrap_module._SPECFACT_CONFIG_PATH = config_path
+
+    CommandRegistry._clear_for_testing()
+    cli_module.app.registered_groups = []
+    cli_module.app.registered_commands = []
+    bootstrap_module.register_builtin_commands()
+    for name, meta in cli_module._grouped_command_order(CommandRegistry.list_commands_for_help()):
+        cli_module.app.add_typer(cli_module._make_lazy_typer(name, meta.help), name=name, help=meta.help)
+    return cli_module.app
+
+
 def _run_help_case(
-    case: CommandAuditCase, home_dir: Path, env: dict[str, str], monkeypatch: pytest.MonkeyPatch
+    app: typer.Typer,
+    case: CommandAuditCase,
+    home_dir: Path,
+    env: dict[str, str],
+    monkeypatch: pytest.MonkeyPatch,
 ) -> tuple[int, str]:
     runner = CliRunner()
     packages_root = MODULES_REPO / "packages"
@@ -226,20 +262,25 @@ def test_command_audit_help_cases_execute_cleanly_in_temp_home(tmp_path: Path, m
     env = _subprocess_env(home_dir)
     _seed_marketplace_modules(home_dir)
 
-    failures: list[str] = []
-    for case in build_command_audit_cases():
-        if case.mode == "help-only":
-            return_code, merged_output = _run_help_case(case, home_dir, env, monkeypatch)
-        else:
-            result = _run_cli(env, *case.argv, cwd=home_dir)
-            return_code = result.returncode
-            merged_output = ((result.stdout or "") + "\n" + (result.stderr or "")).strip()
-        if return_code != 0:
-            failures.append(f"{case.command_path}: rc={return_code}\nOUTPUT:\n{merged_output}")
-            continue
-        leaked = [marker for marker in FORBIDDEN_OUTPUT if marker in merged_output]
-        if leaked:
-            failures.append(f"{case.command_path}: leaked diagnostics {leaked}\nOUTPUT:\n{merged_output}")
+    with monkeypatch.context() as context:
+        context.setenv("HOME", str(home_dir))
+        context.setenv("SPECFACT_MODULES_REPO", str(MODULES_REPO.resolve()))
+        help_app = _load_cli_app_for_home(home_dir)
+
+        failures: list[str] = []
+        for case in build_command_audit_cases():
+            if case.mode == "help-only":
+                return_code, merged_output = _run_help_case(help_app, case, home_dir, env, monkeypatch)
+            else:
+                result = _run_cli(env, *case.argv, cwd=home_dir)
+                return_code = result.returncode
+                merged_output = ((result.stdout or "") + "\n" + (result.stderr or "")).strip()
+            if return_code != 0:
+                failures.append(f"{case.command_path}: rc={return_code}\nOUTPUT:\n{merged_output}")
+                continue
+            leaked = [marker for marker in FORBIDDEN_OUTPUT if marker in merged_output]
+            if leaked:
+                failures.append(f"{case.command_path}: leaked diagnostics {leaked}\nOUTPUT:\n{merged_output}")
 
     assert not failures, "\n\n".join(failures)
 
