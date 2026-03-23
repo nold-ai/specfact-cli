@@ -8,12 +8,16 @@ friendly `--inplace-update` option that maps to `--update-existing`.
 from __future__ import annotations
 
 import argparse
+import logging
 import subprocess
 import sys
 from pathlib import Path
 
 from beartype import beartype
-from icontract import ViolationError, require
+from icontract import ViolationError, ensure, require
+
+
+logger = logging.getLogger(__name__)
 
 
 @beartype
@@ -67,6 +71,8 @@ def _parse_change_ids(args: argparse.Namespace) -> list[str]:
 
 
 @beartype
+@require(lambda argv: argv is None or isinstance(argv, list), "argv must be a list or None")
+@ensure(lambda result: result >= 0, "exit code must be non-negative")
 def main(argv: list[str] | None = None) -> int:
     """CLI entrypoint."""
     parser = argparse.ArgumentParser(
@@ -104,8 +110,8 @@ def main(argv: list[str] | None = None) -> int:
         inplace_update=args.inplace_update,
     )
 
-    print("Resolved command:")
-    print(" ".join(command))
+    logger.info("Resolved command:")
+    logger.info("%s", " ".join(command))
 
     if args.dry_run:
         return 0
@@ -115,4 +121,5 @@ def main(argv: list[str] | None = None) -> int:
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
     sys.exit(main())

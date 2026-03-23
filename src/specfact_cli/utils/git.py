@@ -7,7 +7,7 @@ This module provides helpers for common Git operations used by the CLI.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from beartype import beartype
 from git.exc import InvalidGitRepositoryError
@@ -33,6 +33,11 @@ class GitOperations:
         if self._is_git_repo():
             self.repo = Repo(self.repo_path)
 
+    def _active_repo(self) -> Repo:
+        if self.repo is None:
+            raise ValueError("Git repository not initialized")
+        return self.repo
+
     def _is_git_repo(self) -> bool:
         """
         Check if path is a Git repository.
@@ -46,6 +51,7 @@ class GitOperations:
         except InvalidGitRepositoryError:
             return False
 
+    @ensure(lambda result: result is None, "init must return None")
     def init(self) -> None:
         """Initialize a new Git repository."""
         self.repo = Repo.init(self.repo_path)
@@ -55,7 +61,6 @@ class GitOperations:
         lambda branch_name: isinstance(branch_name, str) and len(branch_name) > 0,
         "Branch name must be non-empty string",
     )
-    @require(lambda self: self.repo is not None, "Git repository must be initialized")
     def create_branch(self, branch_name: str, checkout: bool = True) -> None:
         """
         Create a new branch.
@@ -67,10 +72,9 @@ class GitOperations:
         Raises:
             ValueError: If repository is not initialized
         """
-        if self.repo is None:
-            raise ValueError("Git repository not initialized")
+        repo: Repo = self._active_repo()
 
-        new_branch = self.repo.create_head(branch_name)
+        new_branch = repo.create_head(branch_name)
         if checkout:
             new_branch.checkout()
 
@@ -79,7 +83,6 @@ class GitOperations:
         lambda ref: isinstance(ref, str) and len(ref) > 0,
         "Ref must be non-empty string",
     )
-    @require(lambda self: self.repo is not None, "Git repository must be initialized")
     def checkout(self, ref: str) -> None:
         """
         Checkout a branch or commit.
@@ -90,23 +93,21 @@ class GitOperations:
         Raises:
             ValueError: If repository is not initialized
         """
-        if self.repo is None:
-            raise ValueError("Git repository not initialized")
+        repo: Repo = self._active_repo()
 
         # Try as branch first, then as commit
         try:
-            self.repo.heads[ref].checkout()
+            repo.heads[ref].checkout()
         except (IndexError, KeyError):
             # Not a branch, try as commit
             try:
-                commit = self.repo.commit(ref)
-                self.repo.git.checkout(commit.hexsha)
+                commit = repo.commit(ref)
+                repo.git.checkout(commit.hexsha)
             except Exception as e:
                 raise ValueError(f"Invalid branch or commit reference: {ref}") from e
 
     @beartype
     @require(lambda files: isinstance(files, (list, Path, str)), "Files must be list, Path, or str")
-    @require(lambda self: self.repo is not None, "Git repository must be initialized")
     def add(self, files: list[Path | str] | Path | str) -> None:
         """
         Add files to the staging area.
@@ -117,18 +118,17 @@ class GitOperations:
         Raises:
             ValueError: If repository is not initialized
         """
-        if self.repo is None:
-            raise ValueError("Git repository not initialized")
+        repo: Repo = self._active_repo()
 
         if isinstance(files, (Path, str)):
             files = [files]
 
+        index = cast(Any, repo.index)
         for file_path in files:
-            self.repo.index.add([str(file_path)])
+            index.add([str(file_path)])
 
     @beartype
     @require(lambda message: isinstance(message, str) and len(message) > 0, "Commit message must be non-empty string")
-    @require(lambda self: self.repo is not None, "Git repository must be initialized")
     @ensure(lambda result: result is not None, "Must return commit object")
     def commit(self, message: str) -> Any:
         """
@@ -143,10 +143,7 @@ class GitOperations:
         Raises:
             ValueError: If repository is not initialized
         """
-        if self.repo is None:
-            raise ValueError("Git repository not initialized")
-
-        return self.repo.index.commit(message)
+        return self._active_repo().index.commit(message)
 
     @beartype
     @require(lambda remote: isinstance(remote, str) and len(remote) > 0, "Remote name must be non-empty string")
@@ -154,7 +151,6 @@ class GitOperations:
         lambda branch: branch is None or (isinstance(branch, str) and len(branch) > 0),
         "Branch name must be None or non-empty string",
     )
-    @require(lambda self: self.repo is not None, "Git repository must be initialized")
     def push(self, remote: str = "origin", branch: str | None = None) -> None:
         """
         Push commits to remote repository.
@@ -166,17 +162,15 @@ class GitOperations:
         Raises:
             ValueError: If repository is not initialized
         """
-        if self.repo is None:
-            raise ValueError("Git repository not initialized")
+        repo: Repo = self._active_repo()
 
         if branch is None:
-            branch = self.repo.active_branch.name
+            branch = repo.active_branch.name
 
-        origin = self.repo.remote(name=remote)
+        origin = repo.remote(name=remote)
         origin.push(branch)
 
     @beartype
-    @require(lambda self: self.repo is not None, "Git repository must be initialized")
     @ensure(lambda result: isinstance(result, str) and len(result) > 0, "Must return non-empty branch name")
     def get_current_branch(self) -> str:
         """
@@ -188,13 +182,10 @@ class GitOperations:
         Raises:
             ValueError: If repository is not initialized
         """
-        if self.repo is None:
-            raise ValueError("Git repository not initialized")
-
-        return self.repo.active_branch.name
+        repo: Repo = self._active_repo()
+        return repo.active_branch.name
 
     @beartype
-    @require(lambda self: self.repo is not None, "Git repository must be initialized")
     @ensure(lambda result: isinstance(result, list), "Must return list")
     @ensure(lambda result: all(isinstance(b, str) for b in result), "All items must be strings")
     def list_branches(self) -> list[str]:
@@ -207,13 +198,10 @@ class GitOperations:
         Raises:
             ValueError: If repository is not initialized
         """
-        if self.repo is None:
-            raise ValueError("Git repository not initialized")
-
-        return [str(head) for head in self.repo.heads]
+        repo: Repo = self._active_repo()
+        return [str(head) for head in repo.heads]
 
     @beartype
-    @require(lambda self: self.repo is not None, "Git repository must be initialized")
     @ensure(lambda result: isinstance(result, bool), "Must return boolean")
     def is_clean(self) -> bool:
         """
@@ -225,13 +213,10 @@ class GitOperations:
         Raises:
             ValueError: If repository is not initialized
         """
-        if self.repo is None:
-            raise ValueError("Git repository not initialized")
-
-        return not self.repo.is_dirty()
+        repo: Repo = self._active_repo()
+        return not repo.is_dirty()
 
     @beartype
-    @require(lambda self: self.repo is not None, "Git repository must be initialized")
     @ensure(lambda result: isinstance(result, list), "Must return list")
     @ensure(lambda result: all(isinstance(f, str) for f in result), "All items must be strings")
     def get_changed_files(self) -> list[str]:
@@ -244,7 +229,5 @@ class GitOperations:
         Raises:
             ValueError: If repository is not initialized
         """
-        if self.repo is None:
-            raise ValueError("Git repository not initialized")
-
-        return [item.a_path for item in self.repo.index.diff(None) if item.a_path is not None]
+        repo: Repo = self._active_repo()
+        return [item.a_path for item in repo.index.diff(None) if item.a_path is not None]

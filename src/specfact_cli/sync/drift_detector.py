@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from beartype import beartype
 from icontract import ensure, require
@@ -30,6 +30,9 @@ class DriftReport:
 class DriftDetector:
     """Detector for drift between code and specifications."""
 
+    bundle_name: str
+    repo_path: Path
+
     def __init__(self, bundle_name: str, repo_path: Path) -> None:
         """
         Initialize drift detector.
@@ -42,7 +45,7 @@ class DriftDetector:
         self.repo_path = repo_path.resolve()
 
     @beartype
-    @require(lambda self: self.repo_path.exists(), "Repository path must exist")
+    @require(lambda self: cast(Path, self.repo_path).exists(), "Repository path must exist")
     @require(lambda self, bundle_name: isinstance(bundle_name, str), "Bundle name must be string")
     @ensure(lambda self, bundle_name, result: isinstance(result, DriftReport), "Must return DriftReport")
     def scan(self, bundle_name: str, repo_path: Path) -> DriftReport:
@@ -68,48 +71,53 @@ class DriftDetector:
 
         project_bundle = load_project_bundle(bundle_dir)
 
-        # Track all files referenced in specs
         spec_tracked_files: set[str] = set()
-
-        # Check each feature
         for feature_key, feature in project_bundle.features.items():
-            if feature.source_tracking:
-                # Check implementation files
-                for impl_file in feature.source_tracking.implementation_files:
-                    spec_tracked_files.add(impl_file)
-                    file_path = repo_path / impl_file
+            self._accumulate_feature_drift(feature_key, feature, repo_path, report, spec_tracked_files)
 
-                    if not file_path.exists():
-                        # File deleted but spec exists
-                        report.removed_code.append(impl_file)
-                    elif feature.source_tracking.has_changed(file_path):
-                        # File modified
-                        report.modified_code.append(impl_file)
+        self._scan_untracked_implementation_files(repo_path, spec_tracked_files, report)
+        self._detect_contract_violations(project_bundle, bundle_dir, report)
 
-                # Check test files
-                for test_file in feature.source_tracking.test_files:
-                    spec_tracked_files.add(test_file)
-                    file_path = repo_path / test_file
+        return report
 
-                    if not file_path.exists():
-                        report.removed_code.append(test_file)
-                    elif feature.source_tracking.has_changed(file_path):
-                        report.modified_code.append(test_file)
+    def _accumulate_feature_drift(
+        self,
+        feature_key: str,
+        feature: Any,
+        repo_path: Path,
+        report: DriftReport,
+        spec_tracked_files: set[str],
+    ) -> None:
+        if not feature.source_tracking:
+            report.orphaned_specs.append(feature_key)
+            return
+        st = feature.source_tracking
+        for impl_file in st.implementation_files:
+            spec_tracked_files.add(impl_file)
+            file_path = repo_path / impl_file
+            if not file_path.exists():
+                report.removed_code.append(impl_file)
+            elif st.has_changed(file_path):
+                report.modified_code.append(impl_file)
 
-                # Check test coverage gaps
-                for story in feature.stories:
-                    if not story.test_functions:
-                        report.test_coverage_gaps.append((feature_key, story.key))
+        for test_file in st.test_files:
+            spec_tracked_files.add(test_file)
+            file_path = repo_path / test_file
+            if not file_path.exists():
+                report.removed_code.append(test_file)
+            elif st.has_changed(file_path):
+                report.modified_code.append(test_file)
 
-            else:
-                # Feature has no source tracking - orphaned spec
-                report.orphaned_specs.append(feature_key)
+        for story in feature.stories:
+            if not story.test_functions:
+                report.test_coverage_gaps.append((feature_key, story.key))
 
-        # Scan repository for untracked code files
+    def _scan_untracked_implementation_files(
+        self, repo_path: Path, spec_tracked_files: set[str], report: DriftReport
+    ) -> None:
         for pattern in ["src/**/*.py", "lib/**/*.py", "app/**/*.py"]:
             for file_path in repo_path.glob(pattern):
                 rel_path = str(file_path.relative_to(repo_path))
-                # Skip test files and common non-implementation files
                 if (
                     "test" in rel_path.lower()
                     or "__pycache__" in rel_path
@@ -117,14 +125,8 @@ class DriftDetector:
                     or rel_path in spec_tracked_files
                 ):
                     continue
-                # Check if it's a Python file that should be tracked
                 if file_path.suffix == ".py" and self._is_implementation_file(file_path):
                     report.added_code.append(rel_path)
-
-        # Validate contracts with Specmatic (if available)
-        self._detect_contract_violations(project_bundle, bundle_dir, report)
-
-        return report
 
     def _is_implementation_file(self, file_path: Path) -> bool:
         """Check if file is an implementation file."""

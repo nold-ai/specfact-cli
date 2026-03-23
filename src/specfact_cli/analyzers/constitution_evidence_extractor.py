@@ -14,6 +14,74 @@ from beartype import beartype
 from icontract import ensure, require
 
 
+def _framework_match_for_token(
+    token: str,
+    framework_imports: dict[str, list[str]],
+    rel_path: str,
+) -> tuple[set[str], list[str]]:
+    found: set[str] = set()
+    evidence: list[str] = []
+    for framework, patterns in framework_imports.items():
+        if not any(pattern.startswith(token) for pattern in patterns):
+            continue
+        found.add(framework)
+        evidence.append(f"Framework '{framework}' detected in {rel_path}")
+    return found, evidence
+
+
+def _viii_class_abstraction_layers(class_node: ast.ClassDef, rel_path: str) -> tuple[int, list[str]]:
+    layers = 0
+    evidence: list[str] = []
+    for base in class_node.bases:
+        if isinstance(base, ast.Name) and ("Model" in base.id or "Base" in base.id):
+            layers += 1
+            evidence.append(f"ORM pattern detected in {rel_path}: {base.id}")
+    return layers, evidence
+
+
+def _ix_decorator_hits(decorator: ast.expr, lineno: int, rel_path: str) -> tuple[int, list[str]]:
+    if isinstance(decorator, ast.Name):
+        name = decorator.id
+        if name in ("require", "ensure", "invariant", "beartype"):
+            return 1, [f"Contract decorator '@{name}' found in {rel_path}:{lineno}"]
+        return 0, []
+    if (
+        isinstance(decorator, ast.Attribute)
+        and isinstance(decorator.value, ast.Name)
+        and decorator.value.id == "icontract"
+    ):
+        return 1, [
+            f"Contract decorator '@icontract.{decorator.attr}' found in {rel_path}:{lineno}",
+        ]
+    return 0, []
+
+
+def _ix_function_metrics(
+    node: ast.FunctionDef | ast.AsyncFunctionDef,
+    rel_path: str,
+) -> tuple[int, int, int, list[str]]:
+    contract_decorators = 0
+    type_hinted = 1 if node.returns is not None else 0
+    evidence: list[str] = []
+    for decorator in node.decorator_list:
+        c, ev = _ix_decorator_hits(decorator, node.lineno, rel_path)
+        contract_decorators += c
+        evidence.extend(ev)
+    return contract_decorators, type_hinted, 1, evidence
+
+
+def _ix_pydantic_metrics(class_node: ast.ClassDef, rel_path: str) -> tuple[int, list[str]]:
+    pydantic_models = 0
+    evidence: list[str] = []
+    for base in class_node.bases:
+        if (isinstance(base, ast.Name) and ("BaseModel" in base.id or "Pydantic" in base.id)) or (
+            isinstance(base, ast.Attribute) and isinstance(base.value, ast.Name) and base.value.id == "pydantic"
+        ):
+            pydantic_models += 1
+            evidence.append(f"Pydantic model detected in {rel_path}: {class_node.name}")
+    return pydantic_models, evidence
+
+
 class ConstitutionEvidenceExtractor:
     """
     Extracts evidence-based constitution checklist from code patterns.
@@ -60,6 +128,84 @@ class ConstitutionEvidenceExtractor:
             repo_path: Path to repository root for analysis
         """
         self.repo_path = Path(repo_path)
+
+    def _scan_viii_python_file(self, repo_path: Path, py_file: Path) -> tuple[set[str], int, int, list[str]] | None:
+        if py_file.name.startswith(".") or "__pycache__" in str(py_file):
+            return None
+        try:
+            content = py_file.read_text(encoding="utf-8")
+            tree = ast.parse(content, filename=str(py_file))
+        except (SyntaxError, UnicodeDecodeError):
+            return None
+
+        frameworks_local: set[str] = set()
+        abstraction_layers = 0
+        total_imports = 0
+        evidence_local: list[str] = []
+        rel = str(py_file.relative_to(repo_path))
+
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    total_imports += 1
+                    fw, ev = _framework_match_for_token(
+                        alias.name.split(".")[0],
+                        self.FRAMEWORK_IMPORTS,
+                        rel,
+                    )
+                    frameworks_local.update(fw)
+                    evidence_local.extend(ev)
+            elif isinstance(node, ast.ImportFrom) and node.module:
+                total_imports += 1
+                fw, ev = _framework_match_for_token(
+                    node.module.split(".")[0],
+                    self.FRAMEWORK_IMPORTS,
+                    rel,
+                )
+                frameworks_local.update(fw)
+                evidence_local.extend(ev)
+            elif isinstance(node, ast.ClassDef):
+                layers, ev = _viii_class_abstraction_layers(node, rel)
+                abstraction_layers += layers
+                evidence_local.extend(ev)
+
+        return frameworks_local, abstraction_layers, total_imports, evidence_local
+
+    def _scan_ix_python_file(self, repo_path: Path, py_file: Path) -> tuple[int, int, int, int, list[str]] | None:
+        if py_file.name.startswith(".") or "__pycache__" in str(py_file):
+            return None
+        try:
+            content = py_file.read_text(encoding="utf-8")
+            tree = ast.parse(content, filename=str(py_file))
+        except (SyntaxError, UnicodeDecodeError):
+            return None
+
+        contract_decorators_found = 0
+        functions_with_type_hints = 0
+        total_functions = 0
+        pydantic_models = 0
+        evidence_local: list[str] = []
+        rel = str(py_file.relative_to(repo_path))
+
+        for node in ast.walk(tree):
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                c_dec, fn_hints, fn_total, ev = _ix_function_metrics(node, rel)
+                contract_decorators_found += c_dec
+                functions_with_type_hints += fn_hints
+                total_functions += fn_total
+                evidence_local.extend(ev)
+            elif isinstance(node, ast.ClassDef):
+                p_cnt, ev = _ix_pydantic_metrics(node, rel)
+                pydantic_models += p_cnt
+                evidence_local.extend(ev)
+
+        return (
+            contract_decorators_found,
+            functions_with_type_hints,
+            total_functions,
+            pydantic_models,
+            evidence_local,
+        )
 
     @beartype
     @require(
@@ -206,50 +352,15 @@ class ConstitutionEvidenceExtractor:
         evidence: list[str] = []
         total_imports = 0
 
-        # Scan Python files for framework imports
         for py_file in repo_path.rglob("*.py"):
-            if py_file.name.startswith(".") or "__pycache__" in str(py_file):
+            scan = self._scan_viii_python_file(repo_path, py_file)
+            if scan is None:
                 continue
-
-            try:
-                content = py_file.read_text(encoding="utf-8")
-                tree = ast.parse(content, filename=str(py_file))
-
-                for node in ast.walk(tree):
-                    if isinstance(node, ast.Import):
-                        for alias in node.names:
-                            import_name = alias.name.split(".")[0]
-                            total_imports += 1
-
-                            # Check for framework imports
-                            for framework, patterns in self.FRAMEWORK_IMPORTS.items():
-                                if any(pattern.startswith(import_name) for pattern in patterns):
-                                    frameworks_detected.add(framework)
-                                    evidence.append(
-                                        f"Framework '{framework}' detected in {py_file.relative_to(repo_path)}"
-                                    )
-
-                    elif isinstance(node, ast.ImportFrom) and node.module:
-                        module_name = node.module.split(".")[0]
-                        total_imports += 1
-
-                        # Check for framework imports
-                        for framework, patterns in self.FRAMEWORK_IMPORTS.items():
-                            if any(pattern.startswith(module_name) for pattern in patterns):
-                                frameworks_detected.add(framework)
-                                evidence.append(f"Framework '{framework}' detected in {py_file.relative_to(repo_path)}")
-
-                    # Detect abstraction layers (ORM usage, middleware, wrappers)
-                    if isinstance(node, ast.ClassDef):
-                        # Check for ORM patterns (Model classes, Base classes)
-                        for base in node.bases:
-                            if isinstance(base, ast.Name) and ("Model" in base.id or "Base" in base.id):
-                                abstraction_layers += 1
-                                evidence.append(f"ORM pattern detected in {py_file.relative_to(repo_path)}: {base.id}")
-
-            except (SyntaxError, UnicodeDecodeError):
-                # Skip files with syntax errors or encoding issues
-                continue
+            fw, layers, imports, ev = scan
+            frameworks_detected.update(fw)
+            abstraction_layers += layers
+            total_imports += imports
+            evidence.extend(ev)
 
         # Determine status
         # PASS if no frameworks or minimal abstraction, FAIL if heavy framework usage
@@ -314,55 +425,16 @@ class ConstitutionEvidenceExtractor:
         pydantic_models = 0
         evidence: list[str] = []
 
-        # Scan Python files for contract patterns
         for py_file in repo_path.rglob("*.py"):
-            if py_file.name.startswith(".") or "__pycache__" in str(py_file):
+            scan = self._scan_ix_python_file(repo_path, py_file)
+            if scan is None:
                 continue
-
-            try:
-                content = py_file.read_text(encoding="utf-8")
-                tree = ast.parse(content, filename=str(py_file))
-
-                for node in ast.walk(tree):
-                    if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                        total_functions += 1
-
-                        # Check for type hints
-                        if node.returns is not None:
-                            functions_with_type_hints += 1
-
-                        # Check for contract decorators in source code
-                        for decorator in node.decorator_list:
-                            if isinstance(decorator, ast.Name):
-                                decorator_name = decorator.id
-                                if decorator_name in ("require", "ensure", "invariant", "beartype"):
-                                    contract_decorators_found += 1
-                                    evidence.append(
-                                        f"Contract decorator '@{decorator_name}' found in {py_file.relative_to(repo_path)}:{node.lineno}"
-                                    )
-                            elif isinstance(decorator, ast.Attribute):
-                                if isinstance(decorator.value, ast.Name) and decorator.value.id == "icontract":
-                                    contract_decorators_found += 1
-                                    evidence.append(
-                                        f"Contract decorator '@icontract.{decorator.attr}' found in {py_file.relative_to(repo_path)}:{node.lineno}"
-                                    )
-
-                    # Check for Pydantic models
-                    if isinstance(node, ast.ClassDef):
-                        for base in node.bases:
-                            if (isinstance(base, ast.Name) and ("BaseModel" in base.id or "Pydantic" in base.id)) or (
-                                isinstance(base, ast.Attribute)
-                                and isinstance(base.value, ast.Name)
-                                and base.value.id == "pydantic"
-                            ):
-                                pydantic_models += 1
-                                evidence.append(
-                                    f"Pydantic model detected in {py_file.relative_to(repo_path)}: {node.name}"
-                                )
-
-            except (SyntaxError, UnicodeDecodeError):
-                # Skip files with syntax errors or encoding issues
-                continue
+            c_dec, fn_hints, fn_total, pyd_cnt, ev = scan
+            contract_decorators_found += c_dec
+            functions_with_type_hints += fn_hints
+            total_functions += fn_total
+            pydantic_models += pyd_cnt
+            evidence.extend(ev)
 
         # Calculate contract coverage
         contract_coverage = contract_decorators_found / total_functions if total_functions > 0 else 0.0

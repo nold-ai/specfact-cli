@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 from contextlib import suppress
 from pathlib import Path
+from typing import Any
 
 import jsonschema
 from beartype import beartype
@@ -41,9 +42,9 @@ class SchemaValidator:
             schemas_dir = Path(__file__).parent.parent.parent.parent / "resources" / "schemas"
 
         self.schemas_dir = Path(schemas_dir)
-        self._schemas: dict[str, dict] = {}
+        self._schemas: dict[str, dict[str, Any]] = {}
 
-    def _load_schema(self, schema_name: str) -> dict:
+    def _load_schema(self, schema_name: str) -> dict[str, Any]:
         """
         Load JSON schema from file.
 

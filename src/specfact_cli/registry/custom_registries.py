@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import yaml
 from beartype import beartype
@@ -29,6 +29,11 @@ def _is_crosshair_runtime() -> bool:
     return "crosshair" in sys.modules
 
 
+@beartype
+@ensure(
+    lambda result: cast(Path, result).name == _REGISTRIES_FILENAME,
+    "Must return a path ending in the registries filename",
+)
 def get_registries_config_path() -> Path:
     """Return path to registries.yaml under ~/.specfact/config/."""
     return Path.home() / ".specfact" / "config" / _REGISTRIES_FILENAME
@@ -45,38 +50,67 @@ def _default_official_entry() -> dict[str, Any]:
     }
 
 
+def _load_registries_from_config(path: Path) -> list[dict[str, Any]]:
+    if not path.exists():
+        return []
+    raw = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    data = cast(dict[str, Any], raw) if isinstance(raw, dict) else {}
+    return list(data.get("registries") or [])
+
+
+def _compute_next_registry_priority(registries: list[dict[str, Any]]) -> int:
+    priorities = [
+        p
+        for r in registries
+        if isinstance(r, dict) and (p := r.get("priority")) is not None and isinstance(p, (int, float))
+    ]
+    return int(max(priorities, default=0)) + 1
+
+
+_REGISTRY_ROW_KEYS = frozenset({"id", "url", "priority", "trust"})
+
+
+def _sanitize_custom_registry_rows(custom: list[Any]) -> list[dict[str, Any]]:
+    return [
+        {k: v for k, v in cast(dict[str, Any], r).items() if k in _REGISTRY_ROW_KEYS}
+        for r in custom
+        if isinstance(r, dict) and cast(dict[str, Any], r).get("id")
+    ]
+
+
+def _merge_custom_registries_with_official(custom: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    has_official = any(cast(dict[str, Any], r).get("id") == OFFICIAL_REGISTRY_ID for r in custom)
+    result: list[dict[str, Any]] = (
+        [] if has_official else [_default_official_entry()]
+    ) + _sanitize_custom_registry_rows(custom)
+    result.sort(key=lambda r: (cast(dict[str, Any], r).get("priority", 999), cast(dict[str, Any], r).get("id", "")))
+    return result
+
+
 @beartype
-@require(lambda id: id.strip() != "", "id must be non-empty")
-@require(lambda url: url.strip().startswith("http"), "url must be http(s)")
+@require(lambda registry_id: cast(str, registry_id).strip() != "", "id must be non-empty")
+@require(lambda url: cast(str, url).strip().startswith("http"), "url must be http(s)")
 @require(lambda trust: trust in TRUST_LEVELS, "trust must be always, prompt, or never")
 @ensure(lambda: True, "no postcondition on void")
 def add_registry(
-    id: str,
+    registry_id: str,
     url: str,
     priority: int | None = None,
     trust: str = "prompt",
 ) -> None:
     """Add a registry to config. Assigns next priority if priority is None."""
-    id = id.strip()
+    id = registry_id.strip()
     url = url.strip()
     path = get_registries_config_path()
     path.parent.mkdir(parents=True, exist_ok=True)
-    registries: list[dict[str, Any]] = []
-    if path.exists():
-        data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-        registries = list(data.get("registries") or [])
+    registries = _load_registries_from_config(path)
     existing_ids = {r.get("id") for r in registries if isinstance(r, dict) and r.get("id")}
     if id in existing_ids:
         registries = [r for r in registries if isinstance(r, dict) and r.get("id") != id]
     if priority is None:
-        priorities = [
-            p
-            for r in registries
-            if isinstance(r, dict) and (p := r.get("priority")) is not None and isinstance(p, (int, float))
-        ]
-        priority = int(max(priorities, default=0)) + 1
+        priority = _compute_next_registry_priority(registries)
     registries.append({"id": id, "url": url, "priority": int(priority), "trust": trust})
-    registries.sort(key=lambda r: (r.get("priority", 999), r.get("id", "")))
+    registries.sort(key=lambda r: (cast(dict[str, Any], r).get("priority", 999), cast(dict[str, Any], r).get("id", "")))
     path.write_text(yaml.dump({"registries": registries}, default_flow_style=False, sort_keys=False), encoding="utf-8")
 
 
@@ -86,40 +120,37 @@ def list_registries() -> list[dict[str, Any]]:
     """Return all registries: official first, then custom from config, sorted by priority."""
     if _is_crosshair_runtime():
         return [_default_official_entry()]
-    result: list[dict[str, Any]] = []
     path = get_registries_config_path()
-    if path.exists():
-        try:
-            data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-            custom = [r for r in (data.get("registries") or []) if isinstance(r, dict) and r.get("id")]
-            has_official = any(r.get("id") == OFFICIAL_REGISTRY_ID for r in custom)
-            if not has_official:
-                result.append(_default_official_entry())
-            for r in custom:
-                result.append({k: v for k, v in r.items() if k in ("id", "url", "priority", "trust")})
-            result.sort(key=lambda r: (r.get("priority", 999), r.get("id", "")))
-        except Exception as exc:
-            logger.warning("Failed to load registries config: %s", exc)
-            result = [_default_official_entry()]
-    else:
-        result = [_default_official_entry()]
-    return result
+    if not path.exists():
+        return [_default_official_entry()]
+    try:
+        raw = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        data = cast(dict[str, Any], raw) if isinstance(raw, dict) else {}
+        custom_raw = data.get("registries") or []
+        custom = [r for r in custom_raw if isinstance(r, dict) and cast(dict[str, Any], r).get("id")]
+        return _merge_custom_registries_with_official(cast(list[dict[str, Any]], custom))
+    except Exception as exc:
+        logger.warning("Failed to load registries config: %s", exc)
+        return [_default_official_entry()]
 
 
 @beartype
-@require(lambda id: id.strip() != "", "id must be non-empty")
+@require(lambda registry_id: cast(str, registry_id).strip() != "", "id must be non-empty")
 @ensure(lambda: True, "no postcondition on void")
-def remove_registry(id: str) -> None:
+def remove_registry(registry_id: str) -> None:
     """Remove a registry by id from config. Cannot remove official (no-op if official)."""
-    id = id.strip()
+    id = registry_id.strip()
     if id == OFFICIAL_REGISTRY_ID:
         logger.debug("Cannot remove built-in official registry")
         return
     path = get_registries_config_path()
     if not path.exists():
         return
-    data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-    registries = [r for r in (data.get("registries") or []) if isinstance(r, dict) and r.get("id") != id]
+    raw = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    data = cast(dict[str, Any], raw) if isinstance(raw, dict) else {}
+    registries = [
+        r for r in (data.get("registries") or []) if isinstance(r, dict) and cast(dict[str, Any], r).get("id") != id
+    ]
     if not registries:
         path.unlink()
         return

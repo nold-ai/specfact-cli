@@ -9,6 +9,7 @@ from icontract import ensure, require
 from jinja2 import Environment, FileSystemLoader
 
 from specfact_cli.models.protocol import Protocol
+from specfact_cli.utils.icontract_helpers import require_output_path_exists, require_protocol_has_states
 
 
 class ProtocolGenerator:
@@ -40,8 +41,8 @@ class ProtocolGenerator:
     @beartype
     @require(lambda protocol: isinstance(protocol, Protocol), "Must be Protocol instance")
     @require(lambda output_path: output_path is not None, "Output path must not be None")
-    @require(lambda protocol: len(protocol.states) > 0, "Protocol must have at least one state")
-    @ensure(lambda output_path: output_path.exists(), "Output file must exist after generation")
+    @require(require_protocol_has_states, "Protocol must have at least one state")
+    @ensure(require_output_path_exists, "Output file must exist after generation")
     def generate(self, protocol: Protocol, output_path: Path) -> None:
         """
         Generate protocol YAML file from model.
@@ -72,7 +73,7 @@ class ProtocolGenerator:
     )
     @require(lambda context: isinstance(context, dict), "Context must be dictionary")
     @require(lambda output_path: output_path is not None, "Output path must not be None")
-    @ensure(lambda output_path: output_path.exists(), "Output file must exist after generation")
+    @ensure(require_output_path_exists, "Output file must exist after generation")
     def generate_from_template(self, template_name: str, context: dict, output_path: Path) -> None:
         """
         Generate file from custom template.
@@ -94,7 +95,7 @@ class ProtocolGenerator:
 
     @beartype
     @require(lambda protocol: isinstance(protocol, Protocol), "Must be Protocol instance")
-    @require(lambda protocol: len(protocol.states) > 0, "Protocol must have at least one state")
+    @require(require_protocol_has_states, "Protocol must have at least one state")
     @ensure(lambda result: isinstance(result, str), "Must return string")
     @ensure(lambda result: len(result) > 0, "Result must be non-empty")
     def render_string(self, protocol: Protocol) -> str:

@@ -76,6 +76,7 @@ modules/profile/
 
 - **NEW**: Profile module in `modules/profile/` with config layering engine: profile defaults → org baseline (read-only) → repo overlay → developer local. Highest priority last.
 - **NEW**: Four built-in profiles shipped as YAML (`solo.yaml`, `startup.yaml`, `mid_size.yaml`, `enterprise.yaml`) defining: enabled modules, policy enforcement mode, required requirements fields, config sources, and enforcement location.
+- **EXTEND**: Tier profiles also define the default clean-code pack mode inherited by `specfact/clean-code-principles`: `solo -> advisory`, `startup -> advisory then mixed`, `mid_size -> mixed`, `enterprise -> hard`.
 - **NEW**: Config file `.specfact/profile.yaml` (or extend existing `.specfact/config.yaml`) storing selected profile, config source URIs, and local overlays.
 - **NEW**: `specfact init --profile <tier>` generates profile-appropriate config and activates tier-relevant modules.
 - **NEW**: `specfact profile show` displays the fully resolved config with annotations showing which layer each value came from.
@@ -96,6 +97,7 @@ modules/profile/
 ### New Capabilities
 
 - `profile-config-layering`: Profile-driven config resolution with deterministic layering (profile defaults → org baseline → repo overlay → dev local), divergence detection, and tier-aware module/policy activation.
+- `profile-config-layering`: Extended so clean-code enforcement defaults are derived from the selected tier instead of a parallel clean-code profile concept.
 
 ### Modified Capabilities
 

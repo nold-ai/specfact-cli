@@ -74,7 +74,7 @@ jobs:
           fi
           MANIFEST="${MODULE_PATH}/module-package.yaml"
           if [ -f "$MANIFEST" ]; then
-            python scripts/sign-modules.py "$MANIFEST"
+            python scripts/sign-modules.py --payload-from-filesystem "$MANIFEST"
           fi
 
       - name: Publish module

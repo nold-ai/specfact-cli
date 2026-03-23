@@ -18,7 +18,10 @@ from specfact_cli.utils.env_manager import build_tool_command, detect_env_manage
 
 
 @beartype
-@require(lambda source_path: source_path.exists(), "Source path must exist")
+@require(
+    lambda source_path: isinstance(source_path, Path) and source_path.exists(),
+    "Source path must exist",
+)
 @require(lambda timeout: timeout > 0, "Timeout must be positive")
 @ensure(lambda result: isinstance(result, dict), "Must return dict")
 def run_crosshair(

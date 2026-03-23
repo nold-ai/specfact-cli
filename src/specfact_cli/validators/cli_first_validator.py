@@ -29,6 +29,7 @@ class CLIArtifactMetadata:
     generated_at: str | None = None
     generated_by: str = "specfact-cli"
 
+    @ensure(lambda result: isinstance(result, dict), "Must return dict")
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
         return {
@@ -39,6 +40,7 @@ class CLIArtifactMetadata:
         }
 
     @classmethod
+    @ensure(lambda result: result is not None, "Must return CLIArtifactMetadata")
     def from_dict(cls, data: dict[str, Any]) -> CLIArtifactMetadata:
         """Create from dictionary."""
         return cls(

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from beartype import beartype
 from icontract import ensure, require
@@ -13,8 +13,20 @@ from specfact_cli.models.project import BundleManifest, ProjectBundle
 from specfact_cli.models.validation import ValidationReport
 
 
+def _import_source_exists(source: Path) -> bool:
+    return source.exists()
+
+
+def _export_target_exists(target: Path) -> bool:
+    return target.exists()
+
+
+def _external_source_nonempty(external_source: str) -> bool:
+    return len(external_source.strip()) > 0
+
+
 @beartype
-@require(lambda source: source.exists(), "Source path must exist")
+@require(_import_source_exists, "Source path must exist")
 @ensure(lambda result: isinstance(result, ProjectBundle), "Must return ProjectBundle")
 def import_to_bundle(source: Path, config: dict[str, Any]) -> ProjectBundle:
     """Convert external source artifacts into a ProjectBundle."""
@@ -30,7 +42,7 @@ def import_to_bundle(source: Path, config: dict[str, Any]) -> ProjectBundle:
 
 @beartype
 @require(lambda target: target is not None, "Target path must be provided")
-@ensure(lambda target: target.exists(), "Target must exist after export")
+@ensure(lambda result, bundle, target, config: cast(Path, target).exists(), "Target must exist after export")
 def export_from_bundle(bundle: ProjectBundle, target: Path, config: dict[str, Any]) -> None:
     """Export a ProjectBundle to a target path."""
     if target.suffix:
@@ -42,7 +54,7 @@ def export_from_bundle(bundle: ProjectBundle, target: Path, config: dict[str, An
 
 
 @beartype
-@require(lambda external_source: len(external_source.strip()) > 0, "External source must be non-empty")
+@require(_external_source_nonempty, "External source must be non-empty")
 @ensure(lambda result: isinstance(result, ProjectBundle), "Must return ProjectBundle")
 def sync_with_bundle(bundle: ProjectBundle, external_source: str, config: dict[str, Any]) -> ProjectBundle:
     """Synchronize an existing bundle with an external source."""

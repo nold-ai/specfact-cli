@@ -8,14 +8,17 @@ for modular project bundle formats.
 from __future__ import annotations
 
 import hashlib
+import shutil
 import tempfile
 from collections.abc import Callable
 from pathlib import Path
+from typing import Any, cast
 
 from beartype import beartype
 from icontract import ensure, require
 
 from specfact_cli.models.project import BundleFormat, ProjectBundle
+from specfact_cli.utils.contract_predicates import bundle_dir_exists, file_path_exists, path_exists
 from specfact_cli.utils.structured_io import load_structured_file
 
 
@@ -57,41 +60,46 @@ def detect_bundle_format(path: Path) -> tuple[BundleFormat, str | None]:
         return BundleFormat.UNKNOWN, f"Path does not exist: {path}"
 
     if path.is_file() and path.suffix in [".yaml", ".yml", ".json"]:
-        # Check if it's a monolithic bundle
-        try:
-            data = load_structured_file(path)
-            if isinstance(data, dict):
-                # Monolithic bundle has all aspects in one file
-                if "idea" in data and "product" in data and "features" in data:
-                    return BundleFormat.MONOLITHIC, None
-                # Could be a bundle manifest (modular) - check for dual versioning
-                versions = data.get("versions", {})
-                if isinstance(versions, dict) and "schema" in versions and "bundle" in data:
-                    return BundleFormat.MODULAR, None
-        except Exception as e:
-            return BundleFormat.UNKNOWN, f"Failed to parse file: {e}"
-    elif path.is_dir():
-        # Check for modular project bundle structure
-        manifest_path = path / "bundle.manifest.yaml"
-        if manifest_path.exists():
-            return BundleFormat.MODULAR, None
-        # Check if directory has partial bundle files (incomplete save)
-        # If it has features/ or contracts/ but no manifest, it's likely an incomplete modular bundle
-        if (path / "features").exists() or (path / "contracts").exists():
-            return (
-                BundleFormat.UNKNOWN,
-                "Incomplete bundle directory (missing bundle.manifest.yaml). This may be from a failed save. Consider removing the directory and re-running import.",
-            )
-        # Check for legacy plans directory
-        if path.name == "plans" and any(f.suffix in [".yaml", ".yml", ".json"] for f in path.glob("*.bundle.*")):
-            return BundleFormat.MONOLITHIC, None
+        return _bundle_format_from_yaml_file(path)
+    if path.is_dir():
+        return _bundle_format_from_directory(path)
 
+    return BundleFormat.UNKNOWN, "Could not determine bundle format"
+
+
+def _bundle_format_from_yaml_file(path: Path) -> tuple[BundleFormat, str | None]:
+    try:
+        data = load_structured_file(path)
+    except Exception as e:
+        return BundleFormat.UNKNOWN, f"Failed to parse file: {e}"
+    if not isinstance(data, dict):
+        return BundleFormat.UNKNOWN, "Could not determine bundle format"
+    data_dict = cast(dict[str, Any], data)
+    if "idea" in data_dict and "product" in data_dict and "features" in data_dict:
+        return BundleFormat.MONOLITHIC, None
+    versions = data_dict.get("versions", {})
+    if isinstance(versions, dict) and "schema" in versions and "bundle" in data:
+        return BundleFormat.MODULAR, None
+    return BundleFormat.UNKNOWN, "Could not determine bundle format"
+
+
+def _bundle_format_from_directory(path: Path) -> tuple[BundleFormat, str | None]:
+    manifest_path = path / "bundle.manifest.yaml"
+    if manifest_path.exists():
+        return BundleFormat.MODULAR, None
+    if (path / "features").exists() or (path / "contracts").exists():
+        return (
+            BundleFormat.UNKNOWN,
+            "Incomplete bundle directory (missing bundle.manifest.yaml). This may be from a failed save. Consider removing the directory and re-running import.",
+        )
+    if path.name == "plans" and any(f.suffix in [".yaml", ".yml", ".json"] for f in path.glob("*.bundle.*")):
+        return BundleFormat.MONOLITHIC, None
     return BundleFormat.UNKNOWN, "Could not determine bundle format"
 
 
 @beartype
 @require(lambda path: isinstance(path, Path), "Path must be Path")
-@require(lambda path: path.exists(), "Path must exist")
+@require(path_exists, "Path must exist")
 @ensure(lambda result: isinstance(result, BundleFormat), "Must return BundleFormat")
 def validate_bundle_format(path: Path) -> BundleFormat:
     """
@@ -133,7 +141,7 @@ def validate_bundle_format(path: Path) -> BundleFormat:
 
 @beartype
 @require(lambda path: isinstance(path, Path), "Path must be Path")
-@require(lambda path: path.exists(), "Path must exist")
+@require(path_exists, "Path must exist")
 @ensure(lambda result: isinstance(result, bool), "Must return bool")
 def is_monolithic_bundle(path: Path) -> bool:
     """
@@ -155,7 +163,7 @@ def is_monolithic_bundle(path: Path) -> bool:
 
 @beartype
 @require(lambda path: isinstance(path, Path), "Path must be Path")
-@require(lambda path: path.exists(), "Path must exist")
+@require(path_exists, "Path must exist")
 @ensure(lambda result: isinstance(result, bool), "Must return bool")
 def is_modular_bundle(path: Path) -> bool:
     """
@@ -185,7 +193,7 @@ class BundleSaveError(Exception):
 
 @beartype
 @require(lambda bundle_dir: isinstance(bundle_dir, Path), "Bundle directory must be Path")
-@require(lambda bundle_dir: bundle_dir.exists(), "Bundle directory must exist")
+@require(bundle_dir_exists, "Bundle directory must exist")
 @ensure(lambda result: isinstance(result, ProjectBundle), "Must return ProjectBundle")
 def load_project_bundle(
     bundle_dir: Path,
@@ -237,6 +245,34 @@ def load_project_bundle(
         raise BundleLoadError(f"Failed to load bundle: {e}") from e
 
 
+def _copy_tree_or_file(src: Path, dst: Path) -> None:
+    if src.is_dir():
+        shutil.copytree(src, dst, dirs_exist_ok=True)
+    else:
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(src, dst)
+
+
+def _backup_preserved_bundle_items(
+    bundle_dir: Path, preserve_items: list[str], backup_temp_dir: str
+) -> dict[str, Path]:
+    preserved_data: dict[str, Path] = {}
+    for preserve_name in preserve_items:
+        preserve_path = bundle_dir / preserve_name
+        if preserve_path.exists():
+            backup_path = Path(backup_temp_dir) / preserve_name
+            _copy_tree_or_file(preserve_path, backup_path)
+            preserved_data[preserve_name] = backup_path
+    return preserved_data
+
+
+def _restore_preserved_items_to_path(temp_path: Path, preserved_data: dict[str, Path]) -> None:
+    for preserve_name, backup_path in preserved_data.items():
+        restore_path = temp_path / preserve_name
+        if backup_path.exists():
+            _copy_tree_or_file(backup_path, restore_path)
+
+
 @beartype
 @require(lambda bundle: isinstance(bundle, ProjectBundle), "Bundle must be ProjectBundle")
 @require(lambda bundle_dir: isinstance(bundle_dir, Path), "Bundle directory must be Path")
@@ -268,60 +304,26 @@ def save_project_bundle(
     """
     try:
         if atomic:
-            # Atomic write: write to temp directory, then rename
-            # IMPORTANT: Preserve non-bundle directories (contracts, protocols, reports, logs, etc.)
-            import shutil
-
-            # Directories/files to preserve during atomic save
-            # Phase 8.5: Include bundle-specific reports and logs directories
             preserve_items = ["contracts", "protocols", "reports", "logs", "enrichment_context.md"]
-
-            # Backup directories/files to preserve (use separate temp dir that persists)
             preserved_data: dict[str, Path] = {}
             backup_temp_dir = None
             if bundle_dir.exists():
                 backup_temp_dir = tempfile.mkdtemp()
-                for preserve_name in preserve_items:
-                    preserve_path = bundle_dir / preserve_name
-                    if preserve_path.exists():
-                        backup_path = Path(backup_temp_dir) / preserve_name
-                        if preserve_path.is_dir():
-                            shutil.copytree(preserve_path, backup_path, dirs_exist_ok=True)
-                        else:
-                            backup_path.parent.mkdir(parents=True, exist_ok=True)
-                            shutil.copy2(preserve_path, backup_path)
-                        preserved_data[preserve_name] = backup_path
+                preserved_data = _backup_preserved_bundle_items(bundle_dir, preserve_items, backup_temp_dir)
 
             try:
                 with tempfile.TemporaryDirectory() as temp_dir:
                     temp_path = Path(temp_dir) / bundle_dir.name
                     bundle.save_to_directory(temp_path, progress_callback=progress_callback)
-
-                    # Restore preserved directories/files to temp before moving
-                    for preserve_name, backup_path in preserved_data.items():
-                        restore_path = temp_path / preserve_name
-                        if backup_path.exists():
-                            if backup_path.is_dir():
-                                shutil.copytree(backup_path, restore_path, dirs_exist_ok=True)
-                            else:
-                                restore_path.parent.mkdir(parents=True, exist_ok=True)
-                                shutil.copy2(backup_path, restore_path)
-
-                    # Ensure target directory parent exists
+                    _restore_preserved_items_to_path(temp_path, preserved_data)
                     bundle_dir.parent.mkdir(parents=True, exist_ok=True)
-
-                    # Remove existing directory if it exists
                     if bundle_dir.exists():
                         shutil.rmtree(bundle_dir)
-
-                    # Move temp directory to target
                     temp_path.rename(bundle_dir)
             finally:
-                # Clean up backup temp directory
                 if backup_temp_dir and Path(backup_temp_dir).exists():
                     shutil.rmtree(backup_temp_dir, ignore_errors=True)
         else:
-            # Direct write
             bundle.save_to_directory(bundle_dir, progress_callback=progress_callback)
     except Exception as e:
         error_msg = "Failed to save bundle"
@@ -333,7 +335,7 @@ def save_project_bundle(
 @beartype
 @require(lambda bundle: isinstance(bundle, ProjectBundle), "Bundle must be ProjectBundle")
 @require(lambda bundle_dir: isinstance(bundle_dir, Path), "Bundle directory must be Path")
-@require(lambda bundle_dir: bundle_dir.exists(), "Bundle directory must exist")
+@require(bundle_dir_exists, "Bundle directory must exist")
 @ensure(lambda result: result is None, "Must return None")
 def _validate_bundle_hashes(bundle: ProjectBundle, bundle_dir: Path) -> None:
     """
@@ -376,7 +378,7 @@ def _validate_bundle_hashes(bundle: ProjectBundle, bundle_dir: Path) -> None:
 
 @beartype
 @require(lambda file_path: isinstance(file_path, Path), "File path must be Path")
-@require(lambda file_path: file_path.exists(), "File must exist")
+@require(file_path_exists, "File must exist")
 @ensure(lambda result: isinstance(result, str) and len(result) == 64, "Must return SHA256 hex digest")
 def _compute_file_hash(file_path: Path) -> str:
     """

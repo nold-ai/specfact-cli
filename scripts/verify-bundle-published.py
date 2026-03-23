@@ -32,21 +32,25 @@ import argparse
 import hashlib
 import io
 import json
+import logging
 import os
 import tarfile
 import tempfile
 from collections.abc import Iterable
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import requests
 import yaml
 from beartype import beartype
-from icontract import ViolationError, require
+from icontract import ViolationError, ensure, require
 
-from specfact_cli.models.module_package import ModulePackageMetadata
-from specfact_cli.registry.marketplace_client import get_modules_branch, resolve_download_url
-from specfact_cli.registry.module_installer import verify_module_artifact
+
+logger = logging.getLogger(__name__)
+
+from specfact_cli.models.module_package import ModulePackageMetadata  # noqa: E402
+from specfact_cli.registry.marketplace_client import get_modules_branch, resolve_download_url  # noqa: E402
+from specfact_cli.registry.module_installer import verify_module_artifact  # noqa: E402
 
 
 _DEFAULT_INDEX_PATH = Path("../specfact-cli-modules/registry/index.json")
@@ -101,6 +105,11 @@ class BundleCheckResult:
 
 
 @beartype
+@require(
+    lambda module_names: any(cast(str, name).strip() for name in module_names),
+    "module_names must contain at least one value",
+)
+@ensure(lambda result: isinstance(result, dict), "returns mapping dictionary")
 def load_module_bundle_mapping(module_names: list[str], modules_root: Path) -> dict[str, str]:
     """Resolve module name -> bundle id from module-package.yaml manifests."""
     mapping: dict[str, str] = {}
@@ -128,6 +137,7 @@ def load_module_bundle_mapping(module_names: list[str], modules_root: Path) -> d
 
 
 @beartype
+@require(lambda download_url: bool(cast(str, download_url).strip()), "download_url must be non-empty")
 def verify_bundle_download_url(download_url: str) -> bool:
     """Return True when a HEAD request to download_url succeeds."""
     try:
@@ -170,6 +180,8 @@ def _read_bundle_bytes(
     if not full_download_url:
         return None
     local_path = _resolve_local_download_path(full_download_url, index_path)
+    if local_path is None:
+        return None
     if local_path.exists():
         try:
             return local_path.read_bytes()
@@ -186,6 +198,7 @@ def _read_bundle_bytes(
 
 
 @beartype
+@ensure(lambda result: result is None or isinstance(result, bool), "returns verification result or None")
 def verify_bundle_signature(
     entry: dict[str, Any],
     index_payload: dict[str, Any],
@@ -238,7 +251,31 @@ def verify_bundle_signature(
         return False
 
 
+def _registry_entry_missing_fields(entry: dict[str, Any]) -> list[str]:
+    """Return sorted list of missing required registry fields for an entry."""
+    required_fields = {"latest_version", "download_url", "checksum_sha256"}
+    missing = sorted(field for field in required_fields if not str(entry.get(field, "")).strip())
+    tier = str(entry.get("tier", "")).strip().lower()
+    has_signature_hint = bool(str(entry.get("signature_url", "")).strip()) or "signature_ok" in entry
+    if tier == "official" and not has_signature_hint:
+        missing.append("signature_url/signature_ok")
+    return missing
+
+
+def _bundle_check_status_after_verification(
+    signature_ok: bool,
+    download_ok: bool | None,
+) -> tuple[str, str]:
+    """Return (status, message) from signature and optional download result."""
+    if not signature_ok:
+        return "FAIL", "SIGNATURE INVALID"
+    if download_ok is False:
+        return "FAIL", "DOWNLOAD ERROR"
+    return "PASS", ""
+
+
 @beartype
+@ensure(lambda result: isinstance(result, BundleCheckResult), "returns BundleCheckResult")
 def check_bundle_in_registry(
     module_name: str,
     bundle_id: str,
@@ -249,12 +286,7 @@ def check_bundle_in_registry(
     skip_download_check: bool,
 ) -> BundleCheckResult:
     """Validate one bundle entry and return normalized status."""
-    required_fields = {"latest_version", "download_url", "checksum_sha256"}
-    missing = sorted(field for field in required_fields if not str(entry.get(field, "")).strip())
-    tier = str(entry.get("tier", "")).strip().lower()
-    has_signature_hint = bool(str(entry.get("signature_url", "")).strip()) or "signature_ok" in entry
-    if tier == "official" and not has_signature_hint:
-        missing.append("signature_url/signature_ok")
+    missing = _registry_entry_missing_fields(entry)
     if missing:
         return BundleCheckResult(
             module_name=module_name,
@@ -280,14 +312,7 @@ def check_bundle_in_registry(
         if full_download_url:
             download_ok = verify_bundle_download_url(full_download_url)
 
-    status = "PASS"
-    message = ""
-    if not signature_ok:
-        status = "FAIL"
-        message = "SIGNATURE INVALID"
-    elif download_ok is False:
-        status = "FAIL"
-        message = "DOWNLOAD ERROR"
+    status, message = _bundle_check_status_after_verification(signature_ok, download_ok)
 
     return BundleCheckResult(
         module_name=module_name,
@@ -301,7 +326,11 @@ def check_bundle_in_registry(
 
 
 @beartype
-@require(lambda module_names: len([m for m in module_names if m.strip()]) > 0, "module_names must not be empty")
+@require(
+    lambda module_names: len([m for m in module_names if cast(str, m).strip()]) > 0,
+    "module_names must not be empty",
+)
+@ensure(lambda result: isinstance(result, list), "returns result list")
 def verify_bundle_published(
     module_names: list[str],
     index_path: Path,
@@ -360,7 +389,7 @@ def verify_bundle_published(
 
 def _print_results(results: list[BundleCheckResult]) -> int:
     """Render results as a simple text table and return exit code."""
-    print("module | bundle | version | signature | download | status | message")
+    logger.info("module | bundle | version | signature | download | status | message")
     for result in results:
         signature_col = "OK" if result.signature_ok else "FAIL"
         if result.status == "MISSING":
@@ -368,15 +397,24 @@ def _print_results(results: list[BundleCheckResult]) -> int:
         if result.message == "SIGNATURE INVALID":
             signature_col = "FAIL"
         download_col = "SKIP" if result.download_ok is None else ("OK" if result.download_ok else "FAIL")
-        print(
-            f"{result.module_name} | {result.bundle_id} | {result.version or '-'} | "
-            f"{signature_col} | {download_col} | {result.status} | {result.message}"
+        logger.info(
+            "%s | %s | %s | %s | %s | %s | %s",
+            result.module_name,
+            result.bundle_id,
+            result.version or "-",
+            signature_col,
+            download_col,
+            result.status,
+            result.message,
         )
 
     has_failure = any(r.status != "PASS" for r in results)
     return 1 if has_failure else 0
 
 
+@beartype
+@require(lambda argv: argv is None or isinstance(argv, list), "argv must be a list or None")
+@ensure(lambda result: result >= 0, "exit code must be non-negative")
 def main(argv: list[str] | None = None) -> int:
     """CLI entry point."""
     parser = argparse.ArgumentParser(description=__doc__)
@@ -407,7 +445,7 @@ def main(argv: list[str] | None = None) -> int:
         os.environ["SPECFACT_MODULES_BRANCH"] = args.branch
         get_modules_branch.cache_clear()
     effective_branch = args.branch if args.branch is not None else get_modules_branch()
-    print(f"Using registry branch: {effective_branch}")
+    logger.info("Using registry branch: %s", effective_branch)
 
     raw_modules = [m.strip() for m in args.modules.split(",")]
     module_names = [m for m in raw_modules if m]
@@ -421,17 +459,18 @@ def main(argv: list[str] | None = None) -> int:
             skip_download_check=args.skip_download_check,
         )
     except FileNotFoundError as exc:
-        print(f"Registry index not found: {exc}")
+        logger.error("Registry index not found: %s", exc)
         return 1
     except ViolationError as exc:
-        print(f"Precondition failed: {exc}")
+        logger.error("Precondition failed: %s", exc)
         return 1
     except Exception as exc:
-        print(f"Error while verifying bundles: {exc}")
+        logger.error("Error while verifying bundles: %s", exc)
         return 1
 
     return _print_results(results)
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
     raise SystemExit(main())

@@ -6,8 +6,9 @@ This module provides helpers for YAML parsing and serialization.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from beartype import beartype
 from icontract import ensure, require
@@ -32,7 +33,7 @@ class YAMLUtils:
         """
         self.yaml = YAML()
         self.yaml.preserve_quotes = preserve_quotes
-        self.yaml.indent(mapping=indent_mapping, sequence=indent_sequence)
+        cast(Any, self.yaml).indent(mapping=indent_mapping, sequence=indent_sequence)
         self.yaml.default_flow_style = False
         # Configure to quote boolean-like strings to prevent YAML parsing issues
         # YAML parsers interpret "Yes", "No", "True", "False", "On", "Off" as booleans
@@ -60,7 +61,8 @@ class YAMLUtils:
             raise FileNotFoundError(f"YAML file not found: {file_path}")
 
         with open(file_path, encoding="utf-8") as f:
-            return self.yaml.load(f)
+            loader = cast(Callable[[Any], Any], self.yaml.load)
+            return loader(f)
 
     @beartype
     @require(lambda yaml_string: isinstance(yaml_string, str), "YAML string must be str")
@@ -75,7 +77,8 @@ class YAMLUtils:
         Returns:
             Parsed YAML content
         """
-        return self.yaml.load(yaml_string)
+        loader = cast(Callable[[Any], Any], self.yaml.load)
+        return loader(yaml_string)
 
     @beartype
     @require(lambda file_path: isinstance(file_path, (Path, str)), "File path must be Path or str")
@@ -96,7 +99,8 @@ class YAMLUtils:
         # Use context manager for proper file handling
         # Thread-local YAML instances ensure thread-safety
         with open(file_path, "w", encoding="utf-8") as f:
-            self.yaml.dump(data, f)
+            dumper = cast(Callable[..., None], self.yaml.dump)
+            dumper(data, f)
             # Explicit flush to ensure data is written before context exits
             # This helps prevent "I/O operation on closed file" errors in parallel operations
             f.flush()
@@ -119,42 +123,35 @@ class YAMLUtils:
         Returns:
             Data structure with boolean-like strings quoted
         """
-        # Boolean-like strings that YAML parsers interpret as booleans
         boolean_like_strings = {"yes", "no", "true", "false", "on", "off", "Yes", "No", "True", "False", "On", "Off"}
 
-        # Early exit for simple types (most common case)
         if isinstance(data, str):
             return DoubleQuotedScalarString(data) if data in boolean_like_strings else data
-        if not isinstance(data, (dict, list)):
-            return data
-
-        # Recursive processing for collections
         if isinstance(data, dict):
-            # For large dicts, process directly to avoid double traversal (check + process)
-            # The overhead of checking all items is similar to processing them
-            if len(data) > 100:
-                return {k: self._quote_boolean_like_strings(v) for k, v in data.items()}
-            # For smaller dicts, check first to avoid creating new dict if not needed
-            needs_processing = any(
-                (isinstance(v, str) and v in boolean_like_strings) or isinstance(v, (dict, list)) for v in data.values()
-            )
-            if not needs_processing:
-                return data
-            return {k: self._quote_boolean_like_strings(v) for k, v in data.items()}
+            return self._quote_dict_boolean_like(data, boolean_like_strings)
         if isinstance(data, list):
-            # For large lists, process directly to avoid double traversal (check + process)
-            # The overhead of checking all items is similar to processing them
-            if len(data) > 100:
-                return [self._quote_boolean_like_strings(item) for item in data]
-            # For smaller lists, check first to avoid creating new list if not needed
-            needs_processing = any(
-                (isinstance(item, str) and item in boolean_like_strings) or isinstance(item, (dict, list))
-                for item in data
-            )
-            if not needs_processing:
-                return data
-            return [self._quote_boolean_like_strings(item) for item in data]
+            return self._quote_list_boolean_like(data, boolean_like_strings)
         return data
+
+    def _quote_dict_boolean_like(self, data: dict[Any, Any], boolean_like_strings: set[str]) -> dict[Any, Any]:
+        if len(data) > 100:
+            return {k: self._quote_boolean_like_strings(v) for k, v in data.items()}
+        needs_processing = any(
+            (isinstance(v, str) and v in boolean_like_strings) or isinstance(v, (dict, list)) for v in data.values()
+        )
+        if not needs_processing:
+            return data
+        return {k: self._quote_boolean_like_strings(v) for k, v in data.items()}
+
+    def _quote_list_boolean_like(self, data: list[Any], boolean_like_strings: set[str]) -> list[Any]:
+        if len(data) > 100:
+            return [self._quote_boolean_like_strings(item) for item in data]
+        needs_processing = any(
+            (isinstance(item, str) and item in boolean_like_strings) or isinstance(item, (dict, list)) for item in data
+        )
+        if not needs_processing:
+            return data
+        return [self._quote_boolean_like_strings(item) for item in data]
 
     @beartype
     @ensure(lambda result: isinstance(result, str), "Must return string")
@@ -171,7 +168,8 @@ class YAMLUtils:
         from io import StringIO
 
         stream = StringIO()
-        self.yaml.dump(data, stream)
+        dumper = cast(Callable[..., None], self.yaml.dump)
+        dumper(data, stream)
         return stream.getvalue()
 
     @beartype

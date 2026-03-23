@@ -14,6 +14,7 @@ from pathlib import Path
 
 import yaml
 from beartype import beartype
+from icontract import ensure
 
 from specfact_cli.registry.module_packages import register_module_package_commands
 
@@ -22,6 +23,7 @@ _SPECFACT_CONFIG_PATH = Path.home() / ".specfact" / "config.yaml"
 
 
 @beartype
+@ensure(lambda result: isinstance(result, bool), "Must return a bool")
 def _get_category_grouping_enabled() -> bool:
     """Read category_grouping_enabled from env then config file; default True."""
     env_val = __import__("os").environ.get("SPECFACT_CATEGORY_GROUPING_ENABLED", "").strip().lower()
@@ -45,6 +47,7 @@ def _get_category_grouping_enabled() -> bool:
 
 
 @beartype
+@ensure(lambda: isinstance(_SPECFACT_CONFIG_PATH, Path), "Config path must be a Path")
 def register_builtin_commands() -> None:
     """Register all command groups from discovered module packages with CommandRegistry."""
     category_grouping_enabled = _get_category_grouping_enabled()

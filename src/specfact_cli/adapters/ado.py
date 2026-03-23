@@ -12,9 +12,10 @@ from __future__ import annotations
 
 import os
 import re
+from collections.abc import Mapping
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, NoReturn, cast
 from urllib.parse import urlparse
 
 import requests
@@ -35,6 +36,12 @@ from specfact_cli.models.change import ChangeProposal, ChangeTracking
 from specfact_cli.registry.bridge_registry import BRIDGE_PROTOCOL_REGISTRY
 from specfact_cli.runtime import debug_log_operation, debug_print, is_debug_mode
 from specfact_cli.utils.auth_tokens import get_token, set_token
+from specfact_cli.utils.icontract_helpers import (
+    ensure_backlog_update_preserves_identity,
+    require_bundle_dir_exists,
+    require_repo_path_exists,
+    require_repo_path_is_dir,
+)
 
 
 _MAX_RESPONSE_BODY_LOG = 2048
@@ -42,6 +49,25 @@ _ADO_STABLE_API_VERSION = "7.1"
 _ADO_COMMENTS_API_VERSION = "7.1-preview.4"
 
 console = Console()
+
+
+def _as_str_dict(obj: dict[Any, Any]) -> dict[str, Any]:
+    """Narrow a runtime ``dict`` to ``dict[str, Any]`` for static analysis."""
+    return cast(dict[str, Any], obj)
+
+
+def _normalize_work_item_data(raw: object) -> dict[str, Any] | None:
+    """Return work item payload with common top-level fields mirrored from ``fields``."""
+    if not isinstance(raw, dict):
+        return None
+
+    work_item_data = cast(dict[str, Any], raw)
+    fields_raw = work_item_data.get("fields", {})
+    fields = cast(dict[str, Any], fields_raw) if isinstance(fields_raw, dict) else {}
+    work_item_data.setdefault("title", str(fields.get("System.Title", "") or ""))
+    work_item_data.setdefault("state", str(fields.get("System.State", "") or ""))
+    work_item_data.setdefault("description", str(fields.get("System.Description", "") or ""))
+    return work_item_data
 
 
 def _log_ado_patch_failure(
@@ -99,6 +125,468 @@ def _build_ado_user_message(response: requests.Response | None) -> str:
     else:
         user_msg = f"{msg}{hint}"
     return user_msg
+
+
+def _extract_ado_proposal_markdown_sections(description_raw: str) -> tuple[str, str, str]:
+    """Parse Why / What Changes / Impact from OpenSpec-style ADO description."""
+    rationale = ""
+    description = ""
+    impact = ""
+    if not description_raw:
+        return rationale, description, impact
+
+    why_match = re.search(
+        r"##\s+Why\s*\n(.*?)(?=\n##\s+What\s+Changes\s|\n##\s+Impact\s|\n---\s*\n\*OpenSpec Change Proposal:|\Z)",
+        description_raw,
+        re.DOTALL | re.IGNORECASE,
+    )
+    if why_match:
+        rationale = why_match.group(1).strip()
+
+    what_match = re.search(
+        r"##\s+What\s+Changes\s*\n(.*?)(?=\n##\s+Impact\s|\n---\s*\n\*OpenSpec Change Proposal:|\Z)",
+        description_raw,
+        re.DOTALL | re.IGNORECASE,
+    )
+    if what_match:
+        description = what_match.group(1).strip()
+    elif not why_match:
+        body_clean = re.sub(r"\n---\s*\n\*OpenSpec Change Proposal:.*", "", description_raw, flags=re.DOTALL)
+        description = body_clean.strip()
+
+    impact_match = re.search(
+        r"##\s+Impact\s*\n(.*?)(?=\n---\s*\n\*OpenSpec Change Proposal:|\Z)",
+        description_raw,
+        re.DOTALL | re.IGNORECASE,
+    )
+    if impact_match:
+        impact = impact_match.group(1).strip()
+
+    return rationale, description, impact
+
+
+def _parse_when_who_markdown(description_raw: str) -> tuple[str | None, str | None, list[str]]:
+    """Extract timeline (When), owner, and stakeholders (Who) from description markdown."""
+    timeline: str | None = None
+    owner: str | None = None
+    stakeholders: list[str] = []
+    if not description_raw:
+        return timeline, owner, stakeholders
+
+    when_match = re.search(r"##\s+When\s*\n(.*?)(?=\n##|\Z)", description_raw, re.DOTALL | re.IGNORECASE)
+    if when_match:
+        timeline = when_match.group(1).strip()
+
+    who_match = re.search(r"##\s+Who\s*\n(.*?)(?=\n##|\Z)", description_raw, re.DOTALL | re.IGNORECASE)
+    if who_match:
+        who_content = who_match.group(1).strip()
+        owner_match = re.search(r"(?:Owner|owner):\s*(.+)", who_content, re.IGNORECASE)
+        if owner_match:
+            owner = owner_match.group(1).strip()
+        stakeholders_match = re.search(r"(?:Stakeholders|stakeholders):\s*(.+)", who_content, re.IGNORECASE)
+        if stakeholders_match:
+            stakeholders_str = stakeholders_match.group(1).strip()
+            stakeholders = [s.strip() for s in re.split(r"[,\n]", stakeholders_str) if s.strip()]
+
+    return timeline, owner, stakeholders
+
+
+_OPENSPEC_COMMENT_CHANGE_ID_PATTERNS = (
+    r"\*\*Change ID\*\*[:\s]+`([a-z0-9-]+)`",
+    r"Change ID[:\s]+`([a-z0-9-]+)`",
+    r"OpenSpec Change Proposal[:\s]+`?([a-z0-9-]+)`?",
+    r"\*OpenSpec Change Proposal:\s*`([a-z0-9-]+)`",
+)
+
+
+def _git_run_local(repo_path: Path, args: list[str]) -> tuple[int, str]:
+    import subprocess
+
+    result = subprocess.run(
+        args,
+        cwd=repo_path,
+        capture_output=True,
+        text=True,
+        timeout=5,
+        check=False,
+    )
+    return result.returncode, result.stdout or ""
+
+
+def _git_current_branch_name(repo_path: Path) -> str | None:
+    rc, out = _git_run_local(repo_path, ["git", "rev-parse", "--abbrev-ref", "HEAD"])
+    return out.strip() if rc == 0 else None
+
+
+def _git_branch_exists_via_local_commands(repo_path: Path, branch_name: str) -> bool:
+    """Return True if ``branch_name`` exists in the local repo via successive git checks."""
+    if _git_current_branch_name(repo_path) == branch_name:
+        return True
+    ref = f"refs/heads/{branch_name}"
+    for verify_cmd in (
+        ["git", "rev-parse", "--verify", "--quiet", ref],
+        ["git", "show-ref", "--verify", "--quiet", ref],
+    ):
+        if _git_run_local(repo_path, verify_cmd)[0] == 0:
+            return True
+    rc, out = _git_run_local(repo_path, ["git", "branch", "--list", branch_name])
+    if rc == 0 and out.strip() and branch_name in _parse_git_branch_list_lines(out):
+        return True
+    rc, out = _git_run_local(repo_path, ["git", "branch", "-a"])
+    if rc == 0 and out.strip() and branch_name in _parse_git_branch_all_lines(out):
+        return True
+    rc, out = _git_run_local(repo_path, ["git", "branch", "-r", "--list", f"*/{branch_name}"])
+    return bool(rc == 0 and out.strip() and branch_name in _parse_git_remote_branch_suffixes(out))
+
+
+def _parse_git_branch_list_lines(stdout: str) -> list[str]:
+    branches: list[str] = []
+    for line in stdout.split("\n"):
+        line = line.strip()
+        if line:
+            branch = line.replace("*", "").strip()
+            if branch:
+                branches.append(branch)
+    return branches
+
+
+def _parse_git_branch_all_lines(stdout: str) -> list[str]:
+    all_branches: list[str] = []
+    for line in stdout.split("\n"):
+        line = line.strip()
+        if not line:
+            continue
+        if line.startswith("*"):
+            branch = line[1:].strip()
+        elif line.startswith("remotes/"):
+            parts = line.split("/")
+            branch = "/".join(parts[2:]) if len(parts) >= 3 else line.replace("remotes/", "").strip()
+        else:
+            branch = line.strip()
+        if branch and branch not in all_branches:
+            all_branches.append(branch)
+    return all_branches
+
+
+def _parse_git_remote_branch_suffixes(stdout: str) -> list[str]:
+    remote_branches: list[str] = []
+    for line in stdout.split("\n"):
+        line = line.strip()
+        if line and "/" in line:
+            parts = line.split("/", 1)
+            if len(parts) == 2:
+                remote_branches.append(parts[1])
+    return remote_branches
+
+
+def _ambiguous_sprint_error_message(sprint_filter: str, unique_iterations: set[str]) -> str:
+    iteration_list = "\n".join(f"  - {it}" for it in sorted(unique_iterations))
+    return (
+        f"Ambiguous sprint name '{sprint_filter}' matches multiple iteration paths:\n"
+        f"{iteration_list}\n"
+        f"Please use a full iteration path (e.g., 'Project\\Iteration\\Sprint 01') instead."
+    )
+
+
+def _rich_iteration_suggestions_block(available_iterations: list[str], max_examples: int = 5) -> str:
+    suggestions = ""
+    if available_iterations:
+        examples = available_iterations[:max_examples]
+        suggestions = "\n[cyan]Available iteration paths (showing first 5):[/cyan]\n"
+        for it_path in examples:
+            suggestions += f"  • {it_path}\n"
+        if len(available_iterations) > max_examples:
+            suggestions += f"  ... and {len(available_iterations) - max_examples} more\n"
+    return suggestions
+
+
+def _ado_graph_edge_from_relation(rel_name: str, item_id: str, target_id: str) -> tuple[str, str, str] | None:
+    """Map ADO relation name to (source_id, target_id, edge_type) for backlog graph."""
+    r = rel_name.lower()
+    if "hierarchy-forward" in r:
+        return (item_id, target_id, "parent")
+    if "hierarchy-reverse" in r:
+        return (target_id, item_id, "parent")
+    if "dependency-forward" in r or "predecessor-forward" in r:
+        return (item_id, target_id, "blocks")
+    if "dependency-reverse" in r or "predecessor-reverse" in r:
+        return (target_id, item_id, "blocks")
+    if "related" in r:
+        return (item_id, target_id, "relates")
+    return None
+
+
+def _content_update_match_dev_azure_org(entry: dict[str, Any], target_repo: str) -> Any | None:
+    """Match work item id when source_url host is dev.azure.com and org segment matches."""
+    source_url = str(entry.get("source_url", "") or "")
+    if not source_url or "/" not in target_repo:
+        return None
+    try:
+        parsed = urlparse(source_url)
+        if not parsed.hostname or parsed.hostname.lower() != "dev.azure.com":
+            return None
+        target_org = target_repo.split("/")[0]
+        m = re.search(r"dev\.azure\.com/([^/]+)/", source_url)
+        if m and m.group(1) == target_org:
+            return entry.get("source_id")
+    except Exception:
+        return None
+    return None
+
+
+def _ado_guid_like_segment(segment: str | None) -> bool:
+    return bool(segment and len(segment) == 36 and "-" in segment)
+
+
+def _ado_project_paths_ambiguous(source_url: str, entry_project: str | None, target_project: str | None) -> bool:
+    entry_has_guid = bool(source_url and re.search(r"dev\.azure\.com/[^/]+/[0-9a-f-]{36}", source_url, re.IGNORECASE))
+    return (
+        not entry_project
+        or not target_project
+        or entry_has_guid
+        or _ado_guid_like_segment(entry_project)
+        or _ado_guid_like_segment(target_project)
+    )
+
+
+def _ado_uncertain_org_match_conditions(
+    entry: Mapping[str, Any],
+    entry_repo: str,
+    target_repo: str,
+    source_url: str,
+) -> bool:
+    """True when org matches, source_id exists, and project identity is ambiguous."""
+    entry_org = entry_repo.split("/")[0] if "/" in entry_repo else None
+    target_org = target_repo.split("/")[0] if "/" in target_repo else None
+    entry_project = entry_repo.split("/", 1)[1] if "/" in entry_repo else None
+    target_project = target_repo.split("/", 1)[1] if "/" in target_repo else None
+    return bool(
+        entry_org
+        and target_org
+        and entry_org == target_org
+        and entry.get("source_id")
+        and _ado_project_paths_ambiguous(source_url, entry_project, target_project)
+    )
+
+
+def _content_update_match_ado_org_project_uncertain(
+    entry: Mapping[str, Any], entry_repo: str, target_repo: str
+) -> Any | None:
+    """Match by org when project identity is ambiguous (GUID URLs, etc.)."""
+    if str(entry.get("source_type", "") or "").lower() != "ado":
+        return None
+    if not (entry_repo and target_repo):
+        return None
+    source_url = str(entry.get("source_url", "") or "")
+    if not _ado_uncertain_org_match_conditions(entry, entry_repo, target_repo, source_url):
+        return None
+    return entry.get("source_id")
+
+
+def _flatten_issue_relation_dicts(item: dict[str, Any]) -> list[dict[str, Any]]:
+    """Collect relation dicts from provider_fields and top-level relations."""
+    relation_entries: list[dict[str, Any]] = []
+    provider_fields = item.get("provider_fields")
+    if isinstance(provider_fields, dict):
+        pf: dict[str, Any] = provider_fields
+        relations = pf.get("relations")
+        if isinstance(relations, list):
+            relation_entries.extend(r for r in relations if isinstance(r, dict))
+    top = item.get("relations")
+    if isinstance(top, list):
+        relation_entries.extend(r for r in top if isinstance(r, dict))
+    return relation_entries
+
+
+def _markdown_to_html_ado_fallback(value: str) -> str:
+    import re as _re
+
+    todo_pattern = r"^(\s*)[-*]\s*\[TODO[:\s]+([^\]]+)\](.*)$"
+    normalized_markdown = _re.sub(
+        todo_pattern,
+        r"\1- [ ] \2",
+        value,
+        flags=_re.MULTILINE | _re.IGNORECASE,
+    )
+    try:
+        import markdown
+
+        return markdown.markdown(normalized_markdown, extensions=["fenced_code", "tables"])
+    except ImportError:
+        return normalized_markdown
+
+
+def _ado_patch_doc_append_acceptance_criteria_create_issue(
+    patch_document: list[dict[str, Any]],
+    *,
+    acceptance_criteria: str,
+    acceptance_criteria_field: str,
+    field_rendering_format: str,
+) -> None:
+    if not acceptance_criteria:
+        return
+    patch_document.append(
+        {
+            "op": "add",
+            "path": f"/multilineFieldsFormat/{acceptance_criteria_field}",
+            "value": field_rendering_format,
+        }
+    )
+    patch_document.append(
+        {
+            "op": "add",
+            "path": f"/fields/{acceptance_criteria_field}",
+            "value": acceptance_criteria,
+        }
+    )
+
+
+def _ado_patch_doc_append_priority_story_points_create_issue(
+    patch_document: list[dict[str, Any]],
+    *,
+    payload: dict[str, Any],
+    priority_field: str,
+    story_points_field: str,
+) -> None:
+    priority = payload.get("priority")
+    if priority not in (None, ""):
+        patch_document.append(
+            {
+                "op": "add",
+                "path": f"/fields/{priority_field}",
+                "value": priority,
+            }
+        )
+    story_points = payload.get("story_points")
+    if story_points is not None:
+        patch_document.append(
+            {
+                "op": "add",
+                "path": f"/fields/{story_points_field}",
+                "value": story_points,
+            }
+        )
+
+
+def _ado_patch_doc_append_provider_fields_create_issue(
+    patch_document: list[dict[str, Any]], payload: dict[str, Any]
+) -> None:
+    provider_fields_raw = payload.get("provider_fields")
+    if not isinstance(provider_fields_raw, dict):
+        return
+    provider_field_values = _as_str_dict(provider_fields_raw).get("fields")
+    if not isinstance(provider_field_values, dict):
+        return
+    for field_name, field_value in provider_field_values.items():
+        normalized_field = str(field_name).strip()
+        if not normalized_field:
+            continue
+        patch_document.append(
+            {
+                "op": "add",
+                "path": f"/fields/{normalized_field}",
+                "value": field_value,
+            }
+        )
+
+
+def _ado_patch_doc_append_sprint_parent_create_issue(
+    patch_document: list[dict[str, Any]],
+    *,
+    base_url: str,
+    org: str,
+    project: str,
+    payload: dict[str, Any],
+) -> None:
+    sprint = str(payload.get("sprint") or "").strip()
+    if sprint:
+        patch_document.append(
+            {
+                "op": "add",
+                "path": "/fields/System.IterationPath",
+                "value": sprint,
+            }
+        )
+    parent_id = str(payload.get("parent_id") or "").strip()
+    if not parent_id:
+        return
+    parent_url = f"{base_url}/{org}/{project}/_apis/wit/workItems/{parent_id}"
+    patch_document.append(
+        {
+            "op": "add",
+            "path": "/relations/-",
+            "value": {"rel": "System.LinkTypes.Hierarchy-Reverse", "url": parent_url},
+        }
+    )
+
+
+def _ado_patch_ops_optional_acceptance_criteria(
+    item: BacklogItem,
+    update_fields: list[str] | None,
+    ado_mapper: AdoFieldMapper,
+    provider_field_names: set[str],
+) -> list[dict[str, Any]]:
+    if update_fields is not None and "acceptance_criteria" not in update_fields:
+        return []
+    operations: list[dict[str, Any]] = []
+    acceptance_criteria_field = ado_mapper.resolve_write_target_field("acceptance_criteria", provider_field_names)
+    if acceptance_criteria_field and item.acceptance_criteria:
+        operations.append(
+            {
+                "op": "add",
+                "path": f"/multilineFieldsFormat/{acceptance_criteria_field}",
+                "value": "Markdown",
+            }
+        )
+        operations.append(
+            {"op": "replace", "path": f"/fields/{acceptance_criteria_field}", "value": item.acceptance_criteria}
+        )
+    return operations
+
+
+def _ado_patch_ops_optional_story_points(
+    item: BacklogItem,
+    update_fields: list[str] | None,
+    ado_mapper: AdoFieldMapper,
+    provider_field_names: set[str],
+) -> list[dict[str, Any]]:
+    if update_fields is not None and "story_points" not in update_fields:
+        return []
+    operations: list[dict[str, Any]] = []
+    story_points_field = ado_mapper.resolve_write_target_field("story_points", provider_field_names)
+    if story_points_field and item.story_points is not None and story_points_field in provider_field_names:
+        operations.append({"op": "replace", "path": f"/fields/{story_points_field}", "value": item.story_points})
+    return operations
+
+
+def _ado_patch_ops_optional_business_value(
+    item: BacklogItem,
+    update_fields: list[str] | None,
+    ado_mapper: AdoFieldMapper,
+    provider_field_names: set[str],
+) -> list[dict[str, Any]]:
+    if update_fields is not None and "business_value" not in update_fields:
+        return []
+    operations: list[dict[str, Any]] = []
+    business_value_field = ado_mapper.resolve_write_target_field("business_value", provider_field_names)
+    if business_value_field and item.business_value is not None and business_value_field in provider_field_names:
+        operations.append({"op": "replace", "path": f"/fields/{business_value_field}", "value": item.business_value})
+    return operations
+
+
+def _ado_patch_ops_optional_priority(
+    item: BacklogItem,
+    update_fields: list[str] | None,
+    ado_mapper: AdoFieldMapper,
+    provider_field_names: set[str],
+) -> list[dict[str, Any]]:
+    if update_fields is not None and "priority" not in update_fields:
+        return []
+    operations: list[dict[str, Any]] = []
+    priority_field = ado_mapper.resolve_write_target_field("priority", provider_field_names)
+    if priority_field and item.priority is not None and priority_field in provider_field_names:
+        operations.append({"op": "replace", "path": f"/fields/{priority_field}", "value": item.priority})
+    return operations
 
 
 class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
@@ -205,6 +693,29 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         """
         return "dev.azure.com" not in self.base_url.lower()
 
+    def _build_ado_url_on_premise(self, base_url_normalized: str, path_normalized: str, api_version: str) -> str:
+        """Build URL for Azure DevOps Server (on-premise) layouts."""
+        base_lower = base_url_normalized.lower()
+        has_tfs = "/tfs/" in base_lower
+        parts = [p for p in base_url_normalized.rstrip("/").split("/") if p and p not in ["http:", "https:"]]
+        has_collection_in_base = has_tfs or len(parts) > 1
+
+        if has_collection_in_base:
+            if self.org:
+                return f"{base_url_normalized}/{self.org}/{self.project}/{path_normalized}?api-version={api_version}"
+            console.print(
+                "[yellow]Warning:[/yellow] Collection in base_url but org not provided. Using project directly."
+            )
+            return f"{base_url_normalized}/{self.project}/{path_normalized}?api-version={api_version}"
+        if self.org:
+            if "/tfs" in base_url_normalized.lower() or not has_tfs:
+                return f"{base_url_normalized}/{self.org}/{self.project}/{path_normalized}?api-version={api_version}"
+            return f"{base_url_normalized}/tfs/{self.org}/{self.project}/{path_normalized}?api-version={api_version}"
+        console.print(
+            "[yellow]Warning:[/yellow] On-premise detected but org (collection) not provided. Assuming collection is in base_url."
+        )
+        return f"{base_url_normalized}/{self.project}/{path_normalized}?api-version={api_version}"
+
     def _build_ado_url(self, path: str, api_version: str = _ADO_STABLE_API_VERSION) -> str:
         """
         Build Azure DevOps API URL with proper formatting.
@@ -238,59 +749,10 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         is_on_premise = self._is_on_premise()
 
         if is_on_premise:
-            # Azure DevOps Server (on-premise)
-            # Format could be:
-            # - https://server/tfs/collection/{project}/_apis/... (older TFS format)
-            # - https://server/collection/{project}/_apis/... (newer format)
-            # - https://server/{project}/_apis/... (if collection in base_url)
-
-            base_lower = base_url_normalized.lower()
-            has_tfs = "/tfs/" in base_lower
-
-            # Check if base_url already includes a collection path
-            # If base_url contains /tfs/ or has more than just protocol + domain, collection is likely included
-            parts = [p for p in base_url_normalized.rstrip("/").split("/") if p and p not in ["http:", "https:"]]
-            # Collection is in base_url if:
-            # 1. It contains /tfs/ (older TFS format: server/tfs/collection)
-            # 2. It has more than 1 part after protocol (e.g., server/collection)
-            has_collection_in_base = has_tfs or len(parts) > 1
-
-            if has_collection_in_base:
-                # Collection already in base_url, but for project-based permissions, we still need org in path
-                # Include org before project to ensure proper permission scoping
-                if self.org:
-                    url = f"{base_url_normalized}/{self.org}/{self.project}/{path_normalized}?api-version={api_version}"
-                else:
-                    # Fallback: if org not provided but collection in base_url, use project directly
-                    console.print(
-                        "[yellow]Warning:[/yellow] Collection in base_url but org not provided. Using project directly."
-                    )
-                    url = f"{base_url_normalized}/{self.project}/{path_normalized}?api-version={api_version}"
-            elif self.org:
-                # Collection not in base_url, need to add it
-                # For on-premise, typically use /tfs/{collection} format unless explicitly newer format
-                # But if base_url doesn't have /tfs/, use newer format
-                if "/tfs" in base_url_normalized.lower() or not has_tfs:
-                    # If base_url mentions tfs anywhere or we're not sure, use /tfs/ format
-                    # Actually, if has_tfs is False, we should use newer format
-                    url = f"{base_url_normalized}/{self.org}/{self.project}/{path_normalized}?api-version={api_version}"
-                else:
-                    # Use /tfs/ format for older TFS servers
-                    url = f"{base_url_normalized}/tfs/{self.org}/{self.project}/{path_normalized}?api-version={api_version}"
-            else:
-                # No org provided, assume collection is in base_url or use project directly
-                console.print(
-                    "[yellow]Warning:[/yellow] On-premise detected but org (collection) not provided. Assuming collection is in base_url."
-                )
-                url = f"{base_url_normalized}/{self.project}/{path_normalized}?api-version={api_version}"
-        else:
-            # Azure DevOps Services (cloud)
-            # Format: https://dev.azure.com/{org}/{project}/_apis/...
-            if not self.org:
-                raise ValueError(f"org required for Azure DevOps Services (cloud) (org={self.org!r})")
-            url = f"{base_url_normalized}/{self.org}/{self.project}/{path_normalized}?api-version={api_version}"
-
-        return url
+            return self._build_ado_url_on_premise(base_url_normalized, path_normalized, api_version)
+        if not self.org:
+            raise ValueError(f"org required for Azure DevOps Services (cloud) (org={self.org!r})")
+        return f"{base_url_normalized}/{self.org}/{self.project}/{path_normalized}?api-version={api_version}"
 
     # BacklogAdapterMixin abstract method implementations
 
@@ -392,6 +854,53 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         normalized = re.sub(r"^Description:\s*\n+", "", normalized, count=1, flags=re.IGNORECASE)
         return normalized.strip()
 
+    def _resolve_change_id_for_proposal_data(self, item_data: dict[str, Any], description_raw: str) -> str:
+        """Resolve OpenSpec change id from description footer, comments, or work item id."""
+        if description_raw:
+            change_id_match = re.search(r"OpenSpec Change Proposal:\s*`([^`]+)`", description_raw, re.IGNORECASE)
+            if change_id_match:
+                return change_id_match.group(1)
+
+        work_item_id = item_data.get("id")
+        if work_item_id and self.org and self.project:
+            comments = self._get_work_item_comments(self.org, self.project, work_item_id)
+            for comment in comments:
+                comment_text = comment.get("text", "") or comment.get("body", "")
+                for pattern in _OPENSPEC_COMMENT_CHANGE_ID_PATTERNS:
+                    match = re.search(pattern, comment_text, re.IGNORECASE | re.DOTALL)
+                    if match:
+                        return match.group(1)
+
+        return str(item_data.get("id", "unknown"))
+
+    @staticmethod
+    def _apply_assignee_to_owner_stakeholders(
+        assigned_to: Any,
+        owner: str | None,
+        stakeholders: list[str],
+    ) -> tuple[str | None, list[str]]:
+        if not assigned_to:
+            return owner, stakeholders
+
+        if isinstance(assigned_to, dict):
+            assignee_dict = cast(dict[str, Any], assigned_to)
+            display_name = assignee_dict.get("displayName")
+            unique_name = assignee_dict.get("uniqueName")
+            if isinstance(display_name, str) and display_name.strip():
+                assignee_name = display_name.strip()
+            elif isinstance(unique_name, str):
+                assignee_name = unique_name
+            else:
+                assignee_name = ""
+        else:
+            assignee_name = str(assigned_to)
+
+        if assignee_name and not owner:
+            owner = assignee_name
+        if assignee_name:
+            stakeholders.append(assignee_name)
+        return owner, stakeholders
+
     @beartype
     @require(lambda item_data: isinstance(item_data, dict), "Item data must be dict")
     @ensure(lambda result: isinstance(result, dict), "Must return dict with extracted fields")
@@ -447,79 +956,8 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         # Extract description (normalize HTML → Markdown if needed)
         description_raw = self._normalize_description(fields)
 
-        description = ""
-        rationale = ""
-        impact = ""
-
-        import re
-
-        # Parse markdown sections (Why, What Changes)
-        if description_raw:
-            # Extract "Why" section (stop at What Changes or OpenSpec footer)
-            why_match = re.search(
-                r"##\s+Why\s*\n(.*?)(?=\n##\s+What\s+Changes\s|\n##\s+Impact\s|\n---\s*\n\*OpenSpec Change Proposal:|\Z)",
-                description_raw,
-                re.DOTALL | re.IGNORECASE,
-            )
-            if why_match:
-                rationale = why_match.group(1).strip()
-
-            # Extract "What Changes" section (stop at OpenSpec footer)
-            what_match = re.search(
-                r"##\s+What\s+Changes\s*\n(.*?)(?=\n##\s+Impact\s|\n---\s*\n\*OpenSpec Change Proposal:|\Z)",
-                description_raw,
-                re.DOTALL | re.IGNORECASE,
-            )
-            if what_match:
-                description = what_match.group(1).strip()
-            elif not why_match:
-                # If no sections found, use entire description (but remove footer)
-                body_clean = re.sub(r"\n---\s*\n\*OpenSpec Change Proposal:.*", "", description_raw, flags=re.DOTALL)
-                description = body_clean.strip()
-
-            impact_match = re.search(
-                r"##\s+Impact\s*\n(.*?)(?=\n---\s*\n\*OpenSpec Change Proposal:|\Z)",
-                description_raw,
-                re.DOTALL | re.IGNORECASE,
-            )
-            if impact_match:
-                impact = impact_match.group(1).strip()
-
-        # Extract change ID from OpenSpec metadata footer, comments, or work item ID
-        change_id = None
-
-        # First, check description for OpenSpec metadata footer (legacy format)
-        if description_raw:
-            # Look for OpenSpec metadata footer: *OpenSpec Change Proposal: `{change_id}`*
-            change_id_match = re.search(r"OpenSpec Change Proposal:\s*`([^`]+)`", description_raw, re.IGNORECASE)
-            if change_id_match:
-                change_id = change_id_match.group(1)
-
-        # If not found in description, check comments (new format - OpenSpec info in comments)
-        if not change_id:
-            work_item_id = item_data.get("id")
-            if work_item_id and self.org and self.project:
-                comments = self._get_work_item_comments(self.org, self.project, work_item_id)
-                # Look for OpenSpec Change Proposal Reference comment
-                openspec_patterns = [
-                    r"\*\*Change ID\*\*[:\s]+`([a-z0-9-]+)`",
-                    r"Change ID[:\s]+`([a-z0-9-]+)`",
-                    r"OpenSpec Change Proposal[:\s]+`?([a-z0-9-]+)`?",
-                    r"\*OpenSpec Change Proposal:\s*`([a-z0-9-]+)`",
-                ]
-                for comment in comments:
-                    comment_text = comment.get("text", "") or comment.get("body", "")
-                    for pattern in openspec_patterns:
-                        match = re.search(pattern, comment_text, re.IGNORECASE | re.DOTALL)
-                        if match:
-                            change_id = match.group(1)
-                            break
-                    if change_id:
-                        break
-
-        # Fallback to work item ID if still not found
-        if not change_id:
-            change_id = str(item_data.get("id", "unknown"))
+        rationale, description, impact = _extract_ado_proposal_markdown_sections(description_raw)
+        change_id = self._resolve_change_id_for_proposal_data(item_data, description_raw)
 
         # Extract status from System.State
         ado_state = fields.get("System.State", "New")
@@ -528,7 +966,6 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         # Extract created_at timestamp
         created_at = fields.get("System.CreatedDate")
         if created_at:
-            # Parse ISO format and convert to ISO string
             try:
                 dt = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
                 created_at = dt.isoformat()
@@ -537,52 +974,12 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         else:
             created_at = datetime.now(UTC).isoformat()
 
-        # Extract optional fields (timeline, owner, stakeholders, dependencies)
-        timeline = None
-        owner = None
-        stakeholders = []
-        dependencies = []
+        timeline, owner, stakeholders = _parse_when_who_markdown(description_raw)
+        dependencies: list[str] = []
 
-        # Try to extract from description sections
-        if description_raw:
-            # Extract "When" section (timeline)
-            when_match = re.search(r"##\s+When\s*\n(.*?)(?=\n##|\Z)", description_raw, re.DOTALL | re.IGNORECASE)
-            if when_match:
-                timeline = when_match.group(1).strip()
-
-            # Extract "Who" section (owner, stakeholders)
-            who_match = re.search(r"##\s+Who\s*\n(.*?)(?=\n##|\Z)", description_raw, re.DOTALL | re.IGNORECASE)
-            if who_match:
-                who_content = who_match.group(1).strip()
-                # Try to extract owner (first line or "Owner:" field)
-                owner_match = re.search(r"(?:Owner|owner):\s*(.+)", who_content, re.IGNORECASE)
-                if owner_match:
-                    owner = owner_match.group(1).strip()
-                # Extract stakeholders (list items or comma-separated)
-                stakeholders_match = re.search(r"(?:Stakeholders|stakeholders):\s*(.+)", who_content, re.IGNORECASE)
-                if stakeholders_match:
-                    stakeholders_str = stakeholders_match.group(1).strip()
-                    stakeholders = [s.strip() for s in re.split(r"[,\n]", stakeholders_str) if s.strip()]
-
-        # Extract assignees as potential owner/stakeholders
-        assigned_to = fields.get("System.AssignedTo")
-        if assigned_to:
-            if isinstance(assigned_to, dict):
-                assignee_dict = cast(dict[str, Any], assigned_to)
-                display_name = assignee_dict.get("displayName")
-                unique_name = assignee_dict.get("uniqueName")
-                if isinstance(display_name, str) and display_name.strip():
-                    assignee_name = display_name.strip()
-                elif isinstance(unique_name, str):
-                    assignee_name = unique_name
-                else:
-                    assignee_name = ""
-            else:
-                assignee_name = str(assigned_to)
-            if assignee_name and not owner:
-                owner = assignee_name
-            if assignee_name:
-                stakeholders.append(assignee_name)
+        owner, stakeholders = self._apply_assignee_to_owner_stakeholders(
+            fields.get("System.AssignedTo"), owner, stakeholders
+        )
 
         return {
             "change_id": change_id,
@@ -599,8 +996,8 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         }
 
     @beartype
-    @require(lambda repo_path: repo_path.exists(), "Repository path must exist")
-    @require(lambda repo_path: repo_path.is_dir(), "Repository path must be a directory")
+    @require(require_repo_path_exists, "Repository path must exist")
+    @require(require_repo_path_is_dir, "Repository path must be a directory")
     @ensure(lambda result: isinstance(result, bool), "Must return bool")
     def detect(self, repo_path: Path, bridge_config: BridgeConfig | None = None) -> bool:
         """
@@ -617,8 +1014,8 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         return bool(bridge_config and bridge_config.adapter.value == "ado")
 
     @beartype
-    @require(lambda repo_path: repo_path.exists(), "Repository path must exist")
-    @require(lambda repo_path: repo_path.is_dir(), "Repository path must be a directory")
+    @require(require_repo_path_exists, "Repository path must exist")
+    @require(require_repo_path_is_dir, "Repository path must be a directory")
     @ensure(lambda result: isinstance(result, ToolCapabilities), "Must return ToolCapabilities")
     def get_capabilities(self, repo_path: Path, bridge_config: BridgeConfig | None = None) -> ToolCapabilities:
         """
@@ -643,6 +1040,84 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
                 "export-only",
             ],  # Azure DevOps adapter: bidirectional sync (OpenSpec ↔ ADO Work Items) and export-only for change proposals
         )
+
+    def _merge_ado_import_fields_into_source_metadata(self, proposal: Any, fields: dict[str, Any]) -> str:
+        """Populate source_metadata from ADO work item fields; return ``source_repo`` key."""
+        proposal.source_tracking.source_metadata.update(
+            {
+                "org": self.org or "",
+                "project": self.project or "",
+                "work_item_type": fields.get("System.WorkItemType", ""),
+                "state": fields.get("System.State", ""),
+            }
+        )
+        if "source_state" not in proposal.source_tracking.source_metadata:
+            proposal.source_tracking.source_metadata["source_state"] = fields.get("System.State", "")
+
+        raw_title = fields.get("System.Title", "") or ""
+        raw_body = self._normalize_description(fields)
+        proposal.source_tracking.source_metadata["raw_title"] = raw_title
+        proposal.source_tracking.source_metadata["raw_body"] = raw_body
+        proposal.source_tracking.source_metadata["raw_format"] = "markdown"
+        proposal.source_tracking.source_metadata.setdefault("source_type", "ado")
+
+        source_repo = ""
+        if self.org and self.project:
+            source_repo = f"{self.org}/{self.project}"
+            proposal.source_tracking.source_metadata.setdefault("source_repo", source_repo)
+        return source_repo
+
+    @staticmethod
+    def _ado_backlog_entry_matches_for_merge(ex: dict[str, Any], entry: dict[str, Any], source_repo: str) -> bool:
+        if source_repo:
+            return ex.get("source_repo") == source_repo
+        return ex.get("source_id") == entry.get("source_id")
+
+    def _merge_ado_import_backlog_entries(self, proposal: Any, artifact_path: dict[str, Any], source_repo: str) -> None:
+        """Merge or append backlog entry under ``source_metadata.backlog_entries``."""
+        entry_id = artifact_path.get("id")
+        links_raw = artifact_path.get("_links", {})
+        links: dict[str, Any] = links_raw if isinstance(links_raw, dict) else {}
+        html_raw = links.get("html", {})
+        html: dict[str, Any] = html_raw if isinstance(html_raw, dict) else {}
+        href = str(html.get("href", ""))
+        entry: dict[str, Any] = {
+            "source_id": str(entry_id) if entry_id is not None else None,
+            "source_url": href,
+            "source_type": "ado",
+            "source_repo": source_repo,
+            "source_metadata": {"last_synced_status": proposal.status},
+        }
+        raw_entries = proposal.source_tracking.source_metadata.get("backlog_entries")
+        entries: list[dict[str, Any]] = (
+            [] if not isinstance(raw_entries, list) else cast(list[dict[str, Any]], raw_entries)
+        )
+        if not entry.get("source_id"):
+            proposal.source_tracking.source_metadata["backlog_entries"] = entries
+            return
+
+        updated = False
+        for existing in entries:
+            if not isinstance(existing, dict):
+                continue
+            ex: dict[str, Any] = existing
+            if self._ado_backlog_entry_matches_for_merge(ex, entry, source_repo):
+                ex.update(entry)
+                updated = True
+                break
+        if not updated:
+            entries.append(entry)
+        proposal.source_tracking.source_metadata["backlog_entries"] = entries
+
+    def _apply_ado_import_source_tracking(self, proposal: Any, artifact_path: dict[str, Any]) -> None:
+        """Merge ADO work item metadata and backlog entry into proposal source_tracking."""
+        if not proposal.source_tracking or not isinstance(proposal.source_tracking.source_metadata, dict):
+            return
+
+        fields_raw = artifact_path.get("fields", {})
+        fields: dict[str, Any] = fields_raw if isinstance(fields_raw, dict) else {}
+        source_repo = self._merge_ado_import_fields_into_source_metadata(proposal, fields)
+        self._merge_ado_import_backlog_entries(proposal, artifact_path, source_repo)
 
     @beartype
     @require(
@@ -703,61 +1178,7 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             msg = "Failed to import ADO work item as change proposal"
             raise ValueError(msg)
 
-        # Enhance source_tracking with ADO-specific metadata
-        if proposal.source_tracking and isinstance(proposal.source_tracking.source_metadata, dict):
-            fields = artifact_path.get("fields", {})
-            # Add ADO-specific metadata to source_metadata
-            proposal.source_tracking.source_metadata.update(
-                {
-                    "org": self.org or "",
-                    "project": self.project or "",
-                    "work_item_type": fields.get("System.WorkItemType", ""),
-                    "state": fields.get("System.State", ""),
-                }
-            )
-            # Also update source_state if not already set
-            if "source_state" not in proposal.source_tracking.source_metadata:
-                proposal.source_tracking.source_metadata["source_state"] = fields.get("System.State", "")
-
-            raw_title = fields.get("System.Title", "") or ""
-            raw_body = self._normalize_description(fields)
-            proposal.source_tracking.source_metadata["raw_title"] = raw_title
-            proposal.source_tracking.source_metadata["raw_body"] = raw_body
-            proposal.source_tracking.source_metadata["raw_format"] = "markdown"
-            proposal.source_tracking.source_metadata.setdefault("source_type", "ado")
-
-            source_repo = ""
-            if self.org and self.project:
-                source_repo = f"{self.org}/{self.project}"
-                proposal.source_tracking.source_metadata.setdefault("source_repo", source_repo)
-
-            entry_id = artifact_path.get("id")
-            entry = {
-                "source_id": str(entry_id) if entry_id is not None else None,
-                "source_url": artifact_path.get("_links", {}).get("html", {}).get("href", ""),
-                "source_type": "ado",
-                "source_repo": source_repo,
-                "source_metadata": {"last_synced_status": proposal.status},
-            }
-            entries = proposal.source_tracking.source_metadata.get("backlog_entries")
-            if not isinstance(entries, list):
-                entries = []
-            if entry.get("source_id"):
-                updated = False
-                for existing in entries:
-                    if not isinstance(existing, dict):
-                        continue
-                    if source_repo and existing.get("source_repo") == source_repo:
-                        existing.update(entry)
-                        updated = True
-                        break
-                    if not source_repo and existing.get("source_id") == entry.get("source_id"):
-                        existing.update(entry)
-                        updated = True
-                        break
-                if not updated:
-                    entries.append(entry)
-                proposal.source_tracking.source_metadata["backlog_entries"] = entries
+        self._apply_ado_import_source_tracking(proposal, artifact_path)
 
         # Add proposal to project bundle change tracking
         if hasattr(project_bundle, "change_tracking"):
@@ -766,6 +1187,133 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
 
                 project_bundle.change_tracking = ChangeTracking()
             project_bundle.change_tracking.proposals[proposal.name] = proposal
+
+    def _work_item_id_from_source_tracking_basic(self, source_tracking: Any, org: str, project: str) -> Any | None:
+        """Resolve work item id from source_tracking list/dict for the target org/project repo."""
+        target_repo = f"{org}/{project}"
+        if isinstance(source_tracking, list):
+            for entry in source_tracking:
+                if not isinstance(entry, dict):
+                    continue
+                ed = _as_str_dict(entry)
+                entry_repo = ed.get("source_repo")
+                if entry_repo == target_repo:
+                    return ed.get("source_id")
+                if not entry_repo:
+                    source_url = ed.get("source_url", "")
+                    if source_url and target_repo in source_url:
+                        return ed.get("source_id")
+        elif isinstance(source_tracking, dict):
+            return _as_str_dict(source_tracking).get("source_id")
+        return None
+
+    def _resolve_work_item_id_for_content_update(self, artifact_data: dict[str, Any], org: str, project: str) -> int:
+        """Find work item id for change_proposal_update using multi-level ADO matching."""
+        source_tracking = artifact_data.get("source_tracking", {})
+        work_item_id: Any = None
+        target_repo = f"{org}/{project}"
+
+        if isinstance(source_tracking, list):
+            for entry in source_tracking:
+                if not isinstance(entry, dict):
+                    continue
+                ed = _as_str_dict(entry)
+                entry_repo = ed.get("source_repo")
+                if entry_repo == target_repo:
+                    work_item_id = ed.get("source_id")
+                    break
+                if not entry_repo:
+                    work_item_id = _content_update_match_dev_azure_org(entry, target_repo)
+                    if work_item_id:
+                        break
+                    continue
+                work_item_id = _content_update_match_ado_org_project_uncertain(ed, str(entry_repo), target_repo)
+                if work_item_id:
+                    break
+        elif isinstance(source_tracking, dict):
+            work_item_id = _as_str_dict(source_tracking).get("source_id")
+
+        if not work_item_id:
+            msg = (
+                f"Work item ID required for content update (missing in source_tracking for repository {target_repo}). "
+                "Work item must be created first."
+            )
+            raise ValueError(msg)
+
+        return self._coerce_work_item_id(work_item_id)
+
+    def _export_change_proposal_comment_artifact(
+        self, artifact_data: dict[str, Any], org: str, project: str
+    ) -> dict[str, Any]:
+        source_tracking = artifact_data.get("source_tracking", {})
+        work_item_id = self._work_item_id_from_source_tracking_basic(source_tracking, org, project)
+
+        if not work_item_id:
+            msg = "Work item ID required for comment (missing in source_tracking for this repository)"
+            raise ValueError(msg)
+
+        work_item_id_int = self._coerce_work_item_id(work_item_id)
+
+        status = artifact_data.get("status", "proposed")
+        title = artifact_data.get("title", "Untitled Change Proposal")
+        change_id = artifact_data.get("change_id", "")
+        code_repo_path_str = artifact_data.get("_code_repo_path")
+        code_repo_path = Path(code_repo_path_str) if code_repo_path_str else None
+
+        if isinstance(source_tracking, list):
+            st_list: list[Any] = []
+            for entry in source_tracking:
+                if not isinstance(entry, dict):
+                    st_list.append(entry)
+                    continue
+                ed = _as_str_dict(entry)
+                entry_copy = dict(ed)
+                if not entry_copy.get("change_id"):
+                    entry_copy["change_id"] = change_id
+                st_list.append(entry_copy)
+            source_tracking_resolved = st_list
+        elif isinstance(source_tracking, dict):
+            st = _as_str_dict(source_tracking)
+            st_dict: dict[str, Any] = dict(st)
+            if not st_dict.get("change_id"):
+                st_dict["change_id"] = change_id
+            source_tracking_resolved = st_dict
+        else:
+            source_tracking_resolved = source_tracking
+
+        comment_text = self._get_status_comment(status, title, source_tracking_resolved, code_repo_path)
+        if comment_text:
+            comment_note = (
+                f"{comment_text}\n\n"
+                f"*Note: This comment was added from an OpenSpec change proposal with status `{status}`.*"
+            )
+            self._add_work_item_comment(org, project, work_item_id_int, comment_note)
+        return {
+            "work_item_id": work_item_id_int,
+            "comment_added": True,
+        }
+
+    def _export_code_change_progress_artifact(
+        self,
+        artifact_data: dict[str, Any],
+        org: str,
+        project: str,
+        bridge_config: BridgeConfig | None,
+    ) -> dict[str, Any]:
+        source_tracking = artifact_data.get("source_tracking", {})
+        work_item_id = self._work_item_id_from_source_tracking_basic(source_tracking, org, project)
+
+        if not work_item_id:
+            msg = "Work item ID required for progress comment (missing in source_tracking for this repository)"
+            raise ValueError(msg)
+
+        work_item_id_int = self._coerce_work_item_id(work_item_id)
+
+        sanitize = artifact_data.get("sanitize", False)
+        if bridge_config and hasattr(bridge_config, "sanitize"):
+            sanitize = bridge_config.sanitize if bridge_config.sanitize is not None else sanitize  # type: ignore[attr-defined]
+
+        return self._add_progress_comment(artifact_data, org, project, work_item_id_int, sanitize=sanitize)
 
     @beartype
     @require(
@@ -793,8 +1341,6 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             ValueError: If required configuration is missing
             requests.RequestException: If Azure DevOps API call fails
         """
-        import re as _re
-
         if not self.api_token:
             msg = (
                 "Azure DevOps API token required. Options:\n"
@@ -820,213 +1366,16 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         if artifact_key == "change_status":
             return self._update_work_item_status(artifact_data, org, project)
         if artifact_key == "change_proposal_update":
-            # Extract work item ID from source_tracking (support list or dict for backward compatibility)
-            # Use three-level matching to handle ADO URL GUIDs and project name differences
-            source_tracking = artifact_data.get("source_tracking", {})
-            work_item_id = None
-            target_repo = f"{org}/{project}"
-
-            # Handle list of entries (multi-repository support)
-            if isinstance(source_tracking, list):
-                # Find entry for this repository using three-level matching
-                for entry in source_tracking:
-                    if not isinstance(entry, dict):
-                        continue
-
-                    entry_repo = entry.get("source_repo")
-                    entry_type = entry.get("source_type", "").lower()
-
-                    # Primary match: exact source_repo match
-                    if entry_repo == target_repo:
-                        work_item_id = entry.get("source_id")
-                        break
-
-                    # Secondary match: extract from source_url if source_repo not set
-                    if not entry_repo:
-                        source_url = entry.get("source_url", "")
-                        # Try ADO URL pattern - match by org (GUIDs in URLs)
-                        if source_url and "/" in target_repo:
-                            try:
-                                parsed = urlparse(source_url)
-                                if parsed.hostname and parsed.hostname.lower() == "dev.azure.com":
-                                    target_org = target_repo.split("/")[0]
-                                    ado_org_match = _re.search(r"dev\.azure\.com/([^/]+)/", source_url)
-                                    if ado_org_match and ado_org_match.group(1) == target_org:
-                                        # Org matches - this is likely the same ADO organization
-                                        work_item_id = entry.get("source_id")
-                                        break
-                            except Exception:
-                                pass
-
-                    # Tertiary match: for ADO, only match by org when project is truly unknown (GUID-only URLs)
-                    # This prevents cross-project matches when both entry_repo and target_repo have project names
-                    if entry_repo and target_repo and entry_type == "ado":
-                        entry_org = entry_repo.split("/")[0] if "/" in entry_repo else None
-                        target_org = target_repo.split("/")[0] if "/" in target_repo else None
-                        entry_project = entry_repo.split("/", 1)[1] if "/" in entry_repo else None
-                        target_project = target_repo.split("/", 1)[1] if "/" in target_repo else None
-
-                        # Only use org-only match when:
-                        # 1. Org matches
-                        # 2. source_id exists
-                        # 3. AND (project is unknown in entry OR project is unknown in target OR both contain GUIDs)
-                        # This prevents matching org/project-a with org/project-b when both have known project names
-                        source_url = entry.get("source_url", "")
-                        entry_has_guid = source_url and _re.search(
-                            r"dev\.azure\.com/[^/]+/[0-9a-f-]{36}", source_url, _re.IGNORECASE
-                        )
-                        project_unknown = (
-                            not entry_project  # Entry has no project part
-                            or not target_project  # Target has no project part
-                            or entry_has_guid  # Entry URL contains GUID (project name unknown)
-                            or (
-                                entry_project and len(entry_project) == 36 and "-" in entry_project
-                            )  # Entry project is a GUID
-                            or (
-                                target_project and len(target_project) == 36 and "-" in target_project
-                            )  # Target project is a GUID
-                        )
-
-                        if (
-                            entry_org
-                            and target_org
-                            and entry_org == target_org
-                            and entry.get("source_id")
-                            and project_unknown
-                        ):
-                            work_item_id = entry.get("source_id")
-                            break
-
-            # Handle single dict (backward compatibility)
-            elif isinstance(source_tracking, dict):
-                work_item_id = source_tracking.get("source_id")
-
-            if not work_item_id:
-                msg = (
-                    f"Work item ID required for content update (missing in source_tracking for repository {target_repo}). "
-                    "Work item must be created first."
-                )
-                raise ValueError(msg)
-
-            # Ensure work_item_id is an integer for API call
-            if isinstance(work_item_id, str):
-                try:
-                    work_item_id = int(work_item_id)
-                except ValueError:
-                    msg = f"Invalid work item ID format: {work_item_id}"
-                    raise ValueError(msg) from None
-
+            work_item_id = self._resolve_work_item_id_for_content_update(
+                cast(dict[str, Any], artifact_data), org, project
+            )
             return self._update_work_item_body(artifact_data, org, project, work_item_id)
         if artifact_key == "change_proposal_comment":
-            # Add comment only (no body/state update) - used for adding status info to work items
-            source_tracking = artifact_data.get("source_tracking", {})
-            work_item_id = None
-
-            # Handle list of entries (multi-repository support)
-            if isinstance(source_tracking, list):
-                target_repo = f"{org}/{project}"
-                for entry in source_tracking:
-                    if isinstance(entry, dict):
-                        entry_repo = entry.get("source_repo")
-                        if entry_repo == target_repo:
-                            work_item_id = entry.get("source_id")
-                            break
-                        if not entry_repo:
-                            source_url = entry.get("source_url", "")
-                            if source_url and target_repo in source_url:
-                                work_item_id = entry.get("source_id")
-                                break
-            elif isinstance(source_tracking, dict):
-                work_item_id = source_tracking.get("source_id")
-
-            if not work_item_id:
-                msg = "Work item ID required for comment (missing in source_tracking for this repository)"
-                raise ValueError(msg)
-
-            # Ensure work_item_id is an integer for API call
-            if isinstance(work_item_id, str):
-                try:
-                    work_item_id = int(work_item_id)
-                except ValueError:
-                    msg = f"Invalid work item ID format: {work_item_id}"
-                    raise ValueError(msg) from None
-
-            status = artifact_data.get("status", "proposed")
-            title = artifact_data.get("title", "Untitled Change Proposal")
-            change_id = artifact_data.get("change_id", "")
-            # Get OpenSpec repository path for branch verification
-            code_repo_path_str = artifact_data.get("_code_repo_path")
-            code_repo_path = Path(code_repo_path_str) if code_repo_path_str else None
-
-            # Add change_id to source_tracking entries for branch inference
-            # Create a copy to avoid modifying the original
-            if isinstance(source_tracking, list):
-                source_tracking_with_id = []
-                for entry in source_tracking:
-                    entry_copy = dict(entry) if isinstance(entry, dict) else entry
-                    if isinstance(entry_copy, dict) and not entry_copy.get("change_id"):
-                        entry_copy["change_id"] = change_id
-                    source_tracking_with_id.append(entry_copy)
-            elif isinstance(source_tracking, dict):
-                source_tracking_with_id = dict(source_tracking)
-                if not source_tracking_with_id.get("change_id"):
-                    source_tracking_with_id["change_id"] = change_id
-            else:
-                source_tracking_with_id = source_tracking
-            comment_text = self._get_status_comment(status, title, source_tracking_with_id, code_repo_path)
-            if comment_text:
-                comment_note = (
-                    f"{comment_text}\n\n"
-                    f"*Note: This comment was added from an OpenSpec change proposal with status `{status}`.*"
-                )
-                self._add_work_item_comment(org, project, work_item_id, comment_note)
-            return {
-                "work_item_id": work_item_id,
-                "comment_added": True,
-            }
+            return self._export_change_proposal_comment_artifact(cast(dict[str, Any], artifact_data), org, project)
         if artifact_key == "code_change_progress":
-            # Extract work item ID from source_tracking (support list or dict for backward compatibility)
-            source_tracking = artifact_data.get("source_tracking", {})
-            work_item_id = None
-
-            # Handle list of entries (multi-repository support)
-            if isinstance(source_tracking, list):
-                # Find entry for this repository
-                target_repo = f"{org}/{project}"
-                for entry in source_tracking:
-                    if isinstance(entry, dict):
-                        entry_repo = entry.get("source_repo")
-                        if entry_repo == target_repo:
-                            work_item_id = entry.get("source_id")
-                            break
-                        # Backward compatibility: if no source_repo, try to extract from source_url
-                        if not entry_repo:
-                            source_url = entry.get("source_url", "")
-                            if source_url and target_repo in source_url:
-                                work_item_id = entry.get("source_id")
-                                break
-            # Handle single dict (backward compatibility)
-            elif isinstance(source_tracking, dict):
-                work_item_id = source_tracking.get("source_id")
-
-            if not work_item_id:
-                msg = "Work item ID required for progress comment (missing in source_tracking for this repository)"
-                raise ValueError(msg)
-
-            # Ensure work_item_id is an integer for API call
-            if isinstance(work_item_id, str):
-                try:
-                    work_item_id = int(work_item_id)
-                except ValueError:
-                    msg = f"Invalid work item ID format: {work_item_id}"
-                    raise ValueError(msg) from None
-
-            # Extract sanitize flag from artifact_data or bridge_config
-            sanitize = artifact_data.get("sanitize", False)
-            if bridge_config and hasattr(bridge_config, "sanitize"):
-                sanitize = bridge_config.sanitize if bridge_config.sanitize is not None else sanitize
-
-            return self._add_progress_comment(artifact_data, org, project, work_item_id, sanitize=sanitize)
+            return self._export_code_change_progress_artifact(
+                cast(dict[str, Any], artifact_data), org, project, bridge_config
+            )
         msg = (
             f"Unsupported artifact key: {artifact_key}. "
             "Supported: change_proposal, change_status, change_proposal_update, change_proposal_comment, code_change_progress"
@@ -1100,19 +1449,123 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         source_tracking = proposal_data.get("source_tracking")
         source_metadata = None
         if isinstance(source_tracking, dict):
-            source_metadata = source_tracking.get("source_metadata")
+            source_metadata = _as_str_dict(source_tracking).get("source_metadata")
         elif source_tracking is not None and hasattr(source_tracking, "source_metadata"):
             source_metadata = source_tracking.source_metadata
 
         if isinstance(source_metadata, dict):
-            raw_title = raw_title or source_metadata.get("raw_title")
-            raw_body = raw_body or source_metadata.get("raw_body")
+            sm = _as_str_dict(source_metadata)
+            raw_title = raw_title or sm.get("raw_title")
+            raw_body = raw_body or sm.get("raw_body")
 
         return raw_title, raw_body
 
+    def _build_change_proposal_body(
+        self,
+        title: str,
+        rationale: str,
+        description: str,
+        impact: str,
+        change_id: str,
+    ) -> str:
+        """Build the canonical markdown body used for ADO change proposal work items."""
+        body_parts: list[str] = []
+        display_title = re.sub(r"^\[change\]\s*", "", title, flags=re.IGNORECASE).strip()
+        if display_title:
+            body_parts.extend([f"# {display_title}", ""])
+
+        for heading, content in (("Why", rationale), ("What Changes", description), ("Impact", impact)):
+            if not content:
+                continue
+            body_parts.extend([f"## {heading}", "", *content.strip().split("\n"), ""])
+
+        if not body_parts or not any((rationale, description, impact)):
+            body_parts.extend(["No description provided.", ""])
+
+        body_parts.extend(["---", f"*OpenSpec Change Proposal: `{change_id}`*"])
+        return "\n".join(body_parts)
+
+    def _resolve_proposal_ado_state(self, proposal_data: dict[str, Any]) -> str:
+        """Resolve the ADO state for a proposal, preserving cross-adapter state when present."""
+        source_state = proposal_data.get("source_state")
+        source_type = proposal_data.get("source_type")
+        if source_state and source_type and source_type != "ado":
+            return self.map_backlog_state_between_adapters(source_state, source_type, self)
+        status = proposal_data.get("status", "proposed")
+        return self.map_openspec_status_to_backlog(status)
+
+    def _require_api_token(self) -> None:
+        """Ensure an API token is configured before ADO write operations."""
+        if not self.api_token:
+            raise ValueError("Azure DevOps API token is required")
+
+    def _find_work_item_id_in_source_tracking(self, source_tracking: Any, target_repo: str) -> Any:
+        """Locate a work item identifier inside source tracking structures."""
+        if isinstance(source_tracking, dict):
+            return _as_str_dict(source_tracking).get("source_id")
+
+        if isinstance(source_tracking, list):
+            for entry in source_tracking:
+                if not isinstance(entry, dict):
+                    continue
+                ed = _as_str_dict(entry)
+                entry_repo = ed.get("source_repo")
+                if entry_repo == target_repo:
+                    return ed.get("source_id")
+                source_url = ed.get("source_url", "")
+                if not entry_repo and source_url and target_repo in source_url:
+                    return ed.get("source_id")
+
+        return None
+
+    def _coerce_work_item_id(self, work_item_id: Any) -> int:
+        """Normalize source-tracking work item IDs to integers."""
+        if isinstance(work_item_id, int):
+            return work_item_id
+        if isinstance(work_item_id, str):
+            try:
+                return int(work_item_id)
+            except ValueError:
+                raise ValueError(f"Invalid work item ID format: {work_item_id}") from None
+        raise ValueError(f"Invalid work item ID format: {work_item_id}")
+
+    def _get_source_tracking_work_item_id(self, source_tracking: Any, target_repo: str) -> int:
+        """Resolve the tracked work item ID for the target repository."""
+        work_item_id = self._find_work_item_id_in_source_tracking(source_tracking, target_repo)
+        if not work_item_id:
+            msg = (
+                f"Work item ID not found in source_tracking for repository {target_repo}. "
+                "Work item must be created first."
+            )
+            raise ValueError(msg)
+        return self._coerce_work_item_id(work_item_id)
+
+    def _patch_work_item(
+        self,
+        org: str,
+        project: str,
+        work_item_id: int,
+        patch_document: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        """Patch an ADO work item and return the response payload."""
+        self._require_api_token()
+        url = f"{self.base_url}/{org}/{project}/_apis/wit/workitems/{work_item_id}?api-version=7.1"
+        headers = {"Content-Type": "application/json-patch+json", **self._auth_headers()}
+        try:
+            response = self._request_with_retry(
+                lambda: requests.patch(url, json=patch_document, headers=headers, timeout=30)
+            )
+        except requests.RequestException as exc:
+            resp = getattr(exc, "response", None)
+            user_msg = _log_ado_patch_failure(resp, patch_document, url)
+            exc.ado_user_message = user_msg  # type: ignore[attr-defined]
+            console.print(f"[bold red]✗[/bold red] {user_msg}")
+            raise
+        return response.json()
+
     @beartype
-    @require(lambda repo_path: repo_path.exists(), "Repository path must exist")
-    @require(lambda repo_path: repo_path.is_dir(), "Repository path must be a directory")
+    @require(require_repo_path_exists, "Repository path must exist")
+    @require(require_repo_path_is_dir, "Repository path must be a directory")
     @ensure(lambda result: isinstance(result, BridgeConfig), "Must return BridgeConfig")
     def generate_bridge_config(self, repo_path: Path) -> BridgeConfig:
         """
@@ -1130,7 +1583,7 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
 
     @beartype
     @require(lambda bundle_dir: isinstance(bundle_dir, Path), "Bundle directory must be Path")
-    @require(lambda bundle_dir: bundle_dir.exists(), "Bundle directory must exist")
+    @require(require_bundle_dir_exists, "Bundle directory must exist")
     @ensure(lambda result: result is None, "Azure DevOps adapter does not support change tracking loading")
     def load_change_tracking(
         self, bundle_dir: Path, bridge_config: BridgeConfig | None = None
@@ -1152,7 +1605,7 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
 
     @beartype
     @require(lambda bundle_dir: isinstance(bundle_dir, Path), "Bundle directory must be Path")
-    @require(lambda bundle_dir: bundle_dir.exists(), "Bundle directory must exist")
+    @require(require_bundle_dir_exists, "Bundle directory must exist")
     @require(
         lambda change_tracking: isinstance(change_tracking, ChangeTracking), "Change tracking must be ChangeTracking"
     )
@@ -1175,7 +1628,7 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
 
     @beartype
     @require(lambda bundle_dir: isinstance(bundle_dir, Path), "Bundle directory must be Path")
-    @require(lambda bundle_dir: bundle_dir.exists(), "Bundle directory must exist")
+    @require(require_bundle_dir_exists, "Bundle directory must exist")
     @require(lambda change_name: isinstance(change_name, str) and len(change_name) > 0, "Change name must be non-empty")
     @ensure(lambda result: result is None, "Azure DevOps adapter does not support change proposal loading")
     def load_change_proposal(
@@ -1199,7 +1652,7 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
 
     @beartype
     @require(lambda bundle_dir: isinstance(bundle_dir, Path), "Bundle directory must be Path")
-    @require(lambda bundle_dir: bundle_dir.exists(), "Bundle directory must exist")
+    @require(require_bundle_dir_exists, "Bundle directory must exist")
     @require(lambda proposal: isinstance(proposal, ChangeProposal), "Proposal must be ChangeProposal")
     @ensure(lambda result: result is None, "Must return None")
     def save_change_proposal(
@@ -1540,15 +1993,7 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
 
         try:
             response = self._ado_get(url, headers=headers, timeout=10)
-            work_item_data = response.json()
-            if not isinstance(work_item_data, dict):
-                return None
-            fields = work_item_data.get("fields", {})
-            if isinstance(fields, dict):
-                work_item_data.setdefault("title", fields.get("System.Title", ""))
-                work_item_data.setdefault("state", fields.get("System.State", ""))
-                work_item_data.setdefault("description", fields.get("System.Description", ""))
-            return work_item_data
+            return _normalize_work_item_data(response.json())
         except requests.HTTPError as e:
             if e.response is not None and e.response.status_code == 404:
                 return None
@@ -1668,84 +2113,22 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         Returns:
             Dict with work item data: {"work_item_id": int, "work_item_url": str, "state": str}
         """
-        import re as _re
-
         title = proposal_data.get("title", "Untitled Change Proposal")
         description = proposal_data.get("description", "")
         rationale = proposal_data.get("rationale", "")
         impact = proposal_data.get("impact", "")
-        status = proposal_data.get("status", "proposed")
         change_id = proposal_data.get("change_id", "unknown")
         raw_title, raw_body = self._extract_raw_fields(proposal_data)
         if raw_title:
             title = raw_title
 
-        # Build properly formatted work item description (prefer raw content when available)
-        if raw_body:
-            body = raw_body
-        else:
-            body_parts = []
-
-            display_title = _re.sub(r"^\[change\]\s*", "", title, flags=_re.IGNORECASE).strip()
-            if display_title:
-                body_parts.append(f"# {display_title}")
-                body_parts.append("")
-
-            # Add Why section (rationale) - preserve markdown formatting
-            if rationale:
-                body_parts.append("## Why")
-                body_parts.append("")
-                rationale_lines = rationale.strip().split("\n")
-                for line in rationale_lines:
-                    body_parts.append(line)
-                body_parts.append("")  # Blank line
-
-            # Add What Changes section (description) - preserve markdown formatting
-            if description:
-                body_parts.append("## What Changes")
-                body_parts.append("")
-                description_lines = description.strip().split("\n")
-                for line in description_lines:
-                    body_parts.append(line)
-                body_parts.append("")  # Blank line
-
-            if impact:
-                body_parts.append("## Impact")
-                body_parts.append("")
-                impact_lines = impact.strip().split("\n")
-                for line in impact_lines:
-                    body_parts.append(line)
-                body_parts.append("")
-
-            # If no content, add placeholder
-            if not body_parts or (not rationale and not description and not impact):
-                body_parts.append("No description provided.")
-                body_parts.append("")
-
-            # Add OpenSpec metadata footer
-            body_parts.append("---")
-            body_parts.append(f"*OpenSpec Change Proposal: `{change_id}`*")
-
-            body = "\n".join(body_parts)
+        body = raw_body or self._build_change_proposal_body(title, rationale, description, impact, change_id)
 
         # Get work item type
         work_item_type = self._get_work_item_type(org, project)
 
-        # Map status to ADO state
-        # Check if source_state and source_type are provided (from cross-adapter sync)
-        source_state = proposal_data.get("source_state")
-        source_type = proposal_data.get("source_type")
-        if source_state and source_type and source_type != "ado":
-            # Use generic cross-adapter state mapping (preserves original state from source adapter)
-            ado_state = self.map_backlog_state_between_adapters(source_state, source_type, self)
-        else:
-            # Use OpenSpec status mapping (default behavior)
-            ado_state = self.map_openspec_status_to_backlog(status)
-
-        # Ensure API token is available
-        if not self.api_token:
-            msg = "Azure DevOps API token is required"
-            raise ValueError(msg)
+        ado_state = self._resolve_proposal_ado_state(proposal_data)
+        self._require_api_token()
 
         # Create work item via Azure DevOps API
         url = f"{self.base_url}/{org}/{project}/_apis/wit/workitems/${work_item_type}?api-version=7.1"
@@ -1780,16 +2163,21 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
                     error=None if response.ok else (response.text[:200] if response.text else None),
                 )
             response.raise_for_status()
-            work_item_data = response.json()
+            work_item_data = cast(dict[str, Any], response.json())
 
             work_item_id = work_item_data.get("id")
-            work_item_url = work_item_data.get("_links", {}).get("html", {}).get("href", "")
+            _links_raw = work_item_data.get("_links", {})
+            links = _as_str_dict(_links_raw) if isinstance(_links_raw, dict) else {}
+            html_raw = links.get("html", {})
+            html = _as_str_dict(html_raw) if isinstance(html_raw, dict) else {}
+            work_item_url = str(html.get("href", ""))
 
             # Store ADO metadata in source_tracking if provided
             source_tracking = proposal_data.get("source_tracking")
             if source_tracking:
                 if isinstance(source_tracking, dict):
-                    source_tracking.update(
+                    st = _as_str_dict(source_tracking)
+                    st.update(
                         {
                             "source_id": work_item_id,
                             "source_url": work_item_url,
@@ -1804,7 +2192,7 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
                     )
                 elif isinstance(source_tracking, list):
                     # Add new entry to list
-                    source_tracking.append(
+                    cast(list[dict[str, Any]], source_tracking).append(
                         {
                             "source_id": work_item_id,
                             "source_url": work_item_url,
@@ -1826,7 +2214,7 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         except requests.RequestException as e:
             resp = getattr(e, "response", None)
             user_msg = _log_ado_patch_failure(resp, patch_document, url)
-            e.ado_user_message = user_msg
+            e.ado_user_message = user_msg  # type: ignore[attr-defined]
             console.print(f"[bold red]✗[/bold red] {user_msg}")
             raise
 
@@ -1856,20 +2244,21 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
 
         if isinstance(source_tracking, dict):
             # Single dict entry (backward compatibility)
-            work_item_id = source_tracking.get("source_id")
+            work_item_id = _as_str_dict(source_tracking).get("source_id")
         elif isinstance(source_tracking, list):
             # List of entries - find the one matching this repository
             for entry in source_tracking:
                 if isinstance(entry, dict):
-                    entry_repo = entry.get("source_repo")
+                    ed = _as_str_dict(entry)
+                    entry_repo = ed.get("source_repo")
                     if entry_repo == target_repo:
-                        work_item_id = entry.get("source_id")
+                        work_item_id = ed.get("source_id")
                         break
                     # Backward compatibility: if no source_repo, try to extract from source_url
                     if not entry_repo:
-                        source_url = entry.get("source_url", "")
+                        source_url = ed.get("source_url", "")
                         if source_url and target_repo in source_url:
-                            work_item_id = entry.get("source_id")
+                            work_item_id = ed.get("source_id")
                             break
 
         if not work_item_id:
@@ -1887,50 +2276,17 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
                 msg = f"Invalid work item ID format: {work_item_id}"
                 raise ValueError(msg) from None
 
-        status = proposal_data.get("status", "proposed")
-
-        # Map status to ADO state
-        # Check if source_state and source_type are provided (from cross-adapter sync)
-        source_state = proposal_data.get("source_state")
-        source_type = proposal_data.get("source_type")
-        if source_state and source_type and source_type != "ado":
-            # Use generic cross-adapter state mapping (preserves original state from source adapter)
-            ado_state = self.map_backlog_state_between_adapters(source_state, source_type, self)
-        else:
-            # Use OpenSpec status mapping (default behavior)
-            ado_state = self.map_openspec_status_to_backlog(status)
-
-        # Ensure API token is available
-        if not self.api_token:
-            msg = "Azure DevOps API token is required"
-            raise ValueError(msg)
-
-        # Update work item state via Azure DevOps API
-        url = f"{self.base_url}/{org}/{project}/_apis/wit/workitems/{work_item_id}?api-version=7.1"
-        headers = {
-            "Content-Type": "application/json-patch+json",
-            **self._auth_headers(),
-        }
-        patch_document = [{"op": "replace", "path": "/fields/System.State", "value": ado_state}]
-
-        try:
-            response = self._request_with_retry(
-                lambda: requests.patch(url, json=patch_document, headers=headers, timeout=30)
-            )
-            work_item_data = response.json()
-
-            work_item_url = work_item_data.get("_links", {}).get("html", {}).get("href", "")
-
-            return {
-                "work_item_id": work_item_id,
-                "work_item_url": work_item_url,
-                "state": ado_state,
-            }
-        except requests.RequestException as e:
-            resp = getattr(e, "response", None)
-            user_msg = _log_ado_patch_failure(resp, patch_document, url)
-            console.print(f"[bold red]✗[/bold red] {user_msg}")
-            raise
+        target_repo = f"{org}/{project}"
+        work_item_id = self._get_source_tracking_work_item_id(proposal_data.get("source_tracking", {}), target_repo)
+        ado_state = self._resolve_proposal_ado_state(proposal_data)
+        work_item_data = self._patch_work_item(
+            org,
+            project,
+            work_item_id,
+            [{"op": "replace", "path": "/fields/System.State", "value": ado_state}],
+        )
+        work_item_url = work_item_data.get("_links", {}).get("html", {}).get("href", "")
+        return {"work_item_id": work_item_id, "work_item_url": work_item_url, "state": ado_state}
 
     def _update_work_item_body(
         self,
@@ -1951,81 +2307,19 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         Returns:
             Dict with updated work item data: {"work_item_id": int, "work_item_url": str, "state": str}
         """
-        import re as _re
-
         title = proposal_data.get("title", "Untitled Change Proposal")
         description = proposal_data.get("description", "")
         rationale = proposal_data.get("rationale", "")
         impact = proposal_data.get("impact", "")
-        status = proposal_data.get("status", "proposed")
         change_id = proposal_data.get("change_id", "unknown")
         raw_title, raw_body = self._extract_raw_fields(proposal_data)
         if raw_title:
             title = raw_title
 
-        # Build properly formatted work item description (same format as creation)
-        if raw_body:
-            body = raw_body
-        else:
-            body_parts = []
+        body = raw_body or self._build_change_proposal_body(title, rationale, description, impact, change_id)
 
-            display_title = _re.sub(r"^\[change\]\s*", "", title, flags=_re.IGNORECASE).strip()
-            if display_title:
-                body_parts.append(f"# {display_title}")
-                body_parts.append("")
-
-            # Add Why section (rationale) - preserve markdown formatting
-            if rationale:
-                body_parts.append("## Why")
-                body_parts.append("")
-                rationale_lines = rationale.strip().split("\n")
-                for line in rationale_lines:
-                    body_parts.append(line)
-                body_parts.append("")  # Blank line
-
-            # Add What Changes section (description) - preserve markdown formatting
-            if description:
-                body_parts.append("## What Changes")
-                body_parts.append("")
-                description_lines = description.strip().split("\n")
-                for line in description_lines:
-                    body_parts.append(line)
-                body_parts.append("")  # Blank line
-
-            if impact:
-                body_parts.append("## Impact")
-                body_parts.append("")
-                impact_lines = impact.strip().split("\n")
-                for line in impact_lines:
-                    body_parts.append(line)
-                body_parts.append("")
-
-            # If no content, add placeholder
-            if not body_parts or (not rationale and not description and not impact):
-                body_parts.append("No description provided.")
-                body_parts.append("")
-
-            # Add OpenSpec metadata footer
-            body_parts.append("---")
-            body_parts.append(f"*OpenSpec Change Proposal: `{change_id}`*")
-
-            body = "\n".join(body_parts)
-
-        # Map status to ADO state
-        # Check if source_state and source_type are provided (from cross-adapter sync)
-        source_state = proposal_data.get("source_state")
-        source_type = proposal_data.get("source_type")
-        if source_state and source_type and source_type != "ado":
-            # Use generic cross-adapter state mapping (preserves original state from source adapter)
-            ado_state = self.map_backlog_state_between_adapters(source_state, source_type, self)
-        else:
-            # Use OpenSpec status mapping (default behavior)
-            ado_state = self.map_openspec_status_to_backlog(status)
-
-        # Ensure API token is available
-        if not self.api_token:
-            msg = "Azure DevOps API token is required"
-            raise ValueError(msg)
+        ado_state = self._resolve_proposal_ado_state(proposal_data)
+        self._require_api_token()
 
         # Update work item body and state via Azure DevOps API
         url = f"{self.base_url}/{org}/{project}/_apis/wit/workitems/{work_item_id}?api-version=7.1"
@@ -2094,87 +2388,30 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             ValueError: If work item ID not found in source_tracking
             requests.RequestException: If Azure DevOps API call fails
         """
-        # Extract status and source_tracking
-        if isinstance(proposal, ChangeProposal):
-            status = proposal.status
-            source_tracking = proposal.source_tracking
-        else:
-            status = proposal.get("status", "proposed")
-            source_tracking = proposal.get("source_tracking")
-
+        source_tracking = (
+            proposal.source_tracking if isinstance(proposal, ChangeProposal) else proposal.get("source_tracking")
+        )
         if not source_tracking:
-            msg = "Source tracking required for status sync (work item must be created first)"
-            raise ValueError(msg)
+            raise ValueError("Source tracking required for status sync (work item must be created first)")
 
-        # Get work item ID from source_tracking (handle both dict and list formats)
-        work_item_id = None
         target_repo = f"{org}/{project}"
-
-        if isinstance(source_tracking, dict):
-            work_item_id = source_tracking.get("source_id")
-        elif isinstance(source_tracking, list):
-            for entry in source_tracking:
-                if isinstance(entry, dict):
-                    entry_repo = entry.get("source_repo")
-                    if entry_repo == target_repo:
-                        work_item_id = entry.get("source_id")
-                        break
-                    if not entry_repo:
-                        source_url = entry.get("source_url", "")
-                        if source_url and target_repo in source_url:
-                            work_item_id = entry.get("source_id")
-                            break
-
-        if not work_item_id:
-            msg = f"Work item ID not found in source_tracking for repository {target_repo}"
-            raise ValueError(msg)
-
-        # Ensure work_item_id is an integer
-        if isinstance(work_item_id, str):
-            try:
-                work_item_id = int(work_item_id)
-            except ValueError:
-                msg = f"Invalid work item ID format: {work_item_id}"
-                raise ValueError(msg) from None
-
-        # Map OpenSpec status to ADO state
-        ado_state = self.map_openspec_status_to_backlog(status)
-
-        # Ensure API token is available
-        if not self.api_token:
-            msg = "Azure DevOps API token is required"
-            raise ValueError(msg)
-
-        # Update work item state via Azure DevOps API
-        url = f"{self.base_url}/{org}/{project}/_apis/wit/workitems/{work_item_id}?api-version=7.1"
-        headers = {
-            "Content-Type": "application/json-patch+json",
-            **self._auth_headers(),
+        work_item_id = self._get_source_tracking_work_item_id(source_tracking, target_repo)
+        ado_state = self.map_openspec_status_to_backlog(
+            proposal.status if isinstance(proposal, ChangeProposal) else proposal.get("status", "proposed")
+        )
+        work_item_data = self._patch_work_item(
+            org,
+            project,
+            work_item_id,
+            [{"op": "replace", "path": "/fields/System.State", "value": ado_state}],
+        )
+        work_item_url = work_item_data.get("_links", {}).get("html", {}).get("href", "")
+        return {
+            "work_item_id": work_item_id,
+            "work_item_url": work_item_url,
+            "state_updated": True,
+            "new_state": ado_state,
         }
-
-        # Build JSON Patch document for state update
-        patch_document = [{"op": "replace", "path": "/fields/System.State", "value": ado_state}]
-
-        try:
-            response = self._request_with_retry(
-                lambda: requests.patch(url, json=patch_document, headers=headers, timeout=30)
-            )
-            work_item_data = response.json()
-
-            work_item_url = work_item_data.get("_links", {}).get("html", {}).get("href", "")
-
-            return {
-                "work_item_id": work_item_id,
-                "work_item_url": work_item_url,
-                "state_updated": True,
-                "new_state": ado_state,
-            }
-        except requests.RequestException as e:
-            resp = getattr(e, "response", None)
-            user_msg = _log_ado_patch_failure(resp, patch_document, url)
-            e.ado_user_message = user_msg
-            console.print(f"[bold red]✗[/bold red] {user_msg}")
-            raise
 
     @beartype
     @require(lambda work_item_data: isinstance(work_item_data, dict), "Work item data must be dict")
@@ -2199,20 +2436,12 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         Returns:
             Resolved OpenSpec status string
         """
-        # Extract ADO state from work item fields
         fields = work_item_data.get("fields", {})
         ado_state = fields.get("System.State", "New")
-
-        # Map ADO state to OpenSpec status
         openspec_status_from_ado = self.map_backlog_status_to_openspec(ado_state)
-
-        # Get current OpenSpec status
-        if isinstance(proposal, ChangeProposal):
-            openspec_status = proposal.status
-        else:
-            openspec_status = proposal.get("status", "proposed")
-
-        # Resolve conflict if status differs
+        openspec_status = (
+            proposal.status if isinstance(proposal, ChangeProposal) else proposal.get("status", "proposed")
+        )
         return self.resolve_status_conflict(openspec_status, openspec_status_from_ado, strategy)
 
     def _get_status_comment(
@@ -2338,125 +2567,10 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             True if branch exists, False otherwise
         """
         try:
-            import subprocess
-
-            # Method 1: Check if we're currently on this branch (fastest check)
-            result = subprocess.run(
-                ["git", "rev-parse", "--abbrev-ref", "HEAD"],
-                cwd=repo_path,
-                capture_output=True,
-                text=True,
-                timeout=5,
-                check=False,
-            )
-            if result.returncode == 0 and result.stdout.strip() == branch_name:
-                return True
-
-            # Method 2: Use git rev-parse to check if branch exists (most reliable)
-            result = subprocess.run(
-                ["git", "rev-parse", "--verify", "--quiet", f"refs/heads/{branch_name}"],
-                cwd=repo_path,
-                capture_output=True,
-                text=True,
-                timeout=5,
-                check=False,
-            )
-            if result.returncode == 0:
-                return True
-
-            # Method 3: Use git show-ref for branch checking
-            result = subprocess.run(
-                ["git", "show-ref", "--verify", "--quiet", f"refs/heads/{branch_name}"],
-                cwd=repo_path,
-                capture_output=True,
-                text=True,
-                timeout=5,
-                check=False,
-            )
-            if result.returncode == 0:
-                return True
-
-            # Method 4: Fallback - check using git branch --list (for compatibility)
-            result = subprocess.run(
-                ["git", "branch", "--list", branch_name],
-                cwd=repo_path,
-                capture_output=True,
-                text=True,
-                timeout=5,
-                check=False,
-            )
-            # Check if branch exists locally
-            if result.returncode == 0 and result.stdout.strip():
-                # Parse branch names from output (handles both "* branch" and "  branch" formats)
-                branches = []
-                for line in result.stdout.split("\n"):
-                    line = line.strip()
-                    if line:
-                        # Remove asterisk and any leading/trailing whitespace
-                        branch = line.replace("*", "").strip()
-                        if branch:
-                            branches.append(branch)
-                # Check if exact branch name matches (after normalization)
-                if branch_name in branches:
-                    return True
-
-            # Method 5: Use git branch -a to list all branches (including current)
-            result = subprocess.run(
-                ["git", "branch", "-a"],
-                cwd=repo_path,
-                capture_output=True,
-                text=True,
-                timeout=5,
-                check=False,
-            )
-            if result.returncode == 0 and result.stdout.strip():
-                # Parse all branch names from output
-                all_branches = []
-                for line in result.stdout.split("\n"):
-                    line = line.strip()
-                    if line:
-                        # Remove markers like "*", "remotes/", etc.
-                        # Handle formats: "* branch", "  branch", "remotes/origin/branch"
-                        if line.startswith("*"):
-                            branch = line[1:].strip()
-                        elif line.startswith("remotes/"):
-                            # Extract branch name from remote format: remotes/origin/branch
-                            parts = line.split("/")
-                            branch = "/".join(parts[2:]) if len(parts) >= 3 else line.replace("remotes/", "").strip()
-                        else:
-                            branch = line.strip()
-                        if branch and branch not in all_branches:
-                            all_branches.append(branch)
-                # Check if branch name matches
-                if branch_name in all_branches:
-                    return True
-
-            # Also check remote branches explicitly
-            result = subprocess.run(
-                ["git", "branch", "-r", "--list", f"*/{branch_name}"],
-                cwd=repo_path,
-                capture_output=True,
-                text=True,
-                timeout=5,
-                check=False,
-            )
-            if result.returncode == 0 and result.stdout.strip():
-                # Extract branch name from remote branch format
-                remote_branches = []
-                for line in result.stdout.split("\n"):
-                    line = line.strip()
-                    if line and "/" in line:
-                        # Remove remote prefix but keep full branch path
-                        parts = line.split("/", 1)
-                        if len(parts) == 2:
-                            remote_branches.append(parts[1])
-                if branch_name in remote_branches:
-                    return True
-
-            return False
+            return _git_branch_exists_via_local_commands(repo_path, branch_name)
         except Exception as e:
             # If we can't check (git not available, etc.), return False to be safe
-            self.console.log(f"[bold yellow]Warning:[/bold yellow] Error checking branch existence: {e}")
+            self.console.log(f"[bold yellow]Warning:[/bold yellow] Error checking branch existence: {e}")  # type: ignore[attr-defined]
             return False
 
     def _get_work_item_comments(self, org: str, project: str, work_item_id: int) -> list[dict[str, Any]]:
@@ -2577,7 +2691,7 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         except requests.RequestException as e:
             resp = getattr(e, "response", None)
             user_msg = _log_ado_patch_failure(resp, [], url)
-            e.ado_user_message = user_msg
+            e.ado_user_message = user_msg  # type: ignore[attr-defined]
             console.print(f"[bold red]✗[/bold red] {user_msg}")
             raise
 
@@ -2640,63 +2754,37 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
 
     # BacklogAdapter interface implementations
 
-    def _get_current_iteration(self) -> str | None:
-        """
-        Get the current active iteration for the team.
+    def _resolve_default_team_from_project_api(self) -> str | None:
+        """Fetch first team for the project and cache as _auto_resolved_team."""
+        from urllib.parse import quote
 
-        Returns:
-            Current iteration path if found, None otherwise
-
-        Raises:
-            requests.RequestException: If API call fails
-        """
-        if not self.org or not self.project:
-            return None
-
-        # If team is not set, fetch the default team from the project
-        team_to_use = self.team
-        if not team_to_use:
-            # Try to get the default team for the project
-            try:
-                # Get teams for the project: /{org}/_apis/projects/{projectId}/teams
-                # First, we need the project ID - URL encode project name in case it has spaces
-                from urllib.parse import quote
-
-                project_encoded = quote(self.project, safe="")
-                project_url = f"{self.base_url}/{self.org}/_apis/projects/{project_encoded}"
-                project_params = {"api-version": "7.1"}
-                project_headers = {
-                    **self._auth_headers(),
-                    "Accept": "application/json",
-                }
-                project_response = self._ado_get(
-                    project_url, headers=project_headers, params=project_params, timeout=30
-                )
-                project_data = project_response.json()
-                project_id = project_data.get("id")
-
-                if project_id:
-                    # Get teams for the project
-                    teams_url = f"{self.base_url}/{self.org}/_apis/projects/{project_id}/teams"
-                    teams_response = self._ado_get(
-                        teams_url, headers=project_headers, params=project_params, timeout=30
-                    )
-                    teams_data = teams_response.json()
-                    teams = teams_data.get("value", [])
-                    if teams:
-                        # Use the first team (usually the default team)
-                        team_to_use = teams[0].get("name")
-                        # Cache it for future use
-                        self.team = team_to_use
-            except requests.RequestException:
-                # If team lookup fails, we can't proceed
+        try:
+            project_encoded = quote(self.project or "", safe="")
+            project_url = f"{self.base_url}/{self.org}/_apis/projects/{project_encoded}"
+            project_params = {"api-version": "7.1"}
+            project_headers = {
+                **self._auth_headers(),
+                "Accept": "application/json",
+            }
+            project_response = self._ado_get(project_url, headers=project_headers, params=project_params, timeout=30)
+            project_data = project_response.json()
+            project_id = project_data.get("id")
+            if not project_id:
                 return None
-
-        if not team_to_use:
+            teams_url = f"{self.base_url}/{self.org}/_apis/projects/{project_id}/teams"
+            teams_response = self._ado_get(teams_url, headers=project_headers, params=project_params, timeout=30)
+            teams_data = teams_response.json()
+            teams = teams_data.get("value", [])
+            if not teams:
+                return None
+            team_to_use = teams[0].get("name")
+            self._auto_resolved_team = team_to_use
+            return team_to_use
+        except requests.RequestException:
             return None
 
-        # Team iterations API: /{org}/{project}/{team}/_apis/work/teamsettings/iterations?$timeframe=current
-        # URL encode team name in case it has spaces or special characters
+    def _get_current_iteration_path_for_team(self, team_to_use: str) -> str | None:
+        """Query team current iteration; on 404 retry with project name as team."""
         from urllib.parse import quote
 
         team_encoded = quote(team_to_use, safe="")
@@ -2712,15 +2800,10 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             data = response.json()
             iterations = data.get("value", [])
             if iterations:
-                # Return the first current iteration path
                 return iterations[0].get("path")
         except requests.HTTPError as e:
-            # Log the error for debugging but don't fail completely
-            # The team might not exist or might have a different name
             if e.response is not None and e.response.status_code == 404 and team_to_use != self.project:
-                # Team not found - try with project name as fallback
-                # Retry with project name (URL encoded)
-                project_encoded = quote(self.project, safe="")
+                project_encoded = quote(self.project or "", safe="")
                 fallback_url = (
                     f"{self.base_url}/{self.org}/{self.project}/{project_encoded}/_apis/work/teamsettings/iterations"
                 )
@@ -2733,9 +2816,28 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
                 except requests.RequestException:
                     pass
         except requests.RequestException:
-            # Fail silently - will be handled by caller
             pass
         return None
+
+    def _get_current_iteration(self) -> str | None:
+        """
+        Get the current active iteration for the team.
+
+        Returns:
+            Current iteration path if found, None otherwise
+
+        Raises:
+            requests.RequestException: If API call fails
+        """
+        if not self.org or not self.project:
+            return None
+
+        team_to_use = self.team or getattr(self, "_auto_resolved_team", None)
+        if not team_to_use:
+            team_to_use = self._resolve_default_team_from_project_api()
+        if not team_to_use:
+            return None
+        return self._get_current_iteration_path_for_team(team_to_use)
 
     def _list_available_iterations(self) -> list[str]:
         """
@@ -2751,7 +2853,7 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             return []
 
         # If team is not set, try to get it (same logic as _get_current_iteration)
-        team_to_use = self.team
+        team_to_use = self.team or getattr(self, "_auto_resolved_team", None)
         if not team_to_use:
             # Try to get the default team for the project (same logic as _get_current_iteration)
             try:
@@ -2779,7 +2881,7 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
                     teams = teams_data.get("value", [])
                     if teams:
                         team_to_use = teams[0].get("name")
-                        self.team = team_to_use
+                        self._auto_resolved_team = team_to_use
             except requests.RequestException:
                 return []
 
@@ -2808,6 +2910,38 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             pass
         return []
 
+    def _resolve_sprint_filter_when_empty(
+        self, items: list[BacklogItem], apply_current_when_missing: bool
+    ) -> tuple[str | None, list[BacklogItem]]:
+        if not apply_current_when_missing:
+            return None, items
+        current_iteration = self._get_current_iteration()
+        if current_iteration:
+            filtered = [item for item in items if item.iteration and item.iteration == current_iteration]
+            return current_iteration, filtered
+        console.print("[yellow]⚠ No current iteration found; returning all items[/yellow]")
+        return None, items
+
+    def _resolve_sprint_filter_by_name(
+        self, sprint_filter: str, items: list[BacklogItem]
+    ) -> tuple[str | None, list[BacklogItem]]:
+        matching_items = [
+            item
+            for item in items
+            if item.sprint
+            and BacklogFilters.normalize_filter_value(item.sprint)
+            == BacklogFilters.normalize_filter_value(sprint_filter)
+        ]
+        if not matching_items:
+            return sprint_filter, []
+
+        unique_iterations = {item.iteration for item in matching_items if item.iteration}
+        if len(unique_iterations) > 1:
+            raise ValueError(_ambiguous_sprint_error_message(sprint_filter, unique_iterations))
+
+        iteration_path = unique_iterations.pop() if unique_iterations else None
+        return iteration_path, matching_items
+
     def _resolve_sprint_filter(
         self,
         sprint_filter: str | None,
@@ -2828,54 +2962,13 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             ValueError: If ambiguous sprint name match is detected
         """
         if not sprint_filter:
-            if not apply_current_when_missing:
-                return None, items
-            # No sprint filter - try to get current iteration
-            current_iteration = self._get_current_iteration()
-            if current_iteration:
-                # Filter by current iteration path
-                filtered = [item for item in items if item.iteration and item.iteration == current_iteration]
-                return current_iteration, filtered
-            # No current iteration found - return all items
-            console.print("[yellow]⚠ No current iteration found; returning all items[/yellow]")
-            return None, items
+            return self._resolve_sprint_filter_when_empty(items, apply_current_when_missing)
 
-        # Check if sprint_filter contains path separator (full path)
-        has_path_separator = "\\" in sprint_filter or "/" in sprint_filter
-
-        if has_path_separator:
-            # Full iteration path - match directly
+        if "\\" in sprint_filter or "/" in sprint_filter:
             filtered = [item for item in items if item.iteration and item.iteration == sprint_filter]
             return sprint_filter, filtered
-        # Name-only - check for ambiguity
-        matching_items = [
-            item
-            for item in items
-            if item.sprint
-            and BacklogFilters.normalize_filter_value(item.sprint)
-            == BacklogFilters.normalize_filter_value(sprint_filter)
-        ]
 
-        if not matching_items:
-            # No matches
-            return sprint_filter, []
-
-        # Check for ambiguous iteration paths
-        unique_iterations = {item.iteration for item in matching_items if item.iteration}
-
-        if len(unique_iterations) > 1:
-            # Ambiguous - multiple iteration paths with same sprint name
-            iteration_list = "\n".join(f"  - {it}" for it in sorted(unique_iterations))
-            msg = (
-                f"Ambiguous sprint name '{sprint_filter}' matches multiple iteration paths:\n"
-                f"{iteration_list}\n"
-                f"Please use a full iteration path (e.g., 'Project\\Iteration\\Sprint 01') instead."
-            )
-            raise ValueError(msg)
-
-        # Single unique iteration path - safe to use
-        iteration_path = unique_iterations.pop() if unique_iterations else None
-        return iteration_path, matching_items
+        return self._resolve_sprint_filter_by_name(sprint_filter, items)
 
     @beartype
     @ensure(lambda result: isinstance(result, str) and len(result) > 0, "Must return non-empty adapter name")
@@ -2889,6 +2982,330 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
     def supports_format(self, format_type: str) -> bool:
         """Check if adapter supports the specified format."""
         return format_type.lower() == "markdown"
+
+    def _apply_iteration_filter_post_fetch(
+        self, filtered_items: list[BacklogItem], filters: BacklogFilters
+    ) -> list[BacklogItem]:
+        """Restrict items by iteration when WIQL did not already scope by path."""
+        if not filters.iteration:
+            return filtered_items
+        normalized_iteration = BacklogFilters.normalize_filter_value(filters.iteration)
+        if normalized_iteration in (None, "any"):
+            return filtered_items
+        target_iteration = filters.iteration
+        if normalized_iteration == "current":
+            current_iteration = self._get_current_iteration()
+            if not current_iteration:
+                return []
+            target_iteration = current_iteration
+        return [
+            item
+            for item in filtered_items
+            if BacklogFilters.normalize_filter_value(item.iteration)
+            == BacklogFilters.normalize_filter_value(target_iteration)
+        ]
+
+    def _filter_backlog_items_state_assignee_labels(
+        self, filtered_items: list[BacklogItem], filters: BacklogFilters
+    ) -> list[BacklogItem]:
+        if filters.state:
+            normalized_state = BacklogFilters.normalize_filter_value(filters.state)
+            filtered_items = [
+                item for item in filtered_items if BacklogFilters.normalize_filter_value(item.state) == normalized_state
+            ]
+
+        if filters.assignee:
+            normalized_assignee = BacklogFilters.normalize_filter_value(filters.assignee)
+            filtered_items = [
+                item
+                for item in filtered_items
+                if any(
+                    BacklogFilters.normalize_filter_value(assignee) == normalized_assignee
+                    for assignee in item.assignees
+                )
+            ]
+
+        if filters.labels:
+            filtered_items = [item for item in filtered_items if any(label in item.tags for label in filters.labels)]
+
+        return filtered_items
+
+    def _apply_sprint_filter_post_fetch(
+        self,
+        filtered_items: list[BacklogItem],
+        filters: BacklogFilters,
+        *,
+        sprint_apply_current: bool | None,
+        echo_sprint_value_error: bool,
+    ) -> list[BacklogItem]:
+        if not filters.sprint:
+            return filtered_items
+        apply_current = (
+            sprint_apply_current
+            if sprint_apply_current is not None
+            else getattr(filters, "use_current_iteration_default", True)
+        )
+        try:
+            _, out = self._resolve_sprint_filter(
+                filters.sprint,
+                filtered_items,
+                apply_current_when_missing=apply_current,
+            )
+        except ValueError as err:
+            if echo_sprint_value_error:
+                console.print(f"[red]Error:[/red] {err}")
+            raise
+        return out
+
+    def _filter_backlog_items_by_release_post_fetch(
+        self, filtered_items: list[BacklogItem], filters: BacklogFilters
+    ) -> list[BacklogItem]:
+        if not filters.release:
+            return filtered_items
+        normalized_release = BacklogFilters.normalize_filter_value(filters.release)
+        return [
+            item
+            for item in filtered_items
+            if item.release and BacklogFilters.normalize_filter_value(item.release) == normalized_release
+        ]
+
+    def _apply_backlog_limit_post_fetch(
+        self, filtered_items: list[BacklogItem], filters: BacklogFilters
+    ) -> list[BacklogItem]:
+        if filters.limit is None or len(filtered_items) <= filters.limit:
+            return filtered_items
+        return filtered_items[: filters.limit]
+
+    def _try_fetch_backlog_by_direct_issue(self, filters: BacklogFilters) -> list[BacklogItem] | None:
+        """When issue_id is set, fetch that item and apply filters; otherwise return None."""
+        requested_issue_id = str(getattr(filters, "issue_id", "") or "").strip()
+        if not requested_issue_id:
+            return None
+
+        direct_item = self._fetch_backlog_item_by_id(requested_issue_id)
+        if direct_item is None:
+            return []
+
+        return self._apply_post_fetch_filters_after_wiql(
+            [direct_item],
+            filters,
+            include_iteration=True,
+            sprint_apply_current=False,
+            echo_sprint_value_error=False,
+        )
+
+    def _wiql_append_iteration_conditions(self, filters: BacklogFilters, conditions: list[str]) -> str | None:
+        """Add iteration-related WIQL conditions; return resolved iteration path for error messages."""
+        resolved_iteration: str | None = None
+        if filters.iteration:
+            if filters.iteration.lower() == "current":
+                current_iteration = self._get_current_iteration()
+                if current_iteration:
+                    resolved_iteration = current_iteration
+                    conditions.append(f"[System.IterationPath] = '{resolved_iteration}'")
+                else:
+                    suggestions = _rich_iteration_suggestions_block(self._list_available_iterations())
+                    error_msg = (
+                        f"[red]Error:[/red] No current iteration found.\n\n"
+                        f"{suggestions}"
+                        f"[cyan]Tips:[/cyan]\n"
+                        f"  • Specify a full iteration path: [bold]--iteration 'Project\\Sprint 1'[/bold]\n"
+                        f"  • Use [bold]--sprint[/bold] with just the sprint name for automatic matching\n"
+                        f"  • Check your project's iteration paths in Azure DevOps: Project Settings → Boards → Iterations\n"
+                        f"  • Ensure your team has an active iteration configured"
+                    )
+                    console.print(error_msg)
+                    raise ValueError("No current iteration found")
+            else:
+                resolved_iteration = filters.iteration
+                conditions.append(f"[System.IterationPath] = '{resolved_iteration}'")
+        elif filters.sprint:
+            pass
+        elif getattr(filters, "use_current_iteration_default", True):
+            current_iteration = self._get_current_iteration()
+            if current_iteration:
+                resolved_iteration = current_iteration
+                conditions.append(f"[System.IterationPath] = '{resolved_iteration}'")
+            else:
+                console.print("[yellow]⚠ No current iteration found and no sprint/iteration filter provided[/yellow]")
+
+        return resolved_iteration
+
+    def _post_wiql_handle_http_error(
+        self,
+        e: requests.HTTPError,
+        url: str,
+        resolved_iteration: str | None,
+    ) -> NoReturn:
+        user_friendly_msg = None
+        if e.response is not None:
+            try:
+                error_json = e.response.json()
+                error_message = error_json.get("message", "")
+
+                if "TF51011" in error_message or "iteration path does not exist" in error_message.lower():
+                    match = re.search(r"«'([^']+)'»", error_message)
+                    bad_path = match.group(1) if match else (resolved_iteration if resolved_iteration else None)
+
+                    available_iterations = self._list_available_iterations()
+                    suggestions = _rich_iteration_suggestions_block(available_iterations)
+
+                    user_friendly_msg = (
+                        f"[red]Error:[/red] The iteration path does not exist in Azure DevOps.\n"
+                        f"[yellow]Provided path:[/yellow] {bad_path}\n\n"
+                        f"{suggestions}"
+                        f"[cyan]Tips:[/cyan]\n"
+                        f"  • Use [bold]--iteration current[/bold] to automatically use the current active iteration\n"
+                        f"  • Use [bold]--sprint[/bold] with just the sprint name (e.g., 'Sprint 01') for automatic matching\n"
+                        f"  • The iteration path must match exactly as shown in Azure DevOps (including project name)\n"
+                        f"  • Check your project's iteration paths in Azure DevOps: Project Settings → Boards → Iterations"
+                    )
+                elif "400" in str(e.response.status_code) or "Bad Request" in str(e):
+                    user_friendly_msg = (
+                        f"[red]Error:[/red] Invalid request to Azure DevOps API.\n"
+                        f"[yellow]Details:[/yellow] {error_message}\n\n"
+                        f"Please check your parameters and try again."
+                    )
+            except Exception:
+                pass
+
+        if user_friendly_msg:
+            console.print(user_friendly_msg)
+            raise ValueError(f"Iteration path error: {resolved_iteration}") from e
+
+        error_detail = ""
+        if e.response is not None:
+            try:
+                error_json = e.response.json()
+                error_detail = f"\nResponse: {error_json}"
+            except Exception:
+                error_detail = f"\nResponse status: {e.response.status_code}"
+
+        error_msg = (
+            f"Azure DevOps API error: {e}{error_detail}\n"
+            f"URL: {url}\n"
+            f"Organization: {self.org}\n"
+            f"Project: {self.project}\n"
+            f"Base URL: {self.base_url}\n"
+            f"Expected format: https://dev.azure.com/{{org}}/{{project}}/_apis/wit/wiql?api-version=7.1\n"
+            f"If using Azure DevOps Server (on-premise), base_url format may differ."
+        )
+        new_exception = requests.HTTPError(error_msg)
+        new_exception.response = e.response
+        raise new_exception from e
+
+    def _ado_workitems_batch_base_url(self) -> str:
+        base_url_normalized = self.base_url.rstrip("/")
+        if self._is_on_premise():
+            parts = [p for p in base_url_normalized.split("/") if p and p not in ["http:", "https:"]]
+            has_collection_in_base = "/tfs/" in base_url_normalized.lower() or len(parts) > 1
+
+            if has_collection_in_base:
+                return base_url_normalized
+            if self.org:
+                if "/tfs" in base_url_normalized.lower():
+                    return f"{base_url_normalized}/tfs/{self.org}"
+                return f"{base_url_normalized}/{self.org}"
+            return base_url_normalized
+
+        if not self.org:
+            raise ValueError(f"org required for Azure DevOps Services (cloud) (org={self.org!r})")
+        return f"{base_url_normalized}/{self.org}"
+
+    def _batch_fetch_work_items_as_backlog_items(self, work_item_ids: list[int]) -> list[BacklogItem]:
+        from specfact_cli.backlog.converter import convert_ado_work_item_to_backlog_item
+
+        items: list[BacklogItem] = []
+        batch_size = 200
+        workitems_base_url = self._ado_workitems_batch_base_url()
+
+        for i in range(0, len(work_item_ids), batch_size):
+            batch = work_item_ids[i : i + batch_size]
+            ids_str = ",".join(str(wi_id) for wi_id in batch)
+
+            url = f"{workitems_base_url}/_apis/wit/workitems?api-version=7.1"
+            params = {"ids": ids_str, "$expand": "all"}
+
+            workitems_headers = {
+                **self._auth_headers(),
+                "Accept": "application/json",
+            }
+
+            debug_print(f"[dim]ADO WorkItems URL: {url}&ids={ids_str}[/dim]")
+
+            try:
+                response = self._ado_get(url, headers=workitems_headers, params=params, timeout=30)
+                if is_debug_mode():
+                    debug_log_operation(
+                        "ado_workitems_get",
+                        url,
+                        str(response.status_code),
+                        error=None if response.ok else (response.text[:200] if response.text else None),
+                    )
+            except requests.HTTPError as e:
+                if is_debug_mode():
+                    debug_log_operation(
+                        "ado_workitems_get",
+                        url,
+                        "error",
+                        error=str(e.response.status_code) if e.response is not None else str(e),
+                    )
+                error_detail = ""
+                if e.response is not None:
+                    try:
+                        error_json = e.response.json()
+                        error_detail = f"\nResponse: {error_json}"
+                    except Exception:
+                        error_detail = f"\nResponse status: {e.response.status_code}"
+
+                error_msg = (
+                    f"Azure DevOps API error: {e}{error_detail}\n"
+                    f"URL: {url}\n"
+                    f"Organization: {self.org}\n"
+                    f"Project: {self.project}\n"
+                    f"Base URL: {self.base_url}\n"
+                    f"Expected format: https://dev.azure.com/{{org}}/{{project}}/_apis/wit/workitems?ids={{ids}}&api-version=7.1\n"
+                    f"If using Azure DevOps Server (on-premise), base_url format may differ."
+                )
+                new_exception = requests.HTTPError(error_msg)
+                new_exception.response = e.response
+                raise new_exception from e
+            work_items_data = response.json()
+
+            for work_item in work_items_data.get("value", []):
+                backlog_item = convert_ado_work_item_to_backlog_item(
+                    work_item,
+                    provider="ado",
+                    base_url=self.base_url,
+                    org=self.org,
+                    project_name=self.project,
+                )
+                items.append(backlog_item)
+
+        return items
+
+    def _apply_post_fetch_filters_after_wiql(
+        self,
+        filtered_items: list[BacklogItem],
+        filters: BacklogFilters,
+        *,
+        include_iteration: bool = False,
+        sprint_apply_current: bool | None = None,
+        echo_sprint_value_error: bool = True,
+    ) -> list[BacklogItem]:
+        filtered_items = self._filter_backlog_items_state_assignee_labels(filtered_items, filters)
+        if include_iteration:
+            filtered_items = self._apply_iteration_filter_post_fetch(filtered_items, filters)
+        filtered_items = self._apply_sprint_filter_post_fetch(
+            filtered_items,
+            filters,
+            sprint_apply_current=sprint_apply_current,
+            echo_sprint_value_error=echo_sprint_value_error,
+        )
+        filtered_items = self._filter_backlog_items_by_release_post_fetch(filtered_items, filters)
+        if filters.search:
+            pass
+        return self._apply_backlog_limit_post_fetch(filtered_items, filters)
 
     @beartype
     @require(lambda filters: isinstance(filters, BacklogFilters), "Filters must be BacklogFilters instance")
@@ -2925,153 +3342,25 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             msg = "project required to fetch backlog items. Provide via --ado-project option."
             raise ValueError(msg)
 
-        requested_issue_id = str(getattr(filters, "issue_id", "") or "").strip()
-        if requested_issue_id:
-            direct_item = self._fetch_backlog_item_by_id(requested_issue_id)
-            if direct_item is None:
-                return []
+        direct_result = self._try_fetch_backlog_by_direct_issue(filters)
+        if direct_result is not None:
+            return direct_result
 
-            filtered_items = [direct_item]
-
-            # Apply post-fetch filters to preserve current command semantics when users also pass filters.
-            if filters.state:
-                normalized_state = BacklogFilters.normalize_filter_value(filters.state)
-                filtered_items = [
-                    item
-                    for item in filtered_items
-                    if BacklogFilters.normalize_filter_value(item.state) == normalized_state
-                ]
-
-            if filters.assignee:
-                normalized_assignee = BacklogFilters.normalize_filter_value(filters.assignee)
-                filtered_items = [
-                    item
-                    for item in filtered_items
-                    if any(
-                        BacklogFilters.normalize_filter_value(assignee) == normalized_assignee
-                        for assignee in item.assignees
-                    )
-                ]
-
-            if filters.labels:
-                filtered_items = [
-                    item for item in filtered_items if any(label in item.tags for label in filters.labels)
-                ]
-
-            if filters.iteration:
-                normalized_iteration = BacklogFilters.normalize_filter_value(filters.iteration)
-                if normalized_iteration not in (None, "any"):
-                    target_iteration = filters.iteration
-                    if normalized_iteration == "current":
-                        current_iteration = self._get_current_iteration()
-                        if not current_iteration:
-                            return []
-                        target_iteration = current_iteration
-
-                    filtered_items = [
-                        item
-                        for item in filtered_items
-                        if BacklogFilters.normalize_filter_value(item.iteration)
-                        == BacklogFilters.normalize_filter_value(target_iteration)
-                    ]
-
-            if filters.sprint:
-                _, filtered_items = self._resolve_sprint_filter(
-                    filters.sprint,
-                    filtered_items,
-                    apply_current_when_missing=False,
-                )
-
-            if filters.release:
-                normalized_release = BacklogFilters.normalize_filter_value(filters.release)
-                filtered_items = [
-                    item
-                    for item in filtered_items
-                    if item.release and BacklogFilters.normalize_filter_value(item.release) == normalized_release
-                ]
-
-            if filters.limit is not None and len(filtered_items) > filters.limit:
-                filtered_items = filtered_items[: filters.limit]
-
-            return filtered_items
-
-        # Build WIQL (Work Item Query Language) query
-        # WIQL syntax: SELECT fields FROM WorkItems WHERE conditions
-        # Use @project macro to reference the project context in project-scoped queries
         wiql_parts = ["SELECT [System.Id], [System.Title], [System.State], [System.WorkItemType]"]
         wiql_parts.append("FROM WorkItems")
-        # Use @project macro for project context (ADO automatically resolves this in project-scoped queries)
         wiql_parts.append("WHERE [System.TeamProject] = @project")
 
-        conditions = []
-
-        # Note: ADO WIQL doesn't support case-insensitive matching directly
-        # We'll apply case-insensitive filtering post-fetch for state and assignee
-        # For iteration, we handle sprint resolution separately
-
+        conditions: list[str] = []
         if filters.area:
             conditions.append(f"[System.AreaPath] = '{filters.area}'")
 
-        # Handle sprint/iteration filtering
-        # If sprint is provided, resolve it (may become iteration path)
-        # If neither sprint nor iteration provided, default to current iteration
-        resolved_iteration = None
-        if filters.iteration:
-            # Check if iteration is the special value "current"
-            if filters.iteration.lower() == "current":
-                current_iteration = self._get_current_iteration()
-                if current_iteration:
-                    resolved_iteration = current_iteration
-                    conditions.append(f"[System.IterationPath] = '{resolved_iteration}'")
-                else:
-                    # Provide helpful error message with suggestions
-                    available_iterations = self._list_available_iterations()
-                    suggestions = ""
-                    if available_iterations:
-                        examples = available_iterations[:5]
-                        suggestions = "\n[cyan]Available iteration paths (showing first 5):[/cyan]\n"
-                        for it_path in examples:
-                            suggestions += f"  • {it_path}\n"
-                        if len(available_iterations) > 5:
-                            suggestions += f"  ... and {len(available_iterations) - 5} more\n"
-
-                    error_msg = (
-                        f"[red]Error:[/red] No current iteration found.\n\n"
-                        f"{suggestions}"
-                        f"[cyan]Tips:[/cyan]\n"
-                        f"  • Specify a full iteration path: [bold]--iteration 'Project\\Sprint 1'[/bold]\n"
-                        f"  • Use [bold]--sprint[/bold] with just the sprint name for automatic matching\n"
-                        f"  • Check your project's iteration paths in Azure DevOps: Project Settings → Boards → Iterations\n"
-                        f"  • Ensure your team has an active iteration configured"
-                    )
-                    console.print(error_msg)
-                    raise ValueError("No current iteration found")
-            else:
-                # Use iteration path as-is (must be exact full path from ADO)
-                resolved_iteration = filters.iteration
-                conditions.append(f"[System.IterationPath] = '{resolved_iteration}'")
-        elif filters.sprint:
-            # Sprint will be resolved post-fetch to handle ambiguity
-            pass
-        else:
-            # No sprint/iteration - optionally use current iteration default
-            if getattr(filters, "use_current_iteration_default", True):
-                current_iteration = self._get_current_iteration()
-                if current_iteration:
-                    resolved_iteration = current_iteration
-                    conditions.append(f"[System.IterationPath] = '{resolved_iteration}'")
-                else:
-                    console.print(
-                        "[yellow]⚠ No current iteration found and no sprint/iteration filter provided[/yellow]"
-                    )
+        resolved_iteration = self._wiql_append_iteration_conditions(filters, conditions)
 
         if conditions:
             wiql_parts.append("AND " + " AND ".join(conditions))
 
         wiql = " ".join(wiql_parts)
 
-        # Execute WIQL query
-        # POST to project-level endpoint: {org}/{project}/_apis/wit/wiql?api-version=7.1
         url = self._build_ado_url("_apis/wit/wiql", api_version="7.1")
         headers = {
             **self._auth_headers(),
@@ -3080,7 +3369,6 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         }
         payload = {"query": wiql}
 
-        # Debug: Log URL construction and auth status for troubleshooting
         debug_print(f"[dim]ADO WIQL URL: {url}[/dim]")
         if "Authorization" in headers:
             auth_header_preview = (
@@ -3095,80 +3383,8 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         try:
             response = self._ado_post(url, headers=headers, json=payload, timeout=30)
         except requests.HTTPError as e:
-            # Provide user-friendly error message
-            user_friendly_msg = None
-            if e.response is not None:
-                try:
-                    error_json = e.response.json()
-                    error_message = error_json.get("message", "")
+            self._post_wiql_handle_http_error(e, url, resolved_iteration)
 
-                    # Check for iteration path errors
-                    if "TF51011" in error_message or "iteration path does not exist" in error_message.lower():
-                        # Extract the problematic iteration path from the error
-                        import re
-
-                        match = re.search(r"«'([^']+)'»", error_message)
-                        bad_path = match.group(1) if match else (resolved_iteration if resolved_iteration else None)
-
-                        # Try to get available iterations for helpful suggestions
-                        available_iterations = self._list_available_iterations()
-                        suggestions = ""
-                        if available_iterations:
-                            # Show first 5 available iterations as examples
-                            examples = available_iterations[:5]
-                            suggestions = "\n[cyan]Available iteration paths (showing first 5):[/cyan]\n"
-                            for it_path in examples:
-                                suggestions += f"  • {it_path}\n"
-                            if len(available_iterations) > 5:
-                                suggestions += f"  ... and {len(available_iterations) - 5} more\n"
-
-                        user_friendly_msg = (
-                            f"[red]Error:[/red] The iteration path does not exist in Azure DevOps.\n"
-                            f"[yellow]Provided path:[/yellow] {bad_path}\n\n"
-                            f"{suggestions}"
-                            f"[cyan]Tips:[/cyan]\n"
-                            f"  • Use [bold]--iteration current[/bold] to automatically use the current active iteration\n"
-                            f"  • Use [bold]--sprint[/bold] with just the sprint name (e.g., 'Sprint 01') for automatic matching\n"
-                            f"  • The iteration path must match exactly as shown in Azure DevOps (including project name)\n"
-                            f"  • Check your project's iteration paths in Azure DevOps: Project Settings → Boards → Iterations"
-                        )
-                    elif "400" in str(e.response.status_code) or "Bad Request" in str(e):
-                        user_friendly_msg = (
-                            f"[red]Error:[/red] Invalid request to Azure DevOps API.\n"
-                            f"[yellow]Details:[/yellow] {error_message}\n\n"
-                            f"Please check your parameters and try again."
-                        )
-                except Exception:
-                    pass
-
-            # If we have a user-friendly message, use it; otherwise fall back to detailed technical error
-            if user_friendly_msg:
-                console.print(user_friendly_msg)
-                # Still raise the exception for proper error handling
-                raise ValueError(f"Iteration path error: {resolved_iteration}") from e
-
-            # Fallback to detailed technical error
-            error_detail = ""
-            if e.response is not None:
-                try:
-                    error_json = e.response.json()
-                    error_detail = f"\nResponse: {error_json}"
-                except Exception:
-                    error_detail = f"\nResponse status: {e.response.status_code}"
-
-            error_msg = (
-                f"Azure DevOps API error: {e}{error_detail}\n"
-                f"URL: {url}\n"
-                f"Organization: {self.org}\n"
-                f"Project: {self.project}\n"
-                f"Base URL: {self.base_url}\n"
-                f"Expected format: https://dev.azure.com/{{org}}/{{project}}/_apis/wit/wiql?api-version=7.1\n"
-                f"If using Azure DevOps Server (on-premise), base_url format may differ."
-            )
-            # Create new exception with better message
-            new_exception = requests.HTTPError(error_msg)
-            new_exception.response = e.response
-            raise new_exception from e
         query_result = response.json()
 
         work_item_ids = [item["id"] for item in query_result.get("workItems", [])]
@@ -3176,166 +3392,61 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         if not work_item_ids:
             return []
 
-        # Fetch work item details
-        # Note: GET workitems by IDs uses organization-level endpoint, not project-level
-        # Format: https://dev.azure.com/{organization}/_apis/wit/workitems?ids={ids}&api-version={version}
-        items: list[BacklogItem] = []
-        batch_size = 200  # ADO API limit
+        items = self._batch_fetch_work_items_as_backlog_items(work_item_ids)
+        return self._apply_post_fetch_filters_after_wiql(items, filters)
 
-        # Build organization-level URL for work items batch fetch
-        base_url_normalized = self.base_url.rstrip("/")
-        is_on_premise = self._is_on_premise()
+    def _build_create_issue_patch_document(
+        self,
+        org: str,
+        project: str,
+        payload: dict[str, Any],
+        *,
+        title: str,
+    ) -> list[dict[str, Any]]:
+        description = str(payload.get("description") or payload.get("body") or "").strip()
+        description = self._strip_leading_description_heading(description)
+        description_format = str(payload.get("description_format") or "markdown").strip().lower()
+        field_rendering_format = "Markdown" if description_format != "classic" else "Html"
 
-        # For work items batch GET, URL is at organization level (not project level)
-        if is_on_premise:
-            # On-premise: if base_url has collection, use it; otherwise add org
-            parts = [p for p in base_url_normalized.split("/") if p and p not in ["http:", "https:"]]
-            has_collection_in_base = "/tfs/" in base_url_normalized.lower() or len(parts) > 1
+        custom_mapping_file = os.environ.get("SPECFACT_ADO_CUSTOM_MAPPING")
+        ado_mapper = AdoFieldMapper(custom_mapping_file=custom_mapping_file)
+        description_field = ado_mapper.resolve_write_target_field("description") or "System.Description"
+        acceptance_criteria_field = (
+            ado_mapper.resolve_write_target_field("acceptance_criteria") or "Microsoft.VSTS.Common.AcceptanceCriteria"
+        )
+        priority_field = ado_mapper.resolve_write_target_field("priority") or "Microsoft.VSTS.Common.Priority"
+        story_points_field = (
+            ado_mapper.resolve_write_target_field("story_points") or "Microsoft.VSTS.Scheduling.StoryPoints"
+        )
 
-            if has_collection_in_base:
-                # Collection already in base_url
-                workitems_base_url = base_url_normalized
-            elif self.org:
-                # Need to add collection
-                if "/tfs" in base_url_normalized.lower():
-                    workitems_base_url = f"{base_url_normalized}/tfs/{self.org}"
-                else:
-                    workitems_base_url = f"{base_url_normalized}/{self.org}"
-            else:
-                workitems_base_url = base_url_normalized
-        else:
-            # Cloud: organization level
-            if not self.org:
-                raise ValueError(f"org required for Azure DevOps Services (cloud) (org={self.org!r})")
-            workitems_base_url = f"{base_url_normalized}/{self.org}"
+        patch_document: list[dict[str, Any]] = [
+            {"op": "add", "path": "/fields/System.Title", "value": title},
+            {"op": "add", "path": f"/fields/{description_field}", "value": description},
+            {"op": "add", "path": f"/multilineFieldsFormat/{description_field}", "value": field_rendering_format},
+        ]
 
-        for i in range(0, len(work_item_ids), batch_size):
-            batch = work_item_ids[i : i + batch_size]
-            ids_str = ",".join(str(wi_id) for wi_id in batch)
-
-            # Work items batch GET is at organization level, not project level
-            # Format: {org}/_apis/wit/workitems?ids={ids}&api-version=7.1
-            url = f"{workitems_base_url}/_apis/wit/workitems?api-version=7.1"
-            params = {"ids": ids_str, "$expand": "all"}
-
-            # Headers for work items batch GET (organization-level endpoint)
-            workitems_headers = {
-                **self._auth_headers(),
-                "Accept": "application/json",
-            }
-
-            # Debug: Log URL construction for troubleshooting
-            debug_print(f"[dim]ADO WorkItems URL: {url}&ids={ids_str}[/dim]")
-
-            try:
-                response = self._ado_get(url, headers=workitems_headers, params=params, timeout=30)
-                if is_debug_mode():
-                    debug_log_operation(
-                        "ado_workitems_get",
-                        url,
-                        str(response.status_code),
-                        error=None if response.ok else (response.text[:200] if response.text else None),
-                    )
-            except requests.HTTPError as e:
-                if is_debug_mode():
-                    debug_log_operation(
-                        "ado_workitems_get",
-                        url,
-                        "error",
-                        error=str(e.response.status_code) if e.response is not None else str(e),
-                    )
-                # Provide better error message with URL details
-                error_detail = ""
-                if e.response is not None:
-                    try:
-                        error_json = e.response.json()
-                        error_detail = f"\nResponse: {error_json}"
-                    except Exception:
-                        error_detail = f"\nResponse status: {e.response.status_code}"
-
-                error_msg = (
-                    f"Azure DevOps API error: {e}{error_detail}\n"
-                    f"URL: {url}\n"
-                    f"Organization: {self.org}\n"
-                    f"Project: {self.project}\n"
-                    f"Base URL: {self.base_url}\n"
-                    f"Expected format: https://dev.azure.com/{{org}}/{{project}}/_apis/wit/workitems?ids={{ids}}&api-version=7.1\n"
-                    f"If using Azure DevOps Server (on-premise), base_url format may differ."
-                )
-                # Create new exception with better message
-                new_exception = requests.HTTPError(error_msg)
-                new_exception.response = e.response
-                raise new_exception from e
-            work_items_data = response.json()
-
-            # Convert ADO work items to BacklogItem
-            from specfact_cli.backlog.converter import convert_ado_work_item_to_backlog_item
-
-            for work_item in work_items_data.get("value", []):
-                backlog_item = convert_ado_work_item_to_backlog_item(
-                    work_item,
-                    provider="ado",
-                    base_url=self.base_url,
-                    org=self.org,
-                    project_name=self.project,
-                )
-                items.append(backlog_item)
-
-        # Apply post-fetch filters that ADO API doesn't support directly
-        filtered_items = items
-
-        # Case-insensitive state filtering
-        if filters.state:
-            normalized_state = BacklogFilters.normalize_filter_value(filters.state)
-            filtered_items = [
-                item for item in filtered_items if BacklogFilters.normalize_filter_value(item.state) == normalized_state
-            ]
-
-        # Case-insensitive assignee filtering (match against displayName, uniqueName, or mail)
-        if filters.assignee:
-            normalized_assignee = BacklogFilters.normalize_filter_value(filters.assignee)
-            filtered_items = [
-                item
-                for item in filtered_items
-                if any(
-                    BacklogFilters.normalize_filter_value(assignee) == normalized_assignee
-                    for assignee in item.assignees
-                )
-            ]
-
-        if filters.labels:
-            filtered_items = [item for item in filtered_items if any(label in item.tags for label in filters.labels)]
-
-        # Sprint filtering with path matching and ambiguity detection
-        if filters.sprint:
-            try:
-                _, filtered_items = self._resolve_sprint_filter(
-                    filters.sprint,
-                    filtered_items,
-                    apply_current_when_missing=getattr(filters, "use_current_iteration_default", True),
-                )
-            except ValueError as e:
-                # Ambiguous sprint match - raise with clear error message
-                console.print(f"[red]Error:[/red] {e}")
-                raise
-
-        if filters.release:
-            normalized_release = BacklogFilters.normalize_filter_value(filters.release)
-            filtered_items = [
-                item
-                for item in filtered_items
-                if item.release and BacklogFilters.normalize_filter_value(item.release) == normalized_release
-            ]
-
-        if filters.search:
-            # Search filtering not directly supported by ADO WIQL, skip for now
-            pass
-
-        # Apply limit if specified
-        if filters.limit is not None and len(filtered_items) > filters.limit:
-            filtered_items = filtered_items[: filters.limit]
-
-        return filtered_items
+        acceptance_criteria = str(payload.get("acceptance_criteria") or "").strip()
+        _ado_patch_doc_append_acceptance_criteria_create_issue(
+            patch_document,
+            acceptance_criteria=acceptance_criteria,
+            acceptance_criteria_field=acceptance_criteria_field,
+            field_rendering_format=field_rendering_format,
+        )
+        _ado_patch_doc_append_priority_story_points_create_issue(
+            patch_document,
+            payload=payload,
+            priority_field=priority_field,
+            story_points_field=story_points_field,
+        )
+        _ado_patch_doc_append_provider_fields_create_issue(patch_document, payload)
+        _ado_patch_doc_append_sprint_parent_create_issue(
+            patch_document,
+            base_url=self.base_url,
+            org=org,
+            project=project,
+            payload=payload,
+        )
+        return patch_document
 
     @beartype
     @require(
@@ -3365,100 +3476,7 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         }
         work_item_type = type_mapping.get(raw_type, "Task")
 
-        description = str(payload.get("description") or payload.get("body") or "").strip()
-        description = self._strip_leading_description_heading(description)
-        description_format = str(payload.get("description_format") or "markdown").strip().lower()
-        field_rendering_format = "Markdown" if description_format != "classic" else "Html"
-
-        custom_mapping_file = os.environ.get("SPECFACT_ADO_CUSTOM_MAPPING")
-        ado_mapper = AdoFieldMapper(custom_mapping_file=custom_mapping_file)
-        description_field = ado_mapper.resolve_write_target_field("description") or "System.Description"
-        acceptance_criteria_field = (
-            ado_mapper.resolve_write_target_field("acceptance_criteria") or "Microsoft.VSTS.Common.AcceptanceCriteria"
-        )
-        priority_field = ado_mapper.resolve_write_target_field("priority") or "Microsoft.VSTS.Common.Priority"
-        story_points_field = (
-            ado_mapper.resolve_write_target_field("story_points") or "Microsoft.VSTS.Scheduling.StoryPoints"
-        )
-
-        patch_document: list[dict[str, Any]] = [
-            {"op": "add", "path": "/fields/System.Title", "value": title},
-            {"op": "add", "path": f"/fields/{description_field}", "value": description},
-            {"op": "add", "path": f"/multilineFieldsFormat/{description_field}", "value": field_rendering_format},
-        ]
-
-        acceptance_criteria = str(payload.get("acceptance_criteria") or "").strip()
-        if acceptance_criteria:
-            patch_document.append(
-                {
-                    "op": "add",
-                    "path": f"/multilineFieldsFormat/{acceptance_criteria_field}",
-                    "value": field_rendering_format,
-                }
-            )
-            patch_document.append(
-                {
-                    "op": "add",
-                    "path": f"/fields/{acceptance_criteria_field}",
-                    "value": acceptance_criteria,
-                }
-            )
-
-        priority = payload.get("priority")
-        if priority not in (None, ""):
-            patch_document.append(
-                {
-                    "op": "add",
-                    "path": f"/fields/{priority_field}",
-                    "value": priority,
-                }
-            )
-
-        story_points = payload.get("story_points")
-        if story_points is not None:
-            patch_document.append(
-                {
-                    "op": "add",
-                    "path": f"/fields/{story_points_field}",
-                    "value": story_points,
-                }
-            )
-
-        provider_fields = payload.get("provider_fields")
-        provider_field_values = provider_fields.get("fields") if isinstance(provider_fields, dict) else None
-        if isinstance(provider_field_values, dict):
-            for field_name, field_value in provider_field_values.items():
-                normalized_field = str(field_name).strip()
-                if not normalized_field:
-                    continue
-                patch_document.append(
-                    {
-                        "op": "add",
-                        "path": f"/fields/{normalized_field}",
-                        "value": field_value,
-                    }
-                )
-
-        sprint = str(payload.get("sprint") or "").strip()
-        if sprint:
-            patch_document.append(
-                {
-                    "op": "add",
-                    "path": "/fields/System.IterationPath",
-                    "value": sprint,
-                }
-            )
-
-        parent_id = str(payload.get("parent_id") or "").strip()
-        if parent_id:
-            parent_url = f"{self.base_url}/{org}/{project}/_apis/wit/workItems/{parent_id}"
-            patch_document.append(
-                {
-                    "op": "add",
-                    "path": "/relations/-",
-                    "value": {"rel": "System.LinkTypes.Hierarchy-Reverse", "url": parent_url},
-                }
-            )
+        patch_document = self._build_create_issue_patch_document(org, project, payload, title=title)
 
         url = f"{self.base_url}/{org}/{project}/_apis/wit/workitems/${work_item_type}?api-version=7.1"
         headers = {
@@ -3481,20 +3499,44 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             "url": html_url or fallback_url,
         }
 
+    def _get_org_project(self) -> tuple[str | None, str | None]:
+        """Query: return current org and project without mutation."""
+        return self.org, self.project
+
+    def _set_org_project(self, org: str | None, project: str | None) -> None:
+        """Command: set org and project without reading current state."""
+        self.org = org
+        self.project = project
+
     @beartype
     @require(lambda project_id: isinstance(project_id, str) and len(project_id) > 0, "project_id must be non-empty")
     @ensure(lambda result: isinstance(result, list), "Must return list")
     def fetch_all_issues(self, project_id: str, filters: dict[str, Any] | None = None) -> list[dict[str, Any]]:
         """Fetch all ADO work items as provider-agnostic dictionaries for graph building."""
-        original_org = self.org
-        original_project = self.project
-        self.org, self.project = self._resolve_graph_project_context(project_id)
+        resolved_org, resolved_project = self._resolve_graph_project_context(project_id)
+        saved_org, saved_project = self._get_org_project()
+        self._set_org_project(resolved_org, resolved_project)
         try:
             backlog_filters = BacklogFilters(**(filters or {}))
             return [item.model_dump() for item in self.fetch_backlog_items(backlog_filters)]
         finally:
-            self.org = original_org
-            self.project = original_project
+            self._set_org_project(saved_org, saved_project)
+
+    def _edges_from_ado_work_item_relations(self, item: dict[str, Any], item_id: str) -> list[tuple[str, str, str]]:
+        """Collect normalized graph edges from an ADO work item's relation list."""
+        edges: list[tuple[str, str, str]] = []
+        for relation in _flatten_issue_relation_dicts(cast(dict[str, Any], item)):
+            if not isinstance(relation, dict):
+                continue
+            rel_name = str(relation.get("rel") or relation.get("relation") or relation.get("type") or "").lower()
+            target_ref = str(relation.get("url") or relation.get("target") or "")
+            target_wi = self._extract_work_item_id_from_reference(target_ref)
+            if not target_wi:
+                continue
+            edge = _ado_graph_edge_from_relation(rel_name, item_id, target_wi)
+            if edge:
+                edges.append(edge)
+        return edges
 
     @beartype
     @require(lambda project_id: isinstance(project_id, str) and len(project_id) > 0, "project_id must be non-empty")
@@ -3520,35 +3562,8 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             item_id = str(item.get("id") or item.get("key") or "").strip()
             if not item_id:
                 continue
-
-            provider_fields = item.get("provider_fields")
-            relation_entries: list[Any] = []
-            if isinstance(provider_fields, dict):
-                relations = provider_fields.get("relations")
-                if isinstance(relations, list):
-                    relation_entries.extend(relations)
-            if isinstance(item.get("relations"), list):
-                relation_entries.extend(item["relations"])
-
-            for relation in relation_entries:
-                if not isinstance(relation, dict):
-                    continue
-                rel_name = str(relation.get("rel") or relation.get("relation") or relation.get("type") or "").lower()
-                target_ref = str(relation.get("url") or relation.get("target") or "")
-                target_id = self._extract_work_item_id_from_reference(target_ref)
-                if not target_id:
-                    continue
-
-                if "hierarchy-forward" in rel_name:
-                    _add_edge(item_id, target_id, "parent")
-                elif "hierarchy-reverse" in rel_name:
-                    _add_edge(target_id, item_id, "parent")
-                elif "dependency-forward" in rel_name or "predecessor-forward" in rel_name:
-                    _add_edge(item_id, target_id, "blocks")
-                elif "dependency-reverse" in rel_name or "predecessor-reverse" in rel_name:
-                    _add_edge(target_id, item_id, "blocks")
-                elif "related" in rel_name:
-                    _add_edge(item_id, target_id, "relates")
+            for src, tgt, et in self._edges_from_ado_work_item_relations(item, item_id):
+                _add_edge(src, tgt, et)
 
         return relationships
 
@@ -3585,11 +3600,15 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         return match.group(1) if match else ""
 
     @beartype
+    @ensure(lambda result: isinstance(result, bool), "Must return bool")
     def supports_add_comment(self) -> bool:
         """Whether this adapter can add comments (requires token, org, project)."""
         return bool(self.api_token and self.org and self.project)
 
     @beartype
+    @require(lambda item: isinstance(item, BacklogItem), "item must be BacklogItem")
+    @require(lambda comment: isinstance(comment, str) and bool(comment.strip()), "comment must be non-empty string")
+    @ensure(lambda result: isinstance(result, bool), "Must return bool")
     def add_comment(self, item: BacklogItem, comment: str) -> bool:
         """
         Add a comment to an Azure DevOps work item.
@@ -3615,6 +3634,8 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             return False
 
     @beartype
+    @require(lambda item: isinstance(item, BacklogItem), "item must be BacklogItem")
+    @ensure(lambda result: isinstance(result, list), "Must return list")
     def get_comments(self, item: BacklogItem) -> list[str]:
         """
         Fetch comments for an Azure DevOps work item.
@@ -3643,6 +3664,202 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
                     comment_texts.append(stripped)
         return comment_texts
 
+    def _patch_ops_backlog_title_and_body(
+        self,
+        item: BacklogItem,
+        update_fields: list[str] | None,
+        ado_mapper: AdoFieldMapper,
+        provider_field_names: set[str],
+    ) -> list[dict[str, Any]]:
+        operations: list[dict[str, Any]] = []
+        if update_fields is None or "title" in update_fields:
+            operations.append({"op": "replace", "path": "/fields/System.Title", "value": item.title})
+
+        if update_fields is None or "body" in update_fields or "body_markdown" in update_fields:
+            raw_body = item.body_markdown
+            markdown_content = raw_body if raw_body is not None else ""
+            markdown_content = self._strip_leading_description_heading(markdown_content)
+            todo_pattern = r"^(\s*)[-*]\s*\[TODO[:\s]+([^\]]+)\](.*)$"
+            markdown_content = re.sub(
+                todo_pattern,
+                r"\1- [ ] \2",
+                markdown_content,
+                flags=re.MULTILINE | re.IGNORECASE,
+            )
+
+            description_field = (
+                ado_mapper.resolve_write_target_field("description", provider_field_names) or "System.Description"
+            )
+            operations.append({"op": "add", "path": f"/multilineFieldsFormat/{description_field}", "value": "Markdown"})
+            operations.append({"op": "replace", "path": f"/fields/{description_field}", "value": markdown_content})
+
+        return operations
+
+    def _patch_ops_backlog_mapped_optional_fields(
+        self,
+        item: BacklogItem,
+        update_fields: list[str] | None,
+        ado_mapper: AdoFieldMapper,
+        provider_field_names: set[str],
+    ) -> list[dict[str, Any]]:
+        operations: list[dict[str, Any]] = []
+        operations.extend(
+            _ado_patch_ops_optional_acceptance_criteria(item, update_fields, ado_mapper, provider_field_names)
+        )
+        operations.extend(_ado_patch_ops_optional_story_points(item, update_fields, ado_mapper, provider_field_names))
+        operations.extend(_ado_patch_ops_optional_business_value(item, update_fields, ado_mapper, provider_field_names))
+        operations.extend(_ado_patch_ops_optional_priority(item, update_fields, ado_mapper, provider_field_names))
+        return operations
+
+    def _build_update_backlog_patch_operations(
+        self, item: BacklogItem, update_fields: list[str] | None
+    ) -> list[dict[str, Any]]:
+        custom_mapping_file = os.environ.get("SPECFACT_ADO_CUSTOM_MAPPING")
+        ado_mapper = AdoFieldMapper(custom_mapping_file=custom_mapping_file)
+        provider_field_names: set[str] = set()
+        provider_fields_payload = item.provider_fields.get("fields")
+        if isinstance(provider_fields_payload, dict):
+            provider_field_names = {str(field_name) for field_name in provider_fields_payload}
+
+        operations: list[dict[str, Any]] = []
+        operations.extend(self._patch_ops_backlog_title_and_body(item, update_fields, ado_mapper, provider_field_names))
+        operations.extend(
+            self._patch_ops_backlog_mapped_optional_fields(item, update_fields, ado_mapper, provider_field_names)
+        )
+
+        if update_fields is None or "state" in update_fields:
+            operations.append({"op": "replace", "path": "/fields/System.State", "value": item.state})
+
+        return operations
+
+    @staticmethod
+    def _backlog_ops_without_multiline_format(operations: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        return [op for op in operations if not (op.get("path") or "").startswith("/multilineFieldsFormat/")]
+
+    @staticmethod
+    def _backlog_ops_replace_multiline_add_with_replace(operations: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        out: list[dict[str, Any]] = []
+        for op in operations:
+            path = op.get("path") or ""
+            if path.startswith("/multilineFieldsFormat/"):
+                out.append({"op": "replace", "path": path, "value": op["value"]})
+            else:
+                out.append(op)
+        return out
+
+    @staticmethod
+    def _backlog_ops_convert_markdown_fields_to_html(operations: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        markdown_formatted_fields = {
+            str(op.get("path", "")).replace("/multilineFieldsFormat/", "", 1)
+            for op in operations
+            if str(op.get("path", "")).startswith("/multilineFieldsFormat/")
+            and str(op.get("value", "")).lower() == "markdown"
+        }
+
+        operations_html = [
+            dict(op) for op in operations if not (op.get("path") or "").startswith("/multilineFieldsFormat/")
+        ]
+        for op in operations_html:
+            field_path = str(op.get("path", ""))
+            if not field_path.startswith("/fields/"):
+                continue
+            field_name = field_path.replace("/fields/", "", 1)
+            if field_name in markdown_formatted_fields:
+                op["value"] = _markdown_to_html_ado_fallback(str(op.get("value") or ""))
+        return operations_html
+
+    @staticmethod
+    def _ado_http_error_message(response: requests.Response | None) -> str:
+        if not response:
+            return ""
+        try:
+            err = response.json()
+            return str(err.get("message", "") or "")
+        except Exception:
+            return ""
+
+    def _backlog_patch_try_without_multiline_format(
+        self,
+        url: str,
+        headers: dict[str, Any],
+        operations: list[dict[str, Any]],
+    ) -> requests.Response | None:
+        operations_no_format = self._backlog_ops_without_multiline_format(operations)
+        if operations_no_format == operations:
+            return None
+        try:
+            resp = requests.patch(url, headers=headers, json=operations_no_format, timeout=30)
+            resp.raise_for_status()
+            return resp
+        except requests.HTTPError as retry_error:
+            _log_ado_patch_failure(
+                retry_error.response,
+                operations_no_format,
+                url,
+                context=str(retry_error),
+            )
+            return None
+
+    def _backlog_patch_try_replace_multiline_add(
+        self,
+        url: str,
+        headers: dict[str, Any],
+        operations: list[dict[str, Any]],
+    ) -> requests.Response | None:
+        operations_replace = self._backlog_ops_replace_multiline_add_with_replace(operations)
+        try:
+            resp = requests.patch(url, headers=headers, json=operations_replace, timeout=30)
+            resp.raise_for_status()
+            return resp
+        except requests.HTTPError:
+            return None
+
+    def _backlog_patch_try_html_conversion(
+        self,
+        url: str,
+        headers: dict[str, Any],
+        operations: list[dict[str, Any]],
+        user_msg: str,
+    ) -> requests.Response | None:
+        console.print(
+            "[yellow]⚠ Markdown format metadata not supported, converting multiline markdown fields to HTML[/yellow]"
+        )
+        operations_html = self._backlog_ops_convert_markdown_fields_to_html(operations)
+        try:
+            resp = requests.patch(url, headers=headers, json=operations_html, timeout=30)
+            resp.raise_for_status()
+            return resp
+        except requests.HTTPError:
+            console.print(f"[bold red]✗[/bold red] {user_msg}")
+            raise
+
+    def _execute_backlog_patch_with_fallbacks(
+        self,
+        url: str,
+        headers: dict[str, Any],
+        operations: list[dict[str, Any]],
+    ) -> requests.Response:
+        try:
+            return self._request_with_retry(lambda: requests.patch(url, headers=headers, json=operations, timeout=30))
+        except requests.HTTPError as e:
+            user_msg = _log_ado_patch_failure(e.response, operations, url)
+            e.ado_user_message = user_msg  # type: ignore[attr-defined]
+            response: requests.Response | None = None
+            if e.response and e.response.status_code in (400, 422):
+                error_message = self._ado_http_error_message(e.response)
+                response = self._backlog_patch_try_without_multiline_format(url, headers, operations)
+                if response is None and (
+                    "already exists" in error_message.lower() or "cannot add" in error_message.lower()
+                ):
+                    response = self._backlog_patch_try_replace_multiline_add(url, headers, operations)
+                if response is None:
+                    response = self._backlog_patch_try_html_conversion(url, headers, operations, user_msg)
+
+            if response is None:
+                console.print(f"[bold red]✗[/bold red] {user_msg}")
+                raise
+            return response
+
     @beartype
     @require(lambda item: isinstance(item, BacklogItem), "Item must be BacklogItem")
     @require(
@@ -3651,7 +3868,7 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
     )
     @ensure(lambda result: isinstance(result, BacklogItem), "Must return BacklogItem")
     @ensure(
-        lambda result, item: result.id == item.id and result.provider == item.provider,
+        lambda result, item: ensure_backlog_update_preserves_identity(result, item),
         "Updated item must preserve id and provider",
     )
     def update_backlog_item(self, item: BacklogItem, update_fields: list[str] | None = None) -> BacklogItem:
@@ -3675,193 +3892,8 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             "Content-Type": "application/json-patch+json",
         }
 
-        # Build update operations
-        operations = []
-
-        if update_fields is None or "title" in update_fields:
-            operations.append({"op": "replace", "path": "/fields/System.Title", "value": item.title})
-
-        # Use AdoFieldMapper for field writeback (honor custom field mappings)
-        custom_mapping_file = os.environ.get("SPECFACT_ADO_CUSTOM_MAPPING")
-        ado_mapper = AdoFieldMapper(custom_mapping_file=custom_mapping_file)
-        provider_field_names = set()
-        provider_fields_payload = item.provider_fields.get("fields")
-        if isinstance(provider_fields_payload, dict):
-            provider_field_names = {str(field_name) for field_name in provider_fields_payload}
-
-        # Update description (body_markdown) - always use System.Description
-        if update_fields is None or "body" in update_fields or "body_markdown" in update_fields:
-            import re
-
-            # Never send null: ADO rejects null for /fields/System.Description (HTTP 400)
-            raw_body = item.body_markdown
-            markdown_content = raw_body if raw_body is not None else ""
-            markdown_content = self._strip_leading_description_heading(markdown_content)
-            # Convert TODO markers to proper Markdown checkboxes for ADO rendering
-            todo_pattern = r"^(\s*)[-*]\s*\[TODO[:\s]+([^\]]+)\](.*)$"
-            markdown_content = re.sub(
-                todo_pattern,
-                r"\1- [ ] \2",
-                markdown_content,
-                flags=re.MULTILINE | re.IGNORECASE,
-            )
-
-            description_field = (
-                ado_mapper.resolve_write_target_field("description", provider_field_names) or "System.Description"
-            )
-            # Set multiline field format to Markdown first (optional; many ADO instances return 400 for this path)
-            operations.append({"op": "add", "path": f"/multilineFieldsFormat/{description_field}", "value": "Markdown"})
-            operations.append({"op": "replace", "path": f"/fields/{description_field}", "value": markdown_content})
-
-        # Update acceptance criteria using mapped field name (honors custom mappings)
-        if update_fields is None or "acceptance_criteria" in update_fields:
-            acceptance_criteria_field = ado_mapper.resolve_write_target_field(
-                "acceptance_criteria", provider_field_names
-            )
-            if acceptance_criteria_field and item.acceptance_criteria:
-                operations.append(
-                    {
-                        "op": "add",
-                        "path": f"/multilineFieldsFormat/{acceptance_criteria_field}",
-                        "value": "Markdown",
-                    }
-                )
-                operations.append(
-                    {"op": "replace", "path": f"/fields/{acceptance_criteria_field}", "value": item.acceptance_criteria}
-                )
-
-        # Update story points using mapped field name (honors custom mappings)
-        if update_fields is None or "story_points" in update_fields:
-            story_points_field = ado_mapper.resolve_write_target_field("story_points", provider_field_names)
-            if story_points_field and item.story_points is not None and story_points_field in provider_field_names:
-                operations.append(
-                    {"op": "replace", "path": f"/fields/{story_points_field}", "value": item.story_points}
-                )
-
-        # Update business value using mapped field name (honors custom mappings)
-        if update_fields is None or "business_value" in update_fields:
-            business_value_field = ado_mapper.resolve_write_target_field("business_value", provider_field_names)
-            if (
-                business_value_field
-                and item.business_value is not None
-                and business_value_field in provider_field_names
-            ):
-                operations.append(
-                    {"op": "replace", "path": f"/fields/{business_value_field}", "value": item.business_value}
-                )
-
-        # Update priority using mapped field name (honors custom mappings)
-        if update_fields is None or "priority" in update_fields:
-            priority_field = ado_mapper.resolve_write_target_field("priority", provider_field_names)
-            if priority_field and item.priority is not None and priority_field in provider_field_names:
-                operations.append({"op": "replace", "path": f"/fields/{priority_field}", "value": item.priority})
-
-        if update_fields is None or "state" in update_fields:
-            operations.append({"op": "replace", "path": "/fields/System.State", "value": item.state})
-
-        # Update work item
-        try:
-            response = self._request_with_retry(
-                lambda: requests.patch(url, headers=headers, json=operations, timeout=30)
-            )
-        except requests.HTTPError as e:
-            user_msg = _log_ado_patch_failure(e.response, operations, url)
-            e.ado_user_message = user_msg
-            response = None
-            if e.response and e.response.status_code in (400, 422):
-                error_message = ""
-                try:
-                    error_json = e.response.json()
-                    error_message = error_json.get("message", "")
-                except Exception:
-                    pass
-
-                # First retry: omit multilineFieldsFormat entirely (only /fields/ updates).
-                # Many ADO instances reject /multilineFieldsFormat/ path with 400 Bad Request.
-                operations_no_format = [
-                    op for op in operations if not (op.get("path") or "").startswith("/multilineFieldsFormat/")
-                ]
-                if operations_no_format != operations:
-                    try:
-                        resp = requests.patch(url, headers=headers, json=operations_no_format, timeout=30)
-                        resp.raise_for_status()
-                        response = resp
-                    except requests.HTTPError as retry_error:
-                        _log_ado_patch_failure(
-                            retry_error.response,
-                            operations_no_format,
-                            url,
-                            context=str(retry_error),
-                        )
-
-                if response is None and (
-                    "already exists" in error_message.lower() or "cannot add" in error_message.lower()
-                ):
-                    # Second: try "replace" instead of "add" for multilineFieldsFormat
-                    operations_replace = []
-                    for op in operations:
-                        path = op.get("path") or ""
-                        if path.startswith("/multilineFieldsFormat/"):
-                            operations_replace.append({"op": "replace", "path": path, "value": op["value"]})
-                        else:
-                            operations_replace.append(op)
-                    try:
-                        resp = requests.patch(url, headers=headers, json=operations_replace, timeout=30)
-                        resp.raise_for_status()
-                        response = resp
-                    except requests.HTTPError:
-                        pass
-
-                if response is None:
-                    # Third: HTML fallback (no multilineFieldsFormat, description as HTML)
-                    import re as _re
-
-                    console.print(
-                        "[yellow]⚠ Markdown format metadata not supported, converting multiline markdown fields to HTML[/yellow]"
-                    )
-                    markdown_formatted_fields = {
-                        str(op.get("path", "")).replace("/multilineFieldsFormat/", "", 1)
-                        for op in operations
-                        if str(op.get("path", "")).startswith("/multilineFieldsFormat/")
-                        and str(op.get("value", "")).lower() == "markdown"
-                    }
-
-                    def _markdown_to_html(value: str) -> str:
-                        todo_pattern = r"^(\s*)[-*]\s*\[TODO[:\s]+([^\]]+)\](.*)$"
-                        normalized_markdown = _re.sub(
-                            todo_pattern,
-                            r"\1- [ ] \2",
-                            value,
-                            flags=_re.MULTILINE | _re.IGNORECASE,
-                        )
-                        try:
-                            import markdown
-
-                            return markdown.markdown(normalized_markdown, extensions=["fenced_code", "tables"])
-                        except ImportError:
-                            return normalized_markdown
-
-                    operations_html = [
-                        op for op in operations if not (op.get("path") or "").startswith("/multilineFieldsFormat/")
-                    ]
-                    for op in operations_html:
-                        field_path = str(op.get("path", ""))
-                        if not field_path.startswith("/fields/"):
-                            continue
-                        field_name = field_path.replace("/fields/", "", 1)
-                        if field_name in markdown_formatted_fields:
-                            op["value"] = _markdown_to_html(str(op.get("value") or ""))
-                    try:
-                        resp = requests.patch(url, headers=headers, json=operations_html, timeout=30)
-                        resp.raise_for_status()
-                        response = resp
-                    except requests.HTTPError:
-                        console.print(f"[bold red]✗[/bold red] {user_msg}")
-                        raise
-
-            if response is None:
-                console.print(f"[bold red]✗[/bold red] {user_msg}")
-                raise
+        operations = self._build_update_backlog_patch_operations(item, update_fields)
+        response = self._execute_backlog_patch_with_fallbacks(url, headers, operations)
 
         updated_work_item = response.json()
 

@@ -161,6 +161,51 @@ def _is_crosshair_runtime() -> bool:
     return "crosshair" in sys.modules
 
 
+def _resolve_enabled_flag(config: dict[str, Any]) -> tuple[bool, str]:
+    """Resolve the enabled flag from env var, config file, or opt-in file."""
+    env_flag = os.getenv("SPECFACT_TELEMETRY_OPT_IN")
+    if env_flag is not None:
+        enabled = _coerce_bool(env_flag)
+        opt_in_source = "env" if enabled else "disabled"
+    else:
+        config_enabled = config.get("enabled", False)
+        if isinstance(config_enabled, bool):
+            enabled = config_enabled
+        elif isinstance(config_enabled, str):
+            enabled = _coerce_bool(config_enabled)
+        else:
+            enabled = False
+        opt_in_source = "config" if enabled else "disabled"
+
+    if not enabled:
+        file_enabled = _read_opt_in_file()
+        if file_enabled:
+            enabled = True
+            opt_in_source = "file"
+
+    return enabled, opt_in_source
+
+
+def _resolve_headers(config: dict[str, Any]) -> dict[str, str]:
+    """Resolve telemetry headers from env var merged with config file."""
+    env_headers = _parse_headers(os.getenv("SPECFACT_TELEMETRY_HEADERS"))
+    config_headers = config.get("headers", {})
+    return {**config_headers, **env_headers} if isinstance(config_headers, dict) else env_headers
+
+
+def _resolve_local_path(config: dict[str, Any]) -> Path:
+    """Resolve local telemetry log path from env var, config file, or default."""
+    local_path_str = os.getenv("SPECFACT_TELEMETRY_LOCAL_PATH") or config.get("local_path") or str(DEFAULT_LOCAL_LOG)
+    return Path(local_path_str).expanduser()
+
+
+def _resolve_debug_flag(config: dict[str, Any]) -> bool:
+    """Resolve the debug flag from env var or config file."""
+    env_debug = os.getenv("SPECFACT_TELEMETRY_DEBUG")
+    result = _coerce_bool(env_debug) if env_debug is not None else config.get("debug", False)
+    return bool(result)
+
+
 @dataclass(frozen=True)
 class TelemetrySettings:
     """User-configurable telemetry settings."""
@@ -197,7 +242,6 @@ class TelemetrySettings:
         3. Simple opt-in file (~/.specfact/telemetry.opt-in) - for backward compatibility
         4. Defaults (disabled)
         """
-        # Disable in test environments (GitHub pattern)
         if os.getenv("TEST_MODE") == "true" or os.getenv("PYTEST_CURRENT_TEST"):
             return cls(
                 enabled=False,
@@ -208,8 +252,6 @@ class TelemetrySettings:
                 opt_in_source="disabled",
             )
 
-        # Disable during CrossHair exploration to avoid import/runtime side effects
-        # in config loaders and filesystem probes.
         if _is_crosshair_runtime():
             return cls(
                 enabled=False,
@@ -220,51 +262,12 @@ class TelemetrySettings:
                 opt_in_source="disabled",
             )
 
-        # Step 1: Read config file (if exists)
         config = _read_config_file()
-
-        # Step 2: Check environment variables (override config file)
-        env_flag = os.getenv("SPECFACT_TELEMETRY_OPT_IN")
-        if env_flag is not None:
-            enabled = _coerce_bool(env_flag)
-            opt_in_source = "env" if enabled else "disabled"
-        else:
-            # Check config file for enabled flag (can be bool or string)
-            config_enabled = config.get("enabled", False)
-            if isinstance(config_enabled, bool):
-                enabled = config_enabled
-            elif isinstance(config_enabled, str):
-                enabled = _coerce_bool(config_enabled)
-            else:
-                enabled = False
-            opt_in_source = "config" if enabled else "disabled"
-
-        # Step 3: Fallback to simple opt-in file (backward compatibility)
-        if not enabled:
-            file_enabled = _read_opt_in_file()
-            if file_enabled:
-                enabled = True
-                opt_in_source = "file"
-
-        # Step 4: Get endpoint (env var > config file > None)
+        enabled, opt_in_source = _resolve_enabled_flag(config)
         endpoint = os.getenv("SPECFACT_TELEMETRY_ENDPOINT") or config.get("endpoint")
-
-        # Step 5: Get headers (env var > config file > empty dict)
-        env_headers = _parse_headers(os.getenv("SPECFACT_TELEMETRY_HEADERS"))
-        config_headers = config.get("headers", {})
-        headers = (
-            {**config_headers, **env_headers} if isinstance(config_headers, dict) else env_headers
-        )  # Env vars override config file
-
-        # Step 6: Get local path (env var > config file > default)
-        local_path_str = (
-            os.getenv("SPECFACT_TELEMETRY_LOCAL_PATH") or config.get("local_path") or str(DEFAULT_LOCAL_LOG)
-        )
-        local_path = Path(local_path_str).expanduser()
-
-        # Step 7: Get debug flag (env var > config file > False)
-        env_debug = os.getenv("SPECFACT_TELEMETRY_DEBUG")
-        debug = _coerce_bool(env_debug) if env_debug is not None else config.get("debug", False)
+        headers = _resolve_headers(config)
+        local_path = _resolve_local_path(config)
+        debug = _resolve_debug_flag(config)
 
         return cls(
             enabled=enabled,
@@ -276,10 +279,73 @@ class TelemetrySettings:
         )
 
 
+def _resolve_resource_config(config: dict[str, Any], opt_in_source: str) -> Any:
+    """Build an OTel Resource from env vars, config file, and defaults."""
+    service_name = os.getenv("SPECFACT_TELEMETRY_SERVICE_NAME") or config.get("service_name") or "specfact-cli"
+    service_namespace = os.getenv("SPECFACT_TELEMETRY_SERVICE_NAMESPACE") or config.get("service_namespace") or "cli"
+    deployment_environment = (
+        os.getenv("SPECFACT_TELEMETRY_DEPLOYMENT_ENVIRONMENT") or config.get("deployment_environment") or "production"
+    )
+    if Resource is None:
+        raise RuntimeError("OpenTelemetry Resource dependency is unavailable")
+
+    return Resource.create(
+        {
+            "service.name": service_name,
+            "service.namespace": service_namespace,
+            "service.version": __version__,
+            "deployment.environment": deployment_environment,
+            "telemetry.opt_in_source": opt_in_source,
+        }
+    )
+
+
+def _resolve_batch_config(config: dict[str, Any]) -> tuple[int, int, int]:
+    """Return (batch_size, batch_timeout_ms, export_timeout_ms) from env vars or config."""
+    export_timeout_str = os.getenv("SPECFACT_TELEMETRY_EXPORT_TIMEOUT") or str(config.get("export_timeout", "10"))
+    batch_size_str = os.getenv("SPECFACT_TELEMETRY_BATCH_SIZE") or str(config.get("batch_size", "512"))
+    batch_timeout_str = os.getenv("SPECFACT_TELEMETRY_BATCH_TIMEOUT") or str(config.get("batch_timeout", "5"))
+    return int(batch_size_str), int(batch_timeout_str) * 1000, int(export_timeout_str) * 1000
+
+
+def _configure_span_processors(provider: Any, exporter: Any, debug: bool) -> None:
+    """Attach batch (and optional console) span processors to provider."""
+    if debug and ConsoleSpanExporter and SimpleSpanProcessor:
+        provider.add_span_processor(SimpleSpanProcessor(ConsoleSpanExporter()))
+    elif not debug:
+        logging.getLogger("opentelemetry.sdk._shared_internal").setLevel(logging.CRITICAL)
+        logging.getLogger("opentelemetry.exporter.otlp.proto.http.trace_exporter").setLevel(logging.CRITICAL)
+
+
+def _telemetry_manager_constructed(self: TelemetryManager, result: None) -> bool:
+    return (
+        hasattr(self, "_settings")
+        and hasattr(self, "_enabled")
+        and hasattr(self, "_session_id")
+        and isinstance(self._session_id, str)
+        and len(self._session_id) > 0
+    )
+
+
+def _telemetry_has_settings(self: TelemetryManager) -> bool:
+    return hasattr(self, "_settings") and isinstance(self._settings, TelemetrySettings)
+
+
+def _telemetry_last_event_written(self: TelemetryManager, result: None) -> bool:
+    return self._last_event is not None
+
+
 class TelemetryManager:
     """Privacy-first telemetry helper."""
 
     TELEMETRY_VERSION = "1.0"
+
+    _settings: TelemetrySettings
+    _local_path: Path
+    _enabled: bool
+    _session_id: str
+    _tracer: Any
+    _last_event: dict[str, Any] | None
 
     @classmethod
     @beartype
@@ -293,16 +359,7 @@ class TelemetryManager:
         lambda self, settings: settings is None or isinstance(settings, TelemetrySettings),
         "Settings must be None or TelemetrySettings",
     )
-    @ensure(
-        lambda self, result: (
-            hasattr(self, "_settings")
-            and hasattr(self, "_enabled")
-            and hasattr(self, "_session_id")
-            and isinstance(self._session_id, str)
-            and len(self._session_id) > 0
-        ),
-        "Must initialize all required instance attributes",
-    )
+    @ensure(_telemetry_manager_constructed, "Must initialize all required instance attributes")
     def __init__(self, settings: object | None = None) -> None:
         settings_value: TelemetrySettings
         if settings is None:
@@ -317,7 +374,7 @@ class TelemetryManager:
         self._enabled = self._settings.enabled
         self._session_id = uuid4().hex
         self._tracer = None
-        self._last_event: dict[str, Any] | None = None
+        self._last_event = None
 
         if not self._enabled:
             return
@@ -340,10 +397,7 @@ class TelemetryManager:
         return self._last_event
 
     @beartype
-    @require(
-        lambda self: hasattr(self, "_settings") and isinstance(self._settings, TelemetrySettings),
-        "Settings must be initialized",
-    )
+    @require(_telemetry_has_settings, "Settings must be initialized")
     @ensure(lambda self, result: result is None, "Must return None")
     def _prepare_storage(self) -> None:
         """Ensure local telemetry directory exists."""
@@ -358,10 +412,7 @@ class TelemetryManager:
                 LOGGER.warning("Failed to prepare telemetry directory: %s (fallback: %s)", exc, fallback_exc)
 
     @beartype
-    @require(
-        lambda self: hasattr(self, "_settings") and isinstance(self._settings, TelemetrySettings),
-        "Settings must be initialized",
-    )
+    @require(_telemetry_has_settings, "Settings must be initialized")
     @ensure(lambda self, result: result is None, "Must return None")
     def _initialize_tracer(self) -> None:
         """Configure OpenTelemetry exporter if endpoint is provided."""
@@ -380,48 +431,15 @@ class TelemetryManager:
             )
             return
 
-        # Read config file for service name and batch settings (env vars override config)
         config = _read_config_file()
-
-        # Allow user to customize service name (env var > config file > default)
-        service_name = os.getenv("SPECFACT_TELEMETRY_SERVICE_NAME") or config.get("service_name") or "specfact-cli"
-        # Allow user to customize service namespace (env var > config file > default)
-        service_namespace = (
-            os.getenv("SPECFACT_TELEMETRY_SERVICE_NAMESPACE") or config.get("service_namespace") or "cli"
-        )
-        # Allow user to customize deployment environment (env var > config file > default)
-        deployment_environment = (
-            os.getenv("SPECFACT_TELEMETRY_DEPLOYMENT_ENVIRONMENT")
-            or config.get("deployment_environment")
-            or "production"
-        )
-        resource = Resource.create(
-            {
-                "service.name": service_name,
-                "service.namespace": service_namespace,
-                "service.version": __version__,
-                "deployment.environment": deployment_environment,
-                "telemetry.opt_in_source": self._settings.opt_in_source,
-            }
-        )
+        resource = _resolve_resource_config(config, self._settings.opt_in_source)
         provider = TracerProvider(resource=resource)
 
-        # Configure exporter (timeout is handled by BatchSpanProcessor)
-        # Export timeout (env var > config file > default)
-        export_timeout_str = os.getenv("SPECFACT_TELEMETRY_EXPORT_TIMEOUT") or str(config.get("export_timeout", "10"))
-        export_timeout = int(export_timeout_str)
         exporter = OTLPSpanExporter(
             endpoint=self._settings.endpoint,
             headers=self._settings.headers or None,
         )
-
-        # Allow user to configure batch settings (env var > config file > default)
-        batch_size_str = os.getenv("SPECFACT_TELEMETRY_BATCH_SIZE") or str(config.get("batch_size", "512"))
-        batch_timeout_str = os.getenv("SPECFACT_TELEMETRY_BATCH_TIMEOUT") or str(config.get("batch_timeout", "5"))
-        batch_size = int(batch_size_str)
-        batch_timeout_ms = int(batch_timeout_str) * 1000  # Convert to milliseconds
-        export_timeout_ms = export_timeout * 1000  # Convert to milliseconds
-
+        batch_size, batch_timeout_ms, export_timeout_ms = _resolve_batch_config(config)
         provider.add_span_processor(
             BatchSpanProcessor(
                 exporter,
@@ -431,12 +449,7 @@ class TelemetryManager:
             )
         )
 
-        if self._settings.debug and ConsoleSpanExporter and SimpleSpanProcessor:
-            provider.add_span_processor(SimpleSpanProcessor(ConsoleSpanExporter()))
-        elif not self._settings.debug:
-            # Suppress noisy exporter traceback logs in normal CLI output when endpoint is unreachable.
-            logging.getLogger("opentelemetry.sdk._shared_internal").setLevel(logging.CRITICAL)
-            logging.getLogger("opentelemetry.exporter.otlp.proto.http.trace_exporter").setLevel(logging.CRITICAL)
+        _configure_span_processors(provider, exporter, self._settings.debug)
 
         trace.set_tracer_provider(provider)
         self._tracer = trace.get_tracer("specfact_cli.telemetry")
@@ -515,10 +528,7 @@ class TelemetryManager:
     @beartype
     @require(lambda self, event: hasattr(self, "_settings"), "Manager must be initialized")
     @require(lambda self, event: isinstance(event, MutableMapping), "Event must be MutableMapping")
-    @ensure(
-        lambda self, result: hasattr(self, "_last_event") and self._last_event is not None,
-        "Must set _last_event after emitting",
-    )
+    @ensure(_telemetry_last_event_written, "Must set _last_event after emitting")
     def _emit_event(self, event: MutableMapping[str, Any]) -> None:
         """Emit sanitized event to local storage and optional OTLP exporter."""
         event.setdefault("cli_version", __version__)
@@ -613,6 +623,7 @@ __all__ = ["TelemetryManager", "TelemetrySettings", "telemetry"]
 # CrossHair: skip (side-effectful imports in YAML utils)
 # These functions are designed for CrossHair symbolic execution analysis
 @beartype
+@require(lambda value: value is None or len(value) >= 0, "value must be None or a string")
 def test_coerce_bool_property(value: str | None) -> None:
     """CrossHair property test for _coerce_bool function."""
     result = _coerce_bool(value)
@@ -624,6 +635,7 @@ def test_coerce_bool_property(value: str | None) -> None:
 
 
 @beartype
+@require(lambda: Path.home() is not None, "home directory must be accessible")
 def test_read_opt_in_file_property() -> None:
     """CrossHair property test for _read_opt_in_file function."""
     result = _read_opt_in_file()
@@ -631,6 +643,7 @@ def test_read_opt_in_file_property() -> None:
 
 
 @beartype
+@require(lambda: Path.home() is not None, "home directory must be accessible")
 def test_read_config_file_property() -> None:
     """CrossHair property test for _read_config_file function."""
     result = _read_config_file()
@@ -639,6 +652,7 @@ def test_read_config_file_property() -> None:
 
 
 @beartype
+@require(lambda raw: raw is None or len(raw) >= 0, "raw must be None or a string")
 def test_parse_headers_property(raw: str | None) -> None:
     """CrossHair property test for _parse_headers function."""
     result = _parse_headers(raw)
@@ -649,6 +663,7 @@ def test_parse_headers_property(raw: str | None) -> None:
 
 
 @beartype
+@require(lambda: Path.home() is not None, "home directory must be accessible for env-based settings")
 def test_telemetry_settings_from_env_property() -> None:
     """CrossHair property test for TelemetrySettings.from_env."""
     settings = TelemetrySettings.from_env()
@@ -663,6 +678,7 @@ def test_telemetry_settings_from_env_property() -> None:
 
 
 @beartype
+@require(lambda enabled: isinstance(enabled, bool), "enabled must be a bool")
 def test_telemetry_manager_init_property(enabled: bool) -> None:
     """CrossHair property test for TelemetryManager.__init__."""
     settings = TelemetrySettings(
@@ -682,6 +698,7 @@ def test_telemetry_manager_init_property(enabled: bool) -> None:
 
 
 @beartype
+@require(lambda raw: raw is None or isinstance(raw, Mapping), "raw must be None or a Mapping")
 def test_telemetry_manager_sanitize_property(raw: Mapping[str, Any] | None) -> None:
     """CrossHair property test for TelemetryManager._sanitize."""
     manager = TelemetryManager(TelemetrySettings(enabled=False))
@@ -692,29 +709,47 @@ def test_telemetry_manager_sanitize_property(raw: Mapping[str, Any] | None) -> N
         assert len(result) == 0
 
 
+def _assert_normalized_value_type(value: Any, result: Any) -> None:
+    """Assert that result is the correctly normalized form of value."""
+    if isinstance(value, bool) or (isinstance(value, int) and not isinstance(value, bool)):
+        assert result == value
+        return
+    if isinstance(value, float):
+        assert isinstance(result, float)
+        return
+    if isinstance(value, str):
+        _assert_normalized_string_value(value, result)
+        return
+    if value is None:
+        assert result is None
+        return
+    if isinstance(value, (list, tuple)):
+        assert isinstance(result, int)
+
+
+def _assert_normalized_string_value(value: str, result: Any) -> None:
+    if value.strip():
+        assert isinstance(result, str)
+        assert len(result) <= 128
+    else:
+        assert result is None
+
+
 @beartype
+@require(
+    lambda value: value is None or isinstance(value, (bool, int, float, str, list, tuple, dict)),
+    "value must be a basic Python type or None",
+)
 def test_telemetry_manager_normalize_value_property(value: Any) -> None:
     """CrossHair property test for TelemetryManager._normalize_value."""
     manager = TelemetryManager(TelemetrySettings(enabled=False))
     result = manager._normalize_value(value)
     assert result is None or isinstance(result, (bool, int, float, str))
-    if isinstance(value, bool) or (isinstance(value, int) and not isinstance(value, bool)):
-        assert result == value
-    elif isinstance(value, float):
-        assert isinstance(result, float)
-    elif isinstance(value, str):
-        if value.strip():
-            assert isinstance(result, str)
-            assert len(result) <= 128
-        else:
-            assert result is None
-    elif value is None:
-        assert result is None
-    elif isinstance(value, (list, tuple)):
-        assert isinstance(result, int)
+    _assert_normalized_value_type(value, result)
 
 
 @beartype
+@require(lambda event: isinstance(event, Mapping), "event must be a Mapping")
 def test_telemetry_manager_write_local_event_property(event: Mapping[str, Any]) -> None:
     """CrossHair property test for TelemetryManager._write_local_event."""
     manager = TelemetryManager(TelemetrySettings(enabled=False, local_path=Path("/tmp/test_telemetry.log")))
@@ -725,6 +760,7 @@ def test_telemetry_manager_write_local_event_property(event: Mapping[str, Any]) 
 
 
 @beartype
+@require(lambda event: isinstance(event, MutableMapping), "event must be a MutableMapping")
 def test_telemetry_manager_emit_event_property(event: MutableMapping[str, Any]) -> None:
     """CrossHair property test for TelemetryManager._emit_event."""
     manager = TelemetryManager(TelemetrySettings(enabled=False, local_path=Path("/tmp/test_telemetry.log")))
@@ -734,6 +770,11 @@ def test_telemetry_manager_emit_event_property(event: MutableMapping[str, Any]) 
 
 
 @beartype
+@require(lambda command: len(command) > 0, "command must be non-empty")
+@require(
+    lambda initial_metadata: initial_metadata is None or isinstance(initial_metadata, Mapping),
+    "initial_metadata must be None or a Mapping",
+)
 def test_telemetry_manager_track_command_property(command: str, initial_metadata: Mapping[str, Any] | None) -> None:
     """CrossHair property test for TelemetryManager.track_command."""
     if not command or len(command) == 0:

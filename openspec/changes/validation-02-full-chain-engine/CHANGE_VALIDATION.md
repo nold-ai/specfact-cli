@@ -1,31 +1,28 @@
 # Change Validation: validation-02-full-chain-engine
 
-- **Validated on (UTC):** 2026-02-15T21:54:26Z
+- **Validated on (UTC):** 2026-03-22T22:28:26+00:00
 - **Workflow:** /wf-validate-change (proposal-stage dry-run validation)
 - **Strict command:** `openspec validate validation-02-full-chain-engine --strict`
 - **Result:** PASS
 
 ## Scope Summary
 
-- **New capabilities:** full-chain-validation
-- **Modified capabilities:** sidecar-validation
-- **Declared dependencies:** requirements-02 (module commands), architecture-01 (solution layer), policy-engine-01 (#176, for severity configuration)
-- **Proposed affected code paths:** - `modules/validate/src/` (extend with full-chain engine);- Policy engine integration hooks
+- **Primary capability:** `full-chain-validation`
+- **Clean-code delta:** add optional `--with-code-quality` side-channel reporting without turning clean-code into a traceability layer
+- **Declared dependencies:** governance evidence envelope; policy/profile severity consumers
 
 ## Breaking-Change Analysis (Dry-Run)
 
-- Interface changes are proposal-level only; no production code modifications were performed in this workflow stage.
-- Proposed modified capabilities are additive/extension-oriented in the current spec deltas and do not require immediate breaking migrations at proposal time.
-- Backward-compatibility risk is primarily sequencing-related (dependency ordering), not signature-level breakage at this stage.
+- The delta preserves the existing Req → Arch → Spec → Code → Tests layer model.
+- The optional side-channel adds evidence only and does not change baseline full-chain behavior.
 
 ## Dependency and Integration Review
 
-- Dependency declarations align with the 2026-02-15 architecture layer integration plan sequencing.
-- Cross-change integration points are explicitly represented in proposal/spec/task artifacts.
-- No additional mandatory scope expansion was required to pass strict OpenSpec validation.
+- Validation ownership remains separate from governance envelope ownership.
+- No scope expansion was needed beyond the optional review side-channel.
 
 ## Validation Outcome
 
-- Required artifacts are present: `proposal.md`, `design.md`, `specs/**/*.md`, `tasks.md`.
+- Required artifacts are present and parseable.
 - Strict OpenSpec validation passed.
-- Change is ready for implementation-phase intake once prerequisites are satisfied.
+- Change is ready to consume clean-code review output as a parallel quality dimension.

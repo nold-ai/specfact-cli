@@ -8,10 +8,10 @@ import base64
 import hashlib
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from beartype import beartype
-from icontract import require
+from icontract import ensure, require
 
 
 _ArtifactInput = bytes | Path
@@ -51,7 +51,7 @@ def _algo_and_hex(expected_checksum: str) -> tuple[str, str]:
 
 
 @beartype
-@require(lambda expected_checksum: expected_checksum.strip() != "", "Expected checksum must not be empty")
+@require(lambda expected_checksum: cast(str, expected_checksum).strip() != "", "Expected checksum must not be empty")
 def verify_checksum(artifact: _ArtifactInput, expected_checksum: str) -> bool:
     """
     Verify artifact checksum against expected algo:hex value.
@@ -115,6 +115,9 @@ def _verify_signature_impl(artifact: bytes, signature_b64: str, public_key_pem: 
 
 
 @beartype
+@require(lambda signature_b64: isinstance(signature_b64, str), "signature_b64 must be a string")
+@require(lambda public_key_pem: isinstance(public_key_pem, str), "public_key_pem must be a string")
+@ensure(lambda result: isinstance(result, bool), "Must return a bool")
 def verify_signature(
     artifact: _ArtifactInput,
     signature_b64: str,
@@ -148,13 +151,17 @@ def _extract_publisher_name(manifest: dict[str, Any]) -> str:
     """Normalize publisher name from manifest payload."""
     publisher_raw = manifest.get("publisher")
     if isinstance(publisher_raw, dict):
-        return str(publisher_raw.get("name", "")).strip().lower()
+        pub = cast(dict[str, Any], publisher_raw)
+        return str(pub.get("name", "")).strip().lower()
     return str(publisher_raw or "").strip().lower()
 
 
 @beartype
 @require(
-    lambda manifest: str(manifest.get("tier", "unsigned")).strip().lower() in {"official", "community", "unsigned"},
+    lambda manifest: (
+        str(cast(dict[str, Any], manifest).get("tier", "unsigned")).strip().lower()
+        in {"official", "community", "unsigned"}
+    ),
     "tier must be one of: official, community, unsigned",
 )
 def validate_module(
@@ -168,7 +175,9 @@ def validate_module(
         if publisher_name not in OFFICIAL_PUBLISHERS:
             raise SecurityError(f"Official-tier publisher is not allowlisted: {publisher_name or '<missing>'}")
         integrity = manifest.get("integrity")
-        signature = str(integrity.get("signature", "")).strip() if isinstance(integrity, dict) else ""
+        signature = (
+            str(cast(dict[str, Any], integrity).get("signature", "")).strip() if isinstance(integrity, dict) else ""
+        )
         if not signature:
             raise SignatureVerificationError("Official-tier manifest requires integrity.signature")
         key_material = (public_key_pem or "").strip()

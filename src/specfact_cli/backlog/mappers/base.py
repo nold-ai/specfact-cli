@@ -8,7 +8,7 @@ field mappers must implement.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import Any, ClassVar
 
 from beartype import beartype
 from icontract import ensure, require
@@ -33,15 +33,17 @@ class FieldMapper(ABC):
     """
 
     # Canonical field names for Kanban/Scrum/SAFe alignment
-    CANONICAL_FIELDS = {
-        "description",
-        "acceptance_criteria",
-        "story_points",
-        "business_value",
-        "priority",
-        "value_points",
-        "work_item_type",
-    }
+    CANONICAL_FIELDS: ClassVar[frozenset[str]] = frozenset(
+        {
+            "description",
+            "acceptance_criteria",
+            "story_points",
+            "business_value",
+            "priority",
+            "value_points",
+            "work_item_type",
+        }
+    )
 
     @beartype
     @abstractmethod
@@ -62,7 +64,7 @@ class FieldMapper(ABC):
     @abstractmethod
     @require(lambda self, canonical_fields: isinstance(canonical_fields, dict), "Canonical fields must be dict")
     @require(
-        lambda self, canonical_fields: all(field in self.CANONICAL_FIELDS for field in canonical_fields),
+        lambda self, canonical_fields: all(field in FieldMapper.CANONICAL_FIELDS for field in canonical_fields),
         "All field names must be canonical",
     )
     @ensure(lambda result: isinstance(result, dict), "Must return dict")

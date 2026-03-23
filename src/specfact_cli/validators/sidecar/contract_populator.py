@@ -17,7 +17,10 @@ from specfact_cli.validators.sidecar.frameworks.base import RouteInfo
 
 
 @beartype
-@require(lambda contracts_dir: contracts_dir.exists(), "Contracts directory must exist")
+@require(
+    lambda contracts_dir: isinstance(contracts_dir, Path) and contracts_dir.exists(),
+    "Contracts directory must exist",
+)
 @require(lambda routes: isinstance(routes, list), "Routes must be a list")
 @ensure(lambda result: isinstance(result, int), "Must return int")
 def populate_contracts(contracts_dir: Path, routes: list[RouteInfo], schemas: dict[str, dict[str, Any]]) -> int:
@@ -58,7 +61,10 @@ def populate_contracts(contracts_dir: Path, routes: list[RouteInfo], schemas: di
 
 
 @beartype
-@require(lambda contract_path: contract_path.exists(), "Contract file must exist")
+@require(
+    lambda contract_path: isinstance(contract_path, Path) and contract_path.exists(),
+    "Contract file must exist",
+)
 @ensure(lambda result: isinstance(result, dict), "Must return dict")
 def load_contract(contract_path: Path) -> dict[str, Any]:
     """
@@ -71,11 +77,15 @@ def load_contract(contract_path: Path) -> dict[str, Any]:
         Contract data dictionary
     """
     with contract_path.open(encoding="utf-8") as f:
-        return yaml.safe_load(f) or {}
+        raw = yaml.safe_load(f)
+        return raw if isinstance(raw, dict) else {}
 
 
 @beartype
-@require(lambda contract_path: contract_path.exists(), "Contract file must exist")
+@require(
+    lambda contract_path: isinstance(contract_path, Path) and contract_path.exists(),
+    "Contract file must exist",
+)
 @require(lambda contract_data: isinstance(contract_data, dict), "Contract data must be dict")
 def save_contract(contract_path: Path, contract_data: dict[str, Any]) -> None:
     """

@@ -57,12 +57,10 @@ class TestArtifactMapping:
 
     def test_resolve_path_empty_pattern(self):
         """Test that empty path pattern is rejected."""
-        # Pydantic doesn't validate empty strings for required fields by default
-        # The contract decorator will catch this at runtime
-        mapping = ArtifactMapping(path_pattern="", format="markdown")
-        # Contract will fail when resolve_path is called
-        with pytest.raises((ValueError, Exception), match="Path pattern must not be empty"):
-            mapping.resolve_path({})
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError, match="at least 1 character"):
+            ArtifactMapping(path_pattern="", format="markdown")
 
 
 class TestCommandMapping:

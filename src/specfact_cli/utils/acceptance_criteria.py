@@ -13,6 +13,33 @@ from beartype import beartype
 from icontract import ensure, require
 
 
+_COMMON_WORD_TOKENS = frozenset(
+    {
+        "given",
+        "when",
+        "then",
+        "user",
+        "system",
+        "developer",
+        "they",
+        "the",
+        "with",
+        "from",
+        "that",
+    }
+)
+
+
+def _code_pattern_match_is_meaningful(pattern: str, acceptance: str) -> bool:
+    """Return True if regex matches are not only common English words."""
+    matches = re.findall(pattern, acceptance, re.IGNORECASE)
+    if isinstance(matches, list):
+        actual = [m for m in matches if isinstance(m, str) and m.lower() not in _COMMON_WORD_TOKENS]
+    else:
+        actual = [matches] if isinstance(matches, str) and matches.lower() not in _COMMON_WORD_TOKENS else []
+    return bool(actual)
+
+
 @beartype
 @require(lambda acceptance: isinstance(acceptance, str), "Acceptance must be string")
 @ensure(lambda result: isinstance(result, bool), "Must return bool")
@@ -134,30 +161,7 @@ def is_code_specific_criteria(acceptance: str) -> bool:
     ]
 
     for pattern in code_specific_patterns:
-        if re.search(pattern, acceptance, re.IGNORECASE):
-            # Verify match is not a common word
-            matches = re.findall(pattern, acceptance, re.IGNORECASE)
-            common_words = [
-                "given",
-                "when",
-                "then",
-                "user",
-                "system",
-                "developer",
-                "they",
-                "the",
-                "with",
-                "from",
-                "that",
-            ]
-            # Filter out common words from matches
-            if isinstance(matches, list):
-                actual_matches = [m for m in matches if isinstance(m, str) and m.lower() not in common_words]
-            else:
-                actual_matches = [matches] if isinstance(matches, str) and matches.lower() not in common_words else []
+        if re.search(pattern, acceptance, re.IGNORECASE) and _code_pattern_match_is_meaningful(pattern, acceptance):
+            return True
 
-            if actual_matches:
-                return True
-
-    # If no code-specific patterns found, it's not code-specific
     return False

@@ -21,15 +21,133 @@ from specfact_cli.models.backlog_item import BacklogItem
 from specfact_cli.models.source_tracking import SourceTracking
 
 
+def _github_issue_has_number_or_id(item_data: dict[str, Any]) -> bool:
+    return bool(item_data.get("number") or item_data.get("id"))
+
+
+def _github_issue_has_url(item_data: dict[str, Any]) -> bool:
+    return bool(item_data.get("html_url") or item_data.get("url"))
+
+
+def _ado_item_has_id(item_data: dict[str, Any]) -> bool:
+    return bool(item_data.get("id"))
+
+
+def _require_ado_work_item_core(item_data: dict[str, Any]) -> tuple[str, str, dict[str, Any]]:
+    work_item_id = str(item_data.get("id") or "")
+    if not work_item_id:
+        msg = "ADO work item must have 'id' field"
+        raise ValueError(msg)
+    links_raw = item_data.get("_links", {})
+    links: dict[str, Any] = links_raw if isinstance(links_raw, dict) else {}
+    html_raw = links.get("html", {})
+    html: dict[str, Any] = html_raw if isinstance(html_raw, dict) else {}
+    href = str(html.get("href", ""))
+    url = item_data.get("url") or href or ""
+    if not url:
+        msg = "ADO work item must have 'url' or '_links.html.href' field"
+        raise ValueError(msg)
+    fields = item_data.get("fields", {})
+    if not fields:
+        msg = "ADO work item must have 'fields' dict"
+        raise ValueError(msg)
+    title = fields.get("System.Title", "").strip()
+    if not title:
+        msg = "ADO work item must have 'System.Title' field"
+        raise ValueError(msg)
+    return work_item_id, url, fields
+
+
+def _ado_item_has_url(item_data: dict[str, Any]) -> bool:
+    links_raw = item_data.get("_links", {})
+    links: dict[str, Any] = links_raw if isinstance(links_raw, dict) else {}
+    html_raw = links.get("html", {})
+    html: dict[str, Any] = html_raw if isinstance(html_raw, dict) else {}
+    href = str(html.get("href", ""))
+    return bool(item_data.get("url") or href)
+
+
+def _github_assignees_from_item(item_data: dict[str, Any]) -> list[str]:
+    assignees: list[str] = []
+    raw_assignees = item_data.get("assignees")
+    if raw_assignees:
+        if not isinstance(raw_assignees, list):
+            return assignees
+        for a in raw_assignees:
+            if not a:
+                continue
+            if isinstance(a, dict):
+                ad: dict[str, Any] = a
+                assignees.append(str(ad.get("login", "")))
+            else:
+                assignees.append(str(a))
+    elif item_data.get("assignee"):
+        assignee = item_data["assignee"]
+        if isinstance(assignee, dict):
+            ag: dict[str, Any] = assignee
+            assignees = [str(ag.get("login", ""))]
+        else:
+            assignees = [str(assignee)]
+    return assignees
+
+
+def _github_issue_labels_as_tags(item_data: dict[str, Any]) -> list[str]:
+    tags: list[str] = []
+    raw_labels = item_data.get("labels")
+    if not raw_labels or not isinstance(raw_labels, list):
+        return tags
+    for label in raw_labels:
+        if not label:
+            continue
+        if isinstance(label, dict):
+            ld: dict[str, Any] = label
+            tags.append(str(ld.get("name", "")))
+        else:
+            tags.append(str(label))
+    return tags
+
+
+def _require_github_issue_core(item_data: dict[str, Any]) -> tuple[str, str, str]:
+    issue_id = str(item_data.get("number") or item_data.get("id") or "")
+    if not issue_id:
+        msg = "GitHub issue must have 'number' or 'id' field"
+        raise ValueError(msg)
+    url = item_data.get("html_url") or item_data.get("url") or ""
+    if not url:
+        msg = "GitHub issue must have 'html_url' or 'url' field"
+        raise ValueError(msg)
+    title = item_data.get("title", "").strip()
+    if not title:
+        msg = "GitHub issue must have 'title' field"
+        raise ValueError(msg)
+    return issue_id, url, title
+
+
+def _milestone_sprint_release_github(milestone: Any) -> tuple[str | None, str | None]:
+    if not milestone:
+        return None, None
+    if isinstance(milestone, dict):
+        md: dict[str, Any] = milestone
+        milestone_title = str(md.get("title", ""))
+    else:
+        milestone_title = str(milestone)
+    milestone_title_lower = milestone_title.lower()
+    if "sprint" in milestone_title_lower:
+        return milestone_title, None
+    if "release" in milestone_title_lower or milestone_title_lower.startswith(("v", "r")):
+        return None, milestone_title
+    return None, None
+
+
 @beartype
 @require(lambda item_data: isinstance(item_data, dict), "Item data must be dict")
 @require(lambda provider: isinstance(provider, str) and len(provider) > 0, "Provider must be non-empty string")
 @require(
-    lambda item_data: bool(item_data.get("number") or item_data.get("id")),
+    _github_issue_has_number_or_id,
     "GitHub issue must include 'number' or 'id'",
 )
 @require(
-    lambda item_data: bool(item_data.get("html_url") or item_data.get("url")),
+    _github_issue_has_url,
     "GitHub issue must include 'html_url' or 'url'",
 )
 @ensure(lambda result: isinstance(result, BacklogItem), "Must return BacklogItem")
@@ -49,29 +167,14 @@ def convert_github_issue_to_backlog_item(item_data: dict[str, Any], provider: st
     Raises:
         ValueError: If required fields are missing
     """
-    # Extract identity fields
-    issue_id = str(item_data.get("number") or item_data.get("id") or "")
-    if not issue_id:
-        msg = "GitHub issue must have 'number' or 'id' field"
-        raise ValueError(msg)
-
-    url = item_data.get("html_url") or item_data.get("url") or ""
-    if not url:
-        msg = "GitHub issue must have 'html_url' or 'url' field"
-        raise ValueError(msg)
-
-    # Extract content fields
-    title = item_data.get("title", "").strip()
-    if not title:
-        msg = "GitHub issue must have 'title' field"
-        raise ValueError(msg)
+    issue_id, url, title = _require_github_issue_core(item_data)
 
     body_markdown = item_data.get("body", "") or ""
     state = item_data.get("state", "open").lower()
 
     # Extract fields using GitHubFieldMapper
     github_mapper = GitHubFieldMapper()
-    extracted_fields = github_mapper.extract_fields(item_data)
+    extracted_fields: dict[str, Any] = github_mapper.extract_fields(item_data)
     acceptance_criteria = extracted_fields.get("acceptance_criteria")
     story_points = extracted_fields.get("story_points")
     business_value = extracted_fields.get("business_value")
@@ -79,19 +182,9 @@ def convert_github_issue_to_backlog_item(item_data: dict[str, Any], provider: st
     value_points = extracted_fields.get("value_points")
     work_item_type = extracted_fields.get("work_item_type")
 
-    # Extract metadata fields
-    assignees = []
-    if item_data.get("assignees"):
-        assignees = [a.get("login", "") if isinstance(a, dict) else str(a) for a in item_data["assignees"] if a]
-    elif item_data.get("assignee"):
-        assignee = item_data["assignee"]
-        assignees = [assignee.get("login", "") if isinstance(assignee, dict) else str(assignee)]
+    assignees = _github_assignees_from_item(item_data)
 
-    tags = []
-    if item_data.get("labels"):
-        tags = [
-            label.get("name", "") if isinstance(label, dict) else str(label) for label in item_data["labels"] if label
-        ]
+    tags = _github_issue_labels_as_tags(item_data)
 
     # Extract timestamps
     created_at = _parse_github_timestamp(item_data.get("created_at"))
@@ -109,19 +202,8 @@ def convert_github_issue_to_backlog_item(item_data: dict[str, Any], provider: st
         },
     )
 
-    # Extract sprint/release from milestone
-    sprint: str | None = None
-    release: str | None = None
     milestone = item_data.get("milestone")
-    if milestone:
-        milestone_title = milestone.get("title", "") if isinstance(milestone, dict) else str(milestone)
-        milestone_title_lower = milestone_title.lower()
-        # Check if milestone is a sprint (common patterns: "Sprint 1", "Sprint 2024-01", "Sprint Q1")
-        if "sprint" in milestone_title_lower:
-            sprint = milestone_title
-        # Check if milestone is a release (common patterns: "Release 1.0", "v1.0", "R1")
-        elif "release" in milestone_title_lower or milestone_title_lower.startswith(("v", "r")):
-            release = milestone_title
+    sprint, release = _milestone_sprint_release_github(milestone)
 
     # Preserve provider-specific fields
     provider_fields = {
@@ -164,9 +246,9 @@ def convert_github_issue_to_backlog_item(item_data: dict[str, Any], provider: st
 @beartype
 @require(lambda item_data: isinstance(item_data, dict), "Item data must be dict")
 @require(lambda provider: isinstance(provider, str) and len(provider) > 0, "Provider must be non-empty string")
-@require(lambda item_data: bool(item_data.get("id")), "ADO work item must include 'id'")
+@require(_ado_item_has_id, "ADO work item must include 'id'")
 @require(
-    lambda item_data: bool(item_data.get("url") or item_data.get("_links", {}).get("html", {}).get("href", "")),
+    _ado_item_has_url,
     "ADO work item must include 'url' or '_links.html.href'",
 )
 @ensure(lambda result: isinstance(result, BacklogItem), "Must return BacklogItem")
@@ -197,78 +279,22 @@ def convert_ado_work_item_to_backlog_item(
     Raises:
         ValueError: If required fields are missing
     """
-    # Extract identity fields
-    work_item_id = str(item_data.get("id") or "")
-    if not work_item_id:
-        msg = "ADO work item must have 'id' field"
-        raise ValueError(msg)
+    work_item_id, url, fields = _require_ado_work_item_core(item_data)
 
-    url = item_data.get("url") or item_data.get("_links", {}).get("html", {}).get("href", "")
-    if not url:
-        msg = "ADO work item must have 'url' or '_links.html.href' field"
-        raise ValueError(msg)
-
-    # Extract fields from ADO work item structure
-    fields = item_data.get("fields", {})
-    if not fields:
-        msg = "ADO work item must have 'fields' dict"
-        raise ValueError(msg)
-
-    # Extract content fields
     title = fields.get("System.Title", "").strip()
-    if not title:
-        msg = "ADO work item must have 'System.Title' field"
-        raise ValueError(msg)
 
     state = fields.get("System.State", "New").lower()
 
-    # Extract fields using AdoFieldMapper (with optional custom mapping)
-    # Priority: 1) Parameter, 2) Environment variable, 3) Auto-detect from .specfact/
-    import os
+    ext = _ado_mapper_extractions(item_data, fields, custom_mapping_file)
+    body_markdown = ext["body_markdown"]
+    acceptance_criteria = ext["acceptance_criteria"]
+    story_points = ext["story_points"]
+    business_value = ext["business_value"]
+    priority = ext["priority"]
+    value_points = ext["value_points"]
+    work_item_type = ext["work_item_type"]
 
-    if custom_mapping_file is None and os.environ.get("SPECFACT_ADO_CUSTOM_MAPPING"):
-        custom_mapping_file = os.environ.get("SPECFACT_ADO_CUSTOM_MAPPING")
-    ado_mapper = AdoFieldMapper(custom_mapping_file=custom_mapping_file)
-    extracted_fields = ado_mapper.extract_fields(item_data)
-    extracted_description = extracted_fields.get("description")
-    body_markdown = (
-        extracted_description
-        if isinstance(extracted_description, str) and extracted_description
-        else (fields.get("System.Description", "") or "")
-    )
-    acceptance_criteria = extracted_fields.get("acceptance_criteria")
-    story_points = extracted_fields.get("story_points")
-    business_value = extracted_fields.get("business_value")
-    priority = extracted_fields.get("priority")
-    value_points = extracted_fields.get("value_points")
-    work_item_type = extracted_fields.get("work_item_type")
-
-    # Extract metadata fields
-    assignees = []
-    assigned_to = fields.get("System.AssignedTo", {})
-    if assigned_to:
-        if isinstance(assigned_to, dict):
-            # Extract all available identifiers (displayName, uniqueName, mail) for flexible filtering
-            # This allows filtering to work with any of these identifiers as mentioned in help text
-            # Priority order: displayName (for display) > uniqueName > mail
-            assignee_candidates = []
-            if assigned_to.get("displayName"):
-                assignee_candidates.append(assigned_to["displayName"].strip())
-            if assigned_to.get("uniqueName"):
-                assignee_candidates.append(assigned_to["uniqueName"].strip())
-            if assigned_to.get("mail"):
-                assignee_candidates.append(assigned_to["mail"].strip())
-
-            # Remove duplicates while preserving order (displayName first)
-            seen = set()
-            for candidate in assignee_candidates:
-                if candidate and candidate not in seen:
-                    assignees.append(candidate)
-                    seen.add(candidate)
-        else:
-            assignee_str = str(assigned_to).strip()
-            if assignee_str:
-                assignees = [assignee_str]
+    assignees = _ado_assignees_from_fields(fields)
 
     tags = []
     ado_tags = fields.get("System.Tags", "")
@@ -278,23 +304,7 @@ def convert_ado_work_item_to_backlog_item(
     iteration = fields.get("System.IterationPath", "")
     area = fields.get("System.AreaPath", "")
 
-    # Extract sprint/release from System.IterationPath
-    # ADO format: "Project\\Release 1\\Sprint 1" or "Project\\Sprint 1"
-    sprint: str | None = None
-    release: str | None = None
-    if iteration:
-        # Split by backslash (ADO uses backslash as path separator)
-        parts = [p.strip() for p in iteration.split("\\") if p.strip()]
-        # Look for "Sprint" or "Release" keywords
-        for i, part in enumerate(parts):
-            part_lower = part.lower()
-            if "sprint" in part_lower:
-                sprint = part
-                # Check if previous part is a release
-                if i > 0 and ("release" in parts[i - 1].lower() or parts[i - 1].lower().startswith("r")):
-                    release = parts[i - 1]
-            elif "release" in part_lower or part_lower.startswith("r"):
-                release = part
+    sprint, release = _ado_sprint_release_from_iteration(iteration)
 
     # Extract timestamps
     created_at = _parse_ado_timestamp(fields.get("System.CreatedDate"))
@@ -356,8 +366,79 @@ def convert_ado_work_item_to_backlog_item(
 
 
 @beartype
-@require(lambda timestamp: timestamp is None or isinstance(timestamp, str), "Timestamp must be str or None")
-@ensure(lambda result: isinstance(result, datetime), "Must return datetime")
+@ensure(lambda result: isinstance(result, dict), "Must return dict")
+def _ado_mapper_extractions(
+    item_data: dict[str, Any],
+    fields: dict[str, Any],
+    custom_mapping_file: str | Path | None,
+) -> dict[str, Any]:
+    """Run AdoFieldMapper and compute body plus extracted optional fields."""
+    import os
+
+    if custom_mapping_file is None and os.environ.get("SPECFACT_ADO_CUSTOM_MAPPING"):
+        custom_mapping_file = os.environ.get("SPECFACT_ADO_CUSTOM_MAPPING")
+    ado_mapper = AdoFieldMapper(custom_mapping_file=custom_mapping_file)
+    extracted_fields = ado_mapper.extract_fields(item_data)
+    extracted_description = extracted_fields.get("description")
+    body_markdown = (
+        extracted_description
+        if isinstance(extracted_description, str) and extracted_description
+        else (fields.get("System.Description", "") or "")
+    )
+    return {
+        "body_markdown": body_markdown,
+        "acceptance_criteria": extracted_fields.get("acceptance_criteria"),
+        "story_points": extracted_fields.get("story_points"),
+        "business_value": extracted_fields.get("business_value"),
+        "priority": extracted_fields.get("priority"),
+        "value_points": extracted_fields.get("value_points"),
+        "work_item_type": extracted_fields.get("work_item_type"),
+    }
+
+
+def _ado_assignees_from_fields(fields: dict[str, Any]) -> list[str]:
+    assignees: list[str] = []
+    assigned_to = fields.get("System.AssignedTo", {})
+    if not assigned_to:
+        return assignees
+    if isinstance(assigned_to, dict):
+        assignee_candidates: list[str] = []
+        at: dict[str, Any] = assigned_to
+        if at.get("displayName"):
+            assignee_candidates.append(str(at["displayName"]).strip())
+        if at.get("uniqueName"):
+            assignee_candidates.append(str(at["uniqueName"]).strip())
+        if at.get("mail"):
+            assignee_candidates.append(str(at["mail"]).strip())
+        seen: set[str] = set()
+        for candidate in assignee_candidates:
+            if candidate and candidate not in seen:
+                assignees.append(candidate)
+                seen.add(candidate)
+    else:
+        assignee_str = str(assigned_to).strip()
+        if assignee_str:
+            assignees = [assignee_str]
+    return assignees
+
+
+def _ado_sprint_release_from_iteration(iteration: str) -> tuple[str | None, str | None]:
+    if not iteration:
+        return None, None
+    parts = [p.strip() for p in iteration.split("\\") if p.strip()]
+    sprint: str | None = None
+    release: str | None = None
+    for i, part in enumerate(parts):
+        part_lower = part.lower()
+        if "sprint" in part_lower:
+            sprint = part
+            if i > 0 and ("release" in parts[i - 1].lower() or parts[i - 1].lower().startswith("r")):
+                release = parts[i - 1]
+        elif "release" in part_lower or part_lower.startswith("r"):
+            release = part
+    return sprint, release
+
+
 def _parse_github_timestamp(timestamp: str | None) -> datetime:
     """
     Parse GitHub timestamp string to datetime.

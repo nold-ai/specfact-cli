@@ -11,11 +11,13 @@ from __future__ import annotations
 
 from enum import StrEnum
 from pathlib import Path
+from typing import cast
 
 from beartype import beartype
 from icontract import ensure, require
 from pydantic import BaseModel, Field
 
+from specfact_cli.utils.icontract_helpers import require_path_exists, require_path_parent_exists
 from specfact_cli.utils.structured_io import StructuredFormat, dump_structured_file, load_structured_file
 
 
@@ -35,12 +37,13 @@ class AdapterType(StrEnum):
 class ArtifactMapping(BaseModel):
     """Maps SpecFact logical concepts to physical tool paths."""
 
-    path_pattern: str = Field(..., description="Dynamic path pattern (e.g., 'specs/{feature_id}/spec.md')")
+    path_pattern: str = Field(
+        ..., min_length=1, description="Dynamic path pattern (e.g., 'specs/{feature_id}/spec.md')"
+    )
     format: str = Field(default="markdown", description="File format: markdown, yaml, json")
     sync_target: str | None = Field(default=None, description="Optional external sync target (e.g., 'github_issues')")
 
     @beartype
-    @require(lambda self: len(self.path_pattern) > 0, "Path pattern must not be empty")
     @ensure(lambda result: isinstance(result, Path), "Must return Path")
     def resolve_path(self, context: dict[str, str], base_path: Path | None = None) -> Path:
         """
@@ -75,11 +78,10 @@ class CommandMapping(BaseModel):
 class TemplateMapping(BaseModel):
     """Maps SpecFact schemas to tool prompt templates."""
 
-    root_dir: str = Field(..., description="Template root directory (e.g., '.specify/prompts')")
+    root_dir: str = Field(..., min_length=1, description="Template root directory (e.g., '.specify/prompts')")
     mapping: dict[str, str] = Field(..., description="Schema -> template file mapping")
 
     @beartype
-    @require(lambda self: len(self.root_dir) > 0, "Root directory must not be empty")
     @ensure(lambda result: isinstance(result, Path), "Must return Path")
     def resolve_template_path(self, schema_key: str, base_path: Path | None = None) -> Path:
         """
@@ -131,7 +133,7 @@ class BridgeConfig(BaseModel):
     templates: TemplateMapping | None = Field(default=None, description="Template mappings")
 
     @classmethod
-    @require(lambda path: path.exists(), "Bridge config file must exist")
+    @require(require_path_exists, "Bridge config file must exist")
     @ensure(lambda result: isinstance(result, BaseModel), "Must return bridge config model")
     def load_from_file(cls, path: Path) -> BridgeConfig:
         """
@@ -147,7 +149,7 @@ class BridgeConfig(BaseModel):
         return cls(**data)
 
     @beartype
-    @require(lambda path: path.parent.exists(), "Bridge config directory must exist")
+    @require(require_path_parent_exists, "Bridge config directory must exist")
     def save_to_file(self, path: Path) -> None:
         """
         Save bridge configuration to YAML file.
@@ -158,7 +160,10 @@ class BridgeConfig(BaseModel):
         dump_structured_file(self.model_dump(mode="json"), path, StructuredFormat.YAML)
 
     @beartype
-    @require(lambda self, artifact_key: artifact_key in self.artifacts, "Artifact key must exist in artifacts")
+    @require(
+        lambda self, artifact_key: artifact_key in cast(BridgeConfig, self).artifacts,
+        "Artifact key must exist in artifacts",
+    )
     @ensure(lambda result: isinstance(result, Path), "Must return Path")
     def resolve_path(self, artifact_key: str, context: dict[str, str], base_path: Path | None = None) -> Path:
         """
@@ -179,7 +184,10 @@ class BridgeConfig(BaseModel):
         return artifact.resolve_path(context, base_path)
 
     @beartype
-    @require(lambda self, command_key: command_key in self.commands, "Command key must exist in commands")
+    @require(
+        lambda self, command_key: command_key in cast(BridgeConfig, self).commands,
+        "Command key must exist in commands",
+    )
     @ensure(lambda result: isinstance(result, CommandMapping), "Must return CommandMapping")
     def get_command(self, command_key: str) -> CommandMapping:
         """
@@ -194,7 +202,7 @@ class BridgeConfig(BaseModel):
         return self.commands[command_key]
 
     @beartype
-    @require(lambda self: self.templates is not None, "Templates must be configured")
+    @require(lambda self: cast(BridgeConfig, self).templates is not None, "Templates must be configured")
     @ensure(lambda result: isinstance(result, Path), "Must return Path")
     def resolve_template_path(self, schema_key: str, base_path: Path | None = None) -> Path:
         """

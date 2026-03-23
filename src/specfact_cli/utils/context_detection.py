@@ -13,7 +13,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from beartype import beartype
 from icontract import ensure, require
@@ -39,6 +39,7 @@ class ProjectContext:
     contract_coverage: float = 0.0
     last_enforcement: str | None = None
 
+    @ensure(lambda result: isinstance(result, dict), "Must return dict")
     def to_dict(self) -> dict[str, Any]:
         """Convert context to dictionary."""
         return {
@@ -150,95 +151,106 @@ def _detect_api_specs(repo_path: Path, context: ProjectContext) -> None:
                 context.asyncapi_specs.append(spec_file)
 
 
+def _load_pyproject_toml(repo_path: Path) -> dict[str, Any]:
+    try:
+        try:
+            import tomllib  # type: ignore[import-untyped]
+
+            with open(repo_path / "pyproject.toml", "rb") as f:
+                _tl = cast(Any, tomllib)
+                return cast(dict[str, Any], _tl.load(f))
+        except ImportError:
+            try:
+                import tomli  # type: ignore[import-untyped]
+
+                with open(repo_path / "pyproject.toml", "rb") as f:
+                    _tomli = cast(Any, tomli)
+                    return cast(dict[str, Any], _tomli.load(f))
+            except ImportError:
+                return {}
+    except Exception:
+        return {}
+
+
+def _framework_from_dependencies(all_deps: list[str]) -> str | None:
+    for dep in all_deps:
+        d = dep.lower()
+        if "django" in d:
+            return "django"
+    for dep in all_deps:
+        d = dep.lower()
+        if "flask" in d:
+            return "flask"
+    for dep in all_deps:
+        d = dep.lower()
+        if "fastapi" in d:
+            return "fastapi"
+    return None
+
+
+def _detect_python_framework(repo_path: Path, context: ProjectContext) -> None:
+    if (repo_path / "pyproject.toml").exists():
+        pyproject = _load_pyproject_toml(repo_path)
+        if pyproject:
+            deps = pyproject.get("project", {}).get("dependencies", [])
+            optional_deps = pyproject.get("project", {}).get("optional-dependencies", {})
+            all_deps = deps + [dep for deps_list in optional_deps.values() for dep in deps_list]
+            fw = _framework_from_dependencies(all_deps)
+            if fw:
+                context.framework = fw
+    if context.framework is None and (repo_path / "requirements.txt").exists():
+        try:
+            with open(repo_path / "requirements.txt") as f:
+                content = f.read().lower()
+            if "django" in content:
+                context.framework = "django"
+            elif "flask" in content:
+                context.framework = "flask"
+            elif "fastapi" in content:
+                context.framework = "fastapi"
+        except Exception:
+            pass
+
+
+def _detect_js_framework(repo_path: Path, context: ProjectContext) -> None:
+    try:
+        with open(repo_path / "package.json") as f:
+            package_json = json.load(f)
+        deps = {**package_json.get("dependencies", {}), **package_json.get("devDependencies", {})}
+        if "express" in deps:
+            context.framework = "express"
+        elif "next" in deps:
+            context.framework = "next"
+        elif "react" in deps:
+            context.framework = "react"
+        elif "vue" in deps:
+            context.framework = "vue"
+    except Exception:
+        pass
+
+
 @beartype
 @require(lambda repo_path: isinstance(repo_path, Path), "Repository path must be Path")
 @require(lambda context: isinstance(context, ProjectContext), "Context must be ProjectContext")
 @ensure(lambda result: result is None, "Must return None")
 def _detect_language_framework(repo_path: Path, context: ProjectContext) -> None:
     """Detect programming language and framework."""
-    # Python detection
     if (
         (repo_path / "pyproject.toml").exists()
         or (repo_path / "setup.py").exists()
         or (repo_path / "requirements.txt").exists()
     ):
         context.language = "python"
-        # Detect Python framework
-        if (repo_path / "pyproject.toml").exists():
-            try:
-                # Try tomllib (Python 3.11+)
-                try:
-                    import tomllib  # type: ignore[import-untyped]
-
-                    with open(repo_path / "pyproject.toml", "rb") as f:
-                        pyproject = tomllib.load(f)
-                except ImportError:
-                    # Fallback to tomli for older Python versions
-                    try:
-                        import tomli  # type: ignore[import-untyped]
-
-                        with open(repo_path / "pyproject.toml", "rb") as f:
-                            pyproject = tomli.load(f)
-                    except ImportError:
-                        # Neither available, skip framework detection
-                        pyproject = {}
-
-                if pyproject:
-                    deps = pyproject.get("project", {}).get("dependencies", [])
-                    optional_deps = pyproject.get("project", {}).get("optional-dependencies", {})
-                    all_deps = deps + [dep for deps_list in optional_deps.values() for dep in deps_list]
-
-                    if any("django" in dep.lower() for dep in all_deps):
-                        context.framework = "django"
-                    elif any("flask" in dep.lower() for dep in all_deps):
-                        context.framework = "flask"
-                    elif any("fastapi" in dep.lower() for dep in all_deps):
-                        context.framework = "fastapi"
-            except Exception:
-                pass
-
-        # Check requirements.txt
-        if context.framework is None and (repo_path / "requirements.txt").exists():
-            try:
-                with open(repo_path / "requirements.txt") as f:
-                    content = f.read().lower()
-                    if "django" in content:
-                        context.framework = "django"
-                    elif "flask" in content:
-                        context.framework = "flask"
-                    elif "fastapi" in content:
-                        context.framework = "fastapi"
-            except Exception:
-                pass
-
-    # JavaScript/TypeScript detection
+        _detect_python_framework(repo_path, context)
     elif (repo_path / "package.json").exists():
         context.language = "javascript"
-        try:
-            with open(repo_path / "package.json") as f:
-                package_json = json.load(f)
-                deps = {**package_json.get("dependencies", {}), **package_json.get("devDependencies", {})}
-
-                if "express" in deps:
-                    context.framework = "express"
-                elif "next" in deps:
-                    context.framework = "next"
-                elif "react" in deps:
-                    context.framework = "react"
-                elif "vue" in deps:
-                    context.framework = "vue"
-        except Exception:
-            pass
-
-    # Java detection
+        _detect_js_framework(repo_path, context)
     elif (repo_path / "pom.xml").exists() or (repo_path / "build.gradle").exists():
         context.language = "java"
         if (repo_path / "pom.xml").exists():
             context.framework = "maven"
         elif (repo_path / "build.gradle").exists():
             context.framework = "gradle"
-
-    # Go detection
     elif (repo_path / "go.mod").exists() or (repo_path / "go.sum").exists():
         context.language = "go"
 

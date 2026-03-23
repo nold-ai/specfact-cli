@@ -8,6 +8,7 @@ and generate appropriate bridge configurations using the adapter registry patter
 from __future__ import annotations
 
 from pathlib import Path
+from typing import cast
 
 from beartype import beartype
 from icontract import ensure, require
@@ -28,8 +29,8 @@ class BridgeProbe:
     """
 
     @beartype
-    @require(lambda repo_path: repo_path.exists(), "Repository path must exist")
-    @require(lambda repo_path: repo_path.is_dir(), "Repository path must be a directory")
+    @require(lambda repo_path: cast(Path, repo_path).exists(), "Repository path must exist")
+    @require(lambda repo_path: cast(Path, repo_path).is_dir(), "Repository path must be a directory")
     def __init__(self, repo_path: Path) -> None:
         """
         Initialize bridge probe.
@@ -38,6 +39,19 @@ class BridgeProbe:
             repo_path: Path to repository root
         """
         self.repo_path = Path(repo_path).resolve()
+
+    def _detect_capabilities_for_adapter(
+        self, adapter_type: str, registered: list[str], bridge_config: BridgeConfig | None
+    ) -> ToolCapabilities | None:
+        if adapter_type not in registered:
+            return None
+        try:
+            adapter = AdapterRegistry.get_adapter(adapter_type)
+            if adapter.detect(self.repo_path, bridge_config):
+                return adapter.get_capabilities(self.repo_path, bridge_config)
+        except Exception:
+            return None
+        return None
 
     @beartype
     @ensure(lambda result: isinstance(result, ToolCapabilities), "Must return ToolCapabilities")
@@ -59,56 +73,35 @@ class BridgeProbe:
         Returns:
             ToolCapabilities instance with detected information
         """
-        # Get all registered adapters
         all_adapters = AdapterRegistry.list_adapters()
-
-        # Prioritize layout-specific adapters (check directory structure) over generic ones
-        # Layout-specific adapters: speckit, openspec (check for specific directory layouts)
-        # Generic adapters: github (only checks for GitHub remote, too generic)
         layout_specific_adapters = ["speckit", "openspec"]
         generic_adapters = ["github"]
 
-        # Try layout-specific adapters first
         for adapter_type in layout_specific_adapters:
-            if adapter_type in all_adapters:
-                try:
-                    adapter = AdapterRegistry.get_adapter(adapter_type)
-                    if adapter.detect(self.repo_path, bridge_config):
-                        # Layout-specific adapter detected this repository
-                        return adapter.get_capabilities(self.repo_path, bridge_config)
-                except Exception:
-                    # Adapter failed to detect or get capabilities, try next one
-                    continue
+            caps = self._detect_capabilities_for_adapter(adapter_type, all_adapters, bridge_config)
+            if caps is not None:
+                return caps
 
-        # Then try generic adapters (fallback for repos without layout-specific structure)
         for adapter_type in generic_adapters:
-            if adapter_type in all_adapters:
-                try:
-                    adapter = AdapterRegistry.get_adapter(adapter_type)
-                    if adapter.detect(self.repo_path, bridge_config):
-                        # Generic adapter detected this repository
-                        return adapter.get_capabilities(self.repo_path, bridge_config)
-                except Exception:
-                    # Adapter failed to detect or get capabilities, try next one
-                    continue
+            caps = self._detect_capabilities_for_adapter(adapter_type, all_adapters, bridge_config)
+            if caps is not None:
+                return caps
 
-        # Finally try any remaining adapters not in the priority lists
+        skipped = set(layout_specific_adapters) | set(generic_adapters)
         for adapter_type in all_adapters:
-            if adapter_type not in layout_specific_adapters and adapter_type not in generic_adapters:
-                try:
-                    adapter = AdapterRegistry.get_adapter(adapter_type)
-                    if adapter.detect(self.repo_path, bridge_config):
-                        # Adapter detected this repository
-                        return adapter.get_capabilities(self.repo_path, bridge_config)
-                except Exception:
-                    # Adapter failed to detect or get capabilities, try next one
-                    continue
+            if adapter_type in skipped:
+                continue
+            caps = self._detect_capabilities_for_adapter(adapter_type, all_adapters, bridge_config)
+            if caps is not None:
+                return caps
 
-        # Default: Unknown tool
         return ToolCapabilities(tool="unknown")
 
     @beartype
-    @require(lambda capabilities: capabilities.tool != "unknown", "Tool must be detected")
+    @require(
+        lambda capabilities: cast(ToolCapabilities, capabilities).tool != "unknown",
+        "Tool must be detected",
+    )
     @ensure(lambda result: isinstance(result, BridgeConfig), "Must return BridgeConfig")
     def auto_generate_bridge(
         self, capabilities: ToolCapabilities, bridge_config: BridgeConfig | None = None
@@ -149,18 +142,25 @@ class BridgeProbe:
             - "warnings": List of warning messages
             - "suggestions": List of suggestions
         """
-        if isinstance(bridge_config, BridgeConfig):
-            normalized_config = bridge_config
-        elif isinstance(bridge_config, BaseModel):
-            normalized_config = BridgeConfig.model_validate(bridge_config.model_dump(mode="python"))
-        else:
-            normalized_config = BridgeConfig.model_validate(bridge_config)
-
+        normalized_config = self._normalize_bridge_config_input(bridge_config)
         errors: list[str] = []
         warnings: list[str] = []
         suggestions: list[str] = []
+        self._validate_bridge_artifacts(normalized_config, warnings)
+        self._validate_bridge_templates(normalized_config, errors, warnings)
+        self._append_specs_adapter_suggestions(normalized_config, suggestions)
+        return {"errors": errors, "warnings": warnings, "suggestions": suggestions}
 
-        # Check if artifact paths exist (sample check with common feature IDs)
+    def _normalize_bridge_config_input(
+        self, bridge_config: BridgeConfig | BaseModel | dict[str, object]
+    ) -> BridgeConfig:
+        if isinstance(bridge_config, BridgeConfig):
+            return bridge_config
+        if isinstance(bridge_config, BaseModel):
+            return BridgeConfig.model_validate(bridge_config.model_dump(mode="python"))
+        return BridgeConfig.model_validate(bridge_config)
+
+    def _validate_bridge_artifacts(self, normalized_config: BridgeConfig, warnings: list[str]) -> None:
         sample_feature_ids = ["001-auth", "002-payment", "test-feature"]
         for artifact_key, artifact in normalized_config.artifacts.items():
             found_paths = 0
@@ -173,52 +173,44 @@ class BridgeProbe:
                     if resolved_path.exists():
                         found_paths += 1
                 except (ValueError, KeyError):
-                    # Missing context variable or invalid pattern
                     pass
-
             if found_paths == 0:
-                # No paths found - might be new project or wrong pattern
                 warnings.append(
                     f"Artifact '{artifact_key}' pattern '{artifact.path_pattern}' - no matching files found. "
                     "This might be normal for new projects."
                 )
 
-        # Check template paths if configured
-        if normalized_config.templates:
-            for schema_key in normalized_config.templates.mapping:
-                try:
-                    template_path = normalized_config.resolve_template_path(schema_key, base_path=self.repo_path)
-                    if not template_path.exists():
-                        warnings.append(
-                            f"Template for '{schema_key}' not found at {template_path}. "
-                            "Bridge will work but templates won't be available."
-                        )
-                except ValueError as e:
-                    errors.append(f"Template resolution error for '{schema_key}': {e}")
+    def _validate_bridge_templates(
+        self, normalized_config: BridgeConfig, errors: list[str], warnings: list[str]
+    ) -> None:
+        if not normalized_config.templates:
+            return
+        for schema_key in normalized_config.templates.mapping:
+            try:
+                template_path = normalized_config.resolve_template_path(schema_key, base_path=self.repo_path)
+                if not template_path.exists():
+                    warnings.append(
+                        f"Template for '{schema_key}' not found at {template_path}. "
+                        "Bridge will work but templates won't be available."
+                    )
+            except ValueError as e:
+                errors.append(f"Template resolution error for '{schema_key}': {e}")
 
-        # Suggest corrections based on common issues (adapter-agnostic)
-        # Get adapter to check capabilities and provide adapter-specific suggestions
+    def _append_specs_adapter_suggestions(self, normalized_config: BridgeConfig, suggestions: list[str]) -> None:
         adapter = AdapterRegistry.get_adapter(normalized_config.adapter.value)
-        if adapter:
-            adapter_capabilities = adapter.get_capabilities(self.repo_path, normalized_config)
-            specs_dir = self.repo_path / adapter_capabilities.specs_dir
-
-            # Check if specs directory exists but bridge points to different location
-            if specs_dir.exists():
-                for artifact in normalized_config.artifacts.values():
-                    # Check if artifact pattern doesn't match detected specs_dir
-                    if adapter_capabilities.specs_dir not in artifact.path_pattern:
-                        suggestions.append(
-                            f"Found '{adapter_capabilities.specs_dir}/' directory but bridge points to different pattern. "
-                            f"Consider updating bridge config to use '{adapter_capabilities.specs_dir}/' pattern."
-                        )
-                        break
-
-        return {
-            "errors": errors,
-            "warnings": warnings,
-            "suggestions": suggestions,
-        }
+        if not adapter:
+            return
+        adapter_capabilities = adapter.get_capabilities(self.repo_path, normalized_config)
+        specs_dir = self.repo_path / adapter_capabilities.specs_dir
+        if not specs_dir.exists():
+            return
+        for artifact in normalized_config.artifacts.values():
+            if adapter_capabilities.specs_dir not in artifact.path_pattern:
+                suggestions.append(
+                    f"Found '{adapter_capabilities.specs_dir}/' directory but bridge points to different pattern. "
+                    f"Consider updating bridge config to use '{adapter_capabilities.specs_dir}/' pattern."
+                )
+                break
 
     @beartype
     @ensure(lambda result: result is None, "Must return None")

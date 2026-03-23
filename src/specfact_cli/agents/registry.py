@@ -114,6 +114,7 @@ class AgentRegistry:
         return None
 
     @beartype
+    @ensure(lambda result: isinstance(result, list), "Must return list")
     def list_agents(self) -> list[str]:
         """
         List all registered agent names.

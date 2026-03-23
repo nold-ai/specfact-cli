@@ -10,6 +10,13 @@ from beartype import beartype
 from icontract import ensure, require
 from jinja2 import Environment, FileSystemLoader
 
+from specfact_cli.utils.icontract_helpers import (
+    ensure_github_workflow_output_suffix,
+    ensure_yaml_output_suffix,
+    require_output_path_exists,
+    require_python_version_is_3_x,
+)
+
 
 class WorkflowGenerator:
     """
@@ -40,9 +47,9 @@ class WorkflowGenerator:
     @beartype
     @require(lambda output_path: output_path is not None, "Output path must not be None")
     @require(lambda budget: budget > 0, "Budget must be positive")
-    @require(lambda python_version: python_version.startswith("3."), "Python version must be 3.x")
-    @ensure(lambda output_path: output_path.exists(), "Output file must exist after generation")
-    @ensure(lambda output_path: output_path.suffix == ".yml", "Output must be YAML file")
+    @require(require_python_version_is_3_x, "Python version must be 3.x")
+    @ensure(require_output_path_exists, "Output file must exist after generation")
+    @ensure(ensure_github_workflow_output_suffix, "Output must be YAML file")
     def generate_github_action(
         self,
         output_path: Path,
@@ -82,8 +89,8 @@ class WorkflowGenerator:
 
     @beartype
     @require(lambda output_path: output_path is not None, "Output path must not be None")
-    @ensure(lambda output_path: output_path.exists(), "Output file must exist after generation")
-    @ensure(lambda output_path: output_path.suffix in (".yml", ".yaml"), "Output must be YAML file")
+    @ensure(require_output_path_exists, "Output file must exist after generation")
+    @ensure(ensure_yaml_output_suffix, "Output must be YAML file")
     def generate_semgrep_rules(self, output_path: Path, source_rules: Path | None = None) -> None:
         """
         Generate Semgrep async rules for the repository.

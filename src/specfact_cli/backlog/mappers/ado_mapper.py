@@ -70,6 +70,36 @@ class AdoFieldMapper(FieldMapper):
 
                 warnings.warn(f"Failed to load custom field mapping: {e}. Using defaults.", UserWarning, stacklevel=2)
 
+    def _extract_clamped_numeric_fields_ado(
+        self,
+        fields_dict: dict[str, Any],
+        field_mappings: dict[str, Any],
+        extracted_fields: dict[str, Any],
+    ) -> None:
+        story_points = self._extract_numeric_field(fields_dict, field_mappings, "story_points")
+        extracted_fields["story_points"] = None if story_points is None else max(0, min(100, story_points))
+        business_value = self._extract_numeric_field(fields_dict, field_mappings, "business_value")
+        extracted_fields["business_value"] = None if business_value is None else max(0, min(100, business_value))
+        priority = self._extract_numeric_field(fields_dict, field_mappings, "priority")
+        extracted_fields["priority"] = None if priority is None else max(1, min(4, priority))
+
+    def _ado_apply_value_points(self, extracted_fields: dict[str, Any]) -> None:
+        business_value_val: int | None = extracted_fields.get("business_value")
+        story_points_val: int | None = extracted_fields.get("story_points")
+        if (
+            business_value_val is None
+            or story_points_val is None
+            or story_points_val == 0
+            or not isinstance(business_value_val, int)
+            or not isinstance(story_points_val, int)
+        ):
+            extracted_fields["value_points"] = None
+            return
+        try:
+            extracted_fields["value_points"] = int(business_value_val / story_points_val)
+        except (ZeroDivisionError, TypeError):
+            extracted_fields["value_points"] = None
+
     @beartype
     @require(lambda self, item_data: isinstance(item_data, dict), "Item data must be dict")
     @ensure(lambda result: isinstance(result, dict), "Must return dict")
@@ -100,41 +130,8 @@ class AdoFieldMapper(FieldMapper):
         acceptance_criteria = self._extract_field(fields_dict, field_mappings, "acceptance_criteria")
         extracted_fields["acceptance_criteria"] = acceptance_criteria if acceptance_criteria else None
 
-        # Extract story points (validate range 0-100)
-        story_points = self._extract_numeric_field(fields_dict, field_mappings, "story_points")
-        if story_points is not None:
-            story_points = max(0, min(100, story_points))  # Clamp to 0-100 range
-        extracted_fields["story_points"] = story_points
-
-        # Extract business value (validate range 0-100)
-        business_value = self._extract_numeric_field(fields_dict, field_mappings, "business_value")
-        if business_value is not None:
-            business_value = max(0, min(100, business_value))  # Clamp to 0-100 range
-        extracted_fields["business_value"] = business_value
-
-        # Extract priority (validate range 1-4, 1=highest)
-        priority = self._extract_numeric_field(fields_dict, field_mappings, "priority")
-        if priority is not None:
-            priority = max(1, min(4, priority))  # Clamp to 1-4 range
-        extracted_fields["priority"] = priority
-
-        # Calculate value points (SAFe-specific: business_value / story_points)
-        business_value_val: int | None = extracted_fields.get("business_value")
-        story_points_val: int | None = extracted_fields.get("story_points")
-        if (
-            business_value_val is not None
-            and story_points_val is not None
-            and story_points_val != 0
-            and isinstance(business_value_val, int)
-            and isinstance(story_points_val, int)
-        ):
-            try:
-                value_points = int(business_value_val / story_points_val)
-                extracted_fields["value_points"] = value_points
-            except (ZeroDivisionError, TypeError):
-                extracted_fields["value_points"] = None
-        else:
-            extracted_fields["value_points"] = None
+        self._extract_clamped_numeric_fields_ado(fields_dict, field_mappings, extracted_fields)
+        self._ado_apply_value_points(extracted_fields)
 
         # Extract work item type
         work_item_type = self._extract_work_item_type(fields_dict, field_mappings)

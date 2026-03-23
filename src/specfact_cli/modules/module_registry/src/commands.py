@@ -5,13 +5,16 @@ from __future__ import annotations
 import inspect
 import shutil
 from pathlib import Path
+from typing import Any, cast
 
 import typer
 import yaml
 from beartype import beartype
+from icontract import require
 from rich.console import Console
 from rich.table import Table
 
+from specfact_cli.models.module_package import ModulePackageMetadata
 from specfact_cli.modules import module_io_shim
 from specfact_cli.registry.alias_manager import create_alias, list_aliases, remove_alias
 from specfact_cli.registry.custom_registries import add_registry, fetch_all_indexes, list_registries, remove_registry
@@ -40,6 +43,62 @@ app = typer.Typer(help="Manage marketplace modules")
 console = Console()
 
 
+def _init_scope_nonempty(scope: str) -> bool:
+    return bool(scope)
+
+
+def _module_id_arg_nonempty(module_id: str) -> bool:
+    return bool(module_id.strip())
+
+
+def _module_name_arg_nonempty(module_name: str) -> bool:
+    return bool(module_name.strip())
+
+
+def _alias_name_nonempty(alias_name: str) -> bool:
+    return bool(alias_name.strip())
+
+
+def _command_name_nonempty(command_name: str) -> bool:
+    return bool(command_name.strip())
+
+
+def _url_nonempty(url: str) -> bool:
+    return url.strip() != ""
+
+
+def _registry_id_nonempty(registry_id: str) -> bool:
+    return registry_id.strip() != ""
+
+
+def _module_id_optional_nonempty(module_id: str | None) -> bool:
+    return module_id is None or module_id.strip() != ""
+
+
+def _search_query_nonempty(query: str) -> bool:
+    return bool(query.strip())
+
+
+def _list_source_filter_ok(source: str | None) -> bool:
+    return source is None or source in ("builtin", "project", "user", "marketplace", "custom")
+
+
+def _upgrade_module_name_optional(module_name: str | None) -> bool:
+    return module_name is None or module_name.strip() != ""
+
+
+def _publisher_url_from_metadata(metadata: object | None) -> str:
+    if not metadata:
+        return "n/a"
+    pub = getattr(metadata, "publisher", None)
+    if pub is None:
+        return "n/a"
+    attrs = getattr(pub, "attributes", None)
+    if isinstance(attrs, dict):
+        return str(cast(dict[str, Any], attrs).get("url", "n/a"))
+    return "n/a"
+
+
 def _read_installed_module_version(module_dir: Path) -> str:
     """Read installed module version from its manifest, if available."""
     manifest_path = module_dir / "module-package.yaml"
@@ -51,7 +110,8 @@ def _read_installed_module_version(module_dir: Path) -> str:
         return "unknown"
     if not isinstance(loaded, dict):
         return "unknown"
-    return str(loaded.get("version", "unknown"))
+    manifest: dict[str, Any] = cast(dict[str, Any], loaded)
+    return str(manifest.get("version", "unknown"))
 
 
 def _publisher_from_module_id(module_id: str) -> str:
@@ -59,8 +119,88 @@ def _publisher_from_module_id(module_id: str) -> str:
     return module_id.split("/", 1)[0].strip().lower() if "/" in module_id else ""
 
 
+def _parse_install_scope_and_source(scope: str, source: str) -> tuple[str, str]:
+    scope_normalized = scope.strip().lower()
+    if scope_normalized not in {"user", "project"}:
+        console.print("[red]Invalid scope. Use 'user' or 'project'.[/red]")
+        raise typer.Exit(1)
+    source_normalized = source.strip().lower()
+    if source_normalized not in {"auto", "bundled", "marketplace"}:
+        console.print("[red]Invalid source. Use 'auto', 'bundled', or 'marketplace'.[/red]")
+        raise typer.Exit(1)
+    return scope_normalized, source_normalized
+
+
+def _normalize_install_module_id(module_id: str) -> tuple[str, str]:
+    normalized = module_id if "/" in module_id else f"specfact/{module_id}"
+    if normalized.count("/") != 1:
+        console.print("[red]Invalid module id. Use 'name' or 'namespace/name'.[/red]")
+        raise typer.Exit(1)
+    requested_name = normalized.split("/", 1)[1]
+    return normalized, requested_name
+
+
+def _resolve_install_target_root(scope_normalized: str, repo: Path | None) -> Path:
+    repo_path = (repo or Path.cwd()).resolve()
+    return USER_MODULES_ROOT if scope_normalized == "user" else repo_path / ".specfact" / "modules"
+
+
+def _install_skip_if_already_satisfied(
+    scope_normalized: str,
+    requested_name: str,
+    target_root: Path,
+    reinstall: bool,
+    discovered_by_name: dict[str, Any],
+) -> bool:
+    if (target_root / requested_name / "module-package.yaml").exists() and not reinstall:
+        console.print(f"[yellow]Module '{requested_name}' is already installed in {target_root}.[/yellow]")
+        return True
+    skip_sources = {"builtin", "project", "user", "custom"}
+    if scope_normalized == "project":
+        skip_sources.discard("user")
+    if scope_normalized == "user":
+        skip_sources.discard("project")
+    existing = discovered_by_name.get(requested_name)
+    if existing is not None and existing.source in skip_sources:
+        console.print(
+            f"[yellow]Module '{requested_name}' is already available from source '{existing.source}'. "
+            "No marketplace install needed.[/yellow]"
+        )
+        return True
+    return False
+
+
+def _try_install_bundled_module(
+    source_normalized: str,
+    requested_name: str,
+    normalized: str,
+    target_root: Path,
+    trust_non_official: bool,
+) -> bool:
+    try:
+        if source_normalized in {"auto", "bundled"} and install_bundled_module(
+            requested_name,
+            target_root=target_root,
+            trust_non_official=trust_non_official,
+            non_interactive=is_non_interactive(),
+        ):
+            console.print(f"[green]Installed bundled module[/green] {requested_name} -> {target_root / requested_name}")
+            publisher = _publisher_from_module_id(normalized)
+            if is_official_publisher(publisher):
+                console.print(f"Verified: official ({publisher})")
+            return True
+    except ValueError as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(1) from exc
+    if source_normalized == "bundled":
+        console.print(f"[red]Bundled module '{requested_name}' was not found in packaged bundled sources.[/red]")
+        raise typer.Exit(1)
+    return False
+
+
 @app.command(name="init")
 @beartype
+@require(_init_scope_nonempty, "scope must not be empty")
 def init_modules(
     scope: str = typer.Option("user", "--scope", help="Bootstrap scope: user or project"),
     repo: Path | None = typer.Option(None, "--repo", help="Repository path for project scope (default: current dir)"),
@@ -98,6 +238,7 @@ def init_modules(
 
 @app.command()
 @beartype
+@require(_module_id_arg_nonempty, "module_id must not be empty")
 def install(
     module_id: str = typer.Argument(..., help="Module id (name or namespace/name format)"),
     version: str | None = typer.Option(None, "--version", help="Install a specific version"),
@@ -126,61 +267,14 @@ def install(
     ),
 ) -> None:
     """Install a module from bundled artifacts or marketplace registry."""
-    scope_normalized = scope.strip().lower()
-    if scope_normalized not in {"user", "project"}:
-        console.print("[red]Invalid scope. Use 'user' or 'project'.[/red]")
-        raise typer.Exit(1)
-    source_normalized = source.strip().lower()
-    if source_normalized not in {"auto", "bundled", "marketplace"}:
-        console.print("[red]Invalid source. Use 'auto', 'bundled', or 'marketplace'.[/red]")
-        raise typer.Exit(1)
-
-    repo_path = (repo or Path.cwd()).resolve()
-    target_root = USER_MODULES_ROOT if scope_normalized == "user" else repo_path / ".specfact" / "modules"
-
-    normalized = module_id if "/" in module_id else f"specfact/{module_id}"
-    if normalized.count("/") != 1:
-        console.print("[red]Invalid module id. Use 'name' or 'namespace/name'.[/red]")
-        raise typer.Exit(1)
-
-    requested_name = normalized.split("/", 1)[1]
-    if (target_root / requested_name / "module-package.yaml").exists() and not reinstall:
-        console.print(f"[yellow]Module '{requested_name}' is already installed in {target_root}.[/yellow]")
-        return
-
+    scope_normalized, source_normalized = _parse_install_scope_and_source(scope, source)
+    target_root = _resolve_install_target_root(scope_normalized, repo)
+    normalized, requested_name = _normalize_install_module_id(module_id)
     discovered_by_name = {entry.metadata.name: entry for entry in discover_all_modules()}
-    existing = discovered_by_name.get(requested_name)
-    skip_sources = {"builtin", "project", "user", "custom"}
-    if scope_normalized == "project":
-        skip_sources.discard("user")
-    if scope_normalized == "user":
-        skip_sources.discard("project")
-    if existing is not None and existing.source in skip_sources:
-        console.print(
-            f"[yellow]Module '{requested_name}' is already available from source '{existing.source}'. "
-            "No marketplace install needed.[/yellow]"
-        )
+    if _install_skip_if_already_satisfied(scope_normalized, requested_name, target_root, reinstall, discovered_by_name):
         return
-
-    try:
-        if source_normalized in {"auto", "bundled"} and install_bundled_module(
-            requested_name,
-            target_root=target_root,
-            trust_non_official=trust_non_official,
-            non_interactive=is_non_interactive(),
-        ):
-            console.print(f"[green]Installed bundled module[/green] {requested_name} -> {target_root / requested_name}")
-            publisher = _publisher_from_module_id(normalized)
-            if is_official_publisher(publisher):
-                console.print(f"Verified: official ({publisher})")
-            return
-    except ValueError as exc:
-        console.print(f"[red]{exc}[/red]")
-        raise typer.Exit(1) from exc
-    if source_normalized == "bundled":
-        console.print(f"[red]Bundled module '{requested_name}' was not found in packaged bundled sources.[/red]")
-        raise typer.Exit(1)
-
+    if _try_install_bundled_module(source_normalized, requested_name, normalized, target_root, trust_non_official):
+        return
     try:
         installed_path = install_module(
             normalized,
@@ -201,34 +295,28 @@ def install(
         console.print(f"Verified: official ({publisher})")
 
 
-@app.command()
-@beartype
-def uninstall(
-    module_name: str = typer.Argument(..., help="Installed module name (name or namespace/name)"),
-    scope: str | None = typer.Option(None, "--scope", help="Uninstall scope: user or project"),
-    repo: Path | None = typer.Option(None, "--repo", help="Repository path for project scope (default: current dir)"),
-) -> None:
-    """Uninstall a marketplace module."""
+def _normalize_uninstall_module_name(module_name: str) -> str:
     normalized = module_name
     if "/" in normalized:
         if normalized.count("/") != 1:
             console.print("[red]Invalid module id. Use 'name' or 'namespace/name'.[/red]")
             raise typer.Exit(1)
         normalized = normalized.split("/", 1)[1]
+    return normalized
 
+
+def _resolve_uninstall_scope(
+    scope: str | None,
+    normalized: str,
+    project_module_dir: Path,
+    user_module_dir: Path,
+) -> str | None:
     scope_normalized = scope.strip().lower() if scope else None
     if scope_normalized is not None and scope_normalized not in {"user", "project"}:
         console.print("[red]Invalid scope. Use 'user' or 'project'.[/red]")
         raise typer.Exit(1)
-
-    repo_path = (repo or Path.cwd()).resolve()
-    project_root = repo_path / ".specfact" / "modules"
-    user_root = USER_MODULES_ROOT
-    project_module_dir = project_root / normalized
-    user_module_dir = user_root / normalized
     project_exists = project_module_dir.exists()
     user_exists = user_module_dir.exists()
-
     if scope_normalized is None:
         if project_exists and user_exists:
             console.print(
@@ -240,27 +328,38 @@ def uninstall(
             scope_normalized = "project"
         elif user_exists:
             scope_normalized = "user"
+    return scope_normalized
 
+
+def _uninstall_from_explicit_scope(
+    scope_normalized: str | None,
+    normalized: str,
+    project_root: Path,
+    user_root: Path,
+    project_module_dir: Path,
+    user_module_dir: Path,
+) -> bool:
     if scope_normalized == "project":
-        if not project_exists:
+        if not project_module_dir.exists():
             console.print(f"[red]Module '{normalized}' is not installed in project scope ({project_root}).[/red]")
             raise typer.Exit(1)
         shutil.rmtree(project_module_dir)
         console.print(f"[green]Uninstalled[/green] {normalized} from {project_root}")
-        return
-
+        return True
     if scope_normalized == "user":
-        if not user_exists:
+        if not user_module_dir.exists():
             console.print(f"[red]Module '{normalized}' is not installed in user scope ({user_root}).[/red]")
             raise typer.Exit(1)
         shutil.rmtree(user_module_dir)
         console.print(f"[green]Uninstalled[/green] {normalized} from {user_root}")
-        return
+        return True
+    return False
 
+
+def _uninstall_marketplace_default(normalized: str) -> None:
     discovered_by_name = {entry.metadata.name: entry for entry in discover_all_modules()}
     existing = discovered_by_name.get(normalized)
     source = existing.source if existing is not None else "unknown"
-
     if source == "builtin":
         console.print(
             f"[red]Cannot uninstall built-in module '{normalized}'. Use `specfact module disable {normalized}` instead.[/red]"
@@ -280,7 +379,6 @@ def uninstall(
             "Run `specfact module list --show-origin` to inspect available modules.[/red]"
         )
         raise typer.Exit(1)
-
     try:
         uninstall_module(normalized)
     except ValueError as exc:
@@ -289,11 +387,36 @@ def uninstall(
     console.print(f"[green]Uninstalled[/green] {normalized}")
 
 
+@app.command()
+@beartype
+@require(_module_name_arg_nonempty, "module_name must not be empty")
+def uninstall(
+    module_name: str = typer.Argument(..., help="Installed module name (name or namespace/name)"),
+    scope: str | None = typer.Option(None, "--scope", help="Uninstall scope: user or project"),
+    repo: Path | None = typer.Option(None, "--repo", help="Repository path for project scope (default: current dir)"),
+) -> None:
+    """Uninstall a marketplace module."""
+    normalized = _normalize_uninstall_module_name(module_name)
+    repo_path = (repo or Path.cwd()).resolve()
+    project_root = repo_path / ".specfact" / "modules"
+    user_root = USER_MODULES_ROOT
+    project_module_dir = project_root / normalized
+    user_module_dir = user_root / normalized
+    scope_normalized = _resolve_uninstall_scope(scope, normalized, project_module_dir, user_module_dir)
+    if _uninstall_from_explicit_scope(
+        scope_normalized, normalized, project_root, user_root, project_module_dir, user_module_dir
+    ):
+        return
+    _uninstall_marketplace_default(normalized)
+
+
 alias_app = typer.Typer(help="Manage command aliases (map name to namespaced module)")
 
 
 @alias_app.command(name="create")
 @beartype
+@require(_alias_name_nonempty, "alias_name must not be empty")
+@require(_command_name_nonempty, "command_name must not be empty")
 def alias_create(
     alias_name: str = typer.Argument(..., help="Alias (command name) to map"),
     command_name: str = typer.Argument(..., help="Command name to invoke (e.g. backlog, module)"),
@@ -310,6 +433,7 @@ def alias_create(
 
 @alias_app.command(name="list")
 @beartype
+@require(lambda: callable(list_aliases), "list_aliases helper must be callable")
 def alias_list() -> None:
     """List all configured aliases."""
     aliases = list_aliases()
@@ -326,6 +450,7 @@ def alias_list() -> None:
 
 @alias_app.command(name="remove")
 @beartype
+@require(_alias_name_nonempty, "alias_name must not be empty")
 def alias_remove(
     alias_name: str = typer.Argument(..., help="Alias to remove"),
 ) -> None:
@@ -340,6 +465,7 @@ if app.add_typer is not None:
 
 @app.command(name="add-registry")
 @beartype
+@require(_url_nonempty, "url must not be empty")
 def add_registry_cmd(
     url: str = typer.Argument(..., help="Registry index URL (e.g. https://company.com/index.json)"),
     id: str | None = typer.Option(None, "--id", help="Registry id (default: derived from URL)"),
@@ -361,6 +487,7 @@ def add_registry_cmd(
 
 @app.command(name="list-registries")
 @beartype
+@require(lambda: callable(list_registries), "list_registries helper must be callable")
 def list_registries_cmd() -> None:
     """List all configured registries (official + custom)."""
     registries = list_registries()
@@ -384,6 +511,7 @@ def list_registries_cmd() -> None:
 
 @app.command(name="remove-registry")
 @beartype
+@require(_registry_id_nonempty, "registry_id must not be empty")
 def remove_registry_cmd(
     registry_id: str = typer.Argument(..., help="Registry id to remove"),
 ) -> None:
@@ -394,6 +522,7 @@ def remove_registry_cmd(
 
 @app.command()
 @beartype
+@require(_module_id_optional_nonempty, "module_id must be non-empty if provided")
 def enable(
     module_id: str | None = typer.Argument(None, help="Module id to enable; omit in interactive mode to select"),
     force: bool = typer.Option(False, "--force", help="Override dependency checks and cascade dependencies"),
@@ -436,6 +565,7 @@ def enable(
 
 @app.command()
 @beartype
+@require(_module_id_optional_nonempty, "module_id must be non-empty if provided")
 def disable(
     module_id: str | None = typer.Argument(None, help="Module id to disable; omit in interactive mode to select"),
     force: bool = typer.Option(False, "--force", help="Override dependency checks and cascade dependents"),
@@ -463,74 +593,18 @@ def disable(
 
 @app.command()
 @beartype
+@require(_search_query_nonempty, "query must not be empty")
 def search(query: str = typer.Argument(..., help="Search query")) -> None:
     """Search marketplace and installed modules by id/description/tags."""
     query_l = query.lower().strip()
     seen_ids: set[str] = set()
     rows: list[dict[str, str]] = []
-
-    for reg_id, index in fetch_all_indexes():
-        for entry in index.get("modules", []):
-            if not isinstance(entry, dict):
-                continue
-            module_id = str(entry.get("id", ""))
-            description = str(entry.get("description", ""))
-            tags = entry.get("tags", [])
-            tags_text = " ".join(str(t) for t in tags) if isinstance(tags, list) else ""
-            haystack = f"{module_id} {description} {tags_text}".lower()
-            if query_l in haystack and module_id not in seen_ids:
-                seen_ids.add(module_id)
-                rows.append(
-                    {
-                        "id": module_id,
-                        "version": str(entry.get("latest_version", "")),
-                        "description": description,
-                        "scope": "marketplace",
-                        "registry": reg_id,
-                    }
-                )
-
-    for discovered in discover_all_modules():
-        meta = discovered.metadata
-        module_id = str(meta.name)
-        description = str(meta.description or "")
-        publisher = meta.publisher.name if meta.publisher else ""
-        haystack = f"{module_id} {description} {publisher}".lower()
-        if query_l not in haystack:
-            continue
-
-        if module_id in seen_ids:
-            continue
-
-        seen_ids.add(module_id)
-        rows.append(
-            {
-                "id": module_id,
-                "version": str(meta.version),
-                "description": description,
-                "scope": "installed",
-            }
-        )
-
-    if not rows:
-        console.print(f"No modules found for query '{query}'")
-        return
-
-    rows.sort(key=lambda row: row["id"].lower())
-
-    table = Table(title="Module Search Results")
-    table.add_column("ID", style="cyan")
-    table.add_column("Version", style="magenta")
-    table.add_column("Scope", style="yellow")
-    table.add_column("Registry", style="dim")
-    table.add_column("Description")
-    for row in rows:
-        reg = row.get("registry", "")
-        table.add_row(row["id"], row["version"], row["scope"], reg, row["description"])
-    console.print(table)
+    _search_append_registry_matches(query_l, seen_ids, rows)
+    _search_append_installed_matches(query_l, seen_ids, rows)
+    _print_search_results_table(query, rows)
 
 
-def _trust_label(module: dict) -> str:
+def _trust_label(module: dict[str, Any]) -> str:
     """Return user-facing trust label for a module row."""
     source = str(module.get("source", "unknown"))
     if bool(module.get("official", False)):
@@ -619,20 +693,22 @@ def _collect_typer_command_entries(app: object, prefix: str) -> dict[str, str]:
     return entries
 
 
+def _command_root_paths_from_metadata(metadata: object) -> list[str]:
+    meta_commands = list(getattr(metadata, "commands", None) or [])
+    if meta_commands:
+        return [str(cmd) for cmd in meta_commands]
+    command_help = getattr(metadata, "command_help", None) or {}
+    return [str(cmd) for cmd in command_help]
+
+
 def _derive_module_command_entries(metadata: object) -> list[tuple[str, str]]:
     """Derive command/subcommand paths with short help for module show output."""
-    roots: list[str] = []
-    meta_commands = list(getattr(metadata, "commands", []) or [])
-    if meta_commands:
-        roots.extend(str(cmd) for cmd in meta_commands)
-    else:
-        command_help = getattr(metadata, "command_help", None) or {}
-        roots.extend(str(cmd) for cmd in command_help)
-
+    roots = _command_root_paths_from_metadata(metadata)
     if not roots:
         return []
 
-    manifest_help = getattr(metadata, "command_help", None) or {}
+    raw_manifest = getattr(metadata, "command_help", None) or {}
+    manifest_help: dict[str, str] = dict(raw_manifest) if isinstance(raw_manifest, dict) else {}
     entries: dict[str, str] = {}
     for root in roots:
         registry_meta = CommandRegistry.get_metadata(root)
@@ -647,8 +723,120 @@ def _derive_module_command_entries(metadata: object) -> list[tuple[str, str]]:
     return sorted(entries.items(), key=lambda item: item[0].lower())
 
 
+def _search_append_registry_matches(query_l: str, seen_ids: set[str], rows: list[dict[str, str]]) -> None:
+    for reg_id, index in fetch_all_indexes():
+        for entry in index.get("modules", []):
+            if not isinstance(entry, dict):
+                continue
+            entry_dict = cast(dict[str, Any], entry)
+            module_id = str(entry_dict.get("id", ""))
+            description = str(entry_dict.get("description", ""))
+            tags = entry_dict.get("tags", [])
+            tags_text = " ".join(str(t) for t in tags) if isinstance(tags, list) else ""
+            haystack = f"{module_id} {description} {tags_text}".lower()
+            if query_l in haystack and module_id not in seen_ids:
+                seen_ids.add(module_id)
+                rows.append(
+                    {
+                        "id": module_id,
+                        "version": str(entry_dict.get("latest_version", "")),
+                        "description": description,
+                        "scope": "marketplace",
+                        "registry": reg_id,
+                    }
+                )
+
+
+def _search_append_installed_matches(query_l: str, seen_ids: set[str], rows: list[dict[str, str]]) -> None:
+    for discovered in discover_all_modules():
+        meta = discovered.metadata
+        module_id = str(meta.name)
+        description = str(meta.description or "")
+        publisher = meta.publisher.name if meta.publisher else ""
+        haystack = f"{module_id} {description} {publisher}".lower()
+        if query_l not in haystack:
+            continue
+        if module_id in seen_ids:
+            continue
+        seen_ids.add(module_id)
+        rows.append(
+            {
+                "id": module_id,
+                "version": str(meta.version),
+                "description": description,
+                "scope": "installed",
+            }
+        )
+
+
+def _print_search_results_table(query: str, rows: list[dict[str, str]]) -> None:
+    if not rows:
+        console.print(f"No modules found for query '{query}'")
+        return
+    rows.sort(key=lambda row: row["id"].lower())
+    table = Table(title="Module Search Results")
+    table.add_column("ID", style="cyan")
+    table.add_column("Version", style="magenta")
+    table.add_column("Scope", style="yellow")
+    table.add_column("Registry", style="dim")
+    table.add_column("Description")
+    for row in rows:
+        reg = row.get("registry", "")
+        table.add_row(row["id"], row["version"], row["scope"], reg, row["description"])
+    console.print(table)
+
+
+def _print_marketplace_modules_available(index: dict[str, Any]) -> None:
+    registry_modules = index.get("modules") or []
+    if not isinstance(registry_modules, list):
+        registry_modules = []
+    if not registry_modules:
+        console.print("[dim]No modules listed in the marketplace registry.[/dim]")
+        return
+    rows: list[tuple[str, str, str]] = []
+    for entry in registry_modules:
+        if not isinstance(entry, dict):
+            continue
+        entry_dict = cast(dict[str, Any], entry)
+        mod_id = str(entry_dict.get("id", "")).strip()
+        if not mod_id:
+            continue
+        version = str(entry_dict.get("latest_version", "")).strip() or str(entry_dict.get("version", "")).strip()
+        desc = str(entry_dict.get("description", "")).strip() if entry_dict.get("description") else ""
+        rows.append((mod_id, version, desc))
+    rows.sort(key=lambda r: r[0].lower())
+    table = Table(title="Marketplace Modules Available")
+    table.add_column("Module", style="cyan")
+    table.add_column("Version", style="magenta")
+    table.add_column("Description", style="white")
+    for mod_id, version, desc in rows:
+        table.add_row(mod_id, version, desc)
+    console.print(table)
+    console.print(
+        "[dim]Install: specfact module install <module-id>[/dim]\n"
+        "[dim]Or use a profile: specfact init --profile solo-developer|backlog-team|api-first-team|enterprise-full-stack[/dim]"
+    )
+
+
+def _print_bundled_available_table(available: list[ModulePackageMetadata]) -> None:
+    available.sort(key=lambda meta: meta.name.lower())
+    table = Table(title="Bundled Modules Available (Not Installed)")
+    table.add_column("Module", style="cyan")
+    table.add_column("Version", style="magenta")
+    table.add_column("Description", style="white")
+    for metadata in available:
+        table.add_row(metadata.name, metadata.version, metadata.description or "")
+    console.print(table)
+    console.print("[dim]Install bundled modules into user scope: specfact module init[/dim]")
+    console.print("[dim]Install bundled modules into project scope: specfact module init --scope project[/dim]")
+
+
 @app.command(name="list")
 @beartype
+@require(
+    _list_source_filter_ok,
+    "source must be one of: builtin, project, user, marketplace, custom",
+)
 def list_modules(
     source: str | None = typer.Option(
         None, "--source", help="Filter by origin: builtin, project, user, marketplace, custom"
@@ -681,34 +869,7 @@ def list_modules(
                 "Check connectivity or try again later.[/yellow]"
             )
         else:
-            registry_modules = index.get("modules") or []
-            if not isinstance(registry_modules, list):
-                registry_modules = []
-            if not registry_modules:
-                console.print("[dim]No modules listed in the marketplace registry.[/dim]")
-            else:
-                rows = []
-                for entry in registry_modules:
-                    if not isinstance(entry, dict):
-                        continue
-                    mod_id = str(entry.get("id", "")).strip()
-                    if not mod_id:
-                        continue
-                    version = str(entry.get("latest_version", "")).strip() or str(entry.get("version", "")).strip()
-                    desc = str(entry.get("description", "")).strip() if entry.get("description") else ""
-                    rows.append((mod_id, version, desc))
-                rows.sort(key=lambda r: r[0].lower())
-                table = Table(title="Marketplace Modules Available")
-                table.add_column("Module", style="cyan")
-                table.add_column("Version", style="magenta")
-                table.add_column("Description", style="white")
-                for mod_id, version, desc in rows:
-                    table.add_row(mod_id, version, desc)
-                console.print(table)
-                console.print(
-                    "[dim]Install: specfact module install <module-id>[/dim]\n"
-                    "[dim]Or use a profile: specfact init --profile solo-developer|backlog-team|api-first-team|enterprise-full-stack[/dim]"
-                )
+            _print_marketplace_modules_available(index)
         return
 
     bundled = get_bundled_module_metadata()
@@ -727,46 +888,28 @@ def list_modules(
         console.print("[dim]All bundled modules are already installed in active module roots.[/dim]")
         return
 
-    available.sort(key=lambda meta: meta.name.lower())
-    table = Table(title="Bundled Modules Available (Not Installed)")
-    table.add_column("Module", style="cyan")
-    table.add_column("Version", style="magenta")
-    table.add_column("Description", style="white")
-    for metadata in available:
-        table.add_row(metadata.name, metadata.version, metadata.description or "")
-    console.print(table)
-    console.print("[dim]Install bundled modules into user scope: specfact module init[/dim]")
-    console.print("[dim]Install bundled modules into project scope: specfact module init --scope project[/dim]")
+    _print_bundled_available_table(available)
 
 
-@app.command()
-@beartype
-def show(module_name: str = typer.Argument(..., help="Installed module name")) -> None:
-    """Show detailed metadata for an installed module."""
-    modules = get_modules_with_state()
-    module_row = next((m for m in modules if str(m.get("id", "")) == module_name), None)
-    if module_row is None:
-        console.print(f"[red]Module '{module_name}' is not installed.[/red]")
-        raise typer.Exit(1)
+def _meta_field_str(metadata: object | None, attr: str, default: str = "n/a") -> str:
+    if metadata is None:
+        return default
+    val = getattr(metadata, attr, None)
+    return str(val) if val is not None and val != "" else default
 
-    discovered = {entry.metadata.name: entry.metadata for entry in discover_all_modules()}
-    metadata = discovered.get(module_name)
 
+def _build_module_details_table(module_name: str, module_row: dict[str, Any], metadata: object | None) -> Table:
     source = str(module_row.get("source", "unknown"))
     trust = _trust_label(module_row)
     state = "enabled" if bool(module_row.get("enabled", True)) else "disabled"
     publisher = str(module_row.get("publisher", "unknown"))
-    description = metadata.description if metadata and metadata.description else "n/a"
-    license_value = metadata.license if metadata and metadata.license else "n/a"
-    tier = metadata.tier if metadata and metadata.tier else "n/a"
-    command_entries = _derive_module_command_entries(metadata) if metadata else []
+    description = _meta_field_str(metadata, "description")
+    license_value = _meta_field_str(metadata, "license")
+    tier = _meta_field_str(metadata, "tier")
+    command_entries = _derive_module_command_entries(metadata) if metadata is not None else []
     commands = "\n".join(f"{path} - {help_text}" for path, help_text in command_entries) if command_entries else "n/a"
-    core_compatibility = metadata.core_compatibility if metadata and metadata.core_compatibility else "n/a"
-
-    publisher_url = "n/a"
-    if metadata and metadata.publisher:
-        publisher_url = metadata.publisher.attributes.get("url", "n/a")
-
+    core_compatibility = _meta_field_str(metadata, "core_compatibility")
+    publisher_url = _publisher_url_from_metadata(metadata)
     table = Table(title=f"Module Details: {module_name}")
     table.add_column("Field", style="cyan", no_wrap=True)
     table.add_column("Value", style="white")
@@ -782,42 +925,51 @@ def show(module_name: str = typer.Argument(..., help="Installed module name")) -
     table.add_row("Tier", tier)
     table.add_row("Core Compatibility", core_compatibility)
     table.add_row("Commands", commands)
-    console.print(table)
+    return table
 
 
 @app.command()
 @beartype
-def upgrade(
-    module_name: str | None = typer.Argument(
-        None, help="Installed module name (optional; omit to upgrade all marketplace modules)"
-    ),
-    all: bool = typer.Option(False, "--all", help="Upgrade all installed marketplace modules"),
-) -> None:
-    """Upgrade marketplace module(s) to latest available versions."""
+@require(_module_name_arg_nonempty, "module_name must not be empty")
+def show(module_name: str = typer.Argument(..., help="Installed module name")) -> None:
+    """Show detailed metadata for an installed module."""
     modules = get_modules_with_state()
-    by_id = {str(m.get("id", "")): m for m in modules}
+    module_row = next((m for m in modules if str(m.get("id", "")) == module_name), None)
+    if module_row is None:
+        console.print(f"[red]Module '{module_name}' is not installed.[/red]")
+        raise typer.Exit(1)
 
+    discovered = {entry.metadata.name: entry.metadata for entry in discover_all_modules()}
+    metadata = discovered.get(module_name)
+    console.print(_build_module_details_table(module_name, module_row, metadata))
+
+
+def _resolve_upgrade_target_ids(
+    module_name: str | None,
+    all: bool,
+    modules: list[dict[str, Any]],
+    by_id: dict[str, dict[str, Any]],
+) -> list[str]:
     target_ids: list[str] = []
     if all or module_name is None:
         target_ids = [str(m.get("id", "")) for m in modules if str(m.get("source", "")) == "marketplace"]
         if not target_ids:
             console.print("[yellow]No marketplace-installed modules found to upgrade.[/yellow]")
-            return
-    else:
-        normalized = module_name
-        if normalized in by_id:
-            source = str(by_id[normalized].get("source", "unknown"))
-            if source != "marketplace":
-                console.print(
-                    f"[red]Cannot upgrade '{normalized}' from source '{source}'. Only marketplace modules are upgradeable.[/red]"
-                )
-                raise typer.Exit(1)
-            target_ids = [normalized]
-        else:
-            prefixed = normalized if "/" in normalized else f"specfact/{normalized}"
-            # If module isn't discovered locally, still attempt marketplace install/upgrade by ID.
-            target_ids = [prefixed]
+        return target_ids
+    normalized = module_name
+    if normalized in by_id:
+        source = str(by_id[normalized].get("source", "unknown"))
+        if source != "marketplace":
+            console.print(
+                f"[red]Cannot upgrade '{normalized}' from source '{source}'. Only marketplace modules are upgradeable.[/red]"
+            )
+            raise typer.Exit(1)
+        return [normalized]
+    prefixed = normalized if "/" in normalized else f"specfact/{normalized}"
+    return [prefixed]
 
+
+def _run_marketplace_upgrades(target_ids: list[str], by_id: dict[str, dict[str, Any]]) -> None:
     upgraded: list[tuple[str, str, str]] = []
     failed: list[str] = []
     for target in target_ids:
@@ -836,6 +988,27 @@ def upgrade(
             console.print(f"  {module_id}: {previous_version} -> {new_version}")
     if failed:
         raise typer.Exit(1)
+
+
+@app.command()
+@beartype
+@require(
+    _upgrade_module_name_optional,
+    "module_name must be non-empty if provided",
+)
+def upgrade(
+    module_name: str | None = typer.Argument(
+        None, help="Installed module name (optional; omit to upgrade all marketplace modules)"
+    ),
+    all: bool = typer.Option(False, "--all", help="Upgrade all installed marketplace modules"),
+) -> None:
+    """Upgrade marketplace module(s) to latest available versions."""
+    modules = get_modules_with_state()
+    by_id = {str(m.get("id", "")): m for m in modules}
+    target_ids = _resolve_upgrade_target_ids(module_name, all, modules, by_id)
+    if not target_ids:
+        return
+    _run_marketplace_upgrades(target_ids, by_id)
 
 
 # Expose standard ModuleIOContract operations for protocol compliance discovery.

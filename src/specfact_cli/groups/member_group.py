@@ -55,6 +55,6 @@ def build_member_group(
         app.add_typer(placeholder, name=name)
 
     if flatten_same_name:
-        app._specfact_flatten_same_name = flatten_same_name
+        app._specfact_flatten_same_name = flatten_same_name  # type: ignore[attr-defined]
 
     return app

@@ -20,6 +20,12 @@ The specfact-cli repository SHALL be subject to `specfact review` as a first-cla
 - **AND** the report schema_version is `1.0`
 - **AND** `overall_verdict`, `score`, `findings`, and `ci_exit_code` fields are present
 
+#### Scenario: Expanded clean-code categories stay at zero findings
+- **GIVEN** the expanded clean-code pack is available from the review module
+- **WHEN** `specfact review` runs against the specfact-cli repository root with clean-code categories enabled
+- **THEN** categories `naming`, `kiss`, `yagni`, `dry`, and `solid` each report zero findings
+- **AND** the zero-finding proof is recorded in `TDD_EVIDENCE.md`
+
 ### Requirement: Type-safe codebase — zero basedpyright findings in strict mode
 All public API class members and function signatures in `src/specfact_cli/` SHALL be explicitly typed so that `basedpyright` strict mode reports zero `reportUnknownMemberType`, `reportAttributeAccessIssue`, and `reportUnsupportedDunderAll` findings.
 
@@ -68,14 +74,14 @@ Every public function (non-underscore-prefixed) in `src/specfact_cli/` SHALL hav
 - **AND** the precondition is NOT a trivial `lambda x: x is not None` that merely restates the type
 
 ### Requirement: Complexity budget — no function exceeds CC15
-No function in `src/specfact_cli/`, `scripts/`, or `tools/` SHALL have cyclomatic complexity ≥16, as measured by radon.
+No function in `src/specfact_cli/`, `scripts/`, or `tools/` SHALL have cyclomatic complexity >=16, as measured by radon.
 
 #### Scenario: High-complexity function split into helpers passes complexity check
-- **WHEN** a function with CC≥16 is refactored into a top-level function and one or more private helpers
-- **THEN** `hatch run lint` (radon check) reports no CC≥16 findings for that function
+- **WHEN** a function with CC>=16 is refactored into a top-level function and one or more private helpers
+- **THEN** `hatch run lint` (radon check) reports no CC>=16 findings for that function
 - **AND** each extracted helper has CC<10
 
 #### Scenario: New code written during this change stays below threshold
 - **WHEN** any new function is introduced during this change
 - **THEN** its cyclomatic complexity is <10 as measured by radon
-- **AND** no CC≥13 warning is raised for the new function
+- **AND** no CC>=13 warning is raised for the new function

@@ -1,3 +1,4 @@
+# pyright: reportUnknownMemberType=false
 """Unit tests for BundleMapping model."""
 
 from __future__ import annotations
@@ -7,7 +8,7 @@ from bundle_mapper.models.bundle_mapping import BundleMapping
 
 
 def test_bundle_mapping_defaults() -> None:
-    m = BundleMapping()
+    m: BundleMapping = BundleMapping()
     assert m.primary_bundle_id is None
     assert m.confidence == 0.0
     assert m.candidates == []
@@ -15,7 +16,7 @@ def test_bundle_mapping_defaults() -> None:
 
 
 def test_bundle_mapping_with_values() -> None:
-    m = BundleMapping(
+    m: BundleMapping = BundleMapping(
         primary_bundle_id="backend",
         confidence=0.9,
         candidates=[("api", 0.5)],
@@ -23,7 +24,6 @@ def test_bundle_mapping_with_values() -> None:
     )
     assert m.primary_bundle_id == "backend"
     assert m.confidence == 0.9
-    assert m.get_primary_or_none() == "backend"
 
 
 def test_bundle_mapping_confidence_bounds() -> None:

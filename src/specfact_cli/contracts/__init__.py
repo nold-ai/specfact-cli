@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Any
 
 
 if TYPE_CHECKING:
+    from specfact_cli.contracts import crosshair_props as crosshair_props
     from specfact_cli.models.validation import ValidationReport
 
 

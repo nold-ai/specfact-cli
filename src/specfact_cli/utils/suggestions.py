@@ -10,16 +10,24 @@ from __future__ import annotations
 from pathlib import Path
 
 from beartype import beartype
+from icontract import ensure, require
 from rich.console import Console
 from rich.panel import Panel
 
 from specfact_cli.utils.context_detection import ProjectContext, detect_project_context
+from specfact_cli.utils.contract_predicates import repo_path_exists
 
 
 console = Console()
 
 
+def _suggest_fixes_error_nonempty(error_message: str, context: ProjectContext | None) -> bool:
+    return error_message.strip() != ""
+
+
 @beartype
+@require(repo_path_exists, "repo_path must exist")
+@ensure(lambda result: isinstance(result, list), "Must return list")
 def suggest_next_steps(repo_path: Path, context: ProjectContext | None = None) -> list[str]:
     """
     Suggest next commands based on project context.
@@ -63,6 +71,8 @@ def suggest_next_steps(repo_path: Path, context: ProjectContext | None = None) -
 
 
 @beartype
+@require(_suggest_fixes_error_nonempty, "error_message must not be empty")
+@ensure(lambda result: isinstance(result, list), "Must return list")
 def suggest_fixes(error_message: str, context: ProjectContext | None = None) -> list[str]:
     """
     Suggest fixes for common errors.
@@ -101,6 +111,7 @@ def suggest_fixes(error_message: str, context: ProjectContext | None = None) -> 
 
 
 @beartype
+@ensure(lambda result: isinstance(result, list), "Must return list")
 def suggest_improvements(context: ProjectContext) -> list[str]:
     """
     Suggest improvements based on analysis.
@@ -134,6 +145,7 @@ def suggest_improvements(context: ProjectContext) -> list[str]:
 
 
 @beartype
+@require(lambda suggestions: isinstance(suggestions, list), "suggestions must be a list")
 def print_suggestions(suggestions: list[str], title: str = "💡 Suggestions") -> None:
     """
     Print suggestions in a formatted panel.

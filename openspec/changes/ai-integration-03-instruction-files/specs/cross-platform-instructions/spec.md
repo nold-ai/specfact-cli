@@ -14,3 +14,9 @@ The system SHALL generate platform-specific instruction files that reference the
 - **WHEN** setup is re-run without behavior changes
 - **THEN** files are updated deterministically
 - **AND** no duplicate instruction blocks are introduced.
+
+#### Scenario: Clean-code guidance stays an alias, not an inline charter
+- **GIVEN** clean-code enforcement is active in the installed skills
+- **WHEN** platform instruction files are generated or refreshed
+- **THEN** each file includes a short reference to the canonical `specfact-code-review` skill
+- **AND** the generated instruction file does not inline the full clean-code charter text

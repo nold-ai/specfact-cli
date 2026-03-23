@@ -150,6 +150,44 @@ class PersonaImporter:
 
         return errors
 
+    @staticmethod
+    def _normalize_persona_mapping(
+        persona_mapping: PersonaMapping | BaseModel | dict[str, Any],
+    ) -> PersonaMapping:
+        if isinstance(persona_mapping, PersonaMapping):
+            return persona_mapping
+        if isinstance(persona_mapping, BaseModel):
+            return PersonaMapping.model_validate(persona_mapping.model_dump(mode="python"))
+        return PersonaMapping.model_validate(persona_mapping)
+
+    def _extract_idea_if_owned(self, sections: dict[str, Any], persona_mapping: PersonaMapping) -> dict[str, Any]:
+        from specfact_cli.utils.persona_ownership import match_section_pattern
+
+        if not any(match_section_pattern(p, "idea") for p in persona_mapping.owns):
+            return {}
+        idea_section = sections.get("idea_business_context") or sections.get("idea")
+        if not idea_section:
+            return {}
+        return {"idea": self._parse_idea_section(idea_section)}
+
+    def _extract_business_if_owned(self, sections: dict[str, Any], persona_mapping: PersonaMapping) -> dict[str, Any]:
+        from specfact_cli.utils.persona_ownership import match_section_pattern
+
+        if not any(match_section_pattern(p, "business") for p in persona_mapping.owns):
+            return {}
+        business_section = sections.get("idea_business_context") or sections.get("business")
+        if not business_section:
+            return {}
+        return {"business": self._parse_business_section(business_section)}
+
+    def _extract_features_section_if_present(
+        self, sections: dict[str, Any], persona_mapping: PersonaMapping
+    ) -> dict[str, Any]:
+        features_section = sections.get("features") or sections.get("features_user_stories")
+        if not features_section:
+            return {}
+        return {"features": self._parse_features_section(features_section, persona_mapping)}
+
     @beartype
     @require(lambda sections: isinstance(sections, dict), "Sections must be dict")
     @ensure(lambda result: isinstance(result, dict), "Must return dict")
@@ -166,34 +204,11 @@ class PersonaImporter:
         Returns:
             Extracted sections dictionary for bundle update
         """
-        from specfact_cli.utils.persona_ownership import match_section_pattern
-
-        if isinstance(persona_mapping, PersonaMapping):
-            normalized_mapping = persona_mapping
-        elif isinstance(persona_mapping, BaseModel):
-            normalized_mapping = PersonaMapping.model_validate(persona_mapping.model_dump(mode="python"))
-        else:
-            normalized_mapping = PersonaMapping.model_validate(persona_mapping)
-
+        normalized_mapping = self._normalize_persona_mapping(persona_mapping)
         extracted: dict[str, Any] = {}
-
-        # Extract idea if persona owns it
-        if any(match_section_pattern(p, "idea") for p in normalized_mapping.owns):
-            idea_section = sections.get("idea_business_context") or sections.get("idea")
-            if idea_section:
-                extracted["idea"] = self._parse_idea_section(idea_section)
-
-        # Extract business if persona owns it
-        if any(match_section_pattern(p, "business") for p in normalized_mapping.owns):
-            business_section = sections.get("idea_business_context") or sections.get("business")
-            if business_section:
-                extracted["business"] = self._parse_business_section(business_section)
-
-        # Extract features if persona owns any feature sections
-        features_section = sections.get("features") or sections.get("features_user_stories")
-        if features_section:
-            extracted["features"] = self._parse_features_section(features_section, normalized_mapping)
-
+        extracted.update(self._extract_idea_if_owned(sections, normalized_mapping))
+        extracted.update(self._extract_business_if_owned(sections, normalized_mapping))
+        extracted.update(self._extract_features_section_if_present(sections, normalized_mapping))
         return extracted
 
     @beartype
@@ -348,38 +363,40 @@ class PersonaImporter:
                     "Agile/Scrum validation failed:\n" + "\n".join(f"  - {e}" for e in agile_errors)
                 )
 
-        # Update bundle (basic implementation - can be enhanced)
-        # This is a simplified update - in production, would need more sophisticated merging
         updated_bundle = bundle.model_copy(deep=True)
+        self._apply_extracted_sections_to_bundle(extracted, updated_bundle)
+        return updated_bundle
 
+    def _apply_extracted_sections_to_bundle(self, extracted: dict[str, Any], updated_bundle: ProjectBundle) -> None:
         if "idea" in extracted and updated_bundle.idea:
-            # Update idea fields
             for key, value in extracted["idea"].items():
                 if hasattr(updated_bundle.idea, key):
                     setattr(updated_bundle.idea, key, value)
 
         if "business" in extracted and updated_bundle.business:
-            # Update business fields
             for key, value in extracted["business"].items():
                 if hasattr(updated_bundle.business, key):
                     setattr(updated_bundle.business, key, value)
 
-        if "features" in extracted:
-            # Update features
-            for feature_key, feature_data in extracted["features"].items():
-                if feature_key in updated_bundle.features:
-                    feature = updated_bundle.features[feature_key]
-                    # Update feature fields
-                    for key, value in feature_data.items():
-                        if key == "stories" and hasattr(feature, "stories"):
-                            # Update stories
-                            pass  # Would need proper story model updates
-                        elif key == "acceptance" and hasattr(feature, "acceptance"):
-                            feature.acceptance = value
-                        elif hasattr(feature, key):
-                            setattr(feature, key, value)
+        if "features" not in extracted:
+            return
+        for feature_key, feature_data in extracted["features"].items():
+            self._apply_feature_field_updates(feature_key, feature_data, updated_bundle)
 
-        return updated_bundle
+    def _apply_feature_field_updates(
+        self, feature_key: str, feature_data: dict[str, Any], updated_bundle: ProjectBundle
+    ) -> None:
+        if feature_key not in updated_bundle.features:
+            return
+        feature = updated_bundle.features[feature_key]
+        for key, value in feature_data.items():
+            if key == "stories" and hasattr(feature, "stories"):
+                continue
+            if key == "acceptance" and hasattr(feature, "acceptance"):
+                feature.acceptance = value
+                continue
+            if hasattr(feature, key):
+                setattr(feature, key, value)
 
     @beartype
     @require(lambda extracted: isinstance(extracted, dict), "Extracted must be dict")

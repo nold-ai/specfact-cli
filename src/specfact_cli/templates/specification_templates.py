@@ -11,6 +11,21 @@ from dataclasses import dataclass
 from typing import Any
 
 from beartype import beartype
+from icontract import ensure, require
+
+
+def _feature_spec_keys_nonblank(
+    feature_key: str, feature_name: str, user_needs: list[str], business_value: str
+) -> bool:
+    return feature_key.strip() != "" and feature_name.strip() != ""
+
+
+def _plan_key_nonblank(plan_key: str, high_level_steps: list[str], implementation_details_path: str) -> bool:
+    return bool(plan_key.strip()) and len(high_level_steps) > 0 and implementation_details_path.strip() != ""
+
+
+def _contract_paths_nonblank(contract_key: str, openapi_spec_path: str) -> bool:
+    return contract_key.strip() != "" and openapi_spec_path.strip() != ""
 
 
 @dataclass
@@ -24,6 +39,8 @@ class FeatureSpecificationTemplate:
     ambiguities: list[str]  # Marked as [NEEDS CLARIFICATION: question]
     completeness_checklist: dict[str, bool]
 
+    @beartype
+    @ensure(lambda result: isinstance(result, dict), "Must return a dictionary")
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
         return {
@@ -46,6 +63,8 @@ class ImplementationPlanTemplate:
     test_first_approach: bool
     phase_gates: list[str]
 
+    @beartype
+    @ensure(lambda result: isinstance(result, dict), "Must return a dictionary")
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
         return {
@@ -66,6 +85,8 @@ class ContractExtractionTemplate:
     uncertainty_markers: list[str]  # Marked as [NEEDS CLARIFICATION: question]
     validation_checklist: dict[str, bool]
 
+    @beartype
+    @ensure(lambda result: isinstance(result, dict), "Must return a dictionary")
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
         return {
@@ -77,6 +98,8 @@ class ContractExtractionTemplate:
 
 
 @beartype
+@require(_feature_spec_keys_nonblank, "feature_key and feature_name must not be empty")
+@ensure(lambda result: result is not None, "Must return FeatureSpecificationTemplate")
 def create_feature_specification_template(
     feature_key: str, feature_name: str, user_needs: list[str], business_value: str
 ) -> FeatureSpecificationTemplate:
@@ -105,6 +128,8 @@ def create_feature_specification_template(
 
 
 @beartype
+@require(_plan_key_nonblank, "plan_key must not be empty")
+@ensure(lambda result: result is not None, "Must return ImplementationPlanTemplate")
 def create_implementation_plan_template(
     plan_key: str, high_level_steps: list[str], implementation_details_path: str
 ) -> ImplementationPlanTemplate:
@@ -126,6 +151,8 @@ def create_implementation_plan_template(
 
 
 @beartype
+@require(_contract_paths_nonblank, "contract_key and openapi_spec_path must not be empty")
+@ensure(lambda result: result is not None, "Must return ContractExtractionTemplate")
 def create_contract_extraction_template(contract_key: str, openapi_spec_path: str) -> ContractExtractionTemplate:
     """
     Create a contract extraction template.

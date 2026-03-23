@@ -64,7 +64,6 @@ class TaskList(BaseModel):
     story_mappings: dict[str, list[str]] = Field(default_factory=dict, description="Story key -> task IDs mapping")
 
     @beartype
-    @require(lambda self: len(self.tasks) > 0, "Task list must contain at least one task")
     @ensure(lambda result: isinstance(result, list), "Must return list of task IDs")
     def get_tasks_by_phase(self, phase: TaskPhase) -> list[str]:
         """

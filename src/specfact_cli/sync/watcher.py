@@ -7,20 +7,32 @@ from collections import deque
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import Protocol, cast
 
 from beartype import beartype
 from icontract import ensure, require
-
-
-if TYPE_CHECKING:
-    from watchdog.events import FileSystemEvent, FileSystemEventHandler
-    from watchdog.observers import Observer
-else:
-    from watchdog.events import FileSystemEvent, FileSystemEventHandler
-    from watchdog.observers import Observer
+from watchdog.events import FileSystemEvent, FileSystemEventHandler
+from watchdog.observers import Observer
 
 from specfact_cli.utils import print_info, print_warning
+
+
+class _RunningObserver(Protocol):
+    @require(lambda self, handler, path: isinstance(path, str))
+    @ensure(lambda result: result is None)
+    def schedule(self, handler: object, path: str, *, recursive: bool = False) -> None: ...
+
+    @require(lambda self: self is not None)
+    @ensure(lambda result: result is None)
+    def start(self) -> None: ...
+
+    @require(lambda self: self is not None)
+    @ensure(lambda result: result is None)
+    def stop(self) -> None: ...
+
+    @require(lambda self, timeout: self is not None)
+    @ensure(lambda result: result is None)
+    def join(self, timeout: float | None = None) -> None: ...
 
 
 @dataclass
@@ -164,8 +176,8 @@ class SyncWatcher:
     """Watch mode for continuous sync operations."""
 
     @beartype
-    @require(lambda repo_path: repo_path.exists(), "Repository path must exist")
-    @require(lambda repo_path: repo_path.is_dir(), "Repository path must be a directory")
+    @require(lambda repo_path: cast(Path, repo_path).exists(), "Repository path must exist")
+    @require(lambda repo_path: cast(Path, repo_path).is_dir(), "Repository path must be a directory")
     @require(lambda interval: isinstance(interval, (int, float)) and interval >= 1, "Interval must be >= 1")
     @require(
         lambda sync_callback: callable(sync_callback),
@@ -189,9 +201,9 @@ class SyncWatcher:
         self.repo_path = Path(repo_path).resolve()
         self.sync_callback = sync_callback
         self.interval = interval
-        self.observer: Observer | None = None  # type: ignore[assignment]
+        self.observer: _RunningObserver | None = None
         self.change_queue: deque[FileChange] = deque()
-        self.running = False
+        self.running: bool = False
 
     @beartype
     @ensure(lambda result: result is None, "Must return None")
@@ -201,7 +213,7 @@ class SyncWatcher:
             print_warning("Watcher is already running")
             return
 
-        observer = Observer()
+        observer = cast(_RunningObserver, Observer())
         handler = SyncEventHandler(self.repo_path, self.change_queue)
         observer.schedule(handler, str(self.repo_path), recursive=True)
         observer.start()
@@ -248,7 +260,10 @@ class SyncWatcher:
             self.stop()
 
     @beartype
-    @require(lambda self: isinstance(self.running, bool), "Watcher running state must be bool")
+    @require(
+        lambda self: isinstance(cast("SyncWatcher", self).running, bool),
+        "Watcher running state must be bool",
+    )
     @ensure(lambda result: result is None, "Must return None")
     def _process_pending_changes(self) -> None:
         """Process pending file changes and trigger sync."""

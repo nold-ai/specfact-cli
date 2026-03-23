@@ -9,6 +9,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
+from icontract import ensure
+
 
 AuditMode = Literal["help-only", "fixture-backed", "dry-run"]
 
@@ -116,6 +118,7 @@ def _import_typer(module_path: str, attr_name: str = "app") -> object:
     return getattr(module, attr_name)
 
 
+@ensure(lambda result: isinstance(result, tuple) and len(result) > 0, "Must return non-empty tuple")
 def official_marketplace_module_ids() -> tuple[str, ...]:
     """Return the official marketplace module ids that make up the full CLI surface."""
     return (
@@ -157,6 +160,7 @@ def _explicit_cases() -> list[CommandAuditCase]:
     ]
 
 
+@ensure(lambda result: isinstance(result, list), "Must return list")
 def build_command_audit_cases() -> list[CommandAuditCase]:
     """Build the full command audit matrix for core and official bundle command paths."""
     _ensure_bundle_sources_on_sys_path()

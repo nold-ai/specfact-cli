@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from beartype import beartype
 from icontract import ensure, require
@@ -22,7 +22,7 @@ from bundle_mapper.models.bundle_mapping import BundleMapping
 try:
     from specfact_cli.models.backlog_item import BacklogItem
 except ImportError:
-    BacklogItem = Any  # type: ignore[misc, assignment]
+    from typing import Any as BacklogItem  # type: ignore[assignment]
 
 WEIGHT_EXPLICIT = 0.8
 WEIGHT_HISTORICAL = 0.15
@@ -149,9 +149,48 @@ class BundleMapper:
         return ". ".join(parts)
 
     @beartype
+    def _apply_signal_contribution(
+        self,
+        primary_bundle_id: str | None,
+        weighted: float,
+        reasons: list[str],
+        bundle_id: str,
+        score: float,
+        weight: float,
+        source: str,
+    ) -> tuple[str | None, float]:
+        """Apply one signal contribution to the primary score."""
+        if bundle_id and score > 0:
+            contrib = weight * score
+            if primary_bundle_id is None:
+                primary_bundle_id = bundle_id
+                weighted += contrib
+                reasons.append(self._explain_score(bundle_id, score, source))
+            elif bundle_id == primary_bundle_id:
+                weighted += contrib
+        return primary_bundle_id, weighted
+
+    @beartype
+    def _build_candidates(
+        self,
+        primary_bundle_id: str | None,
+        content_list: list[tuple[str, float]],
+    ) -> list[tuple[str, float]]:
+        """Build non-primary candidate list from content similarity scores."""
+        if not primary_bundle_id:
+            return []
+        seen = {primary_bundle_id}
+        candidates: list[tuple[str, float]] = []
+        for bundle_id, score in content_list:
+            if bundle_id not in seen:
+                seen.add(bundle_id)
+                candidates.append((bundle_id, score * WEIGHT_CONTENT))
+        return candidates
+
+    @beartype
     @require(lambda item: item is not None, "Item must not be None")
     @ensure(
-        lambda result: 0.0 <= result.confidence <= 1.0,
+        lambda result: 0.0 <= cast(BundleMapping, result).confidence <= 1.0,
         "Confidence in [0, 1]",
     )
     def compute_mapping(self, item: BacklogItem) -> BundleMapping:
@@ -167,38 +206,39 @@ class BundleMapper:
         primary_bundle_id: str | None = None
         weighted = 0.0
 
-        if explicit_bundle and explicit_score > 0:
-            primary_bundle_id = explicit_bundle
-            weighted += WEIGHT_EXPLICIT * explicit_score
-            reasons.append(self._explain_score(explicit_bundle, explicit_score, "explicit_label"))
-
-        if hist_bundle and hist_score > 0:
-            contrib = WEIGHT_HISTORICAL * hist_score
-            if primary_bundle_id is None:
-                primary_bundle_id = hist_bundle
-                weighted += contrib
-                reasons.append(self._explain_score(hist_bundle, hist_score, "historical"))
-            elif hist_bundle == primary_bundle_id:
-                weighted += contrib
+        primary_bundle_id, weighted = self._apply_signal_contribution(
+            primary_bundle_id,
+            weighted,
+            reasons,
+            explicit_bundle or "",
+            explicit_score,
+            WEIGHT_EXPLICIT,
+            "explicit_label",
+        )
+        primary_bundle_id, weighted = self._apply_signal_contribution(
+            primary_bundle_id,
+            weighted,
+            reasons,
+            hist_bundle or "",
+            hist_score,
+            WEIGHT_HISTORICAL,
+            "historical",
+        )
 
         if content_list:
-            best_content = content_list[0]
-            contrib = WEIGHT_CONTENT * best_content[1]
-            if primary_bundle_id is None:
-                weighted += contrib
-                primary_bundle_id = best_content[0]
-                reasons.append(self._explain_score(best_content[0], best_content[1], "content_similarity"))
-            elif best_content[0] == primary_bundle_id:
-                weighted += contrib
+            best_content_bundle, best_content_score = content_list[0]
+            primary_bundle_id, weighted = self._apply_signal_contribution(
+                primary_bundle_id,
+                weighted,
+                reasons,
+                best_content_bundle,
+                best_content_score,
+                WEIGHT_CONTENT,
+                "content_similarity",
+            )
 
         confidence = min(1.0, weighted)
-        candidates: list[tuple[str, float]] = []
-        if primary_bundle_id:
-            seen = {primary_bundle_id}
-            for bid, sc in content_list:
-                if bid not in seen:
-                    seen.add(bid)
-                    candidates.append((bid, sc * WEIGHT_CONTENT))
+        candidates = self._build_candidates(primary_bundle_id, content_list)
         explanation = self._build_explanation(primary_bundle_id, confidence, candidates, reasons)
         return BundleMapping(
             primary_bundle_id=primary_bundle_id,

@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from beartype import beartype
+from icontract import ensure
 
 
 @dataclass
@@ -48,6 +49,8 @@ class BacklogFilters:
     """When sprint is omitted, whether provider may auto-resolve current iteration."""
 
     @staticmethod
+    @beartype
+    @ensure(lambda result, value: value is not None or result is None, "None input returns None")
     def normalize_filter_value(value: str | None) -> str | None:
         """
         Normalize filter value for case-insensitive and whitespace-tolerant matching.
@@ -64,6 +67,8 @@ class BacklogFilters:
         normalized = re.sub(r"\s+", " ", value.strip().lower())
         return normalized if normalized else None
 
+    @beartype
+    @ensure(lambda result: isinstance(result, dict), "Must return a dictionary")
     def to_dict(self) -> dict[str, Any]:
         """
         Convert filters to dictionary, excluding None values.

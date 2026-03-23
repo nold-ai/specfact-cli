@@ -17,12 +17,39 @@ from icontract import ensure, require
 from specfact_cli.validators.sidecar.frameworks.base import BaseFrameworkExtractor, RouteInfo
 
 
+def _flask_markers_in_content(content: str) -> bool:
+    return "from flask import Flask" in content or ("import flask" in content and "Flask(" in content)
+
+
+def _read_flask_markers(file_path: Path) -> bool:
+    try:
+        return _flask_markers_in_content(file_path.read_text(encoding="utf-8"))
+    except (UnicodeDecodeError, PermissionError):
+        return False
+
+
+def _flask_or_blueprint_constructor(call: ast.Call) -> tuple[bool, bool]:
+    is_flask = (isinstance(call.func, ast.Name) and call.func.id == "Flask") or (
+        isinstance(call.func, ast.Attribute) and call.func.attr == "Flask"
+    )
+    is_blueprint = (isinstance(call.func, ast.Name) and call.func.id == "Blueprint") or (
+        isinstance(call.func, ast.Attribute) and call.func.attr == "Blueprint"
+    )
+    return is_flask, is_blueprint
+
+
 class FlaskExtractor(BaseFrameworkExtractor):
     """Flask framework extractor."""
 
     @beartype
-    @require(lambda repo_path: repo_path.exists(), "Repository path must exist")
-    @require(lambda repo_path: repo_path.is_dir(), "Repository path must be a directory")
+    @require(
+        lambda repo_path: isinstance(repo_path, Path) and repo_path.exists(),
+        "Repository path must exist",
+    )
+    @require(
+        lambda repo_path: isinstance(repo_path, Path) and repo_path.is_dir(),
+        "Repository path must be a directory",
+    )
     @ensure(lambda result: isinstance(result, bool), "Must return bool")
     def detect(self, repo_path: Path) -> bool:
         """
@@ -36,32 +63,28 @@ class FlaskExtractor(BaseFrameworkExtractor):
         """
         for candidate_file in ["app.py", "main.py", "__init__.py"]:
             file_path = repo_path / candidate_file
-            if file_path.exists():
-                try:
-                    content = file_path.read_text(encoding="utf-8")
-                    if "from flask import Flask" in content or ("import flask" in content and "Flask(" in content):
-                        return True
-                except (UnicodeDecodeError, PermissionError):
-                    continue
+            if file_path.exists() and _read_flask_markers(file_path):
+                return True
 
         # Check in common locations
         for search_path in [repo_path, repo_path / "src", repo_path / "app", repo_path / "backend" / "app"]:
             if not search_path.exists():
                 continue
             for py_file in search_path.rglob("*.py"):
-                if py_file.name in ["app.py", "main.py", "__init__.py"]:
-                    try:
-                        content = py_file.read_text(encoding="utf-8")
-                        if "from flask import Flask" in content or ("import flask" in content and "Flask(" in content):
-                            return True
-                    except (UnicodeDecodeError, PermissionError):
-                        continue
+                if py_file.name in ["app.py", "main.py", "__init__.py"] and _read_flask_markers(py_file):
+                    return True
 
         return False
 
     @beartype
-    @require(lambda repo_path: repo_path.exists(), "Repository path must exist")
-    @require(lambda repo_path: repo_path.is_dir(), "Repository path must be a directory")
+    @require(
+        lambda repo_path: isinstance(repo_path, Path) and repo_path.exists(),
+        "Repository path must exist",
+    )
+    @require(
+        lambda repo_path: isinstance(repo_path, Path) and repo_path.is_dir(),
+        "Repository path must be a directory",
+    )
     @ensure(lambda result: isinstance(result, list), "Must return list")
     def extract_routes(self, repo_path: Path) -> list[RouteInfo]:
         """
@@ -89,7 +112,10 @@ class FlaskExtractor(BaseFrameworkExtractor):
         return results
 
     @beartype
-    @require(lambda repo_path: repo_path.exists(), "Repository path must exist")
+    @require(
+        lambda repo_path: isinstance(repo_path, Path) and repo_path.exists(),
+        "Repository path must exist",
+    )
     @require(lambda routes: isinstance(routes, list), "Routes must be a list")
     @ensure(lambda result: isinstance(result, dict), "Must return dict")
     def extract_schemas(self, repo_path: Path, routes: list[RouteInfo]) -> dict[str, dict[str, Any]]:
@@ -119,28 +145,7 @@ class FlaskExtractor(BaseFrameworkExtractor):
         imports = self._extract_imports(tree)
         results: list[RouteInfo] = []
 
-        # Track Flask app and Blueprint instances
-        app_names: set[str] = set()
-        bp_names: set[str] = set()
-
-        # First pass: Find Flask app and Blueprint instances
-        for node in ast.walk(tree):
-            if isinstance(node, ast.Assign):
-                for target in node.targets:
-                    if isinstance(target, ast.Name):
-                        if isinstance(node.value, ast.Call):
-                            if isinstance(node.value.func, ast.Name):
-                                func_name = node.value.func.id
-                                if func_name == "Flask":
-                                    app_names.add(target.id)
-                            elif isinstance(node.value.func, ast.Attribute):
-                                if node.value.func.attr == "Flask":
-                                    app_names.add(target.id)
-                        elif isinstance(node.value, ast.Call) and (
-                            (isinstance(node.value.func, ast.Name) and node.value.func.id == "Blueprint")
-                            or (isinstance(node.value.func, ast.Attribute) and node.value.func.attr == "Blueprint")
-                        ):
-                            bp_names.add(target.id)
+        app_names, bp_names = self._collect_flask_app_and_blueprint_names(tree)
 
         # Second pass: Extract routes from functions with decorators
         for node in ast.walk(tree):
@@ -150,6 +155,25 @@ class FlaskExtractor(BaseFrameworkExtractor):
                     results.extend(route_infos)
 
         return results
+
+    def _collect_flask_app_and_blueprint_names(self, tree: ast.AST) -> tuple[set[str], set[str]]:
+        app_names: set[str] = set()
+        bp_names: set[str] = set()
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Assign):
+                continue
+            for target in node.targets:
+                if not isinstance(target, ast.Name):
+                    continue
+                if not isinstance(node.value, ast.Call):
+                    continue
+                call = node.value
+                is_flask, is_blueprint = _flask_or_blueprint_constructor(call)
+                if is_flask:
+                    app_names.add(target.id)
+                elif is_blueprint:
+                    bp_names.add(target.id)
+        return app_names, bp_names
 
     @beartype
     def _extract_imports(self, tree: ast.AST) -> dict[str, str]:

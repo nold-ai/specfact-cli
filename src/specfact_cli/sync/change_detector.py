@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import cast
 
 from beartype import beartype
 from icontract import ensure, require
@@ -69,6 +70,9 @@ class ChangeSet:
 class ChangeDetector:
     """Detector for changes in code, specs, and tests."""
 
+    bundle_name: str
+    repo_path: Path
+
     def __init__(self, bundle_name: str, repo_path: Path) -> None:
         """
         Initialize change detector.
@@ -81,7 +85,7 @@ class ChangeDetector:
         self.repo_path = repo_path.resolve()
 
     @beartype
-    @require(lambda self: self.repo_path.exists(), "Repository path must exist")
+    @require(lambda self: cast(Path, self.repo_path).exists(), "Repository path must exist")
     @ensure(lambda self, result: isinstance(result, ChangeSet), "Must return ChangeSet")
     def detect_changes(self, features: dict[str, Feature]) -> ChangeSet:
         """

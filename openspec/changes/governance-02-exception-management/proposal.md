@@ -16,7 +16,7 @@ Enterprises always need exceptions — a legacy service can't comply with the ne
   ```yaml
   exceptions:
     - id: EXC-1234
-      policy: data-residency-eu-only
+      policy: clean-code-principles/banned-generic-public-names
       scope: service:legacy-reporting
       reason: "Migration in progress, target Q4 2026"
       expires_at: 2026-12-31
@@ -32,7 +32,7 @@ Enterprises always need exceptions — a legacy service can't comply with the ne
   - Expired exception: hard failure — same as if exception never existed
 - **NEW**: Monthly digest generation: `specfact exceptions digest` — summary of approaching expirations for governance review
 - **EXTEND**: Evidence output (governance-01) includes exception status in evidence artifacts
-- **EXTEND**: Policy engine respects exception scope during validation — matching exceptions suppress the specific policy violation for the specific scope only
+- **EXTEND**: Policy engine respects exception scope during validation — matching exceptions suppress the specific policy rule for the specific scope only, including clean-code pack rules
 - **NEW**: Ownership authority — this change is authoritative for exception-scope suppression and expiry semantics; evidence schema remains owned by governance-01.
 
 ## Capabilities
@@ -43,6 +43,7 @@ Enterprises always need exceptions — a legacy service can't comply with the ne
 ### Modified Capabilities
 
 - `policy-engine`: Extended to respect exception scope during validation (suppress specific policy for specific scope)
+- `exception-management`: Extended so clean-code exceptions are expressed by policy rule ID, not by introducing a parallel `principle` exception schema
 - `governance-evidence-output`: Extended to include exception status in evidence artifacts
 
 

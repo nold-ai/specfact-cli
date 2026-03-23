@@ -12,12 +12,20 @@ import re
 import site
 import sys
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal, cast
 
 import yaml
 from beartype import beartype
 from icontract import ensure, require
 from rich.console import Console
+
+from specfact_cli.utils.contract_predicates import (
+    repo_path_exists,
+    repo_path_is_dir,
+    template_path_exists,
+    template_path_is_file,
+    vscode_settings_result_ok,
+)
 
 
 console = Console()
@@ -169,8 +177,8 @@ def detect_ide(ide: str = "auto") -> str:
 
 
 @beartype
-@require(lambda template_path: template_path.exists(), "Template path must exist")
-@require(lambda template_path: template_path.is_file(), "Template path must be a file")
+@require(template_path_exists, "Template path must exist")
+@require(template_path_is_file, "Template path must be a file")
 @ensure(
     lambda result: isinstance(result, dict) and "description" in result and "content" in result,
     "Result must be dict with description and content",
@@ -199,8 +207,9 @@ def read_template(template_path: Path) -> dict[str, str]:
     if frontmatter_match:
         frontmatter_str = frontmatter_match.group(1)
         body = frontmatter_match.group(2)
-        frontmatter = yaml.safe_load(frontmatter_str) or {}
-        description = frontmatter.get("description", "")
+        frontmatter_raw = yaml.safe_load(frontmatter_str) or {}
+        frontmatter: dict[str, Any] = frontmatter_raw if isinstance(frontmatter_raw, dict) else {}
+        description = str(frontmatter.get("description", ""))
     else:
         # No frontmatter, use entire content as body
         description = ""
@@ -246,8 +255,8 @@ def process_template(content: str, description: str, format_type: Literal["md", 
 
 
 @beartype
-@require(lambda repo_path: repo_path.exists(), "Repo path must exist")
-@require(lambda repo_path: repo_path.is_dir(), "Repo path must be a directory")
+@require(repo_path_exists, "Repo path must exist")
+@require(repo_path_is_dir, "Repo path must be a directory")
 @require(lambda ide: ide in IDE_CONFIG, "IDE must be valid")
 @ensure(
     lambda result: (
@@ -288,7 +297,7 @@ def copy_templates_to_ide(
     ide_dir = repo_path / ide_folder
     ide_dir.mkdir(parents=True, exist_ok=True)
 
-    copied_files = []
+    copied_files: list[Path] = []
 
     # Copy each template
     for command in SPECFACT_COMMANDS:
@@ -330,9 +339,9 @@ def copy_templates_to_ide(
 
 
 @beartype
-@require(lambda repo_path: repo_path.exists(), "Repo path must exist")
-@require(lambda repo_path: repo_path.is_dir(), "Repo path must be a directory")
-@ensure(lambda result: result is None or result.exists(), "Settings file must exist if returned")
+@require(repo_path_exists, "Repo path must exist")
+@require(repo_path_is_dir, "Repo path must be a directory")
+@ensure(lambda result: vscode_settings_result_ok(result), "Settings file must exist if returned")
 def create_vscode_settings(repo_path: Path, settings_file: str) -> Path | None:
     """
     Create or merge VS Code settings.json with prompt file recommendations.
@@ -372,9 +381,12 @@ def create_vscode_settings(repo_path: Path, settings_file: str) -> Path | None:
     if "chat" not in existing_settings:
         existing_settings["chat"] = {}
 
-    existing_recommendations = existing_settings["chat"].get("promptFilesRecommendations", [])
+    chat_block = existing_settings["chat"]
+    chat_dict: dict[str, Any] = cast(dict[str, Any], chat_block) if isinstance(chat_block, dict) else {}
+    existing_recommendations = chat_dict.get("promptFilesRecommendations", [])
     merged_recommendations = list(set(existing_recommendations + prompt_files))
-    existing_settings["chat"]["promptFilesRecommendations"] = merged_recommendations
+    chat_dict["promptFilesRecommendations"] = merged_recommendations
+    existing_settings["chat"] = chat_dict
 
     # Write merged settings
     with open(settings_path, "w", encoding="utf-8") as f:
@@ -388,6 +400,117 @@ def create_vscode_settings(repo_path: Path, settings_file: str) -> Path | None:
 
     console.print(f"[green]Updated:[/green] {settings_path}")
     return settings_path
+
+
+def _package_path_in_site_packages(site_packages_dir: Path, package_name: str) -> Path | None:
+    if not site_packages_dir.is_dir():
+        return None
+    pkg_path = site_packages_dir / package_name
+    return pkg_path.resolve() if pkg_path.exists() else None
+
+
+def _find_package_paths_under_archive(archive_dir: Path, package_name: str) -> list[Path]:
+    out: list[Path] = []
+    try:
+        for site_packages_dir in archive_dir.rglob("site-packages"):
+            resolved = _package_path_in_site_packages(site_packages_dir, package_name)
+            if resolved is not None:
+                out.append(resolved)
+    except (FileNotFoundError, PermissionError, OSError):
+        pass
+    return out
+
+
+def _search_uvx_cache_base(package_name: str, uvx_cache_base: Path) -> list[Path]:
+    """
+    Search a uvx archive-v0 cache directory for a package's site-packages location.
+
+    Args:
+        package_name: Package name to find
+        uvx_cache_base: Path to the archive-v0 cache root
+
+    Returns:
+        List of found package Paths
+    """
+    found: list[Path] = []
+    if not uvx_cache_base.exists():
+        return found
+    try:
+        for archive_dir in uvx_cache_base.iterdir():
+            try:
+                if not archive_dir.is_dir():
+                    continue
+                if "typeshed" in archive_dir.name.lower() or "stubs" in archive_dir.name.lower():
+                    continue
+                found.extend(_find_package_paths_under_archive(archive_dir, package_name))
+            except (FileNotFoundError, PermissionError, OSError):
+                continue
+    except (FileNotFoundError, PermissionError, OSError):
+        pass
+    return found
+
+
+def _locations_from_importlib(package_name: str) -> list[Path]:
+    """Find package location using importlib.util.find_spec."""
+    try:
+        import importlib.util
+
+        spec = importlib.util.find_spec(package_name)
+        if spec and spec.origin:
+            return [Path(spec.origin).parent.resolve()]
+    except Exception:
+        pass
+    return []
+
+
+def _locations_from_site_packages(package_name: str) -> list[Path]:
+    """Find package in user and system site-packages directories."""
+    found: list[Path] = []
+    try:
+        user_site = site.getusersitepackages()
+        if user_site:
+            p = Path(user_site) / package_name
+            if p.exists():
+                found.append(p.resolve())
+    except Exception:
+        pass
+    try:
+        for site_path in site.getsitepackages():
+            p = Path(site_path) / package_name
+            if p.exists():
+                found.append(p.resolve())
+    except Exception:
+        pass
+    return found
+
+
+def _locations_from_sys_path(package_name: str) -> list[Path]:
+    """Find package by scanning sys.path entries."""
+    found: list[Path] = []
+    for path_str in sys.path:
+        if not path_str:
+            continue
+        try:
+            path = Path(path_str).resolve()
+            if path.exists() and path.is_dir():
+                p = path / package_name
+                if p.exists():
+                    found.append(p.resolve())
+        except Exception:
+            continue
+    return found
+
+
+def _locations_from_uvx_cache(package_name: str) -> list[Path]:
+    """Find package in uvx archive cache (Linux/macOS and Windows)."""
+    if sys.platform != "win32":
+        cache_base = Path.home() / ".cache" / "uv" / "archive-v0"
+    else:
+        localappdata = os.environ.get("LOCALAPPDATA")
+        if not localappdata:
+            return []
+        cache_base = Path(localappdata) / "uv" / "cache" / "archive-v0"
+    return _search_uvx_cache_base(package_name, cache_base)
 
 
 @beartype
@@ -415,143 +538,20 @@ def get_package_installation_locations(package_name: str) -> list[Path]:
         >>> len(locations) > 0
         True
     """
-    locations: list[Path] = []
+    locations: list[Path] = (
+        _locations_from_importlib(package_name)
+        + _locations_from_site_packages(package_name)
+        + _locations_from_sys_path(package_name)
+        + _locations_from_uvx_cache(package_name)
+    )
 
-    # Method 1: Use importlib.util.find_spec() to find the actual installed location
-    try:
-        import importlib.util
-
-        spec = importlib.util.find_spec(package_name)
-        if spec and spec.origin:
-            package_path = Path(spec.origin).parent.resolve()
-            locations.append(package_path)
-    except Exception:
-        pass
-
-    # Method 2: Check all site-packages directories (user + system)
-    try:
-        # User site-packages (per-user installation)
-        # Linux/macOS: ~/.local/lib/python3.X/site-packages
-        # Windows: %APPDATA%\\Python\\Python3X\\site-packages
-        user_site = site.getusersitepackages()
-        if user_site:
-            user_package_path = Path(user_site) / package_name
-            if user_package_path.exists():
-                locations.append(user_package_path.resolve())
-    except Exception:
-        pass
-
-    try:
-        # System site-packages (global installation)
-        # Linux: /usr/lib/python3.X/dist-packages, /usr/local/lib/python3.X/dist-packages
-        # macOS: /Library/Frameworks/Python.framework/Versions/X/lib/pythonX.X/site-packages
-        # Windows: C:\\Python3X\\Lib\\site-packages
-        system_sites = site.getsitepackages()
-        for site_path in system_sites:
-            system_package_path = Path(site_path) / package_name
-            if system_package_path.exists():
-                locations.append(system_package_path.resolve())
-    except Exception:
-        pass
-
-    # Method 3: Check sys.path for additional locations (virtual environments, etc.)
-    for path_str in sys.path:
-        if not path_str or path_str == "":
-            continue
-        try:
-            path = Path(path_str).resolve()
-            if path.exists() and path.is_dir():
-                # Check if package is directly in this path
-                package_path = path / package_name
-                if package_path.exists():
-                    locations.append(package_path.resolve())
-                # Check if this is a site-packages directory
-                if path.name == "site-packages" or "site-packages" in path.parts:
-                    package_path = path / package_name
-                    if package_path.exists():
-                        locations.append(package_path.resolve())
-        except Exception:
-            continue
-
-    # Method 4: Check uvx cache locations (common on Linux/macOS/Windows)
-    # uvx stores packages in cache directories with varying structures
-    if sys.platform != "win32":
-        # Linux/macOS: ~/.cache/uv/archive-v0/.../lib/python3.X/site-packages/
-        uvx_cache_base = Path.home() / ".cache" / "uv" / "archive-v0"
-        if uvx_cache_base.exists():
-            try:
-                for archive_dir in uvx_cache_base.iterdir():
-                    try:
-                        if not archive_dir.is_dir():
-                            continue
-                        # Skip known problematic directories (e.g., typeshed stubs)
-                        if "typeshed" in archive_dir.name.lower() or "stubs" in archive_dir.name.lower():
-                            continue
-                        # Look for site-packages directories (rglob finds all matches)
-                        # Wrap in try-except to handle FileNotFoundError and other issues
-                        try:
-                            for site_packages_dir in archive_dir.rglob("site-packages"):
-                                try:
-                                    if site_packages_dir.is_dir():
-                                        package_path = site_packages_dir / package_name
-                                        if package_path.exists():
-                                            locations.append(package_path.resolve())
-                                except (FileNotFoundError, PermissionError, OSError):
-                                    # Skip problematic directories
-                                    continue
-                        except (FileNotFoundError, PermissionError, OSError):
-                            # Skip archive directories that cause issues
-                            continue
-                    except (FileNotFoundError, PermissionError, OSError):
-                        # Skip problematic archive directories
-                        continue
-            except (FileNotFoundError, PermissionError, OSError):
-                # Skip if cache base directory has issues
-                pass
-    else:
-        # Windows: Check %LOCALAPPDATA%\\uv\\cache\\archive-v0\\
-        localappdata = os.environ.get("LOCALAPPDATA")
-        if localappdata:
-            uvx_cache_base = Path(localappdata) / "uv" / "cache" / "archive-v0"
-            if uvx_cache_base.exists():
-                try:
-                    for archive_dir in uvx_cache_base.iterdir():
-                        try:
-                            if not archive_dir.is_dir():
-                                continue
-                            # Skip known problematic directories (e.g., typeshed stubs)
-                            if "typeshed" in archive_dir.name.lower() or "stubs" in archive_dir.name.lower():
-                                continue
-                            # Look for site-packages directories
-                            try:
-                                for site_packages_dir in archive_dir.rglob("site-packages"):
-                                    try:
-                                        if site_packages_dir.is_dir():
-                                            package_path = site_packages_dir / package_name
-                                            if package_path.exists():
-                                                locations.append(package_path.resolve())
-                                    except (FileNotFoundError, PermissionError, OSError):
-                                        # Skip problematic directories
-                                        continue
-                            except (FileNotFoundError, PermissionError, OSError):
-                                # Skip archive directories that cause issues
-                                continue
-                        except (FileNotFoundError, PermissionError, OSError):
-                            # Skip problematic archive directories
-                            continue
-                except (FileNotFoundError, PermissionError, OSError):
-                    # Skip if cache base directory has issues
-                    pass
-
-    # Remove duplicates while preserving order
-    seen = set()
+    seen: set[str] = set()
     unique_locations: list[Path] = []
     for loc in locations:
         loc_str = str(loc)
         if loc_str not in seen:
             seen.add(loc_str)
             unique_locations.append(loc)
-
     return unique_locations
 
 

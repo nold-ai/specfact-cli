@@ -19,6 +19,30 @@ from icontract import ensure, require
 from rich.progress import BarColumn, SpinnerColumn, TextColumn, TimeElapsedColumn
 
 
+_CI_ENV_VARS = ("CI", "GITHUB_ACTIONS", "GITLAB_CI", "CIRCLECI", "TRAVIS", "JENKINS_URL", "BUILDKITE")
+
+
+def _is_ci_environment() -> bool:
+    return any(os.environ.get(var) for var in _CI_ENV_VARS)
+
+
+def _stdout_is_tty() -> bool:
+    try:
+        return bool(sys.stdout and sys.stdout.isatty())
+    except Exception:  # pragma: no cover - defensive fallback
+        return False
+
+
+def _compute_supports_color(no_color: bool, force_color: bool, is_tty: bool, is_ci: bool) -> bool:
+    if no_color:
+        return False
+    if force_color:
+        return True
+    term = os.environ.get("TERM", "")
+    colorterm = os.environ.get("COLORTERM", "")
+    return (is_tty and not is_ci) or bool(term and "color" in term.lower()) or bool(colorterm)
+
+
 @dataclass(frozen=True)
 class TerminalCapabilities:
     """Terminal capability information."""
@@ -45,37 +69,12 @@ def detect_terminal_capabilities() -> TerminalCapabilities:
     Returns:
         TerminalCapabilities instance with detected capabilities
     """
-    # Check NO_COLOR (standard env var - if set, colors disabled)
     no_color = os.environ.get("NO_COLOR") is not None
-
-    # Check FORCE_COLOR (override - if "1", colors enabled)
     force_color = os.environ.get("FORCE_COLOR") == "1"
-
-    # Check CI/CD environment
-    ci_vars = ["CI", "GITHUB_ACTIONS", "GITLAB_CI", "CIRCLECI", "TRAVIS", "JENKINS_URL", "BUILDKITE"]
-    is_ci = any(os.environ.get(var) for var in ci_vars)
-
-    # Check test mode (test mode = minimal terminal)
+    is_ci = _is_ci_environment()
     is_test_mode = os.environ.get("TEST_MODE") == "true" or os.environ.get("PYTEST_CURRENT_TEST") is not None
-
-    # Check TTY (interactive terminal)
-    try:
-        is_tty = bool(sys.stdout and sys.stdout.isatty())
-    except Exception:  # pragma: no cover - defensive fallback
-        is_tty = False
-
-    # Determine color support
-    # NO_COLOR takes precedence, then FORCE_COLOR, then TTY check (but not in CI)
-    if no_color:
-        supports_color = False
-    elif force_color:
-        supports_color = True
-    else:
-        # Check TERM and COLORTERM for additional hints
-        term = os.environ.get("TERM", "")
-        colorterm = os.environ.get("COLORTERM", "")
-        # Support color if TTY and not CI, or if TERM/COLORTERM indicate color support
-        supports_color = (is_tty and not is_ci) or bool(term and "color" in term.lower()) or bool(colorterm)
+    is_tty = _stdout_is_tty()
+    supports_color = _compute_supports_color(no_color, force_color, is_tty, is_ci)
 
     # Determine animation support
     # Animations require interactive TTY and not CI/CD, and not test mode
@@ -182,6 +181,6 @@ def print_progress(description: str, current: int, total: int) -> None:
     """
     if total > 0:
         percentage = (current / total) * 100
-        print(f"{description}... {percentage:.0f}% ({current}/{total})", flush=True)
+        sys.stdout.write(f"{description}... {percentage:.0f}% ({current}/{total})\n")
     else:
-        print(f"{description}...", flush=True)
+        sys.stdout.write(f"{description}...\n")

@@ -16,6 +16,10 @@ from icontract import ensure, require
 from specfact_cli.utils.yaml_utils import YAMLUtils
 
 
+def _structured_extension_has_dot(result: str) -> bool:
+    return result.startswith(".")
+
+
 class StructuredFormat(StrEnum):
     """Supported structured data formats."""
 
@@ -27,6 +31,7 @@ class StructuredFormat(StrEnum):
 
     @classmethod
     @beartype
+    @ensure(lambda result: result is not None, "Must return StructuredFormat")
     def from_string(cls, value: str | None, default: Optional["StructuredFormat"] = None) -> "StructuredFormat":
         """
         Convert string to StructuredFormat (defaults to YAML).
@@ -44,6 +49,7 @@ class StructuredFormat(StrEnum):
 
     @classmethod
     @beartype
+    @ensure(lambda result: result is not None, "Must return StructuredFormat")
     def from_path(cls, path: Path | str | None, default: Optional["StructuredFormat"] = None) -> "StructuredFormat":
         """
         Infer format from file path suffix.
@@ -82,6 +88,7 @@ _yaml = YAMLUtils()
 
 
 @beartype
+@ensure(_structured_extension_has_dot, "Must return extension starting with '.'")
 def structured_extension(format: StructuredFormat) -> str:
     """Return canonical file extension for structured format."""
     return ".json" if format == StructuredFormat.JSON else ".yaml"

@@ -15,6 +15,15 @@ from typing import Any
 from beartype import beartype
 from icontract import ensure, require
 
+from specfact_cli.utils.icontract_helpers import (
+    require_package_json_path_exists,
+    require_pyproject_path_exists,
+    require_readme_path_exists,
+    require_repo_path_exists,
+    require_rules_dir_exists,
+    require_rules_dir_is_dir,
+)
+
 
 class ConstitutionEnricher:
     """
@@ -27,7 +36,7 @@ class ConstitutionEnricher:
 
     @beartype
     @require(lambda repo_path: isinstance(repo_path, Path), "Repository path must be Path")
-    @require(lambda repo_path: repo_path.exists(), "Repository path must exist")
+    @require(require_repo_path_exists, "Repository path must exist")
     @ensure(lambda result: isinstance(result, dict), "Must return dict with analysis results")
     def analyze_repository(self, repo_path: Path) -> dict[str, Any]:
         """
@@ -42,11 +51,11 @@ class ConstitutionEnricher:
         analysis: dict[str, Any] = {
             "project_name": "",
             "description": "",
-            "target_users": [],
-            "technology_stack": [],
-            "principles": [],
-            "quality_standards": [],
-            "development_workflow": [],
+            "target_users": list[str](),
+            "technology_stack": list[str](),
+            "principles": list[str](),
+            "quality_standards": list[str](),
+            "development_workflow": list[str](),
             "project_type": "auto-detect",
         }
 
@@ -81,14 +90,14 @@ class ConstitutionEnricher:
 
     @beartype
     @require(lambda pyproject_path: isinstance(pyproject_path, Path), "Path must be Path")
-    @require(lambda pyproject_path: pyproject_path.exists(), "Path must exist")
+    @require(require_pyproject_path_exists, "Path must exist")
     @ensure(lambda result: isinstance(result, dict), "Must return dict")
     def _analyze_pyproject(self, pyproject_path: Path) -> dict[str, Any]:
         """Analyze pyproject.toml for project metadata."""
         result: dict[str, Any] = {
             "project_name": "",
             "description": "",
-            "technology_stack": [],
+            "technology_stack": list[str](),
             "python_version": "",
         }
 
@@ -143,14 +152,14 @@ class ConstitutionEnricher:
 
     @beartype
     @require(lambda package_json_path: isinstance(package_json_path, Path), "Path must be Path")
-    @require(lambda package_json_path: package_json_path.exists(), "Path must exist")
+    @require(require_package_json_path_exists, "Path must exist")
     @ensure(lambda result: isinstance(result, dict), "Must return dict")
     def _analyze_package_json(self, package_json_path: Path) -> dict[str, Any]:
         """Analyze package.json for project metadata."""
         result: dict[str, Any] = {
             "project_name": "",
             "description": "",
-            "technology_stack": [],
+            "technology_stack": list[str](),
         }
 
         try:
@@ -186,47 +195,45 @@ class ConstitutionEnricher:
 
         return result
 
+    @staticmethod
+    def _readme_description_lines_after_title(lines: list[str]) -> list[str]:
+        description_lines: list[str] = []
+        in_description = False
+        for line in lines:
+            if line.startswith("# "):
+                in_description = True
+                continue
+            if in_description and line.strip() and not line.startswith("#"):
+                description_lines.append(line.strip())
+                if len(description_lines) >= 3:
+                    break
+            elif line.startswith("#") and description_lines:
+                break
+        return description_lines
+
     @beartype
     @require(lambda readme_path: isinstance(readme_path, Path), "Path must be Path")
-    @require(lambda readme_path: readme_path.exists(), "Path must exist")
+    @require(require_readme_path_exists, "Path must exist")
     @ensure(lambda result: isinstance(result, dict), "Must return dict")
     def _analyze_readme(self, readme_path: Path) -> dict[str, Any]:
         """Analyze README.md for project description and target users."""
         result: dict[str, Any] = {
             "description": "",
-            "target_users": [],
+            "target_users": list[str](),
         }
 
         try:
             content = readme_path.read_text(encoding="utf-8")
-
-            # Extract first paragraph after title as description
             lines = content.split("\n")
-            description_lines = []
-            in_description = False
-
-            for line in lines:
-                # Skip title and empty lines
-                if line.startswith("# "):
-                    in_description = True
-                    continue
-                if in_description and line.strip() and not line.startswith("#"):
-                    description_lines.append(line.strip())
-                    if len(description_lines) >= 3:  # Get first 3 lines
-                        break
-                elif line.startswith("#") and description_lines:
-                    break
-
+            description_lines = self._readme_description_lines_after_title(lines)
             if description_lines:
                 result["description"] = " ".join(description_lines)
 
-            # Extract target users from "Perfect for:" or similar patterns
             perfect_for_match = re.search(r"(?:Perfect for|Target users?|For):\s*(.+?)(?:\n|$)", content, re.IGNORECASE)
             if perfect_for_match:
                 users_text = perfect_for_match.group(1)
-                # Split by commas or semicolons
                 users = [u.strip() for u in re.split(r"[,;]", users_text)]
-                result["target_users"] = users[:5]  # Limit to 5
+                result["target_users"] = users[:5]
 
         except Exception:
             pass
@@ -235,8 +242,8 @@ class ConstitutionEnricher:
 
     @beartype
     @require(lambda rules_dir: isinstance(rules_dir, Path), "Rules directory must be Path")
-    @require(lambda rules_dir: rules_dir.exists(), "Rules directory must exist")
-    @require(lambda rules_dir: rules_dir.is_dir(), "Rules directory must be directory")
+    @require(require_rules_dir_exists, "Rules directory must exist")
+    @require(require_rules_dir_is_dir, "Rules directory must be directory")
     @ensure(lambda result: isinstance(result, list), "Must return list of principles")
     def _analyze_cursor_rules(self, rules_dir: Path) -> list[dict[str, str]]:
         """Analyze .cursor/rules/ for development principles."""
@@ -265,8 +272,8 @@ class ConstitutionEnricher:
 
     @beartype
     @require(lambda rules_dir: isinstance(rules_dir, Path), "Rules directory must be Path")
-    @require(lambda rules_dir: rules_dir.exists(), "Rules directory must exist")
-    @require(lambda rules_dir: rules_dir.is_dir(), "Rules directory must be directory")
+    @require(require_rules_dir_exists, "Rules directory must exist")
+    @require(require_rules_dir_is_dir, "Rules directory must be directory")
     @ensure(lambda result: isinstance(result, list), "Must return list of standards")
     def _analyze_docs_rules(self, rules_dir: Path) -> list[str]:
         """Analyze docs/rules/ for quality standards and testing requirements."""
@@ -369,30 +376,36 @@ class ConstitutionEnricher:
     @require(lambda repo_path: isinstance(repo_path, Path), "Repository path must be Path")
     @require(lambda analysis: isinstance(analysis, dict), "Analysis must be dict")
     @ensure(lambda result: isinstance(result, str), "Must return string")
+    def _detect_cli_project(self, repo_path: Path, analysis: dict[str, Any]) -> bool:
+        if (repo_path / "src" / "specfact_cli" / "cli.py").exists() or (repo_path / "cli.py").exists():
+            return True
+        return bool((repo_path / "setup.py").exists() and "cli" in analysis.get("description", "").lower())
+
+    @staticmethod
+    def _detect_library_layout(repo_path: Path) -> bool:
+        return (repo_path / "src").exists() and not (repo_path / "src" / "app").exists()
+
+    def _detect_api_project(self, repo_path: Path, analysis: dict[str, Any]) -> bool:
+        if (repo_path / "app").exists() or (repo_path / "api").exists():
+            return True
+        return "fastapi" in str(analysis.get("technology_stack", [])).lower()
+
+    def _detect_frontend_project(self, repo_path: Path, analysis: dict[str, Any]) -> bool:
+        if not (repo_path / "package.json").exists():
+            return False
+        tech = str(analysis.get("technology_stack", [])).lower()
+        return "react" in tech or (repo_path / "src" / "components").exists()
+
     def _detect_project_type(self, repo_path: Path, analysis: dict[str, Any]) -> str:
         """Detect project type from repository structure."""
-        # Check for CLI indicators
-        if (repo_path / "src" / "specfact_cli" / "cli.py").exists() or (repo_path / "cli.py").exists():
+        if self._detect_cli_project(repo_path, analysis):
             return "cli"
-        if (repo_path / "setup.py").exists() and "cli" in analysis.get("description", "").lower():
-            return "cli"
-
-        # Check for library indicators
-        if (repo_path / "src").exists() and not (repo_path / "src" / "app").exists():
+        if self._detect_library_layout(repo_path):
             return "library"
-
-        # Check for API indicators
-        if (repo_path / "app").exists() or (repo_path / "api").exists():
+        if self._detect_api_project(repo_path, analysis):
             return "api"
-        if "fastapi" in str(analysis.get("technology_stack", [])).lower():
-            return "api"
-
-        # Check for frontend indicators
-        if (repo_path / "package.json").exists() and (
-            "react" in str(analysis.get("technology_stack", [])).lower() or (repo_path / "src" / "components").exists()
-        ):
+        if self._detect_frontend_project(repo_path, analysis):
             return "frontend"
-
         return "auto-detect"
 
     @beartype
@@ -634,7 +647,8 @@ class ConstitutionEnricher:
     @ensure(lambda result: isinstance(result, str), "Must return string")
     def _generate_workflow_section(self, suggestions: dict[str, Any]) -> str:
         """Generate development workflow section."""
-        workflow_items = suggestions.get("development_workflow", [])
+        raw_wf = suggestions.get("development_workflow", [])
+        workflow_items: list[str] = [str(x) for x in raw_wf] if isinstance(raw_wf, list) else []
 
         if not workflow_items:
             # Generate from analysis
@@ -645,7 +659,7 @@ class ConstitutionEnricher:
                 "Type Checking: Ensure type checking passes",
             ]
 
-        lines = []
+        lines: list[str] = []
         for item in workflow_items:
             lines.append(f"- {item}")
 
@@ -656,7 +670,8 @@ class ConstitutionEnricher:
     @ensure(lambda result: isinstance(result, str), "Must return string")
     def _generate_quality_standards_section(self, suggestions: dict[str, Any]) -> str:
         """Generate quality standards section."""
-        standards = suggestions.get("quality_standards", [])
+        raw_std = suggestions.get("quality_standards", [])
+        standards: list[str] = [str(x) for x in raw_std] if isinstance(raw_std, list) else []
 
         if not standards:
             standards = [
@@ -665,7 +680,7 @@ class ConstitutionEnricher:
                 "Documentation: Public APIs must be documented",
             ]
 
-        lines = []
+        lines: list[str] = []
         for standard in standards:
             lines.append(f"- {standard}")
 

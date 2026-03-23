@@ -152,3 +152,6 @@ Language.mli
 .artifacts
 registry.bak/
 .pr-body.md
+
+# code review
+/review-*.json

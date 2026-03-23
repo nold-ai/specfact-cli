@@ -18,6 +18,7 @@
 - [ ] 3.1 Implement minimal production code required to satisfy the new scenarios.
 - [ ] 3.2 Add/update contract decorators and type enforcement on public APIs.
 - [ ] 3.3 Update command wiring, adapters, and models required by this change scope only.
+- [ ] 3.4 Keep exception scope keyed by policy rule ID (for example `clean-code-principles/<rule-id>`) and avoid adding a separate clean-code-principle exception model.
 
 ## 4. Validation and documentation
 

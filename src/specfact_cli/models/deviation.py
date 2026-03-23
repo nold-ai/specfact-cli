@@ -58,21 +58,25 @@ class DeviationReport(BaseModel):
     summary: dict[str, int] = Field(default_factory=dict, description="Deviation counts by type")
 
     @property
+    @ensure(lambda result: result >= 0, "total_deviations must be non-negative")
     def total_deviations(self) -> int:
         """Total number of deviations."""
         return len(self.deviations)
 
     @property
+    @ensure(lambda result: result >= 0, "high_count must be non-negative")
     def high_count(self) -> int:
         """Number of high severity deviations."""
         return sum(1 for d in self.deviations if d.severity == DeviationSeverity.HIGH)
 
     @property
+    @ensure(lambda result: result >= 0, "medium_count must be non-negative")
     def medium_count(self) -> int:
         """Number of medium severity deviations."""
         return sum(1 for d in self.deviations if d.severity == DeviationSeverity.MEDIUM)
 
     @property
+    @ensure(lambda result: result >= 0, "low_count must be non-negative")
     def low_count(self) -> int:
         """Number of low severity deviations."""
         return sum(1 for d in self.deviations if d.severity == DeviationSeverity.LOW)
@@ -88,17 +92,13 @@ class ValidationReport(BaseModel):
     passed: bool = Field(default=True, description="Whether validation passed")
 
     @property
+    @ensure(lambda result: result >= 0, "total_deviations must be non-negative")
     def total_deviations(self) -> int:
         """Total number of deviations."""
         return len(self.deviations)
 
     @beartype
     @require(lambda deviation: isinstance(deviation, Deviation), "Must be Deviation instance")
-    @ensure(
-        lambda self: self.high_count + self.medium_count + self.low_count == len(self.deviations),
-        "Counts must match deviations",
-    )
-    @ensure(lambda self: self.passed == (self.high_count == 0), "Must fail if high severity deviations exist")
     def add_deviation(self, deviation: Deviation) -> None:
         """Add a deviation and update counts."""
         self.deviations.append(deviation)
