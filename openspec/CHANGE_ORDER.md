@@ -113,6 +113,17 @@ The 2026-03-22 clean-code plan adds one new cross-repo change pair and re-sequen
 | docs | 03 | ✅ docs-03-command-syntax-parity (archived 2026-03-18) | pending | docs-01 ✅; docs-02 ✅ |
 | docs | 04 | docs-04-docs-review-gate-and-link-integrity | pending | docs-03 ✅ |
 | docs | 05 | ci-docs-sync-check | pending | docs-02 (doc-frontmatter-schema) |
+| docs | 06 | docs-05-core-site-ia-restructure | [#438](https://github.com/nold-ai/specfact-cli/issues/438) | docs-04; Parent Feature: [#356](https://github.com/nold-ai/specfact-cli/issues/356) |
+| docs | 07 | docs-07-core-handoff-conversion | [#439](https://github.com/nold-ai/specfact-cli/issues/439) | docs-05-core-site-ia-restructure; modules-repo/docs-06-modules-site-ia-restructure |
+| docs | 08 | docs-12-docs-validation-ci | [#440](https://github.com/nold-ai/specfact-cli/issues/440) | docs-05-core-site-ia-restructure; docs-07-core-handoff-conversion; modules-repo/docs-06 through docs-10 |
+
+### Docs refactoring plan addendum (2026-03-23)
+
+The 2026-03-23 docs-refactoring-beginner-to-enterprise plan adds 8 changes across two repos to restructure both docs sites into a progressive beginner-to-enterprise hierarchy. The specfact-cli side owns 3 changes (core IA restructure, handoff conversion, CI validation). The specfact-cli-modules side owns 5 changes (modules IA restructure, bundle overviews, missing command docs, workflow consolidation, team/enterprise tier) plus the modules-side CI validation.
+
+All specfact-cli changes sync to GitHub as User Story issues under parent Feature [#356](https://github.com/nold-ai/specfact-cli/issues/356) with labels: `documentation`, `change-proposal`, `openspec`.
+
+Cross-repo dependency: `docs-07-core-handoff-conversion` depends on `specfact-cli-modules/docs-06-modules-site-ia-restructure` (target pages must exist before redirects are created).
 
 ### Marketplace (module distribution)
 
