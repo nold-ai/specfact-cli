@@ -44,7 +44,10 @@ def has_service_configuration(specmatic_config: SpecmaticConfig, app_config: App
 
 
 @beartype
-@require(lambda contract_path: contract_path.exists(), "Contract path must exist")
+@require(
+    lambda contract_path: isinstance(contract_path, Path) and contract_path.exists(),
+    "Contract path must exist",
+)
 @require(lambda timeout: timeout > 0, "Timeout must be positive")
 @ensure(lambda result: isinstance(result, dict), "Must return dict")
 def run_specmatic(

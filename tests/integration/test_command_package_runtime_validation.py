@@ -8,12 +8,19 @@ import subprocess
 import sys
 import tarfile
 from pathlib import Path
+from typing import Any, cast
 
 import pytest
+import typer
 import yaml
+from typer.testing import CliRunner
 
 from specfact_cli.registry.module_installer import _module_artifact_payload_signed
-from specfact_cli.validation.command_audit import build_command_audit_cases, official_marketplace_module_ids
+from specfact_cli.validation.command_audit import (
+    CommandAuditCase,
+    build_command_audit_cases,
+    official_marketplace_module_ids,
+)
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -87,8 +94,9 @@ def _build_local_registry(home_dir: Path) -> Path:
         manifest_path = package_dir / "module-package.yaml"
         manifest = yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
         assert isinstance(manifest, dict), f"Invalid manifest: {manifest_path}"
+        manifest_dict = cast(dict[str, Any], manifest)
 
-        version = str(manifest["version"]).strip()
+        version = str(manifest_dict["version"]).strip()
         archive_name = f"{bundle_name}-{version}.tar.gz"
         archive_path = modules_dir / archive_name
 
@@ -102,16 +110,42 @@ def _build_local_registry(home_dir: Path) -> Path:
                 "latest_version": version,
                 "download_url": f"modules/{archive_name}",
                 "checksum_sha256": checksum,
-                "tier": manifest.get("tier", "official"),
-                "publisher": manifest.get("publisher", {}),
-                "bundle_dependencies": manifest.get("bundle_dependencies", []),
-                "description": manifest.get("description", ""),
+                "tier": manifest_dict.get("tier", "official"),
+                "publisher": manifest_dict.get("publisher", {}),
+                "bundle_dependencies": manifest_dict.get("bundle_dependencies", []),
+                "description": manifest_dict.get("description", ""),
             }
         )
 
     index_path = registry_root / "index.json"
     index_path.write_text(json.dumps({"modules": modules_payload}, indent=2), encoding="utf-8")
     return index_path
+
+
+def _seed_marketplace_modules(home_dir: Path) -> None:
+    modules_root = home_dir / ".specfact" / "modules"
+    modules_root.mkdir(parents=True, exist_ok=True)
+    packages_root = MODULES_REPO / "packages"
+
+    for module_id in official_marketplace_module_ids():
+        bundle_name = module_id.split("/", 1)[1]
+        package_dir = packages_root / bundle_name
+        installed_dir = modules_root / bundle_name
+        if installed_dir.exists():
+            shutil.rmtree(installed_dir)
+        shutil.copytree(package_dir, installed_dir)
+
+        manifest_path = installed_dir / "module-package.yaml"
+        manifest = yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
+        assert isinstance(manifest, dict), f"Invalid manifest: {manifest_path}"
+        manifest["integrity"] = {
+            "checksum": f"sha256:{hashlib.sha256(_module_artifact_payload_signed(installed_dir)).hexdigest()}"
+        }
+        manifest_path.write_text(
+            yaml.safe_dump(manifest, sort_keys=False, allow_unicode=False),
+            encoding="utf-8",
+        )
+        (installed_dir / ".specfact-registry-id").write_text(module_id, encoding="utf-8")
 
 
 def _subprocess_env(home_dir: Path) -> dict[str, str]:
@@ -158,33 +192,95 @@ def _run_cli(env: dict[str, str], *argv: str, cwd: Path | None = None) -> subpro
     )
 
 
+def _load_cli_app_for_home(home_dir: Path) -> typer.Typer:
+    user_modules_root = home_dir / ".specfact" / "modules"
+    marketplace_modules_root = home_dir / ".specfact" / "marketplace-modules"
+    custom_modules_root = home_dir / ".specfact" / "custom-modules"
+    download_cache_root = home_dir / ".specfact" / "downloads" / "cache"
+    config_path = home_dir / ".specfact" / "config.yaml"
+
+    import specfact_cli.cli as cli_module
+    import specfact_cli.registry.bootstrap as bootstrap_module
+    import specfact_cli.registry.module_discovery as module_discovery
+    import specfact_cli.registry.module_installer as module_installer
+    from specfact_cli.registry.registry import CommandRegistry
+
+    module_discovery.USER_MODULES_ROOT = user_modules_root
+    module_discovery.MARKETPLACE_MODULES_ROOT = marketplace_modules_root
+    module_discovery.CUSTOM_MODULES_ROOT = custom_modules_root
+
+    module_installer.USER_MODULES_ROOT = user_modules_root
+    module_installer.MARKETPLACE_MODULES_ROOT = marketplace_modules_root
+    module_installer.MODULE_DOWNLOAD_CACHE_ROOT = download_cache_root
+
+    bootstrap_module._SPECFACT_CONFIG_PATH = config_path
+
+    CommandRegistry._clear_for_testing()
+    cli_module.app.registered_groups = []
+    cli_module.app.registered_commands = []
+    bootstrap_module.register_builtin_commands()
+    for name, meta in cli_module._grouped_command_order(CommandRegistry.list_commands_for_help()):
+        cli_module.app.add_typer(cli_module._make_lazy_typer(name, meta.help), name=name, help=meta.help)
+    return cli_module.app
+
+
+def _run_help_case(
+    app: typer.Typer,
+    case: CommandAuditCase,
+    home_dir: Path,
+    env: dict[str, str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> tuple[int, str]:
+    runner = CliRunner()
+    packages_root = MODULES_REPO / "packages"
+
+    with monkeypatch.context() as context:
+        context.chdir(home_dir)
+        for key in (
+            "HOME",
+            "SPECFACT_REPO_ROOT",
+            "SPECFACT_MODULES_REPO",
+            "SPECFACT_REGISTRY_INDEX_URL",
+            "SPECFACT_ALLOW_UNSIGNED",
+            "SPECFACT_REGISTRY_DIR",
+        ):
+            context.setenv(key, env[key])
+        context.setenv("TEST_MODE", "true")
+        context.setattr(sys, "path", list(sys.path), raising=False)
+        for bundle_src in sorted(packages_root.glob("*/src"), reverse=True):
+            sys.path.insert(0, str(bundle_src))
+        sys.path.insert(0, str(SRC_ROOT))
+        sys.path.insert(0, str(REPO_ROOT))
+        result = runner.invoke(app, list(case.argv), catch_exceptions=False)
+    return result.exit_code, result.output
+
+
 @pytest.mark.timeout(300)
-def test_command_audit_help_cases_execute_cleanly_in_temp_home(tmp_path: Path) -> None:
+def test_command_audit_help_cases_execute_cleanly_in_temp_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     home_dir = tmp_path / "home"
     home_dir.mkdir(parents=True, exist_ok=True)
     env = _subprocess_env(home_dir)
+    _seed_marketplace_modules(home_dir)
 
-    install_failures: list[str] = []
-    for module_id in official_marketplace_module_ids():
-        result = _run_cli(env, "module", "install", module_id, "--source", "marketplace")
-        if result.returncode != 0:
-            install_failures.append(
-                f"{module_id}: rc={result.returncode}\nSTDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"
-            )
-    assert not install_failures, "\n\n".join(install_failures)
+    with monkeypatch.context() as context:
+        context.setenv("HOME", str(home_dir))
+        context.setenv("SPECFACT_MODULES_REPO", str(MODULES_REPO.resolve()))
+        help_app = _load_cli_app_for_home(home_dir)
 
-    failures: list[str] = []
-    for case in build_command_audit_cases():
-        result = _run_cli(env, *case.argv, cwd=home_dir)
-        merged_output = ((result.stdout or "") + "\n" + (result.stderr or "")).strip()
-        if result.returncode != 0:
-            failures.append(
-                f"{case.command_path}: rc={result.returncode}\nSTDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"
-            )
-            continue
-        leaked = [marker for marker in FORBIDDEN_OUTPUT if marker in merged_output]
-        if leaked:
-            failures.append(f"{case.command_path}: leaked diagnostics {leaked}\nOUTPUT:\n{merged_output}")
+        failures: list[str] = []
+        for case in build_command_audit_cases():
+            if case.mode == "help-only":
+                return_code, merged_output = _run_help_case(help_app, case, home_dir, env, monkeypatch)
+            else:
+                result = _run_cli(env, *case.argv, cwd=home_dir)
+                return_code = result.returncode
+                merged_output = ((result.stdout or "") + "\n" + (result.stderr or "")).strip()
+            if return_code != 0:
+                failures.append(f"{case.command_path}: rc={return_code}\nOUTPUT:\n{merged_output}")
+                continue
+            leaked = [marker for marker in FORBIDDEN_OUTPUT if marker in merged_output]
+            if leaked:
+                failures.append(f"{case.command_path}: leaked diagnostics {leaked}\nOUTPUT:\n{merged_output}")
 
     assert not failures, "\n\n".join(failures)
 

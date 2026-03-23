@@ -26,6 +26,7 @@ def _register_members(app: typer.Typer) -> None:
             pass
 
 
+@ensure(lambda result: result is not None, "Must return Typer app")
 def build_app() -> typer.Typer:
     """Build the code group Typer with members (lazy; registry must be populated)."""
     app = typer.Typer(

@@ -12,11 +12,24 @@ generate markdown artifacts in specs/ and .specify/ directories.
 from __future__ import annotations
 
 import re
+from contextlib import suppress
 from pathlib import Path
 from typing import Any
 
 from beartype import beartype
 from icontract import ensure, require
+
+
+def _spec_file_is_markdown(spec_file: Path) -> bool:
+    return spec_file.suffix == ".md"
+
+
+def _plan_file_is_markdown(plan_file: Path) -> bool:
+    return plan_file.suffix == ".md"
+
+
+def _tasks_file_is_markdown(tasks_file: Path) -> bool:
+    return tasks_file.suffix == ".md"
 
 
 class SpecKitScanner:
@@ -151,55 +164,116 @@ class SpecKitScanner:
             return structure
 
         structure["is_speckit"] = True
-
-        # Check for .specify directory
         specify_dir = self.repo_path / self.SPECIFY_DIR
         if specify_dir.exists() and specify_dir.is_dir():
             structure["specify_dir"] = str(specify_dir)
-
-            # Check for .specify/memory directory
             specify_memory_dir = self.repo_path / self.SPECIFY_MEMORY_DIR
             if specify_memory_dir.exists():
                 structure["specify_memory_dir"] = str(specify_memory_dir)
                 structure["memory_files"] = [str(f) for f in specify_memory_dir.glob("*.md")]
 
-        # Check for specs directory - prioritize .specify/specs/ over root specs/
-        # According to Spec-Kit documentation, specs should be inside .specify/specs/
         specify_specs_dir = specify_dir / "specs" if specify_dir.exists() else None
         root_specs_dir = self.repo_path / self.SPECS_DIR
-
-        # Prefer .specify/specs/ if it exists (canonical location)
         if specify_specs_dir and specify_specs_dir.exists() and specify_specs_dir.is_dir():
             structure["specs_dir"] = str(specify_specs_dir)
-            # Find all feature directories (.specify/specs/*/)
-            for spec_dir in specify_specs_dir.iterdir():
-                if spec_dir.is_dir():
-                    feature_dirs.append(str(spec_dir))
-                    # Find all markdown files in each feature directory
-                    for md_file in spec_dir.glob("*.md"):
-                        spec_files.append(str(md_file))
-                    # Also check for contracts/*.yaml
-                    contracts_dir = spec_dir / "contracts"
-                    if contracts_dir.exists():
-                        for yaml_file in contracts_dir.glob("*.yaml"):
-                            spec_files.append(str(yaml_file))
-        # Fallback to root specs/ for backward compatibility
+            self._ingest_specs_tree(specify_specs_dir, feature_dirs, spec_files)
         elif root_specs_dir.exists() and root_specs_dir.is_dir():
             structure["specs_dir"] = str(root_specs_dir)
-            # Find all feature directories (specs/*/)
-            for spec_dir in root_specs_dir.iterdir():
-                if spec_dir.is_dir():
-                    feature_dirs.append(str(spec_dir))
-                    # Find all markdown files in each feature directory
-                    for md_file in spec_dir.glob("*.md"):
-                        spec_files.append(str(md_file))
-                    # Also check for contracts/*.yaml
-                    contracts_dir = spec_dir / "contracts"
-                    if contracts_dir.exists():
-                        for yaml_file in contracts_dir.glob("*.yaml"):
-                            spec_files.append(str(yaml_file))
+            self._ingest_specs_tree(root_specs_dir, feature_dirs, spec_files)
 
         return structure
+
+    def _ingest_specs_tree(self, specs_root: Path, feature_dirs: list[str], spec_files: list[str]) -> None:
+        for spec_dir in specs_root.iterdir():
+            if not spec_dir.is_dir():
+                continue
+            feature_dirs.append(str(spec_dir))
+            for md_file in spec_dir.glob("*.md"):
+                spec_files.append(str(md_file))
+            contracts_dir = spec_dir / "contracts"
+            if not contracts_dir.exists():
+                continue
+            for yaml_file in contracts_dir.glob("*.yaml"):
+                spec_files.append(str(yaml_file))
+
+    @staticmethod
+    def _invsest_from_story_content(story_content: str) -> dict[str, str | None]:
+        invsest_criteria: dict[str, str | None] = {
+            "independent": None,
+            "negotiable": None,
+            "valuable": None,
+            "estimable": None,
+            "small": None,
+            "testable": None,
+        }
+        for criterion in ["Independent", "Negotiable", "Valuable", "Estimable", "Small", "Testable"]:
+            criterion_match = re.search(rf"\*\*{criterion}\*\*:\s*(YES|NO)", story_content, re.IGNORECASE)
+            if criterion_match:
+                invsest_criteria[criterion.lower()] = criterion_match.group(1).upper()
+        return invsest_criteria
+
+    @staticmethod
+    def _scenarios_dict_from_story_content(story_content: str) -> dict[str, list[str]]:
+        scenarios: dict[str, list[str]] = {"primary": [], "alternate": [], "exception": [], "recovery": []}
+        scenarios_section = re.search(r"\*\*Scenarios:\*\*\s*\n(.*?)(?=\n\n|\*\*|$)", story_content, re.DOTALL)
+        if not scenarios_section:
+            return scenarios
+        scenarios_text = scenarios_section.group(1)
+        for key, label in (
+            ("primary", r"- \*\*Primary Scenario\*\*:\s*(.+?)(?=\n-|\n|$)"),
+            ("alternate", r"- \*\*Alternate Scenario\*\*:\s*(.+?)(?=\n-|\n|$)"),
+            ("exception", r"- \*\*Exception Scenario\*\*:\s*(.+?)(?=\n-|\n|$)"),
+            ("recovery", r"- \*\*Recovery Scenario\*\*:\s*(.+?)(?=\n-|\n|$)"),
+        ):
+            for match in re.finditer(label, scenarios_text, re.DOTALL):
+                scenarios[key].append(match.group(1).strip())
+        return scenarios
+
+    def _story_entry_from_match(self, content: str, story_match: re.Match[str], story_counter: int) -> dict[str, Any]:
+        story_number = story_match.group(1)
+        story_title = story_match.group(2).strip()
+        priority = story_match.group(3)
+        story_start = story_match.end()
+        next_story_match = re.search(r"###\s+User Story\s+\d+", content[story_start:], re.MULTILINE)
+        story_end = story_start + next_story_match.start() if next_story_match else len(content)
+        story_content = content[story_start:story_end]
+        as_a_match = re.search(
+            r"As a (.+?), I want (.+?) so that (.+?)(?=\n\n|\*\*Why|\*\*Independent|\*\*Acceptance)",
+            story_content,
+            re.DOTALL,
+        )
+        as_a_text = ""
+        if as_a_match:
+            as_a_text = (
+                f"As a {as_a_match.group(1)}, I want {as_a_match.group(2)}, so that {as_a_match.group(3)}".strip()
+            )
+        why_priority_match = re.search(
+            r"\*\*Why this priority\*\*:\s*(.+?)(?=\n\n|\*\*Independent|$)", story_content, re.DOTALL
+        )
+        why_priority = why_priority_match.group(1).strip() if why_priority_match else ""
+        invsest_criteria = self._invsest_from_story_content(story_content)
+        acceptance_pattern = (
+            r"(\d+)\.\s+\*\*Given\*\*\s+(.+?),\s+\*\*When\*\*\s+(.+?),\s+\*\*Then\*\*\s+(.+?)(?=\n\n|\n\d+\.|\n###|$)"
+        )
+        acceptance_criteria: list[str] = []
+        for acc_match in re.finditer(acceptance_pattern, story_content, re.DOTALL):
+            given = acc_match.group(2).strip()
+            when = acc_match.group(3).strip()
+            then = acc_match.group(4).strip()
+            acceptance_criteria.append(f"Given {given}, When {when}, Then {then}")
+        scenarios = self._scenarios_dict_from_story_content(story_content)
+        story_key = f"STORY-{story_counter:03d}"
+        return {
+            "key": story_key,
+            "number": story_number,
+            "title": story_title,
+            "priority": priority,
+            "as_a": as_a_text,
+            "why_priority": why_priority,
+            "invsest": invsest_criteria,
+            "acceptance": acceptance_criteria,
+            "scenarios": scenarios,
+        }
 
     @beartype
     @ensure(lambda result: isinstance(result, list), "Must return list")
@@ -240,9 +314,54 @@ class SpecKitScanner:
 
         return features
 
+    def _spec_apply_frontmatter(self, spec_data: dict[str, Any], content: str) -> None:
+        frontmatter_match = re.search(r"^---\n(.*?)\n---", content, re.MULTILINE | re.DOTALL)
+        if not frontmatter_match:
+            return
+        frontmatter = frontmatter_match.group(1)
+        branch_match = re.search(r"\*\*Feature Branch\*\*:\s*`(.+?)`", frontmatter)
+        if branch_match:
+            spec_data["feature_branch"] = branch_match.group(1).strip()
+        created_match = re.search(r"\*\*Created\*\*:\s*(\d{4}-\d{2}-\d{2})", frontmatter)
+        if created_match:
+            spec_data["created_date"] = created_match.group(1).strip()
+        status_match = re.search(r"\*\*Status\*\*:\s*(.+?)(?:\n|$)", frontmatter)
+        if status_match:
+            spec_data["status"] = status_match.group(1).strip()
+
+    def _spec_apply_identity_and_stories(self, spec_data: dict[str, Any], spec_file: Path, content: str) -> None:
+        spec_dir = spec_file.parent
+        if spec_dir.name:
+            spec_data["feature_key"] = spec_dir.name.upper().replace("-", "_")
+            if not spec_data["feature_branch"]:
+                spec_data["feature_branch"] = spec_dir.name
+        title_match = re.search(r"^#\s+Feature Specification:\s*(.+)$", content, re.MULTILINE)
+        if title_match:
+            spec_data["feature_title"] = title_match.group(1).strip()
+        story_pattern = r"###\s+User Story\s+(\d+)\s*-\s*(.+?)\s*\(Priority:\s*(P\d+)\)"
+        for idx, story_match in enumerate(re.finditer(story_pattern, content, re.MULTILINE | re.DOTALL), start=1):
+            spec_data["stories"].append(self._story_entry_from_match(content, story_match, idx))
+
+    def _spec_append_requirements_and_criteria(self, spec_data: dict[str, Any], content: str) -> None:
+        req_pattern = r"-?\s*\*\*FR-(\d+)\*\*:\s*System MUST\s+(.+?)(?=\n-|\n\*|\n\n|\*\*FR-|$)"
+        for req_match in re.finditer(req_pattern, content, re.MULTILINE | re.DOTALL):
+            spec_data["requirements"].append({"id": f"FR-{req_match.group(1)}", "text": req_match.group(2).strip()})
+        sc_pattern = r"-?\s*\*\*SC-(\d+)\*\*:\s*(.+?)(?=\n-|\n\*|\n\n|\*\*SC-|$)"
+        for sc_match in re.finditer(sc_pattern, content, re.MULTILINE | re.DOTALL):
+            spec_data["success_criteria"].append({"id": f"SC-{sc_match.group(1)}", "text": sc_match.group(2).strip()})
+
+    @staticmethod
+    def _spec_append_edge_cases(spec_data: dict[str, Any], content: str) -> None:
+        edge_case_section = re.search(r"### Edge Cases\n(.*?)(?=\n##|$)", content, re.MULTILINE | re.DOTALL)
+        if not edge_case_section:
+            return
+        for ec_match in re.finditer(r"- (.+?)(?=\n-|\n|$)", edge_case_section.group(1), re.MULTILINE):
+            ec_text = ec_match.group(1).strip()
+            if ec_text:
+                spec_data["edge_cases"].append(ec_text)
+
     @beartype
-    @require(lambda spec_file: spec_file is not None, "Spec file path must not be None")
-    @require(lambda spec_file: spec_file.suffix == ".md", "Spec file must be markdown")
+    @require(_spec_file_is_markdown, "Spec file must be markdown")
     @ensure(
         lambda result, spec_file: result is None or (isinstance(result, dict) and "feature_key" in result),
         "Must return None or dict with feature_key",
@@ -273,193 +392,97 @@ class SpecKitScanner:
                 "success_criteria": [],
                 "edge_cases": [],
             }
-
-            # Extract frontmatter (if present)
-            frontmatter_match = re.search(r"^---\n(.*?)\n---", content, re.MULTILINE | re.DOTALL)
-            if frontmatter_match:
-                frontmatter = frontmatter_match.group(1)
-                # Extract Feature Branch
-                branch_match = re.search(r"\*\*Feature Branch\*\*:\s*`(.+?)`", frontmatter)
-                if branch_match:
-                    spec_data["feature_branch"] = branch_match.group(1).strip()
-                # Extract Created date
-                created_match = re.search(r"\*\*Created\*\*:\s*(\d{4}-\d{2}-\d{2})", frontmatter)
-                if created_match:
-                    spec_data["created_date"] = created_match.group(1).strip()
-                # Extract Status
-                status_match = re.search(r"\*\*Status\*\*:\s*(.+?)(?:\n|$)", frontmatter)
-                if status_match:
-                    spec_data["status"] = status_match.group(1).strip()
-
-            # Extract feature key from directory name (specs/001-feature-name/spec.md)
-            spec_dir = spec_file.parent
-            if spec_dir.name:
-                spec_data["feature_key"] = spec_dir.name.upper().replace("-", "_")
-                # If feature_branch not found in frontmatter, use directory name
-                if not spec_data["feature_branch"]:
-                    spec_data["feature_branch"] = spec_dir.name
-
-            # Extract feature title from spec.md header
-            title_match = re.search(r"^#\s+Feature Specification:\s*(.+)$", content, re.MULTILINE)
-            if title_match:
-                spec_data["feature_title"] = title_match.group(1).strip()
-
-            # Extract user stories with full context
-            story_pattern = r"###\s+User Story\s+(\d+)\s*-\s*(.+?)\s*\(Priority:\s*(P\d+)\)"
-            stories = re.finditer(story_pattern, content, re.MULTILINE | re.DOTALL)
-
-            story_counter = 1
-            for story_match in stories:
-                story_number = story_match.group(1)
-                story_title = story_match.group(2).strip()
-                priority = story_match.group(3)
-
-                # Find story content (between this story and next story or end of section)
-                story_start = story_match.end()
-                next_story_match = re.search(r"###\s+User Story\s+\d+", content[story_start:], re.MULTILINE)
-                story_end = story_start + next_story_match.start() if next_story_match else len(content)
-                story_content = content[story_start:story_end]
-
-                # Extract "As a..." description
-                as_a_match = re.search(
-                    r"As a (.+?), I want (.+?) so that (.+?)(?=\n\n|\*\*Why|\*\*Independent|\*\*Acceptance)",
-                    story_content,
-                    re.DOTALL,
-                )
-                as_a_text = ""
-                if as_a_match:
-                    as_a_text = f"As a {as_a_match.group(1)}, I want {as_a_match.group(2)}, so that {as_a_match.group(3)}".strip()
-
-                # Extract "Why this priority" text
-                why_priority_match = re.search(
-                    r"\*\*Why this priority\*\*:\s*(.+?)(?=\n\n|\*\*Independent|$)", story_content, re.DOTALL
-                )
-                why_priority = why_priority_match.group(1).strip() if why_priority_match else ""
-
-                # Extract INVSEST criteria
-                invsest_criteria: dict[str, str | None] = {
-                    "independent": None,
-                    "negotiable": None,
-                    "valuable": None,
-                    "estimable": None,
-                    "small": None,
-                    "testable": None,
-                }
-                for criterion in ["Independent", "Negotiable", "Valuable", "Estimable", "Small", "Testable"]:
-                    criterion_match = re.search(rf"\*\*{criterion}\*\*:\s*(YES|NO)", story_content, re.IGNORECASE)
-                    if criterion_match:
-                        invsest_criteria[criterion.lower()] = criterion_match.group(1).upper()
-
-                # Extract acceptance scenarios
-                acceptance_pattern = r"(\d+)\.\s+\*\*Given\*\*\s+(.+?),\s+\*\*When\*\*\s+(.+?),\s+\*\*Then\*\*\s+(.+?)(?=\n\n|\n\d+\.|\n###|$)"
-                acceptances = re.finditer(acceptance_pattern, story_content, re.DOTALL)
-
-                acceptance_criteria: list[str] = []
-                for acc_match in acceptances:
-                    given = acc_match.group(2).strip()
-                    when = acc_match.group(3).strip()
-                    then = acc_match.group(4).strip()
-                    acceptance_criteria.append(f"Given {given}, When {when}, Then {then}")
-
-                # Extract scenarios (Primary, Alternate, Exception, Recovery)
-                scenarios: dict[str, list[str]] = {
-                    "primary": [],
-                    "alternate": [],
-                    "exception": [],
-                    "recovery": [],
-                }
-                scenarios_section = re.search(r"\*\*Scenarios:\*\*\s*\n(.*?)(?=\n\n|\*\*|$)", story_content, re.DOTALL)
-                if scenarios_section:
-                    scenarios_text = scenarios_section.group(1)
-                    # Extract Primary scenarios
-                    primary_matches = re.finditer(
-                        r"- \*\*Primary Scenario\*\*:\s*(.+?)(?=\n-|\n|$)", scenarios_text, re.DOTALL
-                    )
-                    for match in primary_matches:
-                        scenarios["primary"].append(match.group(1).strip())
-                    # Extract Alternate scenarios
-                    alternate_matches = re.finditer(
-                        r"- \*\*Alternate Scenario\*\*:\s*(.+?)(?=\n-|\n|$)", scenarios_text, re.DOTALL
-                    )
-                    for match in alternate_matches:
-                        scenarios["alternate"].append(match.group(1).strip())
-                    # Extract Exception scenarios
-                    exception_matches = re.finditer(
-                        r"- \*\*Exception Scenario\*\*:\s*(.+?)(?=\n-|\n|$)", scenarios_text, re.DOTALL
-                    )
-                    for match in exception_matches:
-                        scenarios["exception"].append(match.group(1).strip())
-                    # Extract Recovery scenarios
-                    recovery_matches = re.finditer(
-                        r"- \*\*Recovery Scenario\*\*:\s*(.+?)(?=\n-|\n|$)", scenarios_text, re.DOTALL
-                    )
-                    for match in recovery_matches:
-                        scenarios["recovery"].append(match.group(1).strip())
-
-                story_key = f"STORY-{story_counter:03d}"
-                spec_data["stories"].append(
-                    {
-                        "key": story_key,
-                        "number": story_number,
-                        "title": story_title,
-                        "priority": priority,
-                        "as_a": as_a_text,
-                        "why_priority": why_priority,
-                        "invsest": invsest_criteria,
-                        "acceptance": acceptance_criteria,
-                        "scenarios": scenarios,
-                    }
-                )
-                story_counter += 1
-
-            # Extract functional requirements (FR-XXX)
-            req_pattern = r"-?\s*\*\*FR-(\d+)\*\*:\s*System MUST\s+(.+?)(?=\n-|\n\*|\n\n|\*\*FR-|$)"
-            requirements = re.finditer(req_pattern, content, re.MULTILINE | re.DOTALL)
-
-            for req_match in requirements:
-                req_id = req_match.group(1)
-                req_text = req_match.group(2).strip()
-                spec_data["requirements"].append(
-                    {
-                        "id": f"FR-{req_id}",
-                        "text": req_text,
-                    }
-                )
-
-            # Extract success criteria (SC-XXX)
-            sc_pattern = r"-?\s*\*\*SC-(\d+)\*\*:\s*(.+?)(?=\n-|\n\*|\n\n|\*\*SC-|$)"
-            success_criteria = re.finditer(sc_pattern, content, re.MULTILINE | re.DOTALL)
-
-            for sc_match in success_criteria:
-                sc_id = sc_match.group(1)
-                sc_text = sc_match.group(2).strip()
-                spec_data["success_criteria"].append(
-                    {
-                        "id": f"SC-{sc_id}",
-                        "text": sc_text,
-                    }
-                )
-
-            # Extract edge cases section
-            edge_case_section = re.search(r"### Edge Cases\n(.*?)(?=\n##|$)", content, re.MULTILINE | re.DOTALL)
-            if edge_case_section:
-                edge_case_text = edge_case_section.group(1)
-                # Extract individual edge cases (lines starting with -)
-                edge_case_pattern = r"- (.+?)(?=\n-|\n|$)"
-                edge_cases = re.finditer(edge_case_pattern, edge_case_text, re.MULTILINE)
-                for ec_match in edge_cases:
-                    ec_text = ec_match.group(1).strip()
-                    if ec_text:
-                        spec_data["edge_cases"].append(ec_text)
-
+            self._spec_apply_frontmatter(spec_data, content)
+            self._spec_apply_identity_and_stories(spec_data, spec_file, content)
+            self._spec_append_requirements_and_criteria(spec_data, content)
+            self._spec_append_edge_cases(spec_data, content)
             return spec_data
 
         except Exception as e:
             raise ValueError(f"Failed to parse spec.md: {e}") from e
 
+    def _parse_plan_technical_context(self, plan_data: dict[str, Any], tech_context: str) -> None:
+        lang_match = re.search(r"\*\*Language/Version\*\*:\s*(.+?)(?=\n|$)", tech_context, re.MULTILINE)
+        if lang_match:
+            plan_data["language_version"] = lang_match.group(1).strip()
+        deps_match = re.search(
+            r"\*\*Primary Dependencies\*\*:\s*\n(.*?)(?=\n\*\*|$)", tech_context, re.MULTILINE | re.DOTALL
+        )
+        if deps_match:
+            deps_text = deps_match.group(1)
+            for dep_match in re.finditer(r"- `(.+?)`\s*-?\s*(.+?)(?=\n-|\n|$)", deps_text, re.MULTILINE):
+                dep_name = dep_match.group(1).strip()
+                dep_desc = dep_match.group(2).strip() if dep_match.group(2) else ""
+                plan_data["dependencies"].append({"name": dep_name, "description": dep_desc})
+        stack_match = re.search(
+            r"\*\*Technology Stack\*\*:\s*\n(.*?)(?=\n\*\*|$)", tech_context, re.MULTILINE | re.DOTALL
+        )
+        if stack_match:
+            stack_text = stack_match.group(1)
+            for item_match in re.finditer(r"- (.+?)(?=\n-|\n|$)", stack_text, re.MULTILINE):
+                plan_data["technology_stack"].append(item_match.group(1).strip())
+        constraints_match = re.search(
+            r"\*\*Constraints\*\*:\s*\n(.*?)(?=\n\*\*|$)", tech_context, re.MULTILINE | re.DOTALL
+        )
+        if constraints_match:
+            constraints_text = constraints_match.group(1)
+            for item_match in re.finditer(r"- (.+?)(?=\n-|\n|$)", constraints_text, re.MULTILINE):
+                plan_data["constraints"].append(item_match.group(1).strip())
+        unknowns_match = re.search(r"\*\*Unknowns\*\*:\s*\n(.*?)(?=\n\*\*|$)", tech_context, re.MULTILINE | re.DOTALL)
+        if unknowns_match:
+            unknowns_text = unknowns_match.group(1)
+            for item_match in re.finditer(r"- (.+?)(?=\n-|\n|$)", unknowns_text, re.MULTILINE):
+                plan_data["unknowns"].append(item_match.group(1).strip())
+
+    def _parse_plan_constitution_block(self, plan_data: dict[str, Any], constitution_text: str) -> None:
+        plan_data["constitution_check"] = {
+            "article_vii": {},
+            "article_viii": {},
+            "article_ix": {},
+            "status": None,
+        }
+        article_vii_match = re.search(
+            r"\*\*Article VII \(Simplicity\)\*\*:\s*\n(.*?)(?=\n\*\*|$)",
+            constitution_text,
+            re.MULTILINE | re.DOTALL,
+        )
+        if article_vii_match:
+            article_vii_text = article_vii_match.group(1)
+            chk = re.search(r"- \[([ x])\]", article_vii_text) is not None
+            plan_data["constitution_check"]["article_vii"] = {
+                "using_3_projects": chk,
+                "no_future_proofing": chk,
+            }
+        article_viii_match = re.search(
+            r"\*\*Article VIII \(Anti-Abstraction\)\*\*:\s*\n(.*?)(?=\n\*\*|$)",
+            constitution_text,
+            re.MULTILINE | re.DOTALL,
+        )
+        if article_viii_match:
+            article_viii_text = article_viii_match.group(1)
+            chk = re.search(r"- \[([ x])\]", article_viii_text) is not None
+            plan_data["constitution_check"]["article_viii"] = {
+                "using_framework_directly": chk,
+                "single_model_representation": chk,
+            }
+        article_ix_match = re.search(
+            r"\*\*Article IX \(Integration-First\)\*\*:\s*\n(.*?)(?=\n\*\*|$)",
+            constitution_text,
+            re.MULTILINE | re.DOTALL,
+        )
+        if article_ix_match:
+            article_ix_text = article_ix_match.group(1)
+            chk = re.search(r"- \[([ x])\]", article_ix_text) is not None
+            plan_data["constitution_check"]["article_ix"] = {
+                "contracts_defined": chk,
+                "contract_tests_written": chk,
+            }
+        status_match = re.search(r"\*\*Status\*\*:\s*(PASS|FAIL)", constitution_text, re.IGNORECASE)
+        if status_match:
+            plan_data["constitution_check"]["status"] = status_match.group(1).upper()
+
     @beartype
-    @require(lambda plan_file: plan_file is not None, "Plan file path must not be None")
-    @require(lambda plan_file: plan_file.suffix == ".md", "Plan file must be markdown")
+    @require(_plan_file_is_markdown, "Plan file must be markdown")
     @ensure(
         lambda result: result is None or (isinstance(result, dict) and "dependencies" in result),
         "Must return None or dict with dependencies",
@@ -496,110 +519,15 @@ class SpecKitScanner:
             if summary_match:
                 plan_data["summary"] = summary_match.group(1).strip()
 
-            # Extract technical context
             tech_context_match = re.search(r"^## Technical Context\n(.*?)(?=\n##|$)", content, re.MULTILINE | re.DOTALL)
             if tech_context_match:
-                tech_context = tech_context_match.group(1)
-                # Extract language/version
-                lang_match = re.search(r"\*\*Language/Version\*\*:\s*(.+?)(?=\n|$)", tech_context, re.MULTILINE)
-                if lang_match:
-                    plan_data["language_version"] = lang_match.group(1).strip()
+                self._parse_plan_technical_context(plan_data, tech_context_match.group(1))
 
-                # Extract dependencies
-                deps_match = re.search(
-                    r"\*\*Primary Dependencies\*\*:\s*\n(.*?)(?=\n\*\*|$)", tech_context, re.MULTILINE | re.DOTALL
-                )
-                if deps_match:
-                    deps_text = deps_match.group(1)
-                    # Extract list items
-                    dep_items = re.finditer(r"- `(.+?)`\s*-?\s*(.+?)(?=\n-|\n|$)", deps_text, re.MULTILINE)
-                    for dep_match in dep_items:
-                        dep_name = dep_match.group(1).strip()
-                        dep_desc = dep_match.group(2).strip() if dep_match.group(2) else ""
-                        plan_data["dependencies"].append({"name": dep_name, "description": dep_desc})
-
-                # Extract Technology Stack
-                stack_match = re.search(
-                    r"\*\*Technology Stack\*\*:\s*\n(.*?)(?=\n\*\*|$)", tech_context, re.MULTILINE | re.DOTALL
-                )
-                if stack_match:
-                    stack_text = stack_match.group(1)
-                    stack_items = re.finditer(r"- (.+?)(?=\n-|\n|$)", stack_text, re.MULTILINE)
-                    for item_match in stack_items:
-                        plan_data["technology_stack"].append(item_match.group(1).strip())
-
-                # Extract Constraints
-                constraints_match = re.search(
-                    r"\*\*Constraints\*\*:\s*\n(.*?)(?=\n\*\*|$)", tech_context, re.MULTILINE | re.DOTALL
-                )
-                if constraints_match:
-                    constraints_text = constraints_match.group(1)
-                    constraint_items = re.finditer(r"- (.+?)(?=\n-|\n|$)", constraints_text, re.MULTILINE)
-                    for item_match in constraint_items:
-                        plan_data["constraints"].append(item_match.group(1).strip())
-
-                # Extract Unknowns
-                unknowns_match = re.search(
-                    r"\*\*Unknowns\*\*:\s*\n(.*?)(?=\n\*\*|$)", tech_context, re.MULTILINE | re.DOTALL
-                )
-                if unknowns_match:
-                    unknowns_text = unknowns_match.group(1)
-                    unknown_items = re.finditer(r"- (.+?)(?=\n-|\n|$)", unknowns_text, re.MULTILINE)
-                    for item_match in unknown_items:
-                        plan_data["unknowns"].append(item_match.group(1).strip())
-
-            # Extract Constitution Check section (CRITICAL for /speckit.analyze)
             constitution_match = re.search(
                 r"^## Constitution Check\n(.*?)(?=\n##|$)", content, re.MULTILINE | re.DOTALL
             )
             if constitution_match:
-                constitution_text = constitution_match.group(1)
-                plan_data["constitution_check"] = {
-                    "article_vii": {},
-                    "article_viii": {},
-                    "article_ix": {},
-                    "status": None,
-                }
-                # Extract Article VII (Simplicity)
-                article_vii_match = re.search(
-                    r"\*\*Article VII \(Simplicity\)\*\*:\s*\n(.*?)(?=\n\*\*|$)",
-                    constitution_text,
-                    re.MULTILINE | re.DOTALL,
-                )
-                if article_vii_match:
-                    article_vii_text = article_vii_match.group(1)
-                    plan_data["constitution_check"]["article_vii"] = {
-                        "using_3_projects": re.search(r"- \[([ x])\]", article_vii_text) is not None,
-                        "no_future_proofing": re.search(r"- \[([ x])\]", article_vii_text) is not None,
-                    }
-                # Extract Article VIII (Anti-Abstraction)
-                article_viii_match = re.search(
-                    r"\*\*Article VIII \(Anti-Abstraction\)\*\*:\s*\n(.*?)(?=\n\*\*|$)",
-                    constitution_text,
-                    re.MULTILINE | re.DOTALL,
-                )
-                if article_viii_match:
-                    article_viii_text = article_viii_match.group(1)
-                    plan_data["constitution_check"]["article_viii"] = {
-                        "using_framework_directly": re.search(r"- \[([ x])\]", article_viii_text) is not None,
-                        "single_model_representation": re.search(r"- \[([ x])\]", article_viii_text) is not None,
-                    }
-                # Extract Article IX (Integration-First)
-                article_ix_match = re.search(
-                    r"\*\*Article IX \(Integration-First\)\*\*:\s*\n(.*?)(?=\n\*\*|$)",
-                    constitution_text,
-                    re.MULTILINE | re.DOTALL,
-                )
-                if article_ix_match:
-                    article_ix_text = article_ix_match.group(1)
-                    plan_data["constitution_check"]["article_ix"] = {
-                        "contracts_defined": re.search(r"- \[([ x])\]", article_ix_text) is not None,
-                        "contract_tests_written": re.search(r"- \[([ x])\]", article_ix_text) is not None,
-                    }
-                # Extract Status
-                status_match = re.search(r"\*\*Status\*\*:\s*(PASS|FAIL)", constitution_text, re.IGNORECASE)
-                if status_match:
-                    plan_data["constitution_check"]["status"] = status_match.group(1).upper()
+                self._parse_plan_constitution_block(plan_data, constitution_match.group(1))
 
             # Extract Phases
             phase_pattern = r"^## Phase (-?\d+):\s*(.+?)\n(.*?)(?=\n## Phase|$)"
@@ -622,8 +550,7 @@ class SpecKitScanner:
             raise ValueError(f"Failed to parse plan.md: {e}") from e
 
     @beartype
-    @require(lambda tasks_file: tasks_file is not None, "Tasks file path must not be None")
-    @require(lambda tasks_file: tasks_file.suffix == ".md", "Tasks file must be markdown")
+    @require(_tasks_file_is_markdown, "Tasks file must be markdown")
     @ensure(
         lambda result: result is None or (isinstance(result, dict) and "tasks" in result),
         "Must return None or dict with tasks",
@@ -718,6 +645,49 @@ class SpecKitScanner:
         except Exception as e:
             raise ValueError(f"Failed to parse tasks.md: {e}") from e
 
+    def _parse_constitution_principles(self, content: str, memory_data: dict[str, Any]) -> None:
+        principle_pattern = r"###\s+(?:[IVX]+\.\s*)?(.+?)(?:\s*\(NON-NEGOTIABLE\))?\n\n(.*?)(?=\n###|\n##|$)"
+        for prin_match in re.finditer(principle_pattern, content, re.MULTILINE | re.DOTALL):
+            principle_name = prin_match.group(1).strip()
+            principle_content = prin_match.group(2).strip() if prin_match.group(2) else ""
+            if principle_name.startswith("["):
+                continue
+            rationale_match = re.search(
+                r"\*\*Rationale\*\*:\s*(.+?)(?=\n\n|\n###|\n##|$)", principle_content, re.DOTALL
+            )
+            rationale = rationale_match.group(1).strip() if rationale_match else ""
+            description = (
+                principle_content.split("**Rationale**")[0].strip()
+                if "**Rationale**" in principle_content
+                else principle_content
+            )
+            memory_data["principles"].append(
+                {"name": principle_name, "description": description, "rationale": rationale}
+            )
+
+    def _parse_constitution_governance_constraints(self, content: str, memory_data: dict[str, Any]) -> None:
+        governance_section = re.search(r"## Governance\n(.*?)(?=\n##|$)", content, re.MULTILINE | re.DOTALL)
+        if not governance_section:
+            return
+        constraint_pattern = r"- (.+?)(?=\n-|\n|$)"
+        for const_match in re.finditer(constraint_pattern, governance_section.group(1), re.MULTILINE):
+            const_text = const_match.group(1).strip()
+            if const_text and not const_text.startswith("["):
+                memory_data["constraints"].append(const_text)
+
+    def _parse_constitution_file(self, constitution_file: Path, memory_data: dict[str, Any]) -> None:
+        try:
+            content = constitution_file.read_text(encoding="utf-8")
+        except Exception:
+            return
+        memory_data["constitution"] = content
+        version_match = re.search(r"\*\*Version\*\*:\s*(\d+\.\d+\.\d+)", content, re.MULTILINE)
+        if version_match:
+            memory_data["version"] = version_match.group(1)
+        self._parse_constitution_principles(content, memory_data)
+        self._parse_constitution_governance_constraints(content, memory_data)
+
+    @ensure(lambda result: isinstance(result, dict), "Must return dict")
     def parse_memory_files(self, memory_dir: Path) -> dict[str, Any]:
         """
         Parse Spec-Kit memory files (constitution.md, etc.).
@@ -738,58 +708,9 @@ class SpecKitScanner:
         if not memory_dir.exists():
             return memory_data
 
-        # Parse constitution.md
         constitution_file = memory_dir / "constitution.md"
         if constitution_file.exists():
-            try:
-                content = constitution_file.read_text(encoding="utf-8")
-                memory_data["constitution"] = content
-
-                # Extract version
-                version_match = re.search(r"\*\*Version\*\*:\s*(\d+\.\d+\.\d+)", content, re.MULTILINE)
-                if version_match:
-                    memory_data["version"] = version_match.group(1)
-
-                # Extract principles (from "### I. Principle Name" or "### Principle Name" sections)
-                principle_pattern = r"###\s+(?:[IVX]+\.\s*)?(.+?)(?:\s*\(NON-NEGOTIABLE\))?\n\n(.*?)(?=\n###|\n##|$)"
-                principles = re.finditer(principle_pattern, content, re.MULTILINE | re.DOTALL)
-
-                for prin_match in principles:
-                    principle_name = prin_match.group(1).strip()
-                    principle_content = prin_match.group(2).strip() if prin_match.group(2) else ""
-                    # Skip placeholder principles
-                    if not principle_name.startswith("["):
-                        # Extract rationale if present
-                        rationale_match = re.search(
-                            r"\*\*Rationale\*\*:\s*(.+?)(?=\n\n|\n###|\n##|$)", principle_content, re.DOTALL
-                        )
-                        rationale = rationale_match.group(1).strip() if rationale_match else ""
-
-                        memory_data["principles"].append(
-                            {
-                                "name": principle_name,
-                                "description": (
-                                    principle_content.split("**Rationale**")[0].strip()
-                                    if "**Rationale**" in principle_content
-                                    else principle_content
-                                ),
-                                "rationale": rationale,
-                            }
-                        )
-
-                # Extract constraints from Governance section
-                governance_section = re.search(r"## Governance\n(.*?)(?=\n##|$)", content, re.MULTILINE | re.DOTALL)
-                if governance_section:
-                    # Look for constraint patterns
-                    constraint_pattern = r"- (.+?)(?=\n-|\n|$)"
-                    constraints = re.finditer(constraint_pattern, governance_section.group(1), re.MULTILINE)
-                    for const_match in constraints:
-                        const_text = const_match.group(1).strip()
-                        if const_text and not const_text.startswith("["):
-                            memory_data["constraints"].append(const_text)
-
-            except Exception:
-                # Non-fatal error - log but continue
-                pass
+            with suppress(Exception):
+                self._parse_constitution_file(constitution_file, memory_data)
 
         return memory_data

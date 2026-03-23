@@ -11,7 +11,7 @@ import ast
 import json
 import os
 import subprocess
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Any
 
@@ -73,7 +73,7 @@ class OpenAPITestConverter:
             return self._extract_examples_from_ast(test_files)
 
         # Extract unique test file paths
-        test_paths = set()
+        test_paths: set[Path] = set()
         for test_ref in test_files:
             file_path = test_ref.split("::")[0] if "::" in test_ref else test_ref
             test_paths.add(self.repo_path / file_path)
@@ -86,34 +86,47 @@ class OpenAPITestConverter:
             # No valid test files, fall back to AST
             return self._extract_examples_from_ast(test_files)
 
-        # Parallelize Semgrep calls for faster processing in production
-        max_workers = min(len(test_paths_list), 4)  # Cap at 4 workers for Semgrep (I/O bound)
+        examples.update(self._merge_semgrep_examples(test_paths_list))
+
+        if not examples:
+            examples = self._extract_examples_from_ast(test_files)
+
+        return examples
+
+    @staticmethod
+    def _cancel_pending_futures(future_to_path: dict[Future[Any], Path]) -> None:
+        for f in future_to_path:
+            if not f.done():
+                f.cancel()
+
+    def _collect_semgrep_results_from_futures(
+        self, future_to_path: dict[Future[Any], Path], examples: dict[str, Any]
+    ) -> bool:
+        try:
+            for future in as_completed(future_to_path):
+                test_path = future_to_path[future]
+                try:
+                    semgrep_results = future.result()
+                    file_examples = self._parse_semgrep_results(semgrep_results, test_path)
+                    examples.update(file_examples)
+                except KeyboardInterrupt:
+                    self._cancel_pending_futures(future_to_path)
+                    return True
+                except Exception:
+                    continue
+        except KeyboardInterrupt:
+            self._cancel_pending_futures(future_to_path)
+            return True
+        return False
+
+    def _merge_semgrep_examples(self, test_paths_list: list[Path]) -> dict[str, Any]:
+        examples: dict[str, Any] = {}
+        max_workers = min(len(test_paths_list), 4)
         executor = ThreadPoolExecutor(max_workers=max_workers)
         interrupted = False
         try:
             future_to_path = {executor.submit(self._run_semgrep, test_path): test_path for test_path in test_paths_list}
-
-            try:
-                for future in as_completed(future_to_path):
-                    test_path = future_to_path[future]
-                    try:
-                        semgrep_results = future.result()
-                        file_examples = self._parse_semgrep_results(semgrep_results, test_path)
-                        examples.update(file_examples)
-                    except KeyboardInterrupt:
-                        interrupted = True
-                        for f in future_to_path:
-                            if not f.done():
-                                f.cancel()
-                        break
-                    except Exception:
-                        # Fall back to AST if Semgrep fails for this file
-                        continue
-            except KeyboardInterrupt:
-                interrupted = True
-                for f in future_to_path:
-                    if not f.done():
-                        f.cancel()
+            interrupted = self._collect_semgrep_results_from_futures(future_to_path, examples)
             if interrupted:
                 raise KeyboardInterrupt
         except KeyboardInterrupt:
@@ -125,10 +138,6 @@ class OpenAPITestConverter:
                 executor.shutdown(wait=True)
             else:
                 executor.shutdown(wait=False)
-
-        # If Semgrep didn't find anything, fall back to AST
-        if not examples:
-            examples = self._extract_examples_from_ast(test_files)
 
         return examples
 
@@ -229,50 +238,82 @@ class OpenAPITestConverter:
 
         return None
 
+    def _extract_json_assertion(self, child: ast.AST) -> dict[str, Any] | None:
+        """
+        Extract a JSON-response example from an assert statement.
+
+        Args:
+            child: AST statement node to inspect
+
+        Returns:
+            Example dict if a ``response.json() == {...}`` assertion is found, else None
+        """
+        if not (isinstance(child, ast.Assert) and isinstance(child.test, ast.Compare)):
+            return None
+        left = child.test.left
+        if (
+            isinstance(left, ast.Call)
+            and isinstance(left.func, ast.Attribute)
+            and left.func.attr == "json"
+            and child.test.comparators
+        ):
+            expected = self._extract_ast_value(child.test.comparators[0])
+            if expected:
+                return {"operation_id": "unknown", "response": expected, "status_code": 200}
+        return None
+
+    def _extract_status_code_assertion(self, child: ast.AST) -> dict[str, Any] | None:
+        """
+        Extract a status-code example from a compare/call node.
+
+        Args:
+            child: AST statement node to inspect
+
+        Returns:
+            Example dict if a status_code comparison is found, else None
+        """
+        if (
+            isinstance(child, ast.Call)
+            and isinstance(child.func, ast.Attribute)
+            and child.func.attr == "status_code"
+            and isinstance(child, ast.Compare)
+            and child.comparators
+        ):
+            status_code = self._extract_ast_value(child.comparators[0])
+            if isinstance(status_code, int):
+                return {"operation_id": "unknown", "response": {}, "status_code": status_code}
+        return None
+
+    def _scan_function_for_response(self, func_node: ast.FunctionDef) -> dict[str, Any] | None:
+        """
+        Scan all child nodes of a function for response assertion patterns.
+
+        Args:
+            func_node: Function AST node to scan
+
+        Returns:
+            First matching response example dict, or None
+        """
+        for child in ast.walk(func_node):
+            result = self._extract_json_assertion(child)
+            if result:
+                return result
+            result = self._extract_status_code_assertion(child)
+            if result:
+                return result
+        return None
+
     @beartype
     @require(lambda tree: isinstance(tree, ast.AST), "Tree must be AST node")
     @require(lambda line: isinstance(line, int) and line > 0, "Line must be positive integer")
     @ensure(lambda result: result is None or isinstance(result, dict), "Must return None or dict")
     def _extract_response_example(self, tree: ast.AST, line: int) -> dict[str, Any] | None:
         """Extract response example from AST node near the specified line."""
-        # Find the function containing this line
         for node in ast.walk(tree):
             if isinstance(node, ast.FunctionDef) and node.lineno <= line <= (node.end_lineno or node.lineno):
-                # Look for response assertions
-                for child in ast.walk(node):
-                    if isinstance(child, ast.Assert) and isinstance(child.test, ast.Compare):
-                        # Check for response.json() or response.status_code
-                        left = child.test.left
-                        if (
-                            isinstance(left, ast.Call)
-                            and isinstance(left.func, ast.Attribute)
-                            and left.func.attr == "json"
-                            and child.test.comparators
-                        ):
-                            # Extract expected JSON response
-                            expected = self._extract_ast_value(child.test.comparators[0])
-                            if expected:
-                                return {
-                                    "operation_id": "unknown",
-                                    "response": expected,
-                                    "status_code": 200,
-                                }
-                    elif (
-                        isinstance(child, ast.Call)
-                        and isinstance(child.func, ast.Attribute)
-                        and child.func.attr == "status_code"
-                        and isinstance(child, ast.Compare)
-                        and child.comparators
-                    ):
-                        # Extract status code
-                        status_code = self._extract_ast_value(child.comparators[0])
-                        if isinstance(status_code, int):
-                            return {
-                                "operation_id": "unknown",
-                                "response": {},
-                                "status_code": status_code,
-                            }
-
+                result = self._scan_function_for_response(node)
+                if result:
+                    return result
         return None
 
     @beartype
@@ -373,6 +414,44 @@ class OpenAPITestConverter:
 
         return examples
 
+    def _apply_http_call_to_example(self, child: ast.Call, method_name: str, example: dict[str, Any]) -> None:
+        """
+        Update the example dict with request data extracted from an HTTP method call.
+
+        Args:
+            child: AST Call node for the HTTP method
+            method_name: HTTP method name (e.g. ``"post"``, ``"get"``)
+            example: Mutable example dict to update in place
+        """
+        path = self._extract_string_arg(child, 0)
+        data = self._extract_json_arg(child, "json") or self._extract_json_arg(child, "data")
+        if path:
+            operation_id = f"{method_name}_{path.replace('/', '_').replace('-', '_').strip('_')}"
+            example["operation_id"] = operation_id
+            example.setdefault("request", {})
+            example["request"].update({"path": path, "method": method_name.upper(), "body": data or {}})
+
+    def _apply_json_response_to_example(self, node: ast.FunctionDef, child: ast.Call, example: dict[str, Any]) -> None:
+        """
+        Scan the function for an assert that compares ``response.json()`` and update the example.
+
+        Args:
+            node: Parent function AST node to walk for sibling assertions
+            child: The ``response.json()`` call node
+            example: Mutable example dict to update in place
+        """
+        for sibling in ast.walk(node):
+            if (
+                isinstance(sibling, ast.Assert)
+                and isinstance(sibling.test, ast.Compare)
+                and sibling.test.left == child
+                and sibling.test.comparators
+            ):
+                expected = self._extract_ast_value(sibling.test.comparators[0])
+                if expected:
+                    example["response"] = expected
+                    example["status_code"] = 200
+
     @beartype
     @require(lambda node: isinstance(node, ast.FunctionDef), "Node must be FunctionDef")
     @ensure(lambda result: isinstance(result, dict), "Must return dict")
@@ -380,40 +459,13 @@ class OpenAPITestConverter:
         """Extract examples from a test function AST node."""
         example: dict[str, Any] = {}
 
-        # Look for HTTP requests and responses
         for child in ast.walk(node):
-            if isinstance(child, ast.Call) and isinstance(child.func, ast.Attribute):
-                method_name = child.func.attr
-                if method_name in ("post", "get", "put", "delete", "patch"):
-                    path = self._extract_string_arg(child, 0)
-                    data = self._extract_json_arg(child, "json") or self._extract_json_arg(child, "data")
-
-                    if path:
-                        operation_id = f"{method_name}_{path.replace('/', '_').replace('-', '_').strip('_')}"
-                        example["operation_id"] = operation_id
-                        if "request" not in example:
-                            example["request"] = {}
-                        example["request"].update(
-                            {
-                                "path": path,
-                                "method": method_name.upper(),
-                                "body": data or {},
-                            }
-                        )
-
-                # Look for response assertions
-                if method_name == "json" and isinstance(child.func.value, ast.Attribute):
-                    # response.json() == {...}
-                    for sibling in ast.walk(node):
-                        if (
-                            isinstance(sibling, ast.Assert)
-                            and isinstance(sibling.test, ast.Compare)
-                            and sibling.test.left == child
-                            and sibling.test.comparators
-                        ):
-                            expected = self._extract_ast_value(sibling.test.comparators[0])
-                            if expected:
-                                example["response"] = expected
-                                example["status_code"] = 200
+            if not (isinstance(child, ast.Call) and isinstance(child.func, ast.Attribute)):
+                continue
+            method_name = child.func.attr
+            if method_name in ("post", "get", "put", "delete", "patch"):
+                self._apply_http_call_to_example(child, method_name, example)
+            if method_name == "json" and isinstance(child.func.value, ast.Attribute):
+                self._apply_json_response_to_example(node, child, example)
 
         return example

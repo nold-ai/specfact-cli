@@ -67,126 +67,29 @@ class RelationshipMapper:
             with file_path.open(encoding="utf-8") as f:
                 tree = ast.parse(f.read(), filename=str(file_path))
 
-            file_imports: list[str] = []
-            file_dependencies: list[str] = []
-            file_interfaces: list[dict[str, Any]] = []
-            file_routes: list[dict[str, Any]] = []
+            rel_file = self._file_key(file_path)
+            file_imports = self._extract_imports_from_tree(tree)
+            file_interfaces = self._extract_interfaces_from_tree(tree, rel_file)
+            file_routes = self._extract_routes_from_tree(tree, rel_file)
 
-            for node in ast.walk(tree):
-                # Extract imports
-                if isinstance(node, ast.Import):
-                    for alias in node.names:
-                        file_imports.append(alias.name)
-                if isinstance(node, ast.ImportFrom) and node.module:
-                    file_imports.append(node.module)
+            # Register interfaces into shared state
+            for info in file_interfaces:
+                self.interfaces[info["name"]] = info
 
-                # Extract interface definitions (abstract classes, protocols)
-                if isinstance(node, ast.ClassDef):
-                    is_interface = False
-                    # Get relative path safely
-                    try:
-                        rel_file = str(file_path.relative_to(self.repo_path))
-                    except ValueError:
-                        rel_file = str(file_path)
-                    interface_info: dict[str, Any] = {
-                        "name": node.name,
-                        "file": rel_file,
-                        "methods": [],
-                        "base_classes": [],
-                    }
-
-                    # Check for abstract base class
-                    for base in node.bases:
-                        if isinstance(base, ast.Name):
-                            base_name = base.id
-                            interface_info["base_classes"].append(base_name)
-                            if base_name in ("ABC", "Protocol", "Interface"):
-                                is_interface = True
-
-                    # Check decorators for abstract methods
-                    for decorator in node.decorator_list:
-                        if isinstance(decorator, ast.Name) and decorator.id == "abstractmethod":
-                            is_interface = True
-
-                    if is_interface or any("Protocol" in b for b in interface_info["base_classes"]):
-                        # Extract methods
-                        for item in node.body:
-                            if isinstance(item, ast.FunctionDef):
-                                interface_info["methods"].append(item.name)
-                        file_interfaces.append(interface_info)
-                        self.interfaces[node.name] = interface_info
-
-                # Extract framework routes (FastAPI, Flask)
-                if isinstance(node, ast.FunctionDef):
-                    for decorator in node.decorator_list:
-                        if isinstance(decorator, ast.Call) and isinstance(decorator.func, ast.Attribute):
-                            # FastAPI: @app.get("/path") or @router.get("/path")
-                            if decorator.func.attr in ("get", "post", "put", "delete", "patch", "head", "options"):
-                                method = decorator.func.attr.upper()
-                                if decorator.args and isinstance(decorator.args[0], ast.Constant):
-                                    path = decorator.args[0].value
-                                    if isinstance(path, str):
-                                        # Get relative path safely
-                                        try:
-                                            rel_file = str(file_path.relative_to(self.repo_path))
-                                        except ValueError:
-                                            rel_file = str(file_path)
-                                        file_routes.append(
-                                            {
-                                                "method": method,
-                                                "path": path,
-                                                "function": node.name,
-                                                "file": rel_file,
-                                            }
-                                        )
-                            # Flask: @app.route("/path", methods=["GET"])
-                            elif decorator.func.attr == "route":
-                                if decorator.args and isinstance(decorator.args[0], ast.Constant):
-                                    path = decorator.args[0].value
-                                    if isinstance(path, str):
-                                        methods = ["GET"]  # Default
-                                        for kw in decorator.keywords:
-                                            if kw.arg == "methods" and isinstance(kw.value, ast.List):
-                                                methods = [
-                                                    elt.value.upper()
-                                                    for elt in kw.value.elts
-                                                    if isinstance(elt, ast.Constant) and isinstance(elt.value, str)
-                                                ]
-                                        for method in methods:
-                                            # Get relative path safely
-                                            try:
-                                                rel_file = str(file_path.relative_to(self.repo_path))
-                                            except ValueError:
-                                                rel_file = str(file_path)
-                                            file_routes.append(
-                                                {
-                                                    "method": method,
-                                                    "path": path,
-                                                    "function": node.name,
-                                                    "file": rel_file,
-                                                }
-                                            )
-
-            # Store relationships (use relative path if possible)
-            try:
-                file_key = str(file_path.relative_to(self.repo_path))
-            except ValueError:
-                file_key = str(file_path)
+            file_key = rel_file
             self.imports[file_key] = file_imports
-            self.dependencies[file_key] = file_dependencies
+            self.dependencies[file_key] = []
             self.framework_routes[file_key] = file_routes
 
             return {
                 "imports": file_imports,
-                "dependencies": file_dependencies,
+                "dependencies": [],
                 "interfaces": file_interfaces,
                 "routes": file_routes,
             }
 
         except (SyntaxError, UnicodeDecodeError):
-            # Skip files with syntax errors
-            result = {"imports": [], "dependencies": [], "interfaces": [], "routes": []}
-            # Cache the result even for errors to avoid re-processing
+            result: dict[str, Any] = {"imports": [], "dependencies": [], "interfaces": [], "routes": []}
             file_hash = self._compute_file_hash(file_path)
             if file_hash:
                 self.analysis_cache[file_hash] = result
@@ -223,6 +126,162 @@ class RelationshipMapper:
         except Exception:
             return ""
 
+    def _file_key(self, file_path: Path) -> str:
+        """Return a stable string key for a file (repo-relative if possible)."""
+        try:
+            return str(file_path.relative_to(self.repo_path))
+        except ValueError:
+            return str(file_path)
+
+    def _extract_imports_from_tree(self, tree: ast.AST) -> list[str]:
+        """
+        Walk an AST and collect all imported module names.
+
+        Args:
+            tree: Parsed AST
+
+        Returns:
+            List of imported module name strings
+        """
+        imports: list[str] = []
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    imports.append(alias.name)
+            elif isinstance(node, ast.ImportFrom) and node.module:
+                imports.append(node.module)
+        return imports
+
+    @staticmethod
+    def _class_def_interface_info(node: ast.ClassDef, rel_file: str) -> dict[str, Any] | None:
+        is_interface = False
+        base_classes: list[str] = []
+        for base in node.bases:
+            if isinstance(base, ast.Name):
+                base_classes.append(base.id)
+                if base.id in ("ABC", "Protocol", "Interface"):
+                    is_interface = True
+        for decorator in node.decorator_list:
+            if isinstance(decorator, ast.Name) and decorator.id == "abstractmethod":
+                is_interface = True
+        if not (is_interface or any("Protocol" in b for b in base_classes)):
+            return None
+        return {
+            "name": node.name,
+            "file": rel_file,
+            "methods": [item.name for item in node.body if isinstance(item, ast.FunctionDef)],
+            "base_classes": base_classes,
+        }
+
+    def _extract_interfaces_from_tree(self, tree: ast.AST, rel_file: str) -> list[dict[str, Any]]:
+        """
+        Walk an AST and collect interface (abstract class / Protocol) definitions.
+
+        Args:
+            tree: Parsed AST
+            rel_file: Repo-relative file path string for inclusion in results
+
+        Returns:
+            List of interface info dicts
+        """
+        interfaces: list[dict[str, Any]] = []
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.ClassDef):
+                continue
+            info = self._class_def_interface_info(node, rel_file)
+            if info:
+                interfaces.append(info)
+        return interfaces
+
+    def _extract_fastapi_route(
+        self, decorator: ast.Call, node: ast.FunctionDef, rel_file: str
+    ) -> dict[str, Any] | None:
+        """Return a route info dict for a FastAPI-style HTTP method decorator, or None if not applicable."""
+        if not (decorator.args and isinstance(decorator.args[0], ast.Constant)):
+            return None
+        path = decorator.args[0].value
+        if not isinstance(path, str):
+            return None
+        return {
+            "method": decorator.func.attr.upper(),  # type: ignore[union-attr]
+            "path": path,
+            "function": node.name,
+            "file": rel_file,
+        }
+
+    def _extract_flask_routes(self, decorator: ast.Call, node: ast.FunctionDef, rel_file: str) -> list[dict[str, Any]]:
+        """Return route info dicts for a Flask @route decorator (may expand to multiple HTTP methods)."""
+        if not (decorator.args and isinstance(decorator.args[0], ast.Constant)):
+            return []
+        path = decorator.args[0].value
+        if not isinstance(path, str):
+            return []
+        methods = ["GET"]
+        for kw in decorator.keywords:
+            if kw.arg == "methods" and isinstance(kw.value, ast.List):
+                methods = [
+                    elt.value.upper()
+                    for elt in kw.value.elts
+                    if isinstance(elt, ast.Constant) and isinstance(elt.value, str)
+                ]
+        return [{"method": method, "path": path, "function": node.name, "file": rel_file} for method in methods]
+
+    def _extract_routes_from_tree(self, tree: ast.AST, rel_file: str) -> list[dict[str, Any]]:
+        """
+        Walk an AST and collect FastAPI/Flask route decorator definitions.
+
+        Args:
+            tree: Parsed AST
+            rel_file: Repo-relative file path string for inclusion in results
+
+        Returns:
+            List of route info dicts with method, path, function, file keys
+        """
+        routes: list[dict[str, Any]] = []
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.FunctionDef):
+                continue
+            for decorator in node.decorator_list:
+                if not (isinstance(decorator, ast.Call) and isinstance(decorator.func, ast.Attribute)):
+                    continue
+                if decorator.func.attr in ("get", "post", "put", "delete", "patch", "head", "options"):
+                    route = self._extract_fastapi_route(decorator, node, rel_file)
+                    if route:
+                        routes.append(route)
+                elif decorator.func.attr == "route":
+                    routes.extend(self._extract_flask_routes(decorator, node, rel_file))
+        return routes
+
+    def _analyze_file_parallel_cached_ast(
+        self,
+        file_path: Path,
+        file_key: str,
+        file_hash: str,
+        tree: ast.AST,
+    ) -> tuple[str, dict[str, Any]]:
+        rel_file = self._file_key(file_path)
+        interfaces_list = self._extract_interfaces_from_tree(tree, rel_file)
+        result: dict[str, Any] = {
+            "imports": self._extract_imports_from_tree(tree),
+            "dependencies": [],
+            "interfaces": {info["name"]: info for info in interfaces_list},
+            "routes": self._extract_routes_from_tree(tree, rel_file),
+        }
+        if file_hash:
+            self.analysis_cache[file_hash] = result
+        return (file_key, result)
+
+    def _analyze_file_parallel_large_body(self, tree: ast.AST, file_hash: str) -> dict[str, Any]:
+        result = {
+            "imports": self._extract_imports_from_tree(tree),
+            "dependencies": [],
+            "interfaces": {},
+            "routes": [],
+        }
+        if file_hash:
+            self.analysis_cache[file_hash] = result
+        return result
+
     def _analyze_file_parallel(self, file_path: Path) -> tuple[str, dict[str, Any]]:
         """
         Analyze a single file for relationships (thread-safe version with caching).
@@ -233,190 +292,78 @@ class RelationshipMapper:
         Returns:
             Tuple of (file_key, relationships_dict)
         """
-        # Get file key
-        try:
-            file_key = str(file_path.relative_to(self.repo_path))
-        except ValueError:
-            file_key = str(file_path)
-
-        # Compute file hash for caching
+        file_key = self._file_key(file_path)
         file_hash = self._compute_file_hash(file_path)
 
-        # Check if we have cached analysis result for this file hash
         if file_hash and file_hash in self.analysis_cache:
             return (file_key, self.analysis_cache[file_hash])
 
-        # Skip very large files early (>500KB) to speed up processing
+        empty_result: dict[str, Any] = {"imports": [], "dependencies": [], "interfaces": {}, "routes": []}
+
+        # Skip very large files (>500KB)
         try:
-            file_size = file_path.stat().st_size
-            if file_size > 500 * 1024:  # 500KB
-                result = {"imports": [], "dependencies": [], "interfaces": {}, "routes": []}
+            if file_path.stat().st_size > 500 * 1024:
                 if file_hash:
-                    self.analysis_cache[file_hash] = result
-                return (file_key, result)
+                    self.analysis_cache[file_hash] = empty_result
+                return (file_key, empty_result)
         except Exception:
             pass
 
         try:
-            # Check if we have cached AST
             if file_key in self.ast_cache:
                 tree = self.ast_cache[file_key]
             else:
-                with file_path.open(encoding="utf-8") as f:
-                    content = f.read()
-                    # For large files (>100KB), only extract imports (faster)
-                    if len(content) > 100 * 1024:  # ~100KB
-                        tree = ast.parse(content, filename=str(file_path))
-                        large_file_imports: list[str] = []
-                        for node in ast.walk(tree):
-                            if isinstance(node, ast.Import):
-                                for alias in node.names:
-                                    large_file_imports.append(alias.name)
-                            if isinstance(node, ast.ImportFrom) and node.module:
-                                large_file_imports.append(node.module)
-                        result = {"imports": large_file_imports, "dependencies": [], "interfaces": {}, "routes": []}
-                        if file_hash:
-                            self.analysis_cache[file_hash] = result
-                        return (file_key, result)
+                content = file_path.read_text(encoding="utf-8")
+                tree = ast.parse(content, filename=str(file_path))
+                # For large files (>100KB), only extract imports
+                if len(content) > 100 * 1024:
+                    return (file_key, self._analyze_file_parallel_large_body(tree, file_hash))
+                self.ast_cache[file_key] = tree
 
-                    tree = ast.parse(content, filename=str(file_path))
-                    # Cache AST for future use
-                    self.ast_cache[file_key] = tree
-
-            file_imports: list[str] = []
-            file_dependencies: list[str] = []
-            file_interfaces: list[dict[str, Any]] = []
-            file_routes: list[dict[str, Any]] = []
-
-            for node in ast.walk(tree):
-                # Extract imports
-                if isinstance(node, ast.Import):
-                    for alias in node.names:
-                        file_imports.append(alias.name)
-                if isinstance(node, ast.ImportFrom) and node.module:
-                    file_imports.append(node.module)
-
-                # Extract interface definitions (abstract classes, protocols)
-                if isinstance(node, ast.ClassDef):
-                    is_interface = False
-                    # Get relative path safely
-                    try:
-                        rel_file = str(file_path.relative_to(self.repo_path))
-                    except ValueError:
-                        rel_file = str(file_path)
-                    interface_info: dict[str, Any] = {
-                        "name": node.name,
-                        "file": rel_file,
-                        "methods": [],
-                        "base_classes": [],
-                    }
-
-                    # Check for abstract base class
-                    for base in node.bases:
-                        if isinstance(base, ast.Name):
-                            base_name = base.id
-                            interface_info["base_classes"].append(base_name)
-                            if base_name in ("ABC", "Protocol", "Interface"):
-                                is_interface = True
-
-                    # Check decorators for abstract methods
-                    for decorator in node.decorator_list:
-                        if isinstance(decorator, ast.Name) and decorator.id == "abstractmethod":
-                            is_interface = True
-
-                    if is_interface or any("Protocol" in b for b in interface_info["base_classes"]):
-                        # Extract methods
-                        for item in node.body:
-                            if isinstance(item, ast.FunctionDef):
-                                interface_info["methods"].append(item.name)
-                        file_interfaces.append(interface_info)
-
-                # Extract framework routes (FastAPI, Flask)
-                if isinstance(node, ast.FunctionDef):
-                    for decorator in node.decorator_list:
-                        if isinstance(decorator, ast.Call) and isinstance(decorator.func, ast.Attribute):
-                            # FastAPI: @app.get("/path") or @router.get("/path")
-                            if decorator.func.attr in ("get", "post", "put", "delete", "patch", "head", "options"):
-                                method = decorator.func.attr.upper()
-                                if decorator.args and isinstance(decorator.args[0], ast.Constant):
-                                    path = decorator.args[0].value
-                                    if isinstance(path, str):
-                                        # Get relative path safely
-                                        try:
-                                            rel_file = str(file_path.relative_to(self.repo_path))
-                                        except ValueError:
-                                            rel_file = str(file_path)
-                                        file_routes.append(
-                                            {
-                                                "method": method,
-                                                "path": path,
-                                                "function": node.name,
-                                                "file": rel_file,
-                                            }
-                                        )
-                            # Flask: @app.route("/path", methods=["GET"])
-                            elif decorator.func.attr == "route":
-                                if decorator.args and isinstance(decorator.args[0], ast.Constant):
-                                    path = decorator.args[0].value
-                                    if isinstance(path, str):
-                                        methods = ["GET"]  # Default
-                                        for kw in decorator.keywords:
-                                            if kw.arg == "methods" and isinstance(kw.value, ast.List):
-                                                methods = [
-                                                    elt.value.upper()
-                                                    for elt in kw.value.elts
-                                                    if isinstance(elt, ast.Constant) and isinstance(elt.value, str)
-                                                ]
-                                        for method in methods:
-                                            # Get relative path safely
-                                            try:
-                                                rel_file = str(file_path.relative_to(self.repo_path))
-                                            except ValueError:
-                                                rel_file = str(file_path)
-                                            file_routes.append(
-                                                {
-                                                    "method": method,
-                                                    "path": path,
-                                                    "function": node.name,
-                                                    "file": rel_file,
-                                                }
-                                            )
-
-            # Get file key (use relative path if possible)
-            try:
-                file_key = str(file_path.relative_to(self.repo_path))
-            except ValueError:
-                file_key = str(file_path)
-
-            # Build interfaces dict (interface_name -> interface_info)
-            interfaces_dict: dict[str, dict[str, Any]] = {}
-            for interface_info in file_interfaces:
-                interfaces_dict[interface_info["name"]] = interface_info
-
-            result = {
-                "imports": file_imports,
-                "dependencies": file_dependencies,
-                "interfaces": interfaces_dict,
-                "routes": file_routes,
-            }
-
-            # Cache result for future use (keyed by file hash)
-            if file_hash:
-                self.analysis_cache[file_hash] = result
-
-            return (file_key, result)
+            return self._analyze_file_parallel_cached_ast(file_path, file_key, file_hash, tree)
 
         except (SyntaxError, UnicodeDecodeError):
-            # Skip files with syntax errors
-            try:
-                file_key = str(file_path.relative_to(self.repo_path))
-            except ValueError:
-                file_key = str(file_path)
-            result = {"imports": [], "dependencies": [], "interfaces": {}, "routes": []}
-            # Cache result for syntax errors to avoid re-processing
             if file_hash:
-                self.analysis_cache[file_hash] = result
-            return (file_key, result)
+                self.analysis_cache[file_hash] = empty_result
+            return (self._file_key(file_path), empty_result)
+
+    def _merge_file_result(self, file_key: str, result: dict[str, Any]) -> None:
+        """Merge a single file's analysis result into instance state."""
+        self.imports[file_key] = result["imports"]
+        self.dependencies[file_key] = result["dependencies"]
+        for interface_name, interface_info in result["interfaces"].items():
+            self.interfaces[interface_name] = interface_info
+        if result["routes"]:
+            self.framework_routes[file_key] = result["routes"]
+
+    def _collect_parallel_results(
+        self,
+        future_to_file: dict[Any, Path],
+        python_files: list[Path],
+        progress_callback: Any | None,
+    ) -> None:
+        """Drain completed futures, merging results; raises KeyboardInterrupt if interrupted."""
+        completed_count = 0
+        try:
+            for future in as_completed(future_to_file):
+                try:
+                    file_key, result = future.result()
+                    self._merge_file_result(file_key, result)
+                except KeyboardInterrupt:
+                    for f in future_to_file:
+                        if not f.done():
+                            f.cancel()
+                    raise
+                except Exception:
+                    pass
+                completed_count += 1
+                if progress_callback:
+                    progress_callback(completed_count, len(python_files))
+        except KeyboardInterrupt:
+            for f in future_to_file:
+                if not f.done():
+                    f.cancel()
+            raise
 
     @beartype
     @require(lambda file_paths: isinstance(file_paths, list), "File paths must be list")
@@ -432,69 +379,22 @@ class RelationshipMapper:
         Returns:
             Dictionary with all relationships
         """
-        # Filter Python files
         python_files = [f for f in file_paths if f.suffix == ".py"]
 
         if not python_files:
-            return {
-                "imports": {},
-                "dependencies": {},
-                "interfaces": {},
-                "routes": {},
-            }
+            return {"imports": {}, "dependencies": {}, "interfaces": {}, "routes": {}}
 
-        # Use ThreadPoolExecutor for parallel processing
-        # In test mode, use fewer workers to avoid resource contention
         if os.environ.get("TEST_MODE") == "true":
-            max_workers = max(1, min(2, len(python_files)))  # Max 2 workers in test mode
+            max_workers = max(1, min(2, len(python_files)))
         else:
-            max_workers = min(os.cpu_count() or 4, 16, len(python_files))  # Cap at 16 workers for faster processing
+            max_workers = min(os.cpu_count() or 4, 16, len(python_files))
 
+        wait_on_shutdown = os.environ.get("TEST_MODE") != "true"
         executor = ThreadPoolExecutor(max_workers=max_workers)
         interrupted = False
-        # In test mode, use wait=False to avoid hanging on shutdown
-        wait_on_shutdown = os.environ.get("TEST_MODE") != "true"
-        completed_count = 0
         try:
-            # Submit all tasks
             future_to_file = {executor.submit(self._analyze_file_parallel, f): f for f in python_files}
-
-            # Collect results as they complete
-            try:
-                for future in as_completed(future_to_file):
-                    try:
-                        file_key, result = future.result()
-                        # Merge results into instance variables
-                        self.imports[file_key] = result["imports"]
-                        self.dependencies[file_key] = result["dependencies"]
-                        # Merge interfaces
-                        for interface_name, interface_info in result["interfaces"].items():
-                            self.interfaces[interface_name] = interface_info
-                        # Update progress
-                        completed_count += 1
-                        if progress_callback:
-                            progress_callback(completed_count, len(python_files))
-                        # Store routes
-                        if result["routes"]:
-                            self.framework_routes[file_key] = result["routes"]
-                    except KeyboardInterrupt:
-                        interrupted = True
-                        for f in future_to_file:
-                            if not f.done():
-                                f.cancel()
-                        break
-                    except Exception:
-                        # Skip files that fail to process
-                        completed_count += 1
-                        if progress_callback:
-                            progress_callback(completed_count, len(python_files))
-            except KeyboardInterrupt:
-                interrupted = True
-                for f in future_to_file:
-                    if not f.done():
-                        f.cancel()
-            if interrupted:
-                raise KeyboardInterrupt
+            self._collect_parallel_results(future_to_file, python_files, progress_callback)
         except KeyboardInterrupt:
             interrupted = True
             executor.shutdown(wait=False, cancel_futures=True)

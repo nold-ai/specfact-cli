@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from beartype import beartype
-from icontract import ensure
+from icontract import ensure, require
 from rich.console import Console
 from rich.progress import Progress
 
@@ -56,6 +56,140 @@ def _should_use_progress(console: Console) -> bool:
     return True
 
 
+def _setup_sidecar_venv(config: SidecarConfig, results: dict[str, Any]) -> None:
+    """
+    Create sidecar virtual environment, install dependencies, and update config paths in-place.
+
+    Args:
+        config: Sidecar configuration (mutated: pythonpath and python_cmd updated)
+        results: Results dict to record venv creation outcome (mutated in-place)
+    """
+    sidecar_venv_path = config.paths.sidecar_venv_path
+    if not sidecar_venv_path.is_absolute():
+        sidecar_venv_path = config.repo_path / sidecar_venv_path
+
+    venv_created = create_sidecar_venv(sidecar_venv_path, config.repo_path)
+    results["sidecar_venv_created"] = venv_created
+    if not venv_created:
+        results["dependencies_installed"] = False
+        return
+
+    deps_installed = install_dependencies(sidecar_venv_path, config.repo_path, config.framework_type)
+    results["dependencies_installed"] = deps_installed
+
+    if sys.platform == "win32":
+        site_packages = sidecar_venv_path / "Lib" / "site-packages"
+    else:
+        python_dirs = list(sidecar_venv_path.glob("lib/python*/site-packages"))
+        site_packages = python_dirs[0] if python_dirs else sidecar_venv_path / "lib" / "python3." / "site-packages"
+
+    if site_packages.exists():
+        config.pythonpath = f"{site_packages}:{config.pythonpath}" if config.pythonpath else str(site_packages)
+
+    venv_python = (
+        sidecar_venv_path / "Scripts" / "python.exe"
+        if sys.platform == "win32"
+        else sidecar_venv_path / "bin" / "python"
+    )
+    if venv_python.exists():
+        config.python_cmd = str(venv_python)
+
+
+def _run_crosshair_phase(config: SidecarConfig, results: dict[str, Any]) -> None:
+    """
+    Run the CrossHair harness generation and analysis phases, updating results in-place.
+
+    Args:
+        config: Sidecar configuration
+        results: Results dict to populate (mutated in-place)
+    """
+    if not (config.tools.run_crosshair and config.paths.contracts_dir.exists()):
+        return
+    harness_generated = generate_harness(config.paths.contracts_dir, config.paths.harness_path, config.repo_path)
+    results["harness_generated"] = harness_generated
+    if harness_generated and results.get("unannotated_functions"):
+        results["harness_for_unannotated"] = True
+    if not harness_generated:
+        return
+    crosshair_result = run_crosshair(
+        config.paths.harness_path,
+        timeout=config.timeouts.crosshair,
+        pythonpath=config.pythonpath,
+        verbose=config.crosshair.verbose,
+        repo_path=config.repo_path,
+        inputs_path=config.paths.inputs_path if config.crosshair.use_deterministic_inputs else None,
+        per_path_timeout=config.timeouts.crosshair_per_path,
+        per_condition_timeout=config.timeouts.crosshair_per_condition,
+        python_cmd=config.python_cmd,
+    )
+    results["crosshair_results"]["harness"] = crosshair_result
+    if crosshair_result.get("stdout") or crosshair_result.get("stderr"):
+        summary = parse_crosshair_output(
+            crosshair_result.get("stdout", ""),
+            crosshair_result.get("stderr", ""),
+        )
+        results["crosshair_summary"] = summary
+        results["crosshair_summary_file"] = str(generate_summary_file(summary, config.paths.reports_dir))
+
+
+def _run_specmatic_phase(config: SidecarConfig, results: dict[str, Any], display_console: Console) -> None:
+    """
+    Run the Specmatic validation phase, skipping automatically if no service is configured.
+
+    Args:
+        config: Sidecar configuration (run_specmatic flag may be mutated)
+        results: Results dict to populate (mutated in-place)
+        display_console: Console for skip-warning output
+    """
+    if not (config.tools.run_specmatic and config.paths.contracts_dir.exists()):
+        return
+    if not has_service_configuration(config.specmatic, config.app):
+        display_console.print(
+            "[yellow]⚠[/yellow] Skipping Specmatic: No service configuration detected (use --run-specmatic to override)"
+        )
+        config.tools.run_specmatic = False
+        results["specmatic_skipped"] = True
+        results["specmatic_skip_reason"] = "No service configuration detected"
+        return
+    contract_files = list(config.paths.contracts_dir.glob("*.yaml")) + list(config.paths.contracts_dir.glob("*.yml"))
+    for contract_file in contract_files:
+        results["specmatic_results"][contract_file.name] = run_specmatic(
+            contract_file,
+            base_url=config.specmatic.test_base_url,
+            timeout=config.timeouts.specmatic,
+            repo_path=config.repo_path,
+        )
+
+
+def _run_all_phases(config: SidecarConfig, results: dict[str, Any], display_console: Console) -> None:
+    """
+    Execute all six sidecar validation phases, updating results and config in-place.
+
+    Args:
+        config: Sidecar configuration (mutated during venv setup)
+        results: Results dict populated with phase outcomes
+        display_console: Console for user-facing messages
+    """
+    if config.framework_type is None:
+        config.framework_type = detect_framework(config.repo_path)
+    results["framework_detected"] = config.framework_type
+
+    _setup_sidecar_venv(config, results)
+
+    extractor = get_extractor(config.framework_type)
+    routes: list[Any] = []
+    schemas: dict[str, dict[str, Any]] = {}
+    if extractor:
+        routes = extractor.extract_routes(config.repo_path)
+        schemas = extractor.extract_schemas(config.repo_path, routes)
+        results["routes_extracted"] = len(routes)
+        if config.paths.contracts_dir.exists():
+            results["contracts_populated"] = populate_contracts(config.paths.contracts_dir, routes, schemas)
+
+    _run_crosshair_phase(config, results)
+    _run_specmatic_phase(config, results, display_console)
+
+
 @ensure(lambda result: isinstance(result, dict), "Must return dict")
 def run_sidecar_validation(
     config: SidecarConfig,
@@ -93,54 +227,19 @@ def run_sidecar_validation(
             with Progress(*progress_columns, console=display_console, **progress_kwargs) as progress:
                 task = progress.add_task("[cyan]Running sidecar validation...", total=7)
 
-                # Phase 1: Detect framework
-                progress.update(task, description="[cyan]Detecting framework...")
+                def _advance(description: str) -> None:
+                    progress.update(task, description=description)
+                    progress.advance(task)
+
+                _advance("[cyan]Detecting framework...")
                 if config.framework_type is None:
-                    framework_type = detect_framework(config.repo_path)
-                    config.framework_type = framework_type
+                    config.framework_type = detect_framework(config.repo_path)
                 results["framework_detected"] = config.framework_type
-                progress.advance(task)
 
-                # Phase 1.5: Setup sidecar venv and install dependencies
-                progress.update(task, description="[cyan]Setting up sidecar environment...")
-                sidecar_venv_path = config.paths.sidecar_venv_path
-                if not sidecar_venv_path.is_absolute():
-                    sidecar_venv_path = config.repo_path / sidecar_venv_path
+                _advance("[cyan]Setting up sidecar environment...")
+                _setup_sidecar_venv(config, results)
 
-                venv_created = create_sidecar_venv(sidecar_venv_path, config.repo_path)
-                if venv_created:
-                    deps_installed = install_dependencies(sidecar_venv_path, config.repo_path, config.framework_type)
-                    results["sidecar_venv_created"] = venv_created
-                    results["dependencies_installed"] = deps_installed
-                    # Update pythonpath to include sidecar venv
-                    if sys.platform == "win32":
-                        site_packages = sidecar_venv_path / "Lib" / "site-packages"
-                    else:
-                        python_dirs = list(sidecar_venv_path.glob("lib/python*/site-packages"))
-                        if python_dirs:
-                            site_packages = python_dirs[0]
-                        else:
-                            site_packages = sidecar_venv_path / "lib" / "python3." / "site-packages"
-
-                    if site_packages.exists():
-                        if config.pythonpath:
-                            config.pythonpath = f"{site_packages}:{config.pythonpath}"
-                        else:
-                            config.pythonpath = str(site_packages)
-                    # Update python_cmd to use venv python
-                    if sys.platform == "win32":
-                        venv_python = sidecar_venv_path / "Scripts" / "python.exe"
-                    else:
-                        venv_python = sidecar_venv_path / "bin" / "python"
-                    if venv_python.exists():
-                        config.python_cmd = str(venv_python)
-                else:
-                    results["sidecar_venv_created"] = False
-                    results["dependencies_installed"] = False
-                progress.advance(task)
-
-                # Phase 2: Extract routes
-                progress.update(task, description="[cyan]Extracting routes...")
+                _advance("[cyan]Extracting routes...")
                 extractor = get_extractor(config.framework_type)
                 routes: list[Any] = []
                 schemas: dict[str, dict[str, Any]] = {}
@@ -148,208 +247,31 @@ def run_sidecar_validation(
                     routes = extractor.extract_routes(config.repo_path)
                     schemas = extractor.extract_schemas(config.repo_path, routes)
                     results["routes_extracted"] = len(routes)
-                progress.advance(task)
 
-                # Phase 3: Populate contracts
-                progress.update(task, description="[cyan]Populating contracts...")
+                _advance("[cyan]Populating contracts...")
                 if extractor and config.paths.contracts_dir.exists():
-                    populated = populate_contracts(config.paths.contracts_dir, routes, schemas)
-                    results["contracts_populated"] = populated
+                    results["contracts_populated"] = populate_contracts(config.paths.contracts_dir, routes, schemas)
+
+                _advance("[cyan]Generating harness...")
+                _run_crosshair_phase(config, results)
+
+                progress.update(task, description="[cyan]Running CrossHair analysis...")
                 progress.advance(task)
 
-                # Phase 4: Generate harness
-                progress.update(task, description="[cyan]Generating harness...")
-                if config.tools.run_crosshair and config.paths.contracts_dir.exists():
-                    harness_generated = generate_harness(
-                        config.paths.contracts_dir, config.paths.harness_path, config.repo_path
-                    )
-                    results["harness_generated"] = harness_generated
-
-                    # If harness was generated, check for unannotated code (for repro integration)
-                    if harness_generated and results.get("unannotated_functions"):
-                        results["harness_for_unannotated"] = True
-                progress.advance(task)
-
-                # Phase 5: Run CrossHair
-                if config.tools.run_crosshair and results.get("harness_generated"):
-                    progress.update(task, description="[cyan]Running CrossHair analysis...")
-                    crosshair_result = run_crosshair(
-                        config.paths.harness_path,
-                        timeout=config.timeouts.crosshair,
-                        pythonpath=config.pythonpath,
-                        verbose=config.crosshair.verbose,
-                        repo_path=config.repo_path,
-                        inputs_path=config.paths.inputs_path if config.crosshair.use_deterministic_inputs else None,
-                        per_path_timeout=config.timeouts.crosshair_per_path,
-                        per_condition_timeout=config.timeouts.crosshair_per_condition,
-                        python_cmd=config.python_cmd,
-                    )
-                    results["crosshair_results"]["harness"] = crosshair_result
-
-                    # Parse CrossHair output for summary
-                    if crosshair_result.get("stdout") or crosshair_result.get("stderr"):
-                        summary = parse_crosshair_output(
-                            crosshair_result.get("stdout", ""),
-                            crosshair_result.get("stderr", ""),
-                        )
-                        results["crosshair_summary"] = summary
-
-                        # Generate summary file
-                        summary_file = generate_summary_file(
-                            summary,
-                            config.paths.reports_dir,
-                        )
-                        results["crosshair_summary_file"] = str(summary_file)
-                progress.advance(task)
-
-                # Phase 6: Run Specmatic (with auto-skip detection)
-                if config.tools.run_specmatic and config.paths.contracts_dir.exists():
-                    # Check if service configuration is available
-                    has_service = has_service_configuration(config.specmatic, config.app)
-                    if not has_service:
-                        # Auto-skip Specmatic when no service configuration detected
-                        display_console.print(
-                            "[yellow]⚠[/yellow] Skipping Specmatic: No service configuration detected "
-                            "(use --run-specmatic to override)"
-                        )
-                        config.tools.run_specmatic = False
-                        results["specmatic_skipped"] = True
-                        results["specmatic_skip_reason"] = "No service configuration detected"
-                    else:
-                        progress.update(task, description="[cyan]Running Specmatic validation...")
-                        contract_files = list(config.paths.contracts_dir.glob("*.yaml")) + list(
-                            config.paths.contracts_dir.glob("*.yml")
-                        )
-                        for contract_file in contract_files:
-                            specmatic_result = run_specmatic(
-                                contract_file,
-                                base_url=config.specmatic.test_base_url,
-                                timeout=config.timeouts.specmatic,
-                                repo_path=config.repo_path,
-                            )
-                            results["specmatic_results"][contract_file.name] = specmatic_result
+                _run_specmatic_phase(config, results, display_console)
                 progress.update(task, completed=7, description="[green]✓ Validation complete")
+            return results
         except Exception:
-            # Fall back to non-progress execution if Progress fails
             use_progress = False
 
     if not use_progress:
-        # Non-progress execution path
-        if config.framework_type is None:
-            framework_type = detect_framework(config.repo_path)
-            config.framework_type = framework_type
-        results["framework_detected"] = config.framework_type
-
-        # Setup sidecar venv and install dependencies
-        sidecar_venv_path = config.paths.sidecar_venv_path
-        if not sidecar_venv_path.is_absolute():
-            sidecar_venv_path = config.repo_path / sidecar_venv_path
-
-        venv_created = create_sidecar_venv(sidecar_venv_path, config.repo_path)
-        if venv_created:
-            deps_installed = install_dependencies(sidecar_venv_path, config.repo_path, config.framework_type)
-            results["sidecar_venv_created"] = venv_created
-            results["dependencies_installed"] = deps_installed
-            # Update pythonpath to include sidecar venv
-            if sys.platform == "win32":
-                site_packages = sidecar_venv_path / "Lib" / "site-packages"
-            else:
-                python_dirs = list(sidecar_venv_path.glob("lib/python*/site-packages"))
-                if python_dirs:
-                    site_packages = python_dirs[0]
-                else:
-                    site_packages = sidecar_venv_path / "lib" / "python3." / "site-packages"
-
-            if site_packages.exists():
-                if config.pythonpath:
-                    config.pythonpath = f"{site_packages}:{config.pythonpath}"
-                else:
-                    config.pythonpath = str(site_packages)
-            # Update python_cmd to use venv python
-            if sys.platform == "win32":
-                venv_python = sidecar_venv_path / "Scripts" / "python.exe"
-            else:
-                venv_python = sidecar_venv_path / "bin" / "python"
-            if venv_python.exists():
-                config.python_cmd = str(venv_python)
-        else:
-            results["sidecar_venv_created"] = False
-            results["dependencies_installed"] = False
-
-        extractor = get_extractor(config.framework_type)
-        if extractor:
-            routes = extractor.extract_routes(config.repo_path)
-            schemas = extractor.extract_schemas(config.repo_path, routes)
-            results["routes_extracted"] = len(routes)
-
-            if config.paths.contracts_dir.exists():
-                populated = populate_contracts(config.paths.contracts_dir, routes, schemas)
-                results["contracts_populated"] = populated
-
-            if config.tools.run_crosshair and config.paths.contracts_dir.exists():
-                harness_generated = generate_harness(
-                    config.paths.contracts_dir, config.paths.harness_path, config.repo_path
-                )
-                results["harness_generated"] = harness_generated
-
-                if harness_generated:
-                    crosshair_result = run_crosshair(
-                        config.paths.harness_path,
-                        timeout=config.timeouts.crosshair,
-                        pythonpath=config.pythonpath,
-                        verbose=config.crosshair.verbose,
-                        repo_path=config.repo_path,
-                        inputs_path=config.paths.inputs_path if config.crosshair.use_deterministic_inputs else None,
-                        per_path_timeout=config.timeouts.crosshair_per_path,
-                        per_condition_timeout=config.timeouts.crosshair_per_condition,
-                        python_cmd=config.python_cmd,
-                    )
-                    results["crosshair_results"]["harness"] = crosshair_result
-
-                    # Parse CrossHair output for summary
-                    if crosshair_result.get("stdout") or crosshair_result.get("stderr"):
-                        summary = parse_crosshair_output(
-                            crosshair_result.get("stdout", ""),
-                            crosshair_result.get("stderr", ""),
-                        )
-                        results["crosshair_summary"] = summary
-
-                        # Generate summary file
-                        summary_file = generate_summary_file(
-                            summary,
-                            config.paths.reports_dir,
-                        )
-                        results["crosshair_summary_file"] = str(summary_file)
-
-            if config.tools.run_specmatic and config.paths.contracts_dir.exists():
-                # Check if service configuration is available
-                has_service = has_service_configuration(config.specmatic, config.app)
-                if not has_service:
-                    # Auto-skip Specmatic when no service configuration detected
-                    display_console.print(
-                        "[yellow]⚠[/yellow] Skipping Specmatic: No service configuration detected "
-                        "(use --run-specmatic to override)"
-                    )
-                    config.tools.run_specmatic = False
-                    results["specmatic_skipped"] = True
-                    results["specmatic_skip_reason"] = "No service configuration detected"
-                else:
-                    contract_files = list(config.paths.contracts_dir.glob("*.yaml")) + list(
-                        config.paths.contracts_dir.glob("*.yml")
-                    )
-                    for contract_file in contract_files:
-                        specmatic_result = run_specmatic(
-                            contract_file,
-                            base_url=config.specmatic.test_base_url,
-                            timeout=config.timeouts.specmatic,
-                            repo_path=config.repo_path,
-                        )
-                        results["specmatic_results"][contract_file.name] = specmatic_result
+        _run_all_phases(config, results, display_console)
 
     return results
 
 
 @beartype
+@require(lambda framework_type: isinstance(framework_type, FrameworkType), "framework_type must be a FrameworkType")
 def get_extractor(
     framework_type: FrameworkType,
 ) -> DjangoExtractor | FastAPIExtractor | DRFExtractor | FlaskExtractor | None:
@@ -371,6 +293,21 @@ def get_extractor(
     if framework_type == FrameworkType.FLASK:
         return FlaskExtractor()
     return None
+
+
+def _detect_repo_venv_python(repo_path: Path) -> str | None:
+    for rel in (".venv/bin/python", "venv/bin/python"):
+        candidate = repo_path / rel
+        if candidate.exists():
+            return str(candidate)
+    return None
+
+
+def _prepend_venv_site_packages(pythonpath_parts: list[str], venv_python: str) -> None:
+    venv_dir = Path(venv_python).parent.parent
+    site_dirs = list(venv_dir.glob("lib/python*/site-packages"))
+    if site_dirs:
+        pythonpath_parts.append(str(site_dirs[0]))
 
 
 @ensure(lambda result: isinstance(result, bool), "Must return bool")
@@ -398,13 +335,7 @@ def initialize_sidecar_workspace(config: SidecarConfig) -> bool:
     # Detect environment manager and set Python command/path
     env_info = detect_env_manager(config.repo_path)
 
-    # Set Python command based on detected environment
-    # Check for .venv or venv first
-    venv_python = None
-    if (config.repo_path / ".venv" / "bin" / "python").exists():
-        venv_python = str(config.repo_path / ".venv" / "bin" / "python")
-    elif (config.repo_path / "venv" / "bin" / "python").exists():
-        venv_python = str(config.repo_path / "venv" / "bin" / "python")
+    venv_python = _detect_repo_venv_python(config.repo_path)
 
     if venv_python:
         config.python_cmd = venv_python
@@ -414,15 +345,10 @@ def initialize_sidecar_workspace(config: SidecarConfig) -> bool:
         config.python_cmd = "python3"  # Will be prefixed with env manager
 
     # Set PYTHONPATH based on detected environment
-    pythonpath_parts = []
+    pythonpath_parts: list[str] = []
 
-    # Add venv site-packages if venv exists
     if venv_python:
-        venv_dir = Path(venv_python).parent.parent
-        # Find actual Python version directory
-        python_version_dirs = list(venv_dir.glob("lib/python*/site-packages"))
-        if python_version_dirs:
-            pythonpath_parts.append(str(python_version_dirs[0]))
+        _prepend_venv_site_packages(pythonpath_parts, venv_python)
 
     # Add source directories
     for source_dir in config.paths.source_dirs:

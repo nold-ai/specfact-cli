@@ -297,6 +297,7 @@ Target repos: `nold-ai/specfact-cli-modules` (module implementation) + `nold-ai/
 | code-review | 07 | ✅ code-review-07-house-rules-skill (archived 2026-03-17) | [#394](https://github.com/nold-ai/specfact-cli/issues/394) | code-review-01 ✅; code-review-06 ✅; ai-integration-01 (soft) |
 | code-review | 08 | ✅ code-review-08-review-run-integration (archived 2026-03-17) | [#396](https://github.com/nold-ai/specfact-cli/issues/396) | code-review-02 ✅; code-review-03 ✅; code-review-04 ✅; code-review-05 ✅ |
 | code-review | 09 | ✅ code-review-09-f4-automation-upgrade (archived 2026-03-17) | [#393](https://github.com/nold-ai/specfact-cli/issues/393) | code-review-01 ✅; code-review-02 ✅; code-review-03 ✅; code-review-04 ✅; code-review-06 ✅ |
+| code-review | 10 | ✅ code-review-zero-findings (implemented 2026-03-23) | [#423](https://github.com/nold-ai/specfact-cli/issues/423) | code-review-08 |
 
 ### Clean code enforcement (2026-03-22 plan)
 

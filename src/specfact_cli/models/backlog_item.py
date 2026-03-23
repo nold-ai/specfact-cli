@@ -12,7 +12,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from beartype import beartype
-from icontract import ensure, require
+from icontract import ensure
 from pydantic import BaseModel, Field
 
 from specfact_cli.models.source_tracking import SourceTracking
@@ -109,9 +109,6 @@ class BacklogItem(BaseModel):
         return self.template_confidence < 0.6
 
     @beartype
-    @require(
-        lambda self: isinstance(self.refined_body, str) and len(self.refined_body) > 0, "Refined body must be non-empty"
-    )
     @ensure(lambda result: result is None, "Must return None")
     def apply_refinement(self) -> None:
         """
@@ -119,7 +116,9 @@ class BacklogItem(BaseModel):
 
         This updates body_markdown with refined_body and sets refinement_applied=True.
         """
-        if self.refined_body:
-            self.body_markdown = self.refined_body
-            self.refinement_applied = True
-            self.refinement_timestamp = datetime.now(UTC)
+        if not isinstance(self.refined_body, str) or len(self.refined_body) == 0:
+            msg = "Refined body must be non-empty"
+            raise ValueError(msg)
+        self.body_markdown = self.refined_body
+        self.refinement_applied = True
+        self.refinement_timestamp = datetime.now(UTC)

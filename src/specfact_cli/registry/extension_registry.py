@@ -6,7 +6,10 @@ Maps module name to list of SchemaExtension; enforces namespace collision detect
 
 from __future__ import annotations
 
+from typing import cast
+
 from beartype import beartype
+from icontract import ensure, require
 
 from specfact_cli.models.module_package import SchemaExtension
 
@@ -36,22 +39,27 @@ class ExtensionRegistry:
         self._registry = {}
 
     @beartype
+    @require(lambda module_name: cast(str, module_name).strip() != "", "module_name must not be empty")
     def register(self, module_name: str, extensions: list[SchemaExtension]) -> None:
         """Register schema extensions for a module. Raises ValueError on namespace collision."""
         _check_collision(module_name, extensions, self._registry)
         self._registry.setdefault(module_name, []).extend(extensions)
 
     @beartype
+    @ensure(lambda result: isinstance(result, list))
     def get_extensions(self, module_name: str) -> list[SchemaExtension]:
         """Return list of schema extensions for the given module."""
         return list(self._registry.get(module_name, []))
 
     @beartype
+    @ensure(lambda result: isinstance(result, dict))
     def list_all(self) -> dict[str, list[SchemaExtension]]:
         """Return copy of full registry (module_name -> list of SchemaExtension)."""
         return {k: list(v) for k, v in self._registry.items()}
 
 
+@beartype
+@ensure(lambda result: isinstance(result, ExtensionRegistry))
 def get_extension_registry() -> ExtensionRegistry:
     """Return the global extension registry singleton."""
     if not hasattr(get_extension_registry, "_instance"):

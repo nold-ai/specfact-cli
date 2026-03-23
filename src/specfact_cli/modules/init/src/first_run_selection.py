@@ -170,11 +170,13 @@ def install_bundles_for_init(
                 raise
 
 
+@ensure(lambda result: isinstance(result, list) and len(result) > 0, "Must return non-empty list of profile names")
 def get_valid_profile_names() -> list[str]:
     """Return sorted list of valid profile names for error messages."""
     return sorted(PROFILE_PRESETS)
 
 
+@ensure(lambda result: isinstance(result, list) and len(result) > 0, "Must return non-empty list of bundle aliases")
 def get_valid_bundle_aliases() -> list[str]:
     """Return sorted list of valid bundle aliases (including 'all')."""
     return [*sorted(BUNDLE_ALIAS_TO_CANONICAL), "all"]

@@ -49,65 +49,72 @@ class AgileValidator:
         Returns:
             List of validation errors (empty if valid)
         """
-        errors: list[str] = []
         story_key = story.get("key", "UNKNOWN")
         context = f"Story {story_key}" + (f" (Feature {feature_key})" if feature_key else "")
+        errors: list[str] = []
+        errors.extend(self._dor_story_points_errors(story, context))
+        errors.extend(self._dor_value_points_errors(story, context))
+        errors.extend(self._dor_priority_errors(story, context))
+        errors.extend(self._dor_business_value_errors(story, context))
+        errors.extend(self._dor_dependency_format_errors(story, context))
+        errors.extend(self._dor_due_date_errors(story, context))
+        return errors
 
-        # Check story points
+    def _dor_story_points_errors(self, story: dict[str, Any], context: str) -> list[str]:
         story_points = story.get("story_points")
         if story_points is None:
-            errors.append(f"{context}: Missing story points (required for DoR)")
-        elif story_points not in self.VALID_STORY_POINTS:
-            errors.append(
-                f"{context}: Invalid story points '{story_points}' (must be one of {self.VALID_STORY_POINTS})"
-            )
+            return [f"{context}: Missing story points (required for DoR)"]
+        if story_points not in self.VALID_STORY_POINTS:
+            return [f"{context}: Invalid story points '{story_points}' (must be one of {self.VALID_STORY_POINTS})"]
+        return []
 
-        # Check value points
+    def _dor_value_points_errors(self, story: dict[str, Any], context: str) -> list[str]:
         value_points = story.get("value_points")
         if value_points is None:
-            errors.append(f"{context}: Missing value points (required for DoR)")
-        elif value_points not in self.VALID_STORY_POINTS:
-            errors.append(
-                f"{context}: Invalid value points '{value_points}' (must be one of {self.VALID_STORY_POINTS})"
-            )
+            return [f"{context}: Missing value points (required for DoR)"]
+        if value_points not in self.VALID_STORY_POINTS:
+            return [f"{context}: Invalid value points '{value_points}' (must be one of {self.VALID_STORY_POINTS})"]
+        return []
 
-        # Check priority
+    def _dor_priority_errors(self, story: dict[str, Any], context: str) -> list[str]:
         priority = story.get("priority")
         if priority is None:
-            errors.append(f"{context}: Missing priority (required for DoR)")
-        elif not self._is_valid_priority(priority):
-            errors.append(
-                f"{context}: Invalid priority '{priority}' (must be P0-P3, MoSCoW, or Critical/High/Medium/Low)"
-            )
+            return [f"{context}: Missing priority (required for DoR)"]
+        if not self._is_valid_priority(priority):
+            return [f"{context}: Invalid priority '{priority}' (must be P0-P3, MoSCoW, or Critical/High/Medium/Low)"]
+        return []
 
-        # Check business value description
+    def _dor_business_value_errors(self, story: dict[str, Any], context: str) -> list[str]:
         business_value = story.get("business_value_description")
         if not business_value or not business_value.strip():
-            errors.append(f"{context}: Missing business value description (required for DoR)")
+            return [f"{context}: Missing business value description (required for DoR)"]
+        return []
 
-        # Check dependencies are valid (if present)
+    def _dor_dependency_format_errors(self, story: dict[str, Any], context: str) -> list[str]:
         depends_on = story.get("depends_on_stories", [])
         blocks = story.get("blocks_stories", [])
-        if depends_on or blocks:
-            # Validate dependency format (should be story keys)
-            for dep in depends_on:
-                if not re.match(r"^[A-Z]+-\d+$", dep):
-                    errors.append(f"{context}: Invalid dependency format '{dep}' (expected STORY-001 format)")
+        if not depends_on and not blocks:
+            return []
+        errors: list[str] = []
+        for dep in depends_on:
+            if not re.match(r"^[A-Z]+-\d+$", dep):
+                errors.append(f"{context}: Invalid dependency format '{dep}' (expected STORY-001 format)")
+        return errors
 
-        # Check target date format (if present)
+    def _dor_due_date_errors(self, story: dict[str, Any], context: str) -> list[str]:
         due_date = story.get("due_date")
-        if due_date and not re.match(self.ISO_DATE_PATTERN, due_date):
+        if not due_date:
+            return []
+        errors: list[str] = []
+        if not re.match(self.ISO_DATE_PATTERN, due_date):
             errors.append(f"{context}: Invalid date format '{due_date}' (expected ISO 8601: YYYY-MM-DD)")
-
-        # Check target date is in future (warn if past)
-        if due_date and re.match(self.ISO_DATE_PATTERN, due_date):
-            try:
-                date_obj = datetime.strptime(due_date, "%Y-%m-%d")
-                if date_obj.date() < datetime.now().date():
-                    errors.append(f"{context}: Warning - target date '{due_date}' is in the past (may need updating)")
-            except ValueError:
-                pass  # Already caught by format check
-
+            return errors
+        try:
+            date_obj = datetime.strptime(due_date, "%Y-%m-%d")
+            if date_obj.date() < datetime.now().date():
+                errors.append(f"{context}: Warning - target date '{due_date}' is in the past (may need updating)")
+        except ValueError:
+            pass
         return errors
 
     @beartype
@@ -166,60 +173,48 @@ class AgileValidator:
         Returns:
             List of validation errors (empty if valid)
         """
-        errors: list[str] = []
-
-        # Build story key index
         story_keys: set[str] = {
             key for story in stories if (key := story.get("key")) is not None and isinstance(key, str)
         }
         feature_keys: set[str] = set(features.keys())
+        errors: list[str] = []
+        errors.extend(self._story_dependency_errors(stories, story_keys))
+        errors.extend(self._feature_dependency_errors(features, feature_keys))
+        return errors
 
-        # Validate story dependencies
+    def _story_dependency_errors(self, stories: list[dict[str, Any]], story_keys: set[str]) -> list[str]:
+        errors: list[str] = []
         for story in stories:
             story_key = story.get("key")
             if not story_key:
                 continue
-
-            # Check depends_on_stories references exist
             depends_on = story.get("depends_on_stories", [])
             for dep in depends_on:
                 if dep not in story_keys:
                     errors.append(f"Story {story_key}: Dependency '{dep}' does not exist")
-
-            # Check blocks_stories references exist
-            blocks = story.get("blocks_stories", [])
-            for blocked in blocks:
+            for blocked in story.get("blocks_stories", []):
                 if blocked not in story_keys:
                     errors.append(f"Story {story_key}: Blocked story '{blocked}' does not exist")
-
-            # Check for circular dependencies (simple check: if A depends on B and B depends on A)
             for dep in depends_on:
                 dep_story = next((s for s in stories if s.get("key") == dep), None)
-                if dep_story:
-                    dep_depends_on = dep_story.get("depends_on_stories", [])
-                    if story_key in dep_depends_on:
-                        errors.append(f"Story {story_key}: Circular dependency detected with '{dep}'")
+                if dep_story and story_key in dep_story.get("depends_on_stories", []):
+                    errors.append(f"Story {story_key}: Circular dependency detected with '{dep}'")
+        return errors
 
-        # Validate feature dependencies
+    def _feature_dependency_errors(self, features: dict[str, dict[str, Any]], feature_keys: set[str]) -> list[str]:
+        errors: list[str] = []
         for feature_key, feature in features.items():
             depends_on = feature.get("depends_on_features", [])
             for dep in depends_on:
                 if dep not in feature_keys:
                     errors.append(f"Feature {feature_key}: Dependency '{dep}' does not exist")
-
-            blocks = feature.get("blocks_features", [])
-            for blocked in blocks:
+            for blocked in feature.get("blocks_features", []):
                 if blocked not in feature_keys:
                     errors.append(f"Feature {feature_key}: Blocked feature '{blocked}' does not exist")
-
-            # Check for circular dependencies
             for dep in depends_on:
                 dep_feature = features.get(dep)
-                if dep_feature:
-                    dep_depends_on = dep_feature.get("depends_on_features", [])
-                    if feature_key in dep_depends_on:
-                        errors.append(f"Feature {feature_key}: Circular dependency detected with '{dep}'")
-
+                if dep_feature and feature_key in dep_feature.get("depends_on_features", []):
+                    errors.append(f"Feature {feature_key}: Circular dependency detected with '{dep}'")
         return errors
 
     @beartype

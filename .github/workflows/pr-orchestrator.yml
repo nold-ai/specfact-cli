@@ -85,7 +85,7 @@ jobs:
       - name: Install verifier dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install pyyaml cryptography cffi
+          python -m pip install pyyaml beartype icontract cryptography cffi
 
       - name: Verify bundled module checksums and signatures
         run: |
@@ -94,9 +94,9 @@ jobs:
             BASE_REF="origin/${{ github.event.pull_request.base.ref }}"
           fi
           if [ -n "$BASE_REF" ]; then
-            python scripts/verify-modules-signature.py --require-signature --enforce-version-bump --version-check-base "$BASE_REF"
+            python scripts/verify-modules-signature.py --require-signature --enforce-version-bump --payload-from-filesystem --version-check-base "$BASE_REF"
           else
-            python scripts/verify-modules-signature.py --require-signature --enforce-version-bump
+            python scripts/verify-modules-signature.py --require-signature --enforce-version-bump --payload-from-filesystem
           fi
 
   tests:
@@ -183,19 +183,17 @@ jobs:
             fi
           fi
 
-      - name: Run full test suite (smart-test-full)
+      - name: Run full test suite (direct smart-test-full)
         if: needs.changes.outputs.skip_tests_dev_to_main != 'true'
         shell: bash
         env:
           CONTRACT_FIRST_TESTING: "true"
           TEST_MODE: "true"
-          HATCH_TEST_ENV: "py3.12"
           SMART_TEST_TIMEOUT_SECONDS: "1800"
           PYTEST_ADDOPTS: "-r fEw"
         run: |
-          echo "🧪 Running full test suite (smart-test-full, Python 3.12)..."
-          echo "ℹ️ HATCH_TEST_ENV=${HATCH_TEST_ENV}"
-          hatch run smart-test-full
+          echo "🧪 Running full test suite (direct smart-test-full, Python 3.12)..."
+          python tools/smart_test_coverage.py run --level full
 
       - name: Generate coverage XML for quality gates
         if: needs.changes.outputs.skip_tests_dev_to_main != 'true' && env.RUN_UNIT_COVERAGE == 'true'
@@ -647,13 +645,15 @@ jobs:
             exit 1
           fi
           python -m pip install --upgrade pip
-          python -m pip install pyyaml cryptography cffi
+          python -m pip install pyyaml beartype icontract cryptography cffi
           python - <<'PY'
+          import beartype
           import cffi
           import cryptography
+          import icontract
           import yaml
 
-          print("✅ signing dependencies available:", yaml.__version__, cryptography.__version__, cffi.__version__)
+          print("✅ signing dependencies available:", yaml.__version__, cryptography.__version__, cffi.__version__, beartype.__version__, icontract.__version__)
           PY
           BASE_REF="${{ github.event.before }}"
           if [ -z "$BASE_REF" ] || [ "$BASE_REF" = "0000000000000000000000000000000000000000" ]; then
@@ -661,7 +661,7 @@ jobs:
           fi
           git rev-parse --verify "$BASE_REF" >/dev/null 2>&1 || BASE_REF="HEAD~1"
           echo "Using module-signing base ref: $BASE_REF"
-          python scripts/sign-modules.py --changed-only --base-ref "$BASE_REF" --bump-version patch
+          python scripts/sign-modules.py --changed-only --base-ref "$BASE_REF" --bump-version patch --payload-from-filesystem
 
       - name: Get version from PyPI publish step
         id: get_version

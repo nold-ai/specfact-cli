@@ -14,10 +14,10 @@ import os
 import sys
 from enum import StrEnum
 from logging.handlers import RotatingFileHandler
-from typing import Any
+from typing import Any, cast
 
 from beartype import beartype
-from icontract import ensure
+from icontract import ensure, require
 from rich.console import Console
 
 from specfact_cli.common.logger_setup import (
@@ -54,6 +54,7 @@ _debug_log_path: str | None = None
 
 
 @beartype
+@require(lambda mode: isinstance(mode, OperationalMode), "mode must be a valid OperationalMode")
 def set_operational_mode(mode: OperationalMode) -> None:
     """Persist active operational mode for downstream consumers."""
     global _operational_mode
@@ -61,12 +62,17 @@ def set_operational_mode(mode: OperationalMode) -> None:
 
 
 @beartype
+@ensure(lambda result: isinstance(result, OperationalMode), "Must return a valid OperationalMode")
 def get_operational_mode() -> OperationalMode:
     """Return the current operational mode."""
     return _operational_mode
 
 
 @beartype
+@require(
+    lambda input_format, output_format: input_format is not None or output_format is not None,
+    "At least one format must be specified",
+)
 def configure_io_formats(
     *, input_format: StructuredFormat | None = None, output_format: StructuredFormat | None = None
 ) -> None:
@@ -79,18 +85,24 @@ def configure_io_formats(
 
 
 @beartype
+@ensure(lambda result: isinstance(result, StructuredFormat), "Must return a valid StructuredFormat")
 def get_input_format() -> StructuredFormat:
     """Return default structured input format (defaults to YAML)."""
     return _input_format
 
 
 @beartype
+@ensure(lambda result: isinstance(result, StructuredFormat), "Must return a valid StructuredFormat")
 def get_output_format() -> StructuredFormat:
     """Return default structured output format (defaults to YAML)."""
     return _output_format
 
 
 @beartype
+@ensure(
+    lambda: _non_interactive_override is None or isinstance(_non_interactive_override, bool),
+    "Override must remain bool or None",
+)
 def set_non_interactive_override(value: bool | None) -> None:
     """Force interactive/non-interactive behavior (None resets to auto)."""
     global _non_interactive_override
@@ -98,6 +110,7 @@ def set_non_interactive_override(value: bool | None) -> None:
 
 
 @beartype
+@ensure(lambda result: isinstance(result, bool), "Must return boolean")
 def is_non_interactive() -> bool:
     """
     Determine whether prompts should be suppressed.
@@ -119,12 +132,14 @@ def is_non_interactive() -> bool:
 
 
 @beartype
+@ensure(lambda result: isinstance(result, bool))
 def is_interactive() -> bool:
     """Inverse helper for readability."""
     return not is_non_interactive()
 
 
 @beartype
+@ensure(lambda: isinstance(_debug_mode, bool), "Debug mode must remain bool")
 def set_debug_mode(enabled: bool) -> None:
     """Enable or disable debug output mode."""
     global _debug_mode
@@ -132,6 +147,7 @@ def set_debug_mode(enabled: bool) -> None:
 
 
 @beartype
+@ensure(lambda result: isinstance(result, bool), "Must return boolean")
 def is_debug_mode() -> bool:
     """Check if debug mode is enabled."""
     return _debug_mode
@@ -198,6 +214,7 @@ def get_configured_console() -> Console:
 
 
 @beartype
+@ensure(lambda result: result >= 0, "Must return non-negative count")
 def refresh_loaded_module_consoles() -> int:
     """
     Rebind loaded module-level `console` variables to the current configured Console.
@@ -221,12 +238,13 @@ def refresh_loaded_module_consoles() -> int:
         module_dict = getattr(module, "__dict__", None)
         if not isinstance(module_dict, dict):
             continue
-        current_console = module_dict.get("console")
+        module_ns: dict[str, Any] = cast(dict[str, Any], module_dict)
+        current_console = module_ns.get("console")
         if current_console is None:
             continue
         if isinstance(current_console, RichConsole):
             try:
-                module.console = fresh_console
+                module.console = fresh_console  # type: ignore[attr-defined]
                 refreshed += 1
             except Exception:
                 continue
@@ -284,6 +302,7 @@ def _ensure_debug_log_file() -> None:
 
 
 @beartype
+@require(lambda: isinstance(_debug_mode, bool), "Debug mode must be configured before initializing log")
 def init_debug_log_file() -> None:
     """
     Ensure debug log file is initialized when debug mode is on.
@@ -296,6 +315,7 @@ def init_debug_log_file() -> None:
 
 
 @beartype
+@ensure(lambda result: result is None or len(result) > 0, "Log path must be non-empty if set")
 def get_debug_log_path() -> str | None:
     """Return active debug log file path if initialized, else None."""
     return _debug_log_path
@@ -315,6 +335,7 @@ def _append_debug_log(*args: Any, **kwargs: Any) -> None:
 
 
 @beartype
+@require(lambda args: len(args) >= 0)
 def debug_print(*args: Any, **kwargs: Any) -> None:
     """
     Print debug messages only if debug mode is enabled.
@@ -332,6 +353,8 @@ def debug_print(*args: Any, **kwargs: Any) -> None:
 
 
 @beartype
+@require(lambda operation: bool(operation), "operation must not be empty")
+@require(lambda status: bool(status), "status must not be empty")
 def debug_log_operation(
     operation: str,
     target: str,

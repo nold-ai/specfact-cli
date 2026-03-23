@@ -9,6 +9,7 @@ from icontract import ensure, require
 from jinja2 import Environment, FileSystemLoader
 
 from specfact_cli.models.plan import PlanBundle
+from specfact_cli.utils.icontract_helpers import require_output_path_exists
 from specfact_cli.utils.structured_io import StructuredFormat, dump_structured_file, dumps_structured_data
 
 
@@ -41,7 +42,7 @@ class PlanGenerator:
     @beartype
     @require(lambda plan_bundle: isinstance(plan_bundle, PlanBundle), "Must be PlanBundle instance")
     @require(lambda output_path: output_path is not None, "Output path must not be None")
-    @ensure(lambda output_path: output_path.exists(), "Output file must exist after generation")
+    @ensure(require_output_path_exists, "Output file must exist after generation")
     def generate(
         self,
         plan_bundle: PlanBundle,
@@ -85,7 +86,7 @@ class PlanGenerator:
     )
     @require(lambda context: isinstance(context, dict), "Context must be dictionary")
     @require(lambda output_path: output_path is not None, "Output path must not be None")
-    @ensure(lambda output_path: output_path.exists(), "Output file must exist after generation")
+    @ensure(require_output_path_exists, "Output file must exist after generation")
     def generate_from_template(self, template_name: str, context: dict, output_path: Path) -> None:
         """
         Generate file from custom template.

@@ -14,7 +14,7 @@ from typing import Any
 from beartype import beartype
 from icontract import ensure, require
 
-from specfact_cli.models.plan import PlanBundle
+from specfact_cli.models.plan import Feature, PlanBundle, Story
 
 
 class PlanEnricher:
@@ -44,67 +44,66 @@ class PlanEnricher:
             "acceptance_criteria_enhanced": 0,
             "requirements_enhanced": 0,
             "tasks_enhanced": 0,
-            "changes": [],
+            "changes": list[str](),
         }
 
         for feature in plan_bundle.features:
-            feature_updated = False
-
-            # Enhance incomplete requirements in outcomes
-            enhanced_outcomes = []
-            for outcome in feature.outcomes:
-                enhanced = self._enhance_incomplete_requirement(outcome, feature.title)
-                if enhanced != outcome:
-                    enhanced_outcomes.append(enhanced)
-                    summary["requirements_enhanced"] += 1
-                    summary["changes"].append(f"Feature {feature.key}: Enhanced requirement '{outcome}' → '{enhanced}'")
-                    feature_updated = True
-                else:
-                    enhanced_outcomes.append(outcome)
-
-            if feature_updated:
-                feature.outcomes = enhanced_outcomes
-                summary["features_updated"] += 1
-
-            # Enhance stories
-            for story in feature.stories:
-                story_updated = False
-
-                # Enhance vague acceptance criteria
-                enhanced_acceptance = []
-                for acc in story.acceptance:
-                    enhanced = self._enhance_vague_acceptance_criteria(acc, story.title, feature.title)
-                    if enhanced != acc:
-                        enhanced_acceptance.append(enhanced)
-                        summary["acceptance_criteria_enhanced"] += 1
-                        summary["changes"].append(
-                            f"Story {story.key}: Enhanced acceptance criteria '{acc}' → '{enhanced}'"
-                        )
-                        story_updated = True
-                    else:
-                        enhanced_acceptance.append(acc)
-
-                if story_updated:
-                    story.acceptance = enhanced_acceptance
-                    summary["stories_updated"] += 1
-
-                # Enhance generic tasks
-                if story.tasks:
-                    enhanced_tasks = []
-                    for task in story.tasks:
-                        enhanced = self._enhance_generic_task(task, story.title, feature.title)
-                        if enhanced != task:
-                            enhanced_tasks.append(enhanced)
-                            summary["tasks_enhanced"] += 1
-                            summary["changes"].append(f"Story {story.key}: Enhanced task '{task}' → '{enhanced}'")
-                            story_updated = True
-                        else:
-                            enhanced_tasks.append(task)
-
-                    if story_updated and enhanced_tasks:
-                        story.tasks = enhanced_tasks
+            self._enrich_plan_feature(feature, summary)
 
         return summary
+
+    def _enrich_plan_feature(self, feature: Feature, summary: dict[str, Any]) -> None:
+        feature_updated = False
+        enhanced_outcomes: list[str] = []
+        for outcome in feature.outcomes:
+            enhanced = self._enhance_incomplete_requirement(outcome, feature.title)
+            if enhanced != outcome:
+                enhanced_outcomes.append(enhanced)
+                summary["requirements_enhanced"] += 1
+                summary["changes"].append(f"Feature {feature.key}: Enhanced requirement '{outcome}' → '{enhanced}'")
+                feature_updated = True
+            else:
+                enhanced_outcomes.append(outcome)
+
+        if feature_updated:
+            feature.outcomes = enhanced_outcomes
+            summary["features_updated"] += 1
+
+        for story in feature.stories:
+            self._enrich_plan_story(feature, story, summary)
+
+    def _enrich_plan_story(self, feature: Feature, story: Story, summary: dict[str, Any]) -> None:
+        story_updated = False
+        enhanced_acceptance: list[str] = []
+        for acc in story.acceptance:
+            enhanced = self._enhance_vague_acceptance_criteria(acc, story.title, feature.title)
+            if enhanced != acc:
+                enhanced_acceptance.append(enhanced)
+                summary["acceptance_criteria_enhanced"] += 1
+                summary["changes"].append(f"Story {story.key}: Enhanced acceptance criteria '{acc}' → '{enhanced}'")
+                story_updated = True
+            else:
+                enhanced_acceptance.append(acc)
+
+        if story_updated:
+            story.acceptance = enhanced_acceptance
+            summary["stories_updated"] += 1
+
+        if not story.tasks:
+            return
+        enhanced_tasks: list[str] = []
+        for task in story.tasks:
+            enhanced = self._enhance_generic_task(task, story.title, feature.title)
+            if enhanced != task:
+                enhanced_tasks.append(enhanced)
+                summary["tasks_enhanced"] += 1
+                summary["changes"].append(f"Story {story.key}: Enhanced task '{task}' → '{enhanced}'")
+                story_updated = True
+            else:
+                enhanced_tasks.append(task)
+
+        if story_updated and enhanced_tasks:
+            story.tasks = enhanced_tasks
 
     @beartype
     @require(lambda requirement: isinstance(requirement, str), "Requirement must be string")
@@ -198,84 +197,64 @@ class PlanEnricher:
             Enhanced acceptance criteria in simple text format, or original if already code-specific
         """
         acceptance_lower = acceptance.lower()
+        gwt = self._maybe_enhance_gwt_acceptance(acceptance, acceptance_lower)
+        if gwt is not None:
+            return gwt
+        if self._is_code_specific_criteria(acceptance):
+            return acceptance
+        vague = self._maybe_replace_vague_acceptance_patterns(acceptance, acceptance_lower, story_title)
+        if vague is not None:
+            return vague
+        return self._maybe_enhance_untestable_acceptance(acceptance, acceptance_lower)
 
-        # FIRST: Check if it's already in Given/When/Then format and convert it
-        # This must happen before code-specific check, as GWT format might be misidentified as code-specific
+    def _maybe_enhance_gwt_acceptance(self, acceptance: str, acceptance_lower: str) -> str | None:
         has_gwt_format = (
             re.search(r"\bgiven\b", acceptance_lower, re.IGNORECASE)
             and re.search(r"\bwhen\b", acceptance_lower, re.IGNORECASE)
             and re.search(r"\bthen\b", acceptance_lower, re.IGNORECASE)
         )
-        if has_gwt_format:
-            # Extract the "Then" part as the core requirement
-            # Split by "then" (case-insensitive) and take the last part
-            parts = re.split(r"\bthen\b", acceptance_lower, flags=re.IGNORECASE)
-            if len(parts) > 1:
-                then_part = parts[-1].strip()
-                # Remove common trailing phrases and clean up
-                then_part = re.sub(r"\bsuccessfully\b", "", then_part).strip()
-                then_part = re.sub(r"\s+", " ", then_part)  # Normalize whitespace
-                if then_part:
-                    # Capitalize first letter and create simple format
-                    then_capitalized = then_part[0].upper() + then_part[1:] if len(then_part) > 1 else then_part.upper()
-                    return f"Must verify {then_capitalized}"
+        if not has_gwt_format:
+            return None
+        parts = re.split(r"\bthen\b", acceptance_lower, flags=re.IGNORECASE)
+        if len(parts) <= 1:
             return acceptance
-
-        # Skip enrichment if criteria are already code-specific
-        if self._is_code_specific_criteria(acceptance):
+        then_part = parts[-1].strip()
+        then_part = re.sub(r"\bsuccessfully\b", "", then_part).strip()
+        then_part = re.sub(r"\s+", " ", then_part)
+        if not then_part:
             return acceptance
+        then_capitalized = then_part[0].upper() + then_part[1:] if len(then_part) > 1 else then_part.upper()
+        return f"Must verify {then_capitalized}"
 
+    def _maybe_replace_vague_acceptance_patterns(
+        self, acceptance: str, acceptance_lower: str, story_title: str
+    ) -> str | None:
         vague_patterns = [
-            (
-                "is implemented",
-                "Must verify {story} is functional",
-            ),
-            (
-                "is functional",
-                "Must verify {story} functions correctly",
-            ),
-            (
-                "works",
-                "Must verify {story} functions correctly",
-            ),
-            (
-                "is done",
-                "Must verify {story} is completed successfully",
-            ),
-            (
-                "is complete",
-                "Must verify {story} is completed successfully",
-            ),
-            (
-                "is ready",
-                "Must verify {story} is available",
-            ),
+            ("is implemented", "Must verify {story} is functional"),
+            ("is functional", "Must verify {story} functions correctly"),
+            ("works", "Must verify {story} functions correctly"),
+            ("is done", "Must verify {story} is completed successfully"),
+            ("is complete", "Must verify {story} is completed successfully"),
+            ("is ready", "Must verify {story} is available"),
         ]
-
         for pattern, template in vague_patterns:
-            # Only match if acceptance is exactly the pattern or starts with it (simple statement)
-            # Use word boundaries to avoid partial matches
             pattern_re = re.compile(rf"\b{re.escape(pattern)}\b")
-            if pattern_re.search(acceptance_lower):
-                # Only enhance if the entire acceptance is just the vague pattern
-                # or if it's a very simple statement (1-2 words) without code-specific details
-                acceptance_stripped = acceptance_lower.strip()
-                if acceptance_stripped == pattern or (
-                    len(acceptance_stripped.split()) <= 2 and not self._is_code_specific_criteria(acceptance)
-                ):
-                    # Replace placeholder with story title
-                    return template.format(story=story_title)
+            if not pattern_re.search(acceptance_lower):
+                continue
+            acceptance_stripped = acceptance_lower.strip()
+            if acceptance_stripped == pattern or (
+                len(acceptance_stripped.split()) <= 2 and not self._is_code_specific_criteria(acceptance)
+            ):
+                return template.format(story=story_title)
+        return None
 
-        # If it's a simple statement without testable keywords, enhance it
+    def _maybe_enhance_untestable_acceptance(self, acceptance: str, acceptance_lower: str) -> str:
         testable_keywords = ["must", "should", "will", "verify", "validate", "check", "ensure"]
-        if not any(keyword in acceptance_lower for keyword in testable_keywords):
-            # Convert to testable format
-            if acceptance_lower.startswith(("user can", "system can")):
-                return f"Must verify {acceptance.lower()}"
-            # Generate simple text format from simple statement
-            return f"Must verify {acceptance}"
-
-        return acceptance
+        if any(keyword in acceptance_lower for keyword in testable_keywords):
+            return acceptance
+        if acceptance_lower.startswith(("user can", "system can")):
+            return f"Must verify {acceptance.lower()}"
+        return f"Must verify {acceptance}"
 
     @beartype
     @require(lambda task: isinstance(task, str), "Task must be string")

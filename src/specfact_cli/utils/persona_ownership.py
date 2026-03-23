@@ -33,4 +33,7 @@ def check_persona_ownership(persona: str, manifest: Any, section_path: str) -> b
         return False
 
     persona_mapping = personas[persona]
-    return any(match_section_pattern(pattern, section_path) for pattern in persona_mapping.owns)
+    owns = getattr(persona_mapping, "owns", None)
+    if not isinstance(owns, list):
+        return False
+    return any(isinstance(pattern, str) and match_section_pattern(pattern, section_path) for pattern in owns)

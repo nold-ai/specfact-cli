@@ -269,22 +269,70 @@ class TestPatternExtractor:
 
         return None
 
+    @staticmethod
+    def _ast_unparse(node: ast.AST) -> str:
+        return ast.unparse(node) if hasattr(ast, "unparse") else str(node)
+
     @beartype
     def _extract_pytest_assertion_outcome(self, call: ast.Call) -> str | None:
         """Extract outcome from a pytest assertion call."""
-        if isinstance(call.func, ast.Attribute):
-            attr_name = call.func.attr
-
-            if attr_name == "assert_equal" and len(call.args) >= 2:
-                return f"{ast.unparse(call.args[0]) if hasattr(ast, 'unparse') else str(call.args[0])} equals {ast.unparse(call.args[1]) if hasattr(ast, 'unparse') else str(call.args[1])}"
-            if attr_name == "assert_true" and len(call.args) >= 1:
-                return f"{ast.unparse(call.args[0]) if hasattr(ast, 'unparse') else str(call.args[0])} is true"
-            if attr_name == "assert_false" and len(call.args) >= 1:
-                return f"{ast.unparse(call.args[0]) if hasattr(ast, 'unparse') else str(call.args[0])} is false"
-            if attr_name == "assert_in" and len(call.args) >= 2:
-                return f"{ast.unparse(call.args[0]) if hasattr(ast, 'unparse') else str(call.args[0])} is in {ast.unparse(call.args[1]) if hasattr(ast, 'unparse') else str(call.args[1])}"
-
+        if not isinstance(call.func, ast.Attribute):
+            return None
+        attr_name = call.func.attr
+        args = call.args
+        u = self._ast_unparse
+        if attr_name == "assert_equal" and len(args) >= 2:
+            return f"{u(args[0])} equals {u(args[1])}"
+        if attr_name == "assert_true" and len(args) >= 1:
+            return f"{u(args[0])} is true"
+        if attr_name == "assert_false" and len(args) >= 1:
+            return f"{u(args[0])} is false"
+        if attr_name == "assert_in" and len(args) >= 2:
+            return f"{u(args[0])} is in {u(args[1])}"
         return None
+
+    def _infer_validation_criterion(self, method_name: str) -> str | None:
+        if not any(k in method_name.lower() for k in ("validate", "check", "verify", "is_valid")):
+            return None
+        validation_target = (
+            method_name.replace("validate", "")
+            .replace("check", "")
+            .replace("verify", "")
+            .replace("is_valid", "")
+            .strip()
+        )
+        if not validation_target:
+            return None
+        return f"{validation_target} validation works correctly"
+
+    def _infer_error_handling_criterion(self, method_name: str) -> str | None:
+        if not any(k in method_name.lower() for k in ("handle", "catch", "error", "exception")):
+            return None
+        error_type = method_name.replace("handle", "").replace("catch", "").strip()
+        return f"Error handling for {error_type or 'errors'} works correctly"
+
+    def _infer_return_type_criterion(self, method_node: ast.FunctionDef) -> str | None:
+        if not method_node.returns:
+            return None
+        method_name = method_node.name
+        u = self._ast_unparse
+        return_type = u(method_node.returns)
+        return f"{method_name} returns {return_type} correctly"
+
+    def _infer_params_criterion(self, method_node: ast.FunctionDef) -> str | None:
+        if not method_node.args.args:
+            return None
+        method_name = method_node.name
+        u = self._ast_unparse
+        param_types: list[str] = []
+        for arg in method_node.args.args:
+            if arg.annotation:
+                param_types.append(f"{arg.arg}: {u(arg.annotation)}")
+        if not param_types:
+            return None
+        params_str = ", ".join(param_types)
+        return_type_str = u(method_node.returns) if method_node.returns else "result"
+        return f"{method_name} accepts {params_str} and returns {return_type_str}"
 
     @beartype
     @ensure(lambda result: isinstance(result, list), "Must return list")
@@ -300,54 +348,19 @@ class TestPatternExtractor:
             List of minimal acceptance criteria (simple text, not GWT format)
             Detailed examples will be extracted to OpenAPI contracts for Specmatic
         """
+        _ = class_name
         acceptance_criteria: list[str] = []
-
-        # Extract method name and purpose
         method_name = method_node.name
 
-        # Pattern 1: Validation logic → simple description
-        if any(keyword in method_name.lower() for keyword in ["validate", "check", "verify", "is_valid"]):
-            validation_target = (
-                method_name.replace("validate", "")
-                .replace("check", "")
-                .replace("verify", "")
-                .replace("is_valid", "")
-                .strip()
-            )
-            if validation_target:
-                acceptance_criteria.append(f"{validation_target} validation works correctly")
+        for part in (
+            self._infer_validation_criterion(method_name),
+            self._infer_error_handling_criterion(method_name),
+            self._infer_return_type_criterion(method_node),
+            self._infer_params_criterion(method_node),
+        ):
+            if part:
+                acceptance_criteria.append(part)
 
-        # Pattern 2: Error handling → simple description
-        if any(keyword in method_name.lower() for keyword in ["handle", "catch", "error", "exception"]):
-            error_type = method_name.replace("handle", "").replace("catch", "").strip()
-            acceptance_criteria.append(f"Error handling for {error_type or 'errors'} works correctly")
-
-        # Pattern 3: Success paths → simple description
-        # Check return type hints
-        if method_node.returns:
-            return_type = ast.unparse(method_node.returns) if hasattr(ast, "unparse") else str(method_node.returns)
-            acceptance_criteria.append(f"{method_name} returns {return_type} correctly")
-
-        # Pattern 4: Type hints → simple description
-        if method_node.args.args:
-            param_types: list[str] = []
-            for arg in method_node.args.args:
-                if arg.annotation:
-                    param_type = ast.unparse(arg.annotation) if hasattr(ast, "unparse") else str(arg.annotation)
-                    param_types.append(f"{arg.arg}: {param_type}")
-
-            if param_types:
-                params_str = ", ".join(param_types)
-                return_type_str = (
-                    ast.unparse(method_node.returns)
-                    if method_node.returns and hasattr(ast, "unparse")
-                    else str(method_node.returns)
-                    if method_node.returns
-                    else "result"
-                )
-                acceptance_criteria.append(f"{method_name} accepts {params_str} and returns {return_type_str}")
-
-        # Default: Generic acceptance criterion (simple text)
         if not acceptance_criteria:
             acceptance_criteria.append(f"{method_name} works correctly")
 

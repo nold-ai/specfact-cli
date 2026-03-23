@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 from datetime import datetime
 from pathlib import Path
+from typing import Any, cast
 
 from beartype import beartype
 from icontract import ensure, require
@@ -61,12 +62,20 @@ class SpecFactStructure:
     PLAN_SUFFIXES = tuple({".bundle.yaml", ".bundle.yml", ".bundle.json"})
 
     @classmethod
+    @beartype
+    @ensure(
+        lambda result: isinstance(result, str) and result.startswith("."),
+        "Must return a string suffix starting with '.'",
+    )
     def plan_suffix(cls, format: StructuredFormat | None = None) -> str:
         """Return canonical plan suffix for format (defaults to YAML)."""
         fmt = format or StructuredFormat.YAML
         return cls.PLAN_SUFFIX_MAP.get(fmt, ".bundle.yaml")
 
     @classmethod
+    @beartype
+    @require(lambda plan_name: isinstance(plan_name, str) and len(plan_name) > 0, "Plan name must be non-empty string")
+    @ensure(lambda result: isinstance(result, str) and len(result) > 0, "Must return non-empty string")
     def ensure_plan_filename(cls, plan_name: str, format: StructuredFormat | None = None) -> str:
         """Ensure a plan filename includes the correct suffix."""
         lower = plan_name.lower()
@@ -77,6 +86,9 @@ class SpecFactStructure:
         return f"{plan_name}{cls.plan_suffix(format)}"
 
     @classmethod
+    @beartype
+    @require(lambda plan_name: isinstance(plan_name, str), "Plan name must be a string")
+    @ensure(lambda result: isinstance(result, str), "Must return a string")
     def strip_plan_suffix(cls, plan_name: str) -> str:
         """Remove known plan suffix from filename."""
         for suffix in cls.PLAN_SUFFIXES:
@@ -89,6 +101,8 @@ class SpecFactStructure:
         return plan_name
 
     @classmethod
+    @beartype
+    @ensure(lambda result: isinstance(result, str) and len(result) > 0, "Must return non-empty string")
     def default_plan_filename(cls, format: StructuredFormat | None = None) -> str:
         """Compute default plan filename for requested format."""
         return cls.ensure_plan_filename(cls.DEFAULT_PLAN_NAME, format)
@@ -174,11 +188,17 @@ class SpecFactStructure:
         return directory / f"report-{timestamp}.{extension}"
 
     @classmethod
+    @beartype
+    @require(lambda base_path: base_path is None or isinstance(base_path, Path), "Base path must be None or Path")
+    @ensure(lambda result: isinstance(result, Path), "Must return Path")
     def get_brownfield_analysis_path(cls, base_path: Path | None = None) -> Path:
         """Get path for brownfield analysis report."""
         return cls.get_timestamped_report_path("brownfield", base_path, "md")
 
     @classmethod
+    @beartype
+    @require(lambda base_path: base_path is None or isinstance(base_path, Path), "Base path must be None or Path")
+    @ensure(lambda result: isinstance(result, Path), "Must return Path")
     def get_brownfield_plan_path(cls, base_path: Path | None = None) -> Path:
         """Get path for auto-derived brownfield plan."""
         return cls.get_timestamped_report_path("brownfield", base_path, "yaml")
@@ -225,7 +245,8 @@ class SpecFactStructure:
                 import yaml
 
                 with config_path.open() as f:
-                    config = yaml.safe_load(f) or {}
+                    config_raw = yaml.safe_load(f) or {}
+                config: dict[str, Any] = config_raw if isinstance(config_raw, dict) else {}
                 active_bundle = config.get(cls.ACTIVE_BUNDLE_CONFIG_KEY)
                 if active_bundle:
                     bundle_dir = base_path / cls.PROJECTS / active_bundle
@@ -276,7 +297,8 @@ class SpecFactStructure:
                 import yaml
 
                 with config_path.open() as f:
-                    config = yaml.safe_load(f) or {}
+                    config_raw = yaml.safe_load(f) or {}
+                config: dict[str, Any] = config_raw if isinstance(config_raw, dict) else {}
                 active_bundle = config.get(cls.ACTIVE_BUNDLE_CONFIG_KEY)
                 if active_bundle:
                     return active_bundle
@@ -323,11 +345,12 @@ class SpecFactStructure:
         config_path = base_path / cls.CONFIG_YAML
 
         # Read existing config or create new
-        config = {}
+        config: dict[str, Any] = {}
         if config_path.exists():
             try:
                 with config_path.open() as f:
-                    config = yaml.safe_load(f) or {}
+                    config_raw = yaml.safe_load(f) or {}
+                config = config_raw if isinstance(config_raw, dict) else {}
             except Exception:
                 config = {}
 
@@ -338,6 +361,103 @@ class SpecFactStructure:
         config_path.parent.mkdir(parents=True, exist_ok=True)
         with config_path.open("w") as f:
             yaml.dump(config, f, default_flow_style=False, sort_keys=False)
+
+    @classmethod
+    def _read_active_bundle_from_config(cls, base_path: Path) -> str | None:
+        import yaml
+
+        config_path = base_path / cls.CONFIG_YAML
+        if not config_path.exists():
+            return None
+        try:
+            with config_path.open() as f:
+                config_raw = yaml.safe_load(f) or {}
+            config: dict[str, Any] = config_raw if isinstance(config_raw, dict) else {}
+            return config.get(cls.ACTIVE_BUNDLE_CONFIG_KEY)
+        except Exception:
+            return None
+
+    @classmethod
+    def _bundle_dirs_for_list_plans(cls, projects_dir: Path, max_files: int | None) -> list[Path]:
+        bundle_dirs = [d for d in projects_dir.iterdir() if d.is_dir() and (d / "bundle.manifest.yaml").exists()]
+
+        def manifest_mtime(d: Path) -> float:
+            return (d / "bundle.manifest.yaml").stat().st_mtime
+
+        if max_files is not None and max_files > 0:
+            recent = sorted(bundle_dirs, key=manifest_mtime, reverse=True)[:max_files]
+            return sorted(recent, key=manifest_mtime, reverse=False)
+        return sorted(bundle_dirs, key=manifest_mtime, reverse=False)
+
+    @classmethod
+    def _plan_bundle_metadata_from_manifest(
+        cls,
+        bundle_dir: Path,
+        base_path: Path,
+        bundle_name: str,
+        manifest_path: Path,
+        active_plan: str | None,
+    ) -> dict[str, str | int | None]:
+        from specfact_cli.models.project import BundleManifest
+        from specfact_cli.utils.structured_io import load_structured_file
+
+        manifest_data = load_structured_file(manifest_path)
+        manifest = BundleManifest.model_validate(manifest_data)
+        manifest_mtime = manifest_path.stat().st_mtime
+        total_size = sum(f.stat().st_size for f in bundle_dir.rglob("*") if f.is_file())
+        features_count = len(manifest.features) if manifest.features else 0
+        stories_count = sum(f.stories_count for f in manifest.features) if manifest.features else 0
+        stage = manifest.bundle.get("stage", "draft") if manifest.bundle else "draft"
+        content_hash = manifest.versions.project if manifest.versions else None
+        return {
+            "name": bundle_name,
+            "path": str(bundle_dir.relative_to(base_path)),
+            "features": features_count,
+            "stories": stories_count,
+            "size": total_size,
+            "modified": datetime.fromtimestamp(manifest_mtime).isoformat(),
+            "active": bundle_name == active_plan,
+            "content_hash": content_hash,
+            "stage": stage,
+        }
+
+    @classmethod
+    def _plan_bundle_metadata_fallback(
+        cls,
+        bundle_dir: Path,
+        base_path: Path,
+        bundle_name: str,
+        manifest_path: Path,
+        active_plan: str | None,
+    ) -> dict[str, str | int | None]:
+        manifest_mtime = manifest_path.stat().st_mtime if manifest_path.exists() else 0
+        total_size = sum(f.stat().st_size for f in bundle_dir.rglob("*") if f.is_file())
+        return {
+            "name": bundle_name,
+            "path": str(bundle_dir.relative_to(base_path)),
+            "features": 0,
+            "stories": 0,
+            "size": total_size,
+            "modified": datetime.fromtimestamp(manifest_mtime).isoformat()
+            if manifest_mtime > 0
+            else datetime.now().isoformat(),
+            "active": bundle_name == active_plan,
+            "content_hash": None,
+            "stage": "unknown",
+        }
+
+    @classmethod
+    def _plan_bundle_metadata(
+        cls, bundle_dir: Path, base_path: Path, active_plan: str | None
+    ) -> dict[str, str | int | None]:
+        bundle_name = bundle_dir.name
+        manifest_path = bundle_dir / "bundle.manifest.yaml"
+        try:
+            return cls._plan_bundle_metadata_from_manifest(
+                bundle_dir, base_path, bundle_name, manifest_path, active_plan
+            )
+        except Exception:
+            return cls._plan_bundle_metadata_fallback(bundle_dir, base_path, bundle_name, manifest_path, active_plan)
 
     @classmethod
     @beartype
@@ -371,107 +491,14 @@ class SpecFactStructure:
         if not projects_dir.exists():
             return []
 
-        from datetime import datetime
-
-        import yaml
-
-        plans = []
-        active_plan = None
-
-        # Get active bundle from config (new location only)
-        config_path = base_path / cls.CONFIG_YAML
-        active_plan = None
-        if config_path.exists():
-            try:
-                with config_path.open() as f:
-                    config = yaml.safe_load(f) or {}
-                active_plan = config.get(cls.ACTIVE_BUNDLE_CONFIG_KEY)
-            except Exception:
-                pass
-
-        # Find all project bundle directories
-        bundle_dirs = [d for d in projects_dir.iterdir() if d.is_dir() and (d / "bundle.manifest.yaml").exists()]
-        bundle_dirs_sorted = sorted(
-            bundle_dirs, key=lambda d: (d / "bundle.manifest.yaml").stat().st_mtime, reverse=False
-        )
-
-        # If max_files specified, only process the most recent N bundles (for performance)
-        if max_files is not None and max_files > 0:
-            # Take most recent bundles (reverse sort, take last N, then reverse back)
-            bundle_dirs_sorted = sorted(
-                bundle_dirs, key=lambda d: (d / "bundle.manifest.yaml").stat().st_mtime, reverse=True
-            )[:max_files]
-            bundle_dirs_sorted = sorted(
-                bundle_dirs_sorted, key=lambda d: (d / "bundle.manifest.yaml").stat().st_mtime, reverse=False
-            )
-
-        for bundle_dir in bundle_dirs_sorted:
-            bundle_name = bundle_dir.name
-            manifest_path = bundle_dir / "bundle.manifest.yaml"
-
-            # Declare plan_info once before try/except
-            plan_info: dict[str, str | int | None]
-
-            try:
-                # Read only the manifest file (much faster than loading full bundle)
-                from specfact_cli.models.project import BundleManifest
-                from specfact_cli.utils.structured_io import load_structured_file
-
-                manifest_data = load_structured_file(manifest_path)
-                manifest = BundleManifest.model_validate(manifest_data)
-
-                # Get modification time from manifest file
-                manifest_mtime = manifest_path.stat().st_mtime
-
-                # Calculate total size of bundle directory
-                total_size = sum(f.stat().st_size for f in bundle_dir.rglob("*") if f.is_file())
-
-                # Get features and stories count from manifest.features index
-                features_count = len(manifest.features) if manifest.features else 0
-                stories_count = sum(f.stories_count for f in manifest.features) if manifest.features else 0
-
-                # Get stage from manifest.bundle dict (if available) or default to "draft"
-                stage = manifest.bundle.get("stage", "draft") if manifest.bundle else "draft"
-
-                # Get content hash from manifest versions (use project version as hash identifier)
-                content_hash = manifest.versions.project if manifest.versions else None
-
-                plan_info = {
-                    "name": bundle_name,
-                    "path": str(bundle_dir.relative_to(base_path)),
-                    "features": features_count,
-                    "stories": stories_count,
-                    "size": total_size,
-                    "modified": datetime.fromtimestamp(manifest_mtime).isoformat(),
-                    "active": bundle_name == active_plan,
-                    "content_hash": content_hash,
-                    "stage": stage,
-                }
-            except Exception:
-                # Fallback: minimal info if manifest can't be loaded
-                manifest_mtime = manifest_path.stat().st_mtime if manifest_path.exists() else 0
-                total_size = sum(f.stat().st_size for f in bundle_dir.rglob("*") if f.is_file())
-
-                plan_info = {
-                    "name": bundle_name,
-                    "path": str(bundle_dir.relative_to(base_path)),
-                    "features": 0,
-                    "stories": 0,
-                    "size": total_size,
-                    "modified": datetime.fromtimestamp(manifest_mtime).isoformat()
-                    if manifest_mtime > 0
-                    else datetime.now().isoformat(),
-                    "active": bundle_name == active_plan,
-                    "content_hash": None,
-                    "stage": "unknown",
-                }
-
-            plans.append(plan_info)
-
-        return plans
+        active_plan = cls._read_active_bundle_from_config(base_path)
+        bundle_dirs = cls._bundle_dirs_for_list_plans(projects_dir, max_files)
+        return [cls._plan_bundle_metadata(d, base_path, active_plan) for d in bundle_dirs]
 
     @classmethod
     @beartype
+    @require(lambda plan_path: plan_path is not None, "plan_path must not be None")
+    @ensure(lambda result: isinstance(result, bool), "Must return bool")
     def update_plan_summary(cls, plan_path: Path, base_path: Path | None = None) -> bool:
         """
         Update summary metadata for an existing plan bundle.
@@ -502,7 +529,8 @@ class SpecFactStructure:
 
             # Load plan bundle
             with plan_file.open() as f:
-                plan_data = yaml.safe_load(f) or {}
+                plan_raw = yaml.safe_load(f) or {}
+            plan_data: dict[str, Any] = plan_raw if isinstance(plan_raw, dict) else {}
 
             # Parse as PlanBundle
             bundle = PlanBundle.model_validate(plan_data)
@@ -519,6 +547,9 @@ class SpecFactStructure:
             return False
 
     @classmethod
+    @beartype
+    @require(lambda base_path: base_path is None or isinstance(base_path, Path), "Base path must be None or Path")
+    @ensure(lambda result: isinstance(result, Path), "Must return Path")
     def get_enforcement_config_path(cls, base_path: Path | None = None) -> Path:
         """Get path to enforcement configuration file."""
         if base_path is None:
@@ -884,6 +915,8 @@ class SpecFactStructure:
         return None
 
     @classmethod
+    @beartype
+    @require(lambda base_path: base_path is None or isinstance(base_path, Path), "Base path must be None or Path")
     def create_gitignore(cls, base_path: Path | None = None) -> None:
         """
         Create .gitignore for .specfact directory.
@@ -907,6 +940,8 @@ cache/
         gitignore_path.write_text(gitignore_content)
 
     @classmethod
+    @beartype
+    @require(lambda base_path: base_path is None or isinstance(base_path, Path), "Base path must be None or Path")
     def create_readme(cls, base_path: Path | None = None) -> None:
         """
         Create README for .specfact directory.
@@ -954,6 +989,8 @@ specfact code import <bundle-name> --repo .
         readme_path.write_text(readme_content)
 
     @classmethod
+    @beartype
+    @require(lambda base_path: base_path is None or isinstance(base_path, Path), "Base path must be None or Path")
     def scaffold_project(cls, base_path: Path | None = None) -> None:
         """
         Create complete .specfact directory structure.
@@ -1062,30 +1099,37 @@ specfact code import <bundle-name> --repo .
             >>> format
             <BundleFormat.MONOLITHIC: 'monolithic'>
         """
+        if path.is_file() and path.suffix in [".yaml", ".yml", ".json"]:
+            return cls._detect_bundle_format_from_file(path)
+        if path.is_dir():
+            return cls._detect_bundle_format_from_dir(path)
+        return BundleFormat.UNKNOWN, "Could not determine bundle format"
+
+    @classmethod
+    def _detect_bundle_format_from_file(cls, path: Path) -> tuple[BundleFormat, str | None]:
         from specfact_cli.utils.structured_io import load_structured_file
 
-        if path.is_file() and path.suffix in [".yaml", ".yml", ".json"]:
-            # Check if it's a monolithic bundle
-            try:
-                data = load_structured_file(path)
-                if isinstance(data, dict):
-                    # Monolithic bundle has all aspects in one file
-                    if "idea" in data and "product" in data and "features" in data:
-                        return BundleFormat.MONOLITHIC, None
-                    # Could be a bundle manifest (modular) - check for dual versioning
-                    if "versions" in data and "schema" in data.get("versions", {}) and "bundle" in data:
-                        return BundleFormat.MODULAR, None
-            except Exception as e:
-                return BundleFormat.UNKNOWN, f"Failed to parse file: {e}"
-        elif path.is_dir():
-            # Check for modular project bundle structure
-            manifest_path = path / "bundle.manifest.yaml"
-            if manifest_path.exists():
-                return BundleFormat.MODULAR, None
-            # Check for legacy plans directory
-            if path.name == "plans" and any(f.suffix in [".yaml", ".yml", ".json"] for f in path.glob("*.bundle.*")):
-                return BundleFormat.MONOLITHIC, None
+        try:
+            data = load_structured_file(path)
+        except Exception as e:
+            return BundleFormat.UNKNOWN, f"Failed to parse file: {e}"
+        if not isinstance(data, dict):
+            return BundleFormat.UNKNOWN, "Could not determine bundle format"
+        data_dict = cast(dict[str, Any], data)
+        if "idea" in data_dict and "product" in data_dict and "features" in data_dict:
+            return BundleFormat.MONOLITHIC, None
+        versions = data_dict.get("versions", {})
+        if isinstance(versions, dict) and "schema" in versions and "bundle" in data_dict:
+            return BundleFormat.MODULAR, None
+        return BundleFormat.UNKNOWN, "Could not determine bundle format"
 
+    @classmethod
+    def _detect_bundle_format_from_dir(cls, path: Path) -> tuple[BundleFormat, str | None]:
+        manifest_path = path / "bundle.manifest.yaml"
+        if manifest_path.exists():
+            return BundleFormat.MODULAR, None
+        if path.name == "plans" and any(f.suffix in [".yaml", ".yml", ".json"] for f in path.glob("*.bundle.*")):
+            return BundleFormat.MONOLITHIC, None
         return BundleFormat.UNKNOWN, "Could not determine bundle format"
 
     # Phase 8.5: Bundle-Specific Artifact Organization

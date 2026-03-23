@@ -10,12 +10,88 @@ from __future__ import annotations
 import re
 from contextlib import suppress
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from beartype import beartype
 from icontract import ensure, require
 
 from specfact_cli.models.plan import Feature, PlanBundle, Story
+
+
+def _story_from_dict_with_key(story_data: dict[str, Any], key: str) -> Story:
+    return Story(
+        key=key,
+        title=story_data.get("title", "Untitled Story"),
+        acceptance=story_data.get("acceptance", []),
+        story_points=story_data.get("story_points"),
+        value_points=story_data.get("value_points"),
+        tasks=story_data.get("tasks", []),
+        confidence=story_data.get("confidence", 0.8),
+        draft=False,
+        scenarios=None,
+        contracts=None,
+    )
+
+
+def _merge_missing_stories_into_feature(
+    existing_feature: Feature, stories_data: list[Any], existing_story_keys: set[str]
+) -> None:
+    for story_data in stories_data:
+        if not isinstance(story_data, dict):
+            continue
+        story_d: dict[str, Any] = cast(dict[str, Any], story_data)
+        story_key = story_d.get("key", "")
+        if not story_key or story_key in existing_story_keys:
+            continue
+        existing_feature.stories.append(_story_from_dict_with_key(story_data, story_key))
+        existing_story_keys.add(story_key)
+
+
+def _merge_missing_into_existing_feature(
+    existing_feature: Feature,
+    missing_feature_data: dict[str, Any],
+) -> None:
+    if "confidence" in missing_feature_data:
+        existing_feature.confidence = missing_feature_data["confidence"]
+    if "title" in missing_feature_data and missing_feature_data["title"] and not existing_feature.title:
+        existing_feature.title = missing_feature_data["title"]
+    if "outcomes" in missing_feature_data:
+        for outcome in missing_feature_data["outcomes"]:
+            if outcome not in existing_feature.outcomes:
+                existing_feature.outcomes.append(outcome)
+    stories_data = missing_feature_data.get("stories", [])
+    if not stories_data:
+        return
+    existing_story_keys = {s.key for s in existing_feature.stories}
+    _merge_missing_stories_into_feature(existing_feature, stories_data, existing_story_keys)
+
+
+def _append_new_feature_from_missing(enriched: PlanBundle, missing_feature_data: dict[str, Any]) -> None:
+    stories_data = missing_feature_data.get("stories", [])
+    stories: list[Story] = []
+    for story_data in stories_data:
+        if isinstance(story_data, dict):
+            sd: dict[str, Any] = cast(dict[str, Any], story_data)
+            stories.append(
+                _story_from_dict_with_key(
+                    sd,
+                    sd.get("key", f"STORY-{len(stories) + 1:03d}"),
+                )
+            )
+    feature = Feature(
+        key=missing_feature_data.get("key", f"FEATURE-{len(enriched.features) + 1:03d}"),
+        title=missing_feature_data.get("title", "Untitled Feature"),
+        outcomes=missing_feature_data.get("outcomes", []),
+        acceptance=[],
+        constraints=[],
+        stories=stories,
+        confidence=missing_feature_data.get("confidence", 0.5),
+        draft=False,
+        source_tracking=None,
+        contract=None,
+        protocol=None,
+    )
+    enriched.features.append(feature)
 
 
 class EnrichmentReport:
@@ -51,6 +127,127 @@ class EnrichmentReport:
         """Add business context items."""
         if category in self.business_context:
             self.business_context[category].extend(items)
+
+
+def _extract_feature_title(feature_text: str) -> str:
+    """Extract title from bold text or number-prefixed bold text."""
+    title_match = re.search(r"^\*\*([^*]+)\*\*", feature_text, re.MULTILINE)
+    if not title_match:
+        title_match = re.search(r"^\d+\.\s*\*\*([^*]+)\*\*", feature_text, re.MULTILINE)
+    return title_match.group(1).strip() if title_match else ""
+
+
+def _extract_feature_key(feature_text: str, title: str) -> str:
+    """Extract or generate a feature key from the text."""
+    key_match = re.search(r"\(Key:\s*([A-Z0-9_-]+)\)", feature_text, re.IGNORECASE)
+    if not key_match:
+        key_match = re.search(r"(?:key|Key):\s*([A-Z0-9_-]+)", feature_text, re.IGNORECASE)
+    if key_match:
+        return key_match.group(1)
+    if title:
+        return f"FEATURE-{title.upper().replace(' ', '').replace('-', '')[:20]}"
+    return ""
+
+
+def _extract_feature_outcomes(feature_text: str) -> list[str]:
+    """Extract outcomes and business reason/value from feature text."""
+    outcomes: list[str] = []
+    outcomes_match = re.search(
+        r"(?:outcomes?|Outcomes?):\s*(.+?)(?:\n\s*(?:stories?|Stories?):|\Z)",
+        feature_text,
+        re.IGNORECASE | re.DOTALL,
+    )
+    if outcomes_match:
+        outcomes_text = outcomes_match.group(1).strip()
+        outcomes = [
+            o.strip() for o in re.split(r"\n|,", outcomes_text) if o.strip() and not o.strip().startswith("- Stories:")
+        ]
+
+    reason_match = re.search(
+        r"(?:reason|Reason|Business value):\s*(.+?)(?:\n(?:stories?|Stories?)|$)",
+        feature_text,
+        re.IGNORECASE | re.DOTALL,
+    )
+    if reason_match:
+        reason = reason_match.group(1).strip()
+        if reason and reason not in outcomes:
+            outcomes.append(reason)
+    return outcomes
+
+
+def _extract_story_title(story_text: str) -> str:
+    """Extract story title from bold text, a title field, or the first line."""
+    title_match = re.search(r"^\*\*([^*]+)\*\*", story_text, re.MULTILINE)
+    if title_match:
+        return title_match.group(1).strip()
+
+    title_kw = re.search(r"(?:title|Title):\s*(.+?)(?:\n|$)", story_text, re.IGNORECASE)
+    if title_kw:
+        return title_kw.group(1).strip()
+
+    first_line = next((line.strip() for line in story_text.splitlines() if line.strip()), "")
+    return re.sub(r"^\d+\.\s*", "", first_line).strip()
+
+
+def _acceptance_items_from_field_text(acceptance_text: str) -> list[str]:
+    items: list[str] = []
+    for segment in re.split(r"\n|;", acceptance_text):
+        for piece in re.split(r",\s*", segment):
+            p = piece.strip(" -*")
+            if p:
+                items.append(p)
+    return items
+
+
+def _bullet_acceptance_lines(story_text: str, title: str) -> list[str]:
+    bullet_acceptance = [
+        line.strip(" -*")
+        for line in story_text.splitlines()
+        if line.strip().startswith(("-", "*")) and len(line.strip()) > 1
+    ]
+    return [item for item in bullet_acceptance if item and item != title]
+
+
+def _extract_story_acceptance(story_text: str, title: str) -> list[str]:
+    """Extract acceptance criteria from a story block."""
+    acceptance_match = re.search(
+        r"(?:acceptance(?:\s+criteria)?|criteria):\s*(.+?)(?:\n(?:tasks?|Tasks?|story\s+points?|Story\s+points?)|$)",
+        story_text,
+        re.IGNORECASE | re.DOTALL,
+    )
+    acceptance: list[str] = []
+    if acceptance_match:
+        acceptance_text = acceptance_match.group(1).strip()
+        acceptance = _acceptance_items_from_field_text(acceptance_text)
+
+    if not acceptance and title:
+        acceptance = _bullet_acceptance_lines(story_text, title)
+
+    return acceptance
+
+
+def _extract_story_points(story_text: str) -> tuple[float | int | None, float | int | None]:
+    """Extract story points and value points from a story block."""
+    points_match = re.search(
+        r"(?:story\s+points?|points?)\s*[:=]\s*([0-9]+(?:\.[0-9]+)?)",
+        story_text,
+        re.IGNORECASE,
+    )
+    value_points_match = re.search(
+        r"(?:value\s+points?|value)\s*[:=]\s*([0-9]+(?:\.[0-9]+)?)",
+        story_text,
+        re.IGNORECASE,
+    )
+
+    def _parse_number(match: re.Match[str] | None) -> float | int | None:
+        if not match:
+            return None
+        value = match.group(1)
+        if "." in value:
+            return float(value)
+        return int(value)
+
+    return _parse_number(points_match), _parse_number(value_points_match)
 
 
 class EnrichmentParser:
@@ -135,81 +332,29 @@ class EnrichmentParser:
             "stories": [],
         }
 
-        # Extract title first (from bold text: "**Title** (Key: ...)" or "1. **Title** (Key: ...)")
-        # Feature text may or may not include the leading number (depends on extraction pattern)
-        title_match = re.search(r"^\*\*([^*]+)\*\*", feature_text, re.MULTILINE)
-        if not title_match:
-            # Try with optional number prefix
-            title_match = re.search(r"^\d+\.\s*\*\*([^*]+)\*\*", feature_text, re.MULTILINE)
-        if title_match:
-            feature["title"] = title_match.group(1).strip()
-
-        # Extract key (e.g., "FEATURE-IDEINTEGRATION" or "(Key: FEATURE-IDEINTEGRATION)")
-        # Try parentheses format first: (Key: FEATURE-XXX)
-        key_match = re.search(r"\(Key:\s*([A-Z0-9_-]+)\)", feature_text, re.IGNORECASE)
-        if not key_match:
-            # Try without parentheses: Key: FEATURE-XXX
-            key_match = re.search(r"(?:key|Key):\s*([A-Z0-9_-]+)", feature_text, re.IGNORECASE)
-        if key_match:
-            feature["key"] = key_match.group(1)
-        else:
-            # Generate key from title if we have one
-            if feature["title"]:
-                feature["key"] = f"FEATURE-{feature['title'].upper().replace(' ', '').replace('-', '')[:20]}"
-
-        # Extract title from "Title:" keyword if not found in bold text
+        feature["title"] = _extract_feature_title(feature_text)
+        feature["key"] = _extract_feature_key(feature_text, feature["title"])
         if not feature["title"]:
-            title_match = re.search(r"(?:title|Title):\s*(.+?)(?:\n|$)", feature_text, re.IGNORECASE)
-            if title_match:
-                feature["title"] = title_match.group(1).strip()
+            title_kw = re.search(r"(?:title|Title):\s*(.+?)(?:\n|$)", feature_text, re.IGNORECASE)
+            if title_kw:
+                feature["title"] = title_kw.group(1).strip()
 
-        # Extract confidence
         confidence_match = re.search(r"(?:confidence|Confidence):\s*([0-9.]+)", feature_text, re.IGNORECASE)
         if confidence_match:
             with suppress(ValueError):
                 feature["confidence"] = float(confidence_match.group(1))
 
-        # Extract outcomes (stop at Stories: section to avoid capturing story text)
-        outcomes_match = re.search(
-            r"(?:outcomes?|Outcomes?):\s*(.+?)(?:\n\s*(?:stories?|Stories?):|\Z)",
-            feature_text,
-            re.IGNORECASE | re.DOTALL,
-        )
-        if outcomes_match:
-            outcomes_text = outcomes_match.group(1).strip()
-            # Split by lines or commas, filter out empty strings and story markers
-            outcomes = [
-                o.strip()
-                for o in re.split(r"\n|,", outcomes_text)
-                if o.strip() and not o.strip().startswith("- Stories:")
-            ]
-            feature["outcomes"] = outcomes
+        feature["outcomes"] = _extract_feature_outcomes(feature_text)
 
-        # Extract business value or reason
-        reason_match = re.search(
-            r"(?:reason|Reason|Business value):\s*(.+?)(?:\n(?:stories?|Stories?)|$)",
-            feature_text,
-            re.IGNORECASE | re.DOTALL,
-        )
-        if reason_match:
-            reason = reason_match.group(1).strip()
-            if reason and reason not in feature["outcomes"]:
-                feature["outcomes"].append(reason)
-
-        # Extract stories (REQUIRED for features to pass promotion validation)
-        # Stop at next feature (numbered with bold title) or section header
         stories_match = re.search(
             r"(?:stories?|Stories?):\s*(.+?)(?=\n\d+\.\s*\*\*|\n##|\Z)", feature_text, re.IGNORECASE | re.DOTALL
         )
         if stories_match:
             stories_text = stories_match.group(1).strip()
-            stories = self._parse_stories_from_text(stories_text, feature.get("key", ""))
-            feature["stories"] = stories
+            feature["stories"] = self._parse_stories_from_text(stories_text, feature.get("key", ""))
 
-        # Only return if we have at least a key or title
         if feature["key"] or feature["title"]:
             return feature
-
         return None
 
     @beartype
@@ -258,85 +403,25 @@ class EnrichmentParser:
             "confidence": 0.8,
         }
 
-        # Generate story key from feature key and number
         if feature_key:
-            # Extract base from feature key (e.g., "FEATURE-DUALSTACK" -> "DUALSTACK")
             base = feature_key.replace("FEATURE-", "").upper()
             story["key"] = f"STORY-{base}-{story_number:03d}"
         else:
             story["key"] = f"STORY-{story_number:03d}"
 
-        # Extract title (first line or after "Title:")
-        title_match = re.search(r"(?:title|Title):\s*(.+?)(?:\n|$)", story_text, re.IGNORECASE)
-        if title_match:
-            story["title"] = title_match.group(1).strip()
-        else:
-            # Use first line as title (remove leading number/bullet if present)
-            first_line = story_text.split("\n")[0].strip()
-            # Remove leading number/bullet: "1. Title" -> "Title" or "- Title" -> "Title"
-            first_line = re.sub(r"^(?:\d+\.|\*|\-)\s*", "", first_line).strip()
-            # Remove story key prefix if present: "STORY-XXX: Title" -> "Title"
-            first_line = re.sub(r"^STORY-[A-Z0-9-]+:\s*", "", first_line, flags=re.IGNORECASE).strip()
-            if first_line and not first_line.startswith("#") and not first_line.startswith("-"):
-                story["title"] = first_line
+        story["title"] = _extract_story_title(story_text)
+        story["acceptance"] = _extract_story_acceptance(story_text, story.get("title", ""))
 
-        # Extract acceptance criteria
-        # Handle both "- Acceptance: ..." and "Acceptance: ..." formats
-        # Pattern matches: "- Acceptance: ..." or "Acceptance: ..." (with optional indentation and dash)
-        # Use simple pattern that matches "Acceptance:" and captures until end or next numbered item
-        acceptance_match = re.search(
-            r"(?:acceptance|Acceptance|criteria|Criteria):\s*(.+?)(?=\n\s*\d+\.|\n\s*(?:tasks?|Tasks?|points?|Points?|##)|\Z)",
-            story_text,
-            re.IGNORECASE | re.DOTALL,
-        )
-        if acceptance_match:
-            acceptance_text = acceptance_match.group(1).strip()
-            # Split by commas (common format: "criterion1, criterion2, criterion3")
-            # Use lookahead to split on comma-space before capital letter (sentence boundaries)
-            # Also split on newlines for multi-line format
-            acceptance = [
-                a.strip()
-                for a in re.split(r",\s+(?=[A-Z][a-z])|\n", acceptance_text)
-                if a.strip() and not a.strip().startswith("-") and not a.strip().startswith("Acceptance:")
-            ]
-            # If splitting didn't work well, try simpler comma split
-            if not acceptance or len(acceptance) == 1:
-                acceptance = [
-                    a.strip() for a in acceptance_text.split(",") if a.strip() and not a.strip().startswith("-")
-                ]
-            # If still empty after splitting, use the whole text as one criterion
-            if not acceptance:
-                acceptance = [acceptance_text]
-            story["acceptance"] = acceptance
-        else:
-            # Default acceptance if none found
-            story["acceptance"] = [f"{story.get('title', 'Story')} works as expected"]
-
-        # Extract tasks
         tasks_match = re.search(
             r"(?:tasks?|Tasks?):\s*(.+?)(?:\n(?:points?|Points?|$))", story_text, re.IGNORECASE | re.DOTALL
         )
         if tasks_match:
-            tasks_text = tasks_match.group(1)
-            tasks = [t.strip() for t in re.split(r"\n|,", tasks_text) if t.strip()]
-            story["tasks"] = tasks
+            story["tasks"] = [t.strip() for t in re.split(r"\n|,", tasks_match.group(1)) if t.strip()]
 
-        # Extract story points
-        story_points_match = re.search(r"(?:story\s+points?|Story\s+Points?):\s*(\d+)", story_text, re.IGNORECASE)
-        if story_points_match:
-            with suppress(ValueError):
-                story["story_points"] = int(story_points_match.group(1))
+        story["story_points"], story["value_points"] = _extract_story_points(story_text)
 
-        # Extract value points
-        value_points_match = re.search(r"(?:value\s+points?|Value\s+Points?):\s*(\d+)", story_text, re.IGNORECASE)
-        if value_points_match:
-            with suppress(ValueError):
-                story["value_points"] = int(value_points_match.group(1))
-
-        # Only return if we have at least a title
         if story["title"]:
             return story
-
         return None
 
     @beartype
@@ -369,7 +454,6 @@ class EnrichmentParser:
     @require(lambda report: isinstance(report, EnrichmentReport), "Report must be EnrichmentReport")
     def _parse_business_context(self, content: str, report: EnrichmentReport) -> None:
         """Parse business context section from enrichment report."""
-        # Look for "Business Context" section
         pattern = r"##\s*Business\s+Context\s*\n(.*?)(?=##|\Z)"
         match = re.search(pattern, content, re.IGNORECASE | re.DOTALL)
         if not match:
@@ -377,38 +461,17 @@ class EnrichmentParser:
 
         section = match.group(1)
 
-        # Extract priorities
-        priorities_match = re.search(
-            r"(?:Priorities?|Priority):\s*(.+?)(?:\n(?:Constraints?|Unknowns?)|$)", section, re.IGNORECASE | re.DOTALL
-        )
-        if priorities_match:
-            priorities_text = priorities_match.group(1)
-            priorities = [
-                p.strip() for p in re.split(r"\n|,", priorities_text) if p.strip() and not p.strip().startswith("-")
-            ]
-            report.add_business_context("priorities", priorities)
+        def _add_list_from_heading(regex: str, category: str) -> None:
+            m = re.search(regex, section, re.IGNORECASE | re.DOTALL)
+            if not m:
+                return
+            text = m.group(1)
+            items = [x.strip() for x in re.split(r"\n|,", text) if x.strip() and not x.strip().startswith("-")]
+            report.add_business_context(category, items)
 
-        # Extract constraints
-        constraints_match = re.search(
-            r"(?:Constraints?|Constraint):\s*(.+?)(?:\n(?:Unknowns?|Priorities?)|$)", section, re.IGNORECASE | re.DOTALL
-        )
-        if constraints_match:
-            constraints_text = constraints_match.group(1)
-            constraints = [
-                c.strip() for c in re.split(r"\n|,", constraints_text) if c.strip() and not c.strip().startswith("-")
-            ]
-            report.add_business_context("constraints", constraints)
-
-        # Extract unknowns
-        unknowns_match = re.search(
-            r"(?:Unknowns?|Unknown):\s*(.+?)(?:\n(?:Priorities?|Constraints?)|$)", section, re.IGNORECASE | re.DOTALL
-        )
-        if unknowns_match:
-            unknowns_text = unknowns_match.group(1)
-            unknowns = [
-                u.strip() for u in re.split(r"\n|,", unknowns_text) if u.strip() and not u.strip().startswith("-")
-            ]
-            report.add_business_context("unknowns", unknowns)
+        _add_list_from_heading(r"(?:Priorities?|Priority):\s*(.+?)(?:\n(?:Constraints?|Unknowns?)|$)", "priorities")
+        _add_list_from_heading(r"(?:Constraints?|Constraint):\s*(.+?)(?:\n(?:Unknowns?|Priorities?)|$)", "constraints")
+        _add_list_from_heading(r"(?:Unknowns?|Unknown):\s*(.+?)(?:\n(?:Priorities?|Constraints?)|$)", "unknowns")
 
 
 @beartype
@@ -437,80 +500,12 @@ def apply_enrichment(plan_bundle: PlanBundle, enrichment: EnrichmentReport) -> P
 
     # Add missing features
     for missing_feature_data in enrichment.missing_features:
-        # Check if feature already exists
         feature_key = missing_feature_data.get("key", "")
         if feature_key and feature_key in feature_keys:
-            # Update existing feature instead of adding duplicate
             existing_idx = feature_keys[feature_key]
-            existing_feature = enriched.features[existing_idx]
-            # Update confidence if provided
-            if "confidence" in missing_feature_data:
-                existing_feature.confidence = missing_feature_data["confidence"]
-            # Update title if provided and empty
-            if "title" in missing_feature_data and missing_feature_data["title"] and not existing_feature.title:
-                existing_feature.title = missing_feature_data["title"]
-            # Merge outcomes
-            if "outcomes" in missing_feature_data:
-                for outcome in missing_feature_data["outcomes"]:
-                    if outcome not in existing_feature.outcomes:
-                        existing_feature.outcomes.append(outcome)
-            # Merge stories (add new stories that don't already exist)
-            stories_data = missing_feature_data.get("stories", [])
-            if stories_data:
-                existing_story_keys = {s.key for s in existing_feature.stories}
-                for story_data in stories_data:
-                    if isinstance(story_data, dict):
-                        story_key = story_data.get("key", "")
-                        # Only add story if it doesn't already exist
-                        if story_key and story_key not in existing_story_keys:
-                            story = Story(
-                                key=story_key,
-                                title=story_data.get("title", "Untitled Story"),
-                                acceptance=story_data.get("acceptance", []),
-                                story_points=story_data.get("story_points"),
-                                value_points=story_data.get("value_points"),
-                                tasks=story_data.get("tasks", []),
-                                confidence=story_data.get("confidence", 0.8),
-                                draft=False,
-                                scenarios=None,
-                                contracts=None,
-                            )
-                            existing_feature.stories.append(story)
-                            existing_story_keys.add(story_key)
+            _merge_missing_into_existing_feature(enriched.features[existing_idx], missing_feature_data)
         else:
-            # Create new feature with stories (if provided)
-            stories_data = missing_feature_data.get("stories", [])
-            stories: list[Story] = []
-            for story_data in stories_data:
-                if isinstance(story_data, dict):
-                    story = Story(
-                        key=story_data.get("key", f"STORY-{len(stories) + 1:03d}"),
-                        title=story_data.get("title", "Untitled Story"),
-                        acceptance=story_data.get("acceptance", []),
-                        story_points=story_data.get("story_points"),
-                        value_points=story_data.get("value_points"),
-                        tasks=story_data.get("tasks", []),
-                        confidence=story_data.get("confidence", 0.8),
-                        draft=False,
-                        scenarios=None,
-                        contracts=None,
-                    )
-                    stories.append(story)
-
-            feature = Feature(
-                key=missing_feature_data.get("key", f"FEATURE-{len(enriched.features) + 1:03d}"),
-                title=missing_feature_data.get("title", "Untitled Feature"),
-                outcomes=missing_feature_data.get("outcomes", []),
-                acceptance=[],
-                constraints=[],
-                stories=stories,  # Include parsed stories
-                confidence=missing_feature_data.get("confidence", 0.5),
-                draft=False,
-                source_tracking=None,
-                contract=None,
-                protocol=None,
-            )
-            enriched.features.append(feature)
+            _append_new_feature_from_missing(enriched, missing_feature_data)
 
     # Apply business context to idea if present
     if enriched.idea and enrichment.business_context and enrichment.business_context.get("constraints"):

@@ -53,11 +53,10 @@ class PersonaTemplate(BaseModel):
     persona_name: str = Field(..., description="Persona name (e.g., 'product-owner')")
     version: str = Field("1.0.0", description="Template version (SemVer)")
     description: str = Field(..., description="Template description")
-    sections: list[TemplateSection] = Field(..., description="Template sections in order")
+    sections: list[TemplateSection] = Field(..., min_length=1, description="Template sections in order")
     metadata: dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
 
     @beartype
-    @require(lambda self: len(self.sections) > 0, "Template must have at least one section")
     @ensure(lambda result: isinstance(result, list), "Must return list")
     def get_required_sections(self) -> list[str]:
         """Get list of required section names."""

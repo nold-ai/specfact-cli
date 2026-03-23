@@ -10,6 +10,18 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.42.3] - 2026-03-23
+
+### Fixed
+
+- Completed the **dogfood code-review-zero-findings** remediation so `specfact code review run --scope full` on this repository reports **PASS** with **no findings** (down from **2500+** baseline diagnostics across type safety, architecture, contracts, and clean-code categories).
+- **Type checking (basedpyright):** eliminated blocking errors and drove high-volume warnings (including `reportUnknownMemberType`) to zero across `src/specfact_cli`, `tools`, `scripts`, and bundled modules; aligned `pyproject.toml` / `extraPaths` usage with review tooling limits.
+- **Radon:** refactored hot paths to **cyclomatic complexity ≤12** (no CC13–CC15 warnings) in adapters, sync/bridge, generators, importers, registry, CLI, utils, validators, tools, scripts, and bundled `init` / `module_registry` command surfaces.
+- **Lint / policy:** addressed Ruff and Semgrep issues used by the review (for example `SIM105` / `SIM117`, import ordering, `contextlib.suppress` where appropriate, and `print_progress` emitting via `sys.stdout` instead of `print()` to satisfy structured-output rules while keeping test-visible progress).
+- **Contracts:** repaired icontract / `@ensure` wiring (for example `vscode_settings_result_ok`, `save_bundle_with_progress` preconditions versus on-disk creation) and `bridge_sync_tasks_from_proposal` checkbox helper typing so contract checks and tests stay consistent with the review gate.
+
+---
+
 ## [0.42.2] - 2026-03-18
 
 ### Fixed

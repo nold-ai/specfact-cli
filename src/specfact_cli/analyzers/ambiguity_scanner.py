@@ -12,6 +12,7 @@ import re
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
+from typing import Any, cast
 
 from beartype import beartype
 from icontract import ensure, require
@@ -80,6 +81,29 @@ class AmbiguityReport:
             self.coverage = {}
         if not 0.0 <= self.priority_score <= 1.0:
             raise ValueError(f"Priority score must be 0.0-1.0, got {self.priority_score}")
+
+
+def _pyproject_classifier_strings_from_text(text: str) -> list[str]:
+    """Return project.classifiers from pyproject.toml text as strings."""
+    try:
+        try:
+            import tomllib
+        except ImportError:
+            try:
+                import tomli as tomllib  # type: ignore[no-redef]
+            except ImportError:
+                return []
+        _tl = cast(Any, tomllib)
+        raw = _tl.loads(text)
+        data = cast(dict[str, Any], raw) if isinstance(raw, dict) else {}
+        project_raw = data.get("project")
+        project = cast(dict[str, Any], project_raw) if isinstance(project_raw, dict) else {}
+        classifiers_raw = project.get("classifiers", [])
+        if not isinstance(classifiers_raw, list):
+            return []
+        return [c for c in classifiers_raw if isinstance(c, str)]
+    except Exception:
+        return []
 
 
 class AmbiguityScanner:
@@ -166,6 +190,87 @@ class AmbiguityScanner:
 
         return findings
 
+    _BEHAVIORAL_PATTERNS: tuple[str, ...] = (
+        "can ",
+        "should ",
+        "must ",
+        "will ",
+        "when ",
+        "then ",
+        "if ",
+        "after ",
+        "before ",
+        "user ",
+        "system ",
+        "application ",
+        "allows ",
+        "enables ",
+        "performs ",
+        "executes ",
+        "triggers ",
+        "responds ",
+        "validates ",
+        "processes ",
+        "handles ",
+        "supports ",
+    )
+
+    @staticmethod
+    def _acceptance_list_has_behavioral_pattern(acceptance_lines: list[str], patterns: tuple[str, ...]) -> bool:
+        return bool(acceptance_lines and any(any(p in acc.lower() for p in patterns) for acc in acceptance_lines))
+
+    def _feature_has_behavioral_descriptions(self, feature: Any, patterns: tuple[str, ...]) -> bool:
+        if self._acceptance_list_has_behavioral_pattern(list(feature.acceptance or []), patterns):
+            return True
+        return any(
+            self._acceptance_list_has_behavioral_pattern(list(story.acceptance or []), patterns)
+            for story in feature.stories
+        )
+
+    def _functional_scope_findings_for_feature(self, feature: Any) -> list[AmbiguityFinding]:
+        findings: list[AmbiguityFinding] = []
+        if not feature.outcomes:
+            findings.append(
+                AmbiguityFinding(
+                    category=TaxonomyCategory.FUNCTIONAL_SCOPE,
+                    status=AmbiguityStatus.MISSING,
+                    description=f"Feature {feature.key} has no outcomes specified",
+                    impact=0.6,
+                    uncertainty=0.5,
+                    question=f"What are the expected outcomes for feature {feature.key} ({feature.title})?",
+                    related_sections=[f"features.{feature.key}.outcomes"],
+                )
+            )
+        patterns = self._BEHAVIORAL_PATTERNS
+        if self._feature_has_behavioral_descriptions(feature, patterns):
+            return findings
+        has_any_acceptance = bool(feature.acceptance or any(story.acceptance for story in feature.stories))
+        if not has_any_acceptance:
+            findings.append(
+                AmbiguityFinding(
+                    category=TaxonomyCategory.FUNCTIONAL_SCOPE,
+                    status=AmbiguityStatus.MISSING,
+                    description=f"Feature {feature.key} has no acceptance criteria with behavioral descriptions",
+                    impact=0.7,
+                    uncertainty=0.6,
+                    question=f"What are the behavioral requirements for feature {feature.key} ({feature.title})? How should it behave in different scenarios?",
+                    related_sections=[f"features.{feature.key}.acceptance", f"features.{feature.key}.stories"],
+                )
+            )
+            return findings
+        findings.append(
+            AmbiguityFinding(
+                category=TaxonomyCategory.FUNCTIONAL_SCOPE,
+                status=AmbiguityStatus.PARTIAL,
+                description=f"Feature {feature.key} has acceptance criteria but may lack clear behavioral descriptions",
+                impact=0.5,
+                uncertainty=0.5,
+                question=f"Are the acceptance criteria for feature {feature.key} ({feature.title}) clear about expected behavior? Consider adding behavioral patterns (e.g., 'user can...', 'system should...', 'when X then Y').",
+                related_sections=[f"features.{feature.key}.acceptance", f"features.{feature.key}.stories"],
+            )
+        )
+        return findings
+
     @beartype
     def _scan_functional_scope(self, plan_bundle: PlanBundle) -> list[AmbiguityFinding]:
         """Scan functional scope and behavior."""
@@ -206,91 +311,8 @@ class AmbiguityScanner:
                 )
             )
 
-        # Check features have clear outcomes
         for feature in plan_bundle.features:
-            if not feature.outcomes:
-                findings.append(
-                    AmbiguityFinding(
-                        category=TaxonomyCategory.FUNCTIONAL_SCOPE,
-                        status=AmbiguityStatus.MISSING,
-                        description=f"Feature {feature.key} has no outcomes specified",
-                        impact=0.6,
-                        uncertainty=0.5,
-                        question=f"What are the expected outcomes for feature {feature.key} ({feature.title})?",
-                        related_sections=[f"features.{feature.key}.outcomes"],
-                    )
-                )
-
-            # Check for behavioral descriptions in acceptance criteria
-            # Behavioral patterns: action verbs, user/system actions, conditional logic
-            behavioral_patterns = [
-                "can ",
-                "should ",
-                "must ",
-                "will ",
-                "when ",
-                "then ",
-                "if ",
-                "after ",
-                "before ",
-                "user ",
-                "system ",
-                "application ",
-                "allows ",
-                "enables ",
-                "performs ",
-                "executes ",
-                "triggers ",
-                "responds ",
-                "validates ",
-                "processes ",
-                "handles ",
-                "supports ",
-            ]
-
-            has_behavioral_content = False
-            if feature.acceptance:
-                has_behavioral_content = any(
-                    any(pattern in acc.lower() for pattern in behavioral_patterns) for acc in feature.acceptance
-                )
-
-            # Also check stories for behavioral content
-            story_has_behavior = False
-            for story in feature.stories:
-                if story.acceptance and any(
-                    any(pattern in acc.lower() for pattern in behavioral_patterns) for acc in story.acceptance
-                ):
-                    story_has_behavior = True
-                    break
-
-            # If no behavioral content found in feature or stories, flag it
-            if not has_behavioral_content and not story_has_behavior:
-                # Check if feature has any acceptance criteria at all
-                if not feature.acceptance and not any(story.acceptance for story in feature.stories):
-                    findings.append(
-                        AmbiguityFinding(
-                            category=TaxonomyCategory.FUNCTIONAL_SCOPE,
-                            status=AmbiguityStatus.MISSING,
-                            description=f"Feature {feature.key} has no acceptance criteria with behavioral descriptions",
-                            impact=0.7,
-                            uncertainty=0.6,
-                            question=f"What are the behavioral requirements for feature {feature.key} ({feature.title})? How should it behave in different scenarios?",
-                            related_sections=[f"features.{feature.key}.acceptance", f"features.{feature.key}.stories"],
-                        )
-                    )
-                elif feature.acceptance or any(story.acceptance for story in feature.stories):
-                    # Has acceptance criteria but lacks behavioral patterns
-                    findings.append(
-                        AmbiguityFinding(
-                            category=TaxonomyCategory.FUNCTIONAL_SCOPE,
-                            status=AmbiguityStatus.PARTIAL,
-                            description=f"Feature {feature.key} has acceptance criteria but may lack clear behavioral descriptions",
-                            impact=0.5,
-                            uncertainty=0.5,
-                            question=f"Are the acceptance criteria for feature {feature.key} ({feature.title}) clear about expected behavior? Consider adding behavioral patterns (e.g., 'user can...', 'system should...', 'when X then Y').",
-                            related_sections=[f"features.{feature.key}.acceptance", f"features.{feature.key}.stories"],
-                        )
-                    )
+            findings.extend(self._functional_scope_findings_for_feature(feature))
 
         return findings
 
@@ -498,6 +520,57 @@ class AmbiguityScanner:
 
         return findings
 
+    _VAGUE_ACCEPTANCE_PATTERNS: tuple[str, ...] = (
+        "is implemented",
+        "is functional",
+        "works",
+        "is done",
+        "is complete",
+        "is ready",
+    )
+    _TESTABILITY_KEYWORDS: tuple[str, ...] = ("must", "should", "will", "verify", "validate", "check")
+
+    def _completion_findings_for_story_with_acceptance(self, feature: Any, story: Any) -> list[AmbiguityFinding]:
+        from specfact_cli.utils.acceptance_criteria import (
+            is_code_specific_criteria,
+            is_simplified_format_criteria,
+        )
+
+        vague_patterns = self._VAGUE_ACCEPTANCE_PATTERNS
+        non_code_specific_criteria = [
+            acc
+            for acc in story.acceptance
+            if not is_code_specific_criteria(acc) and not is_simplified_format_criteria(acc)
+        ]
+        vague_criteria = [
+            acc for acc in non_code_specific_criteria if any(pattern in acc.lower() for pattern in vague_patterns)
+        ]
+        if vague_criteria:
+            return [
+                AmbiguityFinding(
+                    category=TaxonomyCategory.COMPLETION_SIGNALS,
+                    status=AmbiguityStatus.PARTIAL,
+                    description=f"Story {story.key} has vague acceptance criteria: {', '.join(vague_criteria[:2])}",
+                    impact=0.7,
+                    uncertainty=0.6,
+                    question=f"Story {story.key} ({story.title}) has vague acceptance criteria (e.g., '{vague_criteria[0]}'). Should these be more specific? Note: Detailed test examples should be in OpenAPI contract files, not acceptance criteria.",
+                    related_sections=[f"features.{feature.key}.stories.{story.key}.acceptance"],
+                )
+            ]
+        if any(keyword in acc.lower() for acc in story.acceptance for keyword in self._TESTABILITY_KEYWORDS):
+            return []
+        return [
+            AmbiguityFinding(
+                category=TaxonomyCategory.COMPLETION_SIGNALS,
+                status=AmbiguityStatus.PARTIAL,
+                description=f"Story {story.key} acceptance criteria may not be testable",
+                impact=0.5,
+                uncertainty=0.4,
+                question=f"Are the acceptance criteria for story {story.key} ({story.title}) measurable and testable?",
+                related_sections=[f"features.{feature.key}.stories.{story.key}.acceptance"],
+            )
+        ]
+
     @beartype
     def _scan_completion_signals(self, plan_bundle: PlanBundle) -> list[AmbiguityFinding]:
         """Scan completion signals and testability."""
@@ -519,78 +592,64 @@ class AmbiguityScanner:
                         )
                     )
                 else:
-                    # Check for vague acceptance criteria patterns
-                    # BUT: Skip if criteria are already code-specific (preserve code-specific criteria from code2spec)
-                    # AND: Skip if criteria use the new simplified format (post-GWT refactoring)
-                    from specfact_cli.utils.acceptance_criteria import (
-                        is_code_specific_criteria,
-                        is_simplified_format_criteria,
-                    )
-
-                    vague_patterns = [
-                        "is implemented",
-                        "is functional",
-                        "works",
-                        "is done",
-                        "is complete",
-                        "is ready",
-                    ]
-
-                    # Only check criteria that are NOT code-specific AND NOT using simplified format
-                    # Note: Acceptance criteria are simple text descriptions (not OpenAPI format)
-                    # Detailed testable examples are stored in OpenAPI contract files (.openapi.yaml)
-                    # The new simplified format (e.g., "Must verify X works correctly (see contract examples)")
-                    # is VALID and should not be flagged as vague
-                    non_code_specific_criteria = [
-                        acc
-                        for acc in story.acceptance
-                        if not is_code_specific_criteria(acc) and not is_simplified_format_criteria(acc)
-                    ]
-
-                    vague_criteria = [
-                        acc
-                        for acc in non_code_specific_criteria
-                        if any(pattern in acc.lower() for pattern in vague_patterns)
-                    ]
-
-                    if vague_criteria:
-                        findings.append(
-                            AmbiguityFinding(
-                                category=TaxonomyCategory.COMPLETION_SIGNALS,
-                                status=AmbiguityStatus.PARTIAL,
-                                description=f"Story {story.key} has vague acceptance criteria: {', '.join(vague_criteria[:2])}",
-                                impact=0.7,
-                                uncertainty=0.6,
-                                question=f"Story {story.key} ({story.title}) has vague acceptance criteria (e.g., '{vague_criteria[0]}'). Should these be more specific? Note: Detailed test examples should be in OpenAPI contract files, not acceptance criteria.",
-                                related_sections=[f"features.{feature.key}.stories.{story.key}.acceptance"],
-                            )
-                        )
-                    elif not any(
-                        keyword in acc.lower()
-                        for acc in story.acceptance
-                        for keyword in [
-                            "must",
-                            "should",
-                            "will",
-                            "verify",
-                            "validate",
-                            "check",
-                        ]
-                    ):
-                        # Check if acceptance criteria are measurable
-                        findings.append(
-                            AmbiguityFinding(
-                                category=TaxonomyCategory.COMPLETION_SIGNALS,
-                                status=AmbiguityStatus.PARTIAL,
-                                description=f"Story {story.key} acceptance criteria may not be testable",
-                                impact=0.5,
-                                uncertainty=0.4,
-                                question=f"Are the acceptance criteria for story {story.key} ({story.title}) measurable and testable?",
-                                related_sections=[f"features.{feature.key}.stories.{story.key}.acceptance"],
-                            )
-                        )
+                    findings.extend(self._completion_findings_for_story_with_acceptance(feature, story))
 
         return findings
+
+    _INCOMPLETE_OUTCOME_PREFIXES: tuple[str, ...] = ("system must", "system should", "must", "should")
+    _INCOMPLETE_OUTCOME_KEYWORDS: tuple[str, ...] = ("class", "helper", "module", "component", "service", "function")
+    _GENERIC_TASK_PATTERNS: tuple[str, ...] = ("implement", "create", "add", "set up")
+    _TASK_DETAIL_MARKERS: tuple[str, ...] = ("file", "path", "method", "class", "component", "module", "function")
+
+    def _incomplete_outcome_findings(self, feature: Any) -> list[AmbiguityFinding]:
+        findings: list[AmbiguityFinding] = []
+        for outcome in feature.outcomes:
+            outcome_lower = outcome.lower()
+            for pattern in self._INCOMPLETE_OUTCOME_PREFIXES:
+                if not outcome_lower.startswith(pattern):
+                    continue
+                remaining = outcome_lower[len(pattern) :].strip()
+                if (
+                    remaining
+                    and len(remaining.split()) < 3
+                    and any(kw in remaining for kw in self._INCOMPLETE_OUTCOME_KEYWORDS)
+                ):
+                    findings.append(
+                        AmbiguityFinding(
+                            category=TaxonomyCategory.FEATURE_COMPLETENESS,
+                            status=AmbiguityStatus.PARTIAL,
+                            description=f"Feature {feature.key} has incomplete requirement: '{outcome}' (missing verb/action)",
+                            impact=0.6,
+                            uncertainty=0.5,
+                            question=f"Feature {feature.key} ({feature.title}) requirement '{outcome}' appears incomplete. What should the system do?",
+                            related_sections=[f"features.{feature.key}.outcomes"],
+                        )
+                    )
+                    break
+        return findings
+
+    def _generic_task_finding_for_story(self, feature: Any, story: Any) -> AmbiguityFinding | None:
+        if not story.tasks:
+            return None
+        generic_tasks = [
+            task
+            for task in story.tasks
+            if any(
+                pattern in task.lower() and not any(detail in task.lower() for detail in self._TASK_DETAIL_MARKERS)
+                for pattern in self._GENERIC_TASK_PATTERNS
+            )
+        ]
+        if not generic_tasks:
+            return None
+        return AmbiguityFinding(
+            category=TaxonomyCategory.FEATURE_COMPLETENESS,
+            status=AmbiguityStatus.PARTIAL,
+            description=f"Story {story.key} has generic tasks without implementation details: {', '.join(generic_tasks[:2])}",
+            impact=0.4,
+            uncertainty=0.3,
+            question=f"Story {story.key} ({story.title}) has generic tasks. Should these include file paths, method names, or component references?",
+            related_sections=[f"features.{feature.key}.stories.{story.key}.tasks"],
+        )
 
     @beartype
     def _scan_feature_completeness(self, plan_bundle: PlanBundle) -> list[AmbiguityFinding]:
@@ -626,78 +685,246 @@ class AmbiguityScanner:
                     )
                 )
 
-            # Check for incomplete requirements in outcomes
-            for outcome in feature.outcomes:
-                # Check for incomplete patterns like "System MUST Helper class" (missing verb/object)
-                incomplete_patterns = [
-                    "system must",
-                    "system should",
-                    "must",
-                    "should",
-                ]
-                outcome_lower = outcome.lower()
-                # Check if outcome starts with pattern but is incomplete (missing verb after "must" or ends abruptly)
-                for pattern in incomplete_patterns:
-                    if outcome_lower.startswith(pattern):
-                        # Check if it's incomplete (e.g., "System MUST Helper class" - missing verb)
-                        remaining = outcome_lower[len(pattern) :].strip()
-                        # If remaining is just a noun phrase without a verb, it's likely incomplete
-                        if (
-                            remaining
-                            and len(remaining.split()) < 3
-                            and any(
-                                keyword in remaining
-                                for keyword in ["class", "helper", "module", "component", "service", "function"]
-                            )
-                        ):
-                            findings.append(
-                                AmbiguityFinding(
-                                    category=TaxonomyCategory.FEATURE_COMPLETENESS,
-                                    status=AmbiguityStatus.PARTIAL,
-                                    description=f"Feature {feature.key} has incomplete requirement: '{outcome}' (missing verb/action)",
-                                    impact=0.6,
-                                    uncertainty=0.5,
-                                    question=f"Feature {feature.key} ({feature.title}) requirement '{outcome}' appears incomplete. What should the system do?",
-                                    related_sections=[f"features.{feature.key}.outcomes"],
-                                )
-                            )
-                            break
+            findings.extend(self._incomplete_outcome_findings(feature))
 
-            # Check for generic tasks in stories
             for story in feature.stories:
-                if story.tasks:
-                    generic_patterns = [
-                        "implement",
-                        "create",
-                        "add",
-                        "set up",
-                    ]
-                    generic_tasks = [
-                        task
-                        for task in story.tasks
-                        if any(
-                            pattern in task.lower()
-                            and not any(
-                                detail in task.lower()
-                                for detail in ["file", "path", "method", "class", "component", "module", "function"]
-                            )
-                            for pattern in generic_patterns
-                        )
-                    ]
-                    if generic_tasks:
-                        findings.append(
-                            AmbiguityFinding(
-                                category=TaxonomyCategory.FEATURE_COMPLETENESS,
-                                status=AmbiguityStatus.PARTIAL,
-                                description=f"Story {story.key} has generic tasks without implementation details: {', '.join(generic_tasks[:2])}",
-                                impact=0.4,
-                                uncertainty=0.3,
-                                question=f"Story {story.key} ({story.title}) has generic tasks. Should these include file paths, method names, or component references?",
-                                related_sections=[f"features.{feature.key}.stories.{story.key}.tasks"],
-                            )
-                        )
+                gt = self._generic_task_finding_for_story(feature, story)
+                if gt:
+                    findings.append(gt)
 
         return findings
+
+    _EXCLUDED_PERSONA_TERMS: frozenset[str] = frozenset(
+        {
+            "a",
+            "an",
+            "the",
+            "i",
+            "can",
+            "user",
+            "users",
+            "developer",
+            "feature",
+            "system",
+            "application",
+            "software",
+            "code",
+            "test",
+            "detecting",
+            "data",
+            "pipeline",
+            "pipelines",
+            "devops",
+            "script",
+            "scripts",
+        }
+    )
+
+    def _personas_from_pyproject(self) -> set[str]:
+        """
+        Extract persona suggestions from pyproject.toml classifiers.
+
+        Returns:
+            Set of candidate persona strings
+        """
+        excluded = self._EXCLUDED_PERSONA_TERMS
+        result: set[str] = set()
+        if not self.repo_path:
+            return result
+        pyproject_path = self.repo_path / "pyproject.toml"
+        if not pyproject_path.exists():
+            return result
+        try:
+            text = pyproject_path.read_text(encoding="utf-8")
+        except Exception:
+            return result
+        for classifier in _pyproject_classifier_strings_from_text(text):
+            if "Intended Audience ::" in classifier:
+                audience = classifier.split("::")[-1].strip()
+                if audience and audience.lower() not in excluded and len(audience) > 3 and not audience.isupper():
+                    result.add(audience)
+        return result
+
+    def _personas_from_readme(self) -> set[str]:
+        """
+        Extract persona suggestions from README.md target-user patterns.
+
+        Returns:
+            Set of candidate persona strings
+        """
+        excluded = self._EXCLUDED_PERSONA_TERMS
+        result: set[str] = set()
+        if not self.repo_path:
+            return result
+        readme_path = self.repo_path / "README.md"
+        if not readme_path.exists():
+            return result
+        try:
+            content = readme_path.read_text(encoding="utf-8")
+            m = re.search(r"(?:Perfect for|Target users?|For|Audience):\s*(.+?)(?:\n|$)", content, re.IGNORECASE)
+            if not m:
+                return result
+            use_case_terms = ["pipeline", "script", "system", "application", "code", "api", "service"]
+            for user in re.split(r"[,;]|\sand\s", m.group(1)):
+                user_clean = re.sub(r"^\*\*?|\*\*?$", "", user.strip()).strip()
+                user_lower = user_clean.lower()
+                if any(uc in user_lower for uc in use_case_terms):
+                    continue
+                if user_clean and len(user_clean) > 2 and user_lower not in excluded and len(user_clean.split()) <= 3:
+                    result.add(user_clean.title())
+        except Exception:
+            pass
+        return result
+
+    def _personas_from_story_titles(self, plan_bundle: Any) -> set[str]:
+        """
+        Extract persona suggestions from "As a X" story title patterns.
+
+        Args:
+            plan_bundle: Plan bundle containing features and stories
+
+        Returns:
+            Set of candidate persona strings
+        """
+        excluded = self._EXCLUDED_PERSONA_TERMS
+        result: set[str] = set()
+        for feature in plan_bundle.features:
+            for story in feature.stories:
+                m = re.search(r"as (?:a|an) ([^,\.]+?)(?:\s+(?:i|can|want|need|should|will)|$)", story.title.lower())
+                if m:
+                    user_type = m.group(1).strip()
+                    if (
+                        user_type
+                        and len(user_type) > 2
+                        and user_type.lower() not in excluded
+                        and not user_type.isupper()
+                        and len(user_type.split()) <= 3
+                    ):
+                        result.add(user_type.title())
+        return result
+
+    @staticmethod
+    def _role_fragment_from_class_name(cn: str) -> str:
+        if cn.endswith("user"):
+            return cn[:-4].strip()
+        if cn.startswith("user"):
+            return cn[4:].strip()
+        if cn.endswith("role"):
+            return cn[:-4].strip()
+        if cn.startswith("role"):
+            return cn[4:].strip()
+        return cn.replace("persona", "").strip()
+
+    def _add_persona_role_if_valid(self, role: str, result: set[str], excluded: frozenset[str]) -> None:
+        role = re.sub(r"[_-]", " ", role).strip()
+        if not role or role.lower() in excluded:
+            return
+        if len(role) <= 2 or len(role.split()) > 2 or role.isupper():
+            return
+        if re.match(r"^[A-Z][a-z]+[A-Z]", role):
+            return
+        result.add(role.title())
+
+    def _personas_from_class_name_pattern(self, node: ast.ClassDef, result: set[str], excluded: frozenset[str]) -> None:
+        cn = node.name.lower()
+        if not (cn.endswith(("user", "role", "persona")) or cn.startswith(("user", "role", "persona"))):
+            return
+        self._add_persona_role_if_valid(self._role_fragment_from_class_name(cn), result, excluded)
+
+    @staticmethod
+    def _maybe_add_persona_from_class_assignment(
+        target: ast.expr,
+        value: ast.expr,
+        result: set[str],
+        excluded: frozenset[str],
+    ) -> None:
+        if not isinstance(target, ast.Name):
+            return
+        attr_name = target.id.lower()
+        if "role" not in attr_name and "permission" not in attr_name:
+            return
+        if not isinstance(value, ast.Constant):
+            return
+        role_value = value.value
+        if not isinstance(role_value, str) or len(role_value) <= 2:
+            return
+        role_clean = role_value.strip().lower()
+        if role_clean in excluded or len(role_clean.split()) > 2:
+            return
+        result.add(role_value.title())
+
+    @staticmethod
+    def _personas_from_class_assignments(node: ast.ClassDef, result: set[str], excluded: frozenset[str]) -> None:
+        for item in node.body:
+            if not (isinstance(item, ast.Assign) and item.targets):
+                continue
+            for target in item.targets:
+                AmbiguityScanner._maybe_add_persona_from_class_assignment(target, item.value, result, excluded)
+
+    def _personas_from_py_file(self, py_file: Path, result: set[str], excluded: frozenset[str]) -> None:
+        tree = ast.parse(py_file.read_text(encoding="utf-8"), filename=str(py_file))
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.ClassDef):
+                continue
+            self._personas_from_class_name_pattern(node, result, excluded)
+            self._personas_from_class_assignments(node, result, excluded)
+
+    def _personas_from_codebase(self) -> set[str]:
+        """
+        Extract persona suggestions by scanning user/role model class names in the codebase.
+
+        Only searches in directories likely to contain user models. Returns empty set if
+        no specific model directories are found.
+
+        Returns:
+            Set of candidate persona strings
+        """
+        excluded = self._EXCLUDED_PERSONA_TERMS
+        result: set[str] = set()
+        if not self.repo_path:
+            return result
+        try:
+            user_model_dirs = ["models", "auth", "users", "accounts", "roles", "permissions", "user"]
+            search_paths = [
+                self.repo_path / d
+                for d in user_model_dirs
+                if (self.repo_path / d).exists() and (self.repo_path / d).is_dir()
+            ]
+            if not search_paths:
+                return result
+            for search_path in search_paths:
+                for py_file in search_path.rglob("*.py"):
+                    if not py_file.is_file():
+                        continue
+                    try:
+                        self._personas_from_py_file(py_file, result, excluded)
+                    except Exception:
+                        continue
+        except Exception:
+            pass
+        return result
+
+    def _personas_from_outcomes(self, plan_bundle: Any) -> set[str]:
+        """
+        Extract single-word persona suggestions from feature outcome sentences.
+
+        Very conservative: only matches patterns like "allows X to" or "enables X to".
+
+        Args:
+            plan_bundle: Plan bundle containing features
+
+        Returns:
+            Set of candidate persona strings
+        """
+        excluded = self._EXCLUDED_PERSONA_TERMS
+        result: set[str] = set()
+        for feature in plan_bundle.features:
+            for outcome in feature.outcomes:
+                for match in re.findall(r"(?:allows|enables|for) ([a-z]+) (?:to|can)", outcome.lower()):
+                    m = match.strip()
+                    if m and len(m) > 2 and m not in excluded and len(m.split()) == 1:
+                        result.add(m.title())
+        return result
 
     @beartype
     def _extract_target_users(self, plan_bundle: PlanBundle) -> list[str]:
@@ -720,242 +947,22 @@ class AmbiguityScanner:
             return []
 
         suggested_users: set[str] = set()
+        suggested_users |= self._personas_from_pyproject()
+        suggested_users |= self._personas_from_readme()
+        suggested_users |= self._personas_from_story_titles(plan_bundle)
 
-        # Common false positives to exclude (terms that aren't user personas)
-        excluded_terms = {
-            "a",
-            "an",
-            "the",
-            "i",
-            "can",
-            "user",  # Too generic
-            "users",  # Too generic
-            "developer",  # Too generic - often refers to code developer, not persona
-            "feature",
-            "system",
-            "application",
-            "software",
-            "code",
-            "test",
-            "detecting",  # Technical term, not a persona
-            "data",  # Too generic
-            "pipeline",  # Use case, not a persona
-            "pipelines",  # Use case, not a persona
-            "devops",  # Use case, not a persona
-            "script",  # Technical term, not a persona
-            "scripts",  # Technical term, not a persona
-        }
+        if len(suggested_users) < 2:
+            suggested_users |= self._personas_from_codebase()
 
-        # 1. Extract from pyproject.toml (classifiers and keywords) - MOST RELIABLE
-        pyproject_path = self.repo_path / "pyproject.toml"
-        if pyproject_path.exists():
-            try:
-                # Try standard library first (Python 3.11+)
-                try:
-                    import tomllib
-                except ImportError:
-                    # Fall back to tomli for older Python versions
-                    try:
-                        import tomli as tomllib
-                    except ImportError:
-                        # If neither is available, skip TOML parsing
-                        tomllib = None
+        suggested_users |= self._personas_from_outcomes(plan_bundle)
 
-                if tomllib:
-                    content = pyproject_path.read_text(encoding="utf-8")
-                    data = tomllib.loads(content)
-
-                    # Extract from classifiers (e.g., "Intended Audience :: Developers")
-                    if "project" in data and "classifiers" in data["project"]:
-                        for classifier in data["project"]["classifiers"]:
-                            if "Intended Audience ::" in classifier:
-                                audience = classifier.split("::")[-1].strip()
-                                # Only add if it's a meaningful persona (not generic)
-                                if (
-                                    audience
-                                    and audience.lower() not in excluded_terms
-                                    and len(audience) > 3
-                                    and not audience.isupper()
-                                ):
-                                    suggested_users.add(audience)
-
-                    # Skip keywords extraction - too unreliable (contains technical terms)
-                    # Keywords are typically technical terms, not user personas
-                    # We rely on classifiers and README.md instead
-            except Exception:
-                # If pyproject.toml parsing fails, continue with other sources
-                pass
-
-        # 2. Extract from README.md ("Perfect for:", "Target users:", etc.) - VERY RELIABLE
-        readme_path = self.repo_path / "README.md"
-        if readme_path.exists():
-            try:
-                content = readme_path.read_text(encoding="utf-8")
-
-                # Look for "Perfect for:" or "Target users:" patterns
-                perfect_for_match = re.search(
-                    r"(?:Perfect for|Target users?|For|Audience):\s*(.+?)(?:\n|$)", content, re.IGNORECASE
-                )
-                if perfect_for_match:
-                    users_text = perfect_for_match.group(1)
-                    # Split by commas, semicolons, or "and"
-                    users = re.split(r"[,;]|\sand\s", users_text)
-                    for user in users:
-                        user_clean = user.strip()
-                        # Remove markdown formatting and common prefixes
-                        user_clean = re.sub(r"^\*\*?|\*\*?$", "", user_clean).strip()
-                        # Check if it's a persona (not a use case or technical term)
-                        user_lower = user_clean.lower()
-                        # Skip if it's a use case (e.g., "data pipelines", "devops scripts")
-                        if any(
-                            use_case in user_lower
-                            for use_case in ["pipeline", "script", "system", "application", "code", "api", "service"]
-                        ):
-                            continue
-                        if (
-                            user_clean
-                            and len(user_clean) > 2
-                            and user_lower not in excluded_terms
-                            and len(user_clean.split()) <= 3
-                        ):
-                            suggested_users.add(user_clean.title())
-            except Exception:
-                # If README.md parsing fails, continue with other sources
-                pass
-
-        # 3. Extract from story titles (e.g., "As a user, I can...") - RELIABLE
-        for feature in plan_bundle.features:
-            for story in feature.stories:
-                # Look for "As a X" or "As an X" patterns - be more precise
-                match = re.search(
-                    r"as (?:a|an) ([^,\.]+?)(?:\s+(?:i|can|want|need|should|will)|$)", story.title.lower()
-                )
-                if match:
-                    user_type = match.group(1).strip()
-                    # Only add if it's a reasonable persona (not a technical term)
-                    if (
-                        user_type
-                        and len(user_type) > 2
-                        and user_type.lower() not in excluded_terms
-                        and not user_type.isupper()
-                        and len(user_type.split()) <= 3
-                    ):
-                        suggested_users.add(user_type.title())
-
-        # 4. Extract from codebase (user models, roles, permissions) - OPTIONAL FALLBACK
-        # Only look in specific directories that typically contain user models
-        # Skip if we already have good suggestions from metadata
-        if self.repo_path and len(suggested_users) < 2:
-            try:
-                user_model_dirs = ["models", "auth", "users", "accounts", "roles", "permissions", "user"]
-                search_paths = []
-                for subdir in user_model_dirs:
-                    potential_path = self.repo_path / subdir
-                    if potential_path.exists() and potential_path.is_dir():
-                        search_paths.append(potential_path)
-
-                # If no specific directories found, skip codebase extraction (too risky)
-                if not search_paths:
-                    # Only extract from story titles - codebase extraction is too unreliable
-                    pass
-                else:
-                    for search_path in search_paths:
-                        for py_file in search_path.rglob("*.py"):
-                            if py_file.is_file():
-                                try:
-                                    content = py_file.read_text(encoding="utf-8")
-                                    tree = ast.parse(content, filename=str(py_file))
-
-                                    for node in ast.walk(tree):
-                                        # Look for class definitions with "user" in name (most specific)
-                                        if isinstance(node, ast.ClassDef):
-                                            class_name = node.name
-                                            class_name_lower = class_name.lower()
-
-                                            # Only consider classes that are clearly user models
-                                            # Pattern: *User, User*, *Role, Role*, *Persona, Persona*
-                                            if class_name_lower.endswith(
-                                                ("user", "role", "persona")
-                                            ) or class_name_lower.startswith(("user", "role", "persona")):
-                                                # Extract role from class name (e.g., "AdminUser" -> "Admin")
-                                                if class_name_lower.endswith("user"):
-                                                    role = class_name_lower[:-4].strip()
-                                                elif class_name_lower.startswith("user"):
-                                                    role = class_name_lower[4:].strip()
-                                                elif class_name_lower.endswith("role"):
-                                                    role = class_name_lower[:-4].strip()
-                                                elif class_name_lower.startswith("role"):
-                                                    role = class_name_lower[4:].strip()
-                                                else:
-                                                    role = class_name_lower.replace("persona", "").strip()
-
-                                                # Clean up role name
-                                                role = re.sub(r"[_-]", " ", role).strip()
-                                                if (
-                                                    role
-                                                    and role.lower() not in excluded_terms
-                                                    and len(role) > 2
-                                                    and len(role.split()) <= 2
-                                                    and not role.isupper()
-                                                    and not re.match(r"^[A-Z][a-z]+[A-Z]", role)
-                                                ):
-                                                    suggested_users.add(role.title())
-
-                                            # Look for role/permission enum values or constants
-                                            for item in node.body:
-                                                if isinstance(item, ast.Assign) and item.targets:
-                                                    for target in item.targets:
-                                                        if isinstance(target, ast.Name):
-                                                            attr_name = target.id.lower()
-                                                            # Look for role/permission constants (e.g., ADMIN = "admin")
-                                                            if (
-                                                                "role" in attr_name or "permission" in attr_name
-                                                            ) and isinstance(item.value, ast.Constant):
-                                                                role_value = item.value.value
-                                                                if isinstance(role_value, str) and len(role_value) > 2:
-                                                                    role_clean = role_value.strip().lower()
-                                                                    if (
-                                                                        role_clean not in excluded_terms
-                                                                        and len(role_clean.split()) <= 2
-                                                                    ):
-                                                                        suggested_users.add(role_value.title())
-
-                                except (SyntaxError, UnicodeDecodeError, Exception):
-                                    # Skip files that can't be parsed
-                                    continue
-            except Exception:
-                # If codebase analysis fails, continue with story-based extraction
-                pass
-
-        # 3. Extract from feature outcomes/acceptance - VERY CONSERVATIVE
-        # Only look for clear persona patterns (single words only)
-        for feature in plan_bundle.features:
-            for outcome in feature.outcomes:
-                # Look for patterns like "allows [persona] to..." or "enables [persona] to..."
-                # But be very selective - only single-word personas
-                matches = re.findall(r"(?:allows|enables|for) ([a-z]+) (?:to|can)", outcome.lower())
-                for match in matches:
-                    match_clean = match.strip()
-                    if (
-                        match_clean
-                        and len(match_clean) > 2
-                        and match_clean not in excluded_terms
-                        and len(match_clean.split()) == 1  # Only single words
-                    ):
-                        suggested_users.add(match_clean.title())
-
-        # Final filtering: remove any remaining technical terms
-        cleaned_users: list[str] = []
-        for user in suggested_users:
-            user_lower = user.lower()
-            # Skip if it's in excluded terms or looks technical
-            if (
-                user_lower not in excluded_terms
-                and len(user.split()) <= 2
-                and not user.isupper()
-                and not re.match(r"^[A-Z][a-z]+[A-Z]", user)
-            ):
-                cleaned_users.append(user)
-
-        # Return top 3 most common suggestions (reduced from 5 for quality)
+        excluded = self._EXCLUDED_PERSONA_TERMS
+        cleaned_users = [
+            u
+            for u in suggested_users
+            if u.lower() not in excluded
+            and len(u.split()) <= 2
+            and not u.isupper()
+            and not re.match(r"^[A-Z][a-z]+[A-Z]", u)
+        ]
         return sorted(set(cleaned_users))[:3]

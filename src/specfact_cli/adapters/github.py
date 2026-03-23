@@ -16,9 +16,10 @@ import os
 import re
 import shutil
 import subprocess
+from collections.abc import Iterator
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 from urllib.parse import urlparse
 
 import requests
@@ -35,12 +36,54 @@ from specfact_cli.models.backlog_item import BacklogItem
 from specfact_cli.models.bridge import BridgeConfig
 from specfact_cli.models.capabilities import ToolCapabilities
 from specfact_cli.models.change import ChangeProposal, ChangeTracking
+from specfact_cli.models.source_tracking import SourceTracking
 from specfact_cli.registry.bridge_registry import BRIDGE_PROTOCOL_REGISTRY
 from specfact_cli.runtime import debug_log_operation, is_debug_mode
 from specfact_cli.utils.auth_tokens import get_token
+from specfact_cli.utils.icontract_helpers import (
+    ensure_backlog_update_preserves_identity,
+    require_bundle_dir_exists,
+    require_repo_path_exists,
+    require_repo_path_is_dir,
+)
 
 
 console = Console()
+
+
+def _as_str_dict(obj: dict[Any, Any]) -> dict[str, Any]:
+    """Narrow a runtime ``dict`` to ``dict[str, Any]`` for static analysis."""
+    return cast(dict[str, Any], obj)
+
+
+def _github_resolve_linked_issue_id_from_dict(linked: dict[str, Any]) -> str:
+    linked_id = str(linked.get("id") or linked.get("number") or "").strip()
+    if linked_id:
+        return linked_id
+    linked_url = str(linked.get("url") or "")
+    linked_match = re.search(r"/issues/(\d+)", linked_url, flags=re.IGNORECASE)
+    return linked_match.group(1) if linked_match else ""
+
+
+def _github_tuple_for_linked_relation(relation: str, issue_id: str, linked_id: str) -> tuple[str, str, str]:
+    rel = relation.strip().lower()
+    if rel in {"blocks", "block"}:
+        return issue_id, linked_id, "blocks"
+    if rel in {"blocked_by", "blocked by"}:
+        return linked_id, issue_id, "blocks"
+    if rel in {"parent", "parent_of"}:
+        return linked_id, issue_id, "parent"
+    if rel in {"child", "child_of"}:
+        return issue_id, linked_id, "parent"
+    return issue_id, linked_id, "relates"
+
+
+def _github_linked_issue_edge(issue_id: str, linked: dict[str, Any]) -> tuple[str, str, str] | None:
+    relation = str(linked.get("relation") or linked.get("type") or "").strip().lower()
+    linked_id = _github_resolve_linked_issue_id_from_dict(linked)
+    if not linked_id:
+        return None
+    return _github_tuple_for_linked_relation(relation, issue_id, linked_id)
 
 
 def _get_github_token_from_gh_cli() -> str | None:
@@ -136,6 +179,419 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             self.base_url = stored_api_url or env_api_url or "https://api.github.com"
         else:
             self.base_url = env_api_url or stored_api_url or "https://api.github.com"
+
+    @staticmethod
+    def _is_feature_branch(branch: str) -> bool:
+        """Return whether the branch name matches a work branch prefix."""
+        return any(prefix in branch for prefix in ["feature/", "bugfix/", "hotfix/"])
+
+    @staticmethod
+    def _dedupe_strings(values: list[str]) -> list[str]:
+        """Preserve order while removing duplicate strings."""
+        unique_values: list[str] = []
+        seen: set[str] = set()
+        for value in values:
+            if value and value not in seen:
+                unique_values.append(value)
+                seen.add(value)
+        return unique_values
+
+    @staticmethod
+    def _normalize_change_id_words(change_id: str) -> tuple[str, list[str]]:
+        """Return normalized change id and significant component words."""
+        normalized_change_id = change_id.lower().replace("-", "").replace("_", "")
+        change_id_words = [word for word in change_id.lower().replace("-", "_").split("_") if len(word) > 3]
+        return normalized_change_id, change_id_words
+
+    def _match_branch_for_change_id(self, branches: list[str], change_id: str | None) -> str | None:
+        """Prefer a branch whose name best matches the active change id."""
+        if not change_id:
+            return None
+        normalized_change_id, change_id_words = self._normalize_change_id_words(change_id)
+        for branch in branches:
+            if not self._is_feature_branch(branch):
+                continue
+            normalized_branch = branch.lower().replace("-", "").replace("_", "").replace("/", "")
+            if normalized_change_id in normalized_branch:
+                return branch
+            if change_id_words:
+                branch_words = [
+                    word for word in branch.lower().replace("-", "_").replace("/", "_").split("_") if len(word) > 3
+                ]
+                if sum(1 for word in change_id_words if word in branch_words) >= 2:
+                    return branch
+        return None
+
+    def _preferred_branch(self, branches: list[str], change_id: str | None = None) -> str | None:
+        """Pick the best branch from a candidate list."""
+        deduped_branches = self._dedupe_strings(branches)
+        change_branch = self._match_branch_for_change_id(deduped_branches, change_id)
+        if change_branch:
+            return change_branch
+        for branch in deduped_branches:
+            if self._is_feature_branch(branch):
+                return branch
+        return deduped_branches[0] if deduped_branches else None
+
+    @staticmethod
+    def _entry_branch_candidates(entry: dict[str, Any]) -> list[str]:
+        """Collect branch-like fields from a source-tracking entry."""
+        source_metadata = entry.get("source_metadata")
+        metadata_dict: dict[str, Any] = source_metadata if isinstance(source_metadata, dict) else {}
+        values = [
+            entry.get("branch"),
+            entry.get("source_branch"),
+            metadata_dict.get("branch"),
+            metadata_dict.get("source_branch"),
+        ]
+        return [value for value in values if isinstance(value, str) and value.strip()]
+
+    def _run_git_lines(self, repo_path: Path, args: list[str], timeout: int = 10) -> list[str]:
+        """Run a git command and return non-empty output lines."""
+        result = subprocess.run(
+            ["git", *args],
+            cwd=repo_path,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            check=False,
+        )
+        if result.returncode != 0:
+            return []
+        return [line.strip() for line in result.stdout.splitlines() if line.strip()]
+
+    def _find_feature_branch_from_commits(
+        self,
+        repo_path: Path,
+        commit_hashes: list[str],
+        change_id: str | None = None,
+    ) -> str | None:
+        """Resolve the best branch for a sequence of commit hashes."""
+        for commit_hash in commit_hashes:
+            branch = self._find_branch_containing_commit(commit_hash, repo_path)
+            if branch and self._is_feature_branch(branch):
+                return branch
+        if commit_hashes:
+            return self._find_branch_containing_commit(commit_hashes[0], repo_path)
+        return None
+
+    @staticmethod
+    def _coerce_issue_datetime(value: Any) -> str:
+        """Normalize GitHub timestamp values to ISO strings."""
+        if not value:
+            return datetime.now(UTC).isoformat()
+        try:
+            return datetime.fromisoformat(str(value).replace("Z", "+00:00")).isoformat()
+        except (ValueError, AttributeError):
+            return datetime.now(UTC).isoformat()
+
+    def _resolve_issue_state(self, proposal_data: dict[str, Any], status: str) -> str:
+        """Resolve the GitHub issue state from cross-adapter or OpenSpec state."""
+        source_state = proposal_data.get("source_state")
+        source_type = proposal_data.get("source_type")
+        if source_state and source_type and source_type != "github":
+            from specfact_cli.adapters.registry import AdapterRegistry
+
+            source_adapter = AdapterRegistry.get_adapter(source_type)
+            if source_adapter and hasattr(source_adapter, "map_backlog_state_between_adapters"):
+                return source_adapter.map_backlog_state_between_adapters(source_state, source_type, self)  # type: ignore[attr-defined]
+        should_close = status in ("applied", "deprecated", "discarded")
+        return "closed" if should_close else "open"
+
+    @staticmethod
+    def _resolve_state_reason(status: str) -> str | None:
+        """Resolve GitHub state_reason for a proposal status."""
+        if status == "applied":
+            return "completed"
+        if status in ("deprecated", "discarded"):
+            return "not_planned"
+        return None
+
+    @staticmethod
+    def _collect_issue_body_lines(section_title: str, section_body: str) -> list[str]:
+        """Render a markdown section while preserving original line breaks."""
+        if not section_body:
+            return []
+        lines = [f"## {section_title}", ""]
+        lines.extend(section_body.strip().split("\n"))
+        lines.append("")
+        return lines
+
+    def _render_issue_body(
+        self,
+        title: str,
+        description: str,
+        rationale: str,
+        impact: str,
+        change_id: str,
+        raw_body: str | None,
+        preserved_sections: list[str] | None = None,
+    ) -> str:
+        """Render GitHub issue body from proposal fields and optional preserved sections."""
+        if raw_body:
+            return raw_body
+
+        body_parts: list[str] = []
+        display_title = re.sub(r"^\[change\]\s*", "", title, flags=re.IGNORECASE).strip()
+        if display_title:
+            body_parts.extend([f"# {display_title}", ""])
+
+        body_parts.extend(self._collect_issue_body_lines("Why", rationale))
+        body_parts.extend(self._collect_issue_body_lines("What Changes", description))
+        body_parts.extend(self._collect_issue_body_lines("Impact", impact))
+
+        if not body_parts or (not rationale and not description):
+            body_parts.extend(["No description provided.", ""])
+
+        preview = "\n".join(body_parts)
+        for preserved in preserved_sections or []:
+            preserved_clean = preserved.strip()
+            if preserved_clean and preserved_clean not in preview:
+                body_parts.extend(["", preserved_clean])
+
+        if not any("OpenSpec Change Proposal:" in line for line in body_parts):
+            body_parts.extend(["---", f"*OpenSpec Change Proposal: `{change_id}`*"])
+        return "\n".join(body_parts)
+
+    @staticmethod
+    def _extract_markdown_section(body: str, heading: str, stop_pattern: str) -> str:
+        """Extract a markdown section body until the next relevant heading or footer."""
+        if not body:
+            return ""
+        match = re.search(
+            rf"##\s+{heading}\s*\n(.*?)(?={stop_pattern}|\Z)",
+            body,
+            re.DOTALL | re.IGNORECASE,
+        )
+        return match.group(1).strip() if match else ""
+
+    @staticmethod
+    def _body_without_openspec_footer(body: str) -> str:
+        """Strip the OpenSpec metadata footer from a GitHub issue body."""
+        return re.sub(r"\n---\s*\n\*OpenSpec Change Proposal:.*", "", body, flags=re.DOTALL).strip()
+
+    def _extract_issue_sections(self, body: str) -> tuple[str, str, str]:
+        """Extract rationale, description, and impact sections from issue body markdown."""
+        rationale = self._extract_markdown_section(
+            body,
+            "Why",
+            r"\n##\s+What\s+Changes\s|\n##\s+Impact\s|\n---\s*\n\*OpenSpec Change Proposal:",
+        )
+        description = self._extract_markdown_section(
+            body,
+            r"What\s+Changes",
+            r"\n##\s+Impact\s|\n---\s*\n\*OpenSpec Change Proposal:",
+        )
+        impact = self._extract_markdown_section(
+            body,
+            "Impact",
+            r"\n---\s*\n\*OpenSpec Change Proposal:",
+        )
+        if not description and not rationale:
+            description = self._body_without_openspec_footer(body)
+        return rationale, description, impact
+
+    @staticmethod
+    def _extract_change_id_from_body(body: str) -> str | None:
+        """Extract change id from legacy body footer if present."""
+        change_id_match = re.search(r"OpenSpec Change Proposal:\s*`([^`]+)`", body, re.IGNORECASE)
+        return change_id_match.group(1) if change_id_match else None
+
+    def _extract_change_id_from_comments(self, issue_number: Any) -> str | None:
+        """Extract change id from issue comments using known OpenSpec comment formats."""
+        if not issue_number or not self.repo_owner or not self.repo_name:
+            return None
+        openspec_patterns = [
+            r"\*\*Change ID\*\*[:\s]+`([a-z0-9-]+)`",
+            r"Change ID[:\s]+`([a-z0-9-]+)`",
+            r"OpenSpec Change Proposal[:\s]+`?([a-z0-9-]+)`?",
+            r"\*OpenSpec Change Proposal:\s*`([a-z0-9-]+)`",
+        ]
+        comments = self._get_issue_comments(self.repo_owner, self.repo_name, issue_number)
+        for comment in comments:
+            comment_body = str(comment.get("body", ""))
+            for pattern in openspec_patterns:
+                match = re.search(pattern, comment_body, re.IGNORECASE | re.DOTALL)
+                if match:
+                    return match.group(1)
+        return None
+
+    def _extract_stakeholders_from_body(self, body: str) -> tuple[str | None, list[str]]:
+        """Extract owner and stakeholders from a `## Who` section."""
+        owner: str | None = None
+        stakeholders: list[str] = []
+        who_content = self._extract_markdown_section(body, "Who", r"\n##\s")
+        if not who_content:
+            return owner, stakeholders
+        owner_match = re.search(r"(?:Owner|owner):\s*(.+)", who_content, re.IGNORECASE)
+        if owner_match:
+            owner = owner_match.group(1).strip()
+        stakeholders_match = re.search(r"(?:Stakeholders|stakeholders):\s*(.+)", who_content, re.IGNORECASE)
+        if stakeholders_match:
+            stakeholders = [s.strip() for s in re.split(r"[,\n]", stakeholders_match.group(1).strip()) if s.strip()]
+        return owner, stakeholders
+
+    def _extract_optional_issue_fields(
+        self, item_data: dict[str, Any], body: str
+    ) -> tuple[str | None, str | None, list[str]]:
+        """Extract optional timeline, owner, and stakeholder values from issue data."""
+        timeline = self._extract_markdown_section(body, "When", r"\n##\s") if body else None
+        owner, stakeholders = self._extract_stakeholders_from_body(body)
+        assignees_raw = item_data.get("assignees", [])
+        assignees = assignees_raw if isinstance(assignees_raw, list) else []
+        if assignees and not owner:
+            first = assignees[0]
+            owner = _as_str_dict(first).get("login", "") if isinstance(first, dict) else str(first)
+        if assignees:
+            stakeholders.extend(
+                _as_str_dict(assignee).get("login", "") if isinstance(assignee, dict) else str(assignee)
+                for assignee in assignees
+            )
+        return timeline, owner, self._dedupe_strings(stakeholders)
+
+    def _extract_change_id_from_issue(self, item_data: dict[str, Any], body: str) -> str:
+        """Resolve change id from body, comments, or issue number fallback."""
+        change_id = self._extract_change_id_from_body(body)
+        if not change_id:
+            change_id = self._extract_change_id_from_comments(item_data.get("number"))
+        return change_id or str(item_data.get("number", "unknown"))
+
+    def _status_from_labels(self, labels: list[Any]) -> str:
+        """Resolve OpenSpec status from GitHub labels."""
+        label_names = [
+            _as_str_dict(label).get("name", "") if isinstance(label, dict) else str(label) for label in labels
+        ]
+        for label_name in label_names:
+            mapped_status = self.map_backlog_status_to_openspec(label_name)
+            if mapped_status != "proposed":
+                return mapped_status
+        return "proposed"
+
+    @staticmethod
+    def _labels_from_payload(issue_type: str, priority: str, story_points: Any) -> list[str]:
+        """Build the GitHub labels for provider-agnostic create_issue payloads."""
+        labels = [issue_type] if issue_type else []
+        if priority:
+            labels.append(f"priority:{priority.lower()}")
+        if story_points is not None:
+            labels.append(f"story-points:{story_points}")
+        return labels
+
+    def _build_issue_search_query(self, filters: BacklogFilters) -> str:
+        """Build the GitHub search query for backlog issue fetches."""
+        query_parts = [f"repo:{self.repo_owner}/{self.repo_name}", "type:issue"]
+        if filters.state:
+            normalized_state = BacklogFilters.normalize_filter_value(filters.state) or filters.state
+            query_parts.append(f"state:{normalized_state}")
+        if filters.assignee:
+            assignee_value = filters.assignee.lstrip("@")
+            normalized_assignee_value = BacklogFilters.normalize_filter_value(assignee_value)
+            query_parts.append("assignee:@me" if normalized_assignee_value == "me" else f"assignee:{assignee_value}")
+        if filters.labels:
+            query_parts.extend(f"label:{label}" for label in filters.labels)
+        if filters.search:
+            query_parts.append(filters.search)
+        return " ".join(query_parts)
+
+    def _search_github_issues(self, query: str) -> list[BacklogItem]:
+        """Run a GitHub issue search and convert results to backlog items."""
+        from specfact_cli.backlog.converter import convert_github_issue_to_backlog_item
+
+        url = f"{self.base_url}/search/issues"
+        headers = {
+            "Authorization": f"token {self.api_token}",
+            "Accept": "application/vnd.github.v3+json",
+        }
+        params = {"q": query, "per_page": 100}
+        items: list[BacklogItem] = []
+        page = 1
+        while True:
+            params["page"] = page
+            response = self._request_with_retry(lambda: requests.get(url, headers=headers, params=params, timeout=30))
+            response.raise_for_status()
+            issues = response.json().get("items", [])
+            if not issues:
+                return items
+            items.extend(convert_github_issue_to_backlog_item(issue, provider="github") for issue in issues)
+            if len(issues) < 100:
+                return items
+            page += 1
+
+    @staticmethod
+    def _graph_type_alias_map() -> dict[str, str]:
+        """Return normalized graph type aliases."""
+        return {
+            "epic": "epic",
+            "feature": "feature",
+            "story": "story",
+            "user story": "story",
+            "task": "task",
+            "bug": "bug",
+            "sub-task": "sub_task",
+            "sub task": "sub_task",
+            "subtask": "sub_task",
+        }
+
+    @staticmethod
+    def _normalize_graph_value_with_aliases(raw_value: str, alias_map: dict[str, str]) -> str | None:
+        """Normalize a graph-type string against the alias map."""
+        normalized = raw_value.strip().lower().replace("_", " ").replace("-", " ")
+        if not normalized:
+            return None
+        if normalized in alias_map:
+            return alias_map[normalized]
+        for separator in (":", "/"):
+            if separator in normalized:
+                suffix = normalized.split(separator)[-1].strip()
+                if suffix in alias_map:
+                    return alias_map[suffix]
+        for token, mapped in alias_map.items():
+            if normalized.startswith(f"{token} ") or normalized.endswith(f" {token}"):
+                return mapped
+        return None
+
+    @staticmethod
+    def _project_type_config(provider_fields: dict[str, Any] | None) -> tuple[str, str, dict[str, Any]] | None:
+        """Extract GitHub Projects v2 type configuration if present."""
+        if not isinstance(provider_fields, dict):
+            return None
+        pf = _as_str_dict(provider_fields)
+        project_cfg_raw = pf.get("github_project_v2")
+        if not isinstance(project_cfg_raw, dict):
+            return None
+        project_cfg = _as_str_dict(project_cfg_raw)
+        project_id = str(project_cfg.get("project_id") or "").strip()
+        type_field_id = str(project_cfg.get("type_field_id") or "").strip()
+        option_map = project_cfg.get("type_option_ids")
+        if not project_id or not type_field_id or not isinstance(option_map, dict):
+            return None
+        return project_id, type_field_id, option_map
+
+    @staticmethod
+    def _body_relationship_matches(body: str) -> list[tuple[str, str, str]]:
+        """Extract body-defined relationships as normalized edge tuples."""
+        patterns = [
+            (r"(?im)\bblocks?\s+#(\d+)\b", "blocks", False),
+            (r"(?im)\bblocked\s+by\s+#(\d+)\b", "blocks", True),
+            (r"(?im)\bdepends\s+on\s+#(\d+)\b", "blocks", True),
+            (r"(?im)\bparent\s*[:#]?\s*#(\d+)\b", "parent", True),
+            (r"(?im)\bchild(?:ren)?\s*[:#]?\s*#(\d+)\b", "parent", False),
+            (r"(?im)\b(?:related\s+to|relates?\s+to|refs?|references?)\s+#(\d+)\b", "relates", False),
+        ]
+        matches: list[tuple[str, str, str]] = []
+        for pattern, relation_type, reverse in patterns:
+            for match in re.finditer(pattern, body):
+                linked_id = match.group(1)
+                matches.append((linked_id, relation_type, "reverse" if reverse else "forward"))
+        return matches
+
+    @staticmethod
+    def _normalize_graph_item_type(raw_value: str) -> str | None:
+        """Normalize GitHub issue type aliases to graph item types."""
+        return GitHubAdapter._normalize_graph_value_with_aliases(
+            raw_value,
+            GitHubAdapter._graph_type_alias_map(),
+        )
 
     # BacklogAdapterMixin abstract method implementations
 
@@ -277,144 +733,14 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             msg = "GitHub issue must have a title"
             raise ValueError(msg)
 
-        # Extract body and parse markdown sections
         body = item_data.get("body", "") or ""
-        description = ""
-        rationale = ""
-        impact = ""
-
-        # Parse markdown sections (Why, What Changes)
-        if body:
-            # Extract "Why" section (stop at What Changes or OpenSpec footer)
-            why_match = re.search(
-                r"##\s+Why\s*\n(.*?)(?=\n##\s+What\s+Changes\s|\n##\s+Impact\s|\n---\s*\n\*OpenSpec Change Proposal:|\Z)",
-                body,
-                re.DOTALL | re.IGNORECASE,
-            )
-            if why_match:
-                rationale = why_match.group(1).strip()
-
-            # Extract "What Changes" section (stop at OpenSpec footer)
-            what_match = re.search(
-                r"##\s+What\s+Changes\s*\n(.*?)(?=\n##\s+Impact\s|\n---\s*\n\*OpenSpec Change Proposal:|\Z)",
-                body,
-                re.DOTALL | re.IGNORECASE,
-            )
-            if what_match:
-                description = what_match.group(1).strip()
-            elif not why_match:
-                # If no sections found, use entire body as description (but remove footer)
-                body_clean = re.sub(r"\n---\s*\n\*OpenSpec Change Proposal:.*", "", body, flags=re.DOTALL)
-                description = body_clean.strip()
-
-            impact_match = re.search(
-                r"##\s+Impact\s*\n(.*?)(?=\n---\s*\n\*OpenSpec Change Proposal:|\Z)",
-                body,
-                re.DOTALL | re.IGNORECASE,
-            )
-            if impact_match:
-                impact = impact_match.group(1).strip()
-
-        # Extract change ID from OpenSpec metadata footer, comments, or issue number
-        change_id = None
-
-        # First, check body for OpenSpec metadata footer (legacy format)
-        if body:
-            # Look for OpenSpec metadata footer: *OpenSpec Change Proposal: `{change_id}`*
-            change_id_match = re.search(r"OpenSpec Change Proposal:\s*`([^`]+)`", body, re.IGNORECASE)
-            if change_id_match:
-                change_id = change_id_match.group(1)
-
-        # If not found in body, check comments (new format - OpenSpec info in comments)
-        if not change_id:
-            issue_number = item_data.get("number")
-            if issue_number and self.repo_owner and self.repo_name:
-                comments = self._get_issue_comments(self.repo_owner, self.repo_name, issue_number)
-                # Look for OpenSpec Change Proposal Reference comment
-                # Pattern 1: Structured comment format with "**Change ID**: `id`"
-                openspec_patterns = [
-                    r"\*\*Change ID\*\*[:\s]+`([a-z0-9-]+)`",
-                    r"Change ID[:\s]+`([a-z0-9-]+)`",
-                    r"OpenSpec Change Proposal[:\s]+`?([a-z0-9-]+)`?",
-                    r"\*OpenSpec Change Proposal:\s*`([a-z0-9-]+)`",
-                ]
-                for comment in comments:
-                    comment_body = comment.get("body", "")
-                    for pattern in openspec_patterns:
-                        match = re.search(pattern, comment_body, re.IGNORECASE | re.DOTALL)
-                        if match:
-                            change_id = match.group(1)
-                            break
-                    if change_id:
-                        break
-
-        # Fallback to issue number if still not found
-        if not change_id:
-            change_id = str(item_data.get("number", "unknown"))
-
-        # Extract status from labels
+        rationale, description, impact = self._extract_issue_sections(body)
+        change_id = self._extract_change_id_from_issue(item_data, body)
         labels = item_data.get("labels", [])
-        status = "proposed"  # Default
-        if labels:
-            # Find status label
-            label_names = [label.get("name", "") if isinstance(label, dict) else str(label) for label in labels]
-            for label_name in label_names:
-                mapped_status = self.map_backlog_status_to_openspec(label_name)
-                if mapped_status != "proposed":  # Use first non-default status
-                    status = mapped_status
-                    break
-
-        # Extract created_at timestamp
-        created_at = item_data.get("created_at")
-        if created_at:
-            # Parse ISO format and convert to ISO string
-            try:
-                dt = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
-                created_at = dt.isoformat()
-            except (ValueError, AttributeError):
-                created_at = datetime.now(UTC).isoformat()
-        else:
-            created_at = datetime.now(UTC).isoformat()
-
-        # Extract optional fields (timeline, owner, stakeholders, dependencies)
-        # These can be parsed from issue body or extracted from issue metadata
-        timeline = None
-        owner = None
-        stakeholders = []
-        dependencies = []
-
-        # Try to extract from body sections
-        if body:
-            # Extract "When" section (timeline)
-            when_match = re.search(r"##\s+When\s*\n(.*?)(?=\n##\s|\Z)", body, re.DOTALL | re.IGNORECASE)
-            if when_match:
-                timeline = when_match.group(1).strip()
-
-            # Extract "Who" section (owner, stakeholders)
-            who_match = re.search(r"##\s+Who\s*\n(.*?)(?=\n##\s|\Z)", body, re.DOTALL | re.IGNORECASE)
-            if who_match:
-                who_content = who_match.group(1).strip()
-                # Try to extract owner (first line or "Owner:" field)
-                owner_match = re.search(r"(?:Owner|owner):\s*(.+)", who_content, re.IGNORECASE)
-                if owner_match:
-                    owner = owner_match.group(1).strip()
-                # Extract stakeholders (list items or comma-separated)
-                stakeholders_match = re.search(r"(?:Stakeholders|stakeholders):\s*(.+)", who_content, re.IGNORECASE)
-                if stakeholders_match:
-                    stakeholders_str = stakeholders_match.group(1).strip()
-                    stakeholders = [s.strip() for s in re.split(r"[,\n]", stakeholders_str) if s.strip()]
-
-        # Extract assignees as potential owner/stakeholders
-        assignees = item_data.get("assignees", [])
-        if assignees and not owner:
-            # Use first assignee as owner
-            owner = assignees[0].get("login", "") if isinstance(assignees[0], dict) else str(assignees[0])
-        if assignees:
-            # Add assignees to stakeholders
-            assignee_logins = [
-                assignee.get("login", "") if isinstance(assignee, dict) else str(assignee) for assignee in assignees
-            ]
-            stakeholders.extend(assignee_logins)
+        status = self._status_from_labels(labels if isinstance(labels, list) else [])
+        created_at = self._coerce_issue_datetime(item_data.get("created_at"))
+        timeline, owner, stakeholders = self._extract_optional_issue_fields(item_data, body)
+        dependencies: list[str] = []
 
         return {
             "change_id": change_id,
@@ -426,13 +752,13 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             "created_at": created_at,
             "timeline": timeline,
             "owner": owner,
-            "stakeholders": list(set(stakeholders)),  # Remove duplicates
+            "stakeholders": stakeholders,
             "dependencies": dependencies,
         }
 
     @beartype
-    @require(lambda repo_path: repo_path.exists(), "Repository path must exist")
-    @require(lambda repo_path: repo_path.is_dir(), "Repository path must be a directory")
+    @require(require_repo_path_exists, "Repository path must exist")
+    @require(require_repo_path_is_dir, "Repository path must be a directory")
     @ensure(lambda result: isinstance(result, bool), "Must return bool")
     def detect(self, repo_path: Path, bridge_config: BridgeConfig | None = None) -> bool:
         """
@@ -480,8 +806,8 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         return bool(bridge_config and bridge_config.adapter.value == "github")
 
     @beartype
-    @require(lambda repo_path: repo_path.exists(), "Repository path must exist")
-    @require(lambda repo_path: repo_path.is_dir(), "Repository path must be a directory")
+    @require(require_repo_path_exists, "Repository path must exist")
+    @require(require_repo_path_is_dir, "Repository path must be a directory")
     @ensure(lambda result: isinstance(result, ToolCapabilities), "Must return ToolCapabilities")
     def get_capabilities(self, repo_path: Path, bridge_config: BridgeConfig | None = None) -> ToolCapabilities:
         """
@@ -540,13 +866,7 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             adapters (ADO, Jira, Linear) should follow the same pattern with their
             respective artifact keys (e.g., "ado_work_item", "jira_issue", "linear_issue").
         """
-        if artifact_key != "github_issue":
-            msg = f"Unsupported artifact key for import: {artifact_key}. Supported: github_issue"
-            raise NotImplementedError(msg)
-
-        if not isinstance(artifact_path, dict):
-            msg = "GitHub issue import requires dict (API response), not Path"
-            raise ValueError(msg)
+        issue_payload = self._require_import_issue_payload(artifact_key, artifact_path)
 
         # Check bridge_config.external_base_path for cross-repo support
         if bridge_config and bridge_config.external_base_path:
@@ -554,74 +874,258 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             pass  # Path operations will respect external_base_path in OpenSpec adapter
 
         # Import GitHub issue as change proposal using backlog adapter pattern
-        existing_proposals = (
-            dict(project_bundle.change_tracking.proposals) if getattr(project_bundle, "change_tracking", None) else {}
-        )
-        proposal = self.import_backlog_item_as_proposal(
-            artifact_path,
-            "github",
-            bridge_config,
-            existing_proposals=existing_proposals,
-        )
+        proposal = self.import_backlog_item_as_proposal(issue_payload, "github", bridge_config)
 
         if not proposal:
             msg = "Failed to import GitHub issue as change proposal"
             raise ValueError(msg)
 
-        # Persist lossless issue content and backlog metadata for round-trip sync
-        if proposal.source_tracking and isinstance(proposal.source_tracking.source_metadata, dict):
-            source_metadata = proposal.source_tracking.source_metadata
-            raw_title = artifact_path.get("title") or ""
-            raw_body = artifact_path.get("body") or ""
-            source_metadata["raw_title"] = raw_title
-            source_metadata["raw_body"] = raw_body
-            source_metadata["raw_format"] = "markdown"
-            source_metadata.setdefault("source_type", "github")
-
-            source_repo = self._extract_repo_from_issue(artifact_path)
-            if source_repo:
-                source_metadata.setdefault("source_repo", source_repo)
-
-            entry_id = artifact_path.get("number") or artifact_path.get("id")
-            # Extract GitHub issue state (open/closed) for cross-adapter sync state preservation
-            github_state = artifact_path.get("state", "open").lower()
-            entry = {
-                "source_id": str(entry_id) if entry_id is not None else None,
-                "source_url": artifact_path.get("html_url") or artifact_path.get("url") or "",
-                "source_type": "github",
-                "source_repo": source_repo or "",
-                "source_metadata": {
-                    "last_synced_status": proposal.status,
-                    "source_state": github_state,  # Preserve GitHub state for cross-adapter sync
-                },
-            }
-            entries = source_metadata.get("backlog_entries")
-            if not isinstance(entries, list):
-                entries = []
-            if entry.get("source_id"):
-                updated = False
-                for existing in entries:
-                    if not isinstance(existing, dict):
-                        continue
-                    if source_repo and existing.get("source_repo") == source_repo:
-                        existing.update(entry)
-                        updated = True
-                        break
-                    if not source_repo and existing.get("source_id") == entry.get("source_id"):
-                        existing.update(entry)
-                        updated = True
-                        break
-                if not updated:
-                    entries.append(entry)
-                source_metadata["backlog_entries"] = entries
+        self._persist_imported_issue_metadata(proposal, issue_payload)
 
         # Add proposal to project bundle change tracking
-        if hasattr(project_bundle, "change_tracking"):
-            if not project_bundle.change_tracking:
-                from specfact_cli.models.change import ChangeTracking
+        self._attach_imported_proposal(project_bundle, proposal)
 
-                project_bundle.change_tracking = ChangeTracking()
-            project_bundle.change_tracking.proposals[proposal.name] = proposal
+    @staticmethod
+    def _require_import_issue_payload(artifact_key: str, artifact_path: Path | dict[str, Any]) -> dict[str, Any]:
+        """Validate artifact type and payload shape for GitHub issue imports."""
+        if artifact_key != "github_issue":
+            msg = f"Unsupported artifact key for import: {artifact_key}. Supported: github_issue"
+            raise NotImplementedError(msg)
+        if isinstance(artifact_path, dict):
+            return artifact_path
+        msg = "GitHub issue import requires dict (API response), not Path"
+        raise ValueError(msg)
+
+    def _persist_imported_issue_metadata(self, proposal: ChangeProposal, issue_payload: dict[str, Any]) -> None:
+        """Store raw issue data and backlog linkage metadata for round-trip sync."""
+        if not proposal.source_tracking or not isinstance(proposal.source_tracking.source_metadata, dict):
+            return
+        source_metadata = proposal.source_tracking.source_metadata
+        self._store_raw_issue_metadata(source_metadata, issue_payload)
+        self._store_import_backlog_entry(source_metadata, issue_payload, proposal.status)
+
+    @staticmethod
+    def _store_raw_issue_metadata(source_metadata: dict[str, Any], issue_payload: dict[str, Any]) -> None:
+        """Preserve the raw GitHub issue title/body in source metadata."""
+        source_metadata["raw_title"] = issue_payload.get("title") or ""
+        source_metadata["raw_body"] = issue_payload.get("body") or ""
+        source_metadata["raw_format"] = "markdown"
+        source_metadata.setdefault("source_type", "github")
+
+    def _store_import_backlog_entry(
+        self,
+        source_metadata: dict[str, Any],
+        issue_payload: dict[str, Any],
+        proposal_status: str,
+    ) -> None:
+        """Record or refresh the backlog entry metadata for an imported GitHub issue."""
+        source_repo = self._extract_repo_from_issue(issue_payload)
+        if source_repo:
+            source_metadata.setdefault("source_repo", source_repo)
+        entry = self._build_import_backlog_entry(issue_payload, source_repo, proposal_status)
+        if not entry.get("source_id"):
+            return
+        entries = source_metadata.get("backlog_entries")
+        source_metadata["backlog_entries"] = self._merged_backlog_entries(entries, entry, source_repo)
+
+    @staticmethod
+    def _build_import_backlog_entry(
+        issue_payload: dict[str, Any],
+        source_repo: str | None,
+        proposal_status: str,
+    ) -> dict[str, Any]:
+        """Build the normalized backlog-entry record for an imported GitHub issue."""
+        entry_id = issue_payload.get("number") or issue_payload.get("id")
+        github_state = str(issue_payload.get("state", "open") or "open").lower()
+        return {
+            "source_id": str(entry_id) if entry_id is not None else None,
+            "source_url": issue_payload.get("html_url") or issue_payload.get("url") or "",
+            "source_type": "github",
+            "source_repo": source_repo or "",
+            "source_metadata": {
+                "last_synced_status": proposal_status,
+                "source_state": github_state,
+            },
+        }
+
+    @staticmethod
+    def _merged_backlog_entries(
+        existing_entries: Any,
+        entry: dict[str, Any],
+        source_repo: str | None,
+    ) -> list[dict[str, Any]]:
+        """Merge an imported backlog entry into the existing list by repo or source id."""
+        normalized_entries: list[dict[str, Any]] = (
+            [_as_str_dict(existing) for existing in existing_entries if isinstance(existing, dict)]
+            if isinstance(existing_entries, list)
+            else []
+        )
+        for existing in normalized_entries:
+            if source_repo and existing.get("source_repo") == source_repo:
+                existing.update(entry)
+                return normalized_entries
+            if not source_repo and existing.get("source_id") == entry.get("source_id"):
+                existing.update(entry)
+                return normalized_entries
+        normalized_entries.append(entry)
+        return normalized_entries
+
+    @staticmethod
+    def _attach_imported_proposal(project_bundle: Any, proposal: ChangeProposal) -> None:
+        """Attach imported proposal to the project bundle change-tracking map when present."""
+        if not hasattr(project_bundle, "change_tracking"):
+            return
+        if not project_bundle.change_tracking:
+            from specfact_cli.models.change import ChangeTracking
+
+            project_bundle.change_tracking = ChangeTracking()
+        project_bundle.change_tracking.proposals[proposal.name] = proposal
+
+    def _issue_number_from_source_tracking_model(self, source_tracking: SourceTracking, target_repo: str) -> Any | None:
+        source_metadata = source_tracking.source_metadata
+        if not isinstance(source_metadata, dict):
+            return None
+        if source_metadata.get("source_repo") == target_repo:
+            return source_metadata.get("source_id")
+        source_url = source_metadata.get("source_url", "")
+        if source_url and target_repo in str(source_url):
+            return source_metadata.get("source_id")
+        return source_metadata.get("source_id")
+
+    def _issue_number_from_tracking_entries(self, entries: list[Any], target_repo: str) -> Any | None:
+        for entry in entries:
+            if not isinstance(entry, dict):
+                continue
+            ed = _as_str_dict(entry)
+            entry_repo = ed.get("source_repo")
+            if entry_repo == target_repo:
+                return ed.get("source_id")
+            if not entry_repo:
+                source_url = ed.get("source_url", "")
+                if source_url and target_repo in source_url:
+                    return ed.get("source_id")
+        return None
+
+    def _resolve_issue_number_from_tracking(
+        self,
+        source_tracking: SourceTracking | dict[str, Any] | list[Any],
+        repo_owner: str,
+        repo_name: str,
+    ) -> Any | None:
+        """Resolve issue number for a specific repository from source_tracking (list or dict)."""
+        target_repo = f"{repo_owner}/{repo_name}"
+        if isinstance(source_tracking, SourceTracking):
+            return self._issue_number_from_source_tracking_model(source_tracking, target_repo)
+        if isinstance(source_tracking, list):
+            return self._issue_number_from_tracking_entries(source_tracking, target_repo)
+        if isinstance(source_tracking, dict):
+            return _as_str_dict(source_tracking).get("source_id")
+        return None
+
+    def _handle_proposal_comment_artifact(
+        self,
+        artifact_data: Any,
+        repo_owner: str,
+        repo_name: str,
+    ) -> dict[str, Any]:
+        """Handle the change_proposal_comment artifact key sub-case."""
+        source_tracking = artifact_data.get("source_tracking", {})
+        issue_number = self._resolve_issue_number_from_tracking(source_tracking, repo_owner, repo_name)
+        if not issue_number:
+            msg = "Issue number required for comment (missing in source_tracking for this repository)"
+            raise ValueError(msg)
+
+        status = artifact_data.get("status", "proposed")
+        title = artifact_data.get("title", "Untitled Change Proposal")
+        change_id = artifact_data.get("change_id", "")
+        code_repo_path_str = artifact_data.get("_code_repo_path")
+        code_repo_path = Path(code_repo_path_str) if code_repo_path_str else None
+
+        # Add change_id to source_tracking entries for branch inference
+        if isinstance(source_tracking, list):
+            st_list: list[Any] = []
+            for entry in source_tracking:
+                if not isinstance(entry, dict):
+                    st_list.append(entry)
+                    continue
+                ed = _as_str_dict(entry)
+                entry_copy = dict(ed)
+                if not entry_copy.get("change_id"):
+                    entry_copy["change_id"] = change_id
+                st_list.append(entry_copy)
+            source_tracking_resolved = st_list
+        elif isinstance(source_tracking, dict):
+            st_dict: dict[str, Any] = dict(_as_str_dict(source_tracking))
+            if not st_dict.get("change_id"):
+                st_dict["change_id"] = change_id
+            source_tracking_resolved = st_dict
+        else:
+            source_tracking_resolved = source_tracking
+
+        comment_text = self._get_status_comment(status, title, source_tracking_resolved, code_repo_path)
+        if comment_text:
+            comment_note = (
+                f"{comment_text}\n\n"
+                f"*Note: This comment was added from an OpenSpec change proposal with status `{status}`.*"
+            )
+            self._add_issue_comment(repo_owner, repo_name, int(issue_number), comment_note)
+        return {
+            "issue_number": int(issue_number),
+            "comment_added": True,
+        }
+
+    def _handle_code_change_progress_artifact(
+        self,
+        artifact_data: Any,
+        repo_owner: str,
+        repo_name: str,
+        bridge_config: BridgeConfig | None,
+    ) -> dict[str, Any]:
+        """Handle the code_change_progress artifact key sub-case."""
+        source_tracking = artifact_data.get("source_tracking", {})
+        issue_number = self._resolve_issue_number_from_tracking(source_tracking, repo_owner, repo_name)
+        if not issue_number:
+            msg = "Issue number required for progress comment (missing in source_tracking for this repository)"
+            raise ValueError(msg)
+
+        sanitize = artifact_data.get("sanitize", False)
+        if bridge_config and hasattr(bridge_config, "sanitize"):
+            sanitize = bridge_config.sanitize if bridge_config.sanitize is not None else sanitize  # type: ignore[attr-defined]
+
+        return self._add_progress_comment(artifact_data, repo_owner, repo_name, int(issue_number), sanitize=sanitize)
+
+    def _export_change_proposal_update_artifact(
+        self, artifact_data: Any, repo_owner: str, repo_name: str
+    ) -> dict[str, Any]:
+        source_tracking = artifact_data.get("source_tracking", {})
+        issue_number = self._resolve_issue_number_from_tracking(source_tracking, repo_owner, repo_name)
+        if not issue_number:
+            msg = "Issue number required for content update (missing in source_tracking for this repository)"
+            raise ValueError(msg)
+        code_repo_path_str = artifact_data.get("_code_repo_path")
+        code_repo_path = Path(code_repo_path_str) if code_repo_path_str else None
+        return self._update_issue_body(artifact_data, repo_owner, repo_name, int(issue_number), code_repo_path)
+
+    def _export_github_artifact_dispatch(
+        self,
+        artifact_key: str,
+        artifact_data: Any,
+        repo_owner: str,
+        repo_name: str,
+        bridge_config: BridgeConfig | None,
+    ) -> dict[str, Any]:
+        if artifact_key == "change_proposal":
+            return self._create_issue_from_proposal(artifact_data, repo_owner, repo_name)
+        if artifact_key == "change_status":
+            return self._update_issue_status(artifact_data, repo_owner, repo_name)
+        if artifact_key == "change_proposal_update":
+            return self._export_change_proposal_update_artifact(artifact_data, repo_owner, repo_name)
+        if artifact_key == "change_proposal_comment":
+            return self._handle_proposal_comment_artifact(artifact_data, repo_owner, repo_name)
+        if artifact_key == "code_change_progress":
+            return self._handle_code_change_progress_artifact(artifact_data, repo_owner, repo_name, bridge_config)
+        msg = f"Unsupported artifact key: {artifact_key}. Supported: change_proposal, change_status, change_proposal_update, code_change_progress"
+        raise ValueError(msg)
 
     @beartype
     @require(
@@ -668,140 +1172,7 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             msg = "GitHub repository owner and name required. Provide via --repo-owner and --repo-name or bridge config"
             raise ValueError(msg)
 
-        if artifact_key == "change_proposal":
-            return self._create_issue_from_proposal(artifact_data, repo_owner, repo_name)
-        if artifact_key == "change_status":
-            return self._update_issue_status(artifact_data, repo_owner, repo_name)
-        if artifact_key == "change_proposal_update":
-            # Extract issue number from source_tracking (support list or dict for backward compatibility)
-            source_tracking = artifact_data.get("source_tracking", {})
-            issue_number = None
-
-            # Handle list of entries (multi-repository support)
-            if isinstance(source_tracking, list):
-                # Find entry for this repository
-                target_repo = f"{repo_owner}/{repo_name}"
-                for entry in source_tracking:
-                    if isinstance(entry, dict):
-                        entry_repo = entry.get("source_repo")
-                        if entry_repo == target_repo:
-                            issue_number = entry.get("source_id")
-                            break
-                        # Backward compatibility: if no source_repo, try to extract from source_url
-                        if not entry_repo:
-                            source_url = entry.get("source_url", "")
-                            if source_url and target_repo in source_url:
-                                issue_number = entry.get("source_id")
-                                break
-            # Handle single dict (backward compatibility)
-            elif isinstance(source_tracking, dict):
-                issue_number = source_tracking.get("source_id")
-
-            if not issue_number:
-                msg = "Issue number required for content update (missing in source_tracking for this repository)"
-                raise ValueError(msg)
-            # Get code repository path for branch verification
-            code_repo_path_str = artifact_data.get("_code_repo_path")
-            code_repo_path = Path(code_repo_path_str) if code_repo_path_str else None
-            return self._update_issue_body(artifact_data, repo_owner, repo_name, int(issue_number), code_repo_path)
-        if artifact_key == "change_proposal_comment":
-            # Add comment only (no body/state update) - used for adding branch info to already-closed issues
-            source_tracking = artifact_data.get("source_tracking", {})
-            issue_number = None
-
-            # Handle list of entries (multi-repository support)
-            if isinstance(source_tracking, list):
-                target_repo = f"{repo_owner}/{repo_name}"
-                for entry in source_tracking:
-                    if isinstance(entry, dict):
-                        entry_repo = entry.get("source_repo")
-                        if entry_repo == target_repo:
-                            issue_number = entry.get("source_id")
-                            break
-                        if not entry_repo:
-                            source_url = entry.get("source_url", "")
-                            if source_url and target_repo in source_url:
-                                issue_number = entry.get("source_id")
-                                break
-            elif isinstance(source_tracking, dict):
-                issue_number = source_tracking.get("source_id")
-
-            if not issue_number:
-                msg = "Issue number required for comment (missing in source_tracking for this repository)"
-                raise ValueError(msg)
-
-            status = artifact_data.get("status", "proposed")
-            title = artifact_data.get("title", "Untitled Change Proposal")
-            change_id = artifact_data.get("change_id", "")
-            # Get OpenSpec repository path for branch verification
-            code_repo_path_str = artifact_data.get("_code_repo_path")
-            code_repo_path = Path(code_repo_path_str) if code_repo_path_str else None
-
-            # Add change_id to source_tracking entries for branch inference
-            # Create a copy to avoid modifying the original
-            if isinstance(source_tracking, list):
-                source_tracking_with_id = []
-                for entry in source_tracking:
-                    entry_copy = dict(entry) if isinstance(entry, dict) else entry
-                    if isinstance(entry_copy, dict) and not entry_copy.get("change_id"):
-                        entry_copy["change_id"] = change_id
-                    source_tracking_with_id.append(entry_copy)
-            elif isinstance(source_tracking, dict):
-                source_tracking_with_id = dict(source_tracking)
-                if not source_tracking_with_id.get("change_id"):
-                    source_tracking_with_id["change_id"] = change_id
-            else:
-                source_tracking_with_id = source_tracking
-            comment_text = self._get_status_comment(status, title, source_tracking_with_id, code_repo_path)
-            if comment_text:
-                comment_note = (
-                    f"{comment_text}\n\n"
-                    f"*Note: This comment was added from an OpenSpec change proposal with status `{status}`.*"
-                )
-                self._add_issue_comment(repo_owner, repo_name, int(issue_number), comment_note)
-            return {
-                "issue_number": int(issue_number),
-                "comment_added": True,
-            }
-        if artifact_key == "code_change_progress":
-            # Extract issue number from source_tracking (support list or dict for backward compatibility)
-            source_tracking = artifact_data.get("source_tracking", {})
-            issue_number = None
-
-            # Handle list of entries (multi-repository support)
-            if isinstance(source_tracking, list):
-                # Find entry for this repository
-                target_repo = f"{repo_owner}/{repo_name}"
-                for entry in source_tracking:
-                    if isinstance(entry, dict):
-                        entry_repo = entry.get("source_repo")
-                        if entry_repo == target_repo:
-                            issue_number = entry.get("source_id")
-                            break
-                        # Backward compatibility: if no source_repo, try to extract from source_url
-                        if not entry_repo:
-                            source_url = entry.get("source_url", "")
-                            if source_url and target_repo in source_url:
-                                issue_number = entry.get("source_id")
-                                break
-            # Handle single dict (backward compatibility)
-            elif isinstance(source_tracking, dict):
-                issue_number = source_tracking.get("source_id")
-
-            if not issue_number:
-                msg = "Issue number required for progress comment (missing in source_tracking for this repository)"
-                raise ValueError(msg)
-
-            # Extract sanitize flag from artifact_data or bridge_config
-            sanitize = artifact_data.get("sanitize", False)
-            if bridge_config and hasattr(bridge_config, "sanitize"):
-                sanitize = bridge_config.sanitize if bridge_config.sanitize is not None else sanitize
-
-            return self._add_progress_comment(
-                artifact_data, repo_owner, repo_name, int(issue_number), sanitize=sanitize
-            )
-        msg = f"Unsupported artifact key: {artifact_key}. Supported: change_proposal, change_status, change_proposal_update, code_change_progress"
-        raise ValueError(msg)
+        return self._export_github_artifact_dispatch(artifact_key, artifact_data, repo_owner, repo_name, bridge_config)
 
     @beartype
     @require(lambda item_ref: isinstance(item_ref, str) and len(item_ref) > 0, "Item reference must be non-empty")
@@ -915,19 +1286,20 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         source_tracking = proposal_data.get("source_tracking")
         source_metadata = None
         if isinstance(source_tracking, dict):
-            source_metadata = source_tracking.get("source_metadata")
+            source_metadata = _as_str_dict(source_tracking).get("source_metadata")
         elif source_tracking is not None and hasattr(source_tracking, "source_metadata"):
             source_metadata = source_tracking.source_metadata
 
         if isinstance(source_metadata, dict):
-            raw_title = raw_title or source_metadata.get("raw_title")
-            raw_body = raw_body or source_metadata.get("raw_body")
+            sm = _as_str_dict(source_metadata)
+            raw_title = raw_title or sm.get("raw_title")
+            raw_body = raw_body or sm.get("raw_body")
 
         return raw_title, raw_body
 
     @beartype
-    @require(lambda repo_path: repo_path.exists(), "Repository path must exist")
-    @require(lambda repo_path: repo_path.is_dir(), "Repository path must be a directory")
+    @require(require_repo_path_exists, "Repository path must exist")
+    @require(require_repo_path_is_dir, "Repository path must be a directory")
     @ensure(lambda result: isinstance(result, BridgeConfig), "Must return BridgeConfig")
     def generate_bridge_config(self, repo_path: Path) -> BridgeConfig:
         """
@@ -945,7 +1317,7 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
 
     @beartype
     @require(lambda bundle_dir: isinstance(bundle_dir, Path), "Bundle directory must be Path")
-    @require(lambda bundle_dir: bundle_dir.exists(), "Bundle directory must exist")
+    @require(require_bundle_dir_exists, "Bundle directory must exist")
     @ensure(lambda result: result is None, "GitHub adapter does not support change tracking loading")
     def load_change_tracking(
         self, bundle_dir: Path, bridge_config: BridgeConfig | None = None
@@ -967,7 +1339,7 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
 
     @beartype
     @require(lambda bundle_dir: isinstance(bundle_dir, Path), "Bundle directory must be Path")
-    @require(lambda bundle_dir: bundle_dir.exists(), "Bundle directory must exist")
+    @require(require_bundle_dir_exists, "Bundle directory must exist")
     @require(
         lambda change_tracking: isinstance(change_tracking, ChangeTracking), "Change tracking must be ChangeTracking"
     )
@@ -990,7 +1362,7 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
 
     @beartype
     @require(lambda bundle_dir: isinstance(bundle_dir, Path), "Bundle directory must be Path")
-    @require(lambda bundle_dir: bundle_dir.exists(), "Bundle directory must exist")
+    @require(require_bundle_dir_exists, "Bundle directory must exist")
     @require(lambda change_name: isinstance(change_name, str) and len(change_name) > 0, "Change name must be non-empty")
     @ensure(lambda result: result is None, "GitHub adapter does not support change proposal loading")
     def load_change_proposal(
@@ -1014,7 +1386,7 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
 
     @beartype
     @require(lambda bundle_dir: isinstance(bundle_dir, Path), "Bundle directory must be Path")
-    @require(lambda bundle_dir: bundle_dir.exists(), "Bundle directory must exist")
+    @require(require_bundle_dir_exists, "Bundle directory must exist")
     @require(lambda proposal: isinstance(proposal, ChangeProposal), "Proposal must be ChangeProposal")
     @ensure(lambda result: result is None, "Must return None")
     def save_change_proposal(
@@ -1063,57 +1435,7 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         if raw_title:
             title = raw_title
 
-        # Build properly formatted issue body (prefer raw content when available)
-        if raw_body:
-            body = raw_body
-        else:
-            body_parts = []
-
-            display_title = re.sub(r"^\[change\]\s*", "", title, flags=re.IGNORECASE).strip()
-            if display_title:
-                body_parts.append(f"# {display_title}")
-                body_parts.append("")
-
-            # Add Why section (rationale) - preserve markdown formatting
-            if rationale:
-                body_parts.append("## Why")
-                body_parts.append("")
-                # Preserve markdown formatting from rationale
-                rationale_lines = rationale.strip().split("\n")
-                for line in rationale_lines:
-                    body_parts.append(line)
-                body_parts.append("")  # Blank line
-
-            # Add What Changes section (description) - preserve markdown formatting
-            if description:
-                body_parts.append("## What Changes")
-                body_parts.append("")
-                # Preserve markdown formatting from description
-                description_lines = description.strip().split("\n")
-                for line in description_lines:
-                    body_parts.append(line)
-                body_parts.append("")  # Blank line
-
-            # Add Impact section if present
-            if impact:
-                body_parts.append("## Impact")
-                body_parts.append("")
-                impact_lines = impact.strip().split("\n")
-                for line in impact_lines:
-                    body_parts.append(line)
-                body_parts.append("")
-
-            # If no content, add placeholder
-            if not body_parts or (not rationale and not description):
-                body_parts.append("No description provided.")
-                body_parts.append("")
-
-            # Add OpenSpec metadata footer (avoid duplicates)
-            if not any("OpenSpec Change Proposal:" in line for line in body_parts):
-                body_parts.append("---")
-                body_parts.append(f"*OpenSpec Change Proposal: `{change_id}`*")
-
-            body = "\n".join(body_parts)
+        body = self._render_issue_body(title, description, rationale, impact, change_id, raw_body)
 
         # Check for API token before making request
         if not self.api_token:
@@ -1134,30 +1456,8 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         }
         # Determine issue state based on proposal status
         # Check if source_state and source_type are provided (from cross-adapter sync)
-        source_state = proposal_data.get("source_state")
-        source_type = proposal_data.get("source_type")
-        if source_state and source_type and source_type != "github":
-            # Use generic cross-adapter state mapping (preserves original state from source adapter)
-            from specfact_cli.adapters.registry import AdapterRegistry
-
-            source_adapter = AdapterRegistry.get_adapter(source_type)
-            if source_adapter and hasattr(source_adapter, "map_backlog_state_between_adapters"):
-                issue_state = source_adapter.map_backlog_state_between_adapters(source_state, source_type, self)
-            else:
-                # Fallback: map via OpenSpec status
-                should_close = status in ("applied", "deprecated", "discarded")
-                issue_state = "closed" if should_close else "open"
-        else:
-            # Use OpenSpec status mapping (default behavior)
-            should_close = status in ("applied", "deprecated", "discarded")
-            issue_state = "closed" if should_close else "open"
-
-        # Map status to GitHub state_reason
-        state_reason = None
-        if status == "applied":
-            state_reason = "completed"
-        elif status in ("deprecated", "discarded"):
-            state_reason = "not_planned"
+        issue_state = self._resolve_issue_state(proposal_data, status)
+        state_reason = self._resolve_state_reason(status)
 
         payload = {
             "title": title,
@@ -1219,28 +1519,8 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         """
         # Get issue number from source_tracking (handle both dict and list formats)
         source_tracking = proposal_data.get("source_tracking", {})
-
-        # Normalize to find the entry for this repository
         target_repo = f"{repo_owner}/{repo_name}"
-        issue_number = None
-
-        if isinstance(source_tracking, dict):
-            # Single dict entry (backward compatibility)
-            issue_number = source_tracking.get("source_id")
-        elif isinstance(source_tracking, list):
-            # List of entries - find the one matching this repository
-            for entry in source_tracking:
-                if isinstance(entry, dict):
-                    entry_repo = entry.get("source_repo")
-                    if entry_repo == target_repo:
-                        issue_number = entry.get("source_id")
-                        break
-                    # Backward compatibility: if no source_repo, try to extract from source_url
-                    if not entry_repo:
-                        source_url = entry.get("source_url", "")
-                        if source_url and target_repo in source_url:
-                            issue_number = entry.get("source_id")
-                            break
+        issue_number = self._resolve_issue_number_from_tracking(source_tracking, repo_owner, repo_name)
 
         if not issue_number:
             msg = (
@@ -1253,32 +1533,14 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
 
         # Map status to GitHub issue state and comment
         # Check if source_state and source_type are provided (from cross-adapter sync)
-        source_state = proposal_data.get("source_state")
-        source_type = proposal_data.get("source_type")
-        if source_state and source_type and source_type != "github":
-            # Use generic cross-adapter state mapping (preserves original state from source adapter)
-            from specfact_cli.adapters.registry import AdapterRegistry
-
-            source_adapter = AdapterRegistry.get_adapter(source_type)
-            if source_adapter and hasattr(source_adapter, "map_backlog_state_between_adapters"):
-                issue_state = source_adapter.map_backlog_state_between_adapters(source_state, source_type, self)
-                should_close = issue_state == "closed"
-            else:
-                # Fallback: map via OpenSpec status
-                should_close = status in ("applied", "deprecated", "discarded")
-        else:
-            # Use OpenSpec status mapping (default behavior)
-            should_close = status in ("applied", "deprecated", "discarded")
+        issue_state = self._resolve_issue_state(proposal_data, status)
+        should_close = issue_state == "closed"
         source_tracking = proposal_data.get("source_tracking", {})
         # Note: code_repo_path not available in _update_issue_status context
         comment_text = self._get_status_comment(status, title, source_tracking, None)
 
         # Map status to GitHub state_reason
-        state_reason = None
-        if status == "applied":
-            state_reason = "completed"
-        elif status in ("deprecated", "discarded"):
-            state_reason = "not_planned"
+        state_reason = self._resolve_state_reason(status)
 
         # Update issue state
         url = f"{self.base_url}/repos/{repo_owner}/{repo_name}/issues/{issue_number}"
@@ -1363,6 +1625,41 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             # Log but don't fail - comment is non-critical
             console.print(f"[yellow]⚠[/yellow] Failed to add comment to issue #{issue_number}: {e}")
 
+    def _fetch_issue_snapshot(self, repo_owner: str, repo_name: str, issue_number: int) -> tuple[str, str, str]:
+        """Fetch current issue body, title, and state for preservation-aware updates."""
+        url = f"{self.base_url}/repos/{repo_owner}/{repo_name}/issues/{issue_number}"
+        headers = {
+            "Authorization": f"token {self.api_token}",
+            "Accept": "application/vnd.github.v3+json",
+        }
+        try:
+            response = requests.get(url, headers=headers, timeout=30)
+            response.raise_for_status()
+            issue_data = response.json()
+            return (
+                issue_data.get("body", "") or "",
+                issue_data.get("title", "") or "",
+                issue_data.get("state", "open"),
+            )
+        except requests.RequestException:
+            return "", "", "open"
+
+    @staticmethod
+    def _preserved_issue_sections(current_body: str, change_id: str) -> list[str]:
+        """Extract non-OpenSpec sections to preserve during issue body rewrites."""
+        if not current_body:
+            return []
+        metadata_marker = f"*OpenSpec Change Proposal: `{change_id}`*"
+        if metadata_marker not in current_body:
+            return []
+        _, after_marker = current_body.split(metadata_marker, 1)
+        preserved_content = after_marker.strip()
+        if preserved_content and (
+            "##" in preserved_content or "- [" in preserved_content or "* [" in preserved_content
+        ):
+            return [preserved_content]
+        return []
+
     def _update_issue_body(
         self,
         proposal_data: dict[str, Any],  # ChangeProposal - TODO: use proper type when dependency implemented
@@ -1392,101 +1689,15 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         description = proposal_data.get("description", "")
         rationale = proposal_data.get("rationale", "")
         impact = proposal_data.get("impact", "")
-        change_id = proposal_data.get("change_id", "unknown")
+        change_id = str(proposal_data.get("change_id", "unknown"))
         status = proposal_data.get("status", "proposed")
         raw_title, raw_body = self._extract_raw_fields(proposal_data)
         if raw_title:
             title = raw_title
 
-        # Get current issue body, title, and state to preserve sections and check if updates needed
-        current_body = ""
-        current_title = ""
-        current_state = "open"
-        try:
-            url = f"{self.base_url}/repos/{repo_owner}/{repo_name}/issues/{issue_number}"
-            headers = {
-                "Authorization": f"token {self.api_token}",
-                "Accept": "application/vnd.github.v3+json",
-            }
-            response = requests.get(url, headers=headers, timeout=30)
-            response.raise_for_status()
-            issue_data = response.json()
-            current_body = issue_data.get("body", "") or ""
-            current_title = issue_data.get("title", "") or ""
-            current_state = issue_data.get("state", "open")
-        except requests.RequestException:
-            # If we can't fetch current issue, proceed without preserving sections
-            pass
-
-        # Build properly formatted issue body (same format as creation, unless raw content is present)
-        if raw_body:
-            body = raw_body
-        else:
-            # Extract sections to preserve (anything after the OpenSpec metadata footer)
-            preserved_sections = []
-            if current_body:
-                metadata_marker = f"*OpenSpec Change Proposal: `{change_id}`*"
-                if metadata_marker in current_body:
-                    _, after_marker = current_body.split(metadata_marker, 1)
-                    if after_marker.strip():
-                        preserved_content = after_marker.strip()
-                        if "##" in preserved_content or "- [" in preserved_content or "* [" in preserved_content:
-                            preserved_sections.append(preserved_content)
-
-            body_parts = []
-
-            display_title = re.sub(r"^\[change\]\s*", "", title, flags=re.IGNORECASE).strip()
-            if display_title:
-                body_parts.append(f"# {display_title}")
-                body_parts.append("")
-
-            # Add Why section (rationale) - preserve markdown formatting
-            if rationale:
-                body_parts.append("## Why")
-                body_parts.append("")
-                rationale_lines = rationale.strip().split("\n")
-                for line in rationale_lines:
-                    body_parts.append(line)
-                body_parts.append("")  # Blank line
-
-            # Add What Changes section (description) - preserve markdown formatting
-            if description:
-                body_parts.append("## What Changes")
-                body_parts.append("")
-                description_lines = description.strip().split("\n")
-                for line in description_lines:
-                    body_parts.append(line)
-                body_parts.append("")  # Blank line
-
-            # Add Impact section if present
-            if impact:
-                body_parts.append("## Impact")
-                body_parts.append("")
-                impact_lines = impact.strip().split("\n")
-                for line in impact_lines:
-                    body_parts.append(line)
-                body_parts.append("")  # Blank line
-
-            # If no content, add placeholder
-            if not body_parts or (not rationale and not description):
-                body_parts.append("No description provided.")
-                body_parts.append("")
-
-            # Add preserved sections (acceptance criteria, etc.)
-            current_body_preview = "\n".join(body_parts)
-            for preserved in preserved_sections:
-                if preserved.strip():
-                    preserved_clean = preserved.strip()
-                    if preserved_clean not in current_body_preview:
-                        body_parts.append("")  # Blank line before preserved section
-                        body_parts.append(preserved_clean)
-
-            # Add OpenSpec metadata footer (avoid duplicates)
-            if not any("OpenSpec Change Proposal:" in line for line in body_parts):
-                body_parts.append("---")
-                body_parts.append(f"*OpenSpec Change Proposal: `{change_id}`*")
-
-            body = "\n".join(body_parts)
+        current_body, current_title, current_state = self._fetch_issue_snapshot(repo_owner, repo_name, issue_number)
+        preserved_sections = self._preserved_issue_sections(current_body, change_id)
+        body = self._render_issue_body(title, description, rationale, impact, change_id, raw_body, preserved_sections)
 
         # Update issue body via GitHub API PATCH
         url = f"{self.base_url}/repos/{repo_owner}/{repo_name}/issues/{issue_number}"
@@ -1494,82 +1705,35 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             "Authorization": f"token {self.api_token}",
             "Accept": "application/vnd.github.v3+json",
         }
-        # Determine issue state based on proposal status
-        # Completed proposals (applied, deprecated, discarded) should be closed
-        should_close = status in ("applied", "deprecated", "discarded")
-        desired_state = "closed" if should_close else "open"
-
-        # Map status to GitHub state_reason
-        state_reason = None
-        if status == "applied":
-            state_reason = "completed"
-        elif status in ("deprecated", "discarded"):
-            state_reason = "not_planned"
-
-        # Always update title if it differs (fixes issues created with wrong title)
-        # Also update state if it doesn't match the proposal status
-        payload: dict[str, Any] = {
-            "body": body,
-        }
-        if current_title != title:
-            payload["title"] = title
-
-        if current_state != desired_state:
-            payload["state"] = desired_state
-            if state_reason:
-                payload["state_reason"] = state_reason
+        desired_state = self._resolve_issue_state(proposal_data, status)
+        state_reason = self._resolve_state_reason(status)
+        payload = self._issue_body_update_payload(
+            body, title, current_title, current_state, desired_state, state_reason
+        )
 
         try:
             response = self._request_with_retry(lambda: requests.patch(url, json=payload, headers=headers, timeout=30))
             issue_data = response.json()
-
-            # Add comment if issue was closed due to status change, or if already closed with applied status
-            should_add_comment = False
-            if "state" in payload and payload["state"] == "closed" and current_state == "open":
-                # Issue was just closed
-                should_add_comment = True
-            elif status == "applied" and current_state == "closed":
-                # Issue is already closed with applied status - check if we need to add/update comment with branch info
-                # Only add if we're updating and status is applied (to include branch info)
-                should_add_comment = True
-
-            if should_add_comment:
-                source_tracking = proposal_data.get("source_tracking", {})
-                # Pass target_repo to filter source_tracking to only check entries for this repository
-                target_repo = f"{repo_owner}/{repo_name}"
-                comment_text = self._get_status_comment(status, title, source_tracking, code_repo_path, target_repo)
-                if comment_text:
-                    if "state" in payload and payload["state"] == "closed" and current_state == "open":
-                        # Add note that this was closed due to status change
-                        status_change_note = (
-                            f"{comment_text}\n\n"
-                            f"*Note: This issue was automatically closed because the change proposal "
-                            f"status changed to `{status}`. This issue was updated from an OpenSpec change proposal.*"
-                        )
-                    else:
-                        # Issue already closed - just add status comment with branch info
-                        status_change_note = (
-                            f"{comment_text}\n\n"
-                            f"*Note: This issue was updated from an OpenSpec change proposal with status `{status}`.*"
-                        )
-                    self._add_issue_comment(repo_owner, repo_name, issue_number, status_change_note)
-
-            # Optionally add comment for significant changes
-            title_lower = title.lower()
-            description_lower = description.lower()
-            rationale_lower = rationale.lower()
-            combined_text = f"{title_lower} {description_lower} {rationale_lower}"
-
-            significant_keywords = ["breaking", "major", "scope change"]
-            is_significant = any(keyword in combined_text for keyword in significant_keywords)
-
-            if is_significant:
-                comment_text = (
-                    f"**Significant change detected**: This issue has been updated with new proposal content.\n\n"
-                    f"*Updated: {change_id}*\n\n"
-                    f"Please review the changes above. This update may include breaking changes or major scope modifications."
-                )
-                self._add_issue_comment(repo_owner, repo_name, issue_number, comment_text)
+            self._add_issue_status_comment(
+                proposal_data,
+                repo_owner,
+                repo_name,
+                issue_number,
+                code_repo_path,
+                payload,
+                current_state,
+                status,
+                title,
+            )
+            self._add_significant_change_comment(
+                repo_owner,
+                repo_name,
+                issue_number,
+                change_id,
+                title,
+                description,
+                rationale,
+            )
 
             return {
                 "issue_number": issue_data["number"],
@@ -1580,6 +1744,96 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             msg = f"Failed to update GitHub issue #{issue_number} body: {e}"
             console.print(f"[bold red]✗[/bold red] {msg}")
             raise
+
+    @staticmethod
+    def _issue_body_update_payload(
+        body: str,
+        title: str,
+        current_title: str,
+        current_state: str,
+        desired_state: str,
+        state_reason: str | None,
+    ) -> dict[str, Any]:
+        """Build the PATCH payload for issue body/title/state updates."""
+        payload: dict[str, Any] = {"body": body}
+        if current_title != title:
+            payload["title"] = title
+        if current_state == desired_state:
+            return payload
+        payload["state"] = desired_state
+        if state_reason:
+            payload["state_reason"] = state_reason
+        return payload
+
+    def _add_issue_status_comment(
+        self,
+        proposal_data: dict[str, Any],
+        repo_owner: str,
+        repo_name: str,
+        issue_number: int,
+        code_repo_path: Path | None,
+        payload: dict[str, Any],
+        current_state: str,
+        status: str,
+        title: str,
+    ) -> None:
+        """Add or refresh the status comment when closing or re-syncing applied issues."""
+        if not self._should_add_issue_status_comment(payload, current_state, status):
+            return
+        source_tracking = proposal_data.get("source_tracking", {})
+        target_repo = f"{repo_owner}/{repo_name}"
+        comment_text = self._get_status_comment(status, title, source_tracking, code_repo_path, target_repo)
+        if not comment_text:
+            return
+        status_change_note = self._status_comment_note(comment_text, payload, current_state, status)
+        self._add_issue_comment(repo_owner, repo_name, issue_number, status_change_note)
+
+    @staticmethod
+    def _should_add_issue_status_comment(payload: dict[str, Any], current_state: str, status: str) -> bool:
+        """Determine whether the issue update should emit a status comment."""
+        if payload.get("state") == "closed" and current_state == "open":
+            return True
+        return status == "applied" and current_state == "closed"
+
+    @staticmethod
+    def _status_comment_note(comment_text: str, payload: dict[str, Any], current_state: str, status: str) -> str:
+        """Compose the sync status note appended to issue comments."""
+        if payload.get("state") == "closed" and current_state == "open":
+            return (
+                f"{comment_text}\n\n"
+                f"*Note: This issue was automatically closed because the change proposal "
+                f"status changed to `{status}`. This issue was updated from an OpenSpec change proposal.*"
+            )
+        return (
+            f"{comment_text}\n\n*Note: This issue was updated from an OpenSpec change proposal with status `{status}`.*"
+        )
+
+    def _add_significant_change_comment(
+        self,
+        repo_owner: str,
+        repo_name: str,
+        issue_number: int,
+        change_id: str,
+        title: str,
+        description: str,
+        rationale: str,
+    ) -> None:
+        """Add a review nudge when proposal text indicates a significant change."""
+        if not self._is_significant_issue_update(title, description, rationale):
+            return
+        comment_text = (
+            "**Significant change detected**: This issue has been updated with new proposal content.\n\n"
+            f"*Updated: {change_id}*\n\n"
+            "Please review the changes above. This update may include breaking changes or major scope modifications."
+        )
+        self._add_issue_comment(repo_owner, repo_name, issue_number, comment_text)
+
+    @staticmethod
+    def _is_significant_issue_update(title: str, description: str, rationale: str) -> bool:
+        """Detect whether updated issue text should trigger a significant-change comment."""
+        combined_text = f"{title.lower()} {description.lower()} {rationale.lower()}"
+        significant_keywords = ["breaking", "major", "scope change"]
+        return any(keyword in combined_text for keyword in significant_keywords)
 
     def _get_labels_for_status(self, status: str) -> list[str]:
         """
@@ -1646,20 +1900,7 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         issue_number = None
         target_repo = f"{repo_owner}/{repo_name}"
 
-        if isinstance(source_tracking, dict):
-            issue_number = source_tracking.get("source_id")
-        elif isinstance(source_tracking, list):
-            for entry in source_tracking:
-                if isinstance(entry, dict):
-                    entry_repo = entry.get("source_repo")
-                    if entry_repo == target_repo:
-                        issue_number = entry.get("source_id")
-                        break
-                    if not entry_repo:
-                        source_url = entry.get("source_url", "")
-                        if source_url and target_repo in source_url:
-                            issue_number = entry.get("source_id")
-                            break
+        issue_number = self._resolve_issue_number_from_tracking(source_tracking, repo_owner, repo_name)
 
         if not issue_number:
             msg = f"Issue number not found in source_tracking for repository {target_repo}"
@@ -1676,19 +1917,13 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         }
 
         try:
-            # Get current issue
             response = requests.get(url, headers=headers, timeout=30)
             response.raise_for_status()
             current_issue = response.json()
-
-            # Get current labels (excluding openspec and status labels)
             current_labels = [label.get("name", "") for label in current_issue.get("labels", [])]
             status_labels = ["in-progress", "completed", "deprecated", "wontfix"]
-            # Keep non-status labels
             keep_labels = [label for label in current_labels if label not in status_labels and label != "openspec"]
-
-            # Combine: keep non-status labels + new status labels
-            all_labels = list(set(keep_labels + new_labels))
+            all_labels = self._dedupe_strings(keep_labels + new_labels)
 
             # Update issue labels
             patch_url = f"{self.base_url}/repos/{repo_owner}/{repo_name}/issues/{issue_number}"
@@ -1735,10 +1970,13 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             Future backlog adapters should implement similar sync methods for their tools.
         """
         # Extract GitHub status from labels
-        labels = issue_data.get("labels", [])
+        labels_raw = issue_data.get("labels", [])
+        labels = labels_raw if isinstance(labels_raw, list) else []
         github_status = "open"  # Default
         if labels:
-            label_names = [label.get("name", "") if isinstance(label, dict) else str(label) for label in labels]
+            label_names = [
+                _as_str_dict(label).get("name", "") if isinstance(label, dict) else str(label) for label in labels
+            ]
             for label_name in label_names:
                 mapped_status = self.map_backlog_status_to_openspec(label_name)
                 if mapped_status != "proposed":  # Use first non-default status
@@ -1858,58 +2096,26 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         if not repo_path_to_check:
             source_repo = entry.get("source_repo")
             if source_repo:
-                # Try to find local path to code repository
                 repo_path_to_check = self._find_code_repo_path(source_repo)
 
-        # Check source_metadata for branch
-        source_metadata = entry.get("source_metadata", {})
-        if isinstance(source_metadata, dict):
-            branch = source_metadata.get("branch") or source_metadata.get("source_branch")
-            if branch:
-                # Verify branch exists in code repo if path available
-                if repo_path_to_check:
-                    if self._verify_branch_exists(branch, repo_path_to_check):
-                        return branch
-                else:
-                    # No repo path available, return branch as-is
-                    return branch
-
-        # Check for branch field directly in entry
-        branch = entry.get("branch") or entry.get("source_branch")
-        if branch:
-            # Verify branch exists in code repo if path available
-            if repo_path_to_check:
-                if self._verify_branch_exists(branch, repo_path_to_check):
-                    return branch
-            else:
-                # No repo path available, return branch as-is
+        for branch in self._entry_branch_candidates(entry):
+            if not repo_path_to_check or self._verify_branch_exists(branch, repo_path_to_check):
                 return branch
 
-        # Try to detect branch from actual implementation (files changed, commits)
-        # This is more accurate than inferring from change_id
         if repo_path_to_check:
             detected_branch = self._detect_implementation_branch(entry, repo_path_to_check)
             if detected_branch:
                 return detected_branch
 
-        # Fallback: Try to infer from change_id (common pattern: feature/<change-id>)
-        # Only use this if we couldn't detect the actual branch
         change_id = entry.get("change_id")
         if change_id:
-            # Common branch naming patterns
-            possible_branches = [
-                f"feature/{change_id}",
-                f"bugfix/{change_id}",
-                f"hotfix/{change_id}",
-            ]
-            # Check each possible branch in code repo
+            possible_branches = [f"feature/{change_id}", f"bugfix/{change_id}", f"hotfix/{change_id}"]
             if repo_path_to_check:
-                for branch in possible_branches:
-                    if self._verify_branch_exists(branch, repo_path_to_check):
-                        return branch
-            else:
-                # No repo path available, return first as reasonable default
-                return possible_branches[0]
+                return next(
+                    (branch for branch in possible_branches if self._verify_branch_exists(branch, repo_path_to_check)),
+                    None,
+                )
+            return possible_branches[0]
 
         return None
 
@@ -1925,46 +2131,20 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             True if branch exists, False otherwise
         """
         try:
-            import subprocess
+            local_branches = [
+                line.replace("*", "").strip()
+                for line in self._run_git_lines(repo_path, ["branch", "--list", branch_name], timeout=5)
+            ]
+            if branch_name in local_branches:
+                return True
 
-            result = subprocess.run(
-                ["git", "branch", "--list", branch_name],
-                cwd=repo_path,
-                capture_output=True,
-                text=True,
-                timeout=5,
-                check=False,
-            )
-            # Check if branch exists locally (strip whitespace and check exact match)
-            if result.returncode == 0:
-                branches = [line.strip().replace("*", "").strip() for line in result.stdout.split("\n") if line.strip()]
-                if branch_name in branches:
-                    return True
-
-            # Also check remote branches
-            result = subprocess.run(
-                ["git", "branch", "-r", "--list", f"*/{branch_name}"],
-                cwd=repo_path,
-                capture_output=True,
-                text=True,
-                timeout=5,
-                check=False,
-            )
-            if result.returncode == 0:
-                # Extract branch name from remote branch format (origin/branch-name)
-                # Preserve full branch path after remote prefix (e.g., origin/feature/foo -> feature/foo)
-                remote_branches = []
-                for line in result.stdout.split("\n"):
-                    line = line.strip()
-                    if line and "/" in line:
-                        # Remove remote prefix (e.g., "origin/" or "upstream/") but keep full branch path
-                        parts = line.split("/", 1)  # Split only on first "/"
-                        if len(parts) == 2:
-                            remote_branches.append(parts[1])  # Keep everything after remote prefix
-                if branch_name in remote_branches:
-                    return True
-
-            return False
+            remote_branches = [
+                parts[1]
+                for line in self._run_git_lines(repo_path, ["branch", "-r", "--list", f"*/{branch_name}"], timeout=5)
+                for parts in [line.split("/", 1)]
+                if len(parts) == 2
+            ]
+            return branch_name in remote_branches
         except Exception:
             # If we can't check (git not available, etc.), return False to be safe
             return False
@@ -1983,46 +2163,72 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             return None
 
         _, repo_name = source_repo.split("/", 1)
+        for candidate in self._code_repo_candidates(repo_name):
+            if self._is_matching_repo_candidate(candidate, repo_name):
+                return candidate
 
-        # Strategy 1: Check if current working directory is the code repository
+        return None
+
+    @staticmethod
+    def _code_repo_candidates(repo_name: str) -> list[Path]:
+        """Build local path candidates for a repository name."""
+        cwd = Path.cwd()
+        candidates = [cwd, cwd.parent / repo_name]
+        grandparent = cwd.parent.parent if cwd.parent != Path("/") else None
+        if grandparent:
+            candidates.extend(
+                sibling for sibling in grandparent.iterdir() if sibling.is_dir() and sibling.name == repo_name
+            )
+        return candidates
+
+    def _is_matching_repo_candidate(self, candidate: Path, repo_name: str) -> bool:
+        """Return whether a local directory looks like the requested code repository."""
         try:
-            cwd = Path.cwd()
-            if cwd.name == repo_name and (cwd / ".git").exists():
-                # Verify it's the right repo by checking remote
-                result = subprocess.run(
-                    ["git", "remote", "get-url", "origin"],
-                    cwd=cwd,
-                    capture_output=True,
-                    text=True,
-                    timeout=5,
-                    check=False,
-                )
-                if result.returncode == 0 and repo_name in result.stdout:
-                    return cwd
+            if not candidate.exists() or not (candidate / ".git").exists() or candidate.name != repo_name:
+                return False
+            if candidate != Path.cwd():
+                return True
+            remote_url_lines = self._run_git_lines(candidate, ["remote", "get-url", "origin"], timeout=5)
+            return bool(remote_url_lines and repo_name in remote_url_lines[0])
         except Exception:
-            pass
+            return False
 
-        # Strategy 2: Check parent directory (common structure: parent/repo-name)
-        try:
-            cwd = Path.cwd()
-            parent = cwd.parent
-            repo_path = parent / repo_name
-            if repo_path.exists() and (repo_path / ".git").exists():
-                return repo_path
-        except Exception:
-            pass
+    @staticmethod
+    def _metadata_values(metadata_dict: dict[str, Any], entry: dict[str, Any], *keys: str) -> list[Any]:
+        """Collect candidate metadata values from entry and source metadata."""
+        values: list[Any] = []
+        for key in keys:
+            values.extend([metadata_dict.get(key), entry.get(key)])
+        return values
 
-        # Strategy 3: Check sibling directories (common structure: sibling/repo-name)
-        try:
-            cwd = Path.cwd()
-            grandparent = cwd.parent.parent if cwd.parent != Path("/") else None
-            if grandparent:
-                for sibling in grandparent.iterdir():
-                    if sibling.is_dir() and sibling.name == repo_name and (sibling / ".git").exists():
-                        return sibling
-        except Exception:
-            pass
+    def _branch_from_metadata(self, entry: dict[str, Any], repo_path: Path, change_id: str | None) -> str | None:
+        """Resolve branch from commit and file metadata embedded in a source tracking entry."""
+        source_metadata = entry.get("source_metadata", {})
+        metadata_dict = source_metadata if isinstance(source_metadata, dict) else {}
+        for commit_hash in self._metadata_values(metadata_dict, entry, "commit", "commit_hash"):
+            if commit_hash:
+                branch = self._find_branch_containing_commit(str(commit_hash), repo_path)
+                if branch:
+                    return branch
+        issue_number = entry.get("source_id")
+        if change_id:
+            self._current_change_id = change_id
+        for files_changed in self._metadata_values(metadata_dict, entry, "files", "files_changed"):
+            if files_changed:
+                branch = self._find_branch_containing_files(files_changed, repo_path, issue_number)
+                if branch:
+                    return branch
+        return None
 
+    def _branch_from_change_reference(self, change_id: str | None, repo_path: Path, issue_number: Any) -> str | None:
+        """Resolve branch from issue-number and change-id commit references."""
+        issue_number_text = str(issue_number) if issue_number is not None else None
+        if issue_number_text:
+            branch = self._find_branch_by_change_id_in_commits("", repo_path, issue_number_text)
+            if branch:
+                return branch
+        if change_id:
+            return self._find_branch_by_change_id_in_commits(change_id, repo_path, None)
         return None
 
     def _detect_implementation_branch(self, entry: dict[str, Any], repo_path: Path) -> str | None:
@@ -2050,55 +2256,12 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             if change_id:
                 self._current_change_id = change_id
 
-            # Strategy 1: Check source_metadata for commit hash or file paths
-            source_metadata = entry.get("source_metadata", {})
-            if isinstance(source_metadata, dict):
-                # Check for commit hash
-                commit_hash = source_metadata.get("commit") or source_metadata.get("commit_hash")
-                if commit_hash:
-                    branch = self._find_branch_containing_commit(commit_hash, repo_path)
-                    if branch:
-                        return branch
-
-                # Check for file paths
-                files_changed = source_metadata.get("files") or source_metadata.get("files_changed")
-                if files_changed:
-                    branch = self._find_branch_containing_files(files_changed, repo_path, issue_number)
-                    if branch:
-                        return branch
-
-            # Strategy 2: Check for commit hash or file paths directly in entry
-            commit_hash = entry.get("commit") or entry.get("commit_hash")
-            if commit_hash:
-                branch = self._find_branch_containing_commit(commit_hash, repo_path)
-                if branch:
-                    return branch
-
-            files_changed = entry.get("files") or entry.get("files_changed")
-            if files_changed:
-                branch = self._find_branch_containing_files(files_changed, repo_path, issue_number)
-                if branch:
-                    return branch
-
-            # Strategy 3: Look for commits that mention the change_id or issue number in commit messages
-            # This is the most reliable method when we have an issue number
-            if issue_number:
-                # Prefer issue number search - it's more specific
-                branch = self._find_branch_by_change_id_in_commits("", repo_path, issue_number)
-                if branch:
-                    return branch
-                # If issue number search fails, fall back to change_id search
-                # This handles cases where commits mention the change_id but not the issue number
-                if change_id:
-                    branch = self._find_branch_by_change_id_in_commits(change_id, repo_path, None)
-                    if branch:
-                        return branch
-            elif change_id:
-                # Only search by change_id if we don't have an issue number
-                # This is less reliable as change_id might match unrelated commits
-                branch = self._find_branch_by_change_id_in_commits(change_id, repo_path, None)
-                if branch:
-                    return branch
+            branch = self._branch_from_metadata(entry, repo_path, change_id)
+            if branch:
+                return branch
+            branch = self._branch_from_change_reference(change_id, repo_path, issue_number)
+            if branch:
+                return branch
 
         except Exception:
             # If detection fails, return None (will fall back to inference)
@@ -2134,68 +2297,16 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             if result.returncode != 0:
                 return None
 
-            # Find branches that contain this commit
-            # Use --all to include remote branches
-            result = subprocess.run(
-                ["git", "branch", "-a", "--contains", commit_hash, "--format=%(refname:short)"],
-                cwd=repo_path,
-                capture_output=True,
-                text=True,
-                timeout=5,
-                check=False,
-            )
-            if result.returncode == 0 and result.stdout.strip():
-                branches = [b.strip() for b in result.stdout.strip().split("\n") if b.strip()]
-                # Remove 'origin/' prefix from remote branches for comparison
-                local_branches = []
-                seen_branches = set()
-                for branch in branches:
-                    clean_branch = branch.replace("origin/", "") if branch.startswith("origin/") else branch
-                    # Deduplicate (remote and local branches might both be present)
-                    if clean_branch not in seen_branches:
-                        local_branches.append(clean_branch)
-                        seen_branches.add(clean_branch)
-
-                # Get change_id from instance attribute if available (set by _detect_implementation_branch)
-                change_id = getattr(self, "_current_change_id", None)
-
-                # Strategy 1: Prefer branches that match the change_id in their name
-                # This is the most reliable - the branch name often matches the change_id
-                if change_id:
-                    # Normalize change_id for matching (remove hyphens, underscores, convert to lowercase)
-                    normalized_change_id = change_id.lower().replace("-", "").replace("_", "")
-                    # Extract key words from change_id (split by common separators and filter out short words)
-                    change_id_words = [
-                        word
-                        for word in change_id.lower().replace("-", "_").split("_")
-                        if len(word) > 3  # Only consider words longer than 3 characters
-                    ]
-                    for branch in local_branches:
-                        if any(prefix in branch for prefix in ["feature/", "bugfix/", "hotfix/"]):
-                            # Normalize branch name for comparison
-                            normalized_branch = branch.lower().replace("-", "").replace("_", "").replace("/", "")
-                            # Check if change_id is a substring of branch name
-                            if normalized_change_id in normalized_branch:
-                                return branch
-                            # Also check if key words from change_id appear in branch name
-                            # This handles cases where branch name has additional words (e.g., "datamodel")
-                            if change_id_words:
-                                branch_words = [
-                                    word
-                                    for word in branch.lower().replace("-", "_").replace("/", "_").split("_")
-                                    if len(word) > 3
-                                ]
-                                # Check if at least 2 key words from change_id appear in branch
-                                matching_words = sum(1 for word in change_id_words if word in branch_words)
-                                if matching_words >= 2:
-                                    return branch
-
-                # Strategy 2: Prefer feature/bugfix/hotfix branches over main/master
-                for branch in local_branches:
-                    if any(prefix in branch for prefix in ["feature/", "bugfix/", "hotfix/"]):
-                        return branch
-                # Return first branch if no feature branch found
-                return local_branches[0] if local_branches else None
+            branches = [
+                branch.replace("origin/", "") if branch.startswith("origin/") else branch
+                for branch in self._run_git_lines(
+                    repo_path,
+                    ["branch", "-a", "--contains", commit_hash, "--format=%(refname:short)"],
+                    timeout=5,
+                )
+            ]
+            if branches:
+                return self._preferred_branch(branches, getattr(self, "_current_change_id", None))
 
         except Exception:
             pass
@@ -2222,79 +2333,19 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             Branch name if found, None otherwise
         """
         try:
-            if isinstance(files, str):
-                files = [files]
-
-            file_args = files[:10]  # Limit to first 10 files to avoid command line length issues
-
-            # If we have an issue number, try to find commits that reference it
-            # This helps avoid matching commits from the current working branch
-            if issue_number:
-                # Search for commits that touch these files AND mention the issue
-                patterns = [f"#{issue_number}", f"fixes #{issue_number}", f"closes #{issue_number}"]
-                for pattern in patterns:
-                    result = subprocess.run(
-                        ["git", "log", "--all", "--grep", pattern, "--format=%H", "--", *file_args],
-                        cwd=repo_path,
-                        capture_output=True,
-                        text=True,
-                        timeout=10,
-                        check=False,
-                    )
-                    if result.returncode == 0 and result.stdout.strip():
-                        # Get the most recent commit (first line)
-                        commit_hash = result.stdout.strip().split("\n")[0]
-                        branch = self._find_branch_containing_commit(commit_hash, repo_path)
-                        if branch:
-                            return branch
-
-            # Find commits that touched these files AND mention the change_id in commit message
-            # This is the most specific search - finds the actual implementation commit
+            file_args = self._tracked_file_args(files)
+            branch = self._branch_for_issue_pattern(
+                repo_path, file_args, issue_number, getattr(self, "_current_change_id", None)
+            )
+            if branch:
+                return branch
             change_id = getattr(self, "_current_change_id", None)
-            if change_id:
-                result = subprocess.run(
-                    [
-                        "git",
-                        "log",
-                        "--all",
-                        "--grep",
-                        change_id,
-                        "--format=%H|%s",
-                        "-i",
-                        "--no-merges",
-                        "--",
-                        *file_args,
-                    ],
-                    cwd=repo_path,
-                    capture_output=True,
-                    text=True,
-                    timeout=10,
-                    check=False,
-                )
-                if result.returncode == 0 and result.stdout.strip():
-                    # Try each commit until we find one in a feature branch
-                    # Skip merge commits - they're not the actual implementation
-                    for line in result.stdout.strip().split("\n")[:10]:
-                        if "|" in line:
-                            commit_hash, subject = line.split("|", 1)
-                        else:
-                            commit_hash = line
-                            subject = ""
-
-                        # Skip merge commits and chore commits - look for actual implementation
-                        if any(word in subject.lower() for word in ["merge", "chore:", "docs:"]):
-                            continue
-
-                        branch = self._find_branch_containing_commit(commit_hash, repo_path)
-                        # Prefer feature/bugfix/hotfix branches
-                        if branch and any(prefix in branch for prefix in ["feature/", "bugfix/", "hotfix/"]):
-                            return branch
-
-            # Find commits that touched these files, but exclude main/master
-            # This helps find the actual implementation branch, not just merged commits
-            result = subprocess.run(
+            branch = self._branch_for_change_id_files(repo_path, file_args, change_id)
+            if branch:
+                return branch
+            non_main_commits = self._run_git_lines(
+                repo_path,
                 [
-                    "git",
                     "log",
                     "--all",
                     "--format=%H",
@@ -2305,43 +2356,57 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
                     "--",
                     *file_args,
                 ],
-                cwd=repo_path,
-                capture_output=True,
-                text=True,
-                timeout=10,
-                check=False,
             )
-            if result.returncode == 0 and result.stdout.strip():
-                # Try each commit until we find one in a feature branch
-                for commit_hash in result.stdout.strip().split("\n")[:20]:  # Limit to first 20 commits
-                    branch = self._find_branch_containing_commit(commit_hash, repo_path)
-                    # Prefer feature/bugfix/hotfix branches
-                    if branch and any(prefix in branch for prefix in ["feature/", "bugfix/", "hotfix/"]):
-                        return branch
-
-            # Fallback: Find commits that touched these files (including main/master)
-            # This might match the current working branch, so use with caution
-            result = subprocess.run(
-                ["git", "log", "--all", "--format=%H", "-30", "--", *file_args],
-                cwd=repo_path,
-                capture_output=True,
-                text=True,
-                timeout=10,
-                check=False,
-            )
-            if result.returncode == 0 and result.stdout.strip():
-                # Try each commit until we find one in a feature branch (not current working branch)
-                for commit_hash in result.stdout.strip().split("\n"):
-                    branch = self._find_branch_containing_commit(commit_hash, repo_path)
-                    # Prefer feature/bugfix/hotfix branches
-                    if branch and any(prefix in branch for prefix in ["feature/", "bugfix/", "hotfix/"]):
-                        return branch
-                # If no feature branch found, return None (don't guess)
-                return None
+            branch = self._find_feature_branch_from_commits(repo_path, non_main_commits[:20], change_id)
+            if branch:
+                return branch
+            fallback_commits = self._run_git_lines(repo_path, ["log", "--all", "--format=%H", "-30", "--", *file_args])
+            return self._find_feature_branch_from_commits(repo_path, fallback_commits, change_id)
 
         except Exception:
             pass
 
+        return None
+
+    @staticmethod
+    def _tracked_file_args(files: list[str] | str) -> list[str]:
+        """Normalize tracked file arguments for git log commands."""
+        normalized_files = [files] if isinstance(files, str) else list(files)
+        return normalized_files[:10]
+
+    def _branch_for_issue_pattern(
+        self, repo_path: Path, file_args: list[str], issue_number: str | None, change_id: str | None
+    ) -> str | None:
+        """Find a feature branch from issue-number commit patterns touching target files."""
+        if not issue_number:
+            return None
+        patterns = [f"#{issue_number}", f"fixes #{issue_number}", f"closes #{issue_number}"]
+        for pattern in patterns:
+            commit_hashes = self._run_git_lines(
+                repo_path,
+                ["log", "--all", "--grep", pattern, "--format=%H", "--", *file_args],
+            )
+            if commit_hashes:
+                branch = self._find_feature_branch_from_commits(repo_path, commit_hashes, change_id)
+                if branch:
+                    return branch
+        return None
+
+    def _branch_for_change_id_files(self, repo_path: Path, file_args: list[str], change_id: str | None) -> str | None:
+        """Find a feature branch from change-id tagged commits touching target files."""
+        if not change_id:
+            return None
+        commit_lines = self._run_git_lines(
+            repo_path,
+            ["log", "--all", "--grep", change_id, "--format=%H|%s", "-i", "--no-merges", "--", *file_args],
+        )
+        for line in commit_lines[:10]:
+            commit_hash, _, subject = line.partition("|")
+            if any(word in subject.lower() for word in ["merge", "chore:", "docs:"]):
+                continue
+            branch = self._find_branch_containing_commit(commit_hash, repo_path)
+            if branch and self._is_feature_branch(branch):
+                return branch
         return None
 
     def _find_branch_by_change_id_in_commits(
@@ -2359,84 +2424,44 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             Branch name if found, None otherwise
         """
         try:
-            # Strategy 1: Search for commits that reference the issue number
-            # This is the most reliable method - issue numbers are specific
             if issue_number:
-                # Search for patterns like "#107", "fixes #107", "closes #107", etc.
-                patterns = [f"#{issue_number}", f"fixes #{issue_number}", f"closes #{issue_number}"]
-                for pattern in patterns:
-                    result = subprocess.run(
-                        ["git", "log", "--all", "--grep", pattern, "--format=%H", "-n", "10"],
-                        cwd=repo_path,
-                        capture_output=True,
-                        text=True,
-                        timeout=10,
-                        check=False,
-                    )
-                    if result.returncode == 0 and result.stdout.strip():
-                        # Try each commit until we find one in a feature branch
-                        for commit_hash in result.stdout.strip().split("\n"):
-                            branch = self._find_branch_containing_commit(commit_hash, repo_path)
-                            # Prefer feature/bugfix/hotfix branches
-                            if branch and any(prefix in branch for prefix in ["feature/", "bugfix/", "hotfix/"]):
-                                return branch
-                        # If no feature branch found, return the first one
-                        commit_hash = result.stdout.strip().split("\n")[0]
-                        branch = self._find_branch_containing_commit(commit_hash, repo_path)
-                        if branch:
-                            return branch
-                # If no commits found with issue number, return None
-                # Don't fall back to change_id search - it's too unreliable
-                return None
-
-            # Strategy 2: Search for commits mentioning the change_id in commit messages
-            # Only use this if we don't have an issue number, or if issue number search failed
-            # This is less reliable as change_id might match unrelated commits
+                return self._branch_for_issue_reference(repo_path, change_id, issue_number)
             if change_id:
-                # Search with --no-merges to avoid merge commits, and get commit subjects too
-                result = subprocess.run(
-                    ["git", "log", "--all", "--grep", change_id, "--format=%H|%s", "-i", "--no-merges", "-n", "20"],
-                    cwd=repo_path,
-                    capture_output=True,
-                    text=True,
-                    timeout=10,
-                    check=False,
-                )
-                if result.returncode == 0 and result.stdout.strip():
-                    # First pass: Look for commits that are clearly implementation commits
-                    # These have "implement" or "feat:" AND the change_id in the subject
-                    for line in result.stdout.strip().split("\n"):
-                        if "|" in line:
-                            commit_hash, subject = line.split("|", 1)
-                        else:
-                            commit_hash = line
-                            subject = ""
-
-                        # Skip merge, chore, and docs commits - look for actual implementation
-                        if any(word in subject.lower() for word in ["merge", "chore:", "docs:"]):
-                            continue
-
-                        # Check if this is clearly an implementation commit
-                        # Look for "implement" or "feat:" AND the change_id in the subject
-                        # This ensures we find the actual implementation commit, not just any commit mentioning the change_id
-                        has_implementation_keyword = any(word in subject.lower() for word in ["implement", "feat:"])
-                        has_change_id = change_id.lower() in subject.lower()
-                        is_implementation = has_implementation_keyword and has_change_id
-
-                        # Only process commits that are clearly implementation commits
-                        if is_implementation:
-                            branch = self._find_branch_containing_commit(commit_hash, repo_path)
-                            if branch and any(prefix in branch for prefix in ["feature/", "bugfix/", "hotfix/"]):
-                                # This is the implementation commit - return its branch immediately
-                                return branch
-
-                    # If we didn't find an implementation commit, return None (don't guess)
-                    # This is safer than returning a branch from a non-implementation commit
-                    return None
+                return self._branch_for_change_id_reference(repo_path, change_id)
 
         except Exception:
             pass
 
+        return None
+
+    def _branch_for_issue_reference(self, repo_path: Path, change_id: str, issue_number: str) -> str | None:
+        """Find a feature branch from issue-number commit references."""
+        patterns = [f"#{issue_number}", f"fixes #{issue_number}", f"closes #{issue_number}"]
+        for pattern in patterns:
+            commit_hashes = self._run_git_lines(
+                repo_path, ["log", "--all", "--grep", pattern, "--format=%H", "-n", "10"]
+            )
+            branch = self._find_feature_branch_from_commits(repo_path, commit_hashes, change_id)
+            if branch:
+                return branch
+        return None
+
+    def _branch_for_change_id_reference(self, repo_path: Path, change_id: str) -> str | None:
+        """Find a feature branch from change-id commit references with implementation-style subjects."""
+        commit_lines = self._run_git_lines(
+            repo_path,
+            ["log", "--all", "--grep", change_id, "--format=%H|%s", "-i", "--no-merges", "-n", "20"],
+        )
+        for line in commit_lines:
+            commit_hash, _, subject = line.partition("|")
+            if any(word in subject.lower() for word in ["merge", "chore:", "docs:"]):
+                continue
+            has_implementation_keyword = any(word in subject.lower() for word in ["implement", "feat:"])
+            has_change_id = change_id.lower() in subject.lower()
+            if has_implementation_keyword and has_change_id:
+                branch = self._find_branch_containing_commit(commit_hash, repo_path)
+                if branch and self._is_feature_branch(branch):
+                    return branch
         return None
 
     def _add_progress_comment(
@@ -2528,66 +2553,7 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             direct_items = [direct_item] if direct_item is not None else []
             return self._apply_backlog_post_filters(direct_items, filters)
 
-        # Build GitHub search query
-        # Note: GitHub search API is case-insensitive for state, but we'll apply
-        # case-insensitive filtering post-fetch for assignee to handle display names
-        query_parts = [f"repo:{self.repo_owner}/{self.repo_name}", "type:issue"]
-
-        if filters.state:
-            # GitHub state is case-insensitive, but normalize for consistency
-            normalized_state = BacklogFilters.normalize_filter_value(filters.state) or filters.state
-            query_parts.append(f"state:{normalized_state}")
-
-        if filters.assignee:
-            # Strip leading @ if present for GitHub search
-            assignee_value = filters.assignee.lstrip("@")
-            normalized_assignee_value = BacklogFilters.normalize_filter_value(assignee_value)
-            if normalized_assignee_value == "me":
-                query_parts.append("assignee:@me")
-            else:
-                query_parts.append(f"assignee:{assignee_value}")
-
-        if filters.labels:
-            for label in filters.labels:
-                query_parts.append(f"label:{label}")
-
-        if filters.search:
-            query_parts.append(f"{filters.search}")
-
-        query = " ".join(query_parts)
-
-        # Fetch issues using GitHub Search API
-        url = f"{self.base_url}/search/issues"
-        headers = {
-            "Authorization": f"token {self.api_token}",
-            "Accept": "application/vnd.github.v3+json",
-        }
-        params = {"q": query, "per_page": 100}
-
-        items: list[BacklogItem] = []
-        page = 1
-
-        while True:
-            params["page"] = page
-            response = self._request_with_retry(lambda: requests.get(url, headers=headers, params=params, timeout=30))
-            response.raise_for_status()
-            data = response.json()
-
-            issues = data.get("items", [])
-            if not issues:
-                break
-
-            # Convert GitHub issues to BacklogItem
-            from specfact_cli.backlog.converter import convert_github_issue_to_backlog_item
-
-            for issue in issues:
-                backlog_item = convert_github_issue_to_backlog_item(issue, provider="github")
-                items.append(backlog_item)
-
-            # Check if there are more pages
-            if len(issues) < 100:
-                break
-            page += 1
+        items = self._search_github_issues(self._build_issue_search_query(filters))
 
         return self._apply_backlog_post_filters(items, filters)
 
@@ -2615,7 +2581,8 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         issue_payload = response.json()
         if not isinstance(issue_payload, dict):
             return None
-        if issue_payload.get("pull_request") is not None:
+        ip = _as_str_dict(issue_payload)
+        if ip.get("pull_request") is not None:
             # Backlog issue commands should not resolve pull requests.
             return None
 
@@ -2626,90 +2593,112 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
     @beartype
     def _apply_backlog_post_filters(self, items: list[BacklogItem], filters: BacklogFilters) -> list[BacklogItem]:
         """Apply post-fetch filters for both search and direct ID lookup paths."""
+        filtered_items = self._filter_backlog_items_by_state(items, filters.state)
+        filtered_items = self._filter_backlog_items_by_assignee(filtered_items, filters.assignee)
+        filtered_items = self._filter_backlog_items_by_labels(filtered_items, filters.labels)
+        filtered_items = self._filter_backlog_items_by_attributes(filtered_items, filters)
+        return (
+            filtered_items[: filters.limit]
+            if filters.limit is not None and len(filtered_items) > filters.limit
+            else filtered_items
+        )
+
+    @staticmethod
+    def _filter_backlog_items_by_state(items: list[BacklogItem], raw_state: str | None) -> list[BacklogItem]:
+        """Filter backlog items by normalized state."""
+        if not raw_state:
+            return items
+        normalized_state = BacklogFilters.normalize_filter_value(raw_state)
+        return [item for item in items if BacklogFilters.normalize_filter_value(item.state) == normalized_state]
+
+    @staticmethod
+    def _item_matches_assignee(item: BacklogItem, normalized_assignee: str | None) -> bool:
+        """Return whether a backlog item matches the normalized assignee filter."""
+        if not normalized_assignee:
+            return False
+        provider_assignee = ""
+        if isinstance(item.provider_fields, dict):
+            provider_assignee = str(item.provider_fields.get("assignee_login") or "")
+        return any(
+            BacklogFilters.normalize_filter_value(assignee) == normalized_assignee
+            for assignee in [*item.assignees, provider_assignee]
+            if assignee
+        )
+
+    @staticmethod
+    def _filter_backlog_items_by_assignee(items: list[BacklogItem], assignee_filter: str | None) -> list[BacklogItem]:
+        """Filter backlog items by normalized assignee."""
+        if not assignee_filter:
+            return items
+        normalized_assignee = BacklogFilters.normalize_filter_value(assignee_filter.lstrip("@"))
+        if normalized_assignee == "me":
+            return items
+        return [item for item in items if GitHubAdapter._item_matches_assignee(item, normalized_assignee)]
+
+    @staticmethod
+    def _filter_backlog_items_by_labels(items: list[BacklogItem], labels: list[str] | None) -> list[BacklogItem]:
+        """Filter backlog items by normalized label membership."""
+        if not labels:
+            return items
+        normalized_labels = {
+            normalized_label
+            for normalized_label in (BacklogFilters.normalize_filter_value(raw_label) for raw_label in labels)
+            if normalized_label
+        }
+        return [
+            item
+            for item in items
+            if any(
+                normalized_tag in normalized_labels
+                for normalized_tag in (BacklogFilters.normalize_filter_value(tag) for tag in item.tags)
+                if normalized_tag
+            )
+        ]
+
+    @staticmethod
+    def _filter_backlog_items_by_attributes(items: list[BacklogItem], filters: BacklogFilters) -> list[BacklogItem]:
+        """Filter backlog items by iteration, sprint, and release attributes."""
         filtered_items = items
-
-        # Case-insensitive state filtering (GitHub API may return mixed case)
-        if filters.state:
-            normalized_state = BacklogFilters.normalize_filter_value(filters.state)
-            filtered_items = [
-                item for item in filtered_items if BacklogFilters.normalize_filter_value(item.state) == normalized_state
-            ]
-
-        # Case-insensitive assignee filtering (match login and display name)
-        if filters.assignee:
-            # Normalize assignee filter (strip @, lowercase)
-            assignee_filter = filters.assignee.lstrip("@")
-            normalized_assignee = BacklogFilters.normalize_filter_value(assignee_filter)
-            # `me` is provider-relative identity and should rely on GitHub query semantics.
-            if normalized_assignee != "me":
-                filtered_items = [
-                    item
-                    for item in filtered_items
-                    if any(
-                        # Match against login (case-insensitive)
-                        BacklogFilters.normalize_filter_value(assignee) == normalized_assignee
-                        # Or match against display name if available (case-insensitive)
-                        or (
-                            hasattr(item, "provider_fields")
-                            and isinstance(item.provider_fields, dict)
-                            and item.provider_fields.get("assignee_login")
-                            and BacklogFilters.normalize_filter_value(item.provider_fields["assignee_login"])
-                            == normalized_assignee
-                        )
-                        for assignee in item.assignees
-                    )
-                ]
-
-        if filters.labels:
-            normalized_labels = {
-                normalized_label
-                for normalized_label in (
-                    BacklogFilters.normalize_filter_value(raw_label) for raw_label in filters.labels
-                )
-                if normalized_label
-            }
+        for attribute_name, raw_value in (
+            ("iteration", filters.iteration),
+            ("sprint", filters.sprint),
+            ("release", filters.release),
+        ):
+            if not raw_value:
+                continue
+            normalized_value = BacklogFilters.normalize_filter_value(raw_value)
             filtered_items = [
                 item
                 for item in filtered_items
-                if any(
-                    tag_value in normalized_labels
-                    for tag_value in (BacklogFilters.normalize_filter_value(tag) for tag in item.tags)
-                    if tag_value
-                )
+                if getattr(item, attribute_name)
+                and BacklogFilters.normalize_filter_value(getattr(item, attribute_name)) == normalized_value
             ]
-
-        # Do not re-apply `filters.search` locally as plain-text matching.
-        # GitHub already evaluates provider-specific search syntax server-side
-        # (for example `label:bug`, `is:open`, `no:assignee`).
-
-        if filters.iteration:
-            filtered_items = [item for item in filtered_items if item.iteration and item.iteration == filters.iteration]
-
-        if filters.sprint:
-            normalized_sprint = BacklogFilters.normalize_filter_value(filters.sprint)
-            filtered_items = [
-                item
-                for item in filtered_items
-                if item.sprint and BacklogFilters.normalize_filter_value(item.sprint) == normalized_sprint
-            ]
-
-        if filters.release:
-            normalized_release = BacklogFilters.normalize_filter_value(filters.release)
-            filtered_items = [
-                item
-                for item in filtered_items
-                if item.release and BacklogFilters.normalize_filter_value(item.release) == normalized_release
-            ]
-
-        if filters.area:
-            # Area filtering not directly supported by GitHub, skip for now
-            pass
-
-        # Apply limit if specified
-        if filters.limit is not None and len(filtered_items) > filters.limit:
-            filtered_items = filtered_items[: filters.limit]
-
         return filtered_items
+
+    @staticmethod
+    def _linked_issue_edge(issue_id: str, linked: dict[str, Any]) -> tuple[str, str, str] | None:
+        """Normalize a provider linked-issue record into a relationship edge."""
+        return _github_linked_issue_edge(issue_id, linked)
+
+    def _issue_relationship_edges(self, issue: dict[str, Any], issue_id: str) -> list[tuple[str, str, str]]:
+        """Collect relationship edges from provider fields and body text."""
+        edges: list[tuple[str, str, str]] = []
+        provider_fields = issue.get("provider_fields")
+        if isinstance(provider_fields, dict):
+            linked_issues = _as_str_dict(provider_fields).get("linked_issues", [])
+            if isinstance(linked_issues, list):
+                for linked in linked_issues:
+                    if isinstance(linked, dict):
+                        edge = self._linked_issue_edge(issue_id, linked)
+                        if edge:
+                            edges.append(edge)
+        body = str(issue.get("body_markdown") or issue.get("description") or "")
+        for linked_id, relation_type, direction in self._body_relationship_matches(body):
+            if direction == "reverse":
+                edges.append((linked_id, issue_id, relation_type))
+            else:
+                edges.append((issue_id, linked_id, relation_type))
+        return edges
 
     @beartype
     def _github_graphql(self, query: str, variables: dict[str, Any]) -> dict[str, Any]:
@@ -2726,9 +2715,10 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
                 timeout=30,
             )
         )
-        payload = response.json()
-        if not isinstance(payload, dict):
+        payload_raw = response.json()
+        if not isinstance(payload_raw, dict):
             raise ValueError("GitHub GraphQL response must be an object")
+        payload = _as_str_dict(payload_raw)
         errors = payload.get("errors")
         if isinstance(errors, list) and errors:
             raise ValueError(f"GitHub GraphQL errors: {errors}")
@@ -2766,9 +2756,11 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         if not issue_node_id or not isinstance(provider_fields, dict):
             return
 
-        issue_cfg = provider_fields.get("github_issue_types")
-        if not isinstance(issue_cfg, dict):
+        pf = _as_str_dict(provider_fields)
+        issue_cfg_raw = pf.get("github_issue_types")
+        if not isinstance(issue_cfg_raw, dict):
             return
+        issue_cfg = _as_str_dict(issue_cfg_raw)
         type_ids = issue_cfg.get("type_ids")
         if not isinstance(type_ids, dict):
             return
@@ -2829,9 +2821,12 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
                 parent_query,
                 {"owner": owner, "repo": repo, "number": parent_number},
             )
-            repository = parent_data.get("repository") if isinstance(parent_data, dict) else None
-            issue = repository.get("issue") if isinstance(repository, dict) else None
-            parent_issue_id = str(issue.get("id") or "").strip() if isinstance(issue, dict) else ""
+            pd = _as_str_dict(parent_data)
+            repository = pd.get("repository")
+            repository_d = _as_str_dict(repository) if isinstance(repository, dict) else None
+            issue = repository_d.get("issue") if repository_d is not None else None
+            issue_d = _as_str_dict(issue) if isinstance(issue, dict) else None
+            parent_issue_id = str(issue_d.get("id") or "").strip() if issue_d is not None else ""
             if not parent_issue_id:
                 return
             self._github_graphql(
@@ -2851,18 +2846,14 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         if not issue_node_id or not isinstance(provider_fields, dict):
             return
 
-        project_cfg = provider_fields.get("github_project_v2")
-        if not isinstance(project_cfg, dict):
+        project_settings = self._project_type_config(provider_fields)
+        if not project_settings:
             return
 
-        project_id = str(project_cfg.get("project_id") or "").strip()
-        type_field_id = str(project_cfg.get("type_field_id") or "").strip()
-        option_map = project_cfg.get("type_option_ids")
-        if not isinstance(option_map, dict):
-            return
+        project_id, type_field_id, option_map = project_settings
 
         option_id = self._resolve_github_type_mapping_id(option_map, issue_type)
-        if not project_id or not type_field_id or not option_id:
+        if not option_id:
             return
 
         add_item_mutation = (
@@ -2884,9 +2875,12 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
                 add_item_mutation,
                 {"projectId": project_id, "contentId": issue_node_id},
             )
-            add_result = add_data.get("addProjectV2ItemById") if isinstance(add_data, dict) else None
-            item = add_result.get("item") if isinstance(add_result, dict) else None
-            item_id = str(item.get("id") or "").strip() if isinstance(item, dict) else ""
+            add_d = _as_str_dict(add_data)
+            add_result = add_d.get("addProjectV2ItemById")
+            add_result_d = _as_str_dict(add_result) if isinstance(add_result, dict) else None
+            item = add_result_d.get("item") if add_result_d is not None else None
+            item_d = _as_str_dict(item) if isinstance(item, dict) else None
+            item_id = str(item_d.get("id") or "").strip() if item_d is not None else ""
             if not item_id:
                 return
             self._github_graphql(
@@ -2917,33 +2911,12 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         if not self.api_token:
             raise ValueError("GitHub API token required to create issues")
 
-        title = str(payload.get("title") or "").strip()
-        if not title:
-            raise ValueError("payload.title is required")
-
+        title = self._required_issue_title(payload)
         issue_type = str(payload.get("type") or "task").strip().lower()
-        description_format = str(payload.get("description_format") or "markdown").strip().lower()
-        body = str(payload.get("description") or payload.get("body") or "").strip()
-
-        acceptance_criteria = str(payload.get("acceptance_criteria") or "").strip()
-        if acceptance_criteria:
-            if description_format == "classic":
-                body = f"{body}\n\nAcceptance Criteria:\n{acceptance_criteria}".strip()
-            else:
-                body = f"{body}\n\n## Acceptance Criteria\n{acceptance_criteria}".strip()
-
-        parent_id = payload.get("parent_id")
-        if parent_id:
-            parent_line = f"Parent: #{parent_id}"
-            body = f"{body}\n\n{parent_line}".strip() if body else parent_line
-
-        labels = [issue_type] if issue_type else []
-        priority = str(payload.get("priority") or "").strip()
-        if priority:
-            labels.append(f"priority:{priority.lower()}")
-        story_points = payload.get("story_points")
-        if story_points is not None:
-            labels.append(f"story-points:{story_points}")
+        body = self._create_issue_body(payload)
+        labels = self._labels_from_payload(
+            issue_type, str(payload.get("priority") or "").strip(), payload.get("story_points")
+        )
         url = f"{self.base_url}/repos/{owner}/{repo}/issues"
         headers = {
             "Authorization": f"token {self.api_token}",
@@ -2959,14 +2932,7 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             retry_on_ambiguous_transport=False,
         )
         created = response.json()
-        issue_node_id = str(created.get("node_id") or "").strip()
-        if parent_id:
-            self._try_link_github_sub_issue(owner, repo, parent_id, issue_node_id)
-
-        provider_fields = payload.get("provider_fields")
-        if isinstance(provider_fields, dict):
-            self._try_set_github_issue_type(issue_node_id, issue_type, provider_fields)
-            self._try_set_github_project_type_field(issue_node_id, issue_type, provider_fields)
+        self._apply_create_issue_post_hooks(owner, repo, created, payload, issue_type)
 
         canonical_issue_number = str(created.get("number") or created.get("id") or "")
         return {
@@ -2975,18 +2941,70 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             "url": str(created.get("html_url") or created.get("url") or ""),
         }
 
+    def _apply_create_issue_post_hooks(
+        self,
+        owner: str,
+        repo: str,
+        created: dict[str, Any],
+        payload: dict[str, Any],
+        issue_type: str,
+    ) -> None:
+        issue_node_id = str(created.get("node_id") or "").strip()
+        parent_id = payload.get("parent_id")
+        if parent_id:
+            self._try_link_github_sub_issue(owner, repo, parent_id, issue_node_id)
+        provider_fields = payload.get("provider_fields")
+        if not isinstance(provider_fields, dict):
+            return
+        self._try_set_github_issue_type(issue_node_id, issue_type, provider_fields)
+        self._try_set_github_project_type_field(issue_node_id, issue_type, provider_fields)
+
+    @staticmethod
+    def _required_issue_title(payload: dict[str, Any]) -> str:
+        """Return required issue title or raise for missing payload.title."""
+        title = str(payload.get("title") or "").strip()
+        if not title:
+            raise ValueError("payload.title is required")
+        return title
+
+    @staticmethod
+    def _create_issue_body(payload: dict[str, Any]) -> str:
+        """Build GitHub issue body from provider-agnostic payload."""
+        description_format = str(payload.get("description_format") or "markdown").strip().lower()
+        body = str(payload.get("description") or payload.get("body") or "").strip()
+        acceptance_criteria = str(payload.get("acceptance_criteria") or "").strip()
+        if acceptance_criteria:
+            acceptance_block = (
+                f"Acceptance Criteria:\n{acceptance_criteria}"
+                if description_format == "classic"
+                else f"## Acceptance Criteria\n{acceptance_criteria}"
+            )
+            body = f"{body}\n\n{acceptance_block}".strip() if body else acceptance_block
+        parent_id = payload.get("parent_id")
+        if parent_id:
+            parent_line = f"Parent: #{parent_id}"
+            body = f"{body}\n\n{parent_line}".strip() if body else parent_line
+        return body
+
+    def _get_repo_owner_name(self) -> tuple[str | None, str | None]:
+        """Query: return current repo_owner and repo_name without mutation."""
+        return self.repo_owner, self.repo_name
+
+    def _set_repo_owner_name(self, owner: str | None, repo: str | None) -> None:
+        """Command: set repo_owner and repo_name without reading current state."""
+        self.repo_owner = owner
+        self.repo_name = repo
+
     @beartype
     @require(lambda project_id: isinstance(project_id, str) and len(project_id) > 0, "project_id must be non-empty")
     @ensure(lambda result: isinstance(result, list), "Must return list")
     def fetch_all_issues(self, project_id: str, filters: dict[str, Any] | None = None) -> list[dict[str, Any]]:
         """Fetch all backlog items as provider-agnostic dictionaries for graph building."""
-        owner, repo = project_id.split("/", 1) if "/" in project_id else (self.repo_owner, self.repo_name)
-        previous_owner = self.repo_owner
-        previous_repo = self.repo_name
+        saved_owner, saved_repo = self._get_repo_owner_name()
+        owner, repo = project_id.split("/", 1) if "/" in project_id else (saved_owner, saved_repo)
+        if owner and repo:
+            self._set_repo_owner_name(owner, repo)
         try:
-            if owner and repo:
-                self.repo_owner = owner
-                self.repo_name = repo
             backlog_filters = BacklogFilters(**(filters or {}))
             enriched_items: list[dict[str, Any]] = []
             for item in self.fetch_backlog_items(backlog_filters):
@@ -2997,8 +3015,7 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
                 enriched_items.append(issue_dict)
             return enriched_items
         finally:
-            self.repo_owner = previous_owner
-            self.repo_name = previous_repo
+            self._set_repo_owner_name(saved_owner, saved_repo)
 
     @beartype
     @require(lambda project_id: isinstance(project_id, str) and len(project_id) > 0, "project_id must be non-empty")
@@ -3026,119 +3043,60 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             if not issue_id:
                 continue
 
-            provider_fields = issue.get("provider_fields")
-            if isinstance(provider_fields, dict):
-                linked_issues = provider_fields.get("linked_issues", [])
-                if isinstance(linked_issues, list):
-                    for linked in linked_issues:
-                        if not isinstance(linked, dict):
-                            continue
-                        relation = str(linked.get("relation") or linked.get("type") or "").strip().lower()
-                        linked_id = str(linked.get("id") or linked.get("number") or "").strip()
-                        if not linked_id:
-                            linked_url = str(linked.get("url") or "")
-                            linked_match = re.search(r"/issues/(\d+)", linked_url, flags=re.IGNORECASE)
-                            linked_id = linked_match.group(1) if linked_match else ""
-                        if not linked_id:
-                            continue
-                        if relation in {"blocks", "block"}:
-                            _add_edge(issue_id, linked_id, "blocks")
-                        elif relation in {"blocked_by", "blocked by"}:
-                            _add_edge(linked_id, issue_id, "blocks")
-                        elif relation in {"parent", "parent_of"}:
-                            _add_edge(linked_id, issue_id, "parent")
-                        elif relation in {"child", "child_of"}:
-                            _add_edge(issue_id, linked_id, "parent")
-                        else:
-                            _add_edge(issue_id, linked_id, "relates")
-
-            body = str(issue.get("body_markdown") or issue.get("description") or "")
-            for match in re.finditer(r"(?im)\bblocks?\s+#(\d+)\b", body):
-                _add_edge(issue_id, match.group(1), "blocks")
-            for match in re.finditer(r"(?im)\bblocked\s+by\s+#(\d+)\b", body):
-                _add_edge(match.group(1), issue_id, "blocks")
-            for match in re.finditer(r"(?im)\bdepends\s+on\s+#(\d+)\b", body):
-                _add_edge(match.group(1), issue_id, "blocks")
-            for match in re.finditer(r"(?im)\bparent\s*[:#]?\s*#(\d+)\b", body):
-                _add_edge(match.group(1), issue_id, "parent")
-            for match in re.finditer(r"(?im)\bchild(?:ren)?\s*[:#]?\s*#(\d+)\b", body):
-                _add_edge(issue_id, match.group(1), "parent")
-            for match in re.finditer(r"(?im)\b(?:related\s+to|relates?\s+to|refs?|references?)\s+#(\d+)\b", body):
-                _add_edge(issue_id, match.group(1), "relates")
+            for source_id, target_id, relation_type in self._issue_relationship_edges(issue, issue_id):
+                _add_edge(source_id, target_id, relation_type)
 
         return relationships
+
+    @staticmethod
+    def _iter_issue_type_candidates(issue_payload: dict[str, Any]) -> Iterator[str]:
+        """Yield candidate strings that may encode an issue type."""
+        for key in ("type", "work_item_type"):
+            value = issue_payload.get(key)
+            if isinstance(value, str):
+                yield value
+            elif isinstance(value, dict):
+                vd = _as_str_dict(value)
+                for candidate_key in ("name", "title"):
+                    candidate_value = vd.get(candidate_key)
+                    if isinstance(candidate_value, str):
+                        yield candidate_value
+        tags = issue_payload.get("tags")
+        if isinstance(tags, list):
+            for tag in tags:
+                if isinstance(tag, str):
+                    yield tag
 
     @beartype
     @ensure(lambda result: result is None or isinstance(result, str), "Type inference must return str or None")
     def _infer_graph_item_type(self, issue_payload: dict[str, Any]) -> str | None:
         """Infer normalized graph item type from GitHub issue payload."""
-        alias_map = {
-            "epic": "epic",
-            "feature": "feature",
-            "story": "story",
-            "user story": "story",
-            "task": "task",
-            "bug": "bug",
-            "sub-task": "sub_task",
-            "sub task": "sub_task",
-            "subtask": "sub_task",
-        }
-
-        def _normalize(raw_value: str) -> str | None:
-            normalized = raw_value.strip().lower().replace("_", " ").replace("-", " ")
-            if not normalized:
-                return None
-            if normalized in alias_map:
-                return alias_map[normalized]
-            for separator in (":", "/"):
-                if separator in normalized:
-                    suffix = normalized.split(separator)[-1].strip()
-                    if suffix in alias_map:
-                        return alias_map[suffix]
-            for token, mapped in alias_map.items():
-                if normalized.startswith(f"{token} ") or normalized.endswith(f" {token}"):
-                    return mapped
-            return None
-
-        for key in ("type", "work_item_type"):
-            value = issue_payload.get(key)
-            if isinstance(value, str):
-                mapped = _normalize(value)
-                if mapped:
-                    return mapped
-            if isinstance(value, dict):
-                for candidate_key in ("name", "title"):
-                    candidate_value = value.get(candidate_key)
-                    if isinstance(candidate_value, str):
-                        mapped = _normalize(candidate_value)
-                        if mapped:
-                            return mapped
-
-        tags = issue_payload.get("tags")
-        if isinstance(tags, list):
-            for tag in tags:
-                if isinstance(tag, str):
-                    mapped = _normalize(tag)
-                    if mapped:
-                        return mapped
+        for candidate in self._iter_issue_type_candidates(issue_payload):
+            mapped = self._normalize_graph_item_type(candidate)
+            if mapped:
+                return mapped
 
         title = issue_payload.get("title")
         if isinstance(title, str):
-            mapped = _normalize(title)
+            mapped = self._normalize_graph_item_type(title)
             if mapped:
                 return mapped
-            for token, mapped_value in alias_map.items():
+            for token, mapped_value in self._graph_type_alias_map().items():
                 if title.lower().startswith(f"[{token}]"):
                     return mapped_value
 
         return None
 
     @beartype
+    @ensure(lambda result: isinstance(result, bool), "Must return bool")
     def supports_add_comment(self) -> bool:
         """Whether this adapter can add comments (requires token and repo)."""
         return bool(self.api_token and self.repo_owner and self.repo_name)
 
     @beartype
+    @require(lambda item: isinstance(item, BacklogItem), "item must be BacklogItem")
+    @require(lambda comment: isinstance(comment, str) and bool(comment.strip()), "comment must be non-empty string")
+    @ensure(lambda result: isinstance(result, bool), "Must return bool")
     def add_comment(self, item: BacklogItem, comment: str) -> bool:
         """
         Add a comment to a GitHub issue.
@@ -3176,6 +3134,8 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             return False
 
     @beartype
+    @require(lambda item: isinstance(item, BacklogItem), "item must be BacklogItem")
+    @ensure(lambda result: isinstance(result, list), "Must return list")
     def get_comments(self, item: BacklogItem) -> list[str]:
         """
         Fetch comments for a GitHub issue.
@@ -3208,7 +3168,7 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
     )
     @ensure(lambda result: isinstance(result, BacklogItem), "Must return BacklogItem")
     @ensure(
-        lambda result, item: result.id == item.id and result.provider == item.provider,
+        lambda result, item: ensure_backlog_update_preserves_identity(result, item),
         "Updated item must preserve id and provider",
     )
     def update_backlog_item(self, item: BacklogItem, update_fields: list[str] | None = None) -> BacklogItem:
@@ -3232,77 +3192,10 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             "Accept": "application/vnd.github.v3+json",
         }
 
-        # Use GitHubFieldMapper for field writeback
         github_mapper = GitHubFieldMapper()
-
-        # Parse refined body_markdown to extract description and existing sections
-        # This avoids duplicating sections that are already in the refined body
-        refined_body = item.body_markdown or ""
-
-        # Check if body already contains structured sections (## headings)
-        has_structured_sections = bool(re.search(r"^##\s+", refined_body, re.MULTILINE))
-
-        # Build canonical fields - parse refined body if it has sections, otherwise use item fields
-        canonical_fields: dict[str, Any]
-        if has_structured_sections:
-            # Body already has structured sections - parse and use them to avoid duplication
-            # Extract existing sections from refined body
-            existing_acceptance_criteria = github_mapper._extract_section(refined_body, "Acceptance Criteria")
-            existing_story_points = github_mapper._extract_section(refined_body, "Story Points")
-            existing_business_value = github_mapper._extract_section(refined_body, "Business Value")
-            existing_priority = github_mapper._extract_section(refined_body, "Priority")
-
-            # Extract description (content before any ## headings)
-            description = github_mapper._extract_default_content(refined_body)
-
-            # Build canonical fields from parsed refined body (use refined values)
-            canonical_fields = {
-                "description": description,
-                # Prefer extracted section values, but fall back to canonical item fields
-                # so label-style refinement parsing still writes dedicated fields.
-                "acceptance_criteria": existing_acceptance_criteria or item.acceptance_criteria,
-                "story_points": (
-                    int(existing_story_points)
-                    if existing_story_points and existing_story_points.strip().isdigit()
-                    else item.story_points
-                ),
-                "business_value": (
-                    int(existing_business_value)
-                    if existing_business_value and existing_business_value.strip().isdigit()
-                    else item.business_value
-                ),
-                "priority": (
-                    int(existing_priority)
-                    if existing_priority and existing_priority.strip().isdigit()
-                    else item.priority
-                ),
-                "value_points": item.value_points,
-                "work_item_type": item.work_item_type,
-            }
-        else:
-            # Body doesn't have structured sections - use item fields and mapper to build
-            canonical_fields = {
-                "description": item.body_markdown or "",
-                "acceptance_criteria": item.acceptance_criteria,
-                "story_points": item.story_points,
-                "business_value": item.business_value,
-                "priority": item.priority,
-                "value_points": item.value_points,
-                "work_item_type": item.work_item_type,
-            }
-
-        # Map canonical fields to GitHub markdown format
+        canonical_fields = self._canonical_fields_from_item(item, github_mapper)
         github_fields = github_mapper.map_from_canonical(canonical_fields)
-
-        # Build update payload
-        payload: dict[str, Any] = {}
-        if update_fields is None or "title" in update_fields:
-            payload["title"] = item.title
-        if update_fields is None or "body" in update_fields or "body_markdown" in update_fields:
-            # Use mapped body from field mapper (includes all fields as markdown headings)
-            payload["body"] = github_fields.get("body", item.body_markdown)
-        if update_fields is None or "state" in update_fields:
-            payload["state"] = item.state
+        payload = self._issue_update_payload(item, github_fields, update_fields)
 
         # Update issue
         response = self._request_with_retry(lambda: requests.patch(url, headers=headers, json=payload, timeout=30))
@@ -3312,6 +3205,58 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         from specfact_cli.backlog.converter import convert_github_issue_to_backlog_item
 
         return convert_github_issue_to_backlog_item(updated_issue, provider="github")
+
+    @staticmethod
+    def _canonical_fields_from_item(
+        item: BacklogItem,
+        github_mapper: GitHubFieldMapper,
+    ) -> dict[str, Any]:
+        """Build canonical field payload from refined GitHub issue body or direct item fields."""
+        refined_body = item.body_markdown or ""
+        has_structured_sections = bool(re.search(r"^##\s+", refined_body, re.MULTILINE))
+        if not has_structured_sections:
+            return {
+                "description": refined_body,
+                "acceptance_criteria": item.acceptance_criteria,
+                "story_points": item.story_points,
+                "business_value": item.business_value,
+                "priority": item.priority,
+                "value_points": item.value_points,
+                "work_item_type": item.work_item_type,
+            }
+        existing_acceptance_criteria = github_mapper._extract_section(refined_body, "Acceptance Criteria")
+        existing_story_points = github_mapper._extract_section(refined_body, "Story Points")
+        existing_business_value = github_mapper._extract_section(refined_body, "Business Value")
+        existing_priority = github_mapper._extract_section(refined_body, "Priority")
+        return {
+            "description": github_mapper._extract_default_content(refined_body),
+            "acceptance_criteria": existing_acceptance_criteria or item.acceptance_criteria,
+            "story_points": int(existing_story_points)
+            if existing_story_points and existing_story_points.strip().isdigit()
+            else item.story_points,
+            "business_value": int(existing_business_value)
+            if existing_business_value and existing_business_value.strip().isdigit()
+            else item.business_value,
+            "priority": int(existing_priority)
+            if existing_priority and existing_priority.strip().isdigit()
+            else item.priority,
+            "value_points": item.value_points,
+            "work_item_type": item.work_item_type,
+        }
+
+    @staticmethod
+    def _issue_update_payload(
+        item: BacklogItem, github_fields: dict[str, Any], update_fields: list[str] | None
+    ) -> dict[str, Any]:
+        """Build GitHub issue update payload from mapped fields."""
+        payload: dict[str, Any] = {}
+        if update_fields is None or "title" in update_fields:
+            payload["title"] = item.title
+        if update_fields is None or "body" in update_fields or "body_markdown" in update_fields:
+            payload["body"] = github_fields.get("body", item.body_markdown)
+        if update_fields is None or "state" in update_fields:
+            payload["state"] = item.state
+        return payload
 
 
 BRIDGE_PROTOCOL_REGISTRY.register_implementation("backlog_graph", "github", GitHubAdapter)

@@ -16,7 +16,7 @@ from collections import deque
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import Protocol, cast
 
 from beartype import beartype
 from icontract import ensure, require
@@ -32,14 +32,28 @@ except ImportError:
     LZ4_AVAILABLE = False
     LZ4_FRAME = None  # type: ignore[assignment]
 
-if TYPE_CHECKING:
-    from watchdog.events import FileSystemEvent, FileSystemEventHandler
-    from watchdog.observers import Observer
-else:
-    from watchdog.events import FileSystemEvent, FileSystemEventHandler
-    from watchdog.observers import Observer
+from watchdog.events import FileSystemEvent, FileSystemEventHandler
+from watchdog.observers import Observer
 
 from specfact_cli.utils import print_info, print_warning
+
+
+class _RunningObserver(Protocol):
+    @require(lambda self, handler, path: isinstance(path, str))
+    @ensure(lambda result: result is None)
+    def schedule(self, handler: object, path: str, *, recursive: bool = False) -> None: ...
+
+    @require(lambda self: self is not None)
+    @ensure(lambda result: result is None)
+    def start(self) -> None: ...
+
+    @require(lambda self: self is not None)
+    @ensure(lambda result: result is None)
+    def stop(self) -> None: ...
+
+    @require(lambda self, timeout: self is not None)
+    @ensure(lambda result: result is None)
+    def join(self, timeout: float | None = None) -> None: ...
 
 
 @dataclass
@@ -72,6 +86,8 @@ class FileHashCache:
     hashes: dict[str, str] = field(default_factory=dict)  # file_path -> hash
     dependencies: dict[str, list[str]] = field(default_factory=dict)  # file_path -> [dependencies]
 
+    @require(lambda self: self is not None)
+    @ensure(lambda result: result is None)
     @beartype
     def load(self) -> None:
         """Load hash cache from disk."""
@@ -98,6 +114,8 @@ class FileHashCache:
         except Exception as e:
             print_warning(f"Failed to load hash cache: {e}")
 
+    @require(lambda self: self is not None)
+    @ensure(lambda result: result is None)
     @beartype
     def save(self) -> None:
         """Save hash cache to disk."""
@@ -122,27 +140,32 @@ class FileHashCache:
             print_warning(f"Failed to save hash cache: {e}")
 
     @beartype
+    @ensure(lambda result: result is None or len(result) > 0, "Hash must be non-empty if present")
     def get_hash(self, file_path: Path) -> str | None:
         """Get cached hash for a file."""
         return self.hashes.get(str(file_path))
 
     @beartype
+    @require(lambda file_hash: cast(str, file_hash).strip() != "", "file_hash must not be empty")
     def set_hash(self, file_path: Path, file_hash: str) -> None:
         """Set hash for a file."""
         self.hashes[str(file_path)] = file_hash
 
     @beartype
+    @ensure(lambda result: isinstance(result, list))
     def get_dependencies(self, file_path: Path) -> list[Path]:
         """Get dependencies for a file."""
         deps = self.dependencies.get(str(file_path), [])
         return [Path(d) for d in deps]
 
     @beartype
+    @require(lambda dependencies: isinstance(dependencies, list))
     def set_dependencies(self, file_path: Path, dependencies: list[Path]) -> None:
         """Set dependencies for a file."""
         self.dependencies[str(file_path)] = [str(d) for d in dependencies]
 
     @beartype
+    @ensure(lambda result: isinstance(result, bool))
     def has_changed(self, file_path: Path, current_hash: str) -> bool:
         """Check if file has changed based on hash."""
         cached_hash = self.get_hash(file_path)
@@ -150,6 +173,7 @@ class FileHashCache:
 
 
 @beartype
+@ensure(lambda result: result is None or len(result) > 0, "Hash must be non-empty if returned")
 def compute_file_hash(file_path: Path) -> str | None:
     """
     Compute SHA256 hash of file content.
@@ -355,11 +379,11 @@ class EnhancedSyncWatcher:
 
     @beartype
     @require(
-        lambda repo_path: isinstance(repo_path, Path) and bool(repo_path.exists()),
+        lambda repo_path: isinstance(repo_path, Path) and bool(cast(Path, repo_path).exists()),
         "Repository path must exist",
     )
     @require(
-        lambda repo_path: isinstance(repo_path, Path) and bool(repo_path.is_dir()),
+        lambda repo_path: isinstance(repo_path, Path) and bool(cast(Path, repo_path).is_dir()),
         "Repository path must be a directory",
     )
     @require(lambda interval: isinstance(interval, (int, float)) and interval >= 1, "Interval must be >= 1")
@@ -390,9 +414,9 @@ class EnhancedSyncWatcher:
         self.sync_callback = sync_callback
         self.interval = interval
         self.debounce_interval = debounce_interval
-        self.observer: Observer | None = None  # type: ignore[assignment]
+        self.observer: _RunningObserver | None = None
         self.change_queue: deque[FileChange] = deque()
-        self.running = False
+        self.running: bool = False
 
         # Initialize hash cache
         if cache_dir is None:
@@ -413,7 +437,7 @@ class EnhancedSyncWatcher:
             print_warning("Watcher is already running")
             return
 
-        observer = Observer()
+        observer = cast(_RunningObserver, Observer())
         handler = EnhancedSyncEventHandler(self.repo_path, self.change_queue, self.hash_cache, self.debounce_interval)
         observer.schedule(handler, str(self.repo_path), recursive=True)
         observer.start()
@@ -434,10 +458,9 @@ class EnhancedSyncWatcher:
 
         self.running = False
 
-        observer: Observer | None = self.observer  # type: ignore[assignment]
-        if observer is not None:
-            observer.stop()  # type: ignore[unknown-member-type]
-            observer.join(timeout=5)  # type: ignore[unknown-member-type]
+        if self.observer is not None:
+            self.observer.stop()
+            self.observer.join(timeout=5)
             self.observer = None
 
         # Save hash cache
@@ -466,7 +489,7 @@ class EnhancedSyncWatcher:
 
     @beartype
     @require(
-        lambda self: hasattr(self, "running") and isinstance(getattr(self, "running", False), bool),
+        lambda self: isinstance(cast("EnhancedSyncWatcher", self).running, bool),
         "Watcher running state must be bool",
     )
     @ensure(lambda result: result is None, "Must return None")

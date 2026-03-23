@@ -15,6 +15,10 @@ from icontract import ensure, require
 
 from specfact_cli.backlog.filters import BacklogFilters
 from specfact_cli.models.backlog_item import BacklogItem
+from specfact_cli.utils.icontract_helpers import (
+    ensure_backlog_update_preserves_identity,
+    require_comment_non_whitespace,
+)
 
 
 class BacklogAdapter(ABC):
@@ -86,7 +90,7 @@ class BacklogAdapter(ABC):
     )
     @ensure(lambda result: isinstance(result, BacklogItem), "Must return BacklogItem")
     @ensure(
-        lambda result, item: result.id == item.id and result.provider == item.provider,
+        lambda result, item: ensure_backlog_update_preserves_identity(result, item),
         "Updated item must preserve id and provider",
     )
     def update_backlog_item(self, item: BacklogItem, update_fields: list[str] | None = None) -> BacklogItem:
@@ -134,6 +138,7 @@ class BacklogAdapter(ABC):
         )
 
     @beartype
+    @ensure(lambda result: result is None or hasattr(result, "id"), "Must return BacklogItem or None")
     def create_backlog_item_from_spec(self) -> BacklogItem | None:
         """
         Create a backlog item from an OpenSpec change proposal (optional).
@@ -162,6 +167,8 @@ class BacklogAdapter(ABC):
         return False
 
     @beartype
+    @require(require_comment_non_whitespace, "comment must not be empty")
+    @ensure(lambda result: isinstance(result, bool), "Must return bool")
     def add_comment(self, item: BacklogItem, comment: str) -> bool:
         """
         Add a comment to a backlog item (optional).
@@ -180,6 +187,7 @@ class BacklogAdapter(ABC):
         return False
 
     @beartype
+    @ensure(lambda result: isinstance(result, list), "Must return list")
     def get_comments(self, item: BacklogItem) -> list[str]:
         """
         Fetch comments for a backlog item (optional).

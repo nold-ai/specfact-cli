@@ -16,6 +16,11 @@ from icontract import ensure, require
 from specfact_cli.models.bridge import BridgeConfig
 from specfact_cli.models.capabilities import ToolCapabilities
 from specfact_cli.models.change import ChangeProposal, ChangeTracking
+from specfact_cli.utils.icontract_helpers import (
+    require_bundle_dir_exists,
+    require_repo_path_exists,
+    require_repo_path_is_dir,
+)
 
 
 class BridgeAdapter(ABC):
@@ -28,8 +33,8 @@ class BridgeAdapter(ABC):
 
     @beartype
     @abstractmethod
-    @require(lambda repo_path: repo_path.exists(), "Repository path must exist")
-    @require(lambda repo_path: repo_path.is_dir(), "Repository path must be a directory")
+    @require(require_repo_path_exists, "Repository path must exist")
+    @require(require_repo_path_is_dir, "Repository path must be a directory")
     @ensure(lambda result: isinstance(result, bool), "Must return bool")
     def detect(self, repo_path: Path, bridge_config: BridgeConfig | None = None) -> bool:
         """
@@ -45,8 +50,8 @@ class BridgeAdapter(ABC):
 
     @beartype
     @abstractmethod
-    @require(lambda repo_path: repo_path.exists(), "Repository path must exist")
-    @require(lambda repo_path: repo_path.is_dir(), "Repository path must be a directory")
+    @require(require_repo_path_exists, "Repository path must exist")
+    @require(require_repo_path_is_dir, "Repository path must be a directory")
     @ensure(lambda result: isinstance(result, ToolCapabilities), "Must return ToolCapabilities")
     def get_capabilities(self, repo_path: Path, bridge_config: BridgeConfig | None = None) -> ToolCapabilities:
         """
@@ -112,8 +117,8 @@ class BridgeAdapter(ABC):
 
     @beartype
     @abstractmethod
-    @require(lambda repo_path: repo_path.exists(), "Repository path must exist")
-    @require(lambda repo_path: repo_path.is_dir(), "Repository path must be a directory")
+    @require(require_repo_path_exists, "Repository path must exist")
+    @require(require_repo_path_is_dir, "Repository path must be a directory")
     @ensure(lambda result: isinstance(result, BridgeConfig), "Must return BridgeConfig")
     def generate_bridge_config(self, repo_path: Path) -> BridgeConfig:
         """
@@ -129,7 +134,7 @@ class BridgeAdapter(ABC):
     @beartype
     @abstractmethod
     @require(lambda bundle_dir: isinstance(bundle_dir, Path), "Bundle directory must be Path")
-    @require(lambda bundle_dir: bundle_dir.exists(), "Bundle directory must exist")
+    @require(require_bundle_dir_exists, "Bundle directory must exist")
     @ensure(lambda result: result is None or isinstance(result, ChangeTracking), "Must return ChangeTracking or None")
     def load_change_tracking(
         self, bundle_dir: Path, bridge_config: BridgeConfig | None = None
@@ -151,7 +156,7 @@ class BridgeAdapter(ABC):
     @beartype
     @abstractmethod
     @require(lambda bundle_dir: isinstance(bundle_dir, Path), "Bundle directory must be Path")
-    @require(lambda bundle_dir: bundle_dir.exists(), "Bundle directory must exist")
+    @require(require_bundle_dir_exists, "Bundle directory must exist")
     @require(
         lambda change_tracking: isinstance(change_tracking, ChangeTracking), "Change tracking must be ChangeTracking"
     )
@@ -174,7 +179,7 @@ class BridgeAdapter(ABC):
     @beartype
     @abstractmethod
     @require(lambda bundle_dir: isinstance(bundle_dir, Path), "Bundle directory must be Path")
-    @require(lambda bundle_dir: bundle_dir.exists(), "Bundle directory must exist")
+    @require(require_bundle_dir_exists, "Bundle directory must exist")
     @require(lambda change_name: isinstance(change_name, str) and len(change_name) > 0, "Change name must be non-empty")
     @ensure(lambda result: result is None or isinstance(result, ChangeProposal), "Must return ChangeProposal or None")
     def load_change_proposal(
@@ -198,7 +203,7 @@ class BridgeAdapter(ABC):
     @beartype
     @abstractmethod
     @require(lambda bundle_dir: isinstance(bundle_dir, Path), "Bundle directory must be Path")
-    @require(lambda bundle_dir: bundle_dir.exists(), "Bundle directory must exist")
+    @require(require_bundle_dir_exists, "Bundle directory must exist")
     @require(lambda proposal: isinstance(proposal, ChangeProposal), "Proposal must be ChangeProposal")
     @ensure(lambda result: result is None, "Must return None")
     def save_change_proposal(

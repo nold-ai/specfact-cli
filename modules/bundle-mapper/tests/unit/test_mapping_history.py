@@ -1,9 +1,11 @@
+# pyright: reportUnknownMemberType=false
 """Unit tests for mapping history persistence."""
 
 from __future__ import annotations
 
 import tempfile
 from pathlib import Path
+from typing import Any, cast
 
 import pytest
 from bundle_mapper.mapper.history import (
@@ -59,11 +61,18 @@ def test_save_user_confirmed_mapping_increments_history() -> None:
         item = _item(assignees=["bob"], area="api")
         save_user_confirmed_mapping(item, "backend-services", config_path=config_path)
         save_user_confirmed_mapping(item, "backend-services", config_path=config_path)
-        cfg = load_bundle_mapping_config(config_path=config_path)
-        history = cfg.get("history", {})
+        cfg: dict[str, Any] = load_bundle_mapping_config(config_path=config_path)
+        hist_any: Any = cfg.get("history", {})
+        assert isinstance(hist_any, dict)
+        history = cast(dict[str, dict[str, Any]], hist_any)
         assert len(history) >= 1
         for entry in history.values():
-            counts = entry.get("counts", {})
+            if not isinstance(entry, dict):
+                continue
+            ent: dict[str, Any] = entry
+            cnt_any: Any = ent.get("counts", {})
+            assert isinstance(cnt_any, dict)
+            counts = cast(dict[str, int], cnt_any)
             if "backend-services" in counts:
                 assert counts["backend-services"] == 2
                 break

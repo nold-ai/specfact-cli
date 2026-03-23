@@ -8,6 +8,7 @@ layouts.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from pathlib import Path
 
 from beartype import beartype
@@ -16,6 +17,54 @@ from icontract import ensure, require
 from specfact_cli.models.sdd import SDDManifest
 from specfact_cli.utils.structure import SpecFactStructure
 from specfact_cli.utils.structured_io import StructuredFormat, load_structured_file
+
+
+def _load_sdd_manifest_tuple(candidate: Path) -> tuple[Path, SDDManifest] | None:
+    try:
+        sdd_data = load_structured_file(candidate)
+        return (candidate.resolve(), SDDManifest(**sdd_data))
+    except Exception:
+        return None
+
+
+def _append_sdd_candidates(results: list[tuple[Path, SDDManifest]], candidates: Iterable[Path]) -> None:
+    for candidate in candidates:
+        if not candidate.exists():
+            continue
+        loaded = _load_sdd_manifest_tuple(candidate)
+        if loaded:
+            results.append(loaded)
+
+
+def _collect_bundle_specific_sdds(base_path: Path, results: list[tuple[Path, SDDManifest]]) -> None:
+    projects_dir = base_path / SpecFactStructure.PROJECTS
+    if not (projects_dir.exists() and projects_dir.is_dir()):
+        return
+    for bundle_dir in projects_dir.iterdir():
+        if not bundle_dir.is_dir():
+            continue
+        _append_sdd_candidates(results, (bundle_dir / "sdd.yaml", bundle_dir / "sdd.json"))
+
+
+def _collect_legacy_multi_sdds(base_path: Path, results: list[tuple[Path, SDDManifest]]) -> None:
+    sdd_dir = base_path / SpecFactStructure.SDD
+    if not (sdd_dir.exists() and sdd_dir.is_dir()):
+        return
+    for sdd_file in list(sdd_dir.glob("*.yaml")) + list(sdd_dir.glob("*.json")):
+        loaded = _load_sdd_manifest_tuple(sdd_file)
+        if loaded:
+            results.append(loaded)
+
+
+def _collect_legacy_single_sdds(base_path: Path, results: list[tuple[Path, SDDManifest]]) -> None:
+    for legacy_file in (
+        base_path / SpecFactStructure.ROOT / "sdd.yaml",
+        base_path / SpecFactStructure.ROOT / "sdd.json",
+    ):
+        if legacy_file.exists():
+            loaded = _load_sdd_manifest_tuple(legacy_file)
+            if loaded:
+                results.append(loaded)
 
 
 @beartype
@@ -101,49 +150,9 @@ def list_all_sdds(base_path: Path) -> list[tuple[Path, SDDManifest]]:
         List of (path, manifest) tuples for all found SDD manifests
     """
     results: list[tuple[Path, SDDManifest]] = []
-
-    # Bundle-specific (preferred)
-    projects_dir = base_path / SpecFactStructure.PROJECTS
-    if projects_dir.exists() and projects_dir.is_dir():
-        for bundle_dir in projects_dir.iterdir():
-            if not bundle_dir.is_dir():
-                continue
-            sdd_yaml = bundle_dir / "sdd.yaml"
-            sdd_json = bundle_dir / "sdd.json"
-            for candidate in (sdd_yaml, sdd_json):
-                if not candidate.exists():
-                    continue
-                try:
-                    sdd_data = load_structured_file(candidate)
-                    manifest = SDDManifest(**sdd_data)
-                    results.append((candidate.resolve(), manifest))
-                except Exception:
-                    continue
-
-    # Legacy multi-SDD directory layout
-    sdd_dir = base_path / SpecFactStructure.SDD
-    if sdd_dir.exists() and sdd_dir.is_dir():
-        for sdd_file in list(sdd_dir.glob("*.yaml")) + list(sdd_dir.glob("*.json")):
-            try:
-                sdd_data = load_structured_file(sdd_file)
-                manifest = SDDManifest(**sdd_data)
-                results.append((sdd_file.resolve(), manifest))
-            except Exception:
-                continue
-
-    # Legacy single-SDD layout
-    for legacy_file in (
-        base_path / SpecFactStructure.ROOT / "sdd.yaml",
-        base_path / SpecFactStructure.ROOT / "sdd.json",
-    ):
-        if legacy_file.exists():
-            try:
-                sdd_data = load_structured_file(legacy_file)
-                manifest = SDDManifest(**sdd_data)
-                results.append((legacy_file.resolve(), manifest))
-            except Exception:
-                continue
-
+    _collect_bundle_specific_sdds(base_path, results)
+    _collect_legacy_multi_sdds(base_path, results)
+    _collect_legacy_single_sdds(base_path, results)
     return results
 
 

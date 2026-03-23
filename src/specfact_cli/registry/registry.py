@@ -103,6 +103,8 @@ class CommandRegistry:
         raise ValueError(f"Module command '{name}' not found. Registered modules: {registered or '(none)'}")
 
     @classmethod
+    @beartype
+    @require(lambda name: isinstance(name, str) and len(name) > 0, "Name must be non-empty string")
     def get_module_metadata(cls, name: str) -> CommandMetadata | None:
         """Return metadata for module name without invoking loader."""
         cls._ensure_bootstrapped()
@@ -147,6 +149,8 @@ class CommandRegistry:
         return [(e.get("name", ""), e["metadata"]) for e in cls._entries if e.get("name") and "metadata" in e]
 
     @classmethod
+    @beartype
+    @require(lambda name: isinstance(name, str) and len(name) > 0, "Name must be non-empty string")
     def get_metadata(cls, name: str) -> CommandMetadata | None:
         """Return metadata for name without invoking loader."""
         cls._ensure_bootstrapped()

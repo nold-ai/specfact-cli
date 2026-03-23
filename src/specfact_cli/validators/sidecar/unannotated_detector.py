@@ -16,8 +16,14 @@ from icontract import ensure, require
 
 
 @beartype
-@require(lambda file_path: file_path.exists(), "File path must exist")
-@require(lambda file_path: file_path.suffix == ".py", "File must be Python file")
+@require(
+    lambda file_path: isinstance(file_path, Path) and file_path.exists(),
+    "File path must exist",
+)
+@require(
+    lambda file_path: isinstance(file_path, Path) and file_path.suffix == ".py",
+    "File must be Python file",
+)
 @ensure(lambda result: isinstance(result, list), "Must return list")
 def detect_unannotated_functions(file_path: Path) -> list[dict[str, Any]]:
     """
@@ -70,8 +76,14 @@ def detect_unannotated_functions(file_path: Path) -> list[dict[str, Any]]:
 
 
 @beartype
-@require(lambda repo_path: repo_path.exists(), "Repository path must exist")
-@require(lambda repo_path: repo_path.is_dir(), "Repository path must be a directory")
+@require(
+    lambda repo_path: isinstance(repo_path, Path) and repo_path.exists(),
+    "Repository path must exist",
+)
+@require(
+    lambda repo_path: isinstance(repo_path, Path) and repo_path.is_dir(),
+    "Repository path must be a directory",
+)
 @ensure(lambda result: isinstance(result, list), "Must return list")
 def detect_unannotated_in_repo(repo_path: Path, source_dirs: list[Path] | None = None) -> list[dict[str, Any]]:
     """

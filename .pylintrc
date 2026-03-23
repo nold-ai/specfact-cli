@@ -1,0 +1,29 @@
+# .pylintrc — optimised for specfact code review run
+# Enables only the rules that specfact-code-review's PYLINT_CATEGORY_MAP maps
+# (pylint_runner.py). Parallel jobs keep the full-repo run within the 30s
+# timeout used by the review runner subprocess.
+#
+# Note on pylint 4.x rule IDs:
+#   W0703 (broad-exception-caught) → renamed W0718; not in review map, disabled
+#   T201 (print-used) → not a pylint rule; covered by semgrep print-in-src
+#   W1505 (deprecated-string-format) → removed in pylint 4.x
+#   W0702 (bare-except) → still valid
+
+[MASTER]
+jobs = 8
+ignore = .git,__pycache__,.venv,venv
+ignore-patterns = .*\.pyc
+
+[MESSAGES CONTROL]
+# Disable everything, then enable only the rules present in PYLINT_CATEGORY_MAP.
+# W0718 must be explicitly suppressed; pylint 4.x re-enables it even under
+# disable=all due to checker inheritance from the old W0703 entry.
+disable = all,W0718
+enable = W0702
+
+[FORMAT]
+max-line-length = 120
+
+[REPORTS]
+output-format = text
+reports = no

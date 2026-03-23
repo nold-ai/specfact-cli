@@ -156,8 +156,6 @@ class TestBacklogItem:
     @beartype
     def test_apply_refinement_empty_body_raises(self) -> None:
         """Test that applying refinement with empty body raises error."""
-        from icontract.errors import ViolationError
-
         item = BacklogItem(
             id="123",
             provider="github",
@@ -168,5 +166,5 @@ class TestBacklogItem:
 
         item.refined_body = ""
 
-        with pytest.raises(ViolationError, match="Refined body must be non-empty"):
+        with pytest.raises(ValueError, match="Refined body must be non-empty"):
             item.apply_refinement()

@@ -174,6 +174,9 @@ class ModulePackageMetadata(BaseModel):
         return list(self.service_bridges)
 
     @model_validator(mode="after")
+    @ensure(
+        lambda result: isinstance(result, ModulePackageMetadata), "validate_source must return ModulePackageMetadata"
+    )
     def validate_source(self) -> ModulePackageMetadata:
         """Validate source is one of supported module origins."""
         if self.source not in {"builtin", "project", "user", "marketplace", "custom"}:

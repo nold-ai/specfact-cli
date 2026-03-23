@@ -15,9 +15,69 @@ from icontract import ensure, require
 from specfact_cli.validators.sidecar.models import FrameworkType
 
 
+def _is_fastapi_content(content: str) -> bool:
+    return "from fastapi import" in content or "FastAPI(" in content
+
+
+def _detect_fastapi(repo_path: Path) -> FrameworkType | None:
+    for candidate_file in ["main.py", "app.py"]:
+        file_path = repo_path / candidate_file
+        if not file_path.exists():
+            continue
+        try:
+            if _is_fastapi_content(file_path.read_text(encoding="utf-8")):
+                return FrameworkType.FASTAPI
+        except (UnicodeDecodeError, PermissionError):
+            continue
+
+    for search_path in [repo_path, repo_path / "src", repo_path / "app", repo_path / "backend" / "app"]:
+        if not search_path.exists():
+            continue
+        for py_file in search_path.rglob("*.py"):
+            if py_file.name not in {"main.py", "app.py"}:
+                continue
+            try:
+                if _is_fastapi_content(py_file.read_text(encoding="utf-8")):
+                    return FrameworkType.FASTAPI
+            except (UnicodeDecodeError, PermissionError):
+                continue
+    return None
+
+
+def _is_flask_content(content: str) -> bool:
+    return (
+        "from flask import Flask" in content
+        or ("import flask" in content and "Flask(" in content)
+        or ("from flask" in content and "Flask" in content)
+    )
+
+
+def _detect_flask_flag(repo_path: Path) -> bool:
+    for search_path in [repo_path, repo_path / "src", repo_path / "app"]:
+        if not search_path.exists():
+            continue
+        for py_file in list(search_path.rglob("*.py"))[:50]:
+            try:
+                if _is_flask_content(py_file.read_text(encoding="utf-8")):
+                    return True
+            except (UnicodeDecodeError, PermissionError):
+                continue
+    return False
+
+
+def _django_family_from_repo(repo_path: Path) -> FrameworkType:
+    return FrameworkType.DRF if _has_drf(repo_path) else FrameworkType.DJANGO
+
+
 @beartype
-@require(lambda repo_path: repo_path.exists(), "Repository path must exist")
-@require(lambda repo_path: repo_path.is_dir(), "Repository path must be a directory")
+@require(
+    lambda repo_path: isinstance(repo_path, Path) and repo_path.exists(),
+    "Repository path must exist",
+)
+@require(
+    lambda repo_path: isinstance(repo_path, Path) and repo_path.is_dir(),
+    "Repository path must be a directory",
+)
 @ensure(lambda result: isinstance(result, FrameworkType), "Must return FrameworkType")
 def detect_framework(repo_path: Path) -> FrameworkType:
     """
@@ -36,81 +96,29 @@ def detect_framework(repo_path: Path) -> FrameworkType:
     Returns:
         Detected FrameworkType
     """
-    # FastAPI detection: Check for FastAPI imports
-    for candidate_file in ["main.py", "app.py"]:
-        file_path = repo_path / candidate_file
-        if file_path.exists():
-            try:
-                content = file_path.read_text(encoding="utf-8")
-                if "from fastapi import" in content or "FastAPI(" in content:
-                    return FrameworkType.FASTAPI
-            except (UnicodeDecodeError, PermissionError):
-                # Skip files that can't be read
-                continue
+    fastapi = _detect_fastapi(repo_path)
+    if fastapi is not None:
+        return fastapi
 
-    # Also check in common FastAPI locations
-    for search_path in [repo_path, repo_path / "src", repo_path / "app", repo_path / "backend" / "app"]:
-        if not search_path.exists():
-            continue
-        for py_file in search_path.rglob("*.py"):
-            if py_file.name in ["main.py", "app.py"]:
-                try:
-                    content = py_file.read_text(encoding="utf-8")
-                    if "from fastapi import" in content or "FastAPI(" in content:
-                        return FrameworkType.FASTAPI
-                except (UnicodeDecodeError, PermissionError):
-                    continue
-
-    # Flask detection: Check for Flask imports and Flask() instantiation
-    # This must come BEFORE Django urls.py check to avoid false positives
-    flask_detected = False
-    for search_path in [repo_path, repo_path / "src", repo_path / "app"]:
-        if not search_path.exists():
-            continue
-        # Limit search to avoid scanning entire large codebases
-        for py_file in list(search_path.rglob("*.py"))[:50]:  # Check first 50 files
-            try:
-                content = py_file.read_text(encoding="utf-8")
-                # Check for Flask-specific patterns
-                if (
-                    "from flask import Flask" in content
-                    or ("import flask" in content and "Flask(" in content)
-                    or ("from flask" in content and "Flask" in content)
-                ):
-                    flask_detected = True
-                    break
-            except (UnicodeDecodeError, PermissionError):
-                continue
-        if flask_detected:
-            break
-
-    # Django detection: Check for manage.py first (strongest indicator)
+    flask_detected = _detect_flask_flag(repo_path)
     manage_py = repo_path / "manage.py"
     if manage_py.exists():
-        # Check if DRF is also present
-        if _has_drf(repo_path):
-            return FrameworkType.DRF
-        return FrameworkType.DJANGO
+        return _django_family_from_repo(repo_path)
 
-    # If Flask was detected, return FLASK
     if flask_detected:
         return FrameworkType.FLASK
 
-    # Check for urls.py files (Django pattern)
-    # Only check if Flask wasn't detected and manage.py doesn't exist
-    urls_files = list(repo_path.rglob("urls.py"))
-    if urls_files:
-        # Check if DRF is also present
-        if _has_drf(repo_path):
-            return FrameworkType.DRF
-        return FrameworkType.DJANGO
+    if list(repo_path.rglob("urls.py")):
+        return _django_family_from_repo(repo_path)
 
-    # No framework detected
     return FrameworkType.PURE_PYTHON
 
 
 @beartype
-@require(lambda repo_path: repo_path.exists(), "Repository path must exist")
+@require(
+    lambda repo_path: isinstance(repo_path, Path) and repo_path.exists(),
+    "Repository path must exist",
+)
 @ensure(lambda result: isinstance(result, bool), "Must return bool")
 def _has_drf(repo_path: Path) -> bool:
     """
@@ -145,8 +153,14 @@ def _has_drf(repo_path: Path) -> bool:
 
 
 @beartype
-@require(lambda repo_path: repo_path.exists(), "Repository path must exist")
-@require(lambda repo_path: repo_path.is_dir(), "Repository path must be a directory")
+@require(
+    lambda repo_path: isinstance(repo_path, Path) and repo_path.exists(),
+    "Repository path must exist",
+)
+@require(
+    lambda repo_path: isinstance(repo_path, Path) and repo_path.is_dir(),
+    "Repository path must be a directory",
+)
 @ensure(lambda result: isinstance(result, str) or result is None, "Must return str or None")
 def detect_django_settings_module(repo_path: Path) -> str | None:
     """

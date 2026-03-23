@@ -11,6 +11,7 @@ from icontract import ensure, require
 from jinja2 import Environment, FileSystemLoader
 
 from specfact_cli.models.deviation import Deviation, DeviationReport, ValidationReport
+from specfact_cli.utils.icontract_helpers import require_output_path_exists
 from specfact_cli.utils.structured_io import StructuredFormat, dump_structured_file
 
 
@@ -52,7 +53,7 @@ class ReportGenerator:
     @require(lambda report: isinstance(report, ValidationReport), "Must be ValidationReport instance")
     @require(lambda output_path: output_path is not None, "Output path must not be None")
     @require(lambda format: format in ReportFormat, "Format must be valid ReportFormat")
-    @ensure(lambda output_path: output_path.exists(), "Output file must exist after generation")
+    @ensure(require_output_path_exists, "Output file must exist after generation")
     def generate_validation_report(
         self, report: ValidationReport, output_path: Path, format: ReportFormat = ReportFormat.MARKDOWN
     ) -> None:
@@ -83,7 +84,7 @@ class ReportGenerator:
     @require(lambda report: isinstance(report, DeviationReport), "Must be DeviationReport instance")
     @require(lambda output_path: output_path is not None, "Output path must not be None")
     @require(lambda format: format in ReportFormat, "Format must be valid ReportFormat")
-    @ensure(lambda output_path: output_path.exists(), "Output file must exist after generation")
+    @ensure(require_output_path_exists, "Output file must exist after generation")
     def generate_deviation_report(
         self, report: DeviationReport, output_path: Path, format: ReportFormat = ReportFormat.MARKDOWN
     ) -> None:
@@ -173,6 +174,7 @@ class ReportGenerator:
         """Generate YAML report."""
         dump_structured_file(report.model_dump(mode="json"), output_path, StructuredFormat.YAML)
 
+    @ensure(lambda result: isinstance(result, str), "Must return str")
     def render_markdown_string(self, report: ValidationReport | DeviationReport) -> str:
         """
         Render report to markdown string without writing to file.

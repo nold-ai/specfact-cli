@@ -21,6 +21,18 @@ from specfact_cli.importers.speckit_scanner import SpecKitScanner
 from specfact_cli.models.bridge import BridgeConfig
 from specfact_cli.models.capabilities import ToolCapabilities
 from specfact_cli.models.change import ChangeProposal, ChangeTracking
+from specfact_cli.models.project import ProjectBundle
+from specfact_cli.utils.icontract_helpers import (
+    require_bundle_dir_exists,
+    require_file_path_exists,
+    require_file_path_is_file,
+    require_plan_path_exists,
+    require_plan_path_is_file,
+    require_repo_path_exists,
+    require_repo_path_is_dir,
+    require_tasks_path_exists,
+    require_tasks_path_is_file,
+)
 
 
 class SpecKitAdapter(BridgeAdapter):
@@ -38,8 +50,8 @@ class SpecKitAdapter(BridgeAdapter):
         self.hash_store: dict[str, str] = {}
 
     @beartype
-    @require(lambda repo_path: repo_path.exists(), "Repository path must exist")
-    @require(lambda repo_path: repo_path.is_dir(), "Repository path must be a directory")
+    @require(require_repo_path_exists, "Repository path must exist")
+    @require(require_repo_path_is_dir, "Repository path must be a directory")
     @ensure(lambda result: isinstance(result, bool), "Must return bool")
     def detect(self, repo_path: Path, bridge_config: BridgeConfig | None = None) -> bool:
         """
@@ -72,8 +84,8 @@ class SpecKitAdapter(BridgeAdapter):
         )
 
     @beartype
-    @require(lambda repo_path: repo_path.exists(), "Repository path must exist")
-    @require(lambda repo_path: repo_path.is_dir(), "Repository path must be a directory")
+    @require(require_repo_path_exists, "Repository path must exist")
+    @require(require_repo_path_is_dir, "Repository path must be a directory")
     @ensure(lambda result: isinstance(result, ToolCapabilities), "Must return ToolCapabilities")
     def get_capabilities(self, repo_path: Path, bridge_config: BridgeConfig | None = None) -> ToolCapabilities:
         """
@@ -206,8 +218,8 @@ class SpecKitAdapter(BridgeAdapter):
         raise ValueError(msg)
 
     @beartype
-    @require(lambda repo_path: repo_path.exists(), "Repository path must exist")
-    @require(lambda repo_path: repo_path.is_dir(), "Repository path must be a directory")
+    @require(require_repo_path_exists, "Repository path must exist")
+    @require(require_repo_path_is_dir, "Repository path must be a directory")
     @ensure(lambda result: isinstance(result, BridgeConfig), "Must return BridgeConfig")
     def generate_bridge_config(self, repo_path: Path) -> BridgeConfig:
         """
@@ -249,7 +261,7 @@ class SpecKitAdapter(BridgeAdapter):
 
     @beartype
     @require(lambda bundle_dir: isinstance(bundle_dir, Path), "Bundle directory must be Path")
-    @require(lambda bundle_dir: bundle_dir.exists(), "Bundle directory must exist")
+    @require(require_bundle_dir_exists, "Bundle directory must exist")
     @ensure(lambda result: result is None or isinstance(result, ChangeTracking), "Must return ChangeTracking or None")
     def load_change_tracking(
         self, bundle_dir: Path, bridge_config: BridgeConfig | None = None
@@ -268,7 +280,7 @@ class SpecKitAdapter(BridgeAdapter):
 
     @beartype
     @require(lambda bundle_dir: isinstance(bundle_dir, Path), "Bundle directory must be Path")
-    @require(lambda bundle_dir: bundle_dir.exists(), "Bundle directory must exist")
+    @require(require_bundle_dir_exists, "Bundle directory must exist")
     @require(
         lambda change_tracking: isinstance(change_tracking, ChangeTracking), "Change tracking must be ChangeTracking"
     )
@@ -292,7 +304,7 @@ class SpecKitAdapter(BridgeAdapter):
 
     @beartype
     @require(lambda bundle_dir: isinstance(bundle_dir, Path), "Bundle directory must be Path")
-    @require(lambda bundle_dir: bundle_dir.exists(), "Bundle directory must exist")
+    @require(require_bundle_dir_exists, "Bundle directory must exist")
     @require(lambda change_name: isinstance(change_name, str) and len(change_name) > 0, "Change name must be non-empty")
     @ensure(lambda result: result is None or isinstance(result, ChangeProposal), "Must return ChangeProposal or None")
     def load_change_proposal(
@@ -313,7 +325,7 @@ class SpecKitAdapter(BridgeAdapter):
 
     @beartype
     @require(lambda bundle_dir: isinstance(bundle_dir, Path), "Bundle directory must be Path")
-    @require(lambda bundle_dir: bundle_dir.exists(), "Bundle directory must exist")
+    @require(require_bundle_dir_exists, "Bundle directory must exist")
     @require(lambda proposal: isinstance(proposal, ChangeProposal), "Proposal must be ChangeProposal")
     @ensure(lambda result: result is None, "Must return None")
     def save_change_proposal(
@@ -335,32 +347,12 @@ class SpecKitAdapter(BridgeAdapter):
 
     # Private helper methods for import/export
 
-    def _import_specification(
-        self,
-        spec_path: Path,
-        project_bundle: Any,  # ProjectBundle
-        scanner: SpecKitScanner,
-        converter: SpecKitConverter,
-        bridge_config: BridgeConfig | None,
-    ) -> None:
-        """Import specification from Spec-Kit spec.md."""
-        from specfact_cli.models.plan import Feature, Story
-        from specfact_cli.models.source_tracking import SourceTracking
-        from specfact_cli.utils.feature_keys import normalize_feature_key
-
-        # Parse spec.md
-        spec_data = scanner.parse_spec_markdown(spec_path)
-        if not spec_data:
-            return
-
-        # Extract feature information
-        feature_key = spec_data.get("feature_key", spec_path.parent.name.upper().replace("-", "_"))
+    def _resolve_feature_title(self, spec_data: dict[str, Any], spec_path: Path) -> str:
+        """Return the feature title from spec_data, falling back to H1 parsing, then 'Unknown Feature'."""
         feature_title = spec_data.get("feature_title")
-        # If feature_title not found, try to extract from first H1 header in spec.md
         if not feature_title:
             try:
                 content = spec_path.read_text(encoding="utf-8")
-                # Try multiple patterns: "Feature Specification: Title", "# Title", etc.
                 title_match = (
                     re.search(r"^#\s+Feature Specification:\s*(.+)$", content, re.MULTILINE)
                     or re.search(r"^#\s+(.+?)\s+Feature", content, re.MULTILINE)
@@ -370,167 +362,206 @@ class SpecKitAdapter(BridgeAdapter):
                     feature_title = title_match.group(1).strip()
             except Exception:
                 pass
-        # Ensure feature_title is never None (Pydantic validation requirement)
         if not feature_title or feature_title.strip() == "":
-            feature_title = "Unknown Feature"
+            return "Unknown Feature"
+        return feature_title
 
-        # Extract stories
+    def _build_stories_from_spec(self, spec_data: dict[str, Any]) -> list[Any]:
+        """Convert raw spec story dicts into Story model instances."""
+        from specfact_cli.models.plan import Story
+
+        priority_map = {"P1": 8, "P2": 5, "P3": 3, "P4": 1}
         stories: list[Story] = []
-        spec_stories = spec_data.get("stories", [])
-        for story_data in spec_stories:
-            story_key = story_data.get("key", "UNKNOWN")
-            story_title = story_data.get("title", "Unknown Story")
-            priority = story_data.get("priority", "P3")
-            acceptance = story_data.get("acceptance", [])
-
-            # Calculate story points from priority
-            priority_map = {"P1": 8, "P2": 5, "P3": 3, "P4": 1}
-            story_points = priority_map.get(priority, 3)
-
-            story = Story(
-                key=story_key,
-                title=story_title,
-                acceptance=acceptance if acceptance else [f"{story_title} is implemented"],
-                tags=[priority],
-                story_points=story_points,
-                value_points=story_points,
-                tasks=[],
-                confidence=0.8,
-                draft=False,
-                scenarios=story_data.get("scenarios"),
-                contracts=None,
+        raw_stories = spec_data.get("stories", [])
+        if not isinstance(raw_stories, list):
+            raw_stories = []
+        for story_data in raw_stories:
+            if not isinstance(story_data, dict):
+                continue
+            sd: dict[str, Any] = story_data
+            story_key = sd.get("key", "UNKNOWN")
+            story_title = sd.get("title", "Unknown Story")
+            priority = sd.get("priority", "P3")
+            acceptance = sd.get("acceptance", [])
+            story_points = priority_map.get(str(priority), 3)
+            stories.append(
+                Story(
+                    key=str(story_key),
+                    title=str(story_title),
+                    acceptance=acceptance if acceptance else [f"{story_title} is implemented"],
+                    tags=[str(priority)],
+                    story_points=story_points,
+                    value_points=story_points,
+                    tasks=[],
+                    confidence=0.8,
+                    draft=False,
+                    scenarios=sd.get("scenarios"),
+                    contracts=None,
+                )
             )
-            stories.append(story)
+        return stories
 
-        # Extract outcomes from requirements
-        requirements = spec_data.get("requirements", [])
-        outcomes: list[str] = []
-        for req in requirements:
-            if isinstance(req, dict):
-                outcomes.append(req.get("text", ""))
-            elif isinstance(req, str):
-                outcomes.append(req)
+    def _extract_text_list(self, items: list[Any]) -> list[str]:
+        """Flatten a list of dicts-with-text or plain strings into a list of strings."""
+        result: list[str] = []
+        for item in items:
+            if isinstance(item, dict):
+                it: dict[str, Any] = item
+                result.append(str(it.get("text", "")))
+            elif isinstance(item, str):
+                result.append(item)
+        return result
 
-        # Extract acceptance criteria from success criteria
-        success_criteria = spec_data.get("success_criteria", [])
-        acceptance: list[str] = []
-        for sc in success_criteria:
-            if isinstance(sc, dict):
-                acceptance.append(sc.get("text", ""))
-            elif isinstance(sc, str):
-                acceptance.append(sc)
+    def _build_speckit_source_tracking(self, spec_path: Path, bridge_config: BridgeConfig | None) -> Any:
+        """Build a SourceTracking instance for a Spec-Kit spec file."""
+        from specfact_cli.models.source_tracking import SourceTracking
 
-        # Create or update feature
-        if not hasattr(project_bundle, "features") or project_bundle.features is None:
-            project_bundle.features = {}
+        base_path = spec_path.parent.parent.parent
+        speckit_path = str(spec_path.relative_to(base_path))
+        source_metadata: dict[str, Any] = {
+            "path": speckit_path,
+            "speckit_path": speckit_path,
+            "speckit_type": "specification",
+        }
+        if bridge_config and bridge_config.external_base_path:
+            source_metadata["speckit_base_path"] = str(bridge_config.external_base_path)
+        return SourceTracking(tool="speckit", source_metadata=source_metadata)
 
-        # Normalize key for matching
+    def _upsert_feature(
+        self,
+        project_bundle: ProjectBundle,
+        feature_key: str,
+        feature_title: str,
+        outcomes: list[str],
+        acceptance: list[str],
+        stories: list[Any],
+        spec_data: dict[str, Any],
+        spec_path: Path,
+        bridge_config: BridgeConfig | None,
+    ) -> None:
+        """Insert a new Feature or update the existing one in project_bundle.features."""
+        from specfact_cli.models.plan import Feature
+        from specfact_cli.utils.feature_keys import normalize_feature_key
+
         normalized_key = normalize_feature_key(feature_key)
         existing_feature = None
-        if isinstance(project_bundle.features, dict):
-            # Try to find existing feature by normalized key
-            for key, feat in project_bundle.features.items():
-                if normalize_feature_key(key) == normalized_key:
-                    existing_feature = feat
-                    break
+        for key, feat in project_bundle.features.items():
+            if normalize_feature_key(key) == normalized_key:
+                existing_feature = feat
+                break
 
         if existing_feature:
-            # Update existing feature
             existing_feature.title = feature_title
             existing_feature.outcomes = outcomes if outcomes else existing_feature.outcomes
             existing_feature.acceptance = acceptance if acceptance else existing_feature.acceptance
             existing_feature.stories = stories
             existing_feature.constraints = spec_data.get("edge_cases", [])
-        else:
-            # Create new feature
-            feature = Feature(
-                key=feature_key,
-                title=feature_title,
-                outcomes=outcomes if outcomes else [f"Provides {feature_title} functionality"],
-                acceptance=acceptance if acceptance else [f"{feature_title} is functional"],
-                constraints=spec_data.get("edge_cases", []),
-                stories=stories,
-                confidence=0.8,
-                draft=False,
-                source_tracking=None,
-                contract=None,
-                protocol=None,
-            )
+            return
 
-            # Store Spec-Kit path in source_tracking
-            base_path = spec_path.parent.parent.parent if bridge_config and bridge_config.external_base_path else None
-            if base_path is None:
-                base_path = spec_path.parent.parent.parent
+        feature = Feature(
+            key=feature_key,
+            title=feature_title,
+            outcomes=outcomes if outcomes else [f"Provides {feature_title} functionality"],
+            acceptance=acceptance if acceptance else [f"{feature_title} is functional"],
+            constraints=spec_data.get("edge_cases", []),
+            stories=stories,
+            confidence=0.8,
+            draft=False,
+            source_tracking=None,
+            contract=None,
+            protocol=None,
+        )
+        feature.source_tracking = self._build_speckit_source_tracking(spec_path, bridge_config)
+        project_bundle.features[feature_key] = feature
 
-            speckit_path = (
-                str(spec_path.relative_to(base_path)) if base_path else f"specs/{spec_path.parent.name}/spec.md"
-            )
-            source_metadata = {
-                "path": speckit_path,
-                "speckit_path": speckit_path,
-                "speckit_type": "specification",
-            }
-            if bridge_config and bridge_config.external_base_path:
-                source_metadata["speckit_base_path"] = str(bridge_config.external_base_path)
+    def _import_specification(
+        self,
+        spec_path: Path,
+        project_bundle: ProjectBundle,
+        scanner: SpecKitScanner,
+        converter: SpecKitConverter,
+        bridge_config: BridgeConfig | None,
+    ) -> None:
+        """Import specification from Spec-Kit spec.md."""
+        spec_data = scanner.parse_spec_markdown(spec_path)
+        if not spec_data:
+            return
 
-            feature.source_tracking = SourceTracking(tool="speckit", source_metadata=source_metadata)
+        feature_key = spec_data.get("feature_key", spec_path.parent.name.upper().replace("-", "_"))
+        feature_title = self._resolve_feature_title(spec_data, spec_path)
+        stories = self._build_stories_from_spec(spec_data)
+        outcomes = self._extract_text_list(spec_data.get("requirements", []))
+        acceptance = self._extract_text_list(spec_data.get("success_criteria", []))
 
-            if isinstance(project_bundle.features, dict):
-                project_bundle.features[feature_key] = feature
-            else:
-                if project_bundle.features is None:
-                    project_bundle.features = {}
-                if isinstance(project_bundle.features, dict):
-                    project_bundle.features[feature_key] = feature
+        self._upsert_feature(
+            project_bundle,
+            feature_key,
+            feature_title,
+            outcomes,
+            acceptance,
+            stories,
+            spec_data,
+            spec_path,
+            bridge_config,
+        )
+
+    def _read_plan_title(self, plan_path: Path) -> str:
+        """Extract title from the first H1 header in plan.md, or return 'Unknown Feature'."""
+        try:
+            content = plan_path.read_text(encoding="utf-8")
+            title_match = re.search(r"^#\s+(.+)$", content, re.MULTILINE)
+            return title_match.group(1).strip() if title_match else "Unknown Feature"
+        except Exception:
+            return "Unknown Feature"
+
+    def _build_plan_source_tracking(self, plan_path: Path, bridge_config: BridgeConfig | None) -> Any:
+        """Build SourceTracking for a Spec-Kit plan file."""
+        from specfact_cli.models.source_tracking import SourceTracking
+
+        base_path = plan_path.parent.parent.parent
+        speckit_path = str(plan_path.relative_to(base_path))
+        source_metadata: dict[str, Any] = {
+            "path": speckit_path,
+            "speckit_path": speckit_path,
+            "speckit_type": "plan",
+        }
+        if bridge_config and bridge_config.external_base_path:
+            source_metadata["speckit_base_path"] = str(bridge_config.external_base_path)
+        return SourceTracking(tool="speckit", source_metadata=source_metadata)
 
     @beartype
-    @require(lambda plan_path: plan_path.exists(), "Plan path must exist")
-    @require(lambda plan_path: plan_path.is_file(), "Plan path must be a file")
+    @require(require_plan_path_exists, "Plan path must exist")
+    @require(require_plan_path_is_file, "Plan path must be a file")
     @require(lambda project_bundle: project_bundle is not None, "Project bundle must not be None")
     @ensure(lambda result: result is None, "Must return None")
     def _import_plan(
         self,
         plan_path: Path,
-        project_bundle: Any,  # ProjectBundle
+        project_bundle: ProjectBundle,
         scanner: SpecKitScanner,
         converter: SpecKitConverter,
         bridge_config: BridgeConfig | None,
     ) -> None:
         """Import plan from Spec-Kit plan.md."""
         from specfact_cli.models.plan import Feature
-        from specfact_cli.models.source_tracking import SourceTracking
         from specfact_cli.utils.feature_keys import normalize_feature_key
 
-        # Parse plan.md
         plan_data = scanner.parse_plan_markdown(plan_path)
         if not plan_data:
             return
 
-        # Extract feature ID from path (specs/{feature_id}/plan.md)
         feature_id = plan_path.parent.name
         normalized_feature_id = normalize_feature_key(feature_id)
 
-        # Find or create feature in bundle
-        if not hasattr(project_bundle, "features") or project_bundle.features is None:
-            project_bundle.features = {}
-
         matching_feature = None
-        if isinstance(project_bundle.features, dict):
-            for key, feat in project_bundle.features.items():
-                if normalize_feature_key(key) == normalized_feature_id:
-                    matching_feature = feat
-                    break
+        for key, feat in project_bundle.features.items():
+            if normalize_feature_key(key) == normalized_feature_id:
+                matching_feature = feat
+                break
 
-        # If feature doesn't exist, create minimal feature from plan
         if not matching_feature:
             feature_key = feature_id.upper().replace("-", "_")
-            # Try to extract title from plan.md first line
-            try:
-                content = plan_path.read_text(encoding="utf-8")
-                title_match = re.search(r"^#\s+(.+)$", content, re.MULTILINE)
-                feature_title = title_match.group(1).strip() if title_match else "Unknown Feature"
-            except Exception:
-                feature_title = "Unknown Feature"
+            feature_title = self._read_plan_title(plan_path)
 
             matching_feature = Feature(
                 key=feature_key,
@@ -545,37 +576,19 @@ class SpecKitAdapter(BridgeAdapter):
                 contract=None,
                 protocol=None,
             )
+            matching_feature.source_tracking = self._build_plan_source_tracking(plan_path, bridge_config)
 
-            # Store Spec-Kit path in source_tracking
-            base_path = plan_path.parent.parent.parent if bridge_config and bridge_config.external_base_path else None
-            if base_path is None:
-                base_path = plan_path.parent.parent.parent
-
-            speckit_path = (
-                str(plan_path.relative_to(base_path)) if base_path else f"specs/{plan_path.parent.name}/plan.md"
-            )
-            source_metadata = {
-                "path": speckit_path,
-                "speckit_path": speckit_path,
-                "speckit_type": "plan",
-            }
-            if bridge_config and bridge_config.external_base_path:
-                source_metadata["speckit_base_path"] = str(bridge_config.external_base_path)
-
-            matching_feature.source_tracking = SourceTracking(tool="speckit", source_metadata=source_metadata)
-
-            if isinstance(project_bundle.features, dict):
-                project_bundle.features[feature_key] = matching_feature
+            project_bundle.features[feature_key] = matching_feature
 
     @beartype
-    @require(lambda tasks_path: tasks_path.exists(), "Tasks path must exist")
-    @require(lambda tasks_path: tasks_path.is_file(), "Tasks path must be a file")
+    @require(require_tasks_path_exists, "Tasks path must exist")
+    @require(require_tasks_path_is_file, "Tasks path must be a file")
     @require(lambda project_bundle: project_bundle is not None, "Project bundle must not be None")
     @ensure(lambda result: result is None, "Must return None")
     def _import_tasks(
         self,
         tasks_path: Path,
-        project_bundle: Any,  # ProjectBundle
+        project_bundle: ProjectBundle,
         scanner: SpecKitScanner,
         converter: SpecKitConverter,
         bridge_config: BridgeConfig | None,
@@ -593,28 +606,31 @@ class SpecKitAdapter(BridgeAdapter):
         normalized_feature_id = normalize_feature_key(feature_id)
 
         # Find matching feature in bundle
-        if hasattr(project_bundle, "features") and project_bundle.features:
-            matching_feature = None
-            if isinstance(project_bundle.features, dict):
-                for key, feat in project_bundle.features.items():
-                    if normalize_feature_key(key) == normalized_feature_id:
-                        matching_feature = feat
+        matching_feature = None
+        for key, feat in project_bundle.features.items():
+            if normalize_feature_key(key) == normalized_feature_id:
+                matching_feature = feat
+                break
+
+        if matching_feature:
+            # Map tasks to stories based on story_ref
+            raw_tasks = tasks_data.get("tasks", [])
+            if not isinstance(raw_tasks, list):
+                raw_tasks = []
+            for task in raw_tasks:
+                if not isinstance(task, dict):
+                    continue
+                td: dict[str, Any] = task
+                story_ref = str(td.get("story_ref", ""))
+                task_desc = str(td.get("description", ""))
+
+                # Find matching story
+                for story in matching_feature.stories:
+                    if story_ref and story_ref in story.key:
+                        if not story.tasks:
+                            story.tasks = []
+                        story.tasks.append(task_desc)
                         break
-
-            if matching_feature and hasattr(matching_feature, "stories"):
-                # Map tasks to stories based on story_ref
-                tasks = tasks_data.get("tasks", [])
-                for task in tasks:
-                    story_ref = task.get("story_ref", "")
-                    task_desc = task.get("description", "")
-
-                    # Find matching story
-                    for story in matching_feature.stories:
-                        if story_ref and story_ref in story.key:
-                            if not story.tasks:
-                                story.tasks = []
-                            story.tasks.append(task_desc)
-                            break
 
     @beartype
     @require(lambda feature: feature is not None, "Feature must not be None")
@@ -640,9 +656,9 @@ class SpecKitAdapter(BridgeAdapter):
         """Export plan to Spec-Kit plan.md."""
         from specfact_cli.models.plan import Feature, PlanBundle
 
-        # Determine base path
-        base_path = converter.repo_path
-        if bridge_config and bridge_config.external_base_path:
+        # Determine base path (always Path; external_base_path overrides repo root)
+        base_path: Path = Path(converter.repo_path)
+        if bridge_config is not None and bridge_config.external_base_path is not None:
             base_path = bridge_config.external_base_path
 
         # If plan_data is a Feature, we need to get the bundle context
@@ -668,13 +684,9 @@ class SpecKitAdapter(BridgeAdapter):
         elif isinstance(plan_data, PlanBundle):
             # Generate plan.md for first feature (Spec-Kit has one plan.md per feature)
             if plan_data.features:
-                feature = (
-                    plan_data.features[0]
-                    if isinstance(plan_data.features, list)
-                    else next(iter(plan_data.features.values()))
-                )
-                plan_content = converter._generate_plan_markdown(feature, plan_data)
-                feature_id = feature.key.lower().replace("_", "-")
+                feat0: Feature = plan_data.features[0]
+                plan_content = converter._generate_plan_markdown(feat0, plan_data)
+                feature_id = feat0.key.lower().replace("_", "-")
             else:
                 msg = "Plan bundle has no features to export"
                 raise ValueError(msg)
@@ -683,10 +695,10 @@ class SpecKitAdapter(BridgeAdapter):
             raise ValueError(msg)
 
         # Determine output path from bridge config or use default
-        if bridge_config and "plan" in bridge_config.artifacts:
+        artifact_path: Path
+        if bridge_config is not None and "plan" in bridge_config.artifacts:
             artifact_path = bridge_config.resolve_path("plan", {"feature_id": feature_id}, base_path=base_path)
         else:
-            # Default path
             artifact_path = base_path / "specs" / feature_id / "plan.md"
 
         # Ensure directory exists
@@ -713,9 +725,8 @@ class SpecKitAdapter(BridgeAdapter):
             msg = f"Expected Feature, got {type(feature)}"
             raise ValueError(msg)
 
-        # Determine base path
-        base_path = converter.repo_path
-        if bridge_config and bridge_config.external_base_path:
+        base_path: Path = Path(converter.repo_path)
+        if bridge_config is not None and bridge_config.external_base_path is not None:
             base_path = bridge_config.external_base_path
 
         # Generate tasks.md content using converter
@@ -723,10 +734,10 @@ class SpecKitAdapter(BridgeAdapter):
 
         # Determine output path from bridge config or use default
         feature_id = feature.key.lower().replace("_", "-")
-        if bridge_config and "tasks" in bridge_config.artifacts:
+        artifact_path: Path
+        if bridge_config is not None and "tasks" in bridge_config.artifacts:
             artifact_path = bridge_config.resolve_path("tasks", {"feature_id": feature_id}, base_path=base_path)
         else:
-            # Default path
             artifact_path = base_path / "specs" / feature_id / "tasks.md"
 
         # Ensure directory exists
@@ -739,9 +750,30 @@ class SpecKitAdapter(BridgeAdapter):
 
     # Private helper methods for bidirectional sync (from SpecKitSync)
 
+    def _record_md_change(self, repo_path: Path, file_path: Path, changes: dict[str, Any]) -> None:
+        relative_path = str(file_path.relative_to(repo_path))
+        current_hash = self._get_file_hash(file_path)
+        stored_hash = self.hash_store.get(relative_path, "")
+        if current_hash == stored_hash:
+            return
+        changes[relative_path] = {
+            "file": file_path,
+            "hash": current_hash,
+            "type": "modified" if stored_hash else "new",
+        }
+
+    def _merge_specs_tree_changes(self, repo_path: Path, specs_root: Path, changes: dict[str, Any]) -> None:
+        if not specs_root.exists() or not specs_root.is_dir():
+            return
+        for spec_dir in specs_root.iterdir():
+            if not spec_dir.is_dir():
+                continue
+            for spec_file in spec_dir.glob("*.md"):
+                self._record_md_change(repo_path, spec_file, changes)
+
     @beartype
-    @require(lambda repo_path: repo_path.exists(), "Repository path must exist")
-    @require(lambda repo_path: repo_path.is_dir(), "Repository path must be a directory")
+    @require(require_repo_path_exists, "Repository path must exist")
+    @require(require_repo_path_is_dir, "Repository path must be a directory")
     @ensure(lambda result: isinstance(result, dict), "Must return dict")
     def _detect_speckit_changes(self, repo_path: Path) -> dict[str, Any]:
         """
@@ -754,78 +786,23 @@ class SpecKitAdapter(BridgeAdapter):
             Dictionary of detected changes keyed by file path
         """
         changes: dict[str, Any] = {}
-
-        # Check for modern Spec-Kit format (.specify directory)
         specify_dir = repo_path / ".specify"
         if specify_dir.exists():
-            # Monitor .specify/memory/ files
             memory_dir = repo_path / ".specify" / "memory"
             if memory_dir.exists():
                 for memory_file in memory_dir.glob("*.md"):
-                    relative_path = str(memory_file.relative_to(repo_path))
-                    current_hash = self._get_file_hash(memory_file)
-                    stored_hash = self.hash_store.get(relative_path, "")
+                    self._record_md_change(repo_path, memory_file, changes)
 
-                    if current_hash != stored_hash:
-                        changes[relative_path] = {
-                            "file": memory_file,
-                            "hash": current_hash,
-                            "type": "modified" if stored_hash else "new",
-                        }
-
-        # Monitor specs/ directory for feature specifications
-        # Check all possible layouts: .specify/specs/ (canonical) > docs/specs/ > specs/ (root)
-        # Priority order matches generate_bridge_config() detection logic
-        # Note: Check all layouts regardless of whether .specify exists (some repos may have specs without .specify)
         specify_specs_dir = repo_path / ".specify" / "specs"
         docs_specs_dir = repo_path / "docs" / "specs"
         classic_specs_dir = repo_path / "specs"
 
-        # Check canonical .specify/specs/ first
         if specify_specs_dir.exists() and specify_specs_dir.is_dir():
-            for spec_dir in specify_specs_dir.iterdir():
-                if spec_dir.is_dir():
-                    for spec_file in spec_dir.glob("*.md"):
-                        relative_path = str(spec_file.relative_to(repo_path))
-                        current_hash = self._get_file_hash(spec_file)
-                        stored_hash = self.hash_store.get(relative_path, "")
-
-                        if current_hash != stored_hash:
-                            changes[relative_path] = {
-                                "file": spec_file,
-                                "hash": current_hash,
-                                "type": "modified" if stored_hash else "new",
-                            }
-        # Check modern docs/specs/ layout
+            self._merge_specs_tree_changes(repo_path, specify_specs_dir, changes)
         elif docs_specs_dir.exists() and docs_specs_dir.is_dir():
-            for spec_dir in docs_specs_dir.iterdir():
-                if spec_dir.is_dir():
-                    for spec_file in spec_dir.glob("*.md"):
-                        relative_path = str(spec_file.relative_to(repo_path))
-                        current_hash = self._get_file_hash(spec_file)
-                        stored_hash = self.hash_store.get(relative_path, "")
-
-                        if current_hash != stored_hash:
-                            changes[relative_path] = {
-                                "file": spec_file,
-                                "hash": current_hash,
-                                "type": "modified" if stored_hash else "new",
-                            }
-        # Check classic specs/ at root (backward compatibility)
+            self._merge_specs_tree_changes(repo_path, docs_specs_dir, changes)
         elif classic_specs_dir.exists() and classic_specs_dir.is_dir():
-            for spec_dir in classic_specs_dir.iterdir():
-                if spec_dir.is_dir():
-                    for spec_file in spec_dir.glob("*.md"):
-                        relative_path = str(spec_file.relative_to(repo_path))
-                        current_hash = self._get_file_hash(spec_file)
-                        stored_hash = self.hash_store.get(relative_path, "")
-
-                        if current_hash != stored_hash:
-                            changes[relative_path] = {
-                                "file": spec_file,
-                                "hash": current_hash,
-                                "type": "modified" if stored_hash else "new",
-                            }
+            self._merge_specs_tree_changes(repo_path, classic_specs_dir, changes)
 
         return changes
 
@@ -969,8 +946,8 @@ class SpecKitAdapter(BridgeAdapter):
         return resolved
 
     @beartype
-    @require(lambda file_path: file_path.exists(), "File path must exist")
-    @require(lambda file_path: file_path.is_file(), "File path must be a file")
+    @require(require_file_path_exists, "File path must exist")
+    @require(require_file_path_is_file, "File path must be a file")
     @ensure(lambda result: isinstance(result, str) and len(result) == 64, "Must return 64-char hex digest")
     def _get_file_hash(self, file_path: Path) -> str:
         """
@@ -988,8 +965,8 @@ class SpecKitAdapter(BridgeAdapter):
     # Public helper methods for sync operations (used by sync.py)
 
     @beartype
-    @require(lambda repo_path: repo_path.exists(), "Repository path must exist")
-    @require(lambda repo_path: repo_path.is_dir(), "Repository path must be a directory")
+    @require(require_repo_path_exists, "Repository path must exist")
+    @require(require_repo_path_is_dir, "Repository path must be a directory")
     def discover_features(self, repo_path: Path, bridge_config: BridgeConfig | None = None) -> list[dict[str, Any]]:
         """
         Discover features from Spec-Kit repository.
@@ -1012,8 +989,8 @@ class SpecKitAdapter(BridgeAdapter):
         return scanner.discover_features()
 
     @beartype
-    @require(lambda repo_path: repo_path.exists(), "Repository path must exist")
-    @require(lambda repo_path: repo_path.is_dir(), "Repository path must be a directory")
+    @require(require_repo_path_exists, "Repository path must exist")
+    @require(require_repo_path_is_dir, "Repository path must be a directory")
     @require(
         lambda direction: direction in ("speckit", "specfact", "both"),
         "Direction must be 'speckit', 'specfact', or 'both'",

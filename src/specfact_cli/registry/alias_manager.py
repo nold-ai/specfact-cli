@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import cast
 
 from beartype import beartype
 from icontract import ensure, require
@@ -16,6 +17,8 @@ logger = get_bridge_logger(__name__)
 _ALIASES_FILENAME = "aliases.json"
 
 
+@beartype
+@ensure(lambda result: isinstance(result, Path))
 def get_aliases_path() -> Path:
     """Return path to aliases.json under ~/.specfact/registry/."""
     return Path.home() / ".specfact" / "registry" / _ALIASES_FILENAME
@@ -29,8 +32,8 @@ def _builtin_command_names() -> set[str]:
 
 
 @beartype
-@require(lambda alias: alias.strip() != "", "alias must be non-empty")
-@require(lambda command_name: command_name.strip() != "", "command_name must be non-empty")
+@require(lambda alias: cast(str, alias).strip() != "", "alias must be non-empty")
+@require(lambda command_name: cast(str, command_name).strip() != "", "command_name must be non-empty")
 @ensure(lambda: True, "no postcondition on void")
 def create_alias(alias: str, command_name: str, force: bool = False) -> None:
     """Store alias -> command_name in aliases.json. Warn or raise if alias shadows built-in."""
@@ -66,7 +69,7 @@ def list_aliases() -> dict[str, str]:
 
 
 @beartype
-@require(lambda alias: alias.strip() != "", "alias must be non-empty")
+@require(lambda alias: cast(str, alias).strip() != "", "alias must be non-empty")
 @ensure(lambda: True, "no postcondition on void")
 def remove_alias(alias: str) -> None:
     """Remove alias from aliases.json."""
