@@ -21,5 +21,5 @@ specfact init --install all
 For complete platform options and CI/CD examples, see:
 
 - [Getting Started Installation](../getting-started/installation.md)
-- [Marketplace Bundles](marketplace.md)
-- [Migration Guide](migration-guide.md)
+- [Marketplace Bundles](../module-system/marketplace.md)
+- [Migration Guide](../migration/migration-guide.md)

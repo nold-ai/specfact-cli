@@ -144,4 +144,4 @@ Full API and examples: [Extending ProjectBundle](/guides/extending-projectbundle
 - **arch-06**: Use `scripts/sign-module.sh` and `integrity`/`publisher` in manifests; consumers get automatic checksum verification at registration; set `SPECFACT_ALLOW_UNSIGNED=1` if you explicitly allow unsigned modules.
 - **arch-07**: Use `get_extension`/`set_extension` on Feature and ProjectBundle in your module code; declare `schema_extensions` in `module-package.yaml`; use existing commands like `specfact project link-backlog` and `specfact project health-check` to see extensions in action.
 
-For deeper reference: [Module Security](/reference/module-security/), [Extending ProjectBundle](/guides/extending-projectbundle/), [Architecture](/reference/architecture/).
+For deeper reference: [Module Security](/reference/module-security/), [Extending ProjectBundle](/guides/extending-projectbundle/), [Architecture](/architecture/overview/).

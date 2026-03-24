@@ -90,6 +90,6 @@ Extension/security fields:
 
 ## Related docs
 
-- [Architecture Reference](../reference/architecture.md)
+- [Architecture Reference](../architecture/overview.md)
 - [Module System Architecture](../architecture/module-system.md)
 - [Adapter Development Guide](adapter-development.md)

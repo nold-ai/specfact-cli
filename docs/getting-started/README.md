@@ -6,98 +6,50 @@ permalink: /getting-started/
 
 # Getting Started with SpecFact CLI
 
-Welcome to SpecFact CLI! This guide will help you get started in under 60 seconds.
-
 ## Installation
 
-Choose your preferred installation method:
-
 - **[Installation Guide](installation.md)** - All installation options (uvx, pip, Docker, GitHub Actions)
-- **[Enhanced Analysis Dependencies](../installation/enhanced-analysis-dependencies.md)** - Optional dependencies for graph-based analysis (pyan3, syft, bearer, graphviz)
+- **[Enhanced Analysis Dependencies](../installation/enhanced-analysis-dependencies.md)** - Optional dependencies for graph-based analysis
 
 ## Quick Start
 
-### Module System Note
-
-SpecFact runs on a lifecycle-managed module system.
-
-- Core runtime manages lifecycle, registry, contracts, and orchestration.
-- Feature behavior is implemented in module-local command implementations.
-- This allows feature modules to evolve independently without repeatedly rewiring CLI core logic.
-
-### Your First Command
-
-**For Legacy Code Modernization** (Recommended):
-
 ```bash
-# CLI-only mode (works with uvx, no installation needed)
-uvx specfact-cli@latest project import from-code my-project --repo .
+# Install
+pip install specfact-cli
 
-# Interactive AI Assistant mode (requires pip install + specfact init)
-# See First Steps guide for IDE integration setup
-```
-
-**For New Projects**:
-
-```bash
-# CLI-only mode (bundle name as positional argument)
-uvx specfact-cli@latest project snapshot --bundle my-project
-
-# Interactive AI Assistant mode (recommended for better results)
-# Requires: pip install specfact-cli && specfact init
-```
-
-**Note**: Interactive AI Assistant mode provides better feature detection and semantic understanding, but requires `pip install specfact-cli` and IDE setup. CLI-only mode works immediately with `uvx` but may show 0 features for simple test cases.
-
-### Migration Note (0.40.0)
-
-Flat root commands were removed. Use grouped command forms:
-
-- `specfact validate ...` -> `specfact code validate ...`
-- `specfact plan ...` → removed; use `specfact project devops-flow` or `specfact project snapshot`
-- `specfact policy ...` → removed; use `specfact backlog verify-readiness`
-
-First-run bundle selection examples:
-
-```bash
+# Bootstrap with a profile
 specfact init --profile solo-developer
-specfact init --install backlog,codebase
-specfact init --install all
+
+# Analyze your codebase
+specfact code import my-project --repo .
 ```
 
-Marketplace bundle install examples:
+See the **[5-Minute Quickstart](quickstart.md)** for a complete walkthrough.
 
-```bash
-specfact module install nold-ai/specfact-codebase
-specfact module install nold-ai/specfact-backlog
-```
+## Core Commands
 
-Official bundles are published in the `nold-ai/specfact-cli-modules` registry and verified as `official` tier during install.
-Some bundles install dependencies automatically:
+| Command | Purpose |
+|---------|---------|
+| `specfact init` | Bootstrap and IDE setup ([reference](/core-cli/init/)) |
+| `specfact module` | Module lifecycle management ([reference](/core-cli/module/)) |
+| `specfact upgrade` | CLI updates ([reference](/core-cli/upgrade/)) |
 
-- `nold-ai/specfact-spec` -> pulls `nold-ai/specfact-project`
-- `nold-ai/specfact-govern` -> pulls `nold-ai/specfact-project`
+## After Setup
 
-### Modernizing Legacy Code?
+- **[Bootstrap Checklist](/module-system/bootstrap-checklist/)** - Verify modules are installed
+- **[Command Reference](/reference/commands/)** - Full command surface
+- **[Brownfield Engineer Guide](../guides/brownfield-engineer.md)** - Modernizing legacy code
 
-**New to brownfield modernization?** See our **[Brownfield Engineer Guide](../guides/brownfield-engineer.md)** for a complete walkthrough of modernizing legacy Python code with SpecFact CLI.
+## Module Tutorials
 
-## Next Steps
+Module-specific tutorials are hosted on the modules site:
 
-- 📖 **[Installation Guide](installation.md)** - Install SpecFact CLI
-- 📖 **[First Steps](first-steps.md)** - Step-by-step first commands
-- 📖 **[Module Bootstrap Checklist](module-bootstrap-checklist.md)** - Verify official bundles are installed in user/project scope
-- 📖 **[Tutorial: Using SpecFact with OpenSpec or Spec-Kit](tutorial-openspec-speckit.md)** ⭐ **NEW** - Complete beginner-friendly tutorial
-- 📖 **[DevOps Backlog Integration](../guides/devops-adapter-integration.md)** 🆕 **NEW FEATURE** - Integrate SpecFact into agile DevOps workflows
-- 📖 **[Backlog Refinement](../guides/backlog-refinement.md)** 🆕 **NEW FEATURE** - AI-assisted template-driven refinement for standardizing work items
-- 📖 **[Tutorial: Backlog Quickstart Demo (GitHub + ADO)](tutorial-backlog-quickstart-demo.md)** 🆕 - Short end-to-end demo: `init-config`, `map-fields`, `daily`, `refine`, plus create/check loop
-- 📖 **[Tutorial: Backlog Refine with AI IDE](tutorial-backlog-refine-ai-ide.md)** 🆕 - End-to-end for agile DevOps teams: slash prompt, story quality, underspecification, splitting, DoR, custom templates
-- 📖 **[Tutorial: Daily Standup and Sprint Review](tutorial-daily-standup-sprint-review.md)** 🆕 - End-to-end daily standup: auto-detect repo (GitHub/ADO), view standup table, post comment, interactive, Copilot export
-- 📖 **[Use Cases](../guides/use-cases.md)** - See real-world examples
-- 📖 **[Command Reference](../reference/commands.md)** - Learn all available commands
+- **[Backlog Quickstart Demo](https://modules.specfact.io/getting-started/tutorial-backlog-quickstart-demo/)** - End-to-end backlog workflow
+- **[Backlog Refine with AI IDE](https://modules.specfact.io/getting-started/tutorial-backlog-refine-ai-ide/)** - Story quality and refinement
+- **[Daily Standup and Sprint Review](https://modules.specfact.io/getting-started/tutorial-daily-standup-sprint-review/)** - Standup automation
 
 ## Need Help?
 
-- 💬 [GitHub Discussions](https://github.com/nold-ai/specfact-cli/discussions)
-- 🐛 [GitHub Issues](https://github.com/nold-ai/specfact-cli/issues)
-- 📧 [hello@noldai.com](mailto:hello@noldai.com)
+- [GitHub Discussions](https://github.com/nold-ai/specfact-cli/discussions)
+- [GitHub Issues](https://github.com/nold-ai/specfact-cli/issues)
+- [hello@noldai.com](mailto:hello@noldai.com)

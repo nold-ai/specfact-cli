@@ -253,7 +253,7 @@ def test_command_reference_documents_patch_apply() -> None:
 
 
 def test_module_bootstrap_checklist_uses_current_bundle_ids() -> None:
-    checklist = _repo_file("docs/getting-started/module-bootstrap-checklist.md").read_text(encoding="utf-8")
+    checklist = _repo_file("docs/module-system/bootstrap-checklist.md").read_text(encoding="utf-8")
     assert "specfact module install backlog --source bundled" in checklist
     assert "backlog-core" not in checklist
 

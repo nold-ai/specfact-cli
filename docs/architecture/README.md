@@ -29,7 +29,7 @@ Architecture documents in this folder describe the current implementation and cl
 
 ## Related Reference
 
-- [Main Architecture Reference](../reference/architecture.md)
+- [Main Architecture Reference](../architecture/overview.md)
 - [Bridge Registry](../reference/bridge-registry.md)
 - [Module Development Guide](../guides/module-development.md)
 - [Adapter Development Guide](../guides/adapter-development.md)

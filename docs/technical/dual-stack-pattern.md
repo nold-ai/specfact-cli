@@ -155,5 +155,5 @@ The `cli_first_validator.py` module provides:
 ## Related Documentation
 
 - **[Dual-Stack Enrichment Guide](../guides/dual-stack-enrichment.md)** - End-user guide
-- **[Architecture Documentation](../reference/architecture.md)** - Enforcement rules and quality gates
-- **[Operational Modes](../reference/modes.md)** - CI/CD vs Copilot modes
+- **[Architecture Documentation](../architecture/overview.md)** - Enforcement rules and quality gates
+- **[Operational Modes](../core-cli/modes.md)** - CI/CD vs Copilot modes

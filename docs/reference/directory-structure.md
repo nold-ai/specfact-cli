@@ -34,7 +34,7 @@ All SpecFact artifacts are stored under `.specfact/` in the repository root. Thi
 - **Clear separation**: Plans (versioned) vs reports (ephemeral)
 - **CLI-first**: All artifacts are local, no cloud storage required
 
-**User-level debug logs**: When you run with `--debug`, the CLI also writes a rotating debug log under your home directory: `~/.specfact/logs/specfact-debug.log`. This is separate from repo-level `.specfact/` and is used only for global debug output. See [Debug Logging](debug-logging.md).
+**User-level debug logs**: When you run with `--debug`, the CLI also writes a rotating debug log under your home directory: `~/.specfact/logs/specfact-debug.log`. This is separate from repo-level `.specfact/` and is used only for global debug output. See [Debug Logging](../core-cli/debug-logging.md).
 
 **User-level registry** (v0.27+): After you run `specfact init`, the CLI creates `~/.specfact/registry/` with:
 
@@ -54,7 +54,7 @@ All SpecFact artifacts are stored under `.specfact/` in the repository root. Thi
 - SpecFact does **not** auto-discover `<repo>/modules` to avoid assuming ownership of non-`.specfact` repository paths.
 - In repository context, `<repo>/.specfact/modules` has higher discovery precedence than `<user-home>/.specfact/modules`.
 
-For how the CLI discovers and loads commands from module packages (registry, module-package.yaml, lazy loading), see [Architecture – Command Registry and Module System](architecture.md#command-registry-and-module-system).
+For how the CLI discovers and loads commands from module packages (registry, module-package.yaml, lazy loading), see [Architecture – Command Registry and Module System](../architecture/overview.md#command-registry-and-module-system).
 
 ## Source repository layout
 

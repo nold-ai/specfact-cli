@@ -33,10 +33,10 @@ This section contains deep technical documentation for:
 
 ## Related Documentation
 
-- [Architecture](../reference/architecture.md) - Technical design and principles
+- [Architecture](../architecture/overview.md) - Technical design and principles
 - [Commands](../reference/commands.md) - Complete command reference
 - [Getting Started](../getting-started/README.md) - Installation and setup
 
 ---
 
-**Note**: This section is intended for contributors and developers. For user guides, see [Guides](../guides/README.md).
+**Note**: This section is intended for contributors and developers. For user guides, see Guides.

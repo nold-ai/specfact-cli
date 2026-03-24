@@ -462,7 +462,7 @@ specfact project health-check
    specfact code import legacy-api --repo .
    ```
 
-4. **See [Operational Modes](../reference/modes.md)** for details
+4. **See [Operational Modes](../core-cli/modes.md)** for details
 
 ---
 
@@ -542,7 +542,12 @@ The CLI automatically detects terminal capabilities in this order:
    - Interactive TTY with animations → **GRAPHICAL** mode
    - Non-interactive → **BASIC** mode
 
-5. **Default Fallback**:
+5. **Encoding Safety Detection**:
+   - UTF-8 capable streams keep Unicode icons and Rich box drawing
+   - Legacy encodings (for example `cp1252`) disable emoji and switch to ASCII-safe box rendering
+   - Unicode-unsafe text streams are reconfigured with replacement error handling to avoid hard crashes during output
+
+6. **Default Fallback**:
    - If uncertain → **BASIC** mode (safe, readable output)
 
 ### Terminal Modes
@@ -552,6 +557,8 @@ The CLI supports three terminal modes (auto-selected based on detection):
 - **GRAPHICAL** - Full Rich features (colors, animations, progress bars) for interactive terminals
 - **BASIC** - Plain text, no animations, simple progress updates for CI/CD and embedded terminals
 - **MINIMAL** - Minimal output for test mode
+
+Rich output also downgrades symbol rendering when the active terminal encoding is not UTF-8-safe. This keeps Windows legacy consoles and other non-UTF-8 terminals readable instead of failing on icon output.
 
 ### Environment Variables (Optional Overrides)
 
@@ -762,7 +769,7 @@ The command automatically uses tokens in this order:
    - Ensure `.specfact/templates/backlog/field_mappings/ado_custom.yaml` exists and maps your canonical fields to the field names/paths that exist in your ADO project.
    - Use `specfact backlog map-fields --provider ado --ado-org <org> --ado-project <project> --non-interactive` first to auto-map fields and persist required-field / allowed-values metadata.
    - If auto-mapping exits with unresolved required fields, rerun `specfact backlog map-fields --ado-org <org> --ado-project <project>` interactively to correct mappings.
-   - See [Custom Field Mapping](custom-field-mapping.md) and [Debug Logging – Examining ADO API Errors](../reference/debug-logging.md#examining-ado-api-errors).
+   - See [Custom Field Mapping](custom-field-mapping.md) and [Debug Logging – Examining ADO API Errors](../core-cli/debug-logging.md#examining-ado-api-errors).
 
 4. **Check project process template** – Custom ADO process templates can rename or remove fields. Align your mapping with the actual work item type and process in the project.
 
@@ -806,7 +813,7 @@ If you're still experiencing issues:
 
 1. **Check logs**:
 
-   - **Debug log file** (when using `--debug`): Debug output and structured operation metadata are written to `~/.specfact/logs/specfact-debug.log`. See [Debug Logging](../reference/debug-logging.md) for what is logged and how to use it.
+   - **Debug log file** (when using `--debug`): Debug output and structured operation metadata are written to `~/.specfact/logs/specfact-debug.log`. See [Debug Logging](../core-cli/debug-logging.md) for what is logged and how to use it.
    - **Verbose repro** (ad-hoc capture):
 
    ```bash
@@ -818,7 +825,7 @@ If you're still experiencing issues:
 
    - [Command Reference](../reference/commands.md)
    - [Use Cases](use-cases.md)
-   - [Workflows](workflows.md)
+   - Workflows
 
 3. **Community support**:
 

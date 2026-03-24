@@ -644,26 +644,8 @@ class CodeAnalyzer:
             # Extract classes as features
             for node in ast.walk(tree):
                 if isinstance(node, ast.ClassDef):
-                    # For sequential keys, use placeholder (will be fixed after all features collected)
-                    # For classname keys, we can generate immediately
-                    current_count = 0 if self.key_format == "sequential" else len(self.features)
-
-                    # Extract Semgrep evidence for confidence scoring
-                    class_start_line = node.lineno if hasattr(node, "lineno") else None
-                    class_end_line = node.end_lineno if hasattr(node, "end_lineno") else None
-                    semgrep_evidence = self._extract_semgrep_evidence(
-                        semgrep_findings, node.name, class_start_line, class_end_line
-                    )
-
-                    # Create feature with Semgrep evidence included in confidence calculation
-                    feature = self._extract_feature_from_class_parallel(
-                        node, file_path, current_count, semgrep_evidence
-                    )
-                    if feature:
-                        # Enhance feature with detailed Semgrep findings (outcomes, constraints, themes)
-                        self._enhance_feature_with_semgrep(
-                            feature, semgrep_findings, file_path, node.name, class_start_line, class_end_line
-                        )
+                    feature = self._extract_feature_for_results(node, file_path, semgrep_findings)
+                    if feature is not None:
                         results["features"].append(feature)
 
         except (SyntaxError, UnicodeDecodeError):
@@ -671,6 +653,31 @@ class CodeAnalyzer:
             pass
 
         return results
+
+    def _extract_feature_for_results(
+        self,
+        node: ast.ClassDef,
+        file_path: Path,
+        semgrep_findings: list[dict[str, Any]],
+    ) -> Feature | None:
+        """Extract one feature while isolating per-class enhancement failures."""
+        current_count = 0 if self.key_format == "sequential" else len(self.features)
+        class_start_line = node.lineno if hasattr(node, "lineno") else None
+        class_end_line = node.end_lineno if hasattr(node, "end_lineno") else None
+        semgrep_evidence = self._extract_semgrep_evidence(semgrep_findings, node.name, class_start_line, class_end_line)
+
+        feature = self._extract_feature_from_class_parallel(node, file_path, current_count, semgrep_evidence)
+        if feature is None:
+            return None
+
+        try:
+            self._enhance_feature_with_semgrep(
+                feature, semgrep_findings, file_path, node.name, class_start_line, class_end_line
+            )
+        except Exception as exc:
+            console.print(f"[dim]⚠ Warning: Skipped Semgrep enhancement for {file_path}:{node.name}: {exc}[/dim]")
+
+        return feature
 
     def _merge_analysis_results(self, results: dict[str, Any]) -> None:
         """Merge parallel analysis results into instance variables."""
@@ -1327,10 +1334,16 @@ class CodeAnalyzer:
         if not methods:
             return None, None
         primary_method = methods[0]
-        scenarios = self.control_flow_analyzer.extract_scenarios_from_method(
-            primary_method, class_name, primary_method.name
-        )
-        contracts = self.contract_extractor.extract_function_contracts(primary_method)
+        try:
+            scenarios = self.control_flow_analyzer.extract_scenarios_from_method(
+                primary_method, class_name, primary_method.name
+            )
+        except Exception:
+            scenarios = None
+        try:
+            contracts = self.contract_extractor.extract_function_contracts(primary_method)
+        except Exception:
+            contracts = None
         return scenarios, contracts
 
     def _generate_story_title(self, group_name: str, class_name: str) -> str:

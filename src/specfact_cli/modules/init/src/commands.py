@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import subprocess
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import click
 import typer
@@ -23,14 +23,16 @@ from specfact_cli.registry.help_cache import run_discovery_and_write_cache
 from specfact_cli.registry.module_installer import USER_MODULES_ROOT as INIT_USER_MODULES_ROOT
 from specfact_cli.registry.module_packages import get_discovered_modules_for_state
 from specfact_cli.registry.module_state import write_modules_state
-from specfact_cli.runtime import debug_log_operation, debug_print, is_debug_mode, is_non_interactive
+from specfact_cli.runtime import debug_print, is_non_interactive
 from specfact_cli.telemetry import telemetry
+from specfact_cli.utils.contract_predicates import repo_path_exists, repo_path_is_dir
 from specfact_cli.utils.env_manager import EnvManager, EnvManagerInfo, build_tool_command, detect_env_manager
 from specfact_cli.utils.ide_setup import (
     IDE_CONFIG,
-    SPECFACT_COMMANDS,
-    copy_templates_to_ide,
+    _copy_template_files_to_ide,
+    _discover_module_resource_dirs,
     detect_ide,
+    discover_prompt_template_files,
     find_package_resources_path,
 )
 
@@ -49,8 +51,36 @@ install_bundles_for_init = first_run_selection.install_bundles_for_init
 is_first_run = first_run_selection.is_first_run
 
 
+@beartype
+@require(repo_path_exists, "Repo path must exist")
+@require(repo_path_is_dir, "Repo path must be a directory")
+@require(lambda ide: ide in IDE_CONFIG, "IDE must be valid")
+@ensure(
+    lambda result: (
+        isinstance(result, tuple)
+        and len(result) == 2
+        and isinstance(result[0], list)
+        and all(isinstance(path, Path) for path in result[0])
+        and (result[1] is None or isinstance(result[1], Path))
+    ),
+    "Must return copied files and optional settings path",
+)
+def copy_templates_to_ide(repo_path: Path, ide: str, force: bool = False) -> tuple[list[Path], Path | None]:
+    """Compatibility wrapper that discovers prompt templates before copying them."""
+    return _copy_template_files_to_ide(repo_path, ide, discover_prompt_template_files(repo_path), force)
+
+
 def _resolve_field_mapping_templates_dir(repo_path: Path) -> Path | None:
     """Locate backlog field mapping templates (dev checkout or installed package)."""
+    for resource_root in _discover_module_resource_dirs(
+        "resources/templates/backlog/field_mappings",
+        repo_path=repo_path,
+        categories={"backlog"},
+    ):
+        installed_templates_dir = (resource_root / "templates" / "backlog" / "field_mappings").resolve()
+        if installed_templates_dir.exists():
+            return installed_templates_dir
+
     dev_templates_dir = (repo_path / "resources" / "templates" / "backlog" / "field_mappings").resolve()
     if dev_templates_dir.exists():
         return dev_templates_dir
@@ -161,7 +191,8 @@ def _questionary_style() -> Any:
         import questionary  # type: ignore[reportMissingImports]
     except ImportError:
         return None
-    return questionary.Style(
+    questionary_module = cast(Any, questionary)
+    return questionary_module.Style(
         [
             ("qmark", "fg:#00af87 bold"),
             ("question", "bold"),
@@ -214,12 +245,16 @@ def _run_module_checkbox_prompt(
 ) -> list[str]:
     action_title = "Enable" if action == "enable" else "Disable"
     current_state = "disabled" if action == "enable" else "enabled"
-    selected: list[str] | None = questionary.checkbox(
-        f"{action_title} module(s) from currently {current_state}:",
-        choices=choices,
-        instruction="(multi-select)",
-        style=_questionary_style(),
-    ).ask()
+    selected: list[str] | None = (
+        cast(Any, questionary)
+        .checkbox(
+            f"{action_title} module(s) from currently {current_state}:",
+            choices=choices,
+            instruction="(multi-select)",
+            style=_questionary_style(),
+        )
+        .ask()
+    )
     if not selected:
         return []
     return [display_to_id[s] for s in selected if s in display_to_id]
@@ -261,46 +296,35 @@ def _select_module_ids_interactive(action: str, modules_list: list[dict[str, Any
 
 def _resolve_templates_dir(repo_path: Path) -> Path | None:
     """Resolve templates directory from repo checkout or installed package."""
+    prompt_files = discover_prompt_template_files(repo_path, include_package_fallback=False)
+    if prompt_files:
+        return prompt_files[0].parent
+
     dev_templates_dir = (repo_path / "resources" / "prompts").resolve()
     if dev_templates_dir.exists():
         return dev_templates_dir
-    try:
-        import importlib.resources
 
-        resources_ref = importlib.resources.files("specfact_cli")
-        templates_ref = resources_ref / "resources" / "prompts"
-        package_templates_dir = Path(str(templates_ref)).resolve()
-        if package_templates_dir.exists():
-            return package_templates_dir
-    except Exception as exc:
-        if is_debug_mode():
-            debug_log_operation(
-                "template_resolution",
-                "importlib.resources(specfact_cli/resources/prompts)",
-                "error",
-                error=repr(exc),
-            )
     return find_package_resources_path("specfact_cli", "resources/prompts")
 
 
-def _expected_ide_prompt_basenames(format_type: str) -> list[str]:
+def _expected_ide_prompt_basenames(repo_path: Path, format_type: str) -> list[str]:
+    prompt_files = discover_prompt_template_files(repo_path)
     if format_type == "prompt.md":
-        return [f"{cmd}.prompt.md" for cmd in SPECFACT_COMMANDS]
+        return [f"{path.stem}.prompt.md" for path in prompt_files]
     if format_type == "toml":
-        return [f"{cmd}.toml" for cmd in SPECFACT_COMMANDS]
-    return [f"{cmd}.md" for cmd in SPECFACT_COMMANDS]
+        return [f"{path.stem}.toml" for path in prompt_files]
+    return [path.name for path in prompt_files]
 
 
-def _count_outdated_ide_prompts(ide_dir: Path, templates_dir: Path, format_type: str) -> int:
+def _count_outdated_ide_prompts(ide_dir: Path, prompt_files: list[Path], format_type: str) -> int:
     outdated = 0
-    for cmd in SPECFACT_COMMANDS:
-        src = templates_dir / f"{cmd}.md"
+    for src in prompt_files:
         if format_type == "prompt.md":
-            dest = ide_dir / f"{cmd}.prompt.md"
+            dest = ide_dir / f"{src.stem}.prompt.md"
         elif format_type == "toml":
-            dest = ide_dir / f"{cmd}.toml"
+            dest = ide_dir / f"{src.stem}.toml"
         else:
-            dest = ide_dir / f"{cmd}.md"
+            dest = ide_dir / src.name
         if src.exists() and dest.exists() and dest.stat().st_mtime < src.stat().st_mtime:
             outdated += 1
     return outdated
@@ -312,7 +336,7 @@ def _audit_prompt_installation(repo_path: Path) -> None:
     config = IDE_CONFIG[detected_ide]
     ide_dir = repo_path / str(config["folder"])
     format_type = str(config["format"])
-    expected_files = _expected_ide_prompt_basenames(format_type)
+    expected_files = _expected_ide_prompt_basenames(repo_path, format_type)
 
     if not ide_dir.exists():
         console.print(
@@ -322,8 +346,8 @@ def _audit_prompt_installation(repo_path: Path) -> None:
         return
 
     missing = [name for name in expected_files if not (ide_dir / name).exists()]
-    templates_dir = _resolve_templates_dir(repo_path)
-    outdated = _count_outdated_ide_prompts(ide_dir, templates_dir, format_type) if templates_dir else 0
+    prompt_files = discover_prompt_template_files(repo_path)
+    outdated = _count_outdated_ide_prompts(ide_dir, prompt_files, format_type) if prompt_files else 0
 
     if not missing and outdated == 0:
         console.print(f"[green]Prompt status:[/green] {detected_ide} prompts are present and up to date.")
@@ -362,12 +386,16 @@ def _select_ide_interactive(default_ide: str) -> str:
         choices.append(label)
 
     default_label = next((lbl for lbl, iid in label_to_ide.items() if iid == default_ide), choices[0])
-    selected = questionary.select(
-        "Select IDE for prompt setup",
-        choices=choices,
-        default=default_label,
-        style=_questionary_style(),
-    ).ask()
+    selected = (
+        cast(Any, questionary)
+        .select(
+            "Select IDE for prompt setup",
+            choices=choices,
+            default=default_label,
+            style=_questionary_style(),
+        )
+        .ask()
+    )
     if not selected:
         raise typer.Exit(1)
     console.print(Rule(style="dim"))
@@ -441,11 +469,15 @@ def _manual_bundle_ids_from_questionary(questionary: Any) -> list[str]:
         f"{first_run_selection.BUNDLE_DISPLAY.get(bid, bid)}  [dim]({bid})[/dim]"
         for bid in first_run_selection.CANONICAL_BUNDLES
     ]
-    selected = questionary.checkbox(
-        "Select bundles to install:",
-        choices=bundle_choices,
-        style=_questionary_style(),
-    ).ask()
+    selected = (
+        cast(Any, questionary)
+        .checkbox(
+            "Select bundles to install:",
+            choices=bundle_choices,
+            style=_questionary_style(),
+        )
+        .ask()
+    )
     if not selected:
         return []
     return [bid for bid in first_run_selection.CANONICAL_BUNDLES if any(bid in s for s in selected)]
@@ -489,11 +521,15 @@ def _interactive_first_run_bundle_selection() -> list[str]:
     profile_to_key = {f"{label}  [dim]({key})[/dim]": key for key, label in first_run_selection.PROFILE_DISPLAY_ORDER}
     profile_to_key["Choose bundles manually"] = "_manual_"
 
-    choice = questionary.select(
-        "Select a profile or choose bundles manually:",
-        choices=[*profile_choices, "Choose bundles manually"],
-        style=_questionary_style(),
-    ).ask()
+    choice = (
+        cast(Any, questionary)
+        .select(
+            "Select a profile or choose bundles manually:",
+            choices=[*profile_choices, "Choose bundles manually"],
+            style=_questionary_style(),
+        )
+        .ask()
+    )
 
     if not choice:
         return []
@@ -559,13 +595,14 @@ def init_ide(
     if install_deps:
         _install_contract_enhancement_dependencies(repo_path, env_info)
 
-    templates_dir = _resolve_templates_dir(repo_path)
-    if not templates_dir or not templates_dir.exists():
+    prompt_files = discover_prompt_template_files(repo_path)
+    if not prompt_files:
         console.print("[red]Error:[/red] Templates directory not found.")
         raise typer.Exit(1)
 
-    console.print(f"[cyan]Templates:[/cyan] {templates_dir}")
-    copied_files, settings_path = copy_templates_to_ide(repo_path, selected_ide, templates_dir, force)
+    template_sources = ", ".join(sorted({str(path.parent) for path in prompt_files}))
+    console.print(f"[cyan]Templates:[/cyan] {template_sources}")
+    copied_files, settings_path = copy_templates_to_ide(repo_path, selected_ide, force)
     _copy_backlog_field_mapping_templates(repo_path, force, console)
 
     console.print()

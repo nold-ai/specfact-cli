@@ -333,9 +333,9 @@ Start: What do you need?
 ## See Also
 
 - [Command Chains Guide](./command-chains.md) - Complete workflows using integrations
-- [Common Tasks Guide](./common-tasks.md) - Quick reference for common integration tasks
+- Common Tasks Guide - Quick reference for common integration tasks
 - [Team Collaboration Workflow](./team-collaboration-workflow.md) - Using integrations in teams
-- [Migration Guide](./migration-guide.md) - Migrating between integrations
+- [Migration Guide](../migration/migration-guide.md) - Migrating between integrations
 
 ---
 

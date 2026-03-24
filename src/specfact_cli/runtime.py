@@ -28,7 +28,7 @@ from specfact_cli.common.logger_setup import (
 )
 from specfact_cli.modes import OperationalMode
 from specfact_cli.utils.structured_io import StructuredFormat
-from specfact_cli.utils.terminal import detect_terminal_capabilities, get_console_config
+from specfact_cli.utils.terminal import detect_terminal_capabilities, ensure_output_stream_safety, get_console_config
 
 
 DEBUG_LOG_DATEFMT = "%Y-%m-%d %H:%M:%S"
@@ -201,6 +201,7 @@ def get_configured_console() -> Console:
     (e.g. CliRunner's captured stdout after invoke() ends).
     """
     mode = get_terminal_mode()
+    ensure_output_stream_safety()
 
     if _is_test_env():
         config = get_console_config()

@@ -188,5 +188,5 @@ See also:
 
 - [Reference Index](README.md)
 - [Module Categories](module-categories.md)
-- [Installing Modules](../guides/installing-modules.md)
+- [Installing Modules](../module-system/installing-modules.md)
 - [Canonical modules docs site](https://modules.specfact.io/)

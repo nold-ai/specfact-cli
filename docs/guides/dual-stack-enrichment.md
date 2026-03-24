@@ -351,7 +351,7 @@ This is a real example of the validation loop pattern in action:
 
 ## Related Documentation
 
-- **[Architecture Documentation](../reference/architecture.md)** - Enforcement rules and quality gates
-- **[Operational Modes](../reference/modes.md)** - CI/CD vs Copilot modes
+- **[Architecture Documentation](../architecture/overview.md)** - Enforcement rules and quality gates
+- **[Operational Modes](../core-cli/modes.md)** - CI/CD vs Copilot modes
 - **[IDE Integration](ide-integration.md)** - Setting up slash commands
 - **[Command Reference](../reference/commands.md)** - Complete command reference

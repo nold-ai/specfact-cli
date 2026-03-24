@@ -11,7 +11,7 @@ permalink: /guides/ide-integration/
 
 **CLI-First Approach**: SpecFact works offline, requires no account, and integrates with your existing workflow. Works with VS Code, Cursor, GitHub Actions, pre-commit hooks, or any IDE. No platform to learn, no vendor lock-in.
 
-**Terminal Output**: The CLI automatically detects embedded terminals (Cursor, VS Code) and CI/CD environments, adapting output formatting automatically. Progress indicators work in all environments - see [Troubleshooting](troubleshooting.md#terminal-output-issues) for details.
+**Terminal Output**: The CLI automatically detects embedded terminals (Cursor, VS Code) and CI/CD environments, adapts formatting automatically, and falls back to ASCII-safe rendering when the active terminal encoding cannot display UTF-8 symbols. See [Troubleshooting](troubleshooting.md#terminal-output-issues) for details.
 
 ---
 
@@ -64,7 +64,7 @@ specfact init ide --ide cursor --install-deps
 **What it does:**
 
 1. Detects your IDE (or uses `--ide` flag)
-2. Copies prompt templates from `resources/prompts/` to IDE-specific location
+2. Discovers prompt templates from installed workflow modules first, then copies them to the IDE-specific location
 3. Creates/updates VS Code settings if needed
 4. Makes slash commands available in your IDE
 5. Optionally installs required packages for contract enhancement (if `--install-deps` is provided):
@@ -105,10 +105,11 @@ The IDE automatically recognizes these commands and provides enhanced prompts.
 
 Slash commands are **markdown prompt templates** (not executable CLI commands). They:
 
-1. **Live in your repository** - Templates are stored in `resources/prompts/` (packaged with SpecFact CLI)
-2. **Get copied to IDE locations** - `specfact init` copies them to IDE-specific directories
+1. **Are owned by installed workflow modules** - Bundle-specific prompts ship with their corresponding module packages
+2. **Get copied to IDE locations** - `specfact init ide` discovers installed module resources and copies them to IDE-specific directories
 3. **Registered automatically** - The IDE reads these files and makes them available as slash commands
-4. **Provide enhanced prompts** - Templates include detailed instructions for the AI assistant
+4. **Fall back safely during transition** - If no installed module prompt payloads are present yet, SpecFact can still use packaged core fallback resources
+5. **Provide enhanced prompts** - Templates include detailed instructions for the AI assistant
 
 ### Template Format
 
