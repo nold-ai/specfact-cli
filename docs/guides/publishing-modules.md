@@ -109,6 +109,6 @@ metadata.
 
 ## See also
 
-- [Module marketplace](module-marketplace.md) – Discovery, trust, and security.
+- [Module marketplace](../module-system/module-marketplace.md) – Discovery, trust, and security.
 - [Module signing and key rotation](module-signing-and-key-rotation.md) – Keys, signing, and verification.
-- [Custom registries](custom-registries.md) – Adding and configuring registries for install/search.
+- [Custom registries](../module-system/custom-registries.md) – Adding and configuring registries for install/search.

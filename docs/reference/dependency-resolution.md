@@ -43,5 +43,5 @@ Resolution is used only for **marketplace** installs. Bundled bootstrap copies a
 
 ## See also
 
-- [Installing modules](../guides/installing-modules.md) – Install behavior and dependency resolution section.
-- [Module marketplace](../guides/module-marketplace.md) – Registry and security model.
+- [Installing modules](../module-system/installing-modules.md) – Install behavior and dependency resolution section.
+- [Module marketplace](../module-system/module-marketplace.md) – Registry and security model.

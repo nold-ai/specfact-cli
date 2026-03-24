@@ -303,7 +303,7 @@ When updating internal tooling or extensions, prefer module-local imports over s
 If you encounter any issues during migration:
 
 1. Check the [Command Reference](../reference/commands.md) for updated examples
-2. Review the [Troubleshooting Guide](./troubleshooting.md)
+2. Review the [Troubleshooting Guide](../guides/troubleshooting.md)
 3. Open an issue on GitHub
 
 ---

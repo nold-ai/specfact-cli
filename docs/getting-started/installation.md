@@ -8,7 +8,7 @@ permalink: /getting-started/installation/
 
 This guide will help you get started with SpecFact CLI in under 60 seconds.
 
-> **Primary Use Case**: SpecFact CLI is designed for **brownfield code modernization** - reverse-engineering existing codebases into documented specs with runtime contract enforcement. See [First Steps](first-steps.md) for brownfield workflows.
+> **Primary Use Case**: SpecFact CLI is designed for **brownfield code modernization** - reverse-engineering existing codebases into documented specs with runtime contract enforcement. See [First Steps](quickstart.md) for brownfield workflows.
 
 ## Installation
 
@@ -376,7 +376,7 @@ specfact project sync repository --repo . --watch
 
 1. **Explore Commands**: See [Command Reference](../reference/commands.md)
 2. **Learn Use Cases**: Read [Use Cases](../guides/use-cases.md)
-3. **Understand Architecture**: Check [Architecture](../reference/architecture.md)
+3. **Understand Architecture**: Check [Architecture](../architecture/overview.md)
 4. **Set Up IDE Integration**: See [IDE Integration Guide](../guides/ide-integration.md)
 
 ## Quick Tips

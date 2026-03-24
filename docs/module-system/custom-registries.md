@@ -77,4 +77,4 @@ When multiple registries are configured, they are queried in order: official fir
 
 - [Module marketplace](module-marketplace.md) – Discovery and security model.
 - [Installing modules](installing-modules.md) – Install, list, search, and upgrade.
-- [Publishing modules](publishing-modules.md) – Package and publish modules to a registry.
+- [Publishing modules](../guides/publishing-modules.md) – Package and publish modules to a registry.

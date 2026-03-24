@@ -200,5 +200,5 @@ Team collaboration commands are part of the **Plan Promotion & Release Chain**:
 
 - [Agile/Scrum Workflows](agile-scrum-workflows.md) - Complete persona-based collaboration guide
 - [Command Chains Reference](command-chains.md) - Complete workflows
-- [Common Tasks Index](common-tasks.md) - Quick reference
+- Common Tasks Index - Quick reference
 - [Project Commands Reference](../reference/commands.md#project---project-bundle-management) - Complete command documentation

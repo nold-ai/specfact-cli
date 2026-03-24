@@ -244,7 +244,7 @@ If import is interrupted:
 - [Command Reference](../reference/commands.md#import-from-code) - Complete command documentation
 - [Quick Examples](../examples/quick-examples.md) - Quick command examples
 - [Brownfield Engineer Guide](brownfield-engineer.md) - Complete brownfield workflow
-- [Common Tasks](common-tasks.md) - Common import scenarios
+- Common Tasks - Common import scenarios
 
 ---
 

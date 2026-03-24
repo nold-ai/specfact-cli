@@ -37,10 +37,10 @@ Start: What do you need to migrate?
 │     └─ → See [CLI Reorganization Migration](migration-cli-reorganization.md)
 │
 ├─ Migrating from Spec-Kit?
-│  └─ → See [Spec-Kit Journey Guide](speckit-journey.md)
+│  └─ → See [Spec-Kit Journey Guide](../guides/speckit-journey.md)
 │
 ├─ Migrating from OpenSpec?
-│  └─ → See [OpenSpec Journey Guide](openspec-journey.md)
+│  └─ → See [OpenSpec Journey Guide](../guides/openspec-journey.md)
 │
 └─ Restructuring project bundles?
    └─ → See [Project Bundle Management](../reference/commands.md#project---project-bundle-management)
@@ -91,7 +91,7 @@ Start: What do you need to migrate?
 3. Set up bidirectional sync (optional)
 4. Enforce SDD compliance
 
-**Detailed Guide**: [Spec-Kit Journey Guide](speckit-journey.md)
+**Detailed Guide**: [Spec-Kit Journey Guide](../guides/speckit-journey.md)
 
 **Command Chain**: [External Tool Integration Chain](command-chains.md#3-external-tool-integration-chain)
 
@@ -106,7 +106,7 @@ Start: What do you need to migrate?
 3. Set up DevOps sync (optional)
 4. Enforce SDD compliance
 
-**Detailed Guide**: [OpenSpec Journey Guide](openspec-journey.md)
+**Detailed Guide**: [OpenSpec Journey Guide](../guides/openspec-journey.md)
 
 **Command Chain**: [External Tool Integration Chain](command-chains.md#3-external-tool-integration-chain)
 
@@ -200,7 +200,7 @@ specfact project sync bridge --adapter speckit --bundle <bundle-name> --bidirect
 specfact govern enforce sdd --bundle <bundle-name>
 ```
 
-**Related**: [Spec-Kit Journey Guide](speckit-journey.md)
+**Related**: [Spec-Kit Journey Guide](../guides/speckit-journey.md)
 
 ---
 
@@ -229,14 +229,14 @@ specfact project regenerate --bundle <bundle-name>
 3. Use `project health-check` to check status
 4. Re-import if needed
 
-**Related**: [Troubleshooting Guide](troubleshooting.md)
+**Related**: [Troubleshooting Guide](../guides/troubleshooting.md)
 
 ---
 
 ## See Also
 
-- [Command Chains Reference](command-chains.md) - Complete workflows
-- [Common Tasks Index](common-tasks.md) - Quick reference
-- [Spec-Kit Journey Guide](speckit-journey.md) - Spec-Kit migration
-- [OpenSpec Journey Guide](openspec-journey.md) - OpenSpec migration
-- [Troubleshooting Guide](troubleshooting.md) - Common issues
+- [Command Chains Reference](../guides/command-chains.md) - Complete workflows
+- Common Tasks Index - Quick reference
+- [Spec-Kit Journey Guide](../guides/speckit-journey.md) - Spec-Kit migration
+- [OpenSpec Journey Guide](../guides/openspec-journey.md) - OpenSpec migration
+- [Troubleshooting Guide](../guides/troubleshooting.md) - Common issues

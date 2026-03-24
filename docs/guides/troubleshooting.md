@@ -462,7 +462,7 @@ specfact project health-check
    specfact code import legacy-api --repo .
    ```
 
-4. **See [Operational Modes](../reference/modes.md)** for details
+4. **See [Operational Modes](../core-cli/modes.md)** for details
 
 ---
 
@@ -762,7 +762,7 @@ The command automatically uses tokens in this order:
    - Ensure `.specfact/templates/backlog/field_mappings/ado_custom.yaml` exists and maps your canonical fields to the field names/paths that exist in your ADO project.
    - Use `specfact backlog map-fields --provider ado --ado-org <org> --ado-project <project> --non-interactive` first to auto-map fields and persist required-field / allowed-values metadata.
    - If auto-mapping exits with unresolved required fields, rerun `specfact backlog map-fields --ado-org <org> --ado-project <project>` interactively to correct mappings.
-   - See [Custom Field Mapping](custom-field-mapping.md) and [Debug Logging – Examining ADO API Errors](../reference/debug-logging.md#examining-ado-api-errors).
+   - See [Custom Field Mapping](custom-field-mapping.md) and [Debug Logging – Examining ADO API Errors](../core-cli/debug-logging.md#examining-ado-api-errors).
 
 4. **Check project process template** – Custom ADO process templates can rename or remove fields. Align your mapping with the actual work item type and process in the project.
 
@@ -806,7 +806,7 @@ If you're still experiencing issues:
 
 1. **Check logs**:
 
-   - **Debug log file** (when using `--debug`): Debug output and structured operation metadata are written to `~/.specfact/logs/specfact-debug.log`. See [Debug Logging](../reference/debug-logging.md) for what is logged and how to use it.
+   - **Debug log file** (when using `--debug`): Debug output and structured operation metadata are written to `~/.specfact/logs/specfact-debug.log`. See [Debug Logging](../core-cli/debug-logging.md) for what is logged and how to use it.
    - **Verbose repro** (ad-hoc capture):
 
    ```bash
@@ -818,7 +818,7 @@ If you're still experiencing issues:
 
    - [Command Reference](../reference/commands.md)
    - [Use Cases](use-cases.md)
-   - [Workflows](workflows.md)
+   - Workflows
 
 3. **Community support**:
 

@@ -1404,7 +1404,7 @@ Verify `openspec/changes/<change-id>/proposal.md` was updated:
 - [Integrations Overview](integrations-overview.md) - Overview of all SpecFact CLI integrations
 
 - [Command Chains Reference](command-chains.md) - Complete workflows including [External Tool Integration Chain](command-chains.md#3-external-tool-integration-chain)
-- [Common Tasks Index](common-tasks.md) - Quick reference for DevOps integration tasks
+- Common Tasks Index - Quick reference for DevOps integration tasks
 - [OpenSpec Journey](openspec-journey.md) - OpenSpec integration with DevOps export
 - [Agile/Scrum Workflows](agile-scrum-workflows.md) - Persona-based backlog management
 
@@ -1419,7 +1419,7 @@ Verify `openspec/changes/<change-id>/proposal.md` was updated:
 
 ### Architecture & Troubleshooting
 
-- [Architecture](../reference/architecture.md) - System architecture and design
+- [Architecture](../architecture/overview.md) - System architecture and design
 - [Troubleshooting](troubleshooting.md) - Common issues and solutions
 
 ---

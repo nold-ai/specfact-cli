@@ -217,4 +217,4 @@ Debug logs are **critical for anomaly analysis, unexpected errors/failures, repo
 
 ### Relation to Other Logging
 
-- **`~/.specfact/logs/`** is for the **global** `--debug` session log only (`specfact-debug.log`). It is **not** the same as bundle-specific `.specfact/projects/<bundle>/logs/` (used for other runtime/agent logs). See [Directory Structure](directory-structure.md).
+- **`~/.specfact/logs/`** is for the **global** `--debug` session log only (`specfact-debug.log`). It is **not** the same as bundle-specific `.specfact/projects/<bundle>/logs/` (used for other runtime/agent logs). See [Directory Structure](../reference/directory-structure.md).

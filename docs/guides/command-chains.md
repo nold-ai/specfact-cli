@@ -194,7 +194,7 @@ graph TD
 **Related Guides**:
 
 - [Agile/Scrum Workflows](agile-scrum-workflows.md) - Persona-based planning
-- [Workflows Guide](workflows.md) - General workflow patterns
+- Workflows Guide - General workflow patterns
 
 ---
 
@@ -700,11 +700,11 @@ The following commands are now integrated into documented workflows:
 
 ### `migrate *` Commands
 
-**Integrated into**: [Migration Guide](migration-guide.md)
+**Integrated into**: [Migration Guide](../migration/migration-guide.md)
 
 **When to use**: Migrating between versions or from other tools.
 
-**Workflow**: See [Migration Guide](migration-guide.md) for decision tree and workflows.
+**Workflow**: See [Migration Guide](../migration/migration-guide.md) for decision tree and workflows.
 
 ---
 
@@ -730,7 +730,7 @@ The following commands are now integrated into documented workflows:
 
 ## See Also
 
-- [Common Tasks Index](common-tasks.md) - Quick reference for "How do I X?" questions
+- Common Tasks Index - Quick reference for "How do I X?" questions
 - [Command Reference](../reference/commands.md) - Complete command documentation
 - [Agile/Scrum Workflows](agile-scrum-workflows.md) - Team collaboration patterns
 - [Brownfield Engineer Guide](brownfield-engineer.md) - Legacy modernization guide
@@ -738,4 +738,4 @@ The following commands are now integrated into documented workflows:
 - [Spec-Kit Journey](speckit-journey.md) - Spec-Kit integration
 - [OpenSpec Journey](openspec-journey.md) - OpenSpec integration
 - [Team Collaboration Workflow](team-collaboration-workflow.md) - Team collaboration guide
-- [Migration Guide](migration-guide.md) - Migration decision tree
+- [Migration Guide](../migration/migration-guide.md) - Migration decision tree

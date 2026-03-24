@@ -98,7 +98,7 @@ Public key for runtime verification:
 Scope boundary:
 
 - This change set hardens local and bundled module safety.
-- For publishing your own modules to a registry, see [Publishing modules](publishing-modules.md).
+- For publishing your own modules to a registry, see [Publishing modules](../guides/publishing-modules.md).
 
 ## Marketplace vs Local Modules
 

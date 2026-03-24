@@ -15,10 +15,10 @@ For bundle-specific deep command guides and runbooks, use the canonical modules 
 
 - **[Commands](commands.md)** - Exact grouped command topology and migration mapping
 - **[Command Syntax Policy](command-syntax-policy.md)** - Source-of-truth argument syntax conventions for docs
-- **[Architecture](architecture.md)** - Technical design, module structure, and internals
+- **[Architecture](../architecture/overview.md)** - Technical design, module structure, and internals
 - **[Authentication](authentication.md)** - Device code auth flows and token storage
-- **[Debug Logging](debug-logging.md)** - Where and what is logged when using `--debug`
-- **[Operational Modes](modes.md)** - CI/CD vs CoPilot modes
+- **[Debug Logging](../core-cli/debug-logging.md)** - Where and what is logged when using `--debug`
+- **[Operational Modes](../core-cli/modes.md)** - CI/CD vs CoPilot modes
 - **[Module Categories](module-categories.md)** - Category grouping model and canonical bundle assignments
 - **[Module Contracts](module-contracts.md)** - Runtime-facing interfaces and ownership boundary
 - **[Module Security](module-security.md)** - Marketplace/module integrity and publisher metadata
