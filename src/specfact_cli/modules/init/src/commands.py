@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import subprocess
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import click
 import typer
@@ -25,6 +25,7 @@ from specfact_cli.registry.module_packages import get_discovered_modules_for_sta
 from specfact_cli.registry.module_state import write_modules_state
 from specfact_cli.runtime import debug_print, is_non_interactive
 from specfact_cli.telemetry import telemetry
+from specfact_cli.utils.contract_predicates import repo_path_exists, repo_path_is_dir
 from specfact_cli.utils.env_manager import EnvManager, EnvManagerInfo, build_tool_command, detect_env_manager
 from specfact_cli.utils.ide_setup import (
     IDE_CONFIG,
@@ -48,7 +49,25 @@ PROFILE_BUNDLES: dict[str, list[str]] = first_run_selection.PROFILE_PRESETS
 
 install_bundles_for_init = first_run_selection.install_bundles_for_init
 is_first_run = first_run_selection.is_first_run
-copy_templates_to_ide = _copy_template_files_to_ide
+
+
+@beartype
+@require(repo_path_exists, "Repo path must exist")
+@require(repo_path_is_dir, "Repo path must be a directory")
+@require(lambda ide: ide in IDE_CONFIG, "IDE must be valid")
+@ensure(
+    lambda result: (
+        isinstance(result, tuple)
+        and len(result) == 2
+        and isinstance(result[0], list)
+        and all(isinstance(path, Path) for path in result[0])
+        and (result[1] is None or isinstance(result[1], Path))
+    ),
+    "Must return copied files and optional settings path",
+)
+def copy_templates_to_ide(repo_path: Path, ide: str, force: bool = False) -> tuple[list[Path], Path | None]:
+    """Compatibility wrapper that discovers prompt templates before copying them."""
+    return _copy_template_files_to_ide(repo_path, ide, discover_prompt_template_files(repo_path), force)
 
 
 def _resolve_field_mapping_templates_dir(repo_path: Path) -> Path | None:
@@ -172,7 +191,8 @@ def _questionary_style() -> Any:
         import questionary  # type: ignore[reportMissingImports]
     except ImportError:
         return None
-    return questionary.Style(
+    questionary_module = cast(Any, questionary)
+    return questionary_module.Style(
         [
             ("qmark", "fg:#00af87 bold"),
             ("question", "bold"),
@@ -225,12 +245,16 @@ def _run_module_checkbox_prompt(
 ) -> list[str]:
     action_title = "Enable" if action == "enable" else "Disable"
     current_state = "disabled" if action == "enable" else "enabled"
-    selected: list[str] | None = questionary.checkbox(
-        f"{action_title} module(s) from currently {current_state}:",
-        choices=choices,
-        instruction="(multi-select)",
-        style=_questionary_style(),
-    ).ask()
+    selected: list[str] | None = (
+        cast(Any, questionary)
+        .checkbox(
+            f"{action_title} module(s) from currently {current_state}:",
+            choices=choices,
+            instruction="(multi-select)",
+            style=_questionary_style(),
+        )
+        .ask()
+    )
     if not selected:
         return []
     return [display_to_id[s] for s in selected if s in display_to_id]
@@ -362,12 +386,16 @@ def _select_ide_interactive(default_ide: str) -> str:
         choices.append(label)
 
     default_label = next((lbl for lbl, iid in label_to_ide.items() if iid == default_ide), choices[0])
-    selected = questionary.select(
-        "Select IDE for prompt setup",
-        choices=choices,
-        default=default_label,
-        style=_questionary_style(),
-    ).ask()
+    selected = (
+        cast(Any, questionary)
+        .select(
+            "Select IDE for prompt setup",
+            choices=choices,
+            default=default_label,
+            style=_questionary_style(),
+        )
+        .ask()
+    )
     if not selected:
         raise typer.Exit(1)
     console.print(Rule(style="dim"))
@@ -441,11 +469,15 @@ def _manual_bundle_ids_from_questionary(questionary: Any) -> list[str]:
         f"{first_run_selection.BUNDLE_DISPLAY.get(bid, bid)}  [dim]({bid})[/dim]"
         for bid in first_run_selection.CANONICAL_BUNDLES
     ]
-    selected = questionary.checkbox(
-        "Select bundles to install:",
-        choices=bundle_choices,
-        style=_questionary_style(),
-    ).ask()
+    selected = (
+        cast(Any, questionary)
+        .checkbox(
+            "Select bundles to install:",
+            choices=bundle_choices,
+            style=_questionary_style(),
+        )
+        .ask()
+    )
     if not selected:
         return []
     return [bid for bid in first_run_selection.CANONICAL_BUNDLES if any(bid in s for s in selected)]
@@ -489,11 +521,15 @@ def _interactive_first_run_bundle_selection() -> list[str]:
     profile_to_key = {f"{label}  [dim]({key})[/dim]": key for key, label in first_run_selection.PROFILE_DISPLAY_ORDER}
     profile_to_key["Choose bundles manually"] = "_manual_"
 
-    choice = questionary.select(
-        "Select a profile or choose bundles manually:",
-        choices=[*profile_choices, "Choose bundles manually"],
-        style=_questionary_style(),
-    ).ask()
+    choice = (
+        cast(Any, questionary)
+        .select(
+            "Select a profile or choose bundles manually:",
+            choices=[*profile_choices, "Choose bundles manually"],
+            style=_questionary_style(),
+        )
+        .ask()
+    )
 
     if not choice:
         return []
@@ -566,7 +602,7 @@ def init_ide(
 
     template_sources = ", ".join(sorted({str(path.parent) for path in prompt_files}))
     console.print(f"[cyan]Templates:[/cyan] {template_sources}")
-    copied_files, settings_path = _copy_template_files_to_ide(repo_path, selected_ide, prompt_files, force)
+    copied_files, settings_path = copy_templates_to_ide(repo_path, selected_ide, force)
     _copy_backlog_field_mapping_templates(repo_path, force, console)
 
     console.print()

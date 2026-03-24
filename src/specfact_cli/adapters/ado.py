@@ -12,10 +12,10 @@ from __future__ import annotations
 
 import os
 import re
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, NoReturn, cast
+from typing import Any, NoReturn, Protocol, cast
 from urllib.parse import urlparse
 
 import requests
@@ -49,6 +49,19 @@ _ADO_STABLE_API_VERSION = "7.1"
 _ADO_COMMENTS_API_VERSION = "7.1-preview.4"
 
 console = Console()
+
+
+class _AccessTokenLike(Protocol):
+    """Typed subset of Azure access token fields used by refresh logic."""
+
+    token: str
+    expires_on: int
+
+
+def _get_access_token(credential: Any, scopes: list[str]) -> _AccessTokenLike:
+    """Return a typed Azure access token from a credential object."""
+    get_token_fn = cast(Callable[..., _AccessTokenLike], credential.get_token)
+    return get_token_fn(*scopes)
 
 
 def _as_str_dict(obj: dict[Any, Any]) -> dict[str, Any]:
@@ -1850,7 +1863,7 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             # offline_access is a reserved scope and cannot be explicitly requested
             azure_devops_resource = "499b84ac-1321-427f-aa17-267ca6975798/.default"
             azure_devops_scopes = [azure_devops_resource]
-            token = credential.get_token(*azure_devops_scopes)
+            token = _get_access_token(credential, azure_devops_scopes)
 
             # Return refreshed token data
             from datetime import UTC, datetime
