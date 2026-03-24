@@ -262,5 +262,5 @@ specfact init ide --ide cursor --force
 
 - [IDE Integration Guide](ide-integration.md) - Complete setup and configuration
 - [Command Chains Reference](command-chains.md) - Complete workflows
-- [Common Tasks Index](common-tasks.md) - Quick reference
+- Common Tasks Index - Quick reference
 - [Generate Commands Reference](../reference/commands.md#generate---generate-artifacts) - Command documentation

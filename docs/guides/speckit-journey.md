@@ -514,7 +514,7 @@ specfact govern enforce stage --preset strict
 - [Integrations Overview](integrations-overview.md) - Overview of all SpecFact CLI integrations
 
 - [Command Chains Reference](command-chains.md) - Complete workflows including [External Tool Integration Chain](command-chains.md#3-external-tool-integration-chain)
-- [Common Tasks Index](common-tasks.md) - Quick reference for "How do I sync with Spec-Kit?"
+- Common Tasks Index - Quick reference for "How do I sync with Spec-Kit?"
 - [Spec-Kit Comparison](speckit-comparison.md) - Detailed comparison guide
 - [Use Cases](use-cases.md) - Detailed Spec-Kit migration use case
 
@@ -531,7 +531,7 @@ specfact govern enforce stage --preset strict
 ### Getting Started
 
 - [Getting Started](../getting-started/README.md) - Quick setup guide
-- [Architecture](../reference/architecture.md) - How SpecFact integrates with Spec-Kit
+- [Architecture](../architecture/overview.md) - How SpecFact integrates with Spec-Kit
 
 ---
 

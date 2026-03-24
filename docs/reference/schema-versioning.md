@@ -175,6 +175,6 @@ schema_metadata:
 
 ## Related Documentation
 
-- [Architecture - Change Tracking Models](../reference/architecture.md#change-tracking-models-v11-schema) - Technical details
-- [Architecture - Required Adapter Interface](../reference/architecture.md#required-adapter-interface) - Adapter implementation guide
+- [Architecture - Change Tracking Models](../architecture/overview.md#change-tracking-models-v11-schema) - Technical details
+- [Architecture - Required Adapter Interface](../architecture/overview.md#required-adapter-interface) - Adapter implementation guide
 - [Directory Structure](directory-structure.md) - Bundle file organization

@@ -457,7 +457,7 @@ This separation enables:
 - [Integrations Overview](integrations-overview.md) - Overview of all SpecFact CLI integrations
 
 - [Command Chains Reference](command-chains.md) - Complete workflows including [External Tool Integration Chain](command-chains.md#3-external-tool-integration-chain)
-- [Common Tasks Index](common-tasks.md) - Quick reference for OpenSpec integration tasks
+- Common Tasks Index - Quick reference for OpenSpec integration tasks
 - [DevOps Adapter Integration](devops-adapter-integration.md) - GitHub Issues and backlog tracking
 - [Team Collaboration Workflow](team-collaboration-workflow.md) - Team collaboration patterns
 
@@ -474,7 +474,7 @@ This separation enables:
 ### Getting Started
 
 - [Getting Started](../getting-started/README.md) - Quick setup guide
-- [Architecture](../reference/architecture.md) - System architecture and design
+- [Architecture](../architecture/overview.md) - System architecture and design
 
 ---
 

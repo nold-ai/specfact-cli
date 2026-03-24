@@ -92,6 +92,6 @@ class MyAdapter(BridgeAdapter):
 
 ## Related docs
 
-- [Architecture Reference](../reference/architecture.md)
+- [Architecture Reference](../architecture/overview.md)
 - [Bridge Registry](../reference/bridge-registry.md)
 - [Creating Custom Bridges](creating-custom-bridges.md)

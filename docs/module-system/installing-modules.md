@@ -1,7 +1,9 @@
 ---
 layout: default
 title: Installing Modules
-permalink: /guides/installing-modules/
+permalink: /module-system/installing-modules/
+redirect_from:
+  - /guides/installing-modules/
 description: Install, list, show, enable, disable, uninstall, and upgrade SpecFact modules.
 ---
 
