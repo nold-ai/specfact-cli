@@ -93,7 +93,7 @@ Start: What do you need to migrate?
 
 **Detailed Guide**: [Spec-Kit Journey Guide](../guides/speckit-journey.md)
 
-**Command Chain**: [External Tool Integration Chain](command-chains.md#3-external-tool-integration-chain)
+**Command Chain**: [External Tool Integration Chain](../guides/command-chains.md#3-external-tool-integration-chain)
 
 ---
 
@@ -108,7 +108,7 @@ Start: What do you need to migrate?
 
 **Detailed Guide**: [OpenSpec Journey Guide](../guides/openspec-journey.md)
 
-**Command Chain**: [External Tool Integration Chain](command-chains.md#3-external-tool-integration-chain)
+**Command Chain**: [External Tool Integration Chain](../guides/command-chains.md#3-external-tool-integration-chain)
 
 ---
 
