@@ -23,7 +23,7 @@ from specfact_cli.registry.help_cache import run_discovery_and_write_cache
 from specfact_cli.registry.module_installer import USER_MODULES_ROOT as INIT_USER_MODULES_ROOT
 from specfact_cli.registry.module_packages import get_discovered_modules_for_state
 from specfact_cli.registry.module_state import write_modules_state
-from specfact_cli.runtime import debug_log_operation, debug_print, is_debug_mode, is_non_interactive
+from specfact_cli.runtime import debug_print, is_non_interactive
 from specfact_cli.telemetry import telemetry
 from specfact_cli.utils.env_manager import EnvManager, EnvManagerInfo, build_tool_command, detect_env_manager
 from specfact_cli.utils.ide_setup import (
@@ -48,6 +48,7 @@ PROFILE_BUNDLES: dict[str, list[str]] = first_run_selection.PROFILE_PRESETS
 
 install_bundles_for_init = first_run_selection.install_bundles_for_init
 is_first_run = first_run_selection.is_first_run
+copy_templates_to_ide = _copy_template_files_to_ide
 
 
 def _resolve_field_mapping_templates_dir(repo_path: Path) -> Path | None:
@@ -271,29 +272,14 @@ def _select_module_ids_interactive(action: str, modules_list: list[dict[str, Any
 
 def _resolve_templates_dir(repo_path: Path) -> Path | None:
     """Resolve templates directory from repo checkout or installed package."""
-    prompt_files = discover_prompt_template_files(repo_path)
+    prompt_files = discover_prompt_template_files(repo_path, include_package_fallback=False)
     if prompt_files:
         return prompt_files[0].parent
 
     dev_templates_dir = (repo_path / "resources" / "prompts").resolve()
     if dev_templates_dir.exists():
         return dev_templates_dir
-    try:
-        import importlib.resources
 
-        resources_ref = importlib.resources.files("specfact_cli")
-        templates_ref = resources_ref / "resources" / "prompts"
-        package_templates_dir = Path(str(templates_ref)).resolve()
-        if package_templates_dir.exists():
-            return package_templates_dir
-    except Exception as exc:
-        if is_debug_mode():
-            debug_log_operation(
-                "template_resolution",
-                "importlib.resources(specfact_cli/resources/prompts)",
-                "error",
-                error=repr(exc),
-            )
     return find_package_resources_path("specfact_cli", "resources/prompts")
 
 

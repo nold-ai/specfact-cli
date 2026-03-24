@@ -265,8 +265,8 @@ def _discover_module_resource_dirs(
     lambda result: isinstance(result, list) and all(isinstance(path, Path) for path in result),
     "Must return list of Paths",
 )
-def discover_prompt_template_files(repo_path: Path) -> list[Path]:
-    """Return prompt templates from installed modules, falling back to core checkout resources."""
+def discover_prompt_template_files(repo_path: Path, include_package_fallback: bool = True) -> list[Path]:
+    """Return prompt templates from installed modules, then repo resources, then optional package fallback."""
     prompt_files: list[Path] = []
     seen_names: set[str] = set()
 
@@ -280,10 +280,10 @@ def discover_prompt_template_files(repo_path: Path) -> list[Path]:
     if prompt_files:
         return prompt_files
 
-    fallback_dirs = [
-        (repo_path / "resources" / "prompts").resolve(),
-        find_package_resources_path("specfact_cli", "resources/prompts"),
-    ]
+    fallback_dirs: list[Path | None] = [(repo_path / "resources" / "prompts").resolve()]
+    if include_package_fallback:
+        fallback_dirs.append(find_package_resources_path("specfact_cli", "resources/prompts"))
+
     for fallback_dir in fallback_dirs:
         if fallback_dir is None:
             continue
