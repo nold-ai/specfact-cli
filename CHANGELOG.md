@@ -10,6 +10,16 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.42.4] - 2026-03-24
+
+### Fixed
+
+- Hardened terminal output handling for non-UTF-8 environments so Rich output degrades safely on Windows, Linux, and macOS terminals that cannot render Unicode symbols or box drawing characters.
+- Updated `specfact init ide` to discover prompt templates and backlog field mapping resources from installed module locations first, with path-based fallback behavior that remains compatible across different install methods such as Hatch, pip, pipx, and uv.
+- Improved bundled module runtime compatibility failures to surface actionable interpreter and reinstall guidance instead of opaque import/load errors.
+
+---
+
 ## [0.42.3] - 2026-03-23
 
 ### Fixed
