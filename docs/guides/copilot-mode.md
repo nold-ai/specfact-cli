@@ -190,7 +190,7 @@ For IDE integration with slash commands, see:
 
 - [IDE Integration Guide](ide-integration.md) - Set up IDE slash commands
 - [Command Reference](../reference/commands.md) - All CLI commands
-- [Architecture](../reference/architecture.md) - Technical details
+- [Architecture](../architecture/overview.md) - Technical details
 
 ---
 

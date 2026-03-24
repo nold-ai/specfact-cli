@@ -31,6 +31,6 @@ This page tracks implemented vs planned architecture capabilities.
 
 ## References
 
-- [Architecture Reference](../reference/architecture.md)
+- [Architecture Reference](../architecture/overview.md)
 - [Architecture Docs Index](README.md)
 - [Discrepancies Report](discrepancies-report.md)

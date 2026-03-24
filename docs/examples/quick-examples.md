@@ -336,9 +336,9 @@ specfact code import my-project --repo . --confidence 0.8
 ## Related Documentation
 
 - [Getting Started](../getting-started/README.md) - Installation and first steps
-- [First Steps](../getting-started/first-steps.md) - Step-by-step first commands
+- [First Steps](../getting-started/quickstart.md) - Step-by-step first commands
 - [Use Cases](../guides/use-cases.md) - Detailed use case scenarios
-- [Workflows](../guides/workflows.md) - Common daily workflows
+- Workflows - Common daily workflows
 - [Command Reference](../reference/commands.md) - Complete command reference
 
 ---

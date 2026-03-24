@@ -1,7 +1,9 @@
 ---
 layout: default
 title: Module Bootstrap Checklist
-permalink: /getting-started/module-bootstrap-checklist/
+permalink: /module-system/bootstrap-checklist/
+redirect_from:
+  - /getting-started/module-bootstrap-checklist/
 description: Quick checklist to verify official workflow bundles are installed and discoverable in user/project scope.
 ---
 

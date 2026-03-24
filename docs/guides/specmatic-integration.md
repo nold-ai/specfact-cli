@@ -626,7 +626,7 @@ Errors:
 
 - [Integrations Overview](integrations-overview.md) - Overview of all SpecFact CLI integrations
 - [Command Chains Reference](command-chains.md) - Complete workflows including [API Contract Development Chain](command-chains.md#4-api-contract-development-chain)
-- [Common Tasks Index](common-tasks.md) - Quick reference for API-related tasks
+- Common Tasks Index - Quick reference for API-related tasks
 - [Contract Testing Workflow](contract-testing-workflow.md) - Contract testing patterns
 
 ### Related Commands

@@ -1,7 +1,9 @@
 ---
 layout: default
 title: Module Marketplace
-permalink: /guides/module-marketplace/
+permalink: /module-system/module-marketplace/
+redirect_from:
+  - /guides/module-marketplace/
 description: Registry model, discovery priority, trust semantics, and security checks for SpecFact modules.
 ---
 
@@ -96,7 +98,7 @@ Public key for runtime verification:
 Scope boundary:
 
 - This change set hardens local and bundled module safety.
-- For publishing your own modules to a registry, see [Publishing modules](publishing-modules.md).
+- For publishing your own modules to a registry, see [Publishing modules](../guides/publishing-modules.md).
 
 ## Marketplace vs Local Modules
 

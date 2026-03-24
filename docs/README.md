@@ -41,7 +41,7 @@ This docs set keeps release-line overview and handoff content for bundle workflo
 - [Getting Started](getting-started/README.md)
 - [Command Reference](reference/commands.md)
 - [Reference Index](reference/README.md)
-- [Architecture Reference](reference/architecture.md)
+- [Architecture Reference](architecture/overview.md)
 
 ## Current Core Command Topology
 
@@ -82,7 +82,7 @@ Start with:
 
 ### Recommended next reads
 
-- [Installing Modules](guides/installing-modules.md)
+- [Installing Modules](module-system/installing-modules.md)
 - [Module Categories](reference/module-categories.md)
 - [Module Contracts](reference/module-contracts.md)
 - [Canonical modules docs site](https://modules.specfact.io/)

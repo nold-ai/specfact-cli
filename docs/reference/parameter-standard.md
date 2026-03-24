@@ -239,7 +239,7 @@ def generate_contracts(
 
 - **[Command Reference](./commands.md)** - Complete command reference and current parameter surfaces
 - **[Directory Structure](./directory-structure.md)** - Repository and workspace parameter context
-- **[Architecture](./architecture.md)** - Runtime and adapter architecture context for parameter design
+- **[Architecture](../architecture/overview.md)** - Runtime and adapter architecture context for parameter design
 
 ---
 

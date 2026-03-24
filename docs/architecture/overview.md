@@ -1,7 +1,9 @@
 ---
 layout: default
 title: Architecture
-permalink: /reference/architecture/
+permalink: /architecture/overview/
+redirect_from:
+  - /reference/architecture/
 ---
 
 # Architecture
@@ -61,8 +63,8 @@ Common manifest fields:
 
 See also:
 - [Module Development Guide](../guides/module-development.md)
-- [Module Contracts](module-contracts.md)
-- [Module Security](module-security.md)
+- [Module Contracts](../reference/module-contracts.md)
+- [Module Security](../reference/module-security.md)
 
 ### Core vs modules-repo ownership boundary
 
@@ -119,7 +121,7 @@ All adapters implement:
 
 See also:
 - [Adapter Development Guide](../guides/adapter-development.md)
-- [Bridge Registry](bridge-registry.md)
+- [Bridge Registry](../reference/bridge-registry.md)
 
 ## Change Tracking and Protocol Scope
 
@@ -171,4 +173,4 @@ Use `ProjectBundle` for current architecture descriptions unless explicitly disc
 
 - [Architecture Docs Index](../architecture/README.md)
 - [Implementation Status](../architecture/implementation-status.md)
-- [Directory Structure](directory-structure.md)
+- [Directory Structure](../reference/directory-structure.md)
