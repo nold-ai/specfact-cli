@@ -1,7 +1,9 @@
 ---
 layout: default
 title: Migration Cli Reorganization
-permalink: /guides/migration-cli-reorganization/
+permalink: /migration/migration-cli-reorganization/
+redirect_from:
+  - /guides/migration-cli-reorganization/
 ---
 
 # CLI Reorganization Migration Guide

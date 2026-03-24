@@ -1,9 +1,10 @@
 ---
 layout: default
 title: Operational Modes
-permalink: /reference/modes/
+permalink: /core-cli/modes/
 redirect_from:
   - /modes/
+  - /reference/modes/
 ---
 
 # Operational Modes

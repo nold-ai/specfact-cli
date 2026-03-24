@@ -2,7 +2,9 @@
 layout: default
 title: Marketplace Bundles
 nav_order: 23
-permalink: /guides/marketplace/
+permalink: /module-system/marketplace/
+redirect_from:
+  - /guides/marketplace/
 description: Official SpecFact bundle IDs, trust tiers, and bundle dependency behavior.
 ---
 

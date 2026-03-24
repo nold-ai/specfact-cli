@@ -1,7 +1,9 @@
 ---
 layout: default
 title: Custom registries
-permalink: /guides/custom-registries/
+permalink: /module-system/custom-registries/
+redirect_from:
+  - /guides/custom-registries/
 description: Add, list, and manage custom module registries with trust levels and priority.
 ---
 

@@ -1,7 +1,9 @@
 ---
 layout: default
 title: Openspec Opsx Migration
-permalink: /openspec-opsx-migration/
+permalink: /migration/openspec-migration/
+redirect_from:
+  - /openspec-opsx-migration/
 ---
 
 # OpenSpec OPSX Migration

@@ -1,9 +1,10 @@
 ---
 layout: default
 title: Debug Logging
-permalink: /reference/debug-logging/
+permalink: /core-cli/debug-logging/
 redirect_from:
   - /debug-logging/
+  - /reference/debug-logging/
 ---
 
 <!-- markdownlint-disable-next-line MD025 -->

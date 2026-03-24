@@ -1,7 +1,9 @@
 ---
 layout: default
 title: Module Marketplace
-permalink: /guides/module-marketplace/
+permalink: /module-system/module-marketplace/
+redirect_from:
+  - /guides/module-marketplace/
 description: Registry model, discovery priority, trust semantics, and security checks for SpecFact modules.
 ---
 
