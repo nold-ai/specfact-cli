@@ -51,6 +51,26 @@ class TerminalCapabilities:
     supports_animations: bool
     is_interactive: bool
     is_ci: bool
+    supports_unicode: bool = True
+    stream_encoding: str | None = None
+
+
+def _get_stream_encoding(stream: Any) -> str | None:
+    """Return normalized stream encoding when available."""
+    encoding = getattr(stream, "encoding", None)
+    return str(encoding) if encoding else None
+
+
+def _stream_supports_unicode(stream: Any) -> bool:
+    """Check whether the stream encoding can emit common SpecFact symbols."""
+    encoding = _get_stream_encoding(stream)
+    if encoding is None:
+        return True
+    try:
+        "✓⚠".encode(encoding)
+    except (LookupError, UnicodeEncodeError):
+        return False
+    return True
 
 
 @beartype
@@ -75,6 +95,8 @@ def detect_terminal_capabilities() -> TerminalCapabilities:
     is_test_mode = os.environ.get("TEST_MODE") == "true" or os.environ.get("PYTEST_CURRENT_TEST") is not None
     is_tty = _stdout_is_tty()
     supports_color = _compute_supports_color(no_color, force_color, is_tty, is_ci)
+    stream_encoding = _get_stream_encoding(sys.stdout)
+    supports_unicode = _stream_supports_unicode(sys.stdout)
 
     # Determine animation support
     # Animations require interactive TTY and not CI/CD, and not test mode
@@ -88,7 +110,21 @@ def detect_terminal_capabilities() -> TerminalCapabilities:
         supports_animations=supports_animations,
         is_interactive=is_interactive,
         is_ci=is_ci,
+        supports_unicode=supports_unicode,
+        stream_encoding=stream_encoding,
     )
+
+
+@beartype
+@ensure(lambda result: result is None, "Function returns None")
+def ensure_output_stream_safety(stdout: Any | None = None, stderr: Any | None = None) -> None:
+    """Switch unicode-unsafe text streams to replacement mode to avoid hard encode failures."""
+    for stream in (sys.stdout if stdout is None else stdout, sys.stderr if stderr is None else stderr):
+        if stream is None or _stream_supports_unicode(stream):
+            continue
+        reconfigure = getattr(stream, "reconfigure", None)
+        if callable(reconfigure):
+            reconfigure(errors="replace")
 
 
 @beartype
@@ -120,6 +156,10 @@ def get_console_config() -> dict[str, Any]:
     # Legacy Windows support (check if on Windows)
     if sys.platform == "win32":
         config["legacy_windows"] = True
+
+    if not caps.supports_unicode:
+        config["emoji"] = False
+        config["safe_box"] = True
 
     # In test mode, don't explicitly set file=sys.stdout when using Typer's CliRunner
     # CliRunner needs to capture output itself, so we let it use the default file

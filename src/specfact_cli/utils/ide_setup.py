@@ -133,6 +133,211 @@ SPECFACT_COMMANDS = [
 ]
 
 
+def _iter_prompt_template_files(templates_dir: Path) -> list[Path]:
+    """Return prompt template files from a single directory in stable order."""
+    if not templates_dir.exists() or not templates_dir.is_dir():
+        return []
+    return sorted(path for path in templates_dir.glob("specfact*.md") if path.is_file())
+
+
+def _module_discovery_roots(repo_path: Path | None) -> list[tuple[Path, str]]:
+    """Return module roots to inspect across builtin, repo-local, and configured locations."""
+    from specfact_cli.registry.module_packages import get_modules_root, get_workspace_modules_root
+
+    discovery_roots: list[tuple[Path, str]] = []
+
+    def _add_discovery_root(path: Path | None, source: str) -> None:
+        if path is None:
+            return
+        resolved = path.resolve()
+        if any(existing_root.resolve() == resolved for existing_root, _source in discovery_roots):
+            return
+        discovery_roots.append((path, source))
+
+    _add_discovery_root(get_modules_root(), "builtin")
+    if repo_path is not None:
+        _add_discovery_root((repo_path / ".specfact" / "modules").resolve(), "workspace")
+    _add_discovery_root(get_workspace_modules_root(repo_path), "workspace")
+
+    extra_roots = os.environ.get("SPECFACT_MODULES_ROOTS", "")
+    for raw_root in extra_roots.split(os.pathsep):
+        candidate = raw_root.strip()
+        if not candidate:
+            continue
+        candidate_path = Path(candidate).expanduser()
+        if candidate_path.exists():
+            _add_discovery_root(candidate_path, "custom")
+
+    return discovery_roots
+
+
+def _matches_requested_categories(
+    resolved_package_dir: Path,
+    candidate: Path,
+    metadata: Any | None,
+    requested_categories: set[str] | None,
+) -> bool:
+    """Return whether the package should be considered for the requested categories."""
+    if requested_categories is None:
+        return True
+    if metadata is not None:
+        return (metadata.category or "").lower() in requested_categories
+    candidate_hint = f"{resolved_package_dir.name} {candidate}".lower()
+    return any(category in candidate_hint for category in requested_categories)
+
+
+def _discover_resource_dirs_from_root(
+    modules_root: Path,
+    source: str,
+    resource_subpath: str,
+    requested_categories: set[str] | None,
+    seen: set[Path],
+) -> list[Path]:
+    """Discover module resource directories beneath a single module root."""
+    from specfact_cli.registry.module_packages import discover_package_metadata
+
+    if not modules_root.exists() or not modules_root.is_dir():
+        return []
+
+    parsed_metadata = {
+        package_dir.resolve(): metadata
+        for package_dir, metadata in discover_package_metadata(modules_root, source=source)
+    }
+    discovered_dirs: list[Path] = []
+    for package_dir in sorted(path for path in modules_root.iterdir() if path.is_dir()):
+        resolved_package_dir = package_dir.resolve()
+        metadata = parsed_metadata.get(resolved_package_dir)
+        resource_root = _package_resource_dir(
+            resolved_package_dir, metadata, resource_subpath, requested_categories, seen
+        )
+        if resource_root is None:
+            continue
+
+        seen.add(resource_root)
+        discovered_dirs.append(resource_root)
+
+    return discovered_dirs
+
+
+def _package_resource_dir(
+    resolved_package_dir: Path,
+    metadata: Any | None,
+    resource_subpath: str,
+    requested_categories: set[str] | None,
+    seen: set[Path],
+) -> Path | None:
+    """Return the package resource root when the package should contribute the requested resource."""
+    from specfact_cli.registry.module_packages import CORE_MODULE_ORDER
+
+    if metadata is not None and metadata.name in CORE_MODULE_ORDER:
+        return None
+
+    resource_root = (resolved_package_dir / "resources").resolve()
+    candidate = (resolved_package_dir / resource_subpath).resolve()
+    if not resource_root.exists() or not candidate.exists() or resource_root in seen:
+        return None
+    if not _matches_requested_categories(resolved_package_dir, candidate, metadata, requested_categories):
+        return None
+    return resource_root
+
+
+@beartype
+@ensure(
+    lambda result: isinstance(result, list) and all(isinstance(path, Path) and path.exists() for path in result),
+    "Must return existing resource directories",
+)
+def _discover_module_resource_dirs(
+    resource_subpath: str, repo_path: Path | None = None, categories: set[str] | None = None
+) -> list[Path]:
+    """Discover installed module resource roots that contain the requested subpath."""
+    requested_categories = {category.lower() for category in categories} if categories else None
+    seen: set[Path] = set()
+    discovered_dirs: list[Path] = []
+    for modules_root, source in _module_discovery_roots(repo_path):
+        discovered_dirs.extend(
+            _discover_resource_dirs_from_root(modules_root, source, resource_subpath, requested_categories, seen)
+        )
+    return discovered_dirs
+
+
+@beartype
+@ensure(
+    lambda result: isinstance(result, list) and all(isinstance(path, Path) for path in result),
+    "Must return list of Paths",
+)
+def discover_prompt_template_files(repo_path: Path) -> list[Path]:
+    """Return prompt templates from installed modules, falling back to core checkout resources."""
+    prompt_files: list[Path] = []
+    seen_names: set[str] = set()
+
+    for resource_root in _discover_module_resource_dirs("resources/prompts", repo_path=repo_path):
+        for prompt_file in _iter_prompt_template_files(resource_root / "prompts"):
+            if prompt_file.name in seen_names:
+                continue
+            seen_names.add(prompt_file.name)
+            prompt_files.append(prompt_file)
+
+    if prompt_files:
+        return prompt_files
+
+    fallback_dirs = [
+        (repo_path / "resources" / "prompts").resolve(),
+        find_package_resources_path("specfact_cli", "resources/prompts"),
+    ]
+    for fallback_dir in fallback_dirs:
+        if fallback_dir is None:
+            continue
+        fallback_files = _iter_prompt_template_files(fallback_dir)
+        if fallback_files:
+            return fallback_files
+    return []
+
+
+def _output_filename_for_template(template_path: Path, format_type: str) -> str:
+    """Map source markdown templates to IDE-specific filenames."""
+    if format_type == "prompt.md":
+        return f"{template_path.stem}.prompt.md"
+    if format_type == "toml":
+        return f"{template_path.stem}.toml"
+    return template_path.name
+
+
+def _copy_template_files_to_ide(
+    repo_path: Path, ide: str, template_files: list[Path], force: bool = False
+) -> tuple[list[Path], Path | None]:
+    """Copy a concrete list of prompt template files to the IDE target location."""
+    config = IDE_CONFIG[ide]
+    ide_folder = str(config["folder"])
+    format_type = str(config["format"])
+    settings_file = config.get("settings_file")
+    if settings_file is not None and not isinstance(settings_file, str):
+        settings_file = None
+
+    ide_dir = repo_path / ide_folder
+    ide_dir.mkdir(parents=True, exist_ok=True)
+
+    copied_files: list[Path] = []
+
+    for template_path in template_files:
+        template_data = read_template(template_path)
+        processed_content = process_template(template_data["content"], template_data["description"], format_type)  # type: ignore[arg-type]
+        output_path = ide_dir / _output_filename_for_template(template_path, format_type)
+
+        if output_path.exists() and not force:
+            console.print(f"[yellow]Skipping:[/yellow] {output_path} (already exists, use --force to overwrite)")
+            continue
+
+        output_path.write_text(processed_content, encoding="utf-8")
+        copied_files.append(output_path)
+        console.print(f"[green]Copied:[/green] {output_path}")
+
+    settings_path = None
+    if settings_file and isinstance(settings_file, str):
+        settings_path = create_vscode_settings(repo_path, settings_file)
+
+    return copied_files, settings_path
+
+
 @beartype
 @require(lambda ide: ide in IDE_CONFIG or ide == "auto", "IDE must be valid or 'auto'")
 def detect_ide(ide: str = "auto") -> str:
@@ -286,56 +491,7 @@ def copy_templates_to_ide(
         >>> len(copied) > 0
         True
     """
-    config = IDE_CONFIG[ide]
-    ide_folder = str(config["folder"])
-    format_type = str(config["format"])
-    settings_file = config.get("settings_file")
-    if settings_file is not None and not isinstance(settings_file, str):
-        settings_file = None
-
-    # Create IDE directory
-    ide_dir = repo_path / ide_folder
-    ide_dir.mkdir(parents=True, exist_ok=True)
-
-    copied_files: list[Path] = []
-
-    # Copy each template
-    for command in SPECFACT_COMMANDS:
-        template_path = templates_dir / f"{command}.md"
-        if not template_path.exists():
-            console.print(f"[yellow]Warning:[/yellow] Template not found: {template_path}")
-            continue
-
-        # Read and process template
-        template_data = read_template(template_path)
-        processed_content = process_template(template_data["content"], template_data["description"], format_type)  # type: ignore[arg-type]
-
-        # Determine output filename
-        if format_type == "prompt.md":
-            output_filename = f"{command}.prompt.md"
-        elif format_type == "toml":
-            output_filename = f"{command}.toml"
-        else:
-            output_filename = f"{command}.md"
-
-        output_path = ide_dir / output_filename
-
-        # Check if file exists
-        if output_path.exists() and not force:
-            console.print(f"[yellow]Skipping:[/yellow] {output_path} (already exists, use --force to overwrite)")
-            continue
-
-        # Write processed template
-        output_path.write_text(processed_content, encoding="utf-8")
-        copied_files.append(output_path)
-        console.print(f"[green]Copied:[/green] {output_path}")
-
-    # Handle VS Code settings if needed
-    settings_path = None
-    if settings_file and isinstance(settings_file, str):
-        settings_path = create_vscode_settings(repo_path, settings_file)
-
-    return (copied_files, settings_path)
+    return _copy_template_files_to_ide(repo_path, ide, _iter_prompt_template_files(templates_dir), force)
 
 
 @beartype
@@ -365,7 +521,10 @@ def create_vscode_settings(repo_path: Path, settings_file: str) -> Path | None:
     settings_dir.mkdir(parents=True, exist_ok=True)
 
     # Generate prompt file recommendations
-    prompt_files = [f".github/prompts/{cmd}.prompt.md" for cmd in SPECFACT_COMMANDS]
+    discovered_prompts = discover_prompt_template_files(repo_path)
+    prompt_files = [f".github/prompts/{template_path.stem}.prompt.md" for template_path in discovered_prompts]
+    if not prompt_files:
+        prompt_files = [f".github/prompts/{cmd}.prompt.md" for cmd in SPECFACT_COMMANDS]
 
     # Load existing settings or create new
     if settings_path.exists():

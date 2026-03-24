@@ -126,6 +126,26 @@ def test_make_package_loader_supports_namespaced_nested_command_app(tmp_path: Pa
     assert getattr(getattr(app, "info", None), "name", None) == "backlog"
 
 
+def test_make_package_loader_wraps_runtime_import_errors_with_compatibility_guidance(tmp_path: Path) -> None:
+    """Module load failures should surface SpecFact compatibility guidance instead of raw import noise."""
+    from specfact_cli.registry import module_packages as module_packages_impl
+
+    package_dir = tmp_path / "specfact-backlog"
+    nested_app = package_dir / "src" / "specfact_backlog" / "backlog" / "app.py"
+    nested_app.parent.mkdir(parents=True, exist_ok=True)
+    nested_app.write_text("import missing_compiled_dependency\n", encoding="utf-8")
+
+    loader = module_packages_impl._make_package_loader(package_dir, "nold-ai/specfact-backlog", "backlog")
+
+    with pytest.raises(ValueError, match="Runtime compatibility error") as exc_info:
+        loader()
+
+    message = str(exc_info.value)
+    assert "missing_compiled_dependency" in message
+    assert str(package_dir) in message
+    assert "same Python interpreter" in message
+
+
 def test_merge_module_state_new_modules_enabled():
     """New discovered modules get enabled: true."""
     discovered = [("new_one", "1.0.0")]

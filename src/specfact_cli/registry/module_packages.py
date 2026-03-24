@@ -578,7 +578,14 @@ def _make_package_loader(package_dir: Path, package_name: str, command_name: str
             raise ValueError(f"Cannot load from {package_dir.name}")
         mod = importlib.util.module_from_spec(spec)
         sys.modules[spec.name] = mod
-        spec.loader.exec_module(mod)
+        try:
+            spec.loader.exec_module(mod)
+        except (ImportError, ModuleNotFoundError, OSError) as exc:
+            raise ValueError(
+                "Runtime compatibility error while loading "
+                f"module '{package_name}' command '{command_name}' from {package_dir}: {exc}. "
+                f"Reinstall the module and run SpecFact with the same Python interpreter ({sys.executable})."
+            ) from exc
         command_attr = f"{_normalized_module_name(command_name)}_app"
         app = getattr(mod, command_attr, None)
         if app is None:
