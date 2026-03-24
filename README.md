@@ -61,6 +61,8 @@ specfact init ide --ide cursor
 specfact init ide --ide vscode
 ```
 
+`specfact init ide` discovers prompt resources from installed workflow modules and exports them to your IDE. If module prompt payloads are not installed yet, the CLI uses packaged fallback resources.
+
 ### Run Your First Flow
 
 ```bash

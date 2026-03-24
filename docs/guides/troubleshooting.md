@@ -542,7 +542,12 @@ The CLI automatically detects terminal capabilities in this order:
    - Interactive TTY with animations → **GRAPHICAL** mode
    - Non-interactive → **BASIC** mode
 
-5. **Default Fallback**:
+5. **Encoding Safety Detection**:
+   - UTF-8 capable streams keep Unicode icons and Rich box drawing
+   - Legacy encodings (for example `cp1252`) disable emoji and switch to ASCII-safe box rendering
+   - Unicode-unsafe text streams are reconfigured with replacement error handling to avoid hard crashes during output
+
+6. **Default Fallback**:
    - If uncertain → **BASIC** mode (safe, readable output)
 
 ### Terminal Modes
@@ -552,6 +557,8 @@ The CLI supports three terminal modes (auto-selected based on detection):
 - **GRAPHICAL** - Full Rich features (colors, animations, progress bars) for interactive terminals
 - **BASIC** - Plain text, no animations, simple progress updates for CI/CD and embedded terminals
 - **MINIMAL** - Minimal output for test mode
+
+Rich output also downgrades symbol rendering when the active terminal encoding is not UTF-8-safe. This keeps Windows legacy consoles and other non-UTF-8 terminals readable instead of failing on icon output.
 
 ### Environment Variables (Optional Overrides)
 

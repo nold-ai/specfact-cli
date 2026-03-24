@@ -12,6 +12,7 @@ import pytest
 from specfact_cli.utils.terminal import (
     TerminalCapabilities,
     detect_terminal_capabilities,
+    ensure_output_stream_safety,
     get_console_config,
     get_progress_config,
     print_progress,
@@ -70,6 +71,20 @@ class TestDetectTerminalCapabilities:
             caps = detect_terminal_capabilities()
             assert caps.is_interactive is False
 
+    def test_detect_legacy_encoding_marks_unicode_unsafe(self) -> None:
+        """Legacy terminal encodings should be treated as unicode-unsafe."""
+
+        class _FakeStdout:
+            encoding = "cp1252"
+
+            @staticmethod
+            def isatty() -> bool:
+                return True
+
+        with patch.dict(os.environ, {}, clear=True), patch("sys.stdout", _FakeStdout()):
+            caps = detect_terminal_capabilities()
+            assert caps.supports_unicode is False
+
 
 class TestGetConsoleConfig:
     """Test console configuration generation."""
@@ -111,6 +126,61 @@ class TestGetConsoleConfig:
             )
             config = get_console_config()
             assert config["width"] == 80
+
+    def test_console_config_disables_emoji_when_unicode_unsafe(self) -> None:
+        """Unicode-unsafe terminals should disable emoji and keep safe box rendering."""
+        with patch("specfact_cli.utils.terminal.detect_terminal_capabilities") as mock_detect:
+            mock_detect.return_value = TerminalCapabilities(
+                supports_color=True,
+                supports_animations=False,
+                is_interactive=True,
+                is_ci=False,
+                supports_unicode=False,
+                stream_encoding="cp1252",
+            )
+            config = get_console_config()
+            assert config["emoji"] is False
+            assert config["safe_box"] is True
+
+
+class TestEnsureOutputStreamSafety:
+    """Test output stream safety normalization."""
+
+    def test_reconfigures_unicode_unsafe_streams_with_replace_errors(self) -> None:
+        """Unicode-unsafe text streams should be reconfigured to replace encoding errors."""
+
+        class _FakeStream:
+            encoding = "cp1252"
+
+            def __init__(self) -> None:
+                self.calls: list[dict[str, str]] = []
+
+            def reconfigure(self, **kwargs: str) -> None:
+                self.calls.append(kwargs)
+
+        fake_stdout = _FakeStream()
+        fake_stderr = _FakeStream()
+        ensure_output_stream_safety(fake_stdout, fake_stderr)
+        assert fake_stdout.calls == [{"errors": "replace"}]
+        assert fake_stderr.calls == [{"errors": "replace"}]
+
+    def test_skips_reconfigure_for_unicode_safe_streams(self) -> None:
+        """Unicode-safe streams should not be reconfigured."""
+
+        class _FakeStream:
+            encoding = "utf-8"
+
+            def __init__(self) -> None:
+                self.calls: list[dict[str, str]] = []
+
+            def reconfigure(self, **kwargs: str) -> None:
+                self.calls.append(kwargs)
+
+        fake_stdout = _FakeStream()
+        fake_stderr = _FakeStream()
+        ensure_output_stream_safety(fake_stdout, fake_stderr)
+        assert fake_stdout.calls == []
+        assert fake_stderr.calls == []
 
 
 class TestGetProgressConfig:
