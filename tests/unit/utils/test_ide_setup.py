@@ -364,10 +364,17 @@ def test_specfact_commands_excludes_backlog_prompt_ids() -> None:
 
 
 def test_write_and_load_ide_prompt_export_state_roundtrip(tmp_path: Path) -> None:
-    """Persisted source ids round-trip for init audit."""
+    """Persisted source ids round-trip for init audit when IDE matches."""
     write_ide_prompt_export_state(tmp_path, "cursor", ["core", "nold-ai/specfact-backlog"])
-    loaded = load_ide_prompt_export_source_ids(tmp_path)
+    loaded = load_ide_prompt_export_source_ids(tmp_path, "cursor")
     assert loaded == frozenset({"core", "nold-ai/specfact-backlog"})
+
+
+def test_load_ide_prompt_export_source_ids_mismatched_ide_returns_none(tmp_path: Path) -> None:
+    """State written for one IDE must not apply to audit for another IDE."""
+    write_ide_prompt_export_state(tmp_path, "cursor", ["core"])
+    assert load_ide_prompt_export_source_ids(tmp_path, "cursor") == frozenset({"core"})
+    assert load_ide_prompt_export_source_ids(tmp_path, "vscode") is None
 
 
 def test_expected_ide_prompt_export_paths_respects_prompt_source_subset(

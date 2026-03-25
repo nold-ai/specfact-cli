@@ -423,21 +423,26 @@ def _remove_unselected_prompt_export_segments(
     ide: str,
     prompts_by_source: dict[str, list[Path]],
 ) -> None:
-    """Remove segment directories for catalog sources not included in this selective export."""
-    catalog = discover_prompt_sources_catalog(repo_path)
-    selected = set(prompts_by_source.keys())
-    for sid in catalog:
-        if sid in selected:
-            continue
-        seg = source_id_to_path_segment(sid)
-        segment_dir = _safe_resolved_segment_dir(repo_path, ide, seg)
-        if segment_dir is None or not segment_dir.is_dir():
+    """Remove on-disk segment directories under the IDE export root that are not in this selective export."""
+    config = IDE_CONFIG[ide]
+    base = (repo_path / str(config["folder"])).resolve()
+    selected_segments = {source_id_to_path_segment(sid) for sid in prompts_by_source}
+    if not base.is_dir():
+        return
+    for child in list(base.iterdir()):
+        if not child.is_dir():
             continue
         try:
-            shutil.rmtree(segment_dir)
-            console.print(f"[dim]Removed unselected export segment:[/dim] {segment_dir}")
+            child.resolve().relative_to(base)
+        except ValueError:
+            continue
+        if child.name in selected_segments:
+            continue
+        try:
+            shutil.rmtree(child)
+            console.print(f"[dim]Removed unselected export segment:[/dim] {child}")
         except OSError as exc:
-            console.print(f"[yellow]Could not remove segment {segment_dir}:[/yellow] {exc}")
+            console.print(f"[yellow]Could not remove segment {child}:[/yellow] {exc}")
 
 
 def _copy_template_files_to_ide(
@@ -828,12 +833,13 @@ def write_ide_prompt_export_state(repo_path: Path, ide: str, source_ids: list[st
 @beartype
 @require(repo_path_exists, "Repo path must exist")
 @require(repo_path_is_dir, "Repo path must be a directory")
+@require(lambda ide: ide in IDE_CONFIG, "IDE must be valid")
 @ensure(
     lambda result: result is None or (isinstance(result, frozenset) and all(isinstance(x, str) for x in result)),
     "Must return frozenset of str or None",
 )
-def load_ide_prompt_export_source_ids(repo_path: Path) -> frozenset[str] | None:
-    """Return source ids from last ``init ide`` export, or ``None`` if unset (audit uses full catalog)."""
+def load_ide_prompt_export_source_ids(repo_path: Path, ide: str) -> frozenset[str] | None:
+    """Return source ids from last ``init ide`` export for this IDE, or ``None`` if unset or IDE mismatches."""
     path = repo_path / ".specfact" / IDE_PROMPT_EXPORT_STATE_FILE
     if not path.is_file():
         return None
@@ -842,6 +848,9 @@ def load_ide_prompt_export_source_ids(repo_path: Path) -> frozenset[str] | None:
         if not isinstance(raw, dict):
             return None
         raw_dict: dict[str, Any] = cast(dict[str, Any], raw)
+        stored_ide = raw_dict.get("ide")
+        if stored_ide is None or str(stored_ide).strip() != ide:
+            return None
         srcs = raw_dict.get("prompt_sources")
         if not isinstance(srcs, list) or not srcs:
             return None

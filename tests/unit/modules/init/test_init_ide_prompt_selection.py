@@ -130,4 +130,6 @@ def test_init_ide_invalid_prompts_token_exits_nonzero(tmp_path: Path) -> None:
         ["init", "ide", "--repo", str(tmp_path), "--ide", "cursor", "--prompts", "nold-ai/not-installed", "--force"],
     )
     assert result.exit_code == 1
-    assert "not available" in result.stdout.lower() or "Error" in result.stdout
+    out = result.stdout.lower()
+    assert "not available" in out
+    assert "nold-ai/not-installed" in result.stdout

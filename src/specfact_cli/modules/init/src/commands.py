@@ -327,7 +327,7 @@ def _audit_prompt_installation(repo_path: Path) -> None:
     detected_ide = detect_ide("auto")
     config = IDE_CONFIG[detected_ide]
     ide_dir = repo_path / str(config["folder"])
-    prompt_subset = load_ide_prompt_export_source_ids(repo_path)
+    prompt_subset = load_ide_prompt_export_source_ids(repo_path, detected_ide)
     expected_paths = expected_ide_prompt_export_paths(repo_path, detected_ide, prompt_source_ids=prompt_subset)
 
     if not ide_dir.exists():
