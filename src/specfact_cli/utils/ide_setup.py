@@ -498,7 +498,7 @@ def copy_prompts_by_source_to_ide(
     config = IDE_CONFIG[ide]
     settings_file = config.get("settings_file")
     if settings_file and isinstance(settings_file, str):
-        settings_path = create_vscode_settings(repo_path, settings_file)
+        settings_path = create_vscode_settings(repo_path, settings_file, prompts_by_source=prompts_by_source)
 
     return all_copied, settings_path
 
@@ -659,17 +659,69 @@ def copy_templates_to_ide(
     return _copy_template_files_to_ide(repo_path, ide, _iter_prompt_template_files(templates_dir), force)
 
 
+def _vscode_prompt_recommendation_paths_from_sources(prompts_by_source: dict[str, list[Path]]) -> list[str]:
+    """Build `.github/prompts/...` recommendation strings matching namespaced IDE export layout."""
+    prompt_files: list[str] = []
+    for source_id, paths in sorted(
+        prompts_by_source.items(),
+        key=lambda item: (item[0] != PROMPT_SOURCE_CORE, item[0]),
+    ):
+        segment = source_id_to_path_segment(source_id)
+        for template_path in paths:
+            prompt_files.append(f".github/prompts/{segment}/{template_path.stem}.prompt.md")
+    return prompt_files
+
+
+def _vscode_prompt_paths_from_full_catalog(repo_path: Path) -> list[str]:
+    """Recommendation paths for the full discovered prompt catalog (namespaced segments)."""
+    catalog = discover_prompt_sources_catalog(repo_path)
+    out: list[str] = []
+    for source_id, paths in sorted(catalog.items(), key=lambda item: (item[0] != PROMPT_SOURCE_CORE, item[0])):
+        segment = source_id_to_path_segment(source_id)
+        for template_path in paths:
+            out.append(f".github/prompts/{segment}/{template_path.stem}.prompt.md")
+    return out
+
+
+def _finalize_vscode_prompt_recommendation_paths(repo_path: Path, prompt_files: list[str]) -> list[str]:
+    """Fall back to flat discovery or command list when namespaced paths are empty."""
+    if not prompt_files:
+        discovered_flat = discover_prompt_template_files(repo_path)
+        prompt_files = [f".github/prompts/{template_path.stem}.prompt.md" for template_path in discovered_flat]
+    if not prompt_files:
+        return [f".github/prompts/{cmd}.prompt.md" for cmd in SPECFACT_COMMANDS]
+    return prompt_files
+
+
+def _strip_specfact_github_prompt_recommendations(paths: list[str]) -> list[str]:
+    """Remove prior SpecFact-managed prompt paths under `.github/prompts/` before re-adding an export."""
+    return [p for p in paths if not p.startswith(".github/prompts/")]
+
+
 @beartype
 @require(repo_path_exists, "Repo path must exist")
 @require(repo_path_is_dir, "Repo path must be a directory")
+@require(
+    lambda prompts_by_source: prompts_by_source is None or isinstance(prompts_by_source, dict),
+    "prompts_by_source must be None or a dict",
+)
 @ensure(lambda result: vscode_settings_result_ok(result), "Settings file must exist if returned")
-def create_vscode_settings(repo_path: Path, settings_file: str) -> Path | None:
+def create_vscode_settings(
+    repo_path: Path,
+    settings_file: str,
+    *,
+    prompts_by_source: dict[str, list[Path]] | None = None,
+) -> Path | None:
     """
     Create or merge VS Code settings.json with prompt file recommendations.
 
     Args:
         repo_path: Repository root path
         settings_file: Settings file path (e.g., ".vscode/settings.json")
+        prompts_by_source: When set (e.g. from ``copy_prompts_by_source_to_ide``), recommendations list only
+            templates from that export; prior ``.github/prompts/`` entries are replaced so selective
+            ``--prompts`` runs do not leave stale module paths. When ``None``, recommendations follow the
+            full discovered catalog (or legacy flat fallbacks).
 
     Returns:
         Path to settings file, or None if not VS Code/Copilot
@@ -685,18 +737,14 @@ def create_vscode_settings(repo_path: Path, settings_file: str) -> Path | None:
     settings_dir = settings_path.parent
     settings_dir.mkdir(parents=True, exist_ok=True)
 
-    # Generate prompt file recommendations (namespaced when multiple sources exist)
-    catalog = discover_prompt_sources_catalog(repo_path)
-    prompt_files: list[str] = []
-    for source_id, paths in sorted(catalog.items(), key=lambda item: (item[0] != PROMPT_SOURCE_CORE, item[0])):
-        segment = source_id_to_path_segment(source_id)
-        for template_path in paths:
-            prompt_files.append(f".github/prompts/{segment}/{template_path.stem}.prompt.md")
-    if not prompt_files:
-        discovered_flat = discover_prompt_template_files(repo_path)
-        prompt_files = [f".github/prompts/{template_path.stem}.prompt.md" for template_path in discovered_flat]
-    if not prompt_files:
-        prompt_files = [f".github/prompts/{cmd}.prompt.md" for cmd in SPECFACT_COMMANDS]
+    if prompts_by_source is not None:
+        prompt_files = _finalize_vscode_prompt_recommendation_paths(
+            repo_path, _vscode_prompt_recommendation_paths_from_sources(prompts_by_source)
+        )
+    else:
+        prompt_files = _finalize_vscode_prompt_recommendation_paths(
+            repo_path, _vscode_prompt_paths_from_full_catalog(repo_path)
+        )
 
     # Load existing settings or create new
     if settings_path.exists():
@@ -715,6 +763,10 @@ def create_vscode_settings(repo_path: Path, settings_file: str) -> Path | None:
     chat_block = existing_settings["chat"]
     chat_dict: dict[str, Any] = cast(dict[str, Any], chat_block) if isinstance(chat_block, dict) else {}
     existing_recommendations = chat_dict.get("promptFilesRecommendations", [])
+    if prompts_by_source is not None:
+        existing_recommendations = _strip_specfact_github_prompt_recommendations(
+            list(existing_recommendations) if isinstance(existing_recommendations, list) else []
+        )
     merged_recommendations = list(set(existing_recommendations + prompt_files))
     chat_dict["promptFilesRecommendations"] = merged_recommendations
     existing_settings["chat"] = chat_dict

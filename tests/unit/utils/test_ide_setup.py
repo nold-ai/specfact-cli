@@ -2,13 +2,16 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
 
 from specfact_cli.utils.ide_setup import (
+    PROMPT_SOURCE_CORE,
     SPECFACT_COMMANDS,
     copy_templates_to_ide,
+    create_vscode_settings,
     detect_ide,
     discover_prompt_template_files,
     process_template,
@@ -301,6 +304,40 @@ def test_discover_prompt_template_files_deduplicates_prompt_ids_by_filename(
     discovered = discover_prompt_template_files(tmp_path)
 
     assert discovered == [first_prompt]
+
+
+def test_create_vscode_settings_selective_export_replaces_stale_github_prompt_paths(tmp_path: Path) -> None:
+    """When ``prompts_by_source`` is set, drop prior SpecFact ``.github/prompts/`` entries; keep other paths."""
+    vscode_dir = tmp_path / ".vscode"
+    vscode_dir.mkdir(parents=True)
+    settings_path = vscode_dir / "settings.json"
+    settings_path.write_text(
+        json.dumps(
+            {
+                "chat": {
+                    "promptFilesRecommendations": [
+                        ".github/prompts/nold-ai__mod/specfact.extra.prompt.md",
+                        ".other/custom.prompt.md",
+                    ]
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    prompt = tmp_path / "specfact.01-import.md"
+    prompt.write_text("---\n---\n", encoding="utf-8")
+
+    create_vscode_settings(
+        tmp_path,
+        ".vscode/settings.json",
+        prompts_by_source={PROMPT_SOURCE_CORE: [prompt]},
+    )
+
+    data = json.loads(settings_path.read_text(encoding="utf-8"))
+    recs = list(data["chat"]["promptFilesRecommendations"])
+    assert ".github/prompts/nold-ai__mod/specfact.extra.prompt.md" not in recs
+    assert ".other/custom.prompt.md" in recs
+    assert ".github/prompts/core/specfact.01-import.prompt.md" in recs
 
 
 def test_specfact_commands_excludes_backlog_prompt_ids() -> None:
