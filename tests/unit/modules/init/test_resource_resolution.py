@@ -38,10 +38,10 @@ def test_discover_prompt_template_files_uses_installed_module_resources(monkeypa
 
     monkeypatch.setattr(
         ide_setup,
-        "_discover_module_resource_dirs",
-        lambda resource_subpath, repo_path=None, categories=None: (
-            [prompt_dir.parent] if resource_subpath == "resources/prompts" else []
-        ),
+        "discover_prompt_sources_catalog",
+        lambda repo_path, include_package_fallback=True: {
+            "nold-ai/example": [prompt_file],
+        },
     )
 
     discovered = ide_setup.discover_prompt_template_files(tmp_path)

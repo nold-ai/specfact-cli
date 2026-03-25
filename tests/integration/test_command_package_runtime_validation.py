@@ -224,6 +224,22 @@ def _load_cli_app_for_home(home_dir: Path) -> typer.Typer:
     return cli_module.app
 
 
+def _restore_specfact_module_root_paths_after_temp_home() -> None:
+    """Undo globals mutated by `_load_cli_app_for_home` so other tests see the real user home."""
+    home = Path.home()
+    import specfact_cli.registry.bootstrap as bootstrap_module
+    import specfact_cli.registry.module_discovery as module_discovery
+    import specfact_cli.registry.module_installer as module_installer
+
+    module_discovery.USER_MODULES_ROOT = home / ".specfact" / "modules"
+    module_discovery.MARKETPLACE_MODULES_ROOT = home / ".specfact" / "marketplace-modules"
+    module_discovery.CUSTOM_MODULES_ROOT = home / ".specfact" / "custom-modules"
+    module_installer.USER_MODULES_ROOT = module_discovery.USER_MODULES_ROOT
+    module_installer.MARKETPLACE_MODULES_ROOT = module_discovery.MARKETPLACE_MODULES_ROOT
+    module_installer.MODULE_DOWNLOAD_CACHE_ROOT = home / ".specfact" / "downloads" / "cache"
+    bootstrap_module._SPECFACT_CONFIG_PATH = home / ".specfact" / "config.yaml"
+
+
 def _run_help_case(
     app: typer.Typer,
     case: CommandAuditCase,
@@ -262,25 +278,28 @@ def test_command_audit_help_cases_execute_cleanly_in_temp_home(tmp_path: Path, m
     env = _subprocess_env(home_dir)
     _seed_marketplace_modules(home_dir)
 
-    with monkeypatch.context() as context:
-        context.setenv("HOME", str(home_dir))
-        context.setenv("SPECFACT_MODULES_REPO", str(MODULES_REPO.resolve()))
-        help_app = _load_cli_app_for_home(home_dir)
+    failures: list[str] = []
+    try:
+        with monkeypatch.context() as context:
+            context.setenv("HOME", str(home_dir))
+            context.setenv("SPECFACT_MODULES_REPO", str(MODULES_REPO.resolve()))
+            help_app = _load_cli_app_for_home(home_dir)
 
-        failures: list[str] = []
-        for case in build_command_audit_cases():
-            if case.mode == "help-only":
-                return_code, merged_output = _run_help_case(help_app, case, home_dir, env, monkeypatch)
-            else:
-                result = _run_cli(env, *case.argv, cwd=home_dir)
-                return_code = result.returncode
-                merged_output = ((result.stdout or "") + "\n" + (result.stderr or "")).strip()
-            if return_code != 0:
-                failures.append(f"{case.command_path}: rc={return_code}\nOUTPUT:\n{merged_output}")
-                continue
-            leaked = [marker for marker in FORBIDDEN_OUTPUT if marker in merged_output]
-            if leaked:
-                failures.append(f"{case.command_path}: leaked diagnostics {leaked}\nOUTPUT:\n{merged_output}")
+            for case in build_command_audit_cases():
+                if case.mode == "help-only":
+                    return_code, merged_output = _run_help_case(help_app, case, home_dir, env, monkeypatch)
+                else:
+                    result = _run_cli(env, *case.argv, cwd=home_dir)
+                    return_code = result.returncode
+                    merged_output = ((result.stdout or "") + "\n" + (result.stderr or "")).strip()
+                if return_code != 0:
+                    failures.append(f"{case.command_path}: rc={return_code}\nOUTPUT:\n{merged_output}")
+                    continue
+                leaked = [marker for marker in FORBIDDEN_OUTPUT if marker in merged_output]
+                if leaked:
+                    failures.append(f"{case.command_path}: leaked diagnostics {leaked}\nOUTPUT:\n{merged_output}")
+    finally:
+        _restore_specfact_module_root_paths_after_temp_home()
 
     assert not failures, "\n\n".join(failures)
 

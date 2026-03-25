@@ -9,6 +9,7 @@ from unittest.mock import patch
 
 import pytest
 
+from specfact_cli.cli import rebuild_root_app_from_registry
 from specfact_cli.registry import CommandRegistry
 from specfact_cli.registry.bootstrap import register_builtin_commands
 
@@ -24,6 +25,7 @@ def test_bootstrap_with_category_grouping_enabled_registers_group_commands() -> 
     """With category grouping enabled, root commands are limited to core + category groups (no flat shims)."""
     with patch.dict(os.environ, {"SPECFACT_CATEGORY_GROUPING_ENABLED": "true"}, clear=False):
         register_builtin_commands()
+        rebuild_root_app_from_registry()
     names = [name for name, _ in CommandRegistry.list_commands_for_help()]
     allowed = {"init", "auth", "module", "upgrade", "code", "backlog", "project", "spec", "govern"}
     forbidden_flat = {
@@ -53,6 +55,7 @@ def test_bootstrap_with_category_grouping_disabled_registers_flat_commands() -> 
     """With category grouping disabled, grouped aliases are not mounted via category grouping."""
     with patch.dict(os.environ, {"SPECFACT_CATEGORY_GROUPING_ENABLED": "false"}, clear=False):
         register_builtin_commands()
+        rebuild_root_app_from_registry()
     names = [name for name, _ in CommandRegistry.list_commands_for_help()]
     # Skip assertions if bundles aren't installed (e.g., in CI without modules)
     if "code" not in names:
@@ -69,6 +72,7 @@ def test_code_analyze_routes_same_as_flat_analyze(
     """`code` group mounts only when codebase module is installed."""
     with patch.dict(os.environ, {"SPECFACT_CATEGORY_GROUPING_ENABLED": "true"}, clear=False):
         register_builtin_commands()
+        rebuild_root_app_from_registry()
     from typer.main import get_command
 
     from specfact_cli.cli import app
@@ -91,6 +95,7 @@ def test_govern_help_when_not_installed_suggests_install(
     """specfact govern --help when govern bundle not installed produces install suggestion."""
     with patch.dict(os.environ, {"SPECFACT_CATEGORY_GROUPING_ENABLED": "true"}, clear=False):
         register_builtin_commands()
+        rebuild_root_app_from_registry()
     from click.testing import CliRunner
     from typer.main import get_command
 
@@ -114,6 +119,7 @@ def test_flat_validate_is_not_found_in_copilot_mode(
         clear=False,
     ):
         register_builtin_commands()
+        rebuild_root_app_from_registry()
     from click.testing import CliRunner
     from typer.main import get_command
 
@@ -134,6 +140,7 @@ def test_flat_validate_is_not_found_in_cicd_mode(tmp_path: Path) -> None:
         clear=False,
     ):
         register_builtin_commands()
+        rebuild_root_app_from_registry()
     from click.testing import CliRunner
     from typer.main import get_command
 
@@ -150,6 +157,7 @@ def test_spec_api_validate_routes_correctly(tmp_path: Path) -> None:
     """The installed spec bundle exposes its native `spec validate` root path."""
     with patch.dict(os.environ, {"SPECFACT_CATEGORY_GROUPING_ENABLED": "true"}, clear=False):
         register_builtin_commands()
+        rebuild_root_app_from_registry()
     from click.testing import CliRunner
     from typer.main import get_command
 

@@ -653,6 +653,23 @@ for _name, _meta in _grouped_command_order(CommandRegistry.list_commands_for_hel
     app.add_typer(_make_lazy_typer(_name, _meta.help), name=_name, help=_meta.help)
 
 
+@beartype
+@require(lambda: isinstance(app, typer.Typer), "Root CLI app must be initialized")
+@ensure(lambda result: result is None, "Must return None")
+def rebuild_root_app_from_registry() -> None:
+    """Rebuild root Typer ``app`` from the current ``CommandRegistry``.
+
+    Call after ``register_builtin_commands()`` when tests clear and re-register the registry.
+    Otherwise ``get_command(app)`` still reflects lazy groups from ``cli`` import time while
+    ``CommandRegistry`` lists only the newly registered commands (breaks CI core-only installs).
+    """
+    app.registered_groups = []
+    if hasattr(app, "registered_commands"):
+        app.registered_commands = []
+    for _name, _meta in _grouped_command_order(CommandRegistry.list_commands_for_help()):
+        app.add_typer(_make_lazy_typer(_name, _meta.help), name=_name, help=_meta.help)
+
+
 _CLI_SKIP_OUTPUT_ARGS: frozenset[str] = frozenset(
     ("--help", "-h", "--version", "-v", "--show-completion", "--install-completion")
 )

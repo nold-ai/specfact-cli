@@ -7,6 +7,20 @@ All notable changes to this project will be documented in this file.
 
 **Important:** Changes need to be documented below this block as this is the header section. Each section should be separated by a horizontal rule. Newer changelog entries need to be added on top of prior ones to keep the history chronological with most recent changes first.
 
+---
+
+## [0.42.5] - 2026-03-25
+
+### Added
+
+- `specfact init ide` builds a prompt-source catalog from **core** (bundled or repo `resources/prompts`) plus installed modules across builtin, project, user, and marketplace roots; defaults to exporting all sources; supports `--prompts` for non-interactive selection (`all`, `core`, comma-separated module ids) and an interactive multi-select when multiple sources exist.
+- IDE prompt exports are written under per-source subfolders (for example `.cursor/commands/core/`, `.cursor/commands/<owner>__<module>/`) so filenames stay collision-safe.
+- Startup IDE template drift checks resolve exports under the namespaced layout (flat or nested).
+
+### Fixed
+
+- VS Code / Copilot: `chat.promptFilesRecommendations` lists only prompt sources actually exported by `init ide`; selective `--prompts` no longer leaves stale `.github/prompts/...` entries from unexported modules.
+- Integration tests: restore module discovery / installer paths after the command-audit temp-home scenario so later unit tests do not observe leaked marketplace module roots.
 
 ---
 
@@ -391,20 +405,6 @@ All notable changes to this project will be documented in this file.
   - Unit test and TDD evidence for CrossHair per-path timeout passthrough.
 - **Init module discovery alignment** (backlog-core-01): `specfact init` now uses the same module discovery roots as command registration (`discover_all_package_metadata()`), so `--list-modules`, `--enable-module`, and `--disable-module` operate on all discovered modules including workspace-level ones (e.g. `modules/backlog-core/`). Closes [#116](https://github.com/nold-ai/specfact-cli/issues/116) scope for init-module-discovery-alignment.
 - **Patch mode module** (patch-mode-01, [#177](https://github.com/nold-ai/specfact-cli/issues/177)): `specfact patch apply <patchfile>` for local apply with preflight; `specfact patch apply --write --yes` for explicit upstream write orchestration and idempotency (`check_idempotent` / `mark_applied`).
-
-### Changed
-
-- `specfact init` module state and validation now build from `discover_all_package_metadata()` instead of `discover_package_metadata(get_modules_root())`, aligning enable/disable and list-modules with runtime command discovery.
-
-### Fixed
-
-- `specfact repro --crosshair-per-path-timeout 0` (or negative) now fails with a clear error instead of being silently ignored; CLI rejects non-positive CrossHair per-path timeout values.
-
----
-## [Unreleased]
-
-### Added
-
 - Architecture documentation remediation for OpenSpec change `arch-08-documentation-discrepancies-remediation`:
   - New architecture implementation status page: `docs/architecture/implementation-status.md`.
   - New ADR set with template and initial ADR: `docs/architecture/adr/`.
@@ -412,6 +412,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- `specfact init` module state and validation now build from `discover_all_package_metadata()` instead of `discover_package_metadata(get_modules_root())`, aligning enable/disable and list-modules with runtime command discovery.
 - Reworked architecture references to align with implemented behavior:
   - `docs/reference/architecture.md`
   - `docs/architecture/README.md`
@@ -427,6 +428,8 @@ All notable changes to this project will be documented in this file.
 - Simplified top-level `README.md` by removing deep architecture implementation details and linking technical readers to architecture docs.
 
 ### Fixed
+
+- `specfact repro --crosshair-per-path-timeout 0` (or negative) now fails with a clear error instead of being silently ignored; CLI rejects non-positive CrossHair per-path timeout values.
 
 ---
 
