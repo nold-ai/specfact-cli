@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import os
 import re
+import shutil
 import site
 import sys
 from pathlib import Path
@@ -123,13 +124,6 @@ PROMPT_SOURCE_CORE = "core"
 
 # Written by ``init ide`` so ``specfact init`` audit matches selective exports (``--prompts``).
 IDE_PROMPT_EXPORT_STATE_FILE = "ide-prompt-export.yaml"
-
-# VS Code recommendation paths SpecFact generates (namespaced or legacy flat).
-_SPECFACT_GITHUB_PROMPT_NAMESPACED_RE = re.compile(
-    r"^\.github/prompts/(?:core|[^/]+__[^/]+)/specfact\.[^/]+\.prompt\.md$"
-)
-_SPECFACT_GITHUB_PROMPT_FLAT_RE = re.compile(r"^\.github/prompts/specfact\.[^/]+\.prompt\.md$")
-
 
 # Commands available in SpecFact
 # Workflow-ordered commands (Phase 3)
@@ -384,6 +378,68 @@ def _output_filename_for_template(template_path: Path, format_type: str) -> str:
     return template_path.name
 
 
+def _safe_resolved_segment_dir(repo_path: Path, ide: str, segment: str) -> Path | None:
+    """Return ``repo_path / ide_folder / segment`` resolved, or ``None`` if it escapes the IDE export root."""
+    config = IDE_CONFIG[ide]
+    base = (repo_path / str(config["folder"])).resolve()
+    segment_dir = (base / segment).resolve()
+    try:
+        segment_dir.relative_to(base)
+    except ValueError:
+        return None
+    return segment_dir
+
+
+def _prune_segment_exports_not_in_expected(
+    repo_path: Path,
+    ide: str,
+    segment: str,
+    template_paths: list[Path],
+) -> None:
+    """Remove files under ``ide_folder/segment`` that are not part of this export (same filenames as copy)."""
+    if not template_paths:
+        return
+    config = IDE_CONFIG[ide]
+    format_type = str(config["format"])
+    segment_dir = _safe_resolved_segment_dir(repo_path, ide, segment)
+    if segment_dir is None or not segment_dir.is_dir():
+        return
+    expected_resolved: set[Path] = {
+        (segment_dir / _output_filename_for_template(tp, format_type)).resolve() for tp in template_paths
+    }
+    for p in list(segment_dir.iterdir()):
+        if not p.is_file():
+            continue
+        if p.resolve() not in expected_resolved:
+            try:
+                p.unlink()
+                console.print(f"[dim]Removed stale prompt export:[/dim] {p}")
+            except OSError as exc:
+                console.print(f"[yellow]Could not remove stale export {p}:[/yellow] {exc}")
+
+
+def _remove_unselected_prompt_export_segments(
+    repo_path: Path,
+    ide: str,
+    prompts_by_source: dict[str, list[Path]],
+) -> None:
+    """Remove segment directories for catalog sources not included in this selective export."""
+    catalog = discover_prompt_sources_catalog(repo_path)
+    selected = set(prompts_by_source.keys())
+    for sid in catalog:
+        if sid in selected:
+            continue
+        seg = source_id_to_path_segment(sid)
+        segment_dir = _safe_resolved_segment_dir(repo_path, ide, seg)
+        if segment_dir is None or not segment_dir.is_dir():
+            continue
+        try:
+            shutil.rmtree(segment_dir)
+            console.print(f"[dim]Removed unselected export segment:[/dim] {segment_dir}")
+        except OSError as exc:
+            console.print(f"[yellow]Could not remove segment {segment_dir}:[/yellow] {exc}")
+
+
 def _copy_template_files_to_ide(
     repo_path: Path,
     ide: str,
@@ -522,6 +578,7 @@ def copy_prompts_by_source_to_ide(
 ) -> tuple[list[Path], Path | None]:
     """Copy prompts grouped by source id into source-namespaced subfolders under the IDE export directory."""
     all_copied: list[Path] = []
+    _remove_unselected_prompt_export_segments(repo_path, ide, prompts_by_source)
     ordered = sorted(
         prompts_by_source.items(),
         key=lambda item: (item[0] != PROMPT_SOURCE_CORE, item[0]),
@@ -530,6 +587,7 @@ def copy_prompts_by_source_to_ide(
         if not paths:
             continue
         segment = source_id_to_path_segment(source_id)
+        _prune_segment_exports_not_in_expected(repo_path, ide, segment, paths)
         copied, _settings = _copy_template_files_to_ide(
             repo_path, ide, paths, force, source_segment=segment, write_settings=False
         )
@@ -734,22 +792,18 @@ def _finalize_vscode_prompt_recommendation_paths(repo_path: Path, prompt_files: 
     return prompt_files
 
 
-def _specfact_catalog_github_prompt_paths(repo_path: Path) -> set[str]:
-    """Paths SpecFact would recommend for the current full discovered catalog (for strip matching)."""
-    return set(_vscode_prompt_paths_from_full_catalog(repo_path))
+def _is_specfact_github_prompt_path(path: str) -> bool:
+    """True for SpecFact-managed GitHub prompt recommendations (strip on selective export); keeps team paths."""
+    normalized = path.replace("\\", "/").lstrip("./")
+    if not normalized.startswith("github/prompts/"):
+        return False
+    name = Path(normalized).name
+    return name.startswith("specfact") and name.endswith(".prompt.md")
 
 
-def _is_specfact_managed_github_prompt_recommendation(path: str, catalog_paths: set[str]) -> bool:
-    """True if this recommendation string was produced by SpecFact (not arbitrary team paths)."""
-    return path in catalog_paths or bool(
-        _SPECFACT_GITHUB_PROMPT_NAMESPACED_RE.match(path) or _SPECFACT_GITHUB_PROMPT_FLAT_RE.match(path)
-    )
-
-
-def _strip_specfact_github_prompt_recommendations(paths: list[str], repo_path: Path) -> list[str]:
+def _strip_specfact_github_prompt_recommendations(paths: list[str]) -> list[str]:
     """Remove prior SpecFact-managed ``.github/prompts/`` entries before merging a selective export; keep other paths."""
-    catalog_paths = _specfact_catalog_github_prompt_paths(repo_path)
-    return [p for p in paths if not _is_specfact_managed_github_prompt_recommendation(p, catalog_paths)]
+    return [p for p in paths if not _is_specfact_github_prompt_path(p)]
 
 
 @beartype
@@ -818,9 +872,10 @@ def create_vscode_settings(
         repo_path: Repository root path
         settings_file: Settings file path (e.g., ".vscode/settings.json")
         prompts_by_source: When set (e.g. from ``copy_prompts_by_source_to_ide``), recommendations list only
-            templates from that export; prior **SpecFact-managed** ``.github/prompts/`` entries (catalog paths
-            or ``specfact.*`` namespaced/flat layout) are removed so selective ``--prompts`` runs do not
-            leave stale module paths; other recommendation strings are preserved. When ``None``,
+            templates from that export; prior **SpecFact-managed** ``.github/prompts/`` entries (paths whose
+            filename looks like ``specfact*.prompt.md``) are removed so selective ``--prompts`` runs do not
+            leave stale exports; other ``.github/prompts/`` entries and paths outside that folder are preserved.
+            When ``None``,
             recommendations follow the full discovered catalog (or legacy flat fallbacks).
 
     Returns:
@@ -866,7 +921,6 @@ def create_vscode_settings(
     if prompts_by_source is not None:
         existing_recommendations = _strip_specfact_github_prompt_recommendations(
             list(existing_recommendations) if isinstance(existing_recommendations, list) else [],
-            repo_path,
         )
     merged_recommendations = list(set(existing_recommendations + prompt_files))
     chat_dict["promptFilesRecommendations"] = merged_recommendations

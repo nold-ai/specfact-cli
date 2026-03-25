@@ -10,6 +10,7 @@ import pytest
 from specfact_cli.utils.ide_setup import (
     PROMPT_SOURCE_CORE,
     SPECFACT_COMMANDS,
+    _is_specfact_github_prompt_path,
     copy_templates_to_ide,
     create_vscode_settings,
     detect_ide,
@@ -307,6 +308,15 @@ def test_discover_prompt_template_files_deduplicates_prompt_ids_by_filename(
     discovered = discover_prompt_template_files(tmp_path)
 
     assert discovered == [first_prompt]
+
+
+def test_is_specfact_github_prompt_path_only_specfact_named_prompts() -> None:
+    """Strip targets only ``specfact*.prompt.md`` under ``.github/prompts/`` (after path normalization)."""
+    assert _is_specfact_github_prompt_path(".github/prompts/core/specfact.01-import.prompt.md")
+    assert _is_specfact_github_prompt_path(".\\github\\prompts\\nold-ai__x\\specfact.extra.prompt.md")
+    assert not _is_specfact_github_prompt_path(".github/prompts/custom/team-owned.prompt.md")
+    assert not _is_specfact_github_prompt_path(".other/specfact.01-import.prompt.md")
+    assert not _is_specfact_github_prompt_path(".github/prompts/notes/readme.md")
 
 
 def test_create_vscode_settings_selective_export_replaces_stale_github_prompt_paths(tmp_path: Path) -> None:

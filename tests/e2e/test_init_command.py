@@ -220,13 +220,11 @@ class TestInitCommandE2E:
 
         # May find templates from installed package or fail - both are valid
         # If templates are found from package, it succeeds (exit 0)
-        # If templates are not found at all, it fails (exit 1)
+        # If templates are not found at all, it fails (exit 1) with ``init ide`` empty-catalog messages
         if result.exit_code == 1:
-            assert (
-                "No prompt templates found" in result.stdout
-                or "Templates directory not found" in result.stdout
-                or "Error" in result.stdout
-            )
+            out = result.stdout
+            assert "No prompt templates found" in out, out
+            assert "Seed or install modules first" in out, out
         else:
             # If it succeeds, templates were found from installed package
             assert result.exit_code == 0

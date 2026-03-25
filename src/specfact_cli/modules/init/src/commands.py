@@ -408,16 +408,13 @@ def _select_prompt_sources_interactive(catalog: dict[str, list[Path]]) -> dict[s
     labels = [f"{k}  ({len(catalog[k])} template(s))" for k in keys]
     label_to_key = {labels[i]: keys[i] for i in range(len(keys))}
 
-    selected = (
-        cast(Any, questionary)
-        .checkbox(
-            "Select prompt sources:",
-            choices=labels,
-            default=labels,
-            style=_questionary_style(),
-        )
-        .ask()
-    )
+    q = cast(Any, questionary)
+    choices_with_default = [q.Choice(title=lab, checked=True) for lab in labels]
+    selected = q.checkbox(
+        "Select prompt sources:",
+        choices=choices_with_default,
+        style=_questionary_style(),
+    ).ask()
     if not selected:
         console.print("[red]Error:[/red] Select at least one prompt source.")
         raise typer.Exit(1)
