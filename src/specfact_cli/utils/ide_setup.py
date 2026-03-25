@@ -195,6 +195,18 @@ def _core_prompt_template_paths(repo_path: Path, include_package_fallback: bool)
     return []
 
 
+def _core_prompts_excluding_module_basenames(
+    core_files: list[Path],
+    module_catalog: dict[str, list[Path]],
+) -> list[Path]:
+    """Drop core templates whose basename is already provided by an installed module (single source of truth)."""
+    module_basenames: set[str] = set()
+    for paths in module_catalog.values():
+        for p in paths:
+            module_basenames.add(p.name)
+    return [p for p in core_files if p.name not in module_basenames]
+
+
 def _module_prompt_sources_catalog(repo_path: Path) -> dict[str, list[Path]]:
     from specfact_cli.registry.module_packages import CORE_MODULE_ORDER, discover_package_metadata
 
@@ -249,12 +261,17 @@ def discover_prompt_sources_catalog(
 
     Core templates come from the repo checkout or the installed ``specfact_cli`` package. Module templates
     are discovered from effective module roots (builtin, project, user, marketplace, custom).
+
+    When a module ships a template with the same source filename as core (e.g. ``specfact.01-import.md``),
+    the module copy wins: core does not list that basename so exports stay single-sourced.
     """
-    catalog: dict[str, list[Path]] = {}
+    module_catalog = _module_prompt_sources_catalog(repo_path)
     core_files = _core_prompt_template_paths(repo_path, include_package_fallback)
-    if core_files:
-        catalog[PROMPT_SOURCE_CORE] = list(core_files)
-    catalog.update(_module_prompt_sources_catalog(repo_path))
+    core_filtered = _core_prompts_excluding_module_basenames(core_files, module_catalog)
+    catalog: dict[str, list[Path]] = {}
+    if core_filtered:
+        catalog[PROMPT_SOURCE_CORE] = list(core_filtered)
+    catalog.update(module_catalog)
     return catalog
 
 
@@ -378,71 +395,75 @@ def _output_filename_for_template(template_path: Path, format_type: str) -> str:
     return template_path.name
 
 
-def _safe_resolved_segment_dir(repo_path: Path, ide: str, segment: str) -> Path | None:
-    """Return ``repo_path / ide_folder / segment`` resolved, or ``None`` if it escapes the IDE export root."""
-    config = IDE_CONFIG[ide]
-    base = (repo_path / str(config["folder"])).resolve()
-    segment_dir = (base / segment).resolve()
-    try:
-        segment_dir.relative_to(base)
-    except ValueError:
-        return None
-    return segment_dir
-
-
-def _prune_segment_exports_not_in_expected(
-    repo_path: Path,
-    ide: str,
-    segment: str,
-    template_paths: list[Path],
-) -> None:
-    """Remove files under ``ide_folder/segment`` that are not part of this export (same filenames as copy)."""
-    if not template_paths:
-        return
-    config = IDE_CONFIG[ide]
-    format_type = str(config["format"])
-    segment_dir = _safe_resolved_segment_dir(repo_path, ide, segment)
-    if segment_dir is None or not segment_dir.is_dir():
-        return
-    expected_resolved: set[Path] = {
-        (segment_dir / _output_filename_for_template(tp, format_type)).resolve() for tp in template_paths
-    }
-    for p in list(segment_dir.iterdir()):
-        if not p.is_file():
-            continue
-        if p.resolve() not in expected_resolved:
-            try:
-                p.unlink()
-                console.print(f"[dim]Removed stale prompt export:[/dim] {p}")
-            except OSError as exc:
-                console.print(f"[yellow]Could not remove stale export {p}:[/yellow] {exc}")
-
-
-def _remove_unselected_prompt_export_segments(
-    repo_path: Path,
-    ide: str,
+def _merge_prompt_export_outputs_by_basename(
     prompts_by_source: dict[str, list[Path]],
-) -> None:
-    """Remove on-disk segment directories under the IDE export root that are not in this selective export."""
+    format_type: str,
+) -> dict[str, Path]:
+    """Map IDE output filename to source template; later sources win over core on basename collisions."""
+    ordered = sorted(
+        prompts_by_source.items(),
+        key=lambda item: (item[0] != PROMPT_SOURCE_CORE, item[0]),
+    )
+    out: dict[str, Path] = {}
+    for _source_id, paths in ordered:
+        for p in paths:
+            out[_output_filename_for_template(p, format_type)] = p
+    return out
+
+
+def _cleanup_legacy_multisource_segment_dirs(repo_path: Path, ide: str) -> None:
+    """Remove per-source subfolders from older multi-source exports (layout is now flat under the IDE root)."""
     config = IDE_CONFIG[ide]
     base = (repo_path / str(config["folder"])).resolve()
-    selected_segments = {source_id_to_path_segment(sid) for sid in prompts_by_source}
     if not base.is_dir():
         return
     for child in list(base.iterdir()):
         if not child.is_dir():
             continue
+        if child.name != PROMPT_SOURCE_CORE and "__" not in child.name:
+            continue
         try:
             child.resolve().relative_to(base)
         except ValueError:
             continue
-        if child.name in selected_segments:
-            continue
         try:
             shutil.rmtree(child)
-            console.print(f"[dim]Removed unselected export segment:[/dim] {child}")
+            console.print(f"[dim]Removed legacy prompt export segment:[/dim] {child}")
         except OSError as exc:
-            console.print(f"[yellow]Could not remove segment {child}:[/yellow] {exc}")
+            console.print(f"[yellow]Could not remove legacy segment {child}:[/yellow] {exc}")
+
+
+def _flat_export_glob_pattern_for_prune(format_type: str) -> str:
+    """Glob for SpecFact-managed flat exports; must stay aligned with ``_output_filename_for_template``."""
+    if format_type == "prompt.md":
+        return "specfact*.prompt.md"
+    if format_type == "toml":
+        return "specfact*.toml"
+    return "specfact*.md"
+
+
+def _prune_flat_specfact_exports_not_in_expected(
+    repo_path: Path,
+    ide: str,
+    expected_output_names: set[str],
+) -> None:
+    """Remove prior flat ``specfact*`` exports that are not part of this merged export."""
+    config = IDE_CONFIG[ide]
+    format_type = str(config["format"])
+    base = (repo_path / str(config["folder"])).resolve()
+    if not base.is_dir():
+        return
+    pattern = _flat_export_glob_pattern_for_prune(format_type)
+    for p in base.glob(pattern):
+        if not p.is_file():
+            continue
+        if p.name in expected_output_names:
+            continue
+        try:
+            p.unlink()
+            console.print(f"[dim]Removed stale prompt export:[/dim] {p}")
+        except OSError as exc:
+            console.print(f"[yellow]Could not remove stale export {p}:[/yellow] {exc}")
 
 
 def _copy_template_files_to_ide(
@@ -507,7 +528,7 @@ def expected_ide_prompt_export_paths(
     *,
     prompt_source_ids: frozenset[str] | None = None,
 ) -> list[Path]:
-    """Return expected on-disk paths for exported IDE prompts (source-namespaced layout).
+    """Return expected on-disk paths for exported IDE prompts (flat layout under the IDE export folder).
 
     If ``prompt_source_ids`` is set (from ``.specfact/ide-prompt-export.yaml``), only those sources are
     expected—matching a selective ``init ide --prompts`` run. Otherwise the full discovered catalog is used.
@@ -518,12 +539,8 @@ def expected_ide_prompt_export_paths(
     catalog = discover_prompt_sources_catalog(repo_path)
     if prompt_source_ids is not None:
         catalog = {k: v for k, v in catalog.items() if k in prompt_source_ids}
-    paths: list[Path] = []
-    for sid, templates in sorted(catalog.items(), key=lambda item: (item[0] != PROMPT_SOURCE_CORE, item[0])):
-        segment = source_id_to_path_segment(sid)
-        for template_path in templates:
-            paths.append(base / segment / _output_filename_for_template(template_path, format_type))
-    return paths
+    merged = _merge_prompt_export_outputs_by_basename(catalog, format_type)
+    return [base / name for name in sorted(merged.keys())]
 
 
 @beartype
@@ -551,13 +568,12 @@ def count_outdated_ide_prompt_exports(
     catalog = discover_prompt_sources_catalog(repo_path)
     if prompt_source_ids is not None:
         catalog = {k: v for k, v in catalog.items() if k in prompt_source_ids}
+    merged = _merge_prompt_export_outputs_by_basename(catalog, format_type)
     outdated = 0
-    for sid, paths in catalog.items():
-        segment = source_id_to_path_segment(sid)
-        for src in paths:
-            dest = base / segment / _output_filename_for_template(src, format_type)
-            if src.exists() and dest.exists() and dest.stat().st_mtime < src.stat().st_mtime:
-                outdated += 1
+    for dest_name, src in merged.items():
+        dest = base / dest_name
+        if src.exists() and dest.exists() and dest.stat().st_mtime < src.stat().st_mtime:
+            outdated += 1
     return outdated
 
 
@@ -581,25 +597,18 @@ def copy_prompts_by_source_to_ide(
     prompts_by_source: dict[str, list[Path]],
     force: bool = False,
 ) -> tuple[list[Path], Path | None]:
-    """Copy prompts grouped by source id into source-namespaced subfolders under the IDE export directory."""
-    all_copied: list[Path] = []
-    _remove_unselected_prompt_export_segments(repo_path, ide, prompts_by_source)
-    ordered = sorted(
-        prompts_by_source.items(),
-        key=lambda item: (item[0] != PROMPT_SOURCE_CORE, item[0]),
+    """Copy prompts from multiple sources into a single flat folder under the IDE export directory."""
+    config = IDE_CONFIG[ide]
+    format_type = str(config["format"])
+    _cleanup_legacy_multisource_segment_dirs(repo_path, ide)
+    merged = _merge_prompt_export_outputs_by_basename(prompts_by_source, format_type)
+    _prune_flat_specfact_exports_not_in_expected(repo_path, ide, set(merged.keys()))
+    template_list = list(merged.values())
+    all_copied, _settings = _copy_template_files_to_ide(
+        repo_path, ide, template_list, force, source_segment=None, write_settings=False
     )
-    for source_id, paths in ordered:
-        if not paths:
-            continue
-        segment = source_id_to_path_segment(source_id)
-        _prune_segment_exports_not_in_expected(repo_path, ide, segment, paths)
-        copied, _settings = _copy_template_files_to_ide(
-            repo_path, ide, paths, force, source_segment=segment, write_settings=False
-        )
-        all_copied.extend(copied)
 
     settings_path: Path | None = None
-    config = IDE_CONFIG[ide]
     settings_file = config.get("settings_file")
     if settings_file and isinstance(settings_file, str):
         settings_path = create_vscode_settings(repo_path, settings_file, prompts_by_source=prompts_by_source)
@@ -764,27 +773,16 @@ def copy_templates_to_ide(
 
 
 def _vscode_prompt_recommendation_paths_from_sources(prompts_by_source: dict[str, list[Path]]) -> list[str]:
-    """Build `.github/prompts/...` recommendation strings matching namespaced IDE export layout."""
-    prompt_files: list[str] = []
-    for source_id, paths in sorted(
-        prompts_by_source.items(),
-        key=lambda item: (item[0] != PROMPT_SOURCE_CORE, item[0]),
-    ):
-        segment = source_id_to_path_segment(source_id)
-        for template_path in paths:
-            prompt_files.append(f".github/prompts/{segment}/{template_path.stem}.prompt.md")
-    return prompt_files
+    """Build `.github/prompts/...` recommendation strings matching flat IDE export layout."""
+    merged = _merge_prompt_export_outputs_by_basename(prompts_by_source, "prompt.md")
+    return [f".github/prompts/{name}" for name in sorted(merged.keys())]
 
 
 def _vscode_prompt_paths_from_full_catalog(repo_path: Path) -> list[str]:
-    """Recommendation paths for the full discovered prompt catalog (namespaced segments)."""
+    """Recommendation paths for the full discovered prompt catalog (flat under ``.github/prompts/``)."""
     catalog = discover_prompt_sources_catalog(repo_path)
-    out: list[str] = []
-    for source_id, paths in sorted(catalog.items(), key=lambda item: (item[0] != PROMPT_SOURCE_CORE, item[0])):
-        segment = source_id_to_path_segment(source_id)
-        for template_path in paths:
-            out.append(f".github/prompts/{segment}/{template_path.stem}.prompt.md")
-    return out
+    merged = _merge_prompt_export_outputs_by_basename(catalog, "prompt.md")
+    return [f".github/prompts/{name}" for name in sorted(merged.keys())]
 
 
 def _finalize_vscode_prompt_recommendation_paths(repo_path: Path, prompt_files: list[str]) -> list[str]:
@@ -883,7 +881,7 @@ def create_vscode_settings(
         prompts_by_source: When set (e.g. from ``copy_prompts_by_source_to_ide``), recommendations list only
             templates from that export; prior **SpecFact-managed** ``.github/prompts/`` entries (paths whose
             filename looks like ``specfact*.prompt.md``) are removed so selective ``--prompts`` runs do not
-            leave stale exports; other ``.github/prompts/`` entries and paths outside that folder are preserved.
+            leave stale recommendations; other ``.github/prompts/`` entries and paths outside that folder are preserved.
             When ``None``,
             recommendations follow the full discovered catalog (or legacy flat fallbacks).
 

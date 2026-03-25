@@ -51,11 +51,16 @@ Non-interactive `specfact init ide` SHALL accept a comma-separated prompt source
 - **WHEN** a user passes a prompt source token that is not `all`, not `core`, and not an installed module id with prompt resources
 - **THEN** the command fails with actionable guidance describing the invalid token and the available prompt sources.
 
-### Requirement: Exported Prompt Files Must Preserve Source Provenance
+### Requirement: Exported Prompt Files Must Be IDE-Discoverable With Deterministic Single Sourcing
 
-Exported prompt files SHALL preserve module/core provenance so collisions are deterministic and later command-surface migrations do not silently overwrite unrelated prompts.
+Exported prompts for VS Code / Copilot (under ``.github/prompts/``) and other multi-source IDE targets SHALL use a **flat** layout (no per-source subfolders) so editors and agents can discover ``specfact*.prompt.md`` (or equivalent) at the export root.
 
-#### Scenario: Multiple sources expose similarly named prompts
-- **WHEN** `core` and one or more installed modules expose prompt files with overlapping basenames or command affinity
-- **THEN** the exported IDE-facing output preserves which source owns each prompt
-- **AND** the collision outcome is deterministic and visible to the user.
+#### Scenario: Core defers to modules on overlapping template basenames
+- **WHEN** `core` and one or more installed modules expose the same source filename (e.g. ``specfact.01-import.md``)
+- **THEN** the prompt catalog SHALL list that basename only under the owning module source
+- **AND** `core` SHALL NOT duplicate that basename so exports are single-sourced.
+
+#### Scenario: Multiple module sources expose the same basename
+- **WHEN** two installed modules expose the same template basename
+- **THEN** the merged export uses a deterministic last-wins rule by sorted source id (later id overwrites earlier)
+- **AND** the flat export contains exactly one file per output basename.

@@ -79,7 +79,7 @@ def copy_templates_to_ide(
     *,
     prompts_by_source: dict[str, list[Path]] | None = None,
 ) -> tuple[list[Path], Path | None]:
-    """Discover prompt templates and copy them; use ``prompts_by_source`` for namespaced multi-source export."""
+    """Discover prompt templates and copy them; use ``prompts_by_source`` for multi-source flat export."""
     if prompts_by_source is not None:
         return copy_prompts_by_source_to_ide(repo_path, ide, prompts_by_source, force)
     return _copy_template_files_to_ide(repo_path, ide, discover_prompt_template_files(repo_path), force)

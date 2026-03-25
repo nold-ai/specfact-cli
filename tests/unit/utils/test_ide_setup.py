@@ -10,6 +10,7 @@ import pytest
 from specfact_cli.utils.ide_setup import (
     PROMPT_SOURCE_CORE,
     SPECFACT_COMMANDS,
+    _flat_export_glob_pattern_for_prune,
     _is_specfact_github_prompt_path,
     copy_templates_to_ide,
     create_vscode_settings,
@@ -240,8 +241,14 @@ class TestCopyTemplatesToIDE:
         assert (tmp_path / ".cursor" / "commands" / "specfact.backlog-add.md").exists()
 
 
-def test_discover_prompt_template_files_falls_back_to_repo_resources(tmp_path: Path) -> None:
+def test_discover_prompt_template_files_falls_back_to_repo_resources(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """Prompt discovery falls back to repo-local resources when no installed module resources exist."""
+    import specfact_cli.utils.ide_setup as ide_setup_module
+
+    monkeypatch.setattr(ide_setup_module, "_module_prompt_sources_catalog", lambda _rp: {})
+
     templates_dir = tmp_path / "resources" / "prompts"
     templates_dir.mkdir(parents=True)
     prompt_file = templates_dir / "specfact.01-import.md"
@@ -310,6 +317,13 @@ def test_discover_prompt_template_files_deduplicates_prompt_ids_by_filename(
     assert discovered == [first_prompt]
 
 
+def test_flat_export_glob_pattern_for_prune_matches_output_formats() -> None:
+    """Prune globs must align with ``_output_filename_for_template`` (including Gemini/Qwen ``*.toml``)."""
+    assert _flat_export_glob_pattern_for_prune("prompt.md") == "specfact*.prompt.md"
+    assert _flat_export_glob_pattern_for_prune("toml") == "specfact*.toml"
+    assert _flat_export_glob_pattern_for_prune("md") == "specfact*.md"
+
+
 def test_is_specfact_github_prompt_path_only_specfact_named_prompts() -> None:
     """Strip targets only ``specfact*.prompt.md`` under ``.github/prompts/`` (after path normalization)."""
     assert _is_specfact_github_prompt_path(".github/prompts/core/specfact.01-import.prompt.md")
@@ -352,7 +366,7 @@ def test_create_vscode_settings_selective_export_replaces_stale_github_prompt_pa
     assert ".github/prompts/nold-ai__mod/specfact.extra.prompt.md" not in recs
     assert ".github/prompts/custom/team-owned.prompt.md" in recs
     assert ".other/custom.prompt.md" in recs
-    assert ".github/prompts/core/specfact.01-import.prompt.md" in recs
+    assert ".github/prompts/specfact.01-import.prompt.md" in recs
 
 
 def test_specfact_commands_excludes_backlog_prompt_ids() -> None:
@@ -396,4 +410,5 @@ def test_expected_ide_prompt_export_paths_respects_prompt_source_subset(
     )
     assert len(full_paths) == 2
     assert len(subset_paths) == 1
-    assert "core" in subset_paths[0].parts
+    assert subset_paths[0].name == "c.md"
+    assert "core" not in subset_paths[0].parts

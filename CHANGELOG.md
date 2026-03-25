@@ -9,6 +9,17 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.42.6] - 2026-03-26
+
+### Fixed
+
+- `specfact init ide` multi-source export writes prompts to a **flat** layout under the IDE export root (for example `.github/prompts/` or `.cursor/commands/`) so editors and agents can discover `specfact*.prompt.md` (or equivalent) without per-source subfolders.
+- Prompt catalog: **core** omits template basenames already provided by an installed module, avoiding duplicate exports when both ship the same filename.
+- Re-export removes legacy per-source segment directories and prunes stale flat `specfact*` exports when the selected sources change.
+- Tests: import `pytest` for `MonkeyPatch` annotations in init IDE prompt selection tests (Ruff F821).
+
+---
+
 ## [0.42.5] - 2026-03-25
 
 ### Added

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
 from typer.testing import CliRunner
 
 from specfact_cli.cli import app
@@ -21,7 +22,13 @@ def test_source_id_to_path_segment_sanitizes_slashes() -> None:
     assert source_id_to_path_segment("core") == "core"
 
 
-def test_discover_prompt_sources_catalog_includes_core_from_repo(tmp_path: Path) -> None:
+def test_discover_prompt_sources_catalog_includes_core_from_repo(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import specfact_cli.utils.ide_setup as ide_setup_module
+
+    monkeypatch.setattr(ide_setup_module, "_module_prompt_sources_catalog", lambda _rp: {})
+
     prompts = tmp_path / "resources" / "prompts"
     prompts.mkdir(parents=True)
     p1 = prompts / "specfact.01-import.md"
@@ -33,7 +40,31 @@ def test_discover_prompt_sources_catalog_includes_core_from_repo(tmp_path: Path)
     assert p1 in catalog[PROMPT_SOURCE_CORE]
 
 
-def test_copy_prompts_by_source_to_ide_namespaces_by_source(tmp_path: Path) -> None:
+def test_discover_prompt_sources_catalog_omits_core_when_module_has_same_basename(tmp_path: Path) -> None:
+    core = tmp_path / "resources" / "prompts"
+    core.mkdir(parents=True)
+    p_core = core / "specfact.01-import.md"
+    p_core.write_text("---\n---\n# core\n", encoding="utf-8")
+
+    package_dir = tmp_path / ".specfact" / "modules" / "specfact-codebase"
+    prompt_dir = package_dir / "resources" / "prompts"
+    prompt_dir.mkdir(parents=True)
+    (package_dir / "module-package.yaml").write_text(
+        "name: nold-ai/specfact-codebase\nversion: '0.1.0'\ncommands: [codebase]\ncategory: codebase\n"
+        "bundle_group_command: code\n",
+        encoding="utf-8",
+    )
+    p_mod = prompt_dir / "specfact.01-import.md"
+    p_mod.write_text("---\n---\n# mod\n", encoding="utf-8")
+
+    catalog = discover_prompt_sources_catalog(tmp_path, include_package_fallback=False)
+
+    assert PROMPT_SOURCE_CORE not in catalog
+    assert "nold-ai/specfact-codebase" in catalog
+    assert p_mod in catalog["nold-ai/specfact-codebase"]
+
+
+def test_copy_prompts_by_source_to_ide_exports_flat_under_ide_root(tmp_path: Path) -> None:
     prompts = tmp_path / "resources" / "prompts"
     prompts.mkdir(parents=True)
     f1 = prompts / "specfact.01-import.md"
@@ -47,11 +78,13 @@ def test_copy_prompts_by_source_to_ide_namespaces_by_source(tmp_path: Path) -> N
     by_source = {PROMPT_SOURCE_CORE: [f1], "nold-ai/specfact-backlog": [f2]}
     copied, _settings = copy_prompts_by_source_to_ide(tmp_path, "cursor", by_source, force=True)
 
-    assert (tmp_path / ".cursor" / "commands" / "core" / "specfact.01-import.md") in copied
-    assert (tmp_path / ".cursor" / "commands" / "nold-ai__specfact-backlog" / "specfact.backlog-add.md") in copied
+    cmd = tmp_path / ".cursor" / "commands"
+    assert (cmd / "specfact.01-import.md") in copied
+    assert (cmd / "specfact.backlog-add.md") in copied
+    assert not (cmd / "core").exists()
 
 
-def test_copy_prompts_by_source_to_ide_prunes_stale_in_selected_segment(tmp_path: Path) -> None:
+def test_copy_prompts_by_source_to_ide_prunes_stale_in_flat_export(tmp_path: Path) -> None:
     """Re-exporting a subset of core templates removes outputs that are no longer expected."""
     prompts = tmp_path / "resources" / "prompts"
     prompts.mkdir(parents=True)
@@ -60,18 +93,18 @@ def test_copy_prompts_by_source_to_ide_prunes_stale_in_selected_segment(tmp_path
     f2 = prompts / "specfact.02-plan.md"
     f2.write_text("---\ndescription: B\n---\n# B\n", encoding="utf-8")
 
-    core_dir = tmp_path / ".cursor" / "commands" / "core"
+    cmd_dir = tmp_path / ".cursor" / "commands"
     copy_prompts_by_source_to_ide(tmp_path, "cursor", {PROMPT_SOURCE_CORE: [f1, f2]}, force=True)
-    assert (core_dir / "specfact.01-import.md").is_file()
-    assert (core_dir / "specfact.02-plan.md").is_file()
+    assert (cmd_dir / "specfact.01-import.md").is_file()
+    assert (cmd_dir / "specfact.02-plan.md").is_file()
 
     copy_prompts_by_source_to_ide(tmp_path, "cursor", {PROMPT_SOURCE_CORE: [f1]}, force=True)
-    assert (core_dir / "specfact.01-import.md").is_file()
-    assert not (core_dir / "specfact.02-plan.md").exists()
+    assert (cmd_dir / "specfact.01-import.md").is_file()
+    assert not (cmd_dir / "specfact.02-plan.md").exists()
 
 
-def test_copy_prompts_by_source_to_ide_removes_unselected_catalog_segment(tmp_path: Path) -> None:
-    """Selective export removes IDE segment dirs for catalog sources not in this run."""
+def test_copy_prompts_by_source_to_ide_removes_unselected_module_exports_from_flat(tmp_path: Path) -> None:
+    """Selective export removes flat outputs from catalog sources not in this run."""
     prompts = tmp_path / "resources" / "prompts"
     prompts.mkdir(parents=True)
     f1 = prompts / "specfact.01-import.md"
@@ -88,18 +121,18 @@ def test_copy_prompts_by_source_to_ide_removes_unselected_catalog_segment(tmp_pa
     f2 = prompt_dir / "specfact.backlog-add.md"
     f2.write_text("---\ndescription: B\n---\n# B\n", encoding="utf-8")
 
-    mod_seg = tmp_path / ".cursor" / "commands" / "nold-ai__specfact-backlog"
+    cmd_dir = tmp_path / ".cursor" / "commands"
     copy_prompts_by_source_to_ide(
         tmp_path,
         "cursor",
         {PROMPT_SOURCE_CORE: [f1], "nold-ai/specfact-backlog": [f2]},
         force=True,
     )
-    assert (mod_seg / "specfact.backlog-add.md").is_file()
+    assert (cmd_dir / "specfact.backlog-add.md").is_file()
 
     copy_prompts_by_source_to_ide(tmp_path, "cursor", {PROMPT_SOURCE_CORE: [f1]}, force=True)
-    assert not mod_seg.exists()
-    assert (tmp_path / ".cursor" / "commands" / "core" / "specfact.01-import.md").is_file()
+    assert (cmd_dir / "specfact.01-import.md").is_file()
+    assert not (cmd_dir / "specfact.backlog-add.md").exists()
 
 
 def test_parse_prompts_option_all_expands_to_full_catalog() -> None:
