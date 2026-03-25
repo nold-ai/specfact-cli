@@ -434,8 +434,11 @@ def _cleanup_legacy_multisource_segment_dirs(repo_path: Path, ide: str) -> None:
 
 
 def _flat_export_glob_pattern_for_prune(format_type: str) -> str:
+    """Glob for SpecFact-managed flat exports; must stay aligned with ``_output_filename_for_template``."""
     if format_type == "prompt.md":
         return "specfact*.prompt.md"
+    if format_type == "toml":
+        return "specfact*.toml"
     return "specfact*.md"
 
 

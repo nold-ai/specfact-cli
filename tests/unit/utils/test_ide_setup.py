@@ -10,6 +10,7 @@ import pytest
 from specfact_cli.utils.ide_setup import (
     PROMPT_SOURCE_CORE,
     SPECFACT_COMMANDS,
+    _flat_export_glob_pattern_for_prune,
     _is_specfact_github_prompt_path,
     copy_templates_to_ide,
     create_vscode_settings,
@@ -314,6 +315,13 @@ def test_discover_prompt_template_files_deduplicates_prompt_ids_by_filename(
     discovered = discover_prompt_template_files(tmp_path)
 
     assert discovered == [first_prompt]
+
+
+def test_flat_export_glob_pattern_for_prune_matches_output_formats() -> None:
+    """Prune globs must align with ``_output_filename_for_template`` (including Gemini/Qwen ``*.toml``)."""
+    assert _flat_export_glob_pattern_for_prune("prompt.md") == "specfact*.prompt.md"
+    assert _flat_export_glob_pattern_for_prune("toml") == "specfact*.toml"
+    assert _flat_export_glob_pattern_for_prune("md") == "specfact*.md"
 
 
 def test_is_specfact_github_prompt_path_only_specfact_named_prompts() -> None:
