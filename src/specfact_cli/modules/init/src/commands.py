@@ -29,10 +29,15 @@ from specfact_cli.utils.contract_predicates import repo_path_exists, repo_path_i
 from specfact_cli.utils.env_manager import EnvManager, EnvManagerInfo, build_tool_command, detect_env_manager
 from specfact_cli.utils.ide_setup import (
     IDE_CONFIG,
+    PROMPT_SOURCE_CORE,
     _copy_template_files_to_ide,
     _discover_module_resource_dirs,
+    copy_prompts_by_source_to_ide,
+    count_outdated_ide_prompt_exports,
     detect_ide,
+    discover_prompt_sources_catalog,
     discover_prompt_template_files,
+    expected_ide_prompt_export_paths,
     find_package_resources_path,
 )
 
@@ -65,8 +70,16 @@ is_first_run = first_run_selection.is_first_run
     ),
     "Must return copied files and optional settings path",
 )
-def copy_templates_to_ide(repo_path: Path, ide: str, force: bool = False) -> tuple[list[Path], Path | None]:
-    """Compatibility wrapper that discovers prompt templates before copying them."""
+def copy_templates_to_ide(
+    repo_path: Path,
+    ide: str,
+    force: bool = False,
+    *,
+    prompts_by_source: dict[str, list[Path]] | None = None,
+) -> tuple[list[Path], Path | None]:
+    """Discover prompt templates and copy them; use ``prompts_by_source`` for namespaced multi-source export."""
+    if prompts_by_source is not None:
+        return copy_prompts_by_source_to_ide(repo_path, ide, prompts_by_source, force)
     return _copy_template_files_to_ide(repo_path, ide, discover_prompt_template_files(repo_path), force)
 
 
@@ -307,36 +320,12 @@ def _resolve_templates_dir(repo_path: Path) -> Path | None:
     return find_package_resources_path("specfact_cli", "resources/prompts")
 
 
-def _expected_ide_prompt_basenames(repo_path: Path, format_type: str) -> list[str]:
-    prompt_files = discover_prompt_template_files(repo_path)
-    if format_type == "prompt.md":
-        return [f"{path.stem}.prompt.md" for path in prompt_files]
-    if format_type == "toml":
-        return [f"{path.stem}.toml" for path in prompt_files]
-    return [path.name for path in prompt_files]
-
-
-def _count_outdated_ide_prompts(ide_dir: Path, prompt_files: list[Path], format_type: str) -> int:
-    outdated = 0
-    for src in prompt_files:
-        if format_type == "prompt.md":
-            dest = ide_dir / f"{src.stem}.prompt.md"
-        elif format_type == "toml":
-            dest = ide_dir / f"{src.stem}.toml"
-        else:
-            dest = ide_dir / src.name
-        if src.exists() and dest.exists() and dest.stat().st_mtime < src.stat().st_mtime:
-            outdated += 1
-    return outdated
-
-
 def _audit_prompt_installation(repo_path: Path) -> None:
     """Report prompt installation health and next steps without mutating files."""
     detected_ide = detect_ide("auto")
     config = IDE_CONFIG[detected_ide]
     ide_dir = repo_path / str(config["folder"])
-    format_type = str(config["format"])
-    expected_files = _expected_ide_prompt_basenames(repo_path, format_type)
+    expected_paths = expected_ide_prompt_export_paths(repo_path, detected_ide)
 
     if not ide_dir.exists():
         console.print(
@@ -345,9 +334,8 @@ def _audit_prompt_installation(repo_path: Path) -> None:
         )
         return
 
-    missing = [name for name in expected_files if not (ide_dir / name).exists()]
-    prompt_files = discover_prompt_template_files(repo_path)
-    outdated = _count_outdated_ide_prompts(ide_dir, prompt_files, format_type) if prompt_files else 0
+    missing = [p for p in expected_paths if not p.exists()]
+    outdated = count_outdated_ide_prompt_exports(repo_path, detected_ide) if expected_paths else 0
 
     if not missing and outdated == 0:
         console.print(f"[green]Prompt status:[/green] {detected_ide} prompts are present and up to date.")
@@ -357,6 +345,81 @@ def _audit_prompt_installation(repo_path: Path) -> None:
         f"[yellow]Prompt status:[/yellow] missing={len(missing)}, outdated={outdated} for detected IDE ({detected_ide})."
     )
     console.print(f"[dim]Run: specfact init ide --ide {detected_ide}{' --force' if outdated > 0 else ''}[/dim]")
+
+
+def _raise_missing_prompt_source(token: str, catalog: dict[str, list[Path]]) -> None:
+    avail = ", ".join(sorted(catalog.keys()))
+    console.print(f"[red]Error:[/red] Prompt source [bold]{token}[/bold] is not available or has no prompt resources.")
+    console.print(f"[dim]Available sources: {avail}[/dim]")
+    console.print(
+        "[dim]Install modules with [bold]specfact module install --scope user|project[/bold] "
+        "or seed bundled artifacts with [bold]specfact module init --scope user|project[/bold].[/dim]"
+    )
+    raise typer.Exit(1)
+
+
+@beartype
+def _parse_prompts_option_to_catalog(catalog: dict[str, list[Path]], prompts: str) -> dict[str, list[Path]]:
+    tokens = [t.strip() for t in prompts.split(",") if t.strip()]
+    if not tokens:
+        console.print("[red]Error:[/red] --prompts must list at least one source or `all`.")
+        raise typer.Exit(1)
+    if len(tokens) == 1 and tokens[0].lower() == "all":
+        return dict(catalog)
+    result: dict[str, list[Path]] = {}
+    for token in tokens:
+        key = PROMPT_SOURCE_CORE if token.lower() == "core" else token
+        if key not in catalog:
+            _raise_missing_prompt_source(token, catalog)
+        result[key] = catalog[key]
+    return result
+
+
+def _select_prompt_sources_interactive(catalog: dict[str, list[Path]]) -> dict[str, list[Path]]:
+    keys = sorted(catalog.keys(), key=lambda k: (k != PROMPT_SOURCE_CORE, k))
+    if len(keys) <= 1:
+        return dict(catalog)
+    try:
+        import questionary  # type: ignore[reportMissingImports]
+    except ImportError as e:
+        console.print(
+            "[red]Interactive prompt source selection requires 'questionary'. "
+            "Install with: pip install questionary[/red]"
+        )
+        raise typer.Exit(1) from e
+
+    console.print()
+    console.print(
+        Panel(
+            "[bold cyan]Prompt sources[/bold cyan]\n"
+            "Choose which prompt bundles to export (core and installed modules with prompt resources).",
+            border_style="cyan",
+        )
+    )
+    console.print("[dim]Controls: ↑↓ navigate • Space toggle • Enter confirm • Type to filter • Ctrl+C cancel[/dim]")
+
+    labels = [f"{k}  ({len(catalog[k])} template(s))" for k in keys]
+    label_to_key = {labels[i]: keys[i] for i in range(len(keys))}
+
+    selected = (
+        cast(Any, questionary)
+        .checkbox(
+            "Select prompt sources:",
+            choices=labels,
+            default=labels,
+            style=_questionary_style(),
+        )
+        .ask()
+    )
+    if not selected:
+        console.print("[red]Error:[/red] Select at least one prompt source.")
+        raise typer.Exit(1)
+    chosen: dict[str, list[Path]] = {}
+    for label in selected:
+        sid = label_to_key.get(label)
+        if sid is not None:
+            chosen[sid] = catalog[sid]
+    return chosen
 
 
 def _select_ide_interactive(default_ide: str) -> str:
@@ -561,8 +624,16 @@ def init_ide(
         "--ide",
         help="IDE type (cursor, vscode, copilot, claude, gemini, qwen, opencode, windsurf, kilocode, auggie, roo, codebuddy, amp, q, auto)",
     ),
+    prompts: str | None = typer.Option(
+        None,
+        "--prompts",
+        help=(
+            "Comma-separated prompt sources: 'all', 'core', and/or module ids (e.g. nold-ai/specfact-backlog). "
+            "Default: all discovered sources. Omitted in interactive mode opens a multi-select."
+        ),
+    ),
 ) -> None:
-    """Initialize IDE prompt templates and settings."""
+    """Initialize IDE prompt templates and settings (exports core + installed module prompts; re-sync anytime)."""
     repo_path = repo.resolve()
     detected_default = detect_ide("auto")
     if ide is not None:
@@ -595,14 +666,27 @@ def init_ide(
     if install_deps:
         _install_contract_enhancement_dependencies(repo_path, env_info)
 
-    prompt_files = discover_prompt_template_files(repo_path)
-    if not prompt_files:
-        console.print("[red]Error:[/red] Templates directory not found.")
+    catalog = discover_prompt_sources_catalog(repo_path)
+    if not catalog:
+        console.print("[red]Error:[/red] No prompt templates found.")
+        console.print(
+            "[dim]Seed or install modules first, e.g. [bold]specfact module init --scope project[/bold] "
+            "or [bold]specfact module install --scope user[/bold].[/dim]"
+        )
         raise typer.Exit(1)
 
-    template_sources = ", ".join(sorted({str(path.parent) for path in prompt_files}))
-    console.print(f"[cyan]Templates:[/cyan] {template_sources}")
-    copied_files, settings_path = copy_templates_to_ide(repo_path, selected_ide, force)
+    if prompts is not None:
+        selected_catalog = _parse_prompts_option_to_catalog(catalog, prompts)
+    elif is_non_interactive():
+        selected_catalog = dict(catalog)
+    else:
+        selected_catalog = _select_prompt_sources_interactive(catalog)
+
+    source_summary = ", ".join(sorted(selected_catalog.keys()))
+    console.print(f"[cyan]Prompt sources:[/cyan] {source_summary}")
+    copied_files, settings_path = copy_templates_to_ide(
+        repo_path, selected_ide, force, prompts_by_source=selected_catalog
+    )
     _copy_backlog_field_mapping_templates(repo_path, force, console)
 
     console.print()

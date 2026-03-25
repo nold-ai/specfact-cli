@@ -269,7 +269,8 @@ def test_discover_prompt_template_files_prefers_target_repo_workspace_modules(
 
     discovered = discover_prompt_template_files(repo_path)
 
-    assert discovered == [prompt_file]
+    assert prompt_file in discovered
+    assert str(prompt_file).startswith(str(repo_path))
 
 
 def test_discover_prompt_template_files_deduplicates_prompt_ids_by_filename(
@@ -290,10 +291,11 @@ def test_discover_prompt_template_files_deduplicates_prompt_ids_by_filename(
 
     monkeypatch.setattr(
         ide_setup_module,
-        "_discover_module_resource_dirs",
-        lambda resource_subpath, repo_path=None, categories=None: (
-            [first_dir.parent, second_dir.parent] if resource_subpath == "resources/prompts" else []
-        ),
+        "discover_prompt_sources_catalog",
+        lambda repo_path, include_package_fallback=True: {
+            "nold-ai/mod-a": [first_prompt],
+            "nold-ai/mod-b": [second_prompt],
+        },
     )
 
     discovered = discover_prompt_template_files(tmp_path)
