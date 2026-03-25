@@ -128,6 +128,11 @@ def test_resolve_templates_dir_uses_package_fallback_when_repo_templates_missing
     fallback_templates.mkdir(parents=True)
     monkeypatch.setattr(init_commands, "find_package_resources_path", lambda *_args: fallback_templates)
     monkeypatch.setattr("importlib.resources.files", lambda *_args: (_ for _ in ()).throw(RuntimeError("boom")))
+    monkeypatch.setattr(
+        init_commands,
+        "discover_prompt_template_files",
+        lambda repo_path, include_package_fallback=False: [],
+    )
 
     resolved = init_commands._resolve_templates_dir(tmp_path)
 
