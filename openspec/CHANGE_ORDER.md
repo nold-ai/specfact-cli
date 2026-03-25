@@ -149,7 +149,7 @@ Cross-repo dependency: `docs-07-core-handoff-conversion` depends on `specfact-cl
 | module-migration | 09 | backlog-module-ownership-cleanup | TBD | module-migration-06; backlog-core-07; cli-val-07 findings |
 | module-migration | 10 | module-migration-10-bundle-command-surface-alignment | [#385](https://github.com/nold-ai/specfact-cli/issues/385) | module-migration-02 ✅; module-migration-06/07 baseline; cli-val-07 findings |
 | module-migration | 11 | module-migration-11-project-codebase-ownership-realignment | [#408](https://github.com/nold-ai/specfact-cli/issues/408) | module-migration-06 baseline; backlog-module-ownership-cleanup precedent; blocks final canonical import-path decisions in module-migration-10 |
-| init-ide | 01 | init-ide-prompt-source-selection | TBD | backlog-module-ownership-cleanup |
+| init-ide | 01 | init-ide-prompt-source-selection | [#382](https://github.com/nold-ai/specfact-cli/issues/382) | backlog-module-ownership-cleanup; packaging-02-cross-platform-runtime-and-module-resources; modules-repo/packaging-01-bundle-resource-payloads (#101); module-migration-11 command-ownership alignment |
 | backlog-auth | 01 | backlog-auth-01-backlog-auth-commands | TBD | module-migration-03 (central auth interface in core; auth removed from core) |
 
 ### Cross-cutting foundations (no hard dependencies — implement early)
