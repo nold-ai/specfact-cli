@@ -12,11 +12,17 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.42.5] - 2026-03-25
+
 ### Added
 
 - `specfact init ide` builds a prompt-source catalog from **core** (bundled or repo `resources/prompts`) plus installed modules across builtin, project, user, and marketplace roots; defaults to exporting all sources; supports `--prompts` for non-interactive selection (`all`, `core`, comma-separated module ids) and an interactive multi-select when multiple sources exist.
 - IDE prompt exports are written under per-source subfolders (for example `.cursor/commands/core/`, `.cursor/commands/<owner>__<module>/`) so filenames stay collision-safe.
 - Startup IDE template drift checks resolve exports under the namespaced layout (flat or nested).
+
+### Fixed
+
+- VS Code / Copilot: `chat.promptFilesRecommendations` is limited to prompt sources actually exported by `init ide`; selective `--prompts` no longer leaves stale `.github/prompts/...` entries from unexported modules.
 
 ---
 
