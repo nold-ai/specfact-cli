@@ -118,6 +118,10 @@ IDE_CONFIG: dict[str, dict[str, str | bool | None]] = {
     },
 }
 
+# Canonical id for bundled `specfact_cli` prompt templates (not a module-package name).
+PROMPT_SOURCE_CORE = "core"
+
+
 # Commands available in SpecFact
 # Workflow-ordered commands (Phase 3)
 SPECFACT_COMMANDS = [
@@ -142,6 +146,7 @@ def _iter_prompt_template_files(templates_dir: Path) -> list[Path]:
 
 def _module_discovery_roots(repo_path: Path | None) -> list[tuple[Path, str]]:
     """Return module roots to inspect across builtin, repo-local, and configured locations."""
+    from specfact_cli.registry.module_discovery import MARKETPLACE_MODULES_ROOT, USER_MODULES_ROOT
     from specfact_cli.registry.module_packages import get_modules_root, get_workspace_modules_root
 
     discovery_roots: list[tuple[Path, str]] = []
@@ -156,8 +161,10 @@ def _module_discovery_roots(repo_path: Path | None) -> list[tuple[Path, str]]:
 
     _add_discovery_root(get_modules_root(), "builtin")
     if repo_path is not None:
-        _add_discovery_root((repo_path / ".specfact" / "modules").resolve(), "workspace")
-    _add_discovery_root(get_workspace_modules_root(repo_path), "workspace")
+        _add_discovery_root((repo_path / ".specfact" / "modules").resolve(), "project")
+    _add_discovery_root(get_workspace_modules_root(repo_path), "project")
+    _add_discovery_root(USER_MODULES_ROOT, "user")
+    _add_discovery_root(MARKETPLACE_MODULES_ROOT, "marketplace")
 
     extra_roots = os.environ.get("SPECFACT_MODULES_ROOTS", "")
     for raw_root in extra_roots.split(os.pathsep):
@@ -169,6 +176,83 @@ def _module_discovery_roots(repo_path: Path | None) -> list[tuple[Path, str]]:
             _add_discovery_root(candidate_path, "custom")
 
     return discovery_roots
+
+
+def _core_prompt_template_paths(repo_path: Path, include_package_fallback: bool) -> list[Path]:
+    repo_prompts = (repo_path / "resources" / "prompts").resolve()
+    if repo_prompts.is_dir():
+        found = _iter_prompt_template_files(repo_prompts)
+        if found:
+            return found
+    if not include_package_fallback:
+        return []
+    pkg_dir = find_package_resources_path("specfact_cli", "resources/prompts")
+    if pkg_dir is not None and pkg_dir.is_dir():
+        return _iter_prompt_template_files(pkg_dir)
+    return []
+
+
+def _module_prompt_sources_catalog(repo_path: Path) -> dict[str, list[Path]]:
+    from specfact_cli.registry.module_packages import CORE_MODULE_ORDER, discover_package_metadata
+
+    catalog: dict[str, list[Path]] = {}
+    for modules_root, source in _module_discovery_roots(repo_path):
+        if not modules_root.exists() or not modules_root.is_dir():
+            continue
+        for package_dir, metadata in discover_package_metadata(modules_root, source=source):
+            if metadata.name in CORE_MODULE_ORDER:
+                continue
+            prompt_dir = (package_dir / "resources" / "prompts").resolve()
+            if not prompt_dir.is_dir():
+                continue
+            files = _iter_prompt_template_files(prompt_dir)
+            if not files:
+                continue
+            module_id = str(metadata.name)
+            if module_id in catalog or module_id == PROMPT_SOURCE_CORE:
+                continue
+            catalog[module_id] = list(files)
+    return catalog
+
+
+@beartype
+@require(lambda source_id: isinstance(source_id, str) and source_id.strip() != "", "source_id must be non-empty")
+@ensure(lambda result: isinstance(result, str) and len(result) > 0, "segment must be non-empty")
+def source_id_to_path_segment(source_id: str) -> str:
+    """Map a prompt source id to a single directory segment under the IDE export folder."""
+    cleaned = source_id.strip().replace("/", "__").replace("\\", "__")
+    if not cleaned or cleaned in {".", ".."}:
+        return "unknown"
+    return cleaned
+
+
+@beartype
+@require(repo_path_exists, "Repo path must exist")
+@require(repo_path_is_dir, "Repo path must be a directory")
+@ensure(
+    lambda result: (
+        isinstance(result, dict)
+        and all(isinstance(k, str) for k in result)
+        and all(isinstance(v, list) and all(isinstance(p, Path) for p in v) for v in result.values())
+    ),
+    "Catalog must map str source ids to lists of Paths",
+)
+def discover_prompt_sources_catalog(
+    repo_path: Path,
+    include_package_fallback: bool = True,
+) -> dict[str, list[Path]]:
+    """
+    Build prompt templates grouped by owning source: ``core`` or a module id (``module-package.yaml`` name).
+
+    Core templates come from the repo checkout or the installed ``specfact_cli`` package. Module templates
+    are discovered from effective module roots (builtin, project, user, marketplace, custom).
+    """
+    catalog: dict[str, list[Path]] = {}
+    core_files = _core_prompt_template_paths(repo_path, include_package_fallback)
+    if core_files:
+        catalog[PROMPT_SOURCE_CORE] = list(core_files)
+    catalog.update(_module_prompt_sources_catalog(repo_path))
+    return catalog
 
 
 def _matches_requested_categories(
@@ -267,30 +351,19 @@ def _discover_module_resource_dirs(
 )
 def discover_prompt_template_files(repo_path: Path, include_package_fallback: bool = True) -> list[Path]:
     """Return prompt templates from installed modules, then repo resources, then optional package fallback."""
-    prompt_files: list[Path] = []
+    catalog = discover_prompt_sources_catalog(repo_path, include_package_fallback=include_package_fallback)
+    merged: list[Path] = []
     seen_names: set[str] = set()
-
-    for resource_root in _discover_module_resource_dirs("resources/prompts", repo_path=repo_path):
-        for prompt_file in _iter_prompt_template_files(resource_root / "prompts"):
+    ordered_keys = [PROMPT_SOURCE_CORE, *sorted(k for k in catalog if k != PROMPT_SOURCE_CORE)]
+    for key in ordered_keys:
+        if key not in catalog:
+            continue
+        for prompt_file in catalog[key]:
             if prompt_file.name in seen_names:
                 continue
             seen_names.add(prompt_file.name)
-            prompt_files.append(prompt_file)
-
-    if prompt_files:
-        return prompt_files
-
-    fallback_dirs: list[Path | None] = [(repo_path / "resources" / "prompts").resolve()]
-    if include_package_fallback:
-        fallback_dirs.append(find_package_resources_path("specfact_cli", "resources/prompts"))
-
-    for fallback_dir in fallback_dirs:
-        if fallback_dir is None:
-            continue
-        fallback_files = _iter_prompt_template_files(fallback_dir)
-        if fallback_files:
-            return fallback_files
-    return []
+            merged.append(prompt_file)
+    return merged
 
 
 def _output_filename_for_template(template_path: Path, format_type: str) -> str:
@@ -303,7 +376,13 @@ def _output_filename_for_template(template_path: Path, format_type: str) -> str:
 
 
 def _copy_template_files_to_ide(
-    repo_path: Path, ide: str, template_files: list[Path], force: bool = False
+    repo_path: Path,
+    ide: str,
+    template_files: list[Path],
+    force: bool = False,
+    *,
+    source_segment: str | None = None,
+    write_settings: bool = True,
 ) -> tuple[list[Path], Path | None]:
     """Copy a concrete list of prompt template files to the IDE target location."""
     config = IDE_CONFIG[ide]
@@ -314,6 +393,8 @@ def _copy_template_files_to_ide(
         settings_file = None
 
     ide_dir = repo_path / ide_folder
+    if source_segment is not None:
+        ide_dir = ide_dir / source_segment
     ide_dir.mkdir(parents=True, exist_ok=True)
 
     copied_files: list[Path] = []
@@ -332,10 +413,94 @@ def _copy_template_files_to_ide(
         console.print(f"[green]Copied:[/green] {output_path}")
 
     settings_path = None
-    if settings_file and isinstance(settings_file, str):
+    if write_settings and settings_file and isinstance(settings_file, str):
         settings_path = create_vscode_settings(repo_path, settings_file)
 
     return copied_files, settings_path
+
+
+@beartype
+@require(repo_path_exists, "Repo path must exist")
+@require(repo_path_is_dir, "Repo path must be a directory")
+@require(lambda ide: ide in IDE_CONFIG, "IDE must be valid")
+@ensure(lambda result: isinstance(result, list) and all(isinstance(p, Path) for p in result), "Must return Paths")
+def expected_ide_prompt_export_paths(repo_path: Path, ide: str) -> list[Path]:
+    """Return expected on-disk paths for exported IDE prompts (source-namespaced layout)."""
+    config = IDE_CONFIG[ide]
+    format_type = str(config["format"])
+    base = repo_path / str(config["folder"])
+    catalog = discover_prompt_sources_catalog(repo_path)
+    paths: list[Path] = []
+    for sid, templates in sorted(catalog.items(), key=lambda item: (item[0] != PROMPT_SOURCE_CORE, item[0])):
+        segment = source_id_to_path_segment(sid)
+        for template_path in templates:
+            paths.append(base / segment / _output_filename_for_template(template_path, format_type))
+    return paths
+
+
+@beartype
+@require(repo_path_exists, "Repo path must exist")
+@require(repo_path_is_dir, "Repo path must be a directory")
+@require(lambda ide: ide in IDE_CONFIG, "IDE must be valid")
+@ensure(lambda result: isinstance(result, int) and result >= 0, "Count must be non-negative")
+def count_outdated_ide_prompt_exports(repo_path: Path, ide: str) -> int:
+    """Count exported IDE prompt files that are older than their source templates."""
+    config = IDE_CONFIG[ide]
+    format_type = str(config["format"])
+    base = repo_path / str(config["folder"])
+    catalog = discover_prompt_sources_catalog(repo_path)
+    outdated = 0
+    for sid, paths in catalog.items():
+        segment = source_id_to_path_segment(sid)
+        for src in paths:
+            dest = base / segment / _output_filename_for_template(src, format_type)
+            if src.exists() and dest.exists() and dest.stat().st_mtime < src.stat().st_mtime:
+                outdated += 1
+    return outdated
+
+
+@beartype
+@require(repo_path_exists, "Repo path must exist")
+@require(repo_path_is_dir, "Repo path must be a directory")
+@require(lambda ide: ide in IDE_CONFIG, "IDE must be valid")
+@require(lambda prompts_by_source: isinstance(prompts_by_source, dict), "prompts_by_source must be a dict")
+@ensure(
+    lambda result: (
+        isinstance(result, tuple)
+        and len(result) == 2
+        and isinstance(result[0], list)
+        and (result[1] is None or isinstance(result[1], Path))
+    ),
+    "Must return copied paths and optional settings path",
+)
+def copy_prompts_by_source_to_ide(
+    repo_path: Path,
+    ide: str,
+    prompts_by_source: dict[str, list[Path]],
+    force: bool = False,
+) -> tuple[list[Path], Path | None]:
+    """Copy prompts grouped by source id into source-namespaced subfolders under the IDE export directory."""
+    all_copied: list[Path] = []
+    ordered = sorted(
+        prompts_by_source.items(),
+        key=lambda item: (item[0] != PROMPT_SOURCE_CORE, item[0]),
+    )
+    for source_id, paths in ordered:
+        if not paths:
+            continue
+        segment = source_id_to_path_segment(source_id)
+        copied, _settings = _copy_template_files_to_ide(
+            repo_path, ide, paths, force, source_segment=segment, write_settings=False
+        )
+        all_copied.extend(copied)
+
+    settings_path: Path | None = None
+    config = IDE_CONFIG[ide]
+    settings_file = config.get("settings_file")
+    if settings_file and isinstance(settings_file, str):
+        settings_path = create_vscode_settings(repo_path, settings_file, prompts_by_source=prompts_by_source)
+
+    return all_copied, settings_path
 
 
 @beartype
@@ -494,17 +659,69 @@ def copy_templates_to_ide(
     return _copy_template_files_to_ide(repo_path, ide, _iter_prompt_template_files(templates_dir), force)
 
 
+def _vscode_prompt_recommendation_paths_from_sources(prompts_by_source: dict[str, list[Path]]) -> list[str]:
+    """Build `.github/prompts/...` recommendation strings matching namespaced IDE export layout."""
+    prompt_files: list[str] = []
+    for source_id, paths in sorted(
+        prompts_by_source.items(),
+        key=lambda item: (item[0] != PROMPT_SOURCE_CORE, item[0]),
+    ):
+        segment = source_id_to_path_segment(source_id)
+        for template_path in paths:
+            prompt_files.append(f".github/prompts/{segment}/{template_path.stem}.prompt.md")
+    return prompt_files
+
+
+def _vscode_prompt_paths_from_full_catalog(repo_path: Path) -> list[str]:
+    """Recommendation paths for the full discovered prompt catalog (namespaced segments)."""
+    catalog = discover_prompt_sources_catalog(repo_path)
+    out: list[str] = []
+    for source_id, paths in sorted(catalog.items(), key=lambda item: (item[0] != PROMPT_SOURCE_CORE, item[0])):
+        segment = source_id_to_path_segment(source_id)
+        for template_path in paths:
+            out.append(f".github/prompts/{segment}/{template_path.stem}.prompt.md")
+    return out
+
+
+def _finalize_vscode_prompt_recommendation_paths(repo_path: Path, prompt_files: list[str]) -> list[str]:
+    """Fall back to flat discovery or command list when namespaced paths are empty."""
+    if not prompt_files:
+        discovered_flat = discover_prompt_template_files(repo_path)
+        prompt_files = [f".github/prompts/{template_path.stem}.prompt.md" for template_path in discovered_flat]
+    if not prompt_files:
+        return [f".github/prompts/{cmd}.prompt.md" for cmd in SPECFACT_COMMANDS]
+    return prompt_files
+
+
+def _strip_specfact_github_prompt_recommendations(paths: list[str]) -> list[str]:
+    """Remove prior SpecFact-managed prompt paths under `.github/prompts/` before re-adding an export."""
+    return [p for p in paths if not p.startswith(".github/prompts/")]
+
+
 @beartype
 @require(repo_path_exists, "Repo path must exist")
 @require(repo_path_is_dir, "Repo path must be a directory")
+@require(
+    lambda prompts_by_source: prompts_by_source is None or isinstance(prompts_by_source, dict),
+    "prompts_by_source must be None or a dict",
+)
 @ensure(lambda result: vscode_settings_result_ok(result), "Settings file must exist if returned")
-def create_vscode_settings(repo_path: Path, settings_file: str) -> Path | None:
+def create_vscode_settings(
+    repo_path: Path,
+    settings_file: str,
+    *,
+    prompts_by_source: dict[str, list[Path]] | None = None,
+) -> Path | None:
     """
     Create or merge VS Code settings.json with prompt file recommendations.
 
     Args:
         repo_path: Repository root path
         settings_file: Settings file path (e.g., ".vscode/settings.json")
+        prompts_by_source: When set (e.g. from ``copy_prompts_by_source_to_ide``), recommendations list only
+            templates from that export; prior ``.github/prompts/`` entries are replaced so selective
+            ``--prompts`` runs do not leave stale module paths. When ``None``, recommendations follow the
+            full discovered catalog (or legacy flat fallbacks).
 
     Returns:
         Path to settings file, or None if not VS Code/Copilot
@@ -520,11 +737,14 @@ def create_vscode_settings(repo_path: Path, settings_file: str) -> Path | None:
     settings_dir = settings_path.parent
     settings_dir.mkdir(parents=True, exist_ok=True)
 
-    # Generate prompt file recommendations
-    discovered_prompts = discover_prompt_template_files(repo_path)
-    prompt_files = [f".github/prompts/{template_path.stem}.prompt.md" for template_path in discovered_prompts]
-    if not prompt_files:
-        prompt_files = [f".github/prompts/{cmd}.prompt.md" for cmd in SPECFACT_COMMANDS]
+    if prompts_by_source is not None:
+        prompt_files = _finalize_vscode_prompt_recommendation_paths(
+            repo_path, _vscode_prompt_recommendation_paths_from_sources(prompts_by_source)
+        )
+    else:
+        prompt_files = _finalize_vscode_prompt_recommendation_paths(
+            repo_path, _vscode_prompt_paths_from_full_catalog(repo_path)
+        )
 
     # Load existing settings or create new
     if settings_path.exists():
@@ -543,6 +763,10 @@ def create_vscode_settings(repo_path: Path, settings_file: str) -> Path | None:
     chat_block = existing_settings["chat"]
     chat_dict: dict[str, Any] = cast(dict[str, Any], chat_block) if isinstance(chat_block, dict) else {}
     existing_recommendations = chat_dict.get("promptFilesRecommendations", [])
+    if prompts_by_source is not None:
+        existing_recommendations = _strip_specfact_github_prompt_recommendations(
+            list(existing_recommendations) if isinstance(existing_recommendations, list) else []
+        )
     merged_recommendations = list(set(existing_recommendations + prompt_files))
     chat_dict["promptFilesRecommendations"] = merged_recommendations
     existing_settings["chat"] = chat_dict

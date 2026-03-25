@@ -46,21 +46,31 @@ specfact init --install backlog,code-review
 
 ## IDE Setup
 
-The `init ide` subcommand generates IDE-specific prompt templates and settings:
+The `init ide` subcommand discovers prompt templates from **core** (bundled `specfact_cli` resources or your repo checkout) and from **installed modules** under the effective module roots (builtin, project `.specfact/modules`, user `~/.specfact/modules`, marketplace, and `SPECFACT_MODULES_ROOTS`). It is a **re-sync** command: it only copies what is already installed; it does not download or extract modules. If prompts are missing, install or seed modules first (for example `specfact module init --scope project` or `specfact module install --scope user`).
 
 ```bash
-# Initialize Cursor IDE integration
+# Initialize Cursor IDE integration (interactive: pick IDE, then prompt sources)
 specfact init ide --ide cursor
+
+# Non-interactive: export all discovered sources (default)
+specfact init ide --ide cursor --repo .
+
+# Non-interactive: only core, or a comma-separated list of module ids
+specfact init ide --ide cursor --prompts core
+specfact init ide --ide cursor --prompts all
+specfact init ide --ide cursor --prompts "core,nold-ai/specfact-backlog"
 
 # Initialize with dependency installation
 specfact init ide --install-deps
 ```
 
-This creates:
+Exported IDE files are placed under **per-source subfolders** (for example `.cursor/commands/core/`, `.cursor/commands/nold-ai__specfact-backlog/`) so names collide deterministically and provenance stays visible.
+
+This creates or refreshes:
 
 - `.specfact/` directory structure
-- `.specfact/templates/backlog/field_mappings/` with default field mapping templates
-- IDE-specific command files for your AI assistant
+- `.specfact/templates/backlog/field_mappings/` with default field mapping templates when available
+- IDE-specific command files under the IDE export directory, namespaced by prompt source
 
 ## Dependency Installation
 

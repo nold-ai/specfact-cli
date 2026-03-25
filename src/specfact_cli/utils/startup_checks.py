@@ -119,6 +119,20 @@ def _expected_ide_template_filenames(format_type: str) -> list[str]:
     return expected_files
 
 
+def _find_ide_exported_prompt_file(ide_dir: Path, basename: str) -> Path | None:
+    """Resolve an exported prompt filename under flat or source-namespaced layouts."""
+    direct = ide_dir / basename
+    if direct.is_file():
+        return direct
+    try:
+        for path in ide_dir.rglob(basename):
+            if path.is_file():
+                return path
+    except OSError:
+        return None
+    return None
+
+
 def _scan_ide_template_drift(
     ide_dir: Path,
     templates_dir: Path,
@@ -127,10 +141,10 @@ def _scan_ide_template_drift(
     missing_templates: list[str] = []
     outdated_templates: list[str] = []
     for expected_file in expected_files:
-        ide_file = ide_dir / expected_file
+        ide_file = _find_ide_exported_prompt_file(ide_dir, expected_file)
         source_template_name = expected_file.replace(".prompt.md", ".md").replace(".toml", ".md")
         source_file = templates_dir / source_template_name
-        if not ide_file.exists():
+        if ide_file is None:
             missing_templates.append(expected_file)
             continue
         if not source_file.exists():

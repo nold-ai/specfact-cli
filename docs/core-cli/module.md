@@ -9,6 +9,8 @@ description: Reference for the specfact module command group - install, manage, 
 
 Manage marketplace modules: install, uninstall, search, upgrade, and configure registries.
 
+Use `specfact module init --scope user|project` to seed bundled module trees and `specfact module install --scope user|project` to add or refresh modules. After modules are present, `specfact init ide` discovers their prompt resources from those roots and exports IDE-facing files; it does not download modules itself.
+
 ## Usage
 
 ```bash

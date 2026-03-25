@@ -40,8 +40,8 @@ class TestInitCommandE2E:
         assert "Cursor" in result.stdout
         assert ".cursor/commands/" in result.stdout
 
-        # Verify templates were copied
-        cursor_dir = tmp_path / ".cursor" / "commands"
+        # Verify templates were copied (namespaced by source: core/)
+        cursor_dir = tmp_path / ".cursor" / "commands" / "core"
         assert cursor_dir.exists()
         assert (cursor_dir / "specfact.01-import.md").exists()
         assert (cursor_dir / "specfact.02-plan.md").exists()
@@ -64,8 +64,8 @@ class TestInitCommandE2E:
         assert "Cursor" in result.stdout
         assert ".cursor/commands/" in result.stdout
 
-        # Verify template was copied
-        cursor_dir = tmp_path / ".cursor" / "commands"
+        # Verify template was copied (namespaced: core/)
+        cursor_dir = tmp_path / ".cursor" / "commands" / "core"
         assert cursor_dir.exists()
         assert (cursor_dir / "specfact.01-import.md").exists()
 
@@ -87,8 +87,8 @@ class TestInitCommandE2E:
         assert "VS Code" in result.stdout
         assert ".github/prompts/" in result.stdout
 
-        # Verify template was copied
-        prompts_dir = tmp_path / ".github" / "prompts"
+        # Verify template was copied (namespaced: core/)
+        prompts_dir = tmp_path / ".github" / "prompts" / "core"
         assert prompts_dir.exists()
         assert (prompts_dir / "specfact.01-import.prompt.md").exists()
 
@@ -114,8 +114,8 @@ class TestInitCommandE2E:
         assert "GitHub Copilot" in result.stdout
         assert ".github/prompts/" in result.stdout
 
-        # Verify template was copied
-        prompts_dir = tmp_path / ".github" / "prompts"
+        # Verify template was copied (namespaced: core/)
+        prompts_dir = tmp_path / ".github" / "prompts" / "core"
         assert prompts_dir.exists()
         assert (prompts_dir / "specfact.01-import.prompt.md").exists()
 
@@ -127,8 +127,8 @@ class TestInitCommandE2E:
         (templates_dir / "specfact.01-import.md").write_text("---\ndescription: Analyze\n---\nContent")
         (templates_dir / "specfact.02-plan.md").write_text("---\ndescription: Plan Init\n---\nContent")
 
-        # Pre-create one file (but not all)
-        cursor_dir = tmp_path / ".cursor" / "commands"
+        # Pre-create one exported file (namespaced: core/) but not all
+        cursor_dir = tmp_path / ".cursor" / "commands" / "core"
         cursor_dir.mkdir(parents=True)
         (cursor_dir / "specfact.01-import.md").write_text("existing content")
 
@@ -156,8 +156,8 @@ class TestInitCommandE2E:
         templates_dir.mkdir(parents=True)
         (templates_dir / "specfact.01-import.md").write_text("---\ndescription: Analyze\n---\nNew content")
 
-        # Pre-create one file
-        cursor_dir = tmp_path / ".cursor" / "commands"
+        # Pre-create one file under the namespaced core/ export path
+        cursor_dir = tmp_path / ".cursor" / "commands" / "core"
         cursor_dir.mkdir(parents=True)
         (cursor_dir / "specfact.01-import.md").write_text("existing content")
 
@@ -222,7 +222,11 @@ class TestInitCommandE2E:
         # If templates are found from package, it succeeds (exit 0)
         # If templates are not found at all, it fails (exit 1)
         if result.exit_code == 1:
-            assert "Templates directory not found" in result.stdout or "Error" in result.stdout
+            assert (
+                "No prompt templates found" in result.stdout
+                or "Templates directory not found" in result.stdout
+                or "Error" in result.stdout
+            )
         else:
             # If it succeeds, templates were found from installed package
             assert result.exit_code == 0
@@ -281,8 +285,8 @@ class TestInitCommandE2E:
         assert "VS Code" in result.stdout or "vscode" in result.stdout.lower()
         assert ".github/prompts/" in result.stdout
 
-        # Verify templates were copied
-        prompts_dir = tmp_path / ".github" / "prompts"
+        # Verify templates were copied (namespaced: core/)
+        prompts_dir = tmp_path / ".github" / "prompts" / "core"
         assert prompts_dir.exists()
         assert (prompts_dir / "specfact.01-import.prompt.md").exists()
 
@@ -314,8 +318,8 @@ class TestInitCommandE2E:
         assert result.exit_code == 0
         assert "Claude Code" in result.stdout or "claude" in result.stdout.lower()
 
-        # Verify templates were copied
-        claude_dir = tmp_path / ".claude" / "commands"
+        # Verify templates were copied (namespaced: core/)
+        claude_dir = tmp_path / ".claude" / "commands" / "core"
         assert claude_dir.exists()
         assert (claude_dir / "specfact.01-import.md").exists()
 
