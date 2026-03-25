@@ -121,6 +121,15 @@ IDE_CONFIG: dict[str, dict[str, str | bool | None]] = {
 # Canonical id for bundled `specfact_cli` prompt templates (not a module-package name).
 PROMPT_SOURCE_CORE = "core"
 
+# Written by ``init ide`` so ``specfact init`` audit matches selective exports (``--prompts``).
+IDE_PROMPT_EXPORT_STATE_FILE = "ide-prompt-export.yaml"
+
+# VS Code recommendation paths SpecFact generates (namespaced or legacy flat).
+_SPECFACT_GITHUB_PROMPT_NAMESPACED_RE = re.compile(
+    r"^\.github/prompts/(?:core|[^/]+__[^/]+)/specfact\.[^/]+\.prompt\.md$"
+)
+_SPECFACT_GITHUB_PROMPT_FLAT_RE = re.compile(r"^\.github/prompts/specfact\.[^/]+\.prompt\.md$")
+
 
 # Commands available in SpecFact
 # Workflow-ordered commands (Phase 3)
@@ -423,13 +432,31 @@ def _copy_template_files_to_ide(
 @require(repo_path_exists, "Repo path must exist")
 @require(repo_path_is_dir, "Repo path must be a directory")
 @require(lambda ide: ide in IDE_CONFIG, "IDE must be valid")
+@require(
+    lambda prompt_source_ids: (
+        prompt_source_ids is None
+        or (isinstance(prompt_source_ids, frozenset) and all(isinstance(x, str) for x in prompt_source_ids))
+    ),
+    "prompt_source_ids must be None or frozenset[str]",
+)
 @ensure(lambda result: isinstance(result, list) and all(isinstance(p, Path) for p in result), "Must return Paths")
-def expected_ide_prompt_export_paths(repo_path: Path, ide: str) -> list[Path]:
-    """Return expected on-disk paths for exported IDE prompts (source-namespaced layout)."""
+def expected_ide_prompt_export_paths(
+    repo_path: Path,
+    ide: str,
+    *,
+    prompt_source_ids: frozenset[str] | None = None,
+) -> list[Path]:
+    """Return expected on-disk paths for exported IDE prompts (source-namespaced layout).
+
+    If ``prompt_source_ids`` is set (from ``.specfact/ide-prompt-export.yaml``), only those sources are
+    expected—matching a selective ``init ide --prompts`` run. Otherwise the full discovered catalog is used.
+    """
     config = IDE_CONFIG[ide]
     format_type = str(config["format"])
     base = repo_path / str(config["folder"])
     catalog = discover_prompt_sources_catalog(repo_path)
+    if prompt_source_ids is not None:
+        catalog = {k: v for k, v in catalog.items() if k in prompt_source_ids}
     paths: list[Path] = []
     for sid, templates in sorted(catalog.items(), key=lambda item: (item[0] != PROMPT_SOURCE_CORE, item[0])):
         segment = source_id_to_path_segment(sid)
@@ -442,13 +469,27 @@ def expected_ide_prompt_export_paths(repo_path: Path, ide: str) -> list[Path]:
 @require(repo_path_exists, "Repo path must exist")
 @require(repo_path_is_dir, "Repo path must be a directory")
 @require(lambda ide: ide in IDE_CONFIG, "IDE must be valid")
+@require(
+    lambda prompt_source_ids: (
+        prompt_source_ids is None
+        or (isinstance(prompt_source_ids, frozenset) and all(isinstance(x, str) for x in prompt_source_ids))
+    ),
+    "prompt_source_ids must be None or frozenset[str]",
+)
 @ensure(lambda result: isinstance(result, int) and result >= 0, "Count must be non-negative")
-def count_outdated_ide_prompt_exports(repo_path: Path, ide: str) -> int:
+def count_outdated_ide_prompt_exports(
+    repo_path: Path,
+    ide: str,
+    *,
+    prompt_source_ids: frozenset[str] | None = None,
+) -> int:
     """Count exported IDE prompt files that are older than their source templates."""
     config = IDE_CONFIG[ide]
     format_type = str(config["format"])
     base = repo_path / str(config["folder"])
     catalog = discover_prompt_sources_catalog(repo_path)
+    if prompt_source_ids is not None:
+        catalog = {k: v for k, v in catalog.items() if k in prompt_source_ids}
     outdated = 0
     for sid, paths in catalog.items():
         segment = source_id_to_path_segment(sid)
@@ -693,9 +734,67 @@ def _finalize_vscode_prompt_recommendation_paths(repo_path: Path, prompt_files: 
     return prompt_files
 
 
-def _strip_specfact_github_prompt_recommendations(paths: list[str]) -> list[str]:
-    """Remove prior SpecFact-managed prompt paths under `.github/prompts/` before re-adding an export."""
-    return [p for p in paths if not p.startswith(".github/prompts/")]
+def _specfact_catalog_github_prompt_paths(repo_path: Path) -> set[str]:
+    """Paths SpecFact would recommend for the current full discovered catalog (for strip matching)."""
+    return set(_vscode_prompt_paths_from_full_catalog(repo_path))
+
+
+def _is_specfact_managed_github_prompt_recommendation(path: str, catalog_paths: set[str]) -> bool:
+    """True if this recommendation string was produced by SpecFact (not arbitrary team paths)."""
+    return path in catalog_paths or bool(
+        _SPECFACT_GITHUB_PROMPT_NAMESPACED_RE.match(path) or _SPECFACT_GITHUB_PROMPT_FLAT_RE.match(path)
+    )
+
+
+def _strip_specfact_github_prompt_recommendations(paths: list[str], repo_path: Path) -> list[str]:
+    """Remove prior SpecFact-managed ``.github/prompts/`` entries before merging a selective export; keep other paths."""
+    catalog_paths = _specfact_catalog_github_prompt_paths(repo_path)
+    return [p for p in paths if not _is_specfact_managed_github_prompt_recommendation(p, catalog_paths)]
+
+
+@beartype
+@require(repo_path_exists, "Repo path must exist")
+@require(repo_path_is_dir, "Repo path must be a directory")
+@require(lambda ide: isinstance(ide, str) and len(ide) > 0, "ide must be non-empty")
+@require(lambda source_ids: isinstance(source_ids, list) and all(isinstance(s, str) for s in source_ids), "bad sources")
+@ensure(lambda result: result is None, "Must return None")
+def write_ide_prompt_export_state(repo_path: Path, ide: str, source_ids: list[str]) -> None:
+    """Persist last ``init ide`` source selection for audit/outdated checks on ``specfact init``."""
+    specfact_dir = repo_path / ".specfact"
+    specfact_dir.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "version": 1,
+        "ide": ide,
+        "prompt_sources": sorted(source_ids),
+    }
+    out = specfact_dir / IDE_PROMPT_EXPORT_STATE_FILE
+    out.write_text(yaml.safe_dump(payload, sort_keys=False, allow_unicode=False), encoding="utf-8")
+
+
+@beartype
+@require(repo_path_exists, "Repo path must exist")
+@require(repo_path_is_dir, "Repo path must be a directory")
+@ensure(
+    lambda result: result is None or (isinstance(result, frozenset) and all(isinstance(x, str) for x in result)),
+    "Must return frozenset of str or None",
+)
+def load_ide_prompt_export_source_ids(repo_path: Path) -> frozenset[str] | None:
+    """Return source ids from last ``init ide`` export, or ``None`` if unset (audit uses full catalog)."""
+    path = repo_path / ".specfact" / IDE_PROMPT_EXPORT_STATE_FILE
+    if not path.is_file():
+        return None
+    try:
+        raw = yaml.safe_load(path.read_text(encoding="utf-8"))
+        if not isinstance(raw, dict):
+            return None
+        raw_dict: dict[str, Any] = cast(dict[str, Any], raw)
+        srcs = raw_dict.get("prompt_sources")
+        if not isinstance(srcs, list) or not srcs:
+            return None
+        out = frozenset(str(s).strip() for s in srcs if str(s).strip())
+        return out if out else None
+    except (OSError, yaml.YAMLError, TypeError, ValueError):
+        return None
 
 
 @beartype
@@ -719,9 +818,10 @@ def create_vscode_settings(
         repo_path: Repository root path
         settings_file: Settings file path (e.g., ".vscode/settings.json")
         prompts_by_source: When set (e.g. from ``copy_prompts_by_source_to_ide``), recommendations list only
-            templates from that export; prior ``.github/prompts/`` entries are replaced so selective
-            ``--prompts`` runs do not leave stale module paths. When ``None``, recommendations follow the
-            full discovered catalog (or legacy flat fallbacks).
+            templates from that export; prior **SpecFact-managed** ``.github/prompts/`` entries (catalog paths
+            or ``specfact.*`` namespaced/flat layout) are removed so selective ``--prompts`` runs do not
+            leave stale module paths; other recommendation strings are preserved. When ``None``,
+            recommendations follow the full discovered catalog (or legacy flat fallbacks).
 
     Returns:
         Path to settings file, or None if not VS Code/Copilot
@@ -765,7 +865,8 @@ def create_vscode_settings(
     existing_recommendations = chat_dict.get("promptFilesRecommendations", [])
     if prompts_by_source is not None:
         existing_recommendations = _strip_specfact_github_prompt_recommendations(
-            list(existing_recommendations) if isinstance(existing_recommendations, list) else []
+            list(existing_recommendations) if isinstance(existing_recommendations, list) else [],
+            repo_path,
         )
     merged_recommendations = list(set(existing_recommendations + prompt_files))
     chat_dict["promptFilesRecommendations"] = merged_recommendations

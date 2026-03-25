@@ -14,8 +14,11 @@ from specfact_cli.utils.ide_setup import (
     create_vscode_settings,
     detect_ide,
     discover_prompt_template_files,
+    expected_ide_prompt_export_paths,
+    load_ide_prompt_export_source_ids,
     process_template,
     read_template,
+    write_ide_prompt_export_state,
 )
 
 
@@ -307,7 +310,7 @@ def test_discover_prompt_template_files_deduplicates_prompt_ids_by_filename(
 
 
 def test_create_vscode_settings_selective_export_replaces_stale_github_prompt_paths(tmp_path: Path) -> None:
-    """When ``prompts_by_source`` is set, drop prior SpecFact ``.github/prompts/`` entries; keep other paths."""
+    """When ``prompts_by_source`` is set, drop SpecFact-managed ``.github/prompts/`` entries; keep team paths."""
     vscode_dir = tmp_path / ".vscode"
     vscode_dir.mkdir(parents=True)
     settings_path = vscode_dir / "settings.json"
@@ -317,6 +320,7 @@ def test_create_vscode_settings_selective_export_replaces_stale_github_prompt_pa
                 "chat": {
                     "promptFilesRecommendations": [
                         ".github/prompts/nold-ai__mod/specfact.extra.prompt.md",
+                        ".github/prompts/custom/team-owned.prompt.md",
                         ".other/custom.prompt.md",
                     ]
                 }
@@ -336,6 +340,7 @@ def test_create_vscode_settings_selective_export_replaces_stale_github_prompt_pa
     data = json.loads(settings_path.read_text(encoding="utf-8"))
     recs = list(data["chat"]["promptFilesRecommendations"])
     assert ".github/prompts/nold-ai__mod/specfact.extra.prompt.md" not in recs
+    assert ".github/prompts/custom/team-owned.prompt.md" in recs
     assert ".other/custom.prompt.md" in recs
     assert ".github/prompts/core/specfact.01-import.prompt.md" in recs
 
@@ -346,3 +351,32 @@ def test_specfact_commands_excludes_backlog_prompt_ids() -> None:
     assert "specfact.backlog-daily" not in SPECFACT_COMMANDS
     assert "specfact.backlog-refine" not in SPECFACT_COMMANDS
     assert "specfact.sync-backlog" not in SPECFACT_COMMANDS
+
+
+def test_write_and_load_ide_prompt_export_state_roundtrip(tmp_path: Path) -> None:
+    """Persisted source ids round-trip for init audit."""
+    write_ide_prompt_export_state(tmp_path, "cursor", ["core", "nold-ai/specfact-backlog"])
+    loaded = load_ide_prompt_export_source_ids(tmp_path)
+    assert loaded == frozenset({"core", "nold-ai/specfact-backlog"})
+
+
+def test_expected_ide_prompt_export_paths_respects_prompt_source_subset(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Audit expectations follow last export subset, not the full discovered catalog."""
+    p_core = tmp_path / "c.md"
+    p_mod = tmp_path / "m.md"
+    monkeypatch.setattr(
+        "specfact_cli.utils.ide_setup.discover_prompt_sources_catalog",
+        lambda _rp, include_package_fallback=True: {
+            PROMPT_SOURCE_CORE: [p_core],
+            "nold-ai/mod": [p_mod],
+        },
+    )
+    full_paths = expected_ide_prompt_export_paths(tmp_path, "cursor")
+    subset_paths = expected_ide_prompt_export_paths(
+        tmp_path, "cursor", prompt_source_ids=frozenset({PROMPT_SOURCE_CORE})
+    )
+    assert len(full_paths) == 2
+    assert len(subset_paths) == 1
+    assert "core" in subset_paths[0].parts

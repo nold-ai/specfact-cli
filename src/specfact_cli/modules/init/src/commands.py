@@ -39,6 +39,8 @@ from specfact_cli.utils.ide_setup import (
     discover_prompt_template_files,
     expected_ide_prompt_export_paths,
     find_package_resources_path,
+    load_ide_prompt_export_source_ids,
+    write_ide_prompt_export_state,
 )
 
 
@@ -325,7 +327,8 @@ def _audit_prompt_installation(repo_path: Path) -> None:
     detected_ide = detect_ide("auto")
     config = IDE_CONFIG[detected_ide]
     ide_dir = repo_path / str(config["folder"])
-    expected_paths = expected_ide_prompt_export_paths(repo_path, detected_ide)
+    prompt_subset = load_ide_prompt_export_source_ids(repo_path)
+    expected_paths = expected_ide_prompt_export_paths(repo_path, detected_ide, prompt_source_ids=prompt_subset)
 
     if not ide_dir.exists():
         console.print(
@@ -335,7 +338,11 @@ def _audit_prompt_installation(repo_path: Path) -> None:
         return
 
     missing = [p for p in expected_paths if not p.exists()]
-    outdated = count_outdated_ide_prompt_exports(repo_path, detected_ide) if expected_paths else 0
+    outdated = (
+        count_outdated_ide_prompt_exports(repo_path, detected_ide, prompt_source_ids=prompt_subset)
+        if expected_paths
+        else 0
+    )
 
     if not missing and outdated == 0:
         console.print(f"[green]Prompt status:[/green] {detected_ide} prompts are present and up to date.")
@@ -687,6 +694,7 @@ def init_ide(
     copied_files, settings_path = copy_templates_to_ide(
         repo_path, selected_ide, force, prompts_by_source=selected_catalog
     )
+    write_ide_prompt_export_state(repo_path, selected_ide, sorted(selected_catalog.keys()))
     _copy_backlog_field_mapping_templates(repo_path, force, console)
 
     console.print()
