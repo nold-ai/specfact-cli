@@ -9,7 +9,10 @@ on:
       - "**/*.md"
       - "**/*.mdc"
       - "docs/**"
-      - "tests/unit/docs/test_release_docs_parity.py"
+      - "tests/unit/docs/**"
+      - "scripts/check-docs-commands.py"
+      - "scripts/check-cross-site-links.py"
+      - "pyproject.toml"
       - ".github/workflows/docs-review.yml"
   push:
     branches: [main, dev]
@@ -17,7 +20,10 @@ on:
       - "**/*.md"
       - "**/*.mdc"
       - "docs/**"
-      - "tests/unit/docs/test_release_docs_parity.py"
+      - "tests/unit/docs/**"
+      - "scripts/check-docs-commands.py"
+      - "scripts/check-cross-site-links.py"
+      - "pyproject.toml"
       - ".github/workflows/docs-review.yml"
   workflow_dispatch:
 
@@ -41,16 +47,26 @@ jobs:
           python-version: "3.12"
           cache: "pip"
 
-      - name: Install docs review dependencies
+      - name: Install Hatch
         run: |
           python -m pip install --upgrade pip
-          python -m pip install pytest
+          python -m pip install hatch
+
+      - name: Create hatch environment
+        run: hatch env create
+
+      - name: Validate docs command examples
+        run: hatch run check-docs-commands
+
+      - name: Cross-site links (warn-only; live site may lag deploys)
+        continue-on-error: true
+        run: hatch run check-cross-site-links --warn-only
 
       - name: Run docs review suite
         run: |
           mkdir -p logs/docs-review
           DOCS_REVIEW_LOG="logs/docs-review/docs-review_$(date -u +%Y%m%d_%H%M%S).log"
-          python -m pytest tests/unit/docs/test_release_docs_parity.py -q 2>&1 | tee "$DOCS_REVIEW_LOG"
+          hatch run pytest tests/unit/docs/ -q 2>&1 | tee "$DOCS_REVIEW_LOG"
           exit "${PIPESTATUS[0]:-$?}"
 
       - name: Upload docs review logs
