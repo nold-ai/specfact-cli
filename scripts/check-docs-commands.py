@@ -9,8 +9,16 @@ import shlex
 import sys
 from pathlib import Path
 
+from beartype import beartype
+from icontract import ensure, require
+from rich.console import Console
+from typer.testing import CliRunner
+
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
+
+_ERR = Console(stderr=True)
+_OUT = Console()
 
 # Historical / illustrative pages: command lines are not guaranteed to match the current CLI.
 _EXCLUDED_DOC_PATHS: frozenset[str] = frozenset(
@@ -39,9 +47,6 @@ def _ensure_repo_path() -> None:
 
 
 _ensure_repo_path()
-
-from beartype import beartype  # noqa: E402
-from typer.testing import CliRunner  # noqa: E402
 
 from specfact_cli.cli import app  # noqa: E402
 
@@ -125,7 +130,10 @@ def _sanitize_command_tokens(tokens: list[str]) -> list[str]:
 
 
 @beartype
+@require(lambda text: isinstance(text, str), "text must be a string")
+@ensure(lambda result: isinstance(result, list), "must return a list")
 def collect_specfact_commands_from_text(text: str) -> list[list[str]]:
+    """Collect ``specfact …`` command token lists from Markdown *text*."""
     commands: list[list[str]] = []
     for body in _extract_code_block_bodies(text):
         for raw_line in body.splitlines():
@@ -137,48 +145,67 @@ def collect_specfact_commands_from_text(text: str) -> list[list[str]]:
 
 
 @beartype
+def _eval_prefix_help(runner: CliRunner, prefix: list[str]) -> tuple[bool, str]:
+    """Return ``(True, "")`` if ``--help`` succeeds or the CLI is not installed; else ``(False, err)``."""
+    result = runner.invoke(app, [*prefix, "--help"], catch_exceptions=True)
+    exc = getattr(result, "exception", None)
+    if result.exit_code == 0 and exc is None:
+        return True, ""
+    err = (getattr(result, "stdout", None) or "").strip()
+    if exc is not None:
+        last_err = f"{type(exc).__name__}: {exc!s}"[:800]
+    else:
+        last_err = err[:800] if err else f"exit {result.exit_code}"
+    combined = (err or last_err or "").lower()
+    if "not installed" in combined and "install" in combined:
+        return True, ""
+    return False, last_err
+
+
+@beartype
+@require(
+    lambda tokens: isinstance(tokens, list) and all(isinstance(t, str) for t in tokens),
+    "tokens must be a list of strings",
+)
+@ensure(
+    lambda result: (
+        isinstance(result, tuple) and len(result) == 2 and isinstance(result[0], bool) and isinstance(result[1], str)
+    ),
+    "must return (bool, str)",
+)
 def validate_command_tokens(tokens: list[str]) -> tuple[bool, str]:
     """True if some prefix of *tokens* is a valid CLI path (``… --help`` exits 0)."""
     tokens = _sanitize_command_tokens(tokens)
     if not tokens:
         return True, ""
 
-    runner = CliRunner(mix_stderr=False)
+    runner = CliRunner()
     last_err = ""
     for k in range(len(tokens), 0, -1):
         prefix = tokens[:k]
-        result = runner.invoke(app, [*prefix, "--help"], catch_exceptions=True)
-        exc = getattr(result, "exception", None)
-        if result.exit_code == 0 and exc is None:
+        ok, msg = _eval_prefix_help(runner, prefix)
+        if ok:
             return True, ""
-        err = (result.stderr or result.stdout or getattr(result, "output", None) or "").strip()
-        if exc is not None:
-            last_err = f"{type(exc).__name__}: {exc!s}"[:800]
-        else:
-            last_err = err[:800] if err else f"exit {result.exit_code}"
-        combined = (err or last_err or "").lower()
-        if "not installed" in combined and "install" in combined:
-            return True, ""
+        last_err = msg
 
     return False, last_err
 
 
 @beartype
-def main() -> int:
-    docs_root = _REPO_ROOT / "docs"
-    if not docs_root.is_dir():
-        print("check-docs-commands: no docs/ directory", file=sys.stderr)
-        return 1
+def _should_skip_markdown_path(rel: Path, rel_posix: str) -> bool:
+    if "_site" in rel.parts or "vendor" in rel.parts:
+        return True
+    return rel_posix.startswith("docs/migration/") or rel_posix in _EXCLUDED_DOC_PATHS
 
+
+@beartype
+def _scan_docs_for_command_validation(docs_root: Path) -> tuple[set[tuple[str, ...]], list[str]]:
     seen: set[tuple[str, ...]] = set()
     failures: list[str] = []
-
     for md_path in sorted(docs_root.rglob("*.md")):
-        if "_site" in md_path.parts or "vendor" in md_path.parts:
-            continue
         rel = md_path.relative_to(_REPO_ROOT)
         rel_posix = rel.as_posix()
-        if rel_posix.startswith("docs/migration/") or rel_posix in _EXCLUDED_DOC_PATHS:
+        if _should_skip_markdown_path(rel, rel_posix):
             continue
         try:
             text = md_path.read_text(encoding="utf-8")
@@ -193,13 +220,28 @@ def main() -> int:
             ok, msg = validate_command_tokens(tokens)
             if not ok:
                 failures.append(f"{rel}: specfact {' '.join(tokens)} — {msg}")
+    return seen, failures
+
+
+@beartype
+@ensure(lambda result: result in (0, 1), "exit code must be 0 or 1")
+def main() -> int:
+    docs_root = _REPO_ROOT / "docs"
+    if not docs_root.is_dir():
+        _ERR.print("check-docs-commands: no docs/ directory", markup=False)
+        return 1
+
+    seen, failures = _scan_docs_for_command_validation(docs_root)
 
     if failures:
-        print("Docs command validation failed:", file=sys.stderr)
+        _ERR.print("Docs command validation failed:", markup=False)
         for line in failures:
-            print(line, file=sys.stderr)
+            _ERR.print(line, markup=False)
         return 1
-    print(f"check-docs-commands: OK ({len(seen)} unique command prefix(es) checked)")
+    _OUT.print(
+        f"check-docs-commands: OK ({len(seen)} unique command prefix(es) checked)",
+        markup=False,
+    )
     return 0
 
 
