@@ -217,6 +217,11 @@ workflows-lint = "bash scripts/yaml-tools.sh workflows-lint {args}"
 yaml-fix-all = "bash scripts/yaml-tools.sh fix-all {args}"
 yaml-check-all = "bash scripts/yaml-tools.sh check-all {args}"
 
+# Docs validation (docs-12): command examples vs CLI; modules.specfact.io URLs in docs
+check-docs-commands = "python scripts/check-docs-commands.py"
+check-cross-site-links = "python scripts/check-cross-site-links.py"
+docs-validate = "python scripts/check-docs-commands.py && python scripts/check-cross-site-links.py --warn-only"
+
 # Legacy entry (kept for compatibility); prefer `workflows-lint` above
 lint-workflows = "bash scripts/run_actionlint.sh {args}"
 
