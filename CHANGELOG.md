@@ -9,6 +9,12 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [Unreleased]
+
+### Added
+
+- Documentation: `docs/reference/documentation-url-contract.md` and navigation links describing how core and modules published URLs relate; OpenSpec spec updates for cross-site linking expectations.
+
 ## [0.42.6] - 2026-03-26
 
 ### Fixed

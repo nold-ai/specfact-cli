@@ -23,3 +23,9 @@ Then the page loads (not 404) and displays the summary with canonical link
 Given the 20 identified handoff pages
 When each is converted
 Then each canonical link points to a page that exists on modules.specfact.io
+
+### Scenario: Canonical link uses modules permalink, not mirrored core path
+
+Given the core page uses `/guides/<name>/` on docs.specfact.io
+When the handoff page links to the full guide on modules
+Then the URL matches the modules source file `permalink` (which may be `/bundles/.../`, `/guides/.../`, or `/<basename>/`, not necessarily `/guides/<name>/`)

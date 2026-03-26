@@ -5,8 +5,8 @@
 
 ## 2. Verify Target Pages Exist
 
-- [ ] 2.1 Verify that docs-06-modules-site-ia-restructure has created all target pages on the modules site before proceeding
-- [ ] 2.2 Create a checklist mapping each core handoff file to its modules target URL
+- [ ] 2.1 Verify that docs-06-modules-site-ia-restructure has created all target pages on the modules site before proceeding (use `docs/reference/documentation-url-contract.md` on each repo and each target file’s `permalink` in `specfact-cli-modules`)
+- [ ] 2.2 Create a checklist mapping each core handoff file to its modules target URL (do not assume `/guides/` on modules matches core; prefer bundle paths and `/reference/documentation-url-contract/` on modules for authoritative rules)
 
 ## 3. Convert Handoff Pages
 

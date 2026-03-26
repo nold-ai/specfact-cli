@@ -35,6 +35,10 @@ Use the canonical modules docs site for:
 The canonical modules docs site is currently published at `https://modules.specfact.io/`.
 This docs set keeps release-line overview and handoff content for bundle workflows while the canonical modules docs site carries the deep bundle-specific guidance.
 
+## Cross-site contract
+
+- [Documentation URL contract (core and modules)](reference/documentation-url-contract.md) — linking rules vs `modules.specfact.io`
+
 ## Core Entry Points
 
 - [Docs Home](index.md)
