@@ -19,6 +19,16 @@ _EXCLUDED_DOC_PATHS: frozenset[str] = frozenset(
     }
 )
 
+# Root ``@app.callback`` options on ``specfact`` (see ``cli.py``). Values must be skipped so
+# ``specfact --mode copilot import …`` yields ``import …`` for validation.
+_GLOBAL_FLAGS_WITH_VALUE: frozenset[str] = frozenset(
+    {
+        "--mode",
+        "--input-format",
+        "--output-format",
+    }
+)
+
 
 def _ensure_repo_path() -> None:
     os.environ.setdefault("SPECFACT_REPO_ROOT", str(_REPO_ROOT))
@@ -55,6 +65,24 @@ def _split_shell_segments(line: str) -> list[str]:
 
 
 @beartype
+def _strip_leading_global_options(parts: list[str]) -> list[str]:
+    """Remove root-level ``specfact`` flags (``--mode``, ``--debug``, …) before the subcommand path."""
+    i = 0
+    n = len(parts)
+    while i < n:
+        tok = parts[i]
+        if not tok.startswith("-"):
+            break
+        if tok in _GLOBAL_FLAGS_WITH_VALUE:
+            i += 1
+            if i < n and not parts[i].startswith("-"):
+                i += 1
+            continue
+        i += 1
+    return parts[i:]
+
+
+@beartype
 def _tokens_from_specfact_line(line: str) -> list[str] | None:
     segment = line.strip()
     if segment.startswith("$"):
@@ -69,6 +97,9 @@ def _tokens_from_specfact_line(line: str) -> list[str] | None:
     try:
         parts = shlex.split(rest, posix=True)
     except ValueError:
+        return None
+    parts = _strip_leading_global_options(parts)
+    if not parts:
         return None
     out: list[str] = []
     for part in parts:

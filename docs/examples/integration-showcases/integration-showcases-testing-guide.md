@@ -1373,7 +1373,7 @@ def validate_and_calculate(data: dict) -> float:
 ### Example 5 - Step 2: Run CrossHair Exploration
 
 ```bash
-specfact --no-banner contract-test-exploration src/validator.py
+hatch run contract-test-exploration src/validator.py
 ```
 
 **Note**: If using `uvx`, the command would be:

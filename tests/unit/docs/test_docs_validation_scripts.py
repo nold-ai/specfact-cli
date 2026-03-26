@@ -50,6 +50,17 @@ specfact backlog analyze-deps --json
     assert ["backlog", "analyze-deps"] in cmds
 
 
+def test_tokens_skip_leading_global_options_before_subcommand() -> None:
+    mod = _load_check_docs_commands()
+    text = """
+```bash
+specfact --mode copilot import from-code legacy-api --repo . --confidence 0.7
+```
+"""
+    cmds = mod.collect_specfact_commands_from_text(text)
+    assert ["import", "from-code", "legacy-api"] in cmds
+
+
 def test_cross_site_url_stops_at_markdown_delimiters() -> None:
     import importlib.util
 
