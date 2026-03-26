@@ -1,31 +1,37 @@
-# Capability Delta: documentation-alignment (handoff conversion)
+# Delta: documentation-alignment (handoff conversion)
 
-Core handoff pages are converted from full duplicate content to thin summaries with canonical links.
+Extends `documentation-alignment` so core handoff pages are thin summaries with canonical links to modules.
 
-## Scenarios
+## ADDED Requirements
 
-### Scenario: Handoff page contains summary and canonical link
+### Requirement: Core handoff pages are thin summaries with a canonical modules link
 
-Given a core docs page that was previously a full duplicate of module content
-When the page is converted to a handoff redirect
-Then it contains a 1-2 paragraph summary of what the guide covers
-And it contains a prominent canonical link to the modules site URL
-And it does NOT contain the full guide content
+Core docs pages that previously duplicated module-owned guides SHALL contain only a short summary, prerequisites, and a prominent link to the canonical URL on `modules.specfact.io` (per `permalink` in `specfact-cli-modules`), not the full guide body.
 
-### Scenario: Old URLs are preserved via redirect
+#### Scenario: Handoff page structure
 
-Given a handoff page at its original URL
-When a user visits the original URL
-Then the page loads (not 404) and displays the summary with canonical link
+- **WHEN** a reader opens a converted handoff page on `docs.specfact.io`
+- **THEN** the page includes a brief summary of the topic
+- **AND** it includes a prerequisites note
+- **AND** it includes a prominent link to the full guide on the canonical modules docs site
+- **AND** it does not include the duplicated long-form guide content owned by modules
 
-### Scenario: Each handoff page maps to a valid modules target
+### Requirement: Legacy URLs remain reachable
 
-Given the 20 identified handoff pages
-When each is converted
-Then each canonical link points to a page that exists on modules.specfact.io
+Handoff pages that previously published under alternate paths SHALL preserve `redirect_from` entries so old bookmarks do not 404.
 
-### Scenario: Canonical link uses modules permalink, not mirrored core path
+#### Scenario: Redirect metadata preserved where applicable
 
-Given the core page uses `/guides/<name>/` on docs.specfact.io
-When the handoff page links to the full guide on modules
-Then the URL matches the modules source file `permalink` (which may be `/bundles/.../`, `/guides/.../`, or `/<basename>/`, not necessarily `/guides/<name>/`)
+- **WHEN** a handoff page had `redirect_from` for legacy paths
+- **THEN** those entries remain in front matter after conversion
+- **AND** the published URL still serves the thin handoff page
+
+### Requirement: Canonical link targets match modules permalinks
+
+Each converted page’s canonical link SHALL match the modules documentation `permalink` for that topic (which may be `/bundles/.../`, `/guides/.../`, `/integrations/.../`, or a root path), not an assumed mirror of the core `/guides/<name>/` path.
+
+#### Scenario: URL contract compliance
+
+- **WHEN** authors map core handoff pages to modules URLs
+- **THEN** they use the checklist and `documentation-url-contract` rules
+- **AND** each link targets the verified modules canonical URL for that guide

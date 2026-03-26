@@ -14,6 +14,7 @@ All notable changes to this project will be documented in this file.
 ### Added
 
 - Documentation: `docs/reference/documentation-url-contract.md` and navigation links describing how core and modules published URLs relate; OpenSpec spec updates for cross-site linking expectations.
+- Documentation: converted 20 module-owned guide and tutorial pages under `docs/` to thin handoff summaries with canonical links to `modules.specfact.io`; added `docs/reference/core-to-modules-handoff-urls.md` mapping core permalinks to modules URLs.
 
 ## [0.42.6] - 2026-03-26
 

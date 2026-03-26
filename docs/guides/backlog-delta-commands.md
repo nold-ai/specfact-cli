@@ -2,39 +2,13 @@
 layout: default
 title: Backlog Delta Commands
 permalink: /guides/backlog-delta-commands/
+description: Handoff to backlog delta commands on the modules documentation site.
 ---
 
-# Backlog Delta Commands
+# Backlog delta commands
 
+Delta commands help you inspect and reason about changes between backlog states—status, impact, cost, and rollback views. Syntax, options, and examples are documented with the backlog bundle on modules.
 
-> Modules docs handoff: this page remains in the core docs set as release-line overview content.
-> Canonical bundle-specific deep guidance now lives in the canonical modules docs site, currently
-> published at `https://modules.specfact.io/`.
+**Prerequisites:** [Commands reference](https://docs.specfact.io/reference/commands/) for base CLI; backlog bundle installed for delta subcommands.
 
-`delta` commands are grouped under backlog because they describe backlog graph drift and impact, not source-code diffs.
-
-## Command Group
-
-```bash
-specfact backlog delta status --project-id <id> --adapter <github|ado>
-specfact backlog delta impact <item-id> --project-id <id> --adapter <github|ado>
-specfact backlog delta cost-estimate --project-id <id> --adapter <github|ado>
-specfact backlog delta rollback-analysis --project-id <id> --adapter <github|ado>
-```
-
-## What Each Command Does
-
-- `status`: compares current graph vs baseline and summarizes added/updated/deleted nodes and edges.
-- `impact`: traces downstream effects for a changed item.
-- `cost-estimate`: estimates effort from detected delta scope.
-- `rollback-analysis`: identifies likely breakage if recent delta is reverted.
-
-## Baseline
-
-`status`, `cost-estimate`, and `rollback-analysis` rely on a backlog baseline graph (default `.specfact/backlog-baseline.json`).
-
-Generate/update baseline with:
-
-```bash
-specfact project snapshot --bundle <bundle>
-```
+**Full guide on the canonical modules docs site:** [Backlog delta](https://modules.specfact.io/bundles/backlog/delta/)
