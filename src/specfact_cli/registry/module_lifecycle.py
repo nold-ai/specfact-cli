@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 from beartype import beartype
 from icontract import ensure, require
@@ -120,7 +120,8 @@ def _questionary_style() -> Any:
         import questionary  # type: ignore[reportMissingImports]
     except ImportError:
         return None
-    return questionary.Style(
+    q = cast(Any, questionary)
+    return q.Style(
         [
             ("qmark", "fg:#00af87 bold"),
             ("question", "bold"),
@@ -209,7 +210,8 @@ def select_module_ids_interactive(action: str, modules_list: list[dict[str, Any]
     console.print(f"[cyan]{action_title} Modules[/cyan] (currently {current_state})")
     console.print("[dim]Controls: arrows navigate, space toggle, enter confirm[/dim]")
     display_to_id, choices = _checkbox_choices_for_modules(candidates)
-    selected: list[str] | None = questionary.checkbox(
+    q = cast(Any, questionary)
+    selected: list[str] | None = q.checkbox(
         f"{action_title} module(s):",
         choices=choices,
         instruction="(multi-select)",
