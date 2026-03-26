@@ -64,12 +64,17 @@ def _collect_urls_from_markdown(text: str) -> list[str]:
 def _http_success_code(code: int | None) -> bool:
     if code is None:
         return False
-    c = int(code)
-    return 200 <= c < 400
+    return 200 <= code < 400
 
 
 def _response_status(resp: object) -> int | None:
-    return getattr(resp, "status", None) or resp.getcode()  # type: ignore[union-attr]
+    status = getattr(resp, "status", None)
+    if status is not None:
+        return status  # type: ignore[no-any-return]
+    getcode = getattr(resp, "getcode", None)
+    if callable(getcode):
+        return getcode()  # type: ignore[no-any-return]
+    return None
 
 
 @beartype

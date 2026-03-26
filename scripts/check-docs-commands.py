@@ -10,7 +10,7 @@ import sys
 from pathlib import Path
 
 from beartype import beartype
-from icontract import ensure, require
+from icontract import ensure
 from rich.console import Console
 from typer.testing import CliRunner
 
@@ -130,7 +130,6 @@ def _sanitize_command_tokens(tokens: list[str]) -> list[str]:
 
 
 @beartype
-@require(lambda text: isinstance(text, str), "text must be a string")
 @ensure(lambda result: isinstance(result, list), "must return a list")
 def collect_specfact_commands_from_text(text: str) -> list[list[str]]:
     """Collect ``specfact …`` command token lists from Markdown *text*."""
@@ -144,6 +143,23 @@ def collect_specfact_commands_from_text(text: str) -> list[list[str]]:
     return commands
 
 
+def _cli_invoke_streams_text(result: object) -> str:
+    """Stdout + stderr text for a CliRunner ``Result`` (stderr via bytes when split, else safe)."""
+    out = (getattr(result, "stdout", None) or "").strip()
+    err = ""
+    stderr_bytes = getattr(result, "stderr_bytes", None)
+    if stderr_bytes is not None:
+        runner_obj = getattr(result, "runner", None)
+        charset = getattr(runner_obj, "charset", "utf-8") if runner_obj else "utf-8"
+        err = stderr_bytes.decode(charset, "replace").replace("\r\n", "\n").strip()
+    else:
+        try:
+            err = (getattr(result, "stderr", None) or "").strip()
+        except ValueError:
+            err = ""
+    return f"{out}\n{err}".strip()
+
+
 @beartype
 def _eval_prefix_help(runner: CliRunner, prefix: list[str]) -> tuple[bool, str]:
     """Return ``(True, "")`` if ``--help`` succeeds or the CLI is not installed; else ``(False, err)``."""
@@ -151,22 +167,18 @@ def _eval_prefix_help(runner: CliRunner, prefix: list[str]) -> tuple[bool, str]:
     exc = getattr(result, "exception", None)
     if result.exit_code == 0 and exc is None:
         return True, ""
-    err = (getattr(result, "stdout", None) or "").strip()
+    streams = _cli_invoke_streams_text(result)
     if exc is not None:
         last_err = f"{type(exc).__name__}: {exc!s}"[:800]
     else:
-        last_err = err[:800] if err else f"exit {result.exit_code}"
-    combined = (err or last_err or "").lower()
+        last_err = streams[:800] if streams else f"exit {result.exit_code}"
+    combined = (streams or last_err or "").lower()
     if "not installed" in combined and "install" in combined:
         return True, ""
     return False, last_err
 
 
 @beartype
-@require(
-    lambda tokens: isinstance(tokens, list) and all(isinstance(t, str) for t in tokens),
-    "tokens must be a list of strings",
-)
 @ensure(
     lambda result: (
         isinstance(result, tuple) and len(result) == 2 and isinstance(result[0], bool) and isinstance(result[1], str)
