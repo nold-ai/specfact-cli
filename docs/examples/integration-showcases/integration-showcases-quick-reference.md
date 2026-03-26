@@ -157,7 +157,7 @@ git commit -m "Breaking change test"
 cd /tmp/specfact-integration-tests/example5_agentic
 
 # Option 1: CrossHair exploration (if available)
-specfact --no-banner contract-test-exploration src/validator.py
+hatch run contract-test-exploration src/validator.py
 
 # Option 2: Contract enforcement (fallback)
 specfact --no-banner enforce stage --preset balanced

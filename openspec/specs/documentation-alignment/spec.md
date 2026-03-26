@@ -148,3 +148,13 @@ The documentation workflow SHALL automatically fix low-risk Markdown issues duri
 - **AND** any auto-fixed Markdown files are re-staged automatically
 - **AND** markdown lint still runs afterward to fail on remaining non-fixable issues
 
+### Requirement: Cross-site links to modules docs use real published paths
+
+Authored links from `specfact-cli` docs to `https://modules.specfact.io/...` SHALL target the modules page’s actual published `permalink` (or default-derived path), and SHALL NOT assume the same path shape as core docs (for example `/guides/<name>/` on core does not imply `/guides/<name>/` on modules).
+
+#### Scenario: Contributor adds a handoff or reference link to modules
+
+- **WHEN** a contributor adds or updates a link to the canonical modules docs site
+- **THEN** the path segment matches the target file’s `permalink` in `specfact-cli-modules` or the URL contract reference
+- **AND** contributors can discover rules from `docs/reference/documentation-url-contract.md` on the core site
+

@@ -13,6 +13,7 @@ For bundle-specific deep command guides and runbooks, use the canonical modules 
 
 ## Core Reference Topics
 
+- **[Documentation URL contract](documentation-url-contract.md)** - How core and modules sites relate; rules for cross-site links
 - **[Commands](commands.md)** - Exact grouped command topology and migration mapping
 - **[Command Syntax Policy](command-syntax-policy.md)** - Source-of-truth argument syntax conventions for docs
 - **[Architecture](../architecture/overview.md)** - Technical design, module structure, and internals

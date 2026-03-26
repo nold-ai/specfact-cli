@@ -33,7 +33,8 @@ context: |
   Documentation (critical for every change): User-facing docs are published at https://docs.specfact.io
   (GitHub Pages). Source: docs/ with Jekyll front-matter (layout, title, permalink, description),
   docs/index.md as landing, docs/_layouts/default.html for sidebar/menu navigation. README.md is the repo
-  entry point.
+  entry point. Cross-site links to https://modules.specfact.io must use each target page’s real permalink
+  in specfact-cli-modules (see docs/reference/documentation-url-contract.md); do not mirror core /guides/ paths onto modules by assumption.
   - Every change must include documentation research and review:
     - (1) Identifies affected documentation: docs/ (reference, guides, adapters, getting-started),
       README.md, docs/index.md.

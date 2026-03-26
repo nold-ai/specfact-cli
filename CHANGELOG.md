@@ -9,6 +9,16 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [Unreleased]
+
+### Added
+
+- CI: `scripts/check-docs-commands.py` and `scripts/check-cross-site-links.py` with `hatch run docs-validate`
+  (command examples vs CLI; modules URLs warn-only when live site lags); workflow runs validation plus
+  `tests/unit/docs/`.
+- Documentation: `docs/reference/documentation-url-contract.md` and navigation links describing how core and modules published URLs relate; OpenSpec spec updates for cross-site linking expectations.
+- Documentation: converted 20 module-owned guide and tutorial pages under `docs/` to thin handoff summaries with canonical links to `modules.specfact.io`; added `docs/reference/core-to-modules-handoff-urls.md` mapping core permalinks to modules URLs.
+
 ## [0.42.6] - 2026-03-26
 
 ### Fixed

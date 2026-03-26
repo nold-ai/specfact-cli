@@ -1,26 +1,25 @@
-# Capability: docs-command-validation
+# Delta: docs-command-validation
 
-Automated validation that documentation command examples match actual CLI implementations.
+Adds automated validation that documentation command examples match the shipped CLI.
 
-## Scenarios
+## ADDED Requirements
 
-### Scenario: Valid command example passes validation
+### Requirement: Docs command examples resolve to a valid CLI path
 
-Given a docs page contains a code block with `specfact backlog ceremony standup`
-When the validation script runs
-Then it finds a matching command registration in the backlog module source
-And the check passes
+Documentation under `docs/` SHALL include `specfact …` examples in fenced code blocks only when some prefix of the command tokens matches a command path that accepts `--help` in the current CLI (or is a bundle-only group that reports “not installed” when bundles are absent).
 
-### Scenario: Invalid command example fails validation
+#### Scenario: CI runs command validation on docs changes
 
-Given a docs page contains a code block with `specfact backlog nonexistent-command`
-When the validation script runs
-Then it reports the unmatched command with file path and line number
-And the check fails with a non-zero exit code
+- **WHEN** the docs-review workflow runs on a branch that touches docs or validation scripts
+- **THEN** it executes `hatch run check-docs-commands`
+- **AND** the step fails the job when an example cannot be resolved to a valid command path
 
-### Scenario: CI blocks PR with broken command examples
+### Requirement: Historical migration docs are excluded from strict command parity
 
-Given a PR modifies docs/ files
-When the docs-review workflow runs
-Then the command validation step executes
-And a failing check prevents merge
+Content under `docs/migration/` and other explicitly listed illustrative pages MAY retain historical or placeholder command lines that no longer exist in the CLI; those paths SHALL be excluded from automated command validation so the check targets current user-facing docs.
+
+#### Scenario: Migration pages are skipped
+
+- **WHEN** `check-docs-commands` scans `docs/`
+- **THEN** it skips `docs/migration/**` and other configured exclusions
+- **AND** it does not fail on removed commands documented only for historical context
