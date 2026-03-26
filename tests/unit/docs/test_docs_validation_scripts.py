@@ -16,6 +16,15 @@ def _load_check_docs_commands() -> object:
     return mod
 
 
+def _load_check_cross_site_links() -> object:
+    path = REPO_ROOT / "scripts" / "check-cross-site-links.py"
+    spec = importlib.util.spec_from_file_location("check_cross_site_links", path)
+    assert spec and spec.loader
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
 def test_collect_specfact_commands_from_markdown_code_block() -> None:
     mod = _load_check_docs_commands()
     text = """
@@ -62,13 +71,7 @@ specfact --mode copilot import from-code legacy-api --repo . --confidence 0.7
 
 
 def test_cross_site_url_stops_at_markdown_delimiters() -> None:
-    import importlib.util
-
-    path = REPO_ROOT / "scripts" / "check-cross-site-links.py"
-    spec = importlib.util.spec_from_file_location("check_cross_site_links", path)
-    assert spec and spec.loader
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
+    mod = _load_check_cross_site_links()
     line = "| `https://modules.specfact.io/foo/bar/` |"
     urls = mod._urls_from_line(line)
     assert urls == ["https://modules.specfact.io/foo/bar/"]

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""HTTP-check ``https://modules.specfact.io/...`` URLs found in docs markdown."""
+"""HTTP-check ``https://modules.specfact.io/...`` URLs found in docs Markdown."""
 
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ _PREFIX = "https://modules.specfact.io"
 
 @beartype
 def _urls_from_line(line: str) -> list[str]:
-    """Extract modules URLs; stop before markdown ``)``, whitespace, or ``**`` (bold)."""
+    """Extract modules URLs; stop before Markdown ``)``, whitespace, ``]``, or ``**`` (bold)."""
     out: list[str] = []
     start = 0
     while True:
@@ -30,13 +30,13 @@ def _urls_from_line(line: str) -> list[str]:
         end = idx + len(_PREFIX)
         while end < len(line):
             ch = line[end]
-            if ch in ")|`\"'<>|" or ch.isspace():
+            if ch in ")|`\"'<>|]" or ch.isspace():
                 break
             if line[end : end + 2] == "**":
                 break
             end += 1
         raw = line[idx:end]
-        while raw.endswith((")", "*")):
+        if raw and raw[-1] in {")", "*"}:
             raw = raw[:-1]
         if raw and raw not in out:
             out.append(raw)
@@ -83,7 +83,7 @@ def _check_url(url: str, timeout_s: float) -> tuple[bool, str]:
                 return True, str(code)
             return False, f"GET {code}"
     except HTTPError as exc:
-        if 200 <= exc.code < 400 or exc.code in {301, 302, 303, 307, 308}:
+        if exc.code in {301, 302, 303, 307, 308}:
             return True, str(exc.code)
         return False, f"HTTP {exc.code}"
     except (URLError, OSError) as exc:
@@ -112,8 +112,12 @@ def main() -> int:
     for md_path in sorted(docs_root.rglob("*.md")):
         if "_site" in md_path.parts or "vendor" in md_path.parts:
             continue
-        text = md_path.read_text(encoding="utf-8")
         rel = md_path.relative_to(_REPO_ROOT)
+        try:
+            text = md_path.read_text(encoding="utf-8")
+        except UnicodeDecodeError as exc:
+            failures.append(f"{rel}: cannot decode file as UTF-8 ({exc})")
+            continue
         for url in _collect_urls_from_markdown(text):
             if url in seen:
                 continue

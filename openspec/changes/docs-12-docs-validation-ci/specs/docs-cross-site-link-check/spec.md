@@ -4,7 +4,7 @@ Adds automated HTTP checks for `https://modules.specfact.io/…` URLs referenced
 
 ## ADDED Requirements
 
-### Requirement: Cross-site modules URLs are discoverable from markdown
+### Requirement: Cross-site modules URLs are discoverable from Markdown
 
 The repository SHALL provide a script that extracts `https://modules.specfact.io/…` URLs from `docs/**/*.md`, performs HTTP HEAD/GET checks with redirects allowed, and reports source file context for failures.
 

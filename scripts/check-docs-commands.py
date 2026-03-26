@@ -147,12 +147,16 @@ def validate_command_tokens(tokens: list[str]) -> tuple[bool, str]:
     last_err = ""
     for k in range(len(tokens), 0, -1):
         prefix = tokens[:k]
-        result = runner.invoke(app, [*prefix, "--help"], catch_exceptions=False)
-        if result.exit_code == 0:
+        result = runner.invoke(app, [*prefix, "--help"], catch_exceptions=True)
+        exc = getattr(result, "exception", None)
+        if result.exit_code == 0 and exc is None:
             return True, ""
         err = (result.stderr or result.stdout or getattr(result, "output", None) or "").strip()
-        last_err = err[:800] if err else f"exit {result.exit_code}"
-        combined = (err or "").lower()
+        if exc is not None:
+            last_err = f"{type(exc).__name__}: {exc!s}"[:800]
+        else:
+            last_err = err[:800] if err else f"exit {result.exit_code}"
+        combined = (err or last_err or "").lower()
         if "not installed" in combined and "install" in combined:
             return True, ""
 
@@ -176,7 +180,11 @@ def main() -> int:
         rel_posix = rel.as_posix()
         if rel_posix.startswith("docs/migration/") or rel_posix in _EXCLUDED_DOC_PATHS:
             continue
-        text = md_path.read_text(encoding="utf-8")
+        try:
+            text = md_path.read_text(encoding="utf-8")
+        except UnicodeDecodeError as exc:
+            failures.append(f"{rel}: cannot decode file as UTF-8 ({exc})")
+            continue
         for tokens in collect_specfact_commands_from_text(text):
             key = tuple(tokens)
             if key in seen:
