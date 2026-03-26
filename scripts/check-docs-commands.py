@@ -143,7 +143,7 @@ def validate_command_tokens(tokens: list[str]) -> tuple[bool, str]:
     if not tokens:
         return True, ""
 
-    runner = CliRunner(mix_stderr=False)
+    runner = CliRunner()
     last_err = ""
     for k in range(len(tokens), 0, -1):
         prefix = tokens[:k]
@@ -151,7 +151,8 @@ def validate_command_tokens(tokens: list[str]) -> tuple[bool, str]:
         exc = getattr(result, "exception", None)
         if result.exit_code == 0 and exc is None:
             return True, ""
-        err = (result.stderr or result.stdout or getattr(result, "output", None) or "").strip()
+        # CliRunner default merges stderr into stdout; ``result.stderr`` raises if not split.
+        err = (result.stdout or "").strip()
         if exc is not None:
             last_err = f"{type(exc).__name__}: {exc!s}"[:800]
         else:
