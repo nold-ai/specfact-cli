@@ -123,7 +123,7 @@ The 2026-03-23 docs-refactoring-beginner-to-enterprise plan adds 8 changes acros
 
 All specfact-cli changes sync to GitHub as User Story issues under parent Feature [#356](https://github.com/nold-ai/specfact-cli/issues/356) with labels: `documentation`, `change-proposal`, `openspec`.
 
-Cross-repo dependency: `docs-07-core-handoff-conversion` depends on `specfact-cli-modules/docs-06-modules-site-ia-restructure` (target pages must exist before redirects are created).
+Cross-repo dependency: `docs-07-core-handoff-conversion` depends on `specfact-cli-modules/docs-06-modules-site-ia-restructure` (target pages must exist before redirects are created). URL policy and permalink rules: `https://modules.specfact.io/reference/documentation-url-contract/` (authoritative); core summary: `docs/reference/documentation-url-contract.md`.
 
 ### Marketplace (module distribution)
 

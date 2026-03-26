@@ -20,7 +20,8 @@ The core docs site currently has 20+ pages that contain full duplicate content o
 ## Impact
 
 - Affected docs (20 files): `guides/brownfield-engineer.md`, `guides/brownfield-journey.md`, `guides/brownfield-faq.md`, `guides/brownfield-roi.md`, `guides/backlog-refinement.md`, `guides/backlog-delta-commands.md`, `guides/backlog-dependency-analysis.md`, `guides/devops-adapter-integration.md`, `guides/custom-field-mapping.md`, `guides/import-features.md`, `guides/policy-engine-commands.md`, `guides/project-devops-flow.md`, `guides/sidecar-validation.md`, `guides/contract-testing-workflow.md`, `guides/specmatic-integration.md`, `guides/agile-scrum-workflows.md`, `guides/team-collaboration-workflow.md`, `getting-started/tutorial-backlog-quickstart-demo.md`, `getting-started/tutorial-backlog-refine-ai-ide.md`, `getting-started/tutorial-daily-standup-sprint-review.md`
-- Depends on: `docs-06-modules-site-ia-restructure` (target pages must exist on modules site)
+- Depends on: `docs-06-modules-site-ia-restructure` (target pages must exist on modules site; includes `/reference/documentation-url-contract/` and legacy `/guides/` redirects on modules)
+- Canonical links MUST use real modules `permalink` values (see `docs/reference/documentation-url-contract.md` on core and modules)
 - User-facing: users are directed to the canonical single source of truth for each guide
 
 ## Source Tracking

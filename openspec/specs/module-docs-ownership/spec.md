@@ -24,3 +24,12 @@ Any live module-specific guide or reference page that remains in `specfact-cli` 
 - **THEN** the page states whether it is a core-owned overview or a temporary handoff page
 - **AND** the page links the reader to the canonical modules docs destination when module-specific deep guidance lives there.
 
+### Requirement: Canonical modules URLs are discoverable from core docs
+
+The core documentation set SHALL include a short reference page that explains the core vs modules URL relationship and points to the authoritative contract on `modules.specfact.io`.
+
+#### Scenario: Contributor looks up how to link to modules
+
+- **WHEN** a contributor needs to add or verify a cross-site link
+- **THEN** they can open `docs/reference/documentation-url-contract.md` in this repository for obligations and a link to the full contract on the modules site
+
