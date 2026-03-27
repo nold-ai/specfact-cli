@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from specfact_cli.utils.startup_checks import print_startup_checks
+from specfact_cli.utils.startup_checks import VersionCheckResult, print_startup_checks
 
 
 class TestStartupChecksIntegration:
@@ -125,12 +125,28 @@ class TestStartupChecksIntegration:
             return sorted(templates_dir.glob("specfact*.md"))
 
         with (
+            patch("specfact_cli.utils.startup_checks.get_last_checked_version", return_value=None),
+            patch("specfact_cli.utils.startup_checks.get_last_version_check_timestamp", return_value=None),
+            patch("specfact_cli.utils.startup_checks.update_metadata"),
+            patch(
+                "specfact_cli.utils.startup_checks.check_pypi_version",
+                return_value=VersionCheckResult(
+                    current_version="1.0.0",
+                    latest_version="1.0.0",
+                    update_available=False,
+                    update_type=None,
+                    error=None,
+                ),
+            ),
             patch("specfact_cli.utils.startup_checks.detect_ide", return_value="cursor"),
             patch(
                 "specfact_cli.utils.startup_checks.IDE_CONFIG",
                 {"cursor": {"folder": ".cursor/commands", "format": "md"}},
             ),
-            patch("specfact_cli.utils.startup_checks.discover_prompt_template_files", side_effect=_fake_discover),
+            patch(
+                "specfact_cli.utils.startup_checks.discover_prompt_template_files",
+                side_effect=_fake_discover,
+            ) as mock_discover,
             patch(
                 "specfact_cli.utils.ide_setup.SPECFACT_COMMANDS",
                 ["specfact.01-import"],
@@ -140,3 +156,4 @@ class TestStartupChecksIntegration:
 
             # Function should complete without error
             assert result is None
+            mock_discover.assert_called_with(tmp_path, include_package_fallback=True)

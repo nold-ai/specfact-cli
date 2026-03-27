@@ -191,7 +191,7 @@ def check_ide_templates(repo_path: Path | None = None) -> TemplateCheckResult | 
             templates_outdated=False,
             missing_templates=[],
             outdated_templates=[],
-            ide_dir=ide_dir if ide_dir.exists() else None,
+            ide_dir=ide_dir,
             sources_available=False,
         )
 
@@ -206,7 +206,7 @@ def check_ide_templates(repo_path: Path | None = None) -> TemplateCheckResult | 
         templates_outdated=templates_outdated,
         missing_templates=missing_templates,
         outdated_templates=outdated_templates,
-        ide_dir=ide_dir if ide_dir.exists() else None,
+        ide_dir=ide_dir,
         sources_available=True,
     )
 
@@ -459,7 +459,7 @@ def _flush_startup_metadata(
     from datetime import datetime
 
     metadata_updates: dict[str, Any] = {}
-    if (should_check_templates and template_sources_available is True) or should_check_version:
+    if should_check_templates and template_sources_available is True:
         metadata_updates["last_checked_version"] = __version__
     if should_check_version:
         metadata_updates["last_version_check_timestamp"] = datetime.now(UTC).isoformat()

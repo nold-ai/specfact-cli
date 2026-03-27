@@ -159,7 +159,7 @@ Enrichment report location: `.specfact/reports/enrichment/`
         """``validate_all_prompts`` runs over a directory of ``specfact.*.md`` templates."""
         prompts_dir = tmp_path / "prompts"
         prompts_dir.mkdir()
-        prompt_content = """---
+        valid_content = """---
 description: Test prompt
 ---
 
@@ -201,10 +201,18 @@ Test common patterns.
 
 Test context.
 """
-        (prompts_dir / "specfact.01-import.md").write_text(prompt_content, encoding="utf-8")
+        # Stem must not be in DUAL_STACK_COMMANDS / CLI_COMMANDS so structure-only template passes validate_all.
+        (prompts_dir / "specfact.99-good.md").write_text(valid_content, encoding="utf-8")
+        (prompts_dir / "specfact.98-invalid.md").write_text("# Broken\n\n## Goal\n\n", encoding="utf-8")
 
         results = validate_all_prompts(prompts_dir)
-        assert len(results) == 1
+        assert len(results) == 2
+
+        by_name = {r["prompt"]: r for r in results}
+        assert by_name["specfact.99-good"]["passed"] is True
+        assert by_name["specfact.99-good"]["errors"] == []
+        assert by_name["specfact.98-invalid"]["passed"] is False
+        assert len(by_name["specfact.98-invalid"]["errors"]) >= 1
 
         for result in results:
             assert "prompt" in result

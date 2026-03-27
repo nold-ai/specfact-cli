@@ -867,8 +867,15 @@ class TestPrintStartupChecksOptimization:
         mock_home.mkdir()
         monkeypatch.setattr(Path, "home", lambda: mock_home)
 
-        # No metadata exists (first run)
-        mock_check_templates.return_value = None
+        # No metadata exists (first run); template check runs with sources so watermark can advance.
+        mock_check_templates.return_value = TemplateCheckResult(
+            ide="cursor",
+            templates_outdated=False,
+            missing_templates=[],
+            outdated_templates=[],
+            ide_dir=tmp_path / ".cursor" / "commands",
+            sources_available=True,
+        )
         mock_check_version.return_value = VersionCheckResult(
             current_version="1.0.0",
             latest_version="1.0.0",
