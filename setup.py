@@ -7,7 +7,7 @@ from setuptools import find_packages, setup
 if __name__ == "__main__":
     _setup = setup(
         name="specfact-cli",
-        version="0.42.6",
+        version="0.43.0",
         description=(
             "The swiss knife CLI for agile DevOps teams. Keep backlog, specs, tests, and code in sync with "
             "validation and contract enforcement for new projects and long-lived codebases."
@@ -23,7 +23,7 @@ if __name__ == "__main__":
             "cryptography>=43.0.0",
             "cffi>=1.17.1",
             "typer>=0.15.0",
-            "rich>=14.0.0",
+            "rich>=13.5.2,<13.6.0",
             "jinja2>=3.1.0",
             "networkx>=3.2",
             "gitpython>=3.1.0",
