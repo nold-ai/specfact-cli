@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import json
+import subprocess
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
@@ -495,7 +497,7 @@ class TestVersionDetection:
     def test_detect_version_from_cli_success(self, tmp_path: Path) -> None:
         """Parses version from successful specify --version output."""
         adapter = SpecKitAdapter()
-        mock_result = type("Result", (), {"returncode": 0, "stdout": "specify v0.4.3\n"})()
+        mock_result = SimpleNamespace(returncode=0, stdout="specify v0.4.3\n")
         with (
             patch("specfact_cli.adapters.speckit.shutil.which", return_value="/usr/bin/specify"),
             patch("specfact_cli.adapters.speckit.subprocess.run", return_value=mock_result),
@@ -505,10 +507,31 @@ class TestVersionDetection:
     def test_detect_version_from_cli_bad_output(self, tmp_path: Path) -> None:
         """Returns None when specify --version output has no version pattern."""
         adapter = SpecKitAdapter()
-        mock_result = type("Result", (), {"returncode": 0, "stdout": "unknown\n"})()
+        mock_result = SimpleNamespace(returncode=0, stdout="unknown\n")
         with (
             patch("specfact_cli.adapters.speckit.shutil.which", return_value="/usr/bin/specify"),
             patch("specfact_cli.adapters.speckit.subprocess.run", return_value=mock_result),
+        ):
+            assert adapter._detect_version_from_cli(tmp_path) is None
+
+    def test_detect_version_from_cli_timeout(self, tmp_path: Path) -> None:
+        """Returns None when specify --version times out."""
+        adapter = SpecKitAdapter()
+        with (
+            patch("specfact_cli.adapters.speckit.shutil.which", return_value="/usr/bin/specify"),
+            patch(
+                "specfact_cli.adapters.speckit.subprocess.run",
+                side_effect=subprocess.TimeoutExpired(cmd="specify", timeout=5),
+            ),
+        ):
+            assert adapter._detect_version_from_cli(tmp_path) is None
+
+    def test_detect_version_from_cli_oserror(self, tmp_path: Path) -> None:
+        """Returns None when specify --version raises OSError."""
+        adapter = SpecKitAdapter()
+        with (
+            patch("specfact_cli.adapters.speckit.shutil.which", return_value="/usr/bin/specify"),
+            patch("specfact_cli.adapters.speckit.subprocess.run", side_effect=OSError("no such file")),
         ):
             assert adapter._detect_version_from_cli(tmp_path) is None
 

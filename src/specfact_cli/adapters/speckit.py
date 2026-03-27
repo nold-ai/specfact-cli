@@ -8,7 +8,6 @@ This adapter implements the BridgeAdapter interface to sync Spec-Kit markdown ar
 from __future__ import annotations
 
 import hashlib
-import logging
 import re
 import shutil
 import subprocess
@@ -19,6 +18,7 @@ from beartype import beartype
 from icontract import ensure, require
 
 from specfact_cli.adapters.base import BridgeAdapter
+from specfact_cli.common import get_bridge_logger
 from specfact_cli.importers.speckit_converter import SpecKitConverter
 from specfact_cli.importers.speckit_scanner import SpecKitScanner
 from specfact_cli.models.bridge import BridgeConfig
@@ -38,7 +38,7 @@ from specfact_cli.utils.icontract_helpers import (
 )
 
 
-logger = logging.getLogger(__name__)
+logger = get_bridge_logger(__name__)
 
 
 class SpecKitAdapter(BridgeAdapter):
@@ -172,11 +172,7 @@ class SpecKitAdapter(BridgeAdapter):
             ToolCapabilities instance for Spec-Kit adapter
         """
         is_cross_repo = bridge_config is not None and bridge_config.external_base_path is not None
-        base_path: Path = (
-            bridge_config.external_base_path
-            if is_cross_repo and bridge_config is not None and bridge_config.external_base_path is not None
-            else repo_path
-        )
+        base_path: Path = bridge_config.external_base_path if is_cross_repo else repo_path  # type: ignore[assignment]
 
         layout, specs_dir_path = self._detect_layout(base_path)
         scanner = SpecKitScanner(base_path)

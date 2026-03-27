@@ -41,7 +41,7 @@ The system SHALL return comprehensive tool capabilities including extension meta
 - **THEN** extension and preset detection uses the `external_base_path` as base
 - **AND** CLI version detection is skipped for cross-repo scenarios (filesystem-only)
 
-## MODIFIED Requirements
+## MODIFIED Requirements: Repository Detection
 
 ### Requirement: SpecKitAdapter detect identifies spec-kit repositories
 

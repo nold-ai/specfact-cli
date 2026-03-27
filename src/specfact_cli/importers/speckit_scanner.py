@@ -12,7 +12,6 @@ generate markdown artifacts in specs/ and .specify/ directories.
 from __future__ import annotations
 
 import json
-import logging
 import re
 from contextlib import suppress
 from pathlib import Path
@@ -21,8 +20,10 @@ from typing import Any, cast
 from beartype import beartype
 from icontract import ensure, require
 
+from specfact_cli.common import get_bridge_logger
 
-logger = logging.getLogger(__name__)
+
+logger = get_bridge_logger(__name__)
 
 
 def _spec_file_is_markdown(spec_file: Path) -> bool:
@@ -700,7 +701,7 @@ class SpecKitScanner:
         try:
             content = extensionignore.read_text(encoding="utf-8")
             return {line.strip() for line in content.splitlines() if line.strip() and not line.startswith("#")}
-        except Exception:
+        except OSError:
             logger.debug("Failed to read .extensionignore, proceeding without ignore rules")
             return set()
 
