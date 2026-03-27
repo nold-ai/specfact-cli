@@ -19,6 +19,7 @@ When backlog items change, requirements aren't updated. When requirements change
 - **NEW**: Backlog adapter extension: adapters provide `extract_requirements_fields()` and `update_requirements_fields()` methods for bidirectional sync
 - **EXTEND**: Requirements module (requirements-02) extended with sync commands
 - **DESIGN DECISION**: v1 starts with pull-first (backlog → requirements) as primary direction; push (requirements → backlog) is preview-only and requires explicit `--write` confirmation via patch-mode
+- **EXTEND**: Spec-Kit backlog extension awareness — before creating issues during push (requirements → backlog), the sync SHALL query `ToolCapabilities.extension_commands` (from speckit-02) to detect active spec-kit backlog extensions (Jira, ADO, Linear, GitHub Projects, Trello). When a spec-kit backlog extension is active, the sync SHALL scan spec-kit feature `tasks.md` files for existing issue references (e.g., `PROJ-123`, `AB#456`) and import them as pre-existing mappings. Issue creation is skipped for tasks that already have spec-kit extension mappings, preventing duplicate issues. This detection is implemented in `speckit-03-change-proposal-bridge` (specfact-cli-modules) and consumed here via the adapter interface.
 
 ## Capabilities
 ### New Capabilities
@@ -27,8 +28,8 @@ When backlog items change, requirements aren't updated. When requirements change
 
 ### Modified Capabilities
 
-- `backlog-adapter`: Extended with requirements field extraction and update methods for bidirectional sync
-- `requirements-module`: Extended with sync and drift commands
+- `backlog-adapter`: Extended with requirements field extraction and update methods for bidirectional sync; extended with spec-kit backlog extension issue mapping import
+- `requirements-module`: Extended with sync and drift commands; extended with spec-kit duplicate issue prevention
 
 
 ---

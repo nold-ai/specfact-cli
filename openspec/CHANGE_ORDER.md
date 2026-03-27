@@ -275,6 +275,21 @@ Cross-repo dependency: `docs-07-core-handoff-conversion` depends on `specfact-cl
 |--------|-------|---------------|----------|------------|
 | openspec | 01 | openspec-01-intent-trace | [#350](https://github.com/nold-ai/specfact-cli/issues/350) | #238 (requirements-01); #239 (requirements-02) |
 
+### Spec-Kit v0.4.x alignment (spec-kit integration review, 2026-03-27)
+
+Spec-Kit has evolved to v0.4.3 with 46 extensions, pluggable presets, 7+ slash commands. These changes update the adapter interface and add change proposal bridging.
+
+| Module | Order | Change folder | GitHub # | Blocked by |
+|--------|-------|---------------|----------|------------|
+| speckit | 02 | speckit-02-v04-adapter-alignment | [#453](https://github.com/nold-ai/specfact-cli/issues/453) | — |
+| speckit | 03 | speckit-03-change-proposal-bridge *(specfact-cli-modules)* | [modules#116](https://github.com/nold-ai/specfact-cli-modules/issues/116) | speckit-02 (#453) |
+
+**Cross-repo note**: speckit-03 lives in `nold-ai/specfact-cli-modules` but depends on speckit-02 in this repo (ToolCapabilities extension fields).
+
+**Updated proposals** (spec-kit interop sections added 2026-03-27):
+- `sync-01-unified-kernel`: Added spec-kit extension interop — sync kernel detects external sync actors from spec-kit reconcile/sync/iterate extensions
+- `requirements-03-backlog-sync`: Added spec-kit backlog extension awareness — prevents duplicate issue creation when spec-kit Jira/ADO/Linear extensions have already created issues
+
 ### CLI end-user validation (validation gap plan, 2026-02-19)
 
 | Module | Order | Change folder | GitHub # | Blocked by |
@@ -360,6 +375,8 @@ Set these in GitHub so issue dependencies are explicit. Optional dependencies ar
 | [#350](https://github.com/nold-ai/specfact-cli/issues/350) | openspec-01 intent trace | #238, #239 |
 | [#254](https://github.com/nold-ai/specfact-cli/issues/254) | integration-01 cross-change contracts | #237, #239, #240, #241, #246 |
 | [#255](https://github.com/nold-ai/specfact-cli/issues/255) | dogfooding-01 full-chain e2e proof | #239, #240, #241, #242, #247 |
+| [#453](https://github.com/nold-ai/specfact-cli/issues/453) | speckit-02 v0.4.x adapter alignment | — |
+| [modules#116](https://github.com/nold-ai/specfact-cli-modules/issues/116) | speckit-03 change proposal bridge *(modules repo)* | speckit-02 (#453) |
 | TBD | doc-frontmatter-schema | — |
 | TBD | ci-docs-sync-check | doc-frontmatter-schema |
 

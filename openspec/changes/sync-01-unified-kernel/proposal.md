@@ -93,6 +93,7 @@ modules/sync-kernel/
 - **NEW**: `SyncProviderProtocol` — adapters (backlog, requirements, architecture) implement this protocol to participate in sync sessions
 - **NEW**: CLI commands: `specfact sync --preview` (dry-run patch), `specfact sync --apply` (execute patches), `specfact sync resolve --session <id>` (resolve pending conflicts), `specfact sync status` (show active sessions)
 - **EXTEND**: Existing sync module behavior preserved — the kernel wraps existing adapter-specific sync calls with session management and conflict detection
+- **EXTEND**: Spec-Kit extension interop — the sync kernel SHALL detect when spec-kit's own sync/reconcile/iterate extensions have modified artifacts (via `ToolCapabilities.extension_commands` from speckit-02), and coordinate to avoid conflicting writes. When a spec-kit extension has performed a reconcile, the kernel SHALL treat the reconciled artifact as the authoritative remote state rather than computing its own diff against a stale base. The `SyncProviderProtocol` SHALL include an optional `detect_external_sync_actors()` method that adapters can implement to report which external tools are performing their own sync operations on the same artifacts.
 
 ## Capabilities
 ### New Capabilities
@@ -102,6 +103,7 @@ modules/sync-kernel/
 ### Modified Capabilities
 
 - `devops-sync`: Existing sync behavior wrapped with kernel session management; no breaking changes to current sync commands
+- `bridge-adapter`: SyncProviderProtocol integration — SpecKitAdapter implements `detect_external_sync_actors()` to report spec-kit reconcile/sync/iterate extensions as external sync actors
 
 
 ---
