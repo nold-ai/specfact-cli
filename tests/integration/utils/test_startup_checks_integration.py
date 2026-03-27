@@ -119,13 +119,16 @@ class TestStartupChecksIntegration:
         templates_dir.mkdir(parents=True)
         (templates_dir / "specfact.01-import.md").write_text("# Import")
 
+        def _fake_discover(_repo_path, include_package_fallback=True):
+            return sorted(templates_dir.glob("specfact*.md"))
+
         with (
             patch("specfact_cli.utils.startup_checks.detect_ide", return_value="cursor"),
             patch(
                 "specfact_cli.utils.startup_checks.IDE_CONFIG",
                 {"cursor": {"folder": ".cursor/commands", "format": "md"}},
             ),
-            patch("specfact_cli.utils.startup_checks.find_package_resources_path", return_value=templates_dir),
+            patch("specfact_cli.utils.startup_checks.discover_prompt_template_files", side_effect=_fake_discover),
             patch(
                 "specfact_cli.utils.ide_setup.SPECFACT_COMMANDS",
                 ["specfact.01-import"],

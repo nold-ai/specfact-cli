@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import sys
 import time
-from datetime import UTC
+from datetime import UTC, datetime
 from pathlib import Path
 from unittest.mock import MagicMock, Mock, patch
 
@@ -95,7 +95,7 @@ class TestCheckIDETemplates:
                 "specfact_cli.utils.startup_checks.IDE_CONFIG",
                 {"cursor": {"folder": ".cursor/commands", "format": "md"}},
             ),
-            patch("specfact_cli.utils.startup_checks.find_package_resources_path", return_value=None),
+            patch("specfact_cli.utils.startup_checks.discover_prompt_template_files", return_value=[]),
         ):
             result = check_ide_templates(tmp_path)
             assert result is None
@@ -110,13 +110,16 @@ class TestCheckIDETemplates:
         # Create a source template
         (templates_dir / "specfact.01-import.md").write_text("# Import command")
 
+        def _fake_discover(_repo_path: Path, include_package_fallback: bool = True) -> list[Path]:
+            return sorted(templates_dir.glob("specfact*.md"))
+
         with (
             patch("specfact_cli.utils.startup_checks.detect_ide", return_value="cursor"),
             patch(
                 "specfact_cli.utils.startup_checks.IDE_CONFIG",
                 {"cursor": {"folder": ".cursor/commands", "format": "md"}},
             ),
-            patch("specfact_cli.utils.startup_checks.find_package_resources_path", return_value=templates_dir),
+            patch("specfact_cli.utils.startup_checks.discover_prompt_template_files", side_effect=_fake_discover),
             patch(
                 "specfact_cli.utils.ide_setup.SPECFACT_COMMANDS",
                 ["specfact.01-import"],
@@ -150,13 +153,16 @@ class TestCheckIDETemplates:
         time.sleep(1.1)
         source_file.touch()
 
+        def _fake_discover(_repo_path: Path, include_package_fallback: bool = True) -> list[Path]:
+            return sorted(templates_dir.glob("specfact*.md"))
+
         with (
             patch("specfact_cli.utils.startup_checks.detect_ide", return_value="cursor"),
             patch(
                 "specfact_cli.utils.startup_checks.IDE_CONFIG",
                 {"cursor": {"folder": ".cursor/commands", "format": "md"}},
             ),
-            patch("specfact_cli.utils.startup_checks.find_package_resources_path", return_value=templates_dir),
+            patch("specfact_cli.utils.startup_checks.discover_prompt_template_files", side_effect=_fake_discover),
             patch(
                 "specfact_cli.utils.ide_setup.SPECFACT_COMMANDS",
                 ["specfact.01-import"],
@@ -187,13 +193,16 @@ class TestCheckIDETemplates:
         ide_file.write_text("# Import command")
         ide_file.touch()
 
+        def _fake_discover(_repo_path: Path, include_package_fallback: bool = True) -> list[Path]:
+            return sorted(templates_dir.glob("specfact*.md"))
+
         with (
             patch("specfact_cli.utils.startup_checks.detect_ide", return_value="cursor"),
             patch(
                 "specfact_cli.utils.startup_checks.IDE_CONFIG",
                 {"cursor": {"folder": ".cursor/commands", "format": "md"}},
             ),
-            patch("specfact_cli.utils.startup_checks.find_package_resources_path", return_value=templates_dir),
+            patch("specfact_cli.utils.startup_checks.discover_prompt_template_files", side_effect=_fake_discover),
             patch(
                 "specfact_cli.utils.ide_setup.SPECFACT_COMMANDS",
                 ["specfact.01-import"],
@@ -216,13 +225,16 @@ class TestCheckIDETemplates:
         templates_dir.mkdir(parents=True)
         (templates_dir / "specfact.01-import.md").write_text("# Import")
 
+        def _fake_discover(_repo_path: Path, include_package_fallback: bool = True) -> list[Path]:
+            return sorted(templates_dir.glob("specfact*.md"))
+
         with (
             patch("specfact_cli.utils.startup_checks.detect_ide", return_value="gemini"),
             patch(
                 "specfact_cli.utils.startup_checks.IDE_CONFIG",
                 {"gemini": {"folder": ".gemini/commands", "format": "toml"}},
             ),
-            patch("specfact_cli.utils.startup_checks.find_package_resources_path", return_value=templates_dir),
+            patch("specfact_cli.utils.startup_checks.discover_prompt_template_files", side_effect=_fake_discover),
             patch(
                 "specfact_cli.utils.ide_setup.SPECFACT_COMMANDS",
                 ["specfact.01-import"],
@@ -451,6 +463,9 @@ class TestCheckPyPIVersion:
 class TestPrintStartupChecks:
     """Test startup checks printing."""
 
+    @patch("specfact_cli.utils.startup_checks.get_last_module_freshness_check_timestamp")
+    @patch("specfact_cli.utils.startup_checks.get_last_version_check_timestamp")
+    @patch("specfact_cli.utils.startup_checks.get_last_checked_version")
     @patch("specfact_cli.utils.startup_checks.check_ide_templates")
     @patch("specfact_cli.utils.startup_checks.check_pypi_version")
     @patch("specfact_cli.utils.startup_checks.console")
@@ -461,8 +476,16 @@ class TestPrintStartupChecks:
         mock_console: MagicMock,
         mock_version: MagicMock,
         mock_templates: MagicMock,
+        mock_last_checked: MagicMock,
+        _mock_version_ts: MagicMock,
+        _mock_module_ts: MagicMock,
     ):
         """Test when no issues are found."""
+        from specfact_cli import __version__
+
+        mock_last_checked.return_value = __version__
+        _mock_version_ts.return_value = datetime.now(UTC).isoformat()
+        _mock_module_ts.return_value = datetime.now(UTC).isoformat()
         mock_templates.return_value = None
         mock_version.return_value = VersionCheckResult(
             current_version="1.0.0",
@@ -610,13 +633,27 @@ class TestPrintStartupChecks:
                     return
         pytest.fail("Minor version update message not found in console.print calls")
 
+    @patch("specfact_cli.utils.startup_checks.get_last_module_freshness_check_timestamp")
+    @patch("specfact_cli.utils.startup_checks.get_last_version_check_timestamp")
+    @patch("specfact_cli.utils.startup_checks.get_last_checked_version")
     @patch("specfact_cli.utils.startup_checks.check_ide_templates")
     @patch("specfact_cli.utils.startup_checks.check_pypi_version")
     @patch("specfact_cli.utils.startup_checks.console")
     def test_print_startup_checks_version_update_no_type(
-        self, mock_console: MagicMock, mock_version: MagicMock, mock_templates: MagicMock
+        self,
+        mock_console: MagicMock,
+        mock_version: MagicMock,
+        mock_templates: MagicMock,
+        mock_last_checked: MagicMock,
+        _mock_version_ts: MagicMock,
+        _mock_module_ts: MagicMock,
     ):
         """Test that update without type is not printed."""
+        from specfact_cli import __version__
+
+        mock_last_checked.return_value = __version__
+        _mock_version_ts.return_value = datetime.now(UTC).isoformat()
+        _mock_module_ts.return_value = datetime.now(UTC).isoformat()
         mock_templates.return_value = None
         mock_version.return_value = VersionCheckResult(
             current_version="1.0.0",

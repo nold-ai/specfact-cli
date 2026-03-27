@@ -37,3 +37,21 @@ HATCH_DATA_DIR=/tmp/hatch-data HATCH_CACHE_DIR=/tmp/hatch-cache VIRTUALENV_OVERR
 
 - Result: passed.
 - Summary: `specfact code review run` completed with no findings on the shipped production files.
+
+## Task 3.5 — Remove bundle workflow prompts from core wheel (2026-03-28)
+
+- Change: drop `resources/prompts` from `[tool.hatch.build.targets.wheel.force-include]`, delete repo-root `resources/prompts/`, align startup drift checks and init template resolution with `discover_prompt_template_files`, bump **0.43.1**.
+- Post-change verification:
+
+```bash
+cd /home/dom/git/nold-ai/specfact-cli-worktrees/chore/packaging-02-finish-core-prompt-cleanup
+hatch env create
+hatch run format && hatch run type-check && hatch run contract-test
+hatch run smart-test-full
+```
+
+- Record timestamps and pass/fail in CI or local runs before merge.
+
+- Timestamp: 2026-03-28T00:22:00+01:00 (local)
+- Command: `hatch run smart-test-full` (from worktree `chore/packaging-02-finish-core-prompt-cleanup`)
+- Result: passed (exit 0).

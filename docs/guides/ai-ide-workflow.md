@@ -47,7 +47,7 @@ specfact init ide --ide cursor --install-deps
 **What it does**:
 
 1. Detects your IDE (or uses `--ide` flag)
-2. Copies prompt templates from `resources/prompts/` to IDE-specific location
+2. Copies prompt templates from installed bundle modules (or an optional dev checkout under `resources/prompts/`) to the IDE-specific location
 3. Creates/updates IDE settings if needed
 4. Makes slash commands available in your IDE
 5. Optionally installs required packages (`beartype`, `icontract`, `crosshair-tool`, `pytest`)

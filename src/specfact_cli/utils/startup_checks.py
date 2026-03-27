@@ -24,7 +24,7 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 from specfact_cli import __version__
 from specfact_cli.registry.module_installer import get_outdated_or_missing_bundled_modules
 from specfact_cli.utils.contract_predicates import file_path_exists, optional_repo_path_exists
-from specfact_cli.utils.ide_setup import IDE_CONFIG, detect_ide, find_package_resources_path
+from specfact_cli.utils.ide_setup import IDE_CONFIG, detect_ide, discover_prompt_template_files
 from specfact_cli.utils.metadata import (
     get_last_checked_version,
     get_last_module_freshness_check_timestamp,
@@ -92,17 +92,10 @@ def calculate_file_hash(file_path: Path) -> str:
     return sha256_hash.hexdigest()
 
 
-def _resolve_templates_dir(repo_path: Path) -> Path | None:
-    templates_dir = find_package_resources_path("specfact_cli", "resources/prompts")
-    if templates_dir is not None:
-        return templates_dir
-    repo_root = repo_path
-    while repo_root.parent != repo_root:
-        dev_templates = repo_root / "resources" / "prompts"
-        if dev_templates.exists():
-            return dev_templates
-        repo_root = repo_root.parent
-    return None
+def _template_sources_by_basename(repo_path: Path) -> dict[str, Path]:
+    """Map specfact*.md basename -> path for drift checks (installed modules and optional dev repo)."""
+    files = discover_prompt_template_files(repo_path, include_package_fallback=True)
+    return {p.name: p for p in files}
 
 
 def _expected_ide_template_filenames(format_type: str) -> list[str]:
@@ -135,7 +128,7 @@ def _find_ide_exported_prompt_file(ide_dir: Path, basename: str) -> Path | None:
 
 def _scan_ide_template_drift(
     ide_dir: Path,
-    templates_dir: Path,
+    source_by_basename: dict[str, Path],
     expected_files: list[str],
 ) -> tuple[list[str], list[str]]:
     missing_templates: list[str] = []
@@ -143,11 +136,11 @@ def _scan_ide_template_drift(
     for expected_file in expected_files:
         ide_file = _find_ide_exported_prompt_file(ide_dir, expected_file)
         source_template_name = expected_file.replace(".prompt.md", ".md").replace(".toml", ".md")
-        source_file = templates_dir / source_template_name
+        source_file = source_by_basename.get(source_template_name)
         if ide_file is None:
             missing_templates.append(expected_file)
             continue
-        if not source_file.exists():
+        if source_file is None or not source_file.exists():
             continue
         with contextlib.suppress(Exception):
             source_mtime = source_file.stat().st_mtime
@@ -188,13 +181,13 @@ def check_ide_templates(repo_path: Path | None = None) -> TemplateCheckResult | 
     if not ide_dir.exists():
         return None
 
-    templates_dir = _resolve_templates_dir(repo_path)
-    if templates_dir is None:
+    source_by_basename = _template_sources_by_basename(repo_path)
+    if not source_by_basename:
         return None
 
     format_type = str(config["format"])
     expected_files = _expected_ide_template_filenames(format_type)
-    missing_templates, outdated_templates = _scan_ide_template_drift(ide_dir, templates_dir, expected_files)
+    missing_templates, outdated_templates = _scan_ide_template_drift(ide_dir, source_by_basename, expected_files)
 
     templates_outdated = len(outdated_templates) > 0 or len(missing_templates) > 0
 

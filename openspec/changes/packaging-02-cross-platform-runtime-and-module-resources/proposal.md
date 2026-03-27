@@ -36,5 +36,5 @@ None.
 <!-- source_repo: nold-ai/specfact-cli -->
 - **GitHub Issue**: #441
 - **Issue URL**: <https://github.com/nold-ai/specfact-cli/issues/441>
-- **Last Synced Status**: proposed
+- **Last Synced Status**: implementation-complete (task 3.5 core prompt removal; pending archive)
 - **Sanitized**: false
