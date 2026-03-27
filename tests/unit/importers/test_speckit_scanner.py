@@ -7,6 +7,7 @@ Only edge cases and integration scenarios are tested here.
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from specfact_cli.importers.speckit_scanner import SpecKitScanner
@@ -128,3 +129,177 @@ All public APIs MUST have @icontract decorators.
         assert memory_data["constitution"] is not None
         assert memory_data["version"] == "1.0.0"
         assert len(memory_data["principles"]) >= 1
+
+
+class TestScanExtensions:
+    """Tests for scan_extensions() — v0.4.x extension catalog detection."""
+
+    def test_no_extensions_dir(self, tmp_path: Path) -> None:
+        """Returns empty list when extensions/ does not exist."""
+        scanner = SpecKitScanner(tmp_path)
+        assert scanner.scan_extensions() == []
+
+    def test_empty_extensions_dir(self, tmp_path: Path) -> None:
+        """Returns empty list when extensions/ exists but has no catalogs."""
+        (tmp_path / "extensions").mkdir()
+        scanner = SpecKitScanner(tmp_path)
+        assert scanner.scan_extensions() == []
+
+    def test_community_catalog(self, tmp_path: Path) -> None:
+        """Parses catalog.community.json and returns extension metadata."""
+        ext_dir = tmp_path / "extensions"
+        ext_dir.mkdir()
+        catalog = [
+            {"name": "reconcile", "commands": ["reconcile", "diff"], "version": "1.0.0"},
+            {"name": "sync", "commands": ["push", "pull"]},
+        ]
+        (ext_dir / "catalog.community.json").write_text(json.dumps(catalog))
+
+        scanner = SpecKitScanner(tmp_path)
+        result = scanner.scan_extensions()
+
+        assert len(result) == 2
+        assert result[0]["name"] == "reconcile"
+        assert result[0]["commands"] == ["reconcile", "diff"]
+        assert result[1]["name"] == "sync"
+
+    def test_catalog_with_extensions_key(self, tmp_path: Path) -> None:
+        """Parses catalog where extensions are under an 'extensions' key."""
+        ext_dir = tmp_path / "extensions"
+        ext_dir.mkdir()
+        catalog = {"extensions": [{"name": "verify", "commands": ["verify"]}]}
+        (ext_dir / "catalog.core.json").write_text(json.dumps(catalog))
+
+        scanner = SpecKitScanner(tmp_path)
+        result = scanner.scan_extensions()
+
+        assert len(result) == 1
+        assert result[0]["name"] == "verify"
+
+    def test_extensionignore_filtering(self, tmp_path: Path) -> None:
+        """Extensions listed in .extensionignore are excluded."""
+        ext_dir = tmp_path / "extensions"
+        ext_dir.mkdir()
+        catalog = [
+            {"name": "reconcile", "commands": []},
+            {"name": "deprecated-ext", "commands": []},
+        ]
+        (ext_dir / "catalog.community.json").write_text(json.dumps(catalog))
+        (tmp_path / ".extensionignore").write_text("deprecated-ext\n# comment line\n")
+
+        scanner = SpecKitScanner(tmp_path)
+        result = scanner.scan_extensions()
+
+        assert len(result) == 1
+        assert result[0]["name"] == "reconcile"
+
+    def test_malformed_json_catalog(self, tmp_path: Path) -> None:
+        """Malformed JSON catalog is skipped with warning, not crash."""
+        ext_dir = tmp_path / "extensions"
+        ext_dir.mkdir()
+        (ext_dir / "catalog.community.json").write_text("{bad json")
+
+        scanner = SpecKitScanner(tmp_path)
+        result = scanner.scan_extensions()
+        assert result == []
+
+    def test_both_catalogs_merged(self, tmp_path: Path) -> None:
+        """Extensions from both core and community catalogs are merged."""
+        ext_dir = tmp_path / "extensions"
+        ext_dir.mkdir()
+        (ext_dir / "catalog.core.json").write_text(json.dumps([{"name": "core-ext", "commands": []}]))
+        (ext_dir / "catalog.community.json").write_text(json.dumps([{"name": "comm-ext", "commands": []}]))
+
+        scanner = SpecKitScanner(tmp_path)
+        result = scanner.scan_extensions()
+
+        names = [e["name"] for e in result]
+        assert "core-ext" in names
+        assert "comm-ext" in names
+
+
+class TestScanPresets:
+    """Tests for scan_presets() — v0.4.x preset catalog detection."""
+
+    def test_no_presets_dir(self, tmp_path: Path) -> None:
+        """Returns empty list when presets/ does not exist."""
+        scanner = SpecKitScanner(tmp_path)
+        assert scanner.scan_presets() == []
+
+    def test_json_presets(self, tmp_path: Path) -> None:
+        """Detects preset names from JSON files."""
+        presets_dir = tmp_path / "presets"
+        presets_dir.mkdir()
+        (presets_dir / "minimal.json").write_text(json.dumps({"name": "minimal"}))
+        (presets_dir / "full.json").write_text(json.dumps({"name": "full-stack"}))
+
+        scanner = SpecKitScanner(tmp_path)
+        result = scanner.scan_presets()
+
+        assert "minimal" in result
+        assert "full-stack" in result
+
+    def test_directory_presets(self, tmp_path: Path) -> None:
+        """Detects preset names from subdirectories."""
+        presets_dir = tmp_path / "presets"
+        presets_dir.mkdir()
+        (presets_dir / "my-preset").mkdir()
+
+        scanner = SpecKitScanner(tmp_path)
+        result = scanner.scan_presets()
+
+        assert "my-preset" in result
+
+    def test_malformed_json_uses_stem(self, tmp_path: Path) -> None:
+        """Falls back to filename stem when JSON is malformed."""
+        presets_dir = tmp_path / "presets"
+        presets_dir.mkdir()
+        (presets_dir / "broken.json").write_text("{bad")
+
+        scanner = SpecKitScanner(tmp_path)
+        result = scanner.scan_presets()
+
+        assert "broken" in result
+
+
+class TestScanHookEvents:
+    """Tests for scan_hook_events() — v0.4.x hook event detection."""
+
+    def test_no_prompts_dir(self, tmp_path: Path) -> None:
+        """Returns empty list when .specify/prompts/ does not exist."""
+        scanner = SpecKitScanner(tmp_path)
+        assert scanner.scan_hook_events() == []
+
+    def test_detects_hook_patterns(self, tmp_path: Path) -> None:
+        """Detects before/after hook patterns in prompt templates."""
+        prompts_dir = tmp_path / ".specify" / "prompts"
+        prompts_dir.mkdir(parents=True)
+        (prompts_dir / "tasks.md").write_text("Run before_task validation.\nThen after_task cleanup.\n")
+        (prompts_dir / "plan.md").write_text("Execute before_plan checks.\n")
+
+        scanner = SpecKitScanner(tmp_path)
+        result = scanner.scan_hook_events()
+
+        assert "before_task" in result
+        assert "after_task" in result
+        assert "before_plan" in result
+
+    def test_no_hook_patterns(self, tmp_path: Path) -> None:
+        """Returns empty list when no hook patterns found in templates."""
+        prompts_dir = tmp_path / ".specify" / "prompts"
+        prompts_dir.mkdir(parents=True)
+        (prompts_dir / "tasks.md").write_text("Normal content without hooks.\n")
+
+        scanner = SpecKitScanner(tmp_path)
+        assert scanner.scan_hook_events() == []
+
+    def test_results_are_sorted(self, tmp_path: Path) -> None:
+        """Hook events are returned in sorted order."""
+        prompts_dir = tmp_path / ".specify" / "prompts"
+        prompts_dir.mkdir(parents=True)
+        (prompts_dir / "all.md").write_text("after_task before_task after_plan before_plan")
+
+        scanner = SpecKitScanner(tmp_path)
+        result = scanner.scan_hook_events()
+
+        assert result == sorted(result)

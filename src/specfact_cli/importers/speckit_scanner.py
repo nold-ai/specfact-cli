@@ -11,13 +11,18 @@ generate markdown artifacts in specs/ and .specify/ directories.
 
 from __future__ import annotations
 
+import json
+import logging
 import re
 from contextlib import suppress
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from beartype import beartype
 from icontract import ensure, require
+
+
+logger = logging.getLogger(__name__)
 
 
 def _spec_file_is_markdown(spec_file: Path) -> bool:
@@ -686,6 +691,122 @@ class SpecKitScanner:
             memory_data["version"] = version_match.group(1)
         self._parse_constitution_principles(content, memory_data)
         self._parse_constitution_governance_constraints(content, memory_data)
+
+    def _load_extensionignore(self) -> set[str]:
+        """Load extension names to ignore from .extensionignore file."""
+        extensionignore = self.repo_path / ".extensionignore"
+        if not extensionignore.exists():
+            return set()
+        try:
+            content = extensionignore.read_text(encoding="utf-8")
+            return {line.strip() for line in content.splitlines() if line.strip() and not line.startswith("#")}
+        except Exception:
+            logger.debug("Failed to read .extensionignore, proceeding without ignore rules")
+            return set()
+
+    def _parse_catalog_file(self, catalog_path: Path, ignored: set[str], extensions: list[dict[str, Any]]) -> None:
+        """Parse a single extension catalog JSON file and append results."""
+        if not catalog_path.exists():
+            return
+        try:
+            raw = json.loads(catalog_path.read_text(encoding="utf-8"))
+            parsed: Any = raw
+            items: list[Any] = (
+                parsed if isinstance(parsed, list) else cast("dict[str, Any]", parsed).get("extensions", [])
+            )
+            for item in items:
+                if not isinstance(item, dict):
+                    continue
+                item_dict = cast("dict[str, Any]", item)
+                name: str = str(item_dict.get("name", ""))
+                if name and name not in ignored:
+                    commands: list[str] = list(item_dict.get("commands") or [])
+                    ext_version = item_dict.get("version")
+                    extensions.append(
+                        {"name": name, "commands": commands, "version": str(ext_version) if ext_version else None}
+                    )
+        except (json.JSONDecodeError, OSError) as exc:
+            logger.warning("Malformed extension catalog %s: %s", catalog_path, exc)
+
+    @beartype
+    @ensure(lambda result: isinstance(result, list), "Must return list")
+    def scan_extensions(self) -> list[dict[str, Any]]:
+        """
+        Scan for spec-kit extension catalogs and return parsed extension metadata.
+
+        Parses extensions/catalog.community.json and extensions/catalog.core.json,
+        filtering out extensions listed in .extensionignore.
+
+        Returns:
+            List of extension metadata dicts with at minimum 'name' and 'commands' keys.
+        """
+        extensions_dir = self.repo_path / "extensions"
+        if not extensions_dir.exists() or not extensions_dir.is_dir():
+            return []
+
+        ignored = self._load_extensionignore()
+        extensions: list[dict[str, Any]] = []
+        for catalog_name in ("catalog.core.json", "catalog.community.json"):
+            self._parse_catalog_file(extensions_dir / catalog_name, ignored, extensions)
+
+        return extensions
+
+    @beartype
+    @ensure(lambda result: isinstance(result, list), "Must return list")
+    def scan_presets(self) -> list[str]:
+        """
+        Scan for spec-kit preset catalogs in the presets/ directory.
+
+        Returns:
+            List of detected preset names.
+        """
+        presets_dir = self.repo_path / "presets"
+        if not presets_dir.exists() or not presets_dir.is_dir():
+            return []
+
+        preset_names: list[str] = []
+        for item in presets_dir.iterdir():
+            if item.is_file() and item.suffix == ".json":
+                try:
+                    data: Any = json.loads(item.read_text(encoding="utf-8"))
+                    name = (
+                        str(cast("dict[str, Any]", data).get("name", item.stem))
+                        if isinstance(data, dict)
+                        else item.stem
+                    )
+                    preset_names.append(name)
+                except (json.JSONDecodeError, OSError):
+                    preset_names.append(item.stem)
+            elif item.is_dir():
+                preset_names.append(item.name)
+        return preset_names
+
+    @beartype
+    @ensure(lambda result: isinstance(result, list), "Must return list")
+    def scan_hook_events(self) -> list[str]:
+        """
+        Detect before/after hook event wiring in .specify/prompts/ template files.
+
+        Returns:
+            List of detected hook event types (e.g., ["before_task", "after_task"]).
+        """
+        prompts_dir = self.repo_path / ".specify" / "prompts"
+        if not prompts_dir.exists() or not prompts_dir.is_dir():
+            return []
+
+        hook_events: set[str] = set()
+        hook_pattern = re.compile(r"(before|after)[_-](task|plan|specify|implement|constitution)", re.IGNORECASE)
+
+        for template_file in prompts_dir.glob("*.md"):
+            try:
+                content = template_file.read_text(encoding="utf-8")
+                for match in hook_pattern.finditer(content):
+                    event = f"{match.group(1).lower()}_{match.group(2).lower()}"
+                    hook_events.add(event)
+            except OSError:
+                continue
+
+        return sorted(hook_events)
 
     @ensure(lambda result: isinstance(result, dict), "Must return dict")
     def parse_memory_files(self, memory_dir: Path) -> dict[str, Any]:

@@ -18,7 +18,7 @@ permalink: /guides/speckit-journey/
 
 Spec-Kit is **excellent** for:
 
-- ✅ **Interactive Specification** - Slash commands (`/speckit.specify`, `/speckit.plan`) with AI assistance
+- ✅ **Interactive Specification** - Slash commands (`/speckit.specify`, `/speckit.plan`, `/speckit.tasks`, `/speckit.implement`, `/speckit.constitution`, `/speckit.clarify`, `/speckit.analyze`) with AI assistance
 - ✅ **Rapid Prototyping** - Quick spec → plan → tasks → code workflow for **NEW features**
 - ✅ **Learning & Exploration** - Great for understanding state machines, contracts, requirements
 - ✅ **IDE Integration** - CoPilot chat makes it accessible to less technical developers

@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -448,3 +450,167 @@ class TestSpecKitAdapter:
 
         assert isinstance(count, int)
         assert count >= 0
+
+
+class TestVersionDetection:
+    """Tests for spec-kit version detection methods."""
+
+    def test_detect_version_from_heuristics_presets(self, tmp_path: Path) -> None:
+        """Detects >=0.3.0 when presets/ directory exists."""
+        (tmp_path / "presets").mkdir()
+        adapter = SpecKitAdapter()
+        assert adapter._detect_version_from_heuristics(tmp_path) == ">=0.3.0"
+
+    def test_detect_version_from_heuristics_extensions(self, tmp_path: Path) -> None:
+        """Detects >=0.2.0 when extensions/ directory exists (no presets)."""
+        (tmp_path / "extensions").mkdir()
+        adapter = SpecKitAdapter()
+        assert adapter._detect_version_from_heuristics(tmp_path) == ">=0.2.0"
+
+    def test_detect_version_from_heuristics_specify(self, tmp_path: Path) -> None:
+        """Detects >=0.1.0 when .specify/ directory exists (no extensions/presets)."""
+        (tmp_path / ".specify").mkdir()
+        adapter = SpecKitAdapter()
+        assert adapter._detect_version_from_heuristics(tmp_path) == ">=0.1.0"
+
+    def test_detect_version_from_heuristics_none(self, tmp_path: Path) -> None:
+        """Returns None when no spec-kit directories exist."""
+        adapter = SpecKitAdapter()
+        assert adapter._detect_version_from_heuristics(tmp_path) is None
+
+    def test_detect_version_from_heuristics_priority(self, tmp_path: Path) -> None:
+        """Presets takes priority over extensions over .specify."""
+        (tmp_path / ".specify").mkdir()
+        (tmp_path / "extensions").mkdir()
+        (tmp_path / "presets").mkdir()
+        adapter = SpecKitAdapter()
+        assert adapter._detect_version_from_heuristics(tmp_path) == ">=0.3.0"
+
+    def test_detect_version_from_cli_no_binary(self, tmp_path: Path) -> None:
+        """Returns None when specify binary is not on PATH."""
+        adapter = SpecKitAdapter()
+        with patch("specfact_cli.adapters.speckit.shutil.which", return_value=None):
+            assert adapter._detect_version_from_cli(tmp_path) is None
+
+    def test_detect_version_from_cli_success(self, tmp_path: Path) -> None:
+        """Parses version from successful specify --version output."""
+        adapter = SpecKitAdapter()
+        mock_result = type("Result", (), {"returncode": 0, "stdout": "specify v0.4.3\n"})()
+        with (
+            patch("specfact_cli.adapters.speckit.shutil.which", return_value="/usr/bin/specify"),
+            patch("specfact_cli.adapters.speckit.subprocess.run", return_value=mock_result),
+        ):
+            assert adapter._detect_version_from_cli(tmp_path) == "0.4.3"
+
+    def test_detect_version_from_cli_bad_output(self, tmp_path: Path) -> None:
+        """Returns None when specify --version output has no version pattern."""
+        adapter = SpecKitAdapter()
+        mock_result = type("Result", (), {"returncode": 0, "stdout": "unknown\n"})()
+        with (
+            patch("specfact_cli.adapters.speckit.shutil.which", return_value="/usr/bin/specify"),
+            patch("specfact_cli.adapters.speckit.subprocess.run", return_value=mock_result),
+        ):
+            assert adapter._detect_version_from_cli(tmp_path) is None
+
+
+class TestGetCapabilitiesV04:
+    """Integration tests for get_capabilities() with v0.4.x repo structures."""
+
+    @pytest.fixture
+    def v04_repo(self, tmp_path: Path) -> Path:
+        """Create a v0.4.x Spec-Kit repo with extensions, presets, and hooks."""
+        # Spec-Kit directories
+        (tmp_path / ".specify" / "memory").mkdir(parents=True)
+        (tmp_path / ".specify" / "memory" / "constitution.md").write_text("# Constitution\n")
+        (tmp_path / "specs" / "001-auth").mkdir(parents=True)
+        (tmp_path / "specs" / "001-auth" / "spec.md").write_text("# Auth\n")
+
+        # Extensions
+        ext_dir = tmp_path / "extensions"
+        ext_dir.mkdir()
+        catalog = [{"name": "reconcile", "commands": ["reconcile"]}, {"name": "verify", "commands": ["verify"]}]
+        (ext_dir / "catalog.community.json").write_text(json.dumps(catalog))
+
+        # Presets
+        presets_dir = tmp_path / "presets"
+        presets_dir.mkdir()
+        (presets_dir / "minimal.json").write_text(json.dumps({"name": "minimal"}))
+
+        # Hook templates
+        prompts_dir = tmp_path / ".specify" / "prompts"
+        prompts_dir.mkdir(parents=True)
+        (prompts_dir / "tasks.md").write_text("Run before_task validation.\nafter_task cleanup.\n")
+
+        return tmp_path
+
+    def test_extensions_populated(self, v04_repo: Path) -> None:
+        """Extensions are detected and populated in capabilities."""
+        adapter = SpecKitAdapter()
+        caps = adapter.get_capabilities(v04_repo)
+
+        assert caps.extensions is not None
+        assert "reconcile" in caps.extensions
+        assert "verify" in caps.extensions
+
+    def test_extension_commands_populated(self, v04_repo: Path) -> None:
+        """Extension commands dict is populated."""
+        adapter = SpecKitAdapter()
+        caps = adapter.get_capabilities(v04_repo)
+
+        assert caps.extension_commands is not None
+        assert caps.extension_commands["reconcile"] == ["reconcile"]
+
+    def test_presets_populated(self, v04_repo: Path) -> None:
+        """Presets are detected and populated."""
+        adapter = SpecKitAdapter()
+        caps = adapter.get_capabilities(v04_repo)
+
+        assert caps.presets is not None
+        assert "minimal" in caps.presets
+
+    def test_hook_events_populated(self, v04_repo: Path) -> None:
+        """Hook events are detected from prompt templates."""
+        adapter = SpecKitAdapter()
+        caps = adapter.get_capabilities(v04_repo)
+
+        assert caps.hook_events is not None
+        assert "before_task" in caps.hook_events
+        assert "after_task" in caps.hook_events
+
+    def test_version_heuristic_with_presets(self, v04_repo: Path) -> None:
+        """Version is detected via heuristics when CLI not available."""
+        adapter = SpecKitAdapter()
+        with patch("specfact_cli.adapters.speckit.shutil.which", return_value=None):
+            caps = adapter.get_capabilities(v04_repo)
+
+        assert caps.version == ">=0.3.0"
+        assert caps.detected_version_source == "heuristic"
+
+    def test_cross_repo_skips_cli_probe(self, tmp_path: Path) -> None:
+        """Cross-repo scenarios skip CLI version detection."""
+        external = tmp_path / "external"
+        (external / "specs" / "001").mkdir(parents=True)
+        (external / "specs" / "001" / "spec.md").write_text("# Spec\n")
+
+        bridge_config = BridgeConfig.preset_speckit_classic()
+        bridge_config.external_base_path = external
+
+        adapter = SpecKitAdapter()
+        with patch.object(adapter, "_detect_version_from_cli") as mock_cli:
+            caps = adapter.get_capabilities(tmp_path, bridge_config)
+            mock_cli.assert_not_called()
+
+        assert caps.has_external_config is True
+
+    def test_legacy_repo_new_fields_none(self, tmp_path: Path) -> None:
+        """Legacy repo (no extensions/presets/hooks) has all new fields as None."""
+        (tmp_path / "specs" / "001").mkdir(parents=True)
+        (tmp_path / "specs" / "001" / "spec.md").write_text("# Spec\n")
+
+        adapter = SpecKitAdapter()
+        caps = adapter.get_capabilities(tmp_path)
+
+        assert caps.extensions is None
+        assert caps.extension_commands is None
+        assert caps.presets is None
+        assert caps.hook_events is None

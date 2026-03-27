@@ -8,7 +8,10 @@ This adapter implements the BridgeAdapter interface to sync Spec-Kit markdown ar
 from __future__ import annotations
 
 import hashlib
+import logging
 import re
+import shutil
+import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -33,6 +36,9 @@ from specfact_cli.utils.icontract_helpers import (
     require_tasks_path_exists,
     require_tasks_path_is_file,
 )
+
+
+logger = logging.getLogger(__name__)
 
 
 class SpecKitAdapter(BridgeAdapter):
@@ -84,6 +90,73 @@ class SpecKitAdapter(BridgeAdapter):
         )
 
     @beartype
+    @ensure(lambda result: result is None or isinstance(result, str), "Must return str or None")
+    def _detect_version_from_cli(self, repo_path: Path) -> str | None:
+        """Attempt to detect spec-kit version by running the specify CLI."""
+        if not shutil.which("specify"):
+            return None
+        try:
+            result = subprocess.run(
+                ["specify", "--version"],
+                capture_output=True,
+                text=True,
+                timeout=5,
+                cwd=str(repo_path),
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                version_match = re.search(r"(\d+\.\d+\.\d+)", result.stdout)
+                if version_match:
+                    return version_match.group(1)
+        except subprocess.TimeoutExpired:
+            logger.debug("specify --version timed out after 5 seconds")
+        except OSError:
+            pass
+        return None
+
+    @beartype
+    @ensure(lambda result: result is None or isinstance(result, str), "Must return str or None")
+    def _detect_version_from_heuristics(self, repo_path: Path) -> str | None:
+        """Estimate spec-kit version from directory structure presence."""
+        if (repo_path / "presets").is_dir():
+            return ">=0.3.0"
+        if (repo_path / "extensions").is_dir():
+            return ">=0.2.0"
+        if (repo_path / ".specify").is_dir():
+            return ">=0.1.0"
+        return None
+
+    @staticmethod
+    def _detect_layout(base_path: Path) -> tuple[str, str]:
+        """Determine spec-kit layout type and specs directory from repo structure."""
+        if (base_path / "docs" / "specs").exists():
+            return "modern", "docs/specs"
+        if (base_path / ".specify").exists():
+            return "modern", "specs"
+        return "classic", "specs"
+
+    def _detect_version(self, base_path: Path, *, skip_cli: bool) -> tuple[str | None, str | None]:
+        """Detect spec-kit version, returning (version, source)."""
+        if not skip_cli:
+            version = self._detect_version_from_cli(base_path)
+            if version:
+                return version, "cli"
+        version = self._detect_version_from_heuristics(base_path)
+        if version:
+            return version, "heuristic"
+        return None, None
+
+    @staticmethod
+    def _extract_extension_fields(
+        ext_list: list[dict[str, Any]],
+    ) -> tuple[list[str] | None, dict[str, list[str]] | None]:
+        """Extract extension names and command maps from scanner output."""
+        if not ext_list:
+            return None, None
+        names = [e["name"] for e in ext_list]
+        commands = {e["name"]: e.get("commands", []) for e in ext_list}
+        return names, commands
+
+    @beartype
     @require(require_repo_path_exists, "Repository path must exist")
     @require(require_repo_path_is_dir, "Repository path must be a directory")
     @ensure(lambda result: isinstance(result, ToolCapabilities), "Must return ToolCapabilities")
@@ -98,37 +171,34 @@ class SpecKitAdapter(BridgeAdapter):
         Returns:
             ToolCapabilities instance for Spec-Kit adapter
         """
-        base_path = repo_path
-        if bridge_config and bridge_config.external_base_path:
-            base_path = bridge_config.external_base_path
+        is_cross_repo = bridge_config is not None and bridge_config.external_base_path is not None
+        base_path: Path = (
+            bridge_config.external_base_path
+            if is_cross_repo and bridge_config is not None and bridge_config.external_base_path is not None
+            else repo_path
+        )
 
-        # Determine layout (classic vs modern)
-        specify_dir = base_path / ".specify"
-        docs_specs_dir = base_path / "docs" / "specs"
-
-        if docs_specs_dir.exists():
-            layout = "modern"
-            specs_dir_path = "docs/specs"
-        elif specify_dir.exists():
-            layout = "modern"
-            specs_dir_path = "specs"
-        else:
-            layout = "classic"
-            specs_dir_path = "specs"
-
-        # Check for constitution file (set has_custom_hooks flag)
+        layout, specs_dir_path = self._detect_layout(base_path)
         scanner = SpecKitScanner(base_path)
         has_constitution, _ = scanner.has_constitution()
-        has_custom_hooks = has_constitution
+        version, detected_version_source = self._detect_version(base_path, skip_cli=is_cross_repo)
+        extensions, extension_commands = self._extract_extension_fields(scanner.scan_extensions())
+        preset_names = scanner.scan_presets()
+        hook_list = scanner.scan_hook_events()
 
         return ToolCapabilities(
             tool="speckit",
-            version=None,  # Spec-Kit version not tracked in files
+            version=version,
             layout=layout,
             specs_dir=specs_dir_path,
-            has_external_config=bridge_config is not None and bridge_config.external_base_path is not None,
-            has_custom_hooks=has_custom_hooks,
-            supported_sync_modes=["bidirectional", "unidirectional"],  # Spec-Kit supports bidirectional sync
+            has_external_config=is_cross_repo,
+            has_custom_hooks=has_constitution,
+            supported_sync_modes=["bidirectional", "unidirectional"],
+            extensions=extensions,
+            extension_commands=extension_commands,
+            presets=preset_names or None,
+            hook_events=hook_list or None,
+            detected_version_source=detected_version_source,
         )
 
     @beartype

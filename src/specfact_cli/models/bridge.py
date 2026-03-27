@@ -255,7 +255,7 @@ class BridgeConfig(BaseModel):
         }
 
         commands = {
-            "analyze": CommandMapping(
+            "specify": CommandMapping(
                 trigger="/speckit.specify",
                 input_ref="specification",
             ),
@@ -263,6 +263,27 @@ class BridgeConfig(BaseModel):
                 trigger="/speckit.plan",
                 input_ref="specification",
                 output_ref="plan",
+            ),
+            "tasks": CommandMapping(
+                trigger="/speckit.tasks",
+                input_ref="plan",
+                output_ref="tasks",
+            ),
+            "implement": CommandMapping(
+                trigger="/speckit.implement",
+                input_ref="tasks",
+            ),
+            "constitution": CommandMapping(
+                trigger="/speckit.constitution",
+                input_ref="constitution",
+            ),
+            "clarify": CommandMapping(
+                trigger="/speckit.clarify",
+                input_ref="specification",
+            ),
+            "analyze": CommandMapping(
+                trigger="/speckit.analyze",
+                input_ref="specification",
             ),
         }
 
@@ -319,7 +340,7 @@ class BridgeConfig(BaseModel):
         }
 
         commands = {
-            "analyze": CommandMapping(
+            "specify": CommandMapping(
                 trigger="/speckit.specify",
                 input_ref="specification",
             ),
@@ -327,6 +348,27 @@ class BridgeConfig(BaseModel):
                 trigger="/speckit.plan",
                 input_ref="specification",
                 output_ref="plan",
+            ),
+            "tasks": CommandMapping(
+                trigger="/speckit.tasks",
+                input_ref="plan",
+                output_ref="tasks",
+            ),
+            "implement": CommandMapping(
+                trigger="/speckit.implement",
+                input_ref="tasks",
+            ),
+            "constitution": CommandMapping(
+                trigger="/speckit.constitution",
+                input_ref="constitution",
+            ),
+            "clarify": CommandMapping(
+                trigger="/speckit.clarify",
+                input_ref="specification",
+            ),
+            "analyze": CommandMapping(
+                trigger="/speckit.analyze",
+                input_ref="specification",
             ),
         }
 
@@ -380,7 +422,7 @@ class BridgeConfig(BaseModel):
         }
 
         commands = {
-            "analyze": CommandMapping(
+            "specify": CommandMapping(
                 trigger="/speckit.specify",
                 input_ref="specification",
             ),
@@ -388,6 +430,27 @@ class BridgeConfig(BaseModel):
                 trigger="/speckit.plan",
                 input_ref="specification",
                 output_ref="plan",
+            ),
+            "tasks": CommandMapping(
+                trigger="/speckit.tasks",
+                input_ref="plan",
+                output_ref="tasks",
+            ),
+            "implement": CommandMapping(
+                trigger="/speckit.implement",
+                input_ref="tasks",
+            ),
+            "constitution": CommandMapping(
+                trigger="/speckit.constitution",
+                input_ref="constitution",
+            ),
+            "clarify": CommandMapping(
+                trigger="/speckit.clarify",
+                input_ref="specification",
+            ),
+            "analyze": CommandMapping(
+                trigger="/speckit.analyze",
+                input_ref="specification",
             ),
         }
 
