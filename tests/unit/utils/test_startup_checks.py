@@ -98,7 +98,8 @@ class TestCheckIDETemplates:
             patch("specfact_cli.utils.startup_checks.discover_prompt_template_files", return_value=[]),
         ):
             result = check_ide_templates(tmp_path)
-            assert result is None
+            assert result is not None
+            assert result.sources_available is False
 
     def test_check_ide_templates_missing_templates(self, monkeypatch, tmp_path: Path):
         """Test when templates are missing."""
@@ -652,7 +653,7 @@ class TestPrintStartupChecks:
         from specfact_cli import __version__
 
         mock_last_checked.return_value = __version__
-        _mock_version_ts.return_value = datetime.now(UTC).isoformat()
+        _mock_version_ts.return_value = None
         _mock_module_ts.return_value = datetime.now(UTC).isoformat()
         mock_templates.return_value = None
         mock_version.return_value = VersionCheckResult(

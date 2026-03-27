@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
-
 from tools.validate_prompts import PromptValidator, validate_all_prompts
 
 
@@ -157,16 +155,57 @@ Enrichment report location: `.specfact/reports/enrichment/`
         validator = PromptValidator(prompt_file)
         assert validator.validate_dual_stack_workflow() is True
 
-    def test_validate_all_prompts(self):
-        """Validate workflow prompts when a repo checkout still has ``resources/prompts`` (optional dev tree)."""
-        prompts_dir = Path(__file__).parent.parent.parent.parent / "resources" / "prompts"
-        if not prompts_dir.exists():
-            pytest.skip("Workflow prompts are packaged in specfact-cli-modules bundles; no repo prompts tree.")
+    def test_validate_all_prompts(self, tmp_path: Path):
+        """``validate_all_prompts`` runs over a directory of ``specfact.*.md`` templates."""
+        prompts_dir = tmp_path / "prompts"
+        prompts_dir.mkdir()
+        prompt_content = """---
+description: Test prompt
+---
+
+# Test Prompt
+
+## User Input
+
+```text
+$ARGUMENTS
+```
+
+You **MUST** consider the user input before proceeding (if not empty).
+
+## Purpose
+
+Test purpose.
+
+## Parameters
+
+Test parameters.
+
+## Workflow
+
+Test workflow.
+
+## CLI Enforcement
+
+**ALWAYS execute CLI first**. Never modify `.specfact/` directly. Use CLI output as grounding.
+
+## Expected Output
+
+Test expected output.
+
+## Common Patterns
+
+Test common patterns.
+
+## Context
+
+Test context.
+"""
+        (prompts_dir / "specfact.01-import.md").write_text(prompt_content, encoding="utf-8")
 
         results = validate_all_prompts(prompts_dir)
-        assert len(results) > 0
+        assert len(results) == 1
 
-        # All prompts should pass basic validation
         for result in results:
             assert "prompt" in result
             assert "errors" in result

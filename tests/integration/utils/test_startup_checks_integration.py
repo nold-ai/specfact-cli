@@ -120,6 +120,8 @@ class TestStartupChecksIntegration:
         (templates_dir / "specfact.01-import.md").write_text("# Import")
 
         def _fake_discover(_repo_path, include_package_fallback=True):
+            if not include_package_fallback:
+                return []
             return sorted(templates_dir.glob("specfact*.md"))
 
         with (

@@ -49,6 +49,7 @@ class TemplateCheckResult(NamedTuple):
     missing_templates: list[str]
     outdated_templates: list[str]
     ide_dir: Path | None
+    sources_available: bool = True
 
 
 class VersionCheckResult(NamedTuple):
@@ -134,13 +135,13 @@ def _scan_ide_template_drift(
     missing_templates: list[str] = []
     outdated_templates: list[str] = []
     for expected_file in expected_files:
-        ide_file = _find_ide_exported_prompt_file(ide_dir, expected_file)
         source_template_name = expected_file.replace(".prompt.md", ".md").replace(".toml", ".md")
         source_file = source_by_basename.get(source_template_name)
+        if source_file is None or not source_file.exists():
+            continue
+        ide_file = _find_ide_exported_prompt_file(ide_dir, expected_file)
         if ide_file is None:
             missing_templates.append(expected_file)
-            continue
-        if source_file is None or not source_file.exists():
             continue
         with contextlib.suppress(Exception):
             source_mtime = source_file.stat().st_mtime
@@ -160,7 +161,9 @@ def check_ide_templates(repo_path: Path | None = None) -> TemplateCheckResult | 
         repo_path: Repository path (default: current directory)
 
     Returns:
-        TemplateCheckResult if IDE detected and templates found, None otherwise
+        ``TemplateCheckResult`` when an IDE export directory exists (``sources_available`` is False
+        when no prompt templates are discoverable). ``None`` when IDE detection fails or the IDE
+        folder is missing.
     """
     if repo_path is None:
         repo_path = Path.cwd()
@@ -183,7 +186,14 @@ def check_ide_templates(repo_path: Path | None = None) -> TemplateCheckResult | 
 
     source_by_basename = _template_sources_by_basename(repo_path)
     if not source_by_basename:
-        return None
+        return TemplateCheckResult(
+            ide=detected_ide,
+            templates_outdated=False,
+            missing_templates=[],
+            outdated_templates=[],
+            ide_dir=ide_dir if ide_dir.exists() else None,
+            sources_available=False,
+        )
 
     format_type = str(config["format"])
     expected_files = _expected_ide_template_filenames(format_type)
@@ -197,6 +207,7 @@ def check_ide_templates(repo_path: Path | None = None) -> TemplateCheckResult | 
         missing_templates=missing_templates,
         outdated_templates=outdated_templates,
         ide_dir=ide_dir if ide_dir.exists() else None,
+        sources_available=True,
     )
 
 
@@ -383,13 +394,19 @@ def _startup_progress_task(progress: Progress, show_progress: bool, label: str):
     return progress.add_task(label, total=None) if show_progress else None
 
 
-def _run_startup_templates_segment(progress: Progress, repo_path: Path, show_progress: bool) -> None:
+def _run_startup_templates_segment(progress: Progress, repo_path: Path, show_progress: bool) -> bool:
+    """Return True when installable prompt sources existed so drift could be evaluated."""
     task = _startup_progress_task(progress, show_progress, "[cyan]Checking IDE templates...[/cyan]")
     template_result = check_ide_templates(repo_path)
     if task:
         progress.update(task, description="[green]✓[/green] Checked IDE templates")
-    if template_result and template_result.templates_outdated:
+    if template_result is None:
+        return False
+    if not template_result.sources_available:
+        return False
+    if template_result.templates_outdated:
         _print_template_outdated_panel(template_result)
+    return True
 
 
 def _run_startup_version_segment(progress: Progress, show_progress: bool) -> None:
@@ -415,7 +432,9 @@ def _run_startup_progress_block(
     should_check_templates: bool,
     should_check_version: bool,
     should_check_modules: bool,
-) -> None:
+) -> bool | None:
+    """Return whether template drift had sources (None if the template segment did not run)."""
+    template_sources_available: bool | None = None
     with Progress(
         SpinnerColumn(),
         TextColumn("[progress.description]{task.description}"),
@@ -423,22 +442,24 @@ def _run_startup_progress_block(
         transient=True,
     ) as progress:
         if should_check_templates:
-            _run_startup_templates_segment(progress, repo_path, show_progress)
+            template_sources_available = _run_startup_templates_segment(progress, repo_path, show_progress)
         if should_check_version:
             _run_startup_version_segment(progress, show_progress)
         if should_check_modules:
             _run_startup_modules_segment(progress, repo_path, show_progress)
+    return template_sources_available
 
 
 def _flush_startup_metadata(
     should_check_templates: bool,
     should_check_version: bool,
     should_check_modules: bool,
+    template_sources_available: bool | None = None,
 ) -> None:
     from datetime import datetime
 
     metadata_updates: dict[str, Any] = {}
-    if should_check_templates or should_check_version:
+    if (should_check_templates and template_sources_available is True) or should_check_version:
         metadata_updates["last_checked_version"] = __version__
     if should_check_version:
         metadata_updates["last_version_check_timestamp"] = datetime.now(UTC).isoformat()
@@ -486,11 +507,18 @@ def print_startup_checks(
     last_module_freshness_check_timestamp = get_last_module_freshness_check_timestamp()
     should_check_modules = should_check_templates or is_version_check_needed(last_module_freshness_check_timestamp)
 
-    _run_startup_progress_block(
-        repo_path,
-        show_progress,
+    template_sources_available: bool | None = None
+    if should_check_templates or should_check_version or should_check_modules:
+        template_sources_available = _run_startup_progress_block(
+            repo_path,
+            show_progress,
+            should_check_templates,
+            should_check_version,
+            should_check_modules,
+        )
+    _flush_startup_metadata(
         should_check_templates,
         should_check_version,
         should_check_modules,
+        template_sources_available,
     )
-    _flush_startup_metadata(should_check_templates, should_check_version, should_check_modules)
