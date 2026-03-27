@@ -328,9 +328,21 @@ class TestBridgeConfigPresets:
         assert "plan" in config.artifacts
         assert "tasks" in config.artifacts
         assert "contracts" in config.artifacts
-        assert len(config.commands) == 2
+        assert len(config.commands) == 7
         assert config.templates is not None
         assert config.templates.root_dir == ".specify/prompts"
+
+    def test_preset_speckit_specify(self):
+        """Test Spec-Kit specify (canonical) preset."""
+        config = BridgeConfig.preset_speckit_specify()
+        assert config.adapter == AdapterType.SPECKIT
+        assert "specification" in config.artifacts
+        assert config.artifacts["specification"].path_pattern == ".specify/specs/{feature_id}/spec.md"
+        assert "plan" in config.artifacts
+        assert "tasks" in config.artifacts
+        assert "contracts" in config.artifacts
+        assert len(config.commands) == 7
+        assert config.templates is not None
 
     def test_preset_speckit_modern(self):
         """Test Spec-Kit modern preset."""
@@ -341,7 +353,7 @@ class TestBridgeConfigPresets:
         assert "plan" in config.artifacts
         assert "tasks" in config.artifacts
         assert "contracts" in config.artifacts
-        assert len(config.commands) == 2
+        assert len(config.commands) == 7
         assert config.templates is not None
 
     def test_preset_generic_markdown(self):
@@ -400,3 +412,35 @@ class TestBridgeConfigPresets:
         context = {"feature_id": "001-auth"}
         resolved = config.resolve_path("specification", context, base_path=tmp_path)
         assert resolved == external_path / "openspec" / "specs" / "001-auth" / "spec.md"
+
+    @pytest.mark.parametrize(
+        "preset_method",
+        ["preset_speckit_classic", "preset_speckit_specify", "preset_speckit_modern"],
+    )
+    def test_speckit_presets_have_all_7_commands(self, preset_method):
+        """Test that all Spec-Kit presets contain the full 7-command set."""
+        config = getattr(BridgeConfig, preset_method)()
+        expected_commands = {"specify", "plan", "tasks", "implement", "constitution", "clarify", "analyze"}
+        assert set(config.commands.keys()) == expected_commands
+
+    @pytest.mark.parametrize(
+        "preset_method",
+        ["preset_speckit_classic", "preset_speckit_specify", "preset_speckit_modern"],
+    )
+    def test_speckit_presets_command_triggers(self, preset_method):
+        """Test that all Spec-Kit preset command triggers match /speckit.* pattern."""
+        config = getattr(BridgeConfig, preset_method)()
+        for key, cmd in config.commands.items():
+            assert cmd.trigger.startswith("/speckit."), f"Command '{key}' trigger should start with /speckit."
+
+    @pytest.mark.parametrize(
+        "preset_method",
+        ["preset_speckit_classic", "preset_speckit_specify", "preset_speckit_modern"],
+    )
+    def test_speckit_presets_command_refs(self, preset_method):
+        """Test that Spec-Kit preset commands have correct input/output refs."""
+        config = getattr(BridgeConfig, preset_method)()
+        assert config.commands["plan"].output_ref == "plan"
+        assert config.commands["tasks"].output_ref == "tasks"
+        assert config.commands["specify"].input_ref == "specification"
+        assert config.commands["implement"].input_ref == "tasks"

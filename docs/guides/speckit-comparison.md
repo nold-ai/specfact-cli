@@ -36,6 +36,8 @@ permalink: /guides/speckit-comparison/
 | **GitHub integration** | ✅ Native slash commands | ✅ GitHub Actions + CLI | Spec-Kit for native integration |
 | **Learning curve** | ✅ Low (markdown + slash commands) | ⚠️ Medium (decorators + contracts) | Spec-Kit for ease of use |
 | **High-risk brownfield** | ⚠️ Good documentation | ✅ Formal verification | **SpecFact for high-risk** |
+| **Extension awareness** | ✅ 46+ community extensions | ✅ Auto-detects extensions, presets, hooks | SpecFact bridges extension metadata |
+| **Version detection** | N/A | ✅ CLI + heuristic detection (v0.4.x) | SpecFact adapts to detected version |
 | **Free tier** | ✅ Open-source | ✅ Apache 2.0 | Both free |
 
 ---

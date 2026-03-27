@@ -34,6 +34,10 @@ All methods should preserve runtime contracts (`@icontract`) and runtime type ch
 - `tool`, `version`, `layout`, `specs_dir`
 - `supported_sync_modes`
 - `has_external_config`, `has_custom_hooks`
+- `extensions`, `extension_commands` — detected tool extensions and their provided commands
+- `presets` — active preset names (e.g., from `presets/` directory)
+- `hook_events` — detected hook event types (e.g., `before_task`, `after_task`)
+- `detected_version_source` — how version was detected: `"cli"`, `"heuristic"`, or `None`
 
 Sync selection and safe behavior depend on this model.
 

@@ -16,10 +16,12 @@ GitHub Spec-Kit has advanced from an early-stage CLI to v0.4.3 with 46 community
 ## Capabilities
 
 ### New Capabilities
+
 - `speckit-extension-catalog`: Detection, parsing, and modeling of spec-kit extension catalogs (community and core) and their provided commands
 - `speckit-version-detection`: Version detection strategies for spec-kit installations (CLI probe, directory heuristics, preset presence)
 
 ### Modified Capabilities
+
 - `bridge-adapter`: Expanded SpecKitAdapter with extension awareness, preset detection, hook modeling, and version-gated feature flags
 - `bridge-registry`: ToolCapabilities extended with extension/preset/hook metadata fields
 

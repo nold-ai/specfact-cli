@@ -18,3 +18,9 @@ class ToolCapabilities:
     supported_sync_modes: list[str] | None = (
         None  # Supported sync modes (e.g., ["bidirectional", "unidirectional", "read-only", "export-only"])
     )
+    # Spec-Kit v0.4.x alignment fields
+    extensions: list[str] | None = None  # Detected extension names (e.g., ["reconcile", "sync", "verify"])
+    extension_commands: dict[str, list[str]] | None = None  # Extension name → provided commands
+    presets: list[str] | None = None  # Active preset names
+    hook_events: list[str] | None = None  # Detected hook event types (e.g., ["before_task", "after_task"])
+    detected_version_source: str | None = None  # How version was detected: "cli", "heuristic", or None
