@@ -1,6 +1,0 @@
-setup.py:            "rich>=13.5.2,<13.6.0",
-pyproject.toml:    "rich>=13.5.2,<13.6.0",  # Compatible with semgrep (requires rich~=13.5.2)
-=:setup.py:            "rich>=14.0.0",
-=:pyproject.toml:    "rich>=13.5.2,<13.6.0",  # Compatible with semgrep (requires rich~=13.5.2)
-=:src/specfact_cli/cli.py:    rich_markup_mode="rich",
-src/specfact_cli/cli.py:    rich_markup_mode="rich",
