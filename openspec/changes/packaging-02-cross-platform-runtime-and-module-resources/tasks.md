@@ -18,7 +18,7 @@
 - [x] 3.2 Replace brittle path-injection behavior with installation-scoped runtime/module resolution and explicit compatibility diagnostics.
 - [x] 3.3 Refactor `specfact init ide` to build a prompt catalog from installed module resource locations rather than `specfact_cli/resources/prompts`.
 - [x] 3.4 Refactor core init/install resource copying to resolve module-owned templates, starting with backlog field mapping templates, from installed bundle packages.
-- [ ] 3.5 Remove or relocate bundle-owned prompt/resources from core packaging so ownership matches installed modules.
+- [x] 3.5 Remove or relocate bundle-owned prompt/resources from core packaging so ownership matches installed modules.
 
 ## 4. Validation And Documentation
 

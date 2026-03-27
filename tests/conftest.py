@@ -104,7 +104,6 @@ _MIGRATED_TEST_PATTERNS: tuple[str, ...] = (
     "tests/unit/commands/test_backlog_daily.py",
     "tests/unit/commands/test_project_cmd.py",
     # Legacy topology and extracted-module path assumptions retired from core.
-    "tests/unit/prompts/test_prompt_validation.py",
     "tests/unit/specfact_cli/test_module_migration_compatibility.py",
 )
 

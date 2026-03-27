@@ -9,6 +9,15 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.43.1] - Unreleased
+
+### Changed
+
+- **Packaging:** Workflow slash-command prompts (`specfact.*.md`) are no longer duplicated in the core wheel; canonical copies live in **specfact-cli-modules** bundle packages under each bundle’s `resources/prompts/`. Install bundles (or use a dev repo checkout with `resources/prompts/`) for `specfact init ide` prompt export.
+- IDE template drift checks on startup resolve source templates via the same installed-module discovery path as `specfact init ide`, not a single core `resources/prompts` directory inside the package.
+
+---
+
 ## [0.43.0] - 2026-03-28
 
 ### Added

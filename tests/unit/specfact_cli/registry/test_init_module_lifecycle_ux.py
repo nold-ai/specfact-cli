@@ -122,18 +122,14 @@ def test_init_install_deps_runs_without_ide_template_copy(tmp_path: Path, monkey
     assert calls[0][:4] == ["pip", "install", "-U", "beartype>=0.22.4"]
 
 
-def test_resolve_templates_dir_uses_package_fallback_when_repo_templates_missing(tmp_path: Path, monkeypatch) -> None:
-    """Template resolution should fallback to package resource lookup for installed runtime parity."""
-    fallback_templates = tmp_path / "installed" / "resources" / "prompts"
-    fallback_templates.mkdir(parents=True)
-    monkeypatch.setattr(init_commands, "find_package_resources_path", lambda *_args: fallback_templates)
-    monkeypatch.setattr("importlib.resources.files", lambda *_args: (_ for _ in ()).throw(RuntimeError("boom")))
+def test_resolve_templates_dir_none_when_no_discoverable_prompts(tmp_path: Path, monkeypatch) -> None:
+    """Workflow prompts ship in bundles; without modules or dev repo prompts, resolution is None."""
     monkeypatch.setattr(
         init_commands,
         "discover_prompt_template_files",
-        lambda repo_path, include_package_fallback=False: [],
+        lambda repo_path, include_package_fallback=True: [],
     )
 
     resolved = init_commands._resolve_templates_dir(tmp_path)
 
-    assert resolved == fallback_templates
+    assert resolved is None

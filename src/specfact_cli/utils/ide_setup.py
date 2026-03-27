@@ -259,8 +259,10 @@ def discover_prompt_sources_catalog(
     """
     Build prompt templates grouped by owning source: ``core`` or a module id (``module-package.yaml`` name).
 
-    Core templates come from the repo checkout or the installed ``specfact_cli`` package. Module templates
-    are discovered from effective module roots (builtin, project, user, marketplace, custom).
+    Core templates may come from a repo checkout under ``resources/prompts`` or the installed package when
+    present; workflow prompts are normally provided by bundle modules under ``resources/prompts`` at the
+    module root. Module templates are discovered from effective module roots (builtin, project, user,
+    marketplace, custom).
 
     When a module ships a template with the same source filename as core (e.g. ``specfact.01-import.md``),
     the module copy wins: core does not list that basename so exports stay single-sourced.
