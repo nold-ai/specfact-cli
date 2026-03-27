@@ -1,0 +1,1101 @@
+tools/validate_prompts.py:from rich.console import Console
+tools/validate_prompts.py:from rich.table import Table
+tools/validate_prompts.py:        """Validate dual-stack enrichment workflow (if applicable)."""
+tools/validate_prompts.py:                "Phase 2: LLM Enrichment",
+tools/validate_prompts.py:                ["Phase 2: LLM Enrichment", "Phase 2", "LLM Enrichment", "2. **LLM Enrichment", "enrichment"],
+tools/validate_prompts.py:        # Check for enrichment report location
+tools/validate_prompts.py:        if ".specfact/reports/enrichment" not in self.content:
+tools/validate_prompts.py:            self.warnings.append("Enrichment report location not specified")
+tools/validate_prompts.py:                    "section": "Enrichment Location",
+tools/validate_prompts.py:                    "message": "Enrichment report location specified",
+tools/contract_first_smart_test.py:        "test_import_enrichment_contracts",
+setup.py:            "rich>=14.0.0",
+pyproject.toml:    "rich>=13.5.2,<13.6.0",  # Compatible with semgrep (requires rich~=13.5.2)
+pyproject.toml:    "semgrep>=1.144.0",  # Latest version compatible with rich~=13.5.2
+pyproject.toml:    # Note: syft excluded from dev/test due to rich version conflict with semgrep
+pyproject.toml:    "semgrep>=1.144.0",  # Latest version compatible with rich~=13.5.2
+pyproject.toml:    # Note: syft excluded from dev/test due to rich version conflict with semgrep
+pyproject.toml:    # Note: syft excluded from test due to rich version conflict with semgrep
+pyproject.toml:    "ignore::UserWarning:rich.live",  # Filter Rich library warnings about ipywidgets (not needed for CLI tests)
+pyproject.toml:    "E1101",  # no-member (false positives for Pydantic/FieldInfo, rich.Progress.tasks)
+pyproject.toml:    "E1126",  # invalid-sequence-index (rich TaskID)
+docs/migration/migration-cli-reorganization.md:specfact sdd constitution enrich
+docs/migration/migration-cli-reorganization.md:specfact sdd constitution enrich --repo .
+docs/reference/directory-structure.md:│   │   │   ├── enrichment/
+docs/reference/directory-structure.md:│   │   │   │   └── <bundle-name>-2025-10-31T14-30-00.enrichment.md
+docs/reference/directory-structure.md:  - `enrichment/` - LLM enrichment reports
+docs/reference/directory-structure.md:│   ├── enrichment/
+docs/reference/directory-structure.md:│   │   └── legacy-api-2025-10-31T14-30-00.enrichment.md
+docs/examples/integration-showcases/integration-showcases-testing-guide.md:      - **LLM Enrichment** (optional in CI/CD mode, required in Copilot mode): Add semantic understanding to detect features/stories that AST analysis missed
+docs/examples/integration-showcases/integration-showcases-testing-guide.md:        - Reply: "Please enrich" or "apply enrichment"
+docs/examples/integration-showcases/integration-showcases-testing-guide.md:        - The AI will read the CLI artifacts and code, create an enrichment report, and apply it via CLI
+docs/examples/integration-showcases/integration-showcases-testing-guide.md:   **Note**: For minimal test cases, the CLI may report "0 features" and "0 stories" - this is expected. Use LLM enrichment to add semantic understanding and detect features that AST analysis missed.
+docs/examples/integration-showcases/integration-showcases-testing-guide.md:   **Enrichment Workflow** (when you choose "Please enrich"):
+docs/examples/integration-showcases/integration-showcases-testing-guide.md:   2. **Enrichment Report Creation**: The AI will:
+docs/examples/integration-showcases/integration-showcases-testing-guide.md:      - Draft an enrichment markdown file: `<name>-<timestamp>.enrichment.md` (saved to `.specfact/projects/<name>/reports/enrichment/`, Phase 8.5)
+docs/examples/integration-showcases/integration-showcases-testing-guide.md:      - **CRITICAL**: Follow the exact enrichment report format (see [Dual-Stack Enrichment Guide](../../guides/dual-stack-enrichment.md) for format requirements):
+docs/examples/integration-showcases/integration-showcases-testing-guide.md:   3. **Apply Enrichment**: The AI will run:
+docs/examples/integration-showcases/integration-showcases-testing-guide.md:      specfact code import <name> --repo <workspace> --enrichment .specfact/projects/<name>/reports/enrichment/<name>-<timestamp>.enrichment.md --confidence 0.5
+docs/examples/integration-showcases/integration-showcases-testing-guide.md:   4. **Enriched Project Bundle**: The CLI will update:
+docs/examples/integration-showcases/integration-showcases-testing-guide.md:      - **Project bundle**: `.specfact/projects/<name>/` (updated with enrichment)
+docs/examples/integration-showcases/integration-showcases-testing-guide.md:      - **New analysis report**: `report-<enrichment-timestamp>.md`
+docs/examples/integration-showcases/integration-showcases-testing-guide.md:   5. **Enrichment Results**: The AI will present:
+docs/examples/integration-showcases/integration-showcases-testing-guide.md:   **Example Enrichment Results**:
+docs/examples/integration-showcases/integration-showcases-testing-guide.md:   - If initial import shows "0 features", reply "Please enrich" to add semantic understanding
+docs/examples/integration-showcases/integration-showcases-testing-guide.md:   - AI will create an enriched plan bundle with detected features and stories
+docs/examples/integration-showcases/integration-showcases-testing-guide.md:  - AI offers next steps: LLM enrichment or rerun with different confidence
+docs/examples/integration-showcases/integration-showcases-testing-guide.md:  - **After enrichment** (if requested):
+docs/examples/integration-showcases/integration-showcases-testing-guide.md:    - Enrichment report: `.specfact/projects/<name>/reports/enrichment/<name>-<timestamp>.enrichment.md` (bundle-specific, Phase 8.5)
+docs/examples/integration-showcases/integration-showcases-testing-guide.md:    - Project bundle updated: `.specfact/projects/<name>/` (enriched)
+docs/examples/integration-showcases/integration-showcases-testing-guide.md:    - New analysis report: `.specfact/projects/<name>/reports/brownfield/analysis-<enrichment-timestamp>.md` (bundle-specific, Phase 8.5)
+docs/examples/integration-showcases/integration-showcases-testing-guide.md:**Important**: After enrichment, the plan bundle may have features but missing stories or contracts. Use `plan review` to identify gaps and add them via CLI commands.
+docs/examples/integration-showcases/integration-showcases-testing-guide.md:# Run plan review with auto-enrichment to identify gaps (bundle name as positional argument)
+docs/examples/integration-showcases/integration-showcases-testing-guide.md:  --auto-enrich \
+docs/examples/integration-showcases/integration-showcases-testing-guide.md:- ✅ Plan comparison detects differences between enriched and original plans
+docs/examples/integration-showcases/integration-showcases-testing-guide.md:2. ✅ Enriched plan with semantic understanding (added feature and stories)
+docs/examples/integration-showcases/integration-showcases-testing-guide.md:- ✅ **Workflow Validated**: End-to-end workflow (import → enrich → review → enforce) works correctly
+docs/examples/integration-showcases/integration-showcases-testing-guide.md:  3. Generate enrichment report
+docs/examples/integration-showcases/integration-showcases-testing-guide.md:  4. Apply enrichment via CLI
+docs/examples/integration-showcases/integration-showcases-testing-guide.md:- Enriched plan: data-processing-or-legacy-data-pipeline.<timestamp>.enriched.<timestamp>.bundle.yaml
+docs/examples/integration-showcases/integration-showcases-testing-guide.md:### LLM enrichment insights
+docs/examples/integration-showcases/integration-showcases-testing-guide.md:**Important**: After enrichment, review the plan to identify gaps and improve quality. The `plan review` command can auto-enrich the plan to fix common issues:
+docs/examples/integration-showcases/integration-showcases-testing-guide.md:- The AI assistant will review the enriched plan bundle
+docs/examples/integration-showcases/integration-showcases-testing-guide.md:- It will run with `--auto-enrich` to fix common quality issues
+docs/examples/integration-showcases/integration-showcases-testing-guide.md:# Review plan with auto-enrichment (bundle name as positional argument)
+docs/examples/integration-showcases/integration-showcases-testing-guide.md:  --auto-enrich \
+docs/examples/integration-showcases/integration-showcases-testing-guide.md:**Note**: The `plan review` command with `--auto-enrich` will automatically fix common quality issues via CLI commands, so you don't need to manually edit plan bundles.
+docs/examples/integration-showcases/integration-showcases-testing-guide.md:Test that plan comparison works correctly by comparing the enriched plan against the original plan:
+docs/examples/integration-showcases/integration-showcases-testing-guide.md:ℹ️  Loading manual plan: <enriched-plan-path>
+docs/examples/integration-showcases/integration-showcases-testing-guide.md:Manual Plan: <enriched-plan-path>
+docs/examples/integration-showcases/integration-showcases-testing-guide.md:- ✅ Deviations detected (enriched plan has features that original plan doesn't)
+docs/examples/integration-showcases/integration-showcases-testing-guide.md:**Note**: This demonstrates that plan comparison works and enforcement blocks HIGH severity violations. The deviation is expected because the enriched plan has additional features/stories that the original AST-derived plan doesn't have.
+docs/examples/integration-showcases/integration-showcases-testing-guide.md:**Concept**: This step demonstrates how SpecFact detects when code changes violate contracts. The enriched plan has acceptance criteria requiring None value handling. If code is modified to remove the None check, plan comparison should detect this as a violation.
+docs/examples/integration-showcases/integration-showcases-testing-guide.md:2. Comparing the new plan against the enriched plan
+docs/examples/integration-showcases/integration-showcases-testing-guide.md:1. **Original code** → Import → Create plan → Enrich → Review (creates enriched plan with contracts)
+docs/examples/integration-showcases/integration-showcases-testing-guide.md:# 4. Compare new plan (from broken code) against enriched plan
+docs/examples/integration-showcases/integration-showcases-testing-guide.md:2. ✅ Enriched plan with semantic understanding (added FEATURE-DATAPROCESSOR and 4 stories)
+docs/examples/integration-showcases/integration-showcases-testing-guide.md:- The AI will create and enrich the plan bundle with detected features and stories
+docs/examples/integration-showcases/integration-showcases-testing-guide.md:2. ✅ Enriched plan with semantic understanding (if using interactive mode)
+docs/examples/integration-showcases/integration-showcases-testing-guide.md:- The AI will create and enrich the plan bundle with detected features and stories
+docs/examples/integration-showcases/integration-showcases-testing-guide.md:**Note**: The comparison may show deviations like "Missing Feature" when comparing an enriched plan (with AI-added features) against an AST-only plan (which may have 0 features). This is expected behavior - the enriched plan represents the intended design, while the AST-only plan represents what's actually in the code. For breaking change detection, you would compare two code-derived plans (before and after code changes).
+docs/examples/integration-showcases/integration-showcases-testing-guide.md:- ✅ Plan enrichment (LLM adds features and stories)
+docs/examples/integration-showcases/integration-showcases-testing-guide.md:- ✅ Plan enrichment (LLM adds FEATURE-DATAPROCESSOR and 4 stories)
+docs/examples/integration-showcases/integration-showcases-testing-guide.md:- ✅ Plan review (auto-enrichment adds target users, value hypothesis, feature acceptance criteria, enhanced story acceptance criteria)
+docs/examples/integration-showcases/integration-showcases-testing-guide.md:**Conclusion**: Example 2 is **fully validated**. The regression prevention workflow works end-to-end. Plan comparison successfully detects deviations between enriched and original plans, and enforcement blocks HIGH severity violations as expected. The workflow demonstrates how SpecFact prevents regressions by detecting when code changes violate plan contracts.
+docs/examples/integration-showcases/integration-showcases-testing-guide.md:3. Enrich plan (if needed)
+docs/prompts/PROMPT_VALIDATION_CHECKLIST.md:  - [ ] Phase 2: LLM Enrichment documented
+docs/prompts/PROMPT_VALIDATION_CHECKLIST.md:    - [ ] **CRITICAL**: Stories are required for features in enrichment reports
+docs/prompts/PROMPT_VALIDATION_CHECKLIST.md:  - [ ] Enrichment report location specified (`.specfact/projects/<bundle-name>/reports/enrichment/`, bundle-specific, Phase 8.5)
+docs/prompts/PROMPT_VALIDATION_CHECKLIST.md:- [ ] **Auto-enrichment workflow** (for `project devops-flow --stage develop`):
+docs/prompts/PROMPT_VALIDATION_CHECKLIST.md:  - [ ] `--auto-enrich` flag documented with when to use it
+docs/prompts/PROMPT_VALIDATION_CHECKLIST.md:  - [ ] LLM reasoning guidance for detecting when enrichment is needed
+docs/prompts/PROMPT_VALIDATION_CHECKLIST.md:  - [ ] Post-enrichment analysis steps documented
+docs/prompts/PROMPT_VALIDATION_CHECKLIST.md:  - [ ] **MANDATORY automatic refinement**: LLM must automatically refine generic criteria with code-specific details after auto-enrichment
+docs/prompts/PROMPT_VALIDATION_CHECKLIST.md:  - [ ] Two-phase enrichment strategy (automatic + LLM-enhanced refinement)
+docs/prompts/PROMPT_VALIDATION_CHECKLIST.md:  - [ ] Examples of enrichment output and refinement process
+docs/prompts/PROMPT_VALIDATION_CHECKLIST.md:1. Invoke `/specfact.01-import legacy-api --repo .` without `--enrichment`
+docs/prompts/PROMPT_VALIDATION_CHECKLIST.md:   - ✅ Generates enrichment report (Phase 2)
+docs/prompts/PROMPT_VALIDATION_CHECKLIST.md:   - ✅ Saves enrichment to `.specfact/projects/<bundle-name>/reports/enrichment/` with correct naming (bundle-specific, Phase 8.5)
+docs/prompts/PROMPT_VALIDATION_CHECKLIST.md:   - ✅ Executes Phase 3: CLI Artifact Creation with `--enrichment` flag
+docs/prompts/PROMPT_VALIDATION_CHECKLIST.md:   - ✅ Enriched plan can be promoted (features have stories)
+docs/prompts/PROMPT_VALIDATION_CHECKLIST.md:#### Scenario 4a: Plan Review with Auto-Enrichment (for plan-review)
+docs/prompts/PROMPT_VALIDATION_CHECKLIST.md:   - ✅ **Detects need for enrichment**: Recognizes vague patterns ("is implemented", "System MUST Helper class", generic tasks)
+docs/prompts/PROMPT_VALIDATION_CHECKLIST.md:   - ✅ **Suggests or uses `--auto-enrich`**: Either suggests using `--auto-enrich` flag or automatically uses it based on plan quality indicators
+docs/prompts/PROMPT_VALIDATION_CHECKLIST.md:   - ✅ **Executes enrichment**: Runs `specfact project devops-flow --stage develop --bundle <bundle-name> --auto-enrich`
+docs/prompts/PROMPT_VALIDATION_CHECKLIST.md:   - ✅ **Parses enrichment results**: Captures enrichment summary (features updated, stories updated, acceptance criteria enhanced, etc.)
+docs/prompts/PROMPT_VALIDATION_CHECKLIST.md:   - ✅ **Analyzes enrichment quality**: Uses LLM reasoning to review what was enhanced
+docs/prompts/PROMPT_VALIDATION_CHECKLIST.md:3. Test with explicit enrichment request (e.g., "enrich the plan"):
+docs/prompts/PROMPT_VALIDATION_CHECKLIST.md:   - ✅ Uses `--auto-enrich` flag immediately
+docs/prompts/PROMPT_VALIDATION_CHECKLIST.md:   - ✅ Reviews enrichment results
+docs/prompts/PROMPT_VALIDATION_CHECKLIST.md:- [ ] **Enrichment workflow** (if applicable): Three-phase workflow followed correctly
+docs/prompts/PROMPT_VALIDATION_CHECKLIST.md:- [ ] **Auto-enrichment workflow** (if applicable):
+docs/prompts/PROMPT_VALIDATION_CHECKLIST.md:  - [ ] LLM detects when enrichment is needed (vague criteria, incomplete requirements, generic tasks)
+docs/prompts/PROMPT_VALIDATION_CHECKLIST.md:  - [ ] Uses `--auto-enrich` flag appropriately
+docs/prompts/PROMPT_VALIDATION_CHECKLIST.md:  - [ ] Analyzes enrichment results with reasoning
+docs/prompts/PROMPT_VALIDATION_CHECKLIST.md:### ❌ Missing Enrichment Workflow
+docs/prompts/PROMPT_VALIDATION_CHECKLIST.md:### ❌ Missing Auto-Enrichment
+docs/prompts/PROMPT_VALIDATION_CHECKLIST.md:**Symptom**: LLM doesn't detect or use `--auto-enrich` flag when plan has vague acceptance criteria or incomplete requirements
+docs/prompts/PROMPT_VALIDATION_CHECKLIST.md:- Update prompt to document `--auto-enrich` flag and when to use it
+docs/prompts/PROMPT_VALIDATION_CHECKLIST.md:- Add LLM reasoning guidance for detecting enrichment needs
+docs/prompts/PROMPT_VALIDATION_CHECKLIST.md:- Document decision flow for when to suggest or use auto-enrichment
+docs/prompts/PROMPT_VALIDATION_CHECKLIST.md:- Add examples of enrichment output and refinement process
+docs/prompts/PROMPT_VALIDATION_CHECKLIST.md:- Emphasize two-phase approach: automatic enrichment + LLM-enhanced refinement
+docs/prompts/PROMPT_VALIDATION_CHECKLIST.md:- Constitution bootstrap/enrich/validate commands are suggested automatically when constitution is missing or minimal
+docs/prompts/PROMPT_VALIDATION_CHECKLIST.md:- Updated sync prompt to include constitution bootstrap/enrich/validate commands
+docs/prompts/PROMPT_VALIDATION_CHECKLIST.md:- Added auto-enrichment workflow validation for `plan review` command
+docs/prompts/PROMPT_VALIDATION_CHECKLIST.md:- Added Scenario 4a: Plan Review with Auto-Enrichment
+docs/prompts/PROMPT_VALIDATION_CHECKLIST.md:- Added checks for enrichment detection, execution, and refinement
+docs/prompts/PROMPT_VALIDATION_CHECKLIST.md:- Added common issue: Missing Auto-Enrichment
+docs/prompts/PROMPT_VALIDATION_CHECKLIST.md:- Updated flow logic section to include auto-enrichment workflow documentation requirements
+docs/guides/dual-stack-enrichment.md:title: Dual-Stack Enrichment Pattern
+docs/guides/dual-stack-enrichment.md:permalink: /guides/dual-stack-enrichment/
+docs/guides/dual-stack-enrichment.md:description: Guidance for combining SpecFact CLI automation with AI IDE enrichment workflows.
+docs/guides/dual-stack-enrichment.md:# Dual-Stack Enrichment Pattern
+docs/guides/dual-stack-enrichment.md:**Version**: v0.20.4 (enrichment parser improvements: story merging, format validation)
+docs/guides/dual-stack-enrichment.md:The **Dual-Stack Enrichment Pattern** is SpecFact's approach to combining CLI automation with AI IDE (LLM) capabilities. It ensures that all artifacts are CLI-generated and validated, while allowing LLMs to add semantic understanding and enhancements.
+docs/guides/dual-stack-enrichment.md:**ALWAYS use the SpecFact CLI as the primary tool**. LLM enrichment is a **secondary layer** that enhances CLI output with semantic understanding, but **never replaces CLI artifact creation**.
+docs/guides/dual-stack-enrichment.md:- ✅ Plan enrichment (missing features, confidence adjustments, business context)
+docs/guides/dual-stack-enrichment.md:### Phase 2: LLM Enrichment (OPTIONAL, Copilot Only)
+docs/guides/dual-stack-enrichment.md:- **CRITICAL**: Generate enrichment report in the exact format specified below (see "Enrichment Report Format" section)
+docs/guides/dual-stack-enrichment.md:- ❌ Deviate from the enrichment report format (will cause parsing failures)
+docs/guides/dual-stack-enrichment.md:**Output**: Generate enrichment report (Markdown) saved to `.specfact/projects/<bundle-name>/reports/enrichment/` (bundle-specific, Phase 8.5)
+docs/guides/dual-stack-enrichment.md:**Enrichment Report Format** (REQUIRED for successful parsing):
+docs/guides/dual-stack-enrichment.md:The enrichment parser expects a specific Markdown format. Follow this structure exactly:
+docs/guides/dual-stack-enrichment.md:# [Bundle Name] Enrichment Report
+docs/guides/dual-stack-enrichment.md:5. **File Naming**: `<bundle-name>-<timestamp>.enrichment.md` (e.g., `djangogoat-2025-12-23T23-50-00.enrichment.md`)
+docs/guides/dual-stack-enrichment.md:- **Stories are merged**: When updating existing features (not creating new ones), stories from the enrichment report are merged into the existing feature. New stories are added, existing stories are preserved.
+docs/guides/dual-stack-enrichment.md:- **Feature titles updated**: If a feature exists but has an empty title, the enrichment report will update it.
+docs/guides/dual-stack-enrichment.md:- **Validation**: The enrichment parser validates the format and will fail with clear error messages if the format is incorrect.
+docs/guides/dual-stack-enrichment.md:# Use enrichment to update plan via CLI
+docs/guides/dual-stack-enrichment.md:specfact code import [<bundle-name>] --repo <path> --enrichment <enrichment-report> --no-interactive
+docs/guides/dual-stack-enrichment.md:**Result**: Final artifacts are CLI-generated with validated enrichments
+docs/guides/dual-stack-enrichment.md:**What happens during enrichment application**:
+docs/guides/dual-stack-enrichment.md:- ⏳ Plan enrichment (future: `plan enrich-prompt` / `enrich-apply`) - Needs implementation
+docs/guides/command-chains.md:**When to use**: You're working with Spec-Kit format and need to bootstrap, enrich, or validate constitutions.
+docs/guides/use-cases.md:# Use project devops-flow to enrich features through the develop stage
+MEMORY.md:- `rich~=13.5.2` is pinned — do not upgrade without checking semgrep compat
+docs/technical/dual-stack-pattern.md:# Dual-Stack Enrichment Pattern - Technical Specification
+docs/technical/dual-stack-pattern.md:The Dual-Stack Enrichment Pattern is a technical architecture that enforces CLI-first principles while allowing LLM enrichment in AI IDE environments. It ensures all artifacts are CLI-generated and validated, preventing format drift and ensuring consistency.
+docs/technical/dual-stack-pattern.md:- Plan enrichment (missing features, confidence adjustments, business context)
+docs/technical/dual-stack-pattern.md:3. Enrichment is additive (LLM adds context, CLI validates and creates)
+docs/technical/dual-stack-pattern.md:- Plan enrichment workflow (`plan enrich-prompt` / `enrich-apply`)
+docs/technical/dual-stack-pattern.md:- **[Dual-Stack Enrichment Guide](../guides/dual-stack-enrichment.md)** - End-user guide
+AGENTS.md:- CLI commands use `typer.Typer()` + `rich.console.Console()`
+AGENTS.md:- `rich~=13.5.2` is pinned for semgrep compatibility and should not be upgraded without validation
+AGENTS.md:from rich.console import Console
+tests/conftest.py:    "tests/e2e/test_enrichment_workflow.py",
+openspec/changes/traceability-01-index-and-orphans/proposal.md:As the number of requirements, specs, and code modules grows, manually tracking traceability becomes impossible. Teams need a fast, queryable index that maps every artifact to its upstream/downstream counterparts — and actively detects orphans (artifacts with broken or missing links). This index is the backbone for the full-chain validation, coverage dashboards, and ceremony enrichment. Without it, traceability is a write-once artifact that decays the moment someone adds a new endpoint without linking it.
+src/specfact_cli/utils/suggestions.py:from rich.console import Console
+src/specfact_cli/utils/suggestions.py:from rich.panel import Panel
+src/specfact_cli/utils/incremental_check.py:        result["enrichment_context"] = False
+src/specfact_cli/utils/incremental_check.py:        - 'enrichment_context': True if enrichment context needs regeneration
+src/specfact_cli/utils/incremental_check.py:        "enrichment_context": True,
+src/specfact_cli/utils/incremental_check.py:    _apply_enrichment_and_contracts_flags(bundle_dir, source_files_changed, contracts_changed, result)
+src/specfact_cli/utils/incremental_check.py:def _apply_enrichment_and_contracts_flags(
+src/specfact_cli/utils/incremental_check.py:    enrichment_context_path = bundle_dir / "enrichment_context.md"
+src/specfact_cli/utils/incremental_check.py:    if enrichment_context_path.exists() and not source_files_changed:
+src/specfact_cli/utils/incremental_check.py:        result["enrichment_context"] = False
+src/specfact_cli/adapters/github.py:from rich.console import Console
+src/specfact_cli/adapters/github.py:            enriched_items: list[dict[str, Any]] = []
+src/specfact_cli/adapters/github.py:                enriched_items.append(issue_dict)
+src/specfact_cli/adapters/github.py:            return enriched_items
+src/specfact_cli/enrichers/plan_enricher.py:Plan bundle enricher for automatic enhancement of vague acceptance criteria,
+src/specfact_cli/enrichers/plan_enricher.py:This module provides automatic enrichment capabilities that can be triggered
+src/specfact_cli/enrichers/plan_enricher.py:class PlanEnricher:
+src/specfact_cli/enrichers/plan_enricher.py:    Enricher for automatically enhancing plan bundles.
+src/specfact_cli/enrichers/plan_enricher.py:    @ensure(lambda result: isinstance(result, dict), "Must return dict with enrichment summary")
+src/specfact_cli/enrichers/plan_enricher.py:    def enrich_plan(self, plan_bundle: PlanBundle) -> dict[str, Any]:
+src/specfact_cli/enrichers/plan_enricher.py:        Enrich plan bundle by enhancing vague acceptance criteria, incomplete requirements, and generic tasks.
+src/specfact_cli/enrichers/plan_enricher.py:            plan_bundle: Plan bundle to enrich
+src/specfact_cli/enrichers/plan_enricher.py:            Dictionary with enrichment summary (features_updated, stories_updated, tasks_updated, etc.)
+src/specfact_cli/enrichers/plan_enricher.py:            self._enrich_plan_feature(feature, summary)
+src/specfact_cli/enrichers/plan_enricher.py:    def _enrich_plan_feature(self, feature: Feature, summary: dict[str, Any]) -> None:
+src/specfact_cli/enrichers/plan_enricher.py:            self._enrich_plan_story(feature, story, summary)
+src/specfact_cli/enrichers/plan_enricher.py:    def _enrich_plan_story(self, feature: Feature, story: Story, summary: dict[str, Any]) -> None:
+openspec/changes/ceremony-02-requirements-aware-output/proposal.md:Current backlog ceremony commands (`backlog ceremony refinement`, `backlog ceremony standup`, `backlog ceremony planning`) operate purely on technical signals — story points, acceptance criteria quality, spec coverage. They don't surface business requirement coverage, value gaps, or architectural readiness. This means ceremonies miss the most impactful signals: "Is the business case defined?" and "Does the architecture support this?" Extending ceremony output with a `--with-requirements` flag enriches refinement and planning with business context, catching value gaps before they become code.
+openspec/changes/ceremony-02-requirements-aware-output/proposal.md:- `ceremony-requirements-awareness`: Requirements-aware enrichment for backlog ceremony commands (`backlog ceremony refinement`, `backlog ceremony planning`, `backlog ceremony standup`) showing business value coverage, risk items, orphaned specs, and sprint readiness with profile-aware detail levels.
+openspec/changes/ceremony-02-requirements-aware-output/proposal.md:- `backlog-refinement`: Extended with `--with-requirements` flag for business context enrichment
+src/specfact_cli/modules/upgrade/src/commands.py:from rich.console import Console
+src/specfact_cli/modules/upgrade/src/commands.py:from rich.panel import Panel
+src/specfact_cli/modules/upgrade/src/commands.py:from rich.prompt import Confirm
+src/specfact_cli/adapters/ado.py:from rich.console import Console
+src/specfact_cli/adapters/ado.py:def _rich_iteration_suggestions_block(available_iterations: list[str], max_examples: int = 5) -> str:
+src/specfact_cli/adapters/ado.py:                    suggestions = _rich_iteration_suggestions_block(self._list_available_iterations())
+src/specfact_cli/adapters/ado.py:                    suggestions = _rich_iteration_suggestions_block(available_iterations)
+src/specfact_cli/modules/init/src/commands.py:from rich.console import Console
+src/specfact_cli/modules/init/src/commands.py:from rich.panel import Panel
+src/specfact_cli/modules/init/src/commands.py:from rich.rule import Rule
+src/specfact_cli/modules/init/src/commands.py:from rich.table import Table
+openspec/changes/ceremony-02-requirements-aware-output/specs/backlog-refinement/spec.md:Backlog refinement output SHALL support requirements-aware enrichment.
+src/specfact_cli/modules/module_registry/src/commands.py:from rich.console import Console
+src/specfact_cli/modules/module_registry/src/commands.py:from rich.table import Table
+src/specfact_cli/enrichers/constitution_enricher.py:Constitution enricher for automatic bootstrap and enrichment of project constitutions.
+src/specfact_cli/enrichers/constitution_enricher.py:This module provides automatic constitution generation and enrichment capabilities
+src/specfact_cli/enrichers/constitution_enricher.py:class ConstitutionEnricher:
+src/specfact_cli/enrichers/constitution_enricher.py:    Enricher for automatically generating and enriching project constitutions.
+src/specfact_cli/enrichers/constitution_enricher.py:    def enrich_template(self, template_path: Path, suggestions: dict[str, Any]) -> str:
+src/specfact_cli/enrichers/constitution_enricher.py:            Enriched constitution markdown
+src/specfact_cli/enrichers/constitution_enricher.py:        enriched = template_content
+src/specfact_cli/enrichers/constitution_enricher.py:        enriched = re.sub(r"\[PROJECT_NAME\]", project_name, enriched)
+src/specfact_cli/enrichers/constitution_enricher.py:            enriched = re.sub(
+src/specfact_cli/enrichers/constitution_enricher.py:                enriched,
+src/specfact_cli/enrichers/constitution_enricher.py:            enriched = re.sub(
+src/specfact_cli/enrichers/constitution_enricher.py:                enriched,
+src/specfact_cli/enrichers/constitution_enricher.py:            enriched = re.sub(pattern, "", enriched, flags=re.DOTALL)
+src/specfact_cli/enrichers/constitution_enricher.py:        enriched = re.sub(r"\[SECTION_2_NAME\]", section2_name, enriched)
+src/specfact_cli/enrichers/constitution_enricher.py:        enriched = re.sub(r"\[SECTION_2_CONTENT\]", section2_content, enriched)
+src/specfact_cli/enrichers/constitution_enricher.py:        enriched = re.sub(r"\[SECTION_3_NAME\]", section3_name, enriched)
+src/specfact_cli/enrichers/constitution_enricher.py:        enriched = re.sub(r"\[SECTION_3_CONTENT\]", section3_content, enriched)
+src/specfact_cli/enrichers/constitution_enricher.py:        enriched = re.sub(r"\[GOVERNANCE_RULES\]", governance_rules, enriched)
+src/specfact_cli/enrichers/constitution_enricher.py:        enriched = re.sub(r"\[CONSTITUTION_VERSION\]", "1.0.0", enriched)
+src/specfact_cli/enrichers/constitution_enricher.py:        enriched = re.sub(r"\[RATIFICATION_DATE\]", today, enriched)
+src/specfact_cli/enrichers/constitution_enricher.py:        enriched = re.sub(r"\[LAST_AMENDED_DATE\]", today, enriched)
+src/specfact_cli/enrichers/constitution_enricher.py:        enriched = re.sub(r"<!--.*?-->", "", enriched, flags=re.DOTALL)
+src/specfact_cli/enrichers/constitution_enricher.py:        enriched = re.sub(r"\n{3,}", "\n\n", enriched)
+src/specfact_cli/enrichers/constitution_enricher.py:        return enriched.strip() + "\n"
+src/specfact_cli/enrichers/constitution_enricher.py:    @ensure(lambda result: isinstance(result, str), "Must return enriched constitution")
+src/specfact_cli/enrichers/constitution_enricher.py:            Enriched constitution markdown
+src/specfact_cli/enrichers/constitution_enricher.py:        # Enrich template (always use default template for bootstrap, not existing constitution)
+src/specfact_cli/enrichers/constitution_enricher.py:        # Bootstrap should generate fresh constitution, not enrich existing one
+src/specfact_cli/enrichers/constitution_enricher.py:        template_path = Path("/dev/null")  # Will trigger default template in enrich_template
+src/specfact_cli/enrichers/constitution_enricher.py:        return self.enrich_template(template_path, suggestions)
+openspec/changes/ceremony-02-requirements-aware-output/specs/ceremony-requirements-awareness/spec.md:The system SHALL enrich ceremony outputs with requirement, architecture, and traceability readiness signals.
+src/specfact_cli/utils/startup_checks.py:from rich.console import Console
+src/specfact_cli/utils/startup_checks.py:from rich.panel import Panel
+src/specfact_cli/utils/startup_checks.py:from rich.progress import Progress, SpinnerColumn, TextColumn
+src/specfact_cli/utils/prompts.py:from rich.console import Console
+src/specfact_cli/utils/prompts.py:from rich.prompt import Confirm, Prompt
+src/specfact_cli/utils/prompts.py:from rich.table import Table
+src/specfact_cli/utils/prompts.py:        rich_default = default if default is not None else ""
+src/specfact_cli/utils/prompts.py:        result = Prompt.ask(message, default=rich_default)
+src/specfact_cli/utils/bundle_loader.py:            preserve_items = ["contracts", "protocols", "reports", "logs", "enrichment_context.md"]
+src/specfact_cli/utils/console.py:This module provides helpers for rich console output.
+src/specfact_cli/utils/console.py:from rich.console import Console
+src/specfact_cli/utils/console.py:from rich.panel import Panel
+src/specfact_cli/utils/console.py:from rich.table import Table
+src/specfact_cli/utils/performance.py:from rich.console import Console
+src/specfact_cli/validators/repro_checker.py:from rich.console import Console
+src/specfact_cli/utils/progress.py:from rich.console import Console
+src/specfact_cli/utils/progress.py:from rich.progress import Progress
+openspec/specs/policy-engine/spec.md:**Rationale**: Imported foundation artifacts store rich metadata in provider-shaped fields and `raw_data`.
+src/specfact_cli/validators/sidecar/orchestrator.py:from rich.console import Console
+src/specfact_cli/validators/sidecar/orchestrator.py:from rich.progress import Progress
+openspec/changes/archive/2026-03-03-module-migration-01-categorize-and-group/design.md:  │    ├─ Yes → show interactive multi-select UI (rich prompt)
+openspec/changes/archive/2026-03-03-module-migration-01-categorize-and-group/tasks.md:- [x] 5.2.3 Implement Copilot-mode interactive bundle selection UI using `rich` (multi-select checkboxes)
+openspec/changes/archive/2026-01-09-integrate-sidecar-validation/design.md:3. **`specfact contract`**: Use sidecar for contract population/enrichment
+openspec/changes/archive/2026-01-09-integrate-sidecar-validation/design.md:- Add contract enrichment via AI
+openspec/changes/archive/2026-01-27-optimize-startup-performance/tasks.md:  - [x] 4.1.5 Add rich console output for update status
+openspec/changes/archive/2026-01-09-integrate-sidecar-validation/specs/sidecar-validation/spec.md:- **AND** returns list of `RouteInfo` objects with enriched schemas
+openspec/changes/archive/2026-01-09-integrate-sidecar-validation/specs/sidecar-validation/spec.md:  - Preserves AI-enriched schemas when merging
+openspec/changes/archive/2026-01-09-integrate-sidecar-validation/specs/sidecar-validation/spec.md:- **AND** contracts have enriched request/response schemas
+openspec/changes/archive/2026-03-04-module-migration-05-modules-repo-quality/tasks.md:    - `specfact_cli.utils.{acceptance_criteria,enrichment_context,enrichment_parser,feature_keys,incremental_check,persona_ownership,source_scanner,yaml_utils}`
+openspec/changes/archive/2026-03-04-module-migration-05-modules-repo-quality/tasks.md:      -> `specfact_project.utils.{acceptance_criteria,enrichment_context,enrichment_parser,feature_keys,incremental_check,persona_ownership,source_scanner,yaml_utils}`
+openspec/changes/archive/2026-03-04-module-migration-05-modules-repo-quality/tasks.md:    - added local packages in `specfact_project`: `agents`, `analyzers`, `comparators`, `enrichers`, `generators`, `importers`, `merge`, `parsers`, `migrations`, `validators`
+openspec/changes/archive/2026-03-04-module-migration-05-modules-repo-quality/tasks.md:    - added local `specfact_spec.enrichers` + `specfact_spec.utils.acceptance_criteria`
+openspec/changes/archive/2026-03-18-docs-03-command-syntax-parity/tasks.md:- [x] 4.4 Update workflow and migration guides: `docs/guides/agile-scrum-workflows.md`, `docs/guides/ai-ide-workflow.md`, `docs/guides/brownfield-journey.md`, `docs/guides/command-chains.md`, `docs/guides/common-tasks.md`, `docs/guides/competitive-analysis.md`, `docs/guides/devops-adapter-integration.md`, `docs/guides/dual-stack-enrichment.md`, `docs/guides/ide-integration.md`, `docs/guides/migration-0.16-to-0.19.md`, `docs/guides/migration-cli-reorganization.md`, `docs/guides/migration-guide.md`, `docs/guides/policy-engine-commands.md`, `docs/guides/speckit-comparison.md`, `docs/guides/speckit-journey.md`, `docs/guides/specmatic-integration.md`, `docs/guides/troubleshooting.md`, `docs/guides/use-cases.md`, `docs/guides/using-module-security-and-extensions.md`, `docs/guides/ux-features.md`, `docs/guides/workflows.md`
+openspec/changes/archive/2026-03-18-docs-03-command-syntax-parity/COMMAND_SYNTAX_AUDIT.md:- `docs/guides/dual-stack-enrichment.md`
+openspec/changes/archive/2026-03-18-docs-03-command-syntax-parity/COMMAND_SYNTAX_AUDIT.md:- `docs/guides/dual-stack-enrichment.md`
+openspec/changes/archive/2026-03-18-docs-03-command-syntax-parity/COMMAND_SYNTAX_AUDIT.md:- `docs/guides/dual-stack-enrichment.md`
+openspec/changes/archive/2026-01-29-improve-ado-backlog-refine-error-logging/proposal.md:- **Backward compatibility**: No change to success paths; only failure paths gain richer logging and messages.
+openspec/changes/archive/2026-02-18-backlog-core-01-dependency-analysis-commands/tasks.md:- [x] 1.5.9 Implement markdown report generation (`generate_dependency_report()`) using `rich.table.Table` for tabular data and `rich.panel.Panel` for section headers (follow existing console patterns from `specfact_cli.utils.console`)
+openspec/changes/archive/2026-02-18-backlog-core-01-dependency-analysis-commands/tasks.md:- [x] 2.1.9 Implement console output using `rich.table.Table` for delta summary and `specfact_cli.utils.console` helpers for consistent formatting
+openspec/changes/archive/2026-02-18-backlog-core-01-dependency-analysis-commands/tasks.md:- [x] 2.2.5 Implement delta reporting using `rich.table.Table` for tabular output (added, updated, deleted items, status transitions, new dependencies) and `specfact_cli.utils.console` helpers
+openspec/changes/archive/2026-02-18-backlog-core-01-dependency-analysis-commands/tasks.md:- [x] 2.3.10 Implement console output using `rich.panel.Panel` for results and `specfact_cli.utils.console` helpers for error/warning messages
+openspec/changes/archive/2026-02-18-backlog-core-01-dependency-analysis-commands/tasks.md:- [x] 3.2.6 Implement comprehensive report generation using `rich.table.Table` for metrics and `rich.panel.Panel` for sections, with action items using `specfact_cli.utils.console` helpers
+openspec/changes/archive/2026-02-18-backlog-core-01-dependency-analysis-commands/tasks.md:- [x] 3.3.8 Implement console output using `rich.table.Table`, `rich.panel.Panel`, and `specfact_cli.utils.console` helpers for all stage outputs
+openspec/changes/archive/2026-02-18-backlog-core-01-dependency-analysis-commands/tasks.md:- [x] 3.4.3 Implement `export-roadmap()` command for generating timeline from dependency graph (uses `DependencyAnalyzer.critical_path()` and console output with `rich.table.Table`)
+openspec/changes/archive/2026-02-18-backlog-core-01-dependency-analysis-commands/tasks.md:### 3.7 Provider Dependency Enrichment (GitHub/ADO)
+openspec/changes/archive/2026-02-18-backlog-core-01-dependency-analysis-commands/tasks.md:- [x] 3.7.1 Enrich GitHub dependency extraction in `GitHubAdapter.fetch_relationships()` from issue links/references (blocks, blocked-by, parent/child conventions) with deterministic mapping to `DependencyType`
+openspec/changes/archive/2026-02-18-backlog-core-01-dependency-analysis-commands/tasks.md:- [x] 3.7.2 Enrich GitHub item typing in `fetch_all_issues()` payload (label/type normalization) so `BacklogGraphBuilder` reaches expected typed coverage on real repos
+openspec/changes/archive/2026-02-18-backlog-core-01-dependency-analysis-commands/tasks.md:- [x] 3.7.4 Add regression tests for provider enrichment paths (unit + integration fixtures for GitHub and ADO relationships)
+openspec/changes/archive/2026-02-18-backlog-core-01-dependency-analysis-commands/TDD_EVIDENCE.md:## Scope (Phase 3.7 provider dependency enrichment)
+openspec/changes/archive/2026-02-18-backlog-core-01-dependency-analysis-commands/TDD_EVIDENCE.md:Enrich GitHub/ADO provider outputs so dependency graph analysis gets relationship edges and improved item typing from adapter-normalized data.
+openspec/changes/archive/2026-02-18-backlog-core-01-dependency-analysis-commands/TDD_EVIDENCE.md:## Pre-Implementation Failing Run (Phase 3.7 provider dependency enrichment)
+openspec/changes/archive/2026-02-18-backlog-core-01-dependency-analysis-commands/TDD_EVIDENCE.md:  - `hatch run pytest modules/backlog-core/tests/unit/test_provider_enrichment.py -q`
+openspec/changes/archive/2026-02-18-backlog-core-01-dependency-analysis-commands/TDD_EVIDENCE.md:  - `GitHubAdapter.fetch_all_issues()` did not enrich normalized `type` in payload (`KeyError: 'type'`).
+openspec/changes/archive/2026-02-18-backlog-core-01-dependency-analysis-commands/TDD_EVIDENCE.md:## Implementation (Phase 3.7 provider dependency enrichment)
+openspec/changes/archive/2026-02-18-backlog-core-01-dependency-analysis-commands/TDD_EVIDENCE.md:- Updated `GitHubAdapter.fetch_all_issues()` to enrich normalized graph `type` values from label/type/title signals.
+openspec/changes/archive/2026-02-18-backlog-core-01-dependency-analysis-commands/TDD_EVIDENCE.md:  - Unit: `modules/backlog-core/tests/unit/test_provider_enrichment.py`
+openspec/changes/archive/2026-02-18-backlog-core-01-dependency-analysis-commands/TDD_EVIDENCE.md:  - Integration fixtures: `tests/integration/backlog/test_provider_enrichment_e2e.py`
+openspec/changes/archive/2026-02-18-backlog-core-01-dependency-analysis-commands/TDD_EVIDENCE.md:## Post-Implementation Passing Run (Phase 3.7 provider dependency enrichment)
+openspec/changes/archive/2026-02-18-backlog-core-01-dependency-analysis-commands/TDD_EVIDENCE.md:  - `hatch run pytest modules/backlog-core/tests/unit/test_provider_enrichment.py -q`
+openspec/changes/archive/2026-02-18-backlog-core-01-dependency-analysis-commands/TDD_EVIDENCE.md:  - `hatch run pytest tests/integration/backlog/test_provider_enrichment_e2e.py -q`
+openspec/changes/archive/2026-02-18-backlog-core-01-dependency-analysis-commands/TDD_EVIDENCE.md:  - Provider enrichment tests pass for GitHub and ADO extraction/normalization.
+openspec/changes/archive/2026-02-18-backlog-core-01-dependency-analysis-commands/proposal.md:- **EXTEND**: Add provider dependency enrichment path in this change: improve GitHub relationship extraction (`fetch_relationships`) and typing signals (`fetch_all_issues` payload normalization), and validate ADO relationship parity, so health metrics and release-readiness use meaningful dependency edges on real backlogs.
+openspec/specs/sidecar-validation/spec.md:- **AND** returns list of `RouteInfo` objects with enriched schemas
+openspec/specs/sidecar-validation/spec.md:  - Preserves AI-enriched schemas when merging
+openspec/specs/sidecar-validation/spec.md:- **AND** contracts have enriched request/response schemas
+openspec/changes/archive/2026-02-18-backlog-core-01-dependency-analysis-commands/specs/devops-sync/spec.md:#### Scenario: GitHub relationship enrichment for dependency graph
+openspec/changes/archive/2026-02-18-backlog-core-01-dependency-analysis-commands/specs/devops-sync/spec.md:- **AND** output uses `rich.table.Table` for metrics and `rich.panel.Panel` for sections (consistent with existing console patterns)
+openspec/changes/archive/2026-02-18-backlog-core-01-dependency-analysis-commands/specs/devops-sync/spec.md:- **AND** generates roadmap markdown file with console output using `rich.table.Table` and `rich.panel.Panel`
+openspec/changes/archive/2026-03-17-docs-02-core-docs-canonical-portal/DOCS_OWNERSHIP_MAP.md:- `docs/guides/dual-stack-enrichment.md`
+openspec/changes/archive/2026-03-03-backlog-core-06-refine-custom-field-writeback/proposal.md:- **MODIFY** ADO extraction normalization so body and acceptance criteria rich text are consistently converted to markdown-like text before refine/export/writeback operations.
+openspec/changes/archive/2026-03-03-backlog-core-06-refine-custom-field-writeback/proposal.md:- `format-abstraction`: normalize ADO rich text/HTML backlog fields to markdown-like text for canonical backlog model usage.
+openspec/specs/official-bundle-tier/spec.md:- **THEN** official-tier bundles SHALL display a distinguishing marker (e.g., `[official]` or equivalent rich-formatted badge)
+openspec/changes/archive/2026-03-03-backlog-core-06-refine-custom-field-writeback/TDD_EVIDENCE.md:  - ADO markdown write-back includes multiline markdown format operations for mapped rich-text fields.
+openspec/changes/archive/2026-01-29-add-debug-logs-specfact-home/proposal.md:# Change: Add debug logs under ~/.specfact/logs with rich operation metadata
+openspec/changes/archive/2026-01-29-add-debug-logs-specfact-home/proposal.md:When `--debug` is enabled globally, users and developers need consistent debug logs to diagnose IO, file handling, and API issues. Today debug output is only printed to the console via `debug_print()` and is not persisted; there is no user-level log directory and no structured operation metadata (status, return, error) for file or API operations. Storing debug logs under `~/.specfact/logs` and including rich operation metadata makes it possible to identify issues when something does not work as expected without cluttering normal CLI output.
+openspec/changes/archive/2026-02-22-backlog-core-02-interactive-issue-creation/proposal.md:- **EXTEND**: `specfact backlog map-fields` to support a multi-provider field mapping workflow (ADO + GitHub), including auth checks, provider field discovery, mapping verification, and config persistence in `.specfact/backlog-config.yaml`. For GitHub, issue-type source-of-truth is repository issue types (`repository.issueTypes`), while ProjectV2 Type option mapping is optional enrichment when a suitable Type-like single-select field exists.
+openspec/changes/archive/2026-02-06-arch-02-module-package-separation/TEST_SCENARIO_MAPPING.md:  - `hatch run pytest -q tests/integration/commands/test_contract_commands.py tests/integration/commands/test_project_commands.py tests/integration/commands/test_generate_command.py tests/integration/sync/test_sync_command.py tests/integration/commands/test_sync_intelligent_command.py tests/integration/backlog/test_backlog_filtering_integration.py tests/integration/commands/test_import_enrichment_contracts.py tests/integration/test_plan_command.py tests/unit/commands/test_plan_add_commands.py tests/unit/commands/test_plan_update_commands.py tests/unit/commands/test_plan_telemetry.py`
+openspec/specs/bridge-adapter/spec.md:- **AND** constitution commands (bootstrap, enrich, validate) are under SDD command group (Spec-Kit is an SDD tool)
+openspec/changes/archive/2026-03-05-module-migration-06-core-decoupling-cleanup/MIGRATION_REMOVAL_PLAN.md:| `enrichers` | specfact-project/spec | Used by generators, importers |
+openspec/changes/archive/2026-03-05-module-migration-06-core-decoupling-cleanup/MIGRATION_REMOVAL_PLAN.md:| `merge` | specfact-project | Used by generators/enrichers |
+openspec/changes/archive/2026-03-05-module-migration-06-core-decoupling-cleanup/MIGRATION_REMOVAL_PLAN.md:After Phases 1–3, remove: `agents`, `analyzers`, `backlog`, `comparators`, `enrichers`, `generators`, `importers`, `merge`, `migrations`, `parsers`, `sync`, `validators.sidecar`, `validators.repro_checker`, `templates.registry`, MIGRATE `utils.*`. Migrate associated tests to specfact-cli-modules.
+openspec/changes/archive/2026-03-17-module-migration-11-project-codebase-ownership-realignment/design.md:- mode distinctions such as bridge-driven import, shadow-only runs, enrichment, or future source-type variants SHALL be expressed as options or explicit alternate subcommands only when they represent materially different workflows
+openspec/changes/archive/2026-02-18-policy-engine-01-unified-framework/specs/policy-engine/spec.md:**Rationale**: Imported foundation artifacts store rich metadata in provider-shaped fields and `raw_data`.
+openspec/specs/backlog-daily-markdown-normalization/spec.md:#### Scenario: Interactive terminal shows rich Markdown view
+openspec/specs/backlog-daily-markdown-normalization/spec.md:- **WHEN** a user runs `specfact backlog daily --summarize` in an interactive terminal that supports rich output (e.g. TTY, not redirected to a file)
+openspec/changes/archive/2026-03-05-docs-01-core-modules-docs-alignment/DOCS_AUDIT_INVENTORY.md:| `docs/guides/dual-stack-enrichment.md` | `module-owned-temporary` | Bundle-specific workflow guidance still hosted in core docs until migration to specfact-cli-modules. |
+openspec/changes/archive/2026-03-03-backlog-scrum-05-summarize-markdown-output/proposal.md:  - Interactive rich terminal usage (formatted view, still based on the same Markdown text).
+openspec/changes/archive/2026-03-03-backlog-scrum-05-summarize-markdown-output/proposal.md:- `backlog-daily-markdown-normalization`: Normalize backlog item bodies and comments into Markdown-only text for daily standup summarize prompts, with environment-aware rendering (rich Markdown view in interactive terminals, plain Markdown in CI/non-interactive mode).
+openspec/changes/archive/2026-03-03-backlog-scrum-05-summarize-markdown-output/tasks.md:- [x] 2.2 Implement rich Markdown rendering for interactive terminals while keeping the underlying Markdown text stable
+openspec/changes/archive/2026-03-03-backlog-scrum-05-summarize-markdown-output/design.md:At the same time, SpecFact needs to support both interactive, rich terminal sessions (for humans running standup from a shell) and non-interactive / CI environments where summarize output is consumed by other tools or stored as artifacts.
+openspec/changes/archive/2026-03-03-backlog-scrum-05-summarize-markdown-output/specs/backlog-daily-markdown-normalization/spec.md:#### Scenario: Interactive terminal shows rich Markdown view
+openspec/changes/archive/2026-03-03-backlog-scrum-05-summarize-markdown-output/specs/backlog-daily-markdown-normalization/spec.md:- **WHEN** a user runs `specfact backlog daily --summarize` in an interactive terminal that supports rich output (e.g. TTY, not redirected to a file)
+openspec/changes/archive/2026-03-03-module-migration-02-bundle-extraction/GAP_ANALYSIS.md:- `generators.*`, `comparators.*`, `enrichers.*` → spec/project
+openspec/changes/archive/2026-03-03-module-migration-02-bundle-extraction/proposal.md:Migration-02 moved module **source** to specfact-cli-modules but bundle code still imports from `specfact_cli.*` (adapters, agents, analyzers, backlog, comparators, enrichers, generators, importers, integrations, merge, migrations, models, parsers, sync, templates, utils, validators, etc.). These hardcoded imports tightly couple bundles to the core CLI and prevent true decoupling.
+openspec/changes/archive/2026-03-03-module-migration-02-bundle-extraction/specs/dependency-decoupling/spec.md:- **GIVEN** an import categorized as **MIGRATE** (analyzers, backlog, comparators, enrichers, generators, importers, migrations, parsers, sync, validators, bundle-specific utils)
+openspec/changes/archive/2026-03-03-module-migration-02-bundle-extraction/specs/official-bundle-tier/spec.md:- **THEN** official-tier bundles SHALL display a distinguishing marker (e.g., `[official]` or equivalent rich-formatted badge)
+openspec/changes/archive/2026-03-03-module-migration-02-bundle-extraction/IMPORT_DEPENDENCY_ANALYSIS.md:| `from specfact_cli.enrichers.constitution_enricher import` | MIGRATE | specfact-project/specfact-spec(shared) | Project/spec generation pipeline; source exists under src/specfact_cli/<subsystem>/. Move before migration-03 prune. |
+openspec/changes/archive/2026-03-03-module-migration-02-bundle-extraction/IMPORT_DEPENDENCY_ANALYSIS.md:| `from specfact_cli.enrichers.plan_enricher import` | MIGRATE | specfact-project/specfact-spec(shared) | Project/spec generation pipeline; source exists under src/specfact_cli/<subsystem>/. Move before migration-03 prune. |
+openspec/changes/archive/2026-03-03-module-migration-02-bundle-extraction/IMPORT_DEPENDENCY_ANALYSIS.md:| `from specfact_cli.utils.enrichment_context import` | MIGRATE | specfact-project | Project/import-specific utility; source exists under src/specfact_cli/utils/. |
+openspec/changes/archive/2026-03-03-module-migration-02-bundle-extraction/IMPORT_DEPENDENCY_ANALYSIS.md:| `from specfact_cli.utils.enrichment_parser import` | MIGRATE | specfact-project | Project/import-specific utility; source exists under src/specfact_cli/utils/. |
+openspec/changes/archive/2026-03-03-module-migration-02-bundle-extraction/tasks.md:- [x] 19.1.4 Typical CORE: `common`, `contracts.module_interface`, `cli`, `registry.registry`, `modes`, `runtime`, `telemetry`, `versioning`, `models.*` (if shared). Typical MIGRATE candidates: `analyzers.*`, `backlog.*`, `comparators.*`, `enrichers.*`, `generators.*`, `importers.*`, `migrations.*`, `parsers.*`, `sync.*`, `validators.*`, bundle-specific `utils.*`.
+openspec/changes/archive/2026-01-02-refactor-speckit-to-bridge-adapter/tasks.md:  - [x] 10.2.2 Move `bootstrap`, `enrich`, and `validate` commands from bridge.py to sdd.py
+openspec/changes/archive/2026-01-02-refactor-speckit-to-bridge-adapter/tasks.md:  - [x] 10.2.3 Move `is_constitution_minimal()` helper function to appropriate location (sdd.py or enricher module)
+openspec/changes/archive/2026-01-02-refactor-speckit-to-bridge-adapter/tasks.md:  - [x] 11.4.2 Verify `specfact sdd constitution` commands work (bootstrap, enrich, validate) - DONE: E2E tests passing
+openspec/changes/archive/2026-01-02-refactor-speckit-to-bridge-adapter/tasks.md:  - [x] 11.5.4 Test constitution commands via `specfact sdd constitution bootstrap/enrich/validate` - DONE: Tested - `specfact sdd constitution --help` works, shows bootstrap/enrich/validate commands. Bootstrap command help displays correctly.
+openspec/changes/archive/2026-01-02-refactor-speckit-to-bridge-adapter/specs/bridge-adapter/spec.md:- **AND** constitution commands (bootstrap, enrich, validate) are under SDD command group (Spec-Kit is an SDD tool)
+src/specfact_cli/validators/cli_first_validator.py:from rich.console import Console
+src/specfact_cli/registry/help_cache.py:    from rich.console import Console
+src/specfact_cli/registry/help_cache.py:    from rich.table import Table
+src/specfact_cli/registry/module_lifecycle.py:from rich.console import Console
+src/specfact_cli/registry/module_lifecycle.py:from rich.table import Table
+src/specfact_cli/registry/module_lifecycle.py:from rich.text import Text
+src/specfact_cli/utils/progressive_disclosure.py:from rich.console import Console
+src/specfact_cli/utils/terminal.py:from rich.progress import BarColumn, SpinnerColumn, TextColumn, TimeElapsedColumn
+src/specfact_cli/utils/ide_setup.py:from rich.console import Console
+src/specfact_cli/analyzers/code_analyzer.py:from rich.console import Console
+src/specfact_cli/analyzers/code_analyzer.py:from rich.progress import BarColumn, Progress, SpinnerColumn, TaskID, TextColumn, TimeElapsedColumn
+src/specfact_cli/utils/structure.py:    REPORTS_ENRICHMENT = f"{ROOT}/reports/enrichment"
+src/specfact_cli/utils/structure.py:    def get_enrichment_report_path(cls, plan_bundle_path: Path, base_path: Path | None = None) -> Path:
+src/specfact_cli/utils/structure.py:        Get enrichment report path based on plan bundle path.
+src/specfact_cli/utils/structure.py:        The enrichment report is named to match the plan bundle, replacing
+src/specfact_cli/utils/structure.py:        `.bundle.yaml` with `.enrichment.md` and placing it in the enrichment reports directory.
+src/specfact_cli/utils/structure.py:            Path to enrichment report (e.g., `.specfact/reports/enrichment/specfact-cli.2025-11-17T09-26-47.enrichment.md`)
+src/specfact_cli/utils/structure.py:            >>> SpecFactStructure.get_enrichment_report_path(plan)
+src/specfact_cli/utils/structure.py:            Path('.specfact/reports/enrichment/specfact-cli.2025-11-17T09-26-47.enrichment.md')
+src/specfact_cli/utils/structure.py:        # Append enrichment marker
+src/specfact_cli/utils/structure.py:        enrichment_filename = f"{base_name}.enrichment.md"
+src/specfact_cli/utils/structure.py:        return directory / enrichment_filename
+src/specfact_cli/utils/structure.py:        lambda enrichment_report_path: isinstance(enrichment_report_path, Path), "Enrichment report path must be Path"
+src/specfact_cli/utils/structure.py:    def get_plan_bundle_from_enrichment(
+src/specfact_cli/utils/structure.py:        cls, enrichment_report_path: Path, base_path: Path | None = None
+src/specfact_cli/utils/structure.py:        Get original plan bundle path from enrichment report path.
+src/specfact_cli/utils/structure.py:        Derives the original plan bundle path by reversing the enrichment report naming convention.
+src/specfact_cli/utils/structure.py:        The enrichment report is named to match the plan bundle, so we can reverse this.
+src/specfact_cli/utils/structure.py:            enrichment_report_path: Path to enrichment report (e.g., `.specfact/reports/enrichment/specfact-cli.2025-11-17T09-26-47.enrichment.md`)
+src/specfact_cli/utils/structure.py:            >>> enrichment = Path('.specfact/reports/enrichment/specfact-cli.2025-11-17T09-26-47.enrichment.md')
+src/specfact_cli/utils/structure.py:            >>> SpecFactStructure.get_plan_bundle_from_enrichment(enrichment)
+src/specfact_cli/utils/structure.py:        # Extract filename from enrichment report path
+src/specfact_cli/utils/structure.py:        enrichment_filename = enrichment_report_path.name
+src/specfact_cli/utils/structure.py:        if enrichment_filename.endswith(".enrichment.md"):
+src/specfact_cli/utils/structure.py:            base_name = enrichment_filename[: -len(".enrichment.md")]
+src/specfact_cli/utils/structure.py:            base_name = enrichment_report_path.stem
+src/specfact_cli/utils/structure.py:    def get_enriched_plan_path(cls, original_plan_path: Path, base_path: Path | None = None) -> Path:
+src/specfact_cli/utils/structure.py:        Get enriched plan bundle path based on original plan bundle path.
+src/specfact_cli/utils/structure.py:        Creates a path for an enriched plan bundle with a clear "enriched" label and timestamp.
+src/specfact_cli/utils/structure.py:        Format: `<name>.<original-timestamp>.enriched.<enrichment-timestamp>.bundle.yaml`
+src/specfact_cli/utils/structure.py:            Path to enriched plan bundle (e.g., `.specfact/plans/specfact-cli.2025-11-17T09-26-47.enriched.2025-11-17T11-15-29.bundle.yaml`)
+src/specfact_cli/utils/structure.py:            >>> SpecFactStructure.get_enriched_plan_path(plan)
+src/specfact_cli/utils/structure.py:            Path('.specfact/plans/specfact-cli.2025-11-17T09-26-47.enriched.2025-11-17T11-15-29.bundle.yaml')
+src/specfact_cli/utils/structure.py:        # Generate new timestamp for enrichment
+src/specfact_cli/utils/structure.py:        enrichment_timestamp = datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
+src/specfact_cli/utils/structure.py:        # Build enriched filename
+src/specfact_cli/utils/structure.py:            enriched_filename = f"{name_part}.{original_timestamp}.enriched.{enrichment_timestamp}{suffix}"
+src/specfact_cli/utils/structure.py:            enriched_filename = f"{name_part}.enriched.{enrichment_timestamp}{suffix}"
+src/specfact_cli/utils/structure.py:        return directory / enriched_filename
+src/specfact_cli/utils/structure.py:  - `enrichment/` - LLM enrichment reports (matched to plan bundles by name/timestamp)
+src/specfact_cli/utils/structure.py:        (project_dir / "reports" / "enrichment").mkdir(parents=True, exist_ok=True)
+src/specfact_cli/utils/structure.py:    def get_bundle_enrichment_report_path(cls, bundle_name: str, base_path: Path | None = None) -> Path:
+src/specfact_cli/utils/structure.py:        Get bundle-specific enrichment report path.
+src/specfact_cli/utils/structure.py:            Path to timestamped enrichment report in bundle folder
+src/specfact_cli/utils/structure.py:        reports_dir = cls.get_bundle_reports_dir(bundle_name, base_path) / "enrichment"
+src/specfact_cli/utils/structure.py:        return reports_dir / f"{bundle_name}-{timestamp}.enrichment.md"
+src/specfact_cli/utils/enrichment_context.py:Context builder for LLM enrichment workflow.
+src/specfact_cli/utils/enrichment_context.py:to provide rich context for LLM enrichment.
+src/specfact_cli/utils/enrichment_context.py:class EnrichmentContext:
+src/specfact_cli/utils/enrichment_context.py:    Context for LLM enrichment workflow.
+src/specfact_cli/utils/enrichment_context.py:        """Initialize empty enrichment context."""
+src/specfact_cli/utils/enrichment_context.py:        lines = ["# Enrichment Context", ""]
+src/specfact_cli/utils/enrichment_context.py:@ensure(lambda result: result is not None, "Must return EnrichmentContext")
+src/specfact_cli/utils/enrichment_context.py:def build_enrichment_context(
+src/specfact_cli/utils/enrichment_context.py:) -> EnrichmentContext:
+src/specfact_cli/utils/enrichment_context.py:    Build enrichment context from analysis results.
+src/specfact_cli/utils/enrichment_context.py:        EnrichmentContext instance
+src/specfact_cli/utils/enrichment_context.py:    context = EnrichmentContext()
+src/specfact_cli/utils/source_scanner.py:from rich.console import Console
+src/specfact_cli/utils/source_scanner.py:from rich.progress import Progress
+src/specfact_cli/cli.py:from rich.panel import Panel
+src/specfact_cli/cli.py:    rich_markup_mode="rich",
+src/specfact_cli/cli.py:    from rich.text import Text
+src/specfact_cli/cli.py:    rich_markup_mode: object,
+src/specfact_cli/cli.py:        rich_markup_mode=rich_markup_mode,
+src/specfact_cli/utils/enrichment_parser.py:Enrichment parser for LLM-generated enrichment reports.
+src/specfact_cli/utils/enrichment_parser.py:This module parses Markdown enrichment reports generated by LLMs during
+src/specfact_cli/utils/enrichment_parser.py:the dual-stack enrichment workflow and applies them to plan bundles.
+src/specfact_cli/utils/enrichment_parser.py:def _append_new_feature_from_missing(enriched: PlanBundle, missing_feature_data: dict[str, Any]) -> None:
+src/specfact_cli/utils/enrichment_parser.py:        key=missing_feature_data.get("key", f"FEATURE-{len(enriched.features) + 1:03d}"),
+src/specfact_cli/utils/enrichment_parser.py:    enriched.features.append(feature)
+src/specfact_cli/utils/enrichment_parser.py:class EnrichmentReport:
+src/specfact_cli/utils/enrichment_parser.py:    """Parsed enrichment report from LLM."""
+src/specfact_cli/utils/enrichment_parser.py:        """Initialize empty enrichment report."""
+src/specfact_cli/utils/enrichment_parser.py:class EnrichmentParser:
+src/specfact_cli/utils/enrichment_parser.py:    """Parser for Markdown enrichment reports."""
+src/specfact_cli/utils/enrichment_parser.py:    @ensure(lambda result: isinstance(result, EnrichmentReport), "Must return EnrichmentReport")
+src/specfact_cli/utils/enrichment_parser.py:    def parse(self, report_path: Path | str) -> EnrichmentReport:
+src/specfact_cli/utils/enrichment_parser.py:        Parse Markdown enrichment report.
+src/specfact_cli/utils/enrichment_parser.py:            report_path: Path to Markdown enrichment report (must be non-empty)
+src/specfact_cli/utils/enrichment_parser.py:            Parsed EnrichmentReport
+src/specfact_cli/utils/enrichment_parser.py:            raise FileNotFoundError(f"Enrichment report not found: {report_path}")
+src/specfact_cli/utils/enrichment_parser.py:        report = EnrichmentReport()
+src/specfact_cli/utils/enrichment_parser.py:    @require(lambda report: isinstance(report, EnrichmentReport), "Report must be EnrichmentReport")
+src/specfact_cli/utils/enrichment_parser.py:    def _parse_missing_features(self, content: str, report: EnrichmentReport) -> None:
+src/specfact_cli/utils/enrichment_parser.py:        """Parse missing features section from enrichment report."""
+src/specfact_cli/utils/enrichment_parser.py:        """Parse a single feature block from enrichment report."""
+src/specfact_cli/utils/enrichment_parser.py:        """Parse stories from enrichment report text."""
+src/specfact_cli/utils/enrichment_parser.py:        """Parse a single story block from enrichment report."""
+src/specfact_cli/utils/enrichment_parser.py:    @require(lambda report: isinstance(report, EnrichmentReport), "Report must be EnrichmentReport")
+src/specfact_cli/utils/enrichment_parser.py:    def _parse_confidence_adjustments(self, content: str, report: EnrichmentReport) -> None:
+src/specfact_cli/utils/enrichment_parser.py:        """Parse confidence adjustments section from enrichment report."""
+src/specfact_cli/utils/enrichment_parser.py:    @require(lambda report: isinstance(report, EnrichmentReport), "Report must be EnrichmentReport")
+src/specfact_cli/utils/enrichment_parser.py:    def _parse_business_context(self, content: str, report: EnrichmentReport) -> None:
+src/specfact_cli/utils/enrichment_parser.py:        """Parse business context section from enrichment report."""
+src/specfact_cli/utils/enrichment_parser.py:@require(lambda enrichment: isinstance(enrichment, EnrichmentReport), "Enrichment must be EnrichmentReport")
+src/specfact_cli/utils/enrichment_parser.py:def apply_enrichment(plan_bundle: PlanBundle, enrichment: EnrichmentReport) -> PlanBundle:
+src/specfact_cli/utils/enrichment_parser.py:    Apply enrichment report to plan bundle.
+src/specfact_cli/utils/enrichment_parser.py:        enrichment: Parsed enrichment report
+src/specfact_cli/utils/enrichment_parser.py:        Enriched plan bundle
+src/specfact_cli/utils/enrichment_parser.py:    enriched = plan_bundle.model_copy(deep=True)
+src/specfact_cli/utils/enrichment_parser.py:    feature_keys = {f.key: i for i, f in enumerate(enriched.features)}
+src/specfact_cli/utils/enrichment_parser.py:    for feature_key, new_confidence in enrichment.confidence_adjustments.items():
+src/specfact_cli/utils/enrichment_parser.py:            enriched.features[feature_keys[feature_key]].confidence = new_confidence
+src/specfact_cli/utils/enrichment_parser.py:    for missing_feature_data in enrichment.missing_features:
+src/specfact_cli/utils/enrichment_parser.py:            _merge_missing_into_existing_feature(enriched.features[existing_idx], missing_feature_data)
+src/specfact_cli/utils/enrichment_parser.py:            _append_new_feature_from_missing(enriched, missing_feature_data)
+src/specfact_cli/utils/enrichment_parser.py:    if enriched.idea and enrichment.business_context and enrichment.business_context.get("constraints"):
+src/specfact_cli/utils/enrichment_parser.py:        if enriched.idea.constraints is None:
+src/specfact_cli/utils/enrichment_parser.py:            enriched.idea.constraints = []
+src/specfact_cli/utils/enrichment_parser.py:        enriched.idea.constraints.extend(enrichment.business_context["constraints"])
+src/specfact_cli/utils/enrichment_parser.py:    return enriched
+src/specfact_cli/runtime.py:from rich.console import Console
+src/specfact_cli/runtime.py:    from rich.console import Console as RichConsole
+src/specfact_cli/utils/acceptance_criteria.py:to prevent false positives in ambiguity scanning and plan enrichment.
+src/specfact_cli/utils/acceptance_criteria.py:    # If found, return False immediately (don't enrich)
+src/specfact_cli/utils/acceptance_criteria.py:    # SECOND: Check for vague patterns that should be enriched
+src/specfact_cli/utils/acceptance_criteria.py:        return False  # Not code-specific, should be enriched
+src/specfact_cli/sync/bridge_sync.py:from rich.progress import Progress
+src/specfact_cli/sync/bridge_sync.py:from rich.table import Table
+src/specfact_cli/sync/bridge_sync.py:    def _enrich_source_tracking_entry_repo(self, entry: dict[str, Any]) -> None:
+src/specfact_cli/sync/bridge_sync.py:                self._enrich_source_tracking_entry_repo(entry)
+openspec/specs/devops-sync/spec.md:#### Scenario: GitHub relationship enrichment for dependency graph
+openspec/specs/devops-sync/spec.md:- **AND** output uses `rich.table.Table` for metrics and `rich.panel.Panel` for sections (consistent with existing console patterns)
+openspec/specs/devops-sync/spec.md:- **AND** generates roadmap markdown file with console output using `rich.table.Table` and `rich.panel.Panel`
+openspec/changes/packaging-02-cross-platform-runtime-and-module-resources/specs/runtime-portability/spec.md:#### Scenario: UTF-8 terminal preserves rich symbols
+openspec/changes/packaging-02-cross-platform-runtime-and-module-resources/specs/runtime-portability/spec.md:- **AND** the configured rich Unicode symbols remain enabled
+src/specfact_cli/agents/plan_agent.py:Generate rich console output with explanations.
+src/specfact_cli/backlog/mappers/ado_mapper.py:                    return self._normalize_rich_text_to_markdown(normalized_value)
+src/specfact_cli/backlog/mappers/ado_mapper.py:    def _normalize_rich_text_to_markdown(self, value: str) -> str:
+src/specfact_cli/backlog/mappers/ado_mapper.py:        """Normalize ADO rich text content to markdown-like plain text."""
+src/specfact_cli/backlog/mappers/ado_mapper.py:        rich_text_tag_pattern = re.compile(
+src/specfact_cli/backlog/mappers/ado_mapper.py:        if not rich_text_tag_pattern.search(value):
+src/specfact_cli/backlog/mappers/ado_mapper.py:        normalized = rich_text_tag_pattern.sub("", normalized)
+src/specfact_cli/integrations/specmatic.py:from rich.console import Console
+openspec/changes/bugfix-02-ado-import-payload-slugging/design.md:The regression appeared because one side of the contract evolved while the other kept assuming a richer payload. The implementation should therefore audit all nearby paths that do one or more of:
+openspec/changes/code-review-zero-findings/specs/debug-logging/spec.md:Scripts in `scripts/` and `tools/` that run as standalone CLI programs SHALL use `logging.getLogger(__name__)` with a `StreamHandler` for progress output, or `rich.console.Console()` for formatted terminal output. The stdlib `print()` builtin SHALL NOT be used.
+openspec/changes/code-review-zero-findings/specs/dogfood-self-review/spec.md:- **THEN** it uses `rich.console.Console().print()` or `logging.getLogger(__name__)`, not the stdlib `print` builtin
+openspec/changes/code-review-zero-findings/design.md:- **[Risk] Some `print()` calls in scripts are intentional progress output to stdout.** → Mitigation: Scripts using `print()` for user-facing progress should use `rich.console.Console()` directly (which is not a `print()` call). The semgrep rule targets the stdlib `print` builtin only.
+openspec/specs/dependency-decoupling/spec.md:- **GIVEN** an import categorized as **MIGRATE** (analyzers, backlog, comparators, enrichers, generators, importers, migrations, parsers, sync, validators, bundle-specific utils)
+tests/unit/enrichers/test_plan_enricher.py:"""Unit tests for PlanEnricher."""
+tests/unit/enrichers/test_plan_enricher.py:from specfact_cli.enrichers.plan_enricher import PlanEnricher
+tests/unit/enrichers/test_plan_enricher.py:class TestPlanEnricher:
+tests/unit/enrichers/test_plan_enricher.py:    """Test PlanEnricher class."""
+tests/unit/enrichers/test_plan_enricher.py:    def enricher(self) -> PlanEnricher:
+tests/unit/enrichers/test_plan_enricher.py:        """Create PlanEnricher instance."""
+tests/unit/enrichers/test_plan_enricher.py:        return PlanEnricher()
+tests/unit/enrichers/test_plan_enricher.py:    def test_enrich_plan_updates_vague_criteria(self, enricher: PlanEnricher, sample_plan_bundle: PlanBundle) -> None:
+tests/unit/enrichers/test_plan_enricher.py:        """Test that enrichment updates vague acceptance criteria."""
+tests/unit/enrichers/test_plan_enricher.py:        summary = enricher.enrich_plan(sample_plan_bundle)
+tests/unit/enrichers/test_plan_enricher.py:    def test_enrichment_does_not_generate_gwt_format(
+tests/unit/enrichers/test_plan_enricher.py:        self, enricher: PlanEnricher, sample_plan_bundle: PlanBundle
+tests/unit/enrichers/test_plan_enricher.py:        """Test that enrichment does not generate GWT format (Given/When/Then)."""
+tests/unit/enrichers/test_plan_enricher.py:        enricher.enrich_plan(sample_plan_bundle)
+tests/unit/enrichers/test_plan_enricher.py:    def test_enrichment_uses_simple_text_format(self, enricher: PlanEnricher, sample_plan_bundle: PlanBundle) -> None:
+tests/unit/enrichers/test_plan_enricher.py:        """Test that enrichment uses simple text format (Must verify...)."""
+tests/unit/enrichers/test_plan_enricher.py:        enricher.enrich_plan(sample_plan_bundle)
+tests/unit/enrichers/test_plan_enricher.py:        # Check that enriched criteria use simple text format
+tests/unit/enrichers/test_plan_enricher.py:    def test_enrichment_preserves_code_specific_criteria(self, enricher: PlanEnricher) -> None:
+tests/unit/enrichers/test_plan_enricher.py:        enricher.enrich_plan(plan_bundle)
+tests/unit/enrichers/test_plan_enricher.py:        enriched_acceptance = plan_bundle.features[0].stories[0].acceptance
+tests/unit/enrichers/test_plan_enricher.py:        assert enriched_acceptance == original_acceptance
+tests/unit/enrichers/test_plan_enricher.py:    def test_enrichment_converts_existing_gwt_to_simple_text(self, enricher: PlanEnricher) -> None:
+tests/unit/enrichers/test_plan_enricher.py:        enricher.enrich_plan(plan_bundle)
+tests/unit/enrichers/test_plan_enricher.py:    def test_enrichment_handles_vague_patterns(self, enricher: PlanEnricher) -> None:
+tests/unit/enrichers/test_plan_enricher.py:        """Test that enrichment handles various vague patterns correctly."""
+tests/unit/enrichers/test_plan_enricher.py:            enricher.enrich_plan(plan_bundle)
+tests/unit/enrichers/test_plan_enricher.py:    def test_enrichment_summary_includes_changes(self, enricher: PlanEnricher, sample_plan_bundle: PlanBundle) -> None:
+tests/unit/enrichers/test_plan_enricher.py:        """Test that enrichment summary includes change details."""
+tests/unit/enrichers/test_plan_enricher.py:        summary = enricher.enrich_plan(sample_plan_bundle)
+tests/unit/specfact_cli/test_module_boundary_imports.py:    "specfact_cli.enrichers",
+tests/e2e/test_plan_review_batch_updates.py:    def test_copilot_llm_enrichment_workflow(self, workspace: Path, incomplete_plan: Path, monkeypatch):
+tests/e2e/test_plan_review_batch_updates.py:        """Test Copilot LLM enrichment workflow: list findings -> LLM generates updates -> batch apply."""
+tests/e2e/test_plan_review_batch_updates.py:        llm_updates_file = workspace / "llm_enrichment_updates.json"
+tests/unit/specfact_cli/common/test_logger_setup.py:    def test_strips_rich_markup(self) -> None:
+tests/unit/enrichers/__init__.py:"""Unit tests for enrichers."""
+tests/unit/prompts/test_prompt_validation.py:### Phase 2: LLM Enrichment (OPTIONAL, Copilot Only)
+tests/unit/prompts/test_prompt_validation.py:Enrichment report location: `.specfact/reports/enrichment/`
+tests/e2e/test_enrichment_workflow.py:"""End-to-end tests for enrichment workflow."""
+tests/e2e/test_enrichment_workflow.py:class TestEnrichmentWorkflow:
+tests/e2e/test_enrichment_workflow.py:    """Test complete enrichment workflow end-to-end."""
+tests/e2e/test_enrichment_workflow.py:    def test_dual_stack_enrichment_workflow(self, sample_repo: Path, tmp_path: Path):
+tests/e2e/test_enrichment_workflow.py:        Test complete dual-stack enrichment workflow:
+tests/e2e/test_enrichment_workflow.py:        2. Phase 2: LLM Enrichment - Generate enrichment report
+tests/e2e/test_enrichment_workflow.py:        3. Phase 3: CLI Artifact Creation - Apply enrichment via CLI
+tests/e2e/test_enrichment_workflow.py:            # Phase 2: LLM Enrichment - Create enrichment report
+tests/e2e/test_enrichment_workflow.py:            # Use proper location: .specfact/reports/enrichment/ with matching name
+tests/e2e/test_enrichment_workflow.py:            # For modular bundles, create enrichment report based on bundle name
+tests/e2e/test_enrichment_workflow.py:            enrichment_dir = sample_repo / ".specfact" / "reports" / "enrichment"
+tests/e2e/test_enrichment_workflow.py:            enrichment_dir.mkdir(parents=True, exist_ok=True)
+tests/e2e/test_enrichment_workflow.py:            enrichment_report = enrichment_dir / f"{bundle_name}.enrichment.md"
+tests/e2e/test_enrichment_workflow.py:            enrichment_content = """# Enrichment Report
+tests/e2e/test_enrichment_workflow.py:            enrichment_report.write_text(enrichment_content)
+tests/e2e/test_enrichment_workflow.py:            # Phase 3: CLI Artifact Creation - Apply enrichment
+tests/e2e/test_enrichment_workflow.py:                    "--enrichment",
+tests/e2e/test_enrichment_workflow.py:                    str(enrichment_report),
+tests/e2e/test_enrichment_workflow.py:            assert result.exit_code == 0, f"Enrichment application failed: {result.stdout}"
+tests/e2e/test_enrichment_workflow.py:            assert "Applying enrichment" in result.stdout or "📝" in result.stdout
+tests/e2e/test_enrichment_workflow.py:            # Verify enriched bundle (modular bundle - same directory, updated content)
+tests/e2e/test_enrichment_workflow.py:            assert bundle_dir.exists(), "Enriched bundle should exist"
+tests/e2e/test_enrichment_workflow.py:            # Load enriched bundle and verify it has more features
+tests/e2e/test_enrichment_workflow.py:            enriched_project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
+tests/e2e/test_enrichment_workflow.py:            enriched_plan_bundle = _convert_project_bundle_to_plan_bundle(enriched_project_bundle)
+tests/e2e/test_enrichment_workflow.py:            enriched_features_count = len(enriched_plan_bundle.features)
+tests/e2e/test_enrichment_workflow.py:            # Verify enriched bundle has more features than initial
+tests/e2e/test_enrichment_workflow.py:            assert enriched_features_count > initial_features_count, (
+tests/e2e/test_enrichment_workflow.py:                f"Enriched bundle should have more features. Initial: {initial_features_count}, Enriched: {enriched_features_count}"
+tests/e2e/test_enrichment_workflow.py:            # Verify enriched bundle has more features
+tests/e2e/test_enrichment_workflow.py:            assert enriched_features_count >= initial_features_count + 2, (
+tests/e2e/test_enrichment_workflow.py:                f"Expected at least {initial_features_count + 2} features, got {enriched_features_count}"
+tests/e2e/test_enrichment_workflow.py:            feature_keys = [f.key for f in enriched_plan_bundle.features]
+tests/e2e/test_enrichment_workflow.py:            # Validate enriched plan bundle (validate_plan_bundle expects Path, not PlanBundle)
+tests/e2e/test_enrichment_workflow.py:            assert enriched_plan_bundle is not None
+tests/e2e/test_enrichment_workflow.py:            assert len(enriched_plan_bundle.features) > initial_features_count
+tests/e2e/test_enrichment_workflow.py:    def test_enrichment_with_nonexistent_report(self, sample_repo: Path):
+tests/e2e/test_enrichment_workflow.py:        """Test that enrichment fails gracefully with nonexistent report."""
+tests/e2e/test_enrichment_workflow.py:            # Now try to enrich with nonexistent report
+tests/e2e/test_enrichment_workflow.py:                    "--enrichment",
+tests/e2e/test_enrichment_workflow.py:            assert result.exit_code != 0, "Should fail with nonexistent enrichment report"
+tests/e2e/test_enrichment_workflow.py:                or "Enrichment report not found" in result.stdout
+tests/e2e/test_enrichment_workflow.py:    def test_enrichment_with_invalid_report(self, sample_repo: Path, tmp_path: Path):
+tests/e2e/test_enrichment_workflow.py:        """Test that enrichment handles invalid report format gracefully."""
+tests/e2e/test_enrichment_workflow.py:            # Create invalid enrichment report (empty file)
+tests/e2e/test_enrichment_workflow.py:                    "--enrichment",
+tests/e2e/test_enrichment_workflow.py:            # Should either succeed (empty enrichment) or fail gracefully
+tests/e2e/test_enrichment_workflow.py:            # Empty enrichment is valid (no changes)
+tests/e2e/test_enrichment_workflow.py:    def test_enrichment_preserves_plan_structure(self, sample_repo: Path, tmp_path: Path):
+tests/e2e/test_enrichment_workflow.py:        """Test that enrichment preserves plan bundle structure."""
+tests/e2e/test_enrichment_workflow.py:            # Phase 2: Create enrichment report in proper location
+tests/e2e/test_enrichment_workflow.py:            enrichment_dir = sample_repo / ".specfact" / "reports" / "enrichment"
+tests/e2e/test_enrichment_workflow.py:            enrichment_dir.mkdir(parents=True, exist_ok=True)
+tests/e2e/test_enrichment_workflow.py:            enrichment_report = enrichment_dir / f"{bundle_name}.enrichment.md"
+tests/e2e/test_enrichment_workflow.py:            enrichment_report.write_text(
+tests/e2e/test_enrichment_workflow.py:                """# Enrichment Report
+tests/e2e/test_enrichment_workflow.py:            # Phase 3: Apply enrichment
+tests/e2e/test_enrichment_workflow.py:                    "--enrichment",
+tests/e2e/test_enrichment_workflow.py:                    str(enrichment_report),
+tests/e2e/test_enrichment_workflow.py:            # Load enriched bundle (modular bundle - same directory, updated content)
+tests/e2e/test_enrichment_workflow.py:            enriched_project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
+tests/e2e/test_enrichment_workflow.py:            enriched_plan_bundle = _convert_project_bundle_to_plan_bundle(enriched_project_bundle)
+tests/e2e/test_enrichment_workflow.py:            enriched_plan_data = enriched_plan_bundle.model_dump(exclude_none=True)
+tests/e2e/test_enrichment_workflow.py:            assert enriched_plan_data.get("version") == initial_plan_data.get("version")
+tests/e2e/test_enrichment_workflow.py:            assert enriched_plan_data.get("idea") is not None
+tests/e2e/test_enrichment_workflow.py:            assert enriched_plan_data.get("product") is not None
+tests/e2e/test_enrichment_workflow.py:            assert "features" in enriched_plan_data
+tests/e2e/test_enrichment_workflow.py:            assert enriched_plan_bundle is not None
+tests/e2e/test_enrichment_workflow.py:            assert enriched_plan_bundle.version is not None
+tests/e2e/test_enrichment_workflow.py:            assert enriched_plan_bundle.features is not None
+tests/integration/analyzers/test_analyze_command.py:from rich.console import Console
+tests/e2e/test_natural_ux_flow_e2e.py:        from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
+tests/unit/test_runtime.py:        from rich.console import Console
+tests/unit/test_runtime.py:        from rich.console import Console
+tests/unit/test_runtime.py:        from rich.console import Console
+tests/integration/commands/test_import_command.py:    def test_import_with_enrichment_does_not_regenerate_all_contracts(self, tmp_path: Path) -> None:
+tests/integration/commands/test_import_command.py:        Test that import with enrichment doesn't regenerate all contracts.
+tests/integration/commands/test_import_command.py:        Regression test for bug where enrichment forced full contract regeneration.
+tests/integration/commands/test_import_command.py:                "test-enrichment-contracts",
+tests/integration/commands/test_import_command.py:        bundle_dir = tmp_path / ".specfact" / "projects" / "test-enrichment-contracts"
+tests/integration/commands/test_import_command.py:            pytest.skip("Bundle not created, skipping enrichment test")
+tests/integration/commands/test_import_command.py:        # Phase 2: Create enrichment report (only metadata changes)
+tests/integration/commands/test_import_command.py:        enrichment_dir = tmp_path / ".specfact" / "reports" / "enrichment"
+tests/integration/commands/test_import_command.py:        enrichment_dir.mkdir(parents=True, exist_ok=True)
+tests/integration/commands/test_import_command.py:        enrichment_report = enrichment_dir / "test-enrichment-contracts.enrichment.md"
+tests/integration/commands/test_import_command.py:        enrichment_report.write_text(
+tests/integration/commands/test_import_command.py:            """# Enrichment Report
+tests/integration/commands/test_import_command.py:        # Phase 3: Apply enrichment (should NOT regenerate contracts)
+tests/integration/commands/test_import_command.py:                "test-enrichment-contracts",
+tests/integration/commands/test_import_command.py:                "--enrichment",
+tests/integration/commands/test_import_command.py:                str(enrichment_report),
+tests/integration/commands/test_import_enrichment_contracts.py:Integration tests for import command with enrichment and contract extraction.
+tests/integration/commands/test_import_enrichment_contracts.py:- Enrichment not forcing full contract regeneration
+tests/integration/commands/test_import_enrichment_contracts.py:- New features from enrichment getting contracts extracted
+tests/integration/commands/test_import_enrichment_contracts.py:class TestImportEnrichmentContracts:
+tests/integration/commands/test_import_enrichment_contracts.py:    """Integration tests for import command with enrichment and contract extraction."""
+tests/integration/commands/test_import_enrichment_contracts.py:    def test_enrichment_does_not_force_full_contract_regeneration(self, sample_repo_with_features: Path) -> None:
+tests/integration/commands/test_import_enrichment_contracts.py:        Test that enrichment doesn't force full contract regeneration.
+tests/integration/commands/test_import_enrichment_contracts.py:        Bug: When enrichment was provided, it forced regeneration of ALL contracts,
+tests/integration/commands/test_import_enrichment_contracts.py:        only new features from enrichment get contracts extracted.
+tests/integration/commands/test_import_enrichment_contracts.py:            bundle_name = "test-enrichment-contracts"
+tests/integration/commands/test_import_enrichment_contracts.py:            # Phase 2: Create enrichment report with NEW features (no source files)
+tests/integration/commands/test_import_enrichment_contracts.py:            enrichment_dir = sample_repo_with_features / ".specfact" / "reports" / "enrichment"
+tests/integration/commands/test_import_enrichment_contracts.py:            enrichment_dir.mkdir(parents=True, exist_ok=True)
+tests/integration/commands/test_import_enrichment_contracts.py:            enrichment_report = enrichment_dir / f"{bundle_name}.enrichment.md"
+tests/integration/commands/test_import_enrichment_contracts.py:            enrichment_report.write_text(
+tests/integration/commands/test_import_enrichment_contracts.py:                """# Enrichment Report
+tests/integration/commands/test_import_enrichment_contracts.py:            # Phase 3: Apply enrichment (should NOT regenerate existing contracts)
+tests/integration/commands/test_import_enrichment_contracts.py:                    "--enrichment",
+tests/integration/commands/test_import_enrichment_contracts.py:                    str(enrichment_report),
+tests/integration/commands/test_import_enrichment_contracts.py:            assert result2.exit_code == 0, f"Enrichment import failed: {result2.stdout}"
+tests/integration/commands/test_import_enrichment_contracts.py:            # Verify new features from enrichment got contracts (if they have source files)
+tests/integration/commands/test_import_enrichment_contracts.py:    def test_enrichment_with_new_features_gets_contracts_extracted(self, sample_repo_with_features: Path) -> None:
+tests/integration/commands/test_import_enrichment_contracts.py:        Test that new features from enrichment get contracts extracted.
+tests/integration/commands/test_import_enrichment_contracts.py:        When enrichment adds new features that have source files, those features
+tests/integration/commands/test_import_enrichment_contracts.py:            bundle_name = "test-enrichment-new-features"
+tests/integration/commands/test_import_enrichment_contracts.py:            # Phase 2: Create enrichment with new features
+tests/integration/commands/test_import_enrichment_contracts.py:            enrichment_dir = sample_repo_with_features / ".specfact" / "reports" / "enrichment"
+tests/integration/commands/test_import_enrichment_contracts.py:            enrichment_dir.mkdir(parents=True, exist_ok=True)
+tests/integration/commands/test_import_enrichment_contracts.py:            enrichment_report = enrichment_dir / f"{bundle_name}.enrichment.md"
+tests/integration/commands/test_import_enrichment_contracts.py:            enrichment_report.write_text(
+tests/integration/commands/test_import_enrichment_contracts.py:                """# Enrichment Report
+tests/integration/commands/test_import_enrichment_contracts.py:            # Phase 3: Apply enrichment
+tests/integration/commands/test_import_enrichment_contracts.py:                    "--enrichment",
+tests/integration/commands/test_import_enrichment_contracts.py:                    str(enrichment_report),
+tests/integration/commands/test_import_enrichment_contracts.py:            assert result2.exit_code == 0, f"Enrichment failed: {result2.stdout}"
+tests/integration/commands/test_import_enrichment_contracts.py:            enriched_project_bundle = load_project_bundle(bundle_dir, validate_hashes=False)
+tests/integration/commands/test_import_enrichment_contracts.py:            enriched_plan_bundle = _convert_project_bundle_to_plan_bundle(enriched_project_bundle)
+tests/integration/commands/test_import_enrichment_contracts.py:            enriched_feature_keys = {f.key for f in enriched_plan_bundle.features}
+tests/integration/commands/test_import_enrichment_contracts.py:            assert "FEATURE-NOTIFICATIONSERVICE" in enriched_feature_keys, "New feature from enrichment should be added"
+tests/integration/commands/test_import_enrichment_contracts.py:            assert len(enriched_feature_keys) > len(initial_feature_keys), "Should have more features after enrichment"
+tests/integration/commands/test_import_enrichment_contracts.py:    def test_incremental_contract_extraction_with_enrichment(self, sample_repo_with_features: Path) -> None:
+tests/integration/commands/test_import_enrichment_contracts.py:        Test that incremental contract extraction works correctly with enrichment.
+tests/integration/commands/test_import_enrichment_contracts.py:        When enrichment is applied, only features that need contracts should be processed:
+tests/integration/commands/test_import_enrichment_contracts.py:            bundle_name = "test-incremental-enrichment"
+tests/integration/commands/test_import_enrichment_contracts.py:            # Phase 2: Create enrichment (only metadata changes, no source file changes)
+tests/integration/commands/test_import_enrichment_contracts.py:            enrichment_dir = sample_repo_with_features / ".specfact" / "reports" / "enrichment"
+tests/integration/commands/test_import_enrichment_contracts.py:            enrichment_dir.mkdir(parents=True, exist_ok=True)
+tests/integration/commands/test_import_enrichment_contracts.py:            enrichment_report = enrichment_dir / f"{bundle_name}.enrichment.md"
+tests/integration/commands/test_import_enrichment_contracts.py:            enrichment_report.write_text(
+tests/integration/commands/test_import_enrichment_contracts.py:                """# Enrichment Report
+tests/integration/commands/test_import_enrichment_contracts.py:            # Phase 3: Apply enrichment (should NOT regenerate contracts)
+tests/integration/commands/test_import_enrichment_contracts.py:                    "--enrichment",
+tests/integration/commands/test_import_enrichment_contracts.py:                    str(enrichment_report),
+tests/integration/commands/test_import_enrichment_contracts.py:            # Phase 2: Create enrichment with new features
+tests/integration/commands/test_import_enrichment_contracts.py:            enrichment_dir = sample_repo_with_features / ".specfact" / "reports" / "enrichment"
+tests/integration/commands/test_import_enrichment_contracts.py:            enrichment_dir.mkdir(parents=True, exist_ok=True)
+tests/integration/commands/test_import_enrichment_contracts.py:            enrichment_report = enrichment_dir / f"{bundle_name}.enrichment.md"
+tests/integration/commands/test_import_enrichment_contracts.py:            enrichment_report.write_text(
+tests/integration/commands/test_import_enrichment_contracts.py:                """# Enrichment Report
+tests/integration/commands/test_import_enrichment_contracts.py:            # Phase 3: Apply enrichment and extract contracts
+tests/integration/commands/test_import_enrichment_contracts.py:                    "--enrichment",
+tests/integration/commands/test_import_enrichment_contracts.py:                    str(enrichment_report),
+tests/integration/commands/test_import_enrichment_contracts.py:            # Verify enrichment was applied
+tests/integration/commands/test_import_enrichment_contracts.py:            assert "Applying enrichment" in result2.stdout or "Added" in result2.stdout or "📝" in result2.stdout, (
+tests/integration/commands/test_import_enrichment_contracts.py:                "Enrichment should have been applied"
+tests/integration/commands/test_import_enrichment_contracts.py:    def test_enrichment_with_large_bundle_performance(self, sample_repo_with_features: Path) -> None:
+tests/integration/commands/test_import_enrichment_contracts.py:        Test that enrichment doesn't cause performance regression with large bundles.
+tests/integration/commands/test_import_enrichment_contracts.py:        With 320+ features, enrichment should not force regeneration of all contracts,
+tests/integration/commands/test_import_enrichment_contracts.py:            # Phase 2: Create minimal enrichment (only confidence adjustment)
+tests/integration/commands/test_import_enrichment_contracts.py:            enrichment_dir = sample_repo_with_features / ".specfact" / "reports" / "enrichment"
+tests/integration/commands/test_import_enrichment_contracts.py:            enrichment_dir.mkdir(parents=True, exist_ok=True)
+tests/integration/commands/test_import_enrichment_contracts.py:            enrichment_report = enrichment_dir / f"{bundle_name}.enrichment.md"
+tests/integration/commands/test_import_enrichment_contracts.py:            enrichment_report.write_text(
+tests/integration/commands/test_import_enrichment_contracts.py:                """# Enrichment Report
+tests/integration/commands/test_import_enrichment_contracts.py:            # Phase 3: Apply enrichment and measure time
+tests/integration/commands/test_import_enrichment_contracts.py:                    "--enrichment",
+tests/integration/commands/test_import_enrichment_contracts.py:                    str(enrichment_report),
+tests/integration/commands/test_import_enrichment_contracts.py:            # With enrichment that only adjusts confidence (no new features, no source changes),
+tests/integration/commands/test_import_enrichment_contracts.py:            assert elapsed_time < 30.0, f"Enrichment with unchanged files took {elapsed_time:.1f}s, should be < 30s"
+tests/integration/commands/test_terminal_output.py:            from rich.console import Console
+tests/e2e/test_constitution_commands.py:class TestConstitutionEnrichE2E:
+tests/e2e/test_constitution_commands.py:    """End-to-end tests for specfact bridge constitution enrich command."""
+tests/e2e/test_constitution_commands.py:    def test_enrich_fills_placeholders(self, tmp_path, monkeypatch):
+tests/e2e/test_constitution_commands.py:        """Test enrich command fills placeholders in existing constitution."""
+tests/e2e/test_constitution_commands.py:name = "enrich-test"
+tests/e2e/test_constitution_commands.py:description = "Test enrichment"
+tests/e2e/test_constitution_commands.py:                    "enrich",
+tests/e2e/test_constitution_commands.py:        assert "Constitution enriched" in result.stdout or "✓" in result.stdout
+tests/e2e/test_constitution_commands.py:        assert "enrich-test" in content or "Enrich Test" in content
+tests/e2e/test_constitution_commands.py:    def test_enrich_skips_if_no_placeholders(self, tmp_path, monkeypatch):
+tests/e2e/test_constitution_commands.py:        """Test enrich command skips if constitution has no placeholders."""
+tests/e2e/test_constitution_commands.py:                    "enrich",
+tests/e2e/test_constitution_commands.py:        assert "complete" in result.stdout.lower() or "no enrichment needed" in result.stdout.lower()
+tests/e2e/test_constitution_commands.py:    def test_enrich_fails_if_constitution_missing(self, tmp_path, monkeypatch):
+tests/e2e/test_constitution_commands.py:        """Test enrich command fails if constitution doesn't exist."""
+tests/e2e/test_constitution_commands.py:                    "enrich",
+tests/integration/commands/test_enrich_for_speckit.py:"""Integration tests for --enrich-for-speckit flag."""
+tests/integration/commands/test_enrich_for_speckit.py:class TestEnrichForSpeckitFlag:
+tests/integration/commands/test_enrich_for_speckit.py:    """Integration tests for --enrich-for-speckit flag in import from-code command."""
+tests/integration/commands/test_enrich_for_speckit.py:    def test_enrich_for_speckit_adds_edge_case_stories(self) -> None:
+tests/integration/commands/test_enrich_for_speckit.py:        """Test that --enrich-for-speckit adds edge case stories for features with only 1 story."""
+tests/integration/commands/test_enrich_for_speckit.py:                # Import with enrichment flag
+tests/integration/commands/test_enrich_for_speckit.py:                        "--enrich-for-speckit",
+tests/integration/commands/test_enrich_for_speckit.py:                # Note: Enrichment may fail silently, so we check if it worked
+tests/integration/commands/test_enrich_for_speckit.py:                    # If enrichment worked, should have at least 2 stories
+tests/integration/commands/test_enrich_for_speckit.py:                    # If enrichment failed, may have only 1 story (which is acceptable)
+tests/integration/commands/test_enrich_for_speckit.py:                        # Check if enrichment was attempted (should see message in output)
+tests/integration/commands/test_enrich_for_speckit.py:                            "Enriching plan" in result.stdout.lower()
+tests/integration/commands/test_enrich_for_speckit.py:                            or "Tool enrichment" in result.stdout
+tests/integration/commands/test_enrich_for_speckit.py:    def test_enrich_for_speckit_enhances_acceptance_criteria(self) -> None:
+tests/integration/commands/test_enrich_for_speckit.py:        """Test that --enrich-for-speckit enhances acceptance criteria to be testable."""
+tests/integration/commands/test_enrich_for_speckit.py:                # Import with enrichment flag
+tests/integration/commands/test_enrich_for_speckit.py:                        "--enrich-for-speckit",
+tests/integration/commands/test_enrich_for_speckit.py:                # Command may exit with 0 or 1 depending on validation, but enrichment should be attempted
+tests/integration/commands/test_enrich_for_speckit.py:                    "Enriching plan" in result.stdout.lower()
+tests/integration/commands/test_enrich_for_speckit.py:                    or "Tool enrichment" in result.stdout
+tests/integration/commands/test_enrich_for_speckit.py:                # Note: Enrichment may not always enhance all stories, so we check if any story has testable criteria
+tests/integration/commands/test_enrich_for_speckit.py:                # If enrichment worked, at least one story should have testable criteria
+tests/integration/commands/test_enrich_for_speckit.py:                # If enrichment failed, this might not be true, so we just verify the bundle was created
+tests/integration/commands/test_enrich_for_speckit.py:    def test_enrich_for_speckit_with_requirements_txt(self) -> None:
+tests/integration/commands/test_enrich_for_speckit.py:        """Test that --enrich-for-speckit works with requirements.txt."""
+tests/integration/commands/test_enrich_for_speckit.py:                # Import with enrichment flag
+tests/integration/commands/test_enrich_for_speckit.py:                        "--enrich-for-speckit",
+tests/integration/test_enrichment_parser_integration.py:"""Integration tests for enrichment parser with stories."""
+tests/integration/test_enrichment_parser_integration.py:from specfact_cli.utils.enrichment_parser import EnrichmentParser, apply_enrichment
+tests/integration/test_enrichment_parser_integration.py:class TestEnrichmentParserIntegration:
+tests/integration/test_enrichment_parser_integration.py:    """Integration tests for enrichment parser pipeline with stories."""
+tests/integration/test_enrichment_parser_integration.py:    def test_parse_and_apply_enrichment_with_stories(self, tmp_path: Path):
+tests/integration/test_enrichment_parser_integration.py:        """Test parsing enrichment report with stories and applying to plan bundle."""
+tests/integration/test_enrichment_parser_integration.py:        # Create enrichment report with stories
+tests/integration/test_enrichment_parser_integration.py:        report_content = """# Enrichment Report
+tests/integration/test_enrichment_parser_integration.py:        report_file = tmp_path / "enrichment.md"
+tests/integration/test_enrichment_parser_integration.py:        # Parse enrichment report
+tests/integration/test_enrichment_parser_integration.py:        parser = EnrichmentParser()
+tests/integration/test_enrichment_parser_integration.py:        enrichment = parser.parse(report_file)
+tests/integration/test_enrichment_parser_integration.py:        assert len(enrichment.missing_features) == 1
+tests/integration/test_enrichment_parser_integration.py:        feature_data = enrichment.missing_features[0]
+tests/integration/test_enrichment_parser_integration.py:        # Apply enrichment
+tests/integration/test_enrichment_parser_integration.py:        enriched = apply_enrichment(plan_bundle, enrichment)
+tests/integration/test_enrichment_parser_integration.py:        # Verify enriched bundle
+tests/integration/test_enrichment_parser_integration.py:        assert len(enriched.features) == 1
+tests/integration/test_enrichment_parser_integration.py:        feature = enriched.features[0]
+tests/unit/commands/test_import_contract_extraction.py:    def test_enrichment_does_not_force_contract_regeneration(self, tmp_path: Path) -> None:
+tests/unit/commands/test_import_contract_extraction.py:        Test that enrichment doesn't force contract regeneration.
+tests/unit/commands/test_import_contract_extraction.py:        When enrichment is provided, _check_incremental_changes should NOT return None
+tests/unit/commands/test_import_contract_extraction.py:        enrichment should NOT cause early return of None.
+tests/unit/commands/test_import_contract_extraction.py:        # The key test is that enrichment doesn't cause line 97 to return None
+tests/unit/commands/test_import_contract_extraction.py:        enrichment = tmp_path / "enrichment.md"
+tests/unit/commands/test_import_contract_extraction.py:        # Verify the logic: if bundle exists and enrichment is provided,
+tests/unit/commands/test_import_contract_extraction.py:        # The fix removed `or enrichment` from the condition that returns None
+tests/unit/commands/test_import_contract_extraction.py:        # Before fix: `if not bundle_dir.exists() or enrichment: return None`
+tests/unit/commands/test_import_contract_extraction.py:        # So when enrichment is provided and bundle exists, it should continue
+tests/unit/commands/test_import_contract_extraction.py:        assert enrichment.exists() or not enrichment.exists(), "Enrichment path may or may not exist"
+tests/unit/commands/test_import_contract_extraction.py:        # The key assertion: enrichment being provided should NOT cause
+tests/unit/commands/test_import_contract_extraction.py:    def test_new_features_from_enrichment_get_contracts(self) -> None:
+tests/unit/commands/test_import_contract_extraction.py:        Test that new features from enrichment get contracts extracted.
+tests/unit/commands/test_import_contract_extraction.py:        # Create feature WITHOUT contract (new feature from enrichment)
+tests/unit/commands/test_project_cmd.py:from rich.console import Console
+tests/e2e/test_brownfield_speckit_compliance.py:        Test complete workflow: brownfield import → enrich → sync → verify Spec-Kit compliance.
+tests/e2e/test_brownfield_speckit_compliance.py:            # Step 1: Import brownfield code with enrichment
+tests/e2e/test_brownfield_speckit_compliance.py:                    "--enrich-for-speckit",
+tests/e2e/test_brownfield_speckit_compliance.py:            # Import may fail if enrichment fails, but bundle should exist if import succeeded
+tests/e2e/test_brownfield_speckit_compliance.py:                # If import failed, check if it's due to enrichment issues
+tests/e2e/test_brownfield_speckit_compliance.py:    def test_enrich_for_speckit_ensures_compliance(self, brownfield_repo: Path) -> None:
+tests/e2e/test_brownfield_speckit_compliance.py:        """Test that --enrich-for-speckit ensures Spec-Kit compliance."""
+tests/e2e/test_brownfield_speckit_compliance.py:            # Import with enrichment
+tests/e2e/test_brownfield_speckit_compliance.py:            bundle_name = "enriched-project"
+tests/e2e/test_brownfield_speckit_compliance.py:                    "--enrich-for-speckit",
+tests/e2e/test_brownfield_speckit_compliance.py:            # Command may exit with 0 or 1 depending on validation, but enrichment should be attempted
+tests/e2e/test_brownfield_speckit_compliance.py:                "Enriching plan for Spec-Kit compliance" in result.stdout
+tests/e2e/test_brownfield_speckit_compliance.py:                or "Spec-Kit enrichment" in result.stdout
+tests/e2e/test_brownfield_speckit_compliance.py:            # Verify all features have at least 2 stories (if enrichment worked)
+tests/e2e/test_brownfield_speckit_compliance.py:            # Note: Enrichment may fail silently, so we check if it worked
+tests/e2e/test_brownfield_speckit_compliance.py:            enrichment_worked = "Spec-Kit enrichment complete" in result.stdout
+tests/e2e/test_brownfield_speckit_compliance.py:                if enrichment_worked:
+tests/e2e/test_brownfield_speckit_compliance.py:                        f"Feature {feature.get('key')} should have at least 2 stories after enrichment"
+tests/e2e/test_brownfield_speckit_compliance.py:                # Verify all stories have testable acceptance criteria (if enrichment worked)
+tests/e2e/test_brownfield_speckit_compliance.py:                if enrichment_worked:
+modules/bundle-mapper/src/bundle_mapper/ui/interactive.py:from rich.console import Console
+modules/bundle-mapper/src/bundle_mapper/ui/interactive.py:from rich.panel import Panel
+modules/bundle-mapper/src/bundle_mapper/ui/interactive.py:from rich.prompt import Prompt
+tests/unit/backlog/test_field_mappers.py:        """HTML-rich acceptance criteria should be normalized to markdown-like text."""
+tests/unit/utils/test_enrichment_parser_stories.py:"""Unit tests for enrichment parser with stories format."""
+tests/unit/utils/test_enrichment_parser_stories.py:from specfact_cli.utils.enrichment_parser import EnrichmentParser
+tests/unit/utils/test_enrichment_parser_stories.py:class TestEnrichmentParserStories:
+tests/unit/utils/test_enrichment_parser_stories.py:    """Test EnrichmentParser with enrichment reports containing stories."""
+tests/unit/utils/test_enrichment_parser_stories.py:    def test_parse_enrichment_report_with_stories(self, tmp_path: Path):
+tests/unit/utils/test_enrichment_parser_stories.py:        """Test parsing enrichment report with features containing stories and acceptance criteria."""
+tests/unit/utils/test_enrichment_parser_stories.py:        # Create test enrichment report with stories format
+tests/unit/utils/test_enrichment_parser_stories.py:        report_content = """# Enrichment Report
+tests/unit/utils/test_enrichment_parser_stories.py:        report_file = tmp_path / "enrichment.md"
+tests/unit/utils/test_enrichment_parser_stories.py:        parser = EnrichmentParser()
+tests/unit/utils/test_structure_project.py:    def test_get_bundle_enrichment_report_path(self, tmp_path: Path):
+tests/unit/utils/test_structure_project.py:        """Test get_bundle_enrichment_report_path creates timestamped path."""
+tests/unit/utils/test_structure_project.py:        report_path = SpecFactStructure.get_bundle_enrichment_report_path("test-bundle", base_path=tmp_path)
+tests/unit/utils/test_structure_project.py:        assert report_path.parent == tmp_path / ".specfact/projects/test-bundle/reports/enrichment"
+tests/unit/utils/test_structure_project.py:        assert report_path.name.endswith(".enrichment.md")
+tests/unit/utils/test_structure_project.py:        assert (project_dir / "reports" / "enrichment").exists()
+tests/unit/utils/test_enrichment_parser.py:"""Unit tests for enrichment parser."""
+tests/unit/utils/test_enrichment_parser.py:from specfact_cli.utils.enrichment_parser import EnrichmentParser, EnrichmentReport, apply_enrichment
+tests/unit/utils/test_enrichment_parser.py:class TestEnrichmentReport:
+tests/unit/utils/test_enrichment_parser.py:    """Test EnrichmentReport class."""
+tests/unit/utils/test_enrichment_parser.py:        """Test EnrichmentReport initialization."""
+tests/unit/utils/test_enrichment_parser.py:        report = EnrichmentReport()
+tests/unit/utils/test_enrichment_parser.py:        report = EnrichmentReport()
+tests/unit/utils/test_enrichment_parser.py:        report = EnrichmentReport()
+tests/unit/utils/test_enrichment_parser.py:        report = EnrichmentReport()
+tests/unit/utils/test_enrichment_parser.py:class TestEnrichmentParser:
+tests/unit/utils/test_enrichment_parser.py:    """Test EnrichmentParser class."""
+tests/unit/utils/test_enrichment_parser.py:        """Test parsing missing features from enrichment report."""
+tests/unit/utils/test_enrichment_parser.py:        report_content = """# Enrichment Report
+tests/unit/utils/test_enrichment_parser.py:        report_file = tmp_path / "enrichment.md"
+tests/unit/utils/test_enrichment_parser.py:        parser = EnrichmentParser()
+tests/unit/utils/test_enrichment_parser.py:        report_content = """# Enrichment Report
+tests/unit/utils/test_enrichment_parser.py:        report_file = tmp_path / "enrichment.md"
+tests/unit/utils/test_enrichment_parser.py:        parser = EnrichmentParser()
+tests/unit/utils/test_enrichment_parser.py:        report_content = """# Enrichment Report
+tests/unit/utils/test_enrichment_parser.py:        report_file = tmp_path / "enrichment.md"
+tests/unit/utils/test_enrichment_parser.py:        parser = EnrichmentParser()
+tests/unit/utils/test_enrichment_parser.py:        """Test parsing complete enrichment report."""
+tests/unit/utils/test_enrichment_parser.py:        report_content = """# Enrichment Report
+tests/unit/utils/test_enrichment_parser.py:        report_file = tmp_path / "enrichment.md"
+tests/unit/utils/test_enrichment_parser.py:        parser = EnrichmentParser()
+tests/unit/utils/test_enrichment_parser.py:        parser = EnrichmentParser()
+tests/unit/utils/test_enrichment_parser.py:class TestApplyEnrichment:
+tests/unit/utils/test_enrichment_parser.py:    """Test apply_enrichment function."""
+tests/unit/utils/test_enrichment_parser.py:        enrichment = EnrichmentReport()
+tests/unit/utils/test_enrichment_parser.py:        enrichment.adjust_confidence("FEATURE-TEST", 0.95)
+tests/unit/utils/test_enrichment_parser.py:        enriched = apply_enrichment(plan_bundle, enrichment)
+tests/unit/utils/test_enrichment_parser.py:        assert enriched.features[0].confidence == 0.95
+tests/unit/utils/test_enrichment_parser.py:        enrichment = EnrichmentReport()
+tests/unit/utils/test_enrichment_parser.py:        enrichment.add_missing_feature(
+tests/unit/utils/test_enrichment_parser.py:        enriched = apply_enrichment(plan_bundle, enrichment)
+tests/unit/utils/test_enrichment_parser.py:        assert len(enriched.features) == 1
+tests/unit/utils/test_enrichment_parser.py:        assert enriched.features[0].key == "FEATURE-NEW"
+tests/unit/utils/test_enrichment_parser.py:        assert enriched.features[0].confidence == 0.85
+tests/unit/utils/test_enrichment_parser.py:        enrichment = EnrichmentReport()
+tests/unit/utils/test_enrichment_parser.py:        enrichment.add_business_context("constraints", ["Constraint 1", "Constraint 2"])
+tests/unit/utils/test_enrichment_parser.py:        enriched = apply_enrichment(plan_bundle, enrichment)
+tests/unit/utils/test_enrichment_parser.py:        assert enriched.idea is not None
+tests/unit/utils/test_enrichment_parser.py:        assert len(enriched.idea.constraints) == 2
+tests/unit/utils/test_enrichment_parser.py:        assert "Constraint 1" in enriched.idea.constraints
+tests/unit/utils/test_enrichment_parser.py:    def test_apply_all_enrichments(self):
+tests/unit/utils/test_enrichment_parser.py:        """Test applying all enrichment types together."""
+tests/unit/utils/test_enrichment_parser.py:        enrichment = EnrichmentReport()
+tests/unit/utils/test_enrichment_parser.py:        enrichment.adjust_confidence("FEATURE-EXISTING", 0.95)
+tests/unit/utils/test_enrichment_parser.py:        enrichment.add_missing_feature(
+tests/unit/utils/test_enrichment_parser.py:        enrichment.add_business_context("constraints", ["New constraint"])
+tests/unit/utils/test_enrichment_parser.py:        enriched = apply_enrichment(plan_bundle, enrichment)
+tests/unit/utils/test_enrichment_parser.py:        assert enriched.features[0].confidence == 0.95  # Adjusted
+tests/unit/utils/test_enrichment_parser.py:        assert len(enriched.features) == 2  # Original + new
+tests/unit/utils/test_enrichment_parser.py:        assert enriched.idea is not None
+tests/unit/utils/test_enrichment_parser.py:        assert len(enriched.idea.constraints) == 1  # Business context added
+tests/unit/utils/test_enrichment_parser.py:    def test_apply_enrichment_preserves_original(self):
+tests/unit/utils/test_enrichment_parser.py:        """Test that apply_enrichment doesn't mutate original plan bundle."""
+tests/unit/utils/test_enrichment_parser.py:        enrichment = EnrichmentReport()
+tests/unit/utils/test_enrichment_parser.py:        enrichment.adjust_confidence("FEATURE-TEST", 0.95)
+tests/unit/utils/test_enrichment_parser.py:        enriched = apply_enrichment(plan_bundle, enrichment)
+tests/unit/utils/test_enrichment_parser.py:        # Enriched should have new value
+tests/unit/utils/test_enrichment_parser.py:        assert enriched.features[0].confidence == 0.95
+resources/prompts/specfact.06-sync.md:- `--ensure-compliance` - Validate and auto-enrich for tool compliance. Default: False
+resources/prompts/specfact.06-sync.md:### Phase 2: LLM Enrichment (OPTIONAL, Copilot Only)
+resources/prompts/specfact.01-import.md:description: Import codebase → plan bundle. CLI extracts routes/schemas/relationships. LLM enriches with context.
+resources/prompts/specfact.01-import.md:Import codebase → plan bundle. CLI extracts routes/schemas/relationships/contracts. LLM enriches context/"why"/completeness.
+resources/prompts/specfact.01-import.md:**Target/Input**: `--bundle NAME` (optional, defaults to active plan), `--repo PATH`, `--entry-point PATH`, `--enrichment PATH`  
+resources/prompts/specfact.01-import.md:**Behavior/Options**: `--shadow-only`, `--enrich-for-speckit/--no-enrich-for-speckit` (default: enabled, uses PlanEnricher for consistent enrichment)  
+resources/prompts/specfact.01-import.md:   - **Auto-enrichment enabled by default**: Automatically enhances vague acceptance criteria, incomplete requirements, and generic tasks using PlanEnricher (same logic as `plan review --auto-enrich`)
+resources/prompts/specfact.01-import.md:   - Use `--no-enrich-for-speckit` to disable auto-enrichment
+resources/prompts/specfact.01-import.md:   - **Contract extraction**: OpenAPI contracts are extracted automatically **only** for features with `source_tracking.implementation_files` and detectable API endpoints (FastAPI/Flask patterns). For enrichment-added features or Django apps, use `specfact contract init` after enrichment (see Phase 4)
+resources/prompts/specfact.01-import.md:2. **LLM Enrichment** (Copilot-only, before applying `--enrichment`):
+resources/prompts/specfact.01-import.md:   - Read CLI artifacts: `.specfact/projects/<bundle>/enrichment_context.md`, feature YAMLs, contract scaffolds, and brownfield reports
+resources/prompts/specfact.01-import.md:   - Save the enrichment report to `.specfact/projects/<bundle-name>/reports/enrichment/<bundle-name>-<timestamp>.enrichment.md` (bundle-specific, Phase 8.5)
+resources/prompts/specfact.01-import.md:   - **CRITICAL**: Follow the exact enrichment report format (see "Enrichment Report Format" section below) to ensure successful parsing
+resources/prompts/specfact.01-import.md:### Phase 2: LLM Enrichment (OPTIONAL, Copilot Only)
+resources/prompts/specfact.01-import.md:- **CRITICAL**: Generate enrichment report in the exact format specified below (see "Enrichment Report Format" section)
+resources/prompts/specfact.01-import.md:- ❌ Deviate from the enrichment report format (will cause parsing failures)
+resources/prompts/specfact.01-import.md:**Output**: Generate enrichment report (Markdown) saved to `.specfact/projects/<bundle-name>/reports/enrichment/` (bundle-specific, Phase 8.5)
+resources/prompts/specfact.01-import.md:**Enrichment Report Format** (REQUIRED for successful parsing):
+resources/prompts/specfact.01-import.md:The enrichment parser expects a specific Markdown format. Follow this structure exactly:
+resources/prompts/specfact.01-import.md:# [Bundle Name] Enrichment Report
+resources/prompts/specfact.01-import.md:5. **File Naming**: `<bundle-name>-<timestamp>.enrichment.md` (e.g., `djangogoat-2025-12-23T23-50-00.enrichment.md`)
+resources/prompts/specfact.01-import.md:# Use enrichment to update plan via CLI
+resources/prompts/specfact.01-import.md:specfact --no-interactive import from-code [<bundle>] --repo <path> --enrichment <enrichment-report>
+resources/prompts/specfact.01-import.md:**Result**: Final artifacts are CLI-generated with validated enrichments
+resources/prompts/specfact.01-import.md:- Features were added via enrichment (no `source_tracking.implementation_files`)
+resources/prompts/specfact.01-import.md:# Example: Generate contracts for all enrichment-added features
+resources/prompts/specfact.01-import.md:- **After Phase 3** (enrichment applied): Check which features have contracts in `.specfact/projects/<bundle>/contracts/`
+resources/prompts/specfact.01-import.md:- **For Django apps**: Always generate contracts manually after enrichment, as Django URL patterns are not auto-detected
+resources/prompts/specfact.01-import.md:/specfact.01-import --repo .                    # Uses active plan, auto-enrichment enabled by default
+resources/prompts/specfact.01-import.md:/specfact.01-import --bundle legacy-api --repo . # Auto-enrichment enabled
+resources/prompts/specfact.01-import.md:/specfact.01-import --repo . --no-enrich-for-speckit  # Disable auto-enrichment
+resources/prompts/specfact.01-import.md:/specfact.01-import --repo . --enrichment report.md
+resources/prompts/specfact.02-plan.md:### Phase 2: LLM Enrichment (OPTIONAL, Copilot Only)
+resources/prompts/specfact.02-plan.md:**Output**: Generate enrichment report (Markdown) or use `--batch-updates` JSON/YAML file
+resources/prompts/specfact.02-plan.md:# Use enrichment to update plan via CLI
+resources/prompts/specfact.02-plan.md:**Result**: Final artifacts are CLI-generated with validated enrichments
+resources/prompts/specfact.04-sdd.md:### Phase 2: LLM Enrichment (OPTIONAL, Copilot Only)
+resources/prompts/specfact.04-sdd.md:- Treat CLI SDD as the source of truth; scan codebase only to enrich WHY/WHAT/HOW context
+resources/prompts/specfact.04-sdd.md:**Output**: Generate enrichment report (Markdown) with suggestions
+resources/prompts/specfact.04-sdd.md:# Use enrichment to update plan via CLI, then regenerate SDD
+resources/prompts/specfact.04-sdd.md:**Result**: Final SDD is CLI-generated with validated enrichments
+resources/prompts/specfact.05-enforce.md:### Phase 2: LLM Enrichment (OPTIONAL, Copilot Only)
+resources/prompts/specfact.validate.md:### Phase 2: LLM Enrichment (OPTIONAL, Copilot Only)
+resources/prompts/specfact.compare.md:### Phase 2: LLM Enrichment (OPTIONAL, Copilot Only)
+resources/prompts/shared/cli-enforcement.md:- ✅ Plan enrichment (missing features, confidence adjustments, business context)
+resources/prompts/shared/cli-enforcement.md:- Use codebase findings to propose updates via CLI (enrichment report, plan update commands), never to rewrite artifacts directly.
+resources/prompts/shared/cli-enforcement.md:- ⏳ Plan enrichment (future: `plan enrich-prompt` / `enrich-apply`) - Needs implementation
+tests/unit/utils/test_structure_enrichment.py:"""Unit tests for enrichment report path utilities in SpecFactStructure."""
+tests/unit/utils/test_structure_enrichment.py:class TestEnrichmentReportPath:
+tests/unit/utils/test_structure_enrichment.py:    """Test enrichment report path generation."""
+tests/unit/utils/test_structure_enrichment.py:    def test_get_enrichment_report_path_basic(self, tmp_path: Path):
+tests/unit/utils/test_structure_enrichment.py:        """Test basic enrichment report path generation (legacy method still works)."""
+tests/unit/utils/test_structure_enrichment.py:        enrichment_path = SpecFactStructure.get_enrichment_report_path(plan_bundle, base_path=tmp_path)
+tests/unit/utils/test_structure_enrichment.py:        assert enrichment_path.parent == tmp_path / ".specfact" / "reports" / "enrichment"
+tests/unit/utils/test_structure_enrichment.py:        assert enrichment_path.name == "test-plan.2025-11-17T10-00-00.enrichment.md"
+tests/unit/utils/test_structure_enrichment.py:        assert enrichment_path.exists() is False  # Directory created, file not created
+tests/unit/utils/test_structure_enrichment.py:    def test_get_enrichment_report_path_creates_directory(self, tmp_path: Path):
+tests/unit/utils/test_structure_enrichment.py:        """Test that enrichment report path creation creates the directory."""
+tests/unit/utils/test_structure_enrichment.py:        enrichment_path = SpecFactStructure.get_enrichment_report_path(plan_bundle, base_path=tmp_path)
+tests/unit/utils/test_structure_enrichment.py:        assert enrichment_path.parent.exists(), "Enrichment directory should be created"
+tests/unit/utils/test_structure_enrichment.py:        assert enrichment_path.parent.is_dir()
+tests/unit/utils/test_structure_enrichment.py:    def test_get_enrichment_report_path_name_matching(self, tmp_path: Path):
+tests/unit/utils/test_structure_enrichment.py:        """Test that enrichment report name matches plan bundle name."""
+tests/unit/utils/test_structure_enrichment.py:        enrichment_path = SpecFactStructure.get_enrichment_report_path(plan_bundle, base_path=tmp_path)
+tests/unit/utils/test_structure_enrichment.py:        expected_name = "api-client-v2.2025-11-04T22-17-22.enrichment.md"
+tests/unit/utils/test_structure_enrichment.py:        assert enrichment_path.name == expected_name
+tests/unit/utils/test_structure_enrichment.py:    def test_get_enrichment_report_path_fallback(self, tmp_path: Path):
+tests/unit/utils/test_structure_enrichment.py:        enrichment_path = SpecFactStructure.get_enrichment_report_path(plan_bundle, base_path=tmp_path)
+tests/unit/utils/test_structure_enrichment.py:        assert enrichment_path.name == "custom-plan.enrichment.md"
+tests/unit/utils/test_structure_enrichment.py:    def test_get_enrichment_report_path_relative_base(self, tmp_path: Path):
+tests/unit/utils/test_structure_enrichment.py:        """Test enrichment report path with relative base path."""
+tests/unit/utils/test_structure_enrichment.py:            enrichment_path = SpecFactStructure.get_enrichment_report_path(plan_bundle, base_path=tmp_path)
+tests/unit/utils/test_structure_enrichment.py:            assert ".specfact/reports/enrichment" in str(enrichment_path)
+tests/unit/utils/test_structure_enrichment.py:            assert enrichment_path.name == "test.2025-11-17T10-00-00.enrichment.md"
+tests/unit/utils/test_structure_enrichment.py:class TestPlanBundleFromEnrichment:
+tests/unit/utils/test_structure_enrichment.py:    """Test get_plan_bundle_from_enrichment method."""
+tests/unit/utils/test_structure_enrichment.py:    def test_get_plan_bundle_from_enrichment_basic(self, tmp_path: Path):
+tests/unit/utils/test_structure_enrichment.py:        """Test basic plan bundle derivation from enrichment report."""
+tests/unit/utils/test_structure_enrichment.py:        # Create enrichment report
+tests/unit/utils/test_structure_enrichment.py:        enrichment_report = (
+tests/unit/utils/test_structure_enrichment.py:            tmp_path / ".specfact" / "reports" / "enrichment" / "test-plan.2025-11-17T10-00-00.enrichment.md"
+tests/unit/utils/test_structure_enrichment.py:        enrichment_report.parent.mkdir(parents=True, exist_ok=True)
+tests/unit/utils/test_structure_enrichment.py:        enrichment_report.write_text("# Enrichment Report")
+tests/unit/utils/test_structure_enrichment.py:        derived_plan = SpecFactStructure.get_plan_bundle_from_enrichment(enrichment_report, base_path=tmp_path)
+tests/unit/utils/test_structure_enrichment.py:    def test_get_plan_bundle_from_enrichment_not_found(self, tmp_path: Path):
+tests/unit/utils/test_structure_enrichment.py:        # Create enrichment report without corresponding plan
+tests/unit/utils/test_structure_enrichment.py:        enrichment_report = (
+tests/unit/utils/test_structure_enrichment.py:            tmp_path / ".specfact" / "reports" / "enrichment" / "missing-plan.2025-11-17T10-00-00.enrichment.md"
+tests/unit/utils/test_structure_enrichment.py:        enrichment_report.parent.mkdir(parents=True, exist_ok=True)
+tests/unit/utils/test_structure_enrichment.py:        enrichment_report.write_text("# Enrichment Report")
+tests/unit/utils/test_structure_enrichment.py:        derived_plan = SpecFactStructure.get_plan_bundle_from_enrichment(enrichment_report, base_path=tmp_path)
+tests/unit/utils/test_structure_enrichment.py:class TestEnrichedPlanPath:
+tests/unit/utils/test_structure_enrichment.py:    """Test get_enriched_plan_path method."""
+tests/unit/utils/test_structure_enrichment.py:    def test_get_enriched_plan_path_basic(self, tmp_path: Path):
+tests/unit/utils/test_structure_enrichment.py:        """Test basic enriched plan path generation."""
+tests/unit/utils/test_structure_enrichment.py:        enriched_path = SpecFactStructure.get_enriched_plan_path(original_plan, base_path=tmp_path)
+tests/unit/utils/test_structure_enrichment.py:        assert enriched_path.name.startswith("test-plan"), "Should start with plan name"
+tests/unit/utils/test_structure_enrichment.py:        assert ".enriched." in enriched_path.name, "Should contain .enriched. label"
+tests/unit/utils/test_structure_enrichment.py:        assert enriched_path.name.endswith(".bundle.yaml"), "Should end with .bundle.yaml"
+tests/unit/utils/test_structure_enrichment.py:        assert enriched_path != original_plan, "Should be different from original"
+tests/unit/utils/test_structure_enrichment.py:    def test_get_enriched_plan_path_naming_convention(self, tmp_path: Path):
+tests/unit/utils/test_structure_enrichment.py:        """Test enriched plan naming convention matches expected format."""
+tests/unit/utils/test_structure_enrichment.py:        enriched_path = SpecFactStructure.get_enriched_plan_path(original_plan, base_path=tmp_path)
+tests/unit/utils/test_structure_enrichment.py:        # Format: <name>.<original-timestamp>.enriched.<enrichment-timestamp>.bundle.yaml
+tests/unit/utils/test_structure_enrichment.py:        parts = enriched_path.stem.split(".")
+tests/unit/utils/test_structure_enrichment.py:        assert len(parts) >= 4, f"Enriched plan name should have at least 4 parts: {enriched_path.name}"
+tests/unit/utils/test_structure_enrichment.py:        assert parts[2] == "enriched", "Third part should be 'enriched' label"
+tests/unit/utils/test_structure_enrichment.py:        # Fourth part should be enrichment timestamp (format: YYYY-MM-DDTHH-MM-SS)
+tests/unit/utils/test_structure_enrichment.py:    def test_get_enriched_plan_path_creates_directory(self, tmp_path: Path):
+tests/unit/utils/test_structure_enrichment.py:        """Test that enriched plan path creation creates the directory."""
+tests/unit/utils/test_structure_enrichment.py:        enriched_path = SpecFactStructure.get_enriched_plan_path(original_plan, base_path=tmp_path)
+tests/unit/utils/test_structure_enrichment.py:        assert enriched_path.parent.exists(), "Enriched plan directory should exist"
+tests/unit/utils/test_structure_enrichment.py:        assert enriched_path.parent == original_plan.parent, "Should be in same directory as original"
+CLAUDE.md:- CLI commands use `typer.Typer()` + `rich.console.Console()`
+CLAUDE.md:- `rich~=13.5.2` is pinned for semgrep compatibility — do not upgrade without checking
+CLAUDE.md:from rich.console import Console
+resources/prompts/specfact.03-review.md:- `--auto-enrich` - Automatically enrich vague acceptance criteria using PlanEnricher (same enrichment logic as `import from-code`). Default: False (opt-in for review, but import has auto-enrichment enabled by default)
+resources/prompts/specfact.03-review.md:**Important**: `--auto-enrich` will **NOT** resolve partial findings such as:
+resources/prompts/specfact.03-review.md:# Export questions to file (REQUIRED for LLM enrichment workflow)
+resources/prompts/specfact.03-review.md:**CRITICAL**: For partial findings (missing error handling, vague acceptance criteria, business context), `--auto-enrich` will **NOT** resolve them. You must use LLM reasoning.
+resources/prompts/specfact.03-review.md:### Step 4: Apply Enrichment via CLI
+resources/prompts/specfact.03-review.md:Use `plan update-idea` to update idea fields from enrichment recommendations:
+resources/prompts/specfact.03-review.md:#### Option C: Apply enrichment via import (only if bundle needs regeneration)
+resources/prompts/specfact.03-review.md:specfact code import [<bundle-name>] --repo . --enrichment enrichment-report.md
+resources/prompts/specfact.03-review.md:- If enrichment report was created, summarize what was addressed
+resources/prompts/specfact.03-review.md:### Phase 2: LLM Enrichment (REQUIRED for Partial Findings)
+resources/prompts/specfact.03-review.md:**CRITICAL**: `--auto-enrich` will **NOT** resolve partial findings. LLM reasoning is **REQUIRED** for:
+resources/prompts/specfact.03-review.md:- ❌ Use `--auto-enrich` expecting it to resolve partial findings
+resources/prompts/specfact.03-review.md:# Use auto-enrich for simple vague criteria (not partial findings)
+resources/prompts/specfact.03-review.md:specfact plan review [<bundle-name>] --auto-enrich --no-interactive
+resources/prompts/specfact.03-review.md:**Result**: Final artifacts are CLI-generated with validated enrichments
+resources/prompts/specfact.03-review.md:/specfact.03-review --list-findings --findings-format json  # JSON format for enrichment
+resources/prompts/specfact.03-review.md:# Auto-enrichment (NOTE: Will NOT resolve partial findings - use export/LLM/import workflow instead)
+resources/prompts/specfact.03-review.md:/specfact.03-review --auto-enrich                     # Auto-enrich simple vague criteria only
+resources/prompts/specfact.03-review.md:## Enrichment Workflow
+resources/prompts/specfact.03-review.md:**CRITICAL**: `--auto-enrich` will **NOT** resolve partial findings such as:
+resources/prompts/specfact.03-review.md:- **During import**: Auto-enrichment happens automatically (enabled by default)
+resources/prompts/specfact.03-review.md:- **After import**: Use `specfact plan review --auto-enrich` for simple vague criteria
+resources/prompts/specfact.03-review.md:- If bundle needs regeneration, use `import from-code --enrichment`
+resources/prompts/specfact.03-review.md:After applying enrichment or review updates, check if features need OpenAPI contracts for sidecar validation:
+resources/prompts/specfact.03-review.md:- Features added via enrichment typically don't have contracts (no `source_tracking`)
+resources/prompts/specfact.03-review.md:**Enrichment Report Format** (for `import from-code --enrichment`):
+resources/prompts/specfact.03-review.md:When generating enrichment reports for use with `import from-code --enrichment`, follow this exact format:
+resources/prompts/specfact.03-review.md:# [Bundle Name] Enrichment Report
+resources/prompts/specfact.03-review.md:5. **File Naming**: `<bundle-name>-<timestamp>.enrichment.md` (e.g., `djangogoat-2025-12-23T23-50-00.enrichment.md`)
+CHANGELOG.md:- ADO markdown write-back and extraction handling were hardened: markdown-supported fields are formatted consistently, duplicate description headings are stripped, and rich-text normalization preserves line breaks and non-HTML angle-bracket content.
+CHANGELOG.md:- Enriched provider dependency extraction for graph analysis:
+CHANGELOG.md:  - GitHub: normalized relationship extraction (`blocks`, `blocked by`, related, parent/child conventions) and graph type enrichment
+CHANGELOG.md:  - Progress indicators use `rich.progress.Progress` with transient display
+CHANGELOG.md:- **Import Command Bug Fixes**: Fixed critical bugs in enrichment and contract extraction workflow
+CHANGELOG.md:  - **Unhashable Type Error**: Fixed `TypeError: unhashable type: 'Feature'` when applying enrichment reports
+CHANGELOG.md:    - Prevents runtime errors during contract extraction when enrichment adds new features
+CHANGELOG.md:  - **Enrichment Performance Regression**: Fixed severe performance issue where enrichment forced full contract regeneration
+CHANGELOG.md:    - Removed `or enrichment` condition from `_check_incremental_changes` that forced full regeneration
+CHANGELOG.md:    - Enrichment now only triggers contract extraction for new features (without contracts)
+CHANGELOG.md:    - Performance improvement: enrichment with unchanged files now completes in seconds instead of 80+ minutes for large bundles
+CHANGELOG.md:  - **Contract Extraction Order**: Fixed contract extraction to run after enrichment application
+CHANGELOG.md:    - Ensures new features from enrichment reports are included in contract extraction
+CHANGELOG.md:- **Comprehensive Test Coverage**: Added extensive test suite for import and enrichment bugs
+CHANGELOG.md:  - **Integration Tests**: New `test_import_enrichment_contracts.py` with 5 test cases (552 lines)
+CHANGELOG.md:    - Tests enrichment not forcing full contract regeneration
+CHANGELOG.md:    - Tests new features from enrichment getting contracts extracted
+CHANGELOG.md:    - Tests incremental contract extraction with enrichment
+CHANGELOG.md:    - Tests enrichment not forcing contract regeneration
+CHANGELOG.md:    - Tests new features from enrichment getting contracts
+CHANGELOG.md:  - **Updated Existing Tests**: Enhanced `test_import_command.py` with enrichment regression test
+CHANGELOG.md:  - **Enrichment Context Operations**: Added spinner progress for hash comparison, context building, and file writing
+CHANGELOG.md:- **Linting Errors**: Fixed unused `progress_columns` variable warnings in enrichment context functions
+CHANGELOG.md:    - `specfact bridge constitution enrich` → `specfact sdd constitution enrich`
+CHANGELOG.md:- **Enrichment Parser Story Merging**: Fixed critical issue where stories from enrichment reports were not added when updating existing features
+CHANGELOG.md:  - Now correctly merges stories from enrichment reports into existing features (adds new stories that don't already exist by key)
+CHANGELOG.md:  - Preserves existing stories while adding new ones from enrichment reports
+CHANGELOG.md:  - Enables full dual-stack enrichment workflow: CLI grounding → LLM enrichment → CLI artifact creation with complete story details
+CHANGELOG.md:  - Bundle-specific reports directory: `.specfact/projects/<bundle-name>/reports/` (brownfield, comparison, enrichment, enforcement)
+CHANGELOG.md:    - `build_enrichment_context`, `apply_enrichment`, `save_bundle`, `validate_api_specs`
+CHANGELOG.md:  - Preferred workflow for Copilot LLM enrichment when multiple features/stories need refinement
+CHANGELOG.md:  - Enables efficient bulk updates after plan review or LLM enrichment
+CHANGELOG.md:  - Provides comprehensive findings list for LLM enrichment and batch update generation
+CHANGELOG.md:  - Tests for complete Copilot LLM enrichment workflow with batch updates
+CHANGELOG.md:  - Added `_handle_auto_enrichment()` helper for auto-enrichment logic
+CHANGELOG.md:  - Improved workflow recommendations for Copilot LLM enrichment scenarios
+CHANGELOG.md:  - Improved contract validation for `_handle_auto_enrichment()` function
+CHANGELOG.md:  - `SpecFactStructure` utilities now emit enriched/brownfield filenames preserving the original format so Copilot/CI stay in sync
+CHANGELOG.md:  - Both `PlanEnricher` and `AmbiguityScanner` now use shared detection logic
+CHANGELOG.md:  - `PlanEnricher._is_code_specific_criteria()` now delegates to shared utility
+CHANGELOG.md:  - Added `--enrich-for-speckit` flag to `specfact import from-code`
+CHANGELOG.md:  - Integration tests for `--enrich-for-speckit` flag (`test_enrich_for_speckit.py`)
+CHANGELOG.md:  - Updated CLI-first documentation (`03-spec-factory-cli-bundle.md`, `09-sync-operation.md`, `10-dual-stack-enrichment-pattern.md`, `11-plan-review-architecture.md`)
+CHANGELOG.md:  - Made test assertions more lenient to account for potential silent failures in enrichment
+CHANGELOG.md:  - Full Copilot workflow support with three-phase pattern (CLI grounding → LLM enrichment → CLI artifact creation)
+CHANGELOG.md:- **Dual-Stack Enrichment Pattern**
+CHANGELOG.md:  - Three-phase workflow for Copilot mode: CLI Grounding, LLM Enrichment, CLI Artifact Creation
+CHANGELOG.md:  - Enrichment report parser (`EnrichmentParser`) for applying LLM-generated improvements
+CHANGELOG.md:  - Automatic enriched plan creation with naming convention: `<name>.<timestamp>.enriched.<timestamp>.bundle.yaml`
+CHANGELOG.md:  - Enrichment reports stored in `.specfact/reports/enrichment/` with self-explaining names
+CHANGELOG.md:  - Story validation for enriched features (all enriched features must include stories)
+CHANGELOG.md:  - Full integration with `specfact import from-code` command via `--enrichment` flag
+CHANGELOG.md:  - Dual-stack enrichment pattern documented and enforced in all relevant prompts
+CHANGELOG.md:  - Dual-stack enrichment pattern integrated where applicable
+CHANGELOG.md:- **Enrichment Workflow**
+CHANGELOG.md:  - LLM enrichment now **required** in Copilot mode (not optional)
+CHANGELOG.md:  - Enrichment reports must include stories for all missing features
+CHANGELOG.md:  - Phase 3 (CLI Artifact Creation) always executes when enrichment is generated
+CHANGELOG.md:  - Clear naming convention linking enrichment reports to original plans
+CHANGELOG.md:- **Enrichment Parser**
+CHANGELOG.md:  - Fixed parsing of stories within missing features in enrichment reports
+CHANGELOG.md:  - Enhanced format validation for enrichment report structure
+CHANGELOG.md:  - Improved error messages for malformed enrichment reports
+CHANGELOG.md:  - Fixed contract violations in enrichment parser and ambiguity scanner
+CHANGELOG.md:  - `docs/internal/cli-first/10-dual-stack-enrichment-pattern.md` - Dual-stack enrichment architecture
+CHANGELOG.md:  - Enhanced `console.py` with rich terminal output for validation reports
+scripts/cleanup_acceptance_criteria.py:that were added during previous enrichment runs before the fix was implemented.
+scripts/check-cross-site-links.py:from rich.console import Console
+scripts/check-docs-commands.py:from rich.console import Console

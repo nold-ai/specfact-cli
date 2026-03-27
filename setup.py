@@ -23,7 +23,7 @@ if __name__ == "__main__":
             "cryptography>=43.0.0",
             "cffi>=1.17.1",
             "typer>=0.15.0",
-            "rich>=14.0.0",
+            "rich>=13.5.2,<13.6.0",
             "jinja2>=3.1.0",
             "networkx>=3.2",
             "gitpython>=3.1.0",

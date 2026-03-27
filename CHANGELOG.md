@@ -28,6 +28,8 @@ All notable changes to this project will be documented in this file.
 - `SpecKitAdapter.get_capabilities()` refactored with helper methods (`_detect_layout`, `_detect_version`, `_extract_extension_fields`) to reduce cyclomatic complexity.
 - Logging in `speckit.py` and `speckit_scanner.py` switched from `logging.getLogger` to `get_bridge_logger` per production command path convention.
 
+---
+
 ## [0.42.6] - 2026-03-26
 
 ### Fixed
