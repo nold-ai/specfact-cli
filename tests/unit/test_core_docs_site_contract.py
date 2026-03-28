@@ -94,8 +94,7 @@ def test_core_layout_keeps_sidebar_core_focused() -> None:
     layout = _read(DOCS_LAYOUT)
 
     assert "Core CLI Docs" in layout
-    assert "Documentation navigation for Getting Started" in layout
-    assert "Module System, Architecture, Workflows, Integrations, Migration, and Reference" in layout
+    assert 'aria-label="Documentation navigation"' in layout
     assert "Official Modules Docs" not in layout
 
 

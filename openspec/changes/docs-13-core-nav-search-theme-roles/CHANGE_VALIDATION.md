@@ -36,9 +36,9 @@ Change 'docs-13-core-nav-search-theme-roles' is valid
 
 ## Dependency Notes
 
-- `docs-05-core-site-ia-restructure` remains the structural prerequisite because the new navigation layer assumes the post-restructure core IA.
-- `docs-07-core-handoff-conversion` remains a guardrail so improved landing/navigation UX does not reintroduce module-owned content into core docs.
-- `docs-12-docs-validation-ci` remains the validation foundation for keeping the new navigation/search assets and metadata coherent.
+- `docs-05-core-site-ia-restructure` is required because the new navigation layer assumes the post-restructure core IA.
+- `docs-07-core-handoff-conversion` serves as a guardrail so improved landing/navigation UX does not reintroduce module-owned content into core docs.
+- `docs-12-docs-validation-ci` provides the validation foundation for keeping the new navigation/search assets and metadata coherent.
 
 ## Recommendation
 

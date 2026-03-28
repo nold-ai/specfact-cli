@@ -4,6 +4,8 @@ import re
 from pathlib import Path
 from urllib.parse import unquote, urlparse
 
+import yaml
+
 
 MODULES_DOCS_HOST = "modules.specfact.io"
 DOCS_HOST = "docs.specfact.io"
@@ -84,7 +86,8 @@ def _published_route_for_path(path: Path, metadata: dict[str, str]) -> str:
     permalink = metadata.get("permalink")
     if permalink:
         return _normalize_route(permalink)
-    return _normalize_route(f"/{path.stem}/")
+    rel = path.relative_to(_docs_root())
+    return _normalize_route("/" + str(rel.with_suffix("")).replace("\\", "/").lstrip("/"))
 
 
 def _build_published_docs_index() -> tuple[dict[str, Path], dict[Path, dict[str, str]], dict[Path, str]]:
@@ -100,6 +103,11 @@ def _build_published_docs_index() -> tuple[dict[str, Path], dict[Path, dict[str,
         path_to_route[path] = route
 
     return route_to_path, path_to_metadata, path_to_route
+
+
+def _docs_config() -> dict[str, object]:
+    config_path = _repo_file("docs/_config.yml")
+    return yaml.safe_load(_read_text(config_path)) or {}
 
 
 def _extract_links(source: Path, content: str) -> list[str]:
@@ -129,7 +137,17 @@ def _resolve_internal_docs_target(
     if not stripped or stripped.startswith("#"):
         return None, None, None
     if "{{" in stripped and "site." in stripped:
-        return None, None, None
+        match = re.search(r"site\.([a-zA-Z0-9_]+)", stripped)
+        if not match:
+            return None, None, f"{source.relative_to(_repo_root())} -> unresolved site token {stripped}"
+        key = match.group(1)
+        config = _docs_config()
+        value = config.get(key)
+        if not isinstance(value, str) or not value.strip():
+            return None, None, f"{source.relative_to(_repo_root())} -> docs/_config.yml missing non-empty site.{key}"
+        if key.endswith("_url") and not value.startswith("http"):
+            return None, None, f"{source.relative_to(_repo_root())} -> docs/_config.yml site.{key} must start with http"
+        stripped = value.strip()
 
     parsed = urlparse(stripped)
     if parsed.scheme in {"mailto", "javascript", "tel"}:

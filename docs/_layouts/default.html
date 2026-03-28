@@ -110,12 +110,13 @@
         });
 
         mermaid.initialize({
-          startOnLoad: true,
+          startOnLoad: false,
           theme: isDark ? 'dark' : 'default',
           securityLevel: 'loose',
           flowchart: { useMaxWidth: true, htmlLabels: true, curve: 'basis' },
           themeVariables: isDark ? mermaidDarkVars : mermaidLightVars
         });
+        mermaid.run();
       }
 
       function rerenderMermaid(theme) {
@@ -176,7 +177,7 @@
 
     <main class="page-content" aria-label="Content">
       <div class="wrapper docs-layout">
-        <aside class="docs-sidebar" aria-label="Documentation navigation for Getting Started, Core CLI, Module System, Architecture, Workflows, Integrations, Migration, and Reference">
+        <aside class="docs-sidebar" aria-label="Documentation navigation">
           <div class="docs-sidebar-inner">
             <h2 class="docs-sidebar-title">
               <a href="{{ '/' | relative_url }}">Core CLI Docs</a>

@@ -7,6 +7,7 @@ import os
 import re
 import shlex
 import sys
+from collections.abc import Mapping
 from pathlib import Path
 
 import yaml
@@ -208,6 +209,8 @@ def validate_command_tokens(tokens: list[str]) -> tuple[bool, str]:
 def _should_skip_markdown_path(rel: Path, rel_posix: str) -> bool:
     if "_site" in rel.parts or "vendor" in rel.parts:
         return True
+    if rel_posix == "docs/migration/migration-guide.md":
+        return False
     return rel_posix.startswith("docs/migration/") or rel_posix in _EXCLUDED_DOC_PATHS
 
 
@@ -285,17 +288,35 @@ def _build_published_docs_index(docs_root: Path) -> dict[str, Path]:
 
 
 @beartype
+def _mapping_entries(raw_value: object) -> list[Mapping[str, object]]:
+    if not isinstance(raw_value, list):
+        return []
+    return [entry for entry in raw_value if isinstance(entry, Mapping)]
+
+
+@beartype
+def _mapping_list_entries(mapping: Mapping[str, object], key: str) -> list[Mapping[str, object]]:
+    return _mapping_entries(mapping.get(key))
+
+
+@beartype
+def _mapping_string(mapping: Mapping[str, object], key: str) -> str | None:
+    value = mapping.get(key)
+    return value if isinstance(value, str) else None
+
+
+@beartype
 def _iter_nav_urls(nav_data: list[dict[str, object]]) -> list[str]:
     urls: list[str] = []
     for section in nav_data:
-        for item in section.get("items", []) or []:
-            url = item.get("url")
-            if isinstance(url, str):
+        for item in _mapping_list_entries(section, "items"):
+            url = _mapping_string(item, "url")
+            if url is not None:
                 urls.append(url)
-        for bundle in section.get("bundles", []) or []:
-            for item in bundle.get("items", []) or []:
-                url = item.get("url")
-                if isinstance(url, str):
+        for bundle in _mapping_list_entries(section, "bundles"):
+            for item in _mapping_list_entries(bundle, "items"):
+                url = _mapping_string(item, "url")
+                if url is not None:
                     urls.append(url)
     return urls
 
@@ -306,7 +327,10 @@ def _validate_nav_targets(docs_root: Path) -> list[str]:
     if not nav_path.is_file():
         return [f"{nav_path.relative_to(_REPO_ROOT)}: missing nav data file"]
 
-    nav_data = yaml.safe_load(nav_path.read_text(encoding="utf-8")) or []
+    try:
+        nav_data = yaml.safe_load(nav_path.read_text(encoding="utf-8")) or []
+    except yaml.YAMLError as exc:
+        return [f"{nav_path.relative_to(_REPO_ROOT)}: unable to parse nav data ({exc})"]
     if not isinstance(nav_data, list):
         return [f"{nav_path.relative_to(_REPO_ROOT)}: nav data must be a list"]
 

@@ -14,7 +14,9 @@
   function applyFilter(level) {
     // Update pills
     pills.forEach(function(p) {
-      p.classList.toggle('active', p.getAttribute('data-level') === level);
+      var isActive = p.getAttribute('data-level') === level;
+      p.classList.toggle('active', isActive);
+      p.setAttribute('aria-pressed', isActive ? 'true' : 'false');
     });
 
     var items = document.querySelectorAll('.docs-nav li[data-expertise]');

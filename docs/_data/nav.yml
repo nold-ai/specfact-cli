@@ -9,12 +9,6 @@
     - title: Quickstart
       url: /getting-started/quickstart/
       expertise: [beginner]
-    - title: Bootstrap Checklist
-      url: /module-system/bootstrap-checklist/
-      expertise: [beginner, intermediate]
-    - title: AI IDE Workflow
-      url: /guides/ai-ide-workflow/
-      expertise: [beginner, intermediate]
 
 - section: Core CLI
   items:

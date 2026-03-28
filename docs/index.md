@@ -12,6 +12,8 @@ expertise_level: [beginner, intermediate, advanced]
 
 SpecFact CLI is a contract-first Python CLI that keeps backlogs, specs, tests, and code in sync. This site covers the core platform - runtime, lifecycle, command topology, and architecture.
 
+SpecFact CLI does **not** include built-in AI. It pairs deterministic CLI commands with slash-command prompts in your chosen IDE.
+
 For module-specific workflows (backlog, governance, adapters), see [modules.specfact.io](https://modules.specfact.io/).
 
 Use the shared portal navigation to move between **Docs Home**, **Core CLI**, and **Modules** without changing interaction patterns.

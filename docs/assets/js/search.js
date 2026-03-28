@@ -79,6 +79,7 @@
   function createResultLink(doc) {
     var link = document.createElement('a');
     link.className = 'docs-search-result';
+    link.setAttribute('role', 'listitem');
     link.href = isSafeRelativeUrl(doc.url) ? doc.url : '/';
 
     var titleEl = document.createElement('div');
