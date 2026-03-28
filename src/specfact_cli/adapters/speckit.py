@@ -109,8 +109,8 @@ class SpecKitAdapter(BridgeAdapter):
                     return version_match.group(1)
         except subprocess.TimeoutExpired:
             logger.debug("specify --version timed out after 5 seconds")
-        except OSError:
-            pass
+        except OSError as exc:
+            logger.debug("specify --version failed due to OSError: %s", exc)
         return None
 
     @beartype
