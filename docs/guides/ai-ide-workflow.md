@@ -14,7 +14,14 @@ redirect_from:
 
 ## Overview
 
-SpecFact CLI integrates with AI-assisted IDEs through slash commands that enable a seamless workflow: **SpecFact finds gaps → AI IDE fixes them → SpecFact validates**. This guide explains the complete workflow from setup to validation.
+SpecFact CLI integrates with AI-assisted IDEs through slash commands that enable
+a seamless workflow: **SpecFact finds gaps -> AI IDE helps apply changes ->
+SpecFact validates**. This guide explains the complete workflow from setup to
+validation.
+
+SpecFact CLI itself does **not** contain built-in AI. The AI lives in your IDE
+of choice. SpecFact provides prompt templates and deterministic commands so
+that copilot-driven work stays grounded in the CLI workflow.
 
 **Key Benefits**:
 

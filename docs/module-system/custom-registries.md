@@ -5,6 +5,9 @@ permalink: /module-system/custom-registries/
 redirect_from:
   - /guides/custom-registries/
 description: Add, list, and manage custom module registries with trust levels and priority.
+keywords: [custom registries, private registry, trust levels]
+audience: [team, enterprise]
+expertise_level: [advanced]
 ---
 
 # Custom registries

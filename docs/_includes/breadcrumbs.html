@@ -1,0 +1,32 @@
+{% unless page.url == '/' %}
+<nav class="docs-breadcrumbs" aria-label="Breadcrumb">
+  <a href="{{ '/' | relative_url }}">Home</a>
+  {% assign url_parts = page.url | split: '/' %}
+  {% assign last_segment = '' %}
+  {% for part in url_parts %}
+    {% if part != '' %}
+      {% assign last_segment = part %}
+    {% endif %}
+  {% endfor %}
+  {% assign crumb_path = '' %}
+  {% for part in url_parts %}
+    {% if part != '' %}
+      {% if part == last_segment %}
+        {% assign label_source = page.title | default: part | replace: '-', ' ' %}
+      {% else %}
+        {% assign label_source = part | replace: '-', ' ' %}
+      {% endif %}
+      {% assign label_words = label_source | split: ' ' %}
+      {% capture breadcrumb_label %}{% for word in label_words %}{% if word != '' %}{{ word | capitalize }}{% unless forloop.last %} {% endunless %}{% endif %}{% endfor %}{% endcapture %}
+      {% assign crumb_path = crumb_path | append: '/' | append: part %}
+      {% if part == last_segment %}
+        <span class="separator">/</span>
+        <span class="current">{{ breadcrumb_label | strip }}</span>
+      {% else %}
+        <span class="separator">/</span>
+        <a href="{{ crumb_path | append: '/' | relative_url }}">{{ breadcrumb_label | strip }}</a>
+      {% endif %}
+    {% endif %}
+  {% endfor %}
+</nav>
+{% endunless %}

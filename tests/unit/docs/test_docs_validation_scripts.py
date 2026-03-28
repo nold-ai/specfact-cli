@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import textwrap
 from pathlib import Path
 
 
@@ -75,3 +76,84 @@ def test_cross_site_url_stops_at_markdown_delimiters() -> None:
     line = "| `https://modules.specfact.io/foo/bar/` |"
     urls = mod._urls_from_line(line)
     assert urls == ["https://modules.specfact.io/foo/bar/"]
+
+
+def test_validate_nav_targets_accepts_known_routes(tmp_path: Path) -> None:
+    mod = _load_check_docs_commands()
+    mod._REPO_ROOT = tmp_path
+
+    docs_root = tmp_path / "docs"
+    (docs_root / "_data").mkdir(parents=True)
+    (docs_root / "index.md").write_text(
+        textwrap.dedent(
+            """\
+            ---
+            title: Home
+            permalink: /
+            ---
+            """
+        ),
+        encoding="utf-8",
+    )
+    (docs_root / "getting-started.md").write_text(
+        textwrap.dedent(
+            """\
+            ---
+            title: Getting Started
+            permalink: /getting-started/
+            ---
+            """
+        ),
+        encoding="utf-8",
+    )
+    (docs_root / "_data" / "nav.yml").write_text(
+        textwrap.dedent(
+            """\
+            - section: Start
+              items:
+                - title: Home
+                  url: /
+                  expertise: [beginner]
+                - title: Getting Started
+                  url: /getting-started/
+                  expertise: [beginner]
+            """
+        ),
+        encoding="utf-8",
+    )
+
+    assert mod._validate_nav_targets(docs_root) == []
+
+
+def test_validate_nav_targets_reports_unknown_route(tmp_path: Path) -> None:
+    mod = _load_check_docs_commands()
+    mod._REPO_ROOT = tmp_path
+
+    docs_root = tmp_path / "docs"
+    (docs_root / "_data").mkdir(parents=True)
+    (docs_root / "index.md").write_text(
+        textwrap.dedent(
+            """\
+            ---
+            title: Home
+            permalink: /
+            ---
+            """
+        ),
+        encoding="utf-8",
+    )
+    (docs_root / "_data" / "nav.yml").write_text(
+        textwrap.dedent(
+            """\
+            - section: Start
+              items:
+                - title: Missing
+                  url: /missing/
+                  expertise: [beginner]
+            """
+        ),
+        encoding="utf-8",
+    )
+
+    failures = mod._validate_nav_targets(docs_root)
+    assert failures == ["docs/_data/nav.yml: unknown docs route /missing/"]

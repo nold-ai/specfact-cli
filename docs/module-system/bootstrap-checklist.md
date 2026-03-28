@@ -5,6 +5,9 @@ permalink: /module-system/bootstrap-checklist/
 redirect_from:
   - /getting-started/module-bootstrap-checklist/
 description: Quick checklist to verify official workflow bundles are installed and discoverable in user/project scope.
+keywords: [bootstrap, checklist, installed modules, discovery]
+audience: [solo, team]
+expertise_level: [beginner, intermediate]
 ---
 
 # Module Bootstrap Checklist

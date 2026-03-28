@@ -5,7 +5,7 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     {% seo %}
-    <!-- Fonts -->
+    <script src="{{ '/assets/js/theme.js' | relative_url }}"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
@@ -14,84 +14,136 @@
     {% if jekyll.environment == 'production' and site.google_analytics %}
     {% include google-analytics.html %}
     {% endif %}
-    <!-- Mermaid.js for diagram rendering -->
     <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lunr@2.3.9/lunr.min.js"></script>
     <script>
-      document.addEventListener('DOMContentLoaded', function() {
-        // Find all mermaid code blocks (kramdown outputs: <pre><code class="language-mermaid">)
-        const mermaidCodeBlocks = document.querySelectorAll('pre code.language-mermaid, code.language-mermaid');
-        
+      var mermaidDarkVars = {
+        darkMode: true,
+        primaryColor: '#57e6c4',
+        primaryTextColor: '#ccd6f6',
+        primaryBorderColor: '#57e6c4',
+        lineColor: '#57e6c4',
+        secondaryColor: '#112240',
+        tertiaryColor: '#1d2d50',
+        background: '#0a192f',
+        mainBkgColor: '#112240',
+        secondBkgColor: '#1d2d50',
+        textColor: '#ccd6f6',
+        border1: '#57e6c4',
+        border2: '#8892b0',
+        noteBkgColor: '#1d2d50',
+        noteTextColor: '#ccd6f6',
+        noteBorderColor: '#57e6c4',
+        actorBorder: '#57e6c4',
+        actorBkg: '#112240',
+        actorTextColor: '#ccd6f6',
+        actorLineColor: '#57e6c4',
+        labelBoxBkgColor: '#112240',
+        labelBoxBorderColor: '#57e6c4',
+        labelTextColor: '#ccd6f6',
+        loopTextColor: '#ccd6f6',
+        activationBorderColor: '#57e6c4',
+        activationBkgColor: '#1d2d50',
+        sequenceNumberColor: '#0a192f',
+        sectionBkgColor: '#1d2d50',
+        altBkgColor: '#112240',
+        taskBorderColor: '#57e6c4',
+        taskBkgColor: '#112240',
+        taskTextLightColor: '#ccd6f6',
+        taskTextColor: '#ccd6f6',
+        taskTextDarkColor: '#0a192f',
+        gridColor: '#8892b0'
+      };
+
+      var mermaidLightVars = {
+        darkMode: false,
+        primaryColor: '#0d9488',
+        primaryTextColor: '#1a1a2e',
+        primaryBorderColor: '#0d9488',
+        lineColor: '#0d9488',
+        secondaryColor: '#f0fdfa',
+        tertiaryColor: '#e6f7f5',
+        background: '#ffffff',
+        mainBkgColor: '#f0fdfa',
+        secondBkgColor: '#e6f7f5',
+        textColor: '#1a1a2e',
+        border1: '#0d9488',
+        border2: '#94a3b8',
+        noteBkgColor: '#f0fdfa',
+        noteTextColor: '#1a1a2e',
+        noteBorderColor: '#0d9488',
+        actorBorder: '#0d9488',
+        actorBkg: '#f0fdfa',
+        actorTextColor: '#1a1a2e',
+        actorLineColor: '#0d9488',
+        labelBoxBkgColor: '#f0fdfa',
+        labelBoxBorderColor: '#0d9488',
+        labelTextColor: '#1a1a2e',
+        loopTextColor: '#1a1a2e',
+        activationBorderColor: '#0d9488',
+        activationBkgColor: '#e6f7f5',
+        sequenceNumberColor: '#ffffff',
+        sectionBkgColor: '#e6f7f5',
+        altBkgColor: '#f0fdfa',
+        taskBorderColor: '#0d9488',
+        taskBkgColor: '#f0fdfa',
+        taskTextLightColor: '#1a1a2e',
+        taskTextColor: '#1a1a2e',
+        taskTextDarkColor: '#ffffff',
+        gridColor: '#94a3b8'
+      };
+
+      function initMermaid(theme) {
+        var isDark = theme === 'dark';
+        var mermaidCodeBlocks = document.querySelectorAll('pre code.language-mermaid, code.language-mermaid');
         mermaidCodeBlocks.forEach(function(codeBlock) {
-          const pre = codeBlock.closest('pre');
-          const mermaidCode = codeBlock.textContent || codeBlock.innerText;
-          
-          // Create mermaid div
-          const mermaidDiv = document.createElement('div');
+          var pre = codeBlock.closest('pre');
+          var mermaidCode = codeBlock.textContent || codeBlock.innerText;
+          var mermaidDiv = document.createElement('div');
           mermaidDiv.className = 'mermaid';
           mermaidDiv.textContent = mermaidCode.trim();
-          
-          // Replace the entire pre block (or just the code if no pre)
           if (pre) {
             pre.parentNode.replaceChild(mermaidDiv, pre);
           } else {
             codeBlock.parentNode.replaceChild(mermaidDiv, codeBlock);
           }
         });
-        
-        // Initialize Mermaid with dark theme matching specfact.io colors
-        mermaid.initialize({ 
-          startOnLoad: true,
-          theme: 'dark',
+
+        mermaid.initialize({
+          startOnLoad: false,
+          theme: isDark ? 'dark' : 'default',
           securityLevel: 'loose',
-          flowchart: { 
-            useMaxWidth: true,
-            htmlLabels: true,
-            curve: 'basis'
-          },
-          themeVariables: {
-            darkMode: true,
-            primaryColor: '#64ffda',
-            primaryTextColor: '#ccd6f6',
-            primaryBorderColor: '#64ffda',
-            lineColor: '#64ffda',
-            secondaryColor: '#112240',
-            tertiaryColor: '#1d2d50',
-            background: '#0a192f',
-            mainBkgColor: '#112240',
-            secondBkgColor: '#1d2d50',
-            textColor: '#ccd6f6',
-            border1: '#64ffda',
-            border2: '#8892b0',
-            noteBkgColor: '#1d2d50',
-            noteTextColor: '#ccd6f6',
-            noteBorderColor: '#64ffda',
-            actorBorder: '#64ffda',
-            actorBkg: '#112240',
-            actorTextColor: '#ccd6f6',
-            actorLineColor: '#64ffda',
-            labelBoxBkgColor: '#112240',
-            labelBoxBorderColor: '#64ffda',
-            labelTextColor: '#ccd6f6',
-            loopTextColor: '#ccd6f6',
-            activationBorderColor: '#64ffda',
-            activationBkgColor: '#1d2d50',
-            sequenceNumberColor: '#0a192f',
-            sectionBkgColor: '#1d2d50',
-            altBkgColor: '#112240',
-            critBkgColor: '#1d2d50',
-            doneBkgColor: '#64ffda',
-            doneBorderColor: '#64ffda',
-            taskBorderColor: '#64ffda',
-            taskBkgColor: '#112240',
-            taskTextLightColor: '#ccd6f6',
-            taskTextColor: '#ccd6f6',
-            taskTextDarkColor: '#0a192f',
-            taskTextOutsideColor: '#ccd6f6',
-            taskTextClickableColor: '#64ffda',
-            activeTaskBorderColor: '#64ffda',
-            activeTaskBkgColor: '#1d2d50',
-            gridColor: '#8892b0',
-            critBorderColor: '#64ffda'
+          flowchart: { useMaxWidth: true, htmlLabels: true, curve: 'basis' },
+          themeVariables: isDark ? mermaidDarkVars : mermaidLightVars
+        });
+        mermaid.run();
+      }
+
+      function rerenderMermaid(theme) {
+        var isDark = theme === 'dark';
+        document.querySelectorAll('.mermaid[data-processed],.mermaid svg').forEach(function(el) {
+          el.removeAttribute('data-processed');
+          if (el.getAttribute('data-source')) {
+            el.innerHTML = '';
+            el.textContent = el.getAttribute('data-source');
+          }
+        });
+        mermaid.initialize({
+          startOnLoad: false,
+          theme: isDark ? 'dark' : 'default',
+          securityLevel: 'loose',
+          flowchart: { useMaxWidth: true, htmlLabels: true, curve: 'basis' },
+          themeVariables: isDark ? mermaidDarkVars : mermaidLightVars
+        });
+        mermaid.run();
+      }
+
+      document.addEventListener('DOMContentLoaded', function() {
+        var currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
+        initMermaid(currentTheme);
+        document.querySelectorAll('.mermaid').forEach(function(el) {
+          if (!el.getAttribute('data-source')) {
+            el.setAttribute('data-source', el.textContent.trim());
           }
         });
       });
@@ -111,9 +163,13 @@
             </span>
           </label>
           <div class="trigger">
-            <a class="page-link" href="https://docs.specfact.io/">Docs Home</a>
-            <a class="page-link" href="{{ '/' | relative_url }}">Core CLI</a>
-            <a class="page-link" href="https://modules.specfact.io/">Modules</a>
+            <a class="page-link" href="{{ site.docs_home_url }}">Docs Home</a>
+            <a class="page-link" href="{{ site.core_cli_docs_url }}">Core CLI</a>
+            <a class="page-link" href="{{ site.modules_docs_url }}">Modules</a>
+            <a class="github-link" href="https://github.com/nold-ai/specfact-cli" title="GitHub Repository" aria-label="GitHub Repository">
+              <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+            </a>
+            {% include theme-toggle.html %}
           </div>
         </nav>
       </div>
@@ -124,70 +180,17 @@
         <aside class="docs-sidebar" aria-label="Documentation navigation">
           <div class="docs-sidebar-inner">
             <h2 class="docs-sidebar-title">
-              <a href="{{ '/' | relative_url }}">SpecFact CLI</a>
+              <a href="{{ '/' | relative_url }}">Core CLI Docs</a>
             </h2>
 
-            <nav class="docs-nav">
-              <p class="docs-nav-section">Getting Started</p>
-              <ul>
-                <li><a href="{{ '/getting-started/installation/' | relative_url }}">Installation</a></li>
-                <li><a href="{{ '/getting-started/quickstart/' | relative_url }}">5-Minute Quickstart</a></li>
-              </ul>
-
-              <p class="docs-nav-section">Core CLI</p>
-              <ul>
-                <li><a href="{{ '/core-cli/init/' | relative_url }}">specfact init</a></li>
-                <li><a href="{{ '/core-cli/module/' | relative_url }}">specfact module</a></li>
-                <li><a href="{{ '/core-cli/upgrade/' | relative_url }}">specfact upgrade</a></li>
-                <li><a href="{{ '/core-cli/modes/' | relative_url }}">Operational Modes</a></li>
-                <li><a href="{{ '/core-cli/debug-logging/' | relative_url }}">Debug Logging</a></li>
-              </ul>
-
-              <p class="docs-nav-section">Module System</p>
-              <ul>
-                <li><a href="{{ '/module-system/installing-modules/' | relative_url }}">Installing Modules</a></li>
-                <li><a href="{{ '/module-system/module-marketplace/' | relative_url }}">Module Marketplace</a></li>
-                <li><a href="{{ '/module-system/marketplace/' | relative_url }}">Marketplace Bundles</a></li>
-                <li><a href="{{ '/module-system/custom-registries/' | relative_url }}">Custom Registries</a></li>
-                <li><a href="{{ '/module-system/bootstrap-checklist/' | relative_url }}">Bootstrap Checklist</a></li>
-                <li><a href="{{ '/guides/module-development/' | relative_url }}">Module Development</a></li>
-                <li><a href="{{ '/guides/module-signing-and-key-rotation/' | relative_url }}">Module Signing</a></li>
-              </ul>
-
-              <p class="docs-nav-section">Architecture</p>
-              <ul>
-                <li><a href="{{ '/architecture/overview/' | relative_url }}">Architecture Overview</a></li>
-                <li><a href="{{ '/architecture/implementation-status/' | relative_url }}">Implementation Status</a></li>
-                <li><a href="{{ '/architecture/adr/' | relative_url }}">ADRs</a></li>
-                <li><a href="{{ '/reference/directory-structure/' | relative_url }}">Directory Structure</a></li>
-              </ul>
-
-              <p class="docs-nav-section">Reference</p>
-              <ul>
-                <li><a href="{{ '/reference/documentation-url-contract/' | relative_url }}">Docs URL contract (core vs modules)</a></li>
-                <li><a href="{{ '/reference/commands/' | relative_url }}">Command Reference</a></li>
-                <li><a href="{{ '/reference/module-categories/' | relative_url }}">Module Categories</a></li>
-                <li><a href="{{ '/reference/module-contracts/' | relative_url }}">Module Contracts</a></li>
-                <li><a href="{{ '/reference/module-security/' | relative_url }}">Module Security</a></li>
-                <li><a href="{{ '/reference/bridge-registry/' | relative_url }}">Bridge Registry</a></li>
-                <li><a href="{{ '/reference/authentication/' | relative_url }}">Authentication</a></li>
-                <li><a href="{{ '/reference/projectbundle-schema/' | relative_url }}">ProjectBundle Schema</a></li>
-                <li><a href="{{ '/guides/integrations-overview/' | relative_url }}">Integrations Overview</a></li>
-                <li><a href="{{ '/examples/' | relative_url }}">Examples</a></li>
-              </ul>
-
-              <p class="docs-nav-section">Migration</p>
-              <ul>
-                <li><a href="{{ '/migration/migration-guide/' | relative_url }}">Migration Guide</a></li>
-                <li><a href="{{ '/migration/migration-0.16-to-0.19/' | relative_url }}">0.16 to 0.19</a></li>
-                <li><a href="{{ '/migration/migration-cli-reorganization/' | relative_url }}">CLI Reorganization</a></li>
-                <li><a href="{{ '/migration/openspec-migration/' | relative_url }}">OpenSpec Migration</a></li>
-              </ul>
-            </nav>
+            {% include search.html %}
+            {% include expertise-filter.html %}
+            {% include sidebar-nav.html %}
           </div>
         </aside>
 
         <div class="docs-content">
+          {% include breadcrumbs.html %}
           {{ content }}
         </div>
       </div>
@@ -199,13 +202,29 @@
         <div class="footer-col-wrapper">
           <div class="footer-col">
             <p class="p-name">{{ site.title | escape }}</p>
-            <p>{{ site.description | escape }}</p>
-          </div>
-          <div class="footer-col">
-            <p>{{ site.footer.copyright | escape }}</p>
+            {% assign footer_description_parts = site.description | split: " - " %}
+            <p class="footer-summary">{{ footer_description_parts[0] | escape }}</p>
+            {% if footer_description_parts.size > 1 %}
+              <p class="footer-tagline">{{ footer_description_parts[1] | escape }}</p>
+            {% endif %}
           </div>
         </div>
+        <div class="footer-links">
+          <a href="https://noldai.com">noldai.com</a>
+          <a href="https://specfact.com">specfact.com</a>
+          <a href="{{ site.docs_home_url | default: 'https://docs.specfact.io' }}">docs.specfact.io</a>
+          <a href="{{ site.modules_docs_url | default: 'https://modules.specfact.io' }}">modules.specfact.io</a>
+          <a href="https://github.com/nold-ai/specfact-cli">GitHub</a>
+          <a href="https://github.com/nold-ai/specfact-cli-modules">Modules Repo</a>
+        </div>
+        <hr class="footer-separator">
+        <p class="footer-trademark">
+          &copy; 2025 <a href="https://noldai.com">NOLD AI</a>. All rights reserved. NOLD AI is a registered trademark (EUIPO).
+        </p>
       </div>
     </footer>
+
+    <script src="{{ '/assets/js/search.js' | relative_url }}"></script>
+    <script src="{{ '/assets/js/filters.js' | relative_url }}"></script>
   </body>
 </html>

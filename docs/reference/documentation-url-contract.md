@@ -3,6 +3,9 @@ layout: default
 title: Documentation URL contract (core and modules)
 permalink: /reference/documentation-url-contract/
 description: Rules for linking between docs.specfact.io and modules.specfact.io; canonical ownership of paths.
+keywords: [docs contract, handoff, core vs modules]
+audience: [team, enterprise]
+expertise_level: [advanced]
 ---
 
 # Documentation URL contract (core and modules)
@@ -15,7 +18,10 @@ The **authoritative** URL and ownership rules for **both** documentation sites a
 
 ## Quick rules for core contributors
 
-1. **Do not assume** `https://modules.specfact.io/guides/<name>/` exists because core uses `/guides/<name>/`. Modules uses `/guides/...`, `/bundles/.../`, `/integrations/.../`, and root paths such as `/brownfield-engineer/` depending on the page—**always** verify the target file’s `permalink` in `specfact-cli-modules`.
+1. **Do not assume** a modules guide lives at ``/guides/<name>/`` just because core uses
+   ``/guides/<name>/``. Modules uses ``/guides/.../``, ``/bundles/.../``,
+   ``/integrations/.../``, and root paths such as ``/brownfield-engineer/`` depending on the
+   page—**always** verify the target file’s `permalink` in `specfact-cli-modules`.
 2. **Handoff pages** (see OpenSpec `docs-07-core-handoff-conversion`) must point to the **modules canonical URL** for each topic, with a short summary and prerequisites on core.
 3. **Internal core links** must continue to resolve on `docs.specfact.io` per published `permalink` (docs review gate / parity tests).
 

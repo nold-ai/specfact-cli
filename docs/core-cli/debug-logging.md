@@ -5,6 +5,9 @@ permalink: /core-cli/debug-logging/
 redirect_from:
   - /debug-logging/
   - /reference/debug-logging/
+keywords: [debug, logging, diagnostics, troubleshooting]
+audience: [team, enterprise]
+expertise_level: [advanced]
 ---
 
 <!-- markdownlint-disable-next-line MD025 -->

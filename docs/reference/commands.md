@@ -2,6 +2,9 @@
 layout: default
 title: Command Reference
 permalink: /reference/commands/
+keywords: [command reference, cli surface, command groups]
+audience: [solo, team, enterprise]
+expertise_level: [intermediate, advanced]
 ---
 
 # Command Reference

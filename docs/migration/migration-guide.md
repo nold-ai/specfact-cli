@@ -5,238 +5,181 @@ permalink: /migration/migration-guide/
 redirect_from:
   - /migration-guide/
   - /guides/migration-guide/
+description: Current migration guidance for upgrading SpecFact CLI, moving to grouped commands, and importing from external workflows.
+keywords: [migration, upgrade path, grouped commands, openspec, speckit]
+audience: [team, enterprise]
+expertise_level: [intermediate]
 ---
 
 # Migration Guide
 
-> **Decision tree and workflow for migrating between SpecFact CLI versions and from other tools**
+Use this guide when you are moving an existing repo or team workflow onto the current SpecFact CLI model.
 
----
+This page is intentionally focused on the active `0.4x.y` line. It does not try to preserve every historical transition. If you are running a very old install, treat that as a staged migration: first get onto the modern grouped command surface, then validate your repo and bundle state.
 
-## Overview
+## What this guide covers
 
-This guide helps you decide when and how to migrate:
+- Upgrading the core CLI to the current release line
+- Moving from removed flat commands to grouped commands
+- Importing existing work from external toolchains such as Spec-Kit or OpenSpec
+- Revalidating bundles, sync flows, and docs links after the migration
 
-- **Between SpecFact CLI versions** - When upgrading to a new version
-- **From other tools** - When migrating from Spec-Kit, OpenSpec, or other SDD tools
-- **Between project structures** - When restructuring your project bundles
+## Start here
 
----
+Choose the path that matches your situation:
 
-## Migration Decision Tree
+1. **You already use modern grouped commands** such as `specfact project`, `specfact backlog`, `specfact code`, `specfact spec`, and `specfact govern`.
+   Upgrade the CLI, check installed modules, and run validation.
+2. **Your scripts still use older flat commands** such as `specfact plan`, `specfact import`, `specfact sync`, `specfact validate`, or `specfact enforce`.
+   Update those scripts to the grouped command surface before rolling the change out.
+3. **You are moving from another structured workflow tool** such as Spec-Kit or OpenSpec.
+   Import first, review the generated project state, then enable ongoing bridge sync only after the imported state looks correct.
 
-```
-Start: What do you need to migrate?
+## 1. Upgrade the active CLI
 
-├─ Upgrading SpecFact CLI version?
-│  ├─ Minor version (0.19 → 0.20)?
-│  │  └─ → Usually automatic, check [Version-Specific Migration Guides](#version-specific-migrations)
-│  ├─ Major version (0.x → 1.0)?
-│  │  └─ → Check breaking changes, use [Version-Specific Migration Guides](#version-specific-migrations)
-│  └─ CLI reorganization (pre-0.16 → 0.16+)?
-│     └─ → See [CLI Reorganization Migration](migration-cli-reorganization.md)
-│
-├─ Migrating from Spec-Kit?
-│  └─ → See [Spec-Kit Journey Guide](../guides/speckit-journey.md)
-│
-├─ Migrating from OpenSpec?
-│  └─ → See [OpenSpec Journey Guide](../guides/openspec-journey.md)
-│
-└─ Restructuring project bundles?
-   └─ → See [Project Bundle Management](../reference/commands.md#project---project-bundle-management)
-```
-
----
-
-## Version-Specific Migrations
-
-### Migration from 0.16 to 0.19+
-
-**Breaking Changes**: CLI command reorganization
-
-**Migration Steps**:
-
-1. Review [CLI Reorganization Migration Guide](migration-cli-reorganization.md)
-2. Update scripts and CI/CD pipelines
-3. Test commands in development environment
-4. Update documentation references
-
-**Related**: [Migration 0.16 to 0.19](migration-0.16-to-0.19.md)
-
----
-
-### Migration from Pre-0.16 to 0.16+
-
-**Breaking Changes**: Major CLI reorganization
-
-**Migration Steps**:
-
-1. Review [CLI Reorganization Migration Guide](migration-cli-reorganization.md)
-2. Update all command references
-3. Migrate plan bundles to new schema
-4. Update CI/CD configurations
-
-**Related**: [CLI Reorganization Migration](migration-cli-reorganization.md)
-
----
-
-## Tool Migration Workflows
-
-### Migrating from Spec-Kit
-
-**Workflow**: Use External Tool Integration Chain
-
-1. Import from Spec-Kit via bridge adapter
-2. Review imported plan
-3. Set up bidirectional sync (optional)
-4. Enforce SDD compliance
-
-**Detailed Guide**: [Spec-Kit Journey Guide](../guides/speckit-journey.md)
-
-**Command Chain**: [External Tool Integration Chain](../guides/command-chains.md#3-external-tool-integration-chain)
-
----
-
-### Migrating from OpenSpec
-
-**Workflow**: Use External Tool Integration Chain
-
-1. Import from OpenSpec via bridge adapter
-2. Review imported change proposals
-3. Set up DevOps sync (optional)
-4. Enforce SDD compliance
-
-**Detailed Guide**: [OpenSpec Journey Guide](../guides/openspec-journey.md)
-
-**Command Chain**: [External Tool Integration Chain](../guides/command-chains.md#3-external-tool-integration-chain)
-
----
-
-## Project Structure Migrations
-
-### Migrating Between Project Bundles
-
-**When to use**: Restructuring projects, splitting/merging bundles
-
-**Commands**:
+Check the current version first:
 
 ```bash
-# Export from old bundle
-specfact project export --bundle old-bundle --persona <persona>
-
-# Create new bundle
-specfact code import new-bundle --repo .
-
-# Import to new bundle (manual editing may be required)
-specfact project import --bundle new-bundle --persona <persona> --source exported.md
-```
-
-**Related**: [Project Bundle Management](../reference/commands.md#project---project-bundle-management)
-
----
-
-## Plan Schema Migrations
-
-### Upgrading Plan Bundles
-
-**When to use**: When plan bundles are on an older schema version
-
-**Command**:
-
-```bash
-# Regenerate all bundles
-specfact project regenerate
-
-# Regenerate specific bundle
-specfact project regenerate --bundle <bundle-name>
-```
-
-**Benefits**:
-
-- Improved performance
-- New features and metadata
-- Better compatibility
-
-**Related**: [Project Commands](../reference/commands.md#project---project-bundle-management)
-
----
-
-## Migration Workflow Examples
-
-### Example 1: Upgrading SpecFact CLI
-
-```bash
-# 1. Check current version
 specfact --version
+specfact upgrade --check-only
+```
 
-# 2. Review migration guide for target version
-# See: guides/migration-*.md
+If an update is available:
 
-# 3. Upgrade SpecFact CLI
-pip install --upgrade specfact-cli
+```bash
+specfact upgrade
+```
 
-# 4. Regenerate plan bundles
+After the upgrade:
+
+```bash
+specfact module list
+specfact module search
+```
+
+Use those commands to confirm the CLI still sees the installed workflow modules and registries you expect.
+
+## 2. Move to the grouped command surface
+
+The current CLI is lean core plus mounted command groups. Core-owned commands stay at the root:
+
+- `specfact init`
+- `specfact module`
+- `specfact upgrade`
+
+Workflow capabilities are mounted under grouped families:
+
+- `specfact project ...`
+- `specfact backlog ...`
+- `specfact code ...`
+- `specfact spec ...`
+- `specfact govern ...`
+
+If your automation still uses older flat command paths, update them now.
+
+### Common replacements
+
+| Old pattern | Current replacement |
+| --- | --- |
+| `specfact plan ...` | `specfact project ...` |
+| `specfact import ...` | `specfact code import ...` or `specfact project import ...` |
+| `specfact sync ...` | `specfact project sync ...` |
+| `specfact analyze ...` | `specfact code analyze ...` |
+| `specfact drift ...` | `specfact code drift ...` |
+| `specfact validate ...` | `specfact code validate ...` or `specfact spec validate ...` |
+| `specfact repro ...` | `specfact code repro ...` |
+| `specfact enforce ...` | `specfact govern enforce ...` |
+| `specfact patch ...` | `specfact govern patch ...` |
+
+Use the canonical mapping in the [Command Reference](../reference/commands.md) when updating shell scripts, CI jobs, IDE prompts, or internal docs.
+
+## 3. Rebaseline the project after the upgrade
+
+Once the command surface is current, refresh the repo state you depend on:
+
+```bash
+specfact project health-check
 specfact project regenerate
-
-# 5. Test commands
-specfact project health-check
 ```
 
----
-
-### Example 2: Migrating from Spec-Kit
+If you operate specific bundles directly:
 
 ```bash
-# 1. Import from Spec-Kit
-specfact code import from-bridge --repo . --adapter speckit --write
-
-# 2. Review imported plan
-specfact project devops-flow --stage develop --bundle <bundle-name>
-
-# 3. Set up bidirectional sync (optional)
-specfact project sync bridge --adapter speckit --bundle <bundle-name> --bidirectional --watch
-
-# 4. Enforce SDD compliance
-specfact govern enforce sdd --bundle <bundle-name>
+specfact project snapshot --bundle my-bundle
+specfact project version --bundle my-bundle
 ```
 
-**Related**: [Spec-Kit Journey Guide](../guides/speckit-journey.md)
+This is the point where you should catch stale bundle metadata, missing generated assets, or drift between the project state and the current CLI expectations.
 
----
+## 4. Migrate from external toolchains
 
-## Troubleshooting Migrations
+### From Spec-Kit
 
-### Common Issues
-
-**Issue**: Plan bundles fail to regenerate
-
-**Solution**:
+If your repo still starts from Spec-Kit assets, import first and keep sync optional until you trust the imported state:
 
 ```bash
-# Check bundle health
-specfact project health-check
-
-# Regenerate if needed
-specfact project regenerate --bundle <bundle-name>
+specfact code import from-bridge --adapter speckit --repo . --dry-run
+specfact code import from-bridge --adapter speckit --repo . --write
+specfact project devops-flow --stage develop --bundle my-bundle
 ```
 
-**Issue**: Imported plans have missing data
+Only enable ongoing sync after review:
 
-**Solution**:
+```bash
+specfact project sync bridge --adapter speckit --bundle my-bundle --repo . --bidirectional
+```
 
-1. Review import logs
-2. Use `project devops-flow --stage develop` to identify gaps
-3. Use `project health-check` to check status
-4. Re-import if needed
+For the fuller walkthrough, see [Spec-Kit Journey Guide](../guides/speckit-journey.md).
 
-**Related**: [Troubleshooting Guide](../guides/troubleshooting.md)
+### From OpenSpec
 
----
+If you are moving existing OpenSpec project context into SpecFact-backed workflows:
 
-## See Also
+```bash
+specfact project sync bridge --adapter openspec --mode read-only --bundle my-bundle --repo .
+specfact project devops-flow --stage develop --bundle my-bundle
+```
 
-- [Command Chains Reference](../guides/command-chains.md) - Complete workflows
-- Common Tasks Index - Quick reference
-- [Spec-Kit Journey Guide](../guides/speckit-journey.md) - Spec-Kit migration
-- [OpenSpec Journey Guide](../guides/openspec-journey.md) - OpenSpec migration
-- [Troubleshooting Guide](../guides/troubleshooting.md) - Common issues
+Keep the first pass read-only until the imported state is reviewed. Then enable the sync mode you actually want.
+
+For OpenSpec-specific context changes, see [OpenSpec OPSX Migration](openspec-migration.md).
+
+## 5. Validate the migrated state
+
+After any migration, run the checks that prove the new setup is usable:
+
+```bash
+specfact module list
+specfact project health-check
+specfact govern enforce sdd --bundle my-bundle
+specfact spec validate --bundle my-bundle
+```
+
+Pick the bundle that matters most first. Once one representative bundle passes, roll the same checks across the rest of the repo.
+
+## 6. Update team-facing surfaces
+
+Do not stop at the CLI invocation itself. Migration is incomplete if these still point to the old world:
+
+- CI workflows
+- local shell scripts
+- AI IDE prompt packs
+- onboarding docs
+- internal runbooks
+
+The most common failure mode is that the repo has already migrated, but prompts and automation still tell people to use removed flat commands.
+
+## Historical note
+
+Older version-specific migrations such as the `0.16 -> 0.19` transition are historical only. They should not be used as the primary upgrade path for teams already operating on the `0.4x.y` line.
+
+If you discover a repo that still depends on those assumptions, first update its command surface to the grouped model, then follow this guide.
+
+## See also
+
+- [specfact upgrade](../core-cli/upgrade.md)
+- [Command Reference](../reference/commands.md)
+- [CLI Reorganization Migration](migration-cli-reorganization.md)
+- [OpenSpec OPSX Migration](openspec-migration.md)
+- [Spec-Kit Journey Guide](../guides/speckit-journey.md)
+- [Troubleshooting Guide](../guides/troubleshooting.md)
