@@ -36,10 +36,12 @@ SpecFact CLI integrations fall into four main categories:
 
 **What it provides**:
 
-- ✅ Interactive slash commands (`/speckit.specify`, `/speckit.plan`) with AI assistance
+- ✅ Interactive slash commands (`/speckit.specify`, `/speckit.plan`, `/speckit.tasks`, `/speckit.implement`, `/speckit.constitution`, `/speckit.clarify`, `/speckit.analyze`) with AI assistance
 - ✅ Rapid prototyping workflow: spec → plan → tasks → code
 - ✅ Constitution and planning for new features
 - ✅ IDE integration with CoPilot chat
+- ✅ Extension ecosystem — 46+ community extensions with pluggable presets
+- ✅ Version-aware detection — SpecFact auto-detects Spec-Kit version, extensions, presets, and hook events
 
 **When to use**:
 

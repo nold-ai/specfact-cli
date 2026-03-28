@@ -38,7 +38,6 @@ from specfact_cli.utils.ide_setup import (
     discover_prompt_sources_catalog,
     discover_prompt_template_files,
     expected_ide_prompt_export_paths,
-    find_package_resources_path,
     load_ide_prompt_export_source_ids,
     write_ide_prompt_export_state,
 )
@@ -310,8 +309,8 @@ def _select_module_ids_interactive(action: str, modules_list: list[dict[str, Any
 
 
 def _resolve_templates_dir(repo_path: Path) -> Path | None:
-    """Resolve templates directory from repo checkout or installed package."""
-    prompt_files = discover_prompt_template_files(repo_path, include_package_fallback=False)
+    """Resolve a representative templates directory from installed modules or a dev repo checkout."""
+    prompt_files = discover_prompt_template_files(repo_path, include_package_fallback=True)
     if prompt_files:
         return prompt_files[0].parent
 
@@ -319,7 +318,7 @@ def _resolve_templates_dir(repo_path: Path) -> Path | None:
     if dev_templates_dir.exists():
         return dev_templates_dir
 
-    return find_package_resources_path("specfact_cli", "resources/prompts")
+    return None
 
 
 def _audit_prompt_installation(repo_path: Path) -> None:

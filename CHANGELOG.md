@@ -9,15 +9,35 @@ All notable changes to this project will be documented in this file.
 
 ---
 
-## [Unreleased]
+## [0.43.1] - Unreleased
+
+### Changed
+
+- **Packaging:** Workflow slash-command prompts (`specfact.*.md`) are no longer duplicated in the core wheel; canonical copies live in **specfact-cli-modules** bundle packages under each bundle’s `resources/prompts/`. Install bundles (or use a dev repo checkout with `resources/prompts/`) for `specfact init ide` prompt export.
+- IDE template drift checks on startup resolve source templates via the same installed-module discovery path as `specfact init ide`, not a single core `resources/prompts` directory inside the package.
+
+---
+
+## [0.43.0] - 2026-03-28
 
 ### Added
 
+- Spec-Kit v0.4.x adapter alignment: extension catalog detection (`scan_extensions`), preset scanning (`scan_presets`), hook event detection (`scan_hook_events`), and 3-tier version detection (CLI → heuristic → None).
+- `ToolCapabilities` model expanded with `extensions`, `extension_commands`, `presets`, `hook_events`, and `detected_version_source` fields for v0.4.x metadata.
+- BridgeConfig presets (`preset_speckit_classic`, `preset_speckit_specify`, `preset_speckit_modern`) now map all 7 Spec-Kit slash commands: `/speckit.specify`, `/speckit.plan`, `/speckit.tasks`, `/speckit.implement`, `/speckit.constitution`, `/speckit.clarify`, `/speckit.analyze`.
+- 44 new unit/integration tests covering extension catalogs, version detection, preset scanning, hook events, and full `get_capabilities()` flow.
 - CI: `scripts/check-docs-commands.py` and `scripts/check-cross-site-links.py` with `hatch run docs-validate`
   (command examples vs CLI; modules URLs warn-only when live site lags); workflow runs validation plus
   `tests/unit/docs/`.
 - Documentation: `docs/reference/documentation-url-contract.md` and navigation links describing how core and modules published URLs relate; OpenSpec spec updates for cross-site linking expectations.
 - Documentation: converted 20 module-owned guide and tutorial pages under `docs/` to thin handoff summaries with canonical links to `modules.specfact.io`; added `docs/reference/core-to-modules-handoff-urls.md` mapping core permalinks to modules URLs.
+
+### Changed
+
+- `SpecKitAdapter.get_capabilities()` refactored with helper methods (`_detect_layout`, `_detect_version`, `_extract_extension_fields`) to reduce cyclomatic complexity.
+- Logging in `speckit.py` and `speckit_scanner.py` switched from `logging.getLogger` to `get_bridge_logger` per production command path convention.
+
+---
 
 ## [0.42.6] - 2026-03-26
 

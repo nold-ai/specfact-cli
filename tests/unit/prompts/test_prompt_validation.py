@@ -155,18 +155,65 @@ Enrichment report location: `.specfact/reports/enrichment/`
         validator = PromptValidator(prompt_file)
         assert validator.validate_dual_stack_workflow() is True
 
-    def test_validate_all_prompts(self):
-        """Test validating all prompts in resources/prompts."""
-        # Path from tests/unit/prompts/test_prompt_validation.py to resources/prompts
-        # tests/unit/prompts -> tests/unit -> tests -> root -> resources/prompts
-        prompts_dir = Path(__file__).parent.parent.parent.parent / "resources" / "prompts"
-        # Prompts directory should exist in the repository
-        assert prompts_dir.exists(), f"Prompts directory not found at {prompts_dir}"
+    def test_validate_all_prompts(self, tmp_path: Path):
+        """``validate_all_prompts`` runs over a directory of ``specfact.*.md`` templates."""
+        prompts_dir = tmp_path / "prompts"
+        prompts_dir.mkdir()
+        valid_content = """---
+description: Test prompt
+---
+
+# Test Prompt
+
+## User Input
+
+```text
+$ARGUMENTS
+```
+
+You **MUST** consider the user input before proceeding (if not empty).
+
+## Purpose
+
+Test purpose.
+
+## Parameters
+
+Test parameters.
+
+## Workflow
+
+Test workflow.
+
+## CLI Enforcement
+
+**ALWAYS execute CLI first**. Never modify `.specfact/` directly. Use CLI output as grounding.
+
+## Expected Output
+
+Test expected output.
+
+## Common Patterns
+
+Test common patterns.
+
+## Context
+
+Test context.
+"""
+        # Stem must not be in DUAL_STACK_COMMANDS / CLI_COMMANDS so structure-only template passes validate_all.
+        (prompts_dir / "specfact.99-good.md").write_text(valid_content, encoding="utf-8")
+        (prompts_dir / "specfact.98-invalid.md").write_text("# Broken\n\n## Goal\n\n", encoding="utf-8")
 
         results = validate_all_prompts(prompts_dir)
-        assert len(results) > 0
+        assert len(results) == 2
 
-        # All prompts should pass basic validation
+        by_name = {r["prompt"]: r for r in results}
+        assert by_name["specfact.99-good"]["passed"] is True
+        assert by_name["specfact.99-good"]["errors"] == []
+        assert by_name["specfact.98-invalid"]["passed"] is False
+        assert len(by_name["specfact.98-invalid"]["errors"]) >= 1
+
         for result in results:
             assert "prompt" in result
             assert "errors" in result
