@@ -2,6 +2,9 @@
 layout: default
 title: Authentication
 permalink: /reference/authentication/
+keywords: [authentication, credentials, providers]
+audience: [team, enterprise]
+expertise_level: [intermediate, advanced]
 ---
 
 # Authentication

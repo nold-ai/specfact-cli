@@ -2,6 +2,9 @@
 layout: default
 title: Getting Started with SpecFact CLI
 permalink: /getting-started/installation/
+keywords: [install, setup, bootstrap, cli]
+audience: [solo, team]
+expertise_level: [beginner]
 ---
 
 # Getting Started with SpecFact CLI
@@ -22,11 +25,11 @@ uvx specfact-cli@latest --help
 
 **Best for**: Quick testing, CI/CD, one-off commands
 
-**Limitations**: CLI-only mode uses AST-based analysis which may show 0 features for simple test cases. For better results, use interactive AI Assistant mode (Option 2).
+**Limitations**: CLI-only mode uses deterministic local analysis and may show limited results for very small test cases. If you want IDE slash-command workflows with your own AI copilot, use the installed CLI setup in Option 2.
 
-### Option 2: pip (Interactive AI Assistant Mode)
+### Option 2: pip (Installed CLI + IDE Prompt Mode)
 
-**Required for**: IDE integration, slash commands, enhanced feature detection
+**Required for**: local `specfact` command availability, IDE integration, and slash-command workflows
 
 ```bash
 # System-wide
@@ -73,13 +76,13 @@ specfact init ide --ide cursor
 specfact init ide --ide vscode
 
 # Install required packages for contract enhancement
-specfact init --install-deps
+specfact init ide --install-deps
 
 # Initialize for specific IDE and install dependencies
 specfact init ide --ide cursor --install-deps
 ```
 
-**Note**: Interactive mode requires Python 3.11+ and automatically uses your IDE workspace (no `--repo .` needed in slash commands).
+**Important**: SpecFact CLI does **not** ship with built-in AI. `specfact init ide` installs prompt templates for supported IDEs so your chosen AI copilot can call SpecFact commands in a guided workflow.
 
 ### Option 3: Container
 
@@ -158,33 +161,33 @@ jobs:
 
 ### Operational Modes
 
-SpecFact CLI supports two operational modes:
+SpecFact CLI supports two practical ways of working:
 
-- **CLI-only Mode** (uvx): Fast, AST-based analysis for automation
+- **CLI-only Mode** (uvx): Fast, deterministic CLI usage for automation
   - Works immediately with `uvx specfact-cli@latest`
   - No installation required
-  - May show 0 features for simple test cases (AST limitations)
+  - Uses local CLI analysis only
   - Best for: CI/CD, quick testing, one-off commands
 
-- **Interactive AI Assistant Mode** (pip + `specfact init --profile ...`): Enhanced semantic understanding
+- **Installed CLI + IDE Prompt Mode** (pip + `specfact init --profile ...` + optional `specfact init ide`)
   - Requires `pip install specfact-cli` and first-run bundle selection (`--profile` or `--install`)
-  - Better feature detection and semantic understanding
-  - IDE integration with slash commands
-  - Automatically uses IDE workspace (no `--repo .` needed)
-  - Best for: Development, legacy code analysis, complex projects
+  - Gives you a stable local `specfact` command plus mounted workflow groups
+  - Adds IDE prompt templates and slash commands when you run `specfact init ide`
+  - Lets your chosen AI copilot orchestrate SpecFact commands; the CLI itself remains deterministic
+  - Best for: development teams, brownfield analysis, guided IDE workflows
 
 **Mode Selection**:
 
 ```bash
 # CLI-only mode (uvx - no installation)
-uvx specfact-cli@latest import from-code my-project --repo .
+uvx specfact-cli@latest --help
 
-# Interactive mode (pip + specfact init - recommended)
+# Installed CLI + IDE prompt mode
 # After: pip install specfact-cli && specfact init
 # Then use slash commands in IDE: /specfact.01-import legacy-api --repo .
 ```
 
-**Note**: Mode is auto-detected based on whether `specfact` command is available and IDE integration is set up.
+**Note**: Slash commands live in your IDE, not in the CLI runtime. They are prompt templates that guide your AI copilot to call SpecFact commands in the right order.
 
 ### Installed Command Topology
 
@@ -246,7 +249,7 @@ This will guide you through creating:
 - First features and stories
 - Protocol state machine
 
-**With IDE Integration (Interactive AI Assistant Mode):**
+**With IDE Integration (Prompt Templates + Your AI Copilot):**
 
 ```bash
 # Step 1: Install SpecFact CLI
@@ -255,11 +258,13 @@ pip install specfact-cli
 # Step 2: Navigate to your project
 cd /path/to/your/project
 
-# Step 3: Initialize IDE integration (one-time per project)
-specfact init
-# Or specify IDE: specfact init ide --ide cursor
+# Step 3: Bootstrap runtime + module profile
+specfact init --profile solo-developer
 
-# Step 4: Use slash command in IDE chat
+# Step 4: Initialize IDE integration (one-time per project)
+specfact init ide --ide cursor
+
+# Step 5: Use slash command in IDE chat
 /specfact.02-plan init legacy-api
 # Or use other plan operations: /specfact.02-plan add-feature --bundle legacy-api --key FEATURE-001 --title "User Auth"
 ```
@@ -271,6 +276,9 @@ specfact init
 - Commands are numbered for natural workflow progression (01-import → 02-plan → 03-review → 04-sdd → 05-enforce → 06-sync)
 - No `--repo .` parameter needed in interactive mode (uses workspace automatically)
 - The AI assistant will prompt you for bundle names and other inputs if not provided
+
+Use `specfact init` for runtime/bootstrap state and `specfact init ide` for IDE slash commands,
+prompt templates, and settings export.
 
 See [IDE Integration Guide](../guides/ide-integration.md) for detailed setup instructions.
 
@@ -319,13 +327,15 @@ pip install specfact-cli
 # Step 2: Navigate to your project
 cd /path/to/your/project
 
-# Step 3: Initialize IDE integration (one-time per project)
-specfact init
-# Or specify IDE: specfact init ide --ide cursor
+# Step 3: Bootstrap runtime + module profile
+specfact init --profile solo-developer
 
-# Step 4: Use slash command in IDE chat
+# Step 4: Initialize IDE integration (one-time per project)
+specfact init ide --ide cursor
+
+# Step 5: Use slash command in IDE chat
 /specfact.01-import legacy-api
-# Or let the AI assistant prompt you for bundle name and other options
+# Or let your IDE copilot walk through the prompt-driven flow
 ```
 
 **Important for IDE Integration**:
@@ -333,9 +343,9 @@ specfact init
 - Interactive mode automatically uses your IDE workspace (no `--repo .` needed in interactive mode)
 - Slash commands use numbered format: `/specfact.01-import`, `/specfact.02-plan`, etc. (numbered for workflow ordering)
 - Commands follow natural progression: 01-import → 02-plan → 03-review → 04-sdd → 05-enforce → 06-sync
-- The AI assistant will prompt you for bundle names and confidence thresholds if not provided
-- Better feature detection than CLI-only mode (semantic understanding vs AST-only)
-- **Do NOT use `--mode copilot` with IDE slash commands** - IDE integration automatically provides enhanced prompts
+- Your IDE copilot can guide the slash-command flow if the prompt supports follow-up questions
+- The CLI still performs deterministic command execution and validation
+- **Do NOT use `--mode copilot` as a synonym for built-in AI** - IDE integration is prompt-driven orchestration around the CLI
 
 **CLI-Only Mode (Alternative - for CI/CD or when IDE integration is not available):**
 
@@ -356,7 +366,7 @@ specfact --mode copilot import from-code my-project \
 cat analysis.md
 ```
 
-**Note**: `--mode copilot` is for CLI usage only. When using IDE integration, use slash commands (e.g., `/specfact.01-import`) instead - IDE integration automatically provides enhanced prompts without needing the `--mode copilot` flag.
+**Note**: When using IDE integration, use slash commands (for example `/specfact.01-import`) instead of assuming the CLI itself becomes AI-powered. The IDE prompt layer is what connects your copilot to SpecFact.
 
 See [IDE Integration Guide](../guides/ide-integration.md) for detailed setup instructions.
 
@@ -387,7 +397,7 @@ specfact project sync repository --repo . --watch
 - **Check reports**: Generate reports with `--report <filename>` for review
 - **Progressive enforcement**: Start with `minimal`, move to `balanced`, then `strict`
 - **CLI-only vs Interactive**: Use `uvx` for quick testing, `pip install + specfact init` for better results
-- **IDE integration**: Use `specfact init` to set up slash commands in IDE (requires pip install)
+- **IDE integration**: Use `specfact init ide` to set up slash commands in your IDE after bootstrap
 - **Slash commands**: Use numbered format `/specfact.01-import`, `/specfact.02-plan`, etc. (numbered for workflow ordering)
 - **Global flags**: Place `--no-banner` before the command: `specfact --no-banner <command>`
 - **Bridge adapter sync**: Use `sync bridge --adapter <adapter-name>` for external tool integration (Spec-Kit, OpenSpec, GitHub, etc.)

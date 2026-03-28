@@ -5,6 +5,9 @@ permalink: /getting-started/quickstart/
 redirect_from:
   - /getting-started/first-steps/
 description: Get SpecFact CLI running in under 5 minutes - install, bootstrap, and analyze your first codebase.
+keywords: [quickstart, first-run, bootstrap, analysis]
+audience: [solo, team]
+expertise_level: [beginner]
 ---
 
 # 5-Minute Quickstart

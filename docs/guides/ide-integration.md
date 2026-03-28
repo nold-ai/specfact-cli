@@ -11,13 +11,15 @@ permalink: /guides/ide-integration/
 
 **CLI-First Approach**: SpecFact works offline, requires no account, and integrates with your existing workflow. Works with VS Code, Cursor, GitHub Actions, pre-commit hooks, or any IDE. No platform to learn, no vendor lock-in.
 
+**Important**: SpecFact CLI does **not** provide built-in AI. IDE integration means SpecFact installs prompt templates and slash commands that your chosen IDE copilot can use to run SpecFact as part of a guided command chain.
+
 **Terminal Output**: The CLI automatically detects embedded terminals (Cursor, VS Code) and CI/CD environments, adapts formatting automatically, and falls back to ASCII-safe rendering when the active terminal encoding cannot display UTF-8 symbols. See [Troubleshooting](troubleshooting.md#terminal-output-issues) for details.
 
 ---
 
 ## Overview
 
-SpecFact CLI supports IDE integration through **prompt templates** that work with various AI-assisted IDEs. These templates are copied to IDE-specific locations and automatically registered by the IDE as slash commands.
+SpecFact CLI supports IDE integration through **prompt templates** that work with various AI-assisted IDEs. These templates are copied to IDE-specific locations and automatically registered by the IDE as slash commands. The AI stays in your IDE; SpecFact remains the deterministic CLI the prompts call.
 
 **See real examples**: [Integration Showcases](../examples/integration-showcases/) - 5 complete examples showing bugs fixed via IDE integrations
 
@@ -95,7 +97,7 @@ Once initialized, you can use slash commands directly in your IDE's AI chat:
 /specfact.validate --repo .
 ```
 
-The IDE automatically recognizes these commands and provides enhanced prompts.
+The IDE automatically recognizes these commands and exposes the corresponding prompt templates. Those prompts then guide your AI copilot to call SpecFact commands.
 
 ---
 

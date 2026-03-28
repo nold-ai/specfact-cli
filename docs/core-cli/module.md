@@ -3,6 +3,9 @@ layout: default
 title: specfact module
 permalink: /core-cli/module/
 description: Reference for the specfact module command group - install, manage, search, and configure marketplace modules.
+keywords: [module, install, registry, marketplace]
+audience: [solo, team, enterprise]
+expertise_level: [beginner, intermediate]
 ---
 
 # specfact module

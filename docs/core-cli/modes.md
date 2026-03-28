@@ -5,6 +5,9 @@ permalink: /core-cli/modes/
 redirect_from:
   - /modes/
   - /reference/modes/
+keywords: [modes, copilot, cicd, runtime]
+audience: [team, enterprise]
+expertise_level: [intermediate, advanced]
 ---
 
 # Operational Modes

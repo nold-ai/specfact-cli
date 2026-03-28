@@ -5,7 +5,10 @@ title: SpecFact CLI Documentation
 description: >-
   Complete documentation for SpecFact CLI - Brownfield-first CLI: Reverse engineer legacy Python → specs → enforced contracts.
 baseurl: ""  # Custom domain at root, no baseurl needed
-url: "https://docs.specfact.io"  # Custom domain
+url: &docs_site_url "https://docs.specfact.io"  # Custom domain
+docs_home_url: *docs_site_url
+core_cli_docs_url: *docs_site_url
+modules_docs_url: "https://modules.specfact.io"
 
 # Build settings
 markdown: kramdown

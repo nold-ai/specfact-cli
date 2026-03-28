@@ -5,6 +5,9 @@ permalink: /module-system/module-marketplace/
 redirect_from:
   - /guides/module-marketplace/
 description: Registry model, discovery priority, trust semantics, and security checks for SpecFact modules.
+keywords: [marketplace, module discovery, trust, registry]
+audience: [solo, team, enterprise]
+expertise_level: [beginner, intermediate]
 ---
 
 # Module Marketplace

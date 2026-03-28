@@ -3,6 +3,9 @@ layout: default
 title: Architecture Implementation Status
 permalink: /architecture/implementation-status/
 description: Implemented vs planned architecture capabilities.
+keywords: [implementation status, roadmap, architecture]
+audience: [team, enterprise]
+expertise_level: [advanced]
 ---
 
 # Architecture Implementation Status

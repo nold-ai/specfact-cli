@@ -6,6 +6,9 @@ permalink: /module-system/marketplace/
 redirect_from:
   - /guides/marketplace/
 description: Official SpecFact bundle IDs, trust tiers, and bundle dependency behavior.
+keywords: [bundles, official modules, trust tiers]
+audience: [solo, team, enterprise]
+expertise_level: [intermediate]
 ---
 
 # Marketplace Bundles
