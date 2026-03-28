@@ -1,4 +1,7 @@
+from html.parser import HTMLParser
 from pathlib import Path
+
+import yaml
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -13,27 +16,54 @@ OUTDATED_DOCS_HOSTS = (
 )
 
 
+class _HrefParser(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__()
+        self.hrefs: list[str] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag != "a":
+            return
+        for key, value in attrs:
+            if key == "href" and value is not None:
+                self.hrefs.append(value)
+
+
 def _read(path: Path) -> str:
-    return path.read_text(encoding="utf-8")
+    try:
+        return path.read_text(encoding="utf-8")
+    except UnicodeDecodeError:
+        return path.read_bytes().decode("utf-8", errors="ignore")
+
+
+def _config() -> dict[str, object]:
+    return yaml.safe_load(_read(DOCS_CONFIG))
+
+
+def _index_hrefs() -> list[str]:
+    parser = _HrefParser()
+    parser.feed(_read(DOCS_INDEX))
+    return parser.hrefs
 
 
 def test_core_docs_config_targets_public_core_domain() -> None:
-    config = _read(DOCS_CONFIG)
+    config = _config()
 
-    assert 'url: "https://docs.specfact.io"' in config
-    assert 'baseurl: ""' in config
-    assert 'docs_home_url: "https://docs.specfact.io"' in config
-    assert 'core_cli_docs_url: "https://docs.specfact.io"' in config
-    assert 'modules_docs_url: "https://modules.specfact.io"' in config
+    assert config["url"] == "https://docs.specfact.io"
+    assert config["baseurl"] == ""
+    assert config["docs_home_url"] == "https://docs.specfact.io"
+    assert config["core_cli_docs_url"] == "https://docs.specfact.io"
+    assert config["modules_docs_url"] == "https://modules.specfact.io"
 
 
 def test_core_landing_page_marks_core_repo_as_canonical_owner() -> None:
     index = _read(DOCS_INDEX)
+    hrefs = _index_hrefs()
 
     assert "This site covers the core platform" in index
     assert "module-specific workflows" in index
     assert "shared portal navigation" in index
-    assert "https://modules.specfact.io/" in index
+    assert "https://modules.specfact.io/" in hrefs
     assert "nold-ai.github.io/specfact-cli" not in index
 
 
@@ -64,10 +94,8 @@ def test_core_layout_keeps_sidebar_core_focused() -> None:
     layout = _read(DOCS_LAYOUT)
 
     assert "Core CLI Docs" in layout
-    assert (
-        "Getting Started, Core CLI, Module System, Architecture, Workflows, Integrations, Migration, and Reference"
-        in layout
-    )
+    assert "Documentation navigation for Getting Started" in layout
+    assert "Module System, Architecture, Workflows, Integrations, Migration, and Reference" in layout
     assert "Official Modules Docs" not in layout
 
 

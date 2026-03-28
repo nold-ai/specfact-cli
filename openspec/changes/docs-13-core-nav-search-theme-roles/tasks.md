@@ -1,11 +1,14 @@
 ## 1. Change Setup And Spec Deltas
 
-- [x] 1.1 Update `openspec/CHANGE_ORDER.md` with `docs-13-core-nav-search-theme-roles`
-- [x] 1.2 Add `core-docs-data-driven-nav` capability spec
-- [x] 1.3 Add `core-docs-client-search` capability spec
-- [x] 1.4 Add `core-docs-expertise-paths` capability spec
-- [x] 1.5 Add `core-docs-theme-toggle` capability spec
-- [x] 1.6 Extend `core-docs-progressive-nav` / `documentation-alignment` where needed for the new interactive UX layer
+- [x] 1.1 Create a dedicated worktree and feature branch from `origin/dev` for `docs-13-core-nav-search-theme-roles`
+- [x] 1.2 Run `hatch env create` inside that worktree before implementation
+- [x] 1.3 Run pre-flight checks `hatch run smart-test-status` and `hatch run contract-test-status` before changing docs code
+- [x] 1.4 Update `openspec/CHANGE_ORDER.md` with `docs-13-core-nav-search-theme-roles`
+- [x] 1.5 Add `core-docs-data-driven-nav` capability spec
+- [x] 1.6 Add `core-docs-client-search` capability spec
+- [x] 1.7 Add `core-docs-expertise-paths` capability spec
+- [x] 1.8 Add `core-docs-theme-toggle` capability spec
+- [x] 1.9 Extend `core-docs-progressive-nav` / `documentation-alignment` where needed for the new interactive UX layer
 
 ## 2. Navigation And Layout
 
@@ -34,3 +37,4 @@
 - [x] 5.3 Verify search returns expected results for known core CLI and architecture keywords
 - [x] 5.4 Verify theme toggle and expertise/path selection persist across page loads
 - [x] 5.5 Verify docs validation remains green with the new navigation/search assets and enriched front matter
+- [x] 5.6 After merge, remove the worktree and clean up the branch-specific Hatch environment

@@ -207,13 +207,12 @@
               <p class="footer-tagline">{{ footer_description_parts[1] | escape }}</p>
             {% endif %}
           </div>
-          </div>
         </div>
         <div class="footer-links">
           <a href="https://noldai.com">noldai.com</a>
           <a href="https://specfact.com">specfact.com</a>
-          <a href="https://docs.specfact.io">docs.specfact.io</a>
-          <a href="https://modules.specfact.io">modules.specfact.io</a>
+          <a href="{{ site.docs_home_url | default: 'https://docs.specfact.io' }}">docs.specfact.io</a>
+          <a href="{{ site.modules_docs_url | default: 'https://modules.specfact.io' }}">modules.specfact.io</a>
           <a href="https://github.com/nold-ai/specfact-cli">GitHub</a>
           <a href="https://github.com/nold-ai/specfact-cli-modules">Modules Repo</a>
         </div>

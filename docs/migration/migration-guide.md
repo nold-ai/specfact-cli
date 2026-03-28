@@ -105,8 +105,8 @@ specfact project regenerate
 If you operate specific bundles directly:
 
 ```bash
-specfact project snapshot --bundle <bundle-name>
-specfact project version --bundle <bundle-name>
+specfact project snapshot --bundle my-bundle
+specfact project version --bundle my-bundle
 ```
 
 This is the point where you should catch stale bundle metadata, missing generated assets, or drift between the project state and the current CLI expectations.
@@ -120,13 +120,13 @@ If your repo still starts from Spec-Kit assets, import first and keep sync optio
 ```bash
 specfact code import from-bridge --adapter speckit --repo . --dry-run
 specfact code import from-bridge --adapter speckit --repo . --write
-specfact project devops-flow --stage develop --bundle <bundle-name>
+specfact project devops-flow --stage develop --bundle my-bundle
 ```
 
 Only enable ongoing sync after review:
 
 ```bash
-specfact project sync bridge --adapter speckit --bundle <bundle-name> --repo . --bidirectional
+specfact project sync bridge --adapter speckit --bundle my-bundle --repo . --bidirectional
 ```
 
 For the fuller walkthrough, see [Spec-Kit Journey Guide](../guides/speckit-journey.md).
@@ -136,8 +136,8 @@ For the fuller walkthrough, see [Spec-Kit Journey Guide](../guides/speckit-journ
 If you are moving existing OpenSpec project context into SpecFact-backed workflows:
 
 ```bash
-specfact project sync bridge --adapter openspec --mode read-only --bundle <bundle-name> --repo .
-specfact project devops-flow --stage develop --bundle <bundle-name>
+specfact project sync bridge --adapter openspec --mode read-only --bundle my-bundle --repo .
+specfact project devops-flow --stage develop --bundle my-bundle
 ```
 
 Keep the first pass read-only until the imported state is reviewed. Then enable the sync mode you actually want.
@@ -151,8 +151,8 @@ After any migration, run the checks that prove the new setup is usable:
 ```bash
 specfact module list
 specfact project health-check
-specfact govern enforce sdd --bundle <bundle-name>
-specfact spec validate --bundle <bundle-name>
+specfact govern enforce sdd --bundle my-bundle
+specfact spec validate --bundle my-bundle
 ```
 
 Pick the bundle that matters most first. Once one representative bundle passes, roll the same checks across the rest of the repo.

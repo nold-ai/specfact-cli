@@ -260,9 +260,13 @@ def _extract_front_matter(text: str) -> dict[str, str]:
 
 
 @beartype
-def _published_route_for_path(path: Path, metadata: dict[str, str]) -> str:
+def _published_route_for_path(path: Path, metadata: dict[str, str], docs_root: Path) -> str:
     permalink = metadata.get("permalink")
-    route = permalink or f"/{path.stem}/"
+    if permalink:
+        route = permalink
+    else:
+        rel = path.relative_to(docs_root)
+        route = "/" + str(rel.with_suffix("")).replace(os.sep, "/").lstrip("/")
     if route != "/" and not route.endswith("/"):
         route += "/"
     return route
@@ -276,7 +280,7 @@ def _build_published_docs_index(docs_root: Path) -> dict[str, Path]:
         if "_site" in rel.parts or "vendor" in rel.parts:
             continue
         metadata = _extract_front_matter(md_path.read_text(encoding="utf-8"))
-        route_to_path[_published_route_for_path(md_path, metadata)] = md_path
+        route_to_path[_published_route_for_path(md_path, metadata, docs_root)] = md_path
     return route_to_path
 
 

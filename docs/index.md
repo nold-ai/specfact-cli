@@ -58,7 +58,7 @@ Use the shared portal navigation to move between **Docs Home**, **Core CLI**, an
 <li><a href="/module-system/installing-modules/">Installing Modules</a></li>
 <li><a href="/module-system/module-marketplace/">Module Marketplace</a></li>
 <li><a href="https://modules.specfact.io/">Modules Docs Home</a></li>
-<li><a href="https://modules.specfact.io/">Modules Docs Home</a></li>
+<li><a href="https://modules.specfact.io/authoring/module-development/">Module Development</a></li>
 </ul>
 </div>
 </div>

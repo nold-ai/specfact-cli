@@ -3,7 +3,13 @@
   var countEl = document.querySelector('.expertise-count');
   if (!pills.length) return;
 
+  var validLevels = Array.prototype.map.call(pills, function(pill) {
+    return pill.getAttribute('data-level');
+  });
   var stored = localStorage.getItem('specfact-expertise') || 'all';
+  if (validLevels.indexOf(stored) === -1) {
+    stored = 'all';
+  }
 
   function applyFilter(level) {
     // Update pills

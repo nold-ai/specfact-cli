@@ -258,11 +258,13 @@ pip install specfact-cli
 # Step 2: Navigate to your project
 cd /path/to/your/project
 
-# Step 3: Initialize IDE integration (one-time per project)
-specfact init
-# Or specify IDE: specfact init ide --ide cursor
+# Step 3: Bootstrap runtime + module profile
+specfact init --profile solo-developer
 
-# Step 4: Use slash command in IDE chat
+# Step 4: Initialize IDE integration (one-time per project)
+specfact init ide --ide cursor
+
+# Step 5: Use slash command in IDE chat
 /specfact.02-plan init legacy-api
 # Or use other plan operations: /specfact.02-plan add-feature --bundle legacy-api --key FEATURE-001 --title "User Auth"
 ```
@@ -274,6 +276,9 @@ specfact init
 - Commands are numbered for natural workflow progression (01-import → 02-plan → 03-review → 04-sdd → 05-enforce → 06-sync)
 - No `--repo .` parameter needed in interactive mode (uses workspace automatically)
 - The AI assistant will prompt you for bundle names and other inputs if not provided
+
+Use `specfact init` for runtime/bootstrap state and `specfact init ide` for IDE slash commands,
+prompt templates, and settings export.
 
 See [IDE Integration Guide](../guides/ide-integration.md) for detailed setup instructions.
 
@@ -322,11 +327,13 @@ pip install specfact-cli
 # Step 2: Navigate to your project
 cd /path/to/your/project
 
-# Step 3: Initialize IDE integration (one-time per project)
-specfact init
-# Or specify IDE: specfact init ide --ide cursor
+# Step 3: Bootstrap runtime + module profile
+specfact init --profile solo-developer
 
-# Step 4: Use slash command in IDE chat
+# Step 4: Initialize IDE integration (one-time per project)
+specfact init ide --ide cursor
+
+# Step 5: Use slash command in IDE chat
 /specfact.01-import legacy-api
 # Or let your IDE copilot walk through the prompt-driven flow
 ```
@@ -390,7 +397,7 @@ specfact project sync repository --repo . --watch
 - **Check reports**: Generate reports with `--report <filename>` for review
 - **Progressive enforcement**: Start with `minimal`, move to `balanced`, then `strict`
 - **CLI-only vs Interactive**: Use `uvx` for quick testing, `pip install + specfact init` for better results
-- **IDE integration**: Use `specfact init` to set up slash commands in IDE (requires pip install)
+- **IDE integration**: Use `specfact init ide` to set up slash commands in your IDE after bootstrap
 - **Slash commands**: Use numbered format `/specfact.01-import`, `/specfact.02-plan`, etc. (numbered for workflow ordering)
 - **Global flags**: Place `--no-banner` before the command: `specfact --no-banner <command>`
 - **Bridge adapter sync**: Use `sync bridge --adapter <adapter-name>` for external tool integration (Spec-Kit, OpenSpec, GitHub, etc.)

@@ -934,15 +934,6 @@ body {
   transition: background-color 0.2s;
 
   svg { background-color: transparent !important; }
-  text { fill: var(--text-color) !important; }
-
-  .node rect, .node circle, .node ellipse, .node polygon {
-    fill: var(--bg-alt) !important;
-    stroke: var(--primary-color) !important;
-  }
-
-  .edgePath path, .flowchart-link { stroke: var(--primary-color) !important; }
-  .arrowheadPath { fill: var(--primary-color) !important; }
 
   .edgeLabel {
     background-color: var(--bg-light) !important;
