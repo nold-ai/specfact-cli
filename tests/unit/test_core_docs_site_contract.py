@@ -1,5 +1,6 @@
 from html.parser import HTMLParser
 from pathlib import Path
+from urllib.parse import urlparse
 
 import yaml
 
@@ -46,6 +47,14 @@ def _index_hrefs() -> list[str]:
     return parser.hrefs
 
 
+def _has_modules_docs_home_link(hrefs: list[str]) -> bool:
+    for href in hrefs:
+        parsed = urlparse(href)
+        if parsed.scheme == "https" and parsed.netloc == "modules.specfact.io" and parsed.path == "/":
+            return True
+    return False
+
+
 def test_core_docs_config_targets_public_core_domain() -> None:
     config = _config()
 
@@ -63,7 +72,7 @@ def test_core_landing_page_marks_core_repo_as_canonical_owner() -> None:
     assert "This site covers the core platform" in index
     assert "module-specific workflows" in index
     assert "shared portal navigation" in index
-    assert "https://modules.specfact.io/" in hrefs
+    assert _has_modules_docs_home_link(hrefs)
     assert "nold-ai.github.io/specfact-cli" not in index
 
 
