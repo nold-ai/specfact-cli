@@ -3,6 +3,9 @@ layout: default
 title: specfact upgrade
 permalink: /core-cli/upgrade/
 description: Reference for the specfact upgrade command - check for and install SpecFact CLI updates.
+keywords: [upgrade, updates, cli-version]
+audience: [solo, team, enterprise]
+expertise_level: [beginner, intermediate]
 ---
 
 # specfact upgrade
@@ -45,4 +48,4 @@ specfact upgrade -y
 ## Related
 
 - [Migration Guide](/migration/migration-guide/) - version migration guidance
-- [Migration 0.16 to 0.19](/migration/migration-0.16-to-0.19/) - specific version migration steps
+- [Command Reference](/reference/commands/) - current grouped command surface

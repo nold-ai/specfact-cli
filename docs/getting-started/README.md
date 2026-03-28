@@ -6,6 +6,10 @@ permalink: /getting-started/
 
 # Getting Started with SpecFact CLI
 
+## Start Here
+
+- **[Where to Start](where-to-start.md)** - New-user overview: what SpecFact is for, what core owns, and what to do next
+
 ## Installation
 
 - **[Installation Guide](installation.md)** - All installation options (uvx, pip, Docker, GitHub Actions)

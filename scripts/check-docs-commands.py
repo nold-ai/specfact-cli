@@ -9,6 +9,7 @@ import shlex
 import sys
 from pathlib import Path
 
+import yaml
 from beartype import beartype
 from icontract import ensure
 from rich.console import Console
@@ -236,6 +237,85 @@ def _scan_docs_for_command_validation(docs_root: Path) -> tuple[set[tuple[str, .
 
 
 @beartype
+def _extract_front_matter(text: str) -> dict[str, str]:
+    if not text.startswith("---\n"):
+        return {}
+
+    lines = text.splitlines()
+    end_index = None
+    for index in range(1, len(lines)):
+        if lines[index].strip() == "---":
+            end_index = index
+            break
+    if end_index is None:
+        return {}
+
+    metadata: dict[str, str] = {}
+    for raw_line in lines[1:end_index]:
+        if ":" not in raw_line:
+            continue
+        key, value = raw_line.split(":", 1)
+        metadata[key.strip()] = value.strip().strip('"').strip("'")
+    return metadata
+
+
+@beartype
+def _published_route_for_path(path: Path, metadata: dict[str, str]) -> str:
+    permalink = metadata.get("permalink")
+    route = permalink or f"/{path.stem}/"
+    if route != "/" and not route.endswith("/"):
+        route += "/"
+    return route
+
+
+@beartype
+def _build_published_docs_index(docs_root: Path) -> dict[str, Path]:
+    route_to_path: dict[str, Path] = {}
+    for md_path in sorted(docs_root.rglob("*.md")):
+        rel = md_path.relative_to(_REPO_ROOT)
+        if "_site" in rel.parts or "vendor" in rel.parts:
+            continue
+        metadata = _extract_front_matter(md_path.read_text(encoding="utf-8"))
+        route_to_path[_published_route_for_path(md_path, metadata)] = md_path
+    return route_to_path
+
+
+@beartype
+def _iter_nav_urls(nav_data: list[dict[str, object]]) -> list[str]:
+    urls: list[str] = []
+    for section in nav_data:
+        for item in section.get("items", []) or []:
+            url = item.get("url")
+            if isinstance(url, str):
+                urls.append(url)
+        for bundle in section.get("bundles", []) or []:
+            for item in bundle.get("items", []) or []:
+                url = item.get("url")
+                if isinstance(url, str):
+                    urls.append(url)
+    return urls
+
+
+@beartype
+def _validate_nav_targets(docs_root: Path) -> list[str]:
+    nav_path = docs_root / "_data" / "nav.yml"
+    if not nav_path.is_file():
+        return [f"{nav_path.relative_to(_REPO_ROOT)}: missing nav data file"]
+
+    nav_data = yaml.safe_load(nav_path.read_text(encoding="utf-8")) or []
+    if not isinstance(nav_data, list):
+        return [f"{nav_path.relative_to(_REPO_ROOT)}: nav data must be a list"]
+
+    route_index = _build_published_docs_index(docs_root)
+    failures: list[str] = []
+    for raw_url in _iter_nav_urls(nav_data):
+        url = raw_url if raw_url == "/" else raw_url.rstrip("/") + "/"
+        if url not in route_index:
+            failures.append(f"{nav_path.relative_to(_REPO_ROOT)}: unknown docs route {raw_url}")
+    return failures
+
+
+@beartype
 @ensure(lambda result: result in (0, 1), "exit code must be 0 or 1")
 def main() -> int:
     docs_root = _REPO_ROOT / "docs"
@@ -244,6 +324,7 @@ def main() -> int:
         return 1
 
     seen, failures = _scan_docs_for_command_validation(docs_root)
+    failures.extend(_validate_nav_targets(docs_root))
 
     if failures:
         _ERR.print("Docs command validation failed:", markup=False)

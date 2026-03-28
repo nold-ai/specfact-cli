@@ -2,6 +2,9 @@
 layout: default
 title: Bridge Registry
 permalink: /reference/bridge-registry/
+keywords: [bridge registry, adapters, integrations]
+audience: [team, enterprise]
+expertise_level: [advanced]
 ---
 
 # Bridge Registry
@@ -50,4 +53,3 @@ Lifecycle protocol reporting now uses the effective runtime interface:
 The summary format is:
 
 `Protocol-compliant: <compliant>/<total> modules (Full=<n>, Partial=<n>, Legacy=<n>)`
-

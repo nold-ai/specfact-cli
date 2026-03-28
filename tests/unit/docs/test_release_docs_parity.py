@@ -128,6 +128,8 @@ def _resolve_internal_docs_target(
     stripped = _normalize_jekyll_relative_url(raw_link.strip())
     if not stripped or stripped.startswith("#"):
         return None, None, None
+    if "{{" in stripped and "site." in stripped:
+        return None, None, None
 
     parsed = urlparse(stripped)
     if parsed.scheme in {"mailto", "javascript", "tel"}:
@@ -287,7 +289,9 @@ def test_top_navigation_exposes_docs_home_core_cli_and_modules() -> None:
     assert ">Docs Home<" in layout
     assert ">Core CLI<" in layout
     assert ">Modules<" in layout
-    _assert_mentions_modules_docs_site(layout)
+    assert "{{ site.docs_home_url }}" in layout
+    assert "{{ site.core_cli_docs_url }}" in layout
+    assert "{{ site.modules_docs_url }}" in layout
 
 
 def test_command_reference_and_docs_readme_link_to_modules_canonical_site() -> None:

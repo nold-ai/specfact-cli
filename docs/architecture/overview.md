@@ -4,6 +4,9 @@ title: Architecture
 permalink: /architecture/overview/
 redirect_from:
   - /reference/architecture/
+keywords: [architecture, module system, runtime, registry]
+audience: [team, enterprise]
+expertise_level: [intermediate, advanced]
 ---
 
 # Architecture

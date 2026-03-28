@@ -1,0 +1,164 @@
+- section: Getting Started
+  items:
+    - title: Where to Start
+      url: /getting-started/where-to-start/
+      expertise: [beginner]
+    - title: Installation
+      url: /getting-started/installation/
+      expertise: [beginner]
+    - title: Quickstart
+      url: /getting-started/quickstart/
+      expertise: [beginner]
+    - title: Bootstrap Checklist
+      url: /module-system/bootstrap-checklist/
+      expertise: [beginner, intermediate]
+    - title: AI IDE Workflow
+      url: /guides/ai-ide-workflow/
+      expertise: [beginner, intermediate]
+
+- section: Core CLI
+  items:
+    - title: specfact init
+      url: /core-cli/init/
+      expertise: [beginner, intermediate]
+    - title: specfact module
+      url: /core-cli/module/
+      expertise: [beginner, intermediate]
+    - title: specfact upgrade
+      url: /core-cli/upgrade/
+      expertise: [beginner, intermediate]
+    - title: Operational Modes
+      url: /core-cli/modes/
+      expertise: [intermediate, advanced]
+    - title: Debug Logging
+      url: /core-cli/debug-logging/
+      expertise: [advanced]
+
+- section: Module System
+  items:
+    - title: Installing Modules
+      url: /module-system/installing-modules/
+      expertise: [beginner, intermediate]
+    - title: Module Marketplace
+      url: /module-system/module-marketplace/
+      expertise: [beginner, intermediate]
+    - title: Marketplace Bundles
+      url: /module-system/marketplace/
+      expertise: [intermediate]
+    - title: Custom Registries
+      url: /module-system/custom-registries/
+      expertise: [advanced]
+    - title: Module Bootstrap Checklist
+      url: /module-system/bootstrap-checklist/
+      expertise: [beginner, intermediate]
+
+- section: Architecture
+  items:
+    - title: Overview
+      url: /architecture/overview/
+      expertise: [intermediate, advanced]
+    - title: Implementation Status
+      url: /architecture/implementation-status/
+      expertise: [advanced]
+    - title: Module System
+      url: /architecture/module-system/
+      expertise: [advanced]
+    - title: Interface Contracts
+      url: /architecture/interface-contracts/
+      expertise: [advanced]
+    - title: Component Graph
+      url: /architecture/component-graph/
+      expertise: [advanced]
+    - title: Data Flow
+      url: /architecture/data-flow/
+      expertise: [advanced]
+    - title: State Machines
+      url: /architecture/state-machines/
+      expertise: [advanced]
+
+- section: Workflows
+  items:
+    - title: AI IDE Workflow
+      url: /guides/ai-ide-workflow/
+      expertise: [beginner, intermediate]
+    - title: Agile & Scrum Workflows
+      url: /guides/agile-scrum-workflows/
+      expertise: [intermediate]
+    - title: Command Chains
+      url: /guides/command-chains/
+      expertise: [intermediate, advanced]
+    - title: Contract Testing Workflow
+      url: /guides/contract-testing-workflow/
+      expertise: [advanced]
+    - title: Team Collaboration Workflow
+      url: /guides/team-collaboration-workflow/
+      expertise: [intermediate]
+    - title: OpenSpec Journey
+      url: /guides/openspec-journey/
+      expertise: [intermediate]
+
+- section: Integrations
+  items:
+    - title: Integrations Overview
+      url: /guides/integrations-overview/
+      expertise: [intermediate]
+    - title: GitHub Adapter
+      url: /adapters/github/
+      expertise: [intermediate]
+    - title: Azure DevOps Adapter
+      url: /adapters/azuredevops/
+      expertise: [intermediate]
+    - title: DevOps Adapter Integration
+      url: /guides/devops-adapter-integration/
+      expertise: [intermediate, advanced]
+    - title: Custom Bridges
+      url: /guides/creating-custom-bridges/
+      expertise: [advanced]
+
+- section: Migration
+  items:
+    - title: Migration Guide
+      url: /migration/migration-guide/
+      expertise: [intermediate]
+    - title: CLI Reorganization
+      url: /migration/migration-cli-reorganization/
+      expertise: [intermediate, advanced]
+    - title: OpenSpec Migration
+      url: /migration/openspec-migration/
+      expertise: [intermediate]
+
+- section: Reference
+  items:
+    - title: Command Reference
+      url: /reference/commands/
+      expertise: [intermediate, advanced]
+    - title: Core vs Modules URL Contract
+      url: /reference/documentation-url-contract/
+      expertise: [advanced]
+    - title: Authentication
+      url: /reference/authentication/
+      expertise: [intermediate, advanced]
+    - title: Bridge Registry
+      url: /reference/bridge-registry/
+      expertise: [advanced]
+    - title: Directory Structure
+      url: /reference/directory-structure/
+      expertise: [advanced]
+    - title: Module Contracts
+      url: /reference/module-contracts/
+      expertise: [advanced]
+    - title: Module Categories
+      url: /reference/module-categories/
+      expertise: [intermediate]
+    - title: Module Security
+      url: /reference/module-security/
+      expertise: [advanced]
+    - title: ProjectBundle Schema
+      url: /reference/projectbundle-schema/
+      expertise: [advanced]
+    - title: Dependency Resolution
+      url: /reference/dependency-resolution/
+      expertise: [advanced]
+    - title: Thorough Codebase Validation
+      url: /reference/thorough-codebase-validation/
+      expertise: [advanced]

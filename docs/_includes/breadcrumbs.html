@@ -1,0 +1,19 @@
+{% unless page.url == '/' %}
+<nav class="docs-breadcrumbs" aria-label="Breadcrumb">
+  <a href="{{ '/' | relative_url }}">Home</a>
+  {% assign url_parts = page.url | split: '/' %}
+  {% assign crumb_path = '' %}
+  {% for part in url_parts %}
+    {% if part != '' %}
+      {% assign crumb_path = crumb_path | append: '/' | append: part %}
+      {% if forloop.last %}
+        <span class="separator">/</span>
+        <span class="current">{{ page.title | default: part | replace: '-', ' ' | capitalize }}</span>
+      {% else %}
+        <span class="separator">/</span>
+        <a href="{{ crumb_path | append: '/' | relative_url }}">{{ part | replace: '-', ' ' | capitalize }}</a>
+      {% endif %}
+    {% endif %}
+  {% endfor %}
+</nav>
+{% endunless %}

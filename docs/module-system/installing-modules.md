@@ -5,6 +5,9 @@ permalink: /module-system/installing-modules/
 redirect_from:
   - /guides/installing-modules/
 description: Install, list, show, enable, disable, uninstall, and upgrade SpecFact modules.
+keywords: [install modules, module command, marketplace, registries]
+audience: [solo, team, enterprise]
+expertise_level: [beginner, intermediate]
 ---
 
 # Installing Modules

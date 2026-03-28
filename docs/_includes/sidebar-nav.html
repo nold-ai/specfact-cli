@@ -1,0 +1,34 @@
+<nav class="docs-nav" role="navigation" aria-label="Documentation">
+  {% for section in site.data.nav %}
+    <p class="docs-nav-section">{{ section.section }}</p>
+
+    {% if section.bundles %}
+      {% for bundle in section.bundles %}
+        {% assign bundle_open = false %}
+        {% for item in bundle.items %}
+          {% if page.url == item.url %}
+            {% assign bundle_open = true %}
+          {% endif %}
+        {% endfor %}
+        <details class="docs-nav-bundle"{% if bundle_open %} open{% endif %}>
+          <summary>{{ bundle.name }}</summary>
+          <ul>
+            {% for item in bundle.items %}
+              <li data-expertise="{{ item.expertise | join: ',' }}">
+                <a href="{{ item.url | relative_url }}"{% if page.url == item.url %} class="active" aria-current="page"{% endif %}>{{ item.title }}</a>
+              </li>
+            {% endfor %}
+          </ul>
+        </details>
+      {% endfor %}
+    {% elsif section.items %}
+      <ul>
+        {% for item in section.items %}
+          <li data-expertise="{{ item.expertise | join: ',' }}">
+            <a href="{{ item.url | relative_url }}"{% if page.url == item.url %} class="active" aria-current="page"{% endif %}>{{ item.title }}</a>
+          </li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+  {% endfor %}
+</nav>

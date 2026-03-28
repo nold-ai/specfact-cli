@@ -3,6 +3,9 @@ layout: default
 title: specfact init
 permalink: /core-cli/init/
 description: Reference for the specfact init command - bootstrap SpecFact in a repository with profiles, IDE setup, and dependency installation.
+keywords: [init, bootstrap, ide, profiles]
+audience: [solo, team, enterprise]
+expertise_level: [beginner, intermediate]
 ---
 
 # specfact init

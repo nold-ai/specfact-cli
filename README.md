@@ -1,10 +1,12 @@
 # SpecFact CLI
 
 > **The "swiss knife" CLI that turns any codebase into a clear, safe, and shippable workflow.**
-> Keep backlog, specs, tests, and code in sync so AI-assisted changes do not break production.
+> Keep backlog, specs, tests, and code in sync so changes made by people or AI copilots do not break production.
 > Works for brand-new projects and long-lived codebases - even if you are new to coding.
 
 **No API keys required. Works offline. Zero vendor lock-in.**
+
+SpecFact CLI does **not** include built-in AI. It is a deterministic local CLI that can be paired with IDE slash-command prompts so your chosen AI copilot can invoke SpecFact as part of a command chain.
 
 [![PyPI version](https://img.shields.io/pypi/v/specfact-cli.svg?color=22c55e)](https://pypi.org/project/specfact-cli/)
 [![Python versions](https://img.shields.io/pypi/pyversions/specfact-cli.svg)](https://pypi.org/project/specfact-cli/)
