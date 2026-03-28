@@ -6,7 +6,12 @@
   var validLevels = Array.prototype.map.call(pills, function(pill) {
     return pill.getAttribute('data-level');
   });
-  var stored = localStorage.getItem('specfact-expertise') || 'all';
+  var stored = 'all';
+  try {
+    stored = localStorage.getItem('specfact-expertise') || 'all';
+  } catch (error) {
+    stored = 'all';
+  }
   if (validLevels.indexOf(stored) === -1) {
     stored = 'all';
   }
@@ -57,7 +62,11 @@
       }
     }
 
-    localStorage.setItem('specfact-expertise', level);
+    try {
+      localStorage.setItem('specfact-expertise', level);
+    } catch (error) {
+      // Ignore storage failures in restricted environments.
+    }
   }
 
   pills.forEach(function(pill) {

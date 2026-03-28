@@ -76,7 +76,7 @@ specfact init ide --ide cursor
 specfact init ide --ide vscode
 
 # Install required packages for contract enhancement
-specfact init --install-deps
+specfact init ide --install-deps
 
 # Initialize for specific IDE and install dependencies
 specfact init ide --ide cursor --install-deps

@@ -25,9 +25,10 @@
 1. Focused docs contract and parity tests
 
 ```bash
-PATH=/home/dom/git/nold-ai/specfact-cli/.venv/bin:$PATH \
-PYTHONPATH=/home/dom/git/nold-ai/specfact-cli-worktrees/feature/docs-13-core-nav-search-theme-roles/src \
-/home/dom/git/nold-ai/specfact-cli/.venv/bin/python -m pytest \
+REPO_ROOT=/path/to/specfact-cli
+PATH="$REPO_ROOT/.venv/bin:$PATH" \
+PYTHONPATH="$REPO_ROOT/src" \
+python -m pytest \
   tests/unit/test_core_docs_site_contract.py \
   tests/unit/docs/test_release_docs_parity.py \
   tests/unit/docs/test_docs_validation_scripts.py -q
@@ -44,9 +45,10 @@ Result:
 1. Docs command validation
 
 ```bash
-PATH=/home/dom/git/nold-ai/specfact-cli/.venv/bin:$PATH \
-PYTHONPATH=/home/dom/git/nold-ai/specfact-cli-worktrees/feature/docs-13-core-nav-search-theme-roles/src \
-/home/dom/git/nold-ai/specfact-cli/.venv/bin/python scripts/check-docs-commands.py
+REPO_ROOT=/path/to/specfact-cli
+PATH="$REPO_ROOT/.venv/bin:$PATH" \
+PYTHONPATH="$REPO_ROOT/src" \
+python scripts/check-docs-commands.py
 ```
 
 Result:
@@ -59,9 +61,10 @@ Result:
 1. Cross-site handoff validation
 
 ```bash
-PATH=/home/dom/git/nold-ai/specfact-cli/.venv/bin:$PATH \
-PYTHONPATH=/home/dom/git/nold-ai/specfact-cli-worktrees/feature/docs-13-core-nav-search-theme-roles/src \
-/home/dom/git/nold-ai/specfact-cli/.venv/bin/python scripts/check-cross-site-links.py --warn-only
+REPO_ROOT=/path/to/specfact-cli
+PATH="$REPO_ROOT/.venv/bin:$PATH" \
+PYTHONPATH="$REPO_ROOT/src" \
+python scripts/check-cross-site-links.py --warn-only
 ```
 
 Result:
@@ -76,9 +79,10 @@ Result:
 1. Focused docs contract and parity tests
 
 ```bash
-PATH=/home/dom/git/nold-ai/specfact-cli/.venv/bin:$PATH \
-PYTHONPATH=/home/dom/git/nold-ai/specfact-cli-worktrees/feature/docs-13-core-nav-search-theme-roles/src \
-/home/dom/git/nold-ai/specfact-cli/.venv/bin/python -m pytest \
+REPO_ROOT=/path/to/specfact-cli
+PATH="$REPO_ROOT/.venv/bin:$PATH" \
+PYTHONPATH="$REPO_ROOT/src" \
+python -m pytest \
   tests/unit/test_core_docs_site_contract.py \
   tests/unit/docs/test_release_docs_parity.py \
   tests/unit/docs/test_docs_validation_scripts.py -q
@@ -91,9 +95,10 @@ Result:
 1. Docs command validation
 
 ```bash
-PATH=/home/dom/git/nold-ai/specfact-cli/.venv/bin:$PATH \
-PYTHONPATH=/home/dom/git/nold-ai/specfact-cli-worktrees/feature/docs-13-core-nav-search-theme-roles/src \
-/home/dom/git/nold-ai/specfact-cli/.venv/bin/python scripts/check-docs-commands.py
+REPO_ROOT=/path/to/specfact-cli
+PATH="$REPO_ROOT/.venv/bin:$PATH" \
+PYTHONPATH="$REPO_ROOT/src" \
+python scripts/check-docs-commands.py
 ```
 
 Result:
@@ -103,9 +108,10 @@ Result:
 1. Cross-site handoff validation against live `modules.specfact.io`
 
 ```bash
-PATH=/home/dom/git/nold-ai/specfact-cli/.venv/bin:$PATH \
-PYTHONPATH=/home/dom/git/nold-ai/specfact-cli-worktrees/feature/docs-13-core-nav-search-theme-roles/src \
-/home/dom/git/nold-ai/specfact-cli/.venv/bin/python scripts/check-cross-site-links.py --warn-only
+REPO_ROOT=/path/to/specfact-cli
+PATH="$REPO_ROOT/.venv/bin:$PATH" \
+PYTHONPATH="$REPO_ROOT/src" \
+python scripts/check-cross-site-links.py --warn-only
 ```
 
 Result:
@@ -127,8 +133,9 @@ Result:
 1. Formatting
 
 ```bash
-PATH=/home/dom/git/nold-ai/specfact-cli/.venv/bin:$PATH \
-/home/dom/git/nold-ai/specfact-cli/.venv/bin/ruff format . --check
+REPO_ROOT=/path/to/specfact-cli
+PATH="$REPO_ROOT/.venv/bin:$PATH" \
+ruff format . --check
 ```
 
 Result:
@@ -138,9 +145,9 @@ Result:
 1. Type check baseline
 
 ```bash
-PATH=/home/dom/git/nold-ai/specfact-cli/.venv/bin:$PATH \
-/home/dom/git/nold-ai/specfact-cli/.venv/bin/basedpyright \
-  --pythonpath /home/dom/git/nold-ai/specfact-cli/.venv/bin/python
+REPO_ROOT=/path/to/specfact-cli
+PATH="$REPO_ROOT/.venv/bin:$PATH" \
+basedpyright --pythonpath "$REPO_ROOT/.venv/bin/python"
 ```
 
 Result:

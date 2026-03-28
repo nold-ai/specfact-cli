@@ -73,7 +73,7 @@ This is the most common entry point.
 
 1. Install the CLI
 2. Run `specfact init --profile solo-developer`
-3. Run `specfact code import <bundle-name> --repo .`
+3. Run `specfact code import my-project --repo .`
 4. Check `specfact code repro --repo .`
 
 Start here:

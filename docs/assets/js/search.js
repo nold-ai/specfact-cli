@@ -9,6 +9,7 @@
   var debounceTimer = null;
   var highlightedIndex = -1;
   var loadFailed = false;
+  var lunrIndexPromise = null;
 
   function setSearchStatus(message) {
     searchResults.textContent = message;
@@ -25,12 +26,16 @@
   }
 
   function loadIndex() {
-    if (lunrIndex) return Promise.resolve();
-    if (loadFailed) return Promise.reject(new Error('Search index previously failed to load.'));
+    if (lunrIndex) return Promise.resolve(lunrIndex);
+    if (lunrIndexPromise) return lunrIndexPromise;
 
     var indexUrl = searchRoot.getAttribute('data-search-index-url') || '/assets/js/search-index.json';
-    return fetch(indexUrl)
+    loadFailed = false;
+    lunrIndexPromise = fetch(indexUrl)
       .then(function(response) {
+        if (!response.ok) {
+          throw new Error('Search index request failed with status ' + response.status);
+        }
         return response.json();
       })
       .then(function(data) {
@@ -50,15 +55,18 @@
           }.bind(this));
         });
         loadFailed = false;
+        return lunrIndex;
       })
       .catch(function(error) {
         loadFailed = true;
         lunrIndex = null;
         searchData = null;
+        lunrIndexPromise = null;
         setSearchStatus('Search is temporarily unavailable.');
         console.error('Failed to load SpecFact search index.', error);
         throw error;
       });
+    return lunrIndexPromise;
   }
 
   function getDoc(url) {
@@ -131,23 +139,31 @@
   }
 
   function doSearch(query) {
-    if (!lunrIndex || loadFailed || query.length < 2) {
+    if (query.length < 2) {
       clearSearchStatus();
       searchResults.style.display = 'none';
       return;
     }
-    try {
-      var results = lunrIndex.search(query + '*');
-      renderResults(results);
-    } catch (error) {
+    loadIndex().then(function(index) {
       try {
-        var fallbackResults = lunrIndex.search(query);
-        renderResults(fallbackResults);
-      } catch (fallbackError) {
-        setSearchStatus('Search is temporarily unavailable.');
-        console.error('SpecFact search query failed.', fallbackError);
+        var results = index.search(query + '*');
+        renderResults(results);
+      } catch (error) {
+        try {
+          var fallbackResults = index.search(query);
+          renderResults(fallbackResults);
+        } catch (fallbackError) {
+          setSearchStatus('Search is temporarily unavailable.');
+          console.error('SpecFact search query failed.', fallbackError);
+        }
       }
-    }
+    }).catch(function(error) {
+      loadFailed = true;
+      lunrIndex = null;
+      lunrIndexPromise = null;
+      setSearchStatus('Search is temporarily unavailable.');
+      console.error('SpecFact search query initialization failed.', error);
+    });
   }
 
   function updateHighlight(items) {

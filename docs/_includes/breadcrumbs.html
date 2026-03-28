@@ -11,7 +11,11 @@
   {% assign crumb_path = '' %}
   {% for part in url_parts %}
     {% if part != '' %}
-      {% assign label_source = page.title | default: part | replace: '-', ' ' %}
+      {% if part == last_segment %}
+        {% assign label_source = page.title | default: part | replace: '-', ' ' %}
+      {% else %}
+        {% assign label_source = part | replace: '-', ' ' %}
+      {% endif %}
       {% assign label_words = label_source | split: ' ' %}
       {% capture breadcrumb_label %}{% for word in label_words %}{% if word != '' %}{{ word | capitalize }}{% unless forloop.last %} {% endunless %}{% endif %}{% endfor %}{% endcapture %}
       {% assign crumb_path = crumb_path | append: '/' | append: part %}
