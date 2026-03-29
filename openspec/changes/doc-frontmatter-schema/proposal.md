@@ -24,6 +24,9 @@ This change introduces a frontmatter-based documentation ownership and validatio
 - **Documentation Files**: Add frontmatter to existing docs in `docs/` directory
 - **Pre-commit Config**: `.pre-commit-config.yaml` updated with new validation hook
 - **Contributing Guidelines**: `docs/contributing/` updated with frontmatter documentation
+- **PR Orchestrator Workflow**: `.github/workflows/pr-orchestrator.yml` dependency graph reduced so
+  independent validation jobs can start after signature verification instead of waiting for the
+  full Python 3.12 test suite
 
 ## Capabilities
 
@@ -33,7 +36,8 @@ This change introduces a frontmatter-based documentation ownership and validatio
 - `docs-contributing-updates`: Updated contributing guidelines with frontmatter documentation
 
 ### Modified Capabilities
-None - this is a new feature that doesn't modify existing capabilities
+- `pr-orchestrator-parallelization`: PR workflow jobs that do not consume test artifacts run in
+  parallel after the shared signature gate
 
 ## Impact
 
@@ -45,11 +49,17 @@ None - this is a new feature that doesn't modify existing capabilities
 - `.pre-commit-config.yaml` - Add validation hook
 - `docs/**/*.md` - Add frontmatter metadata
 - `USAGE-FAQ.md` - Add frontmatter (root-level doc)
+- `.github/workflows/pr-orchestrator.yml` - remove unnecessary `needs: tests` / downstream
+  serialization for independent CI jobs
+- `tests/unit/specfact_cli/registry/test_signing_artifacts.py` - lock PR orchestrator dependency
+  graph for parallel execution
 
 ### Development Workflow
 - Developers must add frontmatter to new documentation files
 - Pre-commit hooks validate doc metadata on every commit
 - CI workflows can use metadata for automated sync checking
+- PR validation jobs that do not require coverage artifacts or prior test completion should not wait
+  for the `Tests (Python 3.12)` job
 
 ### Quality Gates
 - Zero errors policy: All validation must pass

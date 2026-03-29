@@ -120,6 +120,18 @@ Do not implement production code until tests exist and have been run (expecting 
 - [x] 5.3.1 Run `openspec validate doc-frontmatter-schema --strict`
 - [x] 5.3.2 Fix any validation issues
 
+### 5.4 PR Orchestrator Parallelization Delta
+
+- [x] 5.4.1 Extend spec/tests to cover PR orchestrator dependency parallelization
+  - [x] 5.4.1.1 Add spec delta for independent CI job dependencies
+  - [x] 5.4.1.2 Add workflow dependency tests in `tests/unit/specfact_cli/registry/test_signing_artifacts.py`
+  - [x] 5.4.1.3 Run the new workflow dependency tests and record the expected failure in `TDD_EVIDENCE.md`
+- [x] 5.4.2 Update `.github/workflows/pr-orchestrator.yml`
+  - [x] 5.4.2.1 Remove unnecessary `tests` / downstream dependencies for jobs that do not consume test artifacts
+  - [x] 5.4.2.2 Keep real artifact dependencies intact (`quality-gates`, main-branch packaging)
+- [x] 5.4.3 Re-run workflow dependency tests and doc-frontmatter regression slice
+  - [x] 5.4.3.1 Capture passing evidence in `TDD_EVIDENCE.md`
+
 ## 6. Documentation Updates
 
 ### 6.1 Frontmatter Schema Documentation

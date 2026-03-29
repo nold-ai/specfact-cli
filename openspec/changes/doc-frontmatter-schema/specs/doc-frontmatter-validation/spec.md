@@ -133,3 +133,21 @@ The script SHALL be memory efficient.
 
 - **WHEN** script processes large number of files
 - **THEN** memory usage SHALL remain under 100MB
+
+### Requirement: PR Orchestrator Parallel Job Graph
+The PR orchestrator workflow SHALL not serialize independent validation jobs behind the Python 3.12
+test suite when those jobs do not consume test artifacts.
+
+#### Scenario: Independent jobs start after shared signature gate
+
+- **WHEN** `.github/workflows/pr-orchestrator.yml` defines `compat-py311`, `contract-first-ci`,
+  `type-checking`, `linting`, and `cli-validation`
+- **THEN** each of those jobs SHALL depend on `changes` and the shared signature gate
+- **AND** none of those jobs SHALL list `tests` as a required predecessor unless they consume test
+  artifacts from that job
+
+#### Scenario: Coverage-based advisory gate still depends on tests
+
+- **WHEN** `quality-gates` reads the `coverage-reports` artifact
+- **THEN** `quality-gates` SHALL keep `tests` as an explicit dependency
+- **AND** the workflow SHALL continue to gate that job on unit-coverage availability
