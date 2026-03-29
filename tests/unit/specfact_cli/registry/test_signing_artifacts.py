@@ -6,8 +6,10 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
+from typing import Any, cast
 
 import pytest
+import yaml
 
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
@@ -17,6 +19,23 @@ VERIFY_PYTHON_SCRIPT = REPO_ROOT / "scripts" / "verify-modules-signature.py"
 SIGN_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "sign-modules.yml"
 PR_ORCHESTRATOR_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "pr-orchestrator.yml"
 PUBLISH_PYPI_SCRIPT = REPO_ROOT / ".github" / "workflows" / "scripts" / "check-and-publish-pypi.sh"
+
+
+def _load_pr_orchestrator_jobs() -> dict[str, dict[str, Any]]:
+    """Return the parsed jobs mapping for the PR orchestrator workflow."""
+    if not PR_ORCHESTRATOR_WORKFLOW.exists():
+        pytest.skip("pr-orchestrator workflow not present")
+    data = yaml.safe_load(PR_ORCHESTRATOR_WORKFLOW.read_text(encoding="utf-8"))
+    assert isinstance(data, dict), "Expected mapping at pr-orchestrator workflow root"
+    workflow_root = cast(dict[str, Any], data)
+    jobs = workflow_root.get("jobs")
+    assert isinstance(jobs, dict), "Expected jobs mapping in pr-orchestrator workflow"
+    typed_jobs: dict[str, dict[str, Any]] = {}
+    for name, job in jobs.items():
+        assert isinstance(name, str), "Expected string job names in pr-orchestrator workflow"
+        assert isinstance(job, dict), f"Expected mapping definition for job {name}"
+        typed_jobs[name] = job
+    return typed_jobs
 
 
 def test_sign_module_script_exists():
@@ -516,6 +535,49 @@ def test_pr_orchestrator_pins_virtualenv_below_21_for_hatch_jobs():
     assert install_commands, "Expected at least one pip install hatch command in workflow"
     for command in install_commands:
         assert "virtualenv<21" in command, f"Missing virtualenv<21 pin in command: {command}"
+
+
+@pytest.mark.parametrize(
+    ("job_name", "required_needs"),
+    (
+        ("compat-py311", {"changes", "verify-module-signatures"}),
+        ("contract-first-ci", {"changes", "verify-module-signatures"}),
+        ("type-checking", {"changes", "verify-module-signatures"}),
+        ("linting", {"changes", "verify-module-signatures"}),
+        ("cli-validation", {"changes", "verify-module-signatures"}),
+    ),
+)
+def test_pr_orchestrator_independent_jobs_do_not_wait_for_tests(
+    job_name: str,
+    required_needs: set[str],
+) -> None:
+    """Independent validation jobs SHALL start after the shared signature gate, not after tests."""
+    jobs = _load_pr_orchestrator_jobs()
+    job = jobs.get(job_name)
+    assert job is not None, f"Missing {job_name} job"
+    needs = job.get("needs")
+    assert isinstance(needs, list), f"Expected list needs for {job_name}"
+    assert set(needs) == required_needs
+    assert "tests" not in needs
+
+
+def test_pr_orchestrator_quality_gates_still_depends_on_tests_for_coverage() -> None:
+    """Coverage-based advisory gate SHALL retain the tests dependency."""
+    jobs = _load_pr_orchestrator_jobs()
+    job = jobs.get("quality-gates")
+    assert job is not None, "Missing quality-gates job"
+    needs = job.get("needs")
+    assert isinstance(needs, list), "Expected list needs for quality-gates"
+    assert set(needs) == {"changes", "tests"}
+
+
+def test_pr_orchestrator_cache_paths_do_not_restore_hatch_virtualenvs() -> None:
+    """PR orchestrator SHALL cache package downloads, not Hatch virtualenv directories."""
+    if not PR_ORCHESTRATOR_WORKFLOW.exists():
+        pytest.skip("pr-orchestrator workflow not present")
+    content = PR_ORCHESTRATOR_WORKFLOW.read_text(encoding="utf-8")
+    assert "~/.cache/uv" in content
+    assert "~/.local/share/hatch" not in content
 
 
 def test_publish_script_pins_virtualenv_below_21_for_hatch_build():

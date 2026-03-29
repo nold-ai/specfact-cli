@@ -6,6 +6,13 @@ permalink: /
 keywords: [specfact, core-cli, runtime, module-system, architecture]
 audience: [solo, team, enterprise]
 expertise_level: [beginner, intermediate, advanced]
+doc_owner: specfact-cli
+tracks:
+  - src/specfact_cli/**
+  - openspec/**
+last_reviewed: 2026-03-29
+exempt: false
+exempt_reason: ""
 ---
 
 # SpecFact CLI Documentation

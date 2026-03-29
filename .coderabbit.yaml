@@ -1,0 +1,105 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+#
+# CodeRabbit aligns with AGENTS.md: contract-first APIs, OpenSpec, Hatch quality gates.
+# `reviews.auto_review.base_branches` includes `dev` so PRs into `dev` are auto-reviewed (not only the
+# repo default branch). See https://docs.coderabbit.ai/reference/configuration (auto_review).
+# Pre-push / finalize: run `cr --base dev` (or `coderabbit review`) from repo root; see
+# https://docs.coderabbit.ai/cli/overview
+# PR description: include `@coderabbitai summary` (default placeholder) for the high-level summary.
+#
+language: "en-US"
+early_access: false
+tone_instructions: >-
+  Provide architectural insights on system design, scalability, and long-term maintainability.
+  Prioritize contract-first public APIs (@icontract, @beartype), Typer/Rich CLI boundaries, OpenSpec
+  traceability, and cross-repo impact for bundled modules.
+
+reviews:
+  profile: assertive
+  request_changes_workflow: false
+  high_level_summary: true
+  high_level_summary_in_walkthrough: true
+  review_details: true
+  sequence_diagrams: true
+  estimate_code_review_effort: true
+  assess_linked_issues: true
+  related_issues: true
+  related_prs: true
+  poem: false
+  collapse_walkthrough: true
+  changed_files_summary: true
+  review_status: true
+  commit_status: true
+  high_level_summary_instructions: |
+    Structure the summary for SpecFact CLI maintainers:
+    - User-visible behavior and CLI surface (commands, options, defaults).
+    - Contract/API impact: public functions, Pydantic models, module package boundaries.
+    - Testing and quality gates: contracts, hatch run contract-test, coverage implications.
+    - If applicable: OpenSpec change ID, docs/ and CHANGELOG touchpoints, module signing / version bumps.
+  auto_review:
+    enabled: true
+    drafts: false
+    auto_incremental_review: true
+    # PRs targeting `dev` (not only the GitHub default branch, e.g. `main`) get automatic reviews.
+    base_branches:
+      - "^dev$"
+  path_instructions:
+    - path: "src/specfact_cli/**/*.py"
+      instructions: |
+        Focus on modular CLI architecture: lazy module loading, registry/bootstrap patterns, and
+        dependency direction. Flag breaking changes to public APIs, Pydantic models, and resource
+        bundling. Verify @icontract + @beartype on public surfaces; prefer centralized logging
+        (get_bridge_logger) over print().
+    - path: "openspec/**/*.md"
+      instructions: |
+        Treat as specification source of truth: proposal/tasks/spec deltas vs. code behavior,
+        CHANGE_ORDER consistency, and scenario coverage. Surface drift between OpenSpec and
+        implementation.
+    - path: "tests/**/*.py"
+      instructions: |
+        Contract-first testing: meaningful scenarios, not redundant assertions already covered by
+        contracts. Flag flakiness, environment coupling, and missing coverage for changed behavior.
+    - path: ".github/workflows/**"
+      instructions: |
+        CI safety: secrets usage, workflow dependencies, alignment with hatch test / contract-test
+        gates, and action versions.
+    - path: "scripts/**/*.py"
+      instructions: |
+        Deterministic tooling: subprocess safety, Hatch integration, and parity with documented
+        quality gates (format, type-check, module signing).
+    - path: "docs/**/*.md"
+      instructions: |
+        User-facing accuracy: CLI examples match current behavior; preserve Jekyll front matter;
+        call out when README/docs index need sync.
+
+  tools:
+    ruff:
+      enabled: true
+    semgrep:
+      enabled: true
+    yamllint:
+      enabled: true
+    actionlint:
+      enabled: true
+    shellcheck:
+      enabled: true
+
+  pre_merge_checks:
+    title:
+      mode: warning
+      requirements: "Prefer Conventional Commits-style prefixes (feat:, fix:, docs:, test:, refactor:, chore:)."
+    issue_assessment:
+      mode: warning
+
+knowledge_base:
+  learnings:
+    scope: local
+  linked_repositories:
+    - repository: "nold-ai/specfact-cli-modules"
+      instructions: >-
+        Companion repo: bundled module packages (module-package.yaml), IDE prompts, and
+        modules.specfact.io content. When CLI surface, imports, or bundled module contracts change,
+        flag required updates, version bumps, and signature verification impacts.
+
+chat:
+  auto_reply: true

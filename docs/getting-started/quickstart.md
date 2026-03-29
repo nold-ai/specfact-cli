@@ -8,6 +8,13 @@ description: Get SpecFact CLI running in under 5 minutes - install, bootstrap, a
 keywords: [quickstart, first-run, bootstrap, analysis]
 audience: [solo, team]
 expertise_level: [beginner]
+doc_owner: specfact-cli
+tracks:
+  - src/specfact_cli/**
+  - openspec/**
+last_reviewed: 2026-03-29
+exempt: false
+exempt_reason: ""
 ---
 
 # 5-Minute Quickstart
