@@ -23,6 +23,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- **Tests:** Register doc-frontmatter shared fixtures via root ``tests/conftest.py`` ``pytest_plugins`` (Pytest 8+ forbids ``pytest_plugins`` in nested conftests); scope env/cache isolation to ``test_doc_frontmatter`` paths only.
 - OpenSpec (`openspec/config.yaml`): **SpecFact code review JSON** dogfood tasks — require a fresh
   `.specfact/code-review.json`, remediate review findings before merge, and record TDD evidence; **freshness**
   excludes `openspec/changes/<change-id>/TDD_EVIDENCE.md` from the staleness comparison so evidence-only edits
@@ -32,6 +33,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- **CI:** `Docs Review` GitHub Actions workflow runs `hatch run doc-frontmatter-check` and includes doc-frontmatter unit/integration tests alongside `tests/unit/docs/`, with path filters for frontmatter scripts and helpers.
 - Pre-commit `specfact-code-review-gate`: switched from `specfact code review run` with `--score-only` to
   `specfact code review run --json --out .specfact/code-review.json`, writing governed `ReviewReport` JSON under
   gitignored `.specfact/` for IDE and Copilot workflows; the hook now prints severity counts on stderr, a short

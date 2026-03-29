@@ -9,9 +9,16 @@ on:
       - "**/*.md"
       - "**/*.mdc"
       - "docs/**"
+      - "docs/.doc-frontmatter-enforced"
       - "tests/unit/docs/**"
+      - "tests/unit/scripts/test_doc_frontmatter/**"
+      - "tests/integration/scripts/test_doc_frontmatter/**"
+      - "tests/helpers/doc_frontmatter.py"
+      - "tests/helpers/doc_frontmatter_fixtures.py"
+      - "tests/helpers/doc_frontmatter_types.py"
       - "scripts/check-docs-commands.py"
       - "scripts/check-cross-site-links.py"
+      - "scripts/check_doc_frontmatter.py"
       - "pyproject.toml"
       - ".github/workflows/docs-review.yml"
   push:
@@ -20,9 +27,16 @@ on:
       - "**/*.md"
       - "**/*.mdc"
       - "docs/**"
+      - "docs/.doc-frontmatter-enforced"
       - "tests/unit/docs/**"
+      - "tests/unit/scripts/test_doc_frontmatter/**"
+      - "tests/integration/scripts/test_doc_frontmatter/**"
+      - "tests/helpers/doc_frontmatter.py"
+      - "tests/helpers/doc_frontmatter_fixtures.py"
+      - "tests/helpers/doc_frontmatter_types.py"
       - "scripts/check-docs-commands.py"
       - "scripts/check-cross-site-links.py"
+      - "scripts/check_doc_frontmatter.py"
       - "pyproject.toml"
       - ".github/workflows/docs-review.yml"
   workflow_dispatch:
@@ -62,11 +76,14 @@ jobs:
         continue-on-error: true
         run: hatch run check-cross-site-links --warn-only
 
-      - name: Run docs review suite
+      - name: Validate documentation frontmatter (enforced paths; aligns with local docs-validate / pre-commit)
+        run: hatch run doc-frontmatter-check
+
+      - name: Run docs review test suites
         run: |
           mkdir -p logs/docs-review
           DOCS_REVIEW_LOG="logs/docs-review/docs-review_$(date -u +%Y%m%d_%H%M%S).log"
-          hatch run pytest tests/unit/docs/ -q 2>&1 | tee "$DOCS_REVIEW_LOG"
+          hatch run pytest tests/unit/docs/ tests/unit/scripts/test_doc_frontmatter/ tests/integration/scripts/test_doc_frontmatter/ -q 2>&1 | tee "$DOCS_REVIEW_LOG"
           exit "${PIPESTATUS[0]:-$?}"
 
       - name: Upload docs review logs
