@@ -179,10 +179,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         joined_cmd = " ".join(cmd)
         sys.stderr.write(f"Code review gate timed out after 300s (command: {joined_cmd!r}, files: {files!r}).\n")
         return 1
-    if len(result.stdout) > 0:
-        sys.stdout.write(result.stdout)
-    if len(result.stderr) > 0:
-        sys.stderr.write(result.stderr)
+    # Do not echo nested `specfact code review run` stdout/stderr (verbose tool banners); full report
+    # is in REVIEW_JSON_OUT; we print a short summary on stderr below.
     _print_review_findings_summary(_repo_root())
     return result.returncode
 

@@ -126,7 +126,7 @@ The helper script scopes the gate to staged Python files only and then runs:
 specfact code review run --json --out .specfact/code-review.json <staged-python-files>
 ```
 
-The JSON report is written under ``.specfact/`` (ignored by git via ``.specfact/`` in ``.gitignore``) so local tools and Copilot can read structured findings. The CLI still echoes the output path on success.
+The JSON report is written under ``.specfact/`` (ignored by git via ``.specfact/`` in ``.gitignore``) so local tools and Copilot can read structured findings. The pre-commit helper does **not** print the nested review CLI’s full stdout (tool banners and runner lines); it only prints the short summary and copy-paste lines on stderr after the run.
 
 ### Verdict line, report file, and Copilot
 

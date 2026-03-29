@@ -96,7 +96,7 @@ def test_main_propagates_review_gate_exit_code(
 
     assert exit_code == 1
     captured = capsys.readouterr()
-    assert ".specfact/code-review.json" in captured.out
+    assert captured.out == ""
     err = captured.err
     assert "Code review summary: 2 finding(s)" in err
     assert "errors=1" in err
