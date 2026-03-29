@@ -6,7 +6,9 @@ import datetime
 import importlib.util
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any, cast
+from typing import cast
+
+from tests.helpers.doc_frontmatter_types import CheckDocFrontmatterModule
 
 
 def repo_root() -> Path:
@@ -14,7 +16,7 @@ def repo_root() -> Path:
     return Path(__file__).resolve().parents[2]
 
 
-def load_check_doc_frontmatter_module() -> Any:
+def load_check_doc_frontmatter_module() -> CheckDocFrontmatterModule:
     """Load ``scripts/check_doc_frontmatter.py`` without mutating ``sys.path``."""
     script_path = repo_root() / "scripts" / "check_doc_frontmatter.py"
     spec = importlib.util.spec_from_file_location("check_doc_frontmatter", script_path)
@@ -25,12 +27,12 @@ def load_check_doc_frontmatter_module() -> Any:
     dfm = getattr(module, "DocFrontmatter", None)
     if dfm is not None:
         dfm.model_rebuild(_types_namespace={"datetime": datetime})
-    return module
+    return cast(CheckDocFrontmatterModule, module)
 
 
-def validation_main_fn(mod: object) -> Callable[[list[str] | None], int]:
+def validation_main_fn(mod: CheckDocFrontmatterModule) -> Callable[[list[str] | None], int]:
     """Return ``check_doc_frontmatter.main`` with a concrete type for static analysis."""
-    return cast(Callable[[list[str] | None], int], mod.main)
+    return mod.main
 
 
 VALID_DOC_FRONTMATTER = """---

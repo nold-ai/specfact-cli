@@ -2,26 +2,5 @@
 
 from __future__ import annotations
 
-from collections.abc import Generator
-from typing import Any
 
-import pytest
-
-from tests.helpers.doc_frontmatter import load_check_doc_frontmatter_module
-
-
-@pytest.fixture(scope="session")
-def check_doc_frontmatter_module() -> object:
-    """Single loaded instance of ``scripts/check_doc_frontmatter.py``."""
-    return load_check_doc_frontmatter_module()
-
-
-@pytest.fixture(autouse=True)
-def _clear_doc_frontmatter_root(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv("DOC_FRONTMATTER_ROOT", raising=False)
-
-
-@pytest.fixture(autouse=True)
-def _clear_resolve_owner_cache(check_doc_frontmatter_module: Any) -> Generator[None, None, None]:
-    check_doc_frontmatter_module._resolve_owner_impl.cache_clear()
-    yield
+pytest_plugins = ["tests.helpers.doc_frontmatter_fixtures"]

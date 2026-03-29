@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-import argparse
 import datetime
 import fnmatch
 import functools
@@ -14,11 +13,13 @@ import sys
 from pathlib import Path
 from typing import Any
 
+import typer
 import yaml
 from beartype import beartype
 from icontract import ensure, require
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, ValidationInfo, field_validator, model_validator
 from rich.console import Console
+from typer.main import get_command
 
 
 _ERR = Console(stderr=True)
@@ -43,6 +44,7 @@ EXEMPT_FILES = frozenset(
 VALID_OWNER_TOKENS = frozenset({"specfact-cli", "nold-ai", "openspec"})
 SOURCE_ROOTS = (Path("src"), Path("openspec"), Path("modules"), Path("tools"))
 
+_OWNER_GLOB_METACHARS = frozenset("*?[]{}")
 REQUIRED_KEYS = ("title", "doc_owner", "tracks", "last_reviewed", "exempt", "exempt_reason")
 
 
@@ -114,6 +116,9 @@ class DocFrontmatter(BaseModel):
         return self
 
 
+DocFrontmatter.model_rebuild(_types_namespace={"datetime": datetime})
+
+
 def _format_doc_frontmatter_errors(exc: ValidationError) -> list[str]:
     """Turn Pydantic errors into the same style as legacy manual validation."""
     out: list[str] = []
@@ -167,6 +172,75 @@ def extract_doc_owner(content: str) -> str | None:
     return match.group(1).strip() if match else None
 
 
+def _owner_literal_is_safe(owner: str) -> bool:
+    """Reject empty owners, traversal segments, and glob metacharacters."""
+    if not isinstance(owner, str):
+        return False
+    s = owner.strip()
+    if not s:
+        return False
+    if any(ch in _OWNER_GLOB_METACHARS for ch in s):
+        return False
+    parts = Path(s).as_posix().split("/")
+    return all(part not in ("", ".", "..") for part in parts)
+
+
+def _is_resolved_under(child: Path, root: Path) -> bool:
+    """True if ``child`` resolves to a path under ``root`` (same device)."""
+    try:
+        child.resolve().relative_to(root.resolve())
+    except ValueError:
+        return False
+    return True
+
+
+def _resolve_owner_absolute_path(owner: str, base_root: Path) -> bool:
+    """Return True if ``owner`` is an absolute path inside ``base_root`` that exists."""
+    candidate = Path(owner)
+    if not candidate.is_absolute():
+        return False
+    try:
+        resolved = candidate.resolve()
+    except OSError:
+        return False
+    if not _is_resolved_under(resolved, base_root):
+        return False
+    return resolved.exists()
+
+
+def _resolve_owner_repo_relative(owner: str, base_root: Path) -> bool:
+    """Return True if ``base_root/owner`` resolves under ``base_root`` and exists."""
+    rel = (base_root / owner).resolve()
+    if not _is_resolved_under(rel, base_root):
+        return False
+    return rel.exists()
+
+
+def _glob_owner_dir_under_root(owner: str, root: Path) -> bool:
+    """Return True if a directory named ``owner`` exists anywhere under ``root`` (single-segment owners)."""
+    try:
+        for match in root.glob(f"**/{owner}"):
+            if match.is_dir():
+                return True
+    except OSError:
+        return False
+    return False
+
+
+def _find_owner_under_source_roots(owner: str, base_root: Path, owner_single_segment: bool) -> bool:
+    """Search ``SOURCE_ROOTS`` for a path or directory name matching ``owner``."""
+    for rel_root in SOURCE_ROOTS:
+        root = (base_root / rel_root).resolve()
+        if not root.exists():
+            continue
+        joined = (root / owner).resolve()
+        if _is_resolved_under(joined, root) and joined.exists():
+            return True
+        if owner_single_segment and _glob_owner_dir_under_root(owner, root):
+            return True
+    return False
+
+
 @beartype
 @require(lambda owner: isinstance(owner, str), "Owner must be string")
 @ensure(lambda result: isinstance(result, bool), "Must return bool")
@@ -180,24 +254,16 @@ def _resolve_owner_impl(owner: str, root_key: str) -> bool:
     """Memoized owner resolution keyed by owner and repository root (see ``resolve_owner``)."""
     if owner in VALID_OWNER_TOKENS:
         return True
+    if not _owner_literal_is_safe(owner):
+        return False
+    base_root = Path(root_key).resolve()
     candidate = Path(owner)
     if candidate.is_absolute():
-        return candidate.exists()
-    base_root = Path(root_key)
-    rel = base_root / owner
-    if rel.exists():
+        return _resolve_owner_absolute_path(owner, base_root)
+    if _resolve_owner_repo_relative(owner, base_root):
         return True
-    for rel_root in SOURCE_ROOTS:
-        root = base_root / rel_root
-        if not root.exists():
-            continue
-        joined = root / owner
-        if joined.exists():
-            return True
-        for match in root.glob(f"**/{owner}"):
-            if match.is_dir():
-                return True
-    return False
+    owner_single_segment = "/" not in owner.strip().rstrip("/")
+    return _find_owner_under_source_roots(owner, base_root, owner_single_segment)
 
 
 @beartype
@@ -295,7 +361,8 @@ def get_all_md_files() -> list[Path]:
         except (OSError, yaml.YAMLError):
             filtered.append(file_path)
             continue
-        if fm.get("exempt") and str(fm.get("exempt_reason", "")).strip():
+        exempt_val = fm.get("exempt")
+        if exempt_val is True and str(fm.get("exempt_reason", "")).strip():
             continue
         filtered.append(file_path)
     return filtered
@@ -365,9 +432,9 @@ def _validate_record(fm: dict[str, Any]) -> list[str]:
     return []
 
 
-def _discover_paths_to_check(ns: argparse.Namespace) -> list[Path] | None:
+def _discover_paths_to_check(all_docs: bool) -> list[Path] | None:
     """Return files to validate, or None when the run should exit 0 early (skip)."""
-    if ns.all_docs:
+    if all_docs:
         return get_all_md_files()
     enforced = _load_enforced_patterns()
     if enforced is None:
@@ -416,27 +483,8 @@ def _argv_ok(argv: list[str] | None) -> bool:
     return argv is None or all(isinstance(x, str) for x in argv)
 
 
-@beartype
-@require(_argv_ok, "argv must be None or a list of strings")
-@ensure(lambda result: result in (0, 1), "exit code must be 0 or 1")
-def main(argv: list[str] | None = None) -> int:
-    """CLI entry: validate doc frontmatter; exit 0 on success, 1 on failure."""
-    if argv is None:
-        argv = sys.argv[1:]
-    parser = argparse.ArgumentParser(description="Validate documentation ownership frontmatter.")
-    parser.add_argument(
-        "--fix-hint",
-        action="store_true",
-        help="Print suggested YAML blocks for common failures",
-    )
-    parser.add_argument(
-        "--all-docs",
-        action="store_true",
-        help="Validate every discovered Markdown file (ignore docs/.doc-frontmatter-enforced).",
-    )
-    ns = parser.parse_args(argv)
-
-    all_files = _discover_paths_to_check(ns)
+def _run_validation(fix_hint: bool, all_docs: bool) -> int:
+    all_files = _discover_paths_to_check(all_docs)
     if all_files is None:
         return 0
     if not all_files:
@@ -444,19 +492,62 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     files_without_owner = rg_missing_doc_owner(all_files)
-    failures = _collect_failures(all_files, files_without_owner, ns.fix_hint)
+    failures = _collect_failures(all_files, files_without_owner, fix_hint)
 
     if failures:
         _ERR.print(f"\n❌ Doc frontmatter validation failed ({len(failures)} issue(s)):\n")
         for block in failures:
             _ERR.print(block)
-        if not ns.fix_hint:
+        if not fix_hint:
             _ERR.print("\n💡 Tip: run with --fix-hint for suggested frontmatter blocks.")
         return 1
 
-    scope = "all docs" if ns.all_docs else "enforced list"
+    scope = "all docs" if all_docs else "enforced list"
     _ERR.print(f"✅ Doc frontmatter OK — {len(all_files)} doc(s) checked (scope: {scope}).")
     return 0
+
+
+app = typer.Typer(
+    add_completion=False,
+    no_args_is_help=False,
+    help="Validate documentation ownership frontmatter for Markdown files.",
+)
+
+
+@app.callback(invoke_without_command=True)
+def _cli_root(
+    fix_hint: bool = typer.Option(
+        False,
+        "--fix-hint",
+        help="Print suggested YAML blocks for common failures.",
+    ),
+    all_docs: bool = typer.Option(
+        False,
+        "--all-docs",
+        help="Validate every discovered Markdown file (ignore docs/.doc-frontmatter-enforced).",
+    ),
+) -> int:
+    """Validate doc frontmatter; exit code 0 on success, 1 on failure."""
+    return _run_validation(fix_hint, all_docs)
+
+
+@beartype
+@require(_argv_ok, "argv must be None or a list of strings")
+@ensure(lambda result: result in (0, 1), "exit code must be 0 or 1")
+def main(argv: list[str] | None = None) -> int:
+    """CLI entry: validate doc frontmatter; exit 0 on success, 1 on failure."""
+    args = list(sys.argv[1:]) if argv is None else list(argv)
+    cli = get_command(app)
+    try:
+        exit_code = cli.main(args=args, prog_name="doc-frontmatter-check", standalone_mode=False)
+    except SystemExit as exc:
+        code = exc.code
+        if isinstance(code, int):
+            return code
+        return 1
+    if exit_code is None:
+        return 0
+    return int(exit_code)
 
 
 if __name__ == "__main__":

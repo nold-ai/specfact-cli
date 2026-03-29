@@ -106,3 +106,24 @@ hatch run pytest tests/unit/scripts/test_doc_frontmatter tests/integration/scrip
 **Result:** 31 passed (unit + integration). `last_reviewed` validation accepts YAML date objects via `isoformat()`. Rollout uses `docs/.doc-frontmatter-enforced`; default CLI skips when file missing; `--all-docs` validates entire `docs/` tree.
 
 **Status:** ✅ Green
+
+---
+
+## Quality gates (2026-03-30)
+
+Recorded for `tasks.md` §5 checklist evidence (commands run from the feature worktree).
+
+**Timestamp:** 2026-03-30 (local) — see session `date` when re-running.
+
+**Commands (success unless noted):**
+
+| Step | Command | Result summary |
+|------|---------|------------------|
+| Format | `hatch run format` | Ruff format + fix applied; exit 0 |
+| Type check | `hatch run type-check` | basedpyright strict; exit 0 |
+| Lint | `hatch run lint` | Full lint suite; exit 0 |
+| Contract | `hatch run contract-test` | Contract-first validation; exit 0 |
+| Tests | `hatch run smart-test-full` or `hatch test --cover -v` | Full suite green |
+| OpenSpec | `openspec validate doc-frontmatter-schema --strict` | Validation passed |
+
+**Note:** Re-run the rows above after substantive edits and refresh this table if outputs change.

@@ -64,16 +64,13 @@ def test_main_propagates_review_gate_exit_code(
     """Blocking review verdicts must block the commit by returning non-zero."""
     module = _load_script_module()
     repo_root = tmp_path
-    _write_sample_review_report(
-        repo_root,
-        {
-            "overall_verdict": "FAIL",
-            "findings": [
-                {"severity": "error", "rule": "e1"},
-                {"severity": "warning", "rule": "w1"},
-            ],
-        },
-    )
+    payload = {
+        "overall_verdict": "FAIL",
+        "findings": [
+            {"severity": "error", "rule": "e1"},
+            {"severity": "warning", "rule": "w1"},
+        ],
+    }
 
     def _fake_root() -> Path:
         return repo_root
@@ -86,6 +83,7 @@ def test_main_propagates_review_gate_exit_code(
         assert module.REVIEW_JSON_OUT in cmd
         assert kwargs.get("cwd") == str(repo_root)
         assert kwargs.get("timeout") == 300
+        _write_sample_review_report(repo_root, payload)
         return subprocess.CompletedProcess(cmd, 1, stdout=".specfact/code-review.json\n", stderr="")
 
     monkeypatch.setattr(module, "_repo_root", _fake_root)
@@ -184,6 +182,36 @@ def test_main_timeout_fails_hook(monkeypatch: pytest.MonkeyPatch, capsys: pytest
     err = capsys.readouterr().err
     assert "timed out after 300s" in err
     assert "src/app.py" in err
+
+
+def test_print_summary_rejects_non_object_json(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Top-level JSON must be an object so findings can be summarized safely."""
+    module = _load_script_module()
+    repo_root = tmp_path
+
+    def _fake_root() -> Path:
+        return repo_root
+
+    def _fake_ensure() -> tuple[bool, str | None]:
+        return True, None
+
+    def _fake_run(cmd: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+        spec_dir = repo_root / ".specfact"
+        spec_dir.mkdir(parents=True, exist_ok=True)
+        (spec_dir / "code-review.json").write_text(json.dumps(["not", "an", "object"]), encoding="utf-8")
+        return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
+
+    monkeypatch.setattr(module, "_repo_root", _fake_root)
+    monkeypatch.setattr(module, "ensure_runtime_available", _fake_ensure)
+    monkeypatch.setattr(module.subprocess, "run", _fake_run)
+
+    exit_code = module.main(["src/app.py"])
+
+    assert exit_code == 0
+    err = capsys.readouterr().err
+    assert "expected a JSON object" in err
 
 
 def test_main_prints_actionable_setup_guidance_when_runtime_missing(

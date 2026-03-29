@@ -11,7 +11,7 @@ repos:
         name: Check documentation ownership frontmatter (enforced paths)
         entry: hatch run doc-frontmatter-check
         language: system
-        files: ^docs/.*\.md$
+        files: ^(docs/.*\.md|USAGE-FAQ\.md)$
         pass_filenames: false
         always_run: false
       - id: specfact-code-review-gate

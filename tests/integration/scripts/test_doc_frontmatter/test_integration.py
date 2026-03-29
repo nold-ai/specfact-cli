@@ -14,13 +14,14 @@ from tests.helpers.doc_frontmatter import (
     validation_main_fn,
     write_enforced,
 )
+from tests.helpers.doc_frontmatter_types import CheckDocFrontmatterModule
 
 
 class TestEndToEndWorkflow:
     """Test complete end-to-end validation workflows."""
 
     def test_complete_validation_workflow(
-        self, monkeypatch: pytest.MonkeyPatch, check_doc_frontmatter_module: object
+        self, monkeypatch: pytest.MonkeyPatch, check_doc_frontmatter_module: CheckDocFrontmatterModule
     ) -> None:
         """Test the complete validation workflow with various file types."""
         validation_main = validation_main_fn(check_doc_frontmatter_module)
@@ -43,7 +44,7 @@ title: "Invalid Document"
             assert validation_main([]) == 1
 
     def test_validation_with_all_valid_files(
-        self, monkeypatch: pytest.MonkeyPatch, check_doc_frontmatter_module: object
+        self, monkeypatch: pytest.MonkeyPatch, check_doc_frontmatter_module: CheckDocFrontmatterModule
     ) -> None:
         """Test validation workflow when all files are valid."""
         validation_main = validation_main_fn(check_doc_frontmatter_module)
@@ -64,7 +65,9 @@ title: "Invalid Document"
 class TestMultipleFileScenarios:
     """Test validation with multiple files and complex scenarios."""
 
-    def test_large_number_of_files(self, monkeypatch: pytest.MonkeyPatch, check_doc_frontmatter_module: object) -> None:
+    def test_large_number_of_files(
+        self, monkeypatch: pytest.MonkeyPatch, check_doc_frontmatter_module: CheckDocFrontmatterModule
+    ) -> None:
         """Test performance with a large number of files."""
         validation_main = validation_main_fn(check_doc_frontmatter_module)
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -88,7 +91,7 @@ title: "File {i}"
             assert validation_main([]) == 1
 
     def test_nested_directory_structure(
-        self, monkeypatch: pytest.MonkeyPatch, check_doc_frontmatter_module: object
+        self, monkeypatch: pytest.MonkeyPatch, check_doc_frontmatter_module: CheckDocFrontmatterModule
     ) -> None:
         """Test with nested directory structures."""
         validation_main = validation_main_fn(check_doc_frontmatter_module)
@@ -114,7 +117,7 @@ class TestScaleSmoke:
     """Scale / smoke tests: many files and large bodies (not benchmark assertions)."""
 
     def test_execution_time_with_many_files(
-        self, monkeypatch: pytest.MonkeyPatch, check_doc_frontmatter_module: object
+        self, monkeypatch: pytest.MonkeyPatch, check_doc_frontmatter_module: CheckDocFrontmatterModule
     ) -> None:
         """Many small valid docs complete successfully (smoke, not timing assertions)."""
         validation_main = validation_main_fn(check_doc_frontmatter_module)
@@ -130,7 +133,7 @@ class TestScaleSmoke:
             assert validation_main([]) == 0
 
     def test_memory_usage_with_large_files(
-        self, monkeypatch: pytest.MonkeyPatch, check_doc_frontmatter_module: object
+        self, monkeypatch: pytest.MonkeyPatch, check_doc_frontmatter_module: CheckDocFrontmatterModule
     ) -> None:
         """Large Markdown bodies still validate (smoke, not memory instrumentation)."""
         validation_main = validation_main_fn(check_doc_frontmatter_module)
@@ -152,7 +155,7 @@ class TestCommandLineInterface:
     """Test command-line interface functionality."""
 
     def test_cli_with_fix_hint_flag(
-        self, monkeypatch: pytest.MonkeyPatch, check_doc_frontmatter_module: object
+        self, monkeypatch: pytest.MonkeyPatch, check_doc_frontmatter_module: CheckDocFrontmatterModule
     ) -> None:
         """Test CLI with --fix-hint flag."""
         validation_main = validation_main_fn(check_doc_frontmatter_module)
@@ -165,21 +168,23 @@ class TestCommandLineInterface:
             write_enforced(root, "docs/invalid.md")
             assert validation_main(["--fix-hint"]) == 1
 
-    def test_cli_help_output(self, capsys: pytest.CaptureFixture[str], check_doc_frontmatter_module: object) -> None:
+    def test_cli_help_output(
+        self, capsys: pytest.CaptureFixture[str], check_doc_frontmatter_module: CheckDocFrontmatterModule
+    ) -> None:
         """Test CLI help output."""
         validation_main = validation_main_fn(check_doc_frontmatter_module)
-        with pytest.raises(SystemExit) as exc_info:
-            validation_main(["--help"])
-        assert exc_info.value.code == 0
+        assert validation_main(["--help"]) == 0
         captured = capsys.readouterr()
-        assert "usage" in captured.out.lower() or "help" in captured.out.lower()
+        combined = (captured.out + captured.err).lower()
+        assert "usage" in combined or "help" in combined
+        assert "--fix-hint" in combined
 
 
 class TestRealWorldScenarios:
     """Test real-world usage scenarios."""
 
     def test_mixed_exempt_and_regular_files(
-        self, monkeypatch: pytest.MonkeyPatch, check_doc_frontmatter_module: object
+        self, monkeypatch: pytest.MonkeyPatch, check_doc_frontmatter_module: CheckDocFrontmatterModule
     ) -> None:
         """Test scenario with both exempt and regular files."""
         validation_main = validation_main_fn(check_doc_frontmatter_module)
@@ -207,11 +212,11 @@ title: "Invalid"
 # Missing doc_owner"""
             )
             (root / "src" / "test" / "module").mkdir(parents=True)
-            write_enforced(root, "docs/regular.md", "docs/invalid.md")
+            write_enforced(root, "docs/regular.md", "docs/invalid.md", "docs/exempt.md")
             assert validation_main([]) == 1
 
     def test_complex_tracking_patterns(
-        self, monkeypatch: pytest.MonkeyPatch, check_doc_frontmatter_module: object
+        self, monkeypatch: pytest.MonkeyPatch, check_doc_frontmatter_module: CheckDocFrontmatterModule
     ) -> None:
         """Test with complex glob patterns in tracks field."""
         validation_main = validation_main_fn(check_doc_frontmatter_module)

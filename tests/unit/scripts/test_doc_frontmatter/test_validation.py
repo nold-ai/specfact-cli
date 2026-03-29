@@ -9,13 +9,14 @@ from pathlib import Path
 import pytest
 
 from tests.helpers.doc_frontmatter import write_enforced
+from tests.helpers.doc_frontmatter_types import CheckDocFrontmatterModule
 
 
 class TestFileDiscovery:
     """Test Markdown file discovery functionality."""
 
     def test_discover_docs_directory_files(
-        self, monkeypatch: pytest.MonkeyPatch, check_doc_frontmatter_module: object
+        self, monkeypatch: pytest.MonkeyPatch, check_doc_frontmatter_module: CheckDocFrontmatterModule
     ) -> None:
         """Test discovery of files in docs directory."""
         get_all_md_files = check_doc_frontmatter_module.get_all_md_files
@@ -32,7 +33,7 @@ class TestFileDiscovery:
             assert len(files) == 3
 
     def test_exempt_files_exclusion(
-        self, monkeypatch: pytest.MonkeyPatch, check_doc_frontmatter_module: object
+        self, monkeypatch: pytest.MonkeyPatch, check_doc_frontmatter_module: CheckDocFrontmatterModule
     ) -> None:
         """Test that exempt files are excluded from discovery."""
         get_all_md_files = check_doc_frontmatter_module.get_all_md_files
@@ -54,7 +55,7 @@ class TestFileDiscovery:
 class TestMissingDocOwnerDetection:
     """Test detection of missing doc_owner fields."""
 
-    def test_missing_doc_owner_detection(self, check_doc_frontmatter_module: object) -> None:
+    def test_missing_doc_owner_detection(self, check_doc_frontmatter_module: CheckDocFrontmatterModule) -> None:
         """Test detection of files missing doc_owner."""
         rg_missing_doc_owner = check_doc_frontmatter_module.rg_missing_doc_owner
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -74,7 +75,7 @@ class TestMissingDocOwnerDetection:
             assert docs_dir / "no_frontmatter.md" in missing_owner
             assert docs_dir / "with_owner.md" not in missing_owner
 
-    def test_all_files_have_owner(self, check_doc_frontmatter_module: object) -> None:
+    def test_all_files_have_owner(self, check_doc_frontmatter_module: CheckDocFrontmatterModule) -> None:
         """Test when all files have doc_owner."""
         rg_missing_doc_owner = check_doc_frontmatter_module.rg_missing_doc_owner
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -91,7 +92,7 @@ class TestValidationMainFunction:
     """Test the main validation function."""
 
     def test_validation_with_valid_files(
-        self, monkeypatch: pytest.MonkeyPatch, check_doc_frontmatter_module: object
+        self, monkeypatch: pytest.MonkeyPatch, check_doc_frontmatter_module: CheckDocFrontmatterModule
     ) -> None:
         """Test validation with all valid files."""
         validation_main = check_doc_frontmatter_module.main
@@ -119,7 +120,7 @@ exempt_reason: ""
             assert result == 0
 
     def test_validation_with_invalid_files(
-        self, monkeypatch: pytest.MonkeyPatch, check_doc_frontmatter_module: object
+        self, monkeypatch: pytest.MonkeyPatch, check_doc_frontmatter_module: CheckDocFrontmatterModule
     ) -> None:
         """Test validation with invalid files."""
         validation_main = check_doc_frontmatter_module.main
@@ -144,7 +145,7 @@ class TestOwnerResolutionValidation:
     """Test owner resolution validation."""
 
     def test_valid_owner_resolution(
-        self, monkeypatch: pytest.MonkeyPatch, check_doc_frontmatter_module: object
+        self, monkeypatch: pytest.MonkeyPatch, check_doc_frontmatter_module: CheckDocFrontmatterModule
     ) -> None:
         """Test validation with valid owner resolution."""
         validation_main = check_doc_frontmatter_module.main
@@ -172,7 +173,7 @@ exempt_reason: ""
             assert result == 0
 
     def test_invalid_owner_resolution(
-        self, monkeypatch: pytest.MonkeyPatch, check_doc_frontmatter_module: object
+        self, monkeypatch: pytest.MonkeyPatch, check_doc_frontmatter_module: CheckDocFrontmatterModule
     ) -> None:
         """Test validation with invalid owner resolution."""
         validation_main = check_doc_frontmatter_module.main
@@ -206,7 +207,7 @@ class TestFixHintGeneration:
         self,
         monkeypatch: pytest.MonkeyPatch,
         capsys: pytest.CaptureFixture[str],
-        check_doc_frontmatter_module: object,
+        check_doc_frontmatter_module: CheckDocFrontmatterModule,
     ) -> None:
         """Test fix hint generation for missing frontmatter."""
         validation_main = check_doc_frontmatter_module.main
@@ -227,7 +228,7 @@ class TestFixHintGeneration:
         self,
         monkeypatch: pytest.MonkeyPatch,
         capsys: pytest.CaptureFixture[str],
-        check_doc_frontmatter_module: object,
+        check_doc_frontmatter_module: CheckDocFrontmatterModule,
     ) -> None:
         """Test fix hint generation for invalid owner."""
         validation_main = check_doc_frontmatter_module.main

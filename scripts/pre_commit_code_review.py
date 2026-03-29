@@ -114,14 +114,21 @@ def _print_review_findings_summary(repo_root: Path) -> None:
         sys.stderr.write(f"Code review: invalid JSON in {REVIEW_JSON_OUT}: {exc}\n")
         return
 
-    findings_raw = data.get("findings")
+    if not isinstance(data, dict):
+        sys.stderr.write(
+            f"Code review: expected a JSON object at top level in {REVIEW_JSON_OUT} (got {type(data).__name__}).\n",
+        )
+        return
+
+    report: dict[str, Any] = cast(dict[str, Any], data)
+    findings_raw = report.get("findings")
     if not isinstance(findings_raw, list):
         sys.stderr.write(f"Code review: report has no findings list in {REVIEW_JSON_OUT}.\n")
         return
 
     counts = _count_findings_by_severity(findings_raw)
     total = len(findings_raw)
-    verdict = data.get("overall_verdict", "?")
+    verdict = report.get("overall_verdict", "?")
     parts = [
         f"errors={counts['error']}",
         f"warnings={counts['warning']}",
@@ -152,8 +159,10 @@ def ensure_runtime_available() -> tuple[bool, str | None]:
     """Verify the current Python environment can import SpecFact CLI."""
     try:
         importlib.import_module("specfact_cli.cli")
-    except ModuleNotFoundError:
-        return False, 'Install dev dependencies with `pip install -e ".[dev]"` or run `hatch env create`.'
+    except ModuleNotFoundError as exc:
+        if exc.name in ("specfact_cli", "specfact_cli.cli"):
+            return False, 'Install dev dependencies with `pip install -e ".[dev]"` or run `hatch env create`.'
+        raise
     return True, None
 
 
@@ -176,6 +185,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 1
 
     cmd = build_review_command(files)
+    report_path = _repo_root() / REVIEW_JSON_OUT
+    if report_path.is_file():
+        report_path.unlink()
     try:
         result = subprocess.run(
             cmd,

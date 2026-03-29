@@ -34,7 +34,9 @@ All notable changes to this project will be documented in this file.
 
 - Pre-commit `specfact-code-review-gate`: switched from `specfact code review run` with `--score-only` to
   `specfact code review run --json --out .specfact/code-review.json`, writing governed `ReviewReport` JSON under
-  gitignored `.specfact/` for IDE and Copilot workflows.
+  gitignored `.specfact/` for IDE and Copilot workflows; the hook now prints severity counts on stderr, a short
+  summary with the report path (absolute path hint), copy-paste prompts for Copilot/Cursor, and relies on
+  `verbose: true` so successful runs still surface that feedback next to the nested CLI output.
 - Documentation: `docs/modules/code-review.md` updated for the JSON report path and the pre-commit hook behavior.
 - Tests: `tests/unit/scripts/test_pre_commit_code_review.py` and `test_code_review_module_docs.py` updated for
   `--json`/`--out`, repo-root `cwd`, and timeout handling.
