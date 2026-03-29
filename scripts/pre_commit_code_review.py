@@ -16,6 +16,7 @@ import sys
 from collections.abc import Sequence
 from pathlib import Path
 from subprocess import TimeoutExpired
+from typing import Any, cast
 
 from icontract import ensure, require
 
@@ -75,7 +76,8 @@ def _count_findings_by_severity(findings: list[object]) -> dict[str, int]:
         if not isinstance(item, dict):
             buckets["other"] += 1
             continue
-        raw = item.get("severity")
+        row = cast(dict[str, Any], item)
+        raw = row.get("severity")
         if not isinstance(raw, str):
             buckets["other"] += 1
             continue
@@ -131,6 +133,8 @@ def _print_review_findings_summary(repo_root: Path) -> None:
     sys.stderr.write(f"Code review summary: {total} finding(s) ({summary}); overall_verdict={verdict!r}.\n")
 
 
+@ensure(lambda result: isinstance(result, tuple) and len(result) == 2)
+@ensure(lambda result: isinstance(result[0], bool) and (result[1] is None or isinstance(result[1], str)))
 def ensure_runtime_available() -> tuple[bool, str | None]:
     """Verify the current Python environment can import SpecFact CLI."""
     try:
@@ -144,12 +148,12 @@ def ensure_runtime_available() -> tuple[bool, str | None]:
 def main(argv: Sequence[str] | None = None) -> int:
     """Run the code review gate; write JSON under ``.specfact/`` and return CLI exit code."""
     files = filter_review_files(list(argv or []))
-    if not files:
+    if len(files) == 0:
         sys.stdout.write("No staged Python files to review; skipping code review gate.\n")
         return 0
 
     available, guidance = ensure_runtime_available()
-    if not available:
+    if available is False:
         sys.stdout.write(f"Unable to run the code review gate. {guidance}\n")
         return 1
 
@@ -167,9 +171,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         joined_cmd = " ".join(cmd)
         sys.stderr.write(f"Code review gate timed out after 300s (command: {joined_cmd!r}, files: {files!r}).\n")
         return 1
-    if result.stdout:
+    if len(result.stdout) > 0:
         sys.stdout.write(result.stdout)
-    if result.stderr:
+    if len(result.stderr) > 0:
         sys.stderr.write(result.stderr)
     _print_review_findings_summary(_repo_root())
     return result.returncode
