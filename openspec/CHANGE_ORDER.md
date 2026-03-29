@@ -169,6 +169,7 @@ Cross-repo dependency: `docs-07-core-handoff-conversion` depends on `specfact-cl
 | Module | Order | Change folder | GitHub # | Blocked by |
 |--------|-------|----------------|----------|------------|
 | — | — | ✅ ci-01 implemented 2026-02-16 (see Implemented above) | — | — |
+| ci | 02 | ci-02-trustworthy-green-checks | pending | ci-01 ✅; code-review-08 ✅ |
 
 ### Packaging and distribution
 
