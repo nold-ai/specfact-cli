@@ -60,6 +60,7 @@ def test_main_skips_when_no_relevant_files(capsys: pytest.CaptureFixture[str]) -
 def test_main_propagates_review_gate_exit_code(monkeypatch: pytest.MonkeyPatch) -> None:
     """Blocking review verdicts must block the commit by returning non-zero."""
     module = _load_script_module()
+    repo_root = Path(__file__).resolve().parents[3]
 
     def _fake_ensure() -> tuple[bool, str | None]:
         return True, None
@@ -67,7 +68,8 @@ def test_main_propagates_review_gate_exit_code(monkeypatch: pytest.MonkeyPatch) 
     def _fake_run(cmd: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
         assert "--json" in cmd
         assert module.REVIEW_JSON_OUT in cmd
-        assert kwargs.get("cwd") is not None
+        assert kwargs.get("cwd") == str(repo_root)
+        assert kwargs.get("timeout") == 300
         return subprocess.CompletedProcess(cmd, 1, stdout=".specfact/code-review.json\n", stderr="")
 
     monkeypatch.setattr(module, "ensure_runtime_available", _fake_ensure)
@@ -76,6 +78,30 @@ def test_main_propagates_review_gate_exit_code(monkeypatch: pytest.MonkeyPatch) 
     exit_code = module.main(["src/app.py"])
 
     assert exit_code == 1
+
+
+def test_main_timeout_fails_hook(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    """Subprocess timeout must fail the hook with a clear message."""
+    module = _load_script_module()
+    repo_root = Path(__file__).resolve().parents[3]
+
+    def _fake_ensure() -> tuple[bool, str | None]:
+        return True, None
+
+    def _fake_run(cmd: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+        assert kwargs.get("cwd") == str(repo_root)
+        assert kwargs.get("timeout") == 300
+        raise subprocess.TimeoutExpired(cmd, 300)
+
+    monkeypatch.setattr(module, "ensure_runtime_available", _fake_ensure)
+    monkeypatch.setattr(module.subprocess, "run", _fake_run)
+
+    exit_code = module.main(["src/app.py"])
+
+    assert exit_code == 1
+    err = capsys.readouterr().err
+    assert "timed out after 300s" in err
+    assert "src/app.py" in err
 
 
 def test_main_prints_actionable_setup_guidance_when_runtime_missing(

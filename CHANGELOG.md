@@ -11,9 +11,23 @@ All notable changes to this project will be documented in this file.
 
 ## [0.43.2] - 2026-03-29
 
+### Added
+
+- OpenSpec (`openspec/config.yaml`): **SpecFact code review JSON** dogfood tasks — require a fresh
+  `.specfact/code-review.json`, remediate review findings before merge, and record TDD evidence; **freshness**
+  excludes `openspec/changes/<change-id>/TDD_EVIDENCE.md` from the staleness comparison so evidence-only edits
+  there do not by themselves force a new review run.
+
 ### Changed
 
-- Pre-commit `specfact-code-review-gate` now runs `specfact code review run --json --out .specfact/code-review.json` (instead of `--score-only`) so the governed `ReviewReport` JSON is written under gitignored `.specfact/` for IDE and Copilot workflows.
+- Pre-commit `specfact-code-review-gate`: switched from `specfact code review run` with `--score-only` to
+  `specfact code review run --json --out .specfact/code-review.json`, writing governed `ReviewReport` JSON under
+  gitignored `.specfact/` for IDE and Copilot workflows.
+- `scripts/pre_commit_code_review.py`: invoke review from repo root (`cwd`), emit JSON as above, and enforce a
+  300s subprocess timeout with `TimeoutExpired` handling so the hook cannot hang indefinitely.
+- Documentation: `docs/modules/code-review.md` updated for the JSON report path and the pre-commit hook behavior.
+- Tests: `tests/unit/scripts/test_pre_commit_code_review.py` and `test_code_review_module_docs.py` updated for
+  `--json`/`--out`, repo-root `cwd`, and timeout handling.
 
 ---
 

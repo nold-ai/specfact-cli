@@ -14,6 +14,7 @@ import subprocess
 import sys
 from collections.abc import Sequence
 from pathlib import Path
+from subprocess import TimeoutExpired
 
 from icontract import ensure, require
 
@@ -88,13 +89,20 @@ def main(argv: Sequence[str] | None = None) -> int:
         sys.stdout.write(f"Unable to run the code review gate. {guidance}\n")
         return 1
 
-    result = subprocess.run(
-        build_review_command(files),
-        check=False,
-        text=True,
-        capture_output=True,
-        cwd=str(_repo_root()),
-    )
+    cmd = build_review_command(files)
+    try:
+        result = subprocess.run(
+            cmd,
+            check=False,
+            text=True,
+            capture_output=True,
+            cwd=str(_repo_root()),
+            timeout=300,
+        )
+    except TimeoutExpired:
+        joined_cmd = " ".join(cmd)
+        sys.stderr.write(f"Code review gate timed out after 300s (command: {joined_cmd!r}, files: {files!r}).\n")
+        return 1
     if result.stdout:
         sys.stdout.write(result.stdout)
     if result.stderr:
