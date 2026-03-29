@@ -9,6 +9,14 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.43.2] - 2026-03-29
+
+### Changed
+
+- Pre-commit `specfact-code-review-gate` now runs `specfact code review run --json --out .specfact/code-review.json` (instead of `--score-only`) so the governed `ReviewReport` JSON is written under gitignored `.specfact/` for IDE and Copilot workflows.
+
+---
+
 ## [0.43.1] - 2026-03-28
 
 ### Changed

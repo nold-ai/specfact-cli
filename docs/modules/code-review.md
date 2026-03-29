@@ -121,8 +121,10 @@ repos:
 The helper script scopes the gate to staged Python files only and then runs:
 
 ```bash
-specfact code review run --score-only <staged-python-files>
+specfact code review run --json --out .specfact/code-review.json <staged-python-files>
 ```
+
+The JSON report is written under ``.specfact/`` (ignored by git via ``.specfact/`` in ``.gitignore``) so local tools and Copilot can read structured findings. The CLI still echoes the output path on success.
 
 Commit behavior:
 
@@ -148,7 +150,7 @@ repos:
     hooks:
       - id: specfact-code-review
         name: specfact code review gate
-        entry: specfact code review run --score-only
+        entry: specfact code review run --json --out .specfact/code-review.json
         language: system
         files: \.pyi?$
 ```

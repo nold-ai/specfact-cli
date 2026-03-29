@@ -34,14 +34,16 @@ def test_filter_review_files_keeps_only_python_sources() -> None:
     ]
 
 
-def test_build_review_command_uses_score_only_mode() -> None:
-    """Pre-commit gate should rely on score-only exit-code semantics."""
+def test_build_review_command_writes_json_report() -> None:
+    """Pre-commit gate should write ReviewReport JSON for IDE/Copilot and use exit verdict."""
     module = _load_script_module()
 
     command = module.build_review_command(["src/app.py", "tests/test_app.py"])
 
     assert command[:5] == [sys.executable, "-m", "specfact_cli.cli", "code", "review"]
-    assert "--score-only" in command
+    assert "--json" in command
+    assert "--out" in command
+    assert module.REVIEW_JSON_OUT in command
     assert command[-2:] == ["src/app.py", "tests/test_app.py"]
 
 
@@ -62,9 +64,11 @@ def test_main_propagates_review_gate_exit_code(monkeypatch: pytest.MonkeyPatch) 
     def _fake_ensure() -> tuple[bool, str | None]:
         return True, None
 
-    def _fake_run(cmd: list[str], **_: object) -> subprocess.CompletedProcess[str]:
-        assert "--score-only" in cmd
-        return subprocess.CompletedProcess(cmd, 1, stdout="-7\n", stderr="")
+    def _fake_run(cmd: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+        assert "--json" in cmd
+        assert module.REVIEW_JSON_OUT in cmd
+        assert kwargs.get("cwd") is not None
+        return subprocess.CompletedProcess(cmd, 1, stdout=".specfact/code-review.json\n", stderr="")
 
     monkeypatch.setattr(module, "ensure_runtime_available", _fake_ensure)
     monkeypatch.setattr(module.subprocess, "run", _fake_run)

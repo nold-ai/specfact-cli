@@ -11,7 +11,8 @@ def test_code_review_docs_cover_pre_commit_gate_and_portable_adoption() -> None:
     docs = _docs_text()
     assert "## Pre-Commit Review Gate" in docs
     assert ".pre-commit-config.yaml" in docs
-    assert "specfact code review run --score-only" in docs
+    assert "specfact code review run" in docs
+    assert ".specfact/code-review.json" in docs
     assert "## Add to Any Project" in docs
 
 
