@@ -2,9 +2,10 @@
 
 Writes a machine-readable JSON report to ``.specfact/code-review.json`` (gitignored)
 so IDEs and Copilot can read findings; exit code still reflects the governed CI verdict.
+
+CrossHair: skip (importlib/subprocess side effects; not amenable to full symbolic execution)
 """
 
-# CrossHair: ignore
 # This helper shells out to the CLI and is intentionally side-effecting.
 
 from __future__ import annotations
@@ -152,11 +153,15 @@ def ensure_runtime_available() -> tuple[bool, str | None]:
     return True, None
 
 
+@require(lambda argv: argv is None or isinstance(argv, (list, tuple)))
 @ensure(lambda result: isinstance(result, int))
 def main(argv: Sequence[str] | None = None) -> int:
     """Run the code review gate; write JSON under ``.specfact/`` and return CLI exit code."""
-    files = filter_review_files(list(argv or []))
-    if len(files) == 0:
+    paths_arg = [] if argv is None else list(argv)
+    files = filter_review_files(paths_arg)
+    try:
+        files[0]
+    except IndexError:
         sys.stdout.write("No staged Python files to review; skipping code review gate.\n")
         return 0
 
