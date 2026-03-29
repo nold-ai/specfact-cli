@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import subprocess
 import sys
 from pathlib import Path
@@ -57,10 +58,25 @@ def test_main_skips_when_no_relevant_files(capsys: pytest.CaptureFixture[str]) -
     assert "No staged Python files" in capsys.readouterr().out
 
 
-def test_main_propagates_review_gate_exit_code(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_main_propagates_review_gate_exit_code(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
     """Blocking review verdicts must block the commit by returning non-zero."""
     module = _load_script_module()
-    repo_root = Path(__file__).resolve().parents[3]
+    repo_root = tmp_path
+    _write_sample_review_report(
+        repo_root,
+        {
+            "overall_verdict": "FAIL",
+            "findings": [
+                {"severity": "error", "rule": "e1"},
+                {"severity": "warning", "rule": "w1"},
+            ],
+        },
+    )
+
+    def _fake_root() -> Path:
+        return repo_root
 
     def _fake_ensure() -> tuple[bool, str | None]:
         return True, None
@@ -72,12 +88,67 @@ def test_main_propagates_review_gate_exit_code(monkeypatch: pytest.MonkeyPatch) 
         assert kwargs.get("timeout") == 300
         return subprocess.CompletedProcess(cmd, 1, stdout=".specfact/code-review.json\n", stderr="")
 
+    monkeypatch.setattr(module, "_repo_root", _fake_root)
     monkeypatch.setattr(module, "ensure_runtime_available", _fake_ensure)
     monkeypatch.setattr(module.subprocess, "run", _fake_run)
 
     exit_code = module.main(["src/app.py"])
 
     assert exit_code == 1
+    out = capsys.readouterr().out
+    assert "Code review summary: 2 finding(s)" in out
+    assert "errors=1" in out
+    assert "warnings=1" in out
+    assert "overall_verdict='FAIL'" in out
+
+
+def _write_sample_review_report(repo_root: Path, payload: dict[str, object]) -> None:
+    spec_dir = repo_root / ".specfact"
+    spec_dir.mkdir(parents=True, exist_ok=True)
+    (spec_dir / "code-review.json").write_text(json.dumps(payload), encoding="utf-8")
+
+
+def test_count_findings_by_severity_buckets_unknown() -> None:
+    """Severities map to error/warning/advisory; others go to other."""
+    module = _load_script_module()
+    counts = module._count_findings_by_severity(
+        [
+            {"severity": "error"},
+            {"severity": "WARN"},
+            {"severity": "advisory"},
+            {"severity": "info"},
+            {"severity": "custom"},
+            "not-a-dict",
+        ]
+    )
+    assert counts == {"error": 1, "warning": 1, "advisory": 1, "info": 1, "other": 2}
+
+
+def test_main_missing_report_still_returns_exit_code_and_warns(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """If JSON is not on disk, stderr explains; exit code still comes from the review subprocess."""
+    module = _load_script_module()
+
+    def _fake_root() -> Path:
+        return tmp_path
+
+    def _fake_ensure() -> tuple[bool, str | None]:
+        return True, None
+
+    def _fake_run(cmd: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+        return subprocess.CompletedProcess(cmd, 2, stdout="", stderr="")
+
+    monkeypatch.setattr(module, "_repo_root", _fake_root)
+    monkeypatch.setattr(module, "ensure_runtime_available", _fake_ensure)
+    monkeypatch.setattr(module.subprocess, "run", _fake_run)
+
+    exit_code = module.main(["src/app.py"])
+
+    assert exit_code == 2
+    err = capsys.readouterr().err
+    assert "no report file" in err
+    assert ".specfact/code-review.json" in err
 
 
 def test_main_timeout_fails_hook(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:

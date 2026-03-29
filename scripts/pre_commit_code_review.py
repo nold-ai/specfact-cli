@@ -10,6 +10,7 @@ so IDEs and Copilot can read findings; exit code still reflects the governed CI 
 from __future__ import annotations
 
 import importlib
+import json
 import subprocess
 import sys
 from collections.abc import Sequence
@@ -67,6 +68,67 @@ def _repo_root() -> Path:
     return Path(__file__).resolve().parents[1]
 
 
+def _count_findings_by_severity(findings: list[object]) -> dict[str, int]:
+    """Bucket review findings by severity (unknown severities go to ``other``)."""
+    buckets = {"error": 0, "warning": 0, "advisory": 0, "info": 0, "other": 0}
+    for item in findings:
+        if not isinstance(item, dict):
+            buckets["other"] += 1
+            continue
+        raw = item.get("severity")
+        if not isinstance(raw, str):
+            buckets["other"] += 1
+            continue
+        key = raw.lower().strip()
+        if key in ("error", "err"):
+            buckets["error"] += 1
+        elif key in ("warning", "warn"):
+            buckets["warning"] += 1
+        elif key in ("advisory", "advise"):
+            buckets["advisory"] += 1
+        elif key == "info":
+            buckets["info"] += 1
+        else:
+            buckets["other"] += 1
+    return buckets
+
+
+def _print_review_findings_summary(repo_root: Path) -> None:
+    """Parse ``REVIEW_JSON_OUT`` and print a one-line findings count (errors / warnings / etc.)."""
+    report_path = repo_root / REVIEW_JSON_OUT
+    if not report_path.is_file():
+        sys.stderr.write(f"Code review: no report file at {REVIEW_JSON_OUT} (could not print findings summary).\n")
+        return
+    try:
+        data = json.loads(report_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError) as exc:
+        sys.stderr.write(f"Code review: could not read {REVIEW_JSON_OUT}: {exc}\n")
+        return
+    except json.JSONDecodeError as exc:
+        sys.stderr.write(f"Code review: invalid JSON in {REVIEW_JSON_OUT}: {exc}\n")
+        return
+
+    findings_raw = data.get("findings")
+    if not isinstance(findings_raw, list):
+        sys.stderr.write(f"Code review: report has no findings list in {REVIEW_JSON_OUT}.\n")
+        return
+
+    counts = _count_findings_by_severity(findings_raw)
+    total = len(findings_raw)
+    verdict = data.get("overall_verdict", "?")
+    parts = [
+        f"errors={counts['error']}",
+        f"warnings={counts['warning']}",
+        f"advisory={counts['advisory']}",
+    ]
+    if counts["info"]:
+        parts.append(f"info={counts['info']}")
+    if counts["other"]:
+        parts.append(f"other={counts['other']}")
+    summary = ", ".join(parts)
+    sys.stdout.write(f"Code review summary: {total} finding(s) ({summary}); overall_verdict={verdict!r}.\n")
+
+
 def ensure_runtime_available() -> tuple[bool, str | None]:
     """Verify the current Python environment can import SpecFact CLI."""
     try:
@@ -107,6 +169,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         sys.stdout.write(result.stdout)
     if result.stderr:
         sys.stderr.write(result.stderr)
+    _print_review_findings_summary(_repo_root())
     return result.returncode
 
 
