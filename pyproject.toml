@@ -220,7 +220,8 @@ yaml-check-all = "bash scripts/yaml-tools.sh check-all {args}"
 # Docs validation (docs-12): command examples vs CLI; modules.specfact.io URLs in docs
 check-docs-commands = "python scripts/check-docs-commands.py"
 check-cross-site-links = "python scripts/check-cross-site-links.py"
-docs-validate = "python scripts/check-docs-commands.py && python scripts/check-cross-site-links.py --warn-only"
+doc-frontmatter-check = "python scripts/check_doc_frontmatter.py"
+docs-validate = "python scripts/check-docs-commands.py && python scripts/check-cross-site-links.py --warn-only && python scripts/check_doc_frontmatter.py"
 
 # Legacy entry (kept for compatibility); prefer `workflows-lint` above
 lint-workflows = "bash scripts/run_actionlint.sh {args}"
@@ -716,6 +717,7 @@ ignore = [
     "PLR2004", # magic value comparison
     "T20",    # print found
     "SLF001", # private member accessed
+    "E402",   # imports after sys.path bootstrap in targeted test modules
 ]
 
 # Tools and scripts can be more lenient

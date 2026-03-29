@@ -16,7 +16,7 @@ This change introduces a frontmatter-based documentation ownership and validatio
 
 ### New Components
 - **YAML Frontmatter Schema**: Standardized metadata format for documentation files
-- **Validation Script**: `scripts/check-doc-frontmatter.py` to validate doc ownership
+- **Validation Script**: `scripts/check_doc_frontmatter.py` to validate doc ownership
 - **Pre-commit Hook**: Integration with existing pre-commit workflow
 - **Documentation**: Updated contributing guidelines with frontmatter requirements
 
@@ -38,7 +38,7 @@ None - this is a new feature that doesn't modify existing capabilities
 ## Impact
 
 ### Files to Create
-- `scripts/check-doc-frontmatter.py` - Validation script
+- `scripts/check_doc_frontmatter.py` - Validation script
 - `docs/contributing/docs-sync.md` - Frontmatter documentation
 
 ### Files to Modify
@@ -58,9 +58,12 @@ None - this is a new feature that doesn't modify existing capabilities
 - Git worktree patterns: Use git worktrees for isolated development
 
 ### GitHub Integration
-- GitHub issue sync via specfact after openspec change creation
-- Proper labels: `documentation`, `quality`, `automation`
-- Link to parent epic: `feature/docs-sync-epic`
+
+- **Issue**: [#461](https://github.com/nold-ai/specfact-cli/issues/461) — `[Change] Doc Frontmatter Schema & Validation`
+- **Labels**: `enhancement`, `documentation`, `change-proposal`, `openspec`
+- **Parent Feature**: [#356](https://github.com/nold-ai/specfact-cli/issues/356) — Documentation & Discrepancy Remediation (cross-linked in thread on #356)
+- **Repository**: `nold-ai/specfact-cli`
+- **Status**: synced 2026-03-29
 
 ## Success Criteria
 

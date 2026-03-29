@@ -92,3 +92,17 @@ cd /home/dom/git/nold-ai/specfact-cli-worktrees/feature/doc-frontmatter-schema &
 - `TestPerformance::test_execution_time_with_many_files` - fixture 'benchmark' not found (expected - benchmark fixture not available)
 
 **Status:** ✅ TDD workflow confirmed - integration tests fail before implementation
+
+---
+
+## Post-Implementation (2026-03-29)
+
+**Commands:**
+```bash
+cd /home/dom/git/nold-ai/specfact-cli-worktrees/feature/doc-frontmatter-schema
+hatch run pytest tests/unit/scripts/test_doc_frontmatter tests/integration/scripts/test_doc_frontmatter -q
+```
+
+**Result:** 31 passed (unit + integration). `last_reviewed` validation accepts YAML date objects via `isoformat()`. Rollout uses `docs/.doc-frontmatter-enforced`; default CLI skips when file missing; `--all-docs` validates entire `docs/` tree.
+
+**Status:** ✅ Green

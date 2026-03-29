@@ -6,6 +6,9 @@ This package provides command-line tools for:
 - Keeping backlog, specs, tests, and code in sync
 - Enforcing validation and contract checks before production
 - Supporting agile ceremonies and team workflows
+
+When a sibling ``specfact-cli-modules`` checkout exists, startup prepends each bundle's ``src``
+to ``sys.path`` so local development can load marketplace packages without installing wheels.
 """
 
 from __future__ import annotations

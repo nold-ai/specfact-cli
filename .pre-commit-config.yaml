@@ -12,3 +12,10 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
+      - id: check-doc-frontmatter
+        name: Check documentation ownership frontmatter (enforced paths)
+        entry: hatch run doc-frontmatter-check
+        language: system
+        files: ^docs/.*\.md$
+        pass_filenames: false
+        always_run: false

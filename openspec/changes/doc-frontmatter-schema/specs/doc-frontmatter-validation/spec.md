@@ -3,16 +3,16 @@
 ## ADDED Requirements
 
 ### Requirement: Validation Script Implementation
-The system SHALL provide a validation script `scripts/check-doc-frontmatter.py` that enforces frontmatter requirements.
+The system SHALL provide a validation script `scripts/check_doc_frontmatter.py` that enforces frontmatter requirements.
 
 #### Scenario: Script execution with valid docs
-- **WHEN** `check-doc-frontmatter.py` is executed
+- **WHEN** `check_doc_frontmatter.py` is executed
 - **AND** all tracked docs have valid frontmatter
 - **THEN** script SHALL exit with code 0
 - **AND** output SHALL show success message
 
 #### Scenario: Script execution with invalid docs
-- **WHEN** `check-doc-frontmatter.py` is executed
+- **WHEN** `check_doc_frontmatter.py` is executed
 - **AND** some docs have invalid frontmatter
 - **THEN** script SHALL exit with code 1
 - **AND** output SHALL list all validation failures

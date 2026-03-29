@@ -17,6 +17,13 @@ All notable changes to this project will be documented in this file.
   `.specfact/code-review.json`, remediate review findings before merge, and record TDD evidence; **freshness**
   excludes `openspec/changes/<change-id>/TDD_EVIDENCE.md` from the staleness comparison so evidence-only edits
   there do not by themselves force a new review run.
+- Documentation ownership frontmatter rollout:
+  - `scripts/check_doc_frontmatter.py`
+  - `docs/.doc-frontmatter-enforced` (rollout scope)
+  - `hatch run doc-frontmatter-check`
+  - Pre-commit hook integration
+  - Guide: `docs/contributing/docs-sync.md`
+  - Sample pages include the extended schema; use `--all-docs` for a full-site check.
 
 ### Changed
 
@@ -28,6 +35,9 @@ All notable changes to this project will be documented in this file.
 - Documentation: `docs/modules/code-review.md` updated for the JSON report path and the pre-commit hook behavior.
 - Tests: `tests/unit/scripts/test_pre_commit_code_review.py` and `test_code_review_module_docs.py` updated for
   `--json`/`--out`, repo-root `cwd`, and timeout handling.
+- Doc frontmatter validation now uses a Pydantic `DocFrontmatter` model, stricter `tracks` glob checks
+  (`fnmatch.translate` + `re.compile` after bracket/brace balance), and a reference page at
+  `docs/contributing/frontmatter-schema.md`.
 
 ---
 

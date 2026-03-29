@@ -6,6 +6,13 @@ description: Reference for the specfact init command - bootstrap SpecFact in a r
 keywords: [init, bootstrap, ide, profiles]
 audience: [solo, team, enterprise]
 expertise_level: [beginner, intermediate]
+doc_owner: specfact-cli
+tracks:
+  - src/specfact_cli/**
+  - openspec/**
+last_reviewed: 2026-03-29
+exempt: false
+exempt_reason: ""
 ---
 
 # specfact init
