@@ -116,6 +116,8 @@ repos:
         entry: hatch run python scripts/pre_commit_code_review.py
         language: system
         files: \.pyi?$
+        # Needed so you still see hook output when the gate passes (pre-commit hides it otherwise).
+        verbose: true
 ```
 
 The helper script scopes the gate to staged Python files only and then runs:
@@ -125,6 +127,30 @@ specfact code review run --json --out .specfact/code-review.json <staged-python-
 ```
 
 The JSON report is written under ``.specfact/`` (ignored by git via ``.specfact/`` in ``.gitignore``) so local tools and Copilot can read structured findings. The CLI still echoes the output path on success.
+
+### Verdict line, report file, and Copilot
+
+After each run, the helper prints a **one-line summary on stderr** (with ``verbose: true`` on the hook so it is visible even when the commit is allowed), for example:
+
+```text
+Code review summary: 3 finding(s) (errors=0, warnings=3, advisory=0); overall_verdict='PASS'.
+```
+
+Immediately after that line, the script prints the **report path** (repo-relative and absolute), then **ready-to-paste prompts** for Copilot or Cursor so you can copy them without opening this page.
+
+The **authoritative machine-readable report** is always at the repository root:
+
+```text
+.specfact/code-review.json
+```
+
+Open that file to see ``overall_verdict``, ``score``, ``findings`` (with ``file``, ``line``, ``rule``, ``severity``, ``message``), and the text ``summary``. Regenerate it anytime with the same ``specfact code review run --json --out .specfact/...`` command (or by letting pre-commit run the gate again).
+
+**Do not forget:** when you want help from GitHub Copilot or Cursor, point the assistant at the JSON file so it can remediate findings with full context. Example prompts you can reuse:
+
+- *Read ``.specfact/code-review.json`` from the latest review run and fix every finding, starting with errors then warnings.*
+- *Using the review report at ``.specfact/code-review.json``, apply fixes in the listed files at the given line numbers.*
+- *@workspace Attach or open ``.specfact/code-review.json`` and address each ``findings[]`` entry.*
 
 Commit behavior:
 

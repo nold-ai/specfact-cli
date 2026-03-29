@@ -13,6 +13,10 @@ def test_code_review_docs_cover_pre_commit_gate_and_portable_adoption() -> None:
     assert ".pre-commit-config.yaml" in docs
     assert "specfact code review run" in docs
     assert ".specfact/code-review.json" in docs
+    assert "verbose: true" in docs
+    assert "Verdict line, report file, and Copilot" in docs
+    assert "Code review summary" in docs
+    assert "copilot" in docs.lower()
     assert "## Add to Any Project" in docs
 
 

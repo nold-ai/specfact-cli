@@ -102,6 +102,11 @@ def test_main_propagates_review_gate_exit_code(
     assert "errors=1" in err
     assert "warnings=1" in err
     assert "overall_verdict='FAIL'" in err
+    assert "Code review report file:" in err
+    assert "absolute path:" in err
+    assert "Copy-paste for Copilot or Cursor:" in err
+    assert "Read `.specfact/code-review.json`" in err
+    assert "@workspace Open `.specfact/code-review.json`" in err
 
 
 def _write_sample_review_report(repo_root: Path, payload: dict[str, object]) -> None:

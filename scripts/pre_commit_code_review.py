@@ -131,6 +131,14 @@ def _print_review_findings_summary(repo_root: Path) -> None:
     # stderr keeps the summary separate from nested `specfact code review run` stdout; enable hook
     # `verbose: true` in .pre-commit-config.yaml so pre-commit prints hook output when the hook passes.
     sys.stderr.write(f"Code review summary: {total} finding(s) ({summary}); overall_verdict={verdict!r}.\n")
+    abs_report = report_path.resolve()
+    sys.stderr.write(f"Code review report file: {REVIEW_JSON_OUT}\n")
+    sys.stderr.write(f"  absolute path: {abs_report}\n")
+    sys.stderr.write("Copy-paste for Copilot or Cursor:\n")
+    sys.stderr.write(
+        f"  Read `{REVIEW_JSON_OUT}` and fix every finding (errors first), using file and line from each entry.\n"
+    )
+    sys.stderr.write(f"  @workspace Open `{REVIEW_JSON_OUT}` and remediate each item in `findings`.\n")
 
 
 @ensure(lambda result: isinstance(result, tuple) and len(result) == 2)
