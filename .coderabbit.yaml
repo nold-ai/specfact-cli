@@ -1,6 +1,8 @@
 # yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
 #
 # CodeRabbit aligns with AGENTS.md: contract-first APIs, OpenSpec, Hatch quality gates.
+# `reviews.auto_review.base_branches` includes `dev` so PRs into `dev` are auto-reviewed (not only the
+# repo default branch). See https://docs.coderabbit.ai/reference/configuration (auto_review).
 # Pre-push / finalize: run `cr --base dev` (or `coderabbit review`) from repo root; see
 # https://docs.coderabbit.ai/cli/overview
 # PR description: include `@coderabbitai summary` (default placeholder) for the high-level summary.
@@ -38,6 +40,9 @@ reviews:
     enabled: true
     drafts: false
     auto_incremental_review: true
+    # PRs targeting `dev` (not only the GitHub default branch, e.g. `main`) get automatic reviews.
+    base_branches:
+      - "^dev$"
   path_instructions:
     - path: "src/specfact_cli/**/*.py"
       instructions: |
