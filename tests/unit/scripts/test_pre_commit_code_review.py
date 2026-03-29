@@ -163,6 +163,9 @@ def test_main_timeout_fails_hook(monkeypatch: pytest.MonkeyPatch, capsys: pytest
     module = _load_script_module()
     repo_root = Path(__file__).resolve().parents[3]
 
+    def _fake_root() -> Path:
+        return repo_root
+
     def _fake_ensure() -> tuple[bool, str | None]:
         return True, None
 
@@ -171,6 +174,7 @@ def test_main_timeout_fails_hook(monkeypatch: pytest.MonkeyPatch, capsys: pytest
         assert kwargs.get("timeout") == 300
         raise subprocess.TimeoutExpired(cmd, 300)
 
+    monkeypatch.setattr(module, "_repo_root", _fake_root)
     monkeypatch.setattr(module, "ensure_runtime_available", _fake_ensure)
     monkeypatch.setattr(module.subprocess, "run", _fake_run)
 

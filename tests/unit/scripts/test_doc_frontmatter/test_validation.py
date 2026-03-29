@@ -3,43 +3,22 @@
 
 from __future__ import annotations
 
-import os
-import sys
 import tempfile
 from pathlib import Path
 
 import pytest
 
-
-scripts_dir = os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "scripts")
-if scripts_dir not in sys.path:
-    sys.path.insert(0, scripts_dir)
-
-from check_doc_frontmatter import get_all_md_files, main as validation_main, rg_missing_doc_owner
-
-
-def _write_enforced(root: Path, *relative_paths: str) -> None:
-    enforced = root / "docs" / ".doc-frontmatter-enforced"
-    enforced.parent.mkdir(parents=True, exist_ok=True)
-    enforced.write_text("\n".join(relative_paths) + "\n", encoding="utf-8")
-
-
-def _enforce_all_markdown_under_docs(root: Path) -> None:
-    lines: list[str] = []
-    docs = root / "docs"
-    if docs.exists():
-        for p in docs.rglob("*.md"):
-            if p.name == ".doc-frontmatter-enforced":
-                continue
-            lines.append(p.relative_to(root).as_posix())
-    _write_enforced(root, *lines)
+from tests.helpers.doc_frontmatter import write_enforced
 
 
 class TestFileDiscovery:
     """Test Markdown file discovery functionality."""
 
-    def test_discover_docs_directory_files(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_discover_docs_directory_files(
+        self, monkeypatch: pytest.MonkeyPatch, check_doc_frontmatter_module: object
+    ) -> None:
         """Test discovery of files in docs directory."""
+        get_all_md_files = check_doc_frontmatter_module.get_all_md_files
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             monkeypatch.setenv("DOC_FRONTMATTER_ROOT", str(root))
@@ -52,8 +31,11 @@ class TestFileDiscovery:
             files = get_all_md_files()
             assert len(files) == 3
 
-    def test_exempt_files_exclusion(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_exempt_files_exclusion(
+        self, monkeypatch: pytest.MonkeyPatch, check_doc_frontmatter_module: object
+    ) -> None:
         """Test that exempt files are excluded from discovery."""
+        get_all_md_files = check_doc_frontmatter_module.get_all_md_files
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             monkeypatch.setenv("DOC_FRONTMATTER_ROOT", str(root))
@@ -72,8 +54,9 @@ class TestFileDiscovery:
 class TestMissingDocOwnerDetection:
     """Test detection of missing doc_owner fields."""
 
-    def test_missing_doc_owner_detection(self) -> None:
+    def test_missing_doc_owner_detection(self, check_doc_frontmatter_module: object) -> None:
         """Test detection of files missing doc_owner."""
+        rg_missing_doc_owner = check_doc_frontmatter_module.rg_missing_doc_owner
         with tempfile.TemporaryDirectory() as temp_dir:
             docs_dir = Path(temp_dir) / "docs"
             docs_dir.mkdir()
@@ -91,8 +74,9 @@ class TestMissingDocOwnerDetection:
             assert docs_dir / "no_frontmatter.md" in missing_owner
             assert docs_dir / "with_owner.md" not in missing_owner
 
-    def test_all_files_have_owner(self) -> None:
+    def test_all_files_have_owner(self, check_doc_frontmatter_module: object) -> None:
         """Test when all files have doc_owner."""
+        rg_missing_doc_owner = check_doc_frontmatter_module.rg_missing_doc_owner
         with tempfile.TemporaryDirectory() as temp_dir:
             docs_dir = Path(temp_dir) / "docs"
             docs_dir.mkdir()
@@ -106,8 +90,11 @@ class TestMissingDocOwnerDetection:
 class TestValidationMainFunction:
     """Test the main validation function."""
 
-    def test_validation_with_valid_files(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_validation_with_valid_files(
+        self, monkeypatch: pytest.MonkeyPatch, check_doc_frontmatter_module: object
+    ) -> None:
         """Test validation with all valid files."""
+        validation_main = check_doc_frontmatter_module.main
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             monkeypatch.setenv("DOC_FRONTMATTER_ROOT", str(root))
@@ -127,12 +114,15 @@ exempt_reason: ""
 # Valid content"""
             )
             (root / "src" / "test" / "module").mkdir(parents=True)
-            _write_enforced(root, "docs/valid1.md")
+            write_enforced(root, "docs/valid1.md")
             result = validation_main([])
             assert result == 0
 
-    def test_validation_with_invalid_files(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_validation_with_invalid_files(
+        self, monkeypatch: pytest.MonkeyPatch, check_doc_frontmatter_module: object
+    ) -> None:
         """Test validation with invalid files."""
+        validation_main = check_doc_frontmatter_module.main
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             monkeypatch.setenv("DOC_FRONTMATTER_ROOT", str(root))
@@ -145,7 +135,7 @@ title: "Invalid Document"
 
 # Missing doc_owner"""
             )
-            _write_enforced(root, "docs/invalid.md")
+            write_enforced(root, "docs/invalid.md")
             result = validation_main([])
             assert result == 1
 
@@ -153,8 +143,11 @@ title: "Invalid Document"
 class TestOwnerResolutionValidation:
     """Test owner resolution validation."""
 
-    def test_valid_owner_resolution(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_valid_owner_resolution(
+        self, monkeypatch: pytest.MonkeyPatch, check_doc_frontmatter_module: object
+    ) -> None:
         """Test validation with valid owner resolution."""
+        validation_main = check_doc_frontmatter_module.main
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             monkeypatch.setenv("DOC_FRONTMATTER_ROOT", str(root))
@@ -174,12 +167,15 @@ exempt_reason: ""
 # Content"""
             )
             (root / "src" / "test" / "module").mkdir(parents=True)
-            _write_enforced(root, "docs/valid.md")
+            write_enforced(root, "docs/valid.md")
             result = validation_main([])
             assert result == 0
 
-    def test_invalid_owner_resolution(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_invalid_owner_resolution(
+        self, monkeypatch: pytest.MonkeyPatch, check_doc_frontmatter_module: object
+    ) -> None:
         """Test validation with invalid owner resolution."""
+        validation_main = check_doc_frontmatter_module.main
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             monkeypatch.setenv("DOC_FRONTMATTER_ROOT", str(root))
@@ -198,7 +194,7 @@ exempt_reason: ""
 
 # Content"""
             )
-            _write_enforced(root, "docs/invalid.md")
+            write_enforced(root, "docs/invalid.md")
             result = validation_main([])
             assert result == 1
 
@@ -207,16 +203,20 @@ class TestFixHintGeneration:
     """Test fix hint generation functionality."""
 
     def test_fix_hint_for_missing_frontmatter(
-        self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
+        check_doc_frontmatter_module: object,
     ) -> None:
         """Test fix hint generation for missing frontmatter."""
+        validation_main = check_doc_frontmatter_module.main
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             monkeypatch.setenv("DOC_FRONTMATTER_ROOT", str(root))
             docs_dir = root / "docs"
             docs_dir.mkdir()
             (docs_dir / "no_frontmatter.md").write_text("# Document without frontmatter")
-            _write_enforced(root, "docs/no_frontmatter.md")
+            write_enforced(root, "docs/no_frontmatter.md")
             result = validation_main(["--fix-hint"])
             assert result == 1
             captured = capsys.readouterr()
@@ -224,9 +224,13 @@ class TestFixHintGeneration:
             assert "Suggested frontmatter" in captured.err or "---" in captured.err
 
     def test_fix_hint_for_invalid_owner(
-        self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
+        check_doc_frontmatter_module: object,
     ) -> None:
         """Test fix hint generation for invalid owner."""
+        validation_main = check_doc_frontmatter_module.main
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             monkeypatch.setenv("DOC_FRONTMATTER_ROOT", str(root))
@@ -245,7 +249,7 @@ exempt_reason: ""
 
 # Content"""
             )
-            _write_enforced(root, "docs/invalid.md")
+            write_enforced(root, "docs/invalid.md")
             result = validation_main(["--fix-hint"])
             assert result == 1
             captured = capsys.readouterr()

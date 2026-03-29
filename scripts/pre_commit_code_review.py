@@ -19,6 +19,7 @@ from pathlib import Path
 from subprocess import TimeoutExpired
 from typing import Any, cast
 
+from beartype import beartype
 from icontract import ensure, require
 
 
@@ -28,6 +29,7 @@ PYTHON_SUFFIXES = {".py", ".pyi"}
 REVIEW_JSON_OUT = ".specfact/code-review.json"
 
 
+@beartype
 @require(lambda paths: paths is not None)
 @ensure(lambda result: len(result) == len(set(result)))
 @ensure(lambda result: all(Path(path).suffix.lower() in PYTHON_SUFFIXES for path in result))
@@ -45,6 +47,7 @@ def filter_review_files(paths: Sequence[str]) -> list[str]:
     return filtered
 
 
+@beartype
 @require(lambda files: files is not None)
 @ensure(lambda result: result[:5] == [sys.executable, "-m", "specfact_cli.cli", "code", "review"])
 @ensure(lambda result: "--json" in result and "--out" in result)
@@ -142,6 +145,7 @@ def _print_review_findings_summary(repo_root: Path) -> None:
     sys.stderr.write(f"  @workspace Open `{REVIEW_JSON_OUT}` and remediate each item in `findings`.\n")
 
 
+@beartype
 @ensure(lambda result: isinstance(result, tuple) and len(result) == 2)
 @ensure(lambda result: isinstance(result[0], bool) and (result[1] is None or isinstance(result[1], str)))
 def ensure_runtime_available() -> tuple[bool, str | None]:
@@ -153,6 +157,7 @@ def ensure_runtime_available() -> tuple[bool, str | None]:
     return True, None
 
 
+@beartype
 @require(lambda argv: argv is None or isinstance(argv, (list, tuple)))
 @ensure(lambda result: isinstance(result, int))
 def main(argv: Sequence[str] | None = None) -> int:

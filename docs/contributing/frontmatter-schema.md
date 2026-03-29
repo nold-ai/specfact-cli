@@ -43,4 +43,4 @@ hatch run doc-frontmatter-check
 hatch run doc-frontmatter-check -- --all-docs
 ```
 
-Rollout scope is controlled by `docs/.doc-frontmatter-enforced`. See [Documentation ownership and frontmatter](docs-sync.md) for workflow.
+Rollout scope is controlled by `docs/.doc-frontmatter-enforced`. See [Documentation ownership and frontmatter](/contributing/docs-sync/) for workflow.

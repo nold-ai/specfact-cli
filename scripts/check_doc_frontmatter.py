@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import datetime
 import fnmatch
+import functools
 import os
 import re
 import subprocess
@@ -171,15 +172,21 @@ def extract_doc_owner(content: str) -> str | None:
 @ensure(lambda result: isinstance(result, bool), "Must return bool")
 def resolve_owner(owner: str) -> bool:
     """Return True if owner is a known token or an existing path under the repo."""
+    return _resolve_owner_impl(owner, str(_root().resolve()))
+
+
+@functools.lru_cache(maxsize=256)
+def _resolve_owner_impl(owner: str, root_key: str) -> bool:
+    """Memoized owner resolution keyed by owner and repository root (see ``resolve_owner``)."""
     if owner in VALID_OWNER_TOKENS:
         return True
     candidate = Path(owner)
     if candidate.is_absolute():
         return candidate.exists()
-    rel = _root() / owner
+    base_root = Path(root_key)
+    rel = base_root / owner
     if rel.exists():
         return True
-    base_root = _root()
     for rel_root in SOURCE_ROOTS:
         root = base_root / rel_root
         if not root.exists():
@@ -187,8 +194,8 @@ def resolve_owner(owner: str) -> bool:
         joined = root / owner
         if joined.exists():
             return True
-        for child in root.rglob("*"):
-            if child.is_dir() and child.name == owner:
+        for match in root.glob(f"**/{owner}"):
+            if match.is_dir():
                 return True
     return False
 
@@ -231,7 +238,7 @@ doc_owner: specfact-cli
 tracks:
   - src/specfact_cli/**
   - openspec/**
-last_reviewed: 2026-03-29
+last_reviewed: {datetime.date.today().isoformat()}
 exempt: false
 exempt_reason: ""
 ---

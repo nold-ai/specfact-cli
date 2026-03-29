@@ -37,6 +37,9 @@ hatch run lint-workflows            # GitHub Actions actionlint
 
 # Code scanning
 hatch run scan-all                  # semgrep analysis
+
+# SpecFact code review JSON (dogfood; see "SpecFact Code Review JSON" below and openspec/config.yaml)
+hatch run specfact code review run --json --out .specfact/code-review.json
 ```
 
 ## Architecture
@@ -171,6 +174,36 @@ Run all steps in order before committing. Every step must pass with no errors.
 4. `hatch run yaml-lint`             # YAML + markdown validation
 5. `hatch run contract-test`         # contract-first validation
 6. `hatch run smart-test`            # targeted test run (use `smart-test-full` for larger modifications)
+
+With `pre-commit` installed (`pre-commit install`), staged `*.py` / `*.pyi` files also run the local code review gate (`scripts/pre_commit_code_review.py`), which writes the same `.specfact/code-review.json` path. That hook is fast feedback; it does not replace the **PR / change-completion** review rules in the next section when your OpenSpec tasks require a full-scope run.
+
+### SpecFact Code Review JSON (Dogfood, Quality Gate)
+
+This matches **`openspec/config.yaml`** (project `context` and **`rules.tasks`** for code review): treat **`.specfact/code-review.json`** as mandatory evidence before an OpenSpec change is considered complete and before you rely on “all gates green” for a PR.
+
+**When to (re)run the review**
+
+- The file is **missing**, or
+- It is **stale**: the report’s last-modified time is older than any file you changed for this work under `src/`, `scripts/`, `tools/`, `tests/`, or under `openspec/changes/<change-id>/` **except** `openspec/changes/<change-id>/TDD_EVIDENCE.md` — evidence-only edits there do **not** by themselves invalidate the review; re-run when proposal, specs, tasks, design, or code change.
+
+**Command**
+
+```bash
+hatch run specfact code review run --json --out .specfact/code-review.json
+```
+
+- While iterating on a branch, prefer a **changed-files scope** when available (e.g. `--scope changed`) so feedback stays fast.
+- Before the **final PR** for a change, run a **full** (or equivalent) scope so the report covers the whole quality surface your tasks expect (e.g. `--scope full`).
+
+**Remediation**
+
+- Read the JSON report and fix **every** finding at any severity (warning, advisory, error, or equivalent in the schema) unless the change proposal documents a **rare, explicit, justified** exception.
+- After substantive edits, re-run until the report shows a **passing** outcome from the review module (e.g. overall verdict PASS / CI exit 0 per schema).
+- Record the review command(s) and timestamp in `openspec/changes/<change-id>/TDD_EVIDENCE.md` or in the PR description when the change touches behavior or quality gates.
+
+**Consistency**
+
+- OpenSpec change **`tasks.md`** should include explicit tasks for generating/updating this file and clearing findings (see `openspec/config.yaml` → `rules.tasks` → “SpecFact code review JSON”). Agent runs should treat those tasks and this section as the same bar.
 
 ### Module Signature Gate (Required for Change Finalization)
 
