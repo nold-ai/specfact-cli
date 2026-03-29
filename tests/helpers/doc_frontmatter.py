@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import datetime
 import importlib.util
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 
 def repo_root() -> Path:
@@ -25,6 +26,11 @@ def load_check_doc_frontmatter_module() -> Any:
     if dfm is not None:
         dfm.model_rebuild(_types_namespace={"datetime": datetime})
     return module
+
+
+def validation_main_fn(mod: object) -> Callable[[list[str] | None], int]:
+    """Return ``check_doc_frontmatter.main`` with a concrete type for static analysis."""
+    return cast(Callable[[list[str] | None], int], mod.main)
 
 
 VALID_DOC_FRONTMATTER = """---

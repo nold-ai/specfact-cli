@@ -11,6 +11,7 @@ import pytest
 from tests.helpers.doc_frontmatter import (
     VALID_DOC_FRONTMATTER,
     enforce_all_markdown_under_docs,
+    validation_main_fn,
     write_enforced,
 )
 
@@ -22,7 +23,7 @@ class TestEndToEndWorkflow:
         self, monkeypatch: pytest.MonkeyPatch, check_doc_frontmatter_module: object
     ) -> None:
         """Test the complete validation workflow with various file types."""
-        validation_main = check_doc_frontmatter_module.main
+        validation_main = validation_main_fn(check_doc_frontmatter_module)
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             monkeypatch.setenv("DOC_FRONTMATTER_ROOT", str(root))
@@ -45,7 +46,7 @@ title: "Invalid Document"
         self, monkeypatch: pytest.MonkeyPatch, check_doc_frontmatter_module: object
     ) -> None:
         """Test validation workflow when all files are valid."""
-        validation_main = check_doc_frontmatter_module.main
+        validation_main = validation_main_fn(check_doc_frontmatter_module)
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             monkeypatch.setenv("DOC_FRONTMATTER_ROOT", str(root))
@@ -65,7 +66,7 @@ class TestMultipleFileScenarios:
 
     def test_large_number_of_files(self, monkeypatch: pytest.MonkeyPatch, check_doc_frontmatter_module: object) -> None:
         """Test performance with a large number of files."""
-        validation_main = check_doc_frontmatter_module.main
+        validation_main = validation_main_fn(check_doc_frontmatter_module)
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             monkeypatch.setenv("DOC_FRONTMATTER_ROOT", str(root))
@@ -90,7 +91,7 @@ title: "File {i}"
         self, monkeypatch: pytest.MonkeyPatch, check_doc_frontmatter_module: object
     ) -> None:
         """Test with nested directory structures."""
-        validation_main = check_doc_frontmatter_module.main
+        validation_main = validation_main_fn(check_doc_frontmatter_module)
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             monkeypatch.setenv("DOC_FRONTMATTER_ROOT", str(root))
@@ -116,7 +117,7 @@ class TestScaleSmoke:
         self, monkeypatch: pytest.MonkeyPatch, check_doc_frontmatter_module: object
     ) -> None:
         """Many small valid docs complete successfully (smoke, not timing assertions)."""
-        validation_main = check_doc_frontmatter_module.main
+        validation_main = validation_main_fn(check_doc_frontmatter_module)
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             monkeypatch.setenv("DOC_FRONTMATTER_ROOT", str(root))
@@ -132,7 +133,7 @@ class TestScaleSmoke:
         self, monkeypatch: pytest.MonkeyPatch, check_doc_frontmatter_module: object
     ) -> None:
         """Large Markdown bodies still validate (smoke, not memory instrumentation)."""
-        validation_main = check_doc_frontmatter_module.main
+        validation_main = validation_main_fn(check_doc_frontmatter_module)
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             monkeypatch.setenv("DOC_FRONTMATTER_ROOT", str(root))
@@ -154,7 +155,7 @@ class TestCommandLineInterface:
         self, monkeypatch: pytest.MonkeyPatch, check_doc_frontmatter_module: object
     ) -> None:
         """Test CLI with --fix-hint flag."""
-        validation_main = check_doc_frontmatter_module.main
+        validation_main = validation_main_fn(check_doc_frontmatter_module)
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             monkeypatch.setenv("DOC_FRONTMATTER_ROOT", str(root))
@@ -166,7 +167,7 @@ class TestCommandLineInterface:
 
     def test_cli_help_output(self, capsys: pytest.CaptureFixture[str], check_doc_frontmatter_module: object) -> None:
         """Test CLI help output."""
-        validation_main = check_doc_frontmatter_module.main
+        validation_main = validation_main_fn(check_doc_frontmatter_module)
         with pytest.raises(SystemExit) as exc_info:
             validation_main(["--help"])
         assert exc_info.value.code == 0
@@ -181,7 +182,7 @@ class TestRealWorldScenarios:
         self, monkeypatch: pytest.MonkeyPatch, check_doc_frontmatter_module: object
     ) -> None:
         """Test scenario with both exempt and regular files."""
-        validation_main = check_doc_frontmatter_module.main
+        validation_main = validation_main_fn(check_doc_frontmatter_module)
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             monkeypatch.setenv("DOC_FRONTMATTER_ROOT", str(root))
@@ -213,7 +214,7 @@ title: "Invalid"
         self, monkeypatch: pytest.MonkeyPatch, check_doc_frontmatter_module: object
     ) -> None:
         """Test with complex glob patterns in tracks field."""
-        validation_main = check_doc_frontmatter_module.main
+        validation_main = validation_main_fn(check_doc_frontmatter_module)
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             monkeypatch.setenv("DOC_FRONTMATTER_ROOT", str(root))
