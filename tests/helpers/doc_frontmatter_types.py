@@ -11,11 +11,9 @@ from typing import Any, Protocol, runtime_checkable
 class ResolveOwnerImplWithCache(Protocol):
     """Callable owner resolver exposing ``cache_clear`` like ``functools.lru_cache``."""
 
-    def __call__(self, owner: str, root_key: str) -> bool:
-        pass
+    def __call__(self, owner: str, root_key: str) -> bool: ...
 
-    def cache_clear(self) -> None:
-        pass
+    def cache_clear(self) -> None: ...
 
 
 @runtime_checkable
