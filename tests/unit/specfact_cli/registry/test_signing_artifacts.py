@@ -571,6 +571,15 @@ def test_pr_orchestrator_quality_gates_still_depends_on_tests_for_coverage() -> 
     assert set(needs) == {"changes", "tests"}
 
 
+def test_pr_orchestrator_cache_paths_do_not_restore_hatch_virtualenvs() -> None:
+    """PR orchestrator SHALL cache package downloads, not Hatch virtualenv directories."""
+    if not PR_ORCHESTRATOR_WORKFLOW.exists():
+        pytest.skip("pr-orchestrator workflow not present")
+    content = PR_ORCHESTRATOR_WORKFLOW.read_text(encoding="utf-8")
+    assert "~/.cache/uv" in content
+    assert "~/.local/share/hatch" not in content
+
+
 def test_publish_script_pins_virtualenv_below_21_for_hatch_build():
     """PyPI publish script SHALL pin virtualenv<21 when installing hatch."""
     if not PUBLISH_PYPI_SCRIPT.exists():
