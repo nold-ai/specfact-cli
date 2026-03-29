@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import re
 import tempfile
 from pathlib import Path
 
@@ -15,6 +16,9 @@ from tests.helpers.doc_frontmatter import (
     write_enforced,
 )
 from tests.helpers.doc_frontmatter_types import CheckDocFrontmatterModule
+
+
+ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
 
 
 class TestEndToEndWorkflow:
@@ -175,7 +179,7 @@ class TestCommandLineInterface:
         validation_main = validation_main_fn(check_doc_frontmatter_module)
         assert validation_main(["--help"]) == 0
         captured = capsys.readouterr()
-        combined = (captured.out + captured.err).lower()
+        combined = ANSI_ESCAPE_RE.sub("", captured.out + captured.err).lower()
         assert "usage" in combined or "help" in combined
         assert "--fix-hint" in combined
 
