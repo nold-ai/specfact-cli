@@ -195,23 +195,23 @@ Do not implement production code until tests exist and have been run (expecting 
 
 ### 9.2 Create Pull Request
 
-- [ ] 9.2.1 Prepare commit with all changes
-  - [ ] 9.2.1.1 `git add .`
-  - [ ] 9.2.1.2 `git commit -m "feat: add doc frontmatter schema and validation"`
-  - [ ] 9.2.1.3 `git push -u origin feature/doc-frontmatter-schema`
+- [x] 9.2.1 Prepare commit with all changes
+  - [x] 9.2.1.1 `git add .`
+  - [x] 9.2.1.2 `git commit -m "feat: add doc frontmatter schema and validation"`
+  - [x] 9.2.1.3 `git push -u origin feature/doc-frontmatter-schema`
 
-- [ ] 9.2.2 Create PR using GitHub CLI
-  - [ ] 9.2.2.1 `gh pr create --repo nold-ai/specfact-cli --base dev --head feature/doc-frontmatter-schema`
-  - [ ] 9.2.2.2 Use PR template with OpenSpec change ID
-  - [ ] 9.2.2.3 Link to GitHub issue
+- [x] 9.2.2 Create PR using GitHub CLI
+  - [x] 9.2.2.1 `gh pr create --repo nold-ai/specfact-cli --base dev --head feature/doc-frontmatter-schema`
+  - [x] 9.2.2.2 Use PR template with OpenSpec change ID
+  - [x] 9.2.2.3 Link to GitHub issue
 
 - [ ] 9.2.3 Add to project board
   - [ ] 9.2.3.1 `gh project item-add 1 --owner nold-ai --url <PR_URL>`
 
 ## 10. Post-merge cleanup (after PR is merged)
 
-- [ ] 10.1 Return to primary checkout: `cd .../specfact-cli`
-- [ ] 10.2 `git fetch origin`
+- [x] 10.1 Return to primary checkout: `cd .../specfact-cli`
+- [x] 10.2 `git fetch origin`
 - [ ] 10.3 `git worktree remove ../specfact-cli-worktrees/feature/doc-frontmatter-schema`
 - [ ] 10.4 `git branch -d feature/doc-frontmatter-schema`
 - [ ] 10.5 `git worktree prune`

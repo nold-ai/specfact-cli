@@ -60,6 +60,7 @@ Only changes that are **archived**, shown as **✓ Complete** by `openspec list`
 | ✅ code-review-07-house-rules-skill | archived 2026-03-17 |
 | ✅ code-review-08-review-run-integration | archived 2026-03-17 |
 | ✅ code-review-09-f4-automation-upgrade | archived 2026-03-17 |
+| ✅ doc-frontmatter-schema | archived 2026-03-29 |
 
 ### Pending
 
@@ -109,7 +110,7 @@ The 2026-03-22 clean-code plan adds one new cross-repo change pair and re-sequen
 | Module | Order | Change folder | GitHub # | Blocked by |
 |--------|-------|---------------|----------|------------|
 | docs | 01 | docs-01-core-modules-docs-alignment | [#348](https://github.com/nold-ai/specfact-cli/issues/348) | module-migration-01 ✅; module-migration-02 ✅; module-migration-03 ✅; module-migration-05 ✅; module-migration-06/07 outputs inform residual cleanup wording |
-| docs | 02 | doc-frontmatter-schema | [#461](https://github.com/nold-ai/specfact-cli/issues/461) | Parent Feature: [#356](https://github.com/nold-ai/specfact-cli/issues/356) |
+| docs | 02 | ✅ doc-frontmatter-schema (archived 2026-03-29) | [#461](https://github.com/nold-ai/specfact-cli/issues/461) | Parent Feature: [#356](https://github.com/nold-ai/specfact-cli/issues/356) |
 | docs | 03 | ✅ docs-03-command-syntax-parity (archived 2026-03-18) | pending | docs-01 ✅; docs-02 ✅ |
 | docs | 04 | docs-04-docs-review-gate-and-link-integrity | pending | docs-03 ✅ |
 | docs | 05 | ci-docs-sync-check | pending | docs-02 (doc-frontmatter-schema) |
