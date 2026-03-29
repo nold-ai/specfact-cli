@@ -417,8 +417,7 @@ def rg_missing_doc_owner(files: list[Path]) -> list[Path]:
             return via_rg
     except (FileNotFoundError, subprocess.TimeoutExpired, OSError) as exc:
         _ERR.print(
-            f"doc-frontmatter: rg-based doc_owner scan failed ({exc!r}); "
-            "falling back to per-file scan.",
+            f"doc-frontmatter: rg-based doc_owner scan failed ({exc!r}); falling back to per-file scan.",
         )
     return _missing_owner_by_scan(files)
 
