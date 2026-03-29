@@ -126,7 +126,9 @@ def _print_review_findings_summary(repo_root: Path) -> None:
     if counts["other"]:
         parts.append(f"other={counts['other']}")
     summary = ", ".join(parts)
-    sys.stdout.write(f"Code review summary: {total} finding(s) ({summary}); overall_verdict={verdict!r}.\n")
+    # stderr keeps the summary separate from nested `specfact code review run` stdout; enable hook
+    # `verbose: true` in .pre-commit-config.yaml so pre-commit prints hook output when the hook passes.
+    sys.stderr.write(f"Code review summary: {total} finding(s) ({summary}); overall_verdict={verdict!r}.\n")
 
 
 def ensure_runtime_available() -> tuple[bool, str | None]:

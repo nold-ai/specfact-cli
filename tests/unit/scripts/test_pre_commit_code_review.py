@@ -95,11 +95,13 @@ def test_main_propagates_review_gate_exit_code(
     exit_code = module.main(["src/app.py"])
 
     assert exit_code == 1
-    out = capsys.readouterr().out
-    assert "Code review summary: 2 finding(s)" in out
-    assert "errors=1" in out
-    assert "warnings=1" in out
-    assert "overall_verdict='FAIL'" in out
+    captured = capsys.readouterr()
+    assert ".specfact/code-review.json" in captured.out
+    err = captured.err
+    assert "Code review summary: 2 finding(s)" in err
+    assert "errors=1" in err
+    assert "warnings=1" in err
+    assert "overall_verdict='FAIL'" in err
 
 
 def _write_sample_review_report(repo_root: Path, payload: dict[str, object]) -> None:

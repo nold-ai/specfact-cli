@@ -6,6 +6,8 @@ repos:
         entry: hatch run python scripts/pre_commit_code_review.py
         language: system
         files: \.pyi?$
+        # Show hook output on success (findings counts + CLI stdout); pre-commit hides stdout/stderr otherwise.
+        verbose: true
       - id: verify-module-signatures
         name: Verify module signatures and version bumps
         entry: hatch run ./scripts/verify-modules-signature.py --require-signature --enforce-version-bump
