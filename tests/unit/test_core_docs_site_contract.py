@@ -1,6 +1,4 @@
-from html.parser import HTMLParser
 from pathlib import Path
-from urllib.parse import urlparse
 
 import yaml
 
@@ -17,19 +15,6 @@ OUTDATED_DOCS_HOSTS = (
 )
 
 
-class _HrefParser(HTMLParser):
-    def __init__(self) -> None:
-        super().__init__()
-        self.hrefs: list[str] = []
-
-    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
-        if tag != "a":
-            return
-        for key, value in attrs:
-            if key == "href" and value is not None:
-                self.hrefs.append(value)
-
-
 def _read(path: Path) -> str:
     try:
         return path.read_text(encoding="utf-8")
@@ -39,20 +24,6 @@ def _read(path: Path) -> str:
 
 def _config() -> dict[str, object]:
     return yaml.safe_load(_read(DOCS_CONFIG))
-
-
-def _index_hrefs() -> list[str]:
-    parser = _HrefParser()
-    parser.feed(_read(DOCS_INDEX))
-    return parser.hrefs
-
-
-def _has_modules_docs_home_link(hrefs: list[str]) -> bool:
-    for href in hrefs:
-        parsed = urlparse(href)
-        if parsed.scheme == "https" and parsed.netloc == "modules.specfact.io" and parsed.path == "/":
-            return True
-    return False
 
 
 def test_core_docs_config_targets_public_core_domain() -> None:
@@ -67,12 +38,11 @@ def test_core_docs_config_targets_public_core_domain() -> None:
 
 def test_core_landing_page_marks_core_repo_as_canonical_owner() -> None:
     index = _read(DOCS_INDEX)
-    hrefs = _index_hrefs()
 
-    assert "This site covers the core platform" in index
-    assert "module-specific workflows" in index
-    assert "shared portal navigation" in index
-    assert _has_modules_docs_home_link(hrefs)
+    assert "SpecFact is the validation and alignment layer for software delivery." in index
+    assert "canonical starting point for the core CLI story" in index
+    assert "module-deep workflows" in index
+    assert "https://modules.specfact.io/" in index
     assert "nold-ai.github.io/specfact-cli" not in index
 
 

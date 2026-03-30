@@ -193,6 +193,33 @@ SpecFact CLI uses **Spec-Driven Development (SDD)** via [OpenSpec](./openspec/) 
 - Test documentation examples
 - **Update OpenSpec specs**: When implementing features, ensure [`openspec/specs/`](./openspec/specs/) reflects the new behavior
 
+### Entry-Point Messaging Hierarchy
+
+The repository README, `docs/index.md`, and other first-contact surfaces must preserve the same
+first-contact story.
+
+When editing those surfaces, make sure a new visitor can quickly answer:
+- **What is SpecFact?**
+- **Why does it exist?**
+- **Why should I use it?**
+- **What do I get?**
+- **How do I get started?**
+
+Keep the hierarchy in this order:
+1. Product identity
+2. Why it exists
+3. User value
+4. How to get started
+5. Deeper topology and cross-site handoff
+
+For first-contact pages, define SpecFact as the validation and alignment layer for software delivery
+and present “keep backlog, specs, tests, and code in sync” as the user-visible outcome of that
+positioning.
+
+GitHub-facing repo metadata must reinforce the same story. Keep the repository description, topics,
+and other above-the-fold cues aligned with the README hero so visitors see the same product
+identity before and after opening the repository.
+
 ### Documentation Structure
 
 - `README.md`: Project overview and quick start

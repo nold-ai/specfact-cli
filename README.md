@@ -1,8 +1,9 @@
 # SpecFact CLI
 
-> **The "swiss knife" CLI that turns any codebase into a clear, safe, and shippable workflow.**
-> Keep backlog, specs, tests, and code in sync so changes made by people or AI copilots do not break production.
-> Works for brand-new projects and long-lived codebases - even if you are new to coding.
+> **SpecFact is the Swiss-knife CLI for validation and alignment in software delivery.**
+> It adds the missing validation layer that keeps backlog intent, specifications, tests, and code
+> from drifting apart across AI-assisted coding, brownfield systems, and governed delivery.
+> Use it to move fast without losing rigor.
 
 **No API keys required. Works offline. Zero vendor lock-in.**
 
@@ -23,21 +24,54 @@ invoke SpecFact as part of a command chain.
 
 ---
 
-## Documentation Topology
+## What is SpecFact?
 
-`docs.specfact.io` is the canonical docs entry point for SpecFact.
+SpecFact is the validation and alignment layer for software delivery.
 
-- Core CLI/runtime/platform documentation remains owned by `specfact-cli`.
-- Module-specific deep docs are canonically owned by `specfact-cli-modules`.
-- The live modules docs site is currently published at `https://modules.specfact.io/`.
+It is a local CLI that helps you keep the intent behind a change aligned from
+backlog or idea through specifications, implementation, and checks. The “Swiss-knife CLI” metaphor
+fits because SpecFact gives you a set of focused tools for specific delivery problems, not a vague
+bag of features.
 
-Use this repository's docs for the overall SpecFact workflow, CLI runtime lifecycle, module registry, trust model, and command-group topology.
-Use the modules docs site for bundle-specific deep dives, adapter details, workflow tutorials, and module-authoring guidance.
-In short, module-specific deep docs are canonically owned by `specfact-cli-modules`.
+In practice, SpecFact helps you:
+- add guardrails to AI-assisted and fast-moving greenfield work
+- reverse-engineer large brownfield codebases into trustworthy structured understanding
+- reduce the “I wanted X but got Y” drift between backlog, spec, and implementation
+- move from local rigor toward team and enterprise policy enforcement
 
----
+## Why does it exist?
 
-## Start Here (60 seconds)
+Modern delivery drifts in predictable ways:
+- AI-generated quick wins often lack the validation layer needed for mid- and long-term reliability
+- brownfield systems often have missing or drifted specs, so teams need to reverse-engineer reality
+- backlog intent gets reinterpreted into something else before it reaches code
+- teams working with different skill levels, opinions, and AI IDE setups need consistent review and
+  policy enforcement
+
+SpecFact exists to reduce that drift. It helps teams understand what is really there, express what
+should happen more accurately, and validate that the result still matches the original intent.
+
+## Why should I use it?
+
+Use SpecFact if you want one of these outcomes:
+- ship AI-assisted changes faster without accepting fragile “looks fine to me” quality
+- understand a legacy or unfamiliar codebase before changing it
+- hand brownfield insight into OpenSpec, Spec-Kit, or other spec-first workflows
+- keep backlog expectations, specifications, and implementation from silently diverging
+- enforce shared rules consistently across developers and CI/CD
+
+## What do I get?
+
+With SpecFact, you get:
+- a deterministic local CLI instead of another opaque SaaS dependency
+- a validation layer around fast-moving implementation work
+- codebase analysis and sidecar flows for brownfield understanding
+- stronger backlog/spec/code alignment for real delivery workflows
+- a path from individual rigor to organization-level policy enforcement
+
+## How do I get started?
+
+### Start Here (5 minutes)
 
 ### Install
 
@@ -49,37 +83,99 @@ uvx specfact-cli@latest
 pip install -U specfact-cli
 ```
 
-### Bootstrap and IDE Setup
+### Bootstrap
 
 ```bash
-# First run: install official bundles
+# Recommended first run
 specfact init --profile solo-developer
+```
 
-# Alternative bundle selection
-specfact init --install backlog,codebase
-specfact init --install all
+### Get First Value
 
-# IDE prompt/template setup
+```bash
+# Analyze a codebase you care about
+specfact code import my-project --repo .
+
+# Snapshot the project state for follow-up workflows
+specfact project snapshot --bundle my-project
+
+# Validate external code without modifying the target repo
+specfact code validate sidecar init my-project /path/to/repo
+specfact code validate sidecar run my-project /path/to/repo
+```
+
+That path gives you a concrete first win: SpecFact understands your project context and gives you a
+validated starting point instead of jumping straight into blind change work.
+
+### AI IDE Setup
+
+```bash
 specfact init ide
 specfact init ide --ide cursor
 specfact init ide --ide vscode
 ```
 
-`specfact init ide` discovers prompt resources from installed workflow modules and exports them to your IDE. If module prompt payloads are not installed yet, the CLI uses packaged fallback resources.
+`specfact init ide` discovers prompt resources from installed workflow modules and exports them to
+your IDE. If module prompt payloads are not installed yet, the CLI uses packaged fallback resources.
 
-### Run Your First Flow
+## Choose Your Path
 
-```bash
-# Analyze an existing codebase
-specfact code import my-project --repo .
+### Greenfield and AI-assisted delivery
 
-# Snapshot current project state
-specfact project snapshot --bundle my-project
+Use SpecFact as the validation layer around fast-moving implementation work.
 
-# Validate external code without modifying source
-specfact code validate sidecar init my-project /path/to/repo
-specfact code validate sidecar run my-project /path/to/repo
-```
+Start with:
+- `specfact init --profile solo-developer`
+- `specfact code validate sidecar init <bundle> /path/to/repo`
+- `specfact code validate sidecar run <bundle> /path/to/repo`
+
+### Brownfield and reverse engineering
+
+Use SpecFact to understand an existing system before you change it, then hand that understanding
+into spec-first tools such as OpenSpec or Spec-Kit.
+
+Start with:
+- `specfact code import my-project --repo .`
+- `specfact project snapshot --bundle my-project`
+- `specfact code validate sidecar run my-project /path/to/repo`
+
+### Backlog to code alignment
+
+Use SpecFact when the problem is not only code quality, but drift between expectations and delivery.
+
+Start with:
+- `specfact backlog ceremony standup ...`
+- `specfact backlog ceremony refinement ...`
+- `specfact backlog verify-readiness --bundle <bundle-name>`
+
+### Team and policy enforcement
+
+Use SpecFact when multiple developers and AI IDEs need consistent checks and review behavior.
+
+Start with:
+- `specfact backlog verify-readiness --bundle <bundle-name>`
+- `specfact govern ...`
+- CI validation flows that keep the same rules active outside local development
+
+## How do I get started if I want more?
+
+**Next steps**
+
+- **[Core CLI docs](docs/index.md)** for the core runtime, bootstrap, validation, and command topology
+- **[Reference: command topology](docs/reference/commands.md)** for grouped command surfaces
+- **[Canonical modules docs site](https://modules.specfact.io/)** for bundle-deep workflows
+
+## Documentation Topology
+
+`docs.specfact.io` is the canonical starting point for SpecFact.
+
+- Core CLI/runtime/platform documentation remains owned by `specfact-cli`.
+- Module-specific deep docs are canonically owned by `specfact-cli-modules`.
+- The live modules docs site is published at `https://modules.specfact.io/`.
+
+Use this repository's docs for the overall product story, runtime lifecycle, command topology,
+trust model, and getting-started flow. Use the modules docs site when you want deeper workflow,
+adapter, and module-authoring guidance.
 
 ### Migration Note (Flat Commands Removed)
 
@@ -119,12 +215,6 @@ For GitHub, replace adapter/org/project with:
 # In your IDE chat (Cursor, VS Code, Copilot, etc.)
 /specfact.01-import my-project --repo .
 ```
-
-**Next steps**
-
-- **[Core CLI docs](docs/index.md)**
-- **[Reference: command topology](docs/reference/commands.md)**
-- **[Canonical modules docs site](https://modules.specfact.io/)**
 
 ---
 
