@@ -171,6 +171,7 @@ def test_pre_commit_config_installs_supported_smart_check_wrapper() -> None:
     matching = [hook for hook in hooks if hook.get("entry") == "scripts/pre-commit-smart-checks.sh"]
     assert matching, "Expected .pre-commit-config.yaml to expose the smart-check wrapper hook"
     hook = matching[0]
+    assert hook.get("id") == "specfact-smart-checks", "Hook id must remain stable for pre-commit consumers"
     assert hook.get("pass_filenames") is False
     assert hook.get("language") == "script"
 

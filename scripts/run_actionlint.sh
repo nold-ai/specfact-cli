@@ -20,6 +20,7 @@ has_docker() {
 }
 
 if has_actionlint; then
+  cd "$REPO_ROOT"
   actionlint -no-color
   exit $?
 fi
