@@ -78,3 +78,13 @@ contact.
 - **User-facing impact**: higher clarity, faster orientation, stronger trial intent, and more
   coherent positioning for both new and returning users, especially around AI-assisted delivery,
   brownfield modernization, and end-to-end alignment value.
+
+## Source Tracking
+
+<!-- source_repo: nold-ai/specfact-cli -->
+- **GitHub Issue**: #466
+- **Issue URL**: https://github.com/nold-ai/specfact-cli/issues/466
+- **Parent Feature**: #356
+- **Parent Feature URL**: https://github.com/nold-ai/specfact-cli/issues/356
+- **Last Synced Status**: open
+- **Sanitized**: true
