@@ -25,7 +25,7 @@ on:
 
 jobs:
   verify:
-    name: Verify module signatures
+    name: Verify Module Signatures
     runs-on: ubuntu-latest
     permissions:
       contents: read

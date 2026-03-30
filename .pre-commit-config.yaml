@@ -1,10 +1,10 @@
 repos:
   - repo: local
     hooks:
-      - id: verify-module-signatures
-        name: Verify module signatures and version bumps
-        entry: hatch run ./scripts/verify-modules-signature.py --require-signature --enforce-version-bump
-        language: system
+      - id: specfact-smart-checks
+        name: SpecFact smart pre-commit checks
+        entry: scripts/pre-commit-smart-checks.sh
+        language: script
         pass_filenames: false
         always_run: true
       - id: check-doc-frontmatter
@@ -14,10 +14,3 @@ repos:
         files: ^(docs/.*\.md|docs/\.doc-frontmatter-enforced|USAGE-FAQ\.md)$
         pass_filenames: false
         always_run: false
-      - id: specfact-code-review-gate
-        name: Run code review gate on staged Python files
-        entry: hatch run python scripts/pre_commit_code_review.py
-        language: system
-        files: \.pyi?$
-        # Show summary + copy-paste lines on success; pre-commit hides hook output otherwise.
-        verbose: true

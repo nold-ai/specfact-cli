@@ -96,9 +96,19 @@ hatch run lint
 hatch run contract-test-full
 ```
 
-The repo-owned pre-commit flow now also runs `specfact code review run` on
-staged Python files and blocks commits only when the review verdict is
-blocking.
+The supported local hook path is the repo-owned smart-check wrapper installed by the commands
+above. It keeps local semantics aligned with CI:
+
+- Merge-blocking local gates: module signature verification, formatter safety, Markdown/YAML checks,
+  workflow lint for staged workflow changes, and contract-test fast feedback when code changes.
+- Review gate behavior: `specfact code review run` reviews staged Python files and blocks the
+  commit only on `FAIL`. `PASS_WITH_ADVISORY` remains green but still prints the JSON report path for
+  remediation in Copilot/Cursor.
+- Advisory review surfaces: CodeRabbit and other PR review comments remain advisory unless a branch
+  protection rule explicitly promotes a check to required.
+- Workflow linting requires `actionlint` on `PATH` or a Docker-enabled environment. CI installs a
+  pinned `actionlint` release explicitly; local contributors should install it globally, for example
+  with `go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.11`.
 
 ## Contributor License Agreement (CLA)
 
@@ -199,6 +209,7 @@ The repository README, `docs/index.md`, and other first-contact surfaces must pr
 first-contact story.
 
 When editing those surfaces, make sure a new visitor can quickly answer:
+
 - **What is SpecFact?**
 - **Why does it exist?**
 - **Why should I use it?**
@@ -206,6 +217,7 @@ When editing those surfaces, make sure a new visitor can quickly answer:
 - **How do I get started?**
 
 Keep the hierarchy in this order:
+
 1. Product identity
 2. Why it exists
 3. User value

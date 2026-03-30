@@ -43,6 +43,7 @@ reviews:
     # PRs targeting `dev` (not only the GitHub default branch, e.g. `main`) get automatic reviews.
     base_branches:
       - "^dev$"
+      - "^main$"
   path_instructions:
     - path: "src/specfact_cli/**/*.py"
       instructions: |

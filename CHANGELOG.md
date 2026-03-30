@@ -1,3 +1,4 @@
+<!-- markdownlint-configure-file { "MD024": { "siblings_only": true } } -->
 # Changelog
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
@@ -508,7 +509,6 @@ All notable changes to this project will be documented in this file.
 - Bundle ID candidate derivation no longer falls back to the manifest filename stem (`bundle.yaml` -> `bundle`), preventing false rejection of valid explicit `bundle:<id>` tags.
 - OpenSpec change order/archive tracking was synchronized for Wave 1 closure (`verification-01-wave1-delta-closure`) and related archived status markers.
 
----
 ## [0.34.0] - 2026-02-18
 
 ### Added

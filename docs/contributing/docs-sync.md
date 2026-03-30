@@ -15,7 +15,7 @@ exempt: false
 exempt_reason: ""
 ---
 
-# Documentation ownership and frontmatter
+## Documentation ownership and frontmatter
 
 Core documentation uses **YAML frontmatter** for Jekyll (layout, title, permalink) and for **ownership** fields that drive the `scripts/check_doc_frontmatter.py` checker.
 
@@ -45,6 +45,10 @@ Use `--fix-hint` for suggested YAML blocks. During rollout, only paths listed in
 The enforced-path file accepts glob patterns matched against repo-relative Markdown paths under
 `docs/` and root docs such as `USAGE-FAQ.md`; blank lines and lines starting with `#` are ignored by
 the checker.
+
+Docs-only PRs rely on the dedicated `Docs Review` workflow as the required documentation gate. Its
+cross-site link check remains advisory because the published site can lag deployment, while
+frontmatter validation and docs test suites remain merge-blocking for docs-owned changes.
 
 ## Troubleshooting
 
