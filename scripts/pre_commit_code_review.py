@@ -62,6 +62,9 @@ class CodeReviewReport(BaseModel):
     overall_verdict: str | None = None
 
 
+CodeReviewReport.model_rebuild()
+
+
 @beartype
 @require(lambda paths: paths is not None)
 @ensure(lambda result: len(result) == len(set(result)))
