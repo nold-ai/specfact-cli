@@ -1,4 +1,4 @@
-from html.parser import HTMLParser
+import re
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -15,19 +15,8 @@ OUTDATED_DOCS_HOSTS = (
     "nold-ai.github.io/specfact-cli-modules",
     "nold-ai.github.io/specfact-cli",
 )
-
-
-class _HrefParser(HTMLParser):
-    def __init__(self) -> None:
-        super().__init__()
-        self.hrefs: list[str] = []
-
-    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
-        if tag != "a":
-            return
-        for key, value in attrs:
-            if key == "href" and value is not None:
-                self.hrefs.append(value)
+ABSOLUTE_URL_RE = re.compile(r"https?://[^\s)>'\"`]+")
+MARKDOWN_LINK_RE = re.compile(r"\[[^\]]+\]\((https?://[^)\s]+)\)")
 
 
 def _read(path: Path) -> str:
@@ -41,18 +30,16 @@ def _config() -> dict[str, object]:
     return yaml.safe_load(_read(DOCS_CONFIG))
 
 
-def _index_hrefs() -> list[str]:
-    parser = _HrefParser()
-    parser.feed(_read(DOCS_INDEX))
-    return parser.hrefs
+def _contains_url_host(content: str, host: str) -> bool:
+    """Return whether the text contains at least one absolute URL for the host."""
+
+    return any(urlparse(match.group(0).rstrip(".,;:")).netloc == host for match in ABSOLUTE_URL_RE.finditer(content))
 
 
-def _has_modules_docs_home_link(hrefs: list[str]) -> bool:
-    for href in hrefs:
-        parsed = urlparse(href)
-        if parsed.scheme == "https" and parsed.netloc == "modules.specfact.io" and parsed.path == "/":
-            return True
-    return False
+def _contains_markdown_link_target(content: str, target_url: str) -> bool:
+    """Return whether the text contains a markdown link targeting the URL."""
+
+    return any(match.group(1).rstrip(".,;:") == target_url for match in MARKDOWN_LINK_RE.finditer(content))
 
 
 def test_core_docs_config_targets_public_core_domain() -> None:
@@ -67,12 +54,11 @@ def test_core_docs_config_targets_public_core_domain() -> None:
 
 def test_core_landing_page_marks_core_repo_as_canonical_owner() -> None:
     index = _read(DOCS_INDEX)
-    hrefs = _index_hrefs()
 
-    assert "This site covers the core platform" in index
-    assert "module-specific workflows" in index
-    assert "shared portal navigation" in index
-    assert _has_modules_docs_home_link(hrefs)
+    assert "SpecFact is the validation and alignment layer for software delivery." in index
+    assert "canonical starting point for the core CLI story" in index
+    assert "module-deep workflows" in index
+    assert _contains_markdown_link_target(index, "https://modules.specfact.io/")
     assert "nold-ai.github.io/specfact-cli" not in index
 
 

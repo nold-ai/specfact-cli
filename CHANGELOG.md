@@ -9,6 +9,34 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.43.3] - 2026-03-30
+
+### Fixed
+
+- First-contact docs contract hardening:
+  - strengthened README / `docs/index.md` / `CONTRIBUTING.md` alignment tests
+  - restored explicit clickable modules-docs landing link validation
+  - hardened docs parity checks against filtered Jekyll `site.*` tokens and safer URL-host assertions
+- Contract robustness for utility helpers under symbolic execution:
+  - `src/specfact_cli/utils/optional_deps.py` now fails closed on invalid import targets
+  - `src/specfact_cli/utils/acceptance_criteria.py` now rejects pathological control-character inputs
+    without regex exceptions
+  - `src/specfact_cli/utils/enrichment_parser.py` now uses safe regex helpers/guards so
+    `hatch run contract-test` passes CrossHair exploration for enrichment parsing paths
+- OpenSpec/docs review remediation:
+  - wrapped overlong proposal bullets and corrected list spacing in active change artifacts
+  - added cross-repo first-contact traceability guidance for the core and modules docs split
+
+### Changed
+
+- Tests:
+  - added utility regression tests for invalid package names, pathological acceptance criteria, and
+    control-character enrichment blocks
+  - converted docs entrypoint file presence checks from import-time assertions to a module-scoped
+    skip fixture for clearer test behavior in partial environments
+
+---
+
 ## [0.43.2] - 2026-03-29
 
 ### Added

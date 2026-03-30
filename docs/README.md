@@ -8,10 +8,16 @@ description: High-level index for the SpecFact core CLI docs and canonical modul
 # SpecFact CLI Documentation
 
 This repository owns the **core CLI** documentation set for SpecFact.
-It explains the overall process of using SpecFact CLI, the platform runtime, and how official modules integrate into the grouped command surface.
+Use it as the canonical starting point when a user still needs orientation around what SpecFact is,
+why it exists, what value it provides, and how to get started.
 
-For **module-specific deep functionality**, use the canonical modules docs site at `https://modules.specfact.io/`.
-The canonical modules docs site owns the detailed guides for bundle workflows, adapters, and module authoring.
+SpecFact is the validation and alignment layer for software delivery. The core docs explain the
+product story, runtime lifecycle, bootstrap path, and the handoff into deeper module-owned
+workflows.
+
+For **module-specific deep functionality**, use the canonical modules docs site at
+`https://modules.specfact.io/`. The canonical modules docs site owns the detailed guides for bundle
+workflows, adapters, and module authoring.
 
 ## Core Docs Scope
 
@@ -34,6 +40,10 @@ Use the canonical modules docs site for:
 
 The canonical modules docs site is currently published at `https://modules.specfact.io/`.
 This docs set keeps release-line overview and handoff content for bundle workflows while the canonical modules docs site carries the deep bundle-specific guidance.
+
+If a modules page is ever used as a first-contact surface, it must explain that `modules.specfact.io`
+is the deeper workflow layer and direct un-oriented users back to `docs.specfact.io` for the core
+product story and fast-start path.
 
 ## Cross-site contract
 

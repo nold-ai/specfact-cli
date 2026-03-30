@@ -16,6 +16,12 @@ from beartype import beartype
 from icontract import ensure, require
 
 
+def _is_importable_package_name(package_name: str) -> bool:
+    """Return whether the package name is a valid import target."""
+
+    return bool(package_name) and all(part.isidentifier() for part in package_name.split("."))
+
+
 def _resolve_cli_tool_executable(tool_name: str) -> str | None:
     tool_path = shutil.which(tool_name)
     if tool_path is not None:
@@ -105,10 +111,12 @@ def check_python_package_available(package_name: str) -> bool:
     Returns:
         True if package can be imported, False otherwise
     """
+    if not _is_importable_package_name(package_name):
+        return False
     try:
         __import__(package_name)
         return True
-    except ImportError:
+    except (ImportError, TypeError, ValueError):
         return False
 
 

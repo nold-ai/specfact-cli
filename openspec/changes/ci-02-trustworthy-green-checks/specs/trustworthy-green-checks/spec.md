@@ -41,6 +41,34 @@ Changes under `.github/workflows/**` SHALL trigger mandatory CI validation for w
 - **THEN** CI runs mandatory workflow validation for those changes
 - **AND** a workflow-lint failure blocks the required check from reporting success
 
+### Requirement: Required branch-protection checks always report on PR head commits
+
+Any check selected as a required branch-protection gate SHALL emit a success or failure status for
+every new pull-request head commit. Required checks SHALL NOT disappear for docs-only or otherwise
+out-of-scope follow-up commits because the entire workflow was skipped by top-level `paths` or
+`paths-ignore` filtering.
+
+#### Scenario: Docs-only follow-up push updates an existing pull request
+
+- **WHEN** a pull request receives a new head commit that only changes docs, markdown, or other
+  files outside a required validation's relevance scope
+- **AND** branch protection still expects the required validation check on the new head SHA
+- **THEN** the workflow still triggers and emits a status for that required check
+- **AND** the job may exit early with a clear no-op success message
+- **AND** GitHub does not leave the PR waiting on a missing required check status
+
+### Requirement: Required checks use canonical names across workflows
+
+When a logical required gate is emitted by more than one workflow or has related dedicated and
+orchestrated forms, the repository SHALL standardize on one canonical emitted check name for branch
+protection and documentation.
+
+#### Scenario: Signature validation exists in both orchestrator and dedicated workflow form
+
+- **WHEN** the repository exposes module-signature validation through multiple workflow entry points
+- **THEN** the emitted required check names use one canonical spelling/casing per logical gate
+- **AND** branch protection guidance does not depend on subtly different names that can drift apart
+
 ### Requirement: Supported local pre-commit installation matches core CI gate semantics
 
 The repository-supported pre-commit installation path SHALL enforce the same core gate semantics that CI relies on for changed files, rather than leaving stronger checks only in an optional wrapper unknown to standard contributors.
