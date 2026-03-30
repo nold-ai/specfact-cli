@@ -49,8 +49,11 @@ def _load_hooks() -> list[dict[str, Any]]:
     config = _load_yaml(PRE_COMMIT_CONFIG)
     repos = config.get("repos")
     assert isinstance(repos, list) and repos, "Expected repos list in .pre-commit-config.yaml"
-    local_repo = repos[0]
-    assert isinstance(local_repo, dict), "Expected first pre-commit repo entry to be a mapping"
+    local_repo = next(
+        (r for r in repos if isinstance(r, dict) and r.get("repo") == "local"),
+        None,
+    )
+    assert isinstance(local_repo, dict), "Expected a 'repo: local' entry in .pre-commit-config.yaml"
     hooks = local_repo.get("hooks")
     assert isinstance(hooks, list), "Expected hooks list in .pre-commit-config.yaml"
     typed_hooks: list[dict[str, Any]] = []
@@ -188,11 +191,13 @@ def test_coderabbit_auto_review_covers_dev_and_main() -> None:
 def test_legacy_actionlint_runner_does_not_mask_docker_failures() -> None:
     """The legacy actionlint wrapper must fail cleanly when Docker is unusable."""
     raw = LEGACY_ACTIONLINT_RUNNER.read_text(encoding="utf-8")
-    assert "docker run --rm \\" in raw
-    assert (
-        'docker run --rm \\\n      -v "$REPO_ROOT":/repo \\\n      -w /repo \\\n      "$DOCKER_IMAGE" -no-color\n    return 0'
-        not in raw
-    )
-    assert "docker info >/dev/null 2>&1" in raw
-    assert "tools/bin" not in raw
-    assert "go install github.com/rhysd/actionlint/cmd/actionlint@latest" in raw
+    lines = raw.splitlines()
+    assert any("docker run --rm" in line for line in lines), "Expected docker run invocation"
+    assert "docker info >/dev/null 2>&1" in raw, "Expected docker daemon reachability check"
+    assert "tools/bin" not in raw, "Should not download binaries into repo tree"
+    assert "go install github.com/rhysd/actionlint/cmd/actionlint@latest" in raw, "Expected global install guidance"
+    # Docker run must not be followed by unconditional return 0 (would swallow failures)
+    for i, line in enumerate(lines):
+        if "docker run --rm" in line:
+            remaining = "\n".join(lines[i:])
+            assert "return 0" not in remaining, "docker run must not be followed by unconditional return 0"
