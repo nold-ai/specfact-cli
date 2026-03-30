@@ -42,6 +42,9 @@ hatch run doc-frontmatter-check
 ```
 
 Use `--fix-hint` for suggested YAML blocks. During rollout, only paths listed in `docs/.doc-frontmatter-enforced` are checked unless you pass `--all-docs`.
+The enforced-path file accepts glob patterns matched against repo-relative Markdown paths under
+`docs/` and root docs such as `USAGE-FAQ.md`; blank lines and lines starting with `#` are ignored by
+the checker.
 
 ## Troubleshooting
 

@@ -37,7 +37,7 @@ def validation_main_fn(mod: CheckDocFrontmatterModule) -> Callable[[list[str] | 
 
 VALID_DOC_FRONTMATTER = """---
 title: "Valid Document"
-doc_owner: src/test/module
+doc_owner: specfact-cli
 tracks:
   - src/test/**
 last_reviewed: 2026-03-20

@@ -118,12 +118,12 @@ def test_count_findings_by_severity_buckets_unknown() -> None:
     module = _load_script_module()
     counts = module._count_findings_by_severity(
         [
-            {"severity": "error"},
-            {"severity": "WARN"},
-            {"severity": "advisory"},
-            {"severity": "info"},
-            {"severity": "custom"},
-            "not-a-dict",
+            module.ReviewFinding(severity="error"),
+            module.ReviewFinding(severity="WARN"),
+            module.ReviewFinding(severity="advisory"),
+            module.ReviewFinding(severity="info"),
+            module.ReviewFinding(severity="custom"),
+            module.ReviewFinding.model_validate({}),
         ]
     )
     assert counts == {"error": 1, "warning": 1, "advisory": 1, "info": 1, "other": 2}
@@ -132,7 +132,7 @@ def test_count_findings_by_severity_buckets_unknown() -> None:
 def test_main_missing_report_still_returns_exit_code_and_warns(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    """If JSON is not on disk, stderr explains; exit code still comes from the review subprocess."""
+    """If JSON is missing, the hook fails and surfaces subprocess output for debugging."""
     module = _load_script_module()
 
     def _fake_root() -> Path:
@@ -142,7 +142,9 @@ def test_main_missing_report_still_returns_exit_code_and_warns(
         return True, None
 
     def _fake_run(cmd: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
-        return subprocess.CompletedProcess(cmd, 2, stdout="", stderr="")
+        report_dir = tmp_path / ".specfact"
+        assert report_dir.is_dir()
+        return subprocess.CompletedProcess(cmd, 0, stdout="review stdout", stderr="review stderr")
 
     monkeypatch.setattr(module, "_repo_root", _fake_root)
     monkeypatch.setattr(module, "ensure_runtime_available", _fake_ensure)
@@ -150,10 +152,12 @@ def test_main_missing_report_still_returns_exit_code_and_warns(
 
     exit_code = module.main(["src/app.py"])
 
-    assert exit_code == 2
+    assert exit_code == 1
     err = capsys.readouterr().err
-    assert "no report file" in err
+    assert "no report file" in err or "expected review report" in err
     assert ".specfact/code-review.json" in err
+    assert "review stdout" in err
+    assert "review stderr" in err
 
 
 def test_main_timeout_fails_hook(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
@@ -209,7 +213,7 @@ def test_print_summary_rejects_non_object_json(
 
     exit_code = module.main(["src/app.py"])
 
-    assert exit_code == 0
+    assert exit_code == 1
     err = capsys.readouterr().err
     assert "expected a JSON object" in err
 

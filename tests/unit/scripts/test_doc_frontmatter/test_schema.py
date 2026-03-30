@@ -7,7 +7,6 @@ Tests the YAML frontmatter parsing and validation logic.
 from __future__ import annotations
 
 import datetime
-import types
 from pathlib import Path
 
 import pytest
@@ -61,6 +60,12 @@ title: "Incomplete Document"
         test_file.write_text(content, encoding="utf-8")
         result = parse_frontmatter(test_file)
         assert result is not None
+        assert result["title"] == "Incomplete Document"
+        assert "doc_owner" not in result
+        assert "tracks" not in result
+        assert "last_reviewed" not in result
+        assert "exempt" not in result
+        assert "exempt_reason" not in result
 
     def test_no_frontmatter(self, tmp_path: Path, check_doc_frontmatter_module: CheckDocFrontmatterModule) -> None:
         """Test handling of files without frontmatter."""
@@ -178,9 +183,10 @@ class TestFrontmatterSuggestions:
             def today() -> datetime.date:
                 return fixed
 
-        _fake_dt = types.ModuleType("datetime")
-        _fake_dt.date = _FakeDate
-        monkeypatch.setattr(check_doc_frontmatter_module, "datetime", _fake_dt)
+        class _FakeDatetimeModule:
+            date = _FakeDate
+
+        monkeypatch.setattr(check_doc_frontmatter_module, "datetime", _FakeDatetimeModule)
         suggest_frontmatter = check_doc_frontmatter_module.suggest_frontmatter
         path = Path("test-document.md")
         suggestion = suggest_frontmatter(path)

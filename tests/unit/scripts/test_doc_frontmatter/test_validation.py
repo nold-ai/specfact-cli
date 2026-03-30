@@ -222,7 +222,12 @@ class TestFixHintGeneration:
             assert result == 1
             captured = capsys.readouterr()
             assert "MISSING doc_owner" in captured.err
-            assert "Suggested frontmatter" in captured.err or "---" in captured.err
+            assert "Suggested frontmatter" in captured.err
+            assert "doc_owner:" in captured.err
+            assert "tracks:" in captured.err
+            assert "last_reviewed:" in captured.err
+            assert "exempt:" in captured.err
+            assert "exempt_reason:" in captured.err
 
     def test_fix_hint_for_invalid_owner(
         self,

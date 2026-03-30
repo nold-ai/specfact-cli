@@ -717,7 +717,14 @@ ignore = [
     "PLR2004", # magic value comparison
     "T20",    # print found
     "SLF001", # private member accessed
-    "E402",   # imports after sys.path bootstrap in targeted test modules
+]
+
+"tests/unit/tools/test_smart_test_coverage.py" = [
+    "E402",   # imports after sys.path bootstrap for tool harness loading
+]
+
+"tests/unit/tools/test_smart_test_coverage_enhanced.py" = [
+    "E402",   # imports after sys.path bootstrap for tool harness loading
 ]
 
 # Tools and scripts can be more lenient

@@ -17,16 +17,49 @@ import sys
 from collections.abc import Sequence
 from pathlib import Path
 from subprocess import TimeoutExpired
-from typing import Any, cast
 
 from beartype import beartype
 from icontract import ensure, require
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
 
 PYTHON_SUFFIXES = {".py", ".pyi"}
 
 # Default matches dogfood / OpenSpec: machine-readable report under ignored ``.specfact/``.
 REVIEW_JSON_OUT = ".specfact/code-review.json"
+
+
+class ReviewFinding(BaseModel):
+    """Minimal validated review finding for summary rendering."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    severity: str = Field(default="other")
+
+    @field_validator("severity", mode="before")
+    @classmethod
+    def _normalize_severity(cls, value: object) -> str:
+        if not isinstance(value, str):
+            return "other"
+        key = value.lower().strip()
+        if key in ("error", "err"):
+            return "error"
+        if key in ("warning", "warn"):
+            return "warning"
+        if key in ("advisory", "advise"):
+            return "advisory"
+        if key == "info":
+            return "info"
+        return "other"
+
+
+class CodeReviewReport(BaseModel):
+    """Minimal validated review report for summary rendering."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    findings: list[ReviewFinding]
+    overall_verdict: str | None = None
 
 
 @beartype
@@ -73,62 +106,56 @@ def _repo_root() -> Path:
     return Path(__file__).resolve().parents[1]
 
 
-def _count_findings_by_severity(findings: list[object]) -> dict[str, int]:
-    """Bucket review findings by severity (unknown severities go to ``other``)."""
+def _report_path(repo_root: Path) -> Path:
+    """Absolute path to the machine-readable review report."""
+    return repo_root / REVIEW_JSON_OUT
+
+
+def _count_findings_by_severity(findings: list[ReviewFinding]) -> dict[str, int]:
+    """Bucket validated review findings by normalized severity."""
     buckets = {"error": 0, "warning": 0, "advisory": 0, "info": 0, "other": 0}
-    for item in findings:
-        if not isinstance(item, dict):
-            buckets["other"] += 1
-            continue
-        row = cast(dict[str, Any], item)
-        raw = row.get("severity")
-        if not isinstance(raw, str):
-            buckets["other"] += 1
-            continue
-        key = raw.lower().strip()
-        if key in ("error", "err"):
-            buckets["error"] += 1
-        elif key in ("warning", "warn"):
-            buckets["warning"] += 1
-        elif key in ("advisory", "advise"):
-            buckets["advisory"] += 1
-        elif key == "info":
-            buckets["info"] += 1
-        else:
-            buckets["other"] += 1
+    for finding in findings:
+        buckets[finding.severity] += 1
     return buckets
 
 
-def _print_review_findings_summary(repo_root: Path) -> None:
-    """Parse ``REVIEW_JSON_OUT`` and print a one-line findings count (errors / warnings / etc.)."""
-    report_path = repo_root / REVIEW_JSON_OUT
-    if not report_path.is_file():
-        sys.stderr.write(f"Code review: no report file at {REVIEW_JSON_OUT} (could not print findings summary).\n")
-        return
+def _load_review_report(report_path: Path) -> CodeReviewReport | None:
+    """Load and validate the review JSON report."""
     try:
         data = json.loads(report_path.read_text(encoding="utf-8"))
     except (OSError, UnicodeDecodeError) as exc:
         sys.stderr.write(f"Code review: could not read {REVIEW_JSON_OUT}: {exc}\n")
-        return
+        return None
     except json.JSONDecodeError as exc:
         sys.stderr.write(f"Code review: invalid JSON in {REVIEW_JSON_OUT}: {exc}\n")
-        return
+        return None
 
     if not isinstance(data, dict):
         sys.stderr.write(
             f"Code review: expected a JSON object at top level in {REVIEW_JSON_OUT} (got {type(data).__name__}).\n",
         )
-        return
+        return None
 
-    report: dict[str, Any] = cast(dict[str, Any], data)
-    findings_raw = report.get("findings")
-    if not isinstance(findings_raw, list):
-        sys.stderr.write(f"Code review: report has no findings list in {REVIEW_JSON_OUT}.\n")
-        return
+    try:
+        return CodeReviewReport.model_validate(data)
+    except ValidationError as exc:
+        sys.stderr.write(f"Code review: invalid review report in {REVIEW_JSON_OUT}: {exc}\n")
+        return None
 
-    counts = _count_findings_by_severity(findings_raw)
-    total = len(findings_raw)
-    verdict = report.get("overall_verdict", "?")
+
+def _print_review_findings_summary(repo_root: Path) -> bool:
+    """Parse ``REVIEW_JSON_OUT`` and print a one-line findings count (errors / warnings / etc.)."""
+    report_path = _report_path(repo_root)
+    if not report_path.is_file():
+        sys.stderr.write(f"Code review: no report file at {REVIEW_JSON_OUT} (could not print findings summary).\n")
+        return False
+    report = _load_review_report(report_path)
+    if report is None:
+        return False
+
+    counts = _count_findings_by_severity(report.findings)
+    total = len(report.findings)
+    verdict = report.overall_verdict or "?"
     parts = [
         f"errors={counts['error']}",
         f"warnings={counts['warning']}",
@@ -150,6 +177,7 @@ def _print_review_findings_summary(repo_root: Path) -> None:
         f"  Read `{REVIEW_JSON_OUT}` and fix every finding (errors first), using file and line from each entry.\n"
     )
     sys.stderr.write(f"  @workspace Open `{REVIEW_JSON_OUT}` and remediate each item in `findings`.\n")
+    return True
 
 
 @beartype
@@ -164,6 +192,56 @@ def ensure_runtime_available() -> tuple[bool, str | None]:
             return False, 'Install dev dependencies with `pip install -e ".[dev]"` or run `hatch env create`.'
         raise
     return True, None
+
+
+def _prepare_report_path(repo_root: Path) -> Path:
+    """Create the review-report directory and clear any stale report file."""
+    report_path = _report_path(repo_root)
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+    if report_path.is_file():
+        report_path.unlink()
+    return report_path
+
+
+def _run_review_subprocess(
+    cmd: Sequence[str],
+    repo_root: Path,
+    files: Sequence[str],
+) -> subprocess.CompletedProcess[str] | None:
+    """Run the nested SpecFact review command and handle timeout reporting."""
+    try:
+        return subprocess.run(
+            list(cmd),
+            check=False,
+            text=True,
+            capture_output=True,
+            cwd=str(repo_root),
+            timeout=300,
+        )
+    except TimeoutExpired:
+        joined_cmd = " ".join(cmd)
+        sys.stderr.write(f"Code review gate timed out after 300s (command: {joined_cmd!r}, files: {list(files)!r}).\n")
+        return None
+
+
+def _emit_completed_output(result: subprocess.CompletedProcess[str]) -> None:
+    """Forward captured subprocess output to stderr when the JSON report is missing."""
+    if result.stdout:
+        sys.stderr.write(result.stdout if result.stdout.endswith("\n") else result.stdout + "\n")
+    if result.stderr:
+        sys.stderr.write(result.stderr if result.stderr.endswith("\n") else result.stderr + "\n")
+
+
+def _missing_report_exit_code(
+    report_path: Path,
+    result: subprocess.CompletedProcess[str],
+) -> int:
+    """Return the gate exit code when the nested review run failed to create its JSON report."""
+    _emit_completed_output(result)
+    sys.stderr.write(
+        f"Code review: expected review report at {report_path.relative_to(_repo_root())} but it was not created.\n"
+    )
+    return result.returncode if result.returncode != 0 else 1
 
 
 @beartype
@@ -184,26 +262,18 @@ def main(argv: Sequence[str] | None = None) -> int:
         sys.stdout.write(f"Unable to run the code review gate. {guidance}\n")
         return 1
 
+    repo_root = _repo_root()
     cmd = build_review_command(files)
-    report_path = _repo_root() / REVIEW_JSON_OUT
-    if report_path.is_file():
-        report_path.unlink()
-    try:
-        result = subprocess.run(
-            cmd,
-            check=False,
-            text=True,
-            capture_output=True,
-            cwd=str(_repo_root()),
-            timeout=300,
-        )
-    except TimeoutExpired:
-        joined_cmd = " ".join(cmd)
-        sys.stderr.write(f"Code review gate timed out after 300s (command: {joined_cmd!r}, files: {files!r}).\n")
+    report_path = _prepare_report_path(repo_root)
+    result = _run_review_subprocess(cmd, repo_root, files)
+    if result is None:
         return 1
+    if not report_path.is_file():
+        return _missing_report_exit_code(report_path, result)
     # Do not echo nested `specfact code review run` stdout/stderr (verbose tool banners); full report
     # is in REVIEW_JSON_OUT; we print a short summary on stderr below.
-    _print_review_findings_summary(_repo_root())
+    if not _print_review_findings_summary(repo_root):
+        return 1
     return result.returncode
 
 

@@ -3,6 +3,7 @@
 ## ADDED Requirements
 
 ### Requirement: Validation Script Implementation
+
 The system SHALL provide a validation script `scripts/check_doc_frontmatter.py` that enforces frontmatter requirements.
 
 #### Scenario: Script execution with valid docs
@@ -20,6 +21,7 @@ The system SHALL provide a validation script `scripts/check_doc_frontmatter.py` 
 - **AND** output SHALL list all validation failures
 
 ### Requirement: Missing Doc Owner Detection
+
 The system SHALL detect documentation files that are missing the `doc_owner` field.
 
 #### Scenario: Missing doc_owner in tracked file
@@ -34,6 +36,7 @@ The system SHALL detect documentation files that are missing the `doc_owner` fie
 - **THEN** validation SHALL pass for owner requirement
 
 ### Requirement: Owner Resolution Validation
+
 The system SHALL validate that `doc_owner` values resolve to existing paths or known tokens.
 
 #### Scenario: Owner resolves to existing path
@@ -53,6 +56,7 @@ The system SHALL validate that `doc_owner` values resolve to existing paths or k
 - **AND** error SHALL suggest valid alternatives
 
 ### Requirement: Fix Hint Generation
+
 The system SHALL provide helpful fix hints when validation fails.
 
 #### Scenario: Fix hint for missing frontmatter
@@ -68,6 +72,7 @@ The system SHALL provide helpful fix hints when validation fails.
 - **THEN** output SHALL suggest valid owner alternatives
 
 ### Requirement: Tracked Files Discovery
+
 The system SHALL discover all Markdown files that should be tracked for frontmatter validation.
 
 #### Scenario: Discover files in docs directory
@@ -83,6 +88,7 @@ The system SHALL discover all Markdown files that should be tracked for frontmat
 - **AND** exempt files SHALL be excluded
 
 ### Requirement: Exempt Files Handling
+
 The system SHALL properly handle files marked as exempt.
 
 #### Scenario: Exempt file with valid reason
@@ -98,6 +104,7 @@ The system SHALL properly handle files marked as exempt.
 ## Contract Requirements
 
 ### Requirement: Validation Contracts
+
 The validation script SHALL use `@icontract` decorators for validation logic:
 - `@require` for input validation
 - `@ensure` for validation results
@@ -108,6 +115,7 @@ The validation script SHALL use `@icontract` decorators for validation logic:
 - **THEN** `@require` contract SHALL raise appropriate exception
 
 ### Requirement: Error Handling Contracts
+
 The script SHALL handle errors gracefully with appropriate contracts.
 
 #### Scenario: File read error
@@ -119,6 +127,7 @@ The script SHALL handle errors gracefully with appropriate contracts.
 ## Performance Requirements
 
 ### Requirement: Efficient File Processing
+
 The validation script SHALL process files efficiently.
 
 #### Scenario: Large documentation set
@@ -127,6 +136,7 @@ The validation script SHALL process files efficiently.
 - **THEN** execution SHALL complete in < 2 seconds
 
 ### Requirement: Memory Efficiency
+
 The script SHALL be memory efficient.
 
 #### Scenario: Memory usage with many files
@@ -135,6 +145,7 @@ The script SHALL be memory efficient.
 - **THEN** memory usage SHALL remain under 100MB
 
 ### Requirement: PR Orchestrator Parallel Job Graph
+
 The PR orchestrator workflow SHALL not serialize independent validation jobs behind the Python 3.12
 test suite when those jobs do not consume test artifacts.
 

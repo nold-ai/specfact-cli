@@ -14,6 +14,8 @@ If maintainers cannot trust that "green" means the required checks really passed
 - **EXTEND** workflow/static validation so `.github/workflows/**` changes always run mandatory workflow lint and shell validation in CI, not only via local tooling or bot review.
 - **ALIGN** local pre-commit enforcement with the repository smart-check path so contributors who install the supported hooks get the same core gating semantics that CI expects.
 - **EXTEND** AI review coverage so PRs targeting `main` receive the same automatic review posture as PRs targeting `dev` for the configured CodeRabbit review surface.
+- **REMEDIATE** repo review findings in archived doc-frontmatter OpenSpec artifacts, docs, changelog entries, and helper tests so archived/main specs are publishable and markdown/config review findings are actually cleared rather than deferred.
+- **HARDEN** code-review report handling and doc-frontmatter validation diagnostics so malformed review JSON and frontmatter parse failures surface actionable errors instead of being silently downgraded.
 
 ## Capabilities
 
@@ -31,6 +33,8 @@ If maintainers cannot trust that "green" means the required checks really passed
 - **Affected CI**: `.github/workflows/pr-orchestrator.yml`, `.github/workflows/pre-merge-check.yml`, and any newly added workflow-lint workflow or required job wiring.
 - **Affected local tooling**: `.pre-commit-config.yaml`, `scripts/pre-commit-smart-checks.sh`, and associated developer setup/docs.
 - **Affected review automation**: `.coderabbit.yaml` target-branch scope and review expectations for `dev` and `main`.
+- **Affected docs/spec artifacts**: archived `doc-frontmatter-schema` artifacts, main OpenSpec specs, `CONTRIBUTING.md`, `docs/contributing/docs-sync.md`, and `CHANGELOG.md`.
+- **Affected helper/runtime code**: `scripts/pre_commit_code_review.py`, `scripts/check_doc_frontmatter.py`, and associated tests/helpers.
 - **User-facing impact**: none on CLI behavior; this is release-governance hardening for maintainers and contributors.
 - **Branch protection impact**: required-check recommendations may need to be updated so only hard gates are marked required.
 
@@ -43,7 +47,9 @@ If maintainers cannot trust that "green" means the required checks really passed
 ## Source Tracking
 
 <!-- source_repo: nold-ai/specfact-cli -->
-- **GitHub Issue**: pending
-- **Issue URL**: pending
-- **Last Synced Status**: local-proposal
+- **GitHub Issue**: #465
+- **Issue URL**: https://github.com/nold-ai/specfact-cli/issues/465
+- **Parent Feature**: #406
+- **Parent Feature URL**: https://github.com/nold-ai/specfact-cli/issues/406
+- **Last Synced Status**: open
 - **Sanitized**: true

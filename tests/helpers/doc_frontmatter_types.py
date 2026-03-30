@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from datetime import date
 from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
 
@@ -22,7 +23,7 @@ class ResolveOwnerImplWithCache(Protocol):
 class CheckDocFrontmatterModule(Protocol):
     """Structural type for ``scripts/check_doc_frontmatter.py`` loaded via importlib."""
 
-    DocFrontmatter: type
+    DocFrontmatter: type[DocFrontmatterModel]
     parse_frontmatter: Callable[[Path], dict[str, Any]]
     resolve_owner: Callable[[str], bool]
     validate_glob_patterns: Callable[[list[str]], bool]
@@ -33,3 +34,22 @@ class CheckDocFrontmatterModule(Protocol):
     main: Callable[[list[str] | None], int]
     datetime: Any
     _resolve_owner_impl: ResolveOwnerImplWithCache
+
+
+@runtime_checkable
+class DocFrontmatterRecord(Protocol):
+    """Minimal validated model instance shape used by tests."""
+
+    title: str
+    doc_owner: str
+    tracks: list[str]
+    last_reviewed: date
+
+
+@runtime_checkable
+class DocFrontmatterModel(Protocol):
+    """Minimal model type exposing ``model_validate`` for tests."""
+
+    @classmethod
+    def model_validate(cls, data: dict[str, object]) -> DocFrontmatterRecord:
+        raise NotImplementedError

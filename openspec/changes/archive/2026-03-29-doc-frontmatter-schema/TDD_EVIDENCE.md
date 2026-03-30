@@ -5,6 +5,7 @@
 ### Test Run: 2026-03-20 - Frontmatter Schema Tests
 
 **Command:**
+
 ```bash
 cd /home/dom/git/nold-ai/specfact-cli-worktrees/feature/doc-frontmatter-schema && python -m pytest tests/unit/scripts/test_doc_frontmatter/test_schema.py -v
 ```
@@ -33,6 +34,7 @@ cd /home/dom/git/nold-ai/specfact-cli-worktrees/feature/doc-frontmatter-schema &
 ### Test Run: [Date] - Frontmatter Schema Tests (After Implementation)
 
 **Command:**
+
 ```bash
 cd /home/dom/git/nold-ai/specfact-cli-worktrees/feature/doc-frontmatter-schema && python -m pytest tests/unit/scripts/test_doc_frontmatter/test_schema.py -v
 ```
@@ -46,6 +48,7 @@ cd /home/dom/git/nold-ai/specfact-cli-worktrees/feature/doc-frontmatter-schema &
 ### Test Run: 2026-03-20 - Validation Logic Tests (Pre-Implementation)
 
 **Command:**
+
 ```bash
 cd /home/dom/git/nold-ai/specfact-cli-worktrees/feature/doc-frontmatter-schema && python -m pytest tests/unit/scripts/test_doc_frontmatter/test_validation.py -v
 ```
@@ -71,6 +74,7 @@ cd /home/dom/git/nold-ai/specfact-cli-worktrees/feature/doc-frontmatter-schema &
 ### Test Run: 2026-03-20 - Integration Tests (Pre-Implementation)
 
 **Command:**
+
 ```bash
 cd /home/dom/git/nold-ai/specfact-cli-worktrees/feature/doc-frontmatter-schema && python -m pytest tests/integration/scripts/test_doc_frontmatter/test_integration.py -v
 ```
@@ -98,6 +102,7 @@ cd /home/dom/git/nold-ai/specfact-cli-worktrees/feature/doc-frontmatter-schema &
 ## Post-Implementation (2026-03-29)
 
 **Commands:**
+
 ```bash
 cd /home/dom/git/nold-ai/specfact-cli-worktrees/feature/doc-frontmatter-schema
 hatch run pytest tests/unit/scripts/test_doc_frontmatter tests/integration/scripts/test_doc_frontmatter -q
@@ -132,11 +137,12 @@ Recorded for `tasks.md` §5 checklist evidence (commands run from the feature wo
 
 ## PR Orchestrator Parallelization Delta (2026-03-30)
 
-### Pre-Implementation Test Failure (Expected)
+### Pre-Implementation Test Failure (Expected) - PR Orchestrator Delta
 
 **Timestamp:** 2026-03-30T01:09:14+02:00
 
 **Command:**
+
 ```bash
 cd /home/dom/git/nold-ai/specfact-cli-worktrees/feature/doc-frontmatter-schema
 /home/dom/git/nold-ai/specfact-cli/.venv/bin/pytest tests/unit/specfact_cli/registry/test_signing_artifacts.py -q -k 'independent_jobs_do_not_wait_for_tests or quality_gates_still_depends_on_tests_for_coverage'
@@ -156,6 +162,7 @@ cd /home/dom/git/nold-ai/specfact-cli-worktrees/feature/doc-frontmatter-schema
 ### Post-Implementation Test Success
 
 **Command:**
+
 ```bash
 cd /home/dom/git/nold-ai/specfact-cli-worktrees/feature/doc-frontmatter-schema
 /home/dom/git/nold-ai/specfact-cli/.venv/bin/pytest tests/unit/specfact_cli/registry/test_signing_artifacts.py -q -k 'independent_jobs_do_not_wait_for_tests or quality_gates_still_depends_on_tests_for_coverage'

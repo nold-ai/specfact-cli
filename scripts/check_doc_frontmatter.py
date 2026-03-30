@@ -21,8 +21,11 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError, ValidationIn
 from rich.console import Console
 from typer.main import get_command
 
+from specfact_cli.common import get_bridge_logger
+
 
 _ERR = Console(stderr=True)
+_LOG = get_bridge_logger(__name__)
 
 FRONTMATTER_RE = re.compile(r"^---\s*\n(.*?)\n---", re.DOTALL)
 DOC_OWNER_RE = re.compile(r"^\s*doc_owner\s*:\s*['\"]?(.+?)['\"]?\s*$", re.MULTILINE)
@@ -358,7 +361,8 @@ def get_all_md_files() -> list[Path]:
             continue
         try:
             fm = parse_frontmatter(file_path)
-        except (OSError, yaml.YAMLError):
+        except (OSError, yaml.YAMLError) as exc:
+            _LOG.debug("parse_frontmatter failed for %s during discovery: %r", file_path, exc, exc_info=exc)
             filtered.append(file_path)
             continue
         exempt_val = fm.get("exempt")
@@ -528,9 +532,9 @@ def _cli_root(
         "--all-docs",
         help="Validate every discovered Markdown file (ignore docs/.doc-frontmatter-enforced).",
     ),
-) -> int:
-    """Validate doc frontmatter; exit code 0 on success, 1 on failure."""
-    return _run_validation(fix_hint, all_docs)
+) -> None:
+    """Validate doc frontmatter and terminate with the validator exit code."""
+    raise typer.Exit(code=_run_validation(fix_hint, all_docs))
 
 
 @beartype
