@@ -196,8 +196,5 @@ def test_legacy_actionlint_runner_does_not_mask_docker_failures() -> None:
     assert "docker info >/dev/null 2>&1" in raw, "Expected docker daemon reachability check"
     assert "tools/bin" not in raw, "Should not download binaries into repo tree"
     assert "go install github.com/rhysd/actionlint/cmd/actionlint@" in raw, "Expected global install guidance"
-    # Docker run must not be followed by unconditional return 0 (would swallow failures)
-    for i, line in enumerate(lines):
-        if "docker run --rm" in line:
-            remaining = "\n".join(lines[i:])
-            assert "return 0" not in remaining, "docker run must not be followed by unconditional return 0"
+    # Both execution paths (local binary and docker) must propagate exit codes
+    assert raw.count("exit $?") >= 2, "Expected exit code propagation for both local and docker paths"

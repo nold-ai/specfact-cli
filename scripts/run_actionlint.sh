@@ -15,33 +15,21 @@ has_actionlint() {
   command -v actionlint >/dev/null 2>&1
 }
 
-run_actionlint_local() {
-  actionlint -no-color
+has_docker() {
+  command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1
 }
 
-run_with_docker() {
-  if ! command -v docker >/dev/null 2>&1; then
-    return 1
-  fi
+if has_actionlint; then
+  actionlint -no-color
+  exit $?
+fi
 
-  if ! docker info >/dev/null 2>&1; then
-    echo "Docker daemon unavailable for actionlint; cannot run via Docker." >&2
-    return 1
-  fi
-
+if has_docker; then
   docker run --rm \
       -v "$REPO_ROOT":/repo \
       -w /repo \
       "$DOCKER_IMAGE" -no-color
-}
-
-if has_actionlint; then
-  run_actionlint_local
   exit $?
-fi
-
-if run_with_docker; then
-  exit 0
 fi
 
 echo "actionlint is required for workflow linting." >&2
