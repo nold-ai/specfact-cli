@@ -8,14 +8,14 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(dirname "$SCRIPT_DIR")"
-ACTIONLINT_TAG="${ACTIONLINT_TAG:-latest}"
+ACTIONLINT_TAG="${ACTIONLINT_TAG:-v1.7.11}"
 DOCKER_IMAGE="rhysd/actionlint:${ACTIONLINT_TAG}"
 
-run_installed_binary() {
-  if ! command -v actionlint >/dev/null 2>&1; then
-    return 1
-  fi
+has_actionlint() {
+  command -v actionlint >/dev/null 2>&1
+}
 
+run_actionlint_local() {
   actionlint -no-color
 }
 
@@ -35,8 +35,9 @@ run_with_docker() {
       "$DOCKER_IMAGE" -no-color
 }
 
-if run_installed_binary; then
-  exit 0
+if has_actionlint; then
+  run_actionlint_local
+  exit $?
 fi
 
 if run_with_docker; then
@@ -47,5 +48,5 @@ echo "actionlint is required for workflow linting." >&2
 echo "Install it globally or use a Docker-enabled environment." >&2
 echo "Official install options: https://github.com/rhysd/actionlint" >&2
 echo "Example global install:" >&2
-echo "  go install github.com/rhysd/actionlint/cmd/actionlint@latest" >&2
+echo "  go install github.com/rhysd/actionlint/cmd/actionlint@${ACTIONLINT_TAG}" >&2
 exit 2

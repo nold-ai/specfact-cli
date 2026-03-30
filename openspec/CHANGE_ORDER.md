@@ -61,7 +61,7 @@ Only changes that are **archived**, shown as **✓ Complete** by `openspec list`
 | ✅ code-review-08-review-run-integration | archived 2026-03-17 |
 | ✅ code-review-09-f4-automation-upgrade | archived 2026-03-17 |
 | ✅ doc-frontmatter-schema | archived 2026-03-29 |
-| ✅ ci-02-trustworthy-green-checks | implemented 2026-03-30 (archive pending) |
+| ✅ ci-02-trustworthy-green-checks | implemented 2026-03-30; archive pending |
 
 ### Pending
 

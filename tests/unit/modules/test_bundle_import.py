@@ -22,9 +22,12 @@ def test_bootstrap_local_bundle_sources_honors_specfact_modules_repo_env(monkeyp
     expected_src = str((modules_repo / "packages" / "specfact-codebase" / "src").resolve())
     monkeypatch.setenv("SPECFACT_MODULES_REPO", str(modules_repo))
     monkeypatch.delenv("SPECFACT_CLI_MODULES_REPO", raising=False)
+    original_path = sys.path.copy()
     if expected_src in sys.path:
         sys.path.remove(expected_src)
 
-    bootstrap_local_bundle_sources(str(anchor))
-
-    assert expected_src in sys.path
+    try:
+        bootstrap_local_bundle_sources(str(anchor))
+        assert expected_src in sys.path
+    finally:
+        sys.path[:] = original_path
