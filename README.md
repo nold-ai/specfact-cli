@@ -1,6 +1,6 @@
 # SpecFact CLI
 
-> **SpecFact is the Swiss-knife CLI for validation and alignment in software delivery.**
+> **SpecFact is the validation and alignment layer for software delivery.**
 > It adds the missing validation layer that keeps backlog intent, specifications, tests, and code
 > from drifting apart across AI-assisted coding, brownfield systems, and governed delivery.
 > Use it to move fast without losing rigor.

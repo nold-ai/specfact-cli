@@ -1,3 +1,9 @@
+"""Validate first-contact messaging across the core repo entry points.
+
+These tests ensure the README, docs landing page, and contributor guidance all
+present the same canonical product story and onboarding order.
+"""
+
 from pathlib import Path
 
 
@@ -6,8 +12,22 @@ README = REPO_ROOT / "README.md"
 DOCS_INDEX = REPO_ROOT / "docs" / "index.md"
 CONTRIBUTING = REPO_ROOT / "CONTRIBUTING.md"
 
+assert REPO_ROOT.exists(), f"Repository root missing: expected at {REPO_ROOT}"
+assert README.is_file(), f"README.md missing: expected at {README}"
+assert DOCS_INDEX.is_file(), f"docs/index.md missing: expected at {DOCS_INDEX}"
+assert CONTRIBUTING.is_file(), f"CONTRIBUTING.md missing: expected at {CONTRIBUTING}"
+
 
 def _read(path: Path) -> str:
+    """Return the UTF-8 text contents of a repository file.
+
+    Args:
+        path: Path to the file to read.
+
+    Returns:
+        File contents as a string.
+    """
+
     return path.read_text(encoding="utf-8")
 
 

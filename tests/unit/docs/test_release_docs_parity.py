@@ -147,7 +147,8 @@ def _resolve_site_token_link(source: Path, stripped: str) -> tuple[str | None, s
     if key.endswith("_url") and not value.startswith("http"):
         return None, f"{source.relative_to(_repo_root())} -> docs/_config.yml site.{key} must start with http"
 
-    return value.strip(), None
+    suffix = stripped[match.end() :]
+    return value.strip() + suffix, None
 
 
 def _resolve_published_route(
