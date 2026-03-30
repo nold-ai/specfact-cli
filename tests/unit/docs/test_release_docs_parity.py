@@ -27,11 +27,13 @@ def _docs_root() -> Path:
     return _repo_root() / "docs"
 
 
+def _extract_absolute_urls(content: str) -> list[str]:
+    return re.findall(r"https://[^\s)>'\"`]+", content)
+
+
 def _assert_mentions_modules_docs_site(content: str) -> None:
-    host_index = content.find(MODULES_DOCS_HOST)
-    assert host_index != -1
-    assert content[max(0, host_index - 8) : host_index] == "https://"
-    assert content[host_index + len(MODULES_DOCS_HOST)] == "/"
+    urls = _extract_absolute_urls(content)
+    assert any(urlparse(url).hostname == MODULES_DOCS_HOST for url in urls)
 
 
 def _is_docs_markdown(path: Path) -> bool:
@@ -352,7 +354,7 @@ def test_readme_and_docs_index_define_core_and_modules_split() -> None:
     _assert_mentions_modules_docs_site(readme)
     assert "canonical starting point for the core CLI story" in docs_index
     assert "docs.specfact.io` is the default starting point" in docs_index
-    assert "modules.specfact.io" in docs_index
+    _assert_mentions_modules_docs_site(docs_index)
 
 
 def test_top_navigation_exposes_docs_home_core_cli_and_modules() -> None:
