@@ -32,6 +32,16 @@ The **authoritative** URL and ownership rules for **both** documentation sites a
 2. **Handoff pages** (see OpenSpec `docs-07-core-handoff-conversion`) must point to the **modules canonical URL** for each topic, with a short summary and prerequisites on core.
 3. **Internal core links** must continue to resolve on `docs.specfact.io` per published `permalink` (docs review gate / parity tests).
 
+## First-contact handoff contract
+
+- `docs.specfact.io` is the default starting point for first-time users.
+- `modules.specfact.io` is the deeper workflow and bundle documentation layer.
+- Core docs must explain what extra value the modules docs provide before linking users there.
+- Modules landing pages must send un-oriented users back to the core docs when they still need the
+  product story, first-run guidance, or overall navigation context.
+- Both sites must preserve the same product identity: SpecFact as the validation and alignment layer
+  for software delivery.
+
 ## Repositories
 
 | Concern | Repository |

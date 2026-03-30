@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from urllib.parse import unquote, urlparse
+from urllib.parse import ParseResult, unquote, urlparse
 
 import yaml
 
@@ -127,6 +127,106 @@ def _is_published_docs_route_candidate(route: str) -> bool:
     return route not in {"/assets/main.css/", "/feed.xml/"}
 
 
+def _missing_route_failure(source: Path, route: str) -> tuple[str, None, str]:
+    return route, None, f"{source.relative_to(_repo_root())} -> {route}"
+
+
+def _resolve_site_token_link(source: Path, stripped: str) -> tuple[str | None, str | None]:
+    if "{{" not in stripped or "site." not in stripped:
+        return stripped, None
+
+    match = re.search(r"\{\{\s*site\.([A-Za-z0-9_]+)(?:\s*\|.*?)*\s*\}\}", stripped)
+    if not match:
+        return None, f"{source.relative_to(_repo_root())} -> unresolved site token {stripped}"
+
+    key = match.group(1)
+    config = _docs_config()
+    value = config.get(key)
+    if not isinstance(value, str) or not value.strip():
+        return None, f"{source.relative_to(_repo_root())} -> docs/_config.yml missing non-empty site.{key}"
+    if key.endswith("_url") and not value.startswith("http"):
+        return None, f"{source.relative_to(_repo_root())} -> docs/_config.yml site.{key} must start with http"
+
+    suffix = stripped[match.end() :]
+    return value.strip() + suffix, None
+
+
+def _resolve_published_route(
+    source: Path,
+    route: str,
+    route_to_path: dict[str, Path],
+) -> tuple[str | None, Path | None, str | None]:
+    if not _is_published_docs_route_candidate(route):
+        return None, None, None
+
+    target = route_to_path.get(route)
+    if target is None:
+        return _missing_route_failure(source, route)
+    return route, target, None
+
+
+def _resolve_http_docs_link(
+    source: Path,
+    parsed: ParseResult,
+    route_to_path: dict[str, Path],
+) -> tuple[str | None, Path | None, str | None]:
+    if parsed.netloc != DOCS_HOST:
+        return None, None, None
+    return _resolve_published_route(source, _normalize_route(parsed.path or "/"), route_to_path)
+
+
+def _resolve_absolute_docs_link(
+    source: Path,
+    target_value: str,
+    route_to_path: dict[str, Path],
+) -> tuple[str | None, Path | None, str | None]:
+    return _resolve_published_route(source, _normalize_route(target_value), route_to_path)
+
+
+def _resolve_existing_candidate(
+    source: Path,
+    target_value: str,
+    candidate: Path,
+    path_to_route: dict[Path, str],
+) -> tuple[str | None, Path | None, str | None]:
+    route = path_to_route.get(candidate)
+    if route is None:
+        return None, None, f"{source.relative_to(_repo_root())} -> {target_value}"
+    return route, candidate, None
+
+
+def _resolve_relative_docs_link(
+    source: Path,
+    target_value: str,
+    route_to_path: dict[str, Path],
+    path_to_route: dict[Path, str],
+) -> tuple[str | None, Path | None, str | None]:
+    candidate = (source.parent / target_value).resolve()
+
+    if candidate.is_dir():
+        readme_candidate = (candidate / "README.md").resolve()
+        if readme_candidate.is_file() and _is_docs_markdown(readme_candidate):
+            return _resolve_existing_candidate(source, target_value, readme_candidate, path_to_route)
+        return None, None, None
+
+    if candidate.is_file() and _is_docs_markdown(candidate):
+        return _resolve_existing_candidate(source, target_value, candidate, path_to_route)
+
+    if not candidate.suffix:
+        markdown_candidate = candidate.with_suffix(".md")
+        if markdown_candidate.is_file() and _is_docs_markdown(markdown_candidate):
+            return _resolve_existing_candidate(source, target_value, markdown_candidate.resolve(), path_to_route)
+
+    route = _normalize_route(target_value)
+    if not _is_published_docs_route_candidate(route):
+        return None, None, None
+
+    target = route_to_path.get(route)
+    if target is None:
+        return route, None, f"{source.relative_to(_repo_root())} -> {target_value} (normalized: {route})"
+    return route, target, None
+
+
 def _resolve_internal_docs_target(
     source: Path,
     raw_link: str,
@@ -136,32 +236,16 @@ def _resolve_internal_docs_target(
     stripped = _normalize_jekyll_relative_url(raw_link.strip())
     if not stripped or stripped.startswith("#"):
         return None, None, None
-    if "{{" in stripped and "site." in stripped:
-        match = re.search(r"site\.([a-zA-Z0-9_]+)", stripped)
-        if not match:
-            return None, None, f"{source.relative_to(_repo_root())} -> unresolved site token {stripped}"
-        key = match.group(1)
-        config = _docs_config()
-        value = config.get(key)
-        if not isinstance(value, str) or not value.strip():
-            return None, None, f"{source.relative_to(_repo_root())} -> docs/_config.yml missing non-empty site.{key}"
-        if key.endswith("_url") and not value.startswith("http"):
-            return None, None, f"{source.relative_to(_repo_root())} -> docs/_config.yml site.{key} must start with http"
-        stripped = value.strip()
+
+    stripped, site_token_failure = _resolve_site_token_link(source, stripped)
+    if site_token_failure is not None or stripped is None:
+        return None, None, site_token_failure
 
     parsed = urlparse(stripped)
     if parsed.scheme in {"mailto", "javascript", "tel"}:
         return None, None, None
     if parsed.scheme in {"http", "https"}:
-        if parsed.netloc != DOCS_HOST:
-            return None, None, None
-        route = _normalize_route(parsed.path or "/")
-        if not _is_published_docs_route_candidate(route):
-            return None, None, None
-        target = route_to_path.get(route)
-        if target is None:
-            return route, None, f"{source.relative_to(_repo_root())} -> {route}"
-        return route, target, None
+        return _resolve_http_docs_link(source, parsed, route_to_path)
     if parsed.scheme:
         return None, None, None
 
@@ -170,46 +254,9 @@ def _resolve_internal_docs_target(
         return None, None, None
 
     if target_value.startswith("/"):
-        route = _normalize_route(target_value)
-        if not _is_published_docs_route_candidate(route):
-            return None, None, None
-        target = route_to_path.get(route)
-        if target is None:
-            return route, None, f"{source.relative_to(_repo_root())} -> {route}"
-        return route, target, None
+        return _resolve_absolute_docs_link(source, target_value, route_to_path)
 
-    candidate = (source.parent / target_value).resolve()
-    if candidate.is_dir():
-        readme_candidate = (candidate / "README.md").resolve()
-        if readme_candidate.is_file() and _is_docs_markdown(readme_candidate):
-            route = path_to_route.get(readme_candidate)
-            if route is None:
-                return None, None, f"{source.relative_to(_repo_root())} -> {target_value}"
-            return route, readme_candidate, None
-        return None, None, None
-
-    if candidate.is_file() and _is_docs_markdown(candidate):
-        route = path_to_route.get(candidate)
-        if route is None:
-            return None, None, f"{source.relative_to(_repo_root())} -> {target_value}"
-        return route, candidate, None
-
-    if not candidate.suffix:
-        markdown_candidate = candidate.with_suffix(".md")
-        if markdown_candidate.is_file() and _is_docs_markdown(markdown_candidate):
-            resolved_candidate = markdown_candidate.resolve()
-            route = path_to_route.get(resolved_candidate)
-            if route is None:
-                return None, None, f"{source.relative_to(_repo_root())} -> {target_value}"
-            return route, resolved_candidate, None
-
-    route = _normalize_route(target_value)
-    if not _is_published_docs_route_candidate(route):
-        return None, None, None
-    target = route_to_path.get(route)
-    if target is None:
-        return route, None, f"{source.relative_to(_repo_root())} -> {target_value} (normalized: {route})"
-    return route, target, None
+    return _resolve_relative_docs_link(source, target_value, route_to_path, path_to_route)
 
 
 def _navigation_sources() -> list[Path]:
@@ -294,12 +341,13 @@ def test_module_contracts_reference_external_bundle_boundary() -> None:
 def test_readme_and_docs_index_define_core_and_modules_split() -> None:
     readme = _repo_file("README.md").read_text(encoding="utf-8")
     docs_index = _repo_file("docs/index.md").read_text(encoding="utf-8")
-    assert "canonical docs entry point" in readme
-    assert "module-specific deep docs are canonically owned by `specfact-cli-modules`" in readme
+    assert "validation and alignment layer for software delivery" in readme
+    assert "docs.specfact.io` is the canonical starting point for SpecFact" in readme
+    assert "Module-specific deep docs are canonically owned by `specfact-cli-modules`" in readme
     _assert_mentions_modules_docs_site(readme)
-    assert "Docs Home" in docs_index
-    assert "Core CLI" in docs_index
-    assert "Modules" in docs_index
+    assert "canonical starting point for the core CLI story" in docs_index
+    assert "docs.specfact.io` is the default starting point" in docs_index
+    assert "modules.specfact.io" in docs_index
 
 
 def test_top_navigation_exposes_docs_home_core_cli_and_modules() -> None:
@@ -345,29 +393,34 @@ def _scan_authored_docs(pattern: str) -> list[tuple[str, int, str]]:
     """
     hits: list[tuple[str, int, str]] = []
     repo_root = _repo_root()
-    sources: list[Path] = [repo_root / "README.md"]
-    docs_dir = repo_root / "docs"
-    for path in docs_dir.rglob("*.md"):
-        if "_site" not in path.parts and "vendor" not in path.parts:
-            sources.append(path)
-    for src in sources:
+    for src in _authored_doc_sources(repo_root):
         if not src.exists():
             continue
         for lineno, line in enumerate(src.read_text(encoding="utf-8").splitlines(), 1):
             if pattern not in line:
                 continue
             stripped = line.strip()
-            if stripped.startswith("#") and not stripped.startswith(
-                ("# ", "## ", "### ", "#### ", "##### ", "###### ")
-            ):
-                continue
-            if stripped.startswith(">"):
-                continue
-            lower = stripped.lower()
-            if "removed" in lower or "(removed)" in lower or "is removed" in lower:
+            if _skip_historical_pattern_hit(stripped):
                 continue
             hits.append((str(src.relative_to(repo_root)), lineno, stripped))
     return hits
+
+
+def _authored_doc_sources(repo_root: Path) -> list[Path]:
+    sources: list[Path] = [repo_root / "README.md"]
+    docs_dir = repo_root / "docs"
+    sources.extend(path for path in docs_dir.rglob("*.md") if "_site" not in path.parts and "vendor" not in path.parts)
+    return sources
+
+
+def _skip_historical_pattern_hit(stripped: str) -> bool:
+    if stripped.startswith("#") and not stripped.startswith(("# ", "## ", "### ", "#### ", "##### ", "###### ")):
+        return True
+    if stripped.startswith(">"):
+        return True
+
+    lower = stripped.lower()
+    return "removed" in lower or "(removed)" in lower or "is removed" in lower
 
 
 def _fmt_hits(hits: list[tuple[str, int, str]]) -> str:
