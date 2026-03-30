@@ -44,7 +44,21 @@ Changes under `.github/workflows/**` must trigger mandatory CI validation for:
 
 This closes the current gap where workflow correctness depends too heavily on local tooling or bot analysis.
 
-### 4. Local-vs-CI parity
+### 4. Required-check reporting semantics
+
+Checks marked as required in branch protection must report a success or failure status on every PR
+head commit. They must not depend on workflow-level `paths` or `paths-ignore` filters that suppress
+the entire workflow for some commits while GitHub still expects the check name on the new SHA.
+
+If a required validation is out of scope for a given change, the workflow should still trigger and
+the job should exit quickly with a clear success message such as “no relevant changes detected”
+rather than failing to emit any status.
+
+Related workflows must also normalize the emitted check names. Branch protection should not depend on
+two subtly different names for the same logical gate, such as case differences between orchestrator
+jobs and dedicated workflows.
+
+### 5. Local-vs-CI parity
 
 The supported pre-commit installation path must expose the same core enforcement semantics as CI for:
 
@@ -55,7 +69,7 @@ The supported pre-commit installation path must expose the same core enforcement
 
 The exact implementation can either expand `.pre-commit-config.yaml` or ensure the repo-supported setup always installs the smart-check wrapper as the authoritative hook path.
 
-### 5. Review automation coverage
+### 6. Review automation coverage
 
 CodeRabbit should not silently treat `dev` and `main` differently for automatic review coverage when both are active PR targets. The change only standardizes review coverage and expectations; it does not by itself turn CodeRabbit findings into a merge blocker.
 

@@ -31,17 +31,20 @@ Per `openspec/config.yaml`, tests before code for any behavior-changing task. Or
 
 - [ ] 3.1 Add or update workflow/unit tests that prove required jobs fail when underlying tools fail and that advisory jobs are explicitly marked as advisory.
 - [ ] 3.2 Add or update tests for `dev -> main` skip semantics so follow-up commits invalidate unsafe fast-path assumptions.
-- [ ] 3.3 Add or update tests for pre-commit parity or supported-hook installation behavior.
-- [ ] 3.4 Add or update tests for review JSON failure handling and doc-frontmatter helper expectations.
-- [ ] 3.4 Run the new/updated tests before implementation and capture failing evidence in `TDD_EVIDENCE.md`.
+- [ ] 3.3 Add or update tests/spec assertions that required checks still report on docs-only or otherwise out-of-scope PR commits instead of disappearing behind workflow-level path filters.
+- [ ] 3.4 Add or update tests for pre-commit parity or supported-hook installation behavior.
+- [ ] 3.5 Add or update tests for review JSON failure handling and doc-frontmatter helper expectations.
+- [ ] 3.6 Run the new/updated tests before implementation and capture failing evidence in `TDD_EVIDENCE.md`.
 
 ## 4. Implementation: CI hardening
 
 - [ ] 4.1 Remove failure-swallowing patterns from required jobs in `pr-orchestrator.yml`.
 - [ ] 4.2 Rename or isolate remaining advisory jobs so their non-blocking status is explicit in job names and logs.
 - [ ] 4.3 Add mandatory workflow validation in CI for `.github/workflows/**` changes.
-- [ ] 4.4 Rework `dev -> main` skip logic so only provably safe parity skips are allowed; otherwise run the required validation set.
-- [ ] 4.5 Keep docs-only validation behavior explicit and compatible with docs-review workflow ownership.
+- [ ] 4.4 Rework required-check triggers so required branch-protection checks always emit a status on every PR head commit, including docs-only follow-up pushes.
+- [ ] 4.5 Normalize overlapping check/job names between orchestrator and dedicated workflows so branch protection targets a single canonical name per gate.
+- [ ] 4.6 Rework `dev -> main` skip logic so only provably safe parity skips are allowed; otherwise run the required validation set.
+- [ ] 4.7 Keep docs-only validation behavior explicit and compatible with docs-review workflow ownership.
 
 ## 5. Implementation: local and review parity
 
