@@ -25,7 +25,7 @@ run_with_docker() {
   fi
 
   if ! docker info >/dev/null 2>&1; then
-    echo "Docker daemon unavailable for actionlint; falling back to local binary." >&2
+    echo "Docker daemon unavailable for actionlint; cannot run via Docker." >&2
     return 1
   fi
 

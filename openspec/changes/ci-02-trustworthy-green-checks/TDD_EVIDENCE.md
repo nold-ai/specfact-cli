@@ -51,7 +51,7 @@ python3 -m pytest tests/integration/scripts/test_doc_frontmatter/test_integratio
 
 **Status:** ✅ Remediation implemented and verified.
 
-## Pre-Implementation Test Failure (Expected)
+## Pre-Implementation Test Failure (Expected) - Workflow Policy
 
 ### Test Run: 2026-03-30 - Trustworthy green-check workflow policy
 
@@ -79,7 +79,7 @@ HATCH_DATA_DIR=/tmp/hatch-data HATCH_CACHE_DIR=/tmp/hatch-cache VIRTUALENV_OVERR
 
 **Status:** ✅ TDD workflow confirmed for CI/check semantics hardening.
 
-## Pre-Implementation Test Failure (Expected)
+## Pre-Implementation Test Failure (Expected) - Actionlint Fallback
 
 ### Test Run: 2026-03-30 - Legacy actionlint wrapper fallback
 
@@ -100,7 +100,7 @@ HATCH_DATA_DIR=/tmp/hatch-data HATCH_CACHE_DIR=/tmp/hatch-cache VIRTUALENV_OVERR
 
 **Status:** ✅ TDD workflow confirmed for legacy actionlint fallback hardening.
 
-## Post-Implementation Test Success
+## Post-Implementation Test Success - Remediation Slice
 
 ### Test Run: 2026-03-30 - Trustworthy green-check remediation slice
 
