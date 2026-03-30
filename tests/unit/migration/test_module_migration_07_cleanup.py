@@ -23,6 +23,7 @@ def test_no_legacy_specfact_cli_modules_import_paths() -> None:
         root / "tests" / "unit" / "models" / "test_module_package_metadata.py",
         root / "tests" / "unit" / "migration" / "test_module_migration_07_cleanup.py",
         root / "tests" / "unit" / "specfact_cli" / "test_module_migration_compatibility.py",
+        root / "tests" / "unit" / "modules" / "test_bundle_import.py",
     }
     removed_module_pattern = re.compile(r"specfact_cli\.modules\.(?!init\.|module_registry\.|upgrade\.)")
 

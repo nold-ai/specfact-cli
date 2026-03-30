@@ -5,7 +5,7 @@ description: Install and use the official specfact-code-review module scaffold.
 permalink: /modules/code-review/
 ---
 
-# Code Review Module
+## Code Review Module
 
 The `nold-ai/specfact-code-review` module extends `specfact code` with a governed `review` subgroup for structured review execution, scoring, and reporting.
 
@@ -102,25 +102,27 @@ The scaffolded `ReviewReport` envelope carries these fields:
 
 ## Pre-Commit Review Gate
 
-This repository wires `specfact code review run` into pre-commit before a
-commit is considered green.
+This repository wires `specfact code review run` into the smart pre-commit wrapper before a commit
+is considered green.
 
-The local hook entry lives in `.pre-commit-config.yaml`:
+The supported local hook entry lives in `.pre-commit-config.yaml`:
 
 ```yaml
 repos:
   - repo: local
     hooks:
-      - id: specfact-code-review-gate
-        name: Run code review gate on staged Python files
-        entry: hatch run python scripts/pre_commit_code_review.py
-        language: system
-        files: \.pyi?$
-        # Needed so you still see hook output when the gate passes (pre-commit hides it otherwise).
-        verbose: true
+      - id: specfact-smart-checks
+        name: SpecFact smart pre-commit checks
+        entry: scripts/pre-commit-smart-checks.sh
+        language: script
+        pass_filenames: false
+        always_run: true
 ```
 
-The helper script scopes the gate to staged Python files only and then runs:
+The wrapper calls `scripts/pre_commit_code_review.py` only when staged Python files are present,
+alongside the repo's other local required gates (module signatures, formatter safety, Markdown/YAML
+checks, workflow lint when relevant, and contract-test fast feedback). The review helper itself
+then runs:
 
 ```bash
 specfact code review run --json --out .specfact/code-review.json <staged-python-files>
@@ -157,6 +159,12 @@ Commit behavior:
 - `PASS` keeps the commit green
 - `PASS_WITH_ADVISORY` keeps the commit green
 - `FAIL` blocks the commit
+
+Repository gate taxonomy:
+
+- Local smart-check wrapper: merge-blocking for its enforced local checks.
+- `specfact code review run`: advisory unless it returns `FAIL`; `PASS_WITH_ADVISORY` stays commit-green.
+- CodeRabbit review comments/status: advisory review assistance, not a merge-blocking branch-protection gate by themselves.
 
 To install the repo-owned hook flow:
 
