@@ -11,6 +11,7 @@ If maintainers cannot trust that "green" means the required checks really passed
 - **EXTEND** `.github/workflows/pr-orchestrator.yml` so required jobs fail on required tool failures instead of swallowing them behind warn-only shell patterns.
 - **NEW** gate taxonomy and naming rules for CI jobs so advisory jobs are explicitly named and never masquerade as hard merge gates.
 - **EXTEND** release PR validation semantics for `dev -> main` so test skipping is only allowed when commit parity is provable; otherwise release PRs must re-run the required validation set.
+- **EXTEND** required-check triggering semantics so branch-protection checks always report on the latest PR head commit, even when a change is out of scope for the underlying validation, instead of being skipped entirely by workflow-level path filters.
 - **EXTEND** workflow/static validation so `.github/workflows/**` changes always run mandatory workflow lint and shell validation in CI, not only via local tooling or bot review.
 - **ALIGN** local pre-commit enforcement with the repository smart-check path so contributors who install the supported hooks get the same core gating semantics that CI expects.
 - **EXTEND** AI review coverage so PRs targeting `main` receive the same automatic review posture as PRs targeting `dev` for the configured CodeRabbit review surface.
@@ -31,6 +32,7 @@ If maintainers cannot trust that "green" means the required checks really passed
 ## Impact
 
 - **Affected CI**: `.github/workflows/pr-orchestrator.yml`, `.github/workflows/pre-merge-check.yml`, and any newly added workflow-lint workflow or required job wiring.
+- **Affected status policy**: branch-protection required-check selection and workflow/job naming consistency for checks emitted by `.github/workflows/pr-orchestrator.yml` and `.github/workflows/sign-modules.yml`.
 - **Affected local tooling**: `.pre-commit-config.yaml`, `scripts/pre-commit-smart-checks.sh`, and associated developer setup/docs.
 - **Affected review automation**: `.coderabbit.yaml` target-branch scope and review expectations for `dev` and `main`.
 - **Affected docs/spec artifacts**: archived `doc-frontmatter-schema` artifacts, main OpenSpec specs, `CONTRIBUTING.md`, `docs/contributing/docs-sync.md`, and `CHANGELOG.md`.
