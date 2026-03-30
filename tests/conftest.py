@@ -139,3 +139,8 @@ def pytest_collection_modifyitems(config: object, items: list[object]) -> None:
             continue
         if _should_skip_migrated_test(rel):
             item.add_marker(skip_marker)
+
+
+# Pytest 8+ / 9+: ``pytest_plugins`` is only allowed in the rootdir conftest (not in nested
+# packages). Doc frontmatter fixtures live in ``tests.helpers.doc_frontmatter_fixtures``.
+pytest_plugins = ("tests.helpers.doc_frontmatter_fixtures",)

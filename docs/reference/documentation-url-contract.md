@@ -6,6 +6,13 @@ description: Rules for linking between docs.specfact.io and modules.specfact.io;
 keywords: [docs contract, handoff, core vs modules]
 audience: [team, enterprise]
 expertise_level: [advanced]
+doc_owner: specfact-cli
+tracks:
+  - src/specfact_cli/**
+  - openspec/**
+last_reviewed: 2026-03-29
+exempt: false
+exempt_reason: ""
 ---
 
 # Documentation URL contract (core and modules)

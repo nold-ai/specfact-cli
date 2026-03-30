@@ -151,7 +151,6 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ~/.local/share/hatch
             ~/.cache/uv
           key: ${{ runner.os }}-hatch-tests-py312-${{ hashFiles('pyproject.toml', 'src/specfact_cli/modules/*/__init__.py') }}
           restore-keys: |
@@ -219,7 +218,7 @@ jobs:
   compat-py311:
     name: Compatibility (Python 3.11)
     runs-on: ubuntu-latest
-    needs: [changes, tests]
+    needs: [changes, verify-module-signatures]
     if: needs.changes.outputs.skip_tests_dev_to_main != 'true'
     permissions:
       contents: read
@@ -248,7 +247,6 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ~/.local/share/hatch
             ~/.cache/uv
           key: ${{ runner.os }}-hatch-compat-py311-${{ hashFiles('pyproject.toml', 'src/specfact_cli/modules/*/__init__.py') }}
           restore-keys: |
@@ -274,7 +272,7 @@ jobs:
   contract-first-ci:
     name: Contract-First CI
     runs-on: ubuntu-latest
-    needs: [changes, tests, compat-py311]
+    needs: [changes, verify-module-signatures]
     if: needs.changes.outputs.skip_tests_dev_to_main != 'true'
     permissions:
       contents: read
@@ -303,7 +301,6 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ~/.local/share/hatch
             ~/.cache/uv
           key: ${{ runner.os }}-hatch-contract-first-py312-${{ hashFiles('pyproject.toml', 'src/specfact_cli/modules/*/__init__.py') }}
           restore-keys: |
@@ -336,7 +333,7 @@ jobs:
   cli-validation:
     name: CLI Command Validation
     runs-on: ubuntu-latest
-    needs: [changes, contract-first-ci]
+    needs: [changes, verify-module-signatures]
     if: needs.changes.outputs.skip_tests_dev_to_main != 'true'
     permissions:
       contents: read
@@ -414,7 +411,7 @@ jobs:
   type-checking:
     name: Type Checking (basedpyright)
     runs-on: ubuntu-latest
-    needs: [changes, tests]
+    needs: [changes, verify-module-signatures]
     if: needs.changes.outputs.skip_tests_dev_to_main != 'true'
     permissions:
       contents: read
@@ -449,7 +446,7 @@ jobs:
   linting:
     name: Linting (ruff, pylint)
     runs-on: ubuntu-latest
-    needs: [changes, tests]
+    needs: [changes, verify-module-signatures]
     if: needs.changes.outputs.skip_tests_dev_to_main != 'true'
     permissions:
       contents: read

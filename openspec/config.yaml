@@ -61,6 +61,11 @@ context: |
     `openspec/changes/<change-id>/TDD_EVIDENCE.md` for every behavior change.
   - If the pattern does not work in practice, adjust the process until it does.
 
+  Code review JSON (dogfood): Treat `.specfact/code-review.json` as mandatory evidence before an OpenSpec
+  change is complete. If the file is missing or stale (see tasks), run
+  `specfact code review run --json --out .specfact/code-review.json` and resolve **every** finding at any
+  severity (warning or error) unless the proposal documents a rare, explicit exception.
+
 # Per-artifact rules (only injected into matching artifacts)
 rules:
   proposal:
@@ -158,3 +163,19 @@ rules:
             - body following `.github/ISSUE_TEMPLATE/change_proposal.md` template (Why, What Changes sections from proposal)
             - footer `*OpenSpec Change Proposal: <change-id>*`
         - After creation, update proposal.md Source Tracking section with issue number, URL, repository, and status.
+    - |-
+      SpecFact code review JSON (dogfood, required before PR): Include tasks to
+        - (1) Ensure `.specfact/code-review.json` is present and **fresh**: if the file is missing, or its
+          last-modified time is older than any file you changed for the change **excluding only**
+          `openspec/changes/<change-id>/TDD_EVIDENCE.md` (evidence-only updates there do not by themselves
+          invalidate the review file). This freshness comparison explicitly includes behavior-affecting
+          workflow and config paths such as `.github/workflows/`, `.pre-commit-config.yaml`, and
+          `pyproject.toml` in addition to code, tests, scripts, and change artifacts. Run a new review, e.g.
+          `hatch run specfact code review run --json --out .specfact/code-review.json` with `--scope changed`
+          during iteration and `--scope full` (or equivalent coverage) before the final PR.
+        - (2) Read the JSON report and remediate **all** findings regardless of severity (warning, advisory,
+          error, or equivalent in the schema): treat them as blocking until fixed or the proposal explicitly
+          documents a justified exception approved in the change.
+        - (3) Re-run the review after substantive edits until the report shows a passing outcome per the
+          review module (e.g. overall verdict PASS / CI exit 0); record the review command(s) and timestamp
+          in `TDD_EVIDENCE.md` or the PR description when the change touches behavior or quality gates.

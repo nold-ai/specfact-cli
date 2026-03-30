@@ -70,6 +70,10 @@ hatch test --cover -v
 - **Type Hints**: Use type hints with `@beartype` runtime checking
 - **Testing**: Contract-first testing with scenario tests
 - **Documentation**: Update relevant documentation
+- **Docs site (`docs/`)**: Jekyll pages keep existing frontmatter (`layout`, `title`, `permalink`, …).
+  Pages listed in `docs/.doc-frontmatter-enforced` must include `doc_owner`, `tracks`,
+  `last_reviewed`, and `exempt`; `exempt_reason` is required only when `exempt: true`. See
+  [docs/contributing/docs-sync.md](docs/contributing/docs-sync.md).
 - **Docstrings**: Follow Google Python Style Guide
 
 ### Pre-commit Checks

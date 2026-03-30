@@ -1,0 +1,8 @@
+# Paths (relative to repo root) that must carry full doc-sync frontmatter.
+# Expand this list as the rollout progresses; use `scripts/check_doc_frontmatter.py --all-docs` for a full-site check.
+docs/index.md
+docs/getting-started/quickstart.md
+docs/core-cli/init.md
+docs/reference/documentation-url-contract.md
+docs/contributing/docs-sync.md
+docs/contributing/frontmatter-schema.md

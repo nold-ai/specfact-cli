@@ -9,6 +9,51 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.43.2] - 2026-03-29
+
+### Added
+
+- Documentation ownership frontmatter rollout:
+  - `scripts/check_doc_frontmatter.py`
+  - `docs/.doc-frontmatter-enforced` (rollout scope)
+  - `hatch run doc-frontmatter-check`
+  - Pre-commit hook integration
+  - Guide: `docs/contributing/docs-sync.md`
+  - Sample pages include the extended schema; use `--all-docs` for a full-site check.
+
+### Fixed
+
+- **Tests:** Register doc-frontmatter shared fixtures via root ``tests/conftest.py``
+  ``pytest_plugins`` (Pytest 8+ forbids ``pytest_plugins`` in nested conftests); scope env/cache
+  isolation to ``test_doc_frontmatter`` paths only.
+- OpenSpec (`openspec/config.yaml`): **SpecFact code review JSON** dogfood tasks require a fresh
+  `.specfact/code-review.json`, remediation of review findings before merge, and TDD evidence.
+  **Freshness** excludes `openspec/changes/<change-id>/TDD_EVIDENCE.md` from the staleness
+  comparison so evidence-only edits there do not by themselves force a new review run.
+- `scripts/pre_commit_code_review.py`: invoke review from repo root (`cwd`), emit JSON as above,
+  and enforce a 300s subprocess timeout with `TimeoutExpired` handling so the hook cannot hang
+  indefinitely.
+
+### Changed
+
+- **CI:** `Docs Review` GitHub Actions workflow runs `hatch run doc-frontmatter-check`
+  and includes doc-frontmatter unit/integration tests alongside `tests/unit/docs/`, with path
+  filters for frontmatter scripts and helpers.
+- Pre-commit `specfact-code-review-gate`: switched from `specfact code review run` with
+  `--score-only` to `specfact code review run --json --out .specfact/code-review.json`, writing
+  governed `ReviewReport` JSON under gitignored `.specfact/` for IDE and Copilot workflows. The
+  hook now prints severity counts on stderr, a short summary with the report path (absolute path
+  hint), copy-paste prompts for Copilot/Cursor, and relies on `verbose: true` so successful runs
+  still surface that feedback next to the nested CLI output.
+- Documentation: `docs/modules/code-review.md` updated for the JSON report path and the pre-commit hook behavior.
+- Tests: `tests/unit/scripts/test_pre_commit_code_review.py` and `test_code_review_module_docs.py` updated for
+  `--json`/`--out`, repo-root `cwd`, and timeout handling.
+- Doc frontmatter validation now uses a Pydantic `DocFrontmatter` model, stricter `tracks` glob checks
+  (`fnmatch.translate` + `re.compile` after bracket/brace balance), and a reference page at
+  `docs/contributing/frontmatter-schema.md`.
+
+---
+
 ## [0.43.1] - 2026-03-28
 
 ### Changed

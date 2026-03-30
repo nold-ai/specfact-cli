@@ -60,6 +60,7 @@ Only changes that are **archived**, shown as **✓ Complete** by `openspec list`
 | ✅ code-review-07-house-rules-skill | archived 2026-03-17 |
 | ✅ code-review-08-review-run-integration | archived 2026-03-17 |
 | ✅ code-review-09-f4-automation-upgrade | archived 2026-03-17 |
+| ✅ doc-frontmatter-schema | archived 2026-03-29 |
 
 ### Pending
 
@@ -109,10 +110,10 @@ The 2026-03-22 clean-code plan adds one new cross-repo change pair and re-sequen
 | Module | Order | Change folder | GitHub # | Blocked by |
 |--------|-------|---------------|----------|------------|
 | docs | 01 | docs-01-core-modules-docs-alignment | [#348](https://github.com/nold-ai/specfact-cli/issues/348) | module-migration-01 ✅; module-migration-02 ✅; module-migration-03 ✅; module-migration-05 ✅; module-migration-06/07 outputs inform residual cleanup wording |
-| docs | 02 | doc-frontmatter-schema | pending | — |
+| docs | 02 | ✅ doc-frontmatter-schema (archived 2026-03-29) | [#461](https://github.com/nold-ai/specfact-cli/issues/461) | Parent Feature: [#356](https://github.com/nold-ai/specfact-cli/issues/356) |
 | docs | 03 | ✅ docs-03-command-syntax-parity (archived 2026-03-18) | pending | docs-01 ✅; docs-02 ✅ |
 | docs | 04 | docs-04-docs-review-gate-and-link-integrity | pending | docs-03 ✅ |
-| docs | 05 | ci-docs-sync-check | pending | docs-02 (doc-frontmatter-schema) |
+| docs | 05 | ci-docs-sync-check | pending | docs-02 (doc-frontmatter-schema) [#461](https://github.com/nold-ai/specfact-cli/issues/461) |
 | docs | 06 | docs-05-core-site-ia-restructure | [#438](https://github.com/nold-ai/specfact-cli/issues/438) | docs-04; Parent Feature: [#356](https://github.com/nold-ai/specfact-cli/issues/356) |
 | docs | 07 | docs-07-core-handoff-conversion | [#439](https://github.com/nold-ai/specfact-cli/issues/439) | docs-05-core-site-ia-restructure; modules-repo/docs-06-modules-site-ia-restructure |
 | docs | 08 | docs-12-docs-validation-ci | [#440](https://github.com/nold-ai/specfact-cli/issues/440) | docs-05-core-site-ia-restructure; docs-07-core-handoff-conversion; modules-repo/docs-06 through docs-10 |
@@ -168,6 +169,7 @@ Cross-repo dependency: `docs-07-core-handoff-conversion` depends on `specfact-cl
 | Module | Order | Change folder | GitHub # | Blocked by |
 |--------|-------|----------------|----------|------------|
 | — | — | ✅ ci-01 implemented 2026-02-16 (see Implemented above) | — | — |
+| ci | 02 | ci-02-trustworthy-green-checks | [#465](https://github.com/nold-ai/specfact-cli/issues/465) | ci-01 ✅; code-review-08 ✅; Parent Feature: [#406](https://github.com/nold-ai/specfact-cli/issues/406) |
 
 ### Packaging and distribution
 
@@ -378,8 +380,8 @@ Set these in GitHub so issue dependencies are explicit. Optional dependencies ar
 | [#255](https://github.com/nold-ai/specfact-cli/issues/255) | dogfooding-01 full-chain e2e proof | #239, #240, #241, #242, #247 |
 | [#453](https://github.com/nold-ai/specfact-cli/issues/453) | speckit-02 v0.4.x adapter alignment | — |
 | [modules#116](https://github.com/nold-ai/specfact-cli-modules/issues/116) | speckit-03 change proposal bridge *(modules repo)* | speckit-02 (#453) |
-| TBD | doc-frontmatter-schema | — |
-| TBD | ci-docs-sync-check | doc-frontmatter-schema |
+| [#461](https://github.com/nold-ai/specfact-cli/issues/461) | doc-frontmatter-schema | Parent Feature: [#356](https://github.com/nold-ai/specfact-cli/issues/356) |
+| TBD | ci-docs-sync-check | doc-frontmatter-schema ([#461](https://github.com/nold-ai/specfact-cli/issues/461)) |
 
 | TBD | code-review-02 ruff/radon runners | code-review-01 |
 | TBD | code-review-03 type/governance runners | code-review-01 |
