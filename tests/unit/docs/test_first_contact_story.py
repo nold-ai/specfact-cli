@@ -32,16 +32,22 @@ def _read(path: Path) -> str:
     return path.read_text(encoding="utf-8")
 
 
-def _assert_question_order(content: str, questions: list[str]) -> None:
+def _assert_question_order(content: str, questions: list[str], surface: str) -> None:
     """Assert that the first-contact questions appear in increasing order.
 
     Args:
         content: Text content to inspect.
         questions: Ordered question strings that must appear in sequence.
+        surface: Human-readable name of the file or surface being inspected.
     """
 
-    indices = [content.index(question) for question in questions]
-    assert indices == sorted(indices), f"Questions are out of order: {questions}"
+    indices: list[int] = []
+    for question in questions:
+        index = content.find(question)
+        assert index != -1, f"Missing question {question!r} in {surface}"
+        indices.append(index)
+
+    assert indices == sorted(indices), f"Questions are out of order in {surface}: {questions}"
 
 
 def test_readme_leads_with_validation_and_alignment_story() -> None:
@@ -55,7 +61,7 @@ def test_readme_leads_with_validation_and_alignment_story() -> None:
     ]
 
     assert "validation and alignment layer" in readme
-    _assert_question_order(readme, questions)
+    _assert_question_order(readme, questions, "README.md")
 
 
 def test_readme_prioritizes_fast_start_over_docs_topology() -> None:
@@ -90,7 +96,7 @@ def test_docs_index_matches_first_contact_story() -> None:
     ]
 
     assert "validation and alignment layer" in docs_index
-    _assert_question_order(docs_index, questions)
+    _assert_question_order(docs_index, questions, "docs/index.md")
     assert "modules.specfact.io" in docs_index
     assert "brownfield" in docs_index.lower()
 
@@ -106,4 +112,4 @@ def test_contributing_guidance_mentions_entrypoint_story_hierarchy() -> None:
     ]
 
     assert "first-contact" in contributing
-    _assert_question_order(contributing, questions)
+    _assert_question_order(contributing, questions, "CONTRIBUTING.md")
