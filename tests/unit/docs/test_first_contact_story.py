@@ -4,6 +4,7 @@ These tests ensure the README, docs landing page, and contributor guidance all
 present the same canonical product story and onboarding order.
 """
 
+import re
 from pathlib import Path
 
 
@@ -60,8 +61,12 @@ def test_readme_leads_with_validation_and_alignment_story() -> None:
 def test_readme_prioritizes_fast_start_over_docs_topology() -> None:
     readme = _read(README)
 
-    start_idx = readme.index("## Start Here")
-    topology_idx = readme.index("## Documentation Topology")
+    start_match = re.search(r"^#+\s*Start Here", readme, re.MULTILINE)
+    topology_match = re.search(r"^#+\s*Documentation Topology", readme, re.MULTILINE)
+    assert start_match is not None, "Missing Start Here heading in README.md"
+    assert topology_match is not None, "Missing Documentation Topology heading in README.md"
+    start_idx = start_match.start()
+    topology_idx = topology_match.start()
     assert start_idx < topology_idx
 
 

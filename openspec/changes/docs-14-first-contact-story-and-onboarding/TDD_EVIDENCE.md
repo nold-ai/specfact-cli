@@ -34,12 +34,17 @@ cd /home/dom/git/nold-ai/specfact-cli-worktrees/feature/docs-14-first-contact-st
 hatch env create
 hatch run format
 hatch run type-check
+hatch run lint
+hatch run contract-test
+hatch test --cover -v
 python3 -m pytest tests/unit/docs/test_first_contact_story.py tests/unit/test_core_docs_site_contract.py tests/unit/docs/test_release_docs_parity.py -q -k 'first_contact_story or core_landing_page_marks_core_repo_as_canonical_owner or readme_and_docs_index_define_core_and_modules_split'
 hatch run yaml-lint
 openspec validate docs-14-first-contact-story-and-onboarding --strict
 ```
 
-**Result:** ✅ All targeted docs-story, core/modules handoff, markdown/YAML, and OpenSpec checks passed. `hatch run type-check` completed with `0 errors` and existing repo-wide test warnings outside this change scope.
+**Result:** ✅ The full documented quality-gate sequence passed for this change. `hatch run type-check`
+completed with `0 errors` and existing repo-wide test warnings outside this change scope; `hatch run
+lint`, `hatch run contract-test`, and `hatch test --cover -v` all completed successfully.
 
 **Passing summary:**
 
@@ -51,3 +56,5 @@ openspec validate docs-14-first-contact-story-and-onboarding --strict
 - `CONTRIBUTING.md` now records the entry-point messaging hierarchy and repo-metadata alignment rule.
 - The audited `hatch run type-check` gate was executed and recorded for this change; warnings came
   from pre-existing repo-wide test typing debt rather than the touched first-contact files.
+- The remaining local quality gates required by the checklist (`lint`, `contract-test`, and full
+  covered tests) were executed and passed before the follow-up review fixes were finalized.

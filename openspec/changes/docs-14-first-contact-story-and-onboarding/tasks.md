@@ -72,9 +72,9 @@ evidence in `TDD_EVIDENCE.md`.
 
 - [x] 7.1 `hatch run format`
 - [x] 7.2 `hatch run type-check`
-- [ ] 7.3 `hatch run lint`
-- [ ] 7.4 `hatch run contract-test`
-- [ ] 7.5 `hatch test --cover -v`
+- [x] 7.3 `hatch run lint`
+- [x] 7.4 `hatch run contract-test`
+- [x] 7.5 `hatch test --cover -v`
 - [x] 7.6 `hatch run yaml-lint`
 - [x] 7.7 Run the targeted docs/tests/review checks added for this change.
 - [x] 7.8 Update `TDD_EVIDENCE.md` with post-implementation passing evidence and before/after entry-point comparisons.
