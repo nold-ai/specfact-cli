@@ -43,6 +43,8 @@ jobs:
               - '!.github/workflows/**'
             workflow:
               - '.github/workflows/**'
+              - 'scripts/run_actionlint.sh'
+              - 'scripts/yaml-tools.sh'
       - id: out
         env:
           EVENT_NAME: ${{ github.event_name }}

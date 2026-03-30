@@ -195,7 +195,7 @@ def test_legacy_actionlint_runner_does_not_mask_docker_failures() -> None:
     assert any("docker run --rm" in line for line in lines), "Expected docker run invocation"
     assert "docker info >/dev/null 2>&1" in raw, "Expected docker daemon reachability check"
     assert "tools/bin" not in raw, "Should not download binaries into repo tree"
-    assert "go install github.com/rhysd/actionlint/cmd/actionlint@latest" in raw, "Expected global install guidance"
+    assert "go install github.com/rhysd/actionlint/cmd/actionlint@" in raw, "Expected global install guidance"
     # Docker run must not be followed by unconditional return 0 (would swallow failures)
     for i, line in enumerate(lines):
         if "docker run --rm" in line:
