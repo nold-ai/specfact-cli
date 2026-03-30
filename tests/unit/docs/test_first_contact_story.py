@@ -31,15 +31,30 @@ def _read(path: Path) -> str:
     return path.read_text(encoding="utf-8")
 
 
+def _assert_question_order(content: str, questions: list[str]) -> None:
+    """Assert that the first-contact questions appear in increasing order.
+
+    Args:
+        content: Text content to inspect.
+        questions: Ordered question strings that must appear in sequence.
+    """
+
+    indices = [content.index(question) for question in questions]
+    assert indices == sorted(indices), f"Questions are out of order: {questions}"
+
+
 def test_readme_leads_with_validation_and_alignment_story() -> None:
     readme = _read(README)
+    questions = [
+        "What is SpecFact?",
+        "Why does it exist?",
+        "Why should I use it?",
+        "What do I get?",
+        "How do I get started?",
+    ]
 
     assert "validation and alignment layer" in readme
-    assert "What is SpecFact?" in readme
-    assert "Why does it exist?" in readme
-    assert "Why should I use it?" in readme
-    assert "What do I get?" in readme
-    assert "How do I get started?" in readme
+    _assert_question_order(readme, questions)
 
 
 def test_readme_prioritizes_fast_start_over_docs_topology() -> None:
@@ -61,17 +76,29 @@ def test_readme_routes_users_by_outcome() -> None:
 
 def test_docs_index_matches_first_contact_story() -> None:
     docs_index = _read(DOCS_INDEX)
+    questions = [
+        "What is SpecFact?",
+        "Why does it exist?",
+        "Why should I use it?",
+        "What do I get?",
+        "How to get started",
+    ]
 
     assert "validation and alignment layer" in docs_index
-    assert "What is SpecFact?" in docs_index
-    assert "How to get started" in docs_index
+    _assert_question_order(docs_index, questions)
     assert "modules.specfact.io" in docs_index
     assert "brownfield" in docs_index.lower()
 
 
 def test_contributing_guidance_mentions_entrypoint_story_hierarchy() -> None:
     contributing = _read(CONTRIBUTING)
+    questions = [
+        "What is SpecFact?",
+        "Why does it exist?",
+        "Why should I use it?",
+        "What do I get?",
+        "How do I get started?",
+    ]
 
     assert "first-contact" in contributing
-    assert "What is SpecFact?" in contributing
-    assert "How do I get started?" in contributing
+    _assert_question_order(contributing, questions)

@@ -33,12 +33,13 @@ python3 -m pytest tests/unit/docs/test_first_contact_story.py -q
 cd /home/dom/git/nold-ai/specfact-cli-worktrees/feature/docs-14-first-contact-story-and-onboarding
 hatch env create
 hatch run format
+hatch run type-check
 python3 -m pytest tests/unit/docs/test_first_contact_story.py tests/unit/test_core_docs_site_contract.py tests/unit/docs/test_release_docs_parity.py -q -k 'first_contact_story or core_landing_page_marks_core_repo_as_canonical_owner or readme_and_docs_index_define_core_and_modules_split'
 hatch run yaml-lint
 openspec validate docs-14-first-contact-story-and-onboarding --strict
 ```
 
-**Result:** ✅ All targeted docs-story, core/modules handoff, markdown/YAML, and OpenSpec checks passed.
+**Result:** ✅ All targeted docs-story, core/modules handoff, markdown/YAML, and OpenSpec checks passed. `hatch run type-check` completed with `0 errors` and existing repo-wide test warnings outside this change scope.
 
 **Passing summary:**
 
@@ -48,3 +49,5 @@ openspec validate docs-14-first-contact-story-and-onboarding --strict
 - `docs/README.md` and `docs/reference/documentation-url-contract.md` now document the intended
   `docs.specfact.io` to `modules.specfact.io` onboarding split.
 - `CONTRIBUTING.md` now records the entry-point messaging hierarchy and repo-metadata alignment rule.
+- The audited `hatch run type-check` gate was executed and recorded for this change; warnings came
+  from pre-existing repo-wide test typing debt rather than the touched first-contact files.

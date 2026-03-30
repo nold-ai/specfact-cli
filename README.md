@@ -137,13 +137,17 @@ into spec-first tools such as OpenSpec or Spec-Kit.
 Start with:
 - `specfact code import my-project --repo .`
 - `specfact project snapshot --bundle my-project`
+- `specfact code validate sidecar init my-project /path/to/repo`
 - `specfact code validate sidecar run my-project /path/to/repo`
 
 ### Backlog to code alignment
 
 Use SpecFact when the problem is not only code quality, but drift between expectations and delivery.
+Backlog commands require a backlog-enabled profile or installed backlog bundle before the workflow
+commands are available.
 
 Start with:
+- `specfact init --profile backlog-team`
 - `specfact backlog ceremony standup ...`
 - `specfact backlog ceremony refinement ...`
 - `specfact backlog verify-readiness --bundle <bundle-name>`

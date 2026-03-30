@@ -71,17 +71,18 @@ evidence in `TDD_EVIDENCE.md`.
 ## 7. Validation and quality gates
 
 - [x] 7.1 `hatch run format`
-- [ ] 7.2 `hatch run lint`
-- [ ] 7.3 `hatch run contract-test`
-- [ ] 7.4 `hatch test --cover -v`
-- [x] 7.5 `hatch run yaml-lint`
-- [x] 7.6 Run the targeted docs/tests/review checks added for this change.
-- [x] 7.7 Update `TDD_EVIDENCE.md` with post-implementation passing evidence and before/after entry-point comparisons.
-- [x] 7.8 Run `openspec validate docs-14-first-contact-story-and-onboarding --strict`.
+- [x] 7.2 `hatch run type-check`
+- [ ] 7.3 `hatch run lint`
+- [ ] 7.4 `hatch run contract-test`
+- [ ] 7.5 `hatch test --cover -v`
+- [x] 7.6 `hatch run yaml-lint`
+- [x] 7.7 Run the targeted docs/tests/review checks added for this change.
+- [x] 7.8 Update `TDD_EVIDENCE.md` with post-implementation passing evidence and before/after entry-point comparisons.
+- [x] 7.9 Run `openspec validate docs-14-first-contact-story-and-onboarding --strict`.
 
 ## 8. Delivery
 
-- [ ] 8.1 Update `openspec/CHANGE_ORDER.md` with implementation status when work begins/lands.
+- [x] 8.1 Update `openspec/CHANGE_ORDER.md` with implementation status when work begins/lands.
 - [x] 8.2 Stage and commit with a Conventional Commit message.
 - [x] 8.3 Push the feature branch and open a PR to `dev`.
 - [ ] 8.4 After merge to `dev`, remove the worktree and delete the feature branch locally/remotely.

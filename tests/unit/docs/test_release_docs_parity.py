@@ -135,7 +135,7 @@ def _resolve_site_token_link(source: Path, stripped: str) -> tuple[str | None, s
     if "{{" not in stripped or "site." not in stripped:
         return stripped, None
 
-    match = re.search(r"site\.([a-zA-Z0-9_]+)", stripped)
+    match = re.search(r"\{\{\s*site\.([A-Za-z0-9_]+)\s*\}\}", stripped)
     if not match:
         return None, f"{source.relative_to(_repo_root())} -> unresolved site token {stripped}"
 

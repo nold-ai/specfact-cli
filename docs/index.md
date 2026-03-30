@@ -45,6 +45,21 @@ specification, from specification to implementation, and from implementation to 
 exists to reduce that drift by giving you deterministic tooling for analysis, validation, and
 alignment.
 
+## Why should I use it?
+
+Use SpecFact when you want faster delivery without losing validation, stronger brownfield
+understanding before making changes, and less drift between backlog intent, specifications, and the
+code that actually lands.
+
+## What do I get?
+
+With SpecFact, you get:
+- deterministic local tooling instead of opaque cloud dependence
+- a validation layer around AI-assisted delivery
+- codebase analysis and sidecar validation for brownfield work
+- stronger backlog/spec/code alignment
+- a clean handoff from core runtime docs into module-deep workflows on `modules.specfact.io`
+
 ## How to get started
 
 1. **[Installation](/getting-started/installation/)** - Install SpecFact CLI
@@ -73,6 +88,7 @@ If you are new to SpecFact, start here before jumping into module-deep workflows
 <ul>
 <li><a href="/getting-started/where-to-start/">Where to Start</a></li>
 <li><a href="/guides/brownfield-journey/">Brownfield Journey</a></li>
+<li>Initialize sidecar validation before running `specfact code validate sidecar run ...`.</li>
 <li><a href="/guides/brownfield-roi/">Brownfield ROI</a></li>
 <li><a href="/guides/brownfield-faq/">Brownfield FAQ</a></li>
 </ul>
@@ -81,6 +97,7 @@ If you are new to SpecFact, start here before jumping into module-deep workflows
 <h3>Backlog to code alignment</h3>
 <p>Use SpecFact when the main problem is drift between expectations, specs, and implementation.</p>
 <ul>
+<li>Start with a backlog-enabled profile such as `specfact init --profile backlog-team`.</li>
 <li><a href="/guides/agile-scrum-workflows/">Agile &amp; Scrum Workflows</a></li>
 <li><a href="https://modules.specfact.io/getting-started/tutorial-backlog-quickstart-demo/">Backlog Quickstart Demo</a></li>
 <li><a href="https://modules.specfact.io/getting-started/tutorial-backlog-refine-ai-ide/">Backlog Refine with AI IDE</a></li>
@@ -98,15 +115,6 @@ If you are new to SpecFact, start here before jumping into module-deep workflows
 </ul>
 </div>
 </div>
-
-## What do I get?
-
-With SpecFact, you get:
-- deterministic local tooling instead of opaque cloud dependence
-- a validation layer around AI-assisted delivery
-- codebase analysis and sidecar validation for brownfield work
-- stronger backlog/spec/code alignment
-- a clean handoff from core runtime docs into module-deep workflows on `modules.specfact.io`
 
 ## Core Platform
 
