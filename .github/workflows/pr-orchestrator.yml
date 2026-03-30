@@ -378,8 +378,8 @@ jobs:
         run: |
           echo "🔍 Validating runtime contracts..."
           REPRO_LOG="logs/repro/repro_$(date -u +%Y%m%d_%H%M%S).log"
-          echo "Running specfact code repro with required CrossHair... (log: $REPRO_LOG)"
-          hatch run specfact code repro --verbose --crosshair-required --budget 120 2>&1 | tee "$REPRO_LOG"
+          echo "Running contract-first validation with required CrossHair... (log: $REPRO_LOG)"
+          hatch run contract-test 2>&1 | tee "$REPRO_LOG"
           exit "${PIPESTATUS[0]:-$?}"
       - name: Upload repro logs
         if: always()

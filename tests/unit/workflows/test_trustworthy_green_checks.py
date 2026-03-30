@@ -142,10 +142,10 @@ def test_pr_orchestrator_advisory_jobs_are_named_as_advisory() -> None:
     assert "Advisory" in name
 
 
-def test_pr_orchestrator_contract_first_job_uses_grouped_repro_command() -> None:
-    """Contract-first CI should call the stable grouped repro command path."""
+def test_pr_orchestrator_contract_first_job_uses_hatch_contract_test() -> None:
+    """Contract-first CI should use the hatch contract-test script (no CLI bundle dependency)."""
     raw = PR_ORCHESTRATOR.read_text(encoding="utf-8")
-    assert "hatch run specfact code repro --verbose --crosshair-required --budget 120" in raw
+    assert "hatch run contract-test" in raw
     assert "hatch run specfact repro --verbose --crosshair-required --budget 120" not in raw
 
 
