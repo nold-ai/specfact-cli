@@ -7,7 +7,7 @@ set -euo pipefail
 #   fmt              Format all YAML files (including workflows) with Prettier
 #   lint             Lint non-workflow YAML files with yamllint and repo .yamllint
 #   workflows-fmt    Format only GitHub workflows with Prettier
-#   workflows-lint   Lint GitHub workflows with actionlint (local, bin, or docker fallback)
+#   workflows-lint   Lint GitHub workflows with actionlint
 #   fix-all          Run fmt (covers workflows too)
 #   check-all        Run lint + workflows-lint
 #
@@ -51,17 +51,7 @@ run_yamllint() {
 }
 
 run_actionlint() {
-  if command -v actionlint >/dev/null 2>&1; then
-    actionlint -color=never
-  elif [[ -x "${REPO_ROOT}/bin/actionlint" ]]; then
-    "${REPO_ROOT}/bin/actionlint" -color=never
-  elif command -v docker >/dev/null 2>&1; then
-    docker run --rm -v "${REPO_ROOT}":/repo -w /repo rhysd/actionlint:latest -no-color
-  else
-    echo "actionlint not available. Install with:" >&2
-    echo "  curl -sSL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash | bash -s -- -b ./bin" >&2
-    exit 2
-  fi
+  bash "${REPO_ROOT}/scripts/run_actionlint.sh"
 }
 
 usage() {

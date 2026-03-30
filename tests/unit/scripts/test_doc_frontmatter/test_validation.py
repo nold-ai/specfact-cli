@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Tests for doc frontmatter validation (scripts/check_doc_frontmatter.py)."""
 
+# pyright: reportUnknownMemberType=false
+
 from __future__ import annotations
 
 import tempfile
@@ -139,6 +141,41 @@ title: "Invalid Document"
             write_enforced(root, "docs/invalid.md")
             result = validation_main([])
             assert result == 1
+
+    def test_validation_surfaces_yaml_parse_errors(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
+        check_doc_frontmatter_module: CheckDocFrontmatterModule,
+    ) -> None:
+        """Malformed frontmatter should report an actionable YAML parse failure."""
+        validation_main = check_doc_frontmatter_module.main
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            monkeypatch.setenv("DOC_FRONTMATTER_ROOT", str(root))
+            docs_dir = root / "docs"
+            docs_dir.mkdir()
+            (docs_dir / "broken.md").write_text(
+                """---
+title: Broken
+doc_owner: specfact-cli
+tracks:
+  - docs/**
+last_reviewed: [broken
+exempt: false
+exempt_reason: ""
+---
+
+# Broken
+""",
+                encoding="utf-8",
+            )
+            write_enforced(root, "docs/broken.md")
+            result = validation_main([])
+            assert result == 1
+            err = capsys.readouterr().err
+            assert "YAML parse error" in err
+            assert "docs/broken.md" in err
 
 
 class TestOwnerResolutionValidation:

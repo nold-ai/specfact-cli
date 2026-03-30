@@ -59,9 +59,9 @@ out-of-scope follow-up commits because the entire workflow was skipped by top-le
 
 ### Requirement: Required checks use canonical names across workflows
 
-When a logical required gate is emitted by more than one workflow or has related dedicated and
-orchestrated forms, the repository SHALL standardize on one canonical emitted check name for branch
-protection and documentation.
+The repository SHALL standardize on one canonical emitted check name for any logical required gate
+that is emitted by more than one workflow or exposed through related dedicated and orchestrated
+forms.
 
 #### Scenario: Signature validation exists in both orchestrator and dedicated workflow form
 
@@ -71,7 +71,9 @@ protection and documentation.
 
 ### Requirement: Supported local pre-commit installation matches core CI gate semantics
 
-The repository-supported pre-commit installation path SHALL enforce the same core gate semantics that CI relies on for changed files, rather than leaving stronger checks only in an optional wrapper unknown to standard contributors.
+The repository-supported pre-commit installation path SHALL enforce the same core gate semantics
+that CI relies on for changed files, rather than leaving stronger checks only in an optional
+wrapper unknown to standard contributors.
 
 #### Scenario: Contributor installs the documented local hooks
 
@@ -81,10 +83,23 @@ The repository-supported pre-commit installation path SHALL enforce the same cor
 
 ### Requirement: Automatic PR review coverage includes both active protected targets
 
-Automatic repository review configuration SHALL cover pull requests targeting both `dev` and `main` when both branches are active protected integration targets.
+Automatic repository review configuration SHALL cover pull requests targeting both `dev` and
+`main` when both branches are active protected integration targets.
 
 #### Scenario: Release-forward pull request targets main
 
 - **WHEN** a pull request targets `main`
 - **THEN** the configured automatic review system applies the same target-branch auto-review policy used for `dev`
 - **AND** release PRs do not silently lose their default automated review pass
+
+### Requirement: Merge-blocking and advisory outputs are documented distinctly
+
+Contributor-facing CI and hook documentation SHALL distinguish required merge gates from advisory
+signals so maintainers can interpret a green PR consistently across local hooks, GitHub Actions,
+and automated review outputs.
+
+#### Scenario: Contributor reviews the repository quality-gate guidance
+
+- **WHEN** a contributor reads the documented pre-commit, CI, or PR-review guidance
+- **THEN** the documentation names which checks are merge-blocking required gates
+- **AND** the documentation names which outputs remain advisory warnings or review assistance
