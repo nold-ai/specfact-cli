@@ -53,6 +53,13 @@ class TestEnrichmentReport:
 class TestEnrichmentParser:
     """Test EnrichmentParser class."""
 
+    def test_parse_feature_block_returns_none_for_control_character_text(self) -> None:
+        """Control-character feature blocks should fail closed instead of raising regex errors."""
+
+        parser = EnrichmentParser()
+
+        assert parser._parse_feature_block("\x02") is None
+
     def test_parse_missing_features(self, tmp_path: Path):
         """Test parsing missing features from enrichment report."""
         report_content = """# Enrichment Report
@@ -152,6 +159,21 @@ class TestEnrichmentParser:
 
         with pytest.raises(FileNotFoundError):
             parser.parse(nonexistent_file)
+
+    def test_parse_returns_empty_report_for_control_character_path(self) -> None:
+        """Control-character report paths should fail closed with an empty report."""
+
+        parser = EnrichmentParser()
+        report = parser.parse("\x00\x00")
+
+        assert isinstance(report, EnrichmentReport)
+        assert report.missing_features == []
+        assert report.confidence_adjustments == {}
+        assert report.business_context == {
+            "priorities": [],
+            "constraints": [],
+            "unknowns": [],
+        }
 
 
 class TestApplyEnrichment:

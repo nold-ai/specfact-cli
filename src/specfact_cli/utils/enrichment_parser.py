@@ -18,6 +18,33 @@ from icontract import ensure, require
 from specfact_cli.models.plan import Feature, PlanBundle, Story
 
 
+_NO_REGEX_FLAGS = 0
+
+
+def _contains_disallowed_control_chars(text: str) -> bool:
+    """Return whether text contains control characters beyond normal whitespace."""
+
+    return any(ord(char) < 32 and char not in "\n\r\t" for char in text)
+
+
+def _safe_search(pattern: str, text: str, flags: int = _NO_REGEX_FLAGS) -> re.Match[str] | None:
+    """Return a regex search result, or None when regex evaluation fails."""
+
+    try:
+        return re.search(pattern, text, flags)
+    except re.error:
+        return None
+
+
+def _safe_findall(pattern: str, text: str, flags: int = _NO_REGEX_FLAGS) -> list[str] | list[tuple[str, ...]]:
+    """Return regex matches, or an empty list when regex evaluation fails."""
+
+    try:
+        return re.findall(pattern, text, flags)
+    except re.error:
+        return []
+
+
 def _story_from_dict_with_key(story_data: dict[str, Any], key: str) -> Story:
     return Story(
         key=key,
@@ -131,17 +158,17 @@ class EnrichmentReport:
 
 def _extract_feature_title(feature_text: str) -> str:
     """Extract title from bold text or number-prefixed bold text."""
-    title_match = re.search(r"^\*\*([^*]+)\*\*", feature_text, re.MULTILINE)
+    title_match = _safe_search(r"^\*\*([^*]+)\*\*", feature_text, re.MULTILINE)
     if not title_match:
-        title_match = re.search(r"^\d+\.\s*\*\*([^*]+)\*\*", feature_text, re.MULTILINE)
+        title_match = _safe_search(r"^\d+\.\s*\*\*([^*]+)\*\*", feature_text, re.MULTILINE)
     return title_match.group(1).strip() if title_match else ""
 
 
 def _extract_feature_key(feature_text: str, title: str) -> str:
     """Extract or generate a feature key from the text."""
-    key_match = re.search(r"\(Key:\s*([A-Z0-9_-]+)\)", feature_text, re.IGNORECASE)
+    key_match = _safe_search(r"\(Key:\s*([A-Z0-9_-]+)\)", feature_text, re.IGNORECASE)
     if not key_match:
-        key_match = re.search(r"(?:key|Key):\s*([A-Z0-9_-]+)", feature_text, re.IGNORECASE)
+        key_match = _safe_search(r"(?:key|Key):\s*([A-Z0-9_-]+)", feature_text, re.IGNORECASE)
     if key_match:
         return key_match.group(1)
     if title:
@@ -152,7 +179,7 @@ def _extract_feature_key(feature_text: str, title: str) -> str:
 def _extract_feature_outcomes(feature_text: str) -> list[str]:
     """Extract outcomes and business reason/value from feature text."""
     outcomes: list[str] = []
-    outcomes_match = re.search(
+    outcomes_match = _safe_search(
         r"(?:outcomes?|Outcomes?):\s*(.+?)(?:\n\s*(?:stories?|Stories?):|\Z)",
         feature_text,
         re.IGNORECASE | re.DOTALL,
@@ -163,7 +190,7 @@ def _extract_feature_outcomes(feature_text: str) -> list[str]:
             o.strip() for o in re.split(r"\n|,", outcomes_text) if o.strip() and not o.strip().startswith("- Stories:")
         ]
 
-    reason_match = re.search(
+    reason_match = _safe_search(
         r"(?:reason|Reason|Business value):\s*(.+?)(?:\n(?:stories?|Stories?)|$)",
         feature_text,
         re.IGNORECASE | re.DOTALL,
@@ -177,11 +204,11 @@ def _extract_feature_outcomes(feature_text: str) -> list[str]:
 
 def _extract_story_title(story_text: str) -> str:
     """Extract story title from bold text, a title field, or the first line."""
-    title_match = re.search(r"^\*\*([^*]+)\*\*", story_text, re.MULTILINE)
+    title_match = _safe_search(r"^\*\*([^*]+)\*\*", story_text, re.MULTILINE)
     if title_match:
         return title_match.group(1).strip()
 
-    title_kw = re.search(r"(?:title|Title):\s*(.+?)(?:\n|$)", story_text, re.IGNORECASE)
+    title_kw = _safe_search(r"(?:title|Title):\s*(.+?)(?:\n|$)", story_text, re.IGNORECASE)
     if title_kw:
         return title_kw.group(1).strip()
 
@@ -210,7 +237,7 @@ def _bullet_acceptance_lines(story_text: str, title: str) -> list[str]:
 
 def _extract_story_acceptance(story_text: str, title: str) -> list[str]:
     """Extract acceptance criteria from a story block."""
-    acceptance_match = re.search(
+    acceptance_match = _safe_search(
         r"(?:acceptance(?:\s+criteria)?|criteria):\s*(.+?)(?:\n(?:tasks?|Tasks?|story\s+points?|Story\s+points?)|$)",
         story_text,
         re.IGNORECASE | re.DOTALL,
@@ -228,12 +255,12 @@ def _extract_story_acceptance(story_text: str, title: str) -> list[str]:
 
 def _extract_story_points(story_text: str) -> tuple[float | int | None, float | int | None]:
     """Extract story points and value points from a story block."""
-    points_match = re.search(
+    points_match = _safe_search(
         r"(?:story\s+points?|points?)\s*[:=]\s*([0-9]+(?:\.[0-9]+)?)",
         story_text,
         re.IGNORECASE,
     )
-    value_points_match = re.search(
+    value_points_match = _safe_search(
         r"(?:value\s+points?|value)\s*[:=]\s*([0-9]+(?:\.[0-9]+)?)",
         story_text,
         re.IGNORECASE,
@@ -273,9 +300,13 @@ class EnrichmentParser:
             FileNotFoundError: If report file doesn't exist
             ValueError: If report_path is empty or invalid
         """
-        report_path = Path(report_path)
-        if not str(report_path).strip():
+        report_path_str = str(report_path)
+        if not report_path_str.strip():
             raise ValueError("Report path cannot be empty")
+        if _contains_disallowed_control_chars(report_path_str):
+            return EnrichmentReport()
+
+        report_path = Path(report_path_str)
         if not report_path.exists():
             raise FileNotFoundError(f"Enrichment report not found: {report_path}")
         if report_path.is_dir():
@@ -300,9 +331,11 @@ class EnrichmentParser:
     @require(lambda report: isinstance(report, EnrichmentReport), "Report must be EnrichmentReport")
     def _parse_missing_features(self, content: str, report: EnrichmentReport) -> None:
         """Parse missing features section from enrichment report."""
+        if _contains_disallowed_control_chars(content):
+            return
         # Look for "Missing Features" or "Missing features" section
         pattern = r"##\s*(?:Missing\s+)?Features?\s*(?:\(.*?\))?\s*\n(.*?)(?=##|\Z)"
-        match = re.search(pattern, content, re.IGNORECASE | re.DOTALL)
+        match = _safe_search(pattern, content, re.IGNORECASE | re.DOTALL)
         if not match:
             return
 
@@ -312,9 +345,11 @@ class EnrichmentParser:
         # Stop at next feature (numbered item at start of line, optionally followed by bold text)
         # This avoids stopping at story numbers which are indented
         feature_pattern = r"(?:^|\n)(?:\d+\.|\*|\-)\s*(.+?)(?=\n(?:^\d+\.\s*\*\*|^\d+\.\s+[A-Z]|\*|\-|\Z))"
-        features = re.findall(feature_pattern, section, re.MULTILINE | re.DOTALL)
+        features = _safe_findall(feature_pattern, section, re.MULTILINE | re.DOTALL)
 
         for feature_text in features:
+            if not isinstance(feature_text, str):
+                continue
             feature = self._parse_feature_block(feature_text)
             if feature:
                 report.add_missing_feature(feature)
@@ -324,6 +359,8 @@ class EnrichmentParser:
     @ensure(lambda result: result is None or isinstance(result, dict), "Must return None or dict")
     def _parse_feature_block(self, feature_text: str) -> dict[str, Any] | None:
         """Parse a single feature block from enrichment report."""
+        if _contains_disallowed_control_chars(feature_text):
+            return None
         feature: dict[str, Any] = {
             "key": "",
             "title": "",
@@ -335,18 +372,18 @@ class EnrichmentParser:
         feature["title"] = _extract_feature_title(feature_text)
         feature["key"] = _extract_feature_key(feature_text, feature["title"])
         if not feature["title"]:
-            title_kw = re.search(r"(?:title|Title):\s*(.+?)(?:\n|$)", feature_text, re.IGNORECASE)
+            title_kw = _safe_search(r"(?:title|Title):\s*(.+?)(?:\n|$)", feature_text, re.IGNORECASE)
             if title_kw:
                 feature["title"] = title_kw.group(1).strip()
 
-        confidence_match = re.search(r"(?:confidence|Confidence):\s*([0-9.]+)", feature_text, re.IGNORECASE)
+        confidence_match = _safe_search(r"(?:confidence|Confidence):\s*([0-9.]+)", feature_text, re.IGNORECASE)
         if confidence_match:
             with suppress(ValueError):
                 feature["confidence"] = float(confidence_match.group(1))
 
         feature["outcomes"] = _extract_feature_outcomes(feature_text)
 
-        stories_match = re.search(
+        stories_match = _safe_search(
             r"(?:stories?|Stories?):\s*(.+?)(?=\n\d+\.\s*\*\*|\n##|\Z)", feature_text, re.IGNORECASE | re.DOTALL
         )
         if stories_match:
@@ -363,6 +400,8 @@ class EnrichmentParser:
     @ensure(lambda result: isinstance(result, list), "Must return list of story dicts")
     def _parse_stories_from_text(self, stories_text: str, feature_key: str) -> list[dict[str, Any]]:
         """Parse stories from enrichment report text."""
+        if _contains_disallowed_control_chars(stories_text):
+            return []
         stories: list[dict[str, Any]] = []
 
         # Extract individual stories (numbered, bulleted, or sub-headers)
@@ -370,14 +409,16 @@ class EnrichmentParser:
         # Handle indented stories (common in nested lists)
         # Match numbered stories with optional indentation: "    1. Story title" or "1. Story title"
         story_pattern = r"(?:^|\n)(?:\s*)(?:\d+\.)\s*(.+?)(?=\n(?:\s*)(?:\d+\.)|\Z)"
-        story_matches = re.findall(story_pattern, stories_text, re.MULTILINE | re.DOTALL)
+        story_matches = _safe_findall(story_pattern, stories_text, re.MULTILINE | re.DOTALL)
 
         # If no matches with numbered pattern, try bulleted pattern
         if not story_matches:
             story_pattern = r"(?:^|\n)(?:\s*)(?:\*|\-)\s*(.+?)(?=\n(?:\s*)(?:\*|\-|\d+\.)|\Z)"
-            story_matches = re.findall(story_pattern, stories_text, re.MULTILINE | re.DOTALL)
+            story_matches = _safe_findall(story_pattern, stories_text, re.MULTILINE | re.DOTALL)
 
         for idx, story_text in enumerate(story_matches, start=1):
+            if not isinstance(story_text, str):
+                continue
             story = self._parse_story_block(story_text, feature_key, idx)
             if story:
                 stories.append(story)
@@ -393,6 +434,8 @@ class EnrichmentParser:
     @ensure(lambda result: result is None or isinstance(result, dict), "Must return None or story dict")
     def _parse_story_block(self, story_text: str, feature_key: str, story_number: int) -> dict[str, Any] | None:
         """Parse a single story block from enrichment report."""
+        if _contains_disallowed_control_chars(story_text):
+            return None
         story: dict[str, Any] = {
             "key": "",
             "title": "",
@@ -412,7 +455,7 @@ class EnrichmentParser:
         story["title"] = _extract_story_title(story_text)
         story["acceptance"] = _extract_story_acceptance(story_text, story.get("title", ""))
 
-        tasks_match = re.search(
+        tasks_match = _safe_search(
             r"(?:tasks?|Tasks?):\s*(.+?)(?:\n(?:points?|Points?|$))", story_text, re.IGNORECASE | re.DOTALL
         )
         if tasks_match:
@@ -429,9 +472,11 @@ class EnrichmentParser:
     @require(lambda report: isinstance(report, EnrichmentReport), "Report must be EnrichmentReport")
     def _parse_confidence_adjustments(self, content: str, report: EnrichmentReport) -> None:
         """Parse confidence adjustments section from enrichment report."""
+        if _contains_disallowed_control_chars(content):
+            return
         # Look for "Confidence Adjustments" or "Confidence adjustments" section
         pattern = r"##\s*Confidence\s+Adjustments?\s*\n(.*?)(?=##|\Z)"
-        match = re.search(pattern, content, re.IGNORECASE | re.DOTALL)
+        match = _safe_search(pattern, content, re.IGNORECASE | re.DOTALL)
         if not match:
             return
 
@@ -439,7 +484,7 @@ class EnrichmentParser:
 
         # Extract adjustments (format: "FEATURE-KEY → 0.95" or "FEATURE-KEY: 0.95")
         adjustment_pattern = r"([A-Z0-9_-]+)\s*(?:→|:)\s*([0-9.]+)"
-        adjustments = re.findall(adjustment_pattern, section, re.IGNORECASE)
+        adjustments = _safe_findall(adjustment_pattern, section, re.IGNORECASE)
 
         for feature_key, confidence_str in adjustments:
             try:
@@ -454,15 +499,17 @@ class EnrichmentParser:
     @require(lambda report: isinstance(report, EnrichmentReport), "Report must be EnrichmentReport")
     def _parse_business_context(self, content: str, report: EnrichmentReport) -> None:
         """Parse business context section from enrichment report."""
+        if _contains_disallowed_control_chars(content):
+            return
         pattern = r"##\s*Business\s+Context\s*\n(.*?)(?=##|\Z)"
-        match = re.search(pattern, content, re.IGNORECASE | re.DOTALL)
+        match = _safe_search(pattern, content, re.IGNORECASE | re.DOTALL)
         if not match:
             return
 
         section = match.group(1)
 
         def _add_list_from_heading(regex: str, category: str) -> None:
-            m = re.search(regex, section, re.IGNORECASE | re.DOTALL)
+            m = _safe_search(regex, section, re.IGNORECASE | re.DOTALL)
             if not m:
                 return
             text = m.group(1)

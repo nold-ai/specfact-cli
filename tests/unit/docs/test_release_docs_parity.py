@@ -135,11 +135,16 @@ def _resolve_site_token_link(source: Path, stripped: str) -> tuple[str | None, s
     if "{{" not in stripped or "site." not in stripped:
         return stripped, None
 
-    match = re.search(r"\{\{\s*site\.([A-Za-z0-9_]+)(?:\s*\|.*?)*\s*\}\}", stripped)
-    if not match:
+    site_token_start = stripped.find("site.")
+    token_end = stripped.find("}}", site_token_start)
+    if site_token_start == -1 or token_end == -1:
         return None, f"{source.relative_to(_repo_root())} -> unresolved site token {stripped}"
 
-    key = match.group(1)
+    token_body = stripped[site_token_start + len("site.") : token_end]
+    key = token_body.split("|", 1)[0].strip()
+    if not re.fullmatch(r"[A-Za-z0-9_]+", key):
+        return None, f"{source.relative_to(_repo_root())} -> unresolved site token {stripped}"
+
     config = _docs_config()
     value = config.get(key)
     if not isinstance(value, str) or not value.strip():
@@ -147,7 +152,7 @@ def _resolve_site_token_link(source: Path, stripped: str) -> tuple[str | None, s
     if key.endswith("_url") and not value.startswith("http"):
         return None, f"{source.relative_to(_repo_root())} -> docs/_config.yml site.{key} must start with http"
 
-    suffix = stripped[match.end() :]
+    suffix = stripped[token_end + 2 :]
     return value.strip() + suffix, None
 
 

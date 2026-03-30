@@ -30,9 +30,18 @@ _COMMON_WORD_TOKENS = frozenset(
 )
 
 
+def _contains_disallowed_control_chars(text: str) -> bool:
+    """Return whether text contains control characters beyond normal whitespace."""
+
+    return any(ord(char) < 32 and char not in "\n\r\t" for char in text)
+
+
 def _code_pattern_match_is_meaningful(pattern: str, acceptance: str) -> bool:
     """Return True if regex matches are not only common English words."""
-    matches = re.findall(pattern, acceptance, re.IGNORECASE)
+    try:
+        matches = re.findall(pattern, acceptance, re.IGNORECASE)
+    except re.error:
+        return False
     if isinstance(matches, list):
         actual = [m for m in matches if isinstance(m, str) and m.lower() not in _COMMON_WORD_TOKENS]
     else:
@@ -61,6 +70,8 @@ def is_simplified_format_criteria(acceptance: str) -> bool:
     Returns:
         True if criteria use the simplified format, False otherwise
     """
+    if _contains_disallowed_control_chars(acceptance):
+        return False
     acceptance_lower = acceptance.lower()
 
     # Pattern: "Must verify ... works correctly (see contract examples)"
@@ -73,7 +84,13 @@ def is_simplified_format_criteria(acceptance: str) -> bool:
         r"check.*works\s+correctly.*\(see\s+contract",
     ]
 
-    return any(re.search(pattern, acceptance_lower) for pattern in simplified_patterns)
+    for pattern in simplified_patterns:
+        try:
+            if re.search(pattern, acceptance_lower):
+                return True
+        except re.error:
+            return False
+    return False
 
 
 @beartype
@@ -97,6 +114,8 @@ def is_code_specific_criteria(acceptance: str) -> bool:
     Returns:
         True if criteria are code-specific, False if vague/generic
     """
+    if _contains_disallowed_control_chars(acceptance):
+        return False
     acceptance_lower = acceptance.lower()
 
     # FIRST: Check for generic placeholders that indicate non-code-specific
@@ -123,8 +142,12 @@ def is_code_specific_criteria(acceptance: str) -> bool:
         r"\bis\s+complete\b",
         r"\bis\s+ready\b",
     ]
-    if any(re.search(pattern, acceptance_lower) for pattern in vague_patterns):
-        return False  # Not code-specific, should be enriched
+    for pattern in vague_patterns:
+        try:
+            if re.search(pattern, acceptance_lower):
+                return False  # Not code-specific, should be enriched
+        except re.error:
+            return False
 
     # THIRD: Check for code-specific indicators
     code_specific_patterns = [
@@ -161,7 +184,11 @@ def is_code_specific_criteria(acceptance: str) -> bool:
     ]
 
     for pattern in code_specific_patterns:
-        if re.search(pattern, acceptance, re.IGNORECASE) and _code_pattern_match_is_meaningful(pattern, acceptance):
+        try:
+            matched = re.search(pattern, acceptance, re.IGNORECASE)
+        except re.error:
+            return False
+        if matched and _code_pattern_match_is_meaningful(pattern, acceptance):
             return True
 
     return False

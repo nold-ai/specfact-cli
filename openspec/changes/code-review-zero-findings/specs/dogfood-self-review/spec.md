@@ -73,6 +73,12 @@ Every public function (non-underscore-prefixed) in `src/specfact_cli/` SHALL hav
 - **THEN** the precondition checks a domain-meaningful invariant (e.g., path exists, non-empty string, valid enum)
 - **AND** the precondition is NOT a trivial `lambda x: x is not None` that merely restates the type
 
+#### Scenario: Utility contract exploration handles pathological strings gracefully
+- **WHEN** CrossHair or unit tests exercise utility helpers with pathological string inputs such as
+  control characters or malformed package names
+- **THEN** the helpers SHALL return a safe fallback value instead of raising unexpected exceptions
+- **AND** `hatch run contract-test` SHALL not report uncaught exceptions for those utility paths
+
 ### Requirement: Complexity budget — no function exceeds CC15
 No function in `src/specfact_cli/`, `scripts/`, or `tools/` SHALL have cyclomatic complexity >=16, as measured by radon.
 

@@ -46,8 +46,8 @@ contact.
   - How do I get started?
 - **DEFINE** a repeatable messaging hierarchy and story framework so future docs/homepage changes do
   not drift back into capability sprawl or topology-first wording.
- - **POSITION** the future enterprise policy-management path clearly enough to strengthen trust and
-   seriousness, without making the product sound enterprise-only today.
+- **POSITION** the future enterprise policy-management path clearly enough to strengthen trust and
+  seriousness, without making the product sound enterprise-only today.
 
 ## Capabilities
 

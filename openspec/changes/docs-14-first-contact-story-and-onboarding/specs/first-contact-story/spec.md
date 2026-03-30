@@ -4,6 +4,7 @@
 
 The repository and documentation entry points SHALL present one canonical product story that answers
 the first-contact questions in a consistent order:
+
 - what SpecFact is
 - why it exists
 - why a user should care
@@ -37,6 +38,7 @@ pressures it addresses.
 
 - **WHEN** a first-time visitor reads the “why” section of the README or core docs landing page
 - **THEN** the page SHALL explain that SpecFact addresses:
+
   - AI-assisted or vibe-coded changes that need stronger validation
   - brownfield systems that need reverse-engineered understanding
   - backlog/spec/code drift that causes “I wanted X but got Y”
@@ -78,3 +80,8 @@ docs landing pages.
   cues
 - **THEN** those cues SHALL reinforce the same core identity as the README hero
 - **AND** they SHALL not emphasize internal topology ahead of user value
+
+Cross-repo traceability note: `modules.specfact.io` and the
+`nold-ai/specfact-cli-modules` `docs/index.md` SHALL either present the same first-contact story or
+provide an explicit handoff to the core docs. See `documentation-alignment/spec.md` for ownership
+and cross-site wording guidance.
