@@ -19,9 +19,13 @@ def bootstrap_local_bundle_sources(anchor_file: str) -> None:
     anchor = Path(anchor_file).resolve()
     candidates: list[Path] = []
 
-    env_repo = os.environ.get("SPECFACT_CLI_MODULES_REPO")
-    if env_repo:
-        candidates.append(Path(env_repo).expanduser().resolve())
+    for env_name in ("SPECFACT_CLI_MODULES_REPO", "SPECFACT_MODULES_REPO"):
+        env_repo = os.environ.get(env_name)
+        if not env_repo:
+            continue
+        candidate = Path(env_repo).expanduser().resolve()
+        if candidate not in candidates:
+            candidates.append(candidate)
 
     for parent in anchor.parents:
         # Primary dev layout: .../nold-ai/specfact-cli-worktrees/... and sibling specfact-cli-modules

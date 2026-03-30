@@ -131,6 +131,13 @@ def test_pr_orchestrator_advisory_jobs_are_named_as_advisory() -> None:
     assert "Advisory" in name
 
 
+def test_pr_orchestrator_contract_first_job_uses_grouped_repro_command() -> None:
+    """Contract-first CI should call the stable grouped repro command path."""
+    raw = PR_ORCHESTRATOR.read_text(encoding="utf-8")
+    assert "hatch run specfact code repro --verbose --crosshair-required --budget 120" in raw
+    assert "hatch run specfact repro --verbose --crosshair-required --budget 120" not in raw
+
+
 def test_module_signature_check_name_is_canonical_across_workflows() -> None:
     """Orchestrator and dedicated signature workflows should emit the same required check name."""
     orchestrator_jobs = _load_jobs()
