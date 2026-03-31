@@ -10,6 +10,25 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.44.0] - 2026-03-31
+
+### Added
+
+- **Clean-code principle gates** (`clean-code-01-principle-gates`):
+  - `.cursor/rules/clean-code-principles.mdc` restructured as a canonical alias for the
+    7-principle clean-code charter (`naming`, `kiss`, `yagni`, `dry`, `solid`) defined in
+    `nold-ai/specfact-cli-modules` (`skills/specfact-code-review/SKILL.md`).
+  - Phase A KISS metric thresholds documented: LOC > 80 warning / > 120 error per function;
+    nesting-depth and parameter-count checks active. Phase B (> 40 / > 80) explicitly deferred.
+  - `AGENTS.md` and `CLAUDE.md` extended with a **Clean-Code Review Gate** section listing
+    the 5 expanded review categories and the Phase A thresholds that gate every PR.
+  - `.github/copilot-instructions.md` created as a lightweight alias surface that references
+    the canonical charter without duplicating it inline.
+  - Unit tests: `tests/unit/specfact_cli/test_clean_code_principle_gates.py` covering all
+    three spec scenarios (charter references, compliance gate, LOC/nesting check).
+
+---
+
 ## [0.43.3] - 2026-03-30
 
 ### Fixed

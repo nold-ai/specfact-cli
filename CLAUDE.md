@@ -157,6 +157,26 @@ Run all steps in order before committing. Every step must pass with no errors.
 5. `hatch run contract-test`         # contract-first validation
 6. `hatch run smart-test`            # targeted test run (use `smart-test-full` for larger modifications)
 
+### Clean-Code Review Gate
+
+specfact-cli enforces the 7-principle clean-code charter through the `specfact code review run` gate. The canonical charter lives in `skills/specfact-code-review/SKILL.md` (in `nold-ai/specfact-cli-modules`). This repo consumes the expanded clean-code categories from that review module:
+
+| Category | Principle covered |
+|----------|-------------------|
+| `naming` | Meaningful naming, exception-pattern rules |
+| `kiss` | Keep It Simple: LOC, nesting-depth, parameter-count (Phase A: >80 warning / >120 error) |
+| `yagni` | You Aren't Gonna Need It: unused-abstraction detection |
+| `dry` | Don't Repeat Yourself: clone-detection and duplication checks |
+| `solid` | SOLID principles: dependency-role and single-responsibility checks |
+
+Zero regressions in any of these categories are required before merge. Run the review gate with:
+
+```bash
+hatch run specfact code review run --json --out .specfact/code-review.json
+```
+
+**Phase A thresholds are active.** Phase B thresholds (>40 / >80 LOC) are deferred to a later cleanup change and are not yet enforced.
+
 ### OpenSpec Workflow
 
 Before modifying application code, **always** verify that an active OpenSpec change in `openspec/changes/` **explicitly covers the requested modification**. This is the spec-driven workflow defined in `openspec/config.yaml`. Skip only when the user explicitly says `"skip openspec"` or `"implement without openspec change"`.

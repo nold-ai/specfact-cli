@@ -1,148 +1,106 @@
 ---
-description: Enforce clean-code principles and enforcements across the repository.
+description: Enforce the 7-principle clean-code charter across the repository.
 globs:
 alwaysApply: true
 ---
-# Rule: Clean Code Principles and Enforcements
+# Rule: Clean-Code Principles and Review Gate
 
-Description:
-This rule enforces concrete clean-code practices across the repository. It complements existing high-level rules (TDD, linting, formatting, coverage) by adding behavioral and API-consistency checks, with deterministic commands and examples.
+## Charter source of truth
 
-Why:
+The canonical 7-principle clean-code charter lives in:
+- **Policy-pack**: `specfact/clean-code-principles` (shipped by `specfact-cli-modules`)
+- **Skill file**: `skills/specfact-code-review/SKILL.md` in `nold-ai/specfact-cli-modules`
 
-- Reduce cognitive load and debugging time by standardizing error handling, return types, logging, and small, single-purpose functions.
-- Make automated checks (pre-commit/CI) able to catch non-style problems (bare-excepts, prints, mixed return semantics, state-machine/config mismatches).
+This file is an **alias surface** for the specfact-cli repository. It maps each
+principle to its review category and records the Phase A gate thresholds so that
+contributors, reviewers, and AI coding agents operate from the same reference
+without duplicating the full charter text.
 
-Scope:
-Applies to all python files under src/ and tests/ and any state-machine generation artifacts.
+## The 7 clean-code principles
 
-Enforcement checklist (machine-checkable where possible):
+| # | Principle | Review category |
+|---|-----------|-----------------|
+| 1 | **Meaningful Naming** — identifiers reveal intent; avoid abbreviations | `naming` |
+| 2 | **KISS** — keep functions and modules small and single-purpose | `kiss` |
+| 3 | **YAGNI** — do not add functionality until it is needed | `yagni` |
+| 4 | **DRY** — single source of truth; eliminate copy-paste duplication | `dry` |
+| 5 | **SOLID** — single responsibility, open/closed, Liskov, interface segregation, dependency inversion | `solid` |
+| 6 | **Small, focused functions** — each function does exactly one thing (subsumed by KISS metrics) | `kiss` |
+| 7 | **Self-documenting code** — prefer expressive code over inline comments; comments explain *why* not *what* | `naming` |
 
-1. No bare except or broad except Exception without re-raising or logging full context
-   - Rationale: Broad excepts hide real failures.
-   - Check: run pylint with a custom plugin or flake8 rule to detect "except:" or "except Exception:" that either:
-     - swallow the exception without re-raising, or
-     - do not call logger.exception(...) (stack trace).
-   - Command (CI): flake8 --select E722,B001 (or custom check)
-   - Example (bad):
-     try:
-         ...
-     except Exception:
-         pass
-   - Example (good):
-     except SpecificError as e:
-         logger.error("...: %s", e)
-         raise
+## Active gate: Phase A KISS metrics
 
-2. No direct print() calls in library modules
-   - Rationale: Use LoggerSetup for structured logs and session IDs.
-   - Check: grep for "print(" in src/ and tests/ (fail in src/)
-   - Command (CI): git grep -n -- '^\s*print\(' -- src/ && fail
-   - Fix: Replace print with LoggerSetup.get_logger(...) or setup_logger(...)
+The following thresholds are **enforced** through the `specfact code review run`
+gate and the pre-commit hook (`scripts/pre_commit_code_review.py`):
 
-3. Enforce consistent return types (avoid implicit None/False mixing)
-   - Rationale: Functions exposed as API should have typed, predictable returns.
-   - Rules:
-     - Publishing/IO methods must return bool (True/False), not None. If underlying library returned int, normalize.
-     - connect() should return bool only.
-   - Check: static analysis rule or unit test that asserts function annotations and runtime contract on a selection of public functions (RedisClient.publish/connect, MessagingStandardization.*)
-   - Example (good):
-     def publish(...) -> bool: ...
-     return True/False
+| Metric | Warning | Error |
+|--------|---------|-------|
+| Lines of code per function (LOC) | > 80 | > 120 |
+| Nesting depth | configurable (phase A) | configurable (phase A) |
+| Parameter count | configurable (phase A) | configurable (phase A) |
 
-4. Prefer specific exceptions & re-raise after logging
-   - Rationale: Keep failure semantics explicit for callers and tests.
-   - Rule: Do not swallow exceptions. If a function handles and cannot continue, raise a domain-specific exception or re-raise.
+Nesting-depth and parameter-count checks are **active** in Phase A.
 
-5. Limit line / function complexity
-   - Rationale: Keep functions short and single-responsibility.
-   - Rules:
-     - Maximum function length: 120 lines (configurable)
-     - Maximum cyclomatic complexity: 12
-   - Check: use radon cc --total-average and flake8-ext or pylint thresholds
-   - Command (CI): radon cc -nc -s src/ && fail if any > 12
+### Phase B (deferred)
 
-6. Use centralized logging, never ad-hoc formatting
-   - Rationale: Keep consistent format and redaction.
-   - Rules:
-     - Use LoggerSetup.get_logger or setup_logger to obtain logger.
-     - No module-level printing of messages; message flow logs should go via agent_flow logger.
-   - Check: grep for 'logging.getLogger(' and verify consistent usage, grep for 'print(' (see rule 2).
+Phase B thresholds (`> 40` warning / `> 80` error for LOC) are planned for a
+future cleanup change once the initial Phase A remediation is complete.
+**Phase B is not yet a hard gate.** Do not silently promote Phase B thresholds
+when configuring or extending the review gate.
 
-7. Avoid filesystem operations with overly permissive modes
-   - Rationale: 0o777 should not be used by default.
-   - Rule: mkdir/os.makedirs must not be invoked with mode=0o777. Use 0o755 or use environment-controlled mode.
-   - Check: grep for '0o777' and require explicit justification in code comments; CI should flag occurrences.
+## Review categories consumed by this repo
 
-8. State machine / YAML consistency check
-   - Rationale: Generated state machines must match canonical YAML config.
-   - Rule: Add a unit/regression test that:
-     - reloads src/common/*.py generated state machine enums and compares state names and transitions to autodev_config.yaml and productplan_config.yaml
-     - fails the build if mismatch or case differences are present
-   - Check: add tests/unit/test_state_machine_config_sync.py
-   - Command (CI): hatch test tests/unit/test_state_machine_config_sync.py
+When `specfact code review run` executes against this codebase the following
+clean-code categories from the expanded review module are included:
 
-9. No side-effects at import time
-   - Rationale: Module imports should be safe and predictable for tests and tools.
-   - Rule: Avoid heavy I/O or network calls on import. get_runtime_logs_dir may create directories — allowed only if idempotent and documented; avoid network calls or spawn threads.
-   - Check: grep for network or redis connection calls at module-level (e.g., RedisSDK(...)).
+- `naming` — semgrep naming and exception-pattern rules
+- `kiss` — radon LOC/nesting/parameter findings under Phase A thresholds
+- `yagni` — AST-based unused-abstraction detection
+- `dry` — AST clone-detection and duplication findings
+- `solid` — AST dependency-role and single-responsibility checks
 
-10. Async / signal safety
-    - Rationale: Signal handlers must not call non-signal-safe operations.
-    - Rule: Signal handlers may only set a flag or call a thread-safe routine; do not call asyncio.create_task directly from a POSIX signal handler.
-    - Check: grep for "signal.signal(" and assert handler functions only set flags or use loop.call_soon_threadsafe.
-    - Suggested fix: replace create_task calls in handler with loop.call_soon_threadsafe(lambda: asyncio.create_task(...))
+Zero regressions in these categories are required before a PR is merge-ready.
 
-11. Secure secret redaction guaranteed
-    - Rationale: Sensitive keys must be masked in logs.
-    - Rule: LoggerSetup.redact_secrets must be covered by unit tests for nested dicts and strings.
-    - Check: add tests/unit/test_logger_redaction.py
+## Per-principle enforcement notes
 
-12. Messaging coercion & strict validation
-    - Rationale: Legacy message coercion is useful but must be exercised and tested.
-    - Rule: Any place that uses coercion (MessagingStandardization.process_standardized_message) must have tests that validate coercion success/failure and metrics increments.
-    - Check: add unit tests that assert contextschema_coercion_success/failed metrics behave as expected.
+### Naming (`naming`)
 
-13. Enforce pre-commit & CI gating
-    - Add pre-commit config that runs: black, isort, mypy, flake8 (with B/C plugins), radon, tests for state machine sync.
-    - CI job must fail on:
-      - lint failures
-      - radon/cyclomatic complexity
-      - state-machine config mismatch test
-      - flake8 error codes for prints and bare excepts
+- Identifiers in `src/` must use `snake_case` (modules/functions), `PascalCase` (classes), `UPPER_SNAKE_CASE` (constants).
+- Avoid single-letter names outside short loop variables.
+- Exception patterns must not use broad `except Exception` without re-raising or logging.
 
-14. Documentation/commit habits
-    - Rule: Any code change that modifies public API, state machine YAMLs, or generated state machine outputs MUST:
-      - include/modify a unit test covering new behavior
-      - update docs/ and CHANGELOG.md
-      - include 'BREAKING' section in PR if public API changed
-    - Check: CI script that rejects PRs lacking test files changed when src/ is modified (heuristic).
+### KISS (`kiss`)
 
-Implementation guidance (how to add tests / checks quickly)
+- Maximum function length: **120 lines** (Phase A error threshold).
+- Maximum cyclomatic complexity: **12** (radon `cc` threshold; `>= 16` is error band).
+- Phase A LOC warning at > 80, error at > 120.
 
-- Add a lightweight pytest module for state-machine YAML<->enum sync (example included in docs).
-- Add flake8 plugin rules or configure pylint to error on 'print' and bare excepts; enable in CI config.
-- Add radon complexity check step to pipeline; fail if thresholds exceeded.
-- Add a small assertion test for RedisClient.publish return normalization.
+### YAGNI (`yagni`)
 
-Mapping to existing rules (what to augment)
+- Do not add configuration options, flags, or extension points until a concrete use-case drives them.
+- Remove dead code paths rather than commenting them out.
 
-- docs/rules/python-github-rules.md: Add explicit "no-bare-except" and "no-print" items and function complexity thresholds.
-- docs/rules/spec-fact-cli-rules.md: Add "state-machine YAML / generated code sync check" and "normalize public API return types".
-- docs/rules/testing-and-build-guide.md: Add specific test files to run (state-machine sync test, logger redaction tests) and mention radon/complexity checks.
-- .cursor/rules/testing-and-build-guide.mdc and .cursor/rules/python-github-rules.mdc: include exact CLI commands and required test files (see enforcement checklist).
+### DRY (`dry`)
 
-Developer notes (priorities)
+- Do not copy-paste logic; extract to a shared function or module.
+- Single source of truth for schemas (Pydantic `BaseModel`), constants (`UPPER_SNAKE_CASE`), and templates (`resources/templates/`).
 
-1. Add the state-machine sync unit test (high value, low effort).
-2. Add flake8/pylint rule to detect print/bare-except (medium effort).
-3. Normalize RedisClient.publish/connect return values & add tests (low-to-medium effort).
-4. Add radon step to CI and fix top offenders iteratively (ongoing).
-5. Replace print() in AutoDevStateMachine.log with LoggerSetup.get_logger (small change, run tests).
+### SOLID (`solid`)
 
----
+- Each module/class has a single clearly named responsibility.
+- Extend via dependency injection (adapters pattern) rather than modifying existing classes.
+- Use `@icontract` (`@require`/`@ensure`) and `@beartype` on all public APIs.
 
-Changelog / Expected follow-up
+## Additional behavioral rules (complement SOLID/KISS)
 
-- After adding these rules, update CI to run the new checks and add sample unit tests that fail on violations.
-- Run hatch test and the new linters locally; fix top offenders in an iterative PR with small, focused commits.
+- No `print()` calls in `src/` — use `from specfact_cli.common import get_bridge_logger`.
+- No side-effects at import time (no network calls, no file I/O on module load).
+- Signal handlers must only set a flag or use `loop.call_soon_threadsafe`.
+- Filesystem modes must not use `0o777`; use `0o755` or environment-controlled mode.
+- Secret redaction via `LoggerSetup.redact_secrets` must be covered by unit tests.
+
+## Pre-commit and CI enforcement
+
+The `specfact-code-review-gate` pre-commit hook and the `hatch run specfact code
+review run --json --out .specfact/code-review.json` command both enforce these
+principles. Run the review before submitting a PR and resolve every finding.
