@@ -32,6 +32,7 @@ the 7-principle charter categories, Phase A thresholds, or Phase B deferral.
 
 ## Implementation
 
+```text
 Files changed:
 
 1. `.cursor/rules/clean-code-principles.mdc` — rewrote as an alias surface referencing
@@ -46,6 +47,7 @@ Files changed:
 
 4. `.github/copilot-instructions.md` — created as a lightweight alias (≤ 30 lines)
    referencing the canonical charter without duplicating it.
+```
 
 ## Green phase — passing tests after implementation
 

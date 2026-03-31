@@ -35,7 +35,7 @@ gate and the pre-commit hook (`scripts/pre_commit_code_review.py`):
 
 | Metric | Warning | Error |
 |--------|---------|-------|
-| Lines of code per function (LOC) | > 80 | > 120 |
+| Lines of code per function (LOC) | > 80 (warning) | > 120 (error) |
 | Nesting depth | configurable (phase A) | configurable (phase A) |
 | Parameter count | configurable (phase A) | configurable (phase A) |
 
@@ -94,6 +94,9 @@ Zero regressions in these categories are required before a PR is merge-ready.
 ## Additional behavioral rules (complement SOLID/KISS)
 
 - No `print()` calls in `src/` — use `from specfact_cli.common import get_bridge_logger`.
+  *(Note: T20 is currently ignored in pyproject.toml and not enforced by the review gate; this is aspirational.)*
+- No broad `except Exception` without re-raising or logging.
+  *(Note: W0718 is disabled in .pylintrc; broad-exception checks are aspirational.)*
 - No side-effects at import time (no network calls, no file I/O on module load).
 - Signal handlers must only set a flag or use `loop.call_soon_threadsafe`.
 - Filesystem modes must not use `0o777`; use `0o755` or environment-controlled mode.

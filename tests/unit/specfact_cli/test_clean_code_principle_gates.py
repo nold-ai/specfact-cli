@@ -54,8 +54,8 @@ def test_claude_md_references_clean_code_categories() -> None:
 def test_clean_code_mdc_references_seven_principles() -> None:
     """clean-code-principles.mdc must reference all 7 principles by canonical name."""
     text = CLEAN_CODE_MDC.read_text(encoding="utf-8")
-    # 5 review categories
-    for category in ("naming", "kiss", "yagni", "dry", "solid"):
+    # 7 canonical principles
+    for category in ("naming", "kiss", "yagni", "dry", "solid", "small", "self"):
         assert category in text.lower(), (
             f".cursor/rules/clean-code-principles.mdc missing principle: {category!r}. "
             "Update this file to reference the canonical 7-principle charter."
@@ -138,9 +138,9 @@ def test_clean_code_mdc_documents_phase_a_loc_thresholds() -> None:
     """clean-code-principles.mdc must document the Phase A LOC thresholds
     (>80 warning, >120 error) so reviewers and tools know the active limits."""
     text = CLEAN_CODE_MDC.read_text(encoding="utf-8")
-    assert "80" in text and "120" in text, (
+    assert "> 80 (warning)" in text and "> 120 (error)" in text, (
         ".cursor/rules/clean-code-principles.mdc must document Phase A LOC thresholds: "
-        ">80 (warning) and >120 (error). These are the active KISS metric limits."
+        "'> 80 (warning)' and '> 120 (error)'. These are the active KISS metric limits."
     )
 
 

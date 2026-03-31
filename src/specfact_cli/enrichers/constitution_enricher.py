@@ -145,7 +145,7 @@ class ConstitutionEnricher:
                         # Simple dependency name without version constraints
                         result["technology_stack"].append(dep)
 
-        except Exception:
+        except (OSError, UnicodeDecodeError, ValueError):
             pass  # If parsing fails, return empty result
 
         return result
@@ -190,7 +190,7 @@ class ConstitutionEnricher:
                 else:
                     result["technology_stack"].append(dep)
 
-        except Exception:
+        except (OSError, UnicodeDecodeError, ValueError):
             pass
 
         return result
@@ -235,7 +235,7 @@ class ConstitutionEnricher:
                 users = [u.strip() for u in re.split(r"[,;]", users_text)]
                 result["target_users"] = users[:5]
 
-        except Exception:
+        except (OSError, UnicodeDecodeError, ValueError):
             pass
 
         return result
@@ -265,7 +265,7 @@ class ConstitutionEnricher:
                     # Extract principles from headings and key sections
                     extracted = self._extract_principles_from_markdown(content, rule_file)
                     principles.extend(extracted)
-                except Exception:
+                except (OSError, UnicodeDecodeError, ValueError):
                     pass
 
         return principles
@@ -293,7 +293,7 @@ class ConstitutionEnricher:
                     # Extract quality standards
                     extracted = self._extract_quality_standards(content)
                     standards.extend(extracted)
-                except Exception:
+                except (OSError, UnicodeDecodeError, ValueError):
                     pass
 
         return standards

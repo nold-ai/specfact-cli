@@ -208,7 +208,7 @@ def _detect_python_framework(repo_path: Path, context: ProjectContext) -> None:
                 context.framework = "flask"
             elif "fastapi" in content:
                 context.framework = "fastapi"
-        except Exception:
+        except (OSError, UnicodeDecodeError):
             pass
 
 
@@ -225,7 +225,7 @@ def _detect_js_framework(repo_path: Path, context: ProjectContext) -> None:
             context.framework = "react"
         elif "vue" in deps:
             context.framework = "vue"
-    except Exception:
+    except (OSError, json.JSONDecodeError):
         pass
 
 

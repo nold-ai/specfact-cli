@@ -426,11 +426,11 @@ class LoggerSetup:
             log_file_path = os.path.join(logs_dir, log_file)
 
         log_file_dir = os.path.dirname(log_file_path)
-        os.makedirs(log_file_dir, mode=0o777, exist_ok=True)
+        os.makedirs(log_file_dir, mode=0o755, exist_ok=True)
         try:
             with open(log_file_path, "a", encoding="utf-8"):
                 pass
-        except Exception:
+        except OSError:
             pass
 
         try:

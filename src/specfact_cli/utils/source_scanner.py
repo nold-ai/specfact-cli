@@ -512,7 +512,7 @@ class SourceArtifactScanner:
                 source_tracking = SourceTracking()
                 source_tracking.update_hash(file_path)
                 file_hashes_cache[rel_path] = source_tracking.file_hashes.get(rel_path, "")
-            except Exception:
+            except (OSError, ValueError):
                 pass
 
     def _index_test_file_for_link_cache(
@@ -552,7 +552,7 @@ class SourceArtifactScanner:
                 source_tracking = SourceTracking()
                 source_tracking.update_hash(file_path)
                 file_hashes_cache[rel_path] = source_tracking.file_hashes.get(rel_path, "")
-            except Exception:
+            except (OSError, ValueError):
                 pass
 
     def _run_parallel_feature_linking(

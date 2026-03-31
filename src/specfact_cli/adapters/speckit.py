@@ -426,7 +426,7 @@ class SpecKitAdapter(BridgeAdapter):
                 )
                 if title_match:
                     feature_title = title_match.group(1).strip()
-            except Exception:
+            except (OSError, UnicodeDecodeError):
                 pass
         if not feature_title or feature_title.strip() == "":
             return "Unknown Feature"

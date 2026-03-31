@@ -772,7 +772,7 @@ class AmbiguityScanner:
                     continue
                 if user_clean and len(user_clean) > 2 and user_lower not in excluded and len(user_clean.split()) <= 3:
                     result.add(user_clean.title())
-        except Exception:
+        except (OSError, UnicodeDecodeError, re.error):
             pass
         return result
 
@@ -898,9 +898,9 @@ class AmbiguityScanner:
                         continue
                     try:
                         self._personas_from_py_file(py_file, result, excluded)
-                    except Exception:
+                    except (OSError, UnicodeDecodeError, re.error):
                         continue
-        except Exception:
+        except (OSError, UnicodeDecodeError, re.error):
             pass
         return result
 
