@@ -41,7 +41,7 @@ def _get_category_grouping_enabled() -> bool:
                 return val
             if isinstance(val, str):
                 return val.strip().lower() in ("1", "true", "yes")
-    except Exception:
+    except (OSError, ValueError):
         pass
     return True
 

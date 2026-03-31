@@ -7,39 +7,22 @@ TBD - created by archiving change add-generic-backlog-abstraction. Update Purpos
 
 The system SHALL provide a standard `BacklogAdapter` interface that all backlog sources (GitHub, ADO, JIRA, GitLab, etc.) must implement.
 
-#### Scenario: Case-insensitive filter matching
+#### Scenario: Selective proposal import preserves provider-native payload
 
-- **GIVEN** filters for state or assignee
-- **WHEN** an adapter applies those filters
-- **THEN** comparisons are case-insensitive and whitespace-normalized
-- **AND** the adapter does not drop items due to case differences.
+- **GIVEN** an adapter supports selective backlog import by explicit item reference
+- **WHEN** bridge sync fetches one item through `fetch_backlog_item()` and passes the result into proposal import
+- **THEN** the fetched artifact preserves the provider-native fields required by `extract_change_proposal_data()` or `import_artifact()`
+- **AND** adapter-specific convenience fields may be added without discarding the native structure
+- **AND** contract tests cover the `fetch_backlog_item()` to `import_artifact()` round trip for supported adapters
 
-#### Scenario: Adapter-specific assignee normalization
+#### Scenario: Imported proposal IDs normalize title-first across adapters
 
-- **GIVEN** an ADO work item with `System.AssignedTo` values (displayName, uniqueName, or mail)
-- **WHEN** a user filters by assignee
-- **THEN** the adapter matches against any of those identity fields (case-insensitive).
-
-- **GIVEN** a GitHub issue with assignee login
-- **WHEN** a user filters by assignee with or without leading `@`
-- **THEN** the adapter matches login and display name when available (case-insensitive) and falls back to login-only.
-
-#### Scenario: Sprint disambiguation for ADO
-
-- **GIVEN** multiple iteration paths that contain the same sprint name
-- **WHEN** a user filters with a name-only `--sprint`
-- **THEN** the adapter reports ambiguity and prompts for a full iteration path
-- **AND** does not default to the earliest matching sprint.
-
-#### Scenario: Default to current iteration for ADO when sprint omitted
-
-- **GIVEN** an ADO adapter with org/project/team context
-- **WHEN** `--sprint` is not provided
-- **THEN** the adapter resolves the current active iteration via the team iterations API
-- **AND** uses the `$timeframe=current` query for the team iterations endpoint
-- **AND** uses that iteration path for filtering when available.
-- **AND** the team is taken from `--ado-team` when provided, otherwise defaults to the project team name.
-- **AND** the team iterations endpoint format follows `/{org}/{project}/{team}/_apis/work/teamsettings/iterations?$timeframe=current`.
+- **GIVEN** an imported backlog artifact has no embedded OpenSpec change ID metadata
+- **AND** the source artifact has a usable human-readable title
+- **WHEN** the adapter or shared backlog import path constructs the proposal change ID
+- **THEN** the change ID is derived from a normalized title slug
+- **AND** a numeric provider ID is used only as source tracking metadata or as a deterministic suffix when needed for uniqueness
+- **AND** the system does not default to a numeric-only change name while a usable title is available
 
 ### Requirement: Adapter Extensibility
 

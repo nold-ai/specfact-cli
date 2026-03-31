@@ -240,7 +240,7 @@ class ContractExtractor:
         if hasattr(ast, "unparse"):
             try:
                 return ast.unparse(node)
-            except Exception:
+            except (ValueError, TypeError):
                 pass
 
         # Fallback: manual conversion
@@ -282,7 +282,7 @@ class ContractExtractor:
         if hasattr(ast, "unparse"):
             try:
                 return ast.unparse(node)
-            except Exception:
+            except (ValueError, TypeError):
                 pass
 
         return "..."
@@ -295,7 +295,7 @@ class ContractExtractor:
         if hasattr(ast, "unparse"):
             try:
                 return ast.unparse(node)
-            except Exception:
+            except (ValueError, TypeError):
                 pass
 
         # Fallback: basic conversion

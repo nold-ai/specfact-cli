@@ -220,7 +220,7 @@ class SpecToCodeSync:
                     data = cast(dict[str, Any], _tomli.load(f))
                     if "project" in data and "dependencies" in data["project"]:
                         dependencies.extend(data["project"]["dependencies"])
-            except Exception:
+            except (ImportError, OSError, ValueError):
                 pass  # Ignore parsing errors
 
         return dependencies

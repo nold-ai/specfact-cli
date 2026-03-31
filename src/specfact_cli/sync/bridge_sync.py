@@ -67,7 +67,7 @@ def _code_repo_from_cwd(repo_name: str) -> Path | None:
         )
         if result.returncode == 0 and repo_name in result.stdout:
             return cwd
-    except Exception:
+    except (OSError, ValueError):
         pass
     return None
 
@@ -79,7 +79,7 @@ def _code_repo_from_parent(repo_name: str) -> Path | None:
         repo_path = cwd.parent / repo_name
         if repo_path.exists() and (repo_path / ".git").exists():
             return repo_path
-    except Exception:
+    except (OSError, ValueError):
         pass
     return None
 
@@ -94,7 +94,7 @@ def _code_repo_from_grandparent_siblings(repo_name: str) -> Path | None:
         for sibling in grandparent.iterdir():
             if sibling.is_dir() and sibling.name == repo_name and (sibling / ".git").exists():
                 return sibling
-    except Exception:
+    except (OSError, ValueError):
         pass
     return None
 
@@ -1498,7 +1498,7 @@ class BridgeSync:
             parsed_hostname: str | None = cast(str | None, parsed.hostname)
             if parsed_hostname and parsed_hostname.lower() == "dev.azure.com":
                 pass
-        except Exception:
+        except ValueError:
             pass
 
     def _collect_source_tracking_entries_from_proposal_text(self, proposal_content: str) -> list[dict[str, Any]]:

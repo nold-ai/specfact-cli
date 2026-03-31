@@ -742,25 +742,6 @@ def _check_protocol_compliance(module_class: Any) -> list[str]:
     return operations
 
 
-@beartype
-@require(lambda package_name: cast(str, package_name).strip() != "", "Package name must not be empty")
-@ensure(lambda result: result is not None, "Protocol inspection target must be resolved")
-def _resolve_protocol_target(module_obj: Any, package_name: str) -> Any:
-    """Resolve runtime interface used for protocol inspection."""
-    runtime_interface = getattr(module_obj, "runtime_interface", None)
-    if runtime_interface is not None:
-        return runtime_interface
-    commands_interface = getattr(module_obj, "commands", None)
-    if commands_interface is not None:
-        return commands_interface
-    # Module app entrypoints often only expose `app`; load module-local commands for protocol detection.
-    try:
-        return importlib.import_module(f"specfact_cli.modules.{package_name}.src.commands")
-    except Exception:
-        pass
-    return module_obj
-
-
 def _resolve_protocol_source_paths(
     package_dir: Path,
     package_name: str,

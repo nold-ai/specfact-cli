@@ -67,6 +67,12 @@ Only changes that are **archived**, shown as **✓ Complete** by `openspec list`
 
 Entries in the tables below are pending unless explicitly marked as implemented (archived).
 
+## Clean-code enforcement
+
+| Module | Order | Change folder | GitHub # | Blocked by |
+|--------|-------|---------------|----------|------------|
+| clean-code | 01 | clean-code-01-principle-gates | [#434](https://github.com/nold-ai/specfact-cli/issues/434) | code-review-zero-findings ✅; clean-code-02-expanded-review-module (modules repo) ✅ |
+
 ## Dogfooding
 
 | Module | Order | Change folder | GitHub # | Blocked by |

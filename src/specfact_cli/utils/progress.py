@@ -45,7 +45,7 @@ def _safe_progress_display(display_console: Console) -> bool:
         # Rich stores active Live displays in Console._live
         if hasattr(display_console, "_live") and display_console._live is not None:
             return False
-    except Exception:
+    except AttributeError:
         pass
 
     return True
@@ -149,7 +149,7 @@ def load_bundle_with_progress(
                 # Brief pause to show completion
                 time.sleep(0.1)
             return bundle
-        except Exception:
+        except (RuntimeError, OSError):
             # If Progress creation fails (e.g., LiveError), fall back to direct load
             pass
 
@@ -222,7 +222,7 @@ def save_bundle_with_progress(
                 # Brief pause to show completion
                 time.sleep(0.1)
             return
-        except Exception:
+        except (RuntimeError, OSError):
             # If Progress creation fails (e.g., LiveError), fall back to direct save
             pass
 
