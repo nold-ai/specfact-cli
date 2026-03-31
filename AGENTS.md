@@ -205,6 +205,26 @@ hatch run specfact code review run --json --out .specfact/code-review.json
 
 - OpenSpec change **`tasks.md`** should include explicit tasks for generating/updating this file and clearing findings (see `openspec/config.yaml` → `rules.tasks` → “SpecFact code review JSON”). Agent runs should treat those tasks and this section as the same bar.
 
+### Clean-Code Review Gate
+
+specfact-cli enforces the 7-principle clean-code charter through the `specfact code review run` gate. The canonical charter lives in `skills/specfact-code-review/SKILL.md` (in `nold-ai/specfact-cli-modules`). This repo consumes the expanded clean-code categories from that review module:
+
+| Category | Principle covered |
+|----------|-------------------|
+| `naming` | Meaningful naming, exception-pattern rules |
+| `kiss` | Keep It Simple: LOC, nesting-depth, parameter-count (Phase A: >80 warning / >120 error) |
+| `yagni` | You Aren't Gonna Need It: unused-abstraction detection |
+| `dry` | Don't Repeat Yourself: clone-detection and duplication checks |
+| `solid` | SOLID principles: dependency-role and single-responsibility checks |
+
+Zero regressions in any of these categories are required before merge. Run the review gate with:
+
+```bash
+hatch run specfact code review run --json --out .specfact/code-review.json
+```
+
+**Phase A thresholds are active.** Phase B thresholds (>40 / >80 LOC) are deferred to a later cleanup change and are not yet enforced.
+
 ### Module Signature Gate (Required for Change Finalization)
 
 Before PR creation, every change MUST pass bundled module signature verification:

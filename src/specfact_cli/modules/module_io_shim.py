@@ -17,10 +17,6 @@ def _import_source_exists(source: Path) -> bool:
     return source.exists()
 
 
-def _export_target_exists(target: Path) -> bool:
-    return target.exists()
-
-
 def _external_source_nonempty(external_source: str) -> bool:
     return len(external_source.strip()) > 0
 

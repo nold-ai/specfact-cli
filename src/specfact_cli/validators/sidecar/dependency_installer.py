@@ -55,7 +55,7 @@ def create_sidecar_venv(venv_path: Path, repo_path: Path) -> bool:
                     if result.returncode == 0:
                         # Venv exists and works, skip recreation
                         return True
-                except Exception:
+                except (OSError, subprocess.SubprocessError):
                     # Venv exists but Python can't run (e.g., libpython issue)
                     # Delete and recreate
                     pass

@@ -242,7 +242,7 @@ class PersonaExporter:
                 protocol_data = load_structured_file(protocol_file)
                 protocol_name = protocol_file.stem.replace(".protocol", "")
                 protocols[protocol_name] = protocol_data
-            except Exception:
+            except (OSError, ValueError):
                 pass
         return protocols
 
@@ -267,7 +267,7 @@ class PersonaExporter:
                 contract_data = load_structured_file(contract_file)
                 contract_name = contract_file.stem.replace(".openapi", "").replace(".asyncapi", "")
                 contracts[contract_name] = contract_data
-            except Exception:
+            except (OSError, ValueError):
                 pass
         return contracts
 

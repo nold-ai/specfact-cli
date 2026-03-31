@@ -51,7 +51,7 @@ def _should_use_progress(console: Console) -> bool:
     try:
         if hasattr(console, "_live") and console._live is not None:
             return False
-    except Exception:
+    except AttributeError:
         pass
     return True
 

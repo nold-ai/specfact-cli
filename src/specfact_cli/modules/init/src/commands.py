@@ -13,7 +13,6 @@ from icontract import ensure, require
 from rich.console import Console
 from rich.panel import Panel
 from rich.rule import Rule
-from rich.table import Table
 
 from specfact_cli import __version__
 from specfact_cli.contracts.module_interface import ModuleIOContract
@@ -222,21 +221,6 @@ def _questionary_style() -> Any:
     )
 
 
-def _render_modules_table(modules_list: list[dict[str, Any]]) -> None:
-    """Render discovered modules with effective enabled/disabled state."""
-    table = Table(title="Installed Modules")
-    table.add_column("Module", style="cyan")
-    table.add_column("Version", style="magenta")
-    table.add_column("State", style="green")
-    for module in modules_list:
-        module_id = str(module.get("id", ""))
-        version = str(module.get("version", ""))
-        enabled = bool(module.get("enabled", True))
-        state = "enabled" if enabled else "disabled"
-        table.add_row(module_id, version, state)
-    console.print(table)
-
-
 def _module_checkbox_rows(candidates: list[dict[str, Any]]) -> tuple[dict[str, str], list[str]]:
     display_to_id: dict[str, str] = {}
     choices: list[str] = []
@@ -272,40 +256,6 @@ def _run_module_checkbox_prompt(
     if not selected:
         return []
     return [display_to_id[s] for s in selected if s in display_to_id]
-
-
-def _select_module_ids_interactive(action: str, modules_list: list[dict[str, Any]]) -> list[str]:
-    """Select one or more module IDs interactively via arrow-key checkbox menu."""
-    try:
-        import questionary  # type: ignore[reportMissingImports]
-    except ImportError as e:
-        console.print(
-            "[red]Interactive module selection requires 'questionary'. Install with: pip install questionary[/red]"
-        )
-        raise typer.Exit(1) from e
-
-    target_enabled = action == "disable"
-    candidates = [m for m in modules_list if bool(m.get("enabled", True)) is target_enabled]
-    if not candidates:
-        console.print(f"[yellow]No modules available to {action}.[/yellow]")
-        return []
-
-    action_title = "Enable" if action == "enable" else "Disable"
-    current_state = "disabled" if action == "enable" else "enabled"
-    console.print()
-    console.print(
-        Panel(
-            f"[bold cyan]{action_title} Modules[/bold cyan]\n"
-            f"Choose one or more currently [bold]{current_state}[/bold] modules.",
-            border_style="cyan",
-        )
-    )
-    console.print(
-        "[dim]Controls: ↑↓ navigate • Space toggle • Enter confirm • Type to search/filter • Ctrl+C cancel[/dim]"
-    )
-
-    display_to_id, choices = _module_checkbox_rows(candidates)
-    return _run_module_checkbox_prompt(action, display_to_id, choices, questionary)
 
 
 def _resolve_templates_dir(repo_path: Path) -> Path | None:

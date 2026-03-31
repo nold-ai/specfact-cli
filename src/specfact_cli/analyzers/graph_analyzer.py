@@ -178,7 +178,7 @@ class GraphAnalyzer:
                     edges = future.result()
                     for module_name, matching_module in edges:
                         graph.add_edge(module_name, matching_module)
-                except Exception:
+                except (OSError, RuntimeError):
                     pass
                 completed += 1
                 if progress_callback:
@@ -211,7 +211,7 @@ class GraphAnalyzer:
                             callee_module = self._resolve_module_from_function(callee, python_files)
                             if callee_module and callee_module in graph:
                                 graph.add_edge(module_name, callee_module)
-                except Exception:
+                except (OSError, RuntimeError):
                     pass
                 completed += 1
                 if progress_callback:

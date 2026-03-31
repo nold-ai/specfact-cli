@@ -262,7 +262,7 @@ Focus on semantic understanding, not just structural parsing. Generate the plan 
                 try:
                     content = dep_file.read_text(encoding="utf-8")[:500]
                     dependencies.append(f"{dep_file.name}: {content[:100]}...")
-                except Exception:
+                except (OSError, UnicodeDecodeError):
                     pass
         return dependencies
 

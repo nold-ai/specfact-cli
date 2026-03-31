@@ -83,22 +83,6 @@ def intercept_help_advanced() -> None:
 
 
 @beartype
-def _is_help_context(ctx: ClickContext | None) -> bool:
-    """Check if this context is for showing help."""
-    if ctx is None:
-        return False
-    # Check if help was requested by looking at params or info_name
-    if hasattr(ctx, "params") and ctx.params:
-        # Check if any help option is in params
-        for param in ctx.params.values() if isinstance(ctx.params, dict) else []:
-            param_name = getattr(param, "name", None)
-            if param_name and param_name in ("--help", "-h", "--help-advanced", "-ha"):
-                return True
-    # Check info_name for help indicators
-    return bool(hasattr(ctx, "info_name") and ctx.info_name and "help" in str(ctx.info_name).lower())
-
-
-@beartype
 def _is_advanced_help_context(ctx: ClickContext | None) -> bool:
     """Check if this context is for showing advanced help."""
     # Check sys.argv directly first

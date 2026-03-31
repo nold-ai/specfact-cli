@@ -306,7 +306,7 @@ class RelationshipMapper:
                 if file_hash:
                     self.analysis_cache[file_hash] = empty_result
                 return (file_key, empty_result)
-        except Exception:
+        except (OSError, PermissionError):
             pass
 
         try:
@@ -354,7 +354,7 @@ class RelationshipMapper:
                         if not f.done():
                             f.cancel()
                     raise
-                except Exception:
+                except (OSError, ValueError):
                     pass
                 completed_count += 1
                 if progress_callback:

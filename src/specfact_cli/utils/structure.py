@@ -252,7 +252,7 @@ class SpecFactStructure:
                     bundle_dir = base_path / cls.PROJECTS / active_bundle
                     if bundle_dir.exists() and (bundle_dir / "bundle.manifest.yaml").exists():
                         return bundle_dir
-            except Exception:
+            except (OSError, ValueError):
                 # Fallback if config read fails
                 pass
 
@@ -302,7 +302,7 @@ class SpecFactStructure:
                 active_bundle = config.get(cls.ACTIVE_BUNDLE_CONFIG_KEY)
                 if active_bundle:
                     return active_bundle
-            except Exception:
+            except (OSError, ValueError):
                 # Fallback if config read fails
                 pass
 

@@ -1794,14 +1794,14 @@ class CodeAnalyzer:
             for commit in commits:
                 try:
                     self._process_commit_for_feature_bounds(commit)
-                except Exception:
+                except (OSError, ValueError):
                     # Skip individual commits that fail (corrupted, etc.)
                     continue
 
         except ImportError:
             # GitPython not available, skip
             pass
-        except Exception:
+        except OSError:
             # Git operations failed, skip gracefully
             pass
 
