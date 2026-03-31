@@ -1,8 +1,29 @@
 ## MODIFIED Requirements
 
-### Requirement: SpecKitAdapter get_capabilities returns tool metadata
+### Requirement: Spec-Kit Adapter Implementation
 
-The system SHALL return comprehensive tool capabilities including extension metadata, preset information, and hook events when detecting a spec-kit installation.
+The system SHALL provide a `SpecKitAdapter` class that encapsulates all Spec-Kit-specific logic, including comprehensive tool capabilities detection for v0.4.x features. The `ToolCapabilities` dataclass SHALL include optional fields for extensions, extension commands, presets, hook events, and version detection source.
+
+#### Scenario: ToolCapabilities with extension metadata
+
+- **GIVEN** a `ToolCapabilities` instance created for a spec-kit v0.4.x repository
+- **WHEN** the instance is constructed with extension data
+- **THEN** `extensions` is a `list[str]` of extension names (e.g., `["reconcile", "sync", "verify"]`)
+- **AND** `extension_commands` is a `dict[str, list[str]]` mapping extension names to command lists
+- **AND** `presets` is a `list[str]` of active preset names
+- **AND** `hook_events` is a `list[str]` of detected hook event types
+- **AND** `detected_version_source` is a `str` with value `"cli"` or `"heuristic"`
+
+#### Scenario: ToolCapabilities backward compatibility
+
+- **GIVEN** a `ToolCapabilities` instance created without the new optional fields
+- **WHEN** the instance is constructed with only the existing fields (`tool`, `version`, `layout`, `specs_dir`, `has_external_config`, `has_custom_hooks`, `supported_sync_modes`)
+- **THEN** `extensions` defaults to `None`
+- **AND** `extension_commands` defaults to `None`
+- **AND** `presets` defaults to `None`
+- **AND** `hook_events` defaults to `None`
+- **AND** `detected_version_source` defaults to `None`
+- **AND** all existing adapter code continues to work without modification
 
 #### Scenario: Get capabilities for spec-kit v0.4.x repository
 

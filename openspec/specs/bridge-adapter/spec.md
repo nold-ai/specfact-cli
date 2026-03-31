@@ -270,86 +270,65 @@ The system SHALL use a plugin-based adapter registry pattern for all tool integr
 
 ### Requirement: Spec-Kit Adapter Implementation
 
-The system SHALL provide a `SpecKitAdapter` class that encapsulates all Spec-Kit-specific logic.
+The system SHALL provide a `SpecKitAdapter` class that encapsulates all Spec-Kit-specific logic, including comprehensive tool capabilities detection for v0.4.x features. The `ToolCapabilities` dataclass SHALL include optional fields for extensions, extension commands, presets, hook events, and version detection source.
 
-#### Scenario: Spec-Kit Detection
+#### Scenario: ToolCapabilities with extension metadata
 
-- **GIVEN** a repository with Spec-Kit structure
-- **WHEN** `SpecKitAdapter.detect()` is called
-- **THEN** checks for `.specify/` directory (indicates Spec-Kit project)
-- **AND** checks for `specs/` directory (classic format) or `docs/specs/` directory (modern format)
-- **AND** checks for `.specify/memory/constitution.md` file
-- **AND** returns True if Spec-Kit structure is detected (`.specify/` directory exists)
-- **AND** supports cross-repo detection via `bridge_config.external_base_path`
+- **GIVEN** a `ToolCapabilities` instance created for a spec-kit v0.4.x repository
+- **WHEN** the instance is constructed with extension data
+- **THEN** `extensions` is a `list[str]` of extension names (e.g., `["reconcile", "sync", "verify"]`)
+- **AND** `extension_commands` is a `dict[str, list[str]]` mapping extension names to command lists
+- **AND** `presets` is a `list[str]` of active preset names
+- **AND** `hook_events` is a `list[str]` of detected hook event types
+- **AND** `detected_version_source` is a `str` with value `"cli"` or `"heuristic"`
 
-#### Scenario: Spec-Kit Capabilities
+#### Scenario: ToolCapabilities backward compatibility
 
-- **GIVEN** Spec-Kit is detected
-- **WHEN** `SpecKitAdapter.get_capabilities()` is called
+- **GIVEN** a `ToolCapabilities` instance created without the new optional fields
+- **WHEN** the instance is constructed with only the existing fields (`tool`, `version`, `layout`, `specs_dir`, `has_external_config`, `has_custom_hooks`, `supported_sync_modes`)
+- **THEN** `extensions` defaults to `None`
+- **AND** `extension_commands` defaults to `None`
+- **AND** `presets` defaults to `None`
+- **AND** `hook_events` defaults to `None`
+- **AND** `detected_version_source` defaults to `None`
+- **AND** all existing adapter code continues to work without modification
+
+#### Scenario: Get capabilities for spec-kit v0.4.x repository
+
+- **GIVEN** a repository with `.specify/` directory, `extensions/catalog.community.json`, and `presets/` directory
+- **WHEN** `SpecKitAdapter.get_capabilities(repo_path)` is called
 - **THEN** returns `ToolCapabilities` with:
-  - `tool="speckit"`
-  - `specs_dir` set to detected format (`specs/` for classic, `docs/specs/` for modern)
-  - `has_custom_hooks` flag based on constitution presence and validation (non-minimal constitution)
-  - `layout` set to "standard" (Spec-Kit uses standard layout)
-- **AND** validates constitution exists and is not minimal (empty or template-only)
-- **AND** supports cross-repo paths via bridge_config
+  - `tool` equals `"speckit"`
+  - `version` populated from CLI or heuristic detection
+  - `layout` equals `"modern"`
+  - `extensions` contains list of detected extension names
+  - `extension_commands` contains dict mapping extension names to their commands
+  - `presets` contains list of detected preset names
+  - `hook_events` contains list of detected hook event types (e.g., `["before_task", "after_task"]`)
+  - `detected_version_source` equals `"cli"` or `"heuristic"`
+  - `supported_sync_modes` includes `"bidirectional"` and `"unidirectional"`
 
-#### Scenario: Spec-Kit Artifact Import
+#### Scenario: Get capabilities for legacy spec-kit repository
 
-- **GIVEN** Spec-Kit artifacts exist in repository
-- **WHEN** `SpecKitAdapter.import_artifact()` is called
-- **THEN** uses `SpecKitScanner` and `SpecKitConverter` internally
-- **AND** maps Spec-Kit artifacts (spec.md, plan.md, tasks.md) to SpecFact models
-- **AND** stores Spec-Kit paths in `source_tracking.source_metadata`
-- **AND** supports both modern (`.specify/`) and classic (`specs/`) formats
+- **GIVEN** a repository with only `specs/` directory at root (no `.specify/`, no `extensions/`, no `presets/`)
+- **WHEN** `SpecKitAdapter.get_capabilities(repo_path)` is called
+- **THEN** returns `ToolCapabilities` with:
+  - `tool` equals `"speckit"`
+  - `version` equals `None`
+  - `layout` equals `"classic"`
+  - `extensions` equals `None`
+  - `extension_commands` equals `None`
+  - `presets` equals `None`
+  - `hook_events` equals `None`
+  - `detected_version_source` equals `None`
+- **AND** behavior is identical to the pre-change adapter
 
-#### Scenario: Spec-Kit Artifact Export
+#### Scenario: Get capabilities with cross-repo bridge config
 
-- **GIVEN** SpecFact project bundle with features
-- **WHEN** `SpecKitAdapter.export_artifact()` is called
-- **THEN** uses `SpecKitConverter.convert_to_speckit()` internally
-- **AND** exports SpecFact features to Spec-Kit format (spec.md, plan.md, tasks.md)
-- **AND** supports overwrite mode and conflict resolution
-- **AND** writes to correct format based on detected Spec-Kit structure
-
-#### Scenario: Spec-Kit Bridge Config Generation
-
-- **GIVEN** Spec-Kit is detected
-- **WHEN** `SpecKitAdapter.generate_bridge_config()` is called
-- **THEN** returns `BridgeConfig` using existing preset methods:
-  - `BridgeConfig.preset_speckit_classic()` if classic format detected (`specs/` directory at root)
-  - `BridgeConfig.preset_speckit_modern()` if modern format detected (`docs/specs/` directory)
-  - Artifact mappings include: `specification`, `plan`, `tasks`, `contracts`
-  - Constitution path: `.specify/memory/constitution.md` (checked for both formats)
-- **AND** includes `external_base_path` if cross-repo detected
-- **AND** auto-detects format based on directory structure (classic: `specs/` at root, modern: `docs/specs/`)
-
-#### Scenario: Spec-Kit Bidirectional Sync
-
-- **GIVEN** Spec-Kit adapter is used for bidirectional sync
-- **WHEN** `BridgeSync.sync_bidirectional()` is called with Spec-Kit adapter
-- **THEN** adapter's `import_artifact()` and `export_artifact()` methods handle change detection internally
-- **AND** adapter detects changes in Spec-Kit artifacts (via internal `_detect_speckit_changes()` helper)
-- **AND** adapter detects changes in SpecFact artifacts (via internal `_detect_specfact_changes()` helper)
-- **AND** adapter merges changes and detects conflicts (via internal `_merge_changes()` and `_detect_conflicts()` helpers)
-- **AND** conflicts are resolved using priority rules (SpecFact > Spec-Kit for artifacts)
-
-#### Scenario: Spec-Kit Constitution Validation
-
-- **GIVEN** Spec-Kit adapter is used
-- **WHEN** `SpecKitAdapter.get_capabilities()` is called
-- **THEN** checks for constitution file (`.specify/memory/constitution.md` or classic format)
-- **AND** sets `has_custom_hooks` flag based on constitution presence
-- **AND** validates constitution is not minimal (if present)
-- **AND** returns `ToolCapabilities` with constitution validation status
-
-#### Scenario: Constitution Command Location
-
-- **GIVEN** Spec-Kit constitution management commands exist
-- **WHEN** user wants to manage constitution
-- **THEN** commands are available via `specfact sdd constitution` (not `specfact bridge constitution`)
-- **AND** `specfact bridge` command does not exist (bridge adapters are internal connectors, no user-facing commands)
-- **AND** constitution commands (bootstrap, enrich, validate) are under SDD command group (Spec-Kit is an SDD tool)
+- **GIVEN** a bridge config with `external_base_path` pointing to a spec-kit repository
+- **WHEN** `SpecKitAdapter.get_capabilities(repo_path, bridge_config)` is called
+- **THEN** extension and preset detection uses the `external_base_path` as base
+- **AND** CLI version detection is skipped for cross-repo scenarios (filesystem-only)
 
 ### Requirement: Backlog Adapter Extensibility Pattern
 

@@ -85,4 +85,4 @@ evidence in `TDD_EVIDENCE.md`.
 - [x] 8.1 Update `openspec/CHANGE_ORDER.md` with implementation status when work begins/lands.
 - [x] 8.2 Stage and commit with a Conventional Commit message.
 - [x] 8.3 Push the feature branch and open a PR to `dev`.
-- [ ] 8.4 After merge to `dev`, remove the worktree and delete the feature branch locally/remotely.
+- [x] 8.4 After merge to `dev`, remove the worktree and delete the feature branch locally/remotely.

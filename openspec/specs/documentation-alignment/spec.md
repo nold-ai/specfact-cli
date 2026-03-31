@@ -94,21 +94,29 @@ Any stated performance or timing in the docs SHALL reflect current benchmarks or
 
 ### Requirement: Live docs reflect lean-core and grouped bundle command topology
 
-The live authored documentation set SHALL use command examples and migration guidance that match the currently shipped core and bundle command groups, and SHALL NOT present removed or transitional command families as current syntax.
+The live authored documentation set SHALL use command examples and migration guidance that match the currently shipped core and bundle command groups, and SHALL NOT present removed or transitional command families as current syntax. The core docs site SHALL focus exclusively on core platform concerns and SHALL redirect module-specific workflow content to modules.specfact.io.
 
-#### Scenario: Reader checks command examples and navigation
+#### Scenario: Core docs site excludes module-specific workflow content
 
-- **WHEN** a reader follows command examples in README or published docs
-- **THEN** core commands are shown as always available from `specfact-cli`
-- **AND** bundle commands are shown through grouped command paths and marketplace installation context
-- **AND** the top-level docs navigation exposes clear entry points for `Docs Home`, `Core CLI`, and `Modules`.
+- **GIVEN** the docs.specfact.io landing page (index.md)
+- **WHEN** a reader arrives at the docs home
+- **THEN** the page clearly separates core platform concerns from module-specific workflows
+- **AND** provides direct links to modules.specfact.io for bundle-specific guidance
 
-#### Scenario: Reader copies a documented command after the split
+#### Scenario: Core site landing page delineates core vs modules
 
-- **WHEN** a reader copies a command from `README.md` or authored docs under `docs/`
-- **THEN** the command path matches a currently shipped surface from the active CLI release
-- **AND** removed or transitional syntax such as `specfact project plan ...`, `specfact project import from-bridge ...`, `specfact backlog policy ...`, or retired `specfact spec ...` subgroup trees is replaced, removed, or clearly labeled as historical context
-- **AND** command examples route readers through the correct current group for that workflow area (`backlog`, `code`, `govern`, `project`, or `spec`)
+- **GIVEN** the docs.specfact.io landing page (index.md)
+- **WHEN** a reader arrives at the docs home
+- **THEN** the page clearly separates core platform concerns from module-specific workflows
+- **AND** provides direct links to modules.specfact.io for bundle-specific guidance
+
+#### Scenario: Getting Started section focuses on platform bootstrap
+
+- **GIVEN** the Getting Started section of the core docs
+- **WHEN** a new user follows the getting started path
+- **THEN** it covers installation, quickstart, and profiles/IDE setup
+- **AND** does NOT include module-specific tutorials as inline content
+- **AND** links to modules.specfact.io for module workflow tutorials
 
 ### Requirement: Marketplace guidance is discoverable and non-duplicative
 
@@ -157,4 +165,103 @@ Authored links from `specfact-cli` docs to `https://modules.specfact.io/...` SHA
 - **WHEN** a contributor adds or updates a link to the canonical modules docs site
 - **THEN** the path segment matches the target file’s `permalink` in `specfact-cli-modules` or the URL contract reference
 - **AND** contributors can discover rules from `docs/reference/documentation-url-contract.md` on the core site
+
+### Requirement: Navigation-owned docs links match published permalinks
+
+The docs landing page and sidebar navigation SHALL link to the actual published permalinks for their target pages, and SHALL NOT assume a section-prefixed route when the page publishes elsewhere.
+
+#### Scenario: Reader opens a navigation-linked reference page
+
+- **WHEN** a reader selects a reference or guide link from `docs/index.md` or `docs/_layouts/default.html`
+- **THEN** the route resolves on `docs.specfact.io`
+- **AND** the link target matches the page permalink declared in the authored docs source
+
+### Requirement: Broken published docs routes are corrected in authored source
+
+When docs review identifies a broken published route caused by authored permalink drift, the authored page or link source SHALL be corrected in the same remediation change so the published docs site remains internally consistent.
+
+#### Scenario: Existing docs page has a mismatched permalink
+
+- **WHEN** an authored docs page exists but the linked published route does not resolve because the page permalink differs
+- **THEN** the remediation updates the authored permalink or the authored link source to restore route integrity
+- **AND** the corrected route remains covered by docs review validation
+
+### Requirement: Core handoff pages are thin summaries with a canonical modules link
+
+Core docs pages that previously duplicated module-owned guides SHALL contain only a short summary, prerequisites, and a prominent link to the canonical URL on `modules.specfact.io` (per `permalink` in `specfact-cli-modules`), not the full guide body.
+
+#### Scenario: Handoff page structure
+
+- **WHEN** a reader opens a converted handoff page on `docs.specfact.io`
+- **THEN** the page includes a brief summary of the topic
+- **AND** it includes a prerequisites note
+- **AND** it includes a prominent link to the full guide on the canonical modules docs site
+- **AND** it does not include the duplicated long-form guide content owned by modules
+
+### Requirement: Legacy URLs remain reachable
+
+Handoff pages that previously published under alternate paths SHALL preserve `redirect_from` entries so old bookmarks do not 404.
+
+#### Scenario: Redirect metadata preserved where applicable
+
+- **WHEN** a handoff page had `redirect_from` for legacy paths
+- **THEN** those entries remain in front matter after conversion
+- **AND** the published URL still serves the thin handoff page
+
+### Requirement: Canonical link targets match modules permalinks
+
+Each converted page’s canonical link SHALL match the modules documentation `permalink` for that topic (which may be `/bundles/.../`, `/guides/.../`, `/integrations/.../`, or a root path), not an assumed mirror of the core `/guides/<name>/` path.
+
+#### Scenario: URL contract compliance
+
+- **WHEN** authors map core handoff pages to modules URLs
+- **THEN** they use the checklist and `documentation-url-contract` rules
+- **AND** each link targets the verified modules canonical URL for that guide
+
+### Requirement: Entry-point messaging hierarchy is documented
+
+Contributor-facing documentation SHALL define the required messaging hierarchy for first-contact
+surfaces so README and homepage edits preserve the same structure over time.
+
+#### Scenario: Contributor updates an entry-point page
+
+- **WHEN** a contributor edits `README.md`, `docs/index.md`, or other designated entry-point copy
+- **THEN** the guidance SHALL require them to preserve the ordering of:
+  - product identity
+  - why it exists
+  - user value
+  - how to start
+  - deeper topology and branching guidance
+- **AND** the guidance SHALL define validation/alignment as the product core, with “keep backlog,
+  specs, tests, and code in sync” expressed as the user-visible result
+
+### Requirement: Cross-site handoff copy stays aligned
+
+Documentation alignment rules SHALL require core-docs and modules-docs entry points to describe the
+same ownership split and onboarding handoff.
+
+#### Scenario: Contributor edits core or modules landing copy
+
+- **WHEN** a contributor updates landing-page copy that references `docs.specfact.io` or
+  `modules.specfact.io`
+- **THEN** the wording SHALL preserve the same explanation of what belongs to the core docs versus
+  the modules docs
+- **AND** cross-site links SHALL direct users to the intended next step rather than only the raw site
+  URL
+
+### Requirement: First-contact copy encodes the key user questions
+
+Contributor guidance SHALL require entry-point copy to answer the key first-contact questions
+explicitly enough that maintainers can review the page against them.
+
+#### Scenario: Maintainer reviews a rewritten entry-point page
+
+- **WHEN** a maintainer reviews changes to an entry-point page
+- **THEN** they SHALL be able to verify that the page clearly answers:
+  - what SpecFact is
+  - why it exists
+  - why a user should use it
+  - what the user gets
+  - how the user gets started
+- **AND** the page SHALL not bury those answers underneath topology or implementation details
 
