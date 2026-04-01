@@ -1,117 +1,95 @@
 ---
 layout: default
 title: SpecFact CLI Documentation
-description: SpecFact is the validation and alignment layer for software delivery. Start here for the core CLI story, first steps, and the handoff into module-deep workflows.
+description: Point SpecFact at your code, get a scored review and a fix list in minutes — then go deeper into backlog, specs, and CI when you need to.
 permalink: /
-keywords: [specfact, core-cli, runtime, module-system, architecture]
+keywords: [specfact, core-cli, quickstart, code review, onboarding]
 audience: [solo, team, enterprise]
 expertise_level: [beginner, intermediate, advanced]
 doc_owner: specfact-cli
 tracks:
   - src/specfact_cli/**
   - openspec/**
-last_reviewed: 2026-03-29
+last_reviewed: 2026-04-02
 exempt: false
 exempt_reason: ""
 ---
 
 # SpecFact CLI Documentation
 
-SpecFact is the validation and alignment layer for software delivery.
+**Point SpecFact at your code. Get a score and a list of what to fix.** No week-long setup — start with two commands, then add IDE prompts, backlog workflows, or CI gates when you want more.
 
-This site is the canonical starting point for the core CLI story: what SpecFact is, why it exists,
-what value you get from it, how to get started, and when to move into deeper bundle-owned workflows.
+```bash
+uvx specfact-cli init --profile solo-developer
+uvx specfact-cli code review run --path . --scope full
+```
 
-SpecFact does **not** include built-in AI. It pairs deterministic CLI commands with your chosen IDE
-and copilot so fast-moving work has a stronger validation and alignment layer around it.
+You should see a **Verdict** (PASS/FAIL), a **Score**, and a list of findings (for example dozens of categorized items on a real repo). That is the fastest way to see SpecFact on an existing project. [Read the full quickstart →](/getting-started/quickstart/)
+
+SpecFact does **not** include built-in AI. It pairs deterministic CLI commands with your chosen IDE and copilot so fast-moving work has a stronger validation and alignment layer around it.
 
 ---
 
 ## What is SpecFact?
 
-SpecFact helps you keep backlog intent, specifications, implementation, and validation from drifting
-apart.
+SpecFact helps you keep backlog intent, specifications, implementation, and validation from drifting apart.
 
 It is especially useful when:
+
 - AI-assisted or “vibe-coded” work needs more rigor
 - brownfield systems need trustworthy reverse-engineered understanding
 - teams want to avoid the “I wanted X but got Y” delivery failure
 - organizations need a path toward stronger shared policy enforcement
 
-## Why does it exist?
-
-Software delivery drifts in stages. Expectations change as they move from backlog language to
-specification, from specification to implementation, and from implementation to review. SpecFact
-exists to reduce that drift by giving you deterministic tooling for analysis, validation, and
-alignment.
-
 ## Why should I use it?
 
-Use SpecFact when you want faster delivery without losing validation, stronger brownfield
-understanding before making changes, and less drift between backlog intent, specifications, and the
-code that actually lands.
+Use SpecFact when you want faster delivery without losing validation, stronger brownfield understanding before making changes, and less drift between backlog intent, specifications, and the code that actually lands.
 
 ## What do I get?
 
 With SpecFact, you get:
+
 - deterministic local tooling instead of opaque cloud dependence
 - a validation layer around AI-assisted delivery
 - codebase analysis and sidecar validation for brownfield work
 - stronger backlog/spec/code alignment
-- a clean handoff from core runtime docs into module-deep workflows on `modules.specfact.io`
+- a clean handoff from this site into module-deep workflows on [modules.specfact.io](https://modules.specfact.io/)
 
 ## How to get started
 
-1. **[Installation](/getting-started/installation/)** - Install SpecFact CLI
-2. **[5-Minute Quickstart](/getting-started/quickstart/)** - Get first value quickly
-3. **[specfact init](/core-cli/init/)** - Bootstrap the core runtime and your local setup
-4. **[Bootstrap Checklist](/module-system/bootstrap-checklist/)** - Verify bundle readiness
+1. **[Installation](/getting-started/installation/)** — uvx (no install) or pip (persistent CLI)
+2. **[5-Minute Quickstart](/getting-started/quickstart/)** — First commands on a repo
+3. **[specfact init](/core-cli/init/)** — Profiles, bundles, and IDE setup
+4. **[Bootstrap Checklist](/module-system/bootstrap-checklist/)** — Verify bundle readiness
 
-If you are new to SpecFact, start here before jumping into module-deep workflows.
-
-## Choose Your Path
+## Choose your path
 
 <div class="path-cards">
 <div class="path-card">
-<h3>Greenfield &amp; AI-assisted delivery</h3>
-<p>Use SpecFact as the validation layer around fast-moving implementation work.</p>
+<h3>See what&apos;s wrong with your code right now</h3>
+<p>Run a scored code review on an existing repo with uvx, then iterate.</p>
 <ul>
-<li><a href="/getting-started/installation/">Installation</a></li>
 <li><a href="/getting-started/quickstart/">5-Minute Quickstart</a></li>
+<li><a href="/getting-started/installation/">Installation</a></li>
 <li><a href="/guides/contract-testing-workflow/">Contract Testing Workflow</a></li>
+</ul>
+</div>
+<div class="path-card">
+<h3>Set up IDE slash-command workflows</h3>
+<p>Install the CLI, bootstrap bundles, then export prompts for Cursor, VS Code, and other IDEs.</p>
+<ul>
+<li><a href="/core-cli/init/">specfact init</a></li>
 <li><a href="/guides/ai-ide-workflow/">AI IDE Workflow</a></li>
+<li><a href="/guides/ide-integration/">IDE Integration</a></li>
 </ul>
 </div>
 <div class="path-card">
-<h3>Brownfield and reverse engineering</h3>
-<p>Use SpecFact to understand an existing system and then hand insight into spec-first workflows.</p>
+<h3>Add a pre-commit or CI gate</h3>
+<p>Wire SpecFact into local hooks or GitHub Actions for repeatable checks.</p>
 <ul>
-<li><a href="/getting-started/where-to-start/">Where to Start</a></li>
-<li><a href="/guides/brownfield-journey/">Brownfield Journey</a></li>
-<li>Initialize sidecar validation before running `specfact code validate sidecar run ...`.</li>
-<li><a href="/guides/brownfield-roi/">Brownfield ROI</a></li>
-<li><a href="/guides/brownfield-faq/">Brownfield FAQ</a></li>
-</ul>
-</div>
-<div class="path-card">
-<h3>Backlog to code alignment</h3>
-<p>Use SpecFact when the main problem is drift between expectations, specs, and implementation.</p>
-<ul>
-<li>Start with a backlog-enabled profile such as `specfact init --profile backlog-team`.</li>
-<li><a href="/guides/agile-scrum-workflows/">Agile &amp; Scrum Workflows</a></li>
-<li><a href="https://modules.specfact.io/getting-started/tutorial-backlog-quickstart-demo/">Backlog Quickstart Demo</a></li>
-<li><a href="https://modules.specfact.io/getting-started/tutorial-backlog-refine-ai-ide/">Backlog Refine with AI IDE</a></li>
-<li><a href="https://modules.specfact.io/getting-started/tutorial-daily-standup-sprint-review/">Daily Standup and Sprint Review</a></li>
-</ul>
-</div>
-<div class="path-card">
-<h3>Team and policy enforcement</h3>
-<p>Use core runtime, governance, and shared workflow conventions to scale rigor across teams.</p>
-<ul>
-<li><a href="/architecture/overview/">Architecture Overview</a></li>
-<li><a href="/architecture/implementation-status/">Implementation Status</a></li>
+<li><a href="/getting-started/installation/#more-options">GitHub Action example</a></li>
+<li><a href="/guides/contract-testing-workflow/">Contract Testing Workflow</a></li>
 <li><a href="/reference/commands/">Command Reference</a></li>
-<li><a href="/reference/documentation-url-contract/">Core vs Modules URL Contract</a></li>
 </ul>
 </div>
 </div>
@@ -120,12 +98,11 @@ If you are new to SpecFact, start here before jumping into module-deep workflows
 
 The `specfact-cli` package provides the stable platform surface:
 
-- **[specfact init](/core-cli/init/)** - Bootstrap and IDE setup
-- **[specfact module](/core-cli/module/)** - Module lifecycle management
-- **[specfact upgrade](/core-cli/upgrade/)** - CLI updates
-- Runtime contracts, module discovery, registry bootstrapping, publisher trust, and shared orchestration
+- **[specfact init](/core-cli/init/)** — Bootstrap bundles and optional IDE setup
+- **[specfact module](/core-cli/module/)** — Install, enable, and upgrade workflow modules
+- **[specfact upgrade](/core-cli/upgrade/)** — CLI self-update
 
-Installed modules mount workflows under `project`, `backlog`, `code`, `spec`, and `govern`.
+Installed modules add command groups such as `project`, `backlog`, `code`, `spec`, and `govern`. Deeper bundle docs live on [modules.specfact.io](https://modules.specfact.io/).
 
 ## Modules Documentation
 

@@ -59,10 +59,36 @@ def _run_pip_compile(constraints: list[str]) -> list[str]:
 
 
 @beartype
+def _pip_module_available() -> bool:
+    """Return True if pip is importable in the current Python environment."""
+    try:
+        result = subprocess.run(
+            [sys.executable, "-m", "pip", "--version"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+        )
+        return result.returncode == 0
+    except (FileNotFoundError, subprocess.TimeoutExpired, OSError):
+        return False
+
+
+@beartype
 def _run_basic_resolver(constraints: list[str]) -> list[str]:
-    """Fallback: use pip's resolver (e.g. pip install --dry-run). Returns best-effort pinned list."""
+    """Fallback: use pip's resolver (e.g. pip install --dry-run). Returns best-effort pinned list.
+
+    When pip is not available (e.g. uvx environment), skips validation and returns constraints as-is.
+    Pip packages will be validated at actual install time by the host package manager.
+    """
     if not constraints:
         return []
+    if not _pip_module_available():
+        logger.warning(
+            "pip is not available in the current environment (e.g. uvx). "
+            "Skipping pip dependency validation — packages will be checked at install time."
+        )
+        return constraints
     logger.warning("pip-tools not found, using basic resolver")
     with tempfile.TemporaryDirectory() as tmp:
         reqs = Path(tmp) / "requirements.in"

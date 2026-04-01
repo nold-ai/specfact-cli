@@ -433,6 +433,7 @@ def _install_profile_bundles(profile: str, install_root: Path, non_interactive: 
             install_root,
             non_interactive=non_interactive,
         )
+        console.print(f"[green]Installed:[/green] {', '.join(bundle_ids)}")
 
 
 @beartype
@@ -445,6 +446,7 @@ def _install_bundle_list(install_arg: str, install_root: Path, non_interactive: 
             install_root,
             non_interactive=non_interactive,
         )
+        console.print(f"[green]Installed:[/green] {', '.join(bundle_ids)}")
 
 
 def _apply_profile_or_install_bundles(profile: str | None, install: str | None) -> None:

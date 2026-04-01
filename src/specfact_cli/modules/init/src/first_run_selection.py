@@ -12,7 +12,7 @@ from specfact_cli.registry.module_grouping import VALID_CATEGORIES
 
 
 PROFILE_PRESETS: dict[str, list[str]] = {
-    "solo-developer": ["specfact-codebase"],
+    "solo-developer": ["specfact-codebase", "specfact-code-review"],
     "backlog-team": ["specfact-backlog", "specfact-project", "specfact-codebase"],
     "api-first-team": ["specfact-spec", "specfact-codebase"],
     "enterprise-full-stack": [
@@ -30,7 +30,13 @@ CANONICAL_BUNDLES: tuple[str, ...] = (
     "specfact-codebase",
     "specfact-spec",
     "specfact-govern",
+    "specfact-code-review",
 )
+
+# Marketplace module IDs for bundles that are not shipped as bundled (core) modules.
+MARKETPLACE_BUNDLE_IDS: dict[str, str] = {
+    "specfact-code-review": "nold-ai/specfact-code-review",
+}
 
 BUNDLE_ALIAS_TO_CANONICAL: dict[str, str] = {
     "project": "specfact-project",
@@ -47,6 +53,7 @@ BUNDLE_TO_MODULE_NAMES: dict[str, list[str]] = {
     "specfact-codebase": ["analyze", "drift", "validate", "repro"],
     "specfact-spec": ["contract", "spec", "sdd", "generate"],
     "specfact-govern": ["enforce", "patch_mode"],
+    "specfact-code-review": [],  # marketplace-only; installed via MARKETPLACE_BUNDLE_IDS
 }
 
 BUNDLE_DEPENDENCIES: dict[str, list[str]] = {
@@ -149,6 +156,29 @@ def install_bundles_for_init(
         _add_bundle(bid)
 
     for bid in to_install:
+        marketplace_id = MARKETPLACE_BUNDLE_IDS.get(bid)
+        if marketplace_id is not None:
+            try:
+                from specfact_cli.registry.module_installer import install_module
+
+                install_module(
+                    marketplace_id,
+                    install_root=root,
+                    trust_non_official=trust_non_official,
+                    non_interactive=non_interactive,
+                )
+            except Exception as e:
+                from specfact_cli.common import get_bridge_logger
+
+                logger = get_bridge_logger(__name__)
+                logger.warning(
+                    "Marketplace bundle install failed for %s: %s.",
+                    bid,
+                    e,
+                )
+                raise
+            continue
+
         module_names = BUNDLE_TO_MODULE_NAMES.get(bid, [])
         for module_name in module_names:
             try:

@@ -109,8 +109,9 @@
 - [x] 7c.4 Exit non-zero only if at least one module failed (not if skipped/already installed)
 - [x] 7c.5 Verify: single-module install still works identically; all existing flags apply
 - [x] 7c.6 Write failing test: `specfact module uninstall A B` uninstalls both A and B
-- [ ] 7c.7 Write failing test: `specfact module uninstall A B` where A is not installed —
+- [x] 7c.7 Write failing test: `specfact module uninstall A B` where A is not installed —
        reports A not found, still attempts B, exits non-zero
+       *(Catches `click.exceptions.Exit` from `typer.Exit`; upgrade uses `Optional[list[str]]` for Click 8.1 + Typer 0.23.)*
 - [x] 7c.8 Change `uninstall` Argument from `module_name: str` to `module_names: list[str]`;
        update `@require` guard; loop through each name using existing uninstall logic
 - [x] 7c.9 Verify: single-module uninstall still works identically; `--scope`/`--repo` apply
@@ -192,6 +193,7 @@
 
 ## 11. Spec Sync
 
+- [x] 11.0 GitHub backlog: issue [#476](https://github.com/nold-ai/specfact-cli/issues/476) with labels `enhancement`, `change-proposal`, `documentation`, `openspec`; parent feature [#356](https://github.com/nold-ai/specfact-cli/issues/356); related [#466](https://github.com/nold-ai/specfact-cli/issues/466) — `proposal.md` Source Tracking updated
 - [ ] 11.1 Run `openspec sync --change docs-new-user-onboarding` to merge all 10 spec deltas
        *(blocked: OpenSpec CLI in this environment has no `sync` subcommand — use project workflow when available)*
 - [ ] 11.2 Confirm `openspec/specs/docs-aha-moment-entry/spec.md` created

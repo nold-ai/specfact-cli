@@ -110,8 +110,9 @@ class _RootCLIGroup(ProgressiveDisclosureGroup):
             if invoked in KNOWN_BUNDLE_GROUP_OR_SHIM_NAMES:
                 get_configured_console().print(
                     f"[bold red]Command '{invoked}' is not installed.[/bold red]\n"
-                    "Install workflow bundles with [bold]specfact init --profile <profile>[/bold] "
-                    "or [bold]specfact module install <bundle>[/bold]."
+                    "Try: [bold]uvx specfact-cli init --profile solo-developer[/bold] "
+                    "or [bold]specfact init --profile solo-developer[/bold], "
+                    "or install bundles with [bold]specfact module install <bundle>[/bold]."
                 )
                 raise SystemExit(1) from None
             raise
@@ -123,8 +124,9 @@ class _RootCLIGroup(ProgressiveDisclosureGroup):
             return result
         get_configured_console().print(
             f"[bold red]Command '{invoked}' is not installed.[/bold red]\n"
-            "Install workflow bundles with [bold]specfact init --profile <profile>[/bold] "
-            "or [bold]specfact module install <bundle>[/bold]."
+            "Try: [bold]uvx specfact-cli init --profile solo-developer[/bold] "
+            "or [bold]specfact init --profile solo-developer[/bold], "
+            "or install bundles with [bold]specfact module install <bundle>[/bold]."
         )
         raise SystemExit(1)
 

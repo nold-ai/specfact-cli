@@ -132,13 +132,17 @@ def _download_archive_with_cache(module_id: str, version: str | None = None) -> 
 
 @beartype
 def _extract_bundle_dependencies(metadata: dict[str, Any]) -> list[str]:
-    """Extract validated bundle dependency module ids from raw manifest metadata."""
+    """Extract validated bundle dependency module ids from raw manifest metadata.
+
+    Supports both plain string entries ("namespace/name") and versioned object entries
+    ({"id": "namespace/name", "version": ">=x.y.z"}).
+    """
     raw_dependencies = metadata.get("bundle_dependencies", [])
     if not isinstance(raw_dependencies, list):
         return []
     dependencies: list[str] = []
     for value in raw_dependencies:
-        dep = str(value).strip()
+        dep = str(value.get("id", "")).strip() if isinstance(value, dict) else str(value).strip()
         if not dep:
             continue
         _validate_marketplace_namespace_format(dep)
@@ -725,7 +729,11 @@ def _validate_install_manifest_constraints(
     assert_module_allowed(manifest_module_name)
     compatibility = str(metadata.get("core_compatibility", "")).strip()
     if compatibility and Version(cli_version) not in SpecifierSet(compatibility):
-        raise ValueError("Module is incompatible with current SpecFact CLI version")
+        raise ValueError(
+            f"Module '{manifest_module_name}' requires SpecFact CLI {compatibility}, "
+            f"but the installed version is {cli_version}. "
+            f"Run: specfact upgrade  (or: pip install --upgrade specfact-cli)"
+        )
     publisher_name: str | None = None
     publisher_raw = metadata.get("publisher")
     if isinstance(publisher_raw, dict):
