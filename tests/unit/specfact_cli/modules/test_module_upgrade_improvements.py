@@ -44,7 +44,7 @@ def test_run_marketplace_upgrades_skips_reinstall_when_at_latest(tmp_path: Path)
         return tmp_path / "backlog"
 
     with patch("specfact_cli.modules.module_registry.src.commands.install_module", side_effect=_fake_install):
-        _run_marketplace_upgrades(["nold-ai/specfact-backlog"], by_id)
+        _run_marketplace_upgrades(["nold-ai/specfact-backlog"], by_id, {})
 
     assert not install_called, "install_module must NOT be called when module is already at latest version"
 
@@ -66,7 +66,7 @@ def test_run_marketplace_upgrades_all_at_latest_prints_up_to_date(
 
         test_console = Console(file=output_buf, highlight=False, markup=True)
         with patch("specfact_cli.modules.module_registry.src.commands.console", test_console):
-            _run_marketplace_upgrades(["nold-ai/specfact-backlog", "nold-ai/specfact-codebase"], by_id)
+            _run_marketplace_upgrades(["nold-ai/specfact-backlog", "nold-ai/specfact-codebase"], by_id, {})
 
         output = output_buf.getvalue()
 
@@ -107,7 +107,7 @@ def test_run_marketplace_upgrades_mixed_result_shows_sections(tmp_path: Path) ->
         ),
         patch("specfact_cli.modules.module_registry.src.commands.console", test_console),
     ):
-        _run_marketplace_upgrades(["nold-ai/specfact-backlog", "nold-ai/specfact-codebase"], by_id)
+        _run_marketplace_upgrades(["nold-ai/specfact-backlog", "nold-ai/specfact-codebase"], by_id, {})
 
     output = output_buf.getvalue()
     assert "Upgraded" in output, "Must have Upgraded section"
@@ -181,7 +181,7 @@ def test_run_marketplace_upgrades_prompts_for_major_bump(tmp_path: Path) -> None
         patch("specfact_cli.modules.module_registry.src.commands.typer.confirm", side_effect=_fake_confirm),
         patch("specfact_cli.modules.module_registry.src.commands.install_module") as mock_install,
     ):
-        _run_marketplace_upgrades(["nold-ai/specfact-backlog"], by_id)
+        _run_marketplace_upgrades(["nold-ai/specfact-backlog"], by_id, {})
 
     output = output_buf.getvalue()
     # Must show major bump warning
@@ -199,7 +199,7 @@ def test_run_marketplace_upgrades_skips_major_in_ci_mode(tmp_path: Path) -> None
         patch("specfact_cli.modules.module_registry.src.commands.is_non_interactive", return_value=True),
         patch("specfact_cli.modules.module_registry.src.commands.install_module") as mock_install,
     ):
-        _run_marketplace_upgrades(["nold-ai/specfact-backlog"], by_id, yes=False)
+        _run_marketplace_upgrades(["nold-ai/specfact-backlog"], by_id, {}, yes=False)
 
     mock_install.assert_not_called()
 
@@ -224,6 +224,6 @@ def test_run_marketplace_upgrades_yes_flag_skips_major_bump_prompt(tmp_path: Pat
         ),
         patch("specfact_cli.modules.module_registry.src.commands.typer.confirm") as mock_confirm,
     ):
-        _run_marketplace_upgrades(["nold-ai/specfact-backlog"], by_id, yes=True)
+        _run_marketplace_upgrades(["nold-ai/specfact-backlog"], by_id, {}, yes=True)
 
     mock_confirm.assert_not_called()  # --yes flag skips prompt

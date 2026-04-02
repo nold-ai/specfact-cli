@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from specfact_cli.models.module_package import ModulePackageMetadata, VersionedPipDependency
 from specfact_cli.registry.dependency_resolver import (
     DependencyConflictError,
+    PipDependencyInstallError,
+    install_resolved_pip_requirements,
     resolve_dependencies,
 )
 
@@ -135,3 +137,50 @@ class TestResolveDependenciesAggregates:
         msg = str(exc_info.value)
         assert "requests" in msg
         assert "Suggest" in msg or "force" in msg or "skip-deps" in msg
+
+
+class TestInstallResolvedPipRequirements:
+    """Tests for install_resolved_pip_requirements."""
+
+    def test_no_op_when_empty(self) -> None:
+        with patch("specfact_cli.registry.dependency_resolver.subprocess.run") as mock_run:
+            install_resolved_pip_requirements([])
+        mock_run.assert_not_called()
+
+    def test_invokes_pip_install_with_pins(self) -> None:
+        ok = MagicMock()
+        ok.returncode = 0
+        with (
+            patch("specfact_cli.registry.dependency_resolver._pip_module_available", return_value=True),
+            patch("specfact_cli.registry.dependency_resolver.subprocess.run") as mock_run,
+        ):
+            mock_run.return_value = ok
+            install_resolved_pip_requirements(["requests==2.31.0", "pydantic==2.5.0"])
+        mock_run.assert_called_once()
+        cmd = mock_run.call_args[0][0]
+        assert "pip" in cmd
+        assert "install" in cmd
+        assert "--no-input" in cmd
+        assert "requests==2.31.0" in cmd
+        assert "pydantic==2.5.0" in cmd
+
+    def test_skips_when_pip_module_unavailable(self) -> None:
+        with (
+            patch("specfact_cli.registry.dependency_resolver._pip_module_available", return_value=False),
+            patch("specfact_cli.registry.dependency_resolver.subprocess.run") as mock_run,
+        ):
+            install_resolved_pip_requirements(["x==1"])
+        mock_run.assert_not_called()
+
+    def test_raises_on_pip_failure(self) -> None:
+        bad = MagicMock()
+        bad.returncode = 1
+        bad.stderr = "boom"
+        bad.stdout = ""
+        with (
+            patch("specfact_cli.registry.dependency_resolver._pip_module_available", return_value=True),
+            patch("specfact_cli.registry.dependency_resolver.subprocess.run") as mock_run,
+        ):
+            mock_run.return_value = bad
+            with pytest.raises(PipDependencyInstallError):
+                install_resolved_pip_requirements(["x==1"])

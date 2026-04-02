@@ -21,6 +21,10 @@ def _no_op_resolve_dependencies(monkeypatch: pytest.MonkeyPatch) -> None:
         "specfact_cli.registry.module_installer.resolve_dependencies",
         lambda *_a, **_k: None,
     )
+    monkeypatch.setattr(
+        "specfact_cli.registry.module_installer.install_resolved_pip_requirements",
+        lambda *_a, **_k: None,
+    )
 
 
 def _create_module_tarball(
@@ -118,6 +122,9 @@ def test_install_module_logs_satisfied_dependencies_without_warning(monkeypatch,
         "specfact_cli.registry.module_installer.ensure_publisher_trusted", lambda *_args, **_kwargs: None
     )
     monkeypatch.setattr("specfact_cli.registry.module_installer.resolve_dependencies", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(
+        "specfact_cli.registry.module_installer.install_resolved_pip_requirements", lambda *_args, **_kwargs: None
+    )
     monkeypatch.setattr("specfact_cli.registry.module_installer.discover_all_modules", list)
 
     mock_logger = MagicMock()

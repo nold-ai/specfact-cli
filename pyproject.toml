@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "specfact-cli"
-version = "0.45.0"
+version = "0.45.1"
 description = "The swiss knife CLI for agile DevOps teams. Keep backlog, specs, tests, and code in sync with validation and contract enforcement for new projects and long-lived codebases."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -36,6 +36,10 @@ keywords = [
     "cli",
     "specfact",
 ]
+# Install profiles (PEP 621 extras):
+# - `pip install specfact-cli` — minimal runtime (CLI, registry, contracts via icontract/beartype, no CrossHair/Hypothesis wheels).
+# - `pip install specfact-cli[contracts]` — add CrossHair + Hypothesis for contract exploration / property tooling.
+# - `pip install specfact-cli[dev]` — contributors: pytest, linters, and same contract tools as [contracts] (see dev list).
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
@@ -51,14 +55,14 @@ classifiers = [
 dependencies = [
     # Core dependencies
     "pydantic>=2.12.3",
-    "python-dotenv>=1.2.1",
     "typing-extensions>=4.15.0",
     "PyYAML>=6.0.3",
     "requests>=2.32.3",
     "azure-identity>=1.17.1",
     "cryptography>=43.0.0",
-    "cffi>=1.17.1",
-    
+    "packaging>=24.0",
+    # PEP 440 / markers for module installer and registry (do not rely on transitive pins only)
+
     # CLI framework
     "typer>=0.20.0",
     "rich>=13.5.2,<13.6.0",  # Compatible with semgrep (requires rich~=13.5.2)
@@ -80,16 +84,10 @@ dependencies = [
     # Schema validation
     "jsonschema>=4.23.0",
     
-    # Contract-First Development Dependencies
+    # Contract-First (runtime decorators; exploration tools are optional extra `contracts`)
     "icontract>=2.7.1",  # Design-by-contract decorators
     "beartype>=0.22.4",  # Runtime type checking
-    "crosshair-tool>=0.0.97",  # Contract exploration and counterexample discovery
-    "hypothesis>=6.142.4",  # Property-based testing
-    
-    # Code analysis
-    "ruff>=0.14.2",
-    "radon>=6.0.1",
-    
+
     # File system watching
     "watchdog>=6.0.0",
 
@@ -99,6 +97,11 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+contracts = [
+    "crosshair-tool>=0.0.97",
+    "hypothesis>=6.142.4",
+]
+
 dev = [
     "pytest>=8.4.2",
     "pytest-cov>=7.0.0",
@@ -114,12 +117,14 @@ dev = [
     "types-PyYAML>=6.0.12.20250516",
     "pip-tools>=7.5.1",
     "semgrep>=1.144.0",  # Latest version compatible with rich~=13.5.2
-    
-    # Contract-First Development Dependencies (dev)
-    "icontract>=2.7.1",
-    "beartype>=0.22.4", 
+
+    # Same contract exploration stack as [contracts] (extras cannot self-reference)
     "crosshair-tool>=0.0.97",
     "hypothesis>=6.142.4",
+
+    # Contract-First Development Dependencies (dev)
+    "icontract>=2.7.1",
+    "beartype>=0.22.4",
     
     # Enhanced Analysis Tools (for local development)
     # Note: syft excluded from dev/test due to rich version conflict with semgrep
@@ -170,7 +175,6 @@ dependencies = [
     "pytest-cov",
     "pytest-mock",
     "pytest-xdist",
-    "python-dotenv",
     "pre-commit",
     # Ensure format/lint tools are available in the hatch env
     "isort>=7.0.0",

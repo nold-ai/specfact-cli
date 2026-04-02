@@ -24,7 +24,12 @@ from specfact_cli import __version__ as cli_version
 from specfact_cli.common import get_bridge_logger
 from specfact_cli.models.module_package import ModulePackageMetadata
 from specfact_cli.registry.crypto_validator import verify_checksum, verify_signature
-from specfact_cli.registry.dependency_resolver import DependencyConflictError, resolve_dependencies
+from specfact_cli.registry.dependency_resolver import (
+    DependencyConflictError,
+    PipDependencyInstallError,
+    install_resolved_pip_requirements,
+    resolve_dependencies,
+)
 from specfact_cli.registry.marketplace_client import download_module
 from specfact_cli.registry.module_discovery import discover_all_modules
 from specfact_cli.registry.module_security import assert_module_allowed, ensure_publisher_trusted
@@ -143,7 +148,8 @@ def _extract_bundle_dependencies(metadata: dict[str, Any]) -> list[str]:
     dependencies: list[str] = []
     for index, value in enumerate(raw_dependencies):
         if isinstance(value, dict):
-            raw_id = value.get("id")
+            entry = cast(dict[str, Any], value)
+            raw_id = entry.get("id")
             if raw_id is None or not str(raw_id).strip():
                 raise ValueError(
                     f"bundle_dependencies[{index}]: object entry must include non-empty 'id' "
@@ -801,13 +807,20 @@ def _install_bundle_dependencies_for_module(
     try:
         all_metas = [e.metadata for e in discover_all_modules()]
         all_metas.append(metadata_obj)
-        resolve_dependencies(all_metas, allow_unvalidated=True)
+        resolved = resolve_dependencies(all_metas, allow_unvalidated=True)
     except DependencyConflictError as dep_err:
         if not force:
             raise ValueError(
                 f"Dependency conflict: {dep_err}. Use --force to bypass or --skip-deps to skip resolution."
             ) from dep_err
         logger.warning("Dependency conflict bypassed by --force: %s", dep_err)
+        return
+    if not resolved:
+        return
+    try:
+        install_resolved_pip_requirements(resolved)
+    except PipDependencyInstallError as pip_err:
+        raise ValueError(f"Failed to install resolved pip dependencies: {pip_err}") from pip_err
 
 
 def _atomic_place_verified_module(

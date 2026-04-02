@@ -10,7 +10,18 @@ All notable changes to this project will be documented in this file.
 
 ---
 
-## [0.45.0] - 2026-04-02
+## [0.45.1] - 2026-04-03
+
+### Changed
+
+- **Dependency install profiles**: the default wheel is slimmer—CrossHair, Hypothesis, Ruff, Radon,
+  and unused pins (`python-dotenv`, `cffi`) are no longer in core `dependencies`. Use
+  `pip install specfact-cli[contracts]` for CrossHair + Hypothesis, or `pip install specfact-cli[dev]`
+  for contributors. `packaging` is pinned explicitly for module installer / PEP 440 use.
+- **Smart-test baseline fallback**: incremental smart-test runs now establish a full-suite baseline when
+  no `last_full_run` cache exists (avoids a no-op incremental pass and misleading zero coverage).
+- **Pre-commit single-invocation overwrite handling**: staged Python files are passed to the code-review
+  helper in one batch so `.specfact/code-review.json` is not overwritten by multiple `xargs` processes.
 
 ### Fixed
 

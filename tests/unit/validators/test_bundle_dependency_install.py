@@ -45,6 +45,9 @@ def _create_module_tarball(
 
 def _stub_integrity_and_deps(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("specfact_cli.registry.module_installer.resolve_dependencies", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(
+        "specfact_cli.registry.module_installer.install_resolved_pip_requirements", lambda *_args, **_kwargs: None
+    )
     monkeypatch.setattr("specfact_cli.registry.module_installer.verify_module_artifact", lambda *_args, **_kwargs: True)
     monkeypatch.setattr(
         "specfact_cli.registry.module_installer.ensure_publisher_trusted", lambda *_args, **_kwargs: None

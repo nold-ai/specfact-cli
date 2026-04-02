@@ -25,6 +25,10 @@ class PipDependencyValidationUnavailableError(RuntimeError):
     """Raised when pip is unavailable and pip dependency validation must not be skipped."""
 
 
+class PipDependencyInstallError(Exception):
+    """Raised when installation of resolved pip requirements fails."""
+
+
 @beartype
 def _pip_tools_available() -> bool:
     """Return True if pip-compile is available."""
@@ -46,18 +50,22 @@ def _run_pip_compile(constraints: list[str]) -> list[str]:
     if not constraints:
         return []
     with tempfile.TemporaryDirectory() as tmp:
-        reqs = Path(tmp) / "requirements.in"
+        tmp_path = Path(tmp)
+        reqs = tmp_path / "requirements.in"
+        out_path = tmp_path / "requirements.txt"
         reqs.write_text("\n".join(constraints), encoding="utf-8")
         result = subprocess.run(
-            ["pip-compile", "--dry-run", "--no-annotate", str(reqs)],
+            ["pip-compile", "--no-annotate", "-o", str(out_path), str(reqs)],
             capture_output=True,
             text=True,
             timeout=120,
         )
         if result.returncode != 0:
             raise DependencyConflictError(result.stderr or result.stdout or "pip-compile failed")
-        out = (Path(tmp) / "requirements.txt").read_text() if (Path(tmp) / "requirements.txt").exists() else ""
-        if not out:
+        if not out_path.exists():
+            return []
+        out = out_path.read_text(encoding="utf-8")
+        if not out.strip():
             return []
         return [L.strip() for L in out.splitlines() if L.strip() and not L.strip().startswith("#")]
 
@@ -151,3 +159,28 @@ def resolve_dependencies(
     if _pip_tools_available():
         return _run_pip_compile(constraints)
     return _run_basic_resolver(constraints, allow_unvalidated=allow_unvalidated)
+
+
+@beartype
+@require(lambda pinned: isinstance(pinned, list) and all(isinstance(x, str) for x in pinned))
+def install_resolved_pip_requirements(pinned: list[str]) -> None:
+    """Install pinned or constraint lines into the active interpreter (same as the CLI).
+
+    If ``pip`` is not available (e.g. minimal uvx runtime), logs a warning and returns without raising.
+    Raises :class:`PipDependencyInstallError` when pip is present but installation fails.
+    """
+    if not pinned:
+        return
+    if not _pip_module_available():
+        logger.warning(
+            "pip is not available in this environment; skipping install of %s marketplace pip "
+            "requirement(s). Install them manually or use a full Python environment.",
+            len(pinned),
+        )
+        return
+    cmd = [sys.executable, "-m", "pip", "install", "--no-input", *pinned]
+    logger.info("Installing %s resolved pip requirement(s) for marketplace modules", len(pinned))
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+    if result.returncode != 0:
+        detail = (result.stderr or result.stdout or "pip install failed").strip()
+        raise PipDependencyInstallError(detail)

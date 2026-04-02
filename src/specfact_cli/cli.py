@@ -126,8 +126,7 @@ def _print_missing_bundle_command_help(invoked: str) -> None:
             f"[bold red]Module '{module_id}' is not installed.[/bold red]\n"
             f"The [bold]{invoked}[/bold] command group is provided by that module. "
             f"Install with [bold]specfact module install {module_id}[/bold], "
-            "or run [bold]specfact init --profile solo-developer[/bold] (or another profile) "
-            "to install bundles."
+            "or run [bold]specfact init --profile <profile>[/bold] to install bundles."
         )
         return
     console.print(

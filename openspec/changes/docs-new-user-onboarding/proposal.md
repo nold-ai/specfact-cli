@@ -135,9 +135,17 @@ can truthfully describe a vibe-coder entry sequence.
 
 ## Source Tracking
 
-- **GitHub Issue**: [#476](https://github.com/nold-ai/specfact-cli/issues/476)
-- **Issue URL**: <https://github.com/nold-ai/specfact-cli/issues/476>
-- **Parent Feature**: [#356](https://github.com/nold-ai/specfact-cli/issues/356) — Documentation & Discrepancy Remediation ([tracking comment](https://github.com/nold-ai/specfact-cli/issues/356#issuecomment-4180162525))
-- **Related (overlap)**: [#466](https://github.com/nold-ai/specfact-cli/issues/466) — first-contact / onboarding ([cross-link comment](https://github.com/nold-ai/specfact-cli/issues/466#issuecomment-4180162609))
+- **GitHub Issue**: [issue-476]
+- **Issue URL**: [issue-476-url]
+- **Parent Feature**: [issue-356] — Documentation & Discrepancy Remediation ([tracking comment][comment-356])
+- **Related (overlap)**: [issue-466] — first-contact / onboarding ([cross-link comment][comment-466])
 - **Repository**: nold-ai/specfact-cli
-- **Last Synced Status**: in-progress — issue created with labels `enhancement`, `change-proposal`, `documentation`, `openspec`
+- **Last Synced Status**: in-progress — issue created with labels `enhancement`, `change-proposal`, `documentation`,
+  `openspec`
+
+[issue-476]: https://github.com/nold-ai/specfact-cli/issues/476
+[issue-476-url]: https://github.com/nold-ai/specfact-cli/issues/476
+[issue-356]: https://github.com/nold-ai/specfact-cli/issues/356
+[comment-356]: https://github.com/nold-ai/specfact-cli/issues/356#issuecomment-4180162525
+[issue-466]: https://github.com/nold-ai/specfact-cli/issues/466
+[comment-466]: https://github.com/nold-ai/specfact-cli/issues/466#issuecomment-4180162609

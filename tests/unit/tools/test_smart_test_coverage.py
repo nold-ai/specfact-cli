@@ -503,6 +503,7 @@ class TestSmartCoverageManager:
                 "test_count": 150,
                 "coverage_percentage": 85.5,
                 "success": True,
+                "last_run": "2025-01-01T12:00:00",
             }
             result = self.manager.run_smart_tests()
 

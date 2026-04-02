@@ -92,6 +92,14 @@ def _upgrade_module_names_valid(module_names: list[str] | None) -> bool:
     return all(m.strip() != "" for m in module_names)
 
 
+def _install_module_ids_nonempty(module_ids: list[str]) -> bool:
+    return bool(module_ids) and all(m.strip() != "" for m in module_ids)
+
+
+def _uninstall_module_names_nonempty(module_names: list[str]) -> bool:
+    return bool(module_names) and all(m.strip() != "" for m in module_names)
+
+
 def _publisher_url_from_metadata(metadata: object | None) -> str:
     if not metadata:
         return "n/a"
@@ -281,6 +289,7 @@ def _install_one(
 
 
 @app.command()
+@require(_install_module_ids_nonempty, "at least one non-blank module id is required")
 @beartype
 def install(
     module_ids: Annotated[
@@ -313,9 +322,6 @@ def install(
     ),
 ) -> None:
     """Install one or more modules from bundled artifacts or marketplace registry."""
-    if not module_ids:
-        console.print("[red]At least one module id is required.[/red]")
-        raise typer.Exit(1)
     if version is not None and sum(1 for mid in module_ids if mid.strip()) > 1:
         console.print(
             "[red]--version applies to a single module; install one module at a time or omit --version.[/red]"
@@ -325,8 +331,6 @@ def install(
     target_root = _resolve_install_target_root(scope_normalized, repo)
     discovered_by_name = {entry.metadata.name: entry for entry in discover_all_modules()}
     for module_id in module_ids:
-        if not module_id.strip():
-            continue
         success = _install_one(
             module_id,
             scope_normalized,
@@ -391,14 +395,22 @@ def _uninstall_from_explicit_scope(
         if not project_module_dir.exists():
             console.print(f"[red]Module '{normalized}' is not installed in project scope ({project_root}).[/red]")
             raise typer.Exit(1)
-        shutil.rmtree(project_module_dir)
+        try:
+            shutil.rmtree(project_module_dir)
+        except OSError as exc:
+            console.print(f"[red]Could not remove module directory {project_module_dir}: {exc}[/red]")
+            raise typer.Exit(1) from exc
         console.print(f"[green]Uninstalled[/green] {normalized} from {project_root}")
         return True
     if scope_normalized == "user":
         if not user_module_dir.exists():
             console.print(f"[red]Module '{normalized}' is not installed in user scope ({user_root}).[/red]")
             raise typer.Exit(1)
-        shutil.rmtree(user_module_dir)
+        try:
+            shutil.rmtree(user_module_dir)
+        except OSError as exc:
+            console.print(f"[red]Could not remove module directory {user_module_dir}: {exc}[/red]")
+            raise typer.Exit(1) from exc
         console.print(f"[green]Uninstalled[/green] {normalized} from {user_root}")
         return True
     return False
@@ -452,6 +464,7 @@ def _uninstall_marketplace_default(normalized: str) -> None:
 
 
 @app.command()
+@require(_uninstall_module_names_nonempty, "at least one non-blank module name is required")
 @beartype
 def uninstall(
     module_names: Annotated[
@@ -462,14 +475,9 @@ def uninstall(
     repo: Path | None = typer.Option(None, "--repo", help="Repository path for project scope (default: current dir)"),
 ) -> None:
     """Uninstall one or more marketplace modules."""
-    if not module_names:
-        console.print("[red]At least one module name is required.[/red]")
-        raise typer.Exit(1)
     failed = False
     for module_name in module_names:
         stripped = module_name.strip()
-        if not stripped:
-            continue
         try:
             _uninstall_single_module(stripped, scope, repo)
         except ClickExit as exc:
@@ -1043,21 +1051,27 @@ def _full_marketplace_module_id_for_install(target: str) -> str:
     return f"nold-ai/specfact-{short}"
 
 
-def _latest_version_from_registry_index(module_id: str) -> str | None:
-    idx = fetch_registry_index()
+def _latest_version_map_from_registry_index(idx: dict[str, Any] | None) -> dict[str, str]:
+    """Build module id -> latest_version from a single registry index fetch."""
+    out: dict[str, str] = {}
     if not idx:
-        return None
+        return out
     mods = idx.get("modules", [])
     if not isinstance(mods, list):
-        return None
+        return out
     for raw in mods:
-        if isinstance(raw, dict) and str(raw.get("id", "")).strip() == module_id:
-            lv = raw.get("latest_version")
-            if lv is None:
-                return None
-            s = str(lv).strip()
-            return s or None
-    return None
+        if not isinstance(raw, dict):
+            continue
+        mid = str(raw.get("id", "")).strip()
+        if not mid:
+            continue
+        lv = raw.get("latest_version")
+        if lv is None:
+            continue
+        s = str(lv).strip()
+        if s:
+            out[mid] = s
+    return out
 
 
 def _versions_equal_for_upgrade(current: str, latest: str) -> bool:
@@ -1083,18 +1097,24 @@ def _resolve_one_upgrade_name(raw: str, by_id: dict[str, dict[str, Any]]) -> str
     if "/" not in normalized and f"specfact-{normalized}" in by_id:
         candidates.append(f"specfact-{normalized}")
     for cand in candidates:
-        if cand in by_id:
-            source = str(by_id[cand].get("source", "unknown"))
-            if source != "marketplace":
-                console.print(
-                    f"[red]Cannot upgrade '{cand}' from source '{source}'. "
-                    "Only marketplace modules are upgradeable.[/red]"
-                )
-                raise typer.Exit(1)
+        if cand not in by_id:
+            continue
+        source = str(by_id[cand].get("source", "unknown"))
+        if source != "marketplace":
+            console.print(
+                f"[red]Cannot upgrade '{cand}' from source '{source}'. Only marketplace modules are upgradeable.[/red]"
+            )
+            raise typer.Exit(1)
+        return cand
+    marketplace_by_id = {k: v for k, v in by_id.items() if str(v.get("source", "")) == "marketplace"}
+    candidates2 = [normalized]
+    if "/" not in normalized and f"specfact-{normalized}" in marketplace_by_id:
+        candidates2.append(f"specfact-{normalized}")
+    for cand in candidates2:
+        if cand in marketplace_by_id:
             return cand
-    if "/" in normalized:
-        return normalized
-    return f"specfact/{normalized}"
+    console.print(f"[red]Module '{normalized}' is not installed and cannot be upgraded.[/red]")
+    raise typer.Exit(1)
 
 
 def _resolve_upgrade_target_ids(
@@ -1114,6 +1134,7 @@ def _resolve_upgrade_target_ids(
 def _run_marketplace_upgrades(
     target_ids: list[str],
     by_id: dict[str, dict[str, Any]],
+    latest_by_id: dict[str, str],
     *,
     yes: bool = False,
 ) -> None:
@@ -1129,7 +1150,7 @@ def _run_marketplace_upgrades(
             current_v = str(row.get("version", "unknown")).strip()
             latest_v = str(row.get("latest_version") or "").strip()
             if not latest_v:
-                latest_v = (_latest_version_from_registry_index(full_id) or "").strip()
+                latest_v = (latest_by_id.get(full_id, "") or "").strip()
 
             if latest_v and _versions_equal_for_upgrade(current_v, latest_v):
                 up_to_date.append(full_id)
@@ -1204,7 +1225,9 @@ def upgrade(
     target_ids = _resolve_upgrade_target_ids(module_names, all, modules, by_id)
     if not target_ids:
         return
-    _run_marketplace_upgrades(target_ids, by_id, yes=yes)
+    index = fetch_registry_index()
+    latest_by_id = _latest_version_map_from_registry_index(index)
+    _run_marketplace_upgrades(target_ids, by_id, latest_by_id, yes=yes)
 
 
 # Expose standard ModuleIOContract operations for protocol compliance discovery.

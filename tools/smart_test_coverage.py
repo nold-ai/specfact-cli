@@ -39,6 +39,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, TextIO, cast
 
+from beartype import beartype
 from icontract import ensure, require
 
 
@@ -856,10 +857,12 @@ class SmartCoverageManager:
         success: bool,
         test_level: str,
         test_count: int,
-        coverage_percentage: float,
+        coverage_percentage: float | None,
         output_lines: list[str],
     ) -> bool:
         """Treat threshold-only failures as success for unit/folder runs when appropriate."""
+        if coverage_percentage is None:
+            return success
         if success or test_level not in ("unit", "folder") or test_count <= 0 or coverage_percentage <= 0:
             return success
         if not any(self._line_indicates_coverage_threshold_failure(line) for line in output_lines):
@@ -877,15 +880,21 @@ class SmartCoverageManager:
         success: bool,
         test_level: str,
         test_count: int,
-        coverage_percentage: float,
-        tested_coverage_percentage: float,
+        coverage_percentage: float | None,
+        tested_coverage_percentage: float | None,
         test_log_file: Path,
         coverage_log_file: Path,
         return_code: int | None,
     ) -> None:
         """Emit summary log lines after a leveled test run."""
         if success:
-            if test_level in ("unit", "folder") and tested_coverage_percentage > 0:
+            if coverage_percentage is None or tested_coverage_percentage is None:
+                logger.info(
+                    "%s tests completed: %d tests; line coverage not measured for this level",
+                    test_level.title(),
+                    test_count,
+                )
+            elif test_level in ("unit", "folder") and tested_coverage_percentage > 0:
                 logger.info(
                     "%s tests completed: %d tests, %.1f%% overall, %.1f%% tested code coverage",
                     test_level.title(),
@@ -907,7 +916,9 @@ class SmartCoverageManager:
             logger.info("Check %s test log for details: %s", test_level, test_log_file)
             logger.info("Check %s coverage log for details: %s", test_level, coverage_log_file)
 
-    def _log_tested_coverage_vs_threshold(self, test_level: str, tested_coverage_percentage: float) -> None:
+    def _log_tested_coverage_vs_threshold(self, test_level: str, tested_coverage_percentage: float | None) -> None:
+        if tested_coverage_percentage is None:
+            return
         if test_level not in ("unit", "folder") or tested_coverage_percentage <= 0:
             return
         if tested_coverage_percentage < self.coverage_threshold:
@@ -1017,6 +1028,20 @@ class SmartCoverageManager:
                         unit_tests.append(test_file)
 
         return unit_tests
+
+    def _modified_sources_proven_by_unit_batch(
+        self, modified_sources: list[Path], unit_tests_run: list[Path]
+    ) -> list[Path]:
+        """Return modified sources whose full set of mapped unit tests was included in the batch run."""
+        run = {str(p.resolve()) for p in unit_tests_run}
+        proven: list[Path] = []
+        for src in modified_sources:
+            mapped = self._get_unit_tests_for_files([src])
+            if not mapped:
+                continue
+            if all(str(t.resolve()) in run for t in mapped):
+                proven.append(src)
+        return proven
 
     def _get_files_in_folders(self, modified_folders: set[Path]) -> list[Path]:
         """Get all source files in the modified folders."""
@@ -1200,8 +1225,11 @@ class SmartCoverageManager:
             logger.error("Error running tests: %s", e)
             return False, 0, 0
 
-    def _run_tests(self, test_files: list[Path], test_level: str) -> tuple[bool, int, float]:
-        """Run tests for specific files and return (success, test_count, coverage_percentage)."""
+    def _run_tests(self, test_files: list[Path], test_level: str) -> tuple[bool, int, float | None]:
+        """Run tests for specific files and return (success, test_count, coverage_percentage).
+
+        ``coverage_percentage`` is None for levels without reliable line coverage (integration/e2e/scenarios).
+        """
         if not test_files:
             logger.info("No %s tests found to run", test_level)
             return True, 0, 100.0
@@ -1253,18 +1281,16 @@ class SmartCoverageManager:
             test_count = self._parse_pytest_test_count(output_lines)
             success = return_code == 0
 
-            # Integration, E2E, and contract "scenarios" use pytest without line coverage; do not
-            # parse TOTAL from output (would be 0%). Match integration/e2e advisory semantics.
+            # Integration, E2E, scenarios: line coverage is not a reliable metric for this runner.
             if test_level in ("integration", "e2e", "scenarios"):
-                coverage_percentage = 100.0
-                tested_coverage_percentage = 100.0
+                coverage_percentage = None
+                tested_coverage_percentage = None
             else:
                 coverage_percentage = self._parse_total_coverage_percent(output_lines)
-
-            if test_level in ("unit", "folder") and test_files:
-                tested_coverage_percentage = self._calculate_tested_coverage(test_files, output_lines)
-            else:
-                tested_coverage_percentage = coverage_percentage
+                if test_level in ("unit", "folder") and test_files:
+                    tested_coverage_percentage = self._calculate_tested_coverage(test_files, output_lines)
+                else:
+                    tested_coverage_percentage = coverage_percentage
 
             success = self._adjust_success_for_coverage_threshold(
                 success, test_level, test_count, coverage_percentage, output_lines
@@ -1347,8 +1373,10 @@ class SmartCoverageManager:
             )
 
     def _maybe_warn_subthreshold_non_full(
-        self, success: bool, enforce_threshold: bool, coverage_percentage: float
+        self, success: bool, enforce_threshold: bool, coverage_percentage: float | None
     ) -> None:
+        if coverage_percentage is None:
+            return
         if success and enforce_threshold:
             self._check_coverage_threshold(coverage_percentage)
         elif success and not enforce_threshold and coverage_percentage < self.coverage_threshold:
@@ -1382,12 +1410,13 @@ class SmartCoverageManager:
         self,
         success: bool,
         test_count: int,
-        coverage_percentage: float,
+        coverage_percentage: float | None,
         enforce_threshold: bool = True,
         update_only: bool = False,
         updated_sources: list[Path] | None = None,
         updated_tests: list[Path] | None = None,
         updated_configs: list[Path] | None = None,
+        update_coverage_in_cache: bool = True,
     ) -> None:
         """Update cache and hashes.
         If update_only is True, only update hashes for provided file lists (when their tests passed).
@@ -1417,10 +1446,15 @@ class SmartCoverageManager:
             self._refresh_all_tracked_hashes(file_hashes, test_file_hashes, config_file_hashes)
 
         # Update cache; keep last_full_run as the last index time (not necessarily a full suite)
+        prior_cov = float(self.cache.get("coverage_percentage", 0.0))
+        if coverage_percentage is None or not update_coverage_in_cache:
+            cov_for_cache = prior_cov
+        else:
+            cov_for_cache = coverage_percentage
         self.cache.update(
             {
                 "last_full_run": datetime.now().isoformat(),
-                "coverage_percentage": coverage_percentage if success else self.cache.get("coverage_percentage", 0),
+                "coverage_percentage": cov_for_cache if success else self.cache.get("coverage_percentage", 0),
                 "file_hashes": file_hashes,
                 "test_file_hashes": test_file_hashes,
                 "config_file_hashes": config_file_hashes,
@@ -1537,6 +1571,7 @@ class SmartCoverageManager:
         except Exception as e:
             logger.error("Error reading log file: %s", e)
 
+    @beartype
     @require(lambda self, test_level: test_level in {"unit", "folder", "integration", "e2e", "full", "auto"})
     @ensure(lambda result: isinstance(result, bool), "run_smart_tests must return bool")
     def run_smart_tests(self, test_level: str = "auto", force: bool = False) -> bool:
@@ -1552,8 +1587,11 @@ class SmartCoverageManager:
                 if force and not ran_any:
                     return self._run_full_tests()
                 return ok
-            # No changes - use cached data
+            # No changes - use cached data only when a baseline run has been recorded
             status = self.get_status()
+            if not status.get("last_run"):
+                logger.info("No cached full-run baseline; running full test suite once…")
+                return self._run_full_tests()
             logger.info(
                 "Using cached results: %d tests, %.1f%% coverage",
                 status["test_count"],
@@ -1565,10 +1603,13 @@ class SmartCoverageManager:
             return self.run_tests_by_level(test_level)
         return self.run_tests_by_level(test_level)
 
+    @beartype
     @require(lambda self, test_level: test_level in {"unit", "folder", "integration", "e2e", "full", "auto"})
     @ensure(lambda result: isinstance(result, bool), "run_tests_by_level must return bool")
     def run_tests_by_level(self, test_level: str) -> bool:
-        """Run tests by specified level: unit, folder, integration, e2e, or full."""
+        """Run tests by specified level: unit, folder, integration, e2e, full, or auto (smart detection)."""
+        if test_level == "auto":
+            return self.run_smart_tests("auto", force=False)
         if test_level == "unit":
             return self._run_unit_tests()
         if test_level == "folder":
@@ -1718,8 +1759,15 @@ class SmartCoverageManager:
                 enforce_threshold=False,
                 update_only=True,
                 updated_tests=integration_tests,
+                update_coverage_in_cache=False,
             )
-            logger.info("Integration tests completed: %d tests, %.1f%% coverage", test_count, coverage_percentage)
+            if coverage_percentage is None:
+                logger.info(
+                    "Integration tests completed: %d tests; line coverage not measured for this level",
+                    test_count,
+                )
+            else:
+                logger.info("Integration tests completed: %d tests, %.1f%% coverage", test_count, coverage_percentage)
             logger.info(
                 "Note: Integration test coverage is not enforced - focus is on component interaction validation"
             )
@@ -1755,8 +1803,15 @@ class SmartCoverageManager:
                 enforce_threshold=False,
                 update_only=True,
                 updated_tests=e2e_tests,
+                update_coverage_in_cache=False,
             )
-            logger.info("E2E tests completed: %d tests, %.1f%% coverage", test_count, coverage_percentage)
+            if coverage_percentage is None:
+                logger.info(
+                    "E2E tests completed: %d tests; line coverage not measured for this level",
+                    test_count,
+                )
+            else:
+                logger.info("E2E tests completed: %d tests, %.1f%% coverage", test_count, coverage_percentage)
             logger.info("Note: E2E test coverage is not enforced - focus is on full workflow validation")
         else:
             logger.error("E2E tests failed")
@@ -1785,6 +1840,12 @@ class SmartCoverageManager:
         modified_sources = self._get_modified_files()
         modified_tests = self._get_modified_test_files()
 
+        if modified_sources and self.cache.get("last_full_run"):
+            unmapped = [s for s in modified_sources if not self._get_unit_tests_for_files([s])]
+            if unmapped:
+                logger.info("Modified source(s) have no unit-mapped tests; running full suite to verify baseline.")
+                return self._run_full_tests(), True
+
         # Map modified sources to unit tests
         unit_from_sources = self._get_unit_tests_for_files(modified_sources)
         # Split modified tests by level
@@ -1812,14 +1873,14 @@ class SmartCoverageManager:
             ran_any = True
             ok, unit_count, unit_cov = self._run_tests(unit_tests, "unit")
             if ok:
-                # Update hashes only for modified sources we mapped and the unit test files themselves
+                proven_sources = self._modified_sources_proven_by_unit_batch(modified_sources, unit_tests)
                 self._update_cache(
                     True,
                     unit_count,
                     unit_cov,
                     enforce_threshold=False,
                     update_only=True,
-                    updated_sources=modified_sources,
+                    updated_sources=proven_sources,
                     updated_tests=unit_tests,
                 )
             overall_success = overall_success and ok
@@ -1828,7 +1889,13 @@ class SmartCoverageManager:
             ok, integ_count, integ_cov = self._run_tests(integ_tests, "integration")
             if ok:
                 self._update_cache(
-                    True, integ_count, integ_cov, enforce_threshold=False, update_only=True, updated_tests=integ_tests
+                    True,
+                    integ_count,
+                    integ_cov,
+                    enforce_threshold=False,
+                    update_only=True,
+                    updated_tests=integ_tests,
+                    update_coverage_in_cache=False,
                 )
             overall_success = overall_success and ok
         if e2e_tests:
@@ -1836,7 +1903,13 @@ class SmartCoverageManager:
             ok, e2e_count, e2e_cov = self._run_tests(e2e_tests, "e2e")
             if ok:
                 self._update_cache(
-                    True, e2e_count, e2e_cov, enforce_threshold=False, update_only=True, updated_tests=e2e_tests
+                    True,
+                    e2e_count,
+                    e2e_cov,
+                    enforce_threshold=False,
+                    update_only=True,
+                    updated_tests=e2e_tests,
+                    update_coverage_in_cache=False,
                 )
             overall_success = overall_success and ok
 
@@ -1845,8 +1918,10 @@ class SmartCoverageManager:
                 logger.info("No incremental baseline; running full test suite once to establish cache…")
                 success = self._run_full_tests()
                 return success, True
+            if self._has_config_changes():
+                logger.info("Configuration changed but no mapped tests to run; running full suite…")
+                return self._run_full_tests(), True
             logger.info("No changed files detected that map to tests - skipping test execution")
-            self._update_cache(True, 0, self.cache.get("coverage_percentage", 0.0), enforce_threshold=False)
             return True, False
 
         return overall_success, True
@@ -1859,6 +1934,8 @@ class SmartCoverageManager:
         if test_level == "full":
             success, test_count, coverage_percentage = self._run_coverage_tests()
             self._update_cache(success, test_count, coverage_percentage, enforce_threshold=True)
+        elif test_level == "auto":
+            success = self.run_smart_tests("auto", force=True)
         else:
             success = self.run_tests_by_level(test_level)
         return success

@@ -112,7 +112,9 @@ Installed modules add command groups such as `project`, `backlog`, `code`, `spec
 
 ## Modules Documentation
 
-`docs.specfact.io` is the default starting point for first-time readers on this site, and the **canonical starting point for the core CLI story** in the docs split. Move to the modules site when you need **module-deep workflows**, bundle-specific adapters, and authoring guidance.
+`docs.specfact.io` is the default starting point and the **canonical starting point for the core CLI story**
+for first-time readers on this site. Move to the modules site when you need **module-deep workflows**,
+bundle-specific adapters, and authoring guidance.
 
 - **[Modules Docs Home](https://modules.specfact.io/)** - Backlog, project, spec, govern
 - **[Module Development](https://modules.specfact.io/authoring/module-development/)** - Build your own modules
