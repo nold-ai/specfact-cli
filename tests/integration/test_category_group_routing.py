@@ -48,9 +48,10 @@ def test_backlog_help_lists_subcommands() -> None:
         assert "backlog" in out
         assert "policy" in out or "ceremony" in out
         return
-    assert "command 'backlog' is not installed." in out
-    assert "specfact init --profile" in out
-    assert "module install" in out
+    merged = " ".join(out.split())
+    assert "module 'nold-ai/specfact-backlog' is not installed." in merged
+    assert "specfact module install nold-ai/specfact-backlog" in merged
+    assert "specfact init --profile <profile>" in merged
 
 
 def test_validate_flat_command_is_not_available() -> None:

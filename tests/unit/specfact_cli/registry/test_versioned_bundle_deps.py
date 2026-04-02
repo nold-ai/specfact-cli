@@ -8,6 +8,8 @@ from __future__ import annotations
 
 from typing import Any
 
+import pytest
+
 from specfact_cli.registry.module_installer import _extract_bundle_dependencies
 
 
@@ -53,10 +55,29 @@ def test_extract_bundle_dependencies_missing_key() -> None:
     assert deps == []
 
 
+def test_extract_bundle_dependencies_rejects_object_without_id() -> None:
+    """Malformed bundle_dependencies objects must fail manifest validation, not be skipped."""
+    metadata: dict[str, Any] = {"bundle_dependencies": [{"version": ">=1.0.0"}]}
+    with pytest.raises(ValueError, match="non-empty 'id'"):
+        _extract_bundle_dependencies(metadata)
+
+
+def test_extract_bundle_dependencies_rejects_empty_id_object() -> None:
+    metadata: dict[str, Any] = {"bundle_dependencies": [{"id": "", "version": ">=1.0.0"}]}
+    with pytest.raises(ValueError, match="non-empty 'id'"):
+        _extract_bundle_dependencies(metadata)
+
+
+def test_extract_bundle_dependencies_rejects_empty_string_entry() -> None:
+    metadata: dict[str, Any] = {"bundle_dependencies": ["nold-ai/specfact-project", ""]}
+    with pytest.raises(ValueError, match="string entry must be non-empty"):
+        _extract_bundle_dependencies(metadata)
+
+
 # ── core_compatibility actionable error ───────────────────────────────────────
 
 
-def test_validate_install_manifest_constraints_actionable_error(tmp_path: object) -> None:
+def test_validate_install_manifest_constraints_actionable_error() -> None:
     """core_compatibility mismatch must produce actionable message, not bare ValueError."""
     from specfact_cli.registry.module_installer import _validate_install_manifest_constraints
 
@@ -65,8 +86,6 @@ def test_validate_install_manifest_constraints_actionable_error(tmp_path: object
         "version": "0.1.0",
         "core_compatibility": ">=99.0.0,<100.0.0",  # impossibly high — always fails
     }
-
-    import pytest
 
     with pytest.raises((ValueError, SystemExit)) as exc_info:
         _validate_install_manifest_constraints(

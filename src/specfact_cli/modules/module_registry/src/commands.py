@@ -316,10 +316,14 @@ def install(
     if not module_ids:
         console.print("[red]At least one module id is required.[/red]")
         raise typer.Exit(1)
+    if version is not None and sum(1 for mid in module_ids if mid.strip()) > 1:
+        console.print(
+            "[red]--version applies to a single module; install one module at a time or omit --version.[/red]"
+        )
+        raise typer.Exit(1)
     scope_normalized, source_normalized = _parse_install_scope_and_source(scope, source)
     target_root = _resolve_install_target_root(scope_normalized, repo)
     discovered_by_name = {entry.metadata.name: entry for entry in discover_all_modules()}
-    failed: list[str] = []
     for module_id in module_ids:
         if not module_id.strip():
             continue
@@ -336,9 +340,7 @@ def install(
             discovered_by_name,
         )
         if not success:
-            failed.append(module_id)
-    if failed:
-        raise typer.Exit(1)
+            raise typer.Exit(1)
 
 
 def _normalize_uninstall_module_name(module_name: str) -> str:

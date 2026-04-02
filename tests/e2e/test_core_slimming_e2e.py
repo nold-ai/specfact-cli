@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Generator
 from pathlib import Path
 
 import pytest
@@ -9,7 +10,7 @@ from typer.testing import CliRunner
 
 
 @pytest.fixture(autouse=True)
-def _reset_registry():
+def _reset_registry() -> Generator[None, None, None]:
     """Ensure registry is cleared so E2E sees predictable bootstrap state when we re-bootstrap."""
     from specfact_cli.registry import CommandRegistry
 

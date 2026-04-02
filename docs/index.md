@@ -34,7 +34,7 @@ SpecFact does **not** include built-in AI. It pairs deterministic CLI commands w
 
 ## What is SpecFact?
 
-SpecFact helps you keep backlog intent, specifications, implementation, and validation from drifting apart. It supports spec-first handoffs with **OpenSpec** and spec-kit style workflows so brownfield and AI-assisted teams can keep backlog language, specs, and code aligned.
+SpecFact helps you keep backlog intent, specifications, implementation, and validation from drifting apart. It supports spec-first handoffs with **OpenSpec** and spec-kit-style workflows so brownfield and AI-assisted teams can keep backlog language, specs, and code aligned.
 
 It is especially useful when:
 
@@ -112,7 +112,7 @@ Installed modules add command groups such as `project`, `backlog`, `code`, `spec
 
 ## Modules Documentation
 
-`docs.specfact.io` is the default starting point for the core CLI story and the **canonical starting point for the core CLI story** on this site. Move to the modules site when you need **module-deep workflows**, bundle-specific adapters, and authoring guidance.
+`docs.specfact.io` is the default starting point for first-time readers on this site, and the **canonical starting point for the core CLI story** in the docs split. Move to the modules site when you need **module-deep workflows**, bundle-specific adapters, and authoring guidance.
 
 - **[Modules Docs Home](https://modules.specfact.io/)** - Backlog, project, spec, govern
 - **[Module Development](https://modules.specfact.io/authoring/module-development/)** - Build your own modules

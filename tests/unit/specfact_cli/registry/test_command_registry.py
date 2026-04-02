@@ -7,6 +7,7 @@ Scenarios: register/get_typer (lazy), list_commands, unknown raises, metadata wi
 from __future__ import annotations
 
 import os
+from collections.abc import Generator
 from pathlib import Path
 
 import pytest
@@ -30,7 +31,7 @@ def _subprocess_env() -> dict[str, str]:
 
 
 @pytest.fixture(autouse=True)
-def _reset_registry():
+def _reset_registry() -> Generator[None, None, None]:
     """Reset registry before each test so tests are isolated."""
     CommandRegistry._clear_for_testing()
     yield
@@ -191,10 +192,13 @@ def test_cli_backlog_help_exits_zero():
     )
     if result.returncode == 0:
         return
-    merged = (result.stdout or "") + "\n" + (result.stderr or "")
-    assert "Command 'backlog' is not installed." in merged, (result.stdout, result.stderr)
-    assert "specfact init --profile" in merged, (result.stdout, result.stderr)
-    assert "module install" in merged, (result.stdout, result.stderr)
+    assert result.returncode == 1, (result.stdout, result.stderr)
+    merged = " ".join(((result.stdout or "") + "\n" + (result.stderr or "")).split())
+    assert "Module 'nold-ai/specfact-backlog' is not installed." in merged, (result.stdout, result.stderr)
+    assert "The backlog command group is provided by that module." in merged, (result.stdout, result.stderr)
+    assert "specfact module install nold-ai/specfact-backlog" in merged, (result.stdout, result.stderr)
+    assert "specfact init --profile <profile>" in merged, (result.stdout, result.stderr)
+    assert "to install bundles." in merged, (result.stdout, result.stderr)
 
 
 def test_cli_module_help_exits_zero():

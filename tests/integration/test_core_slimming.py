@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Generator
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -23,7 +24,7 @@ ALL_FIVE_BUNDLES = [
 
 
 @pytest.fixture(autouse=True)
-def _reset_registry():
+def _reset_registry() -> Generator[None, None, None]:
     """Reset registry before each test so bootstrap state is predictable."""
     CommandRegistry._clear_for_testing()
     yield

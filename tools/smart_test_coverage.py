@@ -681,6 +681,58 @@ class SmartCoverageManager:
                         pass
         return coverage_percentage
 
+    def _coverage_data_file_path(self) -> Path:
+        """Path to the coverage data file (matches ``[tool.coverage.run] data_file`` in pyproject.toml)."""
+        return self.project_root / "logs" / "tests" / "coverage" / ".coverage"
+
+    def _run_coverage_report_subprocess(self) -> list[str]:
+        """Run ``coverage report -m`` and return output lines (for parsing TOTAL %%)."""
+        cmd = [sys.executable, "-m", "coverage", "report", "-m"]
+        try:
+            proc = subprocess.run(
+                cmd,
+                cwd=self.project_root,
+                capture_output=True,
+                text=True,
+                timeout=600,
+                check=False,
+            )
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            logger.warning("coverage report subprocess failed: %s", exc)
+            return []
+        text = (proc.stdout or "") + (proc.stderr or "")
+        if proc.returncode not in (0, 2) and not text.strip():
+            logger.warning("coverage report failed with rc=%s", proc.returncode)
+            return []
+        lines_out: list[str] = []
+        for line in text.splitlines(keepends=True):
+            if not line.endswith("\n"):
+                line += "\n"
+            lines_out.append(line)
+        return lines_out
+
+    def _append_coverage_report_if_needed(self, output_lines: list[str], log_file: TextIO) -> None:
+        """Append ``coverage report`` output when ``coverage run`` left no parsable TOTAL line.
+
+        Hatch ``run-cov`` uses ``coverage run -m pytest`` without printing a report; line coverage
+        only appears after ``coverage report``. Without this, smart-test always logged 0%% coverage.
+        """
+        if self._parse_total_coverage_percent(output_lines) > 0:
+            return
+        if not self._coverage_data_file_path().is_file():
+            logger.debug(
+                "Skipping coverage report append: no data file at %s",
+                self._coverage_data_file_path(),
+            )
+            return
+        report_lines = self._run_coverage_report_subprocess()
+        if not report_lines:
+            return
+        for line in report_lines:
+            sys.stdout.write(line)
+            log_file.write(line)
+            output_lines.append(line)
+
     @staticmethod
     def _pytest_count_from_banner_line(line: str) -> int | None:
         """Parse count from ``======== N passed`` style summary lines."""
@@ -751,11 +803,14 @@ class SmartCoverageManager:
                 pytest_cmd = self._build_pytest_cmd(with_coverage=True, parallel=True)
                 rc2, out2, _ = self._popen_stream_to_log(pytest_cmd, log_file, timeout=timeout_full)
                 output_lines.extend(out2)
+                self._append_coverage_report_if_needed(output_lines, log_file)
                 return rc2 if rc2 is not None else 1, output_lines
+            self._append_coverage_report_if_needed(output_lines, log_file)
             return rc, output_lines
         pytest_cmd = self._build_pytest_cmd(with_coverage=True, parallel=True)
         rc, out, _ = self._popen_stream_to_log(pytest_cmd, log_file, timeout=timeout_full)
         output_lines.extend(out)
+        self._append_coverage_report_if_needed(output_lines, log_file)
         return rc if rc is not None else 1, output_lines
 
     def _run_leveled_hatch_or_pytest(
@@ -782,12 +837,18 @@ class SmartCoverageManager:
                 logger.debug("Executing fallback: %s", shlex.join(pytest_cmd))
                 rc2, out2, _ = self._popen_stream_to_log(pytest_cmd, log_file, timeout=timeout_seconds)
                 output_lines.extend(out2)
+                if want_coverage:
+                    self._append_coverage_report_if_needed(output_lines, log_file)
                 return rc2 if rc2 is not None else 1, output_lines
+            if want_coverage:
+                self._append_coverage_report_if_needed(output_lines, log_file)
             return rc, output_lines
         pytest_cmd = self._build_pytest_cmd(with_coverage=want_coverage, extra_args=test_file_strings)
         logger.info("Hatch disabled; executing pytest directly: %s", shlex.join(pytest_cmd))
         rc, out, _ = self._popen_stream_to_log(pytest_cmd, log_file, timeout=timeout_seconds)
         output_lines.extend(out)
+        if want_coverage:
+            self._append_coverage_report_if_needed(output_lines, log_file)
         return rc if rc is not None else 1, output_lines
 
     def _adjust_success_for_coverage_threshold(
@@ -1192,7 +1253,9 @@ class SmartCoverageManager:
             test_count = self._parse_pytest_test_count(output_lines)
             success = return_code == 0
 
-            if test_level in ("integration", "e2e"):
+            # Integration, E2E, and contract "scenarios" use pytest without line coverage; do not
+            # parse TOTAL from output (would be 0%). Match integration/e2e advisory semantics.
+            if test_level in ("integration", "e2e", "scenarios"):
                 coverage_percentage = 100.0
                 tested_coverage_percentage = 100.0
             else:
@@ -1474,7 +1537,7 @@ class SmartCoverageManager:
         except Exception as e:
             logger.error("Error reading log file: %s", e)
 
-    @require(lambda test_level: test_level in {"unit", "folder", "integration", "e2e", "full", "auto"})
+    @require(lambda self, test_level: test_level in {"unit", "folder", "integration", "e2e", "full", "auto"})
     @ensure(lambda result: isinstance(result, bool), "run_smart_tests must return bool")
     def run_smart_tests(self, test_level: str = "auto", force: bool = False) -> bool:
         """Run tests with smart change detection and specified level."""
@@ -1485,11 +1548,7 @@ class SmartCoverageManager:
             config_changed = self._has_config_changes()
 
             if source_changed or test_changed or config_changed or force:
-                ok, ran_any = self._run_changed_only()
-                if force and not ran_any:
-                    logger.info("Force mode: no incremental tests ran — running full suite.")
-                    return self._run_full_tests()
-                return ok
+                return self._run_changed_only()
             # No changes - use cached data
             status = self.get_status()
             logger.info(
@@ -1503,7 +1562,7 @@ class SmartCoverageManager:
             return self.run_tests_by_level(test_level)
         return self.run_tests_by_level(test_level)
 
-    @require(lambda test_level: test_level in {"unit", "folder", "integration", "e2e", "full", "auto"})
+    @require(lambda self, test_level: test_level in {"unit", "folder", "integration", "e2e", "full", "auto"})
     @ensure(lambda result: isinstance(result, bool), "run_tests_by_level must return bool")
     def run_tests_by_level(self, test_level: str) -> bool:
         """Run tests by specified level: unit, folder, integration, e2e, or full."""
@@ -1710,25 +1769,11 @@ class SmartCoverageManager:
             self._update_cache(True, test_count, coverage_percentage, enforce_threshold=False)
         return success
 
-    def _run_changed_only(self) -> tuple[bool, bool]:
+    def _run_changed_only(self) -> bool:
         """Run only tests impacted by changes since last cached hashes.
-
-        Returns:
-            (success, ran_any): whether the run succeeded, and whether any test
-            subprocess actually ran (False means everything was skipped as no-op).
-
         - Unit: tests mapped from modified source files + directly modified unit tests
         - Integration/E2E: only directly modified tests
-        Baseline: if there is no ``last_full_run`` in cache, runs the full suite first.
-        ``run_smart_tests(..., force=True)`` may also fall back to full when incremental
-        mode would otherwise no-op.
-        """
-        if not self.cache.get("last_full_run"):
-            logger.info(
-                "No prior full test run in cache — running full suite to establish baseline for incremental runs."
-            )
-            return self._run_full_tests(), True
-
+        No full-suite fallback here; CI should catch broader regressions."""
         # Collect modified items
         modified_sources = self._get_modified_files()
         modified_tests = self._get_modified_test_files()
@@ -1792,9 +1837,9 @@ class SmartCoverageManager:
             logger.info("No changed files detected that map to tests - skipping test execution")
             # Still keep cache timestamp to allow future git comparisons
             self._update_cache(True, 0, self.cache.get("coverage_percentage", 0.0), enforce_threshold=False)
-            return True, False
+            return True
 
-        return overall_success, True
+        return overall_success
 
     @require(lambda test_level: test_level in {"unit", "folder", "integration", "e2e", "full", "auto"})
     @ensure(lambda result: isinstance(result, bool), "force_full_run must return bool")

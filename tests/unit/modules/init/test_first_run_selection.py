@@ -61,7 +61,7 @@ def test_install_backlog_codebase_resolves_to_two_bundles() -> None:
     assert len(bundles) == 2
 
 
-def test_install_all_resolves_to_all_canonical_bundles() -> None:
+def test_install_all_resolves_to_all_five_bundles() -> None:
     bundles = frs.resolve_install_bundles("all")
     assert set(bundles) == {
         "specfact-project",
@@ -69,9 +69,8 @@ def test_install_all_resolves_to_all_canonical_bundles() -> None:
         "specfact-codebase",
         "specfact-spec",
         "specfact-govern",
-        "specfact-code-review",
     }
-    assert len(bundles) == 6
+    assert len(bundles) == 5
 
 
 def test_install_unknown_bundle_raises() -> None:
@@ -252,9 +251,7 @@ def test_init_install_backlog_codebase_calls_installer_with_two_bundles(
     assert set(install_calls[0]) == {"specfact-backlog", "specfact-codebase"}
 
 
-def test_init_install_all_calls_installer_with_all_canonical_bundles(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_init_install_all_calls_installer_with_five_bundles(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     install_calls: list[list[str]] = []
 
     def _fake_install_bundles(bundle_ids: list[str], install_root: Path, **kwargs: object) -> None:
@@ -279,14 +276,13 @@ def test_init_install_all_calls_installer_with_all_canonical_bundles(
         )
     assert result.exit_code == 0, result.output
     assert len(install_calls) == 1
-    assert len(install_calls[0]) == 6
+    assert len(install_calls[0]) == 5
     assert set(install_calls[0]) == {
         "specfact-project",
         "specfact-backlog",
         "specfact-codebase",
         "specfact-spec",
         "specfact-govern",
-        "specfact-code-review",
     }
 
 
@@ -403,7 +399,7 @@ def test_spec_bundle_install_includes_project_dep(monkeypatch: pytest.MonkeyPatc
         "specfact_cli.registry.module_installer.install_bundled_module",
         _record_install,
     )
-    frs.install_bundles_for_init(["specfact-spec"], install_root=tmp_path)
+    frs.install_bundles_for_init(["specfact-spec"], install_root=tmp_path, show_progress=False)
     project_module_names = set(frs.BUNDLE_TO_MODULE_NAMES.get("specfact-project", []))
     spec_module_names = set(frs.BUNDLE_TO_MODULE_NAMES.get("specfact-spec", []))
     installed_set = set(installed_modules)

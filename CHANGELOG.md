@@ -10,6 +10,20 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.45.0] - 2026-04-02
+
+### Fixed
+
+- Missing bundle UX: when workflow bundles are not installed, the CLI now reports the
+  **marketplace module** (e.g. `nold-ai/specfact-codebase` for the `code` group) instead of
+  `Command 'code' is not installed`, which was easy to confuse with the VS Code `code` CLI.
+
+- Generated GitHub workflow (`resources/templates/github-action.yml.j2`): GitHub Actions `if`
+  conditions now use `${{ … }}` so annotations, PR comment, and fail steps evaluate correctly
+  on GitHub (avoids mixed `always() &&` / raw expression parsing issues).
+
+---
+
 ## [0.44.0] - 2026-03-31
 
 ### Added

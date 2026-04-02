@@ -141,10 +141,21 @@ def _extract_bundle_dependencies(metadata: dict[str, Any]) -> list[str]:
     if not isinstance(raw_dependencies, list):
         return []
     dependencies: list[str] = []
-    for value in raw_dependencies:
-        dep = str(value.get("id", "")).strip() if isinstance(value, dict) else str(value).strip()
-        if not dep:
-            continue
+    for index, value in enumerate(raw_dependencies):
+        if isinstance(value, dict):
+            raw_id = value.get("id")
+            if raw_id is None or not str(raw_id).strip():
+                raise ValueError(
+                    f"bundle_dependencies[{index}]: object entry must include non-empty 'id' "
+                    f"(invalid manifest; got {value!r})"
+                )
+            dep = str(raw_id).strip()
+        else:
+            dep = str(value).strip()
+            if not dep:
+                raise ValueError(
+                    f"bundle_dependencies[{index}]: string entry must be non-empty (invalid manifest; got {value!r})"
+                )
         _validate_marketplace_namespace_format(dep)
         dependencies.append(dep)
     return dependencies
@@ -790,7 +801,7 @@ def _install_bundle_dependencies_for_module(
     try:
         all_metas = [e.metadata for e in discover_all_modules()]
         all_metas.append(metadata_obj)
-        resolve_dependencies(all_metas)
+        resolve_dependencies(all_metas, allow_unvalidated=True)
     except DependencyConflictError as dep_err:
         if not force:
             raise ValueError(

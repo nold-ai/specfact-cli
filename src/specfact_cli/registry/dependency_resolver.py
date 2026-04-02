@@ -21,6 +21,10 @@ class DependencyConflictError(Exception):
     """Raised when pip dependency resolution detects conflicting version constraints."""
 
 
+class PipDependencyValidationUnavailableError(RuntimeError):
+    """Raised when pip is unavailable and pip dependency validation must not be skipped."""
+
+
 @beartype
 def _pip_tools_available() -> bool:
     """Return True if pip-compile is available."""
@@ -75,20 +79,25 @@ def _pip_module_available() -> bool:
 
 
 @beartype
-def _run_basic_resolver(constraints: list[str]) -> list[str]:
+def _run_basic_resolver(constraints: list[str], *, allow_unvalidated: bool = False) -> list[str]:
     """Fallback: use pip's resolver (e.g. pip install --dry-run). Returns best-effort pinned list.
 
-    When pip is not available (e.g. uvx environment), skips validation and returns constraints as-is.
-    Pip packages will be validated at actual install time by the host package manager.
+    When pip is not available (e.g. uvx environment), validation is skipped only if
+    ``allow_unvalidated`` is True; otherwise :class:`PipDependencyValidationUnavailableError` is raised.
     """
     if not constraints:
         return []
     if not _pip_module_available():
-        logger.warning(
-            "pip is not available in the current environment (e.g. uvx). "
-            "Skipping pip dependency validation — packages will be checked at install time."
+        if allow_unvalidated:
+            logger.warning(
+                "pip is not available in the current environment (e.g. uvx). "
+                "Skipping pip dependency validation — packages will be checked at install time."
+            )
+            return constraints
+        raise PipDependencyValidationUnavailableError(
+            "pip is not available in this environment; cannot validate pip dependency constraints. "
+            "Install pip, or invoke resolution from a flow that explicitly allows unvalidated constraints."
         )
-        return constraints
     logger.warning("pip-tools not found, using basic resolver")
     with tempfile.TemporaryDirectory() as tmp:
         reqs = Path(tmp) / "requirements.in"
@@ -125,11 +134,20 @@ def _collect_constraints(modules: list[ModulePackageMetadata]) -> list[str]:
 @beartype
 @require(lambda modules: all(isinstance(m, ModulePackageMetadata) for m in modules))
 @ensure(lambda result: isinstance(result, list))
-def resolve_dependencies(modules: list[ModulePackageMetadata]) -> list[str]:
-    """Resolve pip dependencies across all modules; use pip-compile or fallback. Raises DependencyConflictError on conflict."""
+def resolve_dependencies(
+    modules: list[ModulePackageMetadata],
+    *,
+    allow_unvalidated: bool = False,
+) -> list[str]:
+    """Resolve pip dependencies across all modules; use pip-compile or fallback.
+
+    Raises DependencyConflictError on conflict.
+    When pip-tools and pip are unavailable, raises PipDependencyValidationUnavailableError unless
+    ``allow_unvalidated`` is True (supported pip-free flows such as module install under uvx).
+    """
     constraints = _collect_constraints(modules)
     if not constraints:
         return []
     if _pip_tools_available():
         return _run_pip_compile(constraints)
-    return _run_basic_resolver(constraints)
+    return _run_basic_resolver(constraints, allow_unvalidated=allow_unvalidated)
