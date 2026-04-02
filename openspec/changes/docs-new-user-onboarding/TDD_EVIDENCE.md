@@ -1,5 +1,17 @@
 # TDD evidence — docs-new-user-onboarding
 
+## 2026-04-02 (README + wow entrypoint contract)
+
+### Commands run (passing)
+
+- `hatch run pytest tests/unit/docs/test_wow_entrypoint_contract.py tests/e2e/test_wow_entrypoint.py tests/unit/docs/test_first_contact_story.py -v --no-cov`
+- `hatch run format`
+
+### Summary
+
+- **README.md**: Rewrote **How do I get started** so the uvx two-command wow path (`init` + `code review run --scope full`) is first; persistent install and deeper workflows follow; **How It Works** updated to lead with review.
+- **Tests**: `tests/unit/docs/test_wow_entrypoint_contract.py` locks README ↔ `docs/index.md` canonical command strings and section order; `tests/e2e/test_wow_entrypoint.py` runs `init --profile solo-developer` in a **temp git repo** and asserts registry readiness for the documented second step (mock bundles).
+
 ## 2026-04-02 (implementation session)
 
 ### Commands run (passing)
