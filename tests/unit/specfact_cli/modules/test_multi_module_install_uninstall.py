@@ -6,14 +6,30 @@ Tasks: 7c.1 - 7c.9
 
 from __future__ import annotations
 
+from collections.abc import Generator
 from pathlib import Path
 from typing import Any
 from unittest.mock import patch
 
 import click
+import pytest
 from typer.testing import CliRunner
 
-from specfact_cli.cli import app
+from specfact_cli.cli import app, rebuild_root_app_from_registry
+from specfact_cli.registry import CommandRegistry
+from specfact_cli.registry.bootstrap import register_builtin_commands
+
+
+@pytest.fixture(autouse=True)
+def _reset_registry_and_root_app() -> Generator[None, None, None]:
+    """Other tests clear ``CommandRegistry`` without re-registering; rebuild root ``app`` for Typer."""
+    CommandRegistry._clear_for_testing()
+    register_builtin_commands()
+    rebuild_root_app_from_registry()
+    yield
+    CommandRegistry._clear_for_testing()
+    register_builtin_commands()
+    rebuild_root_app_from_registry()
 
 
 runner = CliRunner()

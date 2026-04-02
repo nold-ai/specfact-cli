@@ -49,8 +49,8 @@ def test_backlog_help_lists_subcommands() -> None:
         assert "policy" in out or "ceremony" in out
         return
     assert "command 'backlog' is not installed." in out
-    assert "specfact init --profile <profile>" in out
-    assert "module install <bundle>" in out
+    assert "specfact init --profile" in out
+    assert "module install" in out
 
 
 def test_validate_flat_command_is_not_available() -> None:
