@@ -1548,7 +1548,10 @@ class SmartCoverageManager:
             config_changed = self._has_config_changes()
 
             if source_changed or test_changed or config_changed or force:
-                return self._run_changed_only()
+                ok, ran_any = self._run_changed_only()
+                if force and not ran_any:
+                    return self._run_full_tests()
+                return ok
             # No changes - use cached data
             status = self.get_status()
             logger.info(
@@ -1769,11 +1772,15 @@ class SmartCoverageManager:
             self._update_cache(True, test_count, coverage_percentage, enforce_threshold=False)
         return success
 
-    def _run_changed_only(self) -> bool:
+    def _run_changed_only(self) -> tuple[bool, bool]:
         """Run only tests impacted by changes since last cached hashes.
-        - Unit: tests mapped from modified source files + directly modified unit tests
-        - Integration/E2E: only directly modified tests
-        No full-suite fallback here; CI should catch broader regressions."""
+
+        Returns:
+            (success, ran_any): ``ran_any`` is False when no mapped tests ran (incremental no-op).
+
+        When there is no ``last_full_run`` baseline and incremental work would run nothing,
+        runs a one-time full suite to establish coverage/hash baseline (avoids zero cached coverage).
+        """
         # Collect modified items
         modified_sources = self._get_modified_files()
         modified_tests = self._get_modified_test_files()
@@ -1834,12 +1841,15 @@ class SmartCoverageManager:
             overall_success = overall_success and ok
 
         if not ran_any:
+            if not self.cache.get("last_full_run"):
+                logger.info("No incremental baseline; running full test suite once to establish cache…")
+                success = self._run_full_tests()
+                return success, True
             logger.info("No changed files detected that map to tests - skipping test execution")
-            # Still keep cache timestamp to allow future git comparisons
             self._update_cache(True, 0, self.cache.get("coverage_percentage", 0.0), enforce_threshold=False)
-            return True
+            return True, False
 
-        return overall_success
+        return overall_success, True
 
     @require(lambda test_level: test_level in {"unit", "folder", "integration", "e2e", "full", "auto"})
     @ensure(lambda result: isinstance(result, bool), "force_full_run must return bool")

@@ -8,6 +8,7 @@ surface expected for the second step is consistent with the README/docs contract
 from __future__ import annotations
 
 import subprocess
+from collections.abc import Iterator
 from pathlib import Path
 from unittest.mock import patch
 
@@ -20,7 +21,7 @@ from specfact_cli.registry.bootstrap import register_builtin_commands
 
 
 @pytest.fixture(autouse=True)
-def _reset_registry() -> None:
+def _reset_registry() -> Iterator[None]:
     CommandRegistry._clear_for_testing()
     yield
     CommandRegistry._clear_for_testing()
