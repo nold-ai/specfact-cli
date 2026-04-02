@@ -1485,7 +1485,11 @@ class SmartCoverageManager:
             config_changed = self._has_config_changes()
 
             if source_changed or test_changed or config_changed or force:
-                return self._run_changed_only()
+                ok, ran_any = self._run_changed_only()
+                if force and not ran_any:
+                    logger.info("Force mode: no incremental tests ran — running full suite.")
+                    return self._run_full_tests()
+                return ok
             # No changes - use cached data
             status = self.get_status()
             logger.info(
@@ -1706,11 +1710,25 @@ class SmartCoverageManager:
             self._update_cache(True, test_count, coverage_percentage, enforce_threshold=False)
         return success
 
-    def _run_changed_only(self) -> bool:
+    def _run_changed_only(self) -> tuple[bool, bool]:
         """Run only tests impacted by changes since last cached hashes.
+
+        Returns:
+            (success, ran_any): whether the run succeeded, and whether any test
+            subprocess actually ran (False means everything was skipped as no-op).
+
         - Unit: tests mapped from modified source files + directly modified unit tests
         - Integration/E2E: only directly modified tests
-        No full-suite fallback here; CI should catch broader regressions."""
+        Baseline: if there is no ``last_full_run`` in cache, runs the full suite first.
+        ``run_smart_tests(..., force=True)`` may also fall back to full when incremental
+        mode would otherwise no-op.
+        """
+        if not self.cache.get("last_full_run"):
+            logger.info(
+                "No prior full test run in cache — running full suite to establish baseline for incremental runs."
+            )
+            return self._run_full_tests(), True
+
         # Collect modified items
         modified_sources = self._get_modified_files()
         modified_tests = self._get_modified_test_files()
@@ -1774,9 +1792,9 @@ class SmartCoverageManager:
             logger.info("No changed files detected that map to tests - skipping test execution")
             # Still keep cache timestamp to allow future git comparisons
             self._update_cache(True, 0, self.cache.get("coverage_percentage", 0.0), enforce_threshold=False)
-            return True
+            return True, False
 
-        return overall_success
+        return overall_success, True
 
     @require(lambda test_level: test_level in {"unit", "folder", "integration", "e2e", "full", "auto"})
     @ensure(lambda result: isinstance(result, bool), "force_full_run must return bool")
