@@ -93,6 +93,48 @@ KNOWN_BUNDLE_GROUP_OR_SHIM_NAMES: frozenset[str] = frozenset(
     }
 )
 
+# First token -> official marketplace module that provides it (not the VS Code `code` CLI).
+_INVOKED_TO_MARKETPLACE_MODULE: dict[str, str] = {
+    "backlog": "nold-ai/specfact-backlog",
+    "policy": "nold-ai/specfact-backlog",
+    "code": "nold-ai/specfact-codebase",
+    "analyze": "nold-ai/specfact-codebase",
+    "drift": "nold-ai/specfact-codebase",
+    "validate": "nold-ai/specfact-codebase",
+    "repro": "nold-ai/specfact-codebase",
+    "import": "nold-ai/specfact-codebase",
+    "project": "nold-ai/specfact-project",
+    "plan": "nold-ai/specfact-project",
+    "sync": "nold-ai/specfact-project",
+    "migrate": "nold-ai/specfact-project",
+    "spec": "nold-ai/specfact-spec",
+    "contract": "nold-ai/specfact-spec",
+    "sdd": "nold-ai/specfact-spec",
+    "generate": "nold-ai/specfact-spec",
+    "govern": "nold-ai/specfact-govern",
+    "enforce": "nold-ai/specfact-govern",
+    "patch": "nold-ai/specfact-govern",
+}
+
+
+def _print_missing_bundle_command_help(invoked: str) -> None:
+    """Print install guidance when a bundle group or shim is not registered."""
+    module_id = _INVOKED_TO_MARKETPLACE_MODULE.get(invoked)
+    console = get_configured_console()
+    if module_id is not None:
+        console.print(
+            f"[bold red]Module '{module_id}' is not installed.[/bold red]\n"
+            f"The [bold]{invoked}[/bold] command group is provided by that module. "
+            f"Install with [bold]specfact module install {module_id}[/bold], "
+            "or run [bold]specfact init --profile <profile>[/bold] to install bundles."
+        )
+        return
+    console.print(
+        f"[bold red]Command '{invoked}' is not installed.[/bold red]\n"
+        "Install workflow bundles with [bold]specfact init --profile <profile>[/bold] "
+        "or [bold]specfact module install <bundle>[/bold]."
+    )
+
 
 class _RootCLIGroup(ProgressiveDisclosureGroup):
     """Root group that shows actionable error when an unknown command is a known bundle group/shim."""
@@ -108,11 +150,7 @@ class _RootCLIGroup(ProgressiveDisclosureGroup):
             result = super().resolve_command(ctx, args)
         except click.UsageError:
             if invoked in KNOWN_BUNDLE_GROUP_OR_SHIM_NAMES:
-                get_configured_console().print(
-                    f"[bold red]Command '{invoked}' is not installed.[/bold red]\n"
-                    "Install workflow bundles with [bold]specfact init --profile <profile>[/bold] "
-                    "or [bold]specfact module install <bundle>[/bold]."
-                )
+                _print_missing_bundle_command_help(invoked)
                 raise SystemExit(1) from None
             raise
         _name, cmd, remaining = result
@@ -121,11 +159,7 @@ class _RootCLIGroup(ProgressiveDisclosureGroup):
         invoked = remaining[0]
         if invoked not in KNOWN_BUNDLE_GROUP_OR_SHIM_NAMES:
             return result
-        get_configured_console().print(
-            f"[bold red]Command '{invoked}' is not installed.[/bold red]\n"
-            "Install workflow bundles with [bold]specfact init --profile <profile>[/bold] "
-            "or [bold]specfact module install <bundle>[/bold]."
-        )
+        _print_missing_bundle_command_help(invoked)
         raise SystemExit(1)
 
 

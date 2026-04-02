@@ -27,9 +27,9 @@ def _telemetry_track_context():
 # --- Profile resolution ---
 
 
-def test_profile_solo_developer_resolves_to_specfact_codebase_only() -> None:
+def test_profile_solo_developer_resolves_to_codebase_and_code_review() -> None:
     bundles = frs.resolve_profile_bundles("solo-developer")
-    assert bundles == ["specfact-codebase"]
+    assert bundles == ["specfact-codebase", "specfact-code-review"]
 
 
 def test_profile_enterprise_full_stack_resolves_to_all_five_bundles() -> None:
@@ -133,7 +133,7 @@ def test_is_first_run_false_when_project_scoped_category_bundle_installed(
 # --- CLI: specfact init --profile (mock installer) ---
 
 
-def test_init_profile_solo_developer_calls_installer_with_specfact_codebase(
+def test_init_profile_solo_developer_calls_installer_with_codebase_and_code_review(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     install_calls: list[list[str]] = []
@@ -160,7 +160,7 @@ def test_init_profile_solo_developer_calls_installer_with_specfact_codebase(
         )
     assert result.exit_code == 0, result.output
     assert len(install_calls) == 1
-    assert install_calls[0] == ["specfact-codebase"]
+    assert install_calls[0] == ["specfact-codebase", "specfact-code-review"]
 
 
 def test_init_profile_enterprise_full_stack_calls_installer_with_all_five(
@@ -399,7 +399,7 @@ def test_spec_bundle_install_includes_project_dep(monkeypatch: pytest.MonkeyPatc
         "specfact_cli.registry.module_installer.install_bundled_module",
         _record_install,
     )
-    frs.install_bundles_for_init(["specfact-spec"], install_root=tmp_path)
+    frs.install_bundles_for_init(["specfact-spec"], install_root=tmp_path, show_progress=False)
     project_module_names = set(frs.BUNDLE_TO_MODULE_NAMES.get("specfact-project", []))
     spec_module_names = set(frs.BUNDLE_TO_MODULE_NAMES.get("specfact-spec", []))
     installed_set = set(installed_modules)

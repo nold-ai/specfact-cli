@@ -9,27 +9,25 @@ expertise_level: [beginner]
 
 # Getting Started with SpecFact CLI
 
-This guide will help you get started with SpecFact CLI in under 60 seconds.
+This guide will help you get started with SpecFact CLI in under 60 seconds — first with **no install** (uvx), then with a **persistent** install (pip) when you want IDE workflows and a stable `specfact` command.
 
-> **Primary Use Case**: SpecFact CLI is designed for **brownfield code modernization** - reverse-engineering existing codebases into documented specs with runtime contract enforcement. See [First Steps](quickstart.md) for brownfield workflows.
+> **Primary use case**: brownfield code modernization — reverse-engineering existing codebases into documented specs with runtime contract enforcement. See the [5-Minute Quickstart](quickstart.md) for a full walkthrough.
 
-## Installation
+## Try it now — no install required
 
-### Option 1: uvx (CLI-only Mode)
-
-No installation required - run directly:
+Run SpecFact from PyPI without installing into your environment:
 
 ```bash
-uvx specfact-cli@latest --help
+cd /path/to/your/git/repo
+uvx specfact-cli init --profile solo-developer
+uvx specfact-cli code review run --path . --scope full
 ```
 
-**Best for**: Quick testing, CI/CD, one-off commands
+You should see a **Verdict**, a **Score**, and a list of findings. That is the fastest way to validate SpecFact on real code. [Read the full quickstart →](quickstart.md)
 
-**Limitations**: CLI-only mode uses deterministic local analysis and may show limited results for very small test cases. If you want IDE slash-command workflows with your own AI copilot, use the installed CLI setup in Option 2.
+## Install for persistent use
 
-### Option 2: pip (Installed CLI + IDE Prompt Mode)
-
-**Required for**: local `specfact` command availability, IDE integration, and slash-command workflows
+Use pip when you want a local `specfact` command, IDE integration, and slash-command workflows.
 
 ```bash
 # System-wide
@@ -68,23 +66,21 @@ specfact init --install all
 Then set up IDE integration:
 
 ```bash
-# Initialize IDE integration (one-time per project)
 specfact init ide
-
-# Or specify IDE explicitly
 specfact init ide --ide cursor
 specfact init ide --ide vscode
-
-# Install required packages for contract enhancement
 specfact init ide --install-deps
-
-# Initialize for specific IDE and install dependencies
 specfact init ide --ide cursor --install-deps
 ```
 
 **Important**: SpecFact CLI does **not** ship with built-in AI. `specfact init ide` installs prompt templates for supported IDEs so your chosen AI copilot can call SpecFact commands in a guided workflow.
 
-### Option 3: Container
+[More options ↓](#more-options)
+
+## More options
+{: #more-options}
+
+### Container
 
 ```bash
 # Docker
@@ -94,7 +90,7 @@ docker run --rm -v $(pwd):/workspace ghcr.io/nold-ai/specfact-cli:latest --help
 podman run --rm -v $(pwd):/workspace ghcr.io/nold-ai/specfact-cli:latest --help
 ```
 
-### Option 4: GitHub Action
+### GitHub Action
 
 Create `.github/workflows/specfact.yml`:
 
@@ -212,7 +208,7 @@ Profile outcomes:
 
 | Profile | Installed bundles | Available groups |
 |---|---|---|
-| `solo-developer` | `specfact-codebase` | `code` |
+| `solo-developer` | `specfact-codebase`, `specfact-code-review` | `code` |
 | `backlog-team` | `specfact-project`, `specfact-backlog`, `specfact-codebase` | `project`, `backlog`, `code` |
 | `api-first-team` | `specfact-spec`, `specfact-codebase` (+`specfact-project` dependency) | `project`, `code`, `spec` |
 | `enterprise-full-stack` | all five bundles | `project`, `backlog`, `code`, `spec`, `govern` |

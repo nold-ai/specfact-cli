@@ -185,15 +185,23 @@ run_actionlint_if_needed() {
 }
 
 run_code_review_gate() {
-  local py_files
-  py_files=$(staged_python_files)
-  if [ -z "${py_files}" ]; then
+  # Build a bash array so we invoke pre_commit_code_review.py exactly once. Using xargs
+  # here can split into multiple subprocesses when the argument list is long (default
+  # max-chars), each overwriting .specfact/code-review.json — yielding partial or empty
+  # findings and a misleading artifact.
+  local py_array=()
+  while IFS= read -r line; do
+    [ -z "${line}" ] && continue
+    py_array+=("${line}")
+  done < <(staged_python_files)
+
+  if [ ${#py_array[@]} -eq 0 ]; then
     info "ℹ️  No staged Python files — skipping code review gate"
     return
   fi
 
   info "🛡️ Running code review gate on staged Python files"
-  if echo "${py_files}" | xargs -r hatch run python scripts/pre_commit_code_review.py; then
+  if hatch run python scripts/pre_commit_code_review.py "${py_array[@]}"; then
     success "✅ Code review gate passed"
   else
     error "❌ Code review gate failed"

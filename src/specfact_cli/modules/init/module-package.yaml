@@ -1,5 +1,5 @@
 name: init
-version: 0.1.21
+version: 0.1.23
 commands:
   - init
 category: core
@@ -17,5 +17,5 @@ publisher:
 description: Initialize SpecFact workspace and bootstrap local configuration.
 license: Apache-2.0
 integrity:
-  checksum: sha256:925fd303b581441618597b5fa5d7f308cbc31405455ae7811243c072616974bf
-  signature: uMDekXAxcKEDb8V1rqEeL8X806bP4otT5rT5ShXFlUNjcJ06c90s7xg1KqTNYj/eVsuh07xKSGnWKo1BG6juAw==
+  checksum: sha256:a0a7a9eac6b7407ee8dd08f151b18ecd8b9ff7a263d3adfce3aaa99dfb369c04
+  signature: +Lr8H1Fo3NbjPlOi9G0/a3v8eCkDcFZ33TbC8l9p6IpzGda9nYA47rbBgyklBAauXDEl2k8TRZcMFrECXg5BDw==

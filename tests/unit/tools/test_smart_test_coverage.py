@@ -473,7 +473,7 @@ class TestSmartCoverageManager:
     @patch.object(SmartCoverageManager, "_run_changed_only")
     def test_run_smart_tests_with_changes(self, mock_changed_only):
         """Test running smart tests when changes are detected (changed-only mode)."""
-        mock_changed_only.return_value = True
+        mock_changed_only.return_value = (True, True)
 
         with (
             patch.object(self.manager, "_has_source_changes", return_value=True),
@@ -503,6 +503,7 @@ class TestSmartCoverageManager:
                 "test_count": 150,
                 "coverage_percentage": 85.5,
                 "success": True,
+                "last_run": "2025-01-01T12:00:00",
             }
             result = self.manager.run_smart_tests()
 

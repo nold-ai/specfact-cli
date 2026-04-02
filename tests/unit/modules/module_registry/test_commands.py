@@ -1055,7 +1055,7 @@ def test_upgrade_without_module_name_upgrades_all_marketplace(monkeypatch, tmp_p
     result = runner.invoke(app, ["upgrade"])
 
     assert result.exit_code == 0
-    assert installed == ["specfact/backlog"]
+    assert installed == ["nold-ai/specfact-backlog"]
     assert reinstall_flags == [True]
     assert "Upgraded" in result.stdout
 

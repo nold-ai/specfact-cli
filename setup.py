@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Setup script for specfact-cli package."""
+"""Setup script for specfact-cli package (kept in sync with pyproject.toml [project].dependencies)."""
 
 from setuptools import find_packages, setup
 
@@ -7,7 +7,7 @@ from setuptools import find_packages, setup
 if __name__ == "__main__":
     _setup = setup(
         name="specfact-cli",
-        version="0.44.0",
+        version="0.45.1",
         description=(
             "The swiss knife CLI for agile DevOps teams. Keep backlog, specs, tests, and code in sync with "
             "validation and contract enforcement for new projects and long-lived codebases."
@@ -15,21 +15,26 @@ if __name__ == "__main__":
         packages=find_packages(where="src"),
         package_dir={"": "src"},
         install_requires=[
-            "pydantic>=2.11.5",
-            "python-dotenv>=1.1.0",
-            "PyYAML>=6.0.2",
+            "pydantic>=2.12.3",
+            "typing-extensions>=4.15.0",
+            "PyYAML>=6.0.3",
             "requests>=2.32.3",
             "azure-identity>=1.17.1",
             "cryptography>=43.0.0",
-            "cffi>=1.17.1",
-            "typer>=0.15.0",
+            "packaging>=24.0",
+            "typer>=0.20.0",
             "rich>=13.5.2,<13.6.0",
-            "jinja2>=3.1.0",
-            "networkx>=3.2",
-            "gitpython>=3.1.0",
+            "questionary>=2.0.1",
+            "jinja2>=3.1.6",
+            "networkx>=3.4.2",
+            "graphviz>=0.20.1",
+            "gitpython>=3.1.45",
+            "ruamel.yaml>=0.18.16",
+            "jsonschema>=4.23.0",
             "icontract>=2.7.1",
-            "beartype>=0.22.2",
-            "crosshair-tool>=0.0.97",
-            "hypothesis>=6.140.3",
+            "beartype>=0.22.4",
+            "watchdog>=6.0.0",
+            "opentelemetry-sdk>=1.27.0",
+            "opentelemetry-exporter-otlp-proto-http>=1.27.0",
         ],
     )

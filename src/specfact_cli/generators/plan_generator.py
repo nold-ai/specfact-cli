@@ -35,8 +35,10 @@ class PlanGenerator:
         self.templates_dir = Path(templates_dir)
         self.env = Environment(
             loader=FileSystemLoader(self.templates_dir),
-            trim_blocks=True,
-            lstrip_blocks=True,
+            # Must be False: trim_blocks removes the newline after {% endraw %}, merging `if:` with `run:`.
+            trim_blocks=False,
+            # Must be False: lstrip_blocks strips newlines after {% endraw %} in some cases.
+            lstrip_blocks=False,
         )
 
     @beartype

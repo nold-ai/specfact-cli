@@ -30,3 +30,6 @@ def test_pre_commit_runs_code_review_gate_before_contract_tests() -> None:
     assert "run_code_review_gate" in script
     assert "hatch run python scripts/pre_commit_code_review.py" in script
     assert "run_code_review_gate\n\n# Contract-first test flow" in script
+    # Single invocation with all staged files — xargs can split into multiple runs and
+    # clobber .specfact/code-review.json (partial or empty findings).
+    assert '"${py_array[@]}"' in script

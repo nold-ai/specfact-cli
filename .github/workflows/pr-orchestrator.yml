@@ -210,7 +210,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install "hatch" "virtualenv<21" coverage "coverage[toml]" pytest pytest-cov pytest-mock pytest-asyncio pytest-xdist pytest-timeout
-          pip install -e .
+          pip install -e ".[dev]"
 
       - name: Cache hatch environments
         if: needs.changes.outputs.skip_tests_dev_to_main != 'true'
@@ -495,7 +495,7 @@ jobs:
       - name: Install type-check dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -e . basedpyright
+          pip install -e ".[dev]"
       - name: Run type checking
         run: |
           echo "🔍 Running basedpyright type checking..."
@@ -533,7 +533,7 @@ jobs:
       - name: Install lint dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -e . ruff basedpyright pylint
+          pip install -e ".[dev]"
 
       - name: Run linting
         run: |

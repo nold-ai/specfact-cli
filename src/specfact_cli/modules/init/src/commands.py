@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import subprocess
 from pathlib import Path
 from typing import Any, cast
@@ -168,6 +169,15 @@ def _copy_backlog_field_mapping_templates(repo_path: Path, force: bool, console:
 
 app = typer.Typer(help="Bootstrap SpecFact (use `init ide` for IDE setup; module lifecycle is under `specfact module`)")
 console = Console()
+
+
+def _init_user_visible_step(message: str) -> None:
+    """Print init progress unless running under pytest (keeps test output clean)."""
+    if os.environ.get("PYTEST_CURRENT_TEST"):
+        return
+    console.print(message)
+
+
 _MODULE_IO_CONTRACT = ModuleIOContract
 import_to_bundle = module_io_shim.import_to_bundle
 export_from_bundle = module_io_shim.export_from_bundle
@@ -428,6 +438,7 @@ def _install_profile_bundles(profile: str, install_root: Path, non_interactive: 
     """Resolve profile to bundle list and install via module installer."""
     bundle_ids = first_run_selection.resolve_profile_bundles(profile)
     if bundle_ids:
+        _init_user_visible_step(f"[cyan]→[/cyan] Profile [bold]{profile}[/bold]: preparing workflow bundles…")
         install_bundles_for_init(
             bundle_ids,
             install_root,
@@ -440,6 +451,7 @@ def _install_bundle_list(install_arg: str, install_root: Path, non_interactive: 
     """Parse comma-separated or 'all' and install bundles via module installer."""
     bundle_ids = first_run_selection.resolve_install_bundles(install_arg)
     if bundle_ids:
+        _init_user_visible_step("[cyan]→[/cyan] Installing bundles from [bold]--install[/bold]…")
         install_bundles_for_init(
             bundle_ids,
             install_root,
@@ -705,10 +717,12 @@ def init(
         elif is_first_run(user_root=INIT_USER_MODULES_ROOT) and not is_non_interactive():
             _run_interactive_first_run_install()
 
+        _init_user_visible_step("[cyan]→[/cyan] Discovering installed modules and writing registry state…")
         modules_list = get_discovered_modules_for_state(enable_ids=[], disable_ids=[])
         if modules_list:
             write_modules_state(modules_list)
 
+        _init_user_visible_step("[cyan]→[/cyan] Indexing CLI commands for help cache…")
         run_discovery_and_write_cache(__version__)
 
         if install_deps:
@@ -725,6 +739,7 @@ def init(
             "[cyan]Module management has moved to `specfact module`[/cyan] "
             "[dim](for example: `specfact module list`, `specfact module init`)[/dim]"
         )
+        _init_user_visible_step("[cyan]→[/cyan] Checking IDE prompt export status…")
         _audit_prompt_installation(repo_path)
         console.print("[dim]Use `specfact init ide` to install/update IDE prompts and settings.[/dim]")
 

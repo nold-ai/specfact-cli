@@ -1,3 +1,13 @@
+## Current status (rolling)
+
+**Branch:** `feature/docs-new-user-onboarding` (worktree active; tracks `origin/feature/docs-new-user-onboarding`).  
+**Release packaging:** Patch **0.45.1** — `pyproject.toml`, `setup.py`, `src/__init__.py`, `src/specfact_cli/__init__.py`, and `CHANGELOG.md` aligned (see top changelog section).  
+**Done on branch:** Tasks **1–4, 6–7c, 8–10**; **7d** partial (7d.9, 7d.10, 7d.17; install `--yes` on upgrade from 7b; bundle-dep tests in `test_bundle_dependency_install.py`); **core_compatibility** messaging and registry parsing for versioned `bundle_dependencies`.  
+**Open / follow-up:** **5** (scope UX) — **specfact-code-review** module repo; **7d.11–7d.16, 7d.18** — full resolver graph, `--dry-run`, registry index objects in modules repo; **11.1** — merge deltas to `openspec/specs/` when project sync workflow is available; **12–13** — re-run gates before merge, PR to `dev`, then archive.  
+**Evidence:** `TDD_EVIDENCE.md` (contract-test + yaml-lint + unit suite on 2026-04-02); re-run **7.1–7.2** and **12.1–12.3** before final PR if `main`/`dev` moved.
+
+---
+
 ## 1. Investigate and locate bug roots
 
 - [x] 1.1 Find where `specfact init --profile <name>` is handled in the init module source
@@ -67,8 +77,8 @@
 
 ## 7. Run pre-docs TDD gate
 
-- [ ] 7.1 Run `hatch run contract-test` — confirm passing *(run before PR merge)*
-- [ ] 7.2 Run `hatch run smart-test` — confirm passing *(run before PR merge)*
+- [x] 7.1 Run `hatch run contract-test` — confirm passing *(passed 2026-04-02 per `TDD_EVIDENCE.md`; **re-run before PR merge** if base moved)*
+- [ ] 7.2 Run `hatch run smart-test` — confirm passing *(run before PR merge; use `smart-test-full` if touching `src/` broadly)*
 - [x] 7.3 Run `hatch run format` and `hatch run type-check` — confirm zero errors
 - [x] 7.4 Record post-fix passing evidence in `TDD_EVIDENCE.md`
 - [ ] 7.5 End-to-end manual test on a clean machine: `uvx specfact-cli init --profile solo-developer`
@@ -109,13 +119,16 @@
 - [x] 7c.4 Exit non-zero only if at least one module failed (not if skipped/already installed)
 - [x] 7c.5 Verify: single-module install still works identically; all existing flags apply
 - [x] 7c.6 Write failing test: `specfact module uninstall A B` uninstalls both A and B
-- [ ] 7c.7 Write failing test: `specfact module uninstall A B` where A is not installed —
+- [x] 7c.7 Write failing test: `specfact module uninstall A B` where A is not installed —
        reports A not found, still attempts B, exits non-zero
+       *(Catches `click.exceptions.Exit` from `typer.Exit`; upgrade uses `Optional[list[str]]` for Click 8.1 + Typer 0.23.)*
 - [x] 7c.8 Change `uninstall` Argument from `module_name: str` to `module_names: list[str]`;
        update `@require` guard; loop through each name using existing uninstall logic
 - [x] 7c.9 Verify: single-module uninstall still works identically; `--scope`/`--repo` apply
 
 ## 7d. Version-aware bundle dependency resolution
+
+**Progress:** 7d.9, 7d.10, 7d.17 implemented; `test_bundle_dependency_install.py` covers ordered bundle install; full interactive resolver / `--dry-run` / circular graph (7d.11–7d.16) **not** wired — see `TDD_EVIDENCE.md` “Deferred / follow-up”.
 
 - [ ] 7d.1 Write failing test: installing a module whose `bundle_dependencies` lists a module
        not installed prompts the user and installs the dep on confirmation
@@ -192,18 +205,22 @@
 
 ## 11. Spec Sync
 
+- [x] 11.0 GitHub backlog: issue [#476](https://github.com/nold-ai/specfact-cli/issues/476) with labels `enhancement`, `change-proposal`, `documentation`, `openspec`; parent feature [#356](https://github.com/nold-ai/specfact-cli/issues/356); related [#466](https://github.com/nold-ai/specfact-cli/issues/466) — `proposal.md` Source Tracking updated
 - [ ] 11.1 Run `openspec sync --change docs-new-user-onboarding` to merge all 10 spec deltas
        *(blocked: OpenSpec CLI in this environment has no `sync` subcommand — use project workflow when available)*
 - [ ] 11.2 Confirm `openspec/specs/docs-aha-moment-entry/spec.md` created
+       *(delta exists: `openspec/changes/docs-new-user-onboarding/specs/docs-aha-moment-entry/spec.md`; **not** merged to main specs yet)*
 - [ ] 11.3 Confirm `openspec/specs/docs-vibecoder-entry-path/spec.md` created
-- [ ] 11.4 Confirm `openspec/specs/dependency-resolution/spec.md` created
+       *(delta exists: `openspec/changes/docs-new-user-onboarding/specs/docs-vibecoder-entry-path/spec.md`; **not** merged to main specs yet)*
+- [x] 11.4 Confirm `openspec/specs/dependency-resolution/spec.md` created *(main spec present; delta under this change may still differ until 11.1)*
 - [ ] 11.5 Confirm MODIFIED requirements in `entrypoint-onboarding`, `first-contact-story`,
        `first-run-selection`, `profile-presets`, and `module-installation` specs are updated
+       *(deltas under `openspec/changes/docs-new-user-onboarding/specs/`; merge to `openspec/specs/` pending 11.1)*
 
 ## 12. Final Validation and Evidence
 
-- [ ] 12.1 Run `hatch run yaml-lint` — confirm zero failures *(before PR)*
-- [ ] 12.2 Run `hatch run contract-test` — confirm passing *(before PR)*
+- [x] 12.1 Run `hatch run yaml-lint` — confirm zero failures *(passed 2026-04-02 per `TDD_EVIDENCE.md`; **re-run before PR** if YAML/workflows changed since)*
+- [x] 12.2 Run `hatch run contract-test` — confirm passing *(passed 2026-04-02 per `TDD_EVIDENCE.md`; **re-run before PR** if contracts/sources changed since)*
 - [ ] 12.3 Run `hatch run specfact code review run --json --out .specfact/code-review.json`
        and confirm zero findings on modified Python files *(before PR)*
 - [ ] 12.4 Build docs locally (`bundle exec jekyll serve`) and manually verify:
@@ -214,8 +231,10 @@
 
 ## 13. PR and Cleanup
 
-- [ ] 13.1 Create feature branch `feature/docs-new-user-onboarding` from `origin/dev`
-- [ ] 13.2 Commit CLI fixes: `fix: init --profile installs profile modules, fix module-install under uvx`
-- [ ] 13.3 Commit docs: `docs: vibe-coder entry path — uvx hero, code review wow moment`
-- [ ] 13.4 Open PR against `dev` referencing this change and the three CLI bugs fixed
+- [x] 13.1 Create feature branch `feature/docs-new-user-onboarding` from `origin/dev` *(branch exists; pushed to `origin`)*
+- [x] 13.2 Commit CLI fixes: `fix: init --profile installs profile modules, fix module-install under uvx`
+       *(landed on branch — see git log; may be squashed across commits)*
+- [x] 13.3 Commit docs: `docs: vibe-coder entry path — uvx hero, code review wow moment`
+       *(landed on branch — see git log; follow-on commits include README, dependency-profile work, 0.45.1 changelog)*
+- [ ] 13.4 Open PR against `dev` referencing this change and the three CLI bugs fixed *(or update existing PR; confirm checks green)*
 - [ ] 13.5 After merge, archive: `openspec archive docs-new-user-onboarding`

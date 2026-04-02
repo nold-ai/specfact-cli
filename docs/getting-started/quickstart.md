@@ -4,49 +4,57 @@ title: 5-Minute Quickstart
 permalink: /getting-started/quickstart/
 redirect_from:
   - /getting-started/first-steps/
-description: Get SpecFact CLI running in under 5 minutes - install, bootstrap, and analyze your first codebase.
-keywords: [quickstart, first-run, bootstrap, analysis]
+description: Get SpecFact CLI running in under 5 minutes — uvx first, then optional pip install for IDE workflows and deeper analysis.
+keywords: [quickstart, first-run, bootstrap, analysis, uvx]
 audience: [solo, team]
 expertise_level: [beginner]
 doc_owner: specfact-cli
 tracks:
   - src/specfact_cli/**
   - openspec/**
-last_reviewed: 2026-03-29
+last_reviewed: 2026-04-02
 exempt: false
 exempt_reason: ""
 ---
 
 # 5-Minute Quickstart
 
-Get from zero to your first SpecFact analysis in under 5 minutes.
+Get from zero to a **scored code review** in a few commands. This path is aimed at developers who want one command and one clear result before reading about modules, profiles, or architecture.
 
 ## Prerequisites
 
 - Python 3.11+ (`python3 --version`)
 - A Git repository to analyze (or create a test project)
 
-## Step 1: Install
+## Step 1: Bootstrap with uvx (no pip install)
+
+From your repo root:
+
+```bash
+uvx specfact-cli init --profile solo-developer
+```
+
+This installs the workflow bundles for the solo-developer profile (including the code-review module). See [specfact init](/core-cli/init/) for other profiles.
+
+## Step 2: Run a scored code review
+
+```bash
+uvx specfact-cli code review run --path . --scope full
+```
+
+You should see a **Verdict**, **Score**, and findings. That is the fastest “aha” path on a real codebase.
+
+## Step 3: Install SpecFact locally (optional)
+
+When you want a stable `specfact` command and IDE integration, install with pip:
 
 ```bash
 pip install specfact-cli
-```
-
-Or try without installing: `uvx specfact-cli@latest --help`
-
-## Step 2: Bootstrap
-
-```bash
-# Navigate to your project
 cd /path/to/your/project
-
-# Initialize with a profile
 specfact init --profile solo-developer
 ```
 
-This installs the default set of workflow bundles. See [specfact init](/core-cli/init/) for other profiles.
-
-## Step 3: Set Up IDE (Optional)
+## Step 4: Set Up IDE (Optional)
 
 ```bash
 specfact init ide --ide cursor --install-deps
@@ -54,21 +62,14 @@ specfact init ide --ide cursor --install-deps
 
 This creates `.specfact/` directory structure and IDE-specific prompt templates.
 
-## Step 4: Analyze Your Codebase
+## Step 5: Analyze Your Codebase and Check Health
 
 ```bash
 specfact code import my-project --repo .
-```
-
-SpecFact analyzes your code and extracts features, user stories, and dependency graphs into a project bundle at `.specfact/projects/my-project/`.
-
-## Step 5: Check Project Health
-
-```bash
 specfact project health-check
 ```
 
-Review what SpecFact discovered about your codebase.
+`code import` analyzes your code and extracts features, user stories, and dependency graphs into a project bundle at `.specfact/projects/my-project/`. `project health-check` summarizes what SpecFact discovered.
 
 ## Step 6: Validate
 
