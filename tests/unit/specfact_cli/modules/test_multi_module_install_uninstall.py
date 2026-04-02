@@ -6,17 +6,32 @@ Tasks: 7c.1 - 7c.9
 
 from __future__ import annotations
 
+from collections.abc import Generator
 from pathlib import Path
 from typing import Any
 from unittest.mock import patch
 
 import click
+import pytest
 from typer.testing import CliRunner
 
 from specfact_cli.cli import app
 
 
 runner = CliRunner()
+
+
+@pytest.fixture(autouse=True)
+def _reset_cli_registry_for_module_tests() -> Generator[None, None, None]:
+    """Other tests (e.g. category groups) rebuild ``app`` from a cleared registry; re-bootstrap."""
+    from specfact_cli.cli import rebuild_root_app_from_registry
+    from specfact_cli.registry import CommandRegistry
+    from specfact_cli.registry.bootstrap import register_builtin_commands
+
+    CommandRegistry._clear_for_testing()
+    register_builtin_commands()
+    rebuild_root_app_from_registry()
+    yield
 
 
 def _unstyled(text: str) -> str:

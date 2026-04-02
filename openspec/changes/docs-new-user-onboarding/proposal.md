@@ -132,3 +132,12 @@ can truthfully describe a vibe-coder entry sequence.
 - `openspec/specs/first-run-selection/spec.md` — delta (profile install requirement)
 - `openspec/specs/profile-presets/spec.md` — delta (solo-developer bundle list)
 - New specs: `docs-aha-moment-entry`, `docs-vibecoder-entry-path`
+
+## Source Tracking
+
+- **GitHub Issue**: [#476](https://github.com/nold-ai/specfact-cli/issues/476)
+- **Issue URL**: https://github.com/nold-ai/specfact-cli/issues/476
+- **Parent Feature**: [#356](https://github.com/nold-ai/specfact-cli/issues/356) — Documentation & Discrepancy Remediation ([tracking comment](https://github.com/nold-ai/specfact-cli/issues/356#issuecomment-4180162525))
+- **Related (overlap)**: [#466](https://github.com/nold-ai/specfact-cli/issues/466) — first-contact / onboarding ([cross-link comment](https://github.com/nold-ai/specfact-cli/issues/466#issuecomment-4180162609))
+- **Repository**: nold-ai/specfact-cli
+- **Last Synced Status**: in-progress — issue created with labels `enhancement`, `change-proposal`, `documentation`, `openspec`

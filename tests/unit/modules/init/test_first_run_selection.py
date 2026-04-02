@@ -27,9 +27,9 @@ def _telemetry_track_context():
 # --- Profile resolution ---
 
 
-def test_profile_solo_developer_resolves_to_specfact_codebase_only() -> None:
+def test_profile_solo_developer_resolves_to_codebase_and_code_review() -> None:
     bundles = frs.resolve_profile_bundles("solo-developer")
-    assert bundles == ["specfact-codebase"]
+    assert bundles == ["specfact-codebase", "specfact-code-review"]
 
 
 def test_profile_enterprise_full_stack_resolves_to_all_five_bundles() -> None:
@@ -61,7 +61,7 @@ def test_install_backlog_codebase_resolves_to_two_bundles() -> None:
     assert len(bundles) == 2
 
 
-def test_install_all_resolves_to_all_five_bundles() -> None:
+def test_install_all_resolves_to_all_canonical_bundles() -> None:
     bundles = frs.resolve_install_bundles("all")
     assert set(bundles) == {
         "specfact-project",
@@ -69,8 +69,9 @@ def test_install_all_resolves_to_all_five_bundles() -> None:
         "specfact-codebase",
         "specfact-spec",
         "specfact-govern",
+        "specfact-code-review",
     }
-    assert len(bundles) == 5
+    assert len(bundles) == 6
 
 
 def test_install_unknown_bundle_raises() -> None:
@@ -133,7 +134,7 @@ def test_is_first_run_false_when_project_scoped_category_bundle_installed(
 # --- CLI: specfact init --profile (mock installer) ---
 
 
-def test_init_profile_solo_developer_calls_installer_with_specfact_codebase(
+def test_init_profile_solo_developer_calls_installer_with_codebase_and_code_review(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     install_calls: list[list[str]] = []
@@ -160,7 +161,7 @@ def test_init_profile_solo_developer_calls_installer_with_specfact_codebase(
         )
     assert result.exit_code == 0, result.output
     assert len(install_calls) == 1
-    assert install_calls[0] == ["specfact-codebase"]
+    assert install_calls[0] == ["specfact-codebase", "specfact-code-review"]
 
 
 def test_init_profile_enterprise_full_stack_calls_installer_with_all_five(
@@ -251,7 +252,9 @@ def test_init_install_backlog_codebase_calls_installer_with_two_bundles(
     assert set(install_calls[0]) == {"specfact-backlog", "specfact-codebase"}
 
 
-def test_init_install_all_calls_installer_with_five_bundles(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_init_install_all_calls_installer_with_all_canonical_bundles(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     install_calls: list[list[str]] = []
 
     def _fake_install_bundles(bundle_ids: list[str], install_root: Path, **kwargs: object) -> None:
@@ -276,13 +279,14 @@ def test_init_install_all_calls_installer_with_five_bundles(monkeypatch: pytest.
         )
     assert result.exit_code == 0, result.output
     assert len(install_calls) == 1
-    assert len(install_calls[0]) == 5
+    assert len(install_calls[0]) == 6
     assert set(install_calls[0]) == {
         "specfact-project",
         "specfact-backlog",
         "specfact-codebase",
         "specfact-spec",
         "specfact-govern",
+        "specfact-code-review",
     }
 
 

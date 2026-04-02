@@ -218,7 +218,7 @@ def test_install_module_validates_core_compatibility(monkeypatch, tmp_path: Path
     tarball = _create_module_tarball(tmp_path, "policy", core_compatibility=">=9.0.0")
     monkeypatch.setattr("specfact_cli.registry.module_installer.download_module", lambda *_args, **_kwargs: tarball)
 
-    with pytest.raises(ValueError, match="incompatible with current SpecFact CLI version"):
+    with pytest.raises(ValueError, match="requires SpecFact CLI"):
         install_module("specfact/policy", install_root=tmp_path / "marketplace-modules")
 
 

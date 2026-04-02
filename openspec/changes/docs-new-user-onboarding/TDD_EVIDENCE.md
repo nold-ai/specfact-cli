@@ -23,3 +23,20 @@
 - **`specfact code review run --path .` without `--scope full`**: UX lives primarily in the **specfact-code-review** module (`nold-ai/specfact-cli-modules`); not changed in this repo.
 - **`openspec sync --change …`**: local OpenSpec CLI has no `sync` subcommand in this environment; run the project’s documented sync workflow when available before archive.
 - **7d full dependency-resolution wiring**: `_extract_bundle_dependencies` + message improvements landed; interactive dep resolution / `--dry-run` / graph (7d.11–7d.16) remain for a follow-up change if not bundled here.
+
+## 2026-04-02 (rebase + gate continuation)
+
+### Commands run (passing)
+
+- `git rebase origin/dev` (resolved `tasks.md` conflict; kept 7c.7 + 11.0)
+- `hatch run yaml-lint`
+- `hatch run contract-test`
+- `hatch run pytest tests/unit -n 0 -q --no-cov` (full unit suite)
+
+### Fixes for dev merge
+
+- `docs/index.md`: restored first-contact story strings (`Why does it exist?`, tagline, canonical core CLI story, OpenSpec mention) for `test_first_contact_story` / `test_core_docs_site_contract` / `test_release_docs_parity`.
+- `test_first_run_selection.py`: expectations for `solo-developer` + `install all` include `specfact-code-review` / six canonical bundles.
+- `test_lean_help_output.py`: accept uvx init hint alongside `<profile>` placeholder.
+- `test_commands.py` / `test_module_installer.py`: align with `nold-ai/specfact-backlog` install id and new `core_compatibility` error text.
+- `test_multi_module_install_uninstall.py`: autouse fixture re-bootstraps `CommandRegistry` + `rebuild_root_app_from_registry()` after category-group tests mutate global CLI state.

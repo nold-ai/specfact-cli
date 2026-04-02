@@ -67,8 +67,9 @@
 
 ## 7. Run pre-docs TDD gate
 
-- [ ] 7.1 Run `hatch run contract-test` — confirm passing *(run before PR merge)*
-- [ ] 7.2 Run `hatch run smart-test` — confirm passing *(run before PR merge)*
+- [x] 7.1 Run `hatch run contract-test` — confirm passing *(run before PR merge)*
+- [x] 7.2 Run `hatch run smart-test` — confirm passing *(run before PR merge)*
+       *(Full unit suite: `hatch run pytest tests/unit -n 0 -q --no-cov` — 2026-04-02)*
 - [x] 7.3 Run `hatch run format` and `hatch run type-check` — confirm zero errors
 - [x] 7.4 Record post-fix passing evidence in `TDD_EVIDENCE.md`
 - [ ] 7.5 End-to-end manual test on a clean machine: `uvx specfact-cli init --profile solo-developer`
@@ -204,8 +205,8 @@
 
 ## 12. Final Validation and Evidence
 
-- [ ] 12.1 Run `hatch run yaml-lint` — confirm zero failures *(before PR)*
-- [ ] 12.2 Run `hatch run contract-test` — confirm passing *(before PR)*
+- [x] 12.1 Run `hatch run yaml-lint` — confirm zero failures *(before PR)*
+- [x] 12.2 Run `hatch run contract-test` — confirm passing *(before PR)*
 - [ ] 12.3 Run `hatch run specfact code review run --json --out .specfact/code-review.json`
        and confirm zero findings on modified Python files *(before PR)*
 - [ ] 12.4 Build docs locally (`bundle exec jekyll serve`) and manually verify:

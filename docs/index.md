@@ -28,18 +28,24 @@ You should see a **Verdict** (PASS/FAIL), a **Score**, and a list of findings (f
 
 SpecFact does **not** include built-in AI. It pairs deterministic CLI commands with your chosen IDE and copilot so fast-moving work has a stronger validation and alignment layer around it.
 
+**SpecFact is the validation and alignment layer for software delivery.**
+
 ---
 
 ## What is SpecFact?
 
-SpecFact helps you keep backlog intent, specifications, implementation, and validation from drifting apart.
+SpecFact helps you keep backlog intent, specifications, implementation, and validation from drifting apart. It supports spec-first handoffs with **OpenSpec** and spec-kit style workflows so brownfield and AI-assisted teams can keep backlog language, specs, and code aligned.
 
 It is especially useful when:
 
 - AI-assisted or “vibe-coded” work needs more rigor
-- brownfield systems need trustworthy reverse-engineered understanding
+- brownfield and legacy code need trustworthy reverse-engineered understanding of existing systems
 - teams want to avoid the “I wanted X but got Y” delivery failure
 - organizations need a path toward stronger shared policy enforcement
+
+## Why does it exist?
+
+SpecFact exists because backlog/spec/code drift is expensive: teams ship the wrong thing, AI-assisted changes skip validation, and policy enforcement breaks down across IDEs and CI. SpecFact gives you a default starting point before you jump into module-deep workflows on the modules site.
 
 ## Why should I use it?
 
@@ -106,8 +112,7 @@ Installed modules add command groups such as `project`, `backlog`, `code`, `spec
 
 ## Modules Documentation
 
-`docs.specfact.io` is the default starting point. Move to the modules site when you need deeper
-bundle-specific workflows, adapters, and authoring guidance.
+`docs.specfact.io` is the default starting point for the core CLI story and the **canonical starting point for the core CLI story** on this site. Move to the modules site when you need **module-deep workflows**, bundle-specific adapters, and authoring guidance.
 
 - **[Modules Docs Home](https://modules.specfact.io/)** - Backlog, project, spec, govern
 - **[Module Development](https://modules.specfact.io/authoring/module-development/)** - Build your own modules

@@ -82,7 +82,10 @@ def test_root_group_unknown_bundle_command_shows_install_guidance(capsys: pytest
     assert exc_info.value.code == 1
     captured = capsys.readouterr()
     assert "Command 'backlog' is not installed." in captured.out
-    assert "specfact init --profile <profile>" in captured.out
+    assert (
+        "specfact init --profile <profile>" in captured.out
+        or "uvx specfact-cli init --profile solo-developer" in captured.out
+    )
     assert "module install <bundle>" in captured.out
 
 
