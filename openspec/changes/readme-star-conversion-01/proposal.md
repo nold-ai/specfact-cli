@@ -1,3 +1,5 @@
+# Change: readme-star-conversion-01
+
 ## Why
 
 The repository README still opens with platform and governance language before showing a runnable
@@ -40,7 +42,6 @@ This change restructures the README so the first screen answers four questions i
   below the proof-first onboarding flow
 
 ## Capabilities
-
 ### New Capabilities
 
 - `readme-first-contact`: The repository README acts as a proof-first OSS landing page that leads
@@ -79,12 +80,13 @@ This change restructures the README so the first screen answers four questions i
 - Restore the previous README structure and delete the evidence bundle references if the new layout
   proves less clear or creates maintenance burden
 
+
+---
+
 ## Source Tracking
 
-- **GitHub Issue**: pending — not created from this environment
-- **Issue URL**: pending
-- **Repository**: nold-ai/specfact-cli
-- **Last Synced Status**: draft
-- **Related (overlap)**: [#476](https://github.com/nold-ai/specfact-cli/issues/476) and
-  [#466](https://github.com/nold-ai/specfact-cli/issues/466) cover the broader first-contact and
-  onboarding work; this change is a narrower README-focused delta on the managed cloud branch
+<!-- source_repo: nold-ai/specfact-cli -->
+- **GitHub Issue**: #481
+- **Issue URL**: <https://github.com/nold-ai/specfact-cli/issues/481>
+- **Last Synced Status**: proposed
+- **Sanitized**: false
