@@ -93,7 +93,7 @@ It exists because delivery drifts in predictable ways:
 
 ```yaml
 - name: SpecFact Gate
-  run: uvx specfact-cli@latest enforce stage --preset minimal
+  run: uvx specfact-cli@latest govern enforce stage --preset minimal
 ```
 
 ## How SpecFact is built

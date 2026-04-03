@@ -43,6 +43,7 @@
 - `hatch run format`
 - `hatch run type-check`
 - `hatch run contract-test`
+- `hatch run specfact code review run --json --out .specfact/code-review.json`
 - `hatch run specfact code review run tests/unit/docs/test_wow_entrypoint_contract.py tests/unit/docs/test_first_contact_story.py tests/unit/docs/test_release_docs_parity.py --json --out .specfact/code-review-docs-tests.json`
 - `docs/_support/readme-first-contact/capture-readme-output.sh`
 
@@ -67,6 +68,7 @@
   `tests/integration/test_command_package_runtime_validation.py` raises `IndexError: 2` during test
   collection before executing this change's paths
 - `hatch run specfact code review run --json --out .specfact/code-review.json --scope full` writes the
-  report but exits non-zero because the repository-wide review surface already contains unrelated findings;
-  a focused review of the changed docs test files passes and was recorded above
-- OpenSpec CLI validation remains blocked in this environment because `openspec` is not installed
+  required `.specfact/code-review.json` artifact but exits non-zero because the repository-wide review
+  surface already contains unrelated findings; a focused review of the changed docs test files passes and
+  was recorded above
+- `openspec validate readme-star-conversion-01 --strict` now passes after installing the OpenSpec CLI

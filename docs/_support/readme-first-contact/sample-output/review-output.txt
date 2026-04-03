@@ -1,18 +1,18 @@
-Downloading ruff (10.7MiB)
-Downloading z3-solver (30.3MiB)
-Downloading nodejs-wheel-binaries (57.2MiB)
 Downloading basedpyright (11.8MiB)
 Downloading semgrep (55.9MiB)
+Downloading ruff (10.7MiB)
+Downloading nodejs-wheel-binaries (57.2MiB)
+Downloading z3-solver (30.3MiB)
  Downloaded ruff
  Downloaded z3-solver
  Downloaded semgrep
  Downloaded basedpyright
  Downloaded nodejs-wheel-binaries
-Installed 111 packages in 361ms
+Installed 111 packages in 394ms
 SpecFact CLI - v0.45.1
 
 
-⏱️  Started: 2026-04-03 20:48:47
+⏱️  Started: 2026-04-03 20:55:28
 Running Ruff checks...
 Running Radon complexity checks...
 Running Semgrep rules...
@@ -1317,4 +1317,4 @@ Running targeted tests and coverage...
 Verdict: FAIL | CI exit: 1 | Score: 0 | Reward delta: -80
 Review completed with 217 findings (2 blocking).
 
-✓ Finished: 2026-04-03 20:48:54 | Duration: 6.31s
+✓ Finished: 2026-04-03 20:55:34 | Duration: 5.98s

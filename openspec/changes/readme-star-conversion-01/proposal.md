@@ -42,6 +42,7 @@ This change restructures the README so the first screen answers four questions i
   below the proof-first onboarding flow
 
 ## Capabilities
+
 ### New Capabilities
 
 - `readme-first-contact`: The repository README acts as a proof-first OSS landing page that leads

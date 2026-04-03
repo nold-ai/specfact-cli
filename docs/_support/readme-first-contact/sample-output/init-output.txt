@@ -1,14 +1,14 @@
-Downloading networkx (2.0MiB)
 Downloading pygments (1.2MiB)
-Downloading beartype (1.3MiB)
 Downloading pydantic-core (2.0MiB)
 Downloading cryptography (4.3MiB)
+Downloading beartype (1.3MiB)
+Downloading networkx (2.0MiB)
  Downloaded pydantic-core
  Downloaded cryptography
  Downloaded pygments
  Downloaded beartype
  Downloaded networkx
-Installed 60 packages in 30ms
+Installed 60 packages in 32ms
 
   ███████╗██████╗ ███████╗ ██████╗███████╗ █████╗  ██████╗████████╗
   ██╔════╝██╔══██╗██╔════╝██╔════╝██╔════╝██╔══██╗██╔════╝╚══██╔══╝
@@ -21,7 +21,7 @@ Installed 60 packages in 30ms
 
 
 
-⏱️  Started: 2026-04-03 20:48:28
+⏱️  Started: 2026-04-03 20:55:08
 → Profile solo-developer: preparing workflow bundles…
 → Seeding workflow bundles: specfact-codebase, specfact-code-review
   (copying bundled modules into your user module directory)
@@ -42,4 +42,4 @@ Prompt status: missing=7, outdated=0 for detected IDE (cursor).
 Run: specfact init ide --ide cursor
 Use `specfact init ide` to install/update IDE prompts and settings.
 
-✓ Finished: 2026-04-03 20:48:42 | Duration: 13.67s
+✓ Finished: 2026-04-03 20:55:22 | Duration: 13.55s

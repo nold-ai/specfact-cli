@@ -1,10 +1,15 @@
 ## 1. Branch and change setup
 
 - [x] 1.1 Work on managed cloud branch `cursor/readme-star-conversion-a583`
-- [x] 1.2 Create OpenSpec change folder `openspec/changes/readme-star-conversion-01/`
-- [x] 1.3 Add proposal and README-focused spec delta
-- [ ] 1.4 Validate change with OpenSpec CLI
-  - blocked in this environment: `openspec` command is not installed
+- [ ] 1.2 Create worktree from `origin/dev` for `cursor/readme-star-conversion-a583`
+  - cloud-managed branch is already active in this session, but AGENTS.md requires the worktree step to be tracked explicitly
+- [ ] 1.3 Run `hatch env create` in the active worktree
+- [ ] 1.4 Run pre-flight checks in the active worktree:
+  - `hatch run smart-test-status`
+  - `hatch run contract-test-status`
+- [x] 1.5 Create OpenSpec change folder `openspec/changes/readme-star-conversion-01/`
+- [x] 1.6 Add proposal and README-focused spec delta
+- [x] 1.7 Validate change with OpenSpec CLI
 
 ## 2. Tests first (strict TDD order)
 
@@ -50,3 +55,4 @@
 - [ ] 6.1 Commit the OpenSpec + README conversion change with a conventional commit message
 - [ ] 6.2 Push branch `cursor/readme-star-conversion-a583`
 - [ ] 6.3 Create or update the PR against `dev`
+- [ ] 6.4 After merge, remove/prune the worktree per AGENTS.md cleanup policy

@@ -7,7 +7,7 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 
 CLI_VERSION="${CLI_VERSION:-0.45.1}"
 REPO_SLUG="${REPO_SLUG:-nold-ai/specfact-demo-repo}"
-REPO_REF="${REPO_REF:-2b5ba8cd57d16c1a1f24463a297fdb28fbede123}"
+CAPTURE_REF="${CAPTURE_REF:-${CAPTURE_COMMIT:-2b5ba8cd57d16c1a1f24463a297fdb28fbede123}}"
 WORK_DIR="${WORK_DIR:-/tmp/specfact-demo-repo}"
 CAPTURE_HOME="${CAPTURE_HOME:-/tmp/specfact-readme-capture-home}"
 OUTPUT_DIR="${OUTPUT_DIR:-$REPO_ROOT/docs/_support/readme-first-contact/sample-output}"
@@ -24,8 +24,9 @@ if [[ ! -d "$WORK_DIR/.git" ]]; then
   gh repo clone "$REPO_SLUG" "$WORK_DIR"
 fi
 
-git -C "$WORK_DIR" fetch --depth 1 origin "$REPO_REF"
-git -C "$WORK_DIR" checkout --force "$REPO_REF"
+git -C "$WORK_DIR" fetch --all --tags --prune
+git -C "$WORK_DIR" checkout --force "$CAPTURE_REF"
+git -C "$WORK_DIR" reset --hard "$CAPTURE_REF"
 
 export HOME="$CAPTURE_HOME"
 
@@ -42,7 +43,8 @@ uvx \
   --with pylint \
   --with crosshair-tool \
   specfact code review run --path . --scope full \
-  >"$RAW_OUTPUT_PATH" 2>&1 || true
+  >"$RAW_OUTPUT_PATH" 2>&1
+REVIEW_EXIT_CODE=$?
 popd >/dev/null
 
 cat >"$SUMMARY_PATH" <<EOF
@@ -50,9 +52,10 @@ cat >"$SUMMARY_PATH" <<EOF
 
 - CLI version: \`$CLI_VERSION\`
 - Repo: \`$REPO_SLUG\`
-- Repo ref: \`$REPO_REF\`
+- Repo ref: \`$CAPTURE_REF\`
 - Repo path: \`$WORK_DIR\`
 - Capture home: \`$CAPTURE_HOME\`
+- Review exit code: \`$REVIEW_EXIT_CODE\`
 - Command:
 
 \`\`\`bash
@@ -63,3 +66,5 @@ uvx --from "specfact-cli==$CLI_VERSION" --with ruff --with radon --with semgrep 
 - Raw output: \`$RAW_OUTPUT_PATH\`
 - Init output: \`$INIT_OUTPUT_PATH\`
 EOF
+
+exit "$REVIEW_EXIT_CODE"

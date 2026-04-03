@@ -8,6 +8,8 @@ from urllib.parse import urlparse
 
 import pytest
 
+from tests.unit.docs.docs_test_constants import HOOK, SUBHOOK
+
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 README = REPO_ROOT / "README.md"
@@ -15,8 +17,6 @@ DOCS_INDEX = REPO_ROOT / "docs" / "index.md"
 CONTRIBUTING = REPO_ROOT / "CONTRIBUTING.md"
 
 ABSOLUTE_URL_RE = re.compile(r"https?://[^\s)>'\"`]+")
-HOOK = "Review AI-assisted code against your own contracts."
-SUBHOOK = "Catch drift before it reaches PR or main."
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -42,7 +42,9 @@ def _assert_contains_url_host(content: str, host: str, surface: str) -> None:
 
 def test_readme_hero_uses_proof_first_story() -> None:
     readme = _read(README)
-    first_screen = "\n".join(readme.splitlines()[:40]).lower()
+    try_it_idx = readme.lower().find("## try it in 60 seconds")
+    assert try_it_idx != -1
+    first_screen = readme[:try_it_idx].lower()
 
     assert HOOK in readme
     assert SUBHOOK in readme

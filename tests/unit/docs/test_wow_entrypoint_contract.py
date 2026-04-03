@@ -6,14 +6,14 @@ from pathlib import Path
 
 import pytest
 
+from tests.unit.docs.docs_test_constants import HOOK
+
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 README = REPO_ROOT / "README.md"
 DOCS_INDEX = REPO_ROOT / "docs" / "index.md"
 CAPTURE_SCRIPT = REPO_ROOT / "docs" / "_support" / "readme-first-contact" / "capture-readme-output.sh"
 EVIDENCE_DIR = REPO_ROOT / "docs" / "_support" / "readme-first-contact" / "sample-output"
-
-HOOK = "Review AI-assisted code against your own contracts."
 CTA = "Star this repo if the output is useful."
 UVX_INIT = "uvx specfact-cli init --profile solo-developer"
 UVX_REVIEW = "uvx specfact-cli code review run --path . --scope full"
@@ -76,3 +76,6 @@ def test_readme_capture_script_and_evidence_folder_exist() -> None:
     """README sample output must be backed by reproducible evidence artifacts."""
     assert CAPTURE_SCRIPT.is_file(), "Missing docs/_support/readme-first-contact/capture-readme-output.sh"
     assert EVIDENCE_DIR.is_dir(), "Missing docs/_support/readme-first-contact/sample-output/"
+    evidence_files = [path for path in EVIDENCE_DIR.iterdir() if path.is_file()]
+    assert evidence_files, "Expected at least one sample-output artifact file"
+    assert any(path.stat().st_size > 0 for path in evidence_files), "Expected a non-empty sample-output artifact"
