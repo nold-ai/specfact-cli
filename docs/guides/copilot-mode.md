@@ -30,7 +30,7 @@ Mode is auto-detected based on environment, or you can explicitly set it with `-
 
 ```bash
 # Explicitly enable CoPilot mode
-specfact --mode copilot import from-code legacy-api --repo . --confidence 0.7
+specfact --mode copilot code import from-code legacy-api --repo . --confidence 0.7
 
 # Mode is auto-detected based on environment (IDE integration, CoPilot API availability)
 specfact code import legacy-api --repo . --confidence 0.7  # Auto-detects CoPilot if available
@@ -98,10 +98,10 @@ This context is used to generate enhanced prompts that instruct the AI IDE to:
 
 ```bash
 # CI/CD mode (fast, deterministic, Python-only)
-specfact --mode cicd import from-code --repo . --confidence 0.7
+specfact --mode cicd code import from-code --repo . --confidence 0.7
 
 # CoPilot mode (AI-first, semantic understanding, multi-language)
-specfact --mode copilot import from-code --repo . --confidence 0.7
+specfact --mode copilot code import from-code --repo . --confidence 0.7
 
 # Output (CoPilot mode):
 # Mode: CoPilot (AI-first analysis)

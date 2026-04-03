@@ -77,7 +77,7 @@ cd /tmp/specfact-integration-tests/example1_vscode
 # The AI will prompt for a plan name - suggest: "Payment Processing"
 
 # Alternative: CLI-only mode (bundle name as positional argument)
-specfact --no-banner import from-code payment-processing --repo . --output-format yaml
+specfact --no-banner code import from-code payment-processing --repo . --output-format yaml
 
 # Step 2: Run enforcement
 specfact --no-banner enforce stage --preset balanced
@@ -95,7 +95,7 @@ specfact --no-banner enforce stage --preset balanced
 cd /tmp/specfact-integration-tests/example2_cursor
 
 # Step 1: Import code (bundle name as positional argument)
-specfact --no-banner import from-code data-pipeline --repo . --output-format yaml
+specfact --no-banner code import from-code data-pipeline --repo . --output-format yaml
 
 # Step 2: Test original (should pass)
 specfact --no-banner enforce stage --preset balanced
@@ -117,7 +117,7 @@ specfact --no-banner plan compare src/pipeline.py src/pipeline_broken.py --fail-
 cd /tmp/specfact-integration-tests/example3_github_actions
 
 # Step 1: Import code (bundle name as positional argument)
-specfact --no-banner import from-code user-api --repo . --output-format yaml
+specfact --no-banner code import from-code user-api --repo . --output-format yaml
 
 # Step 2: Run enforcement
 specfact --no-banner enforce stage --preset balanced
@@ -135,7 +135,7 @@ specfact --no-banner enforce stage --preset balanced
 cd /tmp/specfact-integration-tests/example4_precommit
 
 # Step 1: Initial commit (bundle name as positional argument)
-specfact --no-banner import from-code order-processor --repo . --output-format yaml
+specfact --no-banner code import from-code order-processor --repo . --output-format yaml
 git add .
 git commit -m "Initial code"
 
@@ -220,7 +220,7 @@ for dir in example1_vscode example2_cursor example3_github_actions example4_prec
   echo "Testing $dir..."
   cd /tmp/specfact-integration-tests/$dir
   bundle_name=$(echo "$dir" | sed 's/example[0-9]_//')
-  specfact --no-banner import from-code "$bundle_name" --repo . --output-format yaml 2>&1
+  specfact --no-banner code import from-code "$bundle_name" --repo . --output-format yaml 2>&1
   specfact --no-banner enforce stage --preset balanced 2>&1
   echo "---"
 done

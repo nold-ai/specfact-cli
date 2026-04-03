@@ -66,7 +66,7 @@ specfact code import my-project --repo . --confidence 0.7
 specfact code import my-project --repo . --shadow-only
 
 # CoPilot mode (enhanced prompts)
-specfact --mode copilot import from-code my-project --repo . --confidence 0.7
+specfact --mode copilot code import from-code my-project --repo . --confidence 0.7
 
 # Re-validate existing features (force re-analysis)
 specfact code import my-project --repo . --revalidate-features
@@ -200,10 +200,10 @@ specfact init ide --ide cursor --force
 specfact code import my-project --repo .
 
 # Force CI/CD mode
-specfact --mode cicd import from-code my-project --repo .
+specfact --mode cicd code import from-code my-project --repo .
 
 # Force CoPilot mode
-specfact --mode copilot import from-code my-project --repo .
+specfact --mode copilot code import from-code my-project --repo .
 
 # Set via environment variable
 export SPECFACT_MODE=copilot

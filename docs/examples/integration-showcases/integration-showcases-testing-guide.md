@@ -877,7 +877,7 @@ mv src/pipeline.py src/pipeline_original.py
 mv src/pipeline_broken.py src/pipeline.py
 
 # 3. Import broken code to create new plan
-specfact --no-banner import from-code pipeline-broken --repo . --output-format yaml
+specfact --no-banner code import from-code pipeline-broken --repo . --output-format yaml
 
 # 4. Compare new plan (from broken code) against enriched plan
 specfact --no-banner plan compare \
@@ -973,7 +973,7 @@ def get_user_stats(user_id: str) -> dict:
 **Alternative**: CLI-only mode:
 
 ```bash
-specfact --no-banner import from-code --repo . --output-format yaml
+specfact --no-banner code import from-code --repo . --output-format yaml
 ```
 
 **Note**: Interactive mode creates valid plan bundles with features. CLI-only may show 0 features for minimal test cases. Use `--no-banner` before the command to suppress banner output: `specfact --no-banner <command>`.
@@ -1143,7 +1143,7 @@ result = process_order(order_id="123")
 **Alternative**: CLI-only mode:
 
 ```bash
-specfact --no-banner import from-code --repo . --output-format yaml
+specfact --no-banner code import from-code --repo . --output-format yaml
 ```
 
 **Important**: After creating the initial plan, we need to make it the default plan so `plan compare --code-vs-plan` can find it. Use `plan select` to set it as the active plan:
@@ -1225,7 +1225,7 @@ Create `.git/hooks/pre-commit`:
 #!/bin/sh
 # First, import current code to create a new plan for comparison
 # Use default name "auto-derived" so plan compare --code-vs-plan can find it
-specfact --no-banner import from-code --repo . --output-format yaml > /dev/null 2>&1
+specfact --no-banner code import from-code --repo . --output-format yaml > /dev/null 2>&1
 
 # Then compare: uses active plan (set via plan select) as manual, latest code-derived plan as auto
 specfact --no-banner plan compare --code-vs-plan
