@@ -7,6 +7,7 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 
 CLI_VERSION="${CLI_VERSION:-0.45.1}"
 REPO_SLUG="${REPO_SLUG:-nold-ai/specfact-demo-repo}"
+REPO_REF="${REPO_REF:-2b5ba8cd57d16c1a1f24463a297fdb28fbede123}"
 WORK_DIR="${WORK_DIR:-/tmp/specfact-demo-repo}"
 CAPTURE_HOME="${CAPTURE_HOME:-/tmp/specfact-readme-capture-home}"
 OUTPUT_DIR="${OUTPUT_DIR:-$REPO_ROOT/docs/_support/readme-first-contact/sample-output}"
@@ -22,6 +23,9 @@ if [[ ! -d "$WORK_DIR/.git" ]]; then
   rm -rf "$WORK_DIR"
   gh repo clone "$REPO_SLUG" "$WORK_DIR"
 fi
+
+git -C "$WORK_DIR" fetch --depth 1 origin "$REPO_REF"
+git -C "$WORK_DIR" checkout --force "$REPO_REF"
 
 export HOME="$CAPTURE_HOME"
 
@@ -46,6 +50,7 @@ cat >"$SUMMARY_PATH" <<EOF
 
 - CLI version: \`$CLI_VERSION\`
 - Repo: \`$REPO_SLUG\`
+- Repo ref: \`$REPO_REF\`
 - Repo path: \`$WORK_DIR\`
 - Capture home: \`$CAPTURE_HOME\`
 - Command:

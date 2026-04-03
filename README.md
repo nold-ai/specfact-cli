@@ -86,8 +86,7 @@ It exists because delivery drifts in predictable ways:
 - repo: https://github.com/nold-ai/specfact-cli
   rev: v0.45.1
   hooks:
-    - id: specfact-enforce
-      args: [--preset, minimal]
+    - id: specfact-smart-checks
 ```
 
 **GitHub Actions**

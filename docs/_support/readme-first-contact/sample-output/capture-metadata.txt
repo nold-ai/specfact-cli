@@ -2,6 +2,7 @@
 
 - CLI version: `0.45.1`
 - Repo: `nold-ai/specfact-demo-repo`
+- Repo ref: `2b5ba8cd57d16c1a1f24463a297fdb28fbede123`
 - Repo path: `/tmp/specfact-demo-repo`
 - Capture home: `/tmp/specfact-readme-capture-home`
 - Command:
