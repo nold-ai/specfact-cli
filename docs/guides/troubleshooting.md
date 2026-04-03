@@ -135,7 +135,7 @@ specfact project health-check
 4. **Use CoPilot mode** (recommended for brownfield - better semantic understanding):
 
    ```bash
-   specfact --mode copilot import from-code legacy-api --repo . --confidence 0.7
+   specfact --mode copilot code import from-code legacy-api --repo . --confidence 0.7
    ```
 
 5. **For legacy codebases**, start with minimal confidence and review extracted features:
@@ -445,7 +445,7 @@ specfact project health-check
 1. **Use explicit mode**:
 
    ```bash
-   specfact --mode copilot import from-code my-project --repo .
+   specfact --mode copilot code import from-code my-project --repo .
    ```
 
 2. **Check environment variables**:
@@ -477,7 +477,7 @@ specfact project health-check
 1. **Use CI/CD mode** (faster):
 
    ```bash
-   specfact --mode cicd import from-code my-project --repo .
+   specfact --mode cicd code import from-code my-project --repo .
    ```
 
 2. **Increase confidence threshold** (fewer features):

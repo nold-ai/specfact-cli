@@ -46,7 +46,7 @@ specfact code import \
   --report analysis-core.md
 
 # CoPilot mode (enhanced prompts, interactive)
-specfact --mode copilot import from-code \
+specfact --mode copilot code import from-code \
   --repo . \
   --confidence 0.7 \
   --report analysis.md

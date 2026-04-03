@@ -353,7 +353,7 @@ specfact code import my-project \
   --report analysis.md
 
 # Analyze with CoPilot mode (enhanced prompts - CLI only, not for IDE)
-specfact --mode copilot import from-code my-project \
+specfact --mode copilot code import from-code my-project \
   --repo ./my-project \
   --confidence 0.7 \
   --report analysis.md

@@ -45,6 +45,14 @@ def test_module_not_found_error_includes_uvx_command() -> None:
     )
 
 
+def test_no_flat_import_in_missing_bundle_map() -> None:
+    """Flat `import` is not supported; hints use `code` / `project` groups only."""
+    from specfact_cli.cli import _INVOKED_TO_MARKETPLACE_MODULE
+
+    assert "import" not in _INVOKED_TO_MARKETPLACE_MODULE
+    assert _INVOKED_TO_MARKETPLACE_MODULE["project"] == "nold-ai/specfact-project"
+
+
 def test_module_not_found_error_includes_init_profile_placeholder() -> None:
     """Module-not-found error for 'code' command must include init --profile guidance."""
     result = runner.invoke(app, ["code"])

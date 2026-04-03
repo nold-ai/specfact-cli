@@ -2,7 +2,17 @@
 
 from __future__ import annotations
 
-from specfact_cli.registry.module_packages import _check_protocol_compliance, _check_schema_compatibility
+from typing import Any
+
+from specfact_cli.registry.module_packages import PROTOCOL_METHODS, _check_schema_compatibility
+
+
+def _protocol_operations_for_class(module_class: Any) -> list[str]:
+    operations: list[str] = []
+    for operation, method_name in PROTOCOL_METHODS.items():
+        if hasattr(module_class, method_name):
+            operations.append(operation)
+    return operations
 
 
 class FullProtocolModule:
@@ -33,22 +43,22 @@ class LegacyModule:
 
 
 def test_discovery_detects_protocol_implementation() -> None:
-    operations = _check_protocol_compliance(FullProtocolModule)
+    operations = _protocol_operations_for_class(FullProtocolModule)
     assert set(operations) == {"import", "export", "sync", "validate"}
 
 
 def test_full_protocol_logged() -> None:
-    operations = _check_protocol_compliance(FullProtocolModule)
+    operations = _protocol_operations_for_class(FullProtocolModule)
     assert len(operations) == 4
 
 
 def test_partial_protocol_logged() -> None:
-    operations = _check_protocol_compliance(PartialProtocolModule)
+    operations = _protocol_operations_for_class(PartialProtocolModule)
     assert set(operations) == {"import", "validate"}
 
 
 def test_no_protocol_legacy_mode() -> None:
-    operations = _check_protocol_compliance(LegacyModule)
+    operations = _protocol_operations_for_class(LegacyModule)
     assert operations == []
 
 

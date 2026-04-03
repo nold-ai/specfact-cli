@@ -46,24 +46,36 @@ def test_bootstrap_with_category_grouping_enabled_registers_group_commands() -> 
     }
     assert set(names).issubset(allowed), f"Unexpected root commands found: {sorted(set(names) - allowed)}"
     assert {"init", "module", "upgrade"}.issubset(set(names))
+    if "code" in names:
+        assert {"project", "spec"} <= set(names), (
+            "When the code category group is mounted, project and spec groups must register too."
+        )
     assert not (set(names) & forbidden_flat), (
         f"Flat shims should not be registered: {sorted(set(names) & forbidden_flat)}"
     )
 
 
-def test_bootstrap_with_category_grouping_disabled_registers_flat_commands() -> None:
-    """With category grouping disabled, grouped aliases are not mounted via category grouping."""
+def test_bootstrap_with_category_grouping_disabled_still_has_no_flat_shims() -> None:
+    """Flat bundle shims are not registered even when SPECFACT_CATEGORY_GROUPING_ENABLED is false."""
     with patch.dict(os.environ, {"SPECFACT_CATEGORY_GROUPING_ENABLED": "false"}, clear=False):
         register_builtin_commands()
         rebuild_root_app_from_registry()
     names = [name for name, _ in CommandRegistry.list_commands_for_help()]
-    # Skip assertions if bundles aren't installed (e.g., in CI without modules)
-    if "code" not in names:
-        pytest.skip("Codebase bundle not installed; skipping bundle-native command assertions")
-    assert "code" in names, "Bundle-native root command 'code' should remain available when grouping is disabled"
-    assert "govern" in names, "Bundle-native root command 'govern' should remain available when grouping is disabled"
-    assert "project" in names
-    assert "spec" in names
+    forbidden_flat = {
+        "analyze",
+        "drift",
+        "validate",
+        "repro",
+        "import",
+        "plan",
+        "sync",
+        "migrate",
+    }
+    assert not (set(names) & forbidden_flat), (
+        f"Flat shims must not be registered: {sorted(set(names) & forbidden_flat)}"
+    )
+    if "code" in names:
+        assert "project" in names and "spec" in names
 
 
 def test_code_analyze_routes_same_as_flat_analyze(

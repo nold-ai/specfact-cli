@@ -64,7 +64,8 @@ dependencies = [
     # PEP 440 / markers for module installer and registry (do not rely on transitive pins only)
 
     # CLI framework
-    "typer>=0.20.0",
+    # Typer 0.24+ requires click>=8.2.1 (generic Choice[...]); dev semgrep pins click~=8.1.8 — cap Typer.
+    "typer>=0.20.0,<0.24",
     "rich>=13.5.2,<13.6.0",  # Compatible with semgrep (requires rich~=13.5.2)
     "questionary>=2.0.1",  # Interactive prompts with arrow key navigation
     
@@ -103,6 +104,7 @@ contracts = [
 ]
 
 dev = [
+    "setuptools>=69.0.0",
     "pytest>=8.4.2",
     "pytest-cov>=7.0.0",
     "pytest-mock>=3.15.1",
@@ -170,6 +172,8 @@ specfact-cli = "specfact_cli.cli:cli_main"  # Alias for uvx compatibility
 [tool.hatch.envs.default]
 python = "3.12"
 dependencies = [
+    # Semgrep pulls opentelemetry; some versions import pkg_resources (setuptools)
+    "setuptools>=69.0.0",
     "pip-tools",
     "pytest",
     "pytest-cov",
@@ -208,6 +212,9 @@ governance = "pylint src tests tools --reports=y --output-format=parseable"
 format = "ruff check . --fix && ruff format ."
 
 # Code scanning (Semgrep)
+# Semgrep 1.38+ deprecated implicit .semgrep.yml discovery; always pass --config explicitly.
+# Script must not be named `semgrep` (Hatch treats that as circular expansion with the semgrep CLI).
+semgrep-full = "semgrep --config tools/semgrep {args}"
 scan = "semgrep --config tools/semgrep/async.yml {args}"
 scan-all = "semgrep --config tools/semgrep/async.yml ."
 scan-json = "semgrep --config tools/semgrep/async.yml --json . > logs/semgrep-results.json"

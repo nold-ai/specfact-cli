@@ -11,9 +11,24 @@ The upgrade output SHALL distinguish between modules that were actually upgraded
 and modules that were already at the latest version. Showing `0.41.16 -> 0.41.16` when no version
 change occurred is incorrect and SHALL NOT happen.
 
+While the registry index is being fetched or a module is being installed, the CLI SHALL show visible
+progress (for example a Rich status spinner) so the user knows work is ongoing. Rich progress MAY
+be suppressed in automated test environments.
+
 Before upgrading any module where the latest registry version has a higher major version than the
 installed version, the CLI SHALL warn the user and require confirmation, because major version
 bumps may contain breaking changes.
+
+#### Scenario: Upgrade shows progress during registry fetch and install
+
+- **WHEN** user runs `specfact module upgrade` and the registry fetch or an install takes noticeable time
+- **THEN** the CLI SHALL show visible progress during fetch and during each module install
+
+#### Scenario: Upgrade warns when registry index is unavailable
+
+- **WHEN** the registry index cannot be fetched (offline or network error)
+- **THEN** the CLI SHALL print a clear warning that the registry is unavailable
+- **AND** SHALL continue using installed metadata where possible for the upgrade decision
 
 #### Scenario: Upgrade a single named module to a newer minor/patch version
 

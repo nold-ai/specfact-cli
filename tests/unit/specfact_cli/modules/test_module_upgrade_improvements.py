@@ -8,13 +8,17 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import Any
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import click
 import pytest
 from typer.testing import CliRunner
 
-from specfact_cli.modules.module_registry.src.commands import _run_marketplace_upgrades
+from specfact_cli.modules.module_registry.src.commands import (
+    _resolve_one_upgrade_name,
+    _run_marketplace_upgrades,
+    app as module_app,
+)
 
 
 runner = CliRunner()
@@ -120,8 +124,6 @@ def test_run_marketplace_upgrades_mixed_result_shows_sections(tmp_path: Path) ->
 
 def test_upgrade_command_accepts_multiple_module_names(tmp_path: Path) -> None:
     """upgrade command must accept multiple positional module names."""
-    from specfact_cli.cli import app
-
     with (
         patch(
             "specfact_cli.modules.module_registry.src.commands.get_modules_with_state",
@@ -146,7 +148,7 @@ def test_upgrade_command_accepts_multiple_module_names(tmp_path: Path) -> None:
         patch("specfact_cli.modules.module_registry.src.commands._resolve_upgrade_target_ids") as mock_resolve,
     ):
         mock_resolve.return_value = ["nold-ai/specfact-backlog", "nold-ai/specfact-codebase"]
-        result = runner.invoke(app, ["module", "upgrade", "backlog", "codebase"])
+        result = runner.invoke(module_app, ["upgrade", "backlog", "codebase"])
 
     # Should not show "No such argument" error
     assert "No such argument" not in _unstyled(result.output), result.output
@@ -227,3 +229,76 @@ def test_run_marketplace_upgrades_yes_flag_skips_major_bump_prompt(tmp_path: Pat
         _run_marketplace_upgrades(["nold-ai/specfact-backlog"], by_id, {}, yes=True)
 
     mock_confirm.assert_not_called()  # --yes flag skips prompt
+
+
+def test_upgrade_command_warns_when_registry_unavailable(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """When the registry index cannot be fetched, upgrade prints a warning before continuing."""
+    monkeypatch.setattr(
+        "specfact_cli.modules.module_registry.src.commands.fetch_registry_index",
+        lambda **_: None,
+    )
+    monkeypatch.setattr(
+        "specfact_cli.modules.module_registry.src.commands.get_modules_with_state",
+        lambda: [{"id": "backlog", "version": "0.2.0", "enabled": True, "source": "marketplace"}],
+    )
+
+    def _install(module_id: str, **kwargs: object) -> Path:
+        return tmp_path / "backlog"
+
+    monkeypatch.setattr(
+        "specfact_cli.modules.module_registry.src.commands.install_module",
+        _install,
+    )
+    monkeypatch.setattr(
+        "specfact_cli.modules.module_registry.src.commands._read_installed_module_version",
+        lambda _p: "0.2.0",
+    )
+    result = runner.invoke(module_app, ["upgrade", "backlog"])
+    assert result.exit_code == 0
+    out = (result.stdout or "") + (result.stderr or "")
+    assert "unavailable" in out.lower() or "network error" in out.lower()
+
+
+def test_run_marketplace_upgrades_calls_console_status_when_spinner_enabled(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """When not in pytest/test mode, install path uses ``console.status`` for feedback."""
+    monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
+    monkeypatch.delenv("TEST_MODE", raising=False)
+
+    mock_console = MagicMock()
+    mock_ctx = MagicMock()
+    mock_ctx.__enter__ = MagicMock(return_value=None)
+    mock_ctx.__exit__ = MagicMock(return_value=None)
+    mock_console.status = MagicMock(return_value=mock_ctx)
+
+    by_id: dict[str, dict[str, Any]] = {
+        "nold-ai/specfact-backlog": {"version": "0.1.0", "source": "marketplace"},
+    }
+
+    def _fake_install(module_id: str, **kwargs: object) -> Path:
+        return tmp_path / "m"
+
+    with (
+        patch("specfact_cli.modules.module_registry.src.commands.console", mock_console),
+        patch("specfact_cli.modules.module_registry.src.commands.install_module", side_effect=_fake_install),
+        patch(
+            "specfact_cli.modules.module_registry.src.commands._read_installed_module_version",
+            return_value="0.2.0",
+        ),
+    ):
+        _run_marketplace_upgrades(["nold-ai/specfact-backlog"], by_id, {})
+
+    mock_console.status.assert_called()
+
+
+def test_resolve_one_upgrade_name_accepts_namespaced_id_when_installed_key_is_short() -> None:
+    """`specfact module upgrade nold-ai/specfact-backlog` must resolve when list uses short id keys."""
+    by_id: dict[str, dict[str, Any]] = {
+        "specfact-backlog": {
+            "version": "0.41.16",
+            "source": "marketplace",
+            "latest_version": "0.41.16",
+        }
+    }
+    assert _resolve_one_upgrade_name("nold-ai/specfact-backlog", by_id) == "specfact-backlog"
