@@ -8,6 +8,16 @@ This directory contains Semgrep rules for:
 
 **Note**: These files (`tools/semgrep/*.yml`) are used for **development** (hatch scripts, local testing). For **runtime** use in the installed package, the files are bundled as `src/specfact_cli/resources/semgrep/*.yml` and will be automatically included in the package distribution.
 
+### Running Semgrep (1.38+)
+
+Semgrep no longer auto-discovers `.semgrep.yml` in the project root; pass **`--config`** explicitly ([CLI reference](https://semgrep.dev/docs/cli-reference)).
+
+- **All rules in this directory**: `hatch run semgrep-full src` (uses `semgrep --config tools/semgrep`).
+- **Single rule file** (e.g. async only): `hatch run scan src` (uses `tools/semgrep/async.yml`).
+- **Raw CLI**: `semgrep --config tools/semgrep src`
+
+The Hatch env includes **`setuptools`** so Semgrep’s OpenTelemetry stack can import `pkg_resources` on Python 3.12+ minimal venvs.
+
 ## Rules
 
 ### `async.yml` - Python Async Anti-Patterns

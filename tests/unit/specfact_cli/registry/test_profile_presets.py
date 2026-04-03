@@ -111,13 +111,8 @@ def test_install_bundles_for_init_calls_marketplace_for_code_review(tmp_path: Pa
 
 
 def test_install_bundles_for_init_solo_developer_installs_both(tmp_path: Path) -> None:
-    """Running install_bundles_for_init for solo-developer bundles installs both codebase and code-review."""
-    installed_modules: list[str] = []
+    """Solo-developer bundles install via marketplace (slim CLI has no per-command bundled workflow dirs)."""
     installed_marketplace_ids: list[str] = []
-
-    def _fake_bundled(module_name: str, root: Path, **kwargs: object) -> bool:
-        installed_modules.append(module_name)
-        return True
 
     def _fake_marketplace(module_id: str, **kwargs: object) -> Path:
         installed_marketplace_ids.append(module_id)
@@ -126,7 +121,7 @@ def test_install_bundles_for_init_solo_developer_installs_both(tmp_path: Path) -
     with (
         patch(
             "specfact_cli.registry.module_installer.install_bundled_module",
-            side_effect=_fake_bundled,
+            return_value=False,
         ),
         patch(
             "specfact_cli.registry.module_installer.install_module",
@@ -139,7 +134,5 @@ def test_install_bundles_for_init_solo_developer_installs_both(tmp_path: Path) -
             non_interactive=True,
         )
 
-    assert len(installed_modules) > 0, "Bundled modules should be installed for specfact-codebase"
-    assert any("specfact-code-review" in mid for mid in installed_marketplace_ids), (
-        "Marketplace installer should be called for specfact-code-review"
-    )
+    assert "nold-ai/specfact-codebase" in installed_marketplace_ids
+    assert "nold-ai/specfact-code-review" in installed_marketplace_ids

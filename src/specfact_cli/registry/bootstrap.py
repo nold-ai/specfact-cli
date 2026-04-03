@@ -4,7 +4,7 @@ Bootstrap: register all CLI commands from module packages with CommandRegistry.
 Commands are discovered from configured module-package roots.
 Loaders import each package's src on first use and return its .app (Typer).
 cli.py must not import command modules at top level; it uses the registry.
-When category_grouping_enabled is True, mounts category groups (code, backlog, project, spec, govern)
+Mounts category groups (code, backlog, project, spec, govern) for installed bundles.
 and compat shims for flat commands; otherwise mounts all modules flat.
 """
 

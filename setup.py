@@ -22,7 +22,7 @@ if __name__ == "__main__":
             "azure-identity>=1.17.1",
             "cryptography>=43.0.0",
             "packaging>=24.0",
-            "typer>=0.20.0",
+            "typer>=0.20.0,<0.24",
             "rich>=13.5.2,<13.6.0",
             "questionary>=2.0.1",
             "jinja2>=3.1.6",

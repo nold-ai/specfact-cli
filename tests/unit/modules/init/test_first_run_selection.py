@@ -389,19 +389,16 @@ def test_init_first_run_interactive_no_selection_shows_tip(monkeypatch: pytest.M
 
 
 def test_spec_bundle_install_includes_project_dep(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    installed_modules: list[str] = []
+    installed_ids: list[str] = []
 
-    def _record_install(module_name: str, target_root: Path, **kwargs: object) -> bool:
-        installed_modules.append(module_name)
-        return True
+    def _record_marketplace(module_id: str, **kwargs: object) -> Path:
+        installed_ids.append(module_id)
+        return tmp_path / module_id.split("/")[1]
 
     monkeypatch.setattr(
-        "specfact_cli.registry.module_installer.install_bundled_module",
-        _record_install,
+        "specfact_cli.registry.module_installer.install_module",
+        _record_marketplace,
     )
     frs.install_bundles_for_init(["specfact-spec"], install_root=tmp_path, show_progress=False)
-    project_module_names = set(frs.BUNDLE_TO_MODULE_NAMES.get("specfact-project", []))
-    spec_module_names = set(frs.BUNDLE_TO_MODULE_NAMES.get("specfact-spec", []))
-    installed_set = set(installed_modules)
-    assert project_module_names & installed_set, "spec bundle must trigger project bundle dep install"
-    assert spec_module_names & installed_set, "spec bundle modules must be installed"
+    assert "nold-ai/specfact-project" in installed_ids, "spec bundle depends on project marketplace module"
+    assert "nold-ai/specfact-spec" in installed_ids
