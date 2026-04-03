@@ -45,7 +45,7 @@ Findings:
   - specfact_demo/main.py:81          Avoid print() in source files; use structured logging instead.
   - examples/buggy_math.py:4          Public function divide is missing @require/@ensure decorators.
 
-Evidence bundle: evidence/readme-sample-output/
+Evidence bundle: docs/_support/readme-first-contact/sample-output/
 ```
 
 ⭐ **Star this repo if the output is useful.** Open an issue if you want the workflow adapted for your stack.
@@ -57,7 +57,7 @@ specfact init --profile solo-developer
 specfact code review run --path . --scope full
 ```
 
-The sample output comes from a pinned capture against `nold-ai/specfact-demo-repo`. Reproduce it with `scripts/capture-readme-output.sh`.
+The sample output comes from a pinned capture against `nold-ai/specfact-demo-repo`. Reproduce it with `docs/_support/readme-first-contact/capture-readme-output.sh`; capture metadata lives alongside the raw logs in `docs/_support/readme-first-contact/sample-output/`.
 
 ## What SpecFact does
 

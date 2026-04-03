@@ -34,7 +34,7 @@ simulate running the command.
 - **THEN** the README SHALL display a sample output block that includes a verdict, a score or status,
   file-level findings, and an evidence bundle path
 - **AND** the output SHALL be sourced from a checked-in capture artifact under
-  `evidence/readme-sample-output/`
+  `docs/_support/readme-first-contact/sample-output/`
 - **AND** the repo SHALL include a capture script that reproduces or refreshes the stored output
 
 ### Requirement: README explains value before deep product detail

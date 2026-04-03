@@ -64,8 +64,8 @@ This change restructures the README so the first screen answers four questions i
 - `docs/index.md` if needed to preserve first-contact parity with the README
 - `tests/unit/docs/test_wow_entrypoint_contract.py`
 - `tests/unit/docs/test_first_contact_story.py`
-- `scripts/capture-readme-output.sh`
-- `evidence/readme-sample-output/`
+- `docs/_support/readme-first-contact/capture-readme-output.sh`
+- `docs/_support/readme-first-contact/sample-output/`
 - `openspec/CHANGE_ORDER.md`
 
 **Behavior / documentation impact**

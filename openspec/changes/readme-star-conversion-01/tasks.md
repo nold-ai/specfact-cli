@@ -15,9 +15,9 @@
 
 ## 3. Evidence capture
 
-- [ ] 3.1 Add `scripts/capture-readme-output.sh`
+- [ ] 3.1 Add `docs/_support/readme-first-contact/capture-readme-output.sh`
 - [ ] 3.2 Capture raw `specfact code review run` output against `specfact-demo-repo`
-- [ ] 3.3 Store raw output and run metadata under `evidence/readme-sample-output/`
+- [ ] 3.3 Store raw output and run metadata under `docs/_support/readme-first-contact/sample-output/`
 - [ ] 3.4 Pin the CLI version used by the capture and document rerun steps in the evidence folder
 
 ## 4. README restructure

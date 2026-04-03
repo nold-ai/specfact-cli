@@ -11,5 +11,5 @@ uvx --from "specfact-cli==0.45.1" specfact init --profile solo-developer
 uvx --from "specfact-cli==0.45.1" --with ruff --with radon --with semgrep --with basedpyright --with pylint --with crosshair-tool specfact code review run --path . --scope full
 ```
 
-- Raw output: `/workspace/evidence/readme-sample-output/review-output.txt`
-- Init output: `/workspace/evidence/readme-sample-output/init-output.txt`
+- Raw output: `/workspace/docs/_support/readme-first-contact/sample-output/review-output.txt`
+- Init output: `/workspace/docs/_support/readme-first-contact/sample-output/init-output.txt`

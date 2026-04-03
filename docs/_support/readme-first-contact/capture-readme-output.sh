@@ -3,15 +3,15 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 
 CLI_VERSION="${CLI_VERSION:-0.45.1}"
 REPO_SLUG="${REPO_SLUG:-nold-ai/specfact-demo-repo}"
 WORK_DIR="${WORK_DIR:-/tmp/specfact-demo-repo}"
 CAPTURE_HOME="${CAPTURE_HOME:-/tmp/specfact-readme-capture-home}"
-OUTPUT_DIR="${OUTPUT_DIR:-$REPO_ROOT/evidence/readme-sample-output}"
+OUTPUT_DIR="${OUTPUT_DIR:-$REPO_ROOT/docs/_support/readme-first-contact/sample-output}"
 RAW_OUTPUT_PATH="${RAW_OUTPUT_PATH:-$OUTPUT_DIR/review-output.txt}"
-SUMMARY_PATH="${SUMMARY_PATH:-$OUTPUT_DIR/README.md}"
+SUMMARY_PATH="${SUMMARY_PATH:-$OUTPUT_DIR/capture-metadata.txt}"
 INIT_OUTPUT_PATH="${INIT_OUTPUT_PATH:-$OUTPUT_DIR/init-output.txt}"
 
 mkdir -p "$OUTPUT_DIR"

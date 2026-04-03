@@ -10,8 +10,8 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[3]
 README = REPO_ROOT / "README.md"
 DOCS_INDEX = REPO_ROOT / "docs" / "index.md"
-CAPTURE_SCRIPT = REPO_ROOT / "scripts" / "capture-readme-output.sh"
-EVIDENCE_DIR = REPO_ROOT / "evidence" / "readme-sample-output"
+CAPTURE_SCRIPT = REPO_ROOT / "docs" / "_support" / "readme-first-contact" / "capture-readme-output.sh"
+EVIDENCE_DIR = REPO_ROOT / "docs" / "_support" / "readme-first-contact" / "sample-output"
 
 HOOK = "Review AI-assisted code against your own contracts."
 CTA = "Star this repo if the output is useful."
@@ -74,5 +74,5 @@ def test_docs_index_shares_readme_hook_and_wow_block() -> None:
 
 def test_readme_capture_script_and_evidence_folder_exist() -> None:
     """README sample output must be backed by reproducible evidence artifacts."""
-    assert CAPTURE_SCRIPT.is_file(), "Missing scripts/capture-readme-output.sh"
-    assert EVIDENCE_DIR.is_dir(), "Missing evidence/readme-sample-output/"
+    assert CAPTURE_SCRIPT.is_file(), "Missing docs/_support/readme-first-contact/capture-readme-output.sh"
+    assert EVIDENCE_DIR.is_dir(), "Missing docs/_support/readme-first-contact/sample-output/"
