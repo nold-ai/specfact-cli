@@ -223,7 +223,7 @@ def process_payment(request):
 ### Option B: CLI-only (For Integration Testing)
 
 ```bash
-uvx specfact-cli@latest --no-banner import from-code --repo . --output-format yaml
+uvx specfact-cli@latest --no-banner code import from-code --repo . --output-format yaml
 ```
 
 **Note**: CLI-only mode uses AST-based analysis and may show "0 features" for minimal test cases. This is expected and the plan bundle is still created for manual contract addition.
@@ -234,17 +234,17 @@ uvx specfact-cli@latest --no-banner import from-code --repo . --output-format ya
 - **Repeated runs**: Use `--no-banner` **before** the command to suppress banner output
 - **Important**: `--no-banner` is a global parameter and must come **before** the subcommand, not after
   - ✅ Correct: `specfact --no-banner enforce stage --preset balanced`
-  - ✅ Correct: `uvx specfact-cli@latest --no-banner import from-code --repo . --output-format yaml`
+  - ✅ Correct: `uvx specfact-cli@latest --no-banner code import from-code --repo . --output-format yaml`
   - ❌ Wrong: `specfact govern enforce stage --preset balanced --no-banner`
-  - ❌ Wrong: `uvx specfact-cli@latest import from-code --repo . --output-format yaml --no-banner`
+  - ❌ Wrong: `uvx specfact-cli@latest code import from-code --repo . --output-format yaml --no-banner`
 
-**Note**: The `import from-code` command analyzes the entire repository/directory, not individual files. It will automatically detect and analyze all Python files in the current directory.
+**Note**: The `code import from-code` command analyzes the entire repository/directory, not individual files. It will automatically detect and analyze all Python files in the current directory.
 
 **Important**: These examples are designed for **interactive AI assistant usage** (slash commands in Cursor, VS Code, etc.), not CLI-only execution.
 
 **CLI vs Interactive Mode**:
 
-- **CLI-only** (`uvx specfact-cli@latest import from-code` or `specfact code import`): Uses AST-based analyzer (CI/CD mode)
+- **CLI-only** (`uvx specfact-cli@latest code import from-code` or `specfact code import`): Uses AST-based analyzer (CI/CD mode)
   - May show "0 features" for minimal test cases
   - Limited to AST pattern matching
   - Works but may not detect all features in simple examples
@@ -368,7 +368,7 @@ specfact --no-banner plan review django-example \
 - ✅ Stories are present in the plan bundle
 - ✅ Acceptance criteria are complete and testable
 
-**Note**: Contracts are **automatically extracted** during `import from-code` by the AST analyzer, but only if function signatures have type hints. For the async bug detection example, detecting "blocking I/O in async context" requires additional analysis (Semgrep async patterns, not just AST contracts).
+**Note**: Contracts are **automatically extracted** during `code import from-code` by the AST analyzer, but only if function signatures have type hints. For the async bug detection example, detecting "blocking I/O in async context" requires additional analysis (Semgrep async patterns, not just AST contracts).
 
 #### Step 3.4: Set Up Enforcement Configuration
 
@@ -511,7 +511,7 @@ Fix the blocking deviations or adjust enforcement config
 
 **What We've Accomplished**:
 
-1. ✅ Created plan bundle from code (`import from-code`)
+1. ✅ Created plan bundle from code (`code import from-code`)
 2. ✅ Enriched plan with semantic understanding (added feature and stories)
 3. ✅ Reviewed plan and added missing stories via CLI
 4. ✅ Configured enforcement (balanced preset)
@@ -637,7 +637,7 @@ Stories added (4 total):
 **Alternative**: CLI-only mode:
 
 ```bash
-uvx specfact-cli@latest --no-banner import from-code --repo . --output-format yaml
+uvx specfact-cli@latest --no-banner code import from-code --repo . --output-format yaml
 ```
 
 **Note**: Interactive mode creates valid plan bundles with features. CLI-only may show 0 features for minimal test cases. Use `--no-banner` before the command to suppress banner output: `specfact --no-banner <command>`.
@@ -902,7 +902,7 @@ mv src/pipeline_original.py src/pipeline.py
 
 **What We've Accomplished**:
 
-1. ✅ Created plan bundle from code (`import from-code`)
+1. ✅ Created plan bundle from code (`code import from-code`)
 2. ✅ Enriched plan with semantic understanding (added FEATURE-DATAPROCESSOR and 4 stories)
 3. ✅ Reviewed plan and improved quality (added target users, value hypothesis, feature acceptance criteria, enhanced story acceptance criteria with Given/When/Then format)
 4. ✅ Configured enforcement (balanced preset with HIGH → BLOCK, MEDIUM → WARN, LOW → LOG)
@@ -1064,7 +1064,7 @@ This automatically generates `[tool.crosshair]` configuration in `pyproject.toml
 
 **What We've Accomplished**:
 
-1. ✅ Created plan bundle from code (`import from-code`)
+1. ✅ Created plan bundle from code (`code import from-code`)
 2. ✅ Enriched plan with semantic understanding (if using interactive mode)
 3. ✅ Configured enforcement (balanced preset)
 4. ✅ Ran validation suite (`specfact code repro`)
@@ -1243,7 +1243,7 @@ specfact --no-banner plan compare --code-vs-plan
 **Note**: The `--code-vs-plan` flag automatically uses:
 
 - **Manual plan**: The active plan (set via `plan select`) or `main.bundle.yaml` as fallback
-- **Auto plan**: The latest `auto-derived` project bundle (from `import from-code auto-derived` or default bundle name)
+- **Auto plan**: The latest `auto-derived` project bundle (from `code import from-code auto-derived` or default bundle name)
 
 Make it executable:
 
@@ -1320,7 +1320,7 @@ Fix the blocking deviations or adjust enforcement config
 
 **What We've Accomplished**:
 
-1. ✅ Created initial plan bundle from original code (`import from-code`)
+1. ✅ Created initial plan bundle from original code (`code import from-code`)
 2. ✅ Committed the original plan (baseline)
 3. ✅ Modified code to introduce breaking change (added required `user_id` parameter)
 4. ✅ Configured enforcement (balanced preset with HIGH → BLOCK)
@@ -1578,7 +1578,7 @@ rm -rf specfact-integration-tests
 
 **What's Validated**:
 
-- ✅ Plan bundle creation (`import from-code`)
+- ✅ Plan bundle creation (`code import from-code`)
 - ✅ Plan enrichment (LLM adds features and stories)
 - ✅ Plan review (identifies missing items)
 - ✅ Story addition via CLI (`plan add-story`)
@@ -1605,7 +1605,7 @@ rm -rf specfact-integration-tests
 
 **What's Validated**:
 
-- ✅ Plan bundle creation (`import from-code`)
+- ✅ Plan bundle creation (`code import from-code`)
 - ✅ Plan enrichment (LLM adds FEATURE-DATAPROCESSOR and 4 stories)
 - ✅ Plan review (auto-enrichment adds target users, value hypothesis, feature acceptance criteria, enhanced story acceptance criteria)
 - ✅ Enforcement configuration (`enforce stage` with BALANCED preset)
@@ -1627,7 +1627,7 @@ rm -rf specfact-integration-tests
 
 **What's Validated**:
 
-- ✅ Plan bundle creation (`import from-code`)
+- ✅ Plan bundle creation (`code import from-code`)
 - ✅ Plan selection (`plan select` sets active plan)
 - ✅ Enforcement configuration (`enforce stage` with BALANCED preset)
 - ✅ Pre-commit hook setup (imports code, then compares)
@@ -1636,7 +1636,7 @@ rm -rf specfact-integration-tests
 
 **Test Results**:
 
-- Plan creation: ✅ `import from-code <bundle-name>` creates project bundle at `.specfact/projects/<bundle-name>/` (modular structure)
+- Plan creation: ✅ `code import from-code <bundle-name>` creates project bundle at `.specfact/projects/<bundle-name>/` (modular structure)
 - Plan selection: ✅ `plan select` sets active plan correctly
 - Plan comparison: ✅ `plan compare --code-vs-plan` finds:
   - Manual plan: Active plan (set via `plan select`)
@@ -1647,9 +1647,9 @@ rm -rf specfact-integration-tests
 
 **Key Findings**:
 
-- ✅ `import from-code` should use bundle name "auto-derived" so `plan compare --code-vs-plan` can find it
+- ✅ `code import from-code` should use bundle name "auto-derived" so `plan compare --code-vs-plan` can find it
 - ✅ `plan select` is the recommended way to set the baseline plan (cleaner than copying to `main.bundle.yaml`)
-- ✅ Pre-commit hook workflow: `import from-code` → `plan compare --code-vs-plan` works correctly
+- ✅ Pre-commit hook workflow: `code import from-code` → `plan compare --code-vs-plan` works correctly
 - ✅ Enforcement configuration is respected (HIGH → BLOCK based on preset)
 
 **Conclusion**: Example 4 is **fully validated**. The pre-commit hook integration works end-to-end. The hook successfully imports current code, compares it against the active plan, and blocks commits when HIGH severity deviations are detected. The workflow demonstrates how SpecFact prevents breaking changes from being committed locally, before they reach CI/CD.
@@ -1687,7 +1687,7 @@ rm -rf specfact-integration-tests
 Example 5 follows a similar workflow and should be validated using the same approach:
 
 1. Create test files
-2. Create plan bundle (`import from-code`)
+2. Create plan bundle (`code import from-code`)
 3. Enrich plan (if needed)
 4. Review plan and add missing items
 5. Configure enforcement

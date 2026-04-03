@@ -1104,6 +1104,47 @@ def test_upgrade_rejects_non_marketplace_source(monkeypatch) -> None:
     assert "marketplace modules" in result.stdout and "upgradeable" in result.stdout
 
 
+def test_upgrade_rejects_multi_segment_module_id(monkeypatch, tmp_path: Path) -> None:
+    """Malformed owner/repo/extra must not resolve via last-segment fallback to a different module."""
+    installed: list[str] = []
+
+    def _install(module_id: str, version=None, reinstall: bool = False):
+        installed.append(module_id)
+        return tmp_path / module_id.split("/")[-1]
+
+    monkeypatch.setattr(
+        "specfact_cli.modules.module_registry.src.commands.install_module",
+        _install,
+    )
+    monkeypatch.setattr(
+        "specfact_cli.modules.module_registry.src.commands.get_modules_with_state",
+        lambda: [
+            {"id": "nold-ai/specfact-backlog", "version": "0.2.0", "enabled": True, "source": "marketplace"},
+        ],
+    )
+
+    result = runner.invoke(app, ["upgrade", "foo/bar/backlog"])
+
+    assert result.exit_code == 1
+    assert not installed
+    assert "Invalid module id" in result.stdout
+    assert "multi-segment" in result.stdout
+
+
+def test_upgrade_row_for_target_does_not_match_last_segment_for_multi_slash_ids() -> None:
+    from specfact_cli.modules.module_registry.src.commands import _upgrade_row_for_target
+
+    by_id = {"nold-ai/specfact-backlog": {"version": "1", "source": "marketplace"}}
+    assert _upgrade_row_for_target("foo/bar/backlog", by_id) == {}
+
+
+def test_full_marketplace_module_id_for_install_rejects_multi_segment_path() -> None:
+    from specfact_cli.modules.module_registry.src.commands import _full_marketplace_module_id_for_install
+
+    with pytest.raises(ValueError, match="multi-segment"):
+        _full_marketplace_module_id_for_install("foo/bar/backlog")
+
+
 def test_enable_command_updates_state_with_dependency_checks(monkeypatch) -> None:
     captured = {"enable_ids": None, "disable_ids": None, "force": None}
 

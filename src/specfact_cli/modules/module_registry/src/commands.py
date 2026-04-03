@@ -1110,6 +1110,8 @@ def show(module_name: str = typer.Argument(..., help="Installed module name")) -
 def _upgrade_row_for_target(target: str, by_id: dict[str, dict[str, Any]]) -> dict[str, Any]:
     if target in by_id:
         return by_id[target]
+    if target.count("/") > 1:
+        return {}
     short = target.split("/")[-1]
     if short in by_id:
         return by_id[short]
@@ -1122,6 +1124,10 @@ def _upgrade_row_for_target(target: str, by_id: dict[str, dict[str, Any]]) -> di
 def _full_marketplace_module_id_for_install(target: str) -> str:
     """Return ``namespace/name`` for ``install_module`` from a target key or short id."""
     t = target.strip()
+    if t.count("/") > 1:
+        raise ValueError(
+            f"Invalid module id {target!r}: expected owner/repo or a short module name, not a multi-segment path."
+        )
     if "/" in t and t.count("/") == 1:
         left, right = t.split("/", 1)
         if left.strip() and right.strip():
@@ -1196,6 +1202,12 @@ def _resolve_one_upgrade_name(raw: str, by_id: dict[str, dict[str, Any]]) -> str
     normalized = raw.strip()
     if not normalized:
         return normalized
+    if normalized.count("/") > 1:
+        console.print(
+            f"[red]Invalid module id {normalized!r}: use owner/repo or a short name (e.g. backlog), "
+            "not a multi-segment path.[/red]"
+        )
+        raise typer.Exit(1)
     short = normalized.split("/")[-1]
     for cand in _upgrade_name_candidates(normalized, short, by_id):
         if cand not in by_id:

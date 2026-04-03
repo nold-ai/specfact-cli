@@ -46,6 +46,10 @@ def test_bootstrap_with_category_grouping_enabled_registers_group_commands() -> 
     }
     assert set(names).issubset(allowed), f"Unexpected root commands found: {sorted(set(names) - allowed)}"
     assert {"init", "module", "upgrade"}.issubset(set(names))
+    if "code" in names:
+        assert {"project", "spec"} <= set(names), (
+            "When the code category group is mounted, project and spec groups must register too."
+        )
     assert not (set(names) & forbidden_flat), (
         f"Flat shims should not be registered: {sorted(set(names) & forbidden_flat)}"
     )
