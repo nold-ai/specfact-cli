@@ -1,0 +1,15 @@
+# README sample output capture
+
+- CLI version: `0.45.1`
+- Repo: `nold-ai/specfact-demo-repo`
+- Repo path: `/tmp/specfact-demo-repo`
+- Capture home: `/tmp/specfact-readme-capture-home`
+- Command:
+
+```bash
+uvx --from "specfact-cli==0.45.1" specfact init --profile solo-developer
+uvx --from "specfact-cli==0.45.1" --with ruff --with radon --with semgrep --with basedpyright --with pylint --with crosshair-tool specfact code review run --path . --scope full
+```
+
+- Raw output: `/workspace/evidence/readme-sample-output/review-output.txt`
+- Init output: `/workspace/evidence/readme-sample-output/init-output.txt`

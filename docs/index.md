@@ -17,14 +17,19 @@ exempt_reason: ""
 
 # SpecFact CLI Documentation
 
-**Point SpecFact at your code. Get a score and a list of what to fix.** No week-long setup — start with two commands, then add IDE prompts, backlog workflows, or CI gates when you want more.
+**Review AI-assisted code against your own contracts.**
+**Catch drift before it reaches PR or main.**
+
+Point SpecFact at your repo, get a scored review with file-level findings, then go deeper into
+backlog, specs, and CI when you need more control.
 
 ```bash
 uvx specfact-cli init --profile solo-developer
 uvx specfact-cli code review run --path . --scope full
 ```
 
-You should see a **Verdict** (PASS/FAIL), a **Score**, and a list of findings (for example dozens of categorized items on a real repo). That is the fastest way to see SpecFact on an existing project. [Read the full quickstart →](/getting-started/quickstart/)
+You should see a **Verdict**, a **Score**, and a list of findings on a real repo. That is the
+fastest way to see SpecFact on existing code. [Read the full quickstart →](/getting-started/quickstart/)
 
 SpecFact does **not** include built-in AI. It pairs deterministic CLI commands with your chosen IDE and copilot so fast-moving work has a stronger validation and alignment layer around it.
 

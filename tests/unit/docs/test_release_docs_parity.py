@@ -348,10 +348,11 @@ def test_module_contracts_reference_external_bundle_boundary() -> None:
 def test_readme_and_docs_index_define_core_and_modules_split() -> None:
     readme = _repo_file("README.md").read_text(encoding="utf-8")
     docs_index = _repo_file("docs/index.md").read_text(encoding="utf-8")
-    assert "validation and alignment layer for software delivery" in readme
-    assert "docs.specfact.io` is the canonical starting point for SpecFact" in readme
+    assert "Review AI-assisted code against your own contracts." in readme
+    assert "## Documentation topology" in readme
     assert "Module-specific deep docs are canonically owned by `specfact-cli-modules`" in readme
     _assert_mentions_modules_docs_site(readme)
+    assert "Review AI-assisted code against your own contracts." in docs_index
     assert "canonical starting point for the core CLI story" in docs_index
     assert "docs.specfact.io` is the default starting point" in docs_index
     _assert_mentions_modules_docs_site(docs_index)

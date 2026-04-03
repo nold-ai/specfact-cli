@@ -1,7 +1,4 @@
-"""Contract tests: README and docs landing must match the canonical uvx \"wow\" entry path.
-
-The wow path is the primary onboarding surface (init + code review with --scope full).
-"""
+"""Contract tests for the README proof-first onboarding surface."""
 
 from __future__ import annotations
 
@@ -13,8 +10,11 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[3]
 README = REPO_ROOT / "README.md"
 DOCS_INDEX = REPO_ROOT / "docs" / "index.md"
+CAPTURE_SCRIPT = REPO_ROOT / "scripts" / "capture-readme-output.sh"
+EVIDENCE_DIR = REPO_ROOT / "evidence" / "readme-sample-output"
 
-# Canonical strings — keep in sync with docs/index.md hero and README "Start Here".
+HOOK = "Review AI-assisted code against your own contracts."
+CTA = "Star this repo if the output is useful."
 UVX_INIT = "uvx specfact-cli init --profile solo-developer"
 UVX_REVIEW = "uvx specfact-cli code review run --path . --scope full"
 INSTALLED_INIT = "specfact init --profile solo-developer"
@@ -29,12 +29,12 @@ def _require_files() -> None:
         pytest.skip(f"docs/index.md missing at {DOCS_INDEX}", allow_module_level=True)
 
 
-def _read(p: Path) -> str:
-    return p.read_text(encoding="utf-8")
+def _read(path: Path) -> str:
+    return path.read_text(encoding="utf-8")
 
 
 def test_readme_and_docs_index_include_identical_uvx_wow_commands() -> None:
-    """Hero commands in README and docs/index.md must not drift."""
+    """README and docs/index must share the canonical uvx wow commands."""
     readme = _read(README)
     docs = _read(DOCS_INDEX)
     for needle in (UVX_INIT, UVX_REVIEW):
@@ -42,36 +42,37 @@ def test_readme_and_docs_index_include_identical_uvx_wow_commands() -> None:
         assert needle in docs, f"docs/index.md must contain {needle!r}"
 
 
-def test_readme_documents_pip_free_alternate_and_scope_full_rationale() -> None:
-    """README explains --scope full and the installed-CLI equivalent."""
+def test_readme_documents_proof_block_cta_and_installed_equivalent() -> None:
+    """README keeps the hook, proof block, CTA, and installed CLI path together."""
     readme = _read(README)
-    assert "--scope full" in readme
+    assert HOOK in readme
+    assert "Sample output:" in readme
+    assert "Evidence bundle:" in readme
+    assert CTA in readme
     assert INSTALLED_INIT in readme and INSTALLED_REVIEW in readme
-    assert "Verdict" in readme and "Score" in readme and "findings" in readme.lower()
+    assert "Verdict:" in readme and "Findings:" in readme and "works offline" in readme.lower()
 
 
-def test_readme_wow_section_appears_before_choose_your_path() -> None:
-    """Primary entry content must appear before outcome routing."""
+def test_readme_proof_first_sections_precede_deeper_sections() -> None:
+    """Proof and workflow sections must appear before org and module detail."""
     readme = _read(README)
-    wow = readme.find("uvx specfact-cli init --profile solo-developer")
-    choose = readme.find("## Choose Your Path")
-    assert wow != -1 and choose != -1
-    assert wow < choose
+    try_it = readme.find("## Try it in 60 seconds")
+    what_it_does = readme.find("## What SpecFact does")
+    workflow = readme.find("## Add SpecFact to your workflow")
+    teams = readme.find("## For teams and organizations")
+    assert min(try_it, what_it_does, workflow, teams) != -1
+    assert try_it < what_it_does < workflow < teams
 
 
-def test_docs_index_wow_block_precedes_what_is_specfact() -> None:
-    """Landing page leads with the runnable block before deep product copy."""
+def test_docs_index_shares_readme_hook_and_wow_block() -> None:
+    """Docs landing keeps the same first-contact identity and ordering."""
     docs = _read(DOCS_INDEX)
-    block = docs.find(UVX_INIT)
-    heading = docs.find("## What is SpecFact?")
-    assert block != -1 and heading != -1
-    assert block < heading
+    assert HOOK in docs
+    assert docs.find(UVX_INIT) != -1
+    assert docs.find(UVX_INIT) < docs.find("## What is SpecFact?")
 
 
-def test_readme_start_here_precedes_documentation_topology() -> None:
-    """Fast-start remains above internal docs topology (existing contract)."""
-    readme = _read(README)
-    start = readme.find("### Start Here")
-    topo = readme.find("## Documentation Topology")
-    assert start != -1 and topo != -1
-    assert start < topo
+def test_readme_capture_script_and_evidence_folder_exist() -> None:
+    """README sample output must be backed by reproducible evidence artifacts."""
+    assert CAPTURE_SCRIPT.is_file(), "Missing scripts/capture-readme-output.sh"
+    assert EVIDENCE_DIR.is_dir(), "Missing evidence/readme-sample-output/"

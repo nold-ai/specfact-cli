@@ -1,0 +1,1320 @@
+Downloading z3-solver (30.3MiB)
+Downloading nodejs-wheel-binaries (57.2MiB)
+Downloading ruff (10.7MiB)
+Downloading semgrep (55.9MiB)
+Downloading basedpyright (11.8MiB)
+ Downloaded ruff
+ Downloaded z3-solver
+ Downloaded semgrep
+ Downloaded basedpyright
+ Downloaded nodejs-wheel-binaries
+Installed 111 packages in 415ms
+SpecFact CLI - v0.45.1
+
+
+⏱️  Started: 2026-04-03 20:14:18
+Running Ruff checks...
+Running Radon complexity checks...
+Running Semgrep rules...
+Running AST clean-code checks...
+Running basedpyright type checks...
+Running pylint checks...
+Running contract checks...
+Running targeted tests and coverage...
+                           Code Review: architecture                            
+┏━━━━━━━━━━━━━━━━━┳━━━━━━┳━━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━━━━━━━┓
+┃ File            ┃ Line ┃ Tool    ┃ Rule         ┃ Severity ┃ Message         ┃
+┡━━━━━━━━━━━━━━━━━╇━━━━━━╇━━━━━━━━━╇━━━━━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━━━━━━━┩
+│ specfact_demo/… │   81 │ semgrep │ print-in-src │ warning  │ Avoid print()   │
+│                 │      │         │              │          │ in source       │
+│                 │      │         │              │          │ files; use      │
+│                 │      │         │              │          │ structured      │
+│                 │      │         │              │          │ logging or      │
+│                 │      │         │              │          │ return values   │
+│                 │      │         │              │          │ instead.        │
+│ specfact_demo/… │   86 │ semgrep │ print-in-src │ warning  │ Avoid print()   │
+│                 │      │         │              │          │ in source       │
+│                 │      │         │              │          │ files; use      │
+│                 │      │         │              │          │ structured      │
+│                 │      │         │              │          │ logging or      │
+│                 │      │         │              │          │ return values   │
+│                 │      │         │              │          │ instead.        │
+│ specfact_demo/… │  304 │ semgrep │ print-in-src │ warning  │ Avoid print()   │
+│                 │      │         │              │          │ in source       │
+│                 │      │         │              │          │ files; use      │
+│                 │      │         │              │          │ structured      │
+│                 │      │         │              │          │ logging or      │
+│                 │      │         │              │          │ return values   │
+│                 │      │         │              │          │ instead.        │
+└─────────────────┴──────┴─────────┴──────────────┴──────────┴─────────────────┘
+                            Code Review: clean_code                             
+┏━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━┳━━━━━━━┳━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━┓
+┃ File                 ┃ Line ┃ Tool  ┃ Rule ┃ Severity ┃ Message              ┃
+┡━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━╇━━━━━━━╇━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━┩
+│ specfact_demo/enfor… │   96 │ radon │ CC16 │ error    │ Cyclomatic           │
+│                      │      │       │      │          │ complexity for       │
+│                      │      │       │      │          │ run_enforcement is   │
+│                      │      │       │      │          │ 16.                  │
+└──────────────────────┴──────┴───────┴──────┴──────────┴──────────────────────┘
+                             Code Review: contracts                             
+┏━━━━━━━━━━━━━━┳━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━━━━┓
+┃ File         ┃ Line ┃ Tool         ┃ Rule          ┃ Severity ┃ Message      ┃
+┡━━━━━━━━━━━━━━╇━━━━━━╇━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━━━━┩
+│ examples/bu… │    4 │ contract_ru… │ MISSING_ICON… │ warning  │ Public       │
+│              │      │              │               │          │ function     │
+│              │      │              │               │          │ 'divide' is  │
+│              │      │              │               │          │ missing      │
+│              │      │              │               │          │ @require/@en │
+│              │      │              │               │          │ sure         │
+│              │      │              │               │          │ decorators.  │
+│ examples/bu… │    9 │ contract_ru… │ MISSING_ICON… │ warning  │ Public       │
+│              │      │              │               │          │ function     │
+│              │      │              │               │          │ 'discount'   │
+│              │      │              │               │          │ is missing   │
+│              │      │              │               │          │ @require/@en │
+│              │      │              │               │          │ sure         │
+│              │      │              │               │          │ decorators.  │
+│ plugins/off… │   13 │ contract_ru… │ MISSING_ICON… │ warning  │ Public       │
+│              │      │              │               │          │ function     │
+│              │      │              │               │          │ 'post_sync'  │
+│              │      │              │               │          │ is missing   │
+│              │      │              │               │          │ @require/@en │
+│              │      │              │               │          │ sure         │
+│              │      │              │               │          │ decorators.  │
+│ specfact_de… │   64 │ contract_ru… │ MISSING_ICON… │ warning  │ Public       │
+│              │      │              │               │          │ function     │
+│              │      │              │               │          │ 'main' is    │
+│              │      │              │               │          │ missing      │
+│              │      │              │               │          │ @require/@en │
+│              │      │              │               │          │ sure         │
+│              │      │              │               │          │ decorators.  │
+│ specfact_de… │   96 │ contract_ru… │ MISSING_ICON… │ warning  │ Public       │
+│              │      │              │               │          │ function     │
+│              │      │              │               │          │ 'run_enforce │
+│              │      │              │               │          │ ment' is     │
+│              │      │              │               │          │ missing      │
+│              │      │              │               │          │ @require/@en │
+│              │      │              │               │          │ sure         │
+│              │      │              │               │          │ decorators.  │
+│ specfact_de… │   32 │ contract_ru… │ MISSING_ICON… │ warning  │ Public       │
+│              │      │              │               │          │ function     │
+│              │      │              │               │          │ 'pre_read'   │
+│              │      │              │               │          │ is missing   │
+│              │      │              │               │          │ @require/@en │
+│              │      │              │               │          │ sure         │
+│              │      │              │               │          │ decorators.  │
+│ specfact_de… │   35 │ contract_ru… │ MISSING_ICON… │ warning  │ Public       │
+│              │      │              │               │          │ function     │
+│              │      │              │               │          │ 'post_read'  │
+│              │      │              │               │          │ is missing   │
+│              │      │              │               │          │ @require/@en │
+│              │      │              │               │          │ sure         │
+│              │      │              │               │          │ decorators.  │
+│ specfact_de… │   38 │ contract_ru… │ MISSING_ICON… │ warning  │ Public       │
+│              │      │              │               │          │ function     │
+│              │      │              │               │          │ 'pre_validat │
+│              │      │              │               │          │ e' is        │
+│              │      │              │               │          │ missing      │
+│              │      │              │               │          │ @require/@en │
+│              │      │              │               │          │ sure         │
+│              │      │              │               │          │ decorators.  │
+│ specfact_de… │   41 │ contract_ru… │ MISSING_ICON… │ warning  │ Public       │
+│              │      │              │               │          │ function     │
+│              │      │              │               │          │ 'post_valida │
+│              │      │              │               │          │ te' is       │
+│              │      │              │               │          │ missing      │
+│              │      │              │               │          │ @require/@en │
+│              │      │              │               │          │ sure         │
+│              │      │              │               │          │ decorators.  │
+│ specfact_de… │   44 │ contract_ru… │ MISSING_ICON… │ warning  │ Public       │
+│              │      │              │               │          │ function     │
+│              │      │              │               │          │ 'pre_sync'   │
+│              │      │              │               │          │ is missing   │
+│              │      │              │               │          │ @require/@en │
+│              │      │              │               │          │ sure         │
+│              │      │              │               │          │ decorators.  │
+│ specfact_de… │   47 │ contract_ru… │ MISSING_ICON… │ warning  │ Public       │
+│              │      │              │               │          │ function     │
+│              │      │              │               │          │ 'post_sync'  │
+│              │      │              │               │          │ is missing   │
+│              │      │              │               │          │ @require/@en │
+│              │      │              │               │          │ sure         │
+│              │      │              │               │          │ decorators.  │
+│ specfact_de… │   20 │ contract_ru… │ MISSING_ICON… │ warning  │ Public       │
+│              │      │              │               │          │ function     │
+│              │      │              │               │          │ 'load_plugin │
+│              │      │              │               │          │ _from_path'  │
+│              │      │              │               │          │ is missing   │
+│              │      │              │               │          │ @require/@en │
+│              │      │              │               │          │ sure         │
+│              │      │              │               │          │ decorators.  │
+│ specfact_de… │   47 │ contract_ru… │ MISSING_ICON… │ warning  │ Public       │
+│              │      │              │               │          │ function     │
+│              │      │              │               │          │ 'load_plugin │
+│              │      │              │               │          │ s' is        │
+│              │      │              │               │          │ missing      │
+│              │      │              │               │          │ @require/@en │
+│              │      │              │               │          │ sure         │
+│              │      │              │               │          │ decorators.  │
+│ specfact_de… │   51 │ contract_ru… │ MISSING_ICON… │ warning  │ Public       │
+│              │      │              │               │          │ function     │
+│              │      │              │               │          │ 'run_lifecyc │
+│              │      │              │               │          │ le' is       │
+│              │      │              │               │          │ missing      │
+│              │      │              │               │          │ @require/@en │
+│              │      │              │               │          │ sure         │
+│              │      │              │               │          │ decorators.  │
+│ specfact_de… │   58 │ contract_ru… │ MISSING_ICON… │ warning  │ Public       │
+│              │      │              │               │          │ function     │
+│              │      │              │               │          │ 'validate_pl │
+│              │      │              │               │          │ ugin_metadat │
+│              │      │              │               │          │ a' is        │
+│              │      │              │               │          │ missing      │
+│              │      │              │               │          │ @require/@en │
+│              │      │              │               │          │ sure         │
+│              │      │              │               │          │ decorators.  │
+│ specfact_de… │   88 │ contract_ru… │ MISSING_ICON… │ warning  │ Public       │
+│              │      │              │               │          │ function     │
+│              │      │              │               │          │ 'run_plugin_ │
+│              │      │              │               │          │ harness' is  │
+│              │      │              │               │          │ missing      │
+│              │      │              │               │          │ @require/@en │
+│              │      │              │               │          │ sure         │
+│              │      │              │               │          │ decorators.  │
+│ specfact_de… │  130 │ contract_ru… │ MISSING_ICON… │ warning  │ Public       │
+│              │      │              │               │          │ function     │
+│              │      │              │               │          │ 'init_plugin │
+│              │      │              │               │          │ _scaffold'   │
+│              │      │              │               │          │ is missing   │
+│              │      │              │               │          │ @require/@en │
+│              │      │              │               │          │ sure         │
+│              │      │              │               │          │ decorators.  │
+└──────────────┴──────┴──────────────┴───────────────┴──────────┴──────────────┘
+                               Code Review: kiss                                
+┏━━━━━━━━━━━━━━━┳━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━━━━━┓
+┃ File          ┃ Line ┃ Tool       ┃ Rule          ┃ Severity ┃ Message       ┃
+┡━━━━━━━━━━━━━━━╇━━━━━━╇━━━━━━━━━━━━╇━━━━━━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━━━━━┩
+│ specfact_dem… │   96 │ radon-kiss │ kiss.loc.err… │ error    │ Function      │
+│               │      │            │               │          │ `run_enforcem │
+│               │      │            │               │          │ ent` spans    │
+│               │      │            │               │          │ 216 lines;    │
+│               │      │            │               │          │ keep it under │
+│               │      │            │               │          │ 80.           │
+│ specfact_dem… │   96 │ radon-kiss │ kiss.nesting… │ warning  │ Function      │
+│               │      │            │               │          │ `run_enforcem │
+│               │      │            │               │          │ ent` nests    │
+│               │      │            │               │          │ control flow  │
+│               │      │            │               │          │ 4 levels      │
+│               │      │            │               │          │ deep; keep it │
+│               │      │            │               │          │ under 3.      │
+│ specfact_dem… │  130 │ radon-kiss │ kiss.loc.war… │ warning  │ Function      │
+│               │      │            │               │          │ `init_plugin_ │
+│               │      │            │               │          │ scaffold`     │
+│               │      │            │               │          │ spans 85      │
+│               │      │            │               │          │ lines; keep   │
+│               │      │            │               │          │ it under 80.  │
+└───────────────┴──────┴────────────┴───────────────┴──────────┴───────────────┘
+                              Code Review: naming                               
+┏━━━━━━━━━━━━━━━━┳━━━━━━┳━━━━━━━━━┳━━━━━━━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━━━━━━┓
+┃ File           ┃ Line ┃ Tool    ┃ Rule           ┃ Severity ┃ Message        ┃
+┡━━━━━━━━━━━━━━━━╇━━━━━━╇━━━━━━━━━╇━━━━━━━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━━━━━━┩
+│ specfact_demo… │   58 │ semgrep │ banned-generi… │ warning  │ Public API     │
+│                │      │         │                │          │ names should   │
+│                │      │         │                │          │ be specific;   │
+│                │      │         │                │          │ avoid generic  │
+│                │      │         │                │          │ names like     │
+│                │      │         │                │          │ process,       │
+│                │      │         │                │          │ handle, or     │
+│                │      │         │                │          │ manager.       │
+└────────────────┴──────┴─────────┴────────────────┴──────────┴────────────────┘
+                               Code Review: style                               
+┏━━━━━━━━━━━━━━━━━━━━━┳━━━━━━┳━━━━━━━━┳━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━┓
+┃ File                ┃ Line ┃ Tool   ┃ Rule  ┃ Severity ┃ Message             ┃
+┡━━━━━━━━━━━━━━━━━━━━━╇━━━━━━╇━━━━━━━━╇━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━┩
+│ examples/buggy-sid… │    4 │ pylint │ C0116 │ warning  │ Missing function or │
+│                     │      │        │       │          │ method docstring    │
+│ examples/buggy-sid… │    9 │ pylint │ C0116 │ warning  │ Missing function or │
+│                     │      │        │       │          │ method docstring    │
+│ plugins/official/b… │    1 │ pylint │ C0114 │ warning  │ Missing module      │
+│                     │      │        │       │          │ docstring           │
+│ plugins/official/b… │    4 │ pylint │ C0115 │ warning  │ Missing class       │
+│                     │      │        │       │          │ docstring           │
+│ specfact_demo/cli.… │   64 │ pylint │ C0116 │ warning  │ Missing function or │
+│                     │      │        │       │          │ method docstring    │
+│ specfact_demo/enfo… │  231 │ pylint │ C0301 │ warning  │ Line too long       │
+│                     │      │        │       │          │ (103/100)           │
+│ specfact_demo/enfo… │   96 │ pylint │ C0116 │ warning  │ Missing function or │
+│                     │      │        │       │          │ method docstring    │
+│ specfact_demo/enfo… │   96 │ pylint │ R0914 │ warning  │ Too many local      │
+│                     │      │        │       │          │ variables (45/15)   │
+│ specfact_demo/enfo… │   96 │ pylint │ R0915 │ warning  │ Too many statements │
+│                     │      │        │       │          │ (76/50)             │
+│ specfact_demo/plug… │   20 │ pylint │ C0116 │ warning  │ Missing function or │
+│                     │      │        │       │          │ method docstring    │
+│ specfact_demo/plug… │   47 │ pylint │ C0116 │ warning  │ Missing function or │
+│                     │      │        │       │          │ method docstring    │
+│ specfact_demo/plug… │   51 │ pylint │ C0116 │ warning  │ Missing function or │
+│                     │      │        │       │          │ method docstring    │
+│ specfact_demo/plug… │   58 │ pylint │ C0116 │ warning  │ Missing function or │
+│                     │      │        │       │          │ method docstring    │
+│ specfact_demo/plug… │   88 │ pylint │ C0116 │ warning  │ Missing function or │
+│                     │      │        │       │          │ method docstring    │
+│ specfact_demo/plug… │  114 │ pylint │ W0718 │ warning  │ Catching too        │
+│                     │      │        │       │          │ general exception   │
+│                     │      │        │       │          │ Exception           │
+│ specfact_demo/plug… │  130 │ pylint │ C0116 │ warning  │ Missing function or │
+│                     │      │        │       │          │ method docstring    │
+│ tests/test_enforce… │    1 │ pylint │ C0114 │ warning  │ Missing module      │
+│                     │      │        │       │          │ docstring           │
+│ tests/test_enforce… │   14 │ pylint │ C0115 │ warning  │ Missing class       │
+│                     │      │        │       │          │ docstring           │
+│ tests/test_enforce… │   15 │ pylint │ C0116 │ warning  │ Missing function or │
+│                     │      │        │       │          │ method docstring    │
+│ tests/test_enforce… │   34 │ pylint │ C0116 │ warning  │ Missing function or │
+│                     │      │        │       │          │ method docstring    │
+│ tests/test_enforce… │   51 │ pylint │ C0116 │ warning  │ Missing function or │
+│                     │      │        │       │          │ method docstring    │
+│ tests/test_plugin_… │    1 │ pylint │ C0114 │ warning  │ Missing module      │
+│                     │      │        │       │          │ docstring           │
+│ tests/test_plugin_… │   14 │ pylint │ C0115 │ warning  │ Missing class       │
+│                     │      │        │       │          │ docstring           │
+│ tests/test_plugin_… │   15 │ pylint │ C0116 │ warning  │ Missing function or │
+│                     │      │        │       │          │ method docstring    │
+│ tests/test_plugin_… │   20 │ pylint │ C0116 │ warning  │ Missing function or │
+│                     │      │        │       │          │ method docstring    │
+└─────────────────────┴──────┴────────┴───────┴──────────┴─────────────────────┘
+                            Code Review: type_safety                            
+┏━━━━━━━━━━━━━━┳━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━━━━┓
+┃ File         ┃ Line ┃ Tool         ┃ Rule          ┃ Severity ┃ Message      ┃
+┡━━━━━━━━━━━━━━╇━━━━━━╇━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━━━━┩
+│ /tmp/specfa… │    5 │ basedpyright │ reportUnanno… │ warning  │ Type         │
+│              │      │              │               │          │ annotation   │
+│              │      │              │               │          │ for          │
+│              │      │              │               │          │ attribute    │
+│              │      │              │               │          │ `name` is    │
+│              │      │              │               │          │ required     │
+│              │      │              │               │          │ because this │
+│              │      │              │               │          │ class is not │
+│              │      │              │               │          │ decorated    │
+│              │      │              │               │          │ with         │
+│              │      │              │               │          │ `@final`     │
+│ /tmp/specfa… │    6 │ basedpyright │ reportUnanno… │ warning  │ Type         │
+│              │      │              │               │          │ annotation   │
+│              │      │              │               │          │ for          │
+│              │      │              │               │          │ attribute    │
+│              │      │              │               │          │ `version` is │
+│              │      │              │               │          │ required     │
+│              │      │              │               │          │ because this │
+│              │      │              │               │          │ class is not │
+│              │      │              │               │          │ decorated    │
+│              │      │              │               │          │ with         │
+│              │      │              │               │          │ `@final`     │
+│ /tmp/specfa… │    7 │ basedpyright │ reportUnanno… │ warning  │ Type         │
+│              │      │              │               │          │ annotation   │
+│              │      │              │               │          │ for          │
+│              │      │              │               │          │ attribute    │
+│              │      │              │               │          │ `api_version │
+│              │      │              │               │          │ ` is         │
+│              │      │              │               │          │ required     │
+│              │      │              │               │          │ because this │
+│              │      │              │               │          │ class is not │
+│              │      │              │               │          │ decorated    │
+│              │      │              │               │          │ with         │
+│              │      │              │               │          │ `@final`     │
+│ /tmp/specfa… │    8 │ basedpyright │ reportUnanno… │ warning  │ Type         │
+│              │      │              │               │          │ annotation   │
+│              │      │              │               │          │ for          │
+│              │      │              │               │          │ attribute    │
+│              │      │              │               │          │ `scope` is   │
+│              │      │              │               │          │ required     │
+│              │      │              │               │          │ because this │
+│              │      │              │               │          │ class is not │
+│              │      │              │               │          │ decorated    │
+│              │      │              │               │          │ with         │
+│              │      │              │               │          │ `@final`     │
+│ /tmp/specfa… │    9 │ basedpyright │ reportUnanno… │ warning  │ Type         │
+│              │      │              │               │          │ annotation   │
+│              │      │              │               │          │ for          │
+│              │      │              │               │          │ attribute    │
+│              │      │              │               │          │ `invariants_ │
+│              │      │              │               │          │ touched` is  │
+│              │      │              │               │          │ required     │
+│              │      │              │               │          │ because this │
+│              │      │              │               │          │ class is not │
+│              │      │              │               │          │ decorated    │
+│              │      │              │               │          │ with         │
+│              │      │              │               │          │ `@final`     │
+│ /tmp/specfa… │   10 │ basedpyright │ reportUnanno… │ warning  │ Type         │
+│              │      │              │               │          │ annotation   │
+│              │      │              │               │          │ for          │
+│              │      │              │               │          │ attribute    │
+│              │      │              │               │          │ `side_effect │
+│              │      │              │               │          │ s` is        │
+│              │      │              │               │          │ required     │
+│              │      │              │               │          │ because this │
+│              │      │              │               │          │ class is not │
+│              │      │              │               │          │ decorated    │
+│              │      │              │               │          │ with         │
+│              │      │              │               │          │ `@final`     │
+│ /tmp/specfa… │   11 │ basedpyright │ reportUnanno… │ warning  │ Type         │
+│              │      │              │               │          │ annotation   │
+│              │      │              │               │          │ for          │
+│              │      │              │               │          │ attribute    │
+│              │      │              │               │          │ `attestation │
+│              │      │              │               │          │ _hash` is    │
+│              │      │              │               │          │ required     │
+│              │      │              │               │          │ because this │
+│              │      │              │               │          │ class is not │
+│              │      │              │               │          │ decorated    │
+│              │      │              │               │          │ with         │
+│              │      │              │               │          │ `@final`     │
+│ /tmp/specfa… │   13 │ basedpyright │ reportImplic… │ warning  │ Method       │
+│              │      │              │               │          │ "post_sync"  │
+│              │      │              │               │          │ is not       │
+│              │      │              │               │          │ marked as    │
+│              │      │              │               │          │ override but │
+│              │      │              │               │          │ is           │
+│              │      │              │               │          │ overriding a │
+│              │      │              │               │          │ method in    │
+│              │      │              │               │          │ class        │
+│              │      │              │               │          │ "Plugin"     │
+│ /tmp/specfa… │   13 │ basedpyright │ reportMissin… │ warning  │ Type         │
+│              │      │              │               │          │ annotation   │
+│              │      │              │               │          │ is missing   │
+│              │      │              │               │          │ for          │
+│              │      │              │               │          │ parameter    │
+│              │      │              │               │          │ "context"    │
+│ /tmp/specfa… │   14 │ basedpyright │ reportAny     │ warning  │ Type of      │
+│              │      │              │               │          │ "sync_result │
+│              │      │              │               │          │ " is Any     │
+│ /tmp/specfa… │   15 │ basedpyright │ reportAny     │ warning  │ Type of      │
+│              │      │              │               │          │ "item" is    │
+│              │      │              │               │          │ Any          │
+│ /tmp/specfa… │   15 │ basedpyright │ reportAny     │ warning  │ Type of      │
+│              │      │              │               │          │ "get" is Any │
+│ /tmp/specfa… │   16 │ basedpyright │ reportAny     │ warning  │ Type of      │
+│              │      │              │               │          │ "labels" is  │
+│              │      │              │               │          │ Any          │
+│ /tmp/specfa… │   16 │ basedpyright │ reportAny     │ warning  │ Type of      │
+│              │      │              │               │          │ "setdefault" │
+│              │      │              │               │          │ is Any       │
+│ /tmp/specfa… │   18 │ basedpyright │ reportAny     │ warning  │ Type of      │
+│              │      │              │               │          │ "append" is  │
+│              │      │              │               │          │ Any          │
+│ /tmp/specfa… │   24 │ basedpyright │ reportUnused… │ warning  │ Result of    │
+│              │      │              │               │          │ call         │
+│              │      │              │               │          │ expression   │
+│              │      │              │               │          │ is of type   │
+│              │      │              │               │          │ "Action" and │
+│              │      │              │               │          │ is not used; │
+│              │      │              │               │          │ assign to    │
+│              │      │              │               │          │ variable "_" │
+│              │      │              │               │          │ if this is   │
+│              │      │              │               │          │ intentional  │
+│ /tmp/specfa… │   25 │ basedpyright │ reportUnused… │ warning  │ Result of    │
+│              │      │              │               │          │ call         │
+│              │      │              │               │          │ expression   │
+│              │      │              │               │          │ is of type   │
+│              │      │              │               │          │ "Action" and │
+│              │      │              │               │          │ is not used; │
+│              │      │              │               │          │ assign to    │
+│              │      │              │               │          │ variable "_" │
+│              │      │              │               │          │ if this is   │
+│              │      │              │               │          │ intentional  │
+│ /tmp/specfa… │   30 │ basedpyright │ reportUnused… │ warning  │ Result of    │
+│              │      │              │               │          │ call         │
+│              │      │              │               │          │ expression   │
+│              │      │              │               │          │ is of type   │
+│              │      │              │               │          │ "Action" and │
+│              │      │              │               │          │ is not used; │
+│              │      │              │               │          │ assign to    │
+│              │      │              │               │          │ variable "_" │
+│              │      │              │               │          │ if this is   │
+│              │      │              │               │          │ intentional  │
+│ /tmp/specfa… │   36 │ basedpyright │ reportUnused… │ warning  │ Result of    │
+│              │      │              │               │          │ call         │
+│              │      │              │               │          │ expression   │
+│              │      │              │               │          │ is of type   │
+│              │      │              │               │          │ "Action" and │
+│              │      │              │               │          │ is not used; │
+│              │      │              │               │          │ assign to    │
+│              │      │              │               │          │ variable "_" │
+│              │      │              │               │          │ if this is   │
+│              │      │              │               │          │ intentional  │
+│ /tmp/specfa… │   46 │ basedpyright │ reportUnused… │ warning  │ Result of    │
+│              │      │              │               │          │ call         │
+│              │      │              │               │          │ expression   │
+│              │      │              │               │          │ is of type   │
+│              │      │              │               │          │ "Action" and │
+│              │      │              │               │          │ is not used; │
+│              │      │              │               │          │ assign to    │
+│              │      │              │               │          │ variable "_" │
+│              │      │              │               │          │ if this is   │
+│              │      │              │               │          │ intentional  │
+│ /tmp/specfa… │   47 │ basedpyright │ reportUnused… │ warning  │ Result of    │
+│              │      │              │               │          │ call         │
+│              │      │              │               │          │ expression   │
+│              │      │              │               │          │ is of type   │
+│              │      │              │               │          │ "Action" and │
+│              │      │              │               │          │ is not used; │
+│              │      │              │               │          │ assign to    │
+│              │      │              │               │          │ variable "_" │
+│              │      │              │               │          │ if this is   │
+│              │      │              │               │          │ intentional  │
+│ /tmp/specfa… │   54 │ basedpyright │ reportUnused… │ warning  │ Result of    │
+│              │      │              │               │          │ call         │
+│              │      │              │               │          │ expression   │
+│              │      │              │               │          │ is of type   │
+│              │      │              │               │          │ "Action" and │
+│              │      │              │               │          │ is not used; │
+│              │      │              │               │          │ assign to    │
+│              │      │              │               │          │ variable "_" │
+│              │      │              │               │          │ if this is   │
+│              │      │              │               │          │ intentional  │
+│ /tmp/specfa… │   55 │ basedpyright │ reportUnused… │ warning  │ Result of    │
+│              │      │              │               │          │ call         │
+│              │      │              │               │          │ expression   │
+│              │      │              │               │          │ is of type   │
+│              │      │              │               │          │ "Action" and │
+│              │      │              │               │          │ is not used; │
+│              │      │              │               │          │ assign to    │
+│              │      │              │               │          │ variable "_" │
+│              │      │              │               │          │ if this is   │
+│              │      │              │               │          │ intentional  │
+│ /tmp/specfa… │   68 │ basedpyright │ reportAny     │ warning  │ Type of      │
+│              │      │              │               │          │ "command" is │
+│              │      │              │               │          │ Any          │
+│ /tmp/specfa… │   70 │ basedpyright │ reportAny     │ warning  │ Type of      │
+│              │      │              │               │          │ "fixtures"   │
+│              │      │              │               │          │ is Any       │
+│ /tmp/specfa… │   70 │ basedpyright │ reportAny     │ warning  │ Argument     │
+│              │      │              │               │          │ type is Any  │
+│              │      │              │               │          │   Argument   │
+│              │      │              │               │          │ corresponds  │
+│              │      │              │               │          │ to parameter │
+│              │      │              │               │          │ "args" in    │
+│              │      │              │               │          │ function     │
+│              │      │              │               │          │ "__init__"   │
+│ /tmp/specfa… │   71 │ basedpyright │ reportAny     │ warning  │ Type of      │
+│              │      │              │               │          │ "artifacts"  │
+│              │      │              │               │          │ is Any       │
+│ /tmp/specfa… │   71 │ basedpyright │ reportAny     │ warning  │ Argument     │
+│              │      │              │               │          │ type is Any  │
+│              │      │              │               │          │   Argument   │
+│              │      │              │               │          │ corresponds  │
+│              │      │              │               │          │ to parameter │
+│              │      │              │               │          │ "args" in    │
+│              │      │              │               │          │ function     │
+│              │      │              │               │          │ "__init__"   │
+│ /tmp/specfa… │   72 │ basedpyright │ reportAny     │ warning  │ Argument     │
+│              │      │              │               │          │ type is Any  │
+│              │      │              │               │          │   Argument   │
+│              │      │              │               │          │ corresponds  │
+│              │      │              │               │          │ to parameter │
+│              │      │              │               │          │ "args" in    │
+│              │      │              │               │          │ function     │
+│              │      │              │               │          │ "__init__"   │
+│ /tmp/specfa… │   72 │ basedpyright │ reportAny     │ warning  │ Type of      │
+│              │      │              │               │          │ "path" is    │
+│              │      │              │               │          │ Any          │
+│ /tmp/specfa… │   72 │ basedpyright │ reportAny     │ warning  │ Type of      │
+│              │      │              │               │          │ "use_plugin" │
+│              │      │              │               │          │ is Any       │
+│ /tmp/specfa… │   74 │ basedpyright │ reportAny     │ warning  │ Type of      │
+│              │      │              │               │          │ "gate" is    │
+│              │      │              │               │          │ Any          │
+│ /tmp/specfa… │   75 │ basedpyright │ reportAny     │ warning  │ Type of      │
+│              │      │              │               │          │ "fail_on_blo │
+│              │      │              │               │          │ ck" is Any   │
+│ /tmp/specfa… │   79 │ basedpyright │ reportAny     │ warning  │ Type of      │
+│              │      │              │               │          │ "command" is │
+│              │      │              │               │          │ Any          │
+│ /tmp/specfa… │   79 │ basedpyright │ reportAny     │ warning  │ Type of      │
+│              │      │              │               │          │ "plugin_comm │
+│              │      │              │               │          │ and" is Any  │
+│ /tmp/specfa… │   80 │ basedpyright │ reportAny     │ warning  │ Type of      │
+│              │      │              │               │          │ "name" is    │
+│              │      │              │               │          │ Any          │
+│ /tmp/specfa… │   80 │ basedpyright │ reportAny     │ warning  │ Argument     │
+│              │      │              │               │          │ type is Any  │
+│              │      │              │               │          │   Argument   │
+│              │      │              │               │          │ corresponds  │
+│              │      │              │               │          │ to parameter │
+│              │      │              │               │          │ "plugin_name │
+│              │      │              │               │          │ " in         │
+│              │      │              │               │          │ function     │
+│              │      │              │               │          │ "init_plugin │
+│              │      │              │               │          │ _scaffold"   │
+│ /tmp/specfa… │   80 │ basedpyright │ reportAny     │ warning  │ Type of      │
+│              │      │              │               │          │ "target_dir" │
+│              │      │              │               │          │ is Any       │
+│ /tmp/specfa… │   80 │ basedpyright │ reportAny     │ warning  │ Argument     │
+│              │      │              │               │          │ type is Any  │
+│              │      │              │               │          │   Argument   │
+│              │      │              │               │          │ corresponds  │
+│              │      │              │               │          │ to parameter │
+│              │      │              │               │          │ "target_dir" │
+│              │      │              │               │          │ in function  │
+│              │      │              │               │          │ "init_plugin │
+│              │      │              │               │          │ _scaffold"   │
+│ /tmp/specfa… │   84 │ basedpyright │ reportAny     │ warning  │ Type of      │
+│              │      │              │               │          │ "plugin_comm │
+│              │      │              │               │          │ and" is Any  │
+│ /tmp/specfa… │   85 │ basedpyright │ reportAny     │ warning  │ Type of      │
+│              │      │              │               │          │ "plugin_path │
+│              │      │              │               │          │ " is Any     │
+│ /tmp/specfa… │   85 │ basedpyright │ reportAny     │ warning  │ Argument     │
+│              │      │              │               │          │ type is Any  │
+│              │      │              │               │          │   Argument   │
+│              │      │              │               │          │ corresponds  │
+│              │      │              │               │          │ to parameter │
+│              │      │              │               │          │ "plugin_path │
+│              │      │              │               │          │ " in         │
+│              │      │              │               │          │ function     │
+│              │      │              │               │          │ "run_plugin_ │
+│              │      │              │               │          │ harness"     │
+│ /tmp/specfa… │   85 │ basedpyright │ reportAny     │ warning  │ Type of      │
+│              │      │              │               │          │ "fixture" is │
+│              │      │              │               │          │ Any          │
+│ /tmp/specfa… │   85 │ basedpyright │ reportAny     │ warning  │ Argument     │
+│              │      │              │               │          │ type is Any  │
+│              │      │              │               │          │   Argument   │
+│              │      │              │               │          │ corresponds  │
+│              │      │              │               │          │ to parameter │
+│              │      │              │               │          │ "fixture_dir │
+│              │      │              │               │          │ " in         │
+│              │      │              │               │          │ function     │
+│              │      │              │               │          │ "run_plugin_ │
+│              │      │              │               │          │ harness"     │
+│ /tmp/specfa… │    9 │ basedpyright │ reportDeprec… │ warning  │ This type is │
+│              │      │              │               │          │ deprecated   │
+│              │      │              │               │          │ as of Python │
+│              │      │              │               │          │ 3.9; use     │
+│              │      │              │               │          │ "collections │
+│              │      │              │               │          │ .abc.Iterabl │
+│              │      │              │               │          │ e" instead   │
+│ /tmp/specfa… │   14 │ basedpyright │ reportAny     │ warning  │ Return type  │
+│              │      │              │               │          │ is Any       │
+│ /tmp/specfa… │   14 │ basedpyright │ reportExplic… │ warning  │ Type `Any`   │
+│              │      │              │               │          │ is not       │
+│              │      │              │               │          │ allowed      │
+│ /tmp/specfa… │   16 │ basedpyright │ reportAny     │ warning  │ Return type  │
+│              │      │              │               │          │ is Any       │
+│ /tmp/specfa… │   19 │ basedpyright │ reportAny     │ warning  │ Type of      │
+│              │      │              │               │          │ parameter    │
+│              │      │              │               │          │ "payload" is │
+│              │      │              │               │          │ Any          │
+│ /tmp/specfa… │   19 │ basedpyright │ reportExplic… │ warning  │ Type `Any`   │
+│              │      │              │               │          │ is not       │
+│              │      │              │               │          │ allowed      │
+│ /tmp/specfa… │   23 │ basedpyright │ reportUnused… │ warning  │ Result of    │
+│              │      │              │               │          │ call         │
+│              │      │              │               │          │ expression   │
+│              │      │              │               │          │ is of type   │
+│              │      │              │               │          │ "int" and is │
+│              │      │              │               │          │ not used;    │
+│              │      │              │               │          │ assign to    │
+│              │      │              │               │          │ variable "_" │
+│              │      │              │               │          │ if this is   │
+│              │      │              │               │          │ intentional  │
+│ /tmp/specfa… │   37 │ basedpyright │ reportExplic… │ warning  │ Type `Any`   │
+│              │      │              │               │          │ is not       │
+│              │      │              │               │          │ allowed      │
+│ /tmp/specfa… │   46 │ basedpyright │ reportImplic… │ warning  │ Implicit     │
+│              │      │              │               │          │ string       │
+│              │      │              │               │          │ concatenatio │
+│              │      │              │               │          │ n not        │
+│              │      │              │               │          │ allowed      │
+│ /tmp/specfa… │   50 │ basedpyright │ reportAny     │ warning  │ Type of      │
+│              │      │              │               │          │ "endpoints"  │
+│              │      │              │               │          │ is Any       │
+│ /tmp/specfa… │   56 │ basedpyright │ reportUnknow… │ warning  │ Type of      │
+│              │      │              │               │          │ "endpoint"   │
+│              │      │              │               │          │ is unknown   │
+│ /tmp/specfa… │   56 │ basedpyright │ reportUnknow… │ warning  │ Argument     │
+│              │      │              │               │          │ type is      │
+│              │      │              │               │          │ partially    │
+│              │      │              │               │          │ unknown      │
+│              │      │              │               │          │   Argument   │
+│              │      │              │               │          │ corresponds  │
+│              │      │              │               │          │ to parameter │
+│              │      │              │               │          │ "iterable"   │
+│              │      │              │               │          │ in function  │
+│              │      │              │               │          │ "__new__"    │
+│              │      │              │               │          │   Argument   │
+│              │      │              │               │          │ type is      │
+│              │      │              │               │          │ "list[Unknow │
+│              │      │              │               │          │ n]"          │
+│ /tmp/specfa… │   61 │ basedpyright │ reportUnknow… │ warning  │ Type of      │
+│              │      │              │               │          │ "get" is     │
+│              │      │              │               │          │ partially    │
+│              │      │              │               │          │ unknown      │
+│              │      │              │               │          │   Type of    │
+│              │      │              │               │          │ "get" is     │
+│              │      │              │               │          │ "Overload[(k │
+│              │      │              │               │          │ ey: Unknown, │
+│              │      │              │               │          │ default:     │
+│              │      │              │               │          │ None = None, │
+│              │      │              │               │          │ /) ->        │
+│              │      │              │               │          │ (Unknown |   │
+│              │      │              │               │          │ None), (key: │
+│              │      │              │               │          │ Unknown,     │
+│              │      │              │               │          │ default:     │
+│              │      │              │               │          │ Unknown, /)  │
+│              │      │              │               │          │ -> Unknown,  │
+│              │      │              │               │          │ (key:        │
+│              │      │              │               │          │ Unknown,     │
+│              │      │              │               │          │ default:     │
+│              │      │              │               │          │ _T@get, /)   │
+│              │      │              │               │          │ -> (Unknown  │
+│              │      │              │               │          │ | _T@get)]"  │
+│ /tmp/specfa… │   68 │ basedpyright │ reportExplic… │ warning  │ Type `Any`   │
+│              │      │              │               │          │ is not       │
+│              │      │              │               │          │ allowed      │
+│ /tmp/specfa… │   69 │ basedpyright │ reportExplic… │ warning  │ Type `Any`   │
+│              │      │              │               │          │ is not       │
+│              │      │              │               │          │ allowed      │
+│ /tmp/specfa… │   70 │ basedpyright │ reportExplic… │ warning  │ Type `Any`   │
+│              │      │              │               │          │ is not       │
+│              │      │              │               │          │ allowed      │
+│ /tmp/specfa… │   75 │ basedpyright │ reportAny     │ warning  │ Argument     │
+│              │      │              │               │          │ type is Any  │
+│              │      │              │               │          │   Argument   │
+│              │      │              │               │          │ corresponds  │
+│              │      │              │               │          │ to parameter │
+│              │      │              │               │          │ "key" in     │
+│              │      │              │               │          │ function     │
+│              │      │              │               │          │ "setdefault" │
+│ /tmp/specfa… │   75 │ basedpyright │ reportAny     │ warning  │ Argument     │
+│              │      │              │               │          │ type is Any  │
+│              │      │              │               │          │   Argument   │
+│              │      │              │               │          │ corresponds  │
+│              │      │              │               │          │ to parameter │
+│              │      │              │               │          │ "object" in  │
+│              │      │              │               │          │ function     │
+│              │      │              │               │          │ "append"     │
+│ /tmp/specfa… │   78 │ basedpyright │ reportAny     │ warning  │ Type of      │
+│              │      │              │               │          │ "item" is    │
+│              │      │              │               │          │ Any          │
+│ /tmp/specfa… │   79 │ basedpyright │ reportAny     │ warning  │ Type of      │
+│              │      │              │               │          │ "story_id"   │
+│              │      │              │               │          │ is Any       │
+│ /tmp/specfa… │   79 │ basedpyright │ reportAny     │ warning  │ Type of      │
+│              │      │              │               │          │ "get" is Any │
+│ /tmp/specfa… │   80 │ basedpyright │ reportAny     │ warning  │ Argument     │
+│              │      │              │               │          │ type is Any  │
+│              │      │              │               │          │   Argument   │
+│              │      │              │               │          │ corresponds  │
+│              │      │              │               │          │ to parameter │
+│              │      │              │               │          │ "key" in     │
+│              │      │              │               │          │ function     │
+│              │      │              │               │          │ "get"        │
+│ /tmp/specfa… │   83 │ basedpyright │ reportAny     │ warning  │ Argument     │
+│              │      │              │               │          │ type is Any  │
+│              │      │              │               │          │   Argument   │
+│              │      │              │               │          │ corresponds  │
+│              │      │              │               │          │ to parameter │
+│              │      │              │               │          │ "map" in     │
+│              │      │              │               │          │ function     │
+│              │      │              │               │          │ "__init__"   │
+│ /tmp/specfa… │   86 │ basedpyright │ reportUnknow… │ warning  │ Type of      │
+│              │      │              │               │          │ "append" is  │
+│              │      │              │               │          │ partially    │
+│              │      │              │               │          │ unknown      │
+│              │      │              │               │          │   Type of    │
+│              │      │              │               │          │ "append" is  │
+│              │      │              │               │          │ "(object:    │
+│              │      │              │               │          │ Unknown, /)  │
+│              │      │              │               │          │ -> None"     │
+│ /tmp/specfa… │   89 │ basedpyright │ reportUnknow… │ warning  │ Argument     │
+│              │      │              │               │          │ type is      │
+│              │      │              │               │          │ partially    │
+│              │      │              │               │          │ unknown      │
+│              │      │              │               │          │   Argument   │
+│              │      │              │               │          │ corresponds  │
+│              │      │              │               │          │ to parameter │
+│              │      │              │               │          │ "obj" in     │
+│              │      │              │               │          │ function     │
+│              │      │              │               │          │ "len"        │
+│              │      │              │               │          │   Argument   │
+│              │      │              │               │          │ type is      │
+│              │      │              │               │          │ "list[Unknow │
+│              │      │              │               │          │ n]"          │
+│ /tmp/specfa… │   90 │ basedpyright │ reportUnknow… │ warning  │ Argument     │
+│              │      │              │               │          │ type is      │
+│              │      │              │               │          │ partially    │
+│              │      │              │               │          │ unknown      │
+│              │      │              │               │          │   Argument   │
+│              │      │              │               │          │ corresponds  │
+│              │      │              │               │          │ to parameter │
+│              │      │              │               │          │ "obj" in     │
+│              │      │              │               │          │ function     │
+│              │      │              │               │          │ "len"        │
+│              │      │              │               │          │   Argument   │
+│              │      │              │               │          │ type is      │
+│              │      │              │               │          │ "list[Unknow │
+│              │      │              │               │          │ n]"          │
+│ /tmp/specfa… │   92 │ basedpyright │ reportAny     │ warning  │ Argument     │
+│              │      │              │               │          │ type is Any  │
+│              │      │              │               │          │   Argument   │
+│              │      │              │               │          │ corresponds  │
+│              │      │              │               │          │ to parameter │
+│              │      │              │               │          │ "obj" in     │
+│              │      │              │               │          │ function     │
+│              │      │              │               │          │ "len"        │
+│ /tmp/specfa… │   92 │ basedpyright │ reportUnknow… │ warning  │ Argument     │
+│              │      │              │               │          │ type is      │
+│              │      │              │               │          │ partially    │
+│              │      │              │               │          │ unknown      │
+│              │      │              │               │          │   Argument   │
+│              │      │              │               │          │ corresponds  │
+│              │      │              │               │          │ to parameter │
+│              │      │              │               │          │ "obj" in     │
+│              │      │              │               │          │ function     │
+│              │      │              │               │          │ "len"        │
+│              │      │              │               │          │   Argument   │
+│              │      │              │               │          │ type is      │
+│              │      │              │               │          │ "list[Unknow │
+│              │      │              │               │          │ n]"          │
+│ /tmp/specfa… │  100 │ basedpyright │ reportExplic… │ warning  │ Type `Any`   │
+│              │      │              │               │          │ is not       │
+│              │      │              │               │          │ allowed      │
+│ /tmp/specfa… │  106 │ basedpyright │ reportExplic… │ warning  │ Type `Any`   │
+│              │      │              │               │          │ is not       │
+│              │      │              │               │          │ allowed      │
+│ /tmp/specfa… │  114 │ basedpyright │ reportAny     │ warning  │ Type of      │
+│              │      │              │               │          │ "stories_dat │
+│              │      │              │               │          │ a" is Any    │
+│ /tmp/specfa… │  115 │ basedpyright │ reportAny     │ warning  │ Type of      │
+│              │      │              │               │          │ "backlog_dat │
+│              │      │              │               │          │ a" is Any    │
+│ /tmp/specfa… │  116 │ basedpyright │ reportAny     │ warning  │ Type of      │
+│              │      │              │               │          │ "policy_data │
+│              │      │              │               │          │ " is Any     │
+│ /tmp/specfa… │  117 │ basedpyright │ reportAny     │ warning  │ Type of      │
+│              │      │              │               │          │ "stories" is │
+│              │      │              │               │          │ Any          │
+│ /tmp/specfa… │  117 │ basedpyright │ reportAny     │ warning  │ Type of      │
+│              │      │              │               │          │ "get" is Any │
+│ /tmp/specfa… │  128 │ basedpyright │ reportAny     │ warning  │ Type of      │
+│              │      │              │               │          │ "required_ap │
+│              │      │              │               │          │ i_version"   │
+│              │      │              │               │          │ is Any       │
+│ /tmp/specfa… │  128 │ basedpyright │ reportAny     │ warning  │ Type of      │
+│              │      │              │               │          │ "get" is Any │
+│ /tmp/specfa… │  129 │ basedpyright │ reportExplic… │ warning  │ Type `Any`   │
+│              │      │              │               │          │ is not       │
+│              │      │              │               │          │ allowed      │
+│ /tmp/specfa… │  133 │ basedpyright │ reportAny     │ warning  │ Type of      │
+│              │      │              │               │          │ "story" is   │
+│              │      │              │               │          │ Any          │
+│ /tmp/specfa… │  133 │ basedpyright │ reportAny     │ warning  │ Argument     │
+│              │      │              │               │          │ type is Any  │
+│              │      │              │               │          │   Argument   │
+│              │      │              │               │          │ corresponds  │
+│              │      │              │               │          │ to parameter │
+│              │      │              │               │          │ "iterable"   │
+│              │      │              │               │          │ in function  │
+│              │      │              │               │          │ "__new__"    │
+│ /tmp/specfa… │  134 │ basedpyright │ reportAny     │ warning  │ Type of      │
+│              │      │              │               │          │ "story_id"   │
+│              │      │              │               │          │ is Any       │
+│ /tmp/specfa… │  136 │ basedpyright │ reportAny     │ warning  │ Type of      │
+│              │      │              │               │          │ "get" is Any │
+│ /tmp/specfa… │  148 │ basedpyright │ reportAny     │ warning  │ Type of      │
+│              │      │              │               │          │ "contract_re │
+│              │      │              │               │          │ l" is Any    │
+│ /tmp/specfa… │  148 │ basedpyright │ reportAny     │ warning  │ Type of      │
+│              │      │              │               │          │ "get" is Any │
+│ /tmp/specfa… │  161 │ basedpyright │ reportAny     │ warning  │ Type of      │
+│              │      │              │               │          │ "contract_pa │
+│              │      │              │               │          │ th" is Any   │
+│ /tmp/specfa… │  162 │ basedpyright │ reportAny     │ warning  │ Type of      │
+│              │      │              │               │          │ "exists" is  │
+│              │      │              │               │          │ Any          │
+│ /tmp/specfa… │  174 │ basedpyright │ reportAny     │ warning  │ Type of      │
+│              │      │              │               │          │ "contract_pa │
+│              │      │              │               │          │ yload" is    │
+│              │      │              │               │          │ Any          │
+│ /tmp/specfa… │  174 │ basedpyright │ reportAny     │ warning  │ Argument     │
+│              │      │              │               │          │ type is Any  │
+│              │      │              │               │          │   Argument   │
+│              │      │              │               │          │ corresponds  │
+│              │      │              │               │          │ to parameter │
+│              │      │              │               │          │ "path" in    │
+│              │      │              │               │          │ function     │
+│              │      │              │               │          │ "_read_json" │
+│ /tmp/specfa… │  175 │ basedpyright │ reportAny     │ warning  │ Argument     │
+│              │      │              │               │          │ type is Any  │
+│              │      │              │               │          │   Argument   │
+│              │      │              │               │          │ corresponds  │
+│              │      │              │               │          │ to parameter │
+│              │      │              │               │          │ "contract"   │
+│              │      │              │               │          │ in function  │
+│              │      │              │               │          │ "_validate_c │
+│              │      │              │               │          │ ontract"     │
+│ /tmp/specfa… │  175 │ basedpyright │ reportAny     │ warning  │ Argument     │
+│              │      │              │               │          │ type is Any  │
+│              │      │              │               │          │   Argument   │
+│              │      │              │               │          │ corresponds  │
+│              │      │              │               │          │ to parameter │
+│              │      │              │               │          │ "required_ap │
+│              │      │              │               │          │ i_version"   │
+│              │      │              │               │          │ in function  │
+│              │      │              │               │          │ "_validate_c │
+│              │      │              │               │          │ ontract"     │
+│ /tmp/specfa… │  204 │ basedpyright │ reportAny     │ warning  │ Type of      │
+│              │      │              │               │          │ "evidence_pa │
+│              │      │              │               │          │ yload" is    │
+│              │      │              │               │          │ Any          │
+│ /tmp/specfa… │  205 │ basedpyright │ reportAny     │ warning  │ Type of      │
+│              │      │              │               │          │ "get" is Any │
+│ /tmp/specfa… │  223 │ basedpyright │ reportAny     │ warning  │ Argument     │
+│              │      │              │               │          │ type is Any  │
+│              │      │              │               │          │   Argument   │
+│              │      │              │               │          │ corresponds  │
+│              │      │              │               │          │ to parameter │
+│              │      │              │               │          │ "backlog_dat │
+│              │      │              │               │          │ a" in        │
+│              │      │              │               │          │ function     │
+│              │      │              │               │          │ "_sync_backl │
+│              │      │              │               │          │ og"          │
+│ /tmp/specfa… │  227 │ basedpyright │ reportAny     │ warning  │ Argument     │
+│              │      │              │               │          │ type is Any  │
+│              │      │              │               │          │   Argument   │
+│              │      │              │               │          │ corresponds  │
+│              │      │              │               │          │ to parameter │
+│              │      │              │               │          │ "obj" in     │
+│              │      │              │               │          │ function     │
+│              │      │              │               │          │ "len"        │
+│ /tmp/specfa… │  235 │ basedpyright │ reportAny     │ warning  │ Type of      │
+│              │      │              │               │          │ "get" is Any │
+│ /tmp/specfa… │  235 │ basedpyright │ reportAny     │ warning  │ Argument     │
+│              │      │              │               │          │ type is Any  │
+│              │      │              │               │          │   Argument   │
+│              │      │              │               │          │ corresponds  │
+│              │      │              │               │          │ to parameter │
+│              │      │              │               │          │ "x" in       │
+│              │      │              │               │          │ function     │
+│              │      │              │               │          │ "__new__"    │
+│ /tmp/specfa… │  297 │ basedpyright │ reportImplic… │ warning  │ Implicit     │
+│              │      │              │               │          │ string       │
+│              │      │              │               │          │ concatenatio │
+│              │      │              │               │          │ n not        │
+│              │      │              │               │          │ allowed      │
+│ /tmp/specfa… │  303 │ basedpyright │ reportUnused… │ warning  │ Result of    │
+│              │      │              │               │          │ call         │
+│              │      │              │               │          │ expression   │
+│              │      │              │               │          │ is of type   │
+│              │      │              │               │          │ "int" and is │
+│              │      │              │               │          │ not used;    │
+│              │      │              │               │          │ assign to    │
+│              │      │              │               │          │ variable "_" │
+│              │      │              │               │          │ if this is   │
+│              │      │              │               │          │ intentional  │
+│ /tmp/specfa… │   24 │ basedpyright │ reportUnanno… │ warning  │ Type         │
+│              │      │              │               │          │ annotation   │
+│              │      │              │               │          │ for          │
+│              │      │              │               │          │ attribute    │
+│              │      │              │               │          │ `name` is    │
+│              │      │              │               │          │ required     │
+│              │      │              │               │          │ because this │
+│              │      │              │               │          │ class is not │
+│              │      │              │               │          │ decorated    │
+│              │      │              │               │          │ with         │
+│              │      │              │               │          │ `@final`     │
+│ /tmp/specfa… │   25 │ basedpyright │ reportUnanno… │ warning  │ Type         │
+│              │      │              │               │          │ annotation   │
+│              │      │              │               │          │ for          │
+│              │      │              │               │          │ attribute    │
+│              │      │              │               │          │ `version` is │
+│              │      │              │               │          │ required     │
+│              │      │              │               │          │ because this │
+│              │      │              │               │          │ class is not │
+│              │      │              │               │          │ decorated    │
+│              │      │              │               │          │ with         │
+│              │      │              │               │          │ `@final`     │
+│ /tmp/specfa… │   26 │ basedpyright │ reportUnanno… │ warning  │ Type         │
+│              │      │              │               │          │ annotation   │
+│              │      │              │               │          │ for          │
+│              │      │              │               │          │ attribute    │
+│              │      │              │               │          │ `api_version │
+│              │      │              │               │          │ ` is         │
+│              │      │              │               │          │ required     │
+│              │      │              │               │          │ because this │
+│              │      │              │               │          │ class is not │
+│              │      │              │               │          │ decorated    │
+│              │      │              │               │          │ with         │
+│              │      │              │               │          │ `@final`     │
+│ /tmp/specfa… │   27 │ basedpyright │ reportUnanno… │ warning  │ Type         │
+│              │      │              │               │          │ annotation   │
+│              │      │              │               │          │ for          │
+│              │      │              │               │          │ attribute    │
+│              │      │              │               │          │ `scope` is   │
+│              │      │              │               │          │ required     │
+│              │      │              │               │          │ because this │
+│              │      │              │               │          │ class is not │
+│              │      │              │               │          │ decorated    │
+│              │      │              │               │          │ with         │
+│              │      │              │               │          │ `@final`     │
+│ /tmp/specfa… │   28 │ basedpyright │ reportUnanno… │ warning  │ Type         │
+│              │      │              │               │          │ annotation   │
+│              │      │              │               │          │ for          │
+│              │      │              │               │          │ attribute    │
+│              │      │              │               │          │ `invariants_ │
+│              │      │              │               │          │ touched` is  │
+│              │      │              │               │          │ required     │
+│              │      │              │               │          │ because this │
+│              │      │              │               │          │ class is not │
+│              │      │              │               │          │ decorated    │
+│              │      │              │               │          │ with         │
+│              │      │              │               │          │ `@final`     │
+│ /tmp/specfa… │   29 │ basedpyright │ reportUnanno… │ warning  │ Type         │
+│              │      │              │               │          │ annotation   │
+│              │      │              │               │          │ for          │
+│              │      │              │               │          │ attribute    │
+│              │      │              │               │          │ `side_effect │
+│              │      │              │               │          │ s` is        │
+│              │      │              │               │          │ required     │
+│              │      │              │               │          │ because this │
+│              │      │              │               │          │ class is not │
+│              │      │              │               │          │ decorated    │
+│              │      │              │               │          │ with         │
+│              │      │              │               │          │ `@final`     │
+│ /tmp/specfa… │   30 │ basedpyright │ reportUnanno… │ warning  │ Type         │
+│              │      │              │               │          │ annotation   │
+│              │      │              │               │          │ for          │
+│              │      │              │               │          │ attribute    │
+│              │      │              │               │          │ `attestation │
+│              │      │              │               │          │ _hash` is    │
+│              │      │              │               │          │ required     │
+│              │      │              │               │          │ because this │
+│              │      │              │               │          │ class is not │
+│              │      │              │               │          │ decorated    │
+│              │      │              │               │          │ with         │
+│              │      │              │               │          │ `@final`     │
+│ /tmp/specfa… │   32 │ basedpyright │ reportUnused… │ warning  │ "context" is │
+│              │      │              │               │          │ not accessed │
+│ /tmp/specfa… │   32 │ basedpyright │ reportExplic… │ warning  │ Type `Any`   │
+│              │      │              │               │          │ is not       │
+│              │      │              │               │          │ allowed      │
+│ /tmp/specfa… │   35 │ basedpyright │ reportUnused… │ warning  │ "context" is │
+│              │      │              │               │          │ not accessed │
+│ /tmp/specfa… │   35 │ basedpyright │ reportExplic… │ warning  │ Type `Any`   │
+│              │      │              │               │          │ is not       │
+│              │      │              │               │          │ allowed      │
+│ /tmp/specfa… │   38 │ basedpyright │ reportUnused… │ warning  │ "context" is │
+│              │      │              │               │          │ not accessed │
+│ /tmp/specfa… │   38 │ basedpyright │ reportExplic… │ warning  │ Type `Any`   │
+│              │      │              │               │          │ is not       │
+│              │      │              │               │          │ allowed      │
+│ /tmp/specfa… │   41 │ basedpyright │ reportUnused… │ warning  │ "context" is │
+│              │      │              │               │          │ not accessed │
+│ /tmp/specfa… │   41 │ basedpyright │ reportExplic… │ warning  │ Type `Any`   │
+│              │      │              │               │          │ is not       │
+│              │      │              │               │          │ allowed      │
+│ /tmp/specfa… │   44 │ basedpyright │ reportUnused… │ warning  │ "context" is │
+│              │      │              │               │          │ not accessed │
+│ /tmp/specfa… │   44 │ basedpyright │ reportExplic… │ warning  │ Type `Any`   │
+│              │      │              │               │          │ is not       │
+│              │      │              │               │          │ allowed      │
+│ /tmp/specfa… │   47 │ basedpyright │ reportUnused… │ warning  │ "context" is │
+│              │      │              │               │          │ not accessed │
+│ /tmp/specfa… │   47 │ basedpyright │ reportExplic… │ warning  │ Type `Any`   │
+│              │      │              │               │          │ is not       │
+│              │      │              │               │          │ allowed      │
+│ /tmp/specfa… │   10 │ basedpyright │ reportDeprec… │ warning  │ This type is │
+│              │      │              │               │          │ deprecated   │
+│              │      │              │               │          │ as of Python │
+│              │      │              │               │          │ 3.9; use     │
+│              │      │              │               │          │ "collections │
+│              │      │              │               │          │ .abc.Iterabl │
+│              │      │              │               │          │ e" instead   │
+│ /tmp/specfa… │   15 │ basedpyright │ reportAny     │ warning  │ Return type  │
+│              │      │              │               │          │ is Any       │
+│ /tmp/specfa… │   15 │ basedpyright │ reportExplic… │ warning  │ Type `Any`   │
+│              │      │              │               │          │ is not       │
+│              │      │              │               │          │ allowed      │
+│ /tmp/specfa… │   17 │ basedpyright │ reportAny     │ warning  │ Return type  │
+│              │      │              │               │          │ is Any       │
+│ /tmp/specfa… │   34 │ basedpyright │ reportAny     │ warning  │ Type of      │
+│              │      │              │               │          │ "value" is   │
+│              │      │              │               │          │ Any          │
+│ /tmp/specfa… │   35 │ basedpyright │ reportAny     │ warning  │ Argument     │
+│              │      │              │               │          │ type is Any  │
+│              │      │              │               │          │   Argument   │
+│              │      │              │               │          │ corresponds  │
+│              │      │              │               │          │ to parameter │
+│              │      │              │               │          │ "object" in  │
+│              │      │              │               │          │ function     │
+│              │      │              │               │          │ "isclass"    │
+│ /tmp/specfa… │   36 │ basedpyright │ reportUnknow… │ warning  │ Type of      │
+│              │      │              │               │          │ "append" is  │
+│              │      │              │               │          │ partially    │
+│              │      │              │               │          │ unknown      │
+│              │      │              │               │          │   Type of    │
+│              │      │              │               │          │ "append" is  │
+│              │      │              │               │          │ "(object:    │
+│              │      │              │               │          │ Unknown, /)  │
+│              │      │              │               │          │ -> None"     │
+│ /tmp/specfa… │   41 │ basedpyright │ reportUnknow… │ warning  │ Argument     │
+│              │      │              │               │          │ type is      │
+│              │      │              │               │          │ partially    │
+│              │      │              │               │          │ unknown      │
+│              │      │              │               │          │   Argument   │
+│              │      │              │               │          │ corresponds  │
+│              │      │              │               │          │ to parameter │
+│              │      │              │               │          │ "obj" in     │
+│              │      │              │               │          │ function     │
+│              │      │              │               │          │ "len"        │
+│              │      │              │               │          │   Argument   │
+│              │      │              │               │          │ type is      │
+│              │      │              │               │          │ "list[Unknow │
+│              │      │              │               │          │ n]"          │
+│ /tmp/specfa… │   42 │ basedpyright │ reportUnknow… │ warning  │ Type of      │
+│              │      │              │               │          │ "sort" is    │
+│              │      │              │               │          │ partially    │
+│              │      │              │               │          │ unknown      │
+│              │      │              │               │          │   Type of    │
+│              │      │              │               │          │ "sort" is    │
+│              │      │              │               │          │ "Overload[(* │
+│              │      │              │               │          │ , key: None  │
+│              │      │              │               │          │ = None,      │
+│              │      │              │               │          │ reverse:     │
+│              │      │              │               │          │ bool =       │
+│              │      │              │               │          │ False) ->    │
+│              │      │              │               │          │ None, (*,    │
+│              │      │              │               │          │ key:         │
+│              │      │              │               │          │ (Unknown) -> │
+│              │      │              │               │          │ (SupportsDun │
+│              │      │              │               │          │ derLT[Any] | │
+│              │      │              │               │          │ SupportsDund │
+│              │      │              │               │          │ erGT[Any]),  │
+│              │      │              │               │          │ reverse:     │
+│              │      │              │               │          │ bool =       │
+│              │      │              │               │          │ False) ->    │
+│              │      │              │               │          │ None]"       │
+│ /tmp/specfa… │   42 │ basedpyright │ reportUnknow… │ warning  │ Type of      │
+│              │      │              │               │          │ parameter    │
+│              │      │              │               │          │ "cls" is     │
+│              │      │              │               │          │ unknown      │
+│ /tmp/specfa… │   42 │ basedpyright │ reportUnknow… │ warning  │ Type of      │
+│              │      │              │               │          │ "__name__"   │
+│              │      │              │               │          │ is unknown   │
+│ /tmp/specfa… │   42 │ basedpyright │ reportUnknow… │ warning  │ Return type  │
+│              │      │              │               │          │ of lambda is │
+│              │      │              │               │          │ unknown      │
+│ /tmp/specfa… │   44 │ basedpyright │ reportUnknow… │ warning  │ Return type  │
+│              │      │              │               │          │ is unknown   │
+│ /tmp/specfa… │   51 │ basedpyright │ reportExplic… │ warning  │ Type `Any`   │
+│              │      │              │               │          │ is not       │
+│              │      │              │               │          │ allowed      │
+│ /tmp/specfa… │   55 │ basedpyright │ reportUnused… │ warning  │ Result of    │
+│              │      │              │               │          │ call         │
+│              │      │              │               │          │ expression   │
+│              │      │              │               │          │ is of type   │
+│              │      │              │               │          │ "object" and │
+│              │      │              │               │          │ is not used; │
+│              │      │              │               │          │ assign to    │
+│              │      │              │               │          │ variable "_" │
+│              │      │              │               │          │ if this is   │
+│              │      │              │               │          │ intentional  │
+│ /tmp/specfa… │   67 │ basedpyright │ reportImplic… │ warning  │ Implicit     │
+│              │      │              │               │          │ string       │
+│              │      │              │               │          │ concatenatio │
+│              │      │              │               │          │ n not        │
+│              │      │              │               │          │ allowed      │
+│ /tmp/specfa… │   70 │ basedpyright │ reportUnnece… │ warning  │ Unnecessary  │
+│              │      │              │               │          │ isinstance   │
+│              │      │              │               │          │ call; "list" │
+│              │      │              │               │          │ is always an │
+│              │      │              │               │          │ instance of  │
+│              │      │              │               │          │ "list[Unknow │
+│              │      │              │               │          │ n]"          │
+│ /tmp/specfa… │   72 │ basedpyright │ reportUnnece… │ warning  │ Unnecessary  │
+│              │      │              │               │          │ isinstance   │
+│              │      │              │               │          │ call;        │
+│              │      │              │               │          │ "list[Unknow │
+│              │      │              │               │          │ n]" is       │
+│              │      │              │               │          │ always an    │
+│              │      │              │               │          │ instance of  │
+│              │      │              │               │          │ "list[Unknow │
+│              │      │              │               │          │ n]"          │
+│ /tmp/specfa… │   72 │ basedpyright │ reportUnknow… │ warning  │ Type of      │
+│              │      │              │               │          │ "invariants_ │
+│              │      │              │               │          │ touched" is  │
+│              │      │              │               │          │ partially    │
+│              │      │              │               │          │ unknown      │
+│              │      │              │               │          │   Type of    │
+│              │      │              │               │          │ "invariants_ │
+│              │      │              │               │          │ touched" is  │
+│              │      │              │               │          │ "list[Unknow │
+│              │      │              │               │          │ n]"          │
+│ /tmp/specfa… │   74 │ basedpyright │ reportUnnece… │ warning  │ Unnecessary  │
+│              │      │              │               │          │ isinstance   │
+│              │      │              │               │          │ call;        │
+│              │      │              │               │          │ "list[Unknow │
+│              │      │              │               │          │ n]" is       │
+│              │      │              │               │          │ always an    │
+│              │      │              │               │          │ instance of  │
+│              │      │              │               │          │ "list[Unknow │
+│              │      │              │               │          │ n]"          │
+│ /tmp/specfa… │   74 │ basedpyright │ reportUnknow… │ warning  │ Type of      │
+│              │      │              │               │          │ "side_effect │
+│              │      │              │               │          │ s" is        │
+│              │      │              │               │          │ partially    │
+│              │      │              │               │          │ unknown      │
+│              │      │              │               │          │   Type of    │
+│              │      │              │               │          │ "side_effect │
+│              │      │              │               │          │ s" is        │
+│              │      │              │               │          │ "list[Unknow │
+│              │      │              │               │          │ n]"          │
+│ /tmp/specfa… │   77 │ basedpyright │ reportUnnece… │ warning  │ Unnecessary  │
+│              │      │              │               │          │ isinstance   │
+│              │      │              │               │          │ call; "list" │
+│              │      │              │               │          │ is always an │
+│              │      │              │               │          │ instance of  │
+│              │      │              │               │          │ "list[Unknow │
+│              │      │              │               │          │ n]"          │
+│ /tmp/specfa… │   88 │ basedpyright │ reportExplic… │ warning  │ Type `Any`   │
+│              │      │              │               │          │ is not       │
+│              │      │              │               │          │ allowed      │
+│ /tmp/specfa… │   91 │ basedpyright │ reportAny     │ warning  │ Type of      │
+│              │      │              │               │          │ "policy" is  │
+│              │      │              │               │          │ Any          │
+│ /tmp/specfa… │   92 │ basedpyright │ reportAny     │ warning  │ Type of      │
+│              │      │              │               │          │ "allowed_sco │
+│              │      │              │               │          │ pes" is Any  │
+│ /tmp/specfa… │   92 │ basedpyright │ reportAny     │ warning  │ Type of      │
+│              │      │              │               │          │ "get" is Any │
+│ /tmp/specfa… │   95 │ basedpyright │ reportAny     │ warning  │ Argument     │
+│              │      │              │               │          │ type is Any  │
+│              │      │              │               │          │   Argument   │
+│              │      │              │               │          │ corresponds  │
+│              │      │              │               │          │ to parameter │
+│              │      │              │               │          │ "allowed_sco │
+│              │      │              │               │          │ pes" in      │
+│              │      │              │               │          │ function     │
+│              │      │              │               │          │ "validate_pl │
+│              │      │              │               │          │ ugin_metadat │
+│              │      │              │               │          │ a"           │
+│ /tmp/specfa… │   97 │ basedpyright │ reportExplic… │ warning  │ Type `Any`   │
+│              │      │              │               │          │ is not       │
+│              │      │              │               │          │ allowed      │
+│ /tmp/specfa… │  108 │ basedpyright │ reportAny     │ warning  │ Type of      │
+│              │      │              │               │          │ "append" is  │
+│              │      │              │               │          │ Any          │
+│ /tmp/specfa… │  113 │ basedpyright │ reportUnused… │ warning  │ Result of    │
+│              │      │              │               │          │ call         │
+│              │      │              │               │          │ expression   │
+│              │      │              │               │          │ is of type   │
+│              │      │              │               │          │ "object" and │
+│              │      │              │               │          │ is not used; │
+│              │      │              │               │          │ assign to    │
+│              │      │              │               │          │ variable "_" │
+│              │      │              │               │          │ if this is   │
+│              │      │              │               │          │ intentional  │
+│ /tmp/specfa… │  133 │ basedpyright │ reportExplic… │ warning  │ Type `Any`   │
+│              │      │              │               │          │ is not       │
+│              │      │              │               │          │ allowed      │
+│ /tmp/specfa… │  209 │ basedpyright │ reportUnused… │ warning  │ Result of    │
+│              │      │              │               │          │ call         │
+│              │      │              │               │          │ expression   │
+│              │      │              │               │          │ is of type   │
+│              │      │              │               │          │ "int" and is │
+│              │      │              │               │          │ not used;    │
+│              │      │              │               │          │ assign to    │
+│              │      │              │               │          │ variable "_" │
+│              │      │              │               │          │ if this is   │
+│              │      │              │               │          │ intentional  │
+│ /tmp/specfa… │   20 │ basedpyright │ reportAny     │ warning  │ Type of      │
+│              │      │              │               │          │ "report" is  │
+│              │      │              │               │          │ Any          │
+│ /tmp/specfa… │   24 │ basedpyright │ reportAny     │ warning  │ Argument     │
+│              │      │              │               │          │ type is Any  │
+│              │      │              │               │          │   Argument   │
+│              │      │              │               │          │ corresponds  │
+│              │      │              │               │          │ to parameter │
+│              │      │              │               │          │ "first" in   │
+│              │      │              │               │          │ function     │
+│              │      │              │               │          │ "assertAlmos │
+│              │      │              │               │          │ tEqual"      │
+│ /tmp/specfa… │   29 │ basedpyright │ reportAny     │ warning  │ Argument     │
+│              │      │              │               │          │ type is Any  │
+│              │      │              │               │          │   Argument   │
+│              │      │              │               │          │ corresponds  │
+│              │      │              │               │          │ to parameter │
+│              │      │              │               │          │ "first" in   │
+│              │      │              │               │          │ function     │
+│              │      │              │               │          │ "assertAlmos │
+│              │      │              │               │          │ tEqual"      │
+│ /tmp/specfa… │   39 │ basedpyright │ reportAny     │ warning  │ Type of      │
+│              │      │              │               │          │ "backlog_syn │
+│              │      │              │               │          │ c" is Any    │
+│ /tmp/specfa… │   43 │ basedpyright │ reportAny     │ warning  │ Type of      │
+│              │      │              │               │          │ "item" is    │
+│              │      │              │               │          │ Any          │
+│ /tmp/specfa… │   44 │ basedpyright │ reportAny     │ warning  │ Type of      │
+│              │      │              │               │          │ "label" is   │
+│              │      │              │               │          │ Any          │
+│ /tmp/specfa… │   44 │ basedpyright │ reportAny     │ warning  │ Type of      │
+│              │      │              │               │          │ "get" is Any │
+│ /tmp/specfa… │   56 │ basedpyright │ reportAny     │ warning  │ Type of      │
+│              │      │              │               │          │ "report" is  │
+│              │      │              │               │          │ Any          │
+│ /tmp/specfa… │   60 │ basedpyright │ reportAny     │ warning  │ Argument     │
+│              │      │              │               │          │ type is Any  │
+│              │      │              │               │          │   Argument   │
+│              │      │              │               │          │ corresponds  │
+│              │      │              │               │          │ to parameter │
+│              │      │              │               │          │ "first" in   │
+│              │      │              │               │          │ function     │
+│              │      │              │               │          │ "assertAlmos │
+│              │      │              │               │          │ tEqual"      │
+│ /tmp/specfa… │   65 │ basedpyright │ reportAny     │ warning  │ Argument     │
+│              │      │              │               │          │ type is Any  │
+│              │      │              │               │          │   Argument   │
+│              │      │              │               │          │ corresponds  │
+│              │      │              │               │          │ to parameter │
+│              │      │              │               │          │ "first" in   │
+│              │      │              │               │          │ function     │
+│              │      │              │               │          │ "assertAlmos │
+│              │      │              │               │          │ tEqual"      │
+│ /tmp/specfa… │   72 │ basedpyright │ reportUnused… │ warning  │ Result of    │
+│              │      │              │               │          │ call         │
+│              │      │              │               │          │ expression   │
+│              │      │              │               │          │ is of type   │
+│              │      │              │               │          │ "main" and   │
+│              │      │              │               │          │ is not used; │
+│              │      │              │               │          │ assign to    │
+│              │      │              │               │          │ variable "_" │
+│              │      │              │               │          │ if this is   │
+│              │      │              │               │          │ intentional  │
+│ /tmp/specfa… │   23 │ basedpyright │ reportUnused… │ warning  │ Result of    │
+│              │      │              │               │          │ call         │
+│              │      │              │               │          │ expression   │
+│              │      │              │               │          │ is of type   │
+│              │      │              │               │          │ "int" and is │
+│              │      │              │               │          │ not used;    │
+│              │      │              │               │          │ assign to    │
+│              │      │              │               │          │ variable "_" │
+│              │      │              │               │          │ if this is   │
+│              │      │              │               │          │ intentional  │
+│ /tmp/specfa… │   45 │ basedpyright │ reportAny     │ warning  │ Type of      │
+│              │      │              │               │          │ "error" is   │
+│              │      │              │               │          │ Any          │
+│ /tmp/specfa… │   49 │ basedpyright │ reportUnused… │ warning  │ Result of    │
+│              │      │              │               │          │ call         │
+│              │      │              │               │          │ expression   │
+│              │      │              │               │          │ is of type   │
+│              │      │              │               │          │ "main" and   │
+│              │      │              │               │          │ is not used; │
+│              │      │              │               │          │ assign to    │
+│              │      │              │               │          │ variable "_" │
+│              │      │              │               │          │ if this is   │
+│              │      │              │               │          │ intentional  │
+└──────────────┴──────┴──────────────┴───────────────┴──────────┴──────────────┘
+Verdict: FAIL | CI exit: 1 | Score: 0 | Reward delta: -80
+Review completed with 217 findings (2 blocking).
+
+✓ Finished: 2026-04-03 20:14:24 | Duration: 6.14s

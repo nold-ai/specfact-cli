@@ -1,0 +1,45 @@
+Downloading cryptography (4.3MiB)
+Downloading beartype (1.3MiB)
+Downloading networkx (2.0MiB)
+Downloading pydantic-core (2.0MiB)
+Downloading pygments (1.2MiB)
+ Downloaded pydantic-core
+ Downloaded cryptography
+ Downloaded pygments
+ Downloaded beartype
+ Downloaded networkx
+Installed 60 packages in 31ms
+
+  ███████╗██████╗ ███████╗ ██████╗███████╗ █████╗  ██████╗████████╗
+  ██╔════╝██╔══██╗██╔════╝██╔════╝██╔════╝██╔══██╗██╔════╝╚══██╔══╝
+  ███████╗██████╔╝█████╗  ██║     █████╗  ███████║██║        ██║   
+  ╚════██║██╔═══╝ ██╔══╝  ██║     ██╔══╝  ██╔══██║██║        ██║   
+  ███████║██║     ███████╗╚██████╗██║     ██║  ██║╚██████╗   ██║   
+  ╚══════╝╚═╝     ╚══════╝ ╚═════╝╚═╝     ╚═╝  ╚═╝ ╚═════╝   ╚═╝   
+
+     Spec → Contract → Sentinel for Contract-Driven Development
+
+
+
+⏱️  Started: 2026-04-03 20:13:58
+→ Profile solo-developer: preparing workflow bundles…
+→ Seeding workflow bundles: specfact-codebase, specfact-code-review
+  (copying bundled modules into your user module directory)
+→ Bundle specfact-codebase — Codebase quality (analyze, drift, validate, repro)
+   · Installing marketplace module nold-ai/specfact-codebase …
+   ✓ specfact-codebase ready
+→ Bundle specfact-code-review — Scored code review (code review gate)
+   · Installing marketplace module nold-ai/specfact-code-review …
+   ✓ specfact-code-review ready
+✓ Installed: specfact-codebase, specfact-code-review
+→ Discovering installed modules and writing registry state…
+→ Indexing CLI commands for help cache…
+✓ Bootstrap complete. Modules discovered: 7 (enabled=7, disabled=0).
+Module management has moved to `specfact module` (for example: `specfact module 
+list`, `specfact module init`)
+→ Checking IDE prompt export status…
+Prompt status: missing=7, outdated=0 for detected IDE (cursor).
+Run: specfact init ide --ide cursor
+Use `specfact init ide` to install/update IDE prompts and settings.
+
+✓ Finished: 2026-04-03 20:14:12 | Duration: 14.10s
