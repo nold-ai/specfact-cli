@@ -126,6 +126,7 @@ The 2026-03-22 clean-code plan adds one new cross-repo change pair and re-sequen
 | docs | 08 | docs-12-docs-validation-ci | [#440](https://github.com/nold-ai/specfact-cli/issues/440) | docs-05-core-site-ia-restructure; docs-07-core-handoff-conversion; modules-repo/docs-06 through docs-10 |
 | docs | 09 | docs-13-core-nav-search-theme-roles | [#458](https://github.com/nold-ai/specfact-cli/issues/458) | docs-05-core-site-ia-restructure; docs-07-core-handoff-conversion; docs-12-docs-validation-ci; modules-repo/docs-13-nav-search-theme-roles (design parity only, no content ownership coupling) |
 | docs | 10 | docs-14-first-contact-story-and-onboarding (in progress) | [#466](https://github.com/nold-ai/specfact-cli/issues/466) | docs-05-core-site-ia-restructure ✅; docs-07-core-handoff-conversion ✅; docs-12-docs-validation-ci ✅; docs-13-core-nav-search-theme-roles ✅; Parent Feature: [#356](https://github.com/nold-ai/specfact-cli/issues/356) |
+| docs | 11 | docs-new-user-onboarding | [#476](https://github.com/nold-ai/specfact-cli/issues/476) | Parent Feature: [#356](https://github.com/nold-ai/specfact-cli/issues/356); related [#466](https://github.com/nold-ai/specfact-cli/issues/466); vibe-coder uvx hero + CLI wow-path fixes |
 
 ### Docs refactoring plan addendum (2026-03-23)
 

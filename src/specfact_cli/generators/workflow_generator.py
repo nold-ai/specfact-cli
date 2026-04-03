@@ -40,8 +40,10 @@ class WorkflowGenerator:
         self.templates_dir = Path(templates_dir)
         self.env = Environment(
             loader=FileSystemLoader(self.templates_dir),
-            trim_blocks=True,
-            lstrip_blocks=True,
+            # Must be False: trim_blocks removes the newline after {% endraw %}, merging `if:` with `run:`.
+            trim_blocks=False,
+            # Must be False: lstrip_blocks strips newlines after {% endraw %} in some cases.
+            lstrip_blocks=False,
         )
 
     @beartype
@@ -56,6 +58,7 @@ class WorkflowGenerator:
         repo_name: str | None = None,
         budget: int = 90,
         python_version: str = "3.12",
+        bundle_name: str = "main",
     ) -> None:
         """
         Generate GitHub Action workflow for SpecFact validation.
@@ -65,6 +68,7 @@ class WorkflowGenerator:
             repo_name: Repository name for context
             budget: Time budget in seconds for validation (must be > 0)
             python_version: Python version for workflow (must be 3.x)
+            bundle_name: Default project bundle name for optional `project version check` in CI
 
         Raises:
             FileNotFoundError: If template file doesn't exist
@@ -75,6 +79,7 @@ class WorkflowGenerator:
             "repo_name": repo_name or "specfact-project",
             "budget": budget,
             "python_version": python_version,
+            "bundle_name": bundle_name,
         }
 
         # Render template

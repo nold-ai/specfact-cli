@@ -14,6 +14,7 @@ import importlib
 import importlib.util
 import os
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, cast
 
@@ -46,6 +47,46 @@ from specfact_cli.registry.module_state import find_dependents, read_modules_sta
 from specfact_cli.registry.registry import CommandRegistry
 from specfact_cli.runtime import is_debug_mode
 from specfact_cli.utils.prompts import print_warning
+
+
+@dataclass
+class _ProtocolTopLevelScanState:
+    package_dir: Path
+    package_name: str
+    pending_paths: list[Path]
+    scanned_paths: set[Path]
+    exported_function_names: set[str]
+    class_method_names: dict[str, set[str]]
+    assigned_names: dict[str, ast.expr]
+
+
+@dataclass
+class _ProtocolComplianceCounters:
+    protocol_full: list[int]
+    protocol_partial: list[int]
+    protocol_legacy: list[int]
+    partial_modules: list[tuple[str, list[str]]]
+    legacy_modules: list[str]
+
+
+@dataclass
+class _ModuleIntegrityContext:
+    allow_unsigned: bool
+    is_test_mode: bool
+    logger: Any
+    skipped: list[tuple[str, str]]
+
+
+@dataclass
+class _PackageRegistrationContext:
+    enabled_map: dict[str, bool]
+    allow_unsigned: bool
+    is_test_mode: bool
+    logger: Any
+    skipped: list[tuple[str, str]]
+    bridge_owner_map: dict[str, str]
+    category_grouping_enabled: bool
+    counters: _ProtocolComplianceCounters
 
 
 # Display order for core modules (3 after migration-03); others follow alphabetically.
@@ -709,39 +750,6 @@ def _resolve_package_load_path(package_dir: Path, package_name: str) -> Path:
     raise ValueError(f"Package {package_dir.name} has no src/app.py, src/{package_name}.py or src/{package_name}/")
 
 
-def _load_package_module(package_dir: Path, package_name: str) -> Any:
-    """Load and return a module package entrypoint module."""
-    src_dir = package_dir / "src"
-    if str(src_dir) not in sys.path:
-        sys.path.insert(0, str(src_dir))
-    load_path = _resolve_package_load_path(package_dir, package_name)
-    submodule_locations = [str(load_path.parent)] if load_path.name == "__init__.py" else None
-    module_token = _normalized_module_name(package_dir.name)
-    spec = importlib.util.spec_from_file_location(
-        f"_specfact_module_{module_token}",
-        load_path,
-        submodule_search_locations=submodule_locations,
-    )
-    if spec is None or spec.loader is None:
-        raise ValueError(f"Cannot load from {package_dir.name}")
-    mod = importlib.util.module_from_spec(spec)
-    sys.modules[spec.name] = mod
-    spec.loader.exec_module(mod)
-    return mod
-
-
-@beartype
-@require(lambda module_class: module_class is not None, "Module class must be provided")
-@ensure(lambda result: isinstance(result, list), "Protocol operation list must be returned")
-def _check_protocol_compliance(module_class: Any) -> list[str]:
-    """Return supported protocol operations based on available attributes."""
-    operations: list[str] = []
-    for operation, method_name in PROTOCOL_METHODS.items():
-        if hasattr(module_class, method_name):
-            operations.append(operation)
-    return operations
-
-
 def _resolve_protocol_source_paths(
     package_dir: Path,
     package_name: str,
@@ -829,41 +837,31 @@ def _protocol_record_assignments(
             exported_function_names.add(target.id)
 
 
-def _protocol_process_top_level_node(
-    node: ast.stmt,
-    package_dir: Path,
-    package_name: str,
-    source_path: Path,
-    pending_paths: list[Path],
-    scanned_paths: set[Path],
-    exported_function_names: set[str],
-    class_method_names: dict[str, set[str]],
-    assigned_names: dict[str, ast.expr],
-) -> None:
+def _protocol_process_top_level_node(node: ast.stmt, source_path: Path, state: _ProtocolTopLevelScanState) -> None:
     if isinstance(node, ast.ClassDef):
         methods: set[str] = set()
         for class_node in node.body:
             if isinstance(class_node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 methods.add(class_node.name)
-        class_method_names[node.name] = methods
+        state.class_method_names[node.name] = methods
         return
     if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-        exported_function_names.add(node.name)
+        state.exported_function_names.add(node.name)
         return
     if isinstance(node, ast.ImportFrom):
         imported_names = {alias.name for alias in node.names}
         if set(PROTOCOL_INTERFACE_BINDINGS).isdisjoint(imported_names):
             return
-        imported_source = _resolve_import_from_source_path(package_dir, package_name, source_path, node)
+        imported_source = _resolve_import_from_source_path(state.package_dir, state.package_name, source_path, node)
         if imported_source is None:
             return
         resolved = imported_source.resolve()
-        if resolved in scanned_paths:
+        if resolved in state.scanned_paths:
             return
-        scanned_paths.add(resolved)
-        pending_paths.append(imported_source)
+        state.scanned_paths.add(resolved)
+        state.pending_paths.append(imported_source)
         return
-    _protocol_record_assignments(node, assigned_names, exported_function_names)
+    _protocol_record_assignments(node, state.assigned_names, state.exported_function_names)
 
 
 def _protocol_merge_binding_methods(
@@ -909,26 +907,27 @@ def _check_protocol_compliance_from_source(
     scanned_sources: list[str] = []
     pending_paths = _resolve_protocol_source_paths(package_dir, package_name, command_names=command_names)
     scanned_paths = {path.resolve() for path in pending_paths}
+    scan_state = _ProtocolTopLevelScanState(
+        package_dir=package_dir,
+        package_name=package_name,
+        pending_paths=pending_paths,
+        scanned_paths=scanned_paths,
+        exported_function_names=exported_function_names,
+        class_method_names=class_method_names,
+        assigned_names=assigned_names,
+    )
 
-    while pending_paths:
-        source_path = pending_paths.pop(0)
+    while scan_state.pending_paths:
+        source_path = scan_state.pending_paths.pop(0)
         source = source_path.read_text(encoding="utf-8")
         scanned_sources.append(source)
         tree = ast.parse(source, filename=str(source_path))
         for node in tree.body:
-            _protocol_process_top_level_node(
-                node,
-                package_dir,
-                package_name,
-                source_path,
-                pending_paths,
-                scanned_paths,
-                exported_function_names,
-                class_method_names,
-                assigned_names,
-            )
+            _protocol_process_top_level_node(node, source_path, scan_state)
 
-    _protocol_merge_binding_methods(assigned_names, class_method_names, exported_function_names)
+    _protocol_merge_binding_methods(
+        scan_state.assigned_names, scan_state.class_method_names, scan_state.exported_function_names
+    )
 
     operations: list[str] = []
     for operation, method_name in PROTOCOL_METHODS.items():
@@ -1122,24 +1121,17 @@ def _register_service_bridges_safe(meta: Any, bridge_owner_map: dict[str, str], 
             )
 
 
-def _module_integrity_allows_load(
-    package_dir: Path,
-    meta: Any,
-    allow_unsigned: bool,
-    is_test_mode: bool,
-    logger: Any,
-    skipped: list[tuple[str, str]],
-) -> bool:
-    if verify_module_artifact(package_dir, meta, allow_unsigned=allow_unsigned):
+def _module_integrity_allows_load(package_dir: Path, meta: Any, ctx: _ModuleIntegrityContext) -> bool:
+    if verify_module_artifact(package_dir, meta, allow_unsigned=ctx.allow_unsigned):
         return True
     if _is_builtin_module_package(package_dir):
-        logger.warning(
+        ctx.logger.warning(
             "Built-in module '%s' failed integrity verification; loading anyway to keep CLI functional.",
             meta.name,
         )
         return True
-    if is_test_mode and allow_unsigned:
-        logger.debug(
+    if ctx.is_test_mode and ctx.allow_unsigned:
+        ctx.logger.debug(
             "TEST_MODE: allowing built-in module '%s' despite failed integrity verification.",
             meta.name,
         )
@@ -1149,41 +1141,47 @@ def _module_integrity_allows_load(
         "This may indicate tampering or an outdated local module copy. "
         "Run `specfact module init` to restore trusted bundled modules."
     )
-    skipped.append((meta.name, "integrity/trust check failed"))
+    ctx.skipped.append((meta.name, "integrity/trust check failed"))
     return False
+
+
+def _apply_protocol_counters_from_operations(
+    meta: Any,
+    operations: list[str],
+    logger: Any,
+    counters: _ProtocolComplianceCounters,
+) -> None:
+    if len(operations) == 4:
+        counters.protocol_full[0] += 1
+        return
+    if operations:
+        counters.partial_modules.append((meta.name, operations))
+        if is_debug_mode():
+            logger.info("Module %s: ModuleIOContract partial (%s)", meta.name, ", ".join(operations))
+        counters.protocol_partial[0] += 1
+        return
+    counters.legacy_modules.append(meta.name)
+    if is_debug_mode():
+        logger.warning("Module %s: No ModuleIOContract (legacy mode)", meta.name)
+    counters.protocol_legacy[0] += 1
 
 
 def _record_protocol_compliance_result(
     package_dir: Path,
     meta: Any,
     logger: Any,
-    protocol_full: list[int],
-    protocol_partial: list[int],
-    protocol_legacy: list[int],
-    partial_modules: list[tuple[str, list[str]]],
-    legacy_modules: list[str],
+    counters: _ProtocolComplianceCounters,
 ) -> None:
     try:
         operations = _check_protocol_compliance_from_source(package_dir, meta.name, command_names=meta.commands)
         meta.protocol_operations = operations
-        if len(operations) == 4:
-            protocol_full[0] += 1
-        elif operations:
-            partial_modules.append((meta.name, operations))
-            if is_debug_mode():
-                logger.info("Module %s: ModuleIOContract partial (%s)", meta.name, ", ".join(operations))
-            protocol_partial[0] += 1
-        else:
-            legacy_modules.append(meta.name)
-            if is_debug_mode():
-                logger.warning("Module %s: No ModuleIOContract (legacy mode)", meta.name)
-            protocol_legacy[0] += 1
+        _apply_protocol_counters_from_operations(meta, operations, logger, counters)
     except Exception as exc:
-        legacy_modules.append(meta.name)
+        counters.legacy_modules.append(meta.name)
         if is_debug_mode():
             logger.warning("Module %s: Unable to inspect protocol compliance (%s)", meta.name, exc)
         meta.protocol_operations = []
-        protocol_legacy[0] += 1
+        counters.protocol_legacy[0] += 1
 
 
 def _register_command_category_path(
@@ -1283,49 +1281,42 @@ def _register_commands_for_package(
     category_grouping_enabled: bool,
     logger: Any,
 ) -> None:
+    """Register package commands. Categorized marketplace modules never use flat root registration."""
+    _ = category_grouping_enabled  # retained for API compatibility; grouping no longer selects flat vs category
     for cmd_name in meta.commands:
-        if category_grouping_enabled and meta.category is not None:
+        if meta.category is not None:
             _register_command_category_path(package_dir, meta, cmd_name, logger)
         else:
             _register_command_flat_path(package_dir, meta, cmd_name, logger)
 
 
-def _register_one_package_if_eligible(
-    package_dir: Path,
-    meta: Any,
-    enabled_map: dict[str, bool],
-    allow_unsigned: bool,
-    is_test_mode: bool,
-    logger: Any,
-    skipped: list[tuple[str, str]],
-    bridge_owner_map: dict[str, str],
-    category_grouping_enabled: bool,
-    protocol_full: list[int],
-    protocol_partial: list[int],
-    protocol_legacy: list[int],
-    partial_modules: list[tuple[str, list[str]]],
-    legacy_modules: list[str],
-) -> None:
-    if not enabled_map.get(meta.name, True):
+def _register_one_package_if_eligible(package_dir: Path, meta: Any, reg: _PackageRegistrationContext) -> None:
+    if not reg.enabled_map.get(meta.name, True):
         return
     compatible = _check_core_compatibility(meta, cli_version)
     if not compatible:
-        skipped.append((meta.name, f"requires {meta.core_compatibility}, cli is {cli_version}"))
+        reg.skipped.append((meta.name, f"requires {meta.core_compatibility}, cli is {cli_version}"))
         return
-    deps_ok, missing = _validate_module_dependencies(meta, enabled_map)
+    deps_ok, missing = _validate_module_dependencies(meta, reg.enabled_map)
     if not deps_ok:
-        skipped.append((meta.name, f"missing dependencies: {', '.join(missing)}"))
+        reg.skipped.append((meta.name, f"missing dependencies: {', '.join(missing)}"))
         return
-    if not _module_integrity_allows_load(package_dir, meta, allow_unsigned, is_test_mode, logger, skipped):
+    integrity_ctx = _ModuleIntegrityContext(
+        allow_unsigned=reg.allow_unsigned,
+        is_test_mode=reg.is_test_mode,
+        logger=reg.logger,
+        skipped=reg.skipped,
+    )
+    if not _module_integrity_allows_load(package_dir, meta, integrity_ctx):
         return
     if not _check_schema_compatibility(meta.schema_version, CURRENT_PROJECT_SCHEMA_VERSION):
-        skipped.append(
+        reg.skipped.append(
             (
                 meta.name,
                 f"schema version {meta.schema_version} required, current is {CURRENT_PROJECT_SCHEMA_VERSION}",
             )
         )
-        logger.debug(
+        reg.logger.debug(
             "Module %s: Schema version %s required, but current is %s (skipped)",
             meta.name,
             meta.schema_version,
@@ -1333,34 +1324,18 @@ def _register_one_package_if_eligible(
         )
         return
     if meta.schema_version is None:
-        logger.debug("Module %s: No schema version declared (assuming current)", meta.name)
+        reg.logger.debug("Module %s: No schema version declared (assuming current)", meta.name)
     else:
-        logger.debug("Module %s: Schema version %s (compatible)", meta.name, meta.schema_version)
+        reg.logger.debug("Module %s: Schema version %s (compatible)", meta.name, meta.schema_version)
 
-    _register_schema_extensions_safe(meta, logger)
-    _register_service_bridges_safe(meta, bridge_owner_map, logger)
-    _record_protocol_compliance_result(
-        package_dir,
-        meta,
-        logger,
-        protocol_full,
-        protocol_partial,
-        protocol_legacy,
-        partial_modules,
-        legacy_modules,
-    )
-    _register_commands_for_package(package_dir, meta, category_grouping_enabled, logger)
+    _register_schema_extensions_safe(meta, reg.logger)
+    _register_service_bridges_safe(meta, reg.bridge_owner_map, reg.logger)
+    _record_protocol_compliance_result(package_dir, meta, reg.logger, reg.counters)
+    _register_commands_for_package(package_dir, meta, reg.category_grouping_enabled, reg.logger)
 
 
-def _log_protocol_compatibility_footer(
-    logger: Any,
-    protocol_full: list[int],
-    protocol_partial: list[int],
-    protocol_legacy: list[int],
-    partial_modules: list[tuple[str, list[str]]],
-    legacy_modules: list[str],
-) -> None:
-    pf, pp, pl = protocol_full[0], protocol_partial[0], protocol_legacy[0]
+def _log_protocol_compatibility_footer(logger: Any, counters: _ProtocolComplianceCounters) -> None:
+    pf, pp, pl = counters.protocol_full[0], counters.protocol_partial[0], counters.protocol_legacy[0]
     discovered_count = pf + pp + pl
     if not discovered_count or not (pp > 0 or pl > 0) or not is_debug_mode():
         return
@@ -1372,11 +1347,11 @@ def _log_protocol_compatibility_footer(
         pp,
         pl,
     )
-    if partial_modules:
-        partial_desc = ", ".join(f"{name} ({'/'.join(ops)})" for name, ops in sorted(partial_modules))
+    if counters.partial_modules:
+        partial_desc = ", ".join(f"{name} ({'/'.join(ops)})" for name, ops in sorted(counters.partial_modules))
         logger.info("Partially compliant modules: %s", partial_desc)
-    if legacy_modules:
-        logger.info("Legacy modules: %s", ", ".join(sorted(set(legacy_modules))))
+    if counters.legacy_modules:
+        logger.info("Legacy modules: %s", ", ".join(sorted(set(counters.legacy_modules))))
 
 
 def _log_skipped_modules_debug(logger: Any, skipped: list[tuple[str, str]]) -> None:
@@ -1400,7 +1375,8 @@ def register_module_package_commands(
 
     Call after register_builtin_commands(). enable_ids/disable_ids from CLI (--enable-module/--disable-module).
     allow_unsigned: If True, allow modules without integrity metadata. Default from SPECFACT_ALLOW_UNSIGNED env.
-    category_grouping_enabled: If True, register category groups (code, backlog, project, spec, govern).
+    category_grouping_enabled: Ignored for registration (retained for API compatibility). Category groups are
+    always mounted for installed bundles; categorized modules never register flat root aliases.
     """
     enable_ids = enable_ids or []
     disable_ids = disable_ids or []
@@ -1416,41 +1392,30 @@ def register_module_package_commands(
     enabled_map = merge_module_state(discovered_list, state, enable_ids, disable_ids)
     logger = get_bridge_logger(__name__)
     skipped: list[tuple[str, str]] = []
-    protocol_full = [0]
-    protocol_partial = [0]
-    protocol_legacy = [0]
-    partial_modules: list[tuple[str, list[str]]] = []
-    legacy_modules: list[str] = []
+    counters = _ProtocolComplianceCounters(
+        protocol_full=[0],
+        protocol_partial=[0],
+        protocol_legacy=[0],
+        partial_modules=[],
+        legacy_modules=[],
+    )
     bridge_owner_map: dict[str, str] = {
         bridge_id: BRIDGE_REGISTRY.get_owner(bridge_id) or "unknown" for bridge_id in BRIDGE_REGISTRY.list_bridge_ids()
     }
-    for package_dir, meta in packages:
-        _register_one_package_if_eligible(
-            package_dir,
-            meta,
-            enabled_map,
-            allow_unsigned,
-            is_test_mode,
-            logger,
-            skipped,
-            bridge_owner_map,
-            category_grouping_enabled,
-            protocol_full,
-            protocol_partial,
-            protocol_legacy,
-            partial_modules,
-            legacy_modules,
-        )
-    if category_grouping_enabled:
-        _mount_installed_category_groups(packages, enabled_map)
-    _log_protocol_compatibility_footer(
-        logger,
-        protocol_full,
-        protocol_partial,
-        protocol_legacy,
-        partial_modules,
-        legacy_modules,
+    reg_ctx = _PackageRegistrationContext(
+        enabled_map=enabled_map,
+        allow_unsigned=allow_unsigned,
+        is_test_mode=is_test_mode,
+        logger=logger,
+        skipped=skipped,
+        bridge_owner_map=bridge_owner_map,
+        category_grouping_enabled=category_grouping_enabled,
+        counters=counters,
     )
+    for package_dir, meta in packages:
+        _register_one_package_if_eligible(package_dir, meta, reg_ctx)
+    _mount_installed_category_groups(packages, enabled_map)
+    _log_protocol_compatibility_footer(logger, counters)
     _log_skipped_modules_debug(logger, skipped)
 
 

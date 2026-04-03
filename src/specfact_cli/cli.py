@@ -6,12 +6,15 @@ This module defines the main Typer application and registers all command groups.
 
 from __future__ import annotations
 
+import importlib
+import inspect
 import os
 import sys
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Annotated, cast
+from typing import Annotated, Any, cast
 
 
 _DetectShellFn = Callable[..., tuple[str | None, str | None]]
@@ -88,10 +91,51 @@ KNOWN_BUNDLE_GROUP_OR_SHIM_NAMES: frozenset[str] = frozenset(
         "drift",
         "analyze",
         "policy",
-        "import",
         "sync",
     }
 )
+
+# First token -> official marketplace module that provides it (not the VS Code `code` CLI).
+# Codebase import is `specfact code import`; persona Markdown import is `specfact project import` (not flat).
+_INVOKED_TO_MARKETPLACE_MODULE: dict[str, str] = {
+    "backlog": "nold-ai/specfact-backlog",
+    "policy": "nold-ai/specfact-backlog",
+    "code": "nold-ai/specfact-codebase",
+    "analyze": "nold-ai/specfact-codebase",
+    "drift": "nold-ai/specfact-codebase",
+    "validate": "nold-ai/specfact-codebase",
+    "repro": "nold-ai/specfact-codebase",
+    "project": "nold-ai/specfact-project",
+    "plan": "nold-ai/specfact-project",
+    "sync": "nold-ai/specfact-project",
+    "migrate": "nold-ai/specfact-project",
+    "spec": "nold-ai/specfact-spec",
+    "contract": "nold-ai/specfact-spec",
+    "sdd": "nold-ai/specfact-spec",
+    "generate": "nold-ai/specfact-spec",
+    "govern": "nold-ai/specfact-govern",
+    "enforce": "nold-ai/specfact-govern",
+    "patch": "nold-ai/specfact-govern",
+}
+
+
+def _print_missing_bundle_command_help(invoked: str) -> None:
+    """Print install guidance when a bundle group or shim is not registered."""
+    module_id = _INVOKED_TO_MARKETPLACE_MODULE.get(invoked)
+    console = get_configured_console()
+    if module_id is not None:
+        console.print(
+            f"[bold red]Module '{module_id}' is not installed.[/bold red]\n"
+            f"The [bold]{invoked}[/bold] command group is provided by that module. "
+            f"Install with [bold]specfact module install {module_id}[/bold], "
+            "or run [bold]specfact init --profile <profile>[/bold] to install bundles."
+        )
+        return
+    console.print(
+        f"[bold red]Command '{invoked}' is not installed.[/bold red]\n"
+        "Install workflow bundles with [bold]specfact init --profile <profile>[/bold] "
+        "or [bold]specfact module install <bundle>[/bold]."
+    )
 
 
 class _RootCLIGroup(ProgressiveDisclosureGroup):
@@ -108,11 +152,7 @@ class _RootCLIGroup(ProgressiveDisclosureGroup):
             result = super().resolve_command(ctx, args)
         except click.UsageError:
             if invoked in KNOWN_BUNDLE_GROUP_OR_SHIM_NAMES:
-                get_configured_console().print(
-                    f"[bold red]Command '{invoked}' is not installed.[/bold red]\n"
-                    "Install workflow bundles with [bold]specfact init --profile <profile>[/bold] "
-                    "or [bold]specfact module install <bundle>[/bold]."
-                )
+                _print_missing_bundle_command_help(invoked)
                 raise SystemExit(1) from None
             raise
         _name, cmd, remaining = result
@@ -121,11 +161,7 @@ class _RootCLIGroup(ProgressiveDisclosureGroup):
         invoked = remaining[0]
         if invoked not in KNOWN_BUNDLE_GROUP_OR_SHIM_NAMES:
             return result
-        get_configured_console().print(
-            f"[bold red]Command '{invoked}' is not installed.[/bold red]\n"
-            "Install workflow bundles with [bold]specfact init --profile <profile>[/bold] "
-            "or [bold]specfact module install <bundle>[/bold]."
-        )
+        _print_missing_bundle_command_help(invoked)
         raise SystemExit(1)
 
 
@@ -283,9 +319,101 @@ def get_current_mode() -> OperationalMode:
     return _current_mode
 
 
-@app.callback(invoke_without_command=True)
-@require(lambda ctx: ctx is not None, "ctx must not be None")
-def main(
+@dataclass
+class _RootCliFlags:
+    """Bundled root callback options (keeps the Typer callback body small for radon-kiss)."""
+
+    version: bool | None
+    banner: bool
+    mode: str | None
+    debug: bool
+    skip_checks: bool
+    input_format: StructuredFormat
+    output_format: StructuredFormat
+    interaction: bool | None
+
+
+_ROOT_MAIN_DOC = """
+SpecFact CLI - Spec→Contract→Sentinel for contract-driven development.
+
+Transform your development workflow with automated quality gates,
+runtime contract validation, and state machine workflows.
+
+Run **specfact init** or **specfact module install** to add workflow bundles
+(backlog, code, project, spec, govern).
+
+**Backlog Management**: Use `specfact backlog refine` for AI-assisted template-driven
+refinement of backlog items from GitHub Issues, Azure DevOps, and other tools.
+
+Mode Detection:
+- Explicit --mode flag (highest priority)
+- Auto-detect from environment (CoPilot API, IDE integration)
+- Default to CI/CD mode
+
+Interaction Detection:
+- Explicit --interactive/--no-interactive (highest priority)
+- Auto-detect from terminal and CI environment
+"""
+
+
+def _apply_root_app_callback(ctx: typer.Context, flags: _RootCliFlags) -> None:
+    global _show_banner
+    global console
+
+    # Rebind root and loaded module consoles for each invocation to avoid stale
+    # closed capture streams across sequential CliRunner/pytest command runs.
+    console = get_configured_console()
+    runtime.refresh_loaded_module_consoles()
+
+    # Set banner flag based on --banner option
+    _show_banner = flags.banner
+
+    # Set debug mode
+    set_debug_mode(flags.debug)
+    if flags.debug:
+        init_debug_log_file()
+
+    runtime.configure_io_formats(input_format=flags.input_format, output_format=flags.output_format)
+    # Invert logic: --interactive means not non-interactive, --no-interactive means non-interactive
+    if flags.interaction is not None:
+        runtime.set_non_interactive_override(not flags.interaction)
+    else:
+        runtime.set_non_interactive_override(None)
+
+    # Show welcome message if no command provided
+    if ctx.invoked_subcommand is None:
+        console.print(
+            Panel.fit(
+                "[bold green]✓[/bold green] SpecFact CLI is installed and working!\n\n"
+                f"Version: [cyan]{__version__}[/cyan]\n"
+                "Run [bold]specfact --help[/bold] for available commands.",
+                title="[bold]Welcome to SpecFact CLI[/bold]",
+                border_style="green",
+            )
+        )
+        raise typer.Exit()
+
+    # Store mode in context for commands to access
+    if ctx.obj is None:
+        ctx.obj = {}
+    ctx.obj["mode"] = get_current_mode()
+
+
+def _root_cli_flags_from_kwargs(kwargs: Mapping[str, Any]) -> _RootCliFlags:
+    """Build flags from Typer callback kwargs (param names match merged root CLI signature)."""
+    return _RootCliFlags(
+        version=kwargs.get("version"),
+        banner=kwargs.get("banner", False),
+        mode=kwargs.get("mode"),
+        debug=kwargs.get("debug", False),
+        skip_checks=kwargs.get("skip_checks", False),
+        input_format=kwargs.get("input_format", StructuredFormat.YAML),
+        output_format=kwargs.get("output_format", StructuredFormat.YAML),
+        interaction=kwargs.get("interaction"),
+    )
+
+
+def _root_sig_part1(
     ctx: typer.Context,
     version: bool | None = typer.Option(
         None,
@@ -306,6 +434,11 @@ def main(
         callback=mode_callback,
         help="Operational mode: cicd (fast, deterministic) or copilot (enhanced, interactive)",
     ),
+) -> None:
+    """Typer param signature fragment (merged for root callback); not invoked at runtime."""
+
+
+def _root_sig_part2(
     debug: bool = typer.Option(
         False,
         "--debug",
@@ -332,6 +465,11 @@ def main(
             case_sensitive=False,
         ),
     ] = StructuredFormat.YAML,
+) -> None:
+    """Typer param signature fragment (merged for root callback); not invoked at runtime."""
+
+
+def _root_sig_part3(
     interaction: Annotated[
         bool | None,
         typer.Option(
@@ -340,67 +478,25 @@ def main(
         ),
     ] = None,
 ) -> None:
-    """
-    SpecFact CLI - Spec→Contract→Sentinel for contract-driven development.
+    """Typer param signature fragment (merged for root callback); not invoked at runtime."""
 
-    Transform your development workflow with automated quality gates,
-    runtime contract validation, and state machine workflows.
 
-    Run **specfact init** or **specfact module install** to add workflow bundles
-    (backlog, code, project, spec, govern).
+def _merge_root_cli_param_specs(orig: Callable[..., Any]) -> dict[str, Any]:
+    merged: dict[str, Any] = {}
+    merged.update(orig(_root_sig_part1))
+    merged.update(orig(_root_sig_part2))
+    merged.update(orig(_root_sig_part3))
+    return merged
 
-    **Backlog Management**: Use `specfact backlog refine` for AI-assisted template-driven
-    refinement of backlog items from GitHub Issues, Azure DevOps, and other tools.
 
-    Mode Detection:
-    - Explicit --mode flag (highest priority)
-    - Auto-detect from environment (CoPilot API, IDE integration)
-    - Default to CI/CD mode
+@app.callback(invoke_without_command=True)
+@require(lambda ctx: ctx is not None, "ctx must not be None")
+def main(ctx: typer.Context, **kwargs) -> None:
+    """SpecFact CLI root callback (full help text in _ROOT_MAIN_DOC)."""
+    _apply_root_app_callback(ctx, _root_cli_flags_from_kwargs(kwargs))
 
-    Interaction Detection:
-    - Explicit --interactive/--no-interactive (highest priority)
-    - Auto-detect from terminal and CI environment
-    """
-    global _show_banner
-    global console
 
-    # Rebind root and loaded module consoles for each invocation to avoid stale
-    # closed capture streams across sequential CliRunner/pytest command runs.
-    console = get_configured_console()
-    runtime.refresh_loaded_module_consoles()
-
-    # Set banner flag based on --banner option
-    _show_banner = banner
-
-    # Set debug mode
-    set_debug_mode(debug)
-    if debug:
-        init_debug_log_file()
-
-    runtime.configure_io_formats(input_format=input_format, output_format=output_format)
-    # Invert logic: --interactive means not non-interactive, --no-interactive means non-interactive
-    if interaction is not None:
-        runtime.set_non_interactive_override(not interaction)
-    else:
-        runtime.set_non_interactive_override(None)
-
-    # Show welcome message if no command provided
-    if ctx.invoked_subcommand is None:
-        console.print(
-            Panel.fit(
-                "[bold green]✓[/bold green] SpecFact CLI is installed and working!\n\n"
-                f"Version: [cyan]{__version__}[/cyan]\n"
-                "Run [bold]specfact --help[/bold] for available commands.",
-                title="[bold]Welcome to SpecFact CLI[/bold]",
-                border_style="green",
-            )
-        )
-        raise typer.Exit()
-
-    # Store mode in context for commands to access
-    if ctx.obj is None:
-        ctx.obj = {}
-    ctx.obj["mode"] = get_current_mode()
+main.__doc__ = inspect.cleandoc(_ROOT_MAIN_DOC)
 
 
 # Register command groups from CommandRegistry (bootstrap preserves display order).
@@ -602,24 +698,54 @@ def _get_group_from_info_wrapper(
 # Original Typer build functions (set once by _patch_typer_build so re-import of cli doesn't overwrite with our wrapper).
 _typer_get_group_from_info_original: Callable[..., click.Group] | None = None
 _typer_get_command_original: Callable[[typer.Typer], click.Command] | None = None
+_typer_get_params_original: Callable[..., Any] | None = None
+
+
+def _specfact_get_params_from_function(func: Callable[..., Any]) -> Any:
+    """Map thin Typer entrypoints to their option-rich implementations for Click param generation."""
+    orig = _typer_get_params_original
+    if orig is None:
+        import typer.utils as typer_utils
+
+        return typer_utils.get_params_from_function(func)
+    # ``@app.callback()`` / ``@app.command()`` may wrap the function; match by name + module.
+    if getattr(func, "__name__", "") == "main" and getattr(func, "__module__", "") == __name__:
+        return _merge_root_cli_param_specs(orig)
+    if (
+        getattr(func, "__name__", "") == "install"
+        and getattr(func, "__module__", "") == "specfact_cli.modules.module_registry.src.commands"
+    ):
+        module = sys.modules.get("specfact_cli.modules.module_registry.src.commands")
+        if module is not None:
+            merge_install = getattr(module, "_specfact_merge_install_param_specs", None)
+            if merge_install is not None:
+                return merge_install(orig)
+    return orig(func)
 
 
 # Patch so root app build uses our delegate group for lazy typers (built via get_group_from_info).
 def _patch_typer_build() -> None:
-    import typer.main as typer_main
+    import typer.utils as typer_utils
 
-    global _typer_get_group_from_info_original, _typer_get_command_original
+    typer_main = cast(Any, importlib.import_module("typer.main"))
+
+    global _typer_get_group_from_info_original, _typer_get_command_original, _typer_get_params_original
     # Save originals only on first patch; avoid overwriting with our wrapper when cli is re-imported (e.g. by plan module).
     if _typer_get_group_from_info_original is None:
         _typer_get_group_from_info_original = typer_main.get_group_from_info
     if _typer_get_command_original is None:
         _typer_get_command_original = typer_main.get_command
+    if _typer_get_params_original is None:
+        _typer_get_params_original = typer_utils.get_params_from_function
+    typer_utils.get_params_from_function = _specfact_get_params_from_function
+    # typer.main may have bound get_params_from_function at import time; keep in sync.
+    typer_main.get_params_from_function = _specfact_get_params_from_function
     typer_main.get_command = _get_command
     typer_main.get_group_from_info = _get_group_from_info_wrapper
 
 
-register_builtin_commands()
 _patch_typer_build()
+register_builtin_commands()
 
 
 def _grouped_command_order(

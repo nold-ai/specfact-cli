@@ -1,5 +1,7 @@
 # yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
 # yamllint disable rule:line-length rule:truthy
+# Generated workflow — aligns with current SpecFact CLI: non-interactive CI must run
+# `specfact init --profile …` (or `specfact module install …`) before `specfact code …` commands.
 name: SpecFact CLI Validation
 
 on:
@@ -18,7 +20,7 @@ on:
   workflow_dispatch:
     inputs:
       budget:
-        description: "Time budget in seconds"
+        description: "Time budget in seconds for code repro"
         required: false
         default: "{{ budget }}"
         type: string
@@ -32,14 +34,19 @@ on:
           - warn
           - log
       version_check_mode:
-        description: "Version check mode (info, warn, block)"
+        description: "Project bundle version check (info, warn, block; skipped if no .specfact/projects)"
         required: false
-        default: "warn"
+        default: "info"
         type: choice
         options:
           - info
           - warn
           - block
+      bundle_name:
+        description: "Project bundle name for `specfact project version check` (under .specfact/projects/)"
+        required: false
+        default: "{{ bundle_name }}"
+        type: string
 
 jobs:
   specfact-validation:
@@ -59,53 +66,75 @@ jobs:
           python-version: "{{ python_version }}"
           cache: "pip"
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install hatch
-
       - name: Install SpecFact CLI
         run: |
+          python -m pip install --upgrade pip
           echo "📦 Installing SpecFact CLI..."
           pip install specfact-cli
+
+      - name: Bootstrap SpecFact (CI — required for workflow commands)
+        run: |
+          # Non-interactive CI must pass --profile or --install (see `specfact init --help`).
+          specfact init --profile solo-developer --repo .
 
       - name: Set validation parameters
         id: validation
         run: |
-          BUDGET="${INPUT_BUDGET:-{{ budget }}}"
-          MODE="${INPUT_MODE:-block}"
-          VERSION_CHECK_MODE="${INPUT_VERSION_CHECK_MODE:-info}"
-          echo "budget=$BUDGET" >> $GITHUB_OUTPUT
-          echo "mode=$MODE" >> $GITHUB_OUTPUT
-          echo "version_check_mode=$VERSION_CHECK_MODE" >> $GITHUB_OUTPUT
-          echo "SPECFACT_BUDGET=$BUDGET" >> $GITHUB_ENV
-          echo "SPECFACT_MODE=$MODE" >> $GITHUB_ENV
-          echo "SPECFACT_VERSION_CHECK_MODE=$VERSION_CHECK_MODE" >> $GITHUB_ENV
+          BUDGET="{% raw %}${{ github.event.inputs.budget || '{% endraw %}{{ budget }}{% raw %}' }}{% endraw %}"
+          MODE="{% raw %}${{ github.event.inputs.mode || 'block' }}{% endraw %}"
+          VERSION_CHECK_MODE="{% raw %}${{ github.event.inputs.version_check_mode || 'info' }}{% endraw %}"
+          BUNDLE_NAME="{% raw %}${{ github.event.inputs.bundle_name || '{% endraw %}{{ bundle_name }}{% raw %}' }}{% endraw %}"
+          echo "budget=$BUDGET" >> "$GITHUB_OUTPUT"
+          echo "mode=$MODE" >> "$GITHUB_OUTPUT"
+          echo "version_check_mode=$VERSION_CHECK_MODE" >> "$GITHUB_OUTPUT"
+          echo "bundle_name=$BUNDLE_NAME" >> "$GITHUB_OUTPUT"
+          echo "SPECFACT_BUDGET=$BUDGET" >> "$GITHUB_ENV"
+          echo "SPECFACT_MODE=$MODE" >> "$GITHUB_ENV"
+          echo "SPECFACT_VERSION_CHECK_MODE=$VERSION_CHECK_MODE" >> "$GITHUB_ENV"
+          echo "BUNDLE_NAME=$BUNDLE_NAME" >> "$GITHUB_ENV"
 
-      - name: Run Contract Validation
+      - name: Optional — CrossHair / repro tooling setup
+        continue-on-error: true
+        run: specfact code repro setup
+
+      - name: Run contract validation (code repro)
         id: repro
         continue-on-error: true
         run: |
-          specfact repro --verbose --budget {% raw %}${{ steps.validation.outputs.budget }}{% endraw %} || true
-          echo "exit_code=$?" >> $GITHUB_OUTPUT
+          set +e
+          specfact code repro --verbose --budget "{% raw %}${{ steps.validation.outputs.budget }}{% endraw %}"
+          ec=$?
+          set -e
+          echo "exit_code=$ec" >> "$GITHUB_OUTPUT"
 
-      - name: Version check
+      - name: Project bundle version check (optional)
         id: version_check
         continue-on-error: true
         run: |
           VERSION_CHECK_MODE="{% raw %}${{ steps.validation.outputs.version_check_mode }}{% endraw %}"
-          echo "📌 Checking bundle version recommendation (mode: $VERSION_CHECK_MODE)..."
-          if specfact project version check --repo .; then
-            echo "version_check_passed=true" >> $GITHUB_OUTPUT
+          BUNDLE_NAME="{% raw %}${{ steps.validation.outputs.bundle_name }}{% endraw %}"
+          echo "📌 Bundle version check (mode: $VERSION_CHECK_MODE, bundle: $BUNDLE_NAME)..."
+          if [ ! -d .specfact/projects ]; then
+            echo "No .specfact/projects — skipping project version check."
+            echo "version_check_passed=skipped" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if ! find .specfact/projects -mindepth 1 -maxdepth 1 -type d 2>/dev/null | grep -q .; then
+            echo "No project bundles under .specfact/projects — skipping."
+            echo "version_check_passed=skipped" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if specfact project version check --repo . --bundle "$BUNDLE_NAME"; then
+            echo "version_check_passed=true" >> "$GITHUB_OUTPUT"
           else
-            echo "version_check_passed=false" >> $GITHUB_OUTPUT
+            echo "version_check_passed=false" >> "$GITHUB_OUTPUT"
             if [ "$VERSION_CHECK_MODE" = "warn" ]; then
-              echo "⚠️ Version check recommendation not followed (warn mode - continuing)"
+              echo "⚠️ Version check did not pass (warn mode — continuing)"
             elif [ "$VERSION_CHECK_MODE" = "block" ]; then
-              echo "❌ Version check recommendation not followed (block mode - failing)"
+              echo "❌ Version check failed (block mode)"
               exit 1
             else
-              echo "ℹ️ Version check recommendation available (info mode - continuing)"
+              echo "ℹ️ Version check finished (info mode — continuing)"
             fi
           fi
 
@@ -117,28 +146,28 @@ jobs:
           if [ -d "$REPORT_DIR" ]; then
             LATEST_REPORT=$(find "$REPORT_DIR" -name "report-*.yaml" -type f -printf "%T@ %p\n" | sort -n | tail -1 | cut -d' ' -f2-)
             if [ -n "$LATEST_REPORT" ]; then
-              echo "path=$LATEST_REPORT" >> $GITHUB_OUTPUT
-              echo "SPECFACT_REPORT_PATH=$LATEST_REPORT" >> $GITHUB_ENV
+              echo "path=$LATEST_REPORT" >> "$GITHUB_OUTPUT"
+              echo "SPECFACT_REPORT_PATH=$LATEST_REPORT" >> "$GITHUB_ENV"
             fi
           fi
 
       - name: Create GitHub annotations
         id: annotations
-        if: always() && {% raw %}steps.report.outputs.path != ''{% endraw %}
+        if: {% raw %}${{ always() && steps.report.outputs.path != '' }}{% endraw %}
         run: |
           python -m specfact_cli.utils.github_annotations || true
 
       - name: Generate PR comment
         id: pr-comment
-        if: always() && {% raw %}github.event_name == 'pull_request' && steps.report.outputs.path != ''{% endraw %}
+        if: {% raw %}${{ always() && github.event_name == 'pull_request' && steps.report.outputs.path != '' }}{% endraw %}
         run: |
           python -m specfact_cli.utils.github_annotations
           if [ -f ".specfact/pr-comment.md" ]; then
-            echo "comment_path=.specfact/pr-comment.md" >> $GITHUB_OUTPUT
+            echo "comment_path=.specfact/pr-comment.md" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Post PR comment
-        if: always() && {% raw %}github.event_name == 'pull_request' && steps.pr-comment.outputs.comment_path != ''{% endraw %}
+        if: {% raw %}${{ always() && github.event_name == 'pull_request' && steps.pr-comment.outputs.comment_path != '' }}{% endraw %}
         uses: actions/github-script@v7
         with:
           script: |
@@ -165,8 +194,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Fail workflow if validation failed
-        if: {% raw %}steps.repro.outputs.exit_code != '0' && steps.validation.outputs.mode == 'block'{% endraw %}
+        if: {% raw %}${{ steps.repro.outputs.exit_code != '0' && steps.validation.outputs.mode == 'block' }}{% endraw %}
         run: |
           echo "❌ Validation failed. Exiting with error code."
           exit 1
-

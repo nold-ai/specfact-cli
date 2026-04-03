@@ -179,7 +179,7 @@ The `import from-code` command now uses mode-aware routing. You should see mode 
 
 ```bash
 # Test with CI/CD mode (bundle name as positional argument)
-hatch run specfact --mode cicd import from-code test-project --repo . --confidence 0.5 --shadow-only
+hatch run specfact --mode cicd code import from-code test-project --repo . --confidence 0.5 --shadow-only
 
 # Expected output:
 # Mode: CI/CD (direct execution)
@@ -189,7 +189,7 @@ hatch run specfact --mode cicd import from-code test-project --repo . --confiden
 
 ```bash
 # Test with CoPilot mode (bundle name as positional argument)
-hatch run specfact --mode copilot import from-code test-project --repo . --confidence 0.5 --shadow-only
+hatch run specfact --mode copilot code import from-code test-project --repo . --confidence 0.5 --shadow-only
 
 # Expected output:
 # Mode: CoPilot (agent routing)
@@ -249,7 +249,7 @@ hatch run specfact code import my-project --repo . --confidence 0.7
 
 ```bash
 # Developer wants CI/CD mode even though CoPilot is available (bundle name as positional argument)
-hatch run specfact --mode cicd import from-code my-project --repo . --confidence 0.7
+hatch run specfact --mode cicd code import from-code my-project --repo . --confidence 0.7
 
 # Expected: Mode: CI/CD (direct execution) - flag overrides auto-detection
 ```

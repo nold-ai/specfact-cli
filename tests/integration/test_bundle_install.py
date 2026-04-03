@@ -50,6 +50,9 @@ def _create_module_tarball(
 
 def _stub_install_runtime(monkeypatch) -> None:
     monkeypatch.setattr("specfact_cli.registry.module_installer.resolve_dependencies", lambda *_a, **_k: None)
+    monkeypatch.setattr(
+        "specfact_cli.registry.module_installer.install_resolved_pip_requirements", lambda *_a, **_k: None
+    )
     monkeypatch.setattr("specfact_cli.registry.module_installer.verify_module_artifact", lambda *_a, **_k: True)
     monkeypatch.setattr("specfact_cli.registry.module_installer.ensure_publisher_trusted", lambda *_a, **_k: None)
     monkeypatch.setattr("specfact_cli.registry.module_installer.assert_module_allowed", lambda *_a, **_k: None)

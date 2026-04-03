@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 import os
+from collections.abc import Generator
 from pathlib import Path
 
 import pytest
@@ -34,7 +35,7 @@ from specfact_cli.registry.module_state import read_modules_state, write_modules
 
 
 @pytest.fixture(autouse=True)
-def _reset_registry():
+def _reset_registry() -> Generator[None, None, None]:
     CommandRegistry._clear_for_testing()
     yield
     CommandRegistry._clear_for_testing()

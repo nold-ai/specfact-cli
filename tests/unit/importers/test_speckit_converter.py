@@ -119,7 +119,8 @@ As a user, I want to test features so that I can validate functionality.
         # Verify workflow content (business logic)
         content = output_path.read_text()
         assert "SpecFact CLI Validation" in content
-        assert "specfact repro" in content
+        assert "specfact code repro" in content
+        assert "specfact init --profile solo-developer" in content
 
     def test_convert_to_speckit_sequential_numbering(self, tmp_path: Path) -> None:
         """Test convert_to_speckit uses sequential numbering when feature keys lack numbers."""

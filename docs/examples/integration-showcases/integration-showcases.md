@@ -338,7 +338,7 @@ result = process_order(order_id="123")  # ⚠️ Missing user_id
 #!/bin/sh
 # Import current code to create a new plan for comparison
 # Use bundle name "auto-derived" so plan compare --code-vs-plan can find it
-specfact --no-banner import from-code auto-derived --repo . --output-format yaml > /dev/null 2>&1
+specfact --no-banner code import from-code auto-derived --repo . --output-format yaml > /dev/null 2>&1
 
 # Compare: uses active plan (set via plan select) as manual, latest auto-derived plan as auto
 specfact --no-banner plan compare --code-vs-plan

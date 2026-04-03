@@ -81,9 +81,25 @@ def test_root_group_unknown_bundle_command_shows_install_guidance(capsys: pytest
 
     assert exc_info.value.code == 1
     captured = capsys.readouterr()
-    assert "Command 'backlog' is not installed." in captured.out
-    assert "specfact init --profile <profile>" in captured.out
-    assert "module install <bundle>" in captured.out
+    out = " ".join(captured.out.split())
+    assert "Module 'nold-ai/specfact-backlog' is not installed." in out
+    assert "specfact module install nold-ai/specfact-backlog" in out
+    assert "specfact init --profile <profile>" in out
+
+
+def test_root_group_unknown_code_shows_specfact_codebase_module(capsys: pytest.CaptureFixture[str]) -> None:
+    """Missing `code` group should name nold-ai/specfact-codebase (not the VS Code `code` CLI)."""
+    group = _RootCLIGroup(name="specfact")
+    ctx = click.Context(group)
+
+    with pytest.raises(SystemExit) as exc_info:
+        group.resolve_command(ctx, ["code", "--help"])
+
+    assert exc_info.value.code == 1
+    captured = capsys.readouterr()
+    out = " ".join(captured.out.split())
+    assert "Module 'nold-ai/specfact-codebase' is not installed." in out
+    assert "specfact module install nold-ai/specfact-codebase" in out
 
 
 def test_specfact_help_with_all_bundles_installed_shows_eight_commands(

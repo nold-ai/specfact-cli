@@ -27,9 +27,9 @@ def _telemetry_track_context():
 # --- Profile resolution ---
 
 
-def test_profile_solo_developer_resolves_to_specfact_codebase_only() -> None:
+def test_profile_solo_developer_resolves_to_codebase_and_code_review() -> None:
     bundles = frs.resolve_profile_bundles("solo-developer")
-    assert bundles == ["specfact-codebase"]
+    assert bundles == ["specfact-codebase", "specfact-code-review"]
 
 
 def test_profile_enterprise_full_stack_resolves_to_all_five_bundles() -> None:
@@ -133,7 +133,7 @@ def test_is_first_run_false_when_project_scoped_category_bundle_installed(
 # --- CLI: specfact init --profile (mock installer) ---
 
 
-def test_init_profile_solo_developer_calls_installer_with_specfact_codebase(
+def test_init_profile_solo_developer_calls_installer_with_codebase_and_code_review(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     install_calls: list[list[str]] = []
@@ -160,7 +160,7 @@ def test_init_profile_solo_developer_calls_installer_with_specfact_codebase(
         )
     assert result.exit_code == 0, result.output
     assert len(install_calls) == 1
-    assert install_calls[0] == ["specfact-codebase"]
+    assert install_calls[0] == ["specfact-codebase", "specfact-code-review"]
 
 
 def test_init_profile_enterprise_full_stack_calls_installer_with_all_five(
@@ -389,19 +389,16 @@ def test_init_first_run_interactive_no_selection_shows_tip(monkeypatch: pytest.M
 
 
 def test_spec_bundle_install_includes_project_dep(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    installed_modules: list[str] = []
+    installed_ids: list[str] = []
 
-    def _record_install(module_name: str, target_root: Path, **kwargs: object) -> bool:
-        installed_modules.append(module_name)
-        return True
+    def _record_marketplace(module_id: str, **kwargs: object) -> Path:
+        installed_ids.append(module_id)
+        return tmp_path / module_id.split("/")[1]
 
     monkeypatch.setattr(
-        "specfact_cli.registry.module_installer.install_bundled_module",
-        _record_install,
+        "specfact_cli.registry.module_installer.install_module",
+        _record_marketplace,
     )
-    frs.install_bundles_for_init(["specfact-spec"], install_root=tmp_path)
-    project_module_names = set(frs.BUNDLE_TO_MODULE_NAMES.get("specfact-project", []))
-    spec_module_names = set(frs.BUNDLE_TO_MODULE_NAMES.get("specfact-spec", []))
-    installed_set = set(installed_modules)
-    assert project_module_names & installed_set, "spec bundle must trigger project bundle dep install"
-    assert spec_module_names & installed_set, "spec bundle modules must be installed"
+    frs.install_bundles_for_init(["specfact-spec"], install_root=tmp_path, show_progress=False)
+    assert "nold-ai/specfact-project" in installed_ids, "spec bundle depends on project marketplace module"
+    assert "nold-ai/specfact-spec" in installed_ids

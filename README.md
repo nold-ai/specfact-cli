@@ -71,26 +71,40 @@ With SpecFact, you get:
 
 ## How do I get started?
 
-### Start Here (5 minutes)
+### Start Here (about 2 minutes): scored code review — no `pip install`
 
-### Install
+**Point SpecFact at your code.** From a **git repository** (any branch), run two commands:
 
 ```bash
-# Zero-install (recommended)
-uvx specfact-cli@latest
+uvx specfact-cli init --profile solo-developer
+uvx specfact-cli code review run --path . --scope full
+```
 
-# Or install globally
+You should see a **Verdict** (PASS/FAIL), a **Score**, and categorized **findings** — the fastest way to see SpecFact on real code before you dive into backlog, specs, or CI.
+
+- **Command 1** installs the `solo-developer` bundles (including `specfact-codebase` and `specfact-code-review`) into your user module store so `code review` and related commands are available on the next invocation.
+- **Command 2** runs the clean-code review on the repo at `.`. Use **`--scope full`** on the first run so review does not depend on having local git changes.
+
+**Already installed the CLI?** Use the same flow with `specfact` instead of `uvx specfact-cli`:
+
+```bash
+specfact init --profile solo-developer
+specfact code review run --path . --scope full
+```
+
+**Read the canonical walkthrough:** **[Documentation — Quickstart](https://docs.specfact.io/getting-started/quickstart/)** · **[Installation](https://docs.specfact.io/getting-started/installation/)** (uvx-first, then persistent install).
+
+### Install (persistent CLI for daily use)
+
+```bash
 pip install -U specfact-cli
 ```
 
-### Bootstrap
+You can still use **`uvx specfact-cli@latest ...`** anytime without installing; it always fetches the latest published CLI.
 
-```bash
-# Recommended first run
-specfact init --profile solo-developer
-```
+### After the wow path: deeper workflows
 
-### Get First Value
+When you want analysis, snapshots, or sidecar validation on top of the review layer:
 
 ```bash
 # Analyze a codebase you care about
@@ -104,10 +118,7 @@ specfact code validate sidecar init my-project /path/to/repo
 specfact code validate sidecar run my-project /path/to/repo
 ```
 
-That path gives you a concrete first win: SpecFact understands your project context and gives you a
-validated starting point instead of jumping straight into blind change work.
-
-### AI IDE Setup
+### AI IDE setup
 
 ```bash
 specfact init ide
@@ -125,7 +136,7 @@ your IDE. If module prompt payloads are not installed yet, the CLI uses packaged
 Use SpecFact as the validation layer around fast-moving implementation work.
 
 Start with:
-- `specfact init --profile solo-developer`
+- `uvx specfact-cli init --profile solo-developer` then `uvx specfact-cli code review run --path . --scope full` (see **Start Here** above)
 - `specfact code validate sidecar init <bundle> /path/to/repo`
 - `specfact code validate sidecar run <bundle> /path/to/repo`
 
@@ -303,10 +314,11 @@ Use `https://modules.specfact.io/` for the in-depth backlog, project, spec, gove
 
 ## How It Works (High Level)
 
-1. **Bootstrap**: install the CLI and initialize the official bundles you need.
-2. **Analyze or sync**: import code, connect backlog systems, or sync external artifacts into project bundles.
-3. **Validate**: run spec, governance, and sidecar validation flows before implementation or release.
-4. **Iterate safely**: use module-provided workflows while the core runtime keeps command mounting, trust, and lifecycle consistent.
+1. **Bootstrap**: use **uvx** or **pip**, then `init --profile` to install the bundles you need (for example `solo-developer` for a scored **code review** first).
+2. **Review or analyze**: run **`code review run`** on a repo, or import code and snapshot state for deeper workflows.
+3. **Sync**: connect backlog systems or sync external artifacts into project bundles when you are ready.
+4. **Validate**: run spec, governance, and sidecar validation flows before implementation or release.
+5. **Iterate safely**: use module-provided workflows while the core runtime keeps command mounting, trust, and lifecycle consistent.
 
 ## Where SpecFact Fits
 

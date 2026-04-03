@@ -205,11 +205,33 @@ class TestSmartCoverageManagerEnhanced:
             patch.object(self.manager, "_has_config_changes", return_value=False),
             patch.object(self.manager, "_run_changed_only") as mock_changed_only,
         ):
-            mock_changed_only.return_value = True
+            mock_changed_only.return_value = (True, True)
             result = self.manager.run_smart_tests("auto")
 
             assert result is True
             mock_changed_only.assert_called_once()
+
+    def test_run_changed_only_without_baseline_runs_full(self):
+        """No last_full_run: incremental cannot compute diffs; must run full suite."""
+        self.manager.cache.pop("last_full_run", None)
+        with patch.object(self.manager, "_run_full_tests", return_value=True) as mock_full:
+            ok, ran_any = self.manager._run_changed_only()
+        assert ok is True
+        assert ran_any is True
+        mock_full.assert_called_once()
+
+    def test_run_smart_tests_force_auto_with_no_incremental_runs_full(self):
+        """Force + auto with no mapped tests: run full suite instead of no-op skip."""
+        with (
+            patch.object(self.manager, "_has_source_changes", return_value=True),
+            patch.object(self.manager, "_has_test_changes", return_value=False),
+            patch.object(self.manager, "_has_config_changes", return_value=False),
+            patch.object(self.manager, "_run_changed_only", return_value=(True, False)),
+            patch.object(self.manager, "_run_full_tests", return_value=True) as mock_full,
+        ):
+            result = self.manager.run_smart_tests("auto", force=True)
+        assert result is True
+        mock_full.assert_called_once()
 
     def test_run_smart_tests_auto_without_changes(self):
         """Test smart tests in auto mode without changes."""

@@ -713,7 +713,7 @@ class ContractFirstTestManager(SmartCoverageManager):
 
         return success, exploration_results
 
-    def _run_scenario_tests(self) -> tuple[bool, int, float]:
+    def _run_scenario_tests(self) -> tuple[bool, int, float | None]:
         """Run scenario tests (integration tests with contract references)."""
         logger.info("Running scenario tests...")
 
@@ -739,7 +739,7 @@ class ContractFirstTestManager(SmartCoverageManager):
 
         if not scenario_tests:
             logger.info("No scenario tests found (integration tests with contract references)")
-            return True, 0, 100.0
+            return True, 0, None
 
         logger.info("Found %d scenario tests:", len(scenario_tests))
         for test_file in scenario_tests:

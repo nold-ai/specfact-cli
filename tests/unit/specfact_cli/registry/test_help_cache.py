@@ -9,6 +9,7 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
+from collections.abc import Generator
 from pathlib import Path
 
 import pytest
@@ -51,7 +52,7 @@ def registry_dir(tmp_path: Path):
 
 
 @pytest.fixture(autouse=True)
-def _reset_registry():
+def _reset_registry() -> Generator[None, None, None]:
     """Reset registry before each test."""
     CommandRegistry._clear_for_testing()
     yield

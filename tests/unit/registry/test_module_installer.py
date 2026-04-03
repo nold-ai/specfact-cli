@@ -21,6 +21,10 @@ def _no_op_resolve_dependencies(monkeypatch: pytest.MonkeyPatch) -> None:
         "specfact_cli.registry.module_installer.resolve_dependencies",
         lambda *_a, **_k: None,
     )
+    monkeypatch.setattr(
+        "specfact_cli.registry.module_installer.install_resolved_pip_requirements",
+        lambda *_a, **_k: None,
+    )
 
 
 def _create_module_tarball(
@@ -118,6 +122,9 @@ def test_install_module_logs_satisfied_dependencies_without_warning(monkeypatch,
         "specfact_cli.registry.module_installer.ensure_publisher_trusted", lambda *_args, **_kwargs: None
     )
     monkeypatch.setattr("specfact_cli.registry.module_installer.resolve_dependencies", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(
+        "specfact_cli.registry.module_installer.install_resolved_pip_requirements", lambda *_args, **_kwargs: None
+    )
     monkeypatch.setattr("specfact_cli.registry.module_installer.discover_all_modules", list)
 
     mock_logger = MagicMock()
@@ -218,7 +225,7 @@ def test_install_module_validates_core_compatibility(monkeypatch, tmp_path: Path
     tarball = _create_module_tarball(tmp_path, "policy", core_compatibility=">=9.0.0")
     monkeypatch.setattr("specfact_cli.registry.module_installer.download_module", lambda *_args, **_kwargs: tarball)
 
-    with pytest.raises(ValueError, match="incompatible with current SpecFact CLI version"):
+    with pytest.raises(ValueError, match="requires SpecFact CLI"):
         install_module("specfact/policy", install_root=tmp_path / "marketplace-modules")
 
 
