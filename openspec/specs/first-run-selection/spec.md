@@ -5,7 +5,10 @@ TBD - created by archiving change module-migration-01-categorize-and-group. Upda
 ## Requirements
 ### Requirement: `specfact init` detects first-run and presents bundle selection
 
-On a fresh install where no bundles are installed, `specfact init` SHALL present an interactive bundle selection UI.
+On a fresh install where no bundles are installed, `specfact init` SHALL present an interactive
+bundle selection UI. When `--profile` is provided, `specfact init` SHALL install the profile's
+canonical bundle set without requiring user interaction, and SHALL exit successfully only after
+the bundles are fully installed and registered — not merely after runtime bootstrap.
 
 #### Scenario: First-run interactive bundle selection in Copilot mode
 
@@ -23,6 +26,24 @@ On a fresh install where no bundles are installed, `specfact init` SHALL present
 - **AND** SHALL offer profile preset shortcuts: Solo developer, Backlog team, API-first team, Enterprise full-stack
 - **AND** SHALL install the user-selected bundles before completing workspace initialisation
 
+#### Scenario: `init --profile` installs all profile bundles before completion
+
+- **GIVEN** a fresh SpecFact install with no bundles installed
+- **WHEN** the user runs `specfact init --profile solo-developer`
+- **THEN** the CLI SHALL invoke the module installer for each bundle in the profile's canonical set
+- **AND** SHALL NOT report "Bootstrap complete" until all profile bundles are installed and their
+  commands are available in the CLI surface
+- **AND** after the command completes, running `specfact code review run --help` SHALL succeed
+  without a "Command not installed" error
+
+#### Scenario: `init --profile` via uvx installs modules at user level
+
+- **GIVEN** the user is running via `uvx specfact-cli`
+- **WHEN** they run `uvx specfact-cli init --profile solo-developer`
+- **THEN** the CLI SHALL install profile bundles to the user-level module root
+  (e.g. `~/.specfact/modules/`) without requiring pip to be available in the uvx environment
+- **AND** subsequent `uvx specfact-cli` invocations SHALL detect and load the installed modules
+
 #### Scenario: User selects a profile preset during first-run
 
 - **GIVEN** the first-run interactive UI is displayed
@@ -38,22 +59,6 @@ On a fresh install where no bundles are installed, `specfact init` SHALL present
 - **THEN** the CLI SHALL install only core modules
 - **AND** SHALL display a tip: "Install bundles later with `specfact module install <bundle>`"
 - **AND** SHALL complete workspace initialisation with only core commands available
-
-#### Scenario: Second run of `specfact init` does not repeat first-run selection
-
-- **GIVEN** `specfact init` has been run previously and bundles are installed
-- **WHEN** the user runs `specfact init` again
-- **THEN** the CLI SHALL NOT show the bundle selection UI
-- **AND** SHALL run the standard workspace re-initialisation flow
-
-#### Scenario: Workspace-local project-scoped modules suppress first-run flow
-
-- **GIVEN** a repository already contains category bundle modules under workspace-local `.specfact/modules`
-- **AND** those modules are discovered with source `project`
-- **WHEN** the user runs `specfact init`
-- **THEN** first-run detection SHALL treat the workspace as already initialized
-- **AND** the CLI SHALL NOT show first-run bundle selection again
-- **AND** SHALL run the standard workspace re-initialisation flow
 
 ### Requirement: `specfact init --profile <name>` installs a named preset non-interactively
 

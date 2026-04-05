@@ -1,6 +1,6 @@
 ## MODIFIED Requirements
 
-### Requirement: Profile presets resolve to canonical bundle sets and install them
+### Requirement: Profile presets are fully activated and install bundles from the marketplace
 
 The four profile presets SHALL resolve to the exact canonical bundle set and install each bundle
 via the marketplace installer. The `solo-developer` profile SHALL include

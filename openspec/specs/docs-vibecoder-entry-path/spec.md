@@ -1,5 +1,8 @@
-## ADDED Requirements
+# docs-vibecoder-entry-path Specification
 
+## Purpose
+TBD - created by archiving change docs-new-user-onboarding. Update Purpose after archive.
+## Requirements
 ### Requirement: Vibe-coder entry path is discoverable and runnable in under 2 commands
 
 The documentation entry surface SHALL make it possible for a developer who has never used
@@ -23,11 +26,11 @@ setup.
   (e.g. "Verdict: FAIL | Score: 0 | 64 findings across naming, complexity, and type checks")
   so the user knows what a successful first run looks like before they run it
 
-### Requirement: `code review run --path .` provides actionable guidance when scope is missing
+### Requirement: `code review run --path .` SHALL provide actionable guidance when scope is missing
 
-When a user runs `specfact code review run --path .` without `--scope full` in a context where
-git diff is unavailable or produces no output, the CLI SHALL provide an actionable inline hint
-rather than a bare error.
+The CLI SHALL provide an actionable inline hint rather than a bare error when
+`specfact code review run --path .` is run without `--scope full` and no diff output is
+available.
 
 #### Scenario: User runs `code review run --path .` without `--scope full`
 
@@ -41,11 +44,10 @@ rather than a bare error.
 - **AND** the error SHALL NOT only say "Unable to determine changed tracked files" without
   providing the corrective command
 
-### Requirement: Module-not-found error provides an exact uvx init command
+### Requirement: Module-not-found error SHALL provide an exact uvx init command
 
-When a user attempts to run a module command that is not installed and the CLI detects a uvx
-execution context, the error message SHALL include the exact `uvx specfact-cli init` command
-as the suggested fix.
+The CLI SHALL include the exact `uvx specfact-cli init` command as the suggested fix in
+module-not-found errors when running in a uvx execution context.
 
 #### Scenario: Vibe coder runs `uvx specfact-cli code review run` before init
 
@@ -70,3 +72,4 @@ technical terms.
   expertise (e.g. "Point it at your code. Get a score and a list of what to fix.")
 - **AND** the first technical term they encounter SHALL be a command they can copy and run,
   not a concept they need to research first
+

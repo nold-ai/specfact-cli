@@ -62,6 +62,11 @@ Only changes that are **archived**, shown as **✓ Complete** by `openspec list`
 | ✅ code-review-09-f4-automation-upgrade | archived 2026-03-17 |
 | ✅ doc-frontmatter-schema | archived 2026-03-29 |
 | ✅ ci-02-trustworthy-green-checks | implemented 2026-03-30; archive pending |
+| ✅ module-migration-04-remove-flat-shims | archived 2026-04-05 |
+| ✅ module-migration-10-bundle-command-surface-alignment | archived 2026-04-05 |
+| ✅ ci-docs-sync-check | archived 2026-04-05 |
+| ✅ docs-new-user-onboarding | archived 2026-04-05 |
+| ✅ readme-star-conversion-01 | archived 2026-04-05 |
 
 ### Pending
 
@@ -120,14 +125,14 @@ The 2026-03-22 clean-code plan adds one new cross-repo change pair and re-sequen
 | docs | 02 | ✅ doc-frontmatter-schema (archived 2026-03-29) | [#461](https://github.com/nold-ai/specfact-cli/issues/461) | Parent Feature: [#356](https://github.com/nold-ai/specfact-cli/issues/356) |
 | docs | 03 | ✅ docs-03-command-syntax-parity (archived 2026-03-18) | pending | docs-01 ✅; docs-02 ✅ |
 | docs | 04 | docs-04-docs-review-gate-and-link-integrity | pending | docs-03 ✅ |
-| docs | 05 | ci-docs-sync-check | pending | docs-02 (doc-frontmatter-schema) [#461](https://github.com/nold-ai/specfact-cli/issues/461) |
+| docs | 05 | ✅ ci-docs-sync-check (archived 2026-04-05) | pending | docs-02 (doc-frontmatter-schema) [#461](https://github.com/nold-ai/specfact-cli/issues/461) |
 | docs | 06 | docs-05-core-site-ia-restructure | [#438](https://github.com/nold-ai/specfact-cli/issues/438) | docs-04; Parent Feature: [#356](https://github.com/nold-ai/specfact-cli/issues/356) |
 | docs | 07 | docs-07-core-handoff-conversion | [#439](https://github.com/nold-ai/specfact-cli/issues/439) | docs-05-core-site-ia-restructure; modules-repo/docs-06-modules-site-ia-restructure |
 | docs | 08 | docs-12-docs-validation-ci | [#440](https://github.com/nold-ai/specfact-cli/issues/440) | docs-05-core-site-ia-restructure; docs-07-core-handoff-conversion; modules-repo/docs-06 through docs-10 |
 | docs | 09 | docs-13-core-nav-search-theme-roles | [#458](https://github.com/nold-ai/specfact-cli/issues/458) | docs-05-core-site-ia-restructure; docs-07-core-handoff-conversion; docs-12-docs-validation-ci; modules-repo/docs-13-nav-search-theme-roles (design parity only, no content ownership coupling) |
 | docs | 10 | docs-14-first-contact-story-and-onboarding (in progress) | [#466](https://github.com/nold-ai/specfact-cli/issues/466) | docs-05-core-site-ia-restructure ✅; docs-07-core-handoff-conversion ✅; docs-12-docs-validation-ci ✅; docs-13-core-nav-search-theme-roles ✅; Parent Feature: [#356](https://github.com/nold-ai/specfact-cli/issues/356) |
-| docs | 11 | docs-new-user-onboarding | [#476](https://github.com/nold-ai/specfact-cli/issues/476) | Parent Feature: [#356](https://github.com/nold-ai/specfact-cli/issues/356); related [#466](https://github.com/nold-ai/specfact-cli/issues/466); vibe-coder uvx hero + CLI wow-path fixes |
-| docs | 12 | readme-star-conversion-01 | pending | blocked by `docs-new-user-onboarding` [#476](https://github.com/nold-ai/specfact-cli/issues/476); README-first proof and adoption restructuring |
+| docs | 11 | ✅ docs-new-user-onboarding (archived 2026-04-05) | [#476](https://github.com/nold-ai/specfact-cli/issues/476) | Parent Feature: [#356](https://github.com/nold-ai/specfact-cli/issues/356); related [#466](https://github.com/nold-ai/specfact-cli/issues/466); vibe-coder uvx hero + CLI wow-path fixes |
+| docs | 12 | ✅ readme-star-conversion-01 (archived 2026-04-05) | pending | blocked by `docs-new-user-onboarding` [#476](https://github.com/nold-ai/specfact-cli/issues/476); README-first proof and adoption restructuring |
 
 ### Docs refactoring plan addendum (2026-03-23)
 
@@ -154,12 +159,12 @@ Cross-repo dependency: `docs-07-core-handoff-conversion` depends on `specfact-cl
 | module-migration | 01 | module-migration-01-categorize-and-group | [#315](https://github.com/nold-ai/specfact-cli/issues/315) | #215 ✅ (marketplace-02) |
 | module-migration | 02 | module-migration-02-bundle-extraction | [#316](https://github.com/nold-ai/specfact-cli/issues/316) | module-migration-01 ✅ |
 | module-migration | 03 | module-migration-03-core-slimming | [#317](https://github.com/nold-ai/specfact-cli/issues/317) | module-migration-02; migration-05 sections 18-22 (tests, decoupling, docs, pipeline/config) must precede deletion |
-| module-migration | 04 | module-migration-04-remove-flat-shims | [#330](https://github.com/nold-ai/specfact-cli/issues/330) | module-migration-01; shim-removal scope only (no broad legacy test migration) |
+| module-migration | 04 | ✅ module-migration-04-remove-flat-shims | [#330](https://github.com/nold-ai/specfact-cli/issues/330) | archived 2026-04-05 |
 | module-migration | 06 | module-migration-06-core-decoupling-cleanup (in progress) | [#338](https://github.com/nold-ai/specfact-cli/issues/338) | module-migration-03 ✅; migration-05 ✅ bundle-parity baseline |
 | module-migration | 07 | module-migration-07-test-migration-cleanup | [#339](https://github.com/nold-ai/specfact-cli/issues/339) | migration-03 phase 20 handoff; migration-04 and migration-05 residual specfact-cli test debt |
 | module-migration | 08 | module-migration-08-release-suite-stabilization | TBD | module-migration-03/04/06/07 merged; residual release-suite regressions after migration merge |
 | module-migration | 09 | backlog-module-ownership-cleanup | TBD | module-migration-06; backlog-core-07; cli-val-07 findings |
-| module-migration | 10 | module-migration-10-bundle-command-surface-alignment | [#385](https://github.com/nold-ai/specfact-cli/issues/385) | module-migration-02 ✅; module-migration-06/07 baseline; cli-val-07 findings |
+| module-migration | 10 | ✅ module-migration-10-bundle-command-surface-alignment | [#385](https://github.com/nold-ai/specfact-cli/issues/385) | archived 2026-04-05 |
 | module-migration | 11 | module-migration-11-project-codebase-ownership-realignment | [#408](https://github.com/nold-ai/specfact-cli/issues/408) | module-migration-06 baseline; backlog-module-ownership-cleanup precedent; blocks final canonical import-path decisions in module-migration-10 |
 | init-ide | 01 | init-ide-prompt-source-selection | [#382](https://github.com/nold-ai/specfact-cli/issues/382) | backlog-module-ownership-cleanup; packaging-02-cross-platform-runtime-and-module-resources; modules-repo/packaging-01-bundle-resource-payloads (#101); module-migration-11 command-ownership alignment |
 | backlog-auth | 01 | backlog-auth-01-backlog-auth-commands | TBD | module-migration-03 (central auth interface in core; auth removed from core) |

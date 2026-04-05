@@ -6,31 +6,36 @@ TBD - created by archiving change docs-14-first-contact-story-and-onboarding. Up
 ### Requirement: Canonical first-contact product story
 
 The repository and documentation entry points SHALL present one canonical product story that answers
-the first-contact questions in a consistent order:
+the first-contact questions for both vibe coders and experienced developers. The hero statement SHALL
+use plain language that works for a developer who does not know Python packaging — not just for
+someone already familiar with contracts, modules, and runtimes.
 
-- what SpecFact is
-- why it exists
-- why a user should care
-- what value the user gets
-- how to start
+The canonical answer to "what is SpecFact?" SHALL describe what the user gets immediately
+("a score and a list of what to fix") before explaining how it is achieved internally.
 
-The canonical answer to “what is SpecFact?” SHALL define it as a validation and alignment layer for
-software delivery, not merely as a collection of commands or integrations.
+#### Scenario: Vibe coder reads the homepage hero
 
-#### Scenario: User reads the README hero
-
-- **WHEN** a first-time visitor lands on `README.md`
-- **THEN** the page SHALL answer “what is SpecFact?” in one concise identity statement
-- **AND** the answer SHALL appear before topology, module ownership, or migration detail
-- **AND** the identity statement SHALL make validation/alignment central and present “keep things in
-  sync” as the outcome rather than the only definition
+- **WHEN** a developer who primarily uses AI-assisted or no-code tools reads the homepage hero
+- **THEN** the first sentence SHALL describe an outcome they will recognise
+  (e.g. "Point it at your code. Get a score and a list of what to fix.")
+- **AND** the hero SHALL NOT open with "validation and alignment layer", "runtime contracts",
+  or any other phrase that requires prior familiarity with the product
 
 #### Scenario: User compares repo and docs entry points
 
 - **WHEN** a user reads the repo README and the core docs homepage
-- **THEN** both entry points SHALL describe the same core product identity
-- **AND** they SHALL not give conflicting first impressions about whether SpecFact is primarily a CLI,
-  a module platform, an AI tool, or a backlog tool
+- **THEN** both SHALL describe the same core product identity
+- **AND** they SHALL NOT give conflicting first impressions about whether SpecFact is primarily
+  a CLI, a module platform, an AI tool, or a backlog tool
+
+#### Scenario: Hero statement pairs identity with a concrete, time-bounded outcome
+
+- **WHEN** a first-time visitor reads the hero on the docs homepage or README
+- **THEN** the primary headline or subheadline SHALL communicate a concrete achievable outcome
+  with a time signal (e.g. "See what's wrong with your code in 10 seconds")
+- **AND** the outcome statement SHALL appear before any explanation of internal architecture,
+  module system, or platform topology
+- **AND** the hero SHALL include or link directly to the runnable 2-command uvx sequence
 
 ### Requirement: First-contact story explains the four product pressures
 
@@ -52,14 +57,25 @@ pressures it addresses.
 ### Requirement: Headline and proof-point separation
 
 First-contact surfaces SHALL keep the primary identity statement separate from supporting proof
-points such as greenfield/brownfield support, SDD/TDD/contracts, AI-copilot compatibility,
-reverse-engineering support, and module extensibility.
+points. Platform-internal vocabulary SHALL NOT appear in the hero or primary identity statement.
+The hero SHALL work for a non-Python-expert; advanced vocabulary may appear in proof-point
+sections below the hero.
 
 #### Scenario: User scans the first screen
 
 - **WHEN** a user scans the first screen of the README or docs homepage
 - **THEN** the primary message SHALL fit in a short headline/subheadline structure
-- **AND** secondary capability claims SHALL appear as proof points rather than headline overload
+- **AND** secondary capability claims (contracts, SDD/TDD, brownfield, module extensibility)
+  SHALL appear as proof points after the hero, not as headline overload
+- **AND** platform-internal architectural terms SHALL NOT appear in the above-the-fold hero
+
+#### Scenario: Experienced developer also finds their next step
+
+- **WHEN** an experienced Python developer reads the homepage after the hero section
+- **THEN** they SHALL find links to the pip installation path, profile options, and deeper
+  technical documentation without needing to search for them
+- **AND** the progressive depth SHALL be clearly layered: vibe-coder entry → developer setup →
+  advanced configuration
 
 ### Requirement: Future enterprise direction reinforces seriousness without narrowing adoption
 

@@ -113,11 +113,11 @@ user to resolve them before completing the upgrade.
 - **WHEN** user runs `specfact module upgrade A --yes`
 - **THEN** all dependency installs and upgrades SHALL proceed automatically without prompting
 
-### Requirement: Core CLI compatibility check produces a clear actionable error
+### Requirement: Core CLI compatibility check SHALL produce a clear actionable error
 
-When a module's `core_compatibility` specifier is not satisfied by the installed CLI version,
-the error message SHALL tell the user both the required range and the current CLI version, and
-SHALL suggest the corrective action.
+The CLI SHALL report a clear actionable error when a module's `core_compatibility` specifier is
+not satisfied, telling the user both the required range and the current CLI version and suggesting
+the corrective action.
 
 #### Scenario: Module requires a newer CLI version
 
