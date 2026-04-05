@@ -77,3 +77,9 @@ section, leaving the change order document out of sync with GitHub.
 
 - `openspec/changes/agile-01-feature-hierarchy/proposal.md` (this file)
 - `openspec/changes/agile-01-feature-hierarchy/tasks.md`
+
+## Source Tracking
+
+- source_id: "483"
+- source_url: https://github.com/nold-ai/specfact-cli/issues/483
+- adapter: github

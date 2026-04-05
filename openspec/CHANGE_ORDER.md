@@ -167,7 +167,13 @@ Cross-repo dependency: `docs-07-core-handoff-conversion` depends on `specfact-cl
 | module-migration | 10 | ✅ module-migration-10-bundle-command-surface-alignment | [#385](https://github.com/nold-ai/specfact-cli/issues/385) | archived 2026-04-05 |
 | module-migration | 11 | module-migration-11-project-codebase-ownership-realignment | [#408](https://github.com/nold-ai/specfact-cli/issues/408) | module-migration-06 baseline; backlog-module-ownership-cleanup precedent; blocks final canonical import-path decisions in module-migration-10 |
 | init-ide | 01 | init-ide-prompt-source-selection | [#382](https://github.com/nold-ai/specfact-cli/issues/382) | backlog-module-ownership-cleanup; packaging-02-cross-platform-runtime-and-module-resources; modules-repo/packaging-01-bundle-resource-payloads (#101); module-migration-11 command-ownership alignment |
-| backlog-auth | 01 | backlog-auth-01-backlog-auth-commands | TBD | module-migration-03 (central auth interface in core; auth removed from core) |
+| backlog-auth | 01 | ✅ backlog-auth-01-backlog-auth-commands (archived 2026-03-03) | TBD | — |
+
+### Agile project management
+
+| Module | Order | Change folder | GitHub # | Blocked by |
+|--------|-------|---------------|----------|------------|
+| agile | 01 | agile-01-feature-hierarchy | [#483](https://github.com/nold-ai/specfact-cli/issues/483) | — |
 
 ### Cross-cutting foundations (no hard dependencies — implement early)
 
