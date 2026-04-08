@@ -7,6 +7,14 @@
 
 Validation today operates only at the spec-code level (`specfact validate` checks spec deltas and contract enforcement). There is no way to validate the entire chain from business requirements through architecture to code and tests. This means a project can pass all technical validations while building entirely the wrong thing. A `--full-chain` validation mode that checks every layer transition — Req → Arch → Spec → Code → Tests — and reports gaps, orphans, and coverage metrics, unlocks the core value proposition: end-to-end traceability with actionable evidence.
 
+## Ownership Alignment (2026-04-08)
+
+- Repository assignment: `split/rescope`
+- Core-owned scope retained here: shared full-chain report contracts and governance/evidence integration boundaries.
+- Bundle-owned follow-up required: the runtime validation engine described below belongs to the canonical `code` / `specfact-codebase` bundle surface, not to `specfact-cli` core.
+- Target modules-repo follow-up issue: [#171](https://github.com/nold-ai/specfact-cli-modules/issues/171) in `nold-ai/specfact-cli-modules`
+- Implementation MUST NOT proceed from the legacy `modules/validate/...` package structure below as a core-owned change.
+
 ## Module Package Structure
 
 ```
@@ -88,6 +96,7 @@ modules/validate/
 <!-- source_repo: nold-ai/specfact-cli -->
 - **GitHub Issue**: #241
 - **Issue URL**: <https://github.com/nold-ai/specfact-cli/issues/241>
+- **Paired Modules Runtime Issue**: nold-ai/specfact-cli-modules#171
+- **Paired Modules Scope**: full-chain validation runtime engine
 - **Last Synced Status**: proposed
 - **Sanitized**: false
-<!-- content_hash: a3883e07d01faefe -->

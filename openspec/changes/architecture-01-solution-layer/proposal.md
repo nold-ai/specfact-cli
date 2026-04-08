@@ -7,6 +7,14 @@
 
 Architectural decisions live in separate ADRs or Confluence pages with zero programmatic links to requirements or code. This is the layer where the costliest misalignments occur — a wrong architectural choice invalidates entire implementation efforts regardless of code quality. No tool today systematically connects business requirements → architectural decisions → implementation. A solution architecture module that derives, stores, and validates architecture with explicit traceability to requirements closes the biggest blind spot in the end-to-end chain.
 
+## Ownership Alignment (2026-04-08)
+
+- Repository assignment: `split/rescope`
+- Core-owned scope retained here: shared architecture schema, namespace extension ownership, and cross-change contracts.
+- Bundle-owned follow-up required: the flat `specfact architecture ...` command family and `modules/architecture/...` package structure below are not canonical in the grouped command model.
+- Target modules-repo follow-up issue: [#164](https://github.com/nold-ai/specfact-cli-modules/issues/164) in `nold-ai/specfact-cli-modules`
+- Implementation MUST NOT proceed from the legacy package layout below until a bundle-owned follow-up defines the correct command surface.
+
 ## Module Package Structure
 
 ```
@@ -109,6 +117,7 @@ modules/architecture/
 <!-- source_repo: nold-ai/specfact-cli -->
 - **GitHub Issue**: #240
 - **Issue URL**: <https://github.com/nold-ai/specfact-cli/issues/240>
+- **Paired Modules Runtime Issue**: nold-ai/specfact-cli-modules#164
+- **Paired Modules Scope**: architecture runtime delivery
 - **Last Synced Status**: proposed
 - **Sanitized**: false
-<!-- content_hash: 93e6e781001044dd -->

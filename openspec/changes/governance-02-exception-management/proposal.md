@@ -7,6 +7,14 @@
 
 Enterprises always need exceptions — a legacy service can't comply with the new API versioning policy until migration completes, a regulatory deadline grants a 6-month grace period. But untracked exceptions defeat governance: they become permanent workarounds. Explicit, tracked, time-bound exceptions in config — with automatic expiry, monthly digests, and audit trail — make governance flexible without losing accountability.
 
+## Ownership Alignment (2026-04-08)
+
+- Repository assignment: `split/rescope`
+- Core-owned scope retained here: exception schema, expiry semantics, and scope-suppression rules consumed by sibling governance changes.
+- Bundle-owned follow-up required: the user-facing exception commands and policy-runtime integration below must be implemented by the canonical bundle owner rather than by `specfact-cli` core.
+- Target modules-repo follow-up issue: [#167](https://github.com/nold-ai/specfact-cli-modules/issues/167) in `nold-ai/specfact-cli-modules`
+- Implementation MUST NOT assume a core-owned exception command surface until a narrower retained-core delta is defined.
+
 ## What Changes
 
 
@@ -54,6 +62,7 @@ Enterprises always need exceptions — a legacy service can't comply with the ne
 <!-- source_repo: nold-ai/specfact-cli -->
 - **GitHub Issue**: #248
 - **Issue URL**: <https://github.com/nold-ai/specfact-cli/issues/248>
+- **Paired Modules Runtime Issue**: nold-ai/specfact-cli-modules#167
+- **Paired Modules Scope**: runtime exception management and enforcement
 - **Last Synced Status**: proposed
 - **Sanitized**: false
-<!-- content_hash: e4c65f8bbc26c65c -->

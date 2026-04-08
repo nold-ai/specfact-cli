@@ -39,13 +39,13 @@ Legend:
 5. Command registry implementation detail gap: `Resolved`
 6. Module package structure missing in docs: `Resolved`
 7. Adapter capabilities docs gap: `Resolved`
-8. Architecture derive command missing in implementation: `Open` (documented as planned)
+8. Architecture derive command missing in implementation: `Open` (proposal now split/rescoped; no flat core command is authorized)
 9. Change tracking implementation partial vs spec breadth: `Partial`
 10. Protocol FSM implementation minimal vs detailed spec: `Partial`
 11. Diagram references to non-existent components: `Resolved`
 12. Outdated performance metrics: `Resolved` (outdated hard claims removed/tempered)
 13. Missing error handling documentation: `Resolved`
-14. Missing architecture module vs architecture specs: `Open`
+14. Missing architecture module vs architecture specs: `Open` (runtime delivery must be reassigned into canonical grouped bundle ownership)
 15. Incomplete bridge adapter implementations vs references: `Partial`
 16. Protocol validation gaps: `Partial`
 17. Terminology inconsistencies: `Resolved`
@@ -54,7 +54,7 @@ Legend:
 20. No ADR records: `Resolved`
 21. Missing module development guide: `Resolved`
 22. Missing adapter development guide: `Resolved`
-23. Missing architecture commands: `Open`
+23. Missing architecture commands: `Open` (the old flat command family is no longer the target shape)
 24. Partial change tracking coverage: `Partial`
 25. Incomplete protocol support: `Partial`
 
@@ -81,6 +81,8 @@ The following remediation outputs are now present:
 These items are not documentation mismatches anymore; they are implementation/spec-delivery work:
 
 1. `specfact architecture derive|validate|trace` command family is still planned.
+   - That original flat command shape is now stale relative to the lean-core plus bundles architecture.
+   - Any future delivery must be split into core-owned contracts and grouped bundle-owned runtime commands in `specfact-cli-modules`.
 2. Protocol FSM execution/validation engine is still partial.
 3. Change tracking depth is not yet uniform across all adapters/providers.
 4. Some architecture-level capabilities remain defined in OpenSpec before runtime delivery.
@@ -89,8 +91,9 @@ These items are not documentation mismatches anymore; they are implementation/sp
 
 ### Phase A: Architecture command delivery
 
-- Implement `architecture` command group per `architecture-01-solution-layer`.
-- Add contract/integration tests and usage docs once commands are live.
+- Rescope `architecture-01-solution-layer` and related changes onto canonical grouped command owners before implementation work starts.
+- Keep shared contracts and schema work in core; deliver any runtime command surface from the appropriate bundle in `specfact-cli-modules`.
+- Add contract/integration tests and usage docs only after the post-split command home is approved.
 
 ### Phase B: Protocol runtime completion
 

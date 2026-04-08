@@ -21,8 +21,10 @@ This page tracks implemented vs planned architecture capabilities.
 
 ## Planned or Partial
 
-- `specfact architecture derive|validate|trace` command family is planned.
-  - Source: OpenSpec `architecture-01-solution-layer`.
+- Shared architecture and traceability contracts remain planned in OpenSpec.
+  - Source: `architecture-01-solution-layer`, `traceability-01-index-and-orphans`, and related follow-up changes.
+- Older flat command families such as `specfact architecture ...`, `specfact requirements ...`, and `specfact trace ...` are not canonical delivery targets.
+  - Any future runtime implementation must be rescoped into grouped bundle-owned surfaces in `specfact-cli-modules`; core retains only shared models, schemas, and integration contracts.
 - Protocol FSM runtime engine is partial (models/specs exist; full execution engine/guards are planned).
   - Source: OpenSpec `architecture-01-solution-layer` and dependent validation changes.
 - Change tracking is adapter-dependent and not uniformly complete across all backlog providers.

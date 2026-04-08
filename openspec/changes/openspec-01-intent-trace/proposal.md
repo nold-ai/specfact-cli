@@ -4,6 +4,14 @@
 
 OpenSpec proposals are plain Markdown with no structured business-intent metadata. When SpecFact imports a proposal via `specfact sync bridge --adapter openspec`, it has no machine-readable context about the business outcomes, business rules, or architectural constraints the change is supposed to satisfy — it only sees tasks and specs. This means the traceability chain starts at the spec level, missing the upstream intent layer entirely. Adding a structured `## Intent Trace` section to OpenSpec proposals (with JSON Schema validation) gives SpecFact the data it needs to construct the full outcome → rule → constraint → spec → code chain automatically on import.
 
+## Ownership Alignment (2026-04-08)
+
+- Repository assignment: `split/rescope`
+- Core-owned scope retained here: the OpenSpec proposal schema, `tasks.md` metadata fields, and validation behavior for `## Intent Trace`.
+- Bundle-owned follow-up required: the runtime import behavior referenced below (`sync bridge --import-intent`) belongs with the canonical project-bundle sync/import owner rather than `specfact-cli` core.
+- Target modules-repo follow-up issue: [#168](https://github.com/nold-ai/specfact-cli-modules/issues/168) in `nold-ai/specfact-cli-modules`
+- Implementation MUST separate schema/validation work from bundle runtime import work before coding resumes.
+
 ## What Changes
 
 - **NEW**: `## Intent Trace` section schema for OpenSpec `proposal.md` files:
@@ -43,5 +51,7 @@ OpenSpec proposals are plain Markdown with no structured business-intent metadat
 <!-- source_repo: nold-ai/specfact-cli -->
 - **GitHub Issue**: #350
 - **Issue URL**: <https://github.com/nold-ai/specfact-cli/issues/350>
-- **Repository**: nold-ai/specfact-cli
+- **Paired Modules Runtime Issue**: nold-ai/specfact-cli-modules#168
+- **Paired Modules Scope**: OpenSpec intent import runtime
 - **Last Synced Status**: proposed
+- **Sanitized**: false
