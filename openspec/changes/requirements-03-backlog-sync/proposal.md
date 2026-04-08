@@ -7,6 +7,14 @@
 
 When backlog items change, requirements aren't updated. When requirements change, backlog items aren't updated. The two drift apart silently, creating a traceability gap that grows with every sprint. Teams discover the drift only during audits or after building the wrong thing. A bidirectional sync between backlog items and `.specfact/requirements/` using the sync kernel makes requirements and backlog items a single source of truth — with drift detection as the safety net.
 
+## Ownership Alignment (2026-04-08)
+
+- Repository assignment: `split/rescope`
+- Core-owned scope retained here: shared sync contracts, adapter semantics, and spec-kit duplicate-creation safeguards.
+- Bundle-owned follow-up required: the user-facing requirements/backlog sync workflow below spans project and backlog bundle behavior and cannot remain a flat `specfact requirements ...` command family in core.
+- Target modules-repo follow-up issue: [#166](https://github.com/nold-ai/specfact-cli-modules/issues/166) in `nold-ai/specfact-cli-modules`
+- Implementation MUST NOT proceed from this proposal as a single-repo change until the bundle-owned follow-up changes are split out explicitly.
+
 ## What Changes
 
 
@@ -39,6 +47,7 @@ When backlog items change, requirements aren't updated. When requirements change
 <!-- source_repo: nold-ai/specfact-cli -->
 - **GitHub Issue**: #244
 - **Issue URL**: <https://github.com/nold-ai/specfact-cli/issues/244>
+- **Paired Modules Runtime Issue**: nold-ai/specfact-cli-modules#166
+- **Paired Modules Scope**: requirements-backlog sync runtime
 - **Last Synced Status**: proposed
 - **Sanitized**: false
-<!-- content_hash: 20fe63d460a3ab84 -->

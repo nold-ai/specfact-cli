@@ -7,6 +7,14 @@
 
 As the number of requirements, specs, and code modules grows, manually tracking traceability becomes impossible. Teams need a fast, queryable index that maps every artifact to its upstream/downstream counterparts — and actively detects orphans (artifacts with broken or missing links). This index is the backbone for the full-chain validation, coverage dashboards, and ceremony enrichment. Without it, traceability is a write-once artifact that decays the moment someone adds a new endpoint without linking it.
 
+## Ownership Alignment (2026-04-08)
+
+- Repository assignment: `split/rescope`
+- Core-owned scope retained here: shared traceability index contracts and artifact linkage semantics.
+- Bundle-owned follow-up required: the flat `specfact trace ...` command family and `modules/trace/...` package structure below are not canonical in the grouped command model.
+- Target modules-repo follow-up issue: [#170](https://github.com/nold-ai/specfact-cli-modules/issues/170) in `nold-ai/specfact-cli-modules`
+- Implementation MUST NOT proceed from the legacy package layout below until the bundle-owned query/reporting surface is defined separately.
+
 ## Module Package Structure
 
 ```
@@ -99,6 +107,7 @@ modules/trace/
 <!-- source_repo: nold-ai/specfact-cli -->
 - **GitHub Issue**: #242
 - **Issue URL**: <https://github.com/nold-ai/specfact-cli/issues/242>
+- **Paired Modules Runtime Issue**: nold-ai/specfact-cli-modules#170
+- **Paired Modules Scope**: traceability runtime queries and orphan detection
 - **Last Synced Status**: proposed
 - **Sanitized**: false
-<!-- content_hash: f7630b7b58e6898c -->

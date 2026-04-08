@@ -7,6 +7,13 @@
 
 SpecFact treats every user the same — a solo developer and an enterprise architecture board get identical defaults, enforcement levels, and module activation. This blocks adoption at both ends: solos drown in ceremony they don't need, enterprises can't enforce baselines across hundreds of repos. A profile-driven initialization that deterministically selects modules, templates, policies, and enforcement modes makes SpecFact scale from single-developer projects to regulated enterprise environments without configuration sprawl.
 
+## Ownership Alignment (2026-04-08)
+
+- Repository assignment: stays in `specfact-cli` core.
+- Canonical owner: core `init` and core config resolution, not a standalone extracted `profile` module.
+- The `modules/profile/...` package structure below is stale relative to the lean-core architecture and MUST NOT be used as an implementation target.
+- Required rescope: express this change through `specfact init --profile`, shared profile/config models, and core-owned config layering behavior.
+
 ## Module Package Structure
 
 ```

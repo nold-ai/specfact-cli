@@ -36,61 +36,60 @@ On a fresh install with no bundles installed, `specfact init` SHALL NOT complete
 
 ### Requirement: Profile presets are fully activated and install bundles from the marketplace
 
-The four profile presets SHALL resolve to the exact canonical bundle set and install each bundle via the marketplace installer. Profiles are now the primary onboarding path.
+The four profile presets SHALL resolve to the exact canonical bundle set and install each bundle
+via the marketplace installer. The `solo-developer` profile SHALL include
+`nold-ai/specfact-code-review` so that `specfact code review run` is available immediately after
+running `specfact init --profile solo-developer`.
 
-#### Scenario: solo-developer profile installs specfact-codebase
+#### Scenario: solo-developer profile installs codebase and code-review bundles
 
-- **GIVEN** a fresh specfact-cli install
+- **GIVEN** a fresh SpecFact install or an install where specfact-codebase and specfact-code-review
+  are not yet installed
 - **WHEN** the user runs `specfact init --profile solo-developer`
-- **THEN** the CLI SHALL install `specfact-codebase` from the marketplace registry (no interaction required)
-- **AND** SHALL confirm: "Installed: specfact-codebase (codebase quality bundle)"
-- **AND** SHALL exit 0
-- **AND** `specfact code --help` SHALL resolve after init completes
+- **THEN** the CLI SHALL install `nold-ai/specfact-codebase` from the marketplace registry
+- **AND** SHALL install `nold-ai/specfact-code-review` from the marketplace registry
+- **AND** SHALL confirm: "Installed: specfact-codebase, specfact-code-review"
+- **AND** after completion, `specfact code review run --path . --scope full` SHALL be available
+  and produce a scored review result
 
 #### Scenario: backlog-team profile installs three bundles in dependency order
 
-- **GIVEN** a fresh specfact-cli install
+- **GIVEN** a fresh SpecFact install
 - **WHEN** the user runs `specfact init --profile backlog-team`
 - **THEN** the CLI SHALL install: `specfact-project`, `specfact-backlog`, `specfact-codebase`
-- **AND** SHALL install `specfact-project` before `specfact-backlog` (no explicit cross-bundle dependency, but installation order matches the canonical profile definition)
-- **AND** SHALL confirm each installed bundle
-- **AND** SHALL exit 0
+- **AND** SHALL install `specfact-project` before `specfact-backlog`
 
-#### Scenario: api-first-team profile installs spec and codebase bundles (with project as transitive dep)
+#### Scenario: api-first-team profile installs spec and codebase bundles
 
-- **GIVEN** a fresh specfact-cli install
+- **GIVEN** a fresh SpecFact install
 - **WHEN** the user runs `specfact init --profile api-first-team`
 - **THEN** the CLI SHALL install: `specfact-spec`, `specfact-codebase`
-- **AND** `specfact-project` SHALL be auto-installed as a bundle-level dependency of `specfact-spec`
-- **AND** the CLI SHALL inform: "Installing specfact-project as required dependency of specfact-spec"
-- **AND** SHALL exit 0
+- **AND** `specfact-project` SHALL be auto-installed if required as a transitive dependency
 
 #### Scenario: enterprise-full-stack profile installs all five bundles
 
-- **GIVEN** a fresh specfact-cli install
+- **GIVEN** a fresh SpecFact install
 - **WHEN** the user runs `specfact init --profile enterprise-full-stack`
-- **THEN** the CLI SHALL install all five bundles: `specfact-project`, `specfact-backlog`, `specfact-codebase`, `specfact-spec`, `specfact-govern`
-- **AND** `specfact-project` SHALL be installed before `specfact-spec` and `specfact-govern` (dependency order)
-- **AND** SHALL exit 0
-- **AND** `specfact --help` SHALL show all 8 top-level commands (3 core + 5 category groups)
+- **THEN** the CLI SHALL install all five bundles:
+  `specfact-project`, `specfact-backlog`, `specfact-codebase`, `specfact-spec`, `specfact-govern`
 
-#### Scenario: Profile preset map is exhaustive and canonical
+#### Scenario: Profile canonical bundle mapping is machine-verifiable
 
 - **GIVEN** a request for any valid profile name
 - **WHEN** `specfact init --profile <name>` is executed
-- **THEN** the installed bundle set SHALL match exactly:
-  - `solo-developer` → `[specfact-codebase]`
+- **THEN** the resolved bundle set SHALL be:
+  - `solo-developer` → `[specfact-codebase, specfact-code-review]`
   - `backlog-team` → `[specfact-project, specfact-backlog, specfact-codebase]`
-  - `api-first-team` → `[specfact-spec, specfact-codebase]` (specfact-project auto-installed as dep)
+  - `api-first-team` → `[specfact-spec, specfact-codebase]`
   - `enterprise-full-stack` → `[specfact-project, specfact-backlog, specfact-codebase, specfact-spec, specfact-govern]`
 - **AND** no profile SHALL install bundles outside its canonical set
 
 #### Scenario: Invalid profile name produces actionable error
 
 - **GIVEN** the user runs `specfact init --profile unknown-profile`
-- **WHEN** `specfact init` processes the argument
-- **THEN** the CLI SHALL print an error listing valid profile names: solo-developer, backlog-team, api-first-team, enterprise-full-stack
-- **AND** SHALL exit with a non-zero exit code (1)
+- **WHEN** the CLI processes the command
+- **THEN** the CLI SHALL print an error listing valid profile names:
+  solo-developer, backlog-team, api-first-team, enterprise-full-stack
 
 ### Requirement: First-use guard prevents non-core command execution before any bundle is installed
 

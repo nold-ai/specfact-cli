@@ -62,6 +62,12 @@ Only changes that are **archived**, shown as **✓ Complete** by `openspec list`
 | ✅ code-review-09-f4-automation-upgrade | archived 2026-03-17 |
 | ✅ doc-frontmatter-schema | archived 2026-03-29 |
 | ✅ ci-02-trustworthy-green-checks | implemented 2026-03-30; archive pending |
+| ✅ module-migration-04-remove-flat-shims | archived 2026-04-05 |
+| ✅ module-migration-10-bundle-command-surface-alignment | archived 2026-04-05 |
+| ✅ ci-docs-sync-check | archived 2026-04-05 |
+| ✅ docs-new-user-onboarding | archived 2026-04-05 |
+| ✅ readme-star-conversion-01 | archived 2026-04-05 |
+| ✅ agile-01-feature-hierarchy | archived 2026-04-08 |
 
 ### Pending
 
@@ -120,14 +126,14 @@ The 2026-03-22 clean-code plan adds one new cross-repo change pair and re-sequen
 | docs | 02 | ✅ doc-frontmatter-schema (archived 2026-03-29) | [#461](https://github.com/nold-ai/specfact-cli/issues/461) | Parent Feature: [#356](https://github.com/nold-ai/specfact-cli/issues/356) |
 | docs | 03 | ✅ docs-03-command-syntax-parity (archived 2026-03-18) | pending | docs-01 ✅; docs-02 ✅ |
 | docs | 04 | docs-04-docs-review-gate-and-link-integrity | pending | docs-03 ✅ |
-| docs | 05 | ci-docs-sync-check | pending | docs-02 (doc-frontmatter-schema) [#461](https://github.com/nold-ai/specfact-cli/issues/461) |
+| docs | 05 | ✅ ci-docs-sync-check (archived 2026-04-05) | pending | docs-02 (doc-frontmatter-schema) [#461](https://github.com/nold-ai/specfact-cli/issues/461) |
 | docs | 06 | docs-05-core-site-ia-restructure | [#438](https://github.com/nold-ai/specfact-cli/issues/438) | docs-04; Parent Feature: [#356](https://github.com/nold-ai/specfact-cli/issues/356) |
 | docs | 07 | docs-07-core-handoff-conversion | [#439](https://github.com/nold-ai/specfact-cli/issues/439) | docs-05-core-site-ia-restructure; modules-repo/docs-06-modules-site-ia-restructure |
 | docs | 08 | docs-12-docs-validation-ci | [#440](https://github.com/nold-ai/specfact-cli/issues/440) | docs-05-core-site-ia-restructure; docs-07-core-handoff-conversion; modules-repo/docs-06 through docs-10 |
 | docs | 09 | docs-13-core-nav-search-theme-roles | [#458](https://github.com/nold-ai/specfact-cli/issues/458) | docs-05-core-site-ia-restructure; docs-07-core-handoff-conversion; docs-12-docs-validation-ci; modules-repo/docs-13-nav-search-theme-roles (design parity only, no content ownership coupling) |
 | docs | 10 | docs-14-first-contact-story-and-onboarding (in progress) | [#466](https://github.com/nold-ai/specfact-cli/issues/466) | docs-05-core-site-ia-restructure ✅; docs-07-core-handoff-conversion ✅; docs-12-docs-validation-ci ✅; docs-13-core-nav-search-theme-roles ✅; Parent Feature: [#356](https://github.com/nold-ai/specfact-cli/issues/356) |
-| docs | 11 | docs-new-user-onboarding | [#476](https://github.com/nold-ai/specfact-cli/issues/476) | Parent Feature: [#356](https://github.com/nold-ai/specfact-cli/issues/356); related [#466](https://github.com/nold-ai/specfact-cli/issues/466); vibe-coder uvx hero + CLI wow-path fixes |
-| docs | 12 | readme-star-conversion-01 | pending | blocked by `docs-new-user-onboarding` [#476](https://github.com/nold-ai/specfact-cli/issues/476); README-first proof and adoption restructuring |
+| docs | 11 | ✅ docs-new-user-onboarding (archived 2026-04-05) | [#476](https://github.com/nold-ai/specfact-cli/issues/476) | Parent Feature: [#356](https://github.com/nold-ai/specfact-cli/issues/356); related [#466](https://github.com/nold-ai/specfact-cli/issues/466); vibe-coder uvx hero + CLI wow-path fixes |
+| docs | 12 | ✅ readme-star-conversion-01 (archived 2026-04-05) | pending | blocked by `docs-new-user-onboarding` [#476](https://github.com/nold-ai/specfact-cli/issues/476); README-first proof and adoption restructuring |
 
 ### Docs refactoring plan addendum (2026-03-23)
 
@@ -154,15 +160,27 @@ Cross-repo dependency: `docs-07-core-handoff-conversion` depends on `specfact-cl
 | module-migration | 01 | module-migration-01-categorize-and-group | [#315](https://github.com/nold-ai/specfact-cli/issues/315) | #215 ✅ (marketplace-02) |
 | module-migration | 02 | module-migration-02-bundle-extraction | [#316](https://github.com/nold-ai/specfact-cli/issues/316) | module-migration-01 ✅ |
 | module-migration | 03 | module-migration-03-core-slimming | [#317](https://github.com/nold-ai/specfact-cli/issues/317) | module-migration-02; migration-05 sections 18-22 (tests, decoupling, docs, pipeline/config) must precede deletion |
-| module-migration | 04 | module-migration-04-remove-flat-shims | [#330](https://github.com/nold-ai/specfact-cli/issues/330) | module-migration-01; shim-removal scope only (no broad legacy test migration) |
+| module-migration | 04 | ✅ module-migration-04-remove-flat-shims | [#330](https://github.com/nold-ai/specfact-cli/issues/330) | archived 2026-04-05 |
 | module-migration | 06 | module-migration-06-core-decoupling-cleanup (in progress) | [#338](https://github.com/nold-ai/specfact-cli/issues/338) | module-migration-03 ✅; migration-05 ✅ bundle-parity baseline |
 | module-migration | 07 | module-migration-07-test-migration-cleanup | [#339](https://github.com/nold-ai/specfact-cli/issues/339) | migration-03 phase 20 handoff; migration-04 and migration-05 residual specfact-cli test debt |
 | module-migration | 08 | module-migration-08-release-suite-stabilization | TBD | module-migration-03/04/06/07 merged; residual release-suite regressions after migration merge |
 | module-migration | 09 | backlog-module-ownership-cleanup | TBD | module-migration-06; backlog-core-07; cli-val-07 findings |
-| module-migration | 10 | module-migration-10-bundle-command-surface-alignment | [#385](https://github.com/nold-ai/specfact-cli/issues/385) | module-migration-02 ✅; module-migration-06/07 baseline; cli-val-07 findings |
+| module-migration | 10 | ✅ module-migration-10-bundle-command-surface-alignment | [#385](https://github.com/nold-ai/specfact-cli/issues/385) | archived 2026-04-05 |
 | module-migration | 11 | module-migration-11-project-codebase-ownership-realignment | [#408](https://github.com/nold-ai/specfact-cli/issues/408) | module-migration-06 baseline; backlog-module-ownership-cleanup precedent; blocks final canonical import-path decisions in module-migration-10 |
 | init-ide | 01 | init-ide-prompt-source-selection | [#382](https://github.com/nold-ai/specfact-cli/issues/382) | backlog-module-ownership-cleanup; packaging-02-cross-platform-runtime-and-module-resources; modules-repo/packaging-01-bundle-resource-payloads (#101); module-migration-11 command-ownership alignment |
-| backlog-auth | 01 | backlog-auth-01-backlog-auth-commands | TBD | module-migration-03 (central auth interface in core; auth removed from core) |
+| backlog-auth | 01 | ✅ backlog-auth-01-backlog-auth-commands (archived 2026-03-03) | TBD | — |
+
+### Agile project management
+
+| Module | Order | Change folder | GitHub # | Blocked by |
+|--------|-------|---------------|----------|------------|
+| agile | 01 | ✅ agile-01-feature-hierarchy (archived 2026-04-08) | [#483](https://github.com/nold-ai/specfact-cli/issues/483) | — |
+
+### Backlog and planning governance
+
+| Module | Order | Change folder | GitHub # | Blocked by |
+|--------|-------|---------------|----------|------------|
+| governance | 01 | cross-repo-issue-realignment | [#484](https://github.com/nold-ai/specfact-cli/issues/484) | agile-01 ✅; module-migration-11 [#408](https://github.com/nold-ai/specfact-cli/issues/408); backlog-module-ownership-cleanup |
 
 ### Cross-cutting foundations (no hard dependencies — implement early)
 
@@ -211,28 +229,25 @@ Cross-repo dependency: `docs-07-core-handoff-conversion` depends on `specfact-cl
 
 | Module | Order | Change folder | GitHub # | Blocked by |
 |--------|-------|---------------|----------|------------|
-| backlog-scrum | 02 | backlog-scrum-02-sprint-planning | [#170](https://github.com/nold-ai/specfact-cli/issues/170) | #116 (optional: #176, #182) |
-| backlog-scrum | 03 | backlog-scrum-03-story-complexity | [#171](https://github.com/nold-ai/specfact-cli/issues/171) | #116 (optional: #177) |
-| backlog-scrum | 04 | backlog-scrum-04-definition-of-done | [#169](https://github.com/nold-ai/specfact-cli/issues/169) | — (optional: #176) |
+| backlog-scrum | 02-04 | moved to `specfact-cli-modules` (`backlog-scrum-02/03/04`) | [modules#151](https://github.com/nold-ai/specfact-cli-modules/issues/151) | no active core change folders remain; see modules repo `CHANGE_ORDER.md` |
 
 ### backlog-kanban
 
 | Module | Order | Change folder | GitHub # | Blocked by |
 |--------|-------|---------------|----------|------------|
-| backlog-kanban | 01 | backlog-kanban-01-flow-metrics | [#183](https://github.com/nold-ai/specfact-cli/issues/183) | #116 (optional: #176) |
+| backlog-kanban | 01 | moved to `specfact-cli-modules` (`backlog-kanban-01-flow-metrics`) | [modules#149](https://github.com/nold-ai/specfact-cli-modules/issues/149) | no active core change folder remains; see modules repo `CHANGE_ORDER.md` |
 
 ### backlog-safe
 
 | Module | Order | Change folder | GitHub # | Blocked by |
 |--------|-------|---------------|----------|------------|
-| backlog-safe | 01 | backlog-safe-01-pi-planning | [#184](https://github.com/nold-ai/specfact-cli/issues/184) | #116 (optional: #176) |
-| backlog-safe | 02 | backlog-safe-02-risk-rollups | [#182](https://github.com/nold-ai/specfact-cli/issues/182) | #184 (optional: #116, #176, #170, #171, #183) |
+| backlog-safe | 01-02 | moved to `specfact-cli-modules` (`backlog-safe-01/02`) | [modules#146](https://github.com/nold-ai/specfact-cli-modules/issues/146) | no active core change folders remain; see modules repo `CHANGE_ORDER.md` |
 
 ### ceremony-cockpit
 
 | Module | Order | Change folder | GitHub # | Blocked by |
 |--------|-------|---------------|----------|------------|
-| ceremony-cockpit | 01 | ✅ ceremony-cockpit-01-ceremony-aliases (implemented 2026-02-18; archived) | [#185](https://github.com/nold-ai/specfact-cli/issues/185) | — (optional: #220, #170, #171, #169, #183, #184) |
+| ceremony-cockpit | 01 | ✅ ceremony-cockpit-01-ceremony-aliases (implemented 2026-02-18; archived) | [#185](https://github.com/nold-ai/specfact-cli/issues/185) | — (optional modules follow-ups: `modules#160`, `modules#153`, `modules#152`, `modules#155`, `modules#154`) |
 
 ### Profile and configuration layering (architecture integration plan, 2026-02-15)
 
@@ -247,31 +262,31 @@ Cross-repo dependency: `docs-07-core-handoff-conversion` depends on `specfact-cl
 | Module | Order | Change folder | GitHub # | Blocked by |
 |--------|-------|---------------|----------|------------|
 | requirements | 01 | requirements-01-data-model | [#238](https://github.com/nold-ai/specfact-cli/issues/238) | #213 |
-| requirements | 02 | requirements-02-module-commands | [#239](https://github.com/nold-ai/specfact-cli/issues/239) | #238 (requirements-01), #213 |
-| requirements | 03 | requirements-03-backlog-sync | [#244](https://github.com/nold-ai/specfact-cli/issues/244) | #239 (requirements-02), #243 (sync-01) |
+| requirements | 02 | requirements-02-module-commands *(core contracts only; paired runtime in modules#165)* | [#239](https://github.com/nold-ai/specfact-cli/issues/239) | #238 (requirements-01), #213; paired modules runtime [#165](https://github.com/nold-ai/specfact-cli-modules/issues/165) |
+| requirements | 03 | requirements-03-backlog-sync *(core contracts only; paired runtime in modules#166)* | [#244](https://github.com/nold-ai/specfact-cli/issues/244) | #239 (requirements-02); paired modules runtime [#166](https://github.com/nold-ai/specfact-cli-modules/issues/166) |
 
 ### Architecture and traceability chain (architecture integration plan, 2026-02-15)
 
 | Module | Order | Change folder | GitHub # | Blocked by |
 |--------|-------|---------------|----------|------------|
-| architecture | 01 | architecture-01-solution-layer | [#240](https://github.com/nold-ai/specfact-cli/issues/240) | #238 (requirements-01), #239 (requirements-02) |
-| validation | 02 | validation-02-full-chain-engine | [#241](https://github.com/nold-ai/specfact-cli/issues/241) | #239 (requirements-02), #240 (architecture-01), #176 |
-| traceability | 01 | traceability-01-index-and-orphans | [#242](https://github.com/nold-ai/specfact-cli/issues/242) | #239 (requirements-02), #240 (architecture-01) |
+| architecture | 01 | architecture-01-solution-layer *(core contracts only; paired runtime in modules#164)* | [#240](https://github.com/nold-ai/specfact-cli/issues/240) | #238 (requirements-01), #239 (requirements-02); paired modules runtime [#164](https://github.com/nold-ai/specfact-cli-modules/issues/164) |
+| validation | 02 | validation-02-full-chain-engine *(core contracts only; paired runtime in modules#171)* | [#241](https://github.com/nold-ai/specfact-cli/issues/241) | #239 (requirements-02), #240 (architecture-01), #176; paired modules runtime [#171](https://github.com/nold-ai/specfact-cli-modules/issues/171) |
+| traceability | 01 | traceability-01-index-and-orphans *(core contracts only; paired runtime in modules#170)* | [#242](https://github.com/nold-ai/specfact-cli/issues/242) | #239 (requirements-02), #240 (architecture-01); paired modules runtime [#170](https://github.com/nold-ai/specfact-cli-modules/issues/170) |
 
 ### Sync and ceremony integration (architecture integration plan, 2026-02-15)
 
 | Module | Order | Change folder | GitHub # | Blocked by |
 |--------|-------|---------------|----------|------------|
-| sync | 01 | sync-01-unified-kernel | [#243](https://github.com/nold-ai/specfact-cli/issues/243) | #177 |
-| ceremony | 02 | ceremony-02-requirements-aware-output | [#245](https://github.com/nold-ai/specfact-cli/issues/245) | #239 (requirements-02), #185 |
+| sync | 01 | moved to `specfact-cli-modules` (`sync-01-unified-kernel`) | [modules#147](https://github.com/nold-ai/specfact-cli-modules/issues/147) | no active core change folder remains; see modules repo `CHANGE_ORDER.md` |
+| ceremony | 02 | moved to `specfact-cli-modules` (`ceremony-02-requirements-aware-output`) | [modules#150](https://github.com/nold-ai/specfact-cli-modules/issues/150) | no active core change folder remains; see modules repo `CHANGE_ORDER.md` |
 
 ### Governance extensions (architecture integration plan, 2026-02-15)
 
 | Module | Order | Change folder | GitHub # | Blocked by |
 |--------|-------|---------------|----------|------------|
-| policy | 02 | policy-02-packs-and-modes | [#246](https://github.com/nold-ai/specfact-cli/issues/246) | #237 (profile-01), #176 |
-| governance | 01 | governance-01-evidence-output | [#247](https://github.com/nold-ai/specfact-cli/issues/247) | #241 (validation-02), #246 (policy-02) |
-| governance | 02 | governance-02-exception-management | [#248](https://github.com/nold-ai/specfact-cli/issues/248) | #246 (policy-02) |
+| policy | 02 | moved to `specfact-cli-modules` (`policy-02-packs-and-modes`) | [modules#148](https://github.com/nold-ai/specfact-cli-modules/issues/148) | no active core change folder remains; see modules repo `CHANGE_ORDER.md` |
+| governance | 01 | governance-01-evidence-output *(core contracts only; paired runtime in modules#169)* | [#247](https://github.com/nold-ai/specfact-cli/issues/247) | #241 (validation-02); paired modules runtime [#169](https://github.com/nold-ai/specfact-cli-modules/issues/169) |
+| governance | 02 | governance-02-exception-management *(core contracts only; paired runtime in modules#167)* | [#248](https://github.com/nold-ai/specfact-cli/issues/248) | paired modules runtime [#167](https://github.com/nold-ai/specfact-cli-modules/issues/167) |
 
 ### AI integration (architecture integration plan, 2026-02-15)
 
@@ -286,7 +301,7 @@ Cross-repo dependency: `docs-07-core-handoff-conversion` depends on `specfact-cl
 
 | Module | Order | Change folder | GitHub # | Blocked by |
 |--------|-------|---------------|----------|------------|
-| openspec | 01 | openspec-01-intent-trace | [#350](https://github.com/nold-ai/specfact-cli/issues/350) | #238 (requirements-01); #239 (requirements-02) |
+| openspec | 01 | openspec-01-intent-trace *(core contracts only; paired runtime in modules#168)* | [#350](https://github.com/nold-ai/specfact-cli/issues/350) | #238 (requirements-01); #239 (requirements-02); paired modules runtime [#168](https://github.com/nold-ai/specfact-cli-modules/issues/168) |
 
 ### Spec-Kit v0.4.x alignment (spec-kit integration review, 2026-03-27)
 
@@ -319,7 +334,7 @@ Spec-Kit has evolved to v0.4.3 with 46 extensions, pluggable presets, 7+ slash c
 
 | Module | Order | Change folder | GitHub # | Blocked by |
 |--------|-------|---------------|----------|------------|
-| integration | 01 | integration-01-cross-change-contracts | [#254](https://github.com/nold-ai/specfact-cli/issues/254) | #237 (profile-01), #239 (requirements-02), #240 (architecture-01), #241 (validation-02), #246 (policy-02) |
+| integration | 01 | integration-01-cross-change-contracts | [#254](https://github.com/nold-ai/specfact-cli/issues/254) | #237 (profile-01), #239 (requirements-02), #240 (architecture-01), #241 (validation-02), paired modules runtime [#158](https://github.com/nold-ai/specfact-cli-modules/issues/158) |
 | dogfooding | 01 | dogfooding-01-full-chain-e2e-proof | [#255](https://github.com/nold-ai/specfact-cli/issues/255) | #239 (requirements-02), #240 (architecture-01), #241 (validation-02), #242 (traceability-01), #247 (governance-01) |
 
 ### Code review module (reward/penalize plan, 2026-03-10)
@@ -362,31 +377,31 @@ Set these in GitHub so issue dependencies are explicit. Optional dependencies ar
 | [#329](https://github.com/nold-ai/specfact-cli/issues/329) | marketplace-05 registry federation | marketplace-03 (#327) |
 | [#173](https://github.com/nold-ai/specfact-cli/issues/173) | backlog-core-02 interactive create | #116 |
 | [#220](https://github.com/nold-ai/specfact-cli/issues/220) | backlog-scrum-01 standup | #116 |
-| [#170](https://github.com/nold-ai/specfact-cli/issues/170) | backlog-scrum-02 sprint planning | #116 |
-| [#171](https://github.com/nold-ai/specfact-cli/issues/171) | backlog-scrum-03 story complexity | #116 |
-| [#183](https://github.com/nold-ai/specfact-cli/issues/183) | backlog-kanban-01 flow metrics | #116 |
-| [#184](https://github.com/nold-ai/specfact-cli/issues/184) | backlog-safe-01 PI planning | #116 |
-| [#182](https://github.com/nold-ai/specfact-cli/issues/182) | backlog-safe-02 risk rollups | #184 |
+| [modules#160](https://github.com/nold-ai/specfact-cli-modules/issues/160) | backlog-scrum-02 sprint planning *(modules repo)* | #116 |
+| [modules#153](https://github.com/nold-ai/specfact-cli-modules/issues/153) | backlog-scrum-03 story complexity *(modules repo)* | #116 |
+| [modules#155](https://github.com/nold-ai/specfact-cli-modules/issues/155) | backlog-kanban-01 flow metrics *(modules repo)* | #116 |
+| [modules#154](https://github.com/nold-ai/specfact-cli-modules/issues/154) | backlog-safe-01 PI planning *(modules repo)* | #116 |
+| [modules#156](https://github.com/nold-ai/specfact-cli-modules/issues/156) | backlog-safe-02 risk rollups *(modules repo)* | modules#154 |
 | [#237](https://github.com/nold-ai/specfact-cli/issues/237) | profile-01 config layering | #193 |
 | [#249](https://github.com/nold-ai/specfact-cli/issues/249) | profile-02 central config sources | #237 |
 | [#250](https://github.com/nold-ai/specfact-cli/issues/250) | profile-03 domain overlays | #237, #249, #213 |
 | [#238](https://github.com/nold-ai/specfact-cli/issues/238) | requirements-01 data model | #213 |
 | [#239](https://github.com/nold-ai/specfact-cli/issues/239) | requirements-02 module commands | #238, #213 |
-| [#244](https://github.com/nold-ai/specfact-cli/issues/244) | requirements-03 backlog sync | #239, #243 |
+| [#244](https://github.com/nold-ai/specfact-cli/issues/244) | requirements-03 backlog sync | #239, modules#157 |
 | [#240](https://github.com/nold-ai/specfact-cli/issues/240) | architecture-01 solution layer | #238, #239 |
 | [#241](https://github.com/nold-ai/specfact-cli/issues/241) | validation-02 full-chain engine | #239, #240, #176 |
 | [#242](https://github.com/nold-ai/specfact-cli/issues/242) | traceability-01 index and orphans | #239, #240 |
-| [#243](https://github.com/nold-ai/specfact-cli/issues/243) | sync-01 unified kernel | #177 |
-| [#245](https://github.com/nold-ai/specfact-cli/issues/245) | ceremony-02 requirements-aware output | #239, #185 |
-| [#246](https://github.com/nold-ai/specfact-cli/issues/246) | policy-02 packs and modes | #237, #176 |
-| [#247](https://github.com/nold-ai/specfact-cli/issues/247) | governance-01 evidence output | #241, #246 |
-| [#248](https://github.com/nold-ai/specfact-cli/issues/248) | governance-02 exception management | #246 |
+| [modules#157](https://github.com/nold-ai/specfact-cli-modules/issues/157) | sync-01 unified kernel *(modules repo)* | #177 |
+| [modules#159](https://github.com/nold-ai/specfact-cli-modules/issues/159) | ceremony-02 requirements-aware output *(modules repo)* | #239, #185 |
+| [modules#158](https://github.com/nold-ai/specfact-cli-modules/issues/158) | policy-02 packs and modes *(modules repo)* | #237, #176 |
+| [#247](https://github.com/nold-ai/specfact-cli/issues/247) | governance-01 evidence output | #241, modules#158 |
+| [#248](https://github.com/nold-ai/specfact-cli/issues/248) | governance-02 exception management | modules#158 |
 | [#251](https://github.com/nold-ai/specfact-cli/issues/251) | ai-integration-01 agent skill | #241 |
 | [#252](https://github.com/nold-ai/specfact-cli/issues/252) | ai-integration-02 mcp server | #241 |
 | [#253](https://github.com/nold-ai/specfact-cli/issues/253) | ai-integration-03 instruction files | #251 |
 | [#349](https://github.com/nold-ai/specfact-cli/issues/349) | ai-integration-04 intent skills | #251, #239 |
 | [#350](https://github.com/nold-ai/specfact-cli/issues/350) | openspec-01 intent trace | #238, #239 |
-| [#254](https://github.com/nold-ai/specfact-cli/issues/254) | integration-01 cross-change contracts | #237, #239, #240, #241, #246 |
+| [#254](https://github.com/nold-ai/specfact-cli/issues/254) | integration-01 cross-change contracts | #237, #239, #240, #241, modules#158 |
 | [#255](https://github.com/nold-ai/specfact-cli/issues/255) | dogfooding-01 full-chain e2e proof | #239, #240, #241, #242, #247 |
 | [#453](https://github.com/nold-ai/specfact-cli/issues/453) | speckit-02 v0.4.x adapter alignment | — |
 | [modules#116](https://github.com/nold-ai/specfact-cli-modules/issues/116) | speckit-03 change proposal bridge *(modules repo)* | speckit-02 (#453) |
@@ -474,13 +489,13 @@ Dependencies flow left-to-right; a wave may start once all its hard blockers are
   - ✅ backlog-core-03
   - ✅ backlog-core-04, ✅ backlog-core-05, ✅ backlog-core-06
   - backlog-core-07 (#337) (needs backlog-core-06 #310)
-  - backlog-scrum-02 (#170), backlog-scrum-03 (#171), backlog-scrum-04 (#169) (need backlog-core-01 #116)
-  - backlog-kanban-01 (#183), backlog-safe-01 (#184) (need backlog-core-01 #116)
+  - modules backlog follow-ups `#160`, `#153`, `#152` (need backlog-core-01 #116)
+  - modules backlog follow-ups `#155`, `#154` (need backlog-core-01 #116)
 
 - **Wave 3 — Higher-order backlog + marketplace + module migration** (needs Wave 2):
   - ✅ marketplace-02 (#215) (needs marketplace-01 #214)
   - ✅ backlog-scrum-01 (needs backlog-core-01 #116; benefits from policy-engine-01 #176 + patch-mode-01 #177)
-  - backlog-safe-02 (#182) (needs backlog-safe-01 #184; integrates with scrum/kanban via bridge registry)
+  - modules backlog-safe-02 (`#156`) (needs modules backlog-safe-01 `#154`; integrates with scrum/kanban via bridge registry)
   - ✅ module-migration-01-categorize-and-group (#315) (marketplace-02 #215 dependency resolved; adds category metadata + group commands)
   - module-migration-04-remove-flat-shims (#330) (0.40.x; needs module-migration-01 #315; removes flat shims, category-only CLI; see overlap note with migration-03 in tasks.md 17.9.1)
   - ✅ module-migration-02-bundle-extraction (#316) (needs module-migration-01 #315; moves module source to bundle packages, publishes to marketplace registry)
@@ -506,14 +521,14 @@ Dependencies flow left-to-right; a wave may start once all its hard blockers are
   - architecture-01 (#240) (after requirements-01 #238 + requirements-02 #239)
   - validation-02 (#241) (after architecture-01 #240 + requirements-02 #239 + policy-engine-01 #176)
   - traceability-01 (#242) (after architecture-01 #240 + requirements-02 #239)
-  - sync-01 (#243) (after patch-mode-01 #177)
-  - requirements-03 (#244) (after requirements-02 #239 + sync-01 #243)
+  - modules sync-01 (`#157`) (after patch-mode-01 #177)
+  - requirements-03 (#244) (after requirements-02 #239 + modules sync-01 `#157`)
 
 - **Wave 7 — Governance and ceremony business context**:
-  - policy-02 (#246) (after profile-01 #237 + policy-engine-01 #176)
-  - governance-01 (#247) (after validation-02 #241 + policy-02 #246)
-  - governance-02 (#248) (after policy-02 #246)
-  - ceremony-02 (#245) (after requirements-02 #239 + ceremony-cockpit-01 #185)
+  - modules policy-02 (`#158`) (after profile-01 #237 + policy-engine-01 #176)
+  - governance-01 (#247) (after validation-02 #241 + modules policy-02 `#158`)
+  - governance-02 (#248) (after modules policy-02 `#158`)
+  - modules ceremony-02 (`#159`) (after requirements-02 #239 + ceremony-cockpit-01 #185)
 
 - **Wave 8 — Enterprise profile maturity and AI interfaces**:
   - profile-02 (#249) (after profile-01 #237)
@@ -527,7 +542,7 @@ Dependencies flow left-to-right; a wave may start once all its hard blockers are
   - openspec-01 (#350) (after requirements-01 #238 + requirements-02 #239; aligns with Wave 5/6)
 
 - **Wave 9 — Integration contract and product proof**:
-  - integration-01 (#254) (after profile-01 #237 + requirements-02 #239 + architecture-01 #240 + validation-02 #241 + policy-02 #246)
+  - integration-01 (#254) (after profile-01 #237 + requirements-02 #239 + architecture-01 #240 + validation-02 #241 + modules policy-02 `#158`)
   - dogfooding-01 (#255) (after requirements-02 #239 + architecture-01 #240 + validation-02 #241 + traceability-01 #242 + governance-01 #247)
 
 - **Wave 9 additions — Code review reward/penalize module (reward/penalize plan, 2026-03-10)**:

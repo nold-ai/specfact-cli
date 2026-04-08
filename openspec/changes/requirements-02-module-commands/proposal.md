@@ -7,6 +7,14 @@
 
 Even with a formal data model (requirements-01), there are no CLI commands for working with business requirements. Teams need to extract structured requirements from existing backlog items (reverse-engineer from AC text), author new requirements with profile-aware templates, and validate requirements completeness — all from the terminal. This module is the primary user-facing entry point for the upstream traceability chain.
 
+## Ownership Alignment (2026-04-08)
+
+- Repository assignment: `split/rescope`
+- Core-owned scope retained here: shared requirements contracts, schemas, and adapter/interface deltas needed by downstream owners.
+- Bundle-owned follow-up required: the user-facing command surface proposed below cannot remain a flat `specfact requirements ...` family and cannot be implemented in `specfact-cli` core as described.
+- Target modules-repo follow-up issue: [#165](https://github.com/nold-ai/specfact-cli-modules/issues/165) in `nold-ai/specfact-cli-modules`
+- Implementation MUST NOT proceed from the legacy `modules/requirements/...` package structure below until a paired bundle-owned follow-up change defines the canonical grouped command home.
+
 ## Module Package Structure
 
 ```
@@ -105,6 +113,7 @@ modules/requirements/
 <!-- source_repo: nold-ai/specfact-cli -->
 - **GitHub Issue**: #239
 - **Issue URL**: <https://github.com/nold-ai/specfact-cli/issues/239>
+- **Paired Modules Runtime Issue**: nold-ai/specfact-cli-modules#165
+- **Paired Modules Scope**: requirements runtime commands
 - **Last Synced Status**: proposed
 - **Sanitized**: false
-<!-- content_hash: df358ef4f6a1d3d5 -->

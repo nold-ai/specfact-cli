@@ -7,6 +7,14 @@
 
 Enterprise environments require machine-readable evidence that policies were enforced, traceability exists, and exceptions are tracked. Current validation output is human-readable (Markdown/terminal) but not suitable for CI gates, audit systems, or compliance dashboards. A standardized evidence JSON output format — covering policy results, traceability coverage, exception status, and timestamps — makes SpecFact validation results consumable by any CI/CD pipeline, audit tool, or governance platform.
 
+## Ownership Alignment (2026-04-08)
+
+- Repository assignment: `split/rescope`
+- Core-owned scope retained here: the evidence envelope schema, field semantics, and CI contract.
+- Bundle-owned follow-up required: the runtime emitter flags and validation command behavior referenced below must be implemented by the canonical bundle owner rather than by `specfact-cli` core.
+- Target modules-repo follow-up issue: [#169](https://github.com/nold-ai/specfact-cli-modules/issues/169) in `nold-ai/specfact-cli-modules`
+- Downstream changes may extend the envelope, but they MUST NOT redefine the schema or imply core ownership of bundle runtime behavior.
+
 ## What Changes
 
 
@@ -71,6 +79,7 @@ Enterprise environments require machine-readable evidence that policies were enf
 <!-- source_repo: nold-ai/specfact-cli -->
 - **GitHub Issue**: #247
 - **Issue URL**: <https://github.com/nold-ai/specfact-cli/issues/247>
+- **Paired Modules Runtime Issue**: nold-ai/specfact-cli-modules#169
+- **Paired Modules Scope**: governance evidence emitters
 - **Last Synced Status**: proposed
 - **Sanitized**: false
-<!-- content_hash: 9649f1326a1cc34c -->
