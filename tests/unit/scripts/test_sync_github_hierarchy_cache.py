@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import importlib.util
+import subprocess
 import sys
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, TypedDict
+
+import pytest
 
 
 class IssueOptions(TypedDict, total=False):
@@ -21,7 +24,7 @@ class IssueOptions(TypedDict, total=False):
 
 @lru_cache(maxsize=1)
 def _load_script_module() -> Any:
-    """Load scripts/sync_github_hierarchy_cache.py as a Python module."""
+    """Load scripts/sync_github_hierarchy_cache.py as a Python module (cached for stable types)."""
     script_path = Path(__file__).resolve().parents[3] / "scripts" / "sync_github_hierarchy_cache.py"
     spec = importlib.util.spec_from_file_location("sync_github_hierarchy_cache", script_path)
     if spec is None or spec.loader is None:
@@ -115,6 +118,44 @@ def test_extract_summary_skips_heading_only_lines() -> None:
     assert summary == "This cache avoids repeated GitHub lookups."
 
 
+@pytest.mark.parametrize(
+    ("url", "expected"),
+    [
+        ("https://github.com/nold-ai/specfact-cli.git", "specfact-cli"),
+        ("git@github.com:nold-ai/specfact-cli.git", "specfact-cli"),
+        ("https://github.com/org/my-repo/", "my-repo"),
+    ],
+)
+def test_parse_repo_name_from_remote_url(url: str, expected: str) -> None:
+    """Remote URL tail parsing should yield the GitHub repository name."""
+    module = _load_script_module()
+    assert module.parse_repo_name_from_remote_url(url) == expected
+
+
+def test_parse_repo_name_from_remote_url_empty_returns_none() -> None:
+    """Blank remote URLs should not produce a repository name."""
+    module = _load_script_module()
+    assert module.parse_repo_name_from_remote_url("") is None
+    assert module.parse_repo_name_from_remote_url("   ") is None
+
+
+def test_default_repo_name_matches_git_origin_url() -> None:
+    """When ``remote.origin.url`` exists, DEFAULT_REPO_NAME must match its repository segment (worktrees)."""
+    module = _load_script_module()
+    scripts_dir = Path(__file__).resolve().parents[3] / "scripts"
+    completed = subprocess.run(
+        ["git", "-C", str(scripts_dir), "config", "--get", "remote.origin.url"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if completed.returncode != 0 or not completed.stdout.strip():
+        pytest.skip("No git origin in this environment")
+    expected = module.parse_repo_name_from_remote_url(completed.stdout)
+    assert expected is not None
+    assert expected == module.DEFAULT_REPO_NAME
+
+
 def test_default_paths_use_ephemeral_specfact_backlog_cache() -> None:
     """Default cache files should live in ignored .specfact/backlog storage."""
     module = _load_script_module()
@@ -169,7 +210,7 @@ def test_render_cache_markdown_groups_epics_and_features() -> None:
     assert "- Labels: Feature, openspec" in rendered
 
 
-def test_sync_cache_skips_write_when_fingerprint_is_unchanged(monkeypatch: Any, tmp_path: Path) -> None:
+def test_sync_cache_skips_write_when_fingerprint_is_unchanged(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """sync_cache should not rewrite output when the fingerprint matches state."""
     module = _load_script_module()
 
@@ -194,7 +235,7 @@ def test_sync_cache_skips_write_when_fingerprint_is_unchanged(monkeypatch: Any, 
     def _fake_fetch(*, repo_owner: str, repo_name: str, fingerprint_only: bool) -> list[Any]:
         assert repo_owner == "nold-ai"
         assert repo_name == "specfact-cli"
-        assert fingerprint_only is True
+        assert fingerprint_only is False
         return issues
 
     def _same_fingerprint(_: list[Any]) -> str:
@@ -213,3 +254,111 @@ def test_sync_cache_skips_write_when_fingerprint_is_unchanged(monkeypatch: Any, 
     assert result.changed is False
     assert result.issue_count == 1
     assert output_path.read_text(encoding="utf-8") == "unchanged cache\n"
+
+
+def test_sync_cache_force_rewrites_when_fingerprint_unchanged(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """sync_cache with force=True must rewrite output even when fingerprint matches state."""
+    module = _load_script_module()
+
+    output_path = tmp_path / "GITHUB_HIERARCHY_CACHE.md"
+    state_path = tmp_path / ".github_hierarchy_cache_state.json"
+    output_path.write_text("stale cache\n", encoding="utf-8")
+    state_path.write_text('{"fingerprint":"same"}', encoding="utf-8")
+
+    issues = [
+        _make_issue(
+            module,
+            number=485,
+            title="[Epic] Governance",
+            issue_type="Epic",
+            options={
+                "labels": ["Epic"],
+                "summary": "Governance epic.",
+            },
+        )
+    ]
+
+    def _fake_fetch(*, repo_owner: str, repo_name: str, fingerprint_only: bool) -> list[Any]:
+        assert repo_owner == "nold-ai"
+        assert repo_name == "specfact-cli"
+        assert fingerprint_only is False
+        return issues
+
+    monkeypatch.setattr(module, "fetch_hierarchy_issues", _fake_fetch)
+    monkeypatch.setattr(module, "compute_hierarchy_fingerprint", lambda _: "same")
+
+    result = module.sync_cache(
+        repo_owner="nold-ai",
+        repo_name="specfact-cli",
+        output_path=output_path,
+        state_path=state_path,
+        force=True,
+    )
+
+    assert result.changed is True
+    assert "# GitHub Hierarchy Cache" in output_path.read_text(encoding="utf-8")
+
+
+def test_sync_cache_propagates_graphql_failure(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """RuntimeError from GitHub GraphQL should surface to callers."""
+    module = _load_script_module()
+
+    def _boom(_query: str, *, repo_owner: str, repo_name: str, **_kwargs: Any) -> Any:
+        assert repo_owner == "nold-ai"
+        assert repo_name == "specfact-cli"
+        raise RuntimeError("graphql failed")
+
+    monkeypatch.setattr(module, "_run_graphql_query", _boom)
+
+    with pytest.raises(RuntimeError, match="graphql failed"):
+        module.sync_cache(
+            repo_owner="nold-ai",
+            repo_name="specfact-cli",
+            output_path=tmp_path / "out.md",
+            state_path=tmp_path / "state.json",
+        )
+
+
+def test_sync_cache_malformed_state_regenerates_cache(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Invalid state JSON is treated as missing state and triggers a full sync."""
+    module = _load_script_module()
+
+    output_path = tmp_path / "GITHUB_HIERARCHY_CACHE.md"
+    state_path = tmp_path / ".github_hierarchy_cache_state.json"
+    state_path.write_text("{not-json", encoding="utf-8")
+
+    issues = [
+        _make_issue(
+            module,
+            number=485,
+            title="[Epic] Governance",
+            issue_type="Epic",
+            options={
+                "labels": ["Epic"],
+                "summary": "Governance epic.",
+            },
+        )
+    ]
+
+    fetch_calls = 0
+
+    def _fake_fetch(*, repo_owner: str, repo_name: str, fingerprint_only: bool) -> list[Any]:
+        nonlocal fetch_calls
+        fetch_calls += 1
+        assert repo_owner == "nold-ai"
+        assert repo_name == "specfact-cli"
+        assert fingerprint_only is False
+        return issues
+
+    monkeypatch.setattr(module, "fetch_hierarchy_issues", _fake_fetch)
+
+    result = module.sync_cache(
+        repo_owner="nold-ai",
+        repo_name="specfact-cli",
+        output_path=output_path,
+        state_path=state_path,
+    )
+
+    assert fetch_calls == 1
+    assert result.changed is True
+    assert "# GitHub Hierarchy Cache" in output_path.read_text(encoding="utf-8")
