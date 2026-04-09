@@ -88,9 +88,12 @@ rules:
       - **Repository**: <owner>/<name>, - **Last Synced Status**: <status>).
       - After creation, update proposal.md Source Tracking section with issue number, URL, repository,
         and status.
-      - Resolve Parent Feature or Epic from `.specfact/backlog/github_hierarchy_cache.md` first; this
-        cache is ephemeral local state and MUST NOT be committed. If it is missing or stale, rerun
-        `python scripts/sync_github_hierarchy_cache.py` before manual GitHub lookup.
+      - >-
+        Resolve Parent Feature or Epic from `.specfact/backlog/github_hierarchy_cache.md` first (regenerate
+        via `python scripts/sync_github_hierarchy_cache.py` when missing or stale). The cache is ephemeral
+        local state and MUST NOT be committed. **Pending:** until backlog commands read this cache
+        automatically, treat this as contributor/agent workflow (docs + local script), not enforced CLI
+        behavior for every `specfact backlog` path.
     - Source tracking: Only track public repos (specfact-cli, platform-frontend). Skip for internal repos (specfact-cli-internal)
 
   specs:
@@ -160,9 +163,11 @@ rules:
         - Place this task after quality gates and documentation, before PR creation.
     - Include git workflow tasks: branch creation (first task), PR creation (last task)
     - For public-facing changes in public repos (specfact-cli, platform-frontend):
-        - Before GitHub issue creation or parent linking, consult `.specfact/backlog/github_hierarchy_cache.md`;
-          rerun `python scripts/sync_github_hierarchy_cache.py` when the cache is missing or stale.
-          Treat this cache as ephemeral local state, not a committed OpenSpec artifact.
+        - >-
+          Before GitHub issue creation or parent linking, consult `.specfact/backlog/github_hierarchy_cache.md`;
+          rerun `python scripts/sync_github_hierarchy_cache.py` when the cache is missing or stale. Treat this
+          cache as ephemeral local state, not a committed OpenSpec artifact. **Pending:** wire cache-first
+          lookup into backlog add/sync codepaths when the governance hierarchy-cache work lands end-to-end.
         - Include GitHub issue creation task with format:
             - title `[Change] <Brief Description>`
             - labels `enhancement` and `change-proposal`

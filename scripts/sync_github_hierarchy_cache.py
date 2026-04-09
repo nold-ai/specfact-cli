@@ -19,52 +19,88 @@ from icontract import ensure, require
 
 
 DEFAULT_REPO_OWNER = "nold-ai"
-DEFAULT_REPO_NAME = Path(__file__).resolve().parents[1].name
+_SCRIPT_DIR = Path(__file__).resolve().parent
+
+
+@beartype
+@ensure(
+    lambda result: result is None or bool(str(result).strip()),
+    "parsed repository name must be non-blank when present",
+)
+def parse_repo_name_from_remote_url(url: str) -> str | None:
+    """Return the repository name segment from a Git remote URL, if parseable."""
+    stripped = url.strip()
+    if not stripped:
+        return None
+    if stripped.startswith("git@"):
+        _, _, rest = stripped.partition(":")
+        path = rest
+    elif "://" in stripped:
+        host_and_path = stripped.split("://", 1)[1]
+        if "/" not in host_and_path:
+            return None
+        path = host_and_path.split("/", 1)[1]
+    else:
+        path = stripped
+    path = path.rstrip("/")
+    if path.endswith(".git"):
+        path = path[:-4]
+    segments = [segment for segment in path.split("/") if segment]
+    if not segments:
+        return None
+    return segments[-1]
+
+
+@beartype
+def _default_repo_name_from_git(script_dir: Path) -> str | None:
+    """Resolve the GitHub repository name from ``origin`` (works in worktrees)."""
+    try:
+        completed = subprocess.run(
+            ["git", "-C", str(script_dir), "config", "--get", "remote.origin.url"],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+    except (FileNotFoundError, OSError):
+        return None
+    if completed.returncode != 0:
+        return None
+    return parse_repo_name_from_remote_url(completed.stdout)
+
+
+_DEFAULT_REPO_NAME_FALLBACK = Path(__file__).resolve().parents[1].name
+DEFAULT_REPO_NAME = _default_repo_name_from_git(_SCRIPT_DIR) or _DEFAULT_REPO_NAME_FALLBACK
 DEFAULT_OUTPUT_PATH = Path(".specfact") / "backlog" / "github_hierarchy_cache.md"
 DEFAULT_STATE_PATH = Path(".specfact") / "backlog" / "github_hierarchy_cache_state.json"
 SUPPORTED_ISSUE_TYPES = frozenset({"Epic", "Feature"})
+SUPPORTED_ISSUE_TYPES_ORDER: tuple[str, ...] = ("Epic", "Feature")
 _SUMMARY_SKIP_LINES = {"why", "scope", "summary", "changes", "capabilities", "impact"}
+_GH_GRAPHQL_TIMEOUT_SEC = 120
 
-_FINGERPRINT_QUERY = """
-query($owner: String!, $name: String!, $after: String) {
-  repository(owner: $owner, name: $name) {
-    issues(first: 100, after: $after, states: [OPEN, CLOSED], orderBy: {field: CREATED_AT, direction: ASC}) {
-      pageInfo { hasNextPage endCursor }
-      nodes {
+
+@beartype
+def _build_hierarchy_issues_query(*, include_body: bool) -> str:
+    """Return the shared GitHub GraphQL query, optionally including issue body text."""
+    body_field = "        bodyText\n" if include_body else ""
+    return f"""
+query($owner: String!, $name: String!, $after: String) {{
+  repository(owner: $owner, name: $name) {{
+    issues(first: 100, after: $after, states: [OPEN, CLOSED], orderBy: {{field: CREATED_AT, direction: ASC}}) {{
+      pageInfo {{ hasNextPage endCursor }}
+      nodes {{
         number
         title
         url
         updatedAt
-        issueType { name }
-        labels(first: 100) { nodes { name } }
-        parent { number title url }
-        subIssues(first: 100) { nodes { number title url } }
-      }
-    }
-  }
-}
-"""
-
-_DETAIL_QUERY = """
-query($owner: String!, $name: String!, $after: String) {
-  repository(owner: $owner, name: $name) {
-    issues(first: 100, after: $after, states: [OPEN, CLOSED], orderBy: {field: CREATED_AT, direction: ASC}) {
-      pageInfo { hasNextPage endCursor }
-      nodes {
-        number
-        title
-        url
-        updatedAt
-        bodyText
-        issueType { name }
-        labels(first: 100) { nodes { name } }
-        parent { number title url }
-        subIssues(first: 100) { nodes { number title url } }
-      }
-    }
-  }
-}
-"""
+{body_field}        issueType {{ name }}
+        labels(first: 100) {{ nodes {{ name }} }}
+        parent {{ number title url }}
+        subIssues(first: 100) {{ nodes {{ number title url issueType {{ name }} }} }}
+      }}
+    }}
+  }}
+}}
+""".strip()
 
 
 @dataclass(frozen=True)
@@ -131,28 +167,64 @@ def _parse_issue_link(node: Mapping[str, Any] | None) -> IssueLink | None:
 
 
 @beartype
-def _parse_issue_node(node: Mapping[str, Any], *, include_body: bool) -> HierarchyIssue | None:
-    """Convert a GraphQL issue node to HierarchyIssue when supported."""
-    issue_type_node = node.get("issueType")
-    issue_type_name = issue_type_node.get("name") if isinstance(issue_type_node, Mapping) else None
-    if issue_type_name not in SUPPORTED_ISSUE_TYPES:
-        return None
+def _mapping_value(node: Mapping[str, Any], key: str) -> Mapping[str, Any] | None:
+    """Return a nested mapping value when present."""
+    value = node.get(key)
+    return value if isinstance(value, Mapping) else None
 
-    labels_container = node.get("labels") if isinstance(node.get("labels"), Mapping) else {}
-    label_nodes = labels_container.get("nodes") if isinstance(labels_container, Mapping) else []
-    labels = sorted(
-        (str(item["name"]) for item in label_nodes if isinstance(item, Mapping) and item.get("name")),
-        key=str.lower,
-    )
 
-    subissues_container = node.get("subIssues") if isinstance(node.get("subIssues"), Mapping) else {}
-    subissue_nodes = subissues_container.get("nodes") if isinstance(subissues_container, Mapping) else []
+@beartype
+def _mapping_nodes(container: Mapping[str, Any] | None) -> list[Mapping[str, Any]]:
+    """Return a filtered list of mapping nodes from a GraphQL connection."""
+    if container is None:
+        return []
+
+    raw_nodes = container.get("nodes")
+    if not isinstance(raw_nodes, list):
+        return []
+
+    return [item for item in raw_nodes if isinstance(item, Mapping)]
+
+
+@beartype
+def _label_names(label_nodes: list[Mapping[str, Any]]) -> list[str]:
+    """Extract sorted label names from GraphQL label nodes."""
+    names: list[str] = []
+    for item in label_nodes:
+        name = item.get("name")
+        if name:
+            names.append(str(name))
+    return sorted(names, key=str.lower)
+
+
+@beartype
+def _subissue_type_name(item: Mapping[str, Any]) -> str | None:
+    """Return sub-issue type name when present."""
+    issue_type_node = _mapping_value(item, "issueType")
+    if issue_type_node and issue_type_node.get("name"):
+        return str(issue_type_node["name"])
+    return None
+
+
+@beartype
+def _child_links(subissue_nodes: list[Mapping[str, Any]]) -> list[IssueLink]:
+    """Extract sorted child issue links from GraphQL subissue nodes (Epic/Feature only)."""
     children = [
         IssueLink(number=int(item["number"]), title=str(item["title"]), url=str(item["url"]))
         for item in subissue_nodes
-        if isinstance(item, Mapping) and item.get("number") is not None
+        if item.get("number") is not None and _subissue_type_name(item) in SUPPORTED_ISSUE_TYPES
     ]
     children.sort(key=lambda item: item.number)
+    return children
+
+
+@beartype
+def _parse_issue_node(node: Mapping[str, Any], *, include_body: bool) -> HierarchyIssue | None:
+    """Convert a GraphQL issue node to HierarchyIssue when supported."""
+    issue_type_node = _mapping_value(node, "issueType")
+    issue_type_name = str(issue_type_node["name"]) if issue_type_node and issue_type_node.get("name") else None
+    if issue_type_name not in SUPPORTED_ISSUE_TYPES:
+        return None
 
     summary = _extract_summary(str(node.get("bodyText", ""))) if include_body else ""
     return HierarchyIssue(
@@ -160,11 +232,11 @@ def _parse_issue_node(node: Mapping[str, Any], *, include_body: bool) -> Hierarc
         title=str(node["title"]),
         url=str(node["url"]),
         issue_type=str(issue_type_name),
-        labels=labels,
+        labels=_label_names(_mapping_nodes(_mapping_value(node, "labels"))),
         summary=summary,
         updated_at=str(node["updatedAt"]),
-        parent=_parse_issue_link(node.get("parent") if isinstance(node.get("parent"), Mapping) else None),
-        children=children,
+        parent=_parse_issue_link(_mapping_value(node, "parent")),
+        children=_child_links(_mapping_nodes(_mapping_value(node, "subIssues"))),
     )
 
 
@@ -185,7 +257,22 @@ def _run_graphql_query(query: str, *, repo_owner: str, repo_name: str, after: st
     if after is not None:
         command.extend(["-F", f"after={after}"])
 
-    completed = subprocess.run(command, check=False, capture_output=True, text=True)
+    try:
+        completed = subprocess.run(
+            command,
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=_GH_GRAPHQL_TIMEOUT_SEC,
+        )
+    except subprocess.TimeoutExpired as exc:
+        detail = f"GitHub GraphQL subprocess timed out after {_GH_GRAPHQL_TIMEOUT_SEC}s"
+        out = (exc.stdout or "").strip()
+        err = (exc.stderr or "").strip()
+        if out or err:
+            detail = f"{detail}; stdout={out!r}; stderr={err!r}"
+        raise RuntimeError(detail) from exc
+
     if completed.returncode != 0:
         raise RuntimeError(completed.stderr.strip() or completed.stdout.strip() or "GitHub GraphQL query failed")
 
@@ -196,9 +283,36 @@ def _run_graphql_query(query: str, *, repo_owner: str, repo_name: str, after: st
 
 
 @beartype
+def _is_not_blank(value: str) -> bool:
+    """Return whether a required CLI string value is non-blank."""
+    return bool(value.strip())
+
+
+@beartype
+def _all_supported_issue_types(result: list[HierarchyIssue]) -> bool:
+    """Return whether every issue has a supported issue type."""
+    return all(issue.issue_type in SUPPORTED_ISSUE_TYPES for issue in result)
+
+
+@beartype
+def _require_repo_owner_for_fetch(*, repo_owner: str, repo_name: str, fingerprint_only: bool) -> bool:
+    _ = (repo_name, fingerprint_only)
+    return _is_not_blank(repo_owner)
+
+
+@beartype
+def _require_repo_name_for_fetch(*, repo_owner: str, repo_name: str, fingerprint_only: bool) -> bool:
+    _ = (repo_owner, fingerprint_only)
+    return _is_not_blank(repo_name)
+
+
+@beartype
+@require(_require_repo_owner_for_fetch, "repo_owner must not be blank")
+@require(_require_repo_name_for_fetch, "repo_name must not be blank")
+@ensure(_all_supported_issue_types, "Only Epic and Feature issues should be returned")
 def fetch_hierarchy_issues(*, repo_owner: str, repo_name: str, fingerprint_only: bool) -> list[HierarchyIssue]:
     """Fetch Epic and Feature issues from GitHub for the given repository."""
-    query = _FINGERPRINT_QUERY if fingerprint_only else _DETAIL_QUERY
+    query = _build_hierarchy_issues_query(include_body=not fingerprint_only)
     issues: list[HierarchyIssue] = []
     after: str | None = None
 
@@ -243,6 +357,79 @@ def compute_hierarchy_fingerprint(issues: list[HierarchyIssue]) -> str:
     return hashlib.sha256(canonical_json.encode("utf-8")).hexdigest()
 
 
+@beartype
+def _group_issues_by_type(issues: list[HierarchyIssue]) -> dict[str, list[HierarchyIssue]]:
+    """Return issues grouped by supported type in deterministic order."""
+    return {
+        issue_type: sorted((item for item in issues if item.issue_type == issue_type), key=lambda item: item.number)
+        for issue_type in SUPPORTED_ISSUE_TYPES_ORDER
+    }
+
+
+@beartype
+def _render_issue_block(issue: HierarchyIssue) -> list[str]:
+    """Render one issue block for the hierarchy cache."""
+    parent_text = "none"
+    if issue.parent is not None:
+        parent_text = f"#{issue.parent.number} {issue.parent.title}"
+
+    child_text = "none"
+    if issue.children:
+        child_text = ", ".join(f"#{child.number} {child.title}" for child in issue.children)
+
+    label_text = ", ".join(sorted(issue.labels, key=str.lower)) if issue.labels else "none"
+    return [
+        f"### #{issue.number} {issue.title}",
+        f"- URL: {issue.url}",
+        f"- Parent: {parent_text}",
+        f"- Children: {child_text}",
+        f"- Labels: {label_text}",
+        f"- Summary: {issue.summary or 'No summary provided.'}",
+        "",
+    ]
+
+
+@beartype
+def _render_issue_section(*, title: str, issues: list[HierarchyIssue]) -> list[str]:
+    """Render one section of grouped issues."""
+    lines = [f"## {title}", ""]
+    if not issues:
+        lines.extend(["_None_", ""])
+        return lines
+
+    for issue in issues:
+        lines.extend(_render_issue_block(issue))
+    return lines
+
+
+@beartype
+def _require_repo_full_name_for_render(
+    *, repo_full_name: str, issues: list[HierarchyIssue], generated_at: str, fingerprint: str
+) -> bool:
+    _ = (issues, generated_at, fingerprint)
+    return _is_not_blank(repo_full_name)
+
+
+@beartype
+def _require_generated_at_for_render(
+    *, repo_full_name: str, issues: list[HierarchyIssue], generated_at: str, fingerprint: str
+) -> bool:
+    _ = (repo_full_name, issues, fingerprint)
+    return _is_not_blank(generated_at)
+
+
+@beartype
+def _require_fingerprint_for_render(
+    *, repo_full_name: str, issues: list[HierarchyIssue], generated_at: str, fingerprint: str
+) -> bool:
+    _ = (repo_full_name, issues, generated_at)
+    return _is_not_blank(fingerprint)
+
+
+@beartype
+@require(_require_repo_full_name_for_render, "repo_full_name must not be blank")
+@require(_require_generated_at_for_render, "generated_at must not be blank")
+@require(_require_fingerprint_for_render, "fingerprint must not be blank")
 def render_cache_markdown(
     *,
     repo_full_name: str,
@@ -251,10 +438,7 @@ def render_cache_markdown(
     fingerprint: str,
 ) -> str:
     """Render deterministic markdown for the hierarchy cache."""
-    grouped = {
-        "Epic": sorted((item for item in issues if item.issue_type == "Epic"), key=lambda item: item.number),
-        "Feature": sorted((item for item in issues if item.issue_type == "Feature"), key=lambda item: item.number),
-    }
+    grouped = _group_issues_by_type(issues)
 
     lines = [
         "# GitHub Hierarchy Cache",
@@ -264,36 +448,15 @@ def render_cache_markdown(
         f"- Fingerprint: `{fingerprint}`",
         f"- Included Issue Types: `{', '.join(sorted(SUPPORTED_ISSUE_TYPES))}`",
         "",
-        "Use this file as the first lookup source for parent Epic or Feature relationships during OpenSpec and GitHub issue setup.",
+        (
+            "Use this file as the first lookup source for parent Epic or Feature relationships "
+            "during OpenSpec and GitHub issue setup."
+        ),
         "",
     ]
 
     for section_name, issue_type in (("Epics", "Epic"), ("Features", "Feature")):
-        lines.append(f"## {section_name}")
-        lines.append("")
-        if not grouped[issue_type]:
-            lines.append("_None_")
-            lines.append("")
-            continue
-
-        for issue in grouped[issue_type]:
-            lines.append(f"### #{issue.number} {issue.title}")
-            lines.append(f"- URL: {issue.url}")
-            parent_text = "none"
-            if issue.parent is not None:
-                parent_text = f"#{issue.parent.number} {issue.parent.title}"
-            lines.append(f"- Parent: {parent_text}")
-
-            if issue.children:
-                child_text = ", ".join(f"#{child.number} {child.title}" for child in issue.children)
-            else:
-                child_text = "none"
-            lines.append(f"- Children: {child_text}")
-
-            label_text = ", ".join(sorted(issue.labels, key=str.lower)) if issue.labels else "none"
-            lines.append(f"- Labels: {label_text}")
-            lines.append(f"- Summary: {issue.summary or 'No summary provided.'}")
-            lines.append("")
+        lines.extend(_render_issue_section(title=section_name, issues=grouped[issue_type]))
 
     return "\n".join(lines).rstrip() + "\n"
 
@@ -326,8 +489,24 @@ def _write_state(
 
 
 @beartype
-@require(lambda repo_owner: bool(repo_owner.strip()), "repo_owner must not be blank")
-@require(lambda repo_name: bool(repo_name.strip()), "repo_name must not be blank")
+def _require_repo_owner_for_sync(
+    *, repo_owner: str, repo_name: str, output_path: Path, state_path: Path, force: bool = False
+) -> bool:
+    _ = (repo_name, output_path, state_path, force)
+    return _is_not_blank(repo_owner)
+
+
+@beartype
+def _require_repo_name_for_sync(
+    *, repo_owner: str, repo_name: str, output_path: Path, state_path: Path, force: bool = False
+) -> bool:
+    _ = (repo_owner, output_path, state_path, force)
+    return _is_not_blank(repo_name)
+
+
+@beartype
+@require(_require_repo_owner_for_sync, "repo_owner must not be blank")
+@require(_require_repo_name_for_sync, "repo_name must not be blank")
 def sync_cache(
     *,
     repo_owner: str,
@@ -337,27 +516,22 @@ def sync_cache(
     force: bool = False,
 ) -> SyncResult:
     """Sync the local hierarchy cache from GitHub."""
-    fingerprint_issues = fetch_hierarchy_issues(
-        repo_owner=repo_owner,
-        repo_name=repo_name,
-        fingerprint_only=True,
-    )
-    fingerprint = compute_hierarchy_fingerprint(fingerprint_issues)
     state = _load_state(state_path)
-
-    if not force and state.get("fingerprint") == fingerprint and output_path.exists():
-        return SyncResult(
-            changed=False,
-            issue_count=len(fingerprint_issues),
-            fingerprint=fingerprint,
-            output_path=output_path,
-        )
-
     detailed_issues = fetch_hierarchy_issues(
         repo_owner=repo_owner,
         repo_name=repo_name,
         fingerprint_only=False,
     )
+    fingerprint = compute_hierarchy_fingerprint(detailed_issues)
+
+    if not force and state.get("fingerprint") == fingerprint and output_path.exists():
+        return SyncResult(
+            changed=False,
+            issue_count=len(detailed_issues),
+            fingerprint=fingerprint,
+            output_path=output_path,
+        )
+
     generated_at = datetime.now(tz=UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(
@@ -410,15 +584,9 @@ def main(argv: list[str] | None = None) -> int:
         force=bool(args.force),
     )
     if result.changed:
-        print(
-            f"Updated GitHub hierarchy cache with {result.issue_count} issues at {result.output_path}",
-            file=sys.stdout,
-        )
+        sys.stdout.write(f"Updated GitHub hierarchy cache with {result.issue_count} issues at {result.output_path}\n")
     else:
-        print(
-            f"GitHub hierarchy cache unchanged ({result.issue_count} issues).",
-            file=sys.stdout,
-        )
+        sys.stdout.write(f"GitHub hierarchy cache unchanged ({result.issue_count} issues).\n")
     return 0
 
 

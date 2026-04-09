@@ -17,4 +17,4 @@
 ## 4. Verification
 
 - [x] 4.1 Re-run the targeted tests and record the passing run in `openspec/changes/governance-02-github-hierarchy-cache/TDD_EVIDENCE.md`.
-- [ ] 4.2 Run the required repo quality gates for the touched scope, including code review JSON refresh if stale.
+- [x] 4.2 Run the required repo quality gates for the touched scope, including code review JSON refresh if stale.
