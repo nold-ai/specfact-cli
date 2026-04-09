@@ -181,6 +181,7 @@ Cross-repo dependency: `docs-07-core-handoff-conversion` depends on `specfact-cl
 | Module | Order | Change folder | GitHub # | Blocked by |
 |--------|-------|---------------|----------|------------|
 | governance | 01 | cross-repo-issue-realignment | [#484](https://github.com/nold-ai/specfact-cli/issues/484) | agile-01 ✅; module-migration-11 [#408](https://github.com/nold-ai/specfact-cli/issues/408); backlog-module-ownership-cleanup |
+| governance | 02 | governance-02-github-hierarchy-cache | [#491](https://github.com/nold-ai/specfact-cli/issues/491) | governance-01 [#484](https://github.com/nold-ai/specfact-cli/issues/484); Parent Feature: [#486](https://github.com/nold-ai/specfact-cli/issues/486) |
 
 ### Cross-cutting foundations (no hard dependencies — implement early)
 
@@ -256,6 +257,7 @@ Cross-repo dependency: `docs-07-core-handoff-conversion` depends on `specfact-cl
 | profile | 01 | profile-01-config-layering | [#237](https://github.com/nold-ai/specfact-cli/issues/237) | #193 (existing init/module-state baseline) |
 | profile | 02 | profile-02-central-config-sources | [#249](https://github.com/nold-ai/specfact-cli/issues/249) | #237 (profile-01) |
 | profile | 03 | profile-03-domain-overlays | [#250](https://github.com/nold-ai/specfact-cli/issues/250) | #237 (profile-01), #249 (profile-02), #213 |
+| profile | 04 | profile-04-safe-project-artifact-writes | [#490](https://github.com/nold-ai/specfact-cli/issues/490) | Parent Feature: [#365](https://github.com/nold-ai/specfact-cli/issues/365); related bug [#487](https://github.com/nold-ai/specfact-cli/issues/487) |
 
 ### Requirements layer (architecture integration plan, 2026-02-15)
 

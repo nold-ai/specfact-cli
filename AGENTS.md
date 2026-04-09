@@ -293,6 +293,15 @@ Agent enforcement:
 - **Change modified/renamed**: update the folder name and any affected dependency references
 - **Blocker resolved**: update the "Blocked by" column (append ✅ to resolved blockers)
 
+#### GitHub hierarchy cache
+
+`.specfact/backlog/github_hierarchy_cache.md` is the local lookup source for current Epic and Feature hierarchy metadata in this repository. It is ephemeral local state and MUST NOT be committed.
+
+- Before creating a new change issue, syncing an existing change, or resolving parent or blocker metadata, consult the cache first.
+- If the cache is missing or stale, rerun `python scripts/sync_github_hierarchy_cache.py`.
+- Recreate the cache as part of OpenSpec and GitHub issue work rather than treating it as a versioned repo artifact.
+- Use manual GitHub lookup only when the cache cannot answer the question after refresh.
+
 Use the `specfact-openspec-workflows` skill as the default execution path for OpenSpec lifecycle work.
 
 - When a Markdown plan exists and the intent is to create a change from that plan, use `.cursor/commands/wf-create-change-from-plan.md` (`/wf-change-from-plan`) to generate the proposal/tasks/spec deltas.
