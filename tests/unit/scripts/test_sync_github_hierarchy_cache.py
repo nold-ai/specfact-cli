@@ -164,6 +164,20 @@ def test_default_paths_use_ephemeral_specfact_backlog_cache() -> None:
     assert str(module.DEFAULT_STATE_PATH) == ".specfact/backlog/github_hierarchy_cache_state.json"
 
 
+def test_child_links_include_only_epic_and_feature_subissues() -> None:
+    """Sub-issue GraphQL nodes should contribute children only when type is Epic or Feature."""
+    module = _load_script_module()
+    child_links = module._child_links(  # pylint: disable=protected-access
+        [
+            {"number": 1, "title": "Task", "url": "https://example.test/1", "issueType": {"name": "Task"}},
+            {"number": 2, "title": "Feat", "url": "https://example.test/2", "issueType": {"name": "Feature"}},
+            {"number": 3, "title": "Ep", "url": "https://example.test/3", "issueType": {"name": "Epic"}},
+            {"number": 4, "title": "Untyped", "url": "https://example.test/4"},
+        ]
+    )
+    assert [link.number for link in child_links] == [2, 3]
+
+
 def test_render_cache_markdown_groups_epics_and_features() -> None:
     """Rendered markdown should be deterministic and grouped by issue type."""
     module = _load_script_module()
@@ -362,3 +376,21 @@ def test_sync_cache_malformed_state_regenerates_cache(monkeypatch: pytest.Monkey
     assert fetch_calls == 1
     assert result.changed is True
     assert "# GitHub Hierarchy Cache" in output_path.read_text(encoding="utf-8")
+
+
+def test_default_repo_name_falls_back_when_git_unavailable(monkeypatch: pytest.MonkeyPatch) -> None:
+    """If ``git`` is missing, DEFAULT_REPO_NAME must use the checkout directory fallback."""
+    _load_script_module.cache_clear()
+    sys.modules.pop("sync_github_hierarchy_cache", None)
+
+    def _no_git(*_args: Any, **_kwargs: Any) -> Any:
+        raise FileNotFoundError("git not found")
+
+    monkeypatch.setattr(subprocess, "run", _no_git)
+    module = _load_script_module()
+    script_path = Path(__file__).resolve().parents[3] / "scripts" / "sync_github_hierarchy_cache.py"
+    expected_fallback = script_path.resolve().parents[1].name
+    assert expected_fallback == module.DEFAULT_REPO_NAME
+
+    _load_script_module.cache_clear()
+    sys.modules.pop("sync_github_hierarchy_cache", None)

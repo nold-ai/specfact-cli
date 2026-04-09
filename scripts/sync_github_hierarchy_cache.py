@@ -23,6 +23,10 @@ _SCRIPT_DIR = Path(__file__).resolve().parent
 
 
 @beartype
+@ensure(
+    lambda result: result is None or bool(str(result).strip()),
+    "parsed repository name must be non-blank when present",
+)
 def parse_repo_name_from_remote_url(url: str) -> str | None:
     """Return the repository name segment from a Git remote URL, if parseable."""
     stripped = url.strip()
@@ -50,12 +54,15 @@ def parse_repo_name_from_remote_url(url: str) -> str | None:
 @beartype
 def _default_repo_name_from_git(script_dir: Path) -> str | None:
     """Resolve the GitHub repository name from ``origin`` (works in worktrees)."""
-    completed = subprocess.run(
-        ["git", "-C", str(script_dir), "config", "--get", "remote.origin.url"],
-        check=False,
-        capture_output=True,
-        text=True,
-    )
+    try:
+        completed = subprocess.run(
+            ["git", "-C", str(script_dir), "config", "--get", "remote.origin.url"],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+    except (FileNotFoundError, OSError):
+        return None
     if completed.returncode != 0:
         return None
     return parse_repo_name_from_remote_url(completed.stdout)
@@ -88,7 +95,7 @@ query($owner: String!, $name: String!, $after: String) {{
 {body_field}        issueType {{ name }}
         labels(first: 100) {{ nodes {{ name }} }}
         parent {{ number title url }}
-        subIssues(first: 100) {{ nodes {{ number title url }} }}
+        subIssues(first: 100) {{ nodes {{ number title url issueType {{ name }} }} }}
       }}
     }}
   }}
@@ -191,12 +198,21 @@ def _label_names(label_nodes: list[Mapping[str, Any]]) -> list[str]:
 
 
 @beartype
+def _subissue_type_name(item: Mapping[str, Any]) -> str | None:
+    """Return sub-issue type name when present."""
+    issue_type_node = _mapping_value(item, "issueType")
+    if issue_type_node and issue_type_node.get("name"):
+        return str(issue_type_node["name"])
+    return None
+
+
+@beartype
 def _child_links(subissue_nodes: list[Mapping[str, Any]]) -> list[IssueLink]:
-    """Extract sorted child issue links from GraphQL subissue nodes."""
+    """Extract sorted child issue links from GraphQL subissue nodes (Epic/Feature only)."""
     children = [
         IssueLink(number=int(item["number"]), title=str(item["title"]), url=str(item["url"]))
         for item in subissue_nodes
-        if item.get("number") is not None
+        if item.get("number") is not None and _subissue_type_name(item) in SUPPORTED_ISSUE_TYPES
     ]
     children.sort(key=lambda item: item.number)
     return children
@@ -280,11 +296,13 @@ def _all_supported_issue_types(result: list[HierarchyIssue]) -> bool:
 
 @beartype
 def _require_repo_owner_for_fetch(*, repo_owner: str, repo_name: str, fingerprint_only: bool) -> bool:
+    _ = (repo_name, fingerprint_only)
     return _is_not_blank(repo_owner)
 
 
 @beartype
 def _require_repo_name_for_fetch(*, repo_owner: str, repo_name: str, fingerprint_only: bool) -> bool:
+    _ = (repo_owner, fingerprint_only)
     return _is_not_blank(repo_name)
 
 
@@ -388,6 +406,7 @@ def _render_issue_section(*, title: str, issues: list[HierarchyIssue]) -> list[s
 def _require_repo_full_name_for_render(
     *, repo_full_name: str, issues: list[HierarchyIssue], generated_at: str, fingerprint: str
 ) -> bool:
+    _ = (issues, generated_at, fingerprint)
     return _is_not_blank(repo_full_name)
 
 
@@ -395,6 +414,7 @@ def _require_repo_full_name_for_render(
 def _require_generated_at_for_render(
     *, repo_full_name: str, issues: list[HierarchyIssue], generated_at: str, fingerprint: str
 ) -> bool:
+    _ = (repo_full_name, issues, fingerprint)
     return _is_not_blank(generated_at)
 
 
@@ -402,6 +422,7 @@ def _require_generated_at_for_render(
 def _require_fingerprint_for_render(
     *, repo_full_name: str, issues: list[HierarchyIssue], generated_at: str, fingerprint: str
 ) -> bool:
+    _ = (repo_full_name, issues, generated_at)
     return _is_not_blank(fingerprint)
 
 
@@ -471,6 +492,7 @@ def _write_state(
 def _require_repo_owner_for_sync(
     *, repo_owner: str, repo_name: str, output_path: Path, state_path: Path, force: bool = False
 ) -> bool:
+    _ = (repo_name, output_path, state_path, force)
     return _is_not_blank(repo_owner)
 
 
@@ -478,6 +500,7 @@ def _require_repo_owner_for_sync(
 def _require_repo_name_for_sync(
     *, repo_owner: str, repo_name: str, output_path: Path, state_path: Path, force: bool = False
 ) -> bool:
+    _ = (repo_owner, output_path, state_path, force)
     return _is_not_blank(repo_name)
 
 
