@@ -25,3 +25,9 @@
 - Affected OpenSpec/runtime guidance: `openspec/config.yaml`, `openspec/CHANGE_ORDER.md`, and related workflow guidance for agents.
 - Affected GitHub workflow guidance: cache-backed parent lookup, metadata completeness checks, and concurrency-ambiguity handling for linked change issues.
 - Affected validation scope: documentation consistency, frontmatter schema enforcement, and deterministic session-bootstrap behavior across AI models.
+
+## Tracking
+
+- GitHub Issue: [#494](https://github.com/nold-ai/specfact-cli/issues/494)
+- Parent Feature: [#486](https://github.com/nold-ai/specfact-cli/issues/486)
+- Blocked by: [#491](https://github.com/nold-ai/specfact-cli/issues/491)
