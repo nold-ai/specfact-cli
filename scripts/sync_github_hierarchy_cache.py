@@ -582,13 +582,20 @@ def main(argv: list[str] | None = None) -> int:
     """Run the hierarchy cache sync."""
     parser = _build_parser()
     args = parser.parse_args(argv)
-    result = sync_cache(
-        repo_owner=args.repo_owner,
-        repo_name=args.repo_name,
-        output_path=Path(args.output),
-        state_path=Path(args.state_file),
-        force=bool(args.force),
-    )
+    try:
+        result = sync_cache(
+            repo_owner=args.repo_owner,
+            repo_name=args.repo_name,
+            output_path=Path(args.output),
+            state_path=Path(args.state_file),
+            force=bool(args.force),
+        )
+    except RuntimeError as exc:
+        sys.stderr.write(f"GitHub hierarchy cache sync failed: {exc}\n")
+        return 1
+    except OSError as exc:
+        sys.stderr.write(f"GitHub hierarchy cache sync failed: {exc}\n")
+        return 1
     if result.changed:
         sys.stdout.write(f"Updated GitHub hierarchy cache with {result.issue_count} issues at {result.output_path}\n")
     else:

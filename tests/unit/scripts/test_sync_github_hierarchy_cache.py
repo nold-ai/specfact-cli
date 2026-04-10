@@ -5,6 +5,7 @@ from __future__ import annotations
 import importlib.util
 import subprocess
 import sys
+from collections.abc import Iterator
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, TypedDict
@@ -37,11 +38,11 @@ def _load_script_module() -> Any:
 
 
 @pytest.fixture
-def reset_sync_github_hierarchy_module() -> None:
+def reset_sync_github_hierarchy_module() -> Iterator[None]:
     """Reload ``sync_github_hierarchy_cache`` cleanly; teardown runs even if the test fails."""
     _load_script_module.cache_clear()
     sys.modules.pop("sync_github_hierarchy_cache", None)
-    yield None
+    yield
     _load_script_module.cache_clear()
     sys.modules.pop("sync_github_hierarchy_cache", None)
 
@@ -480,3 +481,28 @@ def test_default_repo_name_falls_back_when_git_unavailable(
     script_path = Path(__file__).resolve().parents[3] / "scripts" / "sync_github_hierarchy_cache.py"
     expected_fallback = script_path.resolve().parents[1].name
     assert expected_fallback == module.DEFAULT_REPO_NAME
+
+
+def test_main_reports_runtime_error_to_stderr_and_returns_one(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """main() must exit 1 and print a clear error when sync_cache raises RuntimeError."""
+    module = _load_script_module()
+
+    def _boom(**_kwargs: Any) -> Any:
+        raise RuntimeError("GitHub GraphQL query failed")
+
+    monkeypatch.setattr(module, "sync_cache", _boom)
+    code = module.main(
+        [
+            "--output",
+            str(tmp_path / "out.md"),
+            "--state-file",
+            str(tmp_path / "state.json"),
+        ]
+    )
+    assert code == 1
+    captured = capsys.readouterr()
+    assert "GitHub hierarchy cache sync failed" in captured.err
+    assert "GitHub GraphQL query failed" in captured.err
+    assert captured.out == ""
