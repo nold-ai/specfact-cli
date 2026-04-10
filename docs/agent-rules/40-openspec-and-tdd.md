@@ -53,6 +53,15 @@ Before **designing or materially scoping** a new OpenSpec change, read these wik
 
 If the sibling checkout or a given wiki file is missing, continue without it; absence of the internal repo is not a blocking error for public-repo work.
 
+### Internal wiki maintenance (sibling `specfact-cli-internal`)
+
+Automation for the internal wiki lives in the **sibling checkout** (`../specfact-cli-internal/` relative to this repo root), not in this repository. When that checkout exists and you **ship work** (for example after merges to `dev` or `main` that change OpenSpec or GitHub tracking), run maintenance from the **internal repo root**:
+
+- `python3 scripts/wiki_openspec_gh_status.py` — refresh wiki status that depends on OpenSpec / GitHub state.
+- If you changed **many** `docs/agent-rules/` frontmatter blocks or other wiki-linked metadata, also run `python3 scripts/wiki_rebuild_graph.py` so `wiki/graph.md` stays aligned with dependencies.
+
+Do not copy script output or wiki bodies into this public tree; commit wiki updates only in the internal repository.
+
 ## Change validity
 
 - Never implement from a change id alone.

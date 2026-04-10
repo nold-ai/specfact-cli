@@ -39,7 +39,7 @@ This file is the mandatory bootstrap governance surface for coding agents workin
 
 ## Strategic context
 
-Design and dependency context may live in a **sibling internal repository** (for example a checkout of `specfact-cli-internal` beside this repo, with wiki pages under `../specfact-cli-internal/wiki/`). Before designing or scoping a new OpenSpec change, read the wiki paths listed in [docs/agent-rules/40-openspec-and-tdd.md](docs/agent-rules/40-openspec-and-tdd.md#internal-wiki-and-strategic-context) using **absolute paths** to those files. Treat the wiki as read-only context; do not paste or commit wiki bodies into this public repository.
+Design and dependency context may live in a **sibling internal repository** (for example a checkout of `specfact-cli-internal` beside this repo, with wiki pages under `../specfact-cli-internal/wiki/`). Before designing or scoping a new OpenSpec change, read the wiki paths listed in [docs/agent-rules/40-openspec-and-tdd.md](docs/agent-rules/40-openspec-and-tdd.md#internal-wiki-and-strategic-context) using **absolute paths** to those files. Treat the wiki as read-only context; do not paste or commit wiki bodies into this public repository. After merges that ship OpenSpec or related work, run the internal wiki scripts from that sibling checkout as described in the same section (including `wiki_rebuild_graph.py` when frontmatter churn is large).
 
 ## Canonical rule docs
 

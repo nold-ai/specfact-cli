@@ -15,6 +15,7 @@ tracks:
   - pyproject.toml
   - setup.py
   - src/specfact_cli/__init__.py
+  - sibling specfact-cli-internal wiki scripts (see below)
 last_reviewed: 2026-04-10
 exempt: false
 exempt_reason: ""
@@ -57,3 +58,12 @@ depends_on:
 - Preserve all Jekyll frontmatter on docs edits.
 - Update navigation when adding or moving pages.
 - Keep `README.md` and the docs landing page aligned with what SpecFact actually does.
+
+## Internal wiki (sibling `specfact-cli-internal`)
+
+After **merging** changes that affect OpenSpec or GitHub-linked planning, and when a sibling `specfact-cli-internal` checkout is available, run from that checkout’s root (not from this repo):
+
+- `python3 scripts/wiki_openspec_gh_status.py`
+- If the change touched **lots of** docs frontmatter (especially under `docs/agent-rules/`), also run `python3 scripts/wiki_rebuild_graph.py` so `wiki/graph.md` stays consistent.
+
+See **Internal wiki maintenance** under [40-openspec-and-tdd.md](./40-openspec-and-tdd.md#internal-wiki-and-strategic-context).

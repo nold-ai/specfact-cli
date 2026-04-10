@@ -231,7 +231,10 @@ def test_sync_cache_skips_write_when_fingerprint_is_unchanged(monkeypatch: pytes
     output_path = tmp_path / "GITHUB_HIERARCHY_CACHE.md"
     state_path = tmp_path / ".github_hierarchy_cache_state.json"
     output_path.write_text("unchanged cache\n", encoding="utf-8")
-    state_path.write_text('{"fingerprint":"same"}', encoding="utf-8")
+    state_path.write_text(
+        '{"fingerprint":"same","repo":"nold-ai/specfact-cli"}',
+        encoding="utf-8",
+    )
 
     issues = [
         _make_issue(
@@ -268,6 +271,81 @@ def test_sync_cache_skips_write_when_fingerprint_is_unchanged(monkeypatch: pytes
     assert result.changed is False
     assert result.issue_count == 1
     assert output_path.read_text(encoding="utf-8") == "unchanged cache\n"
+
+
+def test_sync_cache_repo_mismatch_rewrites_despite_matching_fingerprint(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Matching fingerprint for another repo must not skip; cache would keep wrong Repository metadata."""
+    module = _load_script_module()
+
+    output_path = tmp_path / "GITHUB_HIERARCHY_CACHE.md"
+    state_path = tmp_path / ".github_hierarchy_cache_state.json"
+    output_path.write_text("# stale\n\n- Repository: `other/other`\n", encoding="utf-8")
+    state_path.write_text(
+        '{"fingerprint":"same","repo":"other/other"}',
+        encoding="utf-8",
+    )
+
+    def _fake_fetch(*, repo_owner: str, repo_name: str, fingerprint_only: bool) -> list[Any]:
+        assert repo_owner == "nold-ai"
+        assert repo_name == "specfact-cli"
+        assert fingerprint_only is False
+        return []
+
+    monkeypatch.setattr(module, "fetch_hierarchy_issues", _fake_fetch)
+    monkeypatch.setattr(module, "compute_hierarchy_fingerprint", lambda _: "same")
+
+    result = module.sync_cache(
+        repo_owner="nold-ai",
+        repo_name="specfact-cli",
+        output_path=output_path,
+        state_path=state_path,
+    )
+
+    assert result.changed is True
+    body = output_path.read_text(encoding="utf-8")
+    assert "nold-ai/specfact-cli" in body
+    assert "other/other" not in body
+
+
+def test_sync_cache_missing_repo_in_state_rewrites(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """State files without repo (pre-fix) must not short-circuit the skip path."""
+    module = _load_script_module()
+
+    output_path = tmp_path / "GITHUB_HIERARCHY_CACHE.md"
+    state_path = tmp_path / ".github_hierarchy_cache_state.json"
+    output_path.write_text("legacy cache\n", encoding="utf-8")
+    state_path.write_text('{"fingerprint":"same"}', encoding="utf-8")
+
+    issues = [
+        _make_issue(
+            module,
+            number=485,
+            title="[Epic] Governance",
+            issue_type="Epic",
+            options={"labels": ["Epic"], "summary": "Governance epic."},
+        )
+    ]
+
+    def _fake_fetch(*, repo_owner: str, repo_name: str, fingerprint_only: bool) -> list[Any]:
+        assert repo_owner == "nold-ai"
+        assert repo_name == "specfact-cli"
+        assert fingerprint_only is False
+        return issues
+
+    monkeypatch.setattr(module, "fetch_hierarchy_issues", _fake_fetch)
+    monkeypatch.setattr(module, "compute_hierarchy_fingerprint", lambda _: "same")
+
+    result = module.sync_cache(
+        repo_owner="nold-ai",
+        repo_name="specfact-cli",
+        output_path=output_path,
+        state_path=state_path,
+    )
+
+    assert result.changed is True
+    assert "# GitHub Hierarchy Cache" in output_path.read_text(encoding="utf-8")
 
 
 def test_sync_cache_force_rewrites_when_fingerprint_unchanged(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
