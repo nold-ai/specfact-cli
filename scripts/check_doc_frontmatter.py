@@ -401,7 +401,7 @@ def suggest_frontmatter(path: Path) -> str:
             try:
                 existing = parse_frontmatter(path)
             except OSError:
-                existing = {}
+                pass
             else:
                 lv = existing.get("layout")
                 if isinstance(lv, str) and lv.strip():
