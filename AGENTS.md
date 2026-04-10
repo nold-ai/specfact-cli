@@ -1,420 +1,56 @@
 # AGENTS.md
 
-This file provides guidance to coding agents when working with code in this repository.
-
-## Project Overview
-
-SpecFact CLI is a Python CLI tool for agile DevOps teams. It keeps backlogs, specs, tests, and code in sync with contract-driven development, validation, and enforcement. Built with Typer + Rich, using Hatch as the build system. Python 3.11+.
-
-## Essential Commands
-
-```bash
-# Development environment
-pip install -e ".[dev]"
-hatch shell
-
-# Format & lint (run after every code change, in this order)
-hatch run format                    # ruff format + fix
-hatch run type-check                # basedpyright strict mode
-hatch run contract-test             # contract-first validation (primary)
-hatch test --cover -v               # full pytest suite
-
-# Contract-first testing layers
-hatch run contract-test-contracts   # runtime contract validation only
-hatch run contract-test-exploration # CrossHair symbolic execution
-hatch run contract-test-scenarios   # integration/E2E with contract refs
-hatch run contract-test-full        # all layers
-hatch run contract-test-status      # coverage status report
-
-# Run a single test file
-hatch test -- tests/unit/specfact_cli/test_example.py -v
-
-# Lint subsystems
-hatch run lint                      # full lint suite
-hatch run governance                # pylint detailed analysis
-hatch run yaml-lint                 # YAML validation
-hatch run lint-workflows            # GitHub Actions actionlint
-
-# Code scanning
-hatch run scan-all                  # semgrep analysis
-
-# SpecFact code review JSON (dogfood; see "SpecFact Code Review JSON" below and openspec/config.yaml)
-hatch run specfact code review run --json --out .specfact/code-review.json
-```
-
-## Architecture
-
-### Modular Command Registry with Lazy Loading
-
-The CLI uses a module package system in `src/specfact_cli/modules/`. Each module is a self-contained package:
-
-```
-modules/{name}/
-  module-package.yaml    # metadata: name, version, commands, dependencies
-  src/{name}/
-    __init__.py
-    main.py              # typer.Typer app with command definitions
-```
-
-The registry (`src/specfact_cli/registry/`) discovers modules at startup but defers imports until a command is actually invoked. `bootstrap.py` registers all modules; `registry.py` manages lazy loading; `module_packages.py` handles discovery from `module-package.yaml` files.
-
-**Entry flow**: `cli.py:cli_main()` → Typer app with global options → `ProgressiveDisclosureGroup` for help → lazy-loaded command groups from registry.
-
-### Contract-First Development
-
-All public APIs must use `@icontract` decorators (`@require`, `@ensure`, `@invariant`) and `@beartype` for runtime type checking. CrossHair discovers counterexamples via symbolic execution. Contracts are the primary validation mechanism; traditional unit tests are secondary.
-
-### Key Subsystems
-
-- **`models/`** - Pydantic BaseModel classes for all data structures
-- **`parsers/`**, **`analyzers/`** - Code analysis
-- **`generators/`** - Code/spec generation using Jinja2 templates from `resources/templates/`
-- **`validators/`** - Schema, contract, FSM validation
-- **`adapters/`** - Bridge pattern for tool integrations (GitHub, Azure DevOps, Jira, Linear)
-- **`modes/`** - Operational modes: CICD (fast, deterministic, non-interactive) vs Copilot (interactive, IDE-aware). Auto-detected from environment.
-- **`resources/`** - Bundled prompts, templates, schemas, mappings (force-included in wheel)
-
-### Logging
-
-Use `from specfact_cli.common import get_bridge_logger` and avoid `print()` in production command paths. Debug logs go to `~/.specfact/logs/specfact-debug.log` when `--debug` is passed.
-
-## Development Workflow
-
-### Branch Protection
-
-`dev` and `main` are protected. Always work on feature/bugfix/hotfix branches and submit PRs:
-- `feature/your-feature-name`
-- `bugfix/your-bugfix-name`
-- `hotfix/your-hotfix-name`
-
-### Git Worktree Policy (Parallel Development)
-
-Use git worktrees for parallel development branches only.
-
-- Allowed branch types in worktrees: `feature/*`, `bugfix/*`, `hotfix/*`, `chore/*`
-- Forbidden in worktrees: `dev`, `main`
-- The primary checkout remains the canonical `dev` workspace
-
-Canonical layout:
-
-- Primary checkout: `.../specfact-cli` (tracks `dev`)
-- Worktrees root: `.../specfact-cli-worktrees/<branch-type>/<branch-slug>`
-- Worktree folder name MUST reflect the branch slug
-
-Preferred helper commands (from repository root):
-
-```bash
-scripts/worktree.sh create feature/<branch-slug>
-scripts/worktree.sh list
-scripts/worktree.sh cleanup feature/<branch-slug>
-```
-
-Create a new worktree from `origin/dev`:
-
-```bash
-git fetch origin
-git worktree add ../specfact-cli-worktrees/feature/<branch-slug> -b feature/<branch-slug> origin/dev
-```
-
-Attach an existing local branch to a worktree:
-
-```bash
-git fetch origin
-git worktree add ../specfact-cli-worktrees/feature/<branch-slug> feature/<branch-slug>
-```
-
-Operational rules:
-
-- Never create a worktree for `dev` or `main`
-- One branch maps to exactly one worktree path at a time
-- Keep branch naming consistent: `<type>/<ticket>-<short-topic>`
-- Keep one active OpenSpec change scope per branch where possible
-- Create a separate virtual environment inside each worktree (for example, `.venv/`)
-- Bootstrap Hatch once per new worktree before running quality gates: `hatch env create`
-- Run quick pre-flight checks from the worktree root: `hatch run smart-test-status` and `hatch run contract-test-status`
-- If Hatch cannot write to default home/cache paths, set writable overrides (for example `HATCH_DATA_DIR=/tmp/hatch-data` and `HATCH_CACHE_DIR=/tmp/hatch-cache`)
-- Run all quality gates from inside the active worktree before commit/PR
-
-Conflict avoidance:
-
-- Check `openspec/CHANGE_ORDER.md` before creating new parallel branches
-- Avoid concurrent branches editing the same `openspec/changes/<change-id>/` directory
-- Rebase frequently on `origin/dev` in each worktree
-- Use `git worktree list` daily to detect stale or incorrect branch/path attachments
-
-Local cleanup after merge to `dev`:
-
-```bash
-git fetch origin
-git worktree remove ../specfact-cli-worktrees/feature/<branch-slug>
-git branch -d feature/<branch-slug>
-git worktree prune
-```
-
-If remote cleanup is needed:
-
-```bash
-git push origin --delete feature/<branch-slug>
-```
-
-### Developing specfact-cli-modules (IDE dependencies)
-
-Bundle code in **specfact-cli-modules** imports from `specfact_cli` (models, runtime, validators, etc.). That repo uses **Hatch**: a `pyproject.toml` with optional dependency `.[dev]` pulls in `specfact-cli` from a sibling path (`file://../specfact-cli`). When opening the modules repo in Cursor/VS Code:
-
-- In **specfact-cli-modules**: run `hatch env create` (with specfact-cli at `../specfact-cli`, or symlink / edit path in pyproject), then in the IDE select **Python: Select Interpreter** → `.venv` in that repo.
-- See **specfact-cli-modules** `README.md` → "Local development (IDE / Cursor)" for sibling layout and worktree/symlink options.
-
-### Pre-Commit Checklist
-
-Run all steps in order before committing. Every step must pass with no errors.
-
-1. `hatch run format`                # ruff format + autofix
-2. `hatch run type-check`            # basedpyright strict
-3. `hatch run lint`                  # full lint suite
-4. `hatch run yaml-lint`             # YAML + markdown validation
-5. `hatch run contract-test`         # contract-first validation
-6. `hatch run smart-test`            # targeted test run (use `smart-test-full` for larger modifications)
-
-With `pre-commit` installed (`pre-commit install`), staged `*.py` / `*.pyi` files also run the local code review gate (`scripts/pre_commit_code_review.py`), which writes the same `.specfact/code-review.json` path. That hook is fast feedback; it does not replace the **PR / change-completion** review rules in the next section when your OpenSpec tasks require a full-scope run.
-
-### SpecFact Code Review JSON (Dogfood, Quality Gate)
-
-This matches **`openspec/config.yaml`** (project `context` and **`rules.tasks`** for code review): treat **`.specfact/code-review.json`** as mandatory evidence before an OpenSpec change is considered complete and before you rely on “all gates green” for a PR.
-
-**When to (re)run the review**
-
-- The file is **missing**, or
-- It is **stale**: the report’s last-modified time is older than any file you changed for this work under `src/`, `scripts/`, `tools/`, `tests/`, or under `openspec/changes/<change-id>/` **except** `openspec/changes/<change-id>/TDD_EVIDENCE.md` — evidence-only edits there do **not** by themselves invalidate the review; re-run when proposal, specs, tasks, design, or code change.
-
-**Command**
-
-```bash
-hatch run specfact code review run --json --out .specfact/code-review.json
-```
-
-- While iterating on a branch, prefer a **changed-files scope** when available (e.g. `--scope changed`) so feedback stays fast.
-- Before the **final PR** for a change, run a **full** (or equivalent) scope so the report covers the whole quality surface your tasks expect (e.g. `--scope full`).
-
-**Remediation**
-
-- Read the JSON report and fix **every** finding at any severity (warning, advisory, error, or equivalent in the schema) unless the change proposal documents a **rare, explicit, justified** exception.
-- After substantive edits, re-run until the report shows a **passing** outcome from the review module (e.g. overall verdict PASS / CI exit 0 per schema).
-- Record the review command(s) and timestamp in `openspec/changes/<change-id>/TDD_EVIDENCE.md` or in the PR description when the change touches behavior or quality gates.
-
-**Consistency**
-
-- OpenSpec change **`tasks.md`** should include explicit tasks for generating/updating this file and clearing findings (see `openspec/config.yaml` → `rules.tasks` → “SpecFact code review JSON”). Agent runs should treat those tasks and this section as the same bar.
-
-### Clean-Code Review Gate
-
-specfact-cli enforces the 7-principle clean-code charter through the `specfact code review run` gate. The canonical charter lives in `skills/specfact-code-review/SKILL.md` (in `nold-ai/specfact-cli-modules`). This repo consumes the expanded clean-code categories from that review module:
-
-| Category | Principle covered |
-|----------|-------------------|
-| `naming` | Meaningful naming, exception-pattern rules |
-| `kiss` | Keep It Simple: LOC, nesting-depth, parameter-count (Phase A: >80 warning / >120 error) |
-| `yagni` | You Aren't Gonna Need It: unused-abstraction detection |
-| `dry` | Don't Repeat Yourself: clone-detection and duplication checks |
-| `solid` | SOLID principles: dependency-role and single-responsibility checks |
-
-Zero regressions in any of these categories are required before merge. Run the review gate with:
-
-```bash
-hatch run specfact code review run --json --out .specfact/code-review.json
-```
-
-**Phase A thresholds are active.** Phase B thresholds (>40 / >80 LOC) are deferred to a later cleanup change and are not yet enforced.
-
-### Module Signature Gate (Required for Change Finalization)
-
-Before PR creation, every change MUST pass bundled module signature verification:
-
-1. Run `hatch run ./scripts/verify-modules-signature.py --require-signature`.
-2. If verification fails because module contents changed, re-sign affected manifests:
-   - `hatch run python scripts/sign-modules.py --key-file <private-key.pem> <module-package.yaml ...>`
-3. Re-run verification until green.
-
-Rules:
-
-- Do not merge/PR with stale or missing integrity metadata for bundled modules.
-- Treat signature verification as a quality gate equal to lint/type-check/tests.
-- Module version bump is mandatory before signing changed module contents. Do not keep the same module version when module files or signatures change.
-- For any module re-sign/sign operation, increment module version using semver (major/minor/patch) so published/registered versions are immutable.
-- Use signer/verifier enforcement paths:
-  - signer rejects changed modules with unchanged version by default;
-  - verifier/CI enforces version-bump checks for changed manifests.
-
-### OpenSpec Workflow
-
-Before modifying application code, **always** verify that an active OpenSpec change in `openspec/changes/` **explicitly covers the requested modification**. This is the spec-driven workflow defined in `openspec/config.yaml`. Skip only when the user explicitly says `"skip openspec"` or `"implement without openspec change"`.
-
-**Agent MUST NOT apply any code edits** when a fix, change, modification, or edit to any codebase file is requested unless an active OpenSpec change exists that explicitly covers the requested scope. If no such change exists, ask for clarification:
-
-- **a) New change** — create a new OpenSpec change proposal (`/opsx:new`)
-- **b) Modify existing** — select and continue an existing change in `openspec/changes/`
-- **c) Delta** — add a targeted delta to an existing change's specs
-
-The existence of *any* open change is not sufficient — the change must specifically address the requested modification. Do not proceed until one of the above is resolved.
-
-### Hard Gate: Strict TDD Order (Non-Negotiable)
-
-For any behavior change, the implementation order is mandatory and must be auditable:
-
-1. Update or add spec deltas first.
-2. Add/modify tests next, mapped to spec scenarios.
-3. Run tests and capture a **failing** result before implementation.
-4. Only then modify production code.
-5. Re-run tests and quality gates until passing.
-
-Required evidence:
-
-- Create/update `openspec/changes/<change-id>/TDD_EVIDENCE.md` with:
-  - test command(s) and timestamp for the pre-implementation failing run
-  - short failure summary
-  - test command(s) and timestamp for the post-implementation passing run
-
-Agent enforcement:
-
-- Agents MUST NOT edit production code for new/changed behavior until failing-test evidence is recorded.
-- If this order cannot be followed, stop and ask the user for explicit override before proceeding.
-
-#### Change Order (`openspec/CHANGE_ORDER.md`)
-
-`openspec/CHANGE_ORDER.md` is the **single source of truth** for change sequencing, module grouping, and inter-change dependencies. Always use it to avoid redundant analysis of `openspec/changes/` folders.
-
-**Read it first** — before creating, implementing, or archiving any change, consult `CHANGE_ORDER.md` to:
-- Check which changes are already archived (implemented) and their dates
-- Verify hard blockers are resolved before starting implementation
-- Understand where a new change fits in module order and wave sequencing
-
-**Keep it updated** — whenever a change lifecycle event occurs, update `CHANGE_ORDER.md` in the same commit:
-- **New change created**: add a row to the correct module group table with folder name, GitHub issue link, and blocked-by dependencies
-- **Change archived**: move the entry from "Pending" to "Implemented (archived)" with the archive date; update wave status if a wave is now complete
-- **Change modified/renamed**: update the folder name and any affected dependency references
-- **Blocker resolved**: update the "Blocked by" column (append ✅ to resolved blockers)
-
-#### GitHub hierarchy cache
-
-`.specfact/backlog/github_hierarchy_cache.md` is the local lookup source for current Epic and Feature hierarchy metadata in this repository. It is ephemeral local state and MUST NOT be committed.
-
-- Before creating a new change issue, syncing an existing change, or resolving parent or blocker metadata, consult the cache first.
-- If the cache is missing or stale, rerun `python scripts/sync_github_hierarchy_cache.py`.
-- Recreate the cache as part of OpenSpec and GitHub issue work rather than treating it as a versioned repo artifact.
-- Use manual GitHub lookup only when the cache cannot answer the question after refresh.
-
-Use the `specfact-openspec-workflows` skill as the default execution path for OpenSpec lifecycle work.
-
-- When a Markdown plan exists and the intent is to create a change from that plan, use `.cursor/commands/wf-create-change-from-plan.md` (`/wf-change-from-plan`) to generate the proposal/tasks/spec deltas.
-- For plans targeting an internal repository, still run the same workflow but follow its repo rules (for example, skip public GitHub issue creation where required).
-- After any change is created or modified, run `.cursor/commands/wf-validate-change.md` (`/wf-validate-change`) and capture its output in `openspec/changes/<change-id>/CHANGE_VALIDATION.md`.
-- Treat validation output as required context for dependency and interface impact, including any workflow-provided GitHub issue sync context.
-
-### Version Updates
-
-When bumping version, sync across: `pyproject.toml`, `setup.py`, `src/specfact_cli/__init__.py`. CI/CD auto-publishes to PyPI on merge to `main` only if version exceeds the published one.
-
-**Version semantics (SemVer):**
-- `feature/*` branches → **minor** increment (e.g. `0.5.0 → 0.6.0`)
-- `bugfix/*` / `hotfix/*` branches → **patch** increment (e.g. `0.5.0 → 0.5.1`)
-- Breaking changes or major milestones → **major** increment (requires explicit confirmation)
-
-Always propose the increment type based on the branch name and ask for confirmation before applying the bump.
-
-### Changelog
-
-Keep `CHANGELOG.md` updated with every meaningful change. Update it in the same commit that bumps the version and do not let them diverge.
-
-- Follow [Keep a Changelog](https://keepachangelog.com/) format: `Added`, `Changed`, `Fixed`, `Removed`, `Security`
-- Each version entry must match the version in `pyproject.toml`
-- Unreleased changes accumulate under `## [Unreleased]` until a version bump
-
-### Commits
-
-Follow Conventional Commits: `feat:`, `fix:`, `docs:`, `test:`, `refactor:`.
-
-#### Commit Signing (GPG)
-
-- This repository may enforce signed commits (`commit.gpgsign=true`).
-- If an agent-run commit fails with `gpg failed to sign the data` in a non-interactive shell, the agent MUST:
-  1. Stage all intended files.
-  2. Provide the exact `git commit -S -m "<message>"` command for the user to run locally.
-  3. Continue with push/PR steps after the user confirms the signed commit exists.
-- Agents MUST NOT bypass signing with `--no-gpg-sign` unless the user explicitly requests that override.
-
-### Documentation
-
-Keep docs current with every code change that affects user-facing behaviour.
-
-- Docs source lives in `docs/` and is published to [docs.specfact.io](https://docs.specfact.io) via GitHub Pages (Jekyll)
-- **Preserve all front-matter** on every edit (`title`, `layout`, `nav_order`, `permalink`, etc.) and check `docs/_layouts/default.html` and `docs/index.md` before adding or removing front-matter keys
-- When a command, option, or behaviour changes, update the corresponding doc page in the same PR
-- Broken or outdated docs for users are P0; prefer a small doc fix over shipping undocumented changes
-
-### README Maintenance
-
-`README.md` (repo root) and the docs landing page (`docs/index.md` or `docs/README.md`) must stay in sync with what SpecFact actually does.
-
-- On larger refactorings or feature additions, reconsider the README from an **external/new-user perspective** and lead with value and USP, not internal architecture
-- A first-time reader should understand what SpecFact does, why they'd use it, and how to get started within the first screen
-- Do not let the README drift from the actual CLI interface or command list
-
-## Code Conventions
-
-- Python 3.11+, line length 120, Google-style docstrings
-- `snake_case` for files/modules, `PascalCase` for classes, `UPPER_SNAKE_CASE` for constants
-- All data structures use Pydantic `BaseModel` with `Field(...)` and descriptions
-- CLI commands use `typer.Typer()` + `rich.console.Console()`
-- Only write high-value comments and avoid verbose or redundant commentary
-- `rich~=13.5.2` is pinned for semgrep compatibility and should not be upgraded without validation
-
-## CLI Command Pattern
-
-```python
-import typer
-from beartype import beartype
-from icontract import require, ensure
-from rich.console import Console
-
-app = typer.Typer()
-console = Console()
-
-@app.command()
-@require(lambda repo_path: repo_path.exists(), "Repository path must exist")
-@beartype
-def my_command(
-    repo_path: Path = typer.Argument(..., help="Path to repository"),
-) -> None:
-    """Command docstring."""
-    console.print("[bold]Processing...[/bold]")
-```
-
-## Backlog Command Topology
-
-Keep backlog functionality grouped under the common top-level `backlog` command:
-
-- `specfact backlog ceremony standup`
-- `specfact backlog ceremony refinement`
-- `specfact backlog analyze-deps`
-- `specfact backlog delta status|impact|cost-estimate|rollback-analysis`
-- `specfact backlog verify-readiness`
-
-Project-scoped orchestration belongs under `project`:
-
-- `specfact project link-backlog`
-- `specfact project health-check`
-- `specfact project devops-flow --stage <plan|develop|review|release|monitor> --action <...>`
-- `specfact project snapshot|regenerate|export-roadmap`
-
-## Testing
-
-**Contract-first approach**: `@icontract` contracts on public APIs are the primary coverage mechanism (target 80%+ API coverage). Redundant unit tests that only assert input validation or type checks should be removed because contracts and beartype already cover them.
-
-Test structure mirrors source: `tests/unit/`, `tests/integration/`, `tests/e2e/`. Use `@pytest.mark.asyncio` for async tests. Guard environment-sensitive logic with `os.environ.get("TEST_MODE") == "true"`.
-
-## CI/CD
-
-Key workflows in `.github/workflows/`:
-- `tests.yml` — contract-first test execution
-- `specfact.yml` — contract validation on PR/push (`hatch run specfact repro --verbose`)
-- `pr-orchestrator.yml` — coordinates PR workflows
-- `build-and-push.yml` — Docker image building (depends on all above passing)
+This file is the mandatory bootstrap governance surface for coding agents working in this repository. It is intentionally compact. The detailed rules that used to live here have been preserved in `docs/agent-rules/` so new sessions do not pay the full context cost up front.
+
+## Mandatory bootstrap
+
+1. Read this file.
+2. Read [docs/agent-rules/INDEX.md](docs/agent-rules/INDEX.md).
+3. Read [docs/agent-rules/05-non-negotiable-checklist.md](docs/agent-rules/05-non-negotiable-checklist.md).
+4. Detect repository root, active branch, and worktree state.
+5. Reject implementation from the `dev` or `main` checkout unless the user explicitly overrides that rule.
+6. If GitHub hierarchy metadata is needed and `.specfact/backlog/github_hierarchy_cache.md` is missing or stale, refresh it with `python scripts/sync_github_hierarchy_cache.py`.
+7. Load any additional rule files required by the applicability matrix in [docs/agent-rules/INDEX.md](docs/agent-rules/INDEX.md) before implementation.
+
+## Precedence
+
+1. Direct system and developer instructions
+2. Explicit user override where repository governance allows it
+3. This file
+4. [docs/agent-rules/05-non-negotiable-checklist.md](docs/agent-rules/05-non-negotiable-checklist.md)
+5. Other selected files under `docs/agent-rules/`
+6. Change-local OpenSpec artifacts and workflow notes
+
+## Non-negotiable gates
+
+- Work in a git worktree unless the user explicitly overrides that rule.
+- Do not implement from the `dev` or `main` checkout by default.
+- Treat a provided OpenSpec change id as candidate scope, not automatic permission to proceed.
+- Verify the selected change against current repository reality and dependency state before implementation.
+- Do not auto-refine stale or ambiguous changes without the user.
+- Perform `spec -> tests -> failing evidence -> code -> passing evidence` in that order for behavior changes.
+- Require public GitHub metadata completeness before implementation when linked issue workflow applies: parent, labels, project assignment, blockers, and blocked-by relationships.
+- If a linked GitHub issue is already `in progress`, pause and ask for clarification before implementation.
+- Run the required verification and quality gates for the touched scope before finalization.
+- Fix SpecFact code review findings, including warnings, unless a rare explicit exception is documented.
+- Treat the clean-code compliance gate as mandatory: the review surface enforces `naming`, `kiss`, `yagni`, `dry`, and `solid` categories and blocks regressions.
+- Enforce module signatures and version bumps when signed module assets or manifests are affected.
+
+## Strategic context
+
+Design and dependency context may live in a **sibling internal repository** (for example a checkout of `specfact-cli-internal` beside this repo, with wiki pages under `../specfact-cli-internal/wiki/`). Before designing or scoping a new OpenSpec change, read the wiki paths listed in [docs/agent-rules/40-openspec-and-tdd.md](docs/agent-rules/40-openspec-and-tdd.md#internal-wiki-and-strategic-context) using **absolute paths** to those files. Treat the wiki as read-only context; do not paste or commit wiki bodies into this public repository.
+
+## Canonical rule docs
+
+- [docs/agent-rules/INDEX.md](docs/agent-rules/INDEX.md)
+- [docs/agent-rules/05-non-negotiable-checklist.md](docs/agent-rules/05-non-negotiable-checklist.md)
+- [docs/agent-rules/10-session-bootstrap.md](docs/agent-rules/10-session-bootstrap.md)
+- [docs/agent-rules/20-repository-context.md](docs/agent-rules/20-repository-context.md)
+- [docs/agent-rules/30-worktrees-and-branching.md](docs/agent-rules/30-worktrees-and-branching.md)
+- [docs/agent-rules/40-openspec-and-tdd.md](docs/agent-rules/40-openspec-and-tdd.md)
+- [docs/agent-rules/50-quality-gates-and-review.md](docs/agent-rules/50-quality-gates-and-review.md)
+- [docs/agent-rules/60-github-change-governance.md](docs/agent-rules/60-github-change-governance.md)
+- [docs/agent-rules/70-release-commit-and-docs.md](docs/agent-rules/70-release-commit-and-docs.md)
+- [docs/agent-rules/80-current-guidance-catalog.md](docs/agent-rules/80-current-guidance-catalog.md)
+
+Detailed guidance was moved by reference, not removed. If a rule seems missing here, consult the canonical rule docs before assuming the instruction was dropped.

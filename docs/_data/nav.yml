@@ -91,6 +91,27 @@
       url: /guides/openspec-journey/
       expertise: [intermediate]
 
+- section: Agent Governance
+  items:
+    - title: Rule Index
+      url: /contributing/agent-rules/
+      expertise: [advanced]
+    - title: Non-Negotiable Checklist
+      url: /contributing/agent-rules/non-negotiable-checklist/
+      expertise: [advanced]
+    - title: Session Bootstrap
+      url: /contributing/agent-rules/session-bootstrap/
+      expertise: [advanced]
+    - title: OpenSpec and TDD
+      url: /contributing/agent-rules/openspec-and-tdd/
+      expertise: [advanced]
+    - title: GitHub Change Governance
+      url: /contributing/agent-rules/github-change-governance/
+      expertise: [advanced]
+    - title: Quality Gates and Review
+      url: /contributing/agent-rules/quality-gates-and-review/
+      expertise: [advanced]
+
 - section: Integrations
   items:
     - title: Integrations Overview

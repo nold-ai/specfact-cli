@@ -1,23 +1,11 @@
 # GitHub Copilot Instructions — specfact-cli
 
-## Clean-Code Charter
+Use [AGENTS.md](../AGENTS.md) as the mandatory bootstrap surface and [docs/agent-rules/INDEX.md](../docs/agent-rules/INDEX.md) as the canonical governance dispatcher.
 
-This repository enforces the **7-principle clean-code charter** defined in:
-- `skills/specfact-code-review/SKILL.md` (`nold-ai/specfact-cli-modules`)
-- Policy-pack: `specfact/clean-code-principles`
+## Minimal reminders
 
-Review categories checked on every PR: **naming · kiss · yagni · dry · solid**
-
-Phase A KISS thresholds: LOC > 80 warning / > 120 error per function.
-Nesting-depth and parameter-count checks are active. Phase B (>40/80) is deferred.
-
-Run `hatch run specfact code review run --json --out .specfact/code-review.json` before submitting.
-
-## Key conventions
-
-- Python 3.11+, Typer CLI, Pydantic models, `@icontract` + `@beartype` on all public APIs
-- No `print()` in `src/` — use `get_bridge_logger()`
-- Branch protection: work on `feature/*`, `bugfix/*`, `hotfix/*` branches; PRs to `dev`
-- Pre-commit checklist: `hatch run format` → `type-check` → `lint` → `yaml-lint` → `contract-test` → `smart-test`
-
-See `AGENTS.md` and `.cursor/rules/` for the full contributor guide.
+- When a sibling internal repository (for example `../specfact-cli-internal/`) exists, read its `wiki/` files by absolute path before designing an OpenSpec change; see **Strategic context** in `AGENTS.md` and `docs/agent-rules/40-openspec-and-tdd.md` (section **Internal wiki and strategic context**). Do not copy wiki content into this repository.
+- This repository enforces the clean-code review gate through `hatch run specfact code review run --json --out .specfact/code-review.json`.
+- Public APIs require `@icontract` and `@beartype`.
+- Work belongs on `feature/*`, `bugfix/*`, `hotfix/*`, or `chore/*` branches, normally in a worktree.
+- The full governance rules live in `docs/agent-rules/`; do not treat this file as a complete standalone handbook.
