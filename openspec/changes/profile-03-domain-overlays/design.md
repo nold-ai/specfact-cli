@@ -5,11 +5,13 @@ This change implements proposal scope for `profile-03-domain-overlays` from the 
 ## Goals / Non-Goals
 
 **Goals:**
+
 - Define an implementation approach that stays within the proposal scope.
 - Keep compatibility with existing module registry, adapter bridge, and contract-first patterns.
 - Preserve offline-first behavior and deterministic CLI execution.
 
 **Non-Goals:**
+
 - No production code implementation in this stage.
 - No schema-breaking changes outside declared capabilities.
 - No dependency expansion beyond the proposal and plan.

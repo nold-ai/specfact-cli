@@ -1,8 +1,11 @@
 # official-bundle-tier Specification
 
 ## Purpose
+
 TBD - created by archiving change module-migration-02-bundle-extraction. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Official-tier bundles declare tier and publisher in module-package.yaml and index.json
 
 Every official bundle manifest SHALL declare `tier: official` and `publisher: nold-ai`.
@@ -113,4 +116,3 @@ Users SHALL be able to distinguish official-tier bundles from community-tier mod
 - **GIVEN** a user installs an official bundle
 - **WHEN** installation completes successfully
 - **THEN** the CLI output SHALL include a confirmation line indicating official-tier verification passed (e.g., "Verified: official (nold-ai) — SHA-256 and Ed25519 signature OK")
-

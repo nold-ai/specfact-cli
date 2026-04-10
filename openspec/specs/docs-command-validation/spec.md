@@ -1,8 +1,11 @@
 # docs-command-validation Specification
 
 ## Purpose
+
 TBD - created by archiving change docs-12-docs-validation-ci. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Docs command examples resolve to a valid CLI path
 
 Documentation under `docs/` SHALL include `specfact …` examples in fenced code blocks only when some prefix of the command tokens matches a command path that accepts `--help` in the current CLI (or is a bundle-only group that reports “not installed” when bundles are absent).
@@ -22,4 +25,3 @@ Content under `docs/migration/` and other explicitly listed illustrative pages M
 - **WHEN** `check-docs-commands` scans `docs/`
 - **THEN** it skips `docs/migration/**` and other configured exclusions
 - **AND** it does not fail on removed commands documented only for historical context
-

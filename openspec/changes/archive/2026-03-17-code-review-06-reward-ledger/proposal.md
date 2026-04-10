@@ -39,6 +39,6 @@ A local JSON fallback (`~/.specfact/ledger.json`) ensures the feature works offl
 
 <!-- source_repo: nold-ai/specfact-cli -->
 - **GitHub Issue**: #395
-- **Issue URL**: https://github.com/nold-ai/specfact-cli/issues/395
+- **Issue URL**: <https://github.com/nold-ai/specfact-cli/issues/395>
 - **Repository**: nold-ai/specfact-cli
 - **Last Synced Status**: in-progress

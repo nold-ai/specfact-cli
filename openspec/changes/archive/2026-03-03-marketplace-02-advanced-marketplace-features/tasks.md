@@ -3,6 +3,7 @@
 ## TDD / SDD Order (Enforced)
 
 Per config.yaml, tests MUST come before implementation for any behavior-changing task. Order:
+
 1. Spec deltas (already created)
 2. Tests from spec scenarios (expect failure)
 3. Code implementation (until tests pass and behavior satisfies spec)
@@ -74,7 +75,7 @@ Do not implement production code until tests exist and have been run (expecting 
 
 ## 4. Implement custom registries (TDD)
 
-- [x] 4.1 
+- [x] 4.1
   - [x] 4.1.1 Create tests/unit/registry/test_custom_registries.py
   - [x] 4.1.2 Test add_registry() stores config
   - [x] 4.1.3 Test list_registries() returns all configured
@@ -84,7 +85,7 @@ Do not implement production code until tests exist and have been run (expecting 
   - [x] 4.1.7 Mock HTTP requests for multiple registries
   - [x] 4.1.8 Run tests (expect failures)
 
-- [x] 4.2 
+- [x] 4.2
   - [x] 4.2.1 Create src/specfact_cli/registry/custom_registries.py
   - [x] 4.2.2 Implement YAML config storage (~/.specfact/config/registries.yaml)
   - [x] 4.2.3 Implement add_registry() with priority and trust
@@ -95,13 +96,13 @@ Do not implement production code until tests exist and have been run (expecting 
   - [x] 4.2.8 Add @beartype decorators
   - [x] 4.2.9 Verify tests pass
 
-- [x] 4.3 
+- [x] 4.3
   - [x] 4.3.1 Modify marketplace_client.py to use custom_registries
   - [x] 4.3.2 Update fetch_registry_index() to support registry parameter
   - [x] 4.3.3 Implement search across all registries
   - [x] 4.3.4 Verify integration with install/search commands
 
-- [x] 4.4 
+- [x] 4.4
   - [x] 4.4.1 Add add-registry command
   - [x] 4.4.2 Add list-registries command
   - [x] 4.4.3 Add remove-registry command
@@ -109,14 +110,14 @@ Do not implement production code until tests exist and have been run (expecting 
 
 ## 5. Implement namespace enforcement (TDD)
 
-- [x] 5.1 
+- [x] 5.1
   - [x] 5.1.1 Add tests to test_module_lifecycle_management.py
   - [x] 5.1.2 Test namespace format validation for marketplace modules
   - [x] 5.1.3 Test namespace collision detection
   - [x] 5.1.4 Test custom modules allowed with flat names
   - [x] 5.1.5 Run tests (expect failures)
 
-- [x] 5.2 
+- [x] 5.2
   - [x] 5.2.1 Add namespace validation to module_installer.py
   - [x] 5.2.2 Enforce namespace/name format for marketplace modules
   - [x] 5.2.3 Add collision detection with clear error messages
@@ -254,7 +255,7 @@ Do not implement production code until tests exist and have been run (expecting 
 - [x] 11.2 Create release PR (dev → main)
   - [x] 11.2.1 Fill .github/pull_request_template.md for v0.38.0 release
   - [x] 11.2.2 `gh pr create --base main --head dev --title "Release v0.38.0: Advanced marketplace features (dev → main)" --body-file <file>`
-  - [x] 11.2.3 PR #319 created: https://github.com/nold-ai/specfact-cli/pull/319
+  - [x] 11.2.3 PR #319 created: <https://github.com/nold-ai/specfact-cli/pull/319>
 
 - [x] 11.3 Merge release PR to main (when ready)
   - [ ] 11.3.1 Merge PR #319 to main

@@ -1,8 +1,11 @@
 # trustworthy-green-checks Specification
 
 ## Purpose
+
 TBD - created by archiving change ci-02-trustworthy-green-checks. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Required CI jobs fail on required tool failures
 
 Workflow jobs classified as required merge gates SHALL exit non-zero when their underlying required tool fails, and SHALL NOT suppress the failure behind warn-only shell patterns or broad continue-on-error handling.
@@ -106,4 +109,3 @@ and automated review outputs.
 - **WHEN** a contributor reads the documented pre-commit, CI, or PR-review guidance
 - **THEN** the documentation names which checks are merge-blocking required gates
 - **AND** the documentation names which outputs remain advisory warnings or review assistance
-

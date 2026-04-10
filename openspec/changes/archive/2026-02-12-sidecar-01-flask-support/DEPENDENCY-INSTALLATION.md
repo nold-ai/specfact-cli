@@ -24,6 +24,7 @@ specfact validate sidecar init <bundle-name> <repo-path>
 **Venv Location**: `<repo-path>/.specfact/venv/`
 
 **Venv Configuration**:
+
 - Uses `symlinks=False` to avoid libpython shared library issues
 - Includes pip by default
 - Validates venv Python can actually run (detects broken venvs)
@@ -41,6 +42,7 @@ Framework-specific dependencies are installed automatically:
 | **All** | `crosshair-tool`, `beartype`, `icontract` |
 
 **Installation Order**:
+
 1. Framework dependencies (Flask, FastAPI, etc.)
 2. CrossHair tool (for contract validation)
 3. Harness dependencies (beartype, icontract)
@@ -144,6 +146,7 @@ python3 -m venv .specfact/venv --copies
 **Issue**: Venv creation fails with permission errors
 
 **Solutions**:
+
 - Check directory permissions
 - Ensure sufficient disk space
 - Try creating venv in a different location
@@ -172,6 +175,7 @@ specfact validate sidecar run <bundle-name> <repo-path>
 **Issue**: Dependencies fail to install from requirements.txt
 
 **Solutions**:
+
 - Check requirements.txt format
 - Verify network connectivity
 - Check for conflicting dependencies
@@ -182,6 +186,7 @@ specfact validate sidecar run <bundle-name> <repo-path>
 **Issue**: CrossHair not available in venv
 
 **Solutions**:
+
 - Verify CrossHair is in framework dependencies
 - Check installation logs for errors
 - Manually install: `.specfact/venv/bin/pip install crosshair-tool`
@@ -191,6 +196,7 @@ specfact validate sidecar run <bundle-name> <repo-path>
 **Issue**: `ModuleNotFoundError: No module named 'flask'` during validation
 
 **Solutions**:
+
 - Verify Flask is installed: `.specfact/venv/bin/pip list | grep -i flask`
 - Check PYTHONPATH includes venv site-packages
 - Reinstall Flask: `.specfact/venv/bin/pip install flask`

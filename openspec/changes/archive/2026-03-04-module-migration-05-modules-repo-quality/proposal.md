@@ -5,6 +5,7 @@
 `module-migration-02-bundle-extraction` moved the source for 17 modules from specfact-cli into independently versioned bundle packages in specfact-cli-modules, but explicitly deferred the quality and operational parity work that makes specfact-cli-modules a viable canonical development environment. Sections 18–23 of migration-02's tasks.md capture this deferred scope.
 
 After migration-03 closes, specfact-cli-modules becomes the **canonical and only** home for those 17 modules. Without this change, developers working on bundles in specfact-cli-modules will lack:
+
 - A test suite that runs against bundle code directly (not via specfact-cli shims)
 - Contract-first validation (`@icontract` / CrossHair)
 - Coverage thresholds

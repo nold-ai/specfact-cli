@@ -1,19 +1,24 @@
 # dependency-resolution Specification
 
 ## Purpose
+
 TBD - created by archiving change marketplace-02-advanced-marketplace-features. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Resolve pip dependencies across all modules
 
 The system SHALL aggregate pip_dependencies from all installed modules and resolve constraints using pip-compile or fallback resolver.
 
 #### Scenario: Dependencies resolved without conflicts
+
 - **WHEN** module installation triggers dependency resolution
 - **THEN** system SHALL collect pip_dependencies from all modules
 - **AND** SHALL resolve constraints using pip-compile
 - **AND** SHALL return list of resolved package versions
 
 #### Scenario: Dependency conflict detected
+
 - **WHEN** new module introduces conflicting pip dependency
 - **THEN** system SHALL detect conflict before installation
 - **AND** SHALL display error with conflicting packages and versions
@@ -21,6 +26,7 @@ The system SHALL aggregate pip_dependencies from all installed modules and resol
 - **AND** SHALL NOT proceed with installation
 
 #### Scenario: Fallback to basic pip resolver
+
 - **WHEN** pip-tools is not available
 - **THEN** system SHALL log warning "pip-tools not found, using basic resolver"
 - **AND** SHALL attempt resolution with pip's built-in resolver
@@ -31,6 +37,7 @@ The system SHALL aggregate pip_dependencies from all installed modules and resol
 The system SHALL extend install command to resolve dependencies as pre-flight check.
 
 #### Scenario: Install with dependency resolution
+
 - **WHEN** user runs `specfact module install X`
 - **THEN** system SHALL download module metadata
 - **AND** SHALL simulate: all_modules = current + X
@@ -38,6 +45,7 @@ The system SHALL extend install command to resolve dependencies as pre-flight ch
 - **AND** SHALL proceed only if resolution succeeds
 
 #### Scenario: Skip dependency resolution with flag
+
 - **WHEN** user runs `specfact module install X --skip-deps`
 - **THEN** system SHALL skip dependency resolution
 - **AND** SHALL install module and its pip_dependencies independently
@@ -48,6 +56,7 @@ The system SHALL extend install command to resolve dependencies as pre-flight ch
 The system SHALL provide actionable error messages when dependency conflicts occur.
 
 #### Scenario: Conflict error message format
+
 - **WHEN** dependency conflict is detected
 - **THEN** error SHALL include: conflicting packages, required versions, affected modules
 - **AND** SHALL suggest: uninstall conflicting module, use --force, or skip conflicting module
@@ -62,11 +71,13 @@ SHALL handle both forms.
 #### Scenario: Registry entry declares a versioned bundle dependency
 
 - **GIVEN** a registry entry with:
+
   ```json
   "bundle_dependencies": [
     {"id": "nold-ai/specfact-project", "version": ">=0.41.0"}
   ]
   ```
+
 - **WHEN** the installer processes this entry
 - **THEN** the installer SHALL treat `nold-ai/specfact-project` as a required dependency with
   the constraint `>=0.41.0`
@@ -82,6 +93,7 @@ SHALL handle both forms.
 
 During `specfact module install`, the system SHALL resolve all `bundle_dependencies` from both
 the registry index and the module's `module-package.yaml` manifest. For each dependency:
+
 - If the dependency is not installed, the CLI SHALL prompt the user to install it
 - If the dependency is installed but its version does not satisfy the declared specifier, the CLI
   SHALL prompt the user to upgrade it
@@ -210,10 +222,11 @@ resolution plan without performing any installs or upgrades.
 
 - **WHEN** user runs `specfact module install A --dry-run`
 - **THEN** the CLI SHALL print a dependency plan:
+
   ```
   Would install:
     nold-ai/specfact-project 0.41.2  (required by A >=0.41.0)
     nold-ai/A 0.42.0
   ```
-- **AND** SHALL exit 0 without modifying any installed modules
 
+- **AND** SHALL exit 0 without modifying any installed modules

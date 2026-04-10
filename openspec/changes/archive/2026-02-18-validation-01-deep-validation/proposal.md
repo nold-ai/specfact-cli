@@ -2,7 +2,6 @@
 
 ## Why
 
-
 Runtime bugs often slip past contract decorators and tests because: (a) contracts only fire at decorated boundaries when those paths are executed; (b) CrossHair in `specfact repro` shares a single time budget over all source and may not reach deep paths; (c) Semgrep is pattern-based and does not reason about logic. Users need a reliable way to validate codebases in three modes: (a) **Sidecar** — unmodified original code; (b) **Existing codebases** — when code already uses `@icontract`/`@beartype`, run full contract exploration and scenario tests; (c) **Dogfooding** — use SpecFact CLI to validate SpecFact CLI itself.
 
 This change extends the existing core validation capabilities. It does **not** require a new module; it extends the `specfact repro` and `specfact validate sidecar` commands already in the CLI core.
@@ -21,7 +20,6 @@ If the existing validation code lives in `src/specfact_cli/validators/`, no modu
 
 ## What Changes
 
-
 - **EXTEND**: Document and wire a single "thorough validation" path that supports:
   1. Sidecar for unmodified code (existing `specfact repro --sidecar --sidecar-bundle`)
   2. Contract-decorated codebases via `hatch run contract-test-full` (contracts + CrossHair exploration + scenarios)
@@ -32,6 +30,7 @@ If the existing validation code lives in `src/specfact_cli/validators/`, no modu
 - **EXTEND**: Document dogfooding: how to run full validation (repro + contract-test-full or equivalent) on specfact-cli; add or reference a CI job or local checklist so specfact-cli validates itself before release.
 
 ## Capabilities
+
 - **codebase-validation-depth**: Thorough in-depth validation supporting sidecar (unmodified code), contract-decorated codebases (full contract-test stack), and dogfooding (specfact-cli on itself) with clear workflows and optional deep CrossHair/Semgrep usage.
 
 ---

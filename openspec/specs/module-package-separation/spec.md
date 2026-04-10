@@ -1,8 +1,11 @@
 # module-package-separation Specification
 
 ## Purpose
+
 TBD - created by archiving change arch-02-module-package-separation. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Module-local command implementation
 
 The system SHALL store each CLI command implementation inside its owning module package at `src/specfact_cli/modules/<module>/src/commands.py`.
@@ -64,4 +67,3 @@ The system SHALL keep `module_dependencies` accurate in each module package mani
 **Then** the imported module is declared under `module_dependencies`
 
 **And** if no cross-module imports exist, `module_dependencies` remains empty
-

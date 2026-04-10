@@ -1,8 +1,11 @@
 # lazy-loading Specification
 
 ## Purpose
+
 TBD - created by archiving change arch-01-cli-modular-command-registry. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Only Invoked Command Module Loaded at Runtime
 
 The root CLI application SHALL NOT import command modules at top level. It SHALL build the Typer tree from the registry (or cached metadata for help) and load a command module only when that command is invoked (or when its help is requested).
@@ -36,4 +39,3 @@ The root CLI application SHALL NOT import command modules at top level. It SHALL
 - No removal or renaming of commands
 - Help text for each command group unchanged from user perspective
 - Contract tests or CLI tests that assert key commands and --help exit 0 remain passing
-

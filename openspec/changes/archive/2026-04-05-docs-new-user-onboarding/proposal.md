@@ -19,10 +19,12 @@ immediate "Limitations" warning that actively discourages it, (4) the path cards
 persona and product dimension rather than by what they want to do right now.
 
 The intended vibe-coder entry sequence is:
+
 ```bash
 uvx specfact-cli init --profile solo-developer           # once — should install modules
 uvx specfact-cli code review run --path . --scope full   # the "wow" command
 ```
+
 This sequence should work in ~10 seconds with no pip install and no virtual environment. However,
 direct testing reveals it is **completely broken** due to three bugs:
 
@@ -48,6 +50,7 @@ can truthfully describe a vibe-coder entry sequence.
 ## What Changes
 
 **Bug fixes (blocking the "wow" path):**
+
 - **Fix `init --profile` module installation**: `specfact init --profile solo-developer` must
   actually install the modules defined for that profile, not just bootstrap the runtime
 - **Fix `module install` under uvx**: module installation must work without pip in the uvx
@@ -58,6 +61,7 @@ can truthfully describe a vibe-coder entry sequence.
   no git diff is available, or emit an error that includes the corrective command
 
 **Docs improvements (unlocked once bugs are fixed):**
+
 - **Homepage hero completely rewritten**: opens with the vibe-coder outcome statement, immediately
   followed by the working 2-command uvx sequence
 - **`code review run` is explicitly named on the homepage** as the primary entry command
@@ -69,6 +73,7 @@ can truthfully describe a vibe-coder entry sequence.
 ## Capabilities
 
 ### New Capabilities
+
 - `dependency-resolution`: Version-aware bundle dependency resolution for `module install` and
   `module upgrade` — versioned specifiers in registry `index.json` and `module-package.yaml`,
   user prompts on missing/mismatched deps, `--yes` for auto-resolve, `--dry-run` for preview,
@@ -80,6 +85,7 @@ can truthfully describe a vibe-coder entry sequence.
   with the scored output as the explicit "wow" proof point on the homepage
 
 ### Modified Capabilities
+
 - `entrypoint-onboarding`: (1) Primary fast-start path must be inline on homepage; (2) path cards
   name user actions not personas; (3) `code review run` is the named primary command
 - `first-contact-story`: Hero pairs identity with a plain-language outcome; no architectural
@@ -98,6 +104,7 @@ can truthfully describe a vibe-coder entry sequence.
 ## Impact
 
 **CLI changes:**
+
 - `src/specfact_cli/modules/init/` — fix `--profile` to actually install profile modules
 - `src/specfact_cli/modules/module-registry/` or install path — fix pip-free install under uvx
 - Profile definition for `solo-developer` — add `specfact-code-review` to bundle list
@@ -122,11 +129,13 @@ can truthfully describe a vibe-coder entry sequence.
 - `core_compatibility` error path — replace silent exception with actionable user-facing message
 
 **Docs changes:**
+
 - `docs/index.md` — primary rewrite (hero + uvx block + 3 cards)
 - `docs/getting-started/installation.md` — promote uvx, restructure options
 - `docs/getting-started/quickstart.md` — reframe for vibe-coder audience
 
 **Spec changes:**
+
 - `openspec/specs/entrypoint-onboarding/spec.md` — delta
 - `openspec/specs/first-contact-story/spec.md` — delta
 - `openspec/specs/first-run-selection/spec.md` — delta (profile install requirement)

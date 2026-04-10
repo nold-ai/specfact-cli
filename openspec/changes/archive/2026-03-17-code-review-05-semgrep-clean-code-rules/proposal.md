@@ -6,7 +6,7 @@ Ruff and pylint cover well-known generic patterns, but several project-specific 
 
 - **get+modify in same method** — violates single-responsibility; not detectable by ruff
 - **Unguarded nested attribute access** (`a.b.c` without None guard) — silent NoneAttributeError risk
-- **Cross-layer calls** (repository.* + http_client.* in same function) — architecture boundary violation
+- **Cross-layer calls** (repository.*+ http_client.* in same function) — architecture boundary violation
 - **Module-level network instantiation** — side effects at import time
 - **print() in src/** — complement to ruff T201 for cases ruff misses with complex expressions
 

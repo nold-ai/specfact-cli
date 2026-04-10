@@ -3,6 +3,7 @@
 ## Context
 
 The `backlog-core` module was deleted in commit 978cc82, removing 9 command implementations:
+
 - `add` (27KB - interactive/non-interactive item creation)
 - `analyze_deps` (dependency graph analysis)
 - `sync` (bidirectional backlog sync)
@@ -14,6 +15,7 @@ The `backlog-core` module was deleted in commit 978cc82, removing 9 command impl
 - `generate_release_notes` (release notes generation)
 
 Source code exists in:
+
 - Worktree: `specfact-cli-worktrees/feature/agile-01-feature-hierarchy/modules/backlog-core/`
 - Git history: `git show 978cc82^:modules/backlog-core/`
 
@@ -22,6 +24,7 @@ Target location: `specfact-cli-modules/packages/specfact-backlog/src/specfact_ba
 ## Goals / Non-Goals
 
 **Goals:**
+
 - Recover all deleted command implementations
 - Integrate commands into specfact-backlog bundle structure
 - Maintain backward-compatible CLI surface (`specfact backlog add`, etc.)
@@ -29,6 +32,7 @@ Target location: `specfact-cli-modules/packages/specfact-backlog/src/specfact_ba
 - Add ceremony aliases for high-impact commands
 
 **Non-Goals:**
+
 - Re-implement from scratch (use existing code)
 - Modify command behavior (migration only, no feature changes)
 - Support backlog-core as standalone module (bundle-only)
@@ -44,6 +48,7 @@ Target location: `specfact-cli-modules/packages/specfact-backlog/src/specfact_ba
 ### 2. Code Organization
 
 **Decision**: Structure under `backlog/commands/` with submodules:
+
 ```
 specfact_backlog/backlog/commands/
   add.py
@@ -62,6 +67,7 @@ specfact_backlog/backlog/commands/
 ### 3. Integration Pattern
 
 **Decision**: Register commands via existing `commands.py` app, following same pattern as `daily`/`refine`:
+
 ```python
 @app.command()
 def add(...): ...
@@ -72,6 +78,7 @@ def add(...): ...
 ### 4. Ceremony Aliases
 
 **Decision**: Add ceremony aliases for high-frequency commands:
+
 - `backlog ceremony add` → `backlog add`
 - `backlog ceremony sync` → `backlog sync`
 

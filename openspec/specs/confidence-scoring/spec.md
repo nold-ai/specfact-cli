@@ -1,8 +1,11 @@
 # confidence-scoring Specification
 
 ## Purpose
+
 TBD - created by archiving change bundle-mapper-01-mapping-strategy. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Explicit Label Signal
 
 The system SHALL score explicit bundle labels (e.g., "bundle:xyz", "project:abc") with highest priority and 100% confidence when bundle exists.
@@ -106,4 +109,3 @@ The system SHALL use configurable confidence thresholds for routing decisions.
 - **WHEN** config contains non-numeric threshold values
 - **THEN** mapper initialization does not fail
 - **AND** default threshold values are used
-

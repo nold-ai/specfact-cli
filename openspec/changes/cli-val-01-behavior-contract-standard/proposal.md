@@ -36,6 +36,6 @@ Every SpecFact CLI feature should have a single artifact that answers: "What doe
 
 <!-- source_repo: nold-ai/specfact-cli -->
 - **GitHub Issue**: #279
-- **Issue URL**: https://github.com/nold-ai/specfact-cli/issues/279
+- **Issue URL**: <https://github.com/nold-ai/specfact-cli/issues/279>
 - **Repository**: nold-ai/specfact-cli
 - **Last Synced Status**: proposed

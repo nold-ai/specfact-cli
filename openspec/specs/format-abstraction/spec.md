@@ -1,8 +1,11 @@
 # format-abstraction Specification
 
 ## Purpose
+
 TBD - created by archiving change add-generic-backlog-abstraction. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Format Abstraction
 
 The system SHALL provide a `BacklogFormat` abstraction that handles serialization and deserialization of backlog items across different formats (Markdown, YAML, JSON).
@@ -205,4 +208,3 @@ The system SHALL map work item types correctly across providers and frameworks.
 - **WHEN** the item is converted to `BacklogItem`
 - **THEN** the `work_item_type` field is set appropriately (User Story, Task, Bug, etc.)
 - **AND** no sprint/iteration information is required (Kanban doesn't use sprints)
-

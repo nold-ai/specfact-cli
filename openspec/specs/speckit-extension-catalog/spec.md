@@ -1,8 +1,11 @@
 # speckit-extension-catalog Specification
 
 ## Purpose
+
 TBD - created by archiving change speckit-02-v04-adapter-alignment. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Extension catalog detection
 
 The system SHALL detect spec-kit extension catalogs in a target repository by scanning for `extensions/catalog.community.json` and `extensions/catalog.core.json` files relative to the repository root or `.specify/` directory.
@@ -69,4 +72,3 @@ The system SHALL respect `.extensionignore` files when reporting active extensio
 - **GIVEN** a repository with extensions but no `.extensionignore` file
 - **WHEN** `SpecKitScanner.scan_extensions()` is called
 - **THEN** all extensions from the catalogs are included in the result
-

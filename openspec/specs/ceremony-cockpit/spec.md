@@ -1,8 +1,11 @@
 # ceremony-cockpit Specification
 
 ## Purpose
+
 TBD - created by archiving change ceremony-cockpit-01-ceremony-aliases. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Ceremony aliases
 
 The system SHALL provide ceremony-oriented entry points under backlog: `specfact backlog ceremony standup` (delegates to `backlog daily`), `specfact backlog ceremony refinement` (delegates to `backlog refine`), `specfact backlog ceremony planning` (delegates to `backlog sprint-summary` when installed). Optional: `backlog ceremony flow` → `backlog flow`, `backlog ceremony pi-summary` → `backlog pi-summary` when those commands exist.
@@ -70,4 +73,3 @@ The system SHALL apply exceptions-first default section order (blockers, policy 
 **Acceptance Criteria**:
 
 - Order is default when data available; existing backlog daily behavior is extended, not replaced; backward compatible.
-

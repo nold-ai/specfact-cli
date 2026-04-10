@@ -15,6 +15,7 @@
 ## Breaking Changes Detected
 
 **None** - All changes are **additive only**:
+
 - New `extensions` field with default value (empty dict)
 - New accessor methods (get_extension, set_extension)
 - New ModulePackageMetadata fields with defaults
@@ -25,40 +26,49 @@
 ### Feature Model (src/specfact_cli/models/plan.py)
 
 **ADDED field**:
+
 ```python
 extensions: dict[str, Any] = Field(default_factory=dict)
 ```
+
 - Default value ensures backward compatibility
 - Existing Feature instances remain valid
 - Serialization/deserialization preserved
 
 **ADDED methods**:
+
 ```python
 def get_extension(module_name: str, field: str, default: Any = None) -> Any: ...
 def set_extension(module_name: str, field: str, value: Any) -> None: ...
 ```
+
 - New methods, no existing signatures modified
 - Contracts enforce namespace format validation
 
 ### ProjectBundle Model (src/specfact_cli/models/project.py)
 
 **ADDED field**:
+
 ```python
 extensions: dict[str, Any] = Field(default_factory=dict)
 ```
+
 - Default value ensures backward compatibility
 - Existing bundles load without migration
 
 **ADDED methods**:
+
 ```python
 def get_extension(module_name: str, field: str, default: Any = None) -> Any: ...
 def set_extension(module_name: str, field: str, value: Any) -> None: ...
 ```
+
 - New methods, no existing signatures modified
 
 ### ModulePackageMetadata Model (src/specfact_cli/models/module_package.py)
 
 **ADDED model**:
+
 ```python
 class SchemaExtension(BaseModel):
     target: str  # "Feature" or "ProjectBundle"
@@ -68,21 +78,25 @@ class SchemaExtension(BaseModel):
 ```
 
 **ADDED field**:
+
 ```python
 schema_extensions: list[SchemaExtension] = Field(default_factory=list)
 ```
+
 - Default value (empty list) ensures backward compatibility
 - Existing module manifests without schema_extensions remain valid
 
 ### New Module
 
 **ADDED**: `src/specfact_cli/registry/extension_registry.py`
+
 - ExtensionRegistry class for collision detection
 - No existing code depends on this (new module)
 
 ## Dependencies Affected
 
 ### Files Using Feature Model (~15 files)
+
 - **Impact**: None (additive change)
 - **Action Required**: None
 - **Optional**: Modules can adopt extensions when needed
@@ -93,6 +107,7 @@ schema_extensions: list[SchemaExtension] = Field(default_factory=list)
   - `src/specfact_cli/adapters/speckit.py`
 
 ### Files Using ProjectBundle Model (~9 files)
+
 - **Impact**: None (additive change)
 - **Action Required**: None
 - **Optional**: Can adopt extensions when needed
@@ -102,11 +117,13 @@ schema_extensions: list[SchemaExtension] = Field(default_factory=list)
   - `src/specfact_cli/utils/progress.py`
 
 ### Module Registration Flow
+
 - **File**: `src/specfact_cli/registry/module_packages.py`
 - **Impact**: Will be extended to parse schema_extensions
 - **Action**: Implementation task (new functionality)
 
 ### Test Files (~10 files)
+
 - **Impact**: None (backward compatible)
 - **Recommendation**: Add new tests for extension functionality
 - **Action**: Test tasks included in implementation plan
@@ -114,23 +131,27 @@ schema_extensions: list[SchemaExtension] = Field(default_factory=list)
 ## Impact Assessment
 
 ### Code Impact
+
 - **Scope**: Core data models (Feature, ProjectBundle)
 - **Type**: Additive (new fields and methods)
 - **Backward Compatibility**: ✅ Full (defaults preserve existing behavior)
 - **Migration Required**: ❌ None
 
 ### Test Impact
+
 - **Existing Tests**: ✅ Should pass without modification (backward compatible)
 - **New Tests Required**: ✅ Covered in tasks.md (TDD-first approach)
 - **Coverage**: Expect >80% for new functionality
 
 ### Documentation Impact
+
 - **New Guide**: `docs/guides/extending-projectbundle.md` ✅
 - **Updated Reference**: `docs/reference/architecture.md` ✅
 - **Navigation**: `docs/_layouts/default.html` update ✅
 - **Impact**: Well-documented in tasks.md
 
 ### Release Impact
+
 - **Version Bump**: **Minor** (new feature, backward compatible)
 - **Semver**: Appropriate (additive API changes)
 - **Changelog**: Update required ✅
@@ -138,6 +159,7 @@ schema_extensions: list[SchemaExtension] = Field(default_factory=list)
 ## Format Validation
 
 ### proposal.md Format: ✅ PASS
+
 - ✅ Title: `# Change: [description]`
 - ✅ Sections: Why, What Changes, Capabilities, Impact
 - ✅ Capabilities: New `schema-extension-system`, Modified `module-packages`, `module-lifecycle-management`
@@ -146,6 +168,7 @@ schema_extensions: list[SchemaExtension] = Field(default_factory=list)
 - ✅ Rollback plan: Documented
 
 ### tasks.md Format: ✅ PASS
+
 - ✅ TDD/SDD Order: Enforced with explicit header
 - ✅ Git Workflow: Branch creation first (Task 1), PR creation last (Task 10)
 - ✅ Task Structure: Hierarchical `## N.` sections with `- [ ] N.M` tasks
@@ -156,6 +179,7 @@ schema_extensions: list[SchemaExtension] = Field(default_factory=list)
 - ✅ Contract requirements: @icontract/@beartype in task descriptions
 
 ### specs Format: ✅ PASS
+
 - ✅ New spec: `schema-extension-system/spec.md` (8 requirements, 29 scenarios)
 - ✅ Delta specs: `module-packages/spec.md`, `module-lifecycle-management/spec.md`
 - ✅ Format: WHEN/THEN format (not Given/When/Then, per instructions)
@@ -163,6 +187,7 @@ schema_extensions: list[SchemaExtension] = Field(default_factory=list)
 - ✅ References: Leverages existing patterns
 
 ### design.md Format: ✅ PASS
+
 - ✅ Sections: Context, Goals/Non-Goals, Decisions, Risks/Trade-offs
 - ✅ Decisions: 4 key decisions with rationale and trade-offs
 - ✅ Alternatives: Considered for each decision
@@ -170,6 +195,7 @@ schema_extensions: list[SchemaExtension] = Field(default_factory=list)
 - ✅ Migration Plan: Phased approach documented
 
 ### Config.yaml Compliance: ✅ PASS
+
 - ✅ TDD-first: Tests before code (enforced in tasks.md)
 - ✅ Git workflow: Branch first, PR last
 - ✅ Quality gates: format, type-check, contract-test, full suite
@@ -188,27 +214,32 @@ schema_extensions: list[SchemaExtension] = Field(default_factory=list)
 ## Dependencies and Prerequisites
 
 ### Required Changes (from plan)
+
 - ✅ **arch-04** (ModuleIOContract): Foundation exists (archived)
 - ✅ **arch-05** (Bridge Registry): Active change, not a blocker for this change
 - ✅ **arch-06** (Enhanced Manifest Security): Active change, not a blocker
 
 ### Recommendation
+
 This change (arch-07) can proceed independently. It does not depend on arch-05 or arch-06 being implemented first, as it only extends core models and module manifest schema without conflicting with security or bridge features.
 
 ## Risk Assessment
 
 ### Technical Risks
+
 1. **Namespace collision** - Mitigated by ExtensionRegistry validation at registration
 2. **Type safety** - Mitigated by @beartype contracts on accessor methods
 3. **Performance** - Low risk (dict lookups, optional metadata)
 4. **Serialization** - Low risk (Pydantic handles new fields automatically)
 
 ### Process Risks
+
 1. **Incomplete testing** - Mitigated by TDD-first approach in tasks.md
 2. **Documentation lag** - Mitigated by documentation task before PR
 3. **Version sync** - Mitigated by explicit version update task
 
 ### Mitigation Verification
+
 - ✅ All risks have documented mitigations in design.md
 - ✅ Tasks.md enforces mitigations through task ordering
 - ✅ Quality gates catch issues before merge
@@ -231,6 +262,7 @@ This change (arch-07) can proceed independently. It does not depend on arch-05 o
 **Change arch-07-schema-extension-system is SAFE TO IMPLEMENT** ✅
 
 ### Key Findings
+
 1. ✅ Zero breaking changes - all changes are additive
 2. ✅ Full backward compatibility with existing code and bundles
 3. ✅ Comprehensive task plan with TDD-first ordering
@@ -240,11 +272,13 @@ This change (arch-07) can proceed independently. It does not depend on arch-05 o
 7. ✅ OpenSpec validation passed
 
 ### Recommendation
+
 **PROCEED WITH IMPLEMENTATION** following the task plan in tasks.md.
 
 Start with: `git checkout -b feature/arch-07-schema-extension-system`
 
 ### Next Steps
+
 1. Create feature branch (Task 1)
 2. Begin TDD cycle: write tests for extensions field (Task 2.1)
 3. Follow tasks.md sequentially through completion

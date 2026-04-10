@@ -2,9 +2,6 @@
 
 ## Why
 
-
-
-
 Validation today operates only at the spec-code level (`specfact validate` checks spec deltas and contract enforcement). There is no way to validate the entire chain from business requirements through architecture to code and tests. This means a project can pass all technical validations while building entirely the wrong thing. A `--full-chain` validation mode that checks every layer transition — Req → Arch → Spec → Code → Tests — and reports gaps, orphans, and coverage metrics, unlocks the core value proposition: end-to-end traceability with actionable evidence.
 
 ## Ownership Alignment (2026-04-08)
@@ -47,9 +44,6 @@ modules/validate/
 
 ## What Changes
 
-
-
-
 - **EXTEND**: `specfact validate` extended with `--full-chain` flag that runs validation across all layer transitions:
   - Req → Arch: Every business rule mapped to component; every architectural constraint has ADR
   - Arch → Spec: Every component has OpenAPI/AsyncAPI spec
@@ -60,6 +54,7 @@ modules/validate/
 - **NEW**: Full-chain validation orchestrator in `modules/validate/src/validate/engine/full_chain.py` — runs all layer transition checks, aggregates results, computes coverage metrics
 - **NEW**: Layer transition rules with profile-dependent severity: solo gets advisory-only, enterprise gets hard-fail with evidence
 - **NEW**: Machine-readable evidence output (JSON) for CI gates:
+
   ```json
   {
     "schema_version": "1.0",
@@ -75,10 +70,12 @@ modules/validate/
     "overall": "PASS_WITH_ADVISORY"
   }
   ```
+
 - **NEW**: `--evidence-dir .specfact/evidence/` flag for persisting validation evidence artifacts
 - **EXTEND**: Policy engine integration — layer transition severities configurable via policy-engine-01 policy rules
 
 ## Capabilities
+
 ### New Capabilities
 
 - `full-chain-validation`: End-to-end validation across all traceability layers (Req → Arch → Spec → Code → Tests) with profile-dependent severity, orphan detection, coverage metrics, and machine-readable evidence output for CI gates.
@@ -87,7 +84,6 @@ modules/validate/
 
 - `sidecar-validation`: Extended with `--full-chain` flag; existing spec-delta validation preserved as-is when flag is omitted
 - `full-chain-validation`: Extended with optional code-quality side-channel reporting that remains parallel to the Req → Arch → Spec → Code → Tests transitions
-
 
 ---
 

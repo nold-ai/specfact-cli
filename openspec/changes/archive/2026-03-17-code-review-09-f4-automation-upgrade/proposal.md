@@ -58,6 +58,6 @@ default with optional backend persistence when configured.
 
 <!-- source_repo: nold-ai/specfact-cli -->
 - **GitHub Issue**: #393
-- **Issue URL**: https://github.com/nold-ai/specfact-cli/issues/393
+- **Issue URL**: <https://github.com/nold-ai/specfact-cli/issues/393>
 - **Repository**: nold-ai/specfact-cli
 - **Last Synced Status**: synced after rewrite

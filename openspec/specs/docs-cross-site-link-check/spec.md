@@ -1,8 +1,11 @@
 # docs-cross-site-link-check Specification
 
 ## Purpose
+
 TBD - created by archiving change docs-12-docs-validation-ci. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Cross-site modules URLs are discoverable from Markdown
 
 The repository SHALL provide a script that extracts `https://modules.specfact.io/…` URLs from `docs/**/*.md`, performs HTTP HEAD/GET checks with redirects allowed, and reports source file context for failures.
@@ -22,4 +25,3 @@ The handoff migration map SHALL be covered by opt-in HTTP tests that verify each
 - **WHEN** a maintainer sets `SPECFACT_RUN_HANDOFF_URL_CHECK=1`
 - **THEN** pytest runs the handoff map URL reachability test against production
 - **AND** the default CI run skips that test to avoid flaky or lagging deploy noise
-

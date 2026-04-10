@@ -36,6 +36,7 @@ Components with **no** imports from core (cli, init, module_registry, upgrade, r
 - **`sync`** (after bridge_templates): Only used by bridge_templates and tests. specfact-project has `sync_runtime`. → Remove after bridge_templates; migrate sync tests.
 
 Phase 1 progress (2026-03-05):
+
 - `templates.bridge_templates` removed from core (completed earlier).
 - Legacy unit tests under `specfact-cli/tests/unit/sync/` migrated to `specfact-cli-modules/tests/unit/specfact_project/sync_runtime/` (102 tests passing in modules worktree).
 - Core now enforces this via `test_core_repo_does_not_host_sync_runtime_unit_tests`.

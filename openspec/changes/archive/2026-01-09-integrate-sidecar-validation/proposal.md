@@ -160,7 +160,6 @@ This change proposal consolidates and implements several related sidecar validat
 
 **Note**: This proposal implements the core CLI integration (#54) in Phases 0-8. Features from #55, #56, and #57 are included as Phases 9-11 in the implementation plan.
 
-
 ---
 
 ## Source Tracking

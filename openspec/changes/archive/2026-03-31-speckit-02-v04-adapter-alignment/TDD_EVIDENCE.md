@@ -13,6 +13,7 @@ Production code for tasks 1.1–7.2 was written first (ToolCapabilities fields, 
 **Result:** 110 passed in 4.90s
 
 New tests added:
+
 - `TestToolCapabilitiesV04Fields` — 8 tests (backward compat, all new fields)
 - `TestScanExtensions` — 7 tests (catalog parsing, ignore, malformed JSON, merge)
 - `TestScanPresets` — 4 tests (JSON, directory, malformed fallback)

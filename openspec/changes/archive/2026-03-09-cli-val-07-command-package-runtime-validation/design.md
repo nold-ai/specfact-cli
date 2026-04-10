@@ -42,6 +42,7 @@ The validation matrix should be built from:
 This keeps the plan aligned with the shipped code surface and reduces drift when new commands are added.
 
 Alternative considered:
+
 - A static markdown checklist only. Rejected because it will drift as soon as bundle commands change.
 
 ### 2. Validate commands in user-realistic phases
@@ -62,6 +63,7 @@ The execution order should be:
 This order front-loads setup failures and ensures dependent groups are validated after their owning bundle is installed.
 
 Alternative considered:
+
 - Alphabetical execution across all commands. Rejected because it hides setup dependencies and makes failures harder to triage.
 
 ### 3. Define a safe validation argv for every leaf command
@@ -75,6 +77,7 @@ Each command must have a deterministic validation invocation recorded in the mat
 The matrix must explicitly mark which category each command uses so gaps are visible.
 
 Alternative considered:
+
 - Execute only `--help` for all commands. Rejected because it would not catch runtime bootstrap/output regressions like the current one.
 
 ### 4. Separate forbidden diagnostic noise from actionable warnings
@@ -92,6 +95,7 @@ Normal output must still preserve:
 - command-level validation errors the user can act on
 
 Alternative considered:
+
 - Silence all startup warnings. Rejected because it would hide legitimate security or precedence problems.
 
 ### 5. Reuse existing acceptance test infrastructure where possible
@@ -103,6 +107,7 @@ Implementation should extend the existing CLI validation approach rather than in
 - fixture workspaces for safe command execution categories
 
 Alternative considered:
+
 - A standalone shell script outside pytest. Rejected because it weakens repeatability and CI integration.
 
 ### 6. Treat marketplace bundle code and core backlog code as one runtime surface for validation
@@ -119,6 +124,7 @@ Validation and fixes therefore need to cover both repositories together. In prac
 - saved provider metadata from the bundle must be consumed by `backlog add` in core
 
 Alternative considered:
+
 - Move all backlog behavior into one package as part of this change. Rejected because it is a larger architectural migration than the current release-stabilization scope.
 
 ### 7. Make long metadata fetches observable instead of silent
@@ -126,6 +132,7 @@ Alternative considered:
 `backlog map-fields` now fetches required-field and picklist metadata after the user selects an ADO work item type. That can trigger many API calls before the next prompt appears. The command should therefore emit a progress/status message before this post-selection fetch so the CLI does not appear hung.
 
 Alternative considered:
+
 - Keep the current behavior and rely on faster networks. Rejected because the current silent gap is already confusing users and obscures whether the command is still working.
 
 ## Risks / Trade-offs

@@ -35,6 +35,6 @@ Users who script SpecFact in CI/CD pipelines rely on stable output: help text fo
 
 <!-- source_repo: nold-ai/specfact-cli -->
 - **GitHub Issue**: #280
-- **Issue URL**: https://github.com/nold-ai/specfact-cli/issues/280
+- **Issue URL**: <https://github.com/nold-ai/specfact-cli/issues/280>
 - **Repository**: nold-ai/specfact-cli
 - **Last Synced Status**: proposed

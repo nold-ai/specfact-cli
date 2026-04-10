@@ -2,7 +2,6 @@
 
 ## Why
 
-
 When importing backlog items (GitHub Issues, ADO Work Items) as OpenSpec change proposals via `specfact sync bridge --adapter github --bidirectional --backlog-ids <ids>`, the system currently only creates a `ChangeProposal` object and stores it in the project bundle's `change_tracking.proposals`. However, it does NOT create the required OpenSpec change artifacts:
 
 - `proposal.md` file (with proper OpenSpec format)
@@ -12,7 +11,6 @@ When importing backlog items (GitHub Issues, ADO Work Items) as OpenSpec change 
 This creates incomplete OpenSpec changes that cannot be validated, applied, or properly tracked. The imported change proposals are only stored in bundle memory and are not persisted as proper OpenSpec change artifacts that can be validated, reviewed, and implemented following the OpenSpec workflow.
 
 ## What Changes
-
 
 - **FIX**: Extend `import_backlog_items_to_bundle()` in `BridgeSync` to create OpenSpec change directory structure after importing to bundle
 - **FIX**: Add `_write_openspec_change_from_proposal()` method to `BridgeSync` that creates `proposal.md`, `tasks.md`, and spec deltas from imported `ChangeProposal`
@@ -32,7 +30,6 @@ This creates incomplete OpenSpec changes that cannot be validated, applied, or p
 - **FIX**: Ensure source tracking is properly written to `proposal.md` Source Tracking section
 - **EXTEND**: Add validation step after OpenSpec file creation to ensure format compliance
 - **EXTEND**: Add error handling for file creation failures (permissions, disk space, etc.)
-
 
 ---
 

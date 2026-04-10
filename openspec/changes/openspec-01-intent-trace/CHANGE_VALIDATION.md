@@ -17,6 +17,7 @@
 ## Breaking Changes Detected
 
 None. All interface extensions are additive and optional:
+
 - `parse_change_proposal()` returns `dict[str, Any]` — adding optional `"intent_trace"` key is non-breaking
 - `--import-intent` CLI flag has no default effect (opt-in)
 - New files (`intent_trace_validator.py`, `intent-trace.schema.json`) have no existing callers
@@ -26,6 +27,7 @@ None. All interface extensions are additive and optional:
 **Constraint**: `_parse_proposal_content()` at `openspec_parser.py:335` has type annotation `dict[str, str]` (return type). If intent trace data (a nested dict) were added here, `@beartype` would raise a type error.
 
 **Required implementation approach**: Intent trace extraction MUST be done in `parse_change_proposal()` (returns `dict[str, Any]`) by:
+
 1. Calling `_parse_proposal_content(content)` as usual → returns `dict[str, str]`
 2. Separately extracting the YAML fenced block under `## Intent Trace` from `content`
 3. Parsing with `yaml.safe_load()` and assigning to `result["intent_trace"]`

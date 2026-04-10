@@ -52,15 +52,18 @@ CrossHair was run with system Python, but Flask is only in sidecar venv:
 ### Fix Applied
 
 **Modified `crosshair_runner.py`**:
+
 - Added `python_cmd` parameter to `run_crosshair()`
 - Use venv Python when available: `[venv_python, "-m", "crosshair", "check", ...]`
 - Fall back to system CrossHair if venv Python not available
 
 **Updated `dependency_installer.py`**:
+
 - Added `crosshair-tool` to framework dependencies
 - CrossHair is now installed during sidecar venv setup
 
 **Updated `orchestrator.py`**:
+
 - Pass `python_cmd` to `run_crosshair()` calls
 - Venv Python is now used for CrossHair execution
 
@@ -81,11 +84,13 @@ Dependencies were not being installed in sidecar venv:
 ### Fix Applied
 
 **Venv Creation**:
+
 - Uses `symlinks=False` to avoid libpython shared library issues
 - Validates venv Python can actually run (detects broken venvs)
 - Automatically recreates broken venvs
 
 **Dependency Installation**:
+
 - Framework dependencies installed automatically (Flask, FastAPI, etc.)
 - Project dependencies detected and installed (requirements.txt, pyproject.toml)
 - Harness dependencies added (beartype, icontract)
@@ -192,11 +197,13 @@ class TimeoutConfig(BaseModel):
 ### CrossHair Not Finding Violations
 
 **Possible Causes**:
+
 1. Contracts too weak (no validation rules)
 2. Expected status codes not extracted correctly
 3. CrossHair not executing Flask routes
 
 **Solutions**:
+
 1. Strengthen contracts with validation rules
 2. Verify `_extract_expected_status_codes` is called
 3. Check that Flask is available in venv
@@ -206,6 +213,7 @@ class TimeoutConfig(BaseModel):
 **Expected Behavior**: Timeouts are normal for complex Flask applications
 
 **Solutions**:
+
 1. Check summary file for partial results
 2. Increase timeout if needed (modify `TimeoutConfig`)
 3. Focus on specific routes by generating smaller harness files
@@ -215,6 +223,7 @@ class TimeoutConfig(BaseModel):
 **Issue**: `ModuleNotFoundError: No module named 'flask'`
 
 **Solutions**:
+
 1. Verify Flask is installed in venv: `.specfact/venv/bin/pip list | grep flask`
 2. Check PYTHONPATH includes venv site-packages
 3. Reinstall dependencies: Delete venv and re-run validation

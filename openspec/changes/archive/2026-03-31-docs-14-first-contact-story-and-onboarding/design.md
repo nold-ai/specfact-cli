@@ -7,6 +7,7 @@ topology, modules, migration notes, and audience variants before a newcomer can 
 SpecFact is relevant.
 
 The sharper product thesis coming out of the discovery work is:
+
 - SpecFact is the validation and alignment layer for software delivery.
 - In greenfield and AI-assisted work, it adds the missing rigor layer that keeps fast generation
   from becoming unstable delivery.
@@ -21,6 +22,7 @@ canonical top-level docs, while `specfact-cli-modules` owns module-deep workflow
 correct, but the handoff currently feels like internal structure rather than intentional onboarding.
 
 Stakeholders are:
+
 - first-time visitors deciding whether to try SpecFact
 - returning users who need a fast path to the right docs surface
 - maintainers who need a stable messaging hierarchy that does not drift
@@ -28,6 +30,7 @@ Stakeholders are:
 ## Goals / Non-Goals
 
 **Goals:**
+
 - establish one canonical product story for all first-contact surfaces
 - make the validation-and-alignment USP explicit instead of implied
 - answer the core user questions consistently:
@@ -43,6 +46,7 @@ Stakeholders are:
 - include GitHub repo metadata expectations so the product story starts before README scroll depth
 
 **Non-Goals:**
+
 - redesign the entire information architecture of all docs
 - rewrite all deep reference pages or module-specific guides
 - change CLI runtime behavior or command ownership
@@ -56,25 +60,30 @@ The repository landing, root README, `docs/index.md`, and modules homepage will 
 coordinated onboarding surface rather than independent copy islands.
 
 Why:
+
 - users evaluate the product across those touchpoints, not file-by-file
 - a split message creates hesitation even when each page is individually “good”
 
 Alternative considered:
+
 - improve each page independently without a shared message hierarchy
   - rejected because it tends to recreate drift and different answers to “what is SpecFact?”
 
 ### Decision: Lead with one primary identity sentence and one fast-start path
 
 Each first-contact surface will lead with:
+
 - one identity statement
 - one primary value proposition
 - one short “start here now” path
 
 Why:
+
 - visitors need a fast go/no-go decision before they want product topology
 - a single path reduces overwhelm and increases trial intent
 
 Alternative considered:
+
 - preserve multiple equal onboarding paths near the top
   - rejected because the current problem is over-choice and diluted focus
 
@@ -84,11 +93,13 @@ The canonical story will define SpecFact first as the validation and alignment l
 delivery, with “keep backlog, specs, tests, and code in sync” presented as the observable outcome.
 
 Why:
+
 - “keep in sync” is true but too generic on its own
 - validation plus alignment explains the value for AI-assisted coding, brownfield analysis, and
   enterprise governance in one frame
 
 Alternative considered:
+
 - define the product primarily by the Swiss-knife metaphor or by enumerating command families
   - rejected because metaphor alone is not enough and capability lists obscure the USP
 
@@ -100,9 +111,11 @@ handoff into spec-first tools, and module extensibility will remain as proof poi
 headline overload.
 
 Why:
+
 - those details are strengths, but they are secondary to basic product comprehension
 
 Alternative considered:
+
 - keep the current capability-dense hero
   - rejected because it communicates breadth before clarity
 
@@ -113,9 +126,11 @@ Core docs will explain that `docs.specfact.io` is the default starting point and
 newcomers back to core docs if they are not yet oriented.
 
 Why:
+
 - the repo split is an implementation detail until the user is ready for deeper workflows
 
 Alternative considered:
+
 - merge all explanations into the README hero
   - rejected because it front-loads topology before value
 
@@ -125,6 +140,7 @@ The change will encode the required first-contact questions and expected answers
 can be reviewed against a concrete standard.
 
 Why:
+
 - without a framework, copy regresses toward “everything SpecFact can do”
 - this creates an auditable quality bar for README/docs/repo metadata changes
 

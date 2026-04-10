@@ -34,6 +34,7 @@ This is a cross-cutting change because it touches runtime behavior, module disco
 The runtime should derive a safe output mode from terminal interactivity and stream encoding, not just from TTY/color detection. When the active output encoding cannot represent configured Unicode glyphs, the CLI should either substitute ASCII-safe markers or run Rich in a mode that avoids unsupported glyph emission.
 
 Why this over "document UTF-8 only":
+
 - the bug is user-facing on a supported platform
 - help/startup must be robust without bootstrap flags
 - graceful degradation is cheaper and more predictable than asking every caller to preconfigure environment variables
@@ -48,6 +49,7 @@ Programmatic callers that land in the wrong interpreter or compiled dependency s
 - what supported invocation path the caller should use instead
 
 Why this over continuing with ad hoc `sys.path` fallback:
+
 - path injection masks the real problem
 - compiled extensions such as `pydantic_core` cannot be made safe by string-based path hacks
 - explicit diagnostics give us a stable contract for Windows/Linux/macOS automation
@@ -57,6 +59,7 @@ Why this over continuing with ad hoc `sys.path` fallback:
 `specfact init ide` should build its prompt export set from installed module packages and their packaged resource directories. Core init/install flows should use the same installed-package lookup model for other module-owned assets, beginning with backlog field mapping templates. The current hardcoded workflow prompt list is bundle-owned, so it should not live under `specfact_cli/resources/prompts`.
 
 Why this over keeping a core fallback:
+
 - current prompt files represent workflow bundles, not core lifecycle commands
 - ownership should match installability and module provenance
 - dynamic discovery is the only way to stay correct when modules are optional or installed from different roots
@@ -66,6 +69,7 @@ Why this over keeping a core fallback:
 This repo owns the runtime safety layer, installed-resource discovery contract, export/copy orchestration, and docs. The paired modules-repo change `packaging-01-bundle-resource-payloads` owns moving prompts and other bundle-owned resources into the released bundle packages.
 
 Why this split is now required:
+
 - issue `#441` is rooted in the core CLI runtime and export flow
 - the audit verified the modules repo does not currently package the prompt payloads
 - the two repos now have distinct responsibilities that should be tracked separately

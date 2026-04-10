@@ -181,6 +181,8 @@ Cross-repo dependency: `docs-07-core-handoff-conversion` depends on `specfact-cl
 | Module | Order | Change folder | GitHub # | Blocked by |
 |--------|-------|---------------|----------|------------|
 | governance | 01 | cross-repo-issue-realignment | [#484](https://github.com/nold-ai/specfact-cli/issues/484) | agile-01 ✅; module-migration-11 [#408](https://github.com/nold-ai/specfact-cli/issues/408); backlog-module-ownership-cleanup |
+| governance | 02 | ✅ governance-02-github-hierarchy-cache (archived `openspec/changes/archive/2026-04-09-governance-02-github-hierarchy-cache`) | [#491](https://github.com/nold-ai/specfact-cli/issues/491) | governance-01 [#484](https://github.com/nold-ai/specfact-cli/issues/484); Parent Feature: [#486](https://github.com/nold-ai/specfact-cli/issues/486) |
+| governance | 03 | ✅ governance-03-deterministic-agent-governance-loading (archived `openspec/changes/archive/2026-04-10-governance-03-deterministic-agent-governance-loading`) | [#494](https://github.com/nold-ai/specfact-cli/issues/494) | governance-02 ✅; Parent Feature: [#486](https://github.com/nold-ai/specfact-cli/issues/486) |
 
 ### Cross-cutting foundations (no hard dependencies — implement early)
 
@@ -256,6 +258,7 @@ Cross-repo dependency: `docs-07-core-handoff-conversion` depends on `specfact-cl
 | profile | 01 | profile-01-config-layering | [#237](https://github.com/nold-ai/specfact-cli/issues/237) | #193 (existing init/module-state baseline) |
 | profile | 02 | profile-02-central-config-sources | [#249](https://github.com/nold-ai/specfact-cli/issues/249) | #237 (profile-01) |
 | profile | 03 | profile-03-domain-overlays | [#250](https://github.com/nold-ai/specfact-cli/issues/250) | #237 (profile-01), #249 (profile-02), #213 |
+| profile | 04 | profile-04-safe-project-artifact-writes | [#490](https://github.com/nold-ai/specfact-cli/issues/490) | Parent Feature: [#365](https://github.com/nold-ai/specfact-cli/issues/365); related bug [#487](https://github.com/nold-ai/specfact-cli/issues/487) |
 
 ### Requirements layer (architecture integration plan, 2026-02-15)
 
@@ -315,6 +318,7 @@ Spec-Kit has evolved to v0.4.3 with 46 extensions, pluggable presets, 7+ slash c
 **Cross-repo note**: speckit-03 lives in `nold-ai/specfact-cli-modules` but depends on speckit-02 in this repo (ToolCapabilities extension fields).
 
 **Updated proposals** (spec-kit interop sections added 2026-03-27):
+
 - `sync-01-unified-kernel`: Added spec-kit extension interop — sync kernel detects external sync actors from spec-kit reconcile/sync/iterate extensions
 - `requirements-03-backlog-sync`: Added spec-kit backlog extension awareness — prevents duplicate issue creation when spec-kit Jira/ADO/Linear extensions have already created issues
 
@@ -440,6 +444,7 @@ The following ownership boundaries are mandatory before implementation for overl
 | `ai_sync.review_runs` and `ai_sync.reward_ledger` Supabase tables | `code-review-06-reward-ledger` | code-review-07, code-review-09 |
 
 Pre-implementation rule:
+
 - No dependent change may redefine an owned surface. Any required semantic change must be proposed as a delta to the authoritative change first.
 
 ---

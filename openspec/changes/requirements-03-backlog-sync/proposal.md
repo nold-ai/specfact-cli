@@ -2,9 +2,6 @@
 
 ## Why
 
-
-
-
 When backlog items change, requirements aren't updated. When requirements change, backlog items aren't updated. The two drift apart silently, creating a traceability gap that grows with every sprint. Teams discover the drift only during audits or after building the wrong thing. A bidirectional sync between backlog items and `.specfact/requirements/` using the sync kernel makes requirements and backlog items a single source of truth — with drift detection as the safety net.
 
 ## Ownership Alignment (2026-04-08)
@@ -17,9 +14,6 @@ When backlog items change, requirements aren't updated. When requirements change
 
 ## What Changes
 
-
-
-
 - **NEW**: `specfact requirements sync --from-backlog <adapter> --project <org/repo> --preview` — pull structured requirements from backlog AC text, update `.specfact/requirements/`
 - **NEW**: `specfact requirements sync --to-backlog <adapter> --project <org/repo> --preview` — push requirement-derived fields back to backlog items (missing AC, business value gaps, architectural constraints)
 - **NEW**: `specfact requirements drift --from-backlog <adapter> --project <org/repo>` — detect divergence between local requirements and backlog items without making changes
@@ -30,6 +24,7 @@ When backlog items change, requirements aren't updated. When requirements change
 - **EXTEND**: Spec-Kit backlog extension awareness — before creating issues during push (requirements → backlog), the sync SHALL query `ToolCapabilities.extension_commands` (from speckit-02) to detect active spec-kit backlog extensions (Jira, ADO, Linear, GitHub Projects, Trello). When a spec-kit backlog extension is active, the sync SHALL scan spec-kit feature `tasks.md` files for existing issue references (e.g., `PROJ-123`, `AB#456`) and import them as pre-existing mappings. Issue creation is skipped for tasks that already have spec-kit extension mappings, preventing duplicate issues. This detection is implemented in `speckit-03-change-proposal-bridge` (specfact-cli-modules) and consumed here via the adapter interface.
 
 ## Capabilities
+
 ### New Capabilities
 
 - `requirements-backlog-sync`: Bidirectional sync between `.specfact/requirements/` and backlog items (GitHub, ADO, Jira, Linear) via sync kernel. Includes pull (extract from backlog), push (update backlog), and drift detection.
@@ -38,7 +33,6 @@ When backlog items change, requirements aren't updated. When requirements change
 
 - `backlog-adapter`: Extended with requirements field extraction and update methods for bidirectional sync; extended with spec-kit backlog extension issue mapping import
 - `requirements-module`: Extended with sync and drift commands; extended with spec-kit duplicate issue prevention
-
 
 ---
 

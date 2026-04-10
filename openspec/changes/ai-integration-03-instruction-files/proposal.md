@@ -2,15 +2,9 @@
 
 ## Why
 
-
-
-
 Each AI IDE has its own instruction file format (`.cursor/rules/*.mdc`, `.github/copilot-instructions.md`, `CLAUDE.md`, `.windsurf/rules/`). Teams using multiple IDEs need SpecFact guidance in each format. Auto-generated lightweight instruction files that point to the core Agent Skill — with glob-based auto-attachment on spec files — ensure consistent spec validation guidance across all IDEs without manual per-platform maintenance.
 
 ## What Changes
-
-
-
 
 - **NEW**: `specfact ide setup --platforms cursor,copilot,claude,windsurf` — auto-generate instruction files for selected platforms:
   - `.cursor/rules/specfact.mdc` — Cursor rule with glob: `**/*.yaml, **/*.json, **/openapi*`
@@ -27,6 +21,7 @@ Each AI IDE has its own instruction file format (`.cursor/rules/*.mdc`, `.github
 - **MODIFY**: Generated instruction files stay lightweight and MUST reference clean-code enforcement through a one-line alias to the canonical `specfact-code-review` skill instead of embedding the full 7-principle charter inline
 
 ## Capabilities
+
 ### New Capabilities
 
 - `cross-platform-instructions`: Auto-generated AI IDE instruction files for Cursor, Copilot, Claude Code, and Windsurf. Lightweight aliases pointing to the core Agent Skill, with glob-based auto-attachment on spec files.
@@ -34,7 +29,6 @@ Each AI IDE has its own instruction file format (`.cursor/rules/*.mdc`, `.github
 ### Modified Capabilities
 
 - `cross-platform-instructions`: Extended so generated aliases can reference clean-code enforcement without breaking the lightweight token budget for IDE instruction surfaces
-
 
 ---
 

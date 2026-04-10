@@ -1,8 +1,11 @@
 # codebase-validation-depth Specification
 
 ## Purpose
+
 TBD - created by archiving change validation-01-deep-validation. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Sidecar Validation for Unmodified Code
 
 The CLI SHALL support thorough in-depth validation of a target repository without modifying the target's source (sidecar mode).
@@ -130,4 +133,3 @@ The documentation SHALL describe three validation modes: (1) quick check (repro)
 - Single reference section or guide covering all three use cases
 - Commands are copy-pasteable; any required env or config is stated
 - Link from README or getting-started to this section where appropriate
-

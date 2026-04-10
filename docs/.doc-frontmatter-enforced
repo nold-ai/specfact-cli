@@ -6,3 +6,4 @@ docs/core-cli/init.md
 docs/reference/documentation-url-contract.md
 docs/contributing/docs-sync.md
 docs/contributing/frontmatter-schema.md
+docs/agent-rules/*.md

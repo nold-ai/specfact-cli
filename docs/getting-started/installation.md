@@ -78,6 +78,7 @@ specfact init ide --ide cursor --install-deps
 [More options ↓](#more-options)
 
 ## More options
+
 {: #more-options}
 
 ### Container

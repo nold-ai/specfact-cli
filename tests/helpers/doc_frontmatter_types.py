@@ -24,6 +24,7 @@ class CheckDocFrontmatterModule(Protocol):
     """Structural type for ``scripts/check_doc_frontmatter.py`` loaded via importlib."""
 
     DocFrontmatter: type[DocFrontmatterModel]
+    AgentRuleFrontmatter: type[AgentRuleFrontmatterModel]
     parse_frontmatter: Callable[[Path], dict[str, Any]]
     resolve_owner: Callable[[str], bool]
     validate_glob_patterns: Callable[[list[str]], bool]
@@ -38,12 +39,14 @@ class CheckDocFrontmatterModule(Protocol):
 
 @runtime_checkable
 class DocFrontmatterRecord(Protocol):
-    """Minimal validated model instance shape used by tests."""
+    """Validated doc-sync record shape (``DocFrontmatter`` / ``AgentRuleFrontmatter`` base fields)."""
 
     title: str
     doc_owner: str
     tracks: list[str]
     last_reviewed: date
+    exempt: bool
+    exempt_reason: str
 
 
 @runtime_checkable
@@ -52,4 +55,27 @@ class DocFrontmatterModel(Protocol):
 
     @classmethod
     def model_validate(cls, data: dict[str, object]) -> DocFrontmatterRecord:
+        raise NotImplementedError
+
+
+@runtime_checkable
+class AgentRuleFrontmatterRecord(DocFrontmatterRecord, Protocol):
+    """Validated agent-rule record shape (mirrors ``AgentRuleFrontmatter`` public fields)."""
+
+    id: str
+    always_load: bool
+    applies_when: list[str]
+    priority: int
+    blocking: bool
+    user_interaction_required: bool
+    stop_conditions: list[str]
+    depends_on: list[str]
+
+
+@runtime_checkable
+class AgentRuleFrontmatterModel(Protocol):
+    """Model type exposing ``model_validate`` for agent-rule docs."""
+
+    @classmethod
+    def model_validate(cls, data: dict[str, object]) -> AgentRuleFrontmatterRecord:
         raise NotImplementedError

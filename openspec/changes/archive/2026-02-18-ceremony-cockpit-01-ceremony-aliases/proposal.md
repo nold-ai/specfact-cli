@@ -2,7 +2,6 @@
 
 ## Why
 
-
 Teams think in ceremonies ("standup," "refinement," "planning"). Without ceremony entry points, adoption friction remains high — users must remember `backlog daily`, `backlog refine`, `backlog sprint-summary` instead of `backlog ceremony standup`, `backlog ceremony refinement`, `backlog ceremony planning`. Ceremony aliases plus mode switch (scrum|kanban|safe) and exceptions-first defaults are a pure UX/ergonomics win with minimal implementation cost.
 
 This change establishes the **`ceremony-cockpit` module** — the UX alias layer that wraps all installed backlog framework modules (backlog-scrum, backlog-kanban, backlog-safe) with ceremony-oriented entry points.
@@ -26,6 +25,7 @@ modules/ceremony-cockpit/
 ```
 
 **`module-package.yaml` declares:**
+
 - `name: ceremony-cockpit`
 - `version: 0.1.0`
 - `commands: [backlog]` (module extends backlog command with `ceremony` subgroup aliases)
@@ -54,6 +54,7 @@ modules/ceremony-cockpit/
 ```
 
 **`module-package.yaml` declares:**
+
 - `name: ceremony-cockpit`
 - `version: 0.1.0`
 - `commands: [backlog]` (module extends backlog command with `ceremony` subgroup aliases)
@@ -64,7 +65,6 @@ modules/ceremony-cockpit/
 **Important**: Backlog ceremony subcommands are dynamically available based on which backlog framework modules are installed. `backlog ceremony flow` only appears if `backlog-kanban` is installed; `backlog ceremony pi-summary` only if `backlog-safe` is installed. Module probe uses the registry to detect installed modules.
 
 ## What Changes
-
 
 - **NEW**: Ceremony-oriented entry points in `modules/ceremony-cockpit/src/ceremony_cockpit/commands/`:
   - `specfact backlog ceremony standup` → `backlog daily` (delegates with `--mode scrum` default)
@@ -79,6 +79,7 @@ modules/ceremony-cockpit/
 - **No changes to `cli.py`** — module extends existing `backlog` command group via module registry composition.
 
 ## Capabilities
+
 - **ceremony-cockpit**: Backlog ceremony aliases (`backlog ceremony standup`, `backlog ceremony refinement`, optional planning/flow/pi-summary); dynamic availability based on installed modules; mode switch (scrum|kanban|safe); exceptions-first defaults; output format forwarding.
 
 ---

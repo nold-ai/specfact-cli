@@ -163,4 +163,4 @@
   - [x] 14.1.3 Push to remote: `git push origin feature/add-generic-backlog-abstraction` (✅ Integrated in feature/add-template-driven-backlog-refinement branch, ready for push)
 - [x] 14.2 Create Pull Request
   - [x] 14.2.1 Note: This is an internal repository (specfact-cli-internal), so PR creation is skipped per workflow rules (✅ Integrated with `add-template-driven-backlog-refinement` in PR #126)
-  - [x] 14.2.2 Changes are ready for review in the branch (✅ PR #126: https://github.com/nold-ai/specfact-cli/pull/126)
+  - [x] 14.2.2 Changes are ready for review in the branch (✅ PR #126: <https://github.com/nold-ai/specfact-cli/pull/126>)

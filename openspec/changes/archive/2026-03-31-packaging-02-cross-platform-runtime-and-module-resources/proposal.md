@@ -14,6 +14,7 @@ Windows and mixed-environment automation currently fail in two places that shoul
 ## Capabilities
 
 ### New Capabilities
+
 - `runtime-portability`: The CLI renders safely across terminal encodings and reports clear runtime-compatibility guidance for installation/interpreter mismatches.
 - `module-owned-ide-prompts`: `specfact init ide` discovers and exports prompt resources from installed modules and their packaged resource roots instead of from core-owned workflow prompt files.
 - `module-owned-runtime-resources`: core init/install flows resolve module-owned templates and similar assets from installed module packages rather than from core-owned fallback directories.

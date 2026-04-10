@@ -155,6 +155,7 @@ def save_change_proposal(self, bundle_dir: Path, proposal: ChangeProposal, bridg
 **Cross-Repository Support**:
 
 All adapter methods must support cross-repository configurations:
+
 - Check `bridge_config.external_base_path` before using `bundle_dir`
 - Resolve all paths relative to external base when provided
 - Support both same-repo (default) and cross-repo scenarios transparently

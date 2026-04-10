@@ -1,8 +1,11 @@
 # bundle-mapping Specification
 
 ## Purpose
+
 TBD - created by archiving change verification-01-wave1-delta-closure. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Confidence-Based Routing
 
 The system SHALL route bundle mappings based on confidence thresholds: auto-assign (>=0.8), prompt user (0.5-0.8), require explicit selection (<0.5).
@@ -104,4 +107,3 @@ The system SHALL provide an interactive prompt for bundle selection with confide
 
 - **WHEN** user selects "Q" option
 - **THEN** the system skips the item without mapping
-

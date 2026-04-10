@@ -35,5 +35,3 @@ These failures confirm current behavior violates the new spec delta: summarize p
     - Normalizes HTML-based `body_markdown` values to Markdown-friendly text (no `<p>`, `<br>` tags or `&amp;` entities).
     - Normalizes HTML comments before including them under the "Comments (annotations)" section.
   - New helper `_normalize_markdown_text` (with `@beartype` and `@ensure`) enforces that the returned text does not contain raw HTML tags, satisfying the updated `daily-standup` summarize requirements.
-
-

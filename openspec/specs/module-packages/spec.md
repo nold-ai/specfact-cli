@@ -1,8 +1,11 @@
 # module-packages Specification
 
 ## Purpose
+
 TBD - created by archiving change arch-01-cli-modular-command-registry. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Logical Packages by Feature with Dedicated Folder Structure
 
 The CLI SHALL group functionality into **logical module packages** by feature (e.g. "backlog refine", "backlog daily", "validate sidecar"). Each package SHALL live in a dedicated folder under a modules root and SHALL include its own **metadata**, **src**, **resources** (prompts, templates), and **tests**. Resources that are used only by one feature SHALL belong to that package; shared resources remain in core or a shared package.
@@ -63,16 +66,19 @@ The codebase SHALL distinguish **core** (bootstrapping, CommandRegistry, init sc
 The system SHALL extend `ModulePackageMetadata` to include a `schema_version` field indicating which ProjectBundle schema version the module is compatible with.
 
 #### Scenario: Metadata declares schema compatibility
+
 - **WHEN** module-package.yaml is loaded
 - **THEN** it MAY include `schema_version: "1"` field
 - **AND** module registration SHALL validate compatibility with ProjectBundle.schema_version
 
 #### Scenario: Missing schema_version defaults to current
+
 - **WHEN** module-package.yaml omits schema_version
 - **THEN** registration SHALL assume current ProjectBundle schema version
 - **AND** SHALL log warning recommending explicit declaration
 
 #### Scenario: Incompatible schema_version blocks registration
+
 - **WHEN** module declares schema_version: "2" but ProjectBundle is version "1"
 - **THEN** registration SHALL skip module with warning
 - **AND** SHALL log: "Module X requires schema version 2, but current is 1"
@@ -82,21 +88,25 @@ The system SHALL extend `ModulePackageMetadata` to include a `schema_version` fi
 The system SHALL extend module discovery to check if module implements ModuleIOContract protocol and log supported operations.
 
 #### Scenario: Discovery detects protocol implementation
+
 - **WHEN** module package is discovered and loaded
 - **THEN** registry SHALL check if module class implements ModuleIOContract
 - **AND** SHALL use hasattr() to detect which operations are supported
 
 #### Scenario: Module with protocol is logged as compliant
+
 - **WHEN** module implements all four ModuleIOContract methods
 - **THEN** registration SHALL log: "Module X implements ModuleIOContract (full)"
 - **AND** SHALL store supported operations in module metadata
 
 #### Scenario: Module without protocol is logged as legacy
+
 - **WHEN** module does not implement ModuleIOContract
 - **THEN** registration SHALL log warning: "Module X does not implement ModuleIOContract (legacy mode)"
 - **AND** SHALL still register module for backward compatibility
 
 #### Scenario: Module with partial protocol is logged with operations
+
 - **WHEN** module implements import_to_bundle and validate_bundle only
 - **THEN** registration SHALL log: "Module X implements ModuleIOContract (partial: import, validate)"
 - **AND** SHALL allow partial implementation
@@ -106,11 +116,13 @@ The system SHALL extend module discovery to check if module implements ModuleIOC
 The system SHALL update `src/specfact_cli/models/module_package.py` to include schema_version and protocol_compliance fields.
 
 #### Scenario: ModulePackageMetadata has schema_version field
+
 - **WHEN** ModulePackageMetadata is instantiated
 - **THEN** it SHALL have optional `schema_version: str | None` field
 - **AND** default value SHALL be None (implying current schema)
 
 #### Scenario: ModulePackageMetadata tracks protocol operations
+
 - **WHEN** module is discovered
 - **THEN** metadata SHALL have `protocol_operations: list[str]` field
 - **AND** SHALL contain names of implemented operations: ["import", "export", "sync", "validate"]
@@ -193,22 +205,26 @@ The system SHALL support versioned dependency declarations for both module and p
 The system SHALL extend `ModulePackageMetadata` to include optional `schema_extensions` field declaring fields the module adds to core models.
 
 #### Scenario: Manifest schema includes schema_extensions
+
 - **WHEN** module-package.yaml is parsed
 - **THEN** it MAY include `schema_extensions` array
 - **AND** each entry SHALL specify: target model name, field definitions with type/description
 
 #### Scenario: Schema extension for Feature model
+
 - **WHEN** module declares schema_extensions for Feature
 - **THEN** manifest SHALL list fields being added
 - **AND** each field SHALL include type hint and description
 - **AND** module namespace is implicit from module name
 
 #### Scenario: Schema extension for ProjectBundle model
+
 - **WHEN** module declares schema_extensions for ProjectBundle
 - **THEN** manifest SHALL list fields being added
 - **AND** each field SHALL include type hint and description
 
 #### Scenario: Module without schema_extensions remains valid
+
 - **WHEN** module-package.yaml omits schema_extensions
 - **THEN** module SHALL load successfully
 - **AND** no extensions registered for that module
@@ -218,12 +234,13 @@ The system SHALL extend `ModulePackageMetadata` to include optional `schema_exte
 The system SHALL extend module discovery to scan built-in, marketplace, and custom paths with source tracking.
 
 #### Scenario: Discovery function returns source information
+
 - **WHEN** discover_package_metadata() finds a module
 - **THEN** it SHALL include source field in metadata
 - **AND** source SHALL be "builtin", "marketplace", or "custom"
 
 #### Scenario: Registry stores module source
+
 - **WHEN** module is registered
 - **THEN** registry SHALL persist source information
 - **AND** SHALL be queryable via module list command
-

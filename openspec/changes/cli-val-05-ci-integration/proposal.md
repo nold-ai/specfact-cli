@@ -37,6 +37,6 @@ Validation only has value if it runs automatically. Today, `pr-orchestrator.yml`
 
 <!-- source_repo: nold-ai/specfact-cli -->
 - **GitHub Issue**: #283
-- **Issue URL**: https://github.com/nold-ai/specfact-cli/issues/283
+- **Issue URL**: <https://github.com/nold-ai/specfact-cli/issues/283>
 - **Repository**: nold-ai/specfact-cli
 - **Last Synced Status**: proposed

@@ -64,7 +64,7 @@
   - Command: `hatch test -- tests/unit/registry/test_core_only_bootstrap.py -v`
   - Timestamp: 2026-03-02
   - Result: **7 passed**
-  - Notes: Removed _register_category_groups_and_shims (unconditional category/shim registration). CORE_MODULE_ORDER trimmed to 4 core (init, auth, module-registry, upgrade). _mount_installed_category_groups already used when category_grouping_enabled; added @beartype. Bootstrap registers only discovered packages; category groups and flat shims only for installed bundles.
+  - Notes: Removed _register_category_groups_and_shims (unconditional category/shim registration). CORE_MODULE_ORDER trimmed to 4 core (init, auth, module-registry, upgrade)._mount_installed_category_groups already used when category_grouping_enabled; added @beartype. Bootstrap registers only discovered packages; category groups and flat shims only for installed bundles.
 
 ### Phase: Task 12 — Phase 3 (cli.py)
 
@@ -80,7 +80,7 @@
   - Command: `hatch test -- tests/unit/modules/init/test_mandatory_bundle_selection.py -v`
   - Timestamp: 2026-03-02
   - Result: **4 passed**
-  - Notes: VALID_PROFILES and PROFILE_BUNDLES in commands.py. init_command has @require(profile in VALID_PROFILES). _install_profile_bundles(profile) and _install_bundle_list(install_arg) implemented with @beartype; CI/CD gate and interactive first-run flow unchanged and passing.
+  - Notes: VALID_PROFILES and PROFILE_BUNDLES in commands.py. init_command has @require(profile in VALID_PROFILES). _install_profile_bundles(profile) and_install_bundle_list(install_arg) implemented with @beartype; CI/CD gate and interactive first-run flow unchanged and passing.
 
 ### Phase: Task 14 — Module signing gate
 

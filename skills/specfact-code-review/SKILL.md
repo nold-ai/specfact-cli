@@ -9,6 +9,7 @@ allowed-tools: []
 Updated: 2026-03-16 | Module: nold-ai/specfact-code-review
 
 ## DO
+
 - Ask whether tests should be included before repo-wide review; default to excluding tests unless test changes are the target
 - Keep functions under 120 LOC and cyclomatic complexity <= 12
 - Add @require/@ensure (icontract) + @beartype to all new public APIs
@@ -19,11 +20,12 @@ Updated: 2026-03-16 | Module: nold-ai/specfact-code-review
 - Use get_logger(__name__) from common.logger_setup, never print()
 
 ## DON'T
+
 - Don't enable known noisy findings unless you explicitly want strict/full review output
 - Don't mix read + write in the same method; split responsibilities
 - Don't use bare except: or except Exception: pass
 - Don't add # noqa / # type: ignore without inline justification
-- Don't call repository.* and http_client.* in the same function
+- Don't call repository.*and http_client.* in the same function
 - Don't import at module level if it triggers network calls
 - Don't hardcode secrets; use env vars via pydantic.BaseSettings
 - Don't create functions > 120 lines

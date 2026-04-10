@@ -112,6 +112,6 @@ The OPSX commands (`/opsx:ff`, `/opsx:apply`, etc.) are provided by OpenSpec CLI
 | `/opsx:ff` | Change scaffolding | Worktree setup, TDD, docs | **Add these to tasks.md explicitly** |
 | `/opsx:apply` | Task iteration | Worktree context, TDD evidence | **Verify before each code change** |
 | `/opsx:continue` | Resume progress | Worktree verification | **Check worktree exists before implementing** |
-| `/opsx:archive` | Archive change | Module signing, cleanup | **Include in final tasks** |
+| `/opsx:archive` | Archive change | Module signing, cleanup | **Include in final tasks**; agents MUST run `openspec archive <change-id>` from repo root (no manual `mv` under `openspec/changes/archive/`) |
 
 **Remember**: When in doubt, AGENTS.md wins. State this explicitly in your output.

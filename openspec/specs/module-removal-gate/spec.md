@@ -1,8 +1,11 @@
 # module-removal-gate Specification
 
 ## Purpose
+
 TBD - created by archiving change module-migration-03-core-slimming. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: A verification gate script confirms bundle availability before any module deletion
 
 A script SHALL exist at `scripts/verify-bundle-published.py` that, given a list of module names, checks that the corresponding bundle is published in the marketplace registry, carries a valid Ed25519 signature, and is installable (the download URL resolves and the tarball passes integrity verification).
@@ -108,4 +111,3 @@ The gate is not specific to this change. It SHALL be reusable for any future rem
 - **WHEN** `python scripts/verify-bundle-published.py --modules migrate` is run
 - **THEN** the script SHALL check that `specfact-project` (the bundle containing `migrate`) is published and verified
 - **AND** SHALL exit 0 if the check passes, 1 if it fails
-

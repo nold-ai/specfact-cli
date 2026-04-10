@@ -9,6 +9,7 @@
 #### Pre-implementation (failing) evidence
 
 Temporary violation added to `src/specfact_cli/registry/bootstrap.py`:
+
 ```python
 from backlog_core.main import backlog_app  # noqa: F401
 ```
@@ -16,6 +17,7 @@ from backlog_core.main import backlog_app  # noqa: F401
 **Command:** `hatch run pytest tests/unit/specfact_cli/test_module_boundary_imports.py::test_core_does_not_import_from_bundle_packages -v`
 
 **Result:** FAILED
+
 ```
 AssertionError: Core must not import from bundle packages (backlog_core, bundle_mapper).
   - src/specfact_cli/registry/bootstrap.py: from backlog_core.main import
@@ -62,6 +64,7 @@ Added boundary test: `test_core_repo_does_not_host_sync_runtime_unit_tests`.
 **Command:** `hatch run pytest tests/unit/specfact_cli/test_module_boundary_imports.py::test_core_repo_does_not_host_sync_runtime_unit_tests -v`
 
 **Result:** FAILED
+
 ```
 AssertionError: Sync runtime unit tests must be migrated out of specfact-cli into specfact-cli-modules.
   - tests/unit/sync/test_bridge_probe.py
@@ -77,9 +80,11 @@ AssertionError: Sync runtime unit tests must be migrated out of specfact-cli int
 #### Post-implementation (passing) evidence
 
 Migrated legacy core sync-runtime unit tests from:
+
 - `specfact-cli/tests/unit/sync/test_*.py`
 
 To modules repo:
+
 - `specfact-cli-modules/tests/unit/specfact_project/sync_runtime/test_*.py`
 
 Then removed migrated tests from `specfact-cli` core.

@@ -61,6 +61,34 @@ ${md_files}
 EOF
 }
 
+run_version_sources_check_if_needed() {
+  local files
+  files=$(staged_files)
+  local version_paths=("pyproject.toml" "setup.py" "src/__init__.py" "src/specfact_cli/__init__.py")
+  local hit=0
+  local f
+  for f in $files; do
+    local p
+    for p in "${version_paths[@]}"; do
+      if [ "$f" = "$p" ]; then
+        hit=1
+        break
+      fi
+    done
+  done
+  if [ "$hit" -eq 0 ]; then
+    return 0
+  fi
+  info "📌 Version file(s) staged — verifying synchronized versions"
+  if hatch run python scripts/check_version_sources.py; then
+    success "✅ Version sources are synchronized"
+  else
+    error "❌ Version mismatch across pyproject.toml, setup.py, src/__init__.py, src/specfact_cli/__init__.py"
+    warn "💡 Run: hatch run check-version-sources (or python scripts/check_version_sources.py)"
+    exit 1
+  fi
+}
+
 run_module_signature_verification() {
   info "🔐 Verifying bundled module signatures/version bumps"
   if hatch run ./scripts/verify-modules-signature.py --require-signature --enforce-version-bump; then
@@ -213,7 +241,7 @@ run_code_review_gate() {
 check_safe_change() {
   local files
   files=$(staged_files)
-  local version_files=("pyproject.toml" "setup.py" "src/__init__.py")
+  local version_files=("pyproject.toml" "setup.py" "src/__init__.py" "src/specfact_cli/__init__.py")
   local changelog_files=("CHANGELOG.md")
   local test_infrastructure_files=(
     "tools/smart_test_coverage.py"
@@ -263,6 +291,7 @@ warn "🔍 Running pre-commit checks (YAML/workflows + smart tests)"
 
 # Always enforce module signature/version policy before commit
 run_module_signature_verification
+run_version_sources_check_if_needed
 run_format_safety
 
 # Always run lint checks when relevant files changed
@@ -271,7 +300,7 @@ run_markdown_lint_if_needed
 run_yaml_lint_if_needed
 run_actionlint_if_needed
 
-# If only safe changes, skip tests after lint passes
+# If only safe changes, skip tests after lint passes (version files already verified above)
 if check_safe_change; then
   success "✅ Safe change detected - skipping test run"
   info "💡 Only version numbers, docs/test infra, or YAML/workflows changed"

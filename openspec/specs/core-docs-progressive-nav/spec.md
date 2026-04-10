@@ -1,8 +1,11 @@
 # core-docs-progressive-nav Specification
 
 ## Purpose
+
 TBD - created by archiving change docs-05-core-site-ia-restructure. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Sidebar provides 6-section progressive navigation
 
 The system SHALL provide a sidebar with 6 sections in a specific order.
@@ -31,4 +34,3 @@ The system SHALL provide a sidebar with 6 sections in a specific order.
 - **GIVEN** a file was moved from its old location
 - **WHEN** a user visits the old URL
 - **THEN** they are redirected to the new URL via jekyll-redirect-from
-

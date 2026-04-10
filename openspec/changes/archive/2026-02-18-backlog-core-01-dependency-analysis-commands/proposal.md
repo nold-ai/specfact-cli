@@ -2,7 +2,6 @@
 
 ## Why
 
-
 After implementing backlog adapters for ADO and GitHub with directional sync (v0.25.1), we need to extend the backlog capabilities beyond simple sync to enable dependency analysis, delta tracking, and integrated DevOps workflows. Without dependency graph analysis, teams cannot understand logical relationships between backlog items (epic → feature → story → task hierarchies) or detect blockers and circular dependencies. Without dedicated backlog/delta command suites, users must use low-level bridge sync commands instead of intuitive backlog-focused workflows.
 
 This change establishes the **`backlog-core` module** — the foundational backlog module that all framework-specific modules (backlog-scrum, backlog-kanban, backlog-safe) depend on. It provides the provider-agnostic graph model, dependency analysis, and core backlog commands.
@@ -41,6 +40,7 @@ modules/backlog-core/
 ```
 
 **`module-package.yaml` declares:**
+
 - `name: backlog-core`
 - `version: 0.1.0`
 - `commands: [backlog]` (module extends the shared backlog command group with additional commands and `delta` subgroup)
@@ -84,6 +84,7 @@ modules/backlog-core/
 ```
 
 **`module-package.yaml` declares:**
+
 - `name: backlog-core`
 - `version: 0.1.0`
 - `commands: [backlog]` (module extends the shared backlog command group with additional commands and `delta` subgroup)
@@ -94,7 +95,6 @@ modules/backlog-core/
 Commands are auto-discovered by the registry and lazy-loaded; no registration in `cli.py` required.
 
 ## What Changes
-
 
 - **NEW**: Implement provider-agnostic dependency graph model (`BacklogGraph`, `GraphBacklogItem`, `Dependency`) in `modules/backlog-core/src/backlog_core/graph/models.py` that abstracts epic → feature → story → task hierarchies without locking to ADO/GitHub/Jira models, with full support for Kanban (work item types and states), Scrum (sprint-based hierarchies), and SAFe (Epic → Feature → Story → Task with Value Points and WSJF).
 - **NEW**: Add template-driven mapping system (`BacklogGraphBuilder`) in `modules/backlog-core/src/backlog_core/graph/builder.py` that converts provider items (ADO/GitHub) into unified graph using pre-built templates (`ado_scrum`, `ado_safe`, `github_projects`, `jira_kanban`) stored in `modules/backlog-core/src/backlog_core/resources/backlog-templates/`.
@@ -112,6 +112,7 @@ Commands are auto-discovered by the registry and lazy-loaded; no registration in
 - **EXTEND** (arch-01 init-module-state): Align `specfact init` module discovery with command registration so workspace-level modules are included in central module management. Use the same discovery roots for init as for the registry (`discover_all_package_metadata()` / `get_modules_roots()`), so `specfact init --list-modules`, `--enable-module`, and `--disable-module` see and manage workspace-level modules (e.g. `modules/backlog-core/`) consistently with runtime command discovery.
 
 ## Arch-06 Marketplace Readiness
+
 The `module-package.yaml` includes publisher and integrity metadata:
 
 ```yaml
@@ -126,10 +127,12 @@ integrity:
 This enables integrity verification when installed via `specfact module install backlog-core`.
 
 ## Capabilities
+
 - **backlog-core**: Provider-agnostic `BacklogGraph` model; `DependencyAnalyzer` (transitive closure, cycle detection, critical path, impact); `BacklogGraphBuilder` with template-driven mapping; `BacklogGraphProtocol` for bridge adapter extensions; CLI: `backlog analyze-deps`, `backlog sync`, `backlog diff`, `backlog promote`, `backlog verify-readiness`, `backlog generate-release-notes`; `backlog delta status`, `backlog delta impact`, `backlog delta cost-estimate`, `backlog delta rollback-analysis`.
 - **init-module-discovery-alignment**: `specfact init` uses the same module discovery roots as command registration (built-in + workspace-level + `SPECFACT_MODULES_ROOTS`), so `--list-modules`, `--enable-module`, and `--disable-module` operate on all discovered modules including external/workspace-level ones.
 
 ## Impact
+
 - **Affected specs**: backlog-core (existing), init-module-state (extended via init-module-discovery-alignment).
 - **Affected code**: `modules/backlog-core/` (existing), `src/specfact_cli/modules/init/src/commands.py` (discovery alignment), `src/specfact_cli/registry/module_packages.py` (no API change; init will use existing `discover_all_package_metadata()`).
 - **Integration points**: Init command and module state persistence; registry discovery (unchanged).

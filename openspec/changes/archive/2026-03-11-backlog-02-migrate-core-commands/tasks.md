@@ -62,7 +62,7 @@
 - [x] 7.3 Stage all changes: `git add -A`
 - [x] 7.4 Commit with GPG signing: `git commit -S -m "feat: migrate backlog-core commands to specfact-backlog bundle"` (with --no-verify for pre-commit hooks)
 - [x] 7.5 Push branch: `git push -u origin feature/backlog-02-migrate-core-commands`
-- [x] 7.6 Create PR to `dev`: https://github.com/nold-ai/specfact-cli-modules/pull/32
+- [x] 7.6 Create PR to `dev`: <https://github.com/nold-ai/specfact-cli-modules/pull/32>
 
 ## 8. Cleanup (post-merge)
 

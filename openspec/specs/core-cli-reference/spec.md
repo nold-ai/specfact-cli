@@ -1,8 +1,11 @@
 # core-cli-reference Specification
 
 ## Purpose
+
 TBD - created by archiving change docs-05-core-site-ia-restructure. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Core CLI reference pages exist
 
 The system SHALL provide dedicated reference pages for core CLI commands.
@@ -26,4 +29,3 @@ The system SHALL provide dedicated reference pages for core CLI commands.
 - **GIVEN** the docs/core-cli/upgrade.md page exists
 - **WHEN** a user reads the page
 - **THEN** it documents the specfact upgrade command and its options
-

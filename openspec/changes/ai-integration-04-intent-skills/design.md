@@ -7,12 +7,14 @@
 ## Goals / Non-Goals
 
 **Goals:**
+
 - Ship 6 skill files covering the full intent engineering workflow (capture → decompose → architecture → trace-validate → evidence-check)
 - Extend `specfact ide skill install` with `--type intent` to install intent skills alongside or separately from spec skills
 - Keep each skill file self-contained and composable (an agent can invoke one or all)
 - Follow SQUER's 7-question interview exactly — this is the scholarly grounding for the intent capture pattern
 
 **Non-Goals:**
+
 - Building a new CLI command group for intent — the skills invoke existing `specfact requirements`, `specfact architecture`, and `specfact validate` commands
 - IDE-specific integrations — the open skills standard handles 26+ platforms without per-IDE code
 - Replacing `ai-integration-01` — this change extends the skills surface, not replaces it

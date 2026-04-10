@@ -26,6 +26,7 @@ Installed runtime behavior currently depends on discovery of repository-local `m
 ## Approach
 
 1. Discovery / installer alignment
+
 - Add canonical user root constant shared by discovery + installer logic.
 - Make installer default to user root.
 - Keep legacy `marketplace-modules`/`custom-modules` roots discoverable as compatibility paths.
@@ -33,6 +34,7 @@ Installed runtime behavior currently depends on discovery of repository-local `m
 - Ensure project scope is discovered before user scope to give repository-local intent precedence.
 
 2. Module init bootstrap
+
 - Add `specfact module init` sync that copies shipped module packages into user root when absent or outdated.
 - Copy safely (create/update module directories) and avoid destructive deletion of unrelated user modules.
 - Keep bootstrap explicit under the `module` command group and leave top-level `init` behavior unchanged.
@@ -40,6 +42,7 @@ Installed runtime behavior currently depends on discovery of repository-local `m
 - For project scope, default repo to CWD and allow explicit repo override.
 
 3. Startup freshness checks
+
 - Extend startup check pipeline with module freshness inspection.
 - Reuse current cadence policy style:
   - run on CLI version change;
@@ -50,28 +53,33 @@ Installed runtime behavior currently depends on discovery of repository-local `m
 - Print scope-specific guidance commands when stale/missing modules are detected.
 
 4. Module list bundled availability
+
 - Add a `module list` switch that computes bundled modules available from package/workspace bundle sources.
 - Diff bundled module names against active discovered modules.
 - Render bundled-not-installed modules as a separate section/table with install hints for user and project scope init commands.
 
 5. Scoped install/uninstall consistency
+
 - `module install` accepts explicit scope (`user` default, `project` optional with repo path).
 - Install resolution checks bundled sources first for exact module name, then marketplace fallback.
 - `module uninstall` accepts explicit scope; when module exists in both scopes and no scope is set, command errors and requires explicit selection.
 - Uninstall operation removes only the selected scope artifact.
 
 6. Local trust and signature hardening
+
 - Add denylist file support (for example under user config) checked before any install/bootstrap copy operation.
 - Add one-time trust acknowledgments for non-official publishers (persisted in user config); non-interactive mode must require explicit trust flag.
 - Verify shipped/bundled module integrity/signature metadata before install/bootstrap; fail closed on verification errors unless explicit override is provided for developer workflows.
 - Treat publisher string (`nold-ai`) as informational only; authenticity is derived from signature verification.
 
 7. Release-time signing of bundled modules
+
 - Add a repository-local signing step that generates signatures/checksums for bundled modules during release orchestration.
 - Private signing key remains externalized (CI secret or secure signing service); never committed in repository.
 - Signing outputs are committed as module metadata/signature artifacts consumed by runtime verifier.
 
 3. Resource parity
+
 - Keep prompt resources sourced from packaged `resources/prompts` in installed runtime.
 - Validate that prompt copy to repo-local IDE targets works independently of CWD and module root.
 

@@ -25,9 +25,11 @@ With **arch-06** (manifest security) and **arch-07** (schema extension system) i
 
 - **Verified modules**: When you run any command that loads modules (e.g. `specfact backlog ...`, `specfact project ...`), the registry discovers modules and, when a module has `integrity.checksum` in its `module-package.yaml`, verifies the manifest checksum before registering. If verification fails, that module is skipped and a warning is logged; other modules still load.
 - **Unsigned modules**: Modules without `integrity` metadata are allowed by default (backward compatible). To document explicit opt-in in strict environments, set:
+
   ```bash
   export SPECFACT_ALLOW_UNSIGNED=1
   ```
+
 - **Versioned dependencies**: Manifests can declare `module_dependencies_versioned` and `pip_dependencies_versioned` (each entry: `name`, `version_specifier`) for install-time resolution. You don’t need to do anything special; the installer uses these when present.
 
 You don’t run a separate “verify” command; verification happens automatically at module registration when the CLI starts.
@@ -82,10 +84,13 @@ Details: [Module Security](/reference/module-security/).
 Several commands already read or write extension data on `ProjectBundle` (and its manifest). You use them as usual; extensions are persisted with the bundle.
 
 - **Link a backlog provider** (writes `backlog_core.backlog_config` on project metadata):
+
   ```bash
   specfact project link-backlog --bundle my-bundle --adapter github --project-id my-org/my-repo
   ```
+
 - **Health check and other project commands** read that same extension to resolve adapter/project/template:
+
   ```bash
   specfact project health-check --bundle my-bundle
   ```

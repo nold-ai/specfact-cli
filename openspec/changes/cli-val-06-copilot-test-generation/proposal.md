@@ -34,6 +34,6 @@ SpecFact already has a `generate test-prompt` workflow for creating tests using 
 
 <!-- source_repo: nold-ai/specfact-cli -->
 - **GitHub Issue**: #284
-- **Issue URL**: https://github.com/nold-ai/specfact-cli/issues/284
+- **Issue URL**: <https://github.com/nold-ai/specfact-cli/issues/284>
 - **Repository**: nold-ai/specfact-cli
 - **Last Synced Status**: proposed

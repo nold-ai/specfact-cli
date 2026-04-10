@@ -2,9 +2,6 @@
 
 ## Why
 
-
-
-
 SpecFact treats every user the same — a solo developer and an enterprise architecture board get identical defaults, enforcement levels, and module activation. This blocks adoption at both ends: solos drown in ceremony they don't need, enterprises can't enforce baselines across hundreds of repos. A profile-driven initialization that deterministically selects modules, templates, policies, and enforcement modes makes SpecFact scale from single-developer projects to regulated enterprise environments without configuration sprawl.
 
 ## Ownership Alignment (2026-04-08)
@@ -39,6 +36,7 @@ modules/profile/
 ```
 
 **`module-package.yaml` declares:**
+
 - `name: profile`
 - `version: 0.1.0`
 - `commands: [profile init, profile show, profile diff]`
@@ -70,6 +68,7 @@ modules/profile/
 ```
 
 **`module-package.yaml` declares:**
+
 - `name: profile`
 - `version: 0.1.0`
 - `commands: [profile init, profile show, profile diff]`
@@ -77,9 +76,6 @@ modules/profile/
 - `publisher:` + `integrity:` — arch-06 marketplace readiness
 
 ## What Changes
-
-
-
 
 - **NEW**: Profile module in `modules/profile/` with config layering engine: profile defaults → org baseline (read-only) → repo overlay → developer local. Highest priority last.
 - **NEW**: Four built-in profiles shipped as YAML (`solo.yaml`, `startup.yaml`, `mid_size.yaml`, `enterprise.yaml`) defining: enabled modules, policy enforcement mode, required requirements fields, config sources, and enforcement location.
@@ -101,6 +97,7 @@ modules/profile/
 | Enforcement location | local warnings only | local + CI advisory | CI mixed (some hard) | CI hard-fail + evidence |
 
 ## Capabilities
+
 ### New Capabilities
 
 - `profile-config-layering`: Profile-driven config resolution with deterministic layering (profile defaults → org baseline → repo overlay → dev local), divergence detection, and tier-aware module/policy activation.
@@ -109,7 +106,6 @@ modules/profile/
 ### Modified Capabilities
 
 - `init-module-state`: Extended with `--profile` flag for tier-aware initialization; default behavior preserved as implicit `solo` profile.
-
 
 ---
 

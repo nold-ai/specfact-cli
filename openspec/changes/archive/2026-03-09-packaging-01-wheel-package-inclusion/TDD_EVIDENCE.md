@@ -16,6 +16,7 @@ PY
 ```
 
 Observed failure summary:
+
 - installed `specfact_cli` package contained only `modules/` and `resources/`
 - `specfact_cli/cli.py` missing from installed `0.40.0` wheel payload
 - console script `specfact-cli` failed with `ModuleNotFoundError: No module named 'specfact_cli.cli'`
@@ -29,6 +30,7 @@ HATCH_DATA_DIR=/tmp/hatch-data HATCH_CACHE_DIR=/tmp/hatch-cache VIRTUALENV_OVERR
 ```
 
 Observed failure summary:
+
 - `test_pyproject_wheel_explicitly_maps_src_package_root` failed because wheel config lacked explicit `only-include` / `sources` mapping for `src/specfact_cli`
 
 ## Passing Evidence
@@ -42,6 +44,7 @@ HATCH_DATA_DIR=/tmp/hatch-data HATCH_CACHE_DIR=/tmp/hatch-cache VIRTUALENV_OVERR
 ```
 
 Result:
+
 - `6 passed`
 
 ### 2026-03-06 built wheel artifact verification
@@ -69,6 +72,7 @@ PY
 ```
 
 Result summary:
+
 - built wheel contains `specfact_cli/__init__.py`
 - built wheel contains `specfact_cli/cli.py`
 - entry points include both `specfact` and `specfact-cli` targeting `specfact_cli.cli:cli_main`
@@ -86,6 +90,7 @@ python -m venv /tmp/specfact-cli-wheel-verify --system-site-packages
 ```
 
 Result summary:
+
 - installed wheel exposes `specfact`
 - installed wheel exposes `specfact-cli`
 - both commands return `SpecFact CLI version 0.40.1`

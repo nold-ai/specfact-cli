@@ -1,8 +1,11 @@
 # init-module-discovery-alignment Specification
 
 ## Purpose
+
 TBD - created by archiving change backlog-core-01-dependency-analysis-commands. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Init uses same discovery roots as registry
 
 The system SHALL use the same module discovery roots for `specfact init` module state and list operations as are used for command registration (built-in package modules, repo-root `modules/` when present, and `SPECFACT_MODULES_ROOTS` when set).
@@ -28,4 +31,3 @@ The system SHALL use the same module discovery roots for `specfact init` module 
 **Then** the init command SHALL validate enable/disable against the full discovered package set (not built-in only)
 
 **And** state SHALL be persisted so the module's enabled flag is respected on next init and at command registration
-

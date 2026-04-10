@@ -2,7 +2,6 @@
 
 ## Why
 
-
 Teams love tools that enforce working agreements consistently. Today DoR/DoD are fragmented across features; Kanban/SAFe policies are not first-class. A single Policy framework with `policy.validate` (hard failures; deterministic) and `policy.suggest` (AI-assisted; confidence-scored; patch-ready) gives one mechanism for DoR, DoD, Kanban entry/exit, and SAFe PI readiness so refinement, planning, and standup share the same quality gates.
 
 This change establishes the **`policy-engine` module** — a foundational cross-cutting module that all backlog framework modules (backlog-scrum, backlog-kanban, backlog-safe) depend on for policy evaluation. It must be available before those modules can use it.
@@ -31,6 +30,7 @@ modules/policy-engine/
 ```
 
 **`module-package.yaml` declares:**
+
 - `name: policy-engine`
 - `version: 0.1.0`
 - `commands: [policy validate, policy suggest]`
@@ -64,6 +64,7 @@ modules/policy-engine/
 ```
 
 **`module-package.yaml` declares:**
+
 - `name: policy-engine`
 - `version: 0.1.0`
 - `commands: [policy validate, policy suggest]`
@@ -74,7 +75,6 @@ modules/policy-engine/
 Commands are auto-discovered by the registry and lazy-loaded; no registration in `cli.py` required.
 
 ## What Changes
-
 
 - **NEW**: Policy framework in `modules/policy-engine/src/policy_engine/engine/`:
   - `policy.validate` (hard failures; deterministic; offline-capable against snapshots)
@@ -99,6 +99,7 @@ Commands are auto-discovered by the registry and lazy-loaded; no registration in
 - **EXTEND** (arch-07 schema extensions): Register `policy_engine.policy_status` extension on `BacklogItem` via `module-package.yaml` — stores last policy validation result (pass/fail, failed rules) for each item; access via `item.get_extension("policy_engine", "policy_status")`.
 
 ## Arch-06 Marketplace Readiness
+
 ```yaml
 publisher:
   name: nold-ai
@@ -108,6 +109,7 @@ integrity:
 ```
 
 ## Capabilities
+
 - **policy-engine**: Policy framework (validate, suggest); DoR/DoD/Flow/PI policies; JSON and Markdown output; config-driven rules; evidence and recommended action per result; `PolicyRegistryProtocol` for module-contributed policies; arch-07 schema extension on BacklogItem.
 
 ---

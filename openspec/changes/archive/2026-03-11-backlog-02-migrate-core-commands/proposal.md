@@ -2,11 +2,9 @@
 
 ## Why
 
-
 Commit 978cc82 deleted the `backlog-core` module (containing `add`, `analyze-deps`, `trace-impact`, `verify-readiness`, `diff`, `sync`, `promote`, `generate-release-notes`, `delta` commands) as part of backlog ownership cleanup. However, these commands were never migrated to the `nold-ai/specfact-backlog` bundle. Result: documented commands are missing from the CLI, creating a product/runtime alignment gap where README and docs describe commands that fail with "No such command".
 
 ## What Changes
-
 
 - **RECOVER** deleted backlog-core command implementations from worktree/git history
 - **MIGRATE** commands into `specfact-backlog` bundle under appropriate subcommand structure
@@ -16,6 +14,7 @@ Commit 978cc82 deleted the `backlog-core` module (containing `add`, `analyze-dep
 - **DEPRECATE** legacy backlog-core module references in favor of bundle-only ownership
 
 ## Capabilities
+
 ### New Capabilities
 
 - `backlog-add`: Interactive and non-interactive backlog item creation with parent validation, DoR checks, and adapter-specific payload construction (GitHub, ADO).
@@ -33,6 +32,7 @@ Commit 978cc82 deleted the `backlog-core` module (containing `add`, `analyze-dep
 - `backlog-daily-markdown-normalization`: Ensure migrated commands support Markdown normalization for consistency.
 
 ## Dependencies
+
 - `backlog-module-ownership-cleanup` (archived): Established that specfact-backlog should own all backlog commands.
 - `module-migration-10-bundle-command-surface-alignment`: Validates documented vs runtime command surface; this change closes the backlog gap.
 

@@ -2,7 +2,6 @@
 
 ## Why
 
-
 Teams need intelligent spec-to-bundle assignment with confidence scoring and user confirmation to prevent mis-bundled specs. Currently, bundle assignment is manual or based on simple heuristics, leading to specs landing in wrong bundles and making conflict detection unreliable.
 
 This change establishes the **`bundle-mapper` module** — providing confident, history-aware spec-to-bundle assignment with interactive review for ambiguous mappings. Per the SpecFact Backlog & OpenSpec Implementation Roadmap (2026-01-18), this implements Plan C with three confidence signals.
@@ -27,6 +26,7 @@ modules/bundle-mapper/
 ```
 
 **`module-package.yaml` declares:**
+
 - `name: bundle-mapper`
 - `version: 0.1.0`
 - `commands: []` (no top-level commands; enhances existing `backlog refine/import` via hooks)
@@ -54,6 +54,7 @@ modules/bundle-mapper/
 ```
 
 **`module-package.yaml` declares:**
+
 - `name: bundle-mapper`
 - `version: 0.1.0`
 - `commands: []` (no top-level commands; enhances existing `backlog refine/import` via hooks)
@@ -62,7 +63,6 @@ modules/bundle-mapper/
 - `publisher:` + `integrity:` — arch-06 marketplace readiness
 
 ## What Changes
-
 
 - **NEW**: `BundleMapper` engine in `modules/bundle-mapper/src/bundle_mapper/mapper/engine.py` — confidence-based mapping with three signals: explicit labels, historical patterns, content similarity.
 - **NEW**: `BundleMapping` model in `modules/bundle-mapper/src/bundle_mapper/models/bundle_mapping.py` — result model with `bundle_id`, `confidence`, `candidates`, `explanation`.
@@ -78,6 +78,7 @@ modules/bundle-mapper/
 - **EXTEND**: OpenSpec generation pipeline accepts `BundleMapping` parameter and records mapping decisions via schema extension.
 
 ## Capabilities
+
 - **bundle-mapper**: `BundleMapper` with three confidence signals (labels, history, similarity); `BundleMapping` result model; mapping history persistence (auto-learned rules); interactive UI with confidence visualization; `--auto-bundle` flag for `backlog refine/import`; arch-07 SourceTracking extensions for mapping metadata.
 
 ---

@@ -9,6 +9,7 @@ data = json.loads(result.stdout)
 ```
 
 basedpyright JSON output format:
+
 ```json
 {
   "generalDiagnostics": [
@@ -31,6 +32,7 @@ data = json.loads(result.stdout)
 pylint JSON: list of dicts with `{"message-id": "W0702", "path": "...", "line": N, "message": "..."}`.
 
 Message ID → category mapping:
+
 ```python
 PYLINT_CATEGORY_MAP = {
     "W0702": "architecture",  # bare-except
@@ -49,5 +51,6 @@ Both runners run on the full project for accuracy but filter results to return o
 ## Test Strategy
 
 Tests mock `subprocess.run` return values. Key test cases:
+
 - basedpyright: error diagnostic, warning diagnostic, non-provided file filtered out
 - pylint: W0702 → architecture, W0703 → architecture, unknown ID → style

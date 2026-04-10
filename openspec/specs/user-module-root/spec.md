@@ -1,8 +1,11 @@
 # user-module-root Specification
 
 ## Purpose
+
 TBD - created by archiving change backlog-core-05-user-modules-bootstrap. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Canonical User Module Root
 
 The system SHALL use a canonical per-user module root at `<user-home>/.specfact/modules` for installed module artifacts and discovery.

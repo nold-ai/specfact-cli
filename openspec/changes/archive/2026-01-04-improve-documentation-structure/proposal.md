@@ -73,7 +73,6 @@ This change transforms SpecFact CLI documentation from scattered silos to unifie
 - **Target Repository**: `nold-ai/specfact-cli` (public)
 - **Estimated Effort**: 30-40 hours over 2 weeks
 
-
 ---
 
 ## Source Tracking

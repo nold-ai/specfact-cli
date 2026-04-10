@@ -1,13 +1,17 @@
 # adapter-development-guide Specification
 
 ## Purpose
+
 TBD - created by archiving change arch-08-documentation-discrepancies-remediation. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Full BridgeAdapter interface documented
 
 The adapter development guide (or extended creating-custom-bridges) SHALL document the full BridgeAdapter interface: detect, import_artifact, export_artifact, load_change_tracking, save_change_tracking (or equivalent), with contracts and usage notes.
 
 #### Scenario: Developer implements adapter
+
 - **GIVEN** the adapter development guide (or extended creating-custom-bridges)
 - **WHEN** a developer implements an adapter
 - **THEN** the full BridgeAdapter interface is documented
@@ -18,6 +22,7 @@ The adapter development guide (or extended creating-custom-bridges) SHALL docume
 The ToolCapabilities model and its role in adapter selection (e.g. sync modes) SHALL be documented, with reference to code (e.g. models/bridge.py) if needed.
 
 #### Scenario: Developer declares or uses capabilities
+
 - **GIVEN** the adapter documentation
 - **WHEN** a developer needs to declare or use adapter capabilities
 - **THEN** ToolCapabilities model is documented
@@ -28,6 +33,7 @@ The ToolCapabilities model and its role in adapter selection (e.g. sync modes) S
 The adapter guide SHALL provide at least one code reference or minimal example (e.g. base adapter, existing OpenSpec/SpecKit adapter) so that implementation is clear.
 
 #### Scenario: Developer follows adapter guide
+
 - **GIVEN** the adapter guide
 - **WHEN** a developer follows the guide
 - **THEN** at least one code reference or minimal example is provided
@@ -38,8 +44,8 @@ The adapter guide SHALL provide at least one code reference or minimal example (
 The adapter development content SHALL be reachable from the docs navigation and from bridge/architecture documentation.
 
 #### Scenario: User looks for adapter development
+
 - **GIVEN** the published docs
 - **WHEN** a user looks for adapter or bridge development
 - **THEN** the adapter development content is reachable from the docs navigation
 - **AND** from bridge/architecture documentation
-

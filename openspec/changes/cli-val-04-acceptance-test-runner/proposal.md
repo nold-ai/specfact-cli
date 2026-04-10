@@ -36,6 +36,6 @@ The 73+ existing CliRunner tests prove commands work in-process. But SpecFact is
 
 <!-- source_repo: nold-ai/specfact-cli -->
 - **GitHub Issue**: #282
-- **Issue URL**: https://github.com/nold-ai/specfact-cli/issues/282
+- **Issue URL**: <https://github.com/nold-ai/specfact-cli/issues/282>
 - **Repository**: nold-ai/specfact-cli
 - **Last Synced Status**: proposed

@@ -13,6 +13,7 @@ cd /home/dom/git/nold-ai/specfact-cli-worktrees/feature/doc-frontmatter-schema &
 **Result:** ✅ 11 tests failed as expected (TDD - no implementation yet)
 
 **Failed Tests:**
+
 - `TestFrontmatterParsing::test_valid_frontmatter_parsing` - parse_frontmatter function not implemented yet
 - `TestFrontmatterParsing::test_missing_required_fields` - parse_frontmatter function not implemented yet
 - `TestFrontmatterParsing::test_no_frontmatter` - parse_frontmatter function not implemented yet
@@ -56,6 +57,7 @@ cd /home/dom/git/nold-ai/specfact-cli-worktrees/feature/doc-frontmatter-schema &
 **Result:** ✅ 10 tests failed as expected (TDD - no implementation yet)
 
 **Failed Tests:**
+
 - `TestFileDiscovery::test_discover_docs_directory_files` - get_all_md_files function not implemented yet
 - `TestFileDiscovery::test_exempt_files_exclusion` - get_all_md_files function not implemented yet
 - `TestMissingDocOwnerDetection::test_missing_doc_owner_detection` - rg_missing_doc_owner function not implemented yet
@@ -82,6 +84,7 @@ cd /home/dom/git/nold-ai/specfact-cli-worktrees/feature/doc-frontmatter-schema &
 **Result:** ✅ 9 tests failed as expected, 1 error (benchmark fixture) - TDD confirmed
 
 **Failed Tests:**
+
 - `TestEndToEndWorkflow::test_complete_validation_workflow` - validation_main function not implemented yet
 - `TestEndToEndWorkflow::test_validation_with_all_valid_files` - validation_main function not implemented yet
 - `TestMultipleFileScenarios::test_large_number_of_files` - validation_main function not implemented yet
@@ -93,6 +96,7 @@ cd /home/dom/git/nold-ai/specfact-cli-worktrees/feature/doc-frontmatter-schema &
 - `TestRealWorldScenarios::test_complex_tracking_patterns` - validation_main function not implemented yet
 
 **Error:**
+
 - `TestPerformance::test_execution_time_with_many_files` - fixture 'benchmark' not found (expected - benchmark fixture not available)
 
 **Status:** ✅ TDD workflow confirmed - integration tests fail before implementation
@@ -151,6 +155,7 @@ cd /home/dom/git/nold-ai/specfact-cli-worktrees/feature/doc-frontmatter-schema
 **Result:** ✅ 5 tests failed as expected before workflow changes; 1 coverage-dependency guard test passed.
 
 **Failure summary:**
+
 - `compat-py311` currently depends on `changes` and `tests` instead of `changes` and `verify-module-signatures`
 - `contract-first-ci` currently depends on `changes`, `tests`, and `compat-py311`
 - `type-checking` currently depends on `changes` and `tests`
@@ -173,6 +178,7 @@ cd /home/dom/git/nold-ai/specfact-cli-worktrees/feature/doc-frontmatter-schema
 regression slice remained green (`34 passed`).
 
 **Passing summary:**
+
 - `compat-py311`, `contract-first-ci`, `type-checking`, `linting`, and `cli-validation` now depend
   on `changes` plus `verify-module-signatures`
 - `quality-gates` still depends on `tests` because it consumes coverage artifacts

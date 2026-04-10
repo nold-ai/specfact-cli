@@ -1,9 +1,11 @@
 # command-package-runtime-validation Specification
 
 ## Purpose
+
 TBD - created by archiving change cli-val-07-command-package-runtime-validation. Update Purpose after archive.
 
 ## Requirements
+
 ### Requirement: Command Inventory Covers Core And Official Bundles
 
 The system SHALL derive a validation inventory that covers the released core commands and every official command package shipped from `specfact-cli-modules`.

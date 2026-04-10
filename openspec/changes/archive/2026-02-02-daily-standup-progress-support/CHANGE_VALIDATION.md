@@ -63,7 +63,7 @@ None. Change is additive: new standup view and optional post standup comment; ex
 ## Recommended Improvements Applied
 
 1. **GitHub issue mandatory**: Task 2 explicitly creates issue in nold-ai/specfact-cli and updates proposal Source Tracking.
-2. **Patch version and changelog**: Task 8 bumps patch version, syncs pyproject.toml/setup.py/src __init__.py, and adds CHANGELOG.md entry. Optional: Task 8.3 CHANGELOG line could mention `specfact backlog daily` for discoverability.
+2. **Patch version and changelog**: Task 8 bumps patch version, syncs pyproject.toml/setup.py/src **init**.py, and adds CHANGELOG.md entry. Optional: Task 8.3 CHANGELOG line could mention `specfact backlog daily` for discoverability.
 3. **TDD order**: TDD/SDD section at top of tasks.md; Section 4 (tests first, expect failure) before Section 5 (implement until tests pass).
 4. **Integration note**: Design and validation note that existing `--add-progress-comment` in sync bridge can be aligned or extended for standup comment format to avoid duplication.
 5. **Backlog harmonization**: All agile/standup behavior is under `specfact backlog daily`; no top-level `specfact standup` or scrum command.

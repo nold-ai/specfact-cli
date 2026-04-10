@@ -17,6 +17,7 @@ explicit for local/offline use.
 ## Goals / Non-Goals
 
 **Goals:**
+
 - Gate commits in this repository on `specfact code review run`
 - Keep the gate scoped to relevant staged files so it is fast enough for local
   use
@@ -27,6 +28,7 @@ explicit for local/offline use.
   while allowing optional configured backends
 
 **Non-Goals:**
+
 - Implementing or validating external `n8n` workflows
 - Adding new review scoring semantics
 - Making Supabase mandatory for local review-gate adoption

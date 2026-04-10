@@ -3,6 +3,7 @@
 The docs set spans the repository README, the published Jekyll site under `docs/`, architecture pages, command references, getting-started guides, adapter guides, and module marketplace guidance. The modularization wave changed the runtime model significantly: the CLI now has a lean core, most workflow commands are grouped under bundle categories, official bundles are installed from the marketplace, and the canonical implementation for extracted modules lives in `specfact-cli-modules`.
 
 The current documentation has three structural risks:
+
 - drift from the former flat command topology,
 - duplicated or inconsistent marketplace/module guidance across README, guides, and reference pages,
 - no clearly documented ownership boundary for module-specific docs that still live in the core repo.
@@ -12,6 +13,7 @@ This is a cross-cutting documentation change rather than a runtime feature. The 
 ## Goals / Non-Goals
 
 **Goals:**
+
 - Establish a documentation contract for the post-modularization architecture.
 - Audit and align all user-facing Markdown so command examples, installation flows, and architecture descriptions match current reality.
 - Separate core-owned documentation concerns from module/bundle-owned concerns without breaking current docs navigation.
@@ -19,6 +21,7 @@ This is a cross-cutting documentation change rather than a runtime feature. The 
 - Leave explicit migration notes so future docs relocation to `specfact-cli-modules` is expected and documented.
 
 **Non-Goals:**
+
 - No runtime command or packaging behavior changes.
 - No immediate move of the docs publishing site from `specfact-cli` to `specfact-cli-modules`.
 - No attempt to archive or rewrite historical OpenSpec records.
@@ -27,19 +30,23 @@ This is a cross-cutting documentation change rather than a runtime feature. The 
 ## Decisions
 
 ### Decision: Treat the work as a full docs inventory plus ownership cleanup
+
 A partial doc fix would leave stale pages behind because command and marketplace guidance is spread across many sections. The implementation will therefore inventory all first-party Markdown under `README.md` and `docs/` and classify each page as core-owned, module-owned-but-temporarily-hosted, shared, historical, or generated/vendor.
 
 Alternative considered: update only README, index, and command reference.
 Why not chosen: that would not satisfy the user-visible requirement to check every Markdown page and would preserve hidden drift in guides and adapters.
 
 ### Decision: Keep core docs as the publication host for now, but explicitly label temporary module-doc hosting
+
 The docs site is still published from this repo, so the immediate change should not move hosting. Instead, module-focused pages will carry a consistent note that the content remains temporarily hosted in core and is intended to migrate to `specfact-cli-modules`.
 
 Alternative considered: move module docs immediately as part of this change.
 Why not chosen: that is a larger repo/process migration and would mix documentation alignment with publishing/platform changes.
 
 ### Decision: Reframe command docs around ownership and installation source
+
 Command reference and related guides will describe:
+
 - permanent core commands always available in `specfact-cli`,
 - grouped bundle commands that appear after marketplace installation,
 - per-category and per-package docs instead of a single legacy flat list.
@@ -48,12 +55,14 @@ Alternative considered: keep one monolithic command reference and only patch exa
 Why not chosen: it would continue to blur the core-vs-bundle boundary and keep the old mental model alive.
 
 ### Decision: Update directory/dependency docs as architecture documentation, not just command help
+
 `docs/reference/directory-structure.md`, `docs/reference/dependency-resolution.md`, module architecture docs, and marketplace docs will be aligned together so readers understand why bundles depend on each other, where code now lives, and which repo owns which artifacts.
 
 Alternative considered: keep dependency and directory docs unchanged because runtime behavior already works.
 Why not chosen: those pages are part of the architecture contract and will actively mislead contributors if left in pre-migration form.
 
 ### Decision: Add lightweight docs parity validation where practical
+
 If existing tests can be extended cheaply, add or update targeted parity checks for command-surface and docs-ownership expectations.
 
 Alternative considered: rely only on manual review.

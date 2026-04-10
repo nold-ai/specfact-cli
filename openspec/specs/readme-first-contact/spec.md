@@ -1,8 +1,11 @@
 # readme-first-contact Specification
 
 ## Purpose
+
 TBD - created by archiving change readme-star-conversion-01. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: README hero leads with developer outcome and runnable proof
 
 The repository README SHALL lead with a developer-facing value proposition and a runnable quickstart
@@ -66,4 +69,3 @@ reader into the full documentation set first.
   of the document
 - **AND** the README SHALL include a brief "How SpecFact is built" or equivalent trust section that
   explains the repo's OpenSpec -> TDD -> quality-gate workflow in plain language
-

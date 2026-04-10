@@ -1,8 +1,11 @@
 # init-module-state Specification
 
 ## Purpose
+
 TBD - created by archiving change arch-01-cli-modular-command-registry. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Init Discovers Modules and Stores State with Version and Enabled Flag
 
 When the user runs **specfact init**, the CLI SHALL discover all available module packages, SHALL treat each as **enabled by default**, and SHALL write a **state file** under `~/.specfact/registry/` (e.g. `modules.json`) that records for each module: identifier, version, and **enabled** (boolean). Subsequent runs of specfact init SHALL read this state file and SHALL respect previously set enabled/disabled values (user overrides).
@@ -50,4 +53,3 @@ When the user runs **specfact init**, the CLI SHALL discover all available modul
 - --enable-module <id> and --disable-module <id> are supported (multiple allowed)
 - State file is updated after init so overrides persist
 - After init, if any module is disabled and that is due to user override (saved in state), print a message: e.g. "The following modules are disabled by your configuration: <list>. Re-enable with specfact init --enable-module <id>."
-

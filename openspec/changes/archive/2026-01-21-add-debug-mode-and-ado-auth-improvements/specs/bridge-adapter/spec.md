@@ -40,6 +40,7 @@ The ADO adapter SHALL ensure organization is always included before project in A
 **And** this applies even when collection is already in base_url (on-premise)
 
 **Example URLs**:
+
 - Cloud: `https://dev.azure.com/myorg/myproject/_apis/wit/wiql?api-version=7.1`
 - On-premise: `https://server/myorg/myproject/_apis/wit/wiql?api-version=7.1`
 

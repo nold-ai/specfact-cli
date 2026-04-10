@@ -1,45 +1,17 @@
 ---
-description: This rule provides essential instructions for testing and building the project correctly, avoiding common pitfalls with test environment management.
+description: Bootstrap Cursor sessions through the canonical agent governance docs instead of relying on stale inline reminders.
 globs:
 alwaysApply: true
 ---
 
 # Session Startup Instructions
 
-## Core Workflow Reminders
+1. Read `AGENTS.md`.
+2. Read `docs/agent-rules/INDEX.md`.
+3. Read `docs/agent-rules/05-non-negotiable-checklist.md`.
+4. Detect repository root, branch, and worktree state before implementation.
+5. Load any additional rule files selected by the applicability matrix in `docs/agent-rules/INDEX.md`.
+6. If a sibling internal checkout (for example `../specfact-cli-internal/`) exists and you are designing or scoping an OpenSpec change, follow the internal wiki guidance in `docs/agent-rules/40-openspec-and-tdd.md` (section **Internal wiki and strategic context**): read `wiki/hot.md`, `wiki/graph.md`, and relevant `wiki/concepts/*.md` via absolute paths; do not import wiki text into this repo. When you materially change an active `openspec/changes/<change-id>/` artifact, mirror those semantics to `wiki/sources/<change-id>.md` in the sibling repo (then `cd` there and run `python3 scripts/wiki_rebuild_graph.py`); if the sibling checkout is absent, leave a merge checklist or follow-up instead of claiming the wiki is updated.
+7. After merges that ship OpenSpec- or GitHub-related work, when a sibling `specfact-cli-internal` checkout exists, run wiki scripts only with that repo as the **current working directory** (for example `cd ../specfact-cli-internal && python3 scripts/wiki_openspec_gh_status.py`); running from `specfact-cli` or other cwd breaks script logic. If many `docs/agent-rules/` frontmatter files changed, also `cd ../specfact-cli-internal && python3 scripts/wiki_rebuild_graph.py` (details under **Internal wiki maintenance** in `docs/agent-rules/40-openspec-and-tdd.md`).
 
-- **Testing:** Run `hatch run smart-test`. Ensure total coverage is >= 80%.
-- **Formatting:** Apply `black .`, `isort .`, `mypy .`, and `pylint src tests` before committing.
-- **Commits:** Use the [Conventional Commits](https://www.conventionalcommits.org/) format.
-- **Versioning:** When releasing, update `CHANGELOG.md`, `pyproject.toml`, `setup.py`, and `src/__init__.py`.
-- **Docstrings:** Follow the [Google Python Style Guide](https://google.github.io/styleguide/pyguide.html).
-
-## Initial Context Checklist
-
-1. **Review:
-1.1. `GEMINI.md`: Check for any session-specific goals or instructions (applies to GEMINI CLI only).
-1.2. `CLAUDE.md`: Check for any session-specific goals or instructions (applies to Claude CLI only).
-2. `docs/README.md` to get the latest project status and priorities and see which plan is referenced as being worked on: Understand the current development phase and tasks based on the mentioned plan in the README.md file.
-3. Outline your understanding of the current development phase and tasks based on the mentioned plan in the README.md file, before proceeding with any work. Ask the user for confirmation before proceeding.
-
-## Documentation and Planning Guidelines
-
-**CRITICAL**: When working with planning and documentation:
-
-- **Work directly with major artifacts**: Update strategic plans, implementation plans, and analysis documents directly. Do NOT create plans for plans, tracking documents for tracking documents, or status artifacts for status artifacts.
-- **Update existing artifacts**: Add status annotations (✅ Complete, ⏳ In Progress, 🟡 Pending) directly to existing plan documents rather than creating separate status files.
-- **Consolidate, don't multiply**: Only create new documentation artifacts when they add clear, unique value that cannot be captured in existing artifacts.
-- **Performance metrics**: Record timing and performance data directly in implementation status documents, not in separate performance tracking files.
-- **Test results**: Include test results and validation outcomes in the relevant implementation status or quality analysis documents.
-
-**Examples of what NOT to do**:
-
-- ❌ Creating `PHASE0_TRACKING.md` when `CODE2SPEC_STRATEGIC_PLAN.md` already exists
-- ❌ Creating `STEP1_1_TEST_RESULTS.md` when `PHASE1_IMPLEMENTATION_STATUS.md` can be updated
-- ❌ Creating `PERFORMANCE_METRICS.md` when performance data can go in implementation status
-
-**Examples of what TO do**:
-
-- ✅ Update `CODE2SPEC_STRATEGIC_PLAN.md` with status annotations (✅ Complete, ⏳ Next)
-- ✅ Add test results and performance metrics to `PHASE1_IMPLEMENTATION_STATUS.md`
-- ✅ Update `QUALITY_GAP_ANALYSIS.md` with measurement results and progress
+Do not treat this file as a complete workflow handbook. The canonical repository governance now lives in `docs/agent-rules/`.

@@ -31,7 +31,7 @@ Documentation command examples can drift from actual CLI implementations as code
 
 <!-- source_repo: nold-ai/specfact-cli -->
 - **GitHub Issue**: #440
-- **Issue URL**: https://github.com/nold-ai/specfact-cli/issues/440
+- **Issue URL**: <https://github.com/nold-ai/specfact-cli/issues/440>
 - **Last Synced Status**: synced
 - **Sanitized**: true
 - **Cross-repo**: specfact-cli-modules/docs-12-docs-validation-ci

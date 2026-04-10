@@ -5,6 +5,7 @@
 The current DevOps sync implementation only updates issue bodies when proposal content changes and adds comments for status changes or significant content changes. However, teams need to track implementation progress based on actual code changes (git commits, file modifications) and add progress comments to existing issues without replacing the entire issue body.
 
 This enables:
+
 - Track implementation milestones as code is written
 - Notify stakeholders when implementation work progresses
 - Provide incremental updates without replacing issue content
@@ -65,7 +66,6 @@ This change extends the existing DevOps sync capability to detect code changes r
 - ✅ Architecture supports future tools (ADO, Linear, Jira)
 - ✅ Integration tests pass
 - ✅ Test coverage ≥80%
-
 
 ---
 

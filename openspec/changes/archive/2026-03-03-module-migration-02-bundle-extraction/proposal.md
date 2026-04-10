@@ -121,9 +121,11 @@ See **`openspec/changes/module-migration-02-bundle-extraction/MIGRATION_GATE.md`
 Before marking migration-02 complete or merging the change:
 
 1. **Run the gate script** from the specfact-cli worktree (with `SPECFACT_MODULES_REPO` pointing at the specfact-cli-modules clone, on the branch that will be merged):
+
    ```bash
    SPECFACT_MODULES_REPO=/path/to/specfact-cli-modules python scripts/validate-modules-repo-sync.py --gate
    ```
+
 2. **Gate criteria:**
    - All 17 migrated modules have every source file **present** in specfact-cli-modules at the correct bundle path (script fails if any file is missing).
    - **Content:** If any file’s content differs between worktree and modules repo, the script exits non-zero and lists differing files. Resolve by either (a) migrating missing logic into specfact-cli-modules and re-running, or (b) confirming that differences are only import/namespace and re-running with `SPECFACT_MIGRATION_CONTENT_VERIFIED=1`.

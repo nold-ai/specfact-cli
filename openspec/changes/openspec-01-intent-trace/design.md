@@ -9,6 +9,7 @@ The principle is: **"OpenSpec owns the intent. SpecFact owns the evidence."** Op
 ## Goals / Non-Goals
 
 **Goals:**
+
 - Define the `## Intent Trace` section YAML schema and JSON Schema validator
 - Extend the OpenSpec bridge adapter to parse and import intent artifacts when the section is present
 - Keep the `## Intent Trace` section strictly optional — existing proposals without it are unaffected
@@ -16,6 +17,7 @@ The principle is: **"OpenSpec owns the intent. SpecFact owns the evidence."** Op
 - Produce `.specfact/requirements/{id}.req.yaml` artifacts from imported intent data
 
 **Non-Goals:**
+
 - Forcing all existing OpenSpec proposals to add an `## Intent Trace` section
 - Building a new proposal authoring tool — the section is hand-authored YAML in Markdown
 - Replacing requirements-01/02 commands — the bridge adapter imports intent; the requirements module validates and traces it
@@ -25,6 +27,7 @@ The principle is: **"OpenSpec owns the intent. SpecFact owns the evidence."** Op
 ### D1: YAML fenced block vs structured Markdown headings for Intent Trace
 
 **Decision**: YAML fenced block under `## Intent Trace` heading
+
 ```yaml
 intent_trace:
   business_outcomes:
@@ -38,6 +41,7 @@ intent_trace:
       when: "..."
       then: "..."
 ```
+
 **Rationale**: YAML is machine-parseable with a single `yaml.safe_load()` call and maps directly to Pydantic models. Structured Markdown headings require custom parsing logic that is brittle and hard to validate with JSON Schema. YAML fenced blocks are already used in GitHub Actions, Docker Compose, and Kubernetes manifests — authors are familiar with the pattern.
 **Alternative rejected**: Structured `### Business Outcomes / ### Business Rules` Markdown sub-sections — readable but not JSON Schema validatable.
 

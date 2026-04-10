@@ -3,6 +3,7 @@
 ## Runner Pattern
 
 Both runners follow the same pattern:
+
 1. Accept a `files: list[Path]` parameter (validated by `@require`)
 2. Invoke the external tool via `subprocess.run` with JSON output
 3. Parse the JSON output
@@ -19,6 +20,7 @@ data = json.loads(result.stdout)
 ```
 
 Rule prefix → category mapping:
+
 ```python
 RULE_CATEGORY_MAP = {
     "S": "security",     # Bandit security rules
@@ -41,6 +43,7 @@ data = json.loads(result.stdout)
 ```
 
 For each function block with complexity > 12:
+
 ```python
 severity = "warning" if complexity <= 15 else "error"
 ```
@@ -48,6 +51,7 @@ severity = "warning" if complexity <= 15 else "error"
 ## Test Strategy (TDD-first)
 
 Unit tests mock `subprocess.run` to return fixture JSON:
+
 - `test_ruff_runner.py`: fixture outputs for S603, C901, E501; test category mapping, filter, tool_error
 - `test_radon_runner.py`: fixture outputs for complexity 13, 16, 10; test severity thresholds
 

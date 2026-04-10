@@ -2,11 +2,9 @@
 
 ## Why
 
-
 `specfact backlog add --adapter ado` can fail when required custom fields exist and field constraints include allowed picklist values. Today, users can supply values that are not valid for the selected work item type, and the command does not consistently guide them to resolvable values in interactive or non-interactive mode.
 
 ## What Changes
-
 
 - Extend `specfact backlog map-fields` to dynamically detect required custom fields per ADO work item type and persist requirement metadata for add-time validation.
 - Add a non-interactive `specfact backlog map-fields` mode that auto-discovers and applies deterministic mappings; fail with guidance to run interactive mapping only when auto-mapping cannot resolve required fields.
@@ -18,6 +16,7 @@
 - Update user-facing docs for `backlog map-fields` and `backlog add` custom field/picklist behavior.
 
 ## Capabilities
+
 ### New Capabilities
 
 - `ado-field-value-selection`: Interactive selection workflow for ADO constrained field values during backlog add.

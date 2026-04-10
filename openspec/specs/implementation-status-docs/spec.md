@@ -1,13 +1,17 @@
 # implementation-status-docs Specification
 
 ## Purpose
+
 TBD - created by archiving change arch-08-documentation-discrepancies-remediation. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Implemented vs planned clearly stated
 
 The implementation status documentation SHALL clearly mark each feature (e.g. architecture commands, protocol FSM, change tracking) as implemented or planned, with brief notes on scope where relevant.
 
 #### Scenario: Reader checks feature status
+
 - **GIVEN** the implementation status documentation (e.g. docs/architecture/implementation-status.md)
 - **WHEN** a reader checks the status of a feature
 - **THEN** each feature is clearly marked as implemented or planned
@@ -18,6 +22,7 @@ The implementation status documentation SHALL clearly mark each feature (e.g. ar
 For planned or partially implemented features, the implementation status doc SHALL link or reference the relevant OpenSpec change (e.g. architecture-01-solution-layer for architecture derive/validate/trace).
 
 #### Scenario: Reader finds spec for planned feature
+
 - **GIVEN** a planned or partially implemented feature
 - **WHEN** the implementation status doc describes it
 - **THEN** it links or references the relevant OpenSpec change
@@ -28,6 +33,7 @@ For planned or partially implemented features, the implementation status doc SHA
 Current limitations for change tracking and protocol/FSM behavior SHALL be stated (e.g. no FSM engine, partial adapter support for change tracking) so that expectations match reality.
 
 #### Scenario: Reader checks limitations
+
 - **GIVEN** change tracking and protocol/FSM behavior
 - **WHEN** a user or contributor reads the implementation status
 - **THEN** current limitations are stated
@@ -38,16 +44,18 @@ Current limitations for change tracking and protocol/FSM behavior SHALL be state
 The implementation status page SHALL be linked from the architecture README or reference architecture page so it can be found without searching.
 
 #### Scenario: User navigates architecture docs
+
 - **GIVEN** the docs site
 - **WHEN** a user navigates architecture docs
 - **THEN** the implementation status page is linked
 - **AND** discoverable from the architecture index or README
 
 ### Requirement: Implementation-status docs describe core versus bundle ownership
+
 Implementation-status and architecture status documentation SHALL explicitly describe which capabilities are owned by core runtime versus marketplace-installed bundles, and SHALL identify documentation that is still temporarily hosted in core despite belonging to bundle workflows.
 
 #### Scenario: Reader checks ownership in status docs
+
 - **WHEN** a reader reviews implementation-status or architecture status pages
 - **THEN** the docs distinguish core lifecycle/runtime ownership from bundle workflow ownership
 - **AND** temporary docs-hosting exceptions are called out so documentation location does not imply incorrect runtime ownership
-

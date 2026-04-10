@@ -54,11 +54,6 @@ These enhancements will complete the adapter bridge architecture, enabling full 
   - SpecFact validation (contract enforcement)
   - Backlog adapters (GitHub first, future: ADO, Jira, Linear) - bidirectional sync
 
-
-
-
-
-
 ---
 
 ## Source Tracking

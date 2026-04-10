@@ -28,6 +28,6 @@ The core docs site currently has 20+ pages that contain full duplicate content o
 
 <!-- source_repo: nold-ai/specfact-cli -->
 - **GitHub Issue**: #439
-- **Issue URL**: https://github.com/nold-ai/specfact-cli/issues/439
+- **Issue URL**: <https://github.com/nold-ai/specfact-cli/issues/439>
 - **Last Synced Status**: synced
 - **Sanitized**: true

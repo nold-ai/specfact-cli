@@ -246,7 +246,7 @@ graph LR
 
 - **After `import from-bridge`**: Review the imported plan. If it needs refinement, use `project devops-flow --stage plan --action update-feature`.
 - **Bidirectional sync**: Use `--watch` mode for continuous synchronization, or run sync manually as needed.
-- **Adapter selection**: 
+- **Adapter selection**:
   - **Code/Spec adapters** (use `import from-bridge`): `speckit`, `openspec`, `generic-markdown`
   - **Backlog adapters** (use `sync bridge`): `github`, `ado`, `linear`, `jira`
   - **Note**: Backlog adapters (GitHub Issues, ADO, Linear, Jira) use `sync bridge` for bidirectional synchronization, not `import from-bridge`. The `import from-bridge` command is specifically for importing entire code/spec projects.

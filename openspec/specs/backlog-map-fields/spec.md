@@ -1,8 +1,11 @@
 # backlog-map-fields Specification
 
 ## Purpose
+
 TBD - created by archiving change backlog-core-05-user-modules-bootstrap. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Provider auth and field discovery checks
 
 The system SHALL verify auth context and discover provider fields/metadata before accepting mappings.

@@ -1,8 +1,11 @@
 # dependency-decoupling Specification
 
 ## Purpose
+
 TBD - created by archiving change module-migration-02-bundle-extraction. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: No hardcoded imports of module-only specfact_cli code
 
 Bundles in specfact-cli-modules SHALL NOT import from `specfact_cli.*` submodules that are used exclusively by bundle code. Such code SHALL be migrated to the appropriate bundle or a shared package in specfact-cli-modules.
@@ -29,4 +32,3 @@ Bundles in specfact-cli-modules SHALL NOT import from `specfact_cli.*` submodule
 - **THEN** a check SHALL run that scans bundle code for `from specfact_cli.* import`
 - **AND** the check SHALL fail if any import is not in the allowed (CORE) list
 - **AND** `ALLOWED_IMPORTS.md` (or equivalent) SHALL document the allowed set
-

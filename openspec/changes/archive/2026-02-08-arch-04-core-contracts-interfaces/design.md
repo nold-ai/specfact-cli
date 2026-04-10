@@ -3,6 +3,7 @@
 ## Context
 
 The modular architecture introduced in arch-01/02/03 (v0.27-0.29) provides:
+
 - CommandRegistry with lazy loading (arch-01)
 - Module package separation with boundary guards (arch-02)
 - Module lifecycle management with dependency validation (arch-03)
@@ -10,6 +11,7 @@ The modular architecture introduced in arch-01/02/03 (v0.27-0.29) provides:
 However, the core IO contract (ProjectBundle) lacks formal protocol definitions, and while boundary guards prevent cross-module imports, there's no enforcement preventing core code from importing modules. This creates coupling that would block marketplace adoption where 3rd-party modules must be truly pluggable without core modifications.
 
 **Current state:**
+
 - ProjectBundle defined in `src/specfact_cli/models/project.py` as Pydantic BaseModel
 - Modules consume/produce ProjectBundle informally
 - No explicit `ModuleIOContract` protocol
@@ -21,6 +23,7 @@ However, the core IO contract (ProjectBundle) lacks formal protocol definitions,
 ## Goals / Non-Goals
 
 **Goals:**
+
 - Define formal `ModuleIOContract` protocol that all modules must implement
 - Enforce ProjectBundle as the ONLY IO contract between core and modules
 - Add static analysis to prevent core→module imports (inversion-of-control enforcement)
@@ -28,6 +31,7 @@ However, the core IO contract (ProjectBundle) lacks formal protocol definitions,
 - Document ProjectBundle schema and module contract requirements for 3rd-party developers
 
 **Non-Goals:**
+
 - Schema extension mechanism (deferred to arch-07)
 - Bridge registry for schema conversions (deferred to arch-05)
 - Cryptographic module signing (deferred to arch-06)
@@ -41,12 +45,14 @@ However, the core IO contract (ProjectBundle) lacks formal protocol definitions,
 **Choice:** Use `typing.Protocol` for `ModuleIOContract` instead of ABC
 
 **Rationale:**
+
 - Structural subtyping: Modules don't need explicit inheritance
 - Duck typing: Existing modules work without modification (opt-in formalization)
 - Static type checking: basedpyright verifies compliance without runtime overhead
 - Flexibility: Modules can implement subset of operations (e.g., sync-only modules)
 
 **Alternatives considered:**
+
 - ABC with abstract methods: Requires explicit inheritance, breaks existing modules
 - No protocol: Informal contracts are error-prone and block marketplace verification
 
@@ -55,12 +61,14 @@ However, the core IO contract (ProjectBundle) lacks formal protocol definitions,
 **Choice:** Define 4 required operations: `import_to_bundle`, `export_from_bundle`, `sync_with_bundle`, `validate_bundle`
 
 **Rationale:**
+
 - **import_to_bundle**: External format → ProjectBundle (e.g., ADO work items → features)
 - **export_from_bundle**: ProjectBundle → External format (e.g., features → ADO work items)
 - **sync_with_bundle**: Bidirectional sync with conflict resolution
 - **validate_bundle**: Module-specific validation rules (e.g., backlog module validates feature IDs exist in ADO)
 
 **Alternatives considered:**
+
 - Single `transform()` method: Too generic, loses operation semantics
 - Separate read/write protocols: Overcomplicates simple unidirectional modules
 
@@ -69,17 +77,20 @@ However, the core IO contract (ProjectBundle) lacks formal protocol definitions,
 **Choice:** Parse core directory ASTs and fail if any `import specfact_cli.modules.*` found
 
 **Rationale:**
+
 - Compile-time enforcement: Catches violations before PR merge
 - Zero runtime overhead: AST parsing in tests only
 - Clear error messages: Pinpoint file and line number of violation
 - CI-enforceable: Blocks PRs that add core→module coupling
 
 **Alternatives considered:**
+
 - Runtime inspection: Overhead, detects after deployment
 - Import hooks: Complex, fragile, runtime cost
 - Manual code review: Error-prone, doesn't scale
 
 **Implementation:**
+
 ```python
 # tests/unit/test_core_module_isolation.py
 def test_core_has_no_module_imports():
@@ -105,11 +116,13 @@ def test_core_has_no_module_imports():
 **Choice:** Update 5 existing modules incrementally, mark protocol as optional initially
 
 **Rationale:**
+
 - Non-breaking: Existing modules work without immediate changes
 - Incremental: Update backlog first (simplest), then sync, plan, generate, enforce
 - Validation: Module registration can check protocol compliance and warn if missing
 
 **Alternatives considered:**
+
 - Big-bang migration: Risky, blocks PRs across modules
 - Never enforce: Defeats purpose, marketplace modules wouldn't be verifiable
 
@@ -118,11 +131,13 @@ def test_core_has_no_module_imports():
 **Choice:** Add `schema_version` field to ProjectBundle, document in reference docs
 
 **Rationale:**
+
 - Forward compatibility: Future schema changes don't break old modules
 - Marketplace safety: 3rd-party modules declare compatible schema versions
 - Migration path: Old modules continue working, new modules use versioned features
 
 **Schema:**
+
 ```python
 class ProjectBundle(BaseModel):
     schema_version: str = "1.0"  # NEW
@@ -133,6 +148,7 @@ class ProjectBundle(BaseModel):
 ```
 
 **Alternatives considered:**
+
 - No versioning: Schema changes break modules silently
 - Separate version file: Requires extra file management, error-prone
 
@@ -143,6 +159,7 @@ class ProjectBundle(BaseModel):
 **Risk:** Updating 5 modules to implement protocol is time-consuming
 
 **Mitigation:**
+
 - Start with simplest module (backlog) as template
 - Protocol is opt-in initially; registration warns but doesn't fail
 - Tasks include module-by-module migration with test validation
@@ -152,6 +169,7 @@ class ProjectBundle(BaseModel):
 **Risk:** AST parsing might flag valid imports (e.g., type hints, if TYPE_CHECKING)
 
 **Mitigation:**
+
 - Exclude `if TYPE_CHECKING:` blocks from analysis
 - Allow specific exceptions via config file if needed
 - Test against current codebase before enforcement
@@ -161,6 +179,7 @@ class ProjectBundle(BaseModel):
 **Risk:** Future schema changes could break existing modules
 
 **Mitigation:**
+
 - Schema versioning from day 1
 - Extension fields (arch-07) allow backward-compatible additions
 - Deprecation policy for removals (2 minor versions notice)
@@ -170,6 +189,7 @@ class ProjectBundle(BaseModel):
 **Risk:** Runtime protocol validation adds overhead
 
 **Mitigation:**
+
 - Protocol is static type checking only (zero runtime cost)
 - Opt-in runtime checks via `isinstance(module, ModuleIOContract)` only in registration
 - CrossHair symbolic execution finds contract violations at CI time
@@ -199,26 +219,31 @@ Per project's contract-first philosophy:
 ## Migration Plan
 
 **Phase 1: Foundation (Week 1, Days 1-2)**
+
 - Create `src/specfact_cli/contracts/module_interface.py` with protocol
 - Add `tests/unit/test_core_module_isolation.py` static analysis test
 - Add CI enforcement in `.github/workflows/tests.yml`
 
 **Phase 2: Core Updates (Week 1, Days 3-4)**
+
 - Add `schema_version` to ProjectBundle
 - Update module registration to check protocol compliance (warn only)
 - Document in `docs/reference/projectbundle-schema.md`
 
 **Phase 3: Module Migration (Week 1, Days 4-5)**
+
 - Update backlog module (template for others)
 - Update sync, plan, generate, enforce modules
 - Validate with contract-first tests
 
 **Phase 4: Documentation (Week 1, Day 5)**
+
 - Create `docs/reference/module-contracts.md` for 3rd-party developers
 - Update architecture docs with contract-first patterns
 - Update `docs/_layouts/default.html` navigation
 
 **Rollback Strategy:**
+
 - Protocol is opt-in initially; disabling warnings reverts to pre-change behavior
 - Static analysis test can be skipped via `pytest -k "not test_core_module_isolation"` if needed
 - No breaking changes to existing module interfaces

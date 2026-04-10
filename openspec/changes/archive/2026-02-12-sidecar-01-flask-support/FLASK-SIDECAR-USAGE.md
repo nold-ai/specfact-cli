@@ -27,6 +27,7 @@ Flask applications are automatically detected by looking for:
 Flask route extraction supports:
 
 1. **Application Routes**:
+
    ```python
    @app.route('/users/<int:id>', methods=['GET'])
    def get_user(id):
@@ -34,6 +35,7 @@ Flask route extraction supports:
    ```
 
 2. **Blueprint Routes**:
+
    ```python
    bp = Blueprint('api', __name__)
    
@@ -206,6 +208,7 @@ specfact validate sidecar init microblog /path/to/microblog
 ```
 
 **Output**:
+
 ```
 ✓ Sidecar workspace initialized successfully
   Framework detected: FrameworkType.FLASK
@@ -218,6 +221,7 @@ specfact validate sidecar run microblog /path/to/microblog --no-run-specmatic
 ```
 
 **Output**:
+
 ```
 Validation Results:
   Framework: FrameworkType.FLASK
@@ -249,6 +253,7 @@ cat .specfact/projects/microblog/reports/sidecar/crosshair-summary-*.json | jq
 **Issue**: Framework detected as `PURE_PYTHON` instead of `FLASK`
 
 **Solutions**:
+
 - Ensure Flask imports are present: `from flask import Flask`
 - Check that Flask app is instantiated: `app = Flask(__name__)`
 - Verify repository path is correct
@@ -258,6 +263,7 @@ cat .specfact/projects/microblog/reports/sidecar/crosshair-summary-*.json | jq
 **Issue**: `Routes extracted: 0`
 
 **Solutions**:
+
 - Check that route decorators use `@app.route()` or `@bp.route()`
 - Verify routes are in Python files (not templates)
 - Check for syntax errors in route files
@@ -267,6 +273,7 @@ cat .specfact/projects/microblog/reports/sidecar/crosshair-summary-*.json | jq
 **Issue**: `ModuleNotFoundError: No module named 'flask'`
 
 **Solutions**:
+
 - Check that sidecar venv was created: `.specfact/venv/` exists
 - Verify dependencies were installed: Check `.specfact/venv/lib/python*/site-packages/`
 - Recreate venv if broken: Delete `.specfact/venv/` and run validation again
@@ -276,11 +283,13 @@ cat .specfact/projects/microblog/reports/sidecar/crosshair-summary-*.json | jq
 **Issue**: CrossHair analysis times out
 
 **Explanation**: This is expected for complex Flask applications. Timeouts occur because:
+
 - Symbolic execution of Flask routes is computationally expensive
 - Database dependencies, sessions, and external services add complexity
 - Multiple routes need to be analyzed
 
 **Solutions**:
+
 - Check summary file for partial results
 - Increase timeout if needed (modify `TimeoutConfig` in code)
 - Focus on specific routes by generating smaller harness files

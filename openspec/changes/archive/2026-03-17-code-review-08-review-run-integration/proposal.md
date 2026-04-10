@@ -21,6 +21,7 @@ Without this change, the module has no working entry point — all runner SPs ar
 - **NEW**: `tests/cli-contracts/specfact-code-review-rules.scenarios.yaml` (cli-val-01 format)
 
 **Exit code semantics (cli-val-05 aligned):**
+
 - `ci_exit_code=0` → PASS or WARN (advisory)
 - `ci_exit_code=1` → BLOCK (hard gate)
 

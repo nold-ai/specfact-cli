@@ -2,9 +2,6 @@
 
 ## Why
 
-
-
-
 Enterprise environments require machine-readable evidence that policies were enforced, traceability exists, and exceptions are tracked. Current validation output is human-readable (Markdown/terminal) but not suitable for CI gates, audit systems, or compliance dashboards. A standardized evidence JSON output format — covering policy results, traceability coverage, exception status, and timestamps — makes SpecFact validation results consumable by any CI/CD pipeline, audit tool, or governance platform.
 
 ## Ownership Alignment (2026-04-08)
@@ -17,10 +14,8 @@ Enterprise environments require machine-readable evidence that policies were enf
 
 ## What Changes
 
-
-
-
 - **NEW**: Evidence writer producing standardized JSON artifacts:
+
   ```json
   {
     "schema_version": "1.0",
@@ -51,6 +46,7 @@ Enterprise environments require machine-readable evidence that policies were enf
     "ci_exit_code": 0
   }
   ```
+
 - **NEW**: `--evidence-dir .specfact/evidence/` flag on `specfact validate --full-chain` to persist evidence artifacts per run
 - **NEW**: `--ci-mode` flag that sets exit codes based on profile enforcement mode: advisory=always 0, mixed=1 for hard-fail rules only, hard=1 for any failure
 - **NEW**: Evidence artifact naming: `{timestamp}_{run_id}_evidence.json` for audit trail
@@ -61,6 +57,7 @@ Enterprise environments require machine-readable evidence that policies were enf
 - **NEW**: Ownership authority — this change is authoritative for evidence JSON envelope/schema; sibling governance changes may add fields only through this envelope contract.
 
 ## Capabilities
+
 ### New Capabilities
 
 - `governance-evidence-output`: Machine-readable JSON evidence artifacts for CI/CD gates and audit systems, with per-run persistence, CI exit code modes, coverage percentages, exception status, and profile-aware verdicts.
@@ -70,7 +67,6 @@ Enterprise environments require machine-readable evidence that policies were enf
 - `full-chain-validation`: Extended with evidence artifact generation via `--evidence-dir` and `--ci-mode` flags
 - `policy-engine`: Results formatted as evidence-compatible structures with run_id and timestamps
 - `governance-evidence-output`: Extended with a `code_quality` section that remains parallel to `validation_results` rather than introducing a new traceability layer
-
 
 ---
 

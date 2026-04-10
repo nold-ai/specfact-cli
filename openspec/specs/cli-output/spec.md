@@ -1,8 +1,11 @@
 # cli-output Specification
 
 ## Purpose
+
 TBD - created by archiving change enhance-cli-terminal-output. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Terminal Capability Detection
 
 The system SHALL detect terminal capabilities to determine appropriate output formatting.
@@ -289,4 +292,3 @@ The project SHALL maintain one canonical section per released version and accura
 - **WHEN** maintainers review `CHANGELOG.md`
 - **THEN** there is a single `0.34.0` section
 - **AND** features shipped in that release are listed under that release (not left under `Unreleased`).
-

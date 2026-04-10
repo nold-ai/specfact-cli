@@ -4,7 +4,7 @@
   - [x] 1.1.1 Ensure we're on dev and up to date: `git checkout dev && git pull origin dev`
   - [x] 1.1.2 Create branch with Development link to issue: `gh issue develop 144 --repo nold-ai/specfact-cli --name bugfix/fix-ado-field-mapping-missing-fields --checkout`
   - [x] 1.1.3 Verify branch was created: `git branch --show-current`
-  - [x] 1.1.4 Verify Development link appears on issue page: https://github.com/nold-ai/specfact-cli/issues/144
+  - [x] 1.1.4 Verify Development link appears on issue page: <https://github.com/nold-ai/specfact-cli/issues/144>
 
 ## 2. Fix Missing Acceptance Criteria Field Mapping
 
@@ -187,7 +187,7 @@
 - [x] 8.1 Improve interactive mapping command
   - [x] 8.1.1 Implement regex/fuzzy matching for potential field matches when no default exists
   - [x] 8.1.2 Pre-populate default mappings (checking which exist in fetched fields)
-  - [x] 8.1.3 Prefer Microsoft.VSTS.Common.* fields over System.* fields
+  - [x] 8.1.3 Prefer Microsoft.VSTS.Common.*fields over System.* fields
   - [x] 8.1.4 Add --reset parameter to restore default mappings
   - [x] 8.1.5 Improve token resolution to use stored tokens from `specfact auth azure-devops`
 
@@ -271,6 +271,6 @@
     - [x] 10.3.7.2 Update status: Project status updates are typically managed via GitHub web interface or require project scope authentication. PR is visible in project board (verified in task 10.3.9).
   - [x] 10.3.8 Verify Development link: PR and branch automatically linked to issue (check issue page "Development" section)
     - **Status**: PR #145 body contains "Fixes #144". Branch created with `gh issue develop 144`. Both should be linked automatically.
-  - [x] 10.3.9 Verify project link: PR appears in project board (https://github.com/orgs/nold-ai/projects/1)
+  - [x] 10.3.9 Verify project link: PR appears in project board (<https://github.com/orgs/nold-ai/projects/1>)
     - **Status**: PR #145 is in SpecFact CLI project board (verified via web interface). Status: Todo.
   - [x] 10.3.10 Cleanup PR body file: `rm /tmp/pr-body-fix-ado-field-mapping-missing-fields.md`

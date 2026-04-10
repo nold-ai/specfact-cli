@@ -11,6 +11,7 @@ Defines CLI commands and infrastructure for installing, uninstalling, searching,
 The system SHALL provide `specfact module install <module-id>` command that downloads, verifies, and installs modules from the registry.
 
 #### Scenario: Install module from marketplace
+
 - **WHEN** user runs `specfact module install specfact/backlog`
 - **THEN** system SHALL fetch registry index
 - **AND** SHALL download module tarball
@@ -20,11 +21,13 @@ The system SHALL provide `specfact module install <module-id>` command that down
 - **AND** SHALL display success message
 
 #### Scenario: Install specific version
+
 - **WHEN** user runs `specfact module install specfact/backlog --version 0.29.0`
 - **THEN** system SHALL install specified version
 - **AND** SHALL verify core_compatibility with current CLI version
 
 #### Scenario: Install module already installed
+
 - **WHEN** user installs module that is already installed
 - **THEN** system SHALL display message "Module already installed (version X)"
 - **AND** SHALL suggest using upgrade command
@@ -34,6 +37,7 @@ The system SHALL provide `specfact module install <module-id>` command that down
 The system SHALL provide `specfact module uninstall <module-name>` command that removes modules from marketplace path.
 
 #### Scenario: Uninstall marketplace module
+
 - **WHEN** user runs `specfact module uninstall backlog`
 - **THEN** system SHALL check if module is from marketplace
 - **AND** SHALL remove ~/.specfact/marketplace-modules/backlog/ directory
@@ -41,6 +45,7 @@ The system SHALL provide `specfact module uninstall <module-name>` command that 
 - **AND** SHALL display success message
 
 #### Scenario: Attempt to uninstall built-in module
+
 - **WHEN** user attempts to uninstall built-in module
 - **THEN** system SHALL display error "Cannot uninstall built-in module"
 - **AND** SHALL NOT modify module
@@ -50,6 +55,7 @@ The system SHALL provide `specfact module uninstall <module-name>` command that 
 The system SHALL provide `specfact module search <query>` command that searches registry index by name, description, or tags.
 
 #### Scenario: Search modules by keyword
+
 - **WHEN** user runs `specfact module search backlog`
 - **THEN** system SHALL fetch registry index
 - **AND** SHALL filter modules matching query in name, description, or tags
@@ -60,11 +66,13 @@ The system SHALL provide `specfact module search <query>` command that searches 
 The system SHALL provide `specfact module list` command that displays modules from all sources with source indicators.
 
 #### Scenario: List all modules
+
 - **WHEN** user runs `specfact module list`
 - **THEN** system SHALL show modules from built-in, marketplace, and custom paths
 - **AND** SHALL indicate source (built-in/marketplace/custom) for each module
 
 #### Scenario: List marketplace modules only
+
 - **WHEN** user runs `specfact module list --source marketplace`
 - **THEN** system SHALL show only marketplace-installed modules
 
@@ -73,6 +81,7 @@ The system SHALL provide `specfact module list` command that displays modules fr
 The system SHALL provide `specfact module upgrade <module-name>` command that upgrades marketplace modules to latest version.
 
 #### Scenario: Upgrade marketplace module
+
 - **WHEN** user runs `specfact module upgrade backlog`
 - **THEN** system SHALL fetch registry index
 - **AND** SHALL check if newer version available
@@ -80,6 +89,7 @@ The system SHALL provide `specfact module upgrade <module-name>` command that up
 - **AND** SHALL remove old version after successful install
 
 #### Scenario: Upgrade reinstalls when module already exists
+
 - **WHEN** user runs `specfact module upgrade backlog` and backlog is already installed
 - **THEN** system SHALL replace existing installed files with the upgraded package
 - **AND** SHALL NOT no-op due to existing install marker files
@@ -89,6 +99,7 @@ The system SHALL provide `specfact module upgrade <module-name>` command that up
 The system SHALL reject archive members that escape the intended extraction root.
 
 #### Scenario: Installer blocks path traversal entries
+
 - **WHEN** a downloaded marketplace tarball contains absolute paths or `..` traversal
 - **THEN** install SHALL fail before extraction
 - **AND** SHALL raise a validation error indicating unsafe archive content

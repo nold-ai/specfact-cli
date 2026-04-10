@@ -1,8 +1,11 @@
 # module-lifecycle-management Specification
 
 ## Purpose
+
 TBD - created by archiving change arch-03-module-lifecycle-management. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Shared helper extraction from cross-module command imports
 
 The system SHALL provide shared bundle conversion and constitution helper utilities under core `specfact_cli.utils` so modules do not import private non-`app` symbols from other modules' `src.commands`.
@@ -188,21 +191,25 @@ The test suite SHALL fail when any module imports non-`app` symbols from another
 The system SHALL extend registration-time validation to check if module implements ModuleIOContract and log protocol compliance status.
 
 #### Scenario: Registration checks for protocol implementation
+
 - **WHEN** module package is registered
 - **THEN** system SHALL inspect module for ModuleIOContract implementation
 - **AND** SHALL use hasattr() to check for import_to_bundle, export_from_bundle, sync_with_bundle, validate_bundle methods
 
 #### Scenario: Full protocol implementation is logged
+
 - **WHEN** module implements all four ModuleIOContract methods
 - **THEN** registration SHALL log at INFO level: "Module X: ModuleIOContract fully implemented"
 - **AND** SHALL store protocol_operations: ["import", "export", "sync", "validate"] in metadata
 
 #### Scenario: Partial protocol implementation is logged with operations
+
 - **WHEN** module implements only import_to_bundle and validate_bundle
 - **THEN** registration SHALL log at INFO level: "Module X: ModuleIOContract partial (import, validate)"
 - **AND** SHALL store protocol_operations: ["import", "validate"] in metadata
 
 #### Scenario: No protocol implementation logs legacy mode
+
 - **WHEN** module does not implement any ModuleIOContract methods
 - **THEN** registration SHALL log at WARNING level: "Module X: No ModuleIOContract (legacy mode)"
 - **AND** SHALL store protocol_operations: [] in metadata
@@ -213,17 +220,20 @@ The system SHALL extend registration-time validation to check if module implemen
 The system SHALL extend registration validation to check ProjectBundle schema version compatibility if module declares schema_version in manifest.
 
 #### Scenario: Compatible schema version allows registration
+
 - **WHEN** module declares schema_version: "1" and ProjectBundle.schema_version is "1"
 - **THEN** registration SHALL succeed
 - **AND** SHALL log: "Module X: Schema version 1 (compatible)"
 
 #### Scenario: Incompatible schema version skips registration
+
 - **WHEN** module declares schema_version: "2" and ProjectBundle.schema_version is "1"
 - **THEN** registration SHALL skip module
 - **AND** SHALL log at WARNING level: "Module X: Schema version 2 required, but current is 1 (skipped)"
 - **AND** skipped module SHALL be listed in registration summary
 
 #### Scenario: Missing schema version assumes compatibility
+
 - **WHEN** module omits schema_version from manifest
 - **THEN** registration SHALL assume current ProjectBundle schema
 - **AND** SHALL log at DEBUG level: "Module X: No schema version declared (assuming current)"
@@ -234,11 +244,13 @@ The system SHALL extend registration validation to check ProjectBundle schema ve
 The system SHALL extend registration summary output to include protocol compliance statistics.
 
 #### Scenario: Summary counts protocol-compliant modules
+
 - **WHEN** registration completes
 - **THEN** summary SHALL include counts: "Protocol-compliant: 4/5 modules"
 - **AND** SHALL list modules by status: Full (3), Partial (1), Legacy (1)
 
 #### Scenario: Summary warns about legacy modules
+
 - **WHEN** registration finds modules without ModuleIOContract
 - **THEN** summary SHALL include warning: "1 module(s) in legacy mode (no ModuleIOContract)"
 - **AND** SHALL recommend updating to ModuleIOContract for marketplace compatibility
@@ -324,27 +336,32 @@ The system SHALL degrade gracefully when one module fails trust checks.
 The system SHALL extend module registration to load schema_extensions from manifests, validate namespace uniqueness, and populate the global extension registry.
 
 #### Scenario: Registration loads schema_extensions from manifest
+
 - **WHEN** module registration loads module-package.yaml
 - **THEN** system SHALL parse schema_extensions section if present
 - **AND** SHALL extract target models, field names, types, descriptions
 
 #### Scenario: Registration validates extension namespace uniqueness
+
 - **WHEN** module declares schema extension with field name
 - **THEN** system SHALL check global extension registry for conflicts
 - **AND** SHALL reject registration if `module.field` already declared by another module
 - **AND** SHALL log error with conflicting module name
 
 #### Scenario: Registration populates global extension registry
+
 - **WHEN** module registration succeeds with schema_extensions
 - **THEN** system SHALL add extensions to global registry
 - **AND** registry SHALL map module_name → extensions metadata
 
 #### Scenario: Registration logs registered extensions
+
 - **WHEN** module with schema_extensions completes registration
 - **THEN** system SHALL log: "Module X registered N schema extensions for [Feature, ProjectBundle]"
 - **AND** SHALL log at debug level the specific fields registered
 
 #### Scenario: Registration skips invalid extension declarations
+
 - **WHEN** module declares extension with malformed field name (e.g., contains dots)
 - **THEN** system SHALL log warning
 - **AND** SHALL skip that extension
@@ -355,16 +372,19 @@ The system SHALL extend module registration to load schema_extensions from manif
 The system SHALL extend registration to handle modules from built-in, marketplace, and custom sources with appropriate lifecycle rules.
 
 #### Scenario: Marketplace modules can be uninstalled
+
 - **WHEN** module from marketplace is registered
 - **THEN** system SHALL mark it as uninstallable
 - **AND** SHALL allow removal via uninstall command
 
 #### Scenario: Built-in modules cannot be uninstalled
+
 - **WHEN** module from built-in source is registered
 - **THEN** system SHALL mark it as non-uninstallable
 - **AND** SHALL prevent removal via uninstall command
 
 #### Scenario: Registration validates namespace for marketplace modules
+
 - **WHEN** marketplace module is registered
 - **THEN** system SHALL validate id uses "namespace/name" format
 - **AND** SHALL log warning if flat name used
@@ -374,11 +394,13 @@ The system SHALL extend registration to handle modules from built-in, marketplac
 The system SHALL keep existing init-based lifecycle flags functional while introducing `specfact module` as the canonical lifecycle command surface.
 
 #### Scenario: init lifecycle flags remain functional
+
 - **WHEN** user runs `specfact init --list-modules` or `--enable-module/--disable-module`
 - **THEN** system SHALL preserve current lifecycle behavior and state updates
 - **AND** SHALL provide deprecation guidance toward `specfact module` commands
 
 #### Scenario: module command is canonical lifecycle surface
+
 - **WHEN** user runs `specfact module list` or lifecycle operations
 - **THEN** system SHALL provide equivalent lifecycle management capabilities
 - **AND** documentation SHALL reference `specfact module` as primary UX
@@ -388,14 +410,15 @@ The system SHALL keep existing init-based lifecycle flags functional while intro
 The system SHALL validate namespace format during module registration for marketplace-sourced modules.
 
 #### Scenario: Marketplace module must use namespace format
+
 - **WHEN** module from marketplace is registered
 - **THEN** id SHALL match format "namespace/name"
 - **AND** namespace SHALL be alphanumeric with hyphens
 - **AND** name SHALL be alphanumeric with hyphens
 
 #### Scenario: Namespace collision detected
+
 - **WHEN** registering module with id that conflicts with existing module
 - **THEN** system SHALL log error "Module namespace collision: {id}"
 - **AND** SHALL prevent registration
 - **AND** SHALL suggest using alias system for disambiguation
-

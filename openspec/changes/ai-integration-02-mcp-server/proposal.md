@@ -2,15 +2,9 @@
 
 ## Why
 
-
-
-
 While the Agent Skill handles 90% of developer interactions via CLI invocation, agentic workflows (CI/CD pipelines, autonomous coding agents, multi-step validation loops) need programmatic tool access with structured inputs and outputs. MCP (Model Context Protocol) — adopted by every major AI platform with 97M+ monthly SDK downloads — provides the standard interface. An MCP server exposing 3-5 high-level tools with compressed, summarized results gives SpecFact programmatic accessibility without the context bloat of naive MCP implementations.
 
 ## What Changes
-
-
-
 
 - **NEW**: MCP server in `src/specfact_cli/mcp/` exposing high-level tools:
   - `validate_spec(spec_path, options)` — run validation (spec-only or full-chain), return compressed summary
@@ -25,6 +19,7 @@ While the Agent Skill handles 90% of developer interactions via CLI invocation, 
 - **DESIGN DECISION**: MCP server wraps CLI commands internally — the CLI remains the source of truth, MCP is a thin adapter layer
 
 ## Capabilities
+
 ### New Capabilities
 
 - `mcp-server`: MCP server exposing 3-5 high-level specification intelligence tools with server-side summarization, dual-response pattern, stdio and HTTP/SSE transports. Wraps CLI commands as thin adapter layer.
@@ -32,7 +27,6 @@ While the Agent Skill handles 90% of developer interactions via CLI invocation, 
 ### Modified Capabilities
 
 (none)
-
 
 ---
 

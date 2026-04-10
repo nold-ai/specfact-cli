@@ -1,8 +1,11 @@
 # test-migration-cleanup Specification
 
 ## Purpose
+
 TBD - created by archiving change module-migration-07-test-migration-cleanup. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Post-Migration Test Topology Alignment
 
 The test suite SHALL align with the category-group command topology and removed in-core module paths after module migration.
@@ -42,4 +45,3 @@ The test suite SHALL align with the category-group command topology and removed 
 - **GIVEN** tests that assert removed flat command topology as active behavior
 - **WHEN** no supported runtime path exists for that assertion
 - **THEN** those tests are removed or replaced with assertions against the supported grouped/runtime command surface.
-

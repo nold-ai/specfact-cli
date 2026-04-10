@@ -21,6 +21,7 @@ This is not just a docs problem. The product needs a durable ownership rule for 
 - Add a transition plan and validation coverage so pending changes and release docs do not reintroduce contradictory command ownership assumptions.
 
 ## Capabilities
+
 ### New Capabilities
 
 - `project-codebase-ownership`: Explicit, testable ownership rules for `project` versus `codebase` command families and internal subsystems.
@@ -40,7 +41,6 @@ This is not just a docs problem. The product needs a durable ownership rule for 
 - `module-migration-06-core-decoupling-cleanup` documented the residual migrated subsystem inventory and still references code-analysis ownership boundaries that need resolution.
 - `module-migration-10-bundle-command-surface-alignment` must align with the ownership decision in this change before finalizing public import command paths.
 - `backlog-module-ownership-cleanup` is the architectural precedent for fixing post-migration ownership drift after the initial extraction wave.
-
 
 ---
 

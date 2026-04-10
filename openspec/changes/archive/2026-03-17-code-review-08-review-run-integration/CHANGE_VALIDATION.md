@@ -15,6 +15,7 @@
 ## Breaking Changes Detected
 
 None. This change is purely additive:
+
 - New module package in specfact-cli-modules
 - No existing production code in specfact-cli is modified
 - `bundle_group_command: code` extends the existing group additively via `_merge_typer_apps`
@@ -22,9 +23,11 @@ None. This change is purely additive:
 ## Dependencies Affected
 
 ### Critical Updates Required
+
 None.
 
 ### Recommended Updates
+
 None.
 
 ## Impact Assessment

@@ -1,8 +1,11 @@
 # entrypoint-onboarding Specification
 
 ## Purpose
+
 TBD - created by archiving change docs-14-first-contact-story-and-onboarding. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: One primary fast-start path
 
 The central entry points SHALL provide one primary "start here now" path before branching into more
@@ -77,4 +80,3 @@ The entry points SHALL explain that `docs.specfact.io` is the default starting p
 - **WHEN** a user outgrows the core landing guidance and needs workflow- or bundle-specific help
 - **THEN** the core docs SHALL provide a clear, explicit handoff to `modules.specfact.io`
 - **AND** the handoff SHALL explain what extra value the modules docs provide
-

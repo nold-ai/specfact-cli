@@ -5,6 +5,7 @@
 Per `openspec/config.yaml`, tests MUST precede production code for any behavior-changing task.
 
 Order:
+
 1. Spec deltas (already in `specs/`)
 2. Tests derived from spec scenarios — run and expect failure
 3. Production code — implement until tests pass
@@ -97,6 +98,7 @@ Do not implement production code until tests exist and have been run (expecting 
 ## 8. GitHub issue creation
 
 - [ ] 8.1 Create GitHub issue:
+
   ```bash
   gh issue create \
     --repo nold-ai/specfact-cli \
@@ -105,6 +107,7 @@ Do not implement production code until tests exist and have been run (expecting 
     --label "enhancement" \
     --label "change-proposal"
   ```
+
 - [ ] 8.2 Link issue to project: `gh project item-add 1 --owner nold-ai --url <ISSUE_URL>`
 - [ ] 8.3 Update `proposal.md` Source Tracking section with issue number and URL
 - [ ] 8.4 Link branch to issue: `gh issue develop <issue-number> --repo nold-ai/specfact-cli --name feature/ai-integration-04-intent-skills`
@@ -114,6 +117,7 @@ Do not implement production code until tests exist and have been run (expecting 
 - [ ] 9.1 `git add` all changed files; commit with `feat: add SQUER intent engineering skills for AI IDEs`
 - [ ] 9.2 `git push -u origin feature/ai-integration-04-intent-skills`
 - [ ] 9.3 Create PR:
+
   ```bash
   gh pr create \
     --repo nold-ai/specfact-cli \
@@ -122,6 +126,7 @@ Do not implement production code until tests exist and have been run (expecting 
     --title "feat: SQUER intent engineering skills for AI IDEs" \
     --body-file /tmp/pr-body-ai-integration-04.md
   ```
+
 - [ ] 9.4 Link PR to project: `gh project item-add 1 --owner nold-ai --url <PR_URL>`
 - [ ] 9.5 Set project status to "In Progress"
 

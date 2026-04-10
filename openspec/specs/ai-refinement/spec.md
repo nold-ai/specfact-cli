@@ -1,6 +1,7 @@
 # ai-refinement Specification
 
 ## Purpose
+
 TBD - created by archiving change add-template-driven-backlog-refinement. Update Purpose after archive.
 
 ## Requirements

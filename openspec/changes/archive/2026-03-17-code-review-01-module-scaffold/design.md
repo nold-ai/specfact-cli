@@ -3,6 +3,7 @@
 ## Architecture Overview
 
 The module follows the standard `specfact-cli-modules` package pattern:
+
 - `module-package.yaml` defines the module metadata and `bundle_group_command: code`
 - `review/app.py` is the Typer extension entrypoint registered by the CLI registry
 - `run/findings.py` contains the Pydantic data models (`ReviewFinding`, `ReviewReport`)
@@ -96,6 +97,7 @@ packages/specfact-code-review/
 ## Contract Strategy
 
 All public APIs in this change receive:
+
 - `@beartype` — runtime type enforcement
 - `@require` — preconditions on inputs
 - `@ensure` — postconditions on outputs

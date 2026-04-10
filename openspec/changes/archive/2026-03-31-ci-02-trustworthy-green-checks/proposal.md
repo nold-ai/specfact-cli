@@ -54,8 +54,8 @@ If maintainers cannot trust that "green" means the required checks really passed
 
 <!-- source_repo: nold-ai/specfact-cli -->
 - **GitHub Issue**: #465
-- **Issue URL**: https://github.com/nold-ai/specfact-cli/issues/465
+- **Issue URL**: <https://github.com/nold-ai/specfact-cli/issues/465>
 - **Parent Feature**: #406
-- **Parent Feature URL**: https://github.com/nold-ai/specfact-cli/issues/406
+- **Parent Feature URL**: <https://github.com/nold-ai/specfact-cli/issues/406>
 - **Last Synced Status**: open
 - **Sanitized**: true

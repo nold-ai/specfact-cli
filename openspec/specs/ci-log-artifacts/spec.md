@@ -1,8 +1,11 @@
 # ci-log-artifacts Specification
 
 ## Purpose
+
 TBD - created by archiving change ci-01-pr-orchestrator-log-artifacts. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Full Test Logs from Smart-Test-Full in CI
 
 The PR orchestrator workflow SHALL run the full test suite via `hatch run smart-test-full` (or equivalent) so that test and coverage logs are written under `logs/tests/`, and those logs SHALL be uploaded as workflow artifacts so they can be downloaded when a run fails.
@@ -91,4 +94,3 @@ The documentation SHALL describe where to find test and repro log artifacts in G
 
 - At least one doc page (e.g. `docs/guides/troubleshooting.md` or `docs/contributing/`) includes a subsection on CI artifacts
 - Section is copy-paste or link friendly (e.g. "Go to the run → Artifacts → download test-logs or repro-logs")
-

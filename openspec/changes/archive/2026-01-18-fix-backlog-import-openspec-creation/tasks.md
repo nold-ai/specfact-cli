@@ -115,7 +115,7 @@
 
 - [x] 2.3 Create Pull Request using gh CLI
   - [x] 2.3.1 Create PR: `gh pr create --repo nold-ai/specfact-cli --base dev --head bugfix/fix-backlog-import-openspec-creation --title "fix: create OpenSpec files when importing backlog items" --body-file "$PR_BODY_FILE"`
-  - [x] 2.3.2 Verify PR was created and capture PR number (✅ PR #118 created: https://github.com/nold-ai/specfact-cli/pull/118)
+  - [x] 2.3.2 Verify PR was created and capture PR number (✅ PR #118 created: <https://github.com/nold-ai/specfact-cli/pull/118>)
   - [ ] 2.3.3 Link PR to project: `gh project item-add 1 --owner nold-ai --url "https://github.com/nold-ai/specfact-cli/pull/118"` (TODO: Requires project permissions)
   - [ ] 2.3.4 Update project status for PR to "In Progress" (TODO: Requires project permissions)
   - [x] 2.3.5 Cleanup PR body file: `rm /tmp/pr-body-fix-backlog-import-openspec-creation.md`

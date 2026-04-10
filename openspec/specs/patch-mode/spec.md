@@ -1,8 +1,11 @@
 # patch-mode Specification
 
 ## Purpose
+
 TBD - created by archiving change patch-mode-01-preview-apply. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Patch generation (backlog, OpenSpec, config)
 
 The system SHALL support generating unified diffs for: backlog issue body updates (AC, missing fields), OpenSpec proposal/spec updates, config updates (policy, mapping templates). Default behavior SHALL be generate-only (no apply, no write).
@@ -44,4 +47,3 @@ The system SHALL provide `specfact patch apply --write` (or equivalent) that upd
 - **THEN** upstream write path executes only after confirmation
 - **AND** repeated invocation with the same operation key does not create duplicate writes/comments
 - **AND** failures in write orchestration surface clear non-zero error outcomes.
-
