@@ -39,6 +39,6 @@ The core docs site at docs.specfact.io has a flat 5-section sidebar (Getting Sta
 
 <!-- source_repo: nold-ai/specfact-cli -->
 - **GitHub Issue**: #438
-- **Issue URL**: https://github.com/nold-ai/specfact-cli/issues/438
+- **Issue URL**: <https://github.com/nold-ai/specfact-cli/issues/438>
 - **Last Synced Status**: synced
 - **Sanitized**: true

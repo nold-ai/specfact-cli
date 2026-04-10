@@ -33,6 +33,6 @@ When a user invokes SpecFact CLI with wrong flags, missing files, invalid YAML, 
 
 <!-- source_repo: nold-ai/specfact-cli -->
 - **GitHub Issue**: #281
-- **Issue URL**: https://github.com/nold-ai/specfact-cli/issues/281
+- **Issue URL**: <https://github.com/nold-ai/specfact-cli/issues/281>
 - **Repository**: nold-ai/specfact-cli
 - **Last Synced Status**: proposed

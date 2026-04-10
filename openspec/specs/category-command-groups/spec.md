@@ -1,8 +1,11 @@
 # category-command-groups Specification
 
 ## Purpose
+
 TBD - created by archiving change module-migration-01-categorize-and-group. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Category group commands aggregate member module sub-apps
 
 Each category group SHALL expose its member modules as sub-commands, preserving all existing sub-command names from each module.
@@ -84,4 +87,3 @@ The `spec` module's existing `specfact spec` command conflicts with the `specfac
 - **THEN** the sub-command for the `spec` module SHALL appear as `api` (not `spec`)
 - **AND** the `spec` module's `validate`, `backward-compat`, `generate-tests`, and `mock` sub-commands SHALL be accessible via `specfact spec api <sub-command>`
 - **AND** the flat shim `specfact spec <sub-command>` SHALL still delegate to `specfact spec api <sub-command>` during the migration window
-

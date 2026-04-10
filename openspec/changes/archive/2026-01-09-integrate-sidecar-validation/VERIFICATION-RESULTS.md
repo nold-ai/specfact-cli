@@ -291,6 +291,7 @@ All sidecar validation commands tested successfully against validation repositor
 - No crashes or errors
 
 ✅ **Flask Detection Fixed** (2026-01-09): Flask framework detection now works correctly
+
 - **Fix Applied**: Added Flask pattern detection before Django `urls.py` check
 - **Result**: Flask correctly detected as `PURE_PYTHON` (Flask doesn't have a dedicated extractor yet)
 - **Detection Logic**: Checks for `from flask import Flask`, `import flask`, or `Flask()` patterns before checking for Django `urls.py` files

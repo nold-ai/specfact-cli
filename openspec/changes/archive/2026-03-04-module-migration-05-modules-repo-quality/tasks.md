@@ -67,7 +67,7 @@ Add PR orchestrator (or equivalent) and align CI so PRs to specfact-cli-modules 
     - change detection + dev->main skip behavior
     - explicit `verify-module-signatures` job (`--require-signature --enforce-version-bump`)
     - matrix `quality (3.11/3.12/3.13)` jobs for format/type/lint/yaml/import-boundary/contract/smart-test/test
-  - Test PR opened: https://github.com/nold-ai/specfact-cli-modules/pull/4
+  - Test PR opened: <https://github.com/nold-ai/specfact-cli-modules/pull/4>
   - Observed checks:
     - `quality (3.11)` pass (51s)
     - `quality (3.12)` pass (53s)
@@ -282,7 +282,7 @@ Document and operationalize the versioning policy for independently released bun
 ## PR and closure
 
 - [x] PR.1 Create PR in specfact-cli-modules from feature branch to `dev`; reference migration-02 #316 and this change's GitHub issue
-  - Implemented as: https://github.com/nold-ai/specfact-cli-modules/pull/5
+  - Implemented as: <https://github.com/nold-ai/specfact-cli-modules/pull/5>
 - [x] PR.2 Confirm CI passes all gates on the PR
   - PR #5 checks passed:
     - `detect-changes`
@@ -301,5 +301,6 @@ Document and operationalize the versioning policy for independently released bun
 ## CHANGE_ORDER.md update required
 
 When archived, update `openspec/CHANGE_ORDER.md`:
+
 - Move `module-migration-05-modules-repo-quality` from Pending to Implemented with archive date
 - If timing constraint met (sections 18-22 before migration-03): update migration-03's row to remove the quality-and-decoupling blocker note

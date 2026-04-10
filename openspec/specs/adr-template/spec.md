@@ -1,13 +1,17 @@
 # adr-template Specification
 
 ## Purpose
+
 TBD - created by archiving change arch-08-documentation-discrepancies-remediation. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: ADR template exists
 
 The docs SHALL provide an ADR template with at least: title, status, context, decision, consequences.
 
 #### Scenario: Maintainer records new decision
+
 - **GIVEN** the docs repository
 - **WHEN** a maintainer wants to record a new architectural decision
 - **THEN** an ADR template exists (e.g. in docs/architecture/adr/template.md)
@@ -18,6 +22,7 @@ The docs SHALL provide an ADR template with at least: title, status, context, de
 The ADR directory SHALL contain at least one ADR (e.g. for module-first architecture) following the template.
 
 #### Scenario: Reader opens architecture docs
+
 - **GIVEN** the ADR directory
 - **WHEN** a reader opens the architecture documentation
 - **THEN** at least one ADR is present following the template
@@ -28,8 +33,8 @@ The ADR directory SHALL contain at least one ADR (e.g. for module-first architec
 ADRs SHALL be linked from docs/architecture/README.md or docs/reference/architecture.md so they can be found without searching the repo.
 
 #### Scenario: User navigates architecture docs
+
 - **GIVEN** the docs site (e.g. docs.specfact.io)
 - **WHEN** a user navigates architecture or reference docs
 - **THEN** ADRs are linked
 - **AND** discoverable from the menu or architecture index
-

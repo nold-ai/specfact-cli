@@ -7,7 +7,6 @@ description: Guidance for combining SpecFact CLI automation with AI IDE enrichme
 
 # Dual-Stack Enrichment Pattern
 
-
 > Modules docs handoff: this page remains in the core docs set as release-line overview content.
 > Canonical bundle-specific deep guidance now lives in the canonical modules docs site, currently
 > published at `https://modules.specfact.io/`.

@@ -20,6 +20,7 @@ This change establishes the foundation: the module package scaffold, the governa
 Violation categories: `clean_code`, `security`, `type_safety`, `contracts`, `testing`, `style`, `architecture`.
 
 Scoring algorithm:
+
 ```
 base_score = 100
 Deductions: error/blocking=-15, error/fixable=-5, warning=-2, info=-1
@@ -53,6 +54,6 @@ reward_delta = score - 80  (range: -80..+20)
 
 <!-- source_repo: nold-ai/specfact-cli -->
 - **GitHub Issue**: [#398](https://github.com/nold-ai/specfact-cli/issues/398)
-- **Issue URL**: https://github.com/nold-ai/specfact-cli/issues/398
+- **Issue URL**: <https://github.com/nold-ai/specfact-cli/issues/398>
 - **Repository**: nold-ai/specfact-cli
 - **Last Synced Status**: in_progress

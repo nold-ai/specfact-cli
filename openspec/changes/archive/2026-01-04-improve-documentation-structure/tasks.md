@@ -203,7 +203,7 @@
     - [x] 9.3.5.1 Verify branch is linked: Branch was created using `gh issue develop 78` (Step 1.1.2), which automatically links the branch to issue #78
     - [x] 9.3.5.2 Verify PR is linked: PR body contains `Fixes nold-ai/specfact-cli#78`, which should automatically link the PR to issue #78
     - [x] 9.3.5.3 **If automatic linking didn't work**: Manually link from issue's Development section:
-      - Open issue page: https://github.com/nold-ai/specfact-cli/issues/78
+      - Open issue page: <https://github.com/nold-ai/specfact-cli/issues/78>
       - In the right sidebar, find the "Development" section
       - Click "Development" and search for PR #79 (or branch `feature/improve-documentation-structure` if PR doesn't exist yet)
       - Select the PR/branch to link it to the issue
@@ -211,7 +211,7 @@
   - [x] 9.3.6 Update project status for issue #78 to "In Progress": `gh project item-edit --id PVTI_lADODWwjB84BKws4zgjMYnU --field-id PVTSSF_lADODWwjB84BKws4zg6iOak --project-id PVT_kwDODWwjB84BKws4 --single-select-option-id 47fc9ee4` (Status: "In Progress")
   - [x] 9.3.7 Update project status for PR #79 to "In Progress": `gh project item-edit --id PVTI_lADODWwjB84BKws4zgjMaxw --field-id PVTSSF_lADODWwjB84BKws4zg6iOak --project-id PVT_kwDODWwjB84BKws4 --single-select-option-id 47fc9ee4` (Status: "In Progress")
   - [x] 9.3.8 Verify Development link: PR and branch automatically linked to issue #78 (check issue page "Development" section)
-  - [x] 9.3.9 Verify project link: PR appears in project board (https://github.com/orgs/nold-ai/projects/1)
+  - [x] 9.3.9 Verify project link: PR appears in project board (<https://github.com/orgs/nold-ai/projects/1>)
   - [x] 9.3.10 Cleanup PR body file: `rm /tmp/pr-body-improve-documentation-structure.md`
 
 **Validation**: Verify PR was created, Development link present (if issue exists), PR body follows template structure.

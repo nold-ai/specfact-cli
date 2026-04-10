@@ -2,9 +2,6 @@
 
 ## Why
 
-
-
-
 Enterprises always need exceptions — a legacy service can't comply with the new API versioning policy until migration completes, a regulatory deadline grants a 6-month grace period. But untracked exceptions defeat governance: they become permanent workarounds. Explicit, tracked, time-bound exceptions in config — with automatic expiry, monthly digests, and audit trail — make governance flexible without losing accountability.
 
 ## Ownership Alignment (2026-04-08)
@@ -17,10 +14,8 @@ Enterprises always need exceptions — a legacy service can't comply with the ne
 
 ## What Changes
 
-
-
-
 - **NEW**: Exception declaration in `.specfact/exceptions.yaml`:
+
   ```yaml
   exceptions:
     - id: EXC-1234
@@ -31,6 +26,7 @@ Enterprises always need exceptions — a legacy service can't comply with the ne
       approved_by: "CIO"
       created_at: 2026-02-15
   ```
+
 - **NEW**: `specfact exceptions list` — show all active, approaching expiry, and expired exceptions
 - **NEW**: `specfact exceptions add --policy <name> --scope <scope> --reason <reason> --expires <date> --approved-by <name>` — add a tracked exception
 - **NEW**: `specfact exceptions check` — verify all exceptions are still valid (not expired); flag expired exceptions as hard failures
@@ -44,6 +40,7 @@ Enterprises always need exceptions — a legacy service can't comply with the ne
 - **NEW**: Ownership authority — this change is authoritative for exception-scope suppression and expiry semantics; evidence schema remains owned by governance-01.
 
 ## Capabilities
+
 ### New Capabilities
 
 - `exception-management`: Time-bound, tracked policy exceptions with automatic expiry, scope-limited suppression, approaching-expiry warnings, monthly digest generation, and audit trail in evidence artifacts.
@@ -53,7 +50,6 @@ Enterprises always need exceptions — a legacy service can't comply with the ne
 - `policy-engine`: Extended to respect exception scope during validation (suppress specific policy for specific scope)
 - `exception-management`: Extended so clean-code exceptions are expressed by policy rule ID, not by introducing a parallel `principle` exception schema
 - `governance-evidence-output`: Extended to include exception status in evidence artifacts
-
 
 ---
 

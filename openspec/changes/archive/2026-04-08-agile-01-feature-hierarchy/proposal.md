@@ -81,5 +81,5 @@ section, leaving the change order document out of sync with GitHub.
 ## Source Tracking
 
 - source_id: "483"
-- source_url: https://github.com/nold-ai/specfact-cli/issues/483
+- source_url: <https://github.com/nold-ai/specfact-cli/issues/483>
 - adapter: github

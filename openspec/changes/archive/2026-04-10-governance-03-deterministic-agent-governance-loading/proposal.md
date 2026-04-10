@@ -14,9 +14,11 @@
 ## Capabilities
 
 ### New Capabilities
+
 - `agent-governance-loading`: Deterministic bootstrap, rule discovery, rule frontmatter, precedence, and stop-condition behavior for AI instruction surfaces.
 
 ### Modified Capabilities
+
 - `github-hierarchy-cache`: Require cache freshness checks as part of the compact governance bootstrap flow.
 
 ## Impact

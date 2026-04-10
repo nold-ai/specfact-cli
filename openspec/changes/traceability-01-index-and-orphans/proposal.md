@@ -2,9 +2,6 @@
 
 ## Why
 
-
-
-
 As the number of requirements, specs, and code modules grows, manually tracking traceability becomes impossible. Teams need a fast, queryable index that maps every artifact to its upstream/downstream counterparts — and actively detects orphans (artifacts with broken or missing links). This index is the backbone for the full-chain validation, coverage dashboards, and ceremony enrichment. Without it, traceability is a write-once artifact that decays the moment someone adds a new endpoint without linking it.
 
 ## Ownership Alignment (2026-04-08)
@@ -40,6 +37,7 @@ modules/trace/
 ```
 
 **`module-package.yaml` declares:**
+
 - `name: trace`
 - `version: 0.1.0`
 - `commands: [trace index, trace show, trace orphans, trace matrix]`
@@ -71,6 +69,7 @@ modules/trace/
 ```
 
 **`module-package.yaml` declares:**
+
 - `name: trace`
 - `version: 0.1.0`
 - `commands: [trace index, trace show, trace orphans, trace matrix]`
@@ -78,9 +77,6 @@ modules/trace/
 - `publisher:` + `integrity:` — arch-06 marketplace readiness
 
 ## What Changes
-
-
-
 
 - **NEW**: Trace module in `modules/trace/` with auto-maintained traceability index
 - **NEW**: `specfact trace index --rebuild` — scan all requirements, architecture, specs, code, and test artifacts to build a comprehensive traceability index stored at `.specfact/trace/index.json`
@@ -91,6 +87,7 @@ modules/trace/
 - **NEW**: TraceIndex model with bidirectional links: each entry stores both `upstream_refs` and `downstream_refs`
 
 ## Capabilities
+
 ### New Capabilities
 
 - `traceability-index`: Auto-maintained bidirectional traceability index mapping requirements → architecture → specs → code → tests, with orphan detection, incremental updates, and matrix export in markdown/CSV/JSON.
@@ -98,7 +95,6 @@ modules/trace/
 ### Modified Capabilities
 
 (none)
-
 
 ---
 

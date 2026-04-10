@@ -1,8 +1,11 @@
 # first-run-selection Specification
 
 ## Purpose
+
 TBD - created by archiving change module-migration-01-categorize-and-group. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: `specfact init` detects first-run and presents bundle selection
 
 On a fresh install where no bundles are installed, `specfact init` SHALL present an interactive
@@ -134,4 +137,3 @@ The `specfact init` command SHALL delegate all bundle installation to the existi
 - **WHEN** init processes the selection
 - **THEN** the module installer SHALL automatically include `specfact-project` as a dependency
 - **AND** SHALL inform the user: "Installing specfact-project as required dependency of specfact-spec"
-

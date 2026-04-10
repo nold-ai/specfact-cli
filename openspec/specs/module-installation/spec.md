@@ -1,13 +1,17 @@
 # module-installation Specification
 
 ## Purpose
+
 TBD - created by archiving change marketplace-01-central-module-registry. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Install command downloads and installs modules
 
 The system SHALL provide `specfact module install <module-id>` command that downloads, verifies, and installs modules from the registry.
 
 #### Scenario: Install module from marketplace
+
 - **WHEN** user runs `specfact module install specfact/backlog`
 - **THEN** system SHALL fetch registry index
 - **AND** SHALL download module tarball
@@ -17,11 +21,13 @@ The system SHALL provide `specfact module install <module-id>` command that down
 - **AND** SHALL display success message
 
 #### Scenario: Install specific version
+
 - **WHEN** user runs `specfact module install specfact/backlog --version 0.29.0`
 - **THEN** system SHALL install specified version
 - **AND** SHALL verify core_compatibility with current CLI version
 
 #### Scenario: Install module already installed
+
 - **WHEN** user installs module that is already installed
 - **THEN** system SHALL display message "Module already installed (version X)"
 - **AND** SHALL suggest using upgrade command
@@ -31,6 +37,7 @@ The system SHALL provide `specfact module install <module-id>` command that down
 The system SHALL provide `specfact module uninstall <module-name>` command that removes modules from marketplace path.
 
 #### Scenario: Uninstall marketplace module
+
 - **WHEN** user runs `specfact module uninstall backlog`
 - **THEN** system SHALL check if module is from marketplace
 - **AND** SHALL remove ~/.specfact/marketplace-modules/backlog/ directory
@@ -38,6 +45,7 @@ The system SHALL provide `specfact module uninstall <module-name>` command that 
 - **AND** SHALL display success message
 
 #### Scenario: Attempt to uninstall built-in module
+
 - **WHEN** user attempts to uninstall built-in module
 - **THEN** system SHALL display error "Cannot uninstall built-in module"
 - **AND** SHALL NOT modify module
@@ -47,6 +55,7 @@ The system SHALL provide `specfact module uninstall <module-name>` command that 
 The system SHALL provide `specfact module search <query>` command that searches registry index by name, description, or tags.
 
 #### Scenario: Search modules by keyword
+
 - **WHEN** user runs `specfact module search backlog`
 - **THEN** system SHALL fetch registry index
 - **AND** SHALL filter modules matching query in name, description, or tags
@@ -57,11 +66,13 @@ The system SHALL provide `specfact module search <query>` command that searches 
 The system SHALL provide `specfact module list` command that displays modules from all sources with source indicators.
 
 #### Scenario: List all modules
+
 - **WHEN** user runs `specfact module list`
 - **THEN** system SHALL show modules from built-in, marketplace, and custom paths
 - **AND** SHALL indicate source (built-in/marketplace/custom) for each module
 
 #### Scenario: List marketplace modules only
+
 - **WHEN** user runs `specfact module list --source marketplace`
 - **THEN** system SHALL show only marketplace-installed modules
 
@@ -165,6 +176,7 @@ bumps may contain breaking changes.
 The system SHALL reject archive members that escape the intended extraction root.
 
 #### Scenario: Installer blocks path traversal entries
+
 - **WHEN** a downloaded marketplace tarball contains absolute paths or `..` traversal
 - **THEN** install SHALL fail before extraction
 - **AND** SHALL raise a validation error indicating unsafe archive content
@@ -174,12 +186,14 @@ The system SHALL reject archive members that escape the intended extraction root
 The system SHALL extend install command to resolve pip dependencies across all modules before installation.
 
 #### Scenario: Install with dependency resolution
+
 - **WHEN** user installs module with pip_dependencies
 - **THEN** system SHALL resolve dependencies with existing modules
 - **AND** SHALL fail if conflicts detected
 - **AND** SHALL install resolved dependencies if resolution succeeds
 
 #### Scenario: Force install bypasses dependency resolution
+
 - **WHEN** user runs install with --force flag
 - **THEN** system SHALL skip dependency resolution
 - **AND** SHALL log warning about potential conflicts
@@ -238,4 +252,3 @@ behaviour and the UX of standard package managers.
 - **THEN** the system SHALL report that A is not found
 - **AND** SHALL still attempt to uninstall B
 - **AND** SHALL exit non-zero if any module failed or was not found
-

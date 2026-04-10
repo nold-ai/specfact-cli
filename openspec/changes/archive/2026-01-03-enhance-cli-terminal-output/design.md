@@ -24,17 +24,20 @@ SpecFact CLI uses Rich Console and Progress bars for user feedback, but these do
 
 **What**: Detect terminal capabilities via environment variables and TTY checks
 
-**Why**: 
+**Why**:
+
 - Rich Console supports `force_terminal`, `no_color`, `is_terminal` parameters
 - Environment variables (NO_COLOR, FORCE_COLOR, CI) are standard indicators
 - TTY detection distinguishes interactive vs non-interactive terminals
 
 **Alternatives considered**:
+
 - Manual `--no-color` flag: Adds complexity, users forget to use it
 - Always use plain text: Loses Rich features in full terminals
 - Terminal library: Adds dependency, Rich already has detection
 
 **Implementation**:
+
 ```python
 def detect_terminal_capabilities() -> TerminalCapabilities:
     """Detect terminal capabilities from environment and TTY."""
@@ -60,16 +63,19 @@ def detect_terminal_capabilities() -> TerminalCapabilities:
 **What**: Use Rich Progress for full terminals, plain text for basic terminals
 
 **Why**:
+
 - Rich Progress with animations doesn't work in embedded terminals
 - Plain text updates are visible in CI/CD logs
 - Same information content in both modes
 
 **Alternatives considered**:
+
 - Always use Rich: Breaks in embedded terminals
 - Always use plain text: Loses Rich features unnecessarily
 - Custom progress library: Adds dependency, Rich is already used
 
 **Implementation**:
+
 ```python
 def get_progress_config() -> dict:
     """Get Progress configuration based on terminal capabilities."""
@@ -103,16 +109,19 @@ def get_progress_config() -> dict:
 **What**: Cache Console instance per terminal mode to avoid repeated detection
 
 **Why**:
+
 - Terminal capabilities don't change during command execution
 - Console creation is lightweight but detection logic should run once
 - Simplifies usage in command modules
 
 **Alternatives considered**:
+
 - Create Console per command: Works but redundant detection
 - Global Console instance: Breaks when terminal mode changes (unlikely but possible)
 - No caching: Works but inefficient
 
 **Implementation**:
+
 ```python
 _console_cache: dict[TerminalMode, Console] = {}
 
@@ -130,16 +139,19 @@ def get_configured_console() -> Console:
 **What**: Emit periodic plain text status updates when animations disabled
 
 **Why**:
+
 - Users need feedback that command is working
 - CI/CD logs need readable progress information
 - Plain text is universally supported
 
 **Alternatives considered**:
+
 - No fallback: Users see nothing (current problem)
 - Always emit: Works but verbose in graphical terminals
 - Throttled updates: Best balance (chosen)
 
 **Implementation**:
+
 ```python
 def print_progress(description: str, current: int, total: int) -> None:
     """Print plain text progress update."""
@@ -156,7 +168,8 @@ def print_progress(description: str, current: int, total: int) -> None:
 
 **Risk**: Auto-detection incorrectly identifies terminal capabilities
 
-**Mitigation**: 
+**Mitigation**:
+
 - Use standard environment variables (NO_COLOR, FORCE_COLOR)
 - Prefer explicit overrides (FORCE_COLOR=1)
 - Fall back to basic mode when uncertain
@@ -166,6 +179,7 @@ def print_progress(description: str, current: int, total: int) -> None:
 **Risk**: Terminal detection adds overhead to command startup
 
 **Mitigation**:
+
 - Cache detection results
 - Detection is fast (env var reads, TTY check)
 - One-time cost per command execution
@@ -175,6 +189,7 @@ def print_progress(description: str, current: int, total: int) -> None:
 **Risk**: Changes break existing Rich features in full terminals
 
 **Mitigation**:
+
 - Test in both graphical and basic modes
 - Use Rich's built-in capabilities (no custom rendering)
 - Maintain same Console/Progress API usage

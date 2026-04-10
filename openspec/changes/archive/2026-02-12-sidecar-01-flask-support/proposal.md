@@ -2,10 +2,10 @@
 
 ## Why
 
-
 During validation of Microblog (a Flask application), we discovered that **Flask route extraction is not implemented** in SpecFact CLI's sidecar validation. The framework detector finds Flask imports but returns `PURE_PYTHON`, and there's no `FlaskExtractor` class to extract routes from Flask applications.
 
 **Current State**:
+
 - Framework detector detects Flask but returns `PURE_PYTHON` (see `framework_detector.py:96-97`)
 - No `FrameworkType.FLASK` in enum
 - No `FlaskExtractor` class in `frameworks/` directory
@@ -13,6 +13,7 @@ During validation of Microblog (a Flask application), we discovered that **Flask
 - Result: **0 routes extracted** from Flask applications
 
 **Impact**:
+
 - Cannot validate Flask applications using sidecar validation
 - Microblog validation blocked (Phase B cannot complete)
 - Missing support for a major Python web framework
@@ -33,7 +34,6 @@ The sidecar validation is a **core framework capability**, not a new marketplace
 
 ## What Changes
 
-
 - **NEW**: Add `FLASK = "flask"` to `FrameworkType` enum in `src/specfact_cli/validators/sidecar/models.py`
 - **NEW**: Create `FlaskExtractor` class in `src/specfact_cli/validators/sidecar/frameworks/flask.py` implementing:
   - `detect()` method: Check for Flask imports and `Flask()` instantiation
@@ -46,6 +46,7 @@ The sidecar validation is a **core framework capability**, not a new marketplace
 - **NEW**: Create unit tests in `tests/unit/validators/sidecar/frameworks/test_flask.py` with ≥80% coverage
 
 ## Capabilities
+
 - **sidecar-validation** (Flask): Flask route extraction (`@app.route()`, `@bp.route()`); `FrameworkType.FLASK` detection; parity with FastAPI and Django extractors.
 
 ---

@@ -2,11 +2,9 @@
 
 ## Why
 
-
 `arch-04-core-contracts-interfaces` formalizes module IO contracts and core isolation, but modules still lack a standard way to expose reusable external-service schema converters. Without a bridge registry, modules either duplicate adapter logic or reintroduce coupling, which slows parallel development and blocks marketplace-ready interoperability.
 
 ## What Changes
-
 
 - **NEW**: Add `src/specfact_cli/registry/bridge_registry.py` with `SchemaConverter` protocol and `BridgeRegistry` for converter registration/discovery.
 - **MODIFY**: Extend module package metadata to declare `service_bridges` in `module-package.yaml`.
@@ -19,6 +17,7 @@
 - **NEW**: Add tests for bridge registry behavior, manifest parsing, registration-time validation, and module integration.
 
 ## Capabilities
+
 ### New Capabilities
 
 - `bridge-registry`: Contract-driven registry for service schema converters so modules can publish and consume conversion bridges without hardcoded core logic.

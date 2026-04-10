@@ -1,8 +1,11 @@
 # policy-engine Specification
 
 ## Purpose
+
 TBD - created by archiving change policy-engine-01-unified-framework. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Policy validate (deterministic, hard failures)
 
 The system SHALL provide `specfact policy validate` that runs policy rules deterministically and reports hard failures (rule id, severity, evidence pointer, recommended action). It SHALL run without network access when using snapshots.
@@ -276,4 +279,3 @@ The system SHALL provide actionable format/documentation hints when `specfact po
 **Then**: The error includes the parse/validation failure reason
 
 **And**: The output includes a hint to the policy config format documentation.
-

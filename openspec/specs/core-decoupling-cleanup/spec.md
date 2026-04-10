@@ -1,8 +1,11 @@
 # core-decoupling-cleanup Specification
 
 ## Purpose
+
 TBD - created by archiving change module-migration-06-core-decoupling-cleanup. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Core Package Ownership Boundary
 
 The `specfact-cli` core package SHALL include only components required for permanent core runtime responsibilities and SHALL not retain bundle-only implementation structures after module extraction/slimming.
@@ -66,4 +69,3 @@ Package-specific artifacts not required by CLI core SHALL be removed from specfa
 - **GIVEN** `sync_runtime` implementation is owned by `specfact-project` in specfact-cli-modules
 - **WHEN** decoupling migration updates test ownership
 - **THEN** legacy core tests under `specfact-cli/tests/unit/sync/` are migrated to `specfact-cli-modules/tests/unit/specfact_project/sync_runtime/` and core boundary test `test_core_repo_does_not_host_sync_runtime_unit_tests` enforces this.
-

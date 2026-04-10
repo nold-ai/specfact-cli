@@ -41,13 +41,16 @@ Implementation: `src/specfact_cli/modules/init/src/first_run_selection.py` and `
 ### Phase 3 follow-up (5.2.3, 5.2.7)
 
 **Interactive first-run UI (5.2.3):**
+
 - `_interactive_first_run_bundle_selection()` in commands.py: welcome banner (Panel), questionary.select for profile or "Choose bundles manually", questionary.checkbox for manual bundle selection. When first run and interactive and no --profile/--install, init() calls it and installs selected bundles or shows tip if none.
 - `BUNDLE_DISPLAY` and `PROFILE_DISPLAY_ORDER` in first_run_selection.py for UI labels.
 
 **Graceful degradation (5.2.7):**
+
 - In `install_bundles_for_init`, each `install_bundled_module` call wrapped in try/except; on exception log warning "Dependency resolver may be unavailable" and re-raise so errors are surfaced.
 
 **Additional tests:**
+
 - `test_init_first_run_interactive_with_selection_calls_installer`: first run + interactive, mock selection returns ["specfact-codebase"], assert install called.
 - `test_init_first_run_interactive_no_selection_shows_tip`: first run + interactive, mock selection returns [], assert no install and "Tip" / "module install" in output.
 

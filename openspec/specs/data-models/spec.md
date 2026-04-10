@@ -1,8 +1,11 @@
 # data-models Specification
 
 ## Purpose
+
 TBD - created by archiving change add-change-tracking-datamodel. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Change Tracking Models
 
 The system SHALL provide tool-agnostic change tracking models to support delta spec tracking (ADDED/MODIFIED/REMOVED) and change proposals.
@@ -193,4 +196,3 @@ The system SHALL ensure change tracking models are tool-agnostic and accessed vi
 - **THEN** same models work for Linear
 - **AND** Linear-specific metadata stored in `source_tracking`
 - **AND** no model changes required
-

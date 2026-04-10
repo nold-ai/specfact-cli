@@ -11,6 +11,7 @@ data = json.loads(result.stdout)
 Filter results to provided file list. Map each semgrep result to `ReviewFinding`.
 
 Rule ID → category mapping:
+
 ```python
 SEMGREP_RULE_CATEGORY = {
     "get-modify-same-method": "clean_code",
@@ -44,6 +45,7 @@ rules:
 ## Fixture Files
 
 For each rule, two fixture files:
+
 - `bad_<rule>.py` — contains the anti-pattern; semgrep MUST report a finding
 - `good_<rule>.py` — clean equivalent; semgrep MUST NOT report a finding
 

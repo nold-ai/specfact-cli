@@ -41,7 +41,7 @@ The modules docs now have a richer navigation/search/theme model. The core site 
 
 <!-- source_repo: nold-ai/specfact-cli -->
 - **GitHub Issue**: #458
-- **Issue URL**: https://github.com/nold-ai/specfact-cli/issues/458
+- **Issue URL**: <https://github.com/nold-ai/specfact-cli/issues/458>
 - **Repository**: nold-ai/specfact-cli
 - **Last Synced Status**: synced
 - **Sanitized**: true

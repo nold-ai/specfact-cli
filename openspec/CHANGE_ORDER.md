@@ -318,6 +318,7 @@ Spec-Kit has evolved to v0.4.3 with 46 extensions, pluggable presets, 7+ slash c
 **Cross-repo note**: speckit-03 lives in `nold-ai/specfact-cli-modules` but depends on speckit-02 in this repo (ToolCapabilities extension fields).
 
 **Updated proposals** (spec-kit interop sections added 2026-03-27):
+
 - `sync-01-unified-kernel`: Added spec-kit extension interop — sync kernel detects external sync actors from spec-kit reconcile/sync/iterate extensions
 - `requirements-03-backlog-sync`: Added spec-kit backlog extension awareness — prevents duplicate issue creation when spec-kit Jira/ADO/Linear extensions have already created issues
 
@@ -443,6 +444,7 @@ The following ownership boundaries are mandatory before implementation for overl
 | `ai_sync.review_runs` and `ai_sync.reward_ledger` Supabase tables | `code-review-06-reward-ledger` | code-review-07, code-review-09 |
 
 Pre-implementation rule:
+
 - No dependent change may redefine an owned surface. Any required semantic change must be proposed as a delta to the authoritative change first.
 
 ---

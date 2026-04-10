@@ -17,9 +17,11 @@ SpecFact CLI's `specfact review` command is our flagship code-quality enforcemen
 ## Capabilities
 
 ### New Capabilities
+
 - `dogfood-self-review`: Specification for running and passing `specfact review` against the specfact-cli repo itself — defines the self-review policy, acceptance criteria (0 findings, `overall_verdict: PASS`), and the CI gate that enforces it.
 
 ### Modified Capabilities
+
 - `code-review-module`: The review tool must be able to scan itself; any self-referential edge cases (e.g., reviewing files that implement the reviewer) must be handled.
 - `debug-logging`: Logging migration extends the `get_bridge_logger()` contract to cover all `print()` replacement sites, including adapter and scripts layers.
 - `contract-runner`: The `MISSING_ICONTRACT` contract must produce actionable output for the 291 currently-uncovered public APIs. No rule changes — this is coverage expansion.
@@ -37,6 +39,6 @@ SpecFact CLI's `specfact review` command is our flagship code-quality enforcemen
 ## Source Tracking
 
 - **GitHub Issue**: #423
-- **Issue URL**: https://github.com/nold-ai/specfact-cli/issues/423
+- **Issue URL**: <https://github.com/nold-ai/specfact-cli/issues/423>
 - **Repository**: nold-ai/specfact-cli
 - **Last Synced Status**: open

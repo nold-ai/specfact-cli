@@ -5,6 +5,7 @@
 **Timestamp**: 2026-03-31T~10:30 UTC (worktree session)
 
 **Command**:
+
 ```bash
 hatch test -- tests/unit/specfact_cli/test_clean_code_principle_gates.py -v
 ```
@@ -54,6 +55,7 @@ Files changed:
 **Timestamp**: 2026-03-31T~10:35 UTC
 
 **Command**:
+
 ```bash
 hatch test -- tests/unit/specfact_cli/test_clean_code_principle_gates.py -v
 ```

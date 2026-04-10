@@ -1,8 +1,11 @@
 # core-docs-client-search Specification
 
 ## Purpose
+
 TBD - created by archiving change docs-13-core-nav-search-theme-roles. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Core docs pages SHALL be searchable from a client-side index
 
 Core docs pages SHALL be searchable from the site experience using a client-side index built from repository content.
@@ -20,4 +23,3 @@ Core docs pages SHALL be searchable from the site experience using a client-side
 - **WHEN** the index is built
 - **THEN** it only includes pages owned by the core docs site
 - **AND** it does not present module-site pages as if they were local core pages
-

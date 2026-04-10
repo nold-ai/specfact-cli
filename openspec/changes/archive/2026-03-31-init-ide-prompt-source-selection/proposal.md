@@ -19,12 +19,14 @@ The original proposal treated this as only a simple prompt selector. That is no 
 - ADD: When selected resources are missing, the command reports the missing owner/root and points users to the relevant core install/bootstrap flows such as `specfact module init --scope <user|project>` and `specfact module install --scope <user|project>`.
 
 ## Capabilities
+
 ### New Capabilities
 
 - `init-ide-prompt-selection`: `specfact init ide` can export prompts from core and selected installed modules with consistent interactive and non-interactive behavior.
 - `init-ide-installed-resource-orchestration`: `specfact init ide` can discover installed prompt/resource payloads from the effective module roots and direct users to the correct install/bootstrap command when those payloads are absent.
 
 ## Acceptance Criteria
+
 - `specfact init ide` builds its prompt-source catalog from the effective installed module roots for the current repository context, including user scope, project scope, built-in core modules, and configured custom roots.
 - Default execution exports all discovered prompt sources by default rather than only the first matching root.
 - Interactive mode shows a source picker containing `core` plus installed module ids that actually contribute prompt resources.
@@ -34,12 +36,12 @@ The original proposal treated this as only a simple prompt selector. That is no 
 - The scope respects canonical command ownership from active migration changes and must not reintroduce obsolete command paths into prompt export or recommendations.
 
 ## Dependencies
+
 - `backlog-module-ownership-cleanup` must land first so backlog prompt ownership is no longer split across core and module.
 - `packaging-02-cross-platform-runtime-and-module-resources` provides the installed-resource discovery foundation in `specfact-cli` and must stay the owner of payload discovery mechanics.
 - `specfact-cli-modules/packaging-01-bundle-resource-payloads` (`nold-ai/specfact-cli-modules#101`) must provide the bundle-owned prompt/template payloads that this change selects and exports.
 - `module-migration-11-project-codebase-ownership-realignment` must be treated as command-surface alignment context so exported prompts do not preserve obsolete grouped command ownership.
 - Existing `specfact module init` and `specfact module install` commands in `specfact-cli` remain the install/bootstrap path for user/project module roots; `init ide` extends only the post-install discovery/export path.
-
 
 ---
 

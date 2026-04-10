@@ -15,6 +15,7 @@
 
 - Required change artifacts are now present in the worktree.
 - Strict OpenSpec validation can be run in the worktree without losing in-progress task state.
+
 # Change Validation Report: code-review-zero-findings
 
 **Validation Date**: 2026-03-18T19:15:00Z
@@ -48,13 +49,16 @@ None. This change is a pure internal quality improvement:
 ## Dependencies Affected
 
 ### Critical Updates Required
+
 None.
 
 ### Recommended Updates
+
 - `sync/bridge_sync.py` (205 findings): Type annotation work may require callers that rely on implicit `Any` typing to be updated if they have type-checking enabled. All callers are internal (`src/specfact_cli/`).
 - `adapters/ado.py`, `adapters/github.py`: Same as above — internal callers only.
 
 ### Optional
+
 - All other 258 files: No interface changes; only internal annotation/decorator additions.
 
 ---
@@ -71,6 +75,7 @@ None.
 ## Format Validation
 
 ### proposal.md Format: **Pass** (after fixes applied)
+
 - ✅ Title: `# Change: Zero-finding code review — dogfooding specfact review on specfact-cli`
 - ✅ `## Why` section present
 - ✅ `## What Changes` section with NEW/EXTEND/MODIFY markers
@@ -81,6 +86,7 @@ None.
 **Issues fixed**: Added title header; added NEW/MODIFY markers to What Changes bullets; added Source Tracking section; added documentation impact to Impact section.
 
 ### tasks.md Format: **Pass** (after fixes applied)
+
 - ✅ Hierarchical numbered sections (`## 0.` through `## 12.`)
 - ✅ All tasks use `- [ ] X.Y Description` format
 - ✅ Worktree creation first (task 1.1)
@@ -97,6 +103,7 @@ None.
 **Issues fixed**: Added GitHub issue creation (Section 0); added documentation research section (9); added module signing quality gate (10); added version/changelog task (11); added worktree cleanup task (12.3); noted CHANGE_ORDER already done (12.1).
 
 ### specs Format: **Pass**
+
 - ✅ New capability `dogfood-self-review` has spec file at `specs/dogfood-self-review/spec.md`
 - ✅ All modified capabilities (`code-review-module`, `debug-logging`, `review-cli-contracts`) have delta spec files
 - ✅ All scenarios use `####` (4 hashtags) as required
@@ -106,6 +113,7 @@ None.
 - Note: `contract-runner` listed as modified capability in proposal but no delta spec created — justified because no spec-level behavior changes (coverage expansion only; existing spec already covers the behavior).
 
 ### config.yaml Compliance: **Pass**
+
 - ✅ SDD+TDD order enforced in tasks
 - ✅ Contract decorator tasks included (Sections 5, 10)
 - ✅ Offline-first validation scenarios in specs (review runs locally, no cloud dependency)

@@ -5,6 +5,7 @@
 This change improves the ADO branch of the bridge adapter workflow while preserving provider-agnostic command structure.
 
 Current ownership after module migration:
+
 - `specfact-cli-modules` (`specfact-backlog`) owns `specfact backlog map-fields`.
 - `specfact-cli` owns `backlog-core add` command orchestration and shared ADO adapter create path.
 
@@ -13,12 +14,14 @@ Design must keep these boundaries explicit so each repo change is independently 
 ## Goals / Non-Goals
 
 **Goals:**
+
 - Persist ADO field constraint metadata during `map-fields` for add-time checks.
 - Provide interactive picklist selection for constrained ADO fields.
 - Enforce and explain constrained value validation in non-interactive mode.
 - Keep add-flow behavior deterministic when API discovery is unavailable.
 
 **Non-Goals:**
+
 - Rework GitHub/Jira/Linear field mapping UX in this change.
 - Add new remote caching services or cloud dependencies.
 - Introduce breaking schema changes outside backlog config field metadata.
@@ -26,25 +29,30 @@ Design must keep these boundaries explicit so each repo change is independently 
 ## Decisions
 
 ### 1. Persist field constraints by work item type in backlog config
+
 - Decision: extend persisted ADO mapping metadata to include `required` and `allowed_values` keyed by ADO field ref-name and work item type.
 - Rationale: keeps interactive and non-interactive behavior aligned and offline-capable for known mappings.
 - Alternative considered: live API checks only during add. Rejected due to offline/latency coupling and inconsistent non-interactive determinism.
 
 ### 2. Interactive picker uses constrained option lists from metadata API
+
 - Decision: in interactive add mode, when a mapped field has constrained values, render a terminal picker (up/down, enter) for selection instead of free-form input.
 - Rationale: avoids invalid values and improves UX for long enterprise picklists.
 - Alternative considered: prompt free-form plus post-submit validation. Rejected due to repeated failure loops and poor discoverability.
 
 ### 3. Non-interactive validation is fail-fast with allowed-values hint
+
 - Decision: validate provided values before create call and fail with explicit accepted values when invalid.
 - Rationale: script-friendly deterministic failure and actionable remediation.
 - Alternative considered: silent coercion/case-insensitive fuzzy matching. Rejected due to ambiguity and risk of wrong field data.
 
 ### 4. Contract enforcement remains on public command/service boundaries
+
 - Decision: keep/extend `@icontract` and `@beartype` annotations on public validation/payload functions touched by the change.
 - Rationale: contract-first baseline for regression prevention.
 
 ### 5. Cross-repo schema compatibility for provider metadata
+
 - Decision: persisted metadata keys for required/constrained fields are additive and backward-compatible so either repo can read safely during staged rollout.
 - Rationale: map-fields and add/create are split across repositories; temporary version skew must not crash commands.
 - Alternative considered: strict schema bump requiring lockstep release. Rejected due to operational friction and higher rollback risk.

@@ -15,6 +15,7 @@
 ## Breaking Changes Detected
 
 No breaking API/interface changes were detected from the proposed delta:
+
 - `load_backlog_config_from_backlog_file()` is additive.
 - Existing `load_backlog_config_from_spec()` remains available for compatibility fallback.
 - `backlog map-fields` CLI enhancements are backward compatible for existing ADO usage.
@@ -22,13 +23,16 @@ No breaking API/interface changes were detected from the proposed delta:
 ## Dependencies Affected
 
 ### Critical Updates Required
+
 - None
 
 ### Recommended Updates
+
 - `modules/backlog-core/src/backlog_core/graph/builder.py`: consider reading `.specfact/backlog-config.yaml` first in a follow-up for full consistency.
 - docs pages referencing `backlog map-fields` options should include provider-based flow.
 
 ### Directly Scanned Dependencies
+
 - `modules/backlog-core/src/backlog_core/commands/add.py`
 - `modules/backlog-core/src/backlog_core/graph/builder.py`
 - `modules/backlog-core/tests/unit/test_schema_extensions.py`
@@ -48,6 +52,7 @@ No breaking API/interface changes were detected from the proposed delta:
 **Decision**: Implement now  
 **Rationale**: Align backlog provider configuration under dedicated `.specfact/backlog-config.yaml` and keep module metadata in sync with marketplace updates.  
 **Next Steps**:
+
 1. Implement `specfact backlog init-config` scaffold.
 2. Extend `specfact backlog map-fields` for provider selection and provider-specific persistence.
 3. Run quality gates (format/type/contract) and targeted tests for modified test modules.

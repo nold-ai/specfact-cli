@@ -1,8 +1,11 @@
 # git-worktree-lifecycle Specification
 
 ## Purpose
+
 TBD - created by archiving change workflow-01-git-worktree-management. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Worktree Branch Guardrails
 
 The system SHALL enforce branch policy when managing git worktrees.
@@ -42,4 +45,3 @@ The system SHALL provide a cleanup command for local worktree lifecycle manageme
 - **THEN** the helper removes the mapped worktree path
 - **AND** runs local prune cleanup
 - **AND** reports completion steps.
-

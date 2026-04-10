@@ -2,15 +2,9 @@
 
 ## Why
 
-
-
-
 Business requirements have no formal representation in SpecFact. They exist only as unstructured text in backlog items (acceptance criteria, descriptions). This means the most impactful validation gap — "are we building the right thing?" — cannot be programmatically checked. A Pydantic domain model for business requirements with versioned YAML storage under `.specfact/requirements/` gives requirements first-class status in the traceability chain, enabling all downstream validation (Req → Arch → Spec → Code → Tests).
 
 ## What Changes
-
-
-
 
 - **NEW**: Pydantic domain models in `src/specfact_cli/models/requirements.py`:
   - `BusinessOutcome` — success metrics and quantified business value
@@ -24,6 +18,7 @@ Business requirements have no formal representation in SpecFact. They exist only
 - **EXTEND**: `ProjectBundle` extended with optional `requirements` field via arch-07 schema extension system (namespace: `requirements.business_requirements`)
 
 ## Capabilities
+
 ### New Capabilities
 
 - `requirements-data-model`: Pydantic domain models for business requirements (BusinessOutcome, BusinessRule, ArchitecturalConstraint, BusinessRequirement, RequirementTrace) with versioned YAML storage and profile-aware field validation.
@@ -31,7 +26,6 @@ Business requirements have no formal representation in SpecFact. They exist only
 ### Modified Capabilities
 
 - `data-models`: ProjectBundle extended with requirements field via arch-07 schema extensions
-
 
 ---
 

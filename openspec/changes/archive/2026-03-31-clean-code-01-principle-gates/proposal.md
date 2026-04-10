@@ -37,6 +37,6 @@ SpecFact CLI already has a growing review toolchain, but the repository still la
 
 <!-- source_repo: nold-ai/specfact-cli -->
 - **GitHub Issue**: #434
-- **Issue URL**: https://github.com/nold-ai/specfact-cli/issues/434
+- **Issue URL**: <https://github.com/nold-ai/specfact-cli/issues/434>
 - **Repository**: nold-ai/specfact-cli
 - **Last Synced Status**: open

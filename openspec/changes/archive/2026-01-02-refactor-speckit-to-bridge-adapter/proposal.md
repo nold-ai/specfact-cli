@@ -98,19 +98,17 @@ The OpenSpec adapter implementation demonstrated the correct pattern: all adapte
   - `src/specfact_cli/cli.py` (remove bridge and implement command registrations, update sdd command)
   - `src/specfact_cli/commands/__init__.py` (remove implement import)
   - `tests/` (update tests to use adapter registry, remove SpecKitSync tests, add bidirectional sync tests, update constitution command tests, update import command tests)
-- **Breaking changes**: 
+- **Breaking changes**:
   - **Command change**: `specfact bridge constitution` → `specfact sdd constitution` (breaking CLI change)
   - **Removed class**: `SpecKitSync` class removed (breaking API change for any code using it directly)
   - **Removed command**: `specfact bridge` command removed (breaking CLI change)
   - **Removed command**: `specfact implement` command removed (breaking CLI change - deprecated in v0.17.0)
   - **Removed command**: `specfact generate tasks` command removed (breaking CLI change - deprecated per SPECFACT_0x_TO_1x_BRIDGE_PLAN.md)
-- **Migration**: 
+- **Migration**:
   - Update scripts/tooling using `specfact bridge constitution` to use `specfact sdd constitution`
   - Any code directly using `SpecKitSync` must migrate to `SpecKitAdapter` via adapter registry
   - **For task generation**: Use Spec-Kit, OpenSpec, or other SDD tools (SpecFact CLI complements these tools for enforcement, not task creation)
   - **For code implementation**: Use `specfact generate fix-prompt` and AI IDE tools (SpecFact CLI provides prompts, not code generation in 0.x)
-
-
 
 ---
 

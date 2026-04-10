@@ -147,6 +147,7 @@ specfact code import legacy-api --repo .
 - Creates a SpecFact project bundle (`.specfact/projects/legacy-api/`)
 
 **Note**: If using `hatch run specfact`, run from the specfact-cli directory:
+
 ```bash
 cd /path/to/specfact-cli
 hatch run specfact code import legacy-api --repo /path/to/your-openspec-project
@@ -422,6 +423,7 @@ specfact project health-check
 ```
 
 **Note**:
+
 - `project health-check` checks the project state and SDD compliance
 - It uses the current directory to find `.specfact/projects/` (no `--repo` option)
 - You must be in the project directory where the bundle was created
@@ -521,6 +523,7 @@ specfact project regenerate
 - Helps catch drift between design and code
 
 **Note**:
+
 - `project regenerate` uses the current directory to find bundles
 - You must be in the project directory where the bundle was created
 

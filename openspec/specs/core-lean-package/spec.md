@@ -1,8 +1,11 @@
 # core-lean-package Specification
 
 ## Purpose
+
 TBD - created by archiving change module-migration-03-core-slimming. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: The installed specfact-cli wheel contains only the 3 core module directories in this change
 
 After this change, the `specfact-cli` wheel SHALL include module source only for: `init`, `module_registry`, `upgrade`. The auth module directory and the remaining 17 extracted module directories (project, plan, import_cmd, sync, migrate, backlog, policy_engine, analyze, drift, validate, repro, contract, spec, sdd, generate, enforce, patch_mode) SHALL NOT be present in the installed package.
@@ -99,4 +102,3 @@ The `src/specfact_cli/cli.py` and registry SHALL mount category group Typer apps
 - **WHEN** any of the 21 original module commands is invoked via its category group path
 - **THEN** the command SHALL execute successfully
 - **AND** no command SHALL be permanently lost — only the routing has changed from flat to category-scoped
-

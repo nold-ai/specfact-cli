@@ -19,6 +19,7 @@ None. `ceremony-cockpit` is a pure alias/delegation module. Existing `backlog da
 ## Key Design Note
 
 Ceremony commands are **dynamically available** based on installed backlog framework modules. The module probe uses the arch-05 bridge registry to detect which modules are present at runtime:
+
 - `ceremony standup/refinement/planning` — present when `backlog-scrum` installed
 - `ceremony flow` — present only when `backlog-kanban` installed
 - `ceremony pi-summary` — present only when `backlog-safe` installed

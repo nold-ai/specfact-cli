@@ -512,14 +512,18 @@ Migration-02 is not complete until the **specfact-cli-modules** repository conta
 
 - [x] 17.8.1 Confirm 17.8.0 (import categorization) is complete before proceeding
 - [x] 17.8.2 **Behavioral smoke test** — Run from specfact-cli worktree with `SPECFACT_MODULES_REPO` set:
+
   ```bash
   hatch test -- tests/unit/bundles/ tests/integration/test_bundle_install.py -v
   ```
+
   Confirm: bundle layout tests pass, install lifecycle tests (official-tier verify, dependency resolution) pass via installed bundle paths — not shims. Record result.
 - [x] 17.8.3 **Presence gate** — Run:
+
   ```bash
   SPECFACT_MODULES_REPO=/path/to/specfact-cli-modules python scripts/validate-modules-repo-sync.py --gate
   ```
+
   - If any file is missing in the modules repo, fix by migrating that content to specfact-cli-modules and re-run.
   - If content differs (e.g. import/namespace only), either migrate any missing logic to specfact-cli-modules, or after verification re-run with `SPECFACT_MIGRATION_CONTENT_VERIFIED=1`. Do not close the change until the gate passes. See proposal "Non-reversible gate" and `MIGRATION_GATE.md`.
 - [x] 17.8.4 Merge specfact-cli PR #332 to dev. ✅ Completed on `dev` (commit `039da8b`). Migration-02 is now non-reversibly closed: canonical source for the 17 modules is specfact-cli-modules only.
@@ -621,7 +625,6 @@ Ensures bundle code in specfact-cli-modules does not hardcode imports from `spec
 ### 19.2 Migrate module-only dependencies — tracked in module-migration-05
 
 **The following tasks (19.2–23.x) are deferred to `module-migration-05-modules-repo-quality`; do not check in migration-02. See `openspec/changes/module-migration-05-modules-repo-quality/tasks.md`.**
-
 
 - [x] 19.2.1 Deferred handoff acknowledged: tracked in `module-migration-05` task 19.2.1.
 - [x] 19.2.2 Deferred handoff acknowledged: tracked in `module-migration-05` task 19.2.2.

@@ -9,7 +9,6 @@ expertise_level: [intermediate, advanced]
 
 # Authentication
 
-
 > Modules docs handoff: this page remains in the core docs set as release-line overview content.
 > Canonical bundle-specific deep guidance now lives in the canonical modules docs site, currently
 > published at `https://modules.specfact.io/`.
@@ -113,10 +112,12 @@ Adapters resolve tokens in this order:
 **Azure DevOps Specific:**
 
 For Azure DevOps commands, stored tokens are automatically used by:
+
 - `specfact backlog refine ado` - Automatically uses stored token if available
 - `specfact backlog map-fields` - Automatically uses stored token if available
 
 If a stored token is expired, you'll see a warning with options to:
+
 1. Use a PAT token (recommended for longer expiration)
 2. Re-authenticate via `specfact backlog auth azure-devops`
 3. Use `--ado-token` option with a valid token
@@ -130,22 +131,26 @@ If a stored token is expired, you'll see a warning with options to:
 **Solutions:**
 
 1. **Check token expiration**: OAuth tokens expire after ~1 hour. Use a PAT token for longer expiration:
+
    ```bash
    specfact backlog auth azure-devops --pat your_pat_token
    ```
 
 2. **Use explicit token**: Override with `--ado-token` flag:
+
    ```bash
    specfact backlog refine ado --ado-org myorg --ado-project myproject --ado-token your_token
    ```
 
 3. **Set environment variable**: Use `AZURE_DEVOPS_TOKEN` environment variable:
+
    ```bash
    export AZURE_DEVOPS_TOKEN=your_token
    specfact backlog refine ado --ado-org myorg --ado-project myproject
    ```
 
 4. **Re-authenticate**: Clear and re-authenticate:
+
    ```bash
    specfact backlog auth clear --provider azure-devops
    specfact backlog auth azure-devops

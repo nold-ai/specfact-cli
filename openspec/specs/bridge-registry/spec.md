@@ -1,8 +1,11 @@
 # bridge-registry Specification
 
 ## Purpose
+
 TBD - created by archiving change arch-05-bridge-registry. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Bridge registry provides converter registration and lookup
 
 The system SHALL provide a `BridgeRegistry` that supports module-driven registration and lookup of service schema converters.
@@ -86,4 +89,3 @@ The `BridgeConfig` spec-kit presets SHALL map all 7 core spec-kit slash commands
 - **WHEN** the preset is constructed
 - **THEN** `commands` dict contains the same 7 entries as the classic preset
 - **AND** artifact path patterns use `docs/specs/` prefix
-

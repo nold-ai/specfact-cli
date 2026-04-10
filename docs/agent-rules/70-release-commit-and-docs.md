@@ -61,9 +61,18 @@ depends_on:
 
 ## Internal wiki (sibling `specfact-cli-internal`)
 
-After **merging** changes that affect OpenSpec or GitHub-linked planning, and when a sibling `specfact-cli-internal` checkout is available, run from that checkout’s root (not from this repo):
+After **merging** changes that affect OpenSpec or GitHub-linked planning, and when a sibling `specfact-cli-internal` checkout is available, run the wiki scripts only after **`cd` into that internal repo** so the working directory matches what the scripts expect (running from `specfact-cli` or elsewhere will break them). From this repo’s root, for example:
 
-- `python3 scripts/wiki_openspec_gh_status.py`
-- If the change touched **lots of** docs frontmatter (especially under `docs/agent-rules/`), also run `python3 scripts/wiki_rebuild_graph.py` so `wiki/graph.md` stays consistent.
+```bash
+cd ../specfact-cli-internal && python3 scripts/wiki_openspec_gh_status.py
+```
+
+If the change touched **lots of** docs frontmatter (especially under `docs/agent-rules/`), also run:
+
+```bash
+cd ../specfact-cli-internal && python3 scripts/wiki_rebuild_graph.py
+```
+
+When you materially edit an **active** OpenSpec change (scope, design, tasks story or dependencies), also update the mirrored `wiki/sources/<change-id>.md` in the sibling internal repo when it is available, then run `wiki_rebuild_graph.py` as in [40-openspec-and-tdd.md](./40-openspec-and-tdd.md#internal-wiki-and-strategic-context). If the internal checkout is missing, record a merge checklist or follow-up instead of assuming the wiki is current.
 
 See **Internal wiki maintenance** under [40-openspec-and-tdd.md](./40-openspec-and-tdd.md#internal-wiki-and-strategic-context).

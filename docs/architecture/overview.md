@@ -66,6 +66,7 @@ Common manifest fields:
 - Extension/security optional: `schema_extensions`, `service_bridges`, `publisher`, `integrity`
 
 See also:
+
 - [Module Development Guide](../guides/module-development.md)
 - [Module Contracts](../reference/module-contracts.md)
 - [Module Security](../reference/module-security.md)
@@ -124,6 +125,7 @@ All adapters implement:
 `BridgeProbe`/sync flows use detection and capabilities to select adapters and choose sync behavior safely.
 
 See also:
+
 - [Adapter Development Guide](../guides/adapter-development.md)
 - [Bridge Registry](../reference/bridge-registry.md)
 

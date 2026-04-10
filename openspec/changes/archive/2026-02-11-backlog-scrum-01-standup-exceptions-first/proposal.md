@@ -4,7 +4,6 @@
 
 ## Why
 
-
 The archived change `daily-standup-progress-support` (#168) delivers standup view, interactive review, and Copilot export. Teams love tools that surface blockers and risks first. This delta extends standup with exceptions-first default section order, optional `--mode scrum|kanban|safe`, and integration with Policy Engine (policy-engine-01) and patch mode (patch-mode-01) so standup output highlights policy failures and aging/stalled work before normal status.
 
 This change is part of the **`backlog-scrum` module** — the Scrum-framework module providing sprint planning, standup enhancement, story refinement, and DoD capabilities.
@@ -27,6 +26,7 @@ modules/backlog-scrum/
 ```
 
 **`module-package.yaml` declares:**
+
 - `name: backlog-scrum`
 - `version: 0.1.0`
 - `commands: [backlog daily (enhanced), backlog sprint-summary, ...]`
@@ -54,6 +54,7 @@ modules/backlog-scrum/
 ```
 
 **`module-package.yaml` declares:**
+
 - `name: backlog-scrum`
 - `version: 0.1.0`
 - `commands: [backlog daily (enhanced), backlog sprint-summary, ...]`
@@ -64,7 +65,6 @@ modules/backlog-scrum/
 **Important**: `backlog-scrum` extends the `backlog daily` command from the archived daily-standup module. The registry merges command extensions; the scrum module declares it enhances `backlog daily` with scrum-specific section ordering.
 
 ## What Changes
-
 
 - **EXTEND** (plan E1): Default section order for `specfact backlog daily` when `backlog-scrum` module is loaded: (1) blockers and dependency-critical items, (2) policy failures (DoR/DoD/flow — from policy-engine-01 when present), (3) aging items / stalled work (when data exists), (4) normal status.
 - **NEW**: Add `--mode scrum|kanban|safe` flag to `specfact backlog daily`; `scrum` is the default when this module is loaded.
@@ -80,6 +80,7 @@ modules/backlog-scrum/
 - **EXTEND** (prompt/docs): Update slash prompt templates and user docs so comment context behavior and comment-windowing options are explicit for everyday team workflows.
 
 ## Capabilities
+
 - **backlog-scrum** (standup): Exceptions-first section order (blockers, policy failures, aging, normal); `--mode scrum|kanban|safe`; optional patch integration for standup notes; Policy Engine integration for policy failure surfacing.
 - **backlog-scrum** (comment context): Full ADO comment retrieval for daily/refine, optional first/last comment limits, interactive last-comment-only rendering with export guidance, and aligned slash prompts/docs.
 

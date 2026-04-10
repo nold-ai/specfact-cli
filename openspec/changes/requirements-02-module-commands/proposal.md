@@ -2,9 +2,6 @@
 
 ## Why
 
-
-
-
 Even with a formal data model (requirements-01), there are no CLI commands for working with business requirements. Teams need to extract structured requirements from existing backlog items (reverse-engineer from AC text), author new requirements with profile-aware templates, and validate requirements completeness — all from the terminal. This module is the primary user-facing entry point for the upstream traceability chain.
 
 ## Ownership Alignment (2026-04-08)
@@ -40,6 +37,7 @@ modules/requirements/
 ```
 
 **`module-package.yaml` declares:**
+
 - `name: requirements`
 - `version: 0.1.0`
 - `commands: [requirements extract, requirements author, requirements validate, requirements list]`
@@ -72,6 +70,7 @@ modules/requirements/
 ```
 
 **`module-package.yaml` declares:**
+
 - `name: requirements`
 - `version: 0.1.0`
 - `commands: [requirements extract, requirements author, requirements validate, requirements list]`
@@ -80,9 +79,6 @@ modules/requirements/
 - `publisher:` + `integrity:` — arch-06 marketplace readiness
 
 ## What Changes
-
-
-
 
 - **NEW**: Requirements module in `modules/requirements/` implementing `ModuleIOContract`:
   - `import_to_bundle`: Extract requirements from backlog items into ProjectBundle
@@ -96,6 +92,7 @@ modules/requirements/
 - **NEW**: Profile-aware templates: solo requires only As_a/I_want/So_that; startup adds Business_outcome + Business_rules; mid-size uses org-defined schema; enterprise adds Regulatory_reference + Risk_owner
 
 ## Capabilities
+
 ### New Capabilities
 
 - `requirements-module`: CLI commands for extracting requirements from backlog items, authoring with profile-aware templates, validating completeness per profile schema, and listing with traceability coverage status. Implements ModuleIOContract for requirements lifecycle.
@@ -104,7 +101,6 @@ modules/requirements/
 
 - `module-io-contract`: New implementation of ModuleIOContract for the requirements domain (import from backlog, export to YAML/Markdown, sync, validate)
 - `backlog-adapter`: Extended with requirement extraction hooks — adapters provide raw AC text, extractor parses into structured BusinessRequirement models
-
 
 ---
 

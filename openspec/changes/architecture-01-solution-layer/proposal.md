@@ -2,9 +2,6 @@
 
 ## Why
 
-
-
-
 Architectural decisions live in separate ADRs or Confluence pages with zero programmatic links to requirements or code. This is the layer where the costliest misalignments occur — a wrong architectural choice invalidates entire implementation efforts regardless of code quality. No tool today systematically connects business requirements → architectural decisions → implementation. A solution architecture module that derives, stores, and validates architecture with explicit traceability to requirements closes the biggest blind spot in the end-to-end chain.
 
 ## Ownership Alignment (2026-04-08)
@@ -42,6 +39,7 @@ modules/architecture/
 ```
 
 **`module-package.yaml` declares:**
+
 - `name: architecture`
 - `version: 0.1.0`
 - `commands: [architecture derive, architecture validate-coverage, architecture trace]`
@@ -76,6 +74,7 @@ modules/architecture/
 ```
 
 **`module-package.yaml` declares:**
+
 - `name: architecture`
 - `version: 0.1.0`
 - `commands: [architecture derive, architecture validate-coverage, architecture trace]`
@@ -84,9 +83,6 @@ modules/architecture/
 - `publisher:` + `integrity:` — arch-06 marketplace readiness
 
 ## What Changes
-
-
-
 
 - **NEW**: Pydantic domain models in `modules/architecture/src/architecture/models/`:
   - `SolutionArchitecture` — architecture ID, requirement IDs (traceability links), components, data flows, ADRs
@@ -101,6 +97,7 @@ modules/architecture/
 - **EXTEND**: `ProjectBundle` extended with optional `architecture` field via arch-07 schema extensions (namespace: `architecture.solution_architecture`)
 
 ## Capabilities
+
 ### New Capabilities
 
 - `solution-architecture`: Derive, store, and validate solution architecture with explicit traceability to business requirements. Includes component specs, data flows, ADRs, and coverage validation.
@@ -108,7 +105,6 @@ modules/architecture/
 ### Modified Capabilities
 
 - `data-models`: ProjectBundle extended with architecture field via arch-07 schema extensions
-
 
 ---
 

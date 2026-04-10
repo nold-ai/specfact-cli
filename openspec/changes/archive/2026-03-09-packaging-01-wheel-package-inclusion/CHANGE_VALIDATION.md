@@ -25,6 +25,7 @@ A patch release is required before PyPI users receive this fix, because `0.40.0`
 ## Install verification
 
 A clean temp venv install of `dist/specfact_cli-0.40.1-py3-none-any.whl` was verified with both:
+
 - `specfact -v`
 - `specfact-cli -v`
 

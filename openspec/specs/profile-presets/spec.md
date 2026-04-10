@@ -1,8 +1,11 @@
 # profile-presets Specification
 
 ## Purpose
+
 TBD - created by archiving change module-migration-03-core-slimming. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: `specfact init` enforces bundle selection on a fresh install
 
 On a fresh install with no bundles installed, `specfact init` SHALL NOT complete workspace initialisation until the user has selected and installed at least one bundle (or the user explicitly confirms the core-only install).
@@ -130,4 +133,3 @@ The `--install all` shorthand, introduced by `first-run-selection` (module-migra
 - **WHEN** the pipeline runs after the core slimming upgrade
 - **THEN** all 21 commands SHALL be available after the init step completes
 - **AND** the pipeline SHALL not require any changes to continue functioning
-

@@ -1,6 +1,7 @@
 # github-hierarchy-cache Specification
 
 ## Purpose
+
 TBD - created by archiving change governance-02-github-hierarchy-cache. Update Purpose after archive.
 ## Requirements
 ### Requirement: Repository hierarchy cache sync
@@ -43,3 +44,4 @@ Repository governance instructions SHALL direct contributors and agents to consu
 - **AND** the local hierarchy cache is missing or stale according to repository-defined freshness rules
 - **THEN** the bootstrap guidance SHALL require rerunning the hierarchy cache sync script before continuing with issue-parenting or blocker-resolution work
 - **AND** the compact governance flow SHALL treat the refresh as part of deterministic startup rather than an optional later reminder
+

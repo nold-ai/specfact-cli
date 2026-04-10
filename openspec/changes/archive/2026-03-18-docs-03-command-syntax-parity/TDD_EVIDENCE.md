@@ -5,6 +5,7 @@
 **Timestamp**: 2026-03-18
 
 **Command**:
+
 ```
 cd /home/dom/git/nold-ai/specfact-cli-worktrees/feature/docs-03-command-syntax-parity
 hatch test -- tests/unit/docs/test_release_docs_parity.py -v -k "removed or current"
@@ -29,6 +30,7 @@ hatch test -- tests/unit/docs/test_release_docs_parity.py -v -k "removed or curr
 **Timestamp**: 2026-03-18
 
 **Command**:
+
 ```
 cd /home/dom/git/nold-ai/specfact-cli-worktrees/feature/docs-03-command-syntax-parity
 hatch test -- tests/unit/docs/test_release_docs_parity.py -v
@@ -37,6 +39,7 @@ hatch test -- tests/unit/docs/test_release_docs_parity.py -v
 **Result**: 21 PASSED (all)
 
 All new parity tests pass:
+
 - `test_removed_project_plan_syntax_absent_from_authored_docs` ✓
 - `test_removed_project_import_from_bridge_syntax_absent_from_authored_docs` ✓
 - `test_removed_backlog_policy_syntax_absent_from_authored_docs` ✓

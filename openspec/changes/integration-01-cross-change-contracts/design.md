@@ -5,11 +5,13 @@ This change is the integration umbrella for the 2026-02-15 architecture-layer wa
 ## Goals / Non-Goals
 
 **Goals:**
+
 - Define authoritative ownership for shared interfaces and files.
 - Define compatibility contracts across profile/requirements/architecture/validation/sync/governance/AI layers.
 - Add explicit integration gates for multi-wave rollout.
 
 **Non-Goals:**
+
 - No production code implementation.
 - No replacement of existing feature proposals.
 

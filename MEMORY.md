@@ -5,6 +5,7 @@ This file survives context compression. Re-read on every interaction.
 ## 1. OpenSpec Gate (HARD BLOCK)
 
 **Do NOT edit any codebase file** unless an active OpenSpec change in `openspec/changes/` explicitly covers the requested scope. If none exists, stop and ask:
+
 - a) Create new change (`/opsx:new`)
 - b) Continue an existing change
 - c) Add a delta to an existing change
@@ -16,6 +17,7 @@ Read `openspec/CHANGE_ORDER.md` first — it is the single source of truth for s
 ## 2. Branch Protection
 
 `dev` and `main` are protected. Never commit directly. Always use:
+
 - `feature/` → minor version bump
 - `bugfix/` → patch version bump
 - `hotfix/` → patch version bump

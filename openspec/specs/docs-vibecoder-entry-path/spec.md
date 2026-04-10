@@ -1,8 +1,11 @@
 # docs-vibecoder-entry-path Specification
 
 ## Purpose
+
 TBD - created by archiving change docs-new-user-onboarding. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Vibe-coder entry path is discoverable and runnable in under 2 commands
 
 The documentation entry surface SHALL make it possible for a developer who has never used
@@ -72,4 +75,3 @@ technical terms.
   expertise (e.g. "Point it at your code. Get a score and a list of what to fix.")
 - **AND** the first technical term they encounter SHALL be a command they can copy and run,
   not a concept they need to research first
-

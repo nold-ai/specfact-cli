@@ -10,11 +10,13 @@ SHALL handle both forms.
 #### Scenario: Registry entry declares a versioned bundle dependency
 
 - **GIVEN** a registry entry with:
+
   ```json
   "bundle_dependencies": [
     {"id": "nold-ai/specfact-project", "version": ">=0.41.0"}
   ]
   ```
+
 - **WHEN** the installer processes this entry
 - **THEN** the installer SHALL treat `nold-ai/specfact-project` as a required dependency with
   the constraint `>=0.41.0`
@@ -30,6 +32,7 @@ SHALL handle both forms.
 
 During `specfact module install`, the system SHALL resolve all `bundle_dependencies` from both
 the registry index and the module's `module-package.yaml` manifest. For each dependency:
+
 - If the dependency is not installed, the CLI SHALL prompt the user to install it
 - If the dependency is installed but its version does not satisfy the declared specifier, the CLI
   SHALL prompt the user to upgrade it
@@ -158,9 +161,11 @@ resolution plan without performing any installs or upgrades.
 
 - **WHEN** user runs `specfact module install A --dry-run`
 - **THEN** the CLI SHALL print a dependency plan:
+
   ```
   Would install:
     nold-ai/specfact-project 0.41.2  (required by A >=0.41.0)
     nold-ai/A 0.42.0
   ```
+
 - **AND** SHALL exit 0 without modifying any installed modules

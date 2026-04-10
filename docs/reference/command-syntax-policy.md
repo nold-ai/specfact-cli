@@ -49,4 +49,3 @@ hatch run specfact project devops-flow --help
 hatch run specfact govern enforce --help
 hatch run specfact spec validate --help
 ```
-

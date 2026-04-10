@@ -2,13 +2,11 @@
 
 ## Why
 
-
-
 Recent improvements to the SpecFact CLI require proper documentation and specification:
 
 1. **Global Debug Output**: Users need a way to see diagnostic information (URLs, authentication status, API details) without cluttering normal output. Currently, debug messages are always shown or hidden, with no user control.
 
-2. **ADO Authentication Issues**: 
+2. **ADO Authentication Issues**:
    - OAuth tokens expire after ~1 hour, requiring frequent re-authentication
    - Missing API tokens in requests due to incorrect Authorization header construction
    - ADO adapter not using centralized authentication helper methods
@@ -22,8 +20,6 @@ This change adds global debug mode, improves ADO authentication with automatic t
 
 ## What Changes
 
-
-
 - **ADD**: Global `--debug` CLI flag that enables debug output across all commands
 - **ADD**: `debug_print()` helper function in runtime module for conditional debug output
 - **ADD**: `set_debug_mode()` and `is_debug_mode()` functions for debug state management
@@ -35,7 +31,6 @@ This change adds global debug mode, improves ADO authentication with automatic t
 - **MODIFY**: ADO adapter error messages to provide helpful guidance for expired tokens and missing authentication
 - **MODIFY**: Debug console.print statements in init.py to use `debug_print()` helper
 - **MODIFY**: ADO adapter debug output (URLs, auth status) to use `debug_print()` helper
-
 
 ---
 

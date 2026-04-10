@@ -1,8 +1,11 @@
 # module-docs-ownership Specification
 
 ## Purpose
+
 TBD - created by archiving change docs-01-core-modules-docs-alignment. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Core docs declare current and target docs ownership boundaries
 
 The documentation SHALL state which documentation concerns remain owned by `specfact-cli` core, which concerns belong to marketplace-installed module bundles, and that module-specific deep docs are canonically owned by `specfact-cli-modules` once published there.
@@ -32,4 +35,3 @@ The core documentation set SHALL include a short reference page that explains th
 
 - **WHEN** a contributor needs to add or verify a cross-site link
 - **THEN** they can open `docs/reference/documentation-url-contract.md` in this repository for obligations and a link to the full contract on the modules site
-

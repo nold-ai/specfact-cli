@@ -1,8 +1,11 @@
 # sidecar-validation Specification
 
 ## Purpose
+
 TBD - created by archiving change integrate-sidecar-validation. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Sidecar Validation Command
 
 The system SHALL provide a CLI command to run sidecar validation workflow.
@@ -609,4 +612,3 @@ The sidecar validation SHALL work end-to-end with Flask applications.
 - Routes are extracted correctly
 - Contracts are populated
 - Harness is generated
-

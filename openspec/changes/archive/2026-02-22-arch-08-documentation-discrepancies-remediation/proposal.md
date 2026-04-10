@@ -36,7 +36,7 @@ No new application code or CLI behavior; documentation and spec-doc alignment on
 - **Backward compatibility**: N/A (documentation only).
 - **Rollback plan**: Revert documentation commits.
 
-**Documentation impact (per config.yaml):** All changes are documentation-only and improve accuracy and discoverability at https://docs.specfact.io. New pages will have correct Jekyll front-matter and be linked from `docs/_layouts/default.html`.
+**Documentation impact (per config.yaml):** All changes are documentation-only and improve accuracy and discoverability at <https://docs.specfact.io>. New pages will have correct Jekyll front-matter and be linked from `docs/_layouts/default.html`.
 
 ## Clarifications for implementation
 
@@ -48,6 +48,6 @@ No new application code or CLI behavior; documentation and spec-doc alignment on
 
 <!-- source_repo: nold-ai/specfact-cli -->
 - **GitHub Issue**: #291
-- **Issue URL**: https://github.com/nold-ai/specfact-cli/issues/291
+- **Issue URL**: <https://github.com/nold-ai/specfact-cli/issues/291>
 - **Repository**: nold-ai/specfact-cli
 - **Last Synced Status**: synced-2026-02-22

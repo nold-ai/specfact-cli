@@ -2,13 +2,9 @@
 
 ## Why
 
-
-
 The current `specfact backlog daily --summarize/--summarize-to` output often contains raw HTML fragments and entities from ADO work item comments, mixed with Markdown-formatted text from GitHub and ADO. This makes the standup summary prompt hard to read for humans and noisy for LLMs, even though the underlying data is correct.
 
 ## What Changes
-
-
 
 - Normalize backlog comments and descriptions used by `specfact backlog daily --summarize/--summarize-to` so that:
   - HTML-formatted content is converted into clean Markdown before it is included in the prompt.
@@ -22,14 +18,16 @@ The current `specfact backlog daily --summarize/--summarize-to` output often con
   - Non-interactive/CI usage (plain Markdown text, no color/control codes).
 
 ## Capabilities
+
 ### New Capabilities
+
 - `backlog-daily-markdown-normalization`: Normalize backlog item bodies and comments into Markdown-only text for daily standup summarize prompts, with environment-aware rendering (rich Markdown view in interactive terminals, plain Markdown in CI/non-interactive mode).
 
 ### Modified Capabilities
+
 - `daily-standup`: Clarify that the `--summarize/--summarize-to` scenarios must:
   - Include only Markdown (no raw HTML fragments or entities) in per-item body/comment fields.
   - Prefer a Markdown-formatted view in interactive terminals while keeping the underlying output prompt-ready for LLMs.
-
 
 ---
 

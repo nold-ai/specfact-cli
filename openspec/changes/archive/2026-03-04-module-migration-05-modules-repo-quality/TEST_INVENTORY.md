@@ -29,4 +29,3 @@ and the target locations in `specfact-cli-modules`.
 ## E2E tests (specfact-cli)
 
 - `tests/e2e/test_bundle_extraction_e2e.py` → bundles: all → target: `tests/e2e/test_bundle_extraction_e2e.py`
-

@@ -5,6 +5,7 @@ Date: 2026-03-04
 ## Scope of this residual list
 
 This list captures items that are either:
+
 - not bundle-scope defects inside `specfact-cli-modules`, or
 - not executable from this environment (remote GitHub operations),
 after local bundle test migration parity was validated (`hatch run smart-test` passed).

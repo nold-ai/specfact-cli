@@ -1,6 +1,6 @@
 # Change Validation Report: marketplace-01-central-module-registry
 
-**Validation Date**: 2026-02-20 23:25:03 
+**Validation Date**: 2026-02-20 23:25:03
 **Change Proposal**: [proposal.md](./proposal.md)
 **Validation Method**: Dry-run simulation in temporary workspace + dependency scan with `rg`
 
@@ -57,11 +57,13 @@
 **Decision**: Adjust change for backward compatibility
 
 **Rationale**:
+
 - Keep existing workflows and scripts stable
 - Avoid conflict with existing canonical OpenSpec specs
 - Preserve migration path to canonical `specfact module` lifecycle UX without forcing immediate breaking changes
 
 **Next Steps**:
+
 1. Implement deprecation-compatible alias behavior in `init` lifecycle options (no hard removal)
 2. Keep `specfact module` command group as canonical lifecycle command surface
 3. Add/adjust tests to lock compatibility + lazy-loader entrypoint reliability

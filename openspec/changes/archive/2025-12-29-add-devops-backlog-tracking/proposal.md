@@ -147,13 +147,6 @@ All three capabilities can coexist in the same adapter using different sync mode
 - ✅ Integration tests pass
 - ✅ Test coverage ≥80%
 
-
-
-
-
-
-
-
 ---
 
 ## Source Tracking

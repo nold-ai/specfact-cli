@@ -75,8 +75,6 @@ Rich Console supports terminal detection via `force_terminal`, `no_color`, and `
 - **Not implementing**: Custom terminal rendering (using Rich's built-in capabilities)
 - **Not adding**: New CLI flags for terminal mode (auto-detection only)
 
-
-
 ---
 
 ## Source Tracking

@@ -3,6 +3,7 @@
 ## contract_runner.py — AST Scan
 
 Uses Python's `ast` module to scan each provided file. For each function definition at module/class level:
+
 1. Check if the function name starts with `_` → skip (private)
 2. Check decorator list for `@require` or `@ensure` (from `icontract`) → skip if present
 3. If no icontract decorator found → emit `ReviewFinding(category="contracts", severity="warning", rule="MISSING_ICONTRACT")`
@@ -55,6 +56,7 @@ def run_review(files: list[Path], options: ReviewOptions) -> ReviewReport:
 ## TDD Gate
 
 Test file discovery:
+
 ```python
 def expected_test_path(src_file: Path) -> Path:
     # src/specfact_code_review/run/scorer.py

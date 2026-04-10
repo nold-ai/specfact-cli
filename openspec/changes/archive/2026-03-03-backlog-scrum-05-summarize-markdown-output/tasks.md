@@ -23,4 +23,3 @@
 - [x] 4.1 Update any relevant docs/guides that mention `specfact backlog daily --summarize` / `--summarize-to` to note Markdown-only, normalized behavior
 - [x] 4.2 Run `openspec validate backlog-scrum-05-summarize-markdown-output --strict` and fix any validation issues
 - [x] 4.3 Run `/wf-validate-change backlog-scrum-05-summarize-markdown-output` from the specfact-openspec workflow and record results in CHANGE_VALIDATION.md
-

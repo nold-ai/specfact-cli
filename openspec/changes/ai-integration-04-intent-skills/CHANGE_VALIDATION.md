@@ -91,6 +91,7 @@ None.
 ## Wave/Sequencing Confirmation
 
 Wave 8, blocked by:
+
 - ai-integration-01 (#251) — skill install infrastructure
 - requirements-01 (#238) + requirements-02 (#239) — skills invoke `specfact requirements capture/validate/trace`
 

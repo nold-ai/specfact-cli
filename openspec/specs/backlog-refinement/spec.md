@@ -1,8 +1,11 @@
 # backlog-refinement Specification
 
 ## Purpose
+
 TBD - created by archiving change add-template-driven-backlog-refinement. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Backlog Item Refinement Command
 
 The system SHALL provide a `specfact backlog refine` command that enables teams to standardize backlog items using AI-assisted template matching and refinement.

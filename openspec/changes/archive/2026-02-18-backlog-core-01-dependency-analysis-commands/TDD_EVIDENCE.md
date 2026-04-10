@@ -274,6 +274,7 @@ Reduce `project regenerate` conflict noise by default and add explicit strict/ve
   - Exit successfully unless `--strict` is set.
 
 Updated production code:
+
 - `src/specfact_cli/modules/project/src/commands.py`
 
 ## Post-Implementation Passing Run (Phase 3.4 regenerate UX)

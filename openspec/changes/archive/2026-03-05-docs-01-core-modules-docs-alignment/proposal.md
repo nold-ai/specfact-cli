@@ -18,9 +18,11 @@ The documentation set still carries drift from the pre-modularized CLI: some pag
 ## Capabilities
 
 ### New Capabilities
+
 - `module-docs-ownership`: documentation defines the current and target ownership boundary between `specfact-cli` core docs and `specfact-cli-modules` bundle docs, including an explicit migration note for future relocation of module-specific documentation.
 
 ### Modified Capabilities
+
 - `documentation-alignment`: documentation requirements are extended to cover the post-modularization command surface, lean-core architecture, marketplace-distributed bundles, and removal of stale flat-command guidance.
 - `implementation-status-docs`: implementation-status and architecture pages must clearly describe which functionality is owned by core, which is delivered by marketplace bundles, and which documentation remains temporarily hosted in core.
 - `module-development-guide`: module development and module architecture docs must reflect the dedicated modules repository, bundle/package boundaries, and the expected split between core lifecycle docs and bundle-specific command docs.

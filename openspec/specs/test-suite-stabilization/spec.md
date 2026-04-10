@@ -1,8 +1,11 @@
 # test-suite-stabilization Specification
 
 ## Purpose
+
 TBD - created by archiving change module-migration-08-release-suite-stabilization. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Post-Migration Release Suite Stability
 
 The `specfact-cli` repository SHALL keep only tests that match the lean-core runtime and supported grouped command surface after module migration.
@@ -30,4 +33,3 @@ The `specfact-cli` repository SHALL keep only tests that match the lean-core run
 - **GIVEN** the release branch validation suites run in non-interactive CI
 - **WHEN** signing and installer-related tests execute
 - **THEN** they use deterministic local fixtures and fail only on real behavior defects rather than environment-coupled artifacts.
-

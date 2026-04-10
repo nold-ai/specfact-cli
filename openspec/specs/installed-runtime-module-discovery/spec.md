@@ -1,8 +1,11 @@
 # installed-runtime-module-discovery Specification
 
 ## Purpose
+
 TBD - created by archiving change backlog-core-04-installed-runtime-discovery-and-add-prompt. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Module Discovery Roots
 
 The system SHALL discover module packages consistently between development and installed runtime contexts when invoked from a repository checkout.
@@ -21,4 +24,3 @@ The system SHALL discover module packages consistently between development and i
 - **WHEN** module discovery runs
 - **THEN** discovery roots remain limited to packaged modules and explicitly configured roots
 - **AND** no extra discovery errors are introduced.
-

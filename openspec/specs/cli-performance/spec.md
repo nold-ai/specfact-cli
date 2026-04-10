@@ -1,8 +1,11 @@
 # cli-performance Specification
 
 ## Purpose
+
 TBD - created by archiving change optimize-startup-performance. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Metadata-Based Startup Check Optimization
 
 The CLI SHALL track version and check timestamps in metadata to optimize startup performance.
@@ -117,4 +120,3 @@ The startup check execution logic SHALL be conditional based on metadata.
 - **When** `print_startup_checks()` is called
 - **Then** checks are executed only when metadata conditions are met
 - **And** metadata is updated after checks complete
-

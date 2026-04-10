@@ -3,7 +3,9 @@
 ## Purpose
 
 The bridge adapter architecture provides a universal abstraction layer for integrating SpecFact with external tools and formats, including specification tools (Spec-Kit, OpenSpec), backlog management tools (GitHub Issues, Azure DevOps, Jira, Linear), and validation systems. The architecture uses a plugin-based adapter registry pattern that enables extensibility for future tool integrations while maintaining clean separation of concerns.
+
 ## Requirements
+
 ### Requirement: OpenSpec Adapter Type
 
 The system SHALL support OpenSpec as a bridge adapter type.
@@ -485,6 +487,7 @@ The ADO adapter SHALL ensure organization is always included before project in A
 **And** this applies even when collection is already in base_url (on-premise)
 
 **Example URLs**:
+
 - Cloud: `https://dev.azure.com/myorg/myproject/_apis/wit/wiql?api-version=7.1`
 - On-premise: `https://server/myorg/myproject/_apis/wit/wiql?api-version=7.1`
 
@@ -645,4 +648,3 @@ The system SHALL support provider-specific templates for mapping adapter data to
 - **THEN** custom rules override template rules
 - **AND** adapter-specific data is still accessible via `raw_data`
 - **AND** unified graph model is used regardless of adapter
-

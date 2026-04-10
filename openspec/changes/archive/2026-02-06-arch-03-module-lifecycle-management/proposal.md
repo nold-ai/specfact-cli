@@ -2,13 +2,11 @@
 
 ## Why
 
-
 `arch-02` completed module package separation, but module lifecycle constraints are still unenforced at runtime. `module_dependencies` is currently declarative-only, module manifests do not constrain CLI core compatibility, and `init --disable-module` can disable required modules without preflight protection.
 
 This creates avoidable runtime breakage and weakens contract-first guarantees for modular command loading. We need registry-time lifecycle validation and safe-disable protection while preserving backward compatibility.
 
 ## What Changes
-
 
 - **NEW**: Add module lifecycle validation at registration time for dependency existence/enabled state and `core_compatibility` version constraints.
 - **NEW**: Extend module manifests with `core_compatibility` (PEP 440 specifier string) across all module packages.
@@ -22,6 +20,7 @@ This creates avoidable runtime breakage and weakens contract-first guarantees fo
 - **EXTEND**: Update user-facing documentation and changelog/version synchronization for lifecycle management behavior and module manifest schema.
 
 ## Capabilities
+
 - **module-lifecycle-management**: Enforce module dependency integrity, version compatibility, safe-disable semantics, and module boundary hygiene.
 
 ---

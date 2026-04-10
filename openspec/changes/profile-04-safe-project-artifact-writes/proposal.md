@@ -17,9 +17,11 @@
 ## Capabilities
 
 ### New Capabilities
+
 - `project-artifact-write-safety`: Policy, planning, and recovery rules for any core command that creates or mutates user-project artifacts.
 
 ### Modified Capabilities
+
 - `init-ide-prompt-source-selection`: `specfact init ide` must reconcile prompt recommendations with existing IDE settings without deleting unrelated user configuration.
 - `module-owned-ide-prompts`: Core setup flows that materialize bundle-owned IDE assets must use the safe-write policy when touching user-project files.
 
@@ -33,10 +35,10 @@
 ## Source Tracking
 
 - **GitHub Issue**: #490
-- **Issue URL**: https://github.com/nold-ai/specfact-cli/issues/490
+- **Issue URL**: <https://github.com/nold-ai/specfact-cli/issues/490>
 - **Repository**: nold-ai/specfact-cli
 - **Last Synced Status**: open
 - **Parent Feature**: #365
-- **Parent Feature URL**: https://github.com/nold-ai/specfact-cli/issues/365
+- **Parent Feature URL**: <https://github.com/nold-ai/specfact-cli/issues/365>
 - **Related Bug**: #487
-- **Related Bug URL**: https://github.com/nold-ai/specfact-cli/issues/487
+- **Related Bug URL**: <https://github.com/nold-ai/specfact-cli/issues/487>

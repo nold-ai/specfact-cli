@@ -1,8 +1,11 @@
 # docs-aha-moment-entry Specification
 
 ## Purpose
+
 TBD - created by archiving change docs-new-user-onboarding. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Homepage names `code review run` as the primary entry command
 
 The docs homepage SHALL explicitly name `specfact code review run` as the primary command for the
@@ -82,4 +85,3 @@ users, without a "Limitations" warning that discourages its use.
 - **WHEN** a user wants to find Container or GitHub Action installation options
 - **THEN** a visible section heading or anchor link SHALL allow them to jump to those options
   without reading through the uvx or pip sections first
-

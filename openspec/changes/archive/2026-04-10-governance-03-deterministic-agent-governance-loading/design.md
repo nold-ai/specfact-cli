@@ -12,6 +12,7 @@ The deterministic bootstrap also needs to carry forward the GitHub issue-handlin
 ## Goals / Non-Goals
 
 **Goals:**
+
 - Define a deterministic bootstrap path that every session follows before implementation work.
 - Keep `AGENTS.md` small while preserving it as the mandatory governance layer.
 - Introduce a frontmatter schema that makes rule applicability, priority, stop conditions, and user-interaction requirements machine-readable.
@@ -19,6 +20,7 @@ The deterministic bootstrap also needs to carry forward the GitHub issue-handlin
 - Preserve existing hard gates such as worktree requirements, OpenSpec validation, cache-first GitHub lookup, TDD evidence, quality gates, and module signature enforcement.
 
 **Non-Goals:**
+
 - Replacing OpenSpec lifecycle rules with a new workflow engine.
 - Creating a generic policy engine for arbitrary repositories.
 - Automatically resolving stale, ambiguous, or concurrent work situations without user input.
@@ -29,6 +31,7 @@ The deterministic bootstrap also needs to carry forward the GitHub issue-handlin
 ### Decision: Keep `AGENTS.md` as a compact bootstrap contract
 
 `AGENTS.md` remains the first required instruction surface, but its role changes from comprehensive handbook to compact governance contract. It will:
+
 - define the mandatory startup sequence
 - point to the canonical rule index
 - point to the always-load non-negotiable checklist
@@ -37,12 +40,14 @@ The deterministic bootstrap also needs to carry forward the GitHub issue-handlin
 This preserves compatibility with tools and models that already look for `AGENTS.md` while preventing governance sprawl inside that file.
 
 Alternative considered:
+
 - Move everything to `docs/agent-rules/` and leave only a pointer in `AGENTS.md`.
 - Rejected because many agents and IDE integrations are biased toward reading `AGENTS.md` first and may miss a too-thin pointer file.
 
 ### Decision: Introduce a canonical rule index with deterministic loading semantics
 
 `docs/agent-rules/INDEX.md` becomes the dispatcher for governance rules. The index defines:
+
 - the mandatory always-load rule set
 - applicability signals for domain-specific files
 - load order and precedence
@@ -51,12 +56,14 @@ Alternative considered:
 This keeps task routing deterministic instead of relying on the model to infer which long documents to read.
 
 Alternative considered:
+
 - Let agents discover rule files heuristically by file names.
 - Rejected because that is not deterministic across models and creates drift over time.
 
 ### Decision: Use YAML frontmatter for every rule artifact
 
 Each `docs/agent-rules/*.md` file will include frontmatter fields such as:
+
 - `id`
 - `title`
 - `always_load`
@@ -70,6 +77,7 @@ Each `docs/agent-rules/*.md` file will include frontmatter fields such as:
 This makes rule selection and enforcement durable across compacted sessions and across different AI models.
 
 Alternative considered:
+
 - Encode the metadata inside Markdown prose only.
 - Rejected because prose-only rule routing is easier to forget and harder to validate.
 
@@ -84,6 +92,7 @@ The existing `github-hierarchy-cache` capability already requires cache-first gu
 ### Decision: Make GitHub metadata completeness and issue-state ambiguity explicit readiness gates
 
 The compact governance system will treat GitHub issue metadata as part of deterministic implementation readiness for public work. Applicable rule files and the always-load checklist must explicitly require:
+
 - parent resolution from cache-backed or refreshed GitHub reality
 - labels and project assignment completeness
 - blockers and blocked-by completeness
@@ -92,6 +101,7 @@ The compact governance system will treat GitHub issue metadata as part of determ
 If an issue is already marked `in progress`, the governance system must force a clarification stop before implementation continues. This keeps concurrent work from being silently duplicated across sessions.
 
 Alternative considered:
+
 - Preserve these checks only as optional planning guidance in long-form prose.
 - Rejected because those checks are exactly the kind of detail that gets dropped when contexts are compacted or when different models summarize instructions differently.
 

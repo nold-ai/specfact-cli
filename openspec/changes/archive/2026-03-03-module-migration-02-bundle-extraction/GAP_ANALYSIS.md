@@ -43,6 +43,7 @@
 Migration-03 will delete `src/specfact_cli/modules/{project,plan,backlog,...}/` directories. If any of the 85 uncategorized imports resolve to code that lives in those or adjacent directories (e.g., `specfact_cli.sync.*`, `specfact_cli.analyzers.*`, `specfact_cli.generators.*`, `specfact_cli.backlog.*`), the bundle code in specfact-cli-modules will raise `ImportError` at runtime after migration-03.
 
 The suggested initial categorization table labels these as likely MIGRATE candidates:
+
 - `analyzers.*` → codebase/project
 - `sync.*` → codebase/project
 - `backlog.*` → backlog
@@ -54,6 +55,7 @@ If these are MIGRATE but have not yet been moved into specfact-cli-modules when 
 ### Required action
 
 Section 19.1.1–19.1.4 (full import categorization) **must complete before gate 17.8** is run and accepted. Migration-03 may not begin implementation until all MIGRATE-tier items are either:
+
 - (a) migrated to specfact-cli-modules (preferred), or
 - (b) confirmed as CORE with documented rationale (stays in specfact-cli)
 
@@ -70,9 +72,11 @@ Section 19.1.1–19.1.4 (full import categorization) **must complete before gate
 ### Finding
 
 Migration-02 places `__getattr__` re-export shims at:
+
 ```
 src/specfact_cli/modules/<name>/src/<name>/__init__.py
 ```
+
 These shims delegate `from specfact_cli.modules.validate import X` to `from specfact_codebase.validate import X` and emit a `DeprecationWarning`.
 
 Migration-02's deprecation notice states: "removal in next major version."
@@ -88,6 +92,7 @@ Additionally: migration-02 says "one major version cycle" for shim removal, but 
 ### Required action
 
 Migration-03's proposal must be updated to:
+
 1. Explicitly state that the `specfact_cli.modules.*` Python import shims are removed as part of this change
 2. Add a "Migration path for import consumers" section to its documentation update
 3. Justify what "one major version cycle" means in this context (version series reference)
@@ -110,6 +115,7 @@ Migration-03's proposal must be updated to:
 | migration-03 | Wave 4 (after 02) | "Backward-compat flat command shims registered by `bootstrap.py` in module-migration-01" |
 
 Both changes claim to remove the flat command shim layer. CHANGE_ORDER.md places migration-04 **before** migration-03 in the wave order. If migration-04 is implemented first and removes `FLAT_TO_GROUP` and `_make_shim_loader()` from `module_packages.py`, migration-03's flat shim removal claim will either:
+
 - Fail (already deleted)
 - Silently do nothing (if the code is gone)
 - Create confusion about what migration-03 is actually removing from `bootstrap.py`
@@ -136,11 +142,13 @@ The distinction between `module_packages.py` (migration-04 target) and `bootstra
 ### Finding
 
 Migration-02's "Handoff to migration-03 and migration-04" section defines migration-02 as complete when:
+
 1. specfact-cli PR merged to dev
 2. specfact-cli-modules five bundles merged
 3. Migration-complete gate passes (17.8)
 
 But tasks.md sections 18–23 (≈50 sub-tasks) remain `[ ]` pending and live inside migration-02's task file. This creates two bad outcomes:
+
 - **Option A**: Migration-02 stays open indefinitely while sections 18–23 are worked through → blocks the "non-reversible gate" from being accepted → blocks migration-03
 - **Option B**: Migration-02 is closed at 17.8 with 18–23 silently abandoned → specfact-cli-modules permanently lacks quality parity
 
@@ -161,6 +169,7 @@ Create a dedicated follow-up change `module-migration-05-modules-repo-quality` t
 ### Finding
 
 After migration-03 closes, specfact-cli-modules is the canonical home for 17 modules. A developer fixing a bug in `specfact_backlog` after migration-03 will find:
+
 - No `hatch run contract-test` (`@icontract` / CrossHair validation)
 - No coverage threshold enforcement
 - No `hatch run smart-test` (incremental test runner)
@@ -189,6 +198,7 @@ At minimum, sections 21 (PR orchestrator workflow) and 22 (root config files —
 ### Finding
 
 `validate-modules-repo-sync.py --gate` verifies:
+
 - All 74 files present in specfact-cli-modules: ✅
 - Content differences accepted with `SPECFACT_MIGRATION_CONTENT_VERIFIED=1`: ✅
 
@@ -197,9 +207,11 @@ There is no automated step that exercises bundle code through the **installed bu
 ### Required action
 
 Add to gate checklist (task 17.8) a behavioral smoke test step:
+
 ```bash
 hatch test -- tests/unit/bundles/ tests/integration/test_bundle_install.py -v
 ```
+
 This verifies the bundle lifecycle (install, official-tier verify, dep resolution) and bundle layout, which exercises the canonical bundle paths rather than shims.
 
 **Updated in tasks.md section 17.8.**
@@ -233,6 +245,7 @@ Assign residual decoupling cleanup to a dedicated change: `module-migration-06-c
 ### Finding
 
 All five bundles are currently version-locked to core's minor version (e.g., 0.29.0). After migration-03 enables independent development in specfact-cli-modules, bundles and core will have independent release cycles. No policy exists for:
+
 - Minimum/maximum acceptable divergence between a bundle version and core's `core_compatibility` range
 - What constitutes a patch vs minor vs major bump for a bundle (e.g., "adding a command = minor, fixing a bug = patch, changing a public API = major")
 - How a bundle consumer pins versions against `core_compatibility`

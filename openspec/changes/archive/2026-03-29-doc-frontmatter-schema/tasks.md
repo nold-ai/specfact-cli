@@ -3,6 +3,7 @@
 ## TDD / SDD order (enforced)
 
 Per config.yaml and design.md, this change follows strict TDD-first ordering:
+
 1. Spec deltas first (already created in specs/)
 2. Tests second (expect failure initially)
 3. Code last (implement to pass tests)

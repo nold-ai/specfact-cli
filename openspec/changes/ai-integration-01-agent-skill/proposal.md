@@ -2,15 +2,9 @@
 
 ## Why
 
-
-
-
 AI IDEs generate 41% of all code with zero specification validation. No spec-driven tool offers a Skills-first integration that keeps context usage near-zero until activated. Agent Skills — adopted by 26+ platforms (Claude Code, Copilot, Cursor, Windsurf, Gemini CLI, Codex) in under two months — provide the most context-efficient integration path: ~80 tokens at rest vs 13,647+ tokens for MCP servers. A SpecFact Agent Skill teaches AI agents when and how to invoke SpecFact validation, making specification intelligence available across the entire AI IDE ecosystem with a single implementation.
 
 ## What Changes
-
-
-
 
 - **NEW**: Agent Skill at `skills/specfact/SKILL.md` following the open standard:
   - YAML frontmatter: name, description, allowed-tools (bash/terminal)
@@ -28,6 +22,7 @@ AI IDEs generate 41% of all code with zero specification validation. No spec-dri
 - **NEW**: Skill bundled resources: common spec patterns, validation result interpretation guide, example workflows
 
 ## Capabilities
+
 ### New Capabilities
 
 - `agent-skill-spec-intelligence`: Agent Skill (open standard, 26+ platform support) for specification validation, traceability queries, and requirements coverage — ~80 tokens at rest, ~2,000-3,000 tokens on activation. Includes composable sub-skills for PR assessment, architecture checking, and coverage reporting.
@@ -35,7 +30,6 @@ AI IDEs generate 41% of all code with zero specification validation. No spec-dri
 ### Modified Capabilities
 
 (none)
-
 
 ---
 

@@ -51,14 +51,45 @@ Before **designing or materially scoping** a new OpenSpec change, read these wik
 - `wiki/graph.md` to see what the change unblocks or depends on
 - The relevant concept page under `wiki/concepts/` (for example `wiki/concepts/clean-code-principles.md`)
 
-If the sibling checkout or a given wiki file is missing, continue without it; absence of the internal repo is not a blocking error for public-repo work.
+If the sibling checkout or a given wiki file is missing, continue without it for **reading** design context; see **When the internal wiki checkout is missing** below for **writing** the wiki mirror.
+
+### Wiki mirror for active OpenSpec changes (`wiki/sources/<change-id>.md`)
+
+Whenever you change an **active** `openspec/changes/<change-id>/` change in a way that would mislead someone who only reads the internal wiki—for example you edit `proposal.md` (scope, **Why**, **What changes**), `design.md`, `tasks.md` story or ordering, or dependency / prerequisite text—you must also update the matching page in the internal wiki:
+
+- **Path (sibling checkout):** `../specfact-cli-internal/wiki/sources/<change-id>.md` (resolve to an absolute path when editing).
+- **Update at least:** `depends-on`, `blocks`, `external-deps`, and `status` so they match the change; adjust the short summary if the intent shifted. Align any other mirrored fields that page uses.
+- **Then**, with the internal repo as cwd:
+
+```bash
+cd ../specfact-cli-internal && python3 scripts/wiki_rebuild_graph.py
+```
+
+**Carve-out:** You do **not** need to edit the wiki for every checkbox tick or typo-only edits—only when the **story**, **scope**, or **dependency picture** changes.
+
+### When the internal wiki checkout is missing
+
+If `specfact-cli-internal` is **not** available in the expected sibling layout, **do not** imply the wiki was updated. Instead:
+
+- Add an explicit **merge checklist item** or **follow-up** such as: update `wiki/sources/<change-id>.md` (depends-on / blocks / external-deps / status / summary) and run `python3 scripts/wiki_rebuild_graph.py` from the `specfact-cli-internal` repository root.
 
 ### Internal wiki maintenance (sibling `specfact-cli-internal`)
 
-Automation for the internal wiki lives in the **sibling checkout** (`../specfact-cli-internal/` relative to this repo root), not in this repository. When that checkout exists and you **ship work** (for example after merges to `dev` or `main` that change OpenSpec or GitHub tracking), run maintenance from the **internal repo root**:
+Automation for the internal wiki lives in the **sibling checkout** (`../specfact-cli-internal/` relative to this repo root), not in this repository. The scripts assume the **process current working directory is the internal repository root**; running them from `specfact-cli` or any other directory breaks path resolution and script logic.
 
-- `python3 scripts/wiki_openspec_gh_status.py` — refresh wiki status that depends on OpenSpec / GitHub state.
-- If you changed **many** `docs/agent-rules/` frontmatter blocks or other wiki-linked metadata, also run `python3 scripts/wiki_rebuild_graph.py` so `wiki/graph.md` stays aligned with dependencies.
+When that checkout exists and you **ship work** (for example after merges to `dev` or `main` that change OpenSpec or GitHub tracking), **change directory into the internal checkout first**, then invoke Python (from this repo’s root, a typical pattern is):
+
+```bash
+cd ../specfact-cli-internal && python3 scripts/wiki_openspec_gh_status.py
+```
+
+If you changed **many** `docs/agent-rules/` frontmatter blocks or other wiki-linked metadata, also run:
+
+```bash
+cd ../specfact-cli-internal && python3 scripts/wiki_rebuild_graph.py
+```
+
+If your shell’s cwd is not this public repo root, use the correct relative or absolute path to the internal checkout instead of `../specfact-cli-internal`.
 
 Do not copy script output or wiki bodies into this public tree; commit wiki updates only in the internal repository.
 

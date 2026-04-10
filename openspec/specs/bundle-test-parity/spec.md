@@ -1,8 +1,11 @@
 # bundle-test-parity Specification
 
 ## Purpose
+
 TBD - created by archiving change module-migration-02-bundle-extraction. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Tests for bundle code live in specfact-cli-modules
 
 All tests that exercise the 17 migrated modules (or their bundle namespaces) SHALL be inventoried in specfact-cli and SHALL be present in specfact-cli-modules so that they run against the canonical bundle source in `packages/*/src/`.
@@ -39,4 +42,3 @@ specfact-cli-modules SHALL provide the same quality gates as specfact-cli for bu
 - **WHEN** CI runs on push/PR
 - **THEN** workflows SHALL run format, type-check, lint, test (and contract-test, coverage threshold where applicable)
 - **AND** Python version(s) SHALL match specfact-cli (e.g. 3.11, 3.12, 3.13) if a matrix is used
-

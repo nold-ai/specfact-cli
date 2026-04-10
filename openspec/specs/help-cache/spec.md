@@ -1,8 +1,11 @@
 # help-cache Specification
 
 ## Purpose
+
 TBD - created by archiving change arch-01-cli-modular-command-registry. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Discovery on specfact init Writes Command Metadata to ~/.specfact
 
 When the user runs **specfact init**, the CLI SHALL run a discovery step that collects all registered commands' metadata (name, help, tier, optional subcommands) and SHALL write this metadata under `~/.specfact/registry/` (e.g. `commands.json` or `commands.yaml`), including a version or hash for cache invalidation.
@@ -49,4 +52,3 @@ When the user runs **specfact init**, the CLI SHALL run a discovery step that co
 
 - Version or hash in cache file allows comparison with current runtime; if mismatch, treat cache as invalid and refresh on next init or root help
 - Running `specfact init` always refreshes cache for current version
-

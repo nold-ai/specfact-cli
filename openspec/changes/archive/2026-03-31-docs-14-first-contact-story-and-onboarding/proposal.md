@@ -10,6 +10,7 @@ get, and how to start immediately.
 The sharper product truth is that SpecFact is the validation and alignment layer for software
 delivery in the age of AI-assisted coding: it reduces drift between backlog intent, specification,
 implementation, tests, and policy. That matters in four concrete situations:
+
 - AI-assisted or “vibe-coded” greenfield work needs a validation layer so fast wins do not become
   fragile long-term liabilities.
 - Brownfield systems need reverse-engineered understanding and structured handoff into spec-first
@@ -83,8 +84,8 @@ contact.
 
 <!-- source_repo: nold-ai/specfact-cli -->
 - **GitHub Issue**: #466
-- **Issue URL**: https://github.com/nold-ai/specfact-cli/issues/466
+- **Issue URL**: <https://github.com/nold-ai/specfact-cli/issues/466>
 - **Parent Feature**: #356
-- **Parent Feature URL**: https://github.com/nold-ai/specfact-cli/issues/356
+- **Parent Feature URL**: <https://github.com/nold-ai/specfact-cli/issues/356>
 - **Last Synced Status**: open
 - **Sanitized**: true

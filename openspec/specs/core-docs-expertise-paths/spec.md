@@ -1,8 +1,11 @@
 # core-docs-expertise-paths Specification
 
 ## Purpose
+
 TBD - created by archiving change docs-13-core-nav-search-theme-roles. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Core docs SHALL expose expertise-aware or role-aware entry paths
 
 Core docs SHALL expose expertise-aware or role-aware paths that help users find the right entry points for their current level.
@@ -20,4 +23,3 @@ Core docs SHALL expose expertise-aware or role-aware paths that help users find 
 - **WHEN** a new or returning user arrives at the site
 - **THEN** the page highlights clear core-docs starting paths by task or audience
 - **AND** any module-specific depth continues to link out to the modules site rather than being duplicated in core
-

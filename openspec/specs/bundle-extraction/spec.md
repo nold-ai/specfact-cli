@@ -1,8 +1,11 @@
 # bundle-extraction Specification
 
 ## Purpose
+
 TBD - created by archiving change module-migration-02-bundle-extraction. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Each bundle has a canonical package directory in specfact-cli-modules
 
 Five bundle package directories SHALL be created in `specfact-cli-modules/packages/`, one per workflow-domain category defined by `module-migration-01`.
@@ -123,4 +126,3 @@ Every `module-package.yaml` in `src/specfact_cli/modules/*/` SHALL have its `int
 - **WHEN** `hatch run ./scripts/verify-modules-signature.py --require-signature` is run
 - **THEN** the verification SHALL fail with an explicit error naming the affected module
 - **AND** SHALL indicate whether the failure is a checksum mismatch or signature mismatch
-

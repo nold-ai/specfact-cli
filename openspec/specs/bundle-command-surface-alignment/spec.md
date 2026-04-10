@@ -1,8 +1,11 @@
 # bundle-command-surface-alignment Specification
 
 ## Purpose
+
 TBD - created by archiving change module-migration-10-bundle-command-surface-alignment. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Documented Grouped Commands Must Resolve In Installed Official Bundles
 
 The system SHALL ensure that grouped CLI commands documented for a shipped release resolve in an environment where the corresponding official bundles are installed.
@@ -50,4 +53,3 @@ The system SHALL fail validation when a documented grouped command path is missi
 - **WHEN** a documented grouped command path is not mounted by the installed bundle
 - **THEN** validation fails with the missing command path and owning bundle id
 - **AND** the report distinguishes this from help-only or docs-only command coverage.
-

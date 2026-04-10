@@ -1,8 +1,11 @@
 # daily-standup Specification
 
 ## Purpose
+
 TBD - created by archiving change daily-standup-progress-support. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Standup view
 
 The system SHALL provide a standup or progress view that lists change proposals or backlog items (by assignee or filter) with last-updated and status, and optional one-line summary for yesterday/today/blockers.
@@ -283,6 +286,7 @@ The system SHALL provide a prompt file (e.g. `resources/prompts/specfact.backlog
 The system SHALL support a `--summarize` flag on `specfact backlog daily` that produces a **prompt** (instructions plus applied filters and filtered standup output) suitable for use in an interactive slash command (e.g. `specfact.daily`) or copy-paste to Copilot, so an LLM can generate a meaningful **summary of the daily standup status**. The prompt content for item bodies and comments SHALL be provided as normalized Markdown text only (no raw HTML tags or entities), regardless of how the underlying provider stores or formats those fields.
 
 #### Scenario: --summarize outputs prompt with filters and data (Markdown-only content)
+
 - **Given**: Backlog items in the current scope (same as standup: state, iteration/sprint, assignee, limit) and the user runs `specfact backlog daily --summarize` (stdout) or `--summarize-to <path>` (write to file)
 - **When**: The command runs with the same filters as the standup view
 - **Then**: The system outputs (to stdout or to the given path) a prompt that includes: (1) brief instruction that the following data is the current standup view and the LLM should generate a concise standup summary; (2) the applied filter context (adapter, state, sprint, assignee, limit); (3) per-item data including **body (description)** and **comments (annotations)** when available, plus ID, title, status, assignees, last updated, progress, blockers, optional value score, so the LLM can produce a **meaningful** summary
@@ -555,4 +559,3 @@ The system SHALL allow posting standup comments directly from the interactive re
 - Interactive navigation includes a post action for the selected story.
 - Empty post input is rejected with a clear message.
 - Posting uses existing standup comment format and adapter capability checks.
-

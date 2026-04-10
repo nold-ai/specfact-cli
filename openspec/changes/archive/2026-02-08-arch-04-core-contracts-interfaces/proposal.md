@@ -2,11 +2,9 @@
 
 ## Why
 
-
 The modular architecture (arch-01/02/03) provides strong encapsulation for parallel module development, but the core IO contract is not formally defined or enforced. Modules can still directly import from each other and core lacks explicit protocol definitions for module behavior. To enable a true marketplace for 3rd-party and community modules, we must formalize ProjectBundle as the ONLY IO contract and enforce zero core→module dependencies through static analysis. This establishes the contract foundation that all subsequent marketplace phases build upon.
 
 ## What Changes
-
 
 - **NEW**: Create `src/specfact_cli/contracts/module_interface.py` with `ModuleIOContract` protocol defining the four core operations all modules must implement: `import_to_bundle()`, `export_from_bundle()`, `sync_with_bundle()`, and `validate_bundle()`
 - **NEW**: Add static analysis enforcement via `tests/unit/test_core_module_isolation.py` that parses AST and fails if core CLI code imports from `specfact_cli.modules.*`
@@ -16,6 +14,7 @@ The modular architecture (arch-01/02/03) provides strong encapsulation for paral
 - **NEW**: Add CI enforcement of core isolation via static analysis test
 
 ## Capabilities
+
 ### New Capabilities
 
 - `module-io-contract`: Protocol definition for module interfaces with ProjectBundle as the sole IO contract (import, export, sync, validate operations)
@@ -39,7 +38,6 @@ The modular architecture (arch-01/02/03) provides strong encapsulation for paral
 - **Integration points**: Module discovery, registration-time validation, future marketplace module verification
 - **Backward compatibility**: Non-breaking; adds formalized contracts to existing patterns. Existing modules work as-is but will be updated to explicitly implement the protocol.
 - **Release version**: Minor version bump (new feature/refactor, backward compatible)
-
 
 ---
 

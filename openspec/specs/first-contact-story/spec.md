@@ -1,8 +1,11 @@
 # first-contact-story Specification
 
 ## Purpose
+
 TBD - created by archiving change docs-14-first-contact-story-and-onboarding. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Canonical first-contact product story
 
 The repository and documentation entry points SHALL present one canonical product story that answers
@@ -104,4 +107,3 @@ Cross-repo traceability note: `modules.specfact.io` and the
 `nold-ai/specfact-cli-modules` `docs/index.md` SHALL either present the same first-contact story or
 provide an explicit handoff to the core docs. See `documentation-alignment/spec.md` for ownership
 and cross-site wording guidance.
-

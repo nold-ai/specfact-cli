@@ -77,7 +77,7 @@ This page is the canonical loader for repository governance instructions. `AGENT
 - [`10-session-bootstrap.md`](./10-session-bootstrap.md): startup checks, compact context loading, and stop/continue behavior
 - [`20-repository-context.md`](./20-repository-context.md): project overview, commands, architecture, and logging
 - [`30-worktrees-and-branching.md`](./30-worktrees-and-branching.md): branch protection, worktree policy, and conflict avoidance
-- [`40-openspec-and-tdd.md`](./40-openspec-and-tdd.md): OpenSpec selection, change validity, strict TDD order, and optional sibling internal wiki context for change design
+- [`40-openspec-and-tdd.md`](./40-openspec-and-tdd.md): OpenSpec selection, change validity, strict TDD order, internal wiki mirror (`wiki/sources/<change-id>.md`) when scope or dependencies shift, and optional sibling internal wiki context for change design
 - [`50-quality-gates-and-review.md`](./50-quality-gates-and-review.md): required gates, code review JSON, clean-code enforcement, module signatures
 - [`60-github-change-governance.md`](./60-github-change-governance.md): cache-first GitHub metadata, dependency completeness, and `in progress` ambiguity handling
 - [`70-release-commit-and-docs.md`](./70-release-commit-and-docs.md): versioning, changelog, docs, README, and commit signing

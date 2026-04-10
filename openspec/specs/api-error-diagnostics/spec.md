@@ -1,8 +1,11 @@
 # api-error-diagnostics Specification
 
 ## Purpose
+
 TBD - created by archiving change improve-ado-backlog-refine-error-logging. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: ADO PATCH failure debug logging
 
 When an ADO PATCH request fails (HTTP 4xx/5xx), the system SHALL log structured diagnostic data in debug mode so the failing field and server message are identifiable.
@@ -75,4 +78,3 @@ The system SHALL safely parse and truncate response bodies to avoid large logs a
 - **WHEN** building the error summary for debug log or user message
 - **THEN** the implementation uses `response.text[:N]` (e.g. 500–2000 chars) as fallback for message extraction
 - **AND** JSON parsing failures do not suppress logging; a safe string is used instead
-

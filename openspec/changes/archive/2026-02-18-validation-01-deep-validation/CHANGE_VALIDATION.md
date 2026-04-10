@@ -23,6 +23,7 @@ This is a **core CLI extension**, not a new marketplace module. Validation capab
 ## Dependencies Affected
 
 ### Optional Mode Extensions
+
 - `src/specfact_cli/commands/repro.py` — optional `--validation deep` flag (no breaking change)
 - `src/specfact_cli/validators/repro_checker.py` — optional CrossHair target list / timeout override
 

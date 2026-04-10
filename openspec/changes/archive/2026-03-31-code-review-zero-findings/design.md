@@ -9,6 +9,7 @@ No new user-facing CLI commands or API surface changes are introduced. This is a
 ## Goals / Non-Goals
 
 **Goals:**
+
 - Reduce basedpyright `reportUnknownMemberType` count from 1,531 to 0 by adding explicit type annotations to all untyped class members.
 - Eliminate all 352 `print-in-src` semgrep findings by replacing every `print()` call with `get_bridge_logger()` or `get_logger()`.
 - Add `@require` / `@ensure` / `@beartype` decorators to all 291 public functions flagged as `MISSING_ICONTRACT`.
@@ -18,6 +19,7 @@ No new user-facing CLI commands or API surface changes are introduced. This is a
 - Establish a CI gate: `specfact review` must exit 0 on every PR targeting `dev` or `main`.
 
 **Non-Goals:**
+
 - Changing any user-facing CLI command name, option, or output format.
 - Introducing new runtime dependencies.
 - Achieving CC=0 for orchestration scripts — only bring them below the error threshold (CC<16).

@@ -2,15 +2,9 @@
 
 ## Why
 
-
-
-
 The architecture integration wave introduces many parallel changes that touch shared files and interfaces (`ProjectBundle` extensions, backlog adapters, policy engine outputs). Without one umbrella integration contract, implementation drift and merge collisions are likely. This change creates a single authoritative contract and ownership model so all dependent changes can compose into one end-to-end system.
 
 ## What Changes
-
-
-
 
 - **NEW**: Define a cross-change integration contract for shared interfaces:
   - ProjectBundle extension namespaces and merge order
@@ -26,6 +20,7 @@ The architecture integration wave introduces many parallel changes that touch sh
 - **NEW**: Add integration acceptance gate definition for Wave 6+ and Wave 8 closure
 
 ## Capabilities
+
 ### New Capabilities
 
 - `cross-change-integration-contract`: A single integration contract that defines interface boundaries, ownership authority, and compatibility rules across all architecture integration changes.
@@ -33,7 +28,6 @@ The architecture integration wave introduces many parallel changes that touch sh
 ### Modified Capabilities
 
 (none)
-
 
 ---
 

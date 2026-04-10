@@ -1,8 +1,11 @@
 # speckit-version-detection Specification
 
 ## Purpose
+
 TBD - created by archiving change speckit-02-v04-adapter-alignment. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: CLI-based version detection
 
 The system SHALL attempt to detect the installed spec-kit version by invoking the `specify` CLI when available on PATH.
@@ -80,4 +83,3 @@ The system SHALL integrate version detection into the existing `SpecKitAdapter.g
 - **AND** if CLI returns `None`, falls back to heuristic detection
 - **AND** populates `ToolCapabilities.version` with the result
 - **AND** populates `ToolCapabilities.detected_version_source` with the detection method used
-

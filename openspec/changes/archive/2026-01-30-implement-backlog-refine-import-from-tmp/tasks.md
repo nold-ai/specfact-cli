@@ -10,7 +10,7 @@
 
 - [x] 2.1.1 Add function to parse refined markdown (e.g. `_parse_refined_export_markdown(content: str) -> dict[str, dict]` returning id → {body_markdown, acceptance_criteria, title?, ...}) in `backlog_commands.py` or new module `src/specfact_cli/backlog/refine_export_parser.py`
 - [x] 2.1.2 Split content by `## Item` or `---` to get per-item blocks
-- [x] 2.1.3 From each block extract **ID** (required), **Body** (from ```markdown ... ```), **Acceptance Criteria** (optional), optionally **title** and metrics
+- [x] 2.1.3 From each block extract **ID** (required), **Body** (from ```markdown ...```), **Acceptance Criteria** (optional), optionally **title** and metrics
 - [x] 2.1.4 Add unit tests for parser (export-format sample, multiple items, missing optional fields)
 - [x] 2.1.5 Run `hatch run format` and `hatch run type-check`
 

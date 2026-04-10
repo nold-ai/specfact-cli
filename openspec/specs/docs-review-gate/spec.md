@@ -1,8 +1,11 @@
 # docs-review-gate Specification
 
 ## Purpose
+
 TBD - created by archiving change docs-04-docs-review-gate-and-link-integrity. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Docs review validates published route integrity
 
 The docs review gate SHALL derive the published route for authored docs pages from Jekyll front matter and site defaults, and SHALL fail when an internal docs link points to a route that is not published by the current docs source tree.
@@ -38,4 +41,3 @@ A dedicated docs review workflow SHALL run the docs review gate for pull request
 - **WHEN** a pull request changes only `docs/**` or Markdown files
 - **THEN** the dedicated docs review workflow runs the targeted docs review suite
 - **AND** docs validation does not wait for the full code-oriented PR orchestrator to complete
-

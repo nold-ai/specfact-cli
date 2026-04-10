@@ -1,8 +1,11 @@
 # marketplace-publishing Specification
 
 ## Purpose
+
 TBD - created by archiving change module-migration-02-bundle-extraction. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: publish-module.py packages each bundle as a signed tarball
 
 The `scripts/publish-module.py` script SHALL package each bundle directory into a compressed tarball, compute its SHA-256 checksum, sign it with the project Ed25519 key, and deposit the artifact and signature into `specfact-cli-modules/registry/modules/` and `specfact-cli-modules/registry/signatures/`.
@@ -123,4 +126,3 @@ Each bundle's version SHALL be set at publish time and SHALL follow semantic ver
 - **THEN** a patch increment (e.g., `0.29.0 → 0.29.1`) SHALL be applied for fixes
 - **AND** a minor increment SHALL be applied when new sub-commands are added to the bundle
 - **AND** `publish-module.py` SHALL reject a publish if the version in `module-package.yaml` is not greater than the current `latest_version` in `index.json`
-

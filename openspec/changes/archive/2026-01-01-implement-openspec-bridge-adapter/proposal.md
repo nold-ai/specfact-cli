@@ -90,20 +90,6 @@ This change implements Phase 1 (read-only sync) of the OpenSpec integration, ena
 - ✅ Integration tests pass
 - ✅ Test coverage ≥80%
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 ---
 
 ## Source Tracking

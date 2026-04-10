@@ -64,10 +64,12 @@ def update_house_rules(skill_path: Path, runs: list[RunRecord]) -> None:
 ## File Locations
 
 In `specfact-cli` repo:
+
 - `skills/specfact-code-review/SKILL.md` — the installable skill file
 - `.cursor/rules/house_rules.mdc` — Cursor mirror (auto-maintained)
 
 In `specfact-code-review` module (`specfact-cli-modules`):
+
 - `rules/updater.py` — update algorithm
 - `rules/commands.py` — show/update/init CLI subcommands
 

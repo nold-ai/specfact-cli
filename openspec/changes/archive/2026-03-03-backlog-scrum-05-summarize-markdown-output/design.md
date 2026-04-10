@@ -37,4 +37,3 @@ At the same time, SpecFact needs to support both interactive, rich terminal sess
 - HTML-to-Markdown conversion can be lossy if not carefully tuned; we must verify typical ADO HTML patterns (paragraphs, lists, bold, links) produce acceptable Markdown for standup prompts.
 - Rich or similar libraries must be used in a way that does not leak ANSI control codes into `--summarize-to` files or CI logs; separation between rendered view and underlying text needs to be clear in implementation.
 - Normalization adds a processing step per item/comment; for very large backlogs this can affect performance, so implementation should be efficient and optionally short-circuit when input is already clean Markdown.
-

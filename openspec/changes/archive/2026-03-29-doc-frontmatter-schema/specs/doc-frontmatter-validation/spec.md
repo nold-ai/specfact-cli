@@ -106,6 +106,7 @@ The system SHALL properly handle files marked as exempt.
 ### Requirement: Validation Contracts
 
 The validation script SHALL use `@icontract` decorators for validation logic:
+
 - `@require` for input validation
 - `@ensure` for validation results
 

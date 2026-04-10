@@ -19,9 +19,11 @@ Additionally, `specfact backlog daily --post` and related comment-write paths ca
 ## Capabilities
 
 ### New Capabilities
+
 - `backlog-refine-writeback-mapping`: deterministic write-target selection for mapped provider fields during backlog refine writeback.
 
 ### Modified Capabilities
+
 - `backlog-refinement`: refine export/import contract and failure handling for mandatory item IDs.
 - `format-abstraction`: normalize ADO rich text/HTML backlog fields to markdown-like text for canonical backlog model usage.
 - `backlog-daily`: ADO comment posting/readback paths use endpoint-appropriate API versions.

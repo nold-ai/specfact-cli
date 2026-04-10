@@ -20,9 +20,11 @@ Active OpenSpec changes and linked GitHub issues still mix the old monolithic `s
 ## Capabilities
 
 ### New Capabilities
+
 - `cross-repo-backlog-alignment`: Governance rules for assigning active changes and GitHub issues to the correct repository, reconciling issue migration or recreation, and maintaining aligned Epic -> Feature -> User Story planning hierarchies across `specfact-cli` and `specfact-cli-modules`.
 
 ### Modified Capabilities
+
 - `backlog-module-ownership`: Active backlog and ceremony changes must align their repository ownership, issue tracking, and proposal scope with the canonical `specfact-backlog` bundle boundary.
 - `project-codebase-ownership`: Active changes that describe outdated module/package ownership must be reconciled to the canonical post-migration core-versus-bundle split before implementation proceeds.
 

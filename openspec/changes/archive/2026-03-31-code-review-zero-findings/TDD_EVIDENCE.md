@@ -45,17 +45,20 @@ result above — 2522 findings on the pre-fix codebase — which the tests would
 assert against if run outside TEST_MODE.
 
 **Proxy evidence command (pre-fix):**
+
 ```
 hatch run specfact code review run --scope full --json --out /tmp/baseline-review.json
 ```
+
 **Timestamp:** 2026-03-18 21:31:57 UTC
 **Result:** FAIL — 2522 findings, overall_verdict: FAIL
-  - test_review_overall_verdict_pass → would FAIL (verdict=FAIL, not PASS)
-  - test_zero_basedpyright_unknown_member_type → would FAIL (1515 findings)
-  - test_zero_semgrep_print_in_src → would FAIL (352 findings)
-  - test_zero_missing_icontract → would FAIL (291 findings)
-  - test_zero_radon_cc_error_band → would FAIL (202 CC>=16 findings)
-  - test_zero_tool_errors → PASS (tool_error fixed by .pylintrc in task 1.4)
+
+- test_review_overall_verdict_pass → would FAIL (verdict=FAIL, not PASS)
+- test_zero_basedpyright_unknown_member_type → would FAIL (1515 findings)
+- test_zero_semgrep_print_in_src → would FAIL (352 findings)
+- test_zero_missing_icontract → would FAIL (291 findings)
+- test_zero_radon_cc_error_band → would FAIL (202 CC>=16 findings)
+- test_zero_tool_errors → PASS (tool_error fixed by .pylintrc in task 1.4)
 
 ---
 
@@ -115,20 +118,23 @@ hatch run specfact code review run --scope full --json --out /tmp/baseline-revie
 **Command:** `python3 -m pytest tests/unit/specfact_cli/test_dogfood_self_review.py -q`
 **Timestamp:** 2026-03-18 22:58:00 UTC
 **Result:** PASS (expected skips under `TEST_MODE=true`)
-  - 6 tests collected
-  - 6 tests skipped by design because CI test mode suppresses the live review invocation
+
+- 6 tests collected
+- 6 tests skipped by design because CI test mode suppresses the live review invocation
 
 **Command:** `basedpyright --outputjson modules/bundle-mapper/src/app.py scripts/verify-bundle-published.py`
 **Timestamp:** 2026-03-18 22:56:00 UTC
 **Result:** PASS with 0 errors, 2 warnings
-  - fixed `reportCallIssue` mismatches in `modules/bundle-mapper/src/app.py`
-  - fixed `reportOptionalMemberAccess` issues in `scripts/verify-bundle-published.py`
+
+- fixed `reportCallIssue` mismatches in `modules/bundle-mapper/src/app.py`
+- fixed `reportOptionalMemberAccess` issues in `scripts/verify-bundle-published.py`
 
 **Command:** `basedpyright --outputjson <branch-touched light files>`
 **Timestamp:** 2026-03-18 22:59:00 UTC
 **Result:** PASS with 0 errors, 1103 warnings
-  - branch-local hard errors reduced from 5 to 0 in the touched light-file set
-  - largest remaining warning clusters are `module_registry/src/commands.py`, `adapters/ado.py`, `adapters/github.py`, and `cli.py`
+
+- branch-local hard errors reduced from 5 to 0 in the touched light-file set
+- largest remaining warning clusters are `module_registry/src/commands.py`, `adapters/ado.py`, `adapters/github.py`, and `cli.py`
 
 ---
 
@@ -145,7 +151,8 @@ hatch run specfact code review run --scope full --json --out /tmp/baseline-revie
 **Command:** `hatch run basedpyright src/specfact_cli/adapters/backlog_base.py src/specfact_cli/adapters/ado.py`
 **Timestamp:** 2026-03-23T00:45:37+01:00
 **Result:** PASS — `0 errors, 0 warnings, 0 notes`
-  - cleared the remaining `reportUnknownMemberType` warnings in `src/specfact_cli/adapters/backlog_base.py`
+
+- cleared the remaining `reportUnknownMemberType` warnings in `src/specfact_cli/adapters/backlog_base.py`
 
 **Command:** `hatch run radon cc -s -n C src/specfact_cli/adapters/ado.py`
 **Timestamp:** 2026-03-23T00:45:37+01:00
@@ -154,10 +161,11 @@ hatch run specfact code review run --scope full --json --out /tmp/baseline-revie
 **Command:** `hatch run specfact code review run --scope full`
 **Timestamp:** 2026-03-23 00:45:44 +0100 start / 2026-03-23 00:46:20 +0100 finish
 **Result:** PASS — `Review completed with no findings.`
-  - Verdict: `PASS`
-  - CI exit: `0`
-  - Score: `115`
-  - Reward delta: `35`
+
+- Verdict: `PASS`
+- CI exit: `0`
+- Score: `115`
+- Reward delta: `35`
 
 ---
 
@@ -166,8 +174,9 @@ hatch run specfact code review run --scope full --json --out /tmp/baseline-revie
 **Command:** `hatch run python -c "from pathlib import Path; from specfact_cli.registry.module_installer import get_bundled_module_metadata, verify_module_artifact; meta=get_bundled_module_metadata()['bundle-mapper']; print(verify_module_artifact(Path('modules/bundle-mapper'), meta, allow_unsigned=True, require_integrity=True))"`
 **Timestamp:** 2026-03-23T00:59:25+01:00
 **Result:** PASS — `True`
-  - aligned runtime artifact verification with the module signing payload by excluding `tests/` from hashed module directories
-  - confirmed the manually re-signed `modules/bundle-mapper/module-package.yaml` now passes bundled-module integrity checks
+
+- aligned runtime artifact verification with the module signing payload by excluding `tests/` from hashed module directories
+- confirmed the manually re-signed `modules/bundle-mapper/module-package.yaml` now passes bundled-module integrity checks
 
 **Command:** `hatch run basedpyright src/specfact_cli/templates/specification_templates.py src/specfact_cli/registry/module_installer.py tests/integration/test_command_package_runtime_validation.py tests/unit/scripts/test_verify_bundle_published.py`
 **Timestamp:** 2026-03-23T00:59:25+01:00
@@ -176,14 +185,16 @@ hatch run specfact code review run --scope full --json --out /tmp/baseline-revie
 **Command:** `hatch run pytest tests/integration/test_command_package_runtime_validation.py::test_command_audit_help_cases_execute_cleanly_in_temp_home -q`
 **Timestamp:** 2026-03-23 ~01:00 CET
 **Result:** PASS — `1 passed in 23.57s`
-  - optimized the command-audit proof by seeding marketplace modules from local package fixtures and running `help-only` audit cases in-process while keeping fixture-backed cases subprocess-isolated
+
+- optimized the command-audit proof by seeding marketplace modules from local package fixtures and running `help-only` audit cases in-process while keeping fixture-backed cases subprocess-isolated
 
 **Command:** `hatch run pytest tests/unit/scripts/test_verify_bundle_published.py tests/unit/specfact_cli/test_module_boundary_imports.py tests/unit/templates/test_specification_templates.py tests/integration/test_command_package_runtime_validation.py -q`
 **Timestamp:** 2026-03-23 ~01:00 CET
 **Result:** PASS — `29 passed in 27.48s`
-  - `verify-bundle-published` tests updated to assert structured log output instead of stdout
-  - stale core-repo sync runtime unit tests removed to satisfy module-boundary migration gate
-  - implementation-plan template contract helper fixed so factory calls no longer fail with unset condition arguments
+
+- `verify-bundle-published` tests updated to assert structured log output instead of stdout
+- stale core-repo sync runtime unit tests removed to satisfy module-boundary migration gate
+- implementation-plan template contract helper fixed so factory calls no longer fail with unset condition arguments
 
 ---
 
@@ -192,18 +203,21 @@ hatch run specfact code review run --scope full --json --out /tmp/baseline-revie
 **Command:** `hatch run pytest tests/unit/tools/test_smart_test_coverage.py -q -k popen_stream_to_log_streams_to_stdout_and_log_file`
 **Timestamp:** 2026-03-23T01:15:35+01:00
 **Result:** FAIL — `1 failed, 75 deselected`
-  - failure reproduced the CI regression after switching the workflow to direct `python tools/smart_test_coverage.py run --level full`
-  - `_popen_stream_to_log()` wrote subprocess lines into the persistent log buffer, but `captured.out` stayed empty, so GitHub Actions no longer showed live pytest progress
+
+- failure reproduced the CI regression after switching the workflow to direct `python tools/smart_test_coverage.py run --level full`
+- `_popen_stream_to_log()` wrote subprocess lines into the persistent log buffer, but `captured.out` stayed empty, so GitHub Actions no longer showed live pytest progress
 
 **Command:** `hatch run pytest tests/unit/tools/test_smart_test_coverage.py -q -k popen_stream_to_log_streams_to_stdout_and_log_file`
 **Timestamp:** 2026-03-23T01:16:48+01:00
 **Result:** PASS — `1 passed, 75 deselected`
-  - `_popen_stream_to_log()` now tees each subprocess line to stdout while still appending it to the persistent log file
+
+- `_popen_stream_to_log()` now tees each subprocess line to stdout while still appending it to the persistent log file
 
 **Command:** `hatch run pytest tests/unit/tools/test_smart_test_coverage.py tests/unit/tools/test_smart_test_coverage_enhanced.py -q`
 **Timestamp:** 2026-03-23T01:16:48+01:00
 **Result:** PASS — `107 passed in 1.70s`
-  - verified the stdout tee does not break the existing smart-test runner behaviors around full, unit, folder, integration, fallback, and threshold handling
+
+- verified the stdout tee does not break the existing smart-test runner behaviors around full, unit, folder, integration, fallback, and threshold handling
 
 **Command:** `hatch run basedpyright tools/smart_test_coverage.py`
 **Timestamp:** 2026-03-23T01:16:48+01:00
@@ -216,18 +230,21 @@ hatch run specfact code review run --scope full --json --out /tmp/baseline-revie
 **Command:** `HOME=/tmp/specfact-ci-empty-home SPECFACT_MODULES_REPO=/home/dom/git/nold-ai/specfact-cli-modules PYTHONPATH=/home/dom/git/nold-ai/specfact-cli-worktrees/bugfix/code-review-zero-findings/src:/home/dom/git/nold-ai/specfact-cli-worktrees/bugfix/code-review-zero-findings /home/dom/git/nold-ai/specfact-cli/.venv/bin/python -m pytest tests/integration/test_command_package_runtime_validation.py -q -k test_command_audit_help_cases_execute_cleanly_in_temp_home`
 **Timestamp:** 2026-03-23T01:26:45+01:00
 **Result:** FAIL — `1 failed, 1 deselected in 13.31s`
-  - reproduced the GitHub Actions failure under a clean `HOME`
-  - the optimized in-process `help-only` path reused a root CLI app that had been imported against the original process home, so bundle commands like `project`, `spec`, `code`, `backlog`, and `govern` were missing even though the temp-home marketplace modules had been seeded correctly
+
+- reproduced the GitHub Actions failure under a clean `HOME`
+- the optimized in-process `help-only` path reused a root CLI app that had been imported against the original process home, so bundle commands like `project`, `spec`, `code`, `backlog`, and `govern` were missing even though the temp-home marketplace modules had been seeded correctly
 
 **Command:** `hatch run pytest tests/integration/test_command_package_runtime_validation.py -q`
 **Timestamp:** 2026-03-23T01:26:45+01:00
 **Result:** PASS — `2 passed in 24.87s`
-  - the help-only audit now rebuilds the existing root Typer app once per temp-home test run after resetting `CommandRegistry` and pointing discovery/installer roots at the temporary home
+
+- the help-only audit now rebuilds the existing root Typer app once per temp-home test run after resetting `CommandRegistry` and pointing discovery/installer roots at the temporary home
 
 **Command:** `HOME=/tmp/specfact-ci-empty-home SPECFACT_MODULES_REPO=/home/dom/git/nold-ai/specfact-cli-modules PYTHONPATH=/home/dom/git/nold-ai/specfact-cli-worktrees/bugfix/code-review-zero-findings/src:/home/dom/git/nold-ai/specfact-cli-worktrees/bugfix/code-review-zero-findings /home/dom/git/nold-ai/specfact-cli/.venv/bin/python -m pytest tests/integration/test_command_package_runtime_validation.py -q -k test_command_audit_help_cases_execute_cleanly_in_temp_home`
 **Timestamp:** 2026-03-23T01:26:45+01:00
 **Result:** PASS — `1 passed, 1 deselected in 14.19s`
-  - confirms the CI-equivalent clean-home environment now sees the seeded workflow bundles during the fast in-process help audit path
+
+- confirms the CI-equivalent clean-home environment now sees the seeded workflow bundles during the fast in-process help audit path
 
 **Command:** `hatch run basedpyright tests/integration/test_command_package_runtime_validation.py`
 **Timestamp:** 2026-03-23T01:26:45+01:00

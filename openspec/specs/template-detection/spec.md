@@ -1,8 +1,11 @@
 # template-detection Specification
 
 ## Purpose
+
 TBD - created by archiving change add-template-driven-backlog-refinement. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Template Detection Engine
 
 The system SHALL detect which template (if any) a backlog item matches, returning confidence scores and missing fields.
@@ -132,4 +135,3 @@ The system SHALL support filtering backlog items by iteration, sprint, and relea
 
 - **WHEN** a backlog item is created from GitHub with milestone "Sprint 1"
 - **THEN** the system extracts sprint "Sprint 1" into normalized field, preserving original milestone data in provider_fields
-

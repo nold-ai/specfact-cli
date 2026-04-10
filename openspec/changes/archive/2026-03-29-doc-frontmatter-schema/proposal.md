@@ -5,6 +5,7 @@
 The repository has extensive documentation but lacks a mechanism to track ownership and ensure documentation stays aligned with source code changes. This leads to documentation drift where docs become outdated when source files change, creating maintenance burden and potential misinformation for developers and users.
 
 The goal is to implement a frontmatter-based ownership model that:
+
 - Clearly defines which module owns each documentation file
 - Tracks which source files each doc should stay synchronized with
 - Provides validation to prevent metadata drift

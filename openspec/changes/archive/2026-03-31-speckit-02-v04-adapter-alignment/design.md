@@ -3,6 +3,7 @@
 The `SpecKitAdapter` (in `src/specfact_cli/adapters/speckit.py`) was built when spec-kit had a simple layout: `specs/` or `.specify/specs/` directories containing `spec.md`, `plan.md`, `tasks.md`, and an optional `.specify/memory/constitution.md`. The adapter detects these directories, delegates parsing to `SpecKitScanner`, conversion to `SpecKitConverter`, and exposes `ToolCapabilities` with `version=None` and two sync modes.
 
 Spec-Kit v0.4.3 now has:
+
 - 7+ slash commands (was 4)
 - 46 community extensions with their own commands, loaded from `extensions/catalog.community.json`
 - A pluggable preset system in `presets/` with catalog resolution (v0.3.0+)
@@ -16,6 +17,7 @@ The adapter, scanner, capabilities model, and bridge config presets all need upd
 ## Goals / Non-Goals
 
 **Goals:**
+
 - Detect and model spec-kit extensions installed in a target repository
 - Parse extension catalogs to expose extension-provided commands to SpecFact sync
 - Detect spec-kit version via CLI probe or directory heuristics
@@ -25,6 +27,7 @@ The adapter, scanner, capabilities model, and bridge config presets all need upd
 - Maintain backward compatibility with repos using older spec-kit versions (pre-0.3.0)
 
 **Non-Goals:**
+
 - Executing spec-kit extensions from SpecFact (we detect and model, not invoke)
 - Managing spec-kit presets (read-only detection)
 - Replacing spec-kit's own sync/reconcile extensions (we coordinate, not compete)
@@ -43,6 +46,7 @@ Parse `extensions/catalog.community.json` and `extensions/catalog.core.json` as 
 ### D2: Version detection with graceful degradation
 
 Three-tier version detection strategy:
+
 1. **CLI probe** (best): Run `specify --version` if CLI is on PATH — returns exact version
 2. **Directory heuristics** (good): `presets/` dir → `>=0.3.0`; `extensions/` dir → `>=0.2.0`; `.specify/` dir only → `>=0.1.0`
 3. **Unknown** (fallback): `version=None` — same as today, no features gated
@@ -104,6 +108,7 @@ Extension commands (e.g., `/speckit.reconcile.run`, `/speckit.sync.detect`) are 
 ### D6: Scanner detects new directories without requiring spec-kit CLI
 
 `SpecKitScanner` adds detection for:
+
 - `extensions/` directory → extension catalog files
 - `presets/` directory → preset catalog files
 - `.extensionignore` → extension exclusion rules

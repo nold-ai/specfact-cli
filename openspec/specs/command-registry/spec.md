@@ -1,8 +1,11 @@
 # command-registry Specification
 
 ## Purpose
+
 TBD - created by archiving change arch-01-cli-modular-command-registry. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: CommandRegistry with Lazy Load
 
 The CLI SHALL provide a **CommandRegistry** that registers command groups by name with a loader and metadata, and resolves the Typer app only when requested (lazy load).
@@ -56,4 +59,3 @@ The CLI SHALL support a **CommandMetadata** model (or equivalent dict schema) wi
 
 - Metadata is stored at registration time
 - Accessing metadata does not trigger module load
-

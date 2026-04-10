@@ -2,13 +2,11 @@
 
 ## Why
 
-
 The released `v0.40.x` CLI command surface does not fully match the documented grouped command API. Several command implementations exist inside official bundles such as `specfact-project` and `specfact-spec`, but the installed bundle command trees do not expose the documented paths at runtime. This creates a release-quality gap: README/site/blog examples describe commands that fail with `No such command ...`, while users can only discover the subset currently mounted by the bundle root apps.
 
 This must be treated as a product/runtime alignment issue first, not just a docs refresh. Release documentation must match shipped behavior, and intended commands that are already implemented in bundle source should either be exposed correctly or removed from the documented surface explicitly.
 
 ## What Changes
-
 
 - Audit the documented grouped command surface against the installed official bundle command trees for `project`, `spec`, and any other affected bundles.
 - Expose implemented-but-unreachable commands through the official bundle registration/runtime surface where they are intended to be public.
@@ -17,11 +15,13 @@ This must be treated as a product/runtime alignment issue first, not just a docs
 - Align README/docs/release-content references so `v0.40.x` documentation reflects the actual shipped command surface.
 
 ## Capabilities
+
 ### New Capabilities
 
 - `bundle-command-surface-alignment`: Official bundle command trees match the documented grouped CLI surface for shipped releases.
 
 ## Acceptance Criteria
+
 - Installed official bundles expose documented grouped commands such as `specfact code import`, `specfact project plan ...`, and `specfact spec generate ...` when those commands are intended to be public in `v0.40.x`.
 - If a command path is intentionally not part of the shipped runtime surface, README/docs/release content no longer describe it as available.
 - Runtime validation fails when a documented grouped command path is missing from the installed official bundle command tree.
@@ -29,11 +29,11 @@ This must be treated as a product/runtime alignment issue first, not just a docs
 - Validation evidence distinguishes between runtime-surface fixes and docs-only removals.
 
 ## Dependencies
+
 - `module-migration-02-bundle-extraction` established the official bundle packaging model.
 - `module-migration-06-core-decoupling-cleanup` and `module-migration-07-test-migration-cleanup` established the current post-migration command ownership baseline.
 - `cli-val-07-command-package-runtime-validation` provides the runtime audit harness that should be extended to catch this drift.
 - `backlog-module-ownership-cleanup` remains a separate cleanup scope and should not absorb unrelated `project`/`spec` bundle-surface fixes.
-
 
 ---
 

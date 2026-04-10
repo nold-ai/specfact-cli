@@ -233,7 +233,6 @@ The system SHALL prompt for sprint/iteration and parent assignment in interactiv
 
 **And**: Parent compatibility follows creation hierarchy rules with no hardcoded provider-only assumptions
 
-
 ### Requirement: Centralized retry policy for backlog adapter write operations
 
 The system SHALL apply a shared retry policy for transient failures in backlog adapter create operations so command behavior is consistent across providers.
@@ -257,7 +256,6 @@ The system SHALL apply a shared retry policy for transient failures in backlog a
 **Then**: The adapter does not retry unnecessarily
 
 **And**: The failure is surfaced immediately to the caller with context
-
 
 #### Scenario: Non-idempotent create avoids ambiguous automatic retry
 
@@ -283,7 +281,6 @@ The system SHALL default template selection by adapter when user does not explic
 
 **And**: Epic/feature/story hierarchy candidates are resolved consistently for parent selection
 
-
 ### Requirement: Shared retry policy applied consistently across adapter write operations
 
 The system SHALL apply centralized retry policy to backlog adapter write operations beyond create, with operation-specific ambiguity safety.
@@ -305,7 +302,6 @@ The system SHALL apply centralized retry policy to backlog adapter write operati
 **Then**: Transient HTTP failures are retried with bounded backoff
 
 **And**: Non-transient failures are surfaced immediately
-
 
 ### Requirement: Parent candidate discovery must not exclude valid hierarchy parents by implicit sprint defaults
 
@@ -335,7 +331,6 @@ The system SHALL display a user-facing warning when non-idempotent create fails 
 
 **And**: CLI advises verifying backlog before retrying manually
 
-
 #### Scenario: ADO sprint selection resolves iterations using project_id context
 
 **Given**: User runs `backlog add` with `--adapter ado --project-id <org>/<project>` and adapter defaults do not already include org/project
@@ -346,7 +341,6 @@ The system SHALL display a user-facing warning when non-idempotent create fails 
 
 **And**: Available iterations are listed for selection when accessible
 
-
 #### Scenario: GitHub backlog add forwards Projects Type field configuration
 
 **Given**: `backlog add` runs with GitHub adapter and template/custom config contains GitHub Projects v2 type field mapping metadata
@@ -354,7 +348,6 @@ The system SHALL display a user-facing warning when non-idempotent create fails 
 **When**: The command builds create payload for `create_issue`
 
 **Then**: It forwards provider field metadata in payload (for example `provider_fields.github_project_v2`) so the adapter can set the Projects `Type` field in addition to labels
-
 
 #### Scenario: GitHub ProjectV2 Type mapping can come from repo backlog provider settings
 
@@ -364,7 +357,6 @@ The system SHALL display a user-facing warning when non-idempotent create fails 
 
 **Then**: The command forwards that provider field configuration in create payload so adapter ProjectV2 Type mapping can run
 
-
 #### Scenario: GitHub add warns when ProjectV2 Type mapping config is absent
 
 **Given**: User runs `backlog add` with GitHub adapter and no ProjectV2 Type mapping metadata is available
@@ -372,7 +364,6 @@ The system SHALL display a user-facing warning when non-idempotent create fails 
 **When**: The command prepares create payload
 
 **Then**: The command prints a warning that GitHub ProjectV2 Type field will not be set automatically and labels/body fallback is used
-
 
 #### Scenario: GitHub custom mapping file auto-applies when present
 
@@ -382,7 +373,6 @@ The system SHALL display a user-facing warning when non-idempotent create fails 
 **Then**: The command loads `github_custom.yaml` as custom mapping/hierarchy overrides
 **And**: Parent validation and candidate filtering use those overrides
 **And**: If the file does not exist, the command falls back to default `github_projects` mapping behavior.
-
 
 #### Scenario: GitHub parent is linked using native sub-issue relationship
 

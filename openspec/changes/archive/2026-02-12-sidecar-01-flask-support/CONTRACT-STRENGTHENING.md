@@ -27,6 +27,7 @@ paths:
 ```
 
 **Issues**:
+
 - No required fields
 - No type constraints
 - No validation rules
@@ -57,6 +58,7 @@ paths:
 ```
 
 **Improvements**:
+
 - Type constraints added
 - Still missing required fields
 - No validation rules
@@ -95,6 +97,7 @@ paths:
 ```
 
 **Improvements**:
+
 - Required fields specified
 - Type constraints with validation
 - Multiple response codes
@@ -176,6 +179,7 @@ schema:
 ```
 
 **Generated Postcondition**:
+
 ```python
 @ensure(
     lambda result: 'id' in result.get('data', {}) if isinstance(result.get('data'), dict) else True,
@@ -201,6 +205,7 @@ properties:
 ```
 
 **Generated Postconditions**:
+
 ```python
 @ensure(
     lambda result: isinstance(result.get('data', {}).get('id'), int) 
@@ -234,6 +239,7 @@ schema:
 ```
 
 **Generated Postcondition**:
+
 ```python
 @ensure(
     lambda result: all(isinstance(item, dict) for item in result.get('data', []))
@@ -425,6 +431,7 @@ paths:
 ```
 
 **Improvements**:
+
 - Parameter validation (id must be ≥ 1)
 - Required fields specified
 - Type constraints with validation

@@ -2,11 +2,9 @@
 
 ## Why
 
-
 Module-migration-03 removes the auth module from core and keeps only a central auth interface (token storage by provider_id). Auth for DevOps providers (GitHub, Azure DevOps) belongs with the backlog domain: users who install the backlog bundle need `specfact backlog auth azure-devops` and `specfact backlog auth github`, not a global `specfact auth`. This change implements those commands in the specfact-cli-modules backlog bundle so that after migration-03, backlog users get auth under `specfact backlog auth`.
 
 ## What Changes
-
 
 - **specfact-cli-modules (backlog bundle)**: Add a `backlog auth` subgroup to the backlog Typer app with subcommands:
   - `specfact backlog auth azure-devops` (options: `--pat`, `--use-device-code`; same behaviour as former `specfact auth azure-devops`)
@@ -17,6 +15,7 @@ Module-migration-03 removes the auth module from core and keeps only a central a
 - **specfact-cli**: No code changes in this repo; migration-03 already provides the central auth interface and removes the auth module.
 
 ## Capabilities
+
 - `backlog-auth-commands`: When the specfact-backlog bundle is installed, the CLI exposes `specfact backlog auth` with subcommands azure-devops, github, status, clear. Each subcommand uses the core auth interface for persistence. Existing tokens stored by a previous `specfact auth` (pre–migration-03) continue to work because the storage path and provider_ids are unchanged.
 
 ---

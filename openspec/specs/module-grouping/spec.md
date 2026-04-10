@@ -1,8 +1,11 @@
 # module-grouping Specification
 
 ## Purpose
+
 TBD - created by archiving change module-migration-01-categorize-and-group. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Module-package.yaml declares category metadata
 
 Every `module-package.yaml` file SHALL declare four new fields: `category`, `bundle`, `bundle_group_command`, and `bundle_sub_command`.
@@ -79,4 +82,3 @@ The registry SHALL validate the four metadata fields on load and reject manifest
 - **WHEN** the registry attempts to load the module
 - **THEN** the registry SHALL raise a `ModuleManifestError`
 - **AND** SHALL include the expected and actual values in the error message
-

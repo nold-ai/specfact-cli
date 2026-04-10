@@ -15,7 +15,7 @@ GitHub Code Scanning identified 13 security vulnerabilities in the public `specf
 ## Impact
 
 - Affected specs: None (code quality improvements, no spec changes)
-- Affected code: 
+- Affected code:
   - `src/specfact_cli/backlog/mappers/github_mapper.py`
   - `src/specfact_cli/adapters/github.py`
   - `src/specfact_cli/sync/bridge_sync.py`

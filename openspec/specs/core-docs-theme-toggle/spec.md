@@ -1,8 +1,11 @@
 # core-docs-theme-toggle Specification
 
 ## Purpose
+
 TBD - created by archiving change docs-13-core-nav-search-theme-roles. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Core docs SHALL support a persisted light/dark theme toggle
 
 Core docs SHALL support a persisted light/dark theme toggle for the docs site shell.
@@ -20,4 +23,3 @@ Core docs SHALL support a persisted light/dark theme toggle for the docs site sh
 - **WHEN** the user reads the site in either theme
 - **THEN** text, navigation, and code blocks remain readable
 - **AND** the shell styling does not obscure canonical links or content hierarchy
-

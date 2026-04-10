@@ -2,23 +2,11 @@
 
 ## Why
 
-
-
-
-
-
-
 `specfact backlog add` is still missing in installed-runtime contexts when command discovery depends on repository-local `modules/` folders. This makes behavior vary by working directory and machine.
 
 For production usage, shipped modules and their resources should be managed as user-level artifacts. We need a reliable path where `specfact module init` prepares a per-user module root (not repo-local) so command availability is stable.
 
 ## What Changes
-
-
-
-
-
-
 
 - **MODIFY**: Add a canonical user module root at `<user-home>/.specfact/modules` for installed module artifacts.
 - **MODIFY**: Ensure discovery and installer flows prefer `<user-home>/.specfact/modules` and stop treating workspace `./modules` as an automatic discovery root.
@@ -44,10 +32,10 @@ For production usage, shipped modules and their resources should be managed as u
 - **MODIFY**: Strengthen prompt resource detection/copy tests so `specfact init ide` consistently finds bundled prompt resources and installs them to project target locations.
 
 ## Capabilities
+
 - **backlog-core** (extended): User-level module availability for `backlog add` and related command surface.
 - **init/module-registry** (extended): Stable user-root module lifecycle behavior and bootstrap.
 - **ide setup** (extended): Prompt resource detection/copy parity for project prompt targets.
-
 
 ---
 

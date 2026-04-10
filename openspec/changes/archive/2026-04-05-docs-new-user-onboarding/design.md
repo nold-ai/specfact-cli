@@ -4,22 +4,26 @@ docs.specfact.io is a Jekyll static site (GitHub Pages). Source: `docs/`, front-
 on every page. Homepage is `docs/index.md`. Sidebar navigation in `docs/_layouts/default.html`.
 
 Two distinct user cohorts arrive at the docs:
+
 - **Vibe coders**: non-Python-expert, heard "validate your vibe code", want results in seconds,
   will not read installation guides. Their mental model: run one command, see something useful.
 - **Experienced developers**: understand pip, virtual envs, module systems. Current docs already
   work for this group. They are NOT the audience being lost.
 
 Testing confirms the real vibe-coder "wow" sequence:
+
 ```bash
 uvx specfact-cli init --profile solo-developer           # ~5 seconds, user-level module install
 uvx specfact-cli code review run --path . --scope full   # ~4 seconds, scored review output
 ```
+
 Total time to first result: ~10 seconds, zero pip install, zero virtual environment.
 
 This sequence works because `uvx specfact-cli init` installs modules at user level, and
 subsequent `uvx specfact-cli` invocations detect and use them.
 
 **Friction points identified through direct testing:**
+
 1. Running `uvx specfact-cli code review run --path .` without `--scope full` gives a confusing
    git-diff error ("Unable to determine changed tracked files"). Vibe coders will stop here.
 2. Running `uvx specfact-cli code review run` without init gives "Command 'code' is not installed"
@@ -33,6 +37,7 @@ This is a docs change plus a minor CLI UX improvement (error message and `--scop
 ## Goals / Non-Goals
 
 **Goals:**
+
 - Homepage leads with the 2-command vibe-coder sequence and names `code review run` explicitly
 - uvx is the hero install method; pip is secondary for users who want a persistent installation
 - "Command 'code' is not installed" error tells the user the exact init command to run
@@ -43,6 +48,7 @@ This is a docs change plus a minor CLI UX improvement (error message and `--scop
 - All current advanced content remains — just reordered
 
 **Non-Goals:**
+
 - Redesigning the Jekyll theme or sidebar
 - Adding new CLI commands beyond a minor error-message improvement
 - Rewriting modules.specfact.io

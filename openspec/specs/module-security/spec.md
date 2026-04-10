@@ -1,8 +1,11 @@
 # module-security Specification
 
 ## Purpose
+
 TBD - created by archiving change arch-06-enhanced-manifest-security. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Module artifacts SHALL be verified for integrity before installation
 
 The system SHALL verify module artifact checksums before extraction or registration.
@@ -50,4 +53,3 @@ The system SHALL require explicit allow-unsigned policy override when strict tru
 - **WHEN** user sets allow-unsigned override
 - **THEN** installer MAY continue after checksum validation
 - **AND** system SHALL emit warning/audit logs.
-

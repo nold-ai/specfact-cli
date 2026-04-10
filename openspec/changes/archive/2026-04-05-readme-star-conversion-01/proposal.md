@@ -81,7 +81,6 @@ This change restructures the README so the first screen answers four questions i
 - Restore the previous README structure and delete the evidence bundle references if the new layout
   proves less clear or creates maintenance burden
 
-
 ---
 
 ## Source Tracking

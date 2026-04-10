@@ -94,7 +94,7 @@ The sidecar venv was created with Python 3.12, but the system may not have the r
 
 ### Completed ✅
 
-2. **Add Response Structure Validation** (9.2.4): ✅ __COMPLETED__
+2. **Add Response Structure Validation** (9.2.4): ✅ **COMPLETED**
    - ✅ Parse OpenAPI response schemas
    - ✅ Validate required fields in response objects
    - ✅ Check response types match OpenAPI spec
@@ -102,7 +102,7 @@ The sidecar venv was created with Python 3.12, but the system may not have the r
    - ✅ **Enhanced**: Added array item type validation (object items, string items)
    - **Result**: Contracts now validate nested object properties and array item types
 
-3. **Add Detailed Violation Reporting** (9.3.4): ✅ __COMPLETED__
+3. **Add Detailed Violation Reporting** (9.3.4): ✅ **COMPLETED**
    - ✅ Parse CrossHair counterexample output using regex patterns
    - ✅ Extract input values that cause violations (parse key=value pairs with type inference)
    - ✅ Include counterexamples in summary reports (added to summary dict and JSON file)

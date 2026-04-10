@@ -41,7 +41,7 @@ None. Change only extends failure paths (capture response, log in debug, surface
 
 ### Recommendations for implementation (make it “really good”)
 
-1. **Actionable hint with doc link**: In implementation, include a concrete link in the hint when available (e.g. “See https://github.com/nold-ai/specfact-cli/docs/... or ado_custom.yaml”) so corporate users can resolve mapping issues without searching.
+1. **Actionable hint with doc link**: In implementation, include a concrete link in the hint when available (e.g. “See <https://github.com/nold-ai/specfact-cli/docs/>... or ado_custom.yaml”) so corporate users can resolve mapping issues without searching.
 2. **Optional --debug pointer**: Consider appending to the hint: “Run with --debug and check ~/.specfact/logs for full response and patch paths.” so users know how to get more detail when needed.
 3. **Log every failed attempt**: In the backlog-refine PATCH path there are multiple retries (omit multilineFieldsFormat, replace add with replace, HTML fallback). Call the logging helper before each retry and on final failure so the debug log shows the sequence of attempts and the final response/paths.
 4. **Highlight field name in message**: When the ADO message contains a field reference (e.g. “System.AcceptanceCriteria”), consider quoting or emphasizing it in the user message (e.g. “Field ‘System.AcceptanceCriteria’ not found. Check custom field mapping…”) so the failing field is obvious at a glance.

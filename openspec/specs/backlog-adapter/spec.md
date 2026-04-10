@@ -1,8 +1,11 @@
 # backlog-adapter Specification
 
 ## Purpose
+
 TBD - created by archiving change add-generic-backlog-abstraction. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: BacklogAdapter Interface
 
 The system SHALL provide a standard `BacklogAdapter` interface that all backlog sources (GitHub, ADO, JIRA, GitLab, etc.) must implement.
@@ -88,4 +91,3 @@ The system SHALL allow custom bridge field mappings for backlog converter workfl
 - **WHEN** custom mapping configuration is malformed
 - **THEN** converter execution SHALL continue with default mapping behavior
 - **AND** SHALL emit warning/debug context for troubleshooting.
-

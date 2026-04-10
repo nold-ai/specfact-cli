@@ -2,7 +2,6 @@
 
 ## Why
 
-
 Reporting findings is not enough; teams love tools that propose fixes they can safely apply. A patch pipeline that generates unified diffs for backlog body updates, OpenSpec proposal/spec updates, and config updates — with `--apply` (local) and `--write` (upstream) gating and idempotency for posted comments/updates — ensures zero accidental writes and trust by design.
 
 This change establishes the **`patch-mode` module** — a foundational cross-cutting module consumed by policy-engine-01 (suggest → patch), backlog-scrum-01 (standup notes patch), backlog-scrum-03 (split proposal patch), and backlog-core-02 (interactive issue preview).
@@ -27,6 +26,7 @@ modules/patch-mode/
 ```
 
 **`module-package.yaml` declares:**
+
 - `name: patch-mode`
 - `version: 0.1.0`
 - `commands: [patch apply]`
@@ -53,6 +53,7 @@ modules/patch-mode/
 ```
 
 **`module-package.yaml` declares:**
+
 - `name: patch-mode`
 - `version: 0.1.0`
 - `commands: [patch apply]`
@@ -60,7 +61,6 @@ modules/patch-mode/
 - `publisher:` + `integrity:` — arch-06 marketplace readiness
 
 ## What Changes
-
 
 - **NEW**: Patch pipeline in `modules/patch-mode/src/patch_mode/pipeline/generator.py` — generates unified diffs for: backlog issue body updates (AC improvements, missing fields), OpenSpec proposal/spec updates, config updates (policy config, mapping templates).
 - **NEW**: `--apply` + `--write` gating in `modules/patch-mode/src/patch_mode/pipeline/applier.py`: default = generate patch only; `--apply` = apply locally; `--write` = push to GitHub/ADO only with explicit confirmation.
@@ -74,7 +74,9 @@ modules/patch-mode/
 - **No changes to `cli.py`** — `patch` command group declared in `module-package.yaml`.
 
 ## PatchModeProtocol (arch-05)
+
 Other modules consume patch generation via bridge registry:
+
 ```python
 # In backlog-scrum-03 (story complexity splitting):
 patch_mode = bridge_registry.resolve(PatchModeProtocol)
@@ -85,6 +87,7 @@ if patch_mode:
 Graceful no-op when patch-mode module is not installed.
 
 ## Capabilities
+
 - **patch-mode**: Patch pipeline (generate diffs for backlog body, OpenSpec, config); `--apply` (local) and `--write` (upstream) gating; idempotent posts; `patch apply <file>`, `patch apply --write` with confirmation; `PatchModeProtocol` for bridge registry consumers.
 
 ---

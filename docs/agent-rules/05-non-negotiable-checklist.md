@@ -41,6 +41,7 @@ depends_on:
 - SHALL not auto-refine stale, superseded, or ambiguous changes without the user.
 - SHALL consult `openspec/CHANGE_ORDER.md` before creating, implementing, or archiving a change.
 - SHALL finalize completed OpenSpec changes with `openspec archive <change-id>` (OpenSpec CLI) and SHALL NOT relocate `openspec/changes/<change-id>/` by hand.
+- SHALL keep the internal wiki mirror in `specfact-cli-internal/wiki/sources/<change-id>.md` aligned when an active change’s story, scope, or dependencies change (see `docs/agent-rules/40-openspec-and-tdd.md`), or SHALL record an explicit follow-up when the sibling internal checkout is unavailable.
 - SHALL consult `.specfact/backlog/github_hierarchy_cache.md` before manual GitHub hierarchy lookup and SHALL refresh it when missing or stale.
 - SHALL require public GitHub metadata completeness before implementation when linked issue workflow applies: parent, labels, project assignment, blockers, and blocked-by relationships.
 - SHALL check whether a linked GitHub issue is already `in progress` and SHALL pause for clarification if concurrent work is possible.

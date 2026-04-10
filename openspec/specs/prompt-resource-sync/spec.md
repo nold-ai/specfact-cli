@@ -1,8 +1,11 @@
 # prompt-resource-sync Specification
 
 ## Purpose
+
 TBD - created by archiving change backlog-core-05-user-modules-bootstrap. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Prompt Resource Detection and Project Target Copy
 
 The system SHALL consistently detect bundled prompt resources and copy them to IDE-specific project target paths during IDE initialization.
@@ -20,4 +23,3 @@ The system SHALL consistently detect bundled prompt resources and copy them to I
 - **WHEN** `specfact init ide` copies templates for a selected IDE
 - **THEN** prompt files are created in the expected project target folder for that IDE
 - **AND** backlog-related prompts (including `specfact.backlog-add`) are included.
-

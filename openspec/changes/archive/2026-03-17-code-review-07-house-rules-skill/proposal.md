@@ -7,6 +7,7 @@ The review findings and ledger data are only useful if they influence future cod
 This change follows the `ai-integration-01` open Agent Skills standard — skill file at `skills/specfact-code-review/SKILL.md` in specfact-cli, installable via `specfact ide skill install --type code-review`.
 
 **ALIGNMENT NOTES (from overlap analysis):**
+
 - Skill file lives at `skills/specfact-code-review/SKILL.md` (not `.claude/skills/`) — follows ai-integration-01 standard
 - Does NOT modify `CLAUDE.md` directly — that is owned by `ai-integration-03`
 - house_rules content is the dynamic body; delivery mechanism follows ai-integration-01

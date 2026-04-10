@@ -5,11 +5,13 @@ This change defines an auditable dogfooding path proving the complete business-t
 ## Goals / Non-Goals
 
 **Goals:**
+
 - Produce objective E2E proof artifacts for the full-chain claim.
 - Ensure proof is reproducible in CI and local workflows.
 - Tie proof to release readiness and product positioning.
 
 **Non-Goals:**
+
 - No unrelated feature expansion.
 - No synthetic-only demo path; evidence must use real project artifacts.
 

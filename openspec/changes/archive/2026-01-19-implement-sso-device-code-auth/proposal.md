@@ -2,19 +2,21 @@
 
 ## Why
 
-
-
 ### Current Limitation
+
 SpecFact CLI currently supports only PAT (Personal Access Token) authentication, requiring users to manually create tokens in GitHub/Azure DevOps web interfaces. This creates friction during onboarding and adds secret management burden to users.
 
 ### Enterprise Problem
+
 Organizations with SSO requirements (Entra ID, Okta, SAML) cannot adopt SpecFact CLI because:
+
 - PATs bypass corporate SSO/MFA policies
 - No centralized identity governance
 - Creates compliance gaps in audit trails
 - Users expect device code flow (matching `az cli`, `gh cli` UX)
 
 ### Business Value
+
 - **Market Expansion**: Enables SSO-required organizations (enterprise segment)
 - **UX Parity**: Matches developer expectations set by Azure CLI and GitHub CLI
 - **Support Reduction**: Eliminates PAT-related onboarding questions
@@ -22,8 +24,6 @@ Organizations with SSO requirements (Entra ID, Okta, SAML) cannot adopt SpecFact
 - **Zero-Config**: Device code is zero-configuration for users (no secrets to manage)
 
 ## What Changes
-
-
 
 - **MODIFY**: Architecture Overview
   - This change adds device code authentication flows for both Azure DevOps and GitHub, with token storage and CLI integration.
@@ -48,6 +48,7 @@ Organizations with SSO requirements (Entra ID, Okta, SAML) cannot adopt SpecFact
 - **NEW**: CLI Integration
   - New command group: `specfact auth`
   - **Commands:**
+
     ```bash
     # Authenticate with Azure DevOps (zero-config)
     specfact auth azure-devops
@@ -71,7 +72,6 @@ Organizations with SSO requirements (Entra ID, Okta, SAML) cannot adopt SpecFact
   - 3. **Manual re-auth only (Phase 1)**: No token auto-refresh in MVP. Phase 2 adds background refresh
   - 4. **PAT fallback**: Users can still use `--pat` flag; existing workflows preserved
   - 5. **Provider detection**: Auto-detects configured provider; users can override with flags
-
 
 ---
 

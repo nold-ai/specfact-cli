@@ -28,6 +28,7 @@ This document reviews the OpenSpec bridge adapter proposal against all relevant 
 ### 1. Bridge Adapter Data Model Plan
 
 **Plan Requirements**:
+
 - ✅ Plugin-based adapter architecture (AdapterRegistry, BridgeAdapter interface)
 - ✅ No hard-coded adapter checks in core
 - ✅ No hard-coded detection logic
@@ -35,6 +36,7 @@ This document reviews the OpenSpec bridge adapter proposal against all relevant 
 - ✅ Cross-repository support via `external_base_path`
 
 **Proposal Status**:
+
 - ✅ Creates `OpenSpecAdapter` implementing `BridgeAdapter` interface
 - ✅ Registers adapter in `AdapterRegistry`
 - ⚠️ **MISMATCH**: Adds hard-coded `_is_openspec_repo()` and `_detect_openspec()` in BridgeProbe
@@ -42,6 +44,7 @@ This document reviews the OpenSpec bridge adapter proposal against all relevant 
 - ✅ Uses adapter registry in BridgeSync (mentioned but needs explicit refactoring task)
 
 **Required Fixes**:
+
 1. **Refactor BridgeProbe** to use adapter registry (section 1.6 requirement)
 2. **Refactor BridgeSync** to remove all hard-coded adapter checks
 3. **Document parser location** decision (adapter module vs shared utility)
@@ -51,12 +54,14 @@ This document reviews the OpenSpec bridge adapter proposal against all relevant 
 ### 2. OpenSpec Integration Plan
 
 **Plan Requirements**:
+
 - ✅ Phase 1: Read-only sync (OpenSpec → SpecFact)
 - ✅ Cross-repository support
 - ✅ Alignment report generation
 - ✅ Plugin-based adapter architecture
 
 **Proposal Status**:
+
 - ✅ Implements Phase 1 (read-only sync)
 - ✅ Supports cross-repository via `external_base_path`
 - ✅ Generates alignment reports
@@ -68,12 +73,14 @@ This document reviews the OpenSpec bridge adapter proposal against all relevant 
 ### 3. OpenSpec Data Model Plan
 
 **Plan Requirements**:
+
 - ✅ Change tracking accessed via adapter interface (not hard-coded paths)
 - ✅ Tool-specific metadata in `source_tracking.source_metadata`
 - ✅ Adapter decides storage location
 - ✅ No hard-coded paths in core
 
 **Proposal Status**:
+
 - ✅ Uses adapter interface for change tracking
 - ✅ Stores OpenSpec paths in `source_tracking.source_metadata`
 - ✅ Adapter handles storage location
@@ -85,18 +92,21 @@ This document reviews the OpenSpec bridge adapter proposal against all relevant 
 ### 4. OpenSpec Implementation Requirements
 
 **Plan Requirements**:
+
 - ✅ Section 1.5: Create OpenSpec Adapter (plugin-based) - **REQUIRED**
 - ✅ Section 1.6: Refactor BridgeProbe to use adapter registry - **REQUIRED**
 - ✅ Section 1.5: Update BridgeSync to use adapter registry - **REQUIRED**
 - ✅ No hard-coded adapter checks
 
 **Proposal Status**:
+
 - ✅ Section 1.5: Creates OpenSpecAdapter - **COMPLETE**
 - ✅ **FIXED**: Section 3 explicitly requires BridgeProbe refactoring to use adapter registry
 - ✅ **FIXED**: Section 6 explicitly requires BridgeSync refactoring to remove hard-coded checks
 - ✅ **FIXED**: Proposal explicitly forbids adding hard-coded detection methods
 
 **Fixes Applied**:
+
 1. ✅ **Section 3** - Added explicit tasks to refactor BridgeProbe.detect() to use adapter registry
 2. ✅ **Section 6** - Added explicit tasks to refactor BridgeSync.import_artifact() to remove hard-coded checks
 3. ✅ **Section 2** - Added requirement to add `get_capabilities()` to BridgeAdapter interface
@@ -109,6 +119,7 @@ This document reviews the OpenSpec bridge adapter proposal against all relevant 
 ### Mismatch 1: BridgeProbe Hard-Coded Detection ✅ FIXED
 
 **Original Issue**:
+
 ```python
 # ❌ BAD: Would have added hard-coded methods
 class BridgeProbe:
@@ -122,6 +133,7 @@ class BridgeProbe:
 ```
 
 **Required Pattern** (from plans):
+
 ```python
 # ✅ GOOD: Uses adapter registry
 class BridgeProbe:
@@ -138,6 +150,7 @@ class BridgeProbe:
 ```
 
 **Fix Applied**:
+
 - ✅ **Section 3** - Explicitly requires refactoring `detect()` to use adapter registry
 - ✅ **Section 3.1** - Explicitly forbids adding `_is_openspec_repo()` or `_detect_openspec()` methods
 - ✅ **Section 3.1** - Requires removing existing hard-coded Spec-Kit detection methods
@@ -149,6 +162,7 @@ class BridgeProbe:
 ### Mismatch 2: BridgeSync Hard-Coded Adapter Checks ✅ FIXED
 
 **Original Issue** (line 180):
+
 ```python
 # ❌ BAD: Hard-coded adapter check
 if self.bridge_config.adapter == AdapterType.SPECKIT:
@@ -158,6 +172,7 @@ else:
 ```
 
 **Required Pattern** (from plans):
+
 ```python
 # ✅ GOOD: Uses adapter registry
 from specfact_cli.adapters.registry import AdapterRegistry
@@ -167,6 +182,7 @@ adapter.import_artifact(artifact_key, artifact_path, project_bundle, bridge_conf
 ```
 
 **Fix Applied**:
+
 - ✅ **Section 6.1** - Explicitly requires removing `_import_speckit_artifact()` and `_import_generic_markdown()` methods
 - ✅ **Section 6.1.1** - Explicitly forbids adding `_import_openspec_artifact()` method
 - ✅ **Section 6.2** - Detailed tasks for refactoring `import_artifact()` to use adapter registry
@@ -178,9 +194,11 @@ adapter.import_artifact(artifact_key, artifact_path, project_bundle, bridge_conf
 ### Mismatch 3: Parser Location Decision ✅ FIXED
 
 **Original Proposal**:
+
 - Parser in `src/specfact_cli/sync/openspec_parser.py`
 
 **Decision Applied**:
+
 - ✅ **Section 4** - Parser location changed to `src/specfact_cli/adapters/openspec_parser.py` (adapter-specific)
 - ✅ **Proposal** - Updated to reflect parser as adapter-specific implementation detail
 - ✅ **Rationale**: Parser is adapter-specific, not shared utility, so it belongs in adapter module
@@ -192,10 +210,12 @@ adapter.import_artifact(artifact_key, artifact_path, project_bundle, bridge_conf
 ### Mismatch 4: Missing BridgeAdapter.get_capabilities() Method ✅ FIXED
 
 **Original Issue**:
+
 - BridgeAdapter interface had `detect()` method
 - Missing `get_capabilities()` method required by BridgeProbe
 
 **Required Addition**:
+
 ```python
 class BridgeAdapter(ABC):
     @abstractmethod
@@ -206,6 +226,7 @@ class BridgeAdapter(ABC):
 ```
 
 **Fix Applied**:
+
 - ✅ **Section 2** - Added requirement to add `get_capabilities()` to BridgeAdapter interface
 - ✅ **Section 2.1** - Detailed tasks for adding abstract method with contract decorators
 - ✅ **Section 5.3** - Requires implementing `get_capabilities()` in OpenSpecAdapter
@@ -220,6 +241,7 @@ All required updates have been applied to both `proposal.md` and `tasks.md`. Sum
 ### Update 1: Refactor BridgeProbe ✅ APPLIED
 
 **Status**: ✅ **Section 3** in tasks.md
+
 - ✅ Section 3.1 - Remove hard-coded detection methods (explicitly forbids OpenSpec methods)
 - ✅ Section 3.2 - Refactor `detect()` method to use adapter registry
 - ✅ Section 3.3 - Refactor `auto_generate_bridge()` to use adapter registry
@@ -230,6 +252,7 @@ All required updates have been applied to both `proposal.md` and `tasks.md`. Sum
 ### Update 2: Refactor BridgeSync ✅ APPLIED
 
 **Status**: ✅ **Section 6** in tasks.md
+
 - ✅ Section 6.1 - Remove hard-coded adapter checks (explicitly forbids OpenSpec method)
 - ✅ Section 6.2 - Refactor `import_artifact()` to use adapter registry
 - ✅ Section 6.3 - Refactor `export_artifact()` similarly
@@ -242,6 +265,7 @@ All required updates have been applied to both `proposal.md` and `tasks.md`. Sum
 ### Update 3: Parser Location Decision ✅ APPLIED
 
 **Status**: ✅ **Section 4** in tasks.md and **proposal.md**
+
 - ✅ Parser location: `src/specfact_cli/adapters/openspec_parser.py` (adapter-specific)
 - ✅ Decision documented: Parser is adapter-specific implementation detail
 - ✅ Proposal updated to reflect this decision
@@ -251,6 +275,7 @@ All required updates have been applied to both `proposal.md` and `tasks.md`. Sum
 ### Update 4: Add get_capabilities() to BridgeAdapter Interface ✅ APPLIED
 
 **Status**: ✅ **Section 2** in tasks.md
+
 - ✅ Section 2.1 - Add `get_capabilities()` method to BridgeAdapter base class
 - ✅ Section 2.2 - Implement in existing adapters (GitHubAdapter, OpenSpecAdapter)
 - ✅ Section 2.3 - Quality checks included

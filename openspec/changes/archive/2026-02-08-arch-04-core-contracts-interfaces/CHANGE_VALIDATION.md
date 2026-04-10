@@ -27,6 +27,7 @@
 ### New Interfaces Added
 
 #### ModuleIOContract Protocol
+
 - **File**: `src/specfact_cli/contracts/module_interface.py`
 - **Type**: New Protocol (structural subtyping)
 - **Methods**:
@@ -38,6 +39,7 @@
 - **Breaking**: ❌ No
 
 #### ValidationReport Model
+
 - **File**: `src/specfact_cli/models/validation.py`
 - **Type**: New Pydantic model
 - **Fields**: `status`, `violations`, `summary`
@@ -47,6 +49,7 @@
 ### Modified Interfaces
 
 #### ProjectBundle
+
 - **Old Signature**: No schema_version field
 - **New Signature**: Adds `schema_version: str = "1"` field
 - **Impact**: Backward compatible (default value provided)
@@ -54,6 +57,7 @@
 - **Dependent Files**: All code using ProjectBundle continues to work
 
 #### ModulePackageMetadata
+
 - **Old Signature**: No schema_version or protocol_operations fields
 - **New Signature**: Adds optional fields with defaults
   - `schema_version: str | None = None`
@@ -96,6 +100,7 @@ All 5 modules are updated to **implement** ModuleIOContract, not modified:
 ### Registry Updated (Non-Breaking)
 
 **module_packages.py** (`src/specfact_cli/registry/module_packages.py`)
+
 - **Change**: Add protocol compliance detection via hasattr() checks
 - **Impact**: New validation layer, existing modules work without protocol
 - **Breaking**: ❌ No
@@ -151,6 +156,7 @@ All 5 modules are updated to **implement** ModuleIOContract, not modified:
 ### proposal.md Format
 
 ✅ **Pass**
+
 - ✅ Title: `# Change: Core Contracts and Module Interface Formalization`
 - ✅ Section: `## Why` (motivation clear)
 - ✅ Section: `## What Changes` (NEW/MODIFY markers present)
@@ -161,6 +167,7 @@ All 5 modules are updated to **implement** ModuleIOContract, not modified:
 ### tasks.md Format
 
 ✅ **Pass**
+
 - ✅ TDD/SDD Order: Documented at top with enforcement note
 - ✅ Task Format: `- [ ] X.Y` checkboxes (83 tasks total)
 - ✅ Git Workflow: Task 1 = branch creation, Task 20 = PR creation
@@ -174,6 +181,7 @@ All 5 modules are updated to **implement** ModuleIOContract, not modified:
 ### specs Format
 
 ✅ **Pass**
+
 - ✅ 4 spec files created:
   - `specs/module-io-contract/spec.md` (new)
   - `specs/core-module-isolation/spec.md` (new)
@@ -186,6 +194,7 @@ All 5 modules are updated to **implement** ModuleIOContract, not modified:
 ### design.md Format
 
 ✅ **Pass**
+
 - ✅ Sections: Context, Goals/Non-Goals, Decisions, Risks/Trade-offs
 - ✅ Sequence diagram included (module registration flow)
 - ✅ Contract enforcement strategy documented
@@ -195,6 +204,7 @@ All 5 modules are updated to **implement** ModuleIOContract, not modified:
 ### Config.yaml Compliance
 
 ✅ **Pass**
+
 - ✅ TDD order enforced: Specs → Tests (expect failure) → Code
 - ✅ Contract requirements: All public APIs use @icontract + @beartype
 - ✅ Documentation: Research and review task included (Task 17)
@@ -206,6 +216,7 @@ All 5 modules are updated to **implement** ModuleIOContract, not modified:
 ## OpenSpec Validation
 
 ✅ **Pass**
+
 - **Status**: All artifacts complete (4/4)
 - **Command**: `openspec validate arch-04-core-contracts-interfaces --strict`
 - **Result**: Change 'arch-04-core-contracts-interfaces' is valid
@@ -293,6 +304,7 @@ All 5 modules are updated to **implement** ModuleIOContract, not modified:
 This change introduces formal contracts for module interfaces in a fully backward-compatible way. All validations pass, no breaking changes detected, and the implementation path is clear with comprehensive TDD-first tasks.
 
 **Next Steps**:
+
 1. Create GitHub issue (Task 19)
 2. Begin implementation following tasks.md
 3. Use `/opsx:apply` to start task execution

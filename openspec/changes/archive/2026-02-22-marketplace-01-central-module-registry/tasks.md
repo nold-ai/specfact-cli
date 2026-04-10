@@ -3,6 +3,7 @@
 ## TDD / SDD Order (Enforced)
 
 Per config.yaml, tests MUST come before implementation for any behavior-changing task. Order:
+
 1. Spec deltas (already created)
 2. Tests from spec scenarios (expect failure)
 3. Code implementation (until tests pass and behavior satisfies spec)

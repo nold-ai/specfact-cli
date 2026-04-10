@@ -3,6 +3,7 @@
 ## TDD / SDD Order (Enforced)
 
 Per config.yaml, tests MUST come before implementation for any behavior-changing task. Order:
+
 1. Spec deltas (already created)
 2. Tests from spec scenarios (expect failure)
 3. Code implementation (until tests pass and behavior satisfies spec)
@@ -114,7 +115,7 @@ Do not implement production code until tests exist and have been run (expecting 
 
 - [x] 10.3 Create PR via gh CLI
   - [x] 10.3.1 `gh pr create --base dev --head feature/arch-07-schema-extension-system --title "feat: Schema Extension System for Modular ProjectBundle Extensions (arch-07)" --body-file tmp-pr-body.md`
-  - [x] 10.3.2 PR URL: https://github.com/nold-ai/specfact-cli/pull/265
+  - [x] 10.3.2 PR URL: <https://github.com/nold-ai/specfact-cli/pull/265>
 
 - [x] 10.4 Link to project
   - [x] 10.4.1 `gh project item-add 1 --owner nold-ai --url <PR_URL>` (optional; run if project board in use)

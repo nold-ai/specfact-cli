@@ -1,8 +1,11 @@
 # devops-sync Specification
 
 ## Purpose
+
 TBD - created by archiving change add-devops-backlog-tracking. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: GitHub Issue Creation from Change Proposals
 
 The system SHALL create GitHub issues from OpenSpec change proposals automatically.
@@ -1116,4 +1119,3 @@ The system SHALL support exporting coordination artifacts from dependency analys
 **Acceptance Criteria**:
 
 - `backlog analyze-deps` can export a "dependency review packet" (Markdown); coordination artifacts (dependency contract, ROAM seed, critical path narrative) are included when applicable.
-
