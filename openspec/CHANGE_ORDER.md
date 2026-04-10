@@ -181,8 +181,8 @@ Cross-repo dependency: `docs-07-core-handoff-conversion` depends on `specfact-cl
 | Module | Order | Change folder | GitHub # | Blocked by |
 |--------|-------|---------------|----------|------------|
 | governance | 01 | cross-repo-issue-realignment | [#484](https://github.com/nold-ai/specfact-cli/issues/484) | agile-01 ✅; module-migration-11 [#408](https://github.com/nold-ai/specfact-cli/issues/408); backlog-module-ownership-cleanup |
-| governance | 02 | governance-02-github-hierarchy-cache | [#491](https://github.com/nold-ai/specfact-cli/issues/491) | governance-01 [#484](https://github.com/nold-ai/specfact-cli/issues/484); Parent Feature: [#486](https://github.com/nold-ai/specfact-cli/issues/486) |
-| governance | 03 | governance-03-deterministic-agent-governance-loading | [#494](https://github.com/nold-ai/specfact-cli/issues/494) | governance-02 [#491](https://github.com/nold-ai/specfact-cli/issues/491); Parent Feature: [#486](https://github.com/nold-ai/specfact-cli/issues/486) |
+| governance | 02 | ✅ governance-02-github-hierarchy-cache (archived `openspec/changes/archive/2026-04-09-governance-02-github-hierarchy-cache`) | [#491](https://github.com/nold-ai/specfact-cli/issues/491) | governance-01 [#484](https://github.com/nold-ai/specfact-cli/issues/484); Parent Feature: [#486](https://github.com/nold-ai/specfact-cli/issues/486) |
+| governance | 03 | ✅ governance-03-deterministic-agent-governance-loading (archived `openspec/changes/archive/2026-04-10-governance-03-deterministic-agent-governance-loading`) | [#494](https://github.com/nold-ai/specfact-cli/issues/494) | governance-02 ✅; Parent Feature: [#486](https://github.com/nold-ai/specfact-cli/issues/486) |
 
 ### Cross-cutting foundations (no hard dependencies — implement early)
 

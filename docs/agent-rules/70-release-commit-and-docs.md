@@ -40,6 +40,8 @@ depends_on:
 ## Versioning
 
 - Keep version updates in sync across `pyproject.toml`, `setup.py`, and `src/specfact_cli/__init__.py`.
+- **Automated check:** Before tagging or publishing, run `hatch run check-version-sources` (or `python scripts/check_version_sources.py`). It exits non-zero with a clear diff if `pyproject.toml`, `setup.py`, `src/__init__.py`, and `src/specfact_cli/__init__.py` disagree. The **Tests** job in `.github/workflows/pr-orchestrator.yml` runs the same script so mismatches fail CI. Pre-commit runs it whenever a version file is staged (see `scripts/pre-commit-smart-checks.sh`) instead of treating version-only commits as “safe” without verification.
+- `hatch run release` is reserved for maintainers to chain `check-version-sources` before manual release steps; extend that script if you add more release automation.
 - `feature/*` branches imply a minor bump, `bugfix/*` and `hotfix/*` imply a patch bump, and major bumps require explicit confirmation.
 
 ## Changelog

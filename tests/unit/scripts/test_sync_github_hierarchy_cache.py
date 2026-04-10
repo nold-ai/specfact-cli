@@ -36,6 +36,16 @@ def _load_script_module() -> Any:
     return module
 
 
+@pytest.fixture
+def reset_sync_github_hierarchy_module() -> None:
+    """Reload ``sync_github_hierarchy_cache`` cleanly; teardown runs even if the test fails."""
+    _load_script_module.cache_clear()
+    sys.modules.pop("sync_github_hierarchy_cache", None)
+    yield None
+    _load_script_module.cache_clear()
+    sys.modules.pop("sync_github_hierarchy_cache", None)
+
+
 def _make_issue(
     module: Any,
     *,
@@ -456,10 +466,11 @@ def test_sync_cache_malformed_state_regenerates_cache(monkeypatch: pytest.Monkey
     assert "# GitHub Hierarchy Cache" in output_path.read_text(encoding="utf-8")
 
 
-def test_default_repo_name_falls_back_when_git_unavailable(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_default_repo_name_falls_back_when_git_unavailable(
+    reset_sync_github_hierarchy_module: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """If ``git`` is missing, DEFAULT_REPO_NAME must use the checkout directory fallback."""
-    _load_script_module.cache_clear()
-    sys.modules.pop("sync_github_hierarchy_cache", None)
 
     def _no_git(*_args: Any, **_kwargs: Any) -> Any:
         raise FileNotFoundError("git not found")
@@ -469,6 +480,3 @@ def test_default_repo_name_falls_back_when_git_unavailable(monkeypatch: pytest.M
     script_path = Path(__file__).resolve().parents[3] / "scripts" / "sync_github_hierarchy_cache.py"
     expected_fallback = script_path.resolve().parents[1].name
     assert expected_fallback == module.DEFAULT_REPO_NAME
-
-    _load_script_module.cache_clear()
-    sys.modules.pop("sync_github_hierarchy_cache", None)

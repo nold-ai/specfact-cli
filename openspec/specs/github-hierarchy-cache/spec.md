@@ -2,8 +2,13 @@
 
 ## Purpose
 
-TBD - created by archiving change governance-02-github-hierarchy-cache. Update Purpose after archive.
+Epic and Feature issue metadata for this repository is cached locally so agents and contributors can resolve parent and
+child relationships without repeated GitHub lookups. This spec defines deterministic sync, on-disk layout under
+`.specfact/backlog/`, and cache-first governance rules (aligned with archived change
+`openspec/changes/archive/2026-04-09-governance-02-github-hierarchy-cache`).
+
 ## Requirements
+
 ### Requirement: Repository hierarchy cache sync
 
 The repository SHALL provide a deterministic sync mechanism that retrieves GitHub Epic and Feature issues for the current repository and writes a local hierarchy cache under ignored `.specfact/backlog/`.

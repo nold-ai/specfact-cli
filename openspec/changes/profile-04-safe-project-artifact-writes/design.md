@@ -99,6 +99,10 @@ The repo will add a gate with two signals:
 - static scan/rule: block direct writes to likely user-project artifacts from init/setup flows unless routed through the safe-write helper
 - regression tests: fixture repositories with existing user config verifying no unrelated keys are lost
 
+**Initial protected-path set (first gate):** start enforcement with `.vscode/settings.json`, `.github/copilot-instructions.md`,
+all files matching `.cursor/rules/*.mdc`, and SpecFact-owned `pyproject.toml` sections (tool tables this project controls).
+Adjust the allowlist as the helper and CI rule mature.
+
 Rationale:
 
 - Policy without enforcement will drift.

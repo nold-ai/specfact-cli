@@ -19,6 +19,9 @@ on:
       - "scripts/check-docs-commands.py"
       - "scripts/check-cross-site-links.py"
       - "scripts/check_doc_frontmatter.py"
+      - "scripts/validate_agent_rule_applies_when.py"
+      - "scripts/check_version_sources.py"
+      - "docs/agent-rules/INDEX.md"
       - "pyproject.toml"
       - ".github/workflows/docs-review.yml"
   push:
@@ -37,6 +40,9 @@ on:
       - "scripts/check-docs-commands.py"
       - "scripts/check-cross-site-links.py"
       - "scripts/check_doc_frontmatter.py"
+      - "scripts/validate_agent_rule_applies_when.py"
+      - "scripts/check_version_sources.py"
+      - "docs/agent-rules/INDEX.md"
       - "pyproject.toml"
       - ".github/workflows/docs-review.yml"
   workflow_dispatch:
@@ -78,6 +84,9 @@ jobs:
 
       - name: Validate documentation frontmatter (enforced paths; aligns with local docs-validate / pre-commit)
         run: hatch run doc-frontmatter-check
+
+      - name: Validate agent-rules applies_when canonical task signals
+        run: hatch run validate-agent-rule-signals
 
       - name: Run docs review test suites
         run: |

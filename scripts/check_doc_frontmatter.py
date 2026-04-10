@@ -6,7 +6,6 @@ from __future__ import annotations
 import datetime
 import fnmatch
 import functools
-import json
 import os
 import re
 import subprocess
@@ -353,6 +352,24 @@ def _resolve_owner_impl(owner: str, root_key: str) -> bool:
     return _find_owner_under_source_roots(owner, base_root, owner_single_segment)
 
 
+_PLAIN_YAML_SCALAR = re.compile(r"^[A-Za-z0-9_.\-/]+$")
+
+
+@beartype
+def _yaml_plain_or_quoted_scalar(value: str) -> str:
+    """Format a string as a YAML scalar (plain when unambiguous, else double-quoted)."""
+    if _PLAIN_YAML_SCALAR.fullmatch(value) and not value.startswith(("-", ":", "?", "[")):
+        return value
+    escaped = value.replace("\\", "\\\\").replace('"', '\\"')
+    return f'"{escaped}"'
+
+
+@beartype
+def _yaml_flow_inline(value: object) -> str:
+    """Serialize a Python value as an inline (flow-style) YAML fragment."""
+    return yaml.dump(value, default_flow_style=True, allow_unicode=True, width=1000).strip()
+
+
 @beartype
 @require(lambda patterns: isinstance(patterns, list), "Patterns must be list")
 @ensure(lambda result: isinstance(result, bool), "Must return bool")
@@ -424,17 +441,17 @@ def suggest_frontmatter(path: Path) -> str:
         title_guess = path.stem.replace("-", " ").title().replace('"', '\\"')
         optional_lines = ""
         if description_val is not None:
-            optional_lines += f"description: {json.dumps(description_val)}\n"
+            optional_lines += f"description: {_yaml_flow_inline(description_val)}\n"
         if keywords_val is not None:
-            optional_lines += f"keywords: {json.dumps(keywords_val)}\n"
+            optional_lines += f"keywords: {_yaml_flow_inline(keywords_val)}\n"
         if audience_val is not None:
-            optional_lines += f"audience: {json.dumps(audience_val)}\n"
+            optional_lines += f"audience: {_yaml_flow_inline(audience_val)}\n"
         if expertise_val is not None:
-            optional_lines += f"expertise_level: {json.dumps(expertise_val)}\n"
+            optional_lines += f"expertise_level: {_yaml_flow_inline(expertise_val)}\n"
         return f"""---
-layout: {json.dumps(layout_val)}
+layout: {_yaml_plain_or_quoted_scalar(layout_val)}
 title: "{title_guess}"
-permalink: {json.dumps(permalink_val)}
+permalink: {_yaml_plain_or_quoted_scalar(permalink_val)}
 {optional_lines}id: {canonical_id}
 doc_owner: specfact-cli
 tracks:

@@ -8,7 +8,9 @@ Keep the public SpecFact CLI backlog organized as a three-level GitHub hierarchy
 
 ### Requirement: GitHub Agile Feature Hierarchy
 
-The project governance workflow SHALL maintain a three-level GitHub planning hierarchy of Epic -> Feature -> User Story for the public SpecFact CLI backlog, and SHALL expose the current Epic and Feature metadata through a repo-local hierarchy cache before manual GitHub lookups are used.
+The project governance workflow SHALL maintain a three-level GitHub planning hierarchy: Epic → Feature → User Story, for
+the public SpecFact CLI backlog. It SHALL expose current Epic and Feature metadata through a repo-local hierarchy cache
+before manual GitHub lookups are used.
 
 #### Scenario: Feature issues group user stories under the correct epic
 

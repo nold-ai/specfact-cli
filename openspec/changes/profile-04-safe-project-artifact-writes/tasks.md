@@ -26,3 +26,10 @@
 - [ ] 4.4 Run `hatch run ./scripts/verify-modules-signature.py --require-signature`; if any bundled module manifests changed, bump versions, re-sign as required, and re-run verification.
 - [ ] 4.5 Ensure `.specfact/code-review.json` is fresh, remediate all findings, and record the final review command/timestamp in `TDD_EVIDENCE.md` or PR notes.
 - [ ] 4.6 Apply the appropriate version/changelog update for a bugfix release if implementation changes user-facing behavior, then open a PR to `dev` referencing the paired modules change.
+
+## 5. Worktree cleanup
+
+- [ ] 5.1 Remove the worktree used for this change (for example `git worktree remove ../specfact-cli-worktrees/bugfix/profile-04-safe-project-artifact-writes`).
+- [ ] 5.2 Delete the local branch after merge (`git branch -d bugfix/profile-04-safe-project-artifact-writes`).
+- [ ] 5.3 Prune stale worktree metadata (`git worktree prune`).
+- [ ] 5.4 Record cleanup completion in `TDD_EVIDENCE.md` alongside the 4.x verification notes.

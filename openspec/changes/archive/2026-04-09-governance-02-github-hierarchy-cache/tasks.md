@@ -1,5 +1,7 @@
 ## 1. Change setup and governance sync
 
+- [x] 1.0 Create a dedicated git worktree from `origin/dev`, run `hatch env create` in the worktree, and run pre-flight
+      `hatch run smart-test-status` and `hatch run contract-test-status` before implementation work.
 - [x] 1.1 Create and sync the GitHub issue for `governance-02-github-hierarchy-cache`, link it to the correct parent Feature, and update `openspec/CHANGE_ORDER.md` plus proposal source tracking.
 - [x] 1.2 Validate the change artifacts and capture the validation report in `openspec/changes/governance-02-github-hierarchy-cache/CHANGE_VALIDATION.md`.
 
@@ -18,3 +20,8 @@
 
 - [x] 4.1 Re-run the targeted tests and record the passing run in `openspec/changes/governance-02-github-hierarchy-cache/TDD_EVIDENCE.md`.
 - [x] 4.2 Run the required repo quality gates for the touched scope, including code review JSON refresh if stale.
+
+## 5. Post-merge cleanup
+
+- [ ] 5.1 Remove the feature worktree: `git worktree remove` (path used for this change) and `git worktree prune`.
+- [ ] 5.2 Delete the local branch after merge: `git branch -d` (branch name used for this change).

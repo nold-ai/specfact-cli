@@ -44,10 +44,17 @@ depends_on:
 - If the cache is missing or stale, rerun `python scripts/sync_github_hierarchy_cache.py`.
 - Use manual GitHub lookup only when the cache cannot answer the question after refresh.
 
+### `specfact-cli-modules` (not yet mirrored)
+
+The **`specfact-cli-modules`** repository does **not** yet ship `scripts/sync_github_hierarchy_cache.py` or the same `.specfact/backlog/*.md` / `.specfact/backlog/github_hierarchy_cache_state.json` layout as this repo.
+
+**TODO (modules repo):** Add a compatible `sync_github_hierarchy_cache.py` that produces the **same markdown structure** and **fingerprint/state JSON** (including `github_hierarchy_cache_state.json`) and follows the same **cache-first** rules described here and in `openspec/specs/github-hierarchy-cache/spec.md`, so shared tooling can rely on **identical ordering** and **deterministic rendering**.
+
 ## Public-work readiness checks
 
 Before implementation on a publicly tracked change issue:
 
+- When the hierarchy cache file exists, ensure it is **fresh** for live issue-state checks: if `github_hierarchy_cache.md` (or its companion state) is **older than about five minutes** or you cannot tell when it was generated, run `python scripts/sync_github_hierarchy_cache.py` before trusting cached labels or hierarchy for blocking decisions.
 - Verify the linked issue exists.
 - Verify its parent relationship is correct against current cache-backed GitHub reality.
 - Verify required labels are present.
@@ -56,4 +63,8 @@ Before implementation on a publicly tracked change issue:
 
 ## Concurrency ambiguity
 
-If the linked GitHub issue is already `in progress`, treat that as a blocking ambiguity. Pause implementation and ask the user to clarify whether the change is already being worked in another session. Read-only investigation may continue while implementation remains blocked.
+If the linked GitHub issue appears to be `in progress`, **do not** treat that as blocking until you have a **current** view of GitHub state:
+
+1. If `.specfact/backlog/github_hierarchy_cache.md` is missing, or was last updated **more than about five minutes ago** (or freshness is unknown), run `python scripts/sync_github_hierarchy_cache.py` so local metadata is up to date for this repository.
+2. Re-read the issue state from GitHub (for example via `gh issue view` or the refreshed cache-backed workflow your session uses) and confirm the issue is **still** `in progress`.
+3. Only **after** that verification, if it remains `in progress`, treat it as a blocking ambiguity: pause implementation and ask the user to clarify whether the change is already being worked in another session. Read-only investigation may continue while implementation remains blocked.

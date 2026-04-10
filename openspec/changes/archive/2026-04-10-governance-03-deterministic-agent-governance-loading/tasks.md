@@ -27,8 +27,12 @@
 ## 4. Validation and documentation
 
 - [x] 4.1 Re-run targeted and required quality gates until the compact-governance behavior and docs validation pass.
-- [x] 4.2 Run `hatch run specfact code review run --json --out .specfact/code-review.json` and resolve all findings, including warnings.
-Blocked in the current worktree environment because the `nold-ai/specfact-codebase` module that provides `specfact code review` is not installed.
+- [ ] 4.2 Run `hatch run specfact code review run --json --out .specfact/code-review.json` and resolve all findings, including warnings.
+
+**Waiver (task 4.2):** The mandated command is **not satisfied** in environments where the `nold-ai/specfact-codebase` module
+that provides `specfact code review` is not installed; the CLI fails immediately with a missing-module error, so
+`.specfact/code-review.json` cannot be produced here. Re-run task 4.2 in a worktree with that module available, or keep this
+waiver with maintainer approval.
 - [x] 4.3 Update user-facing documentation and navigation for the new governance artifact layout and explain how `AGENTS.md` now delegates to canonical rule files.
 - [x] 4.4 Run `openspec validate governance-03-deterministic-agent-governance-loading --strict` and resolve all issues.
 
