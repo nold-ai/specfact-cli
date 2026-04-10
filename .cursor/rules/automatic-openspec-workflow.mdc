@@ -219,6 +219,11 @@ When user requests a change, **do not write or modify any application code yet**
      - **If an issue already exists:** Sync the issue with the change (e.g. update issue body/status from proposal, ensure Development link to branch/PR). Update `proposal.md` Source Tracking section with current status (e.g. "Last Synced Status: in-progress" or "done").
    - Ensure backlog and code stay in sync: proposal Source Tracking and the GitHub issue reflect the current state of the change.
 
+4. **Archive completed changes (mandatory):**
+   - When implementation is merged or the change is otherwise complete, run `openspec archive <change-id>` from the repository root so delta specs merge into `openspec/specs/` and the change moves under `openspec/changes/archive/`.
+   - **Do not** manually move `openspec/changes/<change-id>/` into `archive/` or hand-edit archive paths.
+   - Use `-y` / `--yes` only for non-interactive flows; reserve `--skip-specs` and `--no-validate` for explicit user-confirmed exceptions (see `docs/agent-rules/40-openspec-and-tdd.md`).
+
 ## Implementation Pattern
 
 **Example workflow:**
@@ -238,7 +243,7 @@ AI (automatically):
 6. Applies: /opsx:apply <change-id>
    - Implements the change (TDD: tests first, then code)
    - Updates tasks
-7. After implementation: Verify (quality gates), validate (openspec validate), sync backlog
+7. After implementation: Verify (quality gates), validate (openspec validate), sync backlog, then archive with `openspec archive <change-id>` when done
    - Create or update GitHub issue if public repo; update proposal Source Tracking
 ```
 
@@ -284,7 +289,7 @@ This rule works alongside:
 
 - This rule applies to the **specfact-cli** codebase specifically
 - **Mandatory before any code modification:** Read and apply `openspec/config.yaml` (project context and per-artifact rules). Ensure an OpenSpec change (new or delta) exists and is validated. No code change without a corresponding change proposal unless the user explicitly opts out.
-- **Mandatory after each implementation:** Verify (quality gates), validate (`openspec validate <id> --strict`), and sync backlog (create or update GitHub issue, update proposal Source Tracking) so backlog and code stay in sync.
+- **Mandatory after each implementation:** Verify (quality gates), validate (`openspec validate <id> --strict`), and sync backlog (create or update GitHub issue, update proposal Source Tracking) so backlog and code stay in sync. **When the change is complete and merged,** run `openspec archive <change-id>` (never manual `mv` of change folders).
 - For other repositories, this rule may not apply (check repository-specific rules)
 - **Important workspace distinction:**
   - **OpenSpec changes** are stored in `specfact-cli/openspec/changes/`

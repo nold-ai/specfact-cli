@@ -37,3 +37,9 @@ Repository governance instructions SHALL direct contributors and agents to consu
 - **AND** the instructions define when the sync script must be rerun to refresh stale hierarchy metadata
 - **AND** the instructions state that the cache is local ephemeral state and must not be committed
 
+#### Scenario: Session bootstrap refreshes missing or stale cache
+
+- **WHEN** an agent starts a governance-sensitive session that depends on GitHub hierarchy metadata
+- **AND** the local hierarchy cache is missing or stale according to repository-defined freshness rules
+- **THEN** the bootstrap guidance SHALL require rerunning the hierarchy cache sync script before continuing with issue-parenting or blocker-resolution work
+- **AND** the compact governance flow SHALL treat the refresh as part of deterministic startup rather than an optional later reminder

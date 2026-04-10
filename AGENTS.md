@@ -35,6 +35,7 @@ This file is the mandatory bootstrap governance surface for coding agents workin
 - Fix SpecFact code review findings, including warnings, unless a rare explicit exception is documented.
 - Treat the clean-code compliance gate as mandatory: the review surface enforces `naming`, `kiss`, `yagni`, `dry`, and `solid` categories and blocks regressions.
 - Enforce module signatures and version bumps when signed module assets or manifests are affected.
+- Finalize completed OpenSpec changes with `openspec archive <change-id>` (see [docs/agent-rules/40-openspec-and-tdd.md](docs/agent-rules/40-openspec-and-tdd.md)); do not manually move change folders under `openspec/changes/archive/`.
 
 ## Strategic context
 

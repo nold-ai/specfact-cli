@@ -40,6 +40,7 @@ depends_on:
 - SHALL verify selected change validity against current repository reality and dependency state before implementation.
 - SHALL not auto-refine stale, superseded, or ambiguous changes without the user.
 - SHALL consult `openspec/CHANGE_ORDER.md` before creating, implementing, or archiving a change.
+- SHALL finalize completed OpenSpec changes with `openspec archive <change-id>` (OpenSpec CLI) and SHALL NOT relocate `openspec/changes/<change-id>/` by hand.
 - SHALL consult `.specfact/backlog/github_hierarchy_cache.md` before manual GitHub hierarchy lookup and SHALL refresh it when missing or stale.
 - SHALL require public GitHub metadata completeness before implementation when linked issue workflow applies: parent, labels, project assignment, blockers, and blocked-by relationships.
 - SHALL check whether a linked GitHub issue is already `in progress` and SHALL pause for clarification if concurrent work is possible.

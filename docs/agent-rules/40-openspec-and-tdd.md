@@ -70,3 +70,11 @@ If the sibling checkout or a given wiki file is missing, continue without it; ab
 ## Evidence
 
 Record the failing-before and passing-after runs in `openspec/changes/<change-id>/TDD_EVIDENCE.md`. Behavior work is blocked until failing-first evidence exists.
+
+## Archive after merge (mandatory)
+
+- When a change is implemented and merged (or otherwise complete), **finalize it only with the OpenSpec CLI** from the repository root: `openspec archive <change-id>`.
+- The CLI merges delta specs into `openspec/specs/` and moves the change to `openspec/changes/archive/<dated-prefix>-<change-id>/`. **Do not** manually `mv` or rename `openspec/changes/<change-id>/` into `archive/`.
+- Use `-y` / `--yes` only when automation must skip confirmation prompts; default is interactive confirmation.
+- Reserve `openspec archive <change-id> --skip-specs` for rare cases with no spec deltas (for example pure infrastructure or confirmed doc-only closes) with explicit user agreement.
+- Avoid `--no-validate` unless the user explicitly accepts that trade-off; default is validated archive.
