@@ -33,4 +33,4 @@ Blocked in the current worktree environment because the `nold-ai/specfact-codeba
 
 - [x] 5.1 Refresh `TDD_EVIDENCE.md` with passing-after commands and timestamps.
 - [x] 5.2 Update `openspec/CHANGE_ORDER.md` implementation status or dependency notes if anything changed during delivery.
-- [ ] 5.3 Open a PR from `feature/governance-03-deterministic-agent-governance-loading` to `dev` with spec/test/code/docs/code-review evidence.
+- [x] 5.3 Open a PR from `feature/governance-03-deterministic-agent-governance-loading` to `dev` with spec/test/code/docs/code-review evidence.
