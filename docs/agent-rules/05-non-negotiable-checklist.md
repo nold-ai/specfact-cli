@@ -35,7 +35,7 @@ depends_on:
 # Agent non-negotiable checklist
 
 - SHALL work in a git worktree unless the user explicitly overrides that rule.
-- SHALL not implement from the main checkout by default.
+- SHALL not implement from the `dev` or `main` checkout by default.
 - SHALL treat a provided OpenSpec change id as candidate scope, not automatic permission to proceed.
 - SHALL verify selected change validity against current repository reality and dependency state before implementation.
 - SHALL not auto-refine stale, superseded, or ambiguous changes without the user.
