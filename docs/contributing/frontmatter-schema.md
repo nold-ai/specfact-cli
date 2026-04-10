@@ -37,9 +37,9 @@ Files under `docs/agent-rules/` carry extra governance metadata on top of the st
 
 | Field | Type | Rules |
 | --- | --- | --- |
-| `id` | string | Stable rule identifier used by references and dependencies. |
-| `always_load` | boolean | `true` when the rule must be loaded during every applicable bootstrap. |
-| `applies_when` | list of strings | Non-empty task signals such as `session-bootstrap`, `implementation`, or `github-public-work`. |
+| `id` | string | Stable rule identifier used by references and dependencies; must be **kebab-case** (lowercase words separated by hyphens; see `RULE_ID_RE` in `scripts/check_doc_frontmatter.py`). |
+| `always_load` | boolean | `true` when the rule must be loaded during every applicable bootstrap. When `true`, runtime validation requires that `applies_when` intersects `session-bootstrap`, `implementation`, or `all` (see `_always_load_requires_bootstrap_signal` in the script). |
+| `applies_when` | list of strings | Non-empty task signals such as `session-bootstrap`, `implementation`, `all`, or `github-public-work`. If `always_load` is `true`, at least one entry must be `session-bootstrap`, `implementation`, or `all`. |
 | `priority` | integer | Non-negative ordering value used for deterministic rule loading. |
 | `blocking` | boolean | Whether the rule can stop progress when its conditions are unmet. |
 | `user_interaction_required` | boolean | Whether unmet conditions require user clarification before implementation continues. |

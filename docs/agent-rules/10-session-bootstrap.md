@@ -36,7 +36,7 @@ depends_on:
 
 1. Detect repository root, active branch, and whether the session is running in a worktree.
 2. If the session is on `dev` or `main`, do not implement until the user explicitly allows it or a worktree is created.
-3. Read `AGENTS.md`, then load the rule index and non-negotiable checklist.
+3. Confirm `AGENTS.md` is already loaded, then load the rule index and non-negotiable checklist.
 4. Determine whether the task is read-only, artifact-only, or implementation work.
 5. If GitHub hierarchy data is required, confirm `.specfact/backlog/github_hierarchy_cache.md` is present and fresh enough for the task.
 6. If the cache is missing or stale, refresh it with `python scripts/sync_github_hierarchy_cache.py`.

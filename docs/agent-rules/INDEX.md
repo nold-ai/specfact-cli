@@ -38,10 +38,11 @@ This page is the canonical loader for repository governance instructions. `AGENT
 1. Read `AGENTS.md`.
 2. Load this index.
 3. Load [`05-non-negotiable-checklist.md`](./05-non-negotiable-checklist.md).
-4. Detect repository, branch, and worktree state.
-5. Reject implementation from the `dev` or `main` checkout unless the user explicitly overrides that rule.
-6. If GitHub hierarchy metadata is needed and `.specfact/backlog/github_hierarchy_cache.md` is missing or stale, refresh it with `python scripts/sync_github_hierarchy_cache.py`.
-7. Load additional rule files from the applicability matrix below before implementation.
+4. Load [`10-session-bootstrap.md`](./10-session-bootstrap.md) (always-load; deterministic startup orchestration before enforcement).
+5. Detect repository, branch, and worktree state.
+6. Reject implementation from the `dev` or `main` checkout unless the user explicitly overrides that rule.
+7. If GitHub hierarchy metadata is needed and `.specfact/backlog/github_hierarchy_cache.md` is missing or stale, refresh it with `python scripts/sync_github_hierarchy_cache.py`.
+8. Load additional rule files from the applicability matrix below before implementation (beyond the always-load set, which already includes this index, the checklist, and session bootstrap).
 
 ## Precedence
 

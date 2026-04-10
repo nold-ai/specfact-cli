@@ -40,7 +40,7 @@ depends_on:
 ## Worktree policy
 
 - The primary checkout remains the canonical `dev` workspace.
-- Use `scripts/worktree.sh create feature/<branch-slug>` to create implementation worktrees.
+- Use `scripts/worktree.sh create <type>/<branch-slug>` to create implementation worktrees (`feature`, `bugfix`, `hotfix`, or `chore` for `<type>`).
 - Never create a worktree for `dev` or `main`.
 - One branch maps to one worktree path at a time.
 - Keep one active OpenSpec change scope per branch where possible.

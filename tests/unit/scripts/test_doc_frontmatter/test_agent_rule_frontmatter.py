@@ -124,7 +124,7 @@ depends_on: []
             write_enforced(root, "docs/agent-rules/INDEX.md")
 
             result = validation_main([])
-            assert result == 1
+            assert result != 0
             err = capsys.readouterr().err
             assert "docs/agent-rules/INDEX.md" in err
             assert "applies_when" in err

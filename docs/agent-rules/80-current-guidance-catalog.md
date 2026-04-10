@@ -39,7 +39,7 @@ Bundle code in **specfact-cli-modules** imports from `specfact_cli`. For local I
 
 ## Code conventions
 
-- Python 3.11+, line length 120, Google-style docstrings
+- Python 3.12 target (3.11+ runtime), line length 120, Google-style docstrings
 - `snake_case` for files, modules, and functions
 - `PascalCase` for classes
 - `UPPER_SNAKE_CASE` for constants

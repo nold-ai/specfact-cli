@@ -39,6 +39,7 @@ This file is the mandatory bootstrap governance surface for coding agents workin
 ## Canonical rule docs
 
 - [docs/agent-rules/INDEX.md](docs/agent-rules/INDEX.md)
+- [docs/agent-rules/05-non-negotiable-checklist.md](docs/agent-rules/05-non-negotiable-checklist.md)
 - [docs/agent-rules/10-session-bootstrap.md](docs/agent-rules/10-session-bootstrap.md)
 - [docs/agent-rules/20-repository-context.md](docs/agent-rules/20-repository-context.md)
 - [docs/agent-rules/30-worktrees-and-branching.md](docs/agent-rules/30-worktrees-and-branching.md)

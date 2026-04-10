@@ -33,7 +33,7 @@ depends_on:
 
 ## Project overview
 
-SpecFact CLI is a Python CLI tool for agile DevOps teams. It keeps backlogs, specs, tests, and code in sync with contract-driven development, validation, and enforcement. It is built with Typer and Rich, uses Hatch as the build system, and targets Python 3.11+.
+SpecFact CLI is a Python CLI tool for agile DevOps teams. It keeps backlogs, specs, tests, and code in sync with contract-driven development, validation, and enforcement. It is built with Typer and Rich, uses Hatch as the build system, and targets Python 3.12 (supports Python 3.11+ at runtime).
 
 ## Essential commands
 

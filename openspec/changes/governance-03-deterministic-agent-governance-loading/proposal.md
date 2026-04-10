@@ -22,9 +22,9 @@
 ## Impact
 
 - Affected governance docs and instruction surfaces: `AGENTS.md`, new `docs/agent-rules/` artifacts, and possibly other lightweight instruction aliases that must reference the canonical rule system.
-- Affected OpenSpec/runtime guidance: `openspec/config.yaml`, `openspec/CHANGE_ORDER.md`, and related workflow guidance for agents.
-- Affected GitHub workflow guidance: cache-backed parent lookup, metadata completeness checks, and concurrency-ambiguity handling for linked change issues.
-- Affected validation scope: documentation consistency, frontmatter schema enforcement, and deterministic session-bootstrap behavior across AI models.
+- OpenSpec/runtime guidance: `openspec/config.yaml`, `openspec/CHANGE_ORDER.md`, and related workflow guidance for agents.
+- GitHub workflow guidance: cache-backed parent lookup, metadata completeness checks, and concurrency-ambiguity handling for linked change issues.
+- Validation scope: documentation consistency, frontmatter schema enforcement, and deterministic session-bootstrap behavior across AI models.
 
 ## Tracking
 

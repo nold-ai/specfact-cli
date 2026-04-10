@@ -2,20 +2,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import yaml
+from tests.helpers.doc_frontmatter_types import CheckDocFrontmatterModule
 
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-
-
-def _read_frontmatter(path: Path) -> dict[str, object]:
-    text = path.read_text(encoding="utf-8")
-    assert text.startswith("---\n")
-    _, body = text.split("---\n", 1)
-    frontmatter, _ = body.split("\n---\n", 1)
-    loaded = yaml.safe_load(frontmatter)
-    assert isinstance(loaded, dict)
-    return loaded
 
 
 def test_agent_rules_index_and_checklist_exist() -> None:
@@ -26,8 +16,13 @@ def test_agent_rules_index_and_checklist_exist() -> None:
     assert checklist_path.exists()
 
 
-def test_agent_rules_index_has_deterministic_bootstrap_metadata() -> None:
-    frontmatter = _read_frontmatter(REPO_ROOT / "docs" / "agent-rules" / "INDEX.md")
+def test_agent_rules_index_has_deterministic_bootstrap_metadata(
+    check_doc_frontmatter_module: CheckDocFrontmatterModule,
+) -> None:
+    parse_frontmatter = check_doc_frontmatter_module.parse_frontmatter
+    frontmatter = parse_frontmatter(REPO_ROOT / "docs" / "agent-rules" / "INDEX.md")
+    assert isinstance(frontmatter, dict)
+
     applies_when = frontmatter["applies_when"]
     assert isinstance(applies_when, list)
 
@@ -37,8 +32,13 @@ def test_agent_rules_index_has_deterministic_bootstrap_metadata() -> None:
     assert frontmatter["priority"] == 0
 
 
-def test_non_negotiable_checklist_is_always_loaded() -> None:
-    frontmatter = _read_frontmatter(REPO_ROOT / "docs" / "agent-rules" / "05-non-negotiable-checklist.md")
+def test_non_negotiable_checklist_is_always_loaded(
+    check_doc_frontmatter_module: CheckDocFrontmatterModule,
+) -> None:
+    parse_frontmatter = check_doc_frontmatter_module.parse_frontmatter
+    frontmatter = parse_frontmatter(REPO_ROOT / "docs" / "agent-rules" / "05-non-negotiable-checklist.md")
+    assert isinstance(frontmatter, dict)
+
     depends_on = frontmatter["depends_on"]
     assert isinstance(depends_on, list)
 

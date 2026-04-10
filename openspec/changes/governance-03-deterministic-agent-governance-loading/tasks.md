@@ -2,9 +2,12 @@
 
 ## 1. Branch and governance preparation
 
-- [x] 1.1 Create dedicated worktree branch `feature/governance-03-deterministic-agent-governance-loading` from `dev` before implementation work: `scripts/worktree.sh create feature/governance-03-deterministic-agent-governance-loading`.
-- [x] 1.2 Confirm governance-01 and governance-02 outputs remain the dependency baseline for this change and update `openspec/CHANGE_ORDER.md` metadata if sequencing notes need adjustment.
-- [x] 1.3 Review current `AGENTS.md`, related instruction surfaces, and existing docs/frontmatter validators to identify the files that must participate in the compact-governance migration.
+- [x] 1.1 Create dedicated worktree branch `feature/governance-03-deterministic-agent-governance-loading` from `origin/dev` before implementation work: `scripts/worktree.sh create feature/governance-03-deterministic-agent-governance-loading`.
+- [x] 1.2 In the new worktree directory, bootstrap Python tooling with `hatch env create`.
+- [x] 1.3 Run pre-flight checks from the worktree root: `hatch run smart-test-status` and `hatch run contract-test-status`.
+- [x] 1.4 Confirm governance-01 and governance-02 outputs remain the dependency baseline for this change and update `openspec/CHANGE_ORDER.md` metadata if sequencing notes need adjustment.
+- [x] 1.5 Review current `AGENTS.md`, related instruction surfaces, and existing docs/frontmatter validators to identify the files that must participate in the compact-governance migration.
+- [ ] 1.6 After the PR merges: run `git worktree remove`, `git branch -d`, and `git worktree prune` per `AGENTS.md`; delete the worktree-local `.venv` (or other env path) if you no longer need that checkout.
 
 ## 2. Spec-first and test-first preparation
 

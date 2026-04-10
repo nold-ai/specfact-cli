@@ -6,6 +6,7 @@ from __future__ import annotations
 import datetime
 import fnmatch
 import functools
+import json
 import os
 import re
 import subprocess
@@ -207,6 +208,31 @@ def _enforced_path() -> Path:
     return _root() / "docs" / ".doc-frontmatter-enforced"
 
 
+def _rel_posix(path: Path) -> str:
+    try:
+        return path.resolve().relative_to(_root().resolve()).as_posix()
+    except ValueError:
+        return str(path).replace("\\", "/")
+
+
+def _agent_rules_path_slug(rel_under_rules: str) -> str:
+    """Build URL-style slug from path under ``docs/agent-rules/`` (matches existing rule ids)."""
+    tail = rel_under_rules[:-3] if rel_under_rules.endswith(".md") else rel_under_rules
+    parts = tail.split("/")
+    cleaned = [re.sub(r"^\d+-", "", segment) for segment in parts]
+    return "-".join(cleaned).lower().replace("_", "-")
+
+
+def _agent_rules_canonical_id(rel_under_rules: str) -> str:
+    return f"agent-rules-{_agent_rules_path_slug(rel_under_rules)}"
+
+
+def _agent_rules_default_permalink(slug: str) -> str:
+    if slug == "index":
+        return "/contributing/agent-rules/"
+    return f"/contributing/agent-rules/{slug}/"
+
+
 def _path_is_existing_file(path: Path) -> bool:
     return path.is_file()
 
@@ -359,10 +385,57 @@ def validate_glob_patterns(patterns: list[str]) -> bool:
 @ensure(lambda result: isinstance(result, str), "Must return string")
 def suggest_frontmatter(path: Path) -> str:
     """Return a suggested frontmatter block for a document."""
-    if _rel_posix(path).startswith(AGENT_RULES_DIR):
+    rel = _rel_posix(path)
+    if rel.startswith(AGENT_RULES_DIR):
+        rel_under = rel[len(AGENT_RULES_DIR) :]
+        rule_slug = _agent_rules_path_slug(rel_under)
+        canonical_id = _agent_rules_canonical_id(rel_under)
+        default_permalink = _agent_rules_default_permalink(rule_slug)
+        layout_val = "default"
+        permalink_val = default_permalink
+        description_val: str | None = None
+        keywords_val: list[str] | None = None
+        audience_val: list[str] | None = None
+        expertise_val: list[str] | None = None
+        if path.is_file():
+            try:
+                existing = parse_frontmatter(path)
+            except OSError:
+                existing = {}
+            else:
+                lv = existing.get("layout")
+                if isinstance(lv, str) and lv.strip():
+                    layout_val = lv.strip()
+                pv = existing.get("permalink")
+                if isinstance(pv, str) and pv.strip():
+                    permalink_val = pv.strip()
+                dv = existing.get("description")
+                if isinstance(dv, str) and dv.strip():
+                    description_val = dv.strip()
+                kv = existing.get("keywords")
+                if isinstance(kv, list) and all(isinstance(x, str) for x in kv):
+                    keywords_val = list(kv)
+                av = existing.get("audience")
+                if isinstance(av, list) and all(isinstance(x, str) for x in av):
+                    audience_val = list(av)
+                ev = existing.get("expertise_level")
+                if isinstance(ev, list) and all(isinstance(x, str) for x in ev):
+                    expertise_val = list(ev)
+        title_guess = path.stem.replace("-", " ").title().replace('"', '\\"')
+        optional_lines = ""
+        if description_val is not None:
+            optional_lines += f"description: {json.dumps(description_val)}\n"
+        if keywords_val is not None:
+            optional_lines += f"keywords: {json.dumps(keywords_val)}\n"
+        if audience_val is not None:
+            optional_lines += f"audience: {json.dumps(audience_val)}\n"
+        if expertise_val is not None:
+            optional_lines += f"expertise_level: {json.dumps(expertise_val)}\n"
         return f"""---
-title: "{path.stem.replace("-", " ").title()}"
-id: {path.stem.lower()}
+layout: {json.dumps(layout_val)}
+title: "{title_guess}"
+permalink: {json.dumps(permalink_val)}
+{optional_lines}id: {canonical_id}
 doc_owner: specfact-cli
 tracks:
   - AGENTS.md
@@ -392,13 +465,6 @@ exempt: false
 exempt_reason: ""
 ---
 """
-
-
-def _rel_posix(path: Path) -> str:
-    try:
-        return path.resolve().relative_to(_root().resolve()).as_posix()
-    except ValueError:
-        return str(path).replace("\\", "/")
 
 
 def _load_enforced_patterns() -> list[str] | None:
