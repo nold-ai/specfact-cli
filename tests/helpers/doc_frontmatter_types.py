@@ -24,6 +24,7 @@ class CheckDocFrontmatterModule(Protocol):
     """Structural type for ``scripts/check_doc_frontmatter.py`` loaded via importlib."""
 
     DocFrontmatter: type[DocFrontmatterModel]
+    AgentRuleFrontmatter: type[AgentRuleFrontmatterModel]
     parse_frontmatter: Callable[[Path], dict[str, Any]]
     resolve_owner: Callable[[str], bool]
     validate_glob_patterns: Callable[[list[str]], bool]
@@ -52,4 +53,23 @@ class DocFrontmatterModel(Protocol):
 
     @classmethod
     def model_validate(cls, data: dict[str, object]) -> DocFrontmatterRecord:
+        raise NotImplementedError
+
+
+@runtime_checkable
+class AgentRuleFrontmatterRecord(DocFrontmatterRecord, Protocol):
+    """Validated agent-rule record shape used by tests."""
+
+    id: str
+    always_load: bool
+    applies_when: list[str]
+    priority: int
+
+
+@runtime_checkable
+class AgentRuleFrontmatterModel(Protocol):
+    """Model type exposing ``model_validate`` for agent-rule docs."""
+
+    @classmethod
+    def model_validate(cls, data: dict[str, object]) -> AgentRuleFrontmatterRecord:
         raise NotImplementedError

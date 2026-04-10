@@ -11,7 +11,7 @@ import re
 import subprocess
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import typer
 import yaml
@@ -33,6 +33,7 @@ LAST_REVIEWED_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 TRACKED_DOC_DIRS = ("docs",)
 REQUIRED_ROOT_DOCS: tuple[str, ...] = ("USAGE-FAQ.md",)
+AGENT_RULES_DIR = "docs/agent-rules/"
 EXEMPT_FILES = frozenset(
     {
         "docs/LICENSE.md",
@@ -49,6 +50,18 @@ SOURCE_ROOTS = (Path("src"), Path("openspec"), Path("modules"), Path("tools"))
 
 _OWNER_GLOB_METACHARS = frozenset("*?[]{}")
 REQUIRED_KEYS = ("title", "doc_owner", "tracks", "last_reviewed", "exempt", "exempt_reason")
+AGENT_RULE_REQUIRED_KEYS = (
+    *REQUIRED_KEYS,
+    "id",
+    "always_load",
+    "applies_when",
+    "priority",
+    "blocking",
+    "user_interaction_required",
+    "stop_conditions",
+    "depends_on",
+)
+RULE_ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 
 
 class DocFrontmatter(BaseModel):
@@ -120,6 +133,51 @@ class DocFrontmatter(BaseModel):
 
 
 DocFrontmatter.model_rebuild(_types_namespace={"datetime": datetime})
+
+
+class AgentRuleFrontmatter(DocFrontmatter):
+    """Validated frontmatter for deterministic governance rule documents."""
+
+    id: str = Field(..., description="Stable rule identifier")
+    always_load: bool = Field(..., description="Whether the rule must load for every applicable bootstrap")
+    applies_when: list[str] = Field(..., min_length=1, description="Task signals that require this rule")
+    priority: int = Field(..., ge=0, description="Deterministic loading order")
+    blocking: bool = Field(..., description="Whether the rule can block progress")
+    user_interaction_required: bool = Field(..., description="Whether the rule requires user clarification")
+    stop_conditions: list[str] = Field(..., min_length=1, description="Blocking conditions for the rule")
+    depends_on: list[str] = Field(..., description="Other rule ids that must load first")
+
+    @field_validator("id", mode="before")
+    @classmethod
+    def _normalize_rule_id(cls, value: object) -> str:
+        if not isinstance(value, str):
+            raise ValueError("`id` must be a string")
+        rule_id = value.strip()
+        if not RULE_ID_RE.match(rule_id):
+            raise ValueError("`id` must be kebab-case")
+        return rule_id
+
+    @field_validator("applies_when", "stop_conditions", "depends_on", mode="before")
+    @classmethod
+    def _string_list_fields(cls, value: object, info: ValidationInfo) -> list[str]:
+        if not isinstance(value, list) or not all(isinstance(x, str) for x in value):
+            raise ValueError(f"`{info.field_name}` must be a list of strings")
+        string_values = cast(list[str], value)
+        normalized = [x.strip() for x in string_values]
+        if info.field_name != "depends_on" and any(not x for x in normalized):
+            raise ValueError(f"`{info.field_name}` entries must be non-empty")
+        if info.field_name == "depends_on":
+            return [x for x in normalized if x]
+        return normalized
+
+    @model_validator(mode="after")
+    def _always_load_requires_bootstrap_signal(self) -> AgentRuleFrontmatter:
+        if self.always_load and not {"session-bootstrap", "implementation", "all"} & set(self.applies_when):
+            raise ValueError("always-load rules must apply to bootstrap, implementation, or all tasks")
+        return self
+
+
+AgentRuleFrontmatter.model_rebuild(_types_namespace={"datetime": datetime})
 
 
 def _format_doc_frontmatter_errors(exc: ValidationError) -> list[str]:
@@ -301,6 +359,28 @@ def validate_glob_patterns(patterns: list[str]) -> bool:
 @ensure(lambda result: isinstance(result, str), "Must return string")
 def suggest_frontmatter(path: Path) -> str:
     """Return a suggested frontmatter block for a document."""
+    if _rel_posix(path).startswith(AGENT_RULES_DIR):
+        return f"""---
+title: "{path.stem.replace("-", " ").title()}"
+id: {path.stem.lower()}
+doc_owner: specfact-cli
+tracks:
+  - AGENTS.md
+  - docs/agent-rules/**
+last_reviewed: {datetime.date.today().isoformat()}
+exempt: false
+exempt_reason: ""
+always_load: false
+applies_when:
+  - detailed-reference
+priority: 50
+blocking: false
+user_interaction_required: false
+stop_conditions:
+  - none
+depends_on: []
+---
+"""
     return f"""---
 title: "{path.stem}"
 doc_owner: specfact-cli
@@ -438,6 +518,23 @@ def _validate_record(fm: dict[str, Any]) -> list[str]:
     return []
 
 
+def _is_agent_rule_doc(path: Path) -> bool:
+    return _rel_posix(path).startswith(AGENT_RULES_DIR)
+
+
+def _validate_record_for_path(path: Path, fm: dict[str, Any]) -> list[str]:
+    required_keys = AGENT_RULE_REQUIRED_KEYS if _is_agent_rule_doc(path) else REQUIRED_KEYS
+    missing = [f"missing `{key}`" for key in required_keys if key not in fm]
+    if missing:
+        return missing
+    model = AgentRuleFrontmatter if _is_agent_rule_doc(path) else DocFrontmatter
+    try:
+        model.model_validate(fm)
+    except ValidationError as exc:
+        return _format_doc_frontmatter_errors(exc)
+    return []
+
+
 def _discover_paths_to_check(all_docs: bool) -> list[Path] | None:
     """Return files to validate, or None when the run should exit 0 early (skip)."""
     if all_docs:
@@ -476,7 +573,7 @@ def _collect_failures(
         except (OSError, yaml.YAMLError) as exc:
             failures.append(f"  ✗ YAML parse error: {rel}: {exc}")
             continue
-        errs = _validate_record(fm)
+        errs = _validate_record_for_path(file_path, fm)
         if errs:
             msg = f"  ✗ INVALID frontmatter:  {rel}\n    - " + "\n    - ".join(errs)
             if fix_hint:
