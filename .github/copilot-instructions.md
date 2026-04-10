@@ -4,6 +4,7 @@ Use [AGENTS.md](../AGENTS.md) as the mandatory bootstrap surface and [docs/agent
 
 ## Minimal reminders
 
+- When a sibling internal repository (for example `../specfact-cli-internal/`) exists, read its `wiki/` files by absolute path before designing an OpenSpec change; see **Strategic context** in `AGENTS.md` and `docs/agent-rules/40-openspec-and-tdd.md` (section **Internal wiki and strategic context**). Do not copy wiki content into this repository.
 - This repository enforces the clean-code review gate through `hatch run specfact code review run --json --out .specfact/code-review.json`.
 - Public APIs require `@icontract` and `@beartype`.
 - Work belongs on `feature/*`, `bugfix/*`, `hotfix/*`, or `chore/*` branches, normally in a worktree.

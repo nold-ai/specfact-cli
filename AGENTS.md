@@ -36,6 +36,10 @@ This file is the mandatory bootstrap governance surface for coding agents workin
 - Treat the clean-code compliance gate as mandatory: the review surface enforces `naming`, `kiss`, `yagni`, `dry`, and `solid` categories and blocks regressions.
 - Enforce module signatures and version bumps when signed module assets or manifests are affected.
 
+## Strategic context
+
+Design and dependency context may live in a **sibling internal repository** (for example a checkout of `specfact-cli-internal` beside this repo, with wiki pages under `../specfact-cli-internal/wiki/`). Before designing or scoping a new OpenSpec change, read the wiki paths listed in [docs/agent-rules/40-openspec-and-tdd.md](docs/agent-rules/40-openspec-and-tdd.md#internal-wiki-and-strategic-context) using **absolute paths** to those files. Treat the wiki as read-only context; do not paste or commit wiki bodies into this public repository.
+
 ## Canonical rule docs
 
 - [docs/agent-rules/INDEX.md](docs/agent-rules/INDEX.md)

@@ -65,7 +65,7 @@ This page is the canonical loader for repository governance instructions. `AGENT
 
 | Task signal | Required rule files | Optional rule files |
 | --- | --- | --- |
-| Any implementation request | `10-session-bootstrap.md`, `40-openspec-and-tdd.md`, `50-quality-gates-and-review.md` | `20-repository-context.md` |
+| Any implementation request | `10-session-bootstrap.md`, `40-openspec-and-tdd.md`, `50-quality-gates-and-review.md` | `20-repository-context.md`; sibling internal `wiki/` (see **Internal wiki and strategic context** in `40-openspec-and-tdd.md`) when present |
 | Code or docs changes on a branch | `30-worktrees-and-branching.md` | `80-current-guidance-catalog.md` |
 | Public GitHub issue work | `60-github-change-governance.md` | `30-worktrees-and-branching.md` |
 | Release or finalization work | `70-release-commit-and-docs.md`, `50-quality-gates-and-review.md` | `80-current-guidance-catalog.md` |
@@ -77,7 +77,7 @@ This page is the canonical loader for repository governance instructions. `AGENT
 - [`10-session-bootstrap.md`](./10-session-bootstrap.md): startup checks, compact context loading, and stop/continue behavior
 - [`20-repository-context.md`](./20-repository-context.md): project overview, commands, architecture, and logging
 - [`30-worktrees-and-branching.md`](./30-worktrees-and-branching.md): branch protection, worktree policy, and conflict avoidance
-- [`40-openspec-and-tdd.md`](./40-openspec-and-tdd.md): OpenSpec selection, change validity, and strict TDD order
+- [`40-openspec-and-tdd.md`](./40-openspec-and-tdd.md): OpenSpec selection, change validity, strict TDD order, and optional sibling internal wiki context for change design
 - [`50-quality-gates-and-review.md`](./50-quality-gates-and-review.md): required gates, code review JSON, clean-code enforcement, module signatures
 - [`60-github-change-governance.md`](./60-github-change-governance.md): cache-first GitHub metadata, dependency completeness, and `in progress` ambiguity handling
 - [`70-release-commit-and-docs.md`](./70-release-commit-and-docs.md): versioning, changelog, docs, README, and commit signing

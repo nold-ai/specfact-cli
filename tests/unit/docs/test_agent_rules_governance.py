@@ -52,3 +52,5 @@ def test_agents_references_canonical_rule_docs() -> None:
 
     assert "docs/agent-rules/INDEX.md" in agents_text
     assert "docs/agent-rules/05-non-negotiable-checklist.md" in agents_text
+    assert "## Strategic context" in agents_text
+    assert "internal-wiki-and-strategic-context" in agents_text

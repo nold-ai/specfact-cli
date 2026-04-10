@@ -11,5 +11,6 @@ alwaysApply: true
 3. Read `docs/agent-rules/05-non-negotiable-checklist.md`.
 4. Detect repository root, branch, and worktree state before implementation.
 5. Load any additional rule files selected by the applicability matrix in `docs/agent-rules/INDEX.md`.
+6. If a sibling internal checkout (for example `../specfact-cli-internal/`) exists and you are designing or scoping an OpenSpec change, follow the internal wiki guidance in `docs/agent-rules/40-openspec-and-tdd.md` (section **Internal wiki and strategic context**): read `wiki/hot.md`, `wiki/graph.md`, and relevant `wiki/concepts/*.md` via absolute paths; do not import wiki text into this repo.
 
 Do not treat this file as a complete workflow handbook. The canonical repository governance now lives in `docs/agent-rules/`.

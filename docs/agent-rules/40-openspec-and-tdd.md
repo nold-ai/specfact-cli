@@ -41,6 +41,18 @@ depends_on:
 - The existence of any open change is not sufficient; the change must cover the requested scope.
 - If no change exists, clarify whether the work needs a new change, a modified existing change, or a delta.
 
+## Internal wiki and strategic context
+
+When a **sibling internal repository** is available on disk (typical layout: this repository’s parent directory also contains `specfact-cli-internal`, so the internal wiki resolves under `../specfact-cli-internal/wiki/` relative to this repo root), use that wiki as **read-only** input for design decisions. Do not copy wiki content into this public tree.
+
+Before **designing or materially scoping** a new OpenSpec change, read these wiki files when they exist: resolve each wiki-relative path against the sibling checkout so you open an **absolute path** on the host (for example join this repository root with `../specfact-cli-internal/wiki/hot.md` and canonicalize) and read the file directly:
+
+- `wiki/hot.md` for current blocker state
+- `wiki/graph.md` to see what the change unblocks or depends on
+- The relevant concept page under `wiki/concepts/` (for example `wiki/concepts/clean-code-principles.md`)
+
+If the sibling checkout or a given wiki file is missing, continue without it; absence of the internal repo is not a blocking error for public-repo work.
+
 ## Change validity
 
 - Never implement from a change id alone.
