@@ -10,6 +10,18 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.45.2] - 2026-04-12
+
+### Fixed
+
+- **`specfact init ide` and `.vscode/settings.json`**: invalid JSON or non-mergeable `chat` blocks no longer
+  wipe unrelated VS Code settings; the command fails safe with guidance. Use `--force` only when you accept
+  replacing the file after a timestamped backup under `.specfact/recovery/`.
+- **Regression gate**: lint now runs `scripts/verify_safe_project_writes.py` so IDE settings JSON I/O stays
+  routed through the shared merge helper.
+
+---
+
 ## [0.45.1] - 2026-04-03
 
 ### Changed

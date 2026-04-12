@@ -27,7 +27,7 @@ uvx specfact-cli code review run --path . --scope full
 **Sample output:**
 
 ```text
-SpecFact CLI - v0.45.1
+SpecFact CLI - v0.45.2
 
 Running Ruff checks...
 Running Radon complexity checks...
@@ -84,7 +84,7 @@ It exists because delivery drifts in predictable ways:
 
 ```yaml
 - repo: https://github.com/nold-ai/specfact-cli
-  rev: v0.45.1
+  rev: v0.45.2
   hooks:
     - id: specfact-smart-checks
 ```

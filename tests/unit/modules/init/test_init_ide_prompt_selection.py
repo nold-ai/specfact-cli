@@ -152,6 +152,27 @@ def test_parse_prompts_option_core_token(tmp_path: Path) -> None:
     assert out == {PROMPT_SOURCE_CORE: [p]}
 
 
+def test_init_ide_malformed_vscode_settings_exits_nonzero(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import specfact_cli.utils.ide_setup as ide_setup_module
+
+    monkeypatch.setattr(ide_setup_module, "_module_prompt_sources_catalog", lambda _rp: {})
+    prompts = tmp_path / "resources" / "prompts"
+    prompts.mkdir(parents=True)
+    (prompts / "specfact.01-import.md").write_text("---\ndescription: A\n---\n# A\n", encoding="utf-8")
+
+    vscode_dir = tmp_path / ".vscode"
+    vscode_dir.mkdir(parents=True)
+    (vscode_dir / "settings.json").write_text("{not-json", encoding="utf-8")
+
+    runner = CliRunner()
+    result = runner.invoke(
+        app,
+        ["init", "ide", "--repo", str(tmp_path), "--ide", "vscode", "--prompts", "core"],
+    )
+    assert result.exit_code == 1
+    assert "invalid json" in result.stdout.lower() or "cannot merge" in result.stdout.lower()
+
+
 def test_init_ide_invalid_prompts_token_exits_nonzero(tmp_path: Path) -> None:
     prompts = tmp_path / "resources" / "prompts"
     prompts.mkdir(parents=True)

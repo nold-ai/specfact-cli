@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "specfact-cli"
-version = "0.45.1"
+version = "0.45.2"
 description = "The swiss knife CLI for agile DevOps teams. Keep backlog, specs, tests, and code in sync with validation and contract enforcement for new projects and long-lived codebases."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -207,7 +207,7 @@ validate-prompts = "python tools/validate_prompts.py"
 test = "pytest {args}"
 test-cov = "pytest --cov=src --cov-report=term-missing {args}"
 type-check = "basedpyright --pythonpath $(python -c 'import sys; print(sys.executable)') {args}"
-lint = "ruff format . --check && basedpyright --pythonpath $(python -c 'import sys; print(sys.executable)') && ruff check . && pylint src tests tools"
+lint = "ruff format . --check && basedpyright --pythonpath $(python -c 'import sys; print(sys.executable)') && ruff check . && pylint src tests tools && python scripts/verify_safe_project_writes.py"
 governance = "pylint src tests tools --reports=y --output-format=parseable"
 format = "ruff check . --fix && ruff format ."
 
