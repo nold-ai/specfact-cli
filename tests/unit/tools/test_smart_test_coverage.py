@@ -30,7 +30,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 import contextlib
 
-from tools.smart_test_coverage import SmartCoverageManager
+from tools.smart_test_coverage import SmartCoverageManager, _SmartCacheUpdate
 
 
 class TestSmartCoverageManager:
@@ -354,7 +354,7 @@ class TestSmartCoverageManager:
         test_count = 150
         coverage_percentage = 85.5
 
-        self.manager._update_cache(success, test_count, coverage_percentage)
+        self.manager._update_cache(_SmartCacheUpdate(success, test_count, coverage_percentage))
 
         assert self.manager.cache["last_full_run"] is not None
         assert self.manager.cache["coverage_percentage"] == 85.5
@@ -675,7 +675,7 @@ show_missing = true
 
         # Try to update with low coverage
         with pytest.raises(Exception) as exc_info:
-            self.manager._update_cache(True, 100, 75.0)
+            self.manager._update_cache(_SmartCacheUpdate(True, 100, 75.0))
 
         assert "Coverage 75.0% is below required threshold" in str(exc_info.value)
 
@@ -937,7 +937,7 @@ show_missing = true
         test_count = 150
         coverage_percentage = 85.5
 
-        self.manager._update_cache(success, test_count, coverage_percentage)
+        self.manager._update_cache(_SmartCacheUpdate(success, test_count, coverage_percentage))
 
         assert self.manager.cache["last_full_run"] is not None
         assert self.manager.cache["coverage_percentage"] == 85.5

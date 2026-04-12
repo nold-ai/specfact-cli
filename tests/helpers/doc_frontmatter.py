@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import datetime
 import importlib.util
+import sys
 from collections.abc import Callable
 from pathlib import Path
 from typing import cast
@@ -23,6 +24,9 @@ def load_check_doc_frontmatter_module() -> CheckDocFrontmatterModule:
     if spec is None or spec.loader is None:
         raise AssertionError(f"Unable to load module from {script_path}")
     module = importlib.util.module_from_spec(spec)
+    # Register before exec_module so dataclasses/string annotations can resolve
+    # cls.__module__ via sys.modules (matches normal import behavior).
+    sys.modules[spec.name] = module
     spec.loader.exec_module(module)
     dfm = getattr(module, "DocFrontmatter", None)
     if dfm is not None:
