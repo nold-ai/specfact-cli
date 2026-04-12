@@ -435,7 +435,7 @@ def _load_existing_agent_rule_frontmatter_overrides(path: Path, default_permalin
         return draft
     try:
         existing = parse_frontmatter(path)
-    except OSError:
+    except (OSError, yaml.YAMLError):
         return draft
     draft.layout_val = _parse_str_field(existing, "layout", draft.layout_val)
     draft.permalink_val = _parse_str_field(existing, "permalink", draft.permalink_val)

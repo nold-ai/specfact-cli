@@ -393,6 +393,9 @@ class OpenSpecParser:
 
         for line in content.splitlines():
             if line.startswith("##"):
+                if current_section == "content":
+                    delta_content.append(line)
+                    continue
                 current_section = line.lstrip("#").strip().lower()
                 continue
             if not current_section:
