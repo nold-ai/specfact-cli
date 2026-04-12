@@ -84,6 +84,8 @@ dependencies = [
     
     # Schema validation
     "jsonschema>=4.23.0",
+    # VS Code settings.json is often JSON with comments (JSONC); parse/emit via JSON5 subset
+    "json5>=0.9.28",
     
     # Contract-First (runtime decorators; exploration tools are optional extra `contracts`)
     "icontract>=2.7.1",  # Design-by-contract decorators

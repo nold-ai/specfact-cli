@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import re
 import shutil
 from datetime import UTC, datetime
@@ -10,6 +9,7 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Any, Final, cast
 
+import json5
 from beartype import beartype
 from icontract import ensure, require
 
@@ -79,7 +79,8 @@ def _ordered_unique_strings(items: list[str]) -> list[str]:
 
 def _write_new_vscode_settings_file(settings_path: Path, prompt_files: list[str]) -> None:
     payload: dict[str, Any] = {"chat": {"promptFilesRecommendations": list(prompt_files)}}
-    settings_path.write_text(json.dumps(payload, indent=4) + "\n", encoding="utf-8")
+    text = json5.dumps(payload, indent=4, quote_keys=True, trailing_commas=False) + "\n"
+    settings_path.write_text(text, encoding="utf-8")
 
 
 def _ensure_backup(
@@ -101,11 +102,11 @@ def _load_root_dict_from_settings_text(
 ) -> tuple[dict[str, Any], Path | None]:
     out_backup = backup_path
     try:
-        loaded = json.loads(raw_text)
-    except json.JSONDecodeError as exc:
+        loaded = json5.loads(raw_text)
+    except ValueError as exc:
         if not explicit_replace_unparseable:
             raise StructuredJsonDocumentError(
-                f"Cannot merge into {settings_path}: invalid JSON ({exc.msg} at line {exc.lineno} col {exc.colno}). "
+                f"Cannot merge into {settings_path}: invalid JSON/JSONC ({exc}). "
                 "Fix the file or re-run with --force to replace it after a backup under .specfact/recovery/."
             ) from exc
         out_backup = _ensure_backup(repo_path, settings_path, out_backup)
@@ -204,11 +205,22 @@ def merge_vscode_settings_prompt_recommendations(
     """
     Merge SpecFact ``chat.promptFilesRecommendations`` into VS Code ``settings.json``.
 
-    Preserves all other top-level keys and non-SpecFact recommendation paths. On invalid JSON or
+    Preserves all other top-level keys and non-SpecFact recommendation paths. On invalid JSON/JSONC or
     unusable ``chat`` / ``promptFilesRecommendations`` shape, raises ``StructuredJsonDocumentError``
     unless ``explicit_replace_unparseable`` is True (backup, then recoverable rewrite).
+
+    Parses with JSON5 (comments and trailing commas). Serialized output is canonical JSON5/JSON without
+    preserving original comment text or formatting from the input file.
     """
+    repo_root = repo_path.resolve()
     settings_path = (repo_path / settings_relative).resolve()
+    try:
+        settings_path.relative_to(repo_root)
+    except ValueError as exc:
+        raise ProjectArtifactWriteError(
+            f"Refusing to write VS Code settings outside the repository: {settings_path}"
+        ) from exc
+
     settings_path.parent.mkdir(parents=True, exist_ok=True)
 
     if not settings_path.exists():
@@ -232,5 +244,6 @@ def merge_vscode_settings_prompt_recommendations(
         strip_specfact_github_from_existing,
         prompt_files,
     )
-    settings_path.write_text(json.dumps(loaded, indent=4) + "\n", encoding="utf-8")
+    out_text = json5.dumps(loaded, indent=4, quote_keys=True, trailing_commas=False) + "\n"
+    settings_path.write_text(out_text, encoding="utf-8")
     return settings_path

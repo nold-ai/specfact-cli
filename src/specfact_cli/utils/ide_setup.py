@@ -809,8 +809,18 @@ def _vscode_prompt_paths_from_full_catalog(repo_path: Path) -> list[str]:
     return [f".github/prompts/{name}" for name in sorted(merged.keys())]
 
 
-def _finalize_vscode_prompt_recommendation_paths(repo_path: Path, prompt_files: list[str]) -> list[str]:
-    """Fall back to flat discovery or command list when namespaced paths are empty."""
+def _finalize_vscode_prompt_recommendation_paths(
+    repo_path: Path,
+    prompt_files: list[str],
+    *,
+    allow_empty_fallback: bool = True,
+) -> list[str]:
+    """Fall back to flat discovery or command list when namespaced paths are empty.
+
+    When ``allow_empty_fallback`` is False, an empty ``prompt_files`` list is returned as-is (explicit empty export).
+    """
+    if not prompt_files and not allow_empty_fallback:
+        return []
     if not prompt_files:
         discovered_flat = discover_prompt_template_files(repo_path)
         prompt_files = [f".github/prompts/{template_path.stem}.prompt.md" for template_path in discovered_flat]
@@ -907,9 +917,12 @@ def create_vscode_settings(
         True
     """
     if prompts_by_source is not None:
-        prompt_files = _finalize_vscode_prompt_recommendation_paths(
-            repo_path, _vscode_prompt_recommendation_paths_from_sources(prompts_by_source)
-        )
+        if not prompts_by_source:
+            prompt_files = _finalize_vscode_prompt_recommendation_paths(repo_path, [], allow_empty_fallback=False)
+        else:
+            prompt_files = _finalize_vscode_prompt_recommendation_paths(
+                repo_path, _vscode_prompt_recommendation_paths_from_sources(prompts_by_source)
+            )
     else:
         prompt_files = _finalize_vscode_prompt_recommendation_paths(
             repo_path, _vscode_prompt_paths_from_full_catalog(repo_path)

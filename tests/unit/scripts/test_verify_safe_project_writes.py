@@ -34,6 +34,13 @@ def test_collect_json_io_flags_aliased_json_import() -> None:
     assert any(name == "json.dump" for _, name in offenders)
 
 
+def test_collect_json_io_flags_import_json_as_module_alias() -> None:
+    mod = _load_verify_module()
+    tree = ast.parse('import json as js\nx = None\njs.dump(x, open("f","w"))')
+    offenders = mod._collect_json_io_offenders(tree)
+    assert any(name == "json.dump" for _, name in offenders)
+
+
 def test_verify_safe_project_writes_passes_on_repo() -> None:
     """Gate must succeed while ide_setup routes settings through project_artifact_write."""
     script = Path(__file__).resolve().parents[3] / "scripts" / "verify_safe_project_writes.py"

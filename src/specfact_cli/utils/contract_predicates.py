@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 from beartype import beartype
 from icontract import ensure, require
@@ -68,7 +69,7 @@ def settings_relative_nonblank(settings_relative: str) -> bool:
 @require(lambda prompt_files: isinstance(prompt_files, list))
 @ensure(lambda result: isinstance(result, bool))
 @beartype
-def prompt_files_all_strings(prompt_files: list[str]) -> bool:
+def prompt_files_all_strings(prompt_files: list[Any]) -> bool:
     return all(isinstance(item, str) for item in prompt_files)
 
 

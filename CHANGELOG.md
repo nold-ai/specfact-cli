@@ -17,6 +17,11 @@ All notable changes to this project will be documented in this file.
 - **`specfact init ide` and `.vscode/settings.json`**: invalid JSON or non-mergeable `chat` blocks no longer
   wipe unrelated VS Code settings; the command fails safe with guidance. Use `--force` only when you accept
   replacing the file after a timestamped backup under `.specfact/recovery/`.
+- **VS Code settings path**: resolved settings paths must stay inside the repository root (blocks symlink
+  escape); settings are parsed with **JSON5** so JSONC-style comments and trailing commas load correctly.
+  Serialized output is canonical JSON (comments from the original file are not preserved on rewrite).
+- **`create_vscode_settings`**: an explicit empty `prompts_by_source` mapping no longer falls back to the
+  full prompt catalog when finalizing recommendations.
 - **Regression gate**: lint now runs `scripts/verify_safe_project_writes.py` so IDE settings JSON I/O stays
   routed through the shared merge helper.
 - **Dev / Semgrep**: Hatch and `[dev]` extras pin `setuptools<82` so Semgrep’s OpenTelemetry import chain still

@@ -43,3 +43,5 @@ def test_settings_relative_nonblank() -> None:
 def test_prompt_files_all_strings() -> None:
     assert cp.prompt_files_all_strings([]) is True
     assert cp.prompt_files_all_strings(["a", "b"]) is True
+    assert cp.prompt_files_all_strings(["a", 1]) is False
+    assert cp.prompt_files_all_strings(["a", None]) is False

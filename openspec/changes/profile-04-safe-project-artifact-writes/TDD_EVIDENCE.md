@@ -15,8 +15,9 @@ hatch run pytest \
   -q
 ```
 
-- **Note**: New scenarios (`malformed_json_raises`, `preserves_unrelated_keys`, verify script) were added before the
-  safe-merge implementation; prior behavior treated invalid JSON as `{}` and could destroy user settings (issue #487).
+- **Note**: New scenarios (`malformed_json_raises`, `preserves_unrelated_keys`, verify script) were added
+  before the safe-merge implementation; prior behavior treated invalid JSON as `{}` and could destroy user
+  settings (issue #487).
 
 ## Passing-after (targeted + e2e)
 
@@ -32,9 +33,9 @@ hatch run contract-test
 hatch run smart-test
 ```
 
-- **Module signatures**: `hatch run ./scripts/verify-modules-signature.py --require-signature` — pass without bumping
-  `src/specfact_cli/modules/init/module-package.yaml` (init UX errors are raised from `ide_setup` so the init module
-  payload checksum is unchanged).
+- **Module signatures**: `hatch run ./scripts/verify-modules-signature.py --require-signature` — pass without
+  bumping `src/specfact_cli/modules/init/module-package.yaml` (init UX errors are raised from `ide_setup` so
+  the init module payload checksum is unchanged).
 
 ## Code review gate
 
@@ -48,12 +49,16 @@ hatch run specfact code review run --json --out .specfact/code-review.json \
   scripts/verify_safe_project_writes.py
 ```
 
-- Report: `.specfact/code-review.json` (exit 0, no blocking findings after merge-helper refactor + setuptools pin).
+- Report: `.specfact/code-review.json` (exit 0, no blocking findings after merge-helper refactor + setuptools
+  pin).
 
 ## OpenSpec strict validation
 
-- **Pass (2026-04-12)**: `openspec validate profile-04-safe-project-artifact-writes --strict` — exit 0 (recorded at sign-off per `tasks.md` 4.7).
+- **Pass (2026-04-12)**:
+  `openspec validate profile-04-safe-project-artifact-writes --strict` — exit 0 (recorded at sign-off per
+  `tasks.md` 4.7).
 
 ## Worktree cleanup (post-merge on developer machine)
 
-- Remove worktree, delete branch, prune — see `tasks.md` section 5 (not executed in this implementation session).
+- Remove worktree, delete branch, prune — see `tasks.md` section 5 (not executed in this implementation
+  session).

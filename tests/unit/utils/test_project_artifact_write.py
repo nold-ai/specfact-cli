@@ -3,16 +3,99 @@
 from __future__ import annotations
 
 import json
+import shutil
+import uuid
 from pathlib import Path
 
 import pytest
 
 from specfact_cli.utils.ide_setup import PROMPT_SOURCE_CORE, create_vscode_settings
 from specfact_cli.utils.project_artifact_write import (
+    ProjectArtifactWriteError,
     StructuredJsonDocumentError,
     backup_file_to_recovery,
     merge_vscode_settings_prompt_recommendations,
 )
+
+
+def test_merge_vscode_settings_rejects_path_outside_repo(tmp_path: Path) -> None:
+    escape_root = tmp_path.parent / f"sfw_escape_{uuid.uuid4().hex[:12]}"
+    escape_root.mkdir(exist_ok=True)
+    vscode_link = tmp_path / ".vscode"
+    if not hasattr(vscode_link, "symlink_to"):
+        shutil.rmtree(escape_root, ignore_errors=True)
+        pytest.skip("symlink_to not available")
+    try:
+        vscode_link.symlink_to(escape_root, target_is_directory=True)
+    except OSError:
+        shutil.rmtree(escape_root, ignore_errors=True)
+        pytest.skip("symlinks not supported")
+    try:
+        (escape_root / "settings.json").write_text("{}", encoding="utf-8")
+        with pytest.raises(ProjectArtifactWriteError, match="outside the repository"):
+            merge_vscode_settings_prompt_recommendations(
+                tmp_path,
+                ".vscode/settings.json",
+                [".github/prompts/specfact.01-import.prompt.md"],
+                strip_specfact_github_from_existing=False,
+                explicit_replace_unparseable=False,
+            )
+    finally:
+        if vscode_link.is_symlink():
+            vscode_link.unlink(missing_ok=True)
+        shutil.rmtree(escape_root, ignore_errors=True)
+
+
+def test_merge_vscode_settings_accepts_jsonc_comments(tmp_path: Path) -> None:
+    vscode_dir = tmp_path / ".vscode"
+    vscode_dir.mkdir(parents=True)
+    settings_path = vscode_dir / "settings.json"
+    settings_path.write_text(
+        """{
+  // keep
+  "python.defaultInterpreterPath": "/x",
+  "chat": {"promptFilesRecommendations": []}
+}
+""",
+        encoding="utf-8",
+    )
+    out = merge_vscode_settings_prompt_recommendations(
+        tmp_path,
+        ".vscode/settings.json",
+        [".github/prompts/specfact.01-import.prompt.md"],
+        strip_specfact_github_from_existing=False,
+        explicit_replace_unparseable=False,
+    )
+    data = json.loads(out.read_text(encoding="utf-8"))
+    assert data["python.defaultInterpreterPath"] == "/x"
+    assert ".github/prompts/specfact.01-import.prompt.md" in data["chat"]["promptFilesRecommendations"]
+
+
+def test_create_vscode_settings_empty_prompts_by_source_strips_specfact_paths(tmp_path: Path) -> None:
+    vscode_dir = tmp_path / ".vscode"
+    vscode_dir.mkdir(parents=True)
+    settings_path = vscode_dir / "settings.json"
+    settings_path.write_text(
+        json.dumps(
+            {
+                "chat": {
+                    "promptFilesRecommendations": [
+                        ".github/prompts/specfact.01-import.prompt.md",
+                        ".github/prompts/team.prompt.md",
+                    ]
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    create_vscode_settings(
+        tmp_path,
+        ".vscode/settings.json",
+        prompts_by_source={},
+        force=False,
+    )
+    data = json.loads(settings_path.read_text(encoding="utf-8"))
+    assert data["chat"]["promptFilesRecommendations"] == [".github/prompts/team.prompt.md"]
 
 
 def test_merge_vscode_settings_creates_file_when_missing(tmp_path: Path) -> None:
