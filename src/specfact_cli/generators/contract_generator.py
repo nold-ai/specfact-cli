@@ -6,6 +6,7 @@ from SDD manifest HOW sections, mapping to plan bundle stories/features.
 
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -15,6 +16,14 @@ from icontract import ensure, require
 from specfact_cli.models.plan import Feature, PlanBundle, Story
 from specfact_cli.models.sdd import SDDHow, SDDManifest
 from specfact_cli.utils.structure import SpecFactStructure
+
+
+@dataclass
+class _ContractGenAccum:
+    generated_files: list[Path] = field(default_factory=list)
+    contracts_per_story: dict[str, int] = field(default_factory=dict)
+    invariants_per_feature: dict[str, int] = field(default_factory=dict)
+    errors: list[str] = field(default_factory=list)
 
 
 class ContractGenerator:
@@ -65,27 +74,22 @@ class ContractGenerator:
             contracts_dir = base_path / SpecFactStructure.ROOT / "contracts"
         contracts_dir.mkdir(parents=True, exist_ok=True)
 
-        generated_files: list[Path] = []
-        contracts_per_story: dict[str, int] = {}
-        invariants_per_feature: dict[str, int] = {}
-        errors: list[str] = []
+        accum = _ContractGenAccum()
 
         # Map SDD contracts to plan stories/features
         for feature in plan.features:
-            self._process_feature_contracts(
-                sdd, feature, contracts_dir, generated_files, contracts_per_story, invariants_per_feature, errors
-            )
+            self._process_feature_contracts(sdd, feature, contracts_dir, accum)
 
         # Fallback: generate bundle-level stub when no feature files were produced
-        if not generated_files and (sdd.how.contracts or sdd.how.invariants):
+        if not accum.generated_files and (sdd.how.contracts or sdd.how.invariants):
             fallback_file = self._generate_bundle_fallback(sdd, contracts_dir)
-            generated_files.append(fallback_file)
+            accum.generated_files.append(fallback_file)
 
         return {
-            "generated_files": [str(f) for f in generated_files],
-            "contracts_per_story": contracts_per_story,
-            "invariants_per_feature": invariants_per_feature,
-            "errors": errors,
+            "generated_files": [str(f) for f in accum.generated_files],
+            "contracts_per_story": accum.contracts_per_story,
+            "invariants_per_feature": accum.invariants_per_feature,
+            "errors": accum.errors,
         }
 
     def _process_feature_contracts(
@@ -93,10 +97,7 @@ class ContractGenerator:
         sdd: SDDManifest,
         feature: Feature,
         contracts_dir: Path,
-        generated_files: list[Path],
-        contracts_per_story: dict[str, int],
-        invariants_per_feature: dict[str, int],
-        errors: list[str],
+        accum: _ContractGenAccum,
     ) -> None:
         """
         Process contracts and invariants for a single feature, updating accumulators in place.
@@ -105,10 +106,7 @@ class ContractGenerator:
             sdd: SDD manifest
             feature: Feature to process
             contracts_dir: Output directory for contract files
-            generated_files: Accumulator list for generated file paths
-            contracts_per_story: Accumulator mapping story keys to contract counts
-            invariants_per_feature: Accumulator mapping feature keys to invariant counts
-            errors: Accumulator list for error messages
+            accum: Mutable accumulators for generated paths, counts, and errors.
         """
         try:
             feature_contracts = self._extract_feature_contracts(sdd.how, feature)
@@ -118,16 +116,16 @@ class ContractGenerator:
                 contract_file = self._generate_feature_contract_file(
                     feature, feature_contracts, feature_invariants, sdd, contracts_dir
                 )
-                generated_files.append(contract_file)
+                accum.generated_files.append(contract_file)
 
                 for story in feature.stories:
                     story_contracts = self._extract_story_contracts(feature_contracts, story)
-                    contracts_per_story[story.key] = len(story_contracts)
+                    accum.contracts_per_story[story.key] = len(story_contracts)
 
-                invariants_per_feature[feature.key] = len(feature_invariants)
+                accum.invariants_per_feature[feature.key] = len(feature_invariants)
 
         except Exception as e:
-            errors.append(f"Error generating contracts for {feature.key}: {e}")
+            accum.errors.append(f"Error generating contracts for {feature.key}: {e}")
 
     def _generate_bundle_fallback(self, sdd: SDDManifest, contracts_dir: Path) -> Path:
         """

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -18,6 +19,7 @@ def _load_script_module() -> Any:
     if spec is None or spec.loader is None:
         raise AssertionError(f"Unable to load script module at {script_path}")
     module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
     spec.loader.exec_module(module)
     return module
 

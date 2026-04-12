@@ -16,7 +16,7 @@ import pytest
 from beartype import beartype
 
 from specfact_cli.models.bridge import BridgeConfig
-from specfact_cli.sync.bridge_sync import BridgeSync
+from specfact_cli.sync.bridge_sync import BridgeSync, ExportChangeProposalsOptions
 
 
 @pytest.fixture
@@ -70,11 +70,13 @@ class TestDevOpsGitHubSync:
 
         with patch.object(sync, "_read_openspec_change_proposals", return_value=mock_proposals):
             result = sync.export_change_proposals_to_devops(
-                adapter_type="github",
-                repo_owner="test-owner",
-                repo_name="test-repo",
-                api_token="test-token",
-                use_gh_cli=False,
+                "github",
+                ExportChangeProposalsOptions(
+                    repo_owner="test-owner",
+                    repo_name="test-repo",
+                    api_token="test-token",
+                    use_gh_cli=False,
+                ),
             )
 
             # Verify result
@@ -128,11 +130,13 @@ class TestDevOpsGitHubSync:
 
         with patch.object(sync, "_read_openspec_change_proposals", return_value=mock_proposals):
             result = sync.export_change_proposals_to_devops(
-                adapter_type="github",
-                repo_owner="test-owner",
-                repo_name="test-repo",
-                api_token="test-token",
-                use_gh_cli=False,
+                "github",
+                ExportChangeProposalsOptions(
+                    repo_owner="test-owner",
+                    repo_name="test-repo",
+                    api_token="test-token",
+                    use_gh_cli=False,
+                ),
             )
 
             # Verify result
@@ -179,20 +183,24 @@ class TestDevOpsGitHubSync:
         ):
             # First sync
             result1 = sync.export_change_proposals_to_devops(
-                adapter_type="github",
-                repo_owner="test-owner",
-                repo_name="test-repo",
-                api_token="test-token",
-                use_gh_cli=False,
+                "github",
+                ExportChangeProposalsOptions(
+                    repo_owner="test-owner",
+                    repo_name="test-repo",
+                    api_token="test-token",
+                    use_gh_cli=False,
+                ),
             )
 
             # Second sync (same proposal, same status)
             result2 = sync.export_change_proposals_to_devops(
-                adapter_type="github",
-                repo_owner="test-owner",
-                repo_name="test-repo",
-                api_token="test-token",
-                use_gh_cli=False,
+                "github",
+                ExportChangeProposalsOptions(
+                    repo_owner="test-owner",
+                    repo_name="test-repo",
+                    api_token="test-token",
+                    use_gh_cli=False,
+                ),
             )
 
             # Should not create duplicate issues
@@ -234,11 +242,13 @@ class TestDevOpsGitHubSync:
             patch.object(sync, "_read_openspec_change_proposals", return_value=mock_proposals),
         ):
             result = sync.export_change_proposals_to_devops(
-                adapter_type="github",
-                repo_owner="test-owner",
-                repo_name="test-repo",
-                api_token=None,  # No token
-                use_gh_cli=False,  # Disable gh CLI to test missing token error
+                "github",
+                ExportChangeProposalsOptions(
+                    repo_owner="test-owner",
+                    repo_name="test-repo",
+                    api_token=None,  # No token
+                    use_gh_cli=False,  # Disable gh CLI to test missing token error
+                ),
             )
 
             # Should fail with error about missing token
@@ -274,11 +284,13 @@ class TestDevOpsGitHubSync:
             patch("specfact_cli.adapters.AdapterRegistry.get_adapter", return_value=mock_adapter),
         ):
             result = sync.export_change_proposals_to_devops(
-                adapter_type="github",
-                repo_owner="invalid-owner",
-                repo_name="invalid-repo",
-                api_token="test-token",
-                use_gh_cli=False,
+                "github",
+                ExportChangeProposalsOptions(
+                    repo_owner="invalid-owner",
+                    repo_name="invalid-repo",
+                    api_token="test-token",
+                    use_gh_cli=False,
+                ),
             )
 
             # Should fail with error
@@ -333,12 +345,14 @@ Our competitor does Y, but we do Z better.
             bridge_config.external_base_path = str(planning_repo)
 
         sync.export_change_proposals_to_devops(
-            adapter_type="github",
-            repo_owner="test-owner",
-            repo_name="test-repo",
-            api_token="test-token",
-            use_gh_cli=False,
-            sanitize=True,  # Force sanitization
+            "github",
+            ExportChangeProposalsOptions(
+                repo_owner="test-owner",
+                repo_name="test-repo",
+                api_token="test-token",
+                use_gh_cli=False,
+                sanitize=True,  # Force sanitization
+            ),
         )
 
         # Verify sanitization was applied (competitive analysis should be removed)
@@ -450,13 +464,15 @@ Add new feature X.
             mock_get.return_value = mock_get_response
 
             result = sync.export_change_proposals_to_devops(
-                adapter_type="github",
-                repo_owner="test-owner",
-                repo_name="test-repo",
-                api_token="test-token",
-                use_gh_cli=False,
-                track_code_changes=True,
-                code_repo_path=code_repo,
+                "github",
+                ExportChangeProposalsOptions(
+                    repo_owner="test-owner",
+                    repo_name="test-repo",
+                    api_token="test-token",
+                    use_gh_cli=False,
+                    track_code_changes=True,
+                    code_repo_path=code_repo,
+                ),
             )
 
             # Verify result
@@ -603,13 +619,15 @@ Add new feature X.
 
         with patch.object(sync, "_read_openspec_change_proposals", return_value=mock_proposals):
             result = sync.export_change_proposals_to_devops(
-                adapter_type="github",
-                repo_owner="test-owner",
-                repo_name="test-repo",
-                api_token="test-token",
-                use_gh_cli=False,
-                track_code_changes=True,
-                code_repo_path=code_repo,
+                "github",
+                ExportChangeProposalsOptions(
+                    repo_owner="test-owner",
+                    repo_name="test-repo",
+                    api_token="test-token",
+                    use_gh_cli=False,
+                    track_code_changes=True,
+                    code_repo_path=code_repo,
+                ),
             )
 
             # Verify result
@@ -703,13 +721,15 @@ Add new feature X.
         with patch.object(sync, "_read_openspec_change_proposals", return_value=mock_proposals):
             # First sync - should add comment
             result1 = sync.export_change_proposals_to_devops(
-                adapter_type="github",
-                repo_owner="test-owner",
-                repo_name="test-repo",
-                api_token="test-token",
-                use_gh_cli=False,
-                track_code_changes=True,
-                code_repo_path=code_repo,
+                "github",
+                ExportChangeProposalsOptions(
+                    repo_owner="test-owner",
+                    repo_name="test-repo",
+                    api_token="test-token",
+                    use_gh_cli=False,
+                    track_code_changes=True,
+                    code_repo_path=code_repo,
+                ),
             )
 
             assert result1.success is True
@@ -728,13 +748,15 @@ Add new feature X.
 
             # Second sync - should NOT add duplicate comment
             result2 = sync.export_change_proposals_to_devops(
-                adapter_type="github",
-                repo_owner="test-owner",
-                repo_name="test-repo",
-                api_token="test-token",
-                use_gh_cli=False,
-                track_code_changes=True,
-                code_repo_path=code_repo,
+                "github",
+                ExportChangeProposalsOptions(
+                    repo_owner="test-owner",
+                    repo_name="test-repo",
+                    api_token="test-token",
+                    use_gh_cli=False,
+                    track_code_changes=True,
+                    code_repo_path=code_repo,
+                ),
             )
 
             assert result2.success is True

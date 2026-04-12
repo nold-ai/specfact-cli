@@ -59,6 +59,22 @@ def _collect_counterexample_violations(
     return violation_details
 
 
+def _append_rejected_line_violation(
+    line: str,
+    function_name_pattern: re.Pattern[str],
+    violation_details: list[dict[str, Any]],
+) -> None:
+    if any(v["function"] in line for v in violation_details):
+        return
+    match = function_name_pattern.match(line)
+    if not match:
+        return
+    func_name = match.group(1).strip()
+    if "/" in func_name or func_name.startswith("/"):
+        return
+    violation_details.append({"function": func_name, "counterexample": {}, "raw": line.strip()})
+
+
 def _count_lines_by_status(
     lines: list[str],
     confirmed_pattern: re.Pattern[str],
@@ -73,15 +89,12 @@ def _count_lines_by_status(
     for line in lines:
         if confirmed_pattern.search(line):
             confirmed += 1
-        elif rejected_pattern.search(line):
+            continue
+        if rejected_pattern.search(line):
             violations += 1
-            if not any(v["function"] in line for v in violation_details):
-                match = function_name_pattern.match(line)
-                if match:
-                    func_name = match.group(1).strip()
-                    if "/" not in func_name and not func_name.startswith("/"):
-                        violation_details.append({"function": func_name, "counterexample": {}, "raw": line.strip()})
-        elif unknown_pattern.search(line):
+            _append_rejected_line_violation(line, function_name_pattern, violation_details)
+            continue
+        if unknown_pattern.search(line):
             not_confirmed += 1
     return confirmed, not_confirmed, violations
 

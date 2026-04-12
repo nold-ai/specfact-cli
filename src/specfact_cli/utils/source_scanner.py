@@ -114,32 +114,30 @@ class SourceArtifactMap:
     test_mappings: dict[str, list[str]] = field(default_factory=dict)  # "test_file.py::test_func" -> [story_keys]
 
 
-def _resolve_linking_caches(
-    file_functions_cache: dict[str, list[str]] | None,
-    file_test_functions_cache: dict[str, list[str]] | None,
-    file_hashes_cache: dict[str, str] | None,
-    impl_files_by_stem: dict[str, list[Path]] | None,
-    test_files_by_stem: dict[str, list[Path]] | None,
-    impl_stems_by_substring: dict[str, set[str]] | None,
-    test_stems_by_substring: dict[str, set[str]] | None,
-) -> tuple[
-    dict[str, list[str]],
-    dict[str, list[str]],
-    dict[str, str],
-    dict[str, list[Path]],
-    dict[str, list[Path]],
-    dict[str, set[str]],
-    dict[str, set[str]],
-]:
-    return (
-        file_functions_cache or {},
-        file_test_functions_cache or {},
-        file_hashes_cache or {},
-        impl_files_by_stem or {},
-        test_files_by_stem or {},
-        impl_stems_by_substring or {},
-        test_stems_by_substring or {},
-    )
+@dataclass(slots=True)
+class _FeatureLinkingContext:
+    repo_path: Path
+    impl_files: list[Path]
+    test_files: list[Path]
+    file_functions_cache: dict[str, list[str]]
+    file_test_functions_cache: dict[str, list[str]]
+    file_hashes_cache: dict[str, str]
+    impl_files_by_stem: dict[str, list[Path]]
+    test_files_by_stem: dict[str, list[Path]]
+    impl_stems_by_substring: dict[str, set[str]]
+    test_stems_by_substring: dict[str, set[str]]
+
+
+@dataclass(slots=True)
+class _ImplTestPathLinkArgs:
+    feature_key_lower: str
+    feature_title_words: list[str]
+    repo_path: Path
+    file_hashes_cache: dict[str, str]
+    impl_files_by_stem: dict[str, list[Path]]
+    test_files_by_stem: dict[str, list[Path]]
+    impl_stems_by_substring: dict[str, set[str]]
+    test_stems_by_substring: dict[str, set[str]]
 
 
 class SourceArtifactScanner:
@@ -259,55 +257,46 @@ class SourceArtifactScanner:
 
     def _link_feature_impl_and_test_paths(
         self,
-        feature_key_lower: str,
-        feature_title_words: list[str],
-        impl_files_by_stem: dict[str, list[Path]],
-        test_files_by_stem: dict[str, list[Path]],
-        impl_stems_by_substring: dict[str, set[str]],
-        test_stems_by_substring: dict[str, set[str]],
-        repo_path: Path,
         source_tracking: SourceTracking,
-        file_hashes_cache: dict[str, str],
+        args: _ImplTestPathLinkArgs,
     ) -> None:
         matched_impl = self._resolve_matched_paths(
-            feature_key_lower, feature_title_words, impl_files_by_stem, impl_stems_by_substring, repo_path
+            args.feature_key_lower,
+            args.feature_title_words,
+            args.impl_files_by_stem,
+            args.impl_stems_by_substring,
+            args.repo_path,
         )
         self._register_matched_files(
-            matched_impl, source_tracking.implementation_files, source_tracking, file_hashes_cache, repo_path
+            matched_impl,
+            source_tracking.implementation_files,
+            source_tracking,
+            args.file_hashes_cache,
+            args.repo_path,
         )
 
         matched_test = self._resolve_matched_paths(
-            feature_key_lower, feature_title_words, test_files_by_stem, test_stems_by_substring, repo_path
+            args.feature_key_lower,
+            args.feature_title_words,
+            args.test_files_by_stem,
+            args.test_stems_by_substring,
+            args.repo_path,
         )
         self._register_matched_files(
-            matched_test, source_tracking.test_files, source_tracking, file_hashes_cache, repo_path
+            matched_test,
+            source_tracking.test_files,
+            source_tracking,
+            args.file_hashes_cache,
+            args.repo_path,
         )
 
-    def _link_feature_to_specs(
-        self,
-        feature: Feature,
-        repo_path: Path,
-        impl_files: list[Path],
-        test_files: list[Path],
-        file_functions_cache: dict[str, list[str]] | None = None,
-        file_test_functions_cache: dict[str, list[str]] | None = None,
-        file_hashes_cache: dict[str, str] | None = None,
-        impl_files_by_stem: dict[str, list[Path]] | None = None,
-        test_files_by_stem: dict[str, list[Path]] | None = None,
-        impl_stems_by_substring: dict[str, set[str]] | None = None,
-        test_stems_by_substring: dict[str, set[str]] | None = None,
-    ) -> None:
+    def _link_feature_to_specs(self, feature: Feature, ctx: _FeatureLinkingContext) -> None:
         """
         Link a single feature to matching files (thread-safe helper).
 
         Args:
             feature: Feature to link
-            repo_path: Repository path
-            impl_files: Pre-collected implementation files
-            test_files: Pre-collected test files
-            file_functions_cache: Pre-computed function mappings cache (file_path -> [functions])
-            file_test_functions_cache: Pre-computed test function mappings cache (file_path -> [test_functions])
-            file_hashes_cache: Pre-computed file hashes cache (file_path -> hash)
+            ctx: Pre-computed repository file caches and indexes for linking.
         """
         if feature.source_tracking is None:
             feature.source_tracking = SourceTracking()
@@ -315,46 +304,30 @@ class SourceArtifactScanner:
         if source_tracking is None:
             return
 
-        (
-            file_functions_cache,
-            file_test_functions_cache,
-            file_hashes_cache,
-            impl_files_by_stem,
-            test_files_by_stem,
-            impl_stems_by_substring,
-            test_stems_by_substring,
-        ) = _resolve_linking_caches(
-            file_functions_cache,
-            file_test_functions_cache,
-            file_hashes_cache,
-            impl_files_by_stem,
-            test_files_by_stem,
-            impl_stems_by_substring,
-            test_stems_by_substring,
-        )
-
         feature_key_lower = feature.key.lower()
         feature_title_words = [w for w in feature.title.lower().split() if len(w) > 3]
 
         self._link_feature_impl_and_test_paths(
-            feature_key_lower,
-            feature_title_words,
-            impl_files_by_stem,
-            test_files_by_stem,
-            impl_stems_by_substring,
-            test_stems_by_substring,
-            repo_path,
             source_tracking,
-            file_hashes_cache,
+            _ImplTestPathLinkArgs(
+                feature_key_lower=feature_key_lower,
+                feature_title_words=feature_title_words,
+                repo_path=ctx.repo_path,
+                file_hashes_cache=ctx.file_hashes_cache,
+                impl_files_by_stem=ctx.impl_files_by_stem,
+                test_files_by_stem=ctx.test_files_by_stem,
+                impl_stems_by_substring=ctx.impl_stems_by_substring,
+                test_stems_by_substring=ctx.test_stems_by_substring,
+            ),
         )
 
         for story in feature.stories:
             self._collect_story_function_mappings(
                 story,
-                repo_path,
+                ctx.repo_path,
                 source_tracking,
-                file_functions_cache,
-                file_test_functions_cache,
+                ctx.file_functions_cache,
+                ctx.file_test_functions_cache,
             )
 
         # Update sync timestamp
@@ -461,19 +434,19 @@ class SourceArtifactScanner:
             f"[dim]✓ Cached {len(file_functions_cache)} implementation files, {len(file_test_functions_cache)} test files[/dim]"
         )
 
-        self._run_parallel_feature_linking(
-            features,
-            repo_path,
-            impl_files,
-            test_files,
-            file_functions_cache,
-            file_test_functions_cache,
-            file_hashes_cache,
-            impl_files_by_stem,
-            test_files_by_stem,
-            impl_stems_by_substring,
-            test_stems_by_substring,
+        linking_ctx = _FeatureLinkingContext(
+            repo_path=repo_path,
+            impl_files=impl_files,
+            test_files=test_files,
+            file_functions_cache=file_functions_cache,
+            file_test_functions_cache=file_test_functions_cache,
+            file_hashes_cache=file_hashes_cache,
+            impl_files_by_stem=impl_files_by_stem,
+            test_files_by_stem=test_files_by_stem,
+            impl_stems_by_substring=impl_stems_by_substring,
+            test_stems_by_substring=test_stems_by_substring,
         )
+        self._run_parallel_feature_linking(features, linking_ctx)
 
     def _index_impl_file_for_link_cache(
         self,
@@ -558,16 +531,7 @@ class SourceArtifactScanner:
     def _run_parallel_feature_linking(
         self,
         features: list[Feature],
-        repo_path: Path,
-        impl_files: list[Path],
-        test_files: list[Path],
-        file_functions_cache: dict[str, list[str]],
-        file_test_functions_cache: dict[str, list[str]],
-        file_hashes_cache: dict[str, str],
-        impl_files_by_stem: dict[str, list[Path]],
-        test_files_by_stem: dict[str, list[Path]],
-        impl_stems_by_substring: dict[str, set[str]],
-        test_stems_by_substring: dict[str, set[str]],
+        ctx: _FeatureLinkingContext,
     ) -> None:
         if os.environ.get("TEST_MODE") == "true":
             max_workers = max(1, min(2, len(features)))
@@ -591,21 +555,7 @@ class SourceArtifactScanner:
 
             try:
                 future_to_feature = {
-                    executor.submit(
-                        self._link_feature_to_specs,
-                        feature,
-                        repo_path,
-                        impl_files,
-                        test_files,
-                        file_functions_cache,
-                        file_test_functions_cache,
-                        file_hashes_cache,
-                        impl_files_by_stem,
-                        test_files_by_stem,
-                        impl_stems_by_substring,
-                        test_stems_by_substring,
-                    ): feature
-                    for feature in features
+                    executor.submit(self._link_feature_to_specs, feature, ctx): feature for feature in features
                 }
                 interrupted = _drain_feature_link_futures(future_to_feature, progress, task, len(features))
                 if interrupted:

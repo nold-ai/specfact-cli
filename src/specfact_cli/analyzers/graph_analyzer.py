@@ -186,6 +186,20 @@ class GraphAnalyzer:
         finally:
             executor.shutdown(wait=wait_on_shutdown)
 
+    def _add_call_graph_edges_for_module(
+        self,
+        graph: StrDiGraph,
+        module_name: str,
+        call_graph: dict[str, list[str]],
+        python_files: list[Path],
+    ) -> None:
+        for _caller, callees in call_graph.items():
+            for callee in callees:
+                callee_module = self._resolve_module_from_function(callee, python_files)
+                if callee_module is None or callee_module not in graph:
+                    continue
+                graph.add_edge(module_name, callee_module)
+
     def _build_call_graph_edges(
         self,
         graph: StrDiGraph,
@@ -206,11 +220,7 @@ class GraphAnalyzer:
                 try:
                     call_graph = future.result()
                     module_name = self._path_to_module_name(file_path)
-                    for _caller, callees in call_graph.items():
-                        for callee in callees:
-                            callee_module = self._resolve_module_from_function(callee, python_files)
-                            if callee_module and callee_module in graph:
-                                graph.add_edge(module_name, callee_module)
+                    self._add_call_graph_edges_for_module(graph, module_name, call_graph, python_files)
                 except (OSError, RuntimeError):
                     pass
                 completed += 1

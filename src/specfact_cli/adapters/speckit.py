@@ -11,6 +11,7 @@ import hashlib
 import re
 import shutil
 import subprocess
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -39,6 +40,18 @@ from specfact_cli.utils.icontract_helpers import (
 
 
 logger = get_bridge_logger(__name__)
+
+
+@dataclass(frozen=True, slots=True)
+class _SpeckitFeatureUpsert:
+    feature_key: str
+    feature_title: str
+    outcomes: list[str]
+    acceptance: list[str]
+    stories: list[Any]
+    spec_data: dict[str, Any]
+    spec_path: Path
+    bridge_config: BridgeConfig | None
 
 
 class SpecKitAdapter(BridgeAdapter):
@@ -493,23 +506,12 @@ class SpecKitAdapter(BridgeAdapter):
             source_metadata["speckit_base_path"] = str(bridge_config.external_base_path)
         return SourceTracking(tool="speckit", source_metadata=source_metadata)
 
-    def _upsert_feature(
-        self,
-        project_bundle: ProjectBundle,
-        feature_key: str,
-        feature_title: str,
-        outcomes: list[str],
-        acceptance: list[str],
-        stories: list[Any],
-        spec_data: dict[str, Any],
-        spec_path: Path,
-        bridge_config: BridgeConfig | None,
-    ) -> None:
+    def _upsert_feature(self, project_bundle: ProjectBundle, payload: _SpeckitFeatureUpsert) -> None:
         """Insert a new Feature or update the existing one in project_bundle.features."""
         from specfact_cli.models.plan import Feature
         from specfact_cli.utils.feature_keys import normalize_feature_key
 
-        normalized_key = normalize_feature_key(feature_key)
+        normalized_key = normalize_feature_key(payload.feature_key)
         existing_feature = None
         for key, feat in project_bundle.features.items():
             if normalize_feature_key(key) == normalized_key:
@@ -517,28 +519,28 @@ class SpecKitAdapter(BridgeAdapter):
                 break
 
         if existing_feature:
-            existing_feature.title = feature_title
-            existing_feature.outcomes = outcomes if outcomes else existing_feature.outcomes
-            existing_feature.acceptance = acceptance if acceptance else existing_feature.acceptance
-            existing_feature.stories = stories
-            existing_feature.constraints = spec_data.get("edge_cases", [])
+            existing_feature.title = payload.feature_title
+            existing_feature.outcomes = payload.outcomes if payload.outcomes else existing_feature.outcomes
+            existing_feature.acceptance = payload.acceptance if payload.acceptance else existing_feature.acceptance
+            existing_feature.stories = payload.stories
+            existing_feature.constraints = payload.spec_data.get("edge_cases", [])
             return
 
         feature = Feature(
-            key=feature_key,
-            title=feature_title,
-            outcomes=outcomes if outcomes else [f"Provides {feature_title} functionality"],
-            acceptance=acceptance if acceptance else [f"{feature_title} is functional"],
-            constraints=spec_data.get("edge_cases", []),
-            stories=stories,
+            key=payload.feature_key,
+            title=payload.feature_title,
+            outcomes=(payload.outcomes if payload.outcomes else [f"Provides {payload.feature_title} functionality"]),
+            acceptance=(payload.acceptance if payload.acceptance else [f"{payload.feature_title} is functional"]),
+            constraints=payload.spec_data.get("edge_cases", []),
+            stories=payload.stories,
             confidence=0.8,
             draft=False,
             source_tracking=None,
             contract=None,
             protocol=None,
         )
-        feature.source_tracking = self._build_speckit_source_tracking(spec_path, bridge_config)
-        project_bundle.features[feature_key] = feature
+        feature.source_tracking = self._build_speckit_source_tracking(payload.spec_path, payload.bridge_config)
+        project_bundle.features[payload.feature_key] = feature
 
     def _import_specification(
         self,
@@ -561,14 +563,16 @@ class SpecKitAdapter(BridgeAdapter):
 
         self._upsert_feature(
             project_bundle,
-            feature_key,
-            feature_title,
-            outcomes,
-            acceptance,
-            stories,
-            spec_data,
-            spec_path,
-            bridge_config,
+            _SpeckitFeatureUpsert(
+                feature_key=feature_key,
+                feature_title=feature_title,
+                outcomes=outcomes,
+                acceptance=acceptance,
+                stories=stories,
+                spec_data=spec_data,
+                spec_path=spec_path,
+                bridge_config=bridge_config,
+            ),
         )
 
     def _read_plan_title(self, plan_path: Path) -> str:

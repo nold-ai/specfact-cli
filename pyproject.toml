@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "specfact-cli"
-version = "0.45.1"
+version = "0.45.2"
 description = "The swiss knife CLI for agile DevOps teams. Keep backlog, specs, tests, and code in sync with validation and contract enforcement for new projects and long-lived codebases."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -84,6 +84,8 @@ dependencies = [
     
     # Schema validation
     "jsonschema>=4.23.0",
+    # VS Code settings.json is often JSON with comments (JSONC); parse/emit via JSON5 subset
+    "json5>=0.9.28",
     
     # Contract-First (runtime decorators; exploration tools are optional extra `contracts`)
     "icontract>=2.7.1",  # Design-by-contract decorators
@@ -104,7 +106,7 @@ contracts = [
 ]
 
 dev = [
-    "setuptools>=69.0.0",
+    "setuptools>=69.0.0,<82",
     "pytest>=8.4.2",
     "pytest-cov>=7.0.0",
     "pytest-mock>=3.15.1",
@@ -172,8 +174,8 @@ specfact-cli = "specfact_cli.cli:cli_main"  # Alias for uvx compatibility
 [tool.hatch.envs.default]
 python = "3.12"
 dependencies = [
-    # Semgrep pulls opentelemetry; some versions import pkg_resources (setuptools)
-    "setuptools>=69.0.0",
+    # Semgrep pulls opentelemetry; setuptools 82+ may omit pkg_resources (breaks semgrep import chain)
+    "setuptools>=69.0.0,<82",
     "pip-tools",
     "pytest",
     "pytest-cov",
@@ -207,7 +209,7 @@ validate-prompts = "python tools/validate_prompts.py"
 test = "pytest {args}"
 test-cov = "pytest --cov=src --cov-report=term-missing {args}"
 type-check = "basedpyright --pythonpath $(python -c 'import sys; print(sys.executable)') {args}"
-lint = "ruff format . --check && basedpyright --pythonpath $(python -c 'import sys; print(sys.executable)') && ruff check . && pylint src tests tools"
+lint = "ruff format . --check && basedpyright --pythonpath $(python -c 'import sys; print(sys.executable)') && ruff check . && pylint src tests tools && python scripts/verify_safe_project_writes.py"
 governance = "pylint src tests tools --reports=y --output-format=parseable"
 format = "ruff check . --fix && ruff format ."
 

@@ -1,5 +1,5 @@
 name: module-registry
-version: 0.1.17
+version: 0.1.18
 commands:
   - module
 category: core
@@ -17,5 +17,5 @@ publisher:
 description: 'Manage modules: search, list, show, install, and upgrade.'
 license: Apache-2.0
 integrity:
-  checksum: sha256:9a16aa56293e9da54f6a6e11a7d596ffe254fab0fe23658966f606dba27abf94
-  signature: LuwmQRpXtdH4GeKsT7cjm4TTNwnky2sVwuuFYoEzeh+V8BsBdjm4wm7WTTQMK5+KCy0q8erayaj4FOSiYRJcAQ==
+  checksum: sha256:913da1a90a94691366c71fc23e91cfc57c38ffb97e4ea739229fc9897cc91131
+  signature: lclyeM5FB+AYl+VKScUXBi4+lBC8vSdXE7ki6L/m3C7TrW81x60It50jhcP0+VL3xlPPIPihIQ8KCh2NfWWVBg==

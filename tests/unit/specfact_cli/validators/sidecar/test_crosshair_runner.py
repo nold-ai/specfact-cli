@@ -7,7 +7,7 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from specfact_cli.validators.sidecar.crosshair_runner import run_crosshair
+from specfact_cli.validators.sidecar.crosshair_runner import CrosshairRunOptions, run_crosshair
 
 
 def test_run_crosshair_not_found(tmp_path: Path) -> None:
@@ -16,7 +16,7 @@ def test_run_crosshair_not_found(tmp_path: Path) -> None:
     source_path.write_text("def test(): pass\n")
 
     with patch("subprocess.run", side_effect=FileNotFoundError()):
-        result = run_crosshair(source_path, timeout=10)
+        result = run_crosshair(source_path, CrosshairRunOptions(timeout=10))
         assert result["success"] is False
         assert "not found" in result["stderr"]
 
@@ -29,7 +29,7 @@ def test_run_crosshair_timeout(tmp_path: Path) -> None:
     from subprocess import TimeoutExpired
 
     with patch("subprocess.run", side_effect=TimeoutExpired(cmd=["crosshair"], timeout=10)):
-        result = run_crosshair(source_path, timeout=10)
+        result = run_crosshair(source_path, CrosshairRunOptions(timeout=10))
         assert result["success"] is False
         assert "timed out" in result["stderr"]
 
@@ -45,6 +45,6 @@ def test_run_crosshair_success(tmp_path: Path) -> None:
     mock_proc.stderr = ""
 
     with patch("subprocess.run", return_value=mock_proc):
-        result = run_crosshair(source_path, timeout=10)
+        result = run_crosshair(source_path, CrosshairRunOptions(timeout=10))
         assert result["success"] is True
         assert result["returncode"] == 0

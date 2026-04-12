@@ -8,7 +8,7 @@ import os
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from specfact_cli.validators.sidecar.crosshair_runner import run_crosshair
+from specfact_cli.validators.sidecar.crosshair_runner import CrosshairRunOptions, run_crosshair
 
 
 class TestCrosshairRunnerEnvironment:
@@ -25,7 +25,7 @@ class TestCrosshairRunnerEnvironment:
             with patch("subprocess.run") as mock_run:
                 mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="", text=True)
 
-                run_crosshair(test_file, timeout=10)
+                run_crosshair(test_file, CrosshairRunOptions(timeout=10))
 
                 # Verify subprocess.run was called
                 assert mock_run.called
@@ -51,7 +51,7 @@ class TestCrosshairRunnerEnvironment:
                 mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="", text=True)
 
                 custom_pythonpath = "/custom/path"
-                run_crosshair(test_file, timeout=10, pythonpath=custom_pythonpath)
+                run_crosshair(test_file, CrosshairRunOptions(timeout=10, pythonpath=custom_pythonpath))
 
                 # Get the env dict passed to subprocess.run
                 call_kwargs = mock_run.call_args[1]
@@ -79,7 +79,7 @@ class TestCrosshairRunnerEnvironment:
             with patch("subprocess.run") as mock_run:
                 mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="", text=True)
 
-                run_crosshair(test_file, timeout=10)
+                run_crosshair(test_file, CrosshairRunOptions(timeout=10))
 
                 # Get the env dict passed to subprocess.run
                 call_kwargs = mock_run.call_args[1]

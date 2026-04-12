@@ -391,7 +391,7 @@ def test_init_first_run_interactive_no_selection_shows_tip(monkeypatch: pytest.M
 def test_spec_bundle_install_includes_project_dep(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     installed_ids: list[str] = []
 
-    def _record_marketplace(module_id: str, **kwargs: object) -> Path:
+    def _record_marketplace(module_id: str, options: object | None = None, **_kwargs: object) -> Path:
         installed_ids.append(module_id)
         return tmp_path / module_id.split("/")[1]
 
