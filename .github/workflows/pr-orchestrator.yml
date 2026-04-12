@@ -516,7 +516,7 @@ jobs:
           if-no-files-found: ignore
 
   linting:
-    name: Linting (ruff, pylint)
+    name: Linting (ruff, pylint, safe-write guard)
     runs-on: ubuntu-latest
     needs: [changes, verify-module-signatures]
     if: needs.changes.outputs.code_changed == 'true' && needs.changes.outputs.skip_tests_dev_to_main != 'true'
@@ -545,10 +545,12 @@ jobs:
           mkdir -p logs/lint
           LINT_LOG="logs/lint/lint_$(date -u +%Y%m%d_%H%M%S).log"
           {
+            set -euo pipefail
             ruff format . --check
             python -m basedpyright --pythonpath "$(python -c 'import sys; print(sys.executable)')"
             ruff check .
             pylint src tests tools
+            python scripts/verify_safe_project_writes.py
           } 2>&1 | tee "$LINT_LOG"
           exit "${PIPESTATUS[0]:-$?}"
       - name: Upload lint logs
