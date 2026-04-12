@@ -172,7 +172,7 @@ def _merge_chat_and_recommendations(
 @require(repo_path_exists, "Repo path must exist")
 @require(repo_path_is_dir, "Repo path must be a directory")
 @require(file_path_is_file, "file_path must be an existing file")
-@ensure(lambda result: result.is_file())
+@ensure(lambda result: isinstance(result, Path) and result.is_file())
 def backup_file_to_recovery(repo_path: Path, file_path: Path) -> Path:
     """Copy ``file_path`` into ``.specfact/recovery`` with a UTC timestamp suffix."""
     recovery_dir = (repo_path / RECOVERY_SUBDIR).resolve()
@@ -193,7 +193,7 @@ def backup_file_to_recovery(repo_path: Path, file_path: Path) -> Path:
 @require(repo_path_is_dir, "Repo path must be a directory")
 @require(settings_relative_nonblank, "settings_relative must be non-empty")
 @require(prompt_files_all_strings, "prompt_files must be a list of str")
-@ensure(lambda result: result.exists() and result.is_file())
+@ensure(lambda result: isinstance(result, Path) and result.exists() and result.is_file())
 def merge_vscode_settings_prompt_recommendations(
     repo_path: Path,
     settings_relative: str,

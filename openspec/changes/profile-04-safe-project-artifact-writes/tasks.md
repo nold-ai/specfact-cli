@@ -1,7 +1,8 @@
 ## 1. Branch, coordination, and issue sync
 
 - [x] 1.1 Create `bugfix/profile-04-safe-project-artifact-writes` in a dedicated worktree from
-  `origin/dev` and bootstrap Hatch in that worktree.
+  `origin/dev`; run `hatch env create`, then pre-flight status checks `hatch run smart-test-status` and
+  `hatch run contract-test-status`.
 - [ ] 1.2 Sync the change proposal to GitHub under parent feature `#365`, link bug `#487`, and update
   `proposal.md` Source Tracking with issue metadata. *(human / PR author)*
 - [ ] 1.3 Confirm the paired modules-side change `project-runtime-01-safe-artifact-write-policy` is
@@ -41,7 +42,7 @@
   document preservation guarantees, backup behavior, and explicit replacement semantics.
   *(installation.md + version pins in README / samples)*
 - [x] 4.3 Run quality gates: `hatch run format`, `hatch run type-check`, `hatch run lint`,
-  `hatch run yaml-lint`, `hatch run contract-test`, and `hatch run smart-test`.
+  `hatch run yaml-lint`, `hatch run contract-test`, `hatch run smart-test`, and `hatch test --cover -v`.
 - [x] 4.4 Run `hatch run ./scripts/verify-modules-signature.py --require-signature`; if any bundled
   module manifests changed, bump versions, re-sign as required, and re-run verification. *(no
   `modules/init` payload change — error UX handled in `ide_setup` to avoid re-signing)*
