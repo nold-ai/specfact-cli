@@ -113,3 +113,24 @@ def test_create_vscode_settings_chat_not_object_raises_without_force(tmp_path: P
             prompts_by_source={PROMPT_SOURCE_CORE: [prompt]},
             force=False,
         )
+
+
+def test_create_vscode_settings_chat_not_object_force_coerces_with_backup(tmp_path: Path) -> None:
+    vscode_dir = tmp_path / ".vscode"
+    vscode_dir.mkdir(parents=True)
+    settings_path = vscode_dir / "settings.json"
+    settings_path.write_text(json.dumps({"chat": "invalid"}), encoding="utf-8")
+    prompt = tmp_path / "specfact.01-import.md"
+    prompt.write_text("---\n---\n", encoding="utf-8")
+    create_vscode_settings(
+        tmp_path,
+        ".vscode/settings.json",
+        prompts_by_source={PROMPT_SOURCE_CORE: [prompt]},
+        force=True,
+    )
+    recovery = tmp_path / ".specfact" / "recovery"
+    assert recovery.is_dir()
+    assert any(recovery.glob("settings.json.*.bak"))
+    data = json.loads(settings_path.read_text(encoding="utf-8"))
+    assert isinstance(data["chat"], dict)
+    assert ".github/prompts/specfact.01-import.prompt.md" in data["chat"]["promptFilesRecommendations"]

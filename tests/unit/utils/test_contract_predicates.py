@@ -36,6 +36,8 @@ def test_vscode_settings_result_ok(tmp_path: Path) -> None:
 def test_settings_relative_nonblank() -> None:
     assert cp.settings_relative_nonblank(".vscode/settings.json") is True
     assert cp.settings_relative_nonblank("  ") is False
+    assert cp.settings_relative_nonblank("/abs/settings.json") is False
+    assert cp.settings_relative_nonblank(".vscode/../settings.json") is False
 
 
 def test_prompt_files_all_strings() -> None:

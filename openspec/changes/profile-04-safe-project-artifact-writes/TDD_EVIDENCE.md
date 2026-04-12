@@ -50,6 +50,10 @@ hatch run specfact code review run --json --out .specfact/code-review.json \
 
 - Report: `.specfact/code-review.json` (exit 0, no blocking findings after merge-helper refactor + setuptools pin).
 
+## OpenSpec strict validation
+
+- **Pass (2026-04-12)**: `openspec validate profile-04-safe-project-artifact-writes --strict` — exit 0 (recorded at sign-off per `tasks.md` 4.7).
+
 ## Worktree cleanup (post-merge on developer machine)
 
 - Remove worktree, delete branch, prune — see `tasks.md` section 5 (not executed in this implementation session).

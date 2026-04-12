@@ -13,7 +13,7 @@ import shutil
 import site
 import sys
 from pathlib import Path
-from typing import Any, Literal, cast
+from typing import Any, Literal, NoReturn, cast
 
 import click
 import yaml
@@ -473,6 +473,15 @@ def _prune_flat_specfact_exports_not_in_expected(
             console.print(f"[yellow]Could not remove stale export {p}:[/yellow] {exc}")
 
 
+def _handle_structured_json_document_error(exc: StructuredJsonDocumentError, cons: Console) -> NoReturn:
+    cons.print(f"[red]Error:[/red] {exc}")
+    cons.print(
+        "[dim]Repair `.vscode/settings.json` or re-run with [bold]--force[/bold] to replace it "
+        "after a timestamped backup under `.specfact/recovery/`.[/dim]"
+    )
+    raise click.exceptions.Exit(1) from exc
+
+
 def _copy_template_files_to_ide(
     repo_path: Path,
     ide: str,
@@ -515,12 +524,7 @@ def _copy_template_files_to_ide(
         try:
             settings_path = create_vscode_settings(repo_path, settings_file, force=force)
         except StructuredJsonDocumentError as exc:
-            console.print(f"[red]Error:[/red] {exc}")
-            console.print(
-                "[dim]Repair `.vscode/settings.json` or re-run with [bold]--force[/bold] to replace it "
-                "after a timestamped backup under `.specfact/recovery/`.[/dim]"
-            )
-            raise click.exceptions.Exit(1) from exc
+            _handle_structured_json_document_error(exc, console)
 
     return copied_files, settings_path
 
@@ -631,12 +635,7 @@ def copy_prompts_by_source_to_ide(
                 repo_path, settings_file, prompts_by_source=prompts_by_source, force=force
             )
         except StructuredJsonDocumentError as exc:
-            console.print(f"[red]Error:[/red] {exc}")
-            console.print(
-                "[dim]Repair `.vscode/settings.json` or re-run with [bold]--force[/bold] to replace it "
-                "after a timestamped backup under `.specfact/recovery/`.[/dim]"
-            )
-            raise click.exceptions.Exit(1) from exc
+            _handle_structured_json_document_error(exc, console)
 
     return all_copied, settings_path
 

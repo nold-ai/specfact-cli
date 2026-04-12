@@ -26,6 +26,7 @@
 - [x] 4.4 Run `hatch run ./scripts/verify-modules-signature.py --require-signature`; if any bundled module manifests changed, bump versions, re-sign as required, and re-run verification. *(no `modules/init` payload change — error UX handled in `ide_setup` to avoid re-signing)*
 - [x] 4.5 Ensure `.specfact/code-review.json` is fresh, remediate all findings, and record the final review command/timestamp in `TDD_EVIDENCE.md` or PR notes.
 - [x] 4.6 Apply the appropriate version/changelog update for a bugfix release if implementation changes user-facing behavior, then open a PR to `dev` referencing the paired modules change. *(version/changelog done; PR human)*
+- [x] 4.7 Run strict OpenSpec validation before sign-off: `openspec validate profile-04-safe-project-artifact-writes --strict`; fix any validation errors until it passes; record the successful run command and timestamp in `TDD_EVIDENCE.md` (or PR notes).
 
 ## 5. Worktree cleanup
 

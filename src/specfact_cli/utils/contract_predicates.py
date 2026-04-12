@@ -56,7 +56,13 @@ def file_path_exists(file_path: Path) -> bool:
 @ensure(lambda result: isinstance(result, bool))
 @beartype
 def settings_relative_nonblank(settings_relative: str) -> bool:
-    return settings_relative.strip() != ""
+    stripped = settings_relative.strip()
+    if stripped == "":
+        return False
+    path = Path(stripped)
+    if path.is_absolute():
+        return False
+    return all(part != ".." for part in path.parts)
 
 
 @require(lambda prompt_files: isinstance(prompt_files, list))

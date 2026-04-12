@@ -37,7 +37,12 @@ class StructuredJsonDocumentError(ProjectArtifactWriteError):
 
 
 class ProjectWriteMode(StrEnum):
-    """Declared write semantics for a project artifact (policy surface)."""
+    """Declared write semantics for a project artifact (policy surface).
+
+    Reserved for future write-dispatch routing (CREATE_ONLY, MERGE_STRUCTURED, EXPLICIT_REPLACE). Not yet wired into
+    call sites; kept so policy enums stay aligned with the OpenSpec safe-artifact-write narrative without churning
+    public module layout later.
+    """
 
     CREATE_ONLY = "create_only"
     MERGE_STRUCTURED = "merge_structured"
@@ -171,9 +176,13 @@ def backup_file_to_recovery(repo_path: Path, file_path: Path) -> Path:
     """Copy ``file_path`` into ``.specfact/recovery`` with a UTC timestamp suffix."""
     recovery_dir = (repo_path / RECOVERY_SUBDIR).resolve()
     recovery_dir.mkdir(parents=True, exist_ok=True)
-    stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
+    stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%S.%fZ")
     safe_name = re.sub(r"[^A-Za-z0-9._-]+", "_", file_path.name)
     dest = recovery_dir / f"{safe_name}.{stamp}.bak"
+    suffix = 0
+    while dest.exists():
+        suffix += 1
+        dest = recovery_dir / f"{safe_name}.{stamp}.{suffix}.bak"
     shutil.copy2(file_path, dest)
     return dest
 

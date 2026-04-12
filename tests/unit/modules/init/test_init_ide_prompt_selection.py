@@ -162,7 +162,8 @@ def test_init_ide_malformed_vscode_settings_exits_nonzero(tmp_path: Path, monkey
 
     vscode_dir = tmp_path / ".vscode"
     vscode_dir.mkdir(parents=True)
-    (vscode_dir / "settings.json").write_text("{not-json", encoding="utf-8")
+    malformed = "{not-json"
+    (vscode_dir / "settings.json").write_text(malformed, encoding="utf-8")
 
     runner = CliRunner()
     result = runner.invoke(
@@ -171,6 +172,7 @@ def test_init_ide_malformed_vscode_settings_exits_nonzero(tmp_path: Path, monkey
     )
     assert result.exit_code == 1
     assert "invalid json" in result.stdout.lower() or "cannot merge" in result.stdout.lower()
+    assert (vscode_dir / "settings.json").read_text(encoding="utf-8") == malformed
 
 
 def test_init_ide_invalid_prompts_token_exits_nonzero(tmp_path: Path) -> None:
