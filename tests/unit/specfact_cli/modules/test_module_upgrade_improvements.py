@@ -19,6 +19,7 @@ from specfact_cli.modules.module_registry.src.commands import (
     _run_marketplace_upgrades,
     app as module_app,
 )
+from specfact_cli.registry.module_installer import InstallModuleOptions
 
 
 runner = CliRunner()
@@ -43,7 +44,7 @@ def test_run_marketplace_upgrades_skips_reinstall_when_at_latest(tmp_path: Path)
 
     install_called = []
 
-    def _fake_install(module_id: str, reinstall: bool = False, **kwargs: object) -> Path:
+    def _fake_install(module_id: str, options: InstallModuleOptions | None = None, **_kwargs: object) -> Path:
         install_called.append(module_id)
         return tmp_path / "backlog"
 
@@ -86,7 +87,7 @@ def test_run_marketplace_upgrades_mixed_result_shows_sections(tmp_path: Path) ->
         "nold-ai/specfact-codebase": {"version": "0.44.0", "source": "marketplace", "latest_version": "0.44.0"},
     }
 
-    def _fake_install(module_id: str, reinstall: bool = False, **kwargs: object) -> Path:
+    def _fake_install(module_id: str, options: InstallModuleOptions | None = None, **_kwargs: object) -> Path:
         if "backlog" in module_id:
             return tmp_path / "backlog"
         raise AssertionError(f"Should not install {module_id}")
@@ -212,7 +213,7 @@ def test_run_marketplace_upgrades_yes_flag_skips_major_bump_prompt(tmp_path: Pat
         "nold-ai/specfact-backlog": {"version": "0.41.16", "source": "marketplace", "latest_version": "1.0.0"},
     }
 
-    def _fake_install(module_id: str, **kwargs: object) -> Path:
+    def _fake_install(module_id: str, options: InstallModuleOptions | None = None, **_kwargs: object) -> Path:
         return tmp_path / "backlog"
 
     def _fake_read_version(p: Path) -> str:
@@ -242,7 +243,7 @@ def test_upgrade_command_warns_when_registry_unavailable(monkeypatch: pytest.Mon
         lambda: [{"id": "backlog", "version": "0.2.0", "enabled": True, "source": "marketplace"}],
     )
 
-    def _install(module_id: str, **kwargs: object) -> Path:
+    def _install(module_id: str, options: InstallModuleOptions | None = None, **_kwargs: object) -> Path:
         return tmp_path / "backlog"
 
     monkeypatch.setattr(
@@ -276,7 +277,7 @@ def test_run_marketplace_upgrades_calls_console_status_when_spinner_enabled(
         "nold-ai/specfact-backlog": {"version": "0.1.0", "source": "marketplace"},
     }
 
-    def _fake_install(module_id: str, **kwargs: object) -> Path:
+    def _fake_install(module_id: str, options: InstallModuleOptions | None = None, **_kwargs: object) -> Path:
         return tmp_path / "m"
 
     with (

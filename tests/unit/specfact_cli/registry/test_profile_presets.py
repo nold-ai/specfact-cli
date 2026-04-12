@@ -85,7 +85,7 @@ def test_install_bundles_for_init_calls_marketplace_for_code_review(tmp_path: Pa
     """install_bundles_for_init must call the marketplace installer for specfact-code-review."""
     installed_marketplace_ids: list[str] = []
 
-    def _fake_install_module(module_id: str, **kwargs: object) -> Path:
+    def _fake_install_module(module_id: str, options: object | None = None, **_kwargs: object) -> Path:
         installed_marketplace_ids.append(module_id)
         return tmp_path / module_id.split("/")[1]
 
@@ -114,7 +114,7 @@ def test_install_bundles_for_init_solo_developer_installs_both(tmp_path: Path) -
     """Solo-developer bundles install via marketplace (slim CLI has no per-command bundled workflow dirs)."""
     installed_marketplace_ids: list[str] = []
 
-    def _fake_marketplace(module_id: str, **kwargs: object) -> Path:
+    def _fake_marketplace(module_id: str, options: object | None = None, **_kwargs: object) -> Path:
         installed_marketplace_ids.append(module_id)
         return tmp_path / module_id.split("/")[1]
 

@@ -58,7 +58,7 @@ def test_module_install_accepts_multiple_ids() -> None:
     """specfact module install A B must accept two positional arguments."""
     installed: list[str] = []
 
-    def _fake_install(module_id: str, **kwargs: object) -> Path:
+    def _fake_install(module_id: str, options: object | None = None, **_kwargs: object) -> Path:
         installed.append(module_id)
         return Path(f"/tmp/{module_id.split('/')[1]}")
 
@@ -112,7 +112,7 @@ def test_module_install_single_still_works() -> None:
     """Single-module install must still work after multi-install change."""
     installed: list[str] = []
 
-    def _fake_install(module_id: str, **kwargs: object) -> Path:
+    def _fake_install(module_id: str, options: object | None = None, **_kwargs: object) -> Path:
         installed.append(module_id)
         return Path(f"/tmp/{module_id.split('/')[1]}")
 
@@ -144,7 +144,7 @@ def test_module_install_multi_aborts_on_first_failure_without_installing_rest() 
     """Multi-install: if module A fails, do not attempt B (avoid partial surprise state)."""
     installed: list[str] = []
 
-    def _fake_install(module_id: str, **kwargs: object) -> Path:
+    def _fake_install(module_id: str, options: object | None = None, **_kwargs: object) -> Path:
         if "codebase" in module_id:
             raise RuntimeError("mock install failure for first module")
         installed.append(module_id)
@@ -184,7 +184,7 @@ def test_module_install_multi_skips_already_installed_and_continues() -> None:
     def _fake_skip(scope: str, name: str, root: Path, reinstall: bool, discovered: Any) -> bool:
         return "codebase" in name  # A is already installed
 
-    def _fake_install(module_id: str, **kwargs: object) -> Path:
+    def _fake_install(module_id: str, options: object | None = None, **_kwargs: object) -> Path:
         installed.append(module_id)
         return Path(f"/tmp/{module_id.split('/')[1]}")
 
