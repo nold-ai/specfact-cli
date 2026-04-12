@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 import shutil
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import StrEnum
 from pathlib import Path
@@ -125,47 +126,49 @@ def _load_root_dict_from_settings_text(
     return {}, out_backup
 
 
-def _merge_chat_and_recommendations(
-    loaded: dict[str, Any],
-    settings_path: Path,
-    repo_path: Path,
-    explicit_replace_unparseable: bool,
-    backup_path: Path | None,
-    strip_specfact_github_from_existing: bool,
-    prompt_files: list[str],
-) -> None:
-    out_backup = backup_path
+@dataclass(frozen=True, slots=True)
+class _VscodeChatMergeContext:
+    settings_path: Path
+    repo_path: Path
+    explicit_replace_unparseable: bool
+    initial_backup_path: Path | None
+    strip_specfact_github_from_existing: bool
+    prompt_files: tuple[str, ...]
+
+
+def _merge_chat_and_recommendations(loaded: dict[str, Any], ctx: _VscodeChatMergeContext) -> None:
+    out_backup = ctx.initial_backup_path
     if "chat" not in loaded:
         loaded["chat"] = {}
     chat_block = loaded["chat"]
     if not isinstance(chat_block, dict):
-        if not explicit_replace_unparseable:
+        if not ctx.explicit_replace_unparseable:
             raise StructuredJsonDocumentError(
-                f'Cannot merge into {settings_path}: "chat" must be a JSON object, not {type(chat_block).__name__}.'
+                f'Cannot merge into {ctx.settings_path}: "chat" must be a JSON object, not {type(chat_block).__name__}.'
             )
-        out_backup = _ensure_backup(repo_path, settings_path, out_backup)
+        out_backup = _ensure_backup(ctx.repo_path, ctx.settings_path, out_backup)
         _logger.info("Backed up settings before chat coercion to %s", out_backup)
         chat_block = {}
         loaded["chat"] = chat_block
 
-    existing_recommendations = chat_block.get("promptFilesRecommendations", [])
+    chat_body: dict[str, Any] = cast(dict[str, Any], loaded["chat"])
+    existing_recommendations = chat_body.get("promptFilesRecommendations", [])
     if not isinstance(existing_recommendations, list):
-        if not explicit_replace_unparseable:
+        if not ctx.explicit_replace_unparseable:
             raise StructuredJsonDocumentError(
-                f'Cannot merge into {settings_path}: "chat.promptFilesRecommendations" must be a JSON array.'
+                f'Cannot merge into {ctx.settings_path}: "chat.promptFilesRecommendations" must be a JSON array.'
             )
-        out_backup = _ensure_backup(repo_path, settings_path, out_backup)
+        out_backup = _ensure_backup(ctx.repo_path, ctx.settings_path, out_backup)
         _logger.info("Backed up settings before recommendations coercion to %s", out_backup)
         existing_recommendations = []
 
     recs_as_strings = [str(x) for x in existing_recommendations]
-    if strip_specfact_github_from_existing:
+    if ctx.strip_specfact_github_from_existing:
         recs_as_strings = _strip_specfact_github_prompt_recommendations(recs_as_strings)
 
-    merged_list = _ordered_unique_strings([*recs_as_strings, *prompt_files])
-    chat_typed = cast(dict[str, Any], chat_block)
-    chat_typed["promptFilesRecommendations"] = merged_list
-    loaded["chat"] = chat_typed
+    merged_list = _ordered_unique_strings([*recs_as_strings, *ctx.prompt_files])
+    chat_body["promptFilesRecommendations"] = merged_list
+    loaded["chat"] = chat_body
 
 
 @beartype
@@ -237,12 +240,14 @@ def merge_vscode_settings_prompt_recommendations(
     )
     _merge_chat_and_recommendations(
         loaded,
-        settings_path,
-        repo_path,
-        explicit_replace_unparseable,
-        backup_path,
-        strip_specfact_github_from_existing,
-        prompt_files,
+        _VscodeChatMergeContext(
+            settings_path=settings_path,
+            repo_path=repo_path,
+            explicit_replace_unparseable=explicit_replace_unparseable,
+            initial_backup_path=backup_path,
+            strip_specfact_github_from_existing=strip_specfact_github_from_existing,
+            prompt_files=tuple(prompt_files),
+        ),
     )
     out_text = json5.dumps(loaded, indent=4, quote_keys=True, trailing_commas=False) + "\n"
     settings_path.write_text(out_text, encoding="utf-8")

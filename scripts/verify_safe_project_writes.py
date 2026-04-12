@@ -17,8 +17,25 @@ IDE_SETUP = ROOT / "src" / "specfact_cli" / "utils" / "ide_setup.py"
 _JSON_IO_NAMES = frozenset({"load", "dump", "loads", "dumps"})
 
 
+def _write_stderr(message: str) -> None:
+    sys.stderr.write(message + "\n")
+
+
 def _repo_layout_ok() -> bool:
     return ROOT.is_dir()
+
+
+def _register_json_module_alias(alias: ast.alias, module_locals: set[str]) -> None:
+    if alias.name != "json":
+        return
+    module_locals.add(alias.asname or "json")
+
+
+def _register_json_from_func_alias(alias: ast.alias, func_aliases: dict[str, str]) -> None:
+    if alias.name not in _JSON_IO_NAMES:
+        return
+    local = alias.asname or alias.name
+    func_aliases[local] = f"json.{alias.name}"
 
 
 def _json_bindings(tree: ast.AST) -> tuple[dict[str, str], frozenset[str]]:
@@ -28,13 +45,11 @@ def _json_bindings(tree: ast.AST) -> tuple[dict[str, str], frozenset[str]]:
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             for alias in node.names:
-                if alias.name == "json":
-                    module_locals.add(alias.asname or "json")
-        elif isinstance(node, ast.ImportFrom) and node.module == "json":
+                _register_json_module_alias(alias, module_locals)
+            continue
+        if isinstance(node, ast.ImportFrom) and node.module == "json":
             for alias in node.names:
-                if alias.name in _JSON_IO_NAMES:
-                    local = alias.asname or alias.name
-                    func_aliases[local] = f"json.{alias.name}"
+                _register_json_from_func_alias(alias, func_aliases)
     return func_aliases, frozenset(module_locals)
 
 
@@ -63,16 +78,15 @@ def _collect_json_io_offenders(tree: ast.AST) -> list[tuple[int, str]]:
 @ensure(lambda result: result in (0, 1, 2))
 def main() -> int:
     if not IDE_SETUP.is_file():
-        print(f"Expected ide_setup at {IDE_SETUP}", file=sys.stderr)
+        _write_stderr(f"Expected ide_setup at {IDE_SETUP}")
         return 2
     tree = ast.parse(IDE_SETUP.read_text(encoding="utf-8"), filename=str(IDE_SETUP))
     offenders = _collect_json_io_offenders(tree)
     if offenders:
         lines = ", ".join(f"line {ln} ({name})" for ln, name in offenders)
-        print(
+        _write_stderr(
             "Unsafe JSON I/O in ide_setup.py — route VS Code settings through "
             f"specfact_cli.utils.project_artifact_write.merge_vscode_settings_prompt_recommendations: {lines}",
-            file=sys.stderr,
         )
         return 1
     return 0
