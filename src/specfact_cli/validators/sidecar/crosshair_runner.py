@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import os
 import subprocess
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -17,41 +18,48 @@ from icontract import ensure, require
 from specfact_cli.utils.env_manager import build_tool_command, detect_env_manager
 
 
+@dataclass
+class CrosshairRunOptions:
+    """Options for :func:`run_crosshair`."""
+
+    timeout: int = 60
+    pythonpath: str | None = None
+    verbose: bool = False
+    repo_path: Path | None = None
+    inputs_path: Path | None = None
+    per_path_timeout: int | None = None
+    per_condition_timeout: int | None = None
+    python_cmd: str | None = None
+
+
 @beartype
 @require(
     lambda source_path: isinstance(source_path, Path) and source_path.exists(),
     "Source path must exist",
 )
-@require(lambda timeout: timeout > 0, "Timeout must be positive")
+@require(
+    lambda source_path, options: (options if options is not None else CrosshairRunOptions()).timeout > 0,
+    "Timeout must be positive",
+)
 @ensure(lambda result: isinstance(result, dict), "Must return dict")
 def run_crosshair(
     source_path: Path,
-    timeout: int = 60,
-    pythonpath: str | None = None,
-    verbose: bool = False,
-    repo_path: Path | None = None,
-    inputs_path: Path | None = None,
-    per_path_timeout: int | None = None,
-    per_condition_timeout: int | None = None,
-    python_cmd: str | None = None,
+    options: CrosshairRunOptions | None = None,
 ) -> dict[str, Any]:
     """
     Run CrossHair on source code or harness.
 
-    Args:
-        source_path: Path to source file or module
-        timeout: Timeout in seconds
-        pythonpath: PYTHONPATH for execution
-        verbose: Enable verbose output
-        repo_path: Optional repository path for environment manager detection
-        inputs_path: Optional path to deterministic inputs JSON file
-        per_path_timeout: Optional timeout per execution path
-        per_condition_timeout: Optional timeout per condition
-        python_cmd: Optional Python command to use (e.g., venv Python path)
-
     Returns:
         Dictionary with execution results
     """
+    opts = options or CrosshairRunOptions()
+    timeout = opts.timeout
+    pythonpath = opts.pythonpath
+    verbose = opts.verbose
+    repo_path = opts.repo_path
+    per_path_timeout = opts.per_path_timeout
+    per_condition_timeout = opts.per_condition_timeout
+    python_cmd = opts.python_cmd
     # Preserve PATH and other environment variables, then override/add PYTHONPATH
     env = os.environ.copy()
     if pythonpath:

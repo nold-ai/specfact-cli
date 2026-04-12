@@ -20,7 +20,7 @@ from specfact_cli.runtime import get_configured_console
 from specfact_cli.utils.env_manager import detect_env_manager
 from specfact_cli.utils.terminal import get_progress_config
 from specfact_cli.validators.sidecar.contract_populator import populate_contracts
-from specfact_cli.validators.sidecar.crosshair_runner import run_crosshair
+from specfact_cli.validators.sidecar.crosshair_runner import CrosshairRunOptions, run_crosshair
 from specfact_cli.validators.sidecar.crosshair_summary import (
     generate_summary_file,
     parse_crosshair_output,
@@ -113,14 +113,16 @@ def _run_crosshair_phase(config: SidecarConfig, results: dict[str, Any]) -> None
         return
     crosshair_result = run_crosshair(
         config.paths.harness_path,
-        timeout=config.timeouts.crosshair,
-        pythonpath=config.pythonpath,
-        verbose=config.crosshair.verbose,
-        repo_path=config.repo_path,
-        inputs_path=config.paths.inputs_path if config.crosshair.use_deterministic_inputs else None,
-        per_path_timeout=config.timeouts.crosshair_per_path,
-        per_condition_timeout=config.timeouts.crosshair_per_condition,
-        python_cmd=config.python_cmd,
+        CrosshairRunOptions(
+            timeout=config.timeouts.crosshair,
+            pythonpath=config.pythonpath,
+            verbose=config.crosshair.verbose,
+            repo_path=config.repo_path,
+            inputs_path=config.paths.inputs_path if config.crosshair.use_deterministic_inputs else None,
+            per_path_timeout=config.timeouts.crosshair_per_path,
+            per_condition_timeout=config.timeouts.crosshair_per_condition,
+            python_cmd=config.python_cmd,
+        ),
     )
     results["crosshair_results"]["harness"] = crosshair_result
     if crosshair_result.get("stdout") or crosshair_result.get("stderr"):

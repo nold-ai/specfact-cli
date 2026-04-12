@@ -123,6 +123,296 @@ class SyncResult:
     warnings: list[str]
 
 
+@dataclass(frozen=True)
+class ExportChangeProposalsOptions:
+    """Keyword options for :meth:`BridgeSync.export_change_proposals_to_devops`."""
+
+    repo_owner: str | None = None
+    repo_name: str | None = None
+    api_token: str | None = None
+    use_gh_cli: bool = True
+    sanitize: bool | None = None
+    target_repo: str | None = None
+    interactive: bool = False
+    change_ids: list[str] | None = None
+    export_to_tmp: bool = False
+    import_from_tmp: bool = False
+    tmp_file: Path | None = None
+    update_existing: bool = False
+    track_code_changes: bool = False
+    add_progress_comment: bool = False
+    code_repo_path: Path | None = None
+    include_archived: bool = False
+    ado_org: str | None = None
+    ado_project: str | None = None
+    ado_base_url: str | None = None
+    ado_work_item_type: str | None = None
+
+
+@dataclass
+class _AlignmentReportContentInput:
+    adapter_name: str
+    external_feature_ids: set[str]
+    specfact_feature_ids: set[str]
+    aligned: set[str]
+    gaps_in_specfact: set[str]
+    gaps_in_external: set[str]
+    coverage: float
+
+
+@dataclass
+class _AdoWorkItemVerifyInput:
+    issue_number: str | int | None
+    target_entry: dict[str, Any] | None
+    adapter_type: str
+    adapter: Any
+    ado_org: str | None
+    ado_project: str | None
+
+
+@dataclass
+class _GithubIssueSearchInput:
+    proposal: dict[str, Any]
+    change_id: str
+    adapter_type: str
+    repo_owner: str | None
+    repo_name: str | None
+    target_repo: str | None
+    source_tracking_list: list[dict[str, Any]]
+    warnings: list[str]
+    target_entry: dict[str, Any] | None
+    issue_number: str | int | None
+
+
+@dataclass
+class _AdoIssueSearchInput:
+    proposal: dict[str, Any]
+    change_id: str
+    adapter_type: str
+    adapter: Any
+    ado_org: str | None
+    ado_project: str | None
+    source_tracking_list: list[dict[str, Any]]
+    target_entry: dict[str, Any] | None
+    issue_number: str | int | None
+
+
+@dataclass
+class _RemoteIssueResolutionInput:
+    proposal: dict[str, Any]
+    change_id: str
+    adapter_type: str
+    adapter: Any
+    repo_owner: str | None
+    repo_name: str | None
+    ado_org: str | None
+    ado_project: str | None
+    target_repo: str | None
+    source_tracking_list: list[dict[str, Any]]
+    warnings: list[str]
+    target_entry: dict[str, Any] | None
+    issue_number: str | int | None
+
+
+@dataclass
+class _RecordCreatedIssueInput:
+    result: dict[str, Any]
+    adapter_type: str
+    ado_org: str | None
+    ado_project: str | None
+    repo_owner: str | None
+    repo_name: str | None
+    target_repo: str | None
+    should_sanitize: bool | None
+
+
+@dataclass
+class _DevOpsAdapterKwargsInput:
+    adapter_type: str
+    repo_owner: str | None
+    repo_name: str | None
+    api_token: str | None
+    use_gh_cli: bool
+    ado_org: str | None
+    ado_project: str | None
+    ado_base_url: str | None
+    ado_work_item_type: str | None
+
+
+@dataclass
+class _IssueUpdatePayload:
+    proposal: dict[str, Any]
+    target_entry: dict[str, Any] | None
+    issue_number: str | int | None
+    adapter: Any
+    adapter_type: str
+    target_repo: str | None
+    source_tracking_list: list[dict[str, Any]]
+    source_tracking_raw: dict[str, Any] | list[dict[str, Any]]
+    repo_owner: str | None
+    repo_name: str | None
+    ado_org: str | None
+    ado_project: str | None
+    update_existing: bool
+    import_from_tmp: bool
+    tmp_file: Path | None
+    should_sanitize: bool | None
+    track_code_changes: bool
+    add_progress_comment: bool
+    code_repo_path: Path | None
+    operations: list[SyncOperation]
+    errors: list[str]
+    warnings: list[str]
+
+
+@dataclass(frozen=True)
+class _ExportIterationTracking:
+    source_tracking_list: list[dict[str, Any]]
+    source_tracking_raw: dict[str, Any] | list[dict[str, Any]]
+
+
+@dataclass
+class _ChangeProposalExportLoopContext:
+    adapter: Any
+    adapter_type: str
+    target_repo: str | None
+    repo_owner: str | None
+    repo_name: str | None
+    ado_org: str | None
+    ado_project: str | None
+    update_existing: bool
+    import_from_tmp: bool
+    export_to_tmp: bool
+    tmp_file: Path | None
+    should_sanitize: bool | None
+    sanitizer: Any
+    track_code_changes: bool
+    add_progress_comment: bool
+    code_repo_path: Path | None
+    operations: list[SyncOperation]
+    errors: list[str]
+    warnings: list[str]
+
+
+@dataclass
+class _BundleAdapterExportInput:
+    proposal: Any
+    proposal_dict: dict[str, Any]
+    target_entry: dict[str, Any] | None
+    adapter: Any
+    adapter_type: str
+    bridge_config: Any
+    bundle_name: str
+    target_repo: str | None
+    update_existing: bool
+    entries: list[dict[str, Any]]
+    operations: list[SyncOperation]
+    errors: list[str]
+
+
+@dataclass
+class _BundleSingleExportInput:
+    proposal: Any
+    adapter: Any
+    adapter_type: str
+    bridge_config: Any
+    bundle_name: str
+    target_repo: str | None
+    update_existing: bool
+    operations: list[SyncOperation]
+    errors: list[str]
+
+
+@dataclass
+class _WorkItemVerifyInput:
+    issue_number: str | int | None
+    target_entry: dict[str, Any] | None
+    adapter_type: str
+    adapter: Any
+    ado_org: str | None
+    ado_project: str | None
+
+
+@dataclass
+class _FetchIssueSyncStateInput:
+    adapter_type: str
+    issue_num: str | int
+    repo_owner: str | None
+    repo_name: str | None
+    ado_org: str | None
+    ado_project: str | None
+    proposal_title: str
+    proposal_status: str
+
+
+@dataclass
+class _PushIssueBodyInput:
+    proposal: dict[str, Any]
+    target_entry: dict[str, Any]
+    adapter: Any
+    import_from_tmp: bool
+    tmp_file: Path | None
+    repo_owner: str | None
+    repo_name: str | None
+    target_repo: str | None
+    source_tracking_list: list[dict[str, Any]]
+    current_hash: str
+    content_or_meta_changed: bool
+    needs_comment_for_applied: bool
+    operations: list[Any]
+    errors: list[str]
+
+
+@dataclass
+class _IssueContentUpdateInput:
+    proposal: dict[str, Any]
+    target_entry: dict[str, Any]
+    issue_number: str | int
+    adapter: Any
+    adapter_type: str
+    target_repo: str | None
+    source_tracking_list: list[dict[str, Any]]
+    repo_owner: str | None
+    repo_name: str | None
+    ado_org: str | None
+    ado_project: str | None
+    import_from_tmp: bool
+    tmp_file: Path | None
+    operations: list[Any]
+    errors: list[str]
+
+
+@dataclass
+class _EmitCodeChangeProgressInput:
+    proposal: dict[str, Any]
+    change_id: str
+    target_entry: dict[str, Any] | None
+    target_repo: str | None
+    source_tracking_list: list[dict[str, Any]]
+    progress_data: dict[str, Any]
+    adapter: Any
+    should_sanitize: bool | None
+    operations: list[Any]
+    errors: list[str]
+    warnings: list[str]
+
+
+@dataclass
+class _CodeChangeTrackingInput:
+    proposal: dict[str, Any]
+    target_entry: dict[str, Any] | None
+    target_repo: str | None
+    source_tracking_list: list[dict[str, Any]]
+    adapter: Any
+    track_code_changes: bool
+    add_progress_comment: bool
+    code_repo_path: Path | None
+    should_sanitize: bool | None
+    operations: list[Any]
+    errors: list[str]
+    warnings: list[str]
+
+
 class BridgeSync:
     """
     Adapter-agnostic bidirectional sync using bridge configuration.
@@ -181,17 +471,15 @@ class BridgeSync:
             gaps_table.add_row(feature_id)
         console.print(gaps_table)
 
-    def _build_alignment_report_content(
-        self,
-        adapter_name: str,
-        external_feature_ids: set[str],
-        specfact_feature_ids: set[str],
-        aligned: set[str],
-        gaps_in_specfact: set[str],
-        gaps_in_external: set[str],
-        coverage: float,
-    ) -> str:
+    def _build_alignment_report_content(self, snap: _AlignmentReportContentInput) -> str:
         """Build markdown content for a saved alignment report."""
+        adapter_name = snap.adapter_name
+        external_feature_ids = snap.external_feature_ids
+        specfact_feature_ids = snap.specfact_feature_ids
+        aligned = snap.aligned
+        gaps_in_specfact = snap.gaps_in_specfact
+        gaps_in_external = snap.gaps_in_external
+        coverage = snap.coverage
         return f"""# Alignment Report: SpecFact vs {adapter_name}
 
 ## Summary
@@ -548,13 +836,15 @@ class BridgeSync:
         # Save to file if requested
         if output_file:
             report_content = self._build_alignment_report_content(
-                adapter_name,
-                external_feature_ids,
-                specfact_feature_ids,
-                aligned,
-                gaps_in_specfact,
-                gaps_in_external,
-                coverage,
+                _AlignmentReportContentInput(
+                    adapter_name,
+                    external_feature_ids,
+                    specfact_feature_ids,
+                    aligned,
+                    gaps_in_specfact,
+                    gaps_in_external,
+                    coverage,
+                )
             )
             output_file.parent.mkdir(parents=True, exist_ok=True)
             output_file.write_text(report_content, encoding="utf-8")
@@ -603,16 +893,17 @@ class BridgeSync:
 
     def _bridge_sync_verify_ado_tracked_work_item(
         self,
-        issue_number: str | int | None,
-        target_entry: dict[str, Any] | None,
-        adapter_type: str,
-        adapter: Any,
-        ado_org: str | None,
-        ado_project: str | None,
+        verify: _AdoWorkItemVerifyInput,
         proposal: dict[str, Any],
         warnings: list[str],
     ) -> tuple[str | int | None, bool, dict[str, Any] | None]:
         """Clear ADO source_id when the tracked work item no longer exists."""
+        issue_number = verify.issue_number
+        target_entry = verify.target_entry
+        adapter_type = verify.adapter_type
+        adapter = verify.adapter
+        ado_org = verify.ado_org
+        ado_project = verify.ado_project
         work_item_was_deleted = False
         if not issue_number or not target_entry:
             return issue_number, work_item_was_deleted, target_entry
@@ -660,17 +951,18 @@ class BridgeSync:
 
     def _bridge_sync_try_github_issue_by_search(
         self,
-        proposal: dict[str, Any],
-        change_id: str,
-        adapter_type: str,
-        repo_owner: str | None,
-        repo_name: str | None,
-        target_repo: str | None,
-        source_tracking_list: list[dict[str, Any]],
-        warnings: list[str],
-        target_entry: dict[str, Any] | None,
-        issue_number: str | int | None,
+        search: _GithubIssueSearchInput,
     ) -> tuple[dict[str, Any] | None, str | int | None, list[dict[str, Any]]]:
+        proposal = search.proposal
+        change_id = search.change_id
+        adapter_type = search.adapter_type
+        repo_owner = search.repo_owner
+        repo_name = search.repo_name
+        target_repo = search.target_repo
+        source_tracking_list = search.source_tracking_list
+        warnings = search.warnings
+        target_entry = search.target_entry
+        issue_number = search.issue_number
         if target_entry or adapter_type.lower() != "github" or not repo_owner or not repo_name:
             return target_entry, issue_number, source_tracking_list
         found_entry, found_issue_number = self._search_existing_github_issue(
@@ -684,16 +976,17 @@ class BridgeSync:
 
     def _bridge_sync_try_ado_issue_by_search(
         self,
-        proposal: dict[str, Any],
-        change_id: str,
-        adapter_type: str,
-        adapter: Any,
-        ado_org: str | None,
-        ado_project: str | None,
-        source_tracking_list: list[dict[str, Any]],
-        target_entry: dict[str, Any] | None,
-        issue_number: str | int | None,
+        search: _AdoIssueSearchInput,
     ) -> tuple[dict[str, Any] | None, str | int | None, list[dict[str, Any]]]:
+        proposal = search.proposal
+        change_id = search.change_id
+        adapter_type = search.adapter_type
+        adapter = search.adapter
+        ado_org = search.ado_org
+        ado_project = search.ado_project
+        source_tracking_list = search.source_tracking_list
+        target_entry = search.target_entry
+        issue_number = search.issue_number
         if (
             target_entry
             or adapter_type.lower() != "ado"
@@ -713,58 +1006,64 @@ class BridgeSync:
 
     def _bridge_sync_resolve_remote_issue_by_search(
         self,
-        proposal: dict[str, Any],
-        change_id: str,
-        adapter_type: str,
-        adapter: Any,
-        repo_owner: str | None,
-        repo_name: str | None,
-        ado_org: str | None,
-        ado_project: str | None,
-        target_repo: str | None,
-        source_tracking_list: list[dict[str, Any]],
-        warnings: list[str],
-        target_entry: dict[str, Any] | None,
-        issue_number: str | int | None,
+        resolve: _RemoteIssueResolutionInput,
     ) -> tuple[dict[str, Any] | None, str | int | None, list[dict[str, Any]]]:
         """Attach GitHub/ADO issues discovered by change-id search."""
+        proposal = resolve.proposal
+        change_id = resolve.change_id
+        adapter_type = resolve.adapter_type
+        adapter = resolve.adapter
+        repo_owner = resolve.repo_owner
+        repo_name = resolve.repo_name
+        ado_org = resolve.ado_org
+        ado_project = resolve.ado_project
+        target_repo = resolve.target_repo
+        source_tracking_list = resolve.source_tracking_list
+        warnings = resolve.warnings
+        target_entry = resolve.target_entry
+        issue_number = resolve.issue_number
         target_entry, issue_number, source_tracking_list = self._bridge_sync_try_github_issue_by_search(
-            proposal,
-            change_id,
-            adapter_type,
-            repo_owner,
-            repo_name,
-            target_repo,
-            source_tracking_list,
-            warnings,
-            target_entry,
-            issue_number,
+            _GithubIssueSearchInput(
+                proposal,
+                change_id,
+                adapter_type,
+                repo_owner,
+                repo_name,
+                target_repo,
+                source_tracking_list,
+                warnings,
+                target_entry,
+                issue_number,
+            )
         )
         return self._bridge_sync_try_ado_issue_by_search(
-            proposal,
-            change_id,
-            adapter_type,
-            adapter,
-            ado_org,
-            ado_project,
-            source_tracking_list,
-            target_entry,
-            issue_number,
+            _AdoIssueSearchInput(
+                proposal,
+                change_id,
+                adapter_type,
+                adapter,
+                ado_org,
+                ado_project,
+                source_tracking_list,
+                target_entry,
+                issue_number,
+            )
         )
 
     def _bridge_sync_record_created_issue(
         self,
         proposal: dict[str, Any],
-        result: dict[str, Any],
-        adapter_type: str,
-        ado_org: str | None,
-        ado_project: str | None,
-        repo_owner: str | None,
-        repo_name: str | None,
-        target_repo: str | None,
-        should_sanitize: bool | None,
+        created: _RecordCreatedIssueInput,
     ) -> None:
         """Merge export result into proposal source_tracking for a newly created issue."""
+        result = created.result
+        adapter_type = created.adapter_type
+        ado_org = created.ado_org
+        ado_project = created.ado_project
+        repo_owner = created.repo_owner
+        repo_name = created.repo_name
+        target_repo = created.target_repo
+        should_sanitize = created.should_sanitize
         source_tracking_list = self._normalize_source_tracking(proposal.get("source_tracking", {}))
         if adapter_type == "ado" and ado_org and ado_project:
             repo_identifier = target_repo or f"{ado_org}/{ado_project}"
@@ -848,19 +1147,17 @@ class BridgeSync:
         proposal_to_export["rationale"] = sanitized_rationale or original_rationale
         return proposal_to_export
 
-    def _bridge_sync_make_devops_adapter_kwargs(
-        self,
-        adapter_type: str,
-        repo_owner: str | None,
-        repo_name: str | None,
-        api_token: str | None,
-        use_gh_cli: bool,
-        ado_org: str | None,
-        ado_project: str | None,
-        ado_base_url: str | None,
-        ado_work_item_type: str | None,
-    ) -> dict[str, Any]:
+    def _bridge_sync_make_devops_adapter_kwargs(self, cfg: _DevOpsAdapterKwargsInput) -> dict[str, Any]:
         """Build kwargs for AdapterRegistry.get_adapter for supported DevOps adapters."""
+        adapter_type = cfg.adapter_type
+        repo_owner = cfg.repo_owner
+        repo_name = cfg.repo_name
+        api_token = cfg.api_token
+        use_gh_cli = cfg.use_gh_cli
+        ado_org = cfg.ado_org
+        ado_project = cfg.ado_project
+        ado_base_url = cfg.ado_base_url
+        ado_work_item_type = cfg.ado_work_item_type
         lowered = adapter_type.lower()
         if lowered == "github":
             return {
@@ -899,110 +1196,50 @@ class BridgeSync:
             )
         return [p for p in active_proposals if p.get("change_id") in valid_change_ids]
 
-    def _bridge_sync_update_existing_issue_then_save(
-        self,
-        proposal: dict[str, Any],
-        target_entry: dict[str, Any],
-        issue_number: str | int,
-        adapter: Any,
-        adapter_type: str,
-        target_repo: str | None,
-        source_tracking_list: list[dict[str, Any]],
-        source_tracking_raw: dict[str, Any] | list[dict[str, Any]],
-        repo_owner: str | None,
-        repo_name: str | None,
-        ado_org: str | None,
-        ado_project: str | None,
-        update_existing: bool,
-        import_from_tmp: bool,
-        tmp_file: Path | None,
-        should_sanitize: bool | None,
-        track_code_changes: bool,
-        add_progress_comment: bool,
-        code_repo_path: Path | None,
-        operations: list[SyncOperation],
-        errors: list[str],
-        warnings: list[str],
-    ) -> None:
+    def _bridge_sync_update_existing_issue_then_save(self, payload: _IssueUpdatePayload) -> None:
         """Run _update_existing_issue and persist proposal (shared by two branches)."""
-        self._update_existing_issue(
-            proposal=proposal,
-            target_entry=target_entry,
-            issue_number=issue_number,
-            adapter=adapter,
-            adapter_type=adapter_type,
-            target_repo=target_repo,
-            source_tracking_list=source_tracking_list,
-            source_tracking_raw=source_tracking_raw,
-            repo_owner=repo_owner,
-            repo_name=repo_name,
-            ado_org=ado_org,
-            ado_project=ado_project,
-            update_existing=update_existing,
-            import_from_tmp=import_from_tmp,
-            tmp_file=tmp_file,
-            should_sanitize=should_sanitize,
-            track_code_changes=track_code_changes,
-            add_progress_comment=add_progress_comment,
-            code_repo_path=code_repo_path,
-            operations=operations,
-            errors=errors,
-            warnings=warnings,
-        )
-        self._save_openspec_change_proposal(proposal)
+        assert payload.target_entry is not None and payload.issue_number is not None
+        self._update_existing_issue(payload)
+        self._save_openspec_change_proposal(payload.proposal)
 
-    def _bridge_sync_if_tracked_update_and_return(
+    def _bridge_sync_if_tracked_update_and_return(self, payload: _IssueUpdatePayload) -> bool:
+        if not (payload.issue_number and payload.target_entry):
+            return False
+        self._bridge_sync_update_existing_issue_then_save(payload)
+        return True
+
+    def _bridge_sync_issue_update_payload(
         self,
         proposal: dict[str, Any],
         target_entry: dict[str, Any] | None,
         issue_number: str | int | None,
-        adapter: Any,
-        adapter_type: str,
-        target_repo: str | None,
-        source_tracking_list: list[dict[str, Any]],
-        source_tracking_raw: dict[str, Any] | list[dict[str, Any]],
-        repo_owner: str | None,
-        repo_name: str | None,
-        ado_org: str | None,
-        ado_project: str | None,
-        update_existing: bool,
-        import_from_tmp: bool,
-        tmp_file: Path | None,
-        should_sanitize: bool | None,
-        track_code_changes: bool,
-        add_progress_comment: bool,
-        code_repo_path: Path | None,
-        operations: list[SyncOperation],
-        errors: list[str],
-        warnings: list[str],
-    ) -> bool:
-        if not (issue_number and target_entry):
-            return False
-        self._bridge_sync_update_existing_issue_then_save(
-            proposal,
-            target_entry,
-            issue_number,
-            adapter,
-            adapter_type,
-            target_repo,
-            source_tracking_list,
-            source_tracking_raw,
-            repo_owner,
-            repo_name,
-            ado_org,
-            ado_project,
-            update_existing,
-            import_from_tmp,
-            tmp_file,
-            should_sanitize,
-            track_code_changes,
-            add_progress_comment,
-            code_repo_path,
-            operations,
-            errors,
-            warnings,
+        tracking: _ExportIterationTracking,
+        ctx: _ChangeProposalExportLoopContext,
+    ) -> _IssueUpdatePayload:
+        return _IssueUpdatePayload(
+            proposal=proposal,
+            target_entry=target_entry,
+            issue_number=issue_number,
+            adapter=ctx.adapter,
+            adapter_type=ctx.adapter_type,
+            target_repo=ctx.target_repo,
+            source_tracking_list=tracking.source_tracking_list,
+            source_tracking_raw=tracking.source_tracking_raw,
+            repo_owner=ctx.repo_owner,
+            repo_name=ctx.repo_name,
+            ado_org=ctx.ado_org,
+            ado_project=ctx.ado_project,
+            update_existing=ctx.update_existing,
+            import_from_tmp=ctx.import_from_tmp,
+            tmp_file=ctx.tmp_file,
+            should_sanitize=ctx.should_sanitize,
+            track_code_changes=ctx.track_code_changes,
+            add_progress_comment=ctx.add_progress_comment,
+            code_repo_path=ctx.code_repo_path,
+            operations=ctx.operations,
+            errors=ctx.errors,
+            warnings=ctx.warnings,
         )
-        return True
 
     def _bridge_sync_try_export_proposal_to_tmp(
         self,
@@ -1030,33 +1267,20 @@ class BridgeSync:
         self,
         proposal: dict[str, Any],
         change_id: str,
-        import_from_tmp: bool,
-        tmp_file: Path | None,
-        should_sanitize: bool | None,
-        sanitizer: Any,
-        adapter: Any,
-        adapter_type: str,
-        ado_org: str | None,
-        ado_project: str | None,
-        repo_owner: str | None,
-        repo_name: str | None,
-        target_repo: str | None,
-        operations: list[SyncOperation],
-        errors: list[str],
-        warnings: list[str],
+        ctx: _ChangeProposalExportLoopContext,
     ) -> None:
         """Import/sanitize proposal payload and create a new remote change proposal artifact."""
-        if import_from_tmp:
+        if ctx.import_from_tmp:
             proposal_to_export = self._bridge_sync_import_sanitized_proposal_from_tmp(
-                proposal, change_id, tmp_file, errors, warnings
+                proposal, change_id, ctx.tmp_file, ctx.errors, ctx.warnings
             )
             if proposal_to_export is None:
                 return
         else:
             proposal_to_export = self._bridge_sync_clone_and_maybe_sanitize_proposal(
-                proposal, bool(should_sanitize), sanitizer
+                proposal, bool(ctx.should_sanitize), ctx.sanitizer
             )
-        result = adapter.export_artifact(
+        result = ctx.adapter.export_artifact(
             artifact_key="change_proposal",
             artifact_data=proposal_to_export,
             bridge_config=self.bridge_config,
@@ -1064,16 +1288,18 @@ class BridgeSync:
         if isinstance(proposal, dict) and isinstance(result, dict):
             self._bridge_sync_record_created_issue(
                 proposal,
-                result,
-                adapter_type,
-                ado_org,
-                ado_project,
-                repo_owner,
-                repo_name,
-                target_repo,
-                should_sanitize,
+                _RecordCreatedIssueInput(
+                    result,
+                    ctx.adapter_type,
+                    ctx.ado_org,
+                    ctx.ado_project,
+                    ctx.repo_owner,
+                    ctx.repo_name,
+                    ctx.target_repo,
+                    ctx.should_sanitize,
+                ),
             )
-        operations.append(
+        ctx.operations.append(
             SyncOperation(
                 artifact_key="change_proposal",
                 feature_id=proposal.get("change_id", "unknown"),
@@ -1086,46 +1312,40 @@ class BridgeSync:
     def _bridge_sync_export_single_change_proposal_iteration(
         self,
         proposal: dict[str, Any],
-        adapter: Any,
-        adapter_type: str,
-        target_repo: str | None,
-        repo_owner: str | None,
-        repo_name: str | None,
-        ado_org: str | None,
-        ado_project: str | None,
-        update_existing: bool,
-        import_from_tmp: bool,
-        export_to_tmp: bool,
-        tmp_file: Path | None,
-        should_sanitize: bool | None,
-        sanitizer: Any,
-        track_code_changes: bool,
-        add_progress_comment: bool,
-        code_repo_path: Path | None,
-        operations: list[SyncOperation],
-        errors: list[str],
-        warnings: list[str],
+        ctx: _ChangeProposalExportLoopContext,
     ) -> None:
         """One loop iteration for export_change_proposals_to_devops."""
         source_tracking_raw = proposal.get("source_tracking", {})
+        target_repo = ctx.target_repo
         target_entry = self._find_source_tracking_entry(source_tracking_raw, target_repo)
         source_tracking_list = self._normalize_source_tracking(source_tracking_raw)
+        tracking = _ExportIterationTracking(source_tracking_list, source_tracking_raw)
 
         issue_number = target_entry.get("source_id") if target_entry else None
         work_item_was_deleted = False
 
         issue_number, work_item_was_deleted, target_entry = self._bridge_sync_verify_ado_tracked_work_item(
-            issue_number, target_entry, adapter_type, adapter, ado_org, ado_project, proposal, warnings
+            _AdoWorkItemVerifyInput(
+                issue_number,
+                target_entry,
+                ctx.adapter_type,
+                ctx.adapter,
+                ctx.ado_org,
+                ctx.ado_project,
+            ),
+            proposal,
+            ctx.warnings,
         )
 
         if target_entry and not issue_number and not work_item_was_deleted:
-            if update_existing:
+            if ctx.update_existing:
                 _, source_tracking_list = self._bridge_sync_clear_corrupted_tracking_entry(
                     proposal, source_tracking_raw, source_tracking_list, target_entry
                 )
+                tracking = _ExportIterationTracking(source_tracking_list, source_tracking_raw)
                 target_entry = None
             else:
-                warnings.append(
+                ctx.warnings.append(
                     f"Skipping sync for '{proposal.get('change_id', 'unknown')}': "
                     f"source_tracking entry exists for '{target_repo}' but missing source_id. "
                     f"Use --update-existing to force update or manually fix source_tracking."
@@ -1133,156 +1353,89 @@ class BridgeSync:
                 return
 
         if self._bridge_sync_if_tracked_update_and_return(
-            proposal,
-            target_entry,
-            issue_number,
-            adapter,
-            adapter_type,
-            target_repo,
-            source_tracking_list,
-            source_tracking_raw,
-            repo_owner,
-            repo_name,
-            ado_org,
-            ado_project,
-            update_existing,
-            import_from_tmp,
-            tmp_file,
-            should_sanitize,
-            track_code_changes,
-            add_progress_comment,
-            code_repo_path,
-            operations,
-            errors,
-            warnings,
+            self._bridge_sync_issue_update_payload(proposal, target_entry, issue_number, tracking, ctx)
         ):
             return
 
         change_id = proposal.get("change_id", "unknown")
 
         if target_entry and not target_entry.get("source_id") and not work_item_was_deleted:
-            warnings.append(
+            ctx.warnings.append(
                 f"Skipping sync for '{change_id}': source_tracking entry exists for "
                 f"'{target_repo}' but missing source_id. Use --update-existing to force update."
             )
             return
 
         target_entry, issue_number, source_tracking_list = self._bridge_sync_resolve_remote_issue_by_search(
-            proposal,
-            change_id,
-            adapter_type,
-            adapter,
-            repo_owner,
-            repo_name,
-            ado_org,
-            ado_project,
-            target_repo,
-            source_tracking_list,
-            warnings,
-            target_entry,
-            issue_number,
+            _RemoteIssueResolutionInput(
+                proposal,
+                change_id,
+                ctx.adapter_type,
+                ctx.adapter,
+                ctx.repo_owner,
+                ctx.repo_name,
+                ctx.ado_org,
+                ctx.ado_project,
+                target_repo,
+                source_tracking_list,
+                ctx.warnings,
+                target_entry,
+                issue_number,
+            )
         )
+        tracking = _ExportIterationTracking(source_tracking_list, source_tracking_raw)
 
         if self._bridge_sync_if_tracked_update_and_return(
-            proposal,
-            target_entry,
-            issue_number,
-            adapter,
-            adapter_type,
-            target_repo,
-            source_tracking_list,
-            source_tracking_raw,
-            repo_owner,
-            repo_name,
-            ado_org,
-            ado_project,
-            update_existing,
-            import_from_tmp,
-            tmp_file,
-            should_sanitize,
-            track_code_changes,
-            add_progress_comment,
-            code_repo_path,
-            operations,
-            errors,
-            warnings,
+            self._bridge_sync_issue_update_payload(proposal, target_entry, issue_number, tracking, ctx)
         ):
             return
 
-        if self._bridge_sync_try_export_proposal_to_tmp(export_to_tmp, change_id, tmp_file, proposal, errors, warnings):
+        if self._bridge_sync_try_export_proposal_to_tmp(
+            ctx.export_to_tmp, change_id, ctx.tmp_file, proposal, ctx.errors, ctx.warnings
+        ):
             return
 
-        self._bridge_sync_export_new_change_proposal_remote(
-            proposal,
-            change_id,
-            import_from_tmp,
-            tmp_file,
-            should_sanitize,
-            sanitizer,
-            adapter,
-            adapter_type,
-            ado_org,
-            ado_project,
-            repo_owner,
-            repo_name,
-            target_repo,
-            operations,
-            errors,
-            warnings,
-        )
+        self._bridge_sync_export_new_change_proposal_remote(proposal, change_id, ctx)
 
     def _bridge_sync_export_each_change_proposal(
         self,
         active_proposals: list[dict[str, Any]],
-        adapter: Any,
-        adapter_type: str,
-        target_repo: str | None,
-        repo_owner: str | None,
-        repo_name: str | None,
-        ado_org: str | None,
-        ado_project: str | None,
-        update_existing: bool,
-        import_from_tmp: bool,
-        export_to_tmp: bool,
-        tmp_file: Path | None,
-        should_sanitize: bool | None,
-        sanitizer: Any,
-        track_code_changes: bool,
-        add_progress_comment: bool,
-        code_repo_path: Path | None,
-        operations: list[SyncOperation],
-        errors: list[str],
-        warnings: list[str],
+        ctx: _ChangeProposalExportLoopContext,
     ) -> None:
         """Create or update remote issues for each filtered proposal dict."""
         for proposal in active_proposals:
             try:
-                self._bridge_sync_export_single_change_proposal_iteration(
-                    proposal,
-                    adapter,
-                    adapter_type,
-                    target_repo,
-                    repo_owner,
-                    repo_name,
-                    ado_org,
-                    ado_project,
-                    update_existing,
-                    import_from_tmp,
-                    export_to_tmp,
-                    tmp_file,
-                    should_sanitize,
-                    sanitizer,
-                    track_code_changes,
-                    add_progress_comment,
-                    code_repo_path,
-                    operations,
-                    errors,
-                    warnings,
-                )
+                self._bridge_sync_export_single_change_proposal_iteration(proposal, ctx)
             except Exception as e:
                 logger = logging.getLogger(__name__)
                 logger.debug(f"Failed to sync proposal {proposal.get('change_id', 'unknown')}: {e}", exc_info=True)
-                errors.append(f"Failed to sync proposal {proposal.get('change_id', 'unknown')}: {e}")
+                ctx.errors.append(f"Failed to sync proposal {proposal.get('change_id', 'unknown')}: {e}")
+
+    def _export_change_proposals_load_list(
+        self, include_archived: bool, warnings: list[str]
+    ) -> list[dict[str, Any]] | None:
+        try:
+            return self._read_openspec_change_proposals(include_archived=include_archived)
+        except Exception as e:
+            warnings.append(f"OpenSpec adapter not available: {e}. Skipping change proposal sync.")
+            return None
+
+    def _export_change_proposals_append_filter_warnings(
+        self, filtered_count: int, should_sanitize: bool, active_len: int, warnings: list[str]
+    ) -> None:
+        if filtered_count <= 0:
+            return
+        if should_sanitize:
+            warnings.append(
+                f"Filtered out {filtered_count} proposal(s) with non-applied status "
+                f"(public repos only sync archived/completed proposals, regardless of source tracking). "
+                f"Only {active_len} applied proposal(s) will be synced."
+            )
+            return
+        warnings.append(
+            f"Filtered out {filtered_count} proposal(s) without source tracking entry for target repo "
+            f"and inactive status. Only {active_len} proposal(s) will be synced."
+        )
 
     @beartype
     @require(_bridge_config_set, "Bridge config must be set")
@@ -1294,159 +1447,111 @@ class BridgeSync:
     def export_change_proposals_to_devops(
         self,
         adapter_type: str,
-        repo_owner: str | None = None,
-        repo_name: str | None = None,
-        api_token: str | None = None,
-        use_gh_cli: bool = True,
-        sanitize: bool | None = None,
-        target_repo: str | None = None,
-        interactive: bool = False,
-        change_ids: list[str] | None = None,
-        export_to_tmp: bool = False,
-        import_from_tmp: bool = False,
-        tmp_file: Path | None = None,
-        update_existing: bool = False,
-        track_code_changes: bool = False,
-        add_progress_comment: bool = False,
-        code_repo_path: Path | None = None,
-        include_archived: bool = False,
-        ado_org: str | None = None,
-        ado_project: str | None = None,
-        ado_base_url: str | None = None,
-        ado_work_item_type: str | None = None,
+        options: ExportChangeProposalsOptions | None = None,
     ) -> SyncResult:
         """
         Export OpenSpec change proposals to DevOps tools (export-only mode).
 
-        This method reads OpenSpec change proposals and creates/updates DevOps issues
-        (GitHub Issues, ADO Work Items, etc.) via the appropriate adapter.
-
-        Args:
-            adapter_type: DevOps adapter type (github, ado, linear, jira)
-            repo_owner: Repository owner (for GitHub/ADO)
-            repo_name: Repository name (for GitHub/ADO)
-            api_token: API token (optional, uses env vars, gh CLI, or --github-token if not provided)
-            use_gh_cli: If True, try to get token from GitHub CLI (`gh auth token`) for GitHub adapter
-            sanitize: If True, sanitize content for public issues. If None, auto-detect based on repo setup.
-            target_repo: Target repository for issue creation (format: owner/repo). Default: same as code repo.
-            interactive: If True, use interactive mode for AI-assisted sanitization (requires slash command).
-            change_ids: Optional list of change proposal IDs to filter. If None, exports all active proposals.
-            export_to_tmp: If True, export proposal content to temporary file for LLM review.
-            import_from_tmp: If True, import sanitized content from temporary file after LLM review.
-            tmp_file: Optional custom temporary file path. Default: <system-temp>/specfact-proposal-<change-id>.md.
-
-        Returns:
-            SyncResult with operation details
-
-        Note:
-            Requires OpenSpec bridge adapter to be implemented (dependency).
-            For now, this is a placeholder that will be fully implemented once
-            the OpenSpec adapter is available.
+        Pass fields via :class:`ExportChangeProposalsOptions` (defaults apply when ``options`` is omitted).
         """
         from specfact_cli.adapters.registry import AdapterRegistry
+        from specfact_cli.utils.content_sanitizer import ContentSanitizer
+
+        opt = options or ExportChangeProposalsOptions()
+        repo_owner = opt.repo_owner
+        repo_name = opt.repo_name
+        api_token = opt.api_token
+        use_gh_cli = opt.use_gh_cli
+        sanitize = opt.sanitize
+        target_repo = opt.target_repo
+        change_ids = opt.change_ids
+        export_to_tmp = opt.export_to_tmp
+        import_from_tmp = opt.import_from_tmp
+        tmp_file = opt.tmp_file
+        update_existing = opt.update_existing
+        track_code_changes = opt.track_code_changes
+        add_progress_comment = opt.add_progress_comment
+        code_repo_path = opt.code_repo_path
+        include_archived = opt.include_archived
+        ado_org = opt.ado_org
+        ado_project = opt.ado_project
+        ado_base_url = opt.ado_base_url
+        ado_work_item_type = opt.ado_work_item_type
 
         operations: list[SyncOperation] = []
         errors: list[str] = []
         warnings: list[str] = []
 
         try:
-            # Get DevOps adapter from registry (adapter-agnostic)
-            # Get adapter to determine required kwargs
             adapter_class = AdapterRegistry._adapters.get(adapter_type.lower())
             if not adapter_class:
                 errors.append(f"Adapter '{adapter_type}' not found in registry")
                 return SyncResult(success=False, operations=[], errors=errors, warnings=warnings)
 
             adapter_kwargs = self._bridge_sync_make_devops_adapter_kwargs(
-                adapter_type,
-                repo_owner,
-                repo_name,
-                api_token,
-                use_gh_cli,
-                ado_org,
-                ado_project,
-                ado_base_url,
-                ado_work_item_type,
+                _DevOpsAdapterKwargsInput(
+                    adapter_type,
+                    repo_owner,
+                    repo_name,
+                    api_token,
+                    use_gh_cli,
+                    ado_org,
+                    ado_project,
+                    ado_base_url,
+                    ado_work_item_type,
+                )
             )
-
             adapter = AdapterRegistry.get_adapter(adapter_type, **adapter_kwargs)
 
-            # TODO: Read OpenSpec change proposals via OpenSpec adapter
-            # This requires the OpenSpec bridge adapter to be implemented first
-            # For now, this is a placeholder
-            try:
-                # Attempt to read OpenSpec change proposals
-                # This will fail gracefully if OpenSpec adapter is not available
-                change_proposals = self._read_openspec_change_proposals(include_archived=include_archived)
-            except Exception as e:
-                warnings.append(f"OpenSpec adapter not available: {e}. Skipping change proposal sync.")
-                return SyncResult(
-                    success=True,  # Not an error, just no proposals to sync
-                    operations=operations,
-                    errors=errors,
-                    warnings=warnings,
-                )
-
-            # Determine if sanitization is needed (to determine if this is a public repo)
-            from specfact_cli.utils.content_sanitizer import ContentSanitizer
+            change_proposals = self._export_change_proposals_load_list(include_archived, warnings)
+            if change_proposals is None:
+                return SyncResult(success=True, operations=operations, errors=errors, warnings=warnings)
 
             sanitizer = ContentSanitizer()
             planning_repo = self._bridge_sync_effective_planning_repo()
-
             should_sanitize = sanitizer.detect_sanitization_need(
                 code_repo=self.repo_path,
                 planning_repo=planning_repo,
                 user_preference=sanitize,
             )
 
-            # Derive target_repo from repo_owner/repo_name or ado_org/ado_project if not provided
-            if not target_repo:
+            derived_target_repo = target_repo
+            if not derived_target_repo:
                 if adapter_type == "ado" and ado_org and ado_project:
-                    target_repo = f"{ado_org}/{ado_project}"
+                    derived_target_repo = f"{ado_org}/{ado_project}"
                 elif repo_owner and repo_name:
-                    target_repo = f"{repo_owner}/{repo_name}"
+                    derived_target_repo = f"{repo_owner}/{repo_name}"
 
             active_proposals, filtered_count = self._bridge_sync_filter_devops_proposals(
-                change_proposals, should_sanitize, target_repo
+                change_proposals, should_sanitize, derived_target_repo
             )
-
-            if filtered_count > 0:
-                if should_sanitize:
-                    warnings.append(
-                        f"Filtered out {filtered_count} proposal(s) with non-applied status "
-                        f"(public repos only sync archived/completed proposals, regardless of source tracking). "
-                        f"Only {len(active_proposals)} applied proposal(s) will be synced."
-                    )
-                else:
-                    warnings.append(
-                        f"Filtered out {filtered_count} proposal(s) without source tracking entry for target repo "
-                        f"and inactive status. Only {len(active_proposals)} proposal(s) will be synced."
-                    )
-
+            self._export_change_proposals_append_filter_warnings(
+                filtered_count, should_sanitize, len(active_proposals), warnings
+            )
             active_proposals = self._bridge_sync_apply_change_id_filter(active_proposals, change_ids, errors)
 
-            self._bridge_sync_export_each_change_proposal(
-                active_proposals,
-                adapter,
-                adapter_type,
-                target_repo,
-                repo_owner,
-                repo_name,
-                ado_org,
-                ado_project,
-                update_existing,
-                import_from_tmp,
-                export_to_tmp,
-                tmp_file,
-                should_sanitize,
-                sanitizer,
-                track_code_changes,
-                add_progress_comment,
-                code_repo_path,
-                operations,
-                errors,
-                warnings,
+            loop_ctx = _ChangeProposalExportLoopContext(
+                adapter=adapter,
+                adapter_type=adapter_type,
+                target_repo=derived_target_repo,
+                repo_owner=repo_owner,
+                repo_name=repo_name,
+                ado_org=ado_org,
+                ado_project=ado_project,
+                update_existing=update_existing,
+                import_from_tmp=import_from_tmp,
+                export_to_tmp=export_to_tmp,
+                tmp_file=tmp_file,
+                should_sanitize=should_sanitize,
+                sanitizer=sanitizer,
+                track_code_changes=track_code_changes,
+                add_progress_comment=add_progress_comment,
+                code_repo_path=code_repo_path,
+                operations=operations,
+                errors=errors,
+                warnings=warnings,
             )
+            self._bridge_sync_export_each_change_proposal(active_proposals, loop_ctx)
 
         except Exception as e:
             errors.append(f"Export to DevOps failed: {e}")
@@ -1931,21 +2036,19 @@ class BridgeSync:
                 proposal_dict["raw_body"] = raw_body
         return proposal_dict
 
-    def _bridge_sync_run_bundle_adapter_export(
-        self,
-        proposal: Any,
-        proposal_dict: dict[str, Any],
-        target_entry: dict[str, Any] | None,
-        adapter: Any,
-        adapter_type: str,
-        bridge_config: Any,
-        bundle_name: str,
-        target_repo: str | None,
-        update_existing: bool,
-        entries: list[dict[str, Any]],
-        operations: list[SyncOperation],
-        errors: list[str],
-    ) -> None:
+    def _bridge_sync_run_bundle_adapter_export(self, export_bundle: _BundleAdapterExportInput) -> None:
+        proposal = export_bundle.proposal
+        proposal_dict = export_bundle.proposal_dict
+        target_entry = export_bundle.target_entry
+        adapter = export_bundle.adapter
+        adapter_type = export_bundle.adapter_type
+        bridge_config = export_bundle.bridge_config
+        bundle_name = export_bundle.bundle_name
+        target_repo = export_bundle.target_repo
+        update_existing = export_bundle.update_existing
+        entries = export_bundle.entries
+        operations = export_bundle.operations
+        errors = export_bundle.errors
         try:
             export_result: dict[str, Any] | Any = {}
             if target_entry and target_entry.get("source_id"):
@@ -1998,21 +2101,19 @@ class BridgeSync:
         except Exception as e:
             errors.append(f"Failed to export '{proposal.name}' to {adapter_type}: {e}")
 
-    def _bridge_sync_export_one_bundle_proposal(
-        self,
-        proposal: Any,
-        adapter: Any,
-        adapter_type: str,
-        bridge_config: Any,
-        bundle_name: str,
-        target_repo: str | None,
-        update_existing: bool,
-        operations: list[SyncOperation],
-        errors: list[str],
-    ) -> None:
+    def _bridge_sync_export_one_bundle_proposal(self, bundle_export: _BundleSingleExportInput) -> None:
         """Export a single ChangeProposal from a bundle to the backlog adapter."""
         from specfact_cli.models.source_tracking import SourceTracking
 
+        proposal = bundle_export.proposal
+        adapter = bundle_export.adapter
+        adapter_type = bundle_export.adapter_type
+        bridge_config = bundle_export.bridge_config
+        bundle_name = bundle_export.bundle_name
+        target_repo = bundle_export.target_repo
+        update_existing = bundle_export.update_existing
+        operations = bundle_export.operations
+        errors = bundle_export.errors
         if proposal.source_tracking is None:
             proposal.source_tracking = SourceTracking(tool=adapter_type, source_metadata={})
 
@@ -2023,18 +2124,20 @@ class BridgeSync:
         target_entry = self._bridge_sync_resolve_bundle_target_entry(entries, adapter_type, target_repo)
         proposal_dict = self._bridge_sync_build_bundle_proposal_dict(proposal, adapter_type, entries)
         self._bridge_sync_run_bundle_adapter_export(
-            proposal,
-            proposal_dict,
-            target_entry,
-            adapter,
-            adapter_type,
-            bridge_config,
-            bundle_name,
-            target_repo,
-            update_existing,
-            entries,
-            operations,
-            errors,
+            _BundleAdapterExportInput(
+                proposal,
+                proposal_dict,
+                target_entry,
+                adapter,
+                adapter_type,
+                bridge_config,
+                bundle_name,
+                target_repo,
+                update_existing,
+                entries,
+                operations,
+                errors,
+            )
         )
 
     @beartype
@@ -2088,15 +2191,17 @@ class BridgeSync:
             if change_ids and proposal.name not in change_ids:
                 continue
             self._bridge_sync_export_one_bundle_proposal(
-                proposal,
-                adapter,
-                adapter_type,
-                bridge_config,
-                bundle_name,
-                target_repo,
-                update_existing,
-                operations,
-                errors,
+                _BundleSingleExportInput(
+                    proposal,
+                    adapter,
+                    adapter_type,
+                    bridge_config,
+                    bundle_name,
+                    target_repo,
+                    update_existing,
+                    operations,
+                    errors,
+                )
             )
 
         if operations:
@@ -2266,31 +2371,17 @@ class BridgeSync:
 
     def _verify_work_item_exists(
         self,
-        issue_number: str | int | None,
-        target_entry: dict[str, Any] | None,
-        adapter_type: str,
-        adapter: Any,
-        ado_org: str | None,
-        ado_project: str | None,
+        verify: _WorkItemVerifyInput,
         proposal: dict[str, Any],
         warnings: list[str],
     ) -> tuple[str | int | None, bool]:
-        """
-        Verify if work item/issue exists in external tool (handles deleted items).
-
-        Args:
-            issue_number: Current issue/work item number
-            target_entry: Source tracking entry
-            adapter_type: Adapter type (github, ado, etc.)
-            adapter: Adapter instance
-            ado_org: ADO organization (for ADO adapter)
-            ado_project: ADO project (for ADO adapter)
-            proposal: Change proposal dict
-            warnings: Warnings list to append to
-
-        Returns:
-            Tuple of (issue_number, work_item_was_deleted)
-        """
+        """Verify if work item/issue exists in external tool (handles deleted items)."""
+        issue_number = verify.issue_number
+        target_entry = verify.target_entry
+        adapter_type = verify.adapter_type
+        adapter = verify.adapter
+        ado_org = verify.ado_org
+        ado_project = verify.ado_project
         work_item_was_deleted = False
 
         if issue_number and target_entry:
@@ -2389,55 +2480,31 @@ class BridgeSync:
 
         return None, None
 
-    def _update_existing_issue(
-        self,
-        proposal: dict[str, Any],
-        target_entry: dict[str, Any],
-        issue_number: str | int,
-        adapter: Any,
-        adapter_type: str,
-        target_repo: str | None,
-        source_tracking_list: list[dict[str, Any]],
-        source_tracking_raw: dict[str, Any] | list[dict[str, Any]],
-        repo_owner: str | None,
-        repo_name: str | None,
-        ado_org: str | None,
-        ado_project: str | None,
-        update_existing: bool,
-        import_from_tmp: bool,
-        tmp_file: Path | None,
-        should_sanitize: bool | None,
-        track_code_changes: bool,
-        add_progress_comment: bool,
-        code_repo_path: Path | None,
-        operations: list[Any],
-        errors: list[str],
-        warnings: list[str],
-    ) -> None:
-        """
-        Update existing issue/work item with new status, metadata, and content.
-
-        Args:
-            proposal: Change proposal dict
-            target_entry: Source tracking entry for this repository
-            issue_number: Issue/work item number
-            adapter: Adapter instance
-            adapter_type: Adapter type (github, ado, etc.)
-            target_repo: Target repository identifier
-            source_tracking_list: Normalized source tracking list
-            source_tracking_raw: Original source tracking (dict or list)
-            repo_owner: Repository owner (for GitHub)
-            repo_name: Repository name (for GitHub)
-            ado_org: ADO organization (for ADO)
-            ado_project: ADO project (for ADO)
-            update_existing: Whether to update content when hash changes
-            import_from_tmp: Whether importing from temporary file
-            tmp_file: Temporary file path
-            should_sanitize: Whether to sanitize content
-            operations: Operations list to append to
-            errors: Errors list to append to
-            warnings: Warnings list to append to
-        """
+    def _update_existing_issue(self, payload: _IssueUpdatePayload) -> None:
+        """Update existing issue/work item with new status, metadata, and content."""
+        proposal = payload.proposal
+        target_entry = payload.target_entry
+        issue_number = payload.issue_number
+        adapter = payload.adapter
+        adapter_type = payload.adapter_type
+        target_repo = payload.target_repo
+        source_tracking_list = payload.source_tracking_list
+        source_tracking_raw = payload.source_tracking_raw
+        repo_owner = payload.repo_owner
+        repo_name = payload.repo_name
+        ado_org = payload.ado_org
+        ado_project = payload.ado_project
+        update_existing = payload.update_existing
+        import_from_tmp = payload.import_from_tmp
+        tmp_file = payload.tmp_file
+        should_sanitize = payload.should_sanitize
+        track_code_changes = payload.track_code_changes
+        add_progress_comment = payload.add_progress_comment
+        code_repo_path = payload.code_repo_path
+        operations = payload.operations
+        errors = payload.errors
+        warnings = payload.warnings
+        assert target_entry is not None and issue_number is not None
         # Issue exists - check if status changed or metadata needs update
         source_metadata = self._source_metadata_dict(target_entry)
         last_synced_status = source_metadata.get("last_synced_status")
@@ -2488,38 +2555,42 @@ class BridgeSync:
         # Check if content changed (when update_existing is enabled)
         if update_existing:
             self._update_issue_content_if_needed(
-                proposal,
-                target_entry,
-                issue_number,
-                adapter,
-                adapter_type,
-                target_repo,
-                source_tracking_list,
-                repo_owner,
-                repo_name,
-                ado_org,
-                ado_project,
-                import_from_tmp,
-                tmp_file,
-                operations,
-                errors,
+                _IssueContentUpdateInput(
+                    proposal,
+                    target_entry,
+                    issue_number,
+                    adapter,
+                    adapter_type,
+                    target_repo,
+                    source_tracking_list,
+                    repo_owner,
+                    repo_name,
+                    ado_org,
+                    ado_project,
+                    import_from_tmp,
+                    tmp_file,
+                    operations,
+                    errors,
+                )
             )
 
         # Code change tracking and progress comments (when enabled)
         if track_code_changes or add_progress_comment:
             self._handle_code_change_tracking(
-                proposal,
-                target_entry,
-                target_repo,
-                source_tracking_list,
-                adapter,
-                track_code_changes,
-                add_progress_comment,
-                code_repo_path,
-                should_sanitize,
-                operations,
-                errors,
-                warnings,
+                _CodeChangeTrackingInput(
+                    proposal,
+                    target_entry,
+                    target_repo,
+                    source_tracking_list,
+                    adapter,
+                    track_code_changes,
+                    add_progress_comment,
+                    code_repo_path,
+                    should_sanitize,
+                    operations,
+                    errors,
+                    warnings,
+                )
             )
 
     def _proposal_update_hash(self, proposal: dict[str, Any], import_from_tmp: bool, tmp_file: Path | None) -> str:
@@ -2553,20 +2624,18 @@ class BridgeSync:
         sanitized_content = sanitized_file.read_text(encoding="utf-8")
         return {**proposal, "description": sanitized_content, "rationale": ""}
 
-    def _fetch_issue_sync_state(
-        self,
-        adapter_type: str,
-        issue_num: str | int,
-        repo_owner: str | None,
-        repo_name: str | None,
-        ado_org: str | None,
-        ado_project: str | None,
-        proposal_title: str,
-        proposal_status: str,
-    ) -> tuple[bool, bool, bool]:
+    def _fetch_issue_sync_state(self, fetch: _FetchIssueSyncStateInput) -> tuple[bool, bool, bool]:
         """Return title/state update flags and whether an applied comment is needed."""
         from specfact_cli.adapters.registry import AdapterRegistry
 
+        adapter_type = fetch.adapter_type
+        issue_num = fetch.issue_num
+        repo_owner = fetch.repo_owner
+        repo_name = fetch.repo_name
+        ado_org = fetch.ado_org
+        ado_project = fetch.ado_project
+        proposal_title = fetch.proposal_title
+        proposal_status = fetch.proposal_status
         adapter_instance = AdapterRegistry.get_adapter(adapter_type)
         adapter_inst_any = cast(Any, adapter_instance)
         if not adapter_instance or not hasattr(adapter_instance, "api_token"):
@@ -2723,23 +2792,21 @@ class BridgeSync:
                 source_tracking_list, target_repo, updated_entry
             )
 
-    def _push_issue_body_update_to_adapter(
-        self,
-        proposal: dict[str, Any],
-        target_entry: dict[str, Any],
-        adapter: Any,
-        import_from_tmp: bool,
-        tmp_file: Path | None,
-        repo_owner: str | None,
-        repo_name: str | None,
-        target_repo: str | None,
-        source_tracking_list: list[dict[str, Any]],
-        current_hash: str,
-        content_or_meta_changed: bool,
-        needs_comment_for_applied: bool,
-        operations: list[Any],
-        errors: list[str],
-    ) -> None:
+    def _push_issue_body_update_to_adapter(self, push: _PushIssueBodyInput) -> None:
+        proposal = push.proposal
+        target_entry = push.target_entry
+        adapter = push.adapter
+        import_from_tmp = push.import_from_tmp
+        tmp_file = push.tmp_file
+        repo_owner = push.repo_owner
+        repo_name = push.repo_name
+        target_repo = push.target_repo
+        source_tracking_list = push.source_tracking_list
+        current_hash = push.current_hash
+        content_or_meta_changed = push.content_or_meta_changed
+        needs_comment_for_applied = push.needs_comment_for_applied
+        operations = push.operations
+        errors = push.errors
         try:
             proposal_for_update = self._proposal_update_payload(proposal, import_from_tmp, tmp_file)
             code_repo_path = self._find_code_repo_path(repo_owner, repo_name) if repo_owner and repo_name else None
@@ -2768,44 +2835,22 @@ class BridgeSync:
         except Exception as e:
             errors.append(f"Failed to update issue body for {proposal.get('change_id', 'unknown')}: {e}")
 
-    def _update_issue_content_if_needed(
-        self,
-        proposal: dict[str, Any],
-        target_entry: dict[str, Any],
-        issue_number: str | int,
-        adapter: Any,
-        adapter_type: str,
-        target_repo: str | None,
-        source_tracking_list: list[dict[str, Any]],
-        repo_owner: str | None,
-        repo_name: str | None,
-        ado_org: str | None,
-        ado_project: str | None,
-        import_from_tmp: bool,
-        tmp_file: Path | None,
-        operations: list[Any],
-        errors: list[str],
-    ) -> None:
-        """
-        Update issue/work item content if hash changed or title needs update.
-
-        Args:
-            proposal: Change proposal dict
-            target_entry: Source tracking entry
-            issue_number: Issue/work item number
-            adapter: Adapter instance
-            adapter_type: Adapter type
-            target_repo: Target repository identifier
-            source_tracking_list: Source tracking list
-            repo_owner: Repository owner (for GitHub)
-            repo_name: Repository name (for GitHub)
-            ado_org: ADO organization (for ADO)
-            ado_project: ADO project (for ADO)
-            import_from_tmp: Whether importing from temporary file
-            tmp_file: Temporary file path
-            operations: Operations list to append to
-            errors: Errors list to append to
-        """
+    def _update_issue_content_if_needed(self, refresh: _IssueContentUpdateInput) -> None:
+        """Update issue/work item content if hash changed or title needs update."""
+        proposal = refresh.proposal
+        target_entry = refresh.target_entry
+        adapter = refresh.adapter
+        adapter_type = refresh.adapter_type
+        target_repo = refresh.target_repo
+        source_tracking_list = refresh.source_tracking_list
+        repo_owner = refresh.repo_owner
+        repo_name = refresh.repo_name
+        ado_org = refresh.ado_org
+        ado_project = refresh.ado_project
+        import_from_tmp = refresh.import_from_tmp
+        tmp_file = refresh.tmp_file
+        operations = refresh.operations
+        errors = refresh.errors
         current_hash = self._proposal_update_hash(proposal, import_from_tmp, tmp_file)
 
         # Get stored hash from target repository entry
@@ -2821,33 +2866,37 @@ class BridgeSync:
         if issue_num:
             with contextlib.suppress(Exception):
                 needs_title_update, needs_state_update, needs_comment_for_applied = self._fetch_issue_sync_state(
-                    adapter_type,
-                    issue_num,
-                    repo_owner,
-                    repo_name,
-                    ado_org,
-                    ado_project,
-                    str(proposal.get("title", "")),
-                    str(proposal.get("status", "proposed")),
+                    _FetchIssueSyncStateInput(
+                        adapter_type,
+                        issue_num,
+                        repo_owner,
+                        repo_name,
+                        ado_org,
+                        ado_project,
+                        str(proposal.get("title", "")),
+                        str(proposal.get("status", "proposed")),
+                    )
                 )
 
         content_or_meta_changed = stored_hash != current_hash or needs_title_update or needs_state_update
         if content_or_meta_changed or needs_comment_for_applied:
             self._push_issue_body_update_to_adapter(
-                proposal,
-                target_entry,
-                adapter,
-                import_from_tmp,
-                tmp_file,
-                repo_owner,
-                repo_name,
-                target_repo,
-                source_tracking_list,
-                current_hash,
-                content_or_meta_changed,
-                needs_comment_for_applied,
-                operations,
-                errors,
+                _PushIssueBodyInput(
+                    proposal,
+                    target_entry,
+                    adapter,
+                    import_from_tmp,
+                    tmp_file,
+                    repo_owner,
+                    repo_name,
+                    target_repo,
+                    source_tracking_list,
+                    current_hash,
+                    content_or_meta_changed,
+                    needs_comment_for_applied,
+                    operations,
+                    errors,
+                )
             )
 
     def _bridge_sync_list_progress_comment_dicts(self, target_entry: dict[str, Any] | None) -> list[dict[str, Any]]:
@@ -2901,22 +2950,20 @@ class BridgeSync:
             }
         return None
 
-    def _bridge_sync_emit_code_change_progress(
-        self,
-        proposal: dict[str, Any],
-        change_id: str,
-        target_entry: dict[str, Any] | None,
-        target_repo: str | None,
-        source_tracking_list: list[dict[str, Any]],
-        progress_data: dict[str, Any],
-        adapter: Any,
-        should_sanitize: bool | None,
-        operations: list[Any],
-        errors: list[str],
-        warnings: list[str],
-    ) -> None:
+    def _bridge_sync_emit_code_change_progress(self, emit: _EmitCodeChangeProgressInput) -> None:
         from specfact_cli.utils.code_change_detector import calculate_comment_hash, format_progress_comment
 
+        proposal = emit.proposal
+        change_id = emit.change_id
+        target_entry = emit.target_entry
+        target_repo = emit.target_repo
+        source_tracking_list = emit.source_tracking_list
+        progress_data = emit.progress_data
+        adapter = emit.adapter
+        should_sanitize = emit.should_sanitize
+        operations = emit.operations
+        errors = emit.errors
+        warnings = emit.warnings
         sanitize_flag = should_sanitize if should_sanitize is not None else False
         comment_text = format_progress_comment(progress_data, sanitize=sanitize_flag)
         comment_hash = calculate_comment_hash(comment_text)
@@ -2973,22 +3020,20 @@ class BridgeSync:
         except Exception as e:
             errors.append(f"Failed to add progress comment for {change_id}: {e}")
 
-    def _handle_code_change_tracking(
-        self,
-        proposal: dict[str, Any],
-        target_entry: dict[str, Any] | None,
-        target_repo: str | None,
-        source_tracking_list: list[dict[str, Any]],
-        adapter: Any,
-        track_code_changes: bool,
-        add_progress_comment: bool,
-        code_repo_path: Path | None,
-        should_sanitize: bool | None,
-        operations: list[Any],
-        errors: list[str],
-        warnings: list[str],
-    ) -> None:
+    def _handle_code_change_tracking(self, tracking: _CodeChangeTrackingInput) -> None:
         """Handle code change tracking and add progress comments if enabled."""
+        proposal = tracking.proposal
+        target_entry = tracking.target_entry
+        target_repo = tracking.target_repo
+        source_tracking_list = tracking.source_tracking_list
+        adapter = tracking.adapter
+        track_code_changes = tracking.track_code_changes
+        add_progress_comment = tracking.add_progress_comment
+        code_repo_path = tracking.code_repo_path
+        should_sanitize = tracking.should_sanitize
+        operations = tracking.operations
+        errors = tracking.errors
+        warnings = tracking.warnings
         change_id = proposal.get("change_id", "unknown")
         progress_data = self._bridge_sync_resolve_progress_data(
             track_code_changes=track_code_changes,
@@ -3001,17 +3046,19 @@ class BridgeSync:
         if not progress_data:
             return
         self._bridge_sync_emit_code_change_progress(
-            proposal,
-            change_id,
-            target_entry,
-            target_repo,
-            source_tracking_list,
-            progress_data,
-            adapter,
-            should_sanitize,
-            operations,
-            errors,
-            warnings,
+            _EmitCodeChangeProgressInput(
+                proposal,
+                change_id,
+                target_entry,
+                target_repo,
+                source_tracking_list,
+                progress_data,
+                adapter,
+                should_sanitize,
+                operations,
+                errors,
+                warnings,
+            )
         )
 
     def _update_source_tracking_entry(
@@ -3705,6 +3752,20 @@ class BridgeSync:
             warnings=warnings,
         )
 
+    def _append_specification_feature_ids(self, artifact: Any, feature_ids: list[str]) -> None:
+        pattern_parts = str(artifact.path_pattern).split("/")
+        if not pattern_parts:
+            return
+        base_dir = self.repo_path / pattern_parts[0]
+        if not base_dir.exists():
+            return
+        for item in base_dir.iterdir():
+            if not item.is_dir():
+                continue
+            test_path = self.resolve_artifact_path("specification", item.name, "test")
+            if test_path.exists() or (item / "spec.md").exists():
+                feature_ids.append(item.name)
+
     @beartype
     @require(_bridge_config_set, "Bridge config must be set")
     @ensure(lambda result: isinstance(result, list), "Must return list")
@@ -3720,20 +3781,10 @@ class BridgeSync:
         if self.bridge_config is None:
             return feature_ids
 
-        # Try to discover from first artifact pattern
         if "specification" in self.bridge_config.artifacts:
-            artifact = self.bridge_config.artifacts["specification"]
-            # Extract base directory from pattern (e.g., "specs/{feature_id}/spec.md" -> "specs")
-            pattern_parts = artifact.path_pattern.split("/")
-            if len(pattern_parts) > 0:
-                base_dir = self.repo_path / pattern_parts[0]
-                if base_dir.exists():
-                    # Find all subdirectories (potential feature IDs)
-                    for item in base_dir.iterdir():
-                        if item.is_dir():
-                            # Check if it contains the expected artifact file
-                            test_path = self.resolve_artifact_path("specification", item.name, "test")
-                            if test_path.exists() or (item / "spec.md").exists():
-                                feature_ids.append(item.name)
+            self._append_specification_feature_ids(
+                self.bridge_config.artifacts["specification"],
+                feature_ids,
+            )
 
         return feature_ids

@@ -6,6 +6,8 @@ architecture facets) and validates against SDD coverage thresholds.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 from beartype import beartype
 from icontract import ensure, require
 
@@ -14,46 +16,20 @@ from specfact_cli.models.plan import PlanBundle
 from specfact_cli.models.sdd import SDDManifest
 
 
+@dataclass
 class ContractDensityMetrics:
     """Contract density metrics for a plan bundle."""
 
-    def __init__(
-        self,
-        contracts_per_story: float,
-        invariants_per_feature: float,
-        architecture_facets: int,
-        total_contracts: int,
-        total_invariants: int,
-        total_stories: int,
-        total_features: int,
-        openapi_coverage_percent: float = 0.0,
-        features_with_openapi: int = 0,
-        total_openapi_contracts: int = 0,
-    ) -> None:
-        """Initialize contract density metrics.
-
-        Args:
-            contracts_per_story: Average contracts per story
-            invariants_per_feature: Average invariants per feature
-            architecture_facets: Number of architecture facets
-            total_contracts: Total number of contracts
-            total_invariants: Total number of invariants
-            total_stories: Total number of stories
-            total_features: Total number of features
-            openapi_coverage_percent: Percentage of features with OpenAPI contracts
-            features_with_openapi: Number of features with OpenAPI contracts
-            total_openapi_contracts: Total number of OpenAPI contracts
-        """
-        self.contracts_per_story = contracts_per_story
-        self.invariants_per_feature = invariants_per_feature
-        self.architecture_facets = architecture_facets
-        self.total_contracts = total_contracts
-        self.total_invariants = total_invariants
-        self.total_stories = total_stories
-        self.total_features = total_features
-        self.openapi_coverage_percent = openapi_coverage_percent
-        self.features_with_openapi = features_with_openapi
-        self.total_openapi_contracts = total_openapi_contracts
+    contracts_per_story: float
+    invariants_per_feature: float
+    architecture_facets: int
+    total_contracts: int
+    total_invariants: int
+    total_stories: int
+    total_features: int
+    openapi_coverage_percent: float = 0.0
+    features_with_openapi: int = 0
+    total_openapi_contracts: int = 0
 
     @ensure(lambda result: isinstance(result, dict), "Must return dict")
     def to_dict(self) -> dict[str, float | int]:

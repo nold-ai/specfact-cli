@@ -27,6 +27,7 @@ import re
 import subprocess
 import sys
 from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -36,6 +37,31 @@ from smart_test_coverage import SmartCoverageManager
 
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class _CrosshairApplyContext:
+    file_key: str
+    file_hash: str | None
+    result: subprocess.CompletedProcess[str]
+    timed_out: bool
+    use_fast: bool
+    prefer_fast: bool
+    display_path: str
+    exploration_cache: dict[str, Any]
+    exploration_results: dict[str, Any]
+    signature_skips: list[str]
+
+
+@dataclass
+class _ExplorationErrorContext:
+    file_key: str
+    file_hash: str | None
+    exc: Exception
+    use_fast: bool
+    prefer_fast: bool
+    exploration_cache: dict[str, Any]
+    exploration_results: dict[str, Any]
 
 
 class ContractFirstTestManager(SmartCoverageManager):
@@ -471,20 +497,18 @@ class ContractFirstTestManager(SmartCoverageManager):
             mode_label = "fast" if use_fast else "standard"
             logger.info("   CrossHair exploration passed for %s (%s)", display_path, mode_label)
 
-    def _apply_crosshair_result(
-        self,
-        file_key: str,
-        file_hash: str | None,
-        result: subprocess.CompletedProcess[str],
-        timed_out: bool,
-        use_fast: bool,
-        prefer_fast: bool,
-        display_path: str,
-        exploration_cache: dict[str, Any],
-        exploration_results: dict[str, Any],
-        signature_skips: list[str],
-    ) -> bool:
+    def _apply_crosshair_result(self, ctx: _CrosshairApplyContext) -> bool:
         """Update caches from a CrossHair run. Returns False when the overall exploration should fail."""
+        file_key = ctx.file_key
+        file_hash = ctx.file_hash
+        result = ctx.result
+        timed_out = ctx.timed_out
+        use_fast = ctx.use_fast
+        prefer_fast = ctx.prefer_fast
+        display_path = ctx.display_path
+        exploration_cache = ctx.exploration_cache
+        exploration_results = ctx.exploration_results
+        signature_skips = ctx.signature_skips
         signature_detail = self._extract_signature_limitation_detail(result.stderr, result.stdout)
         is_signature_issue = signature_detail is not None
 
@@ -548,16 +572,14 @@ class ContractFirstTestManager(SmartCoverageManager):
             "stderr": "CrossHair exploration timed out",
         }
 
-    def _exploration_record_error(
-        self,
-        file_key: str,
-        file_hash: str | None,
-        exc: Exception,
-        use_fast: bool,
-        prefer_fast: bool,
-        exploration_cache: dict[str, Any],
-        exploration_results: dict[str, Any],
-    ) -> None:
+    def _exploration_record_error(self, err: _ExplorationErrorContext) -> None:
+        file_key = err.file_key
+        file_hash = err.file_hash
+        exc = err.exc
+        use_fast = err.use_fast
+        prefer_fast = err.prefer_fast
+        exploration_cache = err.exploration_cache
+        exploration_results = err.exploration_results
         exploration_results[file_key] = {
             "return_code": -1,
             "stdout": "",
@@ -675,16 +697,18 @@ class ContractFirstTestManager(SmartCoverageManager):
 
                 result, timed_out, use_fast, prefer_fast = self._run_crosshair_subprocess(file_path, use_fast)
                 if not self._apply_crosshair_result(
-                    file_key,
-                    file_hash,
-                    result,
-                    timed_out,
-                    use_fast,
-                    prefer_fast,
-                    display_path,
-                    exploration_cache,
-                    exploration_results,
-                    signature_skips,
+                    _CrosshairApplyContext(
+                        file_key,
+                        file_hash,
+                        result,
+                        timed_out,
+                        use_fast,
+                        prefer_fast,
+                        display_path,
+                        exploration_cache,
+                        exploration_results,
+                        signature_skips,
+                    )
                 ):
                     success = False
 
@@ -693,7 +717,9 @@ class ContractFirstTestManager(SmartCoverageManager):
                 success = False
             except Exception as e:
                 self._exploration_record_error(
-                    file_key, file_hash, e, use_fast, prefer_fast, exploration_cache, exploration_results
+                    _ExplorationErrorContext(
+                        file_key, file_hash, e, use_fast, prefer_fast, exploration_cache, exploration_results
+                    )
                 )
                 success = False
 

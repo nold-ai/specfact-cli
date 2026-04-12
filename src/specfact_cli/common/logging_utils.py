@@ -35,7 +35,7 @@ def get_bridge_logger(name: str, level: str = "INFO") -> logging.Logger:
 
 def _try_common_logger(name: str, level: str) -> logging.Logger | None:
     try:
-        from specfact_cli.common.logger_setup import LoggerSetup  # type: ignore[import]
+        from specfact_cli.common.logger_setup import LoggerCreateOptions, LoggerSetup  # type: ignore[import]
     except ImportError:
         return None
     try:
@@ -44,4 +44,5 @@ def _try_common_logger(name: str, level: str) -> logging.Logger | None:
         emit_to_console = is_debug_mode()
     except ImportError:
         emit_to_console = False
-    return LoggerSetup.create_logger(name, log_level=level, emit_to_console=emit_to_console)
+
+    return LoggerSetup.create_logger(name, LoggerCreateOptions(log_level=level, emit_to_console=emit_to_console))

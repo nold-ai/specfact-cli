@@ -15,7 +15,7 @@ from beartype import beartype
 from specfact_cli.adapters.ado import AdoAdapter
 from specfact_cli.models.bridge import BridgeConfig
 from specfact_cli.models.change import ChangeTracking
-from specfact_cli.sync.bridge_sync import BridgeSync
+from specfact_cli.sync.bridge_sync import BridgeSync, ExportChangeProposalsOptions
 
 
 def _normalize_body(body: str) -> list[str]:
@@ -86,11 +86,13 @@ class TestMultiAdapterBacklogSync:
         mock_gh_post.return_value = gh_post_response
 
         gh_result = sync.export_change_proposals_to_devops(
-            adapter_type="github",
-            repo_owner="test-org",
-            repo_name="test-repo",
-            api_token="test-token",
-            use_gh_cli=False,
+            "github",
+            ExportChangeProposalsOptions(
+                repo_owner="test-org",
+                repo_name="test-repo",
+                api_token="test-token",
+                use_gh_cli=False,
+            ),
         )
 
         assert gh_result.success is True
@@ -116,11 +118,13 @@ class TestMultiAdapterBacklogSync:
         mock_ado_patch.return_value = ado_patch_response
 
         ado_result = sync.export_change_proposals_to_devops(
-            adapter_type="ado",
-            api_token="ado-token",
-            ado_org="test-org",
-            ado_project="test-project",
-            ado_work_item_type="User Story",
+            "ado",
+            ExportChangeProposalsOptions(
+                api_token="ado-token",
+                ado_org="test-org",
+                ado_project="test-project",
+                ado_work_item_type="User Story",
+            ),
         )
         assert ado_result.success is True
 
@@ -226,12 +230,14 @@ class TestMultiAdapterBacklogSync:
             mock_gh_patch.return_value = gh_patch_response
 
             gh_update_result = sync.export_change_proposals_to_devops(
-                adapter_type="github",
-                repo_owner="test-org",
-                repo_name="test-repo",
-                api_token="test-token",
-                use_gh_cli=False,
-                update_existing=True,
+                "github",
+                ExportChangeProposalsOptions(
+                    repo_owner="test-org",
+                    repo_name="test-repo",
+                    api_token="test-token",
+                    use_gh_cli=False,
+                    update_existing=True,
+                ),
             )
 
             assert gh_update_result.success is True

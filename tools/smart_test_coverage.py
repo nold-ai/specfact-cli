@@ -35,6 +35,7 @@ import shutil
 import subprocess
 import sys
 from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Any, TextIO, cast
@@ -62,6 +63,31 @@ except ImportError:
 
 class CoverageThresholdError(Exception):
     """Raised when coverage falls below the required threshold."""
+
+
+@dataclass
+class _CompletedTestRunLog:
+    success: bool
+    test_level: str
+    test_count: int
+    coverage_percentage: float | None
+    tested_coverage_percentage: float | None
+    test_log_file: Path
+    coverage_log_file: Path
+    return_code: int | None
+
+
+@dataclass
+class _SmartCacheUpdate:
+    success: bool
+    test_count: int
+    coverage_percentage: float | None
+    enforce_threshold: bool = True
+    update_only: bool = False
+    updated_sources: list[Path] | None = None
+    updated_tests: list[Path] | None = None
+    updated_configs: list[Path] | None = None
+    update_coverage_in_cache: bool = True
 
 
 class SmartCoverageManager:
@@ -875,46 +901,36 @@ class SmartCoverageManager:
         logger.info("This is expected for unit/folder tests. Full test run will enforce the threshold.")
         return True
 
-    def _log_completed_test_run(
-        self,
-        success: bool,
-        test_level: str,
-        test_count: int,
-        coverage_percentage: float | None,
-        tested_coverage_percentage: float | None,
-        test_log_file: Path,
-        coverage_log_file: Path,
-        return_code: int | None,
-    ) -> None:
+    def _log_completed_test_run(self, run: _CompletedTestRunLog) -> None:
         """Emit summary log lines after a leveled test run."""
-        if success:
-            if coverage_percentage is None or tested_coverage_percentage is None:
+        if run.success:
+            if run.coverage_percentage is None or run.tested_coverage_percentage is None:
                 logger.info(
                     "%s tests completed: %d tests; line coverage not measured for this level",
-                    test_level.title(),
-                    test_count,
+                    run.test_level.title(),
+                    run.test_count,
                 )
-            elif test_level in ("unit", "folder") and tested_coverage_percentage > 0:
+            elif run.test_level in ("unit", "folder") and run.tested_coverage_percentage > 0:
                 logger.info(
                     "%s tests completed: %d tests, %.1f%% overall, %.1f%% tested code coverage",
-                    test_level.title(),
-                    test_count,
-                    coverage_percentage,
-                    tested_coverage_percentage,
+                    run.test_level.title(),
+                    run.test_count,
+                    run.coverage_percentage,
+                    run.tested_coverage_percentage,
                 )
             else:
                 logger.info(
                     "%s tests completed: %d tests, %.1f%% coverage",
-                    test_level.title(),
-                    test_count,
-                    coverage_percentage,
+                    run.test_level.title(),
+                    run.test_count,
+                    run.coverage_percentage,
                 )
-            logger.info("Full %s test log: %s", test_level, test_log_file)
-            logger.info("%s coverage log: %s", test_level.title(), coverage_log_file)
+            logger.info("Full %s test log: %s", run.test_level, run.test_log_file)
+            logger.info("%s coverage log: %s", run.test_level.title(), run.coverage_log_file)
         else:
-            logger.error("%s tests failed with exit code %s", test_level.title(), return_code)
-            logger.info("Check %s test log for details: %s", test_level, test_log_file)
-            logger.info("Check %s coverage log for details: %s", test_level, coverage_log_file)
+            logger.error("%s tests failed with exit code %s", run.test_level.title(), run.return_code)
+            logger.info("Check %s test log for details: %s", run.test_level, run.test_log_file)
+            logger.info("Check %s coverage log for details: %s", run.test_level, run.coverage_log_file)
 
     def _log_tested_coverage_vs_threshold(self, test_level: str, tested_coverage_percentage: float | None) -> None:
         if tested_coverage_percentage is None:
@@ -1297,14 +1313,16 @@ class SmartCoverageManager:
             )
             self._log_tested_coverage_vs_threshold(test_level, tested_coverage_percentage)
             self._log_completed_test_run(
-                success,
-                test_level,
-                test_count,
-                coverage_percentage,
-                tested_coverage_percentage,
-                test_log_file,
-                coverage_log_file,
-                return_code,
+                _CompletedTestRunLog(
+                    success,
+                    test_level,
+                    test_count,
+                    coverage_percentage,
+                    tested_coverage_percentage,
+                    test_log_file,
+                    coverage_log_file,
+                    return_code,
+                )
             )
 
             # Cleanup generated test files after test run
@@ -1406,22 +1424,20 @@ class SmartCoverageManager:
             if h:
                 config_file_hashes[str(file_path.relative_to(self.project_root))] = h
 
-    def _update_cache(
-        self,
-        success: bool,
-        test_count: int,
-        coverage_percentage: float | None,
-        enforce_threshold: bool = True,
-        update_only: bool = False,
-        updated_sources: list[Path] | None = None,
-        updated_tests: list[Path] | None = None,
-        updated_configs: list[Path] | None = None,
-        update_coverage_in_cache: bool = True,
-    ) -> None:
+    def _update_cache(self, update: _SmartCacheUpdate) -> None:
         """Update cache and hashes.
         If update_only is True, only update hashes for provided file lists (when their tests passed).
         Otherwise, refresh all known hashes.
         """
+        success = update.success
+        test_count = update.test_count
+        coverage_percentage = update.coverage_percentage
+        enforce_threshold = update.enforce_threshold
+        update_only = update.update_only
+        updated_sources = update.updated_sources
+        updated_tests = update.updated_tests
+        updated_configs = update.updated_configs
+        update_coverage_in_cache = update.update_coverage_in_cache
         self._maybe_warn_subthreshold_non_full(success, enforce_threshold, coverage_percentage)
 
         # Prepare existing maps
@@ -1656,13 +1672,15 @@ class SmartCoverageManager:
         # Update cache hashes only for files covered by successful unit batch
         if success:
             self._update_cache(
-                True,
-                test_count,
-                coverage_percentage,
-                enforce_threshold=False,
-                update_only=True,
-                updated_sources=modified_files,
-                updated_tests=unit_tests,
+                _SmartCacheUpdate(
+                    True,
+                    test_count,
+                    coverage_percentage,
+                    enforce_threshold=False,
+                    update_only=True,
+                    updated_sources=modified_files,
+                    updated_tests=unit_tests,
+                )
             )
             logger.info("Unit tests completed: %d tests, %.1f%% coverage", test_count, coverage_percentage)
         else:
@@ -1718,13 +1736,15 @@ class SmartCoverageManager:
         # Update cache only for files in modified folders when tests passed
         if success:
             self._update_cache(
-                True,
-                test_count,
-                coverage_percentage,
-                enforce_threshold=False,
-                update_only=True,
-                updated_sources=folder_files,
-                updated_tests=folder_tests,
+                _SmartCacheUpdate(
+                    True,
+                    test_count,
+                    coverage_percentage,
+                    enforce_threshold=False,
+                    update_only=True,
+                    updated_sources=folder_files,
+                    updated_tests=folder_tests,
+                )
             )
             logger.info("Folder tests completed: %d tests, %.1f%% coverage", test_count, coverage_percentage)
         else:
@@ -1753,13 +1773,15 @@ class SmartCoverageManager:
         # Update cache for integration tests (test file hashes only)
         if success:
             self._update_cache(
-                True,
-                test_count,
-                coverage_percentage,
-                enforce_threshold=False,
-                update_only=True,
-                updated_tests=integration_tests,
-                update_coverage_in_cache=False,
+                _SmartCacheUpdate(
+                    True,
+                    test_count,
+                    coverage_percentage,
+                    enforce_threshold=False,
+                    update_only=True,
+                    updated_tests=integration_tests,
+                    update_coverage_in_cache=False,
+                )
             )
             if coverage_percentage is None:
                 logger.info(
@@ -1797,13 +1819,15 @@ class SmartCoverageManager:
         # Update cache for e2e tests (test file hashes only)
         if success:
             self._update_cache(
-                True,
-                test_count,
-                coverage_percentage,
-                enforce_threshold=False,
-                update_only=True,
-                updated_tests=e2e_tests,
-                update_coverage_in_cache=False,
+                _SmartCacheUpdate(
+                    True,
+                    test_count,
+                    coverage_percentage,
+                    enforce_threshold=False,
+                    update_only=True,
+                    updated_tests=e2e_tests,
+                    update_coverage_in_cache=False,
+                )
             )
             if coverage_percentage is None:
                 logger.info(
@@ -1824,8 +1848,87 @@ class SmartCoverageManager:
         # Only refresh hashes if the full suite succeeded; otherwise keep prior baseline.
         if success:
             # Do not fail on low line coverage locally; contract-first layers are primary gates.
-            self._update_cache(True, test_count, coverage_percentage, enforce_threshold=False)
+            self._update_cache(_SmartCacheUpdate(True, test_count, coverage_percentage, enforce_threshold=False))
         return success
+
+    @staticmethod
+    def _dedupe_path_list(paths: list[Path]) -> list[Path]:
+        seen: set[str] = set()
+        out: list[Path] = []
+        for path_item in paths:
+            key = str(path_item.resolve())
+            if key not in seen:
+                seen.add(key)
+                out.append(path_item)
+        return out
+
+    def _run_changed_only_maybe_full_for_unmapped(self, modified_sources: list[Path]) -> tuple[bool, bool] | None:
+        if not modified_sources or not self.cache.get("last_full_run"):
+            return None
+        unmapped = [s for s in modified_sources if not self._get_unit_tests_for_files([s])]
+        if not unmapped:
+            return None
+        logger.info("Modified source(s) have no unit-mapped tests; running full suite to verify baseline.")
+        return self._run_full_tests(), True
+
+    def _run_changed_only_unit_batch(self, modified_sources: list[Path], unit_tests: list[Path]) -> tuple[bool, bool]:
+        ok, unit_count, unit_cov = self._run_tests(unit_tests, "unit")
+        if ok:
+            proven_sources = self._modified_sources_proven_by_unit_batch(modified_sources, unit_tests)
+            self._update_cache(
+                _SmartCacheUpdate(
+                    True,
+                    unit_count,
+                    unit_cov,
+                    enforce_threshold=False,
+                    update_only=True,
+                    updated_sources=proven_sources,
+                    updated_tests=unit_tests,
+                )
+            )
+        return ok, True
+
+    def _run_changed_only_integ_batch(self, integ_tests: list[Path]) -> tuple[bool, bool]:
+        ok, integ_count, integ_cov = self._run_tests(integ_tests, "integration")
+        if ok:
+            self._update_cache(
+                _SmartCacheUpdate(
+                    True,
+                    integ_count,
+                    integ_cov,
+                    enforce_threshold=False,
+                    update_only=True,
+                    updated_tests=integ_tests,
+                    update_coverage_in_cache=False,
+                )
+            )
+        return ok, True
+
+    def _run_changed_only_e2e_batch(self, e2e_tests: list[Path]) -> tuple[bool, bool]:
+        ok, e2e_count, e2e_cov = self._run_tests(e2e_tests, "e2e")
+        if ok:
+            self._update_cache(
+                _SmartCacheUpdate(
+                    True,
+                    e2e_count,
+                    e2e_cov,
+                    enforce_threshold=False,
+                    update_only=True,
+                    updated_tests=e2e_tests,
+                    update_coverage_in_cache=False,
+                )
+            )
+        return ok, True
+
+    def _run_changed_only_when_idle(self) -> tuple[bool, bool]:
+        if not self.cache.get("last_full_run"):
+            logger.info("No incremental baseline; running full test suite once to establish cache…")
+            return self._run_full_tests(), True
+        if self._has_config_changes():
+            logger.info("Configuration changed but no mapped tests to run; running full suite…")
+            return self._run_full_tests(), True
+        logger.info("No changed files detected that map to tests - skipping test execution")
+        return True, False
 
     def _run_changed_only(self) -> tuple[bool, bool]:
         """Run only tests impacted by changes since last cached hashes.
@@ -1836,93 +1939,36 @@ class SmartCoverageManager:
         When there is no ``last_full_run`` baseline and incremental work would run nothing,
         runs a one-time full suite to establish coverage/hash baseline (avoids zero cached coverage).
         """
-        # Collect modified items
         modified_sources = self._get_modified_files()
         modified_tests = self._get_modified_test_files()
 
-        if modified_sources and self.cache.get("last_full_run"):
-            unmapped = [s for s in modified_sources if not self._get_unit_tests_for_files([s])]
-            if unmapped:
-                logger.info("Modified source(s) have no unit-mapped tests; running full suite to verify baseline.")
-                return self._run_full_tests(), True
+        early = self._run_changed_only_maybe_full_for_unmapped(modified_sources)
+        if early is not None:
+            return early
 
-        # Map modified sources to unit tests
         unit_from_sources = self._get_unit_tests_for_files(modified_sources)
-        # Split modified tests by level
         unit_direct, integ_direct, e2e_direct = self._split_tests_by_level(modified_tests)
-
-        # Merge and deduplicate
-        def dedupe(paths: list[Path]) -> list[Path]:
-            seen: set[str] = set()
-            out: list[Path] = []
-            for p in paths:
-                key = str(p.resolve())
-                if key not in seen:
-                    seen.add(key)
-                    out.append(p)
-            return out
-
-        unit_tests = dedupe(unit_from_sources + unit_direct)
-        integ_tests = dedupe(integ_direct)
-        e2e_tests = dedupe(e2e_direct)
+        unit_tests = self._dedupe_path_list(unit_from_sources + unit_direct)
+        integ_tests = self._dedupe_path_list(integ_direct)
+        e2e_tests = self._dedupe_path_list(e2e_direct)
 
         ran_any = False
         overall_success = True
-
         if unit_tests:
-            ran_any = True
-            ok, unit_count, unit_cov = self._run_tests(unit_tests, "unit")
-            if ok:
-                proven_sources = self._modified_sources_proven_by_unit_batch(modified_sources, unit_tests)
-                self._update_cache(
-                    True,
-                    unit_count,
-                    unit_cov,
-                    enforce_threshold=False,
-                    update_only=True,
-                    updated_sources=proven_sources,
-                    updated_tests=unit_tests,
-                )
+            ok, _ = self._run_changed_only_unit_batch(modified_sources, unit_tests)
             overall_success = overall_success and ok
+            ran_any = True
         if integ_tests:
-            ran_any = True
-            ok, integ_count, integ_cov = self._run_tests(integ_tests, "integration")
-            if ok:
-                self._update_cache(
-                    True,
-                    integ_count,
-                    integ_cov,
-                    enforce_threshold=False,
-                    update_only=True,
-                    updated_tests=integ_tests,
-                    update_coverage_in_cache=False,
-                )
+            ok, _ = self._run_changed_only_integ_batch(integ_tests)
             overall_success = overall_success and ok
+            ran_any = True
         if e2e_tests:
-            ran_any = True
-            ok, e2e_count, e2e_cov = self._run_tests(e2e_tests, "e2e")
-            if ok:
-                self._update_cache(
-                    True,
-                    e2e_count,
-                    e2e_cov,
-                    enforce_threshold=False,
-                    update_only=True,
-                    updated_tests=e2e_tests,
-                    update_coverage_in_cache=False,
-                )
+            ok, _ = self._run_changed_only_e2e_batch(e2e_tests)
             overall_success = overall_success and ok
+            ran_any = True
 
         if not ran_any:
-            if not self.cache.get("last_full_run"):
-                logger.info("No incremental baseline; running full test suite once to establish cache…")
-                success = self._run_full_tests()
-                return success, True
-            if self._has_config_changes():
-                logger.info("Configuration changed but no mapped tests to run; running full suite…")
-                return self._run_full_tests(), True
-            logger.info("No changed files detected that map to tests - skipping test execution")
-            return True, False
+            return self._run_changed_only_when_idle()
 
         return overall_success, True
 
@@ -1933,7 +1979,7 @@ class SmartCoverageManager:
         logger.info("Forcing %s test run...", test_level)
         if test_level == "full":
             success, test_count, coverage_percentage = self._run_coverage_tests()
-            self._update_cache(success, test_count, coverage_percentage, enforce_threshold=True)
+            self._update_cache(_SmartCacheUpdate(success, test_count, coverage_percentage, enforce_threshold=True))
         elif test_level == "auto":
             success = self.run_smart_tests("auto", force=True)
         else:
@@ -1998,7 +2044,7 @@ class SmartCoverageManager:
         logger.info("Indexing current project hashes as baseline (no tests run)...")
         cur_cov = self.cache.get("coverage_percentage", 0.0)
         cur_cnt = self.cache.get("test_count", 0)
-        self._update_cache(True, cur_cnt, cur_cov, enforce_threshold=False, update_only=False)
+        self._update_cache(_SmartCacheUpdate(True, cur_cnt, cur_cov, enforce_threshold=False, update_only=False))
         logger.info("Baseline updated. Future smart runs will consider only new changes.")
         return 0
 
