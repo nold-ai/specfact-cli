@@ -7,16 +7,23 @@ import ast
 import sys
 from pathlib import Path
 
+from beartype import beartype
+from icontract import ensure, require
+
 
 ROOT = Path(__file__).resolve().parent.parent
 IDE_SETUP = ROOT / "src" / "specfact_cli" / "utils" / "ide_setup.py"
 
 
-class _JsonIoVisitor(ast.NodeVisitor):
-    def __init__(self) -> None:
-        self.offenders: list[tuple[int, str]] = []
+def _repo_layout_ok() -> bool:
+    return ROOT.is_dir()
 
-    def visit_Call(self, node: ast.Call) -> None:
+
+def _collect_json_io_offenders(tree: ast.AST) -> list[tuple[int, str]]:
+    offenders: list[tuple[int, str]] = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
         func = node.func
         if (
             isinstance(func, ast.Attribute)
@@ -24,19 +31,21 @@ class _JsonIoVisitor(ast.NodeVisitor):
             and func.value.id == "json"
             and func.attr in {"load", "dump", "loads", "dumps"}
         ):
-            self.offenders.append((node.lineno, f"json.{func.attr}"))
-        self.generic_visit(node)
+            offenders.append((node.lineno, f"json.{func.attr}"))
+    return offenders
 
 
+@beartype
+@require(_repo_layout_ok)
+@ensure(lambda result: result in (0, 1, 2))
 def main() -> int:
     if not IDE_SETUP.is_file():
         print(f"Expected ide_setup at {IDE_SETUP}", file=sys.stderr)
         return 2
     tree = ast.parse(IDE_SETUP.read_text(encoding="utf-8"), filename=str(IDE_SETUP))
-    visitor = _JsonIoVisitor()
-    visitor.visit(tree)
-    if visitor.offenders:
-        lines = ", ".join(f"line {ln} ({name})" for ln, name in visitor.offenders)
+    offenders = _collect_json_io_offenders(tree)
+    if offenders:
+        lines = ", ".join(f"line {ln} ({name})" for ln, name in offenders)
         print(
             "Unsafe JSON I/O in ide_setup.py — route VS Code settings through "
             f"specfact_cli.utils.project_artifact_write.merge_vscode_settings_prompt_recommendations: {lines}",

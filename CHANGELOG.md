@@ -19,6 +19,8 @@ All notable changes to this project will be documented in this file.
   replacing the file after a timestamped backup under `.specfact/recovery/`.
 - **Regression gate**: lint now runs `scripts/verify_safe_project_writes.py` so IDE settings JSON I/O stays
   routed through the shared merge helper.
+- **Dev / Semgrep**: Hatch and `[dev]` extras pin `setuptools<82` so Semgrep’s OpenTelemetry import chain still
+  resolves `pkg_resources` (setuptools 82+ may omit it).
 
 ---
 

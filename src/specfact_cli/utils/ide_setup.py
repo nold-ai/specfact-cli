@@ -820,20 +820,6 @@ def _finalize_vscode_prompt_recommendation_paths(repo_path: Path, prompt_files: 
     return prompt_files
 
 
-def _is_specfact_github_prompt_path(path: str) -> bool:
-    """True for SpecFact-managed GitHub prompt recommendations (strip on selective export); keeps team paths."""
-    normalized = path.replace("\\", "/").lstrip("./")
-    if not normalized.startswith("github/prompts/"):
-        return False
-    name = Path(normalized).name
-    return name.startswith("specfact") and name.endswith(".prompt.md")
-
-
-def _strip_specfact_github_prompt_recommendations(paths: list[str]) -> list[str]:
-    """Remove prior SpecFact-managed ``.github/prompts/`` entries before merging a selective export; keep other paths."""
-    return [p for p in paths if not _is_specfact_github_prompt_path(p)]
-
-
 @beartype
 @require(repo_path_exists, "Repo path must exist")
 @require(repo_path_is_dir, "Repo path must be a directory")

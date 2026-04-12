@@ -38,10 +38,17 @@ hatch run smart-test
 
 ## Code review gate
 
-- **Attempted**: `hatch run specfact code review run --json --out .specfact/code-review.json` — blocked in a minimal Hatch env
-  because the `code` command group is provided by the `nold-ai/specfact-codebase` module (not installed in this worktree by default).
-- **Follow-up before PR**: install the codebase bundle (e.g. `specfact init --profile solo-developer` or `specfact module install nold-ai/specfact-codebase`)
-  in the same environment, then re-run the command above and attach `.specfact/code-review.json` to the PR.
+- **Pass (2026-04-12)**: after `hatch run specfact module install nold-ai/specfact-codebase` and
+  `hatch run specfact module install nold-ai/specfact-code-review` (user scope), run:
+
+```bash
+hatch run specfact code review run --json --out .specfact/code-review.json \
+  src/specfact_cli/utils/project_artifact_write.py \
+  src/specfact_cli/utils/ide_setup.py \
+  scripts/verify_safe_project_writes.py
+```
+
+- Report: `.specfact/code-review.json` (exit 0, no blocking findings after merge-helper refactor + setuptools pin).
 
 ## Worktree cleanup (post-merge on developer machine)
 

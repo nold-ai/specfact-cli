@@ -24,7 +24,7 @@
 - [x] 4.2 Research and update affected docs (`README.md`, installation/quickstart/init references) to document preservation guarantees, backup behavior, and explicit replacement semantics. *(installation.md + version pins in README / samples)*
 - [x] 4.3 Run quality gates: `hatch run format`, `hatch run type-check`, `hatch run lint`, `hatch run yaml-lint`, `hatch run contract-test`, and `hatch run smart-test`.
 - [x] 4.4 Run `hatch run ./scripts/verify-modules-signature.py --require-signature`; if any bundled module manifests changed, bump versions, re-sign as required, and re-run verification. *(no `modules/init` payload change — error UX handled in `ide_setup` to avoid re-signing)*
-- [ ] 4.5 Ensure `.specfact/code-review.json` is fresh, remediate all findings, and record the final review command/timestamp in `TDD_EVIDENCE.md` or PR notes. *(requires `specfact code review` surface — install `nold-ai/specfact-codebase` in the Hatch env or run from a profile-bootstrapped environment; see TDD_EVIDENCE.)*
+- [x] 4.5 Ensure `.specfact/code-review.json` is fresh, remediate all findings, and record the final review command/timestamp in `TDD_EVIDENCE.md` or PR notes.
 - [x] 4.6 Apply the appropriate version/changelog update for a bugfix release if implementation changes user-facing behavior, then open a PR to `dev` referencing the paired modules change. *(version/changelog done; PR human)*
 
 ## 5. Worktree cleanup

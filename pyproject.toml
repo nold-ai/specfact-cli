@@ -104,7 +104,7 @@ contracts = [
 ]
 
 dev = [
-    "setuptools>=69.0.0",
+    "setuptools>=69.0.0,<82",
     "pytest>=8.4.2",
     "pytest-cov>=7.0.0",
     "pytest-mock>=3.15.1",
@@ -172,8 +172,8 @@ specfact-cli = "specfact_cli.cli:cli_main"  # Alias for uvx compatibility
 [tool.hatch.envs.default]
 python = "3.12"
 dependencies = [
-    # Semgrep pulls opentelemetry; some versions import pkg_resources (setuptools)
-    "setuptools>=69.0.0",
+    # Semgrep pulls opentelemetry; setuptools 82+ may omit pkg_resources (breaks semgrep import chain)
+    "setuptools>=69.0.0,<82",
     "pip-tools",
     "pytest",
     "pytest-cov",

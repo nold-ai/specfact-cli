@@ -52,6 +52,20 @@ def file_path_exists(file_path: Path) -> bool:
     return file_path.exists()
 
 
+@require(lambda settings_relative: isinstance(settings_relative, str))
+@ensure(lambda result: isinstance(result, bool))
+@beartype
+def settings_relative_nonblank(settings_relative: str) -> bool:
+    return settings_relative.strip() != ""
+
+
+@require(lambda prompt_files: isinstance(prompt_files, list))
+@ensure(lambda result: isinstance(result, bool))
+@beartype
+def prompt_files_all_strings(prompt_files: list[str]) -> bool:
+    return all(isinstance(item, str) for item in prompt_files)
+
+
 @require(lambda template_path: isinstance(template_path, Path))
 @ensure(lambda result: isinstance(result, bool))
 @beartype
