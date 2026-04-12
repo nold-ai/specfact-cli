@@ -76,9 +76,9 @@ specfact init ide --ide cursor --install-deps
 **Important**: SpecFact CLI does **not** ship with built-in AI. `specfact init ide` installs prompt templates for supported IDEs so your chosen AI copilot can call SpecFact commands in a guided workflow.
 
 For VS Code / Copilot, the CLI **merges** prompt recommendations into `.vscode/settings.json` and keeps your other
-settings keys. If that file is not valid JSON (or its `chat` block is not mergeable), the command stops without
-rewriting it; use `specfact init ide --force` only when you accept replacing the file after a timestamped backup under
-`.specfact/recovery/`.
+settings keys. If that file is **not parseable or mergeable by the CLI** (including a `chat` block the merge helper
+cannot reconcile), the command stops without rewriting it; use `specfact init ide --force` only when you accept
+replacing the file after a timestamped backup under `.specfact/recovery/`.
 
 [More options ↓](#more-options)
 

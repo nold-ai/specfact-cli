@@ -193,6 +193,7 @@ class GraphAnalyzer:
         call_graph: dict[str, list[str]],
         python_files: list[Path],
     ) -> None:
+        """Add directed edges from ``module_name`` to callees that resolve to known graph nodes."""
         for _caller, callees in call_graph.items():
             for callee in callees:
                 callee_module = self._resolve_module_from_function(callee, python_files)

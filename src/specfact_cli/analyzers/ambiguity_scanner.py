@@ -180,7 +180,7 @@ class AmbiguityScanner:
         }
         scanner = scanners.get(category)
         if scanner is None:
-            return []
+            raise RuntimeError(f"No ambiguity scanner registered for taxonomy category {category!r}")
         return list(scanner(plan_bundle))
 
     _BEHAVIORAL_PATTERNS: tuple[str, ...] = (

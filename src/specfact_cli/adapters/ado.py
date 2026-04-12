@@ -752,9 +752,6 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         proposal_data: dict[str, Any],
         created: _AdoCreatedWorkItemRef,
     ) -> None:
-        source_tracking = proposal_data.get("source_tracking")
-        if not source_tracking:
-            return
         tracking_update = {
             "source_id": created.work_item_id,
             "source_url": created.work_item_url,
@@ -766,9 +763,14 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
                 "state": created.ado_state,
             },
         }
+        source_tracking = proposal_data.get("source_tracking")
+        if not source_tracking:
+            proposal_data["source_tracking"] = tracking_update
+            return
         if isinstance(source_tracking, dict):
             st = _as_str_dict(source_tracking)
             st.update(tracking_update)
+            proposal_data["source_tracking"] = st
             return
         if isinstance(source_tracking, list):
             cast(list[dict[str, Any]], source_tracking).append(tracking_update)

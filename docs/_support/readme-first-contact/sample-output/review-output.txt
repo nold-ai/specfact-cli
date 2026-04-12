@@ -9,7 +9,7 @@ Downloading z3-solver (30.3MiB)
  Downloaded basedpyright
  Downloaded nodejs-wheel-binaries
 Installed 111 packages in 394ms
-SpecFact CLI - v0.45.2
+SpecFact CLI - v0.46.0
 
 
 ⏱️  Started: 2026-04-03 20:55:28

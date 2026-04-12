@@ -6,12 +6,14 @@ import json
 import subprocess
 from pathlib import Path
 from types import SimpleNamespace
+from typing import Any
 from unittest.mock import patch
 
 import pytest
 
 from specfact_cli.adapters.registry import AdapterRegistry
 from specfact_cli.adapters.speckit import SpecKitAdapter
+from specfact_cli.importers.speckit_scanner import SpecKitScanner
 from specfact_cli.models.bridge import AdapterType, BridgeConfig
 
 
@@ -235,6 +237,62 @@ class TestSpecKitAdapter:
                 assert feature.source_tracking.tool == "speckit"
                 break
         assert feature_found, "Feature should be imported"
+
+    def test_import_specification_detaches_from_parse_result(
+        self, speckit_adapter: SpecKitAdapter, speckit_repo_classic: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Parsed list/dict fields must not alias scanner output (callers may mutate parse buffers)."""
+        from specfact_cli.models.plan import Product
+        from specfact_cli.models.project import BundleManifest, BundleVersions, ProjectBundle
+
+        shared_edge: list[Any] = [{"text": "edge1"}]
+        shared_story_acceptance: list[str] = ["keep"]
+        shared_scenario_steps: list[str] = ["step"]
+        shared_stories: list[dict[str, Any]] = [
+            {
+                "key": "K1",
+                "title": "T1",
+                "acceptance": shared_story_acceptance,
+                "scenarios": {"primary": shared_scenario_steps},
+            }
+        ]
+
+        def fake_parse(self: SpecKitScanner, spec_path: Path) -> dict[str, Any]:
+            return {
+                "feature_key": "ISOLATED_FEAT",
+                "feature_title": "Isolated",
+                "requirements": [{"text": "req"}],
+                "success_criteria": [{"text": "ok"}],
+                "stories": shared_stories,
+                "edge_cases": shared_edge,
+            }
+
+        monkeypatch.setattr(SpecKitScanner, "parse_spec_markdown", fake_parse)
+
+        manifest = BundleManifest(
+            versions=BundleVersions(schema="1.0", project="0.1.0"),
+            schema_metadata=None,
+            project_metadata=None,
+        )
+        product = Product(themes=[], releases=[])
+        project_bundle = ProjectBundle(manifest=manifest, bundle_name="test", product=product, features={})
+        spec_path = speckit_repo_classic / "specs" / "001-auth" / "spec.md"
+        bridge_config = BridgeConfig.preset_speckit_classic()
+        speckit_adapter.import_artifact("specification", spec_path, project_bundle, bridge_config)
+
+        feature = project_bundle.features["ISOLATED_FEAT"]
+        assert feature.constraints == ["edge1"]
+        assert len(feature.stories) == 1
+        assert feature.stories[0].acceptance == ["keep"]
+        assert feature.stories[0].scenarios == {"primary": ["step"]}
+
+        shared_edge.clear()
+        shared_story_acceptance.append("leaked-acceptance")
+        shared_scenario_steps.append("leaked-scenario")
+
+        assert feature.constraints == ["edge1"]
+        assert feature.stories[0].acceptance == ["keep"]
+        assert feature.stories[0].scenarios == {"primary": ["step"]}
 
     def test_import_artifact_plan(self, speckit_adapter: SpecKitAdapter, speckit_repo_classic: Path) -> None:
         """Test importing plan artifact."""

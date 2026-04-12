@@ -39,6 +39,10 @@ class _SignalContribution:
     source: str
 
 
+def _signal_contribution(bundle_id: str, score: float, weight: float, source: str) -> _SignalContribution:
+    return _SignalContribution(bundle_id=bundle_id, score=score, weight=weight, source=source)
+
+
 def _tokenize(text: str) -> set[str]:
     """Lowercase, split by non-alphanumeric."""
     return set(re.findall(r"[a-z0-9]+", text.lower()))
@@ -216,23 +220,13 @@ class BundleMapper:
             primary_bundle_id,
             weighted,
             reasons,
-            _SignalContribution(
-                bundle_id=explicit_bundle or "",
-                score=explicit_score,
-                weight=WEIGHT_EXPLICIT,
-                source="explicit_label",
-            ),
+            _signal_contribution(explicit_bundle or "", explicit_score, WEIGHT_EXPLICIT, "explicit_label"),
         )
         primary_bundle_id, weighted = self._apply_signal_contribution(
             primary_bundle_id,
             weighted,
             reasons,
-            _SignalContribution(
-                bundle_id=hist_bundle or "",
-                score=hist_score,
-                weight=WEIGHT_HISTORICAL,
-                source="historical",
-            ),
+            _signal_contribution(hist_bundle or "", hist_score, WEIGHT_HISTORICAL, "historical"),
         )
 
         if content_list:
@@ -241,11 +235,11 @@ class BundleMapper:
                 primary_bundle_id,
                 weighted,
                 reasons,
-                _SignalContribution(
-                    bundle_id=best_content_bundle,
-                    score=best_content_score,
-                    weight=WEIGHT_CONTENT,
-                    source="content_similarity",
+                _signal_contribution(
+                    best_content_bundle,
+                    best_content_score,
+                    WEIGHT_CONTENT,
+                    "content_similarity",
                 ),
             )
 

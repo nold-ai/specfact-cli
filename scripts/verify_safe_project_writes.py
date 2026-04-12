@@ -32,6 +32,10 @@ def _register_json_module_alias(alias: ast.alias, module_locals: set[str]) -> No
 
 
 def _register_json_from_func_alias(alias: ast.alias, func_aliases: dict[str, str]) -> None:
+    if alias.name == "*":
+        for name in sorted(_JSON_IO_NAMES):
+            func_aliases[name] = f"json.{name}"
+        return
     if alias.name not in _JSON_IO_NAMES:
         return
     local = alias.asname or alias.name

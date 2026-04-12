@@ -40,6 +40,17 @@ class _SemgrepFeatureBuckets:
     crud_operations: list[dict[str, str]] = field(default_factory=list)
     anti_patterns: list[str] = field(default_factory=list)
     code_smells: list[str] = field(default_factory=list)
+    themes: set[str] = field(default_factory=set)
+
+
+@dataclass
+class _SemgrepEnhancementContext:
+    semgrep_findings: list[dict[str, Any]]
+    file_path: Path
+    class_name: str
+    class_start_line: int | None = None
+    class_end_line: int | None = None
+    file_theme_accumulator: set[str] | None = None
 
 
 class CodeAnalyzer:
@@ -655,7 +666,7 @@ class CodeAnalyzer:
             # Extract classes as features
             for node in ast.walk(tree):
                 if isinstance(node, ast.ClassDef):
-                    feature = self._extract_feature_for_results(node, file_path, semgrep_findings)
+                    feature = self._extract_feature_for_results(node, file_path, semgrep_findings, results["themes"])
                     if feature is not None:
                         results["features"].append(feature)
 
@@ -670,6 +681,7 @@ class CodeAnalyzer:
         node: ast.ClassDef,
         file_path: Path,
         semgrep_findings: list[dict[str, Any]],
+        file_theme_accumulator: set[str],
     ) -> Feature | None:
         """Extract one feature while isolating per-class enhancement failures."""
         current_count = 0 if self.key_format == "sequential" else len(self.features)
@@ -683,7 +695,15 @@ class CodeAnalyzer:
 
         try:
             self._enhance_feature_with_semgrep(
-                feature, semgrep_findings, file_path, node.name, class_start_line, class_end_line
+                feature,
+                _SemgrepEnhancementContext(
+                    semgrep_findings=semgrep_findings,
+                    file_path=file_path,
+                    class_name=node.name,
+                    class_start_line=class_start_line,
+                    class_end_line=class_end_line,
+                    file_theme_accumulator=file_theme_accumulator,
+                ),
             )
         except Exception as exc:
             console.print(f"[dim]⚠ Warning: Skipped Semgrep enhancement for {file_path}:{node.name}: {exc}[/dim]")
@@ -1153,15 +1173,15 @@ class CodeAnalyzer:
     def _accumulate_semgrep_finding_bucket(self, buckets: _SemgrepFeatureBuckets, category: str, value: str) -> None:
         if category == "api":
             buckets.api_endpoints.append(value)
-            self.themes.add("API")
+            buckets.themes.add("API")
             return
         if category == "model":
             buckets.data_models.append(value)
-            self.themes.add("Database")
+            buckets.themes.add("Database")
             return
         if category == "auth":
             buckets.auth_patterns.append(value)
-            self.themes.add("Security")
+            buckets.themes.add("Security")
             return
         if category == "crud":
             op, _, entity = value.partition(":")
@@ -1173,31 +1193,23 @@ class CodeAnalyzer:
         if category == "codesmell":
             buckets.code_smells.append(value)
 
-    def _enhance_feature_with_semgrep(
-        self,
-        feature: Feature,
-        semgrep_findings: list[dict[str, Any]],
-        file_path: Path,
-        class_name: str,
-        class_start_line: int | None = None,
-        class_end_line: int | None = None,
-    ) -> None:
+    def _enhance_feature_with_semgrep(self, feature: Feature, ctx: _SemgrepEnhancementContext) -> None:
         """
         Enhance feature with Semgrep pattern detection results.
 
         Args:
             feature: Feature to enhance
-            semgrep_findings: List of Semgrep findings for the file
-            file_path: Path to the file being analyzed
-            class_name: Name of the class this feature represents
-            class_start_line: Starting line number of the class definition
-            class_end_line: Ending line number of the class definition
+            ctx: File/class scope and findings for Semgrep enhancement
         """
-        if not semgrep_findings:
+        if not ctx.semgrep_findings:
             return
 
         relevant_findings = self._filter_relevant_semgrep_findings(
-            semgrep_findings, file_path, class_name, class_start_line, class_end_line
+            ctx.semgrep_findings,
+            ctx.file_path,
+            ctx.class_name,
+            ctx.class_start_line,
+            ctx.class_end_line,
         )
         if not relevant_findings:
             return
@@ -1209,6 +1221,8 @@ class CodeAnalyzer:
             self._accumulate_semgrep_finding_bucket(buckets, category, value)
 
         self._apply_semgrep_findings_to_feature(feature, buckets)
+        if ctx.file_theme_accumulator is not None:
+            ctx.file_theme_accumulator.update(buckets.themes)
 
         # Confidence is already calculated with Semgrep evidence in _calculate_feature_confidence
         # No need to adjust here - this method only adds outcomes, constraints, and themes
