@@ -8,6 +8,7 @@ bundles to well-structured Markdown files using Jinja2 templates.
 from __future__ import annotations
 
 from collections.abc import Sequence
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -17,6 +18,15 @@ from icontract import ensure, require
 from jinja2 import Environment, FileSystemLoader, Template, TemplateNotFound
 
 from specfact_cli.models.project import PersonaMapping, ProjectBundle
+
+
+@dataclass(frozen=True, slots=True)
+class _OwnedFeatureFieldSpec:
+    owns: Sequence[str]
+    pattern: str
+    field_name: str
+    value: Any | None = None
+    use_getattr: bool = False
 
 
 class PersonaExporter:
@@ -183,42 +193,45 @@ class PersonaExporter:
 
     def _merge_owned_feature_field(
         self,
-        owns: Sequence[str],
-        pattern: str,
         feature: Any,
         feature_dict: dict[str, Any],
-        field_name: str,
-        *,
-        value: Any | None = None,
-        use_getattr: bool = False,
+        spec: _OwnedFeatureFieldSpec,
     ) -> None:
         from specfact_cli.utils.persona_ownership import match_section_pattern
 
-        if not any(match_section_pattern(p, pattern) for p in owns):
+        if not any(match_section_pattern(p, spec.pattern) for p in spec.owns):
             return
-        if use_getattr:
-            val = getattr(feature, field_name, None)
+        if spec.use_getattr:
+            val = getattr(feature, spec.field_name, None)
             if val:
-                feature_dict[field_name] = val
+                feature_dict[spec.field_name] = val
             return
-        if value:
-            feature_dict[field_name] = value
+        if spec.value:
+            feature_dict[spec.field_name] = spec.value
 
     def _merge_feature_optional_sections(
         self, feature: Any, persona_mapping: PersonaMapping, feature_dict: dict[str, Any]
     ) -> None:
         owns = persona_mapping.owns
         self._merge_owned_feature_field(
-            owns, "features.*.outcomes", feature, feature_dict, "outcomes", value=feature.outcomes
+            feature,
+            feature_dict,
+            _OwnedFeatureFieldSpec(owns, "features.*.outcomes", "outcomes", value=feature.outcomes),
         )
         self._merge_owned_feature_field(
-            owns, "features.*.constraints", feature, feature_dict, "constraints", value=feature.constraints
+            feature,
+            feature_dict,
+            _OwnedFeatureFieldSpec(owns, "features.*.constraints", "constraints", value=feature.constraints),
         )
         self._merge_owned_feature_field(
-            owns, "features.*.acceptance", feature, feature_dict, "acceptance", value=feature.acceptance
+            feature,
+            feature_dict,
+            _OwnedFeatureFieldSpec(owns, "features.*.acceptance", "acceptance", value=feature.acceptance),
         )
         self._merge_owned_feature_field(
-            owns, "features.*.implementation", feature, feature_dict, "implementation", use_getattr=True
+            feature,
+            feature_dict,
+            _OwnedFeatureFieldSpec(owns, "features.*.implementation", "implementation", use_getattr=True),
         )
 
     def _load_bundle_protocols(self, bundle_dir: Path) -> dict[str, Any]:

@@ -157,6 +157,29 @@ def _get_github_token_from_gh_cli() -> str | None:
     return None
 
 
+_GITHUB_GIT_CONFIG_URL_RE = re.compile(r"url\s*=\s*(https?://[^\s]+|ssh://[^\s]+|git://[^\s]+|git@[^:]+:[^\s]+)")
+
+
+def _git_config_content_indicates_github(config_content: str) -> bool:
+    github_ssh_hosts = {"github.com", "ssh.github.com"}
+    for match in _GITHUB_GIT_CONFIG_URL_RE.finditer(config_content):
+        url_str = match.group(1)
+        if url_str.startswith("git@"):
+            host_part = url_str.split(":")[0].replace("git@", "").lower()
+            if host_part in github_ssh_hosts:
+                return True
+            continue
+        parsed = urlparse(url_str)
+        if not parsed.hostname:
+            continue
+        hostname_lower = parsed.hostname.lower()
+        if hostname_lower == "github.com":
+            return True
+        if parsed.scheme == "ssh" and hostname_lower == "ssh.github.com":
+            return True
+    return False
+
+
 class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
     """
     GitHub bridge adapter implementing BridgeAdapter interface.
@@ -805,38 +828,14 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         Returns:
             True if GitHub repository detected, False otherwise
         """
-        # Check for .git/config with GitHub remote
         git_config = repo_path / ".git" / "config"
         if git_config.exists():
             try:
-                config_content = git_config.read_text(encoding="utf-8")
-                # Use proper URL parsing to avoid substring matching vulnerabilities
-                # Look for URL patterns in git config and validate the hostname
-                # Match: https?://, ssh://, git://, and scp-style git@host:path URLs
-                url_pattern = re.compile(r"url\s*=\s*(https?://[^\s]+|ssh://[^\s]+|git://[^\s]+|git@[^:]+:[^\s]+)")
-                # Official GitHub SSH hostnames
-                github_ssh_hosts = {"github.com", "ssh.github.com"}
-                for match in url_pattern.finditer(config_content):
-                    url_str = match.group(1)
-                    # Handle scp-style git@ format: git@github.com:user/repo.git or git@ssh.github.com:user/repo.git
-                    if url_str.startswith("git@"):
-                        host_part = url_str.split(":")[0].replace("git@", "").lower()
-                        if host_part in github_ssh_hosts:
-                            return True
-                    else:
-                        # Parse HTTP/HTTPS/SSH/GIT URLs properly
-                        parsed = urlparse(url_str)
-                        if parsed.hostname:
-                            hostname_lower = parsed.hostname.lower()
-                            # Check for GitHub hostnames (github.com for all schemes, ssh.github.com for SSH)
-                            if hostname_lower == "github.com":
-                                return True
-                            if parsed.scheme == "ssh" and hostname_lower == "ssh.github.com":
-                                return True
+                if _git_config_content_indicates_github(git_config.read_text(encoding="utf-8")):
+                    return True
             except Exception:
                 pass
 
-        # Check bridge config for external GitHub repo
         return bool(bridge_config and bridge_config.adapter.value == "github")
 
     @beartype

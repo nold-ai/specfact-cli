@@ -10,6 +10,7 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, cast
@@ -37,6 +38,32 @@ from specfact_cli.runtime import is_debug_mode
 
 
 USER_MODULES_ROOT = Path.home() / ".specfact" / "modules"
+
+
+@dataclass(slots=True)
+class InstallModuleOptions:
+    """Options for :func:`install_module`."""
+
+    version: str | None = None
+    reinstall: bool = False
+    install_root: Path | None = None
+    trust_non_official: bool = False
+    non_interactive: bool = False
+    skip_deps: bool = False
+    force: bool = False
+
+
+@dataclass(slots=True)
+class _BundleDepsInstallContext:
+    metadata: dict[str, Any]
+    metadata_obj: ModulePackageMetadata
+    target_root: Path
+    trust_non_official: bool
+    non_interactive: bool
+    force: bool
+    logger: Any
+
+
 MARKETPLACE_MODULES_ROOT = Path.home() / ".specfact" / "marketplace-modules"
 MODULE_DOWNLOAD_CACHE_ROOT = Path.home() / ".specfact" / "downloads" / "cache"
 _IGNORED_MODULE_DIR_NAMES = {"__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache", "logs", "tests"}
@@ -774,46 +801,39 @@ def _metadata_obj_from_install_dict(metadata: dict[str, Any], manifest_module_na
         )
 
 
-def _install_bundle_dependencies_for_module(
-    module_id: str,
-    metadata: dict[str, Any],
-    metadata_obj: ModulePackageMetadata,
-    target_root: Path,
-    trust_non_official: bool,
-    non_interactive: bool,
-    force: bool,
-    logger: Any,
-) -> None:
-    for dependency_module_id in _extract_bundle_dependencies(metadata):
+def _install_bundle_dependencies_for_module(module_id: str, ctx: _BundleDepsInstallContext) -> None:
+    for dependency_module_id in _extract_bundle_dependencies(ctx.metadata):
         if dependency_module_id == module_id:
             continue
         dependency_name = dependency_module_id.split("/", 1)[1]
-        dependency_manifest = target_root / dependency_name / "module-package.yaml"
+        dependency_manifest = ctx.target_root / dependency_name / "module-package.yaml"
         if dependency_manifest.exists():
             dependency_version = _installed_dependency_version(dependency_manifest)
-            logger.info("Dependency %s already satisfied (version %s)", dependency_module_id, dependency_version)
+            ctx.logger.info("Dependency %s already satisfied (version %s)", dependency_module_id, dependency_version)
             continue
         try:
             install_module(
                 dependency_module_id,
-                install_root=target_root,
-                trust_non_official=trust_non_official,
-                non_interactive=non_interactive,
-                skip_deps=False,
-                force=force,
+                InstallModuleOptions(
+                    install_root=ctx.target_root,
+                    trust_non_official=ctx.trust_non_official,
+                    non_interactive=ctx.non_interactive,
+                    skip_deps=False,
+                    force=ctx.force,
+                ),
             )
         except Exception as dep_exc:
             raise ValueError(f"Dependency install failed for {dependency_module_id}: {dep_exc}") from dep_exc
     try:
         all_metas = [e.metadata for e in discover_all_modules()]
-        all_metas.append(metadata_obj)
+        all_metas.append(ctx.metadata_obj)
         resolved = resolve_dependencies(all_metas, allow_unvalidated=True)
     except DependencyConflictError as dep_err:
-        if not force:
+        if not ctx.force:
             raise ValueError(
                 f"Dependency conflict: {dep_err}. Use --force to bypass or --skip-deps to skip resolution."
             ) from dep_err
-        logger.warning("Dependency conflict bypassed by --force: %s", dep_err)
+        ctx.logger.warning("Dependency conflict bypassed by --force: %s", dep_err)
         return
     if not resolved:
         return
@@ -866,18 +886,12 @@ def _atomic_place_verified_module(
 @ensure(lambda result: cast(Path, result).exists(), "Installed module path must exist")
 def install_module(
     module_id: str,
-    *,
-    version: str | None = None,
-    reinstall: bool = False,
-    install_root: Path | None = None,
-    trust_non_official: bool = False,
-    non_interactive: bool = False,
-    skip_deps: bool = False,
-    force: bool = False,
+    options: InstallModuleOptions | None = None,
 ) -> Path:
     """Install a marketplace module from tarball into canonical user modules root."""
+    o = options or InstallModuleOptions()
     logger = get_bridge_logger(__name__)
-    target_root = install_root or USER_MODULES_ROOT
+    target_root = o.install_root or USER_MODULES_ROOT
     target_root.mkdir(parents=True, exist_ok=True)
 
     _validate_marketplace_namespace_format(module_id)
@@ -885,15 +899,15 @@ def install_module(
     final_path = target_root / module_name
     manifest_path = final_path / "module-package.yaml"
 
-    _check_namespace_collision(module_id, final_path, reinstall)
-    if manifest_path.exists() and not reinstall:
+    _check_namespace_collision(module_id, final_path, o.reinstall)
+    if manifest_path.exists() and not o.reinstall:
         logger.debug("Module already installed (%s)", module_name)
         return final_path
 
-    if reinstall:
+    if o.reinstall:
         _clear_reinstall_download_cache(module_id, logger)
 
-    archive_path = _download_archive_with_cache(module_id, version=version)
+    archive_path = _download_archive_with_cache(module_id, version=o.version)
 
     with tempfile.TemporaryDirectory(prefix="specfact-module-install-") as tmp_dir:
         tmp_dir_path = Path(tmp_dir)
@@ -904,20 +918,22 @@ def install_module(
 
         extracted_module_dir, metadata = _load_first_extracted_module_manifest(extract_root)
         manifest_module_name = _validate_install_manifest_constraints(
-            metadata, module_name, trust_non_official, non_interactive
+            metadata, module_name, o.trust_non_official, o.non_interactive
         )
         metadata_obj = _metadata_obj_from_install_dict(metadata, manifest_module_name)
 
-        if not skip_deps:
+        if not o.skip_deps:
             _install_bundle_dependencies_for_module(
                 module_id,
-                metadata,
-                metadata_obj,
-                target_root,
-                trust_non_official,
-                non_interactive,
-                force,
-                logger,
+                _BundleDepsInstallContext(
+                    metadata=metadata,
+                    metadata_obj=metadata_obj,
+                    target_root=target_root,
+                    trust_non_official=o.trust_non_official,
+                    non_interactive=o.non_interactive,
+                    force=o.force,
+                    logger=logger,
+                ),
             )
 
         _atomic_place_verified_module(

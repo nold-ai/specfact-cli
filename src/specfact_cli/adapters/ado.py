@@ -13,6 +13,7 @@ from __future__ import annotations
 import os
 import re
 from collections.abc import Callable, Mapping
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, NoReturn, Protocol, cast
@@ -49,6 +50,16 @@ _ADO_STABLE_API_VERSION = "7.1"
 _ADO_COMMENTS_API_VERSION = "7.1-preview.4"
 
 console = Console()
+
+
+@dataclass(frozen=True, slots=True)
+class _AdoCreatedWorkItemRef:
+    work_item_id: Any
+    work_item_url: str
+    org: str
+    project: str
+    work_item_type: str
+    ado_state: str
 
 
 class _AccessTokenLike(Protocol):
@@ -638,56 +649,7 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         # Don't default team to project here - will be resolved in _get_current_iteration if needed
         self.team = team
         self.auth_scheme: str | None = None
-
-        # Token resolution: explicit token > env var > stored token
-        if api_token:
-            self.api_token = api_token
-            self.auth_scheme = "basic"
-        elif os.environ.get("AZURE_DEVOPS_TOKEN"):
-            self.api_token = os.environ.get("AZURE_DEVOPS_TOKEN")
-            self.auth_scheme = "basic"
-        elif stored_token := get_token("azure-devops", allow_expired=False):
-            # Valid, non-expired token found
-            self.api_token = stored_token.get("access_token")
-            token_type = (stored_token.get("token_type") or "bearer").lower()
-            self.auth_scheme = "bearer" if token_type == "bearer" else "basic"
-        elif stored_token_expired := get_token("azure-devops", allow_expired=True):
-            # Token exists but is expired - try to refresh using persistent cache
-            expires_at = stored_token_expired.get("expires_at", "unknown")
-            token_type = (stored_token_expired.get("token_type") or "bearer").lower()
-            if token_type == "bearer":
-                # OAuth token expired - try automatic refresh using persistent cache (like Azure CLI)
-                refreshed_token = self._try_refresh_oauth_token()
-                if refreshed_token:
-                    self.api_token = refreshed_token.get("access_token")
-                    self.auth_scheme = "bearer"
-                    # Update stored token with refreshed token
-                    set_token("azure-devops", refreshed_token)
-                    debug_print(f"[dim]OAuth token automatically refreshed (was expired at {expires_at})[/dim]")
-                else:
-                    # Refresh failed - provide helpful guidance
-                    console.print(
-                        f"[yellow]⚠[/yellow] Stored OAuth token expired at {expires_at}. "
-                        "Attempting automatic refresh..."
-                    )
-                    console.print("[yellow]⚠[/yellow] Automatic refresh failed. OAuth tokens expire after ~1 hour.")
-                    console.print(
-                        "[dim]Options:[/dim]\n"
-                        "  1. Use a Personal Access Token (PAT) with longer expiration (up to 1 year):\n"
-                        "     - Create PAT: https://dev.azure.com/{org}/_usersSettings/tokens\n"
-                        "     - Store PAT: specfact backlog auth azure-devops --pat your_pat_token\n"
-                        "  2. Re-authenticate: specfact backlog auth azure-devops\n"
-                        "  3. Use --ado-token option with a valid token"
-                    )
-                    self.api_token = None
-                    self.auth_scheme = None
-            else:
-                # PAT token - no expiration tracking, assume still valid
-                self.api_token = stored_token_expired.get("access_token")
-                self.auth_scheme = "basic"
-        else:
-            self.api_token = None
-            self.auth_scheme = None
+        self._configure_api_token(api_token)
 
         # Base URL defaults to Azure DevOps Services (cloud)
         # Normalize base_url: remove trailing slashes
@@ -696,6 +658,120 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         raw_base_url = base_url or "https://dev.azure.com"
         self.base_url = raw_base_url.rstrip("/")
         self.work_item_type = work_item_type
+
+    def _configure_api_token(self, api_token: str | None) -> None:
+        """Resolve PAT / env / keyring token and set ``api_token`` and ``auth_scheme``."""
+        if api_token:
+            self.api_token = api_token
+            self.auth_scheme = "basic"
+            return
+        env_tok = os.environ.get("AZURE_DEVOPS_TOKEN")
+        if env_tok:
+            self.api_token = env_tok
+            self.auth_scheme = "basic"
+            return
+        stored_token = get_token("azure-devops", allow_expired=False)
+        if stored_token:
+            self.api_token = stored_token.get("access_token")
+            token_type = (stored_token.get("token_type") or "bearer").lower()
+            self.auth_scheme = "bearer" if token_type == "bearer" else "basic"
+            return
+        stored_token_expired = get_token("azure-devops", allow_expired=True)
+        if not stored_token_expired:
+            self.api_token = None
+            self.auth_scheme = None
+            return
+        expires_at = stored_token_expired.get("expires_at", "unknown")
+        token_type = (stored_token_expired.get("token_type") or "bearer").lower()
+        if token_type != "bearer":
+            self.api_token = stored_token_expired.get("access_token")
+            self.auth_scheme = "basic"
+            return
+        refreshed_token = self._try_refresh_oauth_token()
+        if refreshed_token:
+            self.api_token = refreshed_token.get("access_token")
+            self.auth_scheme = "bearer"
+            set_token("azure-devops", refreshed_token)
+            debug_print(f"[dim]OAuth token automatically refreshed (was expired at {expires_at})[/dim]")
+            return
+        console.print(f"[yellow]⚠[/yellow] Stored OAuth token expired at {expires_at}. Attempting automatic refresh...")
+        console.print("[yellow]⚠[/yellow] Automatic refresh failed. OAuth tokens expire after ~1 hour.")
+        console.print(
+            "[dim]Options:[/dim]\n"
+            "  1. Use a Personal Access Token (PAT) with longer expiration (up to 1 year):\n"
+            "     - Create PAT: https://dev.azure.com/{org}/_usersSettings/tokens\n"
+            "     - Store PAT: specfact backlog auth azure-devops --pat your_pat_token\n"
+            "  2. Re-authenticate: specfact backlog auth azure-devops\n"
+            "  3. Use --ado-token option with a valid token"
+        )
+        self.api_token = None
+        self.auth_scheme = None
+
+    @staticmethod
+    def _work_item_id_from_source_tracking(source_tracking: Any, target_repo: str) -> Any:
+        if isinstance(source_tracking, dict):
+            return _as_str_dict(source_tracking).get("source_id")
+        if not isinstance(source_tracking, list):
+            return None
+        for entry in source_tracking:
+            if not isinstance(entry, dict):
+                continue
+            ed = _as_str_dict(entry)
+            entry_repo = ed.get("source_repo")
+            if entry_repo == target_repo:
+                return ed.get("source_id")
+            if entry_repo:
+                continue
+            source_url = ed.get("source_url", "")
+            if source_url and target_repo in source_url:
+                return ed.get("source_id")
+        return None
+
+    def _ado_create_patch_document(self, title: str, body: str, ado_state: str) -> list[dict[str, Any]]:
+        return [
+            {"op": "add", "path": "/fields/System.Title", "value": title},
+            {"op": "add", "path": "/fields/System.Description", "value": body},
+            {"op": "add", "path": "/fields/System.State", "value": ado_state},
+            {
+                "op": "add",
+                "path": "/multilineFieldsFormat/System.Description",
+                "value": "Markdown",
+            },
+        ]
+
+    def _parse_ado_create_work_item_response(self, work_item_data: dict[str, Any]) -> tuple[Any, str]:
+        work_item_id = work_item_data.get("id")
+        _links_raw = work_item_data.get("_links", {})
+        links = _as_str_dict(_links_raw) if isinstance(_links_raw, dict) else {}
+        html_raw = links.get("html", {})
+        html = _as_str_dict(html_raw) if isinstance(html_raw, dict) else {}
+        return work_item_id, str(html.get("href", ""))
+
+    def _merge_created_work_item_source_tracking(
+        self,
+        proposal_data: dict[str, Any],
+        created: _AdoCreatedWorkItemRef,
+    ) -> None:
+        source_tracking = proposal_data.get("source_tracking")
+        if not source_tracking:
+            return
+        tracking_update = {
+            "source_id": created.work_item_id,
+            "source_url": created.work_item_url,
+            "source_repo": f"{created.org}/{created.project}",
+            "source_metadata": {
+                "org": created.org,
+                "project": created.project,
+                "work_item_type": created.work_item_type,
+                "state": created.ado_state,
+            },
+        }
+        if isinstance(source_tracking, dict):
+            st = _as_str_dict(source_tracking)
+            st.update(tracking_update)
+            return
+        if isinstance(source_tracking, list):
+            cast(list[dict[str, Any]], source_tracking).append(tracking_update)
 
     def _is_on_premise(self) -> bool:
         """
@@ -2150,18 +2226,7 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             **self._auth_headers(),
         }
 
-        # Build JSON Patch document for work item creation
-        # Set multilineFieldsFormat to Markdown for proper rendering (ADO supports Markdown as of July 2025)
-        patch_document = [
-            {"op": "add", "path": "/fields/System.Title", "value": title},
-            {"op": "add", "path": "/fields/System.Description", "value": body},
-            {"op": "add", "path": "/fields/System.State", "value": ado_state},
-            {
-                "op": "add",
-                "path": "/multilineFieldsFormat/System.Description",
-                "value": "Markdown",
-            },  # Set format to Markdown
-        ]
+        patch_document = self._ado_create_patch_document(title, body, ado_state)
 
         try:
             response = self._request_with_retry(
@@ -2177,47 +2242,19 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
                 )
             response.raise_for_status()
             work_item_data = cast(dict[str, Any], response.json())
+            work_item_id, work_item_url = self._parse_ado_create_work_item_response(work_item_data)
 
-            work_item_id = work_item_data.get("id")
-            _links_raw = work_item_data.get("_links", {})
-            links = _as_str_dict(_links_raw) if isinstance(_links_raw, dict) else {}
-            html_raw = links.get("html", {})
-            html = _as_str_dict(html_raw) if isinstance(html_raw, dict) else {}
-            work_item_url = str(html.get("href", ""))
-
-            # Store ADO metadata in source_tracking if provided
-            source_tracking = proposal_data.get("source_tracking")
-            if source_tracking:
-                if isinstance(source_tracking, dict):
-                    st = _as_str_dict(source_tracking)
-                    st.update(
-                        {
-                            "source_id": work_item_id,
-                            "source_url": work_item_url,
-                            "source_repo": f"{org}/{project}",
-                            "source_metadata": {
-                                "org": org,
-                                "project": project,
-                                "work_item_type": work_item_type,
-                                "state": ado_state,
-                            },
-                        }
-                    )
-                elif isinstance(source_tracking, list):
-                    # Add new entry to list
-                    cast(list[dict[str, Any]], source_tracking).append(
-                        {
-                            "source_id": work_item_id,
-                            "source_url": work_item_url,
-                            "source_repo": f"{org}/{project}",
-                            "source_metadata": {
-                                "org": org,
-                                "project": project,
-                                "work_item_type": work_item_type,
-                                "state": ado_state,
-                            },
-                        }
-                    )
+            self._merge_created_work_item_source_tracking(
+                proposal_data,
+                _AdoCreatedWorkItemRef(
+                    work_item_id=work_item_id,
+                    work_item_url=work_item_url,
+                    org=org,
+                    project=project,
+                    work_item_type=work_item_type,
+                    ado_state=ado_state,
+                ),
+            )
 
             return {
                 "work_item_id": work_item_id,
@@ -2248,31 +2285,11 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         Returns:
             Dict with updated work item data: {"work_item_id": int, "work_item_url": str, "state": str}
         """
-        # Get work item ID from source_tracking
-        source_tracking = proposal_data.get("source_tracking", {})
-
-        # Normalize to find the entry for this repository
         target_repo = f"{org}/{project}"
-        work_item_id = None
-
-        if isinstance(source_tracking, dict):
-            # Single dict entry (backward compatibility)
-            work_item_id = _as_str_dict(source_tracking).get("source_id")
-        elif isinstance(source_tracking, list):
-            # List of entries - find the one matching this repository
-            for entry in source_tracking:
-                if isinstance(entry, dict):
-                    ed = _as_str_dict(entry)
-                    entry_repo = ed.get("source_repo")
-                    if entry_repo == target_repo:
-                        work_item_id = ed.get("source_id")
-                        break
-                    # Backward compatibility: if no source_repo, try to extract from source_url
-                    if not entry_repo:
-                        source_url = ed.get("source_url", "")
-                        if source_url and target_repo in source_url:
-                            work_item_id = ed.get("source_id")
-                            break
+        work_item_id = self._work_item_id_from_source_tracking(
+            proposal_data.get("source_tracking", {}),
+            target_repo,
+        )
 
         if not work_item_id:
             msg = (

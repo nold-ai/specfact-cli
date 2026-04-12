@@ -12,6 +12,7 @@ import contextlib
 import hashlib
 import os
 import re
+from dataclasses import dataclass
 from pathlib import Path
 from threading import Lock
 from typing import Any, cast
@@ -22,6 +23,17 @@ from icontract import ensure, require
 
 from specfact_cli.integrations.specmatic import SpecValidationResult, validate_spec_with_specmatic
 from specfact_cli.models.plan import Feature
+
+
+@dataclass(slots=True)
+class _OpenApiOpSpec:
+    path: str
+    method: str
+    func_node: ast.FunctionDef
+    path_params: list[dict[str, Any]] | None = None
+    tags: list[str] | None = None
+    status_code: int | None = None
+    security: list[dict[str, list[str]]] | None = None
 
 
 def _fastapi_decorator_first_path_str(decorator: ast.Call) -> str | None:
@@ -511,13 +523,15 @@ class OpenAPIExtractor:
         security = self._extract_security_from_decorator(decorator)
         self._add_operation(
             openapi_spec,
-            path,
-            method,
-            node,
-            path_params=path_params,
-            tags=tags,
-            status_code=status_code,
-            security=security,
+            _OpenApiOpSpec(
+                path=path,
+                method=method,
+                func_node=node,
+                path_params=path_params,
+                tags=tags,
+                status_code=status_code,
+                security=security,
+            ),
         )
 
     @staticmethod
@@ -560,7 +574,10 @@ class OpenAPIExtractor:
             return
         path, path_params = self._extract_path_parameters(path, flask_format=True)
         for method in methods:
-            self._add_operation(openapi_spec, path, method, node, path_params=path_params)
+            self._add_operation(
+                openapi_spec,
+                _OpenApiOpSpec(path=path, method=method, func_node=node, path_params=path_params),
+            )
 
     def _infer_http_method(self, method_name_lower: str) -> str:
         """
@@ -623,13 +640,13 @@ class OpenAPIExtractor:
             path, path_params = self._extract_path_parameters(method_path)
             self._add_operation(
                 openapi_spec,
-                path,
-                http_method,
-                method,
-                path_params=path_params,
-                tags=[node.name],
-                status_code=None,
-                security=None,
+                _OpenApiOpSpec(
+                    path=path,
+                    method=http_method,
+                    func_node=method,
+                    path_params=path_params,
+                    tags=[node.name],
+                ),
             )
 
     def _collect_class_api_methods(self, node: ast.ClassDef) -> list[ast.FunctionDef]:
@@ -746,13 +763,13 @@ class OpenAPIExtractor:
         path, path_params = self._extract_path_parameters(method_path)
         self._add_operation(
             openapi_spec,
-            path,
-            http_method,
-            method,
-            path_params=path_params,
-            tags=[node.name],
-            status_code=None,
-            security=None,
+            _OpenApiOpSpec(
+                path=path,
+                method=http_method,
+                func_node=method,
+                path_params=path_params,
+                tags=[node.name],
+            ),
         )
 
     def _process_top_level_node_for_endpoints(
@@ -1285,36 +1302,22 @@ class OpenAPIExtractor:
             },
         }
 
-    def _add_operation(
-        self,
-        openapi_spec: dict[str, Any],
-        path: str,
-        method: str,
-        func_node: ast.FunctionDef,
-        path_params: list[dict[str, Any]] | None = None,
-        tags: list[str] | None = None,
-        status_code: int | None = None,
-        security: list[dict[str, list[str]]] | None = None,
-    ) -> None:
+    def _add_operation(self, openapi_spec: dict[str, Any], op: _OpenApiOpSpec) -> None:
         """
         Add operation to OpenAPI spec.
 
         Args:
             openapi_spec: OpenAPI spec dictionary
-            path: API path
-            method: HTTP method
-            func_node: Function AST node
-            path_params: Path parameters (if any)
-            tags: Operation tags (if any)
+            op: Path, method, AST node, and optional OpenAPI operation metadata.
         """
-        openapi_spec["paths"].setdefault(path, {})
-        path_param_names = {p["name"] for p in (path_params or [])}
-        request_body, query_params, response_schema = self._extract_function_parameters(func_node, path_param_names)
-        default_status = status_code or 200
+        openapi_spec["paths"].setdefault(op.path, {})
+        path_param_names = {p["name"] for p in (op.path_params or [])}
+        request_body, query_params, response_schema = self._extract_function_parameters(op.func_node, path_param_names)
+        default_status = op.status_code or 200
         operation: dict[str, Any] = {
-            "operationId": func_node.name,
-            "summary": func_node.name.replace("_", " ").title(),
-            "description": ast.get_docstring(func_node) or "",
+            "operationId": op.func_node.name,
+            "summary": op.func_node.name.replace("_", " ").title(),
+            "description": ast.get_docstring(op.func_node) or "",
             "responses": {
                 str(default_status): {
                     "description": "Success" if default_status == 200 else f"Status {default_status}",
@@ -1326,18 +1329,18 @@ class OpenAPIExtractor:
                 }
             },
         }
-        self._merge_standard_error_responses(operation, method)
-        all_params = list(path_params or [])
+        self._merge_standard_error_responses(operation, op.method)
+        all_params = list(op.path_params or [])
         all_params.extend(query_params)
         if all_params:
             operation["parameters"] = all_params
-        if tags:
-            operation["tags"] = tags
-        if security:
-            operation["security"] = security
-            self._ensure_bearer_security_scheme(openapi_spec, security)
-        self._attach_operation_request_body(operation, method, request_body)
-        openapi_spec["paths"][path][method.lower()] = operation
+        if op.tags:
+            operation["tags"] = op.tags
+        if op.security:
+            operation["security"] = op.security
+            self._ensure_bearer_security_scheme(openapi_spec, op.security)
+        self._attach_operation_request_body(operation, op.method, request_body)
+        openapi_spec["paths"][op.path][op.method.lower()] = operation
 
     @beartype
     @require(lambda self, contract_path: isinstance(contract_path, Path), "Contract path must be Path")

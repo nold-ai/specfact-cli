@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import ast
 import re
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
@@ -165,30 +166,22 @@ class AmbiguityScanner:
     @ensure(lambda result: isinstance(result, list), "Must return list of findings")
     def _scan_category(self, plan_bundle: PlanBundle, category: TaxonomyCategory) -> list[AmbiguityFinding]:
         """Scan specific taxonomy category."""
-        findings: list[AmbiguityFinding] = []
-
-        if category == TaxonomyCategory.FUNCTIONAL_SCOPE:
-            findings.extend(self._scan_functional_scope(plan_bundle))
-        elif category == TaxonomyCategory.DATA_MODEL:
-            findings.extend(self._scan_data_model(plan_bundle))
-        elif category == TaxonomyCategory.INTERACTION_UX:
-            findings.extend(self._scan_interaction_ux(plan_bundle))
-        elif category == TaxonomyCategory.NON_FUNCTIONAL:
-            findings.extend(self._scan_non_functional(plan_bundle))
-        elif category == TaxonomyCategory.INTEGRATION:
-            findings.extend(self._scan_integration(plan_bundle))
-        elif category == TaxonomyCategory.EDGE_CASES:
-            findings.extend(self._scan_edge_cases(plan_bundle))
-        elif category == TaxonomyCategory.CONSTRAINTS:
-            findings.extend(self._scan_constraints(plan_bundle))
-        elif category == TaxonomyCategory.TERMINOLOGY:
-            findings.extend(self._scan_terminology(plan_bundle))
-        elif category == TaxonomyCategory.COMPLETION_SIGNALS:
-            findings.extend(self._scan_completion_signals(plan_bundle))
-        elif category == TaxonomyCategory.FEATURE_COMPLETENESS:
-            findings.extend(self._scan_feature_completeness(plan_bundle))
-
-        return findings
+        scanners: dict[TaxonomyCategory, Callable[[PlanBundle], list[AmbiguityFinding]]] = {
+            TaxonomyCategory.FUNCTIONAL_SCOPE: self._scan_functional_scope,
+            TaxonomyCategory.DATA_MODEL: self._scan_data_model,
+            TaxonomyCategory.INTERACTION_UX: self._scan_interaction_ux,
+            TaxonomyCategory.NON_FUNCTIONAL: self._scan_non_functional,
+            TaxonomyCategory.INTEGRATION: self._scan_integration,
+            TaxonomyCategory.EDGE_CASES: self._scan_edge_cases,
+            TaxonomyCategory.CONSTRAINTS: self._scan_constraints,
+            TaxonomyCategory.TERMINOLOGY: self._scan_terminology,
+            TaxonomyCategory.COMPLETION_SIGNALS: self._scan_completion_signals,
+            TaxonomyCategory.FEATURE_COMPLETENESS: self._scan_feature_completeness,
+        }
+        scanner = scanners.get(category)
+        if scanner is None:
+            return []
+        return list(scanner(plan_bundle))
 
     _BEHAVIORAL_PATTERNS: tuple[str, ...] = (
         "can ",
