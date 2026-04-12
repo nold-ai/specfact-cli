@@ -31,7 +31,12 @@ hatch run pytest tests/unit/utils/test_project_artifact_write.py \
 hatch run format && hatch run type-check && hatch run lint
 hatch run contract-test
 hatch run smart-test
+hatch test --cover -v
 ```
+
+- **Full suite + coverage (`tasks.md` 4.3)**: same worktree; `hatch test --cover -v` — **exit 0**. Pytest summary:
+  `2450 passed, 9 skipped in 358.61s (0:05:58)`. Coverage footer (pytest-cov): `TOTAL ... 62%` on the combined
+  `src/` + `tools/` table (see run log for per-file lines).
 
 - **Module signatures**: run
   `hatch run ./scripts/verify-modules-signature.py --require-signature` — pass without bumping
