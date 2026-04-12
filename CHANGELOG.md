@@ -10,6 +10,27 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.46.0] - 2026-04-13
+
+### Added
+
+- **GitHub hierarchy cache sync** (#492) for backlog metadata used in agent and automation workflows.
+- **Agent governance loading** (#493): leaner, deterministic bootstrap for canonical rule documentation.
+
+### Fixed
+
+- **Tests / CI**: marketplace install mocks accept `install_module(module_id, InstallModuleOptions(...))`;
+  dynamic script loaders register modules in `sys.modules` before `exec_module` (doc frontmatter and
+  verify-bundle-published gates; Python 3.11 compatibility job).
+- **Code review follow-ups**: safer DevOps/source-tracking edge cases, stricter parsers and validators, and
+  reduced duplication in analysis and sync helpers (see commits on `dev`).
+
+### Changed
+
+- **Governance / OpenSpec**: archived completed changes and aligned internal wiki maintenance notes.
+
+---
+
 ## [0.45.2] - 2026-04-12
 
 ### Fixed
@@ -24,8 +45,8 @@ All notable changes to this project will be documented in this file.
   full prompt catalog when finalizing recommendations.
 - **Regression gate**: lint now runs `scripts/verify_safe_project_writes.py` so IDE settings JSON I/O stays
   routed through the shared merge helper.
-- **Dev / Semgrep**: Hatch and `[dev]` extras pin `setuptools<82` so Semgrep’s OpenTelemetry import chain still
-  resolves `pkg_resources` (setuptools 82+ may omit it).
+- **Dev / Semgrep**: Hatch and `[dev]` extras pin `setuptools<82`
+  so Semgrep’s OpenTelemetry import chain still resolves `pkg_resources` (setuptools 82+ may omit it).
 
 ---
 

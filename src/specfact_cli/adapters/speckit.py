@@ -13,7 +13,7 @@ import shutil
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from beartype import beartype
 from icontract import ensure, require
@@ -461,20 +461,27 @@ class SpecKitAdapter(BridgeAdapter):
             story_key = sd.get("key", "UNKNOWN")
             story_title = sd.get("title", "Unknown Story")
             priority = sd.get("priority", "P3")
-            acceptance = sd.get("acceptance", [])
+            acceptance_raw = sd.get("acceptance", [])
+            if isinstance(acceptance_raw, list) and acceptance_raw:
+                if all(isinstance(x, str) for x in acceptance_raw):
+                    acceptance = list(acceptance_raw)
+                else:
+                    acceptance = self._extract_text_list(cast(list[Any], acceptance_raw))
+            else:
+                acceptance = [f"{story_title} is implemented"]
             story_points = priority_map.get(str(priority), 3)
             stories.append(
                 Story(
                     key=str(story_key),
                     title=str(story_title),
-                    acceptance=acceptance if acceptance else [f"{story_title} is implemented"],
+                    acceptance=acceptance,
                     tags=[str(priority)],
                     story_points=story_points,
                     value_points=story_points,
                     tasks=[],
                     confidence=0.8,
                     draft=False,
-                    scenarios=sd.get("scenarios"),
+                    scenarios=self._copy_scenarios_dict(sd.get("scenarios")),
                     contracts=None,
                 )
             )
@@ -490,6 +497,23 @@ class SpecKitAdapter(BridgeAdapter):
             elif isinstance(item, str):
                 result.append(item)
         return result
+
+    def _coerce_str_list_field(self, raw: Any) -> list[str]:
+        if not isinstance(raw, list):
+            return []
+        return self._extract_text_list(cast(list[Any], raw))
+
+    @staticmethod
+    def _copy_scenarios_dict(raw: Any) -> dict[str, list[str]] | None:
+        if not isinstance(raw, dict):
+            return None
+        out: dict[str, list[str]] = {}
+        for key, value in raw.items():
+            if isinstance(value, list):
+                out[str(key)] = [str(item) for item in value]
+            else:
+                out[str(key)] = []
+        return out
 
     def _build_speckit_source_tracking(self, spec_path: Path, bridge_config: BridgeConfig | None) -> Any:
         """Build a SourceTracking instance for a Spec-Kit spec file."""
@@ -518,21 +542,29 @@ class SpecKitAdapter(BridgeAdapter):
                 existing_feature = feat
                 break
 
+        constraints = self._coerce_str_list_field(payload.spec_data.get("edge_cases", []))
+
         if existing_feature:
             existing_feature.title = payload.feature_title
-            existing_feature.outcomes = payload.outcomes if payload.outcomes else existing_feature.outcomes
-            existing_feature.acceptance = payload.acceptance if payload.acceptance else existing_feature.acceptance
-            existing_feature.stories = payload.stories
-            existing_feature.constraints = payload.spec_data.get("edge_cases", [])
+            existing_feature.outcomes = (
+                list(payload.outcomes) if payload.outcomes else list(existing_feature.outcomes or [])
+            )
+            existing_feature.acceptance = (
+                list(payload.acceptance) if payload.acceptance else list(existing_feature.acceptance or [])
+            )
+            existing_feature.stories = [s.model_copy(deep=True) for s in payload.stories]
+            existing_feature.constraints = list(constraints)
             return
 
         feature = Feature(
             key=payload.feature_key,
             title=payload.feature_title,
-            outcomes=(payload.outcomes if payload.outcomes else [f"Provides {payload.feature_title} functionality"]),
-            acceptance=(payload.acceptance if payload.acceptance else [f"{payload.feature_title} is functional"]),
-            constraints=payload.spec_data.get("edge_cases", []),
-            stories=payload.stories,
+            outcomes=(
+                list(payload.outcomes) if payload.outcomes else [f"Provides {payload.feature_title} functionality"]
+            ),
+            acceptance=list(payload.acceptance) if payload.acceptance else [f"{payload.feature_title} is functional"],
+            constraints=list(constraints),
+            stories=[s.model_copy(deep=True) for s in payload.stories],
             confidence=0.8,
             draft=False,
             source_tracking=None,

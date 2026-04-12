@@ -12,6 +12,7 @@ following the same patterns.
 
 from __future__ import annotations
 
+import logging
 import os
 import re
 import shutil
@@ -85,6 +86,7 @@ class _SignificantChangeCommentInput:
 
 
 console = Console()
+_logger = logging.getLogger(__name__)
 
 
 def _as_str_dict(obj: dict[Any, Any]) -> dict[str, Any]:
@@ -833,8 +835,8 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             try:
                 if _git_config_content_indicates_github(git_config.read_text(encoding="utf-8")):
                     return True
-            except Exception:
-                pass
+            except (OSError, UnicodeDecodeError):
+                _logger.warning("Could not read %s for GitHub detection", git_config, exc_info=True)
 
         return bool(bridge_config and bridge_config.adapter.value == "github")
 
