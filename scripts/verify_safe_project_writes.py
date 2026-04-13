@@ -116,9 +116,21 @@ def _collect_json_io_offenders(tree: ast.AST) -> list[tuple[int, str]]:
                     self.shadow_mod,
                 )
 
+        def _visit_function_defaults_before_scope(self, args: ast.arguments) -> None:
+            """Defaults and decorators run in the enclosing scope; visit before parameter shadows apply."""
+            pos_and_regular = list(args.posonlyargs) + list(args.args)
+            defaults = list(args.defaults)
+            if defaults:
+                for _param, default in zip(pos_and_regular[-len(defaults) :], defaults, strict=True):
+                    self.visit(default)
+            for _kw_arg, default in zip(args.kwonlyargs, args.kw_defaults, strict=True):
+                if default is not None:
+                    self.visit(default)
+
         def _visit_function_body(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> None:
             for d in node.decorator_list:
                 self.visit(d)
+            self._visit_function_defaults_before_scope(node.args)
             saved = self._push_scope()
             self._shadow_arguments(node.args)
             for child in node.body:

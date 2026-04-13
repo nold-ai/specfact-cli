@@ -53,6 +53,20 @@ def test_collect_json_io_ignores_shadowed_loads_name() -> None:
     assert not offenders
 
 
+def test_collect_json_io_flags_loads_in_function_default() -> None:
+    mod = _load_verify_module()
+    tree = ast.parse('from json import loads\ndef f(x=loads("{}")):\n    pass\n')
+    offenders = mod._collect_json_io_offenders(tree)
+    assert any(name == "json.loads" for _, name in offenders)
+
+
+def test_collect_json_io_flags_loads_in_kwonly_default() -> None:
+    mod = _load_verify_module()
+    tree = ast.parse('from json import loads\ndef f(*, x=loads("{}")):\n    pass\n')
+    offenders = mod._collect_json_io_offenders(tree)
+    assert any(name == "json.loads" for _, name in offenders)
+
+
 def test_verify_safe_project_writes_passes_for_safe_stub(tmp_path: Path) -> None:
     """Gate succeeds when IDE setup stub has no direct json I/O offenders."""
     mod = _load_verify_module()
