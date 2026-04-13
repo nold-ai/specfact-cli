@@ -107,6 +107,23 @@ User authentication system.
 class TestSpecKitAdapter:
     """Test Spec-Kit adapter implementation."""
 
+    def test_build_stories_acceptance_defaults_when_non_string_list_yields_no_text(
+        self, speckit_adapter: SpecKitAdapter
+    ) -> None:
+        """Non-string acceptance items with no extractable text fall back to the default sentence."""
+        spec_data: dict[str, Any] = {
+            "stories": [
+                {
+                    "key": "S1",
+                    "title": "Do thing",
+                    "priority": "P3",
+                    "acceptance": [42, None],
+                }
+            ]
+        }
+        stories = speckit_adapter._build_stories_from_spec(spec_data)
+        assert stories[0].acceptance == ["Do thing is implemented"]
+
     def test_detect_same_repo_classic(self, speckit_adapter: SpecKitAdapter, speckit_repo_classic: Path) -> None:
         """Test detecting classic Spec-Kit in same repository."""
         assert speckit_adapter.detect(speckit_repo_classic) is True

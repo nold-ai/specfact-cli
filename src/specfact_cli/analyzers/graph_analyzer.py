@@ -193,7 +193,17 @@ class GraphAnalyzer:
         call_graph: dict[str, list[str]],
         python_files: list[Path],
     ) -> None:
-        """Add directed edges from ``module_name`` to callees that resolve to known graph nodes."""
+        """Add call-graph-derived dependency edges for one module.
+
+        Args:
+            graph: Dependency graph being populated.
+            module_name: Source module name for emitted edges.
+            call_graph: Mapping of caller symbols to callee symbol lists.
+            python_files: Repository Python files used for callee module resolution.
+
+        Returns:
+            None.
+        """
         for _caller, callees in call_graph.items():
             for callee in callees:
                 callee_module = self._resolve_module_from_function(callee, python_files)

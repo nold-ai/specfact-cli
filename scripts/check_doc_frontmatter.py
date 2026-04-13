@@ -463,7 +463,8 @@ def _agent_rule_optional_frontmatter_lines(draft: _AgentRuleFrontmatterDraft) ->
 @require(lambda path: isinstance(path, Path), "Path must be Path object")
 @ensure(lambda result: isinstance(result, str), "Must return string")
 def _format_agent_rules_suggested_frontmatter(path: Path, canonical_id: str, draft: _AgentRuleFrontmatterDraft) -> str:
-    title_guess = path.stem.replace("-", " ").title().replace('"', '\\"')
+    slug_for_title = canonical_id.removeprefix("agent-rules-")
+    title_guess = slug_for_title.replace("-", " ").title().replace('"', '\\"')
     optional_lines = _agent_rule_optional_frontmatter_lines(draft)
     return f"""---
 layout: {_yaml_plain_or_quoted_scalar(draft.layout_val)}
