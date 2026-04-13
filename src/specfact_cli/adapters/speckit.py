@@ -462,13 +462,15 @@ class SpecKitAdapter(BridgeAdapter):
             story_title = sd.get("title", "Unknown Story")
             priority = sd.get("priority", "P3")
             acceptance_raw = sd.get("acceptance", [])
+            default_acceptance = [f"{story_title} is implemented"]
             if isinstance(acceptance_raw, list) and acceptance_raw:
                 if all(isinstance(x, str) for x in acceptance_raw):
-                    acceptance = list(acceptance_raw)
+                    acceptance = list(acceptance_raw) or default_acceptance
                 else:
-                    acceptance = self._extract_text_list(cast(list[Any], acceptance_raw))
+                    extracted = self._extract_text_list(cast(list[Any], acceptance_raw))
+                    acceptance = extracted or default_acceptance
             else:
-                acceptance = [f"{story_title} is implemented"]
+                acceptance = default_acceptance
             story_points = priority_map.get(str(priority), 3)
             stories.append(
                 Story(

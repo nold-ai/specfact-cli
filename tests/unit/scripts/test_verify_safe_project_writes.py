@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import ast
 import importlib.util
-import subprocess
-import sys
 from pathlib import Path
 
 
@@ -48,13 +46,27 @@ def test_collect_json_io_flags_from_json_star_import() -> None:
     assert any(name == "json.dump" for _, name in offenders)
 
 
-def test_verify_safe_project_writes_passes_on_repo() -> None:
-    """Gate must succeed while ide_setup routes settings through project_artifact_write."""
-    script = Path(__file__).resolve().parents[3] / "scripts" / "verify_safe_project_writes.py"
-    completed = subprocess.run(
-        [sys.executable, str(script)],
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    assert completed.returncode == 0, completed.stderr
+def test_collect_json_io_ignores_shadowed_loads_name() -> None:
+    mod = _load_verify_module()
+    tree = ast.parse('from json import loads\ndef f(loads):\n    return loads("{}")\n')
+    offenders = mod._collect_json_io_offenders(tree)
+    assert not offenders
+
+
+def test_verify_safe_project_writes_passes_for_safe_stub(tmp_path: Path) -> None:
+    """Gate succeeds when IDE setup stub has no direct json I/O offenders."""
+    mod = _load_verify_module()
+    ide_setup = tmp_path / "ide_setup.py"
+    ide_setup.write_text("def noop() -> None:\n    return None\n", encoding="utf-8")
+    mod.ROOT = tmp_path
+    mod.IDE_SETUP = ide_setup
+    assert mod.main() == 0
+
+
+def test_verify_safe_project_writes_parse_error_returns_one(tmp_path: Path) -> None:
+    mod = _load_verify_module()
+    ide_setup = tmp_path / "ide_setup.py"
+    ide_setup.write_text("def broken(\n", encoding="utf-8")
+    mod.ROOT = tmp_path
+    mod.IDE_SETUP = ide_setup
+    assert mod.main() == 1

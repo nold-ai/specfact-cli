@@ -14,7 +14,7 @@ import pytest
 import requests
 from beartype import beartype
 
-from specfact_cli.adapters.github import GitHubAdapter
+from specfact_cli.adapters.github import GitHubAdapter, _git_config_content_indicates_github
 from specfact_cli.models.bridge import AdapterType, BridgeConfig
 
 
@@ -55,6 +55,20 @@ class TestGitHubAdapter:
         git_config.parent.mkdir(parents=True)
         git_config.write_text('[remote "origin"]\nurl = https://gitlab.com/test-owner/test-repo.git\n')
 
+        assert github_adapter.detect(tmp_path) is False
+
+    @beartype
+    def test_git_config_pushurl_only_does_not_indicate_github(self) -> None:
+        """Only ``url =`` lines count; ``pushurl`` must not imply GitHub."""
+        content = '[remote "origin"]\npushurl = git@github.com:owner/repo.git\n'
+        assert _git_config_content_indicates_github(content) is False
+
+    @beartype
+    def test_detect_pushurl_only_remote_is_not_github(self, github_adapter: GitHubAdapter, tmp_path: Path) -> None:
+        """``detect`` must not treat GitHub ``pushurl`` alone as a GitHub remote."""
+        git_config = tmp_path / ".git" / "config"
+        git_config.parent.mkdir(parents=True)
+        git_config.write_text('[remote "origin"]\npushurl = git@github.com:owner/repo.git\n')
         assert github_adapter.detect(tmp_path) is False
 
     @beartype

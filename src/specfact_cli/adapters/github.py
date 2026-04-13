@@ -159,7 +159,7 @@ def _get_github_token_from_gh_cli() -> str | None:
     return None
 
 
-_GITHUB_GIT_CONFIG_URL_RE = re.compile(r"url\s*=\s*(https?://[^\s]+|ssh://[^\s]+|git://[^\s]+|git@[^:]+:[^\s]+)")
+_GITHUB_GIT_CONFIG_URL_RE = re.compile(r"(?im)^\s*url\s*=\s*(https?://\S+|ssh://\S+|git://\S+|git@[^:\s]+:\S+)\s*$")
 
 
 def _git_config_content_indicates_github(config_content: str) -> bool:

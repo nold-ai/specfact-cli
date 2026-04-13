@@ -738,7 +738,19 @@ class CodeAnalyzer:
     @staticmethod
     def _themes_for_import_module(module_name: str, theme_keywords: dict[str, str]) -> set[str]:
         lowered = module_name.lower()
-        return {theme for keyword, theme in theme_keywords.items() if keyword in lowered}
+        tokens = [t for t in re.split(r"[._-]", lowered) if t]
+        top_level = lowered.split(".", 1)[0]
+        found: set[str] = set()
+        for keyword, theme in theme_keywords.items():
+            if keyword == lowered or lowered.startswith(f"{keyword}."):
+                found.add(theme)
+                continue
+            if keyword == top_level or top_level.startswith(f"{keyword}."):
+                found.add(theme)
+                continue
+            if keyword in tokens:
+                found.add(theme)
+        return found
 
     def _themes_for_import_node(self, node: ast.Import | ast.ImportFrom, theme_keywords: dict[str, str]) -> set[str]:
         if isinstance(node, ast.Import):
@@ -1733,16 +1745,6 @@ class CodeAnalyzer:
         self.async_patterns[module_name].extend(async_methods)
         return async_methods
 
-    @staticmethod
-    def _function_name_holding_ast_subtree(tree: ast.AST, target: ast.AST) -> str | None:
-        for parent in ast.walk(tree):
-            if not isinstance(parent, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                continue
-            for child in ast.walk(parent):
-                if child is target:
-                    return parent.name
-        return None
-
     def _detect_async_patterns_parallel(self, tree: ast.AST, file_path: Path) -> list[str]:
         """
         Detect async/await patterns in code (thread-safe version).
@@ -1750,18 +1752,7 @@ class CodeAnalyzer:
         Returns:
             List of async method/function names
         """
-        async_methods: list[str] = []
-
-        for node in ast.walk(tree):
-            if isinstance(node, ast.AsyncFunctionDef):
-                async_methods.append(node.name)
-            if not isinstance(node, ast.Await):
-                continue
-            host = self._function_name_holding_ast_subtree(tree, node)
-            if host and host not in async_methods:
-                async_methods.append(host)
-
-        return async_methods
+        return [node.name for node in ast.walk(tree) if isinstance(node, ast.AsyncFunctionDef)]
 
     def _apply_commit_hash_to_matching_features(self, feature_num: str, commit_hash: str) -> None:
         for feature in self.features:
