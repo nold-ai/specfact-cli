@@ -8,13 +8,14 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
 import requests
 from beartype import beartype
 
-from specfact_cli.adapters.ado import AdoAdapter
+from specfact_cli.adapters.ado import AdoAdapter, _AdoCreatedWorkItemRef
 from specfact_cli.models.bridge import AdapterType, BridgeConfig
 from specfact_cli.models.change import ChangeProposal, ChangeTracking
 from specfact_cli.models.source_tracking import SourceTracking
@@ -38,6 +39,24 @@ def bridge_config() -> BridgeConfig:
 
 class TestAdoAdapter:
     """Test Azure DevOps adapter implementation."""
+
+    @beartype
+    def test_merge_created_work_item_preserves_empty_list_carrier(self, ado_adapter: AdoAdapter) -> None:
+        """Empty ``source_tracking`` list must stay a list and receive the new entry."""
+        proposal_data: dict[str, Any] = {"source_tracking": []}
+        created = _AdoCreatedWorkItemRef(
+            work_item_id=42,
+            work_item_url="https://dev.azure.com/test-org/test-project/_workitems/edit/42",
+            org="test-org",
+            project="test-project",
+            work_item_type="Feature",
+            ado_state="New",
+        )
+        ado_adapter._merge_created_work_item_source_tracking(proposal_data, created)
+        st = proposal_data["source_tracking"]
+        assert isinstance(st, list)
+        assert len(st) == 1
+        assert st[0]["source_id"] == 42
 
     @beartype
     def test_detect_ado_repo(self, ado_adapter: AdoAdapter, tmp_path: Path, bridge_config: BridgeConfig) -> None:

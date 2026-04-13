@@ -5,6 +5,7 @@ BundleMapper engine: confidence-based mapping from backlog items to bundles.
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, cast
 
@@ -28,6 +29,18 @@ WEIGHT_EXPLICIT = 0.8
 WEIGHT_HISTORICAL = 0.15
 WEIGHT_CONTENT = 0.05
 HISTORY_CAP = 10.0
+
+
+@dataclass(frozen=True, slots=True)
+class _SignalContribution:
+    bundle_id: str
+    score: float
+    weight: float
+    source: str
+
+
+def _signal_contribution(bundle_id: str, score: float, weight: float, source: str) -> _SignalContribution:
+    return _SignalContribution(bundle_id=bundle_id, score=score, weight=weight, source=source)
 
 
 def _tokenize(text: str) -> set[str]:
@@ -154,19 +167,16 @@ class BundleMapper:
         primary_bundle_id: str | None,
         weighted: float,
         reasons: list[str],
-        bundle_id: str,
-        score: float,
-        weight: float,
-        source: str,
+        signal: _SignalContribution,
     ) -> tuple[str | None, float]:
         """Apply one signal contribution to the primary score."""
-        if bundle_id and score > 0:
-            contrib = weight * score
+        if signal.bundle_id and signal.score > 0:
+            contrib = signal.weight * signal.score
             if primary_bundle_id is None:
-                primary_bundle_id = bundle_id
+                primary_bundle_id = signal.bundle_id
                 weighted += contrib
-                reasons.append(self._explain_score(bundle_id, score, source))
-            elif bundle_id == primary_bundle_id:
+                reasons.append(self._explain_score(signal.bundle_id, signal.score, signal.source))
+            elif signal.bundle_id == primary_bundle_id:
                 weighted += contrib
         return primary_bundle_id, weighted
 
@@ -210,19 +220,13 @@ class BundleMapper:
             primary_bundle_id,
             weighted,
             reasons,
-            explicit_bundle or "",
-            explicit_score,
-            WEIGHT_EXPLICIT,
-            "explicit_label",
+            _signal_contribution(explicit_bundle or "", explicit_score, WEIGHT_EXPLICIT, "explicit_label"),
         )
         primary_bundle_id, weighted = self._apply_signal_contribution(
             primary_bundle_id,
             weighted,
             reasons,
-            hist_bundle or "",
-            hist_score,
-            WEIGHT_HISTORICAL,
-            "historical",
+            _signal_contribution(hist_bundle or "", hist_score, WEIGHT_HISTORICAL, "historical"),
         )
 
         if content_list:
@@ -231,10 +235,12 @@ class BundleMapper:
                 primary_bundle_id,
                 weighted,
                 reasons,
-                best_content_bundle,
-                best_content_score,
-                WEIGHT_CONTENT,
-                "content_similarity",
+                _signal_contribution(
+                    best_content_bundle,
+                    best_content_score,
+                    WEIGHT_CONTENT,
+                    "content_similarity",
+                ),
             )
 
         confidence = min(1.0, weighted)

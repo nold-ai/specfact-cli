@@ -159,6 +159,21 @@ class FastAPIExtractor(BaseFrameworkExtractor):
                     imports[alias_name] = alias.name
         return imports
 
+    def _method_and_path_from_route_decorator(self, decorator: ast.Call) -> tuple[str, str] | None:
+        func = decorator.func
+        if isinstance(func, ast.Attribute):
+            method = func.attr.upper()
+        elif isinstance(func, ast.Name):
+            method = func.id.upper()
+        else:
+            return None
+        path = "/"
+        if decorator.args:
+            path_arg = self._extract_string_literal(decorator.args[0])
+            if path_arg:
+                path = path_arg
+        return method, path
+
     @beartype
     def _extract_route_from_function(
         self, func_node: ast.FunctionDef, imports: dict[str, str], py_file: Path
@@ -168,23 +183,13 @@ class FastAPIExtractor(BaseFrameworkExtractor):
         method = "GET"
         operation_id = func_node.name
 
-        # Check decorators for route information
         for decorator in func_node.decorator_list:
-            if isinstance(decorator, ast.Call):
-                if isinstance(decorator.func, ast.Attribute):
-                    # @app.get(), @app.post(), etc.
-                    method = decorator.func.attr.upper()
-                    if decorator.args:
-                        path_arg = self._extract_string_literal(decorator.args[0])
-                        if path_arg:
-                            path = path_arg
-                elif isinstance(decorator.func, ast.Name):
-                    # @get(), @post(), etc.
-                    method = decorator.func.id.upper()
-                    if decorator.args:
-                        path_arg = self._extract_string_literal(decorator.args[0])
-                        if path_arg:
-                            path = path_arg
+            if not isinstance(decorator, ast.Call):
+                continue
+            mp = self._method_and_path_from_route_decorator(decorator)
+            if mp is None:
+                continue
+            method, path = mp
 
         normalized_path, path_params = self._extract_path_parameters(path)
 

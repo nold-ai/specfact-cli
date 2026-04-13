@@ -12,11 +12,13 @@ following the same patterns.
 
 from __future__ import annotations
 
+import logging
 import os
 import re
 import shutil
 import subprocess
 from collections.abc import Iterator
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, cast
@@ -48,7 +50,43 @@ from specfact_cli.utils.icontract_helpers import (
 )
 
 
+@dataclass
+class _IssueBodyRenderInput:
+    title: str
+    description: str
+    rationale: str
+    impact: str
+    change_id: str
+    raw_body: str | None
+    preserved_sections: list[str] | None = None
+
+
+@dataclass
+class _IssueStatusCommentInput:
+    proposal_data: dict[str, Any]
+    repo_owner: str
+    repo_name: str
+    issue_number: int
+    code_repo_path: Path | None
+    payload: dict[str, Any]
+    current_state: str
+    status: str
+    title: str
+
+
+@dataclass(frozen=True)
+class _SignificantChangeCommentInput:
+    repo_owner: str
+    repo_name: str
+    issue_number: int
+    change_id: str
+    title: str
+    description: str
+    rationale: str
+
+
 console = Console()
+_logger = logging.getLogger(__name__)
 
 
 def _as_str_dict(obj: dict[Any, Any]) -> dict[str, Any]:
@@ -119,6 +157,29 @@ def _get_github_token_from_gh_cli() -> str | None:
         pass
 
     return None
+
+
+_GITHUB_GIT_CONFIG_URL_RE = re.compile(r"(?im)^\s*url\s*=\s*(https?://\S+|ssh://\S+|git://\S+|git@[^:\s]+:\S+)\s*$")
+
+
+def _git_config_content_indicates_github(config_content: str) -> bool:
+    github_ssh_hosts = {"github.com", "ssh.github.com"}
+    for match in _GITHUB_GIT_CONFIG_URL_RE.finditer(config_content):
+        url_str = match.group(1)
+        if url_str.startswith("git@"):
+            host_part = url_str.split(":")[0].replace("git@", "").lower()
+            if host_part in github_ssh_hosts:
+                return True
+            continue
+        parsed = urlparse(url_str)
+        if not parsed.hostname:
+            continue
+        hostname_lower = parsed.hostname.lower()
+        if hostname_lower == "github.com":
+            return True
+        if parsed.scheme == "ssh" and hostname_lower == "ssh.github.com":
+            return True
+    return False
 
 
 class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
@@ -317,17 +378,15 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         lines.append("")
         return lines
 
-    def _render_issue_body(
-        self,
-        title: str,
-        description: str,
-        rationale: str,
-        impact: str,
-        change_id: str,
-        raw_body: str | None,
-        preserved_sections: list[str] | None = None,
-    ) -> str:
+    def _render_issue_body(self, body_in: _IssueBodyRenderInput) -> str:
         """Render GitHub issue body from proposal fields and optional preserved sections."""
+        title = body_in.title
+        description = body_in.description
+        rationale = body_in.rationale
+        impact = body_in.impact
+        change_id = body_in.change_id
+        raw_body = body_in.raw_body
+        preserved_sections = body_in.preserved_sections
         if raw_body:
             return raw_body
 
@@ -771,38 +830,14 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         Returns:
             True if GitHub repository detected, False otherwise
         """
-        # Check for .git/config with GitHub remote
         git_config = repo_path / ".git" / "config"
         if git_config.exists():
             try:
-                config_content = git_config.read_text(encoding="utf-8")
-                # Use proper URL parsing to avoid substring matching vulnerabilities
-                # Look for URL patterns in git config and validate the hostname
-                # Match: https?://, ssh://, git://, and scp-style git@host:path URLs
-                url_pattern = re.compile(r"url\s*=\s*(https?://[^\s]+|ssh://[^\s]+|git://[^\s]+|git@[^:]+:[^\s]+)")
-                # Official GitHub SSH hostnames
-                github_ssh_hosts = {"github.com", "ssh.github.com"}
-                for match in url_pattern.finditer(config_content):
-                    url_str = match.group(1)
-                    # Handle scp-style git@ format: git@github.com:user/repo.git or git@ssh.github.com:user/repo.git
-                    if url_str.startswith("git@"):
-                        host_part = url_str.split(":")[0].replace("git@", "").lower()
-                        if host_part in github_ssh_hosts:
-                            return True
-                    else:
-                        # Parse HTTP/HTTPS/SSH/GIT URLs properly
-                        parsed = urlparse(url_str)
-                        if parsed.hostname:
-                            hostname_lower = parsed.hostname.lower()
-                            # Check for GitHub hostnames (github.com for all schemes, ssh.github.com for SSH)
-                            if hostname_lower == "github.com":
-                                return True
-                            if parsed.scheme == "ssh" and hostname_lower == "ssh.github.com":
-                                return True
-            except Exception:
-                pass
+                if _git_config_content_indicates_github(git_config.read_text(encoding="utf-8")):
+                    return True
+            except (OSError, UnicodeDecodeError):
+                _logger.warning("Could not read %s for GitHub detection", git_config, exc_info=True)
 
-        # Check bridge config for external GitHub repo
         return bool(bridge_config and bridge_config.adapter.value == "github")
 
     @beartype
@@ -1435,7 +1470,9 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         if raw_title:
             title = raw_title
 
-        body = self._render_issue_body(title, description, rationale, impact, change_id, raw_body)
+        body = self._render_issue_body(
+            _IssueBodyRenderInput(title, description, rationale, impact, change_id, raw_body)
+        )
 
         # Check for API token before making request
         if not self.api_token:
@@ -1697,7 +1734,9 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
 
         current_body, current_title, current_state = self._fetch_issue_snapshot(repo_owner, repo_name, issue_number)
         preserved_sections = self._preserved_issue_sections(current_body, change_id)
-        body = self._render_issue_body(title, description, rationale, impact, change_id, raw_body, preserved_sections)
+        body = self._render_issue_body(
+            _IssueBodyRenderInput(title, description, rationale, impact, change_id, raw_body, preserved_sections)
+        )
 
         # Update issue body via GitHub API PATCH
         url = f"{self.base_url}/repos/{repo_owner}/{repo_name}/issues/{issue_number}"
@@ -1715,24 +1754,28 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             response = self._request_with_retry(lambda: requests.patch(url, json=payload, headers=headers, timeout=30))
             issue_data = response.json()
             self._add_issue_status_comment(
-                proposal_data,
-                repo_owner,
-                repo_name,
-                issue_number,
-                code_repo_path,
-                payload,
-                current_state,
-                status,
-                title,
+                _IssueStatusCommentInput(
+                    proposal_data,
+                    repo_owner,
+                    repo_name,
+                    issue_number,
+                    code_repo_path,
+                    payload,
+                    current_state,
+                    status,
+                    title,
+                )
             )
             self._add_significant_change_comment(
-                repo_owner,
-                repo_name,
-                issue_number,
-                change_id,
-                title,
-                description,
-                rationale,
+                _SignificantChangeCommentInput(
+                    repo_owner,
+                    repo_name,
+                    issue_number,
+                    change_id,
+                    title,
+                    description,
+                    rationale,
+                )
             )
 
             return {
@@ -1765,19 +1808,17 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             payload["state_reason"] = state_reason
         return payload
 
-    def _add_issue_status_comment(
-        self,
-        proposal_data: dict[str, Any],
-        repo_owner: str,
-        repo_name: str,
-        issue_number: int,
-        code_repo_path: Path | None,
-        payload: dict[str, Any],
-        current_state: str,
-        status: str,
-        title: str,
-    ) -> None:
+    def _add_issue_status_comment(self, comment_in: _IssueStatusCommentInput) -> None:
         """Add or refresh the status comment when closing or re-syncing applied issues."""
+        proposal_data = comment_in.proposal_data
+        repo_owner = comment_in.repo_owner
+        repo_name = comment_in.repo_name
+        issue_number = comment_in.issue_number
+        code_repo_path = comment_in.code_repo_path
+        payload = comment_in.payload
+        current_state = comment_in.current_state
+        status = comment_in.status
+        title = comment_in.title
         if not self._should_add_issue_status_comment(payload, current_state, status):
             return
         source_tracking = proposal_data.get("source_tracking", {})
@@ -1808,17 +1849,15 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             f"{comment_text}\n\n*Note: This issue was updated from an OpenSpec change proposal with status `{status}`.*"
         )
 
-    def _add_significant_change_comment(
-        self,
-        repo_owner: str,
-        repo_name: str,
-        issue_number: int,
-        change_id: str,
-        title: str,
-        description: str,
-        rationale: str,
-    ) -> None:
+    def _add_significant_change_comment(self, sig: _SignificantChangeCommentInput) -> None:
         """Add a review nudge when proposal text indicates a significant change."""
+        repo_owner = sig.repo_owner
+        repo_name = sig.repo_name
+        issue_number = sig.issue_number
+        change_id = sig.change_id
+        title = sig.title
+        description = sig.description
+        rationale = sig.rationale
         if not self._is_significant_issue_update(title, description, rationale):
             return
         comment_text = (

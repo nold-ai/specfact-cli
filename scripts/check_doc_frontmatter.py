@@ -10,6 +10,7 @@ import os
 import re
 import subprocess
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, cast
 
@@ -397,61 +398,78 @@ def validate_glob_patterns(patterns: list[str]) -> bool:
     return True
 
 
+@dataclass
+class _AgentRuleFrontmatterDraft:
+    layout_val: str = "default"
+    permalink_val: str = ""
+    description_val: str | None = None
+    keywords_val: list[str] | None = None
+    audience_val: list[str] | None = None
+    expertise_val: list[str] | None = None
+
+
+def _parse_str_field(existing: dict[str, Any], key: str, current: str) -> str:
+    val = existing.get(key)
+    if isinstance(val, str) and val.strip():
+        return val.strip()
+    return current
+
+
+def _parse_optional_str_field(existing: dict[str, Any], key: str) -> str | None:
+    val = existing.get(key)
+    if isinstance(val, str) and val.strip():
+        return val.strip()
+    return None
+
+
+def _parse_str_list_field(existing: dict[str, Any], key: str) -> list[str] | None:
+    val = existing.get(key)
+    if isinstance(val, list) and all(isinstance(x, str) for x in val):
+        return list(val)
+    return None
+
+
+def _load_existing_agent_rule_frontmatter_overrides(path: Path, default_permalink: str) -> _AgentRuleFrontmatterDraft:
+    draft = _AgentRuleFrontmatterDraft(permalink_val=default_permalink)
+    if not path.is_file():
+        return draft
+    try:
+        existing = parse_frontmatter(path)
+    except (OSError, yaml.YAMLError):
+        return draft
+    draft.layout_val = _parse_str_field(existing, "layout", draft.layout_val)
+    draft.permalink_val = _parse_str_field(existing, "permalink", draft.permalink_val)
+    draft.description_val = _parse_optional_str_field(existing, "description")
+    draft.keywords_val = _parse_str_list_field(existing, "keywords")
+    draft.audience_val = _parse_str_list_field(existing, "audience")
+    draft.expertise_val = _parse_str_list_field(existing, "expertise_level")
+    return draft
+
+
+def _agent_rule_optional_frontmatter_lines(draft: _AgentRuleFrontmatterDraft) -> str:
+    parts: list[str] = []
+    if draft.description_val is not None:
+        parts.append(f"description: {_yaml_flow_inline(draft.description_val)}\n")
+    if draft.keywords_val is not None:
+        parts.append(f"keywords: {_yaml_flow_inline(draft.keywords_val)}\n")
+    if draft.audience_val is not None:
+        parts.append(f"audience: {_yaml_flow_inline(draft.audience_val)}\n")
+    if draft.expertise_val is not None:
+        parts.append(f"expertise_level: {_yaml_flow_inline(draft.expertise_val)}\n")
+    return "".join(parts)
+
+
 @beartype
 @require(lambda path: isinstance(path, Path), "Path must be Path object")
 @ensure(lambda result: isinstance(result, str), "Must return string")
-def suggest_frontmatter(path: Path) -> str:
-    """Return a suggested frontmatter block for a document."""
-    rel = _rel_posix(path)
-    if rel.startswith(AGENT_RULES_DIR):
-        rel_under = rel[len(AGENT_RULES_DIR) :]
-        rule_slug = _agent_rules_path_slug(rel_under)
-        canonical_id = _agent_rules_canonical_id(rel_under)
-        default_permalink = _agent_rules_default_permalink(rule_slug)
-        layout_val = "default"
-        permalink_val = default_permalink
-        description_val: str | None = None
-        keywords_val: list[str] | None = None
-        audience_val: list[str] | None = None
-        expertise_val: list[str] | None = None
-        if path.is_file():
-            try:
-                existing = parse_frontmatter(path)
-            except OSError:
-                pass
-            else:
-                lv = existing.get("layout")
-                if isinstance(lv, str) and lv.strip():
-                    layout_val = lv.strip()
-                pv = existing.get("permalink")
-                if isinstance(pv, str) and pv.strip():
-                    permalink_val = pv.strip()
-                dv = existing.get("description")
-                if isinstance(dv, str) and dv.strip():
-                    description_val = dv.strip()
-                kv = existing.get("keywords")
-                if isinstance(kv, list) and all(isinstance(x, str) for x in kv):
-                    keywords_val = list(kv)
-                av = existing.get("audience")
-                if isinstance(av, list) and all(isinstance(x, str) for x in av):
-                    audience_val = list(av)
-                ev = existing.get("expertise_level")
-                if isinstance(ev, list) and all(isinstance(x, str) for x in ev):
-                    expertise_val = list(ev)
-        title_guess = path.stem.replace("-", " ").title().replace('"', '\\"')
-        optional_lines = ""
-        if description_val is not None:
-            optional_lines += f"description: {_yaml_flow_inline(description_val)}\n"
-        if keywords_val is not None:
-            optional_lines += f"keywords: {_yaml_flow_inline(keywords_val)}\n"
-        if audience_val is not None:
-            optional_lines += f"audience: {_yaml_flow_inline(audience_val)}\n"
-        if expertise_val is not None:
-            optional_lines += f"expertise_level: {_yaml_flow_inline(expertise_val)}\n"
-        return f"""---
-layout: {_yaml_plain_or_quoted_scalar(layout_val)}
+def _format_agent_rules_suggested_frontmatter(path: Path, canonical_id: str, draft: _AgentRuleFrontmatterDraft) -> str:
+    slug_for_title = canonical_id.removeprefix("agent-rules-")
+    title_guess = slug_for_title.replace("-", " ").title().replace('"', '\\"')
+    optional_lines = _agent_rule_optional_frontmatter_lines(draft)
+    return f"""---
+layout: {_yaml_plain_or_quoted_scalar(draft.layout_val)}
 title: "{title_guess}"
-permalink: {_yaml_plain_or_quoted_scalar(permalink_val)}
+permalink: {_yaml_plain_or_quoted_scalar(draft.permalink_val)}
 {optional_lines}id: {canonical_id}
 doc_owner: specfact-cli
 tracks:
@@ -471,6 +489,21 @@ stop_conditions:
 depends_on: []
 ---
 """
+
+
+@beartype
+@require(lambda path: isinstance(path, Path), "Path must be Path object")
+@ensure(lambda result: isinstance(result, str), "Must return string")
+def suggest_frontmatter(path: Path) -> str:
+    """Return a suggested frontmatter block for a document."""
+    rel = _rel_posix(path)
+    if rel.startswith(AGENT_RULES_DIR):
+        rel_under = rel[len(AGENT_RULES_DIR) :]
+        rule_slug = _agent_rules_path_slug(rel_under)
+        canonical_id = _agent_rules_canonical_id(rel_under)
+        default_permalink = _agent_rules_default_permalink(rule_slug)
+        draft = _load_existing_agent_rule_frontmatter_overrides(path, default_permalink)
+        return _format_agent_rules_suggested_frontmatter(path, canonical_id, draft)
     return f"""---
 title: "{path.stem}"
 doc_owner: specfact-cli

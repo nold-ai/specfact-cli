@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 from beartype import beartype
 from icontract import ensure, require
@@ -50,6 +51,26 @@ def bundle_dir_exists(bundle_dir: Path) -> bool:
 @beartype
 def file_path_exists(file_path: Path) -> bool:
     return file_path.exists()
+
+
+@require(lambda settings_relative: isinstance(settings_relative, str))
+@ensure(lambda result: isinstance(result, bool))
+@beartype
+def settings_relative_nonblank(settings_relative: str) -> bool:
+    stripped = settings_relative.strip()
+    if stripped == "":
+        return False
+    path = Path(stripped)
+    if path.is_absolute():
+        return False
+    return all(part != ".." for part in path.parts)
+
+
+@require(lambda prompt_files: isinstance(prompt_files, list))
+@ensure(lambda result: isinstance(result, bool))
+@beartype
+def prompt_files_all_strings(prompt_files: list[Any]) -> bool:
+    return all(isinstance(item, str) for item in prompt_files)
 
 
 @require(lambda template_path: isinstance(template_path, Path))

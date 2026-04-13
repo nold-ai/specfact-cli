@@ -11,7 +11,7 @@ import pytest
 
 from specfact_cli.models.module_package import IntegrityInfo, ModulePackageMetadata
 from specfact_cli.registry import module_installer
-from specfact_cli.registry.module_installer import install_module, uninstall_module
+from specfact_cli.registry.module_installer import InstallModuleOptions, install_module, uninstall_module
 
 
 @pytest.fixture(autouse=True)
@@ -66,7 +66,7 @@ def test_install_module_downloads_extracts_and_registers(monkeypatch, tmp_path: 
     monkeypatch.setattr("specfact_cli.registry.module_installer.download_module", lambda *_args, **_kwargs: tarball)
 
     install_root = tmp_path / "marketplace-modules"
-    installed = install_module("specfact/backlog", install_root=install_root)
+    installed = install_module("specfact/backlog", InstallModuleOptions(install_root=install_root))
 
     assert installed.exists()
     assert (installed / "module-package.yaml").exists()
@@ -78,7 +78,7 @@ def test_install_module_to_default_marketplace_path(monkeypatch, tmp_path: Path)
     monkeypatch.setattr("specfact_cli.registry.module_installer.download_module", lambda *_args, **_kwargs: tarball)
 
     install_root = tmp_path / "marketplace-modules"
-    installed = install_module("specfact/drift", install_root=install_root)
+    installed = install_module("specfact/drift", InstallModuleOptions(install_root=install_root))
     assert installed == install_root / "drift"
 
 
@@ -87,8 +87,8 @@ def test_install_module_already_installed_returns_existing(monkeypatch, tmp_path
     monkeypatch.setattr("specfact_cli.registry.module_installer.download_module", lambda *_args, **_kwargs: tarball)
 
     install_root = tmp_path / "marketplace-modules"
-    first_install = install_module("specfact/sync", install_root=install_root)
-    second_install = install_module("specfact/sync", install_root=install_root)
+    first_install = install_module("specfact/sync", InstallModuleOptions(install_root=install_root))
+    second_install = install_module("specfact/sync", InstallModuleOptions(install_root=install_root))
 
     assert first_install == second_install
 
@@ -103,8 +103,11 @@ def test_install_module_replaces_existing_module_on_reinstall(monkeypatch, tmp_p
     monkeypatch.setattr("specfact_cli.registry.module_installer.download_module", _download)
 
     install_root = tmp_path / "marketplace-modules"
-    install_module("specfact/sync", install_root=install_root, version="0.1.0")
-    install_module("specfact/sync", install_root=install_root, version="0.2.0", reinstall=True)
+    install_module("specfact/sync", InstallModuleOptions(install_root=install_root, version="0.1.0"))
+    install_module(
+        "specfact/sync",
+        InstallModuleOptions(install_root=install_root, version="0.2.0", reinstall=True),
+    )
 
     manifest = (install_root / "sync" / "module-package.yaml").read_text(encoding="utf-8")
     assert "version: '0.2.0'" in manifest
@@ -138,7 +141,10 @@ def test_install_module_logs_satisfied_dependencies_without_warning(monkeypatch,
         encoding="utf-8",
     )
 
-    installed = install_module("nold-ai/specfact-backlog", install_root=install_root, reinstall=True)
+    installed = install_module(
+        "nold-ai/specfact-backlog",
+        InstallModuleOptions(install_root=install_root, reinstall=True),
+    )
 
     assert installed.exists()
     mock_logger.warning.assert_not_called()
@@ -165,7 +171,10 @@ def test_install_module_rejects_archive_path_traversal(monkeypatch, tmp_path: Pa
     monkeypatch.setattr("specfact_cli.registry.module_installer.download_module", lambda *_args, **_kwargs: tarball)
 
     with pytest.raises(ValueError, match="unsafe archive"):
-        install_module("specfact/policy", install_root=tmp_path / "marketplace-modules")
+        install_module(
+            "specfact/policy",
+            InstallModuleOptions(install_root=tmp_path / "marketplace-modules"),
+        )
 
 
 def test_install_module_rejects_invalid_namespace_format(monkeypatch, tmp_path: Path) -> None:
@@ -175,7 +184,7 @@ def test_install_module_rejects_invalid_namespace_format(monkeypatch, tmp_path: 
     install_root = tmp_path / "marketplace-modules"
     for invalid_id in ("NoCap/backlog", "specfact/Backlog", "123/name"):
         with pytest.raises(ValueError, match=r"namespace/name|Marketplace module id"):
-            install_module(invalid_id, install_root=install_root)
+            install_module(invalid_id, InstallModuleOptions(install_root=install_root))
 
 
 def test_install_module_accepts_valid_namespace_format(monkeypatch, tmp_path: Path) -> None:
@@ -183,11 +192,11 @@ def test_install_module_accepts_valid_namespace_format(monkeypatch, tmp_path: Pa
     tarball = _create_module_tarball(tmp_path, "backlog")
     monkeypatch.setattr("specfact_cli.registry.module_installer.download_module", lambda *_args, **_kwargs: tarball)
     install_root = tmp_path / "marketplace-modules"
-    install_module("specfact/backlog", install_root=install_root)
+    install_module("specfact/backlog", InstallModuleOptions(install_root=install_root))
     assert (install_root / "backlog" / "module-package.yaml").exists()
     tarball2 = _create_module_tarball(tmp_path, "backlog-pro", module_version="0.1.0")
     monkeypatch.setattr("specfact_cli.registry.module_installer.download_module", lambda *_args, **_kwargs: tarball2)
-    install_module("acme-corp/backlog-pro", install_root=install_root)
+    install_module("acme-corp/backlog-pro", InstallModuleOptions(install_root=install_root))
     assert (install_root / "backlog-pro" / "module-package.yaml").exists()
 
 
@@ -196,11 +205,11 @@ def test_install_module_namespace_collision_raises(monkeypatch, tmp_path: Path) 
     tarball = _create_module_tarball(tmp_path, "backlog")
     monkeypatch.setattr("specfact_cli.registry.module_installer.download_module", lambda *_args, **_kwargs: tarball)
     install_root = tmp_path / "marketplace-modules"
-    install_module("specfact/backlog", install_root=install_root)
+    install_module("specfact/backlog", InstallModuleOptions(install_root=install_root))
     tarball2 = _create_module_tarball(tmp_path, "backlog", module_version="0.2.0")
     monkeypatch.setattr("specfact_cli.registry.module_installer.download_module", lambda *_args, **_kwargs: tarball2)
     with pytest.raises(ValueError, match=r"namespace collision|conflicts with existing"):
-        install_module("acme-corp/backlog", install_root=install_root)
+        install_module("acme-corp/backlog", InstallModuleOptions(install_root=install_root))
 
 
 def test_uninstall_module_removes_marketplace_module(tmp_path: Path) -> None:
@@ -226,7 +235,10 @@ def test_install_module_validates_core_compatibility(monkeypatch, tmp_path: Path
     monkeypatch.setattr("specfact_cli.registry.module_installer.download_module", lambda *_args, **_kwargs: tarball)
 
     with pytest.raises(ValueError, match="requires SpecFact CLI"):
-        install_module("specfact/policy", install_root=tmp_path / "marketplace-modules")
+        install_module(
+            "specfact/policy",
+            InstallModuleOptions(install_root=tmp_path / "marketplace-modules"),
+        )
 
 
 def test_install_module_defaults_to_user_modules_root(monkeypatch, tmp_path: Path) -> None:
@@ -250,7 +262,7 @@ def test_install_module_rejects_denylisted_module(monkeypatch, tmp_path: Path) -
     )
 
     with pytest.raises(ValueError, match="denylisted module"):
-        install_module("specfact/blocked", install_root=tmp_path / "modules")
+        install_module("specfact/blocked", InstallModuleOptions(install_root=tmp_path / "modules"))
 
 
 def test_sync_bundled_modules_rejects_denylisted_module(monkeypatch, tmp_path: Path) -> None:

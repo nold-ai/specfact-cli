@@ -13,6 +13,7 @@ import os
 import re
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import StrEnum
 from pathlib import Path
@@ -640,14 +641,16 @@ class ProjectBundle(BaseModel):
         feature_indices: list[FeatureIndex | None] = [None] * num_features
         feature_key_to_save_index = {key: idx for idx, key in enumerate(self.features)}
         checksums = _run_bundle_parallel_save(
-            self,
-            save_tasks,
-            total_artifacts,
-            max_workers,
-            progress_callback,
-            now,
-            feature_key_to_save_index,
-            feature_indices,
+            _BundleParallelSaveParams(
+                bundle=self,
+                save_tasks=save_tasks,
+                total_artifacts=total_artifacts,
+                max_workers=max_workers,
+                progress_callback=progress_callback,
+                now=now,
+                feature_key_to_save_index=feature_key_to_save_index,
+                feature_indices=feature_indices,
+            ),
         )
 
         # Update manifest with checksums and feature indices
@@ -811,6 +814,18 @@ class ProjectBundle(BaseModel):
         return self.change_tracking.feature_deltas.get(change_name, [])
 
 
+@dataclass(slots=True)
+class _BundleParallelSaveParams:
+    bundle: ProjectBundle
+    save_tasks: list[tuple[str, Path, dict[str, Any] | Feature]]
+    total_artifacts: int
+    max_workers: int
+    progress_callback: Callable[[int, int, str], None] | None
+    now: str
+    feature_key_to_save_index: dict[str, int]
+    feature_indices: list[FeatureIndex | None]
+
+
 def _build_bundle_save_tasks(
     bundle: ProjectBundle,
     bundle_dir: Path,
@@ -840,27 +855,18 @@ def _build_bundle_save_tasks(
     return save_tasks
 
 
-def _run_bundle_parallel_save(
-    bundle: ProjectBundle,
-    save_tasks: list[tuple[str, Path, dict[str, Any] | Feature]],
-    total_artifacts: int,
-    max_workers: int,
-    progress_callback: Callable[[int, int, str], None] | None,
-    now: str,
-    feature_key_to_save_index: dict[str, int],
-    feature_indices: list[FeatureIndex | None],
-) -> dict[str, str]:
+def _run_bundle_parallel_save(params: _BundleParallelSaveParams) -> dict[str, str]:
     completed_count = 0
     checksums: dict[str, str] = {}
-    if not save_tasks:
+    if not params.save_tasks:
         return checksums
-    executor = ThreadPoolExecutor(max_workers=max_workers)
+    executor = ThreadPoolExecutor(max_workers=params.max_workers)
     interrupted = False
     wait_on_shutdown = os.environ.get("TEST_MODE") != "true"
     try:
         future_to_task = {
             executor.submit(_write_bundle_artifact_disk, name, path, data): (name, path, data)
-            for name, path, data in save_tasks
+            for name, path, data in params.save_tasks
         }
 
         try:
@@ -870,16 +876,16 @@ def _run_bundle_parallel_save(
                     completed_count += 1
                     checksums[artifact_name] = checksum
 
-                    if progress_callback:
-                        progress_callback(completed_count, total_artifacts, artifact_name)
+                    if params.progress_callback:
+                        params.progress_callback(completed_count, params.total_artifacts, artifact_name)
 
                     _assign_feature_index_from_save(
-                        bundle,
+                        params.bundle,
                         artifact_name,
                         checksum,
-                        now,
-                        feature_key_to_save_index,
-                        feature_indices,
+                        params.now,
+                        params.feature_key_to_save_index,
+                        params.feature_indices,
                     )
                 except KeyboardInterrupt:
                     interrupted = True

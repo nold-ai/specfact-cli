@@ -10,6 +10,46 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.46.0] - 2026-04-13
+
+### Added
+
+- **GitHub hierarchy cache sync** (#492) for backlog metadata used in agent and automation workflows.
+- **Agent governance loading** (#493): leaner, deterministic bootstrap for canonical rule documentation.
+
+### Fixed
+
+- **Tests / CI**: marketplace install mocks accept `install_module(module_id, InstallModuleOptions(...))`;
+  dynamic script loaders register modules in `sys.modules` before `exec_module` (doc frontmatter and
+  verify-bundle-published gates; Python 3.11 compatibility job).
+- **Code review follow-ups**: safer DevOps/source-tracking edge cases, stricter parsers and validators, and
+  reduced duplication in analysis and sync helpers (see commits on `dev`).
+
+### Changed
+
+- **Governance / OpenSpec**: archived completed changes and aligned internal wiki maintenance notes.
+
+---
+
+## [0.45.2] - 2026-04-12
+
+### Fixed
+
+- **`specfact init ide` and `.vscode/settings.json`**: invalid JSON or non-mergeable `chat` blocks no longer
+  wipe unrelated VS Code settings; the command fails safe with guidance. Use `--force` only when you accept
+  replacing the file after a timestamped backup under `.specfact/recovery/`.
+- **VS Code settings path**: resolved settings paths must stay inside the repository root (blocks symlink
+  escape); settings are parsed with **JSON5** so JSONC-style comments and trailing commas load correctly.
+  Serialized output is canonical JSON (comments from the original file are not preserved on rewrite).
+- **`create_vscode_settings`**: an explicit empty `prompts_by_source` mapping no longer falls back to the
+  full prompt catalog when finalizing recommendations.
+- **Regression gate**: lint now runs `scripts/verify_safe_project_writes.py` so IDE settings JSON I/O stays
+  routed through the shared merge helper.
+- **Dev / Semgrep**: Hatch and `[dev]` extras pin `setuptools<82`
+  so Semgrep’s OpenTelemetry import chain still resolves `pkg_resources` (setuptools 82+ may omit it).
+
+---
+
 ## [0.45.1] - 2026-04-03
 
 ### Changed

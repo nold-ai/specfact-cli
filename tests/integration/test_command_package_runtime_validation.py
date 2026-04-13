@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import json
 import os
@@ -44,8 +45,9 @@ def _resolve_modules_repo() -> Path:
     candidates = [
         REPO_ROOT / "specfact-cli-modules",
         REPO_ROOT.parent / "specfact-cli-modules",
-        REPO_ROOT.parents[2] / "specfact-cli-modules",
     ]
+    with contextlib.suppress(IndexError):
+        candidates.append(REPO_ROOT.parents[2] / "specfact-cli-modules")
     for candidate in candidates:
         if candidate.exists():
             return candidate

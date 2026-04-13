@@ -8,7 +8,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from specfact_cli.registry.module_installer import install_module
+from specfact_cli.registry.module_installer import InstallModuleOptions, install_module
 
 
 def _create_module_tarball(
@@ -79,7 +79,7 @@ def test_installing_spec_bundle_installs_project_dependency_first(
     monkeypatch.setattr("specfact_cli.registry.module_installer.download_module", _download)
     install_root = tmp_path / "modules"
 
-    install_module("nold-ai/specfact-spec", install_root=install_root)
+    install_module("nold-ai/specfact-spec", InstallModuleOptions(install_root=install_root))
 
     assert calls[:2] == ["nold-ai/specfact-spec", "nold-ai/specfact-project"]
     assert (install_root / "specfact-project" / "module-package.yaml").exists()
@@ -110,7 +110,7 @@ def test_installing_govern_bundle_installs_project_dependency_first(
     monkeypatch.setattr("specfact_cli.registry.module_installer.download_module", _download)
     install_root = tmp_path / "modules"
 
-    install_module("nold-ai/specfact-govern", install_root=install_root)
+    install_module("nold-ai/specfact-govern", InstallModuleOptions(install_root=install_root))
 
     assert calls[:2] == ["nold-ai/specfact-govern", "nold-ai/specfact-project"]
     assert (install_root / "specfact-project" / "module-package.yaml").exists()
@@ -144,7 +144,7 @@ def test_dependency_install_is_skipped_when_already_installed(monkeypatch: pytes
         encoding="utf-8",
     )
 
-    install_module("nold-ai/specfact-spec", install_root=install_root)
+    install_module("nold-ai/specfact-spec", InstallModuleOptions(install_root=install_root))
 
     assert calls == ["nold-ai/specfact-spec"]
     info_messages = " ".join(str(call.args[0]) for call in mock_logger.info.call_args_list)
@@ -175,7 +175,7 @@ def test_requested_bundle_install_aborts_when_dependency_install_fails(
     install_root = tmp_path / "modules"
 
     with pytest.raises(ValueError, match="Dependency install failed"):
-        install_module("nold-ai/specfact-spec", install_root=install_root)
+        install_module("nold-ai/specfact-spec", InstallModuleOptions(install_root=install_root))
 
     assert not (install_root / "specfact-spec").exists()
 
@@ -204,7 +204,7 @@ def test_offline_install_uses_cached_tarball_when_registry_is_unavailable(
     )
     install_root = tmp_path / "modules"
 
-    install_module("nold-ai/specfact-spec", install_root=install_root)
+    install_module("nold-ai/specfact-spec", InstallModuleOptions(install_root=install_root))
 
     assert (install_root / "specfact-project" / "module-package.yaml").exists()
     assert (install_root / "specfact-spec" / "module-package.yaml").exists()

@@ -29,6 +29,7 @@ from specfact_cli.registry.module_discovery import discover_all_modules
 from specfact_cli.registry.module_installer import (
     REGISTRY_ID_FILE,
     USER_MODULES_ROOT,
+    InstallModuleOptions,
     get_bundled_module_metadata,
     install_bundled_module,
     install_module,
@@ -303,13 +304,15 @@ def _install_one(module_id: str, params: _InstallOneParams) -> bool:
     try:
         installed_path = install_module(
             normalized,
-            version=params.version,
-            reinstall=params.reinstall,
-            install_root=params.target_root,
-            trust_non_official=params.trust_non_official,
-            non_interactive=is_non_interactive(),
-            skip_deps=params.skip_deps,
-            force=params.force,
+            InstallModuleOptions(
+                version=params.version,
+                reinstall=params.reinstall,
+                install_root=params.target_root,
+                trust_non_official=params.trust_non_official,
+                non_interactive=is_non_interactive(),
+                skip_deps=params.skip_deps,
+                force=params.force,
+            ),
         )
     except Exception as exc:
         console.print(f"[red]Failed installing {normalized}: {exc}[/red]")
@@ -1295,7 +1298,7 @@ def _run_one_marketplace_upgrade_target(
 
     if not latest_v:
         with _module_upgrade_status(f"[cyan]Upgrading[/cyan] [bold]{full_id}[/bold] …"):
-            installed_path = install_module(full_id, reinstall=True)
+            installed_path = install_module(full_id, InstallModuleOptions(reinstall=True))
         accum.upgraded.append((full_id, current_v, _read_installed_module_version(installed_path)))
         return
 
@@ -1304,7 +1307,7 @@ def _run_one_marketplace_upgrade_target(
         accum.skipped_major.append(skip_tuple)
     if should_install:
         with _module_upgrade_status(f"[cyan]Upgrading[/cyan] [bold]{full_id}[/bold] …"):
-            installed_path = install_module(full_id, reinstall=True)
+            installed_path = install_module(full_id, InstallModuleOptions(reinstall=True))
         accum.upgraded.append((full_id, current_v, _read_installed_module_version(installed_path)))
 
 

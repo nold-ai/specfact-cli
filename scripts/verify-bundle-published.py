@@ -37,6 +37,7 @@ import os
 import tarfile
 import tempfile
 from collections.abc import Iterable
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, cast
 
@@ -82,26 +83,17 @@ def _resolve_registry_index_path() -> Path:
     return repo_root / "specfact-cli-modules" / "registry" / "index.json"
 
 
+@dataclass
 class BundleCheckResult:
     """Lightweight container for per-bundle verification results."""
 
-    def __init__(
-        self,
-        module_name: str,
-        bundle_id: str,
-        version: str | None,
-        signature_ok: bool,
-        download_ok: bool | None,
-        status: str,
-        message: str = "",
-    ) -> None:
-        self.module_name = module_name
-        self.bundle_id = bundle_id
-        self.version = version
-        self.signature_ok = signature_ok
-        self.download_ok = download_ok
-        self.status = status
-        self.message = message
+    module_name: str
+    bundle_id: str
+    version: str | None
+    signature_ok: bool
+    download_ok: bool | None
+    status: str
+    message: str = ""
 
 
 @beartype

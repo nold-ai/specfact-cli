@@ -13,8 +13,9 @@ import shutil
 import site
 import sys
 from pathlib import Path
-from typing import Any, Literal, cast
+from typing import Any, Literal, NoReturn, cast
 
+import click
 import yaml
 from beartype import beartype
 from icontract import ensure, require
@@ -26,6 +27,10 @@ from specfact_cli.utils.contract_predicates import (
     template_path_exists,
     template_path_is_file,
     vscode_settings_result_ok,
+)
+from specfact_cli.utils.project_artifact_write import (
+    StructuredJsonDocumentError,
+    merge_vscode_settings_prompt_recommendations,
 )
 
 
@@ -468,6 +473,15 @@ def _prune_flat_specfact_exports_not_in_expected(
             console.print(f"[yellow]Could not remove stale export {p}:[/yellow] {exc}")
 
 
+def _handle_structured_json_document_error(exc: StructuredJsonDocumentError, cons: Console) -> NoReturn:
+    cons.print(f"[red]Error:[/red] {exc}")
+    cons.print(
+        "[dim]Repair `.vscode/settings.json` or re-run with [bold]--force[/bold] to replace it "
+        "after a timestamped backup under `.specfact/recovery/`.[/dim]"
+    )
+    raise click.exceptions.Exit(1) from exc
+
+
 def _copy_template_files_to_ide(
     repo_path: Path,
     ide: str,
@@ -507,7 +521,10 @@ def _copy_template_files_to_ide(
 
     settings_path = None
     if write_settings and settings_file and isinstance(settings_file, str):
-        settings_path = create_vscode_settings(repo_path, settings_file)
+        try:
+            settings_path = create_vscode_settings(repo_path, settings_file, force=force)
+        except StructuredJsonDocumentError as exc:
+            _handle_structured_json_document_error(exc, console)
 
     return copied_files, settings_path
 
@@ -613,7 +630,12 @@ def copy_prompts_by_source_to_ide(
     settings_path: Path | None = None
     settings_file = config.get("settings_file")
     if settings_file and isinstance(settings_file, str):
-        settings_path = create_vscode_settings(repo_path, settings_file, prompts_by_source=prompts_by_source)
+        try:
+            settings_path = create_vscode_settings(
+                repo_path, settings_file, prompts_by_source=prompts_by_source, force=force
+            )
+        except StructuredJsonDocumentError as exc:
+            _handle_structured_json_document_error(exc, console)
 
     return all_copied, settings_path
 
@@ -787,28 +809,24 @@ def _vscode_prompt_paths_from_full_catalog(repo_path: Path) -> list[str]:
     return [f".github/prompts/{name}" for name in sorted(merged.keys())]
 
 
-def _finalize_vscode_prompt_recommendation_paths(repo_path: Path, prompt_files: list[str]) -> list[str]:
-    """Fall back to flat discovery or command list when namespaced paths are empty."""
+def _finalize_vscode_prompt_recommendation_paths(
+    repo_path: Path,
+    prompt_files: list[str],
+    *,
+    allow_empty_fallback: bool = True,
+) -> list[str]:
+    """Fall back to flat discovery or command list when namespaced paths are empty.
+
+    When ``allow_empty_fallback`` is False, an empty ``prompt_files`` list is returned as-is (explicit empty export).
+    """
+    if not prompt_files and not allow_empty_fallback:
+        return []
     if not prompt_files:
         discovered_flat = discover_prompt_template_files(repo_path)
         prompt_files = [f".github/prompts/{template_path.stem}.prompt.md" for template_path in discovered_flat]
     if not prompt_files:
         return [f".github/prompts/{cmd}.prompt.md" for cmd in SPECFACT_COMMANDS]
     return prompt_files
-
-
-def _is_specfact_github_prompt_path(path: str) -> bool:
-    """True for SpecFact-managed GitHub prompt recommendations (strip on selective export); keeps team paths."""
-    normalized = path.replace("\\", "/").lstrip("./")
-    if not normalized.startswith("github/prompts/"):
-        return False
-    name = Path(normalized).name
-    return name.startswith("specfact") and name.endswith(".prompt.md")
-
-
-def _strip_specfact_github_prompt_recommendations(paths: list[str]) -> list[str]:
-    """Remove prior SpecFact-managed ``.github/prompts/`` entries before merging a selective export; keep other paths."""
-    return [p for p in paths if not _is_specfact_github_prompt_path(p)]
 
 
 @beartype
@@ -873,6 +891,7 @@ def create_vscode_settings(
     settings_file: str,
     *,
     prompts_by_source: dict[str, list[Path]] | None = None,
+    force: bool = False,
 ) -> Path | None:
     """
     Create or merge VS Code settings.json with prompt file recommendations.
@@ -886,6 +905,8 @@ def create_vscode_settings(
             leave stale recommendations; other ``.github/prompts/`` entries and paths outside that folder are preserved.
             When ``None``,
             recommendations follow the full discovered catalog (or legacy flat fallbacks).
+        force: When True, invalid or non-mergeable ``settings.json`` is replaced after a timestamped
+            backup under ``.specfact/recovery/`` (explicit replace path).
 
     Returns:
         Path to settings file, or None if not VS Code/Copilot
@@ -895,52 +916,26 @@ def create_vscode_settings(
         >>> settings is not None
         True
     """
-    import json
-
-    settings_path = repo_path / settings_file
-    settings_dir = settings_path.parent
-    settings_dir.mkdir(parents=True, exist_ok=True)
-
     if prompts_by_source is not None:
-        prompt_files = _finalize_vscode_prompt_recommendation_paths(
-            repo_path, _vscode_prompt_recommendation_paths_from_sources(prompts_by_source)
-        )
+        if not prompts_by_source:
+            prompt_files = _finalize_vscode_prompt_recommendation_paths(repo_path, [], allow_empty_fallback=False)
+        else:
+            prompt_files = _finalize_vscode_prompt_recommendation_paths(
+                repo_path, _vscode_prompt_recommendation_paths_from_sources(prompts_by_source)
+            )
     else:
         prompt_files = _finalize_vscode_prompt_recommendation_paths(
             repo_path, _vscode_prompt_paths_from_full_catalog(repo_path)
         )
 
-    # Load existing settings or create new
-    if settings_path.exists():
-        try:
-            with open(settings_path, encoding="utf-8") as f:
-                existing_settings = json.load(f)
-        except (json.JSONDecodeError, FileNotFoundError):
-            existing_settings = {}
-    else:
-        existing_settings = {}
+    settings_path = merge_vscode_settings_prompt_recommendations(
+        repo_path,
+        settings_file,
+        prompt_files,
+        strip_specfact_github_from_existing=prompts_by_source is not None,
+        explicit_replace_unparseable=force,
+    )
 
-    # Merge chat.promptFilesRecommendations
-    if "chat" not in existing_settings:
-        existing_settings["chat"] = {}
-
-    chat_block = existing_settings["chat"]
-    chat_dict: dict[str, Any] = cast(dict[str, Any], chat_block) if isinstance(chat_block, dict) else {}
-    existing_recommendations = chat_dict.get("promptFilesRecommendations", [])
-    if prompts_by_source is not None:
-        existing_recommendations = _strip_specfact_github_prompt_recommendations(
-            list(existing_recommendations) if isinstance(existing_recommendations, list) else [],
-        )
-    merged_recommendations = list(set(existing_recommendations + prompt_files))
-    chat_dict["promptFilesRecommendations"] = merged_recommendations
-    existing_settings["chat"] = chat_dict
-
-    # Write merged settings
-    with open(settings_path, "w", encoding="utf-8") as f:
-        json.dump(existing_settings, f, indent=4)
-        f.write("\n")
-
-    # Ensure file exists before returning (satisfies contract)
     if not settings_path.exists():
         console.print(f"[yellow]Warning:[/yellow] Settings file not created: {settings_path}")
         return None

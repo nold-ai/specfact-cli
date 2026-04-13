@@ -331,22 +331,26 @@ class OpenAPITestConverter:
                 pass
         return None
 
+    def _coerce_ast_dict_to_plain(self, value: ast.Dict) -> dict[str, Any]:
+        result: dict[str, Any] = {}
+        for k, v in zip(value.keys, value.values, strict=True):
+            if k is None:
+                continue
+            key = self._extract_ast_value(k)
+            val = self._extract_ast_value(v)
+            if key is not None:
+                result[str(key)] = val
+        return result
+
     @beartype
     def _extract_json_arg(self, call: ast.Call, keyword: str) -> dict[str, Any] | None:
         """Extract JSON/data argument from function call."""
         for keyword_arg in call.keywords:
-            if keyword_arg.arg == keyword:
-                value = keyword_arg.value
-                # Try to extract dict literal
-                if isinstance(value, ast.Dict):
-                    result: dict[str, Any] = {}
-                    for k, v in zip(value.keys, value.values, strict=True):
-                        if k is not None:
-                            key = self._extract_ast_value(k)
-                            val = self._extract_ast_value(v)
-                            if key is not None:
-                                result[str(key)] = val
-                    return result
+            if keyword_arg.arg != keyword:
+                continue
+            inner = keyword_arg.value
+            if isinstance(inner, ast.Dict):
+                return self._coerce_ast_dict_to_plain(inner)
         return None
 
     @beartype
@@ -375,6 +379,22 @@ class OpenAPITestConverter:
             pass
         return None
 
+    def _examples_from_parsed_test_file(self, tree: ast.AST, func_name: str | None) -> dict[str, dict[str, Any]]:
+        by_operation: dict[str, dict[str, Any]] = {}
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.FunctionDef):
+                continue
+            if func_name and node.name != func_name:
+                continue
+            if not node.name.startswith("test_"):
+                continue
+            example = self._extract_examples_from_test_function(node)
+            if not example:
+                continue
+            operation_id = str(example.get("operation_id", "unknown"))
+            by_operation.setdefault(operation_id, {}).update(example)
+        return by_operation
+
     @beartype
     @require(lambda test_files: isinstance(test_files, list), "Test files must be list")
     @ensure(lambda result: isinstance(result, dict), "Must return dict")
@@ -395,20 +415,8 @@ class OpenAPITestConverter:
 
             try:
                 tree = ast.parse(test_path.read_text(encoding="utf-8"), filename=str(test_path))
-
-                for node in ast.walk(tree):
-                    if isinstance(node, ast.FunctionDef):
-                        if func_name and node.name != func_name:
-                            continue
-                        if node.name.startswith("test_"):
-                            # Extract examples from test function
-                            example = self._extract_examples_from_test_function(node)
-                            if example:
-                                operation_id = example.get("operation_id", "unknown")
-                                if operation_id not in examples:
-                                    examples[operation_id] = {}
-                                examples[operation_id].update(example)
-
+                for op_id, payload in self._examples_from_parsed_test_file(tree, func_name).items():
+                    examples.setdefault(op_id, {}).update(payload)
             except Exception:
                 continue
 

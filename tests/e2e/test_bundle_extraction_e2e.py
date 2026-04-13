@@ -104,10 +104,13 @@ def test_publish_install_verify_roundtrip_for_specfact_codebase(monkeypatch, tmp
     monkeypatch.setattr("specfact_cli.registry.module_installer.assert_module_allowed", lambda *_a, **_k: None)
     monkeypatch.setattr("specfact_cli.registry.module_installer.download_module", lambda *_a, **_k: tarball)
 
-    from specfact_cli.registry.module_installer import install_module
+    from specfact_cli.registry.module_installer import InstallModuleOptions, install_module
 
     install_root = tmp_path / ".specfact" / "modules"
-    installed_path = install_module("nold-ai/specfact-codebase", install_root=install_root)
+    installed_path = install_module(
+        "nold-ai/specfact-codebase",
+        InstallModuleOptions(install_root=install_root),
+    )
     assert (installed_path / "module-package.yaml").exists()
 
     signature_file = next((registry_dir / "signatures").glob("*.sig"))

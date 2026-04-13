@@ -184,6 +184,35 @@ Updated authentication feature.
         assert parsed.get("type") == "MODIFIED"
         assert parsed.get("feature_id") == "001-auth"
 
+    def test_parse_change_spec_delta_content_keeps_markdown_headings(
+        self, parser: OpenSpecParser, tmp_path: Path
+    ) -> None:
+        """Headings inside the Content section must not be parsed as new delta sections."""
+        delta_path = tmp_path / "delta.md"
+        delta_path.write_text(
+            """# Change Spec Delta
+
+## Type
+MODIFIED
+
+## Feature ID
+001-auth
+
+## Content
+Intro line.
+## Subheading inside content
+More detail.
+"""
+        )
+        parsed = parser.parse_change_spec_delta(delta_path)
+
+        assert parsed is not None
+        assert parsed.get("type") == "MODIFIED"
+        assert parsed.get("feature_id") == "001-auth"
+        assert "## Subheading inside content" in (parsed.get("content") or "")
+        assert "Intro line." in (parsed.get("content") or "")
+        assert "More detail." in (parsed.get("content") or "")
+
     def test_parse_change_spec_delta_removed(self, parser: OpenSpecParser, tmp_path: Path) -> None:
         """Test parsing change spec delta with REMOVED type."""
         delta_path = tmp_path / "delta.md"

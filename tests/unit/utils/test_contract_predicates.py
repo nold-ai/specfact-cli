@@ -31,3 +31,17 @@ def test_vscode_settings_result_ok(tmp_path: Path) -> None:
     p.write_text("{}", encoding="utf-8")
     assert cp.vscode_settings_result_ok(p) is True
     assert cp.vscode_settings_result_ok(None) is True
+
+
+def test_settings_relative_nonblank() -> None:
+    assert cp.settings_relative_nonblank(".vscode/settings.json") is True
+    assert cp.settings_relative_nonblank("  ") is False
+    assert cp.settings_relative_nonblank("/abs/settings.json") is False
+    assert cp.settings_relative_nonblank(".vscode/../settings.json") is False
+
+
+def test_prompt_files_all_strings() -> None:
+    assert cp.prompt_files_all_strings([]) is True
+    assert cp.prompt_files_all_strings(["a", "b"]) is True
+    assert cp.prompt_files_all_strings(["a", 1]) is False
+    assert cp.prompt_files_all_strings(["a", None]) is False

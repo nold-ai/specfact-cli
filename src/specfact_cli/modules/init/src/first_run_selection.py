@@ -177,15 +177,18 @@ def _install_one_bundled_module_line(bid: str, module_name: str, deps: _InitBund
 
 def _install_marketplace_for_bundle(bid: str, marketplace_id: str, deps: _InitBundleInstallDeps) -> None:
     from specfact_cli.common import get_bridge_logger
+    from specfact_cli.registry.module_installer import InstallModuleOptions
 
     if deps.emit:
         deps.console.print(f"[dim]   ·[/dim] Installing marketplace module [bold]{marketplace_id}[/bold] …")
     try:
         deps.install_module(
             marketplace_id,
-            install_root=deps.root,
-            non_interactive=deps.non_interactive,
-            trust_non_official=deps.trust_non_official,
+            InstallModuleOptions(
+                install_root=deps.root,
+                non_interactive=deps.non_interactive,
+                trust_non_official=deps.trust_non_official,
+            ),
         )
     except Exception as e:
         logger = get_bridge_logger(__name__)

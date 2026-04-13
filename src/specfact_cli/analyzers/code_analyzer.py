@@ -10,6 +10,7 @@ import shutil
 import subprocess
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, cast
 
@@ -29,6 +30,27 @@ from specfact_cli.utils.feature_keys import to_classname_key, to_sequential_key
 
 
 console = Console()
+
+
+@dataclass
+class _SemgrepFeatureBuckets:
+    api_endpoints: list[str] = field(default_factory=list)
+    data_models: list[str] = field(default_factory=list)
+    auth_patterns: list[str] = field(default_factory=list)
+    crud_operations: list[dict[str, str]] = field(default_factory=list)
+    anti_patterns: list[str] = field(default_factory=list)
+    code_smells: list[str] = field(default_factory=list)
+    themes: set[str] = field(default_factory=set)
+
+
+@dataclass
+class _SemgrepEnhancementContext:
+    semgrep_findings: list[dict[str, Any]]
+    file_path: Path
+    class_name: str
+    class_start_line: int | None = None
+    class_end_line: int | None = None
+    file_theme_accumulator: set[str] | None = None
 
 
 class CodeAnalyzer:
@@ -644,7 +666,7 @@ class CodeAnalyzer:
             # Extract classes as features
             for node in ast.walk(tree):
                 if isinstance(node, ast.ClassDef):
-                    feature = self._extract_feature_for_results(node, file_path, semgrep_findings)
+                    feature = self._extract_feature_for_results(node, file_path, semgrep_findings, results["themes"])
                     if feature is not None:
                         results["features"].append(feature)
 
@@ -659,6 +681,7 @@ class CodeAnalyzer:
         node: ast.ClassDef,
         file_path: Path,
         semgrep_findings: list[dict[str, Any]],
+        file_theme_accumulator: set[str],
     ) -> Feature | None:
         """Extract one feature while isolating per-class enhancement failures."""
         current_count = 0 if self.key_format == "sequential" else len(self.features)
@@ -672,7 +695,15 @@ class CodeAnalyzer:
 
         try:
             self._enhance_feature_with_semgrep(
-                feature, semgrep_findings, file_path, node.name, class_start_line, class_end_line
+                feature,
+                _SemgrepEnhancementContext(
+                    semgrep_findings=semgrep_findings,
+                    file_path=file_path,
+                    class_name=node.name,
+                    class_start_line=class_start_line,
+                    class_end_line=class_end_line,
+                    file_theme_accumulator=file_theme_accumulator,
+                ),
             )
         except Exception as exc:
             console.print(f"[dim]⚠ Warning: Skipped Semgrep enhancement for {file_path}:{node.name}: {exc}[/dim]")
@@ -704,6 +735,33 @@ class CodeAnalyzer:
         themes = self._extract_themes_from_imports_parallel(tree)
         self.themes.update(themes)
 
+    @staticmethod
+    def _themes_for_import_module(module_name: str, theme_keywords: dict[str, str]) -> set[str]:
+        lowered = module_name.lower()
+        tokens = [t for t in re.split(r"[._-]", lowered) if t]
+        top_level = lowered.split(".", 1)[0]
+        found: set[str] = set()
+        for keyword, theme in theme_keywords.items():
+            if keyword == lowered or lowered.startswith(f"{keyword}."):
+                found.add(theme)
+                continue
+            if keyword == top_level or top_level.startswith(f"{keyword}."):
+                found.add(theme)
+                continue
+            if keyword in tokens:
+                found.add(theme)
+        return found
+
+    def _themes_for_import_node(self, node: ast.Import | ast.ImportFrom, theme_keywords: dict[str, str]) -> set[str]:
+        if isinstance(node, ast.Import):
+            found: set[str] = set()
+            for alias in node.names:
+                found.update(self._themes_for_import_module(alias.name, theme_keywords))
+            return found
+        if isinstance(node, ast.ImportFrom) and node.module:
+            return self._themes_for_import_module(node.module, theme_keywords)
+        return set()
+
     def _extract_themes_from_imports_parallel(self, tree: ast.AST) -> set[str]:
         """Extract themes from import statements (thread-safe, returns themes)."""
         themes: set[str] = set()
@@ -726,15 +784,7 @@ class CodeAnalyzer:
 
         for node in ast.walk(tree):
             if isinstance(node, (ast.Import, ast.ImportFrom)):
-                if isinstance(node, ast.Import):
-                    for alias in node.names:
-                        for keyword, theme in theme_keywords.items():
-                            if keyword in alias.name.lower():
-                                themes.add(theme)
-                elif isinstance(node, ast.ImportFrom) and node.module:
-                    for keyword, theme in theme_keywords.items():
-                        if keyword in node.module.lower():
-                            themes.add(theme)
+                themes.update(self._themes_for_import_node(node, theme_keywords))
 
         return themes
 
@@ -1098,112 +1148,93 @@ class CodeAnalyzer:
         )
         return ("codesmell", str(finding.get("message", ""))) if any(term in rule_id for term in terms) else ("", "")
 
-    def _apply_semgrep_findings_to_feature(
-        self,
-        feature: Feature,
-        api_endpoints: list[str],
-        data_models: list[str],
-        auth_patterns: list[str],
-        crud_operations: list[dict[str, str]],
-        anti_patterns: list[str],
-        code_smells: list[str],
-    ) -> None:
+    def _apply_semgrep_findings_to_feature(self, feature: Feature, buckets: _SemgrepFeatureBuckets) -> None:
         """
         Apply categorised Semgrep findings to a feature by updating outcomes and constraints.
 
         Args:
             feature: Feature to update in-place
-            api_endpoints: Detected API endpoints (e.g. "GET /users")
-            data_models: Detected data model names
-            auth_patterns: Detected auth/permission descriptions
-            crud_operations: Detected CRUD operations as dicts with "operation" and "entity" keys
-            anti_patterns: Anti-pattern messages to add as constraints
-            code_smells: Code-smell/security messages to add as constraints
+            buckets: Categorised Semgrep finding lists (API, models, auth, CRUD, anti-patterns, smells).
         """
-        if api_endpoints:
-            feature.outcomes.append(f"Exposes API endpoints: {', '.join(api_endpoints)}")
-        if data_models:
-            feature.outcomes.append(f"Defines data models: {', '.join(data_models)}")
-        if auth_patterns:
-            feature.outcomes.append(f"Requires authentication: {', '.join(auth_patterns)}")
-        if crud_operations:
+        if buckets.api_endpoints:
+            feature.outcomes.append(f"Exposes API endpoints: {', '.join(buckets.api_endpoints)}")
+        if buckets.data_models:
+            feature.outcomes.append(f"Defines data models: {', '.join(buckets.data_models)}")
+        if buckets.auth_patterns:
+            feature.outcomes.append(f"Requires authentication: {', '.join(buckets.auth_patterns)}")
+        if buckets.crud_operations:
             crud_str = ", ".join(
-                f"{op.get('operation', 'UNKNOWN')} {op.get('entity', 'unknown')}" for op in crud_operations
+                f"{op.get('operation', 'UNKNOWN')} {op.get('entity', 'unknown')}" for op in buckets.crud_operations
             )
             feature.outcomes.append(f"Provides CRUD operations: {crud_str}")
-        if anti_patterns:
-            anti_str = "; ".join(anti_patterns[:3])
+        if buckets.anti_patterns:
+            anti_str = "; ".join(buckets.anti_patterns[:3])
             if anti_str:
                 if feature.constraints:
                     feature.constraints.append(f"Code quality: {anti_str}")
                 else:
                     feature.constraints = [f"Code quality: {anti_str}"]
-        if code_smells:
-            smell_str = "; ".join(code_smells[:3])
+        if buckets.code_smells:
+            smell_str = "; ".join(buckets.code_smells[:3])
             if smell_str:
                 if feature.constraints:
                     feature.constraints.append(f"Issues detected: {smell_str}")
                 else:
                     feature.constraints = [f"Issues detected: {smell_str}"]
 
-    def _enhance_feature_with_semgrep(
-        self,
-        feature: Feature,
-        semgrep_findings: list[dict[str, Any]],
-        file_path: Path,
-        class_name: str,
-        class_start_line: int | None = None,
-        class_end_line: int | None = None,
-    ) -> None:
+    def _accumulate_semgrep_finding_bucket(self, buckets: _SemgrepFeatureBuckets, category: str, value: str) -> None:
+        if category == "api":
+            buckets.api_endpoints.append(value)
+            buckets.themes.add("API")
+            return
+        if category == "model":
+            buckets.data_models.append(value)
+            buckets.themes.add("Database")
+            return
+        if category == "auth":
+            buckets.auth_patterns.append(value)
+            buckets.themes.add("Security")
+            return
+        if category == "crud":
+            op, _, entity = value.partition(":")
+            buckets.crud_operations.append({"operation": op, "entity": entity})
+            return
+        if category == "antipattern":
+            buckets.anti_patterns.append(value)
+            return
+        if category == "codesmell":
+            buckets.code_smells.append(value)
+
+    def _enhance_feature_with_semgrep(self, feature: Feature, ctx: _SemgrepEnhancementContext) -> None:
         """
         Enhance feature with Semgrep pattern detection results.
 
         Args:
             feature: Feature to enhance
-            semgrep_findings: List of Semgrep findings for the file
-            file_path: Path to the file being analyzed
-            class_name: Name of the class this feature represents
-            class_start_line: Starting line number of the class definition
-            class_end_line: Ending line number of the class definition
+            ctx: File/class scope and findings for Semgrep enhancement
         """
-        if not semgrep_findings:
+        if not ctx.semgrep_findings:
             return
 
         relevant_findings = self._filter_relevant_semgrep_findings(
-            semgrep_findings, file_path, class_name, class_start_line, class_end_line
+            ctx.semgrep_findings,
+            ctx.file_path,
+            ctx.class_name,
+            ctx.class_start_line,
+            ctx.class_end_line,
         )
         if not relevant_findings:
             return
 
-        api_endpoints: list[str] = []
-        data_models: list[str] = []
-        auth_patterns: list[str] = []
-        crud_operations: list[dict[str, str]] = []
-        anti_patterns: list[str] = []
-        code_smells: list[str] = []
+        buckets = _SemgrepFeatureBuckets()
 
         for finding in relevant_findings:
             category, value = self._categorise_semgrep_finding(finding)
-            if category == "api":
-                api_endpoints.append(value)
-                self.themes.add("API")
-            elif category == "model":
-                data_models.append(value)
-                self.themes.add("Database")
-            elif category == "auth":
-                auth_patterns.append(value)
-                self.themes.add("Security")
-            elif category == "crud":
-                op, _, entity = value.partition(":")
-                crud_operations.append({"operation": op, "entity": entity})
-            elif category == "antipattern":
-                anti_patterns.append(value)
-            elif category == "codesmell":
-                code_smells.append(value)
+            self._accumulate_semgrep_finding_bucket(buckets, category, value)
 
-        self._apply_semgrep_findings_to_feature(
-            feature, api_endpoints, data_models, auth_patterns, crud_operations, anti_patterns, code_smells
-        )
+        self._apply_semgrep_findings_to_feature(feature, buckets)
+        if ctx.file_theme_accumulator is not None:
+            ctx.file_theme_accumulator.update(buckets.themes)
 
         # Confidence is already calculated with Semgrep evidence in _calculate_feature_confidence
         # No need to adjust here - this method only adds outcomes, constraints, and themes
@@ -1721,25 +1752,7 @@ class CodeAnalyzer:
         Returns:
             List of async method/function names
         """
-        async_methods: list[str] = []
-
-        for node in ast.walk(tree):
-            # Check for async functions
-            if isinstance(node, ast.AsyncFunctionDef):
-                async_methods.append(node.name)
-
-            # Check for await statements (even in sync functions)
-            if isinstance(node, ast.Await):
-                # Find containing function
-                for parent in ast.walk(tree):
-                    if isinstance(parent, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                        for child in ast.walk(parent):
-                            if child == node:
-                                if parent.name not in async_methods:
-                                    async_methods.append(parent.name)
-                                break
-
-        return async_methods
+        return [node.name for node in ast.walk(tree) if isinstance(node, ast.AsyncFunctionDef)]
 
     def _apply_commit_hash_to_matching_features(self, feature_num: str, commit_hash: str) -> None:
         for feature in self.features:

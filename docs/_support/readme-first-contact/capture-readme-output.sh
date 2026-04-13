@@ -5,7 +5,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 
-CLI_VERSION="${CLI_VERSION:-0.45.1}"
+CLI_VERSION="${CLI_VERSION:-0.46.0}"
 REPO_SLUG="${REPO_SLUG:-nold-ai/specfact-demo-repo}"
 CAPTURE_REF="${CAPTURE_REF:-${CAPTURE_COMMIT:-2b5ba8cd57d16c1a1f24463a297fdb28fbede123}}"
 WORK_DIR="${WORK_DIR:-/tmp/specfact-demo-repo}"

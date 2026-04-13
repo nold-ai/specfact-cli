@@ -10,6 +10,7 @@ import logging
 import os
 import re
 import sys
+from dataclasses import dataclass
 from logging.handlers import QueueHandler, QueueListener, RotatingFileHandler
 from queue import Queue
 from typing import Any, Literal
@@ -282,6 +283,31 @@ class MessageFlowFormatter(logging.Formatter):
         return formatted_message
 
 
+@dataclass
+class _FileOutputPipelineConfig:
+    logger_name: str
+    logger: logging.Logger
+    level: int
+    log_format: MessageFlowFormatter
+    log_file: str
+    use_rotating_file: bool
+    append_mode: bool
+
+
+@dataclass
+class LoggerCreateOptions:
+    """Options for :meth:`LoggerSetup.create_logger`."""
+
+    log_file: str | None = None
+    agent_name: str | None = None
+    log_level: str | None = None
+    session_id: str | None = None
+    use_rotating_file: bool = True
+    append_mode: bool = True
+    preserve_test_format: bool = False
+    emit_to_console: bool = True
+
+
 class LoggerSetup:
     """
     Utility class for standardized logging setup across all agents
@@ -407,16 +433,14 @@ class LoggerSetup:
         return existing_logger
 
     @classmethod
-    def _attach_file_output_pipeline(
-        cls,
-        logger_name: str,
-        logger: logging.Logger,
-        level: int,
-        log_format: MessageFlowFormatter,
-        log_file: str,
-        use_rotating_file: bool,
-        append_mode: bool,
-    ) -> None:
+    def _attach_file_output_pipeline(cls, cfg: _FileOutputPipelineConfig) -> None:
+        logger_name = cfg.logger_name
+        logger = cfg.logger
+        level = cfg.level
+        log_format = cfg.log_format
+        log_file = cfg.log_file
+        use_rotating_file = cfg.use_rotating_file
+        append_mode = cfg.append_mode
         log_queue = Queue(-1)
         cls._log_queues[logger_name] = log_queue
 
@@ -519,27 +543,27 @@ class LoggerSetup:
     @classmethod
     @beartype
     @require(lambda name: isinstance(name, str) and len(name) > 0, "Name must be non-empty string")
-    @require(
-        lambda log_level: log_level is None or (isinstance(log_level, str) and len(log_level) > 0),
-        "Log level must be None or non-empty string",
-    )
     @ensure(lambda result: isinstance(result, logging.Logger), "Must return Logger instance")
     def create_logger(
         cls,
         name: str,
-        log_file: str | None = None,
-        agent_name: str | None = None,
-        log_level: str | None = None,
-        session_id: str | None = None,
-        use_rotating_file: bool = True,
-        append_mode: bool = True,
-        preserve_test_format: bool = False,
-        emit_to_console: bool = True,
+        options: LoggerCreateOptions | None = None,
     ) -> logging.Logger:
         """
         Creates a new logger or returns an existing one with the specified configuration.
         This method is process-safe and suitable for multi-agent environments.
         """
+        opts = options or LoggerCreateOptions()
+        log_file = opts.log_file
+        agent_name = opts.agent_name
+        log_level = opts.log_level
+        if log_level is not None and (not isinstance(log_level, str) or not log_level.strip()):
+            raise ValueError("log_level must be None or a non-empty string")
+        session_id = opts.session_id
+        use_rotating_file = opts.use_rotating_file
+        append_mode = opts.append_mode
+        preserve_test_format = opts.preserve_test_format
+        emit_to_console = opts.emit_to_console
         logger_name = name
         reused = cls._reuse_or_teardown_cached_logger(logger_name, log_file, log_level)
         if reused is not None:
@@ -566,13 +590,15 @@ class LoggerSetup:
 
         if log_file:
             cls._attach_file_output_pipeline(
-                logger_name,
-                logger,
-                level,
-                log_format,
-                log_file,
-                use_rotating_file,
-                append_mode,
+                _FileOutputPipelineConfig(
+                    logger_name,
+                    logger,
+                    level,
+                    log_format,
+                    log_file,
+                    use_rotating_file,
+                    append_mode,
+                )
             )
         else:
             cls._attach_console_queue_pipeline(
@@ -774,11 +800,13 @@ def setup_logger(
     # Use the LoggerSetup class for consistent logging setup
     return LoggerSetup.create_logger(
         agent_name,
-        log_file=log_file,
-        agent_name=agent_name,
-        log_level=log_level,
-        session_id=session_id,
-        use_rotating_file=use_rotating_file,
+        LoggerCreateOptions(
+            log_file=log_file,
+            agent_name=agent_name,
+            log_level=log_level,
+            session_id=session_id,
+            use_rotating_file=use_rotating_file,
+        ),
     )
 
 

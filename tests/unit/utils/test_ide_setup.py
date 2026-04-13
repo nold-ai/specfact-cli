@@ -11,7 +11,6 @@ from specfact_cli.utils.ide_setup import (
     PROMPT_SOURCE_CORE,
     SPECFACT_COMMANDS,
     _flat_export_glob_pattern_for_prune,
-    _is_specfact_github_prompt_path,
     copy_templates_to_ide,
     create_vscode_settings,
     detect_ide,
@@ -22,6 +21,7 @@ from specfact_cli.utils.ide_setup import (
     read_template,
     write_ide_prompt_export_state,
 )
+from specfact_cli.utils.project_artifact_write import _is_specfact_github_prompt_path
 
 
 class TestDetectIDE:

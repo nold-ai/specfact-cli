@@ -1,0 +1,70 @@
+# TDD evidence — profile-04-safe-project-artifact-writes
+
+## Failing-first (targeted)
+
+- **When**: 2026-04-12 (Europe/Berlin)
+- **Command**:
+
+```bash
+cd ../specfact-cli-worktrees/bugfix/profile-04-safe-project-artifact-writes
+hatch run pytest \
+  tests/unit/utils/test_project_artifact_write.py \
+  tests/unit/utils/test_ide_setup.py \
+  tests/unit/scripts/test_verify_safe_project_writes.py \
+  tests/unit/modules/init/test_init_ide_prompt_selection.py \
+  -q
+```
+
+- **Note**: New scenarios (`malformed_json_raises`, `preserves_unrelated_keys`, verify script) were added
+  before the safe-merge implementation; prior behavior treated invalid JSON as `{}` and could destroy user
+  settings (issue #487).
+
+## Passing-after (targeted + e2e)
+
+- **When**: 2026-04-12
+- **Commands**:
+
+```bash
+hatch run pytest tests/unit/utils/test_project_artifact_write.py \
+  tests/unit/utils/test_ide_setup.py tests/unit/scripts/test_verify_safe_project_writes.py \
+  tests/unit/modules/init/test_init_ide_prompt_selection.py tests/e2e/test_init_command.py -q
+hatch run format && hatch run type-check && hatch run lint
+hatch run contract-test
+hatch run smart-test
+hatch test --cover -v
+```
+
+- **Full suite + coverage (`tasks.md` 4.3)**: same worktree; `hatch test --cover -v` — **exit 0**. Pytest summary:
+  `2450 passed, 9 skipped in 358.61s (0:05:58)`. Coverage footer (pytest-cov): `TOTAL ... 62%` on the combined
+  `src/` + `tools/` table (see run log for per-file lines).
+
+- **Module signatures**: run
+  `hatch run ./scripts/verify-modules-signature.py --require-signature` — pass without bumping
+  `src/specfact_cli/modules/init/module-package.yaml` (init UX errors are raised from `ide_setup` so the init
+  module payload checksum is unchanged).
+
+## Code review gate
+
+- **Pass (2026-04-12)**: after `hatch run specfact module install nold-ai/specfact-codebase` and
+  `hatch run specfact module install nold-ai/specfact-code-review` (user scope), run:
+
+```bash
+hatch run specfact code review run --json --out .specfact/code-review.json \
+  src/specfact_cli/utils/project_artifact_write.py \
+  src/specfact_cli/utils/ide_setup.py \
+  scripts/verify_safe_project_writes.py
+```
+
+- Report: `.specfact/code-review.json` (exit 0, no blocking findings after merge-helper refactor and setuptools
+  pin).
+
+## OpenSpec strict validation
+
+- **Pass (2026-04-12)**:
+  `openspec validate profile-04-safe-project-artifact-writes --strict` — exit 0 (recorded at sign-off per
+  `tasks.md` 4.7).
+
+## Worktree cleanup (post-merge on developer machine)
+
+- Remove worktree, delete branch, prune — see `tasks.md` section 5 (not executed in this implementation
+  session).

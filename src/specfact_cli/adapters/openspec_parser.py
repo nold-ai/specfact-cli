@@ -391,24 +391,22 @@ class OpenSpecParser:
 
         current_section: str | None = None
 
-        # Parse markdown sections
         for line in content.splitlines():
             if line.startswith("##"):
-                # Section header - normalize section name
-                current_section = line.lstrip("#").strip().lower()
-            elif current_section:
-                # Process content based on current section
-                if current_section == "type":
-                    # Extract type value (should be on the line after ## Type)
-                    if line.strip():
-                        change_type = line.strip().upper()
-                elif current_section == "feature id" or current_section == "feature_id":
-                    # Extract feature ID
-                    if line.strip():
-                        feature_id = line.strip()
-                elif current_section == "content":
-                    # Collect content
+                if current_section == "content":
                     delta_content.append(line)
+                    continue
+                current_section = line.lstrip("#").strip().lower()
+                continue
+            if not current_section:
+                continue
+            stripped = line.strip()
+            if current_section == "type" and stripped:
+                change_type = stripped.upper()
+            elif current_section in ("feature id", "feature_id") and stripped:
+                feature_id = stripped
+            elif current_section == "content":
+                delta_content.append(line)
 
         return {
             "type": change_type,

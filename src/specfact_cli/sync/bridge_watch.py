@@ -27,6 +27,19 @@ from specfact_cli.sync.watcher import FileChange, SyncEventHandler
 _logger = get_bridge_logger(__name__)
 
 
+def _match_feature_id_from_pattern_parts(pattern_parts: list[str], file_parts: list[str]) -> str | None:
+    try:
+        feature_id_index = pattern_parts.index("{feature_id}")
+    except ValueError:
+        return None
+    if feature_id_index >= len(file_parts):
+        return None
+    for i in range(feature_id_index):
+        if i >= len(file_parts) or pattern_parts[i] != file_parts[i]:
+            return None
+    return file_parts[feature_id_index]
+
+
 class _RunningObserver(Protocol):
     @require(lambda self, handler, path: isinstance(path, str))
     @ensure(lambda result: result is None)
@@ -288,29 +301,12 @@ class BridgeWatch:
 
         for _artifact_key, artifact in self.bridge_config.artifacts.items():
             pattern = artifact.path_pattern
-            # Simple extraction (could be enhanced with regex)
-            if "{feature_id}" in pattern:
-                # Extract feature_id from path (e.g., "specs/001-auth/spec.md" -> "001-auth")
-                # Pattern format: "specs/{feature_id}/spec.md" or "docs/specs/{feature_id}/spec.md"
-                pattern_parts = pattern.split("/")
-
-                # Find where {feature_id} appears in pattern
-                try:
-                    feature_id_index = pattern_parts.index("{feature_id}")
-                    # Find corresponding part in file path
-                    # Match pattern parts before {feature_id} to file path
-                    if feature_id_index < len(file_parts):
-                        # Check if preceding parts match
-                        matches = True
-                        for i in range(feature_id_index):
-                            if i < len(file_parts) and pattern_parts[i] != file_parts[i]:
-                                matches = False
-                                break
-                        if matches and feature_id_index < len(file_parts):
-                            return file_parts[feature_id_index]
-                except ValueError:
-                    # {feature_id} not in pattern
-                    continue
+            if "{feature_id}" not in pattern:
+                continue
+            pattern_parts = pattern.split("/")
+            feature_id = _match_feature_id_from_pattern_parts(pattern_parts, file_parts)
+            if feature_id is not None:
+                return feature_id
         return None
 
     @beartype

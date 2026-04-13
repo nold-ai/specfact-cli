@@ -9,7 +9,7 @@ from typer.testing import CliRunner
 
 from specfact_cli.models.module_package import ModulePackageMetadata
 from specfact_cli.modules.module_registry.src.commands import app
-from specfact_cli.registry.module_installer import USER_MODULES_ROOT
+from specfact_cli.registry.module_installer import USER_MODULES_ROOT, InstallModuleOptions
 
 
 runner = CliRunner()
@@ -28,7 +28,7 @@ def test_install_command_integration(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.discover_all_modules", list)
     monkeypatch.setattr(
         "specfact_cli.modules.module_registry.src.commands.install_module",
-        lambda module_id, version=None, install_root=None, **_kwargs: tmp_path / module_id.split("/")[-1],
+        lambda module_id, options=None, **_kwargs: tmp_path / module_id.split("/")[-1],
     )
 
     result = runner.invoke(app, ["install", "specfact/backlog"])
@@ -41,7 +41,7 @@ def test_install_command_integration(monkeypatch, tmp_path: Path) -> None:
 def test_install_command_accepts_bare_module_name(monkeypatch, tmp_path: Path) -> None:
     captured: dict[str, str | None] = {"module_id": None}
 
-    def _install(module_id: str, version=None, install_root=None, **_kwargs):
+    def _install(module_id: str, options: InstallModuleOptions | None = None, **_kwargs):
         captured["module_id"] = module_id
         return tmp_path / module_id.split("/")[-1]
 
@@ -80,7 +80,7 @@ def test_install_command_skips_when_module_already_available_locally(monkeypatch
 
     called = {"install": False}
 
-    def _install(module_id: str, version=None, **_kwargs):
+    def _install(module_id: str, options: InstallModuleOptions | None = None, **_kwargs):
         called["install"] = True
         return tmp_path / module_id.split("/")[-1]
 
@@ -97,9 +97,10 @@ def test_install_command_skips_when_module_already_available_locally(monkeypatch
 def test_install_command_project_scope_installs_to_project_modules_root(monkeypatch, tmp_path: Path) -> None:
     captured: dict[str, object] = {"install_root": None, "module_id": None}
 
-    def _install(module_id: str, version=None, install_root=None, **_kwargs):
+    def _install(module_id: str, options: InstallModuleOptions | None = None, **_kwargs):
+        o = options or InstallModuleOptions()
         captured["module_id"] = module_id
-        captured["install_root"] = install_root
+        captured["install_root"] = o.install_root
         return tmp_path / "installed"
 
     monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.discover_all_modules", list)
@@ -169,7 +170,7 @@ def test_install_command_project_scope_does_not_skip_when_user_scope_module_exis
 
     called = {"marketplace": False}
 
-    def _install_marketplace(module_id: str, version=None, install_root=None, **_kwargs):
+    def _install_marketplace(module_id: str, options: InstallModuleOptions | None = None, **_kwargs):
         called["marketplace"] = True
         return tmp_path / module_id.split("/")[-1]
 
@@ -200,7 +201,7 @@ def test_install_command_source_marketplace_skips_bundled_resolution(monkeypatch
         called["bundled"] = True
         return True
 
-    def _marketplace(module_id: str, version=None, install_root=None, **_kwargs):
+    def _marketplace(module_id: str, options: InstallModuleOptions | None = None, **_kwargs):
         called["marketplace"] = True
         return tmp_path / module_id.split("/")[-1]
 
@@ -220,10 +221,9 @@ def test_install_command_requires_explicit_trust_for_non_official_in_non_interac
     monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.discover_all_modules", list)
     monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.is_non_interactive", lambda: True)
 
-    def _install(
-        module_id: str, version=None, install_root=None, trust_non_official=False, non_interactive=False, **kwargs
-    ):
-        if not trust_non_official and non_interactive:
+    def _install(module_id: str, options: InstallModuleOptions | None = None, **_kwargs):
+        o = options or InstallModuleOptions()
+        if not o.trust_non_official and o.non_interactive:
             raise ValueError("requires --trust-non-official")
         return tmp_path / module_id.split("/")[-1]
 
@@ -245,11 +245,10 @@ def test_install_command_passes_trust_flag_to_marketplace_installer(monkeypatch,
     monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.is_non_interactive", lambda: True)
     captured: dict[str, bool | None] = {"trust_non_official": None, "non_interactive": None}
 
-    def _install(
-        module_id: str, version=None, install_root=None, trust_non_official=False, non_interactive=False, **kwargs
-    ):
-        captured["trust_non_official"] = trust_non_official
-        captured["non_interactive"] = non_interactive
+    def _install(module_id: str, options: InstallModuleOptions | None = None, **_kwargs):
+        o = options or InstallModuleOptions()
+        captured["trust_non_official"] = o.trust_non_official
+        captured["non_interactive"] = o.non_interactive
         return tmp_path / module_id.split("/")[-1]
 
     monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.install_module", _install)
@@ -1014,8 +1013,9 @@ def test_show_command_fails_for_unknown_module(monkeypatch) -> None:
 def test_upgrade_command(monkeypatch, tmp_path: Path) -> None:
     captured: dict[str, bool | None] = {"reinstall": None}
 
-    def _install(module_id: str, version=None, reinstall: bool = False):
-        captured["reinstall"] = reinstall
+    def _install(module_id: str, options: InstallModuleOptions | None = None, **_kwargs):
+        o = options or InstallModuleOptions()
+        captured["reinstall"] = o.reinstall
         return tmp_path / module_id.split("/")[-1]
 
     monkeypatch.setattr(
@@ -1038,9 +1038,10 @@ def test_upgrade_without_module_name_upgrades_all_marketplace(monkeypatch, tmp_p
     installed: list[str] = []
     reinstall_flags: list[bool] = []
 
-    def _install(module_id: str, version=None, reinstall: bool = False):
+    def _install(module_id: str, options: InstallModuleOptions | None = None, **_kwargs):
+        o = options or InstallModuleOptions()
         installed.append(module_id)
-        reinstall_flags.append(reinstall)
+        reinstall_flags.append(o.reinstall)
         return tmp_path / module_id.split("/")[-1]
 
     monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.install_module", _install)
@@ -1063,7 +1064,7 @@ def test_upgrade_without_module_name_upgrades_all_marketplace(monkeypatch, tmp_p
 def test_upgrade_without_module_name_reports_one_line_per_module_with_versions(monkeypatch, tmp_path: Path) -> None:
     installed: list[str] = []
 
-    def _install(module_id: str, version=None, reinstall: bool = False):
+    def _install(module_id: str, options: InstallModuleOptions | None = None, **_kwargs):
         installed.append(module_id)
         module_dir = tmp_path / module_id.split("/")[-1]
         module_dir.mkdir(parents=True, exist_ok=True)
@@ -1108,7 +1109,7 @@ def test_upgrade_rejects_multi_segment_module_id(monkeypatch, tmp_path: Path) ->
     """Malformed owner/repo/extra must not resolve via last-segment fallback to a different module."""
     installed: list[str] = []
 
-    def _install(module_id: str, version=None, reinstall: bool = False):
+    def _install(module_id: str, options: InstallModuleOptions | None = None, **_kwargs):
         installed.append(module_id)
         return tmp_path / module_id.split("/")[-1]
 
