@@ -10,14 +10,33 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.46.2] - 2026-04-15
+
+### Fixed
+
+- **Modules**: `init` **0.1.29** — patch bump so **`dev` → `main`** PRs satisfy **`--enforce-version-bump`**
+  against **`origin/main`** when **`main`** already had **0.1.28** (adding **`integrity.signature`** alone is not
+  enough; the module **version** must increase when the manifest is in the diff).
+
+### Changed
+
+- **CI / modules**: **`pr-orchestrator.yml`** verifies bundled modules **without** **`--require-signature`**
+  (checksum + **`--enforce-version-bump`** + **`--payload-from-filesystem`**), so PR heads and non-**`main`**
+  contexts are not blocked by missing signatures during implementation. **`sign-modules.yml`** **auto-signs**
+  **`--changed-only`** manifests on **push** to **`dev`** or **`main`** for non-bot actors (requires
+  **`SPECFACT_MODULE_PRIVATE_SIGN_KEY`**), runs **strict** **`--require-signature`** verification in the same job,
+  then commits and pushes **`chore(modules): auto-sign bundled manifests [skip ci]`** when needed; pushes from
+  **`github-actions[bot]`** skip signing and only run strict verify. **Reproducibility** resets to
+  **`origin/<branch>`** after verify so it targets the post-auto-sign tip.
+
 ## [0.46.1] - 2026-04-14
 
 ### Security
 
 - **CI / modules**: `sign-modules-on-approval.yml` checks out **`pull_request.base.sha`** for
   `scripts/sign-modules.py` and runs it from **`GITHUB_WORKSPACE`** against the PR head checkout (secrets
-  never execute branch-supplied signer code). **Fork PRs to `main`** regain **`--require-signature`** in
-  `pr-orchestrator.yml` and `sign-modules.yml` (approval signer cannot fix fork heads).
+  never execute branch-supplied signer code). Pull requests **into `main`** use **`--require-signature`** in
+  `pr-orchestrator.yml` and `sign-modules.yml` (approval-time signing cannot fix unsigned **fork** heads).
 
 ### Added
 
