@@ -6,6 +6,9 @@ version is not newer than PyPI, which hides release problems until merge to main
 surfaces that requirement on every PR that runs the tests job.
 
 Set SPECFACT_SKIP_PYPI_VERSION_CHECK=1 to skip (offline / air-gapped only; do not use in CI).
+
+Set SPECFACT_PYPI_VERSION_CHECK_LENIENT_NETWORK=1 so a PyPI fetch failure after retries exits 0
+(warning only). Policy failures (local version not ahead of PyPI) still exit 1.
 """
 
 from __future__ import annotations
@@ -20,6 +23,9 @@ import urllib.request
 from pathlib import Path
 from typing import Any
 
+from beartype import beartype
+from icontract import ensure, require
+
 
 DEFAULT_PACKAGE = "specfact-cli"
 PYPI_JSON_TMPL = "https://pypi.org/pypi/{package}/json"
@@ -27,10 +33,16 @@ DEFAULT_TIMEOUT_S = 15.0
 _MAX_FETCH_ATTEMPTS = 5
 
 
+class PypiFetchError(RuntimeError):
+    """Raised when the latest PyPI version cannot be fetched after retries (network or HTTP)."""
+
+
 def _repo_root() -> Path:
     return Path(__file__).resolve().parents[1]
 
 
+@beartype
+@require(lambda pyproject_path: isinstance(pyproject_path, Path))
 def read_local_version(pyproject_path: Path) -> str:
     if not pyproject_path.is_file():
         msg = f"check_local_version_ahead_of_pypi: missing {pyproject_path}"
@@ -48,6 +60,10 @@ def read_local_version(pyproject_path: Path) -> str:
     return version.strip()
 
 
+@beartype
+@require(lambda package: isinstance(package, str))
+@require(lambda timeout_s: isinstance(timeout_s, (int, float)) and timeout_s > 0)
+@ensure(lambda result: result is None or isinstance(result, str))
 def fetch_latest_pypi_version(
     package: str = DEFAULT_PACKAGE,
     *,
@@ -71,17 +87,17 @@ def fetch_latest_pypi_version(
                 return None
             if attempt + 1 >= _MAX_FETCH_ATTEMPTS:
                 msg = f"check_local_version_ahead_of_pypi: PyPI HTTP {exc.code} for {url}"
-                raise RuntimeError(msg) from exc
+                raise PypiFetchError(msg) from exc
         except urllib.error.URLError as exc:
             if attempt + 1 >= _MAX_FETCH_ATTEMPTS:
                 msg = f"check_local_version_ahead_of_pypi: network error querying PyPI ({url}): {exc}"
-                raise RuntimeError(msg) from exc
+                raise PypiFetchError(msg) from exc
         wait_s = min(2**attempt, 8.0)
         time.sleep(wait_s)
 
     if payload is None:
         msg = "check_local_version_ahead_of_pypi: exhausted fetch retries without a response body"
-        raise RuntimeError(msg)
+        raise PypiFetchError(msg)
 
     try:
         latest = payload["info"]["version"]
@@ -94,6 +110,10 @@ def fetch_latest_pypi_version(
     return latest.strip()
 
 
+@beartype
+@require(lambda local: isinstance(local, str))
+@require(lambda pypi_latest: pypi_latest is None or isinstance(pypi_latest, str))
+@ensure(lambda result: isinstance(result, tuple) and len(result) == 2)
 def compare_local_to_pypi_version(local: str, pypi_latest: str | None) -> tuple[bool, str]:
     """Return (ok, message). ok is True when local is strictly greater than PyPI (or PyPI missing)."""
     from packaging.version import parse as vparse
@@ -116,12 +136,13 @@ def compare_local_to_pypi_version(local: str, pypi_latest: str | None) -> tuple[
     return False, detail
 
 
+@beartype
+@ensure(lambda result: result in (0, 1, 2))
 def main() -> int:
     skip = os.environ.get("SPECFACT_SKIP_PYPI_VERSION_CHECK", "").strip().lower()
     if skip in {"1", "true", "yes", "on"}:
-        print(
-            "check_local_version_ahead_of_pypi: skipped (SPECFACT_SKIP_PYPI_VERSION_CHECK)",
-            file=sys.stderr,
+        sys.stderr.write(
+            "check_local_version_ahead_of_pypi: skipped (SPECFACT_SKIP_PYPI_VERSION_CHECK)\n",
         )
         return 0
 
@@ -129,6 +150,15 @@ def main() -> int:
     try:
         local = read_local_version(root / "pyproject.toml")
         pypi_latest = fetch_latest_pypi_version()
+    except PypiFetchError as exc:
+        lenient = os.environ.get("SPECFACT_PYPI_VERSION_CHECK_LENIENT_NETWORK", "").strip().lower()
+        if lenient in {"1", "true", "yes", "on"}:
+            sys.stderr.write(
+                f"::warning::{exc} — skipping ahead-of-PyPI check (lenient network).\n",
+            )
+            return 0
+        sys.stderr.write(f"{exc}\n")
+        return 2
     except (FileNotFoundError, KeyError, ValueError, RuntimeError) as exc:
         sys.stderr.write(f"{exc}\n")
         return 2
@@ -139,7 +169,7 @@ def main() -> int:
         sys.stderr.write(f"check_local_version_ahead_of_pypi: invalid version string ({exc})\n")
         return 2
 
-    print(message, file=sys.stderr)
+    sys.stderr.write(f"{message}\n")
     return 0 if ok else 1
 
 

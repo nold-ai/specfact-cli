@@ -66,10 +66,19 @@ def test_fetch_latest_pypi_version_parses_info_version(mod) -> None:
 
 def test_main_network_error_exit_code_2(mod) -> None:
     with (
-        patch.object(mod, "fetch_latest_pypi_version", side_effect=RuntimeError("boom")),
+        patch.object(mod, "fetch_latest_pypi_version", side_effect=mod.PypiFetchError("boom")),
         patch.object(mod, "read_local_version", return_value="9.9.9"),
     ):
         assert mod.main() == 2
+
+
+def test_main_pypi_fetch_lenient_network_returns_0(mod) -> None:
+    with (
+        patch.object(mod, "fetch_latest_pypi_version", side_effect=mod.PypiFetchError("boom")),
+        patch.object(mod, "read_local_version", return_value="9.9.9"),
+        patch.dict(os.environ, {"SPECFACT_PYPI_VERSION_CHECK_LENIENT_NETWORK": "1"}),
+    ):
+        assert mod.main() == 0
 
 
 def test_main_skip_env_returns_0(mod) -> None:

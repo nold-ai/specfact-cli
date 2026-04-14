@@ -26,6 +26,33 @@ def _workflow_on_block(workflow: dict[str, Any]) -> dict[str, Any]:
     return cast(dict[str, Any], on_block)
 
 
+def _job_steps(workflow: dict[str, Any], job_id: str) -> list[dict[str, Any]]:
+    jobs = workflow.get("jobs")
+    assert isinstance(jobs, dict), "Workflow must define jobs"
+    job = jobs.get(job_id)
+    assert isinstance(job, dict), f"Job {job_id!r} must be a mapping"
+    steps = job.get("steps")
+    assert isinstance(steps, list), f"Job {job_id!r} must define steps"
+    return [cast(dict[str, Any], s) for s in steps]
+
+
+def _step_run_text(step: dict[str, Any]) -> str:
+    run = step.get("run")
+    return run if isinstance(run, str) else ""
+
+
+def _step_dict_field(step: dict[str, Any], field: str) -> dict[str, Any]:
+    block = step.get(field)
+    return cast(dict[str, Any], block) if isinstance(block, dict) else {}
+
+
+def _find_step_by_name(steps: list[dict[str, Any]], name: str) -> dict[str, Any]:
+    for step in steps:
+        if step.get("name") == name:
+            return step
+    raise AssertionError(f"No step named {name!r}")
+
+
 def _assert_pr_review_and_dispatch_triggers(on_block: dict[str, Any]) -> None:
     review = on_block.get("pull_request_review")
     assert isinstance(review, dict), "Expected pull_request_review trigger mapping"
@@ -62,35 +89,74 @@ def _assert_sign_on_dispatch_job_guards(jobs: dict[str, Any]) -> None:
     assert manual_perms.get("contents") == "write"
 
 
-def _assert_trusted_dual_checkout_snippets(raw: str) -> None:
-    assert "github.event.pull_request.base.sha" in raw
-    assert "path: _trusted_scripts" in raw
-    assert "path: _pr_workspace" in raw
-    assert "working-directory: _pr_workspace" in raw
-    assert "${GITHUB_WORKSPACE}/_trusted_scripts/scripts/sign-modules.py" in raw
+def _assert_approval_trusted_checkout(steps: list[dict[str, Any]]) -> None:
+    trusted = _find_step_by_name(steps, "Checkout trusted signing scripts (base branch revision)")
+    tw = _step_dict_field(trusted, "with")
+    assert "actions/checkout" in str(trusted.get("uses", ""))
+    assert "${{ github.event.pull_request.base.sha }}" in str(tw.get("ref", ""))
+    assert tw.get("path") == "_trusted_scripts"
 
 
-def _assert_approval_sign_shell_snippets(raw: str) -> None:
-    assert "--changed-only" in raw
-    assert "--bump-version patch" in raw
-    assert "--payload-from-filesystem" in raw
-    assert '--base-ref "${BASE_REF}"' in raw
-    assert "origin/${{ github.event.pull_request.base.ref }}" in raw
-    assert "chore(modules): ci sign changed modules [skip ci]" in raw
-    assert 'git push origin "HEAD:${HEAD_REF}"' in raw
+def _assert_approval_pr_head_checkout(steps: list[dict[str, Any]]) -> None:
+    head = _find_step_by_name(steps, "Checkout PR head (module tree to sign)")
+    hw = _step_dict_field(head, "with")
+    assert "actions/checkout" in str(head.get("uses", ""))
+    assert "${{ github.head_ref }}" in str(hw.get("ref", ""))
+    assert hw.get("path") == "_pr_workspace"
+    assert hw.get("fetch-depth") == 0
 
 
-def _assert_dispatch_sign_shell_snippets(raw: str) -> None:
-    assert "workflow_dispatch:" in raw
-    assert "git merge-base" in raw
-    assert '--base-ref "${MERGE_BASE}"' in raw
-    assert "chore(modules): manual approval-workflow sign changed modules" in raw
-    assert 'git push origin "HEAD:${GITHUB_REF_NAME}"' in raw
+def _assert_approval_sign_step(steps: list[dict[str, Any]]) -> None:
+    sign = _find_step_by_name(steps, "Sign changed module manifests")
+    run = _step_run_text(sign)
+    assert sign.get("working-directory") == "_pr_workspace"
+    assert "--changed-only" in run
+    assert "--bump-version patch" in run
+    assert "--payload-from-filesystem" in run
+    assert "BASE_REF" in run
+    assert "github.event.pull_request.base.sha" in run
+    assert "sign-modules.py" in run
+    assert "_trusted_scripts" in run
+    env = _step_dict_field(sign, "env")
+    assert any("SPECFACT_MODULE_PRIVATE_SIGN_KEY" in str(v) for v in env.values()), (
+        "Sign step must wire SPECFACT_MODULE_PRIVATE_SIGN_KEY secret"
+    )
+    assert any("SPECFACT_MODULE_PRIVATE_SIGN_KEY_PASSPHRASE" in str(v) for v in env.values()), (
+        "Sign step must wire passphrase secret"
+    )
 
 
-def _assert_signing_secrets_referenced(raw: str) -> None:
-    assert "SPECFACT_MODULE_PRIVATE_SIGN_KEY" in raw
-    assert "SPECFACT_MODULE_PRIVATE_SIGN_KEY_PASSPHRASE" in raw
+def _assert_approval_push_step(steps: list[dict[str, Any]]) -> None:
+    push = _find_step_by_name(steps, "Commit and push signed manifests")
+    prun = _step_run_text(push)
+    assert "origin" in prun
+    assert "HEAD_REF" in prun
+    assert push.get("working-directory") == "_pr_workspace"
+
+
+def _assert_approval_checkout_and_sign_steps(workflow: dict[str, Any]) -> None:
+    steps = _job_steps(workflow, "sign-on-approval")
+    _assert_approval_trusted_checkout(steps)
+    _assert_approval_pr_head_checkout(steps)
+    _assert_approval_sign_step(steps)
+    _assert_approval_push_step(steps)
+
+
+def _assert_dispatch_sign_steps(workflow: dict[str, Any]) -> None:
+    steps = _job_steps(workflow, "sign-on-dispatch")
+    sign = _find_step_by_name(steps, "Sign changed module manifests")
+    srun = _step_run_text(sign)
+    assert "git merge-base" in srun
+    assert "MERGE_BASE" in srun
+    assert '--base-ref "${MERGE_BASE}"' in srun
+    assert "sign-modules.py" in srun
+    assert "_trusted_scripts" in srun
+
+    push = _find_step_by_name(steps, "Commit and push signed manifests")
+    prun = _step_run_text(push)
+    assert "chore(modules): manual approval-workflow sign changed modules" in prun
+    assert 'git push origin "HEAD:${GITHUB_REF_NAME}"' in prun
+    assert "origin" in prun
 
 
 def test_sign_modules_on_approval_workflow_exists() -> None:
@@ -108,8 +174,6 @@ def test_sign_modules_on_approval_trigger_and_guards() -> None:
 
 
 def test_sign_modules_on_approval_runs_signer_with_changed_only_mode() -> None:
-    raw = WORKFLOW.read_text(encoding="utf-8")
-    _assert_trusted_dual_checkout_snippets(raw)
-    _assert_approval_sign_shell_snippets(raw)
-    _assert_dispatch_sign_shell_snippets(raw)
-    _assert_signing_secrets_referenced(raw)
+    workflow = _load_yaml(WORKFLOW)
+    _assert_approval_checkout_and_sign_steps(workflow)
+    _assert_dispatch_sign_steps(workflow)
