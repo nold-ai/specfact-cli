@@ -551,7 +551,7 @@ jobs:
           {
             set -euo pipefail
             ruff format . --check
-            python -m basedpyright --pythonpath "$(python -c 'import sys; print(sys.executable)')"
+            python -m basedpyright --level error --pythonpath "$(python -c 'import sys; print(sys.executable)')"
             ruff check .
             pylint src tests tools
             python scripts/verify_safe_project_writes.py

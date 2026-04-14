@@ -341,7 +341,7 @@ run_lint_if_staged_python() {
     info "📦 Block 1 — lint — skipped (no staged *.py / *.pyi)"
     return 0
   fi
-  info "📦 Block 1 — lint — running \`hatch run lint\` (ruff, basedpyright, pylint; matches CI quality gate)"
+  info "📦 Block 1 — lint — running \`hatch run lint\` (ruff, basedpyright --level error, pylint; matches CI quality gate)"
   if hatch run lint; then
     success "✅ Block 1 — lint passed"
   else

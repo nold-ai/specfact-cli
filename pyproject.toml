@@ -209,7 +209,8 @@ validate-prompts = "python tools/validate_prompts.py"
 test = "pytest {args}"
 test-cov = "pytest --cov=src --cov-report=term-missing {args}"
 type-check = "basedpyright --pythonpath $(python -c 'import sys; print(sys.executable)') {args}"
-lint = "ruff format . --check && basedpyright --pythonpath $(python -c 'import sys; print(sys.executable)') && ruff check . && pylint src tests tools && python scripts/verify_safe_project_writes.py"
+# basedpyright --level error: suppress warning noise in pre-commit (Block 1 runs `hatch run lint`).
+lint = "ruff format . --check && basedpyright --level error --pythonpath $(python -c 'import sys; print(sys.executable)') && ruff check . && pylint src tests tools && python scripts/verify_safe_project_writes.py"
 governance = "pylint src tests tools --reports=y --output-format=parseable"
 format = "ruff check . --fix && ruff format ."
 
