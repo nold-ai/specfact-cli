@@ -191,12 +191,12 @@ class GraphAnalyzer:
         graph: StrDiGraph,
         module_name: str,
         call_graph: dict[str, list[str]],
-        python_files: list[Path],
+        loaded_contents: list[tuple[str, str]],
     ) -> None:
         """Add directed edges from ``module_name`` to callees that resolve to known graph nodes."""
         for _caller, callees in call_graph.items():
             for callee in callees:
-                callee_module = self._resolve_module_from_function(callee, python_files)
+                callee_module = self._resolve_module_from_function_preloaded(callee, loaded_contents)
                 if callee_module is None or callee_module not in graph:
                     continue
                 graph.add_edge(module_name, callee_module)
@@ -212,6 +212,7 @@ class GraphAnalyzer:
         """Populate graph with edges derived from pyan call graphs (parallel phase 2)."""
         from concurrent.futures import ThreadPoolExecutor, as_completed
 
+        loaded_contents = self._load_python_file_contents_index(python_files)
         executor = ThreadPoolExecutor(max_workers=max_workers)
         completed = 0
         try:
@@ -221,7 +222,7 @@ class GraphAnalyzer:
                 try:
                     call_graph = future.result()
                     module_name = self._path_to_module_name(file_path)
-                    self._add_call_graph_edges_for_module(graph, module_name, call_graph, python_files)
+                    self._add_call_graph_edges_for_module(graph, module_name, call_graph, loaded_contents)
                 except (OSError, RuntimeError):
                     pass
                 completed += 1
@@ -433,24 +434,30 @@ class GraphAnalyzer:
         return self._find_matching_module_suffix_overlap(imported, known_modules)
 
     @beartype
-    @require(lambda function_name: isinstance(function_name, str), "Function name must be str")
     @require(lambda python_files: isinstance(python_files, list), "Python files must be list")
-    @ensure(lambda result: result is None or isinstance(result, str), "Must return None or str")
-    def _resolve_module_from_function(self, function_name: str, python_files: list[Path]) -> str | None:
-        """
-        Resolve module name from function name.
-
-        This is a heuristic - tries to find the module containing the function.
-        """
-        # Simple heuristic: search for function name in files
+    @ensure(lambda result: isinstance(result, list), "Must return list")
+    def _load_python_file_contents_index(self, python_files: list[Path]) -> list[tuple[str, str]]:
+        """Preload (module_name, source_text) pairs once per graph build for callee resolution."""
+        loaded: list[tuple[str, str]] = []
         for file_path in python_files:
             try:
                 content = file_path.read_text(encoding="utf-8")
-                if f"def {function_name}" in content or f"class {function_name}" in content:
-                    return self._path_to_module_name(file_path)
-            except (UnicodeDecodeError, Exception):
+            except (OSError, UnicodeDecodeError):
                 continue
+            loaded.append((self._path_to_module_name(file_path), content))
+        return loaded
 
+    @beartype
+    @require(lambda function_name: isinstance(function_name, str), "Function name must be str")
+    @require(lambda loaded_contents: isinstance(loaded_contents, list), "Loaded contents must be list")
+    @ensure(lambda result: result is None or isinstance(result, str), "Must return None or str")
+    def _resolve_module_from_function_preloaded(
+        self, function_name: str, loaded_contents: list[tuple[str, str]]
+    ) -> str | None:
+        """Resolve module for ``function_name`` using preloaded sources (same heuristic as one-file scan)."""
+        for module_name, content in loaded_contents:
+            if f"def {function_name}" in content or f"class {function_name}" in content:
+                return module_name
         return None
 
     @beartype

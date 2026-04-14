@@ -180,7 +180,7 @@ def _assert_pre_commit_verify_and_version_hooks(by_id: dict[str, dict[str, Any]]
 
 
 def _assert_pre_commit_cli_quality_block_hooks(by_id: dict[str, dict[str, Any]]) -> None:
-    for hid in (
+    hook_ids = (
         "cli-block1-format",
         "cli-block1-yaml",
         "cli-block1-markdown-fix",
@@ -188,20 +188,14 @@ def _assert_pre_commit_cli_quality_block_hooks(by_id: dict[str, dict[str, Any]])
         "cli-block1-workflows",
         "cli-block1-lint",
         "cli-block2",
-    ):
+    )
+    for hid in hook_ids:
         assert hid in by_id
-    assert by_id["cli-block2"].get("always_run") is True
-    for hid in (
-        "cli-block1-format",
-        "cli-block1-yaml",
-        "cli-block1-markdown-fix",
-        "cli-block1-markdown-lint",
-        "cli-block1-workflows",
-        "cli-block1-lint",
-        "cli-block2",
-    ):
         entry = by_id[hid].get("entry", "")
         assert "pre-commit-quality-checks.sh" in str(entry), f"{hid} must invoke quality-checks script"
+    assert by_id["cli-block1-format"].get("always_run") is not True
+    assert by_id["cli-block1-format"].get("files")
+    assert by_id["cli-block2"].get("always_run") is True
     assert "check-doc-frontmatter" in by_id
 
 

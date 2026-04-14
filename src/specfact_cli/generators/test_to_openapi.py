@@ -359,13 +359,7 @@ class OpenAPITestConverter:
         if isinstance(node, ast.Constant):
             return node.value
         if isinstance(node, ast.Dict):
-            result: dict[str, Any] = {}
-            for k, v in zip(node.keys, node.values, strict=True):
-                key = self._extract_ast_value(k) if k else None
-                val = self._extract_ast_value(v)
-                if key is not None:
-                    result[str(key)] = val
-            return result
+            return self._coerce_ast_dict_to_plain(node)
         if isinstance(node, ast.List):
             return [self._extract_ast_value(item) for item in node.elts]
         if isinstance(node, ast.Name):
@@ -380,6 +374,18 @@ class OpenAPITestConverter:
         return None
 
     def _examples_from_parsed_test_file(self, tree: ast.AST, func_name: str | None) -> dict[str, dict[str, Any]]:
+        """Collect OpenAPI-style examples from test functions in a parsed module.
+
+        Args:
+            tree: Parsed AST for a test module.
+            func_name: When set, only this ``test_*`` function is scanned; otherwise every
+                ``test_*`` definition is considered.
+
+        Returns:
+            ``operation_id`` → merged example payload. Keys default to ``\"unknown\"`` when
+            ``operation_id`` is missing. Later ``test_*`` blocks win on duplicate keys inside
+            the merged dict for the same operation.
+        """
         by_operation: dict[str, dict[str, Any]] = {}
         for node in ast.walk(tree):
             if not isinstance(node, ast.FunctionDef):

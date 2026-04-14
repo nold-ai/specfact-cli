@@ -17,6 +17,9 @@ from icontract import ensure, require
 from specfact_cli.validators.sidecar.frameworks.base import BaseFrameworkExtractor, RouteInfo
 
 
+_HTTP_ROUTE_METHODS = frozenset({"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS", "CONNECT", "TRACE"})
+
+
 def _fastapi_markers_in_content(content: str) -> bool:
     return "from fastapi import" in content or "FastAPI(" in content
 
@@ -167,12 +170,14 @@ class FastAPIExtractor(BaseFrameworkExtractor):
             method = func.id.upper()
         else:
             return None
-        path = "/"
-        if decorator.args:
-            path_arg = self._extract_string_literal(decorator.args[0])
-            if path_arg:
-                path = path_arg
-        return method, path
+        if method not in _HTTP_ROUTE_METHODS:
+            return None
+        if not decorator.args:
+            return None
+        path_arg = self._extract_string_literal(decorator.args[0])
+        if not path_arg:
+            return None
+        return method, path_arg
 
     @beartype
     def _extract_route_from_function(

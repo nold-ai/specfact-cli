@@ -32,10 +32,14 @@ def _match_feature_id_from_pattern_parts(pattern_parts: list[str], file_parts: l
         feature_id_index = pattern_parts.index("{feature_id}")
     except ValueError:
         return None
+    if len(file_parts) != len(pattern_parts):
+        return None
     if feature_id_index >= len(file_parts):
         return None
-    for i in range(feature_id_index):
-        if i >= len(file_parts) or pattern_parts[i] != file_parts[i]:
+    for i, part in enumerate(pattern_parts):
+        if part == "{feature_id}":
+            continue
+        if i >= len(file_parts) or file_parts[i] != part:
             return None
     return file_parts[feature_id_index]
 

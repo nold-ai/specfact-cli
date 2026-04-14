@@ -1,7 +1,8 @@
 """Run specfact code review as a staged-file pre-commit gate.
 
 Writes a machine-readable JSON report to ``.specfact/code-review.json`` (gitignored)
-so IDEs and Copilot can read findings; exit code still reflects the governed CI verdict.
+so IDEs and Copilot can read findings. Exit code is ``0`` when there are no
+severity=error findings (warning-only score ``FAIL`` from the nested CLI does not block).
 
 CrossHair: skip (importlib/subprocess side effects; not amenable to full symbolic execution)
 """
@@ -177,7 +178,7 @@ def _print_review_findings_summary(repo_root: Path) -> bool:
     sys.stderr.write(f"  absolute path: {abs_report}\n")
     sys.stderr.write("Copy-paste for Copilot or Cursor:\n")
     sys.stderr.write(
-        f"  Read `{REVIEW_JSON_OUT}` and fix every finding (errors first), using file and line from each entry.\n"
+        f"  Read `{REVIEW_JSON_OUT}` for details; this hook blocks only on severity=error (warnings are advisory).\n"
     )
     sys.stderr.write(f"  @workspace Open `{REVIEW_JSON_OUT}` and remediate each item in `findings`.\n")
     return True
@@ -277,6 +278,15 @@ def main(argv: Sequence[str] | None = None) -> int:
     # is in REVIEW_JSON_OUT; we print a short summary on stderr below.
     if not _print_review_findings_summary(repo_root):
         return 1
+    report = _load_review_report(report_path)
+    if report is None:
+        return 1
+    counts = _count_findings_by_severity(report.findings)
+    # Many warning-only findings across a large staged set can drive score below the PASS threshold
+    # while the report summary still states "0 blocking". Pre-commit blocks commits only on
+    # severity=error findings; advisory cleanup stays in `.specfact/code-review.json`.
+    if counts["error"] == 0:
+        return 0
     return result.returncode
 
 

@@ -150,7 +150,8 @@ Commit behavior:
 
 - `PASS` keeps the commit green
 - `PASS_WITH_ADVISORY` keeps the commit green
-- `FAIL` blocks the commit
+- `FAIL` blocks the commit when the report includes at least one severity=`error` finding
+- Warning-only `FAIL` (low score across many staged files, summary still “0 blocking”) does not block pre-commit; fix errors first, then use the JSON report for advisory cleanup
 
 Repository gate taxonomy:
 

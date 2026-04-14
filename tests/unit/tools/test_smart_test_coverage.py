@@ -73,6 +73,14 @@ class TestSmartCoverageManager:
         assert self.manager.cache["file_hashes"] == {}
         assert self.manager.cache["test_count"] == 0
 
+    def test_split_tests_by_level_routes_tests_e2e_to_e2e_bucket(self) -> None:
+        """Paths under tests/e2e/ must not land in the unit bucket (changed-only e2e batch)."""
+        e2e_path = Path("tests/e2e/test_workflow_smoke.py")
+        unit, integ, e2e = self.manager._split_tests_by_level([e2e_path])
+        assert e2e_path in e2e
+        assert e2e_path not in unit
+        assert e2e_path not in integ
+
     def test_load_cache_empty(self):
         """Test loading cache when no cache file exists."""
         # Remove cache file if it exists

@@ -283,7 +283,7 @@ class MessageFlowFormatter(logging.Formatter):
         return formatted_message
 
 
-@dataclass
+@dataclass(slots=True)
 class _FileOutputPipelineConfig:
     logger_name: str
     logger: logging.Logger
@@ -294,6 +294,7 @@ class _FileOutputPipelineConfig:
     append_mode: bool
 
 
+@beartype
 @dataclass
 class LoggerCreateOptions:
     """Options for :meth:`LoggerSetup.create_logger`."""

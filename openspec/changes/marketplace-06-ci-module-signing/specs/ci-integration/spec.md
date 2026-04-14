@@ -72,7 +72,7 @@ branch events; `dev` branch events SHALL use checksum-only verification.
 - **WHEN** a push to `dev` triggers `sign-modules.yml`
 - **AND** the push contains module changes
 - **THEN** the `verify` job SHALL run without `--require-signature`
-- **AND** SHALL pass for checksum-only signed manifests
+- **AND** SHALL pass for checksum-valid manifests without signatures
 
 #### Scenario: Push to main triggers sign-modules workflow
 

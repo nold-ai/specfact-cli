@@ -36,7 +36,7 @@ def test_filter_review_files_keeps_only_python_sources() -> None:
 
 
 def test_build_review_command_writes_json_report() -> None:
-    """Pre-commit gate should write ReviewReport JSON for IDE/Copilot and use exit verdict."""
+    """Pre-commit gate should write ReviewReport JSON for IDE/Copilot and enforce errors only."""
     module = _load_script_module()
 
     command = module.build_review_command(["src/app.py", "tests/test_app.py"])
@@ -56,6 +56,44 @@ def test_main_skips_when_no_relevant_files(capsys: pytest.CaptureFixture[str]) -
 
     assert exit_code == 0
     assert "No staged Python files" in capsys.readouterr().out
+
+
+def test_main_allows_fail_verdict_when_only_warnings(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Score-based FAIL with zero error-severity findings must not block pre-commit."""
+    module = _load_script_module()
+    repo_root = tmp_path
+    payload = {
+        "overall_verdict": "FAIL",
+        "findings": [
+            {"severity": "warning", "rule": "w1"},
+            {"severity": "warning", "rule": "w2"},
+        ],
+    }
+
+    def _fake_root() -> Path:
+        return repo_root
+
+    def _fake_ensure() -> tuple[bool, str | None]:
+        return True, None
+
+    def _fake_run(cmd: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+        assert "--json" in cmd
+        assert module.REVIEW_JSON_OUT in cmd
+        _write_sample_review_report(repo_root, payload)
+        return subprocess.CompletedProcess(cmd, 1, stdout=".specfact/code-review.json\n", stderr="")
+
+    monkeypatch.setattr(module, "_repo_root", _fake_root)
+    monkeypatch.setattr(module, "ensure_runtime_available", _fake_ensure)
+    monkeypatch.setattr(module.subprocess, "run", _fake_run)
+
+    exit_code = module.main(["src/app.py"])
+
+    assert exit_code == 0
+    err = capsys.readouterr().err
+    assert "errors=0" in err
+    assert "overall_verdict='FAIL'" in err
 
 
 def test_main_propagates_review_gate_exit_code(
@@ -103,7 +141,7 @@ def test_main_propagates_review_gate_exit_code(
     assert "Code review report file:" in err
     assert "absolute path:" in err
     assert "Copy-paste for Copilot or Cursor:" in err
-    assert "Read `.specfact/code-review.json`" in err
+    assert "blocks only on severity=error" in err
     assert "@workspace Open `.specfact/code-review.json`" in err
 
 

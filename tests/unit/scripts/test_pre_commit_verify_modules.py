@@ -305,6 +305,12 @@ def test_git_branch_signature_flag(tmp_path: Path, branch: str, expected: str) -
     assert _run_flag(cwd=repo) == expected
 
 
+def test_pre_commit_verify_modules_staged_query_includes_deletions() -> None:
+    """Deleted module paths must appear in staged listing so the hook does not skip."""
+    body = VERIFY_WRAPPER.read_text(encoding="utf-8")
+    assert "--diff-filter=ACMRD" in body
+
+
 def test_git_branch_signature_flag_detached_head(tmp_path: Path) -> None:
     repo = tmp_path / "repo"
     repo.mkdir()

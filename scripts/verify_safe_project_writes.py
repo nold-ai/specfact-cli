@@ -84,7 +84,14 @@ def main() -> int:
     if not IDE_SETUP.is_file():
         _write_stderr(f"Expected ide_setup at {IDE_SETUP}")
         return 2
-    tree = ast.parse(IDE_SETUP.read_text(encoding="utf-8"), filename=str(IDE_SETUP))
+    try:
+        tree = ast.parse(IDE_SETUP.read_text(encoding="utf-8"), filename=str(IDE_SETUP))
+    except OSError as exc:
+        _write_stderr(f"Cannot read ide_setup for static analysis: {exc}")
+        return 2
+    except SyntaxError as exc:
+        _write_stderr(f"ide_setup.py has invalid Python syntax (gate cannot run): {exc}")
+        return 1
     offenders = _collect_json_io_offenders(tree)
     if offenders:
         lines = ", ".join(f"line {ln} ({name})" for ln, name in offenders)

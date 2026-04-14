@@ -467,6 +467,8 @@ class SpecKitAdapter(BridgeAdapter):
                     acceptance = list(acceptance_raw)
                 else:
                     acceptance = self._extract_text_list(cast(list[Any], acceptance_raw))
+                    if not acceptance:
+                        acceptance = [f"{story_title} is implemented"]
             else:
                 acceptance = [f"{story_title} is implemented"]
             story_points = priority_map.get(str(priority), 3)
@@ -546,14 +548,13 @@ class SpecKitAdapter(BridgeAdapter):
 
         if existing_feature:
             existing_feature.title = payload.feature_title
-            existing_feature.outcomes = (
-                list(payload.outcomes) if payload.outcomes else list(existing_feature.outcomes or [])
-            )
-            existing_feature.acceptance = (
-                list(payload.acceptance) if payload.acceptance else list(existing_feature.acceptance or [])
-            )
+            existing_feature.outcomes = list(payload.outcomes)
+            existing_feature.acceptance = list(payload.acceptance)
             existing_feature.stories = [s.model_copy(deep=True) for s in payload.stories]
             existing_feature.constraints = list(constraints)
+            existing_feature.source_tracking = self._build_speckit_source_tracking(
+                payload.spec_path, payload.bridge_config
+            )
             return
 
         feature = Feature(

@@ -32,13 +32,17 @@ class CrosshairRunOptions:
     python_cmd: str | None = None
 
 
+def _effective_crosshair_timeout(options: CrosshairRunOptions | None) -> int:
+    return options.timeout if options is not None else CrosshairRunOptions().timeout
+
+
 @beartype
 @require(
     lambda source_path: isinstance(source_path, Path) and source_path.exists(),
     "Source path must exist",
 )
 @require(
-    lambda source_path, options: (options if options is not None else CrosshairRunOptions()).timeout > 0,
+    lambda source_path, options: _effective_crosshair_timeout(options) > 0,
     "Timeout must be positive",
 )
 @ensure(lambda result: isinstance(result, dict), "Must return dict")

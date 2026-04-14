@@ -738,7 +738,8 @@ class CodeAnalyzer:
     @staticmethod
     def _themes_for_import_module(module_name: str, theme_keywords: dict[str, str]) -> set[str]:
         lowered = module_name.lower()
-        return {theme for keyword, theme in theme_keywords.items() if keyword in lowered}
+        segments = {p for p in lowered.replace("-", ".").split(".") if p}
+        return {theme for keyword, theme in theme_keywords.items() if keyword in segments}
 
     def _themes_for_import_node(self, node: ast.Import | ast.ImportFrom, theme_keywords: dict[str, str]) -> set[str]:
         if isinstance(node, ast.Import):
@@ -1734,13 +1735,27 @@ class CodeAnalyzer:
         return async_methods
 
     @staticmethod
-    def _function_name_holding_ast_subtree(tree: ast.AST, target: ast.AST) -> str | None:
-        for parent in ast.walk(tree):
-            if not isinstance(parent, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                continue
-            for child in ast.walk(parent):
-                if child is target:
-                    return parent.name
+    def _build_ast_parent_map(tree: ast.AST) -> dict[ast.AST, ast.AST | None]:
+        parents: dict[ast.AST, ast.AST | None] = {}
+
+        def visit(node: ast.AST, parent: ast.AST | None) -> None:
+            parents[node] = parent
+            for child in ast.iter_child_nodes(node):
+                visit(child, node)
+
+        visit(tree, None)
+        return parents
+
+    @staticmethod
+    def _function_name_holding_await(parents: dict[ast.AST, ast.AST | None], await_node: ast.Await) -> str | None:
+        current: ast.AST | None = await_node
+        while current is not None:
+            par = parents.get(current)
+            if par is None:
+                return None
+            if isinstance(par, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                return par.name
+            current = par
         return None
 
     def _detect_async_patterns_parallel(self, tree: ast.AST, file_path: Path) -> list[str]:
@@ -1751,13 +1766,14 @@ class CodeAnalyzer:
             List of async method/function names
         """
         async_methods: list[str] = []
+        parents = self._build_ast_parent_map(tree)
 
         for node in ast.walk(tree):
             if isinstance(node, ast.AsyncFunctionDef):
                 async_methods.append(node.name)
             if not isinstance(node, ast.Await):
                 continue
-            host = self._function_name_holding_ast_subtree(tree, node)
+            host = self._function_name_holding_await(parents, node)
             if host and host not in async_methods:
                 async_methods.append(host)
 

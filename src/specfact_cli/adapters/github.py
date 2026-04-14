@@ -159,7 +159,10 @@ def _get_github_token_from_gh_cli() -> str | None:
     return None
 
 
-_GITHUB_GIT_CONFIG_URL_RE = re.compile(r"url\s*=\s*(https?://[^\s]+|ssh://[^\s]+|git://[^\s]+|git@[^:]+:[^\s]+)")
+# Line-anchored so ``pushurl =`` / ``insteadOf`` lines do not match the ``url`` token inside another key.
+_GITHUB_GIT_CONFIG_URL_RE = re.compile(
+    r"(?m)^\s*url\s*=\s*(https?://[^\s]+|ssh://[^\s]+|git://[^\s]+|git@[^:]+:[^\s]+)"
+)
 
 
 def _git_config_content_indicates_github(config_content: str) -> bool:
@@ -1471,7 +1474,14 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             title = raw_title
 
         body = self._render_issue_body(
-            _IssueBodyRenderInput(title, description, rationale, impact, change_id, raw_body)
+            _IssueBodyRenderInput(
+                title=title,
+                description=description,
+                rationale=rationale,
+                impact=impact,
+                change_id=change_id,
+                raw_body=raw_body,
+            )
         )
 
         # Check for API token before making request
@@ -1735,7 +1745,15 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         current_body, current_title, current_state = self._fetch_issue_snapshot(repo_owner, repo_name, issue_number)
         preserved_sections = self._preserved_issue_sections(current_body, change_id)
         body = self._render_issue_body(
-            _IssueBodyRenderInput(title, description, rationale, impact, change_id, raw_body, preserved_sections)
+            _IssueBodyRenderInput(
+                title=title,
+                description=description,
+                rationale=rationale,
+                impact=impact,
+                change_id=change_id,
+                raw_body=raw_body,
+                preserved_sections=preserved_sections,
+            )
         )
 
         # Update issue body via GitHub API PATCH

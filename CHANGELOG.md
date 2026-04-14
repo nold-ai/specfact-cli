@@ -26,6 +26,10 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- **Pre-commit code review (Block 2)**: `scripts/pre_commit_code_review.py` returns success when the JSON report
+  has no severity=`error` findings, even if `specfact code review run` reports score-based `overall_verdict: FAIL`
+  from many warning-only findings on a large staged set; `.specfact/code-review.json` is still written for advisory
+  cleanup.
 - **Pre-commit robustness**: `pre-commit-verify-modules.sh` fails closed on unexpected `sig_policy` output and on
   `git diff --cached` errors; `pre-commit-quality-checks.sh` documents suppressed `contract-test-status` output,
   deduplicates the contract-first script existence check, and treats `git diff` exit codes greater than 1 as errors in

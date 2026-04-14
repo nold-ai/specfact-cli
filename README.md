@@ -83,8 +83,11 @@ It exists because delivery drifts in predictable ways:
 ### Pre-commit hook
 
 This repository uses a **modular** local hook layout (parity with `specfact-cli-modules`: `fail_fast`,
-separate verify / format / YAML / Markdown / workflow / lint / Block 2 hooks). Copy
-[`.pre-commit-config.yaml`](.pre-commit-config.yaml) from this repo and run `pre-commit install`.
+separate verify / format / YAML / Markdown / workflow / lint / Block 2 hooks). If you copy
+[`.pre-commit-config.yaml`](.pre-commit-config.yaml) into another repo, you must also vendor the
+referenced `scripts/*.sh` entrypoints (at minimum `scripts/pre-commit-quality-checks.sh`,
+`scripts/pre-commit-verify-modules.sh`, and `scripts/git-branch-module-signature-flag.sh`) so hook
+`entry:` paths resolve. Alternatively, skip vendoring the modular file and use the remote hook below.
 
 For a **single-hook** setup in downstream repos, keep using the stable id and script shim:
 

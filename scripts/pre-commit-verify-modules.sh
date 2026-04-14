@@ -10,7 +10,8 @@ if [[ -z "${repo_root}" ]]; then
 fi
 cd "${repo_root}"
 
-staged_files=$(git diff --cached --name-only --diff-filter=ACMR) || {
+# Include deletions (D): removed paths under modules/ must still trigger verification.
+staged_files=$(git diff --cached --name-only --diff-filter=ACMRD) || {
   echo "❌ Error discovering staged files (git diff --cached failed)" >&2
   exit 1
 }

@@ -373,7 +373,7 @@ run_code_review_gate() {
     success "✅ Block 2 — code review gate passed"
   else
     error "❌ Block 2 — code review gate failed"
-    warn "💡 Fix blocking review findings or run: hatch run python scripts/pre_commit_code_review.py <paths>"
+    warn "💡 Fix severity=error review findings (see .specfact/code-review.json) or run: hatch run python scripts/pre_commit_code_review.py <paths>"
     exit 1
   fi
 }

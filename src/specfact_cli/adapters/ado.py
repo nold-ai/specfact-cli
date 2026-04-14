@@ -54,7 +54,7 @@ console = Console()
 
 @dataclass(frozen=True, slots=True)
 class _AdoCreatedWorkItemRef:
-    work_item_id: Any
+    work_item_id: int | str
     work_item_url: str
     org: str
     project: str
@@ -707,26 +707,6 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         self.api_token = None
         self.auth_scheme = None
 
-    @staticmethod
-    def _work_item_id_from_source_tracking(source_tracking: Any, target_repo: str) -> Any:
-        if isinstance(source_tracking, dict):
-            return _as_str_dict(source_tracking).get("source_id")
-        if not isinstance(source_tracking, list):
-            return None
-        for entry in source_tracking:
-            if not isinstance(entry, dict):
-                continue
-            ed = _as_str_dict(entry)
-            entry_repo = ed.get("source_repo")
-            if entry_repo == target_repo:
-                return ed.get("source_id")
-            if entry_repo:
-                continue
-            source_url = ed.get("source_url", "")
-            if source_url and target_repo in source_url:
-                return ed.get("source_id")
-        return None
-
     def _ado_create_patch_document(self, title: str, body: str, ado_state: str) -> list[dict[str, Any]]:
         return [
             {"op": "add", "path": "/fields/System.Title", "value": title},
@@ -764,7 +744,10 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             },
         }
         source_tracking = proposal_data.get("source_tracking")
-        if not source_tracking:
+        if isinstance(source_tracking, list):
+            cast(list[dict[str, Any]], source_tracking).append(tracking_update)
+            return
+        if source_tracking is None or (isinstance(source_tracking, dict) and len(source_tracking) == 0):
             proposal_data["source_tracking"] = tracking_update
             return
         if isinstance(source_tracking, dict):
@@ -772,8 +755,6 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             st.update(tracking_update)
             proposal_data["source_tracking"] = st
             return
-        if isinstance(source_tracking, list):
-            cast(list[dict[str, Any]], source_tracking).append(tracking_update)
 
     def _is_on_premise(self) -> bool:
         """
@@ -2287,29 +2268,10 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         Returns:
             Dict with updated work item data: {"work_item_id": int, "work_item_url": str, "state": str}
         """
-        target_repo = f"{org}/{project}"
-        work_item_id = self._work_item_id_from_source_tracking(
+        work_item_id = self._get_source_tracking_work_item_id(
             proposal_data.get("source_tracking", {}),
-            target_repo,
+            f"{org}/{project}",
         )
-
-        if not work_item_id:
-            msg = (
-                f"Work item ID not found in source_tracking for repository {target_repo}. "
-                "Work item must be created first."
-            )
-            raise ValueError(msg)
-
-        # Ensure work_item_id is an integer for API call
-        if isinstance(work_item_id, str):
-            try:
-                work_item_id = int(work_item_id)
-            except ValueError:
-                msg = f"Invalid work item ID format: {work_item_id}"
-                raise ValueError(msg) from None
-
-        target_repo = f"{org}/{project}"
-        work_item_id = self._get_source_tracking_work_item_id(proposal_data.get("source_tracking", {}), target_repo)
         ado_state = self._resolve_proposal_ado_state(proposal_data)
         work_item_data = self._patch_work_item(
             org,

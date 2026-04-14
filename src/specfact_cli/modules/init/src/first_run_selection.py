@@ -184,7 +184,7 @@ def _install_marketplace_for_bundle(bid: str, marketplace_id: str, deps: _InitBu
     try:
         deps.install_module(
             marketplace_id,
-            InstallModuleOptions(
+            options=InstallModuleOptions(
                 install_root=deps.root,
                 non_interactive=deps.non_interactive,
                 trust_non_official=deps.trust_non_official,

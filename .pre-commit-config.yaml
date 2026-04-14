@@ -23,8 +23,8 @@ repos:
         name: "CLI Block 1 — format"
         entry: ./scripts/pre-commit-quality-checks.sh block1-format
         language: system
+        files: \.(py|pyi)$
         pass_filenames: false
-        always_run: true
         verbose: true
 
       - id: cli-block1-yaml
