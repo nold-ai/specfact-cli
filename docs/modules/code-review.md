@@ -102,26 +102,18 @@ The scaffolded `ReviewReport` envelope carries these fields:
 
 ## Pre-Commit Review Gate
 
-This repository wires `specfact code review run` into the smart pre-commit wrapper before a commit
-is considered green.
+This repository wires `specfact code review run` into **Block 2** of the modular pre-commit pipeline
+(`scripts/pre-commit-quality-checks.sh block2`), configured in `.pre-commit-config.yaml` alongside
+hooks that mirror `specfact-cli-modules` (module verify, format, staged YAML/Markdown/workflow checks,
+`hatch run lint` when Python is staged, then code review + contract tests).
 
-The supported local hook entry lives in `.pre-commit-config.yaml`:
+Downstream copies can either use the full modular config from this repo or a single hook
+`specfact-smart-checks` pointing at `scripts/pre-commit-smart-checks.sh` (shim → `pre-commit-quality-checks.sh all`).
 
-```yaml
-repos:
-  - repo: local
-    hooks:
-      - id: specfact-smart-checks
-        name: SpecFact smart pre-commit checks
-        entry: scripts/pre-commit-smart-checks.sh
-        language: script
-        pass_filenames: false
-        always_run: true
-```
-
-The wrapper calls `scripts/pre_commit_code_review.py` only when staged Python files are present,
-alongside the repo's other local required gates (module signatures, formatter safety, Markdown/YAML
-checks, workflow lint when relevant, and contract-test fast feedback). The review helper itself
+Block 2 calls `scripts/pre_commit_code_review.py` with staged paths under `src/`, `scripts/`,
+`tools/`, `tests/`, and `openspec/changes/` (non-Python paths are filtered inside the helper),
+after Block 1 gates (module signatures, formatter safety, Markdown/YAML/workflow checks, and full
+`hatch run lint` when `.py` is staged). The review helper itself
 then runs:
 
 ```bash

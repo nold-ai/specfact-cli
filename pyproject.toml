@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "specfact-cli"
-version = "0.46.0"
+version = "0.46.1"
 description = "The swiss knife CLI for agile DevOps teams. Keep backlog, specs, tests, and code in sync with validation and contract enforcement for new projects and long-lived codebases."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -285,7 +285,7 @@ contract-prune = "python tools/migrate_tests_to_contracts.py --prune --dry-run"
 
 # Pre-commit hooks
 pre-commit-install = "bash scripts/setup-git-hooks.sh"
-pre-commit-checks = "bash scripts/pre-commit-smart-checks.sh"
+pre-commit-checks = "bash scripts/pre-commit-quality-checks.sh all"
 pre-commit-test = "bash scripts/pre-commit-smart-test.sh"
 
 [tool.hatch.envs.py311]

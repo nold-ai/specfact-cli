@@ -46,9 +46,18 @@ Module packages carry **publisher** and **integrity** metadata so installation, 
 - **CI secrets**:
   - `SPECFACT_MODULE_PRIVATE_SIGN_KEY`
   - `SPECFACT_MODULE_PRIVATE_SIGN_KEY_PASSPHRASE`
-- **Verification command**:
-  - `scripts/verify-modules-signature.py --require-signature --enforce-version-bump`
-  - `--version-check-base <git-ref>` can be used in CI PR comparisons.
+- **Verification command** (`verify-modules-signature.py`):
+  - **Strict** (signatures required): `--require-signature --enforce-version-bump` (and optional
+    `--payload-from-filesystem`, `--version-check-base <git-ref>` in CI).
+  - **Checksum-only** (default when `--require-signature` is omitted): still enforces payload
+    checksums and, with `--enforce-version-bump`, version discipline — useful on feature branches and
+    for dev-targeting CI without local signing keys.
+  - There is **no** `--allow-unsigned` on this verifier; that flag exists on **`sign-modules.py`**
+    for explicit test-only signing without a key.
+- **Pre-commit** (this repo): when staged paths exist under `modules/` or `src/specfact_cli/modules/`,
+  `scripts/pre-commit-verify-modules.sh` runs the verifier with `--enforce-version-bump` and
+  `--payload-from-filesystem`, adding `--require-signature` only on `main` (see
+  `scripts/git-branch-module-signature-flag.sh`).
 
 ## Public key and key rotation
 

@@ -81,10 +81,13 @@ workflow. If stricter loop prevention is needed, the commit message includes `[s
 `--changed-only` detects no payload change since the last sign commit and skips. The resulting
 manifest is byte-for-byte identical due to deterministic YAML serialisation.
 
-### Decision 3: Branch-aware pre-commit — `--allow-unsigned` on non-`main`
+### Decision 3: Branch-aware pre-commit — omit `--require-signature` off `main`
 
-**Chosen**: Detect current branch via `git branch --show-current`. If not `main`, call
-`verify-modules-signature.py` with `--allow-unsigned`; on `main` retain `--require-signature`.
+**Chosen**: `scripts/git-branch-module-signature-flag.sh` emits `require` on `main` and `omit` elsewhere
+(including detached `HEAD`). `scripts/pre-commit-verify-modules.sh` passes `--require-signature` to
+`verify-modules-signature.py` only when the policy is `require`; otherwise it invokes the same script
+without that flag so verification stays checksum-only. There is **no** `--allow-unsigned` on
+`verify-modules-signature.py` (that flag belongs to **`sign-modules.py`** for explicit test signing).
 
 **Rationale**: Removes the local key requirement for all development work. Developers and agents on
 feature or dev branches can commit freely. The `main` guard is a secondary defence; the primary
