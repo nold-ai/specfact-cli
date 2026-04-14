@@ -26,6 +26,7 @@ today has no automated path to satisfy without the private key locally.
 ## Goals / Non-Goals
 
 **Goals:**
+
 - Eliminate the local private-key requirement for all development on non-`main` branches.
 - Sign changed module manifests automatically via CI secrets when a PR to `dev` or `main` is
   approved, committing the signed manifests back to the PR branch before merge.
@@ -35,6 +36,7 @@ today has no automated path to satisfy without the private key locally.
   functional without any signing setup.
 
 **Non-Goals:**
+
 - Changing module install-time verification (always `--require-signature` from the main registry).
 - Replacing the `create-release` post-merge signing step (kept as a safety net).
 - Changing `publish-modules.yml` or the public key in `resources/keys/`.
@@ -48,6 +50,7 @@ today has no automated path to satisfy without the private key locally.
 `github.event.review.state == 'approved'` and `github.event.pull_request.base.ref in [dev, main]`.
 
 **Alternatives considered**:
+
 - *On PR open/sync*: Signs on every push to the branch. Wastes secrets API calls for each force-push
   or fixup commit. Also signs before code review, which means reviewers see unsigned manifests and
   the signing commit arrives as a surprise after approval.
@@ -67,6 +70,7 @@ signed manifests.
 pushes using `GITHUB_TOKEN` with `contents: write`.
 
 **Alternatives considered**:
+
 - *In-job sign + verify (no push-back)*: Signs and verifies in the same job but never persists the
   signed manifests. `main` would receive unsigned manifests; the signing would be ephemeral.
 - *Sign on merge queue*: GitHub merge queues are not available on the free plan; introduces
@@ -81,10 +85,13 @@ workflow. If stricter loop prevention is needed, the commit message includes `[s
 `--changed-only` detects no payload change since the last sign commit and skips. The resulting
 manifest is byte-for-byte identical due to deterministic YAML serialisation.
 
-### Decision 3: Branch-aware pre-commit — `--allow-unsigned` on non-`main`
+### Decision 3: Branch-aware pre-commit — omit `--require-signature` off `main`
 
-**Chosen**: Detect current branch via `git branch --show-current`. If not `main`, call
-`verify-modules-signature.py` with `--allow-unsigned`; on `main` retain `--require-signature`.
+**Chosen**: `scripts/git-branch-module-signature-flag.sh` emits `require` on `main` and `omit` elsewhere
+(including detached `HEAD`). `scripts/pre-commit-verify-modules.sh` passes `--require-signature` to
+`verify-modules-signature.py` only when the policy is `require`; otherwise it invokes the same script
+without that flag so verification stays checksum-only. There is **no** `--allow-unsigned` on
+`verify-modules-signature.py` (that flag belongs to **`sign-modules.py`** for explicit test signing).
 
 **Rationale**: Removes the local key requirement for all development work. Developers and agents on
 feature or dev branches can commit freely. The `main` guard is a secondary defence; the primary
@@ -102,6 +109,7 @@ independently.
 ### Decision 5: `verify-module-signatures` in pr-orchestrator splits by target branch
 
 **Chosen**: Add `if` conditions:
+
 - PR/push targeting `dev`: run `verify` without `--require-signature`.
 - PR/push targeting `main`: run `verify` with `--require-signature`.
 

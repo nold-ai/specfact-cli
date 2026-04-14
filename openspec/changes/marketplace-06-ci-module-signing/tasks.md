@@ -10,35 +10,34 @@
 
 ## 2. Specs and TDD evidence (failing tests first)
 
-- [ ] 2.1 Write unit tests for the pre-commit branch-detection logic in
-  `tests/unit/scripts/test_pre_commit_module_signing.py` covering: non-main branch accepts unsigned,
-  main branch rejects unsigned, no module changes passes without check. Run and capture failing
-  output in `TDD_EVIDENCE.md`.
+- [ ] 2.1 Write unit tests for branch policy (`scripts/git-branch-module-signature-flag.sh` and
+  `pre-commit-verify-modules.sh` wiring), e.g. under `tests/unit/scripts/`, covering: non-main omits
+  `--require-signature`, main requires signature, detached `HEAD` matches non-main policy, no staged
+  module paths skips verify. Run and capture failing output in `TDD_EVIDENCE.md`.
 - [ ] 2.2 Write integration tests (or workflow-syntax tests) for the signing workflow YAML structure
   in `tests/unit/workflows/test_sign_modules_on_approval.py` — validate trigger config, required
   env vars, and commit-back step presence. Capture failing output in `TDD_EVIDENCE.md`.
 - [ ] 2.3 Write tests for the updated `pr-orchestrator.yml` `verify-module-signatures` logic
-  confirming the branch split (`--allow-unsigned` for dev, `--require-signature` for main). Capture
-  failing output in `TDD_EVIDENCE.md`.
+  confirming the branch split (omit `--require-signature` for dev, pass `--require-signature` for main).
+  Capture failing output in `TDD_EVIDENCE.md`.
 
 ## 3. Pre-commit hook — branch-aware verification
 
-- [ ] 3.1 In `scripts/pre-commit-smart-checks.sh`, refactor `run_module_signature_verification()`
-  to detect the current branch via `git branch --show-current` (fallback: `git rev-parse
-  --abbrev-ref HEAD`).
-- [ ] 3.2 Apply policy: if branch is NOT `main`, call
-  `hatch run ./scripts/verify-modules-signature.py --allow-unsigned --enforce-version-bump`;
-  if branch IS `main`, keep the existing `--require-signature --enforce-version-bump` call.
-- [ ] 3.3 Run the TDD unit tests from 2.1 and confirm they pass; record passing run in
-  `TDD_EVIDENCE.md`.
+- [ ] 3.1 Implement branch policy in `scripts/git-branch-module-signature-flag.sh` (`require` on `main`,
+  `omit` elsewhere) and wire `scripts/pre-commit-verify-modules.sh` to pass `--require-signature` only
+  when policy is `require`; always pass `--enforce-version-bump --payload-from-filesystem` when the
+  hook runs. Skip the hook when no staged paths under `modules/` or `src/specfact_cli/modules/`.
+- [ ] 3.2 Register the verify script in `.pre-commit-config.yaml` and ensure `pre-commit-quality-checks.sh`
+  `all` invokes module verification (modular hooks + `pre-commit-smart-checks.sh` repo-root shim as needed).
+- [ ] 3.3 Run the TDD unit tests from 2.1 and confirm they pass; record passing run in `TDD_EVIDENCE.md`.
 
 ## 4. pr-orchestrator.yml — split verify by target branch
 
 - [ ] 4.1 In `.github/workflows/pr-orchestrator.yml`, in the `verify-module-signatures` job,
   add branch-target detection: extract `github.event.pull_request.base.ref` (for PR events) and
   `github.ref` (for push events).
-- [ ] 4.2 For events targeting `dev` (PR base = `dev` or push ref = `refs/heads/dev`): replace
-  `--require-signature` with no flag (or explicit `--allow-unsigned` equivalent); keep
+- [ ] 4.2 For events targeting `dev` (PR base = `dev` or push ref = `refs/heads/dev`): omit
+  `--require-signature` from the verifier invocation (checksum-only); keep
   `--enforce-version-bump --payload-from-filesystem`.
 - [ ] 4.3 For events targeting `main` (PR base = `main` or push ref = `refs/heads/main`): retain
   `--require-signature --enforce-version-bump --payload-from-filesystem`.

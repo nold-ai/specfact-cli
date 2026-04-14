@@ -14,7 +14,7 @@ tracks:
   - scripts/pre_commit_code_review.py
   - scripts/verify-modules-signature.py
   - docs/agent-rules/**
-last_reviewed: 2026-04-10
+last_reviewed: 2026-04-14
 exempt: false
 exempt_reason: ""
 id: agent-rules-quality-gates-and-review
@@ -34,8 +34,6 @@ depends_on:
   - agent-rules-index
   - agent-rules-openspec-and-tdd
 ---
-
-# Agent quality gates and review
 
 ## Pre-commit order
 
@@ -59,10 +57,19 @@ The repository enforces the clean-code charter through `specfact code review run
 
 ## Module signature gate
 
-Before PR creation, every change that affects signed module assets or manifests must pass:
+Every change that affects signed module assets or bundled manifests must satisfy verification **before
+the change reaches `main`**.
+
+- **Local / feature branches**: pre-commit may run `verify-modules-signature.py` **without**
+  `--require-signature` (checksum-only) when only `dev` or a feature branch is checked out — see
+  `scripts/pre-commit-verify-modules.sh` and `scripts/git-branch-module-signature-flag.sh`.
+- **Before merging to `main` or when validating release readiness**, run strict verification:
 
 ```bash
-hatch run ./scripts/verify-modules-signature.py --require-signature
+hatch run ./scripts/verify-modules-signature.py --require-signature --enforce-version-bump
 ```
 
-If verification fails because module contents changed, re-sign the affected manifests and bump the module version before re-running verification.
+If verification fails because module contents changed, re-sign the affected manifests and bump the
+module version before re-running verification. Note: `verify-modules-signature.py` has **no**
+`--allow-unsigned` flag; checksum-only mode is “omit `--require-signature`”. The `--allow-unsigned`
+option on **`sign-modules.py`** is only for local test signing.

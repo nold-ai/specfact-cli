@@ -17,11 +17,45 @@ All notable changes to this project will be documented in this file.
 - **CI / release**: `scripts/check_local_version_ahead_of_pypi.py` and `hatch run check-pypi-ahead` — fail PR
   tests when `pyproject.toml` is not strictly newer than the latest `specfact-cli` on PyPI (same rule as
   publish; avoids silent “skipped publication” after merge to `main`).
+- **`scripts/pre-commit-quality-checks.sh`**: modular Block 1/2 entrypoints (`block1-*`, `block2`, `all`) with
+  staged-file gates and Markdown auto-fix before lint (parity with `specfact-cli-modules` hook layout and
+  `fail_fast` behavior in `.pre-commit-config.yaml`).
+- **`scripts/pre-commit-smart-checks.sh`**: back-compat shim that resolves the repository root (so copies under
+  `.git/hooks/pre-commit` still run the canonical quality script) and delegates to
+  `pre-commit-quality-checks.sh all`.
+
+### Fixed
+
+- **Pre-commit robustness**: `pre-commit-verify-modules.sh` fails closed on unexpected `sig_policy` output and on
+  `git diff --cached` errors; `pre-commit-quality-checks.sh` documents suppressed `contract-test-status` output,
+  deduplicates the contract-first script existence check, and treats `git diff` exit codes greater than 1 as errors in
+  `run_format_safety` (exit 1 means “has diff”, not failure); script tests use a fake `hatch`, tighter timeouts,
+  skip-path and `git diff --cached` failure coverage.
+- **Legacy module verify path**: `scripts/pre-commit-verify-modules-signature.sh` is a small delegating shim to
+  `pre-commit-verify-modules.sh` for downstream hooks and mirrors; `run_module_signature_verification` prefers the
+  canonical script and falls back to the legacy path when only that file exists.
+- **Pre-commit quality script**: staged Markdown detection includes `*.mdc`; Block 2 “safe change” no longer skips
+  review or contract tests for `pyproject.toml` / `setup.py` alone; markdown file lists avoid Bash 4 `mapfile` for
+  macOS Bash 3.2 compatibility.
 
 ### Changed
 
 - **Governance docs**: `docs/agent-rules/70-release-commit-and-docs.md` documents the PyPI ahead-of check
   and optional `SPECFACT_SKIP_PYPI_VERSION_CHECK` for offline use.
+- **Module verify (pre-commit)**: branch-aware policy via `scripts/pre-commit-verify-modules.sh` and
+  `scripts/git-branch-module-signature-flag.sh` — on `main`, run `verify-modules-signature.py` with
+  `--require-signature`; on other branches (including detached `HEAD`), omit that flag so the verifier stays in
+  checksum-only mode (there is no `--allow-unsigned` CLI). Skips when no staged paths under `modules/` or
+  `src/specfact_cli/modules/`; when the check runs it always passes `--payload-from-filesystem` and
+  `--enforce-version-bump`.
+- **`scripts/pre-commit-quality-checks.sh`**: staged file enumeration uses
+  `git diff --cached --diff-filter=ACMR` (no deleted paths), stricter `set -euo pipefail`, portable Markdown
+  invocation (no GNU `xargs -r`), and safe iteration for “safe change” detection and version-source checks;
+  pre-commit wrapper scripts are not exempt from Block 2 when staged.
+- **Docs / OpenSpec**: `docs/reference/module-security.md`, `docs/guides/module-signing-and-key-rotation.md`,
+  `docs/guides/publishing-modules.md`, and `docs/agent-rules/50-quality-gates-and-review.md` now describe
+  branch-aware verify vs strict `--require-signature`, and clarify that `--allow-unsigned` applies to
+  `sign-modules.py` only; `openspec/changes/marketplace-06-ci-module-signing/` artifacts updated to match.
 
 ---
 

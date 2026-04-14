@@ -45,6 +45,9 @@ fi
 
 echo -e "${GREEN}🎉 Git hooks setup complete!${NC}"
 echo ""
+echo "Prefer \`pre-commit install\` for the modular hook layout (see .pre-commit-config.yaml);"
+echo "the copied script runs the full \`pre-commit-quality-checks.sh all\` pipeline as a fallback."
+echo ""
 echo "The pre-commit hook will now:"
 echo "  • Verify module signatures and enforce version bumps"
 echo "  • Run hatch formatter safety check and fail if files are changed"

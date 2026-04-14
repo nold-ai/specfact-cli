@@ -82,12 +82,20 @@ It exists because delivery drifts in predictable ways:
 
 ### Pre-commit hook
 
+This repository uses a **modular** local hook layout (parity with `specfact-cli-modules`: `fail_fast`,
+separate verify / format / YAML / Markdown / workflow / lint / Block 2 hooks). Copy
+[`.pre-commit-config.yaml`](.pre-commit-config.yaml) from this repo and run `pre-commit install`.
+
+For a **single-hook** setup in downstream repos, keep using the stable id and script shim:
+
 ```yaml
 - repo: https://github.com/nold-ai/specfact-cli
   rev: v0.46.1
   hooks:
     - id: specfact-smart-checks
 ```
+
+The shim runs `scripts/pre-commit-quality-checks.sh all` (full pipeline including module verify).
 
 ### GitHub Actions
 

@@ -43,24 +43,24 @@ depends_on:
 - `hatch run release` is reserved for maintainers to chain `check-version-sources` before manual release steps; extend that script if you add more release automation.
 - `feature/*` branches imply a minor bump, `bugfix/*` and `hotfix/*` imply a patch bump, and major bumps require explicit confirmation.
 
-## Changelog
+### Changelog
 
 - Update `CHANGELOG.md` in the same commit as the version bump.
 - Follow Keep a Changelog sections: `Added`, `Changed`, `Fixed`, `Removed`, `Security`.
 
-## Commits
+### Commits
 
 - Use Conventional Commits.
 - If signed commits fail in a non-interactive shell, stage files and hand the exact `git commit -S -m "<message>"` command to the user instead of bypassing signing.
 
-## Documentation and README
+### Documentation and README
 
 - Keep docs current with every user-facing behavior change.
 - Preserve all Jekyll frontmatter on docs edits.
 - Update navigation when adding or moving pages.
 - Keep `README.md` and the docs landing page aligned with what SpecFact actually does.
 
-## Internal wiki (sibling `specfact-cli-internal`)
+### Internal wiki (sibling `specfact-cli-internal`)
 
 After **merging** changes that affect OpenSpec or GitHub-linked planning, and when a sibling `specfact-cli-internal` checkout is available, run the wiki scripts only after **`cd` into that internal repo** so the working directory matches what the scripts expect (running from `specfact-cli` or elsewhere will break them). From this repo’s root, for example:
 
