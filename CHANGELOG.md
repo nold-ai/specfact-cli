@@ -14,31 +14,33 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
-- **`scripts/pre-commit-quality-checks.sh`**: modular Block 1/2 entrypoints (`block1-*`, `block2`, `all`)
-  with staged-file gates and Markdown auto-fix before lint (parity with `specfact-cli-modules` hook layout
-  and `fail_fast` behavior in `.pre-commit-config.yaml`).
-- **`scripts/pre-commit-smart-checks.sh`**: back-compat shim that resolves the repository root (so copies
-  under `.git/hooks/pre-commit` still run the canonical quality script) and delegates to
+- **`scripts/pre-commit-quality-checks.sh`**: modular Block 1/2 entrypoints (`block1-*`, `block2`, `all`) with
+  staged-file gates and Markdown auto-fix before lint (parity with `specfact-cli-modules` hook layout and
+  `fail_fast` behavior in `.pre-commit-config.yaml`).
+- **`scripts/pre-commit-smart-checks.sh`**: back-compat shim that resolves the repository root (so copies under
+  `.git/hooks/pre-commit` still run the canonical quality script) and delegates to
   `pre-commit-quality-checks.sh all`.
 
 ### Changed
 
 - **Module verify (pre-commit)**: branch-aware policy via `scripts/pre-commit-verify-modules.sh` and
   `scripts/git-branch-module-signature-flag.sh` — on `main`, run `verify-modules-signature.py` with
-  `--require-signature`; on other branches (including detached `HEAD`), omit that flag so the verifier
-  stays in checksum-only mode (there is no `--allow-unsigned` CLI). Skips when no staged paths under
-  `modules/` or `src/specfact_cli/modules/`; when the check runs it always passes `--payload-from-filesystem`
-  and `--enforce-version-bump`.
-- **`scripts/pre-commit-quality-checks.sh`**: staged file enumeration uses `git diff --cached --diff-filter=ACMR`
-  (no deleted paths), stricter `set -euo pipefail`, portable Markdown invocation (no GNU `xargs -r`), and
-  safe iteration for “safe change” detection and version-source checks.
+  `--require-signature`; on other branches (including detached `HEAD`), omit that flag so the verifier stays in
+  checksum-only mode (there is no `--allow-unsigned` CLI). Skips when no staged paths under `modules/` or
+  `src/specfact_cli/modules/`; when the check runs it always passes `--payload-from-filesystem` and
+  `--enforce-version-bump`.
+- **`scripts/pre-commit-quality-checks.sh`**: staged file enumeration uses
+  `git diff --cached --diff-filter=ACMR` (no deleted paths), stricter `set -euo pipefail`, portable Markdown
+  invocation (no GNU `xargs -r`), and safe iteration for “safe change” detection and version-source checks;
+  pre-commit wrapper scripts are not exempt from Block 2 when staged.
 - **Docs / OpenSpec**: `docs/reference/module-security.md`, `docs/guides/module-signing-and-key-rotation.md`,
   `docs/guides/publishing-modules.md`, and `docs/agent-rules/50-quality-gates-and-review.md` now describe
   branch-aware verify vs strict `--require-signature`, and clarify that `--allow-unsigned` applies to
   `sign-modules.py` only; `openspec/changes/marketplace-06-ci-module-signing/` artifacts updated to match.
-- **Pre-commit follow-ups**: `pre-commit-verify-modules.sh` fails closed on unexpected `sig_policy` output;
-  `pre-commit-quality-checks.sh` documents suppressed `contract-test-status` output and deduplicates the
-  contract-first script existence check; script tests use a fake `hatch` and tighter timeouts.
+- **Pre-commit follow-ups**: `pre-commit-verify-modules.sh` fails closed on unexpected `sig_policy` output and
+  on `git diff --cached` errors; `pre-commit-quality-checks.sh` documents suppressed `contract-test-status`
+  output and deduplicates the contract-first script existence check; script tests use a fake `hatch`, tighter
+  timeouts, and cover the no-module-tree skip path.
 
 ---
 

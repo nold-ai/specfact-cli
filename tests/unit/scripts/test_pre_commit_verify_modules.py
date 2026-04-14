@@ -57,7 +57,7 @@ def _git_init_with_commit(repo: Path) -> None:
 def _write_fake_hatch(bin_dir: Path, log_path: Path) -> Path:
     hatch = bin_dir / "hatch"
     hatch.write_text(
-        f"#!/bin/sh\nprintf '%s\\n' \"$*\" >> \"{log_path}\"\nexit 0\n",
+        f'#!/bin/sh\nprintf \'%s\\n\' "$*" >> "{log_path}"\nexit 0\n',
         encoding="utf-8",
     )
     hatch.chmod(hatch.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
@@ -68,8 +68,9 @@ def _repo_with_verify_scripts(
     tmp_path: Path,
     *,
     flag_script_body: str | None = None,
+    stage_module_paths: bool = True,
 ) -> tuple[Path, Path]:
-    """Minimal git repo with staged module file and verify/flag scripts (symlink or custom flag)."""
+    """Minimal git repo with verify/flag scripts; optionally stage paths under modules/."""
     repo = tmp_path / "repo"
     scripts = repo / "scripts"
     scripts.mkdir(parents=True)
@@ -99,12 +100,42 @@ def _repo_with_verify_scripts(
         capture_output=True,
         text=True,
     )
-    subprocess.run(["git", "add", "modules/pkg.yaml"], cwd=repo, check=True, capture_output=True, text=True)
+    if stage_module_paths:
+        subprocess.run(["git", "add", "modules/pkg.yaml"], cwd=repo, check=True, capture_output=True, text=True)
+    else:
+        (repo / "README.md").write_text("seed\n", encoding="utf-8")
+        subprocess.run(["git", "add", "README.md"], cwd=repo, check=True, capture_output=True, text=True)
+        subprocess.run(
+            ["git", "commit", "-m", "init"],
+            cwd=repo,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
     log_path = tmp_path / "hatch_invocations.log"
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
     _write_fake_hatch(bin_dir, log_path)
+    log_path.touch()
     return repo, log_path
+
+
+def test_verify_wrapper_skips_when_no_module_paths_staged(tmp_path: Path) -> None:
+    repo, log_path = _repo_with_verify_scripts(tmp_path, stage_module_paths=False)
+    subprocess.run(["git", "branch", "-M", "main"], cwd=repo, check=True, capture_output=True, text=True)
+    env = {**os.environ, "PATH": f"{tmp_path / 'bin'}:{os.environ.get('PATH', '')}"}
+    result = subprocess.run(
+        ["bash", str(repo / "scripts" / "pre-commit-verify-modules.sh")],
+        cwd=repo,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    assert result.returncode == 0, (result.stdout, result.stderr)
+    log = log_path.read_text(encoding="utf-8")
+    assert TOKEN_VERIFY_SCRIPT not in log
+    assert log.strip() == "", "fake hatch must not run when module tree paths are not staged"
 
 
 def test_verify_wrapper_runs_hatch_with_require_on_main(tmp_path: Path) -> None:
@@ -148,7 +179,7 @@ def test_verify_wrapper_runs_hatch_checksum_only_off_main(tmp_path: Path) -> Non
 
 
 def test_verify_wrapper_rejects_invalid_sig_policy(tmp_path: Path) -> None:
-    bad_flag = '#!/usr/bin/env bash\nset -euo pipefail\necho bogus\n'
+    bad_flag = "#!/usr/bin/env bash\nset -euo pipefail\necho bogus\n"
     repo, _log_path = _repo_with_verify_scripts(tmp_path, flag_script_body=bad_flag)
     subprocess.run(["git", "branch", "-M", "main"], cwd=repo, check=True, capture_output=True, text=True)
     env = {**os.environ, "PATH": f"{tmp_path / 'bin'}:{os.environ.get('PATH', '')}"}

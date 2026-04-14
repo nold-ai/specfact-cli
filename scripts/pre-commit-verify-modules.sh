@@ -10,7 +10,10 @@ if [[ -z "${repo_root}" ]]; then
 fi
 cd "${repo_root}"
 
-staged_files=$(git diff --cached --name-only --diff-filter=ACMR 2>/dev/null || true)
+staged_files=$(git diff --cached --name-only --diff-filter=ACMR) || {
+  echo "❌ Error discovering staged files (git diff --cached failed)" >&2
+  exit 1
+}
 if ! echo "${staged_files}" | grep -qE '^(src/specfact_cli/modules|modules)/'; then
   echo "ℹ️  No staged changes under modules/ or src/specfact_cli/modules/ — skipping module signature verification"
   exit 0

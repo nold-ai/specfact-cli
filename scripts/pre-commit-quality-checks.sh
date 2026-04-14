@@ -137,7 +137,6 @@ check_safe_change() {
     case "${file}" in
       pyproject.toml|setup.py|src/__init__.py|src/specfact_cli/__init__.py) ;;
       CHANGELOG.md|README.md|.pre-commit-config.yaml) ;;
-      scripts/pre-commit-quality-checks.sh|scripts/pre-commit-smart-checks.sh|scripts/pre-commit-verify-modules.sh|scripts/git-branch-module-signature-flag.sh) ;;
       tools/smart_test_coverage.py|tools/functional_coverage_analyzer.py) ;;
       *.md|*.rst|*.txt|*.json|*.yaml|*.yml) ;;
       docs/*|papers/*|presentations/*|images/*) ;;
