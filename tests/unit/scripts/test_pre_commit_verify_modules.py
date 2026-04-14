@@ -15,6 +15,7 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 REAL_GIT = shutil.which("git")
 FLAG_SCRIPT = REPO_ROOT / "scripts" / "git-branch-module-signature-flag.sh"
 VERIFY_WRAPPER = REPO_ROOT / "scripts" / "pre-commit-verify-modules.sh"
+LEGACY_VERIFY_WRAPPER = REPO_ROOT / "scripts" / "pre-commit-verify-modules-signature.sh"
 
 TOKEN_VERIFY_SCRIPT = "verify-modules-signature.py"
 TOKEN_REQUIRE_SIGNATURE = "--require-signature"
@@ -86,15 +87,16 @@ def _repo_with_verify_scripts(
     *,
     flag_script_body: str | None = None,
     stage_module_paths: bool = True,
+    module_tree: str = "top",
 ) -> tuple[Path, Path]:
-    """Minimal git repo with verify/flag scripts; optionally stage paths under modules/."""
+    """Minimal git repo with verify/flag scripts; optionally stage under modules/ or bundled tree."""
+    assert module_tree in {"top", "bundled"}
     repo = tmp_path / "repo"
     scripts = repo / "scripts"
     scripts.mkdir(parents=True)
-    (repo / "modules").mkdir()
-    (repo / "modules" / "pkg.yaml").write_text("x: 1\n", encoding="utf-8")
 
     (scripts / "pre-commit-verify-modules.sh").symlink_to(VERIFY_WRAPPER.resolve())
+    (scripts / "pre-commit-verify-modules-signature.sh").symlink_to(LEGACY_VERIFY_WRAPPER.resolve())
     flag_target = scripts / "git-branch-module-signature-flag.sh"
     if flag_script_body is None:
         flag_target.symlink_to(FLAG_SCRIPT.resolve())
@@ -118,7 +120,16 @@ def _repo_with_verify_scripts(
         text=True,
     )
     if stage_module_paths:
-        subprocess.run(["git", "add", "modules/pkg.yaml"], cwd=repo, check=True, capture_output=True, text=True)
+        if module_tree == "top":
+            mod_dir = repo / "modules"
+            mod_dir.mkdir(parents=True)
+            stage_path = "modules/pkg.yaml"
+        else:
+            mod_dir = repo / "src" / "specfact_cli" / "modules"
+            mod_dir.mkdir(parents=True)
+            stage_path = "src/specfact_cli/modules/pkg.yaml"
+        (mod_dir / "pkg.yaml").write_text("x: 1\n", encoding="utf-8")
+        subprocess.run(["git", "add", stage_path], cwd=repo, check=True, capture_output=True, text=True)
     else:
         docs = repo / "docs"
         docs.mkdir(parents=True)
@@ -156,9 +167,46 @@ def test_verify_wrapper_skips_when_no_module_paths_staged(tmp_path: Path) -> Non
     assert log.strip() == "", "fake hatch must not run when module tree paths are not staged"
 
 
-def test_verify_wrapper_propagates_git_diff_cached_failure(tmp_path: Path) -> None:
+def test_pre_commit_verify_modules_legacy_entrypoint() -> None:
+    assert LEGACY_VERIFY_WRAPPER.is_file()
+    body = LEGACY_VERIFY_WRAPPER.read_text(encoding="utf-8")
+    assert "pre-commit-verify-modules.sh" in body
+    assert "exec bash" in body
+
+
+@pytest.mark.parametrize("module_tree", ("top", "bundled"))
+def test_legacy_verify_script_matches_canonical_invocation(tmp_path: Path, module_tree: str) -> None:
+    repo, log_path = _repo_with_verify_scripts(tmp_path, module_tree=module_tree)
+    subprocess.run(["git", "branch", "-M", "main"], cwd=repo, check=True, capture_output=True, text=True)
+    env = {**os.environ, "PATH": f"{tmp_path / 'bin'}:{os.environ.get('PATH', '')}"}
+    canon = subprocess.run(
+        ["bash", str(repo / "scripts" / "pre-commit-verify-modules.sh")],
+        cwd=repo,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    log_canon = log_path.read_text(encoding="utf-8")
+    log_path.write_text("", encoding="utf-8")
+    legacy = subprocess.run(
+        ["bash", str(repo / "scripts" / "pre-commit-verify-modules-signature.sh")],
+        cwd=repo,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    log_legacy = log_path.read_text(encoding="utf-8")
+    assert canon.returncode == legacy.returncode == 0, (canon.stderr, legacy.stderr)
+    assert log_canon == log_legacy
+    assert TOKEN_VERIFY_SCRIPT in log_legacy
+
+
+@pytest.mark.parametrize("module_tree", ("top", "bundled"))
+def test_verify_wrapper_propagates_git_diff_cached_failure(tmp_path: Path, module_tree: str) -> None:
     assert REAL_GIT is not None
-    repo, log_path = _repo_with_verify_scripts(tmp_path, stage_module_paths=True)
+    repo, log_path = _repo_with_verify_scripts(tmp_path, stage_module_paths=True, module_tree=module_tree)
     subprocess.run(["git", "branch", "-M", "main"], cwd=repo, check=True, capture_output=True, text=True)
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir(exist_ok=True)
@@ -179,8 +227,9 @@ def test_verify_wrapper_propagates_git_diff_cached_failure(tmp_path: Path) -> No
     assert "git diff --cached failed" in result.stderr
 
 
-def test_verify_wrapper_runs_hatch_with_require_on_main(tmp_path: Path) -> None:
-    repo, log_path = _repo_with_verify_scripts(tmp_path)
+@pytest.mark.parametrize("module_tree", ("top", "bundled"))
+def test_verify_wrapper_runs_hatch_with_require_on_main(tmp_path: Path, module_tree: str) -> None:
+    repo, log_path = _repo_with_verify_scripts(tmp_path, module_tree=module_tree)
     subprocess.run(["git", "branch", "-M", "main"], cwd=repo, check=True, capture_output=True, text=True)
     env = {**os.environ, "PATH": f"{tmp_path / 'bin'}:{os.environ.get('PATH', '')}"}
     result = subprocess.run(
@@ -199,8 +248,9 @@ def test_verify_wrapper_runs_hatch_with_require_on_main(tmp_path: Path) -> None:
     assert TOKEN_REQUIRE_SIGNATURE in log
 
 
-def test_verify_wrapper_runs_hatch_checksum_only_off_main(tmp_path: Path) -> None:
-    repo, log_path = _repo_with_verify_scripts(tmp_path)
+@pytest.mark.parametrize("module_tree", ("top", "bundled"))
+def test_verify_wrapper_runs_hatch_checksum_only_off_main(tmp_path: Path, module_tree: str) -> None:
+    repo, log_path = _repo_with_verify_scripts(tmp_path, module_tree=module_tree)
     subprocess.run(["git", "branch", "-M", "feature/x"], cwd=repo, check=True, capture_output=True, text=True)
     env = {**os.environ, "PATH": f"{tmp_path / 'bin'}:{os.environ.get('PATH', '')}"}
     result = subprocess.run(
@@ -219,9 +269,10 @@ def test_verify_wrapper_runs_hatch_checksum_only_off_main(tmp_path: Path) -> Non
     assert TOKEN_REQUIRE_SIGNATURE not in log
 
 
-def test_verify_wrapper_rejects_invalid_sig_policy(tmp_path: Path) -> None:
+@pytest.mark.parametrize("module_tree", ("top", "bundled"))
+def test_verify_wrapper_rejects_invalid_sig_policy(tmp_path: Path, module_tree: str) -> None:
     bad_flag = "#!/usr/bin/env bash\nset -euo pipefail\necho bogus\n"
-    repo, _log_path = _repo_with_verify_scripts(tmp_path, flag_script_body=bad_flag)
+    repo, _log_path = _repo_with_verify_scripts(tmp_path, flag_script_body=bad_flag, module_tree=module_tree)
     subprocess.run(["git", "branch", "-M", "main"], cwd=repo, check=True, capture_output=True, text=True)
     env = {**os.environ, "PATH": f"{tmp_path / 'bin'}:{os.environ.get('PATH', '')}"}
     result = subprocess.run(

@@ -28,6 +28,12 @@ All notable changes to this project will be documented in this file.
   deduplicates the contract-first script existence check, and treats `git diff` exit codes greater than 1 as errors in
   `run_format_safety` (exit 1 means “has diff”, not failure); script tests use a fake `hatch`, tighter timeouts,
   skip-path and `git diff --cached` failure coverage.
+- **Legacy module verify path**: `scripts/pre-commit-verify-modules-signature.sh` is a small delegating shim to
+  `pre-commit-verify-modules.sh` for downstream hooks and mirrors; `run_module_signature_verification` prefers the
+  canonical script and falls back to the legacy path when only that file exists.
+- **Pre-commit quality script**: staged Markdown detection includes `*.mdc`; Block 2 “safe change” no longer skips
+  review or contract tests for `pyproject.toml` / `setup.py` alone; markdown file lists avoid Bash 4 `mapfile` for
+  macOS Bash 3.2 compatibility.
 
 ### Changed
 

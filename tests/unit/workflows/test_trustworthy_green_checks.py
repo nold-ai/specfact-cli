@@ -165,12 +165,7 @@ def test_module_signature_check_name_is_canonical_across_workflows() -> None:
     assert orchestrator_name == dedicated_name == "Verify Module Signatures"
 
 
-def test_pre_commit_config_matches_modular_quality_layout() -> None:
-    """Local hooks should mirror specfact-cli-modules: fail_fast, verify, block1 stages, block2."""
-    config = _load_yaml(PRE_COMMIT_CONFIG)
-    assert config.get("fail_fast") is True
-    hooks = _load_hooks()
-    by_id = {h.get("id"): h for h in hooks if isinstance(h.get("id"), str)}
+def _assert_pre_commit_verify_and_version_hooks(by_id: dict[str, dict[str, Any]]) -> None:
     assert "verify-module-signatures" in by_id
     verify_hook = by_id["verify-module-signatures"]
     assert verify_hook.get("always_run") is True
@@ -178,15 +173,23 @@ def test_pre_commit_config_matches_modular_quality_layout() -> None:
     assert "pre-commit-verify-modules.sh" in str(verify_hook.get("entry", ""))
     verify_script = REPO_ROOT / "scripts" / "pre-commit-verify-modules.sh"
     assert verify_script.is_file()
+    legacy_verify = REPO_ROOT / "scripts" / "pre-commit-verify-modules-signature.sh"
+    assert legacy_verify.is_file()
     assert "--payload-from-filesystem" in verify_script.read_text(encoding="utf-8")
     assert "check-version-sources" in by_id
-    assert "cli-block1-format" in by_id
-    assert "cli-block1-yaml" in by_id
-    assert "cli-block1-markdown-fix" in by_id
-    assert "cli-block1-markdown-lint" in by_id
-    assert "cli-block1-workflows" in by_id
-    assert "cli-block1-lint" in by_id
-    assert "cli-block2" in by_id
+
+
+def _assert_pre_commit_cli_quality_block_hooks(by_id: dict[str, dict[str, Any]]) -> None:
+    for hid in (
+        "cli-block1-format",
+        "cli-block1-yaml",
+        "cli-block1-markdown-fix",
+        "cli-block1-markdown-lint",
+        "cli-block1-workflows",
+        "cli-block1-lint",
+        "cli-block2",
+    ):
+        assert hid in by_id
     assert by_id["cli-block2"].get("always_run") is True
     for hid in (
         "cli-block1-format",
@@ -200,6 +203,20 @@ def test_pre_commit_config_matches_modular_quality_layout() -> None:
         entry = by_id[hid].get("entry", "")
         assert "pre-commit-quality-checks.sh" in str(entry), f"{hid} must invoke quality-checks script"
     assert "check-doc-frontmatter" in by_id
+
+
+def test_pre_commit_config_matches_modular_quality_layout() -> None:
+    """Local hooks should mirror specfact-cli-modules: fail_fast, verify, block1 stages, block2."""
+    config = _load_yaml(PRE_COMMIT_CONFIG)
+    assert config.get("fail_fast") is True
+    hooks = _load_hooks()
+    by_id: dict[str, dict[str, Any]] = {}
+    for h in hooks:
+        hid = h.get("id")
+        if isinstance(hid, str):
+            by_id[hid] = h
+    _assert_pre_commit_verify_and_version_hooks(by_id)
+    _assert_pre_commit_cli_quality_block_hooks(by_id)
 
 
 def test_coderabbit_auto_review_covers_dev_and_main() -> None:

@@ -57,3 +57,11 @@ def test_pre_commit_smart_checks_shim_delegates_to_quality_all() -> None:
     assert 'all "$@"' in shim
     assert "rev-parse --show-toplevel" in shim
     assert 'exec bash "${_repo_root}/scripts/pre-commit-quality-checks.sh"' in shim
+
+
+def test_pre_commit_quality_markdown_globs_include_mdc() -> None:
+    script = _quality_script_text()
+    assert r"\.(md|mdc)$" in script
+    assert "mapfile" not in script
+    assert "pyproject.toml|setup.py|src/__init__.py" not in script
+    assert "*.md|*.mdc|*.rst" in script

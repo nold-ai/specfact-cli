@@ -73,7 +73,7 @@ has_staged_markdown() {
   local line
   while IFS= read -r line || [[ -n "${line}" ]]; do
     [[ -z "${line}" ]] && continue
-    if [[ "${line}" =~ \.md$ ]]; then
+    if [[ "${line}" =~ \.(md|mdc)$ ]]; then
       return 0
     fi
   done < <(staged_files)
@@ -95,7 +95,7 @@ staged_markdown_files() {
   local line
   while IFS= read -r line || [[ -n "${line}" ]]; do
     [[ -z "${line}" ]] && continue
-    if [[ "${line}" =~ \.md$ ]]; then
+    if [[ "${line}" =~ \.(md|mdc)$ ]]; then
       printf '%s\n' "${line}"
     fi
   done < <(staged_files)
@@ -135,10 +135,10 @@ check_safe_change() {
     [[ -z "${file}" ]] && continue
     saw_any=true
     case "${file}" in
-      pyproject.toml|setup.py|src/__init__.py|src/specfact_cli/__init__.py) ;;
+      src/__init__.py|src/specfact_cli/__init__.py) ;;
       CHANGELOG.md|README.md|.pre-commit-config.yaml) ;;
       tools/smart_test_coverage.py|tools/functional_coverage_analyzer.py) ;;
-      *.md|*.rst|*.txt|*.json|*.yaml|*.yml) ;;
+      *.md|*.mdc|*.rst|*.txt|*.json|*.yaml|*.yml) ;;
       docs/*|papers/*|presentations/*|images/*) ;;
       .github/workflows/*) ;;
       *)
@@ -182,16 +182,30 @@ run_version_sources_check_if_needed() {
 }
 
 run_module_signature_verification() {
-  local root
+  local root primary legacy chosen rel
   root=$(git rev-parse --show-toplevel 2>/dev/null || true)
   if [ -z "${root}" ]; then
     error "❌ Cannot resolve git repository root for module signature verification"
     exit 1
   fi
-  if bash "${root}/scripts/pre-commit-verify-modules.sh"; then
+  primary="${root}/scripts/pre-commit-verify-modules.sh"
+  legacy="${root}/scripts/pre-commit-verify-modules-signature.sh"
+  chosen=""
+  if [[ -f "${primary}" ]]; then
+    chosen="${primary}"
+    rel="scripts/pre-commit-verify-modules.sh"
+  elif [[ -f "${legacy}" ]]; then
+    chosen="${legacy}"
+    rel="scripts/pre-commit-verify-modules-signature.sh (legacy entrypoint)"
+  else
+    error "❌ Missing module verify script: ${primary} and ${legacy} not found"
+    exit 1
+  fi
+  info "📦 Module verify — running ${rel}"
+  if bash "${chosen}"; then
     success "✅ Module signature/version verification passed (or skipped — no staged module tree changes)"
   else
-    error "❌ Module signature/version verification failed"
+    error "❌ Module signature/version verification failed (${rel})"
     warn "💡 On main use --require-signature; elsewhere CI signs after PR approval"
     exit 1
   fi
@@ -241,12 +255,16 @@ run_yaml_lint_if_needed() {
 
 run_markdown_autofix_if_needed() {
   if ! has_staged_markdown; then
-    info "📦 Block 1 — Markdown fix — skipped (no staged *.md)"
+    info "📦 Block 1 — Markdown fix — skipped (no staged *.md / *.mdc)"
     return
   fi
   info "📦 Block 1 — Markdown fix — attempting safe auto-fix"
   local md_files=()
-  mapfile -t md_files < <(staged_markdown_files)
+  local line
+  while IFS= read -r line || [[ -n "${line}" ]]; do
+    [[ -z "${line}" ]] && continue
+    md_files+=("${line}")
+  done < <(staged_markdown_files)
   if ((${#md_files[@]} == 0)); then
     info "ℹ️  No staged markdown files resolved — skipping markdown auto-fix"
     return
@@ -274,12 +292,16 @@ run_markdown_autofix_if_needed() {
 
 run_markdown_lint_if_needed() {
   if ! has_staged_markdown; then
-    info "📦 Block 1 — Markdown lint — skipped (no staged *.md)"
+    info "📦 Block 1 — Markdown lint — skipped (no staged *.md / *.mdc)"
     return
   fi
   info "📦 Block 1 — Markdown lint — running markdownlint"
   local md_files=()
-  mapfile -t md_files < <(staged_markdown_files)
+  local line
+  while IFS= read -r line || [[ -n "${line}" ]]; do
+    [[ -z "${line}" ]] && continue
+    md_files+=("${line}")
+  done < <(staged_markdown_files)
   if ((${#md_files[@]} == 0)); then
     return
   fi
@@ -412,7 +434,7 @@ run_block2() {
   warn "🔍 specfact-cli pre-commit — Block 2 — hook: review + contract tests"
   if check_safe_change; then
     success "✅ Safe change detected — skipping Block 2 (code review + contract tests)"
-    info "💡 Only docs, workflow, version metadata, or allowlisted infra changed"
+    info "💡 Only docs (incl. *.mdc), workflow, version files, or allowlisted infra changed"
     exit 0
   fi
   print_block2_overview
@@ -435,6 +457,7 @@ run_all() {
   success "✅ Block 1 complete (all stages passed or skipped as expected)"
   if check_safe_change; then
     success "✅ Safe change detected — skipping Block 2 (code review + contract tests)"
+    info "💡 Only docs (incl. *.mdc), workflow, version files, or allowlisted infra changed"
     exit 0
   fi
   print_block2_overview
