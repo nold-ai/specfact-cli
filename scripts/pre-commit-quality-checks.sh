@@ -114,7 +114,7 @@ check_safe_change() {
     case "${file}" in
       pyproject.toml|setup.py|src/__init__.py|src/specfact_cli/__init__.py) ;;
       CHANGELOG.md|README.md|.pre-commit-config.yaml) ;;
-      scripts/pre-commit-quality-checks.sh|scripts/pre-commit-smart-checks.sh) ;;
+      scripts/pre-commit-quality-checks.sh|scripts/pre-commit-smart-checks.sh|scripts/pre-commit-verify-modules.sh|scripts/git-branch-module-signature-flag.sh) ;;
       tools/smart_test_coverage.py|tools/functional_coverage_analyzer.py) ;;
       *.md|*.rst|*.txt|*.json|*.yaml|*.yml) ;;
       docs/*|papers/*|presentations/*|images/*) ;;
@@ -157,12 +157,17 @@ run_version_sources_check_if_needed() {
 }
 
 run_module_signature_verification() {
-  info "🔐 Verifying bundled module signatures/version bumps (strict)"
-  if hatch run ./scripts/verify-modules-signature.py --require-signature --payload-from-filesystem --enforce-version-bump; then
-    success "✅ Module signature/version verification passed"
+  local root
+  root=$(git rev-parse --show-toplevel 2>/dev/null || true)
+  if [ -z "${root}" ]; then
+    error "❌ Cannot resolve git repository root for module signature verification"
+    exit 1
+  fi
+  if bash "${root}/scripts/pre-commit-verify-modules.sh"; then
+    success "✅ Module signature/version verification passed (or skipped — no staged module tree changes)"
   else
     error "❌ Module signature/version verification failed"
-    warn "💡 Re-sign changed modules with version bump before commit"
+    warn "💡 On main use --require-signature; elsewhere CI signs after PR approval"
     exit 1
   fi
 }

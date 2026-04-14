@@ -6,9 +6,9 @@ repos:
   - repo: local
     hooks:
       - id: verify-module-signatures
-        name: Verify module signatures and version bumps
-        entry: hatch run ./scripts/verify-modules-signature.py --require-signature --payload-from-filesystem --enforce-version-bump
-        language: system
+        name: Verify module signatures (branch-aware; skip if no staged module tree changes)
+        entry: scripts/pre-commit-verify-modules.sh
+        language: script
         pass_filenames: false
         always_run: true
 

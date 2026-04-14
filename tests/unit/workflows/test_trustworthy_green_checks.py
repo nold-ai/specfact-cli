@@ -172,8 +172,13 @@ def test_pre_commit_config_matches_modular_quality_layout() -> None:
     hooks = _load_hooks()
     by_id = {h.get("id"): h for h in hooks if isinstance(h.get("id"), str)}
     assert "verify-module-signatures" in by_id
-    assert by_id["verify-module-signatures"].get("always_run") is True
-    assert "--payload-from-filesystem" in str(by_id["verify-module-signatures"].get("entry", ""))
+    verify_hook = by_id["verify-module-signatures"]
+    assert verify_hook.get("always_run") is True
+    assert verify_hook.get("language") == "script"
+    assert "pre-commit-verify-modules.sh" in str(verify_hook.get("entry", ""))
+    verify_script = REPO_ROOT / "scripts" / "pre-commit-verify-modules.sh"
+    assert verify_script.is_file()
+    assert "--payload-from-filesystem" in verify_script.read_text(encoding="utf-8")
     assert "check-version-sources" in by_id
     assert "cli-block1-format" in by_id
     assert "cli-block1-yaml" in by_id

@@ -19,6 +19,10 @@ All notable changes to this project will be documented in this file.
   Python is staged, then Block 2 (scoped code review + contract tests). New
   `scripts/pre-commit-quality-checks.sh`; `scripts/pre-commit-smart-checks.sh` remains a shim for
   downstream `specfact-smart-checks` consumers.
+- **Module verify (pre-commit)**: branch-aware policy via `scripts/pre-commit-verify-modules.sh` and
+  `scripts/git-branch-module-signature-flag.sh` — `--allow-unsigned` off `main`, `--require-signature` on
+  `main`; skips when no staged paths under `modules/` or `src/specfact_cli/modules/`; always uses
+  `--payload-from-filesystem` with `--enforce-version-bump` when the check runs.
 
 ---
 
