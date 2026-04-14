@@ -3,6 +3,7 @@
 Focus: Business logic and edge cases only (@beartype handles type validation).
 """
 
+import ast
 import os
 import tempfile
 from pathlib import Path
@@ -15,6 +16,32 @@ from specfact_cli.analyzers.code_analyzer import CodeAnalyzer
 
 class TestCodeAnalyzer:
     """Test suite for CodeAnalyzer."""
+
+    def test_themes_for_import_module_avoids_substring_false_positive(self) -> None:
+        """``click`` theme must not match ``clickhouse_connect`` via substring."""
+        theme_keywords = {"click": "CLI", "fastapi": "API"}
+        assert CodeAnalyzer._themes_for_import_module("clickhouse_connect", theme_keywords) == set()
+        assert CodeAnalyzer._themes_for_import_module("click", theme_keywords) == {"CLI"}
+        assert CodeAnalyzer._themes_for_import_module("click.extra", theme_keywords) == {"CLI"}
+
+    def test_detect_async_patterns_parallel_lists_async_defs_only(self) -> None:
+        """Async function names are collected without redundant await walks."""
+        source = dedent(
+            """
+            async def outer():
+                await inner()
+
+            async def inner():
+                pass
+
+            def sync():
+                return 1
+            """
+        )
+        tree = ast.parse(source)
+        analyzer = CodeAnalyzer(Path("."))
+        names = analyzer._detect_async_patterns_parallel(tree, Path("mod.py"))
+        assert set(names) == {"outer", "inner"}
 
     def test_should_skip_test_files(self):
         """Test that test files are skipped."""
