@@ -21,6 +21,14 @@ All notable changes to this project will be documented in this file.
   `.git/hooks/pre-commit` still run the canonical quality script) and delegates to
   `pre-commit-quality-checks.sh all`.
 
+### Fixed
+
+- **Pre-commit robustness**: `pre-commit-verify-modules.sh` fails closed on unexpected `sig_policy` output and on
+  `git diff --cached` errors; `pre-commit-quality-checks.sh` documents suppressed `contract-test-status` output,
+  deduplicates the contract-first script existence check, and treats `git diff` exit codes greater than 1 as errors in
+  `run_format_safety` (exit 1 means “has diff”, not failure); script tests use a fake `hatch`, tighter timeouts,
+  skip-path and `git diff --cached` failure coverage.
+
 ### Changed
 
 - **Module verify (pre-commit)**: branch-aware policy via `scripts/pre-commit-verify-modules.sh` and
@@ -37,10 +45,6 @@ All notable changes to this project will be documented in this file.
   `docs/guides/publishing-modules.md`, and `docs/agent-rules/50-quality-gates-and-review.md` now describe
   branch-aware verify vs strict `--require-signature`, and clarify that `--allow-unsigned` applies to
   `sign-modules.py` only; `openspec/changes/marketplace-06-ci-module-signing/` artifacts updated to match.
-- **Pre-commit follow-ups**: `pre-commit-verify-modules.sh` fails closed on unexpected `sig_policy` output and
-  on `git diff --cached` errors; `pre-commit-quality-checks.sh` documents suppressed `contract-test-status`
-  output and deduplicates the contract-first script existence check; script tests use a fake `hatch`, tighter
-  timeouts, and cover the no-module-tree skip path.
 
 ---
 

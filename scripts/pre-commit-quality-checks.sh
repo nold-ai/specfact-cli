@@ -199,10 +199,20 @@ run_module_signature_verification() {
 
 run_format_safety() {
   info "📦 Block 1 — format — running \`hatch run format\` (fails if working tree would change)"
-  local before_unstaged after_unstaged
-  before_unstaged=$(git diff --binary -- . || true)
+  local before_unstaged after_unstaged before_ec after_ec
+  before_ec=0
+  before_unstaged=$(git diff --binary -- . 2>&1) || before_ec=$?
+  if [[ "${before_ec}" -gt 1 ]]; then
+    error "❌ git diff failed (cannot snapshot working tree before format; exit ${before_ec})"
+    exit 1
+  fi
   if hatch run format; then
-    after_unstaged=$(git diff --binary -- . || true)
+    after_ec=0
+    after_unstaged=$(git diff --binary -- . 2>&1) || after_ec=$?
+    if [[ "${after_ec}" -gt 1 ]]; then
+      error "❌ git diff failed (cannot snapshot working tree after format; exit ${after_ec})"
+      exit 1
+    fi
     if [ "${before_unstaged}" != "${after_unstaged}" ]; then
       error "❌ Formatter changed files. Review and re-stage before committing."
       warn "💡 Run: hatch run format && git add -A"

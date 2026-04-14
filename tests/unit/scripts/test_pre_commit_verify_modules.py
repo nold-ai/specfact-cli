@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import shutil
 import stat
 import subprocess
 from pathlib import Path
@@ -11,6 +12,7 @@ import pytest
 
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
+REAL_GIT = shutil.which("git")
 FLAG_SCRIPT = REPO_ROOT / "scripts" / "git-branch-module-signature-flag.sh"
 VERIFY_WRAPPER = REPO_ROOT / "scripts" / "pre-commit-verify-modules.sh"
 
@@ -64,6 +66,21 @@ def _write_fake_hatch(bin_dir: Path, log_path: Path) -> Path:
     return hatch
 
 
+def _write_fake_git_fail_diff_cached(bin_dir: Path, real_git: str) -> Path:
+    git_bin = bin_dir / "git"
+    git_bin.write_text(
+        f"""#!/bin/sh
+if [ "$1" = "diff" ] && [ "$2" = "--cached" ]; then
+  exit 2
+fi
+exec "{real_git}" "$@"
+""",
+        encoding="utf-8",
+    )
+    git_bin.chmod(git_bin.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+    return git_bin
+
+
 def _repo_with_verify_scripts(
     tmp_path: Path,
     *,
@@ -103,10 +120,11 @@ def _repo_with_verify_scripts(
     if stage_module_paths:
         subprocess.run(["git", "add", "modules/pkg.yaml"], cwd=repo, check=True, capture_output=True, text=True)
     else:
-        (repo / "README.md").write_text("seed\n", encoding="utf-8")
-        subprocess.run(["git", "add", "README.md"], cwd=repo, check=True, capture_output=True, text=True)
+        docs = repo / "docs"
+        docs.mkdir(parents=True)
+        (docs / "notes.txt").write_text("seed\n", encoding="utf-8")
         subprocess.run(
-            ["git", "commit", "-m", "init"],
+            ["git", "add", "docs/notes.txt"],
             cwd=repo,
             check=True,
             capture_output=True,
@@ -136,6 +154,29 @@ def test_verify_wrapper_skips_when_no_module_paths_staged(tmp_path: Path) -> Non
     log = log_path.read_text(encoding="utf-8")
     assert TOKEN_VERIFY_SCRIPT not in log
     assert log.strip() == "", "fake hatch must not run when module tree paths are not staged"
+
+
+def test_verify_wrapper_propagates_git_diff_cached_failure(tmp_path: Path) -> None:
+    assert REAL_GIT is not None
+    repo, log_path = _repo_with_verify_scripts(tmp_path, stage_module_paths=True)
+    subprocess.run(["git", "branch", "-M", "main"], cwd=repo, check=True, capture_output=True, text=True)
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir(exist_ok=True)
+    _write_fake_hatch(bin_dir, log_path)
+    _write_fake_git_fail_diff_cached(bin_dir, REAL_GIT)
+    env = {**os.environ, "PATH": f"{bin_dir}:{os.environ.get('PATH', '')}"}
+    result = subprocess.run(
+        ["bash", str(repo / "scripts" / "pre-commit-verify-modules.sh")],
+        cwd=repo,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    assert result.returncode != 0, (result.stdout, result.stderr)
+    log = log_path.read_text(encoding="utf-8")
+    assert TOKEN_VERIFY_SCRIPT not in log
+    assert "git diff --cached failed" in result.stderr
 
 
 def test_verify_wrapper_runs_hatch_with_require_on_main(tmp_path: Path) -> None:
