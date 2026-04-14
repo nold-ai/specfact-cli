@@ -65,3 +65,9 @@ def test_pre_commit_quality_markdown_globs_include_mdc() -> None:
     assert "mapfile" not in script
     assert "pyproject.toml|setup.py|src/__init__.py" not in script
     assert "*.md|*.mdc|*.rst" in script
+
+
+def test_pre_commit_staged_files_includes_deletions_for_block2() -> None:
+    """staged_files() must list deleted paths so deletion-only commits are not 'safe' skips."""
+    script = _quality_script_text()
+    assert "--diff-filter=ACMRD" in script

@@ -43,8 +43,10 @@ print_block2_overview() {
   echo "" >&2
 }
 
+# Include deletions (D): a commit that only removes paths must still be visible here so
+# check_safe_change() and Block 2 logic do not treat it as an empty / "safe" commit.
 staged_files() {
-  git diff --cached --name-only --diff-filter=ACMR
+  git diff --cached --name-only --diff-filter=ACMRD
 }
 
 has_staged_yaml() {
@@ -73,7 +75,7 @@ has_staged_markdown() {
   local line
   while IFS= read -r line || [[ -n "${line}" ]]; do
     [[ -z "${line}" ]] && continue
-    if [[ "${line}" =~ \.(md|mdc)$ ]]; then
+    if [[ "${line}" =~ \.(md|mdc)$ ]] && [[ -f "${line}" ]]; then
       return 0
     fi
   done < <(staged_files)
@@ -95,7 +97,7 @@ staged_markdown_files() {
   local line
   while IFS= read -r line || [[ -n "${line}" ]]; do
     [[ -z "${line}" ]] && continue
-    if [[ "${line}" =~ \.(md|mdc)$ ]]; then
+    if [[ "${line}" =~ \.(md|mdc)$ ]] && [[ -f "${line}" ]]; then
       printf '%s\n' "${line}"
     fi
   done < <(staged_files)
@@ -109,6 +111,9 @@ staged_review_gate_files() {
     case "${line}" in
       */TDD_EVIDENCE.md|TDD_EVIDENCE.md) continue ;;
       src/*|scripts/*|tools/*|tests/*|openspec/changes/*)
+        # Deletions have no working-tree file; skip them for the review runner (contract
+        # tests still run because check_safe_change sees the deleted path).
+        [[ -f "${line}" ]] || continue
         printf '%s\n' "${line}"
         ;;
     esac
