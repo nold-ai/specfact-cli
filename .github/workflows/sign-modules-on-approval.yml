@@ -1,5 +1,7 @@
 # yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
 # Sign changed bundled module manifests after a PR is approved (same-repo PRs only).
+# Runs scripts/sign-modules.py from pull_request.base.sha (trusted) while operating on the PR head tree
+# so branch content cannot replace the signer before secrets are injected.
 name: Sign modules on PR approval
 
 on:
@@ -30,14 +32,23 @@ jobs:
             exit 1
           fi
 
-      - name: Checkout PR head
+      - name: Checkout trusted signing scripts (base branch revision)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: _trusted_scripts
+
+      - name: Checkout PR head (module tree to sign)
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha }}
+          path: _pr_workspace
           persist-credentials: true
 
       - name: Fetch base branch for change detection
+        working-directory: _pr_workspace
         run: git fetch --no-tags origin "${{ github.event.pull_request.base.ref }}"
 
       - name: Set up Python
@@ -51,18 +62,20 @@ jobs:
           python -m pip install pyyaml beartype icontract cryptography cffi
 
       - name: Sign changed module manifests
+        working-directory: _pr_workspace
         env:
           SPECFACT_MODULE_PRIVATE_SIGN_KEY: ${{ secrets.SPECFACT_MODULE_PRIVATE_SIGN_KEY }}
           SPECFACT_MODULE_PRIVATE_SIGN_KEY_PASSPHRASE: ${{ secrets.SPECFACT_MODULE_PRIVATE_SIGN_KEY_PASSPHRASE }}
         run: |
           BASE_REF="origin/${{ github.event.pull_request.base.ref }}"
-          python scripts/sign-modules.py \
+          python "${GITHUB_WORKSPACE}/_trusted_scripts/scripts/sign-modules.py" \
             --changed-only \
             --base-ref "${BASE_REF}" \
             --bump-version patch \
             --payload-from-filesystem
 
       - name: Commit and push signed manifests
+        working-directory: _pr_workspace
         env:
           HEAD_REF: ${{ github.event.pull_request.head.ref }}
         run: |

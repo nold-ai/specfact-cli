@@ -584,6 +584,15 @@ def test_pr_orchestrator_contains_verify_module_signatures_job():
     )
 
 
+def test_pr_orchestrator_requires_signatures_for_fork_prs_to_main() -> None:
+    """Fork PRs cannot use approval-time signing; verify SHALL require signatures when base is main."""
+    if not PR_ORCHESTRATOR_WORKFLOW.exists():
+        pytest.skip("pr-orchestrator workflow not present")
+    content = PR_ORCHESTRATOR_WORKFLOW.read_text(encoding="utf-8")
+    assert "github.event.pull_request.head.repo.full_name" in content
+    assert '!= "${{ github.repository }}" ] && [ "${{ github.event.pull_request.base.ref }}" = "main" ]' in content
+
+
 def test_sign_modules_workflow_uses_private_key_and_passphrase_secrets():
     """sign-modules workflow SHALL use encrypted-key secret and passphrase secret."""
     if not SIGN_WORKFLOW.exists():
@@ -592,6 +601,7 @@ def test_sign_modules_workflow_uses_private_key_and_passphrase_secrets():
     assert "SPECFACT_MODULE_PRIVATE_SIGN_KEY" in content
     assert "SPECFACT_MODULE_PRIVATE_SIGN_KEY_PASSPHRASE" in content
     assert "--enforce-version-bump" in content
+    assert '!= "${{ github.repository }}" ] && [ "${{ github.event.pull_request.base.ref }}" = "main" ]' in content
 
 
 def test_pr_orchestrator_pins_virtualenv_below_21_for_hatch_jobs():

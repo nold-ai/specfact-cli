@@ -50,16 +50,16 @@ Module packages carry **publisher** and **integrity** metadata so installation, 
   - **Checksum-only** (default when `--require-signature` is omitted): still enforces payload
     checksums and, with `--enforce-version-bump`, version discipline — useful on feature branches and
     for dev-targeting CI without local signing keys.
-  - **GitHub Actions** (`pr-orchestrator.yml`, `sign-modules.yml`): pull-request jobs use
-    checksum-only verification (no `--require-signature`) so unsigned manifests can be reviewed before
-    merge; **pushes to `main`** run strict verification with `--require-signature`.
+  - **GitHub Actions** (`pr-orchestrator.yml`, `sign-modules.yml`): same-repo pull requests use
+    checksum-only verification (no `--require-signature`) so approval-time signing can add signatures
+    before merge. **Fork PRs targeting `main`** still run **`--require-signature`** (approval signer cannot
+    push to forks). **Pushes to `main`** use strict verification with `--require-signature`.
   - **Approval-time signing** (`sign-modules-on-approval.yml`): on **approved** reviews for same-repo PRs
-    targeting **`dev` or `main`**, CI runs `scripts/sign-modules.py --changed-only` with repository secrets
-    (`SPECFACT_MODULE_PRIVATE_SIGN_KEY`, optional passphrase) and pushes updated `module-package.yaml`
-    files to the PR branch. That removes the need for a local signing key for routine agent/Copilot flows
-    as long as secrets are configured; fork PRs are skipped (push permission). If the workflow or
-    secrets are unavailable, sign bundled manifests before merging into `main` or the post-merge push
-    verify job will still fail.
+    targeting **`dev` or `main`**, CI runs `pull_request.base.sha`’s **`scripts/sign-modules.py`**
+    (trusted revision) against the **PR head** working tree, then pushes updated `module-package.yaml`
+    files to the PR branch — branch content cannot replace the signer before secrets are used. Fork PRs
+    are skipped (no push permission). If the workflow or secrets are unavailable, sign bundled manifests
+    before merging into `main` or the post-merge push verify job will still fail.
   - **Manual signing** (`sign-modules.yml` → **Run workflow**): choose the branch to update, then pick
     **comparison base** (`dev` or `main`, i.e. `origin/<branch>` for `--changed-only`) and **version bump**
     (`patch` / `minor` / `major`). Verification uses that same base as `--version-check-base` so

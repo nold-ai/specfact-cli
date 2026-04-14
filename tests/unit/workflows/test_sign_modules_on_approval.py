@@ -55,7 +55,11 @@ def test_sign_modules_on_approval_trigger_and_guards() -> None:
 
 def test_sign_modules_on_approval_runs_signer_with_changed_only_mode() -> None:
     raw = WORKFLOW.read_text(encoding="utf-8")
-    assert "scripts/sign-modules.py" in raw
+    assert "github.event.pull_request.base.sha" in raw
+    assert "path: _trusted_scripts" in raw
+    assert "path: _pr_workspace" in raw
+    assert "working-directory: _pr_workspace" in raw
+    assert "${GITHUB_WORKSPACE}/_trusted_scripts/scripts/sign-modules.py" in raw
     assert "--changed-only" in raw
     assert "--bump-version patch" in raw
     assert "--payload-from-filesystem" in raw

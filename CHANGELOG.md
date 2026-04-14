@@ -12,6 +12,13 @@ All notable changes to this project will be documented in this file.
 
 ## [0.46.1] - 2026-04-14
 
+### Security
+
+- **CI / modules**: `sign-modules-on-approval.yml` checks out **`pull_request.base.sha`** for
+  `scripts/sign-modules.py` and runs it from **`GITHUB_WORKSPACE`** against the PR head checkout (secrets
+  never execute branch-supplied signer code). **Fork PRs to `main`** regain **`--require-signature`** in
+  `pr-orchestrator.yml` and `sign-modules.yml` (approval signer cannot fix fork heads).
+
 ### Added
 
 - **CI / modules**: `.github/workflows/sign-modules-on-approval.yml` — after an **approved** review on
