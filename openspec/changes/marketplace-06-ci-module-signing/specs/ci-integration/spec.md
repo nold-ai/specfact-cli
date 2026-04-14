@@ -9,9 +9,10 @@ non-`main` branches, full signature verification on `main`.
 
 #### Scenario: Pre-commit on feature or dev branch without local key
 
-- **WHEN** a developer or agent runs `git commit` on any branch other than `main`
-- **AND** the commit includes changes to module files
-- **THEN** the pre-commit hook SHALL run `verify-modules-signature.py --allow-unsigned`
+- **WHEN** a developer or agent runs `git commit` on any branch other than `main` (or on detached `HEAD`)
+- **AND** the commit includes staged changes under `modules/` or `src/specfact_cli/modules/`
+- **THEN** the pre-commit hook SHALL run `verify-modules-signature.py` with `--enforce-version-bump`
+  and `--payload-from-filesystem` **without** `--require-signature` (checksum-only default)
 - **AND** SHALL accept manifests with a valid checksum but no signature
 - **AND** SHALL NOT fail due to a missing or invalid signature
 

@@ -32,6 +32,10 @@ All notable changes to this project will be documented in this file.
 - **`scripts/pre-commit-quality-checks.sh`**: staged file enumeration uses `git diff --cached --diff-filter=ACMR`
   (no deleted paths), stricter `set -euo pipefail`, portable Markdown invocation (no GNU `xargs -r`), and
   safe iteration for “safe change” detection and version-source checks.
+- **Docs / OpenSpec**: `docs/reference/module-security.md`, `docs/guides/module-signing-and-key-rotation.md`,
+  `docs/guides/publishing-modules.md`, and `docs/agent-rules/50-quality-gates-and-review.md` now describe
+  branch-aware verify vs strict `--require-signature`, and clarify that `--allow-unsigned` applies to
+  `sign-modules.py` only; `openspec/changes/marketplace-06-ci-module-signing/` artifacts updated to match.
 
 ---
 

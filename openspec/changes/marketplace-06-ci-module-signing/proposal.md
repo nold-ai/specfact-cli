@@ -15,8 +15,12 @@ while preserving the integrity guarantee where it matters: at the trust boundary
 - **NEW**: `sign-modules-on-approval.yml` GitHub Actions workflow — triggers on
   `pull_request_review` (state: `approved`), signs changed module manifests via CI secrets, and
   commits the signed manifests back to the PR branch.
-- **MODIFY**: `scripts/pre-commit-smart-checks.sh` — branch-aware signature policy: non-`main`
-  branches use `--allow-unsigned` (checksum-only); `main` branch retains `--require-signature`.
+- **MODIFY**: Pre-commit module verify — branch-aware policy via `scripts/pre-commit-verify-modules.sh`
+  and `scripts/git-branch-module-signature-flag.sh`: on non-`main` branches (including detached `HEAD`),
+  run `verify-modules-signature.py` **without** `--require-signature` (checksum-only); on `main`, pass
+  `--require-signature`. The verifier has **no** `--allow-unsigned` flag (that option exists on
+  **`sign-modules.py`** for local test signing only). `scripts/pre-commit-smart-checks.sh` remains a
+  repo-root shim into `pre-commit-quality-checks.sh` (see modular `.pre-commit-config.yaml`).
 - **MODIFY**: `.github/workflows/pr-orchestrator.yml` `verify-module-signatures` job — drop
   `--require-signature` for PRs and pushes targeting `dev`; keep it for PRs and pushes targeting
   `main`.
@@ -36,13 +40,14 @@ while preserving the integrity guarantee where it matters: at the trust boundary
 
 ### Modified Capabilities
 
-- `ci-integration`: Pre-commit and CI verification gates now apply a branch-aware policy —
-  `--allow-unsigned` (checksum-only) on non-`main` branches and in feature/dev PRs; full
-  `--require-signature` enforcement only on `main`-targeting PRs and `main` branch pushes.
+- `ci-integration`: Pre-commit and CI verification gates apply a branch-aware policy — omit
+  `--require-signature` (checksum-only) on non-`main` branches and for dev-targeting PR/push events;
+  pass `--require-signature` only on `main` and for `main`-targeting PR/push events.
 
 ## Impact
 
-- **Affected scripts**: `scripts/pre-commit-smart-checks.sh`
+- **Affected scripts**: `scripts/pre-commit-verify-modules.sh`, `scripts/git-branch-module-signature-flag.sh`,
+  `scripts/pre-commit-quality-checks.sh`, `scripts/pre-commit-smart-checks.sh` (shim)
 - **Affected workflows**: `.github/workflows/pr-orchestrator.yml`,
   `.github/workflows/sign-modules.yml`
 - **New workflow**: `.github/workflows/sign-modules-on-approval.yml`

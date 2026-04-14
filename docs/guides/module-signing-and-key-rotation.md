@@ -120,14 +120,35 @@ With explicit public key file:
 python scripts/verify-modules-signature.py --require-signature --public-key-file resources/keys/module-signing-public.pem
 ```
 
+Checksum and version discipline without requiring signatures (same tool; omit the flag):
+
+```bash
+hatch run python scripts/verify-modules-signature.py --enforce-version-bump --payload-from-filesystem
+```
+
+Do not pass `--allow-unsigned` to `verify-modules-signature.py` — it is not a supported argument there.
+Use `python scripts/sign-modules.py --allow-unsigned …` only when you intentionally want checksum-only
+**signing** for local tests.
+
+## Pre-commit (bundled modules in this repository)
+
+If you use `pre-commit` or `scripts/setup-git-hooks.sh`, commits that stage changes under `modules/` or
+`src/specfact_cli/modules/` run `scripts/pre-commit-verify-modules.sh`. That script adds
+`--require-signature` only when the current branch is `main`; on other branches (including detached
+`HEAD`) it runs checksum-only verification so commits do not require a local private key.
+
 ## CI Enforcement
 
-`pr-orchestrator.yml` contains a strict gate:
+`pr-orchestrator.yml` runs job `verify-module-signatures` with a **branch-aware** policy:
 
-- Job: `verify-module-signatures`
-- Command: `python scripts/verify-modules-signature.py --require-signature`
+- PRs and pushes targeting **`main`**: `verify-modules-signature.py` is invoked **with**
+  `--require-signature` (plus `--enforce-version-bump --payload-from-filesystem` and PR base comparison
+  as configured in the workflow).
+- PRs and pushes targeting **`dev`**: the same script runs **without** `--require-signature`
+  (checksum-only), matching local feature-branch development.
 
-This runs on PR/push for `dev` and `main` and fails the pipeline if module signatures/checksums are missing or stale.
+The pipeline fails if checksums or version-bump rules are violated, or if `main`-targeting events lack
+valid signatures when required.
 
 ## Rotation Procedure
 
