@@ -1,0 +1,84 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+# Sign changed bundled module manifests after a PR is approved (same-repo PRs only).
+name: Sign modules on PR approval
+
+on:
+  pull_request_review:
+    types: [submitted]
+
+concurrency:
+  group: sign-modules-on-approval-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  sign:
+    name: CI sign changed modules
+    if: |
+      github.event.review.state == 'approved' &&
+      (github.event.pull_request.base.ref == 'dev' || github.event.pull_request.base.ref == 'main') &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Require module signing key secret
+        env:
+          SPECFACT_MODULE_PRIVATE_SIGN_KEY: ${{ secrets.SPECFACT_MODULE_PRIVATE_SIGN_KEY }}
+        run: |
+          if [ -z "${SPECFACT_MODULE_PRIVATE_SIGN_KEY}" ]; then
+            echo "::error::Missing or empty repository secret SPECFACT_MODULE_PRIVATE_SIGN_KEY. Configure it to enable approval-time signing."
+            exit 1
+          fi
+
+      - name: Checkout PR head
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: true
+
+      - name: Fetch base branch for change detection
+        run: git fetch --no-tags origin "${{ github.event.pull_request.base.ref }}"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install signer dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pyyaml beartype icontract cryptography cffi
+
+      - name: Sign changed module manifests
+        env:
+          SPECFACT_MODULE_PRIVATE_SIGN_KEY: ${{ secrets.SPECFACT_MODULE_PRIVATE_SIGN_KEY }}
+          SPECFACT_MODULE_PRIVATE_SIGN_KEY_PASSPHRASE: ${{ secrets.SPECFACT_MODULE_PRIVATE_SIGN_KEY_PASSPHRASE }}
+        run: |
+          BASE_REF="origin/${{ github.event.pull_request.base.ref }}"
+          python scripts/sign-modules.py \
+            --changed-only \
+            --base-ref "${BASE_REF}" \
+            --bump-version patch \
+            --payload-from-filesystem
+
+      - name: Commit and push signed manifests
+        env:
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet; then
+            echo "No manifest changes to commit."
+            echo "## No signing changes" >> "${GITHUB_STEP_SUMMARY}"
+            exit 0
+          fi
+          git add -u -- src/specfact_cli/modules modules
+          if git diff --cached --quiet; then
+            echo "No staged module manifest updates."
+            exit 0
+          fi
+          git commit -m "chore(modules): ci sign changed modules [skip ci]"
+          git push origin "HEAD:${HEAD_REF}"
+          echo "## Signed manifests pushed" >> "${GITHUB_STEP_SUMMARY}"
+          echo "Updated \`module-package.yaml\` files were committed to \`${HEAD_REF}\`." >> "${GITHUB_STEP_SUMMARY}"

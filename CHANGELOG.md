@@ -14,6 +14,15 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- **CI / modules**: `.github/workflows/sign-modules-on-approval.yml` — after an **approved** review on
+  same-repo PRs to `dev`/`main`, signs changed bundled modules with `scripts/sign-modules.py
+  --changed-only` and commits manifests to the PR branch (repository secrets
+  `SPECFACT_MODULE_PRIVATE_SIGN_KEY` / passphrase); documented in `docs/reference/module-security.md`.
+- **CI / modules**: `sign-modules.yml` **workflow_dispatch** inputs (`base_branch`, `version_bump`,
+  `resign_all_manifests`) and a **`sign-and-push`** job; verify passes `--version-check-base` for manual
+  runs and fetches the selected base before verify; **reproducibility** runs on **push** only (not
+  `pull_request`) so unsigned PR heads do not fail CI; optional full-tree re-sign when
+  `--changed-only` would no-op.
 - **CI / release**: `scripts/check_local_version_ahead_of_pypi.py` and `hatch run check-pypi-ahead` — fail PR
   tests when `pyproject.toml` is not strictly newer than the latest `specfact-cli` on PyPI (same rule as
   publish; avoids silent “skipped publication” after merge to `main`).
@@ -26,6 +35,14 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- **CI / modules**: `sign-modules.yml` **Assert signing reproducibility** no longer runs on `pull_request`
+  (only on **push** to `dev`/`main`), fixing false failures when bundled manifests are checksum-only while
+  PR verify intentionally omits `--require-signature`.
+- **CI module verify (PR vs `main` push)**: `pr-orchestrator` and `sign-modules` verify jobs no longer pass
+  `--require-signature` on `pull_request` (checksum + `--enforce-version-bump` only), avoiding false failures
+  when a manifest (e.g. `init`) has checksum but not yet `integrity.signature`. Pushes to **`main`** still run
+  strict `--require-signature` verification; sign bundled manifests before merging release PRs or post-merge
+  CI will fail. `sign-modules` verify now passes `--payload-from-filesystem` in line with the orchestrator.
 - **Pre-commit / CI parity**: `.pre-commit-config.yaml` markdown hooks now match the quality script glob by
   including `*.mdc`; `check_safe_change()` counts `openspec/changes/*` so OpenSpec delta Markdown is not treated as
   “safe-only” skips; `pr-orchestrator` verify job passes `--require-signature` only when the PR base (or push branch)

@@ -50,6 +50,24 @@ Module packages carry **publisher** and **integrity** metadata so installation, 
   - **Checksum-only** (default when `--require-signature` is omitted): still enforces payload
     checksums and, with `--enforce-version-bump`, version discipline — useful on feature branches and
     for dev-targeting CI without local signing keys.
+  - **GitHub Actions** (`pr-orchestrator.yml`, `sign-modules.yml`): pull-request jobs use
+    checksum-only verification (no `--require-signature`) so unsigned manifests can be reviewed before
+    merge; **pushes to `main`** run strict verification with `--require-signature`.
+  - **Approval-time signing** (`sign-modules-on-approval.yml`): on **approved** reviews for same-repo PRs
+    targeting **`dev` or `main`**, CI runs `scripts/sign-modules.py --changed-only` with repository secrets
+    (`SPECFACT_MODULE_PRIVATE_SIGN_KEY`, optional passphrase) and pushes updated `module-package.yaml`
+    files to the PR branch. That removes the need for a local signing key for routine agent/Copilot flows
+    as long as secrets are configured; fork PRs are skipped (push permission). If the workflow or
+    secrets are unavailable, sign bundled manifests before merging into `main` or the post-merge push
+    verify job will still fail.
+  - **Manual signing** (`sign-modules.yml` → **Run workflow**): choose the branch to update, then pick
+    **comparison base** (`dev` or `main`, i.e. `origin/<branch>` for `--changed-only`) and **version bump**
+    (`patch` / `minor` / `major`). Verification uses that same base as `--version-check-base` so
+    `workflow_dispatch` is not stuck on `HEAD~1` before the repair job runs. Enable **resign all manifests**
+    when trees match the base but signatures are still missing (unsigned file identical on both sides).
+    On `main`, strict `--require-signature` is skipped only for `workflow_dispatch` so you can recover
+    unsigned `main`. **Reproducibility** (re-sign, assert no diff) runs on **push** to `dev`/`main` only,
+    not on `pull_request`, so PRs stay green while manifests are still unsigned.
   - There is **no** `--allow-unsigned` on this verifier; that flag exists on **`sign-modules.py`**
     for explicit test-only signing without a key.
 - **Pre-commit** (this repo): when staged paths exist under `modules/` or `src/specfact_cli/modules/`,

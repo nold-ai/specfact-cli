@@ -3,7 +3,27 @@
 name: Module Signature Hardening
 
 on:
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      base_branch:
+        description: Remote branch to compare for --changed-only (fetches origin/<branch>)
+        type: choice
+        options:
+          - dev
+          - main
+        default: dev
+      version_bump:
+        description: Auto-bump when module version is still unchanged from the base ref
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+        default: patch
+      resign_all_manifests:
+        description: Sign every bundled module-package.yaml (not only --changed-only vs base). Use when manifests match the base but lack signatures.
+        type: boolean
+        default: false
   push:
     branches: [dev, main]
     paths:
@@ -13,6 +33,7 @@ on:
       - "scripts/sign-modules.py"
       - "scripts/verify-modules-signature.py"
       - ".github/workflows/sign-modules.yml"
+      - ".github/workflows/sign-modules-on-approval.yml"
   pull_request:
     branches: [dev, main]
     paths:
@@ -22,6 +43,7 @@ on:
       - "scripts/sign-modules.py"
       - "scripts/verify-modules-signature.py"
       - ".github/workflows/sign-modules.yml"
+      - ".github/workflows/sign-modules-on-approval.yml"
 
 jobs:
   verify:
@@ -34,6 +56,10 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Fetch workflow_dispatch comparison base
+        if: github.event_name == 'workflow_dispatch'
+        run: git fetch --no-tags origin "${{ github.event.inputs.base_branch }}"
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -48,17 +74,23 @@ jobs:
       - name: Verify bundled module signatures
         run: |
           BASE_REF=""
+          VERIFY_ARGS=(--enforce-version-bump --payload-from-filesystem)
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             BASE_REF="origin/${{ github.event.pull_request.base.ref }}"
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            BASE_REF="origin/${{ github.event.inputs.base_branch }}"
+          elif [ "${{ github.ref_name }}" = "main" ] && [ "${{ github.event_name }}" != "workflow_dispatch" ]; then
+            VERIFY_ARGS=(--require-signature "${VERIFY_ARGS[@]}")
           fi
           if [ -n "$BASE_REF" ]; then
-            python scripts/verify-modules-signature.py --require-signature --enforce-version-bump --version-check-base "$BASE_REF"
+            python scripts/verify-modules-signature.py "${VERIFY_ARGS[@]}" --version-check-base "$BASE_REF"
           else
-            python scripts/verify-modules-signature.py --require-signature --enforce-version-bump
+            python scripts/verify-modules-signature.py "${VERIFY_ARGS[@]}"
           fi
 
   reproducibility:
     name: Assert signing reproducibility
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     needs: [verify]
     permissions:
@@ -100,3 +132,81 @@ jobs:
             git --no-pager diff --name-only -- src/specfact_cli/modules modules
             exit 1
           fi
+
+  sign-and-push:
+    name: Sign changed modules (manual dispatch)
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    needs: [verify]
+    permissions:
+      contents: write
+    steps:
+      - name: Require module signing key secret
+        env:
+          SPECFACT_MODULE_PRIVATE_SIGN_KEY: ${{ secrets.SPECFACT_MODULE_PRIVATE_SIGN_KEY }}
+        run: |
+          if [ -z "${SPECFACT_MODULE_PRIVATE_SIGN_KEY}" ]; then
+            echo "::error::Missing or empty repository secret SPECFACT_MODULE_PRIVATE_SIGN_KEY."
+            exit 1
+          fi
+
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.ref }}
+          persist-credentials: true
+
+      - name: Fetch comparison base
+        run: git fetch --no-tags origin "${{ github.event.inputs.base_branch }}"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install signer dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pyyaml beartype icontract cryptography cffi
+
+      - name: Sign module manifests
+        env:
+          SPECFACT_MODULE_PRIVATE_SIGN_KEY: ${{ secrets.SPECFACT_MODULE_PRIVATE_SIGN_KEY }}
+          SPECFACT_MODULE_PRIVATE_SIGN_KEY_PASSPHRASE: ${{ secrets.SPECFACT_MODULE_PRIVATE_SIGN_KEY_PASSPHRASE }}
+        run: |
+          BASE_REF="origin/${{ github.event.inputs.base_branch }}"
+          BUMP="${{ github.event.inputs.version_bump }}"
+          if [ "${{ github.event.inputs.resign_all_manifests }}" = "true" ]; then
+            mapfile -t MANIFESTS < <(find src/specfact_cli/modules modules -name 'module-package.yaml' -type f 2>/dev/null | sort)
+            if [ "${#MANIFESTS[@]}" -eq 0 ]; then
+              echo "No module manifests found"
+              exit 0
+            fi
+            python scripts/sign-modules.py --payload-from-filesystem "${MANIFESTS[@]}"
+          else
+            python scripts/sign-modules.py \
+              --changed-only \
+              --base-ref "${BASE_REF}" \
+              --bump-version "${BUMP}" \
+              --payload-from-filesystem
+          fi
+
+      - name: Commit and push signed manifests
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet; then
+            echo "No manifest changes to commit."
+            echo "## No signing changes" >> "${GITHUB_STEP_SUMMARY}"
+            exit 0
+          fi
+          git add -u -- src/specfact_cli/modules modules
+          if git diff --cached --quiet; then
+            echo "No staged module manifest updates."
+            exit 0
+          fi
+          git commit -m "chore(modules): manual workflow_dispatch sign changed modules [skip ci]"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
+          echo "## Signed manifests pushed" >> "${GITHUB_STEP_SUMMARY}"
+          echo "Branch: \`${GITHUB_REF_NAME}\` (base: \`origin/${{ github.event.inputs.base_branch }}\`, bump: \`${{ github.event.inputs.version_bump }}\`, resign_all: \`${{ github.event.inputs.resign_all_manifests }}\`)." >> "${GITHUB_STEP_SUMMARY}"
