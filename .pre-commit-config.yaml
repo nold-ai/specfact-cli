@@ -1,12 +1,75 @@
+# Stop after the first failing hook so a broken Block 1 never runs Block 2 (code review + contract tests).
+# Layout and stages mirror specfact-cli-modules; CLI adds Markdown + workflow lint + version hook.
+fail_fast: true
+
 repos:
   - repo: local
     hooks:
-      - id: specfact-smart-checks
-        name: SpecFact smart pre-commit checks
-        entry: scripts/pre-commit-smart-checks.sh
+      - id: verify-module-signatures
+        name: Verify module signatures (branch-aware; skip if no staged module tree changes)
+        entry: scripts/pre-commit-verify-modules.sh
         language: script
         pass_filenames: false
         always_run: true
+
+      - id: check-version-sources
+        name: Check synchronized version sources
+        entry: hatch run check-version-sources
+        language: system
+        files: ^(pyproject\.toml|setup\.py|src/__init__\.py|src/specfact_cli/__init__\.py)$
+        pass_filenames: false
+
+      - id: cli-block1-format
+        name: "CLI Block 1 — format"
+        entry: ./scripts/pre-commit-quality-checks.sh block1-format
+        language: system
+        pass_filenames: false
+        always_run: true
+        verbose: true
+
+      - id: cli-block1-yaml
+        name: "CLI Block 1 — yaml-lint (when YAML staged)"
+        entry: ./scripts/pre-commit-quality-checks.sh block1-yaml
+        language: system
+        files: \.(yaml|yml)$
+        verbose: true
+
+      - id: cli-block1-markdown-fix
+        name: "CLI Block 1 — markdown auto-fix (when Markdown staged)"
+        entry: ./scripts/pre-commit-quality-checks.sh block1-markdown-fix
+        language: system
+        files: \.md$
+        verbose: true
+
+      - id: cli-block1-markdown-lint
+        name: "CLI Block 1 — markdownlint (when Markdown staged)"
+        entry: ./scripts/pre-commit-quality-checks.sh block1-markdown-lint
+        language: system
+        files: \.md$
+        verbose: true
+
+      - id: cli-block1-workflows
+        name: "CLI Block 1 — workflow lint (when workflows staged)"
+        entry: ./scripts/pre-commit-quality-checks.sh block1-workflows
+        language: system
+        files: ^\.github/workflows/.*\.(yaml|yml)$
+        verbose: true
+
+      - id: cli-block1-lint
+        name: "CLI Block 1 — lint (when Python staged)"
+        entry: ./scripts/pre-commit-quality-checks.sh block1-lint
+        language: system
+        files: \.(py|pyi)$
+        verbose: true
+
+      - id: cli-block2
+        name: "CLI Block 2 — code review + contract tests"
+        entry: ./scripts/pre-commit-quality-checks.sh block2
+        language: system
+        pass_filenames: false
+        always_run: true
+        verbose: true
+
       - id: check-doc-frontmatter
         name: Check documentation ownership frontmatter (enforced paths)
         entry: hatch run doc-frontmatter-check

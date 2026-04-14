@@ -216,6 +216,10 @@ jobs:
         if: needs.changes.outputs.skip_tests_dev_to_main != 'true'
         run: python scripts/check_version_sources.py
 
+      - name: Verify local version is ahead of PyPI
+        if: needs.changes.outputs.skip_tests_dev_to_main != 'true'
+        run: python scripts/check_local_version_ahead_of_pypi.py
+
       - name: Cache hatch environments
         if: needs.changes.outputs.skip_tests_dev_to_main != 'true'
         uses: actions/cache@v4

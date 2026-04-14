@@ -10,6 +10,21 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.46.1] - 2026-04-14
+
+### Added
+
+- **CI / release**: `scripts/check_local_version_ahead_of_pypi.py` and `hatch run check-pypi-ahead` — fail PR
+  tests when `pyproject.toml` is not strictly newer than the latest `specfact-cli` on PyPI (same rule as
+  publish; avoids silent “skipped publication” after merge to `main`).
+
+### Changed
+
+- **Governance docs**: `docs/agent-rules/70-release-commit-and-docs.md` documents the PyPI ahead-of check
+  and optional `SPECFACT_SKIP_PYPI_VERSION_CHECK` for offline use.
+
+---
+
 ## [0.46.0] - 2026-04-13
 
 ### Added
