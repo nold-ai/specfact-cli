@@ -78,10 +78,21 @@ hatch test --cover -v
 
 ### Pre-commit Checks
 
+Local hooks use **`fail_fast: true`** and a **modular layout** aligned with `specfact-cli-modules`:
+verify module signatures → sync version files when those paths are staged → format (always) →
+YAML / Markdown / workflow lint when matching paths are staged → **`hatch run lint`** when Python
+is staged → Block 2 (scoped code review + contract tests, with a safe-change short-circuit for
+docs-only and similar commits). See `.pre-commit-config.yaml` and `scripts/pre-commit-quality-checks.sh`.
+
 ```bash
-# Install repo hooks
+# Install framework hooks (recommended; matches CI-style stages)
 pre-commit install
+
+# Optional: copy raw script into .git/hooks/pre-commit (runs full `all` pipeline via shim)
 scripts/setup-git-hooks.sh
+
+# Manual full pipeline (same as shim)
+hatch run pre-commit-checks
 
 # Format code
 hatch run format

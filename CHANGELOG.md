@@ -10,6 +10,18 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.46.1] - 2026-04-14
+
+### Changed
+
+- **Pre-commit**: modular hook layout with `fail_fast` (parity with `specfact-cli-modules`): dedicated
+  module verify + version-source hook, staged YAML/Markdown/workflow gates, `hatch run lint` when
+  Python is staged, then Block 2 (scoped code review + contract tests). New
+  `scripts/pre-commit-quality-checks.sh`; `scripts/pre-commit-smart-checks.sh` remains a shim for
+  downstream `specfact-smart-checks` consumers.
+
+---
+
 ## [0.46.0] - 2026-04-13
 
 ### Added

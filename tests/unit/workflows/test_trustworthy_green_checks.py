@@ -165,15 +165,36 @@ def test_module_signature_check_name_is_canonical_across_workflows() -> None:
     assert orchestrator_name == dedicated_name == "Verify Module Signatures"
 
 
-def test_pre_commit_config_installs_supported_smart_check_wrapper() -> None:
-    """The supported local hook path should expose the same gate semantics as CI."""
+def test_pre_commit_config_matches_modular_quality_layout() -> None:
+    """Local hooks should mirror specfact-cli-modules: fail_fast, verify, block1 stages, block2."""
+    config = _load_yaml(PRE_COMMIT_CONFIG)
+    assert config.get("fail_fast") is True
     hooks = _load_hooks()
-    matching = [hook for hook in hooks if hook.get("entry") == "scripts/pre-commit-smart-checks.sh"]
-    assert matching, "Expected .pre-commit-config.yaml to expose the smart-check wrapper hook"
-    hook = matching[0]
-    assert hook.get("id") == "specfact-smart-checks", "Hook id must remain stable for pre-commit consumers"
-    assert hook.get("pass_filenames") is False
-    assert hook.get("language") == "script"
+    by_id = {h.get("id"): h for h in hooks if isinstance(h.get("id"), str)}
+    assert "verify-module-signatures" in by_id
+    assert by_id["verify-module-signatures"].get("always_run") is True
+    assert "--payload-from-filesystem" in str(by_id["verify-module-signatures"].get("entry", ""))
+    assert "check-version-sources" in by_id
+    assert "cli-block1-format" in by_id
+    assert "cli-block1-yaml" in by_id
+    assert "cli-block1-markdown-fix" in by_id
+    assert "cli-block1-markdown-lint" in by_id
+    assert "cli-block1-workflows" in by_id
+    assert "cli-block1-lint" in by_id
+    assert "cli-block2" in by_id
+    assert by_id["cli-block2"].get("always_run") is True
+    for hid in (
+        "cli-block1-format",
+        "cli-block1-yaml",
+        "cli-block1-markdown-fix",
+        "cli-block1-markdown-lint",
+        "cli-block1-workflows",
+        "cli-block1-lint",
+        "cli-block2",
+    ):
+        entry = by_id[hid].get("entry", "")
+        assert "pre-commit-quality-checks.sh" in str(entry), f"{hid} must invoke quality-checks script"
+    assert "check-doc-frontmatter" in by_id
 
 
 def test_coderabbit_auto_review_covers_dev_and_main() -> None:
