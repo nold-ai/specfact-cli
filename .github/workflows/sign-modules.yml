@@ -90,7 +90,7 @@ jobs:
 
   reproducibility:
     name: Assert signing reproducibility
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' && github.ref_name == 'main'
     runs-on: ubuntu-latest
     needs: [verify]
     permissions:
@@ -98,6 +98,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -125,7 +127,7 @@ jobs:
             exit 0
           fi
 
-          python scripts/sign-modules.py "${MANIFESTS[@]}"
+          python scripts/sign-modules.py --payload-from-filesystem "${MANIFESTS[@]}"
 
           if ! git diff --exit-code -- src/specfact_cli/modules modules; then
             echo "::error::Module signatures are stale for the configured signing key. Re-sign and commit manifest updates."
@@ -175,7 +177,8 @@ jobs:
           SPECFACT_MODULE_PRIVATE_SIGN_KEY: ${{ secrets.SPECFACT_MODULE_PRIVATE_SIGN_KEY }}
           SPECFACT_MODULE_PRIVATE_SIGN_KEY_PASSPHRASE: ${{ secrets.SPECFACT_MODULE_PRIVATE_SIGN_KEY_PASSPHRASE }}
         run: |
-          BASE_REF="origin/${{ github.event.inputs.base_branch }}"
+          set -euo pipefail
+          MERGE_BASE="$(git merge-base HEAD "origin/${{ github.event.inputs.base_branch }}")"
           BUMP="${{ github.event.inputs.version_bump }}"
           if [ "${{ github.event.inputs.resign_all_manifests }}" = "true" ]; then
             mapfile -t MANIFESTS < <(find src/specfact_cli/modules modules -name 'module-package.yaml' -type f 2>/dev/null | sort)
@@ -187,7 +190,7 @@ jobs:
           else
             python scripts/sign-modules.py \
               --changed-only \
-              --base-ref "${BASE_REF}" \
+              --base-ref "$MERGE_BASE" \
               --bump-version "${BUMP}" \
               --payload-from-filesystem
           fi

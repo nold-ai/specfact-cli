@@ -66,8 +66,9 @@ Module packages carry **publisher** and **integrity** metadata so installation, 
     `workflow_dispatch` is not stuck on `HEAD~1` before the repair job runs. Enable **resign all manifests**
     when trees match the base but signatures are still missing (unsigned file identical on both sides).
     On `main`, strict `--require-signature` is skipped only for `workflow_dispatch` so you can recover
-    unsigned `main`. **Reproducibility** (re-sign, assert no diff) runs on **push** to `dev`/`main` only,
-    not on `pull_request`, so PRs stay green while manifests are still unsigned.
+    unsigned `main`. **Reproducibility** (re-sign, assert no diff) runs on **push to `main` only**
+    (not `dev`, not `pull_request`), aligned with strict signature policy on `main` and lenient `dev`
+    integration.
   - There is **no** `--allow-unsigned` on this verifier; that flag exists on **`sign-modules.py`**
     for explicit test-only signing without a key.
 - **Pre-commit** (this repo): when staged paths exist under `modules/` or `src/specfact_cli/modules/`,

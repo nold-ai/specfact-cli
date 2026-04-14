@@ -35,9 +35,11 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
-- **CI / modules**: `sign-modules.yml` **Assert signing reproducibility** no longer runs on `pull_request`
-  (only on **push** to `dev`/`main`), fixing false failures when bundled manifests are checksum-only while
-  PR verify intentionally omits `--require-signature`.
+- **CI / modules**: `sign-modules.yml` **Assert signing reproducibility** runs on **push to `main` only**
+  (not `pull_request`, not `dev`); reproducibility re-sign uses `--payload-from-filesystem` like verify.
+- **Modules**: `init` module **0.1.27** — patch bump and refreshed `integrity.checksum` (still checksum-only
+  on `dev`); run **`sign-modules.yml` → resign all manifests** (or approval-time signing on the PR) before
+  merging to **`main`**, which still requires `integrity.signature`.
 - **CI module verify (PR vs `main` push)**: `pr-orchestrator` and `sign-modules` verify jobs no longer pass
   `--require-signature` on `pull_request` (checksum + `--enforce-version-bump` only), avoiding false failures
   when a manifest (e.g. `init`) has checksum but not yet `integrity.signature`. Pushes to **`main`** still run
