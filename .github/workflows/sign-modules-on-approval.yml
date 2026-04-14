@@ -1,21 +1,40 @@
 # yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
-# Sign changed bundled module manifests after a PR is approved (same-repo PRs only).
-# Runs scripts/sign-modules.py from pull_request.base.sha (trusted) while operating on the PR head tree
-# so branch content cannot replace the signer before secrets are injected.
+# Sign changed bundled module manifests after a PR is approved (same-repo PRs only), or manually via
+# workflow_dispatch (uses workflow file from the branch you run — run from dev before default branch has this file).
+# Runs scripts/sign-modules.py from a trusted revision while operating on the target tree so branch content
+# cannot replace the signer before secrets are injected.
 name: Sign modules on PR approval
 
 on:
   pull_request_review:
     types: [submitted]
+  workflow_dispatch:
+    inputs:
+      base_branch:
+        description: Branch whose tip supplies trusted scripts; merge-base for --changed-only uses origin/<branch>
+        type: choice
+        options:
+          - dev
+          - main
+        default: dev
+      version_bump:
+        description: Semver bump when module version is unchanged from the merge-base ref
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+        default: patch
 
 concurrency:
-  group: sign-modules-on-approval-${{ github.event.pull_request.number }}
+  group: sign-modules-on-approval-${{ github.event.pull_request.number || github.ref_name }}-${{ github.event_name }}
   cancel-in-progress: true
 
 jobs:
-  sign:
-    name: CI sign changed modules
+  sign-on-approval:
+    name: CI sign changed modules (on approval)
     if: |
+      github.event_name == 'pull_request_review' &&
       github.event.review.state == 'approved' &&
       (github.event.pull_request.base.ref == 'dev' || github.event.pull_request.base.ref == 'main') &&
       github.event.pull_request.head.repo.full_name == github.repository
@@ -95,3 +114,83 @@ jobs:
           git push origin "HEAD:${HEAD_REF}"
           echo "## Signed manifests pushed" >> "${GITHUB_STEP_SUMMARY}"
           echo "Updated \`module-package.yaml\` files were committed to \`${HEAD_REF}\`." >> "${GITHUB_STEP_SUMMARY}"
+
+  sign-on-dispatch:
+    name: CI sign changed modules (manual)
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Require module signing key secret
+        env:
+          SPECFACT_MODULE_PRIVATE_SIGN_KEY: ${{ secrets.SPECFACT_MODULE_PRIVATE_SIGN_KEY }}
+        run: |
+          if [ -z "${SPECFACT_MODULE_PRIVATE_SIGN_KEY}" ]; then
+            echo "::error::Missing or empty repository secret SPECFACT_MODULE_PRIVATE_SIGN_KEY."
+            exit 1
+          fi
+
+      - name: Checkout trusted signing scripts (integration branch tip)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          ref: ${{ github.event.inputs.base_branch }}
+          path: _trusted_scripts
+
+      - name: Checkout branch to sign
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.ref }}
+          path: _pr_workspace
+          persist-credentials: true
+
+      - name: Fetch integration branch for merge-base
+        working-directory: _pr_workspace
+        run: git fetch --no-tags origin "${{ github.event.inputs.base_branch }}"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install signer dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pyyaml beartype icontract cryptography cffi
+
+      - name: Sign changed module manifests
+        working-directory: _pr_workspace
+        env:
+          SPECFACT_MODULE_PRIVATE_SIGN_KEY: ${{ secrets.SPECFACT_MODULE_PRIVATE_SIGN_KEY }}
+          SPECFACT_MODULE_PRIVATE_SIGN_KEY_PASSPHRASE: ${{ secrets.SPECFACT_MODULE_PRIVATE_SIGN_KEY_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          MERGE_BASE="$(git merge-base HEAD "origin/${{ github.event.inputs.base_branch }}")"
+          BUMP="${{ github.event.inputs.version_bump }}"
+          python "${GITHUB_WORKSPACE}/_trusted_scripts/scripts/sign-modules.py" \
+            --changed-only \
+            --base-ref "${MERGE_BASE}" \
+            --bump-version "${BUMP}" \
+            --payload-from-filesystem
+
+      - name: Commit and push signed manifests
+        working-directory: _pr_workspace
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet; then
+            echo "No manifest changes to commit."
+            echo "## No signing changes" >> "${GITHUB_STEP_SUMMARY}"
+            exit 0
+          fi
+          git add -u -- src/specfact_cli/modules modules
+          if git diff --cached --quiet; then
+            echo "No staged module manifest updates."
+            exit 0
+          fi
+          git commit -m "chore(modules): manual approval-workflow sign changed modules [skip ci]"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
+          echo "## Signed manifests pushed" >> "${GITHUB_STEP_SUMMARY}"
+          echo "Branch: \`${GITHUB_REF_NAME}\` (merge-base vs \`origin/${{ github.event.inputs.base_branch }}\`, bump: \`${{ github.event.inputs.version_bump }}\`)." >> "${GITHUB_STEP_SUMMARY}"

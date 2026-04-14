@@ -21,6 +21,9 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- **CI / modules**: `sign-modules-on-approval.yml` **`workflow_dispatch`** (**`sign-on-dispatch`**) — run from
+  **Actions** on **`dev`** before this workflow exists on the default branch; trusted scripts from
+  **`base_branch`** tip, `--changed-only` vs **`git merge-base`** to `origin/<base_branch>`.
 - **CI / modules**: `.github/workflows/sign-modules-on-approval.yml` — after an **approved** review on
   same-repo PRs to `dev`/`main`, signs changed bundled modules with `scripts/sign-modules.py
   --changed-only` and commits manifests to the PR branch (repository secrets

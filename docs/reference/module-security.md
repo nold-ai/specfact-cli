@@ -58,8 +58,12 @@ Module packages carry **publisher** and **integrity** metadata so installation, 
     targeting **`dev` or `main`**, CI runs `pull_request.base.sha`’s **`scripts/sign-modules.py`**
     (trusted revision) against the **PR head** working tree, then pushes updated `module-package.yaml`
     files to the PR branch — branch content cannot replace the signer before secrets are used. Fork PRs
-    are skipped (no push permission). If the workflow or secrets are unavailable, sign bundled manifests
-    before merging into `main` or the post-merge push verify job will still fail.
+    are skipped (no push permission). **`pull_request_review` uses the workflow definition from the repo’s
+    default branch** (often `main`); until this file exists on `main`, use **Actions → Sign modules on PR
+    approval → Run workflow**, select **`dev`** (or your branch), and pick **`base_branch`** / **`version_bump`**
+    — that run uses the workflow file from the branch you choose and signs with **`MERGE_BASE`** vs
+    `origin/<base_branch>` like the manual path above. If the workflow or secrets are unavailable, sign
+    bundled manifests before merging into `main` or the post-merge push verify job will still fail.
   - **Manual signing** (`sign-modules.yml` → **Run workflow**): choose the branch to update, then pick
     **base branch** (`dev` or `main` — the workflow fetches `origin/<branch>`). The **verify** step passes
     `--version-check-base origin/<branch>` so `workflow_dispatch` is not stuck on `HEAD~1` before the
