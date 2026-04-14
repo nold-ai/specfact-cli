@@ -344,6 +344,8 @@ run_code_review_gate() {
 
 run_contract_tests_visible() {
   info "📦 Block 2 — contract tests — running \`hatch run contract-test-status\`"
+  # Discard status-check output: transient failures (missing optional deps, environment noise) should
+  # not alarm the user; we fall through to the full `hatch run contract-test` which surfaces real failures.
   if hatch run contract-test-status >/dev/null 2>&1; then
     success "✅ Block 2 — contract tests — skipped (contract-test-status: no input changes)"
   else
@@ -356,6 +358,13 @@ run_contract_tests_visible() {
       warn "💡 Run: hatch run contract-test-status"
       exit 1
     fi
+  fi
+}
+
+check_contract_script_exists() {
+  if [[ ! -f "tools/contract_first_smart_test.py" ]]; then
+    error "❌ Contract-first test script not found. Please run: hatch run contract-test-full"
+    exit 1
   fi
 }
 
@@ -399,10 +408,7 @@ run_block2() {
   fi
   print_block2_overview
   run_code_review_gate
-  if [ ! -f "tools/contract_first_smart_test.py" ]; then
-    error "❌ Contract-first test script not found. Please run: hatch run contract-test-full"
-    exit 1
-  fi
+  check_contract_script_exists
   run_contract_tests_visible
 }
 
@@ -424,10 +430,7 @@ run_all() {
   fi
   print_block2_overview
   run_code_review_gate
-  if [ ! -f "tools/contract_first_smart_test.py" ]; then
-    error "❌ Contract-first test script not found. Please run: hatch run contract-test-full"
-    exit 1
-  fi
+  check_contract_script_exists
   run_contract_tests_visible
 }
 

@@ -22,9 +22,19 @@ if [[ ! -f "${flag_script}" ]]; then
   exit 1
 fi
 sig_policy=$(bash "${flag_script}")
-if [[ "${sig_policy}" == "require" ]]; then
-  echo "🔐 Verifying bundled module manifests (--require-signature, --enforce-version-bump, --payload-from-filesystem)" >&2
-  exec hatch run ./scripts/verify-modules-signature.py --require-signature --enforce-version-bump --payload-from-filesystem
-fi
-echo "🔐 Verifying bundled module manifests (checksum-only; --enforce-version-bump, --payload-from-filesystem)" >&2
-exec hatch run ./scripts/verify-modules-signature.py --enforce-version-bump --payload-from-filesystem
+sig_policy="${sig_policy//$'\r'/}"
+sig_policy="${sig_policy//$'\n'/}"
+case "${sig_policy}" in
+  require)
+    echo "🔐 Verifying bundled module manifests (--require-signature, --enforce-version-bump, --payload-from-filesystem)" >&2
+    exec hatch run ./scripts/verify-modules-signature.py --require-signature --enforce-version-bump --payload-from-filesystem
+    ;;
+  omit)
+    echo "🔐 Verifying bundled module manifests (checksum-only; --enforce-version-bump, --payload-from-filesystem)" >&2
+    exec hatch run ./scripts/verify-modules-signature.py --enforce-version-bump --payload-from-filesystem
+    ;;
+  *)
+    echo "❌ Invalid module signature policy from ${flag_script}: '${sig_policy}' (expected require or omit)" >&2
+    exit 1
+    ;;
+esac

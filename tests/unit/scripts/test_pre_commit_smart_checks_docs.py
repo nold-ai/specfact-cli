@@ -17,9 +17,14 @@ def test_pre_commit_markdown_checks_run_autofix_before_lint() -> None:
     script = _quality_script_text()
     assert "run_markdown_autofix_if_needed" in script
     assert "markdownlint --fix --config .markdownlint.json" in script
-    idx_fix = script.find("run_markdown_autofix_if_needed")
-    idx_lint = script.find("run_markdown_lint_if_needed")
-    assert 0 <= idx_fix < idx_lint, "auto-fix must be defined before lint in the script"
+    start = script.find("run_all()")
+    assert start != -1
+    end = script.find("\nusage_error()", start)
+    assert end != -1
+    run_all_block = script[start:end]
+    idx_fix = run_all_block.find("run_markdown_autofix_if_needed")
+    idx_lint = run_all_block.find("run_markdown_lint_if_needed")
+    assert 0 <= idx_fix < idx_lint, "auto-fix must run before lint inside run_all()"
 
 
 def test_pre_commit_markdown_autofix_restages_files() -> None:

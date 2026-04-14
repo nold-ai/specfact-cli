@@ -36,6 +36,9 @@ All notable changes to this project will be documented in this file.
   `docs/guides/publishing-modules.md`, and `docs/agent-rules/50-quality-gates-and-review.md` now describe
   branch-aware verify vs strict `--require-signature`, and clarify that `--allow-unsigned` applies to
   `sign-modules.py` only; `openspec/changes/marketplace-06-ci-module-signing/` artifacts updated to match.
+- **Pre-commit follow-ups**: `pre-commit-verify-modules.sh` fails closed on unexpected `sig_policy` output;
+  `pre-commit-quality-checks.sh` documents suppressed `contract-test-status` output and deduplicates the
+  contract-first script existence check; script tests use a fake `hatch` and tighter timeouts.
 
 ---
 
