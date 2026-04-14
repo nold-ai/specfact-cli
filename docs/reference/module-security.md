@@ -61,10 +61,17 @@ Module packages carry **publisher** and **integrity** metadata so installation, 
     are skipped (no push permission). If the workflow or secrets are unavailable, sign bundled manifests
     before merging into `main` or the post-merge push verify job will still fail.
   - **Manual signing** (`sign-modules.yml` → **Run workflow**): choose the branch to update, then pick
-    **comparison base** (`dev` or `main`, i.e. `origin/<branch>` for `--changed-only`) and **version bump**
-    (`patch` / `minor` / `major`). Verification uses that same base as `--version-check-base` so
-    `workflow_dispatch` is not stuck on `HEAD~1` before the repair job runs. Enable **resign all manifests**
-    when trees match the base but signatures are still missing (unsigned file identical on both sides).
+    **base branch** (`dev` or `main` — the workflow fetches `origin/<branch>`). The **verify** step passes
+    `--version-check-base origin/<branch>` so `workflow_dispatch` is not stuck on `HEAD~1` before the
+    repair job runs. For **`--changed-only`** signing (default), the **sign** step sets
+    `MERGE_BASE="$(git merge-base HEAD "origin/<branch>")"` and runs
+    `scripts/sign-modules.py --changed-only --base-ref "$MERGE_BASE"` so change detection uses the
+    **merge-base** commit between your branch and that remote branch, not the moving tip of
+    `origin/<branch>` alone. Locally you can mirror that with
+    `MERGE_BASE=$(git merge-base HEAD origin/main)` (or `origin/dev`) then
+    `python scripts/sign-modules.py --changed-only --base-ref "$MERGE_BASE" --bump-version patch --payload-from-filesystem`.
+    Enable **resign all manifests** when trees match the base but signatures are still missing (unsigned
+    file identical on both sides).
     On `main`, strict `--require-signature` is skipped only for `workflow_dispatch` so you can recover
     unsigned `main`. **Reproducibility** (re-sign, assert no diff) runs on **push to `main` only**
     (not `dev`, not `pull_request`), aligned with strict signature policy on `main` and lenient `dev`

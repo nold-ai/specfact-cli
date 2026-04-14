@@ -495,11 +495,18 @@ def test_sign_modules_workflow_dispatch_signs_changed_modules_and_pushes():
 
 def test_sign_modules_reproducibility_runs_only_on_main_push():
     """Re-sign diff check runs on main push only (dev matches lenient verify; PRs unsigned OK)."""
-    if not SIGN_WORKFLOW.exists():
-        pytest.skip("workflow not present")
-    raw = SIGN_WORKFLOW.read_text(encoding="utf-8")
-    assert "name: Assert signing reproducibility" in raw
-    assert "if: github.event_name == 'push' && github.ref_name == 'main'" in raw
+    assert SIGN_WORKFLOW.is_file(), "sign-modules.yml workflow must exist"
+    data = yaml.safe_load(SIGN_WORKFLOW.read_text(encoding="utf-8"))
+    assert isinstance(data, dict)
+    workflow_root = cast(dict[str, Any], data)
+    jobs = workflow_root.get("jobs")
+    assert isinstance(jobs, dict)
+    reproducibility = jobs.get("reproducibility")
+    assert isinstance(reproducibility, dict), "Expected reproducibility job in sign-modules workflow"
+    assert reproducibility.get("name") == "Assert signing reproducibility"
+    assert reproducibility.get("if") == "github.event_name == 'push' && github.ref_name == 'main'", (
+        "Reproducibility job must be gated to push events on main only"
+    )
 
 
 def test_verify_modules_script_exists():
