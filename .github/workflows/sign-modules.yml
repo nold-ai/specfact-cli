@@ -1,5 +1,6 @@
 # yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
-# Harden module signing by enforcing strict verification and deterministic signing output checks.
+# Auto-sign changed bundled modules on push to dev/main, then strict-verify. PRs use checksum-only
+# verification so feature branches are not blocked by missing signatures before CI signs.
 name: Module Signature Hardening
 
 on:
@@ -50,7 +51,7 @@ jobs:
     name: Verify Module Signatures
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -71,25 +72,83 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install pyyaml beartype icontract cryptography cffi
 
-      - name: Verify bundled module signatures
+      - name: Auto-sign changed bundled modules (push to dev/main, non-bot actors)
+        if: >-
+          github.event_name == 'push' &&
+          (github.ref_name == 'dev' || github.ref_name == 'main') &&
+          github.actor != 'github-actions[bot]'
+        env:
+          SPECFACT_MODULE_PRIVATE_SIGN_KEY: ${{ secrets.SPECFACT_MODULE_PRIVATE_SIGN_KEY }}
+          SPECFACT_MODULE_PRIVATE_SIGN_KEY_PASSPHRASE: ${{ secrets.SPECFACT_MODULE_PRIVATE_SIGN_KEY_PASSPHRASE }}
         run: |
+          set -euo pipefail
+          if [ -z "${SPECFACT_MODULE_PRIVATE_SIGN_KEY}" ]; then
+            echo "::error::Missing SPECFACT_MODULE_PRIVATE_SIGN_KEY. Configure the secret so pushes to ${GITHUB_REF_NAME} can auto-sign bundled modules."
+            exit 1
+          fi
+          BEFORE="${{ github.event.before }}"
+          if [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+            BEFORE="$(git rev-parse HEAD~1 2>/dev/null || true)"
+          fi
+          if [ -z "$BEFORE" ]; then
+            echo "::error::Unable to resolve parent commit for --changed-only signing."
+            exit 1
+          fi
+          python scripts/sign-modules.py \
+            --changed-only \
+            --base-ref "$BEFORE" \
+            --bump-version patch \
+            --payload-from-filesystem
+
+      - name: Strict verify bundled modules (push to dev/main)
+        if: github.event_name == 'push' && (github.ref_name == 'dev' || github.ref_name == 'main')
+        run: |
+          set -euo pipefail
+          BEFORE="${{ github.event.before }}"
+          if [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+            BEFORE="HEAD~1"
+          fi
+          python scripts/verify-modules-signature.py \
+            --require-signature \
+            --payload-from-filesystem \
+            --enforce-version-bump \
+            --version-check-base "$BEFORE"
+
+      - name: PR or dispatch verify (checksum-only, no signature required on head)
+        if: github.event_name != 'push'
+        run: |
+          set -euo pipefail
           BASE_REF=""
-          VERIFY_ARGS=(--payload-from-filesystem --enforce-version-bump)
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             BASE_REF="origin/${{ github.event.pull_request.base.ref }}"
-            if [ "${{ github.event.pull_request.base.ref }}" = "main" ]; then
-              VERIFY_ARGS=(--require-signature "${VERIFY_ARGS[@]}")
-            fi
           elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             BASE_REF="origin/${{ github.event.inputs.base_branch }}"
-          elif [ "${{ github.ref_name }}" = "main" ] && [ "${{ github.event_name }}" != "workflow_dispatch" ]; then
-            VERIFY_ARGS=(--require-signature "${VERIFY_ARGS[@]}")
           fi
-          if [ -n "$BASE_REF" ]; then
-            python scripts/verify-modules-signature.py "${VERIFY_ARGS[@]}" --version-check-base "$BASE_REF"
-          else
-            python scripts/verify-modules-signature.py "${VERIFY_ARGS[@]}"
+          if [ -z "$BASE_REF" ]; then
+            echo "::error::Missing comparison base for module verification."
+            exit 1
           fi
+          python scripts/verify-modules-signature.py \
+            --payload-from-filesystem \
+            --enforce-version-bump \
+            --version-check-base "$BASE_REF"
+
+      - name: Commit auto-signed manifests (push to dev/main, non-bot actors)
+        if: >-
+          github.event_name == 'push' &&
+          (github.ref_name == 'dev' || github.ref_name == 'main') &&
+          github.actor != 'github-actions[bot]'
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -u -- src/specfact_cli/modules modules
+          if git diff --cached --quiet; then
+            echo "No manifest signing changes to commit."
+            exit 0
+          fi
+          git commit -m "chore(modules): auto-sign bundled manifests [skip ci]"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
 
   reproducibility:
     name: Assert signing reproducibility
@@ -103,6 +162,12 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Sync to remote branch tip (after verify job may have pushed auto-sign commit)
+        run: |
+          set -euo pipefail
+          git fetch origin "${GITHUB_REF_NAME}"
+          git reset --hard "origin/${GITHUB_REF_NAME}"
 
       - name: Set up Python
         uses: actions/setup-python@v5

@@ -110,22 +110,19 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install pyyaml beartype icontract cryptography cffi
 
-      - name: Verify bundled module checksums and signatures
+      - name: Verify bundled module checksums (signatures enforced on push via sign-modules workflow)
         run: |
-          BASE_REF=""
+          set -euo pipefail
           VERIFY_ARGS=(--payload-from-filesystem --enforce-version-bump)
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             BASE_REF="origin/${{ github.event.pull_request.base.ref }}"
-            if [ "${{ github.event.pull_request.base.ref }}" = "main" ]; then
-              VERIFY_ARGS=(--require-signature "${VERIFY_ARGS[@]}")
-            fi
-          elif [ "${{ github.ref_name }}" = "main" ]; then
-            VERIFY_ARGS=(--require-signature "${VERIFY_ARGS[@]}")
-          fi
-          if [ -n "$BASE_REF" ]; then
             python scripts/verify-modules-signature.py "${VERIFY_ARGS[@]}" --version-check-base "$BASE_REF"
           else
-            python scripts/verify-modules-signature.py "${VERIFY_ARGS[@]}"
+            BEFORE="${{ github.event.before }}"
+            if [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+              BEFORE="HEAD~1"
+            fi
+            python scripts/verify-modules-signature.py "${VERIFY_ARGS[@]}" --version-check-base "$BEFORE"
           fi
 
   workflow-lint:
