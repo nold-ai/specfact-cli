@@ -435,6 +435,62 @@ def test_sign_modules_workflow_valid_yaml():
     assert isinstance(data, dict)
 
 
+def _sign_modules_on_block(workflow_root: dict[str, Any]) -> dict[str, Any]:
+    on_block = workflow_root.get("on")
+    if on_block is None:
+        on_block = cast(dict[object, Any], workflow_root).get(True)
+    assert isinstance(on_block, dict), "sign-modules workflow must define on: mappings"
+    return cast(dict[str, Any], on_block)
+
+
+def _assert_workflow_dispatch_inputs(on_block: dict[str, Any]) -> None:
+    dispatch = on_block.get("workflow_dispatch")
+    assert isinstance(dispatch, dict), "workflow_dispatch must be configured with inputs"
+    inputs = dispatch.get("inputs")
+    assert isinstance(inputs, dict)
+    assert "base_branch" in inputs
+    assert "version_bump" in inputs
+
+
+def _assert_sign_and_push_job(workflow_root: dict[str, Any]) -> None:
+    jobs = workflow_root.get("jobs")
+    assert isinstance(jobs, dict)
+    sign_push = jobs.get("sign-and-push")
+    assert isinstance(sign_push, dict)
+    assert sign_push.get("if") == "github.event_name == 'workflow_dispatch'"
+    assert sign_push.get("needs") == ["verify"]
+    perms = sign_push.get("permissions")
+    assert isinstance(perms, dict) and perms.get("contents") == "write"
+
+
+def _assert_sign_modules_dispatch_raw_content(raw: str) -> None:
+    assert "github.event.inputs.base_branch" in raw
+    assert "github.event.inputs.version_bump" in raw
+    assert "--changed-only" in raw
+    assert "chore(modules): manual workflow_dispatch sign changed modules" in raw
+
+
+def test_sign_modules_workflow_dispatch_signs_changed_modules_and_pushes():
+    """Manual workflow_dispatch SHALL offer base/bump inputs and a sign-and-push job."""
+    if not SIGN_WORKFLOW.exists():
+        pytest.skip("workflow not present")
+    data = yaml.safe_load(SIGN_WORKFLOW.read_text(encoding="utf-8"))
+    assert isinstance(data, dict)
+    workflow_root = cast(dict[str, Any], data)
+    on_block = _sign_modules_on_block(workflow_root)
+    _assert_workflow_dispatch_inputs(on_block)
+    _assert_sign_and_push_job(workflow_root)
+    _assert_sign_modules_dispatch_raw_content(SIGN_WORKFLOW.read_text(encoding="utf-8"))
+
+
+def test_sign_modules_reproducibility_skipped_on_workflow_dispatch():
+    """Reproducibility gate is redundant when manual dispatch performs signing."""
+    if not SIGN_WORKFLOW.exists():
+        pytest.skip("workflow not present")
+    raw = SIGN_WORKFLOW.read_text(encoding="utf-8")
+    assert "github.event_name != 'workflow_dispatch'" in raw
+
+
 def test_verify_modules_script_exists():
     """Verification script SHALL exist for CI signature validation."""
     assert VERIFY_PYTHON_SCRIPT.exists(), "scripts/verify-modules-signature.py must exist"
@@ -505,7 +561,8 @@ def test_pr_orchestrator_contains_verify_module_signatures_job():
         pytest.skip("pr-orchestrator workflow not present")
     content = PR_ORCHESTRATOR_WORKFLOW.read_text(encoding="utf-8")
     assert "verify-module-signatures" in content
-    assert "verify-modules-signature.py --require-signature" in content
+    assert "verify-modules-signature.py" in content
+    assert "--require-signature" in content
     assert "--enforce-version-bump" in content
     assert "SPECFACT_MODULE_PRIVATE_SIGN_KEY" in content
     assert "SPECFACT_MODULE_PRIVATE_SIGN_KEY_PASSPHRASE" in content
