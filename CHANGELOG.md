@@ -26,6 +26,22 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- **Pre-commit / CI parity**: `.pre-commit-config.yaml` markdown hooks now match the quality script glob by
+  including `*.mdc`; `check_safe_change()` counts `openspec/changes/*` so OpenSpec delta Markdown is not treated as
+  “safe-only” skips; `pr-orchestrator` verify job passes `--require-signature` only when the PR base (or push branch)
+  is `main`, while keeping `--enforce-version-bump` on other branches; `pre-commit-smart-checks.sh` falls back to
+  `git -C …/.. rev-parse` when the shim lives under `.git/hooks`.
+- **Release / version gate**: `hatch run release` runs `check-pypi-ahead` before `check-version-sources`;
+  `check_local_version_ahead_of_pypi.py` retries transient PyPI/network failures and returns exit code 2 on invalid
+  version strings; subprocess skip-env coverage moved to `tests/integration/scripts/`.
+- **Docs / OpenSpec**: publishing guide documents strict `verify-modules-signature.py` flags for protected branches;
+  code-review doc uses the canonical `scripts/pre-commit-quality-checks.sh all` path in the smart-checks sentence;
+  `marketplace-06-ci-module-signing` tasks add strict `openspec validate`; `CHANGE_ORDER` marketplace-06 row split for
+  line-length compliance.
+- **Quality / adapters**: `check_doc_frontmatter` strips numeric ordering prefixes from suggested agent-rule titles;
+  `verify_safe_project_writes.py` restores scope-aware JSON alias shadowing and handles read/parse failures cleanly;
+  Speckit story acceptance trims whitespace-only entries; GitHub git-config URL regex documented with broader scheme
+  tests.
 - **Pre-commit code review (Block 2)**: `scripts/pre_commit_code_review.py` returns success when the JSON report
   has no severity=`error` findings, even if `specfact code review run` reports score-based `overall_verdict: FAIL`
   from many warning-only findings on a large staged set; `.specfact/code-review.json` is still written for advisory

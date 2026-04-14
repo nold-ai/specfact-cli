@@ -1758,7 +1758,7 @@ class CodeAnalyzer:
             current = par
         return None
 
-    def _detect_async_patterns_parallel(self, tree: ast.AST, file_path: Path) -> list[str]:
+    def _detect_async_patterns_parallel(self, tree: ast.AST, _file_path: Path) -> list[str]:
         """
         Detect async/await patterns in code (thread-safe version).
 

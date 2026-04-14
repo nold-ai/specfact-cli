@@ -42,39 +42,150 @@ def _register_json_from_func_alias(alias: ast.alias, func_aliases: dict[str, str
     func_aliases[local] = f"json.{alias.name}"
 
 
-def _json_bindings(tree: ast.AST) -> tuple[dict[str, str], frozenset[str]]:
-    """``from json import`` function aliases (local name -> ``json.attr``) and ``import json`` module locals."""
-    func_aliases: dict[str, str] = {}
-    module_locals: set[str] = set()
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Import):
+class _JsonIOShadowVisitor(ast.NodeVisitor):
+    """Track json import aliases and whether call targets were shadowed by assignment."""
+
+    def __init__(self) -> None:
+        self.func_aliases: dict[str, str] = {}
+        self.module_locals: set[str] = set()
+        self.shadow_stack: list[set[str]] = [set()]
+        self.offenders: list[tuple[int, str]] = []
+
+    def _union_shadowed(self) -> set[str]:
+        merged: set[str] = set()
+        for frame in self.shadow_stack:
+            merged |= frame
+        return merged
+
+    def _note_shadow(self, name: str) -> None:
+        if name in self.func_aliases or name in self.module_locals:
+            self.shadow_stack[-1].add(name)
+
+    def _note_optional_vars(self, node: ast.AST) -> None:
+        if isinstance(node, ast.Name):
+            self._note_shadow(node.id)
+            return
+        for elt in ast.walk(node):
+            if isinstance(elt, ast.Name):
+                self._note_shadow(elt.id)
+
+    def visit_Import(self, node: ast.Import) -> None:
+        for alias in node.names:
+            _register_json_module_alias(alias, self.module_locals)
+
+    def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
+        if node.module == "json":
             for alias in node.names:
-                _register_json_module_alias(alias, module_locals)
-            continue
-        if isinstance(node, ast.ImportFrom) and node.module == "json":
-            for alias in node.names:
-                _register_json_from_func_alias(alias, func_aliases)
-    return func_aliases, frozenset(module_locals)
+                _register_json_from_func_alias(alias, self.func_aliases)
+
+    def visit_Assign(self, node: ast.Assign) -> None:
+        self.visit(node.value)
+        for tgt in node.targets:
+            if isinstance(tgt, ast.Name):
+                self._note_shadow(tgt.id)
+            elif isinstance(tgt, (ast.Tuple, ast.List)):
+                for elt in ast.walk(tgt):
+                    if isinstance(elt, ast.Name):
+                        self._note_shadow(elt.id)
+
+    def visit_AnnAssign(self, node: ast.AnnAssign) -> None:
+        self.visit(node.annotation)
+        if node.value is not None:
+            self.visit(node.value)
+        if isinstance(node.target, ast.Name):
+            self._note_shadow(node.target.id)
+
+    def visit_AugAssign(self, node: ast.AugAssign) -> None:
+        self.visit(node.value)
+        if isinstance(node.target, ast.Name):
+            self._note_shadow(node.target.id)
+
+    def _visit_for_like(self, node: ast.For | ast.AsyncFor) -> None:
+        self.visit(node.iter)
+        if isinstance(node.target, ast.Name):
+            self._note_shadow(node.target.id)
+        elif isinstance(node.target, (ast.Tuple, ast.List)):
+            for elt in ast.walk(node.target):
+                if isinstance(elt, ast.Name):
+                    self._note_shadow(elt.id)
+        for stmt in node.body:
+            self.visit(stmt)
+        for stmt in node.orelse:
+            self.visit(stmt)
+
+    def visit_For(self, node: ast.For) -> None:
+        self._visit_for_like(node)
+
+    def visit_AsyncFor(self, node: ast.AsyncFor) -> None:
+        self._visit_for_like(node)
+
+    def _visit_with_like(self, node: ast.With | ast.AsyncWith) -> None:
+        for item in node.items:
+            self.visit(item.context_expr)
+            if item.optional_vars is not None:
+                self._note_optional_vars(item.optional_vars)
+        for stmt in node.body:
+            self.visit(stmt)
+
+    def visit_With(self, node: ast.With) -> None:
+        self._visit_with_like(node)
+
+    def visit_AsyncWith(self, node: ast.AsyncWith) -> None:
+        self._visit_with_like(node)
+
+    def visit_ExceptHandler(self, node: ast.ExceptHandler) -> None:
+        if node.type is not None:
+            self.visit(node.type)
+        if node.name:
+            self._note_shadow(node.name)
+        for stmt in node.body:
+            self.visit(stmt)
+
+    def visit_FunctionDef(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> None:
+        self.shadow_stack.append(set())
+        for arg in (*getattr(node.args, "posonlyargs", ()), *node.args.args, *node.args.kwonlyargs):
+            self._note_shadow(arg.arg)
+        if node.args.vararg:
+            self._note_shadow(node.args.vararg.arg)
+        if node.args.kwarg:
+            self._note_shadow(node.args.kwarg.arg)
+        for stmt in node.body:
+            self.visit(stmt)
+        self.shadow_stack.pop()
+
+    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
+        self.visit_FunctionDef(node)  # type: ignore[arg-type]
+
+    def visit_ClassDef(self, node: ast.ClassDef) -> None:
+        self.shadow_stack.append(set())
+        for stmt in node.body:
+            self.visit(stmt)
+        self.shadow_stack.pop()
+
+    def visit_Call(self, node: ast.Call) -> None:
+        shadowed = self._union_shadowed()
+        func = node.func
+        if isinstance(func, ast.Name) and func.id in self.func_aliases and func.id not in shadowed:
+            self.offenders.append((node.lineno, self.func_aliases[func.id]))
+        elif (
+            isinstance(func, ast.Attribute)
+            and isinstance(func.value, ast.Name)
+            and func.value.id in self.module_locals
+            and func.value.id not in shadowed
+            and func.attr in _JSON_IO_NAMES
+        ):
+            self.offenders.append((node.lineno, f"json.{func.attr}"))
+        self.generic_visit(node)
+
+    def visit_Module(self, node: ast.Module) -> None:
+        for stmt in node.body:
+            self.visit(stmt)
 
 
 def _collect_json_io_offenders(tree: ast.AST) -> list[tuple[int, str]]:
-    func_aliases, module_locals = _json_bindings(tree)
-    offenders: list[tuple[int, str]] = []
-    for node in ast.walk(tree):
-        if not isinstance(node, ast.Call):
-            continue
-        func = node.func
-        if isinstance(func, ast.Name) and func.id in func_aliases:
-            offenders.append((node.lineno, func_aliases[func.id]))
-            continue
-        if (
-            isinstance(func, ast.Attribute)
-            and isinstance(func.value, ast.Name)
-            and func.value.id in module_locals
-            and func.attr in _JSON_IO_NAMES
-        ):
-            offenders.append((node.lineno, f"json.{func.attr}"))
-    return offenders
+    visitor = _JsonIOShadowVisitor()
+    visitor.visit(tree)
+    return visitor.offenders
 
 
 @beartype
@@ -85,10 +196,12 @@ def main() -> int:
         _write_stderr(f"Expected ide_setup at {IDE_SETUP}")
         return 2
     try:
-        tree = ast.parse(IDE_SETUP.read_text(encoding="utf-8"), filename=str(IDE_SETUP))
-    except OSError as exc:
+        source_text = IDE_SETUP.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as exc:
         _write_stderr(f"Cannot read ide_setup for static analysis: {exc}")
         return 2
+    try:
+        tree = ast.parse(source_text, filename=str(IDE_SETUP))
     except SyntaxError as exc:
         _write_stderr(f"ide_setup.py has invalid Python syntax (gate cannot run): {exc}")
         return 1

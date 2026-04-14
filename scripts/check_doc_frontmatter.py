@@ -462,8 +462,15 @@ def _agent_rule_optional_frontmatter_lines(draft: _AgentRuleFrontmatterDraft) ->
 @beartype
 @require(lambda path: isinstance(path, Path), "Path must be Path object")
 @ensure(lambda result: isinstance(result, str), "Must return string")
+def _agent_rule_title_stem(stem: str) -> str:
+    """Drop leading numeric ordering segments (e.g. ``50-quality-gates`` → ``quality-gates``)."""
+    without_order = re.sub(r"^\d+(?:[-_]\d+)*[-_]", "", stem)
+    return without_order if without_order.strip() else stem
+
+
 def _format_agent_rules_suggested_frontmatter(path: Path, canonical_id: str, draft: _AgentRuleFrontmatterDraft) -> str:
-    title_guess = path.stem.replace("-", " ").title().replace('"', '\\"')
+    title_stem = _agent_rule_title_stem(path.stem)
+    title_guess = title_stem.replace("-", " ").title().replace('"', '\\"')
     optional_lines = _agent_rule_optional_frontmatter_lines(draft)
     return f"""---
 layout: {_yaml_plain_or_quoted_scalar(draft.layout_val)}

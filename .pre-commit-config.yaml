@@ -38,14 +38,14 @@ repos:
         name: "CLI Block 1 — markdown auto-fix (when Markdown staged)"
         entry: ./scripts/pre-commit-quality-checks.sh block1-markdown-fix
         language: system
-        files: \.md$
+        files: \.(md|mdc)$
         verbose: true
 
       - id: cli-block1-markdown-lint
         name: "CLI Block 1 — markdownlint (when Markdown staged)"
         entry: ./scripts/pre-commit-quality-checks.sh block1-markdown-lint
         language: system
-        files: \.md$
+        files: \.(md|mdc)$
         verbose: true
 
       - id: cli-block1-workflows

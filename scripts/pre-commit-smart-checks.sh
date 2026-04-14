@@ -14,7 +14,10 @@ _hook_dir=$(CDPATH= cd -- "$(dirname "${_script_path}")" && pwd)
 
 _repo_root=$(git rev-parse --show-toplevel 2>/dev/null || true)
 if [[ -z "${_repo_root}" ]]; then
-  _repo_root=$(git -C "${_hook_dir}" rev-parse --show-toplevel)
+  _repo_root=$(git -C "${_hook_dir}" rev-parse --show-toplevel 2>/dev/null || true)
+fi
+if [[ -z "${_repo_root}" ]]; then
+  _repo_root=$(git -C "${_hook_dir}/.." rev-parse --show-toplevel 2>/dev/null || true)
 fi
 
 exec bash "${_repo_root}/scripts/pre-commit-quality-checks.sh" all "$@"

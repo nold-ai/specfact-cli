@@ -108,7 +108,7 @@ hooks that mirror `specfact-cli-modules` (module verify, format, staged YAML/Mar
 `hatch run lint` when Python is staged, then code review + contract tests).
 
 Downstream copies can either use the full modular config from this repo or a single hook
-`specfact-smart-checks` pointing at `scripts/pre-commit-smart-checks.sh` (shim → `pre-commit-quality-checks.sh all`).
+`specfact-smart-checks` pointing at `scripts/pre-commit-smart-checks.sh` (shim → `scripts/pre-commit-quality-checks.sh all`).
 
 Block 2 calls `scripts/pre_commit_code_review.py` with staged paths under `src/`, `scripts/`,
 `tools/`, `tests/`, and `openspec/changes/` (non-Python paths are filtered inside the helper),

@@ -152,7 +152,8 @@ Cross-repo dependency: `docs-07-core-handoff-conversion` depends on `specfact-cl
 | marketplace | 03 | marketplace-03-publisher-identity | [#327](https://github.com/nold-ai/specfact-cli/issues/327) | #215 (marketplace-02) |
 | marketplace | 04 | marketplace-04-revocation | [#328](https://github.com/nold-ai/specfact-cli/issues/328) | #327 (marketplace-03) |
 | marketplace | 05 | marketplace-05-registry-federation | [#329](https://github.com/nold-ai/specfact-cli/issues/329) | #327 (marketplace-03) |
-| marketplace | 06 | marketplace-06-ci-module-signing | [#500](https://github.com/nold-ai/specfact-cli/issues/500) | independent (CI/trust-chain hardening);<br>paired: `specfact-cli-modules/marketplace-06-ci-module-signing` — [#185](https://github.com/nold-ai/specfact-cli-modules/issues/185) |
+| marketplace | 06 | marketplace-06-ci-module-signing | [#500](https://github.com/nold-ai/specfact-cli/issues/500) | independent (CI/trust-chain hardening); |
+| | | | | paired: `specfact-cli-modules/marketplace-06-ci-module-signing` — [#185](https://github.com/nold-ai/specfact-cli-modules/issues/185) |
 
 ### Module migration (UX grouping and extraction)
 

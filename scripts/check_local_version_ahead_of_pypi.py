@@ -13,15 +13,18 @@ from __future__ import annotations
 import json
 import os
 import sys
+import time
 import tomllib
 import urllib.error
 import urllib.request
 from pathlib import Path
+from typing import Any
 
 
 DEFAULT_PACKAGE = "specfact-cli"
 PYPI_JSON_TMPL = "https://pypi.org/pypi/{package}/json"
 DEFAULT_TIMEOUT_S = 15.0
+_MAX_FETCH_ATTEMPTS = 5
 
 
 def _repo_root() -> Path:
@@ -50,20 +53,35 @@ def fetch_latest_pypi_version(
     *,
     timeout_s: float = DEFAULT_TIMEOUT_S,
 ) -> str | None:
-    """Return latest published version, or None if the project is not on PyPI (404)."""
+    """Return latest published version, or None if the project is not on PyPI (404).
+
+    Retries transient ``URLError`` and non-404 ``HTTPError`` a bounded number of times with
+    exponential backoff (same ``timeout_s`` per attempt).
+    """
     url = PYPI_JSON_TMPL.format(package=package)
     request = urllib.request.Request(url, headers={"User-Agent": "specfact-cli-version-check"})
-    try:
-        with urllib.request.urlopen(request, timeout=timeout_s) as response:
-            payload = json.loads(response.read().decode("utf-8"))
-    except urllib.error.HTTPError as exc:
-        if exc.code == 404:
-            return None
-        msg = f"check_local_version_ahead_of_pypi: PyPI HTTP {exc.code} for {url}"
-        raise RuntimeError(msg) from exc
-    except urllib.error.URLError as exc:
-        msg = f"check_local_version_ahead_of_pypi: network error querying PyPI ({url}): {exc}"
-        raise RuntimeError(msg) from exc
+    payload: dict[str, Any] | None = None
+    for attempt in range(_MAX_FETCH_ATTEMPTS):
+        try:
+            with urllib.request.urlopen(request, timeout=timeout_s) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+            break
+        except urllib.error.HTTPError as exc:
+            if exc.code == 404:
+                return None
+            if attempt + 1 >= _MAX_FETCH_ATTEMPTS:
+                msg = f"check_local_version_ahead_of_pypi: PyPI HTTP {exc.code} for {url}"
+                raise RuntimeError(msg) from exc
+        except urllib.error.URLError as exc:
+            if attempt + 1 >= _MAX_FETCH_ATTEMPTS:
+                msg = f"check_local_version_ahead_of_pypi: network error querying PyPI ({url}): {exc}"
+                raise RuntimeError(msg) from exc
+        wait_s = min(2**attempt, 8.0)
+        time.sleep(wait_s)
+
+    if payload is None:
+        msg = "check_local_version_ahead_of_pypi: exhausted fetch retries without a response body"
+        raise RuntimeError(msg)
 
     try:
         latest = payload["info"]["version"]
@@ -115,7 +133,12 @@ def main() -> int:
         sys.stderr.write(f"{exc}\n")
         return 2
 
-    ok, message = compare_local_to_pypi_version(local, pypi_latest)
+    try:
+        ok, message = compare_local_to_pypi_version(local, pypi_latest)
+    except ValueError as exc:
+        sys.stderr.write(f"check_local_version_ahead_of_pypi: invalid version string ({exc})\n")
+        return 2
+
     print(message, file=sys.stderr)
     return 0 if ok else 1
 

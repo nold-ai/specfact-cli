@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import yaml
+
 
 def _quality_script_text() -> str:
     return (Path(__file__).resolve().parents[3] / "scripts" / "pre-commit-quality-checks.sh").read_text(
@@ -65,6 +67,15 @@ def test_pre_commit_quality_markdown_globs_include_mdc() -> None:
     assert "mapfile" not in script
     assert "pyproject.toml|setup.py|src/__init__.py" not in script
     assert "*.md|*.mdc|*.rst" in script
+    pre_commit = Path(__file__).resolve().parents[3] / ".pre-commit-config.yaml"
+    data = yaml.safe_load(pre_commit.read_text(encoding="utf-8"))
+    hooks = []
+    for repo in data.get("repos", []):
+        hooks.extend(repo.get("hooks") or [])
+    by_id = {h["id"]: h for h in hooks if isinstance(h, dict) and "id" in h}
+    for hid in ("cli-block1-markdown-fix", "cli-block1-markdown-lint"):
+        pat = str(by_id[hid].get("files", ""))
+        assert r".(md|mdc)" in pat.replace("\\", "") or "(md|mdc)" in pat
 
 
 def test_pre_commit_staged_files_includes_deletions_for_block2() -> None:

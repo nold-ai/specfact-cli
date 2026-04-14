@@ -64,6 +64,21 @@ class TestGitHubAdapter:
         assert _git_config_content_indicates_github(content) is False
 
     @beartype
+    @pytest.mark.parametrize(
+        "url_line",
+        (
+            "url = https://github.com/owner/repo.git",
+            "url = http://github.com/owner/repo.git",
+            "url = ssh://git@github.com/owner/repo.git",
+            "url = git://github.com/owner/repo.git",
+            "url = git@github.com:owner/repo.git",
+        ),
+    )
+    def test_git_config_url_line_detects_github_for_common_schemes(self, url_line: str) -> None:
+        content = f'[remote "origin"]\n{url_line}\n'
+        assert _git_config_content_indicates_github(content) is True
+
+    @beartype
     def test_detect_pushurl_only_remote_is_not_github(self, github_adapter: GitHubAdapter, tmp_path: Path) -> None:
         """``detect`` must not treat GitHub ``pushurl`` alone as a GitHub remote."""
         git_config = tmp_path / ".git" / "config"

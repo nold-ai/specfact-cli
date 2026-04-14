@@ -160,6 +160,7 @@ def _get_github_token_from_gh_cli() -> str | None:
 
 
 # Line-anchored so ``pushurl =`` / ``insteadOf`` lines do not match the ``url`` token inside another key.
+# Matches: https://, http://, ssh://, git://, and git@host:path remotes.
 _GITHUB_GIT_CONFIG_URL_RE = re.compile(
     r"(?m)^\s*url\s*=\s*(https?://[^\s]+|ssh://[^\s]+|git://[^\s]+|git@[^:]+:[^\s]+)"
 )

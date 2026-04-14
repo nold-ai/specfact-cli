@@ -167,11 +167,31 @@ def test_verify_wrapper_skips_when_no_module_paths_staged(tmp_path: Path) -> Non
     assert log.strip() == "", "fake hatch must not run when module tree paths are not staged"
 
 
-def test_pre_commit_verify_modules_legacy_entrypoint() -> None:
-    assert LEGACY_VERIFY_WRAPPER.is_file()
-    body = LEGACY_VERIFY_WRAPPER.read_text(encoding="utf-8")
-    assert "pre-commit-verify-modules.sh" in body
-    assert "exec bash" in body
+def test_pre_commit_verify_modules_legacy_entrypoint(tmp_path: Path) -> None:
+    """Legacy shim must exec the canonical ``pre-commit-verify-modules.sh`` beside it."""
+    scripts_dir = tmp_path / "scripts"
+    scripts_dir.mkdir(parents=True)
+    log_path = tmp_path / "canon_invoked.txt"
+    canon = scripts_dir / "pre-commit-verify-modules.sh"
+    canon.write_text(
+        f'#!/usr/bin/env bash\necho invoked > "{log_path}"\nexit 0\n',
+        encoding="utf-8",
+    )
+    canon.chmod(canon.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+    legacy = scripts_dir / "pre-commit-verify-modules-signature.sh"
+    legacy.write_text(LEGACY_VERIFY_WRAPPER.read_text(encoding="utf-8"), encoding="utf-8")
+    legacy.chmod(legacy.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+    result = subprocess.run(
+        ["bash", str(legacy)],
+        cwd=str(tmp_path),
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=15,
+    )
+    assert result.returncode == 0, result.stderr
+    assert log_path.is_file()
+    assert log_path.read_text(encoding="utf-8").strip() == "invoked"
 
 
 @pytest.mark.parametrize("module_tree", ("top", "bundled"))

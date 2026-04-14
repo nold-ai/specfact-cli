@@ -143,6 +143,9 @@ check_safe_change() {
       src/__init__.py|src/specfact_cli/__init__.py) ;;
       CHANGELOG.md|README.md|.pre-commit-config.yaml) ;;
       tools/smart_test_coverage.py|tools/functional_coverage_analyzer.py) ;;
+      openspec/changes/*)
+        other_changes=$((other_changes + 1))
+        ;;
       *.md|*.mdc|*.rst|*.txt|*.json|*.yaml|*.yml) ;;
       docs/*|papers/*|presentations/*|images/*) ;;
       .github/workflows/*) ;;

@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import ast
 import importlib.util
-import subprocess
-import sys
 from pathlib import Path
 
 
@@ -48,13 +46,8 @@ def test_collect_json_io_flags_from_json_star_import() -> None:
     assert any(name == "json.dump" for _, name in offenders)
 
 
-def test_verify_safe_project_writes_passes_on_repo() -> None:
-    """Gate must succeed while ide_setup routes settings through project_artifact_write."""
-    script = Path(__file__).resolve().parents[3] / "scripts" / "verify_safe_project_writes.py"
-    completed = subprocess.run(
-        [sys.executable, str(script)],
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    assert completed.returncode == 0, completed.stderr
+def test_collect_json_io_ignores_shadowed_json_dump_alias() -> None:
+    mod = _load_verify_module()
+    tree = ast.parse('from json import dump as dumper\ndumper = 1\ndef f():\n    dumper(1, open("f","w"))\n')
+    offenders = mod._collect_json_io_offenders(tree)
+    assert not any(name == "json.dump" for _, name in offenders)

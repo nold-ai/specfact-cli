@@ -170,7 +170,9 @@ def _assert_pre_commit_verify_and_version_hooks(by_id: dict[str, dict[str, Any]]
     verify_hook = by_id["verify-module-signatures"]
     assert verify_hook.get("always_run") is True
     assert verify_hook.get("language") == "script"
-    assert "pre-commit-verify-modules.sh" in str(verify_hook.get("entry", ""))
+    verify_entry = str(verify_hook.get("entry", ""))
+    assert "pre-commit-verify-modules" in verify_entry
+    assert "pre-commit-verify-modules.sh" in verify_entry or "pre-commit-verify-modules-signature.sh" in verify_entry
     verify_script = REPO_ROOT / "scripts" / "pre-commit-verify-modules.sh"
     assert verify_script.is_file()
     legacy_verify = REPO_ROOT / "scripts" / "pre-commit-verify-modules-signature.sh"

@@ -238,7 +238,7 @@ doc-frontmatter-check = "python scripts/check_doc_frontmatter.py"
 validate-agent-rule-signals = "python scripts/validate_agent_rule_applies_when.py"
 check-version-sources = "python scripts/check_version_sources.py"
 check-pypi-ahead = "python scripts/check_local_version_ahead_of_pypi.py"
-release = "python scripts/check_version_sources.py"
+release = "python scripts/check_local_version_ahead_of_pypi.py && python scripts/check_version_sources.py"
 docs-validate = "python scripts/check-docs-commands.py && python scripts/check-cross-site-links.py --warn-only && python scripts/check_doc_frontmatter.py && python scripts/validate_agent_rule_applies_when.py"
 
 # Legacy entry (kept for compatibility); prefer `workflows-lint` above

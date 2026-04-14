@@ -84,6 +84,8 @@
 - [ ] 7.5 Run `specfact code review run --json --out .specfact/code-review.json`; resolve every
   finding at warning or error severity before marking this change complete.
 - [ ] 7.6 Record final passing test runs in `TDD_EVIDENCE.md`.
+- [ ] 7.7 Run `openspec validate marketplace-06-ci-module-signing --strict` from the repo root; fix any
+  validation errors and re-run until the command passes before marking this change complete.
 
 ## 8. Documentation
 
