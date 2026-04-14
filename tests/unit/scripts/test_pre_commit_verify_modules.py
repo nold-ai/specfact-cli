@@ -19,6 +19,9 @@ def test_verify_wrapper_invokes_branch_flag_and_payload_from_filesystem() -> Non
     assert "--payload-from-filesystem" in body
     assert "--enforce-version-bump" in body
     assert "verify-modules-signature.py" in body
+    assert 'sig_policy=$(bash "${flag_script}")' in body
+    assert '[[ "${sig_policy}" == "require" ]]' in body
+    assert "--require-signature" in body
 
 
 def _run_flag(*, cwd: Path) -> str:
@@ -58,9 +61,9 @@ def _git_init_with_commit(repo: Path) -> None:
 @pytest.mark.parametrize(
     ("branch", "expected"),
     (
-        ("feature/foo", "--allow-unsigned"),
-        ("dev", "--allow-unsigned"),
-        ("main", "--require-signature"),
+        ("feature/foo", "omit"),
+        ("dev", "omit"),
+        ("main", "require"),
     ),
 )
 def test_git_branch_signature_flag(tmp_path: Path, branch: str, expected: str) -> None:
@@ -69,3 +72,17 @@ def test_git_branch_signature_flag(tmp_path: Path, branch: str, expected: str) -
     _git_init_with_commit(repo)
     subprocess.run(["git", "branch", "-M", branch], cwd=repo, check=True, capture_output=True, text=True)
     assert _run_flag(cwd=repo) == expected
+
+
+def test_git_branch_signature_flag_detached_head(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _git_init_with_commit(repo)
+    subprocess.run(
+        ["git", "checkout", "--detach", "HEAD"],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    assert _run_flag(cwd=repo) == "omit"

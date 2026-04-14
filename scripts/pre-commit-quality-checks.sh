@@ -11,7 +11,7 @@
 # specfact-cli-modules check-bundle-imports). Module signature verification is a separate
 # pre-commit hook in .pre-commit-config.yaml, matching the modules repo.
 
-set -e
+set -euo pipefail
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -44,34 +44,68 @@ print_block2_overview() {
 }
 
 staged_files() {
-  git diff --cached --name-only
+  git diff --cached --name-only --diff-filter=ACMR
 }
 
 has_staged_yaml() {
-  staged_files | grep -E '\.ya?ml$' >/dev/null 2>&1
+  local line
+  while IFS= read -r line || [[ -n "${line}" ]]; do
+    [[ -z "${line}" ]] && continue
+    if [[ "${line}" =~ \.(yaml|yml)$ ]]; then
+      return 0
+    fi
+  done < <(staged_files)
+  return 1
 }
 
 has_staged_workflows() {
-  staged_files | grep -E '^\.github/workflows/.*\.ya?ml$' >/dev/null 2>&1
+  local line
+  while IFS= read -r line || [[ -n "${line}" ]]; do
+    [[ -z "${line}" ]] && continue
+    if [[ "${line}" =~ ^\.github/workflows/.*\.ya?ml$ ]]; then
+      return 0
+    fi
+  done < <(staged_files)
+  return 1
 }
 
 has_staged_markdown() {
-  staged_files | grep -E '\.md$' >/dev/null 2>&1
+  local line
+  while IFS= read -r line || [[ -n "${line}" ]]; do
+    [[ -z "${line}" ]] && continue
+    if [[ "${line}" =~ \.md$ ]]; then
+      return 0
+    fi
+  done < <(staged_files)
+  return 1
 }
 
 has_staged_python() {
-  staged_files | grep -E '\.pyi?$' >/dev/null 2>&1
+  local line
+  while IFS= read -r line || [[ -n "${line}" ]]; do
+    [[ -z "${line}" ]] && continue
+    if [[ "${line}" =~ \.(py|pyi)$ ]]; then
+      return 0
+    fi
+  done < <(staged_files)
+  return 1
 }
 
 staged_markdown_files() {
-  staged_files | grep -E '\.md$' || true
+  local line
+  while IFS= read -r line || [[ -n "${line}" ]]; do
+    [[ -z "${line}" ]] && continue
+    if [[ "${line}" =~ \.md$ ]]; then
+      printf '%s\n' "${line}"
+    fi
+  done < <(staged_files)
 }
 
 # Paths eligible for the code review gate (parity with modules: scoped prefixes; non-Python filtered by pre_commit_code_review.py).
 staged_review_gate_files() {
   local line
-  while IFS= read -r line; do
-    [ -z "${line}" ] && continue
+  while IFS= read -r line || [[ -n "${line}" ]]; do
+    [[ -z "${line}" ]] && continue
     case "${line}" in
       */TDD_EVIDENCE.md|TDD_EVIDENCE.md) continue ;;
       src/*|scripts/*|tools/*|tests/*|openspec/changes/*)
@@ -82,35 +116,24 @@ staged_review_gate_files() {
 }
 
 fail_if_markdown_has_unstaged_hunks() {
-  local md_files
-  md_files=$(staged_markdown_files)
-  if [ -z "${md_files}" ]; then
-    return
-  fi
   local file
-  while IFS= read -r file; do
-    [ -z "${file}" ] && continue
-    if ! git diff --quiet -- "$file"; then
-      error "❌ Cannot auto-fix Markdown with unstaged hunks: $file"
+  while IFS= read -r file || [[ -n "${file}" ]]; do
+    [[ -z "${file}" ]] && continue
+    if ! git diff --quiet -- "${file}"; then
+      error "❌ Cannot auto-fix Markdown with unstaged hunks: ${file}"
       warn "💡 Stage the full file or stash/revert the unstaged Markdown changes before commit"
       exit 1
     fi
-  done <<EOF
-${md_files}
-EOF
+  done < <(staged_markdown_files)
 }
 
 check_safe_change() {
-  local files
-  files=$(staged_files)
-
-  if [ -z "${files}" ]; then
-    return 0
-  fi
-
   local other_changes=0
+  local saw_any=false
   local file
-  for file in ${files}; do
+  while IFS= read -r file || [[ -n "${file}" ]]; do
+    [[ -z "${file}" ]] && continue
+    saw_any=true
     case "${file}" in
       pyproject.toml|setup.py|src/__init__.py|src/specfact_cli/__init__.py) ;;
       CHANGELOG.md|README.md|.pre-commit-config.yaml) ;;
@@ -123,27 +146,30 @@ check_safe_change() {
         other_changes=$((other_changes + 1))
         ;;
     esac
-  done
+  done < <(staged_files)
 
-  [ "${other_changes}" -eq 0 ]
+  if [[ "${saw_any}" == false ]]; then
+    return 0
+  fi
+  [[ "${other_changes}" -eq 0 ]]
 }
 
 run_version_sources_check_if_needed() {
-  local files
-  files=$(staged_files)
   local version_paths=("pyproject.toml" "setup.py" "src/__init__.py" "src/specfact_cli/__init__.py")
   local hit=0
   local f
-  for f in $files; do
-    local p
+  local p
+  while IFS= read -r f || [[ -n "${f}" ]]; do
+    [[ -z "${f}" ]] && continue
     for p in "${version_paths[@]}"; do
-      if [ "$f" = "$p" ]; then
+      if [[ "${f}" == "${p}" ]]; then
         hit=1
         break
       fi
     done
-  done
-  if [ "$hit" -eq 0 ]; then
+    [[ "${hit}" -eq 1 ]] && break
+  done < <(staged_files)
+  if [[ "${hit}" -eq 0 ]]; then
     return 0
   fi
   info "📌 Version file(s) staged — verifying synchronized versions"
@@ -210,24 +236,24 @@ run_markdown_autofix_if_needed() {
     return
   fi
   info "📦 Block 1 — Markdown fix — attempting safe auto-fix"
-  local md_files
-  md_files=$(staged_markdown_files)
-  if [ -z "${md_files}" ]; then
+  local md_files=()
+  mapfile -t md_files < <(staged_markdown_files)
+  if ((${#md_files[@]} == 0)); then
     info "ℹ️  No staged markdown files resolved — skipping markdown auto-fix"
     return
   fi
   fail_if_markdown_has_unstaged_hunks
   if command -v markdownlint >/dev/null 2>&1; then
-    if echo "${md_files}" | xargs -r markdownlint --fix --config .markdownlint.json; then
-      echo "${md_files}" | xargs -r git add --
+    if markdownlint --fix --config .markdownlint.json "${md_files[@]}"; then
+      git add -- "${md_files[@]}"
       success "✅ Block 1 — Markdown auto-fix applied"
     else
       error "❌ Block 1 — Markdown auto-fix failed"
       exit 1
     fi
   else
-    if echo "${md_files}" | xargs -r npx --yes markdownlint-cli --fix --config .markdownlint.json; then
-      echo "${md_files}" | xargs -r git add --
+    if npx --yes markdownlint-cli --fix --config .markdownlint.json "${md_files[@]}"; then
+      git add -- "${md_files[@]}"
       success "✅ Block 1 — Markdown auto-fix applied (npx)"
     else
       error "❌ Block 1 — Markdown auto-fix failed (npx)"
@@ -243,20 +269,20 @@ run_markdown_lint_if_needed() {
     return
   fi
   info "📦 Block 1 — Markdown lint — running markdownlint"
-  local md_files
-  md_files=$(staged_markdown_files)
-  if [ -z "${md_files}" ]; then
+  local md_files=()
+  mapfile -t md_files < <(staged_markdown_files)
+  if ((${#md_files[@]} == 0)); then
     return
   fi
   if command -v markdownlint >/dev/null 2>&1; then
-    if echo "${md_files}" | xargs -r markdownlint --config .markdownlint.json; then
+    if markdownlint --config .markdownlint.json "${md_files[@]}"; then
       success "✅ Block 1 — Markdown lint passed"
     else
       error "❌ Block 1 — Markdown lint failed"
       exit 1
     fi
   else
-    if echo "${md_files}" | xargs -r npx --yes markdownlint-cli --config .markdownlint.json; then
+    if npx --yes markdownlint-cli --config .markdownlint.json "${md_files[@]}"; then
       success "✅ Block 1 — Markdown lint passed (npx)"
     else
       error "❌ Block 1 — Markdown lint failed (npx)"
@@ -296,8 +322,8 @@ run_lint_if_staged_python() {
 
 run_code_review_gate() {
   local review_array=()
-  while IFS= read -r line; do
-    [ -z "${line}" ] && continue
+  while IFS= read -r line || [[ -n "${line}" ]]; do
+    [[ -z "${line}" ]] && continue
     review_array+=("${line}")
   done < <(staged_review_gate_files)
 

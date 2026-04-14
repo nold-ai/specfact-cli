@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Emit verify-modules-signature.py signature policy flag for the current git branch.
-# Prints --require-signature on main; --allow-unsigned elsewhere (including detached HEAD).
+# Emit module signature policy for the current git branch (consumed by pre-commit-verify-modules.sh).
+# Prints a single token: "require" on main (pass --require-signature to verify-modules-signature.py);
+# "omit" elsewhere (verifier defaults to checksum-only; there is no --allow-unsigned CLI flag).
 set -euo pipefail
 
 branch=""
@@ -9,7 +10,7 @@ if [[ -z "${branch}" || "${branch}" == "HEAD" ]]; then
   branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)
 fi
 if [[ "${branch}" == "main" ]]; then
-  printf '%s\n' "--require-signature"
+  printf '%s\n' "require"
 else
-  printf '%s\n' "--allow-unsigned"
+  printf '%s\n' "omit"
 fi

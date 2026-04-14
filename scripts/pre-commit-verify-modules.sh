@@ -10,7 +10,7 @@ if [[ -z "${repo_root}" ]]; then
 fi
 cd "${repo_root}"
 
-staged_files=$(git diff --cached --name-only 2>/dev/null || true)
+staged_files=$(git diff --cached --name-only --diff-filter=ACMR 2>/dev/null || true)
 if ! echo "${staged_files}" | grep -qE '^(src/specfact_cli/modules|modules)/'; then
   echo "ℹ️  No staged changes under modules/ or src/specfact_cli/modules/ — skipping module signature verification"
   exit 0
@@ -21,6 +21,10 @@ if [[ ! -f "${flag_script}" ]]; then
   echo "❌ Missing ${flag_script}" >&2
   exit 1
 fi
-sig_flag=$(bash "${flag_script}")
-echo "🔐 Verifying bundled module manifests (${sig_flag}, --enforce-version-bump, --payload-from-filesystem)" >&2
-exec hatch run ./scripts/verify-modules-signature.py "${sig_flag}" --enforce-version-bump --payload-from-filesystem
+sig_policy=$(bash "${flag_script}")
+if [[ "${sig_policy}" == "require" ]]; then
+  echo "🔐 Verifying bundled module manifests (--require-signature, --enforce-version-bump, --payload-from-filesystem)" >&2
+  exec hatch run ./scripts/verify-modules-signature.py --require-signature --enforce-version-bump --payload-from-filesystem
+fi
+echo "🔐 Verifying bundled module manifests (checksum-only; --enforce-version-bump, --payload-from-filesystem)" >&2
+exec hatch run ./scripts/verify-modules-signature.py --enforce-version-bump --payload-from-filesystem

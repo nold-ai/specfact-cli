@@ -24,12 +24,12 @@ def test_pre_commit_markdown_checks_run_autofix_before_lint() -> None:
 
 def test_pre_commit_markdown_autofix_restages_files() -> None:
     script = _quality_script_text()
-    assert "xargs -r git add --" in script
+    assert 'git add -- "${md_files[@]}"' in script
 
 
 def test_pre_commit_markdown_autofix_rejects_partial_staging() -> None:
     script = _quality_script_text()
-    assert 'git diff --quiet -- "$file"' in script
+    assert 'git diff --quiet -- "${file}"' in script
     assert "Cannot auto-fix Markdown with unstaged hunks" in script
 
 
@@ -50,3 +50,5 @@ def test_pre_commit_smart_checks_shim_delegates_to_quality_all() -> None:
     shim = _smart_shim_text()
     assert "pre-commit-quality-checks.sh" in shim
     assert 'all "$@"' in shim
+    assert "rev-parse --show-toplevel" in shim
+    assert 'exec bash "${_repo_root}/scripts/pre-commit-quality-checks.sh"' in shim

@@ -12,17 +12,26 @@ All notable changes to this project will be documented in this file.
 
 ## [0.46.1] - 2026-04-14
 
+### Added
+
+- **`scripts/pre-commit-quality-checks.sh`**: modular Block 1/2 entrypoints (`block1-*`, `block2`, `all`)
+  with staged-file gates and Markdown auto-fix before lint (parity with `specfact-cli-modules` hook layout
+  and `fail_fast` behavior in `.pre-commit-config.yaml`).
+- **`scripts/pre-commit-smart-checks.sh`**: back-compat shim that resolves the repository root (so copies
+  under `.git/hooks/pre-commit` still run the canonical quality script) and delegates to
+  `pre-commit-quality-checks.sh all`.
+
 ### Changed
 
-- **Pre-commit**: modular hook layout with `fail_fast` (parity with `specfact-cli-modules`): dedicated
-  module verify + version-source hook, staged YAML/Markdown/workflow gates, `hatch run lint` when
-  Python is staged, then Block 2 (scoped code review + contract tests). New
-  `scripts/pre-commit-quality-checks.sh`; `scripts/pre-commit-smart-checks.sh` remains a shim for
-  downstream `specfact-smart-checks` consumers.
 - **Module verify (pre-commit)**: branch-aware policy via `scripts/pre-commit-verify-modules.sh` and
-  `scripts/git-branch-module-signature-flag.sh` — `--allow-unsigned` off `main`, `--require-signature` on
-  `main`; skips when no staged paths under `modules/` or `src/specfact_cli/modules/`; always uses
-  `--payload-from-filesystem` with `--enforce-version-bump` when the check runs.
+  `scripts/git-branch-module-signature-flag.sh` — on `main`, run `verify-modules-signature.py` with
+  `--require-signature`; on other branches (including detached `HEAD`), omit that flag so the verifier
+  stays in checksum-only mode (there is no `--allow-unsigned` CLI). Skips when no staged paths under
+  `modules/` or `src/specfact_cli/modules/`; when the check runs it always passes `--payload-from-filesystem`
+  and `--enforce-version-bump`.
+- **`scripts/pre-commit-quality-checks.sh`**: staged file enumeration uses `git diff --cached --diff-filter=ACMR`
+  (no deleted paths), stricter `set -euo pipefail`, portable Markdown invocation (no GNU `xargs -r`), and
+  safe iteration for “safe change” detection and version-source checks.
 
 ---
 
