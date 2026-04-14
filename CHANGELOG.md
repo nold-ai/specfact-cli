@@ -14,6 +14,9 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- **Modules**: `init` **0.1.29** — patch bump so **`dev` → `main`** PRs satisfy **`--enforce-version-bump`**
+  against **`origin/main`** when **`main`** already had **0.1.28** (adding **`integrity.signature`** alone is not
+  enough; the module **version** must increase when the manifest is in the diff).
 - **CI / modules**: `pr-orchestrator.yml` and `sign-modules.yml` require **`--require-signature`** for **every**
   pull request whose **base** is **`main`** (not only fork PRs), so release merges cannot land unsigned bundled
   manifests that would fail the post-merge **`main`** push gate.
