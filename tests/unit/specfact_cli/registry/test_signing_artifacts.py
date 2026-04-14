@@ -472,6 +472,12 @@ def _assert_sign_modules_dispatch_raw_content(raw: str) -> None:
     assert 'elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then' in raw
     assert "--changed-only" in raw
     assert "chore(modules): manual workflow_dispatch sign changed modules" in raw
+    # sign-and-push must compare against merge-base SHA, not the moving branch tip alone
+    assert "git merge-base" in raw
+    assert "merge-base" in raw
+    assert '--base-ref "$MERGE_BASE"' in raw
+    # verify job still uses origin/<branch> for --version-check-base; do not wire sign-modules --base-ref to BASE_REF
+    assert '--base-ref "${BASE_REF}"' not in raw
 
 
 def test_sign_modules_workflow_dispatch_signs_changed_modules_and_pushes():
@@ -487,13 +493,20 @@ def test_sign_modules_workflow_dispatch_signs_changed_modules_and_pushes():
     _assert_sign_modules_dispatch_raw_content(SIGN_WORKFLOW.read_text(encoding="utf-8"))
 
 
-def test_sign_modules_reproducibility_runs_only_on_push():
-    """Re-sign diff check must not run on pull_request (unsigned manifests OK) or workflow_dispatch."""
-    if not SIGN_WORKFLOW.exists():
-        pytest.skip("workflow not present")
-    raw = SIGN_WORKFLOW.read_text(encoding="utf-8")
-    assert "name: Assert signing reproducibility" in raw
-    assert "if: github.event_name == 'push'" in raw
+def test_sign_modules_reproducibility_runs_only_on_main_push():
+    """Re-sign diff check runs on main push only (dev matches lenient verify; PRs unsigned OK)."""
+    assert SIGN_WORKFLOW.is_file(), "sign-modules.yml workflow must exist"
+    data = yaml.safe_load(SIGN_WORKFLOW.read_text(encoding="utf-8"))
+    assert isinstance(data, dict)
+    workflow_root = cast(dict[str, Any], data)
+    jobs = workflow_root.get("jobs")
+    assert isinstance(jobs, dict)
+    reproducibility = jobs.get("reproducibility")
+    assert isinstance(reproducibility, dict), "Expected reproducibility job in sign-modules workflow"
+    assert reproducibility.get("name") == "Assert signing reproducibility"
+    assert reproducibility.get("if") == "github.event_name == 'push' && github.ref_name == 'main'", (
+        "Reproducibility job must be gated to push events on main only"
+    )
 
 
 def test_verify_modules_script_exists():
@@ -578,6 +591,15 @@ def test_pr_orchestrator_contains_verify_module_signatures_job():
     )
 
 
+def test_pr_orchestrator_requires_signatures_for_fork_prs_to_main() -> None:
+    """Fork PRs cannot use approval-time signing; verify SHALL require signatures when base is main."""
+    if not PR_ORCHESTRATOR_WORKFLOW.exists():
+        pytest.skip("pr-orchestrator workflow not present")
+    content = PR_ORCHESTRATOR_WORKFLOW.read_text(encoding="utf-8")
+    assert "github.event.pull_request.head.repo.full_name" in content
+    assert '!= "${{ github.repository }}" ] && [ "${{ github.event.pull_request.base.ref }}" = "main" ]' in content
+
+
 def test_sign_modules_workflow_uses_private_key_and_passphrase_secrets():
     """sign-modules workflow SHALL use encrypted-key secret and passphrase secret."""
     if not SIGN_WORKFLOW.exists():
@@ -586,6 +608,7 @@ def test_sign_modules_workflow_uses_private_key_and_passphrase_secrets():
     assert "SPECFACT_MODULE_PRIVATE_SIGN_KEY" in content
     assert "SPECFACT_MODULE_PRIVATE_SIGN_KEY_PASSPHRASE" in content
     assert "--enforce-version-bump" in content
+    assert '!= "${{ github.repository }}" ] && [ "${{ github.event.pull_request.base.ref }}" = "main" ]' in content
 
 
 def test_pr_orchestrator_pins_virtualenv_below_21_for_hatch_jobs():
