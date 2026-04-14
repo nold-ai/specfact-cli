@@ -20,6 +20,10 @@ on:
           - minor
           - major
         default: patch
+      resign_all_manifests:
+        description: Sign every bundled module-package.yaml (not only --changed-only vs base). Use when manifests match the base but lack signatures.
+        type: boolean
+        default: false
   push:
     branches: [dev, main]
     paths:
@@ -53,6 +57,10 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Fetch workflow_dispatch comparison base
+        if: github.event_name == 'workflow_dispatch'
+        run: git fetch --no-tags origin "${{ github.event.inputs.base_branch }}"
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -69,6 +77,8 @@ jobs:
           VERIFY_ARGS=(--enforce-version-bump --payload-from-filesystem)
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             BASE_REF="origin/${{ github.event.pull_request.base.ref }}"
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            BASE_REF="origin/${{ github.event.inputs.base_branch }}"
           elif [ "${{ github.ref_name }}" = "main" ] && [ "${{ github.event_name }}" != "workflow_dispatch" ]; then
             VERIFY_ARGS=(--require-signature "${VERIFY_ARGS[@]}")
           fi
@@ -80,7 +90,7 @@ jobs:
 
   reproducibility:
     name: Assert signing reproducibility
-    if: github.event_name != 'workflow_dispatch'
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     needs: [verify]
     permissions:
@@ -160,18 +170,27 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install pyyaml beartype icontract cryptography cffi
 
-      - name: Sign changed module manifests
+      - name: Sign module manifests
         env:
           SPECFACT_MODULE_PRIVATE_SIGN_KEY: ${{ secrets.SPECFACT_MODULE_PRIVATE_SIGN_KEY }}
           SPECFACT_MODULE_PRIVATE_SIGN_KEY_PASSPHRASE: ${{ secrets.SPECFACT_MODULE_PRIVATE_SIGN_KEY_PASSPHRASE }}
         run: |
           BASE_REF="origin/${{ github.event.inputs.base_branch }}"
           BUMP="${{ github.event.inputs.version_bump }}"
-          python scripts/sign-modules.py \
-            --changed-only \
-            --base-ref "${BASE_REF}" \
-            --bump-version "${BUMP}" \
-            --payload-from-filesystem
+          if [ "${{ github.event.inputs.resign_all_manifests }}" = "true" ]; then
+            mapfile -t MANIFESTS < <(find src/specfact_cli/modules modules -name 'module-package.yaml' -type f 2>/dev/null | sort)
+            if [ "${#MANIFESTS[@]}" -eq 0 ]; then
+              echo "No module manifests found"
+              exit 0
+            fi
+            python scripts/sign-modules.py --payload-from-filesystem "${MANIFESTS[@]}"
+          else
+            python scripts/sign-modules.py \
+              --changed-only \
+              --base-ref "${BASE_REF}" \
+              --bump-version "${BUMP}" \
+              --payload-from-filesystem
+          fi
 
       - name: Commit and push signed manifests
         run: |
@@ -190,4 +209,4 @@ jobs:
           git commit -m "chore(modules): manual workflow_dispatch sign changed modules [skip ci]"
           git push origin "HEAD:${GITHUB_REF_NAME}"
           echo "## Signed manifests pushed" >> "${GITHUB_STEP_SUMMARY}"
-          echo "Branch: \`${GITHUB_REF_NAME}\` (base comparison: \`origin/${{ github.event.inputs.base_branch }}\`, bump: \`${{ github.event.inputs.version_bump }}\`)." >> "${GITHUB_STEP_SUMMARY}"
+          echo "Branch: \`${GITHUB_REF_NAME}\` (base: \`origin/${{ github.event.inputs.base_branch }}\`, bump: \`${{ github.event.inputs.version_bump }}\`, resign_all: \`${{ github.event.inputs.resign_all_manifests }}\`)." >> "${GITHUB_STEP_SUMMARY}"

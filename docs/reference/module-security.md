@@ -62,10 +62,12 @@ Module packages carry **publisher** and **integrity** metadata so installation, 
     verify job will still fail.
   - **Manual signing** (`sign-modules.yml` → **Run workflow**): choose the branch to update, then pick
     **comparison base** (`dev` or `main`, i.e. `origin/<branch>` for `--changed-only`) and **version bump**
-    (`patch` / `minor` / `major`). The job runs the same verifier as other events (on `main`, strict
-    `--require-signature` is skipped only for `workflow_dispatch` so you can recover unsigned `main`),
-    then signs changed modules, commits, and pushes to that branch. Reproducibility assert is skipped
-    on manual runs because signing replaces that check.
+    (`patch` / `minor` / `major`). Verification uses that same base as `--version-check-base` so
+    `workflow_dispatch` is not stuck on `HEAD~1` before the repair job runs. Enable **resign all manifests**
+    when trees match the base but signatures are still missing (unsigned file identical on both sides).
+    On `main`, strict `--require-signature` is skipped only for `workflow_dispatch` so you can recover
+    unsigned `main`. **Reproducibility** (re-sign, assert no diff) runs on **push** to `dev`/`main` only,
+    not on `pull_request`, so PRs stay green while manifests are still unsigned.
   - There is **no** `--allow-unsigned` on this verifier; that flag exists on **`sign-modules.py`**
     for explicit test-only signing without a key.
 - **Pre-commit** (this repo): when staged paths exist under `modules/` or `src/specfact_cli/modules/`,

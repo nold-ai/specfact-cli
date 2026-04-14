@@ -450,6 +450,7 @@ def _assert_workflow_dispatch_inputs(on_block: dict[str, Any]) -> None:
     assert isinstance(inputs, dict)
     assert "base_branch" in inputs
     assert "version_bump" in inputs
+    assert "resign_all_manifests" in inputs
 
 
 def _assert_sign_and_push_job(workflow_root: dict[str, Any]) -> None:
@@ -466,6 +467,9 @@ def _assert_sign_and_push_job(workflow_root: dict[str, Any]) -> None:
 def _assert_sign_modules_dispatch_raw_content(raw: str) -> None:
     assert "github.event.inputs.base_branch" in raw
     assert "github.event.inputs.version_bump" in raw
+    assert "github.event.inputs.resign_all_manifests" in raw
+    assert "Fetch workflow_dispatch comparison base" in raw
+    assert 'elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then' in raw
     assert "--changed-only" in raw
     assert "chore(modules): manual workflow_dispatch sign changed modules" in raw
 
@@ -483,12 +487,13 @@ def test_sign_modules_workflow_dispatch_signs_changed_modules_and_pushes():
     _assert_sign_modules_dispatch_raw_content(SIGN_WORKFLOW.read_text(encoding="utf-8"))
 
 
-def test_sign_modules_reproducibility_skipped_on_workflow_dispatch():
-    """Reproducibility gate is redundant when manual dispatch performs signing."""
+def test_sign_modules_reproducibility_runs_only_on_push():
+    """Re-sign diff check must not run on pull_request (unsigned manifests OK) or workflow_dispatch."""
     if not SIGN_WORKFLOW.exists():
         pytest.skip("workflow not present")
     raw = SIGN_WORKFLOW.read_text(encoding="utf-8")
-    assert "github.event_name != 'workflow_dispatch'" in raw
+    assert "name: Assert signing reproducibility" in raw
+    assert "if: github.event_name == 'push'" in raw
 
 
 def test_verify_modules_script_exists():
