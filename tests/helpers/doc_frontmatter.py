@@ -27,7 +27,11 @@ def load_check_doc_frontmatter_module() -> CheckDocFrontmatterModule:
     # Register before exec_module so dataclasses/string annotations can resolve
     # cls.__module__ via sys.modules (matches normal import behavior).
     sys.modules[spec.name] = module
-    spec.loader.exec_module(module)
+    try:
+        spec.loader.exec_module(module)
+    except BaseException:
+        sys.modules.pop(spec.name, None)
+        raise
     dfm = getattr(module, "DocFrontmatter", None)
     if dfm is not None:
         dfm.model_rebuild(_types_namespace={"datetime": datetime})

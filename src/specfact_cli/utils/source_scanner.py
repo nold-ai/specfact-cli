@@ -117,8 +117,6 @@ class SourceArtifactMap:
 @dataclass(slots=True)
 class _FeatureLinkingContext:
     repo_path: Path
-    impl_files: list[Path]
-    test_files: list[Path]
     file_functions_cache: dict[str, list[str]]
     file_test_functions_cache: dict[str, list[str]]
     file_hashes_cache: dict[str, str]
@@ -436,8 +434,6 @@ class SourceArtifactScanner:
 
         linking_ctx = _FeatureLinkingContext(
             repo_path=repo_path,
-            impl_files=impl_files,
-            test_files=test_files,
             file_functions_cache=file_functions_cache,
             file_test_functions_cache=file_test_functions_cache,
             file_hashes_cache=file_hashes_cache,

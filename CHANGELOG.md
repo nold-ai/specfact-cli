@@ -10,6 +10,104 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.46.1] - 2026-04-14
+
+### Security
+
+- **CI / modules**: `sign-modules-on-approval.yml` checks out **`pull_request.base.sha`** for
+  `scripts/sign-modules.py` and runs it from **`GITHUB_WORKSPACE`** against the PR head checkout (secrets
+  never execute branch-supplied signer code). **Fork PRs to `main`** regain **`--require-signature`** in
+  `pr-orchestrator.yml` and `sign-modules.yml` (approval signer cannot fix fork heads).
+
+### Added
+
+- **CI / modules**: `sign-modules-on-approval.yml` **`workflow_dispatch`** (**`sign-on-dispatch`**) — run from
+  **Actions** on **`dev`** before this workflow exists on the default branch; trusted scripts from
+  **`base_branch`** tip, `--changed-only` vs **`git merge-base`** to `origin/<base_branch>`.
+- **CI / modules**: `.github/workflows/sign-modules-on-approval.yml` — after an **approved** review on
+  same-repo PRs to `dev`/`main`, signs changed bundled modules with `scripts/sign-modules.py
+  --changed-only` and commits manifests to the PR branch (repository secrets
+  `SPECFACT_MODULE_PRIVATE_SIGN_KEY` / passphrase); documented in `docs/reference/module-security.md`.
+- **CI / modules**: `sign-modules.yml` **workflow_dispatch** inputs (`base_branch`, `version_bump`,
+  `resign_all_manifests`) and a **`sign-and-push`** job; verify passes `--version-check-base` for manual
+  runs and fetches the selected base before verify; **reproducibility** runs on **push** only (not
+  `pull_request`) so unsigned PR heads do not fail CI; optional full-tree re-sign when
+  `--changed-only` would no-op.
+- **CI / release**: `scripts/check_local_version_ahead_of_pypi.py` and `hatch run check-pypi-ahead` — fail PR
+  tests when `pyproject.toml` is not strictly newer than the latest `specfact-cli` on PyPI (same rule as
+  publish; avoids silent “skipped publication” after merge to `main`).
+- **`scripts/pre-commit-quality-checks.sh`**: modular Block 1/2 entrypoints (`block1-*`, `block2`, `all`) with
+  staged-file gates and Markdown auto-fix before lint (parity with `specfact-cli-modules` hook layout and
+  `fail_fast` behavior in `.pre-commit-config.yaml`).
+- **`scripts/pre-commit-smart-checks.sh`**: back-compat shim that resolves the repository root (so copies under
+  `.git/hooks/pre-commit` still run the canonical quality script) and delegates to
+  `pre-commit-quality-checks.sh all`.
+
+### Fixed
+
+- **CI / modules**: `sign-modules.yml` **Assert signing reproducibility** runs on **push to `main` only**
+  (not `pull_request`, not `dev`); reproducibility re-sign uses `--payload-from-filesystem` like verify.
+- **Modules**: `init` module **0.1.28** — patch bump and refreshed `integrity.checksum` (checksum-only
+  on `dev`); run **`sign-modules.yml` → resign all manifests** (or approval-time signing on the PR) before
+  merging to **`main`**, which still requires `integrity.signature`.
+- **CI module verify (PR vs `main` push)**: `pr-orchestrator` and `sign-modules` verify jobs no longer pass
+  `--require-signature` on `pull_request` (checksum + `--enforce-version-bump` only), avoiding false failures
+  when a manifest (e.g. `init`) has checksum but not yet `integrity.signature`. Pushes to **`main`** still run
+  strict `--require-signature` verification; sign bundled manifests before merging release PRs or post-merge
+  CI will fail. `sign-modules` verify now passes `--payload-from-filesystem` in line with the orchestrator.
+- **Pre-commit / CI parity**: `.pre-commit-config.yaml` markdown hooks now match the quality script glob by
+  including `*.mdc`; `check_safe_change()` counts `openspec/changes/*` so OpenSpec delta Markdown is not treated as
+  “safe-only” skips; `pr-orchestrator` verify job passes `--require-signature` only when the PR base (or push branch)
+  is `main`, while keeping `--enforce-version-bump` on other branches; `pre-commit-smart-checks.sh` falls back to
+  `git -C …/.. rev-parse` when the shim lives under `.git/hooks`.
+- **Release / version gate**: `hatch run release` runs `check-pypi-ahead` before `check-version-sources`;
+  `check_local_version_ahead_of_pypi.py` retries transient PyPI/network failures and returns exit code 2 on invalid
+  version strings; subprocess skip-env coverage moved to `tests/integration/scripts/`.
+- **Docs / OpenSpec**: publishing guide documents strict `verify-modules-signature.py` flags for protected branches;
+  code-review doc uses the canonical `scripts/pre-commit-quality-checks.sh all` path in the smart-checks sentence;
+  `marketplace-06-ci-module-signing` tasks add strict `openspec validate`; `CHANGE_ORDER` marketplace-06 row split for
+  line-length compliance.
+- **Quality / adapters**: `check_doc_frontmatter` strips numeric ordering prefixes from suggested agent-rule titles;
+  `verify_safe_project_writes.py` restores scope-aware JSON alias shadowing and handles read/parse failures cleanly;
+  Speckit story acceptance trims whitespace-only entries; GitHub git-config URL regex documented with broader scheme
+  tests.
+- **Pre-commit code review (Block 2)**: `scripts/pre_commit_code_review.py` returns success when the JSON report
+  has no severity=`error` findings, even if `specfact code review run` reports score-based `overall_verdict: FAIL`
+  from many warning-only findings on a large staged set; `.specfact/code-review.json` is still written for advisory
+  cleanup.
+- **Pre-commit robustness**: `pre-commit-verify-modules.sh` fails closed on unexpected `sig_policy` output and on
+  `git diff --cached` errors; `pre-commit-quality-checks.sh` documents suppressed `contract-test-status` output,
+  deduplicates the contract-first script existence check, and treats `git diff` exit codes greater than 1 as errors in
+  `run_format_safety` (exit 1 means “has diff”, not failure); script tests use a fake `hatch`, tighter timeouts,
+  skip-path and `git diff --cached` failure coverage.
+- **Legacy module verify path**: `scripts/pre-commit-verify-modules-signature.sh` is a small delegating shim to
+  `pre-commit-verify-modules.sh` for downstream hooks and mirrors; `run_module_signature_verification` prefers the
+  canonical script and falls back to the legacy path when only that file exists.
+- **Pre-commit quality script**: staged Markdown detection includes `*.mdc`; Block 2 “safe change” no longer skips
+  review or contract tests for `pyproject.toml` / `setup.py` alone; markdown file lists avoid Bash 4 `mapfile` for
+  macOS Bash 3.2 compatibility.
+
+### Changed
+
+- **Governance docs**: `docs/agent-rules/70-release-commit-and-docs.md` documents the PyPI ahead-of check
+  and optional `SPECFACT_SKIP_PYPI_VERSION_CHECK` for offline use.
+- **Module verify (pre-commit)**: branch-aware policy via `scripts/pre-commit-verify-modules.sh` and
+  `scripts/git-branch-module-signature-flag.sh` — on `main`, run `verify-modules-signature.py` with
+  `--require-signature`; on other branches (including detached `HEAD`), omit that flag so the verifier stays in
+  checksum-only mode (there is no `--allow-unsigned` CLI). Skips when no staged paths under `modules/` or
+  `src/specfact_cli/modules/`; when the check runs it always passes `--payload-from-filesystem` and
+  `--enforce-version-bump`.
+- **`scripts/pre-commit-quality-checks.sh`**: staged file enumeration uses
+  `git diff --cached --diff-filter=ACMR` (no deleted paths), stricter `set -euo pipefail`, portable Markdown
+  invocation (no GNU `xargs -r`), and safe iteration for “safe change” detection and version-source checks;
+  pre-commit wrapper scripts are not exempt from Block 2 when staged.
+- **Docs / OpenSpec**: `docs/reference/module-security.md`, `docs/guides/module-signing-and-key-rotation.md`,
+  `docs/guides/publishing-modules.md`, and `docs/agent-rules/50-quality-gates-and-review.md` now describe
+  branch-aware verify vs strict `--require-signature`, and clarify that `--allow-unsigned` applies to
+  `sign-modules.py` only; `openspec/changes/marketplace-06-ci-module-signing/` artifacts updated to match.
+
+---
+
 ## [0.46.0] - 2026-04-13
 
 ### Added

@@ -5,8 +5,6 @@ permalink: /guides/publishing-modules/
 description: Package and publish SpecFact modules to a registry (tarball, checksum, optional signing).
 ---
 
-# Publishing modules
-
 This guide describes how to package a SpecFact module for registry publishing: validate structure, create a tarball and checksum, optionally sign the manifest, and automate publishing in the dedicated modules repository.
 
 > Modules docs handoff: this page remains in the core docs set as release-line overview content.
@@ -104,7 +102,11 @@ metadata.
 
 - Bump module `version` in `module-package.yaml` whenever payload or manifest content changes; keep versions immutable for published artifacts.
 - Use `namespace/name` for any module you publish to a registry.
-- Run `scripts/verify-modules-signature.py --require-signature` (or your registry’s policy) before releasing.
+- Before merging to a protected branch such as `main`, run strict verification, e.g.
+  `scripts/verify-modules-signature.py --require-signature --enforce-version-bump` so signatures and
+  version bumps are both enforced. On feature or `dev` branches, checksum-only verification (omit
+  `--require-signature`) is typical — see [Module signing and key rotation](module-signing-and-key-rotation.md).
+  Follow your registry’s policy if stricter.
 - Prefer `--download-base-url` and `--index-fragment` when integrating with a custom registry index.
 
 ## See also

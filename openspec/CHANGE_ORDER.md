@@ -152,6 +152,8 @@ Cross-repo dependency: `docs-07-core-handoff-conversion` depends on `specfact-cl
 | marketplace | 03 | marketplace-03-publisher-identity | [#327](https://github.com/nold-ai/specfact-cli/issues/327) | #215 (marketplace-02) |
 | marketplace | 04 | marketplace-04-revocation | [#328](https://github.com/nold-ai/specfact-cli/issues/328) | #327 (marketplace-03) |
 | marketplace | 05 | marketplace-05-registry-federation | [#329](https://github.com/nold-ai/specfact-cli/issues/329) | #327 (marketplace-03) |
+| marketplace | 06 | marketplace-06-ci-module-signing | [#500](https://github.com/nold-ai/specfact-cli/issues/500) | independent (CI/trust-chain hardening); |
+| | | | | paired: `specfact-cli-modules/marketplace-06-ci-module-signing` — [#185](https://github.com/nold-ai/specfact-cli-modules/issues/185) |
 
 ### Module migration (UX grouping and extraction)
 
@@ -332,7 +334,7 @@ Spec-Kit has evolved to v0.4.3 with 46 extensions, pluggable presets, 7+ slash c
 | cli-val | 04 | cli-val-04-acceptance-test-runner | [#282](https://github.com/nold-ai/specfact-cli/issues/282) | #279, #281 |
 | cli-val | 05 | cli-val-05-ci-integration | [#283](https://github.com/nold-ai/specfact-cli/issues/283) | #280, #282 |
 | cli-val | 06 | cli-val-06-copilot-test-generation | [#284](https://github.com/nold-ai/specfact-cli/issues/284) | #279 (soft: #283) |
-| cli-val | 07 | ✅ cli-val-07-command-package-runtime-validation (archived 2026-03-09) | marketplace-02 ✅; backlog-core-05 ✅; module-migration-08 ✅ |
+| cli-val | 07 | ✅ cli-val-07-command-package-runtime-validation (archived 2026-03-09) | — | marketplace-02 ✅; backlog-core-05 ✅; module-migration-08 ✅ |
 
 ### Integration governance and proof (architecture integration plan, 2026-02-15)
 

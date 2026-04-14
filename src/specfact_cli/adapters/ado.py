@@ -54,7 +54,7 @@ console = Console()
 
 @dataclass(frozen=True, slots=True)
 class _AdoCreatedWorkItemRef:
-    work_item_id: Any
+    work_item_id: int | str
     work_item_url: str
     org: str
     project: str
@@ -744,7 +744,10 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             },
         }
         source_tracking = proposal_data.get("source_tracking")
-        if source_tracking is None:
+        if isinstance(source_tracking, list):
+            cast(list[dict[str, Any]], source_tracking).append(tracking_update)
+            return
+        if source_tracking is None or (isinstance(source_tracking, dict) and len(source_tracking) == 0):
             proposal_data["source_tracking"] = tracking_update
             return
         if isinstance(source_tracking, dict):
@@ -752,11 +755,6 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             st.update(tracking_update)
             proposal_data["source_tracking"] = st
             return
-        if isinstance(source_tracking, list):
-            if not source_tracking:
-                proposal_data["source_tracking"] = [tracking_update]
-                return
-            cast(list[dict[str, Any]], source_tracking).append(tracking_update)
 
     def _is_on_premise(self) -> bool:
         """
@@ -2270,8 +2268,10 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         Returns:
             Dict with updated work item data: {"work_item_id": int, "work_item_url": str, "state": str}
         """
-        target_repo = f"{org}/{project}"
-        work_item_id = self._get_source_tracking_work_item_id(proposal_data.get("source_tracking", {}), target_repo)
+        work_item_id = self._get_source_tracking_work_item_id(
+            proposal_data.get("source_tracking", {}),
+            f"{org}/{project}",
+        )
         ado_state = self._resolve_proposal_ado_state(proposal_data)
         work_item_data = self._patch_work_item(
             org,

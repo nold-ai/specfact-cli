@@ -113,13 +113,19 @@ jobs:
       - name: Verify bundled module checksums and signatures
         run: |
           BASE_REF=""
+          VERIFY_ARGS=(--payload-from-filesystem --enforce-version-bump)
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             BASE_REF="origin/${{ github.event.pull_request.base.ref }}"
+            if [ "${{ github.event.pull_request.head.repo.full_name }}" != "${{ github.repository }}" ] && [ "${{ github.event.pull_request.base.ref }}" = "main" ]; then
+              VERIFY_ARGS=(--require-signature "${VERIFY_ARGS[@]}")
+            fi
+          elif [ "${{ github.ref_name }}" = "main" ]; then
+            VERIFY_ARGS=(--require-signature "${VERIFY_ARGS[@]}")
           fi
           if [ -n "$BASE_REF" ]; then
-            python scripts/verify-modules-signature.py --require-signature --enforce-version-bump --payload-from-filesystem --version-check-base "$BASE_REF"
+            python scripts/verify-modules-signature.py "${VERIFY_ARGS[@]}" --version-check-base "$BASE_REF"
           else
-            python scripts/verify-modules-signature.py --require-signature --enforce-version-bump --payload-from-filesystem
+            python scripts/verify-modules-signature.py "${VERIFY_ARGS[@]}"
           fi
 
   workflow-lint:
@@ -215,6 +221,12 @@ jobs:
       - name: Verify version strings are synchronized
         if: needs.changes.outputs.skip_tests_dev_to_main != 'true'
         run: python scripts/check_version_sources.py
+
+      - name: Verify local version is ahead of PyPI
+        if: needs.changes.outputs.skip_tests_dev_to_main != 'true'
+        env:
+          SPECFACT_PYPI_VERSION_CHECK_LENIENT_NETWORK: "1"
+        run: python scripts/check_local_version_ahead_of_pypi.py
 
       - name: Cache hatch environments
         if: needs.changes.outputs.skip_tests_dev_to_main != 'true'
@@ -547,7 +559,7 @@ jobs:
           {
             set -euo pipefail
             ruff format . --check
-            python -m basedpyright --pythonpath "$(python -c 'import sys; print(sys.executable)')"
+            python -m basedpyright --level error --pythonpath "$(python -c 'import sys; print(sys.executable)')"
             ruff check .
             pylint src tests tools
             python scripts/verify_safe_project_writes.py

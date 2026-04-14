@@ -203,10 +203,10 @@ class PersonaExporter:
             return
         if spec.use_getattr:
             val = getattr(feature, spec.field_name, None)
-            if val:
+            if val is not None:
                 feature_dict[spec.field_name] = val
             return
-        if spec.value:
+        if spec.value is not None:
             feature_dict[spec.field_name] = spec.value
 
     def _merge_feature_optional_sections(

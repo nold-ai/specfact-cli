@@ -78,10 +78,22 @@ hatch test --cover -v
 
 ### Pre-commit Checks
 
+Local hooks use **`fail_fast: true`** and a **modular layout** aligned with `specfact-cli-modules`:
+branch-aware module verify (skip if no staged module tree changes; on `main` pass `--require-signature`
+  to `verify-modules-signature.py`, elsewhere omit it for checksum-only mode) → sync version files when those paths are staged → format (always) →
+YAML / Markdown / workflow lint when matching paths are staged → **`hatch run lint`** when Python
+is staged → Block 2 (scoped code review + contract tests, with a safe-change short-circuit for
+docs-only and similar commits). See `.pre-commit-config.yaml` and `scripts/pre-commit-quality-checks.sh`.
+
 ```bash
-# Install repo hooks
+# Install framework hooks (recommended; matches CI-style stages)
 pre-commit install
+
+# Optional: copy raw script into .git/hooks/pre-commit (runs full `all` pipeline via shim)
 scripts/setup-git-hooks.sh
+
+# Manual full pipeline (same as shim)
+hatch run pre-commit-checks
 
 # Format code
 hatch run format
@@ -99,7 +111,7 @@ hatch run contract-test-full
 The supported local hook path is the repo-owned smart-check wrapper installed by the commands
 above. It keeps local semantics aligned with CI:
 
-- Merge-blocking local gates: module signature verification, formatter safety, Markdown/YAML checks,
+- Merge-blocking local gates: module signature verification (branch-aware; see `scripts/pre-commit-verify-modules.sh`), formatter safety, Markdown/YAML checks,
   workflow lint for staged workflow changes, and contract-test fast feedback when code changes.
 - Review gate behavior: `specfact code review run` reviews staged Python files and blocks the
   commit only on `FAIL`. `PASS_WITH_ADVISORY` remains green but still prints the JSON report path for

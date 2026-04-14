@@ -462,15 +462,19 @@ class SpecKitAdapter(BridgeAdapter):
             story_title = sd.get("title", "Unknown Story")
             priority = sd.get("priority", "P3")
             acceptance_raw = sd.get("acceptance", [])
-            default_acceptance = [f"{story_title} is implemented"]
             if isinstance(acceptance_raw, list) and acceptance_raw:
                 if all(isinstance(x, str) for x in acceptance_raw):
-                    acceptance = list(acceptance_raw) or default_acceptance
+                    acceptance = [s.strip() for s in acceptance_raw if isinstance(s, str) and s.strip()]
                 else:
-                    extracted = self._extract_text_list(cast(list[Any], acceptance_raw))
-                    acceptance = extracted or default_acceptance
+                    acceptance = [
+                        s.strip() for s in self._extract_text_list(cast(list[Any], acceptance_raw)) if s.strip()
+                    ]
+                    if not acceptance:
+                        acceptance = [f"{story_title} is implemented"]
+                if not acceptance:
+                    acceptance = [f"{story_title} is implemented"]
             else:
-                acceptance = default_acceptance
+                acceptance = [f"{story_title} is implemented"]
             story_points = priority_map.get(str(priority), 3)
             stories.append(
                 Story(
@@ -548,14 +552,13 @@ class SpecKitAdapter(BridgeAdapter):
 
         if existing_feature:
             existing_feature.title = payload.feature_title
-            existing_feature.outcomes = (
-                list(payload.outcomes) if payload.outcomes else list(existing_feature.outcomes or [])
-            )
-            existing_feature.acceptance = (
-                list(payload.acceptance) if payload.acceptance else list(existing_feature.acceptance or [])
-            )
+            existing_feature.outcomes = list(payload.outcomes)
+            existing_feature.acceptance = list(payload.acceptance)
             existing_feature.stories = [s.model_copy(deep=True) for s in payload.stories]
             existing_feature.constraints = list(constraints)
+            existing_feature.source_tracking = self._build_speckit_source_tracking(
+                payload.spec_path, payload.bridge_config
+            )
             return
 
         feature = Feature(

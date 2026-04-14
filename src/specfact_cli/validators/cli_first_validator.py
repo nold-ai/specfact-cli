@@ -188,21 +188,29 @@ def detect_direct_manipulation(specfact_dir: Path) -> list[Path]:
 
     # Check project bundles
     projects_dir = specfact_dir / "projects"
-    if not projects_dir.exists():
+    if not projects_dir.is_dir():
         return suspicious_files
 
-    for bundle_dir in projects_dir.iterdir():
-        if not bundle_dir.is_dir():
-            continue
-        manifest_file = bundle_dir / "bundle.manifest.yaml"
-        if manifest_file.exists() and not is_cli_generated(manifest_file):
-            suspicious_files.append(manifest_file)
+    try:
+        bundle_iter = list(projects_dir.iterdir())
+    except OSError:
+        return suspicious_files
 
-        features_dir = bundle_dir / "features"
-        if not features_dir.exists():
+    for bundle_dir in bundle_iter:
+        try:
+            if not bundle_dir.is_dir():
+                continue
+            manifest_file = bundle_dir / "bundle.manifest.yaml"
+            if manifest_file.exists() and not is_cli_generated(manifest_file):
+                suspicious_files.append(manifest_file)
+
+            features_dir = bundle_dir / "features"
+            if not features_dir.is_dir():
+                continue
+            for feature_file in features_dir.glob("*.yaml"):
+                if not is_cli_generated(feature_file):
+                    suspicious_files.append(feature_file)
+        except OSError:
             continue
-        for feature_file in features_dir.glob("*.yaml"):
-            if not is_cli_generated(feature_file):
-                suspicious_files.append(feature_file)
 
     return suspicious_files

@@ -16,7 +16,7 @@ tracks:
   - setup.py
   - src/specfact_cli/__init__.py
   - sibling specfact-cli-internal wiki scripts (see below)
-last_reviewed: 2026-04-10
+last_reviewed: 2026-04-14
 exempt: false
 exempt_reason: ""
 id: agent-rules-release-commit-and-docs
@@ -35,33 +35,32 @@ depends_on:
   - agent-rules-quality-gates-and-review
 ---
 
-# Agent release, commit, and docs rules
-
 ## Versioning
 
 - Keep version updates in sync across `pyproject.toml`, `setup.py`, and `src/specfact_cli/__init__.py`.
-- **Automated check:** Before tagging or publishing, run `hatch run check-version-sources` (or `python scripts/check_version_sources.py`). It exits non-zero with a clear diff if `pyproject.toml`, `setup.py`, `src/__init__.py`, and `src/specfact_cli/__init__.py` disagree. The **Tests** job in `.github/workflows/pr-orchestrator.yml` runs the same script so mismatches fail CI. Pre-commit runs it whenever a version file is staged (see `scripts/pre-commit-smart-checks.sh`) instead of treating version-only commits as “safe” without verification.
+- **Automated check:** Before tagging or publishing, run `hatch run check-version-sources` (or `python scripts/check_version_sources.py`). It exits non-zero with a clear diff if `pyproject.toml`, `setup.py`, `src/__init__.py`, and `src/specfact_cli/__init__.py` disagree. The **Tests** job in `.github/workflows/pr-orchestrator.yml` runs the same script so mismatches fail CI. Pre-commit runs it whenever a version file is staged (see the `check-version-sources` hook in `.pre-commit-config.yaml` and `scripts/pre-commit-quality-checks.sh`) instead of treating version-only commits as “safe” without verification.
+- **PyPI ahead-of check:** Run `hatch run check-pypi-ahead` (or `python scripts/check_local_version_ahead_of_pypi.py`). It queries PyPI for the latest `specfact-cli` version and fails unless the local `pyproject.toml` version is **strictly greater** (matching the publish gate in `.github/workflows/scripts/check-and-publish-pypi.sh`). CI runs this in the same **Tests** job after `check_version_sources`. For offline work only, `SPECFACT_SKIP_PYPI_VERSION_CHECK=1` skips the check (do not use in CI).
 - `hatch run release` is reserved for maintainers to chain `check-version-sources` before manual release steps; extend that script if you add more release automation.
 - `feature/*` branches imply a minor bump, `bugfix/*` and `hotfix/*` imply a patch bump, and major bumps require explicit confirmation.
 
-## Changelog
+### Changelog
 
 - Update `CHANGELOG.md` in the same commit as the version bump.
 - Follow Keep a Changelog sections: `Added`, `Changed`, `Fixed`, `Removed`, `Security`.
 
-## Commits
+### Commits
 
 - Use Conventional Commits.
 - If signed commits fail in a non-interactive shell, stage files and hand the exact `git commit -S -m "<message>"` command to the user instead of bypassing signing.
 
-## Documentation and README
+### Documentation and README
 
 - Keep docs current with every user-facing behavior change.
 - Preserve all Jekyll frontmatter on docs edits.
 - Update navigation when adding or moving pages.
 - Keep `README.md` and the docs landing page aligned with what SpecFact actually does.
 
-## Internal wiki (sibling `specfact-cli-internal`)
+### Internal wiki (sibling `specfact-cli-internal`)
 
 After **merging** changes that affect OpenSpec or GitHub-linked planning, and when a sibling `specfact-cli-internal` checkout is available, run the wiki scripts only after **`cd` into that internal repo** so the working directory matches what the scripts expect (running from `specfact-cli` or elsewhere will break them). From this repo’s root, for example:
 

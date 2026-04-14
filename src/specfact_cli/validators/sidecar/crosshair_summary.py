@@ -64,13 +64,13 @@ def _append_rejected_line_violation(
     function_name_pattern: re.Pattern[str],
     violation_details: list[dict[str, Any]],
 ) -> None:
-    if any(v["function"] in line for v in violation_details):
-        return
     match = function_name_pattern.match(line)
     if not match:
         return
     func_name = match.group(1).strip()
     if "/" in func_name or func_name.startswith("/"):
+        return
+    if any(v.get("function") == func_name for v in violation_details):
         return
     violation_details.append({"function": func_name, "counterexample": {}, "raw": line.strip()})
 

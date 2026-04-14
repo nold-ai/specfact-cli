@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 import os
 import re
 import shutil
@@ -40,6 +41,7 @@ from specfact_cli.runtime import is_debug_mode
 USER_MODULES_ROOT = Path.home() / ".specfact" / "modules"
 
 
+@beartype
 @dataclass(slots=True)
 class InstallModuleOptions:
     """Options for :func:`install_module`."""
@@ -61,7 +63,7 @@ class _BundleDepsInstallContext:
     trust_non_official: bool
     non_interactive: bool
     force: bool
-    logger: Any
+    logger: logging.Logger
 
 
 MARKETPLACE_MODULES_ROOT = Path.home() / ".specfact" / "marketplace-modules"

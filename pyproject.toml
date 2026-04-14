@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "specfact-cli"
-version = "0.46.0"
+version = "0.46.1"
 description = "The swiss knife CLI for agile DevOps teams. Keep backlog, specs, tests, and code in sync with validation and contract enforcement for new projects and long-lived codebases."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -209,7 +209,8 @@ validate-prompts = "python tools/validate_prompts.py"
 test = "pytest {args}"
 test-cov = "pytest --cov=src --cov-report=term-missing {args}"
 type-check = "basedpyright --pythonpath $(python -c 'import sys; print(sys.executable)') {args}"
-lint = "ruff format . --check && basedpyright --pythonpath $(python -c 'import sys; print(sys.executable)') && ruff check . && pylint src tests tools && python scripts/verify_safe_project_writes.py"
+# basedpyright --level error: suppress warning noise in pre-commit (Block 1 runs `hatch run lint`).
+lint = "ruff format . --check && basedpyright --level error --pythonpath $(python -c 'import sys; print(sys.executable)') && ruff check . && pylint src tests tools && python scripts/verify_safe_project_writes.py"
 governance = "pylint src tests tools --reports=y --output-format=parseable"
 format = "ruff check . --fix && ruff format ."
 
@@ -236,7 +237,8 @@ check-cross-site-links = "python scripts/check-cross-site-links.py"
 doc-frontmatter-check = "python scripts/check_doc_frontmatter.py"
 validate-agent-rule-signals = "python scripts/validate_agent_rule_applies_when.py"
 check-version-sources = "python scripts/check_version_sources.py"
-release = "python scripts/check_version_sources.py"
+check-pypi-ahead = "python scripts/check_local_version_ahead_of_pypi.py"
+release = "python scripts/check_local_version_ahead_of_pypi.py && python scripts/check_version_sources.py"
 docs-validate = "python scripts/check-docs-commands.py && python scripts/check-cross-site-links.py --warn-only && python scripts/check_doc_frontmatter.py && python scripts/validate_agent_rule_applies_when.py"
 
 # Legacy entry (kept for compatibility); prefer `workflows-lint` above
@@ -286,7 +288,6 @@ contract-prune = "python tools/migrate_tests_to_contracts.py --prune --dry-run"
 # Pre-commit hooks
 pre-commit-install = "bash scripts/setup-git-hooks.sh"
 pre-commit-checks = "bash scripts/pre-commit-smart-checks.sh"
-pre-commit-test = "bash scripts/pre-commit-smart-test.sh"
 
 [tool.hatch.envs.py311]
 python = "3.11"

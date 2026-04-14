@@ -413,10 +413,12 @@ class SmartCoverageManager:
         integ: list[Path] = []
         e2e: list[Path] = []
         for p in test_paths:
-            p_str = str(p)
+            p_str = p.as_posix()
             name = p.name.lower()
             if "tests/unit" in p_str:
                 unit.append(p)
+            elif "tests/e2e/" in p_str or p_str.startswith("tests/e2e/"):
+                e2e.append(p)
             elif "tests/integration" in p_str:
                 if "e2e" in name:
                     e2e.append(p)

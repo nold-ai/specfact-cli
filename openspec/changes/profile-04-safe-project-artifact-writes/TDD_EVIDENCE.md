@@ -17,7 +17,8 @@ hatch run pytest \
 
 - **Note**: New scenarios (`malformed_json_raises`, `preserves_unrelated_keys`, verify script) were added
   before the safe-merge implementation; prior behavior treated invalid JSON as `{}` and could destroy user
-  settings (issue #487).
+  settings (issue #487). Failing-first excerpt was not preserved in this log; the command above is the
+  recorded gate for ordering (spec → tests → failing evidence → code → passing evidence).
 
 ## Passing-after (targeted + e2e)
 
@@ -35,8 +36,10 @@ hatch test --cover -v
 ```
 
 - **Full suite + coverage (`tasks.md` 4.3)**: same worktree; `hatch test --cover -v` — **exit 0**. Pytest summary:
-  `2450 passed, 9 skipped in 358.61s (0:05:58)`. Coverage footer (pytest-cov): `TOTAL ... 62%` on the combined
-  `src/` + `tools/` table (see run log for per-file lines).
+  `2450 passed, 9 skipped in 358.61s (0:05:58)`. The pytest-cov **TOTAL** line (~62% on combined `src/` +
+  `tools/` in that run) is **not** the enforced ≥80% gate: CI and pre-commit use **changed-scope / smart-test**
+  thresholds and per-path coverage expectations. Treat the footer as diagnostic aggregate only, not a
+  merge pass/fail signal for repo-wide percentage.
 
 - **Module signatures**: run
   `hatch run ./scripts/verify-modules-signature.py --require-signature` — pass without bumping

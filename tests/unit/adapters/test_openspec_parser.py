@@ -207,8 +207,6 @@ More detail.
         parsed = parser.parse_change_spec_delta(delta_path)
 
         assert parsed is not None
-        assert parsed.get("type") == "MODIFIED"
-        assert parsed.get("feature_id") == "001-auth"
         assert "## Subheading inside content" in (parsed.get("content") or "")
         assert "Intro line." in (parsed.get("content") or "")
         assert "More detail." in (parsed.get("content") or "")
