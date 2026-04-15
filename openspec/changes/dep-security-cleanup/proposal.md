@@ -79,3 +79,11 @@ No action needed:
 - Update `optional_deps.py` tests to reflect removed/renamed checks.
 
 **No public CLI surface changes.** All commands behave identically. Call-graph feature remains an optional enhancement gated by `pycg` availability.
+
+## Source Tracking
+
+- **GitHub Pull Request**: #507
+- **Pull Request URL**: <https://github.com/nold-ai/specfact-cli/pull/507>
+- **Repository**: nold-ai/specfact-cli
+- **Last Synced Status**: PR open against `dev` (awaiting review)
+- **GitHub Issue**: — (no separate tracking issue; implementation and scope are covered by PR #507)
