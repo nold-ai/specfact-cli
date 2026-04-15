@@ -69,6 +69,8 @@ def test_pr_orchestrator_pypi_version_check_gated_on_version_sources() -> None:
     assert "version_sources:" in text
     assert "version_sources_changed" in text
     assert "version_sources_changed == 'true'" in text
+    assert "skip-when-version-unchanged-vs" in text
+    assert "github.event.pull_request.base.sha" in text
 
 
 def test_pr_orchestrator_required_checks_trigger_on_every_pr_head_commit() -> None:

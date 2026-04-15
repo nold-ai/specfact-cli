@@ -92,3 +92,27 @@ def test_main_invalid_version_exit_code_2(mod) -> None:
         patch.object(mod, "read_local_version", return_value="not-a-version"),
     ):
         assert mod.main() == 2
+
+
+def test_read_project_version_from_pyproject_bytes(mod) -> None:
+    toml = b'[project]\nname = "x"\nversion = "1.2.3"\n'
+    assert mod.read_project_version_from_pyproject_bytes(toml) == "1.2.3"
+
+
+def test_main_skip_when_version_unchanged_vs_skips_pypi_query(mod) -> None:
+    with (
+        patch.object(mod, "read_local_version", return_value="9.9.9"),
+        patch.object(mod, "pyproject_version_at_git_revision", return_value="9.9.9"),
+        patch.object(mod, "fetch_latest_pypi_version") as fetch_mock,
+    ):
+        assert mod.main(["--skip-when-version-unchanged-vs", "deadbeef"]) == 0
+    fetch_mock.assert_not_called()
+
+
+def test_main_skip_when_base_unknown_still_queries_pypi(mod) -> None:
+    with (
+        patch.object(mod, "read_local_version", return_value="99.0.0"),
+        patch.object(mod, "pyproject_version_at_git_revision", return_value=None),
+        patch.object(mod, "fetch_latest_pypi_version", return_value="0.1.0"),
+    ):
+        assert mod.main(["--skip-when-version-unchanged-vs", "deadbeef"]) == 0

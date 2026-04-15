@@ -26,6 +26,7 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 
 - Pre-commit PyPI-ahead hook no longer runs on unrelated commits when local version already matches PyPI.
+- **CI / PyPI gate**: `check_local_version_ahead_of_pypi.py` supports `--skip-when-version-unchanged-vs`; PR orchestrator and pre-commit use it so PRs that edit `pyproject.toml` (for example dependencies) without bumping `project.version` are not blocked by the PyPI-ahead step.
 
 ## [0.46.2] - 2026-04-15
 
