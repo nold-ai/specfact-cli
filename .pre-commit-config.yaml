@@ -19,8 +19,8 @@ repos:
         pass_filenames: false
         always_run: true
 
-      # Runs only when a version source is staged: same script as orchestrator tests job, but
-      # not on every commit (local == PyPI is normal after a release; always_run would block dev).
+      # Runs only when canonical version files are staged — same scope as pr-orchestrator tests job
+      # PyPI step (version_sources_changed). Skips routine commits when local == PyPI after a release.
       - id: check-local-version-ahead-of-pypi
         name: Check local version ahead of PyPI (lenient network; when version files staged)
         entry: bash -c 'export SPECFACT_PYPI_VERSION_CHECK_LENIENT_NETWORK=1 && exec python scripts/check_local_version_ahead_of_pypi.py'

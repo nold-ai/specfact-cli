@@ -27,6 +27,7 @@ jobs:
       code_changed: ${{ steps.out.outputs.code_changed }}
       workflow_changed: ${{ steps.out.outputs.workflow_changed }}
       pyproject_changed: ${{ steps.out.outputs.pyproject_changed }}
+      version_sources_changed: ${{ steps.out.outputs.version_sources_changed }}
       skip_tests_dev_to_main: ${{ steps.out.outputs.skip_tests_dev_to_main }}
     steps:
       - uses: actions/checkout@v4
@@ -44,6 +45,11 @@ jobs:
               - '!.github/workflows/**'
             pyproject:
               - 'pyproject.toml'
+            version_sources:
+              - 'pyproject.toml'
+              - 'setup.py'
+              - 'src/__init__.py'
+              - 'src/specfact_cli/__init__.py'
             workflow:
               - '.github/workflows/**'
               - 'scripts/run_actionlint.sh'
@@ -65,12 +71,14 @@ jobs:
               echo "code_changed=true"
               echo "workflow_changed=true"
               echo "pyproject_changed=true"
+              echo "version_sources_changed=true"
             } >> "$GITHUB_OUTPUT"
           else
             {
               echo "code_changed=${{ steps.filter.outputs.code }}"
               echo "workflow_changed=${{ steps.filter.outputs.workflow }}"
               echo "pyproject_changed=${{ steps.filter.outputs.pyproject }}"
+              echo "version_sources_changed=${{ steps.filter.outputs.version_sources }}"
             } >> "$GITHUB_OUTPUT"
           fi
           SKIP_TESTS=false
@@ -230,7 +238,9 @@ jobs:
         run: python scripts/check_version_sources.py
 
       - name: Verify local version is ahead of PyPI
-        if: needs.changes.outputs.skip_tests_dev_to_main != 'true'
+        if: >-
+          needs.changes.outputs.skip_tests_dev_to_main != 'true' &&
+          needs.changes.outputs.version_sources_changed == 'true'
         env:
           SPECFACT_PYPI_VERSION_CHECK_LENIENT_NETWORK: "1"
         run: python scripts/check_local_version_ahead_of_pypi.py

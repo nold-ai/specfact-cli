@@ -63,6 +63,14 @@ def _load_hooks() -> list[dict[str, Any]]:
     return typed_hooks
 
 
+def test_pr_orchestrator_pypi_version_check_gated_on_version_sources() -> None:
+    """PyPI-ahead must not run on every code PR; gate matches pre-commit staged version files."""
+    text = PR_ORCHESTRATOR.read_text(encoding="utf-8")
+    assert "version_sources:" in text
+    assert "version_sources_changed" in text
+    assert "version_sources_changed == 'true'" in text
+
+
 def test_pr_orchestrator_required_checks_trigger_on_every_pr_head_commit() -> None:
     """Required checks must not disappear behind workflow-level path filters."""
     workflow = _load_yaml(PR_ORCHESTRATOR)

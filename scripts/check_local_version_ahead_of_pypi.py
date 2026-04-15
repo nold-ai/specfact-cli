@@ -2,8 +2,10 @@
 """Fail if pyproject version is not strictly greater than the latest PyPI release.
 
 PyPI publish (see .github/workflows/scripts/check-and-publish-pypi.sh) skips when the local
-version is not newer than PyPI, which hides release problems until merge to main. This script
-surfaces that requirement on every PR that runs the tests job.
+version is not newer than PyPI, which hides release problems until merge to main. In CI, the
+``pr-orchestrator`` tests job runs this only when canonical version files change (same scope as the
+``check-local-version-ahead-of-pypi`` pre-commit hook). Pre-commit uses the same script with
+``files:`` so routine PRs are not blocked when the workspace version already matches PyPI.
 
 Set SPECFACT_SKIP_PYPI_VERSION_CHECK=1 to skip (offline / air-gapped only; do not use in CI).
 

@@ -21,7 +21,7 @@ All notable changes to this project will be documented in this file.
 
 - **License / CVE hygiene**: hardened `scripts/check_license_compliance.py` (fail-closed allowlist and manifest map, GPL vs LGPL detection), `license-check` CI gated on `pyproject.toml` changes, docs and OpenSpec updates for `dep-security-cleanup`.
 - **Call graphs**: `pycg` invocation uses `--package` + repo root; specs and tests aligned with PyCG adjacency format.
-- **Pre-commit / CI**: `check-version-sources` always runs; PyPI-ahead check matches orchestrator tests job when version files are staged (lenient network), with remediation hints on failure.
+- **Pre-commit / CI**: `check-version-sources` always runs; PyPI-ahead check matches orchestrator tests job when version sources change (`pyproject.toml`, `setup.py`, `src/__init__.py`, `src/specfact_cli/__init__.py`; lenient network), with remediation hints on failure.
 
 ### Fixed
 
