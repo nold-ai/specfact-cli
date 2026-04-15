@@ -3,6 +3,9 @@ Utilities for checking optional dependencies.
 
 This module provides functions to check if optional dependencies are installed
 and available, enabling graceful degradation when they're not present.
+
+Enhanced-analysis CLI tools: pycg (MIT), bandit (MIT), graphviz (MIT).
+pyan3 (GPL-2.0), syft (wrong PyPI package), bearer (wrong PyPI package) removed.
 """
 
 from __future__ import annotations
@@ -77,7 +80,7 @@ def check_cli_tool_available(
     (where tools installed via pip are typically located).
 
     Args:
-        tool_name: Name of the CLI tool (e.g., "pyan3", "syft", "bearer")
+        tool_name: Name of the CLI tool (e.g., "pycg", "bandit", "graphviz")
         version_flag: Flag to check version (default: "--version")
         timeout: Timeout in seconds (default: 5)
 
@@ -126,24 +129,18 @@ def check_enhanced_analysis_dependencies() -> dict[str, tuple[bool, str | None]]
     """
     Check availability of all enhanced analysis optional dependencies.
 
-    Note: Currently only pyan3 is actually used in the codebase.
-    syft and bearer are planned but not yet implemented.
-
     Returns:
         Dictionary mapping dependency name to (is_available, error_message) tuple:
-        - "pyan3": (bool, str | None) - Python call graph analysis (USED)
-        - "syft": (bool, str | None) - SBOM generation (PLANNED, not yet used)
-        - "bearer": (bool, str | None) - Data flow analysis (PLANNED, not yet used)
-        - "graphviz": (bool, str | None) - Graph visualization (Python package, PLANNED, not yet used)
+        - "pycg": (bool, str | None) - Python call graph analysis (MIT; replaces GPL pyan3)
+        - "bandit": (bool, str | None) - SAST security scanner (MIT)
+        - "graphviz": (bool, str | None) - Graph visualization (Python package)
     """
     results: dict[str, tuple[bool, str | None]] = {}
 
-    # Check CLI tools
-    results["pyan3"] = check_cli_tool_available("pyan3")
-    # Note: syft and bearer are checked but not yet used in the codebase
-    # They are included here for future use when SBOM and data flow analysis are implemented
-    results["syft"] = check_cli_tool_available("syft")
-    results["bearer"] = check_cli_tool_available("bearer")
+    # pycg: MIT-licensed call graph tool (replaces pyan3 which was GPL-2.0)
+    results["pycg"] = check_cli_tool_available("pycg")
+    # bandit: MIT-licensed SAST scanner (replaces bearer which was the wrong PyPI package)
+    results["bandit"] = check_cli_tool_available("bandit")
 
     # Check Python packages
     graphviz_available = check_python_package_available("graphviz")
@@ -169,7 +166,7 @@ def get_enhanced_analysis_installation_hint() -> str:
     pip install specfact-cli[enhanced-analysis]
 
 Or install individually:
-    pip install pyan3 syft bearer graphviz
+    pip install pycg bandit graphviz
 
 Note: graphviz also requires the system Graphviz library:
     - Ubuntu/Debian: sudo apt-get install graphviz

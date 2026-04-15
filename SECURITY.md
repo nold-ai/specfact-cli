@@ -53,3 +53,29 @@ When using SpecFact CLI in your environment:
 - Monitor logs for unexpected access patterns.
 
 Thank you for helping keep SpecFact CLI and our users secure!
+
+## Known dependency risks and Phase 2 plans
+
+### gitpython — CVE history (monitored)
+
+`gitpython` has a recurring CVE history:
+
+- **CVE-2022-24439** (CVSS 9.9) — fixed in 3.1.30+
+- **CVE-2023-41040** (CVSS 4.3) — fixed in 3.1.37+
+- **CVE-2023-40590** (CVSS 7.8) — fixed in 3.1.40+
+
+**Current pin**: `gitpython>=3.1.45` (all three CVEs patched). Monitored via `hatch run security-audit`.
+
+**Phase 2 plan**: Replace `gitpython` with `dulwich` (BSD-licensed). The migration requires a
+3-file adapter rewrite (`src/specfact_cli/utils/git.py`,
+`src/specfact_cli/versioning/analyzer.py`,
+`src/specfact_cli/analyzers/code_analyzer.py`). Tracked in the `dep-security-cleanup` change.
+
+### License compliance gate
+
+Run `hatch run license-check` (wraps `scripts/check_license_compliance.py`) to verify that no
+GPL/AGPL packages are present in module manifests and all dev-env GPL exceptions are documented
+in `scripts/license_allowlist.yaml`.
+
+Run `hatch run security-audit` (wraps `pip-audit --desc --strict`) to check for CVEs in the
+installed environment. Any CVE with CVSS ≥ 7.0 is a blocker for release.

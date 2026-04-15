@@ -77,6 +77,7 @@ dependencies = [
     "graphviz>=0.20.1",  # Graph visualization (requires system Graphviz: apt-get install graphviz)
     
     # Git operations
+    # gitpython: CVE history (CVE-2022-24439, CVE-2023-41040, CVE-2023-40590). Phase 2: replace with dulwich.
     "gitpython>=3.1.45",
     
     # YAML utilities
@@ -84,8 +85,8 @@ dependencies = [
     
     # Schema validation
     "jsonschema>=4.23.0",
-    # VS Code settings.json is often JSON with comments (JSONC); parse/emit via JSON5 subset
-    "json5>=0.9.28",
+    # VS Code settings.json is JSONC (comments + trailing commas); commentjson (MIT) strips them, delegates to stdlib json
+    "commentjson>=0.9.0",
     
     # Contract-First (runtime decorators; exploration tools are optional extra `contracts`)
     "icontract>=2.7.1",  # Design-by-contract decorators
@@ -114,13 +115,13 @@ dev = [
     "pytest-xdist>=3.8.0",
     "basedpyright>=1.32.1",
     "isort>=7.0.0",
-    "pylint>=4.0.2",
+    "pylint>=4.0.2",  # GPL-2.0-or-later — dev-only exception (not in module manifests). Phase 2: replace with ruff --select ALL.
     "ruff>=0.14.2",
     "radon>=6.0.1",
     "tomlkit>=0.13.3",  # Style-preserving TOML library (recommended successor to pytoml)
     "types-PyYAML>=6.0.12.20250516",
     "pip-tools>=7.5.1",
-    "semgrep>=1.144.0",  # Latest version compatible with rich~=13.5.2
+    "semgrep>=1.144.0",  # LGPL-2.1 — required for code analysis; invoked as subprocess (accepted exception)
 
     # Same contract exploration stack as [contracts] (extras cannot self-reference)
     "crosshair-tool>=0.0.97",
@@ -131,11 +132,14 @@ dev = [
     "beartype>=0.22.4",
     
     # Enhanced Analysis Tools (for local development)
-    # Note: syft excluded from dev/test due to rich version conflict with semgrep
-    # Install separately: pip install specfact-cli[enhanced-analysis] if needed
     "graphviz>=0.20.1",  # Graph visualization (requires system Graphviz: apt-get install graphviz)
-    "pyan3>=1.2.0",  # Python call graph analysis
-    "bearer>=3.1.0",  # Data flow analysis for security
+    "pycg>=0.0.7",  # Python call graph analysis (MIT; replaces pyan3 which was GPL-2.0)
+    # pyan3 removed — GPL-2.0; bearer removed — wrong PyPI package (SaaS auth, not security scanner)
+    # syft removed — wrong PyPI package (OpenMined ML framework, not Anchore SBOM)
+    "bandit>=1.7.0",  # SAST scanner (MIT)
+    "pip-licenses>=4.0.0",  # License enumeration for compliance gate (MIT)
+    "pip-audit>=2.0.0",  # CVE audit via OSV database (Apache-2.0)
+    # pylint: GPL-2.0-or-later — dev-only exception (not in module manifests). Phase 2: replace with ruff --select ALL.
 ]
 
 scanning = [
@@ -144,9 +148,8 @@ scanning = [
 
 enhanced-analysis = [
     "graphviz>=0.20.1",  # Graph visualization (requires system Graphviz: apt-get install graphviz)
-    "pyan3>=1.2.0",  # Python call graph analysis
-    "syft>=0.9.5",  # Software Bill of Materials (SBOM) generation
-    "bearer>=3.1.0",  # Data flow analysis for security
+    "pycg>=0.0.7",  # Python call graph analysis (MIT; replaces pyan3 which was GPL-2.0)
+    # pyan3 removed — GPL-2.0; bearer removed — wrong PyPI package; syft removed — wrong PyPI package
 ]
 
 # Note: Specmatic integration (specfact spec commands) requires the Specmatic CLI tool
@@ -189,22 +192,28 @@ dependencies = [
     "ruff>=0.14.2",
     "radon>=6.0.1",
     "yamllint>=1.37.1",
-    "semgrep>=1.144.0",  # Latest version compatible with rich~=13.5.2
+    "semgrep>=1.144.0",  # LGPL-2.1 — required for code analysis; invoked as subprocess (accepted exception)
     # Contract-First Development Dependencies
     "icontract>=2.7.1",
-    "beartype>=0.22.4", 
+    "beartype>=0.22.4",
     "crosshair-tool>=0.0.97",
     "hypothesis>=6.142.4",
     # Enhanced Analysis Tools (for local development)
-    # Note: syft excluded from dev/test due to rich version conflict with semgrep
-    # Install separately: pip install specfact-cli[enhanced-analysis] if needed
     "graphviz>=0.20.1",  # Graph visualization (requires system Graphviz: apt-get install graphviz)
-    "pyan3>=1.2.0",  # Python call graph analysis
-    "bearer>=3.1.0",  # Data flow analysis for security
+    "pycg>=0.0.7",  # Python call graph analysis (MIT; replaces pyan3 which was GPL-2.0)
+    # pyan3 removed — GPL-2.0; bearer removed — wrong PyPI package; syft removed — wrong PyPI package
+    "bandit>=1.7.0",  # SAST scanner (MIT)
+    "pip-licenses>=4.0.0",  # License enumeration for compliance gate (MIT)
+    "pip-audit>=2.0.0",  # CVE audit via OSV database (Apache-2.0)
+    # pylint: GPL-2.0-or-later — dev-only exception (not in module manifests). Phase 2: replace with ruff --select ALL.
 ]
 
 [tool.hatch.envs.default.scripts]
 validate-prompts = "python tools/validate_prompts.py"
+# Security and license compliance gates
+bandit-scan = "bandit -r src/ -ll"
+license-check = "python scripts/check_license_compliance.py"
+security-audit = "pip-audit --desc --strict"
 # Development scripts
 test = "pytest {args}"
 test-cov = "pytest --cov=src --cov-report=term-missing {args}"
@@ -316,11 +325,10 @@ dependencies = [
     "hypothesis>=6.142.4",
     "yamllint>=1.37.1",
     # Enhanced Analysis Tools (for testing)
-    # Note: syft excluded from test due to rich version conflict with semgrep
-    # Install separately: pip install specfact-cli[enhanced-analysis] if needed
     "graphviz>=0.20.1",  # Graph visualization (requires system Graphviz: apt-get install graphviz)
-    "pyan3>=1.2.0",  # Python call graph analysis
-    "bearer>=3.1.0",  # Data flow analysis for security
+    "pycg>=0.0.7",  # Python call graph analysis (MIT; replaces pyan3 which was GPL-2.0)
+    # pyan3 removed — GPL-2.0; bearer removed — wrong PyPI package; syft removed — wrong PyPI package
+    "commentjson>=0.9.0",  # JSONC parser (MIT; replaces json5 for VS Code settings JSONC support)
 ]
 dev-mode = true
 parallel = true

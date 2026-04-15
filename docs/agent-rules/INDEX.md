@@ -30,8 +30,6 @@ stop_conditions:
 depends_on: []
 ---
 
-# Agent rules index
-
 This page is the canonical loader for repository governance instructions. `AGENTS.md` stays small and mandatory, but the detailed rules live here and in the linked rule files so new sessions do not have to absorb the full policy corpus up front.
 
 ## Bootstrap sequence
@@ -88,7 +86,7 @@ Use these **canonical `applies_when` tokens** in rule file frontmatter (under `d
 
 | Matrix row (human summary) | Canonical signals (`applies_when`) | Required rule files | Optional rule files |
 | --- | --- | --- | --- |
-| Any implementation request | `implementation`, `openspec-change-selection`, `verification` | `10-session-bootstrap.md`, `40-openspec-and-tdd.md`, `50-quality-gates-and-review.md` | `20-repository-context.md`; sibling internal `wiki/` (see **Internal wiki and strategic context** in `40-openspec-and-tdd.md`) when present |
+| Any implementation request | `implementation`, `openspec-change-selection`, `verification` | `10-session-bootstrap.md`, `40-openspec-and-tdd.md`, `50-quality-gates-and-review.md` | `20-repository-context.md`, `55-dependency-hygiene.md` (when adding/changing dependencies); sibling internal `wiki/` (see **Internal wiki and strategic context** in `40-openspec-and-tdd.md`) when present |
 | Code or docs changes on a branch | `branch-management`, `implementation` | `30-worktrees-and-branching.md` | `80-current-guidance-catalog.md` |
 | Public GitHub issue work | `github-public-work`, `change-readiness` | `60-github-change-governance.md` | `30-worktrees-and-branching.md` |
 | Release or finalization work | `finalization`, `release`, `documentation-update`, `verification` | `70-release-commit-and-docs.md`, `50-quality-gates-and-review.md` | `80-current-guidance-catalog.md` |
@@ -102,6 +100,7 @@ Use these **canonical `applies_when` tokens** in rule file frontmatter (under `d
 - [`30-worktrees-and-branching.md`](./30-worktrees-and-branching.md): branch protection, worktree policy, and conflict avoidance
 - [`40-openspec-and-tdd.md`](./40-openspec-and-tdd.md): OpenSpec selection, change validity, strict TDD order, internal wiki mirror (`wiki/sources/<change-id>.md`) when scope or dependencies shift, and optional sibling internal wiki context for change design
 - [`50-quality-gates-and-review.md`](./50-quality-gates-and-review.md): required gates, code review JSON, clean-code enforcement, module signatures
+- [`55-dependency-hygiene.md`](./55-dependency-hygiene.md): (A)GPL prohibition, approved license list, license-check/security-audit gates, Phase 2 tracking
 - [`60-github-change-governance.md`](./60-github-change-governance.md): cache-first GitHub metadata, dependency completeness, and `in progress` ambiguity handling
 - [`70-release-commit-and-docs.md`](./70-release-commit-and-docs.md): versioning, changelog, docs, README, and commit signing
 - [`80-current-guidance-catalog.md`](./80-current-guidance-catalog.md): preserved migrated guidance not yet split into narrower documents
