@@ -214,7 +214,7 @@ Cross-repo dependency: `docs-07-core-handoff-conversion` depends on `specfact-cl
 
 | Module | Order | Change folder | GitHub # | Blocked by |
 |--------|-------|---------------|----------|------------|
-| deps | 01 | dep-security-cleanup | PR [#507](https://github.com/nold-ai/specfact-cli/pull/507) | — |
+| deps | 01 | dep-security-cleanup | [#508](https://github.com/nold-ai/specfact-cli/issues/508) | — |
 
 ### Developer workflow (parallel branch operations)
 

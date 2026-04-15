@@ -82,8 +82,9 @@ No action needed:
 
 ## Source Tracking
 
+- **GitHub Issue**: #508
+- **Issue URL**: <https://github.com/nold-ai/specfact-cli/issues/508>
+- **Repository**: nold-ai/specfact-cli
+- **Last Synced Status**: open (implementation in PR #507)
 - **GitHub Pull Request**: #507
 - **Pull Request URL**: <https://github.com/nold-ai/specfact-cli/pull/507>
-- **Repository**: nold-ai/specfact-cli
-- **Last Synced Status**: PR open against `dev` (awaiting review)
-- **GitHub Issue**: — (no separate tracking issue; implementation and scope are covered by PR #507)
