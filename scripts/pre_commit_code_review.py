@@ -120,7 +120,8 @@ def discover_specfact_modules_repo() -> Path | None:
 
     This path is only used so the nested ``code review`` process can prepend bundle ``src``
     trees to ``sys.path`` (see ``specfact_cli.modules._bundle_import``). It does **not**
-    install, upgrade, or uninstall marketplace modules in the user's install scope.
+    install, upgrade, or uninstall marketplace modules in the user's install scope; user-scope
+    uninstalls are additionally gated in ``uninstall_module`` (``confirm_user_scope`` / env).
     """
     root = _repo_root()
     here: Path = root

@@ -66,7 +66,7 @@ class TestGraphAnalyzer:
         assert len(graph.nodes()) == 10
 
     def test_build_dependency_graph_parallel_call_graphs(self, tmp_path: Path) -> None:
-        """Test that pyan call graph extraction is parallelized."""
+        """Test that call graph extraction hooks run during parallel dependency graph builds."""
         # Create multiple Python files
         files = []
         for i in range(5):
@@ -135,23 +135,20 @@ def func_{i}():
         assert "module" in module_name
         assert "test" in module_name
 
-    # --- pycg migration tests (Tasks 1.1 & 1.2) ---
-    # These tests target the post-migration behaviour. They will FAIL until
-    # graph_analyzer.py is updated to invoke pycg (not pyan3).
-
     def test_extract_call_graph_invokes_pycg_not_pyan3(self, tmp_path: Path) -> None:
         """After migration, extract_call_graph must call pycg, not pyan3."""
         file_path = tmp_path / "sample.py"
         file_path.write_text("def foo(): pass\n")
         # Create a json output file pycg would write
         json_out = tmp_path / "pycg_output.json"
+        # PyCG adjacency list: caller -> [callees] (see PyCG README simple JSON format)
         json_out.write_text('{"foo": []}')
         analyzer = GraphAnalyzer(tmp_path)
 
         with (
             patch(
                 "specfact_cli.utils.optional_deps.check_cli_tool_available",
-                return_value=(True, "pycg"),
+                return_value=(True, None),
             ),
             patch("specfact_cli.analyzers.graph_analyzer.subprocess.run") as mock_run,
         ):
@@ -161,6 +158,12 @@ def func_{i}():
         assert mock_run.called, "subprocess.run should have been called"
         first_arg = mock_run.call_args[0][0]
         assert first_arg[0] == "pycg", f"Expected pycg invocation, got: {first_arg[0]}"
+        assert first_arg[1] == "--package"
+        assert first_arg[2] == str(analyzer.repo_path)
+        assert first_arg[3] == str(file_path)
+        assert first_arg[4] == "--output"
+        assert len(first_arg) == 6
+        assert str(first_arg[5]).endswith(".json")
         assert "pyan3" not in first_arg, "pyan3 must not appear in the pycg invocation"
 
     def test_extract_call_graph_returns_empty_on_nonzero_exit(self, tmp_path: Path) -> None:
@@ -172,7 +175,7 @@ def func_{i}():
         with (
             patch(
                 "specfact_cli.utils.optional_deps.check_cli_tool_available",
-                return_value=(True, "pycg"),
+                return_value=(True, None),
             ),
             patch("specfact_cli.analyzers.graph_analyzer.subprocess.run") as mock_run,
         ):
@@ -196,20 +199,20 @@ def func_{i}():
         assert result == {}, "Missing pycg binary must return empty dict"
 
     def test_parse_pycg_json_returns_correct_structure(self, tmp_path: Path) -> None:
-        """_parse_pycg_json must parse pycg JSON format {callee: [caller, ...]}."""
+        """_parse_pycg_json must parse PyCG adjacency list ``caller -> [callee, ...]``."""
         analyzer = GraphAnalyzer(tmp_path)
 
-        json_content = '{"bar": ["foo"], "baz": ["foo", "bar"]}'
+        json_content = '{"foo": ["bar", "baz"], "bar": ["baz"]}'
         json_path = tmp_path / "pycg_output.json"
         json_path.write_text(json_content)
 
-        # This method doesn't exist yet — will raise AttributeError until implemented.
         result = analyzer._parse_pycg_json(json_path)
 
         assert isinstance(result, dict), "Must return a dict"
         assert "foo" in result, "Caller 'foo' should be a key"
         assert "bar" in result["foo"], "foo should call bar"
         assert "baz" in result["foo"], "foo should call baz"
+        assert result["bar"] == ["baz"], "bar should call baz"
 
     def test_parse_pycg_json_handles_empty_output(self, tmp_path: Path) -> None:
         """_parse_pycg_json with empty JSON returns empty dict."""

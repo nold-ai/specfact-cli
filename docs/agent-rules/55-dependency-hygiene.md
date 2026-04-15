@@ -9,7 +9,8 @@ expertise_level: [advanced]
 doc_owner: specfact-cli
 tracks:
   - pyproject.toml
-  - packages/*/module-package.yaml
+  - modules/*/module-package.yaml
+  - src/specfact_cli/modules/*/module-package.yaml
   - scripts/check_license_compliance.py
   - scripts/license_allowlist.yaml
   - SECURITY.md
@@ -85,7 +86,7 @@ Before adding a new `pip_dependencies` entry to any `module-package.yaml`:
 3. If LGPL: document subprocess invocation in `license_allowlist.yaml`.
 4. Run `hatch run license-check` — must exit 0.
 5. Re-sign the module manifest (`hatch run sign-modules`).
-6. Run `hatch run verify-modules-signature` — must pass.
+6. Run `hatch run verify-modules-signature` (strict bundle from `module-verify-policy.sh`) — must pass.
 
 ## 6. Phase 2 tracking
 

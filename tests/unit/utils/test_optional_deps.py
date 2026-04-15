@@ -11,10 +11,6 @@ def test_check_python_package_available_returns_false_for_control_character_name
     assert check_python_package_available("\x00") is False
 
 
-# --- pycg migration tests (Task 1.3) ---
-# These tests will FAIL until optional_deps.py is updated to use pycg.
-
-
 def test_check_optional_analysis_deps_includes_pycg_key() -> None:
     """After migration, check_optional_analysis_deps must return a 'pycg' key."""
     with patch("shutil.which", return_value=None):

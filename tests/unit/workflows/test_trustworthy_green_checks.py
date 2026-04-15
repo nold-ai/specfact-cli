@@ -177,7 +177,9 @@ def _assert_pre_commit_verify_and_version_hooks(by_id: dict[str, dict[str, Any]]
     assert verify_script.is_file()
     legacy_verify = REPO_ROOT / "scripts" / "pre-commit-verify-modules-signature.sh"
     assert legacy_verify.is_file()
-    assert "--payload-from-filesystem" in verify_script.read_text(encoding="utf-8")
+    verify_body = verify_script.read_text(encoding="utf-8")
+    assert "module-verify-policy.sh" in verify_body
+    assert "VERIFY_MODULES_STRICT" in verify_body
     assert "check-version-sources" in by_id
 
 

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "specfact-cli"
-version = "0.46.2"
+version = "0.46.3"
 description = "The swiss knife CLI for agile DevOps teams. Keep backlog, specs, tests, and code in sync with validation and contract enforcement for new projects and long-lived codebases."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -213,7 +213,7 @@ validate-prompts = "python tools/validate_prompts.py"
 # Security and license compliance gates
 bandit-scan = "bandit -r src/ -ll"
 license-check = "python scripts/check_license_compliance.py"
-security-audit = "pip-audit --desc --strict"
+security-audit = "python scripts/security_audit_gate.py"
 # Development scripts
 test = "pytest {args}"
 test-cov = "pytest --cov=src --cov-report=term-missing {args}"
@@ -270,10 +270,14 @@ smart-test-e2e = "python tools/smart_test_coverage.py run --level e2e {args}"
 smart-test-full = "python tools/smart_test_coverage.py run --level full {args}"
 smart-test-auto = "python tools/smart_test_coverage.py run --level auto {args}"
 
+# Bundled module verify (flags mirror scripts/module-verify-policy.sh VERIFY_* arrays)
+verify-modules-signature = "python scripts/verify-modules-signature.py --require-signature --enforce-version-bump --payload-from-filesystem {args}"
+verify-modules-signature-pr = "python scripts/verify-modules-signature.py --enforce-version-bump --skip-checksum-verification {args}"
+
 # Module migration pre-deletion gate
 verify-removal-gate = [
     "python scripts/verify-bundle-published.py --modules project,plan,import_cmd,sync,migrate,backlog,policy_engine,analyze,drift,validate,repro,contract,spec,sdd,generate,enforce,patch_mode",
-    "python scripts/verify-modules-signature.py --require-signature",
+    "hatch run verify-modules-signature",
 ]
 export-change-github = "python scripts/export-change-to-github.py {args}"
 

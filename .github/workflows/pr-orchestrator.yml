@@ -26,6 +26,7 @@ jobs:
     outputs:
       code_changed: ${{ steps.out.outputs.code_changed }}
       workflow_changed: ${{ steps.out.outputs.workflow_changed }}
+      pyproject_changed: ${{ steps.out.outputs.pyproject_changed }}
       skip_tests_dev_to_main: ${{ steps.out.outputs.skip_tests_dev_to_main }}
     steps:
       - uses: actions/checkout@v4
@@ -41,6 +42,8 @@ jobs:
               - '!**/*.mdc'
               - '!docs/**'
               - '!.github/workflows/**'
+            pyproject:
+              - 'pyproject.toml'
             workflow:
               - '.github/workflows/**'
               - 'scripts/run_actionlint.sh'
@@ -58,11 +61,17 @@ jobs:
           PR_BASE_SHA="${PR_BASE_SHA:-}"
           PR_HEAD_SHA="${PR_HEAD_SHA:-}"
           if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
-            echo "code_changed=true" >> "$GITHUB_OUTPUT"
-            echo "workflow_changed=true" >> "$GITHUB_OUTPUT"
+            {
+              echo "code_changed=true"
+              echo "workflow_changed=true"
+              echo "pyproject_changed=true"
+            } >> "$GITHUB_OUTPUT"
           else
-            echo "code_changed=${{ steps.filter.outputs.code }}" >> "$GITHUB_OUTPUT"
-            echo "workflow_changed=${{ steps.filter.outputs.workflow }}" >> "$GITHUB_OUTPUT"
+            {
+              echo "code_changed=${{ steps.filter.outputs.code }}"
+              echo "workflow_changed=${{ steps.filter.outputs.workflow }}"
+              echo "pyproject_changed=${{ steps.filter.outputs.pyproject }}"
+            } >> "$GITHUB_OUTPUT"
           fi
           SKIP_TESTS=false
           if [ "$EVENT_NAME" = "pull_request" ] && [ "$PR_BASE_REF" = "main" ] && [ "$PR_HEAD_REF" = "dev" ]; then
@@ -110,19 +119,20 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install pyyaml beartype icontract cryptography cffi
 
-      - name: Verify bundled module checksums (signatures enforced on push via sign-modules workflow)
+      - name: Verify bundled module manifests (PR = relaxed checksum; push = payload checksum + version)
         run: |
           set -euo pipefail
-          VERIFY_ARGS=(--payload-from-filesystem --enforce-version-bump)
+          # shellcheck disable=SC1091
+          source scripts/module-verify-policy.sh
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             BASE_REF="origin/${{ github.event.pull_request.base.ref }}"
-            python scripts/verify-modules-signature.py "${VERIFY_ARGS[@]}" --version-check-base "$BASE_REF"
+            python scripts/verify-modules-signature.py "${VERIFY_MODULES_PR[@]}" --version-check-base "$BASE_REF"
           else
             BEFORE="${{ github.event.before }}"
             if [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
               BEFORE="HEAD~1"
             fi
-            python scripts/verify-modules-signature.py "${VERIFY_ARGS[@]}" --version-check-base "$BEFORE"
+            python scripts/verify-modules-signature.py "${VERIFY_MODULES_PUSH_ORCHESTRATOR[@]}" --version-check-base "$BEFORE"
           fi
 
   workflow-lint:
@@ -574,7 +584,7 @@ jobs:
     name: License Compliance Gate
     runs-on: ubuntu-latest
     needs: [changes, verify-module-signatures]
-    if: needs.changes.outputs.code_changed == 'true' && needs.changes.outputs.skip_tests_dev_to_main != 'true'
+    if: needs.changes.outputs.code_changed == 'true' && needs.changes.outputs.pyproject_changed == 'true' && needs.changes.outputs.skip_tests_dev_to_main != 'true'
     permissions:
       contents: read
     steps:
@@ -626,7 +636,7 @@ jobs:
       - name: Run CVE security audit
         run: |
           echo "🔍 Running CVE security audit..."
-          pip-audit --desc --strict
+          python scripts/security_audit_gate.py
 
   package-validation:
     name: Package Validation (uvx/pip)

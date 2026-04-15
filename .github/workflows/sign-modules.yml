@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
-# Auto-sign changed bundled modules on push to dev/main, then strict-verify. PRs use checksum-only
-# verification so feature branches are not blocked by missing signatures before CI signs.
+# Auto-sign changed bundled modules on push to dev/main, then strict-verify. PRs / workflow_dispatch
+# use the same relaxed verify bundle as pre-commit omit (see scripts/module-verify-policy.sh).
 name: Module Signature Hardening
 
 on:
@@ -33,6 +33,7 @@ on:
       - "resources/keys/**"
       - "scripts/sign-modules.py"
       - "scripts/verify-modules-signature.py"
+      - "scripts/module-verify-policy.sh"
       - ".github/workflows/sign-modules.yml"
       - ".github/workflows/sign-modules-on-approval.yml"
   pull_request:
@@ -43,6 +44,7 @@ on:
       - "resources/keys/**"
       - "scripts/sign-modules.py"
       - "scripts/verify-modules-signature.py"
+      - "scripts/module-verify-policy.sh"
       - ".github/workflows/sign-modules.yml"
       - ".github/workflows/sign-modules-on-approval.yml"
 
@@ -104,20 +106,20 @@ jobs:
         if: github.event_name == 'push' && (github.ref_name == 'dev' || github.ref_name == 'main')
         run: |
           set -euo pipefail
+          # shellcheck disable=SC1091
+          source scripts/module-verify-policy.sh
           BEFORE="${{ github.event.before }}"
           if [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
             BEFORE="HEAD~1"
           fi
-          python scripts/verify-modules-signature.py \
-            --require-signature \
-            --payload-from-filesystem \
-            --enforce-version-bump \
-            --version-check-base "$BEFORE"
+          python scripts/verify-modules-signature.py "${VERIFY_MODULES_STRICT[@]}" --version-check-base "$BEFORE"
 
-      - name: PR or dispatch verify (checksum-only, no signature required on head)
+      - name: PR or dispatch verify (relaxed checksum; version bump vs base)
         if: github.event_name != 'push'
         run: |
           set -euo pipefail
+          # shellcheck disable=SC1091
+          source scripts/module-verify-policy.sh
           BASE_REF=""
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             BASE_REF="origin/${{ github.event.pull_request.base.ref }}"
@@ -128,10 +130,7 @@ jobs:
             echo "::error::Missing comparison base for module verification."
             exit 1
           fi
-          python scripts/verify-modules-signature.py \
-            --payload-from-filesystem \
-            --enforce-version-bump \
-            --version-check-base "$BASE_REF"
+          python scripts/verify-modules-signature.py "${VERIFY_MODULES_PR[@]}" --version-check-base "$BASE_REF"
 
       - name: Commit auto-signed manifests (push to dev/main, non-bot actors)
         if: >-

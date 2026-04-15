@@ -77,7 +77,7 @@ class GraphAnalyzer:
             json_path = Path(json_file.name)
             try:
                 result = subprocess.run(
-                    ["pycg", str(file_path), "--output", str(json_path)],
+                    ["pycg", "--package", str(self.repo_path), str(file_path), "--output", str(json_path)],
                     stderr=subprocess.PIPE,
                     text=True,
                     timeout=15,
@@ -101,9 +101,9 @@ class GraphAnalyzer:
         """
         Parse pycg JSON output into caller → [callees] format.
 
-        pycg emits ``{callee: [caller, ...]}`` (inverted). This method
-        inverts the mapping to the canonical ``{caller: [callee, ...]}`` form
-        used by GraphAnalyzer.
+        PyCG's simple JSON format is an adjacency list: edge ``(src, dst)`` is
+        ``dst`` in the list for key ``src`` (caller → callees). See PyCG README
+        "Simple JSON format".
 
         Args:
             json_path: Path to pycg JSON output file
@@ -121,10 +121,9 @@ class GraphAnalyzer:
         except (json.JSONDecodeError, UnicodeDecodeError, OSError):
             return {}
 
-        # Invert pycg's {callee: [caller]} to {caller: [callee]}
         call_graph: dict[str, list[str]] = defaultdict(list)
-        for callee, callers in raw.items():
-            for caller in callers:
+        for caller, callees in raw.items():
+            for callee in callees:
                 if not caller.startswith("__") and not callee.startswith("__"):
                     call_graph[caller].append(callee)
 

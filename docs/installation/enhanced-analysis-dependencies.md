@@ -115,8 +115,8 @@ brew install graphviz
 ### Individual Package Installation
 
 ```bash
-pip install pycg>=0.0.7
-pip install graphviz>=0.20.1
+pip install "pycg>=0.0.7"
+pip install "graphviz>=0.20.1"
 ```
 
 ## Graceful Degradation

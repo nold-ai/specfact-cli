@@ -21,21 +21,28 @@ if ! echo "${staged_files}" | grep -qE '^(src/specfact_cli/modules|modules)/'; t
 fi
 
 flag_script="${repo_root}/scripts/git-branch-module-signature-flag.sh"
+policy_script="${repo_root}/scripts/module-verify-policy.sh"
 if [[ ! -f "${flag_script}" ]]; then
   echo "❌ Missing ${flag_script}" >&2
   exit 1
 fi
+if [[ ! -f "${policy_script}" ]]; then
+  echo "❌ Missing ${policy_script}" >&2
+  exit 1
+fi
+# shellcheck disable=SC1090
+source "${policy_script}"
 sig_policy=$(bash "${flag_script}")
 sig_policy="${sig_policy//$'\r'/}"
 sig_policy="${sig_policy//$'\n'/}"
 case "${sig_policy}" in
   require)
-    echo "🔐 Verifying bundled module manifests (--require-signature, --enforce-version-bump, --payload-from-filesystem)" >&2
-    exec hatch run ./scripts/verify-modules-signature.py --require-signature --enforce-version-bump --payload-from-filesystem
+    echo "🔐 Verifying bundled module manifests (strict: require-signature + checksum + version bump)" >&2
+    exec hatch run ./scripts/verify-modules-signature.py "${VERIFY_MODULES_STRICT[@]}"
     ;;
   omit)
-    echo "🔐 Verifying bundled module manifests (checksum-only; --enforce-version-bump, --payload-from-filesystem)" >&2
-    exec hatch run ./scripts/verify-modules-signature.py --enforce-version-bump --payload-from-filesystem
+    echo "🔐 Verifying module version bumps only (checksum/signature deferred to CI on non-main)" >&2
+    exec hatch run ./scripts/verify-modules-signature.py "${VERIFY_MODULES_PR[@]}"
     ;;
   *)
     echo "❌ Invalid module signature policy from ${flag_script}: '${sig_policy}' (expected require or omit)" >&2

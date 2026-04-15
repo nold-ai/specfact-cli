@@ -19,6 +19,15 @@ from specfact_cli.utils.project_artifact_write import (
 )
 
 
+def _find_repo_root() -> Path:
+    """Walk parents from this test file until we find the specfact-cli repo root."""
+    here = Path(__file__).resolve()
+    for parent in here.parents:
+        if (parent / "pyproject.toml").is_file() and (parent / "src" / "specfact_cli").is_dir():
+            return parent
+    raise RuntimeError("Could not locate repository root (pyproject.toml + src/specfact_cli)")
+
+
 def test_merge_vscode_settings_rejects_path_outside_repo(tmp_path: Path) -> None:
     escape_root = tmp_path.parent / f"sfw_escape_{uuid.uuid4().hex[:12]}"
     escape_root.mkdir(exist_ok=True)
@@ -199,12 +208,7 @@ def test_create_vscode_settings_chat_not_object_raises_without_force(tmp_path: P
         )
 
 
-# --- commentjson migration tests (Tasks 1.4 & 1.5) ---
-# These tests specify the TARGET behaviour: no json5 imports, commentjson for read,
-# stdlib json for write. They will FAIL until project_artifact_write.py is migrated.
-
-
-_MODULE_SOURCE = Path(__file__).parents[3] / "src" / "specfact_cli" / "utils" / "project_artifact_write.py"
+_MODULE_SOURCE = _find_repo_root() / "src" / "specfact_cli" / "utils" / "project_artifact_write.py"
 
 
 def test_project_artifact_write_does_not_import_json5() -> None:
@@ -232,12 +236,11 @@ def test_project_artifact_write_uses_commentjson_for_read() -> None:
     assert found_commentjson, "commentjson import not found — must be added for JSONC read path"
 
 
-def test_merge_vscode_settings_handles_line_and_block_comments_in_jsonc(tmp_path: Path) -> None:
-    """JSONC with // and /* */ comments must be parsed without error after migration."""
+def test_merge_vscode_settings_handles_line_comments_in_jsonc(tmp_path: Path) -> None:
+    """VS Code JSONC with ``//`` line comments must parse via commentjson (library does not accept ``/* */`` here)."""
     vscode_dir = tmp_path / ".vscode"
     vscode_dir.mkdir(parents=True)
     settings_path = vscode_dir / "settings.json"
-    # Use // comments (universally supported in JSONC parsers including commentjson)
     settings_path.write_text(
         """{
   // line comment

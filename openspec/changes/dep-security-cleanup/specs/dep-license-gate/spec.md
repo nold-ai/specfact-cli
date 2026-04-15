@@ -47,6 +47,13 @@ The project SHALL maintain a `scripts/license_allowlist.yaml` file that document
 - **AND** each entry SHALL have `package`, `license`, and `reason` fields
 - **AND** the script SHALL fail with a clear error if the allowlist file is missing or malformed
 
+#### Scenario: Manifest dependency missing from static license map
+
+- **WHEN** `hatch run license-check` evaluates `pip_dependencies` in a `module-package.yaml`
+- **AND** the dependency name is not listed under `licenses` in `scripts/module_pip_dependencies_licenses.yaml`
+- **THEN** the gate SHALL exit with code 1
+- **AND** SHALL print a `MODULE MANIFEST VIOLATION` message that names the dependency and the mapping file
+
 #### Scenario: New (A)GPL package added to pyproject.toml without allowlist entry
 
 - **WHEN** a developer adds a new GPL or AGPL package to any extra in `pyproject.toml`
@@ -95,8 +102,8 @@ Both the license compliance gate and the security audit gate SHALL be integrated
 
 #### Scenario: License gate runs in CI on dependency changes
 
-- **WHEN** a pull request modifies `pyproject.toml`
-- **THEN** the CI workflow SHALL run `hatch run license-check`
+- **WHEN** a pull request modifies `pyproject.toml` **and** matches the PR orchestrator's non-documentation code-change filter
+- **THEN** the CI workflow SHALL run the license compliance gate (`hatch run license-check` / `scripts/check_license_compliance.py`)
 - **AND** SHALL block merge if the gate fails
 
 #### Scenario: Security audit runs in CI on all PRs

@@ -85,8 +85,8 @@ hatch run python scripts/sign-modules.py \
   --base-ref origin/dev \
   --bump-version patch
 
-# Verify after signing
-hatch run python scripts/verify-modules-signature.py --require-signature --enforce-version-bump --version-check-base origin/dev
+# Verify after signing (strict bundle; add --version-check-base when comparing to a branch)
+hatch run verify-modules-signature --version-check-base origin/dev
 ```
 
 Wrapper for single manifest:
@@ -118,7 +118,13 @@ With explicit public key file:
 python scripts/verify-modules-signature.py --require-signature --public-key-file resources/keys/module-signing-public.pem
 ```
 
-Checksum and version discipline without requiring signatures (same tool; omit the flag):
+PR / feature-branch parity with pre-commit omit (version bump vs base; defer checksum to CI):
+
+```bash
+hatch run verify-modules-signature-pr --version-check-base origin/dev
+```
+
+Post-merge / push-style checksum + version (no `--require-signature`; matches `VERIFY_MODULES_PUSH_ORCHESTRATOR`):
 
 ```bash
 hatch run python scripts/verify-modules-signature.py --enforce-version-bump --payload-from-filesystem
@@ -131,29 +137,31 @@ Use `python scripts/sign-modules.py --allow-unsigned …` only when you intentio
 ## Pre-commit (bundled modules in this repository)
 
 If you use `pre-commit` or `scripts/setup-git-hooks.sh`, commits that stage changes under `modules/` or
-`src/specfact_cli/modules/` run `scripts/pre-commit-verify-modules.sh`. That script adds
-`--require-signature` only when the current branch is `main`; on other branches (including detached
-`HEAD`) it runs checksum-only verification so commits do not require a local private key.
+`src/specfact_cli/modules/` run `scripts/pre-commit-verify-modules.sh`, which sources
+`scripts/module-verify-policy.sh`. On **`main`** it runs **`VERIFY_MODULES_STRICT`** (checksum +
+`--require-signature`); elsewhere it runs **`VERIFY_MODULES_PR`** (version bump only via
+`--skip-checksum-verification`) so you are not forced to re-sign locally before CI.
 
 ## CI Enforcement
 
-`pr-orchestrator.yml` runs job `verify-module-signatures` with a **branch-aware** policy:
+Canonical flag bundles live in **`scripts/module-verify-policy.sh`** and are sourced by:
 
-- PRs and pushes targeting **`main`**: `verify-modules-signature.py` is invoked **with**
-  `--require-signature` (plus `--enforce-version-bump --payload-from-filesystem` and PR base comparison
-  as configured in the workflow).
-- PRs and pushes targeting **`dev`**: the same script runs **without** `--require-signature`
-  (checksum-only), matching local feature-branch development.
+- **`pr-orchestrator.yml`** job `verify-module-signatures`: **pull requests** use **`VERIFY_MODULES_PR`**
+  (same as pre-commit omit). **Pushes** to `dev` / `main` use **`VERIFY_MODULES_PUSH_ORCHESTRATOR`**
+  (payload checksum + version bump; no `--require-signature` in this job).
+- **`sign-modules.yml`** job `verify`: **push** to `dev` or `main` runs **`VERIFY_MODULES_STRICT`**
+  after the auto-sign step. **Pull requests** and **`workflow_dispatch`** use **`VERIFY_MODULES_PR`**.
 
-The pipeline fails if checksums or version-bump rules are violated, or if `main`-targeting events lack
-valid signatures when required.
+Strict signatures on protected branches are enforced by **`sign-modules.yml`** (and local **`main`**
+pre-commit), not by adding `--require-signature` to the PR orchestrator verify step.
 
 ## Rotation Procedure
 
 1. Generate new keypair in secure environment.
 2. Replace `resources/keys/module-signing-public.pem` with new public key.
 3. Re-sign all official bundle manifests with the new private key.
-4. Run verifier locally: `python scripts/verify-modules-signature.py --require-signature`.
+4. Run verifier locally: `hatch run verify-modules-signature` (equivalent strict flags are in
+   `scripts/module-verify-policy.sh` as `VERIFY_MODULES_STRICT`).
 5. Commit public key + re-signed manifests in one change.
 6. Merge to `dev`, then `main` after CI passes.
 

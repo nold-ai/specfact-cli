@@ -128,10 +128,18 @@ def compare_local_to_pypi_version(local: str, pypi_latest: str | None) -> tuple[
             f"✅ Local version {local!r} is ahead of PyPI latest {pypi_latest!r}.",
         )
     detail = (
-        f"check_local_version_ahead_of_pypi: local version {local!r} must be greater than "
-        f"PyPI latest {pypi_latest!r} (publish would skip). Bump the version in pyproject.toml, "
-        "setup.py, src/__init__.py, and src/specfact_cli/__init__.py (see hatch run check-version-sources) "
-        "and add a CHANGELOG entry."
+        f"check_local_version_ahead_of_pypi: local version {local!r} must be strictly greater than "
+        f"PyPI latest {pypi_latest!r} (publish would skip on merge).\n"
+        "Same gate as .github/workflows/pr-orchestrator.yml → job tests → "
+        '"Verify local version is ahead of PyPI".\n'
+        "REMEDIATION (AI / developer checklist):\n"
+        "  1. Bump the SAME semver in all four files (keep them identical):\n"
+        "       pyproject.toml [project.version], setup.py [version=], "
+        "src/__init__.py [__version__], src/specfact_cli/__init__.py [__version__]\n"
+        "  2. Run: hatch run check-version-sources\n"
+        "  3. Add a new top section in CHANGELOG.md, e.g. ## [x.y.z] - YYYY-MM-DD\n"
+        "  4. Re-run: SPECFACT_PYPI_VERSION_CHECK_LENIENT_NETWORK=1 python scripts/check_local_version_ahead_of_pypi.py\n"
+        "     (pre-commit runs this with lenient network; offline: SPECFACT_SKIP_PYPI_VERSION_CHECK=1 — not for CI.)"
     )
     return False, detail
 

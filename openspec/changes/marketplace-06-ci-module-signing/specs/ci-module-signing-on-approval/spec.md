@@ -65,12 +65,12 @@ material, enabling non-interactive development on feature and dev branches.
 - **WHEN** an AI agent or headless CI tool commits a module change on a `feature/*` or `bugfix/*`
   branch
 - **AND** no private key environment variables are set locally
-- **THEN** the pre-commit hook SHALL accept the unsigned manifest (checksum-only)
+- **THEN** the pre-commit hook SHALL accept the unsigned manifest (relaxed verify: `VERIFY_MODULES_PR`)
 - **AND** the commit SHALL succeed without prompting for a passphrase
 
 #### Scenario: Developer commit on dev branch without local key
 
 - **WHEN** a developer commits a module change on the `dev` branch
 - **AND** `SPECFACT_MODULE_PRIVATE_SIGN_KEY` is not set in the local environment
-- **THEN** the pre-commit hook SHALL accept the checksum-only manifest
+- **THEN** the pre-commit hook SHALL accept the manifest under relaxed verify (`VERIFY_MODULES_PR`)
 - **AND** SHALL NOT invoke `getpass.getpass()` or any interactive passphrase prompt

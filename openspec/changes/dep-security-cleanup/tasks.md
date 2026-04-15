@@ -78,11 +78,11 @@
 
 ## 10. TDD Completion and Code Review
 
-- [ ] 10.1 Run full test suite (`hatch test --cover -v`) — all tests must pass
-- [ ] 10.2 Run `hatch run license-check` — must exit 0 (only allowlist exceptions)
-- [ ] 10.3 Run `hatch run security-audit` — review output; resolve any high-severity findings
-- [ ] 10.4 Run `hatch run bandit-scan` — review output; document or fix any findings
-- [ ] 10.5 Run `hatch run format` and `hatch run type-check` — must pass clean
-- [ ] 10.6 Run `specfact code review run --json --out .specfact/code-review.json`; resolve all findings
-- [ ] 10.7 Record passing-after test run output in `openspec/changes/dep-security-cleanup/TDD_EVIDENCE.md`
+- [x] 10.1 Run full test suite (`hatch test --cover -v`) — all tests must pass — **verified 2026-04-16** via `hatch test -q` (2548 passed, 9 skipped); use `hatch test --cover -v` before merge if coverage gate required
+- [ ] 10.2 Run `hatch run license-check` — must exit 0 (only allowlist exceptions) — **blocked in agent env** without `pip-licenses` in active Hatch env; fail-closed behaviour confirmed when module missing
+- [x] 10.3 Run `hatch run security-audit` — review output; resolve any high-severity findings — **2026-04-16**: wrapper exit 0; pip GHSA reported as WARNING (CVSS 0.0 in JSON)
+- [x] 10.4 Run `hatch run bandit-scan` — review output; document or fix any findings — **2026-04-16**: scan run; Bandit reports existing issue counts (non-zero exit); baseline documented in `TDD_EVIDENCE.md`
+- [x] 10.5 Run `hatch run format` and `hatch run type-check` — must pass clean — **2026-04-16**
+- [ ] 10.6 Run `specfact code review run --json --out .specfact/code-review.json`; resolve all findings — not re-run in this session (requires review env / modules checkout)
+- [x] 10.7 Record passing-after test run output in `openspec/changes/dep-security-cleanup/TDD_EVIDENCE.md` — **2026-04-16** (see “Code-review remediation verification”)
 - [ ] 10.8 Commit with message: `feat(deps): remove GPL/wrong packages, add license-gate and security-audit (#<issue>)`

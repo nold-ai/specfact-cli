@@ -13,11 +13,20 @@ repos:
         always_run: true
 
       - id: check-version-sources
-        name: Check synchronized version sources
+        name: Check synchronized version sources (always; PR orchestrator tests job parity)
         entry: hatch run check-version-sources
         language: system
-        files: ^(pyproject\.toml|setup\.py|src/__init__\.py|src/specfact_cli/__init__\.py)$
         pass_filenames: false
+        always_run: true
+
+      # Runs only when a version source is staged: same script as orchestrator tests job, but
+      # not on every commit (local == PyPI is normal after a release; always_run would block dev).
+      - id: check-local-version-ahead-of-pypi
+        name: Check local version ahead of PyPI (lenient network; when version files staged)
+        entry: bash -c 'export SPECFACT_PYPI_VERSION_CHECK_LENIENT_NETWORK=1 && exec python scripts/check_local_version_ahead_of_pypi.py'
+        language: system
+        pass_filenames: false
+        files: ^(pyproject\.toml|setup\.py|src/__init__\.py|src/specfact_cli/__init__\.py)$
 
       - id: cli-block1-format
         name: "CLI Block 1 — format"

@@ -63,7 +63,7 @@ No action needed:
 ### src/specfact\_cli/analyzers/graph\_analyzer.py
 
 - `extract_call_graph`: replace `subprocess.run(["pyan3", ..., "--dot", ...])` with `subprocess.run(["pycg", ..., "--output", tmp_json])`.
-- Replace `_parse_dot_file` with `_parse_pycg_json` (reads JSON `{callee: [caller, ...]}` format).
+- Replace `_parse_dot_file` with `_parse_pycg_json` (reads PyCG simple JSON: `{caller: [callee, ...]}` adjacency list).
 - Update docstrings and user-facing messages.
 
 ### src/specfact\_cli/utils/project\_artifact\_write.py
@@ -74,9 +74,9 @@ No action needed:
 
 ### Tests
 
-- Update/add tests for `graph_analyzer.py` (mock `pycg` subprocess, validate JSON parse path).
-- Update/add tests for `project_artifact_write.py` (verify JSONC read via commentjson, JSON write via stdlib).
-- Update `optional_deps.py` tests to reflect removed/renamed checks.
+- Exercise `graph_analyzer.py` with mocked `pycg` subprocess (argv includes `--package` / `--output`) and JSON parse coverage for `_parse_pycg_json`.
+- Validate `project_artifact_write.py` JSONC reads via `commentjson` and writes via stdlib `json` (merge paths, trailing commas, recovery).
+- Align `optional_deps.py` tests with `check_enhanced_analysis_dependencies()` keys (`pycg`, `bandit`, `graphviz`) and removed tools (`pyan3`, wrong PyPI `syft` / `bearer`).
 
 **No public CLI surface changes.** All commands behave identically. Call-graph feature remains an optional enhancement gated by `pycg` availability.
 

@@ -1,7 +1,4 @@
-"""Tests for scripts/check_license_compliance.py (Task 1.6).
-
-All tests here are FAILING until scripts/check_license_compliance.py is created.
-"""
+"""Unit tests for ``scripts/check_license_compliance.py`` (license gate)."""
 
 from __future__ import annotations
 
@@ -150,6 +147,64 @@ class TestAllowlistAccepted:
         assert exit_code == 1, "dev-only allowlist must NOT protect GPL in module manifests"
 
 
+class TestPipLicensesParseFailures:
+    """Scenario: pip-licenses output must be valid JSON or the gate fails closed."""
+
+    def test_unparseable_pip_licenses_json_fails(self, mod, capsys) -> None:
+        """Invalid JSON from pip-licenses must exit 1, not pass silently."""
+        with patch.object(mod, "_run_pip_licenses", return_value="not-json{"):
+            exit_code = mod.scan_installed_environment(allowlist={})
+        assert exit_code == 1
+        captured = capsys.readouterr()
+        assert "ERROR" in captured.out
+        assert "unparseable" in captured.out.lower()
+
+    def test_empty_pip_licenses_output_fails(self, mod, capsys) -> None:
+        """Empty stdout from pip-licenses must exit 1 (fail closed)."""
+        with patch.object(mod, "_run_pip_licenses", return_value="  \n"):
+            exit_code = mod.scan_installed_environment(allowlist={})
+        assert exit_code == 1
+        captured = capsys.readouterr()
+        assert "no usable output" in captured.out.lower()
+
+
+class TestDefaultManifestDiscovery:
+    """Scenario: default manifest scan uses modules/ (not packages/)."""
+
+    def test_collect_paths_finds_modules_layout(self, mod, tmp_path: Path) -> None:
+        """_collect_module_manifest_paths must find manifests under modules/."""
+        (tmp_path / "modules" / "pkg-a").mkdir(parents=True)
+        mf = tmp_path / "modules" / "pkg-a" / "module-package.yaml"
+        mf.write_text("name: pkg-a\npip_dependencies: []\n", encoding="utf-8")
+        found = mod._collect_module_manifest_paths(tmp_path, None)
+        assert mf.resolve() in [p.resolve() for p in found]
+
+    def test_scan_with_repo_root_finds_modules_without_packages_dir(
+        self, mod, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """scan_module_manifests(None) resolves manifests from modules/ when repo root is patched."""
+        (tmp_path / "modules" / "pkg-a").mkdir(parents=True)
+        (tmp_path / "modules" / "pkg-a" / "module-package.yaml").write_text(
+            "name: pkg-a\npip_dependencies:\n  - rich\n",
+            encoding="utf-8",
+        )
+        monkeypatch.setattr(mod, "_repo_root", lambda: tmp_path)
+        exit_code = mod.scan_module_manifests(
+            packages_dir=None,
+            allowlist={},
+            static_license_map={"rich": "MIT License"},
+        )
+        assert exit_code == 0
+
+    def test_scan_default_fails_when_no_manifests_anywhere(
+        self, mod, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """With no module-package.yaml under default roots, manifest scan must fail closed."""
+        monkeypatch.setattr(mod, "_repo_root", lambda: tmp_path)
+        exit_code = mod.scan_module_manifests(packages_dir=None, allowlist={}, static_license_map={})
+        assert exit_code == 1
+
+
 class TestUnknownLicenseWarnsNotFails:
     """Scenario: Unknown license triggers warning not failure."""
 
@@ -215,3 +270,46 @@ class TestModuleManifestScan:
         captured = capsys.readouterr()
         assert "MODULE MANIFEST VIOLATION" in captured.out
         assert "pylint" in captured.out
+
+
+class TestIsGplHeuristics:
+    """GPL/AGPL detection must not false-positive on LGPL-family strings."""
+
+    def test_lgpl_family_not_flagged_as_gpl(self, mod) -> None:
+        assert mod._is_gpl("LGPL-2.1-only") is False
+        assert mod._is_gpl("GNU Lesser General Public License v3 (LGPLv3)") is False
+
+    def test_gpl_and_agpl_flagged(self, mod) -> None:
+        assert mod._is_gpl("GPL-3.0-only") is True
+        assert mod._is_gpl("AGPL-3.0") is True
+
+
+class TestAllowlistLoader:
+    """Allowlist YAML must exist and parse or the loader fails closed."""
+
+    def test_missing_allowlist_raises(self, mod, tmp_path: Path) -> None:
+        missing = tmp_path / "no_allowlist_here.yaml"
+        with pytest.raises(RuntimeError, match="not found"):
+            mod._load_allowlist(missing)
+
+
+class TestManifestStaticLicenseMap:
+    """Manifest deps must resolve to an SPDX string in the static map."""
+
+    def test_pip_dep_missing_from_static_map_is_violation(self, mod, tmp_path: Path, capsys) -> None:
+        pkg_dir = tmp_path / "packages" / "demo-mod"
+        pkg_dir.mkdir(parents=True)
+        (pkg_dir / "module-package.yaml").write_text(
+            "name: demo-mod\npip_dependencies:\n  - rich\n",
+            encoding="utf-8",
+        )
+        exit_code = mod.scan_module_manifests(
+            packages_dir=tmp_path / "packages",
+            allowlist={},
+            static_license_map={},
+        )
+        assert exit_code == 1
+        out = capsys.readouterr().out
+        assert "MODULE MANIFEST VIOLATION" in out
+        assert "rich" in out
+        assert "module_pip_dependencies_licenses.yaml" in out

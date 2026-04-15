@@ -212,6 +212,56 @@ def test_install_module_namespace_collision_raises(monkeypatch, tmp_path: Path) 
         install_module("acme-corp/backlog", InstallModuleOptions(install_root=install_root))
 
 
+def test_uninstall_user_modules_tree_requires_confirm_or_env(monkeypatch, tmp_path: Path) -> None:
+    """Removing a module under USER_MODULES_ROOT must be explicit (CLI or env), never accidental."""
+    user_root = tmp_path / "modules"
+    monkeypatch.setattr(module_installer, "USER_MODULES_ROOT", user_root)
+    mod_dir = user_root / "backlog"
+    mod_dir.mkdir(parents=True)
+    (mod_dir / "module-package.yaml").write_text(
+        "name: backlog\nversion: '0.1.0'\ncommands: [backlog]\n", encoding="utf-8"
+    )
+
+    with pytest.raises(ValueError, match="Refusing to remove"):
+        uninstall_module(
+            "backlog",
+            install_root=user_root,
+            source_map={"backlog": "marketplace"},
+            confirm_user_scope=False,
+        )
+    assert mod_dir.is_dir()
+
+    uninstall_module(
+        "backlog",
+        install_root=user_root,
+        source_map={"backlog": "marketplace"},
+        confirm_user_scope=True,
+    )
+    assert not mod_dir.exists()
+
+
+def test_uninstall_user_modules_tree_allows_env_confirmation(monkeypatch, tmp_path: Path) -> None:
+    """Scripted uninstalls may set SPECFACT_CONFIRM_USER_SCOPE_UNINSTALL=1 instead of passing the flag."""
+    user_root = tmp_path / "modules"
+    monkeypatch.setattr(module_installer, "USER_MODULES_ROOT", user_root)
+    mod_dir = user_root / "backlog"
+    mod_dir.mkdir(parents=True)
+    (mod_dir / "module-package.yaml").write_text(
+        "name: backlog\nversion: '0.1.0'\ncommands: [backlog]\n", encoding="utf-8"
+    )
+    monkeypatch.setenv("SPECFACT_CONFIRM_USER_SCOPE_UNINSTALL", "1")
+    try:
+        uninstall_module(
+            "backlog",
+            install_root=user_root,
+            source_map={"backlog": "marketplace"},
+            confirm_user_scope=False,
+        )
+    finally:
+        monkeypatch.delenv("SPECFACT_CONFIRM_USER_SCOPE_UNINSTALL", raising=False)
+    assert not mod_dir.exists()
+
+
 def test_uninstall_module_removes_marketplace_module(tmp_path: Path) -> None:
     install_root = tmp_path / "marketplace-modules"
     module_dir = install_root / "backlog"

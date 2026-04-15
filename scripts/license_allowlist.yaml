@@ -10,7 +10,7 @@
 #              "module-manifest"  → accepted in module manifest scan (e.g. LGPL subprocess use)
 #
 # To add a new exception: open a PR, get approval, add entry here.
-# Phase 2 entries: track removal in SECURITY.md and agent-rules/50-dependency-hygiene.md.
+# Phase 2 entries: track removal in SECURITY.md and agent-rules/55-dependency-hygiene.md.
 
 exceptions:
   - package: pylint

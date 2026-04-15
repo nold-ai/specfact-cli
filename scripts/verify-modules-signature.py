@@ -283,6 +283,7 @@ def verify_manifest(
     require_signature: bool,
     public_key_pem: str,
     payload_from_filesystem: bool = False,
+    verify_checksum: bool = True,
 ) -> None:
     raw = yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
     if not isinstance(raw, dict):
@@ -297,6 +298,11 @@ def verify_manifest(
     if not checksum:
         raise ValueError("missing integrity.checksum")
     algo, digest = _parse_checksum(checksum)
+    if not verify_checksum:
+        if require_signature:
+            raise ValueError("require_signature is incompatible with verify_checksum=False")
+        return
+
     payload = _module_payload(manifest_path.parent, payload_from_filesystem=payload_from_filesystem)
     actual = hashlib.new(algo, payload).hexdigest().lower()
     if actual != digest:
@@ -335,13 +341,22 @@ def main() -> int:
         help="Build payload from filesystem (rglob) with the same excludes as the signing path.",
     )
     parser.add_argument(
+        "--skip-checksum-verification",
+        action="store_true",
+        help="Skip payload checksum (and signature) checks; use with --enforce-version-bump on non-main "
+        "when CI will re-sign. Incompatible with --require-signature.",
+    )
+    parser.add_argument(
         "--version-check-base",
         default="",
         help="Git base ref for version-bump checks (default: origin/$GITHUB_BASE_REF or HEAD~1)",
     )
     args = parser.parse_args()
+    if args.require_signature and args.skip_checksum_verification:
+        parser.error("--skip-checksum-verification cannot be used with --require-signature")
 
     public_key_pem = _resolve_public_key(args)
+    verify_checksum = not args.skip_checksum_verification
     manifests = _iter_manifests()
     if not manifests:
         logger.info("No module-package.yaml manifests found.")
@@ -355,6 +370,7 @@ def main() -> int:
                 require_signature=args.require_signature,
                 public_key_pem=public_key_pem,
                 payload_from_filesystem=args.payload_from_filesystem,
+                verify_checksum=verify_checksum,
             )
             logger.info("OK  %s", manifest)
         except Exception as exc:

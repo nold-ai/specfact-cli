@@ -63,9 +63,9 @@ Current affected files:
 
 **Rationale:** The `bearer` PyPI package was intended to provide security data-flow scanning. The actual bearer security scanner is a Ruby/Go binary, not a pip package. `bandit` is the de-facto Python-native static security analysis tool: it scans for common security issues (hardcoded passwords, dangerous `subprocess` usage, SQL injection patterns, etc.), is MIT-licensed, integrates with pre-commit and CI, and is broadly adopted in the Python ecosystem.
 
-### Decision 4: `syft` removal with no replacement (Phase 2 note)
+### Decision 4: Wrong-PyPI `syft` / `bearer` removal; enhanced-analysis stack is Python-native
 
-**Rationale:** Anchore Syft (SBOM generation) is a Go binary installed via shell (`curl -sSfL .../install.sh | sh`). It does not have a pip installable equivalent. The `syft` check in `optional_deps.py` uses `check_cli_tool_available("syft")` — i.e., it checks for the Anchore binary on `$PATH`, not the PyPI package. The PyPI `syft` package can be removed from `pyproject.toml` without affecting the CLI availability check. The check itself is harmless (PLANNED, not yet used per the docstring). Leave the `check_cli_tool_available("syft")` call in `optional_deps.py` — it will still detect the Anchore binary if installed separately.
+**Rationale:** The PyPI packages named `syft` and `bearer` were the wrong artifacts (not Anchore Syft / Bearer security scanner). Both were removed from `pyproject.toml`. Optional enhanced analysis is checked via `check_enhanced_analysis_dependencies()` in `optional_deps.py`, which reports `pycg`, `bandit`, and `graphviz` using `check_cli_tool_available("pycg")`, `check_cli_tool_available("bandit")`, and `check_python_package_available("graphviz")` (tuple shape `(available, error_message | None)` per tool). There is **no** `check_cli_tool_available("syft")` probe in this codebase: Anchore Syft remains an out-of-band install if SBOM generation is needed later.
 
 ### Decision 5: GPL exception documentation strategy
 

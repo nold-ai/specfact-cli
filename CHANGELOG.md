@@ -10,6 +10,23 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.46.3] - 2026-04-16
+
+### Added
+
+- **`scripts/security_audit_gate.py`**: wrap `pip-audit` JSON output and fail only when max CVSS ≥ 7.0; wired into `hatch run security-audit` and PR orchestrator.
+- **`scripts/module_pip_dependencies_licenses.yaml`**: offline map for manifest `pip_dependencies` license gate.
+
+### Changed
+
+- **License / CVE hygiene**: hardened `scripts/check_license_compliance.py` (fail-closed allowlist and manifest map, GPL vs LGPL detection), `license-check` CI gated on `pyproject.toml` changes, docs and OpenSpec updates for `dep-security-cleanup`.
+- **Call graphs**: `pycg` invocation uses `--package` + repo root; specs and tests aligned with PyCG adjacency format.
+- **Pre-commit / CI**: `check-version-sources` always runs; PyPI-ahead check matches orchestrator tests job when version files are staged (lenient network), with remediation hints on failure.
+
+### Fixed
+
+- Pre-commit PyPI-ahead hook no longer runs on unrelated commits when local version already matches PyPI.
+
 ## [0.46.2] - 2026-04-15
 
 ### Fixed

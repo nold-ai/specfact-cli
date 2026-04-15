@@ -8,9 +8,11 @@ The system SHALL provide optional call-graph analysis using the `pycg` CLI tool 
 
 - **WHEN** `pycg` is available on `$PATH`
 - **AND** `graph_analyzer.extract_call_graph(file_path)` is called with a valid Python file
-- **THEN** the system SHALL invoke `subprocess.run(["pycg", str(file_path), "--output", tmp_json_path])`
+- **THEN** the system SHALL invoke `subprocess.run` with argv equivalent to
+  `["pycg", "--package", <repo_root>, str(file_path), "--output", <temp_json_path>]`
+  (repository root is the analyzer's `repo_path`)
 - **AND** SHALL parse the resulting JSON file using `_parse_pycg_json`
-- **AND** SHALL return a `dict[str, list[str]]` mapping callee names to lists of caller names
+- **AND** SHALL return a `dict[str, list[str]]` mapping **caller** names to lists of **callee** names (PyCG simple JSON adjacency list)
 - **AND** SHALL store the result in `self.call_graphs` keyed by relative file path
 
 #### Scenario: pycg not available — graceful degradation
@@ -29,19 +31,19 @@ The system SHALL provide optional call-graph analysis using the `pycg` CLI tool 
 #### Scenario: JSON output parsed into call graph structure
 
 - **WHEN** `pycg` produces a JSON file with content `{"foo": ["bar", "baz"]}`
-- **THEN** `_parse_pycg_json` SHALL return `{"foo": ["bar", "baz"]}`
+- **THEN** `_parse_pycg_json` SHALL return `{"foo": ["bar", "baz"]}` (caller `foo` calls `bar` and `baz`)
 - **AND** the result SHALL be a `dict[str, list[str]]`
 
 ### Requirement: Optional dep availability check for pycg
 
-The system SHALL expose a `pycg` availability check via `check_optional_analysis_deps()` in `optional_deps.py`. The check SHALL use `check_cli_tool_available("pycg")` and document that `pycg` is the active call-graph tool.
+The system SHALL expose enhanced-analysis availability via `check_enhanced_analysis_dependencies()` in `optional_deps.py`. That routine SHALL include `pycg` using `check_cli_tool_available("pycg")` and document that **`pycg` is the active call-graph tool**.
 
 #### Scenario: pycg listed in optional deps report
 
-- **WHEN** `check_optional_analysis_deps()` is called
+- **WHEN** `check_enhanced_analysis_dependencies()` is called
 - **THEN** the returned dict SHALL contain a `"pycg"` key
-- **AND** the value SHALL be `(True, path_string)` if `pycg` is on `$PATH`
-- **AND** the value SHALL be `(False, None)` if `pycg` is not on `$PATH`
+- **AND** the value SHALL be `(True, None)` when `pycg` is available and the probe succeeds
+- **AND** the value SHALL be `(False, <error_message>)` when `pycg` is not available (non-empty installation hint string)
 
 ### Requirement: License-clean optional analysis stack
 
@@ -59,4 +61,4 @@ All packages in the `enhanced-analysis` extra SHALL use MIT, Apache-2.0, BSD, or
 
 **Reason:** `pyan3` is licensed GPL-2.0, incompatible with specfact-cli's Apache-2.0 license and blocking future enterprise/commercial licensing. `pyan3` has also had no active releases since 2022.
 
-**Migration:** Replace `pyan3` with `pycg` (`pip install pycg`). The CLI interface changes from `pyan3 <file> --dot` to `pycg <file> --output out.json`. Output format changes from DOT to JSON; internal parser updated accordingly. All public API contracts are preserved.
+**Migration:** Replace `pyan3` with `pycg` (`pip install pycg`). The CLI interface changes from `pyan3 <file> --dot` to `pycg --package <repo> <file> --output out.json`. Output format changes from DOT to JSON; internal parser updated accordingly. All public API contracts are preserved.

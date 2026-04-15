@@ -8,6 +8,21 @@ import sys
 from pathlib import Path
 
 
+_REMEDIATION = """\
+REMEDIATION (same check as .github/workflows/pr-orchestrator.yml → tests job):
+  1. Set the SAME semver string in all four places:
+       - pyproject.toml → project.version
+       - setup.py → version=
+       - src/__init__.py → __version__
+       - src/specfact_cli/__init__.py → __version__
+  2. Validate: hatch run check-version-sources
+  3. If you bumped the CLI for release: add a top CHANGELOG.md section like  ## [x.y.z] - YYYY-MM-DD
+  4. If publishing: local version must be strictly greater than PyPI; run with network:
+       SPECFACT_PYPI_VERSION_CHECK_LENIENT_NETWORK=1 python scripts/check_local_version_ahead_of_pypi.py
+     (offline: SPECFACT_SKIP_PYPI_VERSION_CHECK=1 — do not use in CI.)
+"""
+
+
 def _repo_root() -> Path:
     return Path(__file__).resolve().parents[1]
 
@@ -45,11 +60,13 @@ def main() -> int:
     for label, path in paths.items():
         if not path.is_file():
             sys.stderr.write(f"check_version_sources: missing file {path.relative_to(root)}\n")
+            sys.stderr.write(_REMEDIATION)
             return 2
         text = path.read_text(encoding="utf-8")
         ver = readers[label](text)
         if not ver:
             sys.stderr.write(f"check_version_sources: could not parse version in {label}\n")
+            sys.stderr.write(_REMEDIATION)
             return 2
         versions[label] = ver
 
@@ -61,6 +78,7 @@ def main() -> int:
         )
         for label, ver in sorted(versions.items()):
             sys.stderr.write(f"  {label}: {ver}\n")
+        sys.stderr.write(_REMEDIATION)
         return 1
     return 0
 

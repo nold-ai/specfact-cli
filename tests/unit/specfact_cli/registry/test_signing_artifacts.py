@@ -573,14 +573,170 @@ def test_verify_script_reports_version_bump_failure_even_when_checksum_fails(tmp
     assert "module version was not incremented" in combined
 
 
+def test_verify_skip_checksum_still_reports_version_bump_failure(tmp_path: Path) -> None:
+    """With --skip-checksum-verification, stale checksum must not mask a missing version bump."""
+    if not VERIFY_PYTHON_SCRIPT.exists() or not SIGN_PYTHON_SCRIPT.exists():
+        pytest.skip("verification/signing scripts not present")
+
+    import subprocess
+
+    repo = tmp_path / "repo"
+    module_dir = repo / "modules" / "sample"
+    source = module_dir / "src" / "sample" / "main.py"
+    manifest = module_dir / "module-package.yaml"
+    source.parent.mkdir(parents=True)
+    manifest.write_text("name: sample\nversion: 0.1.0\npublisher: nold-ai\ncommands: [sample]\n", encoding="utf-8")
+    source.write_text("print('v1')\n", encoding="utf-8")
+
+    subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True, text=True)
+    subprocess.run(
+        ["git", "config", "user.email", "test@example.com"], cwd=repo, check=True, capture_output=True, text=True
+    )
+    subprocess.run(["git", "config", "user.name", "Test User"], cwd=repo, check=True, capture_output=True, text=True)
+
+    signed = subprocess.run(
+        ["python3", str(SIGN_PYTHON_SCRIPT), "--allow-unsigned", str(manifest)],
+        capture_output=True,
+        text=True,
+        cwd=repo,
+        timeout=20,
+    )
+    assert signed.returncode == 0, signed.stderr
+    subprocess.run(["git", "add", "."], cwd=repo, check=True, capture_output=True, text=True)
+    subprocess.run(["git", "commit", "-m", "initial"], cwd=repo, check=True, capture_output=True, text=True)
+
+    source.write_text("print('v2')\n", encoding="utf-8")
+    subprocess.run(["git", "add", "."], cwd=repo, check=True, capture_output=True, text=True)
+    subprocess.run(
+        ["git", "commit", "-m", "change without version bump"], cwd=repo, check=True, capture_output=True, text=True
+    )
+
+    result = subprocess.run(
+        [
+            "python3",
+            str(VERIFY_PYTHON_SCRIPT),
+            "--enforce-version-bump",
+            "--skip-checksum-verification",
+            "--version-check-base",
+            "HEAD~1",
+        ],
+        capture_output=True,
+        text=True,
+        cwd=repo,
+        timeout=20,
+    )
+    assert result.returncode != 0
+    combined = f"{result.stdout}\n{result.stderr}"
+    assert "checksum mismatch" not in combined
+    assert "module version was not incremented" in combined
+
+
+def test_verify_skip_checksum_passes_when_version_bumped_without_resign(tmp_path: Path) -> None:
+    """Non-main local policy: version bump may precede CI re-sign; skip checksum must allow that."""
+    if not VERIFY_PYTHON_SCRIPT.exists() or not SIGN_PYTHON_SCRIPT.exists():
+        pytest.skip("verification/signing scripts not present")
+
+    import subprocess
+
+    repo = tmp_path / "repo"
+    module_dir = repo / "modules" / "sample"
+    source = module_dir / "src" / "sample" / "main.py"
+    manifest = module_dir / "module-package.yaml"
+    source.parent.mkdir(parents=True)
+    manifest.write_text("name: sample\nversion: 0.1.0\npublisher: nold-ai\ncommands: [sample]\n", encoding="utf-8")
+    source.write_text("print('v1')\n", encoding="utf-8")
+
+    subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True, text=True)
+    subprocess.run(
+        ["git", "config", "user.email", "test@example.com"], cwd=repo, check=True, capture_output=True, text=True
+    )
+    subprocess.run(["git", "config", "user.name", "Test User"], cwd=repo, check=True, capture_output=True, text=True)
+
+    signed = subprocess.run(
+        ["python3", str(SIGN_PYTHON_SCRIPT), "--allow-unsigned", str(manifest)],
+        capture_output=True,
+        text=True,
+        cwd=repo,
+        timeout=20,
+    )
+    assert signed.returncode == 0, signed.stderr
+    subprocess.run(["git", "add", "."], cwd=repo, check=True, capture_output=True, text=True)
+    subprocess.run(["git", "commit", "-m", "initial"], cwd=repo, check=True, capture_output=True, text=True)
+
+    source.write_text("print('v2')\n", encoding="utf-8")
+    bumped = yaml.safe_load(manifest.read_text(encoding="utf-8"))
+    assert isinstance(bumped, dict)
+    bumped["version"] = "0.1.1"
+    manifest.write_text(
+        yaml.safe_dump(bumped, sort_keys=True, allow_unicode=False),
+        encoding="utf-8",
+    )
+    subprocess.run(["git", "add", "."], cwd=repo, check=True, capture_output=True, text=True)
+    subprocess.run(
+        ["git", "commit", "-m", "bump without local re-sign"], cwd=repo, check=True, capture_output=True, text=True
+    )
+
+    strict = subprocess.run(
+        ["python3", str(VERIFY_PYTHON_SCRIPT), "--version-check-base", "HEAD~1"],
+        capture_output=True,
+        text=True,
+        cwd=repo,
+        timeout=20,
+    )
+    assert strict.returncode != 0
+    assert "checksum mismatch" in f"{strict.stdout}\n{strict.stderr}"
+
+    relaxed = subprocess.run(
+        [
+            "python3",
+            str(VERIFY_PYTHON_SCRIPT),
+            "--skip-checksum-verification",
+            "--enforce-version-bump",
+            "--version-check-base",
+            "HEAD~1",
+        ],
+        capture_output=True,
+        text=True,
+        cwd=repo,
+        timeout=20,
+    )
+    assert relaxed.returncode == 0, (relaxed.stdout, relaxed.stderr)
+
+
+def test_verify_modules_signature_rejects_skip_with_require_signature() -> None:
+    """--require-signature must remain strict; skip-checksum is for local omit policy only."""
+    if not VERIFY_PYTHON_SCRIPT.exists():
+        pytest.skip("verification script not present")
+
+    import subprocess
+
+    result = subprocess.run(
+        [
+            "python3",
+            str(VERIFY_PYTHON_SCRIPT),
+            "--require-signature",
+            "--skip-checksum-verification",
+        ],
+        capture_output=True,
+        text=True,
+        cwd=REPO_ROOT,
+        timeout=20,
+    )
+    assert result.returncode == 2
+    combined = f"{result.stdout}\n{result.stderr}"
+    assert "cannot be used with --require-signature" in combined
+
+
 def test_pr_orchestrator_contains_verify_module_signatures_job():
-    """PR orchestrator SHALL include bundled module verification (checksum + version policy; not strict signatures)."""
+    """PR orchestrator SHALL include bundled module verification (PR = relaxed checksum; push = payload verify)."""
     if not PR_ORCHESTRATOR_WORKFLOW.exists():
         pytest.skip("pr-orchestrator workflow not present")
     content = PR_ORCHESTRATOR_WORKFLOW.read_text(encoding="utf-8")
     assert "verify-module-signatures" in content
     assert "verify-modules-signature.py" in content
-    assert "--enforce-version-bump" in content
+    assert "module-verify-policy.sh" in content
+    assert "VERIFY_MODULES_PR" in content
+    assert "VERIFY_MODULES_PUSH_ORCHESTRATOR" in content
     assert "--require-signature" not in content
     assert "SPECFACT_MODULE_PRIVATE_SIGN_KEY" in content
     assert "SPECFACT_MODULE_PRIVATE_SIGN_KEY_PASSPHRASE" in content
@@ -607,9 +763,10 @@ def test_sign_modules_workflow_uses_private_key_and_passphrase_secrets():
     content = SIGN_WORKFLOW.read_text(encoding="utf-8")
     assert "SPECFACT_MODULE_PRIVATE_SIGN_KEY" in content
     assert "SPECFACT_MODULE_PRIVATE_SIGN_KEY_PASSPHRASE" in content
-    assert "--enforce-version-bump" in content
     assert "Auto-sign changed bundled modules" in content
-    assert "--require-signature" in content
+    assert "module-verify-policy.sh" in content
+    assert "VERIFY_MODULES_STRICT" in content
+    assert "VERIFY_MODULES_PR" in content
 
 
 def test_pr_orchestrator_pins_virtualenv_below_21_for_hatch_jobs():

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Emit module signature policy for the current git branch (consumed by pre-commit-verify-modules.sh).
-# Prints a single token: "require" on main (pass --require-signature to verify-modules-signature.py);
-# "omit" elsewhere (verifier defaults to checksum-only; there is no --allow-unsigned CLI flag).
+# Prints a single token: "require" on main → VERIFY_MODULES_STRICT from module-verify-policy.sh;
+# "omit" elsewhere → VERIFY_MODULES_PR (version bump only; checksum/signature deferred to CI).
 set -euo pipefail
 
 branch=""
