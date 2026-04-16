@@ -286,6 +286,44 @@ def _module_has_git_changes_since(module_dir: Path, git_ref: str) -> bool:
     return bool(changed or untracked)
 
 
+def _parse_integrity_checksum(checksum: str) -> tuple[str, str]:
+    if ":" not in checksum:
+        raise ValueError("Checksum must be in algo:hex format")
+    algo, digest = checksum.split(":", 1)
+    algo = algo.strip().lower()
+    digest = digest.strip().lower()
+    if algo not in {"sha256", "sha384", "sha512"}:
+        raise ValueError(f"Unsupported checksum algorithm: {algo}")
+    if not digest:
+        raise ValueError("Checksum digest is empty")
+    return algo, digest
+
+
+def _manifest_has_stale_checksum(manifest_path: Path, *, payload_from_filesystem: bool) -> bool:
+    """True when integrity.checksum does not match the current module payload (strict-verify would fail)."""
+    try:
+        raw = yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
+    except Exception:
+        return True
+    if not isinstance(raw, dict):
+        return True
+    data = cast(dict[str, Any], raw)
+    integrity_raw = data.get("integrity")
+    if not isinstance(integrity_raw, dict):
+        return True
+    integrity = cast(dict[str, Any], integrity_raw)
+    checksum = str(integrity.get("checksum", "")).strip()
+    if not checksum:
+        return True
+    try:
+        algo, digest = _parse_integrity_checksum(checksum)
+    except ValueError:
+        return True
+    payload = _module_payload(manifest_path.parent, payload_from_filesystem=payload_from_filesystem)
+    actual = hashlib.new(algo, payload).hexdigest().lower()
+    return actual != digest
+
+
 def _parse_semver(version: str) -> tuple[int, int, int]:
     parts = version.split(".")
     if len(parts) != 3 or any(not part.isdigit() for part in parts):
@@ -398,17 +436,52 @@ def sign_manifest(manifest_path: Path, private_key: Any | None, *, payload_from_
     logger.info("%s: %s", manifest_path, status)
 
 
-def _resolve_manifests(args: argparse.Namespace, parser: argparse.ArgumentParser) -> list[Path]:
-    """Resolve the set of manifests to sign from CLI arguments."""
-    if args.manifests:
-        return [Path(manifest) for manifest in args.manifests]
-    if not args.changed_only:
-        parser.error("Provide one or more manifests, or use --changed-only.")
+def _paths_from_cli_manifest_list(manifests: list[str]) -> list[Path]:
+    return [Path(manifest) for manifest in manifests]
+
+
+def _validate_positional_manifest_exclusive_flags(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
+    if args.manifests and (args.changed_only or args.repair_stale_integrity):
+        parser.error("Positional manifest paths cannot be combined with --changed-only or --repair-stale-integrity.")
+
+
+def _require_changed_only_or_repair_mode(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
+    if not args.changed_only and not args.repair_stale_integrity:
+        parser.error("Provide manifest paths, --changed-only, and/or --repair-stale-integrity.")
+
+
+def _validate_discovery_prerequisites(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
     try:
         _ensure_valid_git_ref(args.base_ref)
     except ValueError as exc:
         parser.error(str(exc))
-    return [manifest for manifest in _iter_manifests() if _module_has_git_changes_since(manifest.parent, args.base_ref)]
+    if args.repair_stale_integrity and not args.payload_from_filesystem:
+        parser.error("--repair-stale-integrity requires --payload-from-filesystem (must match strict verify).")
+
+
+def _union_discovered_manifest_paths(args: argparse.Namespace) -> set[Path]:
+    selected: set[Path] = set()
+    if args.changed_only:
+        selected.update(
+            manifest for manifest in _iter_manifests() if _module_has_git_changes_since(manifest.parent, args.base_ref)
+        )
+    if args.repair_stale_integrity:
+        selected.update(
+            manifest
+            for manifest in _iter_manifests()
+            if _manifest_has_stale_checksum(manifest, payload_from_filesystem=args.payload_from_filesystem)
+        )
+    return selected
+
+
+def _resolve_manifests(args: argparse.Namespace, parser: argparse.ArgumentParser) -> list[Path]:
+    """Resolve the set of manifests to sign from CLI arguments."""
+    if args.manifests:
+        _validate_positional_manifest_exclusive_flags(args, parser)
+        return _paths_from_cli_manifest_list(args.manifests)
+    _require_changed_only_or_repair_mode(args, parser)
+    _validate_discovery_prerequisites(args, parser)
+    return sorted(_union_discovered_manifest_paths(args), key=lambda p: p.as_posix())
 
 
 def _maybe_bump_manifest_version(manifest_path: Path, *, base_ref: str, bump_type: str) -> None:
@@ -426,8 +499,8 @@ def _apply_version_only_remediation(args: argparse.Namespace, parser: argparse.A
         except ValueError as exc:
             parser.error(str(exc))
     manifests = _resolve_manifests(args, parser)
-    if args.changed_only and not manifests:
-        logger.info("No changed module manifests detected since %s.", args.base_ref)
+    if not manifests and (args.changed_only or args.repair_stale_integrity):
+        logger.info("No module manifests to bump (--changed-only / --repair-stale-integrity resolved empty).")
         return 0
     for manifest_path in manifests:
         _maybe_bump_manifest_version(manifest_path, base_ref=args.base_ref, bump_type=args.bump_version)
@@ -439,6 +512,8 @@ def _validate_version_only_mode(args: argparse.Namespace, parser: argparse.Argum
         parser.error("--version-only requires --bump-version")
     if args.version_only and args.allow_unsigned:
         parser.error("--version-only does not use signing mode; omit --allow-unsigned")
+    if args.version_only and args.repair_stale_integrity:
+        parser.error("--version-only cannot be combined with --repair-stale-integrity")
 
 
 def _resolve_private_key(args: argparse.Namespace, parser: argparse.ArgumentParser) -> Any | None:
@@ -459,16 +534,17 @@ def _sign_requested_manifests(
 ) -> int:
     """Sign the resolved manifest set."""
     manifests = _resolve_manifests(args, parser)
-    if args.changed_only and not manifests:
-        logger.info("No changed module manifests detected since %s.", args.base_ref)
+    if not manifests and (args.changed_only or args.repair_stale_integrity):
+        logger.info("No module manifests to sign (--changed-only / --repair-stale-integrity resolved empty).")
         return 0
     for manifest_path in manifests:
         try:
             _maybe_bump_manifest_version(manifest_path, base_ref=args.base_ref, bump_type=args.bump_version)
+            comparison_ref = args.base_ref if (args.changed_only or args.repair_stale_integrity) else "HEAD"
             _enforce_version_bump_before_signing(
                 manifest_path,
                 allow_same_version=args.allow_same_version,
-                comparison_ref=args.base_ref if args.changed_only else "HEAD",
+                comparison_ref=comparison_ref,
             )
             sign_manifest(manifest_path, private_key, payload_from_filesystem=args.payload_from_filesystem)
         except ValueError as exc:
@@ -518,9 +594,18 @@ def main() -> int:
         help="Select only manifests whose module payload changed since --base-ref.",
     )
     parser.add_argument(
+        "--repair-stale-integrity",
+        action="store_true",
+        help=(
+            "Also select manifests whose integrity.checksum does not match the current module payload, "
+            "even when git reports no changes under the module directory since --base-ref. "
+            "Requires --payload-from-filesystem. Use after PR merges where verification skipped checksums."
+        ),
+    )
+    parser.add_argument(
         "--base-ref",
         default="HEAD",
-        help="Git ref used for change detection when --changed-only is set (default: HEAD).",
+        help="Git ref for --changed-only, --repair-stale-integrity, and version bump comparison (default: HEAD).",
     )
     parser.add_argument(
         "--bump-version",

@@ -7,6 +7,7 @@ Tests for signing automation artifacts (arch-06): script and CI workflow.
 from __future__ import annotations
 
 import re
+import subprocess
 from pathlib import Path
 from typing import Any, cast
 
@@ -196,6 +197,7 @@ def test_sign_modules_py_requires_key_unless_allow_unsigned(tmp_path: Path):
     [
         (("--passphrase", "--passphrase-stdin", "--allow-same-version"), "passphrase sources"),
         (("--changed-only", "--base-ref", "--bump-version"), "changed-module automation"),
+        (("--repair-stale-integrity", "--payload-from-filesystem"), "stale checksum repair"),
     ],
 )
 def test_sign_modules_py_help_mentions_expected_flags(
@@ -318,6 +320,150 @@ def test_sign_modules_py_changed_only_fails_on_invalid_base_ref(tmp_path: Path):
     )
     assert result.returncode != 0
     assert "--base-ref is invalid" in result.stderr
+
+
+def _git_repo_with_committed_stale_checksum(tmp_path: Path) -> tuple[Path, Path, str]:
+    """Build a repo whose HEAD has a wrong integrity.checksum vs payload; return (repo, manifest, bad_checksum)."""
+    repo = tmp_path / "repo"
+    module_dir = repo / "modules" / "sample"
+    source = module_dir / "src" / "sample" / "main.py"
+    manifest = module_dir / "module-package.yaml"
+
+    source.parent.mkdir(parents=True)
+    manifest.write_text(
+        "name: sample\nversion: 0.1.0\npublisher: nold-ai\ncommands: [sample]\n",
+        encoding="utf-8",
+    )
+    source.write_text("print('v1')\n", encoding="utf-8")
+
+    subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True, text=True)
+    subprocess.run(
+        ["git", "config", "user.email", "test@example.com"], cwd=repo, check=True, capture_output=True, text=True
+    )
+    subprocess.run(["git", "config", "user.name", "Test User"], cwd=repo, check=True, capture_output=True, text=True)
+    subprocess.run(["git", "add", "."], cwd=repo, check=True, capture_output=True, text=True)
+    subprocess.run(["git", "commit", "-m", "initial"], cwd=repo, check=True, capture_output=True, text=True)
+
+    signed = subprocess.run(
+        ["python3", str(SIGN_PYTHON_SCRIPT), "--allow-unsigned", str(manifest)],
+        capture_output=True,
+        text=True,
+        cwd=repo,
+        timeout=20,
+    )
+    assert signed.returncode == 0, signed.stderr
+
+    raw = yaml.safe_load(manifest.read_text(encoding="utf-8"))
+    assert isinstance(raw, dict)
+    integrity = raw.get("integrity")
+    assert isinstance(integrity, dict)
+    checksum = str(integrity.get("checksum", ""))
+    assert checksum.startswith("sha256:")
+    parts = checksum.split(":", 1)
+    assert len(parts) == 2
+    bad_digest = "0" * len(parts[1])
+    bad_checksum = f"{parts[0]}:{bad_digest}"
+    integrity["checksum"] = bad_checksum
+    raw["integrity"] = integrity
+    manifest.write_text(yaml.safe_dump(raw, sort_keys=False, allow_unicode=False), encoding="utf-8")
+    subprocess.run(["git", "add", str(manifest)], cwd=repo, check=True, capture_output=True, text=True)
+    subprocess.run(
+        ["git", "commit", "-m", "commit stale checksum"],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return repo, manifest, bad_checksum
+
+
+def test_sign_modules_py_repair_stale_integrity_fixes_checksum_without_git_diff(tmp_path: Path):
+    """--repair-stale-integrity SHALL re-sign when checksum is wrong but git diff vs base is empty."""
+    if not SIGN_PYTHON_SCRIPT.exists():
+        pytest.skip("sign-modules.py not present")
+
+    repo, manifest, bad_checksum = _git_repo_with_committed_stale_checksum(tmp_path)
+
+    changed_only = subprocess.run(
+        [
+            "python3",
+            str(SIGN_PYTHON_SCRIPT),
+            "--allow-unsigned",
+            "--changed-only",
+            "--base-ref",
+            "HEAD",
+            "--bump-version",
+            "patch",
+            "--payload-from-filesystem",
+        ],
+        capture_output=True,
+        text=True,
+        cwd=repo,
+        timeout=20,
+    )
+    assert changed_only.returncode == 0, changed_only.stderr
+    combined_co = f"{changed_only.stdout}\n{changed_only.stderr}"
+    assert "No module manifests to sign" in combined_co or "resolved empty" in combined_co
+
+    repair = subprocess.run(
+        [
+            "python3",
+            str(SIGN_PYTHON_SCRIPT),
+            "--allow-unsigned",
+            "--repair-stale-integrity",
+            "--base-ref",
+            "HEAD",
+            "--bump-version",
+            "patch",
+            "--payload-from-filesystem",
+        ],
+        capture_output=True,
+        text=True,
+        cwd=repo,
+        timeout=20,
+    )
+    assert repair.returncode == 0, repair.stderr
+
+    fixed = yaml.safe_load(manifest.read_text(encoding="utf-8"))
+    assert isinstance(fixed, dict)
+    new_checksum = str(fixed.get("integrity", {}).get("checksum", ""))
+    assert new_checksum.startswith("sha256:")
+    assert new_checksum != bad_checksum
+
+
+def test_sign_modules_py_repair_stale_integrity_requires_payload_from_filesystem(tmp_path: Path) -> None:
+    if not SIGN_PYTHON_SCRIPT.exists():
+        pytest.skip("sign-modules.py not present")
+
+    import subprocess
+
+    repo = tmp_path / "repo"
+    (repo / "modules").mkdir(parents=True)
+    subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True, text=True)
+    subprocess.run(
+        ["git", "config", "user.email", "test@example.com"], cwd=repo, check=True, capture_output=True, text=True
+    )
+    subprocess.run(["git", "config", "user.name", "Test User"], cwd=repo, check=True, capture_output=True, text=True)
+    subprocess.run(
+        ["git", "commit", "--allow-empty", "-m", "init"], cwd=repo, check=True, capture_output=True, text=True
+    )
+
+    result = subprocess.run(
+        [
+            "python3",
+            str(SIGN_PYTHON_SCRIPT),
+            "--allow-unsigned",
+            "--repair-stale-integrity",
+            "--base-ref",
+            "HEAD",
+        ],
+        capture_output=True,
+        text=True,
+        cwd=repo,
+        timeout=20,
+    )
+    assert result.returncode != 0
+    assert "--repair-stale-integrity requires --payload-from-filesystem" in result.stderr
 
 
 def test_sign_modules_py_checksum_changes_when_module_files_change(tmp_path: Path):
@@ -470,20 +616,27 @@ def _assert_sign_and_push_job(workflow_root: dict[str, Any]) -> None:
     assert isinstance(perms, dict) and perms.get("contents") == "write"
 
 
-def _assert_sign_modules_dispatch_raw_content(raw: str) -> None:
+def _assert_sign_modules_dispatch_inputs_and_triggers(raw: str) -> None:
     assert "github.event.inputs.base_branch" in raw
     assert "github.event.inputs.version_bump" in raw
     assert "github.event.inputs.resign_all_manifests" in raw
     assert "Fetch workflow_dispatch comparison base" in raw
     assert 'elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then' in raw
+
+
+def _assert_sign_modules_dispatch_signing_and_merge_base(raw: str) -> None:
     assert "--changed-only" in raw
+    assert "--repair-stale-integrity" in raw
     assert "chore(modules): manual workflow_dispatch sign changed modules" in raw
-    # sign-and-push must compare against merge-base SHA, not the moving branch tip alone
     assert "git merge-base" in raw
     assert "merge-base" in raw
     assert '--base-ref "$MERGE_BASE"' in raw
-    # verify job still uses origin/<branch> for --version-check-base; do not wire sign-modules --base-ref to BASE_REF
     assert '--base-ref "${BASE_REF}"' not in raw
+
+
+def _assert_sign_modules_dispatch_raw_content(raw: str) -> None:
+    _assert_sign_modules_dispatch_inputs_and_triggers(raw)
+    _assert_sign_modules_dispatch_signing_and_merge_base(raw)
 
 
 def test_sign_modules_workflow_dispatch_signs_changed_modules_and_pushes():
@@ -512,7 +665,11 @@ def test_sign_modules_workflow_dispatch_resign_all_skips_version_check_base() ->
         re.MULTILINE | re.DOTALL,
     )
     assert match is not None, "Expected resign-all arm in sign-modules verify step"
-    assert "--version-check-base" not in match.group("body")
+    resign_body = match.group("body")
+    assert 'verify-modules-signature.py "${VERIFY_ARGS[@]}" --version-check-base' not in resign_body, (
+        "resign-all verify must not run the VERIFY_ARGS+--version-check-base invocation"
+    )
+    assert 'verify-modules-signature.py "${RESIGN_ARGS[@]}"' in resign_body
 
 
 def test_sign_modules_workflow_pr_verify_is_relaxed_without_version_bump_check() -> None:
@@ -532,9 +689,11 @@ def test_sign_modules_reproducibility_runs_only_on_main_push():
     reproducibility = jobs.get("reproducibility")
     assert isinstance(reproducibility, dict), "Expected reproducibility job in sign-modules workflow"
     assert reproducibility.get("name") == "Assert signing reproducibility"
-    assert reproducibility.get("if") == "github.event_name == 'push' && github.ref_name == 'main'", (
-        "Reproducibility job must be gated to push events on main only"
-    )
+    repro_if = reproducibility.get("if")
+    assert isinstance(repro_if, str)
+    assert "github.event_name == 'push'" in repro_if
+    assert "github.ref_name == 'main'" in repro_if
+    assert "needs.verify.outputs.signing_pr_created != 'true'" in repro_if
 
 
 def test_verify_script_reports_version_bump_failure_even_when_checksum_fails(tmp_path: Path):

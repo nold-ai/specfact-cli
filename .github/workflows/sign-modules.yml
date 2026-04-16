@@ -105,6 +105,7 @@ jobs:
           fi
           python scripts/sign-modules.py \
             --changed-only \
+            --repair-stale-integrity \
             --base-ref "$BEFORE" \
             --bump-version patch \
             --payload-from-filesystem
