@@ -53,8 +53,8 @@ def test_module_verify_policy_arrays(var: str, expected: list[str]) -> None:
 def test_pre_commit_verify_modules_sources_policy() -> None:
     body = (REPO_ROOT / "scripts" / "pre-commit-verify-modules.sh").read_text(encoding="utf-8")
     assert "module-verify-policy.sh" in body
-    assert '"${VERIFY_MODULES_STRICT[@]}"' in body
-    assert '"${VERIFY_MODULES_PR[@]}"' in body
+    assert "exec hatch run verify-modules-signature" in body
+    assert "exec hatch run verify-modules-signature-pr" in body
 
 
 def test_pr_orchestrator_verify_job_sources_policy() -> None:

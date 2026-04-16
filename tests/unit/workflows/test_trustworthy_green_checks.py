@@ -223,7 +223,8 @@ def _assert_pre_commit_verify_and_version_hooks(by_id: dict[str, dict[str, Any]]
     assert legacy_verify.is_file()
     verify_body = verify_script.read_text(encoding="utf-8")
     assert "module-verify-policy.sh" in verify_body
-    assert "VERIFY_MODULES_STRICT" in verify_body
+    assert "exec hatch run verify-modules-signature" in verify_body
+    assert "exec hatch run verify-modules-signature-pr" in verify_body
     assert "check-version-sources" in by_id
     assert "check-local-version-ahead-of-pypi" in by_id
 
