@@ -26,3 +26,25 @@ def test_script_exits_zero_when_skip_env() -> None:
         timeout=30,
     )
     assert completed.returncode == 0, completed.stderr
+
+
+@pytest.mark.integration
+def test_script_exits_zero_skip_when_version_matches_head_without_skip_env() -> None:
+    """Clean trees match HEAD; skip path avoids PyPI (no lenient network needed)."""
+    repo_root = Path(__file__).resolve().parents[3]
+    script = repo_root / "scripts" / "check_local_version_ahead_of_pypi.py"
+    completed = subprocess.run(
+        [
+            sys.executable,
+            str(script),
+            "--skip-when-version-unchanged-vs",
+            "HEAD",
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+        cwd=str(repo_root),
+        timeout=30,
+    )
+    assert completed.returncode == 0, completed.stderr
+    assert "skipped PyPI query" in completed.stderr

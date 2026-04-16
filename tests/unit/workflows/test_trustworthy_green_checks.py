@@ -63,6 +63,57 @@ def _load_hooks() -> list[dict[str, Any]]:
     return typed_hooks
 
 
+def _load_job_steps(job_name: str) -> list[dict[str, Any]]:
+    jobs = _load_jobs()
+    job = jobs.get(job_name)
+    assert job is not None, f"Expected {job_name!r} job in pr-orchestrator"
+    steps = job.get("steps")
+    assert isinstance(steps, list), f"Expected steps list in {job_name!r} job"
+    return [cast(dict[str, Any], step) for step in steps if isinstance(step, dict)]
+
+
+def _find_named_step(job_name: str, step_name: str) -> dict[str, Any]:
+    step = next((step for step in _load_job_steps(job_name) if step.get("name") == step_name), None)
+    assert step is not None, f"Expected {step_name!r} step in {job_name!r} job"
+    return step
+
+
+def _normalized_condition(value: object) -> str:
+    assert isinstance(value, str), "Expected workflow condition to be a string"
+    return " ".join(value.replace('"', "'").split())
+
+
+def _assert_condition_contains(value: object, expected: str, *, context: str) -> None:
+    normalized = _normalized_condition(value)
+    assert expected in normalized, f"{context}; got {value!r}"
+
+
+def test_pr_orchestrator_pypi_version_check_gated_on_version_sources() -> None:
+    """PyPI-ahead must not run on every code PR; gate matches pre-commit staged version files."""
+    pypi_step = _find_named_step("tests", "Verify local version is ahead of PyPI")
+    _assert_condition_contains(
+        pypi_step.get("if"),
+        "version_sources_changed == 'true'",
+        context="PyPI-ahead step must be gated on version_sources_changed == 'true'",
+    )
+
+    run_clause = pypi_step.get("run") or ""
+    assert "skip-when-version-unchanged-vs" in str(run_clause), (
+        "PyPI-ahead step must invoke check_local_version_ahead_of_pypi.py with --skip-when-version-unchanged-vs"
+    )
+    assert "github.event.pull_request.base.sha" in str(run_clause), (
+        "PyPI-ahead step must compare against the PR base SHA"
+    )
+
+    jobs = _load_jobs()
+    changes_job = jobs.get("changes")
+    assert isinstance(changes_job, dict), "Expected 'changes' job in pr-orchestrator"
+    outputs = changes_job.get("outputs")
+    assert isinstance(outputs, dict) and "version_sources_changed" in outputs, (
+        "'changes' job must export 'version_sources_changed' output for downstream gating"
+    )
+
+
 def test_pr_orchestrator_required_checks_trigger_on_every_pr_head_commit() -> None:
     """Required checks must not disappear behind workflow-level path filters."""
     workflow = _load_yaml(PR_ORCHESTRATOR)
@@ -115,23 +166,14 @@ def test_pr_orchestrator_release_skip_requires_parity_proof() -> None:
     outputs = changes.get("outputs")
     assert isinstance(outputs, dict), "Expected outputs mapping for changes job"
     assert "skip_tests_dev_to_main" in outputs, "Release skip decision should remain explicit"
-    tests_job = jobs.get("tests")
-    assert tests_job is not None, "Expected tests job in pr-orchestrator"
-    steps = tests_job.get("steps")
-    assert isinstance(steps, list), "Expected tests job to define steps"
-    skip_conditions = [step.get("if") for step in steps if isinstance(step, dict)]
-    # Normalize conditions by collapsing whitespace and removing surrounding quotes for robust matching
     normalized_conditions = [
-        " ".join(cond.replace('"', "'").split()) if isinstance(cond, str) else cond for cond in skip_conditions
+        _normalized_condition(step.get("if")) for step in _load_job_steps("tests") if isinstance(step.get("if"), str)
     ]
-    # Assert key patterns exist regardless of minor spacing/quoting differences
     assert any(
-        "needs.changes.outputs.skip_tests_dev_to_main" in str(cond) and "== 'true'" in str(cond)
-        for cond in normalized_conditions
+        "needs.changes.outputs.skip_tests_dev_to_main" in cond and "== 'true'" in cond for cond in normalized_conditions
     ), "Expected a condition checking skip_tests_dev_to_main == 'true'"
     assert any(
-        "needs.changes.outputs.skip_tests_dev_to_main" in str(cond) and "!= 'true'" in str(cond)
-        for cond in normalized_conditions
+        "needs.changes.outputs.skip_tests_dev_to_main" in cond and "!= 'true'" in cond for cond in normalized_conditions
     ), "Expected a condition checking skip_tests_dev_to_main != 'true'"
 
 
@@ -165,8 +207,10 @@ def test_module_signature_check_name_is_canonical_across_workflows() -> None:
     assert orchestrator_name == dedicated_name == "Verify Module Signatures"
 
 
+CANONICAL_VERSION_SOURCE_REGEX = r"^(pyproject\.toml|setup\.py|src/__init__\.py|src/specfact_cli/__init__\.py)$"
+
+
 def _assert_pre_commit_verify_and_version_hooks(by_id: dict[str, dict[str, Any]]) -> None:
-    assert "verify-module-signatures" in by_id
     verify_hook = by_id["verify-module-signatures"]
     assert verify_hook.get("always_run") is True
     assert verify_hook.get("language") == "script"
@@ -177,8 +221,32 @@ def _assert_pre_commit_verify_and_version_hooks(by_id: dict[str, dict[str, Any]]
     assert verify_script.is_file()
     legacy_verify = REPO_ROOT / "scripts" / "pre-commit-verify-modules-signature.sh"
     assert legacy_verify.is_file()
-    assert "--payload-from-filesystem" in verify_script.read_text(encoding="utf-8")
+    verify_body = verify_script.read_text(encoding="utf-8")
+    assert "module-verify-policy.sh" in verify_body
+    assert "VERIFY_MODULES_STRICT" in verify_body
     assert "check-version-sources" in by_id
+    assert "check-local-version-ahead-of-pypi" in by_id
+
+
+def _assert_pypi_version_hook(by_id: dict[str, dict[str, Any]]) -> None:
+    pypi_hook = by_id["check-local-version-ahead-of-pypi"]
+    files_pattern = pypi_hook.get("files")
+    assert files_pattern == CANONICAL_VERSION_SOURCE_REGEX, (
+        "PyPI-ahead pre-commit hook 'files:' scope must match the canonical version-source set "
+        f"({CANONICAL_VERSION_SOURCE_REGEX!r}); got {files_pattern!r}"
+    )
+    entry = str(pypi_hook.get("entry", ""))
+    assert "hatch run python scripts/check_local_version_ahead_of_pypi.py" in entry
+
+
+def test_pr_orchestrator_package_validation_waits_for_dependency_gates() -> None:
+    jobs = _load_jobs()
+    package_validation = jobs.get("package-validation")
+    assert package_validation is not None, "Expected package-validation job in pr-orchestrator"
+    needs = package_validation.get("needs")
+    assert isinstance(needs, list), "Expected package-validation needs list"
+    assert "license-check" in needs
+    assert "security-audit" in needs
 
 
 def _assert_pre_commit_cli_quality_block_hooks(by_id: dict[str, dict[str, Any]]) -> None:
@@ -212,6 +280,7 @@ def test_pre_commit_config_matches_modular_quality_layout() -> None:
         if isinstance(hid, str):
             by_id[hid] = h
     _assert_pre_commit_verify_and_version_hooks(by_id)
+    _assert_pypi_version_hook(by_id)
     _assert_pre_commit_cli_quality_block_hooks(by_id)
 
 

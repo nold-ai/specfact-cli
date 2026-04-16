@@ -2,30 +2,29 @@
 
 ## Why
 
-Module signing currently requires the private key to be available in the local environment, which
-blocks non-interactive development (AI agents, Cursor, headless CI) on any branch where modules are
-changed. The pre-commit hook and CI `verify-module-signatures` job both enforce `--require-signature`
-regardless of branch, so every commit to a feature or dev branch silently hangs or fails when no key
-is present. Moving signing to a CI step triggered by PR approval eliminates the local key requirement
-while preserving the integrity guarantee where it matters: at the trust boundary before code reaches
-`dev` or `main`.
+Module signing requires the private key for strict verification. Non-`main` development must not be
+blocked by stale checksums or missing signatures before CI re-signs. Canonical verify flag bundles live
+in **`scripts/module-verify-policy.sh`** and are shared by pre-commit, **`pr-orchestrator.yml`**, and
+**`sign-modules.yml`** so local hooks and GitHub Actions stay aligned. Approval-time signing still
+closes the loop on same-repo PRs without fork push access.
 
 ## What Changes
 
 - **NEW**: `sign-modules-on-approval.yml` GitHub Actions workflow — triggers on
   `pull_request_review` (state: `approved`), signs changed module manifests via CI secrets, and
   commits the signed manifests back to the PR branch.
-- **MODIFY**: Pre-commit module verify — branch-aware policy via `scripts/pre-commit-verify-modules.sh`
-  and `scripts/git-branch-module-signature-flag.sh`: on non-`main` branches (including detached `HEAD`),
-  run `verify-modules-signature.py` **without** `--require-signature` (checksum-only); on `main`, pass
-  `--require-signature`. The verifier has **no** `--allow-unsigned` flag (that option exists on
-  **`sign-modules.py`** for local test signing only). `scripts/pre-commit-smart-checks.sh` remains a
-  repo-root shim into `pre-commit-quality-checks.sh` (see modular `.pre-commit-config.yaml`).
-- **MODIFY**: `.github/workflows/pr-orchestrator.yml` `verify-module-signatures` job — drop
-  `--require-signature` for PRs and pushes targeting `dev`; keep it for PRs and pushes targeting
-  `main`.
-- **MODIFY**: `.github/workflows/sign-modules.yml` `verify` job — scope `--require-signature` to
-  `main` branch only; remove it from `dev` triggers.
+- **MODIFY**: Pre-commit module verify — branch-aware policy via `scripts/pre-commit-verify-modules.sh`,
+  `scripts/git-branch-module-signature-flag.sh`, and **`scripts/module-verify-policy.sh`**: `main` uses
+  **`VERIFY_MODULES_STRICT`**; elsewhere **`VERIFY_MODULES_PR`**. The verifier has **no** `--allow-unsigned`
+  flag (that option exists on **`sign-modules.py`** for local test signing only).
+  `scripts/pre-commit-smart-checks.sh` remains a repo-root shim into `pre-commit-quality-checks.sh`
+  (see modular `.pre-commit-config.yaml`).
+- **MODIFY**: `.github/workflows/pr-orchestrator.yml` `verify-module-signatures` job — source
+  **`module-verify-policy.sh`**; **pull_request** uses **`VERIFY_MODULES_PR`**; **push** uses
+  **`VERIFY_MODULES_PUSH_ORCHESTRATOR`** (this job never passes `--require-signature`).
+- **MODIFY**: `.github/workflows/sign-modules.yml` `verify` job — source **`module-verify-policy.sh`**;
+  **push** to `dev`/`main` uses **`VERIFY_MODULES_STRICT`** after auto-sign; **pull_request** /
+  **workflow_dispatch** uses **`VERIFY_MODULES_PR`**.
 - **NO CHANGE**: Module install-time verification (always `--require-signature` from main registry),
   `publish-modules.yml`, `create-release` signing step (kept as safety net), and
   `resources/keys/module-signing-public.pem`.
@@ -40,14 +39,15 @@ while preserving the integrity guarantee where it matters: at the trust boundary
 
 ### Modified Capabilities
 
-- `ci-integration`: Pre-commit and CI verification gates apply a branch-aware policy — omit
-  `--require-signature` (checksum-only) on non-`main` branches and for dev-targeting PR/push events;
-  pass `--require-signature` only on `main` and for `main`-targeting PR/push events.
+- `ci-integration`: Pre-commit and CI verification gates consume **`scripts/module-verify-policy.sh`**
+  (`VERIFY_MODULES_STRICT`, `VERIFY_MODULES_PR`, `VERIFY_MODULES_PUSH_ORCHESTRATOR`) so hooks and
+  workflows cannot drift.
 
 ## Impact
 
-- **Affected scripts**: `scripts/pre-commit-verify-modules.sh`, `scripts/git-branch-module-signature-flag.sh`,
-  `scripts/pre-commit-quality-checks.sh`, `scripts/pre-commit-smart-checks.sh` (shim)
+- **Affected scripts**: `scripts/module-verify-policy.sh`, `scripts/pre-commit-verify-modules.sh`,
+  `scripts/git-branch-module-signature-flag.sh`, `scripts/pre-commit-quality-checks.sh`,
+  `scripts/pre-commit-smart-checks.sh` (shim)
 - **Affected workflows**: `.github/workflows/pr-orchestrator.yml`,
   `.github/workflows/sign-modules.yml`
 - **New workflow**: `.github/workflows/sign-modules-on-approval.yml`

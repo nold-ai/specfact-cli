@@ -45,6 +45,6 @@ def _bootstrap_bundle_paths() -> None:
 
 _bootstrap_bundle_paths()
 
-__version__ = "0.46.2"
+__version__ = "0.46.3"
 
 __all__ = ["__version__"]

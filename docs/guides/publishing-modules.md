@@ -102,11 +102,12 @@ metadata.
 
 - Bump module `version` in `module-package.yaml` whenever payload or manifest content changes; keep versions immutable for published artifacts.
 - Use `namespace/name` for any module you publish to a registry.
-- Before merging to a protected branch such as `main`, run strict verification, e.g.
-  `scripts/verify-modules-signature.py --require-signature --enforce-version-bump` so signatures and
-  version bumps are both enforced. On feature or `dev` branches, checksum-only verification (omit
-  `--require-signature`) is typical — see [Module signing and key rotation](module-signing-and-key-rotation.md).
-  Follow your registry’s policy if stricter.
+- Before merging to a protected branch such as `main`, run strict verification (same bundle as
+  `main` pre-commit and `sign-modules.yml` push verify), e.g. `hatch run verify-modules-signature` or
+  `python scripts/verify-modules-signature.py` with the flags in `scripts/module-verify-policy.sh`
+  (`VERIFY_MODULES_STRICT`). On feature or `dev` branches, local pre-commit and PR CI use the relaxed
+  **`VERIFY_MODULES_PR`** bundle (`--skip-checksum-verification`); see
+  [Module signing and key rotation](module-signing-and-key-rotation.md). Follow your registry’s policy if stricter.
 - Prefer `--download-base-url` and `--index-fragment` when integrating with a custom registry index.
 
 ## See also

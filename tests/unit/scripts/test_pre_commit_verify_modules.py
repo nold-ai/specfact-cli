@@ -21,6 +21,7 @@ TOKEN_VERIFY_SCRIPT = "verify-modules-signature.py"
 TOKEN_REQUIRE_SIGNATURE = "--require-signature"
 TOKEN_ENFORCE_VERSION_BUMP = "--enforce-version-bump"
 TOKEN_PAYLOAD_FROM_FS = "--payload-from-filesystem"
+TOKEN_SKIP_CHECKSUM = "--skip-checksum-verification"
 
 
 def _run_flag(*, cwd: Path) -> str:
@@ -97,6 +98,7 @@ def _repo_with_verify_scripts(
 
     (scripts / "pre-commit-verify-modules.sh").symlink_to(VERIFY_WRAPPER.resolve())
     (scripts / "pre-commit-verify-modules-signature.sh").symlink_to(LEGACY_VERIFY_WRAPPER.resolve())
+    (scripts / "module-verify-policy.sh").symlink_to((REPO_ROOT / "scripts" / "module-verify-policy.sh").resolve())
     flag_target = scripts / "git-branch-module-signature-flag.sh"
     if flag_script_body is None:
         flag_target.symlink_to(FLAG_SCRIPT.resolve())
@@ -121,14 +123,14 @@ def _repo_with_verify_scripts(
     )
     if stage_module_paths:
         if module_tree == "top":
-            mod_dir = repo / "modules"
+            mod_dir = repo / "modules" / "testmod"
             mod_dir.mkdir(parents=True)
-            stage_path = "modules/pkg.yaml"
+            stage_path = "modules/testmod/module-package.yaml"
         else:
-            mod_dir = repo / "src" / "specfact_cli" / "modules"
+            mod_dir = repo / "src" / "specfact_cli" / "modules" / "testmod"
             mod_dir.mkdir(parents=True)
-            stage_path = "src/specfact_cli/modules/pkg.yaml"
-        (mod_dir / "pkg.yaml").write_text("x: 1\n", encoding="utf-8")
+            stage_path = "src/specfact_cli/modules/testmod/module-package.yaml"
+        (mod_dir / "module-package.yaml").write_text("id: testmod\nversion: 0.0.1\n", encoding="utf-8")
         subprocess.run(["git", "add", stage_path], cwd=repo, check=True, capture_output=True, text=True)
     else:
         docs = repo / "docs"
@@ -285,7 +287,8 @@ def test_verify_wrapper_runs_hatch_checksum_only_off_main(tmp_path: Path, module
     log = log_path.read_text(encoding="utf-8")
     assert TOKEN_VERIFY_SCRIPT in log
     assert TOKEN_ENFORCE_VERSION_BUMP in log
-    assert TOKEN_PAYLOAD_FROM_FS in log
+    assert TOKEN_SKIP_CHECKSUM in log
+    assert TOKEN_PAYLOAD_FROM_FS not in log
     assert TOKEN_REQUIRE_SIGNATURE not in log
 
 

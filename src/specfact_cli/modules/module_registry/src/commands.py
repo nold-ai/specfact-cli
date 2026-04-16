@@ -545,7 +545,7 @@ def _uninstall_marketplace_default(normalized: str) -> None:
         )
         raise typer.Exit(1)
     try:
-        uninstall_module(normalized)
+        uninstall_module(normalized, confirm_user_scope=True)
     except ValueError as exc:
         console.print(f"[red]{exc}[/red]")
         raise typer.Exit(1) from exc

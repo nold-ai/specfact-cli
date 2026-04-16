@@ -10,6 +10,59 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.46.3] - 2026-04-16
+
+### Added
+
+- **`scripts/security_audit_gate.py`**: wrap `pip-audit` JSON output and
+  fail only when max CVSS ≥ 7.0; wired into `hatch run security-audit`
+  and PR orchestrator.
+- **`scripts/module_pip_dependencies_licenses.yaml`**: offline map for
+  manifest `pip_dependencies` license gate.
+- **`scripts/_detect_modules_to_publish.py`** + `publish-modules.yml`
+  `auto-publish` job: after `Module Signature Hardening` succeeds on
+  `dev`/`main`, automatically package every bundled module whose
+  manifest version is strictly greater than the registry's
+  `latest_version` and open one combined PR against the registry repo.
+
+### Changed
+
+- **Dependency hygiene (`dep-security-cleanup`)**:
+  - **Removed** GPL/wrong-PyPI packages from distributed extras:
+    `pyan3` (GPL-2.0; replaced by `pycg` MIT), `bearer` (wrong PyPI;
+    replaced by `bandit` MIT), `syft` (wrong PyPI; Anchore Syft is
+    out-of-band).
+  - **Replaced** runtime `json5` with `commentjson` (read) + stdlib
+    `json` (write).
+  - **Added** `pycg`, `bandit`, `pip-licenses`, and `pip-audit` to the
+    appropriate extras.
+- **License / CVE hygiene**: hardened
+  `scripts/check_license_compliance.py` (fail-closed allowlist and
+  manifest map, GPL vs LGPL detection), `license-check` CI gated on
+  `pyproject.toml` changes, docs and OpenSpec updates for
+  `dep-security-cleanup`.
+- **Call graphs**: `pycg` invocation uses `--package` + repo root;
+  specs and tests aligned with PyCG adjacency format.
+- **Pre-commit / CI**: `check-version-sources` always runs; PyPI-ahead
+  check matches orchestrator tests job when version sources change
+  (`pyproject.toml`, `setup.py`, `src/__init__.py`,
+  `src/specfact_cli/__init__.py`; lenient network), with remediation
+  hints on failure.
+
+### Fixed
+
+- **Security audit CI**: `security_audit_gate.py` invokes `pip-audit` with
+  `--skip-editable` (and without `--strict`) so `pip install -e .` on PRs still
+  produces auditable JSON: pip-audit’s strict mode errors on the skipped
+  editable root and prints no JSON.
+- Pre-commit PyPI-ahead hook no longer runs on unrelated commits when
+  local version already matches PyPI.
+- **CI / PyPI gate**: `check_local_version_ahead_of_pypi.py` supports
+  `--skip-when-version-unchanged-vs`; PR orchestrator and pre-commit
+  use it so PRs that edit `pyproject.toml` (for example dependencies)
+  without bumping `project.version` are not blocked by the PyPI-ahead
+  step.
+
 ## [0.46.2] - 2026-04-15
 
 ### Fixed
