@@ -1,6 +1,11 @@
 # yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
-# Auto-sign changed bundled modules on push to dev/main, then strict-verify. PRs / workflow_dispatch
-# use the same relaxed verify bundle as pre-commit omit (see scripts/module-verify-policy.sh).
+# Auto-sign changed bundled modules on push to dev/main, then strict-verify; manifest commits
+# open an auto/sign-* PR (protected branches — no direct push). PRs / workflow_dispatch use the
+# same relaxed verify bundle as pre-commit omit (see scripts/module-verify-policy.sh).
+#
+# Push runs for every actor (including github-actions[bot]) so merge commits that
+# land manifest or payload changes still refresh integrity.checksum before strict
+# verify; otherwise verify fails with checksum mismatch when signing is skipped.
 name: Module Signature Hardening
 
 on:
@@ -52,8 +57,11 @@ jobs:
   verify:
     name: Verify Module Signatures
     runs-on: ubuntu-latest
+    outputs:
+      signing_pr_created: ${{ steps.open_auto_sign_pr.outputs.created == 'true' && 'true' || 'false' }}
     permissions:
       contents: write
+      pull-requests: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -74,11 +82,10 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install pyyaml beartype icontract cryptography cffi
 
-      - name: Auto-sign changed bundled modules (push to dev/main, non-bot actors)
+      - name: Auto-sign changed bundled modules (push to dev/main)
         if: >-
           github.event_name == 'push' &&
-          (github.ref_name == 'dev' || github.ref_name == 'main') &&
-          github.actor != 'github-actions[bot]'
+          (github.ref_name == 'dev' || github.ref_name == 'main')
         env:
           SPECFACT_MODULE_PRIVATE_SIGN_KEY: ${{ secrets.SPECFACT_MODULE_PRIVATE_SIGN_KEY }}
           SPECFACT_MODULE_PRIVATE_SIGN_KEY_PASSPHRASE: ${{ secrets.SPECFACT_MODULE_PRIVATE_SIGN_KEY_PASSPHRASE }}
@@ -153,26 +160,43 @@ jobs:
             python scripts/verify-modules-signature.py "${VERIFY_ARGS[@]}" --version-check-base "$BASE_REF"
           fi
 
-      - name: Commit auto-signed manifests (push to dev/main, non-bot actors)
+      - id: open_auto_sign_pr
+        name: Open PR with auto-signed manifests (dev/main; no direct push)
         if: >-
           github.event_name == 'push' &&
-          (github.ref_name == 'dev' || github.ref_name == 'main') &&
-          github.actor != 'github-actions[bot]'
+          (github.ref_name == 'dev' || github.ref_name == 'main')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
+          SIGNING_PR_CREATED=false
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -u -- src/specfact_cli/modules modules
           if git diff --cached --quiet; then
             echo "No manifest signing changes to commit."
+            echo "created=${SIGNING_PR_CREATED}" >> "${GITHUB_OUTPUT}"
             exit 0
           fi
+          BRANCH="auto/sign-${GITHUB_REF_NAME}-${{ github.run_id }}"
+          git checkout -b "${BRANCH}"
           git commit -m "chore(modules): auto-sign bundled manifests [skip ci]"
-          git push origin "HEAD:${GITHUB_REF_NAME}"
+          git push -u origin "${BRANCH}"
+          gh pr create \
+            --repo "${{ github.repository }}" \
+            --base "${GITHUB_REF_NAME}" \
+            --head "${BRANCH}" \
+            --title "chore(modules): auto-sign bundled manifests (${GITHUB_REF_NAME})" \
+            --body "Automated integrity refresh after push to \`${GITHUB_REF_NAME}\`. Merge so strict verify and reproducibility run against the signed tip (protected branch — no direct push)."
+          SIGNING_PR_CREATED=true
+          echo "created=${SIGNING_PR_CREATED}" >> "${GITHUB_OUTPUT}"
 
   reproducibility:
     name: Assert signing reproducibility
-    if: github.event_name == 'push' && github.ref_name == 'main'
+    if: >-
+      github.event_name == 'push' &&
+      github.ref_name == 'main' &&
+      needs.verify.outputs.signing_pr_created != 'true'
     runs-on: ubuntu-latest
     needs: [verify]
     permissions:
@@ -183,7 +207,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Sync to remote branch tip (after verify job may have pushed auto-sign commit)
+      - name: Sync to remote branch tip (after verify; skip when a signing PR was opened instead)
         run: |
           set -euo pipefail
           git fetch origin "${GITHUB_REF_NAME}"
