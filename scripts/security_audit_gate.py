@@ -8,6 +8,11 @@ not fail the gate.
 pip-audit's JSON formatter does not always include CVSS vectors; this script
 recursively scans each vulnerability object for numeric severity fields and
 defaults missing scores to 0.0 (informational / manual review).
+
+``--skip-editable`` excludes the project itself when installed with ``pip install
+-e .`` so PRs that bump ``project.version`` ahead of the PyPI release are not
+treated as unauditable dependencies under ``--strict`` (which would otherwise
+yield empty JSON and fail closed).
 """
 
 from __future__ import annotations
@@ -73,7 +78,7 @@ def _cvss_for_vuln(vuln: dict[str, Any]) -> float:
 
 
 def _run_pip_audit() -> subprocess.CompletedProcess[str] | None:
-    cmd = [sys.executable, "-m", "pip_audit", "-f", "json", "-S"]
+    cmd = [sys.executable, "-m", "pip_audit", "-f", "json", "--skip-editable", "-S"]
     try:
         return subprocess.run(cmd, capture_output=True, text=True, timeout=900)
     except subprocess.TimeoutExpired:

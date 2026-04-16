@@ -51,6 +51,9 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- **Security audit CI**: `security_audit_gate.py` invokes `pip-audit` with
+  `--skip-editable` so `pip install -e .` does not fail strict collection when
+  `project.version` is ahead of the latest PyPI release.
 - Pre-commit PyPI-ahead hook no longer runs on unrelated commits when
   local version already matches PyPI.
 - **CI / PyPI gate**: `check_local_version_ahead_of_pypi.py` supports

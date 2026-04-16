@@ -82,3 +82,12 @@ def test_main_fail_closed_on_empty_stdout(gate_mod) -> None:
 def test_main_fail_closed_when_pip_audit_unavailable(gate_mod) -> None:
     with patch.object(gate_mod.subprocess, "run", side_effect=FileNotFoundError("pip-audit not found")):
         assert gate_mod.main() == 1
+
+
+def test_main_runs_pip_audit_with_skip_editable(gate_mod) -> None:
+    payload = {"dependencies": [{"name": "requests", "version": "2.0.0", "vulns": []}]}
+    proc = MagicMock(stdout=json.dumps(payload), stderr="", returncode=0)
+    with patch.object(gate_mod.subprocess, "run", return_value=proc) as run_mock:
+        assert gate_mod.main() == 0
+    cmd = run_mock.call_args[0][0]
+    assert "--skip-editable" in cmd

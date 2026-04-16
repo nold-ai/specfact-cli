@@ -123,14 +123,14 @@ def _repo_with_verify_scripts(
     )
     if stage_module_paths:
         if module_tree == "top":
-            mod_dir = repo / "modules"
+            mod_dir = repo / "modules" / "testmod"
             mod_dir.mkdir(parents=True)
-            stage_path = "modules/pkg.yaml"
+            stage_path = "modules/testmod/module-package.yaml"
         else:
-            mod_dir = repo / "src" / "specfact_cli" / "modules"
+            mod_dir = repo / "src" / "specfact_cli" / "modules" / "testmod"
             mod_dir.mkdir(parents=True)
-            stage_path = "src/specfact_cli/modules/pkg.yaml"
-        (mod_dir / "pkg.yaml").write_text("x: 1\n", encoding="utf-8")
+            stage_path = "src/specfact_cli/modules/testmod/module-package.yaml"
+        (mod_dir / "module-package.yaml").write_text("id: testmod\nversion: 0.0.1\n", encoding="utf-8")
         subprocess.run(["git", "add", stage_path], cwd=repo, check=True, capture_output=True, text=True)
     else:
         docs = repo / "docs"
