@@ -2,17 +2,20 @@
 Run pip-audit with JSON output and enforce CVSS-based severity thresholds.
 
 Exits with code 1 only when the maximum CVSS score across all reported
-vulnerabilities is >= 7.0. Findings below that threshold print as WARNING and do
-not fail the gate.
+vulnerabilities is at least 7.0. Findings below that threshold print as WARNING
+and do not fail the gate.
 
 pip-audit's JSON formatter does not always include CVSS vectors; this script
 recursively scans each vulnerability object for numeric severity fields and
 defaults missing scores to 0.0 (informational / manual review).
 
-``--skip-editable`` excludes the project itself when installed with ``pip install
--e .`` so PRs that bump ``project.version`` ahead of the PyPI release are not
-treated as unauditable dependencies under ``--strict`` (which would otherwise
-yield empty JSON and fail closed).
+``--skip-editable`` skips the editable project when using ``pip install -e .``,
+so the local package is not confused with a PyPI release during auditing.
+
+``pip-audit`` ``--strict`` (``-S``) is not used: with ``--skip-editable`` it
+still errors on the root editable and emits no JSON. The gate remains
+fail-closed on empty or invalid JSON and on CVSS at or above 7.0 in the parsed
+dependency list.
 """
 
 from __future__ import annotations
@@ -78,7 +81,7 @@ def _cvss_for_vuln(vuln: dict[str, Any]) -> float:
 
 
 def _run_pip_audit() -> subprocess.CompletedProcess[str] | None:
-    cmd = [sys.executable, "-m", "pip_audit", "-f", "json", "--skip-editable", "-S"]
+    cmd = [sys.executable, "-m", "pip_audit", "-f", "json", "--skip-editable"]
     try:
         return subprocess.run(cmd, capture_output=True, text=True, timeout=900)
     except subprocess.TimeoutExpired:
