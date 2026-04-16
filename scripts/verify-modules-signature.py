@@ -292,6 +292,20 @@ def verify_manifest(
     if not verify_checksum:
         if require_signature:
             raise ValueError("require_signature is incompatible with verify_checksum=False")
+        integrity_raw = data.get("integrity")
+        if not isinstance(integrity_raw, dict):
+            raise ValueError("missing integrity metadata")
+        integrity = cast(dict[str, Any], integrity_raw)
+        checksum = str(integrity.get("checksum", "")).strip()
+        if not checksum:
+            raise ValueError("missing integrity.checksum")
+        algo, digest = _parse_checksum(checksum)
+        signature = str(integrity.get("signature", "")).strip()
+        if signature:
+            if not public_key_pem:
+                raise ValueError("public key required to verify integrity.signature")
+            payload = _module_payload(manifest_path.parent, payload_from_filesystem=payload_from_filesystem)
+            _verify_signature(payload, signature, public_key_pem)
         return
     integrity_raw = data.get("integrity")
     if not isinstance(integrity_raw, dict):

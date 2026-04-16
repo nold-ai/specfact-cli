@@ -2,9 +2,10 @@
 Detect bundled modules whose manifest `version:` is strictly greater than the
 version currently recorded for that module in the registry index.
 
-Used by `.github/workflows/publish-modules.yml` to decide which modules an
-auto-publish run should package and PR. Output is one module directory per
-line (newline-separated, no trailing newline).
+Used by `.github/workflows/publish-modules.yml` to decide which bundled modules
+an auto-publish run should package and upsert into
+``resources/bundled-module-registry/index.json`` (PR opened in ``specfact-cli``).
+Output is one module directory per line (newline-separated, no trailing newline).
 """
 
 from __future__ import annotations
@@ -13,6 +14,7 @@ import argparse
 import json
 import sys
 from pathlib import Path
+from typing import Any, cast
 
 import yaml
 from beartype import beartype
@@ -25,7 +27,13 @@ from packaging.version import InvalidVersion, Version
 @ensure(lambda result: isinstance(result, dict))
 def _load_registry_versions(path: Path) -> dict[str, str]:
     """Return {module_id: latest_version_str} from registry/index.json."""
-    raw = json.loads(path.read_text(encoding="utf-8"))
+    try:
+        raw_obj: object = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"Registry index JSON is invalid ({path}): {exc}") from exc
+    if not isinstance(raw_obj, dict):
+        raise ValueError(f"Registry index JSON root must be an object ({path})")
+    raw = cast(dict[str, Any], raw_obj)
     modules = raw.get("modules") or []
     versions: dict[str, str] = {}
     for entry in modules:
@@ -99,7 +107,6 @@ def _select_modules_to_publish(manifests: list[Path], registry_versions: dict[st
 
 
 @beartype
-@ensure(lambda result: result == 0)
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--registry-index", required=True, type=Path)

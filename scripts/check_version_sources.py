@@ -58,13 +58,23 @@ def _staged_files(root: Path) -> list[str]:
             capture_output=True,
             text=True,
         )
-    except Exception:
+    except (subprocess.CalledProcessError, FileNotFoundError) as exc:
+        sys.stderr.write(f"check_version_sources: cannot list staged files ({exc})\n")
         return []
     return [line.strip() for line in completed.stdout.splitlines() if line.strip()]
 
 
 def _is_packaged_artifact(path_str: str) -> bool:
-    return path_str.startswith(("src/", "resources/")) or path_str in {"pyproject.toml", "setup.py"}
+    """True when staged paths imply a release/version bump must accompany the commit."""
+    normalized = path_str.replace("\\", "/")
+    if normalized in {"pyproject.toml", "setup.py"}:
+        return True
+    if normalized.startswith("src/"):
+        return True
+    # CI-only bundled module snapshot (not part of the distributable version surface).
+    if normalized.startswith("resources/bundled-module-registry/"):
+        return False
+    return normalized.startswith("resources/")
 
 
 def _parse_semver(version: str) -> tuple[int, int, int] | None:
@@ -84,7 +94,7 @@ def _read_file_at_git_ref(root: Path, git_ref: str, relative_path: str) -> str |
             capture_output=True,
             text=True,
         )
-    except Exception:
+    except (subprocess.CalledProcessError, FileNotFoundError):
         return None
     return completed.stdout
 
@@ -93,7 +103,8 @@ def _version_reader_for(label: str):
     return lambda text: _read_version_with_pattern(text, _VERSION_PATTERNS[label])
 
 
-def _version_changed_vs_head(root: Path, current_version: str) -> bool:
+def _version_bumped_vs_head(root: Path, current_version: str) -> bool:
+    """True when the four canonical version strings strictly increase vs ``HEAD`` (semver-aware)."""
     previous_versions: set[str] = set()
     for path in _CANONICAL_VERSION_FILES:
         previous_text = _read_file_at_git_ref(root, "HEAD", path)
@@ -127,7 +138,7 @@ def _enforce_packaged_artifact_versioning(root: Path, staged_files: set[str], cu
             sys.stderr.write(f"  missing staged version file: {path}\n")
         sys.stderr.write(_REMEDIATION)
         return 1
-    if not _version_changed_vs_head(root, current_version):
+    if not _version_bumped_vs_head(root, current_version):
         sys.stderr.write(
             "check_version_sources: packaged artifact changes require incrementing the package version "
             "across all four canonical version files.\n"

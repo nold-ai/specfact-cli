@@ -13,10 +13,10 @@ This guide describes how to package a SpecFact module for registry publishing: v
 
 ## Repository ownership
 
-- `specfact-cli` owns the lean runtime, registry, and shared contracts.
-- `specfact-cli-modules` owns official workflow bundle payloads, registry artifacts, and publish automation.
+- `specfact-cli` owns the lean runtime, bundled modules under `src/specfact_cli/modules/`, shared contracts, and CI that **re-signs** those bundles.
+- `specfact-cli-modules` owns official workflow bundle payloads, the **marketplace** `registry/index.json`, and publish automation for bundles shipped from that repo.
 
-If you are publishing an official bundle, work from `nold-ai/specfact-cli-modules`.
+If you are publishing an official marketplace bundle, work from `nold-ai/specfact-cli-modules`.
 
 ## Module structure
 
@@ -75,28 +75,34 @@ For runtime verification, sign the manifest so the tarball includes integrity me
 
 ## GitHub Actions workflow
 
-Official bundle publishing now runs in `nold-ai/specfact-cli-modules` via
-`.github/workflows/publish-modules.yml`:
+`nold-ai/specfact-cli` ships `.github/workflows/publish-modules.yml` for **bundled**
+modules only (re-sign + package + in-repo snapshot). It does **not** open PRs
+against `specfact-cli-modules` or update the marketplace `registry/index.json`.
 
-- **Triggers**: Push to `dev` and `main`, plus manual `workflow_dispatch`.
-- **Branch behavior**:
-  - Push to `dev` prepares registry updates for the `dev` line.
-  - Push to `main` prepares registry updates for the `main` line.
-  - Protected branches are respected: the workflow opens an automated registry PR instead of pushing directly.
-- **Steps**: Detect changed bundle packages → run `publish-module.py` prechecks → package bundle tarballs → update `registry/index.json` and signatures → open a PR with registry changes when needed.
+- **Triggers**: `workflow_run` after **Module Signature Hardening** on `dev`/`main`,
+  `workflow_dispatch` (single module path), and push of tags `*-v*`.
+- **Bundled snapshot**: `resources/bundled-module-registry/index.json` records
+  published versions for CI comparison. When versions advance, the workflow
+  opens a PR **in this repository** (`GITHUB_TOKEN`) updating that file and
+  uploads build artifacts.
+- **Marketplace registry**: Official bundle publishing and `registry/index.json`
+  in `nold-ai/specfact-cli-modules` stay in that repository’s own automation.
 
 Optional signing in CI: add repository secrets such as
 `SPECFACT_MODULE_PRIVATE_SIGN_KEY` and `SPECFACT_MODULE_PRIVATE_SIGN_KEY_PASSPHRASE`.
 Signing must happen before publish so the generated registry artifacts contain current integrity
 metadata.
 
-## Release flow summary
+## Release flow summary (bundled modules in specfact-cli)
 
-1. Bump the changed bundle version in `module-package.yaml`.
-2. Re-sign the changed manifest(s).
+1. Bump the bundled module `version` in `module-package.yaml`.
+2. Re-sign the changed manifest(s) (for example via `sign-modules.yml` on `dev`/`main`).
 3. Verify signatures locally and in CI.
-4. Merge bundle changes to `dev` or `main` in `specfact-cli-modules`.
-5. Let `publish-modules.yml` prepare the registry update PR for the matching branch line.
+4. Merge to `dev` or `main` in **specfact-cli**; when signing completes, `publish-modules.yml`
+   may open a PR updating `resources/bundled-module-registry/index.json`.
+
+For **marketplace** bundles maintained in `specfact-cli-modules`, follow that
+repository’s publishing guide and registry PR flow.
 
 ## Best practices
 

@@ -132,7 +132,23 @@ jobs:
             exit 1
           fi
           if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ github.event.inputs.resign_all_manifests }}" = "true" ]; then
-            python scripts/verify-modules-signature.py "${VERIFY_ARGS[@]}"
+            RESIGN_ARGS=()
+            skip_next=0
+            for arg in "${VERIFY_ARGS[@]}"; do
+              if [ "${skip_next}" -eq 1 ]; then
+                skip_next=0
+                continue
+              fi
+              if [ "${arg}" = "--enforce-version-bump" ]; then
+                continue
+              fi
+              if [ "${arg}" = "--version-check-base" ]; then
+                skip_next=1
+                continue
+              fi
+              RESIGN_ARGS+=("${arg}")
+            done
+            python scripts/verify-modules-signature.py "${RESIGN_ARGS[@]}"
           else
             python scripts/verify-modules-signature.py "${VERIFY_ARGS[@]}" --version-check-base "$BASE_REF"
           fi

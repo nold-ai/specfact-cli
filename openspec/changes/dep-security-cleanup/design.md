@@ -140,17 +140,17 @@ This makes the exception policy auditable and keeps future maintainers from acci
 
 ### Decision 7: Auto-publish bundled modules from CI after sign-modules
 
-**Chosen:** Add a `workflow_run` trigger to `.github/workflows/publish-modules.yml` that fires after `sign-modules.yml` (Module Signature Hardening) completes successfully on dev/main, plus a new `auto-publish` job that compares each bundled `module-package.yaml` `version` against the corresponding registry entry's `latest_version` and packages every module whose version is strictly greater.
+**Chosen:** Add a `workflow_run` trigger to `.github/workflows/publish-modules.yml` that fires after `sign-modules.yml` (Module Signature Hardening) completes successfully on dev/main, plus a new `auto-publish` job that compares each bundled `module-package.yaml` `version` against the in-repo snapshot `resources/bundled-module-registry/index.json` and packages every module whose version is strictly greater, then opens a PR **in specfact-cli** updating that snapshot (marketplace `registry/index.json` in `specfact-cli-modules` is out of scope for bundled modules).
 
-**Why this scope extension is in this change:** the dependency cleanup removed local-sign requirements and pushed signing into CI (sign-modules.yml). That left the registry unreachable on dev pushes because `publish-modules.yml` only triggered on tag-push / `workflow_dispatch`, and the bot's auto-sign commit carries `[skip ci]` (which suppresses `push` events but **not** `workflow_run`). Without the trigger added here, every dev merge would silently leave the registry stale relative to bumped modules.
+**Why this scope extension is in this change:** the dependency cleanup removed local-sign requirements and pushed signing into CI (sign-modules.yml). That left no automated follow-up for bundled packaging on dev pushes because `publish-modules.yml` only triggered on tag-push / `workflow_dispatch`, and the bot's auto-sign commit carries `[skip ci]` (which suppresses `push` events but **not** `workflow_run`). Without the trigger added here, every dev merge could leave the bundled snapshot stale relative to bumped in-repo modules.
 
 **Alternatives considered:**
 
 - Drop `[skip ci]` from the auto-sign commit and add a `push` trigger — risks an infinite loop with sign-modules.yml itself; `[skip ci]` is load-bearing for that.
 - Detect changed modules via `git diff HEAD HEAD~1` — misses cases where the user pre-bumped the version in the merged PR (the auto-sign commit then only changes signature fields, not version).
-- One PR per module — noisier registry history; rejected in favor of one combined PR per CI run.
+- One PR per module — noisier history; rejected in favor of one combined PR per CI run.
 
-**Rationale:** Comparing manifest version vs registry `latest_version` is robust to all version-bump origins (user bump, sign-modules auto-bump, multiple sequential merges). The check is implemented in `scripts/_detect_modules_to_publish.py` using `packaging.version.Version` for semver-correct comparison. The existing tag-push and `workflow_dispatch` flows are preserved untouched.
+**Rationale:** Comparing manifest version vs the bundled snapshot `latest_version` is robust to all version-bump origins (user bump, sign-modules auto-bump, multiple sequential merges). The check is implemented in `scripts/_detect_modules_to_publish.py` using `packaging.version.Version` for semver-correct comparison. The existing tag-push and `workflow_dispatch` flows are preserved for bundled packaging; PRs target this repository.
 
 ## Open Questions
 

@@ -420,6 +420,11 @@ def _maybe_bump_manifest_version(manifest_path: Path, *, base_ref: str, bump_typ
 
 def _apply_version_only_remediation(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
     """Auto-bump requested manifests without touching integrity metadata."""
+    if args.bump_version:
+        try:
+            _ensure_valid_git_ref(args.base_ref)
+        except ValueError as exc:
+            parser.error(str(exc))
     manifests = _resolve_manifests(args, parser)
     if args.changed_only and not manifests:
         logger.info("No changed module manifests detected since %s.", args.base_ref)

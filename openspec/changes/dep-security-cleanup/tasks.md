@@ -96,5 +96,5 @@ because `publish-modules.yml` only triggered on tag push or manual dispatch.
 - [x] 11.1 Add `workflow_run` trigger to `.github/workflows/publish-modules.yml` after `Module Signature Hardening` completes on dev/main (not blocked by `[skip ci]` on the bot's auto-sign commit)
 - [x] 11.2 Add `auto-publish` job that detects modules whose manifest version is strictly greater than the registry's `latest_version` and packages each
 - [x] 11.3 Add helper `scripts/_detect_modules_to_publish.py` (compares `module-package.yaml` `version` vs `registry/index.json` `latest_version` per module id, semver-aware via `packaging.version`)
-- [x] 11.4 Stage one combined registry PR per workflow run (batched across all bumped modules) instead of one PR per module
+- [x] 11.4 Stage one combined **specfact-cli** PR per workflow run (batched across all bumped modules) updating `resources/bundled-module-registry/index.json` instead of one PR per module
 - [x] 11.5 Preserve existing single-module flows (tag-push, `workflow_dispatch`) unchanged

@@ -10,6 +10,13 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.46.4] - 2026-04-17
+
+### Fixed
+
+- **Version sources**: patch bump so commits that touch canonical version files
+  satisfy `check-version-sources` / pre-commit together with `CHANGELOG.md`.
+
 ## [0.46.3] - 2026-04-16
 
 ### Added
@@ -19,11 +26,14 @@ All notable changes to this project will be documented in this file.
   and PR orchestrator.
 - **`scripts/module_pip_dependencies_licenses.yaml`**: offline map for
   manifest `pip_dependencies` license gate.
+- **`resources/bundled-module-registry/index.json`**: in-repo snapshot of
+  bundled module versions for CI; updated by `publish-modules.yml` when
+  packaged versions advance.
 - **`scripts/_detect_modules_to_publish.py`** + `publish-modules.yml`
   `auto-publish` job: after `Module Signature Hardening` succeeds on
-  `dev`/`main`, automatically package every bundled module whose
-  manifest version is strictly greater than the registry's
-  `latest_version` and open one combined PR against the registry repo.
+  `dev`/`main`, package bundled modules whose manifest version is strictly
+  greater than this snapshot and open a combined PR **in specfact-cli**
+  (not in `specfact-cli-modules`).
 
 ### Changed
 
@@ -51,6 +61,11 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- **`check_version_sources`**: staged edits under `resources/bundled-module-registry/`
+  no longer trigger the four-file version + CHANGELOG gate (CI snapshot only).
+- **`publish-modules.yml`**: bundled publish flows no longer open PRs against
+  `nold-ai/specfact-cli-modules`; registry snapshot PRs target this repository
+  and only update `resources/bundled-module-registry/index.json`.
 - **`publish-modules.yml`**: auto-publish job reads module lists from
   `/tmp/modules_to_publish.txt` and `/tmp/published_batch.txt` instead of
   expanding `steps.*.outputs` into shell heredocs (CodeQL untrusted-data

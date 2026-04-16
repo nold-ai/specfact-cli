@@ -3,12 +3,13 @@
 # Triggers:
 #   1. push tag (`*-v*`)              — manual release for a single module by tag
 #   2. workflow_dispatch              — manual one-shot for a single module path
-#   3. workflow_run (sign-modules.yml) — automatic publish of every module whose
-#                                        manifest changed in the auto-sign commit
-#                                        on dev/main. Not blocked by [skip ci]
-#                                        on the auto-sign commit (workflow_run is
-#                                        scheduled by the run that completed,
-#                                        not by the commit message).
+#   3. workflow_run (sign-modules.yml) — after bundled manifests are re-signed on
+#                                        dev/main, package modules whose versions
+#                                        beat the in-repo bundled-registry snapshot
+#                                        and open a PR here (specfact-cli), not in
+#                                        specfact-cli-modules. Marketplace registry
+#                                        publishing for official bundles remains in
+#                                        the modules repository.
 #
 # Optional signing: set repository secrets SPECFACT_MODULE_PRIVATE_SIGN_KEY (PEM string)
 # and SPECFACT_MODULE_PRIVATE_SIGN_KEY_PASSPHRASE to sign the module manifest before packaging.
@@ -34,12 +35,12 @@ jobs:
     if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/'))
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
+      pull-requests: write
     env:
       SPECFACT_MODULE_PRIVATE_SIGN_KEY: ${{ secrets.SPECFACT_MODULE_PRIVATE_SIGN_KEY }}
       SPECFACT_MODULE_PRIVATE_SIGN_KEY_PASSPHRASE: ${{ secrets.SPECFACT_MODULE_PRIVATE_SIGN_KEY_PASSPHRASE }}
-      SPECFACT_MODULES_REPO_TOKEN: ${{ secrets.SPECFACT_MODULES_REPO_TOKEN }}
-      REGISTRY_REPO: nold-ai/specfact-cli-modules
+      BUNDLED_REGISTRY_INDEX: resources/bundled-module-registry/index.json
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -122,50 +123,40 @@ jobs:
               fp.write(f"module_slug={module_slug}\n")
           PY
 
-      - name: Validate registry repo token
-        run: |
-          if [ -z "${SPECFACT_MODULES_REPO_TOKEN}" ]; then
-            echo "::error::Missing secret SPECFACT_MODULES_REPO_TOKEN."
-            exit 1
-          fi
-
-      - name: Checkout registry repository
-        uses: actions/checkout@v4
-        with:
-          repository: ${{ env.REGISTRY_REPO }}
-          token: ${{ env.SPECFACT_MODULES_REPO_TOKEN }}
-          path: specfact-cli-modules
-
-      - name: Update registry index
+      - name: Update bundled registry snapshot (this repository)
         id: update_index
         run: |
           python scripts/update-registry-index.py \
-            --index-path specfact-cli-modules/registry/index.json \
+            --index-path "${BUNDLED_REGISTRY_INDEX}" \
             --entry-fragment dist/registry-entry.yaml \
             --changed-flag /tmp/index_changed.txt
           CHANGED=$(tr -d '\n' < /tmp/index_changed.txt)
           echo "changed=${CHANGED}" >> "$GITHUB_OUTPUT"
 
-      - name: Create registry PR
+      - name: Create bundled-registry PR (this repository)
         if: steps.update_index.outputs.changed == 'true'
         env:
-          GH_TOKEN: ${{ env.SPECFACT_MODULES_REPO_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          BRANCH="auto/publish-${{ steps.entry.outputs.module_slug }}-${{ github.run_id }}"
-          TITLE="chore(registry): publish ${{ steps.entry.outputs.module_id }} v${{ steps.entry.outputs.module_version }}"
-          BODY=$'Automated registry update from publish-modules workflow.\n\n- Module: `${{ steps.entry.outputs.module_id }}`\n- Version: `${{ steps.entry.outputs.module_version }}`\n- Source run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}'
+          set -euo pipefail
+          BASE="dev"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            BASE="${{ github.ref_name }}"
+          fi
+          BRANCH="auto/bundled-registry-${{ steps.entry.outputs.module_slug }}-${{ github.run_id }}"
+          TITLE="chore(bundled-modules): snapshot ${{ steps.entry.outputs.module_id }} v${{ steps.entry.outputs.module_version }}"
+          BODY=$'Updates `resources/bundled-module-registry/index.json` after publish-modules (bundled snapshot only; not the marketplace registry in specfact-cli-modules).\n\n- Module: `${{ steps.entry.outputs.module_id }}`\n- Version: `${{ steps.entry.outputs.module_version }}`\n- Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}'
 
-          cd specfact-cli-modules
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git checkout -b "${BRANCH}"
-          git add registry/index.json
+          git add "${BUNDLED_REGISTRY_INDEX}"
           git commit -m "${TITLE}"
-          git push origin "${BRANCH}"
+          git push origin "HEAD:${BRANCH}"
 
           gh pr create \
-            --repo "${REGISTRY_REPO}" \
-            --base main \
+            --repo "${{ github.repository }}" \
+            --base "${BASE}" \
             --head "${BRANCH}" \
             --title "${TITLE}" \
             --body "${BODY}"
@@ -180,7 +171,7 @@ jobs:
             dist/registry-entry.yaml
 
   auto-publish:
-    name: Auto-publish version-bumped modules (after sign-modules)
+    name: Package bundled modules and PR bundled-registry snapshot (after sign-modules)
     # Trigger only when sign-modules.yml completed successfully on dev/main.
     # Uses workflow_run so it is NOT suppressed by the `[skip ci]` marker on
     # the bot's auto-sign commit (push events would be).
@@ -190,12 +181,12 @@ jobs:
       (github.event.workflow_run.head_branch == 'dev' || github.event.workflow_run.head_branch == 'main')
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
+      pull-requests: write
     env:
       SPECFACT_MODULE_PRIVATE_SIGN_KEY: ${{ secrets.SPECFACT_MODULE_PRIVATE_SIGN_KEY }}
       SPECFACT_MODULE_PRIVATE_SIGN_KEY_PASSPHRASE: ${{ secrets.SPECFACT_MODULE_PRIVATE_SIGN_KEY_PASSPHRASE }}
-      SPECFACT_MODULES_REPO_TOKEN: ${{ secrets.SPECFACT_MODULES_REPO_TOKEN }}
-      REGISTRY_REPO: nold-ai/specfact-cli-modules
+      BUNDLED_REGISTRY_INDEX: resources/bundled-module-registry/index.json
       HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
       HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
     steps:
@@ -215,32 +206,14 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install pyyaml beartype icontract cryptography cffi packaging
 
-      - name: Validate registry repo token
-        run: |
-          if [ -z "${SPECFACT_MODULES_REPO_TOKEN}" ]; then
-            echo "::error::Missing secret SPECFACT_MODULES_REPO_TOKEN."
-            exit 1
-          fi
-
-      - name: Checkout registry repository
-        uses: actions/checkout@v4
-        with:
-          repository: ${{ env.REGISTRY_REPO }}
-          token: ${{ env.SPECFACT_MODULES_REPO_TOKEN }}
-          path: specfact-cli-modules
-
-      - name: Detect modules whose version is ahead of the registry
+      - name: Detect modules whose version is ahead of the bundled snapshot
         id: detect
         run: |
           set -euo pipefail
-          # Compare each bundled module's manifest version against the value
-          # currently recorded in registry/index.json. This is robust to all
-          # version-bump origins (manual user bump, sign-modules.yml auto-bump,
-          # multiple consecutive merges) — we publish exactly the modules whose
-          # declared version is strictly greater than the registered one, which
-          # also matches what publish-module.py would actually accept.
+          # Compare each bundled module's manifest version against
+          # resources/bundled-module-registry/index.json (in-repo snapshot only).
           python scripts/_detect_modules_to_publish.py \
-            --registry-index specfact-cli-modules/registry/index.json \
+            --registry-index "${BUNDLED_REGISTRY_INDEX}" \
             --modules-root src/specfact_cli/modules \
             --modules-root modules \
             --output-list /tmp/modules_to_publish.txt
@@ -279,7 +252,7 @@ jobs:
             python scripts/publish-module.py "${MODULE_DIR}" -o dist --index-fragment "${FRAGMENT}"
 
             python scripts/update-registry-index.py \
-              --index-path specfact-cli-modules/registry/index.json \
+              --index-path "${BUNDLED_REGISTRY_INDEX}" \
               --entry-fragment "${FRAGMENT}" \
               --changed-flag /tmp/index_changed.txt
             CHANGED=$(tr -d '\n' < /tmp/index_changed.txt)
@@ -290,7 +263,7 @@ jobs:
           done < /tmp/modules_to_publish.txt
 
           if [ "${#PUBLISHED[@]}" -eq 0 ]; then
-            echo "Registry index unchanged for all detected modules; nothing to publish."
+            echo "Bundled registry snapshot unchanged for all detected modules; nothing to PR."
             echo "any_changed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
@@ -298,43 +271,43 @@ jobs:
           printf '%s\n' "${PUBLISHED[@]}" > /tmp/published_batch.txt
           echo "any_changed=true" >> "$GITHUB_OUTPUT"
 
-      - name: Create combined registry PR
+      - name: Create bundled-registry PR (this repository)
         if: steps.stage.outputs.any_changed == 'true'
         env:
-          GH_TOKEN: ${{ env.SPECFACT_MODULES_REPO_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          BRANCH="auto/publish-batch-${HEAD_BRANCH}-${{ github.event.workflow_run.id }}"
-          TITLE="chore(registry): auto-publish modules from ${HEAD_BRANCH}@${HEAD_SHA::7}"
+          BRANCH="auto/bundled-registry-batch-${HEAD_BRANCH}-${{ github.event.workflow_run.id }}"
+          TITLE="chore(bundled-modules): snapshot from ${HEAD_BRANCH}@${HEAD_SHA::7}"
           {
-            echo "Automated registry update triggered after Module Signature Hardening on \`${HEAD_BRANCH}\`."
+            echo "Updates \`resources/bundled-module-registry/index.json\` after Module Signature Hardening on \`${HEAD_BRANCH}\`."
+            echo "Bundled snapshot only; does not update the marketplace registry in \`specfact-cli-modules\`."
             echo
             echo "Source repo: ${{ github.server_url }}/${{ github.repository }}"
             echo "Source commit: \`${HEAD_SHA}\`"
             echo "Source run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }}"
             echo
-            echo "Modules published:"
+            echo "Modules packaged:"
             while IFS= read -r line; do
               [ -n "${line}" ] || continue
               echo "- \`${line}\`"
             done < /tmp/published_batch.txt
           } > /tmp/pr_body.md
 
-          cd specfact-cli-modules
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git checkout -b "${BRANCH}"
-          git add registry/index.json
+          git add "${BUNDLED_REGISTRY_INDEX}"
           if git diff --cached --quiet; then
-            echo "Registry index has no staged changes; skipping PR creation."
+            echo "Bundled registry index has no staged changes; skipping PR creation."
             exit 0
           fi
           git commit -m "${TITLE}"
-          git push origin "${BRANCH}"
+          git push origin "HEAD:${BRANCH}"
 
           gh pr create \
-            --repo "${REGISTRY_REPO}" \
-            --base main \
+            --repo "${{ github.repository }}" \
+            --base "${HEAD_BRANCH}" \
             --head "${BRANCH}" \
             --title "${TITLE}" \
             --body-file /tmp/pr_body.md

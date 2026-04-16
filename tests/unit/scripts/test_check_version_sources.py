@@ -6,6 +6,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 
 def _copy_version_script(tmp_path: Path) -> Path:
     script_src = Path(__file__).resolve().parents[3] / "scripts" / "check_version_sources.py"
@@ -40,9 +42,20 @@ def _init_git_repo(tmp_path: Path) -> None:
 
 def test_check_version_sources_passes_on_repo() -> None:
     """Current checkout must keep canonical version files aligned."""
-    script = Path(__file__).resolve().parents[3] / "scripts" / "check_version_sources.py"
+    repo_root = Path(__file__).resolve().parents[3]
+    staged = subprocess.run(
+        ["git", "diff", "--cached", "--name-only"],
+        cwd=repo_root,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if staged.stdout.strip():
+        pytest.skip("Skip when the index has staged changes (local pre-commit uses a clean index).")
+    script = repo_root / "scripts" / "check_version_sources.py"
     completed = subprocess.run(
         [sys.executable, str(script)],
+        cwd=str(repo_root),
         check=False,
         capture_output=True,
         text=True,
@@ -102,6 +115,37 @@ def test_check_version_sources_fails_when_packaged_artifact_changes_without_stag
     )
     assert completed.returncode == 1
     assert "missing staged version file" in completed.stderr
+
+
+def test_check_version_sources_ignores_bundled_registry_snapshot_only(tmp_path: Path) -> None:
+    """Staged changes under resources/bundled-module-registry/ must not require a version bump."""
+    script = _copy_version_script(tmp_path)
+    _write_canonical_version_files(tmp_path, "1.2.3")
+    (tmp_path / "CHANGELOG.md").write_text("## [1.2.3] - 2026-04-16\n\n- Initial.\n", encoding="utf-8")
+    reg = tmp_path / "resources" / "bundled-module-registry" / "index.json"
+    reg.parent.mkdir(parents=True)
+    reg.write_text('{"modules": []}\n', encoding="utf-8")
+    _init_git_repo(tmp_path)
+    subprocess.run(["git", "add", "."], cwd=tmp_path, check=True, capture_output=True, text=True)
+    subprocess.run(["git", "commit", "-m", "initial"], cwd=tmp_path, check=True, capture_output=True, text=True)
+
+    reg.write_text('{"modules": [{"id": "x", "latest_version": "1.0.0"}]}\n', encoding="utf-8")
+    subprocess.run(
+        ["git", "add", "resources/bundled-module-registry/index.json"],
+        cwd=tmp_path,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    completed = subprocess.run(
+        [sys.executable, str(script)],
+        cwd=str(tmp_path),
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert completed.returncode == 0, completed.stderr
 
 
 def test_check_version_sources_passes_when_packaged_artifact_changes_with_version_bundle_and_changelog(

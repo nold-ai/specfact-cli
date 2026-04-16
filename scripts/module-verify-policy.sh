@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Canonical flag bundles for scripts/verify-modules-signature.py.
 # Keep consumers in sync:
+#   - scripts/run_verify_modules_policy.sh (hatch aliases strict|pr|push-orchestrator)
 #   - scripts/pre-commit-verify-modules.sh (branch-aware require vs omit)
 #   - .github/workflows/pr-orchestrator.yml (verify-module-signatures job)
 #   - .github/workflows/sign-modules.yml (verify job: push strict vs PR/dispatch relaxed)

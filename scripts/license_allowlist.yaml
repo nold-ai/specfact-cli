@@ -22,10 +22,10 @@ exceptions:
     scope: dev-only
 
   - package: pygments
-    license: GPL-2.0-or-later
+    license: BSD-2-Clause
     reason: >
-      Transitive dependency via rich. Cannot remove without removing rich.
-      Monitored for version upgrades that may change the license.
+      Transitive dependency via rich (PyPI metadata: BSD-2-Clause). Cannot remove without removing rich.
+      Monitored for version upgrades that may change the license metadata.
     scope: dev-only
 
   - package: yamllint

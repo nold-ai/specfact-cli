@@ -27,7 +27,7 @@ uvx specfact-cli code review run --path . --scope full
 **Sample output:**
 
 ```text
-SpecFact CLI - v0.46.1
+SpecFact CLI - v0.46.4
 
 Running Ruff checks...
 Running Radon complexity checks...
@@ -94,7 +94,7 @@ For a **single-hook** setup in downstream repos, keep using the stable id and sc
 
 ```yaml
 - repo: https://github.com/nold-ai/specfact-cli
-  rev: v0.46.1
+  rev: v0.46.4
   hooks:
     - id: specfact-smart-checks
 ```

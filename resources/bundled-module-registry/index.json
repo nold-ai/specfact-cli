@@ -1,0 +1,20 @@
+{
+  "modules": [
+    {
+      "id": "init",
+      "latest_version": "0.1.30"
+    },
+    {
+      "id": "upgrade",
+      "latest_version": "0.1.4"
+    },
+    {
+      "id": "module-registry",
+      "latest_version": "0.1.19"
+    },
+    {
+      "id": "bundle-mapper",
+      "latest_version": "0.1.9"
+    }
+  ]
+}

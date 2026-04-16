@@ -25,6 +25,7 @@ from typing import Any, cast
 import yaml
 from beartype import beartype
 from icontract import ensure
+from packaging.requirements import InvalidRequirement, Requirement
 
 
 # SPDX expressions considered GPL-family (not allowed without an allowlist entry)
@@ -79,8 +80,8 @@ def _validate_allowlist_entry(entry: object, *, index: int, allowlist_path: Path
     return cast(dict[str, str], entry_map)
 
 
-def _load_allowlist(allowlist_path: Path | None = None) -> dict[str, dict[str, str]]:
-    """Load license_allowlist.yaml and return {package_name: entry_dict}."""
+def _load_allowlist(allowlist_path: Path | None = None) -> dict[str, list[dict[str, str]]]:
+    """Load license_allowlist.yaml and return {package_lower: [entry_dict, ...]}."""
     if allowlist_path is None:
         allowlist_path = Path(__file__).parent / "license_allowlist.yaml"
 
@@ -104,10 +105,11 @@ def _load_allowlist(allowlist_path: Path | None = None) -> dict[str, dict[str, s
     if not isinstance(exceptions, list):
         raise RuntimeError(f"License allowlist must contain an 'exceptions' list: {allowlist_path}")
 
-    result: dict[str, dict[str, str]] = {}
+    result: dict[str, list[dict[str, str]]] = {}
     for idx, entry in enumerate(exceptions):
         normalized_entry = _validate_allowlist_entry(entry, index=idx, allowlist_path=allowlist_path)
-        result[normalized_entry["package"].strip().lower()] = normalized_entry
+        pkg_key = normalized_entry["package"].strip().lower()
+        result.setdefault(pkg_key, []).append(normalized_entry)
     return result
 
 
@@ -186,7 +188,7 @@ def _report_unknown_env_license(name: str, version: str) -> None:
 @beartype
 def _evaluate_env_package(
     pkg: dict[str, Any],
-    allowlist: dict[str, dict[str, str]],
+    allowlist: dict[str, list[dict[str, str]]],
 ) -> int:
     """Return 1 when the package is a GPL violation, else 0."""
     name = str(pkg.get("Name", ""))
@@ -201,10 +203,13 @@ def _evaluate_env_package(
     if not _is_gpl(license_expr):
         return 0
 
-    if name_lower in allowlist:
-        entry = allowlist[name_lower]
-        reason = str(entry.get("reason", "")).strip()
-        _emit(f"EXCEPTION: {name}=={version} ({license_expr}) — {reason}")
+    entries = allowlist.get(name_lower, [])
+    if entries:
+        reason_parts = [
+            str(entry.get("reason", "")).strip() for entry in entries if str(entry.get("reason", "")).strip()
+        ]
+        reasons = "; ".join(reason_parts)
+        _emit(f"EXCEPTION: {name}=={version} ({license_expr}) — {reasons}")
         return 0
 
     _emit(f"VIOLATION: {name}=={version} ({license_expr}) — GPL/AGPL incompatible with Apache-2.0")
@@ -214,14 +219,14 @@ def _evaluate_env_package(
 @beartype
 @ensure(lambda result: result in (0, 1))
 def scan_installed_environment(
-    allowlist: dict[str, dict[str, str]] | None = None,
+    allowlist: dict[str, list[dict[str, str]]] | None = None,
     allowlist_path: Path | None = None,
 ) -> int:
     """
     Scan the installed Python environment for GPL/AGPL packages.
 
     Args:
-        allowlist: Pre-loaded allowlist dict {package_lower: entry}. If None, loads from disk.
+        allowlist: Pre-loaded allowlist dict {package_lower: [entry, ...]}. If None, loads from disk.
         allowlist_path: Path to license_allowlist.yaml override.
 
     Returns:
@@ -272,8 +277,14 @@ def _collect_module_manifest_paths(repo_root: Path, packages_dir: Path | None) -
 
 @beartype
 def _normalize_dependency_name(dep: str) -> str:
-    """Normalize a pip requirement string to its package name."""
-    return dep.split(">=")[0].split("==")[0].split("~=")[0].strip()
+    """Normalize a pip requirement string to its canonical package name."""
+    spec = dep.strip()
+    if not spec:
+        return ""
+    try:
+        return Requirement(spec).name.strip().lower()
+    except InvalidRequirement as exc:
+        raise ValueError(f"Invalid pip dependency spec: {dep!r}") from exc
 
 
 @beartype
@@ -291,26 +302,28 @@ def _handle_gpl_manifest_dependency(
     module_name: str,
     dep_name: str,
     license_expr: str,
-    allowlist: dict[str, dict[str, str]],
+    allowlist: dict[str, list[dict[str, str]]],
 ) -> int:
     """Return 1 when the manifest dependency is a GPL violation, else 0."""
-    entry = allowlist.get(dep_name.lower(), {})
-    scope = str(entry.get("scope", ""))
+    entries = allowlist.get(dep_name.lower(), [])
+    for entry in entries:
+        scope = str(entry.get("scope", ""))
+        if scope == "module-manifest":
+            _emit(
+                f"EXCEPTION: {module_name}/module-package.yaml lists "
+                f"{dep_name} ({license_expr}) — {str(entry.get('reason', '')).strip()}"
+            )
+            return 0
 
-    if scope == "module-manifest":
-        _emit(
-            f"EXCEPTION: {module_name}/module-package.yaml lists "
-            f"{dep_name} ({license_expr}) — {str(entry.get('reason', '')).strip()}"
-        )
-        return 0
-
-    if scope == "dev-only":
-        _emit(
-            f"MODULE MANIFEST VIOLATION: {module_name}/module-package.yaml lists "
-            f"{dep_name} with {license_expr} — "
-            "dev-only exception does not apply to distributed module manifests"
-        )
-        return 1
+    for entry in entries:
+        scope = str(entry.get("scope", ""))
+        if scope == "dev-only":
+            _emit(
+                f"MODULE MANIFEST VIOLATION: {module_name}/module-package.yaml lists "
+                f"{dep_name} with {license_expr} — "
+                "dev-only exception does not apply to distributed module manifests"
+            )
+            return 1
 
     _emit(
         f"MODULE MANIFEST VIOLATION: {module_name}/module-package.yaml lists "
@@ -323,10 +336,14 @@ def _handle_gpl_manifest_dependency(
 def _scan_manifest_dependency(
     module_name: str,
     dep: str,
-    allowlist: dict[str, dict[str, str]],
+    allowlist: dict[str, list[dict[str, str]]],
     static_license_map: dict[str, str],
 ) -> int:
-    dep_name = _normalize_dependency_name(dep)
+    try:
+        dep_name = _normalize_dependency_name(dep)
+    except ValueError as exc:
+        _emit(f"MODULE MANIFEST VIOLATION: {module_name}/module-package.yaml has invalid pip dependency {dep!r}: {exc}")
+        return 1
     license_expr = static_license_map.get(dep_name.lower(), "")
     if not license_expr:
         return _handle_missing_manifest_license(module_name, dep_name)
@@ -337,33 +354,45 @@ def _scan_manifest_dependency(
 
 @beartype
 def _iter_manifest_dependencies(manifest_path: Path) -> list[str]:
-    with manifest_path.open(encoding="utf-8") as fh:
-        manifest = yaml.safe_load(fh) or {}
+    try:
+        with manifest_path.open(encoding="utf-8") as fh:
+            manifest = yaml.safe_load(fh)
+    except yaml.YAMLError as exc:
+        raise RuntimeError(f"YAML parse error in module manifest {manifest_path}: {exc}") from exc
+    if not isinstance(manifest, dict):
+        raise RuntimeError(f"Module manifest must be a mapping at top level: {manifest_path}")
     manifest_map = cast(dict[str, object], manifest)
-    pip_deps_raw = manifest_map.get("pip_dependencies", []) or []
-    if not isinstance(pip_deps_raw, list):
+    if "pip_dependencies" not in manifest_map:
         return []
+    pip_deps_raw = manifest_map.get("pip_dependencies")
+    if not isinstance(pip_deps_raw, list):
+        raise RuntimeError(
+            f"module-package.yaml {manifest_path} field pip_dependencies must be a list of strings, "
+            f"got {type(pip_deps_raw).__name__}"
+        )
     return [dep for dep in pip_deps_raw if isinstance(dep, str)]
 
 
 @beartype
 def _scan_manifest_path(
     manifest_path: Path,
-    allowlist: dict[str, dict[str, str]],
+    allowlist: dict[str, list[dict[str, str]]],
     static_license_map: dict[str, str],
 ) -> int:
+    try:
+        deps = _iter_manifest_dependencies(manifest_path)
+    except RuntimeError as exc:
+        _emit(str(exc), error=True)
+        return 1
     module_name = manifest_path.parent.name
-    return sum(
-        _scan_manifest_dependency(module_name, dep, allowlist, static_license_map)
-        for dep in _iter_manifest_dependencies(manifest_path)
-    )
+    return sum(_scan_manifest_dependency(module_name, dep, allowlist, static_license_map) for dep in deps)
 
 
 @beartype
 @ensure(lambda result: result in (0, 1))
 def scan_module_manifests(
     packages_dir: Path | None = None,
-    allowlist: dict[str, dict[str, str]] | None = None,
+    allowlist: dict[str, list[dict[str, str]]] | None = None,
     allowlist_path: Path | None = None,
     static_license_map: dict[str, str] | None = None,
 ) -> int:

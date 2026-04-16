@@ -214,6 +214,8 @@ jobs:
 
       - uses: actions/checkout@v4
         if: needs.changes.outputs.skip_tests_dev_to_main != 'true'
+        with:
+          fetch-depth: 0
 
       - name: Checkout module bundles repo
         if: needs.changes.outputs.skip_tests_dev_to_main != 'true'

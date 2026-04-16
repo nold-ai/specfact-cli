@@ -102,7 +102,9 @@ class TestAllowlistAccepted:
 
     def test_allowlist_entry_suppresses_gpl_failure(self, mod) -> None:
         """GPL package in allowlist must not cause exit 1."""
-        allowlist = {"pylint": {"license": "GPL-2.0-or-later", "scope": "dev-only"}}
+        allowlist = {
+            "pylint": [{"package": "pylint", "license": "GPL-2.0-or-later", "scope": "dev-only", "reason": "dev"}]
+        }
         with patch.object(
             mod,
             "_run_pip_licenses",
@@ -113,7 +115,9 @@ class TestAllowlistAccepted:
 
     def test_allowlist_entry_prints_exception_note(self, mod, capsys) -> None:
         """Allowlisted entry prints EXCEPTION note."""
-        allowlist = {"pylint": {"license": "GPL-2.0-or-later", "scope": "dev-only"}}
+        allowlist = {
+            "pylint": [{"package": "pylint", "license": "GPL-2.0-or-later", "scope": "dev-only", "reason": "dev"}]
+        }
         with patch.object(
             mod,
             "_run_pip_licenses",
@@ -133,11 +137,14 @@ class TestAllowlistAccepted:
             encoding="utf-8",
         )
         allowlist = {
-            "pylint": {
-                "license": "GPL-2.0-or-later",
-                "scope": "dev-only",
-                "reason": "Dev only — GPL",
-            }
+            "pylint": [
+                {
+                    "package": "pylint",
+                    "license": "GPL-2.0-or-later",
+                    "scope": "dev-only",
+                    "reason": "Dev only — GPL",
+                }
+            ]
         }
         # Provide the static license map so the gate resolves pylint's license offline
         static_license_map = {"pylint": "GPL-2.0-or-later"}
@@ -273,6 +280,18 @@ class TestModuleManifestScan:
         captured = capsys.readouterr()
         assert "MODULE MANIFEST VIOLATION" in captured.out
         assert "pylint" in captured.out
+
+
+class TestNormalizeDependencyName:
+    """Requirement strings must normalize via packaging.Requirement."""
+
+    def test_normalize_extras_and_specifiers(self, mod) -> None:
+        assert mod._normalize_dependency_name("Foo[extra]>=1.2") == "foo"
+        assert mod._normalize_dependency_name("bar<2") == "bar"
+
+    def test_invalid_requirement_raises(self, mod) -> None:
+        with pytest.raises(ValueError, match="Invalid pip dependency"):
+            mod._normalize_dependency_name("!!!<<<not-a-name")
 
 
 class TestIsGplHeuristics:

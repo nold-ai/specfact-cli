@@ -23,7 +23,10 @@ repos:
       # PyPI step (version_sources_changed). Skips routine commits when local == PyPI after a release.
       - id: check-local-version-ahead-of-pypi
         name: Check local version ahead of PyPI (lenient network; when version files staged)
-        entry: bash -c 'export SPECFACT_PYPI_VERSION_CHECK_LENIENT_NETWORK=1 && exec hatch run python scripts/check_local_version_ahead_of_pypi.py --skip-when-version-unchanged-vs HEAD'
+        entry: >-
+          env SPECFACT_PYPI_VERSION_CHECK_LENIENT_NETWORK=1
+          hatch run python scripts/check_local_version_ahead_of_pypi.py
+          --skip-when-version-unchanged-vs HEAD
         language: system
         pass_filenames: false
         files: ^(pyproject\.toml|setup\.py|src/__init__\.py|src/specfact_cli/__init__\.py)$

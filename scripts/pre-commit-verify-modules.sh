@@ -61,7 +61,7 @@ sig_policy="${sig_policy//$'\n'/}"
 case "${sig_policy}" in
   require)
     echo "🔐 Verifying bundled module manifests (strict: require-signature + checksum + version bump)" >&2
-    exec hatch run ./scripts/verify-modules-signature.py "${VERIFY_MODULES_STRICT[@]}"
+    exec hatch run verify-modules-signature
     ;;
   omit)
     if [[ "${#staged_manifests[@]}" -gt 0 ]]; then
@@ -70,7 +70,7 @@ case "${sig_policy}" in
       git add -- "${staged_manifests[@]}"
     fi
     echo "🔐 Verifying module version bumps only (checksum/signature deferred to CI on non-main)" >&2
-    exec hatch run ./scripts/verify-modules-signature.py "${VERIFY_MODULES_PR[@]}"
+    exec hatch run verify-modules-signature-pr
     ;;
   *)
     echo "❌ Invalid module signature policy from ${flag_script}: '${sig_policy}' (expected require or omit)" >&2

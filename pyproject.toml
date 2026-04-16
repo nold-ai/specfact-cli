@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "specfact-cli"
-version = "0.46.3"
+version = "0.46.4"
 description = "The swiss knife CLI for agile DevOps teams. Keep backlog, specs, tests, and code in sync with validation and contract enforcement for new projects and long-lived codebases."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -133,7 +133,7 @@ dev = [
     
     # Enhanced Analysis Tools (for local development)
     "graphviz>=0.20.1",  # Graph visualization (requires system Graphviz: apt-get install graphviz)
-    "pycg>=0.0.7",  # Python call graph analysis (Apache-2.0; replaces removed GPL-2.0 pyan3)
+    "pycg==0.0.7",  # Python call graph analysis (Apache-2.0; replaces removed GPL-2.0 pyan3; pin avoids 0.0.8)
     # Removed from dev: pyan3 (GPL-2.0) and bearer (wrong PyPI package; SaaS auth, not scanner)
     # syft removed — wrong PyPI package (OpenMined ML framework, not Anchore SBOM)
     "bandit>=1.7.0",  # SAST scanner (MIT)
@@ -148,7 +148,7 @@ scanning = [
 
 enhanced-analysis = [
     "graphviz>=0.20.1",  # Graph visualization (requires system Graphviz: apt-get install graphviz)
-    "pycg>=0.0.7",  # Python call graph analysis (Apache-2.0; replaces removed GPL-2.0 pyan3)
+    "pycg==0.0.7",  # Python call graph analysis (Apache-2.0; replaces removed GPL-2.0 pyan3; pin avoids 0.0.8)
     # Removed from enhanced-analysis: pyan3 (GPL-2.0), bearer, and syft (wrong PyPI packages)
 ]
 
@@ -200,7 +200,7 @@ dependencies = [
     "hypothesis>=6.142.4",
     # Enhanced Analysis Tools (for local development)
     "graphviz>=0.20.1",  # Graph visualization (requires system Graphviz: apt-get install graphviz)
-    "pycg>=0.0.7",  # Python call graph analysis (Apache-2.0; replaces removed GPL-2.0 pyan3)
+    "pycg==0.0.7",  # Python call graph analysis (Apache-2.0; replaces removed GPL-2.0 pyan3; pin avoids 0.0.8)
     # Removed from Hatch default: pyan3 (GPL-2.0), bearer, and syft (wrong PyPI packages)
     "bandit>=1.7.0",  # SAST scanner (MIT)
     "pip-licenses>=4.0.0",  # License enumeration for compliance gate (MIT)
@@ -271,9 +271,10 @@ smart-test-e2e = "python tools/smart_test_coverage.py run --level e2e {args}"
 smart-test-full = "python tools/smart_test_coverage.py run --level full {args}"
 smart-test-auto = "python tools/smart_test_coverage.py run --level auto {args}"
 
-# Bundled module verify (flags mirror scripts/module-verify-policy.sh VERIFY_* arrays)
-verify-modules-signature = "python scripts/verify-modules-signature.py --require-signature --enforce-version-bump --payload-from-filesystem {args}"
-verify-modules-signature-pr = "python scripts/verify-modules-signature.py --enforce-version-bump --skip-checksum-verification {args}"
+# Bundled module verify (flags from scripts/module-verify-policy.sh via run_verify_modules_policy.sh)
+verify-modules-signature = "bash scripts/run_verify_modules_policy.sh strict {args}"
+verify-modules-signature-pr = "bash scripts/run_verify_modules_policy.sh pr {args}"
+verify-modules-signature-push = "bash scripts/run_verify_modules_policy.sh push-orchestrator {args}"
 
 # Module migration pre-deletion gate
 verify-removal-gate = [
@@ -331,7 +332,7 @@ dependencies = [
     "yamllint>=1.37.1",  # GPL-3.0-or-later — dev/test-only exception. Phase 2: replace with non-GPL YAML lint path.
     # Enhanced Analysis Tools (for testing)
     "graphviz>=0.20.1",  # Graph visualization (requires system Graphviz: apt-get install graphviz)
-    "pycg>=0.0.7",  # Python call graph analysis (Apache-2.0; replaces removed GPL-2.0 pyan3)
+    "pycg==0.0.7",  # Python call graph analysis (Apache-2.0; replaces removed GPL-2.0 pyan3; pin avoids 0.0.8)
     # Removed from Hatch test: pyan3 (GPL-2.0), bearer, and syft (wrong PyPI packages)
     "commentjson>=0.9.0",  # JSONC parser (MIT; replaces json5 for VS Code settings JSONC support)
 ]

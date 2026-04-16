@@ -503,8 +503,16 @@ def test_sign_modules_workflow_dispatch_resign_all_skips_version_check_base() ->
     """workflow_dispatch resign-all mode should verify in relaxed mode without base version checks."""
     raw = SIGN_WORKFLOW.read_text(encoding="utf-8")
     assert "github.event.inputs.resign_all_manifests" in raw
-    assert 'python scripts/verify-modules-signature.py "${VERIFY_ARGS[@]}"' in raw
-    assert '--version-check-base "$BASE_REF"' in raw
+    assert "RESIGN_ARGS" in raw
+    assert 'python scripts/verify-modules-signature.py "${RESIGN_ARGS[@]}"' in raw
+    assert 'python scripts/verify-modules-signature.py "${VERIFY_ARGS[@]}" --version-check-base "$BASE_REF"' in raw
+    match = re.search(
+        r"inputs\.resign_all_manifests[^;]*\]; then(?P<body>.*?)^\s+else\s*$",
+        raw,
+        re.MULTILINE | re.DOTALL,
+    )
+    assert match is not None, "Expected resign-all arm in sign-modules verify step"
+    assert "--version-check-base" not in match.group("body")
 
 
 def test_sign_modules_workflow_pr_verify_is_relaxed_without_version_bump_check() -> None:
@@ -781,7 +789,12 @@ def test_verify_skip_checksum_accepts_unsigned_manifest(tmp_path: Path) -> None:
     module_dir = repo / "modules" / "sample"
     manifest = module_dir / "module-package.yaml"
     module_dir.mkdir(parents=True)
-    manifest.write_text("name: sample\nversion: 0.1.0\npublisher: nold-ai\ncommands: [sample]\n", encoding="utf-8")
+    manifest.write_text(
+        "name: sample\nversion: 0.1.0\npublisher: nold-ai\ncommands: [sample]\n"
+        "integrity:\n"
+        "  checksum: sha256:0000000000000000000000000000000000000000000000000000000000000000\n",
+        encoding="utf-8",
+    )
 
     result = subprocess.run(
         ["python3", str(VERIFY_PYTHON_SCRIPT), "--skip-checksum-verification"],
@@ -919,7 +932,7 @@ def test_pre_commit_verify_modules_omit_policy_auto_bumps_versions() -> None:
     assert "sign-modules.py" in content
     assert "--version-only" in content
     assert "--bump-version patch" in content
-    assert 'exec hatch run ./scripts/verify-modules-signature.py "${VERIFY_MODULES_PR[@]}"' in content
+    assert "exec hatch run verify-modules-signature-pr" in content
 
 
 def test_pr_orchestrator_pins_virtualenv_below_21_for_hatch_jobs():

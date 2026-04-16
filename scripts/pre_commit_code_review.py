@@ -126,14 +126,15 @@ def discover_specfact_modules_repo() -> Path | None:
     """
     root = _repo_root()
     here: Path = root
-    for _ in range(12):
+    while True:
         candidate = here / "specfact-cli-modules"
         marker = candidate / "packages" / "specfact-codebase"
         if candidate.is_dir() and marker.is_dir():
             return candidate.resolve()
-        if here == here.parent:
+        parent = here.parent
+        if here == parent:
             break
-        here = here.parent
+        here = parent
     return None
 
 
