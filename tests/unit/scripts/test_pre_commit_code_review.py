@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -271,3 +272,60 @@ def test_main_prints_actionable_setup_guidance_when_runtime_missing(
 
     assert exit_code == 1
     assert "Install dev dependencies" in capsys.readouterr().out
+
+
+def test_discover_specfact_modules_repo_finds_ancestor_sibling(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Walking up from the repo root must find a sibling ``specfact-cli-modules`` tree."""
+    module = _load_script_module()
+    modules_root = tmp_path / "specfact-cli-modules"
+    (modules_root / "packages" / "specfact-codebase").mkdir(parents=True)
+    fake_repo = tmp_path / "worktrees" / "feature" / "my-checkout"
+    (fake_repo / "scripts").mkdir(parents=True)
+
+    monkeypatch.setattr(module, "_repo_root", lambda: fake_repo)
+
+    found = module.discover_specfact_modules_repo()
+
+    assert found == modules_root.resolve()
+
+
+def test_discover_specfact_modules_repo_returns_none_when_missing(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Without a valid modules checkout, discovery returns None."""
+    module = _load_script_module()
+    fake_repo = tmp_path / "solo-repo"
+    (fake_repo / "scripts").mkdir(parents=True)
+    monkeypatch.setattr(module, "_repo_root", lambda: fake_repo)
+
+    assert module.discover_specfact_modules_repo() is None
+
+
+def test_build_review_subprocess_env_injects_discovered_repo_without_mutating_os_environ(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Review subprocess env may add ``SPECFACT_MODULES_REPO`` without changing ``os.environ``."""
+    module = _load_script_module()
+    modules_root = tmp_path / "specfact-cli-modules"
+    (modules_root / "packages" / "specfact-codebase").mkdir(parents=True)
+    fake_repo = tmp_path / "a" / "b" / "repo"
+    (fake_repo / "scripts").mkdir(parents=True)
+    monkeypatch.setattr(module, "_repo_root", lambda: fake_repo)
+    monkeypatch.delenv("SPECFACT_MODULES_REPO", raising=False)
+
+    before = "SPECFACT_MODULES_REPO" in os.environ
+    env = module.build_review_subprocess_env()
+    after = "SPECFACT_MODULES_REPO" in os.environ
+
+    assert before is False
+    assert after is False
+    assert env["SPECFACT_MODULES_REPO"] == str(modules_root.resolve())
+
+
+def test_build_review_subprocess_env_preserves_explicit_value(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """An explicit ``SPECFACT_MODULES_REPO`` must not be overwritten in the returned env."""
+    module = _load_script_module()
+    explicit = str(tmp_path / "custom-modules")
+    monkeypatch.setenv("SPECFACT_MODULES_REPO", explicit)
+    env = module.build_review_subprocess_env()
+    assert env["SPECFACT_MODULES_REPO"] == explicit

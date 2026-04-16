@@ -26,6 +26,9 @@ jobs:
     outputs:
       code_changed: ${{ steps.out.outputs.code_changed }}
       workflow_changed: ${{ steps.out.outputs.workflow_changed }}
+      pyproject_changed: ${{ steps.out.outputs.pyproject_changed }}
+      license_inputs_changed: ${{ steps.out.outputs.license_inputs_changed }}
+      version_sources_changed: ${{ steps.out.outputs.version_sources_changed }}
       skip_tests_dev_to_main: ${{ steps.out.outputs.skip_tests_dev_to_main }}
     steps:
       - uses: actions/checkout@v4
@@ -41,6 +44,20 @@ jobs:
               - '!**/*.mdc'
               - '!docs/**'
               - '!.github/workflows/**'
+            pyproject:
+              - 'pyproject.toml'
+            license_inputs:
+              - 'pyproject.toml'
+              - 'modules/**/module-package.yaml'
+              - 'src/specfact_cli/modules/**/module-package.yaml'
+              - 'scripts/check_license_compliance.py'
+              - 'scripts/license_allowlist.yaml'
+              - 'scripts/module_pip_dependencies_licenses.yaml'
+            version_sources:
+              - 'pyproject.toml'
+              - 'setup.py'
+              - 'src/__init__.py'
+              - 'src/specfact_cli/__init__.py'
             workflow:
               - '.github/workflows/**'
               - 'scripts/run_actionlint.sh'
@@ -58,11 +75,21 @@ jobs:
           PR_BASE_SHA="${PR_BASE_SHA:-}"
           PR_HEAD_SHA="${PR_HEAD_SHA:-}"
           if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
-            echo "code_changed=true" >> "$GITHUB_OUTPUT"
-            echo "workflow_changed=true" >> "$GITHUB_OUTPUT"
+            {
+              echo "code_changed=true"
+              echo "workflow_changed=true"
+              echo "pyproject_changed=true"
+              echo "license_inputs_changed=true"
+              echo "version_sources_changed=true"
+            } >> "$GITHUB_OUTPUT"
           else
-            echo "code_changed=${{ steps.filter.outputs.code }}" >> "$GITHUB_OUTPUT"
-            echo "workflow_changed=${{ steps.filter.outputs.workflow }}" >> "$GITHUB_OUTPUT"
+            {
+              echo "code_changed=${{ steps.filter.outputs.code }}"
+              echo "workflow_changed=${{ steps.filter.outputs.workflow }}"
+              echo "pyproject_changed=${{ steps.filter.outputs.pyproject }}"
+              echo "license_inputs_changed=${{ steps.filter.outputs.license_inputs }}"
+              echo "version_sources_changed=${{ steps.filter.outputs.version_sources }}"
+            } >> "$GITHUB_OUTPUT"
           fi
           SKIP_TESTS=false
           if [ "$EVENT_NAME" = "pull_request" ] && [ "$PR_BASE_REF" = "main" ] && [ "$PR_HEAD_REF" = "dev" ]; then
@@ -110,19 +137,20 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install pyyaml beartype icontract cryptography cffi
 
-      - name: Verify bundled module checksums (signatures enforced on push via sign-modules workflow)
+      - name: Verify bundled module manifests (PR = relaxed checksum; push = payload checksum + version)
         run: |
           set -euo pipefail
-          VERIFY_ARGS=(--payload-from-filesystem --enforce-version-bump)
+          # shellcheck disable=SC1091
+          source scripts/module-verify-policy.sh
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             BASE_REF="origin/${{ github.event.pull_request.base.ref }}"
-            python scripts/verify-modules-signature.py "${VERIFY_ARGS[@]}" --version-check-base "$BASE_REF"
+            python scripts/verify-modules-signature.py "${VERIFY_MODULES_PR[@]}" --version-check-base "$BASE_REF"
           else
             BEFORE="${{ github.event.before }}"
             if [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
               BEFORE="HEAD~1"
             fi
-            python scripts/verify-modules-signature.py "${VERIFY_ARGS[@]}" --version-check-base "$BEFORE"
+            python scripts/verify-modules-signature.py "${VERIFY_MODULES_PUSH_ORCHESTRATOR[@]}" --version-check-base "$BEFORE"
           fi
 
   workflow-lint:
@@ -186,6 +214,8 @@ jobs:
 
       - uses: actions/checkout@v4
         if: needs.changes.outputs.skip_tests_dev_to_main != 'true'
+        with:
+          fetch-depth: 0
 
       - name: Checkout module bundles repo
         if: needs.changes.outputs.skip_tests_dev_to_main != 'true'
@@ -220,10 +250,28 @@ jobs:
         run: python scripts/check_version_sources.py
 
       - name: Verify local version is ahead of PyPI
-        if: needs.changes.outputs.skip_tests_dev_to_main != 'true'
+        if: >-
+          needs.changes.outputs.skip_tests_dev_to_main != 'true' &&
+          needs.changes.outputs.version_sources_changed == 'true'
         env:
           SPECFACT_PYPI_VERSION_CHECK_LENIENT_NETWORK: "1"
-        run: python scripts/check_local_version_ahead_of_pypi.py
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE=""
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE="${{ github.event.pull_request.base.sha }}"
+          elif [ "${{ github.event_name }}" = "push" ]; then
+            BEFORE="${{ github.event.before }}"
+            if [ -n "$BEFORE" ] && [ "$BEFORE" != "0000000000000000000000000000000000000000" ]; then
+              BASE="$BEFORE"
+            fi
+          fi
+          if [ -n "$BASE" ]; then
+            python scripts/check_local_version_ahead_of_pypi.py --skip-when-version-unchanged-vs "$BASE"
+          else
+            python scripts/check_local_version_ahead_of_pypi.py
+          fi
 
       - name: Cache hatch environments
         if: needs.changes.outputs.skip_tests_dev_to_main != 'true'
@@ -570,10 +618,67 @@ jobs:
           path: logs/lint/
           if-no-files-found: ignore
 
+  license-check:
+    name: License Compliance Gate
+    runs-on: ubuntu-latest
+    needs: [changes, verify-module-signatures]
+    if: needs.changes.outputs.code_changed == 'true' && needs.changes.outputs.license_inputs_changed == 'true' && needs.changes.outputs.skip_tests_dev_to_main != 'true'
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: |
+            pyproject.toml
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Run license compliance gate
+        run: |
+          echo "🔍 Running license compliance gate..."
+          python scripts/check_license_compliance.py
+
+  security-audit:
+    name: Security Audit (pip-audit)
+    runs-on: ubuntu-latest
+    needs: [changes, verify-module-signatures]
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: |
+            pyproject.toml
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Run CVE security audit
+        run: |
+          echo "🔍 Running CVE security audit..."
+          python scripts/security_audit_gate.py
+
   package-validation:
     name: Package Validation (uvx/pip)
     runs-on: ubuntu-latest
-    needs: [tests, compat-py311, contract-first-ci, cli-validation, type-checking, linting]
+    needs: [tests, compat-py311, contract-first-ci, cli-validation, type-checking, linting, license-check, security-audit]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     permissions:
       contents: read

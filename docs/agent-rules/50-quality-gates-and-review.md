@@ -13,8 +13,9 @@ tracks:
   - scripts/check_doc_frontmatter.py
   - scripts/pre_commit_code_review.py
   - scripts/verify-modules-signature.py
+  - scripts/module-verify-policy.sh
   - docs/agent-rules/**
-last_reviewed: 2026-04-14
+last_reviewed: 2026-04-16
 exempt: false
 exempt_reason: ""
 id: agent-rules-quality-gates-and-review
@@ -60,16 +61,16 @@ The repository enforces the clean-code charter through `specfact code review run
 Every change that affects signed module assets or bundled manifests must satisfy verification **before
 the change reaches `main`**.
 
-- **Local / feature branches**: pre-commit may run `verify-modules-signature.py` **without**
-  `--require-signature` (checksum-only) when only `dev` or a feature branch is checked out — see
-  `scripts/pre-commit-verify-modules.sh` and `scripts/git-branch-module-signature-flag.sh`.
+- **Local / feature branches**: pre-commit runs `verify-modules-signature.py` with
+  **`VERIFY_MODULES_PR`** (version bump vs base; **`--skip-checksum-verification`**) when the branch is
+  not `main` — see `scripts/module-verify-policy.sh`, `scripts/pre-commit-verify-modules.sh`, and
+  `scripts/git-branch-module-signature-flag.sh`.
 - **Before merging to `main` or when validating release readiness**, run strict verification:
 
 ```bash
-hatch run ./scripts/verify-modules-signature.py --require-signature --enforce-version-bump
+hatch run verify-modules-signature
 ```
 
 If verification fails because module contents changed, re-sign the affected manifests and bump the
 module version before re-running verification. Note: `verify-modules-signature.py` has **no**
-`--allow-unsigned` flag; checksum-only mode is “omit `--require-signature`”. The `--allow-unsigned`
-option on **`sign-modules.py`** is only for local test signing.
+`--allow-unsigned` flag. The `--allow-unsigned` option on **`sign-modules.py`** is only for local test signing.

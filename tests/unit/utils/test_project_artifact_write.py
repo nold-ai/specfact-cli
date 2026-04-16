@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 import json
 import shutil
 import uuid
@@ -16,6 +17,15 @@ from specfact_cli.utils.project_artifact_write import (
     backup_file_to_recovery,
     merge_vscode_settings_prompt_recommendations,
 )
+
+
+def _find_repo_root() -> Path:
+    """Walk parents from this test file until we find the specfact-cli repo root."""
+    here = Path(__file__).resolve()
+    for parent in here.parents:
+        if (parent / "pyproject.toml").is_file() and (parent / "src" / "specfact_cli").is_dir():
+            return parent
+    raise RuntimeError("Could not locate repository root (pyproject.toml + src/specfact_cli)")
 
 
 def test_merge_vscode_settings_rejects_path_outside_repo(tmp_path: Path) -> None:
@@ -196,6 +206,99 @@ def test_create_vscode_settings_chat_not_object_raises_without_force(tmp_path: P
             prompts_by_source={PROMPT_SOURCE_CORE: [prompt]},
             force=False,
         )
+
+
+_MODULE_SOURCE = _find_repo_root() / "src" / "specfact_cli" / "utils" / "project_artifact_write.py"
+
+
+def test_project_artifact_write_does_not_import_json5() -> None:
+    """After migration, json5 must not appear in project_artifact_write.py imports."""
+    source = _MODULE_SOURCE.read_text(encoding="utf-8")
+    tree = ast.parse(source)
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                assert alias.name != "json5", "json5 import found — must be replaced by commentjson + json"
+        elif isinstance(node, ast.ImportFrom):
+            assert node.module != "json5", "from json5 import found — must be replaced by commentjson + json"
+
+
+def test_project_artifact_write_uses_commentjson_for_read() -> None:
+    """After migration, commentjson must be imported in project_artifact_write.py."""
+    source = _MODULE_SOURCE.read_text(encoding="utf-8")
+    tree = ast.parse(source)
+    found_commentjson = False
+    for node in ast.walk(tree):
+        if (isinstance(node, ast.Import) and any(alias.name == "commentjson" for alias in node.names)) or (
+            isinstance(node, ast.ImportFrom) and node.module == "commentjson"
+        ):
+            found_commentjson = True
+    assert found_commentjson, "commentjson import not found — must be added for JSONC read path"
+
+
+def test_merge_vscode_settings_handles_line_comments_in_jsonc(tmp_path: Path) -> None:
+    """VS Code JSONC with ``//`` line comments must parse via commentjson (library does not accept ``/* */`` here)."""
+    vscode_dir = tmp_path / ".vscode"
+    vscode_dir.mkdir(parents=True)
+    settings_path = vscode_dir / "settings.json"
+    settings_path.write_text(
+        """{
+  // line comment
+  "python.defaultInterpreterPath": "/usr/bin/python3",
+  // another comment
+  "chat": {"promptFilesRecommendations": []}
+}
+""",
+        encoding="utf-8",
+    )
+    out = merge_vscode_settings_prompt_recommendations(
+        tmp_path,
+        ".vscode/settings.json",
+        [".github/prompts/specfact.01-import.prompt.md"],
+        strip_specfact_github_from_existing=False,
+        explicit_replace_unparseable=False,
+    )
+    data = json.loads(out.read_text(encoding="utf-8"))
+    assert data["python.defaultInterpreterPath"] == "/usr/bin/python3"
+
+
+def test_merge_vscode_settings_handles_trailing_commas_in_jsonc(tmp_path: Path) -> None:
+    """JSONC with trailing commas must be parsed without error after migration."""
+    vscode_dir = tmp_path / ".vscode"
+    vscode_dir.mkdir(parents=True)
+    settings_path = vscode_dir / "settings.json"
+    settings_path.write_text(
+        '{"python.defaultInterpreterPath": "/usr/bin/python3", "chat": {"promptFilesRecommendations": []},}\n',
+        encoding="utf-8",
+    )
+    out = merge_vscode_settings_prompt_recommendations(
+        tmp_path,
+        ".vscode/settings.json",
+        [".github/prompts/specfact.01-import.prompt.md"],
+        strip_specfact_github_from_existing=False,
+        explicit_replace_unparseable=False,
+    )
+    data = json.loads(out.read_text(encoding="utf-8"))
+    assert ".github/prompts/specfact.01-import.prompt.md" in data["chat"]["promptFilesRecommendations"]
+
+
+def test_merge_vscode_settings_write_output_is_valid_stdlib_json(tmp_path: Path) -> None:
+    """Write output must be parseable by stdlib json.loads (no trailing commas in output)."""
+    vscode_dir = tmp_path / ".vscode"
+    vscode_dir.mkdir(parents=True)
+    settings_path = vscode_dir / "settings.json"
+    settings_path.write_text('{"chat": {"promptFilesRecommendations": []}}\n', encoding="utf-8")
+    out = merge_vscode_settings_prompt_recommendations(
+        tmp_path,
+        ".vscode/settings.json",
+        [".github/prompts/specfact.01-import.prompt.md"],
+        strip_specfact_github_from_existing=False,
+        explicit_replace_unparseable=False,
+    )
+    out_text = out.read_text(encoding="utf-8")
+    # Must parse with stdlib json (strict — no trailing commas, no comments)
+    parsed = json.loads(out_text)
+    assert isinstance(parsed, dict), "Write output must be a valid JSON object"
 
 
 def test_create_vscode_settings_chat_not_object_force_coerces_with_backup(tmp_path: Path) -> None:

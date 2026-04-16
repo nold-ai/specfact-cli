@@ -44,16 +44,17 @@ Module packages carry **publisher** and **integrity** metadata so installation, 
 - **CI secrets**:
   - `SPECFACT_MODULE_PRIVATE_SIGN_KEY`
   - `SPECFACT_MODULE_PRIVATE_SIGN_KEY_PASSPHRASE`
-- **Verification command** (`verify-modules-signature.py`):
-  - **Strict** (signatures required): `--require-signature --enforce-version-bump` (and optional
-    `--payload-from-filesystem`, `--version-check-base <git-ref>` in CI).
-  - **Checksum-only** (default when `--require-signature` is omitted): still enforces payload
-    checksums and, with `--enforce-version-bump`, version discipline — useful on feature branches and
-    for dev-targeting CI without local signing keys.
-  - **GitHub Actions** (`pr-orchestrator.yml`, `sign-modules.yml`): same-repo pull requests use
-    checksum-only verification (no `--require-signature`) so approval-time signing can add signatures
-    before merge. **Fork PRs targeting `main`** still run **`--require-signature`** (approval signer cannot
-    push to forks). **Pushes to `main`** use strict verification with `--require-signature`.
+- **Verification command** (`verify-modules-signature.py`): canonical flag bundles live in
+  **`scripts/module-verify-policy.sh`** (`VERIFY_MODULES_STRICT`, `VERIFY_MODULES_PR`,
+  `VERIFY_MODULES_PUSH_ORCHESTRATOR`).
+  - **Strict** (`VERIFY_MODULES_STRICT`): `--require-signature --enforce-version-bump --payload-from-filesystem`
+    — local **`main`** pre-commit, **`sign-modules.yml`** verify on **push** to `dev`/`main` (after auto-sign).
+  - **PR / feature relaxed** (`VERIFY_MODULES_PR`): `--enforce-version-bump --skip-checksum-verification`
+    — pre-commit on non-`main`, **`pr-orchestrator.yml`** verify job on **pull_request**, **`sign-modules.yml`**
+    verify on **pull_request** / **workflow_dispatch** (version discipline vs base; checksum refresh in CI).
+  - **Orchestrator push** (`VERIFY_MODULES_PUSH_ORCHESTRATOR`): `--enforce-version-bump --payload-from-filesystem`
+    — **`pr-orchestrator.yml`** verify job on **push** to `dev`/`main` (payload checksum + version; no
+    `--require-signature` in that job).
   - **Approval-time signing** (`sign-modules-on-approval.yml`): on **approved** reviews for same-repo PRs
     targeting **`dev` or `main`**, CI runs `pull_request.base.sha`’s **`scripts/sign-modules.py`**
     (trusted revision) against the **PR head** working tree, then pushes updated `module-package.yaml`
@@ -76,15 +77,13 @@ Module packages carry **publisher** and **integrity** metadata so installation, 
     `python scripts/sign-modules.py --changed-only --base-ref "$MERGE_BASE" --bump-version patch --payload-from-filesystem`.
     Enable **resign all manifests** when trees match the base but signatures are still missing (unsigned
     file identical on both sides).
-    On `main`, strict `--require-signature` is skipped only for `workflow_dispatch` so you can recover
-    unsigned `main`. **Reproducibility** (re-sign, assert no diff) runs on **push to `main` only**
-    (not `dev`, not `pull_request`), aligned with strict signature policy on `main` and lenient `dev`
-    integration.
+    **Reproducibility** (re-sign, assert no diff) runs on **push to `main` only** (not `dev`, not
+    `pull_request`).
   - There is **no** `--allow-unsigned` on this verifier; that flag exists on **`sign-modules.py`**
     for explicit test-only signing without a key.
 - **Pre-commit** (this repo): when staged paths exist under `modules/` or `src/specfact_cli/modules/`,
-  `scripts/pre-commit-verify-modules.sh` runs the verifier with `--enforce-version-bump` and
-  `--payload-from-filesystem`, adding `--require-signature` only on `main` (see
+  `scripts/pre-commit-verify-modules.sh` sources **`module-verify-policy.sh`** and chooses
+  **`VERIFY_MODULES_STRICT`** on **`main`** or **`VERIFY_MODULES_PR`** elsewhere (see
   `scripts/git-branch-module-signature-flag.sh`).
 
 ## Public key and key rotation

@@ -507,16 +507,16 @@ class CodeAnalyzer:
             }
         )
 
-        # Dependency Graph Analysis (requires pyan3 and networkx)
-        pyan3_available, _ = check_cli_tool_available("pyan3")
+        # Dependency Graph Analysis (requires pycg and networkx)
+        pycg_available, _ = check_cli_tool_available("pycg")
         networkx_available = check_python_package_available("networkx")
-        graph_enabled = pyan3_available and networkx_available
+        graph_enabled = pycg_available and networkx_available
         graph_used = graph_enabled  # Used if both dependencies are available
 
-        if not pyan3_available and not networkx_available:
-            reason = "pyan3 and networkx not installed (install: pip install pyan3 networkx)"
-        elif not pyan3_available:
-            reason = "pyan3 not installed (install: pip install pyan3)"
+        if not pycg_available and not networkx_available:
+            reason = "pycg and networkx not installed (install: pip install pycg networkx)"
+        elif not pycg_available:
+            reason = "pycg not installed (install: pip install pycg)"
         elif not networkx_available:
             reason = "networkx not installed (install: pip install networkx)"
         else:

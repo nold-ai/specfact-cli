@@ -79,8 +79,7 @@ hatch test --cover -v
 ### Pre-commit Checks
 
 Local hooks use **`fail_fast: true`** and a **modular layout** aligned with `specfact-cli-modules`:
-branch-aware module verify (skip if no staged module tree changes; on `main` pass `--require-signature`
-  to `verify-modules-signature.py`, elsewhere omit it for checksum-only mode) → sync version files when those paths are staged → format (always) →
+branch-aware module verify (skip if no staged module tree changes; flags from `scripts/module-verify-policy.sh` — strict on `main`, relaxed PR-style verify elsewhere) → sync version files when those paths are staged → format (always) →
 YAML / Markdown / workflow lint when matching paths are staged → **`hatch run lint`** when Python
 is staged → Block 2 (scoped code review + contract tests, with a safe-change short-circuit for
 docs-only and similar commits). See `.pre-commit-config.yaml` and `scripts/pre-commit-quality-checks.sh`.

@@ -17,10 +17,15 @@ FLAG_SCRIPT = REPO_ROOT / "scripts" / "git-branch-module-signature-flag.sh"
 VERIFY_WRAPPER = REPO_ROOT / "scripts" / "pre-commit-verify-modules.sh"
 LEGACY_VERIFY_WRAPPER = REPO_ROOT / "scripts" / "pre-commit-verify-modules-signature.sh"
 
-TOKEN_VERIFY_SCRIPT = "verify-modules-signature.py"
-TOKEN_REQUIRE_SIGNATURE = "--require-signature"
-TOKEN_ENFORCE_VERSION_BUMP = "--enforce-version-bump"
-TOKEN_PAYLOAD_FROM_FS = "--payload-from-filesystem"
+# Pre-commit invokes Hatch env scripts (see pyproject.toml) that wrap
+# scripts/run_verify_modules_policy.sh → verify-modules-signature.py with policy arrays.
+TOKEN_HATCH_LINE_STRICT = "run verify-modules-signature"
+TOKEN_HATCH_LINE_PR = "run verify-modules-signature-pr"
+TOKEN_SIGN_MODULES = "sign-modules.py"
+
+
+def _hatch_log_lines(log: str) -> list[str]:
+    return [ln.strip() for ln in log.strip().splitlines() if ln.strip()]
 
 
 def _run_flag(*, cwd: Path) -> str:
@@ -97,6 +102,7 @@ def _repo_with_verify_scripts(
 
     (scripts / "pre-commit-verify-modules.sh").symlink_to(VERIFY_WRAPPER.resolve())
     (scripts / "pre-commit-verify-modules-signature.sh").symlink_to(LEGACY_VERIFY_WRAPPER.resolve())
+    (scripts / "module-verify-policy.sh").symlink_to((REPO_ROOT / "scripts" / "module-verify-policy.sh").resolve())
     flag_target = scripts / "git-branch-module-signature-flag.sh"
     if flag_script_body is None:
         flag_target.symlink_to(FLAG_SCRIPT.resolve())
@@ -121,14 +127,14 @@ def _repo_with_verify_scripts(
     )
     if stage_module_paths:
         if module_tree == "top":
-            mod_dir = repo / "modules"
+            mod_dir = repo / "modules" / "testmod"
             mod_dir.mkdir(parents=True)
-            stage_path = "modules/pkg.yaml"
+            stage_path = "modules/testmod/module-package.yaml"
         else:
-            mod_dir = repo / "src" / "specfact_cli" / "modules"
+            mod_dir = repo / "src" / "specfact_cli" / "modules" / "testmod"
             mod_dir.mkdir(parents=True)
-            stage_path = "src/specfact_cli/modules/pkg.yaml"
-        (mod_dir / "pkg.yaml").write_text("x: 1\n", encoding="utf-8")
+            stage_path = "src/specfact_cli/modules/testmod/module-package.yaml"
+        (mod_dir / "module-package.yaml").write_text("id: testmod\nversion: 0.0.1\n", encoding="utf-8")
         subprocess.run(["git", "add", stage_path], cwd=repo, check=True, capture_output=True, text=True)
     else:
         docs = repo / "docs"
@@ -163,7 +169,8 @@ def test_verify_wrapper_skips_when_no_module_paths_staged(tmp_path: Path) -> Non
     )
     assert result.returncode == 0, (result.stdout, result.stderr)
     log = log_path.read_text(encoding="utf-8")
-    assert TOKEN_VERIFY_SCRIPT not in log
+    assert TOKEN_HATCH_LINE_STRICT not in log
+    assert TOKEN_HATCH_LINE_PR not in log
     assert log.strip() == "", "fake hatch must not run when module tree paths are not staged"
 
 
@@ -220,7 +227,7 @@ def test_legacy_verify_script_matches_canonical_invocation(tmp_path: Path, modul
     log_legacy = log_path.read_text(encoding="utf-8")
     assert canon.returncode == legacy.returncode == 0, (canon.stderr, legacy.stderr)
     assert log_canon == log_legacy
-    assert TOKEN_VERIFY_SCRIPT in log_legacy
+    assert TOKEN_HATCH_LINE_STRICT in _hatch_log_lines(log_legacy)
 
 
 @pytest.mark.parametrize("module_tree", ("top", "bundled"))
@@ -243,7 +250,8 @@ def test_verify_wrapper_propagates_git_diff_cached_failure(tmp_path: Path, modul
     )
     assert result.returncode != 0, (result.stdout, result.stderr)
     log = log_path.read_text(encoding="utf-8")
-    assert TOKEN_VERIFY_SCRIPT not in log
+    assert TOKEN_HATCH_LINE_STRICT not in log
+    assert TOKEN_HATCH_LINE_PR not in log
     assert "git diff --cached failed" in result.stderr
 
 
@@ -262,10 +270,9 @@ def test_verify_wrapper_runs_hatch_with_require_on_main(tmp_path: Path, module_t
     )
     assert result.returncode == 0, (result.stdout, result.stderr)
     log = log_path.read_text(encoding="utf-8")
-    assert TOKEN_VERIFY_SCRIPT in log
-    assert TOKEN_ENFORCE_VERSION_BUMP in log
-    assert TOKEN_PAYLOAD_FROM_FS in log
-    assert TOKEN_REQUIRE_SIGNATURE in log
+    lines = _hatch_log_lines(log)
+    assert TOKEN_HATCH_LINE_STRICT in lines
+    assert TOKEN_HATCH_LINE_PR not in lines
 
 
 @pytest.mark.parametrize("module_tree", ("top", "bundled"))
@@ -283,10 +290,10 @@ def test_verify_wrapper_runs_hatch_checksum_only_off_main(tmp_path: Path, module
     )
     assert result.returncode == 0, (result.stdout, result.stderr)
     log = log_path.read_text(encoding="utf-8")
-    assert TOKEN_VERIFY_SCRIPT in log
-    assert TOKEN_ENFORCE_VERSION_BUMP in log
-    assert TOKEN_PAYLOAD_FROM_FS in log
-    assert TOKEN_REQUIRE_SIGNATURE not in log
+    lines = _hatch_log_lines(log)
+    assert TOKEN_HATCH_LINE_PR in lines
+    assert TOKEN_HATCH_LINE_STRICT not in lines
+    assert TOKEN_SIGN_MODULES in log
 
 
 @pytest.mark.parametrize("module_tree", ("top", "bundled"))

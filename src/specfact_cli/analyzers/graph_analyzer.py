@@ -3,6 +3,8 @@ Graph-based dependency and call graph analysis.
 
 Enhances AST and Semgrep analysis with graph-based dependency tracking,
 call graph extraction, and architecture visualization.
+
+Call graph extraction uses pycg (MIT) via subprocess. pyan3 (GPL-2.0) removed.
 """
 
 from __future__ import annotations
@@ -28,7 +30,7 @@ class GraphAnalyzer:
     """
     Graph-based dependency and call graph analysis.
 
-    Uses pyan for call graphs, NetworkX for dependency graphs,
+    Uses pycg for call graphs, NetworkX for dependency graphs,
     and provides graph-based insights to complement AST and Semgrep.
     """
 
@@ -55,7 +57,7 @@ class GraphAnalyzer:
     @ensure(lambda result: isinstance(result, dict), "Must return dict")
     def extract_call_graph(self, file_path: Path) -> dict[str, list[str]]:
         """
-        Extract call graph using pyan.
+        Extract call graph using pycg (MIT).
 
         Args:
             file_path: Path to Python file
@@ -63,75 +65,67 @@ class GraphAnalyzer:
         Returns:
             Dictionary mapping function names to list of called functions
         """
-        # Check if pyan3 is available using utility function
         from specfact_cli.utils.optional_deps import check_cli_tool_available
 
-        is_available, _ = check_cli_tool_available("pyan3")
+        is_available, _ = check_cli_tool_available("pycg")
         if not is_available:
-            # pyan3 not available, return empty
+            # pycg not available — return empty (graceful degradation)
             return {}
 
-        # Run pyan to generate DOT file
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".dot", delete=False) as dot_file:
-            dot_path = Path(dot_file.name)
+        # Run pycg to generate JSON call graph
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as json_file:
+            json_path = Path(json_file.name)
             try:
                 result = subprocess.run(
-                    ["pyan3", str(file_path), "--dot", "--no-defines", "--uses", "--defines"],
-                    stdout=dot_file,
+                    ["pycg", "--package", str(self.repo_path), str(file_path), "--output", str(json_path)],
                     stderr=subprocess.PIPE,
                     text=True,
-                    timeout=15,  # Reduced from 30 to 15 seconds for faster processing
+                    timeout=15,
                 )
 
                 if result.returncode == 0:
-                    # Parse DOT file to extract call relationships
-                    call_graph = self._parse_dot_file(dot_path)
+                    call_graph = self._parse_pycg_json(json_path)
                     file_key = str(file_path.relative_to(self.repo_path))
                     self.call_graphs[file_key] = call_graph
                     return call_graph
             finally:
-                # Clean up temp file
-                if dot_path.exists():
-                    dot_path.unlink()
+                if json_path.exists():
+                    json_path.unlink()
 
         return {}
 
     @beartype
-    @require(lambda dot_path: isinstance(dot_path, Path), "DOT path must be Path")
+    @require(lambda json_path: isinstance(json_path, Path), "JSON path must be Path")
     @ensure(lambda result: isinstance(result, dict), "Must return dict")
-    def _parse_dot_file(self, dot_path: Path) -> dict[str, list[str]]:
+    def _parse_pycg_json(self, json_path: Path) -> dict[str, list[str]]:
         """
-        Parse DOT file to extract call graph.
+        Parse pycg JSON output into caller → [callees] format.
+
+        PyCG's simple JSON format is an adjacency list: edge ``(src, dst)`` is
+        ``dst`` in the list for key ``src`` (caller → callees). See PyCG README
+        "Simple JSON format".
 
         Args:
-            dot_path: Path to DOT file
+            json_path: Path to pycg JSON output file
 
         Returns:
             Dictionary mapping function names to list of called functions
         """
-        call_graph: dict[str, list[str]] = defaultdict(list)
+        import json
 
-        if not dot_path.exists():
+        if not json_path.exists():
             return {}
 
         try:
-            content = dot_path.read_text(encoding="utf-8")
-            # Parse DOT format: "function_a" -> "function_b"
-            import re
+            raw: dict[str, list[str]] = json.loads(json_path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, UnicodeDecodeError, OSError):
+            return {}
 
-            # Pattern: "function_a" -> "function_b"
-            edge_pattern = r'"([^"]+)"\s*->\s*"([^"]+)"'
-            matches = re.finditer(edge_pattern, content)
-
-            for match in matches:
-                caller = match.group(1)
-                callee = match.group(2)
-                # Filter out internal Python functions (start with __)
+        call_graph: dict[str, list[str]] = defaultdict(list)
+        for caller, callees in raw.items():
+            for callee in callees:
                 if not caller.startswith("__") and not callee.startswith("__"):
                     call_graph[caller].append(callee)
-        except (UnicodeDecodeError, Exception):
-            # Skip if parsing fails
-            pass
 
         return dict(call_graph)
 
@@ -209,7 +203,7 @@ class GraphAnalyzer:
         wait_on_shutdown: bool,
         progress_callback: Any | None,
     ) -> None:
-        """Populate graph with edges derived from pyan call graphs (parallel phase 2)."""
+        """Populate graph with edges derived from pycg call graphs (parallel phase 2)."""
         from concurrent.futures import ThreadPoolExecutor, as_completed
 
         loaded_contents = self._load_python_file_contents_index(python_files)
@@ -238,7 +232,7 @@ class GraphAnalyzer:
         """
         Build comprehensive dependency graph using NetworkX.
 
-        Combines AST-based imports with pyan call graphs for complete
+        Combines AST-based imports with pycg call graphs for complete
         dependency tracking.
 
         Args:

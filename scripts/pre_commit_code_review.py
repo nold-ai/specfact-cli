@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import importlib
 import json
+import os
 import subprocess
 import sys
 from collections.abc import Sequence
@@ -108,6 +109,56 @@ def build_review_command(files: Sequence[str]) -> list[str]:
 def _repo_root() -> Path:
     """Repository root (parent of ``scripts/``)."""
     return Path(__file__).resolve().parents[1]
+
+
+@beartype
+@ensure(lambda result: result is None or (isinstance(result, Path) and result.is_absolute()))
+def discover_specfact_modules_repo() -> Path | None:
+    """Return a sibling ``specfact-cli-modules`` checkout if present (local dev / worktrees).
+
+    CI sets ``SPECFACT_MODULES_REPO`` explicitly. For local commits, walking upward from
+    the repository root finds ``../specfact-cli-modules`` layouts used beside this repo.
+
+    This path is only used so the nested ``code review`` process can prepend bundle ``src``
+    trees to ``sys.path`` (see ``specfact_cli.modules._bundle_import``). It does **not**
+    install, upgrade, or uninstall marketplace modules in the user's install scope; user-scope
+    uninstalls are additionally gated in ``uninstall_module`` (``confirm_user_scope`` / env).
+    """
+    root = _repo_root()
+    here: Path = root
+    while True:
+        candidate = here / "specfact-cli-modules"
+        marker = candidate / "packages" / "specfact-codebase"
+        if candidate.is_dir() and marker.is_dir():
+            return candidate.resolve()
+        parent = here.parent
+        if here == parent:
+            break
+        here = parent
+    return None
+
+
+@beartype
+@ensure(
+    lambda result: (
+        isinstance(result, dict) and all(isinstance(k, str) and isinstance(v, str) for k, v in result.items())
+    )
+)
+def build_review_subprocess_env() -> dict[str, str]:
+    """Build ``env`` for the nested ``code review`` subprocess only.
+
+    Copies the current process environment and, when ``SPECFACT_MODULES_REPO`` is unset,
+    may add it from a discovered sibling checkout so bundle commands can load local
+    sources. The parent process environment is **not** mutated, so user-scoped module
+    installs and shell exports are left unchanged.
+    """
+    env: dict[str, str] = dict(os.environ)
+    if env.get("SPECFACT_MODULES_REPO", "").strip():
+        return env
+    discovered = discover_specfact_modules_repo()
+    if discovered is not None:
+        env["SPECFACT_MODULES_REPO"] = str(discovered)
+    return env
 
 
 def _report_path(repo_root: Path) -> Path:
@@ -211,6 +262,7 @@ def _run_review_subprocess(
     cmd: Sequence[str],
     repo_root: Path,
     files: Sequence[str],
+    env: dict[str, str],
 ) -> subprocess.CompletedProcess[str] | None:
     """Run the nested SpecFact review command and handle timeout reporting."""
     try:
@@ -220,6 +272,7 @@ def _run_review_subprocess(
             text=True,
             capture_output=True,
             cwd=str(repo_root),
+            env=env,
             timeout=300,
         )
     except TimeoutExpired:
@@ -266,10 +319,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         sys.stdout.write(f"Unable to run the code review gate. {guidance}\n")
         return 1
 
+    review_env = build_review_subprocess_env()
+
     repo_root = _repo_root()
     cmd = build_review_command(files)
     report_path = _prepare_report_path(repo_root)
-    result = _run_review_subprocess(cmd, repo_root, files)
+    result = _run_review_subprocess(cmd, repo_root, files, review_env)
     if result is None:
         return 1
     if not report_path.is_file():

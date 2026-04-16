@@ -85,17 +85,18 @@ workflow. If stricter loop prevention is needed, the commit message includes `[s
 `--changed-only` detects no payload change since the last sign commit and skips. The resulting
 manifest is byte-for-byte identical due to deterministic YAML serialisation.
 
-### Decision 3: Branch-aware pre-commit — omit `--require-signature` off `main`
+### Decision 3: Branch-aware pre-commit — policy bundles in `module-verify-policy.sh`
 
 **Chosen**: `scripts/git-branch-module-signature-flag.sh` emits `require` on `main` and `omit` elsewhere
-(including detached `HEAD`). `scripts/pre-commit-verify-modules.sh` passes `--require-signature` to
-`verify-modules-signature.py` only when the policy is `require`; otherwise it invokes the same script
-without that flag so verification stays checksum-only. There is **no** `--allow-unsigned` on
-`verify-modules-signature.py` (that flag belongs to **`sign-modules.py`** for explicit test signing).
+(including detached `HEAD`). `scripts/pre-commit-verify-modules.sh` sources
+`scripts/module-verify-policy.sh` and runs **`VERIFY_MODULES_STRICT`** vs **`VERIFY_MODULES_PR`**
+(`--skip-checksum-verification` on omit so local commits are not blocked by stale checksums before CI
+re-signs). There is **no** `--allow-unsigned` on `verify-modules-signature.py` (that flag belongs to
+**`sign-modules.py`** for explicit test signing).
 
-**Rationale**: Removes the local key requirement for all development work. Developers and agents on
-feature or dev branches can commit freely. The `main` guard is a secondary defence; the primary
-gate is the CI `--require-signature` check on main-targeting PRs.
+**Rationale**: Removes the local key and local re-sign loop for routine feature work. The `main`
+pre-commit guard stays strict; protected-branch enforcement also runs in **`sign-modules.yml`** on
+push to `dev`/`main` after auto-sign.
 
 ### Decision 4: New standalone workflow `sign-modules-on-approval.yml`
 
@@ -106,16 +107,15 @@ orchestrator (`pull_request` / `push`). Mixing triggers in one file creates conf
 each job runs. A standalone file also makes it trivial to audit, disable, or restrict permissions
 independently.
 
-### Decision 5: `verify-module-signatures` in pr-orchestrator splits by target branch
+### Decision 5: `verify-module-signatures` in pr-orchestrator uses the same policy file
 
-**Chosen**: Add `if` conditions:
+**Chosen**: The job sources `scripts/module-verify-policy.sh`. **Pull requests** use **`VERIFY_MODULES_PR`**
+(aligned with pre-commit omit). **Pushes** use **`VERIFY_MODULES_PUSH_ORCHESTRATOR`** (payload checksum +
+version bump). This job does **not** pass `--require-signature`; strict signed verification for pushes
+to `dev`/`main` lives in **`sign-modules.yml`** after auto-sign.
 
-- PR/push targeting `dev`: run `verify` without `--require-signature`.
-- PR/push targeting `main`: run `verify` with `--require-signature`.
-
-**Rationale**: The verify gate on dev PRs was the primary CI blocker for unsigned feature work.
-Relaxing it to checksum-only matches the agreed trust model: dev is an internal integration branch,
-not a public release boundary.
+**Rationale**: PR orchestrator stays a fast compatibility gate; signing and strict verify stay coupled in
+the module hardening workflow.
 
 ## Risks / Trade-offs
 

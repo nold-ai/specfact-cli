@@ -1,0 +1,7 @@
+# SPDX license strings (pip-licenses style) for packages listed under
+# pip_dependencies in any module-package.yaml (offline manifest gate).
+#
+# Every package name declared in a manifest must have an entry here (lowercase key).
+# Extend this mapping when adding new pip_dependencies to shipped modules.
+# Intentionally empty today: current shipped module manifests declare no pip_dependencies.
+licenses: {}

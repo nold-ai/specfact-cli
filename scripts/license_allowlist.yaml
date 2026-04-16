@@ -1,0 +1,45 @@
+# License exception allowlist for specfact-cli
+#
+# Each entry documents an accepted GPL/LGPL exception.
+# Fields:
+#   package  — PyPI package name
+#   license  — SPDX expression
+#   reason   — why the exception is accepted
+#   scope    — where the exception applies:
+#              "dev-only"         → accepted in dev env scan, BLOCKED in module manifests
+#              "module-manifest"  → accepted in module manifest scan (e.g. LGPL subprocess use)
+# Package names should stay lowercase to match normalized pip/package metadata.
+#
+# To add a new exception: open a PR, get approval, add entry here.
+# Phase 2 entries: track removal in SECURITY.md and docs/agent-rules/55-dependency-hygiene.md.
+
+exceptions:
+  - package: pylint
+    license: GPL-2.0-or-later
+    reason: >
+      Root dev env only. Phase 2 removal target (replace with ruff --select ALL
+      once SLF001/W0212 and R0801 gaps are covered). Must NEVER appear in module manifests.
+    scope: dev-only
+
+  - package: pygments
+    license: BSD-2-Clause
+    reason: >
+      Transitive dependency via rich (PyPI metadata: BSD-2-Clause). Cannot remove without removing rich.
+      Monitored for version upgrades that may change the license metadata.
+    scope: dev-only
+
+  - package: yamllint
+    license: GPL-3.0-or-later
+    reason: >
+      Root dev/test environment only. Required for repository YAML linting in
+      Hatch/pre-commit/CI until a non-GPL replacement is adopted. Must NEVER
+      appear in module manifests.
+    scope: dev-only
+
+  - package: semgrep
+    license: LGPL-2.1
+    reason: >
+      Required for code analysis in specfact-code-review module and dev env.
+      LGPL (not GPL/AGPL). Invoked as subprocess — not statically linked — which
+      satisfies LGPL distribution requirements.
+    scope: module-manifest

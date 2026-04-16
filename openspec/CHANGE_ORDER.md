@@ -210,6 +210,12 @@ Cross-repo dependency: `docs-07-core-handoff-conversion` depends on `specfact-cl
 | packaging | 01 | packaging-01-wheel-package-inclusion | TBD | module-migration-06 ✅; release artifact regression discovered post-0.40.0 publish |
 | packaging | 02 | packaging-02-cross-platform-runtime-and-module-resources | [#441](https://github.com/nold-ai/specfact-cli/issues/441) | — |
 
+### Dependencies and license compliance (socket.dev / enterprise hygiene)
+
+| Module | Order | Change folder | GitHub # | Blocked by |
+|--------|-------|---------------|----------|------------|
+| deps | 01 | dep-security-cleanup | [#508](https://github.com/nold-ai/specfact-cli/issues/508) | — |
+
 ### Developer workflow (parallel branch operations)
 
 | Module | Order | Change folder | GitHub # | Blocked by |

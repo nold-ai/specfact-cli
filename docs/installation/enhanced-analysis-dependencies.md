@@ -4,8 +4,6 @@ title: Enhanced Analysis Dependencies
 permalink: /installation/enhanced-analysis-dependencies/
 ---
 
-# Enhanced Analysis Dependencies
-
 ## Python Package Dependencies
 
 ### Already in `pyproject.toml`
@@ -47,35 +45,37 @@ pip install -e ".[enhanced-analysis]"
 hatch install -e ".[enhanced-analysis]"
 ```
 
-### 1. pyan3 - Python Call Graph Analysis
+### 1. pycg - Python Call Graph Analysis
 
 **Purpose**: Extract function call graphs from Python code
 
-**Package**: `pyan3>=1.2.0` (in optional-dependencies.enhanced-analysis)
+**Package**: `pycg>=0.0.7` (in optional-dependencies.enhanced-analysis)
 
-**Usage**: The `graph_analyzer.py` module automatically detects if `pyan3` is available and gracefully falls back if not installed.
+**License**: MIT
 
-**Status**: ✅ **Available** - Install via `pip install -e ".[enhanced-analysis]"`
+**Usage**: The `graph_analyzer.py` module automatically detects if `pycg` is available
+and gracefully falls back to an empty call graph if not installed.
 
-### 2. Syft - Software Bill of Materials (SBOM)
+**Status**: ✅ **Available** - Install via `pip install -e ".[enhanced-analysis]"` or `pip install pycg`
 
-**Purpose**: Generate comprehensive SBOM of all dependencies (direct and transitive)
+> **Migration note**: `pyan3` (GPL-2.0) was replaced by `pycg` (MIT) to comply with the
+> Apache-2.0 license of specfact-cli. The CLI changed from DOT format to JSON;
+> no user-facing behaviour change.
 
-**Package**: `syft>=0.9.5` (in optional-dependencies.enhanced-analysis)
+### 2. Bandit - SAST Security Scanner
 
-**Usage**: Will be integrated in `sbom_generator.py` (pending implementation)
+**Purpose**: Static application security testing to detect common security issues in Python code
 
-**Status**: ✅ **Available** - Install via `pip install -e ".[enhanced-analysis]"`
+**Package**: `bandit>=1.7.0` (in optional-dependencies.dev)
 
-### 3. Bearer - Data Flow Analysis
+**License**: MIT (Apache-2.0 umbrella — Apache Software Foundation project)
 
-**Purpose**: Track sensitive data flow through codebase for security analysis
+**Usage**: Run with `hatch run bandit-scan` or `bandit -r src/ -ll`
 
-**Package**: `bearer>=3.1.0` (in optional-dependencies.enhanced-analysis)
+**Status**: ✅ **Available** in dev extras
 
-**Note**: Bearer primarily supports Java, Ruby, JS/TS. For Python projects, we may need Python-specific alternatives.
-
-**Status**: ✅ **Available** - Install via `pip install -e ".[enhanced-analysis]"`
+> **Migration note**: `bearer>=3.1.0` was removed — the PyPI `bearer` package is an HTTP
+> auth SaaS client, not the Bearer security scanner CLI. `bandit` is the correct Python SAST tool.
 
 ## Summary
 
@@ -88,9 +88,7 @@ hatch install -e ".[enhanced-analysis]"
 
 Install all with: `pip install -e ".[enhanced-analysis]"`
 
-- ✅ `pyan3>=1.2.0` - Python call graph analysis
-- ✅ `syft>=0.9.5` - Software Bill of Materials (SBOM) generation
-- ✅ `bearer>=3.1.0` - Data flow analysis for security
+- ✅ `pycg>=0.0.7` - Python call graph analysis (MIT; replaces GPL pyan3)
 - ✅ `graphviz>=0.20.1` - Graph visualization (also in main dependencies)
 
 ### System Dependencies (Required for graphviz)
@@ -117,20 +115,15 @@ brew install graphviz
 ### Individual Package Installation
 
 ```bash
-# Install specific packages
-pip install pyan3>=1.2.0
-pip install syft>=0.9.5
-pip install bearer>=3.1.0
-pip install graphviz>=0.20.1
+pip install "pycg>=0.0.7"
+pip install "graphviz>=0.20.1"
 ```
 
 ## Graceful Degradation
 
 All graph analysis features are designed to work gracefully when optional tools are missing:
 
-- **pyan3 missing**: Call graph extraction returns empty (no error)
+- **pycg missing**: Call graph extraction returns empty (no error)
 - **graphviz missing**: Diagram generation skipped (no error)
-- **syft missing**: SBOM generation skipped (no error)
-- **bearer missing**: Data flow analysis skipped (no error)
 
 The import command will continue to work with whatever tools are available, providing enhanced analysis when tools are present.

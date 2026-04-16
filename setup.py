@@ -7,7 +7,7 @@ from setuptools import find_packages, setup
 if __name__ == "__main__":
     _setup = setup(
         name="specfact-cli",
-        version="0.46.2",
+        version="0.46.4",
         description=(
             "The swiss knife CLI for agile DevOps teams. Keep backlog, specs, tests, and code in sync with "
             "validation and contract enforcement for new projects and long-lived codebases."
@@ -31,7 +31,7 @@ if __name__ == "__main__":
             "gitpython>=3.1.45",
             "ruamel.yaml>=0.18.16",
             "jsonschema>=4.23.0",
-            "json5>=0.9.28",
+            "commentjson>=0.9.0",
             "icontract>=2.7.1",
             "beartype>=0.22.4",
             "watchdog>=6.0.0",

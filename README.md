@@ -27,7 +27,7 @@ uvx specfact-cli code review run --path . --scope full
 **Sample output:**
 
 ```text
-SpecFact CLI - v0.46.1
+SpecFact CLI - v0.46.4
 
 Running Ruff checks...
 Running Radon complexity checks...
@@ -86,14 +86,15 @@ This repository uses a **modular** local hook layout (parity with `specfact-cli-
 separate verify / format / YAML / Markdown / workflow / lint / Block 2 hooks). If you copy
 [`.pre-commit-config.yaml`](.pre-commit-config.yaml) into another repo, you must also vendor the
 referenced `scripts/*.sh` entrypoints (at minimum `scripts/pre-commit-quality-checks.sh`,
-`scripts/pre-commit-verify-modules.sh`, and `scripts/git-branch-module-signature-flag.sh`) so hook
+`scripts/pre-commit-verify-modules.sh`, `scripts/module-verify-policy.sh`, and
+`scripts/git-branch-module-signature-flag.sh`) so hook
 `entry:` paths resolve. Alternatively, skip vendoring the modular file and use the remote hook below.
 
 For a **single-hook** setup in downstream repos, keep using the stable id and script shim:
 
 ```yaml
 - repo: https://github.com/nold-ai/specfact-cli
-  rev: v0.46.1
+  rev: v0.46.4
   hooks:
     - id: specfact-smart-checks
 ```

@@ -2,8 +2,12 @@
 """Fail if pyproject version is not strictly greater than the latest PyPI release.
 
 PyPI publish (see .github/workflows/scripts/check-and-publish-pypi.sh) skips when the local
-version is not newer than PyPI, which hides release problems until merge to main. This script
-surfaces that requirement on every PR that runs the tests job.
+version is not newer than PyPI, which hides release problems until merge to main. In CI, the
+``pr-orchestrator`` tests job runs this only when canonical version files change (same scope as the
+``check-local-version-ahead-of-pypi`` pre-commit hook). CI and pre-commit pass
+``--skip-when-version-unchanged-vs <git-rev>`` so edits that touch ``pyproject.toml`` (for example
+dependencies) but leave ``project.version`` the same as the merge base / ``HEAD`` skip the PyPI
+query. ``hatch run check-pypi-ahead`` runs without that flag (strict).
 
 Set SPECFACT_SKIP_PYPI_VERSION_CHECK=1 to skip (offline / air-gapped only; do not use in CI).
 
@@ -13,8 +17,10 @@ Set SPECFACT_PYPI_VERSION_CHECK_LENIENT_NETWORK=1 so a PyPI fetch failure after 
 
 from __future__ import annotations
 
+import argparse
 import json
 import os
+import subprocess
 import sys
 import time
 import tomllib
@@ -42,13 +48,8 @@ def _repo_root() -> Path:
 
 
 @beartype
-@require(lambda pyproject_path: isinstance(pyproject_path, Path))
-def read_local_version(pyproject_path: Path) -> str:
-    if not pyproject_path.is_file():
-        msg = f"check_local_version_ahead_of_pypi: missing {pyproject_path}"
-        raise FileNotFoundError(msg)
-    with pyproject_path.open("rb") as handle:
-        data = tomllib.load(handle)
+@require(lambda data: isinstance(data, dict))
+def _extract_project_version(data: dict[str, Any]) -> str:
     try:
         version = data["project"]["version"]
     except KeyError as exc:
@@ -58,6 +59,49 @@ def read_local_version(pyproject_path: Path) -> str:
         msg = "check_local_version_ahead_of_pypi: invalid project.version in pyproject.toml"
         raise ValueError(msg)
     return version.strip()
+
+
+@beartype
+@require(lambda pyproject_path: isinstance(pyproject_path, Path))
+def read_local_version(pyproject_path: Path) -> str:
+    if not pyproject_path.is_file():
+        msg = f"check_local_version_ahead_of_pypi: missing {pyproject_path}"
+        raise FileNotFoundError(msg)
+    with pyproject_path.open("rb") as handle:
+        data = tomllib.load(handle)
+    return _extract_project_version(data)
+
+
+@beartype
+@require(lambda content: isinstance(content, bytes))
+def read_project_version_from_pyproject_bytes(content: bytes) -> str:
+    text = content.decode("utf-8")
+    data = tomllib.loads(text)
+    return _extract_project_version(data)
+
+
+@beartype
+@require(lambda repo_root: isinstance(repo_root, Path))
+@require(lambda rev: isinstance(rev, str) and bool(rev.strip()))
+@ensure(lambda result: result is None or isinstance(result, str))
+def pyproject_version_at_git_revision(repo_root: Path, rev: str) -> str | None:
+    """Return ``project.version`` from ``git show <rev>:pyproject.toml``, or None if unavailable."""
+    spec = f"{rev.strip()}:pyproject.toml"
+    try:
+        completed = subprocess.run(
+            ["git", "show", spec],
+            cwd=str(repo_root),
+            capture_output=True,
+            check=False,
+        )
+    except OSError:
+        return None
+    if completed.returncode != 0:
+        return None
+    try:
+        return read_project_version_from_pyproject_bytes(completed.stdout)
+    except (KeyError, ValueError, UnicodeDecodeError):
+        return None
 
 
 @beartype
@@ -128,17 +172,26 @@ def compare_local_to_pypi_version(local: str, pypi_latest: str | None) -> tuple[
             f"✅ Local version {local!r} is ahead of PyPI latest {pypi_latest!r}.",
         )
     detail = (
-        f"check_local_version_ahead_of_pypi: local version {local!r} must be greater than "
-        f"PyPI latest {pypi_latest!r} (publish would skip). Bump the version in pyproject.toml, "
-        "setup.py, src/__init__.py, and src/specfact_cli/__init__.py (see hatch run check-version-sources) "
-        "and add a CHANGELOG entry."
+        f"check_local_version_ahead_of_pypi: local version {local!r} must be strictly greater than "
+        f"PyPI latest {pypi_latest!r} (publish would skip on merge).\n"
+        "Same gate as .github/workflows/pr-orchestrator.yml → job tests → "
+        '"Verify local version is ahead of PyPI".\n'
+        "REMEDIATION (AI / developer checklist):\n"
+        "  1. Bump the SAME semver in all four files (keep them identical):\n"
+        "       pyproject.toml [project.version], setup.py [version=], "
+        "src/__init__.py [__version__], src/specfact_cli/__init__.py [__version__]\n"
+        "  2. Run: hatch run check-version-sources\n"
+        "  3. Add a new top section in CHANGELOG.md, e.g. ## [x.y.z] - YYYY-MM-DD\n"
+        "  4. Re-run: python scripts/check_local_version_ahead_of_pypi.py — must exit 0.\n"
+        "  NOTE: SPECFACT_PYPI_VERSION_CHECK_LENIENT_NETWORK only suppresses transient "
+        "PyPI fetch failures; it does NOT bypass a real version-not-ahead policy failure."
     )
     return False, detail
 
 
 @beartype
 @ensure(lambda result: result in (0, 1, 2))
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     skip = os.environ.get("SPECFACT_SKIP_PYPI_VERSION_CHECK", "").strip().lower()
     if skip in {"1", "true", "yes", "on"}:
         sys.stderr.write(
@@ -146,9 +199,36 @@ def main() -> int:
         )
         return 0
 
+    parser = argparse.ArgumentParser(description="Compare local pyproject version to PyPI.")
+    parser.add_argument(
+        "--skip-when-version-unchanged-vs",
+        metavar="GIT_REV",
+        default="",
+        help=(
+            "Exit 0 without querying PyPI when local project.version equals that in "
+            "pyproject.toml at GIT_REV (dependency-only edits)."
+        ),
+    )
+    ns = parser.parse_args([] if argv is None else argv)
+
     root = _repo_root()
     try:
         local = read_local_version(root / "pyproject.toml")
+    except (FileNotFoundError, KeyError, ValueError) as exc:
+        sys.stderr.write(f"{exc}\n")
+        return 2
+
+    compare_rev = ns.skip_when_version_unchanged_vs.strip()
+    if compare_rev:
+        base_version = pyproject_version_at_git_revision(root, compare_rev)
+        if base_version is not None and base_version == local:
+            sys.stderr.write(
+                "check_local_version_ahead_of_pypi: skipped PyPI query "
+                f"(project.version {local!r} unchanged vs {compare_rev})\n",
+            )
+            return 0
+
+    try:
         pypi_latest = fetch_latest_pypi_version()
     except PypiFetchError as exc:
         lenient = os.environ.get("SPECFACT_PYPI_VERSION_CHECK_LENIENT_NETWORK", "").strip().lower()
@@ -159,7 +239,7 @@ def main() -> int:
             return 0
         sys.stderr.write(f"{exc}\n")
         return 2
-    except (FileNotFoundError, KeyError, ValueError, RuntimeError) as exc:
+    except RuntimeError as exc:
         sys.stderr.write(f"{exc}\n")
         return 2
 
@@ -174,4 +254,4 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(main(sys.argv[1:]))

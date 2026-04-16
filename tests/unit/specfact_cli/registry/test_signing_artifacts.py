@@ -2,9 +2,12 @@
 Tests for signing automation artifacts (arch-06): script and CI workflow.
 """
 
+# pyright: reportUnknownMemberType=false
+
 from __future__ import annotations
 
 import re
+import subprocess
 from pathlib import Path
 from typing import Any, cast
 
@@ -38,9 +41,23 @@ def _load_pr_orchestrator_jobs() -> dict[str, dict[str, Any]]:
     return typed_jobs
 
 
-def test_sign_module_script_exists():
-    """Signing script scripts/sign-module.sh SHALL exist."""
-    assert SIGN_SCRIPT.exists(), "scripts/sign-module.sh must exist for signing automation"
+def _read_text_or_skip(path: Path, *, reason: str) -> str:
+    """Read a fixture file or skip when the artifact is absent in this checkout."""
+    if not path.exists():
+        pytest.skip(reason)
+    return path.read_text(encoding="utf-8")
+
+
+@pytest.mark.parametrize(
+    ("path", "message"),
+    [
+        (SIGN_SCRIPT, "scripts/sign-module.sh must exist for signing automation"),
+        (VERIFY_PYTHON_SCRIPT, "scripts/verify-modules-signature.py must exist"),
+    ],
+)
+def test_signing_artifacts_exist(path: Path, message: str) -> None:
+    """Signing and verification entrypoints SHALL exist."""
+    assert path.exists(), message
 
 
 def test_sign_module_script_invocation_prints_or_produces_checksum(tmp_path: Path):
@@ -175,8 +192,22 @@ def test_sign_modules_py_requires_key_unless_allow_unsigned(tmp_path: Path):
     assert with_override.returncode == 0
 
 
-def test_sign_modules_py_help_mentions_passphrase_sources():
-    """sign-modules.py help SHALL expose passphrase flag and stdin mode."""
+@pytest.mark.parametrize(
+    ("expected_flags", "description"),
+    [
+        (("--passphrase", "--passphrase-stdin", "--allow-same-version"), "passphrase sources"),
+        (
+            ("--changed-only", "--base-ref", "--bump-version", "--version-only"),
+            "changed-module automation",
+        ),
+        (("--repair-stale-integrity", "--payload-from-filesystem"), "stale checksum repair"),
+    ],
+)
+def test_sign_modules_py_help_mentions_expected_flags(
+    expected_flags: tuple[str, ...],
+    description: str,
+) -> None:
+    """sign-modules.py help SHALL document the supported automation flags."""
     if not SIGN_PYTHON_SCRIPT.exists():
         pytest.skip("sign-modules.py not present")
     import subprocess
@@ -189,28 +220,8 @@ def test_sign_modules_py_help_mentions_passphrase_sources():
         timeout=10,
     )
     assert result.returncode == 0
-    assert "--passphrase" in result.stdout
-    assert "--passphrase-stdin" in result.stdout
-    assert "--allow-same-version" in result.stdout
-
-
-def test_sign_modules_py_help_mentions_changed_module_automation():
-    """sign-modules.py help SHALL expose changed-module automation flags."""
-    if not SIGN_PYTHON_SCRIPT.exists():
-        pytest.skip("sign-modules.py not present")
-    import subprocess
-
-    result = subprocess.run(
-        ["python3", str(SIGN_PYTHON_SCRIPT), "--help"],
-        capture_output=True,
-        text=True,
-        cwd=REPO_ROOT,
-        timeout=10,
-    )
-    assert result.returncode == 0
-    assert "--changed-only" in result.stdout
-    assert "--base-ref" in result.stdout
-    assert "--bump-version" in result.stdout
+    for flag in expected_flags:
+        assert flag in result.stdout, f"Missing {description} flag {flag!r}"
 
 
 def test_sign_modules_py_changed_only_auto_bump_and_sign(tmp_path: Path):
@@ -312,6 +323,150 @@ def test_sign_modules_py_changed_only_fails_on_invalid_base_ref(tmp_path: Path):
     )
     assert result.returncode != 0
     assert "--base-ref is invalid" in result.stderr
+
+
+def _git_repo_with_committed_stale_checksum(tmp_path: Path) -> tuple[Path, Path, str]:
+    """Build a repo whose HEAD has a wrong integrity.checksum vs payload; return (repo, manifest, bad_checksum)."""
+    repo = tmp_path / "repo"
+    module_dir = repo / "modules" / "sample"
+    source = module_dir / "src" / "sample" / "main.py"
+    manifest = module_dir / "module-package.yaml"
+
+    source.parent.mkdir(parents=True)
+    manifest.write_text(
+        "name: sample\nversion: 0.1.0\npublisher: nold-ai\ncommands: [sample]\n",
+        encoding="utf-8",
+    )
+    source.write_text("print('v1')\n", encoding="utf-8")
+
+    subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True, text=True)
+    subprocess.run(
+        ["git", "config", "user.email", "test@example.com"], cwd=repo, check=True, capture_output=True, text=True
+    )
+    subprocess.run(["git", "config", "user.name", "Test User"], cwd=repo, check=True, capture_output=True, text=True)
+    subprocess.run(["git", "add", "."], cwd=repo, check=True, capture_output=True, text=True)
+    subprocess.run(["git", "commit", "-m", "initial"], cwd=repo, check=True, capture_output=True, text=True)
+
+    signed = subprocess.run(
+        ["python3", str(SIGN_PYTHON_SCRIPT), "--allow-unsigned", str(manifest)],
+        capture_output=True,
+        text=True,
+        cwd=repo,
+        timeout=20,
+    )
+    assert signed.returncode == 0, signed.stderr
+
+    raw = yaml.safe_load(manifest.read_text(encoding="utf-8"))
+    assert isinstance(raw, dict)
+    integrity = raw.get("integrity")
+    assert isinstance(integrity, dict)
+    checksum = str(integrity.get("checksum", ""))
+    assert checksum.startswith("sha256:")
+    parts = checksum.split(":", 1)
+    assert len(parts) == 2
+    bad_digest = "0" * len(parts[1])
+    bad_checksum = f"{parts[0]}:{bad_digest}"
+    integrity["checksum"] = bad_checksum
+    raw["integrity"] = integrity
+    manifest.write_text(yaml.safe_dump(raw, sort_keys=False, allow_unicode=False), encoding="utf-8")
+    subprocess.run(["git", "add", str(manifest)], cwd=repo, check=True, capture_output=True, text=True)
+    subprocess.run(
+        ["git", "commit", "-m", "commit stale checksum"],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return repo, manifest, bad_checksum
+
+
+def test_sign_modules_py_repair_stale_integrity_fixes_checksum_without_git_diff(tmp_path: Path):
+    """--repair-stale-integrity SHALL re-sign when checksum is wrong but git diff vs base is empty."""
+    if not SIGN_PYTHON_SCRIPT.exists():
+        pytest.skip("sign-modules.py not present")
+
+    repo, manifest, bad_checksum = _git_repo_with_committed_stale_checksum(tmp_path)
+
+    changed_only = subprocess.run(
+        [
+            "python3",
+            str(SIGN_PYTHON_SCRIPT),
+            "--allow-unsigned",
+            "--changed-only",
+            "--base-ref",
+            "HEAD",
+            "--bump-version",
+            "patch",
+            "--payload-from-filesystem",
+        ],
+        capture_output=True,
+        text=True,
+        cwd=repo,
+        timeout=20,
+    )
+    assert changed_only.returncode == 0, changed_only.stderr
+    combined_co = f"{changed_only.stdout}\n{changed_only.stderr}"
+    assert "No module manifests to sign" in combined_co or "resolved empty" in combined_co
+
+    repair = subprocess.run(
+        [
+            "python3",
+            str(SIGN_PYTHON_SCRIPT),
+            "--allow-unsigned",
+            "--repair-stale-integrity",
+            "--base-ref",
+            "HEAD",
+            "--bump-version",
+            "patch",
+            "--payload-from-filesystem",
+        ],
+        capture_output=True,
+        text=True,
+        cwd=repo,
+        timeout=20,
+    )
+    assert repair.returncode == 0, repair.stderr
+
+    fixed = yaml.safe_load(manifest.read_text(encoding="utf-8"))
+    assert isinstance(fixed, dict)
+    new_checksum = str(fixed.get("integrity", {}).get("checksum", ""))
+    assert new_checksum.startswith("sha256:")
+    assert new_checksum != bad_checksum
+
+
+def test_sign_modules_py_repair_stale_integrity_requires_payload_from_filesystem(tmp_path: Path) -> None:
+    if not SIGN_PYTHON_SCRIPT.exists():
+        pytest.skip("sign-modules.py not present")
+
+    import subprocess
+
+    repo = tmp_path / "repo"
+    (repo / "modules").mkdir(parents=True)
+    subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True, text=True)
+    subprocess.run(
+        ["git", "config", "user.email", "test@example.com"], cwd=repo, check=True, capture_output=True, text=True
+    )
+    subprocess.run(["git", "config", "user.name", "Test User"], cwd=repo, check=True, capture_output=True, text=True)
+    subprocess.run(
+        ["git", "commit", "--allow-empty", "-m", "init"], cwd=repo, check=True, capture_output=True, text=True
+    )
+
+    result = subprocess.run(
+        [
+            "python3",
+            str(SIGN_PYTHON_SCRIPT),
+            "--allow-unsigned",
+            "--repair-stale-integrity",
+            "--base-ref",
+            "HEAD",
+        ],
+        capture_output=True,
+        text=True,
+        cwd=repo,
+        timeout=20,
+    )
+    assert result.returncode != 0
+    assert "--repair-stale-integrity requires --payload-from-filesystem" in result.stderr
 
 
 def test_sign_modules_py_checksum_changes_when_module_files_change(tmp_path: Path):
@@ -464,20 +619,27 @@ def _assert_sign_and_push_job(workflow_root: dict[str, Any]) -> None:
     assert isinstance(perms, dict) and perms.get("contents") == "write"
 
 
-def _assert_sign_modules_dispatch_raw_content(raw: str) -> None:
+def _assert_sign_modules_dispatch_inputs_and_triggers(raw: str) -> None:
     assert "github.event.inputs.base_branch" in raw
     assert "github.event.inputs.version_bump" in raw
     assert "github.event.inputs.resign_all_manifests" in raw
     assert "Fetch workflow_dispatch comparison base" in raw
     assert 'elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then' in raw
+
+
+def _assert_sign_modules_dispatch_signing_and_merge_base(raw: str) -> None:
     assert "--changed-only" in raw
+    assert "--repair-stale-integrity" in raw
     assert "chore(modules): manual workflow_dispatch sign changed modules" in raw
-    # sign-and-push must compare against merge-base SHA, not the moving branch tip alone
     assert "git merge-base" in raw
     assert "merge-base" in raw
     assert '--base-ref "$MERGE_BASE"' in raw
-    # verify job still uses origin/<branch> for --version-check-base; do not wire sign-modules --base-ref to BASE_REF
     assert '--base-ref "${BASE_REF}"' not in raw
+
+
+def _assert_sign_modules_dispatch_raw_content(raw: str) -> None:
+    _assert_sign_modules_dispatch_inputs_and_triggers(raw)
+    _assert_sign_modules_dispatch_signing_and_merge_base(raw)
 
 
 def test_sign_modules_workflow_dispatch_signs_changed_modules_and_pushes():
@@ -493,6 +655,32 @@ def test_sign_modules_workflow_dispatch_signs_changed_modules_and_pushes():
     _assert_sign_modules_dispatch_raw_content(SIGN_WORKFLOW.read_text(encoding="utf-8"))
 
 
+def test_sign_modules_workflow_dispatch_resign_all_skips_version_check_base() -> None:
+    """workflow_dispatch resign-all mode should verify in relaxed mode without base version checks."""
+    raw = SIGN_WORKFLOW.read_text(encoding="utf-8")
+    assert "github.event.inputs.resign_all_manifests" in raw
+    assert "RESIGN_ARGS" in raw
+    assert 'python scripts/verify-modules-signature.py "${RESIGN_ARGS[@]}"' in raw
+    assert 'python scripts/verify-modules-signature.py "${VERIFY_ARGS[@]}" --version-check-base "$BASE_REF"' in raw
+    match = re.search(
+        r"inputs\.resign_all_manifests[^;]*\]; then(?P<body>.*?)^\s+else\s*$",
+        raw,
+        re.MULTILINE | re.DOTALL,
+    )
+    assert match is not None, "Expected resign-all arm in sign-modules verify step"
+    resign_body = match.group("body")
+    assert 'verify-modules-signature.py "${VERIFY_ARGS[@]}" --version-check-base' not in resign_body, (
+        "resign-all verify must not run the VERIFY_ARGS+--version-check-base invocation"
+    )
+    assert 'verify-modules-signature.py "${RESIGN_ARGS[@]}"' in resign_body
+
+
+def test_sign_modules_workflow_pr_verify_is_relaxed_without_version_bump_check() -> None:
+    """PR verification should still compare version bumps against the PR base."""
+    raw = SIGN_WORKFLOW.read_text(encoding="utf-8")
+    assert 'python scripts/verify-modules-signature.py "${VERIFY_ARGS[@]}" --version-check-base "$BASE_REF"' in raw
+
+
 def test_sign_modules_reproducibility_runs_only_on_main_push():
     """Re-sign diff check runs on main push only (dev matches lenient verify; PRs unsigned OK)."""
     assert SIGN_WORKFLOW.is_file(), "sign-modules.yml workflow must exist"
@@ -504,14 +692,11 @@ def test_sign_modules_reproducibility_runs_only_on_main_push():
     reproducibility = jobs.get("reproducibility")
     assert isinstance(reproducibility, dict), "Expected reproducibility job in sign-modules workflow"
     assert reproducibility.get("name") == "Assert signing reproducibility"
-    assert reproducibility.get("if") == "github.event_name == 'push' && github.ref_name == 'main'", (
-        "Reproducibility job must be gated to push events on main only"
-    )
-
-
-def test_verify_modules_script_exists():
-    """Verification script SHALL exist for CI signature validation."""
-    assert VERIFY_PYTHON_SCRIPT.exists(), "scripts/verify-modules-signature.py must exist"
+    repro_if = reproducibility.get("if")
+    assert isinstance(repro_if, str)
+    assert "github.event_name == 'push'" in repro_if
+    assert "github.ref_name == 'main'" in repro_if
+    assert "needs.verify.outputs.signing_pr_created != 'true'" in repro_if
 
 
 def test_verify_script_reports_version_bump_failure_even_when_checksum_fails(tmp_path: Path):
@@ -573,14 +758,250 @@ def test_verify_script_reports_version_bump_failure_even_when_checksum_fails(tmp
     assert "module version was not incremented" in combined
 
 
+def test_verify_skip_checksum_still_reports_version_bump_failure(tmp_path: Path) -> None:
+    """With --skip-checksum-verification, stale checksum must not mask a missing version bump."""
+    if not VERIFY_PYTHON_SCRIPT.exists() or not SIGN_PYTHON_SCRIPT.exists():
+        pytest.skip("verification/signing scripts not present")
+
+    import subprocess
+
+    repo = tmp_path / "repo"
+    module_dir = repo / "modules" / "sample"
+    source = module_dir / "src" / "sample" / "main.py"
+    manifest = module_dir / "module-package.yaml"
+    source.parent.mkdir(parents=True)
+    manifest.write_text("name: sample\nversion: 0.1.0\npublisher: nold-ai\ncommands: [sample]\n", encoding="utf-8")
+    source.write_text("print('v1')\n", encoding="utf-8")
+
+    subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True, text=True)
+    subprocess.run(
+        ["git", "config", "user.email", "test@example.com"], cwd=repo, check=True, capture_output=True, text=True
+    )
+    subprocess.run(["git", "config", "user.name", "Test User"], cwd=repo, check=True, capture_output=True, text=True)
+
+    signed = subprocess.run(
+        ["python3", str(SIGN_PYTHON_SCRIPT), "--allow-unsigned", str(manifest)],
+        capture_output=True,
+        text=True,
+        cwd=repo,
+        timeout=20,
+    )
+    assert signed.returncode == 0, signed.stderr
+    subprocess.run(["git", "add", "."], cwd=repo, check=True, capture_output=True, text=True)
+    subprocess.run(["git", "commit", "-m", "initial"], cwd=repo, check=True, capture_output=True, text=True)
+
+    source.write_text("print('v2')\n", encoding="utf-8")
+    subprocess.run(["git", "add", "."], cwd=repo, check=True, capture_output=True, text=True)
+    subprocess.run(
+        ["git", "commit", "-m", "change without version bump"], cwd=repo, check=True, capture_output=True, text=True
+    )
+
+    result = subprocess.run(
+        [
+            "python3",
+            str(VERIFY_PYTHON_SCRIPT),
+            "--enforce-version-bump",
+            "--skip-checksum-verification",
+            "--version-check-base",
+            "HEAD~1",
+        ],
+        capture_output=True,
+        text=True,
+        cwd=repo,
+        timeout=20,
+    )
+    assert result.returncode != 0
+    combined = f"{result.stdout}\n{result.stderr}"
+    assert "checksum mismatch" not in combined
+    assert "module version was not incremented" in combined
+
+
+def test_verify_skip_checksum_passes_when_version_bumped_without_resign(tmp_path: Path) -> None:
+    """Non-main local policy: version bump may precede CI re-sign; skip checksum must allow that."""
+    if not VERIFY_PYTHON_SCRIPT.exists() or not SIGN_PYTHON_SCRIPT.exists():
+        pytest.skip("verification/signing scripts not present")
+
+    import subprocess
+
+    repo = tmp_path / "repo"
+    module_dir = repo / "modules" / "sample"
+    source = module_dir / "src" / "sample" / "main.py"
+    manifest = module_dir / "module-package.yaml"
+    source.parent.mkdir(parents=True)
+    manifest.write_text("name: sample\nversion: 0.1.0\npublisher: nold-ai\ncommands: [sample]\n", encoding="utf-8")
+    source.write_text("print('v1')\n", encoding="utf-8")
+
+    subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True, text=True)
+    subprocess.run(
+        ["git", "config", "user.email", "test@example.com"], cwd=repo, check=True, capture_output=True, text=True
+    )
+    subprocess.run(["git", "config", "user.name", "Test User"], cwd=repo, check=True, capture_output=True, text=True)
+
+    signed = subprocess.run(
+        ["python3", str(SIGN_PYTHON_SCRIPT), "--allow-unsigned", str(manifest)],
+        capture_output=True,
+        text=True,
+        cwd=repo,
+        timeout=20,
+    )
+    assert signed.returncode == 0, signed.stderr
+    subprocess.run(["git", "add", "."], cwd=repo, check=True, capture_output=True, text=True)
+    subprocess.run(["git", "commit", "-m", "initial"], cwd=repo, check=True, capture_output=True, text=True)
+
+    source.write_text("print('v2')\n", encoding="utf-8")
+    bumped = yaml.safe_load(manifest.read_text(encoding="utf-8"))
+    assert isinstance(bumped, dict)
+    bumped["version"] = "0.1.1"
+    manifest.write_text(
+        yaml.safe_dump(bumped, sort_keys=True, allow_unicode=False),
+        encoding="utf-8",
+    )
+    subprocess.run(["git", "add", "."], cwd=repo, check=True, capture_output=True, text=True)
+    subprocess.run(
+        ["git", "commit", "-m", "bump without local re-sign"], cwd=repo, check=True, capture_output=True, text=True
+    )
+
+    strict = subprocess.run(
+        ["python3", str(VERIFY_PYTHON_SCRIPT), "--version-check-base", "HEAD~1"],
+        capture_output=True,
+        text=True,
+        cwd=repo,
+        timeout=20,
+    )
+    assert strict.returncode != 0
+    assert "checksum mismatch" in f"{strict.stdout}\n{strict.stderr}"
+
+    relaxed = subprocess.run(
+        [
+            "python3",
+            str(VERIFY_PYTHON_SCRIPT),
+            "--skip-checksum-verification",
+            "--enforce-version-bump",
+            "--version-check-base",
+            "HEAD~1",
+        ],
+        capture_output=True,
+        text=True,
+        cwd=repo,
+        timeout=20,
+    )
+    assert relaxed.returncode == 0, (relaxed.stdout, relaxed.stderr)
+
+
+def test_verify_skip_checksum_passes_without_enforced_version_bump(tmp_path: Path) -> None:
+    """Skip-checksum alone should allow changed payloads when version enforcement is not requested."""
+    if not VERIFY_PYTHON_SCRIPT.exists() or not SIGN_PYTHON_SCRIPT.exists():
+        pytest.skip("verification/signing scripts not present")
+
+    import subprocess
+
+    repo = tmp_path / "repo"
+    module_dir = repo / "modules" / "sample"
+    source = module_dir / "src" / "sample" / "main.py"
+    manifest = module_dir / "module-package.yaml"
+    source.parent.mkdir(parents=True)
+    manifest.write_text("name: sample\nversion: 0.1.0\npublisher: nold-ai\ncommands: [sample]\n", encoding="utf-8")
+    source.write_text("print('v1')\n", encoding="utf-8")
+
+    subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True, text=True)
+    subprocess.run(
+        ["git", "config", "user.email", "test@example.com"], cwd=repo, check=True, capture_output=True, text=True
+    )
+    subprocess.run(["git", "config", "user.name", "Test User"], cwd=repo, check=True, capture_output=True, text=True)
+
+    signed = subprocess.run(
+        ["python3", str(SIGN_PYTHON_SCRIPT), "--allow-unsigned", str(manifest)],
+        capture_output=True,
+        text=True,
+        cwd=repo,
+        timeout=20,
+    )
+    assert signed.returncode == 0, signed.stderr
+    subprocess.run(["git", "add", "."], cwd=repo, check=True, capture_output=True, text=True)
+    subprocess.run(["git", "commit", "-m", "initial"], cwd=repo, check=True, capture_output=True, text=True)
+
+    source.write_text("print('v2')\n", encoding="utf-8")
+    subprocess.run(["git", "add", "."], cwd=repo, check=True, capture_output=True, text=True)
+    subprocess.run(
+        ["git", "commit", "-m", "change without version bump"], cwd=repo, check=True, capture_output=True, text=True
+    )
+
+    relaxed = subprocess.run(
+        [
+            "python3",
+            str(VERIFY_PYTHON_SCRIPT),
+            "--skip-checksum-verification",
+        ],
+        capture_output=True,
+        text=True,
+        cwd=repo,
+        timeout=20,
+    )
+    assert relaxed.returncode == 0, (relaxed.stdout, relaxed.stderr)
+
+
+def test_verify_skip_checksum_accepts_unsigned_manifest(tmp_path: Path) -> None:
+    """Relaxed verification should allow unsigned manifests when checksum verification is skipped."""
+    if not VERIFY_PYTHON_SCRIPT.exists():
+        pytest.skip("verification script not present")
+
+    import subprocess
+
+    repo = tmp_path / "repo"
+    module_dir = repo / "modules" / "sample"
+    manifest = module_dir / "module-package.yaml"
+    module_dir.mkdir(parents=True)
+    manifest.write_text(
+        "name: sample\nversion: 0.1.0\npublisher: nold-ai\ncommands: [sample]\n"
+        "integrity:\n"
+        "  checksum: sha256:0000000000000000000000000000000000000000000000000000000000000000\n",
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        ["python3", str(VERIFY_PYTHON_SCRIPT), "--skip-checksum-verification"],
+        capture_output=True,
+        text=True,
+        cwd=repo,
+        timeout=20,
+    )
+    assert result.returncode == 0, (result.stdout, result.stderr)
+
+
+def test_verify_modules_signature_rejects_skip_with_require_signature() -> None:
+    """--require-signature must remain strict; skip-checksum is for local omit policy only."""
+    if not VERIFY_PYTHON_SCRIPT.exists():
+        pytest.skip("verification script not present")
+
+    import subprocess
+
+    result = subprocess.run(
+        [
+            "python3",
+            str(VERIFY_PYTHON_SCRIPT),
+            "--require-signature",
+            "--skip-checksum-verification",
+        ],
+        capture_output=True,
+        text=True,
+        cwd=REPO_ROOT,
+        timeout=20,
+    )
+    assert result.returncode == 2
+    combined = f"{result.stdout}\n{result.stderr}"
+    assert "cannot be used with --require-signature" in combined
+
+
 def test_pr_orchestrator_contains_verify_module_signatures_job():
-    """PR orchestrator SHALL include bundled module verification (checksum + version policy; not strict signatures)."""
+    """PR orchestrator SHALL include bundled module verification (PR = relaxed checksum; push = payload verify)."""
     if not PR_ORCHESTRATOR_WORKFLOW.exists():
         pytest.skip("pr-orchestrator workflow not present")
     content = PR_ORCHESTRATOR_WORKFLOW.read_text(encoding="utf-8")
     assert "verify-module-signatures" in content
     assert "verify-modules-signature.py" in content
-    assert "--enforce-version-bump" in content
+    assert "module-verify-policy.sh" in content
+    assert "VERIFY_MODULES_PR" in content
+    assert "VERIFY_MODULES_PUSH_ORCHESTRATOR" in content
     assert "--require-signature" not in content
     assert "SPECFACT_MODULE_PRIVATE_SIGN_KEY" in content
     assert "SPECFACT_MODULE_PRIVATE_SIGN_KEY_PASSPHRASE" in content
@@ -607,9 +1028,73 @@ def test_sign_modules_workflow_uses_private_key_and_passphrase_secrets():
     content = SIGN_WORKFLOW.read_text(encoding="utf-8")
     assert "SPECFACT_MODULE_PRIVATE_SIGN_KEY" in content
     assert "SPECFACT_MODULE_PRIVATE_SIGN_KEY_PASSPHRASE" in content
-    assert "--enforce-version-bump" in content
     assert "Auto-sign changed bundled modules" in content
-    assert "--require-signature" in content
+    assert "module-verify-policy.sh" in content
+    assert "VERIFY_MODULES_STRICT" in content
+    assert "VERIFY_MODULES_PR" in content
+
+
+def test_module_verify_policy_pr_bundle_skips_version_bump() -> None:
+    """PR verification bundle should still enforce version bumps while deferring checksum/signature validation."""
+    content = (REPO_ROOT / "scripts" / "module-verify-policy.sh").read_text(encoding="utf-8")
+    assert "VERIFY_MODULES_PR=(--enforce-version-bump --skip-checksum-verification)" in content
+
+
+def test_sign_modules_py_can_auto_bump_explicit_manifest_without_signing(tmp_path: Path) -> None:
+    """Version-only remediation should patch-bump changed modules before non-main verification."""
+    if not SIGN_PYTHON_SCRIPT.exists():
+        pytest.skip("sign-modules.py not present")
+
+    import subprocess
+
+    repo = tmp_path / "repo"
+    module_dir = repo / "modules" / "sample"
+    source = module_dir / "src" / "sample" / "main.py"
+    manifest = module_dir / "module-package.yaml"
+    source.parent.mkdir(parents=True)
+    manifest.write_text("name: sample\nversion: 0.1.0\npublisher: nold-ai\ncommands: [sample]\n", encoding="utf-8")
+    source.write_text("print('v1')\n", encoding="utf-8")
+
+    subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True, text=True)
+    subprocess.run(
+        ["git", "config", "user.email", "test@example.com"], cwd=repo, check=True, capture_output=True, text=True
+    )
+    subprocess.run(["git", "config", "user.name", "Test User"], cwd=repo, check=True, capture_output=True, text=True)
+    subprocess.run(["git", "add", "."], cwd=repo, check=True, capture_output=True, text=True)
+    subprocess.run(["git", "commit", "-m", "initial"], cwd=repo, check=True, capture_output=True, text=True)
+
+    source.write_text("print('v2')\n", encoding="utf-8")
+
+    result = subprocess.run(
+        [
+            "python3",
+            str(SIGN_PYTHON_SCRIPT),
+            "--version-only",
+            "--bump-version",
+            "patch",
+            "--base-ref",
+            "HEAD",
+            str(manifest),
+        ],
+        capture_output=True,
+        text=True,
+        cwd=repo,
+        timeout=20,
+    )
+    assert result.returncode == 0, (result.stdout, result.stderr)
+    manifest_data = yaml.safe_load(manifest.read_text(encoding="utf-8"))
+    assert isinstance(manifest_data, dict)
+    assert manifest_data["version"] == "0.1.1"
+    assert "integrity" not in manifest_data
+
+
+def test_pre_commit_verify_modules_omit_policy_auto_bumps_versions() -> None:
+    """Non-main pre-commit verification should auto-bump changed module manifests before verifying."""
+    content = (REPO_ROOT / "scripts" / "pre-commit-verify-modules.sh").read_text(encoding="utf-8")
+    assert "sign-modules.py" in content
+    assert "--version-only" in content
+    assert "--bump-version patch" in content
+    assert "exec hatch run verify-modules-signature-pr" in content
 
 
 def test_pr_orchestrator_pins_virtualenv_below_21_for_hatch_jobs():
@@ -659,18 +1144,14 @@ def test_pr_orchestrator_quality_gates_still_depends_on_tests_for_coverage() -> 
 
 def test_pr_orchestrator_cache_paths_do_not_restore_hatch_virtualenvs() -> None:
     """PR orchestrator SHALL cache package downloads, not Hatch virtualenv directories."""
-    if not PR_ORCHESTRATOR_WORKFLOW.exists():
-        pytest.skip("pr-orchestrator workflow not present")
-    content = PR_ORCHESTRATOR_WORKFLOW.read_text(encoding="utf-8")
+    content = _read_text_or_skip(PR_ORCHESTRATOR_WORKFLOW, reason="pr-orchestrator workflow not present")
     assert "~/.cache/uv" in content
     assert "~/.local/share/hatch" not in content
 
 
 def test_publish_script_pins_virtualenv_below_21_for_hatch_build():
     """PyPI publish script SHALL pin virtualenv<21 when installing hatch."""
-    if not PUBLISH_PYPI_SCRIPT.exists():
-        pytest.skip("check-and-publish-pypi.sh not present")
-    content = PUBLISH_PYPI_SCRIPT.read_text(encoding="utf-8")
+    content = _read_text_or_skip(PUBLISH_PYPI_SCRIPT, reason="check-and-publish-pypi.sh not present")
     install_commands = re.findall(r"python -m pip install[^\n]*hatch[^\n]*", content)
     assert install_commands, "Expected hatch install command in check-and-publish-pypi.sh"
     for command in install_commands:

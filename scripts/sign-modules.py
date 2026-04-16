@@ -147,9 +147,9 @@ def _load_serialization_module() -> Any:
     return serialization
 
 
-def _load_private_key_bytes(serialization: Any, pem: str, password_bytes: bytes | None) -> Any:
+def _load_private_key_bytes(serialization: Any, pem: str, passphrase_bytes: bytes | None) -> Any:
     """Load a private key from PEM bytes with the provided password."""
-    return serialization.load_pem_private_key(pem.encode("utf-8"), password=password_bytes)
+    return serialization.load_pem_private_key(pem.encode("utf-8"), password=passphrase_bytes)
 
 
 def _load_private_key(
@@ -163,19 +163,19 @@ def _load_private_key(
     if not pem:
         return None
     serialization = _load_serialization_module()
-    password_bytes = passphrase.encode("utf-8") if passphrase is not None else None
+    passphrase_bytes = passphrase.encode("utf-8") if passphrase is not None else None
     try:
-        return _load_private_key_bytes(serialization, pem, password_bytes)
+        return _load_private_key_bytes(serialization, pem, passphrase_bytes)
     except Exception as exc:
         message = str(exc).lower()
-        needs_password = "password was not given" in message or "private key is encrypted" in message
-        if needs_password and prompt_for_passphrase:
+        requires_passphrase_retry = _private_key_requires_passphrase(message)
+        if requires_passphrase_retry and prompt_for_passphrase:
             prompted = getpass.getpass("Enter signing key passphrase: ")
             try:
                 return _load_private_key_bytes(serialization, pem, prompted.encode("utf-8"))
             except Exception as retry_exc:
                 raise ValueError(f"Failed to load private key from PEM: {retry_exc}") from retry_exc
-        if needs_password and passphrase is None:
+        if requires_passphrase_retry and passphrase is None:
             raise ValueError(
                 "Private key is encrypted. Provide passphrase via --passphrase, --passphrase-stdin, "
                 "or SPECFACT_MODULE_PRIVATE_SIGN_KEY_PASSPHRASE."
@@ -198,6 +198,10 @@ def _resolve_passphrase(args: argparse.Namespace) -> str | None:
     return None
 
 
+def _private_key_requires_passphrase(message: str) -> bool:
+    return "not given" in message or "private key is encrypted" in message
+
+
 def _read_manifest_version(path: Path) -> str | None:
     raw = yaml.safe_load(path.read_text(encoding="utf-8"))
     if not isinstance(raw, dict):
@@ -210,10 +214,30 @@ def _read_manifest_version(path: Path) -> str | None:
     return version or None
 
 
+def _git_repository_toplevel() -> Path | None:
+    try:
+        completed = subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except Exception:
+        return None
+    top = completed.stdout.strip()
+    return Path(top).resolve() if top else None
+
+
 def _read_manifest_version_from_git(git_ref: str, path: Path) -> str | None:
+    repo_top = _git_repository_toplevel() or Path.cwd().resolve()
+    git_path = path.resolve()
+    try:
+        relative_path = git_path.relative_to(repo_top).as_posix()
+    except ValueError:
+        relative_path = path.as_posix()
     try:
         output = subprocess.run(
-            ["git", "show", f"{git_ref}:{path.as_posix()}"],
+            ["git", "show", f"{git_ref}:{relative_path}"],
             check=True,
             capture_output=True,
             text=True,
@@ -274,6 +298,44 @@ def _module_has_git_changes_since(module_dir: Path, git_ref: str) -> bool:
     except Exception:
         return False
     return bool(changed or untracked)
+
+
+def _parse_integrity_checksum(checksum: str) -> tuple[str, str]:
+    if ":" not in checksum:
+        raise ValueError("Checksum must be in algo:hex format")
+    algo, digest = checksum.split(":", 1)
+    algo = algo.strip().lower()
+    digest = digest.strip().lower()
+    if algo not in {"sha256", "sha384", "sha512"}:
+        raise ValueError(f"Unsupported checksum algorithm: {algo}")
+    if not digest:
+        raise ValueError("Checksum digest is empty")
+    return algo, digest
+
+
+def _manifest_has_stale_checksum(manifest_path: Path, *, payload_from_filesystem: bool) -> bool:
+    """True when integrity.checksum does not match the current module payload (strict-verify would fail)."""
+    try:
+        raw = yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
+    except Exception:
+        return True
+    if not isinstance(raw, dict):
+        return True
+    data = cast(dict[str, Any], raw)
+    integrity_raw = data.get("integrity")
+    if not isinstance(integrity_raw, dict):
+        return True
+    integrity = cast(dict[str, Any], integrity_raw)
+    checksum = str(integrity.get("checksum", "")).strip()
+    if not checksum:
+        return True
+    try:
+        algo, digest = _parse_integrity_checksum(checksum)
+    except ValueError:
+        return True
+    payload = _module_payload(manifest_path.parent, payload_from_filesystem=payload_from_filesystem)
+    actual = hashlib.new(algo, payload).hexdigest().lower()
+    return actual != digest
 
 
 def _parse_semver(version: str) -> tuple[int, int, int]:
@@ -388,17 +450,97 @@ def sign_manifest(manifest_path: Path, private_key: Any | None, *, payload_from_
     logger.info("%s: %s", manifest_path, status)
 
 
-def _resolve_manifests(args: argparse.Namespace, parser: argparse.ArgumentParser) -> list[Path]:
-    """Resolve the set of manifests to sign from CLI arguments."""
-    if args.manifests:
-        return [Path(manifest) for manifest in args.manifests]
-    if not args.changed_only:
-        parser.error("Provide one or more manifests, or use --changed-only.")
+def _paths_from_cli_manifest_list(manifests: list[str]) -> list[Path]:
+    return [Path(manifest) for manifest in manifests]
+
+
+def _validate_positional_manifest_exclusive_flags(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
+    if args.manifests and (args.changed_only or args.repair_stale_integrity):
+        parser.error("Positional manifest paths cannot be combined with --changed-only or --repair-stale-integrity.")
+
+
+def _require_changed_only_or_repair_mode(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
+    if not args.changed_only and not args.repair_stale_integrity:
+        parser.error("Provide manifest paths, --changed-only, and/or --repair-stale-integrity.")
+
+
+def _validate_discovery_prerequisites(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
     try:
         _ensure_valid_git_ref(args.base_ref)
     except ValueError as exc:
         parser.error(str(exc))
-    return [manifest for manifest in _iter_manifests() if _module_has_git_changes_since(manifest.parent, args.base_ref)]
+    if args.repair_stale_integrity and not args.payload_from_filesystem:
+        parser.error("--repair-stale-integrity requires --payload-from-filesystem (must match strict verify).")
+
+
+def _union_discovered_manifest_paths(args: argparse.Namespace) -> set[Path]:
+    selected: set[Path] = set()
+    if args.changed_only:
+        selected.update(
+            manifest for manifest in _iter_manifests() if _module_has_git_changes_since(manifest.parent, args.base_ref)
+        )
+    if args.repair_stale_integrity:
+        selected.update(
+            manifest
+            for manifest in _iter_manifests()
+            if _manifest_has_stale_checksum(manifest, payload_from_filesystem=args.payload_from_filesystem)
+        )
+    return selected
+
+
+def _resolve_manifests(args: argparse.Namespace, parser: argparse.ArgumentParser) -> list[Path]:
+    """Resolve the set of manifests to sign from CLI arguments."""
+    if args.manifests:
+        _validate_positional_manifest_exclusive_flags(args, parser)
+        return _paths_from_cli_manifest_list(args.manifests)
+    _require_changed_only_or_repair_mode(args, parser)
+    _validate_discovery_prerequisites(args, parser)
+    return sorted(_union_discovered_manifest_paths(args), key=lambda p: p.as_posix())
+
+
+def _maybe_bump_manifest_version(manifest_path: Path, *, base_ref: str, bump_type: str) -> None:
+    """Auto-bump the manifest version when it still matches the comparison base."""
+    if not bump_type:
+        return
+    _auto_bump_manifest_version(manifest_path, base_ref=base_ref, bump_type=bump_type)
+
+
+def _apply_version_only_remediation(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
+    """Auto-bump requested manifests without touching integrity metadata."""
+    if args.bump_version:
+        try:
+            _ensure_valid_git_ref(args.base_ref)
+        except ValueError as exc:
+            parser.error(str(exc))
+    manifests = _resolve_manifests(args, parser)
+    if not manifests and (args.changed_only or args.repair_stale_integrity):
+        logger.info("No module manifests to bump (--changed-only / --repair-stale-integrity resolved empty).")
+        return 0
+    for manifest_path in manifests:
+        _maybe_bump_manifest_version(manifest_path, base_ref=args.base_ref, bump_type=args.bump_version)
+    return 0
+
+
+def _validate_version_only_mode(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
+    if args.version_only and not args.bump_version:
+        parser.error("--version-only requires --bump-version")
+    if args.version_only and args.allow_unsigned:
+        parser.error("--version-only does not use signing mode; omit --allow-unsigned")
+    if args.version_only and args.repair_stale_integrity:
+        parser.error("--version-only cannot be combined with --repair-stale-integrity")
+
+
+def _resolve_private_key(args: argparse.Namespace, parser: argparse.ArgumentParser) -> Any | None:
+    passphrase = _resolve_passphrase(args)
+    try:
+        return _load_private_key(
+            args.key_file,
+            passphrase=passphrase,
+            prompt_for_passphrase=sys.stdin.isatty() and not args.passphrase_stdin,
+        )
+    except ValueError as exc:
+        parser.error(str(exc))
+        return None
 
 
 def _sign_requested_manifests(
@@ -406,21 +548,17 @@ def _sign_requested_manifests(
 ) -> int:
     """Sign the resolved manifest set."""
     manifests = _resolve_manifests(args, parser)
-    if args.changed_only and not manifests:
-        logger.info("No changed module manifests detected since %s.", args.base_ref)
+    if not manifests and (args.changed_only or args.repair_stale_integrity):
+        logger.info("No module manifests to sign (--changed-only / --repair-stale-integrity resolved empty).")
         return 0
     for manifest_path in manifests:
         try:
-            if args.changed_only and args.bump_version:
-                _auto_bump_manifest_version(
-                    manifest_path,
-                    base_ref=args.base_ref,
-                    bump_type=args.bump_version,
-                )
+            _maybe_bump_manifest_version(manifest_path, base_ref=args.base_ref, bump_type=args.bump_version)
+            comparison_ref = args.base_ref if (args.changed_only or args.repair_stale_integrity) else "HEAD"
             _enforce_version_bump_before_signing(
                 manifest_path,
                 allow_same_version=args.allow_same_version,
-                comparison_ref=args.base_ref if args.changed_only else "HEAD",
+                comparison_ref=comparison_ref,
             )
             sign_manifest(manifest_path, private_key, payload_from_filesystem=args.payload_from_filesystem)
         except ValueError as exc:
@@ -470,9 +608,18 @@ def main() -> int:
         help="Select only manifests whose module payload changed since --base-ref.",
     )
     parser.add_argument(
+        "--repair-stale-integrity",
+        action="store_true",
+        help=(
+            "Also select manifests whose integrity.checksum does not match the current module payload, "
+            "even when git reports no changes under the module directory since --base-ref. "
+            "Requires --payload-from-filesystem. Use after PR merges where verification skipped checksums."
+        ),
+    )
+    parser.add_argument(
         "--base-ref",
         default="HEAD",
-        help="Git ref used for change detection when --changed-only is set (default: HEAD).",
+        help="Git ref for --changed-only, --repair-stale-integrity, and version bump comparison (default: HEAD).",
     )
     parser.add_argument(
         "--bump-version",
@@ -480,18 +627,18 @@ def main() -> int:
         default="",
         help="Auto-bump changed module version when unchanged from --base-ref before signing.",
     )
+    parser.add_argument(
+        "--version-only",
+        action="store_true",
+        help="Only auto-bump version metadata; do not write checksum/signature integrity fields.",
+    )
     parser.add_argument("manifests", nargs="*", help="module-package.yaml path(s)")
     args = parser.parse_args()
+    _validate_version_only_mode(args, parser)
+    if args.version_only:
+        return _apply_version_only_remediation(args, parser)
 
-    passphrase = _resolve_passphrase(args)
-    try:
-        private_key = _load_private_key(
-            args.key_file,
-            passphrase=passphrase,
-            prompt_for_passphrase=sys.stdin.isatty() and not args.passphrase_stdin,
-        )
-    except ValueError as exc:
-        parser.error(str(exc))
+    private_key = _resolve_private_key(args, parser)
     if private_key is None and not args.allow_unsigned:
         parser.error(
             "No signing key provided. Use --key-file <path> (recommended) "

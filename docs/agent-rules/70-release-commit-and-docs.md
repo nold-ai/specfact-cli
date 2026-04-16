@@ -16,7 +16,7 @@ tracks:
   - setup.py
   - src/specfact_cli/__init__.py
   - sibling specfact-cli-internal wiki scripts (see below)
-last_reviewed: 2026-04-14
+last_reviewed: 2026-04-16
 exempt: false
 exempt_reason: ""
 id: agent-rules-release-commit-and-docs
@@ -37,9 +37,9 @@ depends_on:
 
 ## Versioning
 
-- Keep version updates in sync across `pyproject.toml`, `setup.py`, and `src/specfact_cli/__init__.py`.
+- Keep version updates in sync across all four canonical version files: `pyproject.toml`, `setup.py`, `src/__init__.py`, and `src/specfact_cli/__init__.py`.
 - **Automated check:** Before tagging or publishing, run `hatch run check-version-sources` (or `python scripts/check_version_sources.py`). It exits non-zero with a clear diff if `pyproject.toml`, `setup.py`, `src/__init__.py`, and `src/specfact_cli/__init__.py` disagree. The **Tests** job in `.github/workflows/pr-orchestrator.yml` runs the same script so mismatches fail CI. Pre-commit runs it whenever a version file is staged (see the `check-version-sources` hook in `.pre-commit-config.yaml` and `scripts/pre-commit-quality-checks.sh`) instead of treating version-only commits as “safe” without verification.
-- **PyPI ahead-of check:** Run `hatch run check-pypi-ahead` (or `python scripts/check_local_version_ahead_of_pypi.py`). It queries PyPI for the latest `specfact-cli` version and fails unless the local `pyproject.toml` version is **strictly greater** (matching the publish gate in `.github/workflows/scripts/check-and-publish-pypi.sh`). CI runs this in the same **Tests** job after `check_version_sources`. For offline work only, `SPECFACT_SKIP_PYPI_VERSION_CHECK=1` skips the check (do not use in CI).
+- **PyPI ahead-of check:** Run `hatch run check-pypi-ahead` (or `python scripts/check_local_version_ahead_of_pypi.py` without flags) for a **strict** compare to PyPI. CI and pre-commit pass `--skip-when-version-unchanged-vs` (merge base on PRs, previous commit on pushes, `HEAD` in pre-commit) so touching `pyproject.toml` for dependencies only does not query PyPI when `project.version` is unchanged; when the declared version **does** change relative to that revision, the check still requires local **strictly greater** than PyPI (matching `.github/workflows/scripts/check-and-publish-pypi.sh`). CI runs the step in the **Tests** job after `check_version_sources`, **only when the PR changes canonical version files** (`pyproject.toml`, `setup.py`, `src/__init__.py`, `src/specfact_cli/__init__.py` — same idea as the pre-commit hook’s `files:` filter). For offline work only, `SPECFACT_SKIP_PYPI_VERSION_CHECK=1` skips the check (do not use in CI).
 - `hatch run release` is reserved for maintainers to chain `check-version-sources` before manual release steps; extend that script if you add more release automation.
 - `feature/*` branches imply a minor bump, `bugfix/*` and `hotfix/*` imply a patch bump, and major bumps require explicit confirmation.
 

@@ -10,6 +10,96 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.46.4] - 2026-04-17
+
+### Fixed
+
+- **Version sources**: patch bump so commits that touch canonical version files
+  satisfy `check-version-sources` / pre-commit together with `CHANGELOG.md`.
+
+---
+
+## [0.46.3] - 2026-04-16
+
+### Added
+
+- **`scripts/security_audit_gate.py`**: wrap `pip-audit` JSON output and
+  fail only when max CVSS ≥ 7.0; wired into `hatch run security-audit`
+  and PR orchestrator.
+- **`scripts/module_pip_dependencies_licenses.yaml`**: offline map for
+  manifest `pip_dependencies` license gate.
+- **`resources/bundled-module-registry/index.json`**: in-repo snapshot of
+  bundled module versions for CI; updated by `publish-modules.yml` when
+  packaged versions advance.
+- **`scripts/_detect_modules_to_publish.py`** + `publish-modules.yml`
+  `auto-publish` job: after `Module Signature Hardening` succeeds on
+  `dev`/`main`, package bundled modules whose manifest version is strictly
+  greater than this snapshot and open a combined PR **in specfact-cli**
+  (not in `specfact-cli-modules`).
+
+### Changed
+
+- **Dependency hygiene (`dep-security-cleanup`)**:
+  - **Replaced** runtime `json5` with `commentjson` (read) + stdlib
+    `json` (write).
+  - **Added** `pycg`, `bandit`, `pip-licenses`, and `pip-audit` to the
+    appropriate extras.
+- **License / CVE hygiene**: hardened
+  `scripts/check_license_compliance.py` (fail-closed allowlist and
+  manifest map, GPL vs LGPL detection), `license-check` CI gated on
+  `pyproject.toml` changes, docs and OpenSpec updates for
+  `dep-security-cleanup`.
+- **Call graphs**: `pycg` invocation uses `--package` + repo root;
+  specs and tests aligned with PyCG adjacency format.
+- **Pre-commit / CI**: `check-version-sources` always runs; PyPI-ahead
+  check matches orchestrator tests job when version sources change
+  (`pyproject.toml`, `setup.py`, `src/__init__.py`,
+  `src/specfact_cli/__init__.py`; lenient network), with remediation
+  hints on failure.
+- **Module verification alignment**: when signed module assets or
+  `module-package.yaml` / bundled registry snapshots are in play, keep
+  pre-commit and CI flags aligned with `scripts/module-verify-policy.sh`
+  (strict on protected branches, relaxed PR bundle with checksum skip where
+  documented). Teams mirroring automation in **specfact-cli-modules** should
+  match the same policy bundles to avoid drift.
+
+### Removed
+
+- **GPL / wrong-PyPI packages** (from distributed extras): `pyan3` (GPL-2.0;
+  replaced by MIT `pycg`), `bearer` (wrong PyPI; replaced by MIT `bandit`),
+  `syft` (wrong PyPI; Anchore Syft remains out-of-band).
+
+### Fixed
+
+- **`check_version_sources`**: staged edits under `resources/bundled-module-registry/`
+  no longer trigger the four-file version + CHANGELOG gate (CI snapshot only).
+- **`publish-modules.yml`**: bundled publish flows no longer open PRs against
+  `nold-ai/specfact-cli-modules`; registry snapshot PRs target this repository
+  and only update `resources/bundled-module-registry/index.json`.
+- **`publish-modules.yml`**: auto-publish job reads module lists from
+  `/tmp/modules_to_publish.txt` and `/tmp/published_batch.txt` instead of
+  expanding `steps.*.outputs` into shell heredocs (CodeQL untrusted-data
+  sink).
+- **`publish-modules.yml`**: single-module `publish` job installs `packaging`
+  so `scripts/publish-module.py` (semver checks) runs in CI.
+- **`scripts/publish-module.py`**: marketplace validation accepts slug-style
+  manifest `name` (for example `module-registry`) when `publisher` matches the
+  official nold-ai modules identity; other marketplace manifests still require
+  `namespace/name`.
+- **Security audit CI** (`security_audit_gate.py`): invoke `pip-audit` with
+  `--skip-editable` (not `--strict`) for editable installs; parse JSON as
+  either ``{"dependencies": [...]}`` or a top-level dependency array
+  (pip-audit version differences).
+- Pre-commit PyPI-ahead hook no longer runs on unrelated commits when
+  local version already matches PyPI.
+- **CI / PyPI gate**: `check_local_version_ahead_of_pypi.py` supports
+  `--skip-when-version-unchanged-vs`; PR orchestrator and pre-commit
+  use it so PRs that edit `pyproject.toml` (for example dependencies)
+  without bumping `project.version` are not blocked by the PyPI-ahead
+  step.
+
+---
+
 ## [0.46.2] - 2026-04-15
 
 ### Fixed

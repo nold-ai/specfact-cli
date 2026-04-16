@@ -33,12 +33,20 @@ from specfact_cli.registry.dependency_resolver import (
     resolve_dependencies,
 )
 from specfact_cli.registry.marketplace_client import download_module
-from specfact_cli.registry.module_discovery import discover_all_modules
+from specfact_cli.registry.module_discovery import (
+    MARKETPLACE_MODULES_ROOT as DISCOVERY_MARKETPLACE_MODULES_ROOT,
+    USER_MODULES_ROOT as DISCOVERY_USER_MODULES_ROOT,
+    discover_all_modules,
+)
 from specfact_cli.registry.module_security import assert_module_allowed, ensure_publisher_trusted
 from specfact_cli.runtime import is_debug_mode
 
 
-USER_MODULES_ROOT = Path.home() / ".specfact" / "modules"
+# Single source of truth for install/uninstall: re-export the canonical roots
+# defined in module_discovery so discovery, install, and delete-safety stay in
+# lockstep (see also docs/agent-rules/55-dependency-hygiene.md).
+USER_MODULES_ROOT = DISCOVERY_USER_MODULES_ROOT
+MARKETPLACE_MODULES_ROOT = DISCOVERY_MARKETPLACE_MODULES_ROOT
 
 
 @beartype
@@ -66,7 +74,17 @@ class _BundleDepsInstallContext:
     logger: logging.Logger
 
 
-MARKETPLACE_MODULES_ROOT = Path.home() / ".specfact" / "marketplace-modules"
+@beartype
+def _path_is_under_user_modules_install_tree(module_dir: Path) -> bool:
+    """True when *module_dir* resolves under :data:`USER_MODULES_ROOT` (``--scope user`` tree)."""
+    try:
+        resolved = module_dir.resolve()
+        root = USER_MODULES_ROOT.resolve()
+    except OSError:
+        return False
+    return resolved == root or root in resolved.parents
+
+
 MODULE_DOWNLOAD_CACHE_ROOT = Path.home() / ".specfact" / "downloads" / "cache"
 _IGNORED_MODULE_DIR_NAMES = {"__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache", "logs", "tests"}
 _IGNORED_MODULE_FILE_SUFFIXES = {".pyc", ".pyo"}
@@ -958,8 +976,17 @@ def uninstall_module(
     *,
     install_root: Path | None = None,
     source_map: dict[str, str] | None = None,
+    confirm_user_scope: bool = False,
 ) -> None:
-    """Uninstall a marketplace module from the local canonical user root."""
+    """Uninstall a marketplace module from discovered install roots.
+
+    Deleting under :data:`USER_MODULES_ROOT` (``~/.specfact/modules``) is guarded: callers must pass
+    ``confirm_user_scope=True`` (the ``specfact module uninstall`` CLI does this) or set environment
+    variable ``SPECFACT_CONFIRM_USER_SCOPE_UNINSTALL=1`` for explicit scripted removal. This prevents
+    accidental user-scope data loss from non-interactive or mistaken programmatic calls (for example
+    hooks or agents). Tests should pass ``install_root`` pointing at a temporary directory, or set the
+    env var for intentional user-root coverage.
+    """
     logger = get_bridge_logger(__name__)
 
     if source_map is None:
@@ -980,10 +1007,25 @@ def uninstall_module(
     else:
         candidate_roots = [USER_MODULES_ROOT, MARKETPLACE_MODULES_ROOT]
 
+    env_confirms_user = os.environ.get("SPECFACT_CONFIRM_USER_SCOPE_UNINSTALL", "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+
     for root in candidate_roots:
         module_path = root / module_name
         if not module_path.exists():
             continue
+        if _path_is_under_user_modules_install_tree(module_path) and not (confirm_user_scope or env_confirms_user):
+            raise ValueError(
+                "Refusing to remove a module under the canonical user install tree "
+                f"({USER_MODULES_ROOT}) at {module_path!s} without explicit confirmation. "
+                "User-scope modules must not be deleted by accident from library or hook code. "
+                "Use the `specfact module uninstall` command, pass confirm_user_scope=True from a "
+                "trusted caller, or set SPECFACT_CONFIRM_USER_SCOPE_UNINSTALL=1 for scripted uninstalls."
+            )
         shutil.rmtree(module_path)
         logger.debug("Uninstalled module '%s' from '%s'", module_name, root)
         return
