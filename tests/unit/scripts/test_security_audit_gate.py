@@ -84,6 +84,23 @@ def test_main_fail_closed_when_pip_audit_unavailable(gate_mod) -> None:
         assert gate_mod.main() == 1
 
 
+def test_dependencies_from_pip_audit_json_accepts_wrapped_and_bare_list(gate_mod) -> None:
+    wrapped = {"dependencies": [{"name": "a", "version": "1", "vulns": []}], "fixes": []}
+    assert gate_mod._dependencies_from_pip_audit_json(wrapped) == wrapped["dependencies"]
+    bare = [{"name": "b", "version": "2", "vulns": []}]
+    assert gate_mod._dependencies_from_pip_audit_json(bare) is bare
+    assert gate_mod._dependencies_from_pip_audit_json({"not": "deps"}) is None
+    assert gate_mod._dependencies_from_pip_audit_json({"dependencies": "nope"}) is None
+
+
+def test_main_passes_with_top_level_list_json(gate_mod, capsys) -> None:
+    payload = [{"name": "requests", "version": "2.0.0", "vulns": []}]
+    proc = MagicMock(stdout=json.dumps(payload), stderr="", returncode=0)
+    with patch.object(gate_mod.subprocess, "run", return_value=proc):
+        assert gate_mod.main() == 0
+    assert "passed" in capsys.readouterr().out.lower()
+
+
 def test_main_runs_pip_audit_with_skip_editable_not_strict(gate_mod) -> None:
     payload = {"dependencies": [{"name": "requests", "version": "2.0.0", "vulns": []}]}
     proc = MagicMock(stdout=json.dumps(payload), stderr="", returncode=0)

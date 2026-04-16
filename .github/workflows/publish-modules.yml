@@ -52,7 +52,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install pyyaml beartype icontract cryptography cffi
+          python -m pip install pyyaml beartype icontract cryptography cffi packaging
 
       - name: Resolve module path from tag
         id: resolve

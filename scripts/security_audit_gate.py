@@ -16,6 +16,10 @@ so the local package is not confused with a PyPI release during auditing.
 still errors on the root editable and emits no JSON. The gate remains
 fail-closed on empty or invalid JSON and on CVSS at or above 7.0 in the parsed
 dependency list.
+
+pip-audit JSON may be either a mapping with a ``dependencies`` list (current
+default) or a top-level JSON array of dependency objects (documented in some
+pip-audit versions). Both shapes are accepted.
 """
 
 from __future__ import annotations
@@ -80,6 +84,18 @@ def _cvss_for_vuln(vuln: dict[str, Any]) -> float:
     return max(scores) if scores else 0.0
 
 
+@beartype
+def _dependencies_from_pip_audit_json(data: Any) -> list[Any] | None:
+    """Return the dependency list from pip-audit JSON, or None if shape is unknown."""
+    if isinstance(data, list):
+        return data
+    if isinstance(data, dict):
+        deps = data.get("dependencies")
+        if isinstance(deps, list):
+            return deps
+    return None
+
+
 def _run_pip_audit() -> subprocess.CompletedProcess[str] | None:
     cmd = [sys.executable, "-m", "pip_audit", "-f", "json", "--skip-editable"]
     try:
@@ -110,9 +126,12 @@ def _parse_dependencies_list(proc: subprocess.CompletedProcess[str]) -> tuple[li
     except json.JSONDecodeError as exc:
         _emit(f"ERROR: pip-audit JSON parse failed: {exc}", error=True)
         return None, 1
-    deps = data.get("dependencies")
-    if not isinstance(deps, list):
-        _emit("ERROR: pip-audit JSON missing 'dependencies' list", error=True)
+    deps = _dependencies_from_pip_audit_json(data)
+    if deps is None:
+        _emit(
+            "ERROR: pip-audit JSON must be a list of dependencies or an object with a 'dependencies' list",
+            error=True,
+        )
         return None, 1
     return deps, 0
 

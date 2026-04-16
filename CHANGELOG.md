@@ -51,10 +51,12 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
-- **Security audit CI**: `security_audit_gate.py` invokes `pip-audit` with
-  `--skip-editable` (and without `--strict`) so `pip install -e .` on PRs still
-  produces auditable JSON: pip-audit’s strict mode errors on the skipped
-  editable root and prints no JSON.
+- **`publish-modules.yml`**: single-module `publish` job installs `packaging`
+  so `scripts/publish-module.py` (semver checks) runs in CI.
+- **Security audit CI** (`security_audit_gate.py`): invoke `pip-audit` with
+  `--skip-editable` (not `--strict`) for editable installs; parse JSON as
+  either ``{"dependencies": [...]}`` or a top-level dependency array
+  (pip-audit version differences).
 - Pre-commit PyPI-ahead hook no longer runs on unrelated commits when
   local version already matches PyPI.
 - **CI / PyPI gate**: `check_local_version_ahead_of_pypi.py` supports
