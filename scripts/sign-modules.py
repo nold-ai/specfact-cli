@@ -147,9 +147,9 @@ def _load_serialization_module() -> Any:
     return serialization
 
 
-def _load_private_key_bytes(serialization: Any, pem: str, password_bytes: bytes | None) -> Any:
+def _load_private_key_bytes(serialization: Any, pem: str, passphrase_bytes: bytes | None) -> Any:
     """Load a private key from PEM bytes with the provided password."""
-    return serialization.load_pem_private_key(pem.encode("utf-8"), password=password_bytes)
+    return serialization.load_pem_private_key(pem.encode("utf-8"), password=passphrase_bytes)
 
 
 def _load_private_key(
@@ -163,19 +163,19 @@ def _load_private_key(
     if not pem:
         return None
     serialization = _load_serialization_module()
-    password_bytes = passphrase.encode("utf-8") if passphrase is not None else None
+    passphrase_bytes = passphrase.encode("utf-8") if passphrase is not None else None
     try:
-        return _load_private_key_bytes(serialization, pem, password_bytes)
+        return _load_private_key_bytes(serialization, pem, passphrase_bytes)
     except Exception as exc:
         message = str(exc).lower()
-        needs_password = "password was not given" in message or "private key is encrypted" in message
-        if needs_password and prompt_for_passphrase:
+        requires_passphrase_retry = _private_key_requires_passphrase(message)
+        if requires_passphrase_retry and prompt_for_passphrase:
             prompted = getpass.getpass("Enter signing key passphrase: ")
             try:
                 return _load_private_key_bytes(serialization, pem, prompted.encode("utf-8"))
             except Exception as retry_exc:
                 raise ValueError(f"Failed to load private key from PEM: {retry_exc}") from retry_exc
-        if needs_password and passphrase is None:
+        if requires_passphrase_retry and passphrase is None:
             raise ValueError(
                 "Private key is encrypted. Provide passphrase via --passphrase, --passphrase-stdin, "
                 "or SPECFACT_MODULE_PRIVATE_SIGN_KEY_PASSPHRASE."
@@ -198,6 +198,10 @@ def _resolve_passphrase(args: argparse.Namespace) -> str | None:
     return None
 
 
+def _private_key_requires_passphrase(message: str) -> bool:
+    return "not given" in message or "private key is encrypted" in message
+
+
 def _read_manifest_version(path: Path) -> str | None:
     raw = yaml.safe_load(path.read_text(encoding="utf-8"))
     if not isinstance(raw, dict):
@@ -211,9 +215,15 @@ def _read_manifest_version(path: Path) -> str | None:
 
 
 def _read_manifest_version_from_git(git_ref: str, path: Path) -> str | None:
+    repo_root = Path.cwd().resolve()
+    git_path = path.resolve()
+    try:
+        relative_path = git_path.relative_to(repo_root).as_posix()
+    except ValueError:
+        relative_path = path.as_posix()
     try:
         output = subprocess.run(
-            ["git", "show", f"{git_ref}:{path.as_posix()}"],
+            ["git", "show", f"{git_ref}:{relative_path}"],
             check=True,
             capture_output=True,
             text=True,
@@ -401,6 +411,43 @@ def _resolve_manifests(args: argparse.Namespace, parser: argparse.ArgumentParser
     return [manifest for manifest in _iter_manifests() if _module_has_git_changes_since(manifest.parent, args.base_ref)]
 
 
+def _maybe_bump_manifest_version(manifest_path: Path, *, base_ref: str, bump_type: str) -> None:
+    """Auto-bump the manifest version when it still matches the comparison base."""
+    if not bump_type:
+        return
+    _auto_bump_manifest_version(manifest_path, base_ref=base_ref, bump_type=bump_type)
+
+
+def _apply_version_only_remediation(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
+    """Auto-bump requested manifests without touching integrity metadata."""
+    manifests = _resolve_manifests(args, parser)
+    if args.changed_only and not manifests:
+        logger.info("No changed module manifests detected since %s.", args.base_ref)
+        return 0
+    for manifest_path in manifests:
+        _maybe_bump_manifest_version(manifest_path, base_ref=args.base_ref, bump_type=args.bump_version)
+    return 0
+
+
+def _validate_version_only_mode(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
+    if args.version_only and not args.bump_version:
+        parser.error("--version-only requires --bump-version")
+    if args.version_only and args.allow_unsigned:
+        parser.error("--version-only does not use signing mode; omit --allow-unsigned")
+
+
+def _resolve_private_key(args: argparse.Namespace, parser: argparse.ArgumentParser) -> Any | None:
+    passphrase = _resolve_passphrase(args)
+    try:
+        return _load_private_key(
+            args.key_file,
+            passphrase=passphrase,
+            prompt_for_passphrase=sys.stdin.isatty() and not args.passphrase_stdin,
+        )
+    except ValueError as exc:
+        parser.error(str(exc))
+
+
 def _sign_requested_manifests(
     args: argparse.Namespace, parser: argparse.ArgumentParser, private_key: Any | None
 ) -> int:
@@ -411,12 +458,7 @@ def _sign_requested_manifests(
         return 0
     for manifest_path in manifests:
         try:
-            if args.changed_only and args.bump_version:
-                _auto_bump_manifest_version(
-                    manifest_path,
-                    base_ref=args.base_ref,
-                    bump_type=args.bump_version,
-                )
+            _maybe_bump_manifest_version(manifest_path, base_ref=args.base_ref, bump_type=args.bump_version)
             _enforce_version_bump_before_signing(
                 manifest_path,
                 allow_same_version=args.allow_same_version,
@@ -480,18 +522,18 @@ def main() -> int:
         default="",
         help="Auto-bump changed module version when unchanged from --base-ref before signing.",
     )
+    parser.add_argument(
+        "--version-only",
+        action="store_true",
+        help="Only auto-bump version metadata; do not write checksum/signature integrity fields.",
+    )
     parser.add_argument("manifests", nargs="*", help="module-package.yaml path(s)")
     args = parser.parse_args()
+    _validate_version_only_mode(args, parser)
+    if args.version_only:
+        return _apply_version_only_remediation(args, parser)
 
-    passphrase = _resolve_passphrase(args)
-    try:
-        private_key = _load_private_key(
-            args.key_file,
-            passphrase=passphrase,
-            prompt_for_passphrase=sys.stdin.isatty() and not args.passphrase_stdin,
-        )
-    except ValueError as exc:
-        parser.error(str(exc))
+    private_key = _resolve_private_key(args, parser)
     if private_key is None and not args.allow_unsigned:
         parser.error(
             "No signing key provided. Use --key-file <path> (recommended) "

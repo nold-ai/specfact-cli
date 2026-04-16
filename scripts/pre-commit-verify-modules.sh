@@ -20,6 +20,29 @@ if ! echo "${staged_files}" | grep -qE '^(src/specfact_cli/modules|modules)/'; t
   exit 0
 fi
 
+mapfile -t staged_manifests < <(
+  printf '%s\n' "${staged_files}" \
+    | python3 -c '
+from pathlib import Path
+import sys
+
+seen = set()
+for raw in sys.stdin:
+    path = Path(raw.strip())
+    if not path.parts:
+        continue
+    parts = path.parts
+    manifest = None
+    if len(parts) >= 4 and parts[:3] == ("src", "specfact_cli", "modules"):
+        manifest = Path(*parts[:4]) / "module-package.yaml"
+    elif len(parts) >= 2 and parts[0] == "modules":
+        manifest = Path(*parts[:2]) / "module-package.yaml"
+    if manifest is not None and manifest not in seen:
+        print(manifest.as_posix())
+        seen.add(manifest)
+'
+)
+
 flag_script="${repo_root}/scripts/git-branch-module-signature-flag.sh"
 policy_script="${repo_root}/scripts/module-verify-policy.sh"
 if [[ ! -f "${flag_script}" ]]; then
@@ -41,6 +64,11 @@ case "${sig_policy}" in
     exec hatch run ./scripts/verify-modules-signature.py "${VERIFY_MODULES_STRICT[@]}"
     ;;
   omit)
+    if [[ "${#staged_manifests[@]}" -gt 0 ]]; then
+      echo "🔐 Auto-bumping changed bundled module versions (patch) before relaxed verification" >&2
+      hatch run ./scripts/sign-modules.py --version-only --bump-version patch --base-ref HEAD "${staged_manifests[@]}"
+      git add -- "${staged_manifests[@]}"
+    fi
     echo "🔐 Verifying module version bumps only (checksum/signature deferred to CI on non-main)" >&2
     exec hatch run ./scripts/verify-modules-signature.py "${VERIFY_MODULES_PR[@]}"
     ;;
