@@ -203,7 +203,7 @@ class GraphAnalyzer:
         wait_on_shutdown: bool,
         progress_callback: Any | None,
     ) -> None:
-        """Populate graph with edges derived from pyan call graphs (parallel phase 2)."""
+        """Populate graph with edges derived from pycg call graphs (parallel phase 2)."""
         from concurrent.futures import ThreadPoolExecutor, as_completed
 
         loaded_contents = self._load_python_file_contents_index(python_files)
@@ -232,7 +232,7 @@ class GraphAnalyzer:
         """
         Build comprehensive dependency graph using NetworkX.
 
-        Combines AST-based imports with pyan call graphs for complete
+        Combines AST-based imports with pycg call graphs for complete
         dependency tracking.
 
         Args:

@@ -113,6 +113,12 @@ def test_main_skip_when_base_unknown_still_queries_pypi(mod) -> None:
     with (
         patch.object(mod, "read_local_version", return_value="99.0.0"),
         patch.object(mod, "pyproject_version_at_git_revision", return_value=None),
-        patch.object(mod, "fetch_latest_pypi_version", return_value="0.1.0"),
+        patch.object(mod, "fetch_latest_pypi_version", return_value="0.1.0") as fetch_mock,
     ):
         assert mod.main(["--skip-when-version-unchanged-vs", "deadbeef"]) == 0
+    fetch_mock.assert_called_once()
+
+
+def test_pyproject_version_at_git_revision_returns_none_on_git_start_failure(mod, tmp_path: Path) -> None:
+    with patch.object(mod.subprocess, "run", side_effect=FileNotFoundError("git missing")):
+        assert mod.pyproject_version_at_git_revision(tmp_path, "HEAD") is None

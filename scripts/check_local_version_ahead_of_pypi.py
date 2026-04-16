@@ -87,12 +87,15 @@ def read_project_version_from_pyproject_bytes(content: bytes) -> str:
 def pyproject_version_at_git_revision(repo_root: Path, rev: str) -> str | None:
     """Return ``project.version`` from ``git show <rev>:pyproject.toml``, or None if unavailable."""
     spec = f"{rev.strip()}:pyproject.toml"
-    completed = subprocess.run(
-        ["git", "show", spec],
-        cwd=str(repo_root),
-        capture_output=True,
-        check=False,
-    )
+    try:
+        completed = subprocess.run(
+            ["git", "show", spec],
+            cwd=str(repo_root),
+            capture_output=True,
+            check=False,
+        )
+    except OSError:
+        return None
     if completed.returncode != 0:
         return None
     try:
@@ -179,8 +182,9 @@ def compare_local_to_pypi_version(local: str, pypi_latest: str | None) -> tuple[
         "src/__init__.py [__version__], src/specfact_cli/__init__.py [__version__]\n"
         "  2. Run: hatch run check-version-sources\n"
         "  3. Add a new top section in CHANGELOG.md, e.g. ## [x.y.z] - YYYY-MM-DD\n"
-        "  4. Re-run: SPECFACT_PYPI_VERSION_CHECK_LENIENT_NETWORK=1 python scripts/check_local_version_ahead_of_pypi.py\n"
-        "     (pre-commit runs this with lenient network; offline: SPECFACT_SKIP_PYPI_VERSION_CHECK=1 — not for CI.)"
+        "  4. Re-run: python scripts/check_local_version_ahead_of_pypi.py — must exit 0.\n"
+        "  NOTE: SPECFACT_PYPI_VERSION_CHECK_LENIENT_NETWORK only suppresses transient "
+        "PyPI fetch failures; it does NOT bypass a real version-not-ahead policy failure."
     )
     return False, detail
 

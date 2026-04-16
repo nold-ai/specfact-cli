@@ -33,12 +33,20 @@ from specfact_cli.registry.dependency_resolver import (
     resolve_dependencies,
 )
 from specfact_cli.registry.marketplace_client import download_module
-from specfact_cli.registry.module_discovery import discover_all_modules
+from specfact_cli.registry.module_discovery import (
+    MARKETPLACE_MODULES_ROOT as DISCOVERY_MARKETPLACE_MODULES_ROOT,
+    USER_MODULES_ROOT as DISCOVERY_USER_MODULES_ROOT,
+    discover_all_modules,
+)
 from specfact_cli.registry.module_security import assert_module_allowed, ensure_publisher_trusted
 from specfact_cli.runtime import is_debug_mode
 
 
-USER_MODULES_ROOT = Path.home() / ".specfact" / "modules"
+# Single source of truth for install/uninstall: re-export the canonical roots
+# defined in module_discovery so discovery, install, and delete-safety stay in
+# lockstep (see also docs/agent-rules/55-dependency-hygiene.md).
+USER_MODULES_ROOT = DISCOVERY_USER_MODULES_ROOT
+MARKETPLACE_MODULES_ROOT = DISCOVERY_MARKETPLACE_MODULES_ROOT
 
 
 @beartype
@@ -64,9 +72,6 @@ class _BundleDepsInstallContext:
     non_interactive: bool
     force: bool
     logger: logging.Logger
-
-
-MARKETPLACE_MODULES_ROOT = Path.home() / ".specfact" / "marketplace-modules"
 
 
 @beartype

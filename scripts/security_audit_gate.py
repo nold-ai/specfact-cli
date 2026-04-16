@@ -18,12 +18,23 @@ import subprocess
 import sys
 from typing import Any
 
+from beartype import beartype
+from icontract import ensure
+
 
 HIGH_SEVERITY_THRESHOLD = 7.0
 
 _CVSS_KEY_HINTS = frozenset(
     {"cvss", "cvssv3", "cvssv2", "score", "basescore", "base_score"},
 )
+
+
+@beartype
+def _emit(message: str, *, error: bool = False) -> None:
+    """Write a single log line without using ``print`` in source."""
+    stream = sys.stderr if error else sys.stdout
+    stream.write(f"{message}\n")
+    stream.flush()
 
 
 def _scores_from_leaf_value(val: Any) -> list[float]:
@@ -61,26 +72,39 @@ def _cvss_for_vuln(vuln: dict[str, Any]) -> float:
     return max(scores) if scores else 0.0
 
 
-def _run_pip_audit() -> subprocess.CompletedProcess[str]:
+def _run_pip_audit() -> subprocess.CompletedProcess[str] | None:
     cmd = [sys.executable, "-m", "pip_audit", "-f", "json", "-S"]
-    return subprocess.run(cmd, capture_output=True, text=True, timeout=900)
+    try:
+        return subprocess.run(cmd, capture_output=True, text=True, timeout=900)
+    except subprocess.TimeoutExpired:
+        _emit(
+            "ERROR: pip-audit timed out after 900s — cannot audit (fail closed)",
+            error=True,
+        )
+        return None
+    except OSError as exc:
+        _emit(
+            f"ERROR: pip-audit could not start ({exc}) — cannot audit (fail closed)",
+            error=True,
+        )
+        return None
 
 
 def _parse_dependencies_list(proc: subprocess.CompletedProcess[str]) -> tuple[list[Any] | None, int]:
     raw = (proc.stdout or "").strip()
     if not raw:
-        print("ERROR: pip-audit produced no stdout — cannot audit (fail closed)", flush=True)
+        _emit("ERROR: pip-audit produced no stdout — cannot audit (fail closed)", error=True)
         if proc.stderr:
-            print(proc.stderr, flush=True)
+            _emit(proc.stderr, error=True)
         return None, 1
     try:
         data = json.loads(raw)
     except json.JSONDecodeError as exc:
-        print(f"ERROR: pip-audit JSON parse failed: {exc}", flush=True)
+        _emit(f"ERROR: pip-audit JSON parse failed: {exc}", error=True)
         return None, 1
     deps = data.get("dependencies")
     if not isinstance(deps, list):
-        print("ERROR: pip-audit JSON missing 'dependencies' list", flush=True)
+        _emit("ERROR: pip-audit JSON missing 'dependencies' list", error=True)
         return None, 1
     return deps, 0
 
@@ -100,40 +124,43 @@ def _scan_and_print_vulnerabilities(deps: list[Any]) -> tuple[float, bool]:
     for dep in deps:
         if not isinstance(dep, dict) or "skip_reason" in dep:
             continue
-        name = dep.get("name", "?")
-        version = dep.get("version", "?")
-        vulns = dep.get("vulns") or []
+        dep_map = dict[str, Any](dep)
+        name = dep_map.get("name", "?")
+        version = dep_map.get("version", "?")
+        vulns = dep_map.get("vulns") or []
         for vuln in vulns:
             if not isinstance(vuln, dict):
                 continue
             any_vuln = True
             cvss = _cvss_for_vuln(vuln)
             max_cvss = max(max_cvss, cvss)
-            print(_format_vuln_line(str(name), str(version), vuln, cvss), flush=True)
+            _emit(_format_vuln_line(str(name), str(version), vuln, cvss))
     return max_cvss, any_vuln
 
 
 def _finalize_audit_exit(max_cvss: float, any_vuln: bool) -> int:
     if not any_vuln:
-        print("Security audit passed. No high-severity vulnerabilities found.", flush=True)
+        _emit("Security audit passed. No high-severity vulnerabilities found.")
         return 0
     if max_cvss >= HIGH_SEVERITY_THRESHOLD:
-        print(
+        _emit(
             f"\nACTION REQUIRED: max CVSS {max_cvss:.1f} >= {HIGH_SEVERITY_THRESHOLD} — "
             "update or replace affected packages",
-            flush=True,
         )
         return 1
-    print(
+    _emit(
         f"\nSecurity audit passed. No high-severity vulnerabilities found "
         f"(max CVSS {max_cvss:.1f} < {HIGH_SEVERITY_THRESHOLD}; review WARNING lines above).",
-        flush=True,
     )
     return 0
 
 
+@beartype
+@ensure(lambda result: result in (0, 1))
 def main() -> int:
     proc = _run_pip_audit()
+    if proc is None:
+        return 1
     deps, err = _parse_dependencies_list(proc)
     if err or deps is None:
         return 1

@@ -1,5 +1,7 @@
 """Unit tests for ``scripts/check_license_compliance.py`` (license gate)."""
 
+# pyright: reportUnknownMemberType=false
+
 from __future__ import annotations
 
 import importlib.util
@@ -47,7 +49,7 @@ _GPL_PIP_LICENSES = json.dumps(
 class TestCleanEnvironmentPasses:
     """Scenario: Installed environment is GPL-clean — gate passes."""
 
-    def test_scan_installed_env_passes_with_no_gpl(self, mod, tmp_path: Path) -> None:
+    def test_scan_installed_env_passes_with_no_gpl(self, mod) -> None:
         """scan_installed_environment returns exit code 0 when no GPL packages found."""
         with patch.object(
             mod,
@@ -57,7 +59,7 @@ class TestCleanEnvironmentPasses:
             exit_code = mod.scan_installed_environment(allowlist={})
         assert exit_code == 0, "Clean env must exit 0"
 
-    def test_scan_installed_env_prints_summary(self, mod, tmp_path: Path, capsys) -> None:
+    def test_scan_installed_env_prints_summary(self, mod, capsys) -> None:
         """Gate prints a summary of packages checked on clean pass."""
         with patch.object(
             mod,
@@ -156,8 +158,9 @@ class TestPipLicensesParseFailures:
             exit_code = mod.scan_installed_environment(allowlist={})
         assert exit_code == 1
         captured = capsys.readouterr()
-        assert "ERROR" in captured.out
-        assert "unparseable" in captured.out.lower()
+        combined = captured.out + captured.err
+        assert "ERROR" in combined
+        assert "unparseable" in combined.lower()
 
     def test_empty_pip_licenses_output_fails(self, mod, capsys) -> None:
         """Empty stdout from pip-licenses must exit 1 (fail closed)."""
@@ -165,7 +168,7 @@ class TestPipLicensesParseFailures:
             exit_code = mod.scan_installed_environment(allowlist={})
         assert exit_code == 1
         captured = capsys.readouterr()
-        assert "no usable output" in captured.out.lower()
+        assert "no usable output" in (captured.out + captured.err).lower()
 
 
 class TestDefaultManifestDiscovery:

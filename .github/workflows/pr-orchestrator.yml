@@ -27,6 +27,7 @@ jobs:
       code_changed: ${{ steps.out.outputs.code_changed }}
       workflow_changed: ${{ steps.out.outputs.workflow_changed }}
       pyproject_changed: ${{ steps.out.outputs.pyproject_changed }}
+      license_inputs_changed: ${{ steps.out.outputs.license_inputs_changed }}
       version_sources_changed: ${{ steps.out.outputs.version_sources_changed }}
       skip_tests_dev_to_main: ${{ steps.out.outputs.skip_tests_dev_to_main }}
     steps:
@@ -45,6 +46,13 @@ jobs:
               - '!.github/workflows/**'
             pyproject:
               - 'pyproject.toml'
+            license_inputs:
+              - 'pyproject.toml'
+              - 'modules/**/module-package.yaml'
+              - 'src/specfact_cli/modules/**/module-package.yaml'
+              - 'scripts/check_license_compliance.py'
+              - 'scripts/license_allowlist.yaml'
+              - 'scripts/module_pip_dependencies_licenses.yaml'
             version_sources:
               - 'pyproject.toml'
               - 'setup.py'
@@ -71,6 +79,7 @@ jobs:
               echo "code_changed=true"
               echo "workflow_changed=true"
               echo "pyproject_changed=true"
+              echo "license_inputs_changed=true"
               echo "version_sources_changed=true"
             } >> "$GITHUB_OUTPUT"
           else
@@ -78,6 +87,7 @@ jobs:
               echo "code_changed=${{ steps.filter.outputs.code }}"
               echo "workflow_changed=${{ steps.filter.outputs.workflow }}"
               echo "pyproject_changed=${{ steps.filter.outputs.pyproject }}"
+              echo "license_inputs_changed=${{ steps.filter.outputs.license_inputs }}"
               echo "version_sources_changed=${{ steps.filter.outputs.version_sources }}"
             } >> "$GITHUB_OUTPUT"
           fi
@@ -610,7 +620,7 @@ jobs:
     name: License Compliance Gate
     runs-on: ubuntu-latest
     needs: [changes, verify-module-signatures]
-    if: needs.changes.outputs.code_changed == 'true' && needs.changes.outputs.pyproject_changed == 'true' && needs.changes.outputs.skip_tests_dev_to_main != 'true'
+    if: needs.changes.outputs.code_changed == 'true' && needs.changes.outputs.license_inputs_changed == 'true' && needs.changes.outputs.skip_tests_dev_to_main != 'true'
     permissions:
       contents: read
     steps:
@@ -667,7 +677,7 @@ jobs:
   package-validation:
     name: Package Validation (uvx/pip)
     runs-on: ubuntu-latest
-    needs: [tests, compat-py311, contract-first-ci, cli-validation, type-checking, linting]
+    needs: [tests, compat-py311, contract-first-ci, cli-validation, type-checking, linting, license-check, security-audit]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     permissions:
       contents: read

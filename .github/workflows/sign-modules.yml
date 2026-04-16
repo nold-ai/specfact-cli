@@ -120,6 +120,7 @@ jobs:
           set -euo pipefail
           # shellcheck disable=SC1091
           source scripts/module-verify-policy.sh
+          VERIFY_ARGS=("${VERIFY_MODULES_PR[@]}")
           BASE_REF=""
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             BASE_REF="origin/${{ github.event.pull_request.base.ref }}"
@@ -130,7 +131,11 @@ jobs:
             echo "::error::Missing comparison base for module verification."
             exit 1
           fi
-          python scripts/verify-modules-signature.py "${VERIFY_MODULES_PR[@]}" --version-check-base "$BASE_REF"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ github.event.inputs.resign_all_manifests }}" = "true" ]; then
+            python scripts/verify-modules-signature.py "${VERIFY_ARGS[@]}"
+          else
+            python scripts/verify-modules-signature.py "${VERIFY_ARGS[@]}" --version-check-base "$BASE_REF"
+          fi
 
       - name: Commit auto-signed manifests (push to dev/main, non-bot actors)
         if: >-

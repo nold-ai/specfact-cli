@@ -79,10 +79,22 @@
 ## 10. TDD Completion and Code Review
 
 - [x] 10.1 Run full test suite (`hatch test --cover -v`) — all tests must pass — **verified 2026-04-16** via `hatch test -q` (2548 passed, 9 skipped); use `hatch test --cover -v` before merge if coverage gate required
-- [ ] 10.2 Run `hatch run license-check` — must exit 0 (only allowlist exceptions) — **blocked in agent env** without `pip-licenses` in active Hatch env; fail-closed behaviour confirmed when module missing
+- [x] 10.2 Run `hatch run license-check` — exit 0 on 2026-04-16 after fixing the `piplicenses` module invocation and documenting the dev-only `yamllint` exception
 - [x] 10.3 Run `hatch run security-audit` — review output; resolve any high-severity findings — **2026-04-16**: wrapper exit 0; pip GHSA reported as WARNING (CVSS 0.0 in JSON)
 - [x] 10.4 Run `hatch run bandit-scan` — review output; document or fix any findings — **2026-04-16**: scan run; Bandit reports existing issue counts (non-zero exit); baseline documented in `TDD_EVIDENCE.md`
 - [x] 10.5 Run `hatch run format` and `hatch run type-check` — must pass clean — **2026-04-16**
 - [ ] 10.6 Run `specfact code review run --json --out .specfact/code-review.json`; resolve all findings — not re-run in this session (requires review env / modules checkout)
 - [x] 10.7 Record passing-after test run output in `openspec/changes/dep-security-cleanup/TDD_EVIDENCE.md` — **2026-04-16** (see “Code-review remediation verification”)
 - [ ] 10.8 Commit with message: `feat(deps): remove GPL/wrong packages, add license-gate and security-audit (#<issue>)`
+
+## 11. CI Auto-Publish for Bundled Modules (scope extension)
+
+After this change introduced unsigned-by-default module manifests bumped/signed
+by `sign-modules.yml` on push to dev/main, the registry was no longer reached
+because `publish-modules.yml` only triggered on tag push or manual dispatch.
+
+- [x] 11.1 Add `workflow_run` trigger to `.github/workflows/publish-modules.yml` after `Module Signature Hardening` completes on dev/main (not blocked by `[skip ci]` on the bot's auto-sign commit)
+- [x] 11.2 Add `auto-publish` job that detects modules whose manifest version is strictly greater than the registry's `latest_version` and packages each
+- [x] 11.3 Add helper `scripts/_detect_modules_to_publish.py` (compares `module-package.yaml` `version` vs `registry/index.json` `latest_version` per module id, semver-aware via `packaging.version`)
+- [x] 11.4 Stage one combined registry PR per workflow run (batched across all bumped modules) instead of one PR per module
+- [x] 11.5 Preserve existing single-module flows (tag-push, `workflow_dispatch`) unchanged

@@ -72,6 +72,18 @@ No action needed:
 - `json5.loads(raw_text)` → `commentjson.loads(raw_text)` (line 106).
 - `json5.dumps(payload, indent=4, quote_keys=True, trailing_commas=False)` → `json.dumps(payload, indent=4)` (lines 83, 252).
 
+### CI / policy / license artifacts
+
+- `.github/workflows/pr-orchestrator.yml`: add `license-check` / `security-audit` gates and ensure
+  dependency-policy inputs trigger them.
+- `.github/workflows/publish-modules.yml`: auto-publish bundled modules after module-signing on
+  `dev` / `main`.
+- `scripts/check_license_compliance.py`, `scripts/security_audit_gate.py`,
+  `scripts/license_allowlist.yaml`, `scripts/module_pip_dependencies_licenses.yaml`: enforce
+  fail-closed dependency hygiene for env and bundled manifests.
+- `docs/agent-rules/55-dependency-hygiene.md`: codify the package/license policy used by this
+  change.
+
 ### Tests
 
 - Exercise `graph_analyzer.py` with mocked `pycg` subprocess (argv includes `--package` / `--output`) and JSON parse coverage for `_parse_pycg_json`.
@@ -79,6 +91,22 @@ No action needed:
 - Align `optional_deps.py` tests with `check_enhanced_analysis_dependencies()` keys (`pycg`, `bandit`, `graphviz`) and removed tools (`pyan3`, wrong PyPI `syft` / `bearer`).
 
 **No public CLI surface changes.** All commands behave identically. Call-graph feature remains an optional enhancement gated by `pycg` availability.
+
+## Cross-Repository Coordination
+
+This change also requires lockstep follow-up in the sibling `nold-ai/specfact-cli-modules`
+repository before merge:
+
+- Replace remaining `pyan3` consumers with `pycg` in
+  `packages/specfact-project/src/specfact_project/analyzers/graph_analyzer.py`,
+  `packages/specfact-project/src/specfact_project/analyzers/code_analyzer.py`, and
+  `packages/specfact-project/src/specfact_project/import_cmd/commands.py`.
+- Align `json5` references with the `commentjson` / stdlib `json` migration where module code still
+  mirrors core `project_artifact_write` behavior.
+- Update any module-repo dependency metadata, docs, and accepted-license notes so `pycg`, `bandit`,
+  `commentjson`, and the same manifest/license policy are reflected consistently.
+
+Track that coordination with an explicit sibling-repo PR or issue link before closing this change.
 
 ## Source Tracking
 

@@ -112,6 +112,7 @@ def _repo_root() -> Path:
 
 
 @beartype
+@ensure(lambda result: result is None or (isinstance(result, Path) and result.is_absolute()))
 def discover_specfact_modules_repo() -> Path | None:
     """Return a sibling ``specfact-cli-modules`` checkout if present (local dev / worktrees).
 
@@ -137,6 +138,11 @@ def discover_specfact_modules_repo() -> Path | None:
 
 
 @beartype
+@ensure(
+    lambda result: (
+        isinstance(result, dict) and all(isinstance(k, str) and isinstance(v, str) for k, v in result.items())
+    )
+)
 def build_review_subprocess_env() -> dict[str, str]:
     """Build ``env`` for the nested ``code review`` subprocess only.
 

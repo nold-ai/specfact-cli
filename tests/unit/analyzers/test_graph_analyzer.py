@@ -1,12 +1,8 @@
-"""
-Unit tests for GraphAnalyzer.
-
-Tests graph-based dependency and call graph analysis, including parallel processing optimizations.
-"""
+"""Unit tests for GraphAnalyzer."""
 
 from __future__ import annotations
 
-import contextlib
+import json
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -82,13 +78,19 @@ def func_{i}():
 
         analyzer = GraphAnalyzer(tmp_path)
 
-        # Mock pycg to avoid requiring it in tests
-        with patch("specfact_cli.analyzers.graph_analyzer.subprocess.run") as mock_run:
+        with (
+            patch(
+                "specfact_cli.utils.optional_deps.check_cli_tool_available",
+                return_value=(True, None),
+            ),
+            patch("specfact_cli.analyzers.graph_analyzer.subprocess.run") as mock_run,
+            patch.object(GraphAnalyzer, "_parse_pycg_json", return_value={"func_1": ["func_0"]}),
+        ):
             mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
             graph = analyzer.build_dependency_graph(files)
-
-            # Should process all files (even if pycg not available)
-            assert len(graph.nodes()) == 5
+        assert len(graph.nodes()) == 5
+        assert mock_run.called, "parallel dependency graph build should invoke pycg subprocesses"
+        assert analyzer.call_graphs, "successful pycg extraction should populate analyzer.call_graphs"
 
     def test_extract_call_graph_timeout_15_seconds(self, tmp_path: Path) -> None:
         """Test that pycg subprocess timeout is 15 seconds."""
@@ -97,15 +99,18 @@ def func_{i}():
 
         analyzer = GraphAnalyzer(tmp_path)
 
-        with patch("specfact_cli.analyzers.graph_analyzer.subprocess.run") as mock_run:
+        with (
+            patch(
+                "specfact_cli.utils.optional_deps.check_cli_tool_available",
+                return_value=(True, None),
+            ),
+            patch("specfact_cli.analyzers.graph_analyzer.subprocess.run") as mock_run,
+        ):
             mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
-            with contextlib.suppress(Exception):  # May fail if pycg not available
-                analyzer.extract_call_graph(file_path)
+            analyzer.extract_call_graph(file_path)
 
-            # Verify timeout was set to 15 seconds
-            if mock_run.called:
-                call_kwargs = mock_run.call_args[1]
-                assert call_kwargs.get("timeout") == 15
+        call_kwargs = mock_run.call_args[1]
+        assert call_kwargs.get("timeout") == 15
 
     def test_get_graph_summary(self, tmp_path: Path) -> None:
         """Test getting graph summary."""
@@ -142,7 +147,7 @@ def func_{i}():
         # Create a json output file pycg would write
         json_out = tmp_path / "pycg_output.json"
         # PyCG adjacency list: caller -> [callees] (see PyCG README simple JSON format)
-        json_out.write_text('{"foo": []}')
+        json_out.write_text(json.dumps({"foo": []}))
         analyzer = GraphAnalyzer(tmp_path)
 
         with (
@@ -151,6 +156,7 @@ def func_{i}():
                 return_value=(True, None),
             ),
             patch("specfact_cli.analyzers.graph_analyzer.subprocess.run") as mock_run,
+            patch.object(GraphAnalyzer, "_parse_pycg_json", return_value={"foo": []}),
         ):
             mock_run.return_value = MagicMock(returncode=0)
             analyzer.extract_call_graph(file_path)

@@ -2,6 +2,8 @@
 Tests for signing automation artifacts (arch-06): script and CI workflow.
 """
 
+# pyright: reportUnknownMemberType=false
+
 from __future__ import annotations
 
 import re
@@ -38,9 +40,23 @@ def _load_pr_orchestrator_jobs() -> dict[str, dict[str, Any]]:
     return typed_jobs
 
 
-def test_sign_module_script_exists():
-    """Signing script scripts/sign-module.sh SHALL exist."""
-    assert SIGN_SCRIPT.exists(), "scripts/sign-module.sh must exist for signing automation"
+def _read_text_or_skip(path: Path, *, reason: str) -> str:
+    """Read a fixture file or skip when the artifact is absent in this checkout."""
+    if not path.exists():
+        pytest.skip(reason)
+    return path.read_text(encoding="utf-8")
+
+
+@pytest.mark.parametrize(
+    ("path", "message"),
+    [
+        (SIGN_SCRIPT, "scripts/sign-module.sh must exist for signing automation"),
+        (VERIFY_PYTHON_SCRIPT, "scripts/verify-modules-signature.py must exist"),
+    ],
+)
+def test_signing_artifacts_exist(path: Path, message: str) -> None:
+    """Signing and verification entrypoints SHALL exist."""
+    assert path.exists(), message
 
 
 def test_sign_module_script_invocation_prints_or_produces_checksum(tmp_path: Path):
@@ -175,8 +191,18 @@ def test_sign_modules_py_requires_key_unless_allow_unsigned(tmp_path: Path):
     assert with_override.returncode == 0
 
 
-def test_sign_modules_py_help_mentions_passphrase_sources():
-    """sign-modules.py help SHALL expose passphrase flag and stdin mode."""
+@pytest.mark.parametrize(
+    ("expected_flags", "description"),
+    [
+        (("--passphrase", "--passphrase-stdin", "--allow-same-version"), "passphrase sources"),
+        (("--changed-only", "--base-ref", "--bump-version"), "changed-module automation"),
+    ],
+)
+def test_sign_modules_py_help_mentions_expected_flags(
+    expected_flags: tuple[str, ...],
+    description: str,
+) -> None:
+    """sign-modules.py help SHALL document the supported automation flags."""
     if not SIGN_PYTHON_SCRIPT.exists():
         pytest.skip("sign-modules.py not present")
     import subprocess
@@ -189,28 +215,8 @@ def test_sign_modules_py_help_mentions_passphrase_sources():
         timeout=10,
     )
     assert result.returncode == 0
-    assert "--passphrase" in result.stdout
-    assert "--passphrase-stdin" in result.stdout
-    assert "--allow-same-version" in result.stdout
-
-
-def test_sign_modules_py_help_mentions_changed_module_automation():
-    """sign-modules.py help SHALL expose changed-module automation flags."""
-    if not SIGN_PYTHON_SCRIPT.exists():
-        pytest.skip("sign-modules.py not present")
-    import subprocess
-
-    result = subprocess.run(
-        ["python3", str(SIGN_PYTHON_SCRIPT), "--help"],
-        capture_output=True,
-        text=True,
-        cwd=REPO_ROOT,
-        timeout=10,
-    )
-    assert result.returncode == 0
-    assert "--changed-only" in result.stdout
-    assert "--base-ref" in result.stdout
-    assert "--bump-version" in result.stdout
+    for flag in expected_flags:
+        assert flag in result.stdout, f"Missing {description} flag {flag!r}"
 
 
 def test_sign_modules_py_changed_only_auto_bump_and_sign(tmp_path: Path):
@@ -493,6 +499,14 @@ def test_sign_modules_workflow_dispatch_signs_changed_modules_and_pushes():
     _assert_sign_modules_dispatch_raw_content(SIGN_WORKFLOW.read_text(encoding="utf-8"))
 
 
+def test_sign_modules_workflow_dispatch_resign_all_skips_version_check_base() -> None:
+    """workflow_dispatch resign-all mode should verify in relaxed mode without base version checks."""
+    raw = SIGN_WORKFLOW.read_text(encoding="utf-8")
+    assert "github.event.inputs.resign_all_manifests" in raw
+    assert 'python scripts/verify-modules-signature.py "${VERIFY_ARGS[@]}"' in raw
+    assert '--version-check-base "$BASE_REF"' in raw
+
+
 def test_sign_modules_reproducibility_runs_only_on_main_push():
     """Re-sign diff check runs on main push only (dev matches lenient verify; PRs unsigned OK)."""
     assert SIGN_WORKFLOW.is_file(), "sign-modules.yml workflow must exist"
@@ -507,11 +521,6 @@ def test_sign_modules_reproducibility_runs_only_on_main_push():
     assert reproducibility.get("if") == "github.event_name == 'push' && github.ref_name == 'main'", (
         "Reproducibility job must be gated to push events on main only"
     )
-
-
-def test_verify_modules_script_exists():
-    """Verification script SHALL exist for CI signature validation."""
-    assert VERIFY_PYTHON_SCRIPT.exists(), "scripts/verify-modules-signature.py must exist"
 
 
 def test_verify_script_reports_version_bump_failure_even_when_checksum_fails(tmp_path: Path):
@@ -703,6 +712,29 @@ def test_verify_skip_checksum_passes_when_version_bumped_without_resign(tmp_path
     assert relaxed.returncode == 0, (relaxed.stdout, relaxed.stderr)
 
 
+def test_verify_skip_checksum_accepts_unsigned_manifest(tmp_path: Path) -> None:
+    """Relaxed verification should allow unsigned manifests when checksum verification is skipped."""
+    if not VERIFY_PYTHON_SCRIPT.exists():
+        pytest.skip("verification script not present")
+
+    import subprocess
+
+    repo = tmp_path / "repo"
+    module_dir = repo / "modules" / "sample"
+    manifest = module_dir / "module-package.yaml"
+    module_dir.mkdir(parents=True)
+    manifest.write_text("name: sample\nversion: 0.1.0\npublisher: nold-ai\ncommands: [sample]\n", encoding="utf-8")
+
+    result = subprocess.run(
+        ["python3", str(VERIFY_PYTHON_SCRIPT), "--skip-checksum-verification"],
+        capture_output=True,
+        text=True,
+        cwd=repo,
+        timeout=20,
+    )
+    assert result.returncode == 0, (result.stdout, result.stderr)
+
+
 def test_verify_modules_signature_rejects_skip_with_require_signature() -> None:
     """--require-signature must remain strict; skip-checksum is for local omit policy only."""
     if not VERIFY_PYTHON_SCRIPT.exists():
@@ -816,18 +848,14 @@ def test_pr_orchestrator_quality_gates_still_depends_on_tests_for_coverage() -> 
 
 def test_pr_orchestrator_cache_paths_do_not_restore_hatch_virtualenvs() -> None:
     """PR orchestrator SHALL cache package downloads, not Hatch virtualenv directories."""
-    if not PR_ORCHESTRATOR_WORKFLOW.exists():
-        pytest.skip("pr-orchestrator workflow not present")
-    content = PR_ORCHESTRATOR_WORKFLOW.read_text(encoding="utf-8")
+    content = _read_text_or_skip(PR_ORCHESTRATOR_WORKFLOW, reason="pr-orchestrator workflow not present")
     assert "~/.cache/uv" in content
     assert "~/.local/share/hatch" not in content
 
 
 def test_publish_script_pins_virtualenv_below_21_for_hatch_build():
     """PyPI publish script SHALL pin virtualenv<21 when installing hatch."""
-    if not PUBLISH_PYPI_SCRIPT.exists():
-        pytest.skip("check-and-publish-pypi.sh not present")
-    content = PUBLISH_PYPI_SCRIPT.read_text(encoding="utf-8")
+    content = _read_text_or_skip(PUBLISH_PYPI_SCRIPT, reason="check-and-publish-pypi.sh not present")
     install_commands = re.findall(r"python -m pip install[^\n]*hatch[^\n]*", content)
     assert install_commands, "Expected hatch install command in check-and-publish-pypi.sh"
     for command in install_commands:

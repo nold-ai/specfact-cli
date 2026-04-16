@@ -77,3 +77,8 @@ def test_main_fail_closed_on_empty_stdout(gate_mod) -> None:
     proc = MagicMock(stdout="", stderr="pip-audit failed\n", returncode=2)
     with patch.object(gate_mod.subprocess, "run", return_value=proc):
         assert gate_mod.main() == 1
+
+
+def test_main_fail_closed_when_pip_audit_unavailable(gate_mod) -> None:
+    with patch.object(gate_mod.subprocess, "run", side_effect=FileNotFoundError("pip-audit not found")):
+        assert gate_mod.main() == 1

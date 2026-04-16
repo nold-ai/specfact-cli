@@ -59,7 +59,7 @@ and gracefully falls back to an empty call graph if not installed.
 **Status**: ✅ **Available** - Install via `pip install -e ".[enhanced-analysis]"` or `pip install pycg`
 
 > **Migration note**: `pyan3` (GPL-2.0) was replaced by `pycg` (MIT) to comply with the
-> Apache-2.0 license of specfact-cli. The CLI interface changed from DOT format to JSON;
+> Apache-2.0 license of specfact-cli. The CLI changed from DOT format to JSON;
 > no user-facing behaviour change.
 
 ### 2. Bandit - SAST Security Scanner

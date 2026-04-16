@@ -14,7 +14,7 @@ tracks:
   - scripts/check_license_compliance.py
   - scripts/license_allowlist.yaml
   - SECURITY.md
-last_reviewed: 2026-04-15
+last_reviewed: 2026-04-16
 exempt: false
 exempt_reason: ""
 id: agent-rules-dependency-hygiene
@@ -36,8 +36,10 @@ depends_on:
 
 **SHALL NOT** add any package with a GPL-2.0, GPL-3.0, AGPL-3.0, GPL-2.0-or-later,
 GPL-3.0-or-later, or AGPL-3.0-or-later license to any `module-package.yaml`
-`pip_dependencies` list without a `module-manifest`-scoped entry in
-`scripts/license_allowlist.yaml`.
+`pip_dependencies` list. **There is no allowlist path that permits GPL/AGPL in
+distributed module manifests.** The `scripts/license_allowlist.yaml` `module-manifest`
+scope exists exclusively for **LGPL** packages invoked as a subprocess (see Section 3,
+"CONDITIONAL"); it does not unblock GPL or AGPL licenses.
 
 Rationale: `pip_dependencies` in module manifests are installed on end-user
 systems via `specfact module install`. Force-installing GPL software constitutes
@@ -93,11 +95,17 @@ Before adding a new `pip_dependencies` entry to any `module-package.yaml`:
 | Package | Current status | Phase 2 action |
 | --- | --- | --- |
 | `pylint` | dev-only (GPL-2.0-or-later) | Replace with `ruff --select ALL` once SLF001/W0212 and R0801 gaps are resolved |
+| `yamllint` | dev-only (GPL-3.0-or-later) | Replace with a non-GPL YAML lint path once CI / pre-commit parity is preserved |
 | `gitpython` | runtime (CVE history) | Replace with `dulwich` adapter (3-file rewrite) |
 
 ## 7. Static license map
 
 `check_license_compliance.py` uses a static license map for known module
-pip_dependencies to avoid network calls. If you add a new manifest dependency
-that is not in the map, the gate will warn (not fail) and flag it for manual
-review. Add it to `_STATIC_LICENSE_MAP` in the script.
+pip_dependencies to avoid network calls. The mapping lives in
+`scripts/module_pip_dependencies_licenses.yaml` (`licenses:` key, lowercase
+package name → SPDX expression).
+
+If you add a new manifest dependency that is not in the map, the gate
+will **fail** (not warn) and flag it for review. Update
+`scripts/module_pip_dependencies_licenses.yaml` after license review before
+the manifest can be merged.

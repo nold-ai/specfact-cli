@@ -20,9 +20,11 @@ import re
 import subprocess
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import yaml
+from beartype import beartype
+from icontract import ensure
 
 
 # SPDX expressions considered GPL-family (not allowed without an allowlist entry)
@@ -50,6 +52,33 @@ _GPL_EXPRESSIONS = frozenset(
 _GPL_TOKEN_RE = re.compile(r"(?<![A-Za-z])(?:AGPL|GPL)", re.IGNORECASE)
 
 
+@beartype
+def _emit(message: str, *, error: bool = False) -> None:
+    """Write a single log line without using ``print`` in source."""
+    stream = sys.stderr if error else sys.stdout
+    stream.write(f"{message}\n")
+    stream.flush()
+
+
+@beartype
+def _validate_allowlist_entry(entry: object, *, index: int, allowlist_path: Path) -> dict[str, str]:
+    """Validate one allowlist entry and return its normalized mapping."""
+    if not isinstance(entry, dict):
+        raise RuntimeError(f"Allowlist exceptions[{index}] must be a mapping in {allowlist_path}")
+    entry_map = cast(dict[str, object], entry)
+
+    pkg = entry_map.get("package")
+    lic = entry_map.get("license")
+    reason = entry_map.get("reason", "")
+    if not isinstance(pkg, str) or not pkg.strip():
+        raise RuntimeError(f"Allowlist exceptions[{index}] must include non-empty 'package' in {allowlist_path}")
+    if not isinstance(lic, str) or not lic.strip():
+        raise RuntimeError(f"Allowlist exceptions[{index}] must include non-empty 'license' for package {pkg!r}")
+    if not isinstance(reason, str) or not reason.strip():
+        raise RuntimeError(f"Allowlist exceptions[{index}] must include non-empty 'reason' for package {pkg!r}")
+    return cast(dict[str, str], entry_map)
+
+
 def _load_allowlist(allowlist_path: Path | None = None) -> dict[str, dict[str, str]]:
     """Load license_allowlist.yaml and return {package_name: entry_dict}."""
     if allowlist_path is None:
@@ -69,25 +98,16 @@ def _load_allowlist(allowlist_path: Path | None = None) -> dict[str, dict[str, s
 
     if not isinstance(data, dict):
         raise RuntimeError(f"License allowlist root must be a mapping: {allowlist_path}")
+    data_map = cast(dict[str, object], data)
 
-    exceptions = data.get("exceptions")
+    exceptions = data_map.get("exceptions")
     if not isinstance(exceptions, list):
         raise RuntimeError(f"License allowlist must contain an 'exceptions' list: {allowlist_path}")
 
     result: dict[str, dict[str, str]] = {}
     for idx, entry in enumerate(exceptions):
-        if not isinstance(entry, dict):
-            raise RuntimeError(f"Allowlist exceptions[{idx}] must be a mapping in {allowlist_path}")
-        pkg = entry.get("package")
-        lic = entry.get("license")
-        reason = entry.get("reason", "")
-        if not isinstance(pkg, str) or not pkg.strip():
-            raise RuntimeError(f"Allowlist exceptions[{idx}] must include non-empty 'package' in {allowlist_path}")
-        if not isinstance(lic, str) or not lic.strip():
-            raise RuntimeError(f"Allowlist exceptions[{idx}] must include non-empty 'license' for package {pkg!r}")
-        if not isinstance(reason, str) or not reason.strip():
-            raise RuntimeError(f"Allowlist exceptions[{idx}] must include non-empty 'reason' for package {pkg!r}")
-        result[pkg.strip().lower()] = entry
+        normalized_entry = _validate_allowlist_entry(entry, index=idx, allowlist_path=allowlist_path)
+        result[normalized_entry["package"].strip().lower()] = normalized_entry
     return result
 
 
@@ -106,7 +126,8 @@ def _load_manifest_license_map(map_path: Path | None = None) -> dict[str, str]:
             raise RuntimeError(f"YAML parse error in manifest license map {map_path}: {exc}") from exc
     if data is None:
         raise RuntimeError(f"Manifest license mapping is empty or invalid YAML: {map_path}")
-    licenses = data.get("licenses")
+    data_map = cast(dict[str, object], data)
+    licenses = data_map.get("licenses")
     if not isinstance(licenses, dict):
         raise RuntimeError(f"Manifest license mapping must contain a 'licenses' mapping in {map_path}")
     out: dict[str, str] = {}
@@ -119,20 +140,27 @@ def _load_manifest_license_map(map_path: Path | None = None) -> dict[str, str]:
 
 def _run_pip_licenses() -> str:
     """Run pip-licenses and return raw JSON output string (empty if the subprocess fails)."""
-    result = subprocess.run(
-        [sys.executable, "-m", "pip_licenses", "--format=json"],
-        capture_output=True,
-        text=True,
-        timeout=60,
-    )
+    try:
+        result = subprocess.run(
+            [sys.executable, "-m", "piplicenses", "--format=json"],
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+    except subprocess.TimeoutExpired:
+        _emit(
+            "ERROR: pip-licenses timed out after 60s — cannot verify licenses (fail closed)",
+            error=True,
+        )
+        return ""
     if result.returncode != 0:
         detail = (result.stderr or result.stdout or "").strip()
-        print(
+        _emit(
             f"ERROR: pip-licenses subprocess failed (exit {result.returncode})",
-            flush=True,
+            error=True,
         )
         if detail:
-            print(detail, flush=True)
+            _emit(detail, error=True)
         return ""
     return result.stdout
 
@@ -150,6 +178,41 @@ def _is_gpl(license_expr: str) -> bool:
     return bool(_GPL_TOKEN_RE.search(norm))
 
 
+@beartype
+def _report_unknown_env_license(name: str, version: str) -> None:
+    _emit(f"WARNING: {name}=={version} has no resolvable license — manual review required")
+
+
+@beartype
+def _evaluate_env_package(
+    pkg: dict[str, Any],
+    allowlist: dict[str, dict[str, str]],
+) -> int:
+    """Return 1 when the package is a GPL violation, else 0."""
+    name = str(pkg.get("Name", ""))
+    version = str(pkg.get("Version", ""))
+    license_expr = str(pkg.get("License", ""))
+
+    if license_expr in {"UNKNOWN", "", "N/A", "None"}:
+        _report_unknown_env_license(name, version)
+        return 0
+
+    name_lower = name.lower()
+    if not _is_gpl(license_expr):
+        return 0
+
+    if name_lower in allowlist:
+        entry = allowlist[name_lower]
+        reason = str(entry.get("reason", "")).strip()
+        _emit(f"EXCEPTION: {name}=={version} ({license_expr}) — {reason}")
+        return 0
+
+    _emit(f"VIOLATION: {name}=={version} ({license_expr}) — GPL/AGPL incompatible with Apache-2.0")
+    return 1
+
+
+@beartype
+@ensure(lambda result: result in (0, 1))
 def scan_installed_environment(
     allowlist: dict[str, dict[str, str]] | None = None,
     allowlist_path: Path | None = None,
@@ -169,49 +232,25 @@ def scan_installed_environment(
 
     raw = _run_pip_licenses()
     if not raw.strip():
-        print(
+        _emit(
             "ERROR: pip-licenses produced no usable output — cannot verify licenses (fail closed)",
-            flush=True,
+            error=True,
         )
         return 1
     try:
         packages: list[dict[str, Any]] = json.loads(raw)
     except (json.JSONDecodeError, ValueError):
-        print(
+        _emit(
             "ERROR: pip-licenses produced unparseable output — cannot verify licenses (fail closed)",
-            flush=True,
+            error=True,
         )
         return 1
 
     violations = 0
-    checked = 0
-
     for pkg in packages:
-        name: str = pkg.get("Name", "")
-        version: str = pkg.get("Version", "")
-        license_expr: str = pkg.get("License", "")
-        checked += 1
+        violations += _evaluate_env_package(pkg, allowlist)
 
-        if license_expr in ("UNKNOWN", "", "N/A", "None"):
-            print(f"WARNING: {name}=={version} has no resolvable license — manual review required", flush=True)
-            continue
-
-        name_lower = name.lower()
-
-        if _is_gpl(license_expr):
-            if name_lower in allowlist:
-                entry = allowlist[name_lower]
-                reason = entry.get("reason", "")
-                # dev-only and module-manifest allowlist entries both accepted in env scan
-                print(f"EXCEPTION: {name}=={version} ({license_expr}) — {reason.strip()}", flush=True)
-            else:
-                print(
-                    f"VIOLATION: {name}=={version} ({license_expr}) — GPL/AGPL incompatible with Apache-2.0",
-                    flush=True,
-                )
-                violations += 1
-
-    print(f"\nEnvironment scan: {checked} packages checked, {violations} violation(s)", flush=True)
+    _emit(f"\nEnvironment scan: {len(packages)} packages checked, {violations} violation(s)")
     return 1 if violations > 0 else 0
 
 
@@ -231,6 +270,97 @@ def _collect_module_manifest_paths(repo_root: Path, packages_dir: Path | None) -
     return sorted(set(paths))
 
 
+@beartype
+def _normalize_dependency_name(dep: str) -> str:
+    """Normalize a pip requirement string to its package name."""
+    return dep.split(">=")[0].split("==")[0].split("~=")[0].strip()
+
+
+@beartype
+def _handle_missing_manifest_license(module_name: str, dep_name: str) -> int:
+    _emit(
+        f"MODULE MANIFEST VIOLATION: {module_name}/module-package.yaml lists {dep_name} "
+        "without an SPDX license entry in scripts/module_pip_dependencies_licenses.yaml — "
+        "add the package under 'licenses' after license review"
+    )
+    return 1
+
+
+@beartype
+def _handle_gpl_manifest_dependency(
+    module_name: str,
+    dep_name: str,
+    license_expr: str,
+    allowlist: dict[str, dict[str, str]],
+) -> int:
+    """Return 1 when the manifest dependency is a GPL violation, else 0."""
+    entry = allowlist.get(dep_name.lower(), {})
+    scope = str(entry.get("scope", ""))
+
+    if scope == "module-manifest":
+        _emit(
+            f"EXCEPTION: {module_name}/module-package.yaml lists "
+            f"{dep_name} ({license_expr}) — {str(entry.get('reason', '')).strip()}"
+        )
+        return 0
+
+    if scope == "dev-only":
+        _emit(
+            f"MODULE MANIFEST VIOLATION: {module_name}/module-package.yaml lists "
+            f"{dep_name} with {license_expr} — "
+            "dev-only exception does not apply to distributed module manifests"
+        )
+        return 1
+
+    _emit(
+        f"MODULE MANIFEST VIOLATION: {module_name}/module-package.yaml lists "
+        f"{dep_name} with {license_expr} — incompatible with Apache-2.0"
+    )
+    return 1
+
+
+@beartype
+def _scan_manifest_dependency(
+    module_name: str,
+    dep: str,
+    allowlist: dict[str, dict[str, str]],
+    static_license_map: dict[str, str],
+) -> int:
+    dep_name = _normalize_dependency_name(dep)
+    license_expr = static_license_map.get(dep_name.lower(), "")
+    if not license_expr:
+        return _handle_missing_manifest_license(module_name, dep_name)
+    if not _is_gpl(license_expr):
+        return 0
+    return _handle_gpl_manifest_dependency(module_name, dep_name, license_expr, allowlist)
+
+
+@beartype
+def _iter_manifest_dependencies(manifest_path: Path) -> list[str]:
+    with manifest_path.open(encoding="utf-8") as fh:
+        manifest = yaml.safe_load(fh) or {}
+    manifest_map = cast(dict[str, object], manifest)
+    pip_deps_raw = manifest_map.get("pip_dependencies", []) or []
+    if not isinstance(pip_deps_raw, list):
+        return []
+    return [dep for dep in pip_deps_raw if isinstance(dep, str)]
+
+
+@beartype
+def _scan_manifest_path(
+    manifest_path: Path,
+    allowlist: dict[str, dict[str, str]],
+    static_license_map: dict[str, str],
+) -> int:
+    module_name = manifest_path.parent.name
+    return sum(
+        _scan_manifest_dependency(module_name, dep, allowlist, static_license_map)
+        for dep in _iter_manifest_dependencies(manifest_path)
+    )
+
+
+@beartype
+@ensure(lambda result: result in (0, 1))
 def scan_module_manifests(
     packages_dir: Path | None = None,
     allowlist: dict[str, dict[str, str]] | None = None,
@@ -267,99 +397,48 @@ def scan_module_manifests(
     manifest_paths = _collect_module_manifest_paths(repo_root, packages_dir)
     if not manifest_paths:
         if packages_dir is None:
-            print(
+            _emit(
                 "ERROR: no module-package.yaml found under modules/ or "
                 "src/specfact_cli/modules/ — manifest license gate cannot run",
-                flush=True,
+                error=True,
             )
             return 1
-        print("No module-package.yaml files found under scan root — skipping manifest scan", flush=True)
+        _emit("No module-package.yaml files found under scan root — skipping manifest scan")
         return 0
 
-    violations = 0
-
-    for manifest_path in sorted(manifest_paths):
-        module_name = manifest_path.parent.name
-        with manifest_path.open(encoding="utf-8") as fh:
-            manifest = yaml.safe_load(fh) or {}
-
-        pip_deps: list[str] = manifest.get("pip_dependencies", []) or []
-
-        for dep in pip_deps:
-            dep_name = dep.split(">=")[0].split("==")[0].split("~=")[0].strip()
-            dep_lower = dep_name.lower()
-
-            # Resolve license: static map first, then skip with warning
-            license_expr = static_license_map.get(dep_lower, "")
-            if not license_expr:
-                print(
-                    f"MODULE MANIFEST VIOLATION: {module_name}/module-package.yaml lists {dep_name} "
-                    "without an SPDX license entry in scripts/module_pip_dependencies_licenses.yaml — "
-                    "add the package under 'licenses' after license review",
-                    flush=True,
-                )
-                violations += 1
-                continue
-
-            if _is_gpl(license_expr):
-                entry = allowlist.get(dep_lower, {})
-                scope = entry.get("scope", "")
-
-                if scope == "module-manifest":
-                    # LGPL+subprocess exceptions accepted in manifests
-                    print(
-                        f"EXCEPTION: {module_name}/module-package.yaml lists "
-                        f"{dep_name} ({license_expr}) — {entry.get('reason', '').strip()}",
-                        flush=True,
-                    )
-                elif scope == "dev-only":
-                    # dev-only entries are BLOCKED in manifests
-                    print(
-                        f"MODULE MANIFEST VIOLATION: {module_name}/module-package.yaml lists "
-                        f"{dep_name} with {license_expr} — "
-                        "dev-only exception does not apply to distributed module manifests",
-                        flush=True,
-                    )
-                    violations += 1
-                else:
-                    print(
-                        f"MODULE MANIFEST VIOLATION: {module_name}/module-package.yaml lists "
-                        f"{dep_name} with {license_expr} — incompatible with Apache-2.0",
-                        flush=True,
-                    )
-                    violations += 1
-
-    print(
-        f"\nManifest scan: {len(manifest_paths)} manifest(s) checked, {violations} violation(s)",
-        flush=True,
+    violations = sum(
+        _scan_manifest_path(manifest_path, allowlist, static_license_map) for manifest_path in sorted(manifest_paths)
     )
+    _emit(f"\nManifest scan: {len(manifest_paths)} manifest(s) checked, {violations} violation(s)")
     return 1 if violations > 0 else 0
 
 
+@beartype
+@ensure(lambda result: result in (0, 1))
 def main() -> int:
     """Run both env and manifest scans. Return combined exit code."""
     try:
         allowlist = _load_allowlist()
     except RuntimeError as exc:
-        print(f"ERROR: {exc}", flush=True)
+        _emit(f"ERROR: {exc}", error=True)
         return 1
 
-    print("=" * 60)
-    print("specfact-cli License Compliance Gate")
-    print("=" * 60)
+    _emit("=" * 60)
+    _emit("specfact-cli License Compliance Gate")
+    _emit("=" * 60)
 
-    print("\n--- Installed environment scan ---")
+    _emit("\n--- Installed environment scan ---")
     env_exit = scan_installed_environment(allowlist=allowlist)
 
-    print("\n--- Module manifest scan ---")
+    _emit("\n--- Module manifest scan ---")
     try:
         manifest_exit = scan_module_manifests(allowlist=allowlist)
     except RuntimeError as exc:
-        print(f"ERROR: {exc}", flush=True)
+        _emit(f"ERROR: {exc}", error=True)
         manifest_exit = 1
 
     overall = 1 if (env_exit or manifest_exit) else 0
-    print("\n" + ("PASS" if overall == 0 else "FAIL") + " — overall exit code:", overall)
+    _emit(f"\n{'PASS' if overall == 0 else 'FAIL'} — overall exit code: {overall}")
     return overall
 
 

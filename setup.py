@@ -31,7 +31,7 @@ if __name__ == "__main__":
             "gitpython>=3.1.45",
             "ruamel.yaml>=0.18.16",
             "jsonschema>=4.23.0",
-            "json5>=0.9.28",
+            "commentjson>=0.9.0",
             "icontract>=2.7.1",
             "beartype>=0.22.4",
             "watchdog>=6.0.0",

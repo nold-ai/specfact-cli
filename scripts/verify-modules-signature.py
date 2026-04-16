@@ -289,6 +289,10 @@ def verify_manifest(
     if not isinstance(raw, dict):
         raise ValueError("manifest YAML must be object")
     data = cast(dict[str, Any], raw)
+    if not verify_checksum:
+        if require_signature:
+            raise ValueError("require_signature is incompatible with verify_checksum=False")
+        return
     integrity_raw = data.get("integrity")
     if not isinstance(integrity_raw, dict):
         raise ValueError("missing integrity metadata")
@@ -298,10 +302,6 @@ def verify_manifest(
     if not checksum:
         raise ValueError("missing integrity.checksum")
     algo, digest = _parse_checksum(checksum)
-    if not verify_checksum:
-        if require_signature:
-            raise ValueError("require_signature is incompatible with verify_checksum=False")
-        return
 
     payload = _module_payload(manifest_path.parent, payload_from_filesystem=payload_from_filesystem)
     actual = hashlib.new(algo, payload).hexdigest().lower()

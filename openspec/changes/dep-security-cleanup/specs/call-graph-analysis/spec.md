@@ -61,4 +61,4 @@ All packages in the `enhanced-analysis` extra SHALL use MIT, Apache-2.0, BSD, or
 
 **Reason:** `pyan3` is licensed GPL-2.0, incompatible with specfact-cli's Apache-2.0 license and blocking future enterprise/commercial licensing. `pyan3` has also had no active releases since 2022.
 
-**Migration:** Replace `pyan3` with `pycg` (`pip install pycg`). The CLI interface changes from `pyan3 <file> --dot` to `pycg --package <repo> <file> --output out.json`. Output format changes from DOT to JSON; internal parser updated accordingly. All public API contracts are preserved.
+**Migration:** Replace `pyan3` with `pycg` (`pip install pycg`). Invocation changes from `pyan3 <file> --dot` to `pycg --package <repo> <file> --output out.json`. Output format changes from DOT to JSON; internal parser updated accordingly. All public API contracts are preserved.

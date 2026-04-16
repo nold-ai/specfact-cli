@@ -40,9 +40,9 @@ Current affected files:
 - `importlab` (Google, Apache-2.0) — analyzes import graphs only, not call graphs.
 - Custom AST walker — significant implementation effort for equivalent coverage; YAGNI given `pycg` exists.
 
-**Rationale:** `pycg` is invoked as a CLI subprocess (same pattern as `pyan3`), outputs JSON (`{callee: [caller, ...]}`) rather than DOT format, and is MIT-licensed. The call-graph feature in `graph_analyzer.py` is already optional (guarded by `check_cli_tool_available`), so the DOT→JSON parser swap is entirely internal to `extract_call_graph` and `_parse_dot_file`. No public API change.
+**Rationale:** `pycg` is invoked as a CLI subprocess (same pattern as `pyan3`), outputs JSON (`{caller: [callee, ...]}` simple JSON adjacency list, where the value list contains the callees of the key) rather than DOT format, and is MIT-licensed. The call-graph feature in `graph_analyzer.py` is already optional (guarded by `check_cli_tool_available`), so the DOT→JSON parser swap is entirely internal to `extract_call_graph` and `_parse_dot_file`. No public API change.
 
-**Adapter change:** `_parse_dot_file(dot_path: Path) → dict[str, list[str]]` is renamed to `_parse_pycg_json(json_path: Path) → dict[str, list[str]]`. The method body changes from DOT regex parsing to `json.loads`. The return type and the public `extract_call_graph` signature are unchanged.
+**Adapter change:** `_parse_dot_file(dot_path: Path) → dict[str, list[str]]` is renamed to `_parse_pycg_json(json_path: Path) → dict[str, list[str]]`. The method body changes from DOT regex parsing to `json.loads`. Edge direction is preserved as caller → callees (matching `extract_call_graph`'s public contract). The return type and the public `extract_call_graph` signature are unchanged.
 
 ### Decision 2: `commentjson` + stdlib `json` over other JSONC alternatives
 
@@ -111,7 +111,7 @@ This makes the exception policy auditable and keeps future maintainers from acci
   reason: "Required for code analysis in all envs. LGPL not GPL/AGPL; invoked as subprocess."
 ```
 
-**Agent-rules integration:** A new section added to `docs/agent-rules/` (e.g., `50-dependency-hygiene.md`) that specifies the (A)GPL prohibition, allowlist process, and required gates. Indexed in `docs/agent-rules/INDEX.md`.
+**Agent-rules integration:** A new section added to `docs/agent-rules/` (`55-dependency-hygiene.md`) that specifies the (A)GPL prohibition, allowlist process, and required gates. Indexed in `docs/agent-rules/INDEX.md`.
 
 ## Risks / Trade-offs
 
@@ -137,6 +137,20 @@ This makes the exception policy auditable and keeps future maintainers from acci
 8. **Docs review**: Check `docs/` and README for any references to `pyan3`, `json5`, `bearer`, `syft`; update install instructions and dependency documentation.
 
 **Rollback**: The worktree branch can be abandoned with `git worktree remove`. No database or schema migrations involved; pyproject.toml changes are fully reversible.
+
+### Decision 7: Auto-publish bundled modules from CI after sign-modules
+
+**Chosen:** Add a `workflow_run` trigger to `.github/workflows/publish-modules.yml` that fires after `sign-modules.yml` (Module Signature Hardening) completes successfully on dev/main, plus a new `auto-publish` job that compares each bundled `module-package.yaml` `version` against the corresponding registry entry's `latest_version` and packages every module whose version is strictly greater.
+
+**Why this scope extension is in this change:** the dependency cleanup removed local-sign requirements and pushed signing into CI (sign-modules.yml). That left the registry unreachable on dev pushes because `publish-modules.yml` only triggered on tag-push / `workflow_dispatch`, and the bot's auto-sign commit carries `[skip ci]` (which suppresses `push` events but **not** `workflow_run`). Without the trigger added here, every dev merge would silently leave the registry stale relative to bumped modules.
+
+**Alternatives considered:**
+
+- Drop `[skip ci]` from the auto-sign commit and add a `push` trigger — risks an infinite loop with sign-modules.yml itself; `[skip ci]` is load-bearing for that.
+- Detect changed modules via `git diff HEAD HEAD~1` — misses cases where the user pre-bumped the version in the merged PR (the auto-sign commit then only changes signature fields, not version).
+- One PR per module — noisier registry history; rejected in favor of one combined PR per CI run.
+
+**Rationale:** Comparing manifest version vs registry `latest_version` is robust to all version-bump origins (user bump, sign-modules auto-bump, multiple sequential merges). The check is implemented in `scripts/_detect_modules_to_publish.py` using `packaging.version.Version` for semver-correct comparison. The existing tag-push and `workflow_dispatch` flows are preserved untouched.
 
 ## Open Questions
 

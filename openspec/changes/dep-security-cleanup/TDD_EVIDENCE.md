@@ -116,7 +116,7 @@ Commands (from worktree root):
 ```bash
 hatch run format
 hatch run type-check
-hatch run pytest tests/unit/analyzers/test_graph_analyzer.py \
+hatch test -- tests/unit/analyzers/test_graph_analyzer.py \
   tests/unit/utils/test_optional_deps.py tests/unit/utils/test_project_artifact_write.py \
   tests/unit/scripts/test_check_license_compliance.py tests/unit/scripts/test_security_audit_gate.py -q
 openspec validate dep-security-cleanup --strict
@@ -129,9 +129,12 @@ hatch run license-check   # see note below
 ### Results
 
 - **format / type-check**: clean for touched scope.
-- **Targeted pytest** (graph / optional_deps / project_artifact_write / license script / security gate): all passed.
+- **Targeted hatch test** (graph / optional_deps / project_artifact_write / license script / security gate):
+  `57 passed`, 2 upstream deprecation warnings from `lark` in the hatch-test Python 3.11 env.
 - **Full suite**: `hatch test -q` — **2548 passed**, 9 skipped.
 - **openspec validate dep-security-cleanup --strict**: valid.
 - **security-audit** (`python scripts/security_audit_gate.py`): exit 0; pip CVE for `pip` reported with CVSS default 0.0 (WARNING only per gate).
 - **bandit-scan**: completes with findings (Low/Medium/High counts in Bandit summary); exit code 1 — treat as **review baseline**, not introduced by this remediation slice.
-- **license-check**: in this Hatch default environment `pip_licenses` was not importable (`No module named pip_licenses`), so the gate failed closed as designed. Re-run after `pip install -e ".[dev]"` (or Hatch env with dev extra) where `pip-licenses` is installed.
+- **license-check**: exit 0. Fixed the runner to invoke `python -m piplicenses`, and documented the
+  dev-only GPL `yamllint` exception alongside existing `pylint` policy. `commentjson` and `peewee`
+  still report `UNKNOWN` and therefore remain warnings, not gate failures.
