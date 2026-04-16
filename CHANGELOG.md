@@ -17,6 +17,8 @@ All notable changes to this project will be documented in this file.
 - **Version sources**: patch bump so commits that touch canonical version files
   satisfy `check-version-sources` / pre-commit together with `CHANGELOG.md`.
 
+---
+
 ## [0.46.3] - 2026-04-16
 
 ### Added
@@ -38,10 +40,6 @@ All notable changes to this project will be documented in this file.
 ### Changed
 
 - **Dependency hygiene (`dep-security-cleanup`)**:
-  - **Removed** GPL/wrong-PyPI packages from distributed extras:
-    `pyan3` (GPL-2.0; replaced by `pycg` MIT), `bearer` (wrong PyPI;
-    replaced by `bandit` MIT), `syft` (wrong PyPI; Anchore Syft is
-    out-of-band).
   - **Replaced** runtime `json5` with `commentjson` (read) + stdlib
     `json` (write).
   - **Added** `pycg`, `bandit`, `pip-licenses`, and `pip-audit` to the
@@ -58,6 +56,18 @@ All notable changes to this project will be documented in this file.
   (`pyproject.toml`, `setup.py`, `src/__init__.py`,
   `src/specfact_cli/__init__.py`; lenient network), with remediation
   hints on failure.
+- **Module verification alignment**: when signed module assets or
+  `module-package.yaml` / bundled registry snapshots are in play, keep
+  pre-commit and CI flags aligned with `scripts/module-verify-policy.sh`
+  (strict on protected branches, relaxed PR bundle with checksum skip where
+  documented). Teams mirroring automation in **specfact-cli-modules** should
+  match the same policy bundles to avoid drift.
+
+### Removed
+
+- **GPL / wrong-PyPI packages** (from distributed extras): `pyan3` (GPL-2.0;
+  replaced by MIT `pycg`), `bearer` (wrong PyPI; replaced by MIT `bandit`),
+  `syft` (wrong PyPI; Anchore Syft remains out-of-band).
 
 ### Fixed
 
@@ -87,6 +97,8 @@ All notable changes to this project will be documented in this file.
   use it so PRs that edit `pyproject.toml` (for example dependencies)
   without bumping `project.version` are not blocked by the PyPI-ahead
   step.
+
+---
 
 ## [0.46.2] - 2026-04-15
 

@@ -186,6 +186,14 @@ def _report_unknown_env_license(name: str, version: str) -> None:
 
 
 @beartype
+def _allowlist_license_matches_observed(entry_license: str, observed_license: str) -> bool:
+    """True when an allowlist entry's SPDX string matches the observed pip-licenses expression."""
+    left = entry_license.strip().lower()
+    right = observed_license.strip().lower()
+    return bool(left) and left == right
+
+
+@beartype
 def _evaluate_env_package(
     pkg: dict[str, Any],
     allowlist: dict[str, list[dict[str, str]]],
@@ -203,7 +211,8 @@ def _evaluate_env_package(
     if not _is_gpl(license_expr):
         return 0
 
-    entries = allowlist.get(name_lower, [])
+    entries_all = allowlist.get(name_lower, [])
+    entries = [e for e in entries_all if _allowlist_license_matches_observed(str(e.get("license", "")), license_expr)]
     if entries:
         reason_parts = [
             str(entry.get("reason", "")).strip() for entry in entries if str(entry.get("reason", "")).strip()
@@ -212,7 +221,7 @@ def _evaluate_env_package(
         _emit(f"EXCEPTION: {name}=={version} ({license_expr}) — {reasons}")
         return 0
 
-    _emit(f"VIOLATION: {name}=={version} ({license_expr}) — GPL/AGPL incompatible with Apache-2.0")
+    _emit(f"LICENSE VIOLATION: {name}=={version} uses {license_expr} — GPL/AGPL incompatible with Apache-2.0")
     return 1
 
 
@@ -305,7 +314,8 @@ def _handle_gpl_manifest_dependency(
     allowlist: dict[str, list[dict[str, str]]],
 ) -> int:
     """Return 1 when the manifest dependency is a GPL violation, else 0."""
-    entries = allowlist.get(dep_name.lower(), [])
+    entries_all = allowlist.get(dep_name.lower(), [])
+    entries = [e for e in entries_all if _allowlist_license_matches_observed(str(e.get("license", "")), license_expr)]
     for entry in entries:
         scope = str(entry.get("scope", ""))
         if scope == "module-manifest":
@@ -315,7 +325,9 @@ def _handle_gpl_manifest_dependency(
             )
             return 0
 
-    for entry in entries:
+    for entry in entries_all:
+        if not _allowlist_license_matches_observed(str(entry.get("license", "")), license_expr):
+            continue
         scope = str(entry.get("scope", ""))
         if scope == "dev-only":
             _emit(

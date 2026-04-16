@@ -93,7 +93,7 @@ This makes the exception policy auditable and keeps future maintainers from acci
 **Gate design:**
 
 - `hatch run license-check` → `python scripts/check_license_compliance.py`
-- `hatch run security-audit` → `pip-audit --desc --strict`
+- `hatch run security-audit` → `python scripts/security_audit_gate.py` (CVSS-threshold wrapper over `pip-audit` JSON)
 - `hatch run bandit-scan` → `bandit -r src/ -ll`
 - CI: both gates run on every PR; `license-check` specifically triggered on `pyproject.toml` changes.
 

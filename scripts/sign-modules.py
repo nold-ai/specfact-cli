@@ -214,11 +214,25 @@ def _read_manifest_version(path: Path) -> str | None:
     return version or None
 
 
+def _git_repository_toplevel() -> Path | None:
+    try:
+        completed = subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except Exception:
+        return None
+    top = completed.stdout.strip()
+    return Path(top).resolve() if top else None
+
+
 def _read_manifest_version_from_git(git_ref: str, path: Path) -> str | None:
-    repo_root = Path.cwd().resolve()
+    repo_top = _git_repository_toplevel() or Path.cwd().resolve()
     git_path = path.resolve()
     try:
-        relative_path = git_path.relative_to(repo_root).as_posix()
+        relative_path = git_path.relative_to(repo_top).as_posix()
     except ValueError:
         relative_path = path.as_posix()
     try:

@@ -85,6 +85,31 @@ def _parse_semver(version: str) -> tuple[int, int, int] | None:
     return (int(major), int(minor), int(patch))
 
 
+def _read_staged_blob(root: Path, relative_posix: str) -> str | None:
+    """Return index (staged) content for ``relative_posix``, or None if unavailable."""
+    try:
+        completed = subprocess.run(
+            ["git", "show", f":{relative_posix}"],
+            cwd=root,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return None
+    return completed.stdout
+
+
+def _read_text_for_version_gate(root: Path, relative_posix: str, staged_files: set[str]) -> str:
+    """Prefer staged (index) bytes when the path is staged; else working tree."""
+    if relative_posix in staged_files:
+        staged = _read_staged_blob(root, relative_posix)
+        if staged is not None:
+            return staged
+    path = root / relative_posix
+    return path.read_text(encoding="utf-8") if path.is_file() else ""
+
+
 def _read_file_at_git_ref(root: Path, git_ref: str, relative_path: str) -> str | None:
     try:
         completed = subprocess.run(
@@ -151,8 +176,7 @@ def _enforce_packaged_artifact_versioning(root: Path, staged_files: set[str], cu
         )
         sys.stderr.write(_REMEDIATION)
         return 1
-    changelog_path = root / "CHANGELOG.md"
-    changelog_text = changelog_path.read_text(encoding="utf-8") if changelog_path.is_file() else ""
+    changelog_text = _read_text_for_version_gate(root, "CHANGELOG.md", staged_files)
     if _changelog_has_release_header(changelog_text, current_version):
         return 0
     sys.stderr.write(
@@ -167,6 +191,7 @@ def _enforce_packaged_artifact_versioning(root: Path, staged_files: set[str], cu
 @ensure(lambda result: result >= 0, "exit code must be non-negative")
 def main() -> int:
     root = _repo_root()
+    staged_files = set(_staged_files(root))
     paths = {
         "pyproject.toml": root / "pyproject.toml",
         "setup.py": root / "setup.py",
@@ -179,7 +204,7 @@ def main() -> int:
             sys.stderr.write(f"check_version_sources: missing file {path.relative_to(root)}\n")
             sys.stderr.write(_REMEDIATION)
             return 2
-        text = path.read_text(encoding="utf-8")
+        text = _read_text_for_version_gate(root, label, staged_files)
         ver = _version_reader_for(label)(text)
         if not ver:
             sys.stderr.write(f"check_version_sources: could not parse version in {label}\n")
@@ -198,7 +223,6 @@ def main() -> int:
         sys.stderr.write(_REMEDIATION)
         return 1
 
-    staged_files = set(_staged_files(root))
     if any(_is_packaged_artifact(path) for path in staged_files):
         return _enforce_packaged_artifact_versioning(root, staged_files, unique[0])
     return 0

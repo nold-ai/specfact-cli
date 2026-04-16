@@ -1,3 +1,11 @@
+## 0. Worktree / bootstrap / cleanup (AGENTS.md Git Worktree Policy)
+
+- [ ] 0.1 Create worktree from `origin/dev`: `git worktree add ../specfact-cli-worktrees/chore/<slug> -b <branch> origin/dev`
+- [ ] 0.2 `cd` into the worktree; run `hatch env create`
+- [ ] 0.3 Pre-flight: `hatch run smart-test-status`, `hatch run contract-test-status`, and branch sanity checks
+- [ ] 0.4 After merge: `git worktree remove`, `git branch -d`, `git worktree prune` as applicable
+- [ ] 0.5 Self-check: confirm AGENTS.md **Git Worktree Policy** was followed for implementation commits
+
 ## 1. Spec-Driven Test Scaffolding (write tests first, expect failure)
 
 - [x] 1.1 Write failing unit tests for `graph_analyzer.extract_call_graph` using mocked `pycg` subprocess (JSON output format, non-zero exit, binary missing)
@@ -78,7 +86,7 @@
 
 ## 10. TDD Completion and Code Review
 
-- [x] 10.1 Run full test suite (`hatch test --cover -v`) — all tests must pass — **verified 2026-04-16** via `hatch test -q` (2548 passed, 9 skipped); use `hatch test --cover -v` before merge if coverage gate required
+- [x] 10.1 Run full test suite (`hatch test --cover -v`) — all tests must pass — **verified 2026-04-16** (2548 passed, 9 skipped); re-run `hatch test --cover -v` before merge when the coverage gate applies
 - [x] 10.2 Run `hatch run license-check` — exit 0 on 2026-04-16 after fixing the `piplicenses` module invocation and documenting the dev-only `yamllint` exception
 - [x] 10.3 Run `hatch run security-audit` — review output; resolve any high-severity findings — **2026-04-16**: wrapper exit 0; pip GHSA reported as WARNING (CVSS 0.0 in JSON)
 - [x] 10.4 Run `hatch run bandit-scan` — review output; document or fix any findings — **2026-04-16**: scan run; Bandit reports existing issue counts (non-zero exit); baseline documented in `TDD_EVIDENCE.md`

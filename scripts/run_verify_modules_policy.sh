@@ -7,6 +7,9 @@ ROOT=$(cd "$(dirname "$0")" && pwd)
 source "${ROOT}/module-verify-policy.sh"
 mode=${1:?usage: run_verify_modules_policy.sh strict|pr|push-orchestrator -- [extra args]}
 shift
+if [ "${1:-}" = "--" ]; then
+  shift
+fi
 case "${mode}" in
   strict)
     exec python "${ROOT}/verify-modules-signature.py" "${VERIFY_MODULES_STRICT[@]}" "$@"

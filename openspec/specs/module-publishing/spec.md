@@ -33,5 +33,5 @@ The system SHALL provide .github/workflows/publish-modules.yml that automates pu
 - **THEN** workflow SHALL run publish-module.py for that module
 - **AND** SHALL generate checksum
 - **AND** SHALL sign tarball (if signing configured)
-- **AND** SHALL update `resources/bundled-module-registry/index.json` in **specfact-cli**
+- **AND** SHALL update `resources/bundled-module-registry/index.json` in **specfact-cli** using the same entry schema enforced by `scripts/update-registry-index.py` (each registry entry MUST include `id`, `latest_version`, `download_url`, and `checksum_sha256`; fragments produced by `publish-module.py` must satisfy `_load_entry` in that script)
 - **AND** SHALL create a pull request in **specfact-cli** (not in `specfact-cli-modules`)

@@ -12,9 +12,19 @@ from unittest.mock import patch
 import pytest
 
 
+def _repo_root_for_scripts() -> Path:
+    """Resolve specfact-cli root by walking upward (avoids brittle parent-depth indexing)."""
+    here = Path(__file__).resolve().parent
+    for candidate in (here, *here.parents):
+        script = candidate / "scripts" / "check_license_compliance.py"
+        if script.is_file() and (candidate / "pyproject.toml").is_file():
+            return candidate
+    raise AssertionError("Could not locate repository root containing scripts/check_license_compliance.py")
+
+
 def _load_module():
     """Load check_license_compliance.py as a Python module."""
-    root = Path(__file__).resolve().parents[3]
+    root = _repo_root_for_scripts()
     path = root / "scripts" / "check_license_compliance.py"
     assert path.exists(), f"scripts/check_license_compliance.py not found at {path}"
     spec = importlib.util.spec_from_file_location("_check_license_compliance", path)
@@ -85,7 +95,7 @@ class TestGplViolationDetected:
         assert exit_code == 1, "GPL violation must exit 1"
 
     def test_scan_installed_env_prints_violation_message(self, mod, capsys) -> None:
-        """Gate prints VIOLATION message including package name and license."""
+        """Gate prints LICENSE VIOLATION including package name and license."""
         with patch.object(
             mod,
             "_run_pip_licenses",
@@ -94,7 +104,21 @@ class TestGplViolationDetected:
             mod.scan_installed_environment(allowlist={})
         captured = capsys.readouterr()
         assert "pylint" in captured.out
-        assert "GPL" in captured.out or "violation" in captured.out.lower()
+        assert "LICENSE VIOLATION" in captured.out
+        assert "GPL" in captured.out
+
+    def test_allowlist_wrong_license_does_not_suppress_gpl(self, mod) -> None:
+        """Allowlist entry whose license field does not match pip output must not grant an exception."""
+        allowlist = {
+            "pylint": [{"package": "pylint", "license": "MIT", "scope": "dev-only", "reason": "wrong license row"}]
+        }
+        with patch.object(
+            mod,
+            "_run_pip_licenses",
+            return_value=_GPL_PIP_LICENSES,
+        ):
+            exit_code = mod.scan_installed_environment(allowlist=allowlist)
+        assert exit_code == 1
 
 
 class TestAllowlistAccepted:

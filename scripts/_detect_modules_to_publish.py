@@ -34,7 +34,12 @@ def _load_registry_versions(path: Path) -> dict[str, str]:
     if not isinstance(raw_obj, dict):
         raise ValueError(f"Registry index JSON root must be an object ({path})")
     raw = cast(dict[str, Any], raw_obj)
-    modules = raw.get("modules") or []
+    if "modules" not in raw or not isinstance(raw["modules"], list):
+        raise ValueError(
+            f"Registry index at {path} must contain a JSON array at key 'modules' "
+            "(same contract as scripts/update-registry-index.py)."
+        )
+    modules = cast(list[Any], raw["modules"])
     versions: dict[str, str] = {}
     for entry in modules:
         if not isinstance(entry, dict):
@@ -65,9 +70,14 @@ def _is_strictly_newer(candidate: str, registered: str | None) -> bool:
     if not registered:
         return True
     try:
-        return Version(candidate) > Version(registered)
+        cand = Version(candidate)
     except InvalidVersion:
-        return candidate != registered
+        return False
+    try:
+        reg = Version(registered)
+    except InvalidVersion:
+        return False
+    return cand > reg
 
 
 @beartype
@@ -107,6 +117,8 @@ def _select_modules_to_publish(manifests: list[Path], registry_versions: dict[st
 
 
 @beartype
+@require(lambda argv: argv is None or (isinstance(argv, list) and all(isinstance(x, str) for x in argv)))
+@ensure(lambda result: isinstance(result, int))
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--registry-index", required=True, type=Path)

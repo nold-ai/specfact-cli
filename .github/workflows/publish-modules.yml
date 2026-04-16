@@ -61,7 +61,7 @@ jobs:
         run: |
           TAG="${GITHUB_REF#refs/tags/}"
           NAME="${TAG%-v*}"
-          VERSION="${TAG#*-v}"
+          VERSION="${TAG##*-v}"
           echo "module_name=${NAME}" >> "$GITHUB_OUTPUT"
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           NAME_NORM=$(echo "$NAME" | tr '-' '_')
@@ -91,6 +91,19 @@ jobs:
           if [ -f "$MANIFEST" ]; then
             python scripts/sign-modules.py --payload-from-filesystem "$MANIFEST"
           fi
+
+      - name: Verify module manifest (policy)
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            MODULE_PATH="${{ github.event.inputs.module_path }}"
+          else
+            MODULE_PATH="${{ steps.resolve.outputs.module_path }}"
+          fi
+          MANIFEST="${MODULE_PATH}/module-package.yaml"
+          # shellcheck disable=SC1091
+          source scripts/module-verify-policy.sh
+          python scripts/verify-modules-signature.py "${VERIFY_MODULES_STRICT[@]}" --version-check-base "HEAD~1" "$MANIFEST"
 
       - name: Publish module
         id: publish
@@ -177,6 +190,7 @@ jobs:
     # the bot's auto-sign commit (push events would be).
     if: >-
       github.event_name == 'workflow_run' &&
+      github.event.workflow_run.event == 'push' &&
       github.event.workflow_run.conclusion == 'success' &&
       (github.event.workflow_run.head_branch == 'dev' || github.event.workflow_run.head_branch == 'main')
     runs-on: ubuntu-latest
@@ -195,6 +209,12 @@ jobs:
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
           fetch-depth: 0
+
+      - name: Sync to branch tip (post-sign pushes may advance beyond workflow_run head)
+        run: |
+          set -euo pipefail
+          git fetch origin "${HEAD_BRANCH}"
+          git reset --hard "origin/${HEAD_BRANCH}"
 
       - name: Set up Python
         uses: actions/setup-python@v5

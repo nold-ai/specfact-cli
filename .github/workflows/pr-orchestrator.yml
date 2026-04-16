@@ -651,7 +651,6 @@ jobs:
     name: Security Audit (pip-audit)
     runs-on: ubuntu-latest
     needs: [changes, verify-module-signatures]
-    if: needs.changes.outputs.code_changed == 'true' && needs.changes.outputs.skip_tests_dev_to_main != 'true'
     permissions:
       contents: read
     steps:

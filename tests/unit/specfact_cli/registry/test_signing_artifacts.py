@@ -196,7 +196,10 @@ def test_sign_modules_py_requires_key_unless_allow_unsigned(tmp_path: Path):
     ("expected_flags", "description"),
     [
         (("--passphrase", "--passphrase-stdin", "--allow-same-version"), "passphrase sources"),
-        (("--changed-only", "--base-ref", "--bump-version"), "changed-module automation"),
+        (
+            ("--changed-only", "--base-ref", "--bump-version", "--version-only"),
+            "changed-module automation",
+        ),
         (("--repair-stale-integrity", "--payload-from-filesystem"), "stale checksum repair"),
     ],
 )

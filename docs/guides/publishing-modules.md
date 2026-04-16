@@ -98,7 +98,7 @@ metadata.
 1. Bump the bundled module `version` in `module-package.yaml`.
 2. Re-sign the changed manifest(s) (for example via `sign-modules.yml` on `dev`/`main`).
 3. Verify signatures locally and in CI.
-4. Merge to `dev` or `main` in **specfact-cli**; when signing completes, `publish-modules.yml`
+4. Push to `dev` and `main` (or merge via PR to those branches) in **specfact-cli**; when signing completes, `publish-modules.yml`
    may open a PR updating `resources/bundled-module-registry/index.json`.
 
 For **marketplace** bundles maintained in `specfact-cli-modules`, follow that
