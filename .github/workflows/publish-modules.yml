@@ -287,7 +287,7 @@ jobs:
               ENTRY="$(python -c "${PY_ENTRY_SUMMARY}" "${FRAGMENT}")"
               PUBLISHED+=("${ENTRY}")
             fi
-          done <<< "${{ steps.detect.outputs.modules }}"
+          done < /tmp/modules_to_publish.txt
 
           if [ "${#PUBLISHED[@]}" -eq 0 ]; then
             echo "Registry index unchanged for all detected modules; nothing to publish."
@@ -295,12 +295,8 @@ jobs:
             exit 0
           fi
 
-          {
-            echo "any_changed=true"
-            echo "published<<EOF"
-            printf '%s\n' "${PUBLISHED[@]}"
-            echo "EOF"
-          } >> "$GITHUB_OUTPUT"
+          printf '%s\n' "${PUBLISHED[@]}" > /tmp/published_batch.txt
+          echo "any_changed=true" >> "$GITHUB_OUTPUT"
 
       - name: Create combined registry PR
         if: steps.stage.outputs.any_changed == 'true'
@@ -321,7 +317,7 @@ jobs:
             while IFS= read -r line; do
               [ -n "${line}" ] || continue
               echo "- \`${line}\`"
-            done <<< "${{ steps.stage.outputs.published }}"
+            done < /tmp/published_batch.txt
           } > /tmp/pr_body.md
 
           cd specfact-cli-modules

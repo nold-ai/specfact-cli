@@ -51,6 +51,7 @@ MODULES_REPO_ROOT = _resolve_modules_repo_root()
 BUNDLE_PACKAGES_ROOT = MODULES_REPO_ROOT / "packages"
 DEFAULT_REGISTRY_DIR = MODULES_REPO_ROOT / "registry"
 OFFICIAL_PUBLISHER_EMAIL = "hello@noldai.com"
+OFFICIAL_MODULES_REPO_URL_MARKER = "nold-ai/specfact-cli-modules"
 OFFICIAL_BUNDLES = [
     "specfact-project",
     "specfact-backlog",
@@ -88,6 +89,19 @@ def _load_manifest(manifest_path: Path) -> dict[str, Any]:
 
 
 @beartype
+def _official_nold_publisher_manifest(manifest: dict[str, Any]) -> bool:
+    """True when ``publisher`` matches shipped nold-ai in-repo bundles (slug ``name`` is allowed)."""
+    pub = manifest.get("publisher")
+    if not isinstance(pub, dict):
+        return False
+    email = str(pub.get("email", "")).strip().lower()
+    if email and email == OFFICIAL_PUBLISHER_EMAIL.strip().lower():
+        return True
+    url = str(pub.get("url", "")).strip().lower()
+    return OFFICIAL_MODULES_REPO_URL_MARKER in url.replace(" ", "")
+
+
+@beartype
 def _validate_namespace_for_marketplace(manifest: dict[str, Any], module_dir: Path) -> None:
     """If manifest suggests marketplace (has publisher or tier), validate namespace/name format."""
     _ = module_dir
@@ -97,6 +111,8 @@ def _validate_namespace_for_marketplace(manifest: dict[str, Any], module_dir: Pa
     publisher = manifest.get("publisher")
     tier = manifest.get("tier")
     if publisher is None and not tier:
+        return
+    if _official_nold_publisher_manifest(manifest):
         return
     if "/" not in name:
         raise ValueError(f"Marketplace module name must be namespace/name (e.g. acme-corp/backlog-pro), got {name!r}")

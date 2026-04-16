@@ -51,8 +51,16 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- **`publish-modules.yml`**: auto-publish job reads module lists from
+  `/tmp/modules_to_publish.txt` and `/tmp/published_batch.txt` instead of
+  expanding `steps.*.outputs` into shell heredocs (CodeQL untrusted-data
+  sink).
 - **`publish-modules.yml`**: single-module `publish` job installs `packaging`
   so `scripts/publish-module.py` (semver checks) runs in CI.
+- **`scripts/publish-module.py`**: marketplace validation accepts slug-style
+  manifest `name` (for example `module-registry`) when `publisher` matches the
+  official nold-ai modules identity; other marketplace manifests still require
+  `namespace/name`.
 - **Security audit CI** (`security_audit_gate.py`): invoke `pip-audit` with
   `--skip-editable` (not `--strict`) for editable installs; parse JSON as
   either ``{"dependencies": [...]}`` or a top-level dependency array
