@@ -446,6 +446,7 @@ def _resolve_private_key(args: argparse.Namespace, parser: argparse.ArgumentPars
         )
     except ValueError as exc:
         parser.error(str(exc))
+        return None
 
 
 def _sign_requested_manifests(
