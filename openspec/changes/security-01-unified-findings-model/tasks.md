@@ -33,7 +33,13 @@
 - [ ] 4.1 Re-run tests; update `TDD_EVIDENCE.md`.
 - [ ] 4.2 Document security model + policy-pack schema in `docs/agent-rules/`.
 - [ ] 4.3 Run `openspec validate security-01-unified-findings-model --strict`.
-- [ ] 4.4 Full quality gate.
+- [ ] 4.4 **Full quality gate** (run in order; record results in `TDD_EVIDENCE.md`):
+  - [ ] 4.4.1 `hatch run format`
+  - [ ] 4.4.2 `hatch run type-check`
+  - [ ] 4.4.3 `hatch run lint` (when touched paths are lint-gated)
+  - [ ] 4.4.4 `hatch run contract-test`
+  - [ ] 4.4.5 `hatch run smart-test` (or `hatch test --cover -v` when the smart runner requests a full run)
+  - [ ] 4.4.6 `hatch run specfact code review run --json --out .specfact/code-review.json` (refresh review gate output)
 
 ## 5. Delivery
 

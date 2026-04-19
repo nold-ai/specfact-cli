@@ -36,4 +36,7 @@
 - [ ] 5.1 Mirror the change into `specfact-cli-internal/wiki/sources/enterprise-01-policy-resolution-extension.md` and rebuild the internal wiki graph.
 - [ ] 5.2 Update `openspec/CHANGE_ORDER.md` with downstream dependency notes.
 - [ ] 5.3 Open PR from `feature/enterprise-01-policy-resolution-extension` to `dev`.
-- [ ] 5.4 After merge, remove the worktree branch and prune stale worktree state.
+- [ ] 5.4 After merge validation gates pass, from **repository root** run `openspec archive enterprise-01-policy-resolution-extension`
+  (merge deltas into `openspec/specs/`, move change to `openspec/changes/archive/` per OpenSpec CLI). **Do not** manually
+  move change folders under `openspec/changes/archive/`.
+- [ ] 5.5 After archive, remove the worktree branch and prune stale worktree state.

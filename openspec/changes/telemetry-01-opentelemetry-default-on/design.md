@@ -6,7 +6,7 @@
 CLI invocation
       │
       ▼
-[TelemetryEmitter]  ◄── enabled? resolution chain: env > CLI flag > project config > profile > builtin
+[TelemetryEmitter]  ◄── resolution: env → CLI → project config → profile → builtin; then enterprise overlay (signed policy)
       │
       ├── build payload (allowlist validator)
       ├── write .specfact/telemetry/sent.log (append-only, redacted)
@@ -25,13 +25,18 @@ payload after local append succeeds (dual-write failures are isolated: OTLP expo
 file is removed. Consumers SHOULD read **both** paths while dual-write is active, then prefer `.specfact/telemetry/sent.log`
 only after the deprecation window ends.
 
-Resolution chain (telemetry enablement):
+**Canonical telemetry resolution (highest precedence first; same order everywhere in this doc):**
 
-1. `SPECFACT_TELEMETRY` env var (explicit override)
-2. `specfact telemetry disable|enable` CLI persistence
-3. `.specfact/config.yaml` `telemetry.enabled`
-4. Enterprise marker (`.specfact/enterprise.yaml`): default `false` unless org-admin policy overrides
-5. Built-in default: `true` (community tier)
+1. `SPECFACT_TELEMETRY` environment variable (explicit per-invocation override).
+2. `specfact telemetry disable|enable` CLI persisted preference.
+3. `.specfact/config.yaml` `telemetry.enabled`.
+4. Active profile telemetry defaults.
+5. Built-in community default: `true` when no enterprise governance applies.
+
+**Enterprise governance overlay (runs after steps 1–5 produce a candidate state):** when `.specfact/enterprise.yaml` is
+present **or** `SPECFACT_ENTERPRISE=true`, telemetry **MUST NOT** finalize as **enabled** unless a **signed org-admin
+policy** approves it per `enterprise-01-policy-resolution-extension`. Without that approval, **effective telemetry is
+disabled** even if steps 2–5 would enable it; step **1** remains the hard per-process escape hatch.
 
 ## Payload contract (allowlist)
 
@@ -53,12 +58,15 @@ Rejected at emitter boundary (hard fail during build, never transmitted):
 
 - File paths, repo names, branch names
 - Prompt content, spec content, rule content
-- User names, email addresses, hostnames
+- Usernames, email addresses, hostnames
 - Error messages (only error *class* permitted, not content)
 
-## Enterprise default
+## Enterprise default (same overlay as above)
 
-Detection via presence of `.specfact/enterprise.yaml` or `SPECFACT_ENTERPRISE=true`. When detected, built-in default flips to `false` and enable must come from a signed org-admin policy (`enterprise-01-policy-resolution-extension` provides signature verification hook).
+Enterprise detection uses `.specfact/enterprise.yaml` **or** `SPECFACT_ENTERPRISE=true`. The **enterprise governance
+overlay** in the canonical list forces **disabled-by-default** telemetry until a **signed org-admin policy** opts in
+via `enterprise-01-policy-resolution-extension` contracts (metadata + signing hooks as defined there—not duplicated
+here).
 
 ## Non-goals
 

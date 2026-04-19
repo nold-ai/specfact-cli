@@ -2,9 +2,12 @@
 
 ## 1. Branch and dependency guardrails
 
-- [ ] 1.1 Create worktree branch `feature/knowledge-02-preflight-context-assembly` from `dev`.
-- [ ] 1.2 Confirm knowledge-01 (schema + backend) is merged.
-- [ ] 1.3 Reconfirm scope against plan and proposal.
+- [ ] 1.1 Create worktree branch `feature/knowledge-02-preflight-context-assembly` from `origin/dev` (per `AGENTS.md`;
+  e.g. `git worktree add … -b … origin/dev`).
+- [ ] 1.2 Run `hatch env create` inside that worktree before implementation.
+- [ ] 1.3 Run `hatch run smart-test-status` and `hatch run contract-test-status` before implementation tasks.
+- [ ] 1.4 Confirm knowledge-01 (schema + backend) is merged.
+- [ ] 1.5 Reconfirm scope against plan and proposal.
 
 ## 2. Spec-first and test-first preparation
 

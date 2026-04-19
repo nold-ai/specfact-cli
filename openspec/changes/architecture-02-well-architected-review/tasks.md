@@ -35,4 +35,7 @@
 - [ ] 5.1 Mirror the change into `specfact-cli-internal/wiki/sources/architecture-02-well-architected-review.md` and rebuild the internal wiki graph.
 - [ ] 5.2 Update `openspec/CHANGE_ORDER.md` with downstream dependency notes.
 - [ ] 5.3 Open PR from `feature/architecture-02-well-architected-review` to `dev`.
-- [ ] 5.4 After merge, remove the worktree branch and prune stale worktree state.
+- [ ] 5.4 After merge validation passes, from **repository root** run `openspec archive architecture-02-well-architected-review`
+  (canonical `/opsx:archive` lifecycle: merge deltas into `openspec/specs/`, move change under `openspec/changes/archive/`,
+  module signing/cleanup as configured). **Do not** manually `mv` folders into `openspec/changes/archive/`.
+- [ ] 5.5 After archive completes, remove the worktree branch and prune stale worktree state.

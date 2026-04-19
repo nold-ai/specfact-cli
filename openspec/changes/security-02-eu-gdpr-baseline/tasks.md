@@ -39,4 +39,7 @@
 - [ ] 5.1 Mirror the change into `specfact-cli-internal/wiki/sources/security-02-eu-gdpr-baseline.md` and rebuild the internal wiki graph.
 - [ ] 5.2 Update `openspec/CHANGE_ORDER.md` with downstream dependencies.
 - [ ] 5.3 Open PR from `feature/security-02-eu-gdpr-baseline` to `dev`.
-- [ ] 5.4 After merge, remove the worktree branch and prune stale worktree state.
+- [ ] 5.4 After merge to `dev`, from **repository root** run `openspec archive security-02-eu-gdpr-baseline` before
+  deleting generated artifacts. **Do not** use `--skip-specs` or `--no-validate` and **do not** manually move folders
+  unless an explicit maintainer exception is recorded; prefer the CLI archive path above.
+- [ ] 5.5 After archive completes, remove the worktree branch and prune stale worktree state.

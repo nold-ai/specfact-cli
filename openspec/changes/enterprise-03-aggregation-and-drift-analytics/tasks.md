@@ -2,9 +2,13 @@
 
 ## 1. Branch and dependency guardrails
 
-- [ ] 1.1 Create dedicated worktree branch `feature/enterprise-03-aggregation-and-drift-analytics` from `dev`.
-- [ ] 1.2 Confirm `knowledge-01-distillation-engine` and `enterprise-02-rbac-and-audit-trail` remain the authority for source evidence and audit events.
-- [ ] 1.3 Coordinate downstream integration points with future enterprise analytics backends.
+- [ ] 1.1 Create dedicated worktree branch `feature/enterprise-03-aggregation-and-drift-analytics` from `origin/dev` (per
+  `AGENTS.md`; e.g. `git worktree add … -b … origin/dev`).
+- [ ] 1.2 Run `hatch env create` inside the new worktree before implementation.
+- [ ] 1.3 Run `hatch run smart-test-status` and `hatch run contract-test-status` as mandatory pre-flight checks.
+- [ ] 1.4 `AGENTS.md` worktree-policy self-check (no work from protected `dev`/`main` checkouts).
+- [ ] 1.5 Confirm `knowledge-01-distillation-engine` and `enterprise-02-rbac-and-audit-trail` remain the authority for source evidence and audit events.
+- [ ] 1.6 Coordinate downstream integration points with future enterprise analytics backends.
 
 ## 2. Spec-first and test-first preparation
 
@@ -31,6 +35,9 @@
 ## 5. Delivery
 
 - [ ] 5.1 Mirror the change into `specfact-cli-internal/wiki/sources/enterprise-03-aggregation-and-drift-analytics.md` and rebuild the internal wiki graph.
-- [ ] 5.2 Update `openspec/CHANGE_ORDER.md` with downstream dependency notes.
+- [ ] 5.2 Update `openspec/CHANGE_ORDER.md` with downstream dependency notes **and** the delivery closeout bullet for
+  `openspec archive enterprise-03-aggregation-and-drift-analytics` (see wave note in `CHANGE_ORDER.md`).
 - [ ] 5.3 Open PR from `feature/enterprise-03-aggregation-and-drift-analytics` to `dev`.
-- [ ] 5.4 After merge, remove the worktree branch and prune stale worktree state.
+- [ ] 5.4 After merge to `dev`, from **repository root** run `openspec archive enterprise-03-aggregation-and-drift-analytics`
+  (required; do **not** manually move folders under `openspec/changes/archive/`).
+- [ ] 5.5 After archive, remove the worktree branch and prune stale worktree state.

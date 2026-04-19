@@ -24,12 +24,15 @@ The policy engine SHALL treat `security.gdpr` as a structured subtree with the k
 `retention`, and `deletion` (each MAY be absent when not applicable to the active profile, but MUST be present and
 well-typed when the baseline marks them required).
 
-#### Scenario: Enterprise overlays merge with signed precedence
+#### Scenario: Enterprise overlays merge with metadata precedence
 
 - **GIVEN** enterprise pushed packs and local/project packs both define `security.gdpr` inputs
-- **WHEN** resolution runs with valid signatures per `enterprise-01-policy-resolution-extension`
+- **WHEN** resolution merges layers per `enterprise-01-policy-resolution-extension`
 - **THEN** enterprise mandatory layers override conflicting non-enterprise values for the same key path
-- **AND** unsigned or invalid enterprise layers are rejected before command execution.
+- **AND** enterprise layers that are **missing required pushed-rule metadata** (`mandatory`, `override_allowed`,
+  `effective_from`, `pushed_by`, `signed_by`) or are **structurally invalid** for the declared schema are rejected
+  before command execution (aligned with the metadata contract in `enterprise-01-policy-resolution-extension`, without
+  claiming standalone cryptographic verification beyond what that change defines).
 
 #### Scenario: Missing required GDPR metadata fails fast in hard mode
 

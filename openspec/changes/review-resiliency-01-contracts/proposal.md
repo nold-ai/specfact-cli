@@ -34,21 +34,23 @@ Finding model, scorer contract, CLI command.
 Accept `resiliency` findings under the shared envelope.
 
 **Compatibility / migration for `review-report-model`:** Consumers of the shared `ReviewReport` JSON **MUST tolerate
-unknown top-level keys** (forwards-compatible extension). The envelope carries an explicit **`schema_version`** (or
-equivalent semantic version field agreed in `review-report-model`) that **MUST bump on breaking layout changes**;
-additive pillars like **`resiliency`** ship under **minor** bumps when only new optional sections appear. Providers
-**MUST publish** a **resiliency schema version** and migration notes alongside emitter releases. Rollout: **feature-flag
-emitters**, **consumer opt-in** parsers where strict mode is required, and a **deprecation window** for older schema
-versions before hard failures. The new top-level **`resiliency`** key sits beside existing pillars such as
-**`code_quality`**; tolerant readers ignore unknown sections while strict CI may pin a maximum supported
+unknown top-level keys** (forwards-compatible extension). The canonical `review-report-model` envelope **MUST** include
+a top-level string field **`schema_version`** on every emitted document; there is **no** optional alias—emitters and
+parsers agree on this single field name. **`schema_version` MUST be present** on every JSON export and **MUST bump**
+on **breaking** layout changes per `review-report-model` evolution rules. **Minor** bumps cover **additive** optional
+sections such as **`resiliency`** while preserving compatibility for parsers that ignore unknown keys. Providers **MUST
+publish** a resiliency schema note alongside **`schema_version`** bumps and migration guidance. Rollout: **feature-flag
+emitters**, **consumer opt-in** parsers where strict mode is required, and a **deprecation window** for older
+`schema_version` values before hard failures. The new top-level **`resiliency`** key sits beside existing pillars such
+as **`code_quality`**; tolerant readers ignore unknown sections while strict CI may pin a maximum supported
 `schema_version`.
 
 ## Impact
 
 - Runner/bundle (Semgrep patterns, linters) lives in `specfact-cli-modules` (out of scope here).
 - Consumers: governance-01 evidence envelope, distillation engine.
-- Additive for tolerant JSON consumers; strict schema validators must adopt the compatibility rules above before
-  enforcing unknown-key failures.
+- Additive for tolerant JSON consumers; strict schema validators must adopt the compatibility rules above before enforcing
+  unknown-key failures.
 
 ---
 

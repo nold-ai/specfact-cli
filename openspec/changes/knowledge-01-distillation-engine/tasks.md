@@ -40,4 +40,6 @@
 - [ ] 5.1 Mirror to `specfact-cli-internal/wiki/sources/knowledge-01-distillation-engine.md`; rebuild graph.
 - [ ] 5.2 Update `openspec/CHANGE_ORDER.md` — dependents: knowledge-02, enterprise-03.
 - [ ] 5.3 Open PR to `dev`.
-- [ ] 5.4 After merge: `git worktree remove <worktree-path>`, `git branch -d feature/knowledge-01-distillation-engine`, `git worktree prune` (per `AGENTS.md`).
+- [ ] 5.4 After merge to `dev`, from **repository root** run `openspec archive knowledge-01-distillation-engine` (do **not**
+  manually move change folders under `openspec/changes/archive/`).
+- [ ] 5.5 After archive: `git worktree remove <worktree-path>`, `git branch -d feature/knowledge-01-distillation-engine`, `git worktree prune` (per `AGENTS.md`).
