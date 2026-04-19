@@ -17,3 +17,28 @@ The policy engine SHALL parse versioned policy packs that declare enforcement ru
 - **WHEN** the policy engine evaluates those findings
 - **THEN** advisory, mixed, and hard modes are applied consistently with other review/security domains
 - **AND** category-specific metadata remains attached to the finding output.
+
+### Requirement: `security.gdpr` namespace structure and validation
+
+The policy engine SHALL treat `security.gdpr` as a structured subtree with the keys `lawful_basis`, `residency`,
+`retention`, and `deletion` (each MAY be absent when not applicable to the active profile, but MUST be present and
+well-typed when the baseline marks them required).
+
+#### Scenario: Enterprise overlays merge with signed precedence
+
+- **GIVEN** enterprise pushed packs and local/project packs both define `security.gdpr` inputs
+- **WHEN** resolution runs with valid signatures per `enterprise-01-policy-resolution-extension`
+- **THEN** enterprise mandatory layers override conflicting non-enterprise values for the same key path
+- **AND** unsigned or invalid enterprise layers are rejected before command execution.
+
+#### Scenario: Missing required GDPR metadata fails fast in hard mode
+
+- **GIVEN** a profile marks a GDPR control as required and metadata is absent
+- **WHEN** the policy engine validates the resolved configuration in `hard` mode
+- **THEN** validation fails before scanners run with a deterministic validation finding.
+
+#### Scenario: Missing required GDPR metadata is advisory-only in advisory mode
+
+- **GIVEN** a profile marks a GDPR control as required and metadata is absent
+- **WHEN** the policy engine validates the resolved configuration in `advisory` mode
+- **THEN** the engine MAY emit advisory findings without blocking execution.

@@ -97,6 +97,14 @@ class MemoryBackend(Protocol):
     def list_by_tag(self, tag: str) -> list[EntryId]: ...
 ```
 
+### MemoryBackend stability and extension contract
+
+- **Stable extension point:** `MemoryBackend` is part of the public distillation contract and is **semver-major locked** with the `specfact-cli` release that first ships it.
+- **Required methods (signatures stable across minor/patch):** `MemoryBackend.add_entry`, `MemoryBackend.query`, `MemoryBackend.link`, `MemoryBackend.list_by_tag` — parameter and return types MUST remain compatible for the same major version.
+- **Optional provider-specific methods:** implementations MAY add methods prefixed `x_` (for example `x_vector_similarity`) without breaking the protocol for callers that ignore unknown methods.
+- **Errors:** transient I/O or backend outages raise `MemoryBackendError`; invalid configuration raises `MemoryBackendConfigError` (distinct types so callers can retry vs fix config).
+- **Compatibility policy:** adding a **new required** method is a **semver-major** change; minor releases MAY add optional `x_*` hooks only. Deprecation of a required method requires at least one minor release with warnings/docs before removal in the next major.
+
 Reference implementation: markdown-graph backend stores entries as files, relations as frontmatter link lists, rebuildable index at `.specfact/memory/.index.json`.
 
 ## Non-goals

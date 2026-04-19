@@ -7,8 +7,8 @@ SpecFact already resolves local policy from flags, project config, and profiles,
 ## What Changes
 
 - **NEW**: `enterprise-policy-resolution` capability adding org-mandatory and team-advisory layers above the existing local resolution chain.
-- **NEW**: Signed metadata fields for pushed rules (`mandatory`, `override_allowed`, `effective_from`, `pushed_by`, `signed_by`).
-- **NEW**: Client-side resolution behavior that gracefully no-ops when no enterprise policy source is configured.
+- **ADDS**: Signed metadata fields for pushed rules (`mandatory`, `override_allowed`, `effective_from`, `pushed_by`, `signed_by`).
+- **INTRODUCES**: Client-side resolution behavior that gracefully no-ops when no enterprise policy source is configured.
 - **EXTEND**: Profile and policy resolution docs to describe enterprise precedence.
 - **EXTEND**: Future budget and audit flows so they can depend on a common resolution contract.
 

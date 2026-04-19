@@ -13,6 +13,18 @@ CLI invocation
       └── export to OTLP endpoint (if configured) — never blocking
 ```
 
+### Local audit log migration (`~/.specfact/telemetry.log` → `.specfact/telemetry/sent.log`)
+
+**Strategy:** **dual-write + deprecation window**. New builds always append redacted transmit records to
+`.specfact/telemetry/sent.log`. If `~/.specfact/telemetry.log` still exists, the CLI **also** appends the same redacted line
+there for one deprecation series, emits a **stderr warning** pointing operators to the new path, and documents removal
+timeline in release notes. **Export to OTLP (if configured) never pauses for migration** — it continues from the in-memory
+payload after local append succeeds (dual-write failures are isolated: OTLP export errors do not delete local lines).
+
+**Rollback / compatibility:** downgrading restores legacy-only behavior; upgrading re-enables dual-write until the legacy
+file is removed. Consumers SHOULD read **both** paths while dual-write is active, then prefer `.specfact/telemetry/sent.log`
+only after the deprecation window ends.
+
 Resolution chain (telemetry enablement):
 
 1. `SPECFACT_TELEMETRY` env var (explicit override)

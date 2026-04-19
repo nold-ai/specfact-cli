@@ -2,12 +2,19 @@
 
 ## 1. Branch and dependency guardrails
 
-- [ ] 1.1 Create dedicated worktree branch `feature/security-02-eu-gdpr-baseline` from `dev`.
-- [ ] 1.2 Confirm `security-01-unified-findings-model` remains the authority for the shared finding schema.
-- [ ] 1.3 Coordinate with module-side companions `security-03-module-pii-gdpr-eu` and `enterprise-01-policy-resolution-extension`.
+- [ ] 1.1 Create dedicated worktree branch `feature/security-02-eu-gdpr-baseline` from `origin/dev` (per `AGENTS.md`).
+- [ ] 1.2 Run `hatch env create` in the worktree and confirm the Hatch environment exists before implementation.
+- [ ] 1.3 Run `hatch run smart-test-status` and `hatch run contract-test-status` (or the repo’s standard health checks)
+  and resolve failures before deeper work.
+- [ ] 1.4 Perform the `AGENTS.md` self-check (worktree-only implementation, protected branches untouched).
+- [ ] 1.5 If bundled modules or signed manifests are touched: run module-signing verification per `openspec/config.yaml`.
+- [ ] 1.6 Confirm `security-01-unified-findings-model` remains the authority for the shared finding schema.
+- [ ] 1.7 Coordinate with module-side companions `security-03-module-pii-gdpr-eu` and `enterprise-01-policy-resolution-extension`.
 
 ## 2. Spec-first and test-first preparation
 
+- [ ] 2.0 Re-run the section 1 pre-flight commands if the branch was idle for more than a day (keep CI/git health green
+  before spec edits).
 - [ ] 2.1 Finalize `specs/security-gdpr-baseline/spec.md` and the `policy-engine` delta.
 - [ ] 2.2 Write policy parsing tests for lawful-basis, residency allowlist, retention, and data subject request keys.
 - [ ] 2.3 Write validation tests for advisory vs hard enforcement on GDPR findings.

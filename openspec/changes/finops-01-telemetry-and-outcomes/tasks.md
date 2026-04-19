@@ -2,9 +2,12 @@
 
 ## 1. Branch and dependency guardrails
 
-- [ ] 1.1 Create dedicated worktree branch `feature/finops-01-telemetry-and-outcomes` from `dev`.
-- [ ] 1.2 Confirm `telemetry-01-opentelemetry-default-on` remains the authority for redacted emitter behavior.
-- [ ] 1.3 Coordinate with module-side `finops-01-module-cost-outcome` and downstream `finops-02-budget-approval-gates`.
+- [ ] 1.1 Create dedicated worktree branch `feature/finops-01-telemetry-and-outcomes` from `origin/dev` (per `AGENTS.md`; use `git worktree add` … `origin/dev`, not a stale local `dev` tip).
+- [ ] 1.2 Run `hatch env create` in the worktree to bootstrap dependencies before implementation.
+- [ ] 1.3 Pre-flight status: CI parity for the base commit, dependency snapshot / environment health (`hatch run smart-test-status`, `hatch run contract-test-status` where applicable), and workspace cleanliness per team practice.
+- [ ] 1.4 `AGENTS.md` policy self-check: confirm implementation happens only from the dedicated worktree.
+- [ ] 1.5 Confirm `telemetry-01-opentelemetry-default-on` remains the authority for redacted emitter behavior.
+- [ ] 1.6 Coordinate with module-side `finops-01-module-cost-outcome` and downstream `finops-02-budget-approval-gates`.
 
 ## 2. Spec-first and test-first preparation
 
@@ -33,4 +36,5 @@
 - [ ] 5.1 Mirror the change into `specfact-cli-internal/wiki/sources/finops-01-telemetry-and-outcomes.md` and rebuild the internal wiki graph.
 - [ ] 5.2 Update `openspec/CHANGE_ORDER.md` with downstream dependency notes.
 - [ ] 5.3 Open PR from `feature/finops-01-telemetry-and-outcomes` to `dev`.
-- [ ] 5.4 After merge, remove the worktree branch and prune stale worktree state.
+- [ ] 5.4 After merge to `dev`, from repository root run `openspec archive finops-01-telemetry-and-outcomes` (do not manually move change folders).
+- [ ] 5.5 After merge, remove the worktree branch and prune stale worktree state (`git worktree remove`, `git branch -d`, `git worktree prune` per `AGENTS.md`).

@@ -2,9 +2,11 @@
 
 ## 1. Branch and dependency guardrails
 
-- [ ] 1.1 Create dedicated worktree branch `feature/architecture-02-well-architected-review` from `dev`.
-- [ ] 1.2 Confirm `architecture-01-solution-layer`, `review-finding-model`, and `review-report-model` remain the source of truth for shared contracts.
-- [ ] 1.3 Coordinate with the modules-side companion `architecture-02-module-well-architected`.
+- [ ] 1.1 Create dedicated worktree branch `feature/architecture-02-well-architected-review` from `origin/dev` per `AGENTS.md` (git worktree add … `-b` … `origin/dev`).
+- [ ] 1.2 Run `hatch env create` in that worktree to bootstrap the Hatch environment before implementation.
+- [ ] 1.3 Run repository pre-flight checks from `AGENTS.md`: `hatch run smart-test-status`, `hatch run contract-test-status`, and confirm a clean git status / up-to-date branch as applicable.
+- [ ] 1.4 Confirm `architecture-01-solution-layer`, `review-finding-model`, and `review-report-model` remain the source of truth for shared contracts.
+- [ ] 1.5 Coordinate with the modules-side companion `architecture-02-module-well-architected`.
 
 ## 2. Spec-first and test-first preparation
 

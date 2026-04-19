@@ -2,9 +2,13 @@
 
 ## 1. Branch and dependency guardrails
 
-- [ ] 1.1 Create dedicated worktree branch `feature/enterprise-04-budget-governance-and-chargeback` from `dev`.
-- [ ] 1.2 Confirm `finops-02-budget-approval-gates` remains the authority for local budget gate semantics.
-- [ ] 1.3 Coordinate with enterprise policy/audit owners and future reporting backends.
+- [ ] 1.1 Create dedicated worktree branch `feature/enterprise-04-budget-governance-and-chargeback` from `origin/dev` (per `AGENTS.md`).
+- [ ] 1.2 Run `hatch env create` in the worktree before implementation.
+- [ ] 1.3 Run `hatch run smart-test-status` and `hatch run contract-test-status` as pre-flight gates.
+- [ ] 1.4 `AGENTS.md` worktree-policy self-check (correct worktree, no implementation from protected checkouts).
+- [ ] 1.5 If bundled modules or signed manifests are touched: run module-signing verification per `openspec/config.yaml`.
+- [ ] 1.6 Confirm `finops-02-budget-approval-gates` remains the authority for local budget gate semantics.
+- [ ] 1.7 Coordinate with enterprise policy/audit owners and future reporting backends.
 
 ## 2. Spec-first and test-first preparation
 

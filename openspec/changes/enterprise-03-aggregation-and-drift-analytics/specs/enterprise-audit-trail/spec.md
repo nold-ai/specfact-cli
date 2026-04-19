@@ -8,5 +8,5 @@ Signed audit events SHALL expose the references required for enterprise drift an
 
 - **GIVEN** an audited rule promotion, override, or approval event
 - **WHEN** the event is written
-- **THEN** it may include stable correlation identifiers needed by drift analytics
-- **AND** those identifiers do not duplicate whole evidence payloads.
+- **THEN** the event MUST include stable correlation identifiers required for enterprise drift analytics (references only; no full evidence bodies)
+- **AND** those identifiers MUST NOT duplicate whole evidence payloads.

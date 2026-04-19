@@ -2,9 +2,14 @@
 
 ## 1. Branch and dependency guardrails
 
-- [ ] 1.1 Create dedicated worktree branch `feature/telemetry-01-opentelemetry-default-on` from `dev`.
-- [ ] 1.2 Confirm no prerequisite changes are required (this change is foundational).
-- [ ] 1.3 Reconfirm scope against plan and proposal.
+- [ ] 1.1 Create dedicated worktree branch `feature/telemetry-01-opentelemetry-default-on` from `origin/dev` (per
+  `AGENTS.md`; use `git worktree add` … `origin/dev`, not a stale local `dev` tip).
+- [ ] 1.2 Run `hatch env create` in the worktree (Hatch bootstrap) before implementation.
+- [ ] 1.3 Pre-flight checks: `hatch run format`/`lint` smoke as applicable, `hatch run smart-test` parity or CI-green base,
+  and clean `git status` before merge-related pushes.
+- [ ] 1.4 `AGENTS.md` policy self-check (worktree-only; no commits from protected checkouts).
+- [ ] 1.5 Confirm no prerequisite changes are required (this change is foundational).
+- [ ] 1.6 Reconfirm scope against plan and proposal.
 
 ## 2. Spec-first and test-first preparation
 
@@ -35,3 +40,8 @@
 - [ ] 5.1 Mirror change to `specfact-cli-internal/wiki/sources/telemetry-01-opentelemetry-default-on.md`; run `scripts/wiki_rebuild_graph.py`.
 - [ ] 5.2 Update `openspec/CHANGE_ORDER.md` with this change and its downstream dependents (finops-01, enterprise-02).
 - [ ] 5.3 Open PR from `feature/telemetry-01-opentelemetry-default-on` to `dev`.
+- [ ] 5.4 After merge to `dev`, from repository root run `openspec archive telemetry-01-opentelemetry-default-on` when the
+  change is complete (do not manually move change folders).
+- [ ] 5.5 Post-merge cleanup: `git worktree remove <path>`, `git branch -d feature/telemetry-01-opentelemetry-default-on`,
+  `git worktree prune`, and delete the remote feature branch if your release flow requires (`git push origin --delete
+  feature/telemetry-01-opentelemetry-default-on`).

@@ -68,5 +68,8 @@ The system SHALL provide `specfact memory preflight <intent>` returning the rule
 
 - **GIVEN** a user runs `specfact memory preflight "add budget gate" --json`
 - **WHEN** the command completes
-- **THEN** stdout contains a JSON array of `{rule_id, version, score, included}` entries
-- **AND** `.openspec.yaml` and `rules/` are unchanged.
+- **THEN** stdout contains a JSON array of objects, each including the keys `rule_id`, `version`, `score`, and `included`
+- **AND** `rule_id` is a string, `version` is a semver string, `score` is a number in the inclusive range `0.0`–`1.0`, and `included` is boolean (`true` when the rule is selected inside the token/budget allocation for this intent)
+- **AND** future versions MAY add extra fields but MUST NOT remove or rename these four keys (compatibility guarantee for `enterprise-03-aggregation-and-drift-analytics` consumers of `specfact memory preflight --json` output)
+- **AND** `.openspec.yaml` and `rules/` are unchanged
+- **AND** authors follow project context rules in `openspec/config.yaml` when extending this contract in spec deltas.

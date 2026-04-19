@@ -137,7 +137,7 @@ Module-side companions stay in `specfact-cli-modules` and should not be implemen
 | review-resiliency | 01 | review-resiliency-01-contracts | [#521](https://github.com/nold-ai/specfact-cli/issues/521) | — |
 | security | 01 | security-01-unified-findings-model | [#522](https://github.com/nold-ai/specfact-cli/issues/522) | — |
 | security | 02 | security-02-eu-gdpr-baseline | [#523](https://github.com/nold-ai/specfact-cli/issues/523) | security-01 |
-| architecture | 02 | architecture-02-well-architected-review | [#524](https://github.com/nold-ai/specfact-cli/issues/524) | architecture-01-solution-layer |
+| architecture | 02 | architecture-02-well-architected-review | [#524](https://github.com/nold-ai/specfact-cli/issues/524) | architecture-01-solution-layer; review-finding-model; review-report-model |
 | finops | 01 | finops-01-telemetry-and-outcomes | [#525](https://github.com/nold-ai/specfact-cli/issues/525) | telemetry-01-opentelemetry-default-on |
 | finops | 02 | finops-02-budget-approval-gates | [#526](https://github.com/nold-ai/specfact-cli/issues/526) | finops-01 |
 | enterprise | 01 | enterprise-01-policy-resolution-extension | [#527](https://github.com/nold-ai/specfact-cli/issues/527) | profile-01-config-layering; policy-engine-01 ✅ |
@@ -146,6 +146,7 @@ Module-side companions stay in `specfact-cli-modules` and should not be implemen
 | enterprise | 04 | enterprise-04-budget-governance-and-chargeback | [#530](https://github.com/nold-ai/specfact-cli/issues/530) | finops-02; enterprise-01; enterprise-02 |
 
 Recommended implementation wave inside this block:
+
 1. `telemetry-01-opentelemetry-default-on`
 2. `knowledge-01-distillation-engine`
 3. `review-resiliency-01-contracts`, `security-01-unified-findings-model`, `architecture-02-well-architected-review` in parallel

@@ -20,7 +20,8 @@ The system SHALL define three artefact tiers — evidence, learning, rule — ea
 
 ### Requirement: Distillation CLI Contract
 
-The system SHALL provide `specfact memory distill` that produces learnings and a git-diff preview against rules without auto-merge.
+The system SHALL provide `specfact memory distill` that produces learnings and a git-diff preview against rules
+without auto-merge.
 
 #### Scenario: Distill produces a learning when evidence count meets threshold
 
@@ -71,4 +72,11 @@ The system SHALL expose a `MemoryBackend` protocol with a markdown-graph default
 - **GIVEN** an alternative backend implementation
 - **WHEN** it is loaded
 - **THEN** it exposes `add_entry`, `query`, `link`, `list_by_tag` with contract decorators
-- **AND** failure to implement any raises at import time.
+- **AND** imports remain side-effect free; contract validation runs at **backend registration** (or an explicit `validate_backend_contract(backend_id, impl)` step), not at import time.
+
+#### Scenario: Missing backend methods fail fast at registration
+
+- **GIVEN** a backend module that omits a required protocol method
+- **WHEN** the backend is registered with the memory subsystem
+- **THEN** registration raises `BackendContractError` containing `backend_id` and `missing_methods: list[str]`
+- **AND** no partial backend instance is used for user commands until registration succeeds.

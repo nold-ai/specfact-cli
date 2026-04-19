@@ -2,9 +2,12 @@
 
 ## 1. Branch and dependency guardrails
 
-- [ ] 1.1 Create dedicated worktree branch `feature/finops-02-budget-approval-gates` from `dev`.
-- [ ] 1.2 Confirm `finops-01-telemetry-and-outcomes` remains the authority for evidence schema and outcomes.
-- [ ] 1.3 Coordinate with downstream `enterprise-04-budget-governance-and-chargeback`.
+- [ ] 1.1 Create worktree from `origin/dev`: `git worktree add ../specfact-cli-worktrees/feature/finops-02-budget-approval-gates -b feature/finops-02-budget-approval-gates origin/dev` (adjust path per local layout; follow `AGENTS.md`).
+- [ ] 1.2 Run `hatch env create` inside the new worktree before implementation.
+- [ ] 1.3 Pre-flight: `hatch run smart-test-status`, `hatch run contract-test-status`, `hatch run format` (dry), and `git status` clean; resolve failures before commits/pushes.
+- [ ] 1.4 `AGENTS.md` self-check: worktree-only work, no direct commits to `dev`/`main`.
+- [ ] 1.5 Confirm `finops-01-telemetry-and-outcomes` remains the authority for evidence schema and outcomes.
+- [ ] 1.6 Coordinate with downstream `enterprise-04-budget-governance-and-chargeback`.
 
 ## 2. Spec-first and test-first preparation
 
@@ -33,4 +36,5 @@
 - [ ] 5.1 Mirror the change into `specfact-cli-internal/wiki/sources/finops-02-budget-approval-gates.md` and rebuild the internal wiki graph.
 - [ ] 5.2 Update `openspec/CHANGE_ORDER.md` with downstream dependency notes.
 - [ ] 5.3 Open PR from `feature/finops-02-budget-approval-gates` to `dev`.
-- [ ] 5.4 After merge, remove the worktree branch and prune stale worktree state.
+- [ ] 5.4 After merge to `dev`, from repository root run `openspec archive finops-02-budget-approval-gates` when the change completes.
+- [ ] 5.5 After merge, run worktree cleanup: `git worktree remove <path>`, `git branch -d feature/finops-02-budget-approval-gates`, `git worktree prune`, and delete remote branch if your release flow requires (`git push origin --delete feature/finops-02-budget-approval-gates`).

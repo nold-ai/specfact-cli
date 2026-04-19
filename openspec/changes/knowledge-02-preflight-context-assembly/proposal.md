@@ -12,6 +12,8 @@ Once the distillation engine (knowledge-01) produces rules, those rules are usel
 - **NEW**: `specfact memory preflight <prompt-or-intent>` — inspection command returning the rule set that would be injected for a given intent.
 - **EXTEND**: `.openspec.yaml` schema adds `preflight_rules` and `preflight_rules_snapshot_sha` fields for drift audit.
 
+**`.openspec.yaml` frontmatter contract:** `preflight_rules` is an **array of rule reference objects** (not opaque strings), each shaped like `{ "id": string, "version"?: string, "source"?: string }` where `id` is the canonical rule identifier, optional `version` pins a semver (or pack version) when known, and optional `source` names the pack/repo path that supplied the rule. `preflight_rules_snapshot_sha` is a **single lowercase hex SHA string** computed over the **canonical JSON** (stable key order, UTF-8, no insignificant whitespace) of the `preflight_rules` array so drift audits can diff snapshots. Preflight assembly MUST honor **project and per-artifact rules from `openspec/config.yaml`** when resolving which candidate rules enter the list and how versions/sources are chosen (same precedence as OpenSpec authoring gates).
+
 ## Capabilities
 
 ### New Capability: `preflight-context-assembly`

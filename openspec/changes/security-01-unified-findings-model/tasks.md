@@ -2,9 +2,13 @@
 
 ## 1. Branch and dependency guardrails
 
-- [ ] 1.1 Create worktree branch `feature/security-01-unified-findings-model` from `dev`.
-- [ ] 1.2 Confirm `policy-engine` and `policy-02-packs-and-modes` are the authority; reuse, do not redefine.
-- [ ] 1.3 Coordinate with three module-side companion changes (SAST/SCA/secret, license, PII/GDPR).
+- [ ] 1.1 Create worktree branch `feature/security-01-unified-findings-model` from `origin/dev` (per `AGENTS.md`).
+- [ ] 1.2 Run `hatch env create` in the worktree to provision the environment.
+- [ ] 1.3 Pre-flight checks: dependencies resolve, `hatch run smart-test-status`, `hatch run contract-test-status`, lint
+  smoke as applicable, and no missing local credentials for integration tests — complete before deeper implementation
+  tasks.
+- [ ] 1.4 Confirm `policy-engine` and `policy-02-packs-and-modes` are the authority; reuse, do not redefine.
+- [ ] 1.5 Coordinate with three module-side companion changes (SAST/SCA/secret, license, PII/GDPR).
 
 ## 2. Spec-first and test-first preparation
 
@@ -36,3 +40,7 @@
 - [ ] 5.1 Mirror to wiki; rebuild graph.
 - [ ] 5.2 Update `openspec/CHANGE_ORDER.md`; coordinate three module companions.
 - [ ] 5.3 Open PR to `dev`.
+- [ ] 5.4 After merge, perform repository worktree cleanup (`git worktree remove`, `git branch -d`, `git worktree prune`
+  per `AGENTS.md`) and clear stray untracked artifacts from local validation runs.
+- [ ] 5.5 From repository root after merge, run `openspec archive security-01-unified-findings-model` (exact change-id; do
+  not manually move `openspec/changes/` folders).

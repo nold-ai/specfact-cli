@@ -57,3 +57,12 @@ The system SHALL append every transmitted payload to a local audit log so users 
 - **WHEN** a command completes
 - **THEN** the exact transmitted payload is appended to `.specfact/telemetry/sent.log`
 - **AND** each log line includes the transmission timestamp and OTLP endpoint identifier.
+
+#### Scenario: Legacy `~/.specfact/telemetry.log` is migrated or dual-read
+
+- **GIVEN** an existing audit file is present at `~/.specfact/telemetry.log` before upgrade
+- **WHEN** the first telemetry-enabled command runs after upgrade
+- **THEN** the system either **copies/merges** prior lines into `.specfact/telemetry/sent.log` **or** treats **both**
+  `~/.specfact/telemetry.log` and `.specfact/telemetry/sent.log` as valid append/read sources until migration completes
+- **AND** timestamps and OTLP endpoint identifiers are preserved across the migration path
+- **AND** behavior matches the **“Transmitted payload is recorded locally”** scenario for new invocations.

@@ -12,6 +12,8 @@
 - **EXTEND**: ADR-to-code traceability rules so the architecture layer can emit review findings, not just references.
 - **EXTEND**: Shared review-report integration so architecture findings can live beside code quality, security, and resiliency pillars.
 
+**Backward-compatible envelope:** The existing `ReviewReport` envelope stays stable for legacy parsers: required sections and field names used today remain unchanged. Implementations add an optional top-level `architecture` object (or, if we standardize a single extension map first, an optional `extensions.architecture` object) so older consumers ignore unknown keys while new consumers read the pillar. Serialized contract for review runs: **review runs MUST include an `architecture` section in the shared envelope while preserving other review sections unchanged** (e.g., `code_quality`, `security`, `resiliency` keys and their payloads stay as today). Example shape: `ReviewReport { ..., "architecture"?: { "findings": [...], "summary": {...} } }` — exact inner fields follow `specs/architecture-review/spec.md`; parsers MUST treat missing `architecture` as “no architecture findings” until emitters roll out.
+
 ## Capabilities
 
 ### New Capabilities

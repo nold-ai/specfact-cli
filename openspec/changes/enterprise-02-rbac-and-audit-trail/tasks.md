@@ -2,9 +2,11 @@
 
 ## 1. Branch and dependency guardrails
 
-- [ ] 1.1 Create dedicated worktree branch `feature/enterprise-02-rbac-and-audit-trail` from `dev`.
-- [ ] 1.2 Confirm `enterprise-01-policy-resolution-extension` remains the authority for enterprise precedence and provenance.
-- [ ] 1.3 Coordinate with module-side `enterprise-02-module-audit-client`.
+- [ ] 1.1 Create dedicated worktree branch `feature/enterprise-02-rbac-and-audit-trail` from `origin/dev` (per `AGENTS.md`).
+- [ ] 1.2 Run `hatch env create` in the worktree before any implementation.
+- [ ] 1.3 Run pre-flight checks: `hatch run smart-test-status` and `hatch run contract-test-status`.
+- [ ] 1.4 Confirm `enterprise-01-policy-resolution-extension` remains the authority for enterprise precedence and provenance.
+- [ ] 1.5 Coordinate with module-side `enterprise-02-module-audit-client` and confirm module readiness timelines.
 
 ## 2. Spec-first and test-first preparation
 
@@ -33,3 +35,4 @@
 - [ ] 5.2 Update `openspec/CHANGE_ORDER.md` with downstream dependency notes.
 - [ ] 5.3 Open PR from `feature/enterprise-02-rbac-and-audit-trail` to `dev`.
 - [ ] 5.4 After merge, remove the worktree branch and prune stale worktree state.
+- [ ] 5.5 After merge to `dev`, from repository root run `openspec archive enterprise-02-rbac-and-audit-trail` (required closeout; do not manually move change folders under `openspec/changes/archive/`).

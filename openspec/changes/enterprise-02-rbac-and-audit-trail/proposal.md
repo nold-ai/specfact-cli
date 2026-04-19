@@ -6,9 +6,9 @@ Once enterprise policy can be pushed into the client, SpecFact also needs role-a
 
 ## What Changes
 
-- **NEW**: `enterprise-audit-trail` capability defining enterprise roles, signed audit events, and local audit persistence.
-- **NEW**: Canonical roles `org-admin`, `team-lead`, `developer`, and `auditor` with action-level expectations.
-- **NEW**: Signed audit-event schema for rule pushes, promotions, approvals, overrides, and telemetry opt-in changes.
+- **DEFINES**: `enterprise-audit-trail` capability defining enterprise roles, signed audit events, and local audit persistence.
+- **INTRODUCES**: Canonical roles `org-admin`, `team-lead`, `developer`, and `auditor` with action-level expectations.
+- **ADDS**: Signed audit-event schema for rule pushes, promotions, approvals, overrides, and telemetry opt-in changes.
 - **EXTEND**: Enterprise policy-resolution flow so resolved values can be linked back to audited actions.
 - **EXTEND**: Future budget and distillation features so they can emit events through a shared audit contract.
 

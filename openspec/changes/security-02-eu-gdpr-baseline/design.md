@@ -31,7 +31,7 @@
   Mitigation: keep the baseline focused on a narrow, documented control surface and route local deviations through policy packs and exception management.
 - [Risk] Overly rigid residency defaults could block air-gapped or transitional deployments.
   Mitigation: allow advisory mode and explicit exceptions while preserving a consistent default baseline.
-- [Risk] Privacy packs may drift from security finding semantics.
+- [Risk] Privacy packs may drift from security-finding semantics.
   Mitigation: require all emitted findings to use the unified security model and shared rule vocabulary.
 
 ## Migration Plan

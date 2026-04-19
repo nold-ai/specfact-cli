@@ -22,6 +22,27 @@ SpecFact needs a first-party EU/GDPR baseline so privacy, residency, and lawful-
 
 - `policy-engine`: Add a `security.gdpr` namespace contract for lawful-basis, residency, retention, and deletion enforcement inputs.
 
+#### `policy-engine` spec delta (authoritative detail)
+
+Normative text lives in `openspec/changes/security-02-eu-gdpr-baseline/specs/policy-engine/spec.md` (follows
+`openspec/config.yaml` per-artifact rules). At a glance, the namespace structure is:
+
+```yaml
+security:
+  gdpr:
+    lawful_basis:        # required metadata surface; see security-gdpr-baseline spec for allowed enumerations
+    residency:           # ISO-3166-1 alpha-2 allowlist / region tags + explicit multi-region marker
+    retention:           # duration objects with unit + max horizon
+    deletion:            # erasure / RTBF handling flags and evidence hooks
+```
+
+Validation rules (types, required vs optional keys, allowed value sets) and **resolution precedence** (enterprise
+pushed packs override project packs only where signing and `enterprise-01-policy-resolution-extension` permit; otherwise
+local profile defaults win) are specified in the spec deltas, not duplicated here. **Runtime behavior:** when **required**
+GDPR metadata is missing for a control that is active in the current profile mode, the policy engine **MUST** emit a
+deterministic validation finding **before** command execution in `hard` mode, and **MAY** emit advisory findings in
+`advisory` mode without blocking.
+
 ## Impact
 
 - Depends on `security-01-unified-findings-model` for the canonical security finding surface.

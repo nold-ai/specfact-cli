@@ -22,8 +22,10 @@ The plan introduces enterprise policy push while preserving local-first behavior
 
 - Resolution precedence is explicit: org mandatory, team advisory, explicit CLI flags, project config, profile defaults, built-in fallback.
 - Enterprise resolution is opt-in by configuration detection; missing enterprise state results in local-only resolution, not an error.
+- **Pushed-rule metadata contract (required fields):** every pushed rule record MUST carry `mandatory` (bool), `override_allowed` (bool), `effective_from` (timestamp/version), `pushed_by` (actor id), and `signed_by` (signing identity or key id). Optional fields may exist, but these five are normative for verification and audit.
 - Pushed rules carry signature and provenance metadata so later audit logic can verify how a value entered the chain.
-- Team-advisory rules may be overridden locally, but org-mandatory rules may not unless a future signed exception path allows it.
+- **Override semantics:** team-advisory rules are overridable in local/project resolution **only when `override_allowed` is true**; when `override_allowed` is false, treat the team rule as non-overridable by local overrides (same practical posture as mandatory for that dimension). **Org-mandatory rules** (`mandatory: true`) remain **non-overridable** unless a future **signed-exception** mechanism is defined and verified in the policy engine.
+- Team-advisory rules with `mandatory: false` follow the `override_allowed` rule above; org-mandatory rules remain the highest precedence layer before CLI/project/profile unless a signed exception path exists.
 
 ## Risks / Trade-offs
 

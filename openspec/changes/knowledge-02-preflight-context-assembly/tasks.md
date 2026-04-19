@@ -8,6 +8,7 @@
 
 ## 2. Spec-first and test-first preparation
 
+- [ ] 2.0 Documentation research: review `openspec/config.yaml` and `/opsx:ff` scaffolding rules; identify user-facing doc updates and `.openspec.yaml` population tests needed (link notes to 4.2 and to `TDD_EVIDENCE.md`).
 - [ ] 2.1 Finalize `specs/preflight-context-assembly/spec.md`.
 - [ ] 2.2 Write assembler tests: tag matching, budget packer, deterministic ordering.
 - [ ] 2.3 Write authoring-gate tests: `.openspec.yaml` population, disabled-reason enforcement.
@@ -30,10 +31,18 @@
 - [ ] 4.2 Document preflight workflow + `.openspec.yaml` extension in agent-rules.
 - [ ] 4.3 Dogfood: author a new change for this repo, verify `preflight_rules` populates correctly.
 - [ ] 4.4 Run `openspec validate knowledge-02-preflight-context-assembly --strict`.
-- [ ] 4.5 Full quality gate.
+- [ ] 4.5 **Full quality gate** (run in order; update `TDD_EVIDENCE.md` after tests):
+  - [ ] 4.5.1 `hatch run format`
+  - [ ] 4.5.2 `hatch run type-check`
+  - [ ] 4.5.3 `hatch run contract-test`
+  - [ ] 4.5.4 `hatch run smart-test` (or `hatch run smart-test-full` if the smart runner requests it)
+  - [ ] 4.5.5 `hatch run lint` if touched scope includes linted paths
+  - [ ] 4.5.6 `openspec validate knowledge-02-preflight-context-assembly --strict` (repeat after doc-only edits)
+  - [ ] 4.5.7 Re-run tests that cover `.openspec.yaml` / `preflight_rules` population and inspection JSON schema
 
 ## 5. Delivery
 
 - [ ] 5.1 Mirror to wiki; rebuild graph.
 - [ ] 5.2 Update `openspec/CHANGE_ORDER.md`.
 - [ ] 5.3 Open PR to `dev`.
+- [ ] 5.4 After merge, from the **same repository worktree** used for this change, run cleanup: `git worktree remove <worktree-path>`, `git branch -d feature/knowledge-02-preflight-context-assembly`, `git worktree prune` (and `git remote prune origin` if stale remotes accumulate) per `AGENTS.md`.

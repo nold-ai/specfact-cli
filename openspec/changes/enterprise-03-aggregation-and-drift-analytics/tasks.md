@@ -8,6 +8,7 @@
 
 ## 2. Spec-first and test-first preparation
 
+- [ ] 2.0 Documentation research: per `openspec/config.yaml` and `/opsx:ff` scaffolding rules, identify user-facing docs that must change for drift analytics (link findings in `TDD_EVIDENCE.md` and execute updates under 4.2 alongside `specs/enterprise-drift-analytics/spec.md`).
 - [ ] 2.1 Finalize `specs/enterprise-drift-analytics/spec.md` and the `enterprise-audit-trail` delta.
 - [ ] 2.2 Write tests for contribution flags, aggregation payload validation, and drift metric calculations.
 - [ ] 2.3 Write tests proving analytics summaries can be reconstructed from audit/evidence references.

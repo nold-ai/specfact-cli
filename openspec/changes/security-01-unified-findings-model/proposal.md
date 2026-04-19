@@ -22,7 +22,10 @@ Security review spans SAST, SCA, secret-scanning, license compliance, PII detect
 
 - Depends on: existing `review-finding-model`, `review-report-model`, `policy-engine`, `policy-02-packs-and-modes`.
 - Consumed by: security-02-eu-gdpr-baseline (rule pack), and three module-side bundles (SAST/SCA/secret, license, PII/GDPR) — out of scope here.
-- No breaking change to existing review surfaces.
+- **Compatibility:** tolerant JSON/`ReviewReport` consumers that ignore unknown top-level sections remain compatible when the
+  new **`security`** object appears. Strict schema validators must either **pin `schema_version`**, **treat unknown keys
+  as warnings**, or adopt an **explicit extension-key policy** before failing builds. Breaking changes for strict consumers
+  require a **schema version bump** and published migration notes alongside emitters.
 
 ---
 

@@ -2,9 +2,10 @@
 
 ## 1. Branch and dependency guardrails
 
-- [ ] 1.1 Create worktree branch `feature/knowledge-01-distillation-engine` from `dev`.
+- [ ] 1.1 Create worktree branch `feature/knowledge-01-distillation-engine` from `origin/dev` (per `AGENTS.md`).
 - [ ] 1.2 Confirm telemetry-01 is landed (emitter consumes knowledge outcomes).
 - [ ] 1.3 Reconfirm scope — this change owns schema + engine; bundle runtime lives in modules repo.
+- [ ] 1.4 Run `hatch env create`; run `hatch run smart-test-status` and `hatch run contract-test-status`; perform `AGENTS.md` worktree-policy self-check before section 2.
 
 ## 2. Spec-first and test-first preparation
 
@@ -39,3 +40,4 @@
 - [ ] 5.1 Mirror to `specfact-cli-internal/wiki/sources/knowledge-01-distillation-engine.md`; rebuild graph.
 - [ ] 5.2 Update `openspec/CHANGE_ORDER.md` — dependents: knowledge-02, enterprise-03.
 - [ ] 5.3 Open PR to `dev`.
+- [ ] 5.4 After merge: `git worktree remove <worktree-path>`, `git branch -d feature/knowledge-01-distillation-engine`, `git worktree prune` (per `AGENTS.md`).

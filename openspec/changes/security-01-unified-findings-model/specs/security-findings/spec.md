@@ -76,3 +76,23 @@ The system SHALL provide `specfact review security` with category filtering and 
 - **WHEN** the command completes
 - **THEN** the `security` top-level section appears in the shared `ReviewReport`
 - **AND** existing sections (code_quality, resiliency) are unaffected.
+
+### Requirement: ReviewReport envelope evolution
+
+The shared `ReviewReport` envelope SHALL carry an explicit `schema_version` string for `--report json` outputs.
+
+#### Scenario: Unknown top-level sections are tolerated by default
+
+- **GIVEN** a consumer parses `ReviewReport` JSON from `specfact review security --report json`
+- **WHEN** the payload includes top-level sections the consumer does not recognize
+- **THEN** the consumer SHALL ignore unknown sections by default (unknown-section tolerance) while still validating
+  required keys for the sections it understands
+- **AND** consumers MAY opt into strict mode that fails on unknown sections only when pinned to a matching
+  `schema_version`.
+
+#### Scenario: Stable pillar keys require coordinated bumps
+
+- **GIVEN** stable pillar keys such as `security`, `code_quality`, and `resiliency`
+- **WHEN** their shapes change incompatibly
+- **THEN** emitters MUST bump `schema_version` according to the published semver policy for `review-report-model`
+- **AND** additive fields inside a pillar MAY ship without a major bump when parsers remain backward compatible.

@@ -44,6 +44,18 @@ Rule-id convention: `RES-<CATEGORY>-<NNN>`; numbering reserved per category band
 
 Deterministic: for a given finding, severity is fixed by rule-id × profile overrides. Scorer aggregates per category and emits a single `resiliency` block into the review-report envelope. Pass/fail verdict follows `policy-02-packs-and-modes`: advisory = always pass; mixed = fail on blocker; hard = fail on high+.
 
+## Shared `ReviewReport` envelope checkpoint (before rollout)
+
+Before enabling default emission of the **`resiliency`** pillar in bundled modules:
+
+1. **Extend and validate** the shared **`ReviewReport`** schema so parsers accept a top-level **`resiliency`** object
+   with the fields referenced by this design (finding list, summary, optional evidence refs).
+2. **Bump `schema_version`** (or agreed semantic version field on `review-report-model`) with a documented migration
+   matrix: additive vs breaking changes.
+3. **Add unit and integration schema-validation tests** that load golden JSON fixtures with and without `resiliency`.
+4. **Coordinate modules** that produce or consume **`resiliency`** alongside **`policy-02-packs-and-modes`** enforcement
+   so JSON contract drift does not break cross-repo consumers.
+
 ## CLI contract
 
 ```text

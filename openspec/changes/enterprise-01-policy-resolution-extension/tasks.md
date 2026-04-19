@@ -2,9 +2,13 @@
 
 ## 1. Branch and dependency guardrails
 
-- [ ] 1.1 Create dedicated worktree branch `feature/enterprise-01-policy-resolution-extension` from `dev`.
-- [ ] 1.2 Confirm `profile-01-config-layering` and `policy-engine` remain the authority for local resolution semantics.
-- [ ] 1.3 Coordinate with module-side `enterprise-01-module-policy-client`.
+- [ ] 1.1 Create dedicated worktree from `origin/dev` for branch `feature/enterprise-01-policy-resolution-extension` (per `AGENTS.md` git worktree policy; do not branch from a stale local `dev` without fetching).
+- [ ] 1.2 Run `hatch env create` in the worktree before any implementation commits.
+- [ ] 1.3 Pre-flight: confirm CI green for the worktree base, `git status` clean, branch rebased or merged with latest `origin/dev` as required by team practice.
+- [ ] 1.4 `AGENTS.md` self-check: confirm worktree path, Hatch env exists, and pre-flight commands above were run before proceeding to section 2.
+- [ ] 1.5 If bundled modules or signed manifests are touched: run module-signing verification and follow `/opsx:ff` scaffolding where applicable (`openspec/config.yaml` module-signing gate).
+- [ ] 1.6 Confirm `profile-01-config-layering` and `policy-engine` remain the authority for local resolution semantics.
+- [ ] 1.7 Coordinate with module-side `enterprise-01-module-policy-client`.
 
 ## 2. Spec-first and test-first preparation
 
