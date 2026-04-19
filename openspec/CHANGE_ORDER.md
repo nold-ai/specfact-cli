@@ -109,7 +109,54 @@ The 2026-03-22 clean-code plan adds one new cross-repo change pair and re-sequen
 
 ---
 
+## Plan-derived addendum (2026-04-19 five-pillar governance + enterprise plan)
+
+The 2026-04-19 five-pillar governance plan adds 13 new **core** OpenSpec changes in `specfact-cli` and a later wave of 10 bundle/client changes in `specfact-cli-modules`. The core wave is intentionally sequenced so telemetry and knowledge land before downstream review, FinOps, and enterprise layers consume them.
+
+- Pillar 1: `review-resiliency-01-contracts`
+- Pillar 2: `security-01-unified-findings-model`, `security-02-eu-gdpr-baseline`
+- Pillar 3: `architecture-02-well-architected-review`
+- Pillar 4: `finops-01-telemetry-and-outcomes`, `finops-02-budget-approval-gates`
+- Pillar 5: `knowledge-01-distillation-engine`, `knowledge-02-preflight-context-assembly`
+- Cross-cutting telemetry substrate: `telemetry-01-opentelemetry-default-on`
+- Enterprise add-on: `enterprise-01-policy-resolution-extension`, `enterprise-02-rbac-and-audit-trail`, `enterprise-03-aggregation-and-drift-analytics`, `enterprise-04-budget-governance-and-chargeback`
+
+Module-side companions stay in `specfact-cli-modules` and should not be implemented from this repo’s change folders.
+
+---
+
 ## Module groups and change folders
+
+### Five-pillar governance and enterprise foundation
+
+| Module | Order | Change folder | GitHub # | Blocked by |
+|--------|-------|---------------|----------|------------|
+| telemetry | 01 | telemetry-01-opentelemetry-default-on | [#518](https://github.com/nold-ai/specfact-cli/issues/518) | — |
+| knowledge | 01 | knowledge-01-distillation-engine | [#519](https://github.com/nold-ai/specfact-cli/issues/519) | — |
+| knowledge | 02 | knowledge-02-preflight-context-assembly | [#520](https://github.com/nold-ai/specfact-cli/issues/520) | knowledge-01; review-resiliency-01 / security-01 / architecture-02 / finops-01 should land at least one rule family before rollout |
+| review-resiliency | 01 | review-resiliency-01-contracts | [#521](https://github.com/nold-ai/specfact-cli/issues/521) | — |
+| security | 01 | security-01-unified-findings-model | [#522](https://github.com/nold-ai/specfact-cli/issues/522) | — |
+| security | 02 | security-02-eu-gdpr-baseline | [#523](https://github.com/nold-ai/specfact-cli/issues/523) | security-01 |
+| architecture | 02 | architecture-02-well-architected-review | [#524](https://github.com/nold-ai/specfact-cli/issues/524) | architecture-01-solution-layer |
+| finops | 01 | finops-01-telemetry-and-outcomes | [#525](https://github.com/nold-ai/specfact-cli/issues/525) | telemetry-01-opentelemetry-default-on |
+| finops | 02 | finops-02-budget-approval-gates | [#526](https://github.com/nold-ai/specfact-cli/issues/526) | finops-01 |
+| enterprise | 01 | enterprise-01-policy-resolution-extension | [#527](https://github.com/nold-ai/specfact-cli/issues/527) | profile-01-config-layering; policy-engine-01 ✅ |
+| enterprise | 02 | enterprise-02-rbac-and-audit-trail | [#528](https://github.com/nold-ai/specfact-cli/issues/528) | enterprise-01 |
+| enterprise | 03 | enterprise-03-aggregation-and-drift-analytics | [#529](https://github.com/nold-ai/specfact-cli/issues/529) | knowledge-01; knowledge-02; enterprise-02 |
+| enterprise | 04 | enterprise-04-budget-governance-and-chargeback | [#530](https://github.com/nold-ai/specfact-cli/issues/530) | finops-02; enterprise-01; enterprise-02 |
+
+Recommended implementation wave inside this block:
+1. `telemetry-01-opentelemetry-default-on`
+2. `knowledge-01-distillation-engine`
+3. `review-resiliency-01-contracts`, `security-01-unified-findings-model`, `architecture-02-well-architected-review` in parallel
+4. `security-02-eu-gdpr-baseline`
+5. `finops-01-telemetry-and-outcomes`
+6. `knowledge-02-preflight-context-assembly`
+7. `finops-02-budget-approval-gates`
+8. `enterprise-01-policy-resolution-extension`
+9. `enterprise-02-rbac-and-audit-trail`
+10. `enterprise-03-aggregation-and-drift-analytics`
+11. `enterprise-04-budget-governance-and-chargeback`
 
 ### Architecture (platform foundation)
 
