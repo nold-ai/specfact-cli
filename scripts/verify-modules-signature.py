@@ -299,7 +299,7 @@ def verify_manifest(
         checksum = str(integrity.get("checksum", "")).strip()
         if not checksum:
             raise ValueError("missing integrity.checksum")
-        algo, digest = _parse_checksum(checksum)
+        _parse_checksum(checksum)
         signature = str(integrity.get("signature", "")).strip()
         if signature:
             if not public_key_pem:
