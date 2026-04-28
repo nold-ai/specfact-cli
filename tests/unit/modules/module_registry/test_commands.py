@@ -94,6 +94,57 @@ def test_install_command_skips_when_module_already_available_locally(monkeypatch
     assert "already installed" in result.stdout or "already available" in result.stdout
 
 
+def test_install_command_existing_disabled_module_enables_state(monkeypatch, tmp_path: Path) -> None:
+    install_root = tmp_path / "user-modules"
+    installed_module = install_root / "specfact-codebase"
+    installed_module.mkdir(parents=True)
+    (installed_module / "module-package.yaml").write_text(
+        "name: nold-ai/specfact-codebase\nversion: '0.1.0'\ncommands: [analyze]\n",
+        encoding="utf-8",
+    )
+    enabled: list[list[str]] = []
+    captured_state: list[list[dict[str, object]]] = []
+
+    monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.USER_MODULES_ROOT", install_root)
+    monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.discover_all_modules", list)
+    monkeypatch.setattr(
+        "specfact_cli.modules.module_registry.src.commands.install_module", lambda *_args, **_kwargs: None
+    )
+    monkeypatch.setattr(
+        "specfact_cli.modules.module_registry.src.commands.read_modules_state",
+        lambda: {"nold-ai/specfact-codebase": {"version": "0.1.0", "enabled": False}},
+    )
+    monkeypatch.setattr(
+        "specfact_cli.modules.module_registry.src.commands.get_discovered_modules_for_state",
+        lambda *, enable_ids, disable_ids, preserve_existing: (
+            enabled.append(list(enable_ids))
+            or [
+                {"id": "nold-ai/specfact-codebase", "version": "0.1.0", "enabled": True},
+                {"id": "unrelated-module", "version": "9.9.9", "enabled": False},
+            ]
+        ),
+    )
+    monkeypatch.setattr(
+        "specfact_cli.modules.module_registry.src.commands.write_modules_state",
+        lambda modules: captured_state.append(modules),
+    )
+    monkeypatch.setattr(
+        "specfact_cli.modules.module_registry.src.commands.run_discovery_and_write_cache", lambda _: None
+    )
+
+    result = runner.invoke(app, ["install", "nold-ai/specfact-codebase"])
+
+    assert result.exit_code == 0
+    assert enabled == [["nold-ai/specfact-codebase"]]
+    assert captured_state == [
+        [
+            {"id": "nold-ai/specfact-codebase", "version": "0.1.0", "enabled": True},
+            {"id": "unrelated-module", "version": "9.9.9", "enabled": False},
+        ]
+    ]
+    assert "enabled" in result.stdout.lower()
+
+
 def test_install_command_project_scope_installs_to_project_modules_root(monkeypatch, tmp_path: Path) -> None:
     captured: dict[str, object] = {"install_root": None, "module_id": None}
 

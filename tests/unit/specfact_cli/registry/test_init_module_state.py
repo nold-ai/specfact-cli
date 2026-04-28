@@ -67,3 +67,19 @@ def test_new_module_gets_enabled_true(registry_dir: Path):
     modules_list = get_discovered_modules_for_state()
     for m in modules_list:
         assert m.get("enabled", True) is True
+
+
+def test_refresh_preserves_unseen_module_state_when_requested(monkeypatch, registry_dir: Path, tmp_path: Path):
+    """Repo-scoped init refresh must not erase state for modules outside the selected repo."""
+    from specfact_cli.models.module_package import ModulePackageMetadata
+
+    write_modules_state([{"id": "unseen-module", "version": "9.9.9", "enabled": False}])
+    monkeypatch.setattr(
+        "specfact_cli.registry.module_packages.discover_all_package_metadata",
+        lambda **_: [(tmp_path / "seen", ModulePackageMetadata(name="seen-module", version="1.0.0"))],
+    )
+
+    modules_list = get_discovered_modules_for_state(base_path=tmp_path, preserve_existing=True)
+
+    assert {"id": "seen-module", "version": "1.0.0", "enabled": True} in modules_list
+    assert {"id": "unseen-module", "version": "9.9.9", "enabled": False} in modules_list

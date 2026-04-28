@@ -1,0 +1,137 @@
+"""Regression tests for metadata-only module availability classification."""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+from specfact_cli.models.module_package import ModulePackageMetadata
+from specfact_cli.registry.module_availability import ModuleAvailabilityStatus, classify_module_availability
+from specfact_cli.registry.module_discovery import DiscoveredModule
+
+
+def test_classify_installed_disabled_module_reports_disabled(monkeypatch) -> None:
+    entry = DiscoveredModule(
+        Path("/tmp/specfact-codebase"),
+        ModulePackageMetadata(
+            name="nold-ai/specfact-codebase",
+            version="0.1.0",
+            commands=["analyze"],
+            category="codebase",
+            bundle_group_command="code",
+        ),
+        "user",
+    )
+
+    monkeypatch.setattr("specfact_cli.registry.module_availability.discover_all_modules_for_project", lambda _: [entry])
+    monkeypatch.setattr(
+        "specfact_cli.registry.module_availability.read_modules_state",
+        lambda: {"nold-ai/specfact-codebase": {"version": "0.1.0", "enabled": False}},
+    )
+
+    availability = classify_module_availability(module_id="nold-ai/specfact-codebase", command_name="code")
+
+    assert availability.status is ModuleAvailabilityStatus.DISABLED
+    assert availability.module_id == "nold-ai/specfact-codebase"
+    assert "module enable nold-ai/specfact-codebase" in availability.recovery_command
+
+
+def test_classify_prioritizes_requested_module_id_over_shared_command_group(monkeypatch) -> None:
+    code_review = DiscoveredModule(
+        Path("/tmp/specfact-code-review"),
+        ModulePackageMetadata(
+            name="nold-ai/specfact-code-review",
+            version="0.1.0",
+            commands=["review"],
+            category="codebase",
+            bundle_group_command="code",
+        ),
+        "user",
+    )
+    codebase = DiscoveredModule(
+        Path("/tmp/specfact-codebase"),
+        ModulePackageMetadata(
+            name="nold-ai/specfact-codebase",
+            version="0.1.0",
+            commands=["analyze"],
+            category="codebase",
+            bundle_group_command="code",
+        ),
+        "user",
+    )
+
+    monkeypatch.setattr(
+        "specfact_cli.registry.module_availability.discover_all_modules_for_project",
+        lambda _: [code_review, codebase],
+    )
+    monkeypatch.setattr(
+        "specfact_cli.registry.module_availability.read_modules_state",
+        lambda: {
+            "nold-ai/specfact-code-review": {"version": "0.1.0", "enabled": False},
+            "nold-ai/specfact-codebase": {"version": "0.1.0", "enabled": False},
+        },
+    )
+
+    availability = classify_module_availability(module_id="nold-ai/specfact-codebase", command_name="code")
+
+    assert availability.status is ModuleAvailabilityStatus.DISABLED
+    assert availability.module_id == "nold-ai/specfact-codebase"
+
+
+def test_classify_skipped_module_reports_compatibility_reason(monkeypatch) -> None:
+    entry = DiscoveredModule(
+        Path("/tmp/specfact-codebase"),
+        ModulePackageMetadata(
+            name="nold-ai/specfact-codebase",
+            version="0.1.0",
+            commands=["analyze"],
+            category="codebase",
+            bundle_group_command="code",
+            core_compatibility=">=99.0.0",
+        ),
+        "user",
+    )
+
+    monkeypatch.setattr("specfact_cli.registry.module_availability.discover_all_modules_for_project", lambda _: [entry])
+    monkeypatch.setattr("specfact_cli.registry.module_availability.read_modules_state", dict)
+
+    availability = classify_module_availability(module_id="nold-ai/specfact-codebase", command_name="code")
+
+    assert availability.status is ModuleAvailabilityStatus.SKIPPED
+    assert "requires >=99.0.0" in availability.reason
+
+
+def test_project_scope_shadow_reports_shadowing_and_available_project_copy(monkeypatch) -> None:
+    project_entry = DiscoveredModule(
+        Path("/repo/.specfact/modules/specfact-codebase"),
+        ModulePackageMetadata(
+            name="nold-ai/specfact-codebase",
+            version="0.2.0",
+            commands=["analyze"],
+            category="codebase",
+            bundle_group_command="code",
+        ),
+        "project",
+    )
+    user_entry = DiscoveredModule(
+        Path("/home/user/.specfact/modules/specfact-codebase"),
+        ModulePackageMetadata(
+            name="nold-ai/specfact-codebase",
+            version="0.1.0",
+            commands=["analyze"],
+            category="codebase",
+            bundle_group_command="code",
+        ),
+        "user",
+    )
+
+    monkeypatch.setattr(
+        "specfact_cli.registry.module_availability.discover_all_modules_for_project",
+        lambda _: [project_entry, user_entry],
+    )
+    monkeypatch.setattr("specfact_cli.registry.module_availability.read_modules_state", dict)
+
+    availability = classify_module_availability(module_id="nold-ai/specfact-codebase", command_name="code")
+
+    assert availability.status is ModuleAvailabilityStatus.SHADOWED
+    assert availability.shadowed_by == project_entry.package_dir
+    assert availability.package_dir == user_entry.package_dir

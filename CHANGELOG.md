@@ -10,6 +10,14 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.46.5] - 2026-04-28
+
+### Fixed
+
+- **Module install and init**: repair module availability, install, upgrade, uninstall, and profile-init state handling so repeated runs across repos and envs stay consistent.
+
+---
+
 ## [0.46.4] - 2026-04-17
 
 ### Fixed

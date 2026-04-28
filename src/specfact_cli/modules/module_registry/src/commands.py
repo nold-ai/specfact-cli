@@ -20,10 +20,12 @@ from packaging.version import InvalidVersion, Version
 from rich.console import Console
 from rich.table import Table
 
+from specfact_cli import __version__
 from specfact_cli.models.module_package import ModulePackageMetadata
 from specfact_cli.modules import module_io_shim
 from specfact_cli.registry.alias_manager import create_alias, list_aliases, remove_alias
 from specfact_cli.registry.custom_registries import add_registry, fetch_all_indexes, list_registries, remove_registry
+from specfact_cli.registry.help_cache import run_discovery_and_write_cache
 from specfact_cli.registry.marketplace_client import fetch_registry_index
 from specfact_cli.registry.module_discovery import discover_all_modules
 from specfact_cli.registry.module_installer import (
@@ -42,7 +44,9 @@ from specfact_cli.registry.module_lifecycle import (
     render_modules_table,
     select_module_ids_interactive,
 )
+from specfact_cli.registry.module_packages import get_discovered_modules_for_state
 from specfact_cli.registry.module_security import ensure_publisher_trusted, is_official_publisher
+from specfact_cli.registry.module_state import read_modules_state, write_modules_state
 from specfact_cli.registry.registry import CommandRegistry
 from specfact_cli.runtime import is_non_interactive
 
@@ -178,6 +182,29 @@ def _resolve_install_target_root(scope_normalized: str, repo: Path | None) -> Pa
     return USER_MODULES_ROOT if scope_normalized == "user" else repo_path / ".specfact" / "modules"
 
 
+def _read_installed_manifest_id(module_dir: Path, fallback_name: str) -> str:
+    manifest_path = module_dir / "module-package.yaml"
+    try:
+        raw = yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, yaml.YAMLError):
+        return fallback_name
+    if isinstance(raw, dict):
+        manifest = cast(dict[str, Any], raw)
+        if manifest.get("name"):
+            return str(manifest["name"])
+    return fallback_name
+
+
+def _enable_if_disabled(module_id: str) -> bool:
+    state = read_modules_state()
+    if state.get(module_id, {}).get("enabled", True) is not False:
+        return False
+    modules = get_discovered_modules_for_state(enable_ids=[module_id], disable_ids=[], preserve_existing=True)
+    write_modules_state(modules)
+    run_discovery_and_write_cache(__version__)
+    return True
+
+
 def _install_skip_if_already_satisfied(
     scope_normalized: str,
     requested_name: str,
@@ -185,8 +212,17 @@ def _install_skip_if_already_satisfied(
     reinstall: bool,
     discovered_by_name: dict[str, Any],
 ) -> bool:
-    if (target_root / requested_name / "module-package.yaml").exists() and not reinstall:
-        console.print(f"[yellow]Module '{requested_name}' is already installed in {target_root}.[/yellow]")
+    installed_dir = target_root / requested_name
+    if (installed_dir / "module-package.yaml").exists() and not reinstall:
+        module_id = _read_installed_manifest_id(installed_dir, requested_name)
+        enabled = _enable_if_disabled(module_id)
+        if enabled:
+            console.print(
+                f"[yellow]Module '{module_id}' is already installed in {target_root}; "
+                "enabled it in module state.[/yellow]"
+            )
+        else:
+            console.print(f"[yellow]Module '{module_id}' is already installed in {target_root}.[/yellow]")
         return True
     skip_sources = {"builtin", "project", "user", "custom"}
     if scope_normalized == "project":
@@ -195,9 +231,11 @@ def _install_skip_if_already_satisfied(
         skip_sources.discard("project")
     existing = discovered_by_name.get(requested_name)
     if existing is not None and existing.source in skip_sources:
+        enabled = _enable_if_disabled(existing.metadata.name)
+        state_hint = " Enabled it in module state." if enabled else ""
         console.print(
-            f"[yellow]Module '{requested_name}' is already available from source '{existing.source}'. "
-            "No marketplace install needed.[/yellow]"
+            f"[yellow]Module '{existing.metadata.name}' is already available from source '{existing.source}'. "
+            f"No marketplace install needed.{state_hint}[/yellow]"
         )
         return True
     return False

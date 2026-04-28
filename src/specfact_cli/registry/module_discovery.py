@@ -29,6 +29,23 @@ class DiscoveredModule:
     source: str
 
 
+@dataclass(frozen=True)
+class _DiscoveryRootOptions:
+    builtin_root: Path | None = None
+    user_root: Path | None = None
+    marketplace_root: Path | None = None
+    custom_root: Path | None = None
+    include_legacy_roots: bool | None = None
+    project_base_path: Path | None = None
+
+
+@dataclass
+class _DiscoveryMergeState:
+    seen_by_name: dict[str, DiscoveredModule]
+    discovered: list[DiscoveredModule]
+    logger: Any
+
+
 def _resolve_include_legacy_roots(
     include_legacy_roots: bool | None,
     builtin_root: Path | None,
@@ -53,20 +70,14 @@ def _append_legacy_module_roots(roots: list[tuple[str, Path]]) -> None:
         roots.append(("custom", extra_root))
 
 
-def _discovery_root_list(
-    builtin_root: Path | None,
-    user_root: Path | None,
-    marketplace_root: Path | None,
-    custom_root: Path | None,
-    include_legacy_roots: bool | None,
-) -> list[tuple[str, Path]]:
+def _discovery_root_list(options: _DiscoveryRootOptions) -> list[tuple[str, Path]]:
     from specfact_cli.registry.module_packages import get_modules_root, get_workspace_modules_root
 
-    effective_builtin_root = builtin_root or get_modules_root()
-    effective_project_root = get_workspace_modules_root()
-    effective_user_root = user_root or USER_MODULES_ROOT
-    effective_marketplace_root = marketplace_root or MARKETPLACE_MODULES_ROOT
-    effective_custom_root = custom_root or CUSTOM_MODULES_ROOT
+    effective_builtin_root = options.builtin_root or get_modules_root()
+    effective_project_root = get_workspace_modules_root(options.project_base_path)
+    effective_user_root = options.user_root or USER_MODULES_ROOT
+    effective_marketplace_root = options.marketplace_root or MARKETPLACE_MODULES_ROOT
+    effective_custom_root = options.custom_root or CUSTOM_MODULES_ROOT
 
     roots: list[tuple[str, Path]] = [("builtin", effective_builtin_root)]
     project_matches_user_root = False
@@ -86,7 +97,13 @@ def _discovery_root_list(
         ]
     )
 
-    legacy = _resolve_include_legacy_roots(include_legacy_roots, builtin_root, user_root, marketplace_root, custom_root)
+    legacy = _resolve_include_legacy_roots(
+        options.include_legacy_roots,
+        options.builtin_root,
+        options.user_root,
+        options.marketplace_root,
+        options.custom_root,
+    )
     if legacy:
         _append_legacy_module_roots(roots)
     return roots
@@ -121,16 +138,14 @@ def _merge_discovered_entry(
     source: str,
     package_dir: Path,
     metadata: ModulePackageMetadata,
-    seen_by_name: dict[str, DiscoveredModule],
-    discovered: list[DiscoveredModule],
-    logger: Any,
+    state: _DiscoveryMergeState,
 ) -> None:
     module_name = metadata.name
-    if module_name in seen_by_name:
-        existing = seen_by_name[module_name]
+    if module_name in state.seen_by_name:
+        existing = state.seen_by_name[module_name]
         _maybe_warn_user_shadowed_by_project(module_name, source, package_dir, existing)
         if source in {"user", "marketplace", "custom"}:
-            logger.debug(
+            state.logger.debug(
                 "Module '%s' from %s at '%s' is shadowed by higher-priority source %s at '%s'.",
                 module_name,
                 source,
@@ -144,8 +159,31 @@ def _merge_discovered_entry(
         metadata=metadata,
         source=source,
     )
-    seen_by_name[module_name] = entry
-    discovered.append(entry)
+    state.seen_by_name[module_name] = entry
+    state.discovered.append(entry)
+
+
+def _discover_modules(options: _DiscoveryRootOptions) -> list[DiscoveredModule]:
+    """Discover modules from all configured locations with deterministic priority."""
+    from specfact_cli.registry.module_packages import discover_package_metadata
+
+    logger = get_bridge_logger(__name__)
+    discovered: list[DiscoveredModule] = []
+    merge_state = _DiscoveryMergeState(
+        seen_by_name={},
+        discovered=discovered,
+        logger=logger,
+    )
+    roots = _discovery_root_list(options)
+
+    for source, root in roots:
+        if not root.exists() or not root.is_dir():
+            continue
+        entries = discover_package_metadata(root, source=source)
+        for package_dir, metadata in entries:
+            _merge_discovered_entry(source, package_dir, metadata, merge_state)
+
+    return discovered
 
 
 @beartype
@@ -158,18 +196,19 @@ def discover_all_modules(
     include_legacy_roots: bool | None = None,
 ) -> list[DiscoveredModule]:
     """Discover modules from all configured locations with deterministic priority."""
-    from specfact_cli.registry.module_packages import discover_package_metadata
+    return _discover_modules(
+        _DiscoveryRootOptions(
+            builtin_root=builtin_root,
+            user_root=user_root,
+            marketplace_root=marketplace_root,
+            custom_root=custom_root,
+            include_legacy_roots=include_legacy_roots,
+        )
+    )
 
-    logger = get_bridge_logger(__name__)
-    discovered: list[DiscoveredModule] = []
-    seen_by_name: dict[str, DiscoveredModule] = {}
-    roots = _discovery_root_list(builtin_root, user_root, marketplace_root, custom_root, include_legacy_roots)
 
-    for source, root in roots:
-        if not root.exists() or not root.is_dir():
-            continue
-        entries = discover_package_metadata(root, source=source)
-        for package_dir, metadata in entries:
-            _merge_discovered_entry(source, package_dir, metadata, seen_by_name, discovered, logger)
-
-    return discovered
+@beartype
+@ensure(lambda result: isinstance(result, list), "Discovery result must be a list")
+def discover_all_modules_for_project(base_path: Path | None = None) -> list[DiscoveredModule]:
+    """Discover modules using a specific project path for workspace-local roots."""
+    return _discover_modules(_DiscoveryRootOptions(project_base_path=base_path))

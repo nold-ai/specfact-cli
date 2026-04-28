@@ -163,6 +163,42 @@ def test_init_profile_solo_developer_calls_installer_with_codebase_and_code_revi
     assert install_calls[0] == ["specfact-codebase", "specfact-code-review"]
 
 
+def test_init_profile_enables_profile_modules_and_uses_repo_for_discovery(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    captured: dict[str, object] = {}
+
+    def _fake_get_discovered_modules_for_state(**kwargs: object) -> list[dict[str, object]]:
+        captured.update(kwargs)
+        return [{"id": "nold-ai/specfact-codebase", "enabled": True}]
+
+    monkeypatch.setattr("specfact_cli.modules.init.src.commands.install_bundles_for_init", lambda *_a, **_k: None)
+    monkeypatch.setattr("specfact_cli.modules.init.src.commands.is_first_run", lambda **_: True)
+    monkeypatch.setattr(
+        "specfact_cli.modules.init.src.commands.get_discovered_modules_for_state",
+        _fake_get_discovered_modules_for_state,
+    )
+    monkeypatch.setattr("specfact_cli.modules.init.src.commands.write_modules_state", lambda _: None)
+    monkeypatch.setattr("specfact_cli.modules.init.src.commands.run_discovery_and_write_cache", lambda _: None)
+    monkeypatch.setattr(
+        "specfact_cli.modules.init.src.commands.detect_env_manager", lambda _: MagicMock(manager=MagicMock())
+    )
+
+    with _telemetry_track_context():
+        result = runner.invoke(
+            app,
+            ["--repo", str(tmp_path), "--profile", "solo-developer"],
+            catch_exceptions=False,
+        )
+
+    assert result.exit_code == 0, result.output
+    assert captured["base_path"] == tmp_path.resolve()
+    enable_ids = captured["enable_ids"]
+    assert isinstance(enable_ids, list)
+    assert set(enable_ids) == {"nold-ai/specfact-codebase", "nold-ai/specfact-code-review"}
+    assert captured["preserve_existing"] is True
+
+
 def test_init_profile_enterprise_full_stack_calls_installer_with_all_five(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
