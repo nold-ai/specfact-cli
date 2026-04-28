@@ -106,7 +106,7 @@ def _resolve_field_mapping_templates_dir(repo_path: Path) -> Path | None:
         package_templates_dir = Path(str(templates_ref)).resolve()
         if package_templates_dir.exists():
             return package_templates_dir
-    except Exception:
+    except (ImportError, OSError, ValueError):
         try:
             import importlib.util
 
@@ -118,8 +118,8 @@ def _resolve_field_mapping_templates_dir(repo_path: Path) -> Path | None:
                 ).resolve()
                 if package_templates_dir.exists():
                     return package_templates_dir
-        except Exception:
-            pass
+        except (ImportError, OSError, ValueError):
+            return None
     return None
 
 
@@ -434,7 +434,15 @@ def _is_valid_repo_path(repo: Path) -> bool:
 
 
 @beartype
-def _install_profile_bundles(profile: str, install_root: Path, non_interactive: bool) -> None:
+def _marketplace_ids_for_bundles(bundle_ids: list[str]) -> list[str]:
+    return [
+        first_run_selection.MARKETPLACE_ONLY_BUNDLES[bid]
+        for bid in bundle_ids
+        if bid in first_run_selection.MARKETPLACE_ONLY_BUNDLES
+    ]
+
+
+def _install_profile_bundles(profile: str, install_root: Path, non_interactive: bool) -> list[str]:
     """Resolve profile to bundle list and install via module installer."""
     bundle_ids = first_run_selection.resolve_profile_bundles(profile)
     if bundle_ids:
@@ -444,10 +452,11 @@ def _install_profile_bundles(profile: str, install_root: Path, non_interactive: 
             install_root,
             non_interactive=non_interactive,
         )
+    return _marketplace_ids_for_bundles(bundle_ids)
 
 
 @beartype
-def _install_bundle_list(install_arg: str, install_root: Path, non_interactive: bool) -> None:
+def _install_bundle_list(install_arg: str, install_root: Path, non_interactive: bool) -> list[str]:
     """Parse comma-separated or 'all' and install bundles via module installer."""
     bundle_ids = first_run_selection.resolve_install_bundles(install_arg)
     if bundle_ids:
@@ -457,18 +466,30 @@ def _install_bundle_list(install_arg: str, install_root: Path, non_interactive: 
             install_root,
             non_interactive=non_interactive,
         )
+    return _marketplace_ids_for_bundles(bundle_ids)
 
 
-def _apply_profile_or_install_bundles(profile: str | None, install: str | None) -> None:
+def _apply_profile_or_install_bundles(profile: str | None, install: str | None) -> list[str]:
     try:
         non_interactive = is_non_interactive()
         if profile is not None:
-            _install_profile_bundles(profile, INIT_USER_MODULES_ROOT, non_interactive=non_interactive)
-        else:
-            _install_bundle_list(install or "", INIT_USER_MODULES_ROOT, non_interactive=non_interactive)
+            return _install_profile_bundles(profile, INIT_USER_MODULES_ROOT, non_interactive=non_interactive)
+        return _install_bundle_list(install or "", INIT_USER_MODULES_ROOT, non_interactive=non_interactive)
     except ValueError as e:
         console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(1) from e
+
+
+def _refresh_init_module_state(repo_path: Path, enabled_module_ids: list[str]) -> list[dict[str, Any]]:
+    modules_list = get_discovered_modules_for_state(
+        enable_ids=enabled_module_ids,
+        disable_ids=[],
+        base_path=repo_path,
+        preserve_existing=True,
+    )
+    if modules_list:
+        write_modules_state(modules_list)
+    return modules_list
 
 
 def _run_interactive_first_run_install() -> None:
@@ -702,8 +723,9 @@ def init(
 
         repo_path = repo.resolve()
 
+        enabled_module_ids: list[str] = []
         if profile is not None or install is not None:
-            _apply_profile_or_install_bundles(profile, install)
+            enabled_module_ids = _apply_profile_or_install_bundles(profile, install)
         elif is_first_run(user_root=INIT_USER_MODULES_ROOT) and is_non_interactive():
             console.print(
                 "[red]Error:[/red] In CI/CD (non-interactive) mode, first-run init requires "
@@ -718,9 +740,7 @@ def init(
             _run_interactive_first_run_install()
 
         _init_user_visible_step("[cyan]→[/cyan] Discovering installed modules and writing registry state…")
-        modules_list = get_discovered_modules_for_state(enable_ids=[], disable_ids=[])
-        if modules_list:
-            write_modules_state(modules_list)
+        modules_list = _refresh_init_module_state(repo_path, enabled_module_ids)
 
         _init_user_visible_step("[cyan]→[/cyan] Indexing CLI commands for help cache…")
         run_discovery_and_write_cache(__version__)

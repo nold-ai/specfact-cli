@@ -59,7 +59,7 @@ def test_init_bootstrap_only_does_not_run_ide_setup(tmp_path: Path, monkeypatch)
     monkeypatch.setattr("specfact_cli.modules.init.src.commands.is_first_run", lambda **_kwargs: False)
     monkeypatch.setattr(
         "specfact_cli.modules.init.src.commands.get_discovered_modules_for_state",
-        lambda enable_ids=None, disable_ids=None: [
+        lambda enable_ids=None, disable_ids=None, base_path=None, preserve_existing=False: [
             {"id": "sync", "version": "0.1.0", "enabled": True},
         ],
     )
@@ -83,7 +83,7 @@ def test_init_install_deps_runs_without_ide_template_copy(tmp_path: Path, monkey
     monkeypatch.setattr("specfact_cli.modules.init.src.commands.is_first_run", lambda **_kwargs: False)
     monkeypatch.setattr(
         "specfact_cli.modules.init.src.commands.get_discovered_modules_for_state",
-        lambda enable_ids=None, disable_ids=None: [
+        lambda enable_ids=None, disable_ids=None, base_path=None, preserve_existing=False: [
             {"id": "sync", "version": "0.1.0", "enabled": True},
         ],
     )

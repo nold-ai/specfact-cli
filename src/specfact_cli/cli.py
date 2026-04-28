@@ -66,6 +66,7 @@ from specfact_cli.registry import CommandRegistry
 from specfact_cli.registry.alias_manager import resolve_command
 from specfact_cli.registry.bootstrap import register_builtin_commands
 from specfact_cli.registry.metadata import CommandMetadata
+from specfact_cli.registry.module_availability import ModuleAvailabilityStatus, classify_module_availability
 from specfact_cli.runtime import get_configured_console, init_debug_log_file, set_debug_mode
 from specfact_cli.utils.progressive_disclosure import ProgressiveDisclosureGroup
 from specfact_cli.utils.structured_io import StructuredFormat
@@ -124,6 +125,28 @@ def _print_missing_bundle_command_help(invoked: str) -> None:
     module_id = _INVOKED_TO_MARKETPLACE_MODULE.get(invoked)
     console = get_configured_console()
     if module_id is not None:
+        availability = classify_module_availability(module_id=module_id, command_name=invoked)
+        if availability.status is ModuleAvailabilityStatus.DISABLED:
+            console.print(
+                f"[bold red]Module '{availability.module_id or module_id}' is installed but disabled.[/bold red]\n"
+                f"The [bold]{invoked}[/bold] command group is provided by that module. "
+                f"Enable with [bold]{availability.recovery_command}[/bold]."
+            )
+            return
+        if availability.status is ModuleAvailabilityStatus.SKIPPED:
+            console.print(
+                f"[bold red]Module '{availability.module_id or module_id}' is installed but skipped.[/bold red]\n"
+                f"Reason: {availability.reason}. "
+                "Inspect with [bold]specfact module list --show-origin[/bold]."
+            )
+            return
+        if availability.status is ModuleAvailabilityStatus.SHADOWED:
+            console.print(
+                f"[bold red]Module '{availability.module_id or module_id}' is shadowed in this workspace.[/bold red]\n"
+                f"Shadowed by: {availability.shadowed_by}. "
+                "Inspect with [bold]specfact module list --show-origin[/bold]."
+            )
+            return
         console.print(
             f"[bold red]Module '{module_id}' is not installed.[/bold red]\n"
             f"The [bold]{invoked}[/bold] command group is provided by that module. "

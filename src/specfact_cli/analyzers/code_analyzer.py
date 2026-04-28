@@ -32,6 +32,24 @@ from specfact_cli.utils.feature_keys import to_classname_key, to_sequential_key
 console = Console()
 
 
+def _ensure_semgrep_runtime_dir(repo_path: Path, relative: str) -> str:
+    """Create and return a stable repo-local runtime directory for Semgrep."""
+    path = (repo_path / relative).resolve()
+    path.mkdir(parents=True, exist_ok=True)
+    return str(path)
+
+
+def _build_semgrep_env(repo_path: Path) -> dict[str, str]:
+    """Build a repo-local Semgrep runtime env so CLI startup stays deterministic."""
+    env = dict(os.environ)
+    env["XDG_CONFIG_HOME"] = _ensure_semgrep_runtime_dir(repo_path, ".specfact/config")
+    env["XDG_CACHE_HOME"] = _ensure_semgrep_runtime_dir(repo_path, ".specfact/cache")
+    env["SEMGREP_VERSION_CACHE_PATH"] = _ensure_semgrep_runtime_dir(repo_path, ".specfact/cache/semgrep")
+    semgrep_log_dir = _ensure_semgrep_runtime_dir(repo_path, ".specfact/logs")
+    env["SEMGREP_LOG_FILE"] = str((Path(semgrep_log_dir) / "semgrep.log").resolve())
+    return env
+
+
 @dataclass
 class _SemgrepFeatureBuckets:
     api_endpoints: list[str] = field(default_factory=list)
@@ -457,6 +475,7 @@ class CodeAnalyzer:
                 capture_output=True,
                 text=True,
                 timeout=5,  # Increased timeout to 5s (Semgrep may need time to initialize)
+                env=_build_semgrep_env(self.repo_path),
             )
             return result.returncode == 0
         except (FileNotFoundError, subprocess.TimeoutExpired, OSError):
@@ -566,6 +585,7 @@ class CodeAnalyzer:
                 capture_output=True,
                 text=True,
                 timeout=timeout,
+                env=_build_semgrep_env(self.repo_path),
             )
 
             # Semgrep may return non-zero for valid findings

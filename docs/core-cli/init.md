@@ -15,8 +15,6 @@ exempt: false
 exempt_reason: ""
 ---
 
-# specfact init
-
 Bootstrap SpecFact CLI in a repository. Use `init ide` for IDE-specific setup; module lifecycle is under `specfact module`.
 
 ## Usage
@@ -53,6 +51,8 @@ specfact init --profile solo-developer
 # Install specific bundles during init
 specfact init --install backlog,code-review
 ```
+
+Profile and install selections are treated as explicit enable requests for the selected marketplace module ids. `init` discovers project modules relative to `--repo` and merges the refreshed rows into `modules.json`, preserving unrelated module lifecycle state from other repositories or scopes.
 
 ## IDE Setup
 
