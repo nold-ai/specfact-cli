@@ -22,7 +22,7 @@ from specfact_cli.registry.bootstrap import register_builtin_commands
 
 
 @pytest.fixture(autouse=True)
-def _reset_registry_and_root_app() -> Generator[None, None, None]:
+def reset_registry_and_root_app() -> Generator[None, None, None]:
     """Other tests clear ``CommandRegistry`` without re-registering; rebuild root ``app`` for Typer."""
     CommandRegistry._clear_for_testing()
     register_builtin_commands()
@@ -181,8 +181,8 @@ def test_module_install_multi_skips_already_installed_and_continues() -> None:
     """Multi-install: if A is already installed, skip A but still install B; exit 0."""
     installed: list[str] = []
 
-    def _fake_skip(scope: str, name: str, root: Path, reinstall: bool, discovered: Any) -> bool:
-        return "codebase" in name  # A is already installed
+    def _fake_skip(*args: Any, **_kwargs: Any) -> bool:
+        return "codebase" in str(args[1])  # A is already installed
 
     def _fake_install(module_id: str, options: object | None = None, **_kwargs: object) -> Path:
         installed.append(module_id)

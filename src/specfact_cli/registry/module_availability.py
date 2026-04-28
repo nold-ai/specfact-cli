@@ -53,6 +53,8 @@ def _module_id_matches(requested: str | None, discovered_id: str) -> bool:
     if requested is None:
         return False
     requested_clean = requested.strip()
+    if "/" in requested_clean:
+        return requested_clean == discovered_id
     return requested_clean == discovered_id or _module_id_tail(requested_clean) == _module_id_tail(discovered_id)
 
 
@@ -74,6 +76,8 @@ def _availability_matches(
     module_matches = [entry for entry in discovered if _module_id_matches(module_id, entry.metadata.name)]
     if module_matches:
         return module_matches
+    if module_id is not None and "/" in module_id.strip():
+        return []
     return [entry for entry in discovered if _entry_matches(entry, module_id=module_id, command_name=command_name)]
 
 

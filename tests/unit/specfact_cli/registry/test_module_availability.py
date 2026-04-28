@@ -80,6 +80,30 @@ def test_classify_prioritizes_requested_module_id_over_shared_command_group(monk
     assert availability.module_id == "nold-ai/specfact-codebase"
 
 
+def test_classify_fully_qualified_id_does_not_tail_match_other_namespace(monkeypatch) -> None:
+    other_namespace = DiscoveredModule(
+        Path("/tmp/specfact-codebase"),
+        ModulePackageMetadata(
+            name="other-org/specfact-codebase",
+            version="0.1.0",
+            commands=["analyze"],
+            category="codebase",
+            bundle_group_command="code",
+        ),
+        "user",
+    )
+
+    monkeypatch.setattr(
+        "specfact_cli.registry.module_availability.discover_all_modules_for_project_with_shadowed",
+        lambda _: [other_namespace],
+    )
+    monkeypatch.setattr("specfact_cli.registry.module_availability.read_modules_state", dict)
+
+    availability = classify_module_availability(module_id="nold-ai/specfact-codebase", command_name="code")
+
+    assert availability.status is ModuleAvailabilityStatus.ABSENT
+
+
 def test_classify_skipped_module_reports_compatibility_reason(monkeypatch) -> None:
     entry = DiscoveredModule(
         Path("/tmp/specfact-codebase"),

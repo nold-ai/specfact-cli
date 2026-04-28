@@ -182,6 +182,17 @@ def _resolve_install_target_root(scope_normalized: str, repo: Path | None) -> Pa
     return USER_MODULES_ROOT if scope_normalized == "user" else repo_path / ".specfact" / "modules"
 
 
+def _normalize_project_repo(repo: Path | None) -> Path | None:
+    """Resolve a project-scoped repo argument to the nearest workspace root."""
+    if repo is None:
+        return None
+    repo_path = repo.resolve()
+    for candidate in [repo_path, *repo_path.parents]:
+        if (candidate / ".git").exists():
+            return candidate
+    return repo_path
+
+
 def _read_installed_manifest_id(module_dir: Path, fallback_name: str) -> str:
     manifest_path = module_dir / "module-package.yaml"
     try:
@@ -441,14 +452,17 @@ def _install_impl(module_ids: list[str], **kwargs: Any) -> None:
         )
         raise typer.Exit(1)
     scope_normalized, source_normalized = _parse_install_scope_and_source(scope, source)
-    target_root = _resolve_install_target_root(scope_normalized, repo)
-    discovered = discover_all_modules_for_project(repo) if repo is not None else discover_all_modules()
+    normalized_repo = _normalize_project_repo(repo) if scope_normalized == "project" else None
+    target_root = _resolve_install_target_root(scope_normalized, normalized_repo)
+    discovered = (
+        discover_all_modules_for_project(normalized_repo) if normalized_repo is not None else discover_all_modules()
+    )
     discovered_by_name = {entry.metadata.name: entry for entry in discovered}
     params = _InstallOneParams(
         scope_normalized=scope_normalized,
         source_normalized=source_normalized,
         target_root=target_root,
-        repo=repo,
+        repo=normalized_repo,
         version=version,
         reinstall=reinstall,
         trust_non_official=trust_non_official,

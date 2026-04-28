@@ -10,6 +10,16 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.46.7] - 2026-04-28
+
+### Fixed
+
+- **Review follow-up**: normalize project install `--repo` to the workspace root
+  and require exact matching for fully qualified module ids during availability
+  classification.
+
+---
+
 ## [0.46.6] - 2026-04-28
 
 ### Fixed
@@ -20,9 +30,21 @@ All notable changes to this project will be documented in this file.
 
 ## [0.46.5] - 2026-04-28
 
+### Added
+
+- **Reality-test coverage**: add isolated `hatch run specfact` verification for
+  install, upgrade, uninstall, and profile-init workflows.
+
+### Changed
+
+- **Diagnostics behavior**: missing-command guidance now distinguishes absent,
+  disabled, skipped, and shadowed module states with matching recovery hints.
+
 ### Fixed
 
-- **Module install and init**: repair module availability, install, upgrade, uninstall, and profile-init state handling so repeated runs across repos and envs stay consistent.
+- **Module install and init**: repair module availability, install, upgrade,
+  uninstall, and profile-init state handling so repeated runs across repos and
+  envs stay consistent.
 
 ---
 

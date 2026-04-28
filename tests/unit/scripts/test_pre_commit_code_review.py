@@ -320,6 +320,13 @@ def test_build_review_subprocess_env_injects_discovered_repo_without_mutating_os
     assert before is False
     assert after is False
     assert env["SPECFACT_MODULES_REPO"] == str(modules_root.resolve())
+    assert env["XDG_CONFIG_HOME"] == str((fake_repo / ".specfact" / "config").resolve())
+    assert env["XDG_CACHE_HOME"] == str((fake_repo / ".specfact" / "cache").resolve())
+    assert env["SEMGREP_VERSION_CACHE_PATH"] == str((fake_repo / ".specfact" / "cache" / "semgrep").resolve())
+    assert env["SEMGREP_LOG_FILE"] == str((fake_repo / ".specfact" / "logs" / "semgrep.log").resolve())
+    assert Path(env["XDG_CONFIG_HOME"]).is_dir()
+    assert Path(env["XDG_CACHE_HOME"]).is_dir()
+    assert Path(env["SEMGREP_VERSION_CACHE_PATH"]).is_dir()
 
 
 def test_build_review_subprocess_env_preserves_explicit_value(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -329,3 +336,22 @@ def test_build_review_subprocess_env_preserves_explicit_value(monkeypatch: pytes
     monkeypatch.setenv("SPECFACT_MODULES_REPO", explicit)
     env = module.build_review_subprocess_env()
     assert env["SPECFACT_MODULES_REPO"] == explicit
+
+
+def test_build_review_subprocess_env_overrides_explicit_xdg_paths(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Nested review tooling must ignore ambient XDG paths and use repo-local dirs."""
+    module = _load_script_module()
+    explicit_config = str(tmp_path / "xdg-config")
+    explicit_cache = str(tmp_path / "xdg-cache")
+    fake_repo = tmp_path / "repo"
+    (fake_repo / "scripts").mkdir(parents=True)
+    monkeypatch.setattr(module, "_repo_root", lambda: fake_repo)
+    monkeypatch.setenv("XDG_CONFIG_HOME", explicit_config)
+    monkeypatch.setenv("XDG_CACHE_HOME", explicit_cache)
+
+    env = module.build_review_subprocess_env()
+
+    assert env["XDG_CONFIG_HOME"] == str((fake_repo / ".specfact" / "config").resolve())
+    assert env["XDG_CACHE_HOME"] == str((fake_repo / ".specfact" / "cache").resolve())

@@ -221,6 +221,37 @@ def test_install_command_project_scope_installs_to_project_modules_root(monkeypa
     assert captured["install_root"] == repo_path / ".specfact" / "modules"
 
 
+def test_install_command_project_scope_normalizes_nested_repo_path(monkeypatch, tmp_path: Path) -> None:
+    captured: dict[str, object] = {"install_root": None, "discovery_repo": None}
+    repo_root = tmp_path / "repo"
+    nested_dir = repo_root / "services" / "api"
+    nested_dir.mkdir(parents=True)
+    (repo_root / ".git").mkdir()
+
+    def _install(module_id: str, options: InstallModuleOptions | None = None, **_kwargs):
+        o = options or InstallModuleOptions()
+        captured["install_root"] = o.install_root
+        return tmp_path / module_id.split("/")[-1]
+
+    def _discover(repo: Path | None):
+        captured["discovery_repo"] = repo
+        return []
+
+    monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.discover_all_modules_for_project", _discover)
+    monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.install_module", _install)
+    monkeypatch.setattr(
+        "specfact_cli.modules.module_registry.src.commands.install_bundled_module",
+        lambda module_name, target_root, **_kwargs: False,
+        raising=False,
+    )
+
+    result = runner.invoke(app, ["install", "backlog", "--scope", "project", "--repo", str(nested_dir)])
+
+    assert result.exit_code == 0
+    assert captured["discovery_repo"] == repo_root
+    assert captured["install_root"] == repo_root / ".specfact" / "modules"
+
+
 def test_install_command_prefers_bundled_source_when_available(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.discover_all_modules", list)
     monkeypatch.setattr(
@@ -430,7 +461,7 @@ def test_uninstall_command_requires_scope_when_module_exists_in_user_and_project
     assert "project" in result.stdout
 
 
-def test_uninstall_command_custom_module_has_clear_guidance(monkeypatch) -> None:
+def test_uninstall_command_custom_module_has_clear_guidance(monkeypatch, tmp_path: Path) -> None:
     class _Meta:
         name = "bundle-mapper"
 
@@ -438,6 +469,7 @@ def test_uninstall_command_custom_module_has_clear_guidance(monkeypatch) -> None
         metadata = _Meta()
         source = "custom"
 
+    monkeypatch.chdir(tmp_path)
     monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.discover_all_modules", lambda: [_Entry()])
 
     result = runner.invoke(app, ["uninstall", "bundle-mapper"])
