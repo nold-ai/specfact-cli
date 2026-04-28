@@ -94,6 +94,107 @@ def test_install_command_skips_when_module_already_available_locally(monkeypatch
     assert "already installed" in result.stdout or "already available" in result.stdout
 
 
+def test_install_command_existing_disabled_module_enables_state(monkeypatch, tmp_path: Path) -> None:
+    install_root = tmp_path / "user-modules"
+    installed_module = install_root / "specfact-codebase"
+    installed_module.mkdir(parents=True)
+    (installed_module / "module-package.yaml").write_text(
+        "name: nold-ai/specfact-codebase\nversion: '0.1.0'\ncommands: [analyze]\n",
+        encoding="utf-8",
+    )
+    enabled: list[list[str]] = []
+    captured_state: list[list[dict[str, object]]] = []
+
+    monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.USER_MODULES_ROOT", install_root)
+    monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.discover_all_modules", list)
+    monkeypatch.setattr(
+        "specfact_cli.modules.module_registry.src.commands.install_module", lambda *_args, **_kwargs: None
+    )
+    monkeypatch.setattr(
+        "specfact_cli.modules.module_registry.src.commands.read_modules_state",
+        lambda: {"nold-ai/specfact-codebase": {"version": "0.1.0", "enabled": False}},
+    )
+    monkeypatch.setattr(
+        "specfact_cli.modules.module_registry.src.commands.get_discovered_modules_for_state",
+        lambda *, enable_ids, disable_ids, base_path=None, preserve_existing: (
+            enabled.append(list(enable_ids))
+            or [
+                {"id": "nold-ai/specfact-codebase", "version": "0.1.0", "enabled": True},
+                {"id": "unrelated-module", "version": "9.9.9", "enabled": False},
+            ]
+        ),
+    )
+    monkeypatch.setattr(
+        "specfact_cli.modules.module_registry.src.commands.write_modules_state",
+        lambda modules: captured_state.append(modules),
+    )
+    monkeypatch.setattr(
+        "specfact_cli.modules.module_registry.src.commands.run_discovery_and_write_cache", lambda _: None
+    )
+
+    result = runner.invoke(app, ["install", "nold-ai/specfact-codebase"])
+
+    assert result.exit_code == 0
+    assert enabled == [["nold-ai/specfact-codebase"]]
+    assert captured_state == [
+        [
+            {"id": "nold-ai/specfact-codebase", "version": "0.1.0", "enabled": True},
+            {"id": "unrelated-module", "version": "9.9.9", "enabled": False},
+        ]
+    ]
+    assert "enabled" in result.stdout.lower()
+
+
+def test_install_command_project_scope_reenable_uses_selected_repo(monkeypatch, tmp_path: Path) -> None:
+    repo_path = tmp_path / "repo"
+    install_root = repo_path / ".specfact" / "modules"
+    installed_module = install_root / "specfact-codebase"
+    installed_module.mkdir(parents=True)
+    (installed_module / "module-package.yaml").write_text(
+        "name: nold-ai/specfact-codebase\nversion: '0.1.0'\ncommands: [analyze]\n",
+        encoding="utf-8",
+    )
+    base_paths: list[Path | None] = []
+    state_by_id = {"nold-ai/specfact-codebase": {"version": "0.1.0", "enabled": False}}
+
+    monkeypatch.setattr(
+        "specfact_cli.modules.module_registry.src.commands.discover_all_modules_for_project", lambda path: []
+    )
+    monkeypatch.setattr(
+        "specfact_cli.modules.module_registry.src.commands.install_module", lambda *_args, **_kwargs: None
+    )
+
+    def _read_state():
+        return dict(state_by_id)
+
+    def _discover_state(*, enable_ids, disable_ids, base_path=None, preserve_existing):
+        base_paths.append(base_path)
+        return [{"id": "nold-ai/specfact-codebase", "version": "0.1.0", "enabled": True}]
+
+    def _write_state(modules):
+        for row in modules:
+            state_by_id[str(row["id"])] = {"version": str(row["version"]), "enabled": bool(row["enabled"])}
+
+    monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.read_modules_state", _read_state)
+    monkeypatch.setattr(
+        "specfact_cli.modules.module_registry.src.commands.get_discovered_modules_for_state",
+        _discover_state,
+    )
+    monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.write_modules_state", _write_state)
+    monkeypatch.setattr(
+        "specfact_cli.modules.module_registry.src.commands.run_discovery_and_write_cache", lambda _: None
+    )
+
+    result = runner.invoke(
+        app, ["install", "nold-ai/specfact-codebase", "--scope", "project", "--repo", str(repo_path)]
+    )
+
+    assert result.exit_code == 0
+    assert base_paths == [repo_path]
+    assert state_by_id["nold-ai/specfact-codebase"]["enabled"] is True
+    assert "enabled" in result.stdout.lower()
+
+
 def test_install_command_project_scope_installs_to_project_modules_root(monkeypatch, tmp_path: Path) -> None:
     captured: dict[str, object] = {"install_root": None, "module_id": None}
 
@@ -118,6 +219,37 @@ def test_install_command_project_scope_installs_to_project_modules_root(monkeypa
     assert result.exit_code == 0
     assert captured["module_id"] == "specfact/backlog"
     assert captured["install_root"] == repo_path / ".specfact" / "modules"
+
+
+def test_install_command_project_scope_normalizes_nested_repo_path(monkeypatch, tmp_path: Path) -> None:
+    captured: dict[str, object] = {"install_root": None, "discovery_repo": None}
+    repo_root = tmp_path / "repo"
+    nested_dir = repo_root / "services" / "api"
+    nested_dir.mkdir(parents=True)
+    (repo_root / ".git").mkdir()
+
+    def _install(module_id: str, options: InstallModuleOptions | None = None, **_kwargs):
+        o = options or InstallModuleOptions()
+        captured["install_root"] = o.install_root
+        return tmp_path / module_id.split("/")[-1]
+
+    def _discover(repo: Path | None):
+        captured["discovery_repo"] = repo
+        return []
+
+    monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.discover_all_modules_for_project", _discover)
+    monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.install_module", _install)
+    monkeypatch.setattr(
+        "specfact_cli.modules.module_registry.src.commands.install_bundled_module",
+        lambda module_name, target_root, **_kwargs: False,
+        raising=False,
+    )
+
+    result = runner.invoke(app, ["install", "backlog", "--scope", "project", "--repo", str(nested_dir)])
+
+    assert result.exit_code == 0
+    assert captured["discovery_repo"] == repo_root
+    assert captured["install_root"] == repo_root / ".specfact" / "modules"
 
 
 def test_install_command_prefers_bundled_source_when_available(monkeypatch, tmp_path: Path) -> None:
@@ -329,7 +461,7 @@ def test_uninstall_command_requires_scope_when_module_exists_in_user_and_project
     assert "project" in result.stdout
 
 
-def test_uninstall_command_custom_module_has_clear_guidance(monkeypatch) -> None:
+def test_uninstall_command_custom_module_has_clear_guidance(monkeypatch, tmp_path: Path) -> None:
     class _Meta:
         name = "bundle-mapper"
 
@@ -337,6 +469,7 @@ def test_uninstall_command_custom_module_has_clear_guidance(monkeypatch) -> None
         metadata = _Meta()
         source = "custom"
 
+    monkeypatch.chdir(tmp_path)
     monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.discover_all_modules", lambda: [_Entry()])
 
     result = runner.invoke(app, ["uninstall", "bundle-mapper"])

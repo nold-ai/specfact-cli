@@ -195,11 +195,11 @@ def get_workspace_modules_root(base_path: Path | None = None) -> Path | None:
 
 @beartype
 @ensure(lambda result: isinstance(result, list), "Must return a list of (Path, metadata) tuples")
-def discover_all_package_metadata() -> list[tuple[Path, ModulePackageMetadata]]:
+def discover_all_package_metadata(base_path: Path | None = None) -> list[tuple[Path, ModulePackageMetadata]]:
     """Discover module package metadata across built-in/marketplace/custom roots."""
-    from specfact_cli.registry.module_discovery import discover_all_modules
+    from specfact_cli.registry.module_discovery import discover_all_modules, discover_all_modules_for_project
 
-    discovered = discover_all_modules()
+    discovered = discover_all_modules() if base_path is None else discover_all_modules_for_project(base_path)
     return [(entry.package_dir, entry.metadata) for entry in discovered]
 
 
@@ -1424,6 +1424,8 @@ def register_module_package_commands(
 def get_discovered_modules_for_state(
     enable_ids: list[str] | None = None,
     disable_ids: list[str] | None = None,
+    base_path: Path | None = None,
+    preserve_existing: bool = False,
 ) -> list[dict[str, Any]]:
     """
     Discover packages, merge with state, apply overrides; return list for modules.json.
@@ -1431,12 +1433,27 @@ def get_discovered_modules_for_state(
     """
     enable_ids = enable_ids or []
     disable_ids = disable_ids or []
-    packages = discover_all_package_metadata()
+    packages = discover_all_package_metadata(base_path=base_path)
     packages = sorted(packages, key=_package_sort_key)
     discovered_list = [(meta.name, meta.version) for _dir, meta in packages]
     state = read_modules_state()
     enabled_map = merge_module_state(discovered_list, state, enable_ids, disable_ids)
-    return [
+    modules: list[dict[str, Any]] = [
         {"id": meta.name, "version": meta.version, "enabled": enabled_map.get(meta.name, True)}
         for _dir, meta in packages
     ]
+    if preserve_existing:
+        discovered_ids = {str(module["id"]) for module in modules}
+        for module_id, row in sorted(state.items()):
+            if module_id in discovered_ids:
+                continue
+            state_row = cast(dict[str, Any], row)
+            prior_enabled = bool(state_row.get("enabled", True))
+            modules.append(
+                {
+                    "id": module_id,
+                    "version": str(state_row.get("version", "")),
+                    "enabled": bool(enabled_map.get(module_id, prior_enabled)),
+                }
+            )
+    return modules

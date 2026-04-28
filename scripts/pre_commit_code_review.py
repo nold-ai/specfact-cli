@@ -111,6 +111,13 @@ def _repo_root() -> Path:
     return Path(__file__).resolve().parents[1]
 
 
+def _ensure_review_runtime_dir(repo_root: Path, relative: str) -> str:
+    """Create and return a stable repo-local runtime directory for nested review tools."""
+    path = (repo_root / relative).resolve()
+    path.mkdir(parents=True, exist_ok=True)
+    return str(path)
+
+
 @beartype
 @ensure(lambda result: result is None or (isinstance(result, Path) and result.is_absolute()))
 def discover_specfact_modules_repo() -> Path | None:
@@ -153,11 +160,19 @@ def build_review_subprocess_env() -> dict[str, str]:
     installs and shell exports are left unchanged.
     """
     env: dict[str, str] = dict(os.environ)
+    repo_root = _repo_root()
     if env.get("SPECFACT_MODULES_REPO", "").strip():
-        return env
-    discovered = discover_specfact_modules_repo()
-    if discovered is not None:
-        env["SPECFACT_MODULES_REPO"] = str(discovered)
+        pass
+    else:
+        discovered = discover_specfact_modules_repo()
+        if discovered is not None:
+            env["SPECFACT_MODULES_REPO"] = str(discovered)
+
+    env["XDG_CONFIG_HOME"] = _ensure_review_runtime_dir(repo_root, ".specfact/config")
+    env["XDG_CACHE_HOME"] = _ensure_review_runtime_dir(repo_root, ".specfact/cache")
+    env["SEMGREP_VERSION_CACHE_PATH"] = _ensure_review_runtime_dir(repo_root, ".specfact/cache/semgrep")
+    semgrep_log_dir = _ensure_review_runtime_dir(repo_root, ".specfact/logs")
+    env["SEMGREP_LOG_FILE"] = str((Path(semgrep_log_dir) / "semgrep.log").resolve())
     return env
 
 

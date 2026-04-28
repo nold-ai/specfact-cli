@@ -93,6 +93,16 @@ has_staged_python() {
   return 1
 }
 
+staged_python_files() {
+  local line
+  while IFS= read -r line || [[ -n "${line}" ]]; do
+    [[ -z "${line}" ]] && continue
+    if [[ "${line}" =~ \.(py|pyi)$ ]] && [[ -f "${line}" ]]; then
+      printf '%s\n' "${line}"
+    fi
+  done < <(staged_files)
+}
+
 staged_markdown_files() {
   local line
   while IFS= read -r line || [[ -n "${line}" ]]; do
@@ -345,16 +355,25 @@ run_workflow_lint_if_needed() {
 }
 
 run_lint_if_staged_python() {
+  local lint_array=()
   if ! has_staged_python; then
     info "📦 Block 1 — lint — skipped (no staged *.py / *.pyi)"
     return 0
   fi
-  info "📦 Block 1 — lint — running \`hatch run lint\` (ruff, basedpyright --level error, pylint; matches CI quality gate)"
-  if hatch run lint; then
+  while IFS= read -r line || [[ -n "${line}" ]]; do
+    [[ -z "${line}" ]] && continue
+    lint_array+=("${line}")
+  done < <(staged_python_files)
+  if [ ${#lint_array[@]} -eq 0 ]; then
+    info "📦 Block 1 — lint — skipped (no existing staged *.py / *.pyi targets)"
+    return 0
+  fi
+  info "📦 Block 1 — lint — running \`hatch run lint-changed\` on ${#lint_array[@]} staged Python path(s)"
+  if hatch run lint-changed "${lint_array[@]}"; then
     success "✅ Block 1 — lint passed"
   else
     error "❌ Block 1 — lint failed"
-    warn "💡 Run: hatch run lint"
+    warn "💡 Run: hatch run lint-changed <paths> (local) or hatch run lint (full repo)"
     exit 1
   fi
 }

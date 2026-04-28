@@ -1,8 +1,13 @@
 """Unit tests for optional dependency helpers."""
 
+import subprocess
 from unittest.mock import patch
 
-from specfact_cli.utils.optional_deps import check_enhanced_analysis_dependencies, check_python_package_available
+from specfact_cli.utils.optional_deps import (
+    check_cli_tool_available,
+    check_enhanced_analysis_dependencies,
+    check_python_package_available,
+)
 
 
 def test_check_python_package_available_returns_false_for_control_character_name() -> None:
@@ -38,3 +43,20 @@ def test_check_enhanced_analysis_deps_bandit_resolves_false_when_unavailable() -
     available, hint = result["bandit"]
     assert available is False, "shutil.which patched to None must produce a 'not available' result for bandit"
     assert isinstance(hint, str) and "bandit" in hint, "missing-tool hint must mention bandit"
+
+
+def test_check_cli_tool_available_uses_pycg_help_probe() -> None:
+    """PyCG must be probed with ``-h`` because ``--version`` expects a value."""
+
+    def _fake_run(cmd: list[str], **_kwargs: object) -> subprocess.CompletedProcess[str]:
+        assert cmd == ["/tmp/pycg", "-h"]
+        return subprocess.CompletedProcess(cmd, 0, stdout="usage: pycg", stderr="")
+
+    with (
+        patch("specfact_cli.utils.optional_deps._resolve_cli_tool_executable", return_value="/tmp/pycg"),
+        patch("specfact_cli.utils.optional_deps.subprocess.run", side_effect=_fake_run),
+    ):
+        available, hint = check_cli_tool_available("pycg")
+
+    assert available is True
+    assert hint is None

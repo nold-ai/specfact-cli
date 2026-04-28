@@ -1143,7 +1143,7 @@ class SmartCoverageManager:
     def _is_version_only_change(self, file_path: str, cached_hash: str, current_hash: str) -> bool:
         """Check if the change is only a version number update."""
         # Only check version files
-        version_files = ["pyproject.toml", "setup.py", "src/__init__.py"]
+        version_files = ["pyproject.toml", "setup.py", "src/__init__.py", "src/specfact_cli/__init__.py"]
         if not any(file_path.endswith(f) for f in version_files):
             return False
 
@@ -1159,7 +1159,7 @@ class SmartCoverageManager:
                 return self._is_version_only_pyproject(current_content)
             if file_path.endswith("setup.py"):
                 return self._is_version_only_setup(current_content)
-            if file_path.endswith("src/__init__.py"):
+            if file_path.endswith(("src/__init__.py", "src/specfact_cli/__init__.py")):
                 return self._is_version_only_init(current_content)
 
         except Exception:

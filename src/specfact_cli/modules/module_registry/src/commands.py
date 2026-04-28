@@ -20,12 +20,14 @@ from packaging.version import InvalidVersion, Version
 from rich.console import Console
 from rich.table import Table
 
+from specfact_cli import __version__
 from specfact_cli.models.module_package import ModulePackageMetadata
 from specfact_cli.modules import module_io_shim
 from specfact_cli.registry.alias_manager import create_alias, list_aliases, remove_alias
 from specfact_cli.registry.custom_registries import add_registry, fetch_all_indexes, list_registries, remove_registry
+from specfact_cli.registry.help_cache import run_discovery_and_write_cache
 from specfact_cli.registry.marketplace_client import fetch_registry_index
-from specfact_cli.registry.module_discovery import discover_all_modules
+from specfact_cli.registry.module_discovery import discover_all_modules, discover_all_modules_for_project
 from specfact_cli.registry.module_installer import (
     REGISTRY_ID_FILE,
     USER_MODULES_ROOT,
@@ -42,7 +44,9 @@ from specfact_cli.registry.module_lifecycle import (
     render_modules_table,
     select_module_ids_interactive,
 )
+from specfact_cli.registry.module_packages import get_discovered_modules_for_state
 from specfact_cli.registry.module_security import ensure_publisher_trusted, is_official_publisher
+from specfact_cli.registry.module_state import read_modules_state, write_modules_state
 from specfact_cli.registry.registry import CommandRegistry
 from specfact_cli.runtime import is_non_interactive
 
@@ -178,15 +182,64 @@ def _resolve_install_target_root(scope_normalized: str, repo: Path | None) -> Pa
     return USER_MODULES_ROOT if scope_normalized == "user" else repo_path / ".specfact" / "modules"
 
 
+def _normalize_project_repo(repo: Path | None) -> Path | None:
+    """Resolve a project-scoped repo argument to the nearest workspace root."""
+    if repo is None:
+        return None
+    repo_path = repo.resolve()
+    for candidate in [repo_path, *repo_path.parents]:
+        if (candidate / ".git").exists():
+            return candidate
+    return repo_path
+
+
+def _read_installed_manifest_id(module_dir: Path, fallback_name: str) -> str:
+    manifest_path = module_dir / "module-package.yaml"
+    try:
+        raw = yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, yaml.YAMLError):
+        return fallback_name
+    if isinstance(raw, dict):
+        manifest = cast(dict[str, Any], raw)
+        if manifest.get("name"):
+            return str(manifest["name"])
+    return fallback_name
+
+
+def _enable_if_disabled(module_id: str, base_path: Path | None = None) -> bool:
+    state = read_modules_state()
+    if state.get(module_id, {}).get("enabled", True) is not False:
+        return False
+    modules = get_discovered_modules_for_state(
+        enable_ids=[module_id],
+        disable_ids=[],
+        base_path=base_path,
+        preserve_existing=True,
+    )
+    write_modules_state(modules)
+    run_discovery_and_write_cache(__version__)
+    return any(str(row.get("id", "")) == module_id and bool(row.get("enabled", True)) for row in modules)
+
+
 def _install_skip_if_already_satisfied(
     scope_normalized: str,
     requested_name: str,
     target_root: Path,
+    repo: Path | None,
     reinstall: bool,
     discovered_by_name: dict[str, Any],
 ) -> bool:
-    if (target_root / requested_name / "module-package.yaml").exists() and not reinstall:
-        console.print(f"[yellow]Module '{requested_name}' is already installed in {target_root}.[/yellow]")
+    installed_dir = target_root / requested_name
+    if (installed_dir / "module-package.yaml").exists() and not reinstall:
+        module_id = _read_installed_manifest_id(installed_dir, requested_name)
+        enabled = _enable_if_disabled(module_id, base_path=repo if scope_normalized == "project" else None)
+        if enabled:
+            console.print(
+                f"[yellow]Module '{module_id}' is already installed in {target_root}; "
+                "enabled it in module state.[/yellow]"
+            )
+        else:
+            console.print(f"[yellow]Module '{module_id}' is already installed in {target_root}.[/yellow]")
         return True
     skip_sources = {"builtin", "project", "user", "custom"}
     if scope_normalized == "project":
@@ -195,9 +248,14 @@ def _install_skip_if_already_satisfied(
         skip_sources.discard("project")
     existing = discovered_by_name.get(requested_name)
     if existing is not None and existing.source in skip_sources:
+        enabled = _enable_if_disabled(
+            existing.metadata.name,
+            base_path=repo if scope_normalized == "project" else None,
+        )
+        state_hint = " Enabled it in module state." if enabled else ""
         console.print(
-            f"[yellow]Module '{requested_name}' is already available from source '{existing.source}'. "
-            "No marketplace install needed.[/yellow]"
+            f"[yellow]Module '{existing.metadata.name}' is already available from source '{existing.source}'. "
+            f"No marketplace install needed.{state_hint}[/yellow]"
         )
         return True
     return False
@@ -274,6 +332,7 @@ class _InstallOneParams:
     scope_normalized: str
     source_normalized: str
     target_root: Path
+    repo: Path | None
     version: str | None
     reinstall: bool
     trust_non_official: bool
@@ -289,6 +348,7 @@ def _install_one(module_id: str, params: _InstallOneParams) -> bool:
         params.scope_normalized,
         requested_name,
         params.target_root,
+        params.repo,
         params.reinstall,
         params.discovered_by_name,
     ):
@@ -392,12 +452,17 @@ def _install_impl(module_ids: list[str], **kwargs: Any) -> None:
         )
         raise typer.Exit(1)
     scope_normalized, source_normalized = _parse_install_scope_and_source(scope, source)
-    target_root = _resolve_install_target_root(scope_normalized, repo)
-    discovered_by_name = {entry.metadata.name: entry for entry in discover_all_modules()}
+    normalized_repo = _normalize_project_repo(repo) if scope_normalized == "project" else None
+    target_root = _resolve_install_target_root(scope_normalized, normalized_repo)
+    discovered = (
+        discover_all_modules_for_project(normalized_repo) if normalized_repo is not None else discover_all_modules()
+    )
+    discovered_by_name = {entry.metadata.name: entry for entry in discovered}
     params = _InstallOneParams(
         scope_normalized=scope_normalized,
         source_normalized=source_normalized,
         target_root=target_root,
+        repo=normalized_repo,
         version=version,
         reinstall=reinstall,
         trust_non_official=trust_non_official,

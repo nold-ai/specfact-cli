@@ -10,6 +10,80 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.46.9] - 2026-04-28
+
+### Changed
+
+- **CodeRabbit policy**: shorten `.coderabbit.yaml` tone instructions so the
+  config stays schema-valid and the reduced-noise review profile actually loads.
+
+### Fixed
+
+- **Module signature CI**: fall back from an unavailable push `before` SHA to
+  `HEAD~1` when verifying manifest version bumps on amended or force-pushed
+  histories.
+- **Project discovery/state handling**: keep project-scoped module discovery
+  independent from cwd legacy roots, honor explicit enable overrides for
+  preserved module-state rows, and surface ambiguous short module ids instead of
+  silently picking the first namespace match.
+- **Local developer gates**: run the pre-commit Python lint stack against
+  staged Python paths instead of the whole repository, and treat
+  `src/specfact_cli/__init__.py` patch bumps as version-only smart-test input so
+  routine release metadata updates do not trigger broad local reruns.
+
+---
+
+## [0.46.8] - 2026-04-28
+
+### Fixed
+
+- **Enhanced analysis probing**: detect installed `pycg` with a valid help probe
+  instead of the unsupported `--version` flag so call-graph analysis remains
+  available.
+- **CI release gating**: compare version-source changes against the PR or push
+  base revision on clean CI checkouts so version-bump enforcement does not get
+  skipped outside pre-commit.
+
+---
+
+## [0.46.7] - 2026-04-28
+
+### Fixed
+
+- **Review follow-up**: normalize project install `--repo` to the workspace root
+  and require exact matching for fully qualified module ids during availability
+  classification.
+
+---
+
+## [0.46.6] - 2026-04-28
+
+### Fixed
+
+- **PR follow-up**: fix project-scope module re-enable to honor `--repo` and restore reachable shadowed-module diagnostics during availability checks.
+
+---
+
+## [0.46.5] - 2026-04-28
+
+### Added
+
+- **Reality-test coverage**: add isolated `hatch run specfact` verification for
+  install, upgrade, uninstall, and profile-init workflows.
+
+### Changed
+
+- **Diagnostics behavior**: missing-command guidance now distinguishes absent,
+  disabled, skipped, and shadowed module states with matching recovery hints.
+
+### Fixed
+
+- **Module install and init**: repair module availability, install, upgrade,
+  uninstall, and profile-init state handling so repeated runs across repos and
+  envs stay consistent.
+
+---
+
 ## [0.46.4] - 2026-04-17
 
 ### Fixed

@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from specfact_cli.registry import module_discovery
-from specfact_cli.registry.module_discovery import discover_all_modules
+from specfact_cli.registry.module_discovery import discover_all_modules, discover_all_modules_for_project
 
 
 def _write_manifest(root: Path, module_name: str) -> None:
@@ -147,6 +147,35 @@ def test_project_shadow_warning_is_actionable_and_emitted_once(tmp_path: Path, m
     assert "takes precedence over user-scoped module" in warnings[0]
     assert "specfact module list --show-origin" in warnings[0]
     assert "specfact module uninstall backlog-core --scope user" in warnings[0]
+
+
+def test_discover_all_modules_for_project_ignores_cwd_legacy_roots_by_default(tmp_path: Path, monkeypatch) -> None:
+    """Project-scoped discovery should not leak extra legacy roots from the current cwd."""
+    repo_root = tmp_path / "repo"
+    project_root = repo_root / ".specfact" / "modules"
+    builtin_root = tmp_path / "builtin"
+    legacy_root = tmp_path / "legacy-modules"
+    _write_manifest(builtin_root, "init")
+    _write_manifest(project_root, "project-only")
+    _write_manifest(legacy_root, "legacy-only")
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(module_discovery, "USER_MODULES_ROOT", tmp_path / "missing-user")
+    monkeypatch.setattr(module_discovery, "MARKETPLACE_MODULES_ROOT", tmp_path / "missing-marketplace")
+    monkeypatch.setattr(module_discovery, "CUSTOM_MODULES_ROOT", tmp_path / "missing-custom")
+    monkeypatch.setattr(
+        "specfact_cli.registry.module_packages.get_modules_root",
+        lambda: builtin_root,
+    )
+    monkeypatch.setattr(
+        "specfact_cli.registry.module_packages.get_modules_roots",
+        lambda: [legacy_root],
+    )
+
+    discovered = discover_all_modules_for_project(repo_root)
+
+    names = {entry.metadata.name for entry in discovered}
+    assert names == {"init", "project-only"}
 
 
 def test_canonical_user_root_is_not_reported_as_project_shadow(tmp_path: Path, monkeypatch) -> None:

@@ -16,6 +16,7 @@ import pytest
 
 pytest.importorskip("specfact_backlog.backlog.commands")
 from specfact_backlog.backlog.commands import (
+    _AdapterContext,
     _build_adapter_kwargs,
     _infer_ado_context_from_cwd,
     _load_backlog_config,
@@ -76,9 +77,11 @@ class TestBuildAdapterKwargsWithConfig:
             return_value={"github": {"repo_owner": "fromfile", "repo_name": "fromfile"}},
         ):
             kwargs = _build_adapter_kwargs(
-                "github",
-                repo_owner="fromcli",
-                repo_name="fromcli",
+                _AdapterContext(
+                    adapter="github",
+                    repo_owner="fromcli",
+                    repo_name="fromcli",
+                )
             )
         assert kwargs["repo_owner"] == "fromcli"
         assert kwargs["repo_name"] == "fromcli"
@@ -89,7 +92,7 @@ class TestBuildAdapterKwargsWithConfig:
             "specfact_backlog.backlog.commands._load_backlog_config",
             return_value={"github": {"repo_owner": "myorg", "repo_name": "myrepo"}},
         ):
-            kwargs = _build_adapter_kwargs("github", repo_owner=None, repo_name=None)
+            kwargs = _build_adapter_kwargs(_AdapterContext(adapter="github"))
         assert kwargs.get("repo_owner") == "myorg"
         assert kwargs.get("repo_name") == "myrepo"
 
@@ -101,7 +104,7 @@ class TestBuildAdapterKwargsWithConfig:
             "specfact_backlog.backlog.commands._load_backlog_config",
             return_value={"github": {"repo_owner": "fromfile", "repo_name": "fromfile"}},
         ):
-            kwargs = _build_adapter_kwargs("github", repo_owner=None, repo_name=None)
+            kwargs = _build_adapter_kwargs(_AdapterContext(adapter="github"))
         assert kwargs.get("repo_owner") == "fromenv"
         assert kwargs.get("repo_name") == "fromenv"
 
@@ -113,12 +116,7 @@ class TestBuildAdapterKwargsWithConfig:
                 "ado": {"org": "myorg", "project": "MyProject", "team": "My Team"},
             },
         ):
-            kwargs = _build_adapter_kwargs(
-                "ado",
-                ado_org=None,
-                ado_project=None,
-                ado_team=None,
-            )
+            kwargs = _build_adapter_kwargs(_AdapterContext(adapter="ado"))
         assert kwargs.get("org") == "myorg"
         assert kwargs.get("project") == "MyProject"
         assert kwargs.get("team") == "My Team"
@@ -132,10 +130,10 @@ class TestBuildAdapterKwargsWithConfig:
             },
         ):
             kwargs = _build_adapter_kwargs(
-                "github",
-                repo_owner=None,
-                repo_name=None,
-                github_token="fromcli",
+                _AdapterContext(
+                    adapter="github",
+                    github_token="fromcli",
+                )
             )
         assert kwargs.get("api_token") == "fromcli"
         assert "never" not in str(kwargs)
@@ -221,11 +219,6 @@ class TestInferAdoContextFromCwd:
                 return_value=("inferred-org", "inferred-project"),
             ),
         ):
-            kwargs = _build_adapter_kwargs(
-                "ado",
-                ado_org=None,
-                ado_project=None,
-                ado_team=None,
-            )
+            kwargs = _build_adapter_kwargs(_AdapterContext(adapter="ado"))
         assert kwargs.get("org") == "inferred-org"
         assert kwargs.get("project") == "inferred-project"

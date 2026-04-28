@@ -19,6 +19,11 @@ from beartype import beartype
 from icontract import ensure, require
 
 
+_CLI_TOOL_PROBE_FLAGS = {
+    "pycg": "-h",
+}
+
+
 def _is_importable_package_name(package_name: str) -> bool:
     """Return whether the package name is a valid import target."""
 
@@ -95,7 +100,8 @@ def check_cli_tool_available(
             False,
             f"{tool_name} not found in PATH or Python environment. Install with: pip install {tool_name}",
         )
-    return _probe_cli_tool_runs(tool_path, tool_name, version_flag, timeout)
+    effective_flag = _CLI_TOOL_PROBE_FLAGS.get(tool_name, version_flag)
+    return _probe_cli_tool_runs(tool_path, tool_name, effective_flag, timeout)
 
 
 @beartype

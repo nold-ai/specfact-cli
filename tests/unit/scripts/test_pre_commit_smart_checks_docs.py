@@ -82,3 +82,11 @@ def test_pre_commit_staged_files_includes_deletions_for_block2() -> None:
     """staged_files() must list deleted paths so deletion-only commits are not 'safe' skips."""
     script = _quality_script_text()
     assert "--diff-filter=ACMRD" in script
+
+
+def test_pre_commit_python_lint_uses_changed_scope_runner() -> None:
+    script = _quality_script_text()
+    assert "staged_python_files()" in script
+    assert 'lint_array+=("${line}")' in script
+    assert "hatch run lint-changed" in script
+    assert '"${lint_array[@]}"' in script

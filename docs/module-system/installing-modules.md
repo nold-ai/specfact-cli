@@ -10,8 +10,6 @@ audience: [solo, team, enterprise]
 expertise_level: [beginner, intermediate]
 ---
 
-# Installing Modules
-
 Use the `specfact module` command group to manage marketplace and locally discovered modules.
 Use plain `specfact ...` commands in this guide (not `hatch run specfact ...`) so steps work across pipx, pip, uv tool installs, and packaged runtimes.
 
@@ -42,7 +40,9 @@ Notes:
 - Install source defaults to `auto` (bundled first, then marketplace fallback).
 - Use `--source bundled` or `--source marketplace` for explicit source selection.
 - Use `--trust-non-official` when running non-interactive installs for community/non-official publishers.
-- If a module is already available locally (`built-in` or `custom`), install is skipped with a clear message.
+- If a module is already available locally (`built-in`, project, user, or `custom`), install is skipped with a clear message.
+- If the requested module is already installed but disabled in `modules.json`, install repairs the lifecycle state by enabling the manifest module id and reports that action.
+- Missing command guidance distinguishes truly absent modules from installed-but-disabled or installed-but-skipped modules and suggests the matching recovery command.
 - Invalid ids show an explicit error (`name` or `namespace/name` only).
 
 ## Dependency resolution
@@ -156,6 +156,8 @@ specfact module disable plan --force
 
 Use `--force` to allow dependency-aware cascades when required.
 
+Running `specfact init --profile <profile>` or `specfact init --install <bundles>` directly enables the selected marketplace module ids. Rediscovered modules keep their previous enabled or disabled state unless they were selected by the profile/install request.
+
 ## Uninstall Behavior
 
 ```bash
@@ -187,6 +189,4 @@ Upgrade applies only to modules with origin `marketplace`.
 
 > Modules docs handoff: this page remains in the core docs set as release-line overview content.
 > Canonical bundle-specific deep guidance now lives in the canonical modules docs site, currently
-> published at `https://modules.specfact.io/`.
-
-> core docs set for the current release line and are planned to migrate to `specfact-cli-modules`.
+> published at `https://modules.specfact.io/` and is planned to migrate from `specfact-cli-modules`.
