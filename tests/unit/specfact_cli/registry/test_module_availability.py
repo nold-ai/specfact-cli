@@ -22,7 +22,10 @@ def test_classify_installed_disabled_module_reports_disabled(monkeypatch) -> Non
         "user",
     )
 
-    monkeypatch.setattr("specfact_cli.registry.module_availability.discover_all_modules_for_project", lambda _: [entry])
+    monkeypatch.setattr(
+        "specfact_cli.registry.module_availability.discover_all_modules_for_project_with_shadowed",
+        lambda _: [entry],
+    )
     monkeypatch.setattr(
         "specfact_cli.registry.module_availability.read_modules_state",
         lambda: {"nold-ai/specfact-codebase": {"version": "0.1.0", "enabled": False}},
@@ -60,7 +63,7 @@ def test_classify_prioritizes_requested_module_id_over_shared_command_group(monk
     )
 
     monkeypatch.setattr(
-        "specfact_cli.registry.module_availability.discover_all_modules_for_project",
+        "specfact_cli.registry.module_availability.discover_all_modules_for_project_with_shadowed",
         lambda _: [code_review, codebase],
     )
     monkeypatch.setattr(
@@ -91,7 +94,10 @@ def test_classify_skipped_module_reports_compatibility_reason(monkeypatch) -> No
         "user",
     )
 
-    monkeypatch.setattr("specfact_cli.registry.module_availability.discover_all_modules_for_project", lambda _: [entry])
+    monkeypatch.setattr(
+        "specfact_cli.registry.module_availability.discover_all_modules_for_project_with_shadowed",
+        lambda _: [entry],
+    )
     monkeypatch.setattr("specfact_cli.registry.module_availability.read_modules_state", dict)
 
     availability = classify_module_availability(module_id="nold-ai/specfact-codebase", command_name="code")
@@ -125,7 +131,7 @@ def test_project_scope_shadow_reports_shadowing_and_available_project_copy(monke
     )
 
     monkeypatch.setattr(
-        "specfact_cli.registry.module_availability.discover_all_modules_for_project",
+        "specfact_cli.registry.module_availability.discover_all_modules_for_project_with_shadowed",
         lambda _: [project_entry, user_entry],
     )
     monkeypatch.setattr("specfact_cli.registry.module_availability.read_modules_state", dict)

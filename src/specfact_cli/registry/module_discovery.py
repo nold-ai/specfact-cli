@@ -37,6 +37,7 @@ class _DiscoveryRootOptions:
     custom_root: Path | None = None
     include_legacy_roots: bool | None = None
     project_base_path: Path | None = None
+    include_shadowed_duplicates: bool = False
 
 
 @dataclass
@@ -139,11 +140,20 @@ def _merge_discovered_entry(
     package_dir: Path,
     metadata: ModulePackageMetadata,
     state: _DiscoveryMergeState,
+    include_shadowed_duplicates: bool,
 ) -> None:
     module_name = metadata.name
     if module_name in state.seen_by_name:
         existing = state.seen_by_name[module_name]
         _maybe_warn_user_shadowed_by_project(module_name, source, package_dir, existing)
+        if include_shadowed_duplicates:
+            state.discovered.append(
+                DiscoveredModule(
+                    package_dir=package_dir,
+                    metadata=metadata,
+                    source=source,
+                )
+            )
         if source in {"user", "marketplace", "custom"}:
             state.logger.debug(
                 "Module '%s' from %s at '%s' is shadowed by higher-priority source %s at '%s'.",
@@ -181,7 +191,13 @@ def _discover_modules(options: _DiscoveryRootOptions) -> list[DiscoveredModule]:
             continue
         entries = discover_package_metadata(root, source=source)
         for package_dir, metadata in entries:
-            _merge_discovered_entry(source, package_dir, metadata, merge_state)
+            _merge_discovered_entry(
+                source,
+                package_dir,
+                metadata,
+                merge_state,
+                options.include_shadowed_duplicates,
+            )
 
     return discovered
 
@@ -212,3 +228,15 @@ def discover_all_modules(
 def discover_all_modules_for_project(base_path: Path | None = None) -> list[DiscoveredModule]:
     """Discover modules using a specific project path for workspace-local roots."""
     return _discover_modules(_DiscoveryRootOptions(project_base_path=base_path))
+
+
+@beartype
+@ensure(lambda result: isinstance(result, list), "Discovery result must be a list")
+def discover_all_modules_for_project_with_shadowed(base_path: Path | None = None) -> list[DiscoveredModule]:
+    """Discover modules for a project path and retain lower-priority shadowed duplicates."""
+    return _discover_modules(
+        _DiscoveryRootOptions(
+            project_base_path=base_path,
+            include_shadowed_duplicates=True,
+        )
+    )

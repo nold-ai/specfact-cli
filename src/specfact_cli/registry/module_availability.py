@@ -10,7 +10,7 @@ from beartype import beartype
 from icontract import ensure, require
 
 from specfact_cli import __version__ as cli_version
-from specfact_cli.registry.module_discovery import DiscoveredModule, discover_all_modules_for_project
+from specfact_cli.registry.module_discovery import DiscoveredModule, discover_all_modules_for_project_with_shadowed
 from specfact_cli.registry.module_packages import (
     _check_core_compatibility,
     _validate_module_dependencies,
@@ -169,7 +169,7 @@ def classify_module_availability(
     base_path: Path | None = None,
 ) -> ModuleAvailability:
     """Classify module availability using manifests and modules.json only."""
-    discovered = discover_all_modules_for_project(base_path)
+    discovered = discover_all_modules_for_project_with_shadowed(base_path)
     matches = _availability_matches(discovered, module_id=module_id, command_name=command_name)
     requested_id = module_id or command_name or ""
     if not matches:

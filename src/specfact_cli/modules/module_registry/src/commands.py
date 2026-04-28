@@ -27,7 +27,7 @@ from specfact_cli.registry.alias_manager import create_alias, list_aliases, remo
 from specfact_cli.registry.custom_registries import add_registry, fetch_all_indexes, list_registries, remove_registry
 from specfact_cli.registry.help_cache import run_discovery_and_write_cache
 from specfact_cli.registry.marketplace_client import fetch_registry_index
-from specfact_cli.registry.module_discovery import discover_all_modules
+from specfact_cli.registry.module_discovery import discover_all_modules, discover_all_modules_for_project
 from specfact_cli.registry.module_installer import (
     REGISTRY_ID_FILE,
     USER_MODULES_ROOT,
@@ -195,27 +195,33 @@ def _read_installed_manifest_id(module_dir: Path, fallback_name: str) -> str:
     return fallback_name
 
 
-def _enable_if_disabled(module_id: str) -> bool:
+def _enable_if_disabled(module_id: str, base_path: Path | None = None) -> bool:
     state = read_modules_state()
     if state.get(module_id, {}).get("enabled", True) is not False:
         return False
-    modules = get_discovered_modules_for_state(enable_ids=[module_id], disable_ids=[], preserve_existing=True)
+    modules = get_discovered_modules_for_state(
+        enable_ids=[module_id],
+        disable_ids=[],
+        base_path=base_path,
+        preserve_existing=True,
+    )
     write_modules_state(modules)
     run_discovery_and_write_cache(__version__)
-    return True
+    return any(str(row.get("id", "")) == module_id and bool(row.get("enabled", True)) for row in modules)
 
 
 def _install_skip_if_already_satisfied(
     scope_normalized: str,
     requested_name: str,
     target_root: Path,
+    repo: Path | None,
     reinstall: bool,
     discovered_by_name: dict[str, Any],
 ) -> bool:
     installed_dir = target_root / requested_name
     if (installed_dir / "module-package.yaml").exists() and not reinstall:
         module_id = _read_installed_manifest_id(installed_dir, requested_name)
-        enabled = _enable_if_disabled(module_id)
+        enabled = _enable_if_disabled(module_id, base_path=repo if scope_normalized == "project" else None)
         if enabled:
             console.print(
                 f"[yellow]Module '{module_id}' is already installed in {target_root}; "
@@ -231,7 +237,10 @@ def _install_skip_if_already_satisfied(
         skip_sources.discard("project")
     existing = discovered_by_name.get(requested_name)
     if existing is not None and existing.source in skip_sources:
-        enabled = _enable_if_disabled(existing.metadata.name)
+        enabled = _enable_if_disabled(
+            existing.metadata.name,
+            base_path=repo if scope_normalized == "project" else None,
+        )
         state_hint = " Enabled it in module state." if enabled else ""
         console.print(
             f"[yellow]Module '{existing.metadata.name}' is already available from source '{existing.source}'. "
@@ -312,6 +321,7 @@ class _InstallOneParams:
     scope_normalized: str
     source_normalized: str
     target_root: Path
+    repo: Path | None
     version: str | None
     reinstall: bool
     trust_non_official: bool
@@ -327,6 +337,7 @@ def _install_one(module_id: str, params: _InstallOneParams) -> bool:
         params.scope_normalized,
         requested_name,
         params.target_root,
+        params.repo,
         params.reinstall,
         params.discovered_by_name,
     ):
@@ -431,11 +442,13 @@ def _install_impl(module_ids: list[str], **kwargs: Any) -> None:
         raise typer.Exit(1)
     scope_normalized, source_normalized = _parse_install_scope_and_source(scope, source)
     target_root = _resolve_install_target_root(scope_normalized, repo)
-    discovered_by_name = {entry.metadata.name: entry for entry in discover_all_modules()}
+    discovered = discover_all_modules_for_project(repo) if repo is not None else discover_all_modules()
+    discovered_by_name = {entry.metadata.name: entry for entry in discovered}
     params = _InstallOneParams(
         scope_normalized=scope_normalized,
         source_normalized=source_normalized,
         target_root=target_root,
+        repo=repo,
         version=version,
         reinstall=reinstall,
         trust_non_official=trust_non_official,

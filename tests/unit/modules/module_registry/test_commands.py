@@ -116,7 +116,7 @@ def test_install_command_existing_disabled_module_enables_state(monkeypatch, tmp
     )
     monkeypatch.setattr(
         "specfact_cli.modules.module_registry.src.commands.get_discovered_modules_for_state",
-        lambda *, enable_ids, disable_ids, preserve_existing: (
+        lambda *, enable_ids, disable_ids, base_path=None, preserve_existing: (
             enabled.append(list(enable_ids))
             or [
                 {"id": "nold-ai/specfact-codebase", "version": "0.1.0", "enabled": True},
@@ -142,6 +142,56 @@ def test_install_command_existing_disabled_module_enables_state(monkeypatch, tmp
             {"id": "unrelated-module", "version": "9.9.9", "enabled": False},
         ]
     ]
+    assert "enabled" in result.stdout.lower()
+
+
+def test_install_command_project_scope_reenable_uses_selected_repo(monkeypatch, tmp_path: Path) -> None:
+    repo_path = tmp_path / "repo"
+    install_root = repo_path / ".specfact" / "modules"
+    installed_module = install_root / "specfact-codebase"
+    installed_module.mkdir(parents=True)
+    (installed_module / "module-package.yaml").write_text(
+        "name: nold-ai/specfact-codebase\nversion: '0.1.0'\ncommands: [analyze]\n",
+        encoding="utf-8",
+    )
+    base_paths: list[Path | None] = []
+    state_by_id = {"nold-ai/specfact-codebase": {"version": "0.1.0", "enabled": False}}
+
+    monkeypatch.setattr(
+        "specfact_cli.modules.module_registry.src.commands.discover_all_modules_for_project", lambda path: []
+    )
+    monkeypatch.setattr(
+        "specfact_cli.modules.module_registry.src.commands.install_module", lambda *_args, **_kwargs: None
+    )
+
+    def _read_state():
+        return dict(state_by_id)
+
+    def _discover_state(*, enable_ids, disable_ids, base_path=None, preserve_existing):
+        base_paths.append(base_path)
+        return [{"id": "nold-ai/specfact-codebase", "version": "0.1.0", "enabled": True}]
+
+    def _write_state(modules):
+        for row in modules:
+            state_by_id[str(row["id"])] = {"version": str(row["version"]), "enabled": bool(row["enabled"])}
+
+    monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.read_modules_state", _read_state)
+    monkeypatch.setattr(
+        "specfact_cli.modules.module_registry.src.commands.get_discovered_modules_for_state",
+        _discover_state,
+    )
+    monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.write_modules_state", _write_state)
+    monkeypatch.setattr(
+        "specfact_cli.modules.module_registry.src.commands.run_discovery_and_write_cache", lambda _: None
+    )
+
+    result = runner.invoke(
+        app, ["install", "nold-ai/specfact-codebase", "--scope", "project", "--repo", str(repo_path)]
+    )
+
+    assert result.exit_code == 0
+    assert base_paths == [repo_path]
+    assert state_by_id["nold-ai/specfact-codebase"]["enabled"] is True
     assert "enabled" in result.stdout.lower()
 
 

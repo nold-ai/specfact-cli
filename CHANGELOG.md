@@ -10,6 +10,14 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.46.6] - 2026-04-28
+
+### Fixed
+
+- **PR follow-up**: fix project-scope module re-enable to honor `--repo` and restore reachable shadowed-module diagnostics during availability checks.
+
+---
+
 ## [0.46.5] - 2026-04-28
 
 ### Fixed
