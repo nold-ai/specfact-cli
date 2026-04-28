@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import argparse
 import re
 import subprocess
 import sys
@@ -60,6 +61,21 @@ def _staged_files(root: Path) -> list[str]:
         )
     except (subprocess.CalledProcessError, FileNotFoundError) as exc:
         sys.stderr.write(f"check_version_sources: cannot list staged files ({exc})\n")
+        return []
+    return [line.strip() for line in completed.stdout.splitlines() if line.strip()]
+
+
+def _changed_files_vs_git_ref(root: Path, git_ref: str) -> list[str]:
+    try:
+        completed = subprocess.run(
+            ["git", "diff", "--name-only", "--diff-filter=ACMRD", f"{git_ref}...HEAD"],
+            cwd=root,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except (subprocess.CalledProcessError, FileNotFoundError) as exc:
+        sys.stderr.write(f"check_version_sources: cannot list changed files vs {git_ref} ({exc})\n")
         return []
     return [line.strip() for line in completed.stdout.splitlines() if line.strip()]
 
@@ -128,11 +144,11 @@ def _version_reader_for(label: str):
     return lambda text: _read_version_with_pattern(text, _VERSION_PATTERNS[label])
 
 
-def _version_bumped_vs_head(root: Path, current_version: str) -> bool:
-    """True when the four canonical version strings strictly increase vs ``HEAD`` (semver-aware)."""
+def _version_bumped_vs_git_ref(root: Path, current_version: str, git_ref: str) -> bool:
+    """True when the four canonical version strings strictly increase vs ``git_ref`` (semver-aware)."""
     previous_versions: set[str] = set()
     for path in _CANONICAL_VERSION_FILES:
-        previous_text = _read_file_at_git_ref(root, "HEAD", path)
+        previous_text = _read_file_at_git_ref(root, git_ref, path)
         if previous_text is None:
             return True
         previous = _version_reader_for(path)(previous_text)
@@ -153,7 +169,9 @@ def _changelog_has_release_header(changelog_text: str, version: str) -> bool:
     return re.search(rf"(?m)^## \[{re.escape(version)}\] - \d{{4}}-\d{{2}}-\d{{2}}$", changelog_text) is not None
 
 
-def _enforce_packaged_artifact_versioning(root: Path, staged_files: set[str], current_version: str) -> int:
+def _enforce_packaged_artifact_versioning(
+    root: Path, staged_files: set[str], current_version: str, compare_ref: str
+) -> int:
     missing_version_files = [path for path in _CANONICAL_VERSION_FILES if path not in staged_files]
     if missing_version_files:
         sys.stderr.write(
@@ -163,7 +181,7 @@ def _enforce_packaged_artifact_versioning(root: Path, staged_files: set[str], cu
             sys.stderr.write(f"  missing staged version file: {path}\n")
         sys.stderr.write(_REMEDIATION)
         return 1
-    if not _version_bumped_vs_head(root, current_version):
+    if not _version_bumped_vs_git_ref(root, current_version, compare_ref):
         sys.stderr.write(
             "check_version_sources: packaged artifact changes require incrementing the package version "
             "across all four canonical version files.\n"
@@ -189,9 +207,23 @@ def _enforce_packaged_artifact_versioning(root: Path, staged_files: set[str], cu
 
 @beartype
 @ensure(lambda result: result >= 0, "exit code must be non-negative")
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="Check canonical version source consistency.")
+    parser.add_argument(
+        "--changed-vs",
+        metavar="GIT_REV",
+        default="",
+        help=(
+            "Treat files changed since GIT_REV...HEAD as the candidate release surface. "
+            "Used by CI on clean checkouts where the index is empty."
+        ),
+    )
+    ns = parser.parse_args([] if argv is None else argv)
     root = _repo_root()
     staged_files = set(_staged_files(root))
+    changed_vs_ref = ns.changed_vs.strip()
+    changed_files = set(_changed_files_vs_git_ref(root, changed_vs_ref)) if changed_vs_ref else set()
+    candidate_files = staged_files | changed_files
     paths = {
         "pyproject.toml": root / "pyproject.toml",
         "setup.py": root / "setup.py",
@@ -223,10 +255,12 @@ def main() -> int:
         sys.stderr.write(_REMEDIATION)
         return 1
 
-    if any(_is_packaged_artifact(path) for path in staged_files):
-        return _enforce_packaged_artifact_versioning(root, staged_files, unique[0])
+    if any(_is_packaged_artifact(path) for path in candidate_files):
+        required_files = changed_files if changed_files else staged_files
+        compare_ref = changed_vs_ref if changed_vs_ref else "HEAD"
+        return _enforce_packaged_artifact_versioning(root, required_files, unique[0], compare_ref)
     return 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(main(sys.argv[1:]))

@@ -114,6 +114,19 @@ def test_pr_orchestrator_pypi_version_check_gated_on_version_sources() -> None:
     )
 
 
+def test_pr_orchestrator_version_sync_uses_base_sha_on_clean_ci_checkout() -> None:
+    """Version-source synchronization must compare PR/push changes, not only the staged index."""
+    version_step = _find_named_step("tests", "Verify version strings are synchronized")
+    run_clause = str(version_step.get("run") or "")
+    assert "--changed-vs" in run_clause, "Version-source sync step must pass --changed-vs in CI"
+    assert "github.event.pull_request.base.sha" in run_clause, (
+        "Version-source sync step must compare against the PR base SHA"
+    )
+    assert "github.event.before" in run_clause, (
+        "Version-source sync step must compare against the push 'before' SHA when applicable"
+    )
+
+
 def test_pr_orchestrator_required_checks_trigger_on_every_pr_head_commit() -> None:
     """Required checks must not disappear behind workflow-level path filters."""
     workflow = _load_yaml(PR_ORCHESTRATOR)

@@ -247,7 +247,23 @@ jobs:
 
       - name: Verify version strings are synchronized
         if: needs.changes.outputs.skip_tests_dev_to_main != 'true'
-        run: python scripts/check_version_sources.py
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE=""
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE="${{ github.event.pull_request.base.sha }}"
+          elif [ "${{ github.event_name }}" = "push" ]; then
+            BEFORE="${{ github.event.before }}"
+            if [ -n "$BEFORE" ] && [ "$BEFORE" != "0000000000000000000000000000000000000000" ]; then
+              BASE="$BEFORE"
+            fi
+          fi
+          if [ -n "$BASE" ]; then
+            python scripts/check_version_sources.py --changed-vs "$BASE"
+          else
+            python scripts/check_version_sources.py
+          fi
 
       - name: Verify local version is ahead of PyPI
         if: >-

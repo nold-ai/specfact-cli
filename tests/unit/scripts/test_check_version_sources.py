@@ -188,3 +188,101 @@ def test_check_version_sources_passes_when_packaged_artifact_changes_with_versio
         text=True,
     )
     assert completed.returncode == 0, completed.stderr
+
+
+def test_check_version_sources_changed_vs_detects_ci_packaged_artifact_change_without_version_bundle(
+    tmp_path: Path,
+) -> None:
+    """CI mode must use changed files vs base ref when the index is empty."""
+    script = _copy_version_script(tmp_path)
+    _write_canonical_version_files(tmp_path, "1.2.3")
+    (tmp_path / "CHANGELOG.md").write_text("## [1.2.3] - 2026-04-16\n\n- Initial release entry.\n", encoding="utf-8")
+    (tmp_path / "src" / "specfact_cli" / "runtime.py").write_text("VALUE = 1\n", encoding="utf-8")
+    _init_git_repo(tmp_path)
+    subprocess.run(["git", "add", "."], cwd=tmp_path, check=True, capture_output=True, text=True)
+    subprocess.run(["git", "commit", "-m", "initial"], cwd=tmp_path, check=True, capture_output=True, text=True)
+
+    (tmp_path / "src" / "specfact_cli" / "runtime.py").write_text("VALUE = 2\n", encoding="utf-8")
+    subprocess.run(
+        ["git", "add", "src/specfact_cli/runtime.py"], cwd=tmp_path, check=True, capture_output=True, text=True
+    )
+    subprocess.run(["git", "commit", "-m", "runtime only"], cwd=tmp_path, check=True, capture_output=True, text=True)
+
+    completed = subprocess.run(
+        [sys.executable, str(script), "--changed-vs", "HEAD~1"],
+        cwd=str(tmp_path),
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert completed.returncode == 1
+    assert "missing staged version file" in completed.stderr
+
+
+def test_check_version_sources_changed_vs_passes_with_version_bundle_and_changelog(
+    tmp_path: Path,
+) -> None:
+    """CI mode should enforce and accept a full release bundle from working tree changes."""
+    script = _copy_version_script(tmp_path)
+    _write_canonical_version_files(tmp_path, "1.2.3")
+    (tmp_path / "CHANGELOG.md").write_text("## [1.2.3] - 2026-04-16\n\n- Initial release entry.\n", encoding="utf-8")
+    (tmp_path / "src" / "specfact_cli" / "runtime.py").write_text("VALUE = 1\n", encoding="utf-8")
+    _init_git_repo(tmp_path)
+    subprocess.run(["git", "add", "."], cwd=tmp_path, check=True, capture_output=True, text=True)
+    subprocess.run(["git", "commit", "-m", "initial"], cwd=tmp_path, check=True, capture_output=True, text=True)
+
+    (tmp_path / "src" / "specfact_cli" / "runtime.py").write_text("VALUE = 2\n", encoding="utf-8")
+    _write_canonical_version_files(tmp_path, "1.2.4")
+    (tmp_path / "CHANGELOG.md").write_text("## [1.2.4] - 2026-04-16\n\n- Runtime update.\n", encoding="utf-8")
+
+    completed = subprocess.run(
+        [sys.executable, str(script), "--changed-vs", "HEAD"],
+        cwd=str(tmp_path),
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert completed.returncode == 0, completed.stderr
+
+
+def test_check_version_sources_compares_version_bump_against_changed_vs_base(
+    tmp_path: Path,
+) -> None:
+    """CI mode must compare the version bump against the supplied base ref, not current HEAD."""
+    script = _copy_version_script(tmp_path)
+    _write_canonical_version_files(tmp_path, "1.2.3")
+    (tmp_path / "CHANGELOG.md").write_text("## [1.2.3] - 2026-04-16\n\n- Initial release entry.\n", encoding="utf-8")
+    (tmp_path / "src" / "specfact_cli" / "runtime.py").write_text("VALUE = 1\n", encoding="utf-8")
+    _init_git_repo(tmp_path)
+    subprocess.run(["git", "add", "."], cwd=tmp_path, check=True, capture_output=True, text=True)
+    subprocess.run(["git", "commit", "-m", "initial"], cwd=tmp_path, check=True, capture_output=True, text=True)
+
+    (tmp_path / "src" / "specfact_cli" / "runtime.py").write_text("VALUE = 2\n", encoding="utf-8")
+    _write_canonical_version_files(tmp_path, "1.2.4")
+    (tmp_path / "CHANGELOG.md").write_text("## [1.2.4] - 2026-04-16\n\n- Runtime update.\n", encoding="utf-8")
+    subprocess.run(
+        [
+            "git",
+            "add",
+            "src/specfact_cli/runtime.py",
+            "pyproject.toml",
+            "setup.py",
+            "src/__init__.py",
+            "src/specfact_cli/__init__.py",
+            "CHANGELOG.md",
+        ],
+        cwd=tmp_path,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    subprocess.run(["git", "commit", "-m", "release bundle"], cwd=tmp_path, check=True, capture_output=True, text=True)
+
+    completed = subprocess.run(
+        [sys.executable, str(script), "--changed-vs", "HEAD~1"],
+        cwd=str(tmp_path),
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert completed.returncode == 0, completed.stderr

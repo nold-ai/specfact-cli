@@ -10,6 +10,19 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.46.8] - 2026-04-28
+
+### Fixed
+
+- **Enhanced analysis probing**: detect installed `pycg` with a valid help probe
+  instead of the unsupported `--version` flag so call-graph analysis remains
+  available.
+- **CI release gating**: compare version-source changes against the PR or push
+  base revision on clean CI checkouts so version-bump enforcement does not get
+  skipped outside pre-commit.
+
+---
+
 ## [0.46.7] - 2026-04-28
 
 ### Fixed
