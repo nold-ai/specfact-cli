@@ -10,6 +10,29 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.46.9] - 2026-04-28
+
+### Changed
+
+- **CodeRabbit policy**: shorten `.coderabbit.yaml` tone instructions so the
+  config stays schema-valid and the reduced-noise review profile actually loads.
+
+### Fixed
+
+- **Module signature CI**: fall back from an unavailable push `before` SHA to
+  `HEAD~1` when verifying manifest version bumps on amended or force-pushed
+  histories.
+- **Project discovery/state handling**: keep project-scoped module discovery
+  independent from cwd legacy roots, honor explicit enable overrides for
+  preserved module-state rows, and surface ambiguous short module ids instead of
+  silently picking the first namespace match.
+- **Local developer gates**: run the pre-commit Python lint stack against
+  staged Python paths instead of the whole repository, and treat
+  `src/specfact_cli/__init__.py` patch bumps as version-only smart-test input so
+  routine release metadata updates do not trigger broad local reruns.
+
+---
+
 ## [0.46.8] - 2026-04-28
 
 ### Fixed

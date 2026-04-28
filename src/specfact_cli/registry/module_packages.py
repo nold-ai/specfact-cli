@@ -1448,11 +1448,12 @@ def get_discovered_modules_for_state(
             if module_id in discovered_ids:
                 continue
             state_row = cast(dict[str, Any], row)
+            prior_enabled = bool(state_row.get("enabled", True))
             modules.append(
                 {
                     "id": module_id,
                     "version": str(state_row.get("version", "")),
-                    "enabled": bool(state_row.get("enabled", True)),
+                    "enabled": bool(enabled_map.get(module_id, prior_enabled)),
                 }
             )
     return modules

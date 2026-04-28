@@ -229,23 +229,31 @@ def _manifest_path_for_git_diff_line(parts: tuple[str, ...]) -> Path | None:
 
 
 def _changed_manifests_from_git(base_ref: str) -> list[Path]:
-    try:
-        output = subprocess.run(
-            [
-                "git",
-                "diff",
-                "--name-only",
-                f"{base_ref}...HEAD",
-                "--",
-                "src/specfact_cli/modules",
-                "modules",
-            ],
-            check=True,
-            capture_output=True,
-            text=True,
-        )
-    except Exception as exc:
-        raise ValueError(f"Unable to diff manifests against base ref '{base_ref}': {exc}") from exc
+    candidates = [base_ref]
+    if base_ref != "HEAD~1":
+        candidates.append("HEAD~1")
+    last_error: Exception | None = None
+    for candidate in candidates:
+        try:
+            output = subprocess.run(
+                [
+                    "git",
+                    "diff",
+                    "--name-only",
+                    f"{candidate}...HEAD",
+                    "--",
+                    "src/specfact_cli/modules",
+                    "modules",
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            break
+        except Exception as exc:
+            last_error = exc
+    else:
+        raise ValueError(f"Unable to diff manifests against base ref '{base_ref}': {last_error}") from last_error
 
     manifests: list[Path] = []
     seen: set[Path] = set()

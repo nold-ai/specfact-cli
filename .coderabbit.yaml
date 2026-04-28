@@ -10,13 +10,9 @@
 language: "en-US"
 early_access: false
 tone_instructions: >-
-  Provide architectural insights on system design, scalability, and long-term maintainability.
-  Prioritize contract-first public APIs (@icontract, @beartype), Typer/Rich CLI boundaries, OpenSpec
-  traceability, and cross-repo impact for bundled modules. Only leave review comments for material
-  correctness, security, regression risk, data loss, API/contract breakage, or significant
-  maintainability concerns. Do not comment on trivial style, wording, formatting, minor naming
-  preferences, or low-signal cleanup already enforced by repository linters, formatters, type
-  checks, or code-review gates.
+  Focus on contract/API safety, OpenSpec traceability, and cross-repo module impact.
+  Comment only on material correctness, security, regression, data-loss, or major
+  maintainability risks; skip trivial style and formatting nits covered by repo gates.
 
 reviews:
   profile: chill

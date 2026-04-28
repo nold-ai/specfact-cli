@@ -955,6 +955,18 @@ show_missing = true
         assert "test_file_hashes" in self.manager.cache
         assert "config_file_hashes" in self.manager.cache
 
+    def test_is_version_only_change_accepts_specfact_cli_init_version_bump(self):
+        """Canonical CLI version bumps in src/specfact_cli/__init__.py should not count as real source drift."""
+        init_file = self.temp_path / "src" / "specfact_cli" / "__init__.py"
+        init_file.parent.mkdir(parents=True, exist_ok=True)
+        init_file.write_text('__version__ = "0.46.9"\n', encoding="utf-8")
+
+        assert self.manager._is_version_only_change(
+            "src/specfact_cli/__init__.py",
+            "old-hash",
+            "new-hash",
+        )
+
     def test_calculate_tested_coverage_no_test_files(self):
         """Test tested coverage calculation with no test files."""
         output_lines = [

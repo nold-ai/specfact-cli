@@ -81,6 +81,19 @@ def _availability_matches(
     return [entry for entry in discovered if _entry_matches(entry, module_id=module_id, command_name=command_name)]
 
 
+def _ambiguous_bare_module_id_match(
+    module_id: str | None,
+    matches: list[DiscoveredModule],
+) -> bool:
+    if module_id is None:
+        return False
+    requested = module_id.strip()
+    if not requested or "/" in requested:
+        return False
+    matched_ids = {entry.metadata.name for entry in matches}
+    return len(matched_ids) > 1
+
+
 def _recovery_command(status: ModuleAvailabilityStatus, module_id: str) -> str:
     if status is ModuleAvailabilityStatus.DISABLED:
         return f"specfact module enable {module_id}"
@@ -105,6 +118,14 @@ def _absent_availability(module_id: str | None, requested_id: str) -> ModuleAvai
         module_id=module_id,
         reason="not installed",
         recovery_command=_recovery_command(ModuleAvailabilityStatus.ABSENT, requested_id) if requested_id else "",
+    )
+
+
+def _ambiguous_availability(module_id: str) -> ModuleAvailability:
+    return ModuleAvailability(
+        status=ModuleAvailabilityStatus.AMBIGUOUS,
+        module_id=module_id,
+        reason="multiple installed modules share this short id; use namespace/name",
     )
 
 
@@ -178,6 +199,8 @@ def classify_module_availability(
     requested_id = module_id or command_name or ""
     if not matches:
         return _absent_availability(module_id, requested_id)
+    if _ambiguous_bare_module_id_match(module_id, matches):
+        return _ambiguous_availability(requested_id.strip())
 
     discovered_list = [(entry.metadata.name, entry.metadata.version) for entry in discovered]
     enabled_map = merge_module_state(discovered_list, read_modules_state(), [], [])

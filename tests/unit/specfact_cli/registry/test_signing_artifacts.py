@@ -940,6 +940,64 @@ def test_verify_skip_checksum_passes_without_enforced_version_bump(tmp_path: Pat
     assert relaxed.returncode == 0, (relaxed.stdout, relaxed.stderr)
 
 
+def test_verify_version_bump_falls_back_to_head_parent_when_base_ref_is_missing(tmp_path: Path) -> None:
+    """Push verification should degrade to HEAD~1 when github.event.before is unavailable locally."""
+    if not VERIFY_PYTHON_SCRIPT.exists() or not SIGN_PYTHON_SCRIPT.exists():
+        pytest.skip("verification/signing scripts not present")
+
+    repo = tmp_path / "repo"
+    module_dir = repo / "modules" / "sample"
+    source = module_dir / "src" / "sample" / "main.py"
+    manifest = module_dir / "module-package.yaml"
+    source.parent.mkdir(parents=True)
+    manifest.write_text("name: sample\nversion: 0.1.0\npublisher: nold-ai\ncommands: [sample]\n", encoding="utf-8")
+    source.write_text("print('v1')\n", encoding="utf-8")
+
+    subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True, text=True)
+    subprocess.run(
+        ["git", "config", "user.email", "test@example.com"], cwd=repo, check=True, capture_output=True, text=True
+    )
+    subprocess.run(["git", "config", "user.name", "Test User"], cwd=repo, check=True, capture_output=True, text=True)
+
+    signed = subprocess.run(
+        ["python3", str(SIGN_PYTHON_SCRIPT), "--allow-unsigned", str(manifest)],
+        capture_output=True,
+        text=True,
+        cwd=repo,
+        timeout=20,
+    )
+    assert signed.returncode == 0, signed.stderr
+    subprocess.run(["git", "add", "."], cwd=repo, check=True, capture_output=True, text=True)
+    subprocess.run(["git", "commit", "-m", "initial"], cwd=repo, check=True, capture_output=True, text=True)
+
+    source.write_text("print('v2')\n", encoding="utf-8")
+    bumped = yaml.safe_load(manifest.read_text(encoding="utf-8"))
+    assert isinstance(bumped, dict)
+    bumped["version"] = "0.1.1"
+    manifest.write_text(yaml.safe_dump(bumped, sort_keys=True, allow_unicode=False), encoding="utf-8")
+    subprocess.run(["git", "add", "."], cwd=repo, check=True, capture_output=True, text=True)
+    subprocess.run(
+        ["git", "commit", "-m", "bump without local re-sign"], cwd=repo, check=True, capture_output=True, text=True
+    )
+
+    result = subprocess.run(
+        [
+            "python3",
+            str(VERIFY_PYTHON_SCRIPT),
+            "--skip-checksum-verification",
+            "--enforce-version-bump",
+            "--version-check-base",
+            "missing-base-ref",
+        ],
+        capture_output=True,
+        text=True,
+        cwd=repo,
+        timeout=20,
+    )
+
+    assert result.returncode == 0, (result.stdout, result.stderr)
+
+
 def test_verify_skip_checksum_accepts_unsigned_manifest(tmp_path: Path) -> None:
     """Relaxed verification should allow unsigned manifests when checksum verification is skipped."""
     if not VERIFY_PYTHON_SCRIPT.exists():

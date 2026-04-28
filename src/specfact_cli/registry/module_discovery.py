@@ -53,9 +53,12 @@ def _resolve_include_legacy_roots(
     user_root: Path | None,
     marketplace_root: Path | None,
     custom_root: Path | None,
+    project_base_path: Path | None = None,
 ) -> bool:
     if include_legacy_roots is not None:
         return include_legacy_roots
+    if project_base_path is not None:
+        return False
     return builtin_root is None and user_root is None and marketplace_root is None and custom_root is None
 
 
@@ -104,6 +107,7 @@ def _discovery_root_list(options: _DiscoveryRootOptions) -> list[tuple[str, Path
         options.user_root,
         options.marketplace_root,
         options.custom_root,
+        options.project_base_path,
     )
     if legacy:
         _append_legacy_module_roots(roots)

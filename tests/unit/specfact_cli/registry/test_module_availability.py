@@ -165,3 +165,37 @@ def test_project_scope_shadow_reports_shadowing_and_available_project_copy(monke
     assert availability.status is ModuleAvailabilityStatus.SHADOWED
     assert availability.shadowed_by == project_entry.package_dir
     assert availability.package_dir == user_entry.package_dir
+
+
+def test_classify_bare_short_id_reports_ambiguous_across_namespaces(monkeypatch) -> None:
+    vendor_a = DiscoveredModule(
+        Path("/tmp/vendor-a/specfact-codebase"),
+        ModulePackageMetadata(
+            name="vendor-a/specfact-codebase",
+            version="0.1.0",
+            commands=["analyze"],
+            category="codebase",
+        ),
+        "user",
+    )
+    vendor_b = DiscoveredModule(
+        Path("/tmp/vendor-b/specfact-codebase"),
+        ModulePackageMetadata(
+            name="vendor-b/specfact-codebase",
+            version="0.1.0",
+            commands=["analyze"],
+            category="codebase",
+        ),
+        "marketplace",
+    )
+
+    monkeypatch.setattr(
+        "specfact_cli.registry.module_availability.discover_all_modules_for_project_with_shadowed",
+        lambda _: [vendor_a, vendor_b],
+    )
+    monkeypatch.setattr("specfact_cli.registry.module_availability.read_modules_state", dict)
+
+    availability = classify_module_availability(module_id="specfact-codebase")
+
+    assert availability.status is ModuleAvailabilityStatus.AMBIGUOUS
+    assert "namespace/name" in availability.reason
