@@ -38,7 +38,9 @@ def test_script_exits_zero_skip_when_version_matches_head_without_skip_env() -> 
     """Clean trees match HEAD; skip path avoids PyPI (no lenient network needed)."""
     repo_root = Path(__file__).resolve().parents[3]
     script = repo_root / "scripts" / "check_local_version_ahead_of_pypi.py"
-    local_version = tomllib.loads((repo_root / "pyproject.toml").read_text(encoding="utf-8"))["project"]["version"].strip()
+    local_version = tomllib.loads((repo_root / "pyproject.toml").read_text(encoding="utf-8"))["project"][
+        "version"
+    ].strip()
     head_pyproject = subprocess.run(
         ["git", "show", "HEAD:pyproject.toml"],
         check=False,
