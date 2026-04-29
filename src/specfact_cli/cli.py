@@ -557,7 +557,10 @@ class _LazyDelegateGroup(click.Group):
 
             ctx = click.get_current_context()
             resolved_name = resolve_command(cmd_name)
-            real_typer = CommandRegistry.get_typer(resolved_name)
+            try:
+                real_typer = CommandRegistry.get_typer(resolved_name)
+            except ValueError as exc:
+                raise click.ClickException(str(exc)) from exc
             click_cmd = get_command(real_typer)
             # Build full prog name from root (e.g. "specfact sync") so usage shows "specfact sync bridge", not "sync sync bridge"
             parts: list[str] = []
@@ -621,7 +624,10 @@ class _LazyDelegateGroup(click.Group):
         from typer.main import get_command
 
         resolved_name = resolve_command(self._lazy_cmd_name)
-        real_typer = CommandRegistry.get_typer(resolved_name)
+        try:
+            real_typer = CommandRegistry.get_typer(resolved_name)
+        except ValueError:
+            return None
         click_cmd = get_command(real_typer)
         if isinstance(click_cmd, click.Group):
             return click_cmd
@@ -633,7 +639,10 @@ class _LazyDelegateGroup(click.Group):
         from typer.main import get_command
 
         resolved_name = resolve_command(self._lazy_cmd_name)
-        real_typer = CommandRegistry.get_typer(resolved_name)
+        try:
+            real_typer = CommandRegistry.get_typer(resolved_name)
+        except ValueError:
+            return
         click_cmd = get_command(real_typer)
         prog_name = (
             f"{ctx.parent.command.name} {self._lazy_cmd_name}"
