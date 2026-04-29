@@ -10,6 +10,7 @@ CrossHair: skip (subprocess-based installation checks are intentionally side-eff
 from __future__ import annotations
 
 import os
+import shlex
 import subprocess
 import sys
 from datetime import UTC
@@ -83,13 +84,20 @@ def _detect_uvx_installation(executable_path: str) -> InstallationMethod | None:
 
 
 def _detect_uv_installation(executable_path: str) -> InstallationMethod | None:
-    uv_project_env = os.environ.get("UV_PROJECT_ENVIRONMENT", "")
-    if uv_project_env and executable_path.startswith(uv_project_env):
-        return InstallationMethod(
-            method="uv",
-            command="uv pip install --upgrade specfact-cli",
-            location=str(Path(executable_path).parent.parent),
-        )
+    uv_project_env = os.environ.get("UV_PROJECT_ENVIRONMENT", "").strip()
+    if uv_project_env:
+        try:
+            uv_root = Path(uv_project_env).resolve()
+            executable = Path(executable_path).resolve()
+        except OSError:
+            uv_root = None
+            executable = None
+        if uv_root is not None and executable is not None and (executable == uv_root or uv_root in executable.parents):
+            return InstallationMethod(
+                method="uv",
+                command="uv pip install --upgrade specfact-cli",
+                location=str(Path(executable_path).parent.parent),
+            )
     if Path(sys.executable).name in {"uv", "uv.exe"}:
         return InstallationMethod(method="uv", command="uv tool upgrade specfact-cli", location=None)
     return None
@@ -164,8 +172,8 @@ def _build_upgrade_command(method: InstallationMethod) -> list[str] | None:
             return ["uv", "tool", "upgrade", "specfact-cli"]
         return ["uv", "pip", "install", "--upgrade", "specfact-cli"]
     if method.method == "pip":
-        if " -m pip" in method.command:
-            parts = method.command.split()
+        parts = shlex.split(method.command)
+        if len(parts) >= 3 and parts[1:3] == ["-m", "pip"]:
             return [parts[0], "-m", "pip", "install", "--upgrade", "specfact-cli"]
         return ["pip", "install", "--upgrade", "specfact-cli"]
     return None

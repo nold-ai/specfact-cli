@@ -171,3 +171,25 @@ class TestUpdateInstallation:
         result = install_update(method, yes=True)
         assert result is True
         mock_subprocess.assert_called_once_with(["uv", "tool", "upgrade", "specfact-cli"], check=False, timeout=300)
+
+
+@patch("specfact_cli.modules.upgrade.src.commands.subprocess.run")
+@patch("specfact_cli.modules.upgrade.src.commands.update_metadata")
+def test_install_update_pip_with_spaced_executable_uses_shlex(
+    mock_update_metadata: MagicMock, mock_subprocess: MagicMock
+) -> None:
+    """Pip command parsing must handle executable paths with spaces."""
+    method = InstallationMethod(
+        method="pip",
+        command='"/tmp/Program Files/Python/python" -m pip install --upgrade specfact-cli',
+        location=None,
+    )
+    mock_subprocess.return_value.returncode = 0
+
+    result = install_update(method, yes=True)
+    assert result is True
+    mock_subprocess.assert_called_once_with(
+        ["/tmp/Program Files/Python/python", "-m", "pip", "install", "--upgrade", "specfact-cli"],
+        check=False,
+        timeout=300,
+    )
