@@ -133,8 +133,11 @@ def _detect_pip_installation() -> InstallationMethod | None:
         if line.startswith("Location:"):
             location = line.split(":", 1)[1].strip()
             break
+    quoted_executable = shlex.quote(sys.executable)
     return InstallationMethod(
-        method="pip", command=f"{sys.executable} -m pip install --upgrade specfact-cli", location=location
+        method="pip",
+        command=f"{quoted_executable} -m pip install --upgrade specfact-cli",
+        location=location,
     )
 
 
@@ -261,6 +264,13 @@ def _upgrade_render_update_panel(version_result: Any) -> None:
 def _upgrade_install_or_check_only(version_result: Any, check_only: bool, yes: bool) -> None:
     if check_only:
         method = detect_installation_method()
+        if method.method == "uvx":
+            console.print(
+                "[yellow]uvx automatically uses the latest version.[/yellow]\n"
+                "[dim]No update needed. If you want to force a refresh, run:[/dim]\n"
+                "[cyan]uvx --from specfact-cli@latest specfact --version[/cyan]"
+            )
+            return
         console.print(f"\n[yellow]To upgrade, run:[/yellow] [cyan]{method.command}[/cyan]")
         console.print("[dim]Or run:[/dim] [cyan]specfact upgrade --yes[/cyan]")
         return

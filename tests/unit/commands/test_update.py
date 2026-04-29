@@ -6,7 +6,12 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-from specfact_cli.modules.upgrade.src.commands import InstallationMethod, detect_installation_method, install_update
+from specfact_cli.modules.upgrade.src.commands import (
+    InstallationMethod,
+    _upgrade_install_or_check_only,
+    detect_installation_method,
+    install_update,
+)
 
 
 class TestInstallationMethodDetection:
@@ -215,3 +220,18 @@ def test_install_update_uv_pip_targets_detected_interpreter(
         check=False,
         timeout=300,
     )
+
+
+@patch("specfact_cli.modules.upgrade.src.commands.console.print")
+@patch("specfact_cli.modules.upgrade.src.commands.detect_installation_method")
+def test_check_only_uvx_does_not_print_upgrade_command(mock_detect: MagicMock, mock_print: MagicMock) -> None:
+    """check-only should not print upgrade command for uvx installs."""
+    mock_detect.return_value = InstallationMethod(
+        method="uvx", command="uvx --from specfact-cli specfact", location=None
+    )
+
+    _upgrade_install_or_check_only(version_result=MagicMock(), check_only=True, yes=False)
+
+    printed = "\n".join(str(c.args[0]) for c in mock_print.call_args_list if c.args)
+    assert "To upgrade, run" not in printed
+    assert "uvx automatically uses the latest version" in printed
