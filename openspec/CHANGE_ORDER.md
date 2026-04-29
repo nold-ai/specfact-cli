@@ -639,3 +639,9 @@ A wave cannot be considered complete until all gate criteria listed for that wav
 - Wave 7 gate: policy/governance/ceremony integration emits consistent evidence and exception semantics aligned to ownership authority.
 - Wave 8 gate: profile maturity + AI interfaces (`ai-integration-01/02/03`) operate on top of validation-02 outputs with no schema divergence.
 - Wave 9 gate: integration umbrella contract is adopted by all dependent changes and dogfooding E2E proof artifacts confirm end-to-end positioning claims.
+
+### Upgrade command reliability
+
+| Module | Order | Change folder | GitHub # | Blocked by |
+|--------|-------|---------------|----------|------------|
+| upgrade | 01 | upgrade-01-install-method-aware | #538 (bug reference) | — |

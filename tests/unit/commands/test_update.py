@@ -13,6 +13,23 @@ class TestInstallationMethodDetection:
     """Tests for installation method detection."""
 
     @patch("specfact_cli.modules.upgrade.src.commands.subprocess.run")
+    @patch("specfact_cli.modules.upgrade.src.commands.sys.executable", "/workspace/specfact-cli/.venv/bin/python")
+    @patch(
+        "specfact_cli.modules.upgrade.src.commands.sys.argv",
+        ["/workspace/specfact-cli/.venv/bin/python", "-m", "specfact_cli"],
+    )
+    @patch.dict(
+        "specfact_cli.modules.upgrade.src.commands.os.environ",
+        {"UV_PROJECT_ENVIRONMENT": "/workspace/specfact-cli/.venv"},
+        clear=False,
+    )
+    def test_detect_uv_virtualenv_installation(self, mock_subprocess: MagicMock) -> None:
+        """Test detecting uv-managed venv installation."""
+        method = detect_installation_method()
+        assert method.method == "uv"
+        assert method.command == "uv pip install --upgrade specfact-cli"
+
+    @patch("specfact_cli.modules.upgrade.src.commands.subprocess.run")
     @patch("specfact_cli.modules.upgrade.src.commands.sys.executable", "/usr/bin/python3")
     @patch("specfact_cli.modules.upgrade.src.commands.sys.argv", ["/usr/bin/python3", "-m", "specfact_cli"])
     def test_detect_pip_installation(self, mock_subprocess: MagicMock) -> None:
@@ -143,3 +160,14 @@ class TestUpdateInstallation:
         assert result is True
         # Should not call subprocess for uvx
         mock_subprocess.assert_not_called()
+
+    @patch("specfact_cli.modules.upgrade.src.commands.subprocess.run")
+    @patch("specfact_cli.modules.upgrade.src.commands.update_metadata")
+    def test_install_update_uv_tool_success(self, mock_update_metadata: MagicMock, mock_subprocess: MagicMock) -> None:
+        """Test successful uv tool update installation."""
+        method = InstallationMethod(method="uv", command="uv tool upgrade specfact-cli", location=None)
+        mock_subprocess.return_value.returncode = 0
+
+        result = install_update(method, yes=True)
+        assert result is True
+        mock_subprocess.assert_called_once_with(["uv", "tool", "upgrade", "specfact-cli"], check=False, timeout=300)
