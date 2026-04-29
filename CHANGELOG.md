@@ -10,6 +10,16 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.46.10] - 2026-04-29
+
+### Fixed
+
+- **Upgrade self-update reliability**: make `specfact upgrade` installation-method-aware for `uv`/`uvx`/`pipx`/`pip`, harden uv path containment detection, and use shell-safe pip command parsing.
+- **OpenSpec + verification governance**: add strict OpenSpec validation and concrete Red→Green evidence for `upgrade-01-install-method-aware`.
+- **Upgrade module manifest policy**: bump `upgrade` module manifest metadata and integrity so module signature/version checks pass CI policy gates.
+
+---
+
 ## [0.46.9] - 2026-04-28
 
 ### Changed
