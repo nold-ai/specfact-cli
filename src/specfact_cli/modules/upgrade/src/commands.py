@@ -98,7 +98,17 @@ def _detect_uv_installation(executable_path: str) -> InstallationMethod | None:
                 command="uv pip install --upgrade specfact-cli",
                 location=str(Path(executable_path).parent.parent),
             )
-    if Path(sys.executable).name in {"uv", "uv.exe"}:
+    try:
+        result = subprocess.run(
+            ["uv", "tool", "list"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+        )
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        return None
+    if "specfact-cli" in result.stdout:
         return InstallationMethod(method="uv", command="uv tool upgrade specfact-cli", location=None)
     return None
 

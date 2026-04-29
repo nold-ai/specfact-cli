@@ -96,6 +96,35 @@ class TestInstallationMethodDetection:
         # Should detect pipx first (before checking pip)
         assert method.method == "pipx", f"Expected pipx, got {method.method}"
 
+
+
+    @patch("specfact_cli.modules.upgrade.src.commands.subprocess.run")
+    @patch("specfact_cli.modules.upgrade.src.commands.sys.executable", "/usr/bin/python3")
+    @patch("specfact_cli.modules.upgrade.src.commands.sys.argv", ["/usr/bin/python3", "-m", "specfact_cli"])
+    def test_detect_uv_tool_installation(self, mock_subprocess: MagicMock) -> None:
+        """Test detecting uv tool installation via `uv tool list`."""
+
+        def side_effect(*args, **kwargs):
+            result = MagicMock()
+            cmd = args[0] if args else []
+            cmd_str = " ".join(cmd) if isinstance(cmd, list) else str(cmd)
+            if "pipx list" in cmd_str:
+                result.returncode = 1
+                result.stdout = ""
+            elif "uv tool list" in cmd_str:
+                result.returncode = 0
+                result.stdout = "specfact-cli v0.46.10"
+            else:
+                result.returncode = 1
+                result.stdout = ""
+            return result
+
+        mock_subprocess.side_effect = side_effect
+
+        method = detect_installation_method()
+        assert method.method == "uv"
+        assert method.command == "uv tool upgrade specfact-cli"
+
     @patch("specfact_cli.modules.upgrade.src.commands.subprocess.run")
     @patch("specfact_cli.modules.upgrade.src.commands.sys.executable", "/usr/bin/python3")
     @patch("specfact_cli.modules.upgrade.src.commands.sys.argv", ["/usr/bin/python3", "-m", "specfact_cli"])
