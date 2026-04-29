@@ -96,8 +96,6 @@ class TestInstallationMethodDetection:
         # Should detect pipx first (before checking pip)
         assert method.method == "pipx", f"Expected pipx, got {method.method}"
 
-
-
     @patch("specfact_cli.modules.upgrade.src.commands.subprocess.run")
     @patch("specfact_cli.modules.upgrade.src.commands.sys.executable", "/usr/bin/python3")
     @patch("specfact_cli.modules.upgrade.src.commands.sys.argv", ["/usr/bin/python3", "-m", "specfact_cli"])

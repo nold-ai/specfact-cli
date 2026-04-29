@@ -118,6 +118,18 @@ def _ensure_review_runtime_dir(repo_root: Path, relative: str) -> str:
     return str(path)
 
 
+def _prepend_module_root(env: dict[str, str], modules_repo: Path) -> None:
+    """Prefer package sources from an explicit modules repo over stale user installs."""
+    packages_root = modules_repo / "packages"
+    if not packages_root.is_dir():
+        return
+    root = str(packages_root.resolve())
+    existing = [part for part in env.get("SPECFACT_MODULES_ROOTS", "").split(os.pathsep) if part]
+    if root in existing:
+        return
+    env["SPECFACT_MODULES_ROOTS"] = os.pathsep.join([root, *existing])
+
+
 @beartype
 @ensure(lambda result: result is None or (isinstance(result, Path) and result.is_absolute()))
 def discover_specfact_modules_repo() -> Path | None:
@@ -151,7 +163,7 @@ def discover_specfact_modules_repo() -> Path | None:
         isinstance(result, dict) and all(isinstance(k, str) and isinstance(v, str) for k, v in result.items())
     )
 )
-def build_review_subprocess_env() -> dict[str, str]:
+def build_review_child_env() -> dict[str, str]:
     """Build ``env`` for the nested ``code review`` subprocess only.
 
     Copies the current process environment and, when ``SPECFACT_MODULES_REPO`` is unset,
@@ -162,11 +174,12 @@ def build_review_subprocess_env() -> dict[str, str]:
     env: dict[str, str] = dict(os.environ)
     repo_root = _repo_root()
     if env.get("SPECFACT_MODULES_REPO", "").strip():
-        pass
+        _prepend_module_root(env, Path(env["SPECFACT_MODULES_REPO"]).expanduser())
     else:
         discovered = discover_specfact_modules_repo()
         if discovered is not None:
             env["SPECFACT_MODULES_REPO"] = str(discovered)
+            _prepend_module_root(env, discovered)
 
     env["XDG_CONFIG_HOME"] = _ensure_review_runtime_dir(repo_root, ".specfact/config")
     env["XDG_CACHE_HOME"] = _ensure_review_runtime_dir(repo_root, ".specfact/cache")
@@ -334,7 +347,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         sys.stdout.write(f"Unable to run the code review gate. {guidance}\n")
         return 1
 
-    review_env = build_review_subprocess_env()
+    review_env = build_review_child_env()
 
     repo_root = _repo_root()
     cmd = build_review_command(files)

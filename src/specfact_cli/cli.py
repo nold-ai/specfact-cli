@@ -14,7 +14,7 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Annotated, Any, cast
+from typing import Annotated, Any, NoReturn, cast
 
 
 _DetectShellFn = Callable[..., tuple[str | None, str | None]]
@@ -532,6 +532,78 @@ def _lazy_delegate_cmd_name_ready(self: _LazyDelegateGroup) -> bool:
     return len(self._lazy_cmd_name) > 0
 
 
+def _args_request_help(args: tuple[str, ...] | list[str]) -> bool:
+    """Return True when delegated args are asking only for command help."""
+    return any(arg in ("--help", "-h", "--help-advanced", "-ha") for arg in args)
+
+
+def _delegated_help_path(cmd_name: str, args: tuple[str, ...] | list[str]) -> str:
+    """Build a stable command path for fallback help output."""
+    path_parts = [cmd_name]
+    for arg in args:
+        if arg.startswith("-"):
+            continue
+        path_parts.append(arg)
+    return " ".join(path_parts)
+
+
+def _print_lazy_help_fallback(cmd_name: str, args: tuple[str, ...] | list[str]) -> None:
+    """Print minimal help when Typer cannot materialize a command for a loaded bundle."""
+    command_path = _delegated_help_path(cmd_name, args)
+    get_configured_console().print(
+        f"[bold]{command_path}[/bold]\n\n"
+        "Help is available for this installed command path, but the command metadata could not be "
+        "materialized in this runtime. Reinstall the providing module or run the command without "
+        "`--help` to execute it."
+    )
+
+
+def _raise_lazy_delegate_click_exception(exc: Exception) -> NoReturn:
+    click.echo(str(exc), err=True)
+    raise click.ClickException(str(exc)) from exc
+
+
+def _load_lazy_delegate_typer(cmd_name: str) -> typer.Typer:
+    resolved_name = resolve_command(cmd_name)
+    try:
+        return CommandRegistry.get_typer(resolved_name)
+    except ValueError as exc:
+        if cmd_name in KNOWN_BUNDLE_GROUP_OR_SHIM_NAMES:
+            _print_missing_bundle_command_help(cmd_name)
+            raise SystemExit(1) from None
+        _raise_lazy_delegate_click_exception(exc)
+
+
+def _build_lazy_delegate_click_command(cmd_name: str, args: tuple[str, ...], real_typer: typer.Typer) -> click.Command:
+    from typer.main import get_command
+
+    try:
+        return get_command(real_typer)
+    except (RuntimeError, ValueError) as exc:
+        if _args_request_help(args):
+            _print_lazy_help_fallback(cmd_name, args)
+            raise SystemExit(0) from None
+        _raise_lazy_delegate_click_exception(exc)
+
+
+def _lazy_delegate_prog_name(ctx: click.Context, cmd_name: str) -> str:
+    parts: list[str] = []
+    parent = ctx.parent
+    while parent and getattr(parent, "command", None):
+        name = getattr(parent.command, "name", None)
+        if name and name != "__delegate__":
+            parts.append(name)
+        parent = getattr(parent, "parent", None)
+    return " ".join(reversed(parts)) if parts else cmd_name
+
+
+def _strip_redundant_single_command_arg(click_cmd: click.Command, args: tuple[str, ...]) -> list[str]:
+    args_list = list(args)
+    if not isinstance(click_cmd, click.Group) and args_list and args_list[0] == getattr(click_cmd, "name", None):
+        return args_list[1:]
+    return args_list
+
+
 class _LazyDelegateGroup(click.Group):
     """Click Group that delegates all args to the real command (lazy-loaded)."""
 
@@ -553,35 +625,15 @@ class _LazyDelegateGroup(click.Group):
         cmd_name = self._lazy_cmd_name
 
         def _invoke(args: tuple[str, ...]) -> None:
-            from typer.main import get_command
-
             ctx = click.get_current_context()
-            resolved_name = resolve_command(cmd_name)
-            try:
-                real_typer = CommandRegistry.get_typer(resolved_name)
-                click_cmd = get_command(real_typer)
-            except (RuntimeError, ValueError) as exc:
-                click.echo(str(exc), err=True)
-                raise click.ClickException(str(exc)) from exc
+            real_typer = _load_lazy_delegate_typer(cmd_name)
+            click_cmd = _build_lazy_delegate_click_command(cmd_name, args, real_typer)
             # Build full prog name from root (e.g. "specfact sync") so usage shows "specfact sync bridge", not "sync sync bridge"
-            parts: list[str] = []
-            p = ctx.parent
-            while p and getattr(p, "command", None):
-                name = getattr(p.command, "name", None)
-                if name and name != "__delegate__":
-                    parts.append(name)
-                p = getattr(p, "parent", None)
-            prog_name = " ".join(reversed(parts)) if parts else cmd_name
-            args_list = list(args)
+            prog_name = _lazy_delegate_prog_name(ctx, cmd_name)
             # When the real app is a single command (e.g. drift has only "detect"), Typer
             # builds a TyperCommand, not a Group. Then args are ["detect", "bundle", "--repo", ...]
             # and the command expects ["bundle", "--repo", ...] (no leading "detect").
-            if (
-                not isinstance(click_cmd, click.Group)
-                and args_list
-                and args_list[0] == getattr(click_cmd, "name", None)
-            ):
-                args_list = args_list[1:]
+            args_list = _strip_redundant_single_command_arg(click_cmd, args)
             exit_code = click_cmd.main(args=args_list, prog_name=prog_name, standalone_mode=False)
             if exit_code and exit_code != 0:
                 raise SystemExit(exit_code)

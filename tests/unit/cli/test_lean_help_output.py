@@ -4,9 +4,13 @@ from __future__ import annotations
 
 import click
 import pytest
+import typer
+from click.testing import CliRunner as ClickCliRunner
 from typer.testing import CliRunner
 
-from specfact_cli.cli import _RootCLIGroup, app
+from specfact_cli.cli import _LazyDelegateGroup, _RootCLIGroup, app
+from specfact_cli.registry import CommandRegistry
+from specfact_cli.registry.metadata import CommandMetadata
 
 
 runner = CliRunner()
@@ -100,6 +104,42 @@ def test_root_group_unknown_code_shows_specfact_codebase_module(capsys: pytest.C
     out = " ".join(captured.out.split())
     assert "Module 'nold-ai/specfact-codebase' is not installed." in out
     assert "specfact module install nold-ai/specfact-codebase" in out
+
+
+def test_stale_lazy_flat_shim_prints_install_guidance() -> None:
+    """A stale lazy flat shim should not exit with empty output."""
+    CommandRegistry._clear_for_testing()
+    result = ClickCliRunner().invoke(_LazyDelegateGroup("plan", "Plan commands."), ["init"], catch_exceptions=False)
+    CommandRegistry._clear_for_testing()
+
+    assert result.exit_code == 1
+    assert "plan" in result.output.lower()
+    assert result.output.strip()
+
+
+def test_lazy_delegate_help_falls_back_when_typer_command_build_fails(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Help-only delegation should not fail when Typer cannot materialize a loaded app."""
+    CommandRegistry._clear_for_testing()
+    CommandRegistry.register(
+        "project",
+        lambda: typer.Typer(help="Project commands."),
+        CommandMetadata(name="project", help="Project commands.", tier="official", addon_id=None),
+    )
+
+    def _raise_runtime_error(_typer_instance: typer.Typer) -> click.Command:
+        raise RuntimeError("Could not get a command for this Typer instance")
+
+    monkeypatch.setattr("typer.main.get_command", _raise_runtime_error)
+    result = ClickCliRunner().invoke(
+        _LazyDelegateGroup("project", "Project commands."),
+        ["devops-flow", "--help"],
+        catch_exceptions=False,
+    )
+    CommandRegistry._clear_for_testing()
+
+    assert result.exit_code == 0
+    assert "project devops-flow" in result.output
+    assert "Could not get a command" not in result.output
 
 
 def test_specfact_help_with_all_bundles_installed_shows_eight_commands(

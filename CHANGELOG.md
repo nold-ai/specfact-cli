@@ -10,6 +10,20 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.46.11] - 2026-04-30
+
+### Fixed
+
+- **CI command validation**: keep lazy delegated help paths from failing with
+  raw Typer command-materialization errors when installed bundle metadata cannot
+  be rendered in a Python 3.11 runtime.
+- **Missing flat-shim diagnostics**: show actionable install guidance for stale
+  flat bundle shims instead of exiting with empty output.
+- **Lint gate**: format the upgrade command tests so `ruff format --check`
+  passes in PR CI.
+
+---
+
 ## [0.46.10] - 2026-04-29
 
 ### Fixed
