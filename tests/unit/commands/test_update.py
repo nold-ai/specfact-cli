@@ -193,3 +193,25 @@ def test_install_update_pip_with_spaced_executable_uses_shlex(
         check=False,
         timeout=300,
     )
+
+
+@patch("specfact_cli.modules.upgrade.src.commands.subprocess.run")
+@patch("specfact_cli.modules.upgrade.src.commands.update_metadata")
+def test_install_update_uv_pip_targets_detected_interpreter(
+    mock_update_metadata: MagicMock, mock_subprocess: MagicMock
+) -> None:
+    """uv pip upgrades must target the detected interpreter location."""
+    method = InstallationMethod(
+        method="uv",
+        command="uv pip install --upgrade specfact-cli",
+        location="/workspace/specfact-cli/.venv",
+    )
+    mock_subprocess.return_value.returncode = 0
+
+    result = install_update(method, yes=True)
+    assert result is True
+    mock_subprocess.assert_called_once_with(
+        ["uv", "pip", "install", "--python", "/workspace/specfact-cli/.venv", "--upgrade", "specfact-cli"],
+        check=False,
+        timeout=300,
+    )

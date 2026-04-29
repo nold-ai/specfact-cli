@@ -170,7 +170,8 @@ def _build_upgrade_command(method: InstallationMethod) -> list[str] | None:
     if method.method == "uv":
         if "uv tool" in method.command:
             return ["uv", "tool", "upgrade", "specfact-cli"]
-        return ["uv", "pip", "install", "--upgrade", "specfact-cli"]
+        python_target = method.location or sys.executable
+        return ["uv", "pip", "install", "--python", python_target, "--upgrade", "specfact-cli"]
     if method.method == "pip":
         parts = shlex.split(method.command)
         if len(parts) >= 3 and parts[1:3] == ["-m", "pip"]:
