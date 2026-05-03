@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 from pathlib import Path
 
 import pytest
+import yaml
 
 
 def _repo_root() -> Path:
@@ -56,3 +58,32 @@ def test_load_registry_versions_rejects_non_list_modules(tmp_path: Path, detect_
     reg.write_text('{"modules": {}}', encoding="utf-8")
     with pytest.raises(ValueError, match="modules"):
         detect_mod._load_registry_versions(reg)
+
+
+def test_main_writes_trailing_newline_for_github_output_heredoc(tmp_path: Path, detect_mod) -> None:
+    registry = tmp_path / "index.json"
+    registry.write_text(json.dumps({"modules": []}), encoding="utf-8")
+
+    module_dir = tmp_path / "modules" / "sample"
+    module_dir.mkdir(parents=True)
+    (module_dir / "module-package.yaml").write_text(
+        yaml.safe_dump({"id": "sample", "version": "1.0.0"}),
+        encoding="utf-8",
+    )
+
+    output_list = tmp_path / "modules_to_publish.txt"
+    assert (
+        detect_mod.main(
+            [
+                "--registry-index",
+                str(registry),
+                "--modules-root",
+                str(tmp_path / "modules"),
+                "--output-list",
+                str(output_list),
+            ]
+        )
+        == 0
+    )
+
+    assert output_list.read_text(encoding="utf-8") == f"{module_dir}\n"
