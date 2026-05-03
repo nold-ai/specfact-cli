@@ -117,6 +117,35 @@ def test_stale_lazy_flat_shim_prints_install_guidance() -> None:
     assert result.output.strip()
 
 
+def test_lazy_delegate_forwards_bare_subcommand_without_options() -> None:
+    """A lazy group must not drop a single subcommand that has no trailing args."""
+    CommandRegistry._clear_for_testing()
+    delegated = typer.Typer(help="Module commands.")
+
+    @delegated.command(name="list")
+    def list_command() -> None:
+        click.echo("listed")
+
+    @delegated.command(name="alias")
+    def alias_command() -> None:
+        click.echo("aliased")
+
+    CommandRegistry.register(
+        "module",
+        lambda: delegated,
+        CommandMetadata(name="module", help="Module commands.", tier="official", addon_id=None),
+    )
+    result = ClickCliRunner().invoke(
+        _LazyDelegateGroup("module", "Module commands."),
+        ["list"],
+        catch_exceptions=False,
+    )
+    CommandRegistry._clear_for_testing()
+
+    assert result.exit_code == 0
+    assert "listed" in result.output
+
+
 def test_lazy_delegate_help_falls_back_when_typer_command_build_fails(monkeypatch: pytest.MonkeyPatch) -> None:
     """Help-only delegation should not fail when Typer cannot materialize a loaded app."""
     CommandRegistry._clear_for_testing()
