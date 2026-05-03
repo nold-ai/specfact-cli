@@ -572,6 +572,7 @@ def _load_lazy_delegate_typer(cmd_name: str) -> typer.Typer:
             _print_missing_bundle_command_help(cmd_name)
             raise SystemExit(1) from None
         _raise_lazy_delegate_click_exception(exc)
+        raise AssertionError("unreachable") from None
 
 
 def _build_lazy_delegate_click_command(cmd_name: str, args: tuple[str, ...], real_typer: typer.Typer) -> click.Command:
@@ -584,6 +585,7 @@ def _build_lazy_delegate_click_command(cmd_name: str, args: tuple[str, ...], rea
             _print_lazy_help_fallback(cmd_name, args)
             raise SystemExit(0) from None
         _raise_lazy_delegate_click_exception(exc)
+        raise AssertionError("unreachable") from None
 
 
 def _lazy_delegate_prog_name(ctx: click.Context, cmd_name: str) -> str:

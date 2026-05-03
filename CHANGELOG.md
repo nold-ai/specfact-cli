@@ -10,6 +10,17 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.46.13] - 2026-05-03
+
+### Fixed
+
+- **Upgrade install detection**: prefer active `pipx` installations before
+  generic `uv tool list` detection when both managers have stale entries.
+- **Review annotations**: make lazy delegate non-returning fallback paths and
+  uv environment resolution explicit for static analysis.
+
+---
+
 ## [0.46.12] - 2026-05-03
 
 ### Fixed

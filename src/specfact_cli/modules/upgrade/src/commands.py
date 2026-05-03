@@ -62,13 +62,17 @@ def detect_installation_method() -> InstallationMethod:
     if uvx_method:
         return uvx_method
 
-    uv_method = _detect_uv_installation(executable_path)
+    uv_method = _detect_uv_project_installation(executable_path)
     if uv_method:
         return uv_method
 
     pipx_method = _detect_pipx_installation()
     if pipx_method:
         return pipx_method
+
+    uv_method = _detect_uv_tool_installation()
+    if uv_method:
+        return uv_method
 
     pip_method = _detect_pip_installation()
     if pip_method:
@@ -83,21 +87,24 @@ def _detect_uvx_installation(executable_path: str) -> InstallationMethod | None:
     return None
 
 
-def _detect_uv_installation(executable_path: str) -> InstallationMethod | None:
+def _detect_uv_project_installation(executable_path: str) -> InstallationMethod | None:
     uv_project_env = os.environ.get("UV_PROJECT_ENVIRONMENT", "").strip()
     if uv_project_env:
         try:
             uv_root = Path(uv_project_env).resolve()
             executable = Path(executable_path).resolve()
         except OSError:
-            uv_root = None
-            executable = None
-        if uv_root is not None and executable is not None and (executable == uv_root or uv_root in executable.parents):
+            return None
+        if executable == uv_root or uv_root in executable.parents:
             return InstallationMethod(
                 method="uv",
                 command="uv pip install --upgrade specfact-cli",
                 location=str(Path(executable_path).parent.parent),
             )
+    return None
+
+
+def _detect_uv_tool_installation() -> InstallationMethod | None:
     try:
         result = subprocess.run(
             ["uv", "tool", "list"],
