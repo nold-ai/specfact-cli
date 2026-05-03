@@ -616,6 +616,8 @@ class _LazyDelegateGroup(click.Group):
             name=name or cmd_name,
             help=help or help_str,
             context_settings={"ignore_unknown_options": True},
+            invoke_without_command=True,
+            no_args_is_help=False,
         )
         self._lazy_cmd_name = cmd_name
         self._lazy_help_str = help_str
@@ -646,6 +648,13 @@ class _LazyDelegateGroup(click.Group):
             add_help_option=False,  # Pass --help through to real Typer so "specfact backlog daily ado --help" shows correct usage
         )
 
+    @require(lambda ctx: ctx is not None, "ctx must not be None")
+    @ensure(lambda result: result is None or isinstance(result, int), "result must be None or an exit code")
+    def invoke(self, ctx: click.Context) -> Any:
+        if ctx.invoked_subcommand is None and not ctx.args:
+            return self._delegate_cmd.main(args=[], prog_name=ctx.command_path, standalone_mode=False)
+        return super().invoke(ctx)
+
     @require(_lazy_delegate_cmd_name_ready, "lazy command name must be set")
     @ensure(lambda result: isinstance(result, tuple) and len(result) == 3, "result must be a 3-tuple")
     def resolve_command(
@@ -653,7 +662,7 @@ class _LazyDelegateGroup(click.Group):
     ) -> tuple[str | None, click.Command | None, list[str]]:
         # Pass through all args to the delegate so "plan init bundle" becomes args for the real plan Typer.
         if not args:
-            return None, None, []
+            return self._delegate_cmd.name, self._delegate_cmd, []
         return self._delegate_cmd.name, self._delegate_cmd, list(args)
 
     @ensure(lambda result: isinstance(result, list), "result must be a list of command names")

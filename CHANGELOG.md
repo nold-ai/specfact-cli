@@ -10,6 +10,16 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.46.12] - 2026-05-03
+
+### Fixed
+
+- **Stale flat bundle shims**: route bare lazy delegated commands such as
+  `specfact plan` through the delegate so reset registries still produce
+  actionable install guidance instead of empty Click usage failures.
+
+---
+
 ## [0.46.11] - 2026-04-30
 
 ### Fixed

@@ -7,9 +7,10 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
+import typer
 from typer.testing import CliRunner
 
-from specfact_cli.registry import CommandRegistry
+from specfact_cli.registry import CommandMetadata, CommandRegistry
 from specfact_cli.registry.bootstrap import register_builtin_commands
 
 
@@ -176,6 +177,31 @@ def test_flat_shim_plan_exits_with_not_found_or_install_instructions() -> None:
         or "install" in result.output.lower()
         or "plan" in result.output.lower()
     )
+
+
+def test_stale_flat_shim_plan_exits_with_install_instructions() -> None:
+    """Stale app 'specfact plan' shim exits with install guidance after registry reset."""
+    from specfact_cli.cli import app, rebuild_root_app_from_registry
+
+    CommandRegistry.register(
+        "plan",
+        lambda: typer.Typer(name="plan", help="Plan work"),
+        CommandMetadata(name="plan", help="Plan work", tier="official"),
+    )
+    rebuild_root_app_from_registry()
+    assert "plan" in CommandRegistry.list_commands()
+    CommandRegistry._clear_for_testing()
+
+    runner = CliRunner()
+    try:
+        result = runner.invoke(app, ["plan"], catch_exceptions=False)
+    finally:
+        CommandRegistry._clear_for_testing()
+        register_builtin_commands()
+        rebuild_root_app_from_registry()
+    assert result.exit_code != 0
+    assert "plan" in result.output.lower()
+    assert "install" in result.output.lower() or "not installed" in result.output.lower()
 
 
 def test_flat_shim_validate_exits_with_not_found_or_install_instructions() -> None:
