@@ -10,6 +10,17 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.46.16] - 2026-05-03
+
+### Fixed
+
+- **CLI delegate usage**: preserve original delegated command paths when a
+  fresh Click context has no parent chain.
+- **Upgrade command display**: include the detected uv Python interpreter in
+  displayed upgrade commands.
+
+---
+
 ## [0.46.15] - 2026-05-03
 
 ### Fixed

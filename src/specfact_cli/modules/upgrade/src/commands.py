@@ -115,10 +115,11 @@ def _detect_uv_project_installation(executable_path: str) -> InstallationMethod 
         except OSError:
             return None
         if executable == uv_root or uv_root in executable.parents:
+            executable_text = str(executable)
             return InstallationMethod(
                 method="uv",
-                command="uv pip install --upgrade specfact-cli",
-                location=str(executable),
+                command=f"uv pip install --python {shlex.quote(executable_text)} --upgrade specfact-cli",
+                location=executable_text,
             )
     return None
 

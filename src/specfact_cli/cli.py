@@ -595,7 +595,12 @@ def _lazy_delegate_prog_name(ctx: click.Context, cmd_name: str) -> str:
         if name and name != "__delegate__":
             parts.append(name)
         parent = getattr(parent, "parent", None)
-    return " ".join(reversed(parts)) if parts else cmd_name
+    if parts:
+        return " ".join(reversed(parts))
+    original_prog_name = ctx.meta.get("original_prog_name")
+    if isinstance(original_prog_name, str) and original_prog_name:
+        return original_prog_name
+    return cmd_name
 
 
 def _strip_redundant_single_command_arg(click_cmd: click.Command, args: tuple[str, ...]) -> list[str]:
@@ -653,6 +658,7 @@ class _LazyDelegateGroup(click.Group):
     @ensure(lambda result: result is None or isinstance(result, int), "result must be None or an exit code")
     def invoke(self, ctx: click.Context) -> Any:
         if ctx.invoked_subcommand is None and not ctx.args:
+            ctx.meta["original_prog_name"] = ctx.command_path
             return self._delegate_cmd.main(args=[], prog_name=ctx.command_path, standalone_mode=False)
         return super().invoke(ctx)
 
