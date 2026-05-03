@@ -10,6 +10,16 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.46.18] - 2026-05-04
+
+### Fixed
+
+- **CLI lazy delegation**: forward bare lazy subcommands such as
+  `specfact module list` and `specfact module alias` instead of dropping the
+  subcommand token and reporting `Missing command`.
+
+---
+
 ## [0.46.17] - 2026-05-03
 
 ### Fixed

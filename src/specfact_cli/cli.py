@@ -610,6 +610,12 @@ def _strip_redundant_single_command_arg(click_cmd: click.Command, args: tuple[st
     return args_list
 
 
+def _lazy_delegate_remaining_args(ctx: click.Context) -> list[str]:
+    ctx_state = vars(ctx)
+    protected_args = ctx_state.get("_protected_args") or ctx_state.get("protected_args") or ()
+    return [str(arg) for arg in (*protected_args, *ctx.args)]
+
+
 class _LazyDelegateGroup(click.Group):
     """Click Group that delegates all args to the real command (lazy-loaded)."""
 
@@ -657,9 +663,10 @@ class _LazyDelegateGroup(click.Group):
     @require(lambda ctx: ctx is not None, "ctx must not be None")
     @ensure(lambda result: result is None or isinstance(result, int), "result must be None or an exit code")
     def invoke(self, ctx: click.Context) -> Any:
-        if ctx.invoked_subcommand is None and not ctx.args:
+        if ctx.invoked_subcommand is None:
+            args = _lazy_delegate_remaining_args(ctx)
             ctx.meta["original_prog_name"] = ctx.command_path
-            return self._delegate_cmd.main(args=[], prog_name=ctx.command_path, standalone_mode=False)
+            return self._delegate_cmd.main(args=args, prog_name=ctx.command_path, standalone_mode=False)
         return super().invoke(ctx)
 
     @require(_lazy_delegate_cmd_name_ready, "lazy command name must be set")
