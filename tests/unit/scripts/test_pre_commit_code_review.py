@@ -301,7 +301,7 @@ def test_discover_specfact_modules_repo_returns_none_when_missing(
     assert module.discover_specfact_modules_repo() is None
 
 
-def test_build_review_subprocess_env_injects_discovered_repo_without_mutating_os_environ(
+def test_build_review_child_env_injects_discovered_repo_without_mutating_os_environ(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     """Review subprocess env may add ``SPECFACT_MODULES_REPO`` without changing ``os.environ``."""
@@ -314,12 +314,13 @@ def test_build_review_subprocess_env_injects_discovered_repo_without_mutating_os
     monkeypatch.delenv("SPECFACT_MODULES_REPO", raising=False)
 
     before = "SPECFACT_MODULES_REPO" in os.environ
-    env = module.build_review_subprocess_env()
+    env = module.build_review_child_env()
     after = "SPECFACT_MODULES_REPO" in os.environ
 
     assert before is False
     assert after is False
     assert env["SPECFACT_MODULES_REPO"] == str(modules_root.resolve())
+    assert env["SPECFACT_MODULES_ROOTS"] == str((modules_root / "packages").resolve())
     assert env["XDG_CONFIG_HOME"] == str((fake_repo / ".specfact" / "config").resolve())
     assert env["XDG_CACHE_HOME"] == str((fake_repo / ".specfact" / "cache").resolve())
     assert env["SEMGREP_VERSION_CACHE_PATH"] == str((fake_repo / ".specfact" / "cache" / "semgrep").resolve())
@@ -329,18 +330,21 @@ def test_build_review_subprocess_env_injects_discovered_repo_without_mutating_os
     assert Path(env["SEMGREP_VERSION_CACHE_PATH"]).is_dir()
 
 
-def test_build_review_subprocess_env_preserves_explicit_value(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    """An explicit ``SPECFACT_MODULES_REPO`` must not be overwritten in the returned env."""
-    module = _load_script_module()
-    explicit = str(tmp_path / "custom-modules")
-    monkeypatch.setenv("SPECFACT_MODULES_REPO", explicit)
-    env = module.build_review_subprocess_env()
-    assert env["SPECFACT_MODULES_REPO"] == explicit
-
-
-def test_build_review_subprocess_env_overrides_explicit_xdg_paths(
+def test_build_review_child_env_preserves_explicit_modules_repo(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
+    """An explicit ``SPECFACT_MODULES_REPO`` must not be overwritten in the returned env."""
+    module = _load_script_module()
+    modules_root = tmp_path / "custom-modules"
+    (modules_root / "packages").mkdir(parents=True)
+    explicit = str(modules_root)
+    monkeypatch.setenv("SPECFACT_MODULES_REPO", explicit)
+    env = module.build_review_child_env()
+    assert env["SPECFACT_MODULES_REPO"] == explicit
+    assert env["SPECFACT_MODULES_ROOTS"] == str((modules_root / "packages").resolve())
+
+
+def test_build_review_child_env_overrides_ambient_xdg_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """Nested review tooling must ignore ambient XDG paths and use repo-local dirs."""
     module = _load_script_module()
     explicit_config = str(tmp_path / "xdg-config")
@@ -351,7 +355,7 @@ def test_build_review_subprocess_env_overrides_explicit_xdg_paths(
     monkeypatch.setenv("XDG_CONFIG_HOME", explicit_config)
     monkeypatch.setenv("XDG_CACHE_HOME", explicit_cache)
 
-    env = module.build_review_subprocess_env()
+    env = module.build_review_child_env()
 
     assert env["XDG_CONFIG_HOME"] == str((fake_repo / ".specfact" / "config").resolve())
     assert env["XDG_CACHE_HOME"] == str((fake_repo / ".specfact" / "cache").resolve())

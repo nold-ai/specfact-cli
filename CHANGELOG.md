@@ -10,6 +10,82 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.46.16] - 2026-05-03
+
+### Fixed
+
+- **CLI delegate usage**: preserve original delegated command paths when a
+  fresh Click context has no parent chain.
+- **Upgrade command display**: include the detected uv Python interpreter in
+  displayed upgrade commands.
+
+---
+
+## [0.46.15] - 2026-05-03
+
+### Fixed
+
+- **Upgrade review hardening**: use the running interpreter for final pip
+  fallback commands and narrow upgrade subprocess exception handling.
+
+---
+
+## [0.46.14] - 2026-05-03
+
+### Fixed
+
+- **Upgrade command review follow-up**: target uv virtualenv upgrades at the
+  detected interpreter path, avoid uvx substring false positives, and keep
+  successful upgrades successful when metadata persistence fails.
+- **CLI lazy delegate diagnostics**: avoid duplicate Click error output.
+
+---
+
+## [0.46.13] - 2026-05-03
+
+### Fixed
+
+- **Upgrade install detection**: prefer active `pipx` installations before
+  generic `uv tool list` detection when both managers have stale entries.
+- **Review annotations**: make lazy delegate non-returning fallback paths and
+  uv environment resolution explicit for static analysis.
+
+---
+
+## [0.46.12] - 2026-05-03
+
+### Fixed
+
+- **Stale flat bundle shims**: route bare lazy delegated commands such as
+  `specfact plan` through the delegate so reset registries still produce
+  actionable install guidance instead of empty Click usage failures.
+
+---
+
+## [0.46.11] - 2026-04-30
+
+### Fixed
+
+- **CI command validation**: keep lazy delegated help paths from failing with
+  raw Typer command-materialization errors when installed bundle metadata cannot
+  be rendered in a Python 3.11 runtime.
+- **Missing flat-shim diagnostics**: show actionable install guidance for stale
+  flat bundle shims instead of exiting with empty output.
+- **Lint gate**: format the upgrade command tests so `ruff format --check`
+  passes in PR CI.
+
+---
+
+## [0.46.10] - 2026-04-29
+
+### Fixed
+
+- **Upgrade self-update reliability**: make `specfact upgrade` installation-method-aware for `uv`/`uvx`/`pipx`/`pip`, harden uv path containment detection, and use shell-safe pip command parsing.
+- **OpenSpec + verification governance**: add strict OpenSpec validation and concrete Red→Green evidence for `upgrade-01-install-method-aware`.
+- **Upgrade module manifest policy**: bump `upgrade` module manifest metadata and integrity so module signature/version checks pass CI policy gates.
+
+---
+
 ## [0.46.9] - 2026-04-28
 
 ### Changed

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -48,18 +49,18 @@ class _DiscoveryMergeState:
 
 
 def _resolve_include_legacy_roots(
-    include_legacy_roots: bool | None,
-    builtin_root: Path | None,
-    user_root: Path | None,
-    marketplace_root: Path | None,
-    custom_root: Path | None,
-    project_base_path: Path | None = None,
+    options: _DiscoveryRootOptions,
 ) -> bool:
-    if include_legacy_roots is not None:
-        return include_legacy_roots
-    if project_base_path is not None:
+    if options.include_legacy_roots is not None:
+        return options.include_legacy_roots
+    if options.project_base_path is not None:
         return False
-    return builtin_root is None and user_root is None and marketplace_root is None and custom_root is None
+    return (
+        options.builtin_root is None
+        and options.user_root is None
+        and options.marketplace_root is None
+        and options.custom_root is None
+    )
 
 
 def _append_legacy_module_roots(roots: list[tuple[str, Path]]) -> None:
@@ -72,6 +73,22 @@ def _append_legacy_module_roots(roots: list[tuple[str, Path]]) -> None:
             continue
         seen_root_paths.add(resolved)
         roots.append(("custom", extra_root))
+
+
+def _append_explicit_module_roots(roots: list[tuple[str, Path]]) -> None:
+    seen_root_paths = {path.resolve() for _source, path in roots}
+    for raw_root in os.environ.get("SPECFACT_MODULES_ROOTS", "").split(os.pathsep):
+        candidate = raw_root.strip()
+        if not candidate:
+            continue
+        path = Path(candidate).expanduser()
+        if not path.exists():
+            continue
+        resolved = path.resolve()
+        if resolved in seen_root_paths:
+            continue
+        seen_root_paths.add(resolved)
+        roots.append(("custom", path))
 
 
 def _discovery_root_list(options: _DiscoveryRootOptions) -> list[tuple[str, Path]]:
@@ -93,6 +110,7 @@ def _discovery_root_list(options: _DiscoveryRootOptions) -> list[tuple[str, Path
 
     if effective_project_root is not None and not project_matches_user_root:
         roots.append(("project", effective_project_root))
+    _append_explicit_module_roots(roots)
     roots.extend(
         [
             ("user", effective_user_root),
@@ -101,14 +119,7 @@ def _discovery_root_list(options: _DiscoveryRootOptions) -> list[tuple[str, Path
         ]
     )
 
-    legacy = _resolve_include_legacy_roots(
-        options.include_legacy_roots,
-        options.builtin_root,
-        options.user_root,
-        options.marketplace_root,
-        options.custom_root,
-        options.project_base_path,
-    )
+    legacy = _resolve_include_legacy_roots(options)
     if legacy:
         _append_legacy_module_roots(roots)
     return roots
