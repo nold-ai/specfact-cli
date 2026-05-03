@@ -9,6 +9,8 @@ CrossHair: skip (subprocess-based installation checks are intentionally side-eff
 
 from __future__ import annotations
 
+import os
+import shlex
 import subprocess
 import sys
 from datetime import UTC
@@ -45,7 +47,7 @@ validate_bundle = module_io_shim.validate_bundle
 class InstallationMethod(NamedTuple):
     """Installation method information."""
 
-    method: str  # "pip", "uvx", "pipx", or "unknown"
+    method: str  # "pip", "uv", "uvx", "pipx", or "unknown"
     command: str  # Command to run for update
     location: str | None  # Installation location if known
 
@@ -53,39 +55,75 @@ class InstallationMethod(NamedTuple):
 @beartype
 @ensure(lambda result: isinstance(result, InstallationMethod), "Must return InstallationMethod")
 def detect_installation_method() -> InstallationMethod:
-    """
-    Detect how SpecFact CLI was installed.
+    """Detect how SpecFact CLI was installed."""
+    executable_path = str(Path(sys.executable))
 
-    Returns:
-        InstallationMethod with detected method and update command
-    """
-    # Check if running via uvx
-    if "uvx" in sys.argv[0] or "uvx" in str(Path(sys.executable)):
-        return InstallationMethod(
-            method="uvx",
-            command="uvx --from specfact-cli specfact --version",
-            location=None,
-        )
+    uvx_method = _detect_uvx_installation(executable_path)
+    if uvx_method:
+        return uvx_method
 
-    # Check if running via pipx
+    uv_method = _detect_uv_installation(executable_path)
+    if uv_method:
+        return uv_method
+
+    pipx_method = _detect_pipx_installation()
+    if pipx_method:
+        return pipx_method
+
+    pip_method = _detect_pip_installation()
+    if pip_method:
+        return pip_method
+
+    return InstallationMethod(method="pip", command="pip install --upgrade specfact-cli", location=None)
+
+
+def _detect_uvx_installation(executable_path: str) -> InstallationMethod | None:
+    if "uvx" in sys.argv[0] or "uvx" in executable_path:
+        return InstallationMethod(method="uvx", command="uvx --from specfact-cli specfact --version", location=None)
+    return None
+
+
+def _detect_uv_installation(executable_path: str) -> InstallationMethod | None:
+    uv_project_env = os.environ.get("UV_PROJECT_ENVIRONMENT", "").strip()
+    if uv_project_env:
+        try:
+            uv_root = Path(uv_project_env).resolve()
+            executable = Path(executable_path).resolve()
+        except OSError:
+            uv_root = None
+            executable = None
+        if uv_root is not None and executable is not None and (executable == uv_root or uv_root in executable.parents):
+            return InstallationMethod(
+                method="uv",
+                command="uv pip install --upgrade specfact-cli",
+                location=str(Path(executable_path).parent.parent),
+            )
     try:
         result = subprocess.run(
-            ["pipx", "list"],
+            ["uv", "tool", "list"],
             capture_output=True,
             text=True,
             timeout=5,
             check=False,
         )
-        if "specfact-cli" in result.stdout:
-            return InstallationMethod(
-                method="pipx",
-                command="pipx upgrade specfact-cli",
-                location=None,
-            )
     except (subprocess.TimeoutExpired, FileNotFoundError):
-        pass
+        return None
+    if "specfact-cli" in result.stdout:
+        return InstallationMethod(method="uv", command="uv tool upgrade specfact-cli", location=None)
+    return None
 
-    # Check if installed via pip (user or system)
+
+def _detect_pipx_installation() -> InstallationMethod | None:
+    try:
+        result = subprocess.run(["pipx", "list"], capture_output=True, text=True, timeout=5, check=False)
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        return None
+    if "specfact-cli" in result.stdout:
+        return InstallationMethod(method="pipx", command="pipx upgrade specfact-cli", location=None)
+    return None
+
+
+def _detect_pip_installation() -> InstallationMethod | None:
     try:
         result = subprocess.run(
             [sys.executable, "-m", "pip", "show", "specfact-cli"],
@@ -94,89 +132,79 @@ def detect_installation_method() -> InstallationMethod:
             timeout=5,
             check=False,
         )
-        if result.returncode == 0:
-            # Parse location from output
-            location = None
-            for line in result.stdout.splitlines():
-                if line.startswith("Location:"):
-                    location = line.split(":", 1)[1].strip()
-                    break
-
-            return InstallationMethod(
-                method="pip",
-                command=f"{sys.executable} -m pip install --upgrade specfact-cli",
-                location=location,
-            )
     except (subprocess.TimeoutExpired, FileNotFoundError):
-        pass
+        return None
 
-    # Fallback: assume pip
+    if result.returncode != 0:
+        return None
+
+    location = None
+    for line in result.stdout.splitlines():
+        if line.startswith("Location:"):
+            location = line.split(":", 1)[1].strip()
+            break
+    quoted_executable = shlex.quote(sys.executable)
     return InstallationMethod(
         method="pip",
-        command="pip install --upgrade specfact-cli",
-        location=None,
+        command=f"{quoted_executable} -m pip install --upgrade specfact-cli",
+        location=location,
     )
 
 
 @beartype
 @ensure(lambda result: isinstance(result, bool), "Must return bool")
 def install_update(method: InstallationMethod, yes: bool = False) -> bool:
-    """
-    Install update using the detected installation method.
-
-    Args:
-        method: InstallationMethod with update command
-        yes: If True, skip confirmation prompt
-
-    Returns:
-        True if update was successful, False otherwise
-    """
+    """Install update using the detected installation method."""
     if not yes:
         console.print(f"[yellow]This will update SpecFact CLI using:[/yellow] [cyan]{method.command}[/cyan]")
         if not Confirm.ask("Continue?", default=True):
             console.print("[dim]Update cancelled[/dim]")
             return False
 
-    try:
-        console.print("[cyan]Updating SpecFact CLI...[/cyan]")
-        # Split command into parts for subprocess
-        if method.method == "pipx":
-            cmd = ["pipx", "upgrade", "specfact-cli"]
-        elif method.method == "pip":
-            # Handle both formats: "python -m pip" and "pip"
-            if " -m pip" in method.command:
-                parts = method.command.split()
-                cmd = [parts[0], "-m", "pip", "install", "--upgrade", "specfact-cli"]
-            else:
-                cmd = ["pip", "install", "--upgrade", "specfact-cli"]
-        else:
-            # uvx - just inform user
-            console.print(
-                "[yellow]uvx automatically uses the latest version.[/yellow]\n"
-                "[dim]No update needed. If you want to force a refresh, run:[/dim]\n"
-                "[cyan]uvx --from specfact-cli@latest specfact --version[/cyan]"
-            )
-            return True
-
-        result = subprocess.run(
-            cmd,
-            check=False,
-            timeout=300,  # 5 minute timeout
+    if method.method == "uvx":
+        console.print(
+            "[yellow]uvx automatically uses the latest version.[/yellow]\n"
+            "[dim]No update needed. If you want to force a refresh, run:[/dim]\n"
+            "[cyan]uvx --from specfact-cli@latest specfact --version[/cyan]"
         )
+        return True
 
-        if result.returncode == 0:
-            console.print("[green]✓ Update successful![/green]")
-            # Update metadata to reflect new version
-            from datetime import datetime
-
-            update_metadata(
-                last_checked_version=__version__,
-                last_version_check_timestamp=datetime.now(UTC).isoformat(),
-            )
-            return True
-        console.print(f"[red]✗ Update failed with exit code {result.returncode}[/red]")
+    command = _build_upgrade_command(method)
+    if command is None:
+        console.print(f"[red]✗ Unsupported installation method: {method.method}[/red]")
         return False
 
+    return _execute_upgrade_command(command)
+
+
+def _build_upgrade_command(method: InstallationMethod) -> list[str] | None:
+    if method.method == "pipx":
+        return ["pipx", "upgrade", "specfact-cli"]
+    if method.method == "uv":
+        if "uv tool" in method.command:
+            return ["uv", "tool", "upgrade", "specfact-cli"]
+        python_target = method.location or sys.executable
+        return ["uv", "pip", "install", "--python", python_target, "--upgrade", "specfact-cli"]
+    if method.method == "pip":
+        parts = shlex.split(method.command)
+        if len(parts) >= 3 and parts[1:3] == ["-m", "pip"]:
+            return [parts[0], "-m", "pip", "install", "--upgrade", "specfact-cli"]
+        return ["pip", "install", "--upgrade", "specfact-cli"]
+    return None
+
+
+def _execute_upgrade_command(command: list[str]) -> bool:
+    try:
+        console.print("[cyan]Updating SpecFact CLI...[/cyan]")
+        result = subprocess.run(command, check=False, timeout=300)
+        if result.returncode != 0:
+            console.print(f"[red]✗ Update failed with exit code {result.returncode}[/red]")
+            return False
+        console.print("[green]✓ Update successful![/green]")
+        from datetime import datetime
+
+        update_metadata(last_checked_version=__version__, last_version_check_timestamp=datetime.now(UTC).isoformat())
+        return True
     except subprocess.TimeoutExpired:
         console.print("[red]✗ Update timed out (exceeded 5 minutes)[/red]")
         return False
@@ -246,6 +274,13 @@ def _upgrade_render_update_panel(version_result: Any) -> None:
 def _upgrade_install_or_check_only(version_result: Any, check_only: bool, yes: bool) -> None:
     if check_only:
         method = detect_installation_method()
+        if method.method == "uvx":
+            console.print(
+                "[yellow]uvx automatically uses the latest version.[/yellow]\n"
+                "[dim]No update needed. If you want to force a refresh, run:[/dim]\n"
+                "[cyan]uvx --from specfact-cli@latest specfact --version[/cyan]"
+            )
+            return
         console.print(f"\n[yellow]To upgrade, run:[/yellow] [cyan]{method.command}[/cyan]")
         console.print("[dim]Or run:[/dim] [cyan]specfact upgrade --yes[/cyan]")
         return

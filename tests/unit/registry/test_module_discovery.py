@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from specfact_cli.registry import module_discovery
 from specfact_cli.registry.module_discovery import discover_all_modules, discover_all_modules_for_project
 
@@ -62,7 +64,7 @@ def test_discover_all_modules_builtin_takes_priority(tmp_path: Path) -> None:
     assert backlog_entries[0].source == "builtin"
 
 
-def test_discover_all_modules_handles_missing_optional_paths(tmp_path: Path) -> None:
+def test_discover_all_modules_skips_missing_optional_roots(tmp_path: Path) -> None:
     """Missing marketplace/custom roots should not raise."""
     builtin_root = tmp_path / "builtin"
     _write_manifest(builtin_root, "init")
@@ -79,7 +81,7 @@ def test_discover_all_modules_handles_missing_optional_paths(tmp_path: Path) -> 
     assert discovered[0].source == "builtin"
 
 
-def test_discover_all_modules_scans_user_root(tmp_path: Path, monkeypatch) -> None:
+def test_discover_all_modules_scans_user_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Discovery should include canonical user module root."""
     builtin_root = tmp_path / "builtin"
     user_root = tmp_path / "user-modules"
@@ -96,7 +98,9 @@ def test_discover_all_modules_scans_user_root(tmp_path: Path, monkeypatch) -> No
     assert sources["backlog-core"] == "user"
 
 
-def test_discover_all_modules_project_scope_takes_priority_over_user(tmp_path: Path, monkeypatch) -> None:
+def test_discover_all_modules_project_scope_takes_priority_over_user(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """Workspace project modules should shadow user modules with same id."""
     repo_root = tmp_path / "repo"
     project_root = repo_root / ".specfact" / "modules"
@@ -117,7 +121,29 @@ def test_discover_all_modules_project_scope_takes_priority_over_user(tmp_path: P
     assert sources["backlog-core"] == "project"
 
 
-def test_project_shadow_warning_is_actionable_and_emitted_once(tmp_path: Path, monkeypatch) -> None:
+def test_explicit_module_roots_take_priority_over_user_installs(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Explicit module roots are developer-selected sources and should shadow stale user installs."""
+    builtin_root = tmp_path / "builtin"
+    explicit_root = tmp_path / "modules-repo" / "packages"
+    user_root = tmp_path / "user-modules"
+    _write_manifest(builtin_root, "init")
+    _write_manifest(explicit_root, "code-review")
+    _write_manifest(user_root, "code-review")
+    monkeypatch.setenv("SPECFACT_MODULES_ROOTS", str(explicit_root))
+
+    discovered = discover_all_modules(
+        builtin_root=builtin_root,
+        user_root=user_root,
+        include_legacy_roots=False,
+    )
+
+    sources = {entry.metadata.name: entry.source for entry in discovered}
+    assert sources["code-review"] == "custom"
+
+
+def test_project_shadow_warning_is_actionable_and_emitted_once(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Project-over-user shadow guidance should be user-facing but deduplicated per process."""
     repo_root = tmp_path / "repo"
     project_root = repo_root / ".specfact" / "modules"
@@ -149,7 +175,9 @@ def test_project_shadow_warning_is_actionable_and_emitted_once(tmp_path: Path, m
     assert "specfact module uninstall backlog-core --scope user" in warnings[0]
 
 
-def test_discover_all_modules_for_project_ignores_cwd_legacy_roots_by_default(tmp_path: Path, monkeypatch) -> None:
+def test_discover_all_modules_for_project_ignores_cwd_legacy_roots_by_default(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """Project-scoped discovery should not leak extra legacy roots from the current cwd."""
     repo_root = tmp_path / "repo"
     project_root = repo_root / ".specfact" / "modules"
@@ -178,7 +206,7 @@ def test_discover_all_modules_for_project_ignores_cwd_legacy_roots_by_default(tm
     assert names == {"init", "project-only"}
 
 
-def test_canonical_user_root_is_not_reported_as_project_shadow(tmp_path: Path, monkeypatch) -> None:
+def test_canonical_user_root_is_not_reported_as_project_shadow(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Running from home should not treat the canonical user root as a conflicting project root."""
     home_root = tmp_path / "home"
     builtin_root = tmp_path / "builtin"

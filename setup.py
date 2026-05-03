@@ -7,7 +7,7 @@ from setuptools import find_packages, setup
 if __name__ == "__main__":
     _setup = setup(
         name="specfact-cli",
-        version="0.46.9",
+        version="0.46.12",
         description=(
             "The swiss knife CLI for agile DevOps teams. Keep backlog, specs, tests, and code in sync with "
             "validation and contract enforcement for new projects and long-lived codebases."
