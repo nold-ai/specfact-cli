@@ -5,7 +5,7 @@ version currently recorded for that module in the registry index.
 Used by `.github/workflows/publish-modules.yml` to decide which bundled modules
 an auto-publish run should package and upsert into
 ``resources/bundled-module-registry/index.json`` (PR opened in ``specfact-cli``).
-Output is one module directory per line (newline-separated, no trailing newline).
+Output is one module directory per line.
 """
 
 from __future__ import annotations
@@ -136,10 +136,10 @@ def main(argv: list[str] | None = None) -> int:
     manifests = _iter_manifests(args.modules_root)
     selected = _select_modules_to_publish(manifests, registry_versions)
 
-    args.output_list.write_text(
-        "\n".join(str(p) for p in selected),
-        encoding="utf-8",
-    )
+    output = "\n".join(str(p) for p in selected)
+    if output:
+        output += "\n"
+    args.output_list.write_text(output, encoding="utf-8")
     return 0
 
 

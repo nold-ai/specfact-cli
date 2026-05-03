@@ -10,6 +10,14 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.46.17] - 2026-05-03
+
+### Fixed
+
+- **Module manifest signature**: Fixed manifest signature
+
+---
+
 ## [0.46.16] - 2026-05-03
 
 ### Fixed
