@@ -78,13 +78,32 @@ def detect_installation_method() -> InstallationMethod:
     if pip_method:
         return pip_method
 
-    return InstallationMethod(method="pip", command="pip install --upgrade specfact-cli", location=None)
+    quoted_executable = shlex.quote(sys.executable)
+    return InstallationMethod(
+        method="pip",
+        command=f"{quoted_executable} -m pip install --upgrade specfact-cli",
+        location=None,
+    )
 
 
 def _detect_uvx_installation(executable_path: str) -> InstallationMethod | None:
-    if "uvx" in sys.argv[0] or "uvx" in executable_path:
+    if _path_segments_contain_uvx(sys.argv[0]) or _path_segments_contain_uvx(executable_path):
         return InstallationMethod(method="uvx", command="uvx --from specfact-cli specfact --version", location=None)
     return None
+
+
+def _path_segments_contain_uvx(path_value: str) -> bool:
+    segments = [segment for segment in path_value.replace("\\", "/").split("/") if segment]
+    return any(_is_uvx_executable_name(segment) for segment in segments)
+
+
+def _is_uvx_executable_name(segment: str) -> bool:
+    lower_segment = segment.lower()
+    for suffix in (".exe", ".cmd", ".bat"):
+        if lower_segment.endswith(suffix):
+            lower_segment = lower_segment[: -len(suffix)]
+            break
+    return lower_segment == "uvx"
 
 
 def _detect_uv_project_installation(executable_path: str) -> InstallationMethod | None:
@@ -99,7 +118,7 @@ def _detect_uv_project_installation(executable_path: str) -> InstallationMethod 
             return InstallationMethod(
                 method="uv",
                 command="uv pip install --upgrade specfact-cli",
-                location=str(Path(executable_path).parent.parent),
+                location=str(executable),
             )
     return None
 
@@ -204,20 +223,23 @@ def _execute_upgrade_command(command: list[str]) -> bool:
     try:
         console.print("[cyan]Updating SpecFact CLI...[/cyan]")
         result = subprocess.run(command, check=False, timeout=300)
-        if result.returncode != 0:
-            console.print(f"[red]✗ Update failed with exit code {result.returncode}[/red]")
-            return False
-        console.print("[green]✓ Update successful![/green]")
-        from datetime import datetime
-
-        update_metadata(last_checked_version=__version__, last_version_check_timestamp=datetime.now(UTC).isoformat())
-        return True
     except subprocess.TimeoutExpired:
         console.print("[red]✗ Update timed out (exceeded 5 minutes)[/red]")
         return False
-    except Exception as e:
+    except OSError as e:
         console.print(f"[red]✗ Update failed: {e}[/red]")
         return False
+    if result.returncode != 0:
+        console.print(f"[red]✗ Update failed with exit code {result.returncode}[/red]")
+        return False
+    console.print("[green]✓ Update successful![/green]")
+    from datetime import datetime
+
+    try:
+        update_metadata(last_checked_version=__version__, last_version_check_timestamp=datetime.now(UTC).isoformat())
+    except (OSError, TypeError) as exc:
+        console.print(f"[yellow]Update succeeded, but metadata update failed: {exc}[/yellow]")
+    return True
 
 
 def _upgrade_log_started(check_only: bool, yes: bool) -> None:

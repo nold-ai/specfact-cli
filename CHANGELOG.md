@@ -10,6 +10,26 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.46.15] - 2026-05-03
+
+### Fixed
+
+- **Upgrade review hardening**: use the running interpreter for final pip
+  fallback commands and narrow upgrade subprocess exception handling.
+
+---
+
+## [0.46.14] - 2026-05-03
+
+### Fixed
+
+- **Upgrade command review follow-up**: target uv virtualenv upgrades at the
+  detected interpreter path, avoid uvx substring false positives, and keep
+  successful upgrades successful when metadata persistence fails.
+- **CLI lazy delegate diagnostics**: avoid duplicate Click error output.
+
+---
+
 ## [0.46.13] - 2026-05-03
 
 ### Fixed

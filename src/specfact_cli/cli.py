@@ -559,7 +559,6 @@ def _print_lazy_help_fallback(cmd_name: str, args: tuple[str, ...] | list[str]) 
 
 
 def _raise_lazy_delegate_click_exception(exc: Exception) -> NoReturn:
-    click.echo(str(exc), err=True)
     raise click.ClickException(str(exc)) from exc
 
 

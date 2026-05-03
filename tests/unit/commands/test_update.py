@@ -33,6 +33,7 @@ class TestInstallationMethodDetection:
         method = detect_installation_method()
         assert method.method == "uv"
         assert method.command == "uv pip install --upgrade specfact-cli"
+        assert method.location == "/workspace/specfact-cli/.venv/bin/python"
 
     @patch("specfact_cli.modules.upgrade.src.commands.subprocess.run")
     @patch("specfact_cli.modules.upgrade.src.commands.sys.executable", "/usr/bin/python3")
@@ -68,6 +69,17 @@ class TestInstallationMethodDetection:
         """Test detecting uvx installation."""
         method = detect_installation_method()
         assert method.method == "uvx"
+
+    @patch("specfact_cli.modules.upgrade.src.commands.subprocess.run")
+    @patch("specfact_cli.modules.upgrade.src.commands.sys.executable", "/tmp/not-uvx-cache/bin/python")
+    @patch("specfact_cli.modules.upgrade.src.commands.sys.argv", ["/tmp/not-uvx-cache/bin/specfact"])
+    def test_detect_uvx_avoids_substring_false_positive(self, mock_subprocess: MagicMock) -> None:
+        """uvx detection must match path segments, not arbitrary substrings."""
+        mock_subprocess.return_value.returncode = 1
+        mock_subprocess.return_value.stdout = ""
+
+        method = detect_installation_method()
+        assert method.method == "pip"
 
     @patch("specfact_cli.modules.upgrade.src.commands.subprocess.run")
     @patch("specfact_cli.modules.upgrade.src.commands.sys.executable", "/usr/bin/python3")
@@ -160,6 +172,7 @@ class TestInstallationMethodDetection:
 
         method = detect_installation_method()
         assert method.method == "pip"
+        assert method.command == "/usr/bin/python3 -m pip install --upgrade specfact-cli"
 
 
 class TestUpdateInstallation:
@@ -263,17 +276,31 @@ def test_install_update_uv_pip_targets_detected_interpreter(
     method = InstallationMethod(
         method="uv",
         command="uv pip install --upgrade specfact-cli",
-        location="/workspace/specfact-cli/.venv",
+        location="/workspace/specfact-cli/.venv/bin/python",
     )
     mock_subprocess.return_value.returncode = 0
 
     result = install_update(method, yes=True)
     assert result is True
     mock_subprocess.assert_called_once_with(
-        ["uv", "pip", "install", "--python", "/workspace/specfact-cli/.venv", "--upgrade", "specfact-cli"],
+        ["uv", "pip", "install", "--python", "/workspace/specfact-cli/.venv/bin/python", "--upgrade", "specfact-cli"],
         check=False,
         timeout=300,
     )
+
+
+@patch("specfact_cli.modules.upgrade.src.commands.subprocess.run")
+@patch("specfact_cli.modules.upgrade.src.commands.update_metadata")
+def test_install_update_returns_true_when_state_write_fails(
+    mock_update_metadata: MagicMock, mock_run: MagicMock
+) -> None:
+    """Successful subprocess upgrade remains successful if metadata persistence fails."""
+    method = InstallationMethod(method="pip", command="pip install --upgrade specfact-cli", location=None)
+    mock_run.return_value.returncode = 0
+    mock_update_metadata.side_effect = OSError("metadata unavailable")
+
+    result = install_update(method, yes=True)
+    assert result is True
 
 
 @patch("specfact_cli.modules.upgrade.src.commands.console.print")

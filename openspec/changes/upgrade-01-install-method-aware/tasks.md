@@ -14,6 +14,6 @@
 
 ## 4. Verification
 
-- [ ] 4.1 Run required quality gates and specfact code review.
-- [ ] 4.2 Run `openspec validate upgrade-01-install-method-aware --strict`.
-- [ ] 4.3 Run pre-commit validation script and fix findings.
+- [x] 4.1 Run required quality gates and specfact code review.
+- [x] 4.2 Run `openspec validate upgrade-01-install-method-aware --strict`.
+- [x] 4.3 Run pre-commit validation script and fix findings.
