@@ -32,7 +32,9 @@ class TestInstallationMethodDetection:
         """Test detecting uv-managed venv installation."""
         method = detect_installation_method()
         assert method.method == "uv"
-        assert method.command == "uv pip install --upgrade specfact-cli"
+        assert (
+            method.command == "uv pip install --python /workspace/specfact-cli/.venv/bin/python --upgrade specfact-cli"
+        )
         assert method.location == "/workspace/specfact-cli/.venv/bin/python"
 
     @patch("specfact_cli.modules.upgrade.src.commands.subprocess.run")
