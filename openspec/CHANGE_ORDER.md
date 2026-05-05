@@ -97,7 +97,7 @@ README. Snapshot/CI work folds into 03 and 04 if and when needed.
 
 ## Modify queue (do this before implementing)
 
-Five active changes need scope adjustments before any implementation work
+Six active changes need scope adjustments before any implementation work
 begins. One PR per change, focused.
 
 | Change | Required adjustment |
