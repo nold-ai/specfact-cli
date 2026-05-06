@@ -54,8 +54,8 @@ If the user accepts, the current command MAY emit exactly one summary event afte
 validation passes. If the user declines, the current command remains silent. The prompt SHALL be short, neutral, and
 explicit:
 
-- What is tracked: command/subcommand name, module composition, duration, exit code, outcome enum, schema version, run ID,
-  timestamp, major/minor Python version, and coarse platform.
+- What is tracked: `command`, `subcommand`, `modules_composed`, `duration_ms`, `exit_code`, `outcome`,
+  `schema_version`, `run_id`, `timestamp`, major/minor Python version, and coarse platform.
 - What is not tracked: file paths, repository names, branch names, remotes, prompts, chat transcripts, OpenSpec/spec
   content, usernames, emails, hostnames, free-form logs, and raw error messages.
 - How to change it: `specfact telemetry enable`, `specfact telemetry disable`, `specfact telemetry status`, and

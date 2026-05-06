@@ -16,7 +16,7 @@ The system SHALL emit a summary telemetry event for every CLI invocation when te
 - **GIVEN** a community-tier installation with telemetry enabled by `specfact init`, first-run consent, `specfact telemetry enable`, project config, or `SPECFACT_TELEMETRY=true`
 - **WHEN** any `specfact` command runs to completion
 - **THEN** a single summary event is emitted containing only allowlisted fields
-- **AND** the event records command, duration, exit code, and outcome enum.
+- **AND** the event records the five semantic fields specified in the disclosure requirement.
 
 #### Scenario: First interactive run asks for consent before emission
 
@@ -67,7 +67,7 @@ The system SHALL provide single-command enable/disable/status controls and envir
 
 #### Scenario: `SPECFACT_TELEMETRY=true` enables one invocation without persisted consent
 
-- **GIVEN** no persisted telemetry consent exists
+- **GIVEN** a community-tier installation with no enterprise marker and no persisted telemetry consent
 - **WHEN** a command runs with `SPECFACT_TELEMETRY=true`
 - **THEN** one telemetry event is emitted if payload validation passes
 - **AND** persisted configuration is not modified.
@@ -94,7 +94,7 @@ The system SHALL disclose what telemetry tracks and rejects before consent and f
 
 - **GIVEN** the user sees the `specfact init`, first-run consent, or `specfact telemetry status` disclosure
 - **WHEN** telemetry disclosure is rendered
-- **THEN** it lists the tracked command/subcommand, module composition, duration, exit code, outcome enum, schema version, run ID, timestamp, Python major/minor version, and coarse platform fields
+- **THEN** it lists the tracked `command`, `subcommand`, `modules_composed`, `duration_ms`, `exit_code`, `outcome`, `schema_version`, `run_id`, `timestamp`, Python major/minor version, and coarse platform fields
 - **AND** it states that file paths, repo names, branch names, remotes, prompt content, chat transcripts, spec content, usernames, emails, hostnames, free-form logs, and raw error messages are not collected.
 
 ### Requirement: Enterprise Default-Off
