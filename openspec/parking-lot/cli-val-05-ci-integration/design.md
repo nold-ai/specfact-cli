@@ -29,7 +29,7 @@ This change wires the CLI validation layer (snapshots, anti-patterns, acceptance
 
 ## CI Job Dependency Chain
 
-```
+```text
 tests (existing) → cli-acceptance (new, hard gate) → package-validation (existing)
      ↓
  snapshot check (step in tests, hard gate)
