@@ -113,6 +113,7 @@ docs/internal/
 .claude/commands/specfact.*.md
 .claude/skills/openspec-*/
 !.claude/skills/openspec-workflows/
+.claude/settings.json
 
 .codex/skills/openspec-*/
 !.codex/skills/openspec-workflows/
