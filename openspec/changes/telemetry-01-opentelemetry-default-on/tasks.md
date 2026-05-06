@@ -40,7 +40,9 @@
 ## 4. Validation and documentation
 
 - [ ] 4.1 Re-run tests until all scenarios pass; update `TDD_EVIDENCE.md`.
-- [ ] 4.2 Update `docs/` with telemetry policy, active opt-in instructions, payload schema, and "what is never tracked" disclosure.
+- [ ] 4.2 Update `docs/` and adjacent modules documentation (`specfact-cli-modules/docs/reference/telemetry.md` when present)
+  with telemetry policy, active opt-in instructions, payload schema, precedence/deprecation behavior, and "what is never
+  tracked" disclosure.
 - [ ] 4.3 Add payload schema to `docs/agent-rules/` for downstream consumers (finops, enterprise).
 - [ ] 4.4 Run `openspec validate telemetry-01-opentelemetry-default-on --strict`.
 - [ ] 4.5 Run `hatch run format && hatch run type-check && hatch run contract-test && hatch test --cover -v`.
