@@ -33,16 +33,17 @@
 - [ ] 3.5 Implement non-interactive/CI disabled-by-default handling with no prompt.
 - [ ] 3.6 Implement legacy override compatibility and deprecation/conflict warnings.
 - [ ] 3.7 Implement telemetry disclosure rendering for consent and status surfaces.
-- [ ] 3.8 Implement `.specfact/telemetry/sent.log` append-only writer for transmitted payloads.
-- [ ] 3.9 Wire enterprise-default detection (`.specfact/enterprise.yaml` + `SPECFACT_ENTERPRISE` env).
+- [ ] 3.8 Implement `.specfact/telemetry/sent.log` append-only writer for transmitted payloads, including dual-write to
+  the legacy telemetry log for the full deprecation-window migration.
+- [ ] 3.9 Wire enterprise-default detection (`.specfact/enterprise.yaml` + `SPECFACT_ENTERPRISE` env) through signed-policy
+  verification before enterprise telemetry behavior can enable emission.
 - [ ] 3.10 Wire emitter into CLI entry point so opted-in invocations flow through it.
 
 ## 4. Validation and documentation
 
 - [ ] 4.1 Re-run tests until all scenarios pass; update `TDD_EVIDENCE.md`.
-- [ ] 4.2 Update `docs/` and adjacent modules documentation (`specfact-cli-modules/docs/reference/telemetry.md` when present)
-  with telemetry policy, active opt-in instructions, payload schema, precedence/deprecation behavior, and "what is never
-  tracked" disclosure.
+- [ ] 4.2 Update `docs/` and `specfact-cli-modules/docs/reference/telemetry.md` with telemetry policy, active opt-in
+  instructions, payload schema, precedence/deprecation behavior, and "what is never tracked" disclosure.
 - [ ] 4.3 Add payload schema to `docs/agent-rules/` for downstream consumers (finops, enterprise).
 - [ ] 4.4 Run `openspec validate telemetry-01-opentelemetry-default-on --strict`.
 - [ ] 4.5 Run `hatch run format && hatch run type-check && hatch run contract-test && hatch test --cover -v`.
