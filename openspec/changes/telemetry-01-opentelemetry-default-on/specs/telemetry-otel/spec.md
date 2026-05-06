@@ -1,15 +1,36 @@
 ## ADDED Requirements
 
-### Requirement: OpenTelemetry Default-On Emitter
+### Requirement: OpenTelemetry Active Opt-In Emitter
 
 The system SHALL emit a summary telemetry event for every CLI invocation when telemetry is enabled, using an allowlisted PII-safe payload.
 
-#### Scenario: Default community-tier invocation emits a summary event
+#### Scenario: Community-tier invocation stays silent before consent
 
-- **GIVEN** a community-tier installation with no explicit telemetry configuration
+- **GIVEN** a community-tier installation with no explicit telemetry configuration or recorded consent
+- **WHEN** any `specfact` command runs to completion
+- **THEN** no telemetry event is emitted
+- **AND** `specfact telemetry status` reports `disabled (source: unconfigured)`.
+
+#### Scenario: Explicitly opted-in invocation emits a summary event
+
+- **GIVEN** a community-tier installation with telemetry enabled by `specfact init`, first-run consent, `specfact telemetry enable`, project config, or `SPECFACT_TELEMETRY=true`
 - **WHEN** any `specfact` command runs to completion
 - **THEN** a single summary event is emitted containing only allowlisted fields
 - **AND** the event records command, duration, exit code, and outcome enum.
+
+#### Scenario: First interactive run asks for consent before emission
+
+- **GIVEN** an interactive terminal with no explicit telemetry configuration or recorded consent
+- **WHEN** the first `specfact` command reaches telemetry resolution
+- **THEN** the CLI shows a concise telemetry disclosure before asking for consent
+- **AND** no telemetry event is emitted unless the user accepts.
+
+#### Scenario: Non-interactive first run does not prompt and remains disabled
+
+- **GIVEN** a non-interactive terminal or CI environment with no explicit telemetry configuration or recorded consent
+- **WHEN** the first `specfact` command reaches telemetry resolution
+- **THEN** the CLI does not prompt
+- **AND** no telemetry event is emitted.
 
 #### Scenario: Disallowed fields are rejected before transmission
 
@@ -18,9 +39,16 @@ The system SHALL emit a summary telemetry event for every CLI invocation when te
 - **THEN** validation raises and no event is transmitted
 - **AND** the rejection is logged to stderr at debug level without the offending value.
 
-### Requirement: Telemetry Opt-Out Surface
+### Requirement: Telemetry Consent Surface
 
-The system SHALL provide a single-command opt-out and an environment-variable opt-out honouring a deterministic resolution chain.
+The system SHALL provide single-command enable/disable/status controls and environment-variable overrides honouring a deterministic resolution chain.
+
+#### Scenario: `specfact init` records active opt-in
+
+- **GIVEN** a user runs `specfact init` in an interactive terminal
+- **WHEN** the user accepts the telemetry prompt after reading the disclosure
+- **THEN** telemetry is persisted as enabled for the configured scope
+- **AND** `specfact telemetry status` reports `enabled` with the consent source.
 
 #### Scenario: `specfact telemetry disable` persists across invocations
 
@@ -35,6 +63,24 @@ The system SHALL provide a single-command opt-out and an environment-variable op
 - **WHEN** a command runs with `SPECFACT_TELEMETRY=false`
 - **THEN** no event is emitted for that invocation
 - **AND** persisted configuration is not modified.
+
+#### Scenario: `SPECFACT_TELEMETRY=true` enables one invocation without persisted consent
+
+- **GIVEN** no persisted telemetry consent exists
+- **WHEN** a command runs with `SPECFACT_TELEMETRY=true`
+- **THEN** one telemetry event is emitted if payload validation passes
+- **AND** persisted configuration is not modified.
+
+### Requirement: Telemetry Disclosure
+
+The system SHALL disclose what telemetry tracks and rejects before consent and from the status command.
+
+#### Scenario: Disclosure lists tracked fields and rejected categories
+
+- **GIVEN** the user sees the `specfact init`, first-run consent, or `specfact telemetry status` disclosure
+- **WHEN** telemetry disclosure is rendered
+- **THEN** it lists the tracked command/subcommand, module composition, duration, exit code, outcome enum, schema version, run ID, timestamp, Python major/minor version, and coarse platform fields
+- **AND** it states that file paths, repo names, branch names, remotes, prompt content, chat transcripts, spec content, usernames, emails, hostnames, free-form logs, and raw error messages are not collected.
 
 ### Requirement: Enterprise Default-Off
 

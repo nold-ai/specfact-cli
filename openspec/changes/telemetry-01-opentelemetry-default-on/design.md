@@ -6,7 +6,7 @@
 CLI invocation
       │
       ▼
-[TelemetryEmitter]  ◄── resolution: env → CLI → project config → profile → builtin; then enterprise overlay (signed policy)
+[TelemetryEmitter]  ◄── resolution: env → CLI → project config → init/first-run consent → profile → builtin; then enterprise overlay (signed policy)
       │
       ├── build payload (allowlist validator)
       ├── write .specfact/telemetry/sent.log (append-only, redacted)
@@ -30,13 +30,30 @@ only after the deprecation window ends.
 1. `SPECFACT_TELEMETRY` environment variable (explicit per-invocation override).
 2. `specfact telemetry disable|enable` CLI persisted preference.
 3. `.specfact/config.yaml` `telemetry.enabled`.
-4. Active profile telemetry defaults.
-5. Built-in community default: `true` when no enterprise governance applies.
+4. Recorded `specfact init` or first-interactive-run consent.
+5. Active profile telemetry defaults.
+6. Built-in community default: `false` until explicit consent exists.
 
-**Enterprise governance overlay (runs after steps 1–5 produce a candidate state):** when `.specfact/enterprise.yaml` is
+**Enterprise governance overlay (runs after steps 1–6 produce a candidate state):** when `.specfact/enterprise.yaml` is
 present **or** `SPECFACT_ENTERPRISE=true`, telemetry **MUST NOT** finalize as **enabled** unless a **signed org-admin
 policy** approves it per `enterprise-01-policy-resolution-extension`. Without that approval, **effective telemetry is
-disabled** even if steps 2–5 would enable it; step **1** remains the hard per-process escape hatch.
+disabled** even if steps 2–6 would enable it; step **1** remains the hard per-process escape hatch.
+
+## Active opt-in flow
+
+`specfact init` and the first interactive `specfact` run SHALL present a consent prompt before any telemetry is emitted.
+The prompt SHALL be short, neutral, and explicit:
+
+- What is tracked: command/subcommand name, module composition, duration, exit code, outcome enum, schema version, run ID,
+  timestamp, major/minor Python version, and coarse platform.
+- What is not tracked: file paths, repository names, branch names, remotes, prompts, chat transcripts, OpenSpec/spec
+  content, usernames, emails, hostnames, free-form logs, and raw error messages.
+- How to change it: `specfact telemetry enable`, `specfact telemetry disable`, `specfact telemetry status`, and
+  `SPECFACT_TELEMETRY=true|false`.
+
+Non-interactive and CI sessions SHALL NOT prompt. They SHALL remain disabled unless an explicit env/config/persisted
+enable source is present. First-run consent SHALL be stored as a normal user/project preference so `status` can report the
+source.
 
 ## Payload contract (allowlist)
 
@@ -71,16 +88,29 @@ here).
 ## Non-goals
 
 - Server-side collection stack (owned by ops).
-- Per-user consent UI beyond the enable/disable CLI surface.
+- Default-on collection in this release.
+- Consent UI beyond `specfact init`, first interactive run, and the telemetry command surface.
 - Rich telemetry (spans, traces) — only counter/histogram-equivalent summary events in v1.
 
 ## Alternatives considered
 
-1. **Opt-in default**: rejected. Historical adoption was ~0; no signal for platform improvement.
+1. **Default-on community telemetry**: rejected for this release. Even PII-safe payloads need explicit trust-building
+   before collection starts.
 2. **Telemetry inside every module independently**: rejected. Each module would re-invent the allowlist; easy to leak PII.
 3. **Full OpenTelemetry spans for every CLI run**: deferred. Excessive payload; v1 emits a single summary event per invocation.
+
+## Default-on revisit criteria
+
+SpecFact MAY revisit a default-on posture only after the opt-in release proves the trust contract:
+
+- Published telemetry transparency documentation matches the shipped payload schema.
+- Allowlist validator and regression tests block every rejected category listed above.
+- Local `.specfact/telemetry/sent.log` lets users inspect transmitted payloads before filing privacy concerns.
+- Enterprise signed-policy controls are implemented and documented.
+- Community feedback shows no material privacy complaints against the opt-in payload contract for at least one release cycle.
 
 ## Risks
 
 - Over-redaction may hide useful debugging signal. Mitigated by local `sent.log` that users can inspect and attach to bug reports voluntarily.
 - Accidental payload schema drift. Mitigated by pydantic model + allowlist validator enforced in unit tests.
+- Consent fatigue may reduce signal volume. Accepted for the first public telemetry release because developer trust is the gating adoption constraint.
