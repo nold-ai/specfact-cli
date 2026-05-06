@@ -6,10 +6,10 @@ SpecFact needs honest usage signal to improve the platform, but the first public
 
 ## What Changes
 
-- **NEW**: OpenTelemetry emitter available for CLI invocations only after explicit user consent, emitting a PII-safe payload (`command`, `modules_composed`, `duration_ms`, `exit_code`, `outcome`).
+- **NEW**: OpenTelemetry emitter available for CLI invocations only after explicit user consent, emitting a PII-safe payload with five required semantic fields (`command`, `modules_composed`, `duration_ms`, `exit_code`, `outcome`) plus optional bounded `subcommand`.
 - **NEW**: Active opt-in consent prompt during `specfact init` or the first interactive `specfact` run. Non-interactive, CI, and unattended first runs default to disabled until `specfact telemetry enable` or `SPECFACT_TELEMETRY=true` is provided.
 - **NEW**: Telemetry disclosure copy shown before consent and available from `specfact telemetry status`, clearly stating the tracked fields and rejected categories.
-- **NEW**: Allowlisted payload contract — the five permitted **semantic** telemetry fields are **`command`**, **`modules_composed`** (bundle/module names), **`duration_ms`**, **`exit_code`**, and **`outcome`** (enum), mapped onto the versioned schema in `specs/telemetry-otel/spec.md` (additional bounded metadata such as `schema_version`, `run_id`, and coarse platform facts remain allowlisted there). Rejections are **per disallowed category** at the emitter boundary:
+- **NEW**: Allowlisted payload contract — the five required **semantic** telemetry fields are **`command`**, **`modules_composed`** (bundle/module names), **`duration_ms`**, **`exit_code`**, and **`outcome`** (enum), plus optional bounded **`subcommand`**, mapped onto the versioned schema in `specs/telemetry-otel/spec.md` (additional bounded metadata such as `schema_version`, `run_id`, and coarse platform facts remain allowlisted there). Rejections are **per disallowed category** at the emitter boundary:
   - **File paths** — any filesystem path or repo-relative path is rejected.
   - **Repo names / branches** — repository identifiers, default-branch names, or remote URLs are rejected.
   - **Prompt content** — user prompts, system prompts, or chat transcripts are rejected.

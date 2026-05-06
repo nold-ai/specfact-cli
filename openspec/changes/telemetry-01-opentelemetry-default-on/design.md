@@ -54,8 +54,8 @@ If the user accepts, the current command MAY emit exactly one summary event afte
 validation passes. If the user declines, the current command remains silent. The prompt SHALL be short, neutral, and
 explicit:
 
-- What is tracked: `command`, `subcommand`, `modules_composed`, `duration_ms`, `exit_code`, `outcome`,
-  `schema_version`, `run_id`, `timestamp`, major/minor Python version, and coarse platform.
+- What is tracked: five required semantic fields (`command`, `modules_composed`, `duration_ms`, `exit_code`, `outcome`),
+  optional bounded `subcommand`, `schema_version`, `run_id`, `timestamp`, major/minor Python version, and coarse platform.
 - What is not tracked: file paths, repository names, branch names, remotes, prompts, chat transcripts, OpenSpec/spec
   content, usernames, emails, hostnames, free-form logs, and raw error messages.
 - How to change it: `specfact telemetry enable`, `specfact telemetry disable`, `specfact telemetry status`, and
@@ -67,17 +67,23 @@ source.
 
 ## Payload contract (allowlist)
 
-Permitted fields only:
+Permitted fields only. Required semantic fields:
 
-- `schema_version` (str, literal "1.0")
-- `run_id` (uuid)
-- `timestamp` (ISO-8601 UTC)
 - `command` (enum: validated against registered command names)
-- `subcommand` (enum, optional)
 - `modules_composed` (list[str], bundle names)
 - `duration_ms` (int)
 - `exit_code` (int)
 - `outcome` (enum: `ok | error | cancelled`)
+
+Optional bounded semantic field:
+
+- `subcommand` (enum, optional)
+
+Required bounded metadata:
+
+- `schema_version` (str, literal "1.0")
+- `run_id` (uuid)
+- `timestamp` (ISO-8601 UTC)
 - `python_version` (str, major.minor only)
 - `platform` (enum: `linux | darwin | windows`)
 
