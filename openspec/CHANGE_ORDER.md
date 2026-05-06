@@ -9,8 +9,8 @@ should be implemented.
 | Bucket | Count | Location |
 |---|---|---|
 | **Active** | 24 | [`openspec/changes/`](changes/) |
-| **Parked** | 21 | [`openspec/parking-lot/`](parking-lot/) |
-| **Archived** | 104 | [`openspec/changes/archive/`](changes/archive/) |
+| **Parked** | 20 | [`openspec/parking-lot/`](parking-lot/) |
+| **Archived** | 105 | [`openspec/changes/archive/`](changes/archive/) |
 
 `openspec list` reflects the active set only. Parking-lot proposals are paused
 pending external signal (paying enterprise customer, third-party publisher,

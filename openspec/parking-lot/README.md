@@ -44,7 +44,6 @@ Any proposal here can be returned to `openspec/changes/` by:
 | `marketplace-03-publisher-identity` | First external third-party publisher requesting onboarding |
 | `marketplace-04-revocation` | Same as marketplace-03 |
 | `marketplace-05-registry-federation` | Same as marketplace-03 |
-| `marketplace-06-ci-module-signing` | Same as marketplace-03 |
 | `security-01-unified-findings-model` | First customer asking for unified security finding output |
 | `security-02-eu-gdpr-baseline` | First regulated-domain customer or partner |
 | `review-resiliency-01-contracts` | Code-review module shipped and used; resiliency gap raised by a real user |
