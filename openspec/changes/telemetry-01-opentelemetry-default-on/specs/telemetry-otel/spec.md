@@ -33,10 +33,18 @@ The system SHALL emit a summary telemetry event for every CLI invocation when te
 - **THEN** the CLI does not prompt
 - **AND** no telemetry event is emitted.
 
-#### Scenario: Disallowed fields are rejected before transmission
+#### Scenario: Current emitter drops non-allowlisted fields before transmission
 
-- **GIVEN** an emitter attempts to include a file path or free-form string
-- **WHEN** the payload is validated
+- **GIVEN** the current `TelemetryManager._sanitize` implementation receives non-allowlisted metadata
+- **WHEN** a telemetry event is built before transmission
+- **THEN** non-allowlisted keys are silently dropped
+- **AND** the transmitted or locally recorded event contains only allowlisted keys.
+
+#### Scenario: Target-state validator rejects disallowed categories before transmission
+
+- **GIVEN** the target-state emitter attempts to include a file path, repo identifier, prompt content, spec content, or
+  free-form string outside the allowlist
+- **WHEN** the payload is validated after the hard-fail rollout gate is enabled
 - **THEN** validation raises and no event is transmitted
 - **AND** the rejection is logged to stderr at debug level without the offending value.
 
