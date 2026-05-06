@@ -36,13 +36,23 @@ only after the deprecation window ends.
 
 **Enterprise governance overlay (runs after steps 1–6 produce a candidate state):** when `.specfact/enterprise.yaml` is
 present **or** `SPECFACT_ENTERPRISE=true`, telemetry **MUST NOT** finalize as **enabled** unless a **signed org-admin
-policy** approves it per `enterprise-01-policy-resolution-extension`. Without that approval, **effective telemetry is
-disabled** even if steps 2–6 would enable it; step **1** remains the hard per-process escape hatch.
+policy** approves it per `enterprise-01-policy-resolution-extension`. `SPECFACT_TELEMETRY=false` is always a hard
+per-process disable. `SPECFACT_TELEMETRY=true` is a transient per-process enable only outside enterprise governance, or
+inside enterprise governance when the signed policy allows telemetry; it never bypasses a missing or disabling enterprise
+policy.
+
+**Legacy override compatibility:** `SPECFACT_TELEMETRY_OPT_IN` is treated as a deprecated alias for
+`SPECFACT_TELEMETRY` only when `SPECFACT_TELEMETRY` is unset. `.specfact/config.yaml` `telemetry.opt-in` is treated as a
+deprecated alias for `telemetry.enabled` only when `telemetry.enabled` is unset. New keys take precedence over legacy
+keys, legacy usage emits a runtime deprecation warning, and conflicting legacy/new values emit a conflict warning while
+using the new value.
 
 ## Active opt-in flow
 
 `specfact init` and the first interactive `specfact` run SHALL present a consent prompt before any telemetry is emitted.
-The prompt SHALL be short, neutral, and explicit:
+If the user accepts, the current command MAY emit exactly one summary event after consent is recorded and payload
+validation passes. If the user declines, the current command remains silent. The prompt SHALL be short, neutral, and
+explicit:
 
 - What is tracked: command/subcommand name, module composition, duration, exit code, outcome enum, schema version, run ID,
   timestamp, major/minor Python version, and coarse platform.

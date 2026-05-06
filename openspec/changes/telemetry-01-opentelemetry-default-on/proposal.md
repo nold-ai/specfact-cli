@@ -16,7 +16,7 @@ SpecFact needs honest usage signal to improve the platform, but the first public
   - **Spec content** — OpenSpec bodies, markdown specs, or large free-text blobs are rejected.
   - **Free-form strings** — unconstrained error text, log lines, or narrative strings are rejected (bounded error **class** only).
 - **NEW**: `specfact telemetry [enable|disable|status]` command surface plus `SPECFACT_TELEMETRY=true|false` environment variable for CI-friendly per-process overrides.
-- **NEW**: Enterprise-mode default: when `.specfact/enterprise.yaml` (or equivalent marker) is detected, telemetry defaults to `off` unless an `org-admin` signed policy opts in.
+- **NEW**: Enterprise-mode default: when `.specfact/enterprise.yaml` (or equivalent marker) is detected, telemetry defaults to `off` unless a signed `org-admin` policy opts in.
 - **NEW**: Local audit log at `.specfact/telemetry/sent.log` (append-only) recording the exact redacted payload transmitted for each invocation, so users can verify contents.
 - **EXTEND**: `specfact --version` surface prints current telemetry status.
 - **DOCUMENT**: Criteria for revisiting default-on later: published telemetry transparency docs, stable allowlist tests, local audit log adoption, explicit enterprise policy controls, and evidence that the community accepts the opt-in payload contract without privacy complaints.
@@ -35,6 +35,11 @@ Emitter, payload contract, active opt-in commands, enterprise default, local aud
   **deprecation warning**, and (per `design.md`) follows the **dual-write** window so historical consumers keep working
   while new consumers prefer the project-local path. Optional one-time **copy/merge** tooling MAY ship as a follow-up
   command, but the contract only requires dual-append plus warning until the legacy file is removed.
+- **Legacy overrides:** existing `SPECFACT_TELEMETRY_OPT_IN` and `.specfact/config.yaml` `telemetry.opt-in` settings are
+  honored during one deprecation series when `SPECFACT_TELEMETRY` and `telemetry.enabled` are unset. The CLI emits a
+  runtime deprecation warning when a legacy key is used, and emits a conflict warning when legacy and new keys disagree.
+  New keys take precedence over legacy keys. Release notes SHALL publish the cutoff before legacy override support is
+  removed.
 
 ## Impact
 

@@ -4,10 +4,10 @@
 
 The system SHALL emit a summary telemetry event for every CLI invocation when telemetry is enabled, using an allowlisted PII-safe payload.
 
-#### Scenario: Community-tier invocation stays silent before consent
+#### Scenario: Community-tier unprompted invocation stays silent before consent
 
 - **GIVEN** a community-tier installation with no explicit telemetry configuration or recorded consent
-- **WHEN** any `specfact` command runs to completion
+- **WHEN** a `specfact` command runs without an interactive consent prompt
 - **THEN** no telemetry event is emitted
 - **AND** `specfact telemetry status` reports `disabled (source: unconfigured)`.
 
@@ -23,7 +23,8 @@ The system SHALL emit a summary telemetry event for every CLI invocation when te
 - **GIVEN** an interactive terminal with no explicit telemetry configuration or recorded consent
 - **WHEN** the first `specfact` command reaches telemetry resolution
 - **THEN** the CLI shows a concise telemetry disclosure before asking for consent
-- **AND** no telemetry event is emitted unless the user accepts.
+- **AND** the current command emits no telemetry if the user declines
+- **AND** the current command MAY emit exactly one summary event after consent is recorded if the user accepts.
 
 #### Scenario: Non-interactive first run does not prompt and remains disabled
 
@@ -71,6 +72,20 @@ The system SHALL provide single-command enable/disable/status controls and envir
 - **THEN** one telemetry event is emitted if payload validation passes
 - **AND** persisted configuration is not modified.
 
+#### Scenario: Legacy telemetry opt-in overrides are honored during deprecation
+
+- **GIVEN** `SPECFACT_TELEMETRY` is unset and `SPECFACT_TELEMETRY_OPT_IN=true`
+- **WHEN** telemetry state is resolved
+- **THEN** telemetry is treated as enabled for that invocation outside enterprise governance
+- **AND** a runtime deprecation warning tells the user to migrate to `SPECFACT_TELEMETRY=true`.
+
+#### Scenario: New telemetry overrides take precedence over legacy overrides
+
+- **GIVEN** `SPECFACT_TELEMETRY=false` and `SPECFACT_TELEMETRY_OPT_IN=true`
+- **WHEN** telemetry state is resolved
+- **THEN** telemetry is disabled for that invocation
+- **AND** a runtime conflict warning states that `SPECFACT_TELEMETRY` took precedence.
+
 ### Requirement: Telemetry Disclosure
 
 The system SHALL disclose what telemetry tracks and rejects before consent and from the status command.
@@ -92,6 +107,27 @@ The system SHALL default telemetry to disabled when an enterprise marker is pres
 - **WHEN** a command runs
 - **THEN** no telemetry is emitted
 - **AND** `specfact telemetry status` reports `disabled (source: enterprise-default)`.
+
+#### Scenario: Enterprise marker blocks transient environment enable without signed policy
+
+- **GIVEN** `.specfact/enterprise.yaml` is present without an enabling org policy
+- **WHEN** a command runs with `SPECFACT_TELEMETRY=true`
+- **THEN** no telemetry is emitted
+- **AND** `specfact telemetry status` reports `disabled (source: enterprise-default)`.
+
+#### Scenario: Enterprise signed policy permits transient environment enable
+
+- **GIVEN** `.specfact/enterprise.yaml` is present with a signed org policy that permits telemetry
+- **WHEN** a command runs with `SPECFACT_TELEMETRY=true`
+- **THEN** one telemetry event is emitted if payload validation passes
+- **AND** persisted configuration is not modified.
+
+#### Scenario: Enterprise signed policy does not override explicit transient disable
+
+- **GIVEN** `.specfact/enterprise.yaml` is present with a signed org policy that permits telemetry
+- **WHEN** a command runs with `SPECFACT_TELEMETRY=false`
+- **THEN** no telemetry is emitted
+- **AND** persisted configuration is not modified.
 
 ### Requirement: Local Redacted Audit Log
 

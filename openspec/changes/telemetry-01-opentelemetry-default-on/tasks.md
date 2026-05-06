@@ -15,10 +15,14 @@
 
 - [ ] 2.1 Finalize `specs/telemetry-otel/spec.md` with active opt-in, first-run consent, disclosure, and enterprise-default-off scenarios.
 - [ ] 2.2 Write pydantic allowlist model tests that fail first (disallowed field, missing field, wrong enum).
-- [ ] 2.3 Write resolution-chain tests (env > CLI > config > init/first-run consent > profile > enterprise default > builtin disabled) that fail first.
-- [ ] 2.4 Write first-run consent tests: interactive prompt accepts, interactive prompt declines, non-interactive no-prompt disabled.
-- [ ] 2.5 Write telemetry disclosure tests proving tracked fields and rejected categories are rendered before consent and in status output.
-- [ ] 2.6 Capture failing-first output in `TDD_EVIDENCE.md`.
+- [ ] 2.3 Write resolution-chain tests (env > CLI > config > init/first-run consent > profile > builtin disabled) that fail first.
+- [ ] 2.4 Write enterprise-overlay tests proving signed-policy gating is applied after resolution and fails first when
+  the overlay is missing or signature verification fails.
+- [ ] 2.5 Write legacy override migration tests for `SPECFACT_TELEMETRY_OPT_IN` and `telemetry.opt-in`, including
+  deprecation warnings and new-key precedence on conflicts.
+- [ ] 2.6 Write first-run consent tests: interactive prompt accepts, interactive prompt declines, non-interactive no-prompt disabled.
+- [ ] 2.7 Write telemetry disclosure tests proving tracked fields and rejected categories are rendered before consent and in status output.
+- [ ] 2.8 Capture failing-first output in `TDD_EVIDENCE.md`.
 
 ## 3. Implementation
 
@@ -27,10 +31,11 @@
 - [ ] 3.3 Implement `specfact telemetry [enable|disable|status]` command surface.
 - [ ] 3.4 Implement `specfact init` and first-interactive-run active opt-in consent recording.
 - [ ] 3.5 Implement non-interactive/CI disabled-by-default handling with no prompt.
-- [ ] 3.6 Implement telemetry disclosure rendering for consent and status surfaces.
-- [ ] 3.7 Implement `.specfact/telemetry/sent.log` append-only writer for transmitted payloads.
-- [ ] 3.8 Wire enterprise-default detection (`.specfact/enterprise.yaml` + `SPECFACT_ENTERPRISE` env).
-- [ ] 3.9 Wire emitter into CLI entry point so opted-in invocations flow through it.
+- [ ] 3.6 Implement legacy override compatibility and deprecation/conflict warnings.
+- [ ] 3.7 Implement telemetry disclosure rendering for consent and status surfaces.
+- [ ] 3.8 Implement `.specfact/telemetry/sent.log` append-only writer for transmitted payloads.
+- [ ] 3.9 Wire enterprise-default detection (`.specfact/enterprise.yaml` + `SPECFACT_ENTERPRISE` env).
+- [ ] 3.10 Wire emitter into CLI entry point so opted-in invocations flow through it.
 
 ## 4. Validation and documentation
 
