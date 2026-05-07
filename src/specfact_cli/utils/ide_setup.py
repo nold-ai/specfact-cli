@@ -835,7 +835,9 @@ def _finalize_vscode_prompt_recommendation_paths(
 @require(lambda ide: isinstance(ide, str) and len(ide) > 0, "ide must be non-empty")
 @require(lambda source_ids: isinstance(source_ids, list) and all(isinstance(s, str) for s in source_ids), "bad sources")
 @ensure(lambda result: result is None, "Must return None")
-def write_ide_prompt_export_state(repo_path: Path, ide: str, source_ids: list[str]) -> None:
+def write_ide_prompt_export_state(
+    repo_path: Path, ide: str, source_ids: list[str], env_manager: str | None = None
+) -> None:
     """Persist last ``init ide`` source selection for audit/outdated checks on ``specfact init``."""
     specfact_dir = repo_path / ".specfact"
     specfact_dir.mkdir(parents=True, exist_ok=True)
@@ -844,6 +846,8 @@ def write_ide_prompt_export_state(repo_path: Path, ide: str, source_ids: list[st
         "ide": ide,
         "prompt_sources": sorted(source_ids),
     }
+    if env_manager:
+        payload["env_manager"] = env_manager
     out = specfact_dir / IDE_PROMPT_EXPORT_STATE_FILE
     out.write_text(yaml.safe_dump(payload, sort_keys=False, allow_unicode=False), encoding="utf-8")
 

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 import os
+import sys
 from collections.abc import Generator
 from pathlib import Path
 
@@ -22,8 +23,9 @@ from specfact_cli.models.module_package import (
     VersionedModuleDependency,
     VersionedPipDependency,
 )
-from specfact_cli.registry import CommandRegistry
+from specfact_cli.registry import CommandRegistry, module_packages as module_packages_impl
 from specfact_cli.registry.module_packages import (
+    clear_module_load_failures,
     discover_package_metadata,
     get_installed_bundles,
     get_modules_root,
@@ -37,8 +39,12 @@ from specfact_cli.registry.module_state import read_modules_state, write_modules
 @pytest.fixture(autouse=True)
 def _reset_registry() -> Generator[None, None, None]:
     CommandRegistry._clear_for_testing()
+    module_packages_impl._ACTIVE_MODULE_SRC_DIRS.clear()
+    clear_module_load_failures()
     yield
     CommandRegistry._clear_for_testing()
+    module_packages_impl._ACTIVE_MODULE_SRC_DIRS.clear()
+    clear_module_load_failures()
 
 
 def test_get_modules_root_under_specfact_cli():
@@ -145,6 +151,224 @@ def test_make_package_loader_wraps_runtime_import_errors_with_compatibility_guid
     assert "missing_compiled_dependency" in message
     assert str(package_dir) in message
     assert "same Python interpreter" in message
+
+
+def test_make_package_loader_records_non_import_runtime_failures(tmp_path: Path) -> None:
+    """Lazy loader diagnostics should cache any import-time execution failure."""
+    from specfact_cli.registry import module_packages as module_packages_impl
+
+    package_dir = tmp_path / "specfact-backlog"
+    nested_app = package_dir / "src" / "specfact_backlog" / "backlog" / "app.py"
+    nested_app.parent.mkdir(parents=True, exist_ok=True)
+    nested_app.write_text("raise RuntimeError('boom')\n", encoding="utf-8")
+
+    loader = module_packages_impl._make_package_loader(package_dir, "nold-ai/specfact-backlog", "backlog")
+
+    with pytest.raises(ValueError, match="Runtime compatibility error"):
+        loader()
+
+    reason = module_packages_impl.get_module_load_failure_reason("nold-ai/specfact-backlog", "backlog")
+    assert reason is not None
+    assert "boom" in reason
+
+
+def test_make_package_loader_records_missing_app_and_clears_on_success(tmp_path: Path) -> None:
+    """Missing app diagnostics should not persist after a later successful lazy load."""
+    from specfact_cli.registry import module_packages as module_packages_impl
+
+    package_dir = tmp_path / "specfact-backlog"
+    nested_app = package_dir / "src" / "specfact_backlog" / "backlog" / "app.py"
+    nested_app.parent.mkdir(parents=True, exist_ok=True)
+    nested_app.write_text("value = 1\n", encoding="utf-8")
+    loader = module_packages_impl._make_package_loader(package_dir, "nold-ai/specfact-backlog", "backlog")
+
+    with pytest.raises(ValueError, match="has no 'backlog_app' or 'app' attribute"):
+        loader()
+    assert module_packages_impl.get_module_load_failure_reason("nold-ai/specfact-backlog") is not None
+
+    nested_app.write_text("import typer\napp = typer.Typer(name='backlog')\n", encoding="utf-8")
+    assert loader() is not None
+
+    assert module_packages_impl.get_module_load_failure_reason("nold-ai/specfact-backlog") is None
+
+
+def test_remember_active_module_src_only_tracks_installed_modules(tmp_path: Path) -> None:
+    """Source checkout modules must not be prepended as active installed dependency roots."""
+    from specfact_cli.registry import module_packages as module_packages_impl
+
+    source_package = tmp_path / "source-checkout" / "specfact-codebase"
+    (source_package / "src").mkdir(parents=True)
+    installed_package = tmp_path / ".specfact" / "modules" / "specfact-code-review"
+    (installed_package / "src").mkdir(parents=True)
+    module_packages_impl._ACTIVE_MODULE_SRC_DIRS.clear()
+
+    module_packages_impl._remember_active_module_src(source_package)
+    assert module_packages_impl._ACTIVE_MODULE_SRC_DIRS == []
+
+    module_packages_impl._remember_active_module_src(installed_package)
+    assert [(installed_package / "src").resolve()] == module_packages_impl._ACTIVE_MODULE_SRC_DIRS
+
+
+def test_distribution_metadata_detection_normalizes_separator_variants(tmp_path: Path) -> None:
+    """Installed package metadata checks should match dash, underscore, and dot variants."""
+    package_dir = tmp_path / "specfact-codebase"
+    package_dir.mkdir()
+    (tmp_path / "specfact_codebase-0.41.9.dist-info").mkdir()
+
+    assert module_packages_impl._has_installed_distribution_metadata(package_dir)
+
+
+def test_clear_module_load_failure_preserves_other_command_package_failure() -> None:
+    """A recovered command should not clear package-wide diagnostics while sibling command failures remain."""
+    module_packages_impl._record_module_load_failure("nold-ai/specfact-codebase", "code", "code failed")
+    module_packages_impl._record_module_load_failure("nold-ai/specfact-codebase", "analyze", "analyze failed")
+
+    module_packages_impl._clear_module_load_failure("nold-ai/specfact-codebase", "code")
+
+    assert module_packages_impl.get_module_load_failure_reason("nold-ai/specfact-codebase", "code") == "analyze failed"
+    assert module_packages_impl.get_module_load_failure_reason("nold-ai/specfact-codebase") == "analyze failed"
+
+
+def test_register_module_package_commands_removes_stale_active_src_from_sys_path(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Registry re-registration should remove stale injected module src roots before rebuilding them."""
+    stale_src = Path("/tmp/specfact-stale-module-src").resolve()
+    module_packages_impl._ACTIVE_MODULE_SRC_DIRS.append(stale_src)
+    monkeypatch.setattr(sys, "path", [str(stale_src), str(stale_src), *sys.path])
+    monkeypatch.setattr(module_packages_impl, "discover_all_package_metadata", list)
+
+    module_packages_impl.register_module_package_commands()
+
+    assert str(stale_src) not in sys.path
+
+
+def _write_runtime_package(
+    package_dir: Path,
+    *,
+    manifest: str,
+    files: dict[str, str],
+) -> None:
+    package_dir.mkdir(parents=True)
+    (package_dir / "module-package.yaml").write_text(manifest, encoding="utf-8")
+    for rel_path, content in files.items():
+        path = package_dir / rel_path
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(content, encoding="utf-8")
+
+
+def test_installed_group_loader_adds_enabled_dependency_module_src_roots(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Installed command loading should resolve imports from enabled installed module dependencies."""
+    from specfact_cli.registry import module_packages as module_packages_impl
+
+    installed_modules_root = tmp_path / ".specfact" / "modules"
+    project_dir = installed_modules_root / "specfact-project"
+    codebase_dir = installed_modules_root / "specfact-codebase"
+    _write_runtime_package(
+        project_dir,
+        manifest="""
+name: nold-ai/specfact-project
+version: '0.41.9'
+commands: [project]
+category: project
+bundle: specfact-project
+bundle_group_command: project
+""",
+        files={"src/specfact_project/__init__.py": "VALUE = 'project-loaded'\n"},
+    )
+    _write_runtime_package(
+        codebase_dir,
+        manifest="""
+name: nold-ai/specfact-codebase
+version: '0.41.9'
+commands: [code]
+category: codebase
+bundle: specfact-codebase
+bundle_group_command: code
+""",
+        files={
+            "src/specfact_codebase/code/app.py": """
+import typer
+import specfact_project
+
+app = typer.Typer(name='code')
+for command_name in ('import', 'analyze', 'drift', 'validate', 'repro'):
+    app.add_typer(typer.Typer(name=command_name), name=command_name)
+""".strip()
+            + "\n",
+        },
+    )
+
+    monkeypatch.setattr(
+        sys,
+        "path",
+        [entry for entry in sys.path if "specfact-cli-modules" not in entry and str(tmp_path) not in entry],
+    )
+    monkeypatch.delitem(sys.modules, "specfact_project", raising=False)
+    metadata_by_name = {meta.name: meta for _package_dir, meta in discover_package_metadata(installed_modules_root)}
+    monkeypatch.setattr(
+        module_packages_impl,
+        "discover_all_package_metadata",
+        lambda: [
+            (project_dir, metadata_by_name["nold-ai/specfact-project"]),
+            (codebase_dir, metadata_by_name["nold-ai/specfact-codebase"]),
+        ],
+    )
+    monkeypatch.setattr(module_packages_impl, "verify_module_artifact", lambda *_args, **_kwargs: True)
+    monkeypatch.setattr(module_packages_impl, "read_modules_state", dict)
+    monkeypatch.setattr(module_packages_impl, "_check_protocol_compliance_from_source", lambda *_args, **_kwargs: [])
+
+    module_packages_impl.register_module_package_commands()
+
+    code_app = CommandRegistry.get_typer("code")
+    group_names = {group.name for group in getattr(code_app, "registered_groups", []) if getattr(group, "name", None)}
+    assert {"import", "analyze", "drift", "validate", "repro"}.issubset(group_names)
+
+
+def test_lazy_loader_failure_is_recorded_for_availability_diagnostics(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Lazy import failures should be available to missing-command diagnostics as installed-unavailable."""
+    from specfact_cli.registry import module_packages as module_packages_impl
+    from specfact_cli.registry.module_availability import ModuleAvailabilityStatus, classify_module_availability
+    from specfact_cli.registry.module_discovery import DiscoveredModule
+
+    codebase_dir = tmp_path / "specfact-codebase"
+    _write_runtime_package(
+        codebase_dir,
+        manifest="""
+name: nold-ai/specfact-codebase
+version: '0.41.9'
+commands: [code]
+category: codebase
+bundle: specfact-codebase
+bundle_group_command: code
+""",
+        files={"src/specfact_codebase/code/app.py": "import missing_dependency_for_codebase\n"},
+    )
+    meta = discover_package_metadata(tmp_path)[0][1]
+
+    monkeypatch.setattr(sys, "path", [entry for entry in sys.path if str(tmp_path) not in entry])
+    monkeypatch.setattr(module_packages_impl, "discover_all_package_metadata", lambda: [(codebase_dir, meta)])
+    monkeypatch.setattr(module_packages_impl, "verify_module_artifact", lambda *_args, **_kwargs: True)
+    monkeypatch.setattr(module_packages_impl, "read_modules_state", dict)
+    monkeypatch.setattr(module_packages_impl, "_check_protocol_compliance_from_source", lambda *_args, **_kwargs: [])
+    monkeypatch.setattr(
+        "specfact_cli.registry.module_availability.discover_all_modules_for_project_with_shadowed",
+        lambda _: [DiscoveredModule(codebase_dir, meta, "user")],
+    )
+    monkeypatch.setattr("specfact_cli.registry.module_availability.read_modules_state", dict)
+
+    module_packages_impl.register_module_package_commands()
+    with pytest.raises(ValueError, match="missing_dependency_for_codebase"):
+        CommandRegistry.get_typer("code")
+
+    availability = classify_module_availability(module_id="nold-ai/specfact-codebase", command_name="code")
+
+    assert availability.status is ModuleAvailabilityStatus.SKIPPED
+    assert "missing_dependency_for_codebase" in availability.reason
 
 
 def test_merge_module_state_new_modules_enabled():

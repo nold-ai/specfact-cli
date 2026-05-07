@@ -13,7 +13,12 @@ import ast
 import importlib
 import importlib.util
 import os
+import re
+import site
 import sys
+import sysconfig
+import tempfile
+from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, cast
@@ -106,6 +111,8 @@ PROTOCOL_METHODS: dict[str, str] = {
 PROTOCOL_INTERFACE_BINDINGS: tuple[str, ...] = ("runtime_interface", "commands_interface", "commands")
 BRIDGE_REGISTRY = BridgeRegistry()
 BUILTIN_MODULES_ROOT = (Path(__file__).resolve().parents[1] / "modules").resolve()
+_ACTIVE_MODULE_SRC_DIRS: list[Path] = []
+_MODULE_LOAD_FAILURES: dict[tuple[str, str], str] = {}
 
 
 def _normalized_module_name(package_name: str) -> str:
@@ -139,6 +146,51 @@ def _is_builtin_module_package(package_dir: Path) -> bool:
         return True
     except ValueError:
         return False
+
+
+def _is_under_directory(path: Path, parent: Path) -> bool:
+    try:
+        path.resolve().relative_to(parent.resolve())
+        return True
+    except ValueError:
+        return False
+
+
+def _installed_package_search_roots() -> tuple[Path, ...]:
+    """Return interpreter-managed roots that can contain installed packages."""
+    roots: list[Path] = []
+    for key in ("purelib", "platlib"):
+        raw_path = sysconfig.get_paths().get(key)
+        if raw_path:
+            roots.append(Path(raw_path))
+    with suppress(AttributeError):
+        roots.extend(Path(path) for path in site.getsitepackages())
+    return tuple(dict.fromkeys(root.resolve() for root in roots if root.exists()))
+
+
+def _has_installed_distribution_metadata(package_dir: Path) -> bool:
+    """Return True when package_dir has adjacent Python distribution metadata."""
+    parent = package_dir.parent
+    normalized = re.sub(r"[-_.]+", "_", package_dir.name).lower()
+    metadata_dirs = [*parent.glob("*.dist-info"), *parent.glob("*.egg-info")]
+    return any(re.sub(r"[-_.]+", "_", path.name).lower().startswith(f"{normalized}_") for path in metadata_dirs)
+
+
+def _is_managed_specfact_module_package(package_dir: Path) -> bool:
+    """Return True for modules installed under a SpecFact-managed modules root."""
+    parts = package_dir.resolve().parts
+    return ".specfact" in parts and "modules" in parts
+
+
+def _is_installed_module_package(package_dir: Path) -> bool:
+    """Return True when package_dir represents an installed package, not a source checkout."""
+    if _is_builtin_module_package(package_dir):
+        return False
+    if _is_managed_specfact_module_package(package_dir):
+        return True
+    if _has_installed_distribution_metadata(package_dir):
+        return True
+    return any(_is_under_directory(package_dir, root) for root in _installed_package_search_roots())
 
 
 @beartype
@@ -180,16 +232,16 @@ def get_modules_roots() -> list[Path]:
 def get_workspace_modules_root(base_path: Path | None = None) -> Path | None:
     """Return nearest workspace-local .specfact/modules root from base path upward."""
     start = base_path.resolve() if base_path is not None else Path.cwd().resolve()
+    temp_root = Path(tempfile.gettempdir()).resolve()
     for candidate in [start, *start.parents]:
+        if candidate == temp_root and candidate != start:
+            return None
+        workspace_modules_root = candidate / ".specfact" / "modules"
+        if workspace_modules_root.exists():
+            return workspace_modules_root
         git_dir = candidate / ".git"
         if git_dir.exists():
-            workspace_modules_root = candidate / ".specfact" / "modules"
-            if workspace_modules_root.exists():
-                return workspace_modules_root
             return None
-    workspace_modules_root = start / ".specfact" / "modules"
-    if workspace_modules_root.exists():
-        return workspace_modules_root
     return None
 
 
@@ -601,10 +653,77 @@ def _resolve_command_loader_path(
     return load_path, submodule_locations
 
 
+def _remember_active_module_src(package_dir: Path) -> None:
+    """Remember an eligible installed module source root for lazy cross-module imports."""
+    if not _is_installed_module_package(package_dir):
+        return
+    src_dir = package_dir / "src"
+    if not src_dir.is_dir():
+        return
+    resolved = src_dir.resolve()
+    if resolved not in _ACTIVE_MODULE_SRC_DIRS:
+        _ACTIVE_MODULE_SRC_DIRS.insert(0, resolved)
+
+
+def _prepend_active_module_src_roots() -> None:
+    """Prepend eligible installed module source roots before loading a command app."""
+    for src_dir in reversed(_ACTIVE_MODULE_SRC_DIRS):
+        src = str(src_dir)
+        if src not in sys.path:
+            sys.path.insert(0, src)
+
+
+def _record_module_load_failure(package_name: str, command_name: str, reason: str) -> None:
+    _MODULE_LOAD_FAILURES[(package_name, command_name)] = reason
+    _MODULE_LOAD_FAILURES[(package_name, "*")] = reason
+
+
+def _clear_module_load_failure(package_name: str, command_name: str) -> None:
+    _MODULE_LOAD_FAILURES.pop((package_name, command_name), None)
+    has_remaining_failure = any(
+        registered_package == package_name and registered_command != "*"
+        for registered_package, registered_command in _MODULE_LOAD_FAILURES
+    )
+    if not has_remaining_failure:
+        _MODULE_LOAD_FAILURES.pop((package_name, "*"), None)
+
+
+def _clear_active_module_src_dirs() -> None:
+    for src_dir in _ACTIVE_MODULE_SRC_DIRS:
+        src = str(src_dir)
+        while src in sys.path:
+            sys.path.remove(src)
+    _ACTIVE_MODULE_SRC_DIRS.clear()
+
+
+@beartype
+@ensure(lambda result: result is None, "must return None")
+def clear_module_load_failures() -> None:
+    """Clear process-scoped lazy module load failure diagnostics."""
+    _MODULE_LOAD_FAILURES.clear()
+
+
+def _package_name_non_empty(package_name: str) -> bool:
+    return bool(package_name.strip())
+
+
+@beartype
+@require(_package_name_non_empty, "package name must be non-empty")
+@ensure(lambda result: result is None or isinstance(result, str), "result must be a string or None")
+def get_module_load_failure_reason(package_name: str, command_name: str | None = None) -> str | None:
+    """Return the latest lazy-load failure for a module, if one was captured."""
+    if command_name is not None:
+        specific = _MODULE_LOAD_FAILURES.get((package_name, command_name))
+        if specific:
+            return specific
+    return _MODULE_LOAD_FAILURES.get((package_name, "*"))
+
+
 def _make_package_loader(package_dir: Path, package_name: str, command_name: str) -> Any:
     """Return a callable that loads the package's app (from src/app.py or src/<name>/__init__.py)."""
 
     def loader() -> Any:
+        _prepend_active_module_src_roots()
         src_dir = package_dir / "src"
         if str(src_dir) not in sys.path:
             sys.path.insert(0, str(src_dir))
@@ -621,18 +740,23 @@ def _make_package_loader(package_dir: Path, package_name: str, command_name: str
         sys.modules[spec.name] = mod
         try:
             spec.loader.exec_module(mod)
-        except (ImportError, ModuleNotFoundError, OSError) as exc:
-            raise ValueError(
+        except Exception as exc:
+            message = (
                 "Runtime compatibility error while loading "
                 f"module '{package_name}' command '{command_name}' from {package_dir}: {exc}. "
                 f"Reinstall the module and run SpecFact with the same Python interpreter ({sys.executable})."
-            ) from exc
+            )
+            _record_module_load_failure(package_name, command_name, message)
+            raise ValueError(message) from exc
         command_attr = f"{_normalized_module_name(command_name)}_app"
         app = getattr(mod, command_attr, None)
         if app is None:
             app = getattr(mod, "app", None)
         if app is None:
-            raise ValueError(f"Package {package_dir.name} has no '{command_attr}' or 'app' attribute")
+            message = f"Package {package_dir.name} has no '{command_attr}' or 'app' attribute"
+            _record_module_load_failure(package_name, command_name, message)
+            raise ValueError(message)
+        _clear_module_load_failure(package_name, command_name)
         return app
 
     return loader
@@ -1331,6 +1455,7 @@ def _register_one_package_if_eligible(package_dir: Path, meta: Any, reg: _Packag
     _register_schema_extensions_safe(meta, reg.logger)
     _register_service_bridges_safe(meta, reg.bridge_owner_map, reg.logger)
     _record_protocol_compliance_result(package_dir, meta, reg.logger, reg.counters)
+    _remember_active_module_src(package_dir)
     _register_commands_for_package(package_dir, meta, reg.category_grouping_enabled, reg.logger)
 
 
@@ -1382,6 +1507,8 @@ def register_module_package_commands(
     disable_ids = disable_ids or []
     if allow_unsigned is None:
         allow_unsigned = os.environ.get("SPECFACT_ALLOW_UNSIGNED", "").strip().lower() in ("1", "true", "yes")
+    _clear_active_module_src_dirs()
+    _MODULE_LOAD_FAILURES.clear()
     is_test_mode = os.environ.get("TEST_MODE") == "true" or os.environ.get("PYTEST_CURRENT_TEST") is not None
     packages = discover_all_package_metadata()
     packages = sorted(packages, key=_package_sort_key)
