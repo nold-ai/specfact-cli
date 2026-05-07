@@ -23,6 +23,9 @@ from icontract import ensure
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+SRC_ROOT = REPO_ROOT / "src"
+if str(SRC_ROOT) not in sys.path:
+    sys.path.insert(0, str(SRC_ROOT))
 MODULE_IDS = ("nold-ai/specfact-project", "nold-ai/specfact-codebase", "nold-ai/specfact-code-review")
 NO_ENV_WARNING = "No Compatible Environment Manager Detected"
 LOGGER = logging.getLogger("runtime-discovery-smoke")
@@ -232,9 +235,13 @@ def _smoke_launcher(name: str, workspace: Path, demo: Path, index_path: Path, mo
     home.mkdir(parents=True)
     cli = _launcher_command(name, workspace / f"launcher-{name}")
     env = os.environ.copy()
+    python_path = str(SRC_ROOT)
+    if env.get("PYTHONPATH"):
+        python_path = os.pathsep.join([python_path, env["PYTHONPATH"]])
     env.update(
         {
             "HOME": str(home),
+            "PYTHONPATH": python_path,
             "SPECFACT_MODULES_REPO": str(modules_repo),
             "SPECFACT_REGISTRY_INDEX_URL": str(index_path),
             "SPECFACT_ALLOW_UNSIGNED": "1",
@@ -296,10 +303,11 @@ def main() -> int:
         workspace_obj = tempfile.TemporaryDirectory(prefix="specfact-runtime-discovery-smoke-")
         workspace = Path(workspace_obj.name)
     try:
-        demo = _create_rootless_monorepo_demo(workspace, args.demo_repo)
         index_path = _build_local_registry(workspace, modules_repo)
         for launcher in args.launcher or ["direct"]:
-            _smoke_launcher(launcher, workspace, demo, index_path, modules_repo)
+            launcher_workspace = workspace / f"run-{launcher}"
+            demo = _create_rootless_monorepo_demo(launcher_workspace, args.demo_repo)
+            _smoke_launcher(launcher, launcher_workspace, demo, index_path, modules_repo)
         if args.keep_workspace:
             LOGGER.info("Kept workspace: %s", workspace)
         return 0

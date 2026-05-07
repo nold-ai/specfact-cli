@@ -13,6 +13,7 @@ import ast
 import importlib
 import importlib.util
 import os
+import re
 import site
 import sys
 import sysconfig
@@ -170,9 +171,9 @@ def _installed_package_search_roots() -> tuple[Path, ...]:
 def _has_installed_distribution_metadata(package_dir: Path) -> bool:
     """Return True when package_dir has adjacent Python distribution metadata."""
     parent = package_dir.parent
-    normalized = package_dir.name.replace("-", "_").lower()
+    normalized = re.sub(r"[-_.]+", "_", package_dir.name).lower()
     metadata_dirs = [*parent.glob("*.dist-info"), *parent.glob("*.egg-info")]
-    return any(path.name.replace("-", "_").lower().startswith(f"{normalized}-") for path in metadata_dirs)
+    return any(re.sub(r"[-_.]+", "_", path.name).lower().startswith(f"{normalized}_") for path in metadata_dirs)
 
 
 def _is_managed_specfact_module_package(package_dir: Path) -> bool:
@@ -679,7 +680,20 @@ def _record_module_load_failure(package_name: str, command_name: str, reason: st
 
 def _clear_module_load_failure(package_name: str, command_name: str) -> None:
     _MODULE_LOAD_FAILURES.pop((package_name, command_name), None)
-    _MODULE_LOAD_FAILURES.pop((package_name, "*"), None)
+    has_remaining_failure = any(
+        registered_package == package_name and registered_command != "*"
+        for registered_package, registered_command in _MODULE_LOAD_FAILURES
+    )
+    if not has_remaining_failure:
+        _MODULE_LOAD_FAILURES.pop((package_name, "*"), None)
+
+
+def _clear_active_module_src_dirs() -> None:
+    for src_dir in _ACTIVE_MODULE_SRC_DIRS:
+        src = str(src_dir)
+        while src in sys.path:
+            sys.path.remove(src)
+    _ACTIVE_MODULE_SRC_DIRS.clear()
 
 
 @beartype
@@ -1493,7 +1507,7 @@ def register_module_package_commands(
     disable_ids = disable_ids or []
     if allow_unsigned is None:
         allow_unsigned = os.environ.get("SPECFACT_ALLOW_UNSIGNED", "").strip().lower() in ("1", "true", "yes")
-    _ACTIVE_MODULE_SRC_DIRS.clear()
+    _clear_active_module_src_dirs()
     _MODULE_LOAD_FAILURES.clear()
     is_test_mode = os.environ.get("TEST_MODE") == "true" or os.environ.get("PYTEST_CURRENT_TEST") is not None
     packages = discover_all_package_metadata()

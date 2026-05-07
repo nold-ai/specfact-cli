@@ -68,7 +68,7 @@ def test_runtime_discovery_smoke_keep_workspace_preserves_directory(
 
     def create_demo(workspace: Path, _template: Path | None) -> Path:
         demo = workspace / "demo"
-        demo.mkdir()
+        demo.mkdir(parents=True)
         return demo
 
     def smoke_launcher(_name: str, workspace: Path, _demo: Path, _index_path: Path, _modules_repo: Path) -> None:
@@ -86,3 +86,37 @@ def test_runtime_discovery_smoke_keep_workspace_preserves_directory(
     finally:
         if "workspace" in captured:
             shutil.rmtree(captured["workspace"], ignore_errors=True)
+
+
+def test_runtime_discovery_smoke_uses_fresh_demo_per_launcher(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import scripts.runtime_discovery_smoke as smoke
+
+    demos: list[Path] = []
+    registry_builds: list[Path] = []
+
+    def create_demo(workspace: Path, _template: Path | None) -> Path:
+        demo = workspace / "demo"
+        demo.mkdir(parents=True)
+        demos.append(demo)
+        return demo
+
+    def build_registry(workspace: Path, _modules_repo: Path) -> Path:
+        registry_builds.append(workspace)
+        return workspace / "index.json"
+
+    monkeypatch.setattr(smoke, "_resolve_modules_repo", lambda _configured: tmp_path)
+    monkeypatch.setattr(smoke, "_create_rootless_monorepo_demo", create_demo)
+    monkeypatch.setattr(smoke, "_build_local_registry", build_registry)
+    monkeypatch.setattr(smoke, "_smoke_launcher", lambda _name, _workspace, _demo, _index_path, _modules_repo: None)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["runtime_discovery_smoke.py", "--launcher", "direct", "--launcher", "console"],
+    )
+
+    assert smoke.main() == 0
+
+    assert len(registry_builds) == 1
+    assert len(demos) == 2
+    assert len({demo.resolve() for demo in demos}) == 2
+    assert str(REPO_ROOT / "src") in smoke.sys.path

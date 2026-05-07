@@ -23,7 +23,7 @@ from specfact_cli.models.module_package import (
     VersionedModuleDependency,
     VersionedPipDependency,
 )
-from specfact_cli.registry import CommandRegistry
+from specfact_cli.registry import CommandRegistry, module_packages as module_packages_impl
 from specfact_cli.registry.module_packages import (
     clear_module_load_failures,
     discover_package_metadata,
@@ -39,9 +39,11 @@ from specfact_cli.registry.module_state import read_modules_state, write_modules
 @pytest.fixture(autouse=True)
 def _reset_registry() -> Generator[None, None, None]:
     CommandRegistry._clear_for_testing()
+    module_packages_impl._ACTIVE_MODULE_SRC_DIRS.clear()
     clear_module_load_failures()
     yield
     CommandRegistry._clear_for_testing()
+    module_packages_impl._ACTIVE_MODULE_SRC_DIRS.clear()
     clear_module_load_failures()
 
 
@@ -207,6 +209,40 @@ def test_remember_active_module_src_only_tracks_installed_modules(tmp_path: Path
     assert [(installed_package / "src").resolve()] == module_packages_impl._ACTIVE_MODULE_SRC_DIRS
 
 
+def test_distribution_metadata_detection_normalizes_separator_variants(tmp_path: Path) -> None:
+    """Installed package metadata checks should match dash, underscore, and dot variants."""
+    package_dir = tmp_path / "specfact-codebase"
+    package_dir.mkdir()
+    (tmp_path / "specfact_codebase-0.41.9.dist-info").mkdir()
+
+    assert module_packages_impl._has_installed_distribution_metadata(package_dir)
+
+
+def test_clear_module_load_failure_preserves_other_command_package_failure() -> None:
+    """A recovered command should not clear package-wide diagnostics while sibling command failures remain."""
+    module_packages_impl._record_module_load_failure("nold-ai/specfact-codebase", "code", "code failed")
+    module_packages_impl._record_module_load_failure("nold-ai/specfact-codebase", "analyze", "analyze failed")
+
+    module_packages_impl._clear_module_load_failure("nold-ai/specfact-codebase", "code")
+
+    assert module_packages_impl.get_module_load_failure_reason("nold-ai/specfact-codebase", "code") == "analyze failed"
+    assert module_packages_impl.get_module_load_failure_reason("nold-ai/specfact-codebase") == "analyze failed"
+
+
+def test_register_module_package_commands_removes_stale_active_src_from_sys_path(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Registry re-registration should remove stale injected module src roots before rebuilding them."""
+    stale_src = Path("/tmp/specfact-stale-module-src").resolve()
+    module_packages_impl._ACTIVE_MODULE_SRC_DIRS.append(stale_src)
+    monkeypatch.setattr(sys, "path", [str(stale_src), str(stale_src), *sys.path])
+    monkeypatch.setattr(module_packages_impl, "discover_all_package_metadata", list)
+
+    module_packages_impl.register_module_package_commands()
+
+    assert str(stale_src) not in sys.path
+
+
 def _write_runtime_package(
     package_dir: Path,
     *,
@@ -270,7 +306,7 @@ for command_name in ('import', 'analyze', 'drift', 'validate', 'repro'):
         "path",
         [entry for entry in sys.path if "specfact-cli-modules" not in entry and str(tmp_path) not in entry],
     )
-    sys.modules.pop("specfact_project", None)
+    monkeypatch.delitem(sys.modules, "specfact_project", raising=False)
     metadata_by_name = {meta.name: meta for _package_dir, meta in discover_package_metadata(installed_modules_root)}
     monkeypatch.setattr(
         module_packages_impl,
