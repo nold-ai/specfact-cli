@@ -77,6 +77,7 @@ User-facing CLI behavior assertions and acceptance-test surface.
 
 | Order | Change | Issue | Blocked by |
 |---|---|---|---|
+| 0 | `runtime-01-discovery-reliability` | [#552](https://github.com/nold-ai/specfact-cli/issues/552), [#553](https://github.com/nold-ai/specfact-cli/issues/553), [#554](https://github.com/nold-ai/specfact-cli/issues/554) | — |
 | 1 | `cli-val-03-misuse-safety-proof` | [#281](https://github.com/nold-ai/specfact-cli/issues/281) | — |
 | 2 | `cli-val-04-acceptance-test-runner` | [#282](https://github.com/nold-ai/specfact-cli/issues/282) | cli-val-03 |
 

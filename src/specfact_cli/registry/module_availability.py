@@ -14,6 +14,7 @@ from specfact_cli.registry.module_discovery import DiscoveredModule, discover_al
 from specfact_cli.registry.module_packages import (
     _check_core_compatibility,
     _validate_module_dependencies,
+    get_module_load_failure_reason,
     merge_module_state,
 )
 from specfact_cli.registry.module_state import read_modules_state
@@ -104,6 +105,9 @@ def _recovery_command(status: ModuleAvailabilityStatus, module_id: str) -> str:
 
 def _skip_reason(entry: DiscoveredModule, enabled_map: dict[str, bool]) -> str:
     meta = entry.metadata
+    load_failure = get_module_load_failure_reason(meta.name, None)
+    if load_failure:
+        return load_failure
     if not _check_core_compatibility(meta, cli_version):
         return f"requires {meta.core_compatibility}, cli is {cli_version}"
     deps_ok, missing = _validate_module_dependencies(meta, enabled_map)

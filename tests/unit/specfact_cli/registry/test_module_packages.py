@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 import os
+import sys
 from collections.abc import Generator
 from pathlib import Path
 
@@ -145,6 +146,133 @@ def test_make_package_loader_wraps_runtime_import_errors_with_compatibility_guid
     assert "missing_compiled_dependency" in message
     assert str(package_dir) in message
     assert "same Python interpreter" in message
+
+
+def _write_runtime_package(
+    package_dir: Path,
+    *,
+    manifest: str,
+    files: dict[str, str],
+) -> None:
+    package_dir.mkdir(parents=True)
+    (package_dir / "module-package.yaml").write_text(manifest, encoding="utf-8")
+    for rel_path, content in files.items():
+        path = package_dir / rel_path
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(content, encoding="utf-8")
+
+
+def test_installed_group_loader_adds_enabled_dependency_module_src_roots(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Installed command loading should resolve imports from enabled installed module dependencies."""
+    from specfact_cli.registry import module_packages as module_packages_impl
+
+    project_dir = tmp_path / "specfact-project"
+    codebase_dir = tmp_path / "specfact-codebase"
+    _write_runtime_package(
+        project_dir,
+        manifest="""
+name: nold-ai/specfact-project
+version: '0.41.9'
+commands: [project]
+category: project
+bundle: specfact-project
+bundle_group_command: project
+""",
+        files={"src/specfact_project/__init__.py": "VALUE = 'project-loaded'\n"},
+    )
+    _write_runtime_package(
+        codebase_dir,
+        manifest="""
+name: nold-ai/specfact-codebase
+version: '0.41.9'
+commands: [code]
+category: codebase
+bundle: specfact-codebase
+bundle_group_command: code
+""",
+        files={
+            "src/specfact_codebase/code/app.py": """
+import typer
+import specfact_project
+
+app = typer.Typer(name='code')
+for command_name in ('import', 'analyze', 'drift', 'validate', 'repro'):
+    app.add_typer(typer.Typer(name=command_name), name=command_name)
+""".strip()
+            + "\n",
+        },
+    )
+
+    monkeypatch.setattr(
+        sys,
+        "path",
+        [entry for entry in sys.path if "specfact-cli-modules" not in entry and str(tmp_path) not in entry],
+    )
+    sys.modules.pop("specfact_project", None)
+    metadata_by_name = {meta.name: meta for _package_dir, meta in discover_package_metadata(tmp_path)}
+    monkeypatch.setattr(
+        module_packages_impl,
+        "discover_all_package_metadata",
+        lambda: [
+            (project_dir, metadata_by_name["nold-ai/specfact-project"]),
+            (codebase_dir, metadata_by_name["nold-ai/specfact-codebase"]),
+        ],
+    )
+    monkeypatch.setattr(module_packages_impl, "verify_module_artifact", lambda *_args, **_kwargs: True)
+    monkeypatch.setattr(module_packages_impl, "read_modules_state", dict)
+    monkeypatch.setattr(module_packages_impl, "_check_protocol_compliance_from_source", lambda *_args, **_kwargs: [])
+
+    module_packages_impl.register_module_package_commands()
+
+    code_app = CommandRegistry.get_typer("code")
+    group_names = {group.name for group in getattr(code_app, "registered_groups", []) if getattr(group, "name", None)}
+    assert {"import", "analyze", "drift", "validate", "repro"}.issubset(group_names)
+
+
+def test_lazy_loader_failure_is_recorded_for_availability_diagnostics(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Lazy import failures should be available to missing-command diagnostics as installed-unavailable."""
+    from specfact_cli.registry import module_packages as module_packages_impl
+    from specfact_cli.registry.module_availability import ModuleAvailabilityStatus, classify_module_availability
+    from specfact_cli.registry.module_discovery import DiscoveredModule
+
+    codebase_dir = tmp_path / "specfact-codebase"
+    _write_runtime_package(
+        codebase_dir,
+        manifest="""
+name: nold-ai/specfact-codebase
+version: '0.41.9'
+commands: [code]
+category: codebase
+bundle: specfact-codebase
+bundle_group_command: code
+""",
+        files={"src/specfact_codebase/code/app.py": "import missing_dependency_for_codebase\n"},
+    )
+    meta = discover_package_metadata(tmp_path)[0][1]
+
+    monkeypatch.setattr(sys, "path", [entry for entry in sys.path if str(tmp_path) not in entry])
+    monkeypatch.setattr(module_packages_impl, "discover_all_package_metadata", lambda: [(codebase_dir, meta)])
+    monkeypatch.setattr(module_packages_impl, "verify_module_artifact", lambda *_args, **_kwargs: True)
+    monkeypatch.setattr(module_packages_impl, "read_modules_state", dict)
+    monkeypatch.setattr(module_packages_impl, "_check_protocol_compliance_from_source", lambda *_args, **_kwargs: [])
+    monkeypatch.setattr(
+        "specfact_cli.registry.module_availability.discover_all_modules_for_project_with_shadowed",
+        lambda _: [DiscoveredModule(codebase_dir, meta, "user")],
+    )
+    monkeypatch.setattr("specfact_cli.registry.module_availability.read_modules_state", dict)
+
+    module_packages_impl.register_module_package_commands()
+    with pytest.raises(ValueError, match="missing_dependency_for_codebase"):
+        CommandRegistry.get_typer("code")
+
+    availability = classify_module_availability(module_id="nold-ai/specfact-codebase", command_name="code")
+
+    assert availability.status is ModuleAvailabilityStatus.SKIPPED
+    assert "missing_dependency_for_codebase" in availability.reason
 
 
 def test_merge_module_state_new_modules_enabled():

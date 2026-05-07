@@ -23,6 +23,7 @@ from specfact_cli.utils.contract_predicates import repo_path_exists, repo_path_i
 class EnvManager(StrEnum):
     """Python environment manager types."""
 
+    AUTO = "auto"
     HATCH = "hatch"
     POETRY = "poetry"
     UV = "uv"
@@ -38,6 +39,62 @@ class EnvManagerInfo:
     available: bool
     command_prefix: list[str]
     message: str | None = None
+
+
+_MONOREPO_SKIP_DIRS = {
+    ".git",
+    ".hg",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".ruff_cache",
+    ".tox",
+    ".venv",
+    "__pycache__",
+    "build",
+    "dist",
+    "node_modules",
+    "venv",
+}
+
+
+def _env_info_for_available_tool(manager: EnvManager, message: str) -> EnvManagerInfo:
+    if manager is EnvManager.HATCH:
+        return EnvManagerInfo(manager=manager, available=True, command_prefix=["hatch", "run"], message=message)
+    if manager is EnvManager.POETRY:
+        return EnvManagerInfo(manager=manager, available=True, command_prefix=["poetry", "run"], message=message)
+    if manager is EnvManager.UV:
+        return EnvManagerInfo(manager=manager, available=True, command_prefix=["uv", "run"], message=message)
+    if manager is EnvManager.PIP:
+        return EnvManagerInfo(manager=manager, available=True, command_prefix=[], message=message)
+    return EnvManagerInfo(manager=EnvManager.UNKNOWN, available=True, command_prefix=[], message=message)
+
+
+@beartype
+@require(lambda manager: isinstance(manager, EnvManager), "manager must be an EnvManager")
+@ensure(lambda result: isinstance(result, EnvManagerInfo), "result must be EnvManagerInfo")
+def env_info_from_tool_choice(manager: EnvManager, repo_path: Path | None = None) -> EnvManagerInfo:
+    """Build EnvManagerInfo for an explicit user-selected manager."""
+    _ = repo_path
+    if manager is EnvManager.AUTO:
+        raise ValueError("auto is not an explicit environment manager")
+    if manager is EnvManager.UNKNOWN:
+        return EnvManagerInfo(
+            manager=EnvManager.UNKNOWN,
+            available=True,
+            command_prefix=[],
+            message="No environment manager detected, using direct tool invocation",
+        )
+    executable = "pip" if manager is EnvManager.PIP else manager.value
+    available = shutil.which(executable) is not None
+    info = _env_info_for_available_tool(manager, f"Using explicit {manager.value} environment manager")
+    if available:
+        return info
+    return EnvManagerInfo(
+        manager=manager,
+        available=False,
+        command_prefix=[],
+        message=f"Explicit environment manager {manager.value} not found in PATH",
+    )
 
 
 def _env_info_from_pyproject_toml(pyproject_toml: Path) -> EnvManagerInfo | None:
@@ -97,6 +154,96 @@ def _env_info_from_pyproject_toml(pyproject_toml: Path) -> EnvManagerInfo | None
     return None
 
 
+def _env_info_from_lock_markers(path: Path) -> EnvManagerInfo | None:
+    uv_lock = path / "uv.lock"
+    uv_toml = path / "uv.toml"
+    poetry_lock = path / "poetry.lock"
+    requirements_txt = path / "requirements.txt"
+    setup_py = path / "setup.py"
+
+    if uv_lock.exists() or uv_toml.exists():
+        uv_available = shutil.which("uv") is not None
+        if uv_available:
+            return _env_info_for_available_tool(EnvManager.UV, "Detected uv.lock or uv.toml")
+        return EnvManagerInfo(
+            manager=EnvManager.UV,
+            available=False,
+            command_prefix=[],
+            message="Detected uv.lock/uv.toml but uv not found in PATH",
+        )
+    if poetry_lock.exists():
+        poetry_available = shutil.which("poetry") is not None
+        if poetry_available:
+            return _env_info_for_available_tool(EnvManager.POETRY, "Detected poetry.lock")
+        return EnvManagerInfo(
+            manager=EnvManager.POETRY,
+            available=False,
+            command_prefix=[],
+            message="Detected poetry.lock but poetry not found in PATH",
+        )
+    if requirements_txt.exists() or setup_py.exists():
+        return EnvManagerInfo(
+            manager=EnvManager.PIP,
+            available=True,
+            command_prefix=[],
+            message="Detected requirements.txt or setup.py (pip-based project)",
+        )
+    return None
+
+
+def _iter_monorepo_candidate_dirs(repo_path: Path, max_depth: int = 2) -> list[Path]:
+    candidates: list[Path] = []
+    queue: list[tuple[Path, int]] = [(repo_path, 0)]
+    seen: set[Path] = set()
+    while queue:
+        current, depth = queue.pop(0)
+        try:
+            resolved = current.resolve()
+        except OSError:
+            continue
+        if resolved in seen:
+            continue
+        seen.add(resolved)
+        if depth > 0:
+            candidates.append(current)
+        if depth >= max_depth:
+            continue
+        try:
+            children = sorted(child for child in current.iterdir() if child.is_dir())
+        except OSError:
+            continue
+        for child in children:
+            if child.name in _MONOREPO_SKIP_DIRS or child.name.startswith("."):
+                continue
+            queue.append((child, depth + 1))
+    return candidates
+
+
+def _env_info_from_monorepo_markers(repo_path: Path) -> EnvManagerInfo | None:
+    pyproject_candidates: list[Path] = []
+    for candidate in _iter_monorepo_candidate_dirs(repo_path):
+        pyproject = candidate / "pyproject.toml"
+        if pyproject.exists():
+            pyproject_hit = _env_info_from_pyproject_toml(pyproject)
+            if pyproject_hit is not None:
+                return pyproject_hit
+            pyproject_candidates.append(pyproject)
+        marker_hit = _env_info_from_lock_markers(candidate)
+        if marker_hit is not None:
+            return marker_hit
+    if pyproject_candidates and shutil.which("uv") is not None:
+        return _env_info_for_available_tool(EnvManager.UV, "Detected monorepo pyproject.toml and uv in PATH")
+    return None
+
+
+def _env_info_from_path_fallback() -> EnvManagerInfo | None:
+    for manager in (EnvManager.UV, EnvManager.HATCH, EnvManager.POETRY, EnvManager.PIP):
+        executable = "pip" if manager is EnvManager.PIP else manager.value
+        if shutil.which(executable) is not None:
+            return _env_info_for_available_tool(manager, f"Detected {executable} in PATH")
+    return None
+
+
 @beartype
 @require(repo_path_exists, "Repository path must exist")
 @require(repo_path_is_dir, "Repository path must be a directory")
@@ -121,61 +268,23 @@ def detect_env_manager(repo_path: Path) -> EnvManagerInfo:
         EnvManagerInfo with detected manager and command prefix
     """
     pyproject_toml = repo_path / "pyproject.toml"
-    uv_lock = repo_path / "uv.lock"
-    uv_toml = repo_path / "uv.toml"
-    poetry_lock = repo_path / "poetry.lock"
-    requirements_txt = repo_path / "requirements.txt"
-    setup_py = repo_path / "setup.py"
-
     if pyproject_toml.exists():
         pyproject_hit = _env_info_from_pyproject_toml(pyproject_toml)
         if pyproject_hit is not None:
             return pyproject_hit
 
-    # 2. Check for uv.lock or uv.toml
-    if uv_lock.exists() or uv_toml.exists():
-        uv_available = shutil.which("uv") is not None
-        if uv_available:
-            return EnvManagerInfo(
-                manager=EnvManager.UV,
-                available=True,
-                command_prefix=["uv", "run"],
-                message="Detected uv.lock or uv.toml",
-            )
-        return EnvManagerInfo(
-            manager=EnvManager.UV,
-            available=False,
-            command_prefix=[],
-            message="Detected uv.lock/uv.toml but uv not found in PATH",
-        )
+    marker_hit = _env_info_from_lock_markers(repo_path)
+    if marker_hit is not None:
+        return marker_hit
 
-    # 3. Check for poetry.lock
-    if poetry_lock.exists():
-        poetry_available = shutil.which("poetry") is not None
-        if poetry_available:
-            return EnvManagerInfo(
-                manager=EnvManager.POETRY,
-                available=True,
-                command_prefix=["poetry", "run"],
-                message="Detected poetry.lock",
-            )
-        return EnvManagerInfo(
-            manager=EnvManager.POETRY,
-            available=False,
-            command_prefix=[],
-            message="Detected poetry.lock but poetry not found in PATH",
-        )
+    monorepo_hit = _env_info_from_monorepo_markers(repo_path)
+    if monorepo_hit is not None:
+        return monorepo_hit
 
-    # 4. Check for requirements.txt or setup.py (pip-based)
-    if requirements_txt.exists() or setup_py.exists():
-        return EnvManagerInfo(
-            manager=EnvManager.PIP,
-            available=True,
-            command_prefix=[],  # Direct invocation (assumes globally installed)
-            message="Detected requirements.txt or setup.py (pip-based project)",
-        )
+    path_hit = _env_info_from_path_fallback()
+    if path_hit is not None:
+        return path_hit
 
-    # 5. Fallback: assume direct invocation (pip/global tools)
     return EnvManagerInfo(
         manager=EnvManager.UNKNOWN,
         available=True,

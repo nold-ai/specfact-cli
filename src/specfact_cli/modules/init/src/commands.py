@@ -26,7 +26,13 @@ from specfact_cli.registry.module_state import write_modules_state
 from specfact_cli.runtime import debug_print, is_non_interactive
 from specfact_cli.telemetry import telemetry
 from specfact_cli.utils.contract_predicates import repo_path_exists, repo_path_is_dir
-from specfact_cli.utils.env_manager import EnvManager, EnvManagerInfo, build_tool_command, detect_env_manager
+from specfact_cli.utils.env_manager import (
+    EnvManager,
+    EnvManagerInfo,
+    build_tool_command,
+    detect_env_manager,
+    env_info_from_tool_choice,
+)
 from specfact_cli.utils.ide_setup import (
     IDE_CONFIG,
     PROMPT_SOURCE_CORE,
@@ -610,6 +616,11 @@ def init_ide(
         "--ide",
         help="IDE type (cursor, vscode, copilot, claude, gemini, qwen, opencode, windsurf, kilocode, auggie, roo, codebuddy, amp, q, auto)",
     ),
+    env_manager: EnvManager = typer.Option(
+        EnvManager.AUTO,
+        "--env-manager",
+        help="Environment manager override: auto, uv, hatch, poetry, or pip",
+    ),
     prompts: str | None = typer.Option(
         None,
         "--prompts",
@@ -638,7 +649,11 @@ def init_ide(
     console.print(f"[cyan]IDE:[/cyan] {ide_name} ({selected_ide})")
     console.print()
 
-    env_info = detect_env_manager(repo_path)
+    env_info = (
+        detect_env_manager(repo_path)
+        if env_manager is EnvManager.AUTO
+        else env_info_from_tool_choice(env_manager, repo_path)
+    )
     if env_info.manager == EnvManager.UNKNOWN:
         console.print(
             Panel(

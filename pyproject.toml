@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "specfact-cli"
-version = "0.46.18"
+version = "0.46.19"
 description = "The swiss knife CLI for agile DevOps teams. Keep backlog, specs, tests, and code in sync with validation and contract enforcement for new projects and long-lived codebases."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -283,6 +283,7 @@ verify-removal-gate = [
     "hatch run verify-modules-signature",
 ]
 export-change-github = "python scripts/export-change-to-github.py {args}"
+runtime-discovery-smoke = "python scripts/runtime_discovery_smoke.py {args}"
 
 # Contract-First Smart Test System Scripts
 contract-test = "python tools/contract_first_smart_test.py run --level auto {args}"

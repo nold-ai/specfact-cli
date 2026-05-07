@@ -10,6 +10,19 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.46.19] - 2026-05-07
+
+### Fixed
+
+- **Runtime module discovery**: load installed module dependency `src` roots
+  reliably, classify load failures in availability diagnostics, and detect
+  environment managers in rootless monorepos.
+- **Runtime discovery CI smoke**: add direct, pip-editable, and uvx install
+  path coverage for module install, upgrade command availability, init, and
+  installed `specfact code` command loading.
+
+---
+
 ## [0.46.18] - 2026-05-04
 
 ### Fixed

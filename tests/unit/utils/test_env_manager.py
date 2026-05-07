@@ -156,12 +156,48 @@ version = "1.0.0"
 
     def test_detect_unknown_fallback(self, tmp_path: Path):
         """Test fallback to unknown when no manager detected."""
-        info = detect_env_manager(tmp_path)
+        with patch("shutil.which", return_value=None):
+            info = detect_env_manager(tmp_path)
 
         assert info.manager == EnvManager.UNKNOWN
         assert info.available is True
         assert info.command_prefix == []
         assert info.message is not None and "No environment manager detected" in info.message
+
+    def test_detect_uv_from_path_when_no_project_markers(self, tmp_path: Path):
+        """PATH-only uv should be treated as a compatible manager before unknown fallback."""
+        with patch("shutil.which", side_effect=lambda name: "/usr/bin/uv" if name == "uv" else None):
+            info = detect_env_manager(tmp_path)
+
+        assert info.manager == EnvManager.UV
+        assert info.available is True
+        assert info.command_prefix == ["uv", "run"]
+
+    def test_detect_uv_from_rootless_monorepo_pyproject(self, tmp_path: Path):
+        """Rootless monorepos should detect uv when package pyprojects exist and uv is on PATH."""
+        package = tmp_path / "backend"
+        package.mkdir()
+        (package / "pyproject.toml").write_text("[project]\nname = 'backend'\n", encoding="utf-8")
+
+        with patch("shutil.which", side_effect=lambda name: "/usr/bin/uv" if name == "uv" else None):
+            info = detect_env_manager(tmp_path)
+
+        assert info.manager == EnvManager.UV
+        assert info.available is True
+        assert info.command_prefix == ["uv", "run"]
+
+    def test_detect_uv_from_second_level_monorepo_lock(self, tmp_path: Path):
+        """Rootless monorepos should scan up to two levels for uv lock markers."""
+        service = tmp_path / "apps" / "worker"
+        service.mkdir(parents=True)
+        (service / "uv.lock").write_text("version = 1\n", encoding="utf-8")
+
+        with patch("shutil.which", side_effect=lambda name: "/usr/bin/uv" if name == "uv" else None):
+            info = detect_env_manager(tmp_path)
+
+        assert info.manager == EnvManager.UV
+        assert info.available is True
+        assert info.command_prefix == ["uv", "run"]
 
     def test_detect_priority_hatch_over_poetry(self, tmp_path: Path):
         """Test that hatch takes priority over poetry when both present."""

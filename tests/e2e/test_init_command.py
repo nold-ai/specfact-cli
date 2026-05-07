@@ -295,6 +295,8 @@ class TestInitCommandE2E:
 
     def test_init_warns_when_no_environment_manager(self, tmp_path, monkeypatch):
         """Test init command shows warning when no environment manager is detected."""
+        monkeypatch.setattr("shutil.which", lambda _name: None)
+
         # Create templates directory structure
         templates_dir = tmp_path / "resources" / "prompts"
         templates_dir.mkdir(parents=True)
@@ -531,4 +533,53 @@ dev-dependencies = []
 
         assert result.exit_code == 0
         # Should NOT show warning
+        assert "No Compatible Environment Manager Detected" not in result.stdout
+
+    def test_init_no_warning_with_explicit_uv_env_manager(self, tmp_path, monkeypatch):
+        """Explicit env manager selection should bypass unknown auto-detection warnings."""
+        templates_dir = tmp_path / "resources" / "prompts"
+        templates_dir.mkdir(parents=True)
+        (templates_dir / "specfact.01-import.md").write_text("---\ndescription: Analyze\n---\nContent")
+
+        old_cwd = os.getcwd()
+        try:
+            os.chdir(tmp_path)
+            result = runner.invoke(
+                app,
+                [
+                    "init",
+                    "ide",
+                    "--ide",
+                    "cursor",
+                    "--repo",
+                    str(tmp_path),
+                    "--env-manager",
+                    "uv",
+                    "--force",
+                ],
+            )
+        finally:
+            os.chdir(old_cwd)
+
+        assert result.exit_code == 0
+        assert "No Compatible Environment Manager Detected" not in result.stdout
+
+    def test_init_no_warning_with_rootless_monorepo_uv(self, tmp_path, monkeypatch):
+        """Rootless monorepo package markers plus uv on PATH should avoid the unknown warning."""
+        templates_dir = tmp_path / "resources" / "prompts"
+        templates_dir.mkdir(parents=True)
+        (templates_dir / "specfact.01-import.md").write_text("---\ndescription: Analyze\n---\nContent")
+        backend = tmp_path / "backend"
+        backend.mkdir()
+        (backend / "pyproject.toml").write_text("[project]\nname = 'backend'\n", encoding="utf-8")
+        monkeypatch.setattr("shutil.which", lambda name: "/usr/bin/uv" if name == "uv" else None)
+
+        old_cwd = os.getcwd()
+        try:
+            os.chdir(tmp_path)
+            result = runner.invoke(app, ["init", "ide", "--ide", "cursor", "--repo", str(tmp_path), "--force"])
+        finally:
+            os.chdir(old_cwd)
+
+        assert result.exit_code == 0
         assert "No Compatible Environment Manager Detected" not in result.stdout

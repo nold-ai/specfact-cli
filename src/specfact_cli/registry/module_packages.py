@@ -14,6 +14,7 @@ import importlib
 import importlib.util
 import os
 import sys
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, cast
@@ -106,6 +107,8 @@ PROTOCOL_METHODS: dict[str, str] = {
 PROTOCOL_INTERFACE_BINDINGS: tuple[str, ...] = ("runtime_interface", "commands_interface", "commands")
 BRIDGE_REGISTRY = BridgeRegistry()
 BUILTIN_MODULES_ROOT = (Path(__file__).resolve().parents[1] / "modules").resolve()
+_ACTIVE_MODULE_SRC_DIRS: list[Path] = []
+_MODULE_LOAD_FAILURES: dict[tuple[str, str], str] = {}
 
 
 def _normalized_module_name(package_name: str) -> str:
@@ -180,16 +183,16 @@ def get_modules_roots() -> list[Path]:
 def get_workspace_modules_root(base_path: Path | None = None) -> Path | None:
     """Return nearest workspace-local .specfact/modules root from base path upward."""
     start = base_path.resolve() if base_path is not None else Path.cwd().resolve()
+    temp_root = Path(tempfile.gettempdir()).resolve()
     for candidate in [start, *start.parents]:
+        if candidate == temp_root and candidate != start:
+            return None
+        workspace_modules_root = candidate / ".specfact" / "modules"
+        if workspace_modules_root.exists():
+            return workspace_modules_root
         git_dir = candidate / ".git"
         if git_dir.exists():
-            workspace_modules_root = candidate / ".specfact" / "modules"
-            if workspace_modules_root.exists():
-                return workspace_modules_root
             return None
-    workspace_modules_root = start / ".specfact" / "modules"
-    if workspace_modules_root.exists():
-        return workspace_modules_root
     return None
 
 
@@ -601,10 +604,50 @@ def _resolve_command_loader_path(
     return load_path, submodule_locations
 
 
+def _remember_active_module_src(package_dir: Path) -> None:
+    """Remember an eligible installed module source root for lazy cross-module imports."""
+    src_dir = package_dir / "src"
+    if not src_dir.is_dir():
+        return
+    resolved = src_dir.resolve()
+    if resolved not in _ACTIVE_MODULE_SRC_DIRS:
+        _ACTIVE_MODULE_SRC_DIRS.append(resolved)
+
+
+def _prepend_active_module_src_roots() -> None:
+    """Prepend eligible installed module source roots before loading a command app."""
+    for src_dir in reversed(_ACTIVE_MODULE_SRC_DIRS):
+        src = str(src_dir)
+        if src not in sys.path:
+            sys.path.insert(0, src)
+
+
+def _record_module_load_failure(package_name: str, command_name: str, reason: str) -> None:
+    _MODULE_LOAD_FAILURES[(package_name, command_name)] = reason
+    _MODULE_LOAD_FAILURES[(package_name, "*")] = reason
+
+
+def _package_name_non_empty(package_name: str) -> bool:
+    return bool(package_name.strip())
+
+
+@beartype
+@require(_package_name_non_empty, "package name must be non-empty")
+@ensure(lambda result: result is None or isinstance(result, str), "result must be a string or None")
+def get_module_load_failure_reason(package_name: str, command_name: str | None = None) -> str | None:
+    """Return the latest lazy-load failure for a module, if one was captured."""
+    if command_name is not None:
+        specific = _MODULE_LOAD_FAILURES.get((package_name, command_name))
+        if specific:
+            return specific
+    return _MODULE_LOAD_FAILURES.get((package_name, "*"))
+
+
 def _make_package_loader(package_dir: Path, package_name: str, command_name: str) -> Any:
     """Return a callable that loads the package's app (from src/app.py or src/<name>/__init__.py)."""
 
     def loader() -> Any:
+        _prepend_active_module_src_roots()
         src_dir = package_dir / "src"
         if str(src_dir) not in sys.path:
             sys.path.insert(0, str(src_dir))
@@ -622,11 +665,13 @@ def _make_package_loader(package_dir: Path, package_name: str, command_name: str
         try:
             spec.loader.exec_module(mod)
         except (ImportError, ModuleNotFoundError, OSError) as exc:
-            raise ValueError(
+            message = (
                 "Runtime compatibility error while loading "
                 f"module '{package_name}' command '{command_name}' from {package_dir}: {exc}. "
                 f"Reinstall the module and run SpecFact with the same Python interpreter ({sys.executable})."
-            ) from exc
+            )
+            _record_module_load_failure(package_name, command_name, message)
+            raise ValueError(message) from exc
         command_attr = f"{_normalized_module_name(command_name)}_app"
         app = getattr(mod, command_attr, None)
         if app is None:
@@ -1331,6 +1376,7 @@ def _register_one_package_if_eligible(package_dir: Path, meta: Any, reg: _Packag
     _register_schema_extensions_safe(meta, reg.logger)
     _register_service_bridges_safe(meta, reg.bridge_owner_map, reg.logger)
     _record_protocol_compliance_result(package_dir, meta, reg.logger, reg.counters)
+    _remember_active_module_src(package_dir)
     _register_commands_for_package(package_dir, meta, reg.category_grouping_enabled, reg.logger)
 
 
@@ -1382,6 +1428,8 @@ def register_module_package_commands(
     disable_ids = disable_ids or []
     if allow_unsigned is None:
         allow_unsigned = os.environ.get("SPECFACT_ALLOW_UNSIGNED", "").strip().lower() in ("1", "true", "yes")
+    _ACTIVE_MODULE_SRC_DIRS.clear()
+    _MODULE_LOAD_FAILURES.clear()
     is_test_mode = os.environ.get("TEST_MODE") == "true" or os.environ.get("PYTEST_CURRENT_TEST") is not None
     packages = discover_all_package_metadata()
     packages = sorted(packages, key=_package_sort_key)
