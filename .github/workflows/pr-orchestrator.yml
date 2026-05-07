@@ -306,6 +306,12 @@ jobs:
         run: |
           mkdir -p logs/tests/junit logs/tests/coverage logs/tests/workflows
 
+      - name: Runtime discovery smoke test
+        if: needs.changes.outputs.skip_tests_dev_to_main != 'true'
+        shell: bash
+        run: |
+          python scripts/runtime_discovery_smoke.py --launcher direct --launcher pip-editable --launcher uvx
+
       - name: Set run_unit_coverage (or skip for dev→main)
         id: detect-unit
         shell: bash

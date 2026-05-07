@@ -26,7 +26,13 @@ from specfact_cli.registry.module_state import write_modules_state
 from specfact_cli.runtime import debug_print, is_non_interactive
 from specfact_cli.telemetry import telemetry
 from specfact_cli.utils.contract_predicates import repo_path_exists, repo_path_is_dir
-from specfact_cli.utils.env_manager import EnvManager, EnvManagerInfo, build_tool_command, detect_env_manager
+from specfact_cli.utils.env_manager import (
+    EnvManager,
+    EnvManagerInfo,
+    build_tool_command,
+    detect_env_manager,
+    env_info_from_tool_choice,
+)
 from specfact_cli.utils.ide_setup import (
     IDE_CONFIG,
     PROMPT_SOURCE_CORE,
@@ -610,6 +616,11 @@ def init_ide(
         "--ide",
         help="IDE type (cursor, vscode, copilot, claude, gemini, qwen, opencode, windsurf, kilocode, auggie, roo, codebuddy, amp, q, auto)",
     ),
+    env_manager: EnvManager = typer.Option(
+        EnvManager.AUTO,
+        "--env-manager",
+        help="Environment manager override: auto, uv, hatch, poetry, or pip",
+    ),
     prompts: str | None = typer.Option(
         None,
         "--prompts",
@@ -638,7 +649,17 @@ def init_ide(
     console.print(f"[cyan]IDE:[/cyan] {ide_name} ({selected_ide})")
     console.print()
 
-    env_info = detect_env_manager(repo_path)
+    env_info = (
+        detect_env_manager(repo_path)
+        if env_manager is EnvManager.AUTO
+        else env_info_from_tool_choice(env_manager, repo_path)
+    )
+    if env_manager is not EnvManager.AUTO and not env_info.available:
+        console.print(Panel(f"[bold red]{env_info.message}[/bold red]", border_style="red"))
+        raise typer.Exit(1)
+    if env_info.manager is not EnvManager.UNKNOWN:
+        console.print(f"[cyan]Environment manager:[/cyan] {env_info.manager.value}")
+        console.print()
     if env_info.manager == EnvManager.UNKNOWN:
         console.print(
             Panel(
@@ -673,7 +694,12 @@ def init_ide(
     copied_files, settings_path = copy_templates_to_ide(
         repo_path, selected_ide, force, prompts_by_source=selected_catalog
     )
-    write_ide_prompt_export_state(repo_path, selected_ide, sorted(selected_catalog.keys()))
+    write_ide_prompt_export_state(
+        repo_path,
+        selected_ide,
+        sorted(selected_catalog.keys()),
+        env_manager=env_info.manager.value,
+    )
     _copy_backlog_field_mapping_templates(repo_path, force, console)
 
     console.print()
