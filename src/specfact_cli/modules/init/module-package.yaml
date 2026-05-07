@@ -17,4 +17,5 @@ publisher:
 description: Initialize SpecFact workspace and bootstrap local configuration.
 license: Apache-2.0
 integrity:
-  checksum: sha256:a80f310a627d5ead684c79302993b45181ca5802b9994af38a4b75676f6467be
+  checksum: sha256:0086a4fa3e1f8744deee21640e73e6e2f24daf2b4a680b9157feed5487afc208
+  signature: L7DtVqvg+zqc/CgJu/mOkvxYpfH9HuddbLS3EK5Uvnf6K/j/BofqopamZDdHVlevOGAb+dbsk06kskNOIJfkDQ==
