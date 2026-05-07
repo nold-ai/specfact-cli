@@ -227,8 +227,9 @@ def test_installed_group_loader_adds_enabled_dependency_module_src_roots(
     """Installed command loading should resolve imports from enabled installed module dependencies."""
     from specfact_cli.registry import module_packages as module_packages_impl
 
-    project_dir = tmp_path / "specfact-project"
-    codebase_dir = tmp_path / "specfact-codebase"
+    installed_modules_root = tmp_path / ".specfact" / "modules"
+    project_dir = installed_modules_root / "specfact-project"
+    codebase_dir = installed_modules_root / "specfact-codebase"
     _write_runtime_package(
         project_dir,
         manifest="""
@@ -270,7 +271,7 @@ for command_name in ('import', 'analyze', 'drift', 'validate', 'repro'):
         [entry for entry in sys.path if "specfact-cli-modules" not in entry and str(tmp_path) not in entry],
     )
     sys.modules.pop("specfact_project", None)
-    metadata_by_name = {meta.name: meta for _package_dir, meta in discover_package_metadata(tmp_path)}
+    metadata_by_name = {meta.name: meta for _package_dir, meta in discover_package_metadata(installed_modules_root)}
     monkeypatch.setattr(
         module_packages_impl,
         "discover_all_package_metadata",
