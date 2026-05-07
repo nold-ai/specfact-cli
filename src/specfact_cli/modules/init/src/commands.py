@@ -654,6 +654,12 @@ def init_ide(
         if env_manager is EnvManager.AUTO
         else env_info_from_tool_choice(env_manager, repo_path)
     )
+    if env_manager is not EnvManager.AUTO and not env_info.available:
+        console.print(Panel(f"[bold red]{env_info.message}[/bold red]", border_style="red"))
+        raise typer.Exit(1)
+    if env_info.manager is not EnvManager.UNKNOWN:
+        console.print(f"[cyan]Environment manager:[/cyan] {env_info.manager.value}")
+        console.print()
     if env_info.manager == EnvManager.UNKNOWN:
         console.print(
             Panel(
@@ -688,7 +694,12 @@ def init_ide(
     copied_files, settings_path = copy_templates_to_ide(
         repo_path, selected_ide, force, prompts_by_source=selected_catalog
     )
-    write_ide_prompt_export_state(repo_path, selected_ide, sorted(selected_catalog.keys()))
+    write_ide_prompt_export_state(
+        repo_path,
+        selected_ide,
+        sorted(selected_catalog.keys()),
+        env_manager=env_info.manager.value,
+    )
     _copy_backlog_field_mapping_templates(repo_path, force, console)
 
     console.print()

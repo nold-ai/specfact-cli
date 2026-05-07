@@ -12,6 +12,11 @@ All notable changes to this project will be documented in this file.
 
 ## [0.46.19] - 2026-05-07
 
+### Added
+
+- **IDE initialization environment selection**: `specfact init ide --env-manager <auto|uv|hatch|poetry|pip>`
+  now lets users explicitly select the environment manager used for IDE setup.
+
 ### Fixed
 
 - **Runtime module discovery**: load installed module dependency `src` roots

@@ -237,7 +237,7 @@ def _env_info_from_monorepo_markers(repo_path: Path) -> EnvManagerInfo | None:
 
 
 def _env_info_from_path_fallback() -> EnvManagerInfo | None:
-    for manager in (EnvManager.UV, EnvManager.HATCH, EnvManager.POETRY, EnvManager.PIP):
+    for manager in (EnvManager.UV, EnvManager.PIP):
         executable = "pip" if manager is EnvManager.PIP else manager.value
         if shutil.which(executable) is not None:
             return _env_info_for_available_tool(manager, f"Detected {executable} in PATH")
@@ -259,7 +259,7 @@ def detect_env_manager(repo_path: Path) -> EnvManagerInfo:
     4. Check for uv.lock or uv.toml → uv
     5. Check for poetry.lock → poetry
     6. Check for requirements.txt or setup.py → pip
-    7. Check if tools are globally available → pip (fallback)
+    7. Check if uv or pip are globally available → uv or pip fallback
 
     Args:
         repo_path: Path to the repository root

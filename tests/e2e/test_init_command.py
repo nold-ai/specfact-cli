@@ -540,6 +540,7 @@ dev-dependencies = []
         templates_dir = tmp_path / "resources" / "prompts"
         templates_dir.mkdir(parents=True)
         (templates_dir / "specfact.01-import.md").write_text("---\ndescription: Analyze\n---\nContent")
+        monkeypatch.setattr("shutil.which", lambda name: "/usr/bin/uv" if name == "uv" else None)
 
         old_cwd = os.getcwd()
         try:
@@ -563,6 +564,8 @@ dev-dependencies = []
 
         assert result.exit_code == 0
         assert "No Compatible Environment Manager Detected" not in result.stdout
+        assert "Environment manager:" in result.stdout
+        assert "uv" in result.stdout
 
     def test_init_no_warning_with_rootless_monorepo_uv(self, tmp_path, monkeypatch):
         """Rootless monorepo package markers plus uv on PATH should avoid the unknown warning."""
@@ -583,3 +586,5 @@ dev-dependencies = []
 
         assert result.exit_code == 0
         assert "No Compatible Environment Manager Detected" not in result.stdout
+        assert "Environment manager:" in result.stdout
+        assert "uv" in result.stdout

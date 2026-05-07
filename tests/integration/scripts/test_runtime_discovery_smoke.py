@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -56,3 +57,32 @@ def test_runtime_discovery_smoke_direct_launcher() -> None:
 
     assert result.returncode == 0, result.stdout
     assert "runtime-discovery smoke passed for launcher=direct" in result.stdout
+
+
+def test_runtime_discovery_smoke_keep_workspace_preserves_directory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import scripts.runtime_discovery_smoke as smoke
+
+    captured: dict[str, Path] = {}
+
+    def create_demo(workspace: Path, _template: Path | None) -> Path:
+        demo = workspace / "demo"
+        demo.mkdir()
+        return demo
+
+    def smoke_launcher(_name: str, workspace: Path, _demo: Path, _index_path: Path, _modules_repo: Path) -> None:
+        captured["workspace"] = workspace
+
+    monkeypatch.setattr(smoke, "_resolve_modules_repo", lambda _configured: tmp_path)
+    monkeypatch.setattr(smoke, "_create_rootless_monorepo_demo", create_demo)
+    monkeypatch.setattr(smoke, "_build_local_registry", lambda workspace, _modules_repo: workspace / "index.json")
+    monkeypatch.setattr(smoke, "_smoke_launcher", smoke_launcher)
+    monkeypatch.setattr(sys, "argv", ["runtime_discovery_smoke.py", "--keep-workspace"])
+
+    try:
+        assert smoke.main() == 0
+        assert captured["workspace"].exists()
+    finally:
+        if "workspace" in captured:
+            shutil.rmtree(captured["workspace"], ignore_errors=True)

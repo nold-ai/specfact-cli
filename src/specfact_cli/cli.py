@@ -178,10 +178,10 @@ class _RootCLIGroup(ProgressiveDisclosureGroup):
                 _print_missing_bundle_command_help(invoked)
                 raise SystemExit(1) from None
             raise
-        except ValueError:
+        except ValueError as exc:
             if invoked in KNOWN_BUNDLE_GROUP_OR_SHIM_NAMES:
                 _print_missing_bundle_command_help(invoked)
-                raise SystemExit(1) from None
+                raise SystemExit(1) from exc
             raise
         _name, cmd, remaining = result
         if cmd is not None or not remaining:

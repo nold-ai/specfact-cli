@@ -197,7 +197,13 @@ def classify_module_availability(
     command_name: str | None = None,
     base_path: Path | None = None,
 ) -> ModuleAvailability:
-    """Classify module availability using manifests and modules.json only."""
+    """
+    Classify module availability from discovery state and process load failures.
+
+    Decisions use manifests/modules.json plus the process-scoped lazy-load failure
+    registry exposed by get_module_load_failure_reason and backed by
+    _MODULE_LOAD_FAILURES.
+    """
     discovered = discover_all_modules_for_project_with_shadowed(base_path)
     matches = _availability_matches(discovered, module_id=module_id, command_name=command_name)
     requested_id = module_id or command_name or ""

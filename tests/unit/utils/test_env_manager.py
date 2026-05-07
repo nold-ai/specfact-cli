@@ -173,6 +173,24 @@ version = "1.0.0"
         assert info.available is True
         assert info.command_prefix == ["uv", "run"]
 
+    def test_path_only_hatch_and_poetry_do_not_select_project_scoped_managers(self, tmp_path: Path):
+        """PATH-only Hatch/Poetry should not be selected without repository markers."""
+        with patch(
+            "shutil.which",
+            side_effect=lambda name: f"/usr/bin/{name}" if name in {"hatch", "poetry"} else None,
+        ):
+            info = detect_env_manager(tmp_path)
+
+        assert info.manager == EnvManager.UNKNOWN
+
+    def test_path_only_pip_remains_final_fallback(self, tmp_path: Path):
+        """PATH-only pip remains safe because it does not imply project-scoped execution."""
+        with patch("shutil.which", side_effect=lambda name: "/usr/bin/pip" if name == "pip" else None):
+            info = detect_env_manager(tmp_path)
+
+        assert info.manager == EnvManager.PIP
+        assert info.command_prefix == []
+
     def test_detect_uv_from_rootless_monorepo_pyproject(self, tmp_path: Path):
         """Rootless monorepos should detect uv when package pyprojects exist and uv is on PATH."""
         package = tmp_path / "backend"

@@ -107,10 +107,11 @@ def _resolve_modules_repo(configured: str | None) -> Path:
     candidates.extend(
         [
             REPO_ROOT.parent / "specfact-cli-modules",
-            REPO_ROOT.parents[2] / "specfact-cli-modules",
             Path.cwd().parent / "specfact-cli-modules",
         ]
     )
+    if len(REPO_ROOT.parents) > 2:
+        candidates.append(REPO_ROOT.parents[2] / "specfact-cli-modules")
     for candidate in candidates:
         packages = candidate / "packages"
         if all((packages / module_id.split("/", 1)[1] / "module-package.yaml").exists() for module_id in MODULE_IDS):
@@ -173,12 +174,12 @@ def _build_local_registry(workspace: Path, modules_repo: Path) -> Path:
 def _create_pip_editable_launcher(workspace: Path) -> list[str]:
     venv_dir = workspace / "pip-editable-venv"
     try:
-        venv.EnvBuilder(with_pip=True, system_site_packages=True).create(venv_dir)
+        venv.EnvBuilder(with_pip=True).create(venv_dir)
     except subprocess.CalledProcessError:
         virtualenv = shutil.which("virtualenv")
         if virtualenv is None:
             raise
-        _run([virtualenv, "--system-site-packages", str(venv_dir)], cwd=REPO_ROOT, env=os.environ.copy(), timeout=120)
+        _run([virtualenv, str(venv_dir)], cwd=REPO_ROOT, env=os.environ.copy(), timeout=120)
     python = venv_dir / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
     _run(
         [str(python), "-m", "pip", "install", "-e", str(REPO_ROOT)],
@@ -288,8 +289,12 @@ def main() -> int:
     args = parser.parse_args()
 
     modules_repo = _resolve_modules_repo(args.modules_repo)
-    workspace_obj = tempfile.TemporaryDirectory(prefix="specfact-runtime-discovery-smoke-")
-    workspace = Path(workspace_obj.name)
+    workspace_obj: tempfile.TemporaryDirectory[str] | None = None
+    if args.keep_workspace:
+        workspace = Path(tempfile.mkdtemp(prefix="specfact-runtime-discovery-smoke-"))
+    else:
+        workspace_obj = tempfile.TemporaryDirectory(prefix="specfact-runtime-discovery-smoke-")
+        workspace = Path(workspace_obj.name)
     try:
         demo = _create_rootless_monorepo_demo(workspace, args.demo_repo)
         index_path = _build_local_registry(workspace, modules_repo)
@@ -297,7 +302,6 @@ def main() -> int:
             _smoke_launcher(launcher, workspace, demo, index_path, modules_repo)
         if args.keep_workspace:
             LOGGER.info("Kept workspace: %s", workspace)
-            workspace_obj = None  # type: ignore[assignment]
         return 0
     finally:
         if workspace_obj is not None:

@@ -25,6 +25,7 @@ from specfact_cli.models.module_package import (
 )
 from specfact_cli.registry import CommandRegistry
 from specfact_cli.registry.module_packages import (
+    clear_module_load_failures,
     discover_package_metadata,
     get_installed_bundles,
     get_modules_root,
@@ -38,8 +39,10 @@ from specfact_cli.registry.module_state import read_modules_state, write_modules
 @pytest.fixture(autouse=True)
 def _reset_registry() -> Generator[None, None, None]:
     CommandRegistry._clear_for_testing()
+    clear_module_load_failures()
     yield
     CommandRegistry._clear_for_testing()
+    clear_module_load_failures()
 
 
 def test_get_modules_root_under_specfact_cli():
@@ -146,6 +149,62 @@ def test_make_package_loader_wraps_runtime_import_errors_with_compatibility_guid
     assert "missing_compiled_dependency" in message
     assert str(package_dir) in message
     assert "same Python interpreter" in message
+
+
+def test_make_package_loader_records_non_import_runtime_failures(tmp_path: Path) -> None:
+    """Lazy loader diagnostics should cache any import-time execution failure."""
+    from specfact_cli.registry import module_packages as module_packages_impl
+
+    package_dir = tmp_path / "specfact-backlog"
+    nested_app = package_dir / "src" / "specfact_backlog" / "backlog" / "app.py"
+    nested_app.parent.mkdir(parents=True, exist_ok=True)
+    nested_app.write_text("raise RuntimeError('boom')\n", encoding="utf-8")
+
+    loader = module_packages_impl._make_package_loader(package_dir, "nold-ai/specfact-backlog", "backlog")
+
+    with pytest.raises(ValueError, match="Runtime compatibility error"):
+        loader()
+
+    reason = module_packages_impl.get_module_load_failure_reason("nold-ai/specfact-backlog", "backlog")
+    assert reason is not None
+    assert "boom" in reason
+
+
+def test_make_package_loader_records_missing_app_and_clears_on_success(tmp_path: Path) -> None:
+    """Missing app diagnostics should not persist after a later successful lazy load."""
+    from specfact_cli.registry import module_packages as module_packages_impl
+
+    package_dir = tmp_path / "specfact-backlog"
+    nested_app = package_dir / "src" / "specfact_backlog" / "backlog" / "app.py"
+    nested_app.parent.mkdir(parents=True, exist_ok=True)
+    nested_app.write_text("value = 1\n", encoding="utf-8")
+    loader = module_packages_impl._make_package_loader(package_dir, "nold-ai/specfact-backlog", "backlog")
+
+    with pytest.raises(ValueError, match="has no 'backlog_app' or 'app' attribute"):
+        loader()
+    assert module_packages_impl.get_module_load_failure_reason("nold-ai/specfact-backlog") is not None
+
+    nested_app.write_text("import typer\napp = typer.Typer(name='backlog')\n", encoding="utf-8")
+    assert loader() is not None
+
+    assert module_packages_impl.get_module_load_failure_reason("nold-ai/specfact-backlog") is None
+
+
+def test_remember_active_module_src_only_tracks_installed_modules(tmp_path: Path) -> None:
+    """Source checkout modules must not be prepended as active installed dependency roots."""
+    from specfact_cli.registry import module_packages as module_packages_impl
+
+    source_package = tmp_path / "source-checkout" / "specfact-codebase"
+    (source_package / "src").mkdir(parents=True)
+    installed_package = tmp_path / ".specfact" / "modules" / "specfact-code-review"
+    (installed_package / "src").mkdir(parents=True)
+    module_packages_impl._ACTIVE_MODULE_SRC_DIRS.clear()
+
+    module_packages_impl._remember_active_module_src(source_package)
+    assert module_packages_impl._ACTIVE_MODULE_SRC_DIRS == []
+
+    module_packages_impl._remember_active_module_src(installed_package)
+    assert [(installed_package / "src").resolve()] == module_packages_impl._ACTIVE_MODULE_SRC_DIRS
 
 
 def _write_runtime_package(
