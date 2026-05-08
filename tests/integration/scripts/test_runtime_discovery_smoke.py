@@ -17,12 +17,9 @@ def _resolve_modules_repo() -> Path | None:
     candidates: list[Path] = []
     if configured:
         candidates.append(Path(configured).expanduser())
-    candidates.extend(
-        [
-            REPO_ROOT.parent / "specfact-cli-modules",
-            REPO_ROOT.parents[2] / "specfact-cli-modules",
-        ]
-    )
+    candidates.append(REPO_ROOT.parent / "specfact-cli-modules")
+    if len(REPO_ROOT.parents) > 2:
+        candidates.append(REPO_ROOT.parents[2] / "specfact-cli-modules")
     for candidate in candidates:
         packages = candidate / "packages"
         required = ("specfact-project", "specfact-codebase", "specfact-code-review")
