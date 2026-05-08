@@ -152,7 +152,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          persist-credentials: true
+          persist-credentials: false
           path: _workspace
 
       - name: Set up Python
@@ -213,6 +213,7 @@ jobs:
           SIGNING_PR_CREATED=false
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git"
           git add -u -- src/specfact_cli/modules modules
           if git diff --cached --quiet; then
             echo "No manifest signing changes to commit."
@@ -351,6 +352,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git"
           if git diff --quiet; then
             echo "No manifest changes to commit."
             echo "## No signing changes" >> "${GITHUB_STEP_SUMMARY}"
