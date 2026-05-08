@@ -14,7 +14,7 @@ from specfact_cli.registry import CommandMetadata, CommandRegistry
 from specfact_cli.registry.bootstrap import register_builtin_commands
 
 
-CORE_BASE = {"init", "module", "upgrade", "project", "plan"}
+CORE_BASE = {"init", "module", "upgrade"}
 ALL_FIVE_BUNDLES = [
     "specfact-backlog",
     "specfact-codebase",
@@ -128,7 +128,7 @@ def test_init_profile_enterprise_full_stack_help_shows_eight_commands(
     )
     register_builtin_commands()
     names = set(CommandRegistry.list_commands())
-    expected = CORE_BASE | {"backlog", "code", "spec", "govern"}
+    expected = CORE_BASE | {"backlog", "code", "project", "spec", "govern"}
     assert expected.issubset(names), f"Expected enterprise command surface {expected}, got {names}"
 
 

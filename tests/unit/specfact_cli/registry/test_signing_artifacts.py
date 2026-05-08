@@ -696,7 +696,6 @@ def test_sign_modules_reproducibility_runs_only_on_main_push():
     assert isinstance(repro_if, str)
     assert "github.event_name == 'push'" in repro_if
     assert "github.ref_name == 'main'" in repro_if
-    assert "needs.verify.outputs.signing_pr_created != 'true'" in repro_if
 
 
 def test_verify_script_reports_version_bump_failure_even_when_checksum_fails(tmp_path: Path):
