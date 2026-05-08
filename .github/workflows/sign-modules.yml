@@ -130,11 +130,22 @@ jobs:
       contents: write
       pull-requests: write
     steps:
-      - name: Checkout trusted scripts (protected branch tip)
+      - id: resolve_trusted_ref
+        name: Resolve immutable trusted scripts ref
+        run: |
+          set -euo pipefail
+          BEFORE="${{ github.event.before }}"
+          if [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+            echo "::error::Cannot resolve immutable trusted ref from github.event.before for this push."
+            exit 1
+          fi
+          echo "trusted_ref=$BEFORE" >> "${GITHUB_OUTPUT}"
+
+      - name: Checkout trusted scripts (immutable pre-push ref)
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
-          ref: ${{ github.ref_name }}
+          ref: ${{ steps.resolve_trusted_ref.outputs.trusted_ref }}
           path: _trusted_scripts
 
       - name: Checkout push workspace
