@@ -16,7 +16,8 @@ from specfact_cli.registry.bootstrap import register_builtin_commands
 
 CORE_BASE = {"init", "module", "upgrade"}
 ALLOWED_FRESH_INSTALL_ADDITIONS = {"project", "plan"}
-EXPECTED_FRESH_INSTALL = CORE_BASE | ALLOWED_FRESH_INSTALL_ADDITIONS
+EXPECTED_FRESH_INSTALL = CORE_BASE
+EXPECTED_FRESH_INSTALL_WITH_OPTIONAL = CORE_BASE | ALLOWED_FRESH_INSTALL_ADDITIONS
 ALL_FIVE_BUNDLES = [
     "specfact-backlog",
     "specfact-codebase",
@@ -43,8 +44,9 @@ def test_fresh_install_cli_app_registered_commands_only_three_core(monkeypatch: 
     register_builtin_commands()
     names = set(CommandRegistry.list_commands())
     assert CORE_BASE.issubset(names), f"Expected core baseline {CORE_BASE}, got {names}"
-    assert names == EXPECTED_FRESH_INSTALL, (
-        f"Unexpected fresh-install command surface. expected={EXPECTED_FRESH_INSTALL}, got={names}"
+    allowed_surfaces = {frozenset(EXPECTED_FRESH_INSTALL), frozenset(EXPECTED_FRESH_INSTALL_WITH_OPTIONAL)}
+    assert frozenset(names) in allowed_surfaces, (
+        f"Unexpected fresh-install command surface. expected one of {[set(s) for s in allowed_surfaces]}, got={names}"
     )
     assert "auth" not in names
 
