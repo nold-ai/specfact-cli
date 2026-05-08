@@ -14,7 +14,7 @@ from specfact_cli.registry import CommandMetadata, CommandRegistry
 from specfact_cli.registry.bootstrap import register_builtin_commands
 
 
-CORE_THREE = {"init", "module", "upgrade"}
+CORE_BASE = {"init", "module", "upgrade", "project", "plan"}
 ALL_FIVE_BUNDLES = [
     "specfact-backlog",
     "specfact-codebase",
@@ -33,16 +33,16 @@ def _reset_registry() -> Generator[None, None, None]:
 
 
 def test_fresh_install_cli_app_registered_commands_only_three_core(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Fresh install: CLI app has only 3 core commands when no bundles installed."""
+    """Fresh install: CLI app has only baseline core commands when no bundles installed."""
     monkeypatch.setattr(
         "specfact_cli.registry.module_packages.get_installed_bundles",
         lambda _packages, _enabled: [],
     )
     register_builtin_commands()
     names = set(CommandRegistry.list_commands())
-    assert names >= CORE_THREE, f"Expected at least {CORE_THREE}, got {names}"
+    assert names >= CORE_BASE, f"Expected at least {CORE_BASE}, got {names}"
     assert "auth" not in names
-    extracted = {"backlog", "code", "project", "spec", "govern", "plan", "validate"}
+    extracted = {"backlog", "code", "spec", "govern", "validate"}
     for ex in extracted:
         assert ex not in names, f"Extracted command {ex} must not be registered when no bundles"
 
@@ -128,7 +128,7 @@ def test_init_profile_enterprise_full_stack_help_shows_eight_commands(
     )
     register_builtin_commands()
     names = set(CommandRegistry.list_commands())
-    expected = CORE_THREE | {"backlog", "code", "project", "spec", "govern"}
+    expected = CORE_BASE | {"backlog", "code", "spec", "govern"}
     assert expected.issubset(names), f"Expected enterprise command surface {expected}, got {names}"
 
 

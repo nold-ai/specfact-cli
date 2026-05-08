@@ -73,6 +73,8 @@ def _build_local_registry(home_dir: Path) -> Path:
 
     modules_payload: list[dict[str, object]] = []
     packages_root = MODULES_REPO / "packages"
+    if not packages_root.exists():
+        pytest.skip("specfact-cli-modules packages checkout not available")
 
     for module_id in official_marketplace_module_ids():
         bundle_name = module_id.split("/", 1)[1]
@@ -128,6 +130,8 @@ def _seed_marketplace_modules(home_dir: Path) -> None:
     modules_root = home_dir / ".specfact" / "modules"
     modules_root.mkdir(parents=True, exist_ok=True)
     packages_root = MODULES_REPO / "packages"
+    if not packages_root.exists():
+        pytest.skip("specfact-cli-modules packages checkout not available")
 
     for module_id in official_marketplace_module_ids():
         bundle_name = module_id.split("/", 1)[1]

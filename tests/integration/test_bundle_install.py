@@ -7,6 +7,7 @@ import tarfile
 import warnings
 from pathlib import Path
 
+import pytest
 from typer.testing import CliRunner
 
 from specfact_cli.modules.module_registry.src.commands import app
@@ -162,6 +163,7 @@ def test_module_list_shows_official_badge_for_installed_bundle(monkeypatch) -> N
 
 
 def test_deprecated_flat_validate_import_still_works_and_warns() -> None:
+    pytest.importorskip("specfact_codebase.validate")
     with warnings.catch_warnings(record=True) as captured:
         warnings.simplefilter("always")
         module = importlib.import_module("specfact_codebase.validate")
