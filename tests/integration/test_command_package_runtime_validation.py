@@ -64,7 +64,6 @@ FORBIDDEN_OUTPUT = (
 )
 
 
-
 def _required_bundle_names() -> list[str]:
     return [module_id.split("/", 1)[1] for module_id in official_marketplace_module_ids()]
 
