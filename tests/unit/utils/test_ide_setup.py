@@ -379,9 +379,10 @@ def test_specfact_commands_excludes_backlog_prompt_ids() -> None:
 
 def test_write_and_load_ide_prompt_export_state_roundtrip(tmp_path: Path) -> None:
     """Persisted source ids round-trip for init audit when IDE matches."""
-    write_ide_prompt_export_state(tmp_path, "cursor", ["core", "nold-ai/specfact-backlog"])
+    write_ide_prompt_export_state(tmp_path, "cursor", ["core", "nold-ai/specfact-backlog"], env_manager="uv")
     loaded = load_ide_prompt_export_source_ids(tmp_path, "cursor")
     assert loaded == frozenset({"core", "nold-ai/specfact-backlog"})
+    assert "env_manager: uv" in (tmp_path / ".specfact" / "ide-prompt-export.yaml").read_text(encoding="utf-8")
 
 
 def test_load_ide_prompt_export_source_ids_mismatched_ide_returns_none(tmp_path: Path) -> None:

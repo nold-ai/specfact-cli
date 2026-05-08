@@ -2,11 +2,22 @@
 
 from __future__ import annotations
 
+from collections.abc import Generator
 from pathlib import Path
+
+import pytest
 
 from specfact_cli.models.module_package import ModulePackageMetadata
 from specfact_cli.registry.module_availability import ModuleAvailabilityStatus, classify_module_availability
 from specfact_cli.registry.module_discovery import DiscoveredModule
+from specfact_cli.registry.module_packages import clear_module_load_failures
+
+
+@pytest.fixture(autouse=True)
+def _clear_lazy_load_failures() -> Generator[None, None, None]:
+    clear_module_load_failures()
+    yield
+    clear_module_load_failures()
 
 
 def test_classify_installed_disabled_module_reports_disabled(monkeypatch) -> None:

@@ -5,6 +5,7 @@ from __future__ import annotations
 import inspect
 import os
 import shutil
+import tempfile
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -187,7 +188,10 @@ def _normalize_project_repo(repo: Path | None) -> Path | None:
     if repo is None:
         return None
     repo_path = repo.resolve()
+    temp_root = Path(tempfile.gettempdir()).resolve()
     for candidate in [repo_path, *repo_path.parents]:
+        if candidate == temp_root and candidate != repo_path:
+            return repo_path
         if (candidate / ".git").exists():
             return candidate
     return repo_path
