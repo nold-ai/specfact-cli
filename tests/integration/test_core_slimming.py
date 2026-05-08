@@ -15,6 +15,8 @@ from specfact_cli.registry.bootstrap import register_builtin_commands
 
 
 CORE_BASE = {"init", "module", "upgrade"}
+ALLOWED_FRESH_INSTALL_ADDITIONS = {"project", "plan"}
+EXPECTED_FRESH_INSTALL = CORE_BASE | ALLOWED_FRESH_INSTALL_ADDITIONS
 ALL_FIVE_BUNDLES = [
     "specfact-backlog",
     "specfact-codebase",
@@ -40,11 +42,11 @@ def test_fresh_install_cli_app_registered_commands_only_three_core(monkeypatch: 
     )
     register_builtin_commands()
     names = set(CommandRegistry.list_commands())
-    assert names >= CORE_BASE, f"Expected at least {CORE_BASE}, got {names}"
+    assert CORE_BASE.issubset(names), f"Expected core baseline {CORE_BASE}, got {names}"
+    assert names == EXPECTED_FRESH_INSTALL, (
+        f"Unexpected fresh-install command surface. expected={EXPECTED_FRESH_INSTALL}, got={names}"
+    )
     assert "auth" not in names
-    extracted = {"backlog", "code", "spec", "govern", "validate"}
-    for ex in extracted:
-        assert ex not in names, f"Extracted command {ex} must not be registered when no bundles"
 
 
 def test_after_mock_install_backlog_backlog_group_mounted(monkeypatch: pytest.MonkeyPatch) -> None:
