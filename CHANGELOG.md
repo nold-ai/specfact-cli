@@ -10,6 +10,17 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.46.20] - 2026-05-12
+
+### Fixed
+
+- **Module scope diagnostics**: add `specfact module doctor` and enforce
+  versioned module dependency mismatches across project and user scoped modules.
+- **Module signature PR verification**: keep the relaxed PR verifier aligned
+  with its version-bump-only policy when signatures are deferred to CI signing.
+
+---
+
 ## [0.46.19] - 2026-05-07
 
 ### Added

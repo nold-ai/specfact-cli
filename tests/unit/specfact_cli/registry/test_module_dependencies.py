@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from specfact_cli.models.module_package import VersionedModuleDependency
 from specfact_cli.registry.module_packages import (
     ModulePackageMetadata,
     _validate_module_dependencies,
@@ -44,6 +45,26 @@ def test_validate_module_dependencies_detects_missing_and_disabled() -> None:
     assert ok is False
     assert "plan (disabled)" in missing
     assert "ghost (not found)" in missing
+
+
+def test_validate_module_dependencies_detects_version_mismatch() -> None:
+    meta = ModulePackageMetadata(
+        name="review",
+        version="0.47.0",
+        commands=["code"],
+        module_dependencies_versioned=[
+            VersionedModuleDependency(name="codebase", version_specifier=">=0.41.0"),
+        ],
+    )
+
+    ok, missing = _validate_module_dependencies(
+        meta,
+        {"review": True, "codebase": True},
+        {"review": "0.47.0", "codebase": "0.40.9"},
+    )
+
+    assert ok is False
+    assert "codebase (requires >=0.41.0, found 0.40.9)" in missing
 
 
 def test_validate_disable_safe_blocks_enabled_dependents() -> None:

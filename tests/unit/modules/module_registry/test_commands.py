@@ -9,6 +9,7 @@ from typer.testing import CliRunner
 
 from specfact_cli.models.module_package import ModulePackageMetadata
 from specfact_cli.modules.module_registry.src.commands import app
+from specfact_cli.registry.module_discovery import DiscoveredModule
 from specfact_cli.registry.module_installer import USER_MODULES_ROOT, InstallModuleOptions
 
 
@@ -68,6 +69,59 @@ def test_install_command_rejects_invalid_module_id(monkeypatch) -> None:
 
     assert result.exit_code == 1
     assert "Invalid module id" in result.stdout
+
+
+def test_doctor_reports_effective_and_shadowed_duplicate_modules(monkeypatch, tmp_path: Path) -> None:
+    project_dir = tmp_path / "repo" / ".specfact" / "modules" / "specfact-codebase"
+    user_dir = tmp_path / "user-modules" / "specfact-codebase"
+    project_dir.mkdir(parents=True)
+    user_dir.mkdir(parents=True)
+    entries = [
+        DiscoveredModule(
+            project_dir,
+            ModulePackageMetadata(name="nold-ai/specfact-codebase", version="0.41.0", commands=["code"]),
+            "project",
+        ),
+        DiscoveredModule(
+            user_dir,
+            ModulePackageMetadata(name="nold-ai/specfact-codebase", version="0.40.0", commands=["code"]),
+            "user",
+        ),
+    ]
+
+    monkeypatch.setattr(
+        "specfact_cli.modules.module_registry.src.commands.discover_all_modules_for_project_with_shadowed",
+        lambda _repo: entries,
+    )
+    monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.read_modules_state", dict)
+
+    result = runner.invoke(app, ["doctor", "nold-ai/specfact-codebase", "--repo", str(tmp_path / "repo")])
+
+    assert result.exit_code == 0
+    assert "effective" in result.stdout
+    assert "shadowed" in result.stdout
+    assert "0.41.0" in result.stdout
+    assert "0.40.0" in result.stdout
+    assert "specfact module uninstall nold-ai/specfact-codebase --scope user" in result.stdout
+
+
+def test_doctor_reports_configured_development_source_roots(monkeypatch, tmp_path: Path) -> None:
+    modules_repo = tmp_path / "specfact-cli-modules"
+    extra_root = tmp_path / "extra-modules"
+    monkeypatch.setenv("SPECFACT_MODULES_REPO", str(modules_repo))
+    monkeypatch.setenv("SPECFACT_MODULES_ROOTS", str(extra_root))
+    monkeypatch.setattr(
+        "specfact_cli.modules.module_registry.src.commands.discover_all_modules_for_project_with_shadowed",
+        lambda _repo: [],
+    )
+
+    result = runner.invoke(app, ["doctor", "--repo", str(tmp_path)])
+
+    assert result.exit_code == 0
+    assert "Development Source Roots" in result.stdout
+    assert "SPECFACT_MODULES_REPO" in result.stdout
+    assert "specfact-cli-modules" in result.stdout
+    assert "extra-modules" in result.stdout
 
 
 def test_install_command_skips_when_module_already_available_locally(monkeypatch, tmp_path: Path) -> None:

@@ -28,7 +28,12 @@ from specfact_cli.registry.alias_manager import create_alias, list_aliases, remo
 from specfact_cli.registry.custom_registries import add_registry, fetch_all_indexes, list_registries, remove_registry
 from specfact_cli.registry.help_cache import run_discovery_and_write_cache
 from specfact_cli.registry.marketplace_client import fetch_registry_index
-from specfact_cli.registry.module_discovery import discover_all_modules, discover_all_modules_for_project
+from specfact_cli.registry.module_discovery import (
+    DiscoveredModule,
+    discover_all_modules,
+    discover_all_modules_for_project,
+    discover_all_modules_for_project_with_shadowed,
+)
 from specfact_cli.registry.module_installer import (
     REGISTRY_ID_FILE,
     USER_MODULES_ROOT,
@@ -1064,6 +1069,105 @@ def _print_bundled_available_table(available: list[ModulePackageMetadata]) -> No
     console.print(table)
     console.print("[dim]Install bundled modules into user scope: specfact module init[/dim]")
     console.print("[dim]Install bundled modules into project scope: specfact module init --scope project[/dim]")
+
+
+def _doctor_entry_matches(entry: DiscoveredModule, module_id: str | None) -> bool:
+    if module_id is None:
+        return True
+    requested = module_id.strip()
+    if not requested:
+        return True
+    discovered_id = entry.metadata.name
+    if requested == discovered_id:
+        return True
+    return requested.rsplit("/", 1)[-1] == discovered_id.rsplit("/", 1)[-1]
+
+
+def _doctor_dev_roots() -> list[tuple[str, str]]:
+    roots: list[tuple[str, str]] = []
+    for env_name in ("SPECFACT_MODULES_REPO", "SPECFACT_CLI_MODULES_REPO"):
+        value = os.environ.get(env_name, "").strip()
+        if value:
+            roots.append((env_name, value))
+    for raw_root in os.environ.get("SPECFACT_MODULES_ROOTS", "").split(os.pathsep):
+        value = raw_root.strip()
+        if value:
+            roots.append(("SPECFACT_MODULES_ROOTS", value))
+    return roots
+
+
+def _doctor_status(
+    entry: DiscoveredModule,
+    seen_by_module_id: set[str],
+    enabled_state: dict[str, dict[str, Any]],
+) -> str:
+    module_id = entry.metadata.name
+    if module_id in seen_by_module_id:
+        return "shadowed"
+    seen_by_module_id.add(module_id)
+    if enabled_state.get(module_id, {}).get("enabled", True) is False:
+        return "disabled"
+    return "effective"
+
+
+def _print_doctor_recovery(entries: list[tuple[DiscoveredModule, str]]) -> None:
+    for entry, status in entries:
+        if status != "shadowed" or entry.source != "user":
+            continue
+        console.print(f"[yellow]Recovery:[/yellow] specfact module uninstall {entry.metadata.name} --scope user")
+
+
+@app.command(name="doctor")
+@beartype
+@require(_module_id_optional_nonempty, "module_id must be non-empty if provided")
+def doctor(
+    module_id: str | None = typer.Argument(None, help="Optional module id to inspect"),
+    repo: Path | None = typer.Option(None, "--repo", help="Repository path for project scope (default: current dir)"),
+) -> None:
+    """Diagnose module scope, shadowing, and development source roots."""
+    repo_path = (repo or Path.cwd()).resolve()
+    discovered = [
+        entry
+        for entry in discover_all_modules_for_project_with_shadowed(repo_path)
+        if _doctor_entry_matches(entry, module_id)
+    ]
+    if not discovered:
+        console.print("[yellow]No matching modules discovered.[/yellow]")
+    else:
+        state = read_modules_state()
+        seen_by_module_id: set[str] = set()
+        rows: list[tuple[DiscoveredModule, str]] = []
+        table = Table(title="Module Doctor")
+        table.add_column("Module", style="cyan")
+        table.add_column("Version", style="magenta")
+        table.add_column("Status", style="yellow")
+        table.add_column("Origin", style="blue")
+        table.add_column("Enabled", style="green")
+        table.add_column("Path", overflow="fold")
+        for entry in discovered:
+            status = _doctor_status(entry, seen_by_module_id, state)
+            enabled = state.get(entry.metadata.name, {}).get("enabled", True) is not False
+            rows.append((entry, status))
+            table.add_row(
+                entry.metadata.name,
+                entry.metadata.version,
+                status,
+                entry.source,
+                "yes" if enabled else "no",
+                str(entry.package_dir),
+            )
+        console.print(table)
+        _print_doctor_recovery(rows)
+
+    dev_roots = _doctor_dev_roots()
+    if not dev_roots:
+        return
+    dev_table = Table(title="Development Source Roots")
+    dev_table.add_column("Source", style="cyan")
+    dev_table.add_column("Path", overflow="fold")
+    for source, path in dev_roots:
+        dev_table.add_row(source, path)
+    console.print(dev_table)
 
 
 @app.command(name="list")

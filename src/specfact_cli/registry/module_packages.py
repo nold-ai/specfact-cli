@@ -25,7 +25,7 @@ from typing import Any, cast
 
 from beartype import beartype
 from icontract import ensure, require
-from packaging.specifiers import SpecifierSet
+from packaging.specifiers import InvalidSpecifier, SpecifierSet
 from packaging.version import InvalidVersion, Version
 
 from specfact_cli import __version__ as cli_version
@@ -85,6 +85,7 @@ class _ModuleIntegrityContext:
 @dataclass
 class _PackageRegistrationContext:
     enabled_map: dict[str, bool]
+    module_versions: dict[str, str]
     allow_unsigned: bool
     is_test_mode: bool
     logger: Any
@@ -480,18 +481,75 @@ def _check_core_compatibility(meta: Any, current_cli_version: str) -> bool:
 def _validate_module_dependencies(
     meta: Any,
     enabled_map: dict[str, bool],
+    module_versions: dict[str, str] | None = None,
 ) -> tuple[bool, list[str]]:
     """Validate that declared dependencies exist and are enabled."""
-    missing: list[str] = []
+    versions = module_versions or {}
     module_dependencies = getattr(meta, "module_dependencies", [])
     if not isinstance(module_dependencies, list):
         return False, ["invalid metadata: module_dependencies must be a list"]
+    versioned_dependencies = getattr(meta, "module_dependencies_versioned", [])
+    if not isinstance(versioned_dependencies, list):
+        return False, ["invalid metadata: module_dependencies_versioned must be a list"]
+    missing = _missing_plain_module_dependencies(module_dependencies, enabled_map)
+    missing.extend(_missing_versioned_module_dependencies(versioned_dependencies, enabled_map, versions))
+    return len(missing) == 0, missing
+
+
+@beartype
+def _missing_plain_module_dependencies(module_dependencies: list[Any], enabled_map: dict[str, bool]) -> list[str]:
+    """Return missing or disabled plain module dependencies."""
+    missing: list[str] = []
     for dep_id in module_dependencies:
         if dep_id not in enabled_map:
             missing.append(f"{dep_id} (not found)")
         elif not enabled_map[dep_id]:
             missing.append(f"{dep_id} (disabled)")
-    return len(missing) == 0, missing
+    return missing
+
+
+@beartype
+def _missing_versioned_module_dependencies(
+    versioned_dependencies: list[Any],
+    enabled_map: dict[str, bool],
+    module_versions: dict[str, str],
+) -> list[str]:
+    """Return missing, disabled, or incompatible versioned module dependencies."""
+    missing: list[str] = []
+    for dep in versioned_dependencies:
+        problem = _versioned_module_dependency_problem(dep, enabled_map, module_versions)
+        if problem is None:
+            continue
+        missing.append(problem)
+    return missing
+
+
+@beartype
+def _versioned_module_dependency_problem(
+    dep: Any,
+    enabled_map: dict[str, bool],
+    module_versions: dict[str, str],
+) -> str | None:
+    """Return the validation problem for one versioned dependency, if any."""
+    dep_name = str(getattr(dep, "name", "")).strip()
+    version_specifier = str(getattr(dep, "version_specifier", "") or "").strip()
+    if not dep_name:
+        return None
+    if dep_name not in enabled_map:
+        return f"{dep_name} (not found)"
+    if not enabled_map[dep_name]:
+        return f"{dep_name} (disabled)"
+    if not version_specifier:
+        return None
+    found_version = module_versions.get(dep_name)
+    if not found_version:
+        return f"{dep_name} (requires {version_specifier}, found unknown)"
+    try:
+        if Version(found_version) not in SpecifierSet(version_specifier):
+            return f"{dep_name} (requires {version_specifier}, found {found_version})"
+    except (InvalidVersion, InvalidSpecifier):
+        return None
+    return None
 
 
 @beartype
@@ -533,13 +591,14 @@ def validate_enable_safe(
     Empty dict means all enables are dependency-safe in the effective map.
     """
     meta_by_name: dict[str, ModulePackageMetadata] = {meta.name: meta for _package_dir, meta in packages}
+    module_versions = {meta.name: meta.version for _package_dir, meta in packages}
     blocked: dict[str, list[str]] = {}
     for mid in enable_ids:
         meta = meta_by_name.get(mid)
         if meta is None:
             blocked[mid] = ["module not found"]
             continue
-        deps_ok, missing = _validate_module_dependencies(meta, enabled_map)
+        deps_ok, missing = _validate_module_dependencies(meta, enabled_map, module_versions)
         if not deps_ok:
             blocked[mid] = missing
     return blocked
@@ -562,7 +621,10 @@ def expand_disable_with_dependents(
     reverse_deps: dict[str, set[str]] = {}
     for _package_dir, meta in packages:
         name = meta.name
-        for dep in meta.module_dependencies:
+        for dep in [
+            *list(meta.module_dependencies),
+            *[versioned.name for versioned in meta.module_dependencies_versioned if versioned.name],
+        ]:
             reverse_deps.setdefault(dep, set()).add(name)
 
     expanded: set[str] = set(disable_ids)
@@ -592,7 +654,13 @@ def expand_enable_with_dependencies(
     Used by --force mode so enabling a module also enables required upstream
     dependency providers.
     """
-    dep_map: dict[str, list[str]] = {meta.name: list(meta.module_dependencies) for _package_dir, meta in packages}
+    dep_map: dict[str, list[str]] = {
+        meta.name: [
+            *list(meta.module_dependencies),
+            *[dep.name for dep in meta.module_dependencies_versioned if dep.name],
+        ]
+        for _package_dir, meta in packages
+    }
     expanded: set[str] = set(enable_ids)
     queue = list(enable_ids)
     while queue:
@@ -1421,7 +1489,7 @@ def _register_one_package_if_eligible(package_dir: Path, meta: Any, reg: _Packag
     if not compatible:
         reg.skipped.append((meta.name, f"requires {meta.core_compatibility}, cli is {cli_version}"))
         return
-    deps_ok, missing = _validate_module_dependencies(meta, reg.enabled_map)
+    deps_ok, missing = _validate_module_dependencies(meta, reg.enabled_map, reg.module_versions)
     if not deps_ok:
         reg.skipped.append((meta.name, f"missing dependencies: {', '.join(missing)}"))
         return
@@ -1515,6 +1583,7 @@ def register_module_package_commands(
     if not packages:
         return
     discovered_list: list[tuple[str, str]] = [(meta.name, meta.version) for _dir, meta in packages]
+    module_versions = {meta.name: meta.version for _dir, meta in packages}
     state = read_modules_state()
     enabled_map = merge_module_state(discovered_list, state, enable_ids, disable_ids)
     logger = get_bridge_logger(__name__)
@@ -1531,6 +1600,7 @@ def register_module_package_commands(
     }
     reg_ctx = _PackageRegistrationContext(
         enabled_map=enabled_map,
+        module_versions=module_versions,
         allow_unsigned=allow_unsigned,
         is_test_mode=is_test_mode,
         logger=logger,

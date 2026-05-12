@@ -19,8 +19,8 @@ from typing import Any, cast
 import yaml
 from beartype import beartype
 from icontract import ensure, require
-from packaging.specifiers import SpecifierSet
-from packaging.version import Version
+from packaging.specifiers import InvalidSpecifier, SpecifierSet
+from packaging.version import InvalidVersion, Version
 
 from specfact_cli import __version__ as cli_version
 from specfact_cli.common import get_bridge_logger
@@ -72,6 +72,12 @@ class _BundleDepsInstallContext:
     non_interactive: bool
     force: bool
     logger: logging.Logger
+
+
+@dataclass(frozen=True, slots=True)
+class _BundleDependencySpec:
+    module_id: str
+    version_specifier: str = ""
 
 
 @beartype
@@ -189,11 +195,18 @@ def _extract_bundle_dependencies(metadata: dict[str, Any]) -> list[str]:
     Supports both plain string entries ("namespace/name") and versioned object entries
     ({"id": "namespace/name", "version": ">=x.y.z"}).
     """
+    return [dependency.module_id for dependency in _extract_bundle_dependency_specs(metadata)]
+
+
+@beartype
+def _extract_bundle_dependency_specs(metadata: dict[str, Any]) -> list[_BundleDependencySpec]:
+    """Extract validated bundle dependency ids and optional version specifiers."""
     raw_dependencies = metadata.get("bundle_dependencies", [])
     if not isinstance(raw_dependencies, list):
         return []
-    dependencies: list[str] = []
+    dependencies: list[_BundleDependencySpec] = []
     for index, value in enumerate(raw_dependencies):
+        version_specifier = ""
         if isinstance(value, dict):
             entry = cast(dict[str, Any], value)
             raw_id = entry.get("id")
@@ -203,6 +216,7 @@ def _extract_bundle_dependencies(metadata: dict[str, Any]) -> list[str]:
                     f"(invalid manifest; got {value!r})"
                 )
             dep = str(raw_id).strip()
+            version_specifier = str(entry.get("version") or entry.get("version_specifier") or "").strip()
         else:
             dep = str(value).strip()
             if not dep:
@@ -210,7 +224,7 @@ def _extract_bundle_dependencies(metadata: dict[str, Any]) -> list[str]:
                     f"bundle_dependencies[{index}]: string entry must be non-empty (invalid manifest; got {value!r})"
                 )
         _validate_marketplace_namespace_format(dep)
-        dependencies.append(dep)
+        dependencies.append(_BundleDependencySpec(dep, version_specifier))
     return dependencies
 
 
@@ -226,6 +240,32 @@ def _installed_dependency_version(manifest_path: Path) -> str:
     except Exception:
         return "unknown"
     return "unknown"
+
+
+@beartype
+def _dependency_version_satisfies(installed_version: str, version_specifier: str) -> bool:
+    """Return True when installed_version satisfies version_specifier or no specifier is declared."""
+    if not version_specifier:
+        return True
+    try:
+        return Version(installed_version) in SpecifierSet(version_specifier)
+    except (InvalidSpecifier, InvalidVersion):
+        return True
+
+
+@beartype
+def _raise_if_dependency_version_mismatch(
+    dependency_module_id: str,
+    installed_version: str,
+    version_specifier: str,
+) -> None:
+    if _dependency_version_satisfies(installed_version, version_specifier):
+        return
+    raise ValueError(
+        f"Dependency {dependency_module_id} requires {version_specifier}, "
+        f"but installed version is {installed_version}. "
+        f"Reinstall or upgrade the dependency in the same module scope."
+    )
 
 
 @beartype
@@ -822,13 +862,19 @@ def _metadata_obj_from_install_dict(metadata: dict[str, Any], manifest_module_na
 
 
 def _install_bundle_dependencies_for_module(module_id: str, ctx: _BundleDepsInstallContext) -> None:
-    for dependency_module_id in _extract_bundle_dependencies(ctx.metadata):
+    for dependency in _extract_bundle_dependency_specs(ctx.metadata):
+        dependency_module_id = dependency.module_id
         if dependency_module_id == module_id:
             continue
         dependency_name = dependency_module_id.split("/", 1)[1]
         dependency_manifest = ctx.target_root / dependency_name / "module-package.yaml"
         if dependency_manifest.exists():
             dependency_version = _installed_dependency_version(dependency_manifest)
+            _raise_if_dependency_version_mismatch(
+                dependency_module_id,
+                dependency_version,
+                dependency.version_specifier,
+            )
             ctx.logger.info("Dependency %s already satisfied (version %s)", dependency_module_id, dependency_version)
             continue
         try:
@@ -844,6 +890,12 @@ def _install_bundle_dependencies_for_module(module_id: str, ctx: _BundleDepsInst
             )
         except Exception as dep_exc:
             raise ValueError(f"Dependency install failed for {dependency_module_id}: {dep_exc}") from dep_exc
+        dependency_version = _installed_dependency_version(dependency_manifest)
+        _raise_if_dependency_version_mismatch(
+            dependency_module_id,
+            dependency_version,
+            dependency.version_specifier,
+        )
     try:
         all_metas = [e.metadata for e in discover_all_modules()]
         all_metas.append(ctx.metadata_obj)

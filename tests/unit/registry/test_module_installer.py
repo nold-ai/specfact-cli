@@ -155,6 +155,45 @@ def test_install_module_logs_satisfied_dependencies_without_warning(monkeypatch,
     )
 
 
+def test_install_module_rejects_existing_bundle_dependency_version_mismatch(monkeypatch, tmp_path: Path) -> None:
+    module_dir = tmp_path / "review-pkg" / "specfact-code-review"
+    module_dir.mkdir(parents=True, exist_ok=True)
+    (module_dir / "module-package.yaml").write_text(
+        "name: specfact-code-review\n"
+        "version: '0.47.0'\n"
+        "commands: [code]\n"
+        'core_compatibility: ">=0.1.0,<1.0.0"\n'
+        "bundle_dependencies:\n"
+        "  - id: nold-ai/specfact-codebase\n"
+        "    version: '>=0.41.0'\n",
+        encoding="utf-8",
+    )
+    (module_dir / "src").mkdir(parents=True, exist_ok=True)
+    tarball = tmp_path / "review.tar.gz"
+    with tarfile.open(tarball, "w:gz") as archive:
+        archive.add(module_dir, arcname="specfact-code-review")
+
+    monkeypatch.setattr("specfact_cli.registry.module_installer.download_module", lambda *_args, **_kwargs: tarball)
+    monkeypatch.setattr("specfact_cli.registry.module_installer.verify_module_artifact", lambda *_args, **_kwargs: True)
+    monkeypatch.setattr(
+        "specfact_cli.registry.module_installer.ensure_publisher_trusted", lambda *_args, **_kwargs: None
+    )
+
+    install_root = tmp_path / "marketplace-modules"
+    dependency_dir = install_root / "specfact-codebase"
+    dependency_dir.mkdir(parents=True, exist_ok=True)
+    (dependency_dir / "module-package.yaml").write_text(
+        "name: specfact-codebase\nversion: '0.40.9'\ncommands: [code]\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match=r"nold-ai/specfact-codebase.*>=0.41.0.*0.40.9"):
+        install_module(
+            "nold-ai/specfact-code-review",
+            InstallModuleOptions(install_root=install_root, reinstall=True),
+        )
+
+
 def test_install_module_rejects_archive_path_traversal(monkeypatch, tmp_path: Path) -> None:
     tarball = tmp_path / "unsafe.tar.gz"
     with tarfile.open(tarball, "w:gz") as archive:
