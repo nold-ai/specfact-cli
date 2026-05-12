@@ -377,9 +377,27 @@ def _build_publish_entry(
         "checksum_sha256": checksum,
         "tier": manifest.get("tier", "community"),
         "publisher": manifest.get("publisher", "unknown"),
-        "bundle_dependencies": manifest.get("bundle_dependencies", []),
+        "bundle_dependencies": _bundle_dependency_ids_for_registry(manifest),
         "description": (manifest.get("description") or "").strip(),
     }
+
+
+def _bundle_dependency_ids_for_registry(manifest: dict[str, Any]) -> list[str]:
+    """Return registry-compatible bundle dependency IDs from string or object manifest entries."""
+    raw_dependencies = manifest.get("bundle_dependencies", [])
+    if not isinstance(raw_dependencies, list):
+        return []
+    dependency_ids: list[str] = []
+    for entry in raw_dependencies:
+        if isinstance(entry, dict):
+            raw_id = entry.get("id")
+            if raw_id is not None and str(raw_id).strip():
+                dependency_ids.append(str(raw_id).strip())
+            continue
+        dependency_id = str(entry).strip()
+        if dependency_id:
+            dependency_ids.append(dependency_id)
+    return dependency_ids
 
 
 @beartype

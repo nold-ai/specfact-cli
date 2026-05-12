@@ -25,7 +25,7 @@ for the un-park trigger of each parked change.
 
 ## Active tracks
 
-The 24 active changes group into five independent tracks. Tracks can run in
+The 25 active changes group into five independent tracks. Tracks can run in
 parallel; within a track, follow the order column.
 
 ### Track A — Full-chain traceability (core thesis)

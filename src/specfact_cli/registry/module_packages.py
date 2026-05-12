@@ -506,7 +506,6 @@ def _validate_module_dependencies(
     module_versions: dict[str, str] | None = None,
 ) -> tuple[bool, list[str]]:
     """Validate that declared dependencies exist and are enabled."""
-    versions = module_versions or {}
     module_dependencies = getattr(meta, "module_dependencies", [])
     if not isinstance(module_dependencies, list):
         return False, ["invalid metadata: module_dependencies must be a list"]
@@ -514,7 +513,7 @@ def _validate_module_dependencies(
     if not isinstance(versioned_dependencies, list):
         return False, ["invalid metadata: module_dependencies_versioned must be a list"]
     missing = _missing_plain_module_dependencies(module_dependencies, enabled_map)
-    missing.extend(_missing_versioned_module_dependencies(versioned_dependencies, enabled_map, versions))
+    missing.extend(_missing_versioned_module_dependencies(versioned_dependencies, enabled_map, module_versions))
     return len(missing) == 0, missing
 
 
@@ -534,7 +533,7 @@ def _missing_plain_module_dependencies(module_dependencies: list[Any], enabled_m
 def _missing_versioned_module_dependencies(
     versioned_dependencies: list[Any],
     enabled_map: dict[str, bool],
-    module_versions: dict[str, str],
+    module_versions: dict[str, str] | None,
 ) -> list[str]:
     """Return missing, disabled, or incompatible versioned module dependencies."""
     missing: list[str] = []
@@ -550,7 +549,7 @@ def _missing_versioned_module_dependencies(
 def _versioned_module_dependency_problem(
     dep: Any,
     enabled_map: dict[str, bool],
-    module_versions: dict[str, str],
+    module_versions: dict[str, str] | None,
 ) -> str | None:
     """Return the validation problem for one versioned dependency, if any."""
     dep_name = str(getattr(dep, "name", "")).strip()
@@ -563,13 +562,23 @@ def _versioned_module_dependency_problem(
         return f"{dep_name} (disabled)"
     if not version_specifier:
         return None
+    if module_versions is None:
+        return None
     found_version = module_versions.get(dep_name)
     if not found_version:
         return f"{dep_name} (requires {version_specifier}, found unknown)"
     try:
         if Version(found_version) not in SpecifierSet(version_specifier):
             return f"{dep_name} (requires {version_specifier}, found {found_version})"
-    except (InvalidVersion, InvalidSpecifier):
+    except (InvalidVersion, InvalidSpecifier) as exc:
+        get_bridge_logger(__name__).debug(
+            "Ignoring malformed module dependency version comparison: dep_name=%r, "
+            "version_specifier=%r, found_version=%r, error=%s",
+            dep_name,
+            version_specifier,
+            found_version,
+            exc,
+        )
         return None
     return None
 

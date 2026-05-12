@@ -1080,6 +1080,8 @@ def _doctor_entry_matches(entry: DiscoveredModule, module_id: str | None) -> boo
     discovered_id = entry.metadata.name
     if requested == discovered_id:
         return True
+    if "/" in requested:
+        return False
     return requested.rsplit("/", 1)[-1] == discovered_id.rsplit("/", 1)[-1]
 
 

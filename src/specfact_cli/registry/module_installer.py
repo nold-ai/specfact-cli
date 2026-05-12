@@ -249,7 +249,14 @@ def _dependency_version_satisfies(installed_version: str, version_specifier: str
         return True
     try:
         return Version(installed_version) in SpecifierSet(version_specifier)
-    except (InvalidSpecifier, InvalidVersion):
+    except (InvalidSpecifier, InvalidVersion) as exc:
+        get_bridge_logger(__name__).debug(
+            "Ignoring malformed bundle dependency version comparison: installed_version=%r, "
+            "version_specifier=%r, error=%s",
+            installed_version,
+            version_specifier,
+            exc,
+        )
         return True
 
 

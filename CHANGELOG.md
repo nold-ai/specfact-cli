@@ -10,6 +10,16 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.46.22] - 2026-05-12
+
+### Fixed
+
+- **Module review hardening**: avoid false versioned dependency failures when
+  callers do not provide installed-version maps, and require exact namespace
+  matches for fully qualified `module doctor` IDs.
+
+---
+
 ## [0.46.21] - 2026-05-12
 
 ### Fixed
@@ -22,10 +32,14 @@ All notable changes to this project will be documented in this file.
 
 ## [0.46.20] - 2026-05-12
 
+### Added
+
+- **Module scope diagnostics**: add `specfact module doctor`.
+
 ### Fixed
 
-- **Module scope diagnostics**: add `specfact module doctor` and enforce
-  versioned module dependency mismatches across project and user scoped modules.
+- **Module scope diagnostics**: enforce versioned module dependency mismatches
+  across project and user scoped modules.
 - **Module signature PR verification**: keep the relaxed PR verifier aligned
   with its version-bump-only policy when signatures are deferred to CI signing.
 
