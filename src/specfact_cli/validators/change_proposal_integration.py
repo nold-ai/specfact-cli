@@ -16,7 +16,7 @@ from __future__ import annotations
 import re
 from contextlib import suppress
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import requests
 from beartype import beartype
@@ -188,7 +188,7 @@ def _post_github_validation_comment_and_labels(
             all_labels = [*current_labels, "validation-failed"]
             patch_url = f"{adapter_instance.base_url}/repos/{repo_owner}/{repo_name}/issues/{issue_number_int}"  # type: ignore[attr-defined]
             patch_payload = {"labels": all_labels}
-            patch_response = requests.patch(patch_url, json=patch_payload, headers=headers, timeout=30)
+            patch_response = requests.patch(patch_url, json=cast(Any, patch_payload), headers=headers, timeout=30)
             patch_response.raise_for_status()
 
 

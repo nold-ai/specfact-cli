@@ -348,6 +348,12 @@ def _validated_schema_extensions_from_raw(raw: dict[str, Any]) -> list[SchemaExt
 
 def _apply_category_manifest_postprocess(meta: ModulePackageMetadata) -> ModulePackageMetadata:
     if meta.category is None:
+        inferred_category = _infer_category_from_legacy_group(meta)
+        if inferred_category is not None:
+            meta.category = inferred_category
+            meta = normalize_legacy_bundle_group_command(meta)
+            validate_module_category_manifest(meta)
+            return meta
         logger = get_bridge_logger(__name__)
         logger.warning(
             "Module '%s' has no category field; mounting as flat top-level command.",
@@ -357,6 +363,22 @@ def _apply_category_manifest_postprocess(meta: ModulePackageMetadata) -> ModuleP
     meta = normalize_legacy_bundle_group_command(meta)
     validate_module_category_manifest(meta)
     return meta
+
+
+def _infer_category_from_legacy_group(meta: ModulePackageMetadata) -> str | None:
+    """Infer category for legacy manifests that already declare a group command."""
+    group = meta.bundle_group_command
+    if group is None:
+        return None
+    group_to_category = {
+        "project": "project",
+        "backlog": "backlog",
+        "code": "codebase",
+        "codebase": "codebase",
+        "spec": "spec",
+        "govern": "govern",
+    }
+    return group_to_category.get(group)
 
 
 def _raw_opt_str(raw: dict[str, Any], key: str) -> str | None:

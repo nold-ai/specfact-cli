@@ -1625,7 +1625,7 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         headers = {"Content-Type": "application/json-patch+json", **self._auth_headers()}
         try:
             response = self._request_with_retry(
-                lambda: requests.patch(url, json=patch_document, headers=headers, timeout=30)
+                lambda: requests.patch(url, json=cast(Any, patch_document), headers=headers, timeout=30)
             )
         except requests.RequestException as exc:
             resp = getattr(exc, "response", None)
@@ -2213,7 +2213,7 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
 
         try:
             response = self._request_with_retry(
-                lambda: requests.post(url, json=patch_document, headers=headers, timeout=30),
+                lambda: requests.post(url, json=cast(Any, patch_document), headers=headers, timeout=30),
                 retry_on_ambiguous_transport=False,
             )
             if is_debug_mode():
@@ -2670,7 +2670,7 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
 
         try:
             response = self._request_with_retry(
-                lambda: requests.post(url, json=comment_body, headers=headers, timeout=30),
+                lambda: requests.post(url, json=cast(Any, comment_body), headers=headers, timeout=30),
                 retry_on_ambiguous_transport=False,
             )
             comment_data = response.json()
@@ -3478,7 +3478,7 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             **self._auth_headers(),
         }
         response = self._request_with_retry(
-            lambda: requests.post(url, json=patch_document, headers=headers, timeout=30),
+            lambda: requests.post(url, json=cast(Any, patch_document), headers=headers, timeout=30),
             retry_on_ambiguous_transport=False,
         )
         created = response.json()
@@ -3782,7 +3782,7 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         if operations_no_format == operations:
             return None
         try:
-            resp = requests.patch(url, headers=headers, json=operations_no_format, timeout=30)
+            resp = requests.patch(url, headers=headers, json=cast(Any, operations_no_format), timeout=30)
             resp.raise_for_status()
             return resp
         except requests.HTTPError as retry_error:
@@ -3802,7 +3802,7 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
     ) -> requests.Response | None:
         operations_replace = self._backlog_ops_replace_multiline_add_with_replace(operations)
         try:
-            resp = requests.patch(url, headers=headers, json=operations_replace, timeout=30)
+            resp = requests.patch(url, headers=headers, json=cast(Any, operations_replace), timeout=30)
             resp.raise_for_status()
             return resp
         except requests.HTTPError:
@@ -3820,7 +3820,7 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         )
         operations_html = self._backlog_ops_convert_markdown_fields_to_html(operations)
         try:
-            resp = requests.patch(url, headers=headers, json=operations_html, timeout=30)
+            resp = requests.patch(url, headers=headers, json=cast(Any, operations_html), timeout=30)
             resp.raise_for_status()
             return resp
         except requests.HTTPError:
@@ -3834,7 +3834,9 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         operations: list[dict[str, Any]],
     ) -> requests.Response:
         try:
-            return self._request_with_retry(lambda: requests.patch(url, headers=headers, json=operations, timeout=30))
+            return self._request_with_retry(
+                lambda: requests.patch(url, headers=headers, json=cast(Any, operations), timeout=30)
+            )
         except requests.HTTPError as e:
             user_msg = _log_ado_patch_failure(e.response, operations, url)
             e.ado_user_message = user_msg  # type: ignore[attr-defined]

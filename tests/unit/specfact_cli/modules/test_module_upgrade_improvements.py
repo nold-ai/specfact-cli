@@ -256,7 +256,7 @@ def test_upgrade_command_warns_when_registry_unavailable(monkeypatch: pytest.Mon
     )
     result = runner.invoke(module_app, ["upgrade", "backlog"])
     assert result.exit_code == 0
-    out = (result.stdout or "") + (result.stderr or "")
+    out = result.output or ""
     assert "unavailable" in out.lower() or "network error" in out.lower()
 
 

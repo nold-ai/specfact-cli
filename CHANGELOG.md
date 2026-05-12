@@ -10,6 +10,16 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.46.21] - 2026-05-12
+
+### Fixed
+
+- **Module diagnostics CI hardening**: keep JSON request payload typing,
+  legacy category grouping, and stale shim delegation compatible with the
+  required lint, type-check, and test gates.
+
+---
+
 ## [0.46.20] - 2026-05-12
 
 ### Fixed

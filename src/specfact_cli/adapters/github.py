@@ -1601,7 +1601,9 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             payload["state_reason"] = state_reason
 
         try:
-            response = self._request_with_retry(lambda: requests.patch(url, json=payload, headers=headers, timeout=30))
+            response = self._request_with_retry(
+                lambda: requests.patch(url, json=cast(Any, payload), headers=headers, timeout=30)
+            )
             issue_data = response.json()
 
             # Add comment explaining status change
@@ -1666,7 +1668,7 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
 
         try:
             self._request_with_retry(
-                lambda: requests.post(url, json=payload, headers=headers, timeout=30),
+                lambda: requests.post(url, json=cast(Any, payload), headers=headers, timeout=30),
                 retry_on_ambiguous_transport=False,
             )
         except requests.RequestException as e:
@@ -1987,7 +1989,9 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             patch_url = f"{self.base_url}/repos/{repo_owner}/{repo_name}/issues/{issue_number}"
             patch_payload = {"labels": all_labels}
 
-            self._request_with_retry(lambda: requests.patch(patch_url, json=patch_payload, headers=headers, timeout=30))
+            self._request_with_retry(
+                lambda: requests.patch(patch_url, json=cast(Any, patch_payload), headers=headers, timeout=30)
+            )
 
             return {
                 "issue_number": current_issue.get("number", issue_number),  # Use API response number (int)
@@ -2983,7 +2987,7 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         response = self._request_with_retry(
             lambda: requests.post(
                 url,
-                json={"title": title, "body": body, "labels": labels},
+                json=cast(Any, {"title": title, "body": body, "labels": labels}),
                 headers=headers,
                 timeout=30,
             ),
