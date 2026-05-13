@@ -257,7 +257,7 @@ def _dependency_version_satisfies(installed_version: str, version_specifier: str
             version_specifier,
             exc,
         )
-        return True
+        return False
 
 
 @beartype

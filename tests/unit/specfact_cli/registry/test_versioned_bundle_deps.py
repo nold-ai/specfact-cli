@@ -83,7 +83,7 @@ def test_dependency_version_satisfies_logs_malformed_inputs(
     monkeypatch.setattr(module_installer, "get_bridge_logger", lambda _name: logger)
     caplog.set_level("DEBUG")
 
-    assert _dependency_version_satisfies("not-a-version", ">=1.0") is True
+    assert _dependency_version_satisfies("not-a-version", ">=1.0") is False
 
     assert "not-a-version" in caplog.text
     assert ">=1.0" in caplog.text

@@ -564,6 +564,8 @@ def _versioned_module_dependency_problem(
         return None
     if module_versions is None:
         return None
+    if dep_name not in module_versions:
+        return f"{dep_name} (requires {version_specifier}, found unknown)"
     found_version = module_versions.get(dep_name)
     if not found_version:
         return f"{dep_name} (requires {version_specifier}, found unknown)"
