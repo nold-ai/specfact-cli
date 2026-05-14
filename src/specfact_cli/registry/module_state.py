@@ -93,6 +93,10 @@ def find_dependents(
         if not enabled_map.get(name, True):
             continue
         module_dependencies = list(getattr(meta, "module_dependencies", []))
-        if module_id in module_dependencies:
+        versioned_dependencies = [
+            str(getattr(dependency, "name", ""))
+            for dependency in list(getattr(meta, "module_dependencies_versioned", []))
+        ]
+        if module_id in {*module_dependencies, *versioned_dependencies}:
             dependents.append(name)
     return sorted(dependents)

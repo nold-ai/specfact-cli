@@ -655,6 +655,40 @@ def test_grouped_registration_merges_duplicate_command_extensions(
     assert "ext_cmd" in command_names
 
 
+def test_registration_skips_package_with_unsatisfied_versioned_module_dependency(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Registration should skip modules whose versioned module dependency is not satisfied."""
+    packages = [
+        (
+            tmp_path / "codebase",
+            ModulePackageMetadata(name="codebase", version="0.40.9", commands=["codebase"]),
+        ),
+        (
+            tmp_path / "review",
+            ModulePackageMetadata(
+                name="review",
+                version="0.47.0",
+                commands=["review"],
+                module_dependencies_versioned=[
+                    VersionedModuleDependency(name="codebase", version_specifier=">=0.41.0"),
+                ],
+            ),
+        ),
+    ]
+
+    monkeypatch.setattr(module_packages_impl, "discover_all_package_metadata", lambda: packages)
+    monkeypatch.setattr(module_packages_impl, "verify_module_artifact", lambda _dir, _meta, allow_unsigned=False: True)
+    monkeypatch.setattr(module_packages_impl, "read_modules_state", dict)
+    monkeypatch.setattr(module_packages_impl, "_check_protocol_compliance_from_source", lambda *_args, **_kwargs: [])
+
+    register_module_package_commands()
+
+    names = set(CommandRegistry.list_commands())
+    assert "codebase" in names
+    assert "review" not in names
+
+
 def test_mount_installed_groups_preserves_bundle_native_group_command(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:

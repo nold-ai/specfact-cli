@@ -102,6 +102,55 @@ def test_tarball_checksum_matches_generated_index_entry(tmp_path: Path, monkeypa
     assert checksum == entry["checksum_sha256"]
 
 
+def test_publish_entry_serializes_bundle_dependency_objects_as_ids() -> None:
+    module = _load_script_module()
+
+    entry = module._build_publish_entry(
+        {
+            "bundle_dependencies": [
+                "nold-ai/specfact-project",
+                {"id": "nold-ai/specfact-codebase", "version": ">=0.41.0"},
+            ]
+        },
+        "nold-ai/specfact-review",
+        "0.47.0",
+        Path("specfact-review-0.47.0.tar.gz"),
+        "abc123",
+    )
+
+    assert entry["bundle_dependencies"] == ["nold-ai/specfact-project", "nold-ai/specfact-codebase"]
+
+
+def test_publish_entry_rejects_malformed_bundle_dependency_object() -> None:
+    module = _load_script_module()
+
+    with pytest.raises(ValueError, match="non-empty 'id'"):
+        module._build_publish_entry(
+            {
+                "bundle_dependencies": [
+                    {"version": "1.0"},
+                ]
+            },
+            "nold-ai/specfact-review",
+            "0.47.0",
+            Path("specfact-review-0.47.0.tar.gz"),
+            "abc123",
+        )
+
+    with pytest.raises(ValueError, match="non-empty 'id'"):
+        module._build_publish_entry(
+            {
+                "bundle_dependencies": [
+                    {"id": ""},
+                ]
+            },
+            "nold-ai/specfact-review",
+            "0.47.0",
+            Path("specfact-review-0.47.0.tar.gz"),
+            "abc123",
+        )
+
+
 def test_tarball_has_no_path_traversal_entries(tmp_path: Path) -> None:
     module = _load_script_module()
     bundle_dir = _create_bundle_package(tmp_path, "specfact-codebase")

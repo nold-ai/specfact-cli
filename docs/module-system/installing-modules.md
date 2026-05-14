@@ -44,10 +44,11 @@ Notes:
 - If the requested module is already installed but disabled in `modules.json`, install repairs the lifecycle state by enabling the manifest module id and reports that action.
 - Missing command guidance distinguishes truly absent modules from installed-but-disabled or installed-but-skipped modules and suggests the matching recovery command.
 - Invalid ids show an explicit error (`name` or `namespace/name` only).
+- Use `specfact module doctor [module-id]` to inspect the effective module copy, shadowed duplicates, and configured development source roots.
 
 ## Dependency resolution
 
-Before installing a marketplace module, SpecFact resolves its dependencies (other modules and optional pip packages) from manifest `pip_dependencies` and `module_dependencies`. If conflicts are detected (e.g. incompatible versions), install fails unless you override.
+Before installing a marketplace module, SpecFact resolves its dependencies (other modules and optional pip packages) from manifest `pip_dependencies`, `module_dependencies`, and versioned bundle dependency declarations. If conflicts are detected (e.g. incompatible versions), install fails unless you override.
 
 ```bash
 # Install with dependency resolution (default)
@@ -62,6 +63,7 @@ specfact module install nold-ai/specfact-backlog --force
 
 - Use `--skip-deps` when you want to install a single module without pulling its dependencies or when you manage dependencies yourself.
 - Use `--force` to proceed when resolution reports conflicts (e.g. for local overrides or known-compatible versions). Enable/disable and dependency-aware cascades still respect `--force` where applicable.
+- If a dependency already exists in the selected install scope but its version does not satisfy a declared bundle dependency range, reinstall or upgrade that dependency in the same scope before retrying.
 
 See [Dependency resolution](../reference/dependency-resolution.md) for how resolution works and conflict detection.
 
@@ -106,6 +108,7 @@ specfact module list
 specfact module list --show-origin
 specfact module list --source marketplace
 specfact module list --show-bundled-available
+specfact module doctor nold-ai/specfact-codebase
 ```
 
 Default columns:
@@ -116,7 +119,9 @@ Default columns:
 - `Trust` (`official`, `community`, `local-dev`)
 - `Publisher`
 
-With `--show-origin`, an additional `Origin` column is shown (`built-in`, `marketplace`, `custom`).
+With `--show-origin`, an additional `Origin` column is shown (`built-in`, `project`, `user`, `marketplace`, `custom`).
+
+`module doctor` keeps discovery metadata-only and reports effective vs shadowed duplicate copies, exact manifest versions, paths, enabled state, configured development source roots, and recovery commands. Use it when project-scoped modules under `<repo>/.specfact/modules` and user-scoped modules under `~/.specfact/modules` disagree.
 
 ## Show Detailed Module Info
 

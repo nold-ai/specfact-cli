@@ -10,7 +10,8 @@ from typing import Any
 
 import pytest
 
-from specfact_cli.registry.module_installer import _extract_bundle_dependencies
+from specfact_cli.registry import module_installer
+from specfact_cli.registry.module_installer import _dependency_version_satisfies, _extract_bundle_dependencies
 
 
 # ── Scenario: Registry entry declares a versioned bundle dependency ───────────
@@ -72,6 +73,25 @@ def test_extract_bundle_dependencies_rejects_empty_string_entry() -> None:
     metadata: dict[str, Any] = {"bundle_dependencies": ["nold-ai/specfact-project", ""]}
     with pytest.raises(ValueError, match="string entry must be non-empty"):
         _extract_bundle_dependencies(metadata)
+
+
+def test_dependency_version_satisfies_logs_malformed_inputs(
+    caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    logger = module_installer.logging.getLogger("test.module_installer.version")
+    logger.propagate = True
+    monkeypatch.setattr(module_installer, "get_bridge_logger", lambda _name: logger)
+    caplog.set_level("DEBUG")
+
+    assert _dependency_version_satisfies("not-a-version", ">=1.0") is False
+
+    assert "not-a-version" in caplog.text
+    assert ">=1.0" in caplog.text
+
+    assert _dependency_version_satisfies("1.2.3", "not-a-specifier") is False
+
+    assert "1.2.3" in caplog.text
+    assert "not-a-specifier" in caplog.text
 
 
 # ── core_compatibility actionable error ───────────────────────────────────────

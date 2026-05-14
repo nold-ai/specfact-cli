@@ -698,6 +698,8 @@ class _LazyDelegateGroup(click.Group):
         real_group = self._get_real_click_group()
         if real_group is not None:
             return real_group.get_command(ctx, cmd_name)
+        if self._lazy_cmd_name in KNOWN_BUNDLE_GROUP_OR_SHIM_NAMES:
+            return self._delegate_cmd
         return None
 
     def _get_real_click_group(self) -> click.Group | None:
