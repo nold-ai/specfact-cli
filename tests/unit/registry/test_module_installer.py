@@ -140,6 +140,7 @@ def test_install_module_logs_satisfied_dependencies_without_warning(monkeypatch,
         "name: specfact-project\nversion: '0.40.16'\ncommands: [project]\n",
         encoding="utf-8",
     )
+    (dependency_dir / module_installer.REGISTRY_ID_FILE).write_text("nold-ai/specfact-project", encoding="utf-8")
 
     installed = install_module(
         "nold-ai/specfact-backlog",

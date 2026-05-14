@@ -88,6 +88,11 @@ def test_dependency_version_satisfies_logs_malformed_inputs(
     assert "not-a-version" in caplog.text
     assert ">=1.0" in caplog.text
 
+    assert _dependency_version_satisfies("1.2.3", "not-a-specifier") is False
+
+    assert "1.2.3" in caplog.text
+    assert "not-a-specifier" in caplog.text
+
 
 # ── core_compatibility actionable error ───────────────────────────────────────
 

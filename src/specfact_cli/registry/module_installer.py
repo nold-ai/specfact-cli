@@ -876,14 +876,20 @@ def _install_bundle_dependencies_for_module(module_id: str, ctx: _BundleDepsInst
         dependency_name = dependency_module_id.split("/", 1)[1]
         dependency_manifest = ctx.target_root / dependency_name / "module-package.yaml"
         if dependency_manifest.exists():
-            dependency_version = _installed_dependency_version(dependency_manifest)
-            _raise_if_dependency_version_mismatch(
-                dependency_module_id,
-                dependency_version,
-                dependency.version_specifier,
-            )
-            ctx.logger.info("Dependency %s already satisfied (version %s)", dependency_module_id, dependency_version)
-            continue
+            dependency_id_file = dependency_manifest.parent / REGISTRY_ID_FILE
+            if dependency_id_file.exists():
+                installed_registry_id = dependency_id_file.read_text(encoding="utf-8").strip()
+                if installed_registry_id == dependency_module_id:
+                    dependency_version = _installed_dependency_version(dependency_manifest)
+                    _raise_if_dependency_version_mismatch(
+                        dependency_module_id,
+                        dependency_version,
+                        dependency.version_specifier,
+                    )
+                    ctx.logger.info(
+                        "Dependency %s already satisfied (version %s)", dependency_module_id, dependency_version
+                    )
+                    continue
         try:
             install_module(
                 dependency_module_id,
