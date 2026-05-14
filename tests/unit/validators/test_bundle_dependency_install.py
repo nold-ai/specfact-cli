@@ -8,7 +8,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from specfact_cli.registry.module_installer import InstallModuleOptions, install_module
+from specfact_cli.registry.module_installer import REGISTRY_ID_FILE, InstallModuleOptions, install_module
 
 
 def _create_module_tarball(
@@ -143,6 +143,7 @@ def test_dependency_install_is_skipped_when_already_installed(monkeypatch: pytes
         "name: specfact-project\nversion: '0.39.0'\ncommands: [project]\n",
         encoding="utf-8",
     )
+    (dep_dir / REGISTRY_ID_FILE).write_text("nold-ai/specfact-project", encoding="utf-8")
 
     install_module("nold-ai/specfact-spec", InstallModuleOptions(install_root=install_root))
 
