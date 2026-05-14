@@ -1939,7 +1939,7 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             # Refresh failed (no cached refresh token, refresh token expired, etc.)
             return None
 
-    def _auth_headers(self) -> dict[str, str]:
+    def _auth_headers(self) -> dict[str, str | bytes]:
         """Return authorization headers based on token type."""
         if not self.api_token:
             return {}
@@ -1953,7 +1953,7 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         self,
         url: str,
         *,
-        headers: dict[str, str] | None = None,
+        headers: dict[str, str | bytes] | None = None,
         params: dict[str, Any] | None = None,
         timeout: int = 30,
         retry_on_ambiguous_transport: bool = True,
@@ -1973,7 +1973,7 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         self,
         url: str,
         *,
-        headers: dict[str, str] | None = None,
+        headers: dict[str, str | bytes] | None = None,
         params: dict[str, Any] | None = None,
         json: dict[str, Any] | None = None,
         timeout: int = 30,

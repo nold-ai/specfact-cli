@@ -561,7 +561,7 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         from specfact_cli.backlog.converter import convert_github_issue_to_backlog_item
 
         url = f"{self.base_url}/search/issues"
-        headers = {
+        headers: dict[str, str | bytes] = {
             "Authorization": f"token {self.api_token}",
             "Accept": "application/vnd.github.v3+json",
         }
@@ -1232,7 +1232,7 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
 
         repo_owner, repo_name, issue_number = self._parse_issue_reference(item_ref)
         url = f"{self.base_url}/repos/{repo_owner}/{repo_name}/issues/{issue_number}"
-        headers = {
+        headers: dict[str, str | bytes] = {
             "Authorization": f"token {self.api_token}",
             "Accept": "application/vnd.github.v3+json",
         }
@@ -1498,7 +1498,7 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
 
         # Create issue via GitHub API
         url = f"{self.base_url}/repos/{repo_owner}/{repo_name}/issues"
-        headers = {
+        headers: dict[str, str | bytes] = {
             "Authorization": f"token {self.api_token}",
             "Accept": "application/vnd.github.v3+json",
         }
@@ -1592,7 +1592,7 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
 
         # Update issue state
         url = f"{self.base_url}/repos/{repo_owner}/{repo_name}/issues/{issue_number}"
-        headers = {
+        headers: dict[str, str | bytes] = {
             "Authorization": f"token {self.api_token}",
             "Accept": "application/vnd.github.v3+json",
         }
@@ -1636,7 +1636,7 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             return []
 
         url = f"{self.base_url}/repos/{repo_owner}/{repo_name}/issues/{issue_number}/comments"
-        headers = {
+        headers: dict[str, str | bytes] = {
             "Authorization": f"token {self.api_token}",
             "Accept": "application/vnd.github.v3+json",
         }
@@ -1660,7 +1660,7 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             comment: Comment text
         """
         url = f"{self.base_url}/repos/{repo_owner}/{repo_name}/issues/{issue_number}/comments"
-        headers = {
+        headers: dict[str, str | bytes] = {
             "Authorization": f"token {self.api_token}",
             "Accept": "application/vnd.github.v3+json",
         }
@@ -1678,7 +1678,7 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
     def _fetch_issue_snapshot(self, repo_owner: str, repo_name: str, issue_number: int) -> tuple[str, str, str]:
         """Fetch current issue body, title, and state for preservation-aware updates."""
         url = f"{self.base_url}/repos/{repo_owner}/{repo_name}/issues/{issue_number}"
-        headers = {
+        headers: dict[str, str | bytes] = {
             "Authorization": f"token {self.api_token}",
             "Accept": "application/vnd.github.v3+json",
         }
@@ -1761,7 +1761,7 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
 
         # Update issue body via GitHub API PATCH
         url = f"{self.base_url}/repos/{repo_owner}/{repo_name}/issues/{issue_number}"
-        headers = {
+        headers: dict[str, str | bytes] = {
             "Authorization": f"token {self.api_token}",
             "Accept": "application/vnd.github.v3+json",
         }
@@ -1971,7 +1971,7 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
 
         # Get current issue to retrieve existing labels
         url = f"{self.base_url}/repos/{repo_owner}/{repo_name}/issues/{issue_number}"
-        headers = {
+        headers: dict[str, str | bytes] = {
             "Authorization": f"token {self.api_token}",
             "Accept": "application/vnd.github.v3+json",
         }
@@ -2627,7 +2627,7 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             return None
 
         url = f"{self.base_url}/repos/{self.repo_owner}/{self.repo_name}/issues/{normalized_id}"
-        headers = {
+        headers: dict[str, str | bytes] = {
             "Authorization": f"token {self.api_token}",
             "Accept": "application/vnd.github.v3+json",
         }
@@ -2765,7 +2765,7 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
     @beartype
     def _github_graphql(self, query: str, variables: dict[str, Any]) -> dict[str, Any]:
         """Execute GitHub GraphQL request and return `data` payload."""
-        headers = {
+        headers: dict[str, str | bytes] = {
             "Authorization": f"token {self.api_token}",
             "Accept": "application/vnd.github+json",
         }
@@ -2980,7 +2980,7 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
             issue_type, str(payload.get("priority") or "").strip(), payload.get("story_points")
         )
         url = f"{self.base_url}/repos/{owner}/{repo}/issues"
-        headers = {
+        headers: dict[str, str | bytes] = {
             "Authorization": f"token {self.api_token}",
             "Accept": "application/vnd.github.v3+json",
         }
@@ -3249,7 +3249,7 @@ class GitHubAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
 
         issue_number = int(item.id)
         url = f"{self.base_url}/repos/{self.repo_owner}/{self.repo_name}/issues/{issue_number}"
-        headers = {
+        headers: dict[str, str | bytes] = {
             "Authorization": f"token {self.api_token}",
             "Accept": "application/vnd.github.v3+json",
         }

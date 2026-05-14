@@ -166,7 +166,7 @@ def _post_github_validation_comment_and_labels(
 
     with suppress(Exception):
         url = f"{adapter_instance.base_url}/repos/{repo_owner}/{repo_name}/issues/{issue_number_int}"  # type: ignore[attr-defined]
-        headers = {
+        headers: dict[str, str | bytes] = {
             "Authorization": f"token {adapter_instance.api_token}",  # type: ignore[attr-defined]
             "Accept": "application/vnd.github.v3+json",
         }

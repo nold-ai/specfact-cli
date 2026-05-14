@@ -2445,7 +2445,7 @@ class BridgeSync:
                 # Search for issues containing the change proposal ID in the footer
                 search_url = f"{adapter_instance_any.base_url}/search/issues"
                 search_query = f'repo:{repo_owner}/{repo_name} "OpenSpec Change Proposal: `{change_id}`" in:body'
-                headers = {
+                headers: dict[str, str | bytes] = {
                     "Authorization": f"token {adapter_instance_any.api_token}",
                     "Accept": "application/vnd.github.v3+json",
                 }
@@ -2681,7 +2681,7 @@ class BridgeSync:
         import requests
 
         url = f"{adapter_inst_any.base_url}/repos/{repo_owner}/{repo_name}/issues/{issue_num}"
-        headers = {
+        headers: dict[str, str | bytes] = {
             "Authorization": f"token {adapter_inst_any.api_token}",
             "Accept": "application/vnd.github.v3+json",
         }
