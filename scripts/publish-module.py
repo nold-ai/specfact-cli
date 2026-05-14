@@ -394,9 +394,7 @@ def _bundle_dependency_ids_for_registry(manifest: dict[str, Any]) -> list[str]:
         if isinstance(entry, dict):
             raw_id = entry.get("id")
             if raw_id is None or not str(raw_id).strip():
-                raise ValueError(
-                    f"bundle_dependencies object entry must include non-empty 'id'; got {entry!r}"
-                )
+                raise ValueError(f"bundle_dependencies object entry must include non-empty 'id'; got {entry!r}")
             dependency_ids.append(str(raw_id).strip())
             continue
         dependency_id = str(entry).strip()
