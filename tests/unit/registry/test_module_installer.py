@@ -156,6 +156,52 @@ def test_install_module_logs_satisfied_dependencies_without_warning(monkeypatch,
     )
 
 
+def test_install_module_reinstalls_dependency_when_registry_id_mismatch(monkeypatch, tmp_path: Path) -> None:
+    root_tarball = _create_module_tarball(
+        tmp_path / "root",
+        "backlog",
+        bundle_dependencies=["nold-ai/specfact-project"],
+    )
+    dependency_tarball = _create_module_tarball(tmp_path / "dep", "project")
+    downloaded_modules: list[str] = []
+
+    def _download(module_id: str, **_kwargs: object) -> Path:
+        downloaded_modules.append(module_id)
+        if module_id == "nold-ai/specfact-backlog":
+            return root_tarball
+        if module_id == "nold-ai/specfact-project":
+            return dependency_tarball
+        raise AssertionError(f"Unexpected module download request: {module_id}")
+
+    monkeypatch.setattr("specfact_cli.registry.module_installer.download_module", _download)
+    monkeypatch.setattr("specfact_cli.registry.module_installer.verify_module_artifact", lambda *_args, **_kwargs: True)
+    monkeypatch.setattr(
+        "specfact_cli.registry.module_installer.ensure_publisher_trusted", lambda *_args, **_kwargs: None
+    )
+    monkeypatch.setattr("specfact_cli.registry.module_installer.resolve_dependencies", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(
+        "specfact_cli.registry.module_installer.install_resolved_pip_requirements", lambda *_args, **_kwargs: None
+    )
+    monkeypatch.setattr("specfact_cli.registry.module_installer.discover_all_modules", list)
+
+    install_root = tmp_path / "marketplace-modules"
+    dependency_dir = install_root / "specfact-project"
+    dependency_dir.mkdir(parents=True, exist_ok=True)
+    (dependency_dir / "module-package.yaml").write_text(
+        "name: specfact-project\nversion: '0.40.16'\ncommands: [project]\n",
+        encoding="utf-8",
+    )
+    (dependency_dir / module_installer.REGISTRY_ID_FILE).write_text("other-org/specfact-project", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="Module namespace collision"):
+        install_module(
+            "nold-ai/specfact-backlog",
+            InstallModuleOptions(install_root=install_root, reinstall=True),
+        )
+
+    assert downloaded_modules == ["nold-ai/specfact-backlog"]
+
+
 def test_install_module_rejects_existing_bundle_dependency_version_mismatch(monkeypatch, tmp_path: Path) -> None:
     module_dir = tmp_path / "review-pkg" / "specfact-code-review"
     module_dir.mkdir(parents=True, exist_ok=True)
