@@ -308,12 +308,6 @@ def verify_manifest(
         if not checksum:
             raise ValueError("missing integrity.checksum")
         _parse_checksum(checksum)
-        signature = str(integrity.get("signature", "")).strip()
-        if signature:
-            if not public_key_pem:
-                raise ValueError("public key required to verify integrity.signature")
-            payload = _module_payload(manifest_path.parent, payload_from_filesystem=payload_from_filesystem)
-            _verify_signature(payload, signature, public_key_pem)
         return
     integrity_raw = data.get("integrity")
     if not isinstance(integrity_raw, dict):

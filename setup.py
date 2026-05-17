@@ -7,7 +7,7 @@ from setuptools import find_packages, setup
 if __name__ == "__main__":
     _setup = setup(
         name="specfact-cli",
-        version="0.46.19",
+        version="0.46.25",
         description=(
             "The swiss knife CLI for agile DevOps teams. Keep backlog, specs, tests, and code in sync with "
             "validation and contract enforcement for new projects and long-lived codebases."
@@ -22,8 +22,9 @@ if __name__ == "__main__":
             "azure-identity>=1.17.1",
             "cryptography>=43.0.0",
             "packaging>=24.0",
+            "click>=8.1.8,<8.2",
             "typer>=0.20.0,<0.24",
-            "rich>=13.5.2,<13.6.0",
+            "rich>=13.5.2,<16.0.0",
             "questionary>=2.0.1",
             "jinja2>=3.1.6",
             "networkx>=3.4.2",
@@ -35,7 +36,5 @@ if __name__ == "__main__":
             "icontract>=2.7.1",
             "beartype>=0.22.4",
             "watchdog>=6.0.0",
-            "opentelemetry-sdk>=1.27.0",
-            "opentelemetry-exporter-otlp-proto-http>=1.27.0",
         ],
     )

@@ -11,6 +11,7 @@ import pytest
 from typer.testing import CliRunner
 
 from specfact_cli.modules.module_registry.src.commands import app
+from specfact_cli.registry.module_installer import REGISTRY_ID_FILE
 
 
 runner = CliRunner()
@@ -133,6 +134,7 @@ def test_installing_spec_bundle_skips_dependency_when_already_present(monkeypatc
     dep_dir = install_root / "specfact-project"
     dep_dir.mkdir(parents=True, exist_ok=True)
     (dep_dir / "module-package.yaml").write_text("name: specfact-project\nversion: '0.39.0'\ncommands: [project]\n")
+    (dep_dir / REGISTRY_ID_FILE).write_text("nold-ai/specfact-project", encoding="utf-8")
 
     result = runner.invoke(
         app,

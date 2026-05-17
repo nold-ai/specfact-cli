@@ -10,8 +10,6 @@ audience: [solo, team, enterprise]
 expertise_level: [beginner, intermediate]
 ---
 
-# Module Marketplace
-
 SpecFact supports centralized marketplace distribution with local multi-source discovery.
 
 For the curated official bundle list and trust/dependency quick reference, see
@@ -38,8 +36,9 @@ Local module discovery scans these roots in priority order:
 
 1. `built-in` modules (`src/specfact_cli/modules`)
 2. `project` modules (`<repo>/.specfact/modules`)
-3. `user` modules (`~/.specfact/modules`)
-4. legacy/custom roots (`~/.specfact/marketplace-modules`, `~/.specfact/custom-modules`, `SPECFACT_MODULES_ROOTS`)
+3. explicit development/custom roots (`SPECFACT_MODULES_ROOTS`)
+4. `user` modules (`~/.specfact/modules`)
+5. marketplace and custom roots (`~/.specfact/marketplace-modules`, `~/.specfact/custom-modules`)
 
 If module names collide, higher-priority sources win and lower-priority entries are shadowed.
 
@@ -48,13 +47,16 @@ If module names collide, higher-priority sources win and lower-priority entries 
 SpecFact shows both trust semantics and origin details:
 
 - `Trust` column (default): `official`, `community`, `local-dev`
-- `Origin` column (`--show-origin`): `built-in`, `marketplace`, `custom`
+- `Origin` column (`--show-origin`): `built-in`, `project`, `user`, `marketplace`, `custom`
 
 Use:
 
 ```bash
 specfact module list --show-origin
+specfact module doctor nold-ai/specfact-codebase
 ```
+
+`module doctor` additionally reports shadowed duplicate copies, exact manifest versions, paths, enabled state, configured development source roots, and recovery commands.
 
 ## Security Model
 
@@ -123,5 +125,4 @@ Scope boundary:
 > Modules docs handoff: this page remains in the core docs set as release-line overview content.
 > Canonical bundle-specific deep guidance now lives in the canonical modules docs site, currently
 > published at `https://modules.specfact.io/`.
-
 > for the current release line and are planned to migrate to `specfact-cli-modules`.

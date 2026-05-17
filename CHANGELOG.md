@@ -10,6 +10,73 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.46.25] - 2026-05-17
+
+### Fixed
+
+- **Dependency resolver compatibility**: pin `click` below the Typer/Semgrep
+  conflict boundary and move optional OpenTelemetry packages out of the base
+  install so Semgrep-compatible environments resolve cleanly.
+
+---
+
+## [0.46.24] - 2026-05-17
+
+### Fixed
+
+- **Module dependency review follow-up**: preserve versioned dependency
+  constraints in tests, fail closed for malformed dependency version checks,
+  and cover the large-bundle manifest persistence branch.
+
+---
+
+## [0.46.23] - 2026-05-17
+
+### Fixed
+
+- **Module dependency review hardening**: reject malformed published bundle
+  dependency IDs, tolerate malformed installed dependency version comparisons
+  consistently, and avoid unhashable dependency crashes in dependent lookup.
+- **Bundle save stability**: avoid reused YAML writer state and keep very large
+  bundle manifest saves within the test timeout.
+
+---
+
+## [0.46.22] - 2026-05-12
+
+### Fixed
+
+- **Module review hardening**: avoid false versioned dependency failures when
+  callers do not provide installed-version maps, and require exact namespace
+  matches for fully qualified `module doctor` IDs.
+
+---
+
+## [0.46.21] - 2026-05-12
+
+### Fixed
+
+- **Module diagnostics CI hardening**: keep JSON request payload typing,
+  legacy category grouping, and stale shim delegation compatible with the
+  required lint, type-check, and test gates.
+
+---
+
+## [0.46.20] - 2026-05-12
+
+### Added
+
+- **Module scope diagnostics**: add `specfact module doctor`.
+
+### Fixed
+
+- **Module scope diagnostics**: enforce versioned module dependency mismatches
+  across project and user scoped modules.
+- **Module signature PR verification**: keep the relaxed PR verifier aligned
+  with its version-bump-only policy when signatures are deferred to CI signing.
+
+---
+
 ## [0.46.19] - 2026-05-07
 
 ### Added

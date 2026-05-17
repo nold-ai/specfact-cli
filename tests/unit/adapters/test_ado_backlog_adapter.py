@@ -773,7 +773,7 @@ field_mappings:
         adapter.auth_scheme = "basic"
         headers = adapter._auth_headers()
         assert "Authorization" in headers
-        assert headers["Authorization"].startswith("Basic ")
+        assert str(headers["Authorization"]).startswith("Basic ")
 
     @beartype
     def test_auth_headers_bearer_oauth(self) -> None:
@@ -782,7 +782,7 @@ field_mappings:
         adapter.auth_scheme = "bearer"
         headers = adapter._auth_headers()
         assert "Authorization" in headers
-        assert headers["Authorization"].startswith("Bearer ")
+        assert str(headers["Authorization"]).startswith("Bearer ")
 
     @beartype
     def test_auth_headers_no_token(self) -> None:

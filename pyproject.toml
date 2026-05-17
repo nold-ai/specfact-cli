@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "specfact-cli"
-version = "0.46.19"
+version = "0.46.25"
 description = "The swiss knife CLI for agile DevOps teams. Keep backlog, specs, tests, and code in sync with validation and contract enforcement for new projects and long-lived codebases."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -65,8 +65,9 @@ dependencies = [
 
     # CLI framework
     # Typer 0.24+ requires click>=8.2.1 (generic Choice[...]); dev semgrep pins click~=8.1.8 — cap Typer.
+    "click>=8.1.8,<8.2",
     "typer>=0.20.0,<0.24",
-    "rich>=13.5.2,<13.6.0",  # Compatible with semgrep (requires rich~=13.5.2)
+    "rich>=13.5.2,<16.0.0",  # Semgrep allows rich>=13.5.2; keep below next major.
     "questionary>=2.0.1",  # Interactive prompts with arrow key navigation
     
     # Template engine
@@ -94,16 +95,17 @@ dependencies = [
 
     # File system watching
     "watchdog>=6.0.0",
-
-    # Telemetry (opt-in; only active when SPECFACT_TELEMETRY_OPT_IN=true)
-    "opentelemetry-sdk>=1.27.0",
-    "opentelemetry-exporter-otlp-proto-http>=1.27.0",
 ]
 
 [project.optional-dependencies]
 contracts = [
     "crosshair-tool>=0.0.97",
     "hypothesis>=6.142.4",
+]
+
+telemetry = [
+    "opentelemetry-sdk>=1.27.0",
+    "opentelemetry-exporter-otlp-proto-http>=1.27.0",
 ]
 
 dev = [
