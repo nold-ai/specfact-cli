@@ -10,6 +10,16 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.46.24] - 2026-05-17
+
+### Fixed
+
+- **Module dependency review follow-up**: preserve versioned dependency
+  constraints in tests, fail closed for malformed dependency version checks,
+  and cover the large-bundle manifest persistence branch.
+
+---
+
 ## [0.46.23] - 2026-05-17
 
 ### Fixed

@@ -8,6 +8,7 @@ ProjectBundle, and related models.
 import hashlib
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -416,7 +417,7 @@ class TestProjectBundle:
                 assert checksum == file_checksum, f"Checksum mismatch for {artifact_name}"
 
     @pytest.mark.timeout(30)  # Increase timeout for large bundle test
-    def test_save_to_directory_large_bundle_worker_reduction(self, tmp_path: Path):
+    def test_save_to_directory_large_bundle_worker_reduction(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
         """Test that large bundles (1000+ features) use fewer workers for memory optimization."""
         bundle_dir = tmp_path / "test-bundle"
 
@@ -437,6 +438,17 @@ class TestProjectBundle:
             )
             bundle.add_feature(feature)
 
+        from specfact_cli.utils import structured_io
+
+        dumped_paths: list[Path] = []
+        original_dump_structured_file = structured_io.dump_structured_file
+
+        def tracked_dump_structured_file(data: Any, file_path: Path, *args: Any, **kwargs: Any) -> None:
+            dumped_paths.append(file_path)
+            original_dump_structured_file(data, file_path, *args, **kwargs)
+
+        monkeypatch.setattr(structured_io, "dump_structured_file", tracked_dump_structured_file)
+
         # Save should complete successfully with reduced workers
         # Note: This test takes longer due to large bundle size (30s timeout)
         bundle.save_to_directory(bundle_dir)
@@ -449,6 +461,15 @@ class TestProjectBundle:
         # Verify checksums computed for all features
         # Features + product + manifest (and potentially idea/business if present)
         assert len(bundle.manifest.checksums.files) >= num_features
+
+        manifest_path = bundle_dir / "bundle.manifest.yaml"
+        assert manifest_path not in dumped_paths
+
+        from specfact_cli.utils.structured_io import load_structured_file
+
+        expected_manifest = bundle.manifest.model_dump(mode="json")
+        assert load_structured_file(manifest_path) == expected_manifest
+        assert ProjectBundle.load_from_directory(bundle_dir).manifest.model_dump(mode="json") == expected_manifest
 
 
 class TestBundleFormat:

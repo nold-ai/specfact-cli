@@ -17,8 +17,10 @@ from specfact_cli.registry.module_installer import _dependency_version_satisfies
 # ── Scenario: Registry entry declares a versioned bundle dependency ───────────
 
 
-def _dependency_ids(metadata: dict[str, Any]) -> list[str]:
-    return [dependency.module_id for dependency in _extract_bundle_dependency_specs(metadata)]
+def _dependency_ids(metadata: dict[str, Any]) -> dict[str, str]:
+    return {
+        dependency.module_id: dependency.version_specifier for dependency in _extract_bundle_dependency_specs(metadata)
+    }
 
 
 def test_extract_bundle_dependency_specs_supports_versioned_object() -> None:
@@ -26,6 +28,7 @@ def test_extract_bundle_dependency_specs_supports_versioned_object() -> None:
     metadata: dict[str, Any] = {"bundle_dependencies": [{"id": "nold-ai/specfact-project", "version": ">=0.41.0"}]}
     deps = _dependency_ids(metadata)
     assert "nold-ai/specfact-project" in deps, f"Versioned object form not handled; got {deps}"
+    assert deps["nold-ai/specfact-project"] == ">=0.41.0"
 
 
 def test_extract_bundle_dependency_specs_supports_plain_string() -> None:
@@ -51,13 +54,13 @@ def test_extract_bundle_dependency_specs_supports_mixed_list() -> None:
 def test_extract_bundle_dependencies_empty_list() -> None:
     metadata: dict[str, Any] = {"bundle_dependencies": []}
     deps = _dependency_ids(metadata)
-    assert deps == []
+    assert deps == {}
 
 
 def test_extract_bundle_dependencies_missing_key() -> None:
     metadata: dict[str, Any] = {}
     deps = _dependency_ids(metadata)
-    assert deps == []
+    assert deps == {}
 
 
 def test_extract_bundle_dependencies_rejects_object_without_id() -> None:
@@ -87,12 +90,12 @@ def test_dependency_version_satisfies_logs_malformed_inputs(
     monkeypatch.setattr(module_installer, "get_bridge_logger", lambda _name: logger)
     caplog.set_level("DEBUG")
 
-    assert _dependency_version_satisfies("not-a-version", ">=1.0") is True
+    assert _dependency_version_satisfies("not-a-version", ">=1.0") is False
 
     assert "not-a-version" in caplog.text
     assert ">=1.0" in caplog.text
 
-    assert _dependency_version_satisfies("1.2.3", "not-a-specifier") is True
+    assert _dependency_version_satisfies("1.2.3", "not-a-specifier") is False
 
     assert "1.2.3" in caplog.text
     assert "not-a-specifier" in caplog.text
