@@ -2,6 +2,8 @@
 YAML utilities.
 
 This module provides helpers for YAML parsing and serialization.
+
+CrossHair: skip (ruamel.yaml initialization performs plugin filesystem discovery)
 """
 
 from __future__ import annotations
@@ -31,13 +33,21 @@ class YAMLUtils:
             indent_mapping: Indentation for mappings (must be > 0)
             indent_sequence: Indentation for sequences (must be > 0)
         """
-        self.yaml = YAML()
-        self.yaml.preserve_quotes = preserve_quotes
-        cast(Any, self.yaml).indent(mapping=indent_mapping, sequence=indent_sequence)
-        self.yaml.default_flow_style = False
+        self.preserve_quotes = preserve_quotes
+        self.indent_mapping = indent_mapping
+        self.indent_sequence = indent_sequence
+        self.yaml = self._new_yaml()
+
+    def _new_yaml(self) -> YAML:
+        """Return a fresh ruamel YAML writer/reader for one operation."""
+        yaml = YAML()
+        yaml.preserve_quotes = self.preserve_quotes
+        cast(Any, yaml).indent(mapping=self.indent_mapping, sequence=self.indent_sequence)
+        yaml.default_flow_style = False
         # Configure to quote boolean-like strings to prevent YAML parsing issues
         # YAML parsers interpret "Yes", "No", "True", "False", "On", "Off" as booleans
-        self.yaml.default_style = None  # Let ruamel.yaml decide, but we'll quote manually
+        yaml.default_style = None  # Let ruamel.yaml decide, but we'll quote manually
+        return yaml
 
     @beartype
     @require(lambda file_path: isinstance(file_path, (Path, str)), "File path must be Path or str")
@@ -60,8 +70,9 @@ class YAMLUtils:
         if not file_path.exists():
             raise FileNotFoundError(f"YAML file not found: {file_path}")
 
+        yaml = self._new_yaml()
         with open(file_path, encoding="utf-8") as f:
-            loader = cast(Callable[[Any], Any], self.yaml.load)
+            loader = cast(Callable[[Any], Any], yaml.load)
             return loader(f)
 
     @beartype
@@ -77,7 +88,8 @@ class YAMLUtils:
         Returns:
             Parsed YAML content
         """
-        loader = cast(Callable[[Any], Any], self.yaml.load)
+        yaml = self._new_yaml()
+        loader = cast(Callable[[Any], Any], yaml.load)
         return loader(yaml_string)
 
     @beartype
@@ -98,8 +110,9 @@ class YAMLUtils:
 
         # Use context manager for proper file handling
         # Thread-local YAML instances ensure thread-safety
+        yaml = self._new_yaml()
         with open(file_path, "w", encoding="utf-8") as f:
-            dumper = cast(Callable[..., None], self.yaml.dump)
+            dumper = cast(Callable[..., None], yaml.dump)
             dumper(data, f)
             # Explicit flush to ensure data is written before context exits
             # This helps prevent "I/O operation on closed file" errors in parallel operations
@@ -167,8 +180,9 @@ class YAMLUtils:
         """
         from io import StringIO
 
+        yaml = self._new_yaml()
         stream = StringIO()
-        dumper = cast(Callable[..., None], self.yaml.dump)
+        dumper = cast(Callable[..., None], yaml.dump)
         dumper(data, stream)
         return stream.getvalue()
 

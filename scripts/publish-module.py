@@ -13,6 +13,7 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, cast
 
@@ -92,12 +93,13 @@ def _load_manifest(manifest_path: Path) -> dict[str, Any]:
 def _official_nold_publisher_manifest(manifest: dict[str, Any]) -> bool:
     """True when ``publisher`` matches shipped nold-ai in-repo bundles (slug ``name`` is allowed)."""
     pub = manifest.get("publisher")
-    if not isinstance(pub, dict):
+    if not isinstance(pub, Mapping):
         return False
-    email = str(pub.get("email", "")).strip().lower()
+    publisher = cast(Mapping[str, object], pub)
+    email = str(publisher.get("email", "")).strip().lower()
     if email and email == OFFICIAL_PUBLISHER_EMAIL.strip().lower():
         return True
-    url = str(pub.get("url", "")).strip().lower()
+    url = str(publisher.get("url", "")).strip().lower()
     return OFFICIAL_MODULES_REPO_URL_MARKER in url.replace(" ", "")
 
 
@@ -391,15 +393,28 @@ def _bundle_dependency_ids_for_registry(manifest: dict[str, Any]) -> list[str]:
         )
     dependency_ids: list[str] = []
     for entry in raw_dependencies:
-        if isinstance(entry, dict):
-            raw_id = entry.get("id")
-            if raw_id is None or not str(raw_id).strip():
+        if isinstance(entry, Mapping):
+            dependency_entry = cast(Mapping[str, object], entry)
+            raw_id = dependency_entry.get("id")
+            if not isinstance(raw_id, str):
+                raise ValueError(
+                    "bundle_dependencies object entry must include non-empty 'id' str; "
+                    f"got {type(raw_id).__name__}: {entry!r}"
+                )
+            dependency_id = raw_id.strip()
+            if not dependency_id:
                 raise ValueError(f"bundle_dependencies object entry must include non-empty 'id'; got {entry!r}")
-            dependency_ids.append(str(raw_id).strip())
-            continue
-        dependency_id = str(entry).strip()
-        if dependency_id:
             dependency_ids.append(dependency_id)
+            continue
+        if not isinstance(entry, str):
+            raise ValueError(
+                "bundle_dependencies entries must be strings or objects with non-empty 'id'; "
+                f"got {type(entry).__name__}: {entry!r}"
+            )
+        dependency_id = entry.strip()
+        if not dependency_id:
+            raise ValueError("bundle_dependencies string entries must be non-empty")
+        dependency_ids.append(dependency_id)
     return dependency_ids
 
 

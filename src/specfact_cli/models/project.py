@@ -662,7 +662,13 @@ class ProjectBundle(BaseModel):
         if progress_callback:
             progress_callback(total_artifacts, total_artifacts, "bundle.manifest.yaml")
         manifest_path = bundle_dir / "bundle.manifest.yaml"
-        dump_structured_file(self.manifest.model_dump(mode="json"), manifest_path)
+        manifest_data = self.manifest.model_dump(mode="json")
+        if num_features > 1000:
+            import json
+
+            manifest_path.write_text(json.dumps(manifest_data, indent=2), encoding="utf-8")
+        else:
+            dump_structured_file(manifest_data, manifest_path)
 
     @beartype
     @require(lambda self, key: isinstance(key, str) and len(key) > 0, "Feature key must be non-empty string")

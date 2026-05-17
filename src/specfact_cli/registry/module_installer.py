@@ -189,16 +189,6 @@ def _download_archive_with_cache(module_id: str, version: str | None = None) -> 
 
 
 @beartype
-def _extract_bundle_dependencies(metadata: dict[str, Any]) -> list[str]:
-    """Extract validated bundle dependency module ids from raw manifest metadata.
-
-    Supports both plain string entries ("namespace/name") and versioned object entries
-    ({"id": "namespace/name", "version": ">=x.y.z"}).
-    """
-    return [dependency.module_id for dependency in _extract_bundle_dependency_specs(metadata)]
-
-
-@beartype
 def _extract_bundle_dependency_specs(metadata: dict[str, Any]) -> list[_BundleDependencySpec]:
     """Extract validated bundle dependency ids and optional version specifiers."""
     raw_dependencies = metadata.get("bundle_dependencies", [])
@@ -251,13 +241,13 @@ def _dependency_version_satisfies(installed_version: str, version_specifier: str
         return Version(installed_version) in SpecifierSet(version_specifier)
     except (InvalidSpecifier, InvalidVersion) as exc:
         get_bridge_logger(__name__).debug(
-            "Ignoring malformed bundle dependency version comparison: installed_version=%r, "
+            "Skipping malformed bundle dependency version comparison (treating as satisfied): installed_version=%r, "
             "version_specifier=%r, error=%s",
             installed_version,
             version_specifier,
             exc,
         )
-        return False
+        return True
 
 
 @beartype

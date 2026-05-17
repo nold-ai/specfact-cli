@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from types import SimpleNamespace
 
 from specfact_cli.models.module_package import VersionedModuleDependency
 from specfact_cli.registry.module_packages import (
@@ -14,6 +15,7 @@ from specfact_cli.registry.module_packages import (
     validate_disable_safe,
     validate_enable_safe,
 )
+from specfact_cli.registry.module_state import find_dependents
 
 
 def _pkg(name: str, deps: list[str] | None = None) -> tuple[Path, ModulePackageMetadata]:
@@ -104,7 +106,7 @@ def test_validate_module_dependencies_skips_version_compare_without_versions() -
     assert missing == []
 
 
-def test_missing_versioned_module_dependencies_handles_specifier_forms() -> None:
+def test_missing_versioned_module_dependencies_supports_specifier_forms() -> None:
     enabled_map = {
         "exact": True,
         "range": True,
@@ -155,6 +157,21 @@ def test_validate_disable_safe_blocks_enabled_dependents() -> None:
     blocked = validate_disable_safe(["sync"], packages, enabled_map)
 
     assert blocked == {"sync": ["plan"]}
+
+
+def test_find_dependents_supports_unhashable_dependency_entries() -> None:
+    packages = [
+        (
+            Path("/tmp/plan"),
+            SimpleNamespace(
+                name="plan",
+                module_dependencies=[["sync"]],
+                module_dependencies_versioned=[SimpleNamespace(name="sync")],
+            ),
+        ),
+    ]
+
+    assert find_dependents("sync", packages, {"plan": True}) == ["plan"]
 
 
 def test_validate_disable_safe_allows_batch_disable_of_dependents() -> None:

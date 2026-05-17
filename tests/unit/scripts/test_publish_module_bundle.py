@@ -151,6 +151,45 @@ def test_publish_entry_rejects_malformed_bundle_dependency_object() -> None:
         )
 
 
+def test_publish_entry_rejects_non_string_bundle_dependency_ids() -> None:
+    module = _load_script_module()
+
+    with pytest.raises(ValueError, match=r"id'.*str"):
+        module._build_publish_entry(
+            {
+                "bundle_dependencies": [
+                    {"id": 123},
+                ]
+            },
+            "nold-ai/specfact-review",
+            "0.47.0",
+            Path("specfact-review-0.47.0.tar.gz"),
+            "abc123",
+        )
+
+    with pytest.raises(ValueError, match="entries must be strings"):
+        module._build_publish_entry(
+            {
+                "bundle_dependencies": [123],
+            },
+            "nold-ai/specfact-review",
+            "0.47.0",
+            Path("specfact-review-0.47.0.tar.gz"),
+            "abc123",
+        )
+
+    with pytest.raises(ValueError, match="string entries must be non-empty"):
+        module._build_publish_entry(
+            {
+                "bundle_dependencies": [" "],
+            },
+            "nold-ai/specfact-review",
+            "0.47.0",
+            Path("specfact-review-0.47.0.tar.gz"),
+            "abc123",
+        )
+
+
 def test_tarball_has_no_path_traversal_entries(tmp_path: Path) -> None:
     module = _load_script_module()
     bundle_dir = _create_bundle_package(tmp_path, "specfact-codebase")

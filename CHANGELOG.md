@@ -10,6 +10,18 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.46.23] - 2026-05-17
+
+### Fixed
+
+- **Module dependency review hardening**: reject malformed published bundle
+  dependency IDs, tolerate malformed installed dependency version comparisons
+  consistently, and avoid unhashable dependency crashes in dependent lookup.
+- **Bundle save stability**: avoid reused YAML writer state and keep very large
+  bundle manifest saves within the test timeout.
+
+---
+
 ## [0.46.22] - 2026-05-12
 
 ### Fixed
