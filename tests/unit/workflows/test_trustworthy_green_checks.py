@@ -13,6 +13,7 @@ import yaml
 REPO_ROOT = Path(__file__).resolve().parents[3]
 PR_ORCHESTRATOR = REPO_ROOT / ".github" / "workflows" / "pr-orchestrator.yml"
 SIGN_MODULES = REPO_ROOT / ".github" / "workflows" / "sign-modules.yml"
+PUBLISH_MODULES = REPO_ROOT / ".github" / "workflows" / "publish-modules.yml"
 PRE_COMMIT_CONFIG = REPO_ROOT / ".pre-commit-config.yaml"
 CODERABBIT_CONFIG = REPO_ROOT / ".coderabbit.yaml"
 LEGACY_ACTIONLINT_RUNNER = REPO_ROOT / "scripts" / "run_actionlint.sh"
@@ -218,6 +219,15 @@ def test_module_signature_check_name_is_canonical_across_workflows() -> None:
     assert isinstance(sign_job, dict), "Expected verify job in sign-modules workflow"
     dedicated_name = sign_job.get("name")
     assert orchestrator_name == dedicated_name == "Verify Module Signatures"
+
+
+def test_publish_modules_entry_summary_avoids_escaped_fstring_expression() -> None:
+    """Bundled publishing must not use a python -c f-string with shell-escaped quotes."""
+    raw = PUBLISH_MODULES.read_text(encoding="utf-8")
+    assert "PY_ENTRY_SUMMARY=" not in raw
+    assert "python - \"${FRAGMENT}\" <<'PY'" in raw
+    assert "data['id']" in raw
+    assert "data['latest_version']" in raw
 
 
 CANONICAL_VERSION_SOURCE_REGEX = r"^(pyproject\.toml|setup\.py|src/__init__\.py|src/specfact_cli/__init__\.py)$"
