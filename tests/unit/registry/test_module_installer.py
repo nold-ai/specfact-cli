@@ -233,12 +233,76 @@ def test_install_module_rejects_existing_bundle_dependency_version_mismatch(monk
         "name: specfact-codebase\nversion: '0.40.9'\ncommands: [code]\n",
         encoding="utf-8",
     )
+    (dependency_dir / module_installer.REGISTRY_ID_FILE).write_text("nold-ai/specfact-codebase", encoding="utf-8")
 
     with pytest.raises(ValueError, match=r"nold-ai/specfact-codebase.*>=0.41.0.*0.40.9"):
         install_module(
             "nold-ai/specfact-code-review",
             InstallModuleOptions(install_root=install_root, reinstall=True),
         )
+
+
+def test_bundle_dependency_install_requires_post_install_registry_identity(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    install_root = tmp_path / "marketplace-modules"
+
+    def _install_without_registry_id(module_id: str, options: InstallModuleOptions | None = None) -> Path:
+        _ = module_id, options
+        dependency_dir = install_root / "specfact-project"
+        dependency_dir.mkdir(parents=True, exist_ok=True)
+        (dependency_dir / "module-package.yaml").write_text(
+            "name: specfact-project\nversion: '0.40.16'\ncommands: [project]\n",
+            encoding="utf-8",
+        )
+        return dependency_dir
+
+    monkeypatch.setattr(module_installer, "install_module", _install_without_registry_id)
+
+    ctx = module_installer._BundleDepsInstallContext(
+        metadata={"bundle_dependencies": ["nold-ai/specfact-project"]},
+        metadata_obj=ModulePackageMetadata(name="specfact-spec", version="0.1.0", commands=["spec"]),
+        target_root=install_root,
+        trust_non_official=False,
+        non_interactive=True,
+        force=False,
+        logger=MagicMock(),
+    )
+
+    with pytest.raises(ValueError, match=module_installer.REGISTRY_ID_FILE):
+        module_installer._install_bundle_dependencies_for_module("nold-ai/specfact-spec", ctx)
+
+
+def test_bundle_dependency_install_rejects_post_install_registry_identity_mismatch(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    install_root = tmp_path / "marketplace-modules"
+
+    def _install_wrong_registry_id(module_id: str, options: InstallModuleOptions | None = None) -> Path:
+        _ = module_id, options
+        dependency_dir = install_root / "specfact-project"
+        dependency_dir.mkdir(parents=True, exist_ok=True)
+        (dependency_dir / "module-package.yaml").write_text(
+            "name: specfact-project\nversion: '0.40.16'\ncommands: [project]\n",
+            encoding="utf-8",
+        )
+        (dependency_dir / module_installer.REGISTRY_ID_FILE).write_text("other-org/specfact-project", encoding="utf-8")
+        return dependency_dir
+
+    monkeypatch.setattr(module_installer, "install_module", _install_wrong_registry_id)
+
+    ctx = module_installer._BundleDepsInstallContext(
+        metadata={"bundle_dependencies": ["nold-ai/specfact-project"]},
+        metadata_obj=ModulePackageMetadata(name="specfact-spec", version="0.1.0", commands=["spec"]),
+        target_root=install_root,
+        trust_non_official=False,
+        non_interactive=True,
+        force=False,
+        logger=MagicMock(),
+    )
+
+    with pytest.raises(ValueError, match="other-org/specfact-project"):
+        module_installer._install_bundle_dependencies_for_module("nold-ai/specfact-spec", ctx)
 
 
 def test_install_module_rejects_archive_path_traversal(monkeypatch, tmp_path: Path) -> None:

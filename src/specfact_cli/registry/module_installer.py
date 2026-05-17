@@ -191,9 +191,14 @@ def _download_archive_with_cache(module_id: str, version: str | None = None) -> 
 @beartype
 def _extract_bundle_dependency_specs(metadata: dict[str, Any]) -> list[_BundleDependencySpec]:
     """Extract validated bundle dependency ids and optional version specifiers."""
-    raw_dependencies = metadata.get("bundle_dependencies", [])
-    if not isinstance(raw_dependencies, list):
+    if "bundle_dependencies" not in metadata:
         return []
+    raw_dependencies = metadata["bundle_dependencies"]
+    if not isinstance(raw_dependencies, list):
+        raise ValueError(
+            "bundle_dependencies must be a list of module ids or dependency objects "
+            f"(invalid manifest; got {type(raw_dependencies).__name__})"
+        )
     dependencies: list[_BundleDependencySpec] = []
     for index, value in enumerate(raw_dependencies):
         version_specifier = ""
@@ -263,6 +268,20 @@ def _raise_if_dependency_version_mismatch(
         f"but installed version is {installed_version}. "
         f"Reinstall or upgrade the dependency in the same module scope."
     )
+
+
+@beartype
+def _verify_installed_dependency_identity(dependency_module_id: str, dependency_id_file: Path) -> None:
+    if not dependency_id_file.exists():
+        raise ValueError(
+            f"Dependency install failed for {dependency_module_id}: missing {REGISTRY_ID_FILE} identity file"
+        )
+    installed_registry_id = dependency_id_file.read_text(encoding="utf-8").strip()
+    if installed_registry_id != dependency_module_id:
+        raise ValueError(
+            f"Dependency install failed for {dependency_module_id}: {REGISTRY_ID_FILE} contains "
+            f"{installed_registry_id!r}"
+        )
 
 
 @beartype
@@ -865,21 +884,20 @@ def _install_bundle_dependencies_for_module(module_id: str, ctx: _BundleDepsInst
             continue
         dependency_name = dependency_module_id.split("/", 1)[1]
         dependency_manifest = ctx.target_root / dependency_name / "module-package.yaml"
-        if dependency_manifest.exists():
-            dependency_id_file = dependency_manifest.parent / REGISTRY_ID_FILE
-            if dependency_id_file.exists():
-                installed_registry_id = dependency_id_file.read_text(encoding="utf-8").strip()
-                if installed_registry_id == dependency_module_id:
-                    dependency_version = _installed_dependency_version(dependency_manifest)
-                    _raise_if_dependency_version_mismatch(
-                        dependency_module_id,
-                        dependency_version,
-                        dependency.version_specifier,
-                    )
-                    ctx.logger.info(
-                        "Dependency %s already satisfied (version %s)", dependency_module_id, dependency_version
-                    )
-                    continue
+        dependency_id_file = dependency_manifest.parent / REGISTRY_ID_FILE
+        if dependency_manifest.exists() and dependency_id_file.exists():
+            installed_registry_id = dependency_id_file.read_text(encoding="utf-8").strip()
+            if installed_registry_id == dependency_module_id:
+                dependency_version = _installed_dependency_version(dependency_manifest)
+                _raise_if_dependency_version_mismatch(
+                    dependency_module_id,
+                    dependency_version,
+                    dependency.version_specifier,
+                )
+                ctx.logger.info(
+                    "Dependency %s already satisfied (version %s)", dependency_module_id, dependency_version
+                )
+                continue
         try:
             install_module(
                 dependency_module_id,
@@ -893,6 +911,7 @@ def _install_bundle_dependencies_for_module(module_id: str, ctx: _BundleDepsInst
             )
         except Exception as dep_exc:
             raise ValueError(f"Dependency install failed for {dependency_module_id}: {dep_exc}") from dep_exc
+        _verify_installed_dependency_identity(dependency_module_id, dependency_id_file)
         dependency_version = _installed_dependency_version(dependency_manifest)
         _raise_if_dependency_version_mismatch(
             dependency_module_id,

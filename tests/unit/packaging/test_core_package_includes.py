@@ -93,3 +93,30 @@ def test_setup_py_version_matches_pyproject() -> None:
     assert version_in_pyproject is not None
     setup_text = SETUP_PY.read_text(encoding="utf-8")
     assert f'version="{version_in_pyproject}"' in setup_text or f"version='{version_in_pyproject}'" in setup_text
+
+
+def test_core_dependency_bounds_avoid_semgrep_cli_conflicts() -> None:
+    """Core install requirements must not permit known Typer/Semgrep resolver conflicts."""
+    data = tomllib.loads(PYPROJECT.read_text(encoding="utf-8"))
+    dependencies = set(data["project"]["dependencies"])
+
+    assert "click>=8.1.8,<8.2" in dependencies
+    assert "typer>=0.20.0,<0.24" in dependencies
+    assert "rich>=13.5.2,<16.0.0" in dependencies
+    assert not any(dependency.startswith("opentelemetry-") for dependency in dependencies)
+
+    setup_text = SETUP_PY.read_text(encoding="utf-8")
+    assert '"click>=8.1.8,<8.2"' in setup_text
+    assert '"typer>=0.20.0,<0.24"' in setup_text
+    assert '"rich>=13.5.2,<16.0.0"' in setup_text
+    assert '"opentelemetry-sdk' not in setup_text
+    assert '"opentelemetry-exporter-otlp-proto-http' not in setup_text
+
+
+def test_telemetry_dependencies_are_opt_in_extra() -> None:
+    """OpenTelemetry should stay out of core but remain available for explicit telemetry installs."""
+    data = tomllib.loads(PYPROJECT.read_text(encoding="utf-8"))
+    telemetry = set(data["project"]["optional-dependencies"]["telemetry"])
+
+    assert "opentelemetry-sdk>=1.27.0" in telemetry
+    assert "opentelemetry-exporter-otlp-proto-http>=1.27.0" in telemetry

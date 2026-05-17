@@ -63,6 +63,12 @@ def test_extract_bundle_dependencies_missing_key() -> None:
     assert deps == {}
 
 
+def test_extract_bundle_dependencies_rejects_malformed_shape() -> None:
+    metadata: dict[str, Any] = {"bundle_dependencies": {"id": "nold-ai/specfact-project"}}
+    with pytest.raises(ValueError, match="bundle_dependencies"):
+        _extract_bundle_dependency_specs(metadata)
+
+
 def test_extract_bundle_dependencies_rejects_object_without_id() -> None:
     """Malformed bundle_dependencies objects must fail manifest validation, not be skipped."""
     metadata: dict[str, Any] = {"bundle_dependencies": [{"version": ">=1.0.0"}]}

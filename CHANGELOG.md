@@ -10,6 +10,16 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.46.25] - 2026-05-17
+
+### Fixed
+
+- **Dependency resolver compatibility**: pin `click` below the Typer/Semgrep
+  conflict boundary and move optional OpenTelemetry packages out of the base
+  install so Semgrep-compatible environments resolve cleanly.
+
+---
+
 ## [0.46.24] - 2026-05-17
 
 ### Fixed
