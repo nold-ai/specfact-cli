@@ -256,7 +256,6 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p dist
-          PY_ENTRY_SUMMARY='import sys, yaml; from pathlib import Path; data = yaml.safe_load(Path(sys.argv[1]).read_text(encoding="utf-8")); print(f"{data[\"id\"]}@{data[\"latest_version\"]}")'
           PUBLISHED=()
           while IFS= read -r MODULE_DIR; do
             [ -n "${MODULE_DIR}" ] || continue
@@ -277,7 +276,17 @@ jobs:
               --changed-flag /tmp/index_changed.txt
             CHANGED=$(tr -d '\n' < /tmp/index_changed.txt)
             if [ "${CHANGED}" = "true" ]; then
-              ENTRY="$(python -c "${PY_ENTRY_SUMMARY}" "${FRAGMENT}")"
+              ENTRY="$(
+                python - "${FRAGMENT}" <<'PY'
+          import sys
+          from pathlib import Path
+
+          import yaml
+
+          data = yaml.safe_load(Path(sys.argv[1]).read_text(encoding="utf-8"))
+          print(f"{data['id']}@{data['latest_version']}")
+          PY
+              )"
               PUBLISHED+=("${ENTRY}")
             fi
           done < /tmp/modules_to_publish.txt
