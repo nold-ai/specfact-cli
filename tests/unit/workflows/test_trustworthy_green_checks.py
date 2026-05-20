@@ -230,6 +230,26 @@ def test_publish_modules_entry_summary_avoids_escaped_fstring_expression() -> No
     assert "data['latest_version']" in raw
 
 
+def test_publish_modules_bundled_snapshot_targets_core_repository() -> None:
+    """Bundled snapshot entries for core modules must not inherit the marketplace URL base."""
+    raw = PUBLISH_MODULES.read_text(encoding="utf-8")
+    expected_base = "BUNDLED_REGISTRY_DOWNLOAD_BASE_URL: https://github.com/nold-ai/specfact-cli/releases/download"
+    assert raw.count(expected_base) == 2
+    assert (
+        "BUNDLED_REGISTRY_DOWNLOAD_BASE_URL: https://github.com/nold-ai/specfact-cli-modules/releases/download"
+        not in raw
+    )
+
+    publish_blocks = [block for block in raw.split("\n\n") if "scripts/publish-module.py" in block]
+    assert publish_blocks, "Expected publish-modules workflow to package module artifacts"
+    for block in publish_blocks:
+        assert "--download-base-url" in block, "Bundled publish calls must set the snapshot URL base"
+        assert "${BUNDLED_REGISTRY_DOWNLOAD_BASE_URL}" in block
+        if "--index-fragment" in block:
+            assert "--download-base-url" in block, "Registry fragments must set the bundled snapshot URL base"
+            assert "${BUNDLED_REGISTRY_DOWNLOAD_BASE_URL}" in block
+
+
 CANONICAL_VERSION_SOURCE_REGEX = r"^(pyproject\.toml|setup\.py|src/__init__\.py|src/specfact_cli/__init__\.py)$"
 
 

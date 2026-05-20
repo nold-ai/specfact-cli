@@ -2,19 +2,19 @@
   "modules": [
     {
       "checksum_sha256": "ce82ea7d2a48dfa8b16ad48599ec6daa922d6aa1a61c242da1143366d5d53ec4",
-      "download_url": "https://github.com/nold-ai/specfact-cli-modules/releases/download/init-0.1.33.tar.gz",
+      "download_url": "https://github.com/nold-ai/specfact-cli/releases/download/init-0.1.33.tar.gz",
       "id": "init",
       "latest_version": "0.1.33"
     },
     {
-      "checksum_sha256": "a31b708abe76c12d8109ef650a5143532551791f29179d40ed075160e5fb6d03",
-      "download_url": "https://github.com/nold-ai/specfact-cli-modules/releases/download/upgrade-0.1.17.tar.gz",
+      "checksum_sha256": "49c5bcbef6ce4aba3302b8209d3641cc34430f3fe4754423d61428557f8c641d",
+      "download_url": "https://github.com/nold-ai/specfact-cli/releases/download/upgrade-0.1.19.tar.gz",
       "id": "upgrade",
-      "latest_version": "0.1.17"
+      "latest_version": "0.1.19"
     },
     {
       "checksum_sha256": "79359da27cb1c734a928a453a786b626e7b06654f515f32ead0cf96fa8e70bc2",
-      "download_url": "https://github.com/nold-ai/specfact-cli-modules/releases/download/module-registry-0.1.26.tar.gz",
+      "download_url": "https://github.com/nold-ai/specfact-cli/releases/download/module-registry-0.1.26.tar.gz",
       "id": "module-registry",
       "latest_version": "0.1.26"
     },
