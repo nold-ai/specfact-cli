@@ -23,6 +23,7 @@ from icontract import ensure
 from rich.console import Console
 from rich.panel import Panel
 from rich.prompt import Confirm
+from rich.text import Text
 
 from specfact_cli import __version__
 from specfact_cli.contracts.module_interface import ModuleIOContract
@@ -223,16 +224,27 @@ def _build_upgrade_command(method: InstallationMethod) -> list[str] | None:
 def _execute_upgrade_command(command: list[str]) -> bool:
     try:
         console.print("[cyan]Updating SpecFact CLI...[/cyan]")
-        result = subprocess.run(command, check=False, timeout=300)
-    except subprocess.TimeoutExpired:
+        result = subprocess.run(command, check=False, timeout=300, capture_output=True)
+    except subprocess.TimeoutExpired as exc:
+        _replay_upgrade_output(_coerce_subprocess_output(exc.stdout))
+        _replay_upgrade_output(_coerce_subprocess_output(exc.stderr))
         console.print("[red]✗ Update timed out (exceeded 5 minutes)[/red]")
         return False
     except OSError as e:
         console.print(f"[red]✗ Update failed: {e}[/red]")
         return False
+    stdout = _coerce_subprocess_output(result.stdout)
+    stderr = _coerce_subprocess_output(result.stderr)
     if result.returncode != 0:
+        _replay_upgrade_output(stdout)
+        _replay_upgrade_output(stderr)
         console.print(f"[red]✗ Update failed with exit code {result.returncode}[/red]")
         return False
+    if _is_pipx_upgrade_command(command):
+        stdout = _filter_pipx_spaced_home_warning(stdout)
+        stderr = _filter_pipx_spaced_home_warning(stderr)
+    _replay_upgrade_output(stdout)
+    _replay_upgrade_output(stderr)
     console.print("[green]✓ Update successful![/green]")
     from datetime import datetime
 
@@ -241,6 +253,48 @@ def _execute_upgrade_command(command: list[str]) -> bool:
     except (OSError, TypeError) as exc:
         console.print(f"[yellow]Update succeeded, but metadata update failed: {exc}[/yellow]")
     return True
+
+
+def _coerce_subprocess_output(output: object) -> str:
+    """Return subprocess output as displayable text."""
+    if isinstance(output, str):
+        return output
+    if isinstance(output, bytes):
+        return output.decode(errors="replace")
+    return ""
+
+
+def _is_pipx_upgrade_command(command: list[str]) -> bool:
+    """Return whether command is the supported pipx upgrade invocation."""
+    return len(command) >= 3 and command[:3] == ["pipx", "upgrade", "specfact-cli"]
+
+
+def _replay_upgrade_output(output: str) -> None:
+    """Replay captured child-process output without Rich markup parsing."""
+    if output:
+        console.print(Text(output), end="")
+
+
+def _filter_pipx_spaced_home_warning(output: str) -> str:
+    """Remove only pipx's known spaced-home warning block from successful output."""
+    if not output:
+        return output
+    warning_markers = (
+        "Found a space in the pipx home path",
+        "To see your PIPX_HOME dir",
+        "Most likely fix on macOS",
+    )
+    filtered_lines: list[str] = []
+    skipping_wrapped_warning = False
+    for line in output.splitlines(keepends=True):
+        if any(marker in line for marker in warning_markers):
+            skipping_wrapped_warning = "Found a space in the pipx home path" in line
+            continue
+        if skipping_wrapped_warning and line[:1].isspace():
+            continue
+        skipping_wrapped_warning = False
+        filtered_lines.append(line)
+    return "".join(filtered_lines)
 
 
 def _upgrade_log_started(check_only: bool, yes: bool) -> None:

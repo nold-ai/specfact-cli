@@ -4,10 +4,17 @@ Unit tests for update command.
 
 from __future__ import annotations
 
+import os
+import subprocess
+from io import StringIO
+from pathlib import Path
 from unittest.mock import MagicMock, patch
+
+from rich.console import Console
 
 from specfact_cli.modules.upgrade.src.commands import (
     InstallationMethod,
+    _execute_upgrade_command,
     _upgrade_install_or_check_only,
     detect_installation_method,
     install_update,
@@ -244,7 +251,12 @@ class TestUpdateInstallation:
 
         result = install_update(method, yes=True)
         assert result is True
-        mock_subprocess.assert_called_once_with(["uv", "tool", "upgrade", "specfact-cli"], check=False, timeout=300)
+        mock_subprocess.assert_called_once_with(
+            ["uv", "tool", "upgrade", "specfact-cli"],
+            check=False,
+            timeout=300,
+            capture_output=True,
+        )
 
 
 @patch("specfact_cli.modules.upgrade.src.commands.subprocess.run")
@@ -266,6 +278,7 @@ def test_install_update_pip_with_spaced_executable_uses_shlex(
         ["/tmp/Program Files/Python/python", "-m", "pip", "install", "--upgrade", "specfact-cli"],
         check=False,
         timeout=300,
+        capture_output=True,
     )
 
 
@@ -288,6 +301,7 @@ def test_install_update_uv_pip_targets_detected_interpreter(
         ["uv", "pip", "install", "--python", "/workspace/specfact-cli/.venv/bin/python", "--upgrade", "specfact-cli"],
         check=False,
         timeout=300,
+        capture_output=True,
     )
 
 
@@ -318,3 +332,139 @@ def test_check_only_uvx_does_not_print_upgrade_command(mock_detect: MagicMock, m
     printed = "\n".join(str(c.args[0]) for c in mock_print.call_args_list if c.args)
     assert "To upgrade, run" not in printed
     assert "uvx automatically uses the latest version" in printed
+
+
+@patch("specfact_cli.modules.upgrade.src.commands.update_metadata")
+@patch("specfact_cli.modules.upgrade.src.commands.subprocess.run")
+def test_successful_pipx_upgrade_suppresses_spaced_home_warning(
+    mock_run: MagicMock, mock_update_metadata: MagicMock
+) -> None:
+    """Successful pipx upgrades must not leak pipx's benign spaced-home warning."""
+    mock_run.return_value.returncode = 0
+    mock_run.return_value.stdout = (
+        "Found a space in the pipx home path. We heavily discourage this, due to multiple\n"
+        "    incompatibilities. Please check our docs for more information on this, as well as\n"
+        "    some pointers on how to migrate to a different home path.\n"
+        "To see your PIPX_HOME dir: pipx environment --value PIPX_HOME\n"
+        "Most likely fix on macOS: mv ~/Library/Application\\ Support/pipx ~/.local/\n"
+        "upgraded package specfact-cli from 0.46.19 to 0.46.25\n"
+    )
+    output = StringIO()
+
+    with patch(
+        "specfact_cli.modules.upgrade.src.commands.console",
+        Console(file=output, force_terminal=False, width=120),
+    ):
+        result = install_update(InstallationMethod("pipx", "pipx upgrade specfact-cli", None), yes=True)
+
+    assert result is True
+    rendered = output.getvalue()
+    assert "Found a space in the pipx home path" not in rendered
+    assert "PIPX_HOME" not in rendered
+    assert "upgraded package specfact-cli from 0.46.19 to 0.46.25" in rendered
+
+
+@patch("specfact_cli.modules.upgrade.src.commands.subprocess.run")
+def test_failed_pipx_upgrade_preserves_child_diagnostics(mock_run: MagicMock) -> None:
+    """Failed pipx upgrades must replay child stdout and stderr without filtering."""
+    mock_run.return_value.returncode = 1
+    mock_run.return_value.stdout = "Found a space in the pipx home path.\n"
+    mock_run.return_value.stderr = "pipx failed to upgrade specfact-cli\n"
+    output = StringIO()
+
+    with patch(
+        "specfact_cli.modules.upgrade.src.commands.console",
+        Console(file=output, force_terminal=False, width=120),
+    ):
+        result = _execute_upgrade_command(["pipx", "upgrade", "specfact-cli"])
+
+    assert result is False
+    rendered = output.getvalue()
+    assert "Found a space in the pipx home path" in rendered
+    assert "pipx failed to upgrade specfact-cli" in rendered
+    assert "Update failed with exit code 1" in rendered
+
+
+@patch("specfact_cli.modules.upgrade.src.commands.subprocess.run")
+def test_timed_out_upgrade_preserves_partial_child_diagnostics(mock_run: MagicMock) -> None:
+    """Timed-out upgrades must replay partial child output captured before timeout."""
+    mock_run.side_effect = subprocess.TimeoutExpired(
+        cmd=["pipx", "upgrade", "specfact-cli"],
+        timeout=300,
+        output=b"download stalled while resolving specfact-cli\n",
+        stderr="pipx still waiting for package index\n",
+    )
+    output = StringIO()
+
+    with patch(
+        "specfact_cli.modules.upgrade.src.commands.console",
+        Console(file=output, force_terminal=False, width=120),
+    ):
+        result = _execute_upgrade_command(["pipx", "upgrade", "specfact-cli"])
+
+    assert result is False
+    rendered = output.getvalue()
+    assert "download stalled while resolving specfact-cli" in rendered
+    assert "pipx still waiting for package index" in rendered
+    assert "Update timed out" in rendered
+
+
+@patch("specfact_cli.modules.upgrade.src.commands.update_metadata")
+@patch("specfact_cli.modules.upgrade.src.commands.subprocess.run")
+def test_upgrade_output_decodes_invalid_bytes_without_crashing(
+    mock_run: MagicMock, mock_update_metadata: MagicMock
+) -> None:
+    """Upgrade output with invalid locale bytes must not crash output replay."""
+    mock_run.return_value.returncode = 0
+    mock_run.return_value.stdout = b"upgrade emitted invalid byte: \xff\n"
+    mock_run.return_value.stderr = b""
+    output = StringIO()
+
+    with patch(
+        "specfact_cli.modules.upgrade.src.commands.console",
+        Console(file=output, force_terminal=False, width=120),
+    ):
+        result = _execute_upgrade_command(["pip", "install", "--upgrade", "specfact-cli"])
+
+    assert result is True
+    rendered = output.getvalue()
+    assert "upgrade emitted invalid byte:" in rendered
+    assert "\ufffd" in rendered
+    assert "Update successful" in rendered
+
+
+@patch("specfact_cli.modules.upgrade.src.commands.update_metadata")
+def test_fake_pipx_with_spaced_path_suppresses_success_warning(
+    mock_update_metadata: MagicMock, tmp_path: Path, monkeypatch
+) -> None:
+    """Subprocess validation for a pipx executable under a path containing spaces."""
+    bin_dir = tmp_path / "Application Support" / "pipx-bin"
+    bin_dir.mkdir(parents=True)
+    fake_pipx = bin_dir / "pipx"
+    fake_pipx.write_text(
+        "#!/usr/bin/env python3\n"
+        "import sys\n"
+        "print('Found a space in the pipx home path. We heavily discourage this, due to multiple')\n"
+        "print('    incompatibilities. Please check our docs for more information on this, as well as')\n"
+        "print('    some pointers on how to migrate to a different home path.')\n"
+        "print('To see your PIPX_HOME dir: pipx environment --value PIPX_HOME')\n"
+        "print('Most likely fix on macOS: mv ~/Library/Application\\\\ Support/pipx ~/.local/')\n"
+        "print('upgraded package specfact-cli from 0.46.19 to 0.46.25')\n"
+        "sys.exit(0)\n",
+        encoding="utf-8",
+    )
+    fake_pipx.chmod(0o755)
+    monkeypatch.setenv("PATH", f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}")
+    output = StringIO()
+
+    with patch(
+        "specfact_cli.modules.upgrade.src.commands.console",
+        Console(file=output, force_terminal=False, width=120),
+    ):
+        result = _execute_upgrade_command(["pipx", "upgrade", "specfact-cli"])
+
+    assert result is True
+    rendered = output.getvalue()
+    assert "Found a space in the pipx home path" not in rendered
+    assert "PIPX_HOME" not in rendered
+    assert "upgraded package specfact-cli from 0.46.19 to 0.46.25" in rendered
