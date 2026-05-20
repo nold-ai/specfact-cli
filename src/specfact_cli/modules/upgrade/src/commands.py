@@ -224,7 +224,7 @@ def _build_upgrade_command(method: InstallationMethod) -> list[str] | None:
 def _execute_upgrade_command(command: list[str]) -> bool:
     try:
         console.print("[cyan]Updating SpecFact CLI...[/cyan]")
-        result = subprocess.run(command, check=False, timeout=300, capture_output=True, text=True)
+        result = subprocess.run(command, check=False, timeout=300, capture_output=True)
     except subprocess.TimeoutExpired as exc:
         _replay_upgrade_output(_coerce_subprocess_output(exc.stdout))
         _replay_upgrade_output(_coerce_subprocess_output(exc.stderr))

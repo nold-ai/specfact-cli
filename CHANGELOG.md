@@ -10,13 +10,26 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.46.27] - 2026-05-20
+
+### Fixed
+
+- **Upgrade output decoding**: capture upgrade subprocess output as raw bytes
+  and decode with replacement during replay so non-decodable child output does
+  not abort `specfact upgrade` with a traceback.
+
+---
+
 ## [0.46.26] - 2026-05-20
 
 ### Fixed
 
 - **Upgrade pipx output**: suppress the benign pipx spaced-home warning block
   on successful `specfact upgrade` runs while preserving pipx stdout/stderr
-  diagnostics on failed upgrades.
+  diagnostics on failed upgrades. On timeout, the upgrade runner now replays
+  any partial child stdout/stderr before the timeout summary so users can see
+  partial process output before the timeout message; successful and
+  failed-upgrade diagnostics are otherwise unchanged.
 
 ---
 

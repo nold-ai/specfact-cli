@@ -256,7 +256,6 @@ class TestUpdateInstallation:
             check=False,
             timeout=300,
             capture_output=True,
-            text=True,
         )
 
 
@@ -280,7 +279,6 @@ def test_install_update_pip_with_spaced_executable_uses_shlex(
         check=False,
         timeout=300,
         capture_output=True,
-        text=True,
     )
 
 
@@ -304,7 +302,6 @@ def test_install_update_uv_pip_targets_detected_interpreter(
         check=False,
         timeout=300,
         capture_output=True,
-        text=True,
     )
 
 
@@ -410,6 +407,30 @@ def test_timed_out_upgrade_preserves_partial_child_diagnostics(mock_run: MagicMo
     assert "download stalled while resolving specfact-cli" in rendered
     assert "pipx still waiting for package index" in rendered
     assert "Update timed out" in rendered
+
+
+@patch("specfact_cli.modules.upgrade.src.commands.update_metadata")
+@patch("specfact_cli.modules.upgrade.src.commands.subprocess.run")
+def test_upgrade_output_decodes_invalid_bytes_without_crashing(
+    mock_run: MagicMock, mock_update_metadata: MagicMock
+) -> None:
+    """Upgrade output with invalid locale bytes must not crash output replay."""
+    mock_run.return_value.returncode = 0
+    mock_run.return_value.stdout = b"upgrade emitted invalid byte: \xff\n"
+    mock_run.return_value.stderr = b""
+    output = StringIO()
+
+    with patch(
+        "specfact_cli.modules.upgrade.src.commands.console",
+        Console(file=output, force_terminal=False, width=120),
+    ):
+        result = _execute_upgrade_command(["pip", "install", "--upgrade", "specfact-cli"])
+
+    assert result is True
+    rendered = output.getvalue()
+    assert "upgrade emitted invalid byte:" in rendered
+    assert "\ufffd" in rendered
+    assert "Update successful" in rendered
 
 
 @patch("specfact_cli.modules.upgrade.src.commands.update_metadata")

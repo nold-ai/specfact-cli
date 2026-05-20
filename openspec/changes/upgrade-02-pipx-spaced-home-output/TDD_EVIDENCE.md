@@ -21,7 +21,7 @@
 ## Passing After
 
 - **Command**: `hatch run pytest tests/unit/commands/test_update.py -q`
-- **Result**: passed (`21 passed, 2 warnings`).
+- **Result**: passed (`23 passed, 2 warnings` after main PR review follow-up).
 - **Validated behavior**:
   - Successful pipx upgrade output suppresses the known spaced-home warning block.
   - Failed pipx upgrade output preserves child stdout and stderr diagnostics.
@@ -31,9 +31,11 @@
 ## Quality Gates
 
 - **PR review follow-up**: addressed PR annotations by replaying `TimeoutExpired` partial stdout/stderr, decoding byte output safely, adding timeout regression coverage, and aligning proposal/design/spec wording with the implemented timeout and OS-error contract.
+- **Main PR review follow-up**: addressed main PR annotations by capturing raw subprocess bytes in the upgrade execution path, decoding with replacement during replay, adding invalid-byte regression coverage, and expanding the `0.46.26` changelog entry with timeout replay behavior.
+- **Follow-up release hygiene**: bumped canonical package version files to `0.46.27`, added a changelog entry for invalid-byte output hardening, and bumped the touched bundled `upgrade` module manifest version to `0.1.19`.
 - **Format**: `hatch run format` passed; 624 files left unchanged.
 - **OpenSpec**: `openspec validate upgrade-02-pipx-spaced-home-output --strict` passed.
-- **Targeted tests**: `hatch run pytest tests/unit/commands/test_update.py -q` passed (`22 passed, 2 warnings` after PR review follow-up).
+- **Targeted tests**: `hatch run pytest tests/unit/commands/test_update.py -q` passed (`23 passed, 2 warnings` after main PR review follow-up).
 - **Lint**: `hatch run lint` passed with 0 errors and 0 warnings.
 - **Type check**: `hatch run type-check` passed with 0 errors and the existing repository warning baseline.
 - **Contract test**: `hatch run contract-test` passed with cached results for no modified contract files.
