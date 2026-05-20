@@ -10,6 +10,16 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.46.26] - 2026-05-20
+
+### Fixed
+
+- **Upgrade pipx output**: suppress the benign pipx spaced-home warning block
+  on successful `specfact upgrade` runs while preserving pipx stdout/stderr
+  diagnostics on failed upgrades.
+
+---
+
 ## [0.46.25] - 2026-05-17
 
 ### Fixed
