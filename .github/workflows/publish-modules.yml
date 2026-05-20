@@ -41,6 +41,7 @@ jobs:
       SPECFACT_MODULE_PRIVATE_SIGN_KEY: ${{ secrets.SPECFACT_MODULE_PRIVATE_SIGN_KEY }}
       SPECFACT_MODULE_PRIVATE_SIGN_KEY_PASSPHRASE: ${{ secrets.SPECFACT_MODULE_PRIVATE_SIGN_KEY_PASSPHRASE }}
       BUNDLED_REGISTRY_INDEX: resources/bundled-module-registry/index.json
+      BUNDLED_REGISTRY_DOWNLOAD_BASE_URL: https://github.com/nold-ai/specfact-cli/releases/download
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -114,7 +115,9 @@ jobs:
             MODULE_PATH="${{ steps.resolve.outputs.module_path }}"
           fi
           mkdir -p dist
-          python scripts/publish-module.py "$MODULE_PATH" -o dist --index-fragment dist/registry-entry.yaml
+          python scripts/publish-module.py "$MODULE_PATH" -o dist \
+            --download-base-url "${BUNDLED_REGISTRY_DOWNLOAD_BASE_URL}" \
+            --index-fragment dist/registry-entry.yaml
 
       - name: Read published module metadata
         id: entry
@@ -201,6 +204,7 @@ jobs:
       SPECFACT_MODULE_PRIVATE_SIGN_KEY: ${{ secrets.SPECFACT_MODULE_PRIVATE_SIGN_KEY }}
       SPECFACT_MODULE_PRIVATE_SIGN_KEY_PASSPHRASE: ${{ secrets.SPECFACT_MODULE_PRIVATE_SIGN_KEY_PASSPHRASE }}
       BUNDLED_REGISTRY_INDEX: resources/bundled-module-registry/index.json
+      BUNDLED_REGISTRY_DOWNLOAD_BASE_URL: https://github.com/nold-ai/specfact-cli/releases/download
       HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
       HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
     steps:
@@ -268,7 +272,9 @@ jobs:
               python scripts/sign-modules.py --payload-from-filesystem "${MODULE_DIR}/module-package.yaml"
             fi
 
-            python scripts/publish-module.py "${MODULE_DIR}" -o dist --index-fragment "${FRAGMENT}"
+            python scripts/publish-module.py "${MODULE_DIR}" -o dist \
+              --download-base-url "${BUNDLED_REGISTRY_DOWNLOAD_BASE_URL}" \
+              --index-fragment "${FRAGMENT}"
 
             python scripts/update-registry-index.py \
               --index-path "${BUNDLED_REGISTRY_INDEX}" \
