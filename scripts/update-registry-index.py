@@ -17,6 +17,9 @@ from icontract import ensure, require
 
 logger = logging.getLogger(__name__)
 
+CORE_BUNDLED_MODULE_IDS = frozenset({"init", "module-registry", "upgrade", "bundle-mapper"})
+CORE_REPOSITORY_DOWNLOAD_URL_PREFIX = "https://github.com/nold-ai/specfact-cli/releases/download/"
+
 
 @beartype
 @require(
@@ -52,7 +55,19 @@ def _load_entry(entry_fragment: Path) -> dict[str, Any]:
     missing = [key for key in required_keys if not entry.get(key)]
     if missing:
         raise ValueError(f"Entry fragment missing required keys: {', '.join(missing)}")
+    _validate_entry_scope(entry)
     return entry
+
+
+@beartype
+def _validate_entry_scope(entry: dict[str, Any]) -> None:
+    """Reject core bundled module entries that are not scoped to the core repository."""
+    module_id = str(entry["id"])
+    download_url = str(entry["download_url"])
+    if module_id in CORE_BUNDLED_MODULE_IDS and not download_url.startswith(CORE_REPOSITORY_DOWNLOAD_URL_PREFIX):
+        raise ValueError(
+            f"Core bundled module entry {module_id!r} must reference nold-ai/specfact-cli, got {download_url!r}"
+        )
 
 
 def _entry_sort_key(item: object) -> str:
