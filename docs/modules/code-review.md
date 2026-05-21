@@ -1,13 +1,13 @@
 ---
 layout: default
 title: Code Review Module
-description: Install and use the official specfact-code-review module scaffold.
+description: Install and use the official specfact-code-review module for structured review execution, scoring, advisory cleanup, and reporting.
 permalink: /modules/code-review/
 ---
 
 ## Code Review Module
 
-The `nold-ai/specfact-code-review` module extends `specfact code` with a governed `review` subgroup for structured review execution, scoring, and reporting.
+The `nold-ai/specfact-code-review` module extends `specfact code` with a governed `review` subgroup for structured review execution, scoring, advisory cleanup, and reporting.
 
 ## Install
 
@@ -29,7 +29,35 @@ The scaffold adds these review entrypoints:
 - `specfact code review ledger`
 - `specfact code review rules`
 
-This change delivers the command scaffold and the review data model foundation. Runtime review execution and ledger/rules behavior can be layered on in later changes.
+For bundle-deep command usage, keep the modules docs open alongside this core handoff page. The modules quickstart for AI-shaped bloat cleanup lives at [modules.specfact.io/quickstart-ai-bloat/](https://modules.specfact.io/quickstart-ai-bloat/).
+
+## AI-shaped bloat advisories
+
+The review pipeline emits `ai_bloat` findings for code shapes commonly amplified by AI-assisted generation: manual append loops, passthrough lambdas, identity `try`/`except` blocks, one-call wrappers, speculative `Optional[...] = None` parameters, duplicate terminal guards, long low-branch functions, and redundant intermediates.
+
+These findings are:
+
+- `severity=info`
+- advisory-only and exempt from the normal `info: -1` scoring deduction
+- score-neutral even though they use `severity=info`
+- written to `.specfact/code-review.json` when the report includes all severities
+
+They are bloat-shape detection, not AI-authorship detection. Use them as cleanup candidates and confirm each rewrite in your IDE.
+
+Run the review with JSON output:
+
+```bash
+specfact code review run --json --out .specfact/code-review.json
+```
+
+Then run `/specfact.08-simplify` after installing or refreshing Project bundle IDE prompts:
+
+```bash
+specfact module install nold-ai/specfact-project
+specfact init ide
+```
+
+The prompt reads `.specfact/code-review.json`, filters `category=ai_bloat`, groups findings by file and rule, and asks before applying each simplification.
 
 ## Scoring Algorithm
 
