@@ -12,11 +12,12 @@ doc_owner: specfact-cli
 tracks:
   - src/specfact_cli/**
   - openspec/**
-last_reviewed: 2026-04-02
+last_reviewed: 2026-05-21
 exempt: false
 exempt_reason: ""
 ---
 
+<!-- markdownlint-disable-next-line MD025 -->
 # 5-Minute Quickstart
 
 Get from zero to a **scored code review** in a few commands. This path is aimed at developers who want one command and one clear result before reading about modules, profiles, or architecture.
@@ -43,6 +44,14 @@ uvx specfact-cli code review run --path . --scope full
 ```
 
 You should see a **Verdict**, **Score**, and findings. That is the fastest “aha” path on a real codebase.
+
+If the Code Review bundle reports `category=ai_bloat`, treat those entries as cleanup candidates, not proof of AI authorship. They are `severity=info`, advisory-only, and score-neutral. Write the JSON report, then use `/specfact.08-simplify` from your IDE prompts to review each proposed simplification:
+
+```bash
+uvx specfact-cli code review run --json --out .specfact/code-review.json --path . --scope full
+```
+
+For the focused walkthrough, see the [AI bloat quickstart](https://modules.specfact.io/quickstart-ai-bloat/) on the modules docs site.
 
 ## Step 3: Install SpecFact locally (optional)
 
