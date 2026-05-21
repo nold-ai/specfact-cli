@@ -10,11 +10,12 @@ doc_owner: specfact-cli
 tracks:
   - src/specfact_cli/**
   - openspec/**
-last_reviewed: 2026-04-02
+last_reviewed: 2026-05-21
 exempt: false
 exempt_reason: ""
 ---
 
+<!-- markdownlint-disable-next-line MD025 -->
 # SpecFact CLI Documentation
 
 **Review AI-assisted code against your own contracts.**
@@ -32,6 +33,8 @@ You should see a **Verdict**, a **Score**, and a list of findings on a real repo
 fastest way to see SpecFact on existing code. [Read the full quickstart →](/getting-started/quickstart/)
 
 SpecFact does **not** include built-in AI. It pairs deterministic CLI commands with your chosen IDE and copilot so fast-moving work has a stronger validation and alignment layer around it.
+
+**New in Code Review:** `ai_bloat` advisories flag bloated shapes commonly produced during AI-assisted coding, then feed the `/specfact.08-simplify` IDE prompt for human-confirmed cleanup. They are advisory, score-neutral, and do not classify whether code was written by AI. [Try the AI bloat quickstart on modules.specfact.io](https://modules.specfact.io/quickstart-ai-bloat/).
 
 **SpecFact is the validation and alignment layer for software delivery.**
 

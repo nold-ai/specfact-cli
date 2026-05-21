@@ -59,6 +59,8 @@ specfact code review run --path . --scope full
 
 The sample output comes from a pinned capture against `nold-ai/specfact-demo-repo`. Reproduce it with `docs/_support/readme-first-contact/capture-readme-output.sh`; capture metadata lives alongside the raw logs in `docs/_support/readme-first-contact/sample-output/`.
 
+The Code Review bundle also reports `ai_bloat` advisories for code shapes that AI-assisted coding often amplifies, such as redundant wrappers, passthrough lambdas, identity `try`/`except` blocks, and avoidable intermediate lists. These findings are advisory, score-neutral, and not AI-authorship detection. Use the generated `.specfact/code-review.json` report with the Project bundle's `/specfact.08-simplify` IDE prompt to review each cleanup before accepting it. See the [AI bloat quickstart](https://modules.specfact.io/quickstart-ai-bloat/) on the modules docs site.
+
 ## What SpecFact does
 
 - **Reviews AI-assisted changes deterministically** — compare code against contracts, clean-code rules, and policy gates

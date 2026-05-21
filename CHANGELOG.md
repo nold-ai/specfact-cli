@@ -10,6 +10,22 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.46.28] - 2026-05-21
+
+### Changed
+
+- **Code Review AI bloat guidance**: add core README and docs callouts for
+  `ai_bloat` advisory findings and the `/specfact.08-simplify` IDE prompt,
+  framing them as score-neutral, human-confirmed cleanup candidates rather
+  than AI-authorship detection.
+
+### Fixed
+
+- **Core CLI release metadata**: patch-bump the core package after syncing the
+  latest `main` fix back toward `dev` so the next release can publish cleanly.
+
+---
+
 ## [0.46.27] - 2026-05-20
 
 ### Fixed
