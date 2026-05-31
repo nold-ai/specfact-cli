@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "specfact-cli"
-version = "0.46.28"
+version = "0.47.0"
 description = "The swiss knife CLI for agile DevOps teams. Keep backlog, specs, tests, and code in sync with validation and contract enforcement for new projects and long-lived codebases."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -247,12 +247,15 @@ yaml-check-all = "bash scripts/yaml-tools.sh check-all {args}"
 # Docs validation (docs-12): command examples vs CLI; modules.specfact.io URLs in docs
 check-docs-commands = "python scripts/check-docs-commands.py"
 check-cross-site-links = "python scripts/check-cross-site-links.py"
+generate-command-overview = "python scripts/generate-command-overview.py --write"
+check-command-overview = "python scripts/generate-command-overview.py --check"
+check-command-contract = "python scripts/check-command-contract.py"
 doc-frontmatter-check = "python scripts/check_doc_frontmatter.py"
 validate-agent-rule-signals = "python scripts/validate_agent_rule_applies_when.py"
 check-version-sources = "python scripts/check_version_sources.py"
 check-pypi-ahead = "python scripts/check_local_version_ahead_of_pypi.py"
 release = "python scripts/check_local_version_ahead_of_pypi.py && python scripts/check_version_sources.py"
-docs-validate = "python scripts/check-docs-commands.py && python scripts/check-cross-site-links.py --warn-only && python scripts/check_doc_frontmatter.py && python scripts/validate_agent_rule_applies_when.py"
+docs-validate = "python scripts/generate-command-overview.py --check && python scripts/check-command-contract.py && python scripts/check-docs-commands.py && python scripts/check-cross-site-links.py --warn-only && python scripts/check_doc_frontmatter.py && python scripts/validate_agent_rule_applies_when.py"
 
 # Legacy entry (kept for compatibility); prefer `workflows-lint` above
 lint-workflows = "bash scripts/run_actionlint.sh {args}"

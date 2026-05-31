@@ -83,7 +83,7 @@ jobs:
         id: repro
         continue-on-error: true
         run: |
-          specfact repro --verbose --crosshair-required --budget ${{ steps.validation.outputs.budget }} || true
+          specfact code repro --verbose --crosshair-required --budget ${{ steps.validation.outputs.budget }} || true
           echo "exit_code=$?" >> "$GITHUB_OUTPUT"
 
       - name: Find latest repro report

@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import re
 from datetime import UTC, datetime
+from typing import Any, cast
 from unittest.mock import MagicMock
 
 import click
@@ -83,7 +84,7 @@ def _strip_ansi(text: str) -> str:
 def _get_daily_command_option_names() -> set[str]:
     """Return all option names registered on `specfact backlog daily` (from CLI help or command tree)."""
     root_cmd = typer.main.get_command(app)
-    root_ctx = click.Context(root_cmd)
+    root_ctx = click.Context(cast(Any, root_cmd))
     backlog_cmd = root_cmd.get_command(root_ctx, "backlog")
     assert backlog_cmd is not None, "root should have 'backlog' command"
     backlog_ctx = click.Context(backlog_cmd)
@@ -118,30 +119,24 @@ def _item(
     title: str = "Item",
     state: str = "open",
     updated_at: datetime | None = None,
-    assignees: list[str] | None = None,
-    body_markdown: str = "",
-    iteration: str | None = None,
-    sprint: str | None = None,
-    priority: int | None = None,
-    business_value: int | None = None,
-    story_points: int | None = None,
-    acceptance_criteria: str | None = None,
+    **overrides: Any,
 ) -> BacklogItem:
+    assignees = cast(list[str] | None, overrides.get("assignees"))
     return BacklogItem(
         id=id_,
         provider="github",
         url=f"https://github.com/o/r/issues/{id_}",
         title=title,
-        body_markdown=body_markdown,
+        body_markdown=cast(str, overrides.get("body_markdown", "")),
         state=state,
         assignees=assignees or [],
         updated_at=updated_at or datetime.now(UTC),
-        iteration=iteration,
-        sprint=sprint,
-        priority=priority,
-        business_value=business_value,
-        story_points=story_points,
-        acceptance_criteria=acceptance_criteria,
+        iteration=cast(str | None, overrides.get("iteration")),
+        sprint=cast(str | None, overrides.get("sprint")),
+        priority=cast(int | None, overrides.get("priority")),
+        business_value=cast(int | None, overrides.get("business_value")),
+        story_points=cast(int | None, overrides.get("story_points")),
+        acceptance_criteria=cast(str | None, overrides.get("acceptance_criteria")),
     )
 
 

@@ -130,14 +130,14 @@ The new numbered commands follow natural workflow progression:
 **Before** (positional argument):
 
 ```bash
-# Old: project plan init (removed) → use: specfact code import legacy-api --repo .
+# Old: project plan init (removed) → use: specfact code import --repo . legacy-api
 # Old: project plan review (removed) → use: specfact project devops-flow --stage develop --bundle legacy-api
 ```
 
 **After** (named parameter):
 
 ```bash
-specfact code import legacy-api --repo .
+specfact code import --repo . legacy-api
 specfact project devops-flow --stage develop --bundle legacy-api
 ```
 
@@ -205,7 +205,7 @@ Example: 'specfact constitution bootstrap' → 'specfact sdd constitution bootst
 ### Brownfield Import Workflow
 
 ```bash
-specfact code import legacy-api --repo .
+specfact code import --repo . legacy-api
 specfact sdd constitution bootstrap --repo .
 specfact project sync bridge --adapter speckit
 ```

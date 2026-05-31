@@ -42,16 +42,16 @@ This reference shows how to test mode detection and command routing in practice.
 
 ```bash
 # Test CI/CD mode explicitly
-hatch run specfact --mode cicd hello
+hatch run specfact --mode cicd module list
 
 # Test CoPilot mode explicitly
-hatch run specfact --mode copilot hello
+hatch run specfact --mode copilot module list
 
 # Test invalid mode (should fail)
-hatch run specfact --mode invalid hello
+hatch run specfact --mode invalid module list
 
 # Test short form -m flag
-hatch run specfact -m cicd hello
+hatch run specfact -m cicd module list
 ```
 
 ### Quick Test Script
@@ -73,15 +73,15 @@ This script tests all detection scenarios automatically.
 ```bash
 # Set environment variable and test
 export SPECFACT_MODE=copilot
-specfact hello
+specfact module list
 
 # Set to CI/CD mode
 export SPECFACT_MODE=cicd
-specfact hello
+specfact module list
 
 # Unset to test default
 unset SPECFACT_MODE
-specfact hello  # Should default to CI/CD
+specfact module list  # Should default to CI/CD
 ```
 
 ### 3. Test Auto-Detection
@@ -91,15 +91,15 @@ specfact hello  # Should default to CI/CD
 ```bash
 # Simulate CoPilot API available
 export COPILOT_API_URL=https://api.copilot.com
-specfact hello  # Should detect CoPilot mode
+specfact module list  # Should detect CoPilot mode
 
 # Or with token
 export COPILOT_API_TOKEN=token123
-specfact hello  # Should detect CoPilot mode
+specfact module list  # Should detect CoPilot mode
 
 # Or with GitHub Copilot token
 export GITHUB_COPILOT_TOKEN=token123
-specfact hello  # Should detect CoPilot mode
+specfact module list  # Should detect CoPilot mode
 ```
 
 #### Test IDE Detection
@@ -108,17 +108,17 @@ specfact hello  # Should detect CoPilot mode
 # Simulate VS Code environment
 export VSCODE_PID=12345
 export COPILOT_ENABLED=true
-specfact hello  # Should detect CoPilot mode
+specfact module list  # Should detect CoPilot mode
 
 # Simulate Cursor environment
 export CURSOR_PID=12345
 export CURSOR_COPILOT_ENABLED=true
-specfact hello  # Should detect CoPilot mode
+specfact module list  # Should detect CoPilot mode
 
 # Simulate VS Code via TERM_PROGRAM
 export TERM_PROGRAM=vscode
 export VSCODE_COPILOT_ENABLED=true
-specfact hello  # Should detect CoPilot mode
+specfact module list  # Should detect CoPilot mode
 ```
 
 ### 4. Test Priority Order
@@ -126,11 +126,11 @@ specfact hello  # Should detect CoPilot mode
 ```bash
 # Test that explicit flag overrides environment
 export SPECFACT_MODE=copilot
-specfact --mode cicd hello  # Should use CI/CD mode (flag wins)
+specfact --mode cicd module list  # Should use CI/CD mode (flag wins)
 
 # Test that explicit flag overrides auto-detection
 export COPILOT_API_URL=https://api.copilot.com
-specfact --mode cicd hello  # Should use CI/CD mode (flag wins)
+specfact --mode cicd module list  # Should use CI/CD mode (flag wins)
 ```
 
 ### 5. Test Default Behavior
@@ -143,7 +143,7 @@ unset COPILOT_API_TOKEN
 unset GITHUB_COPILOT_TOKEN
 unset VSCODE_PID
 unset CURSOR_PID
-specfact hello  # Should default to CI/CD mode
+specfact module list  # Should default to CI/CD mode
 ```
 
 ## Python Interactive Testing
@@ -229,7 +229,7 @@ print(f'Execution mode: {result.execution_mode}')
 # In GitHub Actions or CI/CD
 # No environment variables set
 # Should auto-detect CI/CD mode (bundle name as positional argument)
-hatch run specfact code import my-project --repo . --confidence 0.7
+hatch run specfact code import --repo . my-project --confidence 0.7
 
 # Expected: Mode: CI/CD (direct execution)
 ```
@@ -240,7 +240,7 @@ hatch run specfact code import my-project --repo . --confidence 0.7
 # Developer running in VS Code/Cursor with CoPilot enabled
 # IDE environment variables automatically set
 # Should auto-detect CoPilot mode (bundle name as positional argument)
-hatch run specfact code import my-project --repo . --confidence 0.7
+hatch run specfact code import --repo . my-project --confidence 0.7
 
 # Expected: Mode: CoPilot (agent routing)
 ```
@@ -266,31 +266,31 @@ echo "=== Testing Mode Detection ==="
 echo
 
 echo "1. Testing explicit CI/CD mode:"
-specfact --mode cicd hello
+specfact --mode cicd module list
 echo
 
 echo "2. Testing explicit CoPilot mode:"
-specfact --mode copilot hello
+specfact --mode copilot module list
 echo
 
 echo "3. Testing invalid mode (should fail):"
-specfact --mode invalid hello 2>&1 || echo "✓ Failed as expected"
+specfact --mode invalid module list 2>&1 || echo "✓ Failed as expected"
 echo
 
 echo "4. Testing SPECFACT_MODE environment variable:"
 export SPECFACT_MODE=copilot
-specfact hello
+specfact module list
 unset SPECFACT_MODE
 echo
 
 echo "5. Testing CoPilot API detection:"
 export COPILOT_API_URL=https://api.copilot.com
-specfact hello
+specfact module list
 unset COPILOT_API_URL
 echo
 
 echo "6. Testing default (no overrides):"
-specfact hello
+specfact module list
 echo
 
 echo "=== All Tests Complete ==="

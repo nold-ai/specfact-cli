@@ -46,6 +46,8 @@ specfact init
 specfact init ide --ide cursor
 specfact init ide --ide vscode
 specfact init ide --ide copilot
+specfact init ide --ide codex
+specfact init ide --ide claude-skills
 
 # Install required packages for contract enhancement
 specfact init ide --ide cursor --install-deps
@@ -56,7 +58,7 @@ specfact init ide --ide cursor --install-deps
 1. Detects your IDE (or uses `--ide` flag)
 2. Copies prompt templates from installed bundle modules (or an optional dev checkout under `resources/prompts/`) to the IDE-specific location
 3. Creates/updates IDE settings if needed
-4. Makes slash commands available in your IDE
+4. Makes slash commands or grouped AI skills available in your IDE
 5. Optionally installs required packages (`beartype`, `icontract`, `crosshair-tool`, `pytest`)
 
 **Related**: [IDE Integration Guide](ide-integration.md) - Complete setup instructions
@@ -113,7 +115,7 @@ graph TD
 
 ```bash
 # Import from codebase
-specfact code import my-project --repo .
+specfact code import --repo . my-project
 
 # Run validation to find gaps
 specfact code repro --verbose
@@ -196,7 +198,7 @@ The AI IDE workflow integrates with several command chains:
 
 ```bash
 # 1. Analyze codebase
-specfact code import legacy-api --repo .
+specfact code import --repo . legacy-api
 
 # 2. Find gaps
 specfact code repro --verbose

@@ -36,7 +36,7 @@ Please check all that apply:
 - [ ] **Contract validation**: `hatch run contract-test-contracts` ✅
 - [ ] **Contract exploration**: `hatch run contract-test-exploration` ✅
 - [ ] **Scenario tests**: `hatch run contract-test-scenarios` ✅
-- [ ] **Full test suite**: `hatch run contract-test-full` ✅
+- [ ] **Full test suite**: `hatch run smart-test-full` ✅
 
 ### Test Quality
 

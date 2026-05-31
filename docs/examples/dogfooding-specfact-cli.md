@@ -31,7 +31,7 @@ We built SpecFact CLI and wanted to validate that it actually works in the real 
 First, we analyzed the existing codebase to see what features it discovered:
 
 ```bash
-specfact code import specfact-cli --repo . --confidence 0.5
+specfact code import --repo . specfact-cli --confidence 0.5
 ```
 
 **Output**:
@@ -538,7 +538,7 @@ These are **actual questions** that need answers, not false positives!
 
 ```bash
 # 1. Analyze existing codebase (3 seconds)
-specfact code import specfact-cli --repo . --confidence 0.5
+specfact code import --repo . specfact-cli --confidence 0.5
 # ✅ Discovers 19 features, 49 stories
 
 # 2. Set quality gates (1 second)

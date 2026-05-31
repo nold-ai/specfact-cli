@@ -79,7 +79,7 @@ When modernizing legacy code, you can use **both tools together** for maximum va
 
 ```bash
 # Step 1: Use SpecFact to extract specs from legacy code
-specfact code import customer-portal --repo ./legacy-app
+specfact code import --repo ./legacy-app customer-portal
 
 # Output: Auto-generated project bundle from existing code
 # ✅ Analyzed 47 Python files

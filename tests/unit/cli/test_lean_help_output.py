@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any, cast
+
 import click
 import pytest
 import typer
@@ -78,7 +80,7 @@ def test_specfact_help_contains_init_hint() -> None:
 def test_root_group_unknown_bundle_command_shows_install_guidance(capsys: pytest.CaptureFixture[str]) -> None:
     """Unknown bundle commands should show install guidance instead of raw Click errors."""
     group = _RootCLIGroup(name="specfact")
-    ctx = click.Context(group)
+    ctx = click.Context(cast(Any, group))
 
     with pytest.raises(SystemExit) as exc_info:
         group.resolve_command(ctx, ["backlog", "--help"])
@@ -94,7 +96,7 @@ def test_root_group_unknown_bundle_command_shows_install_guidance(capsys: pytest
 def test_root_group_unknown_code_shows_specfact_codebase_module(capsys: pytest.CaptureFixture[str]) -> None:
     """Missing `code` group should name nold-ai/specfact-codebase (not the VS Code `code` CLI)."""
     group = _RootCLIGroup(name="specfact")
-    ctx = click.Context(group)
+    ctx = click.Context(cast(Any, group))
 
     with pytest.raises(SystemExit) as exc_info:
         group.resolve_command(ctx, ["code", "--help"])
@@ -144,6 +146,27 @@ def test_lazy_delegate_forwards_bare_subcommand_without_options() -> None:
 
     assert result.exit_code == 0
     assert "listed" in result.output
+
+
+def test_lazy_delegate_bare_group_shows_full_help_and_missing_subcommand() -> None:
+    """Bare lazy groups should show real help, explicit missing-subcommand guidance, and full command path."""
+    result = runner.invoke(app, ["module"], catch_exceptions=False)
+
+    assert result.exit_code == 2
+    assert "Usage: specfact module" in result.output
+    assert "Manage marketplace modules" in result.output
+    assert "Missing subcommand" in result.output
+    assert "list" in result.output
+
+
+def test_lazy_delegate_missing_option_value_shows_leaf_help() -> None:
+    """Dangling option values must render the delegated leaf help, not the wrapper usage."""
+    result = runner.invoke(app, ["module", "install", "--scope"], catch_exceptions=False)
+
+    assert result.exit_code == 2
+    assert "Usage: specfact module install" in result.output
+    assert "Option '--scope' requires an argument" in result.output
+    assert "MODULE_IDS" in result.output
 
 
 def test_lazy_delegate_help_falls_back_when_typer_command_build_fails(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -10,6 +10,35 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.47.0] - 2026-06-01
+
+### Added
+
+- **Generated command overview**: add source-derived `llms.txt` and generated
+  command reference artifacts so agents, docs checks, and CI validate against
+  the same current CLI surface.
+- **Runtime package-manager smoke gate**: add real-world launcher validation for
+  direct, Hatch, uv, pip, and pipx-style execution paths covering init, module,
+  upgrade, import, and export flows.
+
+### Changed
+
+- **Command validation gates**: make pre-commit and PR validation regenerate and
+  verify command artifacts before docs, prompts, and tests can pass.
+
+### Fixed
+
+- **CLI misuse guidance**: render contextual help plus the concrete missing
+  subcommand, parameter, option value, or unknown-command guidance across core
+  and module command groups.
+- **Pipx upgrade launcher repair**: validate `specfact --version` after a
+  successful pipx upgrade and run `pipx reinstall specfact-cli` when the
+  console launcher still points at a stale or missing pipx venv.
+- **Legacy flat command references**: remove stale shim expectations from docs,
+  tests, and templates in favor of the current namespaced command surface.
+
+---
+
 ## [0.46.28] - 2026-05-21
 
 ### Changed

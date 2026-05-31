@@ -135,6 +135,62 @@ def test_copy_prompts_by_source_to_ide_removes_unselected_module_exports_from_fl
     assert not (cmd_dir / "specfact.backlog-add.md").exists()
 
 
+def test_copy_prompts_by_source_to_codex_exports_grouped_skills(tmp_path: Path) -> None:
+    """Codex receives capability-oriented skills grouped by source/module."""
+    prompts = tmp_path / "resources" / "prompts"
+    prompts.mkdir(parents=True)
+    f1 = prompts / "specfact.01-import.md"
+    f1.write_text("---\ndescription: A\n---\n# A\n", encoding="utf-8")
+    f2 = prompts / "specfact.validate.md"
+    f2.write_text("---\ndescription: B\n---\n# B\n", encoding="utf-8")
+
+    mod_dir = tmp_path / "mod" / "resources" / "prompts"
+    mod_dir.mkdir(parents=True)
+    f3 = mod_dir / "specfact.backlog-add.md"
+    f3.write_text("---\ndescription: C\n---\n# C\n", encoding="utf-8")
+
+    copied, _settings = copy_prompts_by_source_to_ide(
+        tmp_path,
+        "codex",
+        {PROMPT_SOURCE_CORE: [f1, f2], "nold-ai/specfact-backlog": [f3]},
+        force=True,
+    )
+
+    skills_dir = tmp_path / ".codex" / "skills"
+    assert copied == [
+        skills_dir / "specfact-cli" / "SKILL.md",
+        skills_dir / "specfact-backlog" / "SKILL.md",
+    ]
+    assert not (skills_dir / "specfact.01-import").exists()
+    core_skill = (skills_dir / "specfact-cli" / "SKILL.md").read_text(encoding="utf-8")
+    module_skill = (skills_dir / "specfact-backlog" / "SKILL.md").read_text(encoding="utf-8")
+    assert "## specfact.01-import" in core_skill
+    assert "## specfact.validate" in core_skill
+    assert "## specfact.backlog-add" in module_skill
+
+
+def test_copy_prompts_by_source_to_codex_prunes_stale_per_prompt_skill_exports(tmp_path: Path) -> None:
+    """A grouped skill export removes stale per-prompt skill folders from earlier previews."""
+    prompts = tmp_path / "resources" / "prompts"
+    prompts.mkdir(parents=True)
+    f1 = prompts / "specfact.01-import.md"
+    f1.write_text("---\ndescription: A\n---\n# A\n", encoding="utf-8")
+
+    stale = tmp_path / ".codex" / "skills" / "specfact.01-import" / "SKILL.md"
+    stale.parent.mkdir(parents=True)
+    stale.write_text("stale\n", encoding="utf-8")
+    owned = tmp_path / ".codex" / "skills" / "openspec-workflows" / "SKILL.md"
+    owned.parent.mkdir(parents=True)
+    owned.write_text("owned\n", encoding="utf-8")
+
+    copy_prompts_by_source_to_ide(tmp_path, "codex", {PROMPT_SOURCE_CORE: [f1]}, force=True)
+
+    assert not stale.exists()
+    assert not stale.parent.exists()
+    assert owned.exists()
+    assert (tmp_path / ".codex" / "skills" / "specfact-cli" / "SKILL.md").exists()
+
+
 def test_parse_prompts_option_all_expands_to_full_catalog() -> None:
     fake_catalog = {
         PROMPT_SOURCE_CORE: [],

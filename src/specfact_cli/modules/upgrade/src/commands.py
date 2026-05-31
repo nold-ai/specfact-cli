@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import os
 import shlex
+import shutil
 import subprocess
 import sys
 from datetime import UTC
@@ -64,6 +65,10 @@ def detect_installation_method() -> InstallationMethod:
         return uvx_method
 
     uv_method = _detect_uv_project_installation(executable_path)
+    if uv_method:
+        return uv_method
+
+    uv_method = _detect_uv_run_installation(executable_path)
     if uv_method:
         return uv_method
 
@@ -123,6 +128,18 @@ def _detect_uv_project_installation(executable_path: str) -> InstallationMethod 
                 location=executable_text,
             )
     return None
+
+
+def _detect_uv_run_installation(executable_path: str) -> InstallationMethod | None:
+    uv_context_keys = ("UV_RUN_RECURSION", "UV")
+    if not any(os.environ.get(key, "").strip() for key in uv_context_keys):
+        return None
+    executable_text = str(Path(executable_path))
+    return InstallationMethod(
+        method="uv",
+        command=f"uv pip install --python {shlex.quote(executable_text)} --upgrade specfact-cli",
+        location=executable_text,
+    )
 
 
 def _detect_uv_tool_installation() -> InstallationMethod | None:
@@ -245,6 +262,8 @@ def _execute_upgrade_command(command: list[str]) -> bool:
         stderr = _filter_pipx_spaced_home_warning(stderr)
     _replay_upgrade_output(stdout)
     _replay_upgrade_output(stderr)
+    if _is_pipx_upgrade_command(command) and not _ensure_pipx_launcher_healthy():
+        return False
     console.print("[green]✓ Update successful![/green]")
     from datetime import datetime
 
@@ -267,6 +286,59 @@ def _coerce_subprocess_output(output: object) -> str:
 def _is_pipx_upgrade_command(command: list[str]) -> bool:
     """Return whether command is the supported pipx upgrade invocation."""
     return len(command) >= 3 and command[:3] == ["pipx", "upgrade", "specfact-cli"]
+
+
+def _ensure_pipx_launcher_healthy() -> bool:
+    """Validate the public specfact launcher after pipx upgrade and repair stale shims."""
+    launcher = shutil.which("specfact")
+    if not launcher:
+        console.print(
+            "[yellow]⚠ Could not find `specfact` on PATH after pipx upgrade; skipping launcher validation.[/yellow]"
+        )
+        return True
+
+    first_check = _run_launcher_version_check(launcher)
+    if first_check.returncode == 0:
+        _replay_upgrade_output(_coerce_subprocess_output(first_check.stdout))
+        _replay_upgrade_output(_coerce_subprocess_output(first_check.stderr))
+        return True
+
+    console.print("[yellow]⚠ pipx launcher is stale or broken; running `pipx reinstall specfact-cli`.[/yellow]")
+    _replay_upgrade_output(_coerce_subprocess_output(first_check.stdout))
+    _replay_upgrade_output(_coerce_subprocess_output(first_check.stderr))
+    reinstall = _run_pipx_reinstall()
+    _replay_upgrade_output(_coerce_subprocess_output(reinstall.stdout))
+    _replay_upgrade_output(_coerce_subprocess_output(reinstall.stderr))
+    if reinstall.returncode != 0:
+        console.print(f"[red]✗ pipx reinstall specfact-cli failed with exit code {reinstall.returncode}[/red]")
+        return False
+
+    second_check = _run_launcher_version_check(launcher)
+    _replay_upgrade_output(_coerce_subprocess_output(second_check.stdout))
+    _replay_upgrade_output(_coerce_subprocess_output(second_check.stderr))
+    if second_check.returncode != 0:
+        console.print("[red]✗ pipx launcher still fails after reinstall[/red]")
+        return False
+    console.print("[green]✓ pipx launcher repaired and validated[/green]")
+    return True
+
+
+def _run_launcher_version_check(launcher: str) -> subprocess.CompletedProcess[bytes]:
+    """Run the installed launcher version check without invoking a shell."""
+    try:
+        return subprocess.run([launcher, "--version"], check=False, timeout=30, capture_output=True)
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        return subprocess.CompletedProcess([launcher, "--version"], 1, stdout=b"", stderr=str(exc).encode())
+
+
+def _run_pipx_reinstall() -> subprocess.CompletedProcess[bytes]:
+    """Repair a stale pipx launcher by reinstalling the package."""
+    try:
+        return subprocess.run(["pipx", "reinstall", "specfact-cli"], check=False, timeout=300, capture_output=True)
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        return subprocess.CompletedProcess(
+            ["pipx", "reinstall", "specfact-cli"], 1, stdout=b"", stderr=str(exc).encode()
+        )
 
 
 def _replay_upgrade_output(output: str) -> None:

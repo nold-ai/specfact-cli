@@ -233,7 +233,7 @@ uvx specfact-cli@latest --no-banner code import from-code --repo . --output-form
 - **First-time setup**: Omit `--no-banner` to see the banner (verification, `specfact init`, `specfact --version`)
 - **Repeated runs**: Use `--no-banner` **before** the command to suppress banner output
 - **Important**: `--no-banner` is a global parameter and must come **before** the subcommand, not after
-  - ✅ Correct: `specfact --no-banner enforce stage --preset balanced`
+  - ✅ Correct: `specfact --no-banner govern enforce stage --preset balanced`
   - ✅ Correct: `uvx specfact-cli@latest --no-banner code import from-code --repo . --output-format yaml`
   - ❌ Wrong: `specfact govern enforce stage --preset balanced --no-banner`
   - ❌ Wrong: `uvx specfact-cli@latest code import from-code --repo . --output-format yaml --no-banner`
@@ -309,7 +309,7 @@ Run plan review to identify missing stories, contracts, and other gaps:
 cd /tmp/specfact-integration-tests/example1_vscode
 
 # Run plan review with auto-enrichment to identify gaps (bundle name as positional argument)
-specfact --no-banner plan review django-example \
+specfact --no-banner project health-check --bundle django-example \
   --auto-enrich \
   --no-interactive \
   --list-findings \
@@ -328,7 +328,7 @@ If stories are missing, add them using `plan add-story`:
 
 ```bash
 # Add the async payment processing story (bundle name via --bundle option)
-specfact --no-banner plan add-story \
+specfact --no-banner backlog add --type story \
   --bundle django-example \
   --feature FEATURE-PAYMENTVIEW \
   --key STORY-PAYMENT-ASYNC \
@@ -338,7 +338,7 @@ specfact --no-banner plan add-story \
   --value-points 10
 
 # Add other stories as needed (Payment Status API, Cancel Payment, Create Payment)
-specfact --no-banner plan add-story \
+specfact --no-banner backlog add --type story \
   --bundle django-example \
   --feature FEATURE-PAYMENTVIEW \
   --key STORY-PAYMENT-STATUS \
@@ -356,7 +356,7 @@ After adding stories, verify the plan bundle is complete:
 
 ```bash
 # Re-run plan review to verify all critical items are resolved
-specfact --no-banner plan review django-example \
+specfact --no-banner project health-check --bundle django-example \
   --no-interactive \
   --list-findings \
   --findings-format json
@@ -373,7 +373,7 @@ specfact --no-banner plan review django-example \
 #### Step 3.4: Set Up Enforcement Configuration
 
 ```bash
-specfact --no-banner enforce stage --preset balanced
+specfact --no-banner govern enforce stage --preset balanced
 ```
 
 **What to Look For**:
@@ -405,7 +405,7 @@ mkdir -p src tests tools/semgrep
 **Run Validation**:
 
 ```bash
-specfact --no-banner repro --repo . --budget 60
+specfact --no-banner code repro --repo . --budget 60
 ```
 
 **What to Look For**:
@@ -415,7 +415,7 @@ specfact --no-banner repro --repo . --budget 60
 - ✅ Detects blocking calls in async context (if violations exist)
 - ✅ Reports violations with severity levels
 - ⚠️ If Semgrep is not installed or config doesn't exist, this check will be skipped
-- 💡 Use `--verbose` flag to see detailed Semgrep output: `specfact --no-banner repro --repo . --budget 60 --verbose`
+- 💡 Use `--verbose` flag to see detailed Semgrep output: `specfact --no-banner code repro --repo . --budget 60 --verbose`
 
 **Expected Output Format** (summary table):
 
@@ -456,14 +456,14 @@ Async patterns (semgrep) Error:
 - Detailed Semgrep output (scan status, findings) is only shown with `--verbose` flag
 - If Semgrep is not installed or config doesn't exist, the check will be skipped
 - The enforcement workflow still works via `plan compare`, which validates acceptance criteria in the plan bundle
-- Use `--fix` flag to apply Semgrep auto-fixes: `specfact --no-banner repro --repo . --budget 60 --fix`
+- Use `--fix` flag to apply Semgrep auto-fixes: `specfact --no-banner code repro --repo . --budget 60 --fix`
 
 #### Alternative: Use Plan Compare for Contract Validation
 
 You can also use `plan compare` to detect deviations between code and plan contracts:
 
 ```bash
-specfact --no-banner plan compare --code-vs-plan
+specfact --no-banner code drift detect auto-derived --repo .
 ```
 
 This compares the current code state against the plan bundle contracts and reports any violations.
@@ -475,7 +475,7 @@ Now let's test that enforcement actually works by comparing plans and detecting 
 ```bash
 # Test plan comparison with enforcement (bundle directory paths)
 cd /tmp/specfact-integration-tests/example1_vscode
-specfact --no-banner plan compare \
+specfact --no-banner code drift detect auto-derived \
   --manual .specfact/projects/django-example \
   --auto .specfact/projects/django-example-auto
 ```
@@ -712,7 +712,7 @@ Updates Applied:
 cd /tmp/specfact-integration-tests/example2_cursor
 
 # Review plan with auto-enrichment (bundle name as positional argument)
-specfact --no-banner plan review data-processing-or-legacy-data-pipeline \
+specfact --no-banner project health-check --bundle data-processing-or-legacy-data-pipeline \
   --auto-enrich \
   --no-interactive \
   --list-findings \
@@ -735,7 +735,7 @@ After plan review is complete and all critical issues are resolved, configure en
 
 ```bash
 cd /tmp/specfact-integration-tests/example2_cursor
-specfact --no-banner enforce stage --preset balanced
+specfact --no-banner govern enforce stage --preset balanced
 ```
 
 **Expected Output**:
@@ -770,7 +770,7 @@ Test that plan comparison works correctly by comparing the enriched plan against
 
 ```bash
 cd /tmp/specfact-integration-tests/example2_cursor
-specfact --no-banner plan compare \
+specfact --no-banner code drift detect auto-derived \
   --manual .specfact/projects/data-processing-or-legacy-data-pipeline \
   --auto .specfact/projects/data-processing-or-legacy-data-pipeline-auto
 ```
@@ -880,7 +880,7 @@ mv src/pipeline_broken.py src/pipeline.py
 specfact --no-banner code import from-code pipeline-broken --repo . --output-format yaml
 
 # 4. Compare new plan (from broken code) against enriched plan
-specfact --no-banner plan compare \
+specfact --no-banner code drift detect auto-derived \
   --manual .specfact/projects/data-processing-or-legacy-data-pipeline \
   --auto .specfact/projects/pipeline-broken
 
@@ -986,7 +986,7 @@ specfact --no-banner code import from-code --repo . --output-format yaml
 
 ```bash
 cd /tmp/specfact-integration-tests/example3_github_actions
-specfact --no-banner enforce stage --preset balanced
+specfact --no-banner govern enforce stage --preset balanced
 ```
 
 **What to Look For**:
@@ -997,7 +997,7 @@ specfact --no-banner enforce stage --preset balanced
 ### Example 3 - Step 5: Run Validation Checks
 
 ```bash
-specfact --no-banner repro --repo . --budget 90
+specfact --no-banner code repro --repo . --budget 90
 ```
 
 **Expected Output Format**:
@@ -1156,10 +1156,10 @@ BUNDLE_NAME="example4_github_actions"
 PLAN_NAME=$(basename "$PLAN_FILE")
 
 # Set it as the active plan (this makes it the default for plan compare)
-specfact --no-banner plan select "$BUNDLE_NAME" --no-interactive
+specfact --no-banner project version check --bundle "$BUNDLE_NAME" --repo .
 
 # Verify it's set as active
-specfact --no-banner plan select --current
+specfact --no-banner project version check --repo .
 ```
 
 **Note**: `plan compare --code-vs-plan` uses the active plan (set via `plan select`) or falls back to the default bundle if no active plan is set. Using `plan select` is the recommended approach as it's cleaner and doesn't require file copying.
@@ -1207,7 +1207,7 @@ Before setting up the pre-commit hook, configure enforcement:
 
 ```bash
 cd /tmp/specfact-integration-tests/example4_precommit
-specfact --no-banner enforce stage --preset balanced
+specfact --no-banner govern enforce stage --preset balanced
 ```
 
 **What to Look For**:
@@ -1229,7 +1229,7 @@ Create `.git/hooks/pre-commit`:
 specfact --no-banner code import from-code --repo . --output-format yaml > /dev/null 2>&1
 
 # Then compare: uses active plan (set via plan select) as manual, latest code-derived plan as auto
-specfact --no-banner plan compare --code-vs-plan
+specfact --no-banner code drift detect auto-derived --repo .
 ```
 
 **What This Does**:
@@ -1409,7 +1409,7 @@ uvx specfact-cli@latest --no-banner contract-test-exploration src/validator.py
 If CrossHair is not available, test with contract enforcement:
 
 ```bash
-specfact --no-banner enforce stage --preset balanced
+specfact --no-banner govern enforce stage --preset balanced
 ```
 
 ### Example 5 - Step 4: Provide Output

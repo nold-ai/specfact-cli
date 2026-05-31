@@ -61,11 +61,11 @@ def suggest_next_steps(repo_path: Path, context: ProjectContext | None = None) -
 
     # Enforcement suggestions
     if context.has_plan and not context.last_enforcement:
-        suggestions.append("specfact enforce sdd --bundle <name>  # Enforce quality gates")
+        suggestions.append("specfact govern enforce sdd <name>  # Enforce quality gates")
 
     # Sync suggestions
     if context.has_plan:
-        suggestions.append("specfact sync intelligent --bundle <name>  # Sync code and specs")
+        suggestions.append("specfact project sync intelligent <name>  # Sync code and specs")
 
     return suggestions
 
@@ -90,7 +90,7 @@ def suggest_fixes(error_message: str, context: ProjectContext | None = None) -> 
 
     # Bundle not found
     if "bundle" in error_lower and ("not found" in error_lower or "does not exist" in error_lower):
-        suggestions.append("specfact plan select  # Select an active plan bundle")
+        suggestions.append("specfact project plan select  # Select an active plan bundle")
         suggestions.append("specfact code import <name> --repo .  # Create a new bundle from code")
 
     # Contract validation errors
@@ -139,7 +139,7 @@ def suggest_improvements(context: ProjectContext) -> list[str]:
 
     # Outdated enforcement
     if context.last_enforcement:
-        suggestions.append("specfact enforce sdd --bundle <name>  # Re-run quality gates")
+        suggestions.append("specfact govern enforce sdd <name>  # Re-run quality gates")
 
     return suggestions
 

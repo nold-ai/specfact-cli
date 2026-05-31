@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import Any, cast
 
@@ -202,10 +203,21 @@ def test_pr_orchestrator_advisory_jobs_are_named_as_advisory() -> None:
 
 
 def test_pr_orchestrator_contract_first_job_uses_hatch_contract_test() -> None:
-    """Contract-first CI should use the hatch contract-test script (no CLI bundle dependency)."""
+    """Contract-first CI should run scoped contract checks, leaving the full suite to smart-test-full."""
     raw = PR_ORCHESTRATOR.read_text(encoding="utf-8")
-    assert "hatch run contract-test" in raw
+    assert "hatch run contract-test-contracts" in raw
+    assert "hatch run contract-test-exploration-fast" in raw
+    assert "hatch run contract-test 2>&1" not in raw
     assert "hatch run specfact repro --verbose --crosshair-required --budget 120" not in raw
+
+
+def test_pr_orchestrator_has_single_full_suite_owner() -> None:
+    """PR validation must not run equivalent full pytest suites through multiple aliases."""
+    raw = PR_ORCHESTRATOR.read_text(encoding="utf-8")
+    full_suite_runs = re.findall(
+        r"(?:python tools/smart_test_coverage\.py run --level full|hatch run test|hatch run contract-test(?!-))", raw
+    )
+    assert full_suite_runs == ["python tools/smart_test_coverage.py run --level full"]
 
 
 def test_module_signature_check_name_is_canonical_across_workflows() -> None:

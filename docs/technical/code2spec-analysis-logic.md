@@ -72,7 +72,7 @@ Uses **Python's AST + Semgrep pattern matching** for comprehensive structural an
 
 ```mermaid
 flowchart TD
-    A["code2spec Command<br/>specfact code import my-project --repo . --confidence 0.5"] --> B{Operational Mode}
+    A["code2spec Command<br/>specfact code import --repo . my-project --confidence 0.5"] --> B{Operational Mode}
     
     B -->|CoPilot Mode| C["AnalyzeAgent (AI-First)<br/>• LLM semantic understanding<br/>• Multi-language support<br/>• Semantic extraction (priorities, constraints, unknowns)<br/>• High-quality Spec-Kit artifacts"]
     

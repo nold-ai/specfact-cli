@@ -16,6 +16,11 @@
 
 </div>
 
+## Command Overview
+
+- [Generated command overview for humans](docs/reference/commands.generated.md)
+- [AI-agent command overview](llms.txt)
+
 ## Try it in 60 seconds
 
 ```bash

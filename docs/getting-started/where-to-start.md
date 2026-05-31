@@ -73,7 +73,7 @@ This is the most common entry point.
 
 1. Install the CLI
 2. Run `specfact init --profile solo-developer`
-3. Run `specfact code import my-project --repo .`
+3. Run `specfact code import --repo . my-project`
 4. Check `specfact code repro --repo .`
 
 Start here:
@@ -133,7 +133,7 @@ specfact module search
 specfact module list
 
 # Analyze the current repository
-specfact code import my-project --repo .
+specfact code import --repo . my-project
 
 # Check resulting state
 specfact code repro --repo .

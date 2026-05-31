@@ -83,7 +83,7 @@ Start: What do you want to accomplish?
 
 ```bash
 # Step 1: Extract specifications from legacy code
-specfact code import legacy-api --repo .
+specfact code import --repo . legacy-api
 
 # Step 2: Review the extracted plan
 specfact project snapshot legacy-api
@@ -209,7 +209,7 @@ graph TD
 ```bash
 # For Code/Spec Adapters (Spec-Kit, OpenSpec, generic-markdown):
 # Step 1: Import from external tool via bridge adapter
-specfact code import from-bridge --repo . --adapter speckit --write
+specfact code import --repo . from-bridge --adapter speckit --write
 
 # Step 2: Review the imported plan
 specfact project snapshot <bundle-name>
@@ -443,7 +443,7 @@ graph LR
 
 ```bash
 # Step 1: Import current code state
-specfact code import current-state --repo .
+specfact code import --repo . current-state
 
 # Step 2: Compare code against plan
 specfact project devops-flow --stage plan --action compare --bundle <plan-bundle> --code-vs-plan
