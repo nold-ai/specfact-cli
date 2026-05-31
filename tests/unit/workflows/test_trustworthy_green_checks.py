@@ -13,6 +13,7 @@ import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 PR_ORCHESTRATOR = REPO_ROOT / ".github" / "workflows" / "pr-orchestrator.yml"
+DOCS_REVIEW = REPO_ROOT / ".github" / "workflows" / "docs-review.yml"
 SIGN_MODULES = REPO_ROOT / ".github" / "workflows" / "sign-modules.yml"
 PUBLISH_MODULES = REPO_ROOT / ".github" / "workflows" / "publish-modules.yml"
 PRE_COMMIT_CONFIG = REPO_ROOT / ".pre-commit-config.yaml"
@@ -218,6 +219,26 @@ def test_pr_orchestrator_has_single_full_suite_owner() -> None:
         r"(?:python tools/smart_test_coverage\.py run --level full|hatch run test|hatch run contract-test(?!-))", raw
     )
     assert full_suite_runs == ["python tools/smart_test_coverage.py run --level full"]
+
+
+def test_core_ci_checks_out_matching_modules_branch_when_available() -> None:
+    """Core PR CI must validate against the paired modules branch before falling back to dev."""
+    raw = PR_ORCHESTRATOR.read_text(encoding="utf-8")
+    assert raw.count("id: modules-ref") == 4
+    assert raw.count("git ls-remote --exit-code --heads https://github.com/nold-ai/specfact-cli-modules.git") == 4
+    assert raw.count('echo "ref=dev" >> "$GITHUB_OUTPUT"') == 4
+    assert raw.count("ref: ${{ steps.modules-ref.outputs.ref }}") == 4
+    assert "ref: ${{ (github.ref == 'refs/heads/main' || github.head_ref == 'main') && 'main' || 'dev' }}" not in raw
+
+
+def test_docs_review_checks_out_matching_modules_branch_when_available() -> None:
+    """Docs command validation must use the same paired modules branch logic as PR CI."""
+    raw = DOCS_REVIEW.read_text(encoding="utf-8")
+    assert raw.count("id: modules-ref") == 1
+    assert "git ls-remote --exit-code --heads https://github.com/nold-ai/specfact-cli-modules.git" in raw
+    assert 'echo "ref=dev" >> "$GITHUB_OUTPUT"' in raw
+    assert "ref: ${{ steps.modules-ref.outputs.ref }}" in raw
+    assert "ref: ${{ (github.ref == 'refs/heads/main' || github.head_ref == 'main') && 'main' || 'dev' }}" not in raw
 
 
 def test_module_signature_check_name_is_canonical_across_workflows() -> None:
