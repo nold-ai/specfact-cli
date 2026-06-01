@@ -161,6 +161,7 @@
 - Updated `test_init_commands_avoid_private_typer_click_import` to read the imported commands module source path instead of assuming pytest runs from the repository root.
 - Updated `.github/workflows/specfact.yml` to resolve the matching modules branch, fall back to `dev`, check out `nold-ai/specfact-cli-modules` with pinned `actions/checkout`, and export `SPECFACT_MODULES_REPO` before contract validation.
 - After rerunning Contract Validation, added `SPECFACT_MODULES_ROOTS=${GITHUB_WORKSPACE}/specfact-cli-modules/packages` because runtime module discovery uses module roots, while `SPECFACT_MODULES_REPO` alone is only repository/path context.
+- Corrected the Example 4 integration-showcase docs snippet to use the `example4_precommit` bundle name and remove the undefined `PLAN_FILE`/duplicate health-check lines.
 - Added `test_specfact_contract_workflow_checks_out_matching_modules_branch_when_available`.
 - Refreshed core generated command artifacts after the paired modules branch introduced `specfact code review run --enforcement`.
 - Follow-up verification:

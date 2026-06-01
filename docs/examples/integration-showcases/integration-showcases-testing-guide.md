@@ -1150,15 +1150,11 @@ specfact --no-banner code import from-code --repo . --output-format yaml
 **Important**: After creating the initial plan, keep the bundle name explicit for later drift comparison steps:
 
 ```bash
-# Find the created plan bundle
-# Use bundle name directly (no need to find file)
-BUNDLE_NAME="example4_github_actions"
-PLAN_NAME=$(basename "$PLAN_FILE")
+# Use the exact bundle name created in Step 2.
+# Keep this value consistent in later drift commands.
+BUNDLE_NAME="example4_precommit"
 
-# Verify the bundle that later comparison steps will use explicitly
-specfact --no-banner project health-check --project-name "$BUNDLE_NAME" --repo .
-
-# Verify the project command surface remains available in this repo
+# Verify the baseline bundle exists before later comparison steps.
 specfact --no-banner project health-check --project-name "$BUNDLE_NAME" --repo .
 ```
 
