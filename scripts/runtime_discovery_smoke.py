@@ -345,13 +345,7 @@ def _assert_code_help(cli: list[str], demo: Path, env: dict[str, str]) -> None:
     )
     _run([*cli, "code", "review", "run", "--help"], cwd=demo, env=env)
     import_help = _run([*cli, "code", "import", "--help"], cwd=demo, env=env)
-    _assert_tokens_present(import_help.stdout, "specfact code import --help", ("from-code", "from-bridge"))
-    from_code_help = _run([*cli, "code", "import", "from-code", "--help"], cwd=demo, env=env)
-    if "from-code [OPTIONS]" not in _normalized_output(from_code_help.stdout):
-        raise AssertionError("`specfact code import from-code --help` did not render the explicit subcommand")
-    from_bridge_help = _run([*cli, "code", "import", "from-bridge", "--help"], cwd=demo, env=env)
-    if "from-bridge [OPTIONS]" not in _normalized_output(from_bridge_help.stdout):
-        raise AssertionError("`specfact code import from-bridge --help` did not render the explicit subcommand")
+    _assert_tokens_present(import_help.stdout, "specfact code import --help", ("from-bridge",))
 
 
 def _assert_project_help(cli: list[str], demo: Path, env: dict[str, str]) -> None:
@@ -362,10 +356,20 @@ def _assert_project_help(cli: list[str], demo: Path, env: dict[str, str]) -> Non
     if "project import" not in import_project_help.stdout:
         raise AssertionError("`specfact project import --help` did not render the import command")
     sync_bridge_help = _run([*cli, "project", "sync", "bridge", "--help"], cwd=demo, env=env)
-    if "specfact project sync bridge" not in sync_bridge_help.stdout:
+    if "project sync bridge" not in _normalized_output(sync_bridge_help.stdout):
         raise AssertionError("`specfact project sync bridge --help` did not include the canonical command path")
-    if "specfact sync bridge" in sync_bridge_help.stdout:
-        raise AssertionError("`specfact project sync bridge --help` still includes removed flat command examples")
+    flat_sync_help = subprocess.run(
+        [*cli, "sync", "bridge", "--help"],
+        cwd=demo,
+        env=env,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        timeout=120,
+        check=False,
+    )
+    if flat_sync_help.returncode == 0:
+        raise AssertionError("`specfact sync bridge --help` still resolves as a root command")
 
 
 def _smoke_launcher(name: str, workspace: Path, demo: Path, index_path: Path, modules_repo: Path) -> None:

@@ -96,6 +96,12 @@ def test_core_cli_modes_page_is_not_excluded_from_command_validation() -> None:
     assert "docs/core-cli/modes.md" not in mod._EXCLUDED_DOC_PATHS
 
 
+def test_github_prompt_library_is_excluded_from_command_validation() -> None:
+    mod = _load_check_docs_commands()
+
+    assert mod._should_skip_guidance_path(Path(".github/prompts/specfact.02-plan.prompt.md")) is True
+
+
 def test_tokens_skip_leading_global_options_before_subcommand() -> None:
     mod = _load_check_docs_commands()
     text = """

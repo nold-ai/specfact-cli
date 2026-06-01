@@ -325,6 +325,8 @@ def _should_skip_markdown_path(rel: Path, rel_posix: str) -> bool:
 def _should_skip_guidance_path(rel: Path) -> bool:
     if any(part in {"_site", "vendor", ".venv", "__pycache__"} for part in rel.parts):
         return True
+    if rel.parts[:2] == (".github", "prompts"):
+        return True
     return rel.as_posix() in _EXCLUDED_DOC_PATHS
 
 

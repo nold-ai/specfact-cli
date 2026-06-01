@@ -10,8 +10,10 @@ import json
 import os
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, get_type_hints
 
+import click
+import typer
 from typer.main import get_command
 
 
@@ -71,6 +73,49 @@ def _ensure_imports() -> None:
 def _import_typer(module_path: str, attr_name: str) -> Any:
     module = importlib.import_module(module_path)
     return getattr(module, attr_name)
+
+
+def _registered_typer_infos(app: Any) -> tuple[list[Any], list[Any]]:
+    infos: list[Any] = []
+    callback_info = getattr(app, "registered_callback", None)
+    if callback_info is not None:
+        infos.append(callback_info)
+    infos.extend(getattr(app, "registered_commands", []) or [])
+    group_infos = list(getattr(app, "registered_groups", []) or [])
+    infos.extend(group_infos)
+    return infos, group_infos
+
+
+def _normalize_callback_context_annotation(callback: Any) -> None:
+    try:
+        hints = get_type_hints(callback)
+    except (NameError, TypeError):
+        return
+    annotations = getattr(callback, "__annotations__", None)
+    if not isinstance(annotations, dict):
+        return
+    for param_name, annotation in hints.items():
+        if annotation is click.Context:
+            annotations[param_name] = typer.Context
+
+
+def _normalize_public_click_context_annotations(app: Any, visited: set[int] | None = None) -> None:
+    visited = set() if visited is None else visited
+    app_id = id(app)
+    if app_id in visited:
+        return
+    visited.add(app_id)
+
+    infos, group_infos = _registered_typer_infos(app)
+    for info in infos:
+        callback = getattr(info, "callback", None)
+        if callback is not None:
+            _normalize_callback_context_annotation(callback)
+
+    for group_info in group_infos:
+        child_app = getattr(group_info, "typer_instance", None)
+        if child_app is not None:
+            _normalize_public_click_context_annotations(child_app, visited)
 
 
 def _command_options(command: Any) -> list[str]:
@@ -172,6 +217,7 @@ def _root_record(root_subcommands: list[str]) -> dict[str, Any]:
     _ensure_imports()
     from specfact_cli.cli import app
 
+    _normalize_public_click_context_annotations(app)
     root_command = get_command(app)
     return {
         "command": "specfact",
@@ -194,6 +240,7 @@ def build_records() -> list[dict[str, Any]]:
     records: list[dict[str, Any]] = []
     for module_path, attr_name, prefix, owner_package in (*CORE_APP_MOUNTS, *MODULE_APP_MOUNTS):
         app = _import_typer(module_path, attr_name)
+        _normalize_public_click_context_annotations(app)
         install_prerequisite = (
             "Install specfact-cli." if owner_package == "core" else f"specfact module install {owner_package}"
         )

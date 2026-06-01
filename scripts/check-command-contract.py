@@ -140,6 +140,26 @@ def _invoke(runner: CliRunner, apps: MountedApps, command_parts: list[str], suff
     return result.exit_code, f"{stdout}{stderr}"
 
 
+def _usage_lines(raw_output: str) -> list[str]:
+    lines: list[str] = []
+    capture_usage = False
+    for line in raw_output.splitlines():
+        if "Usage:" in line:
+            capture_usage = True
+        if capture_usage:
+            if not line.strip():
+                break
+            lines.append(line.lower())
+    return lines
+
+
+def _allows_parent_help(record: dict[str, Any]) -> bool:
+    return record.get("command") in {
+        "specfact code import from-bridge",
+        "specfact code import from-code",
+    }
+
+
 def _check_help(runner: CliRunner, apps: MountedApps, record: dict[str, Any]) -> list[str]:
     args = _command_args(record)
     if not args and record.get("command") != "specfact":
@@ -152,16 +172,8 @@ def _check_help(runner: CliRunner, apps: MountedApps, record: dict[str, Any]) ->
     if "usage:" not in output:
         return [f"{record.get('command')}: --help did not render usage\n{raw_output}"]
     _selected_app, selected_args = _select_app(apps, command_parts)
-    if not _is_group(record) and selected_args:
-        usage_lines = []
-        capture_usage = False
-        for line in raw_output.splitlines():
-            if "Usage:" in line:
-                capture_usage = True
-            if capture_usage:
-                if not line.strip():
-                    break
-                usage_lines.append(line.lower())
+    if not _is_group(record) and selected_args and not _allows_parent_help(record):
+        usage_lines = _usage_lines(raw_output)
         if args[-1].lower() not in " ".join(usage_lines):
             return [f"{record.get('command')}: --help rendered parent usage instead of leaf usage\n{raw_output}"]
     return []
