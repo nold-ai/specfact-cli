@@ -17,4 +17,5 @@ publisher:
 description: Check and apply SpecFact CLI version upgrades.
 license: Apache-2.0
 integrity:
-  checksum: sha256:812c41fd674958172579af1f6cf7f1ade389db9e8102ac94ca9b872ecfe43376
+  checksum: sha256:eae81fc948d038dc857827de5c9c5363c963dea13af9e78395b71aeb5411742b
+  signature: H8A/ySECBGR+f1iCNepv434cQ7MazJr1RMRKoDCPS9IuIoMmL3nm4HNOSBFWPTqeFVgTbMWlISPUSjFaF4AoDg==
