@@ -1220,27 +1220,23 @@ Create `.git/hooks/pre-commit`:
 
 ```bash
 #!/bin/sh
-# First, import current code to create a new plan for comparison
-# Use default name "auto-derived" so plan compare --code-vs-plan can find it
-specfact --no-banner code import from-code --repo . --output-format yaml > /dev/null 2>&1
+BUNDLE_NAME="example4_precommit"
 
-# Then compare against the explicitly named auto-derived bundle
-specfact --no-banner code drift detect auto-derived --repo .
+# Compare the staged repository against the explicit baseline bundle
+specfact --no-banner code drift detect "$BUNDLE_NAME" --repo .
 ```
 
 **What This Does**:
 
-- Imports current code to create a new plan (auto-derived from modified code)
-  - **Important**: Uses default name "auto-derived" (or omit `--name`) so `plan compare --code-vs-plan` can find it
-  - `plan compare --code-vs-plan` looks for plans named `auto-derived.*.bundle.*`
-- Compares the new plan against the explicitly named generated bundle
+- Compares the current repository against the explicitly named baseline bundle
+- Avoids implicit active-plan selection when multiple bundles exist
 - Uses enforcement configuration to determine if deviations should block the commit
 - Blocks commit if HIGH severity deviations are found (based on enforcement preset)
 
-**Note**: The `--code-vs-plan` flag automatically uses:
+**Baseline resolution**:
 
-- **Manual plan**: The baseline bundle named by the workflow or `main.bundle.yaml` as fallback
-- **Auto plan**: The latest `auto-derived` project bundle (from `code import from-code auto-derived` or default bundle name)
+- This hook passes `"$BUNDLE_NAME"` explicitly so the baseline is `example4_precommit`.
+- If you use a `plan compare --code-vs-plan` workflow elsewhere, pass the manual baseline explicitly; otherwise the legacy fallback is `main.bundle.yaml`, and the auto plan is the latest `auto-derived` bundle.
 
 Make it executable:
 
@@ -1262,56 +1258,27 @@ git commit -m "Breaking change test"
 - ✅ Commit blocked
 - ✅ Error message about signature change
 
-**Expected Output Format**:
+**Expected Output Shape**:
 
 ```bash
 ============================================================
-Code vs Plan Drift Detection
+Drift Detection: example4_precommit
 ============================================================
 
-Comparing intended design (manual plan) vs actual implementation (code-derived plan)
+Repository: /tmp/specfact-integration-tests/example4_precommit
 
-ℹ️  Using default manual plan: .specfact/projects/django-example/
-ℹ️  Using latest code-derived plan: .specfact/projects/auto-derived/
-
-============================================================
-Comparison Results
-============================================================
-
-Total Deviations: 3
-
-Deviation Summary:
-  🔴 HIGH: 1
-  🟡 MEDIUM: 0
-  🔵 LOW: 2
-
-                        Deviations by Type and Severity
-┏━━━━━━━━━━┳━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃ Severity ┃ Type            ┃ Description            ┃ Location               ┃
-┡━━━━━━━━━━╇━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━┩
-│ 🔴 HIGH  │ Missing Feature │ Feature 'FEATURE-*'    │ features[FEATURE-*]    │
-│          │                 │ in manual plan but not │                        │
-│          │                 │ implemented in code    │                        │
-└──────────┴─────────────────┴────────────────────────┴────────────────────────┘
-
-============================================================
-Enforcement Rules
-============================================================
-
-🚫 [HIGH] missing_feature: BLOCK
-❌ Enforcement BLOCKED: 1 deviation(s) violate quality gates
-Fix the blocking deviations or adjust enforcement config
-❌ Comparison failed: 1
+... HIGH severity drift ...
+... Enforcement BLOCKED ...
 ```
 
 **What This Shows**:
 
-- ✅ Plan comparison successfully finds both plans (active plan as manual, latest auto-derived as auto)
-- ✅ Detects deviations (missing features, mismatches)
+- ✅ Drift detection uses the explicit `example4_precommit` baseline bundle
+- ✅ Detects deviations between the baseline bundle and current code
 - ✅ Enforcement blocks the commit (HIGH → BLOCK based on balanced preset)
 - ✅ Pre-commit hook exits with code 1, blocking the commit
 
-**Note**: The comparison may show deviations like "Missing Feature" when comparing an enriched plan (with AI-added features) against an AST-only plan (which may have 0 features). This is expected behavior - the enriched plan represents the intended design, while the AST-only plan represents what's actually in the code. For breaking change detection, you would compare two code-derived plans (before and after code changes).
+**Note**: The comparison may show deviations like missing or changed features when the current code no longer matches the baseline bundle. This is expected: the baseline bundle represents the intended design, while the repository represents the proposed change.
 
 ### Example 4 - Step 6: Verify Results
 
@@ -1321,7 +1288,7 @@ Fix the blocking deviations or adjust enforcement config
 2. ✅ Committed the original plan (baseline)
 3. ✅ Modified code to introduce breaking change (added required `user_id` parameter)
 4. ✅ Configured enforcement (balanced preset with HIGH → BLOCK)
-5. ✅ Set up pre-commit hook (`plan compare --code-vs-plan`)
+5. ✅ Set up pre-commit hook (`code drift detect "$BUNDLE_NAME" --repo .`)
 6. ✅ Tested pre-commit hook (commit blocked due to HIGH severity deviation)
 
 **Plan Bundle Status**:
