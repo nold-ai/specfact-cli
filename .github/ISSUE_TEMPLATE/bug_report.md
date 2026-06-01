@@ -23,7 +23,7 @@ specfact <command> --options
 **Example:**
 
 ```bash
-specfact import from-code ./my-legacy-project --confidence 0.8
+specfact code import --repo ./my-legacy-project legacy-project --confidence 0.8
 ```
 
 ## Expected Behavior

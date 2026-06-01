@@ -261,7 +261,7 @@ class SpecFactStructure:
         if legacy_config_path.exists():
             raise FileNotFoundError(
                 "Legacy plan configuration detected at .specfact/plans/config.yaml. "
-                "Please migrate to the new bundle structure using 'specfact migrate artifacts --repo .'."
+                "Please migrate to the new bundle structure using 'specfact project migrate artifacts --repo .'."
             )
 
         # No active bundle found - return default bundle directory path (may not exist)
@@ -977,13 +977,13 @@ See `docs/directory-structure.md` for complete documentation.
 
 ```bash
 # Create a new plan
-specfact plan init --interactive
+specfact project plan init --interactive
 
 # Analyze existing code
-specfact code import <bundle-name> --repo .
+specfact code import --repo . <bundle-name>
 
 # Compare plans
-        specfact plan compare --manual .specfact/plans/main.bundle.yaml --auto .specfact/plans/auto-derived-<timestamp>.bundle.yaml
+        specfact project plan compare --manual .specfact/plans/main.bundle.yaml --auto .specfact/plans/auto-derived-<timestamp>.bundle.yaml
 ```
 """
         readme_path.write_text(readme_content)

@@ -57,7 +57,7 @@ def process_payment(request):
 ```bash
 # .git/hooks/pre-commit
 #!/bin/sh
-specfact --no-banner enforce stage --preset balanced
+specfact --no-banner govern enforce stage --preset balanced
 ```
 
 **What This Does**: Runs SpecFact validation automatically before every commit. If it finds issues, the commit is blocked.
@@ -218,7 +218,7 @@ jobs:
       - name: Install SpecFact CLI
         run: pip install specfact-cli
       - name: Configure Enforcement
-        run: specfact --no-banner enforce stage --preset balanced
+        run: specfact --no-banner govern enforce stage --preset balanced
       - name: Run SpecFact Validation
         run: specfact --no-banner repro --repo . --budget 90
 ```
@@ -330,7 +330,7 @@ result = process_order(order_id="123")  # ⚠️ Missing user_id
 
 **Setup** (one-time):
 
-1. Configure enforcement: `specfact --no-banner enforce stage --preset balanced`
+1. Configure enforcement: `specfact --no-banner govern enforce stage --preset balanced`
 2. Add pre-commit hook:
 
 ```bash
@@ -341,7 +341,7 @@ result = process_order(order_id="123")  # ⚠️ Missing user_id
 specfact --no-banner code import from-code auto-derived --repo . --output-format yaml > /dev/null 2>&1
 
 # Compare: uses active plan (set via plan select) as manual, latest auto-derived plan as auto
-specfact --no-banner plan compare --code-vs-plan
+specfact --no-banner code drift detect auto-derived --repo .
 ```
 
 **What This Does**: Before you commit, SpecFact imports your current code to create a new plan, then compares it against the baseline plan. If it detects breaking changes with HIGH severity, the commit is blocked (based on enforcement configuration).
@@ -448,7 +448,7 @@ def validate_and_calculate(data: dict) -> float:
 ```bash
 # .git/hooks/pre-commit
 #!/bin/sh
-specfact --no-banner enforce stage --preset balanced
+specfact --no-banner govern enforce stage --preset balanced
 ```
 
 **Benefits**:
@@ -472,7 +472,7 @@ specfact --no-banner enforce stage --preset balanced
 - name: Install SpecFact CLI
   run: pip install specfact-cli
 - name: Configure Enforcement
-  run: specfact --no-banner enforce stage --preset balanced
+  run: specfact --no-banner govern enforce stage --preset balanced
 - name: Run SpecFact Validation
   run: specfact --no-banner repro --repo . --budget 90
 ```
@@ -494,7 +494,7 @@ specfact --no-banner enforce stage --preset balanced
 {
   "label": "SpecFact Validate",
   "type": "shell",
-  "command": "specfact --no-banner enforce stage --preset balanced"
+  "command": "specfact --no-banner govern enforce stage --preset balanced"
 }
 ```
 

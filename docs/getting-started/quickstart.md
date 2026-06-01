@@ -74,7 +74,7 @@ This creates `.specfact/` directory structure and IDE-specific prompt templates.
 ## Step 5: Analyze Your Codebase and Check Health
 
 ```bash
-specfact code import my-project --repo .
+specfact code import --repo . my-project
 specfact project health-check
 ```
 

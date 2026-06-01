@@ -217,13 +217,28 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Resolve module bundles ref
+        id: modules-ref
+        if: needs.changes.outputs.skip_tests_dev_to_main != 'true'
+        shell: bash
+        env:
+          CANDIDATE_REF: ${{ github.head_ref || github.ref_name }}
+        run: |
+          candidate="${CANDIDATE_REF}"
+          if [ -n "$candidate" ] && git ls-remote --exit-code --heads https://github.com/nold-ai/specfact-cli-modules.git "$candidate" >/dev/null 2>&1; then
+            echo "ref=$candidate" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=dev" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Checkout module bundles repo
         if: needs.changes.outputs.skip_tests_dev_to_main != 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
           repository: nold-ai/specfact-cli-modules
           path: specfact-cli-modules
-          ref: ${{ (github.ref == 'refs/heads/main' || github.head_ref == 'main') && 'main' || 'dev' }}
+          ref: ${{ steps.modules-ref.outputs.ref }}
+          persist-credentials: false
 
       - name: Export module bundles path
         if: needs.changes.outputs.skip_tests_dev_to_main != 'true'
@@ -242,7 +257,7 @@ jobs:
         if: needs.changes.outputs.skip_tests_dev_to_main != 'true'
         run: |
           python -m pip install --upgrade pip
-          pip install "hatch" "virtualenv<21" coverage "coverage[toml]" pytest pytest-cov pytest-mock pytest-asyncio pytest-xdist pytest-timeout
+          pip install "hatch" "virtualenv<21" pipx uv coverage "coverage[toml]" pytest pytest-cov pytest-mock pytest-asyncio pytest-xdist pytest-timeout
           pip install -e ".[dev]"
 
       - name: Verify version strings are synchronized
@@ -310,7 +325,7 @@ jobs:
         if: needs.changes.outputs.skip_tests_dev_to_main != 'true'
         shell: bash
         run: |
-          python scripts/runtime_discovery_smoke.py --launcher direct --launcher pip-editable --launcher uvx
+          python scripts/runtime_discovery_smoke.py --launcher direct --launcher hatch-source --launcher pip-editable --launcher pipx --launcher uv-run --launcher uvx
 
       - name: Set run_unit_coverage (or skip for dev→main)
         id: detect-unit
@@ -373,12 +388,26 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v4
+      - name: Resolve module bundles ref
+        id: modules-ref
+        shell: bash
+        env:
+          CANDIDATE_REF: ${{ github.head_ref || github.ref_name }}
+        run: |
+          candidate="${CANDIDATE_REF}"
+          if [ -n "$candidate" ] && git ls-remote --exit-code --heads https://github.com/nold-ai/specfact-cli-modules.git "$candidate" >/dev/null 2>&1; then
+            echo "ref=$candidate" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=dev" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Checkout module bundles repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
           repository: nold-ai/specfact-cli-modules
           path: specfact-cli-modules
-          ref: ${{ (github.ref == 'refs/heads/main' || github.head_ref == 'main') && 'main' || 'dev' }}
+          ref: ${{ steps.modules-ref.outputs.ref }}
+          persist-credentials: false
       - name: Export module bundles path
         run: echo "SPECFACT_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" >> "$GITHUB_ENV"
       - name: Set up Python 3.11
@@ -428,12 +457,26 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v4
+      - name: Resolve module bundles ref
+        id: modules-ref
+        shell: bash
+        env:
+          CANDIDATE_REF: ${{ github.head_ref || github.ref_name }}
+        run: |
+          candidate="${CANDIDATE_REF}"
+          if [ -n "$candidate" ] && git ls-remote --exit-code --heads https://github.com/nold-ai/specfact-cli-modules.git "$candidate" >/dev/null 2>&1; then
+            echo "ref=$candidate" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=dev" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Checkout module bundles repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
           repository: nold-ai/specfact-cli-modules
           path: specfact-cli-modules
-          ref: ${{ (github.ref == 'refs/heads/main' || github.head_ref == 'main') && 'main' || 'dev' }}
+          ref: ${{ steps.modules-ref.outputs.ref }}
+          persist-credentials: false
       - name: Export module bundles path
         run: echo "SPECFACT_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" >> "$GITHUB_ENV"
       - name: Set up Python 3.12
@@ -463,8 +506,11 @@ jobs:
         run: |
           echo "🔍 Validating runtime contracts..."
           REPRO_LOG="logs/repro/repro_$(date -u +%Y%m%d_%H%M%S).log"
-          echo "Running contract-first validation with required CrossHair... (log: $REPRO_LOG)"
-          hatch run contract-test 2>&1 | tee "$REPRO_LOG"
+          echo "Running scoped contract-first validation with required CrossHair... (log: $REPRO_LOG)"
+          {
+            hatch run contract-test-contracts
+            hatch run contract-test-exploration-fast
+          } 2>&1 | tee "$REPRO_LOG"
           exit "${PIPESTATUS[0]:-$?}"
       - name: Upload repro logs
         if: always()
@@ -490,6 +536,28 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v4
+      - name: Resolve module command sources ref
+        id: modules-ref
+        shell: bash
+        env:
+          CANDIDATE_REF: ${{ github.head_ref || github.ref_name }}
+        run: |
+          candidate="${CANDIDATE_REF}"
+          if [ -n "$candidate" ] && git ls-remote --exit-code --heads https://github.com/nold-ai/specfact-cli-modules.git "$candidate" >/dev/null 2>&1; then
+            echo "ref=$candidate" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=dev" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout module command sources
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          repository: nold-ai/specfact-cli-modules
+          path: specfact-cli-modules
+          ref: ${{ steps.modules-ref.outputs.ref }}
+          persist-credentials: false
+      - name: Export module command source path
+        run: echo "SPECFACT_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" >> "$GITHUB_ENV"
       - name: Set up Python 3.12
         uses: actions/setup-python@v5
         with:
@@ -500,11 +568,16 @@ jobs:
       - name: Install CLI
         run: |
           echo "Installing SpecFact CLI..."
+          python -m pip install --upgrade pip
+          python -m pip install "hatch" "virtualenv<21"
           pip install -e .
       - name: Validate CLI commands
         run: |
           echo "🔍 Validating CLI commands..."
           specfact --help
+          hatch run check-command-overview
+          hatch run check-command-contract
+          hatch run check-docs-commands
           echo "✅ CLI validation complete"
 
   quality-gates:

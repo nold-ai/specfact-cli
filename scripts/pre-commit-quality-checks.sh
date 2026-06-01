@@ -38,7 +38,7 @@ print_block2_overview() {
   echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" >&2
   echo "  specfact-cli pre-commit — Block 2: code review + contract tests" >&2
   echo "    1/2  code review gate (staged Python under src/, scripts/, tools/, tests/, openspec/changes/)" >&2
-  echo "    2/2  contract-first tests (contract-test-status → hatch run contract-test)" >&2
+  echo "    2/2  contract-first tests (contract-test-status → hatch run contract-test-contracts)" >&2
   echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" >&2
   echo "" >&2
 }
@@ -400,20 +400,69 @@ run_code_review_gate() {
   fi
 }
 
+run_command_overview_validation_gate() {
+  local hit=0
+  local file
+  while IFS= read -r file || [[ -n "${file}" ]]; do
+    [[ -z "${file}" ]] && continue
+    case "${file}" in
+      src/*|docs/*|.github/*|resources/*|scripts/check-docs-commands.py|scripts/check-command-contract.py|scripts/generate-command-overview.py|README.md|llms.txt|docs/reference/commands.generated.*)
+        hit=1
+        break
+        ;;
+    esac
+  done < <(staged_files)
+  if [[ "${hit}" -eq 0 ]]; then
+    return 0
+  fi
+  info "📦 Block 2 — command overview — regenerating current AI command artifacts"
+  if hatch run generate-command-overview; then
+    git add -- llms.txt docs/reference/commands.generated.json docs/reference/commands.generated.md
+    success "✅ Command overview artifacts regenerated and staged"
+  else
+    error "❌ Command overview generation failed"
+    exit 1
+  fi
+  info "📦 Block 2 — command overview — running \`hatch run check-command-overview\`"
+  if hatch run check-command-overview; then
+    success "✅ Command overview validation passed"
+  else
+    error "❌ Command overview validation failed"
+    warn "💡 Run: hatch run generate-command-overview"
+    exit 1
+  fi
+  info "📦 Block 2 — command contract — running \`hatch run check-command-contract\`"
+  if hatch run check-command-contract; then
+    success "✅ Generated command contract validation passed"
+  else
+    error "❌ Generated command contract validation failed"
+    warn "💡 Run: hatch run check-command-contract"
+    exit 1
+  fi
+  info "📦 Block 2 — docs commands — running \`hatch run check-docs-commands\`"
+  if hatch run check-docs-commands; then
+    success "✅ Docs command validation passed"
+  else
+    error "❌ Docs command validation failed"
+    warn "💡 Fix stale command examples or regenerate the command overview if the CLI changed"
+    exit 1
+  fi
+}
+
 run_contract_tests_visible() {
   info "📦 Block 2 — contract tests — running \`hatch run contract-test-status\`"
   # Discard status-check output: transient failures (missing optional deps, environment noise) should
-  # not alarm the user; we fall through to the full `hatch run contract-test` which surfaces real failures.
+  # not alarm the user; we fall through to scoped contract checks that surface real failures quickly.
   if hatch run contract-test-status >/dev/null 2>&1; then
     success "✅ Block 2 — contract tests — skipped (contract-test-status: no input changes)"
   else
-    info "📦 Block 2 — contract tests — running \`hatch run contract-test\`"
-    if hatch run contract-test; then
+    info "📦 Block 2 — contract tests — running \`hatch run contract-test-contracts\`"
+    if hatch run contract-test-contracts; then
       success "✅ Block 2 — contract-first tests passed"
       warn "💡 CI may still run the full quality matrix"
     else
       error "❌ Block 2 — contract-first tests failed"
-      warn "💡 Run: hatch run contract-test-status"
+      warn "💡 Run: hatch run contract-test-contracts"
       exit 1
     fi
   fi
@@ -459,6 +508,7 @@ run_block1_lint() {
 
 run_block2() {
   warn "🔍 specfact-cli pre-commit — Block 2 — hook: review + contract tests"
+  run_command_overview_validation_gate
   if check_safe_change; then
     success "✅ Safe change detected — skipping Block 2 (code review + contract tests)"
     info "💡 Only docs (incl. *.mdc), workflow, version files, or allowlisted infra changed"
@@ -482,6 +532,7 @@ run_all() {
   run_workflow_lint_if_needed
   run_lint_if_staged_python
   success "✅ Block 1 complete (all stages passed or skipped as expected)"
+  run_command_overview_validation_gate
   if check_safe_change; then
     success "✅ Safe change detected — skipping Block 2 (code review + contract tests)"
     info "💡 Only docs (incl. *.mdc), workflow, version files, or allowlisted infra changed"

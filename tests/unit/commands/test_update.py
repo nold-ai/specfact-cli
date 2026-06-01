@@ -8,7 +8,7 @@ import os
 import subprocess
 from io import StringIO
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, call, patch
 
 from rich.console import Console
 
@@ -143,6 +143,36 @@ class TestInstallationMethodDetection:
         method = detect_installation_method()
         assert method.method == "pipx", f"Expected pipx, got {method.method}"
         assert method.command == "pipx upgrade specfact-cli"
+
+    @patch("specfact_cli.modules.upgrade.src.commands.subprocess.run")
+    @patch("specfact_cli.modules.upgrade.src.commands.sys.executable", "/workspace/app/.venv/bin/python")
+    @patch("specfact_cli.modules.upgrade.src.commands.sys.argv", ["/workspace/app/.venv/bin/specfact", "upgrade"])
+    @patch.dict(
+        "specfact_cli.modules.upgrade.src.commands.os.environ",
+        {"UV_PROJECT_ENVIRONMENT": "/workspace/app/.venv", "UV": "1"},
+        clear=False,
+    )
+    def test_detect_uv_run_before_stale_pipx_inventory(self, mock_subprocess: MagicMock) -> None:
+        """The active uv-run/project context must win over stale global pipx inventory."""
+
+        def side_effect(*args, **kwargs):
+            result = MagicMock()
+            cmd = args[0] if args else []
+            cmd_str = " ".join(cmd) if isinstance(cmd, list) else str(cmd)
+            if "pipx list" in cmd_str:
+                result.returncode = 0
+                result.stdout = "package specfact-cli 1.0.0"
+            else:
+                result.returncode = 1
+                result.stdout = ""
+            return result
+
+        mock_subprocess.side_effect = side_effect
+
+        method = detect_installation_method()
+
+        assert method.method == "uv"
+        assert "uv pip install" in method.command
 
     @patch("specfact_cli.modules.upgrade.src.commands.subprocess.run")
     @patch("specfact_cli.modules.upgrade.src.commands.sys.executable", "/usr/bin/python3")
@@ -284,6 +314,38 @@ def test_install_update_pip_with_spaced_executable_uses_shlex(
 
 @patch("specfact_cli.modules.upgrade.src.commands.subprocess.run")
 @patch("specfact_cli.modules.upgrade.src.commands.update_metadata")
+def test_install_update_pip_with_application_support_executable_uses_shlex(
+    mock_update_metadata: MagicMock, mock_subprocess: MagicMock, tmp_path: Path
+) -> None:
+    """macOS Application Support interpreter paths must stay a single argv element."""
+    python_path = tmp_path / "Library" / "Application Support" / "SpecFact" / "python"
+    method = InstallationMethod(
+        method="pip",
+        command=f"'{python_path}' -m pip install --upgrade specfact-cli",
+        location=None,
+    )
+    mock_subprocess.return_value.returncode = 0
+
+    result = install_update(method, yes=True)
+
+    assert result is True
+    mock_subprocess.assert_called_once_with(
+        [
+            str(python_path),
+            "-m",
+            "pip",
+            "install",
+            "--upgrade",
+            "specfact-cli",
+        ],
+        check=False,
+        timeout=300,
+        capture_output=True,
+    )
+
+
+@patch("specfact_cli.modules.upgrade.src.commands.subprocess.run")
+@patch("specfact_cli.modules.upgrade.src.commands.update_metadata")
 def test_install_update_uv_pip_targets_detected_interpreter(
     mock_update_metadata: MagicMock, mock_subprocess: MagicMock
 ) -> None:
@@ -335,20 +397,28 @@ def test_check_only_uvx_does_not_print_upgrade_command(mock_detect: MagicMock, m
 
 
 @patch("specfact_cli.modules.upgrade.src.commands.update_metadata")
+@patch("specfact_cli.modules.upgrade.src.commands.shutil.which")
 @patch("specfact_cli.modules.upgrade.src.commands.subprocess.run")
 def test_successful_pipx_upgrade_suppresses_spaced_home_warning(
-    mock_run: MagicMock, mock_update_metadata: MagicMock
+    mock_run: MagicMock, mock_which: MagicMock, mock_update_metadata: MagicMock
 ) -> None:
     """Successful pipx upgrades must not leak pipx's benign spaced-home warning."""
-    mock_run.return_value.returncode = 0
-    mock_run.return_value.stdout = (
-        "Found a space in the pipx home path. We heavily discourage this, due to multiple\n"
-        "    incompatibilities. Please check our docs for more information on this, as well as\n"
-        "    some pointers on how to migrate to a different home path.\n"
-        "To see your PIPX_HOME dir: pipx environment --value PIPX_HOME\n"
-        "Most likely fix on macOS: mv ~/Library/Application\\ Support/pipx ~/.local/\n"
-        "upgraded package specfact-cli from 0.46.19 to 0.46.25\n"
+    mock_which.side_effect = [None, "/usr/local/bin/specfact"]
+    spaced_home_output = (
+        b"Found a space in the pipx home path. We heavily discourage this, due to multiple\n"
+        b"    incompatibilities. Please check our docs for more information on this, as well as\n"
+        b"    some pointers on how to migrate to a different home path.\n"
+        b"To see your PIPX_HOME dir: pipx environment --value PIPX_HOME\n"
+        b"Most likely fix on macOS: mv ~/Library/Application\\ Support/pipx ~/.local/\n"
+        b"upgraded package specfact-cli from 0.46.19 to 0.46.25\n"
     )
+    mock_run.side_effect = [
+        subprocess.CompletedProcess(["pipx", "upgrade", "specfact-cli"], 0, stdout=spaced_home_output, stderr=b""),
+        subprocess.CompletedProcess(["pipx", "reinstall", "specfact-cli"], 0, stdout=b"reinstalled\n", stderr=b""),
+        subprocess.CompletedProcess(
+            ["/usr/local/bin/specfact", "--version"], 0, stdout=b"SpecFact CLI - v0.47.0\n", stderr=b""
+        ),
+    ]
     output = StringIO()
 
     with patch(
@@ -358,10 +428,137 @@ def test_successful_pipx_upgrade_suppresses_spaced_home_warning(
         result = install_update(InstallationMethod("pipx", "pipx upgrade specfact-cli", None), yes=True)
 
     assert result is True
+    assert mock_which.call_args_list == [call("specfact"), call("specfact")]
     rendered = output.getvalue()
     assert "Found a space in the pipx home path" not in rendered
     assert "PIPX_HOME" not in rendered
     assert "upgraded package specfact-cli from 0.46.19 to 0.46.25" in rendered
+    assert "reinstalled" in rendered
+
+
+@patch("specfact_cli.modules.upgrade.src.commands.update_metadata")
+@patch("specfact_cli.modules.upgrade.src.commands.shutil.which", return_value="/usr/local/bin/specfact")
+@patch("specfact_cli.modules.upgrade.src.commands.subprocess.run")
+def test_successful_pipx_upgrade_repairs_stale_launcher(
+    mock_run: MagicMock,
+    mock_which: MagicMock,
+    mock_update_metadata: MagicMock,
+) -> None:
+    """A successful pipx upgrade must repair a stale/broken launcher before reporting success."""
+    mock_run.side_effect = [
+        subprocess.CompletedProcess(["pipx", "upgrade", "specfact-cli"], 0, stdout=b"already latest\n", stderr=b""),
+        subprocess.CompletedProcess(
+            ["/usr/local/bin/specfact", "--version"],
+            127,
+            stdout=b"",
+            stderr=b"/usr/local/bin/specfact: No such file or directory\n",
+        ),
+        subprocess.CompletedProcess(["pipx", "reinstall", "specfact-cli"], 0, stdout=b"reinstalled\n", stderr=b""),
+        subprocess.CompletedProcess(
+            ["/usr/local/bin/specfact", "--version"], 0, stdout=b"SpecFact CLI - v0.47.0\n", stderr=b""
+        ),
+    ]
+    output = StringIO()
+
+    with patch(
+        "specfact_cli.modules.upgrade.src.commands.console",
+        Console(file=output, force_terminal=False, width=120),
+    ):
+        result = _execute_upgrade_command(["pipx", "upgrade", "specfact-cli"])
+
+    assert result is True
+    assert mock_which.call_args_list == [call("specfact"), call("specfact")]
+    assert [call.args[0] for call in mock_run.call_args_list] == [
+        ["pipx", "upgrade", "specfact-cli"],
+        ["/usr/local/bin/specfact", "--version"],
+        ["pipx", "reinstall", "specfact-cli"],
+        ["/usr/local/bin/specfact", "--version"],
+    ]
+    rendered = output.getvalue()
+    assert "pipx launcher is stale or broken" in rendered
+    assert "reinstalled" in rendered
+    assert "SpecFact CLI - v0.47.0" in rendered
+    mock_update_metadata.assert_called_once()
+
+
+@patch("specfact_cli.modules.upgrade.src.commands.update_metadata")
+@patch("specfact_cli.modules.upgrade.src.commands.shutil.which")
+@patch("specfact_cli.modules.upgrade.src.commands.subprocess.run")
+def test_successful_pipx_upgrade_repairs_missing_launcher(
+    mock_run: MagicMock,
+    mock_which: MagicMock,
+    mock_update_metadata: MagicMock,
+) -> None:
+    """A missing launcher after pipx upgrade is repairable and must be validated."""
+    mock_which.side_effect = [None, "/usr/local/bin/specfact"]
+    mock_run.side_effect = [
+        subprocess.CompletedProcess(["pipx", "upgrade", "specfact-cli"], 0, stdout=b"already latest\n", stderr=b""),
+        subprocess.CompletedProcess(["pipx", "reinstall", "specfact-cli"], 0, stdout=b"reinstalled\n", stderr=b""),
+        subprocess.CompletedProcess(
+            ["/usr/local/bin/specfact", "--version"], 0, stdout=b"SpecFact CLI - v0.47.0\n", stderr=b""
+        ),
+    ]
+    output = StringIO()
+
+    with patch(
+        "specfact_cli.modules.upgrade.src.commands.console",
+        Console(file=output, force_terminal=False, width=120),
+    ):
+        result = _execute_upgrade_command(["pipx", "upgrade", "specfact-cli"])
+
+    assert result is True
+    assert mock_which.call_args_list == [call("specfact"), call("specfact")]
+    assert [call.args[0] for call in mock_run.call_args_list] == [
+        ["pipx", "upgrade", "specfact-cli"],
+        ["pipx", "reinstall", "specfact-cli"],
+        ["/usr/local/bin/specfact", "--version"],
+    ]
+    rendered = output.getvalue()
+    assert "Could not find `specfact` on PATH after pipx upgrade" in rendered
+    assert "reinstalled" in rendered
+    assert "SpecFact CLI - v0.47.0" in rendered
+    mock_update_metadata.assert_called_once()
+
+
+@patch("specfact_cli.modules.upgrade.src.commands.update_metadata")
+@patch("specfact_cli.modules.upgrade.src.commands.shutil.which", return_value="/usr/local/bin/specfact")
+@patch("specfact_cli.modules.upgrade.src.commands.subprocess.run")
+def test_pipx_upgrade_fails_when_launcher_repair_fails(
+    mock_run: MagicMock,
+    mock_which: MagicMock,
+    mock_update_metadata: MagicMock,
+) -> None:
+    """A failed pipx launcher repair keeps the overall upgrade result failed."""
+    mock_run.side_effect = [
+        subprocess.CompletedProcess(["pipx", "upgrade", "specfact-cli"], 0, stdout=b"already latest\n", stderr=b""),
+        subprocess.CompletedProcess(
+            ["/usr/local/bin/specfact", "--version"],
+            127,
+            stdout=b"",
+            stderr=b"/usr/local/bin/specfact: No such file or directory\n",
+        ),
+        subprocess.CompletedProcess(["pipx", "reinstall", "specfact-cli"], 1, stdout=b"", stderr=b"reinstall failed\n"),
+    ]
+    output = StringIO()
+
+    with patch(
+        "specfact_cli.modules.upgrade.src.commands.console",
+        Console(file=output, force_terminal=False, width=120),
+    ):
+        result = _execute_upgrade_command(["pipx", "upgrade", "specfact-cli"])
+
+    assert result is False
+    mock_which.assert_called_once_with("specfact")
+    assert [call.args[0] for call in mock_run.call_args_list] == [
+        ["pipx", "upgrade", "specfact-cli"],
+        ["/usr/local/bin/specfact", "--version"],
+        ["pipx", "reinstall", "specfact-cli"],
+    ]
+    rendered = output.getvalue()
+    assert "pipx launcher is stale or broken" in rendered
+    assert "reinstall failed" in rendered
+    assert "pipx reinstall specfact-cli failed" in rendered
+    mock_update_metadata.assert_not_called()
 
 
 @patch("specfact_cli.modules.upgrade.src.commands.subprocess.run")

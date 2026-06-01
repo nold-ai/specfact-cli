@@ -44,6 +44,7 @@ def test_no_flat_topology_command_expectations() -> None:
     allowed_files = {
         root / "tests" / "unit" / "migration" / "test_module_migration_07_cleanup.py",
         root / "tests" / "integration" / "test_core_slimming.py",
+        root / "tests" / "unit" / "docs" / "test_docs_validation_scripts.py",
     }
     offenders: list[str] = []
     for test_file in sorted((root / "tests").rglob("test_*.py")):

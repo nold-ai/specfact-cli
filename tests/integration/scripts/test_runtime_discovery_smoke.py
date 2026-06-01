@@ -18,6 +18,12 @@ def _resolve_modules_repo() -> Path | None:
     if configured:
         candidates.append(Path(configured).expanduser())
     candidates.append(REPO_ROOT.parent / "specfact-cli-modules")
+    parts = REPO_ROOT.parts
+    if "specfact-cli-worktrees" in parts:
+        marker_index = parts.index("specfact-cli-worktrees")
+        candidates.append(
+            Path(*parts[:marker_index]) / "specfact-cli-modules-worktrees" / Path(*parts[marker_index + 1 :])
+        )
     if len(REPO_ROOT.parents) > 2:
         candidates.append(REPO_ROOT.parents[2] / "specfact-cli-modules")
     for candidate in candidates:

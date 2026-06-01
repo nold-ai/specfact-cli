@@ -411,7 +411,7 @@ specfact code import <bundle-name> --repo . [OPTIONS]
 
 ```bash
 # Analyze legacy codebase
-specfact code import legacy-api --repo . --confidence 0.7
+specfact code import --repo . legacy-api --confidence 0.7
 
 # Creates:
 # - .specfact/projects/legacy-api/bundle.manifest.yaml (versioned)

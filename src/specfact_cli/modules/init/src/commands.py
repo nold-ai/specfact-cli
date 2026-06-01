@@ -7,7 +7,6 @@ import subprocess
 from pathlib import Path
 from typing import Any, cast
 
-import click
 import typer
 from beartype import beartype
 from icontract import ensure, require
@@ -614,7 +613,10 @@ def init_ide(
     ide: str | None = typer.Option(
         None,
         "--ide",
-        help="IDE type (cursor, vscode, copilot, claude, gemini, qwen, opencode, windsurf, kilocode, auggie, roo, codebuddy, amp, q, auto)",
+        help=(
+            "IDE/agent target (cursor, vscode, copilot, claude, claude-skills, codex, mistral, vibe, "
+            "gemini, qwen, opencode, windsurf, kilocode, auggie, roo, codebuddy, amp, q, auto)"
+        ),
     ),
     env_manager: EnvManager = typer.Option(
         EnvManager.AUTO,
@@ -712,9 +714,8 @@ def init_ide(
 @app.callback(invoke_without_command=True)
 @require(lambda repo: _is_valid_repo_path(repo), "Repo path must exist and be directory")
 @ensure(lambda result: result is None, "Command should return None")
-@beartype
 def init(
-    ctx: click.Context,
+    ctx: typer.Context,
     repo: Path = typer.Option(
         Path("."),
         "--repo",

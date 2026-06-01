@@ -8,7 +8,10 @@ on:
     paths:
       - "**/*.md"
       - "**/*.mdc"
+      - ".github/**"
       - "docs/**"
+      - "resources/**"
+      - "src/specfact_cli/resources/**"
       - "docs/.doc-frontmatter-enforced"
       - "tests/unit/docs/**"
       - "tests/unit/scripts/test_doc_frontmatter/**"
@@ -17,6 +20,10 @@ on:
       - "tests/helpers/doc_frontmatter_fixtures.py"
       - "tests/helpers/doc_frontmatter_types.py"
       - "scripts/check-docs-commands.py"
+      - "scripts/check-command-contract.py"
+      - "scripts/generate-command-overview.py"
+      - "docs/reference/commands.generated.*"
+      - "llms.txt"
       - "scripts/check-cross-site-links.py"
       - "scripts/check_doc_frontmatter.py"
       - "scripts/validate_agent_rule_applies_when.py"
@@ -29,7 +36,10 @@ on:
     paths:
       - "**/*.md"
       - "**/*.mdc"
+      - ".github/**"
       - "docs/**"
+      - "resources/**"
+      - "src/specfact_cli/resources/**"
       - "docs/.doc-frontmatter-enforced"
       - "tests/unit/docs/**"
       - "tests/unit/scripts/test_doc_frontmatter/**"
@@ -38,6 +48,10 @@ on:
       - "tests/helpers/doc_frontmatter_fixtures.py"
       - "tests/helpers/doc_frontmatter_types.py"
       - "scripts/check-docs-commands.py"
+      - "scripts/check-command-contract.py"
+      - "scripts/generate-command-overview.py"
+      - "docs/reference/commands.generated.*"
+      - "llms.txt"
       - "scripts/check-cross-site-links.py"
       - "scripts/check_doc_frontmatter.py"
       - "scripts/validate_agent_rule_applies_when.py"
@@ -60,6 +74,29 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Resolve module command sources ref
+        id: modules-ref
+        shell: bash
+        env:
+          CANDIDATE_REF: ${{ github.head_ref || github.ref_name }}
+        run: |
+          candidate="${CANDIDATE_REF}"
+          if [ -n "$candidate" ] && git ls-remote --exit-code --heads https://github.com/nold-ai/specfact-cli-modules.git "$candidate" >/dev/null 2>&1; then
+            echo "ref=$candidate" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=dev" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout module command sources
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          repository: nold-ai/specfact-cli-modules
+          path: specfact-cli-modules
+          ref: ${{ steps.modules-ref.outputs.ref }}
+          persist-credentials: false
+
+      - name: Export module command source path
+        run: echo "SPECFACT_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" >> "$GITHUB_ENV"
 
       - name: Set up Python 3.12
         uses: actions/setup-python@v5
@@ -77,6 +114,12 @@ jobs:
 
       - name: Validate docs command examples
         run: hatch run check-docs-commands
+
+      - name: Validate generated command overview
+        run: hatch run check-command-overview
+
+      - name: Validate generated command contract
+        run: hatch run check-command-contract
 
       - name: Cross-site links (warn-only; live site may lag deploys)
         continue-on-error: true

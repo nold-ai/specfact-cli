@@ -233,7 +233,7 @@ uvx specfact-cli@latest --no-banner code import from-code --repo . --output-form
 - **First-time setup**: Omit `--no-banner` to see the banner (verification, `specfact init`, `specfact --version`)
 - **Repeated runs**: Use `--no-banner` **before** the command to suppress banner output
 - **Important**: `--no-banner` is a global parameter and must come **before** the subcommand, not after
-  - ✅ Correct: `specfact --no-banner enforce stage --preset balanced`
+  - ✅ Correct: `specfact --no-banner govern enforce stage --preset balanced`
   - ✅ Correct: `uvx specfact-cli@latest --no-banner code import from-code --repo . --output-format yaml`
   - ❌ Wrong: `specfact govern enforce stage --preset balanced --no-banner`
   - ❌ Wrong: `uvx specfact-cli@latest code import from-code --repo . --output-format yaml --no-banner`
@@ -309,7 +309,7 @@ Run plan review to identify missing stories, contracts, and other gaps:
 cd /tmp/specfact-integration-tests/example1_vscode
 
 # Run plan review with auto-enrichment to identify gaps (bundle name as positional argument)
-specfact --no-banner plan review django-example \
+specfact --no-banner project health-check --bundle django-example \
   --auto-enrich \
   --no-interactive \
   --list-findings \
@@ -328,7 +328,7 @@ If stories are missing, add them using `plan add-story`:
 
 ```bash
 # Add the async payment processing story (bundle name via --bundle option)
-specfact --no-banner plan add-story \
+specfact --no-banner backlog add --type story \
   --bundle django-example \
   --feature FEATURE-PAYMENTVIEW \
   --key STORY-PAYMENT-ASYNC \
@@ -338,7 +338,7 @@ specfact --no-banner plan add-story \
   --value-points 10
 
 # Add other stories as needed (Payment Status API, Cancel Payment, Create Payment)
-specfact --no-banner plan add-story \
+specfact --no-banner backlog add --type story \
   --bundle django-example \
   --feature FEATURE-PAYMENTVIEW \
   --key STORY-PAYMENT-STATUS \
@@ -356,7 +356,7 @@ After adding stories, verify the plan bundle is complete:
 
 ```bash
 # Re-run plan review to verify all critical items are resolved
-specfact --no-banner plan review django-example \
+specfact --no-banner project health-check --bundle django-example \
   --no-interactive \
   --list-findings \
   --findings-format json
@@ -373,7 +373,7 @@ specfact --no-banner plan review django-example \
 #### Step 3.4: Set Up Enforcement Configuration
 
 ```bash
-specfact --no-banner enforce stage --preset balanced
+specfact --no-banner govern enforce stage --preset balanced
 ```
 
 **What to Look For**:
@@ -405,7 +405,7 @@ mkdir -p src tests tools/semgrep
 **Run Validation**:
 
 ```bash
-specfact --no-banner repro --repo . --budget 60
+specfact --no-banner code repro --repo . --budget 60
 ```
 
 **What to Look For**:
@@ -415,7 +415,7 @@ specfact --no-banner repro --repo . --budget 60
 - ✅ Detects blocking calls in async context (if violations exist)
 - ✅ Reports violations with severity levels
 - ⚠️ If Semgrep is not installed or config doesn't exist, this check will be skipped
-- 💡 Use `--verbose` flag to see detailed Semgrep output: `specfact --no-banner repro --repo . --budget 60 --verbose`
+- 💡 Use `--verbose` flag to see detailed Semgrep output: `specfact --no-banner code repro --repo . --budget 60 --verbose`
 
 **Expected Output Format** (summary table):
 
@@ -456,14 +456,14 @@ Async patterns (semgrep) Error:
 - Detailed Semgrep output (scan status, findings) is only shown with `--verbose` flag
 - If Semgrep is not installed or config doesn't exist, the check will be skipped
 - The enforcement workflow still works via `plan compare`, which validates acceptance criteria in the plan bundle
-- Use `--fix` flag to apply Semgrep auto-fixes: `specfact --no-banner repro --repo . --budget 60 --fix`
+- Use `--fix` flag to apply Semgrep auto-fixes: `specfact --no-banner code repro --repo . --budget 60 --fix`
 
 #### Alternative: Use Plan Compare for Contract Validation
 
 You can also use `plan compare` to detect deviations between code and plan contracts:
 
 ```bash
-specfact --no-banner plan compare --code-vs-plan
+specfact --no-banner code drift detect auto-derived --repo .
 ```
 
 This compares the current code state against the plan bundle contracts and reports any violations.
@@ -475,7 +475,7 @@ Now let's test that enforcement actually works by comparing plans and detecting 
 ```bash
 # Test plan comparison with enforcement (bundle directory paths)
 cd /tmp/specfact-integration-tests/example1_vscode
-specfact --no-banner plan compare \
+specfact --no-banner code drift detect auto-derived \
   --manual .specfact/projects/django-example \
   --auto .specfact/projects/django-example-auto
 ```
@@ -712,7 +712,7 @@ Updates Applied:
 cd /tmp/specfact-integration-tests/example2_cursor
 
 # Review plan with auto-enrichment (bundle name as positional argument)
-specfact --no-banner plan review data-processing-or-legacy-data-pipeline \
+specfact --no-banner project health-check --bundle data-processing-or-legacy-data-pipeline \
   --auto-enrich \
   --no-interactive \
   --list-findings \
@@ -735,7 +735,7 @@ After plan review is complete and all critical issues are resolved, configure en
 
 ```bash
 cd /tmp/specfact-integration-tests/example2_cursor
-specfact --no-banner enforce stage --preset balanced
+specfact --no-banner govern enforce stage --preset balanced
 ```
 
 **Expected Output**:
@@ -770,7 +770,7 @@ Test that plan comparison works correctly by comparing the enriched plan against
 
 ```bash
 cd /tmp/specfact-integration-tests/example2_cursor
-specfact --no-banner plan compare \
+specfact --no-banner code drift detect auto-derived \
   --manual .specfact/projects/data-processing-or-legacy-data-pipeline \
   --auto .specfact/projects/data-processing-or-legacy-data-pipeline-auto
 ```
@@ -880,7 +880,7 @@ mv src/pipeline_broken.py src/pipeline.py
 specfact --no-banner code import from-code pipeline-broken --repo . --output-format yaml
 
 # 4. Compare new plan (from broken code) against enriched plan
-specfact --no-banner plan compare \
+specfact --no-banner code drift detect auto-derived \
   --manual .specfact/projects/data-processing-or-legacy-data-pipeline \
   --auto .specfact/projects/pipeline-broken
 
@@ -986,7 +986,7 @@ specfact --no-banner code import from-code --repo . --output-format yaml
 
 ```bash
 cd /tmp/specfact-integration-tests/example3_github_actions
-specfact --no-banner enforce stage --preset balanced
+specfact --no-banner govern enforce stage --preset balanced
 ```
 
 **What to Look For**:
@@ -997,7 +997,7 @@ specfact --no-banner enforce stage --preset balanced
 ### Example 3 - Step 5: Run Validation Checks
 
 ```bash
-specfact --no-banner repro --repo . --budget 90
+specfact --no-banner code repro --repo . --budget 90
 ```
 
 **Expected Output Format**:
@@ -1147,22 +1147,18 @@ result = process_order(order_id="123")
 specfact --no-banner code import from-code --repo . --output-format yaml
 ```
 
-**Important**: After creating the initial plan, we need to make it the default plan so `plan compare --code-vs-plan` can find it. Use `plan select` to set it as the active plan:
+**Important**: After creating the initial plan, keep the bundle name explicit for later drift comparison steps:
 
 ```bash
-# Find the created plan bundle
-# Use bundle name directly (no need to find file)
-BUNDLE_NAME="example4_github_actions"
-PLAN_NAME=$(basename "$PLAN_FILE")
+# Use the exact bundle name created in Step 2.
+# Keep this value consistent in later drift commands.
+BUNDLE_NAME="example4_precommit"
 
-# Set it as the active plan (this makes it the default for plan compare)
-specfact --no-banner plan select "$BUNDLE_NAME" --no-interactive
-
-# Verify it's set as active
-specfact --no-banner plan select --current
+# Verify the baseline bundle exists before later comparison steps.
+specfact --no-banner project health-check --project-name "$BUNDLE_NAME" --repo .
 ```
 
-**Note**: `plan compare --code-vs-plan` uses the active plan (set via `plan select`) or falls back to the default bundle if no active plan is set. Using `plan select` is the recommended approach as it's cleaner and doesn't require file copying.
+**Note**: Later comparison steps pass `"$BUNDLE_NAME"` explicitly instead of relying on legacy active-plan selection.
 
 Then commit:
 
@@ -1207,7 +1203,7 @@ Before setting up the pre-commit hook, configure enforcement:
 
 ```bash
 cd /tmp/specfact-integration-tests/example4_precommit
-specfact --no-banner enforce stage --preset balanced
+specfact --no-banner govern enforce stage --preset balanced
 ```
 
 **What to Look For**:
@@ -1224,27 +1220,23 @@ Create `.git/hooks/pre-commit`:
 
 ```bash
 #!/bin/sh
-# First, import current code to create a new plan for comparison
-# Use default name "auto-derived" so plan compare --code-vs-plan can find it
-specfact --no-banner code import from-code --repo . --output-format yaml > /dev/null 2>&1
+BUNDLE_NAME="example4_precommit"
 
-# Then compare: uses active plan (set via plan select) as manual, latest code-derived plan as auto
-specfact --no-banner plan compare --code-vs-plan
+# Compare the staged repository against the explicit baseline bundle
+specfact --no-banner code drift detect "$BUNDLE_NAME" --repo .
 ```
 
 **What This Does**:
 
-- Imports current code to create a new plan (auto-derived from modified code)
-  - **Important**: Uses default name "auto-derived" (or omit `--name`) so `plan compare --code-vs-plan` can find it
-  - `plan compare --code-vs-plan` looks for plans named `auto-derived.*.bundle.*`
-- Compares the new plan (auto) against the active plan (manual/baseline - set via `plan select` in Step 2)
+- Compares the current repository against the explicitly named baseline bundle
+- Avoids implicit active-plan selection when multiple bundles exist
 - Uses enforcement configuration to determine if deviations should block the commit
 - Blocks commit if HIGH severity deviations are found (based on enforcement preset)
 
-**Note**: The `--code-vs-plan` flag automatically uses:
+**Baseline resolution**:
 
-- **Manual plan**: The active plan (set via `plan select`) or `main.bundle.yaml` as fallback
-- **Auto plan**: The latest `auto-derived` project bundle (from `code import from-code auto-derived` or default bundle name)
+- This hook passes `"$BUNDLE_NAME"` explicitly so the baseline is `example4_precommit`.
+- If you use a `plan compare --code-vs-plan` workflow elsewhere, pass the manual baseline explicitly; otherwise the legacy fallback is `main.bundle.yaml`, and the auto plan is the latest `auto-derived` bundle.
 
 Make it executable:
 
@@ -1266,56 +1258,27 @@ git commit -m "Breaking change test"
 - ✅ Commit blocked
 - ✅ Error message about signature change
 
-**Expected Output Format**:
+**Expected Output Shape**:
 
 ```bash
 ============================================================
-Code vs Plan Drift Detection
+Drift Detection: example4_precommit
 ============================================================
 
-Comparing intended design (manual plan) vs actual implementation (code-derived plan)
+Repository: /tmp/specfact-integration-tests/example4_precommit
 
-ℹ️  Using default manual plan: .specfact/projects/django-example/
-ℹ️  Using latest code-derived plan: .specfact/projects/auto-derived/
-
-============================================================
-Comparison Results
-============================================================
-
-Total Deviations: 3
-
-Deviation Summary:
-  🔴 HIGH: 1
-  🟡 MEDIUM: 0
-  🔵 LOW: 2
-
-                        Deviations by Type and Severity
-┏━━━━━━━━━━┳━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃ Severity ┃ Type            ┃ Description            ┃ Location               ┃
-┡━━━━━━━━━━╇━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━┩
-│ 🔴 HIGH  │ Missing Feature │ Feature 'FEATURE-*'    │ features[FEATURE-*]    │
-│          │                 │ in manual plan but not │                        │
-│          │                 │ implemented in code    │                        │
-└──────────┴─────────────────┴────────────────────────┴────────────────────────┘
-
-============================================================
-Enforcement Rules
-============================================================
-
-🚫 [HIGH] missing_feature: BLOCK
-❌ Enforcement BLOCKED: 1 deviation(s) violate quality gates
-Fix the blocking deviations or adjust enforcement config
-❌ Comparison failed: 1
+... HIGH severity drift ...
+... Enforcement BLOCKED ...
 ```
 
 **What This Shows**:
 
-- ✅ Plan comparison successfully finds both plans (active plan as manual, latest auto-derived as auto)
-- ✅ Detects deviations (missing features, mismatches)
+- ✅ Drift detection uses the explicit `example4_precommit` baseline bundle
+- ✅ Detects deviations between the baseline bundle and current code
 - ✅ Enforcement blocks the commit (HIGH → BLOCK based on balanced preset)
 - ✅ Pre-commit hook exits with code 1, blocking the commit
 
-**Note**: The comparison may show deviations like "Missing Feature" when comparing an enriched plan (with AI-added features) against an AST-only plan (which may have 0 features). This is expected behavior - the enriched plan represents the intended design, while the AST-only plan represents what's actually in the code. For breaking change detection, you would compare two code-derived plans (before and after code changes).
+**Note**: The comparison may show deviations like missing or changed features when the current code no longer matches the baseline bundle. This is expected: the baseline bundle represents the intended design, while the repository represents the proposed change.
 
 ### Example 4 - Step 6: Verify Results
 
@@ -1325,7 +1288,7 @@ Fix the blocking deviations or adjust enforcement config
 2. ✅ Committed the original plan (baseline)
 3. ✅ Modified code to introduce breaking change (added required `user_id` parameter)
 4. ✅ Configured enforcement (balanced preset with HIGH → BLOCK)
-5. ✅ Set up pre-commit hook (`plan compare --code-vs-plan`)
+5. ✅ Set up pre-commit hook (`code drift detect "$BUNDLE_NAME" --repo .`)
 6. ✅ Tested pre-commit hook (commit blocked due to HIGH severity deviation)
 
 **Plan Bundle Status**:
@@ -1409,7 +1372,7 @@ uvx specfact-cli@latest --no-banner contract-test-exploration src/validator.py
 If CrossHair is not available, test with contract enforcement:
 
 ```bash
-specfact --no-banner enforce stage --preset balanced
+specfact --no-banner govern enforce stage --preset balanced
 ```
 
 ### Example 5 - Step 4: Provide Output
@@ -1629,7 +1592,7 @@ rm -rf specfact-integration-tests
 **What's Validated**:
 
 - ✅ Plan bundle creation (`code import from-code`)
-- ✅ Plan selection (`plan select` sets active plan)
+- ✅ Bundle verification (`project health-check` confirms the named bundle)
 - ✅ Enforcement configuration (`enforce stage` with BALANCED preset)
 - ✅ Pre-commit hook setup (imports code, then compares)
 - ✅ Plan comparison (`plan compare --code-vs-plan` finds both plans correctly)
@@ -1638,9 +1601,9 @@ rm -rf specfact-integration-tests
 **Test Results**:
 
 - Plan creation: ✅ `code import from-code <bundle-name>` creates project bundle at `.specfact/projects/<bundle-name>/` (modular structure)
-- Plan selection: ✅ `plan select` sets active plan correctly
+- Bundle verification: ✅ `project health-check` confirms the named bundle
 - Plan comparison: ✅ `plan compare --code-vs-plan` finds:
-  - Manual plan: Active plan (set via `plan select`)
+  - Manual plan: Explicit baseline bundle
   - Auto plan: Latest `auto-derived` project bundle (`.specfact/projects/auto-derived/`)
 - Deviation detection: ✅ Detects deviations (1 HIGH, 2 LOW in test case)
 - Enforcement: ✅ Blocks commit when HIGH severity deviations found
@@ -1649,7 +1612,7 @@ rm -rf specfact-integration-tests
 **Key Findings**:
 
 - ✅ `code import from-code` should use bundle name "auto-derived" so `plan compare --code-vs-plan` can find it
-- ✅ `plan select` is the recommended way to set the baseline plan (cleaner than copying to `main.bundle.yaml`)
+- ✅ Passing bundle names explicitly is the recommended way to set the baseline
 - ✅ Pre-commit hook workflow: `code import from-code` → `plan compare --code-vs-plan` works correctly
 - ✅ Enforcement configuration is respected (HIGH → BLOCK based on preset)
 

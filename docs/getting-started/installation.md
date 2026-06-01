@@ -69,11 +69,13 @@ Then set up IDE integration:
 specfact init ide
 specfact init ide --ide cursor
 specfact init ide --ide vscode
+specfact init ide --ide codex
+specfact init ide --ide claude-skills
 specfact init ide --install-deps
 specfact init ide --ide cursor --install-deps
 ```
 
-**Important**: SpecFact CLI does **not** ship with built-in AI. `specfact init ide` installs prompt templates for supported IDEs so your chosen AI copilot can call SpecFact commands in a guided workflow.
+**Important**: SpecFact CLI does **not** ship with built-in AI. `specfact init ide` installs slash-command prompt templates or grouped `SKILL.md` files for supported IDEs so your chosen AI copilot can call SpecFact commands in a guided workflow.
 
 For VS Code / Copilot, the CLI **merges** prompt recommendations into `.vscode/settings.json` and keeps your other
 settings keys. If that file is **not parseable or mergeable by the CLI** (including a `chat` block the merge helper

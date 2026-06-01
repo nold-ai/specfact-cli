@@ -32,6 +32,9 @@ class TestDetectIDE:
         assert detect_ide("cursor") == "cursor"
         assert detect_ide("vscode") == "vscode"
         assert detect_ide("copilot") == "copilot"
+        assert detect_ide("codex") == "codex"
+        assert detect_ide("claude-skills") == "claude-skills"
+        assert detect_ide("mistral") == "mistral"
 
     def test_detect_ide_cursor_from_env(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test Cursor detection from environment variables."""
@@ -194,6 +197,25 @@ class TestCopyTemplatesToIDE:
         assert (prompts_dir / "specfact.01-import.prompt.md").exists()
         assert (tmp_path / ".vscode" / "settings.json").exists()
 
+    def test_copy_templates_to_codex_creates_grouped_skill(self, tmp_path: Path) -> None:
+        """Skill-based targets export one capability skill, not one slash-command folder per prompt."""
+        templates_dir = tmp_path / "resources" / "prompts"
+        templates_dir.mkdir(parents=True)
+        (templates_dir / "specfact.01-import.md").write_text("---\ndescription: Analyze\n---\n# Analyze\n$ARGUMENTS")
+        (templates_dir / "specfact.validate.md").write_text("---\ndescription: Validate\n---\n# Validate\n$ARGUMENTS")
+
+        copied_files, settings_path = copy_templates_to_ide(tmp_path, "codex", templates_dir, force=True)
+
+        assert copied_files == [tmp_path / ".codex" / "skills" / "specfact-cli" / "SKILL.md"]
+        assert settings_path is None
+        assert not (tmp_path / ".codex" / "skills" / "specfact.01-import").exists()
+        skill = copied_files[0].read_text(encoding="utf-8")
+        assert "name: specfact-cli" in skill
+        assert "## specfact.01-import" in skill
+        assert "## specfact.validate" in skill
+        assert "# Analyze" in skill
+        assert "# Validate" in skill
+
     def test_copy_templates_skips_existing_without_force(self, tmp_path: Path) -> None:
         """Test copying templates skips existing files without force."""
         templates_dir = tmp_path / "resources" / "prompts"
@@ -322,6 +344,7 @@ def test_flat_export_glob_pattern_for_prune_matches_output_formats() -> None:
     assert _flat_export_glob_pattern_for_prune("prompt.md") == "specfact*.prompt.md"
     assert _flat_export_glob_pattern_for_prune("toml") == "specfact*.toml"
     assert _flat_export_glob_pattern_for_prune("md") == "specfact*.md"
+    assert _flat_export_glob_pattern_for_prune("skill.md") == "specfact*/SKILL.md"
 
 
 def test_is_specfact_github_prompt_path_only_specfact_named_prompts() -> None:
@@ -413,3 +436,25 @@ def test_expected_ide_prompt_export_paths_respects_prompt_source_subset(
     assert len(subset_paths) == 1
     assert subset_paths[0].name == "c.md"
     assert "core" not in subset_paths[0].parts
+
+
+def test_expected_ide_prompt_export_paths_groups_skill_targets_by_source(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Skill audits expect one SKILL.md per source/module."""
+    p_core = tmp_path / "c.md"
+    p_mod = tmp_path / "m.md"
+    monkeypatch.setattr(
+        "specfact_cli.utils.ide_setup.discover_prompt_sources_catalog",
+        lambda _rp, include_package_fallback=True: {
+            PROMPT_SOURCE_CORE: [p_core],
+            "nold-ai/specfact-project": [p_mod],
+        },
+    )
+
+    paths = expected_ide_prompt_export_paths(tmp_path, "codex")
+
+    assert paths == [
+        tmp_path / ".codex" / "skills" / "specfact-cli" / "SKILL.md",
+        tmp_path / ".codex" / "skills" / "specfact-project" / "SKILL.md",
+    ]

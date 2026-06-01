@@ -46,14 +46,14 @@ def suggest_next_steps(repo_path: Path, context: ProjectContext | None = None) -
 
     # First-time setup suggestions
     if not context.has_plan and not context.has_config:
-        suggestions.append("specfact code import <name> --repo .  # Import your codebase")
+        suggestions.append("specfact code import --repo . <name>  # Import your codebase")
         suggestions.append("specfact init  # Initialize SpecFact configuration")
         return suggestions
 
     # Analysis suggestions
     if context.has_plan and context.contract_coverage < 0.5:
         suggestions.append("specfact analyze --bundle <name>  # Analyze contract coverage")
-        suggestions.append("specfact code import <name> --repo .  # Update the project bundle from code")
+        suggestions.append("specfact code import --repo . <name>  # Update the project bundle from code")
 
     # Specmatic integration suggestions
     if context.has_specmatic_config and not context.openapi_specs:
@@ -61,11 +61,11 @@ def suggest_next_steps(repo_path: Path, context: ProjectContext | None = None) -
 
     # Enforcement suggestions
     if context.has_plan and not context.last_enforcement:
-        suggestions.append("specfact enforce sdd --bundle <name>  # Enforce quality gates")
+        suggestions.append("specfact govern enforce sdd <name>  # Enforce quality gates")
 
     # Sync suggestions
     if context.has_plan:
-        suggestions.append("specfact sync intelligent --bundle <name>  # Sync code and specs")
+        suggestions.append("specfact project sync intelligent <name>  # Sync code and specs")
 
     return suggestions
 
@@ -90,8 +90,8 @@ def suggest_fixes(error_message: str, context: ProjectContext | None = None) -> 
 
     # Bundle not found
     if "bundle" in error_lower and ("not found" in error_lower or "does not exist" in error_lower):
-        suggestions.append("specfact plan select  # Select an active plan bundle")
-        suggestions.append("specfact code import <name> --repo .  # Create a new bundle from code")
+        suggestions.append("specfact project --help  # Inspect available project bundle commands")
+        suggestions.append("specfact code import --repo . <name>  # Create a new bundle from code")
 
     # Contract validation errors
     if "contract" in error_lower and ("violation" in error_lower or "invalid" in error_lower):
@@ -105,7 +105,7 @@ def suggest_fixes(error_message: str, context: ProjectContext | None = None) -> 
 
     # Import errors
     if "import" in error_lower and "failed" in error_lower:
-        suggestions.append("specfact code import <name> --repo .  # Retry import")
+        suggestions.append("specfact code import --repo . <name>  # Retry import")
 
     return suggestions
 
@@ -127,7 +127,7 @@ def suggest_improvements(context: ProjectContext) -> list[str]:
     # Low contract coverage
     if context.contract_coverage < 0.3:
         suggestions.append("specfact analyze --bundle <name>  # Identify missing contracts")
-        suggestions.append("specfact code import <name> --repo .  # Extract contracts from code")
+        suggestions.append("specfact code import --repo . <name>  # Extract contracts from code")
 
     # Missing OpenAPI specs
     if context.has_plan and not context.openapi_specs:
@@ -139,7 +139,7 @@ def suggest_improvements(context: ProjectContext) -> list[str]:
 
     # Outdated enforcement
     if context.last_enforcement:
-        suggestions.append("specfact enforce sdd --bundle <name>  # Re-run quality gates")
+        suggestions.append("specfact govern enforce sdd <name>  # Re-run quality gates")
 
     return suggestions
 

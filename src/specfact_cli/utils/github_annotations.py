@@ -45,7 +45,7 @@ def _append_pr_failed_check_details(lines: list[str], check: dict[str, Any]) -> 
         lines.append("</details>\n\n")
     if tool == "semgrep":
         lines.append(
-            "💡 **Auto-fix available**: Run `specfact repro --fix` to apply automatic fixes for violations with fix capabilities.\n\n"
+            "💡 **Auto-fix available**: Run `specfact code repro --fix` to apply automatic fixes for violations with fix capabilities.\n\n"
         )
 
 
@@ -294,7 +294,7 @@ def _append_pr_comment_detail_sections(
         lines.append("### 💡 Suggestions\n\n")
         lines.append("1. Review the failed checks above")
         lines.append("2. Fix the issues in your code")
-        lines.append("3. Re-run validation: `specfact repro --budget 90`\n\n")
+        lines.append("3. Re-run validation: `specfact code repro --budget 90`\n\n")
         lines.append("To run in warn mode (non-blocking), set `mode: warn` in your workflow configuration.\n\n")
 
 

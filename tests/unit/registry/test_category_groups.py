@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 from collections.abc import Generator
 from pathlib import Path
+from typing import Any, cast
 from unittest.mock import patch
 
 import pytest
@@ -115,7 +116,7 @@ def test_govern_help_when_not_installed_suggests_install(
 
     runner = CliRunner()
     root_cmd = get_command(app)
-    result = runner.invoke(root_cmd, ["govern", "--help"])
+    result = runner.invoke(cast(Any, root_cmd), ["govern", "--help"])
     assert (
         result.exit_code == 0 or "install" in (result.output or "").lower() or "govern" in (result.output or "").lower()
     )
@@ -139,7 +140,7 @@ def test_flat_validate_is_not_found_in_copilot_mode(
 
     runner = CliRunner()
     root_cmd = get_command(app)
-    result = runner.invoke(root_cmd, ["validate", "--help"])
+    result = runner.invoke(cast(Any, root_cmd), ["validate", "--help"])
     assert result.exit_code != 0
     assert "not installed" in (result.output or "").lower() or "no such command" in (result.output or "").lower()
 
@@ -160,7 +161,7 @@ def test_flat_validate_is_not_found_in_cicd_mode(tmp_path: Path) -> None:
 
     runner = CliRunner()
     root_cmd = get_command(app)
-    result = runner.invoke(root_cmd, ["validate", "--help"])
+    result = runner.invoke(cast(Any, root_cmd), ["validate", "--help"])
     assert result.exit_code != 0
     assert "not installed" in (result.output or "").lower() or "no such command" in (result.output or "").lower()
 
@@ -181,6 +182,6 @@ def test_spec_api_validate_routes_correctly(tmp_path: Path) -> None:
     if "spec" not in root_commands:
         return
     runner = CliRunner()
-    result = runner.invoke(root_cmd, ["spec", "validate", "--help"])
+    result = runner.invoke(cast(Any, root_cmd), ["spec", "validate", "--help"])
     assert result.exit_code == 0, f"spec validate --help failed: {result.output}"
     assert "validate" in (result.output or "").lower() or "Specmatic" in (result.output or "")

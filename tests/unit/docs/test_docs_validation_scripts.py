@@ -4,6 +4,8 @@ import importlib.util
 import textwrap
 from pathlib import Path
 
+import pytest
+
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 
@@ -49,7 +51,7 @@ specfact init && specfact module list
     assert ["module", "list"] in cmds
 
 
-def test_tokens_from_line_stops_at_flags() -> None:
+def test_tokens_from_line_preserves_flags_for_order_validation() -> None:
     mod = _load_check_docs_commands()
     text = """
 ```bash
@@ -57,7 +59,41 @@ specfact backlog analyze-deps --json
 ```
 """
     cmds = mod.collect_specfact_commands_from_text(text)
-    assert ["backlog", "analyze-deps"] in cmds
+    assert ["backlog", "analyze-deps", "--json"] in cmds
+
+
+def test_code_import_options_after_bundle_are_rejected() -> None:
+    mod = _load_check_docs_commands()
+
+    ok, message = mod.validate_command_tokens(["code", "import", "legacy-api", "--repo"])
+
+    assert ok is False
+    assert "code import" in message
+    assert "--repo" in message
+
+
+def test_code_import_explicit_subcommand_keeps_legacy_bundle_position() -> None:
+    mod = _load_check_docs_commands()
+
+    ok, message = mod.validate_command_tokens(["code", "import", "from-code", "legacy-api", "--repo", "."])
+
+    assert ok is True
+    assert message == ""
+
+
+def test_placeholder_command_examples_are_ignored() -> None:
+    mod = _load_check_docs_commands()
+
+    ok, message = mod.validate_command_tokens(["<command>", "--help"])
+
+    assert ok is True
+    assert message == ""
+
+
+def test_core_cli_modes_page_is_not_excluded_from_command_validation() -> None:
+    mod = _load_check_docs_commands()
+
+    assert "docs/core-cli/modes.md" not in mod._EXCLUDED_DOC_PATHS
 
 
 def test_tokens_skip_leading_global_options_before_subcommand() -> None:
@@ -68,7 +104,39 @@ specfact --mode copilot import from-code legacy-api --repo . --confidence 0.7
 ```
 """
     cmds = mod.collect_specfact_commands_from_text(text)
-    assert ["import", "from-code", "legacy-api"] in cmds
+    assert ["import", "from-code", "legacy-api", "--repo", ".", "--confidence", "0.7"] in cmds
+
+
+def test_collect_specfact_commands_from_guidance_text_handles_inline_and_yaml() -> None:
+    mod = _load_check_docs_commands()
+    text = """
+guidance: "Run `specfact module list --show-origin` before editing."
+steps:
+  - specfact project sync bridge --help
+"""
+    cmds = mod.collect_specfact_commands_from_guidance_text(text)
+    assert ["module", "list", "--show-origin"] in cmds
+    assert ["project", "sync", "bridge", "--help"] in cmds
+
+
+def test_scan_guidance_templates_validates_resource_templates(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    mod = _load_check_docs_commands()
+    monkeypatch.setattr(mod, "_REPO_ROOT", tmp_path)
+    monkeypatch.setattr(mod, "_ADDITIONAL_GUIDANCE_ROOTS", (tmp_path / "resources",))
+    monkeypatch.setattr(
+        mod, "validate_command_tokens", lambda tokens: (tokens != ["sync", "bridge", "--help"], "stale")
+    )
+
+    docs_root = tmp_path / "docs"
+    docs_root.mkdir()
+    template = tmp_path / "resources" / "templates" / "protocol.yaml.j2"
+    template.parent.mkdir(parents=True)
+    template.write_text('command: "specfact sync bridge --help"\n', encoding="utf-8")
+
+    seen, failures = mod._scan_guidance_templates_for_command_validation(docs_root)
+
+    assert ("sync", "bridge", "--help") in seen
+    assert failures == ["resources/templates/protocol.yaml.j2: specfact sync bridge --help — stale"]
 
 
 def test_cross_site_url_stops_at_markdown_delimiters() -> None:

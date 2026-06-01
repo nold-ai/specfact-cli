@@ -38,7 +38,7 @@ Pass `--debug` before any command:
 ```bash
 specfact --debug init
 specfact --debug backlog refine --adapter ado --project my-project
-specfact --debug plan select
+specfact --debug project version check
 ```
 
 Debug output appears in the terminal and is also appended to a log file.

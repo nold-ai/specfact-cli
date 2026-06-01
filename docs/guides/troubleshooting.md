@@ -117,13 +117,13 @@ specfact project health-check
 1. **Check repository path**:
 
    ```bash
-   specfact code import legacy-api --repo . --verbose
+   specfact code import --repo . legacy-api --verbose
    ```
 
 2. **Lower confidence threshold** (for legacy code with less structure):
 
    ```bash
-   specfact code import legacy-api --repo . --confidence 0.3
+   specfact code import --repo . legacy-api --confidence 0.3
    ```
 
 3. **Check file structure**:
@@ -141,7 +141,7 @@ specfact project health-check
 5. **For legacy codebases**, start with minimal confidence and review extracted features:
 
    ```bash
-   specfact code import legacy-api --repo . --confidence 0.2
+   specfact code import --repo . legacy-api --confidence 0.2
    ```
 
 ---
@@ -256,7 +256,7 @@ specfact project health-check
 2. **Adjust confidence threshold**:
 
    ```bash
-   specfact code import legacy-api --repo . --confidence 0.7
+   specfact code import --repo . legacy-api --confidence 0.7
    ```
 
 3. **Check enforcement rules** (use CLI commands):
@@ -352,7 +352,7 @@ specfact project health-check
 3. **Generate auto-derived plan first**:
 
    ```bash
-   specfact code import legacy-api --repo .
+   specfact code import --repo . legacy-api
    ```
 
 ### No Deviations Found (Expected Some)
@@ -459,7 +459,7 @@ specfact project health-check
 
    ```bash
    export SPECFACT_MODE=copilot
-   specfact code import legacy-api --repo .
+   specfact code import --repo . legacy-api
    ```
 
 4. **See [Operational Modes](../core-cli/modes.md)** for details
@@ -483,14 +483,14 @@ specfact project health-check
 2. **Increase confidence threshold** (fewer features):
 
    ```bash
-   specfact code import legacy-api --repo . --confidence 0.8
+   specfact code import --repo . legacy-api --confidence 0.8
    ```
 
 3. **Exclude directories**:
 
    ```bash
    # Use .gitignore or exclude patterns
-   specfact code import legacy-api --repo . --exclude "tests/"
+   specfact code import --repo . legacy-api --exclude "tests/"
    ```
 
 ### Watch Mode High CPU
