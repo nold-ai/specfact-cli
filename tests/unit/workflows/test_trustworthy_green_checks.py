@@ -249,6 +249,7 @@ def test_specfact_contract_workflow_checks_out_matching_modules_branch_when_avai
     assert 'echo "ref=dev" >> "$GITHUB_OUTPUT"' in raw
     assert "ref: ${{ steps.modules-ref.outputs.ref }}" in raw
     assert "SPECFACT_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" in raw
+    assert "SPECFACT_MODULES_ROOTS=${GITHUB_WORKSPACE}/specfact-cli-modules/packages" in raw
     assert "ref: ${{ (github.ref == 'refs/heads/main' || github.head_ref == 'main') && 'main' || 'dev' }}" not in raw
 
 

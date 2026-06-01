@@ -2,21 +2,24 @@
 
 from __future__ import annotations
 
+import inspect
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 from typer.testing import CliRunner
 
-from specfact_cli.modules.init.src import first_run_selection as frs
-from specfact_cli.modules.init.src.commands import app
+from specfact_cli.modules.init.src import commands as init_commands, first_run_selection as frs
 
 
 runner = CliRunner()
+app = init_commands.app
 
 
 def test_init_commands_avoid_private_typer_click_import() -> None:
-    source = Path("src/specfact_cli/modules/init/src/commands.py").read_text(encoding="utf-8")
+    source_path = inspect.getsourcefile(init_commands)
+    assert source_path is not None
+    source = Path(source_path).read_text(encoding="utf-8")
 
     assert "typer._click" not in source
 
