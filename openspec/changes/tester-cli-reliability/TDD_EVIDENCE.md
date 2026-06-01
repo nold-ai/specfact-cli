@@ -174,3 +174,22 @@
   - `hatch run yaml-lint` -> passed.
   - `hatch run lint` -> passed.
   - `openspec validate tester-cli-reliability --strict` -> passed.
+
+## PR #598 Dev-To-Main Command Contract Fix
+
+- Re-checked PR #598 CI after the runtime smoke fixes. Runtime tests and compatibility checks passed; the remaining failures were duplicate `CLI Command Validation` and `Docs Review` runs.
+- Root cause: CI checked out `specfact-cli-modules` at `dev`, and `hatch run check-command-contract` invoked generated legacy alias help paths:
+  - `specfact code import from-bridge --help`
+  - `specfact code import from-code --help`
+- Under the module-owned `code import` Typer shape, the alias token is consumed as the optional `BUNDLE` argument before subcommand resolution, so `--help` is interpreted as the command and exits 2 with `No such command '--help'`.
+- Failing-before evidence:
+  - `hatch run pytest tests/unit/docs/test_docs_validation_scripts.py::test_command_contract_retries_parent_help_for_code_import_alias -q` -> 1 failed before the production edit because `_check_help` returned immediately on the alias help exit code 2.
+- Fix:
+  - `scripts/check-command-contract.py` now retries parent `specfact code import --help` for the known ambiguous legacy aliases when direct alias help fails.
+- Passing-after evidence:
+  - `hatch run pytest tests/unit/docs/test_docs_validation_scripts.py::test_command_contract_retries_parent_help_for_code_import_alias -q` -> 1 passed.
+  - `hatch run pytest tests/unit/docs/test_docs_validation_scripts.py -q` -> 15 passed.
+  - `SPECFACT_MODULES_REPO=/home/dom/git/nold-ai/specfact-cli-modules hatch run check-command-contract` -> passed: `check-command-contract: OK (107 generated command path(s) validated)`.
+  - `SPECFACT_MODULES_REPO=/home/dom/git/nold-ai/specfact-cli-modules hatch run docs-validate` -> passed enforced checks. The warn-only cross-site link step reported DNS resolution failures for `modules.specfact.io` under the local restricted network.
+  - `hatch run lint` -> passed.
+  - `openspec validate tester-cli-reliability --strict` -> passed.

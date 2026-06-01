@@ -28,6 +28,15 @@ def _load_check_cross_site_links() -> object:
     return mod
 
 
+def _load_check_command_contract() -> object:
+    path = REPO_ROOT / "scripts" / "check-command-contract.py"
+    spec = importlib.util.spec_from_file_location("check_command_contract", path)
+    assert spec and spec.loader
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
 def test_collect_specfact_commands_from_markdown_code_block() -> None:
     mod = _load_check_docs_commands()
     text = """
@@ -79,6 +88,39 @@ def test_code_import_explicit_subcommand_keeps_legacy_bundle_position() -> None:
 
     assert ok is True
     assert message == ""
+
+
+def test_command_contract_retries_parent_help_for_code_import_alias(monkeypatch: pytest.MonkeyPatch) -> None:
+    mod = _load_check_command_contract()
+    calls: list[tuple[list[str], list[str]]] = []
+
+    def fake_invoke(
+        runner: object,
+        apps: object,
+        command_parts: list[str],
+        suffix: list[str],
+    ) -> tuple[int, str]:
+        del runner, apps
+        calls.append((command_parts, suffix))
+        if command_parts == ["specfact", "code", "import", "from-bridge"]:
+            return 2, "Usage: root import [OPTIONS] [BUNDLE] COMMAND [ARGS]...\nNo such command '--help'."
+        if command_parts == ["specfact", "code", "import"]:
+            return 0, "Usage: root import [OPTIONS] [BUNDLE] COMMAND [ARGS]...\nCommands:\n  from-bridge\n"
+        raise AssertionError(command_parts)
+
+    monkeypatch.setattr(mod, "_invoke", fake_invoke)
+
+    failures = mod._check_help(
+        runner=object(),
+        apps={("specfact",): (object(), ())},
+        record={"command": "specfact code import from-bridge", "subcommands": []},
+    )
+
+    assert failures == []
+    assert calls == [
+        (["specfact", "code", "import", "from-bridge"], ["--help"]),
+        (["specfact", "code", "import"], ["--help"]),
+    ]
 
 
 def test_placeholder_command_examples_are_ignored() -> None:

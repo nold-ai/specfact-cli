@@ -166,6 +166,10 @@ def _check_help(runner: CliRunner, apps: MountedApps, record: dict[str, Any]) ->
         return [f"{record.get('command')}: invalid command path in generated JSON"]
     command_parts = ["specfact", *args]
     exit_code, raw_output = _invoke(runner, apps, command_parts, ["--help"])
+    if exit_code != 0 and _allows_parent_help(record):
+        # Typer treats the alias token as the optional import BUNDLE argument
+        # before it can resolve these legacy aliases as subcommands.
+        exit_code, raw_output = _invoke(runner, apps, command_parts[:-1], ["--help"])
     output = raw_output.lower()
     if exit_code != 0:
         return [f"{record.get('command')}: --help exited {exit_code}\n{raw_output}"]
