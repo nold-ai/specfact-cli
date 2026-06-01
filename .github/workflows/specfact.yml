@@ -83,8 +83,17 @@ jobs:
         id: repro
         continue-on-error: true
         run: |
-          specfact code repro --verbose --crosshair-required --budget ${{ steps.validation.outputs.budget }} || true
-          echo "exit_code=$?" >> "$GITHUB_OUTPUT"
+          budget='${{ steps.validation.outputs.budget }}'
+          if ! [[ "$budget" =~ ^[0-9]+$ ]]; then
+            echo "Invalid budget: $budget" >&2
+            echo "exit_code=2" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          set +e
+          specfact code repro --verbose --crosshair-required --budget "$budget"
+          rc=$?
+          set -e
+          echo "exit_code=$rc" >> "$GITHUB_OUTPUT"
 
       - name: Find latest repro report
         id: report

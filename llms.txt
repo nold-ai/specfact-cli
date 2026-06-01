@@ -1,7 +1,3 @@
-# SpecFact CLI Commands
-
-Use this generated overview as the current command contract before following older docs or prompts.
-
 ---
 layout: default
 title: Generated SpecFact CLI Command Overview
@@ -10,7 +6,9 @@ exempt: true
 exempt_reason: Generated command contract artifact.
 ---
 
-# Generated SpecFact CLI Command Overview
+# SpecFact CLI Commands
+
+Use this generated overview as the current command contract before following older docs or prompts.
 
 This file is generated from the current CLI command tree. Do not edit by hand.
 
@@ -44,7 +42,7 @@ This file is generated from the current CLI command tree. Do not edit by hand.
 | `specfact backlog refine` | nold-ai/specfact-backlog | --ado-org, --ado-project, --ado-team, --ado-token, --assignee, --auto-accept-high-confidence, --auto-bundle, --bundle, --check-dor, --custom-field-mapping, --export-to-tmp, --first-comments, --first-issues, --framework, --github-token, --id, --ignore-refined, --import-from-tmp, --iteration, --labels, --last-comments, --last-issues, --limit, --no-ignore-refined, --no-preview, --openspec-comment, --persona, --preview, --release, --repo-name, --repo-owner, --search, --sprint, --state, --tags, --template, --tmp-file, --write; args: - | - |  |
 | `specfact backlog sync` | nold-ai/specfact-backlog | --adapter, --baseline-file, --force-baseline-overwrite, --output-format, --project-id, --template; args: - | - |  |
 | `specfact backlog verify-readiness` | nold-ai/specfact-backlog | --adapter, --project-id, --target-items, --template; args: - | - |  |
-| `specfact code` | nold-ai/specfact-codebase | --install-completion, --show-completion; args: - | analyze, drift, import, repro, validate |  |
+| `specfact code` | nold-ai/specfact-codebase | --install-completion, --show-completion; args: - | analyze, drift, import, repro, review, validate |  |
 | `specfact code analyze` | nold-ai/specfact-codebase | -; args: - | contracts |  |
 | `specfact code analyze contracts` | nold-ai/specfact-codebase | --bundle, --repo; args: - | - |  |
 | `specfact code drift` | nold-ai/specfact-codebase | -; args: - | detect |  |
@@ -54,17 +52,16 @@ This file is generated from the current CLI command tree. Do not edit by hand.
 | `specfact code import from-code` | nold-ai/specfact-codebase | --confidence, --enrich-for-speckit, --enrichment, --entry-point, --exclude-tests, --force, --include-tests, --key-format, --no-enrich-for-speckit, --no-revalidate-features, --repo, --report, --revalidate-features, --shadow-only; args: - | - |  |
 | `specfact code repro` | nold-ai/specfact-codebase | --budget, --crosshair-per-path-timeout, --crosshair-required, --fail-fast, --fix, --out, --repo, --sidecar, --sidecar-bundle, --verbose; args: - | setup |  |
 | `specfact code repro setup` | nold-ai/specfact-codebase | --install-crosshair, --repo; args: - | - |  |
-| `specfact code review` | nold-ai/specfact-code-review | --install-completion, --show-completion; args: - | review |  |
-| `specfact code review review` | nold-ai/specfact-code-review | -; args: - | ledger, rules, run |  |
-| `specfact code review review ledger` | nold-ai/specfact-code-review | -; args: - | reset, status, update |  |
-| `specfact code review review ledger reset` | nold-ai/specfact-code-review | --confirm; args: - | - |  |
-| `specfact code review review ledger status` | nold-ai/specfact-code-review | -; args: - | - |  |
-| `specfact code review review ledger update` | nold-ai/specfact-code-review | --from; args: - | - |  |
-| `specfact code review review rules` | nold-ai/specfact-code-review | -; args: - | init, show, update |  |
-| `specfact code review review rules init` | nold-ai/specfact-code-review | --ide; args: - | - |  |
-| `specfact code review review rules show` | nold-ai/specfact-code-review | -; args: - | - |  |
-| `specfact code review review rules update` | nold-ai/specfact-code-review | --ide; args: - | - |  |
-| `specfact code review review run` | nold-ai/specfact-code-review | --bug-hunt, --exclude-tests, --fix, --focus, --include-noise, --include-tests, --instructions, --interactive, --json, --level, --mode, --no-tests, --out, --path, --preview-fixes, --scope, --score-only, --suppress-noise, --with-mutation; args: - | - |  |
+| `specfact code review` | nold-ai/specfact-code-review | -; args: - | ledger, rules, run |  |
+| `specfact code review ledger` | nold-ai/specfact-code-review | -; args: - | reset, status, update |  |
+| `specfact code review ledger reset` | nold-ai/specfact-code-review | --confirm; args: - | - |  |
+| `specfact code review ledger status` | nold-ai/specfact-code-review | -; args: - | - |  |
+| `specfact code review ledger update` | nold-ai/specfact-code-review | --from; args: - | - |  |
+| `specfact code review rules` | nold-ai/specfact-code-review | -; args: - | init, show, update |  |
+| `specfact code review rules init` | nold-ai/specfact-code-review | --ide; args: - | - |  |
+| `specfact code review rules show` | nold-ai/specfact-code-review | -; args: - | - |  |
+| `specfact code review rules update` | nold-ai/specfact-code-review | --ide; args: - | - |  |
+| `specfact code review run` | nold-ai/specfact-code-review | --bug-hunt, --exclude-tests, --fix, --focus, --include-noise, --include-tests, --instructions, --interactive, --json, --level, --mode, --no-tests, --out, --path, --preview-fixes, --scope, --score-only, --suppress-noise, --with-mutation; args: - | - |  |
 | `specfact code validate` | nold-ai/specfact-codebase | -; args: - | sidecar |  |
 | `specfact code validate sidecar` | nold-ai/specfact-codebase | -; args: - | init, run |  |
 | `specfact code validate sidecar init` | nold-ai/specfact-codebase | -; args: - | - |  |

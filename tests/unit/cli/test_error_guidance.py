@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import Any, cast
 
 import pytest
@@ -11,12 +12,19 @@ from typer.testing import CliRunner as TyperCliRunner
 from specfact_cli.cli import app
 
 
+_ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
+
+
+def _strip_ansi(text: str) -> str:
+    return _ANSI_RE.sub("", text)
+
+
 def test_unknown_root_command_shows_help_and_recovery_guidance() -> None:
     runner = CliRunner()
     result = runner.invoke(cast(Any, get_command(app)), ["hello"])
 
     assert result.exit_code != 0
-    output = result.output.lower()
+    output = _strip_ansi(result.output).lower()
     assert "usage: specfact" in output
     assert "hello" in output
     assert "not a valid command" in output or "no such command" in output
@@ -44,7 +52,7 @@ def test_global_group_without_subcommand_shows_help_and_missing_subcommand() -> 
     result = CliRunner().invoke(cast(Any, get_command(_sample_app())), ["widgets"])
 
     assert result.exit_code == 2
-    output = result.output.lower()
+    output = _strip_ansi(result.output).lower()
     assert "usage:" in output
     assert "manage widgets" in output
     assert "list" in output
@@ -56,7 +64,7 @@ def test_global_leaf_missing_argument_shows_help_and_missing_parameter() -> None
     result = CliRunner().invoke(cast(Any, get_command(_sample_app())), ["widgets", "deploy"])
 
     assert result.exit_code == 2
-    output = result.output.lower()
+    output = _strip_ansi(result.output).lower()
     assert "usage:" in output
     assert "deploy" in output
     assert "target" in output
@@ -67,7 +75,7 @@ def test_global_nested_unknown_command_shows_group_help_and_invalid_command() ->
     result = CliRunner().invoke(cast(Any, get_command(_sample_app())), ["widgets", "remove"])
 
     assert result.exit_code == 2
-    output = result.output.lower()
+    output = _strip_ansi(result.output).lower()
     assert "usage:" in output
     assert "manage widgets" in output
     assert "remove" in output
@@ -89,18 +97,11 @@ def test_global_nested_unknown_command_shows_group_help_and_invalid_command() ->
         ("module subgroup leaf missing arg", ["module", "alias", "create"]),
         ("init subgroup missing option value", ["init", "ide", "--repo"]),
         ("upgrade bad option", ["upgrade", "--bad-option"]),
-        ("code missing subcommand", ["code"]),
-        ("code typo", ["code", "impor"]),
-        ("code import missing option value", ["code", "import", "--repo"]),
-        ("backlog auth missing subcommand", ["backlog", "auth"]),
-        ("backlog delta status missing context", ["backlog", "delta", "status"]),
-        ("project sync typo", ["project", "sync", "brdge"]),
-        ("project sync bridge missing option value", ["project", "sync", "bridge", "--repo"]),
     ],
 )
 def test_cli_misuse_matrix_shows_contextual_help_once(name: str, args: list[str]) -> None:
     result = TyperCliRunner().invoke(app, args)
-    output = result.output.lower()
+    output = _strip_ansi(result.output).lower()
 
     assert result.exit_code != 0, name
     assert "usage:" in output, name

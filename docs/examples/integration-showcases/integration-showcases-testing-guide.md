@@ -1147,7 +1147,7 @@ result = process_order(order_id="123")
 specfact --no-banner code import from-code --repo . --output-format yaml
 ```
 
-**Important**: After creating the initial plan, we need to make it the default plan so `plan compare --code-vs-plan` can find it. Use `plan select` to set it as the active plan:
+**Important**: After creating the initial plan, keep the bundle name explicit for later drift comparison steps:
 
 ```bash
 # Find the created plan bundle
@@ -1155,14 +1155,14 @@ specfact --no-banner code import from-code --repo . --output-format yaml
 BUNDLE_NAME="example4_github_actions"
 PLAN_NAME=$(basename "$PLAN_FILE")
 
-# Set it as the active plan (this makes it the default for plan compare)
-specfact --no-banner project version check --bundle "$BUNDLE_NAME" --repo .
+# Verify the bundle that later comparison steps will use explicitly
+specfact --no-banner project health-check --project-name "$BUNDLE_NAME" --repo .
 
-# Verify it's set as active
-specfact --no-banner project version check --repo .
+# Verify the project command surface remains available in this repo
+specfact --no-banner project health-check --project-name "$BUNDLE_NAME" --repo .
 ```
 
-**Note**: `plan compare --code-vs-plan` uses the active plan (set via `plan select`) or falls back to the default bundle if no active plan is set. Using `plan select` is the recommended approach as it's cleaner and doesn't require file copying.
+**Note**: Later comparison steps pass `"$BUNDLE_NAME"` explicitly instead of relying on legacy active-plan selection.
 
 Then commit:
 
@@ -1228,7 +1228,7 @@ Create `.git/hooks/pre-commit`:
 # Use default name "auto-derived" so plan compare --code-vs-plan can find it
 specfact --no-banner code import from-code --repo . --output-format yaml > /dev/null 2>&1
 
-# Then compare: uses active plan (set via plan select) as manual, latest code-derived plan as auto
+# Then compare against the explicitly named auto-derived bundle
 specfact --no-banner code drift detect auto-derived --repo .
 ```
 
@@ -1237,13 +1237,13 @@ specfact --no-banner code drift detect auto-derived --repo .
 - Imports current code to create a new plan (auto-derived from modified code)
   - **Important**: Uses default name "auto-derived" (or omit `--name`) so `plan compare --code-vs-plan` can find it
   - `plan compare --code-vs-plan` looks for plans named `auto-derived.*.bundle.*`
-- Compares the new plan (auto) against the active plan (manual/baseline - set via `plan select` in Step 2)
+- Compares the new plan against the explicitly named generated bundle
 - Uses enforcement configuration to determine if deviations should block the commit
 - Blocks commit if HIGH severity deviations are found (based on enforcement preset)
 
 **Note**: The `--code-vs-plan` flag automatically uses:
 
-- **Manual plan**: The active plan (set via `plan select`) or `main.bundle.yaml` as fallback
+- **Manual plan**: The baseline bundle named by the workflow or `main.bundle.yaml` as fallback
 - **Auto plan**: The latest `auto-derived` project bundle (from `code import from-code auto-derived` or default bundle name)
 
 Make it executable:
@@ -1629,7 +1629,7 @@ rm -rf specfact-integration-tests
 **What's Validated**:
 
 - ✅ Plan bundle creation (`code import from-code`)
-- ✅ Plan selection (`plan select` sets active plan)
+- ✅ Bundle verification (`project health-check` confirms the named bundle)
 - ✅ Enforcement configuration (`enforce stage` with BALANCED preset)
 - ✅ Pre-commit hook setup (imports code, then compares)
 - ✅ Plan comparison (`plan compare --code-vs-plan` finds both plans correctly)
@@ -1638,9 +1638,9 @@ rm -rf specfact-integration-tests
 **Test Results**:
 
 - Plan creation: ✅ `code import from-code <bundle-name>` creates project bundle at `.specfact/projects/<bundle-name>/` (modular structure)
-- Plan selection: ✅ `plan select` sets active plan correctly
+- Bundle verification: ✅ `project health-check` confirms the named bundle
 - Plan comparison: ✅ `plan compare --code-vs-plan` finds:
-  - Manual plan: Active plan (set via `plan select`)
+  - Manual plan: Explicit baseline bundle
   - Auto plan: Latest `auto-derived` project bundle (`.specfact/projects/auto-derived/`)
 - Deviation detection: ✅ Detects deviations (1 HIGH, 2 LOW in test case)
 - Enforcement: ✅ Blocks commit when HIGH severity deviations found
@@ -1649,7 +1649,7 @@ rm -rf specfact-integration-tests
 **Key Findings**:
 
 - ✅ `code import from-code` should use bundle name "auto-derived" so `plan compare --code-vs-plan` can find it
-- ✅ `plan select` is the recommended way to set the baseline plan (cleaner than copying to `main.bundle.yaml`)
+- ✅ Passing bundle names explicitly is the recommended way to set the baseline
 - ✅ Pre-commit hook workflow: `code import from-code` → `plan compare --code-vs-plan` works correctly
 - ✅ Enforcement configuration is respected (HIGH → BLOCK based on preset)
 

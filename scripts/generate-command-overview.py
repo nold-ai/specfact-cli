@@ -159,6 +159,15 @@ def _walk(
     return records
 
 
+def _mounted_command(command: Any, path: tuple[str, ...]) -> Any:
+    """Flatten mounted Typer apps whose root command repeats the mount segment."""
+    children = _command_children(command)
+    repeated_root = children.get(path[-1])
+    if repeated_root is not None and len(children) == 1:
+        return repeated_root
+    return command
+
+
 def _root_record(root_subcommands: list[str]) -> dict[str, Any]:
     _ensure_imports()
     from specfact_cli.cli import app
@@ -190,17 +199,33 @@ def build_records() -> list[dict[str, Any]]:
         )
         records.extend(
             _walk(
-                get_command(app),
+                _mounted_command(get_command(app), prefix),
                 prefix,
                 f"{module_path}:{attr_name}",
                 owner_package,
                 install_prerequisite,
             )
         )
+    _populate_parent_subcommands(records)
     root_subcommands = sorted(
         {str(record["command"]).split()[1] for record in records if len(str(record["command"]).split()) > 1}
     )
     return [_root_record(root_subcommands), *sorted(records, key=lambda record: record["command"])]
+
+
+def _populate_parent_subcommands(records: list[dict[str, Any]]) -> None:
+    by_command = {str(record["command"]): record for record in records}
+    for command in sorted(by_command):
+        parts = command.split()
+        if len(parts) <= 1:
+            continue
+        parent_command = " ".join(parts[:-1])
+        parent = by_command.get(parent_command)
+        if parent is None:
+            continue
+        subcommands = set(parent.get("subcommands", []))
+        subcommands.add(parts[-1])
+        parent["subcommands"] = sorted(subcommands)
 
 
 def _render_markdown(records: list[dict[str, Any]]) -> str:
@@ -236,13 +261,25 @@ def _render_markdown(records: list[dict[str, Any]]) -> str:
 
 
 def _render_llms(markdown: str) -> str:
+    lines = markdown.splitlines()
+    closing_index = lines.index("---", 1)
+    front_matter = lines[: closing_index + 1]
+    body_lines = lines[closing_index + 1 :]
+    while body_lines and not body_lines[0]:
+        body_lines.pop(0)
+    if body_lines[:1] == ["# Generated SpecFact CLI Command Overview"]:
+        body_lines.pop(0)
+    while body_lines and not body_lines[0]:
+        body_lines.pop(0)
     return "\n".join(
         [
+            *front_matter,
+            "",
             "# SpecFact CLI Commands",
             "",
             "Use this generated overview as the current command contract before following older docs or prompts.",
             "",
-            markdown,
+            *body_lines,
         ]
     )
 

@@ -63,7 +63,11 @@ def _install_progressive_disclosure() -> None:
         return
     module = importlib.util.module_from_spec(spec)
     sys.modules[module_name] = module
-    spec.loader.exec_module(module)
+    try:
+        spec.loader.exec_module(module)
+    except Exception:
+        sys.modules.pop(module_name, None)
+        raise
 
 
 # Install the shared Click/Typer usage-error contract as soon as core is imported.
@@ -71,6 +75,6 @@ def _install_progressive_disclosure() -> None:
 # keeps missing-command and missing-parameter UX consistent outside the root CLI too.
 _install_progressive_disclosure()
 
-__version__ = "0.47.0"
+__version__ = "0.47.1"
 
 __all__ = ["__version__"]

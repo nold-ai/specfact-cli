@@ -233,11 +233,12 @@ jobs:
 
       - name: Checkout module bundles repo
         if: needs.changes.outputs.skip_tests_dev_to_main != 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
           repository: nold-ai/specfact-cli-modules
           path: specfact-cli-modules
           ref: ${{ steps.modules-ref.outputs.ref }}
+          persist-credentials: false
 
       - name: Export module bundles path
         if: needs.changes.outputs.skip_tests_dev_to_main != 'true'
@@ -401,11 +402,12 @@ jobs:
           fi
 
       - name: Checkout module bundles repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
           repository: nold-ai/specfact-cli-modules
           path: specfact-cli-modules
           ref: ${{ steps.modules-ref.outputs.ref }}
+          persist-credentials: false
       - name: Export module bundles path
         run: echo "SPECFACT_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" >> "$GITHUB_ENV"
       - name: Set up Python 3.11
@@ -469,11 +471,12 @@ jobs:
           fi
 
       - name: Checkout module bundles repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
           repository: nold-ai/specfact-cli-modules
           path: specfact-cli-modules
           ref: ${{ steps.modules-ref.outputs.ref }}
+          persist-credentials: false
       - name: Export module bundles path
         run: echo "SPECFACT_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" >> "$GITHUB_ENV"
       - name: Set up Python 3.12
@@ -547,11 +550,12 @@ jobs:
           fi
 
       - name: Checkout module command sources
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
           repository: nold-ai/specfact-cli-modules
           path: specfact-cli-modules
           ref: ${{ steps.modules-ref.outputs.ref }}
+          persist-credentials: false
       - name: Export module command source path
         run: echo "SPECFACT_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" >> "$GITHUB_ENV"
       - name: Set up Python 3.12

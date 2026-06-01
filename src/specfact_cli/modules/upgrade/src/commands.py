@@ -293,9 +293,10 @@ def _ensure_pipx_launcher_healthy() -> bool:
     launcher = shutil.which("specfact")
     if not launcher:
         console.print(
-            "[yellow]⚠ Could not find `specfact` on PATH after pipx upgrade; skipping launcher validation.[/yellow]"
+            "[yellow]⚠ Could not find `specfact` on PATH after pipx upgrade; "
+            "running `pipx reinstall specfact-cli`.[/yellow]"
         )
-        return True
+        return _repair_pipx_launcher(None)
 
     first_check = _run_launcher_version_check(launcher)
     if first_check.returncode == 0:
@@ -306,11 +307,21 @@ def _ensure_pipx_launcher_healthy() -> bool:
     console.print("[yellow]⚠ pipx launcher is stale or broken; running `pipx reinstall specfact-cli`.[/yellow]")
     _replay_upgrade_output(_coerce_subprocess_output(first_check.stdout))
     _replay_upgrade_output(_coerce_subprocess_output(first_check.stderr))
+    return _repair_pipx_launcher(launcher)
+
+
+def _repair_pipx_launcher(previous_launcher: str | None) -> bool:
+    """Reinstall via pipx and validate the resulting public launcher."""
     reinstall = _run_pipx_reinstall()
     _replay_upgrade_output(_coerce_subprocess_output(reinstall.stdout))
     _replay_upgrade_output(_coerce_subprocess_output(reinstall.stderr))
     if reinstall.returncode != 0:
         console.print(f"[red]✗ pipx reinstall specfact-cli failed with exit code {reinstall.returncode}[/red]")
+        return False
+
+    launcher = shutil.which("specfact") or previous_launcher
+    if not launcher:
+        console.print("[red]✗ `specfact` is still missing on PATH after reinstall[/red]")
         return False
 
     second_check = _run_launcher_version_check(launcher)

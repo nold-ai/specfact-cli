@@ -38,6 +38,7 @@ MISSING_MARKERS = (
     "not a valid command",
 )
 _TEMP_HOME: tempfile.TemporaryDirectory[str] | None = None
+MountedApps = dict[tuple[str, ...], tuple[object, tuple[str, ...]]]
 
 
 def _paired_worktree_repo(source_marker: str, target_marker: str) -> Path | None:
@@ -107,27 +108,27 @@ def _is_group(record: dict[str, Any]) -> bool:
     return isinstance(subcommands, list) and len(subcommands) > 0
 
 
-def _load_apps() -> dict[tuple[str, ...], object]:
+def _load_apps() -> MountedApps:
     from specfact_cli.cli import app as root_app
 
-    apps: dict[tuple[str, ...], object] = {("specfact",): root_app}
+    apps: MountedApps = {("specfact",): (root_app, ())}
     for module_path, attr_name, prefix in APP_MOUNTS:
         module = importlib.import_module(module_path)
-        apps[prefix] = getattr(module, attr_name)
+        internal_prefix = ("review",) if prefix == ("specfact", "code", "review") else ()
+        apps[prefix] = (getattr(module, attr_name), internal_prefix)
     return apps
 
 
-def _select_app(apps: dict[tuple[str, ...], object], command_parts: list[str]) -> tuple[object, list[str]]:
+def _select_app(apps: MountedApps, command_parts: list[str]) -> tuple[object, list[str]]:
     best_prefix: tuple[str, ...] = ("specfact",)
     for prefix in apps:
         if len(prefix) > len(best_prefix) and tuple(command_parts[: len(prefix)]) == prefix:
             best_prefix = prefix
-    return apps[best_prefix], command_parts[len(best_prefix) :]
+    app, internal_prefix = apps[best_prefix]
+    return app, [*internal_prefix, *command_parts[len(best_prefix) :]]
 
 
-def _invoke(
-    runner: CliRunner, apps: dict[tuple[str, ...], object], command_parts: list[str], suffix: list[str]
-) -> tuple[int, str]:
+def _invoke(runner: CliRunner, apps: MountedApps, command_parts: list[str], suffix: list[str]) -> tuple[int, str]:
     app, args = _select_app(apps, command_parts)
     invoke_args = [*args, *suffix]
     result = runner.invoke(cast(typer.Typer, app), invoke_args)
@@ -139,7 +140,7 @@ def _invoke(
     return result.exit_code, f"{stdout}{stderr}"
 
 
-def _check_help(runner: CliRunner, apps: dict[tuple[str, ...], object], record: dict[str, Any]) -> list[str]:
+def _check_help(runner: CliRunner, apps: MountedApps, record: dict[str, Any]) -> list[str]:
     args = _command_args(record)
     if not args and record.get("command") != "specfact":
         return [f"{record.get('command')}: invalid command path in generated JSON"]
@@ -166,9 +167,7 @@ def _check_help(runner: CliRunner, apps: dict[tuple[str, ...], object], record: 
     return []
 
 
-def _check_group_missing_subcommand(
-    runner: CliRunner, apps: dict[tuple[str, ...], object], record: dict[str, Any]
-) -> list[str]:
+def _check_group_missing_subcommand(runner: CliRunner, apps: MountedApps, record: dict[str, Any]) -> list[str]:
     if record.get("command") == "specfact" or not _is_group(record) or record.get("bare_invocation") == "executes":
         return []
     args = _command_args(record)
@@ -189,9 +188,7 @@ def _check_group_missing_subcommand(
     return failures
 
 
-def _check_missing_required_argument(
-    runner: CliRunner, apps: dict[tuple[str, ...], object], record: dict[str, Any]
-) -> list[str]:
+def _check_missing_required_argument(runner: CliRunner, apps: MountedApps, record: dict[str, Any]) -> list[str]:
     if _is_group(record) or not _has_required_argument(record):
         return []
     args = _command_args(record)

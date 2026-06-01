@@ -13,6 +13,7 @@ from icontract import ensure, require
 from rich.console import Console
 from rich.panel import Panel
 from rich.rule import Rule
+from typer._click.core import Context as TyperClickContext
 
 from specfact_cli import __version__
 from specfact_cli.contracts.module_interface import ModuleIOContract
@@ -714,8 +715,9 @@ def init_ide(
 @app.callback(invoke_without_command=True)
 @require(lambda repo: _is_valid_repo_path(repo), "Repo path must exist and be directory")
 @ensure(lambda result: result is None, "Command should return None")
+@beartype
 def init(
-    ctx: typer.Context,
+    ctx: TyperClickContext,
     repo: Path = typer.Option(
         Path("."),
         "--repo",

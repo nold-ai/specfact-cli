@@ -130,12 +130,7 @@ def _tokens_from_specfact_line(line: str) -> list[str] | None:
     parts = _strip_leading_global_options(parts)
     if not parts:
         return None
-    out: list[str] = []
-    for part in parts:
-        if part.startswith("-"):
-            break
-        out.append(part)
-    return out if out else None
+    return parts
 
 
 @beartype
@@ -267,7 +262,7 @@ def _generated_prefix_match(tokens: list[str]) -> bool:
 def validate_command_tokens(tokens: list[str]) -> tuple[bool, str]:
     """True if some prefix of *tokens* is a valid CLI path (``… --help`` exits 0)."""
     tokens = _sanitize_command_tokens(tokens)
-    if not tokens:
+    if not tokens or tokens[0].startswith("-"):
         return True, ""
     invalid_code_import = _invalid_code_import_order_message(tokens)
     if invalid_code_import:
@@ -296,6 +291,8 @@ def validate_command_tokens(tokens: list[str]) -> tuple[bool, str]:
 @beartype
 def _invalid_code_import_order_message(tokens: list[str]) -> str:
     if len(tokens) < 4 or tokens[:2] != ["code", "import"]:
+        return ""
+    if tokens[2] in {"from-code", "from-bridge"}:
         return ""
     try:
         first_flag_index = next(index for index, token in enumerate(tokens[2:], start=2) if token.startswith("-"))

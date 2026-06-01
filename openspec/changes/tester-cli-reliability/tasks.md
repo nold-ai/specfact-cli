@@ -35,5 +35,5 @@
 ## 6. Passing evidence and quality gates
 
 - [x] 6.1 Re-run targeted tests and record passing evidence in `TDD_EVIDENCE.md`.
-- [ ] 6.2 Run required quality gates for touched scope: format, type-check, lint, YAML lint, contract-test, smart-test or targeted equivalent.
-- [ ] 6.3 Run SpecFact code review and resolve findings or document explicit exceptions.
+- [x] 6.2 Run required quality gates for touched scope: format, type-check, lint, YAML lint, contract-test, smart-test or targeted equivalent.
+- [x] 6.3 Run SpecFact code review and resolve findings or document explicit exceptions.

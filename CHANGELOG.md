@@ -10,6 +10,16 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.47.1] - 2026-06-01
+
+### Fixed
+
+- **Tester command reliability follow-ups**: address PR review findings for
+  command overview generation, command contract validation, launcher repair,
+  workflow hardening, and CLI error propagation.
+
+---
+
 ## [0.47.0] - 2026-06-01
 
 ### Added

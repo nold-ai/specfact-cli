@@ -113,3 +113,40 @@
 ## Deferred / Not Covered In This Slice
 
 - Full `smart-test` was attempted and failed on existing full-suite issues unrelated to the duplicate-run workflow patch: runtime smoke used stale sibling modules before resolver fix, migration fixture false positive, local project module discovery pollution, `ProjectBundle` timeout, and a stale virtualenv pin assertion. Focused regressions for the touched workflow/runtime areas now pass.
+
+## Follow-up Review Fixes
+
+- Addressed PR review findings after commit `5297ea51`:
+  - `llms.txt` generation now keeps Jekyll front matter at the top and emits a single H1.
+  - `scripts/check-docs-commands.py` preserves flags in parsed command examples so legacy `specfact code import <bundle> --repo ...` ordering is actually rejected.
+  - Placeholder examples such as `specfact <command> --help` are ignored as examples, while explicit subcommands such as `specfact code import from-code legacy-api --repo .` remain valid.
+  - Core CLI misuse tests strip ANSI locally and cover only core-owned command paths to avoid module-installation flakiness.
+  - `src/specfact_cli/utils/structure.py` now emits canonical `specfact code import --repo . <bundle-name>` guidance.
+  - `tasks.md` quality/review checklist now matches the recorded evidence.
+- Follow-up verification:
+  - `hatch run generate-command-overview && hatch run check-command-overview` -> passed.
+  - `hatch run pytest tests/unit/docs/test_docs_validation_scripts.py tests/unit/cli/test_error_guidance.py tests/unit/cli/test_lean_help_output.py::test_lazy_delegate_bare_group_shows_full_help_and_missing_subcommand tests/unit/cli/test_lean_help_output.py::test_lazy_delegate_missing_option_value_shows_leaf_help -q` -> 31 passed, 2 warnings.
+  - `hatch run python scripts/check-docs-commands.py` -> passed: `check-docs-commands: OK (385 unique command prefix(es) checked)`.
+  - `openspec validate tester-cli-reliability --strict` -> passed.
+  - `hatch run format && hatch run lint` -> passed.
+
+## Follow-up PR Thread Fixes
+
+- Validated live PR #595 review threads and CI annotations after the previous follow-up.
+- Addressed remaining actionable findings:
+  - Generated command overview now flattens the mounted code-review app, so the public contract exposes `specfact code review run` instead of `specfact code review review run`; parent subcommand inventories are backfilled from generated child records.
+  - Command-contract validation now maps the public `specfact code review` prefix to the code-review app's internal `review` root when invoking mounted help paths.
+  - Secondary `specfact-cli-modules` checkouts in touched workflows now pin `actions/checkout` to `34e114876b0b11c390a56381ad16ebd13914f8d5` and disable credential persistence.
+  - `specfact.yml` contract validation preserves the real repro exit status and validates/quotes the budget input before invoking the command.
+  - Progressive-disclosure bootstrap removes a partially-loaded module from `sys.modules` if import execution fails.
+  - Lazy delegated plain `SystemExit` codes are preserved instead of being normalized to success.
+  - Public `init` callback now has `@beartype`; the injected Typer vendored Click context is annotated with the runtime context type so Typer error rendering remains intact.
+  - Pipx upgrade validation treats a missing launcher as repairable via `pipx reinstall specfact-cli`, then re-checks the launcher before reporting success.
+  - Suggestions and docs were updated away from removed `project plan select` and legacy `code import --repo . <bundle>` forms.
+  - `.markdownlint.json` re-enables MD040 fenced-code-language enforcement.
+  - OpenSpec change-order tracking includes source bug `#593`.
+- Follow-up verification:
+  - `hatch run generate-command-overview` -> passed.
+  - `hatch run pytest tests/unit/commands/test_update.py tests/unit/utils/test_suggestions.py tests/unit/docs/test_docs_validation_scripts.py tests/unit/cli/test_error_guidance.py tests/unit/cli/test_lean_help_output.py::test_lazy_delegate_bare_group_shows_full_help_and_missing_subcommand tests/unit/cli/test_lean_help_output.py::test_lazy_delegate_missing_option_value_shows_leaf_help tests/unit/workflows/test_trustworthy_green_checks.py -q` -> 89 passed, 2 warnings.
+  - `hatch run check-command-contract && hatch run check-command-overview && hatch run python scripts/check-docs-commands.py && hatch run lint-workflows && openspec validate tester-cli-reliability --strict` -> passed.
+  - `hatch run format && hatch run lint` -> passed.

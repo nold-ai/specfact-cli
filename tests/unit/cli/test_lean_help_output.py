@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any, cast
 
 import click
@@ -16,6 +17,12 @@ from specfact_cli.registry.metadata import CommandMetadata
 
 
 runner = CliRunner()
+_ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
+
+
+def _strip_ansi(text: str) -> str:
+    return _ANSI_RE.sub("", text)
+
 
 CORE_THREE = {"init", "module", "upgrade"}
 EXTRACTED_ANY = [
@@ -151,22 +158,24 @@ def test_lazy_delegate_forwards_bare_subcommand_without_options() -> None:
 def test_lazy_delegate_bare_group_shows_full_help_and_missing_subcommand() -> None:
     """Bare lazy groups should show real help, explicit missing-subcommand guidance, and full command path."""
     result = runner.invoke(app, ["module"], catch_exceptions=False)
+    output = _strip_ansi(result.output)
 
     assert result.exit_code == 2
-    assert "Usage: specfact module" in result.output
-    assert "Manage marketplace modules" in result.output
-    assert "Missing subcommand" in result.output
-    assert "list" in result.output
+    assert "Usage: specfact module" in output
+    assert "Manage marketplace modules" in output
+    assert "Missing subcommand" in output
+    assert "list" in output
 
 
 def test_lazy_delegate_missing_option_value_shows_leaf_help() -> None:
     """Dangling option values must render the delegated leaf help, not the wrapper usage."""
     result = runner.invoke(app, ["module", "install", "--scope"], catch_exceptions=False)
+    output = _strip_ansi(result.output)
 
     assert result.exit_code == 2
-    assert "Usage: specfact module install" in result.output
-    assert "Option '--scope' requires an argument" in result.output
-    assert "MODULE_IDS" in result.output
+    assert "Usage: specfact module install" in output
+    assert "Option '--scope' requires an argument" in output
+    assert "MODULE_IDS" in output
 
 
 def test_lazy_delegate_help_falls_back_when_typer_command_build_fails(monkeypatch: pytest.MonkeyPatch) -> None:

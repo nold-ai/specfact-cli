@@ -729,9 +729,12 @@ class _LazyDelegateGroup(click.Group):
                     pass
                 click.echo(f"Error: {_lazy_usage_error_message(exc, click_cmd, exc.ctx)}", file=sys.stderr)
             raise SystemExit(exc.exit_code) from None
+        except SystemExit as exc:
+            code = exc.code if isinstance(exc.code, int) else 1 if exc.code else 0
+            raise SystemExit(code) from None
         except BaseException as exc:
             if exc.__class__.__name__.endswith("Exit"):
-                raise SystemExit(getattr(exc, "exit_code", 0)) from None
+                raise SystemExit(getattr(exc, "exit_code", getattr(exc, "code", 0))) from None
             raise
         if exit_code and exit_code != 0:
             raise SystemExit(exit_code)
