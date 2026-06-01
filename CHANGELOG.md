@@ -10,6 +10,17 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.47.2] - 2026-06-01
+
+### Fixed
+
+- **Core PR CI follow-up**: remove a private Typer context import from the
+  `init` callback, run standalone contract validation against the paired
+  modules branch, and refresh generated command artifacts for the new code
+  review enforcement option.
+
+---
+
 ## [0.47.1] - 2026-06-01
 
 ### Fixed

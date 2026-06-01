@@ -15,6 +15,12 @@ from specfact_cli.modules.init.src.commands import app
 runner = CliRunner()
 
 
+def test_init_commands_avoid_private_typer_click_import() -> None:
+    source = Path("src/specfact_cli/modules/init/src/commands.py").read_text(encoding="utf-8")
+
+    assert "typer._click" not in source
+
+
 def _telemetry_track_context():
     return patch(
         "specfact_cli.modules.init.src.commands.telemetry",

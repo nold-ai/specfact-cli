@@ -59,7 +59,7 @@ This file is generated from the current CLI command tree. Do not edit by hand.
 | `specfact code review rules init` | nold-ai/specfact-code-review | --ide; args: - | - |  |
 | `specfact code review rules show` | nold-ai/specfact-code-review | -; args: - | - |  |
 | `specfact code review rules update` | nold-ai/specfact-code-review | --ide; args: - | - |  |
-| `specfact code review run` | nold-ai/specfact-code-review | --bug-hunt, --exclude-tests, --fix, --focus, --include-noise, --include-tests, --instructions, --interactive, --json, --level, --mode, --no-tests, --out, --path, --preview-fixes, --scope, --score-only, --suppress-noise, --with-mutation; args: - | - |  |
+| `specfact code review run` | nold-ai/specfact-code-review | --bug-hunt, --enforcement, --exclude-tests, --fix, --focus, --include-noise, --include-tests, --instructions, --interactive, --json, --level, --mode, --no-tests, --out, --path, --preview-fixes, --scope, --score-only, --suppress-noise, --with-mutation; args: - | - |  |
 | `specfact code validate` | nold-ai/specfact-codebase | -; args: - | sidecar |  |
 | `specfact code validate sidecar` | nold-ai/specfact-codebase | -; args: - | init, run |  |
 | `specfact code validate sidecar init` | nold-ai/specfact-codebase | -; args: - | - |  |

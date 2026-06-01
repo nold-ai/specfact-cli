@@ -47,6 +47,30 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Resolve module bundles ref
+        id: modules-ref
+        shell: bash
+        env:
+          CANDIDATE_REF: ${{ github.head_ref || github.ref_name }}
+        run: |
+          candidate="${CANDIDATE_REF}"
+          if [ -n "$candidate" ] && git ls-remote --exit-code --heads https://github.com/nold-ai/specfact-cli-modules.git "$candidate" >/dev/null 2>&1; then
+            echo "ref=$candidate" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=dev" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout module bundles repo
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          repository: nold-ai/specfact-cli-modules
+          path: specfact-cli-modules
+          ref: ${{ steps.modules-ref.outputs.ref }}
+          persist-credentials: false
+
+      - name: Export module bundles path
+        run: echo "SPECFACT_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" >> "$GITHUB_ENV"
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:

@@ -140,7 +140,7 @@
   - `specfact.yml` contract validation preserves the real repro exit status and validates/quotes the budget input before invoking the command.
   - Progressive-disclosure bootstrap removes a partially-loaded module from `sys.modules` if import execution fails.
   - Lazy delegated plain `SystemExit` codes are preserved instead of being normalized to success.
-  - Public `init` callback now has `@beartype`; the injected Typer vendored Click context is annotated with the runtime context type so Typer error rendering remains intact.
+  - Public `init` callback was initially wrapped with `@beartype` using Typer's vendored Click context type; this was later replaced after CI proved that private Typer namespace is not available under the declared dependency range.
   - Pipx upgrade validation treats a missing launcher as repairable via `pipx reinstall specfact-cli`, then re-checks the launcher before reporting success.
   - Suggestions and docs were updated away from removed `project plan select` and legacy `code import --repo . <bundle>` forms.
   - `.markdownlint.json` re-enables MD040 fenced-code-language enforcement.
@@ -150,3 +150,23 @@
   - `hatch run pytest tests/unit/commands/test_update.py tests/unit/utils/test_suggestions.py tests/unit/docs/test_docs_validation_scripts.py tests/unit/cli/test_error_guidance.py tests/unit/cli/test_lean_help_output.py::test_lazy_delegate_bare_group_shows_full_help_and_missing_subcommand tests/unit/cli/test_lean_help_output.py::test_lazy_delegate_missing_option_value_shows_leaf_help tests/unit/workflows/test_trustworthy_green_checks.py -q` -> 89 passed, 2 warnings.
   - `hatch run check-command-contract && hatch run check-command-overview && hatch run python scripts/check-docs-commands.py && hatch run lint-workflows && openspec validate tester-cli-reliability --strict` -> passed.
   - `hatch run format && hatch run lint` -> passed.
+
+## Second Follow-up PR CI Fixes
+
+- Re-checked PR #595 after pushing the paired modules fixes. Fresh CI failures were valid:
+  - Docs Review failed in `hatch run check-command-overview` with `ModuleNotFoundError: No module named 'typer._click'` while importing `src/specfact_cli/modules/init/src/commands.py`.
+  - Contract Validation failed because `.github/workflows/specfact.yml` ran `specfact code repro` without checking out the paired `specfact-cli-modules` branch, so the installable `code` command group was unavailable.
+- Fixed the Typer compatibility regression by removing the private `typer._click` import from the public `init` callback path and using the public `typer.Context` annotation without beartype on that existing framework callback.
+- Added `test_init_commands_avoid_private_typer_click_import` to keep the init command source off Typer private namespaces.
+- Updated `.github/workflows/specfact.yml` to resolve the matching modules branch, fall back to `dev`, check out `nold-ai/specfact-cli-modules` with pinned `actions/checkout`, and export `SPECFACT_MODULES_REPO` before contract validation.
+- Added `test_specfact_contract_workflow_checks_out_matching_modules_branch_when_available`.
+- Refreshed core generated command artifacts after the paired modules branch introduced `specfact code review run --enforcement`.
+- Follow-up verification:
+  - `hatch run pytest tests/unit/modules/init/test_first_run_selection.py tests/unit/docs/test_docs_validation_scripts.py tests/unit/workflows/test_trustworthy_green_checks.py -q` -> 52 passed, 2 warnings.
+  - `hatch run check-command-overview` -> passed.
+  - `hatch run check-command-contract` -> passed: `check-command-contract: OK (107 generated command path(s) validated)`.
+  - `hatch run check-docs-commands` -> passed: `check-docs-commands: OK (380 unique command prefix(es) checked)`.
+  - `hatch run lint-workflows` -> passed.
+  - `hatch run yaml-lint` -> passed.
+  - `hatch run lint` -> passed.
+  - `openspec validate tester-cli-reliability --strict` -> passed.

@@ -14,6 +14,7 @@ import yaml
 REPO_ROOT = Path(__file__).resolve().parents[3]
 PR_ORCHESTRATOR = REPO_ROOT / ".github" / "workflows" / "pr-orchestrator.yml"
 DOCS_REVIEW = REPO_ROOT / ".github" / "workflows" / "docs-review.yml"
+SPECFACT_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "specfact.yml"
 SIGN_MODULES = REPO_ROOT / ".github" / "workflows" / "sign-modules.yml"
 PUBLISH_MODULES = REPO_ROOT / ".github" / "workflows" / "publish-modules.yml"
 PRE_COMMIT_CONFIG = REPO_ROOT / ".pre-commit-config.yaml"
@@ -238,6 +239,16 @@ def test_docs_review_checks_out_matching_modules_branch_when_available() -> None
     assert "git ls-remote --exit-code --heads https://github.com/nold-ai/specfact-cli-modules.git" in raw
     assert 'echo "ref=dev" >> "$GITHUB_OUTPUT"' in raw
     assert "ref: ${{ steps.modules-ref.outputs.ref }}" in raw
+
+
+def test_specfact_contract_workflow_checks_out_matching_modules_branch_when_available() -> None:
+    """Standalone contract validation must resolve installable module commands from paired branches."""
+    raw = SPECFACT_WORKFLOW.read_text(encoding="utf-8")
+    assert raw.count("id: modules-ref") == 1
+    assert "git ls-remote --exit-code --heads https://github.com/nold-ai/specfact-cli-modules.git" in raw
+    assert 'echo "ref=dev" >> "$GITHUB_OUTPUT"' in raw
+    assert "ref: ${{ steps.modules-ref.outputs.ref }}" in raw
+    assert "SPECFACT_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" in raw
     assert "ref: ${{ (github.ref == 'refs/heads/main' || github.head_ref == 'main') && 'main' || 'dev' }}" not in raw
 
 

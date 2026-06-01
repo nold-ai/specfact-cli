@@ -1000,6 +1000,7 @@
     "install_prerequisite": "specfact module install nold-ai/specfact-code-review",
     "options": [
       "--bug-hunt",
+      "--enforcement",
       "--exclude-tests",
       "--fix",
       "--focus",
