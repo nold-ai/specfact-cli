@@ -8,9 +8,9 @@ should be implemented.
 
 | Bucket | Count | Location |
 |---|---|---|
-| **Active** | 25 | [`openspec/changes/`](changes/) |
+| **Active** | 28 | [`openspec/changes/`](changes/) |
 | **Parked** | 20 | [`openspec/parking-lot/`](parking-lot/) |
-| **Archived** | 105 | [`openspec/changes/archive/`](changes/archive/) |
+| **Archived** | 106 | [`openspec/changes/archive/`](changes/archive/) |
 
 `openspec list` reflects the active set only. Parking-lot proposals are paused
 pending external signal (paying enterprise customer, third-party publisher,
@@ -25,7 +25,7 @@ for the un-park trigger of each parked change.
 
 ## Active tracks
 
-The 25 active changes group into five independent tracks. Tracks can run in
+The 28 active changes group into five independent tracks. Tracks can run in
 parallel; within a track, follow the order column.
 
 ### Track A — Full-chain traceability (core thesis)

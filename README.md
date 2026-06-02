@@ -1,7 +1,7 @@
 # SpecFact CLI
 
-> Review AI-assisted code against your own contracts.
-> Catch drift before it reaches PR or main.
+> Defend AI-assisted Python code from bloat before it reaches PR.
+> Run deterministic review, cleanup forecasts, and spec/contract evidence locally.
 
 [![PyPI version](https://img.shields.io/pypi/v/specfact-cli.svg?color=22c55e)](https://pypi.org/project/specfact-cli/)
 [![Python versions](https://img.shields.io/pypi/pyversions/specfact-cli.svg)](https://pypi.org/project/specfact-cli/)
@@ -32,7 +32,7 @@ uvx specfact-cli code review run --path . --scope full
 **Sample output:**
 
 ```text
-SpecFact CLI - v0.46.4
+SpecFact CLI - v0.47.4
 
 Running Ruff checks...
 Running Radon complexity checks...
@@ -64,11 +64,18 @@ specfact code review run --path . --scope full
 
 The sample output comes from a pinned capture against `nold-ai/specfact-demo-repo`. Reproduce it with `docs/_support/readme-first-contact/capture-readme-output.sh`; capture metadata lives alongside the raw logs in `docs/_support/readme-first-contact/sample-output/`.
 
-The Code Review bundle also reports `ai_bloat` advisories for code shapes that AI-assisted coding often amplifies, such as redundant wrappers, passthrough lambdas, identity `try`/`except` blocks, and avoidable intermediate lists. These findings are advisory, score-neutral, and not AI-authorship detection. Use the generated `.specfact/code-review.json` report with the Project bundle's `/specfact.08-simplify` IDE prompt to review each cleanup before accepting it. See the [AI bloat quickstart](https://modules.specfact.io/quickstart-ai-bloat/) on the modules docs site.
+## AI-bloat defense loop
+
+SpecFact is the local AI-bloat defense CLI for Python-first teams using AI IDEs. The Code Review bundle reports `ai_bloat` advisories for code shapes that AI-assisted coding often amplifies: redundant wrappers, passthrough lambdas, identity `try`/`except` blocks, avoidable intermediate lists, and long low-branch functions.
+
+For cleanup work, run a JSON review, inspect the cleanup forecast and AI-bloat index, hand remediation packets to your AI IDE, accept only safe changes, then re-run review for proof. The JSON report is the portable handoff artifact for Claude, Codex, Cursor, Copilot, or a headless agent.
+
+These findings are bloat-shape detection and cleanup guidance, not AI-authorship detection. Exact simplify flags and report fields live in the [AI bloat quickstart](https://modules.specfact.io/quickstart-ai-bloat/) and [Code Review run guide](https://modules.specfact.io/bundles/code-review/run/) on the modules docs site.
 
 ## What SpecFact does
 
-- **Reviews AI-assisted changes deterministically** — compare code against contracts, clean-code rules, and policy gates
+- **Defends against AI bloat deterministically** — forecast cleanup impact and route remediation packets to your AI IDE
+- **Reviews AI-assisted changes against evidence** — compare code against contracts, clean-code rules, and policy gates
 - **Extracts structure from existing code** — reverse-engineer brownfield repos before you change them
 - **Blocks drift before merge** — use the same checks locally, in pre-commit, and in CI
 - **Links backlog intent to code reality** — connect backlog, specs, validation, and implementation
@@ -76,11 +83,11 @@ The Code Review bundle also reports `ai_bloat` advisories for code shapes that A
 
 ## What is SpecFact?
 
-SpecFact is a local CLI for catching backlog/spec/code drift before it becomes expensive. It gives solo developers, legacy maintainers, and teams a validation layer around AI-assisted delivery, brownfield reverse engineering, and contract-first reviews.
+SpecFact is a local CLI for AI-bloat defense, deterministic code review, and backlog/spec/code drift control. It gives solo developers, legacy maintainers, and teams a validation layer around AI-assisted delivery, brownfield reverse engineering, and contract-first reviews.
 
 It exists because delivery drifts in predictable ways:
 
-- AI-assisted code lands faster than validation catches up
+- AI-assisted code lands faster than cleanup and validation catch up
 - brownfield systems rarely have trustworthy up-to-date specs
 - backlog intent gets reinterpreted before it reaches code
 - teams need the same review rules across IDEs, CI, and pull requests
@@ -101,7 +108,7 @@ For a **single-hook** setup in downstream repos, keep using the stable id and sc
 
 ```yaml
 - repo: https://github.com/nold-ai/specfact-cli
-  rev: v0.46.4
+  rev: v0.47.4
   hooks:
     - id: specfact-smart-checks
 ```

@@ -1,4 +1,4 @@
 """Shared constants for README/docs first-contact contract tests."""
 
-HOOK = "Review AI-assisted code against your own contracts."
-SUBHOOK = "Catch drift before it reaches PR or main."
+HOOK = "Defend AI-assisted Python code from bloat before it reaches PR."
+SUBHOOK = "Run deterministic review, cleanup forecasts, and spec/contract evidence locally."

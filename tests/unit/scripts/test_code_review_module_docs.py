@@ -25,3 +25,17 @@ def test_code_review_docs_describe_json_first_ledger_usage() -> None:
     assert "~/.specfact/ledger.json" in docs
     assert "Supabase" in docs
     assert "optional" in docs.lower()
+
+
+def test_code_review_docs_describe_ai_bloat_handoff_without_schema_duplication() -> None:
+    docs = _docs_text()
+    for needle in (
+        "cleanup forecast",
+        "AI-bloat index",
+        "preserve reasons",
+        "remediation packets",
+        "modules.specfact.io/bundles/code-review/run/",
+        "modules.specfact.io/quickstart-ai-bloat/",
+    ):
+        assert needle in docs
+    assert "AI-authorship proof" in docs

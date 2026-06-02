@@ -6,6 +6,15 @@ permalink: /getting-started/
 
 # Getting Started with SpecFact CLI
 
+SpecFact starts as AI-bloat defense for Python-first AI-assisted code: run deterministic review,
+inspect the cleanup forecast, hand remediation packets to your AI IDE, and re-run for proof. The
+same local CLI also supports contract/spec evidence, brownfield analysis, and team gates when you
+need more depth.
+
+`ai_bloat` findings are cleanup candidates, not AI-authorship detection. For exact simplify flags
+and report fields, use the [AI bloat quickstart](https://modules.specfact.io/quickstart-ai-bloat/)
+on the modules docs site.
+
 ## Start Here
 
 - **[Where to Start](where-to-start.md)** - New-user overview: what SpecFact is for, what core owns, and what to do next
@@ -18,14 +27,9 @@ permalink: /getting-started/
 ## Quick Start
 
 ```bash
-# Install
-pip install specfact-cli
-
-# Bootstrap with a profile
-specfact init --profile solo-developer
-
-# Analyze your codebase
-specfact code import --repo . my-project
+# Zero-install AI-bloat defense pass
+uvx specfact-cli init --profile solo-developer
+uvx specfact-cli code review run --path . --scope full
 ```
 
 See the **[5-Minute Quickstart](quickstart.md)** for a complete walkthrough.
