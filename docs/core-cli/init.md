@@ -61,6 +61,10 @@ The `init ide` subcommand discovers prompt templates from **core** (bundled `spe
 ```bash
 # Initialize Cursor IDE integration (interactive: pick IDE, then prompt sources)
 specfact init ide --ide cursor
+specfact init ide --ide vscode
+specfact init ide --ide codex
+specfact init ide --ide claude-skills
+specfact init ide --ide vibe
 
 # Non-interactive: export all discovered sources (default)
 specfact init ide --ide cursor --repo .
@@ -74,13 +78,13 @@ specfact init ide --ide cursor --prompts "core,nold-ai/specfact-backlog"
 specfact init ide --install-deps
 ```
 
-Exported IDE files are placed under **per-source subfolders** (for example `.cursor/commands/core/`, `.cursor/commands/nold-ai__specfact-backlog/`) so names collide deterministically and provenance stays visible.
+Slash-command IDE targets export one file per prompt into their native command location, such as `.cursor/commands/specfact.02-plan.md` or `.github/prompts/specfact.02-plan.prompt.md`. Skill-based targets export one capability-oriented skill per source/module, such as `.codex/skills/nold-ai-specfact-project/SKILL.md`, `.claude/skills/nold-ai-specfact-backlog/SKILL.md`, or `.vibe/skills/nold-ai-specfact-spec/SKILL.md`.
 
 This creates or refreshes:
 
 - `.specfact/` directory structure
 - `.specfact/templates/backlog/field_mappings/` with default field mapping templates when available
-- IDE-specific command files under the IDE export directory, namespaced by prompt source
+- IDE-specific slash-command files or grouped `SKILL.md` files under the IDE export directory
 
 ## Dependency Installation
 

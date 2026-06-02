@@ -80,7 +80,7 @@ cd /tmp/specfact-integration-tests/example1_vscode
 specfact --no-banner code import from-code payment-processing --repo . --output-format yaml
 
 # Step 2: Run enforcement
-specfact --no-banner enforce stage --preset balanced
+specfact --no-banner govern enforce stage --preset balanced
 
 # Expected: Contract violation about blocking I/O
 ```
@@ -98,11 +98,11 @@ cd /tmp/specfact-integration-tests/example2_cursor
 specfact --no-banner code import from-code data-pipeline --repo . --output-format yaml
 
 # Step 2: Test original (should pass)
-specfact --no-banner enforce stage --preset balanced
+specfact --no-banner govern enforce stage --preset balanced
 
 # Step 3: Create broken version (remove None check)
 # Edit src/pipeline.py to remove None check, then:
-specfact --no-banner plan compare src/pipeline.py src/pipeline_broken.py --fail-on HIGH
+specfact --no-banner code drift detect auto-derived --repo .
 
 # Expected: Contract violation for missing None check
 ```
@@ -120,7 +120,7 @@ cd /tmp/specfact-integration-tests/example3_github_actions
 specfact --no-banner code import from-code user-api --repo . --output-format yaml
 
 # Step 2: Run enforcement
-specfact --no-banner enforce stage --preset balanced
+specfact --no-banner govern enforce stage --preset balanced
 
 # Expected: Type mismatch violation (int vs dict)
 ```
@@ -160,7 +160,7 @@ cd /tmp/specfact-integration-tests/example5_agentic
 hatch run contract-test-exploration src/validator.py
 
 # Option 2: Contract enforcement (fallback)
-specfact --no-banner enforce stage --preset balanced
+specfact --no-banner govern enforce stage --preset balanced
 
 # Expected: Division by zero edge case detected
 ```
@@ -221,7 +221,7 @@ for dir in example1_vscode example2_cursor example3_github_actions example4_prec
   cd /tmp/specfact-integration-tests/$dir
   bundle_name=$(echo "$dir" | sed 's/example[0-9]_//')
   specfact --no-banner code import from-code "$bundle_name" --repo . --output-format yaml 2>&1
-  specfact --no-banner enforce stage --preset balanced 2>&1
+  specfact --no-banner govern enforce stage --preset balanced 2>&1
   echo "---"
 done
 ```

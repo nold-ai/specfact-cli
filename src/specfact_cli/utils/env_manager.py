@@ -9,6 +9,7 @@ in the target repository's environment.
 from __future__ import annotations
 
 import shutil
+import subprocess
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
@@ -361,11 +362,24 @@ def check_tool_in_env(
     if shutil.which(tool_name) is not None:
         return True, None
 
-    # If environment manager is available, check if tool might be in that environment
     if env_info.available and env_info.command_prefix:
-        # We can't easily check if tool is in the environment without running it
-        # So we'll return True with a message that it might be available
-        return True, f"Tool '{tool_name}' not in PATH, but may be available in {env_info.manager.value} environment"
+        probe_command = build_tool_command(env_info, [tool_name, "--version"])
+        try:
+            result = subprocess.run(
+                probe_command,
+                cwd=repo_path,
+                capture_output=True,
+                text=True,
+                timeout=10,
+                check=False,
+            )
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            return False, f"Tool '{tool_name}' not available in {env_info.manager.value} environment: {exc}"
+        if result.returncode == 0:
+            return True, None
+        detail = (result.stderr or result.stdout or "").strip()
+        suffix = f": {detail}" if detail else ""
+        return False, f"Tool '{tool_name}' not available in {env_info.manager.value} environment{suffix}"
 
     # Tool not found
     return False, f"Tool '{tool_name}' not found. Install with: pip install {tool_name} or use your environment manager"

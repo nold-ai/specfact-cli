@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import re
 import shlex
@@ -23,11 +24,7 @@ _ERR = Console(stderr=True)
 _OUT = Console()
 
 # Historical / illustrative pages: command lines are not guaranteed to match the current CLI.
-_EXCLUDED_DOC_PATHS: frozenset[str] = frozenset(
-    {
-        "docs/core-cli/modes.md",
-    }
-)
+_EXCLUDED_DOC_PATHS: frozenset[str] = frozenset()
 
 # Root ``@app.callback`` options on ``specfact`` (see ``cli.py``). Values must be skipped so
 # ``specfact --mode copilot import …`` yields ``import …`` for validation.
@@ -38,6 +35,31 @@ _GLOBAL_FLAGS_WITH_VALUE: frozenset[str] = frozenset(
         "--output-format",
     }
 )
+_GENERATED_COMMANDS_PATH = _REPO_ROOT / "docs" / "reference" / "commands.generated.json"
+_GENERATED_PREFIX_CACHE: set[tuple[str, ...]] | None = None
+_GUIDANCE_TEXT_SUFFIXES: frozenset[str] = frozenset(
+    {
+        ".jinja",
+        ".j2",
+        ".jinja2",
+        ".json",
+        ".md",
+        ".mdc",
+        ".py",
+        ".rst",
+        ".toml",
+        ".txt",
+        ".yaml",
+        ".yml",
+    }
+)
+_ADDITIONAL_GUIDANCE_ROOTS: tuple[Path, ...] = (
+    _REPO_ROOT / ".github",
+    _REPO_ROOT / "resources",
+    _REPO_ROOT / "src",
+    _REPO_ROOT / "src" / "specfact_cli" / "resources",
+)
+_GUIDANCE_INLINE_COMMAND_RE = re.compile(r"`(specfact\s+[^`\n]+)`")
 
 
 def _ensure_repo_path() -> None:
@@ -108,12 +130,7 @@ def _tokens_from_specfact_line(line: str) -> list[str] | None:
     parts = _strip_leading_global_options(parts)
     if not parts:
         return None
-    out: list[str] = []
-    for part in parts:
-        if part.startswith("-"):
-            break
-        out.append(part)
-    return out if out else None
+    return parts
 
 
 @beartype
@@ -123,7 +140,7 @@ def _sanitize_command_tokens(tokens: list[str]) -> list[str]:
     for token in tokens:
         if re.match(r"^<[^>]+>$", token):
             continue
-        if token in {"[OPTIONS]", "[ARGS]", "[COMMAND]", "[BUNDLE]"}:
+        if token in {"...", "COMMAND", "ARGS...", "[OPTIONS]", "[ARGS]", "[ARGS]...", "[COMMAND]", "[BUNDLE]"}:
             continue
         if token.startswith("[") and token.endswith("]"):
             continue
@@ -142,6 +159,31 @@ def collect_specfact_commands_from_text(text: str) -> list[list[str]]:
                 tokens = _tokens_from_specfact_line(segment)
                 if tokens:
                     commands.append(tokens)
+    return commands
+
+
+@beartype
+@ensure(lambda result: isinstance(result, list), "must return a list")
+def collect_specfact_commands_from_guidance_text(text: str) -> list[list[str]]:
+    """Collect command token lists from prose, templates, YAML, JSON, and Markdown guidance."""
+    commands = collect_specfact_commands_from_text(text)
+    for line in text.splitlines():
+        for match in _GUIDANCE_INLINE_COMMAND_RE.finditer(line):
+            tokens = _tokens_from_specfact_line(match.group(1))
+            if tokens:
+                commands.append(tokens)
+        stripped = line.strip().lstrip("-").strip()
+        candidates = [stripped]
+        if ":" in stripped:
+            candidates.append(stripped.split(":", 1)[1].strip())
+        for candidate in candidates:
+            candidate = candidate.strip().strip(",").strip("\"'")
+            if not candidate.startswith("specfact "):
+                continue
+            tokens = _tokens_from_specfact_line(candidate)
+            if tokens:
+                commands.append(tokens)
+            break
     return commands
 
 
@@ -180,6 +222,36 @@ def _eval_prefix_help(runner: CliRunner, prefix: list[str]) -> tuple[bool, str]:
     return False, last_err
 
 
+def _generated_command_prefixes() -> set[tuple[str, ...]]:
+    global _GENERATED_PREFIX_CACHE
+    if _GENERATED_PREFIX_CACHE is not None:
+        return _GENERATED_PREFIX_CACHE
+    if not _GENERATED_COMMANDS_PATH.is_file():
+        _GENERATED_PREFIX_CACHE = set()
+        return _GENERATED_PREFIX_CACHE
+    raw = json.loads(_GENERATED_COMMANDS_PATH.read_text(encoding="utf-8"))
+    prefixes: set[tuple[str, ...]] = set()
+    if isinstance(raw, list):
+        for entry in raw:
+            if not isinstance(entry, dict):
+                continue
+            command = entry.get("command")
+            if not isinstance(command, str):
+                continue
+            parts = tuple(command.split())
+            if parts[:1] == ("specfact",) and len(parts) > 1:
+                prefixes.add(parts[1:])
+    _GENERATED_PREFIX_CACHE = prefixes
+    return prefixes
+
+
+def _generated_prefix_match(tokens: list[str]) -> bool:
+    generated = _generated_command_prefixes()
+    if not generated:
+        return False
+    return any(tuple(tokens[:size]) in generated for size in range(len(tokens), 0, -1))
+
+
 @beartype
 @ensure(
     lambda result: (
@@ -190,8 +262,21 @@ def _eval_prefix_help(runner: CliRunner, prefix: list[str]) -> tuple[bool, str]:
 def validate_command_tokens(tokens: list[str]) -> tuple[bool, str]:
     """True if some prefix of *tokens* is a valid CLI path (``… --help`` exits 0)."""
     tokens = _sanitize_command_tokens(tokens)
-    if not tokens:
+    if not tokens or tokens[0].startswith("-"):
         return True, ""
+    invalid_code_import = _invalid_code_import_order_message(tokens)
+    if invalid_code_import:
+        return False, invalid_code_import
+    if _generated_prefix_match(tokens):
+        return True, ""
+    if _generated_command_prefixes():
+        command_text = " ".join(tokens)
+        return (
+            False,
+            "Command path is not present in docs/reference/commands.generated.json. "
+            f"Invalid command: specfact {command_text}. "
+            "Run `hatch run generate-command-overview` if the CLI changed; otherwise fix the docs.",
+        )
 
     runner = CliRunner()
     last_err = ""
@@ -206,12 +291,45 @@ def validate_command_tokens(tokens: list[str]) -> tuple[bool, str]:
 
 
 @beartype
+def _invalid_code_import_order_message(tokens: list[str]) -> str:
+    if len(tokens) < 4 or tokens[:2] != ["code", "import"]:
+        return ""
+    if tokens[2] in {"from-code", "from-bridge"}:
+        return ""
+    try:
+        first_flag_index = next(index for index, token in enumerate(tokens[2:], start=2) if token.startswith("-"))
+    except StopIteration:
+        return ""
+    positional_before_flag = [
+        token
+        for token in tokens[2:first_flag_index]
+        if token not in {"from-code", "from-bridge"} and not re.match(r"^<[^>]+>$", token)
+    ]
+    if not positional_before_flag:
+        return ""
+    return (
+        "Invalid specfact code import option order: options such as --repo must appear before the bundle "
+        "argument, for example `specfact code import --repo . legacy-api`, or use the explicit "
+        "`specfact code import from-code legacy-api --repo .` form."
+    )
+
+
+@beartype
 def _should_skip_markdown_path(rel: Path, rel_posix: str) -> bool:
     if "_site" in rel.parts or "vendor" in rel.parts:
         return True
     if rel_posix == "docs/migration/migration-guide.md":
         return False
     return rel_posix.startswith("docs/migration/") or rel_posix in _EXCLUDED_DOC_PATHS
+
+
+@beartype
+def _should_skip_guidance_path(rel: Path) -> bool:
+    if any(part in {"_site", "vendor", ".venv", "__pycache__"} for part in rel.parts):
+        return True
+    if rel.parts[:2] == (".github", "prompts"):
+        return True
+    return rel.as_posix() in _EXCLUDED_DOC_PATHS
 
 
 @beartype
@@ -229,6 +347,49 @@ def _scan_docs_for_command_validation(docs_root: Path) -> tuple[set[tuple[str, .
             failures.append(f"{rel}: cannot decode file as UTF-8 ({exc})")
             continue
         for tokens in collect_specfact_commands_from_text(text):
+            key = tuple(tokens)
+            if key in seen:
+                continue
+            seen.add(key)
+            ok, msg = validate_command_tokens(tokens)
+            if not ok:
+                failures.append(f"{rel}: specfact {' '.join(tokens)} — {msg}")
+    return seen, failures
+
+
+@beartype
+def _iter_additional_guidance_paths(docs_root: Path) -> list[Path]:
+    """Return non-doc guidance/template files whose command examples must stay current."""
+    roots = [docs_root, *_ADDITIONAL_GUIDANCE_ROOTS]
+    paths: set[Path] = set()
+    for root in roots:
+        if not root.exists():
+            continue
+        for path in root.rglob("*"):
+            if not path.is_file() or path.suffix.lower() not in _GUIDANCE_TEXT_SUFFIXES:
+                continue
+            rel = path.relative_to(_REPO_ROOT)
+            if _should_skip_guidance_path(rel):
+                continue
+            if rel.parts[0] == "docs" and path.suffix.lower() == ".md":
+                continue
+            paths.add(path)
+    return sorted(paths)
+
+
+@beartype
+def _scan_guidance_templates_for_command_validation(docs_root: Path) -> tuple[set[tuple[str, ...]], list[str]]:
+    """Validate command examples in non-Markdown docs, prompts, Jinja2 templates, YAML, JSON, and text assets."""
+    seen: set[tuple[str, ...]] = set()
+    failures: list[str] = []
+    for path in _iter_additional_guidance_paths(docs_root):
+        rel = path.relative_to(_REPO_ROOT)
+        try:
+            text = path.read_text(encoding="utf-8")
+        except UnicodeDecodeError as exc:
+            failures.append(f"{rel}: cannot decode file as UTF-8 ({exc})")
+            continue
+        for tokens in collect_specfact_commands_from_guidance_text(text):
             key = tuple(tokens)
             if key in seen:
                 continue
@@ -352,6 +513,9 @@ def main() -> int:
         return 1
 
     seen, failures = _scan_docs_for_command_validation(docs_root)
+    guidance_seen, guidance_failures = _scan_guidance_templates_for_command_validation(docs_root)
+    seen.update(guidance_seen)
+    failures.extend(guidance_failures)
     failures.extend(_validate_nav_targets(docs_root))
 
     if failures:

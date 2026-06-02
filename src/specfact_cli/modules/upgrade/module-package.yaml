@@ -1,5 +1,5 @@
 name: upgrade
-version: 0.1.19
+version: 0.1.21
 commands:
   - upgrade
 category: core
@@ -17,5 +17,5 @@ publisher:
 description: Check and apply SpecFact CLI version upgrades.
 license: Apache-2.0
 integrity:
-  checksum: sha256:fda269f874f7b61ad5ec8217ba1550e49b1e2e17b23aafd08b39df1a98d66ee1
-  signature: yx89WfwC8DQUkAw2WD1EdHp08Ug0dFw3gNbIXbwgcdoxUBa9qA/0TaHHNBbyhVIxgL6wb+H4XCbYjdwb6XU1Bg==
+  checksum: sha256:eae81fc948d038dc857827de5c9c5363c963dea13af9e78395b71aeb5411742b
+  signature: H8A/ySECBGR+f1iCNepv434cQ7MazJr1RMRKoDCPS9IuIoMmL3nm4HNOSBFWPTqeFVgTbMWlISPUSjFaF4AoDg==

@@ -33,7 +33,7 @@ Mode is auto-detected based on environment, or you can explicitly set it with `-
 specfact --mode copilot code import from-code legacy-api --repo . --confidence 0.7
 
 # Mode is auto-detected based on environment (IDE integration, CoPilot API availability)
-specfact code import legacy-api --repo . --confidence 0.7  # Auto-detects CoPilot if available
+specfact code import --repo . legacy-api --confidence 0.7  # Auto-detects CoPilot if available
 ```
 
 ### What You Get with CoPilot Mode
@@ -120,10 +120,10 @@ specfact --mode copilot code import from-code --repo . --confidence 0.7
 
 ```bash
 # CI/CD mode (minimal prompts)
-specfact --mode cicd plan init --no-interactive
+specfact --mode cicd project init-personas --no-interactive
 
 # CoPilot mode (enhanced interactive prompts)
-specfact --mode copilot plan init --interactive
+specfact --mode copilot project init-personas --no-interactive
 
 # Output:
 # Mode: CoPilot (agent routing)
@@ -135,9 +135,7 @@ specfact --mode copilot plan init --interactive
 
 ```bash
 # CoPilot mode with enhanced deviation analysis (bundle directory paths)
-specfact --mode copilot plan compare \
-  --manual .specfact/projects/main \
-  --auto .specfact/projects/my-project-auto
+specfact --mode copilot code drift detect my-project --repo .
 
 # Output:
 # Mode: CoPilot (agent routing)

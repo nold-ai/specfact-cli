@@ -166,7 +166,7 @@ specfact init --profile solo-developer
 specfact module install nold-ai/specfact-backlog
 
 # Code + project flow
-specfact code import legacy-api --repo .
+specfact code import --repo . legacy-api
 specfact project snapshot --bundle legacy-api
 
 # Backlog flow

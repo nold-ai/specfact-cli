@@ -35,7 +35,7 @@ pip install specfact-cli
 specfact project snapshot --bundle my-project
 
 # Have existing code?
-specfact code import my-project --repo .
+specfact code import --repo . my-project
 
 # Using GitHub Spec-Kit?
 specfact code import from-bridge --adapter speckit --repo ./my-project --dry-run
@@ -57,30 +57,30 @@ specfact code import from-bridge --adapter speckit --repo ./spec-kit-project --w
 
 ```bash
 # Basic import (bundle name as positional argument)
-specfact code import my-project --repo .
+specfact code import --repo . my-project
 
 # With confidence threshold
-specfact code import my-project --repo . --confidence 0.7
+specfact code import --repo . my-project --confidence 0.7
 
 # Shadow mode (observe only)
-specfact code import my-project --repo . --shadow-only
+specfact code import --repo . my-project --shadow-only
 
 # CoPilot mode (enhanced prompts)
 specfact --mode copilot code import from-code my-project --repo . --confidence 0.7
 
 # Re-validate existing features (force re-analysis)
-specfact code import my-project --repo . --revalidate-features
+specfact code import --repo . my-project --revalidate-features
 
 # Resume interrupted import (features saved early as checkpoint)
 # If import is cancelled, just run the same command again
-specfact code import my-project --repo .
+specfact code import --repo . my-project
 
 # Partial analysis (analyze specific subdirectory only)
-specfact code import my-project --repo . --entry-point src/core
+specfact code import --repo . my-project --entry-point src/core
 
 # Large codebase with progress reporting
 # Progress bars show: feature analysis, source linking, contract extraction
-specfact code import large-project --repo . --confidence 0.5
+specfact code import --repo . large-project --confidence 0.5
 
 ```
 
@@ -197,7 +197,7 @@ specfact init ide --ide cursor --force
 
 ```bash
 # Auto-detect mode (default)
-specfact code import my-project --repo .
+specfact code import --repo . my-project
 
 # Force CI/CD mode
 specfact --mode cicd code import from-code my-project --repo .
@@ -207,7 +207,7 @@ specfact --mode copilot code import from-code my-project --repo .
 
 # Set via environment variable
 export SPECFACT_MODE=copilot
-specfact code import my-project --repo .
+specfact code import --repo . my-project
 ```
 
 ## Common Workflows
@@ -232,7 +232,7 @@ specfact project regenerate
 
 ```bash
 # Step 1: Extract specs from legacy code
-specfact code import my-project --repo .
+specfact code import --repo . my-project
 
 # Step 2: Validate SDD and coverage thresholds
 specfact govern enforce sdd my-project
@@ -273,7 +273,7 @@ specfact govern enforce stage --preset minimal
 
 ```bash
 # Step 1: Analyze code
-specfact code import my-project --repo . --confidence 0.7
+specfact code import --repo . my-project --confidence 0.7
 
 # Step 2: Review plan health
 specfact project health-check
@@ -291,7 +291,7 @@ specfact project sync repository --repo . --watch --interval 5
 
 ```bash
 # Bundle name is a positional argument (not --name option)
-specfact code import my-project --repo .
+specfact code import --repo . my-project
 
 ```
 
@@ -311,10 +311,10 @@ specfact project regenerate \
 
 ```bash
 # Classname format (default for auto-derived)
-specfact code import my-project --repo . --key-format classname
+specfact code import --repo . my-project --key-format classname
 
 # Sequential format (for manual plans)
-specfact code import my-project --repo . --key-format sequential
+specfact code import --repo . my-project --key-format sequential
 
 ```
 
@@ -322,10 +322,10 @@ specfact code import my-project --repo . --key-format sequential
 
 ```bash
 # Lower threshold (more features, lower confidence)
-specfact code import my-project --repo . --confidence 0.3
+specfact code import --repo . my-project --confidence 0.3
 
 # Higher threshold (fewer features, higher confidence)
-specfact code import my-project --repo . --confidence 0.8
+specfact code import --repo . my-project --confidence 0.8
 ```
 
 ## Integration Examples

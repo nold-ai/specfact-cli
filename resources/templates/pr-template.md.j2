@@ -20,7 +20,7 @@
 - **Non-interactive / CI** must bootstrap workflow bundles before `specfact code …` or `specfact project …`:
   - `specfact init --profile solo-developer --repo .` (or another profile / `specfact init --install …`), **or**
   - `specfact module install nold-ai/specfact-codebase` (and other bundles as needed).
-- Contract repro in CI uses **`specfact code repro`** (not `specfact repro`). Optional: `specfact code repro setup` for CrossHair config.
+- Contract repro in CI uses **`specfact code repro`**. Optional: `specfact code repro setup` for CrossHair config.
 - Optional `specfact project version check` needs a project under `.specfact/projects/<bundle>/` and `--bundle <name>`.
 
 **SpecFact CLI Validation Results:**
@@ -64,4 +64,3 @@
 ## 📝 Notes
 
 {{ notes | default("Add any additional notes here") }}
-

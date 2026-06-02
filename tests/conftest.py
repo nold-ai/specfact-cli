@@ -30,6 +30,14 @@ def _resolve_modules_repo_root() -> Path:
     configured = os.environ.get("SPECFACT_MODULES_REPO")
     if configured:
         return Path(configured).expanduser().resolve()
+    root_parts = project_root.parts
+    if "specfact-cli-worktrees" in root_parts:
+        marker_index = root_parts.index("specfact-cli-worktrees")
+        paired = (
+            Path(*root_parts[:marker_index]) / "specfact-cli-modules-worktrees" / Path(*root_parts[marker_index + 1 :])
+        )
+        if paired.exists():
+            return paired.resolve()
     for candidate_base in (project_root, *project_root.parents):
         sibling_repo = candidate_base / "specfact-cli-modules"
         if sibling_repo.exists():

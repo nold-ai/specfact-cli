@@ -7,7 +7,6 @@ import subprocess
 from pathlib import Path
 from typing import Any, cast
 
-import click
 import typer
 from beartype import beartype
 from icontract import ensure, require
@@ -189,6 +188,7 @@ import_to_bundle = module_io_shim.import_to_bundle
 export_from_bundle = module_io_shim.export_from_bundle
 sync_with_bundle = module_io_shim.sync_with_bundle
 validate_bundle = module_io_shim.validate_bundle
+IDE_TARGETS_HELP = ", ".join([*sorted(IDE_CONFIG.keys()), "auto"])
 
 
 def _install_contract_enhancement_dependencies(repo_path: Path, env_info: EnvManagerInfo) -> None:
@@ -614,7 +614,7 @@ def init_ide(
     ide: str | None = typer.Option(
         None,
         "--ide",
-        help="IDE type (cursor, vscode, copilot, claude, gemini, qwen, opencode, windsurf, kilocode, auggie, roo, codebuddy, amp, q, auto)",
+        help=f"IDE/agent target ({IDE_TARGETS_HELP})",
     ),
     env_manager: EnvManager = typer.Option(
         EnvManager.AUTO,
@@ -712,9 +712,8 @@ def init_ide(
 @app.callback(invoke_without_command=True)
 @require(lambda repo: _is_valid_repo_path(repo), "Repo path must exist and be directory")
 @ensure(lambda result: result is None, "Command should return None")
-@beartype
 def init(
-    ctx: click.Context,
+    ctx: typer.Context,
     repo: Path = typer.Option(
         Path("."),
         "--repo",

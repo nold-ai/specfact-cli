@@ -54,7 +54,7 @@ class TestSuggestFixes:
         error = "Bundle 'test' not found"
         suggestions = suggest_fixes(error)
         assert len(suggestions) > 0
-        assert any("plan select" in s.lower() for s in suggestions)
+        assert any("project --help" in s.lower() for s in suggestions)
 
     def test_suggest_contract_validation_error(self) -> None:
         """Test suggestions for contract validation error."""

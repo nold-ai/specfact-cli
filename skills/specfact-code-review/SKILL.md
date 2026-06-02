@@ -4,9 +4,9 @@ description: House rules for AI coding sessions derived from review findings
 allowed-tools: []
 ---
 
-# House Rules - AI Coding Context (v1)
+# House Rules - AI Coding Context (v3)
 
-Updated: 2026-03-16 | Module: nold-ai/specfact-code-review
+Updated: 2026-05-22 | Module: nold-ai/specfact-code-review
 
 ## DO
 

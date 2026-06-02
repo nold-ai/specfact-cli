@@ -42,7 +42,7 @@ specfact <command> --option value
 **Example:**
 
 ```bash
-specfact import from-code ./legacy-project --exclude "tests/**" --confidence 0.7
+specfact code import --repo ./legacy-project legacy-project --exclude-tests --confidence 0.7
 ```
 
 ## Alternative Solutions

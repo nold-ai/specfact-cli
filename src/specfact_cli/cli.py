@@ -11,6 +11,7 @@ import inspect
 import os
 import sys
 from collections.abc import Callable, Mapping
+from contextlib import suppress
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -70,6 +71,12 @@ from specfact_cli.registry.module_availability import ModuleAvailabilityStatus, 
 from specfact_cli.runtime import get_configured_console, init_debug_log_file, set_debug_mode
 from specfact_cli.utils.progressive_disclosure import ProgressiveDisclosureGroup
 from specfact_cli.utils.structured_io import StructuredFormat
+
+
+try:
+    from typer._click.exceptions import UsageError as TyperUsageError
+except ImportError:  # pragma: no cover - older Typer delegates directly to Click
+    TyperUsageError = click.UsageError  # type: ignore[assignment,misc]
 
 
 # Names of commands that come from installable bundles; when not registered, show actionable error.
@@ -165,9 +172,7 @@ class _RootCLIGroup(ProgressiveDisclosureGroup):
     """Root group that shows actionable error when an unknown command is a known bundle group/shim."""
 
     @ensure(lambda result: isinstance(result, tuple) and len(result) == 3, "result must be a 3-tuple")
-    def resolve_command(
-        self, ctx: click.Context, args: list[str]
-    ) -> tuple[str | None, click.Command | None, list[str]]:
+    def resolve_command(self, ctx: Any, args: list[str]) -> Any:
         if not args:
             return super().resolve_command(ctx, args)
         invoked = args[0]
@@ -567,6 +572,10 @@ def _raise_lazy_delegate_click_exception(exc: Exception) -> NoReturn:
     raise click.ClickException(str(exc)) from exc
 
 
+def _is_group_like(command: object) -> bool:
+    return hasattr(command, "list_commands") and hasattr(command, "get_command")
+
+
 def _load_lazy_delegate_typer(cmd_name: str) -> typer.Typer:
     resolved_name = resolve_command(cmd_name)
     try:
@@ -583,7 +592,7 @@ def _build_lazy_delegate_click_command(cmd_name: str, args: tuple[str, ...], rea
     from typer.main import get_command
 
     try:
-        return get_command(real_typer)
+        return cast(click.Command, get_command(real_typer))
     except (RuntimeError, ValueError) as exc:
         if _args_request_help(args):
             _print_lazy_help_fallback(cmd_name, args)
@@ -593,6 +602,15 @@ def _build_lazy_delegate_click_command(cmd_name: str, args: tuple[str, ...], rea
 
 
 def _lazy_delegate_prog_name(ctx: click.Context, cmd_name: str) -> str:
+    original_prog_name = ctx.meta.get("original_prog_name")
+    if not isinstance(original_prog_name, str) and ctx.parent is not None:
+        original_prog_name = ctx.parent.meta.get("original_prog_name")
+    if isinstance(original_prog_name, str) and original_prog_name:
+        return original_prog_name
+    if isinstance(ctx.info_name, str) and " " in ctx.info_name:
+        return ctx.info_name
+    if isinstance(ctx.command_path, str) and " " in ctx.command_path:
+        return ctx.command_path
     parts: list[str] = []
     parent = ctx.parent
     while parent and getattr(parent, "command", None):
@@ -601,18 +619,44 @@ def _lazy_delegate_prog_name(ctx: click.Context, cmd_name: str) -> str:
             parts.append(name)
         parent = getattr(parent, "parent", None)
     if parts:
-        return " ".join(reversed(parts))
-    original_prog_name = ctx.meta.get("original_prog_name")
-    if isinstance(original_prog_name, str) and original_prog_name:
-        return original_prog_name
+        prog_name = " ".join(reversed(parts))
+        if prog_name == cmd_name:
+            return f"specfact {cmd_name}"
+        return prog_name
     return cmd_name
 
 
 def _strip_redundant_single_command_arg(click_cmd: click.Command, args: tuple[str, ...]) -> list[str]:
     args_list = list(args)
-    if not isinstance(click_cmd, click.Group) and args_list and args_list[0] == getattr(click_cmd, "name", None):
+    if not _is_group_like(click_cmd) and args_list and args_list[0] == getattr(click_cmd, "name", None):
         return args_list[1:]
     return args_list
+
+
+def _help_args_before_first_option(args: list[str]) -> list[str]:
+    help_args: list[str] = []
+    for arg in args:
+        if arg.startswith("-"):
+            break
+        help_args.append(arg)
+    return help_args
+
+
+def _lazy_usage_error_message(exc: Exception, command: click.Command, ctx: click.Context | None) -> str:
+    message = str(getattr(exc, "format_message", lambda: str(exc))())
+    if not message.strip().lower().startswith("missing command"):
+        return message
+    names: list[str] = []
+    group = ctx.command if ctx is not None else command
+    if _is_group_like(group):
+        try:
+            command_ctx = ctx or click.Context(cast(click.Command, group))
+            names = [str(name) for name in group.list_commands(command_ctx)]
+        except Exception:
+            names = []
+    if names:
+        return f"Missing subcommand. Choose one of: {', '.join(names)}."
+    return "Missing subcommand."
 
 
 def _lazy_delegate_remaining_args(ctx: click.Context) -> list[str]:
@@ -632,7 +676,11 @@ class _LazyDelegateGroup(click.Group):
         super().__init__(
             name=name or cmd_name,
             help=help or help_str,
-            context_settings={"ignore_unknown_options": True},
+            context_settings={
+                "ignore_unknown_options": True,
+                "allow_extra_args": True,
+                "allow_interspersed_args": False,
+            },
             invoke_without_command=True,
             no_args_is_help=False,
         )
@@ -641,37 +689,75 @@ class _LazyDelegateGroup(click.Group):
         self._delegate_cmd = self._make_delegate_command()
 
     def _make_delegate_command(self) -> click.Command:
-        cmd_name = self._lazy_cmd_name
-
         def _invoke(args: tuple[str, ...]) -> None:
-            ctx = click.get_current_context()
-            real_typer = _load_lazy_delegate_typer(cmd_name)
-            click_cmd = _build_lazy_delegate_click_command(cmd_name, args, real_typer)
-            # Build full prog name from root (e.g. "specfact sync") so usage shows "specfact sync bridge", not "sync sync bridge"
-            prog_name = _lazy_delegate_prog_name(ctx, cmd_name)
-            # When the real app is a single command (e.g. drift has only "detect"), Typer
-            # builds a TyperCommand, not a Group. Then args are ["detect", "bundle", "--repo", ...]
-            # and the command expects ["bundle", "--repo", ...] (no leading "detect").
-            args_list = _strip_redundant_single_command_arg(click_cmd, args)
-            exit_code = click_cmd.main(args=args_list, prog_name=prog_name, standalone_mode=False)
-            if exit_code and exit_code != 0:
-                raise SystemExit(exit_code)
+            self._invoke_real_command(click.get_current_context(), args)
 
         return click.Command(
             "__delegate__",
             callback=_invoke,
             params=[click.Argument(["args"], nargs=-1, type=click.UNPROCESSED)],
-            context_settings={"ignore_unknown_options": True},
+            context_settings={
+                "ignore_unknown_options": True,
+                "allow_extra_args": True,
+                "allow_interspersed_args": False,
+            },
             add_help_option=False,  # Pass --help through to real Typer so "specfact backlog daily ado --help" shows correct usage
         )
+
+    def _invoke_real_command(self, ctx: click.Context, args: tuple[str, ...] | list[str]) -> None:
+        cmd_name = self._lazy_cmd_name
+        real_typer = _load_lazy_delegate_typer(cmd_name)
+        args_tuple = tuple(args)
+        click_cmd = _build_lazy_delegate_click_command(cmd_name, args_tuple, real_typer)
+        prog_name = _lazy_delegate_prog_name(ctx, cmd_name)
+        args_list = _strip_redundant_single_command_arg(click_cmd, args_tuple)
+        try:
+            exit_code = click_cmd.main(args=args_list, prog_name=prog_name, standalone_mode=False)
+        except (click.UsageError, TyperUsageError) as exc:
+            if exc.ctx is None:
+                help_args = _help_args_before_first_option(args_list)
+                try:
+                    click_cmd.main(args=[*help_args, "--help"], prog_name=prog_name, standalone_mode=False)
+                except BaseException as help_exit:
+                    if not help_exit.__class__.__name__.endswith("Exit"):
+                        raise
+                click.echo(f"Error: {_lazy_usage_error_message(exc, click_cmd, None)}", file=sys.stderr)
+            else:
+                # Help rendering is best-effort; the primary usage error is emitted below.
+                with suppress(Exception):
+                    click.echo(exc.ctx.get_help(), file=sys.stderr)
+                    click.echo("", file=sys.stderr)
+                click.echo(f"Error: {_lazy_usage_error_message(exc, click_cmd, exc.ctx)}", file=sys.stderr)
+            raise SystemExit(exc.exit_code) from None
+        except SystemExit as exc:
+            code = exc.code if isinstance(exc.code, int) else 1 if exc.code else 0
+            raise SystemExit(code) from None
+        except BaseException as exc:
+            if exc.__class__.__name__.endswith("Exit"):
+                raise SystemExit(getattr(exc, "exit_code", getattr(exc, "code", 0))) from None
+            raise
+        if exit_code and exit_code != 0:
+            raise SystemExit(exit_code)
+
+    def parse_args(self, ctx: click.Context, args: list[str]) -> list[str]:
+        if _args_request_help(args):
+            try:
+                return super().parse_args(ctx, args)
+            except click.exceptions.Exit as exc:
+                raise SystemExit(exc.exit_code) from None
+        ctx.args = list(args)
+        return []
 
     @require(lambda ctx: ctx is not None, "ctx must not be None")
     @ensure(lambda result: result is None or isinstance(result, int), "result must be None or an exit code")
     def invoke(self, ctx: click.Context) -> Any:
         if ctx.invoked_subcommand is None:
             args = _lazy_delegate_remaining_args(ctx)
-            ctx.meta["original_prog_name"] = ctx.command_path
-            return self._delegate_cmd.main(args=args, prog_name=ctx.command_path, standalone_mode=False)
+            command_path = ctx.command_path
+            if command_path == self._lazy_cmd_name:
+                command_path = f"specfact {self._lazy_cmd_name}"
+            ctx.meta["original_prog_name"] = command_path
+            return self._invoke_real_command(ctx, args)
         return super().invoke(ctx)
 
     @require(_lazy_delegate_cmd_name_ready, "lazy command name must be set")
@@ -712,8 +798,8 @@ class _LazyDelegateGroup(click.Group):
             click_cmd = get_command(real_typer)
         except (RuntimeError, ValueError):
             return None
-        if isinstance(click_cmd, click.Group):
-            return click_cmd
+        if _is_group_like(click_cmd):
+            return cast(click.Group, click_cmd)
         return None
 
     @require(_lazy_delegate_cmd_name_ready, "lazy command name must be set before formatting help")
@@ -736,6 +822,10 @@ class _LazyDelegateGroup(click.Group):
             click_cmd.main(args=["-h"], prog_name=prog_name, standalone_mode=False)
         except SystemExit:
             raise  # Re-raise so process exits (help was already printed with Rich)
+        except BaseException as exc:
+            if exc.__class__.__name__.endswith("Exit"):
+                raise SystemExit(getattr(exc, "exit_code", 0)) from None
+            raise
         # main() returned without exiting; Rich help was already printed, skip default formatter
         return
 
@@ -748,7 +838,7 @@ def _build_lazy_delegate_group(cmd_name: str, help_str: str) -> click.Group:
 def _flatten_specfact_nested_subgroup(result: click.Group, flatten_name: str) -> None:
     """Merge a nested subgroup named `flatten_name` into its parent and re-sort command order."""
     redundant = result.commands.pop(flatten_name)
-    if isinstance(redundant, click.Group):
+    if _is_group_like(redundant):
         for cmd_name, cmd in redundant.commands.items():
             result.add_command(cmd, name=cmd_name)
     if result.commands:
@@ -814,6 +904,7 @@ def _get_group_from_info_wrapper(
 _typer_get_group_from_info_original: Callable[..., click.Group] | None = None
 _typer_get_command_original: Callable[[typer.Typer], click.Command] | None = None
 _typer_get_params_original: Callable[..., Any] | None = None
+_typer_get_params_convertors_original: Callable[..., Any] | None = None
 
 
 def _specfact_get_params_from_function(func: Callable[..., Any]) -> Any:
@@ -838,6 +929,55 @@ def _specfact_get_params_from_function(func: Callable[..., Any]) -> Any:
     return orig(func)
 
 
+def _is_context_annotation(annotation: object) -> bool:
+    if annotation in (click.Context, typer.Context):
+        return True
+    return getattr(annotation, "__name__", "") == "Context" and "click" in getattr(annotation, "__module__", "")
+
+
+def _specfact_get_params_convertors_ctx_param_name_from_function(callback: Callable[..., Any] | None) -> Any:
+    """Treat both Click context classes as Typer context parameters across Typer releases."""
+    assert _typer_get_params_convertors_original is not None
+    original_error: RuntimeError | None = None
+    try:
+        return _typer_get_params_convertors_original(callback)
+    except RuntimeError as exc:
+        if callback is None or "click.core.Context" not in str(exc):
+            raise
+        original_error = exc
+    import typer.utils as typer_utils
+
+    params = _specfact_get_params_from_function(callback)
+    ctx_param_name: str | None = None
+    filtered_params: dict[str, Any] = {}
+    for name, param in params.items():
+        if ctx_param_name is None and _is_context_annotation(getattr(param, "annotation", None)):
+            ctx_param_name = name
+            continue
+        filtered_params[name] = param
+
+    if ctx_param_name is None:
+        raise RuntimeError("Unable to identify Click context parameter") from original_error
+
+    typer_main = cast(Any, importlib.import_module("typer.main"))
+    previous_main_get_params = typer_main.get_params_from_function
+    previous_utils_get_params = typer_utils.get_params_from_function
+
+    def _filtered_get_params(func: Callable[..., Any]) -> Any:
+        if func is callback:
+            return filtered_params
+        return previous_main_get_params(func)
+
+    try:
+        typer_main.get_params_from_function = _filtered_get_params
+        typer_utils.get_params_from_function = _filtered_get_params
+        click_params, convertors, _ignored_ctx = _typer_get_params_convertors_original(callback)
+    finally:
+        typer_main.get_params_from_function = previous_main_get_params
+        typer_utils.get_params_from_function = previous_utils_get_params
+    return click_params, convertors, ctx_param_name
+
+
 # Patch so root app build uses our delegate group for lazy typers (built via get_group_from_info).
 def _patch_typer_build() -> None:
     import typer.utils as typer_utils
@@ -845,6 +985,7 @@ def _patch_typer_build() -> None:
     typer_main = cast(Any, importlib.import_module("typer.main"))
 
     global _typer_get_group_from_info_original, _typer_get_command_original, _typer_get_params_original
+    global _typer_get_params_convertors_original
     # Save originals only on first patch; avoid overwriting with our wrapper when cli is re-imported (e.g. by plan module).
     if _typer_get_group_from_info_original is None:
         _typer_get_group_from_info_original = typer_main.get_group_from_info
@@ -852,9 +993,14 @@ def _patch_typer_build() -> None:
         _typer_get_command_original = typer_main.get_command
     if _typer_get_params_original is None:
         _typer_get_params_original = typer_utils.get_params_from_function
+    if _typer_get_params_convertors_original is None:
+        _typer_get_params_convertors_original = typer_main.get_params_convertors_ctx_param_name_from_function
     typer_utils.get_params_from_function = _specfact_get_params_from_function
     # typer.main may have bound get_params_from_function at import time; keep in sync.
     typer_main.get_params_from_function = _specfact_get_params_from_function
+    typer_main.get_params_convertors_ctx_param_name_from_function = (
+        _specfact_get_params_convertors_ctx_param_name_from_function
+    )
     typer_main.get_command = _get_command
     typer_main.get_group_from_info = _get_group_from_info_wrapper
 

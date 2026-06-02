@@ -17,6 +17,7 @@ from specfact_cli.modules.init.src.first_run_selection import (
     install_bundles_for_init,
     resolve_profile_bundles,
 )
+from specfact_cli.registry.module_installer import InstallModuleOptions
 
 
 # ── Scenario: Profile canonical bundle mapping is machine-verifiable ──────────
@@ -136,3 +137,33 @@ def test_install_bundles_for_init_solo_developer_installs_both(tmp_path: Path) -
 
     assert "nold-ai/specfact-codebase" in installed_marketplace_ids
     assert "nold-ai/specfact-code-review" in installed_marketplace_ids
+
+
+def test_install_bundles_for_init_preserves_application_support_root(tmp_path: Path) -> None:
+    """Init bundle installation must pass macOS Application Support roots as a single Path value."""
+    observed_roots: list[Path] = []
+    install_root = tmp_path / "Library" / "Application Support" / "SpecFact" / "modules"
+
+    def _fake_marketplace(module_id: str, options: object | None = None, **_kwargs: object) -> Path:
+        assert isinstance(options, InstallModuleOptions)
+        assert isinstance(options.install_root, Path)
+        observed_roots.append(options.install_root)
+        return options.install_root / module_id.split("/", 1)[1]
+
+    with (
+        patch(
+            "specfact_cli.registry.module_installer.install_bundled_module",
+            return_value=False,
+        ),
+        patch(
+            "specfact_cli.registry.module_installer.install_module",
+            side_effect=_fake_marketplace,
+        ),
+    ):
+        install_bundles_for_init(
+            ["specfact-codebase"],
+            install_root=install_root,
+            non_interactive=True,
+        )
+
+    assert observed_roots == [install_root]

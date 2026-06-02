@@ -7,6 +7,7 @@ and copying them to IDE-specific locations for slash command integration.
 
 from __future__ import annotations
 
+import contextlib
 import os
 import re
 import shutil
@@ -44,6 +45,18 @@ IDE_CONFIG: dict[str, dict[str, str | bool | None]] = {
         "format": "md",
         "settings_file": None,
     },
+    "claude-skills": {
+        "name": "Claude Code Skills",
+        "folder": ".claude/skills/",
+        "format": "skill.md",
+        "settings_file": None,
+    },
+    "codex": {
+        "name": "Codex CLI",
+        "folder": ".codex/skills/",
+        "format": "skill.md",
+        "settings_file": None,
+    },
     "copilot": {
         "name": "GitHub Copilot",
         "folder": ".github/prompts/",
@@ -60,6 +73,18 @@ IDE_CONFIG: dict[str, dict[str, str | bool | None]] = {
         "name": "Cursor",
         "folder": ".cursor/commands/",
         "format": "md",
+        "settings_file": None,
+    },
+    "mistral": {
+        "name": "Mistral Vibe",
+        "folder": ".vibe/skills/",
+        "format": "skill.md",
+        "settings_file": None,
+    },
+    "vibe": {
+        "name": "Mistral Vibe",
+        "folder": ".vibe/skills/",
+        "format": "skill.md",
         "settings_file": None,
     },
     "gemini": {
@@ -402,6 +427,20 @@ def _output_filename_for_template(template_path: Path, format_type: str) -> str:
     return template_path.name
 
 
+def _source_id_to_skill_name(source_id: str) -> str:
+    """Map a prompt source id to a capability-oriented skill directory name."""
+    if source_id == PROMPT_SOURCE_CORE:
+        return "specfact-cli"
+    raw_name = source_id.strip()
+    normalized = re.sub(r"[^A-Za-z0-9]+", "-", raw_name).strip("-").lower()
+    return normalized or "specfact-cli"
+
+
+def _skill_output_name_for_source(source_id: str) -> str:
+    """Return the relative SKILL.md path for a prompt source."""
+    return f"{_source_id_to_skill_name(source_id)}/SKILL.md"
+
+
 def _merge_prompt_export_outputs_by_basename(
     prompts_by_source: dict[str, list[Path]],
     format_type: str,
@@ -446,6 +485,8 @@ def _flat_export_glob_pattern_for_prune(format_type: str) -> str:
         return "specfact*.prompt.md"
     if format_type == "toml":
         return "specfact*.toml"
+    if format_type == "skill.md":
+        return "*specfact*/SKILL.md"
     return "specfact*.md"
 
 
@@ -464,11 +505,16 @@ def _prune_flat_specfact_exports_not_in_expected(
     for p in base.glob(pattern):
         if not p.is_file():
             continue
-        if p.name in expected_output_names:
+        rel_name = p.relative_to(base).as_posix()
+        if p.name in expected_output_names or rel_name in expected_output_names:
             continue
         try:
             p.unlink()
             console.print(f"[dim]Removed stale prompt export:[/dim] {p}")
+            parent = p.parent
+            if format_type == "skill.md" and parent != base:
+                with contextlib.suppress(OSError):
+                    parent.rmdir()
         except OSError as exc:
             console.print(f"[yellow]Could not remove stale export {p}:[/yellow] {exc}")
 
@@ -510,6 +556,7 @@ def _copy_template_files_to_ide(
         template_data = read_template(template_path)
         processed_content = process_template(template_data["content"], template_data["description"], format_type)  # type: ignore[arg-type]
         output_path = ide_dir / _output_filename_for_template(template_path, format_type)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
 
         if output_path.exists() and not force:
             console.print(f"[yellow]Skipping:[/yellow] {output_path} (already exists, use --force to overwrite)")
@@ -527,6 +574,99 @@ def _copy_template_files_to_ide(
             _handle_structured_json_document_error(exc, console)
 
     return copied_files, settings_path
+
+
+def _ordered_prompt_source_items(prompts_by_source: dict[str, list[Path]]) -> list[tuple[str, list[Path]]]:
+    """Return source prompt groups in deterministic core-first order."""
+    return sorted(
+        prompts_by_source.items(),
+        key=lambda item: (item[0] != PROMPT_SOURCE_CORE, item[0]),
+    )
+
+
+def _skill_title_for_source(source_id: str) -> str:
+    """Human-readable title for a grouped SpecFact skill."""
+    if source_id == PROMPT_SOURCE_CORE:
+        return "SpecFact CLI"
+    return _source_id_to_skill_name(source_id).replace("-", " ").title()
+
+
+def _skill_description_for_source(source_id: str, template_files: list[Path]) -> str:
+    """Short agent-facing description for a grouped SpecFact skill."""
+    stems = ", ".join(path.stem for path in template_files[:4])
+    suffix = f" Workflows include {stems}." if stems else ""
+    if source_id == PROMPT_SOURCE_CORE:
+        return f"Use SpecFact CLI core workflows and verify current command syntax with CLI help.{suffix}"
+    return f"Use SpecFact {source_id.split('/')[-1]} module workflows and verify current command syntax with CLI help.{suffix}"
+
+
+def _yaml_single_quoted(value: str) -> str:
+    """Render a scalar string for simple YAML frontmatter."""
+    return "'" + value.replace("'", "''") + "'"
+
+
+def _render_skill_body_for_source(source_id: str, template_files: list[Path]) -> str:
+    """Render one capability-oriented SKILL.md containing all prompts from a source/module."""
+    skill_name = _source_id_to_skill_name(source_id)
+    description = _skill_description_for_source(source_id, template_files)
+    description_yaml = _yaml_single_quoted(description)
+    title = _skill_title_for_source(source_id)
+    sections: list[str] = [
+        "---",
+        f"name: {skill_name}",
+        f"description: {description_yaml}",
+        "---",
+        "",
+        f"# {title}",
+        "",
+        (
+            "Use this skill for SpecFact workflows from this source. Treat the embedded workflows as "
+            "operating guidance, not as the source of truth. Before running a command, verify current syntax "
+            "with the nearest `specfact ... --help` output or the generated `llms.txt` command overview."
+        ),
+        "",
+    ]
+    for template_path in sorted(template_files, key=lambda path: path.name):
+        template_data = read_template(template_path)
+        description_line = template_data["description"].strip()
+        sections.append(f"## {template_path.stem}")
+        if description_line:
+            sections.append("")
+            sections.append(description_line)
+        sections.append("")
+        sections.append(template_data["content"].strip())
+        sections.append("")
+    return "\n".join(sections).rstrip() + "\n"
+
+
+def _copy_skill_bundles_to_ide(
+    repo_path: Path,
+    ide: str,
+    prompts_by_source: dict[str, list[Path]],
+    force: bool = False,
+) -> tuple[list[Path], None]:
+    """Copy source/module prompt groups to skill-based IDE targets."""
+    config = IDE_CONFIG[ide]
+    ide_dir = repo_path / str(config["folder"])
+    ide_dir.mkdir(parents=True, exist_ok=True)
+
+    expected = {_skill_output_name_for_source(source_id) for source_id in prompts_by_source}
+    _prune_flat_specfact_exports_not_in_expected(repo_path, ide, expected)
+
+    copied_files: list[Path] = []
+    for source_id, template_files in _ordered_prompt_source_items(prompts_by_source):
+        if not template_files:
+            continue
+        output_path = ide_dir / _skill_output_name_for_source(source_id)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        if output_path.exists() and not force:
+            console.print(f"[yellow]Skipping:[/yellow] {output_path} (already exists, use --force to overwrite)")
+            continue
+        output_path.write_text(_render_skill_body_for_source(source_id, template_files), encoding="utf-8")
+        copied_files.append(output_path)
+        console.print(f"[green]Copied:[/green] {output_path}")
+
+    return copied_files, None
 
 
 @beartype
@@ -558,6 +698,8 @@ def expected_ide_prompt_export_paths(
     catalog = discover_prompt_sources_catalog(repo_path)
     if prompt_source_ids is not None:
         catalog = {k: v for k, v in catalog.items() if k in prompt_source_ids}
+    if format_type == "skill.md":
+        return [base / _skill_output_name_for_source(source_id) for source_id in sorted(catalog)]
     merged = _merge_prompt_export_outputs_by_basename(catalog, format_type)
     return [base / name for name in sorted(merged.keys())]
 
@@ -587,6 +729,16 @@ def count_outdated_ide_prompt_exports(
     catalog = discover_prompt_sources_catalog(repo_path)
     if prompt_source_ids is not None:
         catalog = {k: v for k, v in catalog.items() if k in prompt_source_ids}
+    if format_type == "skill.md":
+        outdated = 0
+        for source_id, template_files in catalog.items():
+            dest = base / _skill_output_name_for_source(source_id)
+            if not dest.exists():
+                continue
+            newest_source_mtime = max((src.stat().st_mtime for src in template_files if src.exists()), default=0)
+            if newest_source_mtime and dest.stat().st_mtime < newest_source_mtime:
+                outdated += 1
+        return outdated
     merged = _merge_prompt_export_outputs_by_basename(catalog, format_type)
     outdated = 0
     for dest_name, src in merged.items():
@@ -620,6 +772,8 @@ def copy_prompts_by_source_to_ide(
     config = IDE_CONFIG[ide]
     format_type = str(config["format"])
     _cleanup_legacy_multisource_segment_dirs(repo_path, ide)
+    if format_type == "skill.md":
+        return _copy_skill_bundles_to_ide(repo_path, ide, prompts_by_source, force)
     merged = _merge_prompt_export_outputs_by_basename(prompts_by_source, format_type)
     _prune_flat_specfact_exports_not_in_expected(repo_path, ide, set(merged.keys()))
     template_list = list(merged.values())
@@ -793,7 +947,10 @@ def copy_templates_to_ide(
         >>> len(copied) > 0
         True
     """
-    return _copy_template_files_to_ide(repo_path, ide, _iter_prompt_template_files(templates_dir), force)
+    template_files = _iter_prompt_template_files(templates_dir)
+    if str(IDE_CONFIG[ide]["format"]) == "skill.md":
+        return _copy_skill_bundles_to_ide(repo_path, ide, {PROMPT_SOURCE_CORE: template_files}, force)
+    return _copy_template_files_to_ide(repo_path, ide, template_files, force)
 
 
 def _vscode_prompt_recommendation_paths_from_sources(prompts_by_source: dict[str, list[Path]]) -> list[str]:

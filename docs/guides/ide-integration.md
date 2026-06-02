@@ -19,7 +19,7 @@ permalink: /guides/ide-integration/
 
 ## Overview
 
-SpecFact CLI supports IDE integration through **prompt templates** that work with various AI-assisted IDEs. These templates are copied to IDE-specific locations and automatically registered by the IDE as slash commands. The AI stays in your IDE; SpecFact remains the deterministic CLI the prompts call.
+SpecFact CLI supports IDE integration through **prompt templates and grouped AI skills** that work with various AI-assisted IDEs. These files are copied to IDE-specific locations and automatically registered by the IDE as slash commands or skills. The AI stays in your IDE; SpecFact remains the deterministic CLI the prompts call.
 
 **See real examples**: [Integration Showcases](../examples/integration-showcases/) - 5 complete examples showing bugs fixed via IDE integrations
 
@@ -28,6 +28,9 @@ SpecFact CLI supports IDE integration through **prompt templates** that work wit
 - ✅ **Cursor** - `.cursor/commands/`
 - ✅ **VS Code / GitHub Copilot** - `.github/prompts/` + `.vscode/settings.json`
 - ✅ **Claude Code** - `.claude/commands/`
+- ✅ **Claude Code Skills** - `.claude/skills/<skill>/SKILL.md`
+- ✅ **Codex CLI** - `.codex/skills/<skill>/SKILL.md`
+- ✅ **Mistral Vibe** - `.vibe/skills/<skill>/SKILL.md`
 - ✅ **Gemini CLI** - `.gemini/commands/`
 - ✅ **Qwen Code** - `.qwen/commands/`
 - ✅ **opencode** - `.opencode/command/`
@@ -55,6 +58,7 @@ specfact init
 specfact init ide --ide cursor
 specfact init ide --ide vscode
 specfact init ide --ide copilot
+specfact init ide --ide codex
 
 # Install required packages for contract enhancement
 specfact init --install-deps
@@ -68,7 +72,7 @@ specfact init ide --ide cursor --install-deps
 1. Detects your IDE (or uses `--ide` flag)
 2. Discovers prompt templates from installed workflow modules first, then copies them to the IDE-specific location
 3. Creates/updates VS Code settings if needed
-4. Makes slash commands available in your IDE
+4. Makes slash commands or grouped AI skills available in your IDE
 5. Optionally installs required packages for contract enhancement (if `--install-deps` is provided):
    - `beartype>=0.22.4` - Runtime type checking
    - `icontract>=2.7.1` - Design-by-contract decorators
@@ -105,11 +109,11 @@ The IDE automatically recognizes these commands and exposes the corresponding pr
 
 ### Prompt Templates
 
-Slash commands are **markdown prompt templates** (not executable CLI commands). They:
+Slash-command targets use **markdown prompt templates** (not executable CLI commands). Skill-based targets use grouped `SKILL.md` files that collect several related workflows for one source/module. They:
 
 1. **Are owned by installed workflow modules** - Bundle-specific prompts ship with their corresponding module packages
 2. **Get copied to IDE locations** - `specfact init ide` discovers installed module resources and copies them to IDE-specific directories
-3. **Registered automatically** - The IDE reads these files and makes them available as slash commands
+3. **Registered automatically** - The IDE reads these files and makes them available as slash commands or skills
 4. **Fall back safely during transition** - If no installed module prompt payloads are present yet, SpecFact can still use packaged core fallback resources
 5. **Provide enhanced prompts** - Templates include detailed instructions for the AI assistant
 

@@ -82,6 +82,19 @@ def test_install_module_to_default_marketplace_path(monkeypatch, tmp_path: Path)
     assert installed == install_root / "drift"
 
 
+def test_install_module_handles_macos_application_support_install_root(monkeypatch, tmp_path: Path) -> None:
+    """Marketplace install must treat macOS Application Support paths as paths, not shell words."""
+    tarball = _create_module_tarball(tmp_path, "drift")
+    monkeypatch.setattr("specfact_cli.registry.module_installer.download_module", lambda *_args, **_kwargs: tarball)
+
+    install_root = tmp_path / "Library" / "Application Support" / "SpecFact" / "modules"
+    installed = install_module("specfact/drift", InstallModuleOptions(install_root=install_root))
+
+    assert installed == install_root / "drift"
+    assert (install_root / "drift" / "module-package.yaml").is_file()
+    assert (install_root / "drift" / module_installer.REGISTRY_ID_FILE).read_text(encoding="utf-8") == "specfact/drift"
+
+
 def test_install_module_already_installed_returns_existing(monkeypatch, tmp_path: Path) -> None:
     tarball = _create_module_tarball(tmp_path, "sync")
     monkeypatch.setattr("specfact_cli.registry.module_installer.download_module", lambda *_args, **_kwargs: tarball)

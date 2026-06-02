@@ -133,7 +133,7 @@ def validate_bundle_format(path: Path) -> BundleFormat:
         error_msg += "\n  - Monolithic: Single file with 'idea', 'product', 'features' keys"
         error_msg += "\n  - Modular: Directory with 'bundle.manifest.yaml' file"
         error_msg += "\n\nTo migrate from monolithic to modular format, run:"
-        error_msg += "\n  specfact migrate bundle <old-file> <bundle-name>"
+        error_msg += "\n  specfact project migrate artifacts <bundle-name> --repo ."
         raise BundleFormatError(error_msg)
 
     return format_type

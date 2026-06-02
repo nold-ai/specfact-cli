@@ -6,6 +6,7 @@ Focus: Business logic and edge cases only (@beartype handles type validation).
 from __future__ import annotations
 
 from pathlib import Path
+from subprocess import CompletedProcess
 from unittest.mock import patch
 
 from specfact_cli.utils.env_manager import (
@@ -344,6 +345,29 @@ class TestCheckToolInEnv:
 
         assert available is True
         assert message is None
+
+    def test_check_tool_probes_active_uv_environment(self, tmp_path: Path):
+        """A uv-managed tool should be checked with `uv run <tool> --version`."""
+        env_info = EnvManagerInfo(
+            manager=EnvManager.UV,
+            available=True,
+            command_prefix=["uv", "run"],
+            message="Test",
+        )
+
+        with (
+            patch("shutil.which", return_value=None),
+            patch(
+                "specfact_cli.utils.env_manager.subprocess.run",
+                return_value=CompletedProcess(["uv", "run", "semgrep", "--version"], 0, stdout="1.0\n", stderr=""),
+            ) as run_mock,
+        ):
+            available, message = check_tool_in_env(tmp_path, "semgrep", env_info)
+
+        assert available is True
+        assert message is None
+        run_mock.assert_called_once()
+        assert run_mock.call_args.args[0] == ["uv", "run", "semgrep", "--version"]
 
 
 class TestDetectSourceDirectories:

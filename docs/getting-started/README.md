@@ -25,7 +25,7 @@ pip install specfact-cli
 specfact init --profile solo-developer
 
 # Analyze your codebase
-specfact code import my-project --repo .
+specfact code import --repo . my-project
 ```
 
 See the **[5-Minute Quickstart](quickstart.md)** for a complete walkthrough.

@@ -276,7 +276,7 @@ cat > .git/hooks/pre-commit << 'EOF'
 specfact --no-banner plan compare --code-vs-plan
 EOF
 chmod +x .git/hooks/pre-commit
-echo "⚠️  Pre-commit hook created. Remember to run 'specfact enforce stage --preset balanced' before testing."
+echo "⚠️  Pre-commit hook created. Remember to run 'specfact govern enforce stage --preset balanced' before testing."
 echo "✅ Example 4 setup complete (src/legacy.py, src/caller.py, pre-commit hook created)"
 cd ..
 
@@ -360,4 +360,3 @@ echo "   - Testing Guide: docs/examples/integration-showcases/integration-showca
 echo "   - Quick Reference: docs/examples/integration-showcases/integration-showcases-quick-reference.md"
 echo "   - Showcases: docs/examples/integration-showcases/integration-showcases.md"
 echo ""
-

@@ -9,13 +9,28 @@ from __future__ import annotations
 
 import os
 import sys
-from typing import Any
+from typing import Any, cast
 
+import click
 from beartype import beartype
-from click.core import Command, Context as ClickContext
+from click.core import Command
+from click.exceptions import UsageError
 from icontract import ensure
 from rich.console import Console
 from typer.core import TyperCommand, TyperGroup
+
+
+try:
+    from typer._click import core as _typer_click_core
+    from typer._click.exceptions import UsageError as TyperUsageError
+except ImportError:  # pragma: no cover - only older Typer layouts lack this namespace
+    _typer_click_core = None  # type: ignore[assignment]
+    TyperUsageError = UsageError  # type: ignore[assignment,misc]
+
+try:
+    import typer.rich_utils as _typer_rich_utils
+except ImportError:  # pragma: no cover - Typer is a hard dependency in normal runtime
+    _typer_rich_utils = None  # type: ignore[assignment]
 
 
 console = Console()
@@ -26,6 +41,19 @@ _show_advanced_help = False
 # Store original methods (must be done before we define helper functions)
 _original_get_params = Command.get_params
 _original_make_context = Command.make_context
+_original_usage_error_show = UsageError.show
+_original_group_parse_args = click.Group.parse_args
+_original_typer_get_params = (
+    _typer_click_core.Command.get_params if _typer_click_core is not None else _original_get_params
+)
+_original_typer_make_context = (
+    _typer_click_core.Command.make_context if _typer_click_core is not None else _original_make_context
+)
+_original_typer_usage_error_show = TyperUsageError.show
+_typer_group_class = getattr(_typer_click_core, "Group", TyperGroup) if _typer_click_core is not None else TyperGroup
+_original_typer_group_parse_args = getattr(_typer_group_class, "parse_args", _original_group_parse_args)
+_original_rich_format_error = _typer_rich_utils.rich_format_error if _typer_rich_utils is not None else None
+_USAGE_ERROR_TYPES = (UsageError, TyperUsageError)
 
 
 @beartype
@@ -83,7 +111,7 @@ def intercept_help_advanced() -> None:
 
 
 @beartype
-def _is_advanced_help_context(ctx: ClickContext | None) -> bool:
+def _is_advanced_help_context(ctx: Any | None) -> bool:
     """Check if this context is for showing advanced help."""
     # Check sys.argv directly first
     if "--help-advanced" in sys.argv or "-ha" in sys.argv:
@@ -101,7 +129,7 @@ class ProgressiveDisclosureGroup(TyperGroup):
 
     @beartype
     @ensure(lambda result: isinstance(result, list), "returns param list")
-    def get_params(self, ctx: ClickContext) -> list[Any]:
+    def get_params(self, ctx: Any) -> list[Any]:
         """
         Override get_params to include hidden options when advanced help is requested.
 
@@ -166,7 +194,7 @@ class ProgressiveDisclosureCommand(TyperCommand):
 
     @beartype
     @ensure(lambda result: result is None, "formatter returns None")
-    def format_help(self, ctx: ClickContext, formatter: Any) -> None:
+    def format_help(self, ctx: Any, formatter: Any) -> None:
         """
         Override format_help to conditionally show advanced options in docstring.
 
@@ -188,7 +216,7 @@ class ProgressiveDisclosureCommand(TyperCommand):
 
     @beartype
     @ensure(lambda result: isinstance(result, list), "returns param list")
-    def get_params(self, ctx: ClickContext) -> list[Any]:
+    def get_params(self, ctx: Any) -> list[Any]:
         """
         Override get_params to include hidden options when advanced help is requested.
 
@@ -245,7 +273,7 @@ def get_hidden_value() -> bool:
 
 
 @beartype
-def _patched_get_params(self: Command, ctx: ClickContext) -> list[Any]:
+def _patched_get_params(self: Any, ctx: Any) -> list[Any]:
     """
     Patched get_params that includes hidden options when advanced help is requested.
 
@@ -274,11 +302,16 @@ def _patched_get_params(self: Command, ctx: ClickContext) -> list[Any]:
         return all_params
 
     # Otherwise, use original behavior (filter out hidden params)
-    return _original_get_params(self, ctx)
+    original_get_params = (
+        _original_typer_get_params
+        if _typer_click_core is not None and isinstance(self, _typer_click_core.Command)
+        else _original_get_params
+    )
+    return cast(Any, original_get_params)(self, ctx)
 
 
 @beartype
-def _ensure_help_advanced_in_context_settings(self: Command) -> None:
+def _ensure_help_advanced_in_context_settings(self: Any) -> None:
     """Ensure --help-advanced and --help are in context_settings.help_option_names."""
     # Get or create context settings
     if self.context_settings is None:
@@ -303,17 +336,99 @@ def _ensure_help_advanced_in_context_settings(self: Command) -> None:
     self.context_settings["help_option_names"] = help_option_names
 
 
-# Remove parse_args patch - we handle it in intercept_help_advanced instead
+# Shared usage-error rendering helpers.
+def _error_output_stream(ctx: Any | None, file: Any | None) -> Any:
+    if file is not None:
+        return file
+    return sys.stderr
+
+
+def _available_subcommands_text(command: Any, ctx: Any) -> str:
+    if not (hasattr(command, "list_commands") and hasattr(command, "get_command")):
+        return ""
+    names = command.list_commands(ctx)
+    if not names:
+        return ""
+    return ", ".join(names)
+
+
+def _missing_subcommand_message(command: Any, ctx: Any) -> str:
+    available = _available_subcommands_text(command, ctx)
+    if available:
+        return f"Error: Missing subcommand. Choose one of: {available}."
+    return "Error: Missing subcommand."
+
+
+def _show_context_help_for_usage_error(error: Any, file: Any | None) -> None:
+    ctx = error.ctx
+    if ctx is None:
+        return
+    output = _error_output_stream(ctx, file)
+    try:
+        click.echo(ctx.get_help(), file=output)
+        click.echo("", file=output)
+    except Exception:
+        return
+
+
+def _should_add_missing_subcommand_hint(error: Any) -> bool:
+    return str(error).strip().lower().startswith("missing command")
+
+
+def _patched_usage_error_show(self: Any, file: Any | None = None) -> None:
+    _show_context_help_for_usage_error(self, file)
+    original_show = (
+        _original_typer_usage_error_show if isinstance(self, TyperUsageError) else _original_usage_error_show
+    )
+    cast(Any, original_show)(self, file=file)
+    if self.ctx is not None and _should_add_missing_subcommand_hint(self):
+        click.echo(_missing_subcommand_message(self.ctx.command, self.ctx), file=_error_output_stream(self.ctx, file))
+
+
+def _patched_group_parse_args(self: Any, ctx: Any, args: list[str]) -> list[str]:
+    if not args and self.no_args_is_help and self.commands and not ctx.resilient_parsing:
+        output = _error_output_stream(ctx, None)
+        click.echo(ctx.get_help(), file=output)
+        click.echo("", file=output)
+        click.echo(_missing_subcommand_message(self, ctx), file=output)
+        ctx.exit(2)
+    original_parse_args = (
+        _original_typer_group_parse_args
+        if isinstance(self, (TyperGroup, _typer_group_class))
+        else _original_group_parse_args
+    )
+    return original_parse_args(self, ctx, args)
+
+
+def _patched_rich_format_error(error: Any) -> None:
+    if isinstance(error, _USAGE_ERROR_TYPES):
+        _show_context_help_for_usage_error(error, None)
+        if error.ctx is not None and _should_add_missing_subcommand_hint(error):
+            click.echo(
+                _missing_subcommand_message(error.ctx.command, error.ctx), file=_error_output_stream(error.ctx, None)
+            )
+            return
+        click.echo(f"Error: {error.format_message()}", file=_error_output_stream(error.ctx, None))
+        if error.ctx is not None and cast(Any, error.ctx.command).get_help_option(error.ctx) is not None:
+            help_option = "--help" if "--help" in error.ctx.help_option_names else error.ctx.help_option_names[0]
+            click.echo(
+                f"Try '{error.ctx.command_path} {help_option}' for help.", file=_error_output_stream(error.ctx, None)
+            )
+        return
+    if _original_rich_format_error is not None:
+        _original_rich_format_error(error)
+    else:
+        error.show()
 
 
 @beartype
 def _patched_make_context(
-    self: Command,
+    self: Any,
     info_name: str | None = None,
     args: list[str] | None = None,
-    parent: ClickContext | None = None,
+    parent: Any | None = None,
     **extra: Any,
-) -> ClickContext:
+) -> Any:
     """
     Patched make_context that ensures --help-advanced is always in help_option_names.
 
@@ -327,10 +442,25 @@ def _patched_make_context(
     if args is None:
         args = []
 
-    return _original_make_context(self, info_name, args, parent, **extra)
+    original_make_context = (
+        _original_typer_make_context
+        if _typer_click_core is not None and isinstance(self, _typer_click_core.Command)
+        else _original_make_context
+    )
+    return cast(Any, original_make_context)(self, info_name, args, parent, **extra)
 
 
 # Monkey-patch Click's Command class to use our patched methods
 # This must happen after all helper functions are defined
 Command.get_params = _patched_get_params  # type: ignore[assignment]
 Command.make_context = _patched_make_context  # type: ignore[assignment]
+UsageError.show = _patched_usage_error_show  # type: ignore[assignment]
+click.Group.parse_args = _patched_group_parse_args  # type: ignore[assignment]
+if _typer_click_core is not None:
+    _typer_click_core.Command.get_params = _patched_get_params
+    _typer_click_core.Command.make_context = _patched_make_context
+    TyperUsageError.show = _patched_usage_error_show  # type: ignore[assignment]
+    _typer_group_class.parse_args = _patched_group_parse_args
+TyperGroup.parse_args = _patched_group_parse_args  # type: ignore[method-assign]
+if _typer_rich_utils is not None:
+    _typer_rich_utils.rich_format_error = _patched_rich_format_error
