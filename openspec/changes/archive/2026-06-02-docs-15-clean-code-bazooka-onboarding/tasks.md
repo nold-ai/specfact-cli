@@ -7,6 +7,11 @@
 - [x] 1.3 Confirm issue project assignment, open/Todo state, parent linkage, blocked-by relationship, source tracking, and paired modules issue reference.
 - [x] 1.4 Add `openspec/CHANGE_ORDER.md` row under active work.
 - [x] 1.5 Validate the OpenSpec change with `openspec validate docs-15-clean-code-bazooka-onboarding --strict`.
+- [x] 1.6 Create the implementation worktree from `origin/dev` instead of working directly on `dev`.
+- [x] 1.7 Run `hatch env create` in the implementation worktree before verification.
+- [x] 1.8 Run `hatch run smart-test-status` as a pre-flight scope check.
+- [x] 1.9 Run `hatch run contract-test-status` as a pre-flight contract scope check.
+- [x] 1.10 Perform the AGENTS.md policy self-check, including worktree, OpenSpec, and quality-gate requirements.
 
 ## 2. Spec-first docs tests
 
@@ -32,3 +37,5 @@
 - [x] 4.2 Run required docs quality gates for the touched scope.
 - [x] 4.3 Run SpecFact code review for changed docs/test scope if the repository gate applies.
 - [x] 4.4 Update `TDD_EVIDENCE.md` with passing evidence and before/after docs summary.
+- [x] 4.5 Record post-merge cleanup requirements: remove the implementation worktree after the merged branch is no longer needed and archive this OpenSpec change with `openspec archive docs-15-clean-code-bazooka-onboarding`.
+- [x] 4.6 Verify the release branch no longer treats this shipped docs contract as active pending work.
