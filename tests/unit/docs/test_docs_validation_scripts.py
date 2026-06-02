@@ -90,6 +90,16 @@ def test_code_import_explicit_subcommand_keeps_legacy_bundle_position() -> None:
     assert message == ""
 
 
+def test_generated_contract_rejects_unknown_subcommand() -> None:
+    mod = _load_check_docs_commands()
+
+    ok, message = mod.validate_command_tokens(["generated-contract", "typo-subcmd", "--help"])
+
+    assert ok is False
+    assert "generated-contract" in message
+    assert "typo-subcmd" in message
+
+
 def test_command_contract_retries_parent_help_for_code_import_alias(monkeypatch: pytest.MonkeyPatch) -> None:
     mod = _load_check_command_contract()
     calls: list[tuple[list[str], list[str]]] = []

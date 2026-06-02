@@ -10,6 +10,16 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.47.3] - 2026-06-02
+
+### Fixed
+
+- **PR validation follow-up**: stabilize analyzer fallback coverage, align update
+  detection and generated-command validation tests with current behavior, and
+  address review findings in generated artifact staging and init IDE help.
+
+---
+
 ## [0.47.2] - 2026-06-01
 
 ### Fixed

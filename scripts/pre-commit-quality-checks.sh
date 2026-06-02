@@ -142,6 +142,18 @@ fail_if_markdown_has_unstaged_hunks() {
   done < <(staged_markdown_files)
 }
 
+fail_if_generated_artifacts_have_unstaged_hunks() {
+  local file
+  for file in llms.txt docs/reference/commands.generated.json docs/reference/commands.generated.md; do
+    [[ -f "${file}" ]] || continue
+    if ! git diff --quiet -- "${file}"; then
+      error "❌ Cannot stage generated command artifacts with unstaged hunks: ${file}"
+      warn "💡 Stage the full file or stash/revert the unstaged generated-artifact changes before commit"
+      exit 1
+    fi
+  done
+}
+
 check_safe_change() {
   local other_changes=0
   local saw_any=false
@@ -417,6 +429,7 @@ run_command_overview_validation_gate() {
   fi
   info "📦 Block 2 — command overview — regenerating current AI command artifacts"
   if hatch run generate-command-overview; then
+    fail_if_generated_artifacts_have_unstaged_hunks
     git add -- llms.txt docs/reference/commands.generated.json docs/reference/commands.generated.md
     success "✅ Command overview artifacts regenerated and staged"
   else

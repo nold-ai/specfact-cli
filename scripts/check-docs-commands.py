@@ -270,9 +270,11 @@ def validate_command_tokens(tokens: list[str]) -> tuple[bool, str]:
     if _generated_prefix_match(tokens):
         return True, ""
     if _generated_command_prefixes():
+        command_text = " ".join(tokens)
         return (
             False,
             "Command path is not present in docs/reference/commands.generated.json. "
+            f"Invalid command: specfact {command_text}. "
             "Run `hatch run generate-command-overview` if the CLI changed; otherwise fix the docs.",
         )
 

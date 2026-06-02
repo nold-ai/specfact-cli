@@ -4,6 +4,8 @@ import tempfile
 from pathlib import Path
 from textwrap import dedent
 
+import pytest
+
 from specfact_cli.analyzers.code_analyzer import CodeAnalyzer
 from specfact_cli.models.plan import PlanBundle
 
@@ -670,8 +672,11 @@ class TestCodeAnalyzerIntegration:
                     # Semgrep model detection adds +0.15 to confidence
                     assert user_feature.confidence >= 0.3
 
-    def test_semgrep_integration_graceful_degradation(self):
+    def test_semgrep_integration_graceful_degradation(self, monkeypatch: pytest.MonkeyPatch):
         """Test that analysis works correctly when Semgrep is not available."""
+        monkeypatch.setattr(CodeAnalyzer, "_check_semgrep_available", lambda self: False)
+        monkeypatch.setattr(CodeAnalyzer, "_run_semgrep_patterns", lambda self, file_path: [])
+
         with tempfile.TemporaryDirectory() as tmpdir:
             repo_path = Path(tmpdir)
             src_path = repo_path / "src"

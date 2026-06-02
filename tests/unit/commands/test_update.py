@@ -149,7 +149,7 @@ class TestInstallationMethodDetection:
     @patch("specfact_cli.modules.upgrade.src.commands.sys.argv", ["/workspace/app/.venv/bin/specfact", "upgrade"])
     @patch.dict(
         "specfact_cli.modules.upgrade.src.commands.os.environ",
-        {"UV_PROJECT_ENVIRONMENT": "/workspace/app/.venv", "UV": "1"},
+        {"UV": "1"},
         clear=False,
     )
     def test_detect_uv_run_before_stale_pipx_inventory(self, mock_subprocess: MagicMock) -> None:
