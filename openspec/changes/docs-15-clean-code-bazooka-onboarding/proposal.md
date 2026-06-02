@@ -28,9 +28,9 @@ The paired modules-side capability change has shipped, so core docs can now desc
 
 ## Impact
 
-- **Affected docs:** `README.md`, `docs/index.md`, `docs/README.md`, `docs/getting-started/README.md`, `docs/getting-started/quickstart.md`, and `docs/modules/code-review.md`.
-- **Affected metadata:** `pyproject.toml`, `setup.py`, `src/specfact_cli/__init__.py`, `docs/_config.yml`, and GitHub repository description/topics.
-- **Affected ownership boundary:** Core docs summarize the value path; modules docs own exact command flags and schema field details.
+- **Docs touched:** `README.md`, `docs/index.md`, `docs/README.md`, `docs/getting-started/README.md`, `docs/getting-started/quickstart.md`, and `docs/modules/code-review.md`.
+- **Metadata touched:** `pyproject.toml`, `setup.py`, `src/specfact_cli/__init__.py`, `docs/_config.yml`, and GitHub repository description/topics.
+- **Ownership boundary:** Core docs summarize the value path; modules docs own exact command flags and schema field details.
 - **No runtime impact:** This is a docs and public-metadata companion to the modules implementation.
 
 ## Source Tracking
