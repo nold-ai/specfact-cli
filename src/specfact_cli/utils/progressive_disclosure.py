@@ -22,10 +22,9 @@ from typer.core import TyperCommand, TyperGroup
 
 try:
     from typer._click import core as _typer_click_core
-    from typer._click.exceptions import ClickException as TyperClickException, UsageError as TyperUsageError
+    from typer._click.exceptions import UsageError as TyperUsageError
 except ImportError:  # pragma: no cover - only older Typer layouts lack this namespace
     _typer_click_core = None  # type: ignore[assignment]
-    TyperClickException = click.ClickException  # type: ignore[assignment,misc]
     TyperUsageError = UsageError  # type: ignore[assignment,misc]
 
 try:

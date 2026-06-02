@@ -11,6 +11,7 @@ import inspect
 import os
 import sys
 from collections.abc import Callable, Mapping
+from contextlib import suppress
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -722,11 +723,10 @@ class _LazyDelegateGroup(click.Group):
                         raise
                 click.echo(f"Error: {_lazy_usage_error_message(exc, click_cmd, None)}", file=sys.stderr)
             else:
-                try:
+                # Help rendering is best-effort; the primary usage error is emitted below.
+                with suppress(Exception):
                     click.echo(exc.ctx.get_help(), file=sys.stderr)
                     click.echo("", file=sys.stderr)
-                except Exception:
-                    pass
                 click.echo(f"Error: {_lazy_usage_error_message(exc, click_cmd, exc.ctx)}", file=sys.stderr)
             raise SystemExit(exc.exit_code) from None
         except SystemExit as exc:

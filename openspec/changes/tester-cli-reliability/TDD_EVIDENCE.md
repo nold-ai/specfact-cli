@@ -193,3 +193,24 @@
   - `SPECFACT_MODULES_REPO=/home/dom/git/nold-ai/specfact-cli-modules hatch run docs-validate` -> passed enforced checks. The warn-only cross-site link step reported DNS resolution failures for `modules.specfact.io` under the local restricted network.
   - `hatch run lint` -> passed.
   - `openspec validate tester-cli-reliability --strict` -> passed.
+
+## PR #598 Stale Artifact And Review Fixes
+
+- Re-checked PR #598 after the prior contract fix. The remaining failures were duplicate `CLI Command Validation` and `Docs Review` runs.
+- Root cause: modules `dev` advanced through signing/publish automation to `9b624fb`, while core generated command artifacts still reflected the previous modules command surface.
+- Refreshed the generated artifacts with `SPECFACT_MODULES_REPO=/home/dom/git/nold-ai/specfact-cli-modules` after fast-forwarding that checkout to `origin/dev`.
+- Validated current PR #598 inline comments:
+  - Fixed the valid `src/specfact_cli/cli.py` empty best-effort help fallback comment by replacing the empty `except Exception: pass` with `contextlib.suppress(Exception)` and an explanatory comment.
+  - Fixed the valid unused `TyperClickException` compatibility import in `src/specfact_cli/utils/progressive_disclosure.py`.
+  - Skipped the `_GENERATED_PREFIX_CACHE` comment in `scripts/check-docs-commands.py` as stale/false-positive: the cache is read before loading and assigned on both generation paths.
+  - Fixed the valid namespaced skill export collision in `src/specfact_cli/utils/ide_setup.py`, updated docs, and added regression coverage.
+- Passing-after evidence:
+  - `hatch run pytest tests/unit/modules/init/test_init_ide_prompt_selection.py tests/unit/utils/test_ide_setup.py tests/unit/cli/test_error_guidance.py tests/unit/cli/test_lean_help_output.py tests/unit/docs/test_docs_validation_scripts.py -q` -> 82 passed, 1 skipped, 2 warnings.
+  - `SPECFACT_MODULES_REPO=/home/dom/git/nold-ai/specfact-cli-modules hatch run check-command-overview` -> passed.
+  - `SPECFACT_MODULES_REPO=/home/dom/git/nold-ai/specfact-cli-modules hatch run check-command-contract` -> passed: `check-command-contract: OK (107 generated command path(s) validated)`.
+  - `SPECFACT_MODULES_REPO=/home/dom/git/nold-ai/specfact-cli-modules hatch run check-docs-commands` -> passed: `check-docs-commands: OK (380 unique command prefix(es) checked)`.
+  - `SPECFACT_MODULES_REPO=/home/dom/git/nold-ai/specfact-cli-modules hatch run docs-validate` -> passed enforced checks. The warn-only cross-site link step reported DNS resolution failures for `modules.specfact.io` under the local restricted network.
+  - `hatch run format` -> passed, fixed one import-order issue.
+  - `hatch run lint` -> passed.
+  - `hatch run type-check` -> passed with 0 errors and existing warnings.
+  - `openspec validate tester-cli-reliability --strict` -> passed.

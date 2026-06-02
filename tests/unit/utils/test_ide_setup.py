@@ -344,7 +344,7 @@ def test_flat_export_glob_pattern_for_prune_matches_output_formats() -> None:
     assert _flat_export_glob_pattern_for_prune("prompt.md") == "specfact*.prompt.md"
     assert _flat_export_glob_pattern_for_prune("toml") == "specfact*.toml"
     assert _flat_export_glob_pattern_for_prune("md") == "specfact*.md"
-    assert _flat_export_glob_pattern_for_prune("skill.md") == "specfact*/SKILL.md"
+    assert _flat_export_glob_pattern_for_prune("skill.md") == "*specfact*/SKILL.md"
 
 
 def test_is_specfact_github_prompt_path_only_specfact_named_prompts() -> None:
@@ -456,5 +456,5 @@ def test_expected_ide_prompt_export_paths_groups_skill_targets_by_source(
 
     assert paths == [
         tmp_path / ".codex" / "skills" / "specfact-cli" / "SKILL.md",
-        tmp_path / ".codex" / "skills" / "specfact-project" / "SKILL.md",
+        tmp_path / ".codex" / "skills" / "nold-ai-specfact-project" / "SKILL.md",
     ]

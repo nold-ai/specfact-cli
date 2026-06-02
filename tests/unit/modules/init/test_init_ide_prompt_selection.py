@@ -159,14 +159,41 @@ def test_copy_prompts_by_source_to_codex_exports_grouped_skills(tmp_path: Path) 
     skills_dir = tmp_path / ".codex" / "skills"
     assert copied == [
         skills_dir / "specfact-cli" / "SKILL.md",
-        skills_dir / "specfact-backlog" / "SKILL.md",
+        skills_dir / "nold-ai-specfact-backlog" / "SKILL.md",
     ]
     assert not (skills_dir / "specfact.01-import").exists()
     core_skill = (skills_dir / "specfact-cli" / "SKILL.md").read_text(encoding="utf-8")
-    module_skill = (skills_dir / "specfact-backlog" / "SKILL.md").read_text(encoding="utf-8")
+    module_skill = (skills_dir / "nold-ai-specfact-backlog" / "SKILL.md").read_text(encoding="utf-8")
     assert "## specfact.01-import" in core_skill
     assert "## specfact.validate" in core_skill
     assert "## specfact.backlog-add" in module_skill
+
+
+def test_copy_prompts_by_source_to_codex_preserves_module_namespaces(tmp_path: Path) -> None:
+    """Skill exports keep namespaced module ids distinct when basenames collide."""
+    first_dir = tmp_path / "first" / "resources" / "prompts"
+    second_dir = tmp_path / "second" / "resources" / "prompts"
+    first_dir.mkdir(parents=True)
+    second_dir.mkdir(parents=True)
+    f1 = first_dir / "specfact.backlog-add.md"
+    f2 = second_dir / "specfact.backlog-refine.md"
+    f1.write_text("---\ndescription: A\n---\n# A\n", encoding="utf-8")
+    f2.write_text("---\ndescription: B\n---\n# B\n", encoding="utf-8")
+
+    copied, _settings = copy_prompts_by_source_to_ide(
+        tmp_path,
+        "codex",
+        {"acme/specfact-backlog": [f1], "other/specfact-backlog": [f2]},
+        force=True,
+    )
+
+    skills_dir = tmp_path / ".codex" / "skills"
+    assert copied == [
+        skills_dir / "acme-specfact-backlog" / "SKILL.md",
+        skills_dir / "other-specfact-backlog" / "SKILL.md",
+    ]
+    assert "## specfact.backlog-add" in copied[0].read_text(encoding="utf-8")
+    assert "## specfact.backlog-refine" in copied[1].read_text(encoding="utf-8")
 
 
 def test_copy_prompts_by_source_to_codex_prunes_stale_per_prompt_skill_exports(tmp_path: Path) -> None:
@@ -179,6 +206,9 @@ def test_copy_prompts_by_source_to_codex_prunes_stale_per_prompt_skill_exports(t
     stale = tmp_path / ".codex" / "skills" / "specfact.01-import" / "SKILL.md"
     stale.parent.mkdir(parents=True)
     stale.write_text("stale\n", encoding="utf-8")
+    stale_module = tmp_path / ".codex" / "skills" / "nold-ai-specfact-backlog" / "SKILL.md"
+    stale_module.parent.mkdir(parents=True)
+    stale_module.write_text("stale module\n", encoding="utf-8")
     owned = tmp_path / ".codex" / "skills" / "openspec-workflows" / "SKILL.md"
     owned.parent.mkdir(parents=True)
     owned.write_text("owned\n", encoding="utf-8")
@@ -187,6 +217,8 @@ def test_copy_prompts_by_source_to_codex_prunes_stale_per_prompt_skill_exports(t
 
     assert not stale.exists()
     assert not stale.parent.exists()
+    assert not stale_module.exists()
+    assert not stale_module.parent.exists()
     assert owned.exists()
     assert (tmp_path / ".codex" / "skills" / "specfact-cli" / "SKILL.md").exists()
 

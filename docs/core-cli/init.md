@@ -78,7 +78,7 @@ specfact init ide --ide cursor --prompts "core,nold-ai/specfact-backlog"
 specfact init ide --install-deps
 ```
 
-Slash-command IDE targets export one file per prompt into their native command location, such as `.cursor/commands/specfact.02-plan.md` or `.github/prompts/specfact.02-plan.prompt.md`. Skill-based targets export one capability-oriented skill per source/module, such as `.codex/skills/specfact-project/SKILL.md`, `.claude/skills/specfact-backlog/SKILL.md`, or `.vibe/skills/specfact-spec/SKILL.md`.
+Slash-command IDE targets export one file per prompt into their native command location, such as `.cursor/commands/specfact.02-plan.md` or `.github/prompts/specfact.02-plan.prompt.md`. Skill-based targets export one capability-oriented skill per source/module, such as `.codex/skills/nold-ai-specfact-project/SKILL.md`, `.claude/skills/nold-ai-specfact-backlog/SKILL.md`, or `.vibe/skills/nold-ai-specfact-spec/SKILL.md`.
 
 This creates or refreshes:
 

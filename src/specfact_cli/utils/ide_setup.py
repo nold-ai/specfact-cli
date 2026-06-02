@@ -431,7 +431,7 @@ def _source_id_to_skill_name(source_id: str) -> str:
     """Map a prompt source id to a capability-oriented skill directory name."""
     if source_id == PROMPT_SOURCE_CORE:
         return "specfact-cli"
-    raw_name = source_id.strip().split("/")[-1] or source_id.strip()
+    raw_name = source_id.strip()
     normalized = re.sub(r"[^A-Za-z0-9]+", "-", raw_name).strip("-").lower()
     return normalized or "specfact-cli"
 
@@ -486,7 +486,7 @@ def _flat_export_glob_pattern_for_prune(format_type: str) -> str:
     if format_type == "toml":
         return "specfact*.toml"
     if format_type == "skill.md":
-        return "specfact*/SKILL.md"
+        return "*specfact*/SKILL.md"
     return "specfact*.md"
 
 
