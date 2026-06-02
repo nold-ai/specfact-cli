@@ -4,7 +4,10 @@ import re
 from pathlib import Path
 from urllib.parse import ParseResult, unquote, urlparse
 
+import pytest
 import yaml
+
+from tests.unit.docs.docs_test_constants import HOOK
 
 
 MODULES_DOCS_HOST = "modules.specfact.io"
@@ -13,6 +16,19 @@ MARKDOWN_LINK_RE = re.compile(r"(?<!!)\[[^\]]+\]\(([^)]+)\)")
 HTML_HREF_RE = re.compile(r'href="([^"]+)"')
 JEKYLL_RELATIVE_URL_RE = re.compile(r'\{\{\s*[\'"]([^\'"]+)[\'"]\s*\|\s*relative_url\s*\}\}')
 REQUIRED_NAV_FRONT_MATTER_KEYS = ("layout", "title", "permalink")
+REMOVED_AUTHORED_DOCS_SYNTAX = (
+    ("specfact project plan", "specfact project plan"),
+    ("project import from-bridge", "project import from-bridge"),
+    ("backlog policy", "backlog policy"),
+    ("spec contract", "spec contract"),
+    ("specfact spec api", "specfact spec api"),
+    ("spec sdd", "spec sdd"),
+    ("spec generate ", "spec generate <subcommand>"),
+)
+CURRENT_COMMAND_REFERENCE_CASES = (
+    ("spec commands", ("spec validate", "spec backward-compat", "spec generate-tests", "spec mock")),
+    ("backlog subcommands", ("backlog ceremony", "backlog refine", "backlog daily", "backlog sync")),
+)
 
 
 def _repo_root() -> Path:
@@ -348,11 +364,11 @@ def test_module_contracts_reference_external_bundle_boundary() -> None:
 def test_readme_and_docs_index_define_core_and_modules_split() -> None:
     readme = _repo_file("README.md").read_text(encoding="utf-8")
     docs_index = _repo_file("docs/index.md").read_text(encoding="utf-8")
-    assert "Review AI-assisted code against your own contracts." in readme
+    assert HOOK in readme
     assert "## Documentation topology" in readme
     assert "Module-specific deep docs are canonically owned by `specfact-cli-modules`" in readme
     _assert_mentions_modules_docs_site(readme)
-    assert "Review AI-assisted code against your own contracts." in docs_index
+    assert HOOK in docs_index
     assert "canonical starting point for the core CLI story" in docs_index
     assert "docs.specfact.io` is the default starting point" in docs_index
     _assert_mentions_modules_docs_site(docs_index)
@@ -435,39 +451,10 @@ def _fmt_hits(hits: list[tuple[str, int, str]]) -> str:
     return "\n".join(f"  {path}:{lineno}  {line}" for path, lineno, line in hits)
 
 
-def test_removed_project_plan_syntax_absent_from_authored_docs() -> None:
-    hits = _scan_authored_docs("specfact project plan")
-    assert not hits, f"Removed syntax 'specfact project plan' still present:\n{_fmt_hits(hits)}"
-
-
-def test_removed_project_import_from_bridge_syntax_absent_from_authored_docs() -> None:
-    hits = _scan_authored_docs("project import from-bridge")
-    assert not hits, f"Removed syntax 'project import from-bridge' still present:\n{_fmt_hits(hits)}"
-
-
-def test_removed_backlog_policy_syntax_absent_from_authored_docs() -> None:
-    hits = _scan_authored_docs("backlog policy")
-    assert not hits, f"Removed syntax 'backlog policy' still present:\n{_fmt_hits(hits)}"
-
-
-def test_removed_spec_contract_syntax_absent_from_authored_docs() -> None:
-    hits = _scan_authored_docs("spec contract")
-    assert not hits, f"Removed syntax 'spec contract' still present:\n{_fmt_hits(hits)}"
-
-
-def test_removed_spec_api_syntax_absent_from_authored_docs() -> None:
-    hits = _scan_authored_docs("specfact spec api")
-    assert not hits, f"Removed syntax 'specfact spec api' still present:\n{_fmt_hits(hits)}"
-
-
-def test_removed_spec_sdd_syntax_absent_from_authored_docs() -> None:
-    hits = _scan_authored_docs("spec sdd")
-    assert not hits, f"Removed syntax 'spec sdd' still present:\n{_fmt_hits(hits)}"
-
-
-def test_removed_spec_generate_syntax_absent_from_authored_docs() -> None:
-    hits = _scan_authored_docs("spec generate ")
-    assert not hits, f"Removed syntax 'spec generate <subcommand>' still present:\n{_fmt_hits(hits)}"
+@pytest.mark.parametrize(("syntax", "label"), REMOVED_AUTHORED_DOCS_SYNTAX)
+def test_removed_syntax_absent_from_authored_docs(syntax: str, label: str) -> None:
+    hits = _scan_authored_docs(syntax)
+    assert not hits, f"Removed syntax '{label}' still present:\n{_fmt_hits(hits)}"
 
 
 # ---------------------------------------------------------------------------
@@ -480,10 +467,9 @@ def test_current_code_import_from_bridge_documented() -> None:
     assert hits, "Current syntax 'code import' must appear in at least one authored doc"
 
 
-def test_current_spec_commands_documented_in_commands_reference() -> None:
-    commands_doc = _repo_file("docs/reference/commands.md").read_text(encoding="utf-8")
-    for cmd in ("spec validate", "spec backward-compat", "spec generate-tests", "spec mock"):
-        assert cmd in commands_doc, f"Current command '{cmd}' missing from docs/reference/commands.md"
+@pytest.mark.parametrize(("label", "commands"), CURRENT_COMMAND_REFERENCE_CASES)
+def test_current_commands_documented_in_commands_reference(label: str, commands: tuple[str, ...]) -> None:
+    _assert_commands_reference_includes(label, commands)
 
 
 def test_current_govern_enforce_sdd_documented() -> None:
@@ -491,10 +477,10 @@ def test_current_govern_enforce_sdd_documented() -> None:
     assert "govern enforce" in commands_doc, "'govern enforce' must appear in commands reference"
 
 
-def test_current_backlog_subcommands_documented_in_commands_reference() -> None:
+def _assert_commands_reference_includes(label: str, commands: tuple[str, ...]) -> None:
     commands_doc = _repo_file("docs/reference/commands.md").read_text(encoding="utf-8")
-    for sub in ("backlog ceremony", "backlog refine", "backlog daily", "backlog sync"):
-        assert sub in commands_doc, f"Current subcommand '{sub}' missing from commands reference"
+    for command in commands:
+        assert command in commands_doc, f"Current {label} command '{command}' missing from docs/reference/commands.md"
 
 
 def test_all_published_docs_markdown_files_have_jekyll_front_matter() -> None:
@@ -511,14 +497,17 @@ def test_all_published_docs_markdown_files_have_jekyll_front_matter() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_navigation_links_resolve_to_published_docs_routes() -> None:
-    failures, _ = _scan_navigation_targets()
-    assert not failures, "Broken navigation docs links:\n" + "\n".join(sorted(failures))
+def test_docs_links_resolve_to_published_docs_targets() -> None:
+    link_failure_groups = (
+        ("Broken navigation docs links", _scan_navigation_targets()[0]),
+        ("Broken authored docs links", _scan_authored_doc_link_failures()[0]),
+    )
+    for label, failures in link_failure_groups:
+        _assert_no_link_failures(failures, label)
 
 
-def test_authored_internal_docs_links_resolve_to_published_docs_targets() -> None:
-    failures, _ = _scan_authored_doc_link_failures()
-    assert not failures, "Broken authored docs links:\n" + "\n".join(sorted(failures))
+def _assert_no_link_failures(failures: list[str], label: str) -> None:
+    assert not failures, f"{label}:\n" + "\n".join(sorted(failures))
 
 
 def test_navigation_link_targets_have_required_front_matter_keys() -> None:

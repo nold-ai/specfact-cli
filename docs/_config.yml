@@ -3,7 +3,7 @@
 
 title: SpecFact CLI Documentation
 description: >-
-  Complete documentation for SpecFact CLI - Brownfield-first CLI: Reverse engineer legacy Python → specs → enforced contracts.
+  AI-bloat defense CLI for Python teams: deterministic review, cleanup forecasts, and spec/contract evidence for AI-assisted and brownfield delivery.
 baseurl: ""  # Custom domain at root, no baseurl needed
 url: &docs_site_url "https://docs.specfact.io"  # Custom domain
 docs_home_url: *docs_site_url

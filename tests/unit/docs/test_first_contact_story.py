@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import tomllib
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -14,13 +15,20 @@ from tests.unit.docs.docs_test_constants import HOOK, SUBHOOK
 REPO_ROOT = Path(__file__).resolve().parents[3]
 README = REPO_ROOT / "README.md"
 DOCS_INDEX = REPO_ROOT / "docs" / "index.md"
+DOCS_README = REPO_ROOT / "docs" / "README.md"
+GETTING_STARTED = REPO_ROOT / "docs" / "getting-started" / "README.md"
+QUICKSTART = REPO_ROOT / "docs" / "getting-started" / "quickstart.md"
+CODE_REVIEW_MODULE = REPO_ROOT / "docs" / "modules" / "code-review.md"
 CONTRIBUTING = REPO_ROOT / "CONTRIBUTING.md"
+PYPROJECT = REPO_ROOT / "pyproject.toml"
+SETUP_PY = REPO_ROOT / "setup.py"
+PACKAGE_INIT = REPO_ROOT / "src" / "specfact_cli" / "__init__.py"
 
 ABSOLUTE_URL_RE = re.compile(r"https?://[^\s)>'\"`]+")
 
 
 @pytest.fixture(scope="module", autouse=True)
-def _require_entrypoint_files() -> None:
+def require_entrypoint_files() -> None:
     if not REPO_ROOT.exists():
         pytest.skip(f"Repository root missing: expected at {REPO_ROOT}", allow_module_level=True)
     if not README.is_file():
@@ -78,6 +86,58 @@ def test_docs_index_matches_proof_first_story() -> None:
     assert "## What is SpecFact?" in docs_index
     _assert_contains_url_host(docs_index, "modules.specfact.io", "docs/index.md")
     assert "default starting point" in docs_index.lower()
+
+
+def test_docs_entrypoints_share_ai_bloat_defense_story() -> None:
+    for path in (DOCS_README, GETTING_STARTED, QUICKSTART):
+        content = _read(path)
+        assert "AI-bloat defense" in content
+        assert "cleanup forecast" in content
+        assert "remediation packet" in content
+        assert "AI-authorship detection" in content
+        _assert_contains_url_host(content, "modules.specfact.io", str(path.relative_to(REPO_ROOT)))
+
+
+def test_quickstart_documents_json_first_cleanup_loop() -> None:
+    quickstart = _read(QUICKSTART)
+    expected_steps = (
+        "Run simplify-focused review with JSON output",
+        "Inspect `cleanup_forecast` and the AI-bloat index",
+        "Hand remediation packets to your AI IDE",
+        "Re-run review for proof",
+    )
+    for step in expected_steps:
+        assert step in quickstart
+
+
+def test_code_review_handoff_mentions_cleanup_forecast_and_modules_ownership() -> None:
+    docs = _read(CODE_REVIEW_MODULE)
+    for needle in (
+        "cleanup forecast",
+        "AI-bloat index",
+        "preserve reasons",
+        "remediation packets",
+        "modules.specfact.io/bundles/code-review/run/",
+        "modules.specfact.io/quickstart-ai-bloat/",
+    ):
+        assert needle in docs
+    assert "AI-authorship proof" in docs
+
+
+def test_distribution_description_mentions_ai_bloat_defense_cli() -> None:
+    pyproject = tomllib.loads(_read(PYPROJECT))
+    description = pyproject["project"]["description"]
+    keywords = set(pyproject["project"]["keywords"])
+    setup_py = _read(SETUP_PY)
+    package_init = _read(PACKAGE_INIT)
+
+    assert "AI-bloat defense CLI" in description
+    assert "cleanup forecasts" in description
+    assert {"ai-bloat", "code-review", "clean-code", "technical-debt"} <= keywords
+    assert "AI-bloat defense CLI" in setup_py
+    assert "AI-bloat defense CLI" in package_init
+    for metadata_text in (description, setup_py, package_init):
+        assert "swiss knife" not in metadata_text.lower()
 
 
 def test_contributing_guidance_mentions_entrypoint_story_hierarchy() -> None:

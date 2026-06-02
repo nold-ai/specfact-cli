@@ -11,9 +11,15 @@ This repository owns the **core CLI** documentation set for SpecFact.
 Use it as the canonical starting point when a user still needs orientation around what SpecFact is,
 why it exists, what value it provides, and how to get started.
 
-SpecFact is the validation and alignment layer for software delivery. The core docs explain the
-product story, runtime lifecycle, bootstrap path, and the handoff into deeper module-owned
-workflows.
+SpecFact is the AI-bloat defense and validation CLI for Python-first AI-assisted and brownfield
+delivery. The core docs explain the product story, runtime lifecycle, bootstrap path, and the
+handoff into deeper module-owned workflows.
+
+Start with AI-bloat defense: run review, inspect the cleanup forecast and AI-bloat index, hand
+remediation packets to your AI IDE, then re-run for proof. These signals are cleanup guidance, not
+AI-authorship detection. Exact flags and JSON fields live in the
+[AI bloat quickstart](https://modules.specfact.io/quickstart-ai-bloat/) and
+[Code Review run guide](https://modules.specfact.io/bundles/code-review/run/).
 
 For **module-specific deep functionality**, use the canonical modules docs site at
 `https://modules.specfact.io/`. The canonical modules docs site owns the detailed guides for bundle
@@ -23,6 +29,7 @@ workflows, adapters, and module authoring.
 
 Use this docs set for:
 
+- AI-bloat defense first-contact onboarding and quickstart routing
 - CLI bootstrap, lifecycle, and upgrade flows
 - module registry, trust, and ownership boundaries
 - overall workflow topology across `project`, `backlog`, `code`, `spec`, and `govern`
@@ -32,6 +39,7 @@ Use this docs set for:
 
 Use the canonical modules docs site for:
 
+- cleanup forecast, remediation packet, and Code Review JSON schema details
 - backlog refinement, ceremony, dependency-analysis, and delta workflows
 - project bundle and bridge-sync runbooks
 - spec bundle deep dives and govern bundle deep dives

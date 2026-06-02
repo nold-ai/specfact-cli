@@ -10,21 +10,25 @@
 
 ## 2. Spec-first docs tests
 
-- [ ] 2.1 Add or update docs assertions for README clean-code cleanup wording.
-- [ ] 2.2 Add or update docs assertions for quickstart cleanup forecast and AI IDE handoff wording.
-- [ ] 2.3 Add or update docs assertions for the Code Review module handoff page.
-- [ ] 2.4 Record failing-before evidence in `TDD_EVIDENCE.md`.
+- [x] 2.1 Add or update docs assertions for README clean-code cleanup wording.
+- [x] 2.2 Add or update docs assertions for quickstart cleanup forecast and AI IDE handoff wording.
+- [x] 2.3 Add or update docs assertions for the Code Review module handoff page.
+- [x] 2.4 Add or update docs/package metadata assertions for the AI-bloat defense hook and removal of Swiss-knife positioning.
+- [x] 2.5 Record failing-before evidence in `TDD_EVIDENCE.md`.
 
 ## 3. Documentation updates
 
-- [ ] 3.1 Update `README.md` with the cleanup forecast / AI IDE handoff value path.
-- [ ] 3.2 Update `docs/getting-started/quickstart.md` with the JSON-first cleanup loop.
-- [ ] 3.3 Update `docs/modules/code-review.md` to reference cleanup forecasts, AI-bloat index, remediation packets, and modules docs as canonical command/schema reference.
-- [ ] 3.4 Keep all cross-site links aligned with the modules docs permalink contract.
+- [x] 3.1 Update `README.md` with the cleanup forecast / AI IDE handoff value path.
+- [x] 3.2 Update `docs/getting-started/quickstart.md` with the JSON-first cleanup loop.
+- [x] 3.3 Update `docs/modules/code-review.md` to reference cleanup forecasts, AI-bloat index, remediation packets, and modules docs as canonical command/schema reference.
+- [x] 3.4 Update `docs/index.md`, `docs/README.md`, `docs/getting-started/README.md`, and `docs/_config.yml` so docs entry points share the AI-bloat defense first-contact story.
+- [x] 3.5 Update package metadata in `pyproject.toml`, `setup.py`, and `src/specfact_cli/__init__.py`.
+- [x] 3.6 Keep all cross-site links aligned with the modules docs permalink contract.
+- [x] 3.7 Apply and verify GitHub repository description/topics metadata.
 
 ## 4. Verification
 
-- [ ] 4.1 Run targeted docs tests and record passing evidence.
-- [ ] 4.2 Run required docs quality gates for the touched scope.
-- [ ] 4.3 Run SpecFact code review for changed docs/test scope if the repository gate applies.
-- [ ] 4.4 Update `TDD_EVIDENCE.md` with passing evidence and before/after docs summary.
+- [x] 4.1 Run targeted docs tests and record passing evidence.
+- [x] 4.2 Run required docs quality gates for the touched scope.
+- [x] 4.3 Run SpecFact code review for changed docs/test scope if the repository gate applies.
+- [x] 4.4 Update `TDD_EVIDENCE.md` with passing evidence and before/after docs summary.

@@ -1,16 +1,19 @@
-# Change: Clean code cleanup onboarding docs
+# Change: AI-bloat defense first-contact docs and metadata
 
 ## Why
 
 The core README and getting-started docs already mention `ai_bloat`, but they describe the earlier advisory flow: run JSON, inspect findings, then use `/specfact.08-simplify`. The Code Review bundle is now planned to expose cleanup forecasts, an AI-bloat index, preserve signals, and remediation packets that any AI IDE can consume.
 
-Core docs should explain that value without duplicating bundle-deep command reference. The first-contact path should show developers that SpecFact can help fight AI-generated bloat with deterministic review evidence, while the modules docs remain canonical for exact flags and JSON schema details.
+Core docs should explain that value without duplicating bundle-deep command reference. The first-contact path should make **AI-bloat defense** the lead hook for Python-first AI-assisted codebases, while preserving SpecFact's broader identity as a deterministic validation and alignment CLI for contracts, specs, tests, and brownfield delivery.
+
+The paired modules-side capability change has shipped, so core docs can now describe cleanup forecasts, the AI-bloat index, preserve reasons, and remediation packets as available module capabilities. Exact flags, JSON field contracts, and deeper workflow details remain owned by the modules docs site.
 
 ## What Changes
 
+- Reposition first-contact surfaces around AI-bloat defense: deterministic review, cleanup forecast, and AI IDE remediation handoff before broader platform detail.
 - Update core onboarding docs to describe the JSON-first cleanup loop: run review, inspect forecast/index, hand remediation packets to an AI IDE, apply only safe guidance, and re-run for proof.
 - Update the Code Review module handoff page so users understand which cleanup details live on `modules.specfact.io`.
-- Keep README and quickstart examples aligned with the module capability without hardcoding unstable implementation details before the modules change ships.
+- Keep README, docs home, docs README, quickstart examples, package metadata, and GitHub repository metadata aligned with the module capability without duplicating unstable schema detail.
 - Link this docs change to the modules-side capability change [nold-ai/specfact-cli-modules#297](https://github.com/nold-ai/specfact-cli-modules/issues/297).
 
 ## Capabilities
@@ -21,12 +24,14 @@ Core docs should explain that value without duplicating bundle-deep command refe
 - `docs-aha-moment-entry`: Update the quickstart aha path to include cleanup forecast and AI IDE handoff language.
 - `code-review-module`: Keep the core module handoff accurate while delegating command details to the modules docs site.
 - `review-report-model`: Document the additive report shape at a high level when mirrored in core docs.
+- `first-contact-story`: Align README, docs home, docs README, package metadata, and GitHub repository metadata around the same AI-bloat defense hook.
 
 ## Impact
 
-- **Affected docs:** `README.md`, `docs/getting-started/quickstart.md`, and `docs/modules/code-review.md`.
+- **Affected docs:** `README.md`, `docs/index.md`, `docs/README.md`, `docs/getting-started/README.md`, `docs/getting-started/quickstart.md`, and `docs/modules/code-review.md`.
+- **Affected metadata:** `pyproject.toml`, `setup.py`, `src/specfact_cli/__init__.py`, `docs/_config.yml`, and GitHub repository description/topics.
 - **Affected ownership boundary:** Core docs summarize the value path; modules docs own exact command flags and schema field details.
-- **No runtime impact:** This is a docs-only companion to the modules implementation.
+- **No runtime impact:** This is a docs and public-metadata companion to the modules implementation.
 
 ## Source Tracking
 

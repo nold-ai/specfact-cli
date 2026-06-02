@@ -1,9 +1,9 @@
 ---
 layout: default
 title: SpecFact CLI Documentation
-description: Point SpecFact at your code, get a scored review and a fix list in minutes — then go deeper into backlog, specs, and CI when you need to.
+description: Defend AI-assisted Python code from bloat with deterministic review, cleanup forecasts, and spec/contract evidence.
 permalink: /
-keywords: [specfact, core-cli, quickstart, code review, onboarding]
+keywords: [specfact, core-cli, quickstart, code review, ai-bloat, cleanup forecast, onboarding]
 audience: [solo, team, enterprise]
 expertise_level: [beginner, intermediate, advanced]
 doc_owner: specfact-cli
@@ -18,11 +18,12 @@ exempt_reason: ""
 <!-- markdownlint-disable-next-line MD025 -->
 # SpecFact CLI Documentation
 
-**Review AI-assisted code against your own contracts.**
-**Catch drift before it reaches PR or main.**
+**Defend AI-assisted Python code from bloat before it reaches PR.**
+**Run deterministic review, cleanup forecasts, and spec/contract evidence locally.**
 
-Point SpecFact at your repo, get a scored review with file-level findings, then go deeper into
-backlog, specs, and CI when you need more control.
+Point SpecFact at your repo, get a scored review with file-level findings, then use the JSON report
+as the cleanup contract for your AI IDE. Go deeper into backlog, specs, and CI when you need more
+control.
 
 ```bash
 uvx specfact-cli init --profile solo-developer
@@ -34,9 +35,9 @@ fastest way to see SpecFact on existing code. [Read the full quickstart →](/ge
 
 SpecFact does **not** include built-in AI. It pairs deterministic CLI commands with your chosen IDE and copilot so fast-moving work has a stronger validation and alignment layer around it.
 
-**New in Code Review:** `ai_bloat` advisories flag bloated shapes commonly produced during AI-assisted coding, then feed the `/specfact.08-simplify` IDE prompt for human-confirmed cleanup. They are advisory, score-neutral, and do not classify whether code was written by AI. [Try the AI bloat quickstart on modules.specfact.io](https://modules.specfact.io/quickstart-ai-bloat/).
+**AI-bloat defense:** `ai_bloat` advisories flag bloated shapes commonly produced during AI-assisted coding. Simplify-focused reviews add a cleanup forecast, AI-bloat index, preserve reasons, and remediation packets that Claude, Codex, Cursor, Copilot, or another assistant can consume. They are cleanup signals, not AI-authorship detection. [Try the AI bloat quickstart on modules.specfact.io](https://modules.specfact.io/quickstart-ai-bloat/).
 
-**SpecFact is the validation and alignment layer for software delivery.**
+**SpecFact is the AI-bloat defense and validation CLI for AI-assisted and brownfield delivery.**
 
 ---
 
@@ -46,14 +47,14 @@ SpecFact helps you keep backlog intent, specifications, implementation, and vali
 
 It is especially useful when:
 
-- AI-assisted or “vibe-coded” work needs more rigor
+- AI-assisted or “vibe-coded” work needs bloat cleanup and stronger validation
 - brownfield and legacy code need trustworthy reverse-engineered understanding of existing systems
 - teams want to avoid the “I wanted X but got Y” delivery failure
 - organizations need a path toward stronger shared policy enforcement
 
 ## Why does it exist?
 
-SpecFact exists because backlog/spec/code drift is expensive: teams ship the wrong thing, AI-assisted changes skip validation, and policy enforcement breaks down across IDEs and CI. SpecFact gives you a default starting point before you jump into module-deep workflows on the modules site.
+SpecFact exists because backlog/spec/code drift is expensive: teams ship the wrong thing, AI-assisted changes accumulate bloat before validation catches up, and policy enforcement breaks down across IDEs and CI. SpecFact gives you a default starting point before you jump into module-deep workflows on the modules site.
 
 ## Why should I use it?
 
@@ -64,6 +65,7 @@ Use SpecFact when you want faster delivery without losing validation, stronger b
 With SpecFact, you get:
 
 - deterministic local tooling instead of opaque cloud dependence
+- AI-bloat defense with cleanup forecasts and remediation packet handoff
 - a validation layer around AI-assisted delivery
 - codebase analysis and sidecar validation for brownfield work
 - stronger backlog/spec/code alignment
@@ -81,7 +83,7 @@ With SpecFact, you get:
 <div class="path-cards">
 <div class="path-card">
 <h3>See what&apos;s wrong with your code right now</h3>
-<p>Run a scored code review on an existing repo with uvx, then iterate.</p>
+<p>Run a scored code review, inspect AI-bloat cleanup candidates, then iterate.</p>
 <ul>
 <li><a href="/getting-started/quickstart/">5-Minute Quickstart</a></li>
 <li><a href="/getting-started/installation/">Installation</a></li>

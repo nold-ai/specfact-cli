@@ -4,8 +4,8 @@ title: 5-Minute Quickstart
 permalink: /getting-started/quickstart/
 redirect_from:
   - /getting-started/first-steps/
-description: Get SpecFact CLI running in under 5 minutes — uvx first, then optional pip install for IDE workflows and deeper analysis.
-keywords: [quickstart, first-run, bootstrap, analysis, uvx]
+description: Get SpecFact CLI running in under 5 minutes for AI-bloat defense, cleanup forecasts, and deterministic code review.
+keywords: [quickstart, first-run, bootstrap, analysis, uvx, ai-bloat, cleanup forecast]
 audience: [solo, team]
 expertise_level: [beginner]
 doc_owner: specfact-cli
@@ -20,7 +20,7 @@ exempt_reason: ""
 <!-- markdownlint-disable-next-line MD025 -->
 # 5-Minute Quickstart
 
-Get from zero to a **scored code review** in a few commands. This path is aimed at developers who want one command and one clear result before reading about modules, profiles, or architecture.
+Get from zero to **AI-bloat defense** and a scored code review in a few commands. This path is aimed at developers who want one command, one clear result, and a JSON handoff for AI IDE cleanup before reading about modules, profiles, or architecture.
 
 ## Prerequisites
 
@@ -45,15 +45,26 @@ uvx specfact-cli code review run --path . --scope full
 
 You should see a **Verdict**, **Score**, and findings. That is the fastest “aha” path on a real codebase.
 
-If the Code Review bundle reports `category=ai_bloat`, treat those entries as cleanup candidates, not proof of AI authorship. They are `severity=info`, advisory-only, and score-neutral. Write the JSON report, then use `/specfact.08-simplify` from your IDE prompts to review each proposed simplification:
+If the Code Review bundle reports `category=ai_bloat`, treat those entries as cleanup candidates, not proof of AI authorship. They are `severity=info`, advisory-only, and score-neutral.
+
+## Step 3: Run the JSON-first cleanup loop
+
+Run simplify-focused review with JSON output:
 
 ```bash
-uvx specfact-cli code review run --json --out .specfact/code-review.json --path . --scope full
+uvx specfact-cli code review run --scope changed --enforcement shadow --focus simplify --preview-fixes --json --out .specfact/code-review.json
 ```
 
-For the focused walkthrough, see the [AI bloat quickstart](https://modules.specfact.io/quickstart-ai-bloat/) on the modules docs site.
+Then work the report in this order:
 
-## Step 3: Install SpecFact locally (optional)
+1. Inspect `cleanup_forecast` and the AI-bloat index.
+2. Hand remediation packets to your AI IDE.
+3. Accept only safe or approved changes.
+4. Re-run review for proof.
+
+This is AI-bloat defense, not AI-authorship detection. For exact simplify flags, invalid combinations, and report fields, see the [AI bloat quickstart](https://modules.specfact.io/quickstart-ai-bloat/) and [Code Review run guide](https://modules.specfact.io/bundles/code-review/run/) on the modules docs site.
+
+## Step 4: Install SpecFact locally (optional)
 
 When you want a stable `specfact` command and IDE integration, install with pip:
 
@@ -63,7 +74,7 @@ cd /path/to/your/project
 specfact init --profile solo-developer
 ```
 
-## Step 4: Set Up IDE (Optional)
+## Step 5: Set Up IDE (Optional)
 
 ```bash
 specfact init ide --ide cursor --install-deps
@@ -71,7 +82,7 @@ specfact init ide --ide cursor --install-deps
 
 This creates `.specfact/` directory structure and IDE-specific prompt templates.
 
-## Step 5: Analyze Your Codebase and Check Health
+## Step 6: Analyze Your Codebase and Check Health
 
 ```bash
 specfact code import --repo . my-project
@@ -80,7 +91,7 @@ specfact project health-check
 
 `code import` analyzes your code and extracts features, user stories, and dependency graphs into a project bundle at `.specfact/projects/my-project/`. `project health-check` summarizes what SpecFact discovered.
 
-## Step 6: Validate
+## Step 7: Validate
 
 ```bash
 specfact code repro --verbose
