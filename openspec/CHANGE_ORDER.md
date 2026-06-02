@@ -92,6 +92,7 @@ README. Snapshot/CI work folds into 03 and 04 if and when needed.
 | `dep-security-cleanup` | 62/69 done | Apache-2.0 license-cleanliness pass |
 | `marketplace-07-module-install-state-consistency` | ✓ archive pending | Resolves install-state disagreement across scopes |
 | `module-scope-version-diagnostics` | active | Resolves project/user module version mismatch diagnostics and enforcement under #565 / #353 |
+| `docs-15-clean-code-bazooka-onboarding` | active | Core docs companion for modules cleanup forecast and AI IDE remediation handoff under #356 |
 | `upgrade-01-install-method-aware` | ✓ archive pending | Bug-fix for uvx/uv users |
 | `governance-02-exception-management` | active | Time-bound policy exceptions |
 | `architecture-02-well-architected-review` | **gated on architecture-01 shipping + 1 cycle of usage** | Boundary/ADR review pillar |

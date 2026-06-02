@@ -10,6 +10,17 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.47.4] - 2026-06-02
+
+### Changed
+
+- **AI-bloat defense positioning**: update first-contact README, docs, package
+  metadata, and GitHub metadata guidance so SpecFact leads with deterministic
+  code review, cleanup forecasts, and spec/contract evidence for AI-assisted
+  Python delivery.
+
+---
+
 ## [0.47.3] - 2026-06-02
 
 ### Fixed

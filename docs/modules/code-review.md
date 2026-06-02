@@ -29,7 +29,10 @@ The scaffold adds these review entrypoints:
 - `specfact code review ledger`
 - `specfact code review rules`
 
-For bundle-deep command usage, keep the modules docs open alongside this core handoff page. The modules quickstart for AI-shaped bloat cleanup lives at [modules.specfact.io/quickstart-ai-bloat/](https://modules.specfact.io/quickstart-ai-bloat/).
+For bundle-deep command usage, keep the modules docs open alongside this core handoff page:
+
+- [AI bloat quickstart](https://modules.specfact.io/quickstart-ai-bloat/)
+- [Code Review run guide](https://modules.specfact.io/bundles/code-review/run/)
 
 ## AI-shaped bloat advisories
 
@@ -42,7 +45,14 @@ These findings are:
 - score-neutral even though they use `severity=info`
 - written to `.specfact/code-review.json` when the report includes all severities
 
-They are bloat-shape detection, not AI-authorship detection. Use them as cleanup candidates and confirm each rewrite in your IDE.
+They are bloat-shape detection, not AI-authorship proof. Use them as cleanup candidates and confirm each rewrite in your IDE.
+
+Simplify-focused reports also summarize cleanup impact with a cleanup forecast and AI-bloat index. Findings may include preserve reasons and remediation packets so Claude, Codex, Cursor, Copilot, or another AI IDE can decide whether a candidate is safe-mechanical, needs tests, needs design judgment, or should be preserved.
+
+Core docs intentionally keep this at workflow level. Exact flags, invalid combinations, additive JSON fields, and schema examples are owned by the modules docs site:
+
+- [Code Review run guide](https://modules.specfact.io/bundles/code-review/run/)
+- [AI bloat quickstart](https://modules.specfact.io/quickstart-ai-bloat/)
 
 Run the review with JSON output:
 

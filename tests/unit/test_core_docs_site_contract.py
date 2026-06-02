@@ -1,8 +1,9 @@
 import re
 from pathlib import Path
-from urllib.parse import urlparse
 
 import yaml
+
+from tests.unit.docs.docs_test_constants import HOOK
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -30,12 +31,6 @@ def _config() -> dict[str, object]:
     return yaml.safe_load(_read(DOCS_CONFIG))
 
 
-def _contains_url_host(content: str, host: str) -> bool:
-    """Return whether the text contains at least one absolute URL for the host."""
-
-    return any(urlparse(match.group(0).rstrip(".,;:")).netloc == host for match in ABSOLUTE_URL_RE.finditer(content))
-
-
 def _contains_markdown_link_target(content: str, target_url: str) -> bool:
     """Return whether the text contains a markdown link targeting the URL."""
 
@@ -55,7 +50,8 @@ def test_core_docs_config_targets_public_core_domain() -> None:
 def test_core_landing_page_marks_core_repo_as_canonical_owner() -> None:
     index = _read(DOCS_INDEX)
 
-    assert "SpecFact is the validation and alignment layer for software delivery." in index
+    assert HOOK in index
+    assert "AI-bloat defense" in index
     assert "canonical starting point for the core CLI story" in index
     assert "module-deep workflows" in index
     assert _contains_markdown_link_target(index, "https://modules.specfact.io/")
