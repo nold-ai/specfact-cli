@@ -2,25 +2,29 @@
 
 ## Purpose
 
-TBD - created by archiving change backlog-core-04-installed-runtime-discovery-and-add-prompt. Update Purpose after archive.
+This spec defines how installed SpecFact module packages are discovered and
+loaded when no development checkout is available. It ensures runtime command
+validation uses installed artifacts, reports missing dependencies honestly, and
+keeps tests traceable to installed-runtime behavior.
 
 ## Requirements
-
 ### Requirement: Module Discovery Roots
 
-The system SHALL discover module packages consistently between development and installed runtime contexts when invoked from a repository checkout.
+The system SHALL discover and load module packages consistently between development and installed runtime contexts.
 
-#### Scenario: Installed runtime discovers workspace modules from repo root
+#### Scenario: Installed runtime loads dependent module packages
 
-- **GIVEN** `specfact` is installed from PyPI/site-packages
-- **AND** the current working directory contains `modules/` with valid module packages
-- **WHEN** module discovery runs
-- **THEN** discovery includes the current working directory `modules/` root
-- **AND** commands contributed by those modules are available without requiring `SPECFACT_MODULES_ROOTS`.
+- **GIVEN** user-scope modules `nold-ai/specfact-project` and `nold-ai/specfact-codebase` are installed and enabled
+- **AND** no sibling `specfact-cli-modules` source checkout contributes bundle paths to `sys.path`
+- **WHEN** the user invokes `specfact code --help`
+- **THEN** the codebase module command app loads from the installed module artifact
+- **AND** imports of installed dependency packages such as `specfact_project` resolve without manual `PYTHONPATH`
+- **AND** the command help includes codebase subcommands such as `import`, `analyze`, `drift`, `validate`, and `repro`
 
-#### Scenario: No cwd modules directory keeps existing behavior
+#### Scenario: Development source paths do not mask installed-runtime validation
 
-- **GIVEN** the current working directory does not contain a `modules/` directory
-- **WHEN** module discovery runs
-- **THEN** discovery roots remain limited to packaged modules and explicitly configured roots
-- **AND** no extra discovery errors are introduced.
+- **GIVEN** tests configure explicit installed module roots
+- **AND** development-only sibling module source paths are disabled for that runtime
+- **WHEN** module command loading is validated
+- **THEN** success depends on the installed module artifacts under the configured roots
+- **AND** missing installed dependencies fail the validation instead of being satisfied by a sibling checkout

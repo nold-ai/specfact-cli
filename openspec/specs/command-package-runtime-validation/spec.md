@@ -3,9 +3,7 @@
 ## Purpose
 
 TBD - created by archiving change cli-val-07-command-package-runtime-validation. Update Purpose after archive.
-
 ## Requirements
-
 ### Requirement: Command Inventory Covers Core And Official Bundles
 
 The system SHALL derive a validation inventory that covers the released core commands and every official command package shipped from `specfact-cli-modules`.
@@ -26,6 +24,13 @@ The system SHALL derive a validation inventory that covers the released core com
 - **THEN** nested command paths are expanded from the Typer application tree
 - **AND** the inventory includes grouped paths such as `backlog ceremony standup`, `project sync bridge`, `spec contract validate`, `code validate sidecar run`, and `govern patch apply`
 - **AND** a missing nested command path fails validation instead of being silently skipped.
+
+#### Scenario: Inventory feeds AI-agent command overview artifacts
+
+- **GIVEN** the runtime validation inventory is generated
+- **WHEN** command overview artifacts are written
+- **THEN** the same inventory data is used for `llms.txt`, Markdown, JSON, docs validation, and runtime smoke selection
+- **AND** validators do not use a separate manually maintained command allowlist for canonical commands.
 
 ### Requirement: Validation Matrix Executes Commands In Logical Runtime Order
 
@@ -103,3 +108,23 @@ The system SHALL emit a report that maps findings to the responsible package, co
 - **WHEN** the command reports success
 - **THEN** it prints one line per upgraded module rather than a single comma-joined list
 - **AND** each line includes the module id plus the previous and resulting version in `old -> new` form.
+
+### Requirement: Package Manager Runtime Matrix Blocks Command Mismatches
+
+The command validation surface SHALL run through representative hatch, pip, pipx, and uv launchers before PRs can merge.
+
+#### Scenario: Runtime matrix exercises installed CLI paths
+
+- **GIVEN** a pull request changes CLI runtime, module discovery, command docs, or packaging behavior
+- **WHEN** CI runs the package-manager runtime matrix
+- **THEN** it builds and executes the CLI through hatch source execution, pip wheel install, pipx install, uv run, and uv tool or uvx execution paths
+- **AND** it validates representative core and official module command groups in each path
+- **AND** any command path, module discovery, or install-method mismatch blocks the PR.
+
+#### Scenario: Runtime matrix covers pipx stale-launcher repair
+
+- **GIVEN** `specfact upgrade` is running from a pipx-managed installation
+- **WHEN** the upgrade-command stale-launcher recovery scenario is exercised
+- **THEN** the package-manager runtime matrix SHALL validate the authoritative
+  `upgrade-command` contract for `pipx reinstall specfact-cli` fallback and
+  post-reinstall launcher validation.

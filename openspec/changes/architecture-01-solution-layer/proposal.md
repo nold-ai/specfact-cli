@@ -1,110 +1,49 @@
-# Change: Solution Architecture Layer — Derive, Store, Validate
+# Change: Architecture Boundary Validation Inputs
 
 ## Why
 
-Architectural decisions live in separate ADRs or Confluence pages with zero programmatic links to requirements or code. This is the layer where the costliest misalignments occur — a wrong architectural choice invalidates entire implementation efforts regardless of code quality. No tool today systematically connects business requirements → architectural decisions → implementation. A solution architecture module that derives, stores, and validates architecture with explicit traceability to requirements closes the biggest blind spot in the end-to-end chain.
+Architecture context is valuable to SpecFact when it helps validate code reality:
+boundary violations, missing ADR evidence, stale component ownership, and
+contracts that no longer match the intended design. SpecFact should not compete
+with planning or architecture-generation tools.
 
-## Ownership Alignment (2026-04-08)
+This change narrows the old solution-layer proposal to architecture-boundary
+records and drift evidence used by validation.
+
+## Ownership Alignment (2026-06-06)
 
 - Repository assignment: `split/rescope`
-- Core-owned scope retained here: shared architecture schema, namespace extension ownership, and cross-change contracts.
-- Bundle-owned follow-up required: the flat `specfact architecture ...` command family and `modules/architecture/...` package structure below are not canonical in the grouped command model.
-- Target modules-repo follow-up issue: [#164](https://github.com/nold-ai/specfact-cli-modules/issues/164) in `nold-ai/specfact-cli-modules`
-- Implementation MUST NOT proceed from the legacy package layout below until a bundle-owned follow-up defines the correct command surface.
-
-## Module Package Structure
-
-```
-modules/architecture/
-  module-package.yaml          # name: architecture; commands: architecture derive, validate-coverage, trace
-  src/architecture/
-    __init__.py
-    main.py                    # typer.Typer app — architecture command group
-    engine/
-      deriver.py               # Derive architecture from requirements (template + AI-assisted)
-      coverage_validator.py    # Validate architecture covers all requirements
-      trace_builder.py         # Build architecture ↔ requirements traceability links
-    models/
-      solution_architecture.py # SolutionArchitecture, ComponentSpec, DataFlow, ADR models
-    templates/
-      microservice.yaml        # Microservice architecture template
-      monolith.yaml            # Modular monolith template
-      event_driven.yaml        # Event-driven architecture template
-    commands/
-      derive.py                # specfact architecture derive
-      validate_coverage.py     # specfact architecture validate-coverage
-      trace.py                 # specfact architecture trace
-    storage/
-      architecture_store.py    # Read/write .specfact/architecture/*.arch.yaml
-```
-
-**`module-package.yaml` declares:**
-
-- `name: architecture`
-- `version: 0.1.0`
-- `commands: [architecture derive, architecture validate-coverage, architecture trace]`
-- `dependencies: [requirements-01-data-model, requirements-02-module-commands]`
-- `schema_extensions:` — via arch-07
-- `publisher:` + `integrity:` — arch-06 marketplace readiness
-
-## Module Package Structure
-
-```
-modules/architecture/
-  module-package.yaml          # name: architecture; commands: architecture derive, validate-coverage, trace
-  src/architecture/
-    __init__.py
-    main.py                    # typer.Typer app — architecture command group
-    engine/
-      deriver.py               # Derive architecture from requirements (template + AI-assisted)
-      coverage_validator.py    # Validate architecture covers all requirements
-      trace_builder.py         # Build architecture ↔ requirements traceability links
-    models/
-      solution_architecture.py # SolutionArchitecture, ComponentSpec, DataFlow, ADR models
-    templates/
-      microservice.yaml        # Microservice architecture template
-      monolith.yaml            # Modular monolith template
-      event_driven.yaml        # Event-driven architecture template
-    commands/
-      derive.py                # specfact architecture derive
-      validate_coverage.py     # specfact architecture validate-coverage
-      trace.py                 # specfact architecture trace
-    storage/
-      architecture_store.py    # Read/write .specfact/architecture/*.arch.yaml
-```
-
-**`module-package.yaml` declares:**
-
-- `name: architecture`
-- `version: 0.1.0`
-- `commands: [architecture derive, architecture validate-coverage, architecture trace]`
-- `dependencies: [requirements-01-data-model, requirements-02-module-commands]`
-- `schema_extensions:` — via arch-07
-- `publisher:` + `integrity:` — arch-06 marketplace readiness
+- Core-owned scope retained here: architecture input schema, namespace extension
+  ownership, and validation hooks.
+- Bundle-owned follow-up required: runtime delivery belongs to the canonical
+  grouped module command model.
+- Target modules-repo follow-up issue: [#164](https://github.com/nold-ai/specfact-cli-modules/issues/164)
+- Implementation MUST NOT ship architecture generation as the product path.
 
 ## What Changes
 
-- **NEW**: Pydantic domain models in `modules/architecture/src/architecture/models/`:
-  - `SolutionArchitecture` — architecture ID, requirement IDs (traceability links), components, data flows, ADRs
-  - `ComponentSpec` — name, responsibility, business rule IDs (from requirements), integrations
-  - `DataFlow` — source, target, data type, protocol
-  - `ADR` — ADR ID, decision, rationale (links to architectural constraints from requirements), alternatives considered, tradeoff
-- **NEW**: `specfact architecture derive --requirements .specfact/requirements/ --suggest-components --interactive` — derive architecture from requirements using templates and optional AI assistance
-- **NEW**: `specfact architecture validate-coverage` — verify every business rule maps to a component, every architectural constraint has an ADR, every component has spec coverage
-- **NEW**: `specfact architecture trace --format table|json|markdown` — show traceability matrix: requirements ↔ components ↔ ADRs ↔ specs
-- **NEW**: Storage convention: `.specfact/architecture/{architecture_id}.arch.yaml`
-- **NEW**: Architecture templates for common patterns (microservice, monolith, event-driven) — profile-aware complexity
-- **EXTEND**: `ProjectBundle` extended with optional `architecture` field via arch-07 schema extensions (namespace: `architecture.solution_architecture`)
+- **NEW**: Architecture-boundary input models for components, ownership,
+  interfaces, data-flow hints, ADR references, and validation constraints.
+- **NEW**: Storage/import convention for architecture records that originate from
+  existing ADRs, diagrams, docs, Spec Kit plans, or OpenSpec design notes.
+- **NEW**: Coverage checks that classify missing ADR links, interface leaks,
+  component ownership gaps, and mismatched contract boundaries.
+- **EXTEND**: `ProjectBundle` receives an optional architecture-boundary
+  namespace through the schema extension system.
+- **REMOVED FROM CRITICAL PATH**: AI-assisted architecture derivation and
+  template-based architecture authoring.
 
 ## Capabilities
 
 ### New Capabilities
 
-- `solution-architecture`: Derive, store, and validate solution architecture with explicit traceability to business requirements. Includes component specs, data flows, ADRs, and coverage validation.
+- `architecture-boundary-validation-inputs`: Architecture records and validation
+  hooks for boundary, ADR, interface, and component drift evidence.
 
 ### Modified Capabilities
 
-- `data-models`: ProjectBundle extended with architecture field via arch-07 schema extensions
+- `data-models`: ProjectBundle extended with an optional architecture-boundary
+  namespace.
 
 ---
 

@@ -3,9 +3,7 @@
 ## Purpose
 
 TBD - created by archiving change arch-01-cli-modular-command-registry. Update Purpose after archive.
-
 ## Requirements
-
 ### Requirement: Logical Packages by Feature with Dedicated Folder Structure
 
 The CLI SHALL group functionality into **logical module packages** by feature (e.g. "backlog refine", "backlog daily", "validate sidecar"). Each package SHALL live in a dedicated folder under a modules root and SHALL include its own **metadata**, **src**, **resources** (prompts, templates), and **tests**. Resources that are used only by one feature SHALL belong to that package; shared resources remain in core or a shared package.
@@ -244,3 +242,23 @@ The system SHALL extend module discovery to scan built-in, marketplace, and cust
 - **WHEN** module is registered
 - **THEN** registry SHALL persist source information
 - **AND** SHALL be queryable via module list command
+
+### Requirement: Module registration enforces versioned module dependencies
+
+The system SHALL skip registering an enabled module when its declared versioned module dependency is absent, disabled, or present at a version that does not satisfy the declared specifier.
+
+#### Scenario: Enabled dependency version is too old
+
+- **GIVEN** an enabled module declares a dependency on another module with a minimum version
+- **AND** the dependency is enabled but its manifest version is below that minimum
+- **WHEN** module package commands are registered
+- **THEN** the dependent module is skipped
+- **AND** diagnostics report the required version and the discovered version
+
+#### Scenario: Dependency version satisfies the declared range
+
+- **GIVEN** an enabled module declares a versioned module dependency
+- **AND** the dependency is enabled and its version satisfies the declared range
+- **WHEN** module package commands are registered
+- **THEN** the dependent module remains eligible for registration
+

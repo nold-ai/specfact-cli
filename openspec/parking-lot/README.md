@@ -10,8 +10,9 @@ building infrastructure for customers, publishers, or evidence corpora that do n
 exist. Carrying them as live changes:
 
 - Made the project look unfocused to anyone reading the repo.
-- Scattered effort across speculative platforms while the core thesis (full-chain
-  traceability for agile DevOps + AI IDEs) was still incomplete.
+- Scattered effort across speculative platforms while the core thesis
+  (validation evidence and AI-bloat defense for AI-assisted delivery) was still
+  incomplete.
 - Inflated coordination cost (cross-change contracts, integration umbrellas) for work
   that may never ship as proposed.
 
@@ -53,16 +54,18 @@ Any proposal here can be returned to `openspec/changes/` by:
 | `cli-val-02-output-snapshot-stability` | A user reports a silent output regression that snapshots would have caught |
 | `cli-val-05-ci-integration` | cli-val-03 + cli-val-04 shipped and need CI gates |
 | `cli-val-06-copilot-test-generation` | Manual scenario authoring becomes the bottleneck |
+| `ai-integration-04-intent-skills` | Real user pull for a tiny validation-intent helper, not upstream intent engineering |
 
 ## Not parked (active roadmap)
 
 The following remain in `openspec/changes/` because they directly serve the core thesis:
 
-- `requirements-01..03` (data model, commands, backlog sync)
-- `architecture-01-solution-layer`
+- `requirements-01..03` as upstream context adapters for validation evidence
+- `architecture-01-solution-layer` as architecture-boundary validation input
 - `traceability-01-index-and-orphans`
 - `validation-02-full-chain-engine`
 - `governance-01-evidence-output`
+- `governance-02-exception-management`
 - `profile-01-config-layering`
 - `ai-integration-01-agent-skill`, `ai-integration-03-instruction-files`
 - `cli-val-03-misuse-safety-proof`, `cli-val-04-acceptance-test-runner`
@@ -72,7 +75,5 @@ implementation (Step 2 of the triage):
 
 - `openspec-01-intent-trace`
 - `ai-integration-02-mcp-server`
-- `ai-integration-04-intent-skills`
 - `telemetry-01-opentelemetry-default-on`
 - `architecture-02-well-architected-review` (gated on architecture-01 shipping)
-- `integration-01-cross-change-contracts` (will be converted to a living doc)
