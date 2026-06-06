@@ -1,31 +1,44 @@
-# Change: Requirements Data Model & Storage
+# Change: Requirements Evidence Input Model
 
 ## Why
 
-Business requirements have no formal representation in SpecFact. They exist only as unstructured text in backlog items (acceptance criteria, descriptions). This means the most impactful validation gap — "are we building the right thing?" — cannot be programmatically checked. A Pydantic domain model for business requirements with versioned YAML storage under `.specfact/requirements/` gives requirements first-class status in the traceability chain, enabling all downstream validation (Req → Arch → Spec → Code → Tests).
+SpecFact needs a normalized way to reference upstream requirement context during
+validation. It does not need to become the primary requirement-authoring tool.
+Spec Kit, OpenSpec, backlog systems, docs, and issue trackers remain the source
+of planning intent; SpecFact stores the minimum local records needed to explain
+validation evidence and drift.
 
 ## What Changes
 
-- **NEW**: Pydantic domain models in `src/specfact_cli/models/requirements.py`:
-  - `BusinessOutcome` — success metrics and quantified business value
-  - `BusinessRule` — rule ID, name, Given/When/Then scenario, MoSCoW priority
-  - `ArchitecturalConstraint` — constraint type (performance/security/integration/compliance/ux), requirement, validation criteria
-  - `BusinessRequirement` — the top-level model: requirement ID, schema version, user story link, business outcome, business rules, architectural constraints, UX requirements
-  - `RequirementTrace` — traceability links: requirement ID → architecture refs, spec refs, code refs, test refs
-- **NEW**: Storage convention: `.specfact/requirements/{requirement_id}.req.yaml` with human-readable YAML serialization
-- **NEW**: Schema versioning: all requirement models carry `schema_version` field for forward-compatible migration
-- **NEW**: Profile-aware field validation: required fields determined by active profile tier (solo = minimal 3 fields, enterprise = all fields + regulatory references)
-- **EXTEND**: `ProjectBundle` extended with optional `requirements` field via arch-07 schema extension system (namespace: `requirements.business_requirements`)
+- **NEW**: Pydantic models in `src/specfact_cli/models/requirements.py` for
+  normalized requirement inputs, business rules, constraints, source references,
+  and validation evidence links.
+- **NEW**: Optional storage convention under `.specfact/requirements/` for
+  imported or normalized records used by validation runs.
+- **NEW**: Schema versioning for forward-compatible adapters.
+- **NEW**: Profile-aware completeness checks that affect validation severity, not
+  planning workflow ownership.
+- **EXTEND**: `ProjectBundle` receives an optional requirements-input namespace
+  through the existing schema extension system.
+
+## Out of Scope
+
+- Interactive requirement authoring as a flagship workflow.
+- Treating `.specfact/requirements/` as the system of record for product
+  management.
+- Bidirectional backlog sync or ceremony automation.
 
 ## Capabilities
 
 ### New Capabilities
 
-- `requirements-data-model`: Pydantic domain models for business requirements (BusinessOutcome, BusinessRule, ArchitecturalConstraint, BusinessRequirement, RequirementTrace) with versioned YAML storage and profile-aware field validation.
+- `requirements-evidence-input-model`: Normalized requirement input records and
+  source references used by validation evidence and drift detection.
 
 ### Modified Capabilities
 
-- `data-models`: ProjectBundle extended with requirements field via arch-07 schema extensions
+- `data-models`: ProjectBundle extended with an optional requirements-input
+  namespace.
 
 ---
 

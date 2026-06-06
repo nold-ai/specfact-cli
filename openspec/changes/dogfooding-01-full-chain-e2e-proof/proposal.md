@@ -1,24 +1,34 @@
-# Change: Dogfooding E2E Proof for Full-Chain Traceability
+# Change: Dogfooding Proof for AI-Bloat Defense and Validation
 
 ## Why
 
-To claim SpecFact CLI as the end-to-end "swiss knife" for agile DevOps teams, the tool must prove its own flow with real artifacts. This change establishes a dedicated dogfooding implementation and evidence path from requirements through architecture, specs, code, tests, and CI evidence output.
+SpecFact's flagship claim is no longer that it owns the full planning chain. The
+claim to prove is sharper: run deterministic validation on a real repo, emit
+JSON evidence, identify AI-bloat and drift findings, hand remediation packets to
+an AI IDE, rerun, and show improved evidence.
 
 ## What Changes
 
-- **NEW**: Define a dogfooding scenario set using real SpecFact backlog items and requirements
-- **NEW**: Require one complete end-to-end traceability run:
-  - backlog item -> requirement -> architecture artifact -> spec -> code/test references -> full-chain evidence JSON
-- **EXTEND**: The dogfooding proof also runs clean-code review as a side-channel so the final evidence bundle demonstrates both traceability and clean-code compliance
-- **NEW**: Define release-readiness proof criteria for end-to-end positioning claims
-- **NEW**: Add CI/report outputs proving wave gate completion for E2E chain
+- **NEW**: Define a dogfooding scenario set using real SpecFact PRs or a pinned
+  demo repository slice.
+- **NEW**: Require one end-to-end validation loop:
+  - run `specfact code review` or equivalent validation command;
+  - persist JSON evidence;
+  - identify `ai_bloat`, drift, contract, or weak-test findings;
+  - hand remediation packets to an AI IDE or headless agent;
+  - rerun validation and compare evidence.
+- **NEW**: Define release-readiness proof criteria for AI-bloat defense and
+  validation positioning claims.
+- **NEW**: Add CI/report outputs proving the evidence loop rather than a
+  requirements-to-code lifecycle.
 
 ## Capabilities
 
 ### New Capabilities
 
-- `dogfooding-full-chain-e2e`: End-to-end self-validation flow for SpecFact CLI that proves requirements-to-evidence traceability in a real project slice.
-- `dogfooding-full-chain-e2e`: Extended to include clean-code review evidence in the final proof bundle
+- `dogfooding-validation-ai-bloat-proof`: Self-validation flow that proves
+  evidence generation, AI-bloat remediation, rerun comparison, and improved
+  validation evidence on a real project slice.
 
 ### Modified Capabilities
 

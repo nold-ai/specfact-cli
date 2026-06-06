@@ -89,7 +89,7 @@ The system SHALL provide practical examples and templates.
 - **THEN** they SHALL find real-world examples
 - **AND** explanations of design decisions
 
-## Contract Requirements
+**Contract requirements:**
 
 ### Requirement: Documentation Completeness
 
@@ -111,7 +111,7 @@ Documentation SHALL accurately reflect the current implementation.
 - **THEN** it SHALL work as described
 - **AND** produce the expected results
 
-## Quality Requirements
+**Quality requirements:**
 
 ### Requirement: Readability
 

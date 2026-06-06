@@ -4,7 +4,7 @@
 
 - [ ] 1.1 Create dedicated worktree branch `feature/validation-02-full-chain-engine` from `dev` before implementation work: `scripts/worktree.sh create feature/validation-02-full-chain-engine`.
 - [ ] 1.2 Verify prerequisite changes are implemented or explicitly accepted as parallel work.
-- [ ] 1.3 Reconfirm scope against the 2026-02-15 architecture integration plan and this proposal.
+- [ ] 1.3 Reconfirm scope against the validation evidence graph positioning and this proposal.
 
 ## 2. Spec-first and test-first preparation
 
@@ -17,7 +17,7 @@
 - [ ] 3.1 Implement minimal production code required to satisfy the new scenarios.
 - [ ] 3.2 Add/update contract decorators and type enforcement on public APIs.
 - [ ] 3.3 Update command wiring, adapters, and models required by this change scope only.
-- [ ] 3.4 Add `--with-code-quality` as an optional side-channel and keep clean-code reporting out of the core chain-layer state machine.
+- [ ] 3.4 Add code-review evidence as an optional side channel and keep clean-code reporting out of any upstream planning state machine.
 
 ## 4. Validation and documentation
 
