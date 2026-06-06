@@ -28,6 +28,8 @@ When a user installs a module whose artifact already exists in the selected scop
 - **THEN** the command MAY skip reinstalling the artifact
 - **AND** the command SHALL report that the module is already installed and available from the selected scope
 
+## MODIFIED Requirements
+
 ### Requirement: Missing Command Diagnostics Explain Installed-Unavailable Causes
 
 When a known module-provided command group is not registered, the system SHALL distinguish an absent module from an installed module that is unavailable for another local reason.
@@ -54,6 +56,8 @@ When a known module-provided command group is not registered, the system SHALL d
 - **WHEN** the user invokes the command group
 - **THEN** the CLI SHALL keep reporting that the module is not installed
 - **AND** the CLI SHALL include install or init profile guidance
+
+## ADDED Requirements: Canonical Module Identity
 
 ### Requirement: Module Install Uses Canonical Module Identity
 

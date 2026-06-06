@@ -35,7 +35,11 @@
 1. **Read `openspec/config.yaml`** for project context, constraints, and per-artifact rules.
 
 2. **Check change status**: `openspec status --change "<change-id>" --json`
-   - Verify artifacts exist and are complete (status: "done").
+   - Verify required artifacts exist and are parseable for proposal-stage validation
+     (do not require status `"done"`).
+   - Accept proposal-stage statuses such as `"proposed"`, `"in-review"`, or
+     `"in-progress"`; fail only when the change is missing, parse errors are
+     present, or status is explicitly rejected/deferred.
 
 3. **Get artifact context**: `openspec instructions apply --change "<change-id>" --json`
 
@@ -144,7 +148,7 @@ Count breaking changes, affected interfaces, dependent files. Assess impact: Hig
 
 ### 5.2: Present Findings
 
-```
+```text
 Change Validation Report: <change-id>
 
 Breaking Changes Detected: <count>
@@ -242,7 +246,7 @@ Update proposal status if deferred, scope extended, or adjusted.
 
 ## Step 7: Completion
 
-```
+```text
 Change ID: <change-id>
 Validation Report: openspec/changes/<change-id>/CHANGE_VALIDATION.md
 

@@ -1,33 +1,55 @@
-# Change: Well-Architected and Clean-Architecture Review Layer
+# Change: Architecture Boundary Review Layer
+
+## Blocked Status
+
+BLOCKED ON: `architecture-01-solution-layer` shipped plus one complete usage
+cycle with real validation evidence.
 
 ## Why
 
-`architecture-01-solution-layer` establishes solution architecture as a modeled layer, but it does not yet score designs against boundary, interface, and well-architected review rules. This change turns architecture from passive documentation into an active review pillar that catches layer violations and missing ADR traceability before implementation drifts.
+Architecture review is useful when it strengthens validation evidence: boundary
+violations, interface leaks, layer inversions, missing ADR links, and coupling
+hotspots that explain why a code change is risky. This change stays downstream
+of the architecture-boundary input model and does not generate or prescribe
+architecture.
 
 ## What Changes
 
-- **NEW**: `architecture-review` capability covering architecture findings, review contracts, and `specfact architecture diff`.
-- **NEW**: Finding categories for boundary violations, interface leaks, layer inversion, coupling hotspots, missing ADR links, and Well-Architected review dimensions.
-- **NEW**: CLI surface to diff interface changes and classify them as breaking, non-breaking, or additive.
-- **EXTEND**: ADR-to-code traceability rules so the architecture layer can emit review findings, not just references.
-- **EXTEND**: Shared review-report integration so architecture findings can live beside code quality, security, and resiliency pillars.
+- **NEW**: `architecture-review` capability covering boundary findings, review
+  contracts, and interface-diff evidence.
+- **NEW**: Finding categories for boundary violations, interface leaks, layer
+  inversion, coupling hotspots, missing ADR links, and selected Well-Architected
+  review dimensions.
+- **NEW**: CLI/report surface to classify interface changes as breaking,
+  non-breaking, additive, or evidence-missing.
+- **EXTEND**: ADR-to-code traceability rules so architecture context can emit
+  review findings.
+- **EXTEND**: Shared review-report integration so architecture findings can live
+  beside code quality, security, resiliency, and validation graph evidence.
 
-**Backward-compatible envelope:** The existing `ReviewReport` envelope stays stable for legacy parsers: required sections and field names used today remain unchanged. Implementations add an optional top-level `architecture` object (or, if we standardize a single extension map first, an optional `extensions.architecture` object) so older consumers ignore unknown keys while new consumers read the pillar. Serialized contract for review runs: **review runs MUST include an `architecture` section in the shared envelope while preserving other review sections unchanged** (e.g., `code_quality`, `security`, `resiliency` keys and their payloads stay as today). Example shape: `ReviewReport { ..., "architecture"?: { "findings": [...], "summary": {...} } }` — exact inner fields follow `specs/architecture-review/spec.md`; parsers MUST treat missing `architecture` as “no architecture findings” until emitters roll out.
+**Backward-compatible envelope:** The existing `ReviewReport` envelope stays
+stable for legacy parsers. Implementations add an optional top-level
+`architecture` object, or an optional `extensions.architecture` object if a
+single extension map lands first.
 
 ## Capabilities
 
 ### New Capabilities
 
-- `architecture-review`: Architecture review findings, interface-diff contract, and ADR traceability enforcement.
+- `architecture-review`: Architecture-boundary review findings, interface-diff
+  contract, and ADR traceability enforcement.
 
 ### Modified Capabilities
 
-- `solution-architecture`: Extend the solution layer so ADR and interface metadata can feed the architecture review surface.
+- `architecture-boundary-validation-inputs`: Extended so ADR and interface
+  metadata can feed the architecture review surface.
 
 ## Impact
 
-- Depends on `architecture-01-solution-layer`, `review-finding-model`, and `review-report-model`.
-- Supplies the contract consumed by the modules-side `architecture-02-module-well-architected` bundle.
+- Depends on `architecture-01-solution-layer`, `review-finding-model`, and
+  `review-report-model`.
+- Supplies the contract consumed by the modules-side
+  `architecture-02-module-well-architected` bundle.
 - Affects docs and future governance evidence flows; no existing API is removed.
 
 ---

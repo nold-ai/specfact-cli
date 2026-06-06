@@ -3,24 +3,17 @@
 ## Purpose
 
 TBD - created by archiving change packaging-02-cross-platform-runtime-and-module-resources. Update Purpose after archive.
-
 ## Requirements
-
 ### Requirement: IDE prompt export SHALL use installed module resources
 
 `specfact init ide` SHALL discover prompt templates from installed module packages and their packaged resource directories. The export flow SHALL not depend on workflow prompt files stored under the core CLI package for bundle-owned commands.
 
-#### Scenario: Installed bundle contributes prompt resources
+#### Scenario: IDE setup accepts explicit environment manager
 
-- **WHEN** an installed module exposes packaged prompt resources for IDE export
-- **THEN** `specfact init ide` discovers that module's prompt directory from the installed module location
-- **AND** copies the prompt files from that module-owned resource path into the selected IDE folder
-
-#### Scenario: Core package does not masquerade as owner of bundle prompts
-
-- **WHEN** workflow prompts exist only for bundle/module-owned commands
-- **THEN** the export catalog excludes equivalent core-owned fallback prompt files
-- **AND** prompt provenance remains attributable to the owning module
+- **GIVEN** prompt templates are available for export
+- **WHEN** the user runs `specfact init ide --env-manager uv`
+- **THEN** IDE prompt export uses the selected `uv` environment manager metadata for dependency setup decisions
+- **AND** the command does not emit the "No Compatible Environment Manager Detected" warning for that explicit manager
 
 ### Requirement: Missing prompt assets SHALL fail clearly
 
@@ -53,3 +46,20 @@ When a setup or install flow needs a non-prompt resource that is owned by an ext
 - **WHEN** a required installed bundle resource path for a module-owned template is absent
 - **THEN** the CLI reports which bundle-owned asset is missing
 - **AND** the message directs the user toward installing or updating the owning bundle
+
+### Requirement: Core materialization of module-owned IDE assets SHALL use safe project writes
+
+When core setup flows materialize module-owned IDE assets into a user repository, they SHALL route all local file mutations through the core safe-write policy.
+
+#### Scenario: Module-owned prompt export uses safe-write helper for settings mutation
+
+- **WHEN** `specfact init ide` exports bundle-owned prompt files and updates a related IDE config artifact
+- **THEN** the config mutation SHALL use the safe-write helper with declared ownership metadata
+- **AND** the command SHALL preserve unrelated user-managed content in the target artifact
+
+#### Scenario: Module-owned template copy does not silently replace existing user customization
+
+- **WHEN** a core setup flow copies a module-owned template asset into a target path that already exists in the user repository
+- **THEN** the flow SHALL skip, merge, or require explicit replacement according to the declared safe-write mode
+- **AND** SHALL NOT silently overwrite the existing file
+

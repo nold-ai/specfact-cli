@@ -115,7 +115,7 @@ The system SHALL provide a function to extract frontmatter from Markdown files.
 - **THEN** the function SHALL return an empty dictionary
 - **AND** no error SHALL be raised
 
-## Contract Requirements
+**Contract requirements:**
 
 ### Requirement: Input Validation Contracts
 

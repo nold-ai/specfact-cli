@@ -48,6 +48,8 @@ The system SHALL execute the command inventory in a deterministic order that mat
 - **AND** nested command families are executed under their owning root in a stable order
 - **AND** the audit report shows which phase each command belonged to.
 
+## ADDED Requirements
+
 ### Requirement: Package Manager Runtime Matrix Blocks Command Mismatches
 
 The command validation surface SHALL run through representative hatch, pip, pipx, and uv launchers before PRs can merge.

@@ -1,6 +1,8 @@
 ## Context
 
-This change implements proposal scope for `ai-integration-01-agent-skill` from the 2026-02-15 architecture-layer integration plan. It is proposal-stage only and defines implementation strategy without changing runtime code.
+This change implements the narrowed validation-skill scope for
+`ai-integration-01-agent-skill`. It is proposal-stage only and defines
+implementation strategy without changing runtime code.
 
 ## Goals / Non-Goals
 
@@ -14,7 +16,8 @@ This change implements proposal scope for `ai-integration-01-agent-skill` from t
 
 - No production code implementation in this stage.
 - No schema-breaking changes outside declared capabilities.
-- No dependency expansion beyond the proposal and plan.
+- No upstream intent interviews, requirement authoring, or architecture
+  generation.
 
 ## Decisions
 
@@ -38,5 +41,6 @@ This change implements proposal scope for `ai-integration-01-agent-skill` from t
 
 ## Open Questions
 
-- Dependency summary: Depends on validation-02-full-chain-engine.
+- Dependency summary: Depends on governance-01-evidence-output and
+  validation-02-full-chain-engine.
 - Whether additional cross-change sequencing constraints should be hard-blocked in `openspec/CHANGE_ORDER.md`.
