@@ -155,7 +155,7 @@ Add as first task in tasks.md:
 **If a GitHub issue exists**, use `gh issue develop` to link the branch before creating the worktree:
 
 ```markdown
-  - [ ] 1.1.2a `gh issue develop <issue-number> --repo <target-repo> --name <branch-type>/<change-id>` (creates remote branch linked to issue)
+  - [ ] 1.1.2a `gh issue develop <issue-number> --repo <target-repo> --base dev --name <branch-type>/<change-id>` (creates remote branch from `dev` linked to issue)
   - [ ] 1.1.2b `git fetch origin && git worktree add ../specfact-cli-worktrees/<branch-type>/<change-id> <branch-type>/<change-id>`
 ```
 
