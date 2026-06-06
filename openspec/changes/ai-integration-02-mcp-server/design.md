@@ -40,6 +40,6 @@ implementation strategy without changing runtime code.
 
 ## Open Questions
 
-- Dependency summary: Depends on ai-integration-01-agent-skill, governance-01,
-  and validation-02 user pull.
+- Dependency summary: Depends on ai-integration-01-agent-skill,
+  governance-01-evidence-output, and validation-02-full-chain-engine.
 - Whether additional cross-change sequencing constraints should be hard-blocked in `openspec/CHANGE_ORDER.md`.

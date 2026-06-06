@@ -121,12 +121,10 @@ The command validation surface SHALL run through representative hatch, pip, pipx
 - **AND** it validates representative core and official module command groups in each path
 - **AND** any command path, module discovery, or install-method mismatch blocks the PR.
 
-#### Scenario: Pipx upgrade validates and repairs stale launcher
+#### Scenario: Runtime matrix covers pipx stale-launcher repair
 
 - **GIVEN** `specfact upgrade` is running from a pipx-managed installation
-- **AND** `pipx upgrade specfact-cli` exits successfully
-- **WHEN** the installed `specfact --version` launcher fails because it still points at a stale or missing pipx venv path
-- **THEN** the upgrader runs `pipx reinstall specfact-cli`
-- **AND** it validates `specfact --version` again after the reinstall
-- **AND** it reports failure if the launcher still cannot execute.
-
+- **WHEN** the upgrade-command stale-launcher recovery scenario is exercised
+- **THEN** the package-manager runtime matrix SHALL validate the authoritative
+  `upgrade-command` contract for `pipx reinstall specfact-cli` fallback and
+  post-reinstall launcher validation.

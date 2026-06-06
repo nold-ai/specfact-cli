@@ -101,7 +101,11 @@ The system SHALL provide a `hatch run security-audit` script that runs `pip-audi
 
 ### Requirement: CI integration for license and security gates
 
-Both the license compliance gate and the security audit gate SHALL be integrated into the project's CI workflow as separate steps that run on every PR. The agent-rules documentation SHALL reference these gates as mandatory checks before merging any dependency change.
+The license compliance gate SHALL be integrated into the project's CI workflow
+as a separate step that runs on pull requests modifying dependency manifests
+such as `pyproject.toml`. The security audit gate SHALL run on every PR. The
+agent-rules documentation SHALL reference these gates as mandatory checks before
+merging any dependency change.
 
 #### Scenario: License gate runs in CI on dependency changes
 
@@ -134,4 +138,3 @@ The project's `docs/agent-rules/` framework SHALL include a dedicated section on
 - **WHEN** a PR adds a new package to pyproject.toml
 - **AND** the license-check gate is not run
 - **THEN** CI SHALL catch the omission and require the gate to pass before merge
-

@@ -1,7 +1,12 @@
 # cross-change-integration-contract Specification
 
 ## Purpose
-TBD - created by archiving change integration-01-cross-change-contracts. Update Purpose after archive.
+
+This spec defines deterministic ownership, compatibility, and wave-gate
+contracts for active OpenSpec changes that touch shared interfaces or payloads.
+It gives repo maintainers, tooling modules, and implementation agents a stable
+source of truth for resolving overlap without weakening backward compatibility.
+
 ## Requirements
 ### Requirement: Cross-Change Ownership Contract
 
@@ -32,4 +37,3 @@ The system SHALL require objective integration gate criteria to close each archi
 - **WHEN** a wave completion is proposed
 - **THEN** required gate evidence is present and traceable
 - **AND** unresolved cross-change conflicts block wave closure
-

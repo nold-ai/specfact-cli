@@ -1,7 +1,12 @@
 # project-artifact-write-safety Specification
 
 ## Purpose
-TBD - created by archiving change profile-04-safe-project-artifact-writes. Update Purpose after archive.
+
+This spec prevents data loss when SpecFact writes project artifacts in user
+repositories. It defines ownership-aware write modes, validation, recovery
+material, and failure behavior so requirements, tests, CI gates, and audits can
+trace every artifact mutation back to an explicit safety contract.
+
 ## Requirements
 ### Requirement: Core commands SHALL classify project artifact writes by ownership and mutation mode
 
@@ -50,4 +55,3 @@ The repository SHALL enforce a CI or quality gate that flags unsafe write paths 
 - **WHEN** CI runs regression fixtures for existing user-owned project configs
 - **THEN** init/setup commands SHALL preserve unrelated user-managed content
 - **AND** only declared SpecFact-managed sections or keys may change
-

@@ -22,10 +22,10 @@ Tool and install-method diagnostics SHALL prefer the active execution context ov
 - **THEN** semgrep is reported as available
 - **AND** the diagnostic does not tell the user to install semgrep with a pip-only command.
 
-#### Scenario: Tool probe failures name the active manager
+#### Scenario: Env-manager tool probe failures name the active manager
 
-- **GIVEN** a required external tool is not available in the active hatch, uv, pip, or pipx context
+- **GIVEN** a required external tool is not available in the active hatch or uv
+  environment-manager context
 - **WHEN** a diagnostic is emitted
 - **THEN** the message names the active manager context
 - **AND** the installation hint matches that manager when a manager-specific hint is known.
-

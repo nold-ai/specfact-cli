@@ -289,8 +289,8 @@ The system SHALL preserve project-before-user module precedence while making sco
 
 #### Scenario: Project module shadows user module during install check
 
-- **GIVEN** `<repo>/.specfact/modules/<module-name>` exists
-- **AND** `<user-home>/.specfact/modules/<module-name>` exists
+- **GIVEN** `<repo>/.specfact/modules/<module-id>` exists
+- **AND** `<user-home>/.specfact/modules/<module-id>` exists
 - **WHEN** the user runs `specfact module install <module-id> --scope user` from within `<repo>`
 - **THEN** the command SHALL decide whether user-scope installation is satisfied using the user-scope target root
 - **AND** the command SHALL warn if runtime command behavior in the current repository is still governed by the project-scope copy
@@ -310,4 +310,3 @@ The system SHALL preserve project-before-user module precedence while making sco
 - **WHEN** module discovery runs from that repository
 - **THEN** command availability SHALL be based on the user-scope module
 - **AND** install diagnostics SHALL NOT imply that a project-scope module is required
-

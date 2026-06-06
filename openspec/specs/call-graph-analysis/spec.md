@@ -5,7 +5,7 @@ TBD - created by archiving change dep-security-cleanup. Update Purpose after arc
 ## Requirements
 ### Requirement: Call-graph extraction via pycg CLI
 
-The system SHALL provide optional call-graph analysis using the `pycg` CLI tool (MIT-licensed). When `pycg` is not installed, the system SHALL degrade gracefully by returning an empty call graph without raising an exception. All code paths involving `pycg` MUST be decorated with `@beartype` and `@icontract` on public-facing methods.
+The system SHALL provide optional call-graph analysis using the `pycg` CLI tool (Apache-2.0-licensed). When `pycg` is not installed, the system SHALL degrade gracefully by returning an empty call graph without raising an exception. All code paths involving `pycg` MUST be decorated with `@beartype` and `@icontract` on public-facing methods.
 
 #### Scenario: pycg available — call graph extracted successfully
 
@@ -56,5 +56,4 @@ All packages in the `enhanced-analysis` extra SHALL use MIT, Apache-2.0, BSD, or
 
 - **WHEN** `pip install specfact-cli[enhanced-analysis]` is run
 - **THEN** no installed package SHALL carry a GPL-2.0, GPL-3.0, AGPL-3.0, or GPL-2.0-or-later license
-- **AND** the call-graph capability SHALL be provided by `pycg` (MIT)
-
+- **AND** the call-graph capability SHALL be provided by `pycg` (Apache-2.0)

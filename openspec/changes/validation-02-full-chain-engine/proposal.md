@@ -36,7 +36,7 @@ can trust.
   changing the evidence schema.
 - **NEW**: Machine-readable evidence output that can be consumed by
   `governance-01-evidence-output`, CI gates, and AI IDE remediation loops.
-- **EXTEND**: Existing validation flows MAY expose a compatibility alias such as
+- **EXTEND**: Existing validation flows SHALL expose a compatibility alias such as
   `--full-chain`, but the implementation language and evidence schema SHALL use
   validation graph terminology.
 - **EXTEND**: Optional code-review side channel attaches clean-code and

@@ -1,7 +1,12 @@
 # module-scope-diagnostics Specification
 
 ## Purpose
-TBD - created by archiving change module-scope-version-diagnostics. Update Purpose after archive.
+
+This spec defines diagnostics for effective, shadowed, and development-source
+module copies across project and user scopes. It makes module precedence,
+version ownership, and recovery guidance auditable without importing module
+command code.
+
 ## Requirements
 ### Requirement: Module doctor reports effective and shadowed module copies
 
@@ -21,4 +26,3 @@ The system SHALL provide a `specfact module doctor` diagnostic that reports modu
 - **GIVEN** development source root environment variables are configured
 - **WHEN** the user runs `specfact module doctor`
 - **THEN** the output lists the configured development source roots that may influence import resolution
-

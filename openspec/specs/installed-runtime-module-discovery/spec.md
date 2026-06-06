@@ -2,7 +2,11 @@
 
 ## Purpose
 
-TBD - created by archiving change backlog-core-04-installed-runtime-discovery-and-add-prompt. Update Purpose after archive.
+This spec defines how installed SpecFact module packages are discovered and
+loaded when no development checkout is available. It ensures runtime command
+validation uses installed artifacts, reports missing dependencies honestly, and
+keeps tests traceable to installed-runtime behavior.
+
 ## Requirements
 ### Requirement: Module Discovery Roots
 
@@ -24,4 +28,3 @@ The system SHALL discover and load module packages consistently between developm
 - **WHEN** module command loading is validated
 - **THEN** success depends on the installed module artifacts under the configured roots
 - **AND** missing installed dependencies fail the validation instead of being satisfied by a sibling checkout
-

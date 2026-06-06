@@ -148,8 +148,10 @@ Add as first task in tasks.md:
   - [ ] 1.1.1 `git fetch origin`
   - [ ] 1.1.2 `git worktree add ../specfact-cli-worktrees/<branch-type>/<change-id> -b <branch-type>/<change-id> origin/dev`
   - [ ] 1.1.3 Change into the worktree: `cd ../specfact-cli-worktrees/<branch-type>/<change-id>`
-  - [ ] 1.1.4 Create a virtual environment: `python -m venv .venv && source .venv/bin/activate && pip install -e ".[dev]"`
-  - [ ] 1.1.5 `git branch --show-current` (verify correct branch)
+  - [ ] 1.1.4 Bootstrap Hatch environment: `hatch env create`
+  - [ ] 1.1.5 Run pre-flight checks: `hatch run smart-test-status`
+  - [ ] 1.1.6 Run pre-flight checks: `hatch run contract-test-status`
+  - [ ] 1.1.7 `git branch --show-current` (verify correct branch)
 ```
 
 **If a GitHub issue exists**, use `gh issue develop` to link the branch before creating the worktree:
@@ -281,7 +283,7 @@ gh issue create \
 
 Display summary:
 
-```
+```text
 Change ID: <change-id>
 Location: openspec/changes/<change-id>/
 

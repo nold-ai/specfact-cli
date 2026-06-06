@@ -57,7 +57,7 @@ When a known module-provided command group is not registered, the system SHALL d
 - **THEN** the CLI SHALL keep reporting that the module is not installed
 - **AND** the CLI SHALL include install or init profile guidance
 
-## ADDED Requirements
+## ADDED Requirements: Canonical Module Identity
 
 ### Requirement: Module Install Uses Canonical Module Identity
 

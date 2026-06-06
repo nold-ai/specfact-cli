@@ -2,8 +2,13 @@
 
 ## Purpose
 
-TBD - created by archiving change upgrade-01-install-method-aware. Update Purpose after archive.
+This spec defines the `specfact upgrade` contract for detecting the active
+installation method, running the appropriate package-manager upgrade, preserving
+diagnostics, and repairing stale launchers so users can trust upgrade outcomes
+across pip, pipx, uv, and uvx installs.
+
 ## Requirements
+
 ### Requirement: Upgrade command must respect installation method
 
 `specfact upgrade` SHALL detect whether SpecFact is installed via pip, pipx, uv, or uvx and present/execute an installation-method-appropriate upgrade command. When a pipx upgrade succeeds, the command SHALL suppress the known benign pipx warning block about spaces in `PIPX_HOME`. When a pipx upgrade fails, the command SHALL preserve child-process stdout and stderr diagnostics. When an upgrade times out after producing partial child-process output, the command SHALL replay the partial diagnostics before reporting the timeout.
@@ -34,3 +39,12 @@ TBD - created by archiving change upgrade-01-install-method-aware. Update Purpos
 - **THEN** the user-visible output includes the partial child-process diagnostics
 - **AND** the upgrade reports the timeout.
 
+#### Scenario: Pipx upgrade validates and repairs stale launcher
+
+- **GIVEN** `specfact upgrade` is running from a pipx-managed installation
+- **AND** `pipx upgrade specfact-cli` exits successfully
+- **WHEN** the installed `specfact --version` launcher fails because it still
+  points at a stale or missing pipx venv path
+- **THEN** the upgrader runs `pipx reinstall specfact-cli`
+- **AND** it validates `specfact --version` again after the reinstall
+- **AND** it reports failure if the launcher still cannot execute.
