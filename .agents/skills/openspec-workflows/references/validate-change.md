@@ -37,6 +37,9 @@
 2. **Check change status**: `openspec status --change "<change-id>" --json`
    - Verify required artifacts exist and are parseable for proposal-stage validation
      (do not require status `"done"`).
+   - Accept proposal-stage statuses such as `"proposed"`, `"in-review"`, or
+     `"in-progress"`; fail only when the change is missing, parse errors are
+     present, or status is explicitly rejected/deferred.
 
 3. **Get artifact context**: `openspec instructions apply --change "<change-id>" --json`
 

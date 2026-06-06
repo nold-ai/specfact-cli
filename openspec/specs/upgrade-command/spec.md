@@ -47,4 +47,10 @@ across pip, pipx, uv, and uvx installs.
   points at a stale or missing pipx venv path
 - **THEN** the upgrader runs `pipx reinstall specfact-cli`
 - **AND** it validates `specfact --version` again after the reinstall
-- **AND** it reports failure if the launcher still cannot execute.
+- **AND** it suppresses the stale-launcher warning and reports success when the
+  reinstall repairs the launcher
+- **AND** it preserves and surfaces child-process stdout and stderr diagnostics
+  from `pipx reinstall specfact-cli` when reinstall fails
+- **AND** it replays any partial reinstall output produced before a timeout
+- **AND** it reports failure if reinstall fails, times out, or the launcher still
+  cannot execute after reinstall.
