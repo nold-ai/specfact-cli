@@ -78,7 +78,7 @@ These findings are bloat-shape detection and cleanup guidance, not AI-authorship
 - **Reviews AI-assisted changes against evidence** — compare code against contracts, clean-code rules, and policy gates
 - **Extracts structure from existing code** — reverse-engineer brownfield repos before you change them
 - **Blocks drift before merge** — use the same checks locally, in pre-commit, and in CI
-- **Links backlog intent to code reality** — connect backlog, specs, validation, and implementation
+- **Consumes upstream planning inputs** — treat Spec Kit, OpenSpec, backlog, specs, tests, and contracts as validation evidence
 - **Stays local-first** — no cloud account, no vendor lock-in, no built-in model dependency
 
 ## What is SpecFact?
@@ -136,17 +136,18 @@ SpecFact uses the same discipline it asks you to trust:
 
 ## For teams and organizations
 
-SpecFact still scales beyond the solo-developer entry path:
+SpecFact still scales beyond the solo-developer entry path, but validation stays
+the center:
 
-- **Backlog + ceremony workflows** for GitHub, Azure DevOps, Jira, and Linear
+- **Upstream context adapters** for GitHub, Azure DevOps, Jira, Linear, OpenSpec, and Spec Kit inputs
 - **DoR/DoD and policy enforcement** for teams that need repeatable gates
 - **Evidence-backed PR review** with the same checks used locally
 - **CI/CD adoption path** that keeps validation deterministic instead of model-driven
 
-Start with:
+Optional module-deep paths include:
 
-- `specfact backlog ceremony standup ...`
-- `specfact backlog ceremony refinement ...`
+- `specfact project import ...`
+- `specfact spec validate ...`
 - `specfact backlog verify-readiness --bundle <bundle-name>`
 - `specfact govern ...`
 

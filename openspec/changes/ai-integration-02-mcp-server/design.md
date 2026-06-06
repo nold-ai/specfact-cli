@@ -1,6 +1,8 @@
 ## Context
 
-This change implements proposal scope for `ai-integration-02-mcp-server` from the 2026-02-15 architecture-layer integration plan. It is proposal-stage only and defines implementation strategy without changing runtime code.
+This change implements the gated thin-MCP-adapter scope for
+`ai-integration-02-mcp-server`. It is proposal-stage only and defines
+implementation strategy without changing runtime code.
 
 ## Goals / Non-Goals
 
@@ -14,7 +16,7 @@ This change implements proposal scope for `ai-integration-02-mcp-server` from th
 
 - No production code implementation in this stage.
 - No schema-breaking changes outside declared capabilities.
-- No dependency expansion beyond the proposal and plan.
+- No broad MCP surface before the CLI validation loop shows pull.
 
 ## Decisions
 
@@ -38,5 +40,6 @@ This change implements proposal scope for `ai-integration-02-mcp-server` from th
 
 ## Open Questions
 
-- Dependency summary: Depends on validation-02-full-chain-engine.
+- Dependency summary: Depends on ai-integration-01-agent-skill, governance-01,
+  and validation-02 user pull.
 - Whether additional cross-change sequencing constraints should be hard-blocked in `openspec/CHANGE_ORDER.md`.

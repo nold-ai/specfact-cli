@@ -116,7 +116,7 @@ The system SHALL properly handle files marked as exempt.
 - **WHEN** a file has `exempt: false` or no exemption
 - **THEN** the file SHALL undergo full validation
 
-## Contract Requirements
+**Contract requirements:**
 
 ### Requirement: Validation Contracts
 
@@ -139,7 +139,7 @@ The script SHALL handle file and YAML errors gracefully while preserving validat
 - **THEN** the error SHALL be surfaced in validation output
 - **AND** validation SHALL continue for the remaining files
 
-## Performance Requirements
+**Performance requirements:**
 
 ### Requirement: Efficient File Processing
 

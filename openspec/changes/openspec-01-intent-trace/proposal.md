@@ -1,48 +1,59 @@
-# Change: OpenSpec Intent Trace — Bridge Adapter Integration
+# Change: OpenSpec and Spec Kit Evidence Adapter
 
 ## Why
 
-OpenSpec proposals are plain Markdown with no structured business-intent metadata. When SpecFact imports a proposal via `specfact sync bridge --adapter openspec`, it has no machine-readable context about the business outcomes, business rules, or architectural constraints the change is supposed to satisfy — it only sees tasks and specs. This means the traceability chain starts at the spec level, missing the upstream intent layer entirely. Adding a structured `## Intent Trace` section to OpenSpec proposals (with JSON Schema validation) gives SpecFact the data it needs to construct the full outcome → rule → constraint → spec → code chain automatically on import.
+OpenSpec and Spec Kit already own large parts of upstream specification and
+planning. SpecFact should consume their artifacts as validation inputs rather
+than define a mandatory upstream intent schema that those projects must adopt.
 
-## Ownership Alignment (2026-04-08)
+This change reframes intent trace as an optional adapter convention: when
+structured context exists, SpecFact imports it; when it does not, SpecFact still
+validates code, contracts, tests, and artifact drift with source-attributed
+evidence.
+
+## Ownership Alignment (2026-06-06)
 
 - Repository assignment: `split/rescope`
-- Core-owned scope retained here: the OpenSpec proposal schema, `tasks.md` metadata fields, and validation behavior for `## Intent Trace`.
-- Bundle-owned follow-up required: the runtime import behavior referenced below (`sync bridge --import-intent`) belongs with the canonical project-bundle sync/import owner rather than `specfact-cli` core.
-- Target modules-repo follow-up issue: [#168](https://github.com/nold-ai/specfact-cli-modules/issues/168) in `nold-ai/specfact-cli-modules`
-- Implementation MUST separate schema/validation work from bundle runtime import work before coding resumes.
+- Core-owned scope retained here: optional adapter schema, source attribution,
+  task/reference parsing, and validation behavior when context is present.
+- Bundle-owned follow-up required: runtime import behavior belongs to the
+  canonical project-bundle sync/import owner.
+- Target modules-repo follow-up issue: [#168](https://github.com/nold-ai/specfact-cli-modules/issues/168)
+- Implementation MUST NOT require OpenSpec or Spec Kit to change their native
+  authoring model.
 
 ## What Changes
 
-- **NEW**: `## Intent Trace` section schema for OpenSpec `proposal.md` files:
-  - YAML-fenced block under `## Intent Trace` with `intent_trace` root key
-  - Fields: `business_outcomes` (id, description, persona), `business_rules` (id, outcome_ref, given, when, then), `architectural_constraints` (id, outcome_ref, constraint), `requirement_refs` (list of REQ-NNN strings)
-  - JSON Schema at `openspec/schemas/intent-trace.schema.json` for validation
-- **NEW**: `requirement_refs` optional field on individual tasks in `tasks.md` — links a task to specific `BusinessRule` IDs or `ArchitecturalConstraint` IDs
-- **NEW**: `evidence` optional field on archived changes — points to evidence JSON envelope file(s) generated during implementation; creates immutable proposal → intent trace → implementation → evidence → archive chain
-- **NEW**: `specfact sync bridge --adapter openspec --import-intent` — reads `## Intent Trace` section from imported proposals and populates `.specfact/requirements/` with `BusinessOutcome` and `BusinessRule` artifacts automatically
-- **EXTEND**: `specfact sync bridge --adapter openspec` — when `## Intent Trace` section is present, include intent context in the imported project bundle; backwards-compatible (section is optional)
-- **EXTEND**: `openspec validate <change-id> --strict` — validates `## Intent Trace` section against `intent-trace.schema.json` when present
+- **NEW**: Optional adapter metadata convention for OpenSpec proposals and Spec
+  Kit feature folders.
+- **NEW**: Source-attributed import of outcomes, requirement references, tasks,
+  spec deltas, acceptance checks, and evidence links when present.
+- **NEW**: Strict validation of adapter metadata only when the optional metadata
+  is present.
+- **NEW**: Evidence pointers on archived changes MAY reference validation JSON
+  produced during implementation.
+- **EXTEND**: Bridge/import flows can map upstream artifacts into the
+  requirements input model and evidence graph without creating duplicate
+  planning artifacts.
 
 ## Capabilities
 
 ### New Capabilities
 
-- `openspec-intent-trace-schema`: JSON Schema definition and validation for the `## Intent Trace` section in OpenSpec proposals — enabling machine-readable business-outcome traceability in change proposals.
-- `openspec-bridge-intent-import`: Extended SpecFact OpenSpec bridge adapter that reads, validates, and imports `## Intent Trace` sections from proposals into `.specfact/requirements/` artifacts automatically.
+- `openspec-speckit-evidence-adapter`: Optional source-attributed adapter for
+  OpenSpec and Spec Kit artifacts consumed by SpecFact validation.
 
 ### Modified Capabilities
 
-- `openspec-bridge-adapter`: Extended to parse optional `## Intent Trace` section on proposal import; backwards-compatible when section is absent.
+- `openspec-bridge-adapter`: Extended to parse optional metadata and evidence
+  links without requiring them.
 
 ## Impact
 
-- New file: `openspec/schemas/intent-trace.schema.json`
-- Existing bridge adapter: `src/specfact_cli/adapters/` OpenSpec adapter extended with intent-trace parsing
-- CLI change: `specfact sync bridge --adapter openspec` — new optional `--import-intent` flag; no breaking change to existing workflows
-- Depends on: `requirements-01-data-model` (#238) — `BusinessOutcome` and `BusinessRule` schemas must exist to populate; `requirements-02-module-commands` (#239) — `specfact requirements capture` used for artifact creation
-- Wave: aligns with Wave 5/6 (after requirements-01/02 land)
-- Docs: new `docs/guides/openspec-journey.md` section on Intent Trace; update `docs/adapters/` for OpenSpec adapter
+- OpenSpec and Spec Kit are documented as upstream inputs.
+- Existing OpenSpec proposals remain valid when no adapter metadata exists.
+- Depends on `requirements-01-data-model` and `requirements-02-module-commands`
+  only for normalized evidence import.
 
 ---
 
@@ -52,6 +63,6 @@ OpenSpec proposals are plain Markdown with no structured business-intent metadat
 - **GitHub Issue**: #350
 - **Issue URL**: <https://github.com/nold-ai/specfact-cli/issues/350>
 - **Paired Modules Runtime Issue**: nold-ai/specfact-cli-modules#168
-- **Paired Modules Scope**: OpenSpec intent import runtime
+- **Paired Modules Scope**: OpenSpec and Spec Kit evidence import runtime
 - **Last Synced Status**: proposed
 - **Sanitized**: false

@@ -43,7 +43,7 @@ SpecFact does **not** include built-in AI. It pairs deterministic CLI commands w
 
 ## What is SpecFact?
 
-SpecFact helps you keep backlog intent, specifications, implementation, and validation from drifting apart. It supports spec-first handoffs with **OpenSpec** and spec-kit-style workflows so brownfield and AI-assisted teams can keep backlog language, specs, and code aligned.
+SpecFact helps you keep upstream intent, specifications, implementation, and validation from drifting apart. It consumes **OpenSpec**, Spec Kit-style workflows, backlog items, contracts, tests, and code as upstream inputs so brownfield and AI-assisted teams can validate what actually landed.
 
 It is especially useful when:
 
@@ -68,7 +68,7 @@ With SpecFact, you get:
 - AI-bloat defense with cleanup forecasts and remediation packet handoff
 - a validation layer around AI-assisted delivery
 - codebase analysis and sidecar validation for brownfield work
-- stronger backlog/spec/code alignment
+- stronger upstream-input/spec/code alignment without replacing your planning stack
 - a clean handoff from this site into module-deep workflows on [modules.specfact.io](https://modules.specfact.io/)
 
 ## How to get started

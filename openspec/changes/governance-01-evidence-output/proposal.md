@@ -2,7 +2,12 @@
 
 ## Why
 
-Enterprise environments require machine-readable evidence that policies were enforced, traceability exists, and exceptions are tracked. Current validation output is human-readable (Markdown/terminal) but not suitable for CI gates, audit systems, or compliance dashboards. A standardized evidence JSON output format — covering policy results, traceability coverage, exception status, and timestamps — makes SpecFact validation results consumable by any CI/CD pipeline, audit tool, or governance platform.
+Teams need machine-readable evidence that validation ran, policies were
+enforced, AI-bloat and drift findings were classified, and exceptions were
+tracked. Current validation output is human-readable (Markdown/terminal) but not
+suitable for CI gates, AI IDE remediation loops, audit systems, or compliance
+dashboards. A standardized evidence JSON output format makes SpecFact
+validation results consumable by any deterministic gate or agent handoff.
 
 ## Ownership Alignment (2026-04-08)
 
@@ -24,9 +29,9 @@ Enterprise environments require machine-readable evidence that policies were enf
     "profile": "enterprise",
     "policy_mode": "hard",
     "validation_results": {
-      "full_chain": { "pass": 67, "fail": 2, "advisory": 5 },
-      "layers": { ... },
-      "orphans": { ... }
+      "evidence_graph": { "pass": 67, "fail": 2, "advisory": 5 },
+      "orphans": { ... },
+      "drift": { ... }
     },
     "code_quality": {
       "clean_code_score": 95,
@@ -34,10 +39,9 @@ Enterprise environments require machine-readable evidence that policies were enf
       "verdict": "PASS_WITH_ADVISORY"
     },
     "coverage": {
-      "req_to_arch": "92%",
-      "arch_to_spec": "100%",
-      "spec_to_code": "100%",
-      "code_to_test": "87%"
+      "contracts": "100%",
+      "tests": "87%",
+      "review_findings_resolved": "64%"
     },
     "exceptions": [
       { "id": "EXC-001", "policy": "...", "expires": "2026-12-31", "status": "active" }
@@ -47,12 +51,12 @@ Enterprise environments require machine-readable evidence that policies were enf
   }
   ```
 
-- **NEW**: `--evidence-dir .specfact/evidence/` flag on `specfact validate --full-chain` to persist evidence artifacts per run
+- **NEW**: `--evidence-dir .specfact/evidence/` flag on validation and code-review runs to persist evidence artifacts per run
 - **NEW**: `--ci-mode` flag that sets exit codes based on profile enforcement mode: advisory=always 0, mixed=1 for hard-fail rules only, hard=1 for any failure
 - **NEW**: Evidence artifact naming: `{timestamp}_{run_id}_evidence.json` for audit trail
 - **NEW**: Evidence summary on terminal: human-readable table alongside JSON output
-- **EXTEND**: Full-chain validation (validation-02) extended to produce evidence artifacts
-- **EXTEND**: Full-chain validation can append `code_quality` as a parallel section when the run includes review-based clean-code checks
+- **EXTEND**: Validation evidence graph (validation-02) extended to produce evidence artifacts
+- **EXTEND**: Validation evidence can append `code_quality` as a parallel section when the run includes review-based clean-code checks
 - **EXTEND**: Policy engine results formatted as evidence-compatible structures
 - **NEW**: Ownership authority — this change is authoritative for evidence JSON envelope/schema; sibling governance changes may add fields only through this envelope contract.
 
@@ -64,7 +68,7 @@ Enterprise environments require machine-readable evidence that policies were enf
 
 ### Modified Capabilities
 
-- `full-chain-validation`: Extended with evidence artifact generation via `--evidence-dir` and `--ci-mode` flags
+- `validation-evidence-graph`: Extended with evidence artifact generation via `--evidence-dir` and `--ci-mode` flags
 - `policy-engine`: Results formatted as evidence-compatible structures with run_id and timestamps
 - `governance-evidence-output`: Extended with a `code_quality` section that remains parallel to `validation_results` rather than introducing a new traceability layer
 
