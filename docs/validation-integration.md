@@ -24,7 +24,7 @@ This allows teams to validate code against proposed changes before they are appl
 
 ### 1. Change Proposal Loading
 
-When `specfact validate` is executed in a repository with OpenSpec:
+When a canonical grouped validation command such as `specfact code validate sidecar run` is executed in a repository with OpenSpec:
 
 1. The system detects the OpenSpec repository (checks for `openspec/` directory or `bridge_config.external_base_path`)
 2. Loads active change proposals (status: `"proposed"` or `"in-progress"`)

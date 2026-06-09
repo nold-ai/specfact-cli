@@ -10,6 +10,25 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.47.5] - 2026-06-10
+
+### Fixed
+
+- **Flat command removal diagnostics**: stop removed root aliases such as
+  `validate`, `plan`, `analyze`, `drift`, `repro`, `sync`, and `migrate` from
+  emitting misleading marketplace module install, disabled, skipped, or
+  shadowed diagnostics; canonical grouped commands keep actionable module
+  guidance.
+- **Mac environment-manager paths**: quote Hatch `type-check` and `lint`
+  interpreter-path substitutions so Python executables under directories with
+  spaces, including macOS `Application Support`, remain single arguments for
+  downstream tools.
+- **Canonical bundle diagnostics**: preserve actionable missing-module guidance
+  for still-supported bundle groups such as `backlog` when Typer handles
+  missing command help before the root resolver path.
+
+---
+
 ## [0.47.4] - 2026-06-02
 
 ### Changed

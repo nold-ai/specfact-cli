@@ -87,19 +87,12 @@ KNOWN_BUNDLE_GROUP_OR_SHIM_NAMES: frozenset[str] = frozenset(
         "project",
         "spec",
         "govern",
-        "plan",
-        "validate",
         "contract",
         "sdd",
         "generate",
         "enforce",
         "patch",
-        "migrate",
-        "repro",
-        "drift",
-        "analyze",
         "policy",
-        "sync",
     }
 )
 
@@ -109,14 +102,7 @@ _INVOKED_TO_MARKETPLACE_MODULE: dict[str, str] = {
     "backlog": "nold-ai/specfact-backlog",
     "policy": "nold-ai/specfact-backlog",
     "code": "nold-ai/specfact-codebase",
-    "analyze": "nold-ai/specfact-codebase",
-    "drift": "nold-ai/specfact-codebase",
-    "validate": "nold-ai/specfact-codebase",
-    "repro": "nold-ai/specfact-codebase",
     "project": "nold-ai/specfact-project",
-    "plan": "nold-ai/specfact-project",
-    "sync": "nold-ai/specfact-project",
-    "migrate": "nold-ai/specfact-project",
     "spec": "nold-ai/specfact-spec",
     "contract": "nold-ai/specfact-spec",
     "sdd": "nold-ai/specfact-spec",
@@ -196,6 +182,52 @@ class _RootCLIGroup(ProgressiveDisclosureGroup):
             return result
         _print_missing_bundle_command_help(invoked)
         raise SystemExit(1)
+
+
+def _patch_missing_bundle_resolution(group: click.Group) -> click.Group:
+    """Patch a generated Typer root group to preserve missing bundle diagnostics."""
+    if getattr(group, "_specfact_missing_bundle_resolution", False):
+        return group
+
+    original_get_command = group.get_command
+    original_resolve_command = group.resolve_command
+
+    def _get_command(ctx: click.Context, cmd_name: str) -> click.Command | None:
+        command = original_get_command(ctx, cmd_name)
+        if command is not None or cmd_name not in KNOWN_BUNDLE_GROUP_OR_SHIM_NAMES:
+            return command
+        _print_missing_bundle_command_help(cmd_name)
+        raise SystemExit(1)
+
+    def _resolve_command(ctx: click.Context, args: list[str]) -> Any:
+        if not args:
+            return original_resolve_command(ctx, args)
+        invoked = args[0]
+        try:
+            result = original_resolve_command(ctx, args)
+        except click.UsageError:
+            if invoked in KNOWN_BUNDLE_GROUP_OR_SHIM_NAMES:
+                _print_missing_bundle_command_help(invoked)
+                raise SystemExit(1) from None
+            raise
+        except ValueError as exc:
+            if invoked in KNOWN_BUNDLE_GROUP_OR_SHIM_NAMES:
+                _print_missing_bundle_command_help(invoked)
+                raise SystemExit(1) from exc
+            raise
+        _name, cmd, remaining = result
+        if cmd is not None or not remaining:
+            return result
+        unresolved = remaining[0]
+        if unresolved not in KNOWN_BUNDLE_GROUP_OR_SHIM_NAMES:
+            return result
+        _print_missing_bundle_command_help(unresolved)
+        raise SystemExit(1)
+
+    group.get_command = _get_command  # type: ignore[method-assign]
+    group.resolve_command = _resolve_command  # type: ignore[method-assign]
+    group._specfact_missing_bundle_resolution = True  # type: ignore[attr-defined]
+    return group
 
 
 # Map shell names for completion support
@@ -866,6 +898,8 @@ def _get_command(typer_instance: typer.Typer) -> click.Command:
         return _build_lazy_delegate_group(cmd_name, help_str)
     assert _typer_get_command_original is not None
     result = _typer_get_command_original(typer_instance)
+    if typer_instance is app and isinstance(result, click.Group):
+        result = _patch_missing_bundle_resolution(result)
     flatten_name = getattr(typer_instance, "_specfact_flatten_same_name", None)
     if isinstance(flatten_name, str) and isinstance(result, click.Group) and flatten_name in result.commands:
         _flatten_specfact_nested_subgroup(result, flatten_name)
@@ -894,6 +928,8 @@ def _get_group_from_info_wrapper(
         suggest_commands=suggest_commands,
         rich_markup_mode=rich_markup_mode,
     )
+    if typer_instance is app:
+        result = _patch_missing_bundle_resolution(result)
     flatten_name = getattr(typer_instance, "_specfact_flatten_same_name", None) if typer_instance else None
     if isinstance(flatten_name, str) and flatten_name in result.commands:
         _flatten_specfact_nested_subgroup(result, flatten_name)

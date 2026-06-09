@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "specfact-cli"
-version = "0.47.4"
+version = "0.47.5"
 description = "AI-bloat defense CLI for Python teams. Run deterministic code review, cleanup forecasts, and spec/contract evidence for AI-assisted and brownfield delivery."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -224,9 +224,9 @@ security-audit = "python scripts/security_audit_gate.py"
 # Development scripts
 test = "pytest {args}"
 test-cov = "pytest --cov=src --cov-report=term-missing {args}"
-type-check = "basedpyright --pythonpath $(python -c 'import sys; print(sys.executable)') {args}"
+type-check = "basedpyright --pythonpath \"$(python -c 'import sys; print(sys.executable)')\" {args}"
 # basedpyright --level error: suppress warning noise in pre-commit (Block 1 runs `hatch run lint`).
-lint = "ruff format . --check && basedpyright --level error --pythonpath $(python -c 'import sys; print(sys.executable)') && ruff check . && pylint src tests tools && python scripts/verify_safe_project_writes.py"
+lint = "ruff format . --check && basedpyright --level error --pythonpath \"$(python -c 'import sys; print(sys.executable)')\" && ruff check . && pylint src tests tools && python scripts/verify_safe_project_writes.py"
 lint-changed = "python scripts/run_changed_lint.py {args}"
 governance = "pylint src tests tools --reports=y --output-format=parseable"
 format = "ruff check . --fix && ruff format ."
