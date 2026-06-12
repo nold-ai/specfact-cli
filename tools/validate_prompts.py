@@ -43,14 +43,16 @@ def _prompts_dir_is_valid(prompts_dir: Path | None) -> bool:
 
 CLI_COMMANDS = {
     "specfact.01-import": "specfact code import",
+    # The plan verbs below stay on the legacy surface until the rehome tracked in
+    # nold-ai/specfact-cli-modules#317 lands; update them together with the prompts.
     "specfact.02-plan": "specfact plan <operation>",  # init, add-feature, add-story, update-idea, update-feature, update-story
     "specfact.03-review": "specfact plan review",  # Also handles promote
     "specfact.04-sdd": "specfact plan harden",
-    "specfact.05-enforce": "specfact enforce sdd",
-    "specfact.06-sync": "specfact sync bridge",
-    "specfact.07-contracts": "specfact analyze contracts",  # Also uses generate contracts-prompt and contracts-apply
+    "specfact.05-enforce": "specfact govern enforce sdd",
+    "specfact.06-sync": "specfact project sync bridge",
+    "specfact.07-contracts": "specfact code analyze contracts",  # Also uses generate contracts-prompt and contracts-apply
     "specfact.compare": "specfact plan compare",
-    "specfact.validate": "specfact repro",
+    "specfact.validate": "specfact code repro",
 }
 
 # Required CLI enforcement rules (checking for key phrases, flexible matching)

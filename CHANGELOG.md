@@ -10,6 +10,24 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.47.7] - 2026-06-12
+
+### Fixed
+
+- **Stale flat command references**: update runtime error suggestions and
+  tooling references from removed flat commands (`specfact analyze`,
+  `specfact repro`, `specfact sync bridge`, `specfact enforce sdd`) to the
+  canonical grouped commands (`specfact code analyze contracts`,
+  `specfact code repro`, `specfact project sync bridge`,
+  `specfact govern enforce sdd`).
+
+### Added
+
+- **llms.txt freshness test**: add a unit test that re-runs the command
+  overview generator in check mode so a stale `llms.txt` or generated command
+  reference fails the test suite even when the path-scoped pre-commit gate is
+  bypassed.
+
 ## [0.47.6] - 2026-06-12
 
 ### Fixed
