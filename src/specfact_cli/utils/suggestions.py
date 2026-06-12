@@ -52,7 +52,7 @@ def suggest_next_steps(repo_path: Path, context: ProjectContext | None = None) -
 
     # Analysis suggestions
     if context.has_plan and context.contract_coverage < 0.5:
-        suggestions.append("specfact analyze --bundle <name>  # Analyze contract coverage")
+        suggestions.append("specfact code analyze contracts --bundle <name>  # Analyze contract coverage")
         suggestions.append("specfact code import --repo . <name>  # Update the project bundle from code")
 
     # Specmatic integration suggestions
@@ -95,8 +95,8 @@ def suggest_fixes(error_message: str, context: ProjectContext | None = None) -> 
 
     # Contract validation errors
     if "contract" in error_lower and ("violation" in error_lower or "invalid" in error_lower):
-        suggestions.append("specfact analyze --bundle <name>  # Analyze contract violations")
-        suggestions.append("specfact repro --bundle <name>  # Run validation suite")
+        suggestions.append("specfact code analyze contracts --bundle <name>  # Analyze contract violations")
+        suggestions.append("specfact code repro --repo .  # Run validation suite")
 
     # Specmatic errors
     if "specmatic" in error_lower or "openapi" in error_lower:
@@ -126,7 +126,7 @@ def suggest_improvements(context: ProjectContext) -> list[str]:
 
     # Low contract coverage
     if context.contract_coverage < 0.3:
-        suggestions.append("specfact analyze --bundle <name>  # Identify missing contracts")
+        suggestions.append("specfact code analyze contracts --bundle <name>  # Identify missing contracts")
         suggestions.append("specfact code import --repo . <name>  # Extract contracts from code")
 
     # Missing OpenAPI specs
