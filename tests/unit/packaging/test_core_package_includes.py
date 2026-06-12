@@ -120,3 +120,15 @@ def test_telemetry_dependencies_are_opt_in_extra() -> None:
 
     assert "opentelemetry-sdk>=1.27.0" in telemetry
     assert "opentelemetry-exporter-otlp-proto-http>=1.27.0" in telemetry
+
+
+def test_hatch_gate_scripts_quote_pythonpath_interpreter_substitution() -> None:
+    """Shell gates must preserve env-manager interpreter paths containing spaces."""
+    data = tomllib.loads(PYPROJECT.read_text(encoding="utf-8"))
+    scripts = data["tool"]["hatch"]["envs"]["default"]["scripts"]
+    quoted_pythonpath = "--pythonpath \"$(python -c 'import sys; print(sys.executable)')\""
+
+    for script_name in ("type-check", "lint"):
+        script = scripts[script_name]
+        assert quoted_pythonpath in script
+        assert "--pythonpath $(python -c" not in script

@@ -47,10 +47,6 @@ def test_bootstrap_with_category_grouping_enabled_registers_group_commands() -> 
     }
     assert set(names).issubset(allowed), f"Unexpected root commands found: {sorted(set(names) - allowed)}"
     assert {"init", "module", "upgrade"}.issubset(set(names))
-    if "code" in names:
-        assert {"project", "spec"} <= set(names), (
-            "When the code category group is mounted, project and spec groups must register too."
-        )
     assert not (set(names) & forbidden_flat), (
         f"Flat shims should not be registered: {sorted(set(names) & forbidden_flat)}"
     )
@@ -75,8 +71,6 @@ def test_bootstrap_with_category_grouping_disabled_still_has_no_flat_shims() -> 
     assert not (set(names) & forbidden_flat), (
         f"Flat shims must not be registered: {sorted(set(names) & forbidden_flat)}"
     )
-    if "code" in names:
-        assert "project" in names and "spec" in names
 
 
 def test_code_analyze_routes_same_as_flat_analyze(

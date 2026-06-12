@@ -87,19 +87,12 @@ KNOWN_BUNDLE_GROUP_OR_SHIM_NAMES: frozenset[str] = frozenset(
         "project",
         "spec",
         "govern",
-        "plan",
-        "validate",
         "contract",
         "sdd",
         "generate",
         "enforce",
         "patch",
-        "migrate",
-        "repro",
-        "drift",
-        "analyze",
         "policy",
-        "sync",
     }
 )
 
@@ -109,14 +102,7 @@ _INVOKED_TO_MARKETPLACE_MODULE: dict[str, str] = {
     "backlog": "nold-ai/specfact-backlog",
     "policy": "nold-ai/specfact-backlog",
     "code": "nold-ai/specfact-codebase",
-    "analyze": "nold-ai/specfact-codebase",
-    "drift": "nold-ai/specfact-codebase",
-    "validate": "nold-ai/specfact-codebase",
-    "repro": "nold-ai/specfact-codebase",
     "project": "nold-ai/specfact-project",
-    "plan": "nold-ai/specfact-project",
-    "sync": "nold-ai/specfact-project",
-    "migrate": "nold-ai/specfact-project",
     "spec": "nold-ai/specfact-spec",
     "contract": "nold-ai/specfact-spec",
     "sdd": "nold-ai/specfact-spec",
@@ -124,6 +110,18 @@ _INVOKED_TO_MARKETPLACE_MODULE: dict[str, str] = {
     "govern": "nold-ai/specfact-govern",
     "enforce": "nold-ai/specfact-govern",
     "patch": "nold-ai/specfact-govern",
+}
+
+# Removed flat root aliases -> canonical grouped replacement (see docs/migration/migration-guide.md).
+# These must never route through marketplace module availability diagnostics.
+_REMOVED_FLAT_ALIAS_TO_CANONICAL: dict[str, str] = {
+    "plan": "specfact project",
+    "validate": "specfact code validate",
+    "analyze": "specfact code analyze",
+    "drift": "specfact code drift",
+    "repro": "specfact code repro",
+    "sync": "specfact project sync",
+    "migrate": "specfact project migrate",
 }
 
 
@@ -168,34 +166,81 @@ def _print_missing_bundle_command_help(invoked: str) -> None:
     )
 
 
+def _print_removed_flat_alias_help(invoked: str) -> None:
+    """Print canonical grouped-command guidance for a removed flat root alias."""
+    canonical = _REMOVED_FLAT_ALIAS_TO_CANONICAL[invoked]
+    console = get_configured_console()
+    console.print(
+        f"[bold red]No such command '{invoked}'.[/bold red]\n"
+        f"The flat [bold]specfact {invoked}[/bold] command was removed. "
+        f"Use [bold]{canonical} ...[/bold] instead."
+    )
+
+
+def _print_unresolved_root_token_help(invoked: str) -> bool:
+    """Render guidance for an unresolved root token; return True when guidance was printed."""
+    if invoked in _REMOVED_FLAT_ALIAS_TO_CANONICAL:
+        _print_removed_flat_alias_help(invoked)
+        return True
+    if invoked in KNOWN_BUNDLE_GROUP_OR_SHIM_NAMES:
+        _print_missing_bundle_command_help(invoked)
+        return True
+    return False
+
+
+def _resolve_root_command_with_guidance(resolve: Callable[[Any, list[str]], Any], ctx: Any, args: list[str]) -> Any:
+    """Resolve a root command, replacing unresolved known tokens with actionable guidance."""
+    if not args:
+        return resolve(ctx, args)
+    invoked = args[0]
+    try:
+        result = resolve(ctx, args)
+    except click.UsageError:
+        if _print_unresolved_root_token_help(invoked):
+            raise SystemExit(1) from None
+        raise
+    except ValueError as exc:
+        if _print_unresolved_root_token_help(invoked):
+            raise SystemExit(1) from exc
+        raise
+    _name, cmd, remaining = result
+    if cmd is not None or not remaining:
+        return result
+    unresolved = remaining[0]
+    if _print_unresolved_root_token_help(unresolved):
+        raise SystemExit(1)
+    return result
+
+
 class _RootCLIGroup(ProgressiveDisclosureGroup):
     """Root group that shows actionable error when an unknown command is a known bundle group/shim."""
 
     @ensure(lambda result: isinstance(result, tuple) and len(result) == 3, "result must be a 3-tuple")
     def resolve_command(self, ctx: Any, args: list[str]) -> Any:
-        if not args:
-            return super().resolve_command(ctx, args)
-        invoked = args[0]
-        try:
-            result = super().resolve_command(ctx, args)
-        except click.UsageError:
-            if invoked in KNOWN_BUNDLE_GROUP_OR_SHIM_NAMES:
-                _print_missing_bundle_command_help(invoked)
-                raise SystemExit(1) from None
-            raise
-        except ValueError as exc:
-            if invoked in KNOWN_BUNDLE_GROUP_OR_SHIM_NAMES:
-                _print_missing_bundle_command_help(invoked)
-                raise SystemExit(1) from exc
-            raise
-        _name, cmd, remaining = result
-        if cmd is not None or not remaining:
-            return result
-        invoked = remaining[0]
-        if invoked not in KNOWN_BUNDLE_GROUP_OR_SHIM_NAMES:
-            return result
-        _print_missing_bundle_command_help(invoked)
-        raise SystemExit(1)
+        return _resolve_root_command_with_guidance(super().resolve_command, ctx, args)
+
+
+def _patch_missing_bundle_resolution(group: click.Group) -> click.Group:
+    """Patch a generated Typer root group to preserve missing bundle diagnostics."""
+    if getattr(group, "_specfact_missing_bundle_resolution", False):
+        return group
+
+    original_get_command = group.get_command
+    original_resolve_command = group.resolve_command
+
+    def _get_command(ctx: click.Context, cmd_name: str) -> click.Command | None:
+        command = original_get_command(ctx, cmd_name)
+        if command is None and _print_unresolved_root_token_help(cmd_name):
+            raise SystemExit(1)
+        return command
+
+    def _resolve_command(ctx: click.Context, args: list[str]) -> Any:
+        return _resolve_root_command_with_guidance(original_resolve_command, ctx, args)
+
+    group.get_command = _get_command  # type: ignore[method-assign]
+    group.resolve_command = _resolve_command  # type: ignore[method-assign]
+    group._specfact_missing_bundle_resolution = True  # type: ignore[attr-defined]
+    return group
 
 
 # Map shell names for completion support
@@ -581,8 +626,7 @@ def _load_lazy_delegate_typer(cmd_name: str) -> typer.Typer:
     try:
         return CommandRegistry.get_typer(resolved_name)
     except ValueError as exc:
-        if cmd_name in KNOWN_BUNDLE_GROUP_OR_SHIM_NAMES:
-            _print_missing_bundle_command_help(cmd_name)
+        if _print_unresolved_root_token_help(cmd_name):
             raise SystemExit(1) from None
         _raise_lazy_delegate_click_exception(exc)
         raise AssertionError("unreachable") from None
@@ -866,6 +910,8 @@ def _get_command(typer_instance: typer.Typer) -> click.Command:
         return _build_lazy_delegate_group(cmd_name, help_str)
     assert _typer_get_command_original is not None
     result = _typer_get_command_original(typer_instance)
+    if typer_instance is app and isinstance(result, click.Group):
+        result = _patch_missing_bundle_resolution(result)
     flatten_name = getattr(typer_instance, "_specfact_flatten_same_name", None)
     if isinstance(flatten_name, str) and isinstance(result, click.Group) and flatten_name in result.commands:
         _flatten_specfact_nested_subgroup(result, flatten_name)
@@ -894,6 +940,8 @@ def _get_group_from_info_wrapper(
         suggest_commands=suggest_commands,
         rich_markup_mode=rich_markup_mode,
     )
+    if typer_instance is app:
+        result = _patch_missing_bundle_resolution(result)
     flatten_name = getattr(typer_instance, "_specfact_flatten_same_name", None) if typer_instance else None
     if isinstance(flatten_name, str) and flatten_name in result.commands:
         _flatten_specfact_nested_subgroup(result, flatten_name)
