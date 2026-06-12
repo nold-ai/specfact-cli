@@ -76,6 +76,6 @@ def _install_progressive_disclosure() -> None:
 # keeps missing-command and missing-parameter UX consistent outside the root CLI too.
 _install_progressive_disclosure()
 
-__version__ = "0.47.4"
+__version__ = "0.47.6"
 
 __all__ = ["__version__"]

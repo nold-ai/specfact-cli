@@ -183,8 +183,8 @@ def test_flat_shim_plan_exits_with_not_found_or_install_instructions() -> None:
     )
 
 
-def test_stale_flat_shim_plan_exits_with_install_instructions() -> None:
-    """Stale app 'specfact plan' shim exits with install guidance after registry reset."""
+def test_stale_flat_shim_plan_exits_with_removed_alias_guidance() -> None:
+    """Stale app 'specfact plan' shim exits with canonical grouped guidance after registry reset."""
     from specfact_cli.cli import app, rebuild_root_app_from_registry
 
     CommandRegistry.register(
@@ -204,8 +204,12 @@ def test_stale_flat_shim_plan_exits_with_install_instructions() -> None:
         register_builtin_commands()
         rebuild_root_app_from_registry()
     assert result.exit_code != 0
-    assert "plan" in result.output.lower()
-    assert "install" in result.output.lower() or "not installed" in result.output.lower()
+    output = result.output.lower()
+    assert "plan" in output
+    assert "removed" in output
+    assert "project" in output
+    assert "not installed" not in output
+    assert "shadowed" not in output
 
 
 def test_flat_shim_validate_exits_with_not_found_or_install_instructions() -> None:
