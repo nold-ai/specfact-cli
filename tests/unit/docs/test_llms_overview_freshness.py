@@ -25,11 +25,23 @@ GENERATED_ARTIFACTS = (
 )
 
 
+def _paired_worktree_modules_repo() -> Path | None:
+    """Mirror the generator's paired-worktree candidate (specfact-cli-worktrees layout)."""
+    parts = REPO_ROOT.parts
+    if "specfact-cli-worktrees" not in parts:
+        return None
+    marker_index = parts.index("specfact-cli-worktrees")
+    base = Path(*parts[:marker_index])
+    suffix = Path(*parts[marker_index + 1 :])
+    return base / "specfact-cli-modules-worktrees" / suffix
+
+
 def _modules_repo_available() -> bool:
     configured = os.environ.get("SPECFACT_MODULES_REPO", "").strip()
     candidates = [
         Path(configured).expanduser() if configured else None,
         REPO_ROOT.parent / "specfact-cli-modules",
+        _paired_worktree_modules_repo(),
     ]
     return any(candidate is not None and (candidate / "packages").is_dir() for candidate in candidates)
 
