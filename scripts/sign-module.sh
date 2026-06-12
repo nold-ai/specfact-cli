@@ -168,7 +168,11 @@ if changed or untracked:
 PY
 fi
 
-python3 scripts/sign-modules.py "${ARGS[@]}" "$MANIFEST"
+if [[ "${#ARGS[@]}" -gt 0 ]]; then
+  python3 scripts/sign-modules.py "${ARGS[@]}" "$MANIFEST"
+else
+  python3 scripts/sign-modules.py "$MANIFEST"
+fi
 
 # Emit checksum line for legacy pipeline compatibility.
 python3 - "$MANIFEST" <<'PY'

@@ -219,6 +219,34 @@ def test_check_version_sources_changed_vs_detects_ci_packaged_artifact_change_wi
     assert "missing staged version file" in completed.stderr
 
 
+def test_check_version_sources_changed_vs_allows_pyproject_tooling_edit_without_release_bundle(
+    tmp_path: Path,
+) -> None:
+    """CI mode must not require a release bundle for pyproject tooling-only edits."""
+    script = _copy_version_script(tmp_path)
+    _write_canonical_version_files(tmp_path, "1.2.3")
+    (tmp_path / "CHANGELOG.md").write_text("## [1.2.3] - 2026-04-16\n\n- Initial release entry.\n", encoding="utf-8")
+    _init_git_repo(tmp_path)
+    subprocess.run(["git", "add", "."], cwd=tmp_path, check=True, capture_output=True, text=True)
+    subprocess.run(["git", "commit", "-m", "initial"], cwd=tmp_path, check=True, capture_output=True, text=True)
+
+    pyproject = tmp_path / "pyproject.toml"
+    pyproject.write_text(pyproject.read_text(encoding="utf-8") + 'semgrep-sast = "semgrep scan"\n', encoding="utf-8")
+    subprocess.run(["git", "add", "pyproject.toml"], cwd=tmp_path, check=True, capture_output=True, text=True)
+    subprocess.run(
+        ["git", "commit", "-m", "tooling pyproject edit"], cwd=tmp_path, check=True, capture_output=True, text=True
+    )
+
+    completed = subprocess.run(
+        [sys.executable, str(script), "--changed-vs", "HEAD~1"],
+        cwd=str(tmp_path),
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert completed.returncode == 0, completed.stderr
+
+
 def test_check_version_sources_changed_vs_passes_with_version_bundle_and_changelog(
     tmp_path: Path,
 ) -> None:

@@ -678,6 +678,11 @@ def test_telemetry_settings_from_env_property() -> None:
     assert isinstance(settings.opt_in_source, str)
 
 
+def _crosshair_temp_log_path() -> Path:
+    """Return a unique local telemetry log path for property tests."""
+    return Path(tempfile.gettempdir()) / f"test_telemetry-{uuid4().hex}.log"
+
+
 @beartype
 @require(lambda enabled: isinstance(enabled, bool), "enabled must be a bool")
 def test_telemetry_manager_init_property(enabled: bool) -> None:
@@ -686,7 +691,7 @@ def test_telemetry_manager_init_property(enabled: bool) -> None:
         enabled=enabled,
         endpoint=None,
         headers={},
-        local_path=Path(tempfile.gettempdir()) / "test_telemetry.log",
+        local_path=_crosshair_temp_log_path(),
         debug=False,
         opt_in_source="disabled",
     )
@@ -753,9 +758,7 @@ def test_telemetry_manager_normalize_value_property(value: Any) -> None:
 @require(lambda event: isinstance(event, Mapping), "event must be a Mapping")
 def test_telemetry_manager_write_local_event_property(event: Mapping[str, Any]) -> None:
     """CrossHair property test for TelemetryManager._write_local_event."""
-    manager = TelemetryManager(
-        TelemetrySettings(enabled=False, local_path=Path(tempfile.gettempdir()) / "test_telemetry.log")
-    )
+    manager = TelemetryManager(TelemetrySettings(enabled=False, local_path=_crosshair_temp_log_path()))
     # This test verifies the function doesn't raise exceptions
     # Actual file writing is tested in integration tests
     with suppress(OSError):  # Expected in some test environments
@@ -766,9 +769,7 @@ def test_telemetry_manager_write_local_event_property(event: Mapping[str, Any]) 
 @require(lambda event: isinstance(event, MutableMapping), "event must be a MutableMapping")
 def test_telemetry_manager_emit_event_property(event: MutableMapping[str, Any]) -> None:
     """CrossHair property test for TelemetryManager._emit_event."""
-    manager = TelemetryManager(
-        TelemetrySettings(enabled=False, local_path=Path(tempfile.gettempdir()) / "test_telemetry.log")
-    )
+    manager = TelemetryManager(TelemetrySettings(enabled=False, local_path=_crosshair_temp_log_path()))
     manager._emit_event(event)
     assert manager._last_event is not None
     assert isinstance(manager._last_event, dict)
@@ -784,9 +785,7 @@ def test_telemetry_manager_track_command_property(command: str, initial_metadata
     """CrossHair property test for TelemetryManager.track_command."""
     if not command or len(command) == 0:
         return  # Skip invalid inputs
-    manager = TelemetryManager(
-        TelemetrySettings(enabled=True, local_path=Path(tempfile.gettempdir()) / "test_telemetry.log")
-    )
+    manager = TelemetryManager(TelemetrySettings(enabled=True, local_path=_crosshair_temp_log_path()))
     try:
         with manager.track_command(command, initial_metadata) as record:
             assert callable(record)

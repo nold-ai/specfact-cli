@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 from hypothesis import given, strategies as st
 
-from specfact_cli.models.module_package import ModulePackageMetadata
+from specfact_cli.models.module_package import ModulePackageMetadata, VersionedPipDependency
 from specfact_cli.registry import module_installer
 from specfact_cli.registry.dependency_resolver import _collect_constraints
 from specfact_cli.registry.module_installer import _dependency_version_satisfies, _extract_bundle_dependency_specs
@@ -38,6 +38,22 @@ def test_collect_constraints_dedupes_after_trimming(raw_names: list[str]) -> Non
     constraints = _collect_constraints([metadata])
 
     assert constraints == list(dict.fromkeys(name.strip() for name in pip_dependencies if name.strip()))
+
+
+@given(PACKAGE_NAMES, st.sampled_from([">=1.0.0", "<2.0.0", "==1.2.3"]))
+def test_collect_constraints_dedupes_versioned_after_trimming(name: str, specifier: str) -> None:
+    """Whitespace variants of versioned dependencies collapse to one canonical constraint."""
+    metadata = ModulePackageMetadata(
+        name="property-module",
+        version="0.1.0",
+        commands=["property"],
+        pip_dependencies_versioned=[
+            VersionedPipDependency(name=f" {name} ", version_specifier=f" {specifier} "),
+            VersionedPipDependency(name=name, version_specifier=specifier),
+        ],
+    )
+
+    assert _collect_constraints([metadata]) == [f"{name}{specifier}"]
 
 
 @given(PACKAGE_NAMES, SPECIFIERS)

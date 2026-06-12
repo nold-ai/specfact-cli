@@ -6,19 +6,35 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from collections.abc import Mapping
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
+
+from beartype import beartype
+from icontract import ensure
 
 
 FindingKey = tuple[str, str, int]
 
 
 def _finding_key(result: dict[str, Any]) -> FindingKey:
-    check_id = str(result.get("check_id", ""))
-    path = str(result.get("path", ""))
-    start_raw = result.get("start", {})
-    start_line = int(start_raw.get("line", 0)) if isinstance(start_raw, dict) else 0
+    check_id = result.get("check_id")
+    path = result.get("path")
+    start = result.get("start")
+    if not isinstance(check_id, str) or not check_id.strip():
+        raise ValueError("Semgrep result missing non-empty check_id")
+    if not isinstance(path, str) or not path.strip():
+        raise ValueError("Semgrep result missing non-empty path")
+    if not isinstance(start, dict):
+        raise ValueError("Semgrep result missing integer start.line")
+    start_line = cast(Mapping[str, object], start).get("line")
+    if not isinstance(start_line, int):
+        raise ValueError("Semgrep result missing integer start.line")
     return (check_id, path, start_line)
+
+
+def _emit_stdout(message: str) -> None:
+    sys.stdout.write(f"{message}\n")
 
 
 def _load_json(path: Path) -> dict[str, Any]:
@@ -56,9 +72,20 @@ def _load_results(path: Path) -> list[dict[str, Any]]:
     raw_results = payload.get("results")
     if not isinstance(raw_results, list):
         raise SystemExit(f"::error::{path} missing Semgrep results list")
-    return [result for result in raw_results if isinstance(result, dict)]
+    results: list[dict[str, Any]] = []
+    for index, result in enumerate(raw_results):
+        if not isinstance(result, dict):
+            raise SystemExit(f"::error::{path} results[{index}] must be an object")
+        try:
+            _finding_key(result)
+        except ValueError as exc:
+            raise SystemExit(f"::error::{path} results[{index}] is malformed: {exc}") from exc
+        results.append(result)
+    return results
 
 
+@beartype
+@ensure(lambda result: result in {0, 1}, "exit code must be 0 or 1")
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--results", type=Path, required=True, help="Semgrep JSON results file")
@@ -71,15 +98,15 @@ def main() -> int:
     new_findings = sorted(current - baseline)
     resolved_findings = sorted(baseline - current)
 
-    print(f"Semgrep SAST findings: {len(current)} current, {len(baseline)} accepted baseline")
+    _emit_stdout(f"Semgrep SAST findings: {len(current)} current, {len(baseline)} accepted baseline")
     if resolved_findings:
-        print(f"Semgrep SAST baseline can shrink by {len(resolved_findings)} finding(s)")
+        _emit_stdout(f"Semgrep SAST baseline can shrink by {len(resolved_findings)} finding(s)")
     if not new_findings:
-        print("Semgrep SAST gate passed: no new findings outside baseline")
+        _emit_stdout("Semgrep SAST gate passed: no new findings outside baseline")
         return 0
 
     for check_id, path, line in new_findings:
-        print(f"::error file={path},line={line}::New Semgrep SAST finding: {check_id}")
+        _emit_stdout(f"::error file={path},line={line}::New Semgrep SAST finding: {check_id}")
     return 1
 
 

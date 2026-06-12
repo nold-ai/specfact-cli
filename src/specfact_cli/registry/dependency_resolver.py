@@ -132,8 +132,9 @@ def _collect_constraints(modules: list[ModulePackageMetadata]) -> list[str]:
                 constraints.append(normalized)
                 seen.add(normalized)
         for vd in meta.pip_dependencies_versioned or []:
-            spec = vd.version_specifier or ""
-            s = f"{vd.name}{spec}" if spec else vd.name
+            name = vd.name.strip()
+            spec = (vd.version_specifier or "").strip()
+            s = f"{name}{spec}" if spec else name
             normalized = s.strip()
             if normalized and normalized not in seen:
                 constraints.append(normalized)

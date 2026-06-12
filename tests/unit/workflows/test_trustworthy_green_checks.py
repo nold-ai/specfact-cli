@@ -210,7 +210,22 @@ def test_pr_orchestrator_quality_gates_are_blocking() -> None:
     run_blocks = "\n".join(str(step.get("run", "")) for step in _load_job_steps("quality-gates"))
     assert "advisory" not in run_blocks.lower()
     assert "fail_under" in run_blocks or "COVERAGE_FAIL_UNDER" in run_blocks
+    assert "max(configured_fail_under, 80.0)" in run_blocks
     assert "exit 1" in run_blocks
+
+
+def test_pr_orchestrator_read_only_checkouts_do_not_persist_credentials() -> None:
+    """Read-only PR orchestration checkouts must not leave git credentials behind."""
+    for job_name, _job in _load_jobs().items():
+        for step in _load_job_steps(job_name):
+            uses = step.get("uses")
+            if not (isinstance(uses, str) and uses.startswith("actions/checkout@")):
+                continue
+            with_block = step.get("with")
+            assert isinstance(with_block, dict), f"{job_name} checkout must define inputs"
+            assert with_block.get("persist-credentials") is False, (
+                f"{job_name} checkout must set persist-credentials: false"
+            )
 
 
 def test_pr_orchestrator_has_independent_static_analysis_gate() -> None:
@@ -220,6 +235,10 @@ def test_pr_orchestrator_has_independent_static_analysis_gate() -> None:
     assert job is not None, "Expected independent-static-analysis job in pr-orchestrator"
     assert job.get("name") == "Independent Static Analysis"
     assert job.get("continue-on-error") is not True
+
+
+def test_pr_orchestrator_static_analysis_uses_external_tools_only() -> None:
+    """Independent SAST must not rely on dogfood review output."""
     raw = "\n".join(str(step.get("run", "")) for step in _load_job_steps("independent-static-analysis"))
     assert "semgrep-sast" in raw.lower()
     assert "semgrep-sast-gate" in raw.lower()
@@ -245,6 +264,10 @@ def test_pr_orchestrator_package_runtime_matrix_uses_built_wheel() -> None:
     assert isinstance(launchers, list)
     for expected in ("hatch-source", "pip-wheel", "pipx", "uv-run", "uvx"):
         assert expected in launchers
+
+
+def test_pr_orchestrator_package_runtime_matrix_commands_are_black_box() -> None:
+    """Package runtime commands must validate the wheel-backed CLI surface."""
     raw = "\n".join(str(step.get("run", "")) for step in _load_job_steps("package-runtime-matrix"))
     assert "hatch build" in raw
     assert "find dist -maxdepth 1 -name '*.whl'" in raw
@@ -252,6 +275,26 @@ def test_pr_orchestrator_package_runtime_matrix_uses_built_wheel() -> None:
     assert "specfact --help" in raw
     assert "specfact-cli --help" in raw
     assert "module list" in raw
+
+
+def test_pr_orchestrator_pins_third_party_actions_to_shas() -> None:
+    """Required PR workflow actions should use immutable refs, not mutable version tags."""
+    raw = PR_ORCHESTRATOR.read_text(encoding="utf-8")
+    action_refs = re.findall(r"uses:\s+([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+@[^\s#]+)", raw)
+    mutable_refs = [ref for ref in action_refs if re.search(r"@[0-9a-f]{40}$", ref) is None]
+    assert mutable_refs == []
+
+
+def test_pr_orchestrator_avoids_action_runtime_annotations() -> None:
+    """Workflow annotations should not hide behind known noisy Action runtime warnings."""
+    workflow = _load_yaml(PR_ORCHESTRATOR)
+    env = workflow.get("env")
+    assert isinstance(env, dict)
+    assert env.get("FORCE_JAVASCRIPT_ACTIONS_TO_NODE24") == "true"
+    setup_go = next(step for step in _load_job_steps("workflow-lint") if step.get("name") == "Set up Go for actionlint")
+    with_block = setup_go.get("with")
+    assert isinstance(with_block, dict)
+    assert with_block.get("cache") is False
 
 
 def test_pr_orchestrator_release_fast_path_keeps_release_safety_checks() -> None:
@@ -277,6 +320,14 @@ def test_pr_orchestrator_requires_strict_module_signatures_at_main_boundary() ->
     assert env.get("PR_BASE_REF") == "${{ github.event.pull_request.base.ref }}"
     assert env.get("BEFORE_SHA") == "${{ github.event.before }}"
     assert env.get("REF_NAME") == "${{ github.ref_name }}"
+
+
+def test_pr_orchestrator_signature_step_keeps_main_boundary_commands() -> None:
+    """Main-boundary signature verification must run the strict command path."""
+    step = _find_named_step(
+        "verify-module-signatures",
+        "Verify bundled module manifests (dev PR relaxed; main boundary strict)",
+    )
     run_clause = str(step.get("run") or "")
     assert "${{ github." not in run_clause
     assert '[ "${PR_BASE_REF}" = "main" ]' in run_clause
