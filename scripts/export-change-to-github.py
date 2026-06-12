@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Export OpenSpec change proposals to GitHub issues via specfact sync bridge.
+"""Export OpenSpec change proposals to GitHub issues via specfact project sync bridge.
 
 This wrapper standardizes the common OpenSpec->GitHub export command and adds a
 friendly `--inplace-update` option that maps to `--update-existing`.
@@ -30,7 +30,7 @@ def build_export_command(
     repo_name: str | None,
     inplace_update: bool,
 ) -> list[str]:
-    """Build `specfact sync bridge` command for GitHub export."""
+    """Build `specfact project sync bridge` command for GitHub export."""
     cleaned_ids = [item.strip() for item in change_ids if item.strip()]
     if not cleaned_ids:
         raise ViolationError("At least one non-empty change id is required")
@@ -77,7 +77,7 @@ def main(argv: list[str] | None = None) -> int:
     """CLI entrypoint."""
     parser = argparse.ArgumentParser(
         description=(
-            "Export OpenSpec change proposal(s) to GitHub via `specfact sync bridge` "
+            "Export OpenSpec change proposal(s) to GitHub via `specfact project sync bridge` "
             "with optional in-place issue update."
         )
     )
