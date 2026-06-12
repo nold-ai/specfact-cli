@@ -1453,7 +1453,7 @@ class SmartCoverageManager:
             for p in paths:
                 h = self._get_file_hash(p)
                 if h:
-                    rel = str(p.relative_to(self.project_root))
+                    rel = str(p.resolve().relative_to(self.project_root))
                     target[rel] = h
 
         if update_only:

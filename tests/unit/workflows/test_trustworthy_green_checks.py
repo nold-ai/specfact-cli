@@ -247,7 +247,7 @@ def test_pr_orchestrator_package_runtime_matrix_uses_built_wheel() -> None:
         assert expected in launchers
     raw = "\n".join(str(step.get("run", "")) for step in _load_job_steps("package-runtime-matrix"))
     assert "hatch build" in raw
-    assert "dist/*.whl" in raw
+    assert "find dist -maxdepth 1 -name '*.whl'" in raw
     assert "pip install -e" not in raw
     assert "specfact --help" in raw
     assert "specfact-cli --help" in raw
@@ -271,12 +271,18 @@ def test_pr_orchestrator_requires_strict_module_signatures_at_main_boundary() ->
         "verify-module-signatures",
         "Verify bundled module manifests (dev PR relaxed; main boundary strict)",
     )
+    env = step.get("env")
+    assert isinstance(env, dict)
+    assert env.get("EVENT_NAME") == "${{ github.event_name }}"
+    assert env.get("PR_BASE_REF") == "${{ github.event.pull_request.base.ref }}"
+    assert env.get("BEFORE_SHA") == "${{ github.event.before }}"
+    assert env.get("REF_NAME") == "${{ github.ref_name }}"
     run_clause = str(step.get("run") or "")
-    assert "${{ github.event.pull_request.base.ref }}" in run_clause
-    assert '[ "${{ github.event.pull_request.base.ref }}" = "main" ]' in run_clause
+    assert "${{ github." not in run_clause
+    assert '[ "${PR_BASE_REF}" = "main" ]' in run_clause
     assert 'python scripts/verify-modules-signature.py "${VERIFY_MODULES_STRICT[@]}"' in run_clause
     assert 'python scripts/verify-modules-signature.py "${VERIFY_MODULES_PR[@]}"' in run_clause
-    assert '[ "${{ github.ref_name }}" = "main" ]' in run_clause
+    assert '[ "${REF_NAME}" = "main" ]' in run_clause
     assert 'python scripts/verify-modules-signature.py "${VERIFY_MODULES_PUSH_ORCHESTRATOR[@]}"' in run_clause
 
 
@@ -371,7 +377,9 @@ def test_module_signing_remediation_commits_rerun_ci() -> None:
     sign_modules_raw = SIGN_MODULES.read_text(encoding="utf-8")
     approval_raw = (REPO_ROOT / ".github" / "workflows" / "sign-modules-on-approval.yml").read_text(encoding="utf-8")
     for raw in (sign_modules_raw, approval_raw):
-        signing_commit_lines = [line for line in raw.splitlines() if "git commit -m" in line and "chore(modules):" in line]
+        signing_commit_lines = [
+            line for line in raw.splitlines() if "git commit -m" in line and "chore(modules):" in line
+        ]
         assert signing_commit_lines, "Expected module-signing remediation commit lines"
         assert all("[skip ci]" not in line for line in signing_commit_lines)
 

@@ -140,23 +140,28 @@ jobs:
           python -m pip install pyyaml beartype icontract cryptography cffi
 
       - name: Verify bundled module manifests (dev PR relaxed; main boundary strict)
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
+          BEFORE_SHA: ${{ github.event.before }}
+          REF_NAME: ${{ github.ref_name }}
         run: |
           set -euo pipefail
           # shellcheck disable=SC1091
           source scripts/module-verify-policy.sh
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            BASE_REF="origin/${{ github.event.pull_request.base.ref }}"
-            if [ "${{ github.event.pull_request.base.ref }}" = "main" ]; then
+          if [ "${EVENT_NAME}" = "pull_request" ]; then
+            BASE_REF="origin/${PR_BASE_REF}"
+            if [ "${PR_BASE_REF}" = "main" ]; then
               python scripts/verify-modules-signature.py "${VERIFY_MODULES_STRICT[@]}" --version-check-base "$BASE_REF"
             else
               python scripts/verify-modules-signature.py "${VERIFY_MODULES_PR[@]}" --version-check-base "$BASE_REF"
             fi
           else
-            BEFORE="${{ github.event.before }}"
+            BEFORE="${BEFORE_SHA}"
             if [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
               BEFORE="HEAD~1"
             fi
-            if [ "${{ github.ref_name }}" = "main" ]; then
+            if [ "${REF_NAME}" = "main" ]; then
               python scripts/verify-modules-signature.py "${VERIFY_MODULES_STRICT[@]}" --version-check-base "$BEFORE"
             else
               python scripts/verify-modules-signature.py "${VERIFY_MODULES_PUSH_ORCHESTRATOR[@]}" --version-check-base "$BEFORE"
@@ -681,6 +686,7 @@ jobs:
       - name: Install static-analysis dependencies
         run: |
           python -m pip install --upgrade pip
+          pip install "hatch" "virtualenv<21"
           pip install -e ".[dev]"
 
       - name: Run independent Semgrep and Bandit gates
@@ -735,14 +741,18 @@ jobs:
       - name: Build package wheel
         run: |
           hatch build
-          ls -lh dist/*.whl
+          find dist -maxdepth 1 -name '*.whl' -print -exec ls -lh {} \;
 
       - name: Validate runtime launcher
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p "logs/package-runtime/${{ matrix.launcher }}"
-          WHEEL="$(ls dist/*.whl | head -1)"
+          WHEEL="$(find dist -maxdepth 1 -name '*.whl' -print -quit)"
+          if [ -z "$WHEEL" ]; then
+            echo "::error::No wheel found in dist/"
+            exit 1
+          fi
           VENV="$RUNNER_TEMP/specfact-runtime-${{ matrix.launcher }}"
 
           run_specfact() {
