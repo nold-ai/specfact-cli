@@ -1849,8 +1849,7 @@ class SmartCoverageManager:
         success, test_count, coverage_percentage = self._run_coverage_tests()
         # Only refresh hashes if the full suite succeeded; otherwise keep prior baseline.
         if success:
-            # Do not fail on low line coverage locally; contract-first layers are primary gates.
-            self._update_cache(_SmartCacheUpdate(True, test_count, coverage_percentage, enforce_threshold=False))
+            self._update_cache(_SmartCacheUpdate(True, test_count, coverage_percentage, enforce_threshold=True))
         return success
 
     @staticmethod

@@ -825,7 +825,7 @@ def _extract_marketplace_archive(archive_path: Path, extract_root: Path) -> None
         try:
             archive.extractall(path=extract_root, members=members, filter="data")
         except TypeError:
-            archive.extractall(path=extract_root, members=members)
+            archive.extractall(path=extract_root, members=members)  # nosec B202 - members were validated above.
 
 
 def _load_first_extracted_module_manifest(extract_root: Path) -> tuple[Path, dict[str, Any]]:

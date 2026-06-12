@@ -151,6 +151,9 @@ def test_pr_orchestrator_required_jobs_fail_closed() -> None:
         "compat-py311",
         "contract-first-ci",
         "cli-validation",
+        "quality-gates",
+        "independent-static-analysis",
+        "package-runtime-matrix",
         "type-checking",
         "linting",
         "workflow-lint",
@@ -175,33 +178,130 @@ def test_pr_orchestrator_required_jobs_fail_closed() -> None:
 def test_pr_orchestrator_release_skip_requires_parity_proof() -> None:
     """Release fast-path skips must be gated by parity proof, not only branch names."""
     raw = PR_ORCHESTRATOR.read_text(encoding="utf-8")
-    assert 'echo "skip_tests_dev_to_main=true" >> "$GITHUB_OUTPUT"' not in raw
+    assert 'echo "skip_expensive_tests_dev_to_main=true" >> "$GITHUB_OUTPUT"' not in raw
     assert "git merge-base" in raw or "git rev-parse" in raw, "Expected commit-parity proof in release skip logic"
     jobs = _load_jobs()
     changes = jobs.get("changes")
     assert changes is not None, "Expected changes job in pr-orchestrator"
     outputs = changes.get("outputs")
     assert isinstance(outputs, dict), "Expected outputs mapping for changes job"
-    assert "skip_tests_dev_to_main" in outputs, "Release skip decision should remain explicit"
+    assert "skip_expensive_tests_dev_to_main" in outputs, "Release skip decision should remain explicit"
     normalized_conditions = [
         _normalized_condition(step.get("if")) for step in _load_job_steps("tests") if isinstance(step.get("if"), str)
     ]
     assert any(
-        "needs.changes.outputs.skip_tests_dev_to_main" in cond and "== 'true'" in cond for cond in normalized_conditions
-    ), "Expected a condition checking skip_tests_dev_to_main == 'true'"
+        "needs.changes.outputs.skip_expensive_tests_dev_to_main" in cond and "== 'true'" in cond
+        for cond in normalized_conditions
+    ), "Expected a condition checking skip_expensive_tests_dev_to_main == 'true'"
     assert any(
-        "needs.changes.outputs.skip_tests_dev_to_main" in cond and "!= 'true'" in cond for cond in normalized_conditions
-    ), "Expected a condition checking skip_tests_dev_to_main != 'true'"
+        "needs.changes.outputs.skip_expensive_tests_dev_to_main" in cond and "!= 'true'" in cond
+        for cond in normalized_conditions
+    ), "Expected a condition checking skip_expensive_tests_dev_to_main != 'true'"
 
 
-def test_pr_orchestrator_advisory_jobs_are_named_as_advisory() -> None:
-    """Advisory jobs should advertise their non-blocking status in the emitted check name."""
+def test_pr_orchestrator_quality_gates_are_blocking() -> None:
+    """Coverage quality gates must block below the configured threshold."""
     jobs = _load_jobs()
     quality_gate = jobs.get("quality-gates")
     assert quality_gate is not None, "Expected quality-gates job in pr-orchestrator"
     name = quality_gate.get("name")
     assert isinstance(name, str)
-    assert "Advisory" in name
+    assert name == "Quality Gates"
+    run_blocks = "\n".join(str(step.get("run", "")) for step in _load_job_steps("quality-gates"))
+    assert "advisory" not in run_blocks.lower()
+    assert "fail_under" in run_blocks or "COVERAGE_FAIL_UNDER" in run_blocks
+    assert "exit 1" in run_blocks
+
+
+def test_pr_orchestrator_has_independent_static_analysis_gate() -> None:
+    """Semgrep/Bandit must run as a blocking job independent from dogfood self-review."""
+    jobs = _load_jobs()
+    job = jobs.get("independent-static-analysis")
+    assert job is not None, "Expected independent-static-analysis job in pr-orchestrator"
+    assert job.get("name") == "Independent Static Analysis"
+    assert job.get("continue-on-error") is not True
+    raw = "\n".join(str(step.get("run", "")) for step in _load_job_steps("independent-static-analysis"))
+    assert "semgrep-sast" in raw.lower()
+    assert "semgrep-sast-gate" in raw.lower()
+    assert "tools/semgrep/sast-baseline.json" in raw
+    assert "--config auto" not in raw.lower()
+    assert "bandit" in raw.lower()
+    assert "semgrep-full" not in raw.lower()
+    assert "specfact code review" not in raw
+    assert ".specfact/code-review.json" not in raw
+
+
+def test_pr_orchestrator_package_runtime_matrix_uses_built_wheel() -> None:
+    """PR runtime validation must exercise the built artifact, not editable installs."""
+    jobs = _load_jobs()
+    job = jobs.get("package-runtime-matrix")
+    assert job is not None, "Expected package-runtime-matrix job in pr-orchestrator"
+    assert job.get("name") == "Package Runtime Matrix"
+    strategy = job.get("strategy")
+    assert isinstance(strategy, dict), "package-runtime-matrix must define a launcher strategy"
+    matrix = strategy.get("matrix")
+    assert isinstance(matrix, dict), "package-runtime-matrix strategy must include matrix"
+    launchers = matrix.get("launcher")
+    assert isinstance(launchers, list)
+    for expected in ("hatch-source", "pip-wheel", "pipx", "uv-run", "uvx"):
+        assert expected in launchers
+    raw = "\n".join(str(step.get("run", "")) for step in _load_job_steps("package-runtime-matrix"))
+    assert "hatch build" in raw
+    assert "dist/*.whl" in raw
+    assert "pip install -e" not in raw
+    assert "specfact --help" in raw
+    assert "specfact-cli --help" in raw
+    assert "module list" in raw
+
+
+def test_pr_orchestrator_release_fast_path_keeps_release_safety_checks() -> None:
+    """dev -> main parity skips duplicate expensive checks, not release-safety gates."""
+    raw = PR_ORCHESTRATOR.read_text(encoding="utf-8")
+    assert "skip_expensive_tests_dev_to_main" in raw
+    assert "skip_tests_dev_to_main" not in raw
+    package_runtime_condition = str(_load_jobs()["package-runtime-matrix"].get("if", ""))
+    assert "skip_expensive_tests_dev_to_main" not in package_runtime_condition
+    signature_condition = str(_load_jobs()["verify-module-signatures"].get("if", ""))
+    assert "skip_expensive_tests_dev_to_main" not in signature_condition
+
+
+def test_pr_orchestrator_requires_strict_module_signatures_at_main_boundary() -> None:
+    """Direct-to-main PRs and main pushes must not inherit the relaxed dev PR policy."""
+    step = _find_named_step(
+        "verify-module-signatures",
+        "Verify bundled module manifests (dev PR relaxed; main boundary strict)",
+    )
+    run_clause = str(step.get("run") or "")
+    assert "${{ github.event.pull_request.base.ref }}" in run_clause
+    assert '[ "${{ github.event.pull_request.base.ref }}" = "main" ]' in run_clause
+    assert 'python scripts/verify-modules-signature.py "${VERIFY_MODULES_STRICT[@]}"' in run_clause
+    assert 'python scripts/verify-modules-signature.py "${VERIFY_MODULES_PR[@]}"' in run_clause
+    assert '[ "${{ github.ref_name }}" = "main" ]' in run_clause
+    assert 'python scripts/verify-modules-signature.py "${VERIFY_MODULES_PUSH_ORCHESTRATOR[@]}"' in run_clause
+
+
+def test_pr_orchestrator_has_staged_cross_platform_smoke() -> None:
+    """macOS smoke blocks runtime PRs while Windows starts as scheduled/manual evidence."""
+    jobs = _load_jobs()
+    macos = jobs.get("runtime-smoke-macos")
+    windows = jobs.get("runtime-smoke-windows")
+    assert macos is not None, "Expected runtime-smoke-macos job"
+    assert windows is not None, "Expected runtime-smoke-windows job"
+    assert macos.get("runs-on") == "macos-latest"
+    assert windows.get("runs-on") == "windows-latest"
+    assert "workflow_dispatch" in str(windows.get("if", "")) or "schedule" in str(windows.get("if", ""))
+
+
+def test_pr_orchestrator_has_advisory_mutation_baseline() -> None:
+    """Mutation testing starts as scheduled/manual evidence, not a PR blocker."""
+    jobs = _load_jobs()
+    mutation = jobs.get("mutation-baseline")
+    assert mutation is not None, "Expected mutation-baseline job"
+    assert mutation.get("name") == "Mutation Baseline (Advisory)"
+    assert "pull_request" not in str(mutation.get("if", ""))
+    raw = "\n".join(str(step.get("run", "")) for step in _load_job_steps("mutation-baseline"))
+    assert "mutation" in raw.lower()
+    assert "dependency_resolver" in raw
 
 
 def test_pr_orchestrator_contract_first_job_uses_hatch_contract_test() -> None:
@@ -225,10 +325,10 @@ def test_pr_orchestrator_has_single_full_suite_owner() -> None:
 def test_core_ci_checks_out_matching_modules_branch_when_available() -> None:
     """Core PR CI must validate against the paired modules branch before falling back to dev."""
     raw = PR_ORCHESTRATOR.read_text(encoding="utf-8")
-    assert raw.count("id: modules-ref") == 4
-    assert raw.count("git ls-remote --exit-code --heads https://github.com/nold-ai/specfact-cli-modules.git") == 4
-    assert raw.count('echo "ref=dev" >> "$GITHUB_OUTPUT"') == 4
-    assert raw.count("ref: ${{ steps.modules-ref.outputs.ref }}") == 4
+    assert raw.count("id: modules-ref") >= 4
+    assert raw.count("git ls-remote --exit-code --heads https://github.com/nold-ai/specfact-cli-modules.git") >= 4
+    assert raw.count('echo "ref=dev" >> "$GITHUB_OUTPUT"') >= 4
+    assert raw.count("ref: ${{ steps.modules-ref.outputs.ref }}") >= 4
     assert "ref: ${{ (github.ref == 'refs/heads/main' || github.head_ref == 'main') && 'main' || 'dev' }}" not in raw
 
 
@@ -264,6 +364,16 @@ def test_module_signature_check_name_is_canonical_across_workflows() -> None:
     assert isinstance(sign_job, dict), "Expected verify job in sign-modules workflow"
     dedicated_name = sign_job.get("name")
     assert orchestrator_name == dedicated_name == "Verify Module Signatures"
+
+
+def test_module_signing_remediation_commits_rerun_ci() -> None:
+    """GitHub remediation commits must not suppress the checks that prove signatures are fixed."""
+    sign_modules_raw = SIGN_MODULES.read_text(encoding="utf-8")
+    approval_raw = (REPO_ROOT / ".github" / "workflows" / "sign-modules-on-approval.yml").read_text(encoding="utf-8")
+    for raw in (sign_modules_raw, approval_raw):
+        signing_commit_lines = [line for line in raw.splitlines() if "git commit -m" in line and "chore(modules):" in line]
+        assert signing_commit_lines, "Expected module-signing remediation commit lines"
+        assert all("[skip ci]" not in line for line in signing_commit_lines)
 
 
 def test_publish_modules_entry_summary_avoids_escaped_fstring_expression() -> None:

@@ -8,6 +8,8 @@ on:
   push:
     branches: [main, dev]
   workflow_dispatch:
+  schedule:
+    - cron: "17 3 * * 1"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -29,7 +31,7 @@ jobs:
       pyproject_changed: ${{ steps.out.outputs.pyproject_changed }}
       license_inputs_changed: ${{ steps.out.outputs.license_inputs_changed }}
       version_sources_changed: ${{ steps.out.outputs.version_sources_changed }}
-      skip_tests_dev_to_main: ${{ steps.out.outputs.skip_tests_dev_to_main }}
+      skip_expensive_tests_dev_to_main: ${{ steps.out.outputs.skip_expensive_tests_dev_to_main }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -74,7 +76,7 @@ jobs:
           PR_HEAD_REF="${PR_HEAD_REF:-}"
           PR_BASE_SHA="${PR_BASE_SHA:-}"
           PR_HEAD_SHA="${PR_HEAD_SHA:-}"
-          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+          if [ "$EVENT_NAME" = "workflow_dispatch" ] || [ "$EVENT_NAME" = "schedule" ]; then
             {
               echo "code_changed=true"
               echo "workflow_changed=true"
@@ -91,7 +93,7 @@ jobs:
               echo "version_sources_changed=${{ steps.filter.outputs.version_sources }}"
             } >> "$GITHUB_OUTPUT"
           fi
-          SKIP_TESTS=false
+          SKIP_EXPENSIVE_TESTS=false
           if [ "$EVENT_NAME" = "pull_request" ] && [ "$PR_BASE_REF" = "main" ] && [ "$PR_HEAD_REF" = "dev" ]; then
             PR_BASE_REV=""
             PR_HEAD_REV=""
@@ -106,18 +108,18 @@ jobs:
               MERGE_BASE=$(git merge-base "$PR_BASE_REV" "$PR_HEAD_REV" 2>/dev/null || true)
             fi
             if [ -n "$PR_BASE_REV" ] && [ -n "$PR_HEAD_REV" ] && [ "$PR_BASE_REV" = "$PR_HEAD_REV" ] && [ "$MERGE_BASE" = "$PR_HEAD_REV" ]; then
-              SKIP_TESTS=true
+              SKIP_EXPENSIVE_TESTS=true
               echo "✅ Proven release parity between dev and main; skipping duplicate validation."
             else
               echo "ℹ️ Release parity proof unavailable for dev→main PR; running required validation set."
             fi
           fi
-          echo "skip_tests_dev_to_main=${SKIP_TESTS}" >> "$GITHUB_OUTPUT"
+          echo "skip_expensive_tests_dev_to_main=${SKIP_EXPENSIVE_TESTS}" >> "$GITHUB_OUTPUT"
 
   verify-module-signatures:
     name: Verify Module Signatures
     needs: [changes]
-    if: needs.changes.outputs.code_changed == 'true'
+    if: needs.changes.outputs.code_changed == 'true' || needs.changes.outputs.workflow_changed == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -137,20 +139,28 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install pyyaml beartype icontract cryptography cffi
 
-      - name: Verify bundled module manifests (PR = relaxed checksum; push = payload checksum + version)
+      - name: Verify bundled module manifests (dev PR relaxed; main boundary strict)
         run: |
           set -euo pipefail
           # shellcheck disable=SC1091
           source scripts/module-verify-policy.sh
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             BASE_REF="origin/${{ github.event.pull_request.base.ref }}"
-            python scripts/verify-modules-signature.py "${VERIFY_MODULES_PR[@]}" --version-check-base "$BASE_REF"
+            if [ "${{ github.event.pull_request.base.ref }}" = "main" ]; then
+              python scripts/verify-modules-signature.py "${VERIFY_MODULES_STRICT[@]}" --version-check-base "$BASE_REF"
+            else
+              python scripts/verify-modules-signature.py "${VERIFY_MODULES_PR[@]}" --version-check-base "$BASE_REF"
+            fi
           else
             BEFORE="${{ github.event.before }}"
             if [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
               BEFORE="HEAD~1"
             fi
-            python scripts/verify-modules-signature.py "${VERIFY_MODULES_PUSH_ORCHESTRATOR[@]}" --version-check-base "$BEFORE"
+            if [ "${{ github.ref_name }}" = "main" ]; then
+              python scripts/verify-modules-signature.py "${VERIFY_MODULES_STRICT[@]}" --version-check-base "$BEFORE"
+            else
+              python scripts/verify-modules-signature.py "${VERIFY_MODULES_PUSH_ORCHESTRATOR[@]}" --version-check-base "$BEFORE"
+            fi
           fi
 
   workflow-lint:
@@ -208,18 +218,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Skip full run (dev→main PR)
-        if: needs.changes.outputs.skip_tests_dev_to_main == 'true'
+        if: needs.changes.outputs.skip_expensive_tests_dev_to_main == 'true'
         run: |
           echo "✅ Dev→main PR: tests already passed on dev; skipping full test run."
 
       - uses: actions/checkout@v4
-        if: needs.changes.outputs.skip_tests_dev_to_main != 'true'
+        if: needs.changes.outputs.skip_expensive_tests_dev_to_main != 'true'
         with:
           fetch-depth: 0
 
       - name: Resolve module bundles ref
         id: modules-ref
-        if: needs.changes.outputs.skip_tests_dev_to_main != 'true'
+        if: needs.changes.outputs.skip_expensive_tests_dev_to_main != 'true'
         shell: bash
         env:
           CANDIDATE_REF: ${{ github.head_ref || github.ref_name }}
@@ -232,7 +242,7 @@ jobs:
           fi
 
       - name: Checkout module bundles repo
-        if: needs.changes.outputs.skip_tests_dev_to_main != 'true'
+        if: needs.changes.outputs.skip_expensive_tests_dev_to_main != 'true'
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
           repository: nold-ai/specfact-cli-modules
@@ -241,11 +251,11 @@ jobs:
           persist-credentials: false
 
       - name: Export module bundles path
-        if: needs.changes.outputs.skip_tests_dev_to_main != 'true'
+        if: needs.changes.outputs.skip_expensive_tests_dev_to_main != 'true'
         run: echo "SPECFACT_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" >> "$GITHUB_ENV"
 
       - name: Set up Python 3.12
-        if: needs.changes.outputs.skip_tests_dev_to_main != 'true'
+        if: needs.changes.outputs.skip_expensive_tests_dev_to_main != 'true'
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -254,14 +264,14 @@ jobs:
             pyproject.toml
 
       - name: Install hatch and fallback test dependencies
-        if: needs.changes.outputs.skip_tests_dev_to_main != 'true'
+        if: needs.changes.outputs.skip_expensive_tests_dev_to_main != 'true'
         run: |
           python -m pip install --upgrade pip
           pip install "hatch" "virtualenv<21" pipx uv coverage "coverage[toml]" pytest pytest-cov pytest-mock pytest-asyncio pytest-xdist pytest-timeout
           pip install -e ".[dev]"
 
       - name: Verify version strings are synchronized
-        if: needs.changes.outputs.skip_tests_dev_to_main != 'true'
+        if: needs.changes.outputs.skip_expensive_tests_dev_to_main != 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -282,7 +292,7 @@ jobs:
 
       - name: Verify local version is ahead of PyPI
         if: >-
-          needs.changes.outputs.skip_tests_dev_to_main != 'true' &&
+          needs.changes.outputs.skip_expensive_tests_dev_to_main != 'true' &&
           needs.changes.outputs.version_sources_changed == 'true'
         env:
           SPECFACT_PYPI_VERSION_CHECK_LENIENT_NETWORK: "1"
@@ -305,7 +315,7 @@ jobs:
           fi
 
       - name: Cache hatch environments
-        if: needs.changes.outputs.skip_tests_dev_to_main != 'true'
+        if: needs.changes.outputs.skip_expensive_tests_dev_to_main != 'true'
         uses: actions/cache@v4
         with:
           path: |
@@ -316,13 +326,13 @@ jobs:
             ${{ runner.os }}-hatch-
 
       - name: Create test output directories
-        if: needs.changes.outputs.skip_tests_dev_to_main != 'true'
+        if: needs.changes.outputs.skip_expensive_tests_dev_to_main != 'true'
         shell: bash
         run: |
           mkdir -p logs/tests/junit logs/tests/coverage logs/tests/workflows
 
       - name: Runtime discovery smoke test
-        if: needs.changes.outputs.skip_tests_dev_to_main != 'true'
+        if: needs.changes.outputs.skip_expensive_tests_dev_to_main != 'true'
         shell: bash
         run: |
           python scripts/runtime_discovery_smoke.py --launcher direct --launcher hatch-source --launcher pip-editable --launcher pipx --launcher uv-run --launcher uvx
@@ -331,7 +341,7 @@ jobs:
         id: detect-unit
         shell: bash
         run: |
-          if [ "${{ needs.changes.outputs.skip_tests_dev_to_main }}" = "true" ]; then
+          if [ "${{ needs.changes.outputs.skip_expensive_tests_dev_to_main }}" = "true" ]; then
             echo "run_unit_coverage=false" >> "$GITHUB_OUTPUT"
           else
             COUNT=$(find tests/unit -name "test_*.py" 2>/dev/null | wc -l)
@@ -347,7 +357,7 @@ jobs:
           fi
 
       - name: Run full test suite (direct smart-test-full)
-        if: needs.changes.outputs.skip_tests_dev_to_main != 'true'
+        if: needs.changes.outputs.skip_expensive_tests_dev_to_main != 'true'
         shell: bash
         env:
           CONTRACT_FIRST_TESTING: "true"
@@ -359,12 +369,12 @@ jobs:
           python tools/smart_test_coverage.py run --level full
 
       - name: Generate coverage XML for quality gates
-        if: needs.changes.outputs.skip_tests_dev_to_main != 'true' && env.RUN_UNIT_COVERAGE == 'true'
+        if: needs.changes.outputs.skip_expensive_tests_dev_to_main != 'true' && env.RUN_UNIT_COVERAGE == 'true'
         run: |
           python -m coverage xml -o logs/tests/coverage/coverage.xml --data-file=logs/tests/coverage/.coverage
 
       - name: Upload test logs
-        if: needs.changes.outputs.skip_tests_dev_to_main != 'true'
+        if: needs.changes.outputs.skip_expensive_tests_dev_to_main != 'true'
         uses: actions/upload-artifact@v4
         with:
           name: test-logs
@@ -372,7 +382,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Upload coverage artifacts
-        if: needs.changes.outputs.skip_tests_dev_to_main != 'true' && env.RUN_UNIT_COVERAGE == 'true'
+        if: needs.changes.outputs.skip_expensive_tests_dev_to_main != 'true' && env.RUN_UNIT_COVERAGE == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: coverage-reports
@@ -383,7 +393,7 @@ jobs:
     name: Compatibility (Python 3.11)
     runs-on: ubuntu-latest
     needs: [changes, verify-module-signatures]
-    if: needs.changes.outputs.code_changed == 'true' && needs.changes.outputs.skip_tests_dev_to_main != 'true'
+    if: needs.changes.outputs.code_changed == 'true' && needs.changes.outputs.skip_expensive_tests_dev_to_main != 'true'
     permissions:
       contents: read
     steps:
@@ -452,7 +462,7 @@ jobs:
     name: Contract-First CI
     runs-on: ubuntu-latest
     needs: [changes, verify-module-signatures]
-    if: needs.changes.outputs.code_changed == 'true' && needs.changes.outputs.skip_tests_dev_to_main != 'true'
+    if: needs.changes.outputs.code_changed == 'true' && needs.changes.outputs.skip_expensive_tests_dev_to_main != 'true'
     permissions:
       contents: read
     steps:
@@ -531,7 +541,7 @@ jobs:
     name: CLI Command Validation
     runs-on: ubuntu-latest
     needs: [changes, verify-module-signatures]
-    if: needs.changes.outputs.code_changed == 'true' && needs.changes.outputs.skip_tests_dev_to_main != 'true'
+    if: needs.changes.outputs.code_changed == 'true' && needs.changes.outputs.skip_expensive_tests_dev_to_main != 'true'
     permissions:
       contents: read
     steps:
@@ -565,26 +575,32 @@ jobs:
           cache: "pip"
           cache-dependency-path: |
             pyproject.toml
-      - name: Install CLI
+      - name: Build and install CLI wheel
         run: |
-          echo "Installing SpecFact CLI..."
+          echo "Building and installing SpecFact CLI wheel..."
           python -m pip install --upgrade pip
           python -m pip install "hatch" "virtualenv<21"
-          pip install -e .
+          hatch build
+          python -m venv "$RUNNER_TEMP/specfact-cli-validation"
+          # shellcheck disable=SC1091
+          source "$RUNNER_TEMP/specfact-cli-validation/bin/activate"
+          pip install dist/*.whl
+          specfact --help
+          specfact-cli --help
+          deactivate
       - name: Validate CLI commands
         run: |
           echo "🔍 Validating CLI commands..."
-          specfact --help
           hatch run check-command-overview
           hatch run check-command-contract
           hatch run check-docs-commands
           echo "✅ CLI validation complete"
 
   quality-gates:
-    name: Quality Gates (Advisory)
+    name: Quality Gates
     runs-on: ubuntu-latest
     needs: [changes, tests]
-    if: needs.changes.outputs.skip_tests_dev_to_main != 'true' && needs.tests.outputs.run_unit_coverage == 'true'
+    if: needs.changes.outputs.skip_expensive_tests_dev_to_main != 'true' && needs.tests.outputs.run_unit_coverage == 'true'
     permissions:
       contents: read
     steps:
@@ -605,23 +621,35 @@ jobs:
         run: |
           test -f logs/tests/coverage/coverage.xml || (echo "❌ Missing coverage.xml" && exit 1)
           echo "✅ Found coverage.xml"
-      - name: Run quality gates (advisory)
+      - name: Run quality gates
         run: |
           mkdir -p logs/quality-gates
           QG_LOG="logs/quality-gates/quality-gates_$(date -u +%Y%m%d_%H%M%S).log"
           {
-            echo "🔍 Checking coverage (advisory only)..."
-            COVERAGE_PERCENT_XML=$(grep -o "line-rate=\"[0-9.]*\"" logs/tests/coverage/coverage.xml | head -1 | sed 's/line-rate=\"//' | sed 's/\"//')
-            if [ -n "$COVERAGE_PERCENT_XML" ] && [ "$COVERAGE_PERCENT_XML" != "0" ]; then
-              COVERAGE_PERCENT_INT=$(echo "$COVERAGE_PERCENT_XML * 100" | bc -l | cut -d. -f1)
+            echo "🔍 Checking coverage threshold..."
+            COVERAGE_FAIL_UNDER=$(python - <<'PY'
+          import tomllib
+          from pathlib import Path
+
+          config = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
+          print(int(config["tool"]["coverage"]["report"]["fail_under"]))
+          PY
+          )
+            COVERAGE_PERCENT_INT=$(python - <<'PY'
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+
+          root = ET.parse(Path("logs/tests/coverage/coverage.xml")).getroot()
+          print(int(float(root.attrib.get("line-rate", "0")) * 100))
+          PY
+          )
+            echo "📊 Line coverage: ${COVERAGE_PERCENT_INT}%"
+            echo "📊 Required coverage: ${COVERAGE_FAIL_UNDER}%"
+            if [ "$COVERAGE_PERCENT_INT" -lt "$COVERAGE_FAIL_UNDER" ]; then
+              echo "::error::Coverage ${COVERAGE_PERCENT_INT}% is below fail_under=${COVERAGE_FAIL_UNDER}%."
+              exit 1
             else
-              COVERAGE_PERCENT_INT=0
-            fi
-            echo "📊 Line coverage (advisory): ${COVERAGE_PERCENT_INT}%"
-            if [ "$COVERAGE_PERCENT_INT" -lt 30 ]; then
-              echo "⚠️  Advisory: coverage below 30% — permitted under contract-first; prioritize contract/scenario gaps."
-            else
-              echo "✅ Advisory: coverage acceptable"
+              echo "✅ Coverage threshold satisfied"
             fi
           } 2>&1 | tee "$QG_LOG"
       - name: Upload quality-gates logs
@@ -632,11 +660,329 @@ jobs:
           path: logs/quality-gates/
           if-no-files-found: ignore
 
+  independent-static-analysis:
+    name: Independent Static Analysis
+    runs-on: ubuntu-latest
+    needs: [changes, verify-module-signatures]
+    if: needs.changes.outputs.code_changed == 'true' || needs.changes.outputs.workflow_changed == 'true'
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: |
+            pyproject.toml
+
+      - name: Install static-analysis dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Run independent Semgrep and Bandit gates
+        env:
+          SEMGREP_ENABLE_VERSION_CHECK: "0"
+          SEMGREP_SEND_METRICS: "off"
+        run: |
+          mkdir -p logs/static-analysis
+          hatch run semgrep-sast --json --output logs/static-analysis/semgrep.json
+          hatch run semgrep-sast-gate \
+            --results logs/static-analysis/semgrep.json \
+            --baseline tools/semgrep/sast-baseline.json
+          hatch run bandit-scan -f json -o logs/static-analysis/bandit.json
+
+      - name: Upload independent static-analysis artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: independent-static-analysis
+          path: logs/static-analysis/
+          if-no-files-found: ignore
+
+  package-runtime-matrix:
+    name: Package Runtime Matrix
+    runs-on: ubuntu-latest
+    needs: [changes, verify-module-signatures]
+    if: needs.changes.outputs.code_changed == 'true' || needs.changes.outputs.workflow_changed == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        launcher: [hatch-source, pip-wheel, pipx, uv-run, uvx]
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: |
+            pyproject.toml
+
+      - name: Install runtime validation tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install "hatch" "virtualenv<21" pipx uv
+
+      - name: Build package wheel
+        run: |
+          hatch build
+          ls -lh dist/*.whl
+
+      - name: Validate runtime launcher
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "logs/package-runtime/${{ matrix.launcher }}"
+          WHEEL="$(ls dist/*.whl | head -1)"
+          VENV="$RUNNER_TEMP/specfact-runtime-${{ matrix.launcher }}"
+
+          run_specfact() {
+            case "${{ matrix.launcher }}" in
+              hatch-source)
+                hatch run specfact "$@"
+                ;;
+              pip-wheel)
+                specfact "$@"
+                ;;
+              pipx)
+                pipx run --python "$pythonLocation/bin/python" --spec "$WHEEL" specfact "$@"
+                ;;
+              uv-run)
+                uv run --no-project --python "$pythonLocation/bin/python" --with "$WHEEL" specfact "$@"
+                ;;
+              uvx)
+                uvx --from "$WHEEL" specfact "$@"
+                ;;
+            esac
+          }
+
+          run_specfact_cli() {
+            case "${{ matrix.launcher }}" in
+              hatch-source)
+                hatch run specfact-cli "$@"
+                ;;
+              pip-wheel)
+                specfact-cli "$@"
+                ;;
+              pipx)
+                pipx run --python "$pythonLocation/bin/python" --spec "$WHEEL" specfact-cli "$@"
+                ;;
+              uv-run)
+                uv run --no-project --python "$pythonLocation/bin/python" --with "$WHEEL" specfact-cli "$@"
+                ;;
+              uvx)
+                uvx --from "$WHEEL" specfact-cli "$@"
+                ;;
+            esac
+          }
+
+          if [ "${{ matrix.launcher }}" = "pip-wheel" ]; then
+            python -m venv "$VENV"
+            # shellcheck disable=SC1091
+            source "$VENV/bin/activate"
+            pip install "$WHEEL"
+          fi
+
+          specfact --help >/dev/null 2>&1 || run_specfact --help | tee "logs/package-runtime/${{ matrix.launcher }}/specfact-help.log"
+          specfact-cli --help >/dev/null 2>&1 || run_specfact_cli --help | tee "logs/package-runtime/${{ matrix.launcher }}/specfact-cli-help.log"
+          run_specfact module list --show-origin | tee "logs/package-runtime/${{ matrix.launcher }}/module-list.log"
+          run_specfact init ide --help | tee "logs/package-runtime/${{ matrix.launcher }}/init-ide-help.log"
+          if run_specfact definitely-not-a-command >"logs/package-runtime/${{ matrix.launcher }}/unknown-command.log" 2>&1; then
+            echo "::error::Unknown command unexpectedly succeeded"
+            exit 1
+          fi
+
+      - name: Upload package-runtime matrix logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-runtime-${{ matrix.launcher }}
+          path: logs/package-runtime/
+          if-no-files-found: ignore
+
+  runtime-smoke-macos:
+    name: Runtime Discovery Smoke (macOS)
+    runs-on: macos-latest
+    needs: [changes, verify-module-signatures]
+    if: github.event_name != 'schedule' && (needs.changes.outputs.code_changed == 'true' || needs.changes.outputs.workflow_changed == 'true')
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve module bundles ref
+        id: modules-ref
+        shell: bash
+        env:
+          CANDIDATE_REF: ${{ github.head_ref || github.ref_name }}
+        run: |
+          candidate="${CANDIDATE_REF}"
+          if [ -n "$candidate" ] && git ls-remote --exit-code --heads https://github.com/nold-ai/specfact-cli-modules.git "$candidate" >/dev/null 2>&1; then
+            echo "ref=$candidate" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=dev" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout module bundles repo
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          repository: nold-ai/specfact-cli-modules
+          path: specfact-cli-modules
+          ref: ${{ steps.modules-ref.outputs.ref }}
+          persist-credentials: false
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: |
+            pyproject.toml
+
+      - name: Install smoke dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+          pip install "hatch" "virtualenv<21" pipx uv
+
+      - name: Run macOS runtime discovery smoke
+        shell: bash
+        run: |
+          mkdir -p logs/runtime-smoke/macos
+          python scripts/runtime_discovery_smoke.py --modules-repo specfact-cli-modules --launcher direct 2>&1 | tee logs/runtime-smoke/macos/runtime-discovery.log
+
+      - name: Upload macOS runtime-smoke logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: runtime-smoke-macos
+          path: logs/runtime-smoke/macos/
+          if-no-files-found: ignore
+
+  runtime-smoke-windows:
+    name: Runtime Discovery Smoke (Windows)
+    runs-on: windows-latest
+    needs: [changes, verify-module-signatures]
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve module bundles ref
+        id: modules-ref
+        shell: bash
+        env:
+          CANDIDATE_REF: ${{ github.head_ref || github.ref_name }}
+        run: |
+          candidate="${CANDIDATE_REF}"
+          if [ -n "$candidate" ] && git ls-remote --exit-code --heads https://github.com/nold-ai/specfact-cli-modules.git "$candidate" >/dev/null 2>&1; then
+            echo "ref=$candidate" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=dev" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout module bundles repo
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          repository: nold-ai/specfact-cli-modules
+          path: specfact-cli-modules
+          ref: ${{ steps.modules-ref.outputs.ref }}
+          persist-credentials: false
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: |
+            pyproject.toml
+
+      - name: Install smoke dependencies
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Run Windows runtime discovery smoke
+        shell: bash
+        run: |
+          mkdir -p logs/runtime-smoke/windows
+          python scripts/runtime_discovery_smoke.py --modules-repo specfact-cli-modules --launcher direct 2>&1 | tee logs/runtime-smoke/windows/runtime-discovery.log
+
+      - name: Upload Windows runtime-smoke logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: runtime-smoke-windows
+          path: logs/runtime-smoke/windows/
+          if-no-files-found: ignore
+
+  mutation-baseline:
+    name: Mutation Baseline (Advisory)
+    runs-on: ubuntu-latest
+    needs: [changes]
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: |
+            pyproject.toml
+
+      - name: Install mutation dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+          pip install mutmut
+
+      - name: Run targeted mutation baseline
+        run: |
+          mkdir -p logs/mutation
+          echo "Mutation baseline targets: dependency_resolver, module_installer, module_package, marketplace_client, upgrade"
+          python -m pytest tests/unit/registry/test_dependency_resolver.py tests/unit/registry/test_dependency_resolver_properties.py -q
+          mutmut run \
+            --paths-to-mutate src/specfact_cli/registry/dependency_resolver.py \
+            --paths-to-mutate src/specfact_cli/registry/module_installer.py \
+            --paths-to-mutate src/specfact_cli/registry/module_package.py \
+            --paths-to-mutate src/specfact_cli/registry/marketplace_client.py \
+            --paths-to-mutate src/specfact_cli/modules/upgrade/src/commands.py \
+            --runner "python -m pytest tests/unit/registry -q" \
+            2>&1 | tee logs/mutation/mutation-baseline.log || true
+          mutmut results 2>&1 | tee logs/mutation/mutation-results.txt || true
+
+      - name: Upload mutation baseline report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mutation-baseline-report
+          path: logs/mutation/
+          if-no-files-found: ignore
+
   type-checking:
     name: Type Checking (basedpyright)
     runs-on: ubuntu-latest
     needs: [changes, verify-module-signatures]
-    if: needs.changes.outputs.code_changed == 'true' && needs.changes.outputs.skip_tests_dev_to_main != 'true'
+    if: needs.changes.outputs.code_changed == 'true' && needs.changes.outputs.skip_expensive_tests_dev_to_main != 'true'
     permissions:
       contents: read
     steps:
@@ -671,7 +1017,7 @@ jobs:
     name: Linting (ruff, pylint, safe-write guard)
     runs-on: ubuntu-latest
     needs: [changes, verify-module-signatures]
-    if: needs.changes.outputs.code_changed == 'true' && needs.changes.outputs.skip_tests_dev_to_main != 'true'
+    if: needs.changes.outputs.code_changed == 'true' && needs.changes.outputs.skip_expensive_tests_dev_to_main != 'true'
     permissions:
       contents: read
     steps:
@@ -717,7 +1063,7 @@ jobs:
     name: License Compliance Gate
     runs-on: ubuntu-latest
     needs: [changes, verify-module-signatures]
-    if: needs.changes.outputs.code_changed == 'true' && needs.changes.outputs.license_inputs_changed == 'true' && needs.changes.outputs.skip_tests_dev_to_main != 'true'
+    if: needs.changes.outputs.code_changed == 'true' && needs.changes.outputs.license_inputs_changed == 'true' && needs.changes.outputs.skip_expensive_tests_dev_to_main != 'true'
     permissions:
       contents: read
     steps:
@@ -773,7 +1119,20 @@ jobs:
   package-validation:
     name: Package Validation (uvx/pip)
     runs-on: ubuntu-latest
-    needs: [tests, compat-py311, contract-first-ci, cli-validation, type-checking, linting, license-check, security-audit]
+    needs:
+      [
+        tests,
+        compat-py311,
+        contract-first-ci,
+        cli-validation,
+        quality-gates,
+        independent-static-analysis,
+        package-runtime-matrix,
+        type-checking,
+        linting,
+        license-check,
+        security-audit,
+      ]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     permissions:
       contents: read

@@ -32,7 +32,7 @@ class ProtocolGenerator:
             templates_dir = Path(__file__).parent.parent.parent.parent / "resources" / "templates"
 
         self.templates_dir = Path(templates_dir)
-        self.env = Environment(
+        self.env = Environment(  # nosec B701 - generates trusted protocol Markdown, not HTML.
             loader=FileSystemLoader(self.templates_dir),
             trim_blocks=True,
             lstrip_blocks=True,

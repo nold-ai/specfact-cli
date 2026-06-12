@@ -1986,7 +1986,7 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         return cast(
             Any,
             self._request_with_retry(
-                lambda: requests.post(url, **request_kwargs),
+                lambda: requests.post(url, **request_kwargs),  # nosec B113 - request_kwargs always includes timeout.
                 retry_on_ambiguous_transport=retry_on_ambiguous_transport,
             ),
         )
@@ -2129,7 +2129,7 @@ class AdoAdapter(BridgeAdapter, BacklogAdapterMixin, BacklogAdapter):
         change_id_escaped = change_id.replace("'", "''")
         wiql = {
             "query": (
-                "Select [System.Id] From WorkItems "
+                "Select [System.Id] From WorkItems "  # nosec B608 - WIQL uses escaped literals, not SQL.
                 f"Where [System.TeamProject] = '{project_escaped}' "
                 f"And [System.Description] Contains 'OpenSpec Change Proposal: `{change_id_escaped}`'"
             )

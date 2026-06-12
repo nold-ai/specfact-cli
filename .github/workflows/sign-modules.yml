@@ -222,7 +222,7 @@ jobs:
           fi
           BRANCH="auto/sign-${GITHUB_REF_NAME}-${{ github.run_id }}"
           git checkout -b "${BRANCH}"
-          git commit -m "chore(modules): auto-sign bundled manifests [skip ci]"
+          git commit -m "chore(modules): auto-sign bundled manifests"
           git push -u origin "${BRANCH}"
           gh pr create \
             --repo "${{ github.repository }}" \
@@ -363,7 +363,7 @@ jobs:
             echo "No staged module manifest updates."
             exit 0
           fi
-          git commit -m "chore(modules): manual workflow_dispatch sign changed modules [skip ci]"
+          git commit -m "chore(modules): manual workflow_dispatch sign changed modules"
           git push origin "HEAD:${GITHUB_REF_NAME}"
           echo "## Signed manifests pushed" >> "${GITHUB_STEP_SUMMARY}"
           echo "Branch: \`${GITHUB_REF_NAME}\` (base: \`origin/${{ github.event.inputs.base_branch }}\`, bump: \`${{ github.event.inputs.version_bump }}\`, resign_all: \`${{ github.event.inputs.resign_all_manifests }}\`)." >> "${GITHUB_STEP_SUMMARY}"

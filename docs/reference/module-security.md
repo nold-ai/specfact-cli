@@ -48,13 +48,16 @@ Module packages carry **publisher** and **integrity** metadata so installation, 
   **`scripts/module-verify-policy.sh`** (`VERIFY_MODULES_STRICT`, `VERIFY_MODULES_PR`,
   `VERIFY_MODULES_PUSH_ORCHESTRATOR`).
   - **Strict** (`VERIFY_MODULES_STRICT`): `--require-signature --enforce-version-bump --payload-from-filesystem`
-    — local **`main`** pre-commit, **`sign-modules.yml`** verify on **push** to `dev`/`main` (after auto-sign).
+    — local **`main`** pre-commit, **`pr-orchestrator.yml`** verify on pull requests targeting
+    **`main`** and pushes to **`main`**, and **`sign-modules.yml`** verify on **push** to `dev`/`main`
+    (after auto-sign).
   - **PR / feature relaxed** (`VERIFY_MODULES_PR`): `--enforce-version-bump --skip-checksum-verification`
-    — pre-commit on non-`main`, **`pr-orchestrator.yml`** verify job on **pull_request**, **`sign-modules.yml`**
-    verify on **pull_request** / **workflow_dispatch** (version discipline vs base; checksum refresh in CI).
+    — pre-commit on non-`main`, **`pr-orchestrator.yml`** verify job on pull requests targeting
+    **`dev`**, and **`sign-modules.yml`** verify on **pull_request** / **workflow_dispatch**
+    (version discipline vs base; checksum refresh in CI).
   - **Orchestrator push** (`VERIFY_MODULES_PUSH_ORCHESTRATOR`): `--enforce-version-bump --payload-from-filesystem`
-    — **`pr-orchestrator.yml`** verify job on **push** to `dev`/`main` (payload checksum + version; no
-    `--require-signature` in that job).
+    — **`pr-orchestrator.yml`** verify job on **push** to **`dev`** (payload checksum + version; no
+    `--require-signature` in that `dev` push path).
   - **Approval-time signing** (`sign-modules-on-approval.yml`): on **approved** reviews for same-repo PRs
     targeting **`dev` or `main`**, CI runs `pull_request.base.sha`’s **`scripts/sign-modules.py`**
     (trusted revision) against the **PR head** working tree, then pushes updated `module-package.yaml`
