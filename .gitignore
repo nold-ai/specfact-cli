@@ -117,6 +117,8 @@ docs/internal/
 
 .codex/skills/openspec-*/
 !.codex/skills/openspec-workflows/
+.agents/skills/
+skills-lock.json
 
 .vibe/skills/openspec-*/
 !.vibe/skills/openspec-workflows/
