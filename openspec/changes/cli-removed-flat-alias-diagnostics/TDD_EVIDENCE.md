@@ -24,7 +24,7 @@
 ## External validation checkout
 
 - **Timestamp**: 2026-06-09 23:30:11-23:30:20 CEST
-- **Working directory**: `/Users/dom/git/specfact-validation/zettelkasten-mcp`
+- **Working directory**: `<validation-workspace>/zettelkasten-mcp`
 - **Commands**:
   - `python -m specfact_cli validate --help`
   - `python -m specfact_cli plan --help`
@@ -36,7 +36,7 @@
 - **Timestamp**: 2026-06-09 23:33:11-23:33:52 CEST
 - **Passed**:
   - `hatch run format`
-  - `hatch run basedpyright --level error --pythonpath "/Users/dom/Library/Application Support/hatch/env/virtual/specfact-cli/J21BTy96/specfact-cli/bin/python"`
+  - `hatch run basedpyright --level error --pythonpath "<hatch-env under macOS 'Application Support'>/bin/python"`
   - `hatch run ruff check .`
   - `hatch run ruff format . --check`
   - `hatch run pylint src/specfact_cli/cli.py tests/integration/test_category_group_routing.py tests/unit/registry/test_category_groups.py`
@@ -53,6 +53,29 @@
   - Added `CHANGELOG.md` entry `0.47.5` dated 2026-06-10.
   - `hatch run check-version-sources` passed.
   - `hatch run check-pypi-ahead` passed outside the Codex sandbox; local `0.47.5` is ahead of PyPI latest `0.47.3`.
+
+## PR #606 review follow-up (2026-06-12)
+
+- **Failing-before**: CI `Tests (Python 3.12)` and `Compatibility (Python 3.11)` failed on
+  `tests/integration/test_core_slimming.py::test_stale_flat_shim_plan_exits_with_install_instructions`,
+  a stale expectation that the removed `plan` alias still emits install guidance.
+- **Fix**: removed flat aliases now print canonical grouped replacement guidance
+  (`_REMOVED_FLAT_ALIAS_TO_CANONICAL` in `src/specfact_cli/cli.py`) across all three root
+  resolution surfaces (`_RootCLIGroup`, the patched Typer root group, and the lazy delegate
+  loader), satisfying the spec scenario "guidance to the canonical grouped command". The stale
+  test was renamed to `test_stale_flat_shim_plan_exits_with_removed_alias_guidance` and asserts
+  the new contract; the shadowed-module regression also asserts canonical guidance and tolerates
+  unknown-command wording variants.
+- **Passing-after**: `hatch run python -m pytest tests/integration/test_core_slimming.py tests/integration/test_category_group_routing.py tests/unit/registry/test_category_groups.py tests/unit/packaging/test_core_package_includes.py tests/unit/specfact_cli/registry/test_command_registry.py tests/integration/test_command_package_runtime_validation.py`
+  passed (`45 passed, 2 skipped` for missing companion package checkout). `hatch run type-check`
+  (0 errors), `hatch run lint` (pylint 10.00/10), and both strict OpenSpec validations passed.
+- **Manual proof**: `python -m specfact_cli validate --help` and `plan --help` exit 1 with
+  "No such command ... was removed. Use specfact code validate / specfact project ... instead"
+  and no module install/disabled/skipped/shadowed diagnostics.
+- **Hygiene**: host-specific absolute paths redacted from validation evidence files.
+- **Release hygiene**: bumped the four canonical version artifacts from `0.47.5` to `0.47.6`
+  and added the `CHANGELOG.md` entry `0.47.6` dated 2026-06-12 (per the packaged-artifact
+  version gate); `hatch run check-version-sources` passed.
 
 ## Documentation alignment
 

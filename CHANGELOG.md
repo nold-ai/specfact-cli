@@ -10,6 +10,19 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.47.6] - 2026-06-12
+
+### Fixed
+
+- **Removed flat alias guidance**: removed root aliases such as `validate`,
+  `plan`, `analyze`, `drift`, `repro`, `sync`, and `migrate` now exit with a
+  `No such command` error that points to the canonical grouped replacement
+  (for example `specfact code validate` or `specfact project sync`) on every
+  root resolution surface, including stale lazy command delegates, instead of
+  a bare unknown-command error.
+
+---
+
 ## [0.47.5] - 2026-06-10
 
 ### Fixed

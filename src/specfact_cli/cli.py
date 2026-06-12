@@ -112,6 +112,18 @@ _INVOKED_TO_MARKETPLACE_MODULE: dict[str, str] = {
     "patch": "nold-ai/specfact-govern",
 }
 
+# Removed flat root aliases -> canonical grouped replacement (see docs/migration/migration-guide.md).
+# These must never route through marketplace module availability diagnostics.
+_REMOVED_FLAT_ALIAS_TO_CANONICAL: dict[str, str] = {
+    "plan": "specfact project",
+    "validate": "specfact code validate",
+    "analyze": "specfact code analyze",
+    "drift": "specfact code drift",
+    "repro": "specfact code repro",
+    "sync": "specfact project sync",
+    "migrate": "specfact project migrate",
+}
+
 
 def _print_missing_bundle_command_help(invoked: str) -> None:
     """Print install guidance when a bundle group or shim is not registered."""
@@ -154,34 +166,58 @@ def _print_missing_bundle_command_help(invoked: str) -> None:
     )
 
 
+def _print_removed_flat_alias_help(invoked: str) -> None:
+    """Print canonical grouped-command guidance for a removed flat root alias."""
+    canonical = _REMOVED_FLAT_ALIAS_TO_CANONICAL[invoked]
+    console = get_configured_console()
+    console.print(
+        f"[bold red]No such command '{invoked}'.[/bold red]\n"
+        f"The flat [bold]specfact {invoked}[/bold] command was removed. "
+        f"Use [bold]{canonical} ...[/bold] instead."
+    )
+
+
+def _print_unresolved_root_token_help(invoked: str) -> bool:
+    """Render guidance for an unresolved root token; return True when guidance was printed."""
+    if invoked in _REMOVED_FLAT_ALIAS_TO_CANONICAL:
+        _print_removed_flat_alias_help(invoked)
+        return True
+    if invoked in KNOWN_BUNDLE_GROUP_OR_SHIM_NAMES:
+        _print_missing_bundle_command_help(invoked)
+        return True
+    return False
+
+
+def _resolve_root_command_with_guidance(resolve: Callable[[Any, list[str]], Any], ctx: Any, args: list[str]) -> Any:
+    """Resolve a root command, replacing unresolved known tokens with actionable guidance."""
+    if not args:
+        return resolve(ctx, args)
+    invoked = args[0]
+    try:
+        result = resolve(ctx, args)
+    except click.UsageError:
+        if _print_unresolved_root_token_help(invoked):
+            raise SystemExit(1) from None
+        raise
+    except ValueError as exc:
+        if _print_unresolved_root_token_help(invoked):
+            raise SystemExit(1) from exc
+        raise
+    _name, cmd, remaining = result
+    if cmd is not None or not remaining:
+        return result
+    unresolved = remaining[0]
+    if _print_unresolved_root_token_help(unresolved):
+        raise SystemExit(1)
+    return result
+
+
 class _RootCLIGroup(ProgressiveDisclosureGroup):
     """Root group that shows actionable error when an unknown command is a known bundle group/shim."""
 
     @ensure(lambda result: isinstance(result, tuple) and len(result) == 3, "result must be a 3-tuple")
     def resolve_command(self, ctx: Any, args: list[str]) -> Any:
-        if not args:
-            return super().resolve_command(ctx, args)
-        invoked = args[0]
-        try:
-            result = super().resolve_command(ctx, args)
-        except click.UsageError:
-            if invoked in KNOWN_BUNDLE_GROUP_OR_SHIM_NAMES:
-                _print_missing_bundle_command_help(invoked)
-                raise SystemExit(1) from None
-            raise
-        except ValueError as exc:
-            if invoked in KNOWN_BUNDLE_GROUP_OR_SHIM_NAMES:
-                _print_missing_bundle_command_help(invoked)
-                raise SystemExit(1) from exc
-            raise
-        _name, cmd, remaining = result
-        if cmd is not None or not remaining:
-            return result
-        invoked = remaining[0]
-        if invoked not in KNOWN_BUNDLE_GROUP_OR_SHIM_NAMES:
-            return result
-        _print_missing_bundle_command_help(invoked)
-        raise SystemExit(1)
+        return _resolve_root_command_with_guidance(super().resolve_command, ctx, args)
 
 
 def _patch_missing_bundle_resolution(group: click.Group) -> click.Group:
@@ -194,35 +230,12 @@ def _patch_missing_bundle_resolution(group: click.Group) -> click.Group:
 
     def _get_command(ctx: click.Context, cmd_name: str) -> click.Command | None:
         command = original_get_command(ctx, cmd_name)
-        if command is not None or cmd_name not in KNOWN_BUNDLE_GROUP_OR_SHIM_NAMES:
-            return command
-        _print_missing_bundle_command_help(cmd_name)
-        raise SystemExit(1)
+        if command is None and _print_unresolved_root_token_help(cmd_name):
+            raise SystemExit(1)
+        return command
 
     def _resolve_command(ctx: click.Context, args: list[str]) -> Any:
-        if not args:
-            return original_resolve_command(ctx, args)
-        invoked = args[0]
-        try:
-            result = original_resolve_command(ctx, args)
-        except click.UsageError:
-            if invoked in KNOWN_BUNDLE_GROUP_OR_SHIM_NAMES:
-                _print_missing_bundle_command_help(invoked)
-                raise SystemExit(1) from None
-            raise
-        except ValueError as exc:
-            if invoked in KNOWN_BUNDLE_GROUP_OR_SHIM_NAMES:
-                _print_missing_bundle_command_help(invoked)
-                raise SystemExit(1) from exc
-            raise
-        _name, cmd, remaining = result
-        if cmd is not None or not remaining:
-            return result
-        unresolved = remaining[0]
-        if unresolved not in KNOWN_BUNDLE_GROUP_OR_SHIM_NAMES:
-            return result
-        _print_missing_bundle_command_help(unresolved)
-        raise SystemExit(1)
+        return _resolve_root_command_with_guidance(original_resolve_command, ctx, args)
 
     group.get_command = _get_command  # type: ignore[method-assign]
     group.resolve_command = _resolve_command  # type: ignore[method-assign]
@@ -613,8 +626,7 @@ def _load_lazy_delegate_typer(cmd_name: str) -> typer.Typer:
     try:
         return CommandRegistry.get_typer(resolved_name)
     except ValueError as exc:
-        if cmd_name in KNOWN_BUNDLE_GROUP_OR_SHIM_NAMES:
-            _print_missing_bundle_command_help(cmd_name)
+        if _print_unresolved_root_token_help(cmd_name):
             raise SystemExit(1) from None
         _raise_lazy_delegate_click_exception(exc)
         raise AssertionError("unreachable") from None

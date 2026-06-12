@@ -135,4 +135,6 @@ def test_removed_flat_commands_do_not_report_shadowed_modules(
     assert "not installed" not in output
     assert "disabled" not in output
     assert "skipped" not in output
-    assert "no such command" in output
+    assert any(token in output for token in ("no such command", "not a valid command", "no such cmd"))
+    assert "removed" in output
+    assert grouped_command in output

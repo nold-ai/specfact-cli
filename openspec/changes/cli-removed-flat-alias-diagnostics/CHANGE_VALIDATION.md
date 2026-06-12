@@ -49,5 +49,5 @@ None. The change narrows root error diagnostics for command tokens that are alre
 
 ## Validation Artifacts
 
-- Failing-before test run: `/Users/dom/.lean-ctx/tee/2026-06-09_232654_hatch_run_python_-m_pytest_tests_integra.log`
+- Failing-before test run: `<local-artifacts>/2026-06-09_232654_hatch_run_python_-m_pytest_tests_integra.log`
 - Passing-after test run: focused pytest command recorded in `TDD_EVIDENCE.md`
