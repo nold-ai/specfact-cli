@@ -96,7 +96,7 @@ Result: passed after resolving/suppressing existing medium/high findings with lo
 Command:
 
 ```bash
-semgrep scan --config auto --json --output /private/tmp/specfact-semgrep.json
+semgrep scan --config tools/semgrep --json --output /private/tmp/specfact-semgrep.json
 hatch run semgrep-sast-gate --results /private/tmp/specfact-semgrep.json --baseline tools/semgrep/sast-baseline.json
 ```
 
@@ -110,6 +110,18 @@ npx --yes markdownlint-cli --config .markdownlint.json docs/agent-rules/50-quali
 ```
 
 Result: passed. `npx` required elevated network access because the sandbox could not resolve `registry.npmjs.org`.
+
+## PR #610 Codex review remediation — Semgrep config hardening
+
+Command:
+
+```bash
+hatch run pytest tests/unit/workflows/test_trustworthy_green_checks.py::test_semgrep_sast_hatch_script_uses_checked_in_config -q
+```
+
+Result before production edit: failed because `semgrep-sast` used `semgrep scan --config auto {args}`.
+
+Fix: changed `semgrep-sast` and the baseline command metadata to use the checked-in `tools/semgrep` config, so Semgrep does not need auto config creation when metrics are disabled.
 
 ## Direct-to-main module signature hardening follow-up
 
@@ -198,4 +210,4 @@ openspec validate cli-val-05-ci-integration --strict
 
 Result: passed.
 
-Note: `hatch run lint-workflows` could not run fully in this local environment because `actionlint` is not installed and the machine has no `go` binary available to install the pinned `actionlint@v1.7.11`. A sandboxed Semgrep invocation failed before analysis while initializing its local X509 trust store (`ca-certs: empty trust anchors`), but elevated `semgrep scan --config auto` completed successfully and produced the baseline above.
+Note: `hatch run lint-workflows` could not run fully in this local environment because `actionlint` is not installed and the machine has no `go` binary available to install the pinned `actionlint@v1.7.11`. A sandboxed Semgrep invocation failed before analysis while initializing its local X509 trust store (`ca-certs: empty trust anchors`). The earlier auto-config baseline command was superseded by the PR #610 remediation above, which uses the checked-in `tools/semgrep` config.

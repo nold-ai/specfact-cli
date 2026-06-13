@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import re
+import tomllib
 from pathlib import Path
 from typing import Any, cast
 
@@ -12,6 +13,7 @@ import yaml
 
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
+PYPROJECT = REPO_ROOT / "pyproject.toml"
 PR_ORCHESTRATOR = REPO_ROOT / ".github" / "workflows" / "pr-orchestrator.yml"
 DOCS_REVIEW = REPO_ROOT / ".github" / "workflows" / "docs-review.yml"
 SPECFACT_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "specfact.yml"
@@ -248,6 +250,16 @@ def test_pr_orchestrator_static_analysis_uses_external_tools_only() -> None:
     assert "semgrep-full" not in raw.lower()
     assert "specfact code review" not in raw
     assert ".specfact/code-review.json" not in raw
+
+
+def test_semgrep_sast_hatch_script_uses_checked_in_config() -> None:
+    """Semgrep SAST must not depend on auto config creation in metrics-disabled environments."""
+    pyproject = tomllib.loads(PYPROJECT.read_text(encoding="utf-8"))
+    scripts = pyproject["tool"]["hatch"]["envs"]["default"]["scripts"]
+    command = scripts["semgrep-sast"]
+    assert isinstance(command, str)
+    assert "--config auto" not in command.lower()
+    assert "--config tools/semgrep" in command
 
 
 def test_pr_orchestrator_package_runtime_matrix_uses_built_wheel() -> None:

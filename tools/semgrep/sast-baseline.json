@@ -1,7 +1,7 @@
 {
   "version": 1,
   "generated_on": "2026-06-13",
-  "command": "semgrep scan --config auto --json",
+  "command": "semgrep scan --config tools/semgrep --json",
   "accepted_findings": [
     ["yaml.github-actions.security.run-shell-injection.run-shell-injection", ".github/workflows/publish-modules.yml", 80],
     ["yaml.github-actions.security.run-shell-injection.run-shell-injection", ".github/workflows/publish-modules.yml", 85],
