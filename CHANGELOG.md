@@ -10,6 +10,16 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.47.10] - 2026-06-13
+
+### Fixed
+
+- **Module install CI stability**: refresh loaded SpecFact module consoles before
+  direct module-registry invocations so stale Rich streams from earlier tests do
+  not close Click's captured stdout in Python 3.11 full-suite runs.
+
+---
+
 ## [0.47.9] - 2026-06-13
 
 ### Fixed

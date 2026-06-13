@@ -54,7 +54,7 @@ from specfact_cli.registry.module_packages import get_discovered_modules_for_sta
 from specfact_cli.registry.module_security import ensure_publisher_trusted, is_official_publisher
 from specfact_cli.registry.module_state import read_modules_state, write_modules_state
 from specfact_cli.registry.registry import CommandRegistry
-from specfact_cli.runtime import get_configured_console, is_non_interactive
+from specfact_cli.runtime import is_non_interactive, refresh_loaded_module_consoles
 
 
 app = typer.Typer(help="Manage marketplace modules")
@@ -65,8 +65,7 @@ console = Console()
 @ensure(lambda result: result is None, "module registry callback returns None")
 def module_registry_callback() -> None:
     """Prepare invocation-local output streams for direct module command tests."""
-    global console
-    console = get_configured_console()
+    refresh_loaded_module_consoles()
 
 
 def _module_upgrade_show_spinner() -> bool:

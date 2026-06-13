@@ -3,14 +3,17 @@
 from __future__ import annotations
 
 import importlib
+import io
 import tarfile
 import warnings
 from pathlib import Path
 
 import pytest
+from rich.console import Console
 from typer.testing import CliRunner
 
 from specfact_cli.modules.module_registry.src.commands import app
+from specfact_cli.registry import module_lifecycle
 from specfact_cli.registry.module_installer import REGISTRY_ID_FILE
 
 
@@ -146,6 +149,26 @@ def test_installing_spec_bundle_skips_dependency_when_already_present(monkeypatc
     assert "Installed nold-ai/specfact-spec ->" in result.stdout
     assert "Verified: official (nold-ai)" in result.stdout
     assert calls == ["nold-ai/specfact-spec"]
+
+
+def test_bundle_install_refreshes_stale_loaded_module_consoles(monkeypatch, tmp_path: Path) -> None:
+    _stub_install_runtime(monkeypatch)
+    tar_spec = _create_module_tarball(tmp_path, "specfact-spec")
+    monkeypatch.setattr("specfact_cli.registry.module_installer.download_module", lambda *_a, **_k: tar_spec)
+    closed_stream = io.StringIO()
+    closed_stream.close()
+    stale_console = Console(file=closed_stream)
+    module_lifecycle.console = stale_console
+
+    result = runner.invoke(
+        app,
+        ["install", "nold-ai/specfact-spec", "--source", "marketplace", "--scope", "project", "--repo", str(tmp_path)],
+    )
+
+    assert result.exit_code == 0
+    assert result.exception is None
+    assert module_lifecycle.console is not stale_console
+    assert "Installed nold-ai/specfact-spec ->" in result.stdout
 
 
 def test_module_list_shows_official_badge_for_installed_bundle(monkeypatch) -> None:

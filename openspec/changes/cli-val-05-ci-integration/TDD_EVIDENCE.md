@@ -246,3 +246,28 @@ git diff --check
 ```
 
 Result: passed. The focused pytest run collected 24 tests: 23 passed and 1 skipped (`specfact_codebase.validate` not installed locally). Python 3.11 compatibility passed for the formerly failing bundle install test. Semgrep SAST scanned 281 Python targets with 6 security rules and found 0 findings; the SAST baseline gate reported 0 current and 0 accepted baseline findings. Ruff passed, pylint rated the modified Python files 10.00/10, OpenSpec strict validation passed, and `git diff --check` passed.
+
+## PR #610 Python 3.11 full-suite stdout capture follow-up
+
+The Python 3.11 full-suite job still exposed a closed Click stdout capture in
+`test_installing_spec_bundle_skips_dependency_when_already_present` after earlier
+tests had loaded modules with stale Rich consoles. The fix refreshes all loaded
+SpecFact module consoles before direct module-registry invocations and adds a
+regression that poisons another loaded module console before marketplace bundle
+install.
+
+Commands:
+
+```bash
+hatch -e py311 run pytest tests/integration/test_bundle_install.py -q
+hatch run ruff check src/specfact_cli/modules/module_registry/src/commands.py tests/integration/test_bundle_install.py
+hatch run pylint --jobs=1 src/specfact_cli/modules/module_registry/src/commands.py tests/integration/test_bundle_install.py
+hatch run check-version-sources
+hatch run verify-modules-signature-pr --version-check-base origin/dev
+```
+
+Result: passed. The Python 3.11 bundle install file collected 6 tests: 5 passed
+and 1 skipped (`specfact_codebase.validate` not installed locally). Ruff passed,
+pylint rated the touched Python files 10.00/10, version sources are synchronized
+at 0.47.10, and PR-style module signature verification passed with the
+module-registry manifest version bumped to 0.1.29.
