@@ -338,6 +338,13 @@ def test_pre_commit_verify_modules_staged_query_includes_deletions() -> None:
     assert "--diff-filter=ACMRD" in body
 
 
+def test_pre_commit_verify_modules_uses_macos_default_bash_compatible_read_loop() -> None:
+    """macOS ships Bash 3.2, so the hook must avoid Bash 4-only ``mapfile``."""
+    body = VERIFY_WRAPPER.read_text(encoding="utf-8")
+    assert "mapfile" not in body
+    assert "while IFS= read -r staged_manifest" in body
+
+
 def test_git_branch_signature_flag_detached_head(tmp_path: Path) -> None:
     repo = tmp_path / "repo"
     repo.mkdir()

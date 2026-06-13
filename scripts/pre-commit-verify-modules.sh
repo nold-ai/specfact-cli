@@ -20,7 +20,11 @@ if ! echo "${staged_files}" | grep -qE '^(src/specfact_cli/modules|modules)/'; t
   exit 0
 fi
 
-mapfile -t staged_manifests < <(
+staged_manifests=()
+while IFS= read -r staged_manifest; do
+  [[ -n "${staged_manifest}" ]] || continue
+  staged_manifests+=("${staged_manifest}")
+done < <(
   printf '%s\n' "${staged_files}" \
     | python3 -c '
 from pathlib import Path

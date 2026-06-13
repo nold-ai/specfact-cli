@@ -30,7 +30,7 @@ Runtime validation only protects users when it runs before merge against the sam
 
 ## Impact
 
-- **Affected specs**: `trustworthy-green-checks`, `ci-integration`, `dependency-resolution`, `codebase-validation-depth`, `acceptance-test-runner`.
+- **Affected specs**: `cli-validation-ci-gates`, `trustworthy-green-checks`, `ci-integration`, `dependency-resolution`, `codebase-validation-depth`, `acceptance-test-runner`.
 - **Affected code**: GitHub Actions workflow, smart test coverage threshold handling, workflow policy tests, resolver property tests, mutation baseline configuration.
 - **Integration points**: GitHub Actions, Hatch scripts, OpenSpec validation, internal wiki mirror, module checkout/runtime smoke fixtures.
 - **Documentation impact**: CI and contributor guidance must distinguish blocking gates from advisory scheduled mutation evidence.

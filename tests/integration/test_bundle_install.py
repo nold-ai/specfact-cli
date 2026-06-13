@@ -142,6 +142,9 @@ def test_installing_spec_bundle_skips_dependency_when_already_present(monkeypatc
     )
 
     assert result.exit_code == 0
+    assert result.exception is None
+    assert "Installed nold-ai/specfact-spec ->" in result.stdout
+    assert "Verified: official (nold-ai)" in result.stdout
     assert calls == ["nold-ai/specfact-spec"]
 
 

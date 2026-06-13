@@ -252,14 +252,15 @@ def test_pr_orchestrator_static_analysis_uses_external_tools_only() -> None:
     assert ".specfact/code-review.json" not in raw
 
 
-def test_semgrep_sast_hatch_script_uses_checked_in_config() -> None:
-    """Semgrep SAST must not depend on auto config creation in metrics-disabled environments."""
+def test_semgrep_sast_hatch_script_uses_dedicated_checked_in_sast_config() -> None:
+    """Semgrep SAST must not run the full development rule directory."""
     pyproject = tomllib.loads(PYPROJECT.read_text(encoding="utf-8"))
     scripts = pyproject["tool"]["hatch"]["envs"]["default"]["scripts"]
     command = scripts["semgrep-sast"]
     assert isinstance(command, str)
     assert "--config auto" not in command.lower()
-    assert "--config tools/semgrep" in command
+    assert "--config tools/semgrep/sast.yml" in command.lower()
+    assert "--config tools/semgrep {" not in command.lower()
 
 
 def test_pr_orchestrator_package_runtime_matrix_uses_built_wheel() -> None:

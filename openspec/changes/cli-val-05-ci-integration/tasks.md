@@ -28,8 +28,9 @@ Per `openspec/config.yaml`, tests before code for any behavior-changing task. Or
 - [x] 3.1 Add workflow policy tests proving `Quality Gates` is blocking and enforces `fail_under`.
 - [x] 3.2 Add workflow policy tests proving independent Semgrep/Bandit job exists and package runtime matrix builds and installs a wheel.
 - [x] 3.3 Add workflow policy tests proving release PR fast-path and direct-to-`main` PRs still run strict signature, package validation, version sync, and wheel smoke.
-- [x] 3.4 Add Hypothesis property tests for dependency resolver, module installer dependency specs, version satisfaction, malformed manifests, and registry identity helpers.
-- [x] 3.5 Run focused tests and record failing-before output in `TDD_EVIDENCE.md`.
+- [x] 3.4 Add Hypothesis property tests for dependency resolver, module installer dependency specs, version satisfaction, malformed manifests, registry identity helpers, and circular-dependency/self-reference surfaces.
+- [x] 3.5 Add upgrade/version-detection regression coverage for upgrade path selection, stale launcher repair, and metadata persistence failure handling.
+- [x] 3.6 Run focused dependency and upgrade/version tests and record failing-before output in `TDD_EVIDENCE.md`.
 
 ## 4. Implementation
 

@@ -10,6 +10,17 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.47.9] - 2026-06-13
+
+### Fixed
+
+- **PR gate remediation**: split Independent Static Analysis onto a dedicated
+  checked-in SAST profile, keep clean-code review separate from security SAST,
+  fix marketplace install output capture across Python CI jobs, and make the
+  module pre-commit verifier compatible with macOS's default Bash.
+
+---
+
 ## [0.47.8] - 2026-06-13
 
 ### Fixed
