@@ -2,7 +2,7 @@
 
 ### Requirement: Dual-Path Scenario Execution
 
-The system SHALL execute CLI behavior scenarios via both in-process (CliRunner) and subprocess (installed binary) paths.
+The system SHALL execute CLI behavior scenarios via both in-process (CliRunner) and subprocess (built-wheel installed binary) paths.
 
 #### Scenario: Fast path executes scenario via CliRunner
 
@@ -14,11 +14,12 @@ The system SHALL execute CLI behavior scenarios via both in-process (CliRunner) 
 
 #### Scenario: Black-box path executes scenario via subprocess
 
-- **GIVEN** a YAML scenario file and the `specfact` binary is installed on PATH
+- **GIVEN** a YAML scenario file and the built wheel has been installed into an isolated environment
 - **WHEN** the runner executes the scenario in black-box mode
 - **THEN** the scenario is invoked via `subprocess.run()`
 - **AND** real exit code, stdout, and stderr are captured and asserted
-- **AND** the test validates the installed binary, not the source tree.
+- **AND** both `specfact` and `specfact-cli` entry points can be validated
+- **AND** the test validates the built artifact, not an editable source install.
 
 #### Scenario: Filesystem diff verification in sandboxed workspace
 

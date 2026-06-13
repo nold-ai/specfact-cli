@@ -110,7 +110,7 @@ jobs:
             echo "No staged module manifest updates."
             exit 0
           fi
-          git commit -m "chore(modules): ci sign changed modules [skip ci]"
+          git commit -m "chore(modules): ci sign changed modules"
           git push origin "HEAD:${HEAD_REF}"
           echo "## Signed manifests pushed" >> "${GITHUB_STEP_SUMMARY}"
           echo "Updated \`module-package.yaml\` files were committed to \`${HEAD_REF}\`." >> "${GITHUB_STEP_SUMMARY}"
@@ -190,7 +190,7 @@ jobs:
             echo "No staged module manifest updates."
             exit 0
           fi
-          git commit -m "chore(modules): manual approval-workflow sign changed modules [skip ci]"
+          git commit -m "chore(modules): manual approval-workflow sign changed modules"
           git push origin "HEAD:${GITHUB_REF_NAME}"
           echo "## Signed manifests pushed" >> "${GITHUB_STEP_SUMMARY}"
           echo "Branch: \`${GITHUB_REF_NAME}\` (merge-base vs \`origin/${{ github.event.inputs.base_branch }}\`, bump: \`${{ github.event.inputs.version_bump }}\`)." >> "${GITHUB_STEP_SUMMARY}"

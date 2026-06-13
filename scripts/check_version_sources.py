@@ -83,7 +83,7 @@ def _changed_files_vs_git_ref(root: Path, git_ref: str) -> list[str]:
 def _is_packaged_artifact(path_str: str) -> bool:
     """True when staged paths imply a release/version bump must accompany the commit."""
     normalized = path_str.replace("\\", "/")
-    if normalized in {"pyproject.toml", "setup.py"}:
+    if normalized == "setup.py":
         return True
     if normalized.startswith("src/"):
         return True
@@ -91,6 +91,24 @@ def _is_packaged_artifact(path_str: str) -> bool:
     if normalized.startswith("resources/bundled-module-registry/"):
         return False
     return normalized.startswith("resources/")
+
+
+def _candidate_requires_versioning(
+    root: Path,
+    candidate_files: set[str],
+    compare_ref: str,
+    current_version: str,
+) -> bool:
+    """Return whether changed files imply a package version/changelog bundle."""
+    for path in candidate_files:
+        normalized = path.replace("\\", "/")
+        if normalized == "pyproject.toml":
+            if _version_bumped_vs_git_ref(root, current_version, compare_ref):
+                return True
+            continue
+        if _is_packaged_artifact(normalized):
+            return True
+    return False
 
 
 def _parse_semver(version: str) -> tuple[int, int, int] | None:
@@ -255,9 +273,9 @@ def main(argv: list[str] | None = None) -> int:
         sys.stderr.write(_REMEDIATION)
         return 1
 
-    if any(_is_packaged_artifact(path) for path in candidate_files):
+    compare_ref = changed_vs_ref if changed_vs_ref else "HEAD"
+    if _candidate_requires_versioning(root, candidate_files, compare_ref, unique[0]):
         required_files = changed_files if changed_files else staged_files
-        compare_ref = changed_vs_ref if changed_vs_ref else "HEAD"
         return _enforce_packaged_artifact_versioning(root, required_files, unique[0], compare_ref)
     return 0
 

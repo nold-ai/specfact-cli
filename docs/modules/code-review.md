@@ -138,6 +138,18 @@ The scaffolded `ReviewReport` envelope carries these fields:
 - Review-specific fields (`score`, `reward_delta`, `findings`, `summary`, `house_rules_updates`) extend the standard evidence shape without replacing it.
 - CI can treat `ci_exit_code` as the contract-bound gate result from the start.
 
+## Self-Review Limits
+
+`specfact code review run` is deliberately optimized for SpecFact conventions: command surfaces, OpenSpec contract alignment, local clean-code rules, and repository-specific policy. That makes it useful, but it also means it can inherit blind spots from SpecFact itself. If SpecFact does not model a risk pattern, the self-review gate cannot reliably discover that pattern in this repository.
+
+For SpecFact CLI itself, CI pairs the self-review evidence with an independent static-analysis gate:
+
+- Semgrep OSS SAST runs through `hatch run semgrep-sast`.
+- `hatch run semgrep-sast-gate` compares Semgrep JSON against `tools/semgrep/sast-baseline.json` and fails on new findings.
+- Bandit runs through `hatch run bandit-scan`.
+
+Use the self-review report for SpecFact-specific quality signals, and use Semgrep/Bandit as orthogonal evidence from external rulesets.
+
 ## Pre-Commit Review Gate
 
 This repository wires `specfact code review run` into **Block 2** of the modular pre-commit pipeline

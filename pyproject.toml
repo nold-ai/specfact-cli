@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "specfact-cli"
-version = "0.47.7"
+version = "0.47.8"
 description = "AI-bloat defense CLI for Python teams. Run deterministic code review, cleanup forecasts, and spec/contract evidence for AI-assisted and brownfield delivery."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -234,6 +234,8 @@ format = "ruff check . --fix && ruff format ."
 # Code scanning (Semgrep)
 # Semgrep 1.38+ deprecated implicit .semgrep.yml discovery; always pass --config explicitly.
 # Script must not be named `semgrep` (Hatch treats that as circular expansion with the semgrep CLI).
+semgrep-sast = "semgrep scan --config auto {args}"
+semgrep-sast-gate = "python scripts/semgrep_sast_gate.py {args}"
 semgrep-full = "semgrep --config tools/semgrep {args}"
 scan = "semgrep --config tools/semgrep/async.yml {args}"
 scan-all = "semgrep --config tools/semgrep/async.yml ."

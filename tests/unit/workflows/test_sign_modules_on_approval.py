@@ -132,6 +132,7 @@ def _assert_approval_push_step(steps: list[dict[str, Any]]) -> None:
     assert "origin" in prun
     assert "HEAD_REF" in prun
     assert push.get("working-directory") == "_pr_workspace"
+    assert "[skip ci]" not in prun
 
 
 def _assert_approval_checkout_and_sign_steps(workflow: dict[str, Any]) -> None:
@@ -157,6 +158,7 @@ def _assert_dispatch_sign_steps(workflow: dict[str, Any]) -> None:
     assert "chore(modules): manual approval-workflow sign changed modules" in prun
     assert 'git push origin "HEAD:${GITHUB_REF_NAME}"' in prun
     assert "origin" in prun
+    assert "[skip ci]" not in prun
 
 
 def test_sign_modules_on_approval_workflow_exists() -> None:

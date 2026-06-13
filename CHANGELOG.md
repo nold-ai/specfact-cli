@@ -10,6 +10,17 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.47.8] - 2026-06-13
+
+### Fixed
+
+- **PR hardening follow-up**: address PR review annotations and failing CI by
+  pinning orchestrator actions to immutable SHAs, preserving precise coverage
+  threshold comparisons, making Semgrep SAST result parsing fail closed, and
+  normalizing versioned dependency constraints before dedupe.
+
+---
+
 ## [0.47.7] - 2026-06-12
 
 ### Fixed

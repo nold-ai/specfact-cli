@@ -8,7 +8,7 @@ The 73+ existing CliRunner tests prove commands work in-process. But SpecFact is
 
 - **NEW**: Dual-path scenario runner in `tools/cli_acceptance_runner.py` that reads YAML scenarios from cli-val-01 and executes them via:
   - Fast path: `typer.testing.CliRunner` (for development speed)
-  - Black-box path: `subprocess.run()` against the installed `specfact` binary (for CI/release validation)
+  - Black-box path: `subprocess.run()` against a built-wheel installation of the `specfact` and `specfact-cli` binaries (for CI/release validation)
 - **NEW**: Acceptance test file `tests/e2e/test_cli_acceptance.py` wiring the runner into pytest collection
 - **NEW**: Small set of Cram-style `.t` or Markdown acceptance tests for 3-5 flagship command chains (living documentation + executable tests)
 - **EXTEND**: `pyproject.toml` with hatch scripts for fast-path and black-box acceptance runs
@@ -17,13 +17,13 @@ The 73+ existing CliRunner tests prove commands work in-process. But SpecFact is
 
 ### New Capabilities
 
-- `acceptance-test-runner`: A dual-path test runner that executes CLI behavior scenarios from YAML files via CliRunner (fast, in-process) or subprocess (black-box, against installed binary). Supports workspace setup, exit code assertions, output pattern matching, and filesystem diff verification.
+- `acceptance-test-runner`: A dual-path test runner that executes CLI behavior scenarios from YAML files via CliRunner (fast, in-process) or subprocess (black-box, against a built-wheel installed binary). Supports workspace setup, exit code assertions, output pattern matching, and filesystem diff verification.
 
 ## Impact
 
 - **Affected specs**: No existing specs modified; new spec delta defines runner behavior
 - **Affected code**: New tools/ and tests/ files only; no production CLI code changes
-- **Integration points**: Consumes cli-val-01 YAML scenarios and cli-val-03 anti-patterns; consumed by cli-val-05 (CI gate runs black-box path)
+- **Integration points**: Consumes cli-val-01 YAML scenarios and cli-val-03 anti-patterns; consumed by cli-val-05 (CI gate builds a wheel and runs the black-box path)
 - **Documentation impact**: Developer guide update describing acceptance test workflow and how to add new scenarios
 
 ## Dependencies

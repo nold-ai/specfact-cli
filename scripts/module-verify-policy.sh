@@ -9,5 +9,6 @@
 # shellcheck disable=SC2034
 VERIFY_MODULES_STRICT=(--require-signature --enforce-version-bump --payload-from-filesystem)
 VERIFY_MODULES_PR=(--enforce-version-bump --skip-checksum-verification)
-# Post-merge / push verification in PR orchestrator: checksum + version, signatures handled by sign-modules.
+# Dev push verification in PR orchestrator: checksum + version, signatures handled by sign-modules.
+# Main PRs and main pushes should use VERIFY_MODULES_STRICT at the release trust boundary.
 VERIFY_MODULES_PUSH_ORCHESTRATOR=(--enforce-version-bump --payload-from-filesystem)
