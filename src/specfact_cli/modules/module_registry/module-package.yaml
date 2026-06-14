@@ -17,5 +17,5 @@ publisher:
 description: 'Manage modules: search, list, show, install, and upgrade.'
 license: Apache-2.0
 integrity:
-  checksum: sha256:6dff1b48cbac5a68a1aa519ebadb1d4d7d5531d970d9ee2a00f2f33bd76516cb
-  signature: OW/11vMxQ1DWHw9yCwa1rpw1HGCEEcxXbtCdVju/DaMpqkmNuFfoZ37Trm1DhDbu78JQdE1uEMBhI/YCmFk/Cw==
+  checksum: sha256:f1e22f987b30494a0c1e11b171d1c7d61558bceb10f228f6a25c96acd5ae842b
+  signature: 7H04H/ReKpVemmNzr9bnDMs04d7XybWO5FzDc2rMttyD3q6QRgz/zShXqzCZ4dZiSUMo0oTWd2BPib1ABSxqBQ==
