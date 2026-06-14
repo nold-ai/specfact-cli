@@ -3,14 +3,17 @@
 from __future__ import annotations
 
 import importlib
+import io
 import tarfile
 import warnings
 from pathlib import Path
 
 import pytest
+from rich.console import Console
 from typer.testing import CliRunner
 
-from specfact_cli.modules.module_registry.src.commands import app
+from specfact_cli.modules.module_registry.src.commands import _install_impl, app
+from specfact_cli.registry import module_lifecycle
 from specfact_cli.registry.module_installer import REGISTRY_ID_FILE
 
 
@@ -50,7 +53,7 @@ def _create_module_tarball(
     return tarball
 
 
-def _stub_install_runtime(monkeypatch) -> None:
+def _stub_install_runtime(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("specfact_cli.registry.module_installer.resolve_dependencies", lambda *_a, **_k: None)
     monkeypatch.setattr(
         "specfact_cli.registry.module_installer.install_resolved_pip_requirements", lambda *_a, **_k: None
@@ -61,7 +64,7 @@ def _stub_install_runtime(monkeypatch) -> None:
     monkeypatch.setattr("specfact_cli.modules.module_registry.src.commands.discover_all_modules", list)
 
 
-def test_module_install_official_bundle_reports_verification(monkeypatch, tmp_path: Path) -> None:
+def test_module_install_official_bundle_reports_verification(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     _stub_install_runtime(monkeypatch)
     tarball = _create_module_tarball(tmp_path, "specfact-codebase")
     monkeypatch.setattr("specfact_cli.registry.module_installer.download_module", lambda *_a, **_k: tarball)
@@ -84,7 +87,9 @@ def test_module_install_official_bundle_reports_verification(monkeypatch, tmp_pa
     assert "Verified: official (nold-ai)" in result.stdout
 
 
-def test_installing_spec_bundle_auto_installs_project_dependency(monkeypatch, tmp_path: Path) -> None:
+def test_installing_spec_bundle_auto_installs_project_dependency(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     _stub_install_runtime(monkeypatch)
     tar_project = _create_module_tarball(tmp_path, "specfact-project")
     tar_spec = _create_module_tarball(
@@ -113,7 +118,9 @@ def test_installing_spec_bundle_auto_installs_project_dependency(monkeypatch, tm
     assert (install_root / "specfact-spec" / "module-package.yaml").exists()
 
 
-def test_installing_spec_bundle_skips_dependency_when_already_present(monkeypatch, tmp_path: Path) -> None:
+def test_installing_spec_bundle_skips_dependency_when_already_present(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
     _stub_install_runtime(monkeypatch)
     tar_spec = _create_module_tarball(
         tmp_path,
@@ -136,16 +143,40 @@ def test_installing_spec_bundle_skips_dependency_when_already_present(monkeypatc
     (dep_dir / "module-package.yaml").write_text("name: specfact-project\nversion: '0.39.0'\ncommands: [project]\n")
     (dep_dir / REGISTRY_ID_FILE).write_text("nold-ai/specfact-project", encoding="utf-8")
 
+    _install_impl(
+        ["nold-ai/specfact-spec"],
+        source="marketplace",
+        scope="project",
+        repo=tmp_path,
+    )
+
+    out = capsys.readouterr().out
+    assert "Installed nold-ai/specfact-spec ->" in out
+    assert "Verified: official (nold-ai)" in out
+    assert calls == ["nold-ai/specfact-spec"]
+
+
+def test_bundle_install_refreshes_stale_loaded_module_consoles(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    _stub_install_runtime(monkeypatch)
+    tar_spec = _create_module_tarball(tmp_path, "specfact-spec")
+    monkeypatch.setattr("specfact_cli.registry.module_installer.download_module", lambda *_a, **_k: tar_spec)
+    closed_stream = io.StringIO()
+    closed_stream.close()
+    stale_console = Console(file=closed_stream)
+    monkeypatch.setattr(module_lifecycle, "console", stale_console, raising=False)
+
     result = runner.invoke(
         app,
         ["install", "nold-ai/specfact-spec", "--source", "marketplace", "--scope", "project", "--repo", str(tmp_path)],
     )
 
     assert result.exit_code == 0
-    assert calls == ["nold-ai/specfact-spec"]
+    assert result.exception is None
+    assert vars(module_lifecycle).get("console") is not stale_console
+    assert "Installed nold-ai/specfact-spec ->" in result.stdout
 
 
-def test_module_list_shows_official_badge_for_installed_bundle(monkeypatch) -> None:
+def test_module_list_shows_official_badge_for_installed_bundle(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         "specfact_cli.modules.module_registry.src.commands.get_modules_with_state",
         lambda: [

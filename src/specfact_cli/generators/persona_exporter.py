@@ -90,7 +90,7 @@ class PersonaExporter:
         self.project_templates_dir = project_templates_dir
 
         # Create Jinja2 environment with fallback support
-        self.env = Environment(
+        self.env = Environment(  # nosec B701 - exports trusted Markdown templates, not HTML.
             loader=FileSystemLoader(
                 [str(self.templates_dir)] + ([str(self.project_templates_dir)] if project_templates_dir else [])
             ),

@@ -16,7 +16,7 @@ import typer
 import yaml
 from beartype import beartype
 from click.exceptions import Exit as ClickExit
-from icontract import require
+from icontract import ensure, require
 from packaging.version import InvalidVersion, Version
 from rich.console import Console
 from rich.table import Table
@@ -54,11 +54,19 @@ from specfact_cli.registry.module_packages import get_discovered_modules_for_sta
 from specfact_cli.registry.module_security import ensure_publisher_trusted, is_official_publisher
 from specfact_cli.registry.module_state import read_modules_state, write_modules_state
 from specfact_cli.registry.registry import CommandRegistry
-from specfact_cli.runtime import is_non_interactive
+from specfact_cli.runtime import is_non_interactive, refresh_loaded_module_consoles
 
 
 app = typer.Typer(help="Manage marketplace modules")
 console = Console()
+
+
+@app.callback()
+@beartype
+@ensure(lambda result: result is None, "module registry callback returns None")
+def module_registry_callback() -> None:
+    """Prepare invocation-local output streams for direct module command tests."""
+    refresh_loaded_module_consoles()
 
 
 def _module_upgrade_show_spinner() -> bool:
@@ -386,10 +394,10 @@ def _install_one(module_id: str, params: _InstallOneParams) -> bool:
     except Exception as exc:
         console.print(f"[red]Failed installing {normalized}: {exc}[/red]")
         return False
-    console.print(f"[green]Installed[/green] {normalized} -> {installed_path}")
+    typer.echo(f"Installed {normalized} -> {installed_path}")
     publisher = _publisher_from_module_id(normalized)
     if is_official_publisher(publisher):
-        console.print(f"Verified: official ({publisher})")
+        typer.echo(f"Verified: official ({publisher})")
     return True
 
 

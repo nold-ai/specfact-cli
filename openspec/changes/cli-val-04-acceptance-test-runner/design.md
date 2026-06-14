@@ -29,7 +29,7 @@ This change implements the runner that compiles CLI behavior scenarios (from cli
 
 ## Risks / Trade-offs
 
-- [subprocess tests depend on installed binary] -> Mitigation: CI installs via `pip install -e .` before running black-box tests
+- [subprocess tests depend on installed binary] -> Mitigation: CI builds a wheel and installs that wheel into an isolated environment before running black-box tests; editable installs are allowed only for local fast feedback
 - [Subprocess tests are slower] -> Mitigation: mark as `blackbox` for selective execution; fast path covers most validation
 - [Context setup complexity] -> Mitigation: start with 3 simple context types; extend as needed
 
@@ -44,4 +44,4 @@ This change implements the runner that compiles CLI behavior scenarios (from cli
 ## Open Questions
 
 - Whether to adopt Cram/Prysk/Scrut for the flagship tests in a future iteration
-- Whether the black-box path should test the `specfact` or `specfact-cli` entry point (or both)
+- Whether later release validation should add a published-package `uvx specfact-cli@<version>` leg after PR-time wheel validation is stable

@@ -245,6 +245,7 @@ class TestSmartCoverageManagerEnhanced:
                 "success": True,
                 "test_count": 100,
                 "coverage_percentage": 85.0,
+                "last_run": "2026-06-13T00:00:00",
             }
             result = self.manager.run_smart_tests("auto")
 

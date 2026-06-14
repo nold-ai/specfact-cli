@@ -38,7 +38,7 @@ class WorkflowGenerator:
             templates_dir = Path(__file__).parent.parent.parent.parent / "resources" / "templates"
 
         self.templates_dir = Path(templates_dir)
-        self.env = Environment(
+        self.env = Environment(  # nosec B701 - generates trusted text/YAML workflow templates, not HTML.
             loader=FileSystemLoader(self.templates_dir),
             # Must be False: trim_blocks removes the newline after {% endraw %}, merging `if:` with `run:`.
             trim_blocks=False,

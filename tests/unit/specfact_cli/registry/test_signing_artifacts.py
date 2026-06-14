@@ -1062,11 +1062,31 @@ def test_pr_orchestrator_contains_verify_module_signatures_job():
     assert "--require-signature" not in content
     assert "SPECFACT_MODULE_PRIVATE_SIGN_KEY" in content
     assert "SPECFACT_MODULE_PRIVATE_SIGN_KEY_PASSPHRASE" in content
-    assert re.search(
-        r"verify-module-signatures:.*?uses: actions/checkout@v4.*?fetch-depth: 0",
-        content,
-        re.DOTALL,
+
+
+def test_pr_orchestrator_verify_module_signatures_checkout_is_pinned() -> None:
+    """Module verification checkout SHALL fetch full history through a pinned Action SHA."""
+    if not PR_ORCHESTRATOR_WORKFLOW.exists():
+        pytest.skip("pr-orchestrator workflow not present")
+    job = _load_pr_orchestrator_jobs().get("verify-module-signatures")
+    assert job is not None, "Expected verify-module-signatures job in pr-orchestrator"
+    steps = job.get("steps")
+    assert isinstance(steps, list), "Expected steps list for verify-module-signatures job"
+    checkout_step = next(
+        (
+            step
+            for step in steps
+            if isinstance(step, dict)
+            and isinstance(step.get("uses"), str)
+            and step["uses"].startswith("actions/checkout@")
+        ),
+        None,
     )
+    assert isinstance(checkout_step, dict), "Expected verify-module-signatures to check out the repository"
+    assert re.fullmatch(r"actions/checkout@[0-9a-f]{40}", checkout_step["uses"])
+    with_block = checkout_step.get("with")
+    assert isinstance(with_block, dict), "Expected checkout step to define inputs"
+    assert with_block.get("fetch-depth") == 0
 
 
 def test_pr_orchestrator_does_not_require_signatures_on_pr_heads() -> None:

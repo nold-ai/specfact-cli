@@ -10,6 +10,48 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.47.11] - 2026-06-14
+
+### Fixed
+
+- **Bundle install CI stability**: avoid brittle Click stdout capture in the
+  already-present bundle dependency regression and apply module-registry review
+  annotations for callback type enforcement and isolated test state.
+
+---
+
+## [0.47.10] - 2026-06-13
+
+### Fixed
+
+- **Module install CI stability**: refresh loaded SpecFact module consoles before
+  direct module-registry invocations so stale Rich streams from earlier tests do
+  not close Click's captured stdout in Python 3.11 full-suite runs.
+
+---
+
+## [0.47.9] - 2026-06-13
+
+### Fixed
+
+- **PR gate remediation**: split Independent Static Analysis onto a dedicated
+  checked-in SAST profile, keep clean-code review separate from security SAST,
+  fix marketplace install output capture across Python CI jobs, and make the
+  module pre-commit verifier compatible with macOS's default Bash.
+
+---
+
+## [0.47.8] - 2026-06-13
+
+### Fixed
+
+- **PR hardening follow-up**: address PR review annotations and failing CI by
+  pinning orchestrator actions to immutable SHAs, preserving precise coverage
+  threshold comparisons, making Semgrep SAST result parsing fail closed, and
+  normalizing versioned dependency constraints before dedupe.
+
+---
+
 ## [0.47.7] - 2026-06-12
 
 ### Fixed

@@ -189,8 +189,8 @@ jobs:
   auto-publish:
     name: Package bundled modules and PR bundled-registry snapshot (after sign-modules)
     # Trigger only when sign-modules.yml completed successfully on dev/main.
-    # Uses workflow_run so it is NOT suppressed by the `[skip ci]` marker on
-    # the bot's auto-sign commit (push events would be).
+    # Uses workflow_run so publishing follows the completed signing workflow,
+    # independent of which push event originally changed bundled manifests.
     if: >-
       github.event_name == 'workflow_run' &&
       github.event.workflow_run.event == 'push' &&

@@ -1,0 +1,97 @@
+rules:
+  - id: unsafe-eval-usage
+    patterns:
+      - pattern-either:
+          - pattern: eval($INPUT)
+          - pattern: exec($INPUT)
+          - pattern: compile($INPUT, ...)
+    message: "Unsafe eval/exec detected - potential code injection vulnerability"
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: security
+      subcategory: [injection, code-execution]
+      confidence: HIGH
+      cwe: "CWE-94"
+      owasp: "A03:2021-Injection"
+
+  - id: unsafe-pickle-deserialization
+    patterns:
+      - pattern-either:
+          - pattern: pickle.loads($DATA)
+          - pattern: pickle.load($FILE)
+    message: "Unsafe pickle deserialization - potential code execution"
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: security
+      subcategory: [deserialization]
+      confidence: HIGH
+      cwe: "CWE-502"
+      owasp: "A08:2021-Software and Data Integrity Failures"
+
+  - id: command-injection-risk
+    patterns:
+      - pattern-either:
+          - pattern: os.system($CMD)
+          - pattern: subprocess.run($CMD, shell=True)
+          - pattern: subprocess.call($CMD, shell=True)
+          - pattern: subprocess.Popen($CMD, shell=True)
+    message: "Command injection risk detected"
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: security
+      subcategory: [injection, command-injection]
+      confidence: HIGH
+      cwe: "CWE-78"
+      owasp: "A03:2021-Injection"
+
+  - id: weak-cryptographic-hash
+    patterns:
+      - pattern-either:
+          - pattern: hashlib.md5(...)
+          - pattern: hashlib.sha1(...)
+    message: "Weak cryptographic hash function detected"
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: security
+      subcategory: [cryptography, weak-hash]
+      confidence: HIGH
+      cwe: "CWE-327"
+      owasp: "A02:2021-Cryptographic Failures"
+      replacement: "hashlib.sha256 or hashlib.sha512"
+
+  - id: hardcoded-secret
+    patterns:
+      - pattern-either:
+          - pattern: $VAR = "api_key:..."
+          - pattern: $VAR = "password:..."
+          - pattern: $VAR = "secret:..."
+          - pattern: API_KEY = "..."
+          - pattern: PASSWORD = "..."
+    message: "Potential hardcoded secret detected"
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: security
+      subcategory: [secrets, hardcoded-credentials]
+      confidence: MEDIUM
+      cwe: "CWE-798"
+      owasp: "A07:2021-Identification and Authentication Failures"
+
+  - id: insecure-random
+    patterns:
+      - pattern-either:
+          - pattern: random.random()
+          - pattern: random.randint(...)
+    message: "Insecure random number generator - use secrets module for security"
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: security
+      subcategory: [cryptography, weak-random]
+      confidence: HIGH
+      cwe: "CWE-338"
+      replacement: "secrets module"

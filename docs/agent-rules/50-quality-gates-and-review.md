@@ -15,7 +15,7 @@ tracks:
   - scripts/verify-modules-signature.py
   - scripts/module-verify-policy.sh
   - docs/agent-rules/**
-last_reviewed: 2026-04-16
+last_reviewed: 2026-06-13
 exempt: false
 exempt_reason: ""
 id: agent-rules-quality-gates-and-review
@@ -52,6 +52,17 @@ depends_on:
 - Resolve every finding at any severity unless a rare, explicit exception is documented.
 - Record the review command and timestamps in `TDD_EVIDENCE.md` or the PR description when quality gates are part of the change.
 
+## Independent static analysis
+
+Do not treat `specfact code review run` as sufficient security evidence for this repository. The review gate is intentionally self-referential: it is valuable for SpecFact-specific conventions, command-surface expectations, OpenSpec alignment, and local clean-code policy, but it can inherit blind spots from SpecFact itself.
+
+PR validation therefore requires an independent static-analysis check alongside the self-review gate:
+
+- `Independent Static Analysis` runs Semgrep OSS SAST through `hatch run semgrep-sast` and validates results with `hatch run semgrep-sast-gate`.
+- Existing Semgrep findings are tracked in `tools/semgrep/sast-baseline.json`; new findings outside that baseline fail CI.
+- Bandit runs through `hatch run bandit-scan` and is expected to remain clean for blocking medium/high findings.
+- The Semgrep and Bandit artifacts are external evidence and must not be replaced by `.specfact/code-review.json`.
+
 ## Clean-code review gate
 
 The repository enforces the clean-code charter through `specfact code review run`. Zero regressions in `naming`, `kiss`, `yagni`, `dry`, and `solid` are required before merge.
@@ -70,6 +81,10 @@ the change reaches `main`**.
 ```bash
 hatch run verify-modules-signature
 ```
+
+CI mirrors this boundary: `pr-orchestrator.yml` uses **`VERIFY_MODULES_STRICT`** for pull requests
+targeting `main` and for pushes to `main`; relaxed PR verification is only for development PRs that do
+not cross the release boundary.
 
 If verification fails because module contents changed, re-sign the affected manifests and bump the
 module version before re-running verification. Note: `verify-modules-signature.py` has **no**

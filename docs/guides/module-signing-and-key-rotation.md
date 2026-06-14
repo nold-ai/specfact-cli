@@ -124,7 +124,8 @@ PR / feature-branch parity with pre-commit omit (version bump vs base; defer che
 hatch run verify-modules-signature-pr --version-check-base origin/dev
 ```
 
-Post-merge / push-style checksum + version (no `--require-signature`; matches `VERIFY_MODULES_PUSH_ORCHESTRATOR`):
+Development push-style checksum + version for the `dev` path (no `--require-signature`; matches
+`VERIFY_MODULES_PUSH_ORCHESTRATOR`):
 
 ```bash
 hatch run python scripts/verify-modules-signature.py --enforce-version-bump --payload-from-filesystem
@@ -146,14 +147,16 @@ If you use `pre-commit` or `scripts/setup-git-hooks.sh`, commits that stage chan
 
 Canonical flag bundles live in **`scripts/module-verify-policy.sh`** and are sourced by:
 
-- **`pr-orchestrator.yml`** job `verify-module-signatures`: **pull requests** use **`VERIFY_MODULES_PR`**
-  (same as pre-commit omit). **Pushes** to `dev` / `main` use **`VERIFY_MODULES_PUSH_ORCHESTRATOR`**
-  (payload checksum + version bump; no `--require-signature` in this job).
+- **`pr-orchestrator.yml`** job `verify-module-signatures`: pull requests targeting **`dev`** use
+  **`VERIFY_MODULES_PR`** (same as pre-commit omit). Pull requests targeting **`main`** and pushes to
+  **`main`** use **`VERIFY_MODULES_STRICT`** so unsigned or stale bundled manifests block before the
+  release trust boundary. Pushes to **`dev`** use **`VERIFY_MODULES_PUSH_ORCHESTRATOR`** (payload
+  checksum + version bump; no `--require-signature` in the `dev` push path).
 - **`sign-modules.yml`** job `verify`: **push** to `dev` or `main` runs **`VERIFY_MODULES_STRICT`**
   after the auto-sign step. **Pull requests** and **`workflow_dispatch`** use **`VERIFY_MODULES_PR`**.
 
-Strict signatures on protected branches are enforced by **`sign-modules.yml`** (and local **`main`**
-pre-commit), not by adding `--require-signature` to the PR orchestrator verify step.
+Strict signatures at the release boundary are enforced by **`pr-orchestrator.yml`**, **`sign-modules.yml`**,
+and local **`main`** pre-commit.
 
 ## Rotation Procedure
 
