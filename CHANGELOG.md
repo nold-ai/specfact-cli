@@ -10,6 +10,16 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.47.11] - 2026-06-14
+
+### Fixed
+
+- **Bundle install CI stability**: avoid brittle Click stdout capture in the
+  already-present bundle dependency regression and apply module-registry review
+  annotations for callback type enforcement and isolated test state.
+
+---
+
 ## [0.47.10] - 2026-06-13
 
 ### Fixed

@@ -62,6 +62,7 @@ console = Console()
 
 
 @app.callback()
+@beartype
 @ensure(lambda result: result is None, "module registry callback returns None")
 def module_registry_callback() -> None:
     """Prepare invocation-local output streams for direct module command tests."""

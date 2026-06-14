@@ -250,24 +250,31 @@ Result: passed. The focused pytest run collected 24 tests: 23 passed and 1 skipp
 ## PR #610 Python 3.11 full-suite stdout capture follow-up
 
 The Python 3.11 full-suite job still exposed a closed Click stdout capture in
-`test_installing_spec_bundle_skips_dependency_when_already_present` after earlier
-tests had loaded modules with stale Rich consoles. The fix refreshes all loaded
-SpecFact module consoles before direct module-registry invocations and adds a
-regression that poisons another loaded module console before marketplace bundle
-install.
+`test_installing_spec_bundle_skips_dependency_when_already_present`. CI logs
+showed the install command reached the expected behavior and emitted the expected
+messages, but `CliRunner.invoke()` failed while reading its closed internal
+stdout buffer. The fix keeps direct module-registry invocations resilient to
+stale loaded consoles and moves the dependency-skip behavior regression onto the
+install implementation with pytest `capsys`, avoiding an unrelated Click capture
+layer for this behavior-only assertion. Follow-up CodeRabbit annotations were
+also applied by decorating the public module-registry callback with `@beartype`
+and using pytest `monkeypatch` to roll back the temporary stale-console test
+state.
 
 Commands:
 
 ```bash
 hatch -e py311 run pytest tests/integration/test_bundle_install.py -q
+hatch run pytest tests/integration/test_bundle_install.py -q
 hatch run ruff check src/specfact_cli/modules/module_registry/src/commands.py tests/integration/test_bundle_install.py
 hatch run pylint --jobs=1 src/specfact_cli/modules/module_registry/src/commands.py tests/integration/test_bundle_install.py
 hatch run check-version-sources
 hatch run verify-modules-signature-pr --version-check-base origin/dev
 ```
 
-Result: passed. The Python 3.11 bundle install file collected 6 tests: 5 passed
-and 1 skipped (`specfact_codebase.validate` not installed locally). Ruff passed,
-pylint rated the touched Python files 10.00/10, version sources are synchronized
-at 0.47.10, and PR-style module signature verification passed with the
-module-registry manifest version bumped to 0.1.29.
+Result: passed. The Python 3.11 and Python 3.12 bundle install files each
+collected 6 tests: 5 passed and 1 skipped (`specfact_codebase.validate` not
+installed locally). Ruff passed, pylint rated the touched Python files 10.00/10,
+version sources are synchronized at 0.47.11, and PR-style module signature
+verification passed with the module-registry manifest signed by automation at
+0.1.31.
