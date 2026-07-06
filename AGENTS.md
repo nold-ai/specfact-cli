@@ -21,6 +21,16 @@ This file is the mandatory bootstrap governance surface for coding agents workin
 5. Other selected files under `docs/agent-rules/`
 6. Change-local OpenSpec artifacts and workflow notes
 
+## Behavioral defaults
+
+When repository governance allows implementation:
+
+- State assumptions before changing code.
+- Prefer the smallest change that satisfies the verified scope.
+- Avoid speculative abstractions, drive-by refactors, and unrelated formatting churn.
+- Ensure every changed line traces to the user request, selected OpenSpec change, or required verification fix.
+- Define success criteria before implementation and verify them with the required repository gates.
+
 ## Non-negotiable gates
 
 - Work in a git worktree unless the user explicitly overrides that rule.
