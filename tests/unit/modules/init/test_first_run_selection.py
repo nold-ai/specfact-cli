@@ -87,6 +87,24 @@ def test_profile_config_layering_records_winning_sources() -> None:
     assert resolved.sources["validation"]["policy_mode"] == "profile:solo"
 
 
+def test_developer_local_weakening_org_policy_emits_warning() -> None:
+    resolved = frs.resolve_profile_config(
+        "enterprise",
+        org_baseline={"validation": {"severity": "hard", "policy_mode": "hard"}},
+        developer_local={"validation": {"severity": "advisory"}},
+    )
+
+    assert "developer_local weakens org validation policy" in resolved.warnings
+
+
+def test_profile_defaults_derive_enabled_modules_from_profile_presets() -> None:
+    for profile in frs.VALIDATION_TIER_PROFILES:
+        resolved = frs.resolve_profile_config(profile)
+        expected = [f"nold-ai/{bundle}" for bundle in frs.resolve_profile_bundles(profile)]
+
+        assert resolved.values["modules"]["enabled"] == expected
+
+
 def test_profile_nonexistent_raises_with_valid_list() -> None:
     with pytest.raises(ValueError) as exc_info:
         frs.resolve_profile_bundles("nonexistent")
@@ -102,6 +120,13 @@ def test_install_backlog_codebase_resolves_to_two_bundles() -> None:
     bundles = frs.resolve_install_bundles("backlog,codebase")
     assert set(bundles) == {"specfact-backlog", "specfact-codebase"}
     assert len(bundles) == 2
+
+
+def test_install_code_review_alias_resolves_to_code_review_bundle() -> None:
+    assert frs.resolve_install_bundles("backlog,code-review") == [
+        "specfact-backlog",
+        "specfact-code-review",
+    ]
 
 
 def test_install_all_resolves_to_all_five_bundles() -> None:
@@ -279,6 +304,51 @@ def test_init_startup_profile_writes_layered_config_and_enables_startup_modules(
     enable_ids = captured["enable_ids"]
     assert isinstance(enable_ids, list)
     assert {"nold-ai/specfact-project", "nold-ai/specfact-backlog"} <= set(enable_ids)
+
+
+def test_write_profile_config_rerun_does_not_keep_prior_generated_profile(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(frs.Path, "home", lambda: tmp_path / "home")
+
+    frs.write_profile_config(tmp_path, "enterprise")
+    resolved = frs.write_profile_config(tmp_path, "solo")
+
+    config_path = tmp_path / ".specfact" / "config.yaml"
+    config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    assert resolved.values["clean_code"]["mode"] == "advisory"
+    assert config["profile"] == "solo"
+    assert config["clean_code"]["mode"] == "advisory"
+    assert config["modules"]["enabled"] == ["nold-ai/specfact-codebase", "nold-ai/specfact-code-review"]
+    assert "nold-ai/specfact-govern" not in config["modules"]["enabled"]
+    assert config["source_annotations"]["modules"]["enabled"] == "profile:solo"
+
+
+def test_init_profile_malformed_existing_config_exits_nonzero(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    specfact_dir = tmp_path / ".specfact"
+    specfact_dir.mkdir()
+    (specfact_dir / "config.yaml").write_text("- not-a-mapping\n", encoding="utf-8")
+
+    monkeypatch.setattr(frs.Path, "home", lambda: tmp_path / "home")
+    monkeypatch.setattr("specfact_cli.modules.init.src.commands.install_bundles_for_init", lambda *_a, **_k: None)
+    monkeypatch.setattr("specfact_cli.modules.init.src.commands.is_first_run", lambda **_: True)
+    monkeypatch.setattr(
+        "specfact_cli.modules.init.src.commands.get_discovered_modules_for_state",
+        lambda **_: [{"id": "init", "enabled": True}],
+    )
+    monkeypatch.setattr("specfact_cli.modules.init.src.commands.write_modules_state", lambda _: None)
+    monkeypatch.setattr("specfact_cli.modules.init.src.commands.run_discovery_and_write_cache", lambda _: None)
+
+    with _telemetry_track_context():
+        result = runner.invoke(
+            app,
+            ["--repo", str(tmp_path), "--profile", "solo"],
+            catch_exceptions=False,
+        )
+
+    assert result.exit_code == 1
+    assert "Error:" in result.output
+    assert "Config file must contain a mapping" in result.output
 
 
 def test_init_profile_enterprise_full_stack_calls_installer_with_all_five(

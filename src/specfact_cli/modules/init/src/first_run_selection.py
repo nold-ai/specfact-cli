@@ -7,7 +7,7 @@ from collections.abc import Mapping
 from copy import deepcopy
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import yaml
 from beartype import beartype
@@ -50,6 +50,11 @@ LEGACY_PROFILE_TO_VALIDATION_TIER: dict[str, str] = {
     "enterprise-full-stack": "enterprise",
 }
 
+
+def _canonical_module_ids(bundle_ids: list[str]) -> list[str]:
+    return [f"nold-ai/{bundle_id}" for bundle_id in bundle_ids]
+
+
 _PROFILE_DEFAULTS: dict[str, dict[str, Any]] = {
     "solo": {
         "profile": "solo",
@@ -62,7 +67,7 @@ _PROFILE_DEFAULTS: dict[str, dict[str, Any]] = {
             "mode": "advisory",
         },
         "modules": {
-            "enabled": ["nold-ai/specfact-codebase", "nold-ai/specfact-code-review"],
+            "enabled": _canonical_module_ids(PROFILE_PRESETS["solo"]),
         },
         "requirements_schema": {
             "required_fields": ["id", "title", "acceptance"],
@@ -79,12 +84,7 @@ _PROFILE_DEFAULTS: dict[str, dict[str, Any]] = {
             "mode": "advisory_then_mixed",
         },
         "modules": {
-            "enabled": [
-                "nold-ai/specfact-project",
-                "nold-ai/specfact-backlog",
-                "nold-ai/specfact-codebase",
-                "nold-ai/specfact-code-review",
-            ],
+            "enabled": _canonical_module_ids(PROFILE_PRESETS["startup"]),
         },
         "requirements_schema": {
             "required_fields": ["id", "title", "owner", "acceptance"],
@@ -101,13 +101,7 @@ _PROFILE_DEFAULTS: dict[str, dict[str, Any]] = {
             "mode": "mixed",
         },
         "modules": {
-            "enabled": [
-                "nold-ai/specfact-project",
-                "nold-ai/specfact-backlog",
-                "nold-ai/specfact-codebase",
-                "nold-ai/specfact-spec",
-                "nold-ai/specfact-code-review",
-            ],
+            "enabled": _canonical_module_ids(PROFILE_PRESETS["mid_size"]),
         },
         "requirements_schema": {
             "required_fields": ["id", "title", "owner", "acceptance", "trace_links"],
@@ -124,14 +118,7 @@ _PROFILE_DEFAULTS: dict[str, dict[str, Any]] = {
             "mode": "hard",
         },
         "modules": {
-            "enabled": [
-                "nold-ai/specfact-project",
-                "nold-ai/specfact-backlog",
-                "nold-ai/specfact-codebase",
-                "nold-ai/specfact-spec",
-                "nold-ai/specfact-govern",
-                "nold-ai/specfact-code-review",
-            ],
+            "enabled": _canonical_module_ids(PROFILE_PRESETS["enterprise"]),
         },
         "requirements_schema": {
             "required_fields": [
@@ -148,6 +135,9 @@ _PROFILE_DEFAULTS: dict[str, dict[str, Any]] = {
 }
 
 _RESERVED_CONFIG_KEYS: frozenset[str] = frozenset({"source_annotations", "profile_warnings"})
+_PROFILE_GENERATED_CONFIG_KEYS: frozenset[str] = frozenset(
+    {"validation", "clean_code", "modules", "requirements_schema"}
+)
 _POLICY_STRENGTH: dict[str, int] = {"advisory": 1, "advisory_then_mixed": 2, "mixed": 3, "hard": 4}
 
 _INSTALL_ALL_BUNDLES: tuple[str, ...] = (
@@ -176,6 +166,8 @@ BUNDLE_ALIAS_TO_CANONICAL: dict[str, str] = {
     "backlog": "specfact-backlog",
     "codebase": "specfact-codebase",
     "code": "specfact-codebase",
+    "code-review": "specfact-code-review",
+    "code_review": "specfact-code-review",
     "spec": "specfact-spec",
     "govern": "specfact-govern",
 }
@@ -341,6 +333,28 @@ def _read_yaml_mapping(path: Path) -> dict[str, Any]:
     return raw
 
 
+def _source_tree_contains_profile(value: Any) -> bool:
+    if isinstance(value, str):
+        return value.startswith("profile:")
+    if isinstance(value, Mapping):
+        return any(_source_tree_contains_profile(child) for child in value.values())
+    return False
+
+
+def _repo_overlay_without_generated_profile_values(raw_overlay: Mapping[str, Any]) -> dict[str, Any]:
+    overlay = {str(key): deepcopy(value) for key, value in raw_overlay.items()}
+    overlay.pop("profile", None)
+    source_annotations = overlay.pop("source_annotations", {})
+    overlay.pop("profile_warnings", None)
+    if not isinstance(source_annotations, Mapping):
+        return overlay
+    sources_by_key = {str(key): cast(Any, value) for key, value in source_annotations.items()}
+    for key in _PROFILE_GENERATED_CONFIG_KEYS:
+        if _source_tree_contains_profile(sources_by_key.get(key)):
+            overlay.pop(key, None)
+    return overlay
+
+
 @require(lambda repo_path: isinstance(repo_path, Path), "repo_path must be Path")
 @require(lambda profile: isinstance(profile, str) and profile.strip() != "", "profile must be non-empty string")
 @ensure(lambda result: isinstance(result, ResolvedProfileConfig), "result must be a resolved profile config")
@@ -352,8 +366,7 @@ def write_profile_config(repo_path: Path, profile: str) -> ResolvedProfileConfig
     local_path = specfact_dir / "config.local.yaml"
     org_path = Path.home() / ".specfact" / "config.yaml"
 
-    repo_overlay = _read_yaml_mapping(config_path)
-    repo_overlay.pop("profile", None)
+    repo_overlay = _repo_overlay_without_generated_profile_values(_read_yaml_mapping(config_path))
     resolved = resolve_profile_config(
         profile,
         org_baseline=_read_yaml_mapping(org_path),

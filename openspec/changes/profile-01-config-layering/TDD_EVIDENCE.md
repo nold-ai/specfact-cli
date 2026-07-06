@@ -108,3 +108,77 @@
 - Timestamp: 2026-07-06 23:04 CEST
 - Command: `hatch run smart-test`
 - Result: Inconclusive. The tool had no incremental baseline, expanded to a full 2,783-test suite, and was stopped after unrelated broad-suite failures appeared outside the changed scope. Targeted unit/e2e tests above provide changed-scope coverage for this PR.
+
+## PR review follow-up evidence
+
+- Timestamp: 2026-07-06 23:31 CEST
+- Source: PR #624 GitHub review and CI logs.
+- Findings addressed: stale init module checksum/signature metadata, missing `code-review` `init --install` alias, stale tier docs wording, unguarded profile config write error handling, stale generated profile overlay on repeated `init --profile`, missing policy-weakening warning coverage, and duplicated tier module defaults.
+
+- Timestamp: 2026-07-06 23:33 CEST
+- Command: `hatch run pytest tests/unit/modules/init/test_first_run_selection.py::test_install_code_review_alias_resolves_to_code_review_bundle tests/unit/modules/init/test_first_run_selection.py::test_developer_local_weakening_org_policy_emits_warning tests/unit/modules/init/test_first_run_selection.py::test_profile_defaults_derive_enabled_modules_from_profile_presets tests/unit/modules/init/test_first_run_selection.py::test_write_profile_config_rerun_does_not_keep_prior_generated_profile tests/unit/modules/init/test_first_run_selection.py::test_init_profile_malformed_existing_config_exits_nonzero -q`
+- Result: Failed as expected before implementation, 3 failed and 2 passed. Failing cases covered the missing `code-review` alias, stale generated profile overlay, and unhandled malformed config error.
+
+- Timestamp: 2026-07-06 23:34 CEST
+- Command: `hatch run pytest tests/unit/modules/init/test_first_run_selection.py::test_install_code_review_alias_resolves_to_code_review_bundle tests/unit/modules/init/test_first_run_selection.py::test_developer_local_weakening_org_policy_emits_warning tests/unit/modules/init/test_first_run_selection.py::test_profile_defaults_derive_enabled_modules_from_profile_presets tests/unit/modules/init/test_first_run_selection.py::test_write_profile_config_rerun_does_not_keep_prior_generated_profile tests/unit/modules/init/test_first_run_selection.py::test_init_profile_malformed_existing_config_exits_nonzero -q`
+- Result: Passed, 5 passed.
+
+- Timestamp: 2026-07-06 23:36 CEST
+- Command: `hatch run pytest tests/e2e/test_core_slimming_e2e.py::test_e2e_init_profile_solo_developer_then_code_group_available tests/e2e/test_core_slimming_e2e.py::test_e2e_init_profile_api_first_team_then_spec_contract_help tests/e2e/test_first_run_init.py::test_init_profile_solo_developer_completes_in_temp_workspace tests/e2e/test_wow_entrypoint.py::test_init_solo_developer_exits_zero_in_temp_git_repo tests/e2e/test_wow_entrypoint.py::test_after_wow_profile_mock_bundles_registry_lists_code_for_step_two tests/e2e/test_wow_entrypoint.py::test_after_wow_profile_only_code_review_does_not_expose_code_command tests/integration/test_core_slimming.py::test_init_profile_solo_developer_exits_zero_and_code_group_mounted tests/integration/test_core_slimming.py::test_init_profile_enterprise_full_stack_help_shows_eight_commands tests/integration/test_core_slimming.py::test_init_install_all_same_as_enterprise tests/integration/test_core_slimming.py::test_stale_flat_shim_plan_exits_with_removed_alias_guidance tests/integration/test_core_slimming.py::test_init_cicd_mode_no_profile_no_install_exits_one 'tests/unit/cli/test_error_guidance.py::test_cli_misuse_matrix_shows_contextual_help_once[bare module-args1]' tests/unit/cli/test_lean_help_output.py::test_stale_lazy_flat_shim_prints_install_guidance tests/unit/cli/test_lean_help_output.py::test_lazy_delegate_bare_group_shows_full_help_and_missing_subcommand tests/unit/modules/init/test_init_ide_prompt_selection.py::test_init_ide_malformed_vscode_settings_exits_nonzero tests/unit/specfact_cli/registry/test_init_module_lifecycle_ux.py::test_init_rejects_deprecated_list_modules_option -q`
+- Result: Passed, 15 passed and 1 expected skip. This covers the Python 3.12 CI failures observed on PR #624.
+
+- Timestamp: 2026-07-06 23:37 CEST
+- Command: `hatch run py311:test tests/unit/modules/init/test_first_run_selection.py::test_install_code_review_alias_resolves_to_code_review_bundle tests/unit/modules/init/test_first_run_selection.py::test_write_profile_config_rerun_does_not_keep_prior_generated_profile tests/unit/modules/init/test_first_run_selection.py::test_init_profile_malformed_existing_config_exits_nonzero tests/unit/cli/test_lean_help_output.py::test_stale_lazy_flat_shim_prints_install_guidance tests/integration/test_core_slimming.py::test_init_profile_solo_developer_exits_zero_and_code_group_mounted -q`
+- Result: Passed, 5 passed. This covers the Python 3.11 CI failure class observed on PR #624.
+
+- Timestamp: 2026-07-06 23:38 CEST
+- Command: `hatch run lint`
+- Result: Passed, 0 errors, 0 warnings, 0 notes; pylint rated 10.00/10.
+
+- Timestamp: 2026-07-06 23:38 CEST
+- Command: `hatch run type-check`
+- Result: Passed with existing repository warnings; focused touched-file type check passed with 0 errors, 0 warnings, 0 notes.
+
+- Timestamp: 2026-07-06 23:38 CEST
+- Command: `hatch run check-docs-commands`
+- Result: Passed, 382 unique command prefixes checked.
+
+- Timestamp: 2026-07-06 23:40 CEST
+- Command: `hatch run verify-modules-signature-push --version-check-base origin/dev`
+- Result: Passed, 4 module manifests verified.
+
+- Timestamp: 2026-07-06 23:40 CEST
+- Command: `hatch run specfact code review run --scope changed --json --out .specfact/code-review.json`
+- Result: Passed with advisory, CI exit code 0, score 96, 0 blocking findings on changed lines.
+- Advisory disposition: not fixed in this PR. Remaining advisories are pre-existing function-size/YAGNI signals in `src/specfact_cli/modules/init/src/commands.py` outside the review-fix lines. The direct regression and review findings were addressed; broader init refactoring is intentionally out of scope for this PR repair.
+
+## Dependabot remediation evidence
+
+- Timestamp: 2026-07-06 23:43 CEST
+- Source: GitHub Dependabot alerts #3, #4, and #5.
+- Findings addressed: `concurrent-ruby` in `docs/Gemfile.lock` was vulnerable to GHSA-6wx8-w4f5-wwcr, GHSA-h8w8-99g7-qmvj, and GHSA-wv3x-4vxv-whpp for versions `< 1.3.7`.
+- Fix: updated `docs/Gemfile.lock` from `concurrent-ruby 1.3.5` to `1.3.7`.
+
+- Timestamp: 2026-07-06 23:43 CEST
+- Command: `GEM_HOME=/tmp/specfact-bundler-2.3.5 GEM_PATH=/tmp/specfact-bundler-2.3.5 BUNDLE_GEMFILE=docs/Gemfile /tmp/specfact-bundler-2.3.5/bin/bundle _2.3.5_ update concurrent-ruby --patch`
+- Result: Inconclusive due local Ruby 2.6 resolver incompatibility with existing docs lockfile gems requiring Ruby >=2.7. No lockfile drift occurred from this failed resolver run; the minimal patched-version lockfile update was applied manually.
+
+- Timestamp: 2026-07-06 23:44 CEST
+- Command: `ruby -e 'lock = File.read("docs/Gemfile.lock"); abort("missing patched concurrent-ruby") unless lock.include?("concurrent-ruby (1.3.7)"); abort("still vulnerable") if lock.include?("concurrent-ruby (1.3.5)") || lock.include?("concurrent-ruby (1.3.6)"); puts "docs/Gemfile.lock concurrent-ruby patched"'`
+- Result: Passed.
+
+- Timestamp: 2026-07-06 23:44 CEST
+- Command: `GEM_HOME=/tmp/specfact-bundler-2.3.5 GEM_PATH=/tmp/specfact-bundler-2.3.5 BUNDLE_GEMFILE=docs/Gemfile /tmp/specfact-bundler-2.3.5/bin/bundle _2.3.5_ platform`
+- Result: Passed; Bundler parsed the lockfile and reported supported platforms.
+
+- Timestamp: 2026-07-06 23:45 CEST
+- Command: `hatch run license-check`
+- Result: Passed, 0 license violations.
+
+- Timestamp: 2026-07-06 23:45 CEST
+- Command: `hatch run security-audit`
+- Result: Passed. No high-severity Python vulnerabilities found; pip CVE warning remains CVSS 0.0 and below gate threshold.
+
+- Timestamp: 2026-07-06 23:45 CEST
+- Command: `hatch run bandit-scan`
+- Result: Passed. No medium/high issues identified.

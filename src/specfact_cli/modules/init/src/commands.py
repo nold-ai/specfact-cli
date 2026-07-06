@@ -702,6 +702,21 @@ def init_ide(
         console.print(f"[green]Updated VS Code settings:[/green] {settings_path}")
 
 
+def _write_profile_config_or_exit(repo_path: Path, profile: str) -> None:
+    try:
+        first_run_selection.write_profile_config(repo_path, profile)
+    except ValueError as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+
+
+def _apply_explicit_profile_or_install(repo_path: Path, profile: str | None, install: str | None) -> list[str]:
+    enabled_module_ids = _apply_profile_or_install_bundles(profile, install)
+    if profile is not None:
+        _write_profile_config_or_exit(repo_path, profile)
+    return enabled_module_ids
+
+
 @app.callback(invoke_without_command=True)
 @require(lambda repo: _is_valid_repo_path(repo), "Repo path must exist and be directory")
 @ensure(lambda result: result is None, "Command should return None")
@@ -746,9 +761,7 @@ def init(
 
         enabled_module_ids: list[str] = []
         if profile is not None or install is not None:
-            enabled_module_ids = _apply_profile_or_install_bundles(profile, install)
-            if profile is not None:
-                first_run_selection.write_profile_config(repo_path, profile)
+            enabled_module_ids = _apply_explicit_profile_or_install(repo_path, profile, install)
         elif is_first_run(user_root=INIT_USER_MODULES_ROOT) and is_non_interactive():
             console.print(
                 "[red]Error:[/red] In CI/CD (non-interactive) mode, first-run init requires "

@@ -10,7 +10,7 @@ All notable changes to this project will be documented in this file.
 
 ---
 
-## [0.48.0] - 2026-07-06
+## [0.48.1] - 2026-07-06
 
 ### Added
 
@@ -18,6 +18,12 @@ All notable changes to this project will be documented in this file.
   `enterprise` validation tiers for `specfact init`, including deterministic
   config layering, source annotations, clean-code defaults, and refreshed
   OpenSpec evidence.
+
+### Security
+
+- **Docs dependency lockfile**: update `concurrent-ruby` in `docs/Gemfile.lock`
+  to `1.3.7`, remediating Dependabot alerts GHSA-6wx8-w4f5-wwcr,
+  GHSA-h8w8-99g7-qmvj, and GHSA-wv3x-4vxv-whpp.
 
 ---
 
