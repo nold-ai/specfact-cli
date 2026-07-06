@@ -13,16 +13,16 @@ The system SHALL resolve configuration using deterministic layer precedence.
 
 #### Scenario: Profile-specific defaults are applied
 
-- **GIVEN** `specfact init --profile enterprise`
+- **GIVEN** `specfact init --profile solo`, `startup`, `mid_size`, or `enterprise`
 - **WHEN** profile config is generated
-- **THEN** policy mode defaults to enterprise-grade enforcement
-- **AND** requirements schema includes enterprise-required fields.
+- **THEN** the selected tier provides deterministic defaults for validation severity, policy mode, evidence persistence, clean-code mode, module activation, and requirements schema
+- **AND** enterprise defaults include enterprise-required requirements schema fields.
 
 #### Scenario: Clean-code defaults are inherited from the selected tier
 
-- **GIVEN** `specfact init --profile startup`
+- **GIVEN** profile defaults are generated for `solo`, `startup`, `mid_size`, and `enterprise`
 - **WHEN** profile config is generated
-- **THEN** the clean-code policy pack defaults to advisory mode with gradual promotion to mixed
+- **THEN** clean-code defaults are `solo -> advisory`, `startup -> advisory_then_mixed`, `mid_size -> mixed`, and `enterprise -> hard`
 - **AND** no separate clean-code profile selector is required in the resolved config
 
 #### Scenario: Invalid profile is rejected
