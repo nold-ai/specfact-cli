@@ -7,6 +7,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
+import yaml
 from typer.testing import CliRunner
 
 from specfact_cli.modules.init.src import commands as init_commands, first_run_selection as frs
@@ -51,6 +52,39 @@ def test_profile_enterprise_full_stack_resolves_to_all_five_bundles() -> None:
         "specfact-govern",
     }
     assert len(bundles) == 5
+
+
+def test_validation_tier_profiles_resolve_clean_code_defaults() -> None:
+    expected_modes = {
+        "solo": "advisory",
+        "startup": "advisory_then_mixed",
+        "mid_size": "mixed",
+        "enterprise": "hard",
+    }
+
+    for profile, mode in expected_modes.items():
+        resolved = frs.resolve_profile_config(profile)
+        assert resolved.values["clean_code"]["mode"] == mode
+        assert resolved.sources["clean_code"]["mode"] == f"profile:{profile}"
+
+
+def test_profile_config_layering_records_winning_sources() -> None:
+    resolved = frs.resolve_profile_config(
+        "solo",
+        org_baseline={
+            "validation": {"severity": "mixed"},
+            "clean_code": {"mode": "mixed"},
+        },
+        repo_overlay={"validation": {"severity": "hard"}},
+        developer_local={"clean_code": {"mode": "advisory"}},
+    )
+
+    assert resolved.values["validation"]["severity"] == "hard"
+    assert resolved.sources["validation"]["severity"] == "repo_overlay"
+    assert resolved.values["clean_code"]["mode"] == "advisory"
+    assert resolved.sources["clean_code"]["mode"] == "developer_local"
+    assert resolved.values["validation"]["policy_mode"] == "advisory"
+    assert resolved.sources["validation"]["policy_mode"] == "profile:solo"
 
 
 def test_profile_nonexistent_raises_with_valid_list() -> None:
@@ -206,6 +240,45 @@ def test_init_profile_enables_profile_modules_and_uses_repo_for_discovery(
     assert isinstance(enable_ids, list)
     assert set(enable_ids) == {"nold-ai/specfact-codebase", "nold-ai/specfact-code-review"}
     assert captured["preserve_existing"] is True
+
+
+def test_init_startup_profile_writes_layered_config_and_enables_startup_modules(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    captured: dict[str, object] = {}
+
+    def _fake_get_discovered_modules_for_state(**kwargs: object) -> list[dict[str, object]]:
+        captured.update(kwargs)
+        return [{"id": "nold-ai/specfact-project", "enabled": True}]
+
+    monkeypatch.setattr("specfact_cli.modules.init.src.commands.install_bundles_for_init", lambda *_a, **_k: None)
+    monkeypatch.setattr("specfact_cli.modules.init.src.commands.is_first_run", lambda **_: True)
+    monkeypatch.setattr(
+        "specfact_cli.modules.init.src.commands.get_discovered_modules_for_state",
+        _fake_get_discovered_modules_for_state,
+    )
+    monkeypatch.setattr("specfact_cli.modules.init.src.commands.write_modules_state", lambda _: None)
+    monkeypatch.setattr("specfact_cli.modules.init.src.commands.run_discovery_and_write_cache", lambda _: None)
+    monkeypatch.setattr(
+        "specfact_cli.modules.init.src.commands.detect_env_manager", lambda _: MagicMock(manager=MagicMock())
+    )
+
+    with _telemetry_track_context():
+        result = runner.invoke(
+            app,
+            ["--repo", str(tmp_path), "--profile", "startup"],
+            catch_exceptions=False,
+        )
+
+    assert result.exit_code == 0, result.output
+    config_path = tmp_path / ".specfact" / "config.yaml"
+    config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    assert config["profile"] == "startup"
+    assert config["clean_code"]["mode"] == "advisory_then_mixed"
+    assert config["source_annotations"]["clean_code"]["mode"] == "profile:startup"
+    enable_ids = captured["enable_ids"]
+    assert isinstance(enable_ids, list)
+    assert {"nold-ai/specfact-project", "nold-ai/specfact-backlog"} <= set(enable_ids)
 
 
 def test_init_profile_enterprise_full_stack_calls_installer_with_all_five(

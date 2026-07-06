@@ -10,6 +10,17 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.48.0] - 2026-07-06
+
+### Added
+
+- **Validation profile layering**: add `solo`, `startup`, `mid_size`, and
+  `enterprise` validation tiers for `specfact init`, including deterministic
+  config layering, source annotations, clean-code defaults, and refreshed
+  OpenSpec evidence.
+
+---
+
 ## [0.47.11] - 2026-06-14
 
 ### Fixed

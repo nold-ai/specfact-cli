@@ -48,14 +48,7 @@ from specfact_cli.utils.ide_setup import (
 )
 
 
-VALID_PROFILES: frozenset[str] = frozenset(
-    {
-        "solo-developer",
-        "backlog-team",
-        "api-first-team",
-        "enterprise-full-stack",
-    }
-)
+VALID_PROFILES: frozenset[str] = frozenset(first_run_selection.get_valid_profile_names())
 PROFILE_BUNDLES: dict[str, list[str]] = first_run_selection.PROFILE_PRESETS
 
 install_bundles_for_init = first_run_selection.install_bundles_for_init
@@ -725,7 +718,10 @@ def init(
     profile: str | None = typer.Option(
         None,
         "--profile",
-        help="First-run profile preset: solo-developer, backlog-team, api-first-team, enterprise-full-stack",
+        help=(
+            "Validation tier or legacy workflow preset: solo, startup, mid_size, enterprise, "
+            "solo-developer, backlog-team, api-first-team, enterprise-full-stack"
+        ),
     ),
     install: str | None = typer.Option(
         None,
@@ -751,6 +747,8 @@ def init(
         enabled_module_ids: list[str] = []
         if profile is not None or install is not None:
             enabled_module_ids = _apply_profile_or_install_bundles(profile, install)
+            if profile is not None:
+                first_run_selection.write_profile_config(repo_path, profile)
         elif is_first_run(user_root=INIT_USER_MODULES_ROOT) and is_non_interactive():
             console.print(
                 "[red]Error:[/red] In CI/CD (non-interactive) mode, first-run init requires "

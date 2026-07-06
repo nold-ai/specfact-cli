@@ -82,7 +82,9 @@ Compatibility note:
 
 ## First-Run Profiles
 
-`specfact init` supports profile presets and explicit bundle selection:
+`specfact init` supports validation tiers, legacy profile presets, and explicit bundle selection.
+Validation tiers (`solo`, `startup`, `mid_size`, `enterprise`) write layered validation config with
+source annotations. Legacy workflow presets still install the bundle sets below:
 
 - `solo-developer` -> `specfact-codebase`
 - `backlog-team` -> `specfact-backlog`, `specfact-project`, `specfact-codebase`

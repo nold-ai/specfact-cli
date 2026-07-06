@@ -214,6 +214,10 @@ installed backlog bundle, not by the permanent core command surface.
 
 Profile outcomes:
 
+Validation tiers (`solo`, `startup`, `mid_size`, `enterprise`) write deterministic validation config
+with clean-code defaults of `advisory`, `advisory_then_mixed`, `mixed`, and `hard` respectively.
+Legacy workflow presets remain available for bundle-first bootstrap:
+
 | Profile | Installed bundles | Available groups |
 |---|---|---|
 | `solo-developer` | `specfact-codebase`, `specfact-code-review` | `code` |

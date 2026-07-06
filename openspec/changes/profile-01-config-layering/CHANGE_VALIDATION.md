@@ -1,28 +1,28 @@
-# Change Validation: profile-01-config-layering
+# CHANGE VALIDATION
 
-- **Validated on (UTC):** 2026-03-22T22:28:26+00:00
-- **Workflow:** /wf-validate-change (proposal-stage dry-run validation)
-- **Strict command:** `openspec validate profile-01-config-layering --strict`
-- **Result:** PASS
+- Change: `profile-01-config-layering`
+- Date: 2026-07-06
+- Command: `openspec validate profile-01-config-layering --strict`
+- Result: PASS
+
+## Refresh Notes
+
+- Refreshed the February 2026 proposal/design language against the July 2026 validation-evidence roadmap in `openspec/CHANGE_ORDER.md`.
+- Removed stale proposal-stage wording that said no runtime code would change.
+- Kept the change scoped to core `init`, validation tier defaults, config layering, and source annotations.
+- Preserved legacy first-run workflow presets as compatibility input while making validation tiers the config-authority surface.
+- Replaced ceremony-oriented wording with validation-support module language.
 
 ## Scope Summary
 
-- **Primary capability:** `profile-config-layering`
-- **Clean-code delta:** tier profiles now own clean-code default modes instead of a parallel clean-code profile system
-- **Declared dependencies:** policy and governance consumers that inherit tier defaults
-
-## Breaking-Change Analysis (Dry-Run)
-
-- The delta refines default resolution rather than expanding the public command set.
-- The main risk is config-authority drift, which is resolved by keeping tier defaults in one place.
-
-## Dependency and Integration Review
-
-- The clean-code default mapping aligns with `policy-02-packs-and-modes`.
-- No additional dependent changes needed to be created to keep the ownership graph coherent.
+- Primary capability: `profile-config-layering`.
+- Modified capability: `init-module-state`.
+- Clean-code delta: tier profiles own clean-code default modes instead of a parallel clean-code profile system.
+- Declared dependencies: none; this remains the first Wave 2 validation foundation change.
 
 ## Validation Outcome
 
-- Required artifacts are present and parseable.
+- Required OpenSpec artifacts are present and parseable.
 - Strict OpenSpec validation passed.
-- Change remains authoritative for tier-derived clean-code defaults.
+- Implementation evidence is recorded in `TDD_EVIDENCE.md`.
+- PR-readiness status: ready pending PR creation and normal review.
