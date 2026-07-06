@@ -147,6 +147,19 @@
 - Command: `hatch run verify-modules-signature-push --version-check-base origin/dev`
 - Result: Passed, 4 module manifests verified.
 
+- Timestamp: 2026-07-06 23:56 CEST
+- Source: PR #624 GitHub compatibility rerun on commit `0a56c828`.
+- Finding addressed: Python 3.11 compatibility still failed because runtime built-in module loading reported `init` integrity verification failure; the PR checksum gate had passed in relaxed mode, but runtime verification uses the strict payload checksum.
+- Fix: regenerated `src/specfact_cli/modules/init/module-package.yaml` with the signed/stable payload checksum `sha256:bfadcf13364a94bcf9e0b26e288386f04ecfb23ab932201e487188d17fc499e4`.
+
+- Timestamp: 2026-07-06 23:56 CEST
+- Command: `hatch run python -c "from pathlib import Path; import yaml; from specfact_cli.models.module_package import ModulePackageMetadata; from specfact_cli.registry.module_installer import verify_module_artifact; p=Path('src/specfact_cli/modules/init'); data=yaml.safe_load((p/'module-package.yaml').read_text()); meta=ModulePackageMetadata(**data); print(verify_module_artifact(p, meta, allow_unsigned=True))"`
+- Result: Passed; runtime verification returned `True`.
+
+- Timestamp: 2026-07-06 23:57 CEST
+- Command: `hatch run py311:test tests/unit/cli/test_lean_help_output.py::test_stale_lazy_flat_shim_prints_install_guidance tests/unit/cli/test_lean_help_output.py::test_lazy_delegate_bare_group_shows_full_help_and_missing_subcommand tests/unit/modules/init/test_init_ide_prompt_selection.py::test_init_ide_malformed_vscode_settings_exits_nonzero tests/unit/specfact_cli/registry/test_init_module_lifecycle_ux.py::test_init_rejects_deprecated_list_modules_option tests/integration/test_core_slimming.py::test_init_profile_solo_developer_exits_zero_and_code_group_mounted tests/integration/test_core_slimming.py::test_init_profile_enterprise_full_stack_help_shows_eight_commands tests/integration/test_core_slimming.py::test_init_install_all_same_as_enterprise tests/integration/test_core_slimming.py::test_stale_flat_shim_plan_exits_with_removed_alias_guidance tests/integration/test_core_slimming.py::test_init_cicd_mode_no_profile_no_install_exits_one -q`
+- Result: Passed, 9 passed. This covers the exact Python 3.11 compatibility failures from the GitHub job after refreshing the runtime checksum.
+
 - Timestamp: 2026-07-06 23:40 CEST
 - Command: `hatch run specfact code review run --scope changed --json --out .specfact/code-review.json`
 - Result: Passed with advisory, CI exit code 0, score 96, 0 blocking findings on changed lines.
