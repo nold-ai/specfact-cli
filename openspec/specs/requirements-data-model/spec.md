@@ -1,8 +1,12 @@
 # requirements-data-model Specification
 
 ## Purpose
-TBD - created by archiving change requirements-01-data-model. Update Purpose after archive.
+
+This specification defines normalized requirement input records that preserve upstream source context and evidence links
+for validation workflows without making SpecFact the requirement authoring system.
+
 ## Requirements
+
 ### Requirement: Requirements Evidence Input Model
 
 The system SHALL define normalized requirement input records that preserve upstream source references for validation evidence.
@@ -18,7 +22,7 @@ The system SHALL define normalized requirement input records that preserve upstr
 
 - **GIVEN** requirement evidence metadata
 - **WHEN** artifacts are parsed
-- **THEN** architecture, spec, code, test, and validation references are stored as explicit evidence links
+- **THEN** architecture, spec, code, test, validation, and requirement references are stored as explicit evidence links
 - **AND** evidence links are serializable to JSON output.
 
 #### Scenario: Profile completeness is advisory evidence
@@ -27,4 +31,3 @@ The system SHALL define normalized requirement input records that preserve upstr
 - **WHEN** validation evidence is produced
 - **THEN** each finding records the profile, severity, field path, and message
 - **AND** missing optional profile fields do not make the requirement input unusable.
-
