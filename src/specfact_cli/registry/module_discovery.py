@@ -91,11 +91,26 @@ def _append_explicit_module_roots(roots: list[tuple[str, Path]]) -> None:
         roots.append(("custom", path))
 
 
+def _should_include_workspace_project_root(options: _DiscoveryRootOptions, legacy: bool) -> bool:
+    only_user_root_is_explicit = (
+        options.user_root is not None
+        and options.builtin_root is None
+        and options.marketplace_root is None
+        and options.custom_root is None
+    )
+    return options.project_base_path is not None or legacy or only_user_root_is_explicit
+
+
 def _discovery_root_list(options: _DiscoveryRootOptions) -> list[tuple[str, Path]]:
     from specfact_cli.registry.module_packages import get_modules_root, get_workspace_modules_root
 
+    legacy = _resolve_include_legacy_roots(options)
     effective_builtin_root = options.builtin_root or get_modules_root()
-    effective_project_root = get_workspace_modules_root(options.project_base_path)
+    effective_project_root = (
+        get_workspace_modules_root(options.project_base_path)
+        if _should_include_workspace_project_root(options, legacy)
+        else None
+    )
     effective_user_root = options.user_root or USER_MODULES_ROOT
     effective_marketplace_root = options.marketplace_root or MARKETPLACE_MODULES_ROOT
     effective_custom_root = options.custom_root or CUSTOM_MODULES_ROOT
@@ -119,7 +134,6 @@ def _discovery_root_list(options: _DiscoveryRootOptions) -> list[tuple[str, Path
         ]
     )
 
-    legacy = _resolve_include_legacy_roots(options)
     if legacy:
         _append_legacy_module_roots(roots)
     return roots

@@ -1,42 +1,45 @@
 ## Context
 
-This change implements proposal scope for `requirements-01-data-model` from the 2026-02-15 architecture-layer integration plan. It is proposal-stage only and defines implementation strategy without changing runtime code.
+This change implements `requirements-01-data-model` as a validation input model. Upstream tools remain the systems of record for requirement intent; SpecFact only stores normalized references and evidence links needed for deterministic validation, drift checks, and downstream adapters.
 
 ## Goals / Non-Goals
 
 **Goals:**
 
-- Define an implementation approach that stays within the proposal scope.
-- Keep compatibility with existing module registry, adapter bridge, and contract-first patterns.
-- Preserve offline-first behavior and deterministic CLI execution.
+- Define a compact, source-reference-first requirement input model.
+- Keep compatibility with existing ProjectBundle schema extensions.
+- Preserve offline-first behavior and deterministic validation evidence.
+- Avoid taking ownership of product-management or requirement-authoring workflows.
 
 **Non-Goals:**
 
-- No production code implementation in this stage.
-- No schema-breaking changes outside declared capabilities.
-- No dependency expansion beyond the proposal and plan.
+- No interactive requirement authoring commands.
+- No bidirectional backlog sync.
+- No required ProjectBundle schema field.
+- No dependency expansion beyond existing Pydantic, icontract, and beartype runtime dependencies.
 
 ## Decisions
 
-- Use module-oriented integration and registry lazy-loading patterns already used in SpecFact CLI.
-- Keep all public APIs contract-first with `@icontract` and `@beartype`.
-- Make all behavior extensions opt-in or backward-compatible by default.
-- Add/modify OpenSpec deltas first so tests can be derived before implementation.
+- Represent upstream sources explicitly with `RequirementSourceReference` so evidence can point back to issues, docs, OpenSpec changes, Spec Kit artifacts, or local files.
+- Store requirement inputs as ordinary Pydantic models and let import adapters populate them later.
+- Use the existing ProjectBundle `extensions` field with namespace `requirements.inputs`; do not add a first-class required ProjectBundle field.
+- Keep helper APIs contract-first with `@icontract` and `@beartype`.
+- Treat profile-aware completeness as evidence severity data, not a hard authoring workflow.
 
 ## Risks / Trade-offs
 
-- [Dependency ordering drift] -> Mitigation: gate implementation tasks on declared prerequisites.
-- [Capability overlap with adjacent changes] -> Mitigation: keep this change scoped to listed capabilities only.
-- [Documentation drift] -> Mitigation: include explicit docs update tasks in apply phase.
+- [Scope creep into planning workflow] -> Mitigation: docs and specs state that SpecFact consumes requirement context; it does not own authoring.
+- [ProjectBundle compatibility regression] -> Mitigation: use optional extension storage and regression tests for bundles without extensions.
+- [Evidence ambiguity] -> Mitigation: require source references and stable IDs on requirement input records.
 
 ## Migration Plan
 
-1. Implement this change only after listed dependencies are implemented.
+1. Align proposal, tasks, and spec deltas to the validation-evidence framing.
 2. Add tests from spec scenarios and capture failing-first evidence.
-3. Implement minimal production changes needed for passing scenarios.
-4. Run quality gates and then open PR to `dev`.
+3. Implement minimal model and export changes needed for passing scenarios.
+4. Update docs, changelog, and version files.
+5. Run quality gates, code review, and OpenSpec validation before PR.
 
 ## Open Questions
 
-- Dependency summary: Depends on arch-07-schema-extension-system.
-- Whether additional cross-change sequencing constraints should be hard-blocked in `openspec/CHANGE_ORDER.md`.
+- GitHub issue hierarchy metadata for issue #238 does not expose parent/blocker fields through `gh issue view`; the roadmap places it under Requirements Layer / Epic #256 and notes the older arch-07 dependency.

@@ -1,19 +1,26 @@
 ## ADDED Requirements
 
-### Requirement: Requirements Data Model
+### Requirement: Requirements Evidence Input Model
 
-The system SHALL define structured business requirement artifacts stored under `.specfact/requirements/`.
+The system SHALL define normalized requirement input records that preserve upstream source references for validation evidence.
 
-#### Scenario: Requirement artifact captures business intent and constraints
+#### Scenario: Requirement input captures source-backed intent and constraints
 
-- **GIVEN** a requirement file `.specfact/requirements/REQ-123.req.yaml`
-- **WHEN** it is validated
-- **THEN** it includes business outcome, business rules, and architectural constraints
-- **AND** each business rule has a stable rule identifier.
+- **GIVEN** a requirement input record carried in `requirements.inputs`
+- **WHEN** validation evidence reads the record
+- **THEN** it includes a stable requirement identifier, schema version, title, and at least one upstream source reference
+- **AND** it MAY include business rules, constraints, and profile completeness findings.
 
-#### Scenario: Trace references are represented explicitly
+#### Scenario: Evidence links are represented explicitly
 
-- **GIVEN** requirement trace metadata
+- **GIVEN** requirement evidence metadata
 - **WHEN** artifacts are parsed
-- **THEN** architecture, spec, code, and test references are stored as explicit lists
-- **AND** trace references are serializable to JSON evidence output.
+- **THEN** architecture, spec, code, test, and validation references are stored as explicit evidence links
+- **AND** evidence links are serializable to JSON output.
+
+#### Scenario: Profile completeness is advisory evidence
+
+- **GIVEN** a requirement input with profile completeness findings
+- **WHEN** validation evidence is produced
+- **THEN** each finding records the profile, severity, field path, and message
+- **AND** missing optional profile fields do not make the requirement input unusable.
