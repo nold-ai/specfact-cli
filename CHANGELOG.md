@@ -10,6 +10,16 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.49.1] - 2026-07-08
+
+### Fixed
+
+- **Requirements evidence promotion**: require payload-level schema versions
+  when loading `requirements.inputs` extensions and archive the completed
+  OpenSpec change before promoting `dev` to `main`.
+
+---
+
 ## [0.49.0] - 2026-07-07
 
 ### Added
