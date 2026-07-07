@@ -32,4 +32,4 @@
 
 - [x] 5.1 Update version files and `CHANGELOG.md` with a minor feature release entry.
 - [x] 5.2 Review `openspec/CHANGE_ORDER.md` status/dependency notes; no implementation sequencing change required.
-- [ ] 5.3 Open a PR from `feature/requirements-01-data-model` to `dev` with spec/test/code/docs evidence.
+- [x] 5.3 Open a PR from `feature/requirements-01-data-model` to `dev` with spec/test/code/docs evidence.

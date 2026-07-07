@@ -66,6 +66,6 @@ validation evidence and drift.
 - **GitHub Issue**: #238
 - **Issue URL**: <https://github.com/nold-ai/specfact-cli/issues/238>
 - **Repository**: nold-ai/specfact-cli
-- **Last Synced Status**: proposed
+- **Last Synced Status**: in_review
 - **Sanitized**: false
 <!-- content_hash: 1dad52a86e44c9f9 -->
