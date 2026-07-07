@@ -78,6 +78,22 @@ class TestCodeAnalyzer:
         with patch("shutil.which", return_value="/usr/bin/semgrep"), patch("subprocess.run", side_effect=_fake_run):
             assert analyzer._run_semgrep_patterns(source_file) == []
 
+    def test_resolve_entry_point_accepts_canonical_path_alias(self, tmp_path: Path) -> None:
+        """Absolute entry points should be compared after canonical resolution."""
+        repo_path = tmp_path / "repo"
+        entry_path = repo_path / "src"
+        entry_path.mkdir(parents=True)
+        alias_path = tmp_path / "repo-link"
+
+        try:
+            alias_path.symlink_to(repo_path, target_is_directory=True)
+        except OSError as exc:
+            pytest.skip(f"directory symlinks are unavailable: {exc}")
+
+        resolved = CodeAnalyzer._resolve_analyzer_entry_point(repo_path.resolve(), alias_path / "src")
+
+        assert resolved == entry_path.resolve()
+
     def test_should_skip_test_files(self):
         """Test that test files are skipped."""
         analyzer = CodeAnalyzer(Path("."))

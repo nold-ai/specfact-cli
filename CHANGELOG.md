@@ -10,6 +10,24 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.49.0] - 2026-07-07
+
+### Added
+
+- **Requirements evidence input model**: add normalized requirement input
+  records, source references, business rules, constraints, completeness
+  findings, evidence links, and ProjectBundle extension payload helpers for
+  validation evidence without making SpecFact the requirement authoring system.
+
+### Fixed
+
+- **Test-suite stability**: make analyzer entry-point path containment robust to
+  macOS path aliases, tolerate Rich-wrapped module init output, and keep
+  explicitly scoped module discovery isolated so the full smart-test suite runs
+  without baseline failures.
+
+---
+
 ## [0.48.2] - 2026-07-06
 
 ### Added

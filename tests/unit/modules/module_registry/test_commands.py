@@ -1477,7 +1477,7 @@ def test_module_init_project_scope_defaults_to_cwd_repo(monkeypatch, tmp_path: P
     assert result.exit_code == 0
     assert captured["target_root"] == tmp_path / ".specfact" / "modules"
     assert "Seeded 1 module(s) into" in result.stdout
-    assert str(tmp_path / ".specfact" / "modules") in result.stdout
+    assert str(tmp_path / ".specfact" / "modules") in result.stdout.replace("\n", "")
 
 
 def test_module_init_project_scope_supports_explicit_repo(monkeypatch, tmp_path: Path) -> None:

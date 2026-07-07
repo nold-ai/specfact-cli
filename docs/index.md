@@ -156,6 +156,7 @@ bundle-specific adapters, and authoring guidance.
 - **[Command Reference](/reference/commands/)** - Full command surface
 - **[Module Categories](/reference/module-categories/)** - Category taxonomy
 - **[Module Contracts](/reference/module-contracts/)** - Contract interfaces
+- **[Requirements Evidence Input Model](/reference/requirements-evidence-input-model/)** - Requirement input records for validation evidence
 - **[Operational Modes](/core-cli/modes/)** - CI/CD and CoPilot modes
 - **[Debug Logging](/core-cli/debug-logging/)** - Diagnostic logging
 

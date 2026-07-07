@@ -12,14 +12,12 @@ validation evidence and drift.
 
 - **NEW**: Pydantic models in `src/specfact_cli/models/requirements.py` for
   normalized requirement inputs, business rules, constraints, source references,
-  and validation evidence links.
-- **NEW**: Optional storage convention under `.specfact/requirements/` for
-  imported or normalized records used by validation runs.
+  completeness findings, and validation evidence links.
 - **NEW**: Schema versioning for forward-compatible adapters.
 - **NEW**: Profile-aware completeness checks that affect validation severity, not
   planning workflow ownership.
-- **EXTEND**: `ProjectBundle` receives an optional requirements-input namespace
-  through the existing schema extension system.
+- **EXTEND**: `ProjectBundle` can carry requirement input records through the
+  existing `requirements.inputs` schema-extension namespace.
 
 ## Out of Scope
 
@@ -40,6 +38,26 @@ validation evidence and drift.
 - `data-models`: ProjectBundle extended with an optional requirements-input
   namespace.
 
+## Impact
+
+- **Affected specs**: `requirements-evidence-input-model`, `data-models`
+- **Affected code**:
+  - `src/specfact_cli/models/requirements.py`
+  - `src/specfact_cli/models/__init__.py`
+  - `src/specfact_cli/models/project.py` extension usage remains backward compatible
+- **Affected tests**:
+  - `tests/unit/models/test_requirements.py`
+  - `tests/unit/models/test_schema_extensions.py`
+- **Affected docs**:
+  - `docs/reference/requirements-evidence-input-model.md`
+  - `CHANGELOG.md`
+- **Integration points**: downstream import adapters and validation evidence graph
+  changes consume these records; this change does not introduce backlog write-back
+  or requirement-authoring commands.
+- **Rollback plan**: remove the new requirements model module, exports, docs page,
+  and extension tests; existing ProjectBundle serialization remains compatible
+  because the namespace lives in optional extension data.
+
 ---
 
 ## Source Tracking
@@ -47,6 +65,7 @@ validation evidence and drift.
 <!-- source_repo: nold-ai/specfact-cli -->
 - **GitHub Issue**: #238
 - **Issue URL**: <https://github.com/nold-ai/specfact-cli/issues/238>
+- **Repository**: nold-ai/specfact-cli
 - **Last Synced Status**: proposed
 - **Sanitized**: false
 <!-- content_hash: 1dad52a86e44c9f9 -->

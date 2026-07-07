@@ -128,10 +128,11 @@ class CodeAnalyzer:
     def _resolve_analyzer_entry_point(repo_path: Path, entry_point: Path | None) -> Path | None:
         if entry_point is None:
             return None
-        resolved = entry_point if entry_point.is_absolute() else (repo_path / entry_point).resolve()
+        resolved_repo_path = repo_path.resolve()
+        resolved = entry_point.resolve() if entry_point.is_absolute() else (resolved_repo_path / entry_point).resolve()
         if not resolved.exists():
             raise ValueError(f"Entry point does not exist: {resolved}")
-        if not str(resolved).startswith(str(repo_path)):
+        if not resolved.is_relative_to(resolved_repo_path):
             raise ValueError(f"Entry point must be within repository: {resolved}")
         return resolved
 

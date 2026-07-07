@@ -1,31 +1,38 @@
-# Change Validation: requirements-01-data-model
+# Change Validation Report: requirements-01-data-model
 
-- **Validated on (UTC):** 2026-02-15T21:54:26Z
-- **Workflow:** /wf-validate-change (proposal-stage dry-run validation)
+- **Validation Date (Europe/Berlin):** 2026-07-07T22:21:00+02:00
+- **Workflow:** OpenSpec validate-change refresh before implementation
 - **Strict command:** `openspec validate requirements-01-data-model --strict`
 - **Result:** PASS
 
 ## Scope Summary
 
-- **New capabilities:** requirements-data-model
+- **New capabilities:** requirements-evidence-input-model
 - **Modified capabilities:** data-models
-- **Declared dependencies:** arch-07 (schema extension system, #213) for ProjectBundle extension
-- **Proposed affected code paths:** - `src/specfact_cli/models/requirements.py` (new);- `src/specfact_cli/models/project.py` (extend via arch-07 schema extensions)
+- **Declared dependencies:** existing ProjectBundle schema extension system
+- **Proposed affected code paths:**
+  - `src/specfact_cli/models/requirements.py` (new)
+  - `src/specfact_cli/models/__init__.py` (exports)
+  - `tests/unit/models/test_requirements.py`
+  - `tests/unit/models/test_schema_extensions.py`
+  - `docs/reference/requirements-evidence-input-model.md`
 
 ## Breaking-Change Analysis (Dry-Run)
 
-- Interface changes are proposal-level only; no production code modifications were performed in this workflow stage.
-- Proposed modified capabilities are additive/extension-oriented in the current spec deltas and do not require immediate breaking migrations at proposal time.
-- Backward-compatibility risk is primarily sequencing-related (dependency ordering), not signature-level breakage at this stage.
+- The change adds new Pydantic model classes and exports.
+- ProjectBundle integration remains optional through the existing `extensions` field and does not add a required schema field.
+- Existing bundles without `requirements.inputs` remain backward compatible.
+- No public command surface is added.
 
 ## Dependency and Integration Review
 
-- Dependency declarations align with the 2026-02-15 architecture layer integration plan sequencing.
-- Cross-change integration points are explicitly represented in proposal/spec/task artifacts.
-- No additional mandatory scope expansion was required to pass strict OpenSpec validation.
+- Scope aligns with `openspec/CHANGE_ORDER.md`: optional normalized requirements-input records for validation evidence.
+- GitHub issue #238 was verified as open with project status `Todo`, not `in progress`, on 2026-07-07.
+- The public issue body and title were updated to match the narrowed validation-evidence format.
+- The internal wiki mirror `wiki/sources/requirements-01-data-model.md` was updated and `wiki_rebuild_graph.py` was run from the internal repo root.
 
 ## Validation Outcome
 
 - Required artifacts are present: `proposal.md`, `design.md`, `specs/**/*.md`, `tasks.md`.
 - Strict OpenSpec validation passed.
-- Change is ready for implementation-phase intake once prerequisites are satisfied.
+- Change is ready for TDD implementation intake.
