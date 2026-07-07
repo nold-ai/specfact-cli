@@ -175,6 +175,31 @@ def test_project_shadow_warning_is_actionable_and_emitted_once(tmp_path: Path, m
     assert "specfact module uninstall backlog-core --scope user" in warnings[0]
 
 
+def test_discover_all_modules_with_explicit_user_root_preserves_project_scope(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """First-run discovery passes user_root explicitly but still needs project modules."""
+    repo_root = tmp_path / "repo"
+    project_root = repo_root / ".specfact" / "modules"
+    builtin_root = tmp_path / "builtin"
+    user_root = tmp_path / "user-modules"
+    _write_manifest(builtin_root, "init")
+    _write_manifest(project_root, "project-only")
+
+    monkeypatch.chdir(repo_root)
+    monkeypatch.setattr(module_discovery, "MARKETPLACE_MODULES_ROOT", tmp_path / "missing-marketplace")
+    monkeypatch.setattr(module_discovery, "CUSTOM_MODULES_ROOT", tmp_path / "missing-custom")
+    monkeypatch.setattr(
+        "specfact_cli.registry.module_packages.get_modules_root",
+        lambda: builtin_root,
+    )
+
+    discovered = discover_all_modules(user_root=user_root)
+
+    sources = {entry.metadata.name: entry.source for entry in discovered}
+    assert sources == {"init": "builtin", "project-only": "project"}
+
+
 def test_discover_all_modules_for_project_ignores_cwd_legacy_roots_by_default(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

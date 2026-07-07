@@ -8,7 +8,7 @@ requirements.
 from __future__ import annotations
 
 from enum import StrEnum
-from typing import Any, cast
+from typing import Any, Literal, cast
 
 from beartype import beartype
 from icontract import ensure, require
@@ -122,7 +122,7 @@ class RequirementCompletenessFinding(BaseModel):
 class RequirementInput(BaseModel):
     """Normalized requirement context consumed by validation evidence."""
 
-    schema_version: str = Field(..., min_length=1, description="Requirement input schema version")
+    schema_version: Literal["1"] = Field(..., description="Requirement input schema version")
     requirement_id: str = Field(..., min_length=1, description="Stable requirement identifier")
     title: str = Field(..., min_length=1, description="Requirement title")
     summary: str | None = Field(default=None, description="Optional upstream requirement summary")
@@ -144,9 +144,8 @@ class RequirementInput(BaseModel):
 class RequirementsInputExtensionPayload(BaseModel):
     """Serializable ProjectBundle extension payload for requirement inputs."""
 
-    schema_version: str = Field(
+    schema_version: Literal["1"] = Field(
         default=REQUIREMENTS_INPUT_SCHEMA_VERSION,
-        min_length=1,
         description="Requirements extension payload schema version",
     )
     requirements: list[RequirementInput] = Field(default_factory=list, description="Requirement input records")

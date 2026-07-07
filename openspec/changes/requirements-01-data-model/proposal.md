@@ -49,6 +49,9 @@ validation evidence and drift.
   - `tests/unit/models/test_requirements.py`
   - `tests/unit/models/test_schema_extensions.py`
 - **Affected docs**:
+  - `docs/_data/nav.yml`
+  - `docs/index.md`
+  - `docs/reference/README.md`
   - `docs/reference/requirements-evidence-input-model.md`
   - `CHANGELOG.md`
 - **Integration points**: downstream import adapters and validation evidence graph

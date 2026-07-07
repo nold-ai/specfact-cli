@@ -85,6 +85,19 @@ def test_requirement_input_requires_schema_version() -> None:
         )
 
 
+def test_requirement_input_rejects_unknown_schema_version() -> None:
+    """Requirement input validation rejects unsupported per-record schema versions."""
+    with pytest.raises(ValidationError, match="schema_version"):
+        RequirementInput.model_validate(
+            {
+                "requirement_id": "REQ-123",
+                "schema_version": "999",
+                "title": "Unsupported schema version",
+                "sources": [{"source_type": "issue", "locator": "https://example.test/1"}],
+            }
+        )
+
+
 def test_requirement_input_requires_at_least_one_source_reference() -> None:
     """Requirement inputs must preserve at least one upstream source reference."""
     with pytest.raises(ValidationError, match="sources"):
@@ -137,3 +150,9 @@ def test_requirements_extension_loader_rejects_invalid_payload_at_contract_bound
     """Invalid extension payloads fail before Pydantic validation internals."""
     with pytest.raises(ViolationError):
         load_requirements_input_extension({"schema_version": "1", "requirements": [{"requirement_id": "REQ-126"}]})
+
+
+def test_requirements_extension_loader_rejects_unknown_payload_schema_version() -> None:
+    """Invalid extension schema versions fail at the loader contract boundary."""
+    with pytest.raises(ViolationError):
+        load_requirements_input_extension({"schema_version": "999", "requirements": []})
