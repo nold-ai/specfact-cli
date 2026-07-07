@@ -82,18 +82,28 @@ Compatibility note:
 
 ## First-Run Profiles
 
-`specfact init` supports profile presets and explicit bundle selection:
+`specfact init` supports validation tiers, legacy profile presets, and explicit bundle selection.
+Validation tiers (`solo`, `startup`, `mid_size`, `enterprise`) write layered validation config with
+source annotations. Tier-based profiles install the current bundle sets below:
 
-- `solo-developer` -> `specfact-codebase`
-- `backlog-team` -> `specfact-backlog`, `specfact-project`, `specfact-codebase`
-- `api-first-team` -> `specfact-spec`, `specfact-codebase` (and `specfact-project` is auto-installed as a dependency)
-- `enterprise-full-stack` -> `specfact-project`, `specfact-backlog`, `specfact-codebase`, `specfact-spec`, `specfact-govern`
+- `solo` -> `specfact-codebase`, `specfact-code-review`
+- `startup` -> `specfact-project`, `specfact-backlog`, `specfact-codebase`, `specfact-code-review`
+- `mid_size` -> `specfact-project`, `specfact-backlog`, `specfact-codebase`, `specfact-spec`, `specfact-code-review`
+- `enterprise` -> `specfact-project`, `specfact-backlog`, `specfact-codebase`, `specfact-spec`, `specfact-govern`, `specfact-code-review`
+
+Legacy workflow presets remain accepted for compatibility. They map to the corresponding validation
+tier for config defaults while preserving their historical install selections:
+
+- `solo-developer` -> `solo`
+- `backlog-team` -> `startup`
+- `api-first-team` -> `mid_size`
+- `enterprise-full-stack` -> `enterprise`
 
 Examples:
 
 ```bash
-specfact init --profile solo-developer
-specfact init --install backlog,codebase
+specfact init --profile startup
+specfact init --install backlog,code-review
 specfact init --install all
 ```
 

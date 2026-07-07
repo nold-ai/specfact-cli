@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Mapping
+from copy import deepcopy
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
+import yaml
 from beartype import beartype
 from icontract import ensure, require
 
@@ -25,7 +28,117 @@ PROFILE_PRESETS: dict[str, list[str]] = {
         "specfact-spec",
         "specfact-govern",
     ],
+    "solo": ["specfact-codebase", "specfact-code-review"],
+    "startup": ["specfact-project", "specfact-backlog", "specfact-codebase", "specfact-code-review"],
+    "mid_size": ["specfact-project", "specfact-backlog", "specfact-codebase", "specfact-spec", "specfact-code-review"],
+    "enterprise": [
+        "specfact-project",
+        "specfact-backlog",
+        "specfact-codebase",
+        "specfact-spec",
+        "specfact-govern",
+        "specfact-code-review",
+    ],
 }
+
+VALIDATION_TIER_PROFILES: tuple[str, ...] = ("solo", "startup", "mid_size", "enterprise")
+
+LEGACY_PROFILE_TO_VALIDATION_TIER: dict[str, str] = {
+    "solo-developer": "solo",
+    "backlog-team": "startup",
+    "api-first-team": "mid_size",
+    "enterprise-full-stack": "enterprise",
+}
+
+
+def _canonical_module_ids(bundle_ids: list[str]) -> list[str]:
+    return [f"nold-ai/{bundle_id}" for bundle_id in bundle_ids]
+
+
+_PROFILE_DEFAULTS: dict[str, dict[str, Any]] = {
+    "solo": {
+        "profile": "solo",
+        "validation": {
+            "severity": "advisory",
+            "policy_mode": "advisory",
+            "evidence_persistence": "local",
+        },
+        "clean_code": {
+            "mode": "advisory",
+        },
+        "modules": {
+            "enabled": _canonical_module_ids(PROFILE_PRESETS["solo"]),
+        },
+        "requirements_schema": {
+            "required_fields": ["id", "title", "acceptance"],
+        },
+    },
+    "startup": {
+        "profile": "startup",
+        "validation": {
+            "severity": "mixed",
+            "policy_mode": "mixed",
+            "evidence_persistence": "repo",
+        },
+        "clean_code": {
+            "mode": "advisory_then_mixed",
+        },
+        "modules": {
+            "enabled": _canonical_module_ids(PROFILE_PRESETS["startup"]),
+        },
+        "requirements_schema": {
+            "required_fields": ["id", "title", "owner", "acceptance"],
+        },
+    },
+    "mid_size": {
+        "profile": "mid_size",
+        "validation": {
+            "severity": "mixed",
+            "policy_mode": "mixed",
+            "evidence_persistence": "repo",
+        },
+        "clean_code": {
+            "mode": "mixed",
+        },
+        "modules": {
+            "enabled": _canonical_module_ids(PROFILE_PRESETS["mid_size"]),
+        },
+        "requirements_schema": {
+            "required_fields": ["id", "title", "owner", "acceptance", "trace_links"],
+        },
+    },
+    "enterprise": {
+        "profile": "enterprise",
+        "validation": {
+            "severity": "hard",
+            "policy_mode": "hard",
+            "evidence_persistence": "required",
+        },
+        "clean_code": {
+            "mode": "hard",
+        },
+        "modules": {
+            "enabled": _canonical_module_ids(PROFILE_PRESETS["enterprise"]),
+        },
+        "requirements_schema": {
+            "required_fields": [
+                "id",
+                "title",
+                "owner",
+                "acceptance",
+                "trace_links",
+                "risk_classification",
+                "exception_evidence",
+            ],
+        },
+    },
+}
+
+_RESERVED_CONFIG_KEYS: frozenset[str] = frozenset({"source_annotations", "profile_warnings"})
+_PROFILE_GENERATED_CONFIG_KEYS: frozenset[str] = frozenset(
+    {"validation", "clean_code", "modules", "requirements_schema"}
+)
+_POLICY_STRENGTH: dict[str, int] = {"advisory": 1, "advisory_then_mixed": 2, "mixed": 3, "hard": 4}
 
 _INSTALL_ALL_BUNDLES: tuple[str, ...] = (
     "specfact-project",
@@ -53,6 +166,8 @@ BUNDLE_ALIAS_TO_CANONICAL: dict[str, str] = {
     "backlog": "specfact-backlog",
     "codebase": "specfact-codebase",
     "code": "specfact-codebase",
+    "code-review": "specfact-code-review",
+    "code_review": "specfact-code-review",
     "spec": "specfact-spec",
     "govern": "specfact-govern",
 }
@@ -83,6 +198,15 @@ BUNDLE_DISPLAY: dict[str, str] = {
 }
 
 
+@dataclass(frozen=True)
+class ResolvedProfileConfig:
+    """Resolved profile config with source annotations for each winning value."""
+
+    values: dict[str, Any]
+    sources: dict[str, Any]
+    warnings: list[str]
+
+
 def _emit_init_bundle_progress() -> bool:
     """Return True when init should print progress (suppressed during pytest)."""
     return os.environ.get("PYTEST_CURRENT_TEST") is None
@@ -105,6 +229,160 @@ def _expand_bundle_install_order(bundle_ids: list[str]) -> list[str]:
             continue
         _add_bundle(bid)
     return to_install
+
+
+def _normalize_profile_key(profile: str) -> str:
+    key = profile.strip().lower()
+    return "mid_size" if key in {"mid-size", "mid_size"} else key
+
+
+@require(lambda profile: isinstance(profile, str) and profile.strip() != "", "profile must be non-empty string")
+@ensure(lambda result: result in VALIDATION_TIER_PROFILES, "result must be a validation tier")
+@beartype
+def resolve_validation_tier(profile: str) -> str:
+    """Map a validation tier or legacy workflow preset to a validation config tier."""
+    key = profile.strip().lower()
+    normalized = _normalize_profile_key(profile)
+    if normalized in VALIDATION_TIER_PROFILES:
+        return normalized
+    if key in LEGACY_PROFILE_TO_VALIDATION_TIER:
+        return LEGACY_PROFILE_TO_VALIDATION_TIER[key]
+    valid = ", ".join(get_valid_profile_names())
+    raise ValueError(f"Unknown profile {profile!r}. Valid profiles: {valid}")
+
+
+def _source_tree(value: Any, source: str) -> Any:
+    if isinstance(value, Mapping):
+        return {str(key): _source_tree(child, source) for key, child in value.items()}
+    return source
+
+
+def _merge_config_layer(target: dict[str, Any], sources: dict[str, Any], layer: Mapping[str, Any], source: str) -> None:
+    for raw_key, raw_value in layer.items():
+        key = str(raw_key)
+        if key in _RESERVED_CONFIG_KEYS:
+            continue
+        value = deepcopy(raw_value)
+        if isinstance(value, Mapping) and isinstance(target.get(key), dict):
+            existing_source = sources.get(key)
+            if not isinstance(existing_source, dict):
+                sources[key] = {}
+            _merge_config_layer(target[key], sources[key], value, source)
+            continue
+        target[key] = value
+        sources[key] = _source_tree(value, source)
+
+
+def _extract_policy_value(layer: Mapping[str, Any] | None, key: str) -> str | None:
+    if not layer:
+        return None
+    validation = layer.get("validation")
+    if not isinstance(validation, Mapping):
+        return None
+    validation_values: dict[str, Any] = {str(raw_key): raw_value for raw_key, raw_value in validation.items()}
+    value = validation_values.get(key)
+    return value if isinstance(value, str) else None
+
+
+def _local_policy_weakened(org_baseline: Mapping[str, Any] | None, developer_local: Mapping[str, Any] | None) -> bool:
+    for key in ("severity", "policy_mode"):
+        org_value = _extract_policy_value(org_baseline, key)
+        local_value = _extract_policy_value(developer_local, key)
+        if org_value is None or local_value is None:
+            continue
+        if _POLICY_STRENGTH.get(local_value, 0) < _POLICY_STRENGTH.get(org_value, 0):
+            return True
+    return False
+
+
+@require(lambda profile: isinstance(profile, str) and profile.strip() != "", "profile must be non-empty string")
+@ensure(lambda result: isinstance(result, ResolvedProfileConfig), "result must be a resolved profile config")
+@beartype
+def resolve_profile_config(
+    profile: str,
+    *,
+    org_baseline: Mapping[str, Any] | None = None,
+    repo_overlay: Mapping[str, Any] | None = None,
+    developer_local: Mapping[str, Any] | None = None,
+) -> ResolvedProfileConfig:
+    """Resolve profile defaults, org baseline, repo overlay, and developer-local config layers."""
+    tier = resolve_validation_tier(profile)
+    values: dict[str, Any] = {}
+    sources: dict[str, Any] = {}
+    _merge_config_layer(values, sources, _PROFILE_DEFAULTS[tier], f"profile:{tier}")
+    for layer, source in (
+        (org_baseline, "org_baseline"),
+        (repo_overlay, "repo_overlay"),
+        (developer_local, "developer_local"),
+    ):
+        if layer:
+            _merge_config_layer(values, sources, layer, source)
+
+    warnings: list[str] = []
+    if _local_policy_weakened(org_baseline, developer_local):
+        warnings.append("developer_local weakens org validation policy")
+    return ResolvedProfileConfig(values=values, sources=sources, warnings=warnings)
+
+
+def _read_yaml_mapping(path: Path) -> dict[str, Any]:
+    if not path.exists():
+        return {}
+    raw = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    if not isinstance(raw, dict):
+        raise ValueError(f"Config file must contain a mapping: {path}")
+    return raw
+
+
+def _source_tree_contains_profile(value: Any) -> bool:
+    if isinstance(value, str):
+        return value.startswith("profile:")
+    if isinstance(value, Mapping):
+        return any(_source_tree_contains_profile(child) for child in value.values())
+    return False
+
+
+def _repo_overlay_without_generated_profile_values(raw_overlay: Mapping[str, Any]) -> dict[str, Any]:
+    overlay = {str(key): deepcopy(value) for key, value in raw_overlay.items()}
+    overlay.pop("profile", None)
+    source_annotations = overlay.pop("source_annotations", {})
+    overlay.pop("profile_warnings", None)
+    if not isinstance(source_annotations, Mapping):
+        return overlay
+    sources_by_key = {str(key): cast(Any, value) for key, value in source_annotations.items()}
+    for key in _PROFILE_GENERATED_CONFIG_KEYS:
+        if _source_tree_contains_profile(sources_by_key.get(key)):
+            overlay.pop(key, None)
+    return overlay
+
+
+@require(lambda repo_path: isinstance(repo_path, Path), "repo_path must be Path")
+@require(lambda profile: isinstance(profile, str) and profile.strip() != "", "profile must be non-empty string")
+@ensure(lambda result: isinstance(result, ResolvedProfileConfig), "result must be a resolved profile config")
+@beartype
+def write_profile_config(repo_path: Path, profile: str) -> ResolvedProfileConfig:
+    """Write `.specfact/config.yaml` for the selected profile with source annotations."""
+    specfact_dir = repo_path / ".specfact"
+    config_path = specfact_dir / "config.yaml"
+    local_path = specfact_dir / "config.local.yaml"
+    org_path = Path.home() / ".specfact" / "config.yaml"
+
+    repo_overlay = _repo_overlay_without_generated_profile_values(_read_yaml_mapping(config_path))
+    resolved = resolve_profile_config(
+        profile,
+        org_baseline=_read_yaml_mapping(org_path),
+        repo_overlay=repo_overlay,
+        developer_local=_read_yaml_mapping(local_path),
+    )
+
+    payload = deepcopy(resolved.values)
+    payload["profile"] = resolve_validation_tier(profile)
+    payload["source_annotations"] = resolved.sources
+    if resolved.warnings:
+        payload["profile_warnings"] = resolved.warnings
+
+    specfact_dir.mkdir(parents=True, exist_ok=True)
+    config_path.write_text(yaml.safe_dump(payload, sort_keys=False, allow_unicode=False), encoding="utf-8")
+    return resolved
 
 
 @dataclass
@@ -235,7 +513,7 @@ def _process_one_bundle_install_row(bid: str, deps: _InitBundleInstallDeps) -> N
 @beartype
 def resolve_profile_bundles(profile: str) -> list[str]:
     """Resolve a profile name to the list of canonical bundle ids to install."""
-    key = profile.strip().lower()
+    key = _normalize_profile_key(profile)
     if key not in PROFILE_PRESETS:
         valid = ", ".join(sorted(PROFILE_PRESETS))
         raise ValueError(f"Unknown profile {profile!r}. Valid profiles: {valid}")
