@@ -1,10 +1,10 @@
 {
   "modules": [
     {
-      "checksum_sha256": "3a563335d7a5e16e6e9ec975d6e5c77ff550d8880474eca03713b43e97d39a4a",
-      "download_url": "https://github.com/nold-ai/specfact-cli/releases/download/init-0.1.37.tar.gz",
+      "checksum_sha256": "2ffe401e068883086f2df2beed8e9d328db9f0802deb3c69212b0594bfa1be75",
+      "download_url": "https://github.com/nold-ai/specfact-cli/releases/download/init-0.1.41.tar.gz",
       "id": "init",
-      "latest_version": "0.1.37"
+      "latest_version": "0.1.41"
     },
     {
       "checksum_sha256": "35c592374b209224af9a826c21efa66947cc16bf680b20ee0463f44bee4f9b59",

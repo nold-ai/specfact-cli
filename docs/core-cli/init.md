@@ -29,13 +29,27 @@ specfact init ide [OPTIONS]
 | Option | Type | Description |
 |--------|------|-------------|
 | `--repo` | DIRECTORY | Repository path (default: current directory) |
-| `--profile` | TEXT | First-run profile preset (see below) |
+| `--profile` | TEXT | Validation tier or legacy first-run profile preset (see below) |
 | `--install` | TEXT | Comma-separated bundle names or `all` to install without prompting |
 | `--install-deps` | | Install required packages for contract enhancement |
 
-## Profiles
+## Validation Tiers
 
-Profiles select a default set of bundles appropriate for your team setup:
+Validation tier profiles write `.specfact/config.yaml` with deterministic defaults and source annotations:
+
+| Profile | Clean-code default | Validation posture |
+|---------|--------------------|--------------------|
+| `solo` | `advisory` | Fast local feedback |
+| `startup` | `advisory_then_mixed` | Team defaults with gradual enforcement |
+| `mid_size` | `mixed` | Mixed advisory and blocking checks |
+| `enterprise` | `hard` | Required evidence and hard-fail governance |
+
+Config layers resolve in this order: profile defaults, org baseline, repo overlay, developer-local override.
+The generated config records `source_annotations` for the winning value of each key.
+
+## Legacy Workflow Presets
+
+Legacy presets still select a default set of bundles appropriate for your team setup:
 
 | Profile | Description |
 |---------|-------------|
@@ -45,7 +59,10 @@ Profiles select a default set of bundles appropriate for your team setup:
 | `enterprise-full-stack` | All official bundles including governance and adapters |
 
 ```bash
-# Bootstrap with the solo-developer preset
+# Bootstrap with a validation tier
+specfact init --profile startup
+
+# Bootstrap with the legacy solo-developer preset
 specfact init --profile solo-developer
 
 # Install specific bundles during init

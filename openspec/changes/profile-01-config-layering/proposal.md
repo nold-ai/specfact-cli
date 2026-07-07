@@ -18,6 +18,17 @@ layering around validation.
 - Implementation MUST keep profiles focused on validation rollout and evidence
   strictness, not broad ceremony enablement.
 
+## Implementation Refresh (2026-07-06)
+
+- Revalidated against the July validation-evidence roadmap in
+  `openspec/CHANGE_ORDER.md`.
+- Kept the scope in core `init` and config resolution; no profile package or
+  separate ceremony workflow layer is introduced.
+- Preserved legacy first-run workflow presets as compatibility aliases while
+  adding validation tier profiles as the new config-authority surface.
+- Updated OpenSpec tasks, design notes, validation evidence, and docs before
+  PR preparation.
+
 ## What Changes
 
 - **NEW**: Deterministic config layering: profile defaults -> org baseline -> repo
@@ -51,6 +62,6 @@ layering around validation.
 <!-- source_repo: nold-ai/specfact-cli -->
 - **GitHub Issue**: #237
 - **Issue URL**: <https://github.com/nold-ai/specfact-cli/issues/237>
-- **Last Synced Status**: proposed
+- **Last Synced Status**: implementation-ready / PR candidate on `feature/profile-01-config-layering-baseline`
 - **Sanitized**: false
 <!-- content_hash: d7dfe1519fa64668 -->
