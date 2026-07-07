@@ -144,10 +144,7 @@ class RequirementInput(BaseModel):
 class RequirementsInputExtensionPayload(BaseModel):
     """Serializable ProjectBundle extension payload for requirement inputs."""
 
-    schema_version: Literal["1"] = Field(
-        default=REQUIREMENTS_INPUT_SCHEMA_VERSION,
-        description="Requirements extension payload schema version",
-    )
+    schema_version: Literal["1"] = Field(..., description="Requirements extension payload schema version")
     requirements: list[RequirementInput] = Field(default_factory=list, description="Requirement input records")
 
 
@@ -173,7 +170,7 @@ def _payload_is_valid_extension(payload: dict[str, Any]) -> bool:
 @ensure(_payload_has_requirements_list)
 def requirements_input_extension_payload(records: list[RequirementInput]) -> dict[str, Any]:
     """Return a JSON-serializable ProjectBundle extension payload."""
-    payload = RequirementsInputExtensionPayload(requirements=records)
+    payload = RequirementsInputExtensionPayload(schema_version=REQUIREMENTS_INPUT_SCHEMA_VERSION, requirements=records)
     return cast(dict[str, Any], payload.model_dump(mode="json"))
 
 

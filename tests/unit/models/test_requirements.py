@@ -156,3 +156,9 @@ def test_requirements_extension_loader_rejects_unknown_payload_schema_version() 
     """Invalid extension schema versions fail at the loader contract boundary."""
     with pytest.raises(ViolationError):
         load_requirements_input_extension({"schema_version": "999", "requirements": []})
+
+
+def test_requirements_extension_loader_requires_payload_schema_version() -> None:
+    """Extension payload validation rejects unversioned payload artifacts."""
+    with pytest.raises(ViolationError):
+        load_requirements_input_extension({"requirements": []})

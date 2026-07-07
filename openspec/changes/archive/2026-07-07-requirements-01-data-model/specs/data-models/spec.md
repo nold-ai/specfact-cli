@@ -1,4 +1,4 @@
-## MODIFIED Requirements
+## ADDED Requirements
 
 ### Requirement: Requirements Input Extension Namespace
 
@@ -16,4 +16,11 @@ The system SHALL support requirement input payloads through the existing Project
 - **GIVEN** a requirement document without `schema_version`
 - **WHEN** it is loaded
 - **THEN** requirement input validation fails
+- **AND** output indicates the missing version field.
+
+#### Scenario: Payload schema version is required for requirements extension artifacts
+
+- **GIVEN** a `requirements.inputs` extension payload without payload-level `schema_version`
+- **WHEN** it is loaded
+- **THEN** requirements extension validation fails
 - **AND** output indicates the missing version field.
