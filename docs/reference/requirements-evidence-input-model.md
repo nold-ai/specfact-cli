@@ -10,7 +10,7 @@ doc_owner: specfact-cli
 tracks:
   - src/specfact_cli/models/requirements.py
   - tests/unit/models/test_requirements.py
-last_reviewed: 2026-07-07
+last_reviewed: 2026-07-08
 exempt: false
 exempt_reason: ""
 ---
@@ -76,3 +76,5 @@ bundle.set_extension(
   validation severity without blocking model construction by themselves.
 - No requirement authoring commands or backlog write-back behavior are provided
   by this model.
+- Import, validation, and coverage helpers for these records live in
+  [Requirements Context Adapter](requirements-context-adapter.md).

@@ -174,6 +174,9 @@
     - title: Requirements Evidence Input Model
       url: /reference/requirements-evidence-input-model/
       expertise: [advanced]
+    - title: Requirements Context Adapter
+      url: /reference/requirements-context-adapter/
+      expertise: [advanced]
     - title: Dependency Resolution
       url: /reference/dependency-resolution/
       expertise: [advanced]
