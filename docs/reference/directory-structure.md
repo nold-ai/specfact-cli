@@ -20,7 +20,10 @@ Use this document for repository-local artifact placement. Use
 [Module Development](../guides/module-development.md) and
 [Publishing modules](../guides/publishing-modules.md) for source/package layout.
 
-> **Primary Use Case**: SpecFact CLI produces **validation evidence and AI-bloat defense** for AI-assisted and brownfield Python delivery - reverse-engineering existing codebases into documented specs, then detecting drift, bloat, and weak contracts before merge. The directory structure reflects this evidence-first approach to existing code.
+> **Primary Use Case**: SpecFact CLI produces **validation evidence and AI-bloat defense** for AI-assisted and
+> brownfield Python delivery - reverse-engineering existing codebases into documented specs, then detecting drift,
+> bloat, and weak contracts before merge. The directory structure reflects this evidence-first approach to
+> existing code.
 
 **CLI-First Approach**: SpecFact works offline, requires no account, and integrates with your existing workflow. Works with VS Code, Cursor, GitHub Actions, pre-commit hooks, or any IDE. No platform to learn, no vendor lock-in.
 

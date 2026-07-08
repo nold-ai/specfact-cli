@@ -11,7 +11,9 @@ expertise_level: [beginner]
 
 This guide will help you get started with SpecFact CLI in under 60 seconds — first with **no install** (uvx), then with a **persistent** install (pip) when you want IDE workflows and a stable `specfact` command.
 
-> **Primary use case**: validation evidence and AI-bloat defense for AI-assisted and brownfield Python delivery — deterministic review, drift detection, and spec/contract evidence before code reaches PR. See the [5-Minute Quickstart](quickstart.md) for a full walkthrough.
+> **Primary use case**: validation evidence and AI-bloat defense for AI-assisted and brownfield Python delivery —
+> deterministic review, drift detection, and spec/contract evidence before code reaches PR.
+> See the [5-Minute Quickstart](quickstart.md) for a full walkthrough.
 
 ## Try it now — no install required
 
