@@ -22,6 +22,7 @@ Category command groups:
 - `specfact code ...`
 - `specfact spec ...`
 - `specfact govern ...`
+- `specfact requirements ...`
 
 ## Canonical Category Assignments
 
@@ -47,6 +48,7 @@ Category command groups:
 | `generate` | `spec` | `specfact-spec` | `spec` | `generate` |
 | `enforce` | `govern` | `specfact-govern` | `govern` | `enforce` |
 | `patch_mode` | `govern` | `specfact-govern` | `govern` | `patch` |
+| `requirements` | `requirements` | `specfact-requirements` | `requirements` | `requirements` |
 
 ## Bundle Contents by Category
 
@@ -55,13 +57,14 @@ Category command groups:
 - `specfact-codebase`: `analyze`, `drift`, `validate`, `repro`
 - `specfact-spec`: `contract`, `api`, `sdd`, `generate`
 - `specfact-govern`: `enforce`, `patch`
+- `specfact-requirements`: `requirements`
 
 ## Bundle Package Layout and Namespaces
 
 Official bundle packages are published from the dedicated modules repository:
 
 - Repository: `nold-ai/specfact-cli-modules`
-- Package roots: `packages/specfact-project/`, `packages/specfact-backlog/`, `packages/specfact-codebase/`, `packages/specfact-spec/`, `packages/specfact-govern/`
+- Package roots: `packages/specfact-project/`, `packages/specfact-backlog/`, `packages/specfact-codebase/`, `packages/specfact-spec/`, `packages/specfact-govern/`, `packages/specfact-requirements/`
 
 Namespace mapping:
 
@@ -70,10 +73,11 @@ Namespace mapping:
 - `specfact-codebase` -> import namespace `specfact_codebase.*`
 - `specfact-spec` -> import namespace `specfact_spec.*`
 - `specfact-govern` -> import namespace `specfact_govern.*`
+- `specfact-requirements` -> import namespace `specfact_requirements.*`
 
 Compatibility note:
 
-- Flat top-level command shims were removed. Use category groups (`project`, `backlog`, `code`, `spec`, `govern`).
+- Flat top-level command shims were removed. Use category groups (`project`, `backlog`, `code`, `spec`, `govern`, `requirements`).
 - `specfact backlog auth ...` is provided by the backlog bundle, not by the permanent core command surface.
 
 > Modules docs handoff: this page remains in the core docs set as release-line overview content.
@@ -115,5 +119,5 @@ Before:
 
 After:
 
-- Core top-level commands plus grouped workflow families (`project`, `backlog`, `code`, `spec`, `govern`).
+- Core top-level commands plus grouped workflow families (`project`, `backlog`, `code`, `spec`, `govern`, `requirements`).
 - No backward-compatibility flat shims.

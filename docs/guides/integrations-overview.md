@@ -50,7 +50,8 @@ SpecFact CLI integrations fall into four main categories:
 - Learning and exploration of state machines and contracts
 - Single-developer projects and rapid prototyping
 
-**Key difference**: Spec-Kit focuses on **new feature authoring**, while SpecFact CLI focuses on **brownfield code modernization**.
+**Key difference**: Spec-Kit focuses on **new feature authoring**, while SpecFact CLI focuses on
+**validating existing code and defending it against AI-bloat and drift**.
 
 **See also**: [Spec-Kit Journey Guide](./speckit-journey.md)
 

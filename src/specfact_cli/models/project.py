@@ -559,7 +559,13 @@ class ProjectBundle(BaseModel):
         if progress_callback:
             progress_callback(current + 1, total_artifacts, "bundle.manifest.yaml")
         manifest_data = load_structured_file(manifest_path)
-        manifest = BundleManifest.model_validate(manifest_data)
+        if not isinstance(manifest_data, dict):
+            raise ValueError("Bundle manifest must be a mapping")
+        manifest_mapping = cast(dict[str, Any], manifest_data)
+        extensions_data = manifest_mapping.get("extensions", {})
+        if not isinstance(extensions_data, dict):
+            raise ValueError("ProjectBundle extensions must be a mapping")
+        manifest = BundleManifest.model_validate(manifest_mapping)
         current += 1
 
         slots = _BundleLoadSlots()
@@ -585,6 +591,7 @@ class ProjectBundle(BaseModel):
             features=slots.features,
             clarifications=slots.clarifications,
             change_tracking=change_tracking,
+            extensions=dict(extensions_data),
         )
 
     @beartype
@@ -663,6 +670,8 @@ class ProjectBundle(BaseModel):
             progress_callback(total_artifacts, total_artifacts, "bundle.manifest.yaml")
         manifest_path = bundle_dir / "bundle.manifest.yaml"
         manifest_data = self.manifest.model_dump(mode="json")
+        if self.extensions:
+            manifest_data["extensions"] = self.extensions
         if num_features > 1000:
             import json
 
