@@ -20,9 +20,10 @@ planning source.
 
 ## What Changes
 
-- **NEW**: Core import and normalization helpers for upstream requirement-like
-  sources, including backlog items, OpenSpec proposals, Spec Kit feature
-  folders, and local markdown/YAML records.
+- **NEW**: Core import and normalization helpers for source-attributed
+  requirement records supplied by upstream adapters, including backlog-derived
+  snippets and OpenSpec-derived snippets that already conform to the normalized
+  requirement input contract.
 - **NEW**: Profile-aware validation boundaries that check source attribution and
   downstream evidence usefulness.
 - **NEW**: Coverage inspection over normalized inputs, architecture, code, test,
@@ -36,6 +37,8 @@ planning source.
 
 - Implementing the runtime `specfact requirements ...` command group in this
   core repository.
+- Implementing concrete ingestion adapters for Spec Kit feature folders, local
+  markdown files, or YAML requirement records.
 - Interactive requirement authoring as a flagship workflow.
 - Treating `.specfact/requirements/` as the system of record for product
   management.

@@ -47,4 +47,8 @@
 
 - Required artifacts are present: `proposal.md`, `design.md`, `specs/**/*.md`, `tasks.md`.
 - Strict OpenSpec validation passed.
-- Change completed TDD implementation and is ready for PR review.
+- TDD implementation evidence is complete for the narrowed context-adapter
+  scope, but repository-wide total coverage remains below the 80% policy
+  threshold recorded by CI.
+- Final release readiness is blocked until the required coverage gate is
+  satisfied or an explicit release-governance exception is recorded.
