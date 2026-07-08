@@ -135,6 +135,7 @@ Compatibility note: `specfact backlog daily ...` and `specfact backlog refine ..
 | `nold-ai/specfact-codebase` | `code` | `code analyze`, `code drift`, `code validate`, `code repro`, `code import`, `code review` |
 | `nold-ai/specfact-spec` | `spec` | `spec validate`, `spec backward-compat`, `spec generate-tests`, `spec mock` |
 | `nold-ai/specfact-govern` | `govern` | `govern enforce`, `govern patch` |
+| `nold-ai/specfact-requirements` | `requirements` | `requirements import`, `requirements list`, `requirements coverage`, `requirements validate` |
 
 ## Migration: Removed Flat Commands
 
