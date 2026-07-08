@@ -96,6 +96,7 @@ class RequirementContextAdapter(Protocol):
     @require(lambda source: isinstance(source, Path), "source must be a Path")
     def import_requirements(self, source: Path, config: Mapping[str, Any]) -> RequirementContextImportResult:
         """Import source-attributed requirement records from an upstream source."""
+        raise NotImplementedError
 
 
 def _all_records_supported(records: Sequence[RequirementInput | Mapping[str, Any]]) -> bool:
