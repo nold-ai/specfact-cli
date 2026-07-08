@@ -171,6 +171,9 @@
     - title: ProjectBundle Schema
       url: /reference/projectbundle-schema/
       expertise: [advanced]
+    - title: Requirements Evidence Input Model
+      url: /reference/requirements-evidence-input-model/
+      expertise: [advanced]
     - title: Dependency Resolution
       url: /reference/dependency-resolution/
       expertise: [advanced]

@@ -13,6 +13,12 @@ import yaml
 
 from specfact_cli.models.plan import Feature, Product
 from specfact_cli.models.project import ProjectBundle
+from specfact_cli.models.requirements import (
+    RequirementInput,
+    RequirementSourceReference,
+    RequirementSourceType,
+    requirements_input_extension_payload,
+)
 
 
 class TestFeatureExtensions:
@@ -111,6 +117,26 @@ class TestProjectBundleExtensions:
         bundle.set_extension("sync", "last_sync_timestamp", "2025-01-15T12:00:00Z")
         assert bundle.get_extension("sync", "last_sync_timestamp") == "2025-01-15T12:00:00Z"
         assert bundle.get_extension("sync", "missing", default="def") == "def"
+
+    def test_project_bundle_accepts_requirements_inputs_namespace(self) -> None:
+        """requirements.inputs SHALL remain optional schema-extension data."""
+        bundle = self._minimal_bundle()
+        requirement = RequirementInput(
+            requirement_id="REQ-123",
+            schema_version="1",
+            title="Evidence input",
+            sources=[
+                RequirementSourceReference(
+                    source_type=RequirementSourceType.OPENSPEC_CHANGE,
+                    locator="requirements-01-data-model",
+                )
+            ],
+        )
+
+        bundle.set_extension("requirements", "inputs", requirements_input_extension_payload([requirement]))
+
+        payload = bundle.get_extension("requirements", "inputs")
+        assert payload["requirements"][0]["requirement_id"] == "REQ-123"
 
 
 class TestBackwardCompatibility:

@@ -482,8 +482,8 @@ class TestReproChecker:
             ):
                 report = checker.run_all_checks()
 
-        assert report.active_plan_path == str(outside_plan)
-        assert report.enforcement_config_path == str(outside_enforce)
+        assert report.active_plan_path == str(outside_plan.resolve())
+        assert report.enforcement_config_path == str(outside_enforce.resolve())
         console_calls = "\n".join(str(call) for call in console_mock.print.call_args_list)
         assert "Could not collect metadata" not in console_calls
 

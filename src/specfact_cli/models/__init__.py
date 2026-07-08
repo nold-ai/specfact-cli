@@ -37,6 +37,22 @@ from specfact_cli.models.project import (
     SectionLock,
 )
 from specfact_cli.models.protocol import Protocol, Transition
+from specfact_cli.models.requirements import (
+    REQUIREMENTS_INPUT_SCHEMA_VERSION,
+    BusinessRule,
+    RequirementCompletenessFinding,
+    RequirementCompletenessSeverity,
+    RequirementConstraint,
+    RequirementConstraintType,
+    RequirementEvidenceLink,
+    RequirementEvidenceLinkType,
+    RequirementInput,
+    RequirementsInputExtensionPayload,
+    RequirementSourceReference,
+    RequirementSourceType,
+    load_requirements_input_extension,
+    requirements_input_extension_payload,
+)
 from specfact_cli.models.sdd import (
     SDDCoverageThresholds,
     SDDEnforcementBudget,
@@ -49,6 +65,7 @@ from specfact_cli.models.source_tracking import SourceTracking
 
 
 __all__ = [
+    "REQUIREMENTS_INPUT_SCHEMA_VERSION",
     "AdapterType",
     "ArtifactMapping",
     "BridgeConfig",
@@ -57,6 +74,7 @@ __all__ = [
     "BundleManifest",
     "BundleVersions",
     "Business",
+    "BusinessRule",
     "ChangeArchive",
     "ChangeProposal",
     "ChangeTracking",
@@ -84,6 +102,16 @@ __all__ = [
     "Protocol",
     "ProtocolIndex",
     "Release",
+    "RequirementCompletenessFinding",
+    "RequirementCompletenessSeverity",
+    "RequirementConstraint",
+    "RequirementConstraintType",
+    "RequirementEvidenceLink",
+    "RequirementEvidenceLinkType",
+    "RequirementInput",
+    "RequirementSourceReference",
+    "RequirementSourceType",
+    "RequirementsInputExtensionPayload",
     "SDDCoverageThresholds",
     "SDDEnforcementBudget",
     "SDDHow",
@@ -100,4 +128,6 @@ __all__ = [
     "TemplateSection",
     "Transition",
     "ValidationReport",
+    "load_requirements_input_extension",
+    "requirements_input_extension_payload",
 ]
