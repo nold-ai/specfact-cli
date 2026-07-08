@@ -58,6 +58,40 @@ def test_module_package_yaml_with_category_codebase_passes_validation(tmp_path: 
     assert meta.bundle_sub_command == "analyze"
 
 
+def test_module_package_yaml_with_category_requirements_passes_validation(tmp_path: Path) -> None:
+    """requirements modules mount under the requirements group command."""
+    _write_manifest(
+        tmp_path,
+        "requirements",
+        category="requirements",
+        bundle="specfact-requirements",
+        bundle_group_command="requirements",
+        bundle_sub_command="requirements",
+    )
+    packages = discover_package_metadata(tmp_path, source="builtin")
+    assert len(packages) == 1
+    meta = packages[0][1]
+    assert meta.category == "requirements"
+    assert meta.bundle_group_command == "requirements"
+
+
+def test_prerelease_project_requirements_group_is_normalized(tmp_path: Path) -> None:
+    """Prerelease requirements manifests using project category normalize before validation."""
+    _write_manifest(
+        tmp_path,
+        "requirements",
+        category="project",
+        bundle="specfact-requirements",
+        bundle_group_command="requirements",
+        bundle_sub_command="requirements",
+    )
+    packages = discover_package_metadata(tmp_path, source="builtin")
+    assert len(packages) == 1
+    meta = packages[0][1]
+    assert meta.category == "requirements"
+    assert meta.bundle_group_command == "requirements"
+
+
 def test_legacy_codebase_bundle_group_command_is_normalized(tmp_path: Path) -> None:
     """Legacy marketplace manifests using codebase as group command are normalized to code."""
     _write_manifest(

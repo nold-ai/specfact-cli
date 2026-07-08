@@ -10,7 +10,7 @@ doc_owner: specfact-cli
 tracks:
   - src/specfact_cli/**
   - openspec/**
-last_reviewed: 2026-05-21
+last_reviewed: 2026-07-08
 exempt: false
 exempt_reason: ""
 ---
@@ -157,6 +157,7 @@ bundle-specific adapters, and authoring guidance.
 - **[Module Categories](/reference/module-categories/)** - Category taxonomy
 - **[Module Contracts](/reference/module-contracts/)** - Contract interfaces
 - **[Requirements Evidence Input Model](/reference/requirements-evidence-input-model/)** - Requirement input records for validation evidence
+- **[Requirements Context Adapter](/reference/requirements-context-adapter/)** - Import and coverage helpers for requirement context evidence
 - **[Operational Modes](/core-cli/modes/)** - CI/CD and CoPilot modes
 - **[Debug Logging](/core-cli/debug-logging/)** - Diagnostic logging
 
