@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sys
+from pathlib import Path
 from typing import Any, cast
 
 import pytest
@@ -105,6 +106,18 @@ def test_bundle_helpers_attach_and_load_requirements_input_extension() -> None:
     assert returned is bundle
     loaded = load_requirements_from_bundle(bundle)
     assert [record.requirement_id for record in loaded] == ["REQ-239"]
+
+
+def test_bundle_helpers_persist_requirements_input_extension(tmp_path: Path) -> None:
+    """Attached requirements survive ProjectBundle directory save/load."""
+    bundle_dir = tmp_path / "test-bundle"
+    bundle = attach_requirements_to_bundle(_bundle(), [_requirement()])
+
+    bundle.save_to_directory(bundle_dir)
+    loaded = ProjectBundle.load_from_directory(bundle_dir)
+
+    requirements = load_requirements_from_bundle(loaded)
+    assert [record.requirement_id for record in requirements] == ["REQ-239"]
 
 
 def test_validate_requirement_context_reports_profile_aware_evidence_gaps() -> None:
