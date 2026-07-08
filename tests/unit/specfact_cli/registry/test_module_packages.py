@@ -738,6 +738,52 @@ def test_mount_installed_groups_preserves_bundle_native_group_command(
     assert "native-sub" in command_names
 
 
+def test_requirements_bundle_mounts_native_requirements_root_group(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Installed requirements bundle should expose its native requirements root group."""
+    from specfact_cli.registry import module_packages as mp
+
+    native_requirements_app = typer.Typer()
+
+    @native_requirements_app.command("list")
+    def _list_requirements() -> None:
+        return None
+
+    packages = [
+        (
+            tmp_path / "requirements",
+            ModulePackageMetadata(
+                name="nold-ai/specfact-requirements",
+                version="0.1.0",
+                commands=["requirements"],
+                category="requirements",
+                bundle="specfact-requirements",
+                bundle_group_command="requirements",
+                bundle_sub_command="requirements",
+            ),
+        )
+    ]
+
+    monkeypatch.setattr(mp, "discover_all_package_metadata", lambda: packages)
+    monkeypatch.setattr(mp, "verify_module_artifact", lambda _dir, _meta, allow_unsigned=False: True)
+    monkeypatch.setattr(mp, "read_modules_state", dict)
+    monkeypatch.setattr(mp, "_check_protocol_compliance_from_source", lambda *_args, **_kwargs: [])
+    monkeypatch.setattr(mp, "_make_package_loader", lambda *_args, **_kwargs: lambda: native_requirements_app)
+
+    mp.register_module_package_commands(category_grouping_enabled=True)
+
+    requirements_app = CommandRegistry.get_typer("requirements")
+    command_names = tuple(
+        sorted(
+            command_info.name
+            for command_info in requirements_app.registered_commands
+            if getattr(command_info, "name", None) is not None
+        )
+    )
+    assert "list" in command_names
+
+
 def test_grouped_registration_does_not_register_flat_shim_commands(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:

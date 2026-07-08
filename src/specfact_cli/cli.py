@@ -87,6 +87,7 @@ KNOWN_BUNDLE_GROUP_OR_SHIM_NAMES: frozenset[str] = frozenset(
         "project",
         "spec",
         "govern",
+        "requirements",
         "contract",
         "sdd",
         "generate",
@@ -110,6 +111,7 @@ _INVOKED_TO_MARKETPLACE_MODULE: dict[str, str] = {
     "govern": "nold-ai/specfact-govern",
     "enforce": "nold-ai/specfact-govern",
     "patch": "nold-ai/specfact-govern",
+    "requirements": "nold-ai/specfact-requirements",
 }
 
 # Removed flat root aliases -> canonical grouped replacement (see docs/migration/migration-guide.md).
@@ -418,7 +420,7 @@ Transform your development workflow with automated quality gates,
 runtime contract validation, and state machine workflows.
 
 Run **specfact init** or **specfact module install** to add workflow bundles
-(backlog, code, project, spec, govern).
+(backlog, code, project, spec, govern, requirements).
 
 **Backlog Management**: Use `specfact backlog refine` for AI-assisted template-driven
 refinement of backlog items from GitHub Issues, Azure DevOps, and other tools.

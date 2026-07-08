@@ -10,6 +10,17 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.50.2] - 2026-07-08
+
+### Fixed
+
+- **Requirements module command mount**: mount the installed
+  `nold-ai/specfact-requirements` runtime as the root
+  `specfact requirements ...` command group and show the correct marketplace
+  recovery guidance when the requirements bundle is missing.
+
+---
+
 ## [0.50.1] - 2026-07-08
 
 ### Fixed
