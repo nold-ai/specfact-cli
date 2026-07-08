@@ -81,7 +81,7 @@ hatch run pytest modules/backlog-core/tests/unit/test_add_command.py tests/unit/
 What this audit is expected to prove:
 
 - Core commands (`specfact`, `init`, `module`, `upgrade`) stay usable before bundle installation.
-- Official bundle roots (`project`, `spec`, `code`, `backlog`, `govern`) and their audited leaf commands are still registered.
+- Official bundle roots (`project`, `spec`, `code`, `backlog`, `govern`, `requirements`) and their audited leaf commands are still registered.
 - Normal command output stays clean: no duplicate-module chatter, protocol-compliance chatter, or expected-overlap warnings without `--debug`.
 - Backlog split-runtime flows still work end to end, including `backlog refine ado`, `backlog map-fields`, and `backlog add`.
 

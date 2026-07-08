@@ -153,7 +153,7 @@ Optional module-deep paths include:
 
 ## Module system
 
-Official workflow behavior ships from `nold-ai/specfact-cli-modules`. The core CLI owns bootstrap, runtime contracts, trust checks, logging, and the grouped command surface. Installed modules add families such as `project`, `backlog`, `code`, `spec`, and `govern`.
+Official workflow behavior ships from `nold-ai/specfact-cli-modules`. The core CLI owns bootstrap, runtime contracts, trust checks, logging, and the grouped command surface. Installed modules add families such as `project`, `backlog`, `code`, `spec`, `govern`, and `requirements`.
 
 Install examples:
 
@@ -163,6 +163,7 @@ specfact module install nold-ai/specfact-backlog
 specfact module install nold-ai/specfact-codebase
 specfact module install nold-ai/specfact-code-review
 specfact module install nold-ai/specfact-govern
+specfact module install nold-ai/specfact-requirements
 ```
 
 If startup warns that modules are missing or outdated, run:

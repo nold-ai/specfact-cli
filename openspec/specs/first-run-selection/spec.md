@@ -108,7 +108,7 @@ The system SHALL accept a `--install <bundle-list>` argument on `specfact init` 
 
 - **GIVEN** the user runs `specfact init --install all`
 - **WHEN** `specfact init` processes the argument
-- **THEN** the CLI SHALL install all five category bundles: project, backlog, codebase, spec, govern
+- **THEN** the CLI SHALL install all current workflow bundles: project, backlog, codebase, spec, govern, requirements
 - **AND** SHALL exit 0
 
 #### Scenario: `--install` with unknown bundle name fails gracefully

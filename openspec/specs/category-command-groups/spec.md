@@ -53,7 +53,7 @@ Bootstrap SHALL mount only category group apps (and core commands) when `categor
 
 - **GIVEN** `category_grouping_enabled` is `true`
 - **WHEN** the CLI bootstrap runs
-- **THEN** the registry SHALL contain entries only for core commands and the five category group names
+- **THEN** the registry SHALL contain entries only for core commands and the current category group names
 - **AND** SHALL NOT contain entries for `analyze`, `drift`, `validate`, `repro`, `backlog`, `policy`, `project`, `plan`, `import`, `sync`, `migrate`, `contract`, `spec`, `sdd`, `generate`, `enforce`, `patch` as top-level commands
 
 ### Requirement: `category_grouping_enabled` config flag controls grouping behaviour

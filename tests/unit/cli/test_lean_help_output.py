@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from pathlib import Path
 from typing import Any, cast
 
 import click
@@ -11,7 +12,8 @@ import typer
 from click.testing import CliRunner as ClickCliRunner
 from typer.testing import CliRunner
 
-from specfact_cli.cli import _LazyDelegateGroup, _RootCLIGroup, app
+from specfact_cli.cli import _LazyDelegateGroup, _RootCLIGroup, app, rebuild_root_app_from_registry
+from specfact_cli.models.module_package import ModulePackageMetadata
 from specfact_cli.registry import CommandRegistry
 from specfact_cli.registry.metadata import CommandMetadata
 
@@ -113,6 +115,77 @@ def test_root_group_unknown_code_shows_specfact_codebase_module(capsys: pytest.C
     out = " ".join(captured.out.split())
     assert "Module 'nold-ai/specfact-codebase' is not installed." in out
     assert "specfact module install nold-ai/specfact-codebase" in out
+
+
+def test_root_group_unknown_requirements_shows_specfact_requirements_module(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Missing `requirements` group should name the marketplace requirements module."""
+    group = _RootCLIGroup(name="specfact")
+    ctx = click.Context(cast(Any, group))
+
+    with pytest.raises(SystemExit) as exc_info:
+        group.resolve_command(ctx, ["requirements", "--help"])
+
+    assert exc_info.value.code == 1
+    captured = capsys.readouterr()
+    out = " ".join(captured.out.split())
+    assert "Module 'nold-ai/specfact-requirements' is not installed." in out
+    assert "specfact module install nold-ai/specfact-requirements" in out
+
+
+def test_installed_requirements_module_makes_root_cli_help_callable(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """A discovered requirements bundle must make `specfact requirements --help` callable."""
+    from specfact_cli.registry.bootstrap import register_builtin_commands
+
+    requirements_app = typer.Typer(help="Requirements evidence commands.")
+
+    @requirements_app.command("list")
+    def _list_requirements() -> None:
+        return None
+
+    @requirements_app.command("coverage")
+    def _coverage_requirements() -> None:
+        return None
+
+    packages = [
+        (
+            tmp_path / "requirements",
+            ModulePackageMetadata(
+                name="nold-ai/specfact-requirements",
+                version="0.1.0",
+                commands=["requirements"],
+                category="requirements",
+                bundle="specfact-requirements",
+                bundle_group_command="requirements",
+                bundle_sub_command="requirements",
+            ),
+        )
+    ]
+
+    with monkeypatch.context() as scoped_monkeypatch:
+        from specfact_cli.registry import module_packages as mp
+
+        CommandRegistry._clear_for_testing()
+        scoped_monkeypatch.setattr(mp, "discover_all_package_metadata", lambda: packages)
+        scoped_monkeypatch.setattr(mp, "verify_module_artifact", lambda _dir, _meta, allow_unsigned=False: True)
+        scoped_monkeypatch.setattr(mp, "read_modules_state", dict)
+        scoped_monkeypatch.setattr(mp, "_check_protocol_compliance_from_source", lambda *_args, **_kwargs: [])
+        scoped_monkeypatch.setattr(mp, "_make_package_loader", lambda *_args, **_kwargs: lambda: requirements_app)
+        register_builtin_commands()
+        rebuild_root_app_from_registry()
+
+        result = runner.invoke(app, ["requirements", "--help"], catch_exceptions=False)
+
+    CommandRegistry._clear_for_testing()
+    register_builtin_commands()
+    rebuild_root_app_from_registry()
+    assert result.exit_code == 0
+    assert "Requirements evidence commands" in _strip_ansi(result.output)
+    assert "coverage" in _strip_ansi(result.output)
 
 
 def test_stale_lazy_flat_shim_prints_install_guidance() -> None:

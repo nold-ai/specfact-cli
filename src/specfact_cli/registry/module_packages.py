@@ -1252,6 +1252,17 @@ def _build_bundle_to_group() -> dict[str, tuple[str, str, Any]]:
         "specfact-project": ("project", "Project lifecycle commands.", build_project_app),
         "specfact-spec": ("spec", "Spec and contract commands: contract, api, sdd, generate.", build_spec_app),
         "specfact-govern": ("govern", "Governance and quality gates: enforce, patch.", build_govern_app),
+        "specfact-requirements": (
+            "requirements",
+            "Requirements evidence commands.",
+            lambda: build_member_group(
+                name="requirements",
+                help_text="Requirements evidence commands.",
+                members=(("requirements", "requirements"),),
+                flatten_same_name="requirements",
+                install_hint_module="nold-ai/specfact-requirements",
+            ),
+        ),
     }
 
 

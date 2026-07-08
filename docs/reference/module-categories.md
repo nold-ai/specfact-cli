@@ -79,6 +79,9 @@ Compatibility note:
 
 - Flat top-level command shims were removed. Use category groups (`project`, `backlog`, `code`, `spec`, `govern`, `requirements`).
 - `specfact backlog auth ...` is provided by the backlog bundle, not by the permanent core command surface.
+- Prerelease `specfact-requirements` manifests that still declare category
+  `project` with `bundle_group_command: requirements` are normalized to the
+  canonical `requirements` group during core discovery.
 
 > Modules docs handoff: this page remains in the core docs set as release-line overview content.
 > Canonical bundle-specific deep guidance now lives in the canonical modules docs site, currently
@@ -108,6 +111,7 @@ Examples:
 ```bash
 specfact init --profile startup
 specfact init --install backlog,code-review
+specfact init --install requirements
 specfact init --install all
 ```
 

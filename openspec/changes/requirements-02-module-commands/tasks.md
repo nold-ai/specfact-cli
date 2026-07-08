@@ -22,6 +22,9 @@
 - [x] 3.3 Update adapter helpers and models required by this change scope only.
 - [x] 3.4 Keep runtime `specfact requirements ...` command handlers in the paired modules-repo scope; core only exposes reusable helpers.
 - [x] 3.5 Add core registry category compatibility for the paired `requirements` module group without adding root CLI handlers.
+- [x] 3.6 Add the core root command mount mapping required for the paired
+  `specfact-requirements` runtime so installed users can run
+  `specfact requirements ...`.
 
 ## 4. Validation and documentation
 
@@ -30,9 +33,13 @@
 - [x] 4.3 Run module-signature verification; if signed module assets changed, bump module versions and re-sign before PR.
 - [x] 4.4 Run `openspec validate requirements-02-module-commands --strict` and resolve all issues.
 - [x] 4.5 Run SpecFact code review JSON, independent static analysis, and clean-code gates; resolve all findings or document rare explicit exceptions.
+- [x] 4.6 Add a clean installed-command smoke that proves
+  `specfact requirements --help` resolves after the requirements module is
+  discovered.
 
 ## 5. Delivery
 
 - [x] 5.1 Update version files and `CHANGELOG.md` with a minor feature release entry.
 - [x] 5.2 Review `openspec/CHANGE_ORDER.md` status/dependency notes; update only if implementation sequencing changed.
 - [x] 5.3 Open a PR from `feature/requirements-02-module-commands` to `dev` with spec/test/code/docs evidence.
+- [x] 5.4 Publish the regression fix as patch release `0.50.2`.
