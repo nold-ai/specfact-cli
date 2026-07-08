@@ -10,7 +10,7 @@ redirect_from:
 
 Detailed use cases and examples for SpecFact CLI.
 
-> **Primary Use Case**: Brownfield code modernization (Use Case 1)  
+> **Primary Use Case**: Validation evidence and AI-bloat defense on existing codebases (Use Case 1)  
 > **Secondary Use Case**: Adding enforcement to Spec-Kit projects (Use Case 2)  
 > **Alternative**: Greenfield spec-first development (Use Case 3)  
 > **Validation Use Case**: Sidecar validation of external codebases (Use Case 4) 🆕
