@@ -67,6 +67,12 @@ specfact init --profile solo-developer
 
 # Install specific bundles during init
 specfact init --install backlog,code-review
+
+# Install the requirements workflow explicitly
+specfact init --install requirements
+
+# Install every current workflow bundle
+specfact init --install all
 ```
 
 Profile and install selections are treated as explicit enable requests for the selected marketplace module ids. `init` discovers project modules relative to `--repo` and merges the refreshed rows into `modules.json`, preserving unrelated module lifecycle state from other repositories or scopes.

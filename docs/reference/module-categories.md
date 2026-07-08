@@ -111,6 +111,7 @@ Examples:
 ```bash
 specfact init --profile startup
 specfact init --install backlog,code-review
+specfact init --install requirements
 specfact init --install all
 ```
 

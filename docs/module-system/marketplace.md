@@ -30,6 +30,7 @@ specfact module install nold-ai/specfact-backlog
 specfact module install nold-ai/specfact-codebase
 specfact module install nold-ai/specfact-spec
 specfact module install nold-ai/specfact-govern
+specfact module install nold-ai/specfact-requirements
 ```
 
 Bundle overview:
@@ -39,6 +40,7 @@ Bundle overview:
 - `nold-ai/specfact-codebase`: grouped code workflows (`analyze`, `drift`, `validate`, `repro`)
 - `nold-ai/specfact-spec`: grouped spec workflows (`contract`, `api`, `sdd`, `generate`)
 - `nold-ai/specfact-govern`: grouped governance workflows (`enforce`, `patch`)
+- `nold-ai/specfact-requirements`: grouped requirements evidence workflows (`requirements`)
 
 ## Trust Tiers
 
@@ -68,6 +70,7 @@ On first run, select bundles with profiles or explicit install:
 specfact init --profile solo-developer
 specfact init --profile enterprise-full-stack
 specfact init --install backlog,codebase
+specfact init --install requirements
 specfact init --install all
 ```
 

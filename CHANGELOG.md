@@ -20,6 +20,9 @@ All notable changes to this project will be documented in this file.
   recovery guidance when the requirements bundle is missing. The `specfact init`
   bundle selector now also accepts `--install requirements` and includes
   `specfact-requirements` in `--install all`.
+- **Requirements docs alignment**: document `nold-ai/specfact-requirements`
+  across the core marketplace, command mapping, init, installation, README, and
+  active OpenSpec bundle-count references.
 
 ---
 

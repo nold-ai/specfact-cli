@@ -44,11 +44,11 @@ The `scripts/publish-module.py` script SHALL package each bundle directory into 
 
 The `specfact-cli-modules/registry/index.json` SHALL contain one entry per official bundle after publishing, following the existing schema (`schema_version`, `modules` array).
 
-#### Scenario: Index contains all five official bundle entries
+#### Scenario: Index contains all current official bundle entries
 
-- **GIVEN** that all five bundles have been published via `publish-module.py`
+- **GIVEN** that all official bundles have been published via `publish-module.py`
 - **WHEN** `index.json` is parsed
-- **THEN** the `modules` array SHALL contain exactly five entries with `id` values: `nold-ai/specfact-project`, `nold-ai/specfact-backlog`, `nold-ai/specfact-codebase`, `nold-ai/specfact-spec`, `nold-ai/specfact-govern`
+- **THEN** the `modules` array SHALL contain entries with `id` values: `nold-ai/specfact-project`, `nold-ai/specfact-backlog`, `nold-ai/specfact-codebase`, `nold-ai/specfact-spec`, `nold-ai/specfact-govern`, `nold-ai/specfact-requirements`
 
 #### Scenario: Each index entry carries required metadata fields
 
