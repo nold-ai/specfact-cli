@@ -17,7 +17,9 @@ All notable changes to this project will be documented in this file.
 - **Requirements module command mount**: mount the installed
   `nold-ai/specfact-requirements` runtime as the root
   `specfact requirements ...` command group and show the correct marketplace
-  recovery guidance when the requirements bundle is missing.
+  recovery guidance when the requirements bundle is missing. The `specfact init`
+  bundle selector now also accepts `--install requirements` and includes
+  `specfact-requirements` in `--install all`.
 
 ---
 

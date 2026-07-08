@@ -146,6 +146,7 @@ _INSTALL_ALL_BUNDLES: tuple[str, ...] = (
     "specfact-codebase",
     "specfact-spec",
     "specfact-govern",
+    "specfact-requirements",
 )
 
 # Includes marketplace-only bundles referenced by profiles (e.g. specfact-code-review).
@@ -158,6 +159,7 @@ MARKETPLACE_ONLY_BUNDLES: dict[str, str] = {
     "specfact-codebase": "nold-ai/specfact-codebase",
     "specfact-spec": "nold-ai/specfact-spec",
     "specfact-govern": "nold-ai/specfact-govern",
+    "specfact-requirements": "nold-ai/specfact-requirements",
     "specfact-code-review": "nold-ai/specfact-code-review",
 }
 
@@ -170,6 +172,7 @@ BUNDLE_ALIAS_TO_CANONICAL: dict[str, str] = {
     "code_review": "specfact-code-review",
     "spec": "specfact-spec",
     "govern": "specfact-govern",
+    "requirements": "specfact-requirements",
 }
 
 # Optional: names of *bundled* module dirs shipped inside this CLI wheel (see module_installer). Workflow
@@ -180,6 +183,7 @@ BUNDLE_TO_MODULE_NAMES: dict[str, list[str]] = {
     "specfact-codebase": [],
     "specfact-spec": [],
     "specfact-govern": [],
+    "specfact-requirements": [],
     "specfact-code-review": [],
 }
 
@@ -194,6 +198,7 @@ BUNDLE_DISPLAY: dict[str, str] = {
     "specfact-codebase": "Codebase quality (analyze, drift, validate, repro)",
     "specfact-spec": "Spec & API (contract, spec, sdd, generate)",
     "specfact-govern": "Governance (enforce, patch)",
+    "specfact-requirements": "Requirements evidence (requirements)",
     "specfact-code-review": "Scored code review (code review gate)",
 }
 
