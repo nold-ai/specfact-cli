@@ -114,15 +114,15 @@ If the user attempts to run a category group command (e.g., `specfact project`, 
 - **AND** SHALL NOT be gated by bundle installation state
 - **AND** auth commands SHALL be available via `specfact backlog auth` once the backlog bundle is installed
 
-### Requirement: `specfact init --install all` still installs all five bundles
+### Requirement: `specfact init --install all` installs all current workflow bundles
 
 The `--install all` shorthand, introduced by `first-run-selection` (module-migration-01), SHALL continue to work after core slimming.
 
-#### Scenario: --install all installs all five category bundles from marketplace
+#### Scenario: --install all installs all current workflow bundles from marketplace
 
 - **GIVEN** a fresh specfact-cli install
 - **WHEN** the user runs `specfact init --install all`
-- **THEN** the CLI SHALL install all five bundles from the marketplace registry: specfact-project, specfact-backlog, specfact-codebase, specfact-spec, specfact-govern
+- **THEN** the CLI SHALL install all current workflow bundles from the marketplace registry: specfact-project, specfact-backlog, specfact-codebase, specfact-spec, specfact-govern, specfact-requirements
 - **AND** SHALL resolve bundle dependencies (specfact-project installed before specfact-spec and specfact-govern)
 - **AND** SHALL exit 0
 - **AND** this behaviour SHALL be identical to the pre-slimming `--install all` behaviour that previously enabled all bundled modules

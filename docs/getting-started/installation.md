@@ -242,6 +242,8 @@ If CI/CD is non-interactive, ensure your bootstrap includes profile/install sele
 specfact init --profile enterprise-full-stack
 # or
 specfact init --install all
+# or
+specfact init --install requirements
 ```
 
 ### For Greenfield Projects
