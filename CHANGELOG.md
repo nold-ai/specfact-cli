@@ -10,6 +10,16 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.50.0] - 2026-07-08
+
+### Added
+
+- **Requirements context adapter**: add core helpers for importing,
+  normalizing, validating, and inspecting source-attributed requirement context
+  as validation evidence for the future `requirements` runtime command group.
+
+---
+
 ## [0.49.1] - 2026-07-08
 
 ### Fixed

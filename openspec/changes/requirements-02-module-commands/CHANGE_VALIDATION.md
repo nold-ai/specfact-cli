@@ -1,31 +1,50 @@
-# Change Validation: requirements-02-module-commands
+# Change Validation Report: requirements-02-module-commands
 
-- **Validated on (UTC):** 2026-02-15T21:54:26Z
-- **Workflow:** /wf-validate-change (proposal-stage dry-run validation)
+- **Validation Date (Europe/Berlin):** 2026-07-08T21:00:03+02:00
+- **Workflow:** OpenSpec validate-change refresh before implementation
 - **Strict command:** `openspec validate requirements-02-module-commands --strict`
 - **Result:** PASS
 
 ## Scope Summary
 
-- **New capabilities:** requirements-module
-- **Modified capabilities:** module-io-contract,backlog-adapter
+- **New capabilities:** requirements-context-adapter
+- **Modified capabilities:** module-io-contract, backlog-adapter
 - **Declared dependencies:** requirements-01 (data model), arch-07 (#213, schema extensions for ProjectBundle)
-- **Proposed affected code paths:** - `modules/requirements/` (new module);- `modules/backlog/src/adapters/` (extend adapters with AC text extraction interface) - `src/specfact_cli/contracts/module_interface.py` (no change — new implementation)
+- **Proposed affected code paths:**
+  - `src/specfact_cli/requirements/context.py`
+  - `src/specfact_cli/requirements/__init__.py`
+  - `tests/unit/requirements/test_context_adapter.py`
+  - `docs/reference/requirements-context-adapter.md`
 
 ## Breaking-Change Analysis (Dry-Run)
 
-- Interface changes are proposal-level only; no production code modifications were performed in this workflow stage.
-- Proposed modified capabilities are additive/extension-oriented in the current spec deltas and do not require immediate breaking migrations at proposal time.
-- Backward-compatibility risk is primarily sequencing-related (dependency ordering), not signature-level breakage at this stage.
+- The change adds new helper APIs for module runtimes to reuse.
+- ProjectBundle integration remains optional through the existing
+  `requirements.inputs` schema-extension namespace.
+- No existing runtime command signature is changed.
+- Existing bundles without `requirements.inputs` remain backward compatible.
 
 ## Dependency and Integration Review
 
-- Dependency declarations align with the 2026-02-15 architecture layer integration plan sequencing.
-- Cross-change integration points are explicitly represented in proposal/spec/task artifacts.
-- No additional mandatory scope expansion was required to pass strict OpenSpec validation.
+- `requirements-01-data-model` (#238) is implemented and archived on
+  2026-07-07.
+- `arch-07-schema-extension-system` (#213) is implemented and archived on
+  2026-02-18.
+- GitHub issue #239 was verified as open and not `in progress` through the
+  GitHub connector on 2026-07-08.
+- The hierarchy cache refresh command succeeded with approved network access and
+  reported no cache changes.
+- The roadmap places #239 under Requirements Layer / Epic #256; the connector
+  does not expose project parent fields, so the local roadmap remains the
+  available structure evidence.
+- The public issue body and title are aligned to the narrowed
+  validation-evidence format.
+- The internal wiki mirror `wiki/sources/requirements-02-module-commands.md`
+  must be updated when scope/status metadata changes and
+  `wiki_rebuild_graph.py` run from the internal repo root.
 
 ## Validation Outcome
 
 - Required artifacts are present: `proposal.md`, `design.md`, `specs/**/*.md`, `tasks.md`.
 - Strict OpenSpec validation passed.
-- Change is ready for implementation-phase intake once prerequisites are satisfied.
+- Change completed TDD implementation and is ready for PR review.

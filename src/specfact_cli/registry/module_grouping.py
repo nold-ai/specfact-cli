@@ -8,16 +8,20 @@ from icontract import ensure, require
 from specfact_cli.models.module_package import ModulePackageMetadata
 
 
-VALID_CATEGORIES = frozenset({"core", "project", "backlog", "codebase", "spec", "govern"})
+VALID_CATEGORIES = frozenset({"core", "project", "backlog", "codebase", "spec", "govern", "requirements"})
 CATEGORY_TO_GROUP_COMMAND: dict[str, str] = {
     "project": "project",
     "backlog": "backlog",
     "codebase": "code",
     "spec": "spec",
     "govern": "govern",
+    "requirements": "requirements",
 }
 LEGACY_GROUP_COMMAND_ALIASES: dict[tuple[str, str], str] = {
     ("codebase", "codebase"): "code",
+}
+LEGACY_CATEGORY_ALIASES: dict[tuple[str, str], str] = {
+    ("project", "requirements"): "requirements",
 }
 
 
@@ -71,6 +75,9 @@ def normalize_legacy_bundle_group_command(meta: ModulePackageMetadata) -> Module
     """Normalize known legacy bundle group values to canonical grouped commands."""
     if meta.category is None or meta.bundle_group_command is None:
         return meta
+    normalized_category = LEGACY_CATEGORY_ALIASES.get((meta.category, meta.bundle_group_command))
+    if normalized_category is not None:
+        meta.category = normalized_category
     normalized = LEGACY_GROUP_COMMAND_ALIASES.get((meta.category, meta.bundle_group_command))
     if normalized is not None:
         meta.bundle_group_command = normalized

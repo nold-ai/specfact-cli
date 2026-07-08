@@ -25,6 +25,7 @@ For bundle-specific deep command guides and runbooks, use the canonical modules 
 - **[Module Security](module-security.md)** - Marketplace/module integrity and publisher metadata
 - **[Bridge Registry](bridge-registry.md)** - Registry-facing bridge converter declarations
 - **[Requirements Evidence Input Model](requirements-evidence-input-model.md)** - Requirement input records used by validation evidence
+- **[Requirements Context Adapter](requirements-context-adapter.md)** - Import, validation, and coverage helpers for requirement context evidence
 - **[Directory Structure](directory-structure.md)** - Project structure and organization
 - **[Feature Keys](feature-keys.md)** - Key normalization and formats
 - **[Dependency Resolution](dependency-resolution.md)** - Module/pip dependency resolution behavior

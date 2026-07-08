@@ -1,26 +1,28 @@
 ## ADDED Requirements
 
-### Requirement: Requirements Module
+### Requirement: Requirements Context Adapter
 
-The system SHALL provide requirements CLI commands for extract, author, validate, and list.
+The system SHALL provide core requirements context adapter helpers for import,
+normalization, validation, and coverage inspection of upstream requirement
+context as validation evidence.
 
-#### Scenario: Extract command creates requirement artifacts
+#### Scenario: Import helpers normalize source-attributed records
 
-- **GIVEN** `specfact requirements extract --from-backlog <adapter> --output .specfact/requirements/`
-- **WHEN** extraction succeeds
-- **THEN** one or more `*.req.yaml` files are produced
-- **AND** each file includes schema version and source backlog reference.
+- **GIVEN** upstream requirement-like records with source references
+- **WHEN** requirements context normalization runs
+- **THEN** valid records are returned as `RequirementInput` instances
+- **AND** each record keeps schema version and source attribution.
 
-#### Scenario: Author command applies profile-aware template fields
+#### Scenario: Invalid imported records produce bounded diagnostics
 
-- **GIVEN** `specfact requirements author --template story`
-- **WHEN** active profile is `solo`
-- **THEN** authoring prompts require only solo-required fields
-- **AND** optional advanced fields remain non-blocking.
+- **GIVEN** one valid upstream record and one malformed upstream record
+- **WHEN** requirements context normalization runs
+- **THEN** valid records are preserved
+- **AND** the malformed record is reported as a diagnostic without free-form planning prose.
 
-#### Scenario: Validate and list expose completeness and trace coverage
+#### Scenario: Validation and coverage expose evidence usefulness
 
-- **GIVEN** requirement artifacts with trace references
-- **WHEN** `specfact requirements validate` and `specfact requirements list --show-coverage` run
-- **THEN** completeness and coverage are reported per requirement
-- **AND** output is machine-readable when requested.
+- **GIVEN** normalized requirement inputs on a `ProjectBundle`
+- **WHEN** requirements context validation and coverage inspection run
+- **THEN** bundle-level completeness and coverage counts are reported with missing-evidence requirement IDs
+- **AND** the result is machine-readable for downstream module commands.
