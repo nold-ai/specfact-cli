@@ -7,7 +7,7 @@ permalink: /guides/speckit-journey/
 # The Journey: From Spec-Kit to SpecFact
 
 > **Spec-Kit and SpecFact are complementary, not competitive.**  
-> **Primary Use Case**: SpecFact CLI for brownfield code modernization  
+> **Primary Use Case**: SpecFact CLI for validation evidence and AI-bloat defense on existing codebases  
 > **Secondary Use Case**: Add SpecFact enforcement to Spec-Kit's interactive authoring for new features
 
 ---

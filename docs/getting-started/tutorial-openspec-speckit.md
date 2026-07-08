@@ -7,7 +7,7 @@ permalink: /getting-started/tutorial-openspec-speckit/
 # Tutorial: Using SpecFact with OpenSpec or Spec-Kit
 
 > **Complete step-by-step guide for new users**  
-> Learn how to use SpecFact CLI with OpenSpec or Spec-Kit for brownfield code modernization
+> Learn how to use SpecFact CLI with OpenSpec or Spec-Kit to validate existing codebases and keep specs, contracts, and code in sync
 
 **Time**: 15-30 minutes | **Prerequisites**: Python 3.11+, basic command-line knowledge
 
