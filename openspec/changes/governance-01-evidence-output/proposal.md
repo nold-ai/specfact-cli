@@ -17,9 +17,19 @@ validation results consumable by any deterministic gate or agent handoff.
 - Target modules-repo follow-up issue: [#169](https://github.com/nold-ai/specfact-cli-modules/issues/169) in `nold-ai/specfact-cli-modules`
 - Downstream changes may extend the envelope, but they MUST NOT redefine the schema or imply core ownership of bundle runtime behavior.
 
+## Core Slice (2026-07-09)
+
+- This change delivers the typed envelope, result semantics, and deterministic CI
+  verdict derivation only.
+- Runtime flags, file persistence, terminal rendering, and emitters remain
+  deferred to modules issue #169.
+- `validation-02` is a downstream producer of envelope sections, not a
+  prerequisite for this core contract.
+
 ## What Changes
 
-- **NEW**: Evidence writer producing standardized JSON artifacts:
+- **NEW**: Typed evidence-envelope schema and field semantics for the
+  standardized JSON shape consumed by runtime emitters:
 
   ```json
   {
@@ -51,26 +61,23 @@ validation results consumable by any deterministic gate or agent handoff.
   }
   ```
 
-- **NEW**: `--evidence-dir .specfact/evidence/` flag on validation and code-review runs to persist evidence artifacts per run
-- **NEW**: `--ci-mode` flag that sets exit codes based on profile enforcement mode: advisory=always 0, mixed=1 for hard-fail rules only, hard=1 for any failure
-- **NEW**: Evidence artifact naming: `{timestamp}_{run_id}_evidence.json` for audit trail
-- **NEW**: Evidence summary on terminal: human-readable table alongside JSON output
-- **EXTEND**: Validation evidence graph (validation-02) extended to produce evidence artifacts
-- **EXTEND**: Validation evidence can append `code_quality` as a parallel section when the run includes review-based clean-code checks
-- **EXTEND**: Policy engine results formatted as evidence-compatible structures
+- **NEW**: Deterministic core CI verdict derivation from typed result summaries.
+- **DEFERRED TO MODULES #169**: `--evidence-dir`, `--ci-mode`, file
+  persistence, artifact naming, terminal rendering, and command emitters.
+- **DOWNSTREAM**: validation-02 and policy owners populate compatible envelope
+  sections; they do not change the core schema ownership.
 - **NEW**: Ownership authority — this change is authoritative for evidence JSON envelope/schema; sibling governance changes may add fields only through this envelope contract.
 
 ## Capabilities
 
 ### New Capabilities
 
-- `governance-evidence-output`: Machine-readable JSON evidence artifacts for CI/CD gates and audit systems, with per-run persistence, CI exit code modes, coverage percentages, exception status, and profile-aware verdicts.
+- `governance-evidence-output`: Typed machine-readable evidence envelope and
+  deterministic CI verdict contract for CI/CD gates and audit consumers.
 
 ### Modified Capabilities
 
-- `validation-evidence-graph`: Extended with evidence artifact generation via `--evidence-dir` and `--ci-mode` flags
-- `policy-engine`: Results formatted as evidence-compatible structures with run_id and timestamps
-- `governance-evidence-output`: Extended with a `code_quality` section that remains parallel to `validation_results` rather than introducing a new traceability layer
+(none; runtime delivery and downstream producers remain separately owned)
 
 ---
 

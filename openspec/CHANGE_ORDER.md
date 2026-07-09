@@ -51,12 +51,13 @@ into auditable validation evidence and cleanup feedback.
 | 1 | `profile-01-config-layering` | [#237](https://github.com/nold-ai/specfact-cli/issues/237) | Rollout modes for validation severity and evidence strictness | - |
 | 2 | `governance-01-evidence-output` | [#247](https://github.com/nold-ai/specfact-cli/issues/247) | Evidence JSON, CI verdicts, remediation packet attachment points | modules `policy-02` |
 | 3 | `governance-02-exception-management` | [#248](https://github.com/nold-ai/specfact-cli/issues/248) | Time-bound validation exceptions and waiver evidence | governance-01; modules `policy-02` |
-| 4 | `traceability-01-index-and-orphans` | [#242](https://github.com/nold-ai/specfact-cli/issues/242) | Artifact drift and orphan detection across inputs | requirements/architecture adapter contracts where present |
+| 4 | `traceability-01-index-and-orphans` | [#242](https://github.com/nold-ai/specfact-cli/issues/242) | Generic artifact index and orphan/drift classification across normalized inputs | requirements input contracts; other adapters optional when present |
 | 5 | `validation-02-full-chain-engine` | [#241](https://github.com/nold-ai/specfact-cli/issues/241) | Validation evidence graph over existing inputs, not a product lifecycle engine | governance-01, traceability-01 |
 | 6 | `dogfooding-01-full-chain-e2e-proof` | [#255](https://github.com/nold-ai/specfact-cli/issues/255) | AI-bloat defense and validation proof on real PRs | governance-01, validation-02, traceability-01 |
 
-**Critical path**: profile-01 plus governance-01 -> traceability-01 ->
-validation-02 -> dogfooding proof.
+**Critical path**: profile-01, governance-01, and traceability-01 converge at
+validation-02 -> dogfooding proof. Traceability requires requirements inputs;
+governance and traceability do not block each other.
 
 ### Track B - AI IDE Validation Distribution
 

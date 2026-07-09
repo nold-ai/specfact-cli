@@ -23,16 +23,29 @@ dashboard, or planning-authoring feature.
 
 ## What Changes
 
-- **NEW**: Artifact evidence index stored as generated state under `.specfact/`.
+- **NEW**: Deterministic in-memory and serializable artifact evidence index.
 - **NEW**: Link model for upstream inputs and downstream implementation evidence:
   Spec Kit, OpenSpec, backlog, ADRs, contracts, specs, code, tests, policy
   results, and code-review findings.
 - **NEW**: Orphan and drift categories for artifacts with missing, stale,
   ambiguous, or contradicted evidence.
-- **NEW**: Incremental rebuild contract so validation runs can update affected
-  entries without reindexing an entire repository when possible.
+- **NEW**: Incremental rebuild contract that reports changed and removed artifact
+  identities without owning filesystem persistence.
 - **NEW**: JSON export shape consumed by `validation-02-full-chain-engine` and
   `governance-01-evidence-output`.
+
+## Core Boundary (2026-07-09)
+
+- Core owns generic artifact records, stable identities, links, fingerprints,
+  deterministic index/rebuild semantics, and orphan/drift/ambiguity/
+  contradiction classification.
+- Core consumes normalized records from adapters. `requirements.inputs` is the
+  first integrated adapter; OpenSpec, Spec Kit, backlog, ADR, architecture,
+  contract, code, test, policy, and review adapters supply records only when
+  their owning changes make them available.
+- Modules issue #170 owns file persistence, grouped commands, flags, rendering,
+  and query UX. Core SHALL NOT write `.specfact/trace/index.json` or revive a
+  flat `specfact trace` command.
 
 ## Capabilities
 
@@ -54,5 +67,6 @@ dashboard, or planning-authoring feature.
 - **Issue URL**: <https://github.com/nold-ai/specfact-cli/issues/242>
 - **Paired Modules Runtime Issue**: nold-ai/specfact-cli-modules#170
 - **Paired Modules Scope**: traceability runtime queries and orphan detection
-- **Last Synced Status**: proposed
+- **Last Synced Status**: merged into `dev` by PR #641; promotion to `main`
+  is pending release PR #642 as of 2026-07-10.
 - **Sanitized**: false

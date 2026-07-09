@@ -1,42 +1,73 @@
 ## Context
 
-This change implements proposal scope for `traceability-01-index-and-orphans` from the 2026-02-15 architecture-layer integration plan. It is proposal-stage only and defines implementation strategy without changing runtime code.
+This change completes core issue #242 after the product focus moved from
+planning and architecture authoring toward validation evidence. Core therefore
+provides a reusable, deterministic artifact-evidence index; it does not
+collect every domain itself or expose a runtime command surface.
 
 ## Goals / Non-Goals
 
 **Goals:**
 
-- Define an implementation approach that stays within the proposal scope.
-- Keep compatibility with existing module registry, adapter bridge, and contract-first patterns.
-- Preserve offline-first behavior and deterministic CLI execution.
+- Define stable, generic records, identities, links, fingerprints, and finding
+  classifications that downstream validators can consume.
+- Integrate `requirements.inputs` as the first producer without making
+  architecture input mandatory.
+- Preserve offline-first, deterministic behavior and public contract-first APIs.
 
 **Non-Goals:**
 
-- No production code implementation in this stage.
-- No schema-breaking changes outside declared capabilities.
-- No dependency expansion beyond the proposal and plan.
+- No core collector/parser for every artifact domain.
+- No `.specfact` persistence, flags, grouped commands, rendering, or query UX.
+- No policy-pack behavior; profile configuration only determines finding
+  severity defaults.
 
 ## Decisions
 
-- Use module-oriented integration and registry lazy-loading patterns already used in SpecFact CLI.
-- Keep all public APIs contract-first with `@icontract` and `@beartype`.
-- Make all behavior extensions opt-in or backward-compatible by default.
-- Add/modify OpenSpec deltas first so tests can be derived before implementation.
+- Model every input as an `ArtifactRecord` with a stable identity, artifact
+  kind, location, fingerprint, and typed links. Domain owners may create these
+  normalized records without coupling core to their parser or storage format.
+- Canonically sort records and findings before returning them. Emit a
+  JSON-serializable `ArtifactEvidenceIndex` so downstream governance and
+  validation changes share a contract rather than a private representation.
+- Classify unlinked artifacts as orphans, unknown link targets as drift,
+  duplicate identities as ambiguity, and self-links as contradictions.
+- Accept the prior in-memory index for rebuild comparison and report changed
+  and removed identities. Persistence belongs to modules #170.
+- Map `requirements.inputs` into `ArtifactRecord` values as the first adapter.
+  Architecture and all other domains are optional: they participate only when
+  an owning change supplies normalized records.
+- Keep public APIs contract-first with `@icontract` and runtime type
+  enforcement. Preserve the legacy requirements helper as a compatibility
+  adapter while routing it through the generic index.
 
 ## Risks / Trade-offs
 
-- [Dependency ordering drift] -> Mitigation: gate implementation tasks on declared prerequisites.
-- [Capability overlap with adjacent changes] -> Mitigation: keep this change scoped to listed capabilities only.
-- [Documentation drift] -> Mitigation: include explicit docs update tasks in apply phase.
+- [Unstable identifiers create noisy rebuilds] -> Mitigation: require stable
+  identities and use canonical serialized fingerprints for comparisons.
+- [Optional adapters become false orphan sources] -> Mitigation: only classify
+  supplied records; absence of architecture records creates no architecture
+  finding.
+- [Core/runtime ownership blurs again] -> Mitigation: specify modules #170 as
+  the owner of persistence and command UX in proposal, spec, docs, and tasks.
 
 ## Migration Plan
 
-1. Implement this change only after listed dependencies are implemented.
+1. Revalidate existing change artifacts and GitHub issue #242 against current
+   ownership; record the product decision to complete generic core scope.
 2. Add tests from spec scenarios and capture failing-first evidence.
-3. Implement minimal production changes needed for passing scenarios.
-4. Run quality gates and then open PR to `dev`.
+3. Implement the smallest generic core index and requirements adapter needed
+   for passing scenarios.
+4. Update contracts and navigation docs, then run quality gates and open a PR
+   to `dev` that closes #242 on merge.
 
-## Open Questions
+## Dependency Resolution
 
-- Dependency summary: Depends on requirements-02-module-commands and architecture-01-solution-layer.
-- Whether additional cross-change sequencing constraints should be hard-blocked in `openspec/CHANGE_ORDER.md`.
+- `requirements-02-module-commands` is the only required integrated input and
+  is shipped.
+- Architecture records are optional and have no bearing on a requirements-only
+  result.
+- `governance-01-evidence-output` and `validation-02-full-chain-engine` are
+  downstream consumers/producers of this contract, not prerequisites.
+- Modules #170 is a paired runtime-delivery follow-up and does not block
+  closing core issue #242.

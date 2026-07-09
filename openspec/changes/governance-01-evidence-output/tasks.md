@@ -17,7 +17,7 @@
 
 - [ ] 3.1 Implement minimal production code required to satisfy the new scenarios.
 - [ ] 3.2 Add/update contract decorators and type enforcement on public APIs.
-- [ ] 3.3 Update command wiring, adapters, and models required by this change scope only.
+- [ ] 3.3 Add the core envelope models and deterministic verdict derivation; do not add command wiring, emitters, or persistence.
 - [ ] 3.4 Keep clean-code evidence as a sibling `code_quality` section in the envelope rather than adding a new validation layer.
 
 ## 4. Validation and documentation
