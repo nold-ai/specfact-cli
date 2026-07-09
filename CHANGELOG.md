@@ -10,6 +10,18 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.51.0] - 2026-07-09
+
+### Added
+
+- **Core evidence and traceability contracts**: add a typed evidence envelope
+  with deterministic CI verdict derivation plus a generic artifact index,
+  stable links/fingerprints, incremental rebuild facts, and deterministic
+  orphan/drift/ambiguity/contradiction classification. Requirements is the
+  first integrated adapter; runtime persistence and commands remain deferred.
+
+---
+
 ## [0.50.2] - 2026-07-08
 
 ### Fixed

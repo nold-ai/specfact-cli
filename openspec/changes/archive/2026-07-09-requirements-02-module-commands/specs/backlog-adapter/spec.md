@@ -1,6 +1,6 @@
-## MODIFIED Requirements
+## ADDED Requirements
 
-### Requirement: Backlog Adapter
+### Requirement: Source-Attributed Backlog Requirement Snippets
 
 The system SHALL define source-attributed backlog requirement snippets that
 requirements runtime adapters can normalize without provider-specific parsing in

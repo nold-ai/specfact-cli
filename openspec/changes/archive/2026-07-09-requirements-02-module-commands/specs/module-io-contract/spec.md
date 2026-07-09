@@ -1,6 +1,6 @@
-## MODIFIED Requirements
+## ADDED Requirements
 
-### Requirement: Module Io Contract
+### Requirement: Requirements Module IO Contract
 
 Requirements implementations SHALL consume core requirements context adapter
 helpers through the existing `ModuleIOContract` boundary.

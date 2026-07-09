@@ -62,6 +62,6 @@ layering around validation.
 <!-- source_repo: nold-ai/specfact-cli -->
 - **GitHub Issue**: #237
 - **Issue URL**: <https://github.com/nold-ai/specfact-cli/issues/237>
-- **Last Synced Status**: implementation-ready / PR candidate on `feature/profile-01-config-layering-baseline`
+- **Last Synced Status**: implemented in PR [#624](https://github.com/nold-ai/specfact-cli/pull/624); GitHub issue #237 closed on 2026-07-08.
 - **Sanitized**: false
 <!-- content_hash: d7dfe1519fa64668 -->
