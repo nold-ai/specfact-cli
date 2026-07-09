@@ -29,4 +29,4 @@
 ## 5. Delivery
 
 - [x] 5.1 Confirm `openspec/CHANGE_ORDER.md` did not need status/dependency updates; implementation sequencing stayed unchanged.
-- [x] 5.2 Merge PR [#624](https://github.com/nold-ai/specfact-cli/pull/624) to `dev` with spec/test/code/docs evidence; the released implementation is also available on `main`.
+- [x] 5.2 Merge PR [#624](https://github.com/nold-ai/specfact-cli/pull/624) to `dev` with spec/test/code/docs evidence; promotion to `main` remains pending release PR #642.

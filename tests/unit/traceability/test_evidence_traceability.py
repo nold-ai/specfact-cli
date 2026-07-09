@@ -4,6 +4,7 @@ from typing import Any, cast
 
 import pytest
 from icontract.errors import ViolationError
+from pydantic import ValidationError
 
 from specfact_cli.evidence import EvidenceEnvelope, EvidenceResultSummary
 from specfact_cli.models.plan import Product
@@ -55,6 +56,22 @@ def test_requirements_only_trace_does_not_require_architecture() -> None:
     assert result.drift == []
 
 
+def test_traceability_without_targets_does_not_report_link_drift() -> None:
+    bundle = attach_requirements_to_bundle(
+        _bundle(),
+        [
+            _requirement(
+                links=[RequirementEvidenceLink(link_type=RequirementEvidenceLinkType.CODE, target="src/app.py")]
+            )
+        ],
+    )
+
+    result = analyze_requirement_traceability(bundle, profile="startup")
+
+    assert result.orphans == []
+    assert result.drift == []
+
+
 def test_known_targets_preserve_requirement_link_kind() -> None:
     bundle = attach_requirements_to_bundle(
         _bundle(),
@@ -96,14 +113,20 @@ def test_traceability_rejects_unknown_profile() -> None:
 
 
 def test_evidence_envelope_derives_ci_verdict_without_runtime_flags() -> None:
+    source_results = {"orphans": EvidenceResultSummary(pass_count=0, fail_count=1, advisory_count=0)}
     envelope = EvidenceEnvelope(
         profile="enterprise",
-        validation_results={"orphans": EvidenceResultSummary(pass_count=0, fail_count=1, advisory_count=0)},
+        validation_results=source_results,
     )
 
     assert envelope.overall_verdict == "FAIL"
     assert envelope.ci_exit_code == 1
     assert envelope.model_copy(update={"overall_verdict": "PASS"}).overall_verdict == "FAIL"
-    with pytest.raises(AttributeError):
+    with pytest.raises(ValidationError):
         envelope.overall_verdict = "PASS"  # type: ignore[misc]
+    source_results["late"] = EvidenceResultSummary(fail_count=0, advisory_count=1)
+    with pytest.raises(TypeError):
+        envelope.validation_results["late"] = EvidenceResultSummary(fail_count=1)  # type: ignore[index]
+    with pytest.raises(ValidationError):
+        envelope.validation_results["orphans"].fail_count = 0
     assert envelope.model_dump()["validation_results"]["orphans"] == {"pass": 0, "fail": 1, "advisory": 0}

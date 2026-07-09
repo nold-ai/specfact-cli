@@ -67,6 +67,6 @@ dashboard, or planning-authoring feature.
 - **Issue URL**: <https://github.com/nold-ai/specfact-cli/issues/242>
 - **Paired Modules Runtime Issue**: nold-ai/specfact-cli-modules#170
 - **Paired Modules Scope**: traceability runtime queries and orphan detection
-- **Last Synced Status**: implementation in progress on PR #641; core scope
-  synchronized on 2026-07-09.
+- **Last Synced Status**: merged into `dev` by PR #641; promotion to `main`
+  is pending release PR #642 as of 2026-07-10.
 - **Sanitized**: false

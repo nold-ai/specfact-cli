@@ -55,8 +55,9 @@ into auditable validation evidence and cleanup feedback.
 | 5 | `validation-02-full-chain-engine` | [#241](https://github.com/nold-ai/specfact-cli/issues/241) | Validation evidence graph over existing inputs, not a product lifecycle engine | governance-01, traceability-01 |
 | 6 | `dogfooding-01-full-chain-e2e-proof` | [#255](https://github.com/nold-ai/specfact-cli/issues/255) | AI-bloat defense and validation proof on real PRs | governance-01, validation-02, traceability-01 |
 
-**Critical path**: profile-01 plus governance-01 -> traceability-01 ->
-validation-02 -> dogfooding proof.
+**Critical path**: profile-01, governance-01, and traceability-01 converge at
+validation-02 -> dogfooding proof. Traceability requires requirements inputs;
+governance and traceability do not block each other.
 
 ### Track B - AI IDE Validation Distribution
 

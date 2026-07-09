@@ -10,6 +10,16 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.51.1] - 2026-07-10
+
+### Fixed
+
+- **Requirements traceability drift**: do not classify linked requirements as
+  stale when callers have not supplied the target universe; stale-link drift
+  remains enabled when `known_targets` is provided.
+
+---
+
 ## [0.51.0] - 2026-07-09
 
 ### Added

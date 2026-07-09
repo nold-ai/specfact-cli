@@ -273,9 +273,12 @@ def analyze_requirement_traceability(
     profile: RequirementContextValidationProfile,
     known_targets: Set[str] | None = None,
 ) -> TraceabilityResult:
-    """Compatibility helper that supplies requirements and optional known targets to the generic index."""
+    """Analyze requirements; link drift requires a caller-provided target universe."""
     requirements = load_requirements_from_bundle(bundle)
     records = requirements_to_artifact_records(requirements)
     if known_targets is not None:
         records.extend(_known_target_records(requirements, known_targets))
-    return build_artifact_index(records, profile=profile)
+    result = build_artifact_index(records, profile=profile)
+    if known_targets is None:
+        return result.model_copy(update={"drift": []})
+    return result
