@@ -17,6 +17,15 @@ validation results consumable by any deterministic gate or agent handoff.
 - Target modules-repo follow-up issue: [#169](https://github.com/nold-ai/specfact-cli-modules/issues/169) in `nold-ai/specfact-cli-modules`
 - Downstream changes may extend the envelope, but they MUST NOT redefine the schema or imply core ownership of bundle runtime behavior.
 
+## Core Slice (2026-07-09)
+
+- This change delivers the typed envelope, result semantics, and deterministic CI
+  verdict derivation only.
+- Runtime flags, file persistence, terminal rendering, and emitters remain
+  deferred to modules issue #169.
+- `validation-02` is a downstream producer of envelope sections, not a
+  prerequisite for this core contract.
+
 ## What Changes
 
 - **NEW**: Evidence writer producing standardized JSON artifacts:

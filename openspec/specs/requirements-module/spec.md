@@ -2,7 +2,8 @@
 
 ## Purpose
 
-TBD - created by archiving change requirements-02-module-commands. Update Purpose after archive.
+The requirements-module specification defines the core requirements-context
+adapter helpers and the module-facing validation and coverage contract.
 
 ## Requirements
 

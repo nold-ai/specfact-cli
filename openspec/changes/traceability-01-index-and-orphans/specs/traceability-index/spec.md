@@ -1,26 +1,28 @@
 ## ADDED Requirements
 
-### Requirement: Traceability Index
+### Requirement: Generic Artifact Evidence Index
 
-The system SHALL maintain a queryable index of upstream and downstream links across requirements, architecture, specs, code, and tests.
+The system SHALL build a deterministic, serializable index of normalized
+artifact records and links. Core SHALL not own collection, filesystem
+persistence, or command rendering.
 
-#### Scenario: Rebuild index captures all artifact layers
+#### Scenario: Requirements-only input does not require architecture
 
-- **GIVEN** `specfact trace index --rebuild`
-- **WHEN** index generation completes
-- **THEN** `.specfact/trace/index.json` contains entries for requirement, architecture, spec, code, and test artifacts
-- **AND** each entry contains both upstream and downstream references.
+- **GIVEN** normalized requirements with downstream evidence links
+- **WHEN** they are mapped into the generic index without architecture records
+- **THEN** no architecture finding is emitted solely because architecture is absent.
 
-#### Scenario: Orphan command reports missing linkage by type
+#### Scenario: Index classifies deterministic evidence findings
 
-- **GIVEN** at least one artifact has missing required references
-- **WHEN** `specfact trace orphans` runs
-- **THEN** output groups orphan findings by artifact type
-- **AND** each finding includes artifact identifier and missing link category.
+- **GIVEN** normalized records containing an unlinked artifact, a dangling link,
+  a duplicate identity, or a self-contradicting link
+- **WHEN** the index is built
+- **THEN** it emits bounded orphan, drift, ambiguity, and contradiction findings
+  in stable order.
 
-#### Scenario: Matrix export supports machine and human formats
+#### Scenario: Rebuild reports changed and removed identities
 
-- **GIVEN** a built index
-- **WHEN** `specfact trace matrix --format markdown|csv|json` runs
-- **THEN** matrix output includes requirement-centered chain rows
-- **AND** exported content is deterministic for CI diffs.
+- **GIVEN** a prior index and an updated record set
+- **WHEN** the core index rebuilds
+- **THEN** its result identifies changed and removed artifact identities without
+  writing generated state.

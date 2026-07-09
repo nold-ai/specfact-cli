@@ -158,10 +158,10 @@ helpers through the existing `ModuleIOContract` boundary.
 - **THEN** the `requirements` category is accepted with group command `requirements`
 - **AND** root CLI command handlers remain owned by the paired requirements runtime.
 
-#### Scenario: Installed requirements runtime is callable from the root CLI
+#### Scenario: Installed requirements runtime is discoverable through grouped metadata
 
 - **GIVEN** the paired requirements runtime package is installed and enabled
 - **AND** the package exposes a native `requirements` command app
-- **WHEN** the root SpecFact CLI is rebuilt from discovered module metadata
-- **THEN** `specfact requirements --help` resolves through the installed module app
-- **AND** missing `requirements` installs show marketplace recovery guidance for `nold-ai/specfact-requirements`.
+- **WHEN** core registry validation processes the discovered metadata
+- **THEN** the runtime remains available to the module command host
+- **AND** root CLI handlers and recovery UX remain owned by the paired requirements runtime.

@@ -34,6 +34,9 @@ requirements authoring workflow.
   usefulness by profile.
 - `inspect_requirement_context_coverage(...)` returns machine-readable coverage
   counts for downstream command handlers.
+- `analyze_requirement_traceability(...)` reads `requirements.inputs`; when
+  callers supply `known_targets`, it also returns deterministic stale-link drift
+  findings for evidence consumers.
 
 ```python
 from specfact_cli.models.requirements import RequirementInput, RequirementSourceReference
@@ -73,7 +76,9 @@ payloads directly inside root CLI code.
   reference.
 - Invalid imported records produce bounded diagnostics; valid records remain
   usable.
-- Enterprise or strict validation treats missing downstream evidence links as
-  errors. Less strict profiles receive warnings.
+- Enterprise, strict, and enterprise_full_stack validation treat missing
+  downstream evidence links as errors. Less strict profiles receive warnings.
 - Backlog write-back and interactive requirement authoring remain outside this
   core surface.
+- Evidence files, CI flags, terminal rendering, and query commands are owned by
+  paired module runtimes rather than core.
