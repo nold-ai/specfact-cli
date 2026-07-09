@@ -302,7 +302,9 @@ run_markdown_autofix_if_needed() {
   fail_if_markdown_has_unstaged_hunks
   if command -v markdownlint >/dev/null 2>&1; then
     if markdownlint --fix --config .markdownlint.json "${md_files[@]}"; then
-      git add -- "${md_files[@]}"
+      if ! git diff --quiet -- "${md_files[@]}"; then
+        git add -- "${md_files[@]}"
+      fi
       success "✅ Block 1 — Markdown auto-fix applied"
     else
       error "❌ Block 1 — Markdown auto-fix failed"
@@ -310,7 +312,9 @@ run_markdown_autofix_if_needed() {
     fi
   else
     if npx --yes markdownlint-cli --fix --config .markdownlint.json "${md_files[@]}"; then
-      git add -- "${md_files[@]}"
+      if ! git diff --quiet -- "${md_files[@]}"; then
+        git add -- "${md_files[@]}"
+      fi
       success "✅ Block 1 — Markdown auto-fix applied (npx)"
     else
       error "❌ Block 1 — Markdown auto-fix failed (npx)"
