@@ -217,6 +217,11 @@ Category groups appear after bundle installation:
 - `specfact govern ...`
 - `specfact requirements ...` (after installing `nold-ai/specfact-requirements`)
 
+Official workflow package IDs are `nold-ai/specfact-project`,
+`nold-ai/specfact-backlog`, `nold-ai/specfact-codebase`,
+`nold-ai/specfact-code-review`, `nold-ai/specfact-spec`,
+`nold-ai/specfact-govern`, and `nold-ai/specfact-requirements`.
+
 Backlog authentication commands such as `specfact backlog auth ...` are provided by the
 installed backlog bundle, not by the permanent core command surface.
 

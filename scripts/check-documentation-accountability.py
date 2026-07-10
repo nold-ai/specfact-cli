@@ -13,12 +13,14 @@ from pathlib import Path
 from typing import cast
 
 import yaml
+from beartype import beartype
 from icontract import ensure, require
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 CATALOGUE_PATHS = (
     "README.md",
+    "docs/getting-started/installation.md",
     "docs/module-system/marketplace.md",
     "docs/reference/commands.md",
     "docs/reference/module-categories.md",
@@ -89,6 +91,8 @@ def _manifest_inventory(packages_path: Path) -> dict[str, OfficialModule]:
         module = _official_manifest(path)
         if module is None:
             continue
+        if module.package_id in manifests:
+            raise ValueError(f"Duplicate official module manifest: {module.package_id} ({path})")
         manifests[module.package_id] = module
     return manifests
 
@@ -112,6 +116,7 @@ def _registry_inventory(registry_path: Path) -> set[str]:
     return registry_ids
 
 
+@beartype
 @require(lambda modules_root: modules_root is not None)
 @ensure(lambda result: all(isinstance(package_id, str) for package_id in result))
 def discover_official_modules(modules_root: Path) -> dict[str, OfficialModule]:
@@ -136,7 +141,9 @@ def _catalogue_findings(core_root: Path, package_ids: list[str]) -> list[str]:
         content = (core_root / relative_path).read_text(encoding="utf-8")
         for package_id in package_ids:
             package_name = package_id.rsplit("/", maxsplit=1)[-1]
-            if package_name not in content:
+            has_explicit_id = package_id in content
+            has_noncanonical_only = f"removed {package_name}" in content.lower()
+            if not has_explicit_id and (package_name not in content or has_noncanonical_only):
                 findings.append(f"{relative_path}: missing official package {package_id}")
     return findings
 
@@ -181,6 +188,8 @@ def _ownership_findings(core_root: Path, inventory: dict[str, OfficialModule]) -
     findings: list[str] = []
     for relative_path in OWNERSHIP_PATHS:
         content = (core_root / relative_path).read_text(encoding="utf-8")
+        if "https://modules.specfact.io/" not in content:
+            findings.append(f"{relative_path}: missing canonical modules documentation handoff")
         for package_id, module in sorted(inventory.items()):
             for conflicting_package in _ownership_conflicts(content, package_id, module):
                 findings.append(
@@ -189,6 +198,7 @@ def _ownership_findings(core_root: Path, inventory: dict[str, OfficialModule]) -
     return findings
 
 
+@beartype
 @require(lambda core_root, modules_root: core_root is not None and modules_root is not None)
 @ensure(lambda result: all(isinstance(finding, str) for finding in result))
 def validate_documentation_accountability(core_root: Path, modules_root: Path) -> list[str]:
@@ -220,6 +230,7 @@ def _resolve_modules_root(raw_path: str | None) -> Path:
     )
 
 
+@beartype
 @ensure(lambda result: isinstance(result, int))
 def main(argv: list[str] | None = None) -> int:
     """Run the fail-closed documentation-accountability contract."""

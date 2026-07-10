@@ -29,6 +29,7 @@ This page tracks implemented vs planned architecture capabilities.
 - Shared architecture and traceability contracts remain planned in OpenSpec.
   - Source: `architecture-01-solution-layer`, `traceability-01-index-and-orphans`, and related follow-up changes.
 - Older flat core command families such as `specfact architecture ...` and `specfact trace ...` are not canonical delivery targets. `specfact requirements ...` is instead an installed grouped surface owned by `nold-ai/specfact-requirements`.
+- Canonical bundle-deep documentation is owned by the [modules documentation site](https://modules.specfact.io/).
   - Any future runtime implementation must be rescoped into grouped bundle-owned surfaces in `specfact-cli-modules`; core retains only shared models, schemas, and integration contracts.
 - Protocol FSM runtime engine is partial (models/specs exist; full execution engine/guards are planned).
   - Source: OpenSpec `architecture-01-solution-layer` and dependent validation changes.

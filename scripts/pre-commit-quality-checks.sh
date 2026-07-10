@@ -422,7 +422,7 @@ run_command_overview_validation_gate() {
   while IFS= read -r file || [[ -n "${file}" ]]; do
     [[ -z "${file}" ]] && continue
     case "${file}" in
-      src/*|docs/*|.github/*|resources/*|scripts/check-docs-commands.py|scripts/check-command-contract.py|scripts/generate-command-overview.py|README.md|llms.txt|docs/reference/commands.generated.*)
+      src/*|docs/*|.github/*|resources/*|scripts/check-docs-commands.py|scripts/check-command-contract.py|scripts/check-documentation-accountability.py|scripts/generate-command-overview.py|README.md|llms.txt|docs/reference/commands.generated.*)
         hit=1
         break
         ;;

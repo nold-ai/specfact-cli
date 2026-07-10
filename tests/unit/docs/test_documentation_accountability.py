@@ -7,6 +7,7 @@ import json
 import os
 import shutil
 import sys
+from functools import lru_cache
 from pathlib import Path
 from typing import Protocol, cast
 
@@ -40,9 +41,12 @@ def _modules_root() -> Path:
     if "specfact-cli-worktrees" in REPO_ROOT.parts:
         marker = REPO_ROOT.parts.index("specfact-cli-worktrees")
         candidates.append(Path(*REPO_ROOT.parts[:marker]) / "specfact-cli-modules")
+        suffix = Path(*REPO_ROOT.parts[marker + 1 :])
+        candidates.append(Path(*REPO_ROOT.parts[:marker]) / "specfact-cli-modules-worktrees" / suffix)
     return next(candidate for candidate in candidates if (candidate / "packages").is_dir())
 
 
+@lru_cache(maxsize=1)
 def _load_accountability_checker() -> AccountabilityChecker:
     path = REPO_ROOT / "scripts" / "check-documentation-accountability.py"
     spec = importlib.util.spec_from_file_location("check_documentation_accountability", path)

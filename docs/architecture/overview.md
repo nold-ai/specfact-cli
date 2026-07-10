@@ -23,6 +23,7 @@ SpecFact CLI is a contract-first Python CLI with a production-ready module regis
 - Module system is **production-ready** (introduced in `v0.27`) and is the default command-loading path.
 - Older flat core command concepts such as `specfact architecture ...` and `specfact trace ...` are **not** part of the canonical current CLI surface. The installed `nold-ai/specfact-requirements` bundle owns the canonical grouped `specfact requirements ...` surface.
 - The related OpenSpec changes now follow a split/rescope model: core owns schemas, contracts, and integration boundaries, while any future user-facing runtime delivery must land under canonical grouped bundle commands in `specfact-cli-modules`.
+- Canonical bundle-deep documentation is owned by the [modules documentation site](https://modules.specfact.io/).
 - Protocol FSM modeling exists in data models; a full runtime FSM engine is still planned.
 
 ## Layer Model

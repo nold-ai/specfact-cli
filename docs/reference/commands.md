@@ -28,6 +28,7 @@ The live root command surface includes:
 - `specfact code ...`
 - `specfact govern ...`
 - `specfact project ...`
+- `specfact requirements ...` (when `nold-ai/specfact-requirements` is installed)
 - `specfact spec ...`
 
 Use `specfact init --profile <name>` or `specfact init --install <comma-list>` to bootstrap the workflow bundles you need.
@@ -118,6 +119,13 @@ Compatibility note: `specfact backlog daily ...` and `specfact backlog refine ..
 - `code drift`
 - `code validate`
 - `code repro`
+
+### `specfact requirements` (optional module)
+
+- `requirements import`
+- `requirements list`
+- `requirements coverage`
+- `requirements validate`
 
 ### `specfact spec`
 
