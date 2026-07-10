@@ -29,9 +29,11 @@ class AccountabilityChecker(Protocol):
     CATALOGUE_PATHS: tuple[str, ...]
     OWNERSHIP_PATHS: tuple[str, ...]
 
-    def discover_official_modules(self, modules_root: Path) -> dict[str, OfficialModuleRecord]: ...
+    def discover_official_modules(self, modules_root: Path) -> dict[str, OfficialModuleRecord]:
+        raise NotImplementedError
 
-    def validate_documentation_accountability(self, core_root: Path, modules_root: Path) -> list[str]: ...
+    def validate_documentation_accountability(self, core_root: Path, modules_root: Path) -> list[str]:
+        raise NotImplementedError
 
 
 def _modules_root() -> Path:
