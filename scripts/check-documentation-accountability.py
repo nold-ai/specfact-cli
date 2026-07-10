@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import sys
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -193,7 +194,7 @@ def _ownership_conflicts(content: str, package_id: str, module: OfficialModule) 
     return [
         package_id
         for root in module.command_roots
-        if f"specfact {root} ... are not canonical" in content or f"specfact {root} ... is not canonical" in content
+        if re.search(rf"\bspecfact\s+{re.escape(root)}\b[^\n]*\bnot\s+canonical\b", content, re.IGNORECASE)
     ]
 
 
@@ -229,7 +230,12 @@ def validate_documentation_accountability(core_root: Path, modules_root: Path) -
 
 def _resolve_modules_root(raw_path: str | None) -> Path:
     """Resolve the required modules checkout from explicit or documented paths."""
-    candidates = [Path(raw_path).expanduser()] if raw_path else []
+    if raw_path:
+        explicit = Path(raw_path).expanduser()
+        if (explicit / "packages").is_dir() and (explicit / "registry/index.json").is_file():
+            return explicit.resolve()
+        raise ValueError(f"--modules-repo is not a valid modules checkout: {explicit}")
+    candidates: list[Path] = []
     configured = os.environ.get("SPECFACT_MODULES_REPO", "").strip()
     if configured:
         candidates.append(Path(configured).expanduser())

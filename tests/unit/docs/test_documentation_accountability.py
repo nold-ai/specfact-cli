@@ -5,6 +5,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+import re
 import shutil
 import sys
 from functools import lru_cache
@@ -12,6 +13,7 @@ from pathlib import Path
 from typing import Protocol, cast
 
 import pytest
+import yaml
 
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -33,6 +35,9 @@ class AccountabilityChecker(Protocol):
         raise NotImplementedError
 
     def validate_documentation_accountability(self, core_root: Path, modules_root: Path) -> list[str]:
+        raise NotImplementedError
+
+    def _resolve_modules_root(self, raw_path: str | None) -> Path:
         raise NotImplementedError
 
 
@@ -159,6 +164,24 @@ def test_accountability_contract_reports_an_official_command_ownership_conflict(
     )
 
 
+def test_accountability_contract_detects_qualified_ownership_rejection(tmp_path: Path, modules_root: Path) -> None:
+    """Ownership rejections remain invalid when they include trailing qualifiers."""
+    checker = _load_accountability_checker()
+    core_root = _copy_accountability_inputs(tmp_path, checker)
+    overview = core_root / "docs/architecture/overview.md"
+    overview.write_text(
+        f"{overview.read_text(encoding='utf-8')}\n\nspecfact code is not canonical delivery targets\n",
+        encoding="utf-8",
+    )
+
+    findings = checker.validate_documentation_accountability(core_root, modules_root)
+
+    assert (
+        "docs/architecture/overview.md: incorrectly rejects installed nold-ai/specfact-code-review command ownership"
+        in findings
+    )
+
+
 def test_accountability_contract_rejects_an_unavailable_modules_source(tmp_path: Path) -> None:
     checker = _load_accountability_checker()
 
@@ -166,10 +189,32 @@ def test_accountability_contract_rejects_an_unavailable_modules_source(tmp_path:
         checker.discover_official_modules(tmp_path)
 
 
+def test_explicit_invalid_modules_root_does_not_fall_back(tmp_path: Path, modules_root: Path) -> None:
+    """An explicit bad override must not silently use a different checkout."""
+    checker = _load_accountability_checker()
+
+    with pytest.raises(ValueError, match=re.escape(f"--modules-repo is not a valid modules checkout: {tmp_path}")):
+        checker._resolve_modules_root(str(tmp_path))
+
+    assert checker._resolve_modules_root(str(modules_root)) == modules_root.resolve()
+
+
 def test_accountability_gate_is_mandatory_locally_and_in_pr_ci() -> None:
     pre_commit = (REPO_ROOT / "scripts" / "pre-commit-quality-checks.sh").read_text(encoding="utf-8")
-    docs_workflow = (REPO_ROOT / ".github" / "workflows" / "docs-review.yml").read_text(encoding="utf-8")
+    docs_workflow = yaml.safe_load(
+        (REPO_ROOT / ".github" / "workflows" / "docs-review.yml").read_text(encoding="utf-8")
+    )
 
-    assert "hatch run check-documentation-accountability" in pre_commit
-    assert "hatch run check-documentation-accountability" in docs_workflow
-    assert "continue-on-error: true\n        run: hatch run check-documentation-accountability" not in docs_workflow
+    gate_function = re.search(
+        r"run_command_overview_validation_gate\(\) \{(?P<body>.*?)^\}",
+        pre_commit,
+        flags=re.MULTILINE | re.DOTALL,
+    )
+    assert gate_function is not None
+    assert "if hatch run check-documentation-accountability; then" in gate_function.group("body")
+    assert "check-documentation-accountability ||" not in gate_function.group("body")
+
+    steps = docs_workflow["jobs"]["docs-review"]["steps"]
+    accountability_step = next(step for step in steps if step.get("name") == "Validate documentation accountability")
+    assert accountability_step["run"] == "hatch run check-documentation-accountability"
+    assert accountability_step.get("continue-on-error", False) is False

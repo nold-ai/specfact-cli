@@ -2,8 +2,8 @@
 
 - **Validated on:** 2026-07-10 Europe/Berlin
 - **Workflow:** implementation-readiness review and strict OpenSpec validation
-- **Strict command:** `openspec validate cli-val-05-ci-integration --strict`
-- **Result:** PASS
+- **Strict command:** `hatch run openspec validate cli-val-05-ci-integration --strict`
+- **Result:** PASS (0 issues)
 
 ## Scope Summary
 

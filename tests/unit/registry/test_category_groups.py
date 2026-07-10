@@ -137,7 +137,9 @@ def test_flat_validate_is_not_found_in_restricted_modes(tmp_path: Path, mode: st
     root_cmd = get_command(app)
     result = runner.invoke(cast(Any, root_cmd), ["validate", "--help"])
     assert result.exit_code != 0
-    assert "not installed" in (result.output or "").lower() or "no such command" in (result.output or "").lower()
+    output = (result.output or "").lower()
+    assert "not installed" not in output
+    assert "no such command" in output or "removed" in output
 
 
 def test_spec_api_validate_routes_correctly(tmp_path: Path) -> None:

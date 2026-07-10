@@ -66,6 +66,7 @@ def test_generated_command_contract_covers_requirements_module() -> None:
     assert any(
         record.get("command") == "specfact requirements"
         and record.get("owner_package") == "nold-ai/specfact-requirements"
+        and record.get("owner_repo") == "nold-ai/specfact-cli-modules"
         for record in records
     )
 
@@ -75,9 +76,10 @@ def test_llms_and_command_overview_are_current() -> None:
     if not _modules_repo_available():
         pytest.skip("specfact-cli-modules packages checkout not available")
 
+    env = os.environ.copy()
     modules_root = _modules_repo_root()
     if modules_root is not None:
-        os.environ.setdefault("SPECFACT_MODULES_REPO", str(modules_root))
+        env["SPECFACT_MODULES_REPO"] = str(modules_root)
 
     result = subprocess.run(
         [sys.executable, str(GENERATOR), "--check"],
@@ -85,6 +87,7 @@ def test_llms_and_command_overview_are_current() -> None:
         capture_output=True,
         text=True,
         check=False,
+        env=env,
         timeout=300,
     )
     assert result.returncode == 0, (

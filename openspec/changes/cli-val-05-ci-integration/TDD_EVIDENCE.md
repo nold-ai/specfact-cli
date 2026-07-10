@@ -62,7 +62,9 @@ SPECFACT_MODULES_REPO=/Users/dom/git/nold-ai/specfact-cli-modules hatch run docs
 hatch run type-check
 hatch run lint
 hatch run contract-test
-hatch run smart-test
+hatch run smart-test-unit
+hatch run smart-test-folder
+hatch run smart-test-full
 hatch run bandit-scan
 ```
 
@@ -70,11 +72,16 @@ Result: passed after remediation.
 
 Summary:
 
-- 17 focused tests passed. They prove catalogue omissions, missing generated
+- 20 focused tests passed. They prove catalogue omissions, missing generated
   command records, and contradictory ownership claims fail for official module
-  roots, in addition to requirements inventory and missing-source coverage.
-- The full suite passed: 2,832 tests passed, 10 skipped, with 64% coverage
-  against the configured 50% fail-under gate.
+  roots, in addition to requirements inventory, missing-source coverage,
+  explicit-path failure, generated ownership metadata, and removed aliases.
+- `smart-test-unit` and `smart-test-folder` completed with no changed paths to
+  select; `smart-test-full` ran the full suite.
+- The full suite passed: 2,826 tests passed, 9 skipped, with 64% line
+  coverage against the configured and CI-enforced 50% `fail_under` gate.
+  The repository separately enforces contract coverage (80%) and behavioral
+  coverage (90%); this line-coverage result does not claim an 80% line target.
 - The first full run exposed a stale category-group expectation that omitted
   the already shipped `requirements` root; the test was corrected and the full
   suite was rerun successfully.
@@ -96,7 +103,11 @@ Result: passed. The staged hook ran the same fail-closed documentation gate,
 command checks, lint, workflow checks, and code-review wrapper used before a
 commit.
 
-- The review report has **0 errors** and `PASS_WITH_ADVISORY`.
+- The review report has **0 errors** and `PASS_WITH_ADVISORY`. Its 12 warnings
+  are pre-existing findings on unchanged lines: the checker’s existing
+  catalogue-loop depth, legacy unknown-type findings, and pre-existing public
+  function decorator gaps in the command-overview generator. They are outside
+  this review-fix scope; no warning was introduced by these changes.
 - All new-checker and changed-test findings were remediated: complexity,
   nesting, output handling, type narrowing, design-by-contract coverage, and
   duplicate test shape.

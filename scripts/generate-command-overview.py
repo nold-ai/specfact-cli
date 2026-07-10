@@ -192,7 +192,7 @@ def _walk(
     children = _command_children(command)
     record = {
         "command": " ".join(path),
-        "owner_repo": "nold-ai/specfact-cli",
+        "owner_repo": "nold-ai/specfact-cli" if owner_package == "core" else "nold-ai/specfact-cli-modules",
         "owner_package": owner_package,
         "install_prerequisite": install_prerequisite,
         "short_help": (command.short_help or "").strip(),
