@@ -46,7 +46,9 @@ def test_bootstrap_with_category_grouping_enabled_registers_group_commands() -> 
         "patch",
     }
     assert set(names).issubset(allowed), f"Unexpected root commands found: {sorted(set(names) - allowed)}"
-    assert {"init", "module", "upgrade", "requirements"}.issubset(set(names))
+    # Requirements is an opt-in module root: it is valid when installed, but
+    # fresh installs and compatibility jobs expose only permanent core roots.
+    assert {"init", "module", "upgrade"}.issubset(set(names))
     assert not (set(names) & forbidden_flat), (
         f"Flat shims should not be registered: {sorted(set(names) & forbidden_flat)}"
     )
