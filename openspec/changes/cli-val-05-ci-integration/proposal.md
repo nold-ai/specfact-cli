@@ -13,6 +13,7 @@ Runtime validation only protects users when it runs before merge against the sam
 - **EXTEND**: Release PR fast-path logic so `dev -> main` parity skips only duplicate expensive tests, while release-safety checks still run.
 - **NEW**: Targeted cross-platform runtime smoke: macOS is PR-blocking for runtime/package paths; Windows starts on schedule/manual.
 - **NEW**: Property and mutation probes for dependency resolver, module installer, package parsing, marketplace selection, and upgrade/version logic.
+- **NEW**: Fail-closed documentation-accountability gate that derives official module ownership from the modules repository, validates core catalogues and handoffs against it, and runs locally before commit and in required PR CI.
 
 ## Capabilities
 
@@ -27,18 +28,19 @@ Runtime validation only protects users when it runs before merge against the sam
 - `ci-integration`: Package-manager runtime checks run before merge for affected pull requests.
 - `dependency-resolution`: Critical resolver and installer paths receive property-based regression coverage.
 - `codebase-validation-depth`: Mutation testing is introduced as scheduled/advisory evidence for critical validation code.
+- `documentation-accountability`: Core documentation catalogues, generated command artifacts, and module ownership handoffs stay synchronized with the official modules repository.
 
 ## Impact
 
-- **Affected specs**: `cli-validation-ci-gates`, `trustworthy-green-checks`, `ci-integration`, `dependency-resolution`, `codebase-validation-depth`, `acceptance-test-runner`.
-- **Affected code**: GitHub Actions workflow, smart test coverage threshold handling, workflow policy tests, resolver property tests, mutation baseline configuration.
-- **Integration points**: GitHub Actions, Hatch scripts, OpenSpec validation, internal wiki mirror, module checkout/runtime smoke fixtures.
-- **Documentation impact**: CI and contributor guidance must distinguish blocking gates from advisory scheduled mutation evidence.
+- **Affected specs**: `cli-validation-ci-gates`, `documentation-accountability`, `trustworthy-green-checks`, `ci-integration`, `dependency-resolution`, `codebase-validation-depth`, `acceptance-test-runner`.
+- **Affected code**: GitHub Actions workflow, pre-commit quality gate, documentation-accountability checker, command overview/contract inventory, workflow policy tests, resolver property tests, mutation baseline configuration.
+- **Integration points**: GitHub Actions, Hatch scripts, OpenSpec validation, the checked-out modules repository, internal wiki mirror, module checkout/runtime smoke fixtures.
+- **Documentation impact**: Canonical core catalogues, architecture/ownership pages, and contributor guidance must identify every official package and distinguish core-owned overview material from modules-owned deep documentation.
 
 ## Source Tracking
 
 <!-- source_repo: nold-ai/specfact-cli -->
-- **GitHub Issue**: TBD
-- **Issue URL**: TBD
+- **GitHub Issue**: #643
+- **Issue URL**: <https://github.com/nold-ai/specfact-cli/issues/643>
 - **Repository**: nold-ai/specfact-cli
-- **Last Synced Status**: proposed
+- **Last Synced Status**: open; unblocked; parent #375 CLI Behavior Validation Suite

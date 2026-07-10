@@ -21,6 +21,7 @@ on:
       - "tests/helpers/doc_frontmatter_types.py"
       - "scripts/check-docs-commands.py"
       - "scripts/check-command-contract.py"
+      - "scripts/check-documentation-accountability.py"
       - "scripts/generate-command-overview.py"
       - "docs/reference/commands.generated.*"
       - "llms.txt"
@@ -49,6 +50,7 @@ on:
       - "tests/helpers/doc_frontmatter_types.py"
       - "scripts/check-docs-commands.py"
       - "scripts/check-command-contract.py"
+      - "scripts/check-documentation-accountability.py"
       - "scripts/generate-command-overview.py"
       - "docs/reference/commands.generated.*"
       - "llms.txt"
@@ -120,6 +122,9 @@ jobs:
 
       - name: Validate generated command contract
         run: hatch run check-command-contract
+
+      - name: Validate documentation accountability
+        run: hatch run check-documentation-accountability
 
       - name: Cross-site links (warn-only; live site may lag deploys)
         continue-on-error: true

@@ -163,6 +163,7 @@ specfact module install nold-ai/specfact-backlog
 specfact module install nold-ai/specfact-codebase
 specfact module install nold-ai/specfact-code-review
 specfact module install nold-ai/specfact-govern
+specfact module install nold-ai/specfact-spec
 specfact module install nold-ai/specfact-requirements
 ```
 

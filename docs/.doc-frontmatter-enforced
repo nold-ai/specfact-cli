@@ -6,4 +6,11 @@ docs/core-cli/init.md
 docs/reference/documentation-url-contract.md
 docs/contributing/docs-sync.md
 docs/contributing/frontmatter-schema.md
+docs/module-system/marketplace.md
+docs/reference/commands.md
+docs/reference/module-categories.md
+docs/reference/directory-structure.md
+docs/getting-started/installation.md
+docs/architecture/overview.md
+docs/architecture/implementation-status.md
 docs/agent-rules/*.md

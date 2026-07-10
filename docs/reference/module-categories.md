@@ -3,6 +3,11 @@ layout: default
 title: Module Categories
 nav_order: 35
 permalink: /reference/module-categories/
+doc_owner: specfact-cli
+tracks: [src/specfact_cli/registry/**, ../specfact-cli-modules/packages/**]
+last_reviewed: 2026-07-10
+exempt: false
+exempt_reason: ""
 ---
 
 # Module Categories
@@ -42,6 +47,7 @@ Category command groups:
 | `drift` | `codebase` | `specfact-codebase` | `code` | `drift` |
 | `validate` | `codebase` | `specfact-codebase` | `code` | `validate` |
 | `repro` | `codebase` | `specfact-codebase` | `code` | `repro` |
+| `code_review` | `codebase` | `specfact-code-review` | `code` | `review` |
 | `contract` | `spec` | `specfact-spec` | `spec` | `contract` |
 | `spec` | `spec` | `specfact-spec` | `spec` | `api` |
 | `sdd` | `spec` | `specfact-spec` | `spec` | `sdd` |
@@ -55,6 +61,7 @@ Category command groups:
 - `specfact-project`: `project`, `plan`, `import`, `sync`, `migrate`
 - `specfact-backlog`: `backlog`, `policy`
 - `specfact-codebase`: `analyze`, `drift`, `validate`, `repro`
+- `specfact-code-review`: `code review`
 - `specfact-spec`: `contract`, `api`, `sdd`, `generate`
 - `specfact-govern`: `enforce`, `patch`
 - `specfact-requirements`: `requirements`
@@ -64,13 +71,14 @@ Category command groups:
 Official bundle packages are published from the dedicated modules repository:
 
 - Repository: `nold-ai/specfact-cli-modules`
-- Package roots: `packages/specfact-project/`, `packages/specfact-backlog/`, `packages/specfact-codebase/`, `packages/specfact-spec/`, `packages/specfact-govern/`, `packages/specfact-requirements/`
+- Package roots: `packages/specfact-project/`, `packages/specfact-backlog/`, `packages/specfact-codebase/`, `packages/specfact-code-review/`, `packages/specfact-spec/`, `packages/specfact-govern/`, `packages/specfact-requirements/`
 
 Namespace mapping:
 
 - `specfact-project` -> import namespace `specfact_project.*`
 - `specfact-backlog` -> import namespace `specfact_backlog.*`
 - `specfact-codebase` -> import namespace `specfact_codebase.*`
+- `specfact-code-review` -> import namespace `specfact_code_review.*`
 - `specfact-spec` -> import namespace `specfact_spec.*`
 - `specfact-govern` -> import namespace `specfact_govern.*`
 - `specfact-requirements` -> import namespace `specfact_requirements.*`
@@ -105,6 +113,10 @@ tier for config defaults while preserving their historical install selections:
 - `backlog-team` -> `startup`
 - `api-first-team` -> `mid_size`
 - `enterprise-full-stack` -> `enterprise`
+
+`specfact-requirements` is an official, explicitly installable evidence module.
+It remains outside the current named profile presets; install it with
+`specfact init --install requirements` when requirements evidence is needed.
 
 Examples:
 

@@ -5,6 +5,11 @@ permalink: /reference/commands/
 keywords: [command reference, cli surface, command groups]
 audience: [solo, team, enterprise]
 expertise_level: [intermediate, advanced]
+doc_owner: specfact-cli
+tracks: [scripts/generate-command-overview.py, scripts/check-command-contract.py, ../specfact-cli-modules/packages/**]
+last_reviewed: 2026-07-10
+exempt: false
+exempt_reason: ""
 ---
 
 # Command Reference
@@ -132,7 +137,8 @@ Compatibility note: `specfact backlog daily ...` and `specfact backlog refine ..
 |---|---|---|
 | `nold-ai/specfact-project` | `project` | `project link-backlog`, `project health-check`, `project devops-flow`, `project snapshot`, `project regenerate`, `project export-roadmap`, `project import`, `project export`, `project sync`, `project version` |
 | `nold-ai/specfact-backlog` | `backlog` | `backlog ceremony`, `backlog refine`, `backlog daily`, `backlog sync`, `backlog auth`, `backlog analyze-deps`, `backlog verify-readiness`, `backlog delta`, `backlog add`, `backlog map-fields` |
-| `nold-ai/specfact-codebase` | `code` | `code analyze`, `code drift`, `code validate`, `code repro`, `code import`, `code review` |
+| `nold-ai/specfact-codebase` | `code` | `code analyze`, `code drift`, `code validate`, `code repro`, `code import` |
+| `nold-ai/specfact-code-review` | `code review` | `code review run`, `code review rules`, `code review ledger` |
 | `nold-ai/specfact-spec` | `spec` | `spec validate`, `spec backward-compat`, `spec generate-tests`, `spec mock` |
 | `nold-ai/specfact-govern` | `govern` | `govern enforce`, `govern patch` |
 | `nold-ai/specfact-requirements` | `requirements` | `requirements import`, `requirements list`, `requirements coverage`, `requirements validate` |

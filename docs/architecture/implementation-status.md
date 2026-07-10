@@ -6,6 +6,11 @@ description: Implemented vs planned architecture capabilities.
 keywords: [implementation status, roadmap, architecture]
 audience: [team, enterprise]
 expertise_level: [advanced]
+doc_owner: specfact-cli
+tracks: [src/specfact_cli/**, openspec/**, ../specfact-cli-modules/packages/**]
+last_reviewed: 2026-07-10
+exempt: false
+exempt_reason: ""
 ---
 
 # Architecture Implementation Status
@@ -23,7 +28,7 @@ This page tracks implemented vs planned architecture capabilities.
 
 - Shared architecture and traceability contracts remain planned in OpenSpec.
   - Source: `architecture-01-solution-layer`, `traceability-01-index-and-orphans`, and related follow-up changes.
-- Older flat command families such as `specfact architecture ...`, `specfact requirements ...`, and `specfact trace ...` are not canonical delivery targets.
+- Older flat core command families such as `specfact architecture ...` and `specfact trace ...` are not canonical delivery targets. `specfact requirements ...` is instead an installed grouped surface owned by `nold-ai/specfact-requirements`.
   - Any future runtime implementation must be rescoped into grouped bundle-owned surfaces in `specfact-cli-modules`; core retains only shared models, schemas, and integration contracts.
 - Protocol FSM runtime engine is partial (models/specs exist; full execution engine/guards are planned).
   - Source: OpenSpec `architecture-01-solution-layer` and dependent validation changes.

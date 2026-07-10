@@ -464,6 +464,13 @@ run_command_overview_validation_gate() {
     warn "💡 Fix stale command examples or regenerate the command overview if the CLI changed"
     exit 1
   fi
+  info "📦 Block 2 — documentation accountability — running \`hatch run check-documentation-accountability\`"
+  if hatch run check-documentation-accountability; then
+    success "✅ Documentation accountability validation passed"
+  else
+    error "❌ Documentation accountability validation failed"
+    exit 1
+  fi
 }
 
 run_contract_tests_visible() {

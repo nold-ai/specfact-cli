@@ -14,7 +14,7 @@ This file is generated from the current CLI command tree. Do not edit by hand.
 
 | Command | Owner | Options | Subcommands | Context |
 | --- | --- | --- | --- | --- |
-| `specfact` | core | --banner, --debug, --input-format, --install-completion, --interactive, --mode, --no-interactive, --output-format, --show-completion, --skip-checks, --version; args: - | backlog, code, govern, init, module, project, spec, upgrade |  |
+| `specfact` | core | --banner, --debug, --input-format, --install-completion, --interactive, --mode, --no-interactive, --output-format, --show-completion, --skip-checks, --version; args: - | backlog, code, govern, init, module, project, requirements, spec, upgrade |  |
 | `specfact backlog` | nold-ai/specfact-backlog | --install-completion, --show-completion; args: - | add, analyze-deps, auth, ceremony, daily, delta, diff, init-config, map-fields, promote, refine, sync, verify-readiness |  |
 | `specfact backlog add` | nold-ai/specfact-backlog | --acceptance-criteria, --adapter, --body, --body-end-marker, --business-value, --check-dor, --custom-config, --description-format, --non-interactive, --parent, --priority, --project-id, --provider-field, --repo-path, --sprint, --story-points, --template, --title, --type; args: - | - |  |
 | `specfact backlog analyze-deps` | nold-ai/specfact-backlog | --adapter, --custom-config, --json-export, --output, --project-id, --template; args: - | - |  |
@@ -115,6 +115,11 @@ This file is generated from the current CLI command tree. Do not edit by hand.
 | `specfact project version bump` | nold-ai/specfact-project | --bundle, --repo, --type; args: - | - |  |
 | `specfact project version check` | nold-ai/specfact-project | --bundle, --repo; args: - | - |  |
 | `specfact project version set` | nold-ai/specfact-project | --bundle, --repo, --version; args: - | - |  |
+| `specfact requirements` | nold-ai/specfact-requirements | --install-completion, --show-completion; args: - | coverage, import, list, validate |  |
+| `specfact requirements coverage` | nold-ai/specfact-requirements | --bundle, --format; args: - | - |  |
+| `specfact requirements import` | nold-ai/specfact-requirements | --bundle, --format, --from-file; args: - | - |  |
+| `specfact requirements list` | nold-ai/specfact-requirements | --bundle, --format, --show-coverage; args: - | - |  |
+| `specfact requirements validate` | nold-ai/specfact-requirements | --bundle, --format, --profile; args: - | - |  |
 | `specfact spec` | nold-ai/specfact-spec | --install-completion, --show-completion; args: - | backward-compat, generate-tests, mock, validate |  |
 | `specfact spec backward-compat` | nold-ai/specfact-spec | -; args: - | - |  |
 | `specfact spec generate-tests` | nold-ai/specfact-spec | --bundle, --force, --out, --output; args: - | - |  |

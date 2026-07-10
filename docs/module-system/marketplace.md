@@ -9,6 +9,11 @@ description: Official SpecFact bundle IDs, trust tiers, and bundle dependency be
 keywords: [bundles, official modules, trust tiers]
 audience: [solo, team, enterprise]
 expertise_level: [intermediate]
+doc_owner: specfact-cli
+tracks: [src/specfact_cli/registry/**, ../specfact-cli-modules/packages/**, ../specfact-cli-modules/registry/index.json]
+last_reviewed: 2026-07-10
+exempt: false
+exempt_reason: ""
 ---
 
 # Marketplace Bundles
@@ -28,6 +33,7 @@ Install commands:
 specfact module install nold-ai/specfact-project
 specfact module install nold-ai/specfact-backlog
 specfact module install nold-ai/specfact-codebase
+specfact module install nold-ai/specfact-code-review
 specfact module install nold-ai/specfact-spec
 specfact module install nold-ai/specfact-govern
 specfact module install nold-ai/specfact-requirements
@@ -38,6 +44,7 @@ Bundle overview:
 - `nold-ai/specfact-project`: grouped project workflows (`project`, `plan`, `import`, `sync`, `migrate`)
 - `nold-ai/specfact-backlog`: grouped backlog workflows (`backlog`, `policy`, `backlog auth`)
 - `nold-ai/specfact-codebase`: grouped code workflows (`analyze`, `drift`, `validate`, `repro`)
+- `nold-ai/specfact-code-review`: scored clean-code and AI-bloat review workflows (`code review`)
 - `nold-ai/specfact-spec`: grouped spec workflows (`contract`, `api`, `sdd`, `generate`)
 - `nold-ai/specfact-govern`: grouped governance workflows (`enforce`, `patch`)
 - `nold-ai/specfact-requirements`: grouped requirements evidence workflows (`requirements`)

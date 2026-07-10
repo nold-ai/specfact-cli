@@ -16,7 +16,7 @@ from specfact_cli.registry.bootstrap import register_builtin_commands
 
 
 @pytest.fixture(autouse=True)
-def _clear_registry() -> Generator[None, None, None]:
+def clear_registry() -> Generator[None, None, None]:
     CommandRegistry._clear_for_testing()
     yield
     CommandRegistry._clear_for_testing()
@@ -28,7 +28,7 @@ def test_bootstrap_with_category_grouping_enabled_registers_group_commands() -> 
         register_builtin_commands()
         rebuild_root_app_from_registry()
     names = [name for name, _ in CommandRegistry.list_commands_for_help()]
-    allowed = {"init", "auth", "module", "upgrade", "code", "backlog", "project", "spec", "govern"}
+    allowed = {"init", "auth", "module", "upgrade", "code", "backlog", "project", "requirements", "spec", "govern"}
     forbidden_flat = {
         "analyze",
         "drift",
@@ -116,34 +116,12 @@ def test_govern_help_when_not_installed_suggests_install(
     )
 
 
-def test_flat_validate_is_not_found_in_copilot_mode(
-    tmp_path: Path,
-) -> None:
-    """Flat `validate` is unavailable in copilot mode after shim removal."""
+@pytest.mark.parametrize("mode", ("copilot", "cicd"))
+def test_flat_validate_is_not_found_in_restricted_modes(tmp_path: Path, mode: str) -> None:
+    """Flat `validate` is unavailable in restricted modes after shim removal."""
     with patch.dict(
         os.environ,
-        {"SPECFACT_CATEGORY_GROUPING_ENABLED": "true", "SPECFACT_MODE": "copilot"},
-        clear=False,
-    ):
-        register_builtin_commands()
-        rebuild_root_app_from_registry()
-    from click.testing import CliRunner
-    from typer.main import get_command
-
-    from specfact_cli.cli import app
-
-    runner = CliRunner()
-    root_cmd = get_command(app)
-    result = runner.invoke(cast(Any, root_cmd), ["validate", "--help"])
-    assert result.exit_code != 0
-    assert "not installed" in (result.output or "").lower() or "no such command" in (result.output or "").lower()
-
-
-def test_flat_validate_is_not_found_in_cicd_mode(tmp_path: Path) -> None:
-    """Flat `validate` is unavailable in CI/CD mode after shim removal."""
-    with patch.dict(
-        os.environ,
-        {"SPECFACT_CATEGORY_GROUPING_ENABLED": "true", "SPECFACT_MODE": "cicd"},
+        {"SPECFACT_CATEGORY_GROUPING_ENABLED": "true", "SPECFACT_MODE": mode},
         clear=False,
     ):
         register_builtin_commands()
