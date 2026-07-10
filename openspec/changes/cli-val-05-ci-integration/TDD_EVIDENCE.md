@@ -1,5 +1,112 @@
 # TDD Evidence: cli-val-05-ci-integration
 
+## Documentation-accountability failing-before
+
+### 2026-07-10 Europe/Berlin
+
+Command:
+
+```bash
+hatch run pytest tests/unit/docs/test_llms_overview_freshness.py tests/unit/docs/test_documentation_accountability.py -q
+```
+
+Result: failed as expected before implementation.
+
+Summary:
+
+- `docs/reference/commands.generated.json` has no `specfact requirements`
+  record owned by `nold-ai/specfact-requirements`.
+- `scripts/check-documentation-accountability.py` does not exist.
+- The always-run local pre-commit path and `docs-review.yml` do not invoke a
+  documentation-accountability command.
+- Existing command-overview freshness coverage skipped in this worktree because
+  its modules-repository discovery does not find the documented sibling
+  checkout, demonstrating that it cannot be relied on as a fail-closed proof.
+
+## Documentation-accountability passing-after
+
+### 2026-07-10 Europe/Berlin
+
+Command:
+
+```bash
+SPECFACT_MODULES_REPO=/Users/dom/git/nold-ai/specfact-cli-modules hatch run pytest tests/unit/docs/test_llms_overview_freshness.py tests/unit/docs/test_documentation_accountability.py -q
+SPECFACT_MODULES_REPO=/Users/dom/git/nold-ai/specfact-cli-modules hatch run check-documentation-accountability
+```
+
+Result: passed after implementation.
+
+Summary:
+
+- 10 documentation-accountability tests passed.
+- The generated command artifacts now include `specfact requirements` owned by
+  `nold-ai/specfact-requirements`.
+- The accountability contract derives the seven official packages from the
+  modules manifests and marketplace registry, rejects disagreement or a missing
+  source, and confirms every designated core catalogue and ownership statement.
+- The same fail-closed command is invoked by the always-run pre-commit path and
+  the blocking Docs Review PR workflow.
+
+## Documentation-accountability final quality evidence
+
+### 2026-07-10 Europe/Berlin
+
+Commands:
+
+```bash
+SPECFACT_MODULES_REPO=/Users/dom/git/nold-ai/specfact-cli-modules hatch run pytest \
+  tests/unit/docs/test_llms_overview_freshness.py \
+  tests/unit/docs/test_documentation_accountability.py \
+  tests/unit/registry/test_category_groups.py -q
+SPECFACT_MODULES_REPO=/Users/dom/git/nold-ai/specfact-cli-modules hatch run docs-validate
+hatch run type-check
+hatch run lint
+hatch run contract-test
+hatch run smart-test
+hatch run bandit-scan
+```
+
+Result: passed after remediation.
+
+Summary:
+
+- 17 focused tests passed. They prove catalogue omissions, missing generated
+  command records, and contradictory ownership claims fail for official module
+  roots, in addition to requirements inventory and missing-source coverage.
+- The full suite passed: 2,832 tests passed, 10 skipped, with 64% coverage
+  against the configured 50% fail-under gate.
+- The first full run exposed a stale category-group expectation that omitted
+  the already shipped `requirements` root; the test was corrected and the full
+  suite was rerun successfully.
+- Type checking completed with 0 errors (existing repository warnings remain);
+  full lint, contract tests, workflow/YAML validation, Bandit, and strict
+  OpenSpec validation passed.
+
+## Clean-code review evidence and explicit exceptions
+
+### 2026-07-10 Europe/Berlin
+
+Command:
+
+```bash
+bash scripts/pre-commit-quality-checks.sh
+```
+
+Result: passed. The staged hook ran the same fail-closed documentation gate,
+command checks, lint, workflow checks, and code-review wrapper used before a
+commit.
+
+- The review report has **0 errors** and `PASS_WITH_ADVISORY`.
+- All new-checker and changed-test findings were remediated: complexity,
+  nesting, output handling, type narrowing, design-by-contract coverage, and
+  duplicate test shape.
+- 13 residual warnings are pre-existing static-analysis limitations in the
+  two legacy command-artifact scripts (`check-command-contract.py` and
+  `generate-command-overview.py`) plus Typer's dynamic `commands` attribute in
+  the existing category-group tests. They are non-blocking, produce no
+  type-check errors, and are outside this accountability scope; the report is
+  retained at `.specfact/code-review.json` for follow-up cleanup.
+
 ## Failing-before
 
 ### 2026-06-13 00:00 Europe/Berlin

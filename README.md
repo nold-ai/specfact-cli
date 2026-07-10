@@ -72,6 +72,11 @@ For cleanup work, run a JSON review, inspect the cleanup forecast and AI-bloat i
 
 These findings are bloat-shape detection and cleanup guidance, not AI-authorship detection. Exact simplify flags and report fields live in the [AI bloat quickstart](https://modules.specfact.io/quickstart-ai-bloat/) and [Code Review run guide](https://modules.specfact.io/bundles/code-review/run/) on the modules docs site.
 
+Official workflow package IDs are `nold-ai/specfact-project`,
+`nold-ai/specfact-backlog`, `nold-ai/specfact-codebase`,
+`nold-ai/specfact-code-review`, `nold-ai/specfact-spec`,
+`nold-ai/specfact-govern`, and `nold-ai/specfact-requirements`.
+
 ## What SpecFact does
 
 - **Defends against AI bloat deterministically** — forecast cleanup impact and route remediation packets to your AI IDE
@@ -163,6 +168,7 @@ specfact module install nold-ai/specfact-backlog
 specfact module install nold-ai/specfact-codebase
 specfact module install nold-ai/specfact-code-review
 specfact module install nold-ai/specfact-govern
+specfact module install nold-ai/specfact-spec
 specfact module install nold-ai/specfact-requirements
 ```
 

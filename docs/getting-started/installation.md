@@ -5,6 +5,11 @@ permalink: /getting-started/installation/
 keywords: [install, setup, bootstrap, cli]
 audience: [solo, team]
 expertise_level: [beginner]
+doc_owner: specfact-cli
+tracks: [src/specfact_cli/modules/init/**, src/specfact_cli/registry/**, ../specfact-cli-modules/packages/**]
+last_reviewed: 2026-07-10
+exempt: false
+exempt_reason: ""
 ---
 
 # Getting Started with SpecFact CLI
@@ -210,6 +215,12 @@ Category groups appear after bundle installation:
 - `specfact code ...`
 - `specfact spec ...`
 - `specfact govern ...`
+- `specfact requirements ...` (after installing `nold-ai/specfact-requirements`)
+
+Official workflow package IDs are `nold-ai/specfact-project`,
+`nold-ai/specfact-backlog`, `nold-ai/specfact-codebase`,
+`nold-ai/specfact-code-review`, `nold-ai/specfact-spec`,
+`nold-ai/specfact-govern`, and `nold-ai/specfact-requirements`.
 
 Backlog authentication commands such as `specfact backlog auth ...` are provided by the
 installed backlog bundle, not by the permanent core command surface.
@@ -225,7 +236,11 @@ Legacy workflow presets remain available for bundle-first bootstrap:
 | `solo-developer` | `specfact-codebase`, `specfact-code-review` | `code` |
 | `backlog-team` | `specfact-project`, `specfact-backlog`, `specfact-codebase` | `project`, `backlog`, `code` |
 | `api-first-team` | `specfact-spec`, `specfact-codebase` (+`specfact-project` dependency) | `project`, `code`, `spec` |
-| `enterprise-full-stack` | all five bundles | `project`, `backlog`, `code`, `spec`, `govern` |
+| `enterprise-full-stack` | five profile-selected bundles | `project`, `backlog`, `code`, `spec`, `govern` |
+
+`nold-ai/specfact-requirements` is an official, opt-in evidence module rather
+than a current profile default. Install it with `specfact init --install requirements`;
+it adds `specfact requirements ...`.
 
 ### Upgrading from Pre-Slimming Versions
 

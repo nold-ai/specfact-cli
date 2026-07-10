@@ -4,6 +4,11 @@ title: SpecFact CLI Directory Structure
 permalink: /reference/directory-structure/
 redirect_from:
   - /directory-structure/
+doc_owner: specfact-cli
+tracks: [src/specfact_cli/**, ../specfact-cli-modules/packages/**, ../specfact-cli-modules/registry/**]
+last_reviewed: 2026-07-10
+exempt: false
+exempt_reason: ""
 ---
 
 # SpecFact CLI Directory Structure
@@ -74,13 +79,20 @@ specfact-cli-modules/
   packages/specfact-project/
   packages/specfact-backlog/
   packages/specfact-codebase/
+  packages/specfact-code-review/
   packages/specfact-spec/
   packages/specfact-govern/
+  packages/specfact-requirements/
   registry/
 ```
 
 The runtime loads bundle packages through manifests and registry metadata; it does not treat the
 source repositories themselves as runtime module roots.
+
+Official marketplace package IDs are `nold-ai/specfact-project`,
+`nold-ai/specfact-backlog`, `nold-ai/specfact-codebase`,
+`nold-ai/specfact-code-review`, `nold-ai/specfact-spec`,
+`nold-ai/specfact-govern`, and `nold-ai/specfact-requirements`.
 
 ## Canonical Structure
 

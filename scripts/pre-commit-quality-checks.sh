@@ -422,7 +422,7 @@ run_command_overview_validation_gate() {
   while IFS= read -r file || [[ -n "${file}" ]]; do
     [[ -z "${file}" ]] && continue
     case "${file}" in
-      src/*|docs/*|.github/*|resources/*|scripts/check-docs-commands.py|scripts/check-command-contract.py|scripts/generate-command-overview.py|README.md|llms.txt|docs/reference/commands.generated.*)
+      src/*|docs/*|.github/*|resources/*|scripts/check-docs-commands.py|scripts/check-command-contract.py|scripts/check-documentation-accountability.py|scripts/generate-command-overview.py|README.md|llms.txt|docs/reference/commands.generated.*)
         hit=1
         break
         ;;
@@ -462,6 +462,13 @@ run_command_overview_validation_gate() {
   else
     error "❌ Docs command validation failed"
     warn "💡 Fix stale command examples or regenerate the command overview if the CLI changed"
+    exit 1
+  fi
+  info "📦 Block 2 — documentation accountability — running \`hatch run check-documentation-accountability\`"
+  if hatch run check-documentation-accountability; then
+    success "✅ Documentation accountability validation passed"
+  else
+    error "❌ Documentation accountability validation failed"
     exit 1
   fi
 }

@@ -28,6 +28,7 @@ APP_MOUNTS = (
     ("specfact_code_review.review.commands", "app", ("specfact", "code", "review")),
     ("specfact_govern.govern.commands", "app", ("specfact", "govern")),
     ("specfact_project.project.commands", "app", ("specfact", "project")),
+    ("specfact_requirements.requirements.commands", "app", ("specfact", "requirements")),
     ("specfact_spec.spec.commands", "app", ("specfact", "spec")),
 )
 MISSING_MARKERS = (
@@ -245,10 +246,10 @@ def main(argv: list[str] | None = None) -> int:
         failures.extend(_check_missing_required_argument(runner, apps, record))
 
     if failures:
-        print("Generated command contract validation failed:")
-        print("\n\n".join(failures))
+        sys.stdout.write("Generated command contract validation failed:\n")
+        sys.stdout.write("\n\n".join(failures) + "\n")
         return 1
-    print(f"check-command-contract: OK ({len(records)} generated command path(s) validated)")
+    sys.stdout.write(f"check-command-contract: OK ({len(records)} generated command path(s) validated)\n")
     return 0
 
 

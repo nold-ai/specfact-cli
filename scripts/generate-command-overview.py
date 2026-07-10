@@ -32,6 +32,12 @@ MODULE_APP_MOUNTS = (
     ("specfact_code_review.review.commands", "app", ("specfact", "code", "review"), "nold-ai/specfact-code-review"),
     ("specfact_govern.govern.commands", "app", ("specfact", "govern"), "nold-ai/specfact-govern"),
     ("specfact_project.project.commands", "app", ("specfact", "project"), "nold-ai/specfact-project"),
+    (
+        "specfact_requirements.requirements.commands",
+        "app",
+        ("specfact", "requirements"),
+        "nold-ai/specfact-requirements",
+    ),
     ("specfact_spec.spec.commands", "app", ("specfact", "spec"), "nold-ai/specfact-spec"),
 )
 
@@ -357,9 +363,11 @@ def _check(outputs: dict[Path, str]) -> int:
                     lineterm="",
                 )
             )
-            print(diff)
+            sys.stdout.write(diff + "\n")
     if failures:
-        print("Command overview artifacts are stale. Run: python scripts/generate-command-overview.py --write")
+        sys.stdout.write(
+            "Command overview artifacts are stale. Run: python scripts/generate-command-overview.py --write\n"
+        )
         return 1
     return 0
 
