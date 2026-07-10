@@ -8,6 +8,7 @@ re-runs the generator in --check mode on every test run.
 
 from __future__ import annotations
 
+import json
 import os
 import subprocess
 import sys
@@ -25,6 +26,16 @@ GENERATED_ARTIFACTS = (
 )
 
 
+def _modules_repo_root() -> Path | None:
+    configured = os.environ.get("SPECFACT_MODULES_REPO", "").strip()
+    candidates = [Path(configured).expanduser()] if configured else []
+    candidates.append(REPO_ROOT.parent / "specfact-cli-modules")
+    if "specfact-cli-worktrees" in REPO_ROOT.parts:
+        marker = REPO_ROOT.parts.index("specfact-cli-worktrees")
+        candidates.append(Path(*REPO_ROOT.parts[:marker]) / "specfact-cli-modules")
+    return next((candidate for candidate in candidates if (candidate / "packages").is_dir()), None)
+
+
 def _paired_worktree_modules_repo() -> Path | None:
     """Mirror the generator's paired-worktree candidate (specfact-cli-worktrees layout)."""
     parts = REPO_ROOT.parts
@@ -37,13 +48,10 @@ def _paired_worktree_modules_repo() -> Path | None:
 
 
 def _modules_repo_available() -> bool:
-    configured = os.environ.get("SPECFACT_MODULES_REPO", "").strip()
-    candidates = [
-        Path(configured).expanduser() if configured else None,
-        REPO_ROOT.parent / "specfact-cli-modules",
-        _paired_worktree_modules_repo(),
-    ]
-    return any(candidate is not None and (candidate / "packages").is_dir() for candidate in candidates)
+    if _modules_repo_root() is not None:
+        return True
+    paired = _paired_worktree_modules_repo()
+    return paired is not None and (paired / "packages").is_dir()
 
 
 def test_generated_command_artifacts_exist() -> None:
@@ -51,10 +59,27 @@ def test_generated_command_artifacts_exist() -> None:
         assert (REPO_ROOT / relative).is_file(), f"Missing generated artifact: {relative}"
 
 
+def test_generated_command_contract_covers_requirements_module() -> None:
+    """The official requirements package must be represented in generated docs."""
+    records = json.loads((REPO_ROOT / "docs" / "reference" / "commands.generated.json").read_text(encoding="utf-8"))
+
+    assert any(
+        record.get("command") == "specfact requirements"
+        and record.get("owner_package") == "nold-ai/specfact-requirements"
+        and record.get("owner_repo") == "nold-ai/specfact-cli-modules"
+        for record in records
+    )
+
+
 def test_llms_and_command_overview_are_current() -> None:
     """llms.txt and the generated command reference must match the current CLI surface."""
     if not _modules_repo_available():
         pytest.skip("specfact-cli-modules packages checkout not available")
+
+    env = os.environ.copy()
+    modules_root = _modules_repo_root()
+    if modules_root is not None:
+        env["SPECFACT_MODULES_REPO"] = str(modules_root)
 
     result = subprocess.run(
         [sys.executable, str(GENERATOR), "--check"],
@@ -62,6 +87,7 @@ def test_llms_and_command_overview_are_current() -> None:
         capture_output=True,
         text=True,
         check=False,
+        env=env,
         timeout=300,
     )
     assert result.returncode == 0, (

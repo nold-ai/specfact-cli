@@ -10,6 +10,18 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.51.2] - 2026-07-10
+
+### Fixed
+
+- **Documentation accountability**: derive the official module inventory from
+  signed module manifests and the marketplace registry, then fail local
+  pre-commit and PR documentation validation when core catalogues, generated
+  command records, or core/modules ownership statements drift. The repaired
+  catalogues now cover the installed requirements and code-review modules.
+
+---
+
 ## [0.51.1] - 2026-07-10
 
 ### Fixed

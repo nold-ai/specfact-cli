@@ -10,7 +10,7 @@ doc_owner: specfact-cli
 tracks:
   - scripts/check_doc_frontmatter.py
   - docs/**
-last_reviewed: 2026-03-29
+last_reviewed: 2026-07-10
 exempt: false
 exempt_reason: ""
 ---
@@ -49,6 +49,12 @@ the checker.
 Docs-only PRs rely on the dedicated `Docs Review` workflow as the required documentation gate. Its
 cross-site link check remains advisory because the published site can lag deployment, while
 frontmatter validation and docs test suites remain merge-blocking for docs-owned changes.
+
+`hatch run check-documentation-accountability` is also blocking locally and in
+PR CI. It reads the official module inventory from a local
+`specfact-cli-modules` checkout (or `SPECFACT_MODULES_REPO`) and verifies that
+core catalogues, generated command artifacts, and ownership statements agree.
+It fails closed when that source is unavailable or inconsistent.
 
 ## Troubleshooting
 
