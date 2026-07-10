@@ -30,6 +30,11 @@ OWNERSHIP_PATHS = (
     "docs/architecture/overview.md",
     "docs/architecture/implementation-status.md",
 )
+COMMAND_CATALOGUE_PATHS = (
+    "docs/getting-started/installation.md",
+    "docs/reference/commands.md",
+    "docs/reference/module-categories.md",
+)
 
 
 @dataclass(frozen=True)
@@ -140,11 +145,20 @@ def _catalogue_findings(core_root: Path, package_ids: list[str]) -> list[str]:
     for relative_path in CATALOGUE_PATHS:
         content = (core_root / relative_path).read_text(encoding="utf-8")
         for package_id in package_ids:
-            package_name = package_id.rsplit("/", maxsplit=1)[-1]
-            has_explicit_id = package_id in content
-            has_noncanonical_only = f"removed {package_name}" in content.lower()
-            if not has_explicit_id and (package_name not in content or has_noncanonical_only):
+            if package_id not in content:
                 findings.append(f"{relative_path}: missing official package {package_id}")
+    return findings
+
+
+def _command_catalogue_findings(core_root: Path, inventory: dict[str, OfficialModule]) -> list[str]:
+    """Require documented grouped roots wherever core documentation lists commands."""
+    findings: list[str] = []
+    for relative_path in COMMAND_CATALOGUE_PATHS:
+        content = (core_root / relative_path).read_text(encoding="utf-8")
+        for package_id, module in sorted(inventory.items()):
+            for root in module.command_roots:
+                if f"specfact {root}" not in content and f"`{root}`" not in content:
+                    findings.append(f"{relative_path}: missing {package_id} command root {root}")
     return findings
 
 
@@ -207,6 +221,7 @@ def validate_documentation_accountability(core_root: Path, modules_root: Path) -
     package_ids = sorted(inventory)
     return [
         *_catalogue_findings(core_root, package_ids),
+        *_command_catalogue_findings(core_root, inventory),
         *_command_inventory_findings(core_root, inventory),
         *_ownership_findings(core_root, inventory),
     ]

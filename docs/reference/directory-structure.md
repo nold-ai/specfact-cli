@@ -89,6 +89,11 @@ specfact-cli-modules/
 The runtime loads bundle packages through manifests and registry metadata; it does not treat the
 source repositories themselves as runtime module roots.
 
+Official marketplace package IDs are `nold-ai/specfact-project`,
+`nold-ai/specfact-backlog`, `nold-ai/specfact-codebase`,
+`nold-ai/specfact-code-review`, `nold-ai/specfact-spec`,
+`nold-ai/specfact-govern`, and `nold-ai/specfact-requirements`.
+
 ## Canonical Structure
 
 ```bash
