@@ -36,7 +36,7 @@ class AccountabilityChecker(Protocol):
         raise NotImplementedError
 
 
-def _modules_root() -> Path:
+def _modules_root() -> Path | None:
     configured = os.environ.get("SPECFACT_MODULES_REPO", "").strip()
     candidates = [Path(configured).expanduser()] if configured else []
     candidates.append(REPO_ROOT.parent / "specfact-cli-modules")
@@ -45,7 +45,24 @@ def _modules_root() -> Path:
         candidates.append(Path(*REPO_ROOT.parts[:marker]) / "specfact-cli-modules")
         suffix = Path(*REPO_ROOT.parts[marker + 1 :])
         candidates.append(Path(*REPO_ROOT.parts[:marker]) / "specfact-cli-modules-worktrees" / suffix)
-    return next(candidate for candidate in candidates if (candidate / "packages").is_dir())
+    return next((candidate for candidate in candidates if (candidate / "packages").is_dir()), None)
+
+
+def test_modules_root_is_optional_without_a_paired_checkout(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Plain core checkouts skip external-fixture tests instead of raising StopIteration."""
+    monkeypatch.delenv("SPECFACT_MODULES_REPO", raising=False)
+    monkeypatch.setattr(sys.modules[__name__], "REPO_ROOT", tmp_path)
+
+    assert _modules_root() is None
+
+
+@pytest.fixture(scope="module")
+def modules_root() -> Path:
+    """Require the external modules fixture only for tests that exercise it."""
+    resolved = _modules_root()
+    if resolved is None:
+        pytest.skip("specfact-cli-modules checkout is required for accountability contract tests")
+    return resolved
 
 
 @lru_cache(maxsize=1)
@@ -69,23 +86,25 @@ def _copy_accountability_inputs(tmp_path: Path, checker: AccountabilityChecker) 
     return tmp_path
 
 
-def test_accountability_uses_modules_source_for_official_requirements() -> None:
+def test_accountability_uses_modules_source_for_official_requirements(modules_root: Path) -> None:
     checker = _load_accountability_checker()
 
-    inventory = checker.discover_official_modules(_modules_root())
+    inventory = checker.discover_official_modules(modules_root)
 
     assert inventory["nold-ai/specfact-requirements"].command_roots == ("requirements",)
 
 
-def test_accountability_contract_accepts_current_catalogues() -> None:
+def test_accountability_contract_accepts_current_catalogues(modules_root: Path) -> None:
     checker = _load_accountability_checker()
 
-    findings = checker.validate_documentation_accountability(REPO_ROOT, _modules_root())
+    findings = checker.validate_documentation_accountability(REPO_ROOT, modules_root)
 
     assert findings == []
 
 
-def test_accountability_contract_reports_an_omitted_official_catalogue_package(tmp_path: Path) -> None:
+def test_accountability_contract_reports_an_omitted_official_catalogue_package(
+    tmp_path: Path, modules_root: Path
+) -> None:
     checker = _load_accountability_checker()
     core_root = _copy_accountability_inputs(tmp_path, checker)
     readme = core_root / "README.md"
@@ -93,12 +112,14 @@ def test_accountability_contract_reports_an_omitted_official_catalogue_package(t
         readme.read_text(encoding="utf-8").replace("specfact-requirements", "removed-module"), encoding="utf-8"
     )
 
-    findings = checker.validate_documentation_accountability(core_root, _modules_root())
+    findings = checker.validate_documentation_accountability(core_root, modules_root)
 
     assert "README.md: missing official package nold-ai/specfact-requirements" in findings
 
 
-def test_accountability_contract_reports_an_incomplete_generated_command_inventory(tmp_path: Path) -> None:
+def test_accountability_contract_reports_an_incomplete_generated_command_inventory(
+    tmp_path: Path, modules_root: Path
+) -> None:
     checker = _load_accountability_checker()
     core_root = _copy_accountability_inputs(tmp_path, checker)
     generated_path = core_root / "docs/reference/commands.generated.json"
@@ -111,7 +132,7 @@ def test_accountability_contract_reports_an_incomplete_generated_command_invento
         encoding="utf-8",
     )
 
-    findings = checker.validate_documentation_accountability(core_root, _modules_root())
+    findings = checker.validate_documentation_accountability(core_root, modules_root)
 
     assert (
         "docs/reference/commands.generated.json: missing nold-ai/specfact-requirements command root requirements"
@@ -119,7 +140,9 @@ def test_accountability_contract_reports_an_incomplete_generated_command_invento
     )
 
 
-def test_accountability_contract_reports_an_official_command_ownership_conflict(tmp_path: Path) -> None:
+def test_accountability_contract_reports_an_official_command_ownership_conflict(
+    tmp_path: Path, modules_root: Path
+) -> None:
     checker = _load_accountability_checker()
     core_root = _copy_accountability_inputs(tmp_path, checker)
     overview = core_root / "docs/architecture/overview.md"
@@ -128,7 +151,7 @@ def test_accountability_contract_reports_an_official_command_ownership_conflict(
         encoding="utf-8",
     )
 
-    findings = checker.validate_documentation_accountability(core_root, _modules_root())
+    findings = checker.validate_documentation_accountability(core_root, modules_root)
 
     assert (
         "docs/architecture/overview.md: incorrectly rejects installed nold-ai/specfact-code-review command ownership"
