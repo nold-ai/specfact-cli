@@ -82,9 +82,9 @@ planning workflows.
 |---:|---|---|---|---|
 | 1 | `requirements-01-data-model` | [#238](https://github.com/nold-ai/specfact-cli/issues/238) | Normalized requirements-input records for evidence | arch-07 |
 | 2 | `requirements-02-module-commands` | [#239](https://github.com/nold-ai/specfact-cli/issues/239) | Import and normalize existing requirement context | requirements-01 |
-| 3 | `requirements-03-backlog-sync` | [#244](https://github.com/nold-ai/specfact-cli/issues/244) | Read-first drift evidence; no write-back critical path | requirements-02; modules `sync-01` |
+| 3 | `openspec-01-intent-trace` | [#350](https://github.com/nold-ai/specfact-cli/issues/350) | Import-first OpenSpec and Spec Kit requirement evidence with pass/fail gates (rescoped 2026-07-13) | requirements-01/02 |
 | 4 | `architecture-01-solution-layer` | [#240](https://github.com/nold-ai/specfact-cli/issues/240) | Architecture-boundary records and drift validation | requirements input contracts |
-| 5 | `openspec-01-intent-trace` | [#350](https://github.com/nold-ai/specfact-cli/issues/350) | Optional OpenSpec and Spec Kit evidence adapter | requirements-01/02 |
+| Parked | `requirements-03-backlog-sync` | [#244](https://github.com/nold-ai/specfact-cli/issues/244) | Read-first drift evidence; no write-back critical path. Deprioritized 2026-07-13 behind openspec-01 | requirements-02; modules `sync-01` |
 | Gated | `architecture-02-well-architected-review` | [#524](https://github.com/nold-ai/specfact-cli/issues/524) | Architecture-boundary review findings | architecture-01 shipped plus one usage cycle |
 | Gated | `telemetry-01-opentelemetry-default-on` | [#518](https://github.com/nold-ai/specfact-cli/issues/518) | Opt-in validation outcome telemetry only | governance-01 evidence fields |
 
@@ -111,7 +111,7 @@ Update each proposal first, then run strict OpenSpec validation.
 | `requirements-02-module-commands` | Drop requirement authoring as a flagship path. Keep import, normalization, validation, and coverage inspection. |
 | `requirements-03-backlog-sync` | Make drift detection/read-first import the product value. Keep write-back preview out of the critical path. |
 | `architecture-01-solution-layer` | Reduce to architecture-boundary validation and drift evidence. Do not generate architecture. |
-| `openspec-01-intent-trace` | Rewrite as an optional adapter that consumes OpenSpec and Spec Kit artifacts. |
+| `openspec-01-intent-trace` | Done 2026-07-13: rescoped to import-first adapter consuming native OpenSpec and Spec Kit artifacts with deterministic pass/fail gates. |
 | `dogfooding-01-full-chain-e2e-proof` | Rewrite proof around real PR review, JSON evidence, AI-bloat findings, remediation packets, rerun proof. |
 | `ai-integration-01-agent-skill` | Teach agents to run SpecFact validation and interpret evidence. |
 | `ai-integration-03-instruction-files` | Generate lightweight validation aliases only. |
@@ -155,9 +155,12 @@ Update each proposal first, then run strict OpenSpec validation.
 
 ### Wave 5 - Optional adapters and later extensions
 
-- `requirements-01/02/03` only as validation input adapters.
+- `requirements-01/02` only as validation input adapters (shipped);
+  `requirements-03` parked 2026-07-13.
 - `architecture-01` only as architecture-boundary validation input.
-- `openspec-01` as optional OpenSpec and Spec Kit evidence adapter.
+- `openspec-01` as import-first OpenSpec and Spec Kit requirement evidence
+  adapter with deterministic gates; pulled forward to Track C order 3 on
+  2026-07-13 (rescoped, no longer positioned as optional-only).
 - `architecture-02`, `telemetry-01`, and `ai-integration-02` only after pull
   from the validation loop exists.
 
