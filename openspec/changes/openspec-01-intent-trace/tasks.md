@@ -26,6 +26,10 @@ code third. Record evidence in `TDD_EVIDENCE.md`.
   profiles, custom OpenSpec schemas, Spec Kit template customization roots,
   and unknown Markdown markers; prove unsupported sources emit no partial
   records.
+- [x] 2.7 Add review-regression tests for malformed schema declarations,
+  duplicate derived identities, explicit-profile isolation, resilient config
+  loading, and project-root-relative source locators; capture failing-first
+  evidence.
 
 ## 3. Implementation (core)
 
@@ -38,6 +42,8 @@ code third. Record evidence in `TDD_EVIDENCE.md`.
   support only fixture-backed default profiles and return
   `unsupported-source-schema` for unknown/custom sources without emitting
   partial records.
+- [x] 3.6 Remediate accepted PR review findings without widening the paired
+  module #168 runtime scope.
 
 ## 4. Implementation (modules repo, paired)
 

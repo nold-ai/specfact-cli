@@ -30,13 +30,15 @@ gate categories with profile-driven severity.
 - **THEN** bundle-level completeness and coverage counts are reported with missing-evidence requirement IDs
 - **AND** the result is machine-readable for downstream module commands.
 
-#### Scenario: Module import consumes OpenSpec and Spec Kit sources
+#### Pending paired-module follow-up
 
-- **GIVEN** a project with an OpenSpec change folder or a Spec Kit feature folder
-- **WHEN** `specfact requirements import` runs with `--from-openspec` or `--from-speckit` (with or without an explicit path)
-- **THEN** upstream artifacts are imported through the evidence adapter without any hand-authored records file
-- **AND** omitted paths are auto-detected from conventional layouts (`openspec/changes/` and Spec Kit `specs/`)
-- **AND** the merged records are persisted to the bundle requirements sidecar exactly like `--from-file` imports.
+The `specfact requirements import --from-openspec` and `--from-speckit`
+command flags, auto-detection, persistence, and diagnostic rendering remain
+unimplemented in the requirements module. They are owned by
+`nold-ai/specfact-cli-modules#168`; this core change supplies only the helpers
+that the future module runtime will call. Until that module release declares a
+core compatibility floor of `0.52.0`, `--from-file` is the only shipped module
+import path.
 
 #### Scenario: Unverified scenarios gate validation
 
@@ -58,12 +60,20 @@ gate categories with profile-driven severity.
 - **WHEN** requirements context validation runs
 - **THEN** the validation report contains a `source-missing` finding with the unresolved locator.
 
+#### Scenario: Relative source locators resolve from the project root
+
+- **GIVEN** an imported requirement stores a relative source locator
+- **WHEN** validation runs with its project root from a different process directory
+- **THEN** the locator is resolved relative to that project root for missing-source and staleness checks.
+
 #### Scenario: Omitted profile resolves from layered configuration
 
 - **GIVEN** a project whose layered configuration (profile defaults, org baseline, repo overlay, developer local) resolves to a validation profile
 - **WHEN** requirements context validation runs without an explicit profile argument
 - **THEN** the resolved configured profile decides gate severity instead of a hardcoded default
 - **AND** an explicitly passed profile argument overrides the configured profile.
+- **AND** profile-derived `requirements_schema` values from configured layers
+  do not override the explicitly selected profile defaults.
 
 #### Scenario: Profile required fields use evidence-compatible aliases
 

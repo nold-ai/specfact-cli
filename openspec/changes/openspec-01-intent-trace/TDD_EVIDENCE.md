@@ -61,11 +61,41 @@ change-local OpenSpec schema rejection, all supported Spec Kit customization
 root rejections, unknown Markdown markers, and the no-partial-records
 contract for `unsupported-source-schema`.
 
+## PR #646 Review Remediation Evidence (2026-07-13)
+
+### Failing-first
+
+```text
+$ hatch run pytest tests/unit/requirements/test_upstream_evidence_imports.py -q
+7 failed, 11 passed
+```
+
+The failures covered non-string OpenSpec schema declarations, duplicate derived
+OpenSpec/Spec Kit identities, project-root-relative source locators, and
+malformed optional configuration.
+
+### Passing-after
+
+```text
+$ hatch run pytest tests/unit/requirements/test_upstream_evidence_imports.py tests/unit/requirements/test_context_adapter.py -q
+25 passed
+```
+
+The explicit-profile regression assertion also remains green: configured
+profile-derived schema fields cannot override an explicitly passed profile.
+
 ## Final Gate Evidence
 
 ```text
 $ hatch run smart-test
-2837 tests passed; 64.0% coverage
+2844 passed, 9 skipped; 64.0% coverage (local `fail_under = 50` threshold)
+
+This local result is not evidence that the PR's 80% CI quality-gate threshold
+has passed. At the time recorded, the PR Tests job also failed first on the
+unrelated `test_contracts_include_parameters` integration regression, so its
+dependent Quality Gates job did not run. Coverage remediation is repository-wide
+work outside this import-adapter change; this change adds targeted tests for all
+new adapter paths.
 
 $ hatch run contract-test
 Runtime contracts: PASS; contract exploration: PASS; scenario tests: 21 passed

@@ -125,6 +125,11 @@ delegate entirely to these core helpers.
 `requirements import --from-file` remains the generic fallback for records
 outside the supported native profiles.
 
+The currently released requirements module does not expose those native-import
+flags yet. It remains compatible because it uses only `--from-file`; the paired
+module release for #168 will declare a `0.52.0` core compatibility floor before
+exposing `--from-openspec` or `--from-speckit`.
+
 ## Compatibility Notes
 
 - Requirement inputs must include `schema_version` and at least one source

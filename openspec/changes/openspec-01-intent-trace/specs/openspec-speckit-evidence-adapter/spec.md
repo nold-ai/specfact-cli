@@ -14,6 +14,8 @@ the upstream artifacts.
 - **WHEN** the OpenSpec import runs against that change folder
 - **THEN** each spec requirement produces a `RequirementInput` with a stable
   derived `requirement_id` of the form `openspec:<change-id>:<capability>:<requirement-slug>`
+- **AND** repeated titles that derive the same slug receive a deterministic
+  ordinal suffix so every record in one import has a unique identity
 - **AND** each scenario is normalized into a `BusinessRule` with its given,
   when, and then clauses preserved
 - **AND** each record carries a `RequirementSourceReference` with
@@ -49,6 +51,8 @@ without requiring any SpecFact-specific metadata in the upstream artifacts.
 - **WHEN** the Spec Kit import runs against that feature folder
 - **THEN** each requirement produces a `RequirementInput` with a stable derived
   `requirement_id` of the form `speckit:<feature-dir>:<requirement-slug>`
+- **AND** repeated requirement text that derives the same slug receives a
+  deterministic ordinal suffix so every record in one import has a unique identity
 - **AND** acceptance scenarios are normalized into `BusinessRule` records
 - **AND** each record carries a `RequirementSourceReference` with
   `source_type` `speckit_spec`
@@ -106,7 +110,7 @@ artifacts do not provide a dependable universal tool-version field.
 #### Scenario: Custom OpenSpec schema is rejected without partial records
 
 - **GIVEN** an OpenSpec change whose project or change configuration declares
-  a schema other than the tested default
+  a schema other than the tested default, or declares a non-string schema value
 - **WHEN** the OpenSpec import runs
 - **THEN** the result contains an error diagnostic with code
   `unsupported-source-schema`

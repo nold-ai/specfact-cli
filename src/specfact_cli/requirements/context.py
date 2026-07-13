@@ -162,10 +162,17 @@ def _project_root_supported(project_root: Path | None) -> bool:
 
 
 def _read_config_mapping(path: Path) -> dict[str, Any]:
-    if not path.is_file():
+    try:
+        if not path.is_file():
+            return {}
+        raw = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    except (OSError, yaml.YAMLError):
         return {}
-    raw = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
     return raw if isinstance(raw, dict) else {}
+
+
+def _without_profile_derived_values(layer: Mapping[str, Any]) -> dict[str, Any]:
+    return {key: value for key, value in layer.items() if key not in {"profile", "requirements_schema"}}
 
 
 def _configured_profile(*layers: Mapping[str, object]) -> str:
@@ -195,6 +202,10 @@ def _resolve_requirement_profile(
     configured = _configured_profile(developer_local, repo_overlay, org_baseline)
     effective_profile = profile or configured
     resolver_profile = _PROFILE_RESOLUTION_ALIASES.get(effective_profile, effective_profile)
+    if profile is not None:
+        org_baseline = _without_profile_derived_values(org_baseline)
+        repo_overlay = _without_profile_derived_values(repo_overlay)
+        developer_local = _without_profile_derived_values(developer_local)
     resolved = resolve_profile_config(
         resolver_profile,
         org_baseline=org_baseline,
@@ -366,12 +377,19 @@ def _scenario_unverified_violation(requirement: RequirementInput, *, severity: s
     }
 
 
-def _source_integrity_violations(requirement: RequirementInput, *, severity: str) -> list[dict[str, str]]:
+def _source_integrity_violations(
+    requirement: RequirementInput,
+    *,
+    severity: str,
+    project_root: Path,
+) -> list[dict[str, str]]:
     violations: list[dict[str, str]] = []
     for source in requirement.sources:
         if source.source_type not in {RequirementSourceType.OPENSPEC_CHANGE, RequirementSourceType.SPECKIT_SPEC}:
             continue
         source_path = Path(source.locator)
+        if not source_path.is_absolute():
+            source_path = project_root / source_path
         if not source_path.is_file():
             violations.append(
                 {
@@ -409,7 +427,12 @@ def _ambiguous_mapping_violations(identities: Mapping[str, set[str]], *, severit
     ]
 
 
-def _import_gate_violations(requirements: Sequence[RequirementInput], *, severity: str) -> list[dict[str, str]]:
+def _import_gate_violations(
+    requirements: Sequence[RequirementInput],
+    *,
+    severity: str,
+    project_root: Path,
+) -> list[dict[str, str]]:
     violations: list[dict[str, str]] = []
     identities: dict[str, set[str]] = {}
     for requirement in requirements:
@@ -421,7 +444,13 @@ def _import_gate_violations(requirements: Sequence[RequirementInput], *, severit
         scenario_violation = _scenario_unverified_violation(requirement, severity=severity)
         if scenario_violation:
             violations.append(scenario_violation)
-        violations.extend(_source_integrity_violations(requirement, severity=severity))
+        violations.extend(
+            _source_integrity_violations(
+                requirement,
+                severity=severity,
+                project_root=project_root,
+            )
+        )
     violations.extend(_ambiguous_mapping_violations(identities, severity=severity))
     return violations
 
@@ -508,7 +537,13 @@ def validate_requirement_context(
     severity = _missing_evidence_severity(cast(RequirementContextValidationProfile, effective_profile))
     coverage = inspect_requirement_context_coverage(requirements)
     violations = _missing_evidence_violations(coverage, severity=severity)
-    violations.extend(_import_gate_violations(requirements, severity=severity))
+    violations.extend(
+        _import_gate_violations(
+            requirements,
+            severity=severity,
+            project_root=project_root or Path.cwd(),
+        )
+    )
     violations.extend(
         _required_field_violations(
             requirements,

@@ -10,6 +10,17 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.52.1] - 2026-07-13
+
+### Fixed
+
+- **Import evidence review hardening**: reject malformed OpenSpec schema
+  declarations, preserve unique deterministic requirement identities, resolve
+  relative source locators from the project root, and tolerate unreadable
+  optional profile configuration.
+
+---
+
 ## [0.52.0] - 2026-07-13
 
 ### Added

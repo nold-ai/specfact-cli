@@ -42,6 +42,16 @@ def _slug(value: str) -> str:
     return re.sub(r"-+", "-", re.sub(r"[^a-z0-9]+", "-", value.lower())).strip("-") or "requirement"
 
 
+def _unique_requirement_id(base_id: str, seen_ids: set[str]) -> str:
+    candidate = base_id
+    ordinal = 2
+    while candidate in seen_ids:
+        candidate = f"{base_id}-{ordinal}"
+        ordinal += 1
+    seen_ids.add(candidate)
+    return candidate
+
+
 def _source_revision(path: Path) -> str:
     return f"sha256:{hashlib.sha256(path.read_bytes()).hexdigest()}"
 
@@ -97,7 +107,7 @@ def _missing_source_result(source: Path, source_type: RequirementSourceType) -> 
         diagnostics=[
             RequirementContextDiagnostic(
                 severity=RequirementContextDiagnosticSeverity.ERROR,
-                code="source_missing",
+                code="source-missing",
                 message=f"Required {source_type.value} source does not exist.",
                 source_locator=str(source),
             )
@@ -123,16 +133,16 @@ def _unsupported_source_result(
 
 
 def _load_schema_name(path: Path) -> str | None:
-    if not path.is_file():
-        return None
     try:
+        if not path.is_file():
+            return None
         data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-    except yaml.YAMLError:
+    except (OSError, yaml.YAMLError):
         return "<invalid>"
     if not isinstance(data, dict):
         return "<invalid>"
     schema = cast(dict[str, object], data).get("schema")
-    return schema if isinstance(schema, str) else None
+    return "<invalid>" if "schema" in data and not isinstance(schema, str) else cast(str | None, schema)
 
 
 def _openspec_compatibility_error(change_dir: Path, spec_paths: list[Path]) -> RequirementContextImportResult | None:
@@ -195,9 +205,9 @@ def _import_result_has_requirements(result: RequirementContextImportResult) -> b
     return all(isinstance(record, RequirementInput) for record in result.requirements)
 
 
-@beartype
 @require(lambda change_dir: isinstance(change_dir, Path), "change_dir must be a Path")
 @ensure(_import_result_has_requirements)
+@beartype
 def import_openspec_change(change_dir: Path) -> RequirementContextImportResult:
     """Normalize one native OpenSpec change directory without modifying it."""
     if not change_dir.is_dir():
@@ -209,21 +219,16 @@ def import_openspec_change(change_dir: Path) -> RequirementContextImportResult:
         return compatibility_error
 
     parser = OpenSpecParser()
-    proposal_path = change_dir / "proposal.md"
-    tasks_path = change_dir / "tasks.md"
-    parser.parse_change_proposal(proposal_path)
-    if tasks_path.exists():
-        tasks_path.read_text(encoding="utf-8")
-
     requirements: list[RequirementInput] = []
     diagnostics: list[RequirementContextDiagnostic] = []
+    seen_requirement_ids: set[str] = set()
     for spec_path in spec_paths:
         parsed = parser.parse_change_spec_delta(spec_path)
         if parsed is None:
             diagnostics.append(
                 RequirementContextDiagnostic(
                     severity=RequirementContextDiagnosticSeverity.ERROR,
-                    code="source_missing",
+                    code="source-missing",
                     message="OpenSpec delta specification could not be read.",
                     source_locator=str(spec_path),
                 )
@@ -241,7 +246,10 @@ def import_openspec_change(change_dir: Path) -> RequirementContextImportResult:
             r"^### Requirement:\s*(.+?)\n(.*?)(?=^### Requirement:|\Z)", content, re.MULTILINE | re.DOTALL
         ):
             title = match.group(1).strip()
-            requirement_id = f"openspec:{change_dir.name}:{capability}:{_slug(title)}"
+            requirement_id = _unique_requirement_id(
+                f"openspec:{change_dir.name}:{capability}:{_slug(title)}",
+                seen_requirement_ids,
+            )
             body = match.group(2).strip()
             summary = body.split("#### Scenario:", maxsplit=1)[0].strip() or None
             requirements.append(
@@ -257,9 +265,9 @@ def import_openspec_change(change_dir: Path) -> RequirementContextImportResult:
     return RequirementContextImportResult(requirements=requirements, diagnostics=diagnostics)
 
 
-@beartype
 @require(lambda feature_dir: isinstance(feature_dir, Path), "feature_dir must be a Path")
 @ensure(_import_result_has_requirements)
+@beartype
 def import_speckit_feature(feature_dir: Path) -> RequirementContextImportResult:
     """Normalize one native Spec Kit feature directory without modifying it."""
     spec_path = feature_dir / "spec.md"
@@ -282,6 +290,7 @@ def import_speckit_feature(feature_dir: Path) -> RequirementContextImportResult:
         revision=_source_revision(spec_path),
     )
     requirements: list[RequirementInput] = []
+    seen_requirement_ids: set[str] = set()
     raw_requirements = cast(list[object], parsed.get("requirements", []))
     for raw_requirement in raw_requirements:
         if not isinstance(raw_requirement, dict):
@@ -290,7 +299,10 @@ def import_speckit_feature(feature_dir: Path) -> RequirementContextImportResult:
         summary = str(requirement_values.get("text", "")).strip()
         if not summary:
             continue
-        requirement_id = f"speckit:{feature_dir.name}:{_slug(summary)}"
+        requirement_id = _unique_requirement_id(
+            f"speckit:{feature_dir.name}:{_slug(summary)}",
+            seen_requirement_ids,
+        )
         requirements.append(
             RequirementInput(
                 schema_version="1",

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 from pathlib import Path
 
 import pytest
@@ -161,6 +162,22 @@ def test_import_openspec_change_rejects_change_local_custom_schema_without_parti
     assert result.diagnostics[0].code == "unsupported-source-schema"
 
 
+@pytest.mark.parametrize("schema_value", ["123", "true", "null", "{profile: default}"])
+def test_import_openspec_change_rejects_non_string_schema_without_partial_records(
+    tmp_path: Path,
+    schema_value: str,
+) -> None:
+    """Malformed schema declarations cannot fall through to the default profile."""
+    change_dir = tmp_path / "openspec" / "changes" / "widget-evidence"
+    _write_openspec_change(change_dir)
+    (change_dir.parent.parent / "config.yaml").write_text(f"schema: {schema_value}\n", encoding="utf-8")
+
+    result = import_openspec_change(change_dir)
+
+    assert result.requirements == []
+    assert result.diagnostics[0].code == "unsupported-source-schema"
+
+
 @pytest.mark.parametrize(
     "customization_root",
     [
@@ -204,6 +221,46 @@ def test_imports_reject_unknown_default_profile_markers_without_partial_records(
     assert speckit_result.diagnostics[0].code == "unsupported-source-schema"
 
 
+def test_importers_disambiguate_duplicate_derived_requirement_ids(tmp_path: Path) -> None:
+    """Repeated upstream titles and summaries retain distinct deterministic identities."""
+    change_dir = tmp_path / "openspec" / "changes" / "widget-evidence"
+    openspec_spec = _write_openspec_change(change_dir)
+    openspec_spec.write_text(
+        openspec_spec.read_text(encoding="utf-8")
+        + """
+
+### Requirement: Widget rendering
+
+The system SHALL render a fallback widget.
+
+#### Scenario: Render a fallback widget
+
+- **GIVEN** a fallback widget request
+- **WHEN** rendering runs
+- **THEN** the fallback widget is returned
+""",
+        encoding="utf-8",
+    )
+    feature_dir = tmp_path / "specs" / "001-widget-rendering"
+    speckit_spec = _write_speckit_feature(feature_dir)
+    speckit_spec.write_text(
+        speckit_spec.read_text(encoding="utf-8") + "\n- **FR-002**: System MUST render a widget\n",
+        encoding="utf-8",
+    )
+
+    openspec_result = import_openspec_change(change_dir)
+    speckit_result = import_speckit_feature(feature_dir)
+
+    assert [record.requirement_id for record in openspec_result.requirements] == [
+        "openspec:widget-evidence:widgets:widget-rendering",
+        "openspec:widget-evidence:widgets:widget-rendering-2",
+    ]
+    assert [record.requirement_id for record in speckit_result.requirements] == [
+        "speckit:001-widget-rendering:render-a-widget",
+        "speckit:001-widget-rendering:render-a-widget-2",
+    ]
+
+
 def test_validation_reports_import_gates_and_profile_required_field_advisories(tmp_path: Path) -> None:
     """Validation distinguishes import failures from unsupported profile metadata."""
     source_file = tmp_path / "missing-after-import.md"
@@ -244,7 +301,8 @@ def test_validation_reports_import_gates_and_profile_required_field_advisories(t
         "unsupported-profile-field",
     }
     assert all(
-        violation["code"] != "required-field-missing" or violation["location"] != "requirements.inputs[0].owner"
+        violation["code"] != "required-field-missing"
+        or violation["location"] != f"requirements.inputs[{requirement.requirement_id}].owner"
         for violation in report.violations
     )
 
@@ -306,13 +364,67 @@ def test_validation_reports_scenario_stale_and_ambiguous_import_gates(tmp_path: 
     }
 
 
+def test_validation_resolves_relative_source_locator_from_project_root(tmp_path: Path) -> None:
+    """Validation uses project_root rather than the process working directory for relative locators."""
+    source_file = tmp_path / "source.md"
+    source_file.write_text("source", encoding="utf-8")
+    requirement = _imported_requirement(
+        source_file,
+        revision=f"sha256:{hashlib.sha256(source_file.read_bytes()).hexdigest()}",
+        with_test_link=True,
+    ).model_copy(
+        update={
+            "sources": [
+                RequirementSourceReference(
+                    source_type=RequirementSourceType.OPENSPEC_CHANGE,
+                    locator="source.md",
+                    revision=f"sha256:{hashlib.sha256(source_file.read_bytes()).hexdigest()}",
+                )
+            ]
+        }
+    )
+
+    report = validate_requirement_context(
+        attach_requirements_to_bundle(_bundle(), [requirement]),
+        profile="solo",
+        project_root=tmp_path,
+    )
+
+    assert report.status == "passed"
+
+
+def test_validation_ignores_malformed_optional_config(tmp_path: Path) -> None:
+    """Unreadable optional configuration cannot prevent requirements validation."""
+    source_file = tmp_path / "source.md"
+    source_file.write_text("source", encoding="utf-8")
+    config_dir = tmp_path / ".specfact"
+    config_dir.mkdir()
+    (config_dir / "config.yaml").write_text("profile: [\n", encoding="utf-8")
+    requirement = _imported_requirement(
+        source_file,
+        revision=f"sha256:{hashlib.sha256(source_file.read_bytes()).hexdigest()}",
+        with_test_link=True,
+    )
+
+    report = validate_requirement_context(
+        attach_requirements_to_bundle(_bundle(), [requirement]),
+        profile="solo",
+        project_root=tmp_path,
+    )
+
+    assert report.status == "passed"
+
+
 def test_omitted_profile_uses_layered_configuration_and_explicit_profile_wins(tmp_path: Path) -> None:
     """Profile resolution changes severity only when callers do not specify one."""
     source_file = tmp_path / "source.md"
     source_file.write_text("source", encoding="utf-8")
     config_dir = tmp_path / ".specfact"
     config_dir.mkdir()
-    (config_dir / "config.yaml").write_text("profile: enterprise\n", encoding="utf-8")
+    (config_dir / "config.yaml").write_text(
+        "profile: enterprise\nrequirements_schema:\n  required_fields: [owner]\n",
+        encoding="utf-8",
+    )
     bundle = attach_requirements_to_bundle(
         _bundle(),
         [_imported_requirement(source_file, revision="sha256:outdated", with_test_link=False)],
@@ -323,3 +435,4 @@ def test_omitted_profile_uses_layered_configuration_and_explicit_profile_wins(tm
 
     assert configured_report.status == "failed"
     assert explicit_report.status == "warnings"
+    assert not any(violation["code"] == "required-field-missing" for violation in explicit_report.violations)
