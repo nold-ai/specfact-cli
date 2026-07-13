@@ -1,0 +1,82 @@
+# TDD Evidence: openspec-01-intent-trace
+
+**Date**: 2026-07-13 (Europe/Berlin)
+
+## Failing Before Production Code
+
+```text
+$ hatch run pytest tests/unit/requirements/test_upstream_evidence_imports.py -q
+ImportError: cannot import name 'import_openspec_change' from 'specfact_cli.requirements'
+```
+
+The test was added after the OpenSpec delta defined native import, content-hash,
+read-only, gate, and profile-mapping behavior. It failed during collection
+because the core normalizers did not yet exist.
+
+## Iteration Finding
+
+```text
+$ hatch run pytest tests/unit/requirements/test_upstream_evidence_imports.py tests/unit/requirements/test_context_adapter.py -q
+1 failed, 11 passed
+KeyError: 'code'
+```
+
+The expanded deterministic-gate test exposed that the pre-existing
+missing-evidence finding lacked a machine-readable category. The implementation
+now emits `missing-evidence` without changing its severity, message, or
+location contract.
+
+## Passing After Production Code
+
+```text
+$ hatch run pytest tests/unit/requirements/test_upstream_evidence_imports.py tests/unit/requirements/test_context_adapter.py -q
+12 passed in 0.47s
+```
+
+The passing run covers OpenSpec and Spec Kit normalization, deterministic IDs,
+GIVEN/WHEN/THEN preservation, `sha256:` revisions, read-only source behavior,
+all four import gates, explicit-profile precedence, layered-profile resolution,
+and the evidence-compatible required-field mapping.
+
+## Compatibility Boundary: Failing Before Preflight
+
+```text
+$ hatch run pytest tests/unit/requirements/test_upstream_evidence_imports.py -q
+3 failed, 5 passed
+```
+
+The new tests proved that custom OpenSpec schemas, Spec Kit template
+customization roots, and unrecognized Markdown markers were previously
+accepted or silently returned no records without an explanatory diagnostic.
+
+## Compatibility Boundary: Passing After Preflight
+
+```text
+$ hatch run pytest tests/unit/requirements/test_upstream_evidence_imports.py tests/unit/requirements/test_context_adapter.py -q
+18 passed in 0.98s
+```
+
+The compatibility tests cover default profile acceptance, project- and
+change-local OpenSpec schema rejection, all supported Spec Kit customization
+root rejections, unknown Markdown markers, and the no-partial-records
+contract for `unsupported-source-schema`.
+
+## Final Gate Evidence
+
+```text
+$ hatch run smart-test
+2837 tests passed; 64.0% coverage
+
+$ hatch run contract-test
+Runtime contracts: PASS; contract exploration: PASS; scenario tests: 21 passed
+
+$ hatch run specfact code review run --json --out .specfact/code-review.json
+Review completed with no findings.
+
+$ hatch run semgrep-sast --json --output logs/static-analysis/semgrep.json
+$ hatch run semgrep-sast-gate --results logs/static-analysis/semgrep.json --baseline tools/semgrep/sast-baseline.json
+0 current findings; no new findings outside baseline
+
+$ hatch run bandit-scan
+No medium or high issues identified.
+```

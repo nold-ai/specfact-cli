@@ -87,3 +87,45 @@ OpenSpec or Spec Kit directories.
 - **WHEN** import, validation, and coverage inspection run to completion
 - **THEN** the byte content and file listing of the upstream directories are
   unchanged
+
+### Requirement: Fail-Closed Source Compatibility
+
+The system SHALL import only explicitly tested native source-format profiles
+and SHALL reject unrecognized or customized source schemas before emitting any
+requirement records. Compatibility SHALL be structural because upstream
+artifacts do not provide a dependable universal tool-version field.
+
+#### Scenario: Default OpenSpec schema is accepted
+
+- **GIVEN** an OpenSpec change using the default `spec-driven` schema (or no
+  explicit schema) and native requirement/scenario Markdown headings
+- **WHEN** the OpenSpec import runs
+- **THEN** the source is accepted by compatibility preflight
+- **AND** normalization proceeds using the default OpenSpec profile.
+
+#### Scenario: Custom OpenSpec schema is rejected without partial records
+
+- **GIVEN** an OpenSpec change whose project or change configuration declares
+  a schema other than the tested default
+- **WHEN** the OpenSpec import runs
+- **THEN** the result contains an error diagnostic with code
+  `unsupported-source-schema`
+- **AND** the result contains no requirement records from that source.
+
+#### Scenario: Customized Spec Kit templates are rejected without partial records
+
+- **GIVEN** a Spec Kit feature under a project with template overrides,
+  presets, or extension template roots
+- **WHEN** the Spec Kit import runs
+- **THEN** the result contains an error diagnostic with code
+  `unsupported-source-schema`
+- **AND** the result contains no requirement records from that source.
+
+#### Scenario: Unrecognized default-format markers are rejected
+
+- **GIVEN** an OpenSpec or Spec Kit source that does not contain the required
+  headings of its tested default Markdown profile
+- **WHEN** the importer preflights the source
+- **THEN** it emits `unsupported-source-schema`
+- **AND** it does not guess a mapping, fetch upstream definitions, or emit a
+  partial import.

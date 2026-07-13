@@ -65,9 +65,32 @@ gate categories with profile-driven severity.
 - **THEN** the resolved configured profile decides gate severity instead of a hardcoded default
 - **AND** an explicitly passed profile argument overrides the configured profile.
 
+#### Scenario: Profile required fields use evidence-compatible aliases
+
+- **GIVEN** a resolved profile whose `requirements_schema.required_fields`
+  contains `id`, `title`, `acceptance`, `trace_links`, and a field unsupported
+  by `RequirementInput`
+- **WHEN** requirements context validation runs
+- **THEN** `id`, `title`, `acceptance`, and `trace_links` evaluate
+  `requirement_id`, `title`, `business_rules`, and `evidence_links`,
+  respectively, for completeness findings
+- **AND** the unsupported field produces a machine-readable
+  `unsupported-profile-field` advisory
+- **AND** native imported records are not marked incomplete solely because the
+  upstream artifact has no owner, risk, or exception metadata.
+
 #### Scenario: Ambiguous mappings gate validation
 
 - **GIVEN** two imported requirements that claim the same derived requirement identity from different sources
 - **WHEN** requirements context validation runs
 - **THEN** the validation report contains an `ambiguous-mapping` finding naming both source locators
 - **AND** no record is silently dropped or overwritten.
+
+#### Scenario: Unsupported source format blocks module import
+
+- **GIVEN** a module import request whose OpenSpec schema or Spec Kit template
+  profile is not supported by the core evidence adapter
+- **WHEN** the module delegates import to core
+- **THEN** it surfaces the core `unsupported-source-schema` diagnostic without
+  creating or persisting partial requirement records
+- **AND** it does not implement provider-version detection or fallback parsing.

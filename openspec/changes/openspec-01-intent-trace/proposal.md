@@ -58,6 +58,12 @@ this change (see `openspec/CHANGE_ORDER.md`).
   `speckit_spec` source references.
 - **NEW**: Source references from these importers MUST populate `revision`
   with a content hash of the parsed artifact, enabling staleness detection.
+- **NEW**: Import preflight recognizes only the tested default OpenSpec
+  `spec-driven` Markdown profile and the tested default Spec Kit Markdown
+  profile. Custom OpenSpec schemas and Spec Kit template override/preset or
+  extension roots are rejected with a blocking `unsupported-source-schema`
+  diagnostic before any requirement record is emitted; the importer never
+  guesses or returns a partial import.
 - **NEW**: Requirement context validation gains deterministic gate categories:
   `scenario-unverified` (business rule without test/validation evidence link),
   `stale-import` (source content hash no longer matches artifact on disk),
@@ -72,9 +78,14 @@ this change (see `openspec/CHANGE_ORDER.md`).
   validation resolves the effective profile from the layered configuration
   shipped by `profile-01-config-layering` when no explicit profile is passed
   (an explicit flag always wins), and honors the profile's
-  `requirements_schema.required_fields` in completeness findings. Fixes the
-  current gap where `requirements validate` hardcodes the `startup` default
-  and ignores `resolve_profile_config` output entirely.
+  `requirements_schema.required_fields` through an explicit evidence-field
+  mapping: `id` → `requirement_id`, `title` → `title`, `acceptance` →
+  `business_rules`, and `trace_links` → `evidence_links`. Unsupported profile
+  fields are emitted as machine-readable `unsupported-profile-field`
+  advisories; they never make a native imported record incomplete. This change
+  does not add owner, risk, or exception metadata to the import-first schema.
+  Fixes the current gap where `requirements validate` hardcodes the `startup`
+  default and ignores `resolve_profile_config` output entirely.
 - **REMOVED (from this change's previous scope)**: the `## Intent Trace` YAML
   authoring block, `intent-trace.schema.json`, and `--import-intent` bridge
   flag. Never implemented; retired before implementation.
@@ -102,6 +113,9 @@ this change (see `openspec/CHANGE_ORDER.md`).
 - No breaking changes: existing bundles, sidecars, and `--from-file` flows are
   unchanged. Depends on `requirements-01-data-model` and
   `requirements-02-module-commands` (both shipped).
+- This intentionally pins compatibility to source *format profiles*, not an
+  inferred upstream CLI version: native artifacts do not reliably carry one.
+  Future upstream profiles require explicit fixtures and a core adapter update.
 
 ---
 

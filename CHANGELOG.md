@@ -10,6 +10,18 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.52.0] - 2026-07-13
+
+### Added
+
+- **Upstream requirements evidence import**: normalize native OpenSpec and
+  Spec Kit requirement sources into deterministic, auditable records, with
+  source hashes, import gates, layered profile mappings, and required-field
+  advisories. Unsupported or customized source schemas now fail closed without
+  emitting partial records.
+
+---
+
 ## [0.51.2] - 2026-07-10
 
 ### Fixed
