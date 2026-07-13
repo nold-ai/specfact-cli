@@ -14,6 +14,8 @@ the upstream artifacts.
 - **WHEN** the OpenSpec import runs against that change folder
 - **THEN** each spec requirement produces a `RequirementInput` with a stable
   derived `requirement_id` of the form `openspec:<change-id>:<capability>:<requirement-slug>`
+- **AND** repeated titles that derive the same slug receive a deterministic
+  ordinal suffix so every record in one import has a unique identity
 - **AND** each scenario is normalized into a `BusinessRule` with its given,
   when, and then clauses preserved
 - **AND** each record carries a `RequirementSourceReference` with
@@ -49,6 +51,8 @@ without requiring any SpecFact-specific metadata in the upstream artifacts.
 - **WHEN** the Spec Kit import runs against that feature folder
 - **THEN** each requirement produces a `RequirementInput` with a stable derived
   `requirement_id` of the form `speckit:<feature-dir>:<requirement-slug>`
+- **AND** repeated requirement text that derives the same slug receives a
+  deterministic ordinal suffix so every record in one import has a unique identity
 - **AND** acceptance scenarios are normalized into `BusinessRule` records
 - **AND** each record carries a `RequirementSourceReference` with
   `source_type` `speckit_spec`
@@ -87,3 +91,45 @@ OpenSpec or Spec Kit directories.
 - **WHEN** import, validation, and coverage inspection run to completion
 - **THEN** the byte content and file listing of the upstream directories are
   unchanged
+
+### Requirement: Fail-Closed Source Compatibility
+
+The system SHALL import only explicitly tested native source-format profiles
+and SHALL reject unrecognized or customized source schemas before emitting any
+requirement records. Compatibility SHALL be structural because upstream
+artifacts do not provide a dependable universal tool-version field.
+
+#### Scenario: Default OpenSpec schema is accepted
+
+- **GIVEN** an OpenSpec change using the default `spec-driven` schema (or no
+  explicit schema) and native requirement/scenario Markdown headings
+- **WHEN** the OpenSpec import runs
+- **THEN** the source is accepted by compatibility preflight
+- **AND** normalization proceeds using the default OpenSpec profile.
+
+#### Scenario: Custom OpenSpec schema is rejected without partial records
+
+- **GIVEN** an OpenSpec change whose project or change configuration declares
+  a schema other than the tested default, or declares a non-string schema value
+- **WHEN** the OpenSpec import runs
+- **THEN** the result contains an error diagnostic with code
+  `unsupported-source-schema`
+- **AND** the result contains no requirement records from that source.
+
+#### Scenario: Customized Spec Kit templates are rejected without partial records
+
+- **GIVEN** a Spec Kit feature under a project with template overrides,
+  presets, or extension template roots
+- **WHEN** the Spec Kit import runs
+- **THEN** the result contains an error diagnostic with code
+  `unsupported-source-schema`
+- **AND** the result contains no requirement records from that source.
+
+#### Scenario: Unrecognized default-format markers are rejected
+
+- **GIVEN** an OpenSpec or Spec Kit source that does not contain the required
+  headings of its tested default Markdown profile
+- **WHEN** the importer preflights the source
+- **THEN** it emits `unsupported-source-schema`
+- **AND** it does not guess a mapping, fetch upstream definitions, or emit a
+  partial import.

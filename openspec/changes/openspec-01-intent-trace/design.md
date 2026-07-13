@@ -30,6 +30,8 @@ reads what they already produce.
 - Extend requirement context validation with deterministic pass/fail gate
   categories usable in CI via exit codes and JSON evidence.
 - Keep the whole path read-only toward upstream artifacts.
+- Fail closed when an upstream source declares or signals an untested schema or
+  template profile; do not silently emit zero or partial requirement records.
 
 **Non-Goals:**
 
@@ -95,6 +97,16 @@ overlay -> developer local) instead of a hardcoded `startup` default, and the
 profile's `requirements_schema.required_fields` participates in completeness
 findings. The explicit flag always wins.
 
+The requirements evidence adapter evaluates only the following explicit
+aliases: `id` → `requirement_id`, `title` → `title`, `acceptance` →
+`business_rules`, and `trace_links` → `evidence_links`. A configured field
+outside that set is returned as a machine-readable
+`unsupported-profile-field` advisory, not as missing record metadata. Native
+OpenSpec and Spec Kit artifacts do not consistently supply owner, risk, or
+exception metadata; adding those fields here would violate the import-first,
+read-only boundary. A future enrichment change may define a source and schema
+for that metadata.
+
 ### D5: Import runtime lives in the `specfact-requirements` module
 
 **Decision**: Core owns parsers, normalization, hashing, and gate evaluation
@@ -105,11 +117,37 @@ when the path is omitted.
 **Rationale**: Matches the requirements-02 split (core contracts, module
 runtime) and keeps the module thin.
 
+### D6: Structural compatibility profiles, not inferred tool versions
+
+**Decision**: Core preflight accepts only two explicitly tested profiles:
+
+- OpenSpec's default `spec-driven` schema (or no schema declaration) with
+  native `### Requirement:` and `#### Scenario:` Markdown structure.
+- Spec Kit's default Markdown template with `# Feature Specification:` and
+  functional-requirement (`FR-`) entries, provided no project template
+  override, preset, or extension template root is active.
+
+An OpenSpec custom schema, a Spec Kit customization root, malformed profile
+marker, or an unrecognized required Markdown structure returns an error
+diagnostic with code `unsupported-source-schema` and **zero records** for that
+source. The adapter does not attempt fallback parsing or partial emission.
+
+**Rationale**: Neither source artifact format provides a dependable universal
+tool-version field. Inferring a CLI version from Markdown would be false
+precision. Structural profiles make the supported contract deterministic and
+allow upstream changes to fail visibly until a pinned fixture and an explicit
+profile update are added.
+
+**Alternative rejected**: Fetching a current upstream schema during import.
+That makes CI non-reproducible, introduces network authority into a read-only
+normalizer, and could change results mid-run.
+
 ## Risks / Trade-offs
 
 - **[Risk] Upstream format drift** — OpenSpec/Spec Kit layouts evolve.
-  Mitigation: parsers already exist and are covered by fixtures; import
-  failures degrade to `source-missing`/parse diagnostics, never crashes.
+  Mitigation: profile preflight is fail-closed; unsupported sources emit
+  `unsupported-source-schema` and no records until a core fixture-backed
+  profile is deliberately added.
 - **[Risk] Hash churn on whitespace-only edits** — staleness gate fires on any
   byte change. Accepted: deterministic beats clever; re-import is one command
   and idempotent.
@@ -123,6 +161,9 @@ runtime) and keeps the module thin.
 1. No data migration: existing sidecars validate unchanged.
 2. Docs reposition import-first as the flagship path; `--from-file` stays.
 3. `requirements-03-backlog-sync` ordering note updated in `CHANGE_ORDER.md`.
+4. Adding support for a newer upstream format requires a pinned representative
+   fixture, explicit profile change, and a passing compatibility test before
+   release; it is not discovered dynamically during import.
 
 ## Open Questions
 

@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import hashlib
 from collections.abc import Mapping, Sequence
 from enum import StrEnum
 from pathlib import Path
 from typing import Any, Literal, Protocol, cast, get_args
 
+import yaml
 from beartype import beartype
 from icontract import ensure, require
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
@@ -15,10 +17,12 @@ from specfact_cli.models.project import ProjectBundle
 from specfact_cli.models.requirements import (
     RequirementEvidenceLinkType,
     RequirementInput,
+    RequirementSourceType,
     load_requirements_input_extension,
     requirements_input_extension_payload,
 )
 from specfact_cli.models.validation import ValidationReport
+from specfact_cli.modules.init.src.first_run_selection import resolve_profile_config
 
 
 RequirementContextValidationProfile = Literal[
@@ -26,6 +30,7 @@ RequirementContextValidationProfile = Literal[
     "startup",
     "team",
     "enterprise",
+    "mid_size",
     "strict",
     "solo_developer",
     "api_first_team",
@@ -33,6 +38,19 @@ RequirementContextValidationProfile = Literal[
 ]
 KNOWN_REQUIREMENT_CONTEXT_PROFILES: frozenset[str] = frozenset(get_args(RequirementContextValidationProfile))
 STRICT_REQUIREMENT_CONTEXT_PROFILES: frozenset[str] = frozenset({"enterprise", "strict", "enterprise_full_stack"})
+_PROFILE_RESOLUTION_ALIASES: dict[str, str] = {
+    "api_first_team": "mid_size",
+    "enterprise_full_stack": "enterprise",
+    "solo_developer": "solo",
+    "strict": "enterprise",
+    "team": "mid_size",
+}
+_REQUIRED_FIELD_ALIASES: dict[str, str] = {
+    "id": "requirement_id",
+    "title": "title",
+    "acceptance": "business_rules",
+    "trace_links": "evidence_links",
+}
 
 
 class RequirementContextDiagnosticSeverity(StrEnum):
@@ -131,16 +149,77 @@ def _optional_text(value: str | None) -> str | None:
     return value
 
 
-def _profile_nonempty(profile: str) -> bool:
-    return profile.strip() != ""
-
-
-def _profile_supported(profile: str) -> bool:
-    return profile in KNOWN_REQUIREMENT_CONTEXT_PROFILES
-
-
 def _source_locator_supported(source_locator: str | None) -> bool:
     return source_locator is None or type(source_locator) is str
+
+
+def _optional_profile_supported(profile: str | None) -> bool:
+    return profile is None or (profile.strip() != "" and profile in KNOWN_REQUIREMENT_CONTEXT_PROFILES)
+
+
+def _project_root_supported(project_root: Path | None) -> bool:
+    return project_root is None or isinstance(project_root, Path)
+
+
+def _read_config_mapping(path: Path) -> dict[str, Any]:
+    try:
+        if not path.is_file():
+            return {}
+        raw = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    except (OSError, yaml.YAMLError):
+        return {}
+    return raw if isinstance(raw, dict) else {}
+
+
+def _without_profile_derived_values(layer: Mapping[str, Any]) -> dict[str, Any]:
+    return {key: value for key, value in layer.items() if key not in {"profile", "requirements_schema"}}
+
+
+def _configured_profile(*layers: Mapping[str, object]) -> str:
+    for layer in layers:
+        profile = layer.get("profile")
+        if isinstance(profile, str) and profile in KNOWN_REQUIREMENT_CONTEXT_PROFILES:
+            return profile
+    return "startup"
+
+
+def _requirements_schema_fields(values: Mapping[str, Any]) -> list[str]:
+    schema = values.get("requirements_schema")
+    if not isinstance(schema, Mapping):
+        return []
+    fields = cast(Mapping[str, object], schema).get("required_fields")
+    return [field for field in fields if isinstance(field, str)] if isinstance(fields, list) else []
+
+
+def _resolve_requirement_profile(
+    profile: RequirementContextValidationProfile | None,
+    project_root: Path | None,
+) -> tuple[str, dict[str, Any]]:
+    root = project_root or Path.cwd()
+    org_baseline = _read_config_mapping(Path.home() / ".specfact" / "config.yaml")
+    repo_overlay = _read_config_mapping(root / ".specfact" / "config.yaml")
+    developer_local = _read_config_mapping(root / ".specfact" / "config.local.yaml")
+    configured = _configured_profile(developer_local, repo_overlay, org_baseline)
+    effective_profile = profile or configured
+    resolver_profile = _PROFILE_RESOLUTION_ALIASES.get(effective_profile, effective_profile)
+    if profile is not None:
+        org_baseline = _without_profile_derived_values(org_baseline)
+        repo_overlay = _without_profile_derived_values(repo_overlay)
+        developer_local = _without_profile_derived_values(developer_local)
+    resolved = resolve_profile_config(
+        resolver_profile,
+        org_baseline=org_baseline,
+        repo_overlay=repo_overlay,
+        developer_local=developer_local,
+    )
+    return effective_profile, resolved.values
+
+
+def _is_imported_requirement(requirement: RequirementInput) -> bool:
+    return any(
+        source.source_type in {RequirementSourceType.OPENSPEC_CHANGE, RequirementSourceType.SPECKIT_SPEC}
+        for source in requirement.sources
+    )
 
 
 def _coverage_summary_consistent(result: RequirementContextCoverageSummary) -> bool:
@@ -274,12 +353,143 @@ def _missing_evidence_violations(
 ) -> list[dict[str, str]]:
     return [
         {
+            "code": "missing-evidence",
             "severity": severity,
             "message": "Requirement input has no downstream evidence links.",
             "location": f"requirements.inputs[{requirement_id}].evidence_links",
         }
         for requirement_id in coverage.missing_evidence_requirement_ids
     ]
+
+
+def _scenario_unverified_violation(requirement: RequirementInput, *, severity: str) -> dict[str, str] | None:
+    if not requirement.business_rules or any(
+        link.link_type in {RequirementEvidenceLinkType.TEST, RequirementEvidenceLinkType.VALIDATION}
+        for link in requirement.evidence_links
+    ):
+        return None
+    rule_ids = ", ".join(rule.rule_id for rule in requirement.business_rules)
+    return {
+        "code": "scenario-unverified",
+        "severity": severity,
+        "message": f"Imported scenarios have no test or validation evidence links: {rule_ids}.",
+        "location": f"requirements.inputs[{requirement.requirement_id}].business_rules",
+    }
+
+
+def _source_integrity_violations(
+    requirement: RequirementInput,
+    *,
+    severity: str,
+    project_root: Path,
+) -> list[dict[str, str]]:
+    violations: list[dict[str, str]] = []
+    for source in requirement.sources:
+        if source.source_type not in {RequirementSourceType.OPENSPEC_CHANGE, RequirementSourceType.SPECKIT_SPEC}:
+            continue
+        source_path = Path(source.locator)
+        if not source_path.is_absolute():
+            source_path = project_root / source_path
+        if not source_path.is_file():
+            violations.append(
+                {
+                    "code": "source-missing",
+                    "severity": severity,
+                    "message": "Imported source artifact no longer exists.",
+                    "location": source.locator,
+                }
+            )
+            continue
+        if source.revision and source.revision.startswith("sha256:"):
+            current_revision = f"sha256:{hashlib.sha256(source_path.read_bytes()).hexdigest()}"
+            if current_revision != source.revision:
+                violations.append(
+                    {
+                        "code": "stale-import",
+                        "severity": severity,
+                        "message": "Imported source artifact content changed after import.",
+                        "location": source.locator,
+                    }
+                )
+    return violations
+
+
+def _ambiguous_mapping_violations(identities: Mapping[str, set[str]], *, severity: str) -> list[dict[str, str]]:
+    return [
+        {
+            "code": "ambiguous-mapping",
+            "severity": severity,
+            "message": "Multiple imported sources claim the same requirement identity.",
+            "location": f"requirements.inputs[{requirement_id}]",
+        }
+        for requirement_id, locators in identities.items()
+        if len(locators) > 1
+    ]
+
+
+def _import_gate_violations(
+    requirements: Sequence[RequirementInput],
+    *,
+    severity: str,
+    project_root: Path,
+) -> list[dict[str, str]]:
+    violations: list[dict[str, str]] = []
+    identities: dict[str, set[str]] = {}
+    for requirement in requirements:
+        if not _is_imported_requirement(requirement):
+            continue
+        identities.setdefault(requirement.requirement_id, set()).update(
+            source.locator for source in requirement.sources
+        )
+        scenario_violation = _scenario_unverified_violation(requirement, severity=severity)
+        if scenario_violation:
+            violations.append(scenario_violation)
+        violations.extend(
+            _source_integrity_violations(
+                requirement,
+                severity=severity,
+                project_root=project_root,
+            )
+        )
+    violations.extend(_ambiguous_mapping_violations(identities, severity=severity))
+    return violations
+
+
+def _required_field_violations(
+    requirements: Sequence[RequirementInput],
+    required_fields: Sequence[str],
+    *,
+    severity: str,
+) -> list[dict[str, str]]:
+    imported_requirements = [requirement for requirement in requirements if _is_imported_requirement(requirement)]
+    if not imported_requirements:
+        return []
+
+    violations: list[dict[str, str]] = []
+    for field in required_fields:
+        attribute = _REQUIRED_FIELD_ALIASES.get(field)
+        if attribute is None:
+            violations.append(
+                {
+                    "code": "unsupported-profile-field",
+                    "severity": "info",
+                    "message": "Profile field is not represented by the import-first requirements evidence schema.",
+                    "location": f"requirements_schema.required_fields[{field}]",
+                }
+            )
+            continue
+        for requirement in imported_requirements:
+            value = getattr(requirement, attribute)
+            if not value:
+                violations.append(
+                    {
+                        "code": "required-field-missing",
+                        "severity": severity,
+                        "message": f"Required evidence field '{field}' is missing.",
+                        "location": f"requirements.inputs[{requirement.requirement_id}].{attribute}",
+                    }
+                )
+    return violations
 
 
 def _validation_status(failed: int, warnings: int) -> Literal["passed", "failed", "warnings"]:
@@ -307,21 +517,40 @@ def _validation_summary(
 
 @beartype
 @require(lambda bundle: isinstance(bundle, ProjectBundle), "bundle must be a ProjectBundle")
-@require(_profile_nonempty, "profile must not be empty")
-@require(_profile_supported, "profile must be a supported requirements context validation profile")
+@require(
+    _optional_profile_supported, "profile must be a supported requirements context validation profile when provided"
+)
+@require(_project_root_supported, "project_root must be a Path when provided")
 @ensure(lambda result: isinstance(result, ValidationReport))
 def validate_requirement_context(
     bundle: ProjectBundle,
     *,
-    profile: RequirementContextValidationProfile = "startup",
+    profile: RequirementContextValidationProfile | None = None,
+    project_root: Path | None = None,
 ) -> ValidationReport:
     """Validate requirements context evidence usefulness for a ProjectBundle."""
     requirements = load_requirements_from_bundle(bundle)
     if not requirements:
         return _empty_requirements_report()
 
+    effective_profile, resolved_config = _resolve_requirement_profile(profile, project_root)
+    severity = _missing_evidence_severity(cast(RequirementContextValidationProfile, effective_profile))
     coverage = inspect_requirement_context_coverage(requirements)
-    violations = _missing_evidence_violations(coverage, severity=_missing_evidence_severity(profile))
+    violations = _missing_evidence_violations(coverage, severity=severity)
+    violations.extend(
+        _import_gate_violations(
+            requirements,
+            severity=severity,
+            project_root=project_root or Path.cwd(),
+        )
+    )
+    violations.extend(
+        _required_field_violations(
+            requirements,
+            _requirements_schema_fields(resolved_config),
+            severity=severity,
+        )
+    )
     summary = _validation_summary(requirements, coverage, violations)
     return ValidationReport(
         status=_validation_status(summary["failed"], summary["warnings"]),

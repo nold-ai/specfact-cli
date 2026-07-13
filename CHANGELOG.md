@@ -10,6 +10,38 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.52.2] - 2026-07-13
+
+### Fixed
+
+- **OpenSpec schema import resilience**: reject invalid UTF-8 configuration
+  with the standard fail-closed source-schema diagnostic instead of crashing.
+
+---
+
+## [0.52.1] - 2026-07-13
+
+### Fixed
+
+- **Import evidence review hardening**: reject malformed OpenSpec schema
+  declarations, preserve unique deterministic requirement identities, resolve
+  relative source locators from the project root, and tolerate unreadable
+  optional profile configuration.
+
+---
+
+## [0.52.0] - 2026-07-13
+
+### Added
+
+- **Upstream requirements evidence import**: normalize native OpenSpec and
+  Spec Kit requirement sources into deterministic, auditable records, with
+  source hashes, import gates, layered profile mappings, and required-field
+  advisories. Unsupported or customized source schemas now fail closed without
+  emitting partial records.
+
+---
+
 ## [0.51.2] - 2026-07-10
 
 ### Fixed
