@@ -264,32 +264,10 @@ The system SHALL render a fallback widget.
 def test_validation_reports_import_gates_and_profile_required_field_advisories(tmp_path: Path) -> None:
     """Validation distinguishes import failures from unsupported profile metadata."""
     source_file = tmp_path / "missing-after-import.md"
-    requirement = RequirementInput(
-        schema_version="1",
-        requirement_id="openspec:widget-evidence:widgets:widget-rendering",
-        title="Widget rendering",
-        sources=[
-            RequirementSourceReference(
-                source_type=RequirementSourceType.OPENSPEC_CHANGE,
-                locator=str(source_file),
-                revision="sha256:0123456789abcdef",
-            )
-        ],
-        business_rules=[
-            BusinessRule(
-                rule_id="rule-1",
-                name="Render a valid widget",
-                given="a valid widget request",
-                when="rendering runs",
-                then="the widget is returned",
-            )
-        ],
-        evidence_links=[
-            RequirementEvidenceLink(
-                link_type=RequirementEvidenceLinkType.TEST,
-                target="tests/unit/requirements/test_upstream_evidence_imports.py",
-            )
-        ],
+    requirement = _imported_requirement(
+        source_file,
+        revision="sha256:0123456789abcdef",
+        with_test_link=True,
     )
     bundle = attach_requirements_to_bundle(_bundle(), [requirement])
 
