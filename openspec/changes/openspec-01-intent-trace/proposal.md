@@ -68,6 +68,13 @@ this change (see `openspec/CHANGE_ORDER.md`).
   authoring systems of record. SpecFact plan-authoring commands remain
   available but are repositioned as secondary; import-first is the documented
   flagship path. Command deprecation mechanics are out of scope here.
+- **CHANGED (shipped-gap fix, folded in 2026-07-13)**: requirement context
+  validation resolves the effective profile from the layered configuration
+  shipped by `profile-01-config-layering` when no explicit profile is passed
+  (an explicit flag always wins), and honors the profile's
+  `requirements_schema.required_fields` in completeness findings. Fixes the
+  current gap where `requirements validate` hardcodes the `startup` default
+  and ignores `resolve_profile_config` output entirely.
 - **REMOVED (from this change's previous scope)**: the `## Intent Trace` YAML
   authoring block, `intent-trace.schema.json`, and `--import-intent` bridge
   flag. Never implemented; retired before implementation.

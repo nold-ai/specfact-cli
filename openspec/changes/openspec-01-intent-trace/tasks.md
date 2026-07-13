@@ -20,12 +20,14 @@ code third. Record evidence in `TDD_EVIDENCE.md`.
 - [ ] 2.2 Add unit tests for OpenSpec import normalization (change folder fixture → `RequirementInput` records with `openspec_change` sources, scenario → `BusinessRule` mapping, `sha256:` revision).
 - [ ] 2.3 Add unit tests for Spec Kit import normalization (feature folder fixture → `RequirementInput` records with `speckit_spec` sources).
 - [ ] 2.4 Add unit tests for gate categories: `scenario-unverified`, `stale-import`, `source-missing`, `ambiguous-mapping`, including profile severity mapping and idempotent re-import.
+- [ ] 2.4b Add unit tests for layered-config profile resolution: omitted profile resolves via `resolve_profile_config` (explicit flag wins), and profile `requirements_schema.required_fields` drives completeness findings.
 - [ ] 2.5 Run targeted tests, capture failing-first output in `TDD_EVIDENCE.md`.
 
 ## 3. Implementation (core)
 
 - [ ] 3.1 Add import normalizers in `src/specfact_cli/requirements/` that consume `adapters/openspec_parser.py` and `importers/speckit_scanner.py`/`speckit_converter.py` output and emit `RequirementInput` records with deterministic IDs and content-hash revisions.
 - [ ] 3.2 Extend `requirements/context.py` validation with the four gate categories and profile-driven severity; keep existing findings intact.
+- [ ] 3.2b Wire layered-config profile resolution: when no explicit profile is passed, resolve the effective profile via `resolve_profile_config` (profile defaults -> org baseline -> repo overlay -> developer local) and apply the profile's `requirements_schema.required_fields` to completeness findings.
 - [ ] 3.3 Guarantee read-only behavior toward upstream artifact directories (contract tests: no writes under source roots).
 - [ ] 3.4 Contract decorators (`@beartype`, `@require`, `@ensure`) on all new public APIs.
 
