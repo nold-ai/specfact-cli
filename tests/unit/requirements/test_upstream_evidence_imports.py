@@ -178,6 +178,18 @@ def test_import_openspec_change_rejects_non_string_schema_without_partial_record
     assert result.diagnostics[0].code == "unsupported-source-schema"
 
 
+def test_import_openspec_change_rejects_invalid_utf8_schema_without_partial_records(tmp_path: Path) -> None:
+    """Unreadable schema configuration fails closed instead of crashing the import."""
+    change_dir = tmp_path / "openspec" / "changes" / "widget-evidence"
+    _write_openspec_change(change_dir)
+    (change_dir.parent.parent / "config.yaml").write_bytes(b"schema: \xff\n")
+
+    result = import_openspec_change(change_dir)
+
+    assert result.requirements == []
+    assert result.diagnostics[0].code == "unsupported-source-schema"
+
+
 @pytest.mark.parametrize(
     "customization_root",
     [

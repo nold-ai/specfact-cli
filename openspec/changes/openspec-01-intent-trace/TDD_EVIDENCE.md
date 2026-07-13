@@ -84,6 +84,20 @@ $ hatch run pytest tests/unit/requirements/test_upstream_evidence_imports.py tes
 The explicit-profile regression assertion also remains green: configured
 profile-derived schema fields cannot override an explicitly passed profile.
 
+### Invalid UTF-8 Schema Remediation (2026-07-13)
+
+```text
+$ hatch run pytest tests/unit/requirements/test_upstream_evidence_imports.py::test_import_openspec_change_rejects_invalid_utf8_schema_without_partial_records -q
+1 failed (UnicodeDecodeError escaped from config.yaml decoding)
+
+$ hatch run pytest tests/unit/requirements/test_upstream_evidence_imports.py tests/unit/requirements/test_context_adapter.py -q
+26 passed
+```
+
+Invalid UTF-8 in an OpenSpec schema configuration now produces the same
+`unsupported-source-schema` fail-closed result as malformed YAML or a
+non-string schema declaration.
+
 ## Final Gate Evidence
 
 ```text

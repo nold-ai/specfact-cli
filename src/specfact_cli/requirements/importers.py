@@ -137,7 +137,7 @@ def _load_schema_name(path: Path) -> str | None:
         if not path.is_file():
             return None
         data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-    except (OSError, yaml.YAMLError):
+    except (OSError, UnicodeDecodeError, yaml.YAMLError):
         return "<invalid>"
     if not isinstance(data, dict):
         return "<invalid>"

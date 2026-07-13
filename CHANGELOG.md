@@ -10,6 +10,15 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.52.2] - 2026-07-13
+
+### Fixed
+
+- **OpenSpec schema import resilience**: reject invalid UTF-8 configuration
+  with the standard fail-closed source-schema diagnostic instead of crashing.
+
+---
+
 ## [0.52.1] - 2026-07-13
 
 ### Fixed
