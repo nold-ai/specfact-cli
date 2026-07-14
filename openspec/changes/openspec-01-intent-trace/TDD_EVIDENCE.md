@@ -98,11 +98,35 @@ Invalid UTF-8 in an OpenSpec schema configuration now produces the same
 `unsupported-source-schema` fail-closed result as malformed YAML or a
 non-string schema declaration.
 
+## PR #647 Review Remediation Evidence (2026-07-14)
+
+### Failing-first
+
+```text
+$ hatch run pytest tests/unit/requirements/test_upstream_evidence_imports.py::test_import_openspec_change_preserves_wrapped_scenario_clauses tests/unit/requirements/test_upstream_evidence_imports.py::test_import_speckit_feature_reports_malformed_requirement_entries tests/unit/requirements/test_upstream_evidence_imports.py::test_validation_ignores_invalid_utf8_optional_config -q
+3 failed
+```
+
+The failures proved that wrapped OpenSpec clauses were truncated, malformed
+Spec Kit requirement entries were silently dropped, and binary optional profile
+configuration raised `UnicodeDecodeError`.
+
+### Passing-after
+
+```text
+$ hatch run pytest tests/unit/requirements/test_upstream_evidence_imports.py tests/unit/requirements/test_context_adapter.py -q
+29 passed
+```
+
+The review remediation preserves Markdown clause continuations, emits bounded
+warnings for malformed Spec Kit entries, and tolerates invalid UTF-8 in
+optional profile configuration.
+
 ## Final Gate Evidence
 
 ```text
 $ hatch run smart-test
-2844 passed, 9 skipped; 64.0% coverage (local `fail_under = 50` threshold)
+2847 passed, 10 skipped; 64.0% coverage (local `fail_under = 50` threshold)
 
 This local result is not evidence that the PR's 80% CI quality-gate threshold
 has passed. At the time recorded, the PR Tests job also failed first on the

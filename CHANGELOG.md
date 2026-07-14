@@ -10,6 +10,16 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.52.3] - 2026-07-14
+
+### Fixed
+
+- **Upstream evidence review remediation**: preserve wrapped OpenSpec scenario
+  clauses, report malformed Spec Kit requirement entries, and tolerate invalid
+  UTF-8 in optional profile configuration.
+
+---
+
 ## [0.52.2] - 2026-07-13
 
 ### Fixed

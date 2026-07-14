@@ -17,7 +17,7 @@ the upstream artifacts.
 - **AND** repeated titles that derive the same slug receive a deterministic
   ordinal suffix so every record in one import has a unique identity
 - **AND** each scenario is normalized into a `BusinessRule` with its given,
-  when, and then clauses preserved
+  when, and then clauses preserved, including Markdown continuation lines
 - **AND** each record carries a `RequirementSourceReference` with
   `source_type` `openspec_change` and a locator pointing at the parsed artifact
 
@@ -56,6 +56,15 @@ without requiring any SpecFact-specific metadata in the upstream artifacts.
 - **AND** acceptance scenarios are normalized into `BusinessRule` records
 - **AND** each record carries a `RequirementSourceReference` with
   `source_type` `speckit_spec`
+
+#### Scenario: Malformed Spec Kit requirement entries remain auditable
+
+- **GIVEN** a supported Spec Kit feature whose parsed requirements contain an
+  entry that is not a mapping or has no requirement text
+- **WHEN** the Spec Kit import runs
+- **THEN** valid entries are still normalized into `RequirementInput` records
+- **AND** each malformed entry produces one bounded `source-missing` warning
+  that identifies the source artifact and entry index
 
 ### Requirement: Content-Hash Source Attribution
 

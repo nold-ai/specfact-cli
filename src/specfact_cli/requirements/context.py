@@ -166,7 +166,7 @@ def _read_config_mapping(path: Path) -> dict[str, Any]:
         if not path.is_file():
             return {}
         raw = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-    except (OSError, yaml.YAMLError):
+    except (OSError, UnicodeDecodeError, yaml.YAMLError):
         return {}
     return raw if isinstance(raw, dict) else {}
 

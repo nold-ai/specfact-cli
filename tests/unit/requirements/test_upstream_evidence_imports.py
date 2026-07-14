@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 
+from specfact_cli.importers.speckit_scanner import SpecKitScanner
 from specfact_cli.models.plan import Product
 from specfact_cli.models.project import BundleManifest, BundleVersions, ProjectBundle
 from specfact_cli.models.requirements import (
@@ -117,6 +118,22 @@ def test_import_openspec_change_normalizes_scenarios_hashes_and_preserves_source
     assert spec_file.read_bytes() == before
 
 
+def test_import_openspec_change_preserves_wrapped_scenario_clauses(tmp_path: Path) -> None:
+    """Indented Markdown continuation lines remain part of the scenario clause."""
+    change_dir = tmp_path / "openspec" / "changes" / "widget-evidence"
+    spec_file = _write_openspec_change(change_dir)
+    spec_file.write_text(
+        spec_file.read_text(encoding="utf-8").replace(
+            "a valid widget request", "a valid widget request\n  with an active account"
+        ),
+        encoding="utf-8",
+    )
+
+    result = import_openspec_change(change_dir)
+
+    assert result.requirements[0].business_rules[0].given == "a valid widget request with an active account"
+
+
 def test_import_speckit_feature_normalizes_requirement_and_scenario(tmp_path: Path) -> None:
     """Spec Kit imports use the existing scanner while preserving G/W/T evidence."""
     feature_dir = tmp_path / "specs" / "001-widget-rendering"
@@ -134,6 +151,34 @@ def test_import_speckit_feature_normalizes_requirement_and_scenario(tmp_path: Pa
     assert requirement.business_rules[0].given == "a valid widget request"
     assert requirement.business_rules[0].when == "rendering runs"
     assert requirement.business_rules[0].then == "the widget is returned"
+
+
+def test_import_speckit_feature_reports_malformed_requirement_entries(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Malformed scanner entries remain auditable without dropping valid requirements."""
+    feature_dir = tmp_path / "specs" / "001-widget-rendering"
+    spec_file = _write_speckit_feature(feature_dir)
+    monkeypatch.setattr(
+        SpecKitScanner,
+        "parse_spec_markdown",
+        lambda _self, _path: {
+            "feature_title": "Widget rendering",
+            "requirements": ["not-a-mapping", {"text": ""}, {"text": "System MUST render a widget"}],
+        },
+    )
+
+    result = import_speckit_feature(feature_dir)
+
+    assert [requirement.requirement_id for requirement in result.requirements] == [
+        "speckit:001-widget-rendering:system-must-render-a-widget"
+    ]
+    assert [(diagnostic.code, diagnostic.severity, diagnostic.record_index) for diagnostic in result.diagnostics] == [
+        ("source-missing", "warning", 0),
+        ("source-missing", "warning", 1),
+    ]
+    assert {diagnostic.source_locator for diagnostic in result.diagnostics} == {str(spec_file)}
 
 
 def test_import_openspec_change_rejects_custom_schema_without_partial_records(tmp_path: Path) -> None:
@@ -400,6 +445,26 @@ def test_validation_ignores_malformed_optional_config(tmp_path: Path) -> None:
         attach_requirements_to_bundle(_bundle(), [requirement]),
         profile="solo",
         project_root=tmp_path,
+    )
+
+    assert report.status == "passed"
+
+
+def test_validation_ignores_invalid_utf8_optional_config(tmp_path: Path) -> None:
+    """Binary optional configuration cannot prevent requirements validation."""
+    source_file = tmp_path / "source.md"
+    source_file.write_text("source", encoding="utf-8")
+    config_dir = tmp_path / ".specfact"
+    config_dir.mkdir()
+    (config_dir / "config.yaml").write_bytes(b"profile: \xff\n")
+    requirement = _imported_requirement(
+        source_file,
+        revision=f"sha256:{hashlib.sha256(source_file.read_bytes()).hexdigest()}",
+        with_test_link=True,
+    )
+
+    report = validate_requirement_context(
+        attach_requirements_to_bundle(_bundle(), [requirement]), project_root=tmp_path
     )
 
     assert report.status == "passed"

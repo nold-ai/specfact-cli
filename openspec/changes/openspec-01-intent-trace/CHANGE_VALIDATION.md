@@ -59,9 +59,9 @@ the profile-default validation semantics, not interface compatibility.
 #### Recommended Updates
 
 - `src/specfact_cli/requirements/__init__.py`: export the new core helpers.
-- `tests/unit/requirements/test_context_adapter.py`: cover import normalization,
-  gate categories, profile resolution, idempotency, and source-directory
-  immutability.
+- `tests/unit/requirements/test_upstream_evidence_imports.py`: cover import
+  normalization, gate categories, profile resolution, idempotency, and
+  source-directory immutability.
 - `nold-ai/specfact-cli-modules#168`: add module command flags and persistence
   wiring after the core helpers are available.
 
@@ -95,10 +95,16 @@ the profile-default validation semantics, not interface compatibility.
 - **Status**: Pass
 - **Command**: `openspec validate openspec-01-intent-trace --strict`
 - **Issues Found/Fixed**: 2 — task ordering/cleanup and required-field mapping.
+- **Failing-before artifact**:
+  `hatch run pytest tests/unit/requirements/test_upstream_evidence_imports.py::test_import_openspec_change_preserves_wrapped_scenario_clauses tests/unit/requirements/test_upstream_evidence_imports.py::test_import_speckit_feature_reports_malformed_requirement_entries tests/unit/requirements/test_upstream_evidence_imports.py::test_validation_ignores_invalid_utf8_optional_config -q`
+  reported 3 failures before the review remediation.
+- **Passing-after artifact**:
+  `hatch run pytest tests/unit/requirements/test_upstream_evidence_imports.py tests/unit/requirements/test_context_adapter.py -q`
+  reported 29 passing tests after remediation.
 
 ## Validation Artifacts
 
-- Worktree: `/Users/dom/git/nold-ai/specfact-cli-worktrees/feature/openspec-01-intent-trace`
+- Worktree: `feature/openspec-01-intent-trace` (host path redacted)
 - GitHub readiness: issue #350 is open and Todo, with parent #371, required
   labels/project assignment, closed blockers #238 and #239, and no items it
   blocks.

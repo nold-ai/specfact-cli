@@ -67,9 +67,13 @@ def _scenario_rules(requirement_id: str, content: str) -> list[BusinessRule]:
         body = match.group(2)
         clauses: dict[str, str] = {}
         for clause in ("given", "when", "then"):
-            clause_match = re.search(rf"^- \*\*{clause.upper()}\*\*\s+(.+)$", body, re.MULTILINE | re.IGNORECASE)
+            clause_match = re.search(
+                rf"^- \*\*{clause.upper()}\*\*\s+([^\n]+(?:\n[ \t]+[^\n]+)*)",
+                body,
+                re.MULTILINE | re.IGNORECASE,
+            )
             if clause_match:
-                clauses[clause] = clause_match.group(1).strip()
+                clauses[clause] = " ".join(clause_match.group(1).split())
         if len(clauses) == 3:
             rules.append(
                 BusinessRule(
@@ -292,12 +296,31 @@ def import_speckit_feature(feature_dir: Path) -> RequirementContextImportResult:
     requirements: list[RequirementInput] = []
     seen_requirement_ids: set[str] = set()
     raw_requirements = cast(list[object], parsed.get("requirements", []))
-    for raw_requirement in raw_requirements:
+    diagnostics: list[RequirementContextDiagnostic] = []
+    for index, raw_requirement in enumerate(raw_requirements):
         if not isinstance(raw_requirement, dict):
+            diagnostics.append(
+                RequirementContextDiagnostic(
+                    severity=RequirementContextDiagnosticSeverity.WARNING,
+                    code="source-missing",
+                    message="Spec Kit requirement entry is not a mapping.",
+                    source_locator=str(spec_path),
+                    record_index=index,
+                )
+            )
             continue
         requirement_values = cast(dict[str, object], raw_requirement)
         summary = str(requirement_values.get("text", "")).strip()
         if not summary:
+            diagnostics.append(
+                RequirementContextDiagnostic(
+                    severity=RequirementContextDiagnosticSeverity.WARNING,
+                    code="source-missing",
+                    message="Spec Kit requirement entry has no text.",
+                    source_locator=str(spec_path),
+                    record_index=index,
+                )
+            )
             continue
         requirement_id = _unique_requirement_id(
             f"speckit:{feature_dir.name}:{_slug(summary)}",
@@ -313,4 +336,4 @@ def import_speckit_feature(feature_dir: Path) -> RequirementContextImportResult:
                 business_rules=_speckit_rules(requirement_id, content),
             )
         )
-    return RequirementContextImportResult(requirements=requirements)
+    return RequirementContextImportResult(requirements=requirements, diagnostics=diagnostics)
