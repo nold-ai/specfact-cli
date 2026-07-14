@@ -12,6 +12,7 @@ from specfact_cli.requirements.context import (
     normalize_requirement_records,
     validate_requirement_context,
 )
+from specfact_cli.requirements.importers import import_openspec_change, import_speckit_feature
 
 
 __all__ = [
@@ -21,6 +22,8 @@ __all__ = [
     "RequirementContextDiagnosticSeverity",
     "RequirementContextImportResult",
     "attach_requirements_to_bundle",
+    "import_openspec_change",
+    "import_speckit_feature",
     "inspect_requirement_context_coverage",
     "load_requirements_from_bundle",
     "normalize_requirement_records",
