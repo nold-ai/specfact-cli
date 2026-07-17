@@ -143,16 +143,14 @@ The `requirements` command group is owned by the requirements module runtime.
 Runtime commands should call the core helpers instead of parsing provider
 payloads directly inside root CLI code.
 
-After this core change ships, the paired module change will add
-`requirements import --from-openspec` and `--from-speckit`; those flags will
+The paired requirements module exposes
+`requirements import --from-openspec` and `--from-speckit`; those flags
 delegate entirely to these core helpers.
 `requirements import --from-file` remains the generic fallback for records
 outside the supported native profiles.
 
-The currently released requirements module does not expose those native-import
-flags yet. It remains compatible because it uses only `--from-file`; the paired
-module release for #346 will declare a `0.53.1` core compatibility floor before
-exposing `--from-openspec` or `--from-speckit`.
+The native-import flags require a core version at or above the paired module's
+`0.53.1` compatibility floor.
 
 ## Compatibility Notes
 
