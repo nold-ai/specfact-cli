@@ -2118,9 +2118,7 @@
     "options": [
       "--bundle",
       "--format",
-      "--from-file",
-      "--from-openspec",
-      "--from-speckit"
+      "--from-file"
     ],
     "owner_package": "nold-ai/specfact-requirements",
     "owner_repo": "nold-ai/specfact-cli-modules",

@@ -8,6 +8,7 @@ from pathlib import Path
 
 import pytest
 
+from specfact_cli.adapters.openspec_parser import OpenSpecParser
 from specfact_cli.importers.speckit_scanner import SpecKitScanner
 from specfact_cli.models.plan import Product
 from specfact_cli.models.project import BundleManifest, BundleVersions, ProjectBundle
@@ -26,6 +27,15 @@ from specfact_cli.requirements import (
     validate_requirement_context,
 )
 from specfact_cli.requirements.context import RequirementContextValidationProfile
+
+
+@pytest.fixture(autouse=True)
+def isolate_user_configuration(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep layered profile resolution independent from developer-local config."""
+    isolated_home = tmp_path / "home"
+    isolated_home.mkdir()
+    monkeypatch.setenv("HOME", str(isolated_home))
+    monkeypatch.setenv("USERPROFILE", str(isolated_home))
 
 
 def _bundle() -> ProjectBundle:
@@ -77,6 +87,8 @@ def _write_speckit_feature(feature_dir: Path) -> Path:
 ### User Story 1 - Render widgets (Priority: P1)
 
 As a user, I want widgets rendered so that I can see them.
+
+This story satisfies FR-001.
 
 **Acceptance Scenarios**:
 
@@ -406,10 +418,73 @@ def test_import_speckit_feature_reports_malformed_requirement_entries(
         "speckit:001-widget-rendering:system-must-render-a-widget"
     ]
     assert [(diagnostic.code, diagnostic.severity, diagnostic.record_index) for diagnostic in result.diagnostics] == [
-        ("source-missing", "warning", 0),
-        ("source-missing", "warning", 1),
+        ("source-malformed", "warning", 0),
+        ("source-malformed", "warning", 1),
     ]
     assert {diagnostic.source_locator for diagnostic in result.diagnostics} == {str(spec_file)}
+
+
+def test_import_openspec_change_discards_prior_records_after_a_parse_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A failed artifact parse cannot return evidence accumulated from earlier artifacts."""
+    change_dir = tmp_path / "openspec" / "changes" / "widget-evidence"
+    _write_openspec_change(change_dir)
+    failing_spec = change_dir / "specs" / "unreadable" / "spec.md"
+    failing_spec.parent.mkdir()
+    failing_spec.write_text(
+        """### Requirement: Unreadable widget
+
+#### Scenario: Unreadable widget
+
+- **GIVEN** a widget
+- **WHEN** parsing runs
+- **THEN** it reports an error
+""",
+        encoding="utf-8",
+    )
+    original_parse = OpenSpecParser.parse_change_spec_delta
+
+    monkeypatch.setattr(
+        OpenSpecParser,
+        "parse_change_spec_delta",
+        lambda self, path: None if path == failing_spec else original_parse(self, path),
+    )
+
+    result = import_openspec_change(change_dir)
+
+    assert result.requirements == []
+    assert [(diagnostic.code, diagnostic.severity) for diagnostic in result.diagnostics] == [
+        ("source-missing", "error")
+    ]
+
+
+def test_import_speckit_feature_maps_scenarios_only_to_explicitly_referenced_requirements(tmp_path: Path) -> None:
+    """Multiple stories cannot create false many-to-many requirement trace links."""
+    feature_dir = tmp_path / "specs" / "001-widget-rendering"
+    spec_file = _write_speckit_feature(feature_dir)
+    spec_file.write_text(
+        spec_file.read_text(encoding="utf-8").replace(
+            "## Requirements\n\n- **FR-001**: System MUST render a widget",
+            """### User Story 2 - Archive widgets (Priority: P2)
+
+This story satisfies FR-002.
+
+1. **Given** an existing widget, **When** archiving runs, **Then** the widget is archived
+
+## Requirements
+
+- **FR-001**: System MUST render a widget
+- **FR-002**: System MUST archive a widget""",
+        ),
+        encoding="utf-8",
+    )
+
+    result = import_speckit_feature(feature_dir)
+
+    assert [rule.given for rule in result.requirements[0].business_rules] == ["a valid widget request"]
+    assert [rule.given for rule in result.requirements[1].business_rules] == ["an existing widget"]
 
 
 def test_import_openspec_change_rejects_custom_schema_without_partial_records(tmp_path: Path) -> None:
@@ -461,6 +536,30 @@ def test_import_openspec_change_rejects_invalid_utf8_schema_without_partial_reco
     (change_dir.parent.parent / "config.yaml").write_bytes(b"schema: \xff\n")
 
     result = import_openspec_change(change_dir)
+
+    assert result.requirements == []
+    assert result.diagnostics[0].code == "unsupported-source-schema"
+
+
+def test_import_openspec_change_rejects_invalid_utf8_spec_without_partial_records(tmp_path: Path) -> None:
+    """Malformed OpenSpec source bytes fail closed rather than escaping as an exception."""
+    change_dir = tmp_path / "openspec" / "changes" / "widget-evidence"
+    spec_file = _write_openspec_change(change_dir)
+    spec_file.write_bytes(b"\xff")
+
+    result = import_openspec_change(change_dir)
+
+    assert result.requirements == []
+    assert result.diagnostics[0].code == "unsupported-source-schema"
+
+
+def test_import_speckit_feature_rejects_invalid_utf8_spec_without_partial_records(tmp_path: Path) -> None:
+    """Malformed Spec Kit source bytes fail closed rather than escaping as an exception."""
+    feature_dir = tmp_path / "specs" / "001-widget-rendering"
+    spec_file = _write_speckit_feature(feature_dir)
+    spec_file.write_bytes(b"\xff")
+
+    result = import_speckit_feature(feature_dir)
 
     assert result.requirements == []
     assert result.diagnostics[0].code == "unsupported-source-schema"
@@ -628,6 +727,39 @@ def test_validation_reports_scenario_stale_and_ambiguous_import_gates(tmp_path: 
         "stale-import",
         "ambiguous-mapping",
     }
+
+
+def test_validation_ignores_supplemental_sources_for_ambiguity_detection(tmp_path: Path) -> None:
+    """Supplemental evidence sources cannot make one imported identity ambiguous."""
+    source_file = tmp_path / "source.md"
+    source_file.write_text("source", encoding="utf-8")
+    requirement = _imported_requirement(
+        source_file,
+        revision=f"sha256:{hashlib.sha256(source_file.read_bytes()).hexdigest()}",
+        with_test_link=True,
+    ).model_copy(
+        update={
+            "sources": [
+                RequirementSourceReference(
+                    source_type=RequirementSourceType.OPENSPEC_CHANGE,
+                    locator=str(source_file),
+                    revision=f"sha256:{hashlib.sha256(source_file.read_bytes()).hexdigest()}",
+                ),
+                RequirementSourceReference(
+                    source_type=RequirementSourceType.FILE,
+                    locator="supplemental-notes.md",
+                ),
+            ]
+        }
+    )
+
+    report = validate_requirement_context(
+        attach_requirements_to_bundle(_bundle(), [requirement]),
+        profile="solo",
+        project_root=tmp_path,
+    )
+
+    assert not any(violation["code"] == "ambiguous-mapping" for violation in report.violations)
 
 
 def test_validation_resolves_relative_source_locator_from_project_root(tmp_path: Path) -> None:

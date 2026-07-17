@@ -10,6 +10,12 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.53.2] - 2026-07-17
+
+### Fixed
+
+- Reconciled the main release line with native-source review hardening.
+
 ## [0.53.1] - 2026-07-17
 
 ### Fixed

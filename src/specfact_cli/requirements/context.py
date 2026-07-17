@@ -463,7 +463,13 @@ def _import_gate_violations(
         if not _is_imported_requirement(requirement):
             continue
         identities.setdefault(requirement.requirement_id, set()).update(
-            source.locator for source in requirement.sources
+            source.locator
+            for source in requirement.sources
+            if source.source_type
+            in {
+                RequirementSourceType.OPENSPEC_CHANGE,
+                RequirementSourceType.SPECKIT_SPEC,
+            }
         )
         scenario_violation = _scenario_unverified_violation(requirement, severity=severity)
         if scenario_violation:

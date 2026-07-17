@@ -44,7 +44,7 @@ this change (see `openspec/CHANGE_ORDER.md`).
   staleness contract, gate categories, and validation behavior.
 - Bundle-owned follow-up required: import runtime flags and command wiring in
   the `specfact-requirements` module.
-- Target modules-repo follow-up issue: [#168](https://github.com/nold-ai/specfact-cli-modules/issues/168)
+- Target modules-repo follow-up issue: [#346](https://github.com/nold-ai/specfact-cli-modules/issues/346)
 - Implementation MUST NOT require OpenSpec or Spec Kit to change their native
   authoring model, and MUST NOT create or mutate upstream artifacts.
 
@@ -85,7 +85,7 @@ this change (see `openspec/CHANGE_ORDER.md`).
   advisories; they never make a native imported record incomplete. This change
   does not add owner, risk, or exception metadata to the import-first schema.
   The requirements CLI still hardcodes the `startup` default; the paired
-  module follow-up (#168) will adopt the core helper rather than duplicating
+  module follow-up (#346) will adopt the core helper rather than duplicating
   profile resolution.
 - **REMOVED (from this change's previous scope)**: the `## Intent Trace` YAML
   authoring block, `intent-trace.schema.json`, and `--import-intent` bridge
@@ -107,8 +107,9 @@ this change (see `openspec/CHANGE_ORDER.md`).
 
 ## Impact
 
-- `specfact requirements import` becomes useful without hand-authored files;
-  `--from-file` remains for generic records.
+- Core import helpers become available without hand-authored files. The
+  released requirements CLI continues to provide `--from-file` until paired
+  module issue #346 ships the native import flags.
 - `specfact requirements validate` becomes a CI-usable pass/fail gate over
   imported upstream context.
 - No breaking changes: existing bundles, sidecars, and `--from-file` flows are
@@ -125,7 +126,7 @@ this change (see `openspec/CHANGE_ORDER.md`).
 <!-- source_repo: nold-ai/specfact-cli -->
 - **GitHub Issue**: #350
 - **Issue URL**: <https://github.com/nold-ai/specfact-cli/issues/350>
-- **Paired Modules Runtime Issue**: nold-ai/specfact-cli-modules#168
+- **Paired Modules Runtime Issue**: nold-ai/specfact-cli-modules#346
 - **Paired Modules Scope**: OpenSpec and Spec Kit evidence import runtime
 - **Last Synced Status**: proposed
 - **Sanitized**: false

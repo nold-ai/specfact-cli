@@ -151,7 +151,7 @@ outside the supported native profiles.
 
 The currently released requirements module does not expose those native-import
 flags yet. It remains compatible because it uses only `--from-file`; the paired
-module release for #168 will declare a `0.52.0` core compatibility floor before
+module release for #346 will declare a `0.53.1` core compatibility floor before
 exposing `--from-openspec` or `--from-speckit`.
 
 ## Compatibility Notes

@@ -122,13 +122,25 @@ def _speckit_has_substantive_requirement(content: str) -> bool:
     )
 
 
-def _speckit_rules(requirement_id: str, content: str) -> list[BusinessRule]:
+def _speckit_rules(
+    requirement_id: str,
+    content: str,
+    *,
+    source_requirement_id: str | None = None,
+) -> list[BusinessRule]:
     rules: list[BusinessRule] = []
     pattern = re.compile(
         r"\*\*Given\*\*\s+(.+?),\s*\*\*When\*\*\s+(.+?),\s*\*\*Then\*\*\s+(.+?)(?=\n|$)",
         re.IGNORECASE,
     )
-    story_content = "\n".join(_speckit_user_story_blocks(content))
+    story_blocks = _speckit_user_story_blocks(content)
+    if source_requirement_id is not None:
+        story_blocks = [
+            block
+            for block in story_blocks
+            if re.search(rf"\b{re.escape(source_requirement_id)}\b", block, re.IGNORECASE)
+        ]
+    story_content = "\n".join(story_blocks)
     for index, match in enumerate(pattern.finditer(story_content), start=1):
         rules.append(
             BusinessRule(
@@ -220,7 +232,14 @@ def _openspec_compatibility_error(change_dir: Path, spec_paths: list[Path]) -> R
             "OpenSpec change has no default-profile spec.md artifact to import.",
         )
     for spec_path in spec_paths:
-        content = spec_path.read_text(encoding="utf-8")
+        try:
+            content = spec_path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            return _unsupported_source_result(
+                spec_path,
+                RequirementSourceType.OPENSPEC_CHANGE,
+                "OpenSpec artifact cannot be read as UTF-8 under the default evidence import profile.",
+            )
         if not (_OPENSPEC_REQUIREMENT_PATTERN.search(content) and _OPENSPEC_SCENARIO_PATTERN.search(content)):
             return _unsupported_source_result(
                 spec_path,
@@ -388,15 +407,16 @@ def import_openspec_change(
     for spec_path in spec_paths:
         parsed = parser.parse_change_spec_delta(spec_path)
         if parsed is None:
-            diagnostics.append(
-                RequirementContextDiagnostic(
-                    severity=RequirementContextDiagnosticSeverity.ERROR,
-                    code="source-missing",
-                    message="OpenSpec delta specification could not be read.",
-                    source_locator=str(spec_path),
-                )
+            return RequirementContextImportResult(
+                diagnostics=[
+                    RequirementContextDiagnostic(
+                        severity=RequirementContextDiagnosticSeverity.ERROR,
+                        code="source-missing",
+                        message="OpenSpec delta specification could not be read.",
+                        source_locator=str(spec_path),
+                    )
+                ]
             )
-            continue
         content = str(parsed.get("raw_content", ""))
         capability = spec_path.parent.name
         source = RequirementSourceReference(
@@ -437,7 +457,14 @@ def import_speckit_feature(feature_dir: Path) -> RequirementContextImportResult:
     if not feature_dir.is_dir() or not spec_path.is_file():
         return _missing_source_result(feature_dir, RequirementSourceType.SPECKIT_SPEC)
 
-    content = spec_path.read_text(encoding="utf-8")
+    try:
+        content = spec_path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return _unsupported_source_result(
+            spec_path,
+            RequirementSourceType.SPECKIT_SPEC,
+            "Spec Kit artifact cannot be read as UTF-8 under the default evidence import profile.",
+        )
     readiness_error = _speckit_readiness_error(spec_path, content)
     if readiness_error:
         return readiness_error
@@ -464,7 +491,7 @@ def import_speckit_feature(feature_dir: Path) -> RequirementContextImportResult:
             diagnostics.append(
                 RequirementContextDiagnostic(
                     severity=RequirementContextDiagnosticSeverity.WARNING,
-                    code="source-missing",
+                    code="source-malformed",
                     message="Spec Kit requirement entry is not a mapping.",
                     source_locator=str(spec_path),
                     record_index=index,
@@ -477,7 +504,7 @@ def import_speckit_feature(feature_dir: Path) -> RequirementContextImportResult:
             diagnostics.append(
                 RequirementContextDiagnostic(
                     severity=RequirementContextDiagnosticSeverity.WARNING,
-                    code="source-missing",
+                    code="source-malformed",
                     message="Spec Kit requirement entry has no text.",
                     source_locator=str(spec_path),
                     record_index=index,
@@ -495,7 +522,11 @@ def import_speckit_feature(feature_dir: Path) -> RequirementContextImportResult:
                 title=summary[:1].upper() + summary[1:],
                 summary=summary,
                 sources=[source],
-                business_rules=_speckit_rules(requirement_id, content),
+                business_rules=_speckit_rules(
+                    requirement_id,
+                    content,
+                    source_requirement_id=f"FR-{index + 1:03d}",
+                ),
             )
         )
     return RequirementContextImportResult(requirements=requirements, diagnostics=diagnostics)
