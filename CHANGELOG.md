@@ -10,6 +10,28 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.53.2] - 2026-07-17
+
+### Fixed
+
+- Reconciled the main release line with native-source review hardening.
+
+## [0.53.1] - 2026-07-17
+
+### Fixed
+
+- Hardened native source readiness and corrected coverage-gate enforcement.
+
+## [0.53.0] - 2026-07-17
+
+### Added
+
+- **Native source readiness**: reject incomplete Spec Kit artifacts and
+  policy-required invalid OpenSpec changes before requirement evidence is
+  normalized.
+
+---
+
 ## [0.52.3] - 2026-07-14
 
 ### Fixed

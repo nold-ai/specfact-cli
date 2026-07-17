@@ -53,7 +53,8 @@ without requiring any SpecFact-specific metadata in the upstream artifacts.
   `requirement_id` of the form `speckit:<feature-dir>:<requirement-slug>`
 - **AND** repeated requirement text that derives the same slug receives a
   deterministic ordinal suffix so every record in one import has a unique identity
-- **AND** acceptance scenarios are normalized into `BusinessRule` records
+- **AND** acceptance scenarios are normalized into `BusinessRule` records only
+  when the user-story block explicitly names the corresponding `FR-` identifier
 - **AND** each record carries a `RequirementSourceReference` with
   `source_type` `speckit_spec`
 
@@ -63,7 +64,7 @@ without requiring any SpecFact-specific metadata in the upstream artifacts.
   entry that is not a mapping or has no requirement text
 - **WHEN** the Spec Kit import runs
 - **THEN** valid entries are still normalized into `RequirementInput` records
-- **AND** each malformed entry produces one bounded `source-missing` warning
+- **AND** each malformed entry produces one bounded `source-malformed` warning
   that identifies the source artifact and entry index
 
 ### Requirement: Content-Hash Source Attribution
@@ -124,6 +125,13 @@ artifacts do not provide a dependable universal tool-version field.
 - **THEN** the result contains an error diagnostic with code
   `unsupported-source-schema`
 - **AND** the result contains no requirement records from that source.
+
+#### Scenario: Invalid native source bytes are rejected without partial records
+
+- **GIVEN** an OpenSpec or Spec Kit `spec.md` artifact that cannot be decoded as UTF-8
+- **WHEN** the importer preflights the source
+- **THEN** it emits `unsupported-source-schema`
+- **AND** it returns no requirement records and does not modify the source.
 
 #### Scenario: Customized Spec Kit templates are rejected without partial records
 

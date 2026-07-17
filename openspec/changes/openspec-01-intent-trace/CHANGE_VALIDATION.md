@@ -19,13 +19,15 @@ normalization and deterministic validation gates. The approved
 evidence-compatible required-field mapping defines their semantics against
 that schema without widening it.
 The `specfact-requirements` command wiring remains explicitly paired with
-`nold-ai/specfact-cli-modules#168`; it does not block the core implementation.
+`nold-ai/specfact-cli-modules#346`; it does not block the core implementation.
 
-The approved compatibility extension adds no public parameter or model change.
-It accepts only fixture-backed default OpenSpec and Spec Kit structural
+The initial approved compatibility extension added no public parameter or model
+change to existing public APIs. The subsequent source-readiness follow-up adds
+keyword-only `profile` and `project_root` parameters to the new native import
+helpers. Both changes accept only fixture-backed default OpenSpec and Spec Kit structural
 profiles, returning `unsupported-source-schema` and no partial records for
 custom or unrecognized sources. This is a non-breaking, additive diagnostic
-contract; #168 will surface it without reimplementing compatibility logic.
+contract; #346 will surface it without reimplementing compatibility logic.
 
 ## Resolved Required-Field Contract
 
@@ -62,7 +64,7 @@ the profile-default validation semantics, not interface compatibility.
 - `tests/unit/requirements/test_upstream_evidence_imports.py`: cover import
   normalization, gate categories, profile resolution, idempotency, and
   source-directory immutability.
-- `nold-ai/specfact-cli-modules#168`: add module command flags and persistence
+- `nold-ai/specfact-cli-modules#346`: add module command flags and persistence
   wiring after the core helpers are available.
 
 ## Risk Assessment

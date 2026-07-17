@@ -12,7 +12,7 @@ tracks:
   - src/specfact_cli/requirements/importers.py
   - tests/unit/requirements/test_context_adapter.py
   - tests/unit/requirements/test_upstream_evidence_imports.py
-last_reviewed: 2026-07-13
+last_reviewed: 2026-07-17
 exempt: false
 exempt_reason: ""
 ---
@@ -63,6 +63,30 @@ live schema during import: native artifacts do not consistently carry a tool
 version, and network-dependent parsing would make CI non-reproducible. To add
 an upstream format, add a pinned representative fixture, extend the core
 profile, and pass its compatibility test before release.
+
+## Source Readiness
+
+Before emitting records, native imports reject incomplete Spec Kit sources with
+an error diagnostic and no partial records. This includes recognized official
+scaffold markers, unresolved `NEEDS CLARIFICATION` text, missing substantive
+Functional Requirements, and a user story without a complete
+Given/When/Then acceptance scenario. The initial compatibility fixture is
+pinned to Spec Kit `v0.12.18`.
+
+OpenSpec imports remain portable by default. Native OpenSpec validation is
+required only when the layered policy enables it:
+
+```yaml
+validation:
+  openspec:
+    require_native_validation: true
+```
+
+The enterprise tier enables this policy by default; `strict` and
+`enterprise_full_stack` resolve through that tier. When validation is required,
+the importer runs `openspec validate <change> --strict --json` with a bounded
+timeout. A failed validation yields `source-invalid`; a missing executable
+yields `upstream-validator-unavailable`.
 
 ## Import Validation Gates
 
@@ -119,16 +143,14 @@ The `requirements` command group is owned by the requirements module runtime.
 Runtime commands should call the core helpers instead of parsing provider
 payloads directly inside root CLI code.
 
-After this core change ships, the paired module change will add
-`requirements import --from-openspec` and `--from-speckit`; those flags will
+The paired requirements module exposes
+`requirements import --from-openspec` and `--from-speckit`; those flags
 delegate entirely to these core helpers.
 `requirements import --from-file` remains the generic fallback for records
 outside the supported native profiles.
 
-The currently released requirements module does not expose those native-import
-flags yet. It remains compatible because it uses only `--from-file`; the paired
-module release for #168 will declare a `0.52.0` core compatibility floor before
-exposing `--from-openspec` or `--from-speckit`.
+The native-import flags require a core version at or above the paired module's
+`0.53.1` compatibility floor.
 
 ## Compatibility Notes
 

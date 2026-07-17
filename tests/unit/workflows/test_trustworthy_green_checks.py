@@ -212,7 +212,9 @@ def test_pr_orchestrator_quality_gates_are_blocking() -> None:
     run_blocks = "\n".join(str(step.get("run", "")) for step in _load_job_steps("quality-gates"))
     assert "advisory" not in run_blocks.lower()
     assert "fail_under" in run_blocks or "COVERAGE_FAIL_UNDER" in run_blocks
-    assert "max(configured_fail_under, 80.0)" in run_blocks
+    assert "print(configured_fail_under)" in run_blocks
+    assert "max(configured_fail_under, 80.0)" not in run_blocks
+    assert "set -o pipefail" in run_blocks
     assert "exit 1" in run_blocks
 
 

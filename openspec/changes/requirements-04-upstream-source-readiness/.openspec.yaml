@@ -1,0 +1,5 @@
+schema: spec-driven
+created: 2026-07-14
+goal: Provide a core-owned, deterministic source-readiness contract that
+  protects evidence integrity without creating an upstream authoring schema or
+  hard runtime dependency.

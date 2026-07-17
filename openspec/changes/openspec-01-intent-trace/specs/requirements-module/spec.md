@@ -35,9 +35,9 @@ gate categories with profile-driven severity.
 The `specfact requirements import --from-openspec` and `--from-speckit`
 command flags, auto-detection, persistence, and diagnostic rendering remain
 unimplemented in the requirements module. They are owned by
-`nold-ai/specfact-cli-modules#168`; this core change supplies only the helpers
+`nold-ai/specfact-cli-modules#346`; this core change supplies only the helpers
 that the future module runtime will call. Until that module release declares a
-core compatibility floor of `0.52.0`, `--from-file` is the only shipped module
+core compatibility floor of `0.53.1`, `--from-file` is the only shipped module
 import path.
 
 #### Scenario: Unverified scenarios gate validation
