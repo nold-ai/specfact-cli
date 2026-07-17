@@ -10,6 +10,7 @@ from specfact_cli.requirements.context import (
     inspect_requirement_context_coverage,
     load_requirements_from_bundle,
     normalize_requirement_records,
+    requires_native_openspec_validation,
     validate_requirement_context,
 )
 from specfact_cli.requirements.importers import import_openspec_change, import_speckit_feature
@@ -27,5 +28,6 @@ __all__ = [
     "inspect_requirement_context_coverage",
     "load_requirements_from_bundle",
     "normalize_requirement_records",
+    "requires_native_openspec_validation",
     "validate_requirement_context",
 ]

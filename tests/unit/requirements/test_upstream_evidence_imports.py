@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -24,6 +25,7 @@ from specfact_cli.requirements import (
     import_speckit_feature,
     validate_requirement_context,
 )
+from specfact_cli.requirements.context import RequirementContextValidationProfile
 
 
 def _bundle() -> ProjectBundle:
@@ -151,6 +153,185 @@ def test_import_speckit_feature_normalizes_requirement_and_scenario(tmp_path: Pa
     assert requirement.business_rules[0].given == "a valid widget request"
     assert requirement.business_rules[0].when == "rendering runs"
     assert requirement.business_rules[0].then == "the widget is returned"
+
+
+def test_import_speckit_feature_rejects_pristine_v01218_scaffold(tmp_path: Path) -> None:
+    """The pinned official Spec Kit scaffold cannot produce placeholder evidence."""
+    feature_dir = tmp_path / "specs" / "001-widget-rendering"
+    spec_file = feature_dir / "spec.md"
+    feature_dir.mkdir(parents=True)
+    fixture = Path(__file__).parents[2] / "fixtures" / "speckit" / "spec-template-v0.12.18.md"
+    spec_file.write_bytes(fixture.read_bytes())
+    before = spec_file.read_bytes()
+
+    result = import_speckit_feature(feature_dir)
+
+    assert result.requirements == []
+    assert [(diagnostic.code, diagnostic.severity) for diagnostic in result.diagnostics] == [
+        ("incomplete-source-template", "error")
+    ]
+    assert result.diagnostics[0].source_locator == str(spec_file)
+    assert spec_file.read_bytes() == before
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        """# Feature Specification: Widget rendering
+
+## Requirements
+
+### Functional Requirements
+""",
+        """# Feature Specification: Widget rendering
+
+## User Scenarios & Testing
+
+### User Story 1 - Render widgets (Priority: P1)
+
+As a user, I want widgets rendered so that I can see them.
+
+## Requirements
+
+### Functional Requirements
+
+- **FR-001**: System MUST render a widget
+""",
+    ],
+    ids=["missing-functional-requirement", "story-without-acceptance-scenario"],
+)
+def test_import_speckit_feature_rejects_structurally_incomplete_source(tmp_path: Path, source: str) -> None:
+    """Sources missing Functional Requirements or story scenarios fail atomically."""
+    feature_dir = tmp_path / "specs" / "001-widget-rendering"
+    spec_file = feature_dir / "spec.md"
+    feature_dir.mkdir(parents=True)
+    spec_file.write_text(source, encoding="utf-8")
+
+    result = import_speckit_feature(feature_dir)
+
+    assert result.requirements == []
+    assert [(diagnostic.code, diagnostic.severity) for diagnostic in result.diagnostics] == [
+        ("source-incomplete", "error")
+    ]
+
+
+@pytest.mark.parametrize(
+    ("returncode", "stdout"),
+    [(1, '{"valid": false}'), (0, '{"valid": false}'), (0, "not-json"), (0, "")],
+    ids=["validator-failure", "zero-exit-invalid-item", "malformed-json", "empty-json"],
+)
+@pytest.mark.parametrize("profile", ["enterprise", "strict", "enterprise_full_stack"])
+def test_import_openspec_change_rejects_invalid_required_native_validation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    returncode: int,
+    stdout: str,
+    profile: RequirementContextValidationProfile,
+) -> None:
+    """Required-profile imports reject failed or unusable native validation results."""
+    change_dir = tmp_path / "openspec" / "changes" / "widget-evidence"
+    spec_file = _write_openspec_change(change_dir)
+    before = spec_file.read_bytes()
+    monkeypatch.setattr(
+        "specfact_cli.requirements.importers.subprocess.run",
+        lambda *_args, **_kwargs: subprocess.CompletedProcess(args=[], returncode=returncode, stdout=stdout),
+    )
+
+    result = import_openspec_change(change_dir, profile=profile, project_root=tmp_path)
+
+    assert result.requirements == []
+    assert [(diagnostic.code, diagnostic.severity) for diagnostic in result.diagnostics] == [
+        ("source-invalid", "error")
+    ]
+    assert spec_file.read_bytes() == before
+
+
+def test_import_openspec_change_rejects_timed_out_required_native_validation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A required native validation timeout fails closed without changing the source."""
+    change_dir = tmp_path / "openspec" / "changes" / "widget-evidence"
+    spec_file = _write_openspec_change(change_dir)
+    before = spec_file.read_bytes()
+    monkeypatch.setattr(
+        "specfact_cli.requirements.importers.subprocess.run",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(subprocess.TimeoutExpired(cmd="openspec", timeout=10)),
+    )
+
+    result = import_openspec_change(change_dir, profile="enterprise", project_root=tmp_path)
+
+    assert result.requirements == []
+    assert [(diagnostic.code, diagnostic.severity) for diagnostic in result.diagnostics] == [
+        ("source-invalid", "error")
+    ]
+    assert spec_file.read_bytes() == before
+
+
+def test_import_openspec_change_reports_missing_required_native_validator(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Enterprise imports name a missing required OpenSpec executable."""
+    change_dir = tmp_path / "openspec" / "changes" / "widget-evidence"
+    _write_openspec_change(change_dir)
+    monkeypatch.setattr(
+        "specfact_cli.requirements.importers.subprocess.run",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(FileNotFoundError()),
+    )
+
+    result = import_openspec_change(change_dir, profile="enterprise", project_root=tmp_path)
+
+    assert result.requirements == []
+    assert [(diagnostic.code, diagnostic.severity) for diagnostic in result.diagnostics] == [
+        ("upstream-validator-unavailable", "error")
+    ]
+
+
+def test_import_openspec_change_honors_layered_native_validation_override(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A repository policy can require validation outside the enterprise tier."""
+    change_dir = tmp_path / "openspec" / "changes" / "widget-evidence"
+    _write_openspec_change(change_dir)
+    config_dir = tmp_path / ".specfact"
+    config_dir.mkdir()
+    (config_dir / "config.yaml").write_text(
+        """profile: startup
+validation:
+  openspec:
+    require_native_validation: true
+""",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(
+        "specfact_cli.requirements.importers.subprocess.run",
+        lambda *_args, **_kwargs: subprocess.CompletedProcess(args=[], returncode=1, stdout='{"valid": false}'),
+    )
+
+    result = import_openspec_change(change_dir, project_root=tmp_path)
+
+    assert result.requirements == []
+    assert result.diagnostics[0].code == "source-invalid"
+
+
+def test_import_openspec_change_does_not_probe_native_validator_when_not_required(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Portable imports do not depend on an ambient OpenSpec executable."""
+    change_dir = tmp_path / "openspec" / "changes" / "widget-evidence"
+    _write_openspec_change(change_dir)
+    monkeypatch.setattr(
+        "specfact_cli.requirements.importers.subprocess.run",
+        lambda *_args, **_kwargs: pytest.fail("portable import must not probe openspec"),
+    )
+
+    result = import_openspec_change(change_dir, profile="startup", project_root=tmp_path)
+
+    assert len(result.requirements) == 1
+    assert result.diagnostics == []
 
 
 def test_import_speckit_feature_reports_malformed_requirement_entries(

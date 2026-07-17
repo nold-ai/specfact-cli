@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import re
+import subprocess
 from pathlib import Path
 from typing import cast
 
@@ -23,6 +25,8 @@ from specfact_cli.requirements.context import (
     RequirementContextDiagnostic,
     RequirementContextDiagnosticSeverity,
     RequirementContextImportResult,
+    RequirementContextValidationProfile,
+    requires_native_openspec_validation,
 )
 
 
@@ -36,6 +40,17 @@ _SPECKIT_CUSTOMIZATION_ROOTS = (
     Path(".specify/presets"),
     Path(".specify/extensions"),
 )
+_OPENSPEC_VALIDATOR_TIMEOUT_SECONDS = 10
+_SPECKIT_TEMPLATE_MARKERS = (
+    "# Feature Specification: [FEATURE NAME]",
+    "**Feature Branch**: `[###-feature-name]`",
+    '**Input**: User description: "$ARGUMENTS"',
+    "### User Story 1 - [Brief Title] (Priority: P1)",
+    "[Describe this user journey in plain language]",
+    "- **FR-001**: System MUST [specific capability,",
+)
+_SPECKIT_NEEDS_CLARIFICATION_MARKER = "[NEEDS CLARIFICATION:"
+_SPECKIT_USER_STORY_PATTERN = re.compile(r"^### User Story\s+\d+\s+-\s+.+$", re.MULTILINE)
 
 
 def _slug(value: str) -> str:
@@ -136,6 +151,24 @@ def _unsupported_source_result(
     )
 
 
+def _readiness_error_result(
+    source: Path,
+    source_type: RequirementSourceType,
+    code: str,
+    message: str,
+) -> RequirementContextImportResult:
+    return RequirementContextImportResult(
+        diagnostics=[
+            RequirementContextDiagnostic(
+                severity=RequirementContextDiagnosticSeverity.ERROR,
+                code=code,
+                message=message,
+                source_locator=str(source),
+            )
+        ]
+    )
+
+
 def _load_schema_name(path: Path) -> str | None:
     try:
         if not path.is_file():
@@ -205,17 +238,122 @@ def _speckit_compatibility_error(
     return None
 
 
+def _speckit_readiness_error(spec_path: Path, content: str) -> RequirementContextImportResult | None:
+    if not _SPECKIT_TITLE_PATTERN.search(content):
+        return None
+    if any(marker in content for marker in _SPECKIT_TEMPLATE_MARKERS) or _SPECKIT_NEEDS_CLARIFICATION_MARKER in content:
+        return _readiness_error_result(
+            spec_path,
+            RequirementSourceType.SPECKIT_SPEC,
+            "incomplete-source-template",
+            "Spec Kit source still contains a supported official scaffold placeholder.",
+        )
+    if not _SPECKIT_REQUIREMENT_PATTERN.search(content):
+        return _readiness_error_result(
+            spec_path,
+            RequirementSourceType.SPECKIT_SPEC,
+            "source-incomplete",
+            "Spec Kit source has no substantive Functional Requirement.",
+        )
+    if _SPECKIT_USER_STORY_PATTERN.search(content) and not _speckit_rules("readiness", content):
+        return _readiness_error_result(
+            spec_path,
+            RequirementSourceType.SPECKIT_SPEC,
+            "source-incomplete",
+            "Spec Kit source has user stories but no meaningful Given/When/Then acceptance scenario.",
+        )
+    return None
+
+
+def _openspec_native_validation_error(
+    change_dir: Path,
+    *,
+    profile: RequirementContextValidationProfile | None,
+    project_root: Path | None,
+) -> RequirementContextImportResult | None:
+    if not requires_native_openspec_validation(profile=profile, project_root=project_root):
+        return None
+    try:
+        completed = subprocess.run(
+            ["openspec", "validate", change_dir.name, "--strict", "--json"],
+            cwd=change_dir.parents[2],
+            capture_output=True,
+            check=False,
+            text=True,
+            timeout=_OPENSPEC_VALIDATOR_TIMEOUT_SECONDS,
+        )
+    except FileNotFoundError:
+        return _readiness_error_result(
+            change_dir,
+            RequirementSourceType.OPENSPEC_CHANGE,
+            "upstream-validator-unavailable",
+            "Required native OpenSpec validator is unavailable.",
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return _readiness_error_result(
+            change_dir,
+            RequirementSourceType.OPENSPEC_CHANGE,
+            "source-invalid",
+            "Required native OpenSpec validation did not complete successfully.",
+        )
+    try:
+        payload = json.loads(completed.stdout)
+    except json.JSONDecodeError:
+        payload = None
+    if completed.returncode != 0 or not _native_openspec_result_valid(payload, change_dir.name):
+        return _readiness_error_result(
+            change_dir,
+            RequirementSourceType.OPENSPEC_CHANGE,
+            "source-invalid",
+            "Required native OpenSpec validation reported the source invalid.",
+        )
+    return None
+
+
+def _native_openspec_result_valid(payload: object, change_name: str) -> bool:
+    if not isinstance(payload, dict):
+        return False
+    result = cast(dict[str, object], payload)
+    items = result.get("items")
+    if not isinstance(items, list):
+        return False
+    return any(
+        isinstance(item, dict)
+        and cast(dict[str, object], item).get("id") == change_name
+        and cast(dict[str, object], item).get("valid") is True
+        for item in items
+    )
+
+
 def _import_result_has_requirements(result: RequirementContextImportResult) -> bool:
     return all(isinstance(record, RequirementInput) for record in result.requirements)
 
 
 @require(lambda change_dir: isinstance(change_dir, Path), "change_dir must be a Path")
+@require(lambda profile: profile is None or isinstance(profile, str), "profile must be text when provided")
+@require(
+    lambda project_root: project_root is None or isinstance(project_root, Path),
+    "project_root must be a Path when provided",
+)
 @ensure(_import_result_has_requirements)
 @beartype
-def import_openspec_change(change_dir: Path) -> RequirementContextImportResult:
+def import_openspec_change(
+    change_dir: Path,
+    *,
+    profile: RequirementContextValidationProfile | None = None,
+    project_root: Path | None = None,
+) -> RequirementContextImportResult:
     """Normalize one native OpenSpec change directory without modifying it."""
     if not change_dir.is_dir():
         return _missing_source_result(change_dir, RequirementSourceType.OPENSPEC_CHANGE)
+
+    native_validation_error = _openspec_native_validation_error(
+        change_dir,
+        profile=profile,
+        project_root=project_root,
+    )
+    if native_validation_error:
+        return native_validation_error
 
     spec_paths = sorted((change_dir / "specs").glob("*/spec.md"))
     compatibility_error = _openspec_compatibility_error(change_dir, spec_paths)
@@ -279,6 +417,9 @@ def import_speckit_feature(feature_dir: Path) -> RequirementContextImportResult:
         return _missing_source_result(feature_dir, RequirementSourceType.SPECKIT_SPEC)
 
     content = spec_path.read_text(encoding="utf-8")
+    readiness_error = _speckit_readiness_error(spec_path, content)
+    if readiness_error:
+        return readiness_error
     compatibility_error = _speckit_compatibility_error(feature_dir, spec_path, content)
     if compatibility_error:
         return compatibility_error

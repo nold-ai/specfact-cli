@@ -9,6 +9,18 @@ directory byte-for-byte. Readiness diagnostics SHALL use the existing structured
 import-result contract and SHALL distinguish incomplete Spec Kit sources,
 upstream-invalid OpenSpec sources, and required unavailable validators.
 
+For the supported Spec Kit profile, a scaffold marker takes precedence over all
+other content and returns `incomplete-source-template`. A marker is any pinned
+official scaffold literal recognized by the adapter or the literal
+`[NEEDS CLARIFICATION:`. Without a scaffold marker, a substantive Functional
+Requirement is a supported `FR-` entry with non-placeholder text, and a
+meaningful acceptance scenario is a parsed GIVEN/WHEN/THEN rule beneath a
+recognized user-story heading. A source lacking either required element returns
+`source-incomplete`. The pinned fixture mapping is: the byte-identical
+`v0.12.18` scaffold is `incomplete-source-template`; a completed fixture is
+accepted; and fixtures lacking a Functional Requirement or a story scenario are
+`source-incomplete`. Core and module #346 SHALL use these same diagnostics.
+
 #### Scenario: Reject a pristine Spec Kit scaffold
 
 - **GIVEN** a supported native Spec Kit feature created from the official
@@ -47,6 +59,16 @@ upstream-invalid OpenSpec sources, and required unavailable validators.
 - **AND** it returns an error diagnostic with code `source-invalid`
 - **AND** it does not fall back to import that claims native validation passed.
 
+#### Scenario: Reject failed or unusable native validation output
+
+- **GIVEN** required native OpenSpec validation times out, exits non-zero, emits
+  malformed or empty JSON, or exits zero without a passing result item for the
+  selected change
+- **WHEN** the adapter imports the OpenSpec change
+- **THEN** it returns zero requirement records
+- **AND** it returns an error diagnostic with code `source-invalid`
+- **AND** the change directory remains byte-identical.
+
 #### Scenario: Report an unavailable required OpenSpec validator
 
 - **GIVEN** source-readiness policy requires native OpenSpec validation and the
@@ -55,6 +77,21 @@ upstream-invalid OpenSpec sources, and required unavailable validators.
 - **THEN** it returns zero requirement records
 - **AND** it returns an error diagnostic with code
   `upstream-validator-unavailable`.
+
+#### Scenario: Require native OpenSpec validation for the enterprise tier
+
+- **GIVEN** the effective requirements profile is `enterprise` and no layered
+  configuration overrides its default
+- **WHEN** the adapter imports an OpenSpec change
+- **THEN** it requires native OpenSpec validation before emitting records.
+
+#### Scenario: Resolve native validation policy through aliases and overrides
+
+- **GIVEN** `strict` or `enterprise_full_stack` is the effective profile with
+  no explicit policy value
+- **WHEN** the adapter imports an OpenSpec change
+- **THEN** it requires native OpenSpec validation
+- **AND** an explicit layered boolean overrides that profile default.
 
 #### Scenario: Preserve portable OpenSpec import without required validation
 

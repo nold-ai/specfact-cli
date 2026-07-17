@@ -65,6 +65,19 @@ bounded process execution and consumes its machine-readable outcome. A failed
 validator returns `source-invalid`; a missing executable returns
 `upstream-validator-unavailable`. Both are error-level, atomic failures.
 
+The policy is the layered `validation.openspec.require_native_validation`
+boolean. Resolve configuration from organization baseline, repository overlay,
+then developer-local overlay; the last explicit boolean wins. If no layer sets
+the key, the effective validation tier supplies the default: `enterprise` is
+`true`, while `solo`, `startup`, and `mid_size` are `false`. The `strict` and
+`enterprise_full_stack` aliases resolve to `enterprise`; `team` and
+`api_first_team` resolve to `mid_size`.
+
+An explicit `profile` argument chooses the tier default but does not discard an
+explicit boolean from a configuration layer. Therefore native validation is
+mandatory only when the resolved boolean is `true`; otherwise the importer is
+portable and must not invoke an ambient executable.
+
 When policy does not require native validation, importer behavior remains
 portable and does not probe an ambient `openspec` executable. Always probing is
 rejected because the same source could produce different evidence merely due to
@@ -99,9 +112,8 @@ Readiness failures are import diagnostics, not downstream evidence findings.
 4. Roll back by pinning the modules runtime to the prior core-compatible module;
    readiness never mutates upstream sources or existing accepted sidecars.
 
-## Open Questions
+## Compatibility Baseline
 
-- Which layered configuration key expresses the explicit upstream-validation
-  policy, and which strict profiles enable it by default?
-- Which supported Spec Kit release/version is pinned for the initial scaffold
-  compatibility fixture?
+The initial official Spec Kit scaffold fixture is pinned to `v0.12.18`. The
+previously observed `v0.12.15` placeholder import remains regression context,
+not the supported compatibility baseline.

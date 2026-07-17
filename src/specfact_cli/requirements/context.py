@@ -215,6 +215,30 @@ def _resolve_requirement_profile(
     return effective_profile, resolved.values
 
 
+@beartype
+@require(_optional_profile_supported, "profile must be a supported requirements profile when provided")
+@require(_project_root_supported, "project_root must be a Path when provided")
+@ensure(lambda result: isinstance(result, bool), "result must be a boolean")
+def requires_native_openspec_validation(
+    *,
+    profile: RequirementContextValidationProfile | None = None,
+    project_root: Path | None = None,
+) -> bool:
+    """Return whether layered policy requires native OpenSpec validation."""
+    effective_profile, resolved_config = _resolve_requirement_profile(profile, project_root)
+    validation_tier = _PROFILE_RESOLUTION_ALIASES.get(effective_profile, effective_profile)
+    validation_value = resolved_config.get("validation")
+    if not isinstance(validation_value, Mapping):
+        return validation_tier == "enterprise"
+    validation = cast(Mapping[str, object], validation_value)
+    openspec_value = validation.get("openspec")
+    if not isinstance(openspec_value, Mapping):
+        return validation_tier == "enterprise"
+    openspec = cast(Mapping[str, object], openspec_value)
+    configured = openspec.get("require_native_validation")
+    return configured if isinstance(configured, bool) else validation_tier == "enterprise"
+
+
 def _is_imported_requirement(requirement: RequirementInput) -> bool:
     return any(
         source.source_type in {RequirementSourceType.OPENSPEC_CHANGE, RequirementSourceType.SPECKIT_SPEC}

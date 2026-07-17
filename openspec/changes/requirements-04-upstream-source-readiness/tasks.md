@@ -11,42 +11,42 @@
 
 ## 2. Specification and failing evidence
 
-- [ ] 2.1 Add a pinned fixture representing the supported official Spec Kit
+- [x] 2.1 Add a pinned fixture representing the supported official Spec Kit
   scaffold and derive failing tests for placeholder and
   `NEEDS CLARIFICATION` rejection.
-- [ ] 2.2 Add failing tests for missing substantive Functional Requirements and
+- [x] 2.2 Add failing tests for missing substantive Functional Requirements and
   missing meaningful acceptance scenarios while user stories are present.
-- [ ] 2.3 Add failing tests proving completed Spec Kit sources retain stable IDs,
+- [x] 2.3 Add failing tests proving completed Spec Kit sources retain stable IDs,
   SHA-256 revisions, given/when/then rules, idempotency, and read-only sources.
-- [ ] 2.4 Add failing tests for policy-required OpenSpec validation failure,
+- [x] 2.4 Add failing tests for policy-required OpenSpec validation failure,
   missing required validator, and portable no-validator import.
-- [ ] 2.5 Record targeted failing-before evidence in `TDD_EVIDENCE.md`.
+- [x] 2.5 Record targeted failing-before evidence in `TDD_EVIDENCE.md`.
 
 ## 3. Core source-readiness implementation
 
-- [ ] 3.1 Define the contract-safe readiness policy and bounded OpenSpec CLI
+- [x] 3.1 Define the contract-safe readiness policy and bounded OpenSpec CLI
   invocation without ambient executable probing.
-- [ ] 3.2 Implement atomic readiness diagnostics in the native import-result
+- [x] 3.2 Implement atomic readiness diagnostics in the native import-result
   contract: `incomplete-source-template`, `source-incomplete`,
   `source-invalid`, and `upstream-validator-unavailable`.
-- [ ] 3.3 Implement narrow, fixture-backed Spec Kit draft-marker and structural
+- [x] 3.3 Implement narrow, fixture-backed Spec Kit draft-marker and structural
   completeness checks without generic bracket matching or a new authoring
   schema.
-- [ ] 3.4 Integrate readiness before OpenSpec and Spec Kit normalization, with
+- [x] 3.4 Integrate readiness before OpenSpec and Spec Kit normalization, with
   public API contracts (`@beartype`, `@require`, `@ensure`) on any new public
   surfaces.
-- [ ] 3.5 Run targeted tests and record passing-after evidence in
+- [x] 3.5 Run targeted tests and record passing-after evidence in
   `TDD_EVIDENCE.md`.
 
 ## 4. Compatibility, documentation, and quality gates
 
-- [ ] 4.1 Add regression coverage for existing accepted native imports and
+- [x] 4.1 Add regression coverage for existing accepted native imports and
   readiness-versus-downstream-gate separation.
-- [ ] 4.2 Update core requirements/import documentation with source-readiness
+- [x] 4.2 Update core requirements/import documentation with source-readiness
   diagnostics and policy behavior; cross-link the modules command guidance.
-- [ ] 4.3 Run format, type-check, lint, contract, smart-test, targeted tests,
+- [x] 4.3 Run format, type-check, lint, contract, smart-test, targeted tests,
   and relevant documentation checks.
-- [ ] 4.4 Run a fresh full SpecFact code review JSON report after the last
+- [x] 4.4 Run a fresh full SpecFact code review JSON report after the last
   substantive change, resolve every finding, and record the evidence.
 
 ## 5. Delivery
