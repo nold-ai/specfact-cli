@@ -56,4 +56,5 @@
   version, dependencies, and status.
 - [ ] 5.2 Release the core contract, update the modules issue blocker, and open
   the companion modules implementation only after compatibility is published.
-- [ ] 5.3 Open the core PR to `dev` with core and modules dependency evidence.
+- [x] 5.3 Open the core PR to `dev` with core and modules dependency evidence
+  ([#649](https://github.com/nold-ai/specfact-cli/pull/649), merged to `dev`).

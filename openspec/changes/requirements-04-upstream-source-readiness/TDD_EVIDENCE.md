@@ -16,7 +16,7 @@
 
 - **Date:** 2026-07-17 (Europe/Berlin)
 - **Command:** `hatch run test -- tests/unit/requirements/test_upstream_evidence_imports.py`
-- **Result:** 44 passed.
+- **Result:** 49 passed.
 - **Summary:** The pinned v0.12.18 scaffold, incomplete Functional
   Requirements, placeholder Functional Requirements, sources with no user
   story, scenarios outside a user story, invalid native validator results,
@@ -29,9 +29,9 @@
 - `hatch run format`, `hatch run lint`, `hatch run yaml-lint`, and
   `hatch run contract-test`: passed. `hatch run lint` includes the repository
   basedpyright type-check gate.
-- `hatch run smart-test-full`: 2,869 tests passed and 9 skipped; the local
+- `hatch run smart-test-full`: 2,874 tests passed and 10 skipped; the local
   full-suite line coverage is 64%, above the configured 50% threshold. The
-  PR runner independently measures 68.57% for its coverage artifact.
+  release PR runner independently validates the same configured threshold.
 - `hatch run smart-test`: focused-change execution passed; it is not used as
   the full-suite coverage assertion.
 - `hatch run semgrep-sast --json --output logs/static-analysis/semgrep.json`,
@@ -40,3 +40,6 @@
   json -o logs/static-analysis/bandit.json`: passed with no blocking findings.
 - `hatch run python scripts/pre_commit_code_review.py ...`: passed with zero
   findings; report written to `.specfact/code-review.json`.
+- `openspec validate requirements-04-upstream-source-readiness --strict` and
+  `openspec validate openspec-01-intent-trace --strict`: passed.
+- `hatch run docs-validate` and `hatch run verify-modules-signature`: passed.
