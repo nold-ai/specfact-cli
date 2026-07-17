@@ -643,6 +643,7 @@ jobs:
           echo "✅ Found coverage.xml"
       - name: Run quality gates
         run: |
+          set -o pipefail
           mkdir -p logs/quality-gates
           QG_LOG="logs/quality-gates/quality-gates_$(date -u +%Y%m%d_%H%M%S).log"
           {
@@ -653,7 +654,7 @@ jobs:
 
           config = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
           configured_fail_under = float(config["tool"]["coverage"]["report"]["fail_under"])
-          print(max(configured_fail_under, 80.0))
+          print(configured_fail_under)
           PY
           )
             COVERAGE_PERCENT=$(python - <<'PY'

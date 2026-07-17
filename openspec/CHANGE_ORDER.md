@@ -8,7 +8,7 @@ active changes should be implemented.
 
 | Bucket | Count | Location |
 |---|---:|---|
-| **Active** | 18 | [`openspec/changes/`](changes/) |
+| **Active** | 19 | [`openspec/changes/`](changes/) |
 | **Parked** | 21 | [`openspec/parking-lot/`](parking-lot/) |
 | **Archived** | 115 | [`openspec/changes/archive/`](changes/archive/) |
 
@@ -38,7 +38,7 @@ brownfield delivery. The active roadmap should make that thesis stronger:
 
 ## Active tracks
 
-The 18 active changes group into three product tracks plus one reliability lane.
+The 19 active changes group into three product tracks plus one reliability lane.
 Tracks can run in parallel; within a track, follow the order column.
 
 ### Track A - Validation Evidence Spine
@@ -83,7 +83,8 @@ planning workflows.
 | 1 | `requirements-01-data-model` | [#238](https://github.com/nold-ai/specfact-cli/issues/238) | Normalized requirements-input records for evidence | arch-07 |
 | 2 | `requirements-02-module-commands` | [#239](https://github.com/nold-ai/specfact-cli/issues/239) | Import and normalize existing requirement context | requirements-01 |
 | 3 | `openspec-01-intent-trace` | [#350](https://github.com/nold-ai/specfact-cli/issues/350) | Import-first OpenSpec and Spec Kit requirement evidence with pass/fail gates (rescoped 2026-07-13) | requirements-01/02 |
-| 4 | `architecture-01-solution-layer` | [#240](https://github.com/nold-ai/specfact-cli/issues/240) | Architecture-boundary records and drift validation | requirements input contracts |
+| 4 | `requirements-04-upstream-source-readiness` | [#648](https://github.com/nold-ai/specfact-cli/issues/648) | Reject incomplete or policy-invalid native OpenSpec and Spec Kit sources before requirement normalization | openspec-01; paired modules #346 |
+| 5 | `architecture-01-solution-layer` | [#240](https://github.com/nold-ai/specfact-cli/issues/240) | Architecture-boundary records and drift validation | requirements input contracts |
 | Parked | `requirements-03-backlog-sync` | [#244](https://github.com/nold-ai/specfact-cli/issues/244) | Read-first drift evidence; no write-back critical path. Deprioritized 2026-07-13 behind openspec-01 | requirements-02; modules `sync-01` |
 | Gated | `architecture-02-well-architected-review` | [#524](https://github.com/nold-ai/specfact-cli/issues/524) | Architecture-boundary review findings | architecture-01 shipped plus one usage cycle |
 | Gated | `telemetry-01-opentelemetry-default-on` | [#518](https://github.com/nold-ai/specfact-cli/issues/518) | Opt-in validation outcome telemetry only | governance-01 evidence fields |
@@ -110,6 +111,7 @@ Update each proposal first, then run strict OpenSpec validation.
 | `requirements-01-data-model` | Reduce to optional normalized requirements-input records for validation evidence. |
 | `requirements-02-module-commands` | Drop requirement authoring as a flagship path. Keep import, normalization, validation, and coverage inspection. |
 | `requirements-03-backlog-sync` | Make drift detection/read-first import the product value. Keep write-back preview out of the critical path. |
+| `requirements-04-upstream-source-readiness` | Keep source readiness core-owned and atomic; do not create an upstream authoring schema or require the OpenSpec CLI outside explicit or strict/enterprise policy. |
 | `architecture-01-solution-layer` | Reduce to architecture-boundary validation and drift evidence. Do not generate architecture. |
 | `openspec-01-intent-trace` | Done 2026-07-13: rescoped to import-first adapter consuming native OpenSpec and Spec Kit artifacts with deterministic pass/fail gates. |
 | `dogfooding-01-full-chain-e2e-proof` | Rewrite proof around real PR review, JSON evidence, AI-bloat findings, remediation packets, rerun proof. |
@@ -161,6 +163,8 @@ Update each proposal first, then run strict OpenSpec validation.
 - `openspec-01` as import-first OpenSpec and Spec Kit requirement evidence
   adapter with deterministic gates; pulled forward to Track C order 3 on
   2026-07-13 (rescoped, no longer positioned as optional-only).
+- `requirements-04` as the core-owned source-readiness follow-up to
+  `openspec-01`; it blocks the paired modules command/persistence patch.
 - `architecture-02`, `telemetry-01`, and `ai-integration-02` only after pull
   from the validation loop exists.
 
