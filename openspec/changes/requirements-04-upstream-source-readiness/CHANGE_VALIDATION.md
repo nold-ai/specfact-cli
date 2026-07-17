@@ -2,7 +2,7 @@
 
 **Validation Date**: 2026-07-17 Europe/Berlin
 **Change Proposal**: [proposal.md](./proposal.md)
-**Validation Method**: Interface dry run in `/private/tmp/specfact-validation-requirements-04`, dependency search, strict OpenSpec validation, and focused tests.
+**Validation Method**: Interface dry run in `/private/tmp/specfact-validation-requirements-04`, dependency search, strict OpenSpec validation, focused tests, and repository quality-gate verification.
 
 ## Executive Summary
 
@@ -33,6 +33,7 @@ None. `import_openspec_change` adds optional keyword-only `profile` and
 
 - **Code Impact**: Read-only source import behavior becomes fail-closed for incomplete inputs; accepted source IDs, revisions, and scenarios remain unchanged.
 - **Test Impact**: Native importer and profile-resolution regression coverage.
+- **Quality-Gate Impact**: The workflow uses the configured line-coverage threshold and propagates quality-gate failures through its log pipeline.
 - **Documentation Impact**: Requirements adapter reference documents readiness diagnostics and policy configuration.
 - **Release Impact**: Minor feature; version/release work remains a delivery task after this PR is accepted.
 

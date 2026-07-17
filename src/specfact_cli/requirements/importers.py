@@ -34,7 +34,7 @@ _DEFAULT_OPENSPEC_SCHEMA = "spec-driven"
 _OPENSPEC_REQUIREMENT_PATTERN = re.compile(r"^### Requirement:\s+.+$", re.MULTILINE)
 _OPENSPEC_SCENARIO_PATTERN = re.compile(r"^#### Scenario:\s+.+$", re.MULTILINE)
 _SPECKIT_TITLE_PATTERN = re.compile(r"^# Feature Specification:\s+.+$", re.MULTILINE)
-_SPECKIT_REQUIREMENT_PATTERN = re.compile(r"^\s*-?\s*\*\*FR-\d+\*\*:\s*System MUST\s+.+$", re.MULTILINE)
+_SPECKIT_REQUIREMENT_PATTERN = re.compile(r"^\s*-?\s*\*\*FR-\d+\*\*:\s*System MUST\s+(?P<text>.+?)\s*$", re.MULTILINE)
 _SPECKIT_CUSTOMIZATION_ROOTS = (
     Path(".specify/templates/overrides"),
     Path(".specify/presets"),
@@ -51,6 +51,7 @@ _SPECKIT_TEMPLATE_MARKERS = (
 )
 _SPECKIT_NEEDS_CLARIFICATION_MARKER = "[NEEDS CLARIFICATION:"
 _SPECKIT_USER_STORY_PATTERN = re.compile(r"^### User Story\s+\d+\s+-\s+.+$", re.MULTILINE)
+_SPECKIT_SECTION_PATTERN = re.compile(r"^#{1,3}\s+", re.MULTILINE)
 
 
 def _slug(value: str) -> str:
@@ -102,13 +103,33 @@ def _scenario_rules(requirement_id: str, content: str) -> list[BusinessRule]:
     return rules
 
 
+def _speckit_user_story_blocks(content: str) -> list[str]:
+    """Return the content of explicitly headed Spec Kit user stories."""
+    matches = list(_SPECKIT_USER_STORY_PATTERN.finditer(content))
+    blocks: list[str] = []
+    for match in matches:
+        following_section = _SPECKIT_SECTION_PATTERN.search(content, match.end())
+        end = following_section.start() if following_section else len(content)
+        blocks.append(content[match.start() : end])
+    return blocks
+
+
+def _speckit_has_substantive_requirement(content: str) -> bool:
+    """Return whether a supported FR entry contains completed, non-template text."""
+    return any(
+        "[" not in match.group("text") and "]" not in match.group("text")
+        for match in _SPECKIT_REQUIREMENT_PATTERN.finditer(content)
+    )
+
+
 def _speckit_rules(requirement_id: str, content: str) -> list[BusinessRule]:
     rules: list[BusinessRule] = []
     pattern = re.compile(
         r"\*\*Given\*\*\s+(.+?),\s*\*\*When\*\*\s+(.+?),\s*\*\*Then\*\*\s+(.+?)(?=\n|$)",
         re.IGNORECASE,
     )
-    for index, match in enumerate(pattern.finditer(content), start=1):
+    story_content = "\n".join(_speckit_user_story_blocks(content))
+    for index, match in enumerate(pattern.finditer(story_content), start=1):
         rules.append(
             BusinessRule(
                 rule_id=f"{requirement_id}:scenario-{index}",
@@ -248,19 +269,19 @@ def _speckit_readiness_error(spec_path: Path, content: str) -> RequirementContex
             "incomplete-source-template",
             "Spec Kit source still contains a supported official scaffold placeholder.",
         )
-    if not _SPECKIT_REQUIREMENT_PATTERN.search(content):
+    if not _speckit_has_substantive_requirement(content):
         return _readiness_error_result(
             spec_path,
             RequirementSourceType.SPECKIT_SPEC,
             "source-incomplete",
             "Spec Kit source has no substantive Functional Requirement.",
         )
-    if _SPECKIT_USER_STORY_PATTERN.search(content) and not _speckit_rules("readiness", content):
+    if not _speckit_rules("readiness", content):
         return _readiness_error_result(
             spec_path,
             RequirementSourceType.SPECKIT_SPEC,
             "source-incomplete",
-            "Spec Kit source has user stories but no meaningful Given/When/Then acceptance scenario.",
+            "Spec Kit source has no recognized user-story acceptance scenario.",
         )
     return None
 

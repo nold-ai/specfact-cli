@@ -10,6 +10,12 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.53.1] - 2026-07-17
+
+### Fixed
+
+- Hardened native source readiness and corrected coverage-gate enforcement.
+
 ## [0.53.0] - 2026-07-17
 
 ### Added

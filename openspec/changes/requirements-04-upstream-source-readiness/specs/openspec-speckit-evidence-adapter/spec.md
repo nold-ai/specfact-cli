@@ -13,10 +13,13 @@ For the supported Spec Kit profile, a scaffold marker takes precedence over all
 other content and returns `incomplete-source-template`. A marker is any pinned
 official scaffold literal recognized by the adapter or the literal
 `[NEEDS CLARIFICATION:`. Without a scaffold marker, a substantive Functional
-Requirement is a supported `FR-` entry with non-placeholder text, and a
-meaningful acceptance scenario is a parsed GIVEN/WHEN/THEN rule beneath a
-recognized user-story heading. A source lacking either required element returns
-`source-incomplete`. The pinned fixture mapping is: the byte-identical
+Requirement is a supported `FR-` entry whose text after `System MUST` is
+non-empty and contains no `[` or `]` placeholder delimiter. A meaningful
+acceptance scenario is a parsed GIVEN/WHEN/THEN rule within the Markdown block
+that starts with a `### User Story <number> - <title>` heading and ends at the
+next heading of level one through three. A source lacking either required
+element returns `source-incomplete`; a scenario outside such a story block does
+not satisfy readiness. The pinned fixture mapping is: the byte-identical
 `v0.12.18` scaffold is `incomplete-source-template`; a completed fixture is
 accepted; and fixtures lacking a Functional Requirement or a story scenario are
 `source-incomplete`. Core and module #346 SHALL use these same diagnostics.
@@ -34,8 +37,9 @@ accepted; and fixtures lacking a Functional Requirement or a story scenario are
 
 #### Scenario: Reject a structurally incomplete Spec Kit source
 
-- **GIVEN** a native Spec Kit source with no substantive Functional Requirement
-  or no meaningful acceptance scenario while user stories are present
+- **GIVEN** a native Spec Kit source with no substantive Functional Requirement,
+  no recognized user-story block, or no meaningful acceptance scenario within a
+  recognized user-story block
 - **WHEN** the adapter imports the feature
 - **THEN** it returns zero requirement records
 - **AND** it returns an error diagnostic with code `source-incomplete`.

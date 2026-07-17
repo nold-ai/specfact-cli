@@ -197,8 +197,56 @@ As a user, I want widgets rendered so that I can see them.
 
 - **FR-001**: System MUST render a widget
 """,
+        """# Feature Specification: Widget rendering
+
+## Requirements
+
+- **FR-001**: System MUST render a widget
+
+## Acceptance Scenarios
+
+1. **Given** a valid widget request, **When** rendering runs, **Then** the widget is returned
+""",
+        """# Feature Specification: Widget rendering
+
+## User Scenarios & Testing
+
+### User Story 1 - Render widgets (Priority: P1)
+
+As a user, I want widgets rendered so that I can see them.
+
+## Requirements
+
+- **FR-001**: System MUST render a widget
+
+## Acceptance Scenarios
+
+1. **Given** a valid widget request, **When** rendering runs, **Then** the widget is returned
+""",
+        """# Feature Specification: Widget rendering
+
+## User Scenarios & Testing
+
+### User Story 1 - Render widgets (Priority: P1)
+
+As a user, I want widgets rendered so that I can see them.
+
+**Acceptance Scenarios**:
+
+1. **Given** a valid widget request, **When** rendering runs, **Then** the widget is returned
+
+## Requirements
+
+- **FR-001**: System MUST [describe the widget behavior]
+""",
     ],
-    ids=["missing-functional-requirement", "story-without-acceptance-scenario"],
+    ids=[
+        "missing-functional-requirement",
+        "story-without-acceptance-scenario",
+        "no-user-story",
+        "scenario-outside-user-story",
+        "placeholder-functional-requirement",
+    ],
 )
 def test_import_speckit_feature_rejects_structurally_incomplete_source(tmp_path: Path, source: str) -> None:
     """Sources missing Functional Requirements or story scenarios fail atomically."""
@@ -206,6 +254,7 @@ def test_import_speckit_feature_rejects_structurally_incomplete_source(tmp_path:
     spec_file = feature_dir / "spec.md"
     feature_dir.mkdir(parents=True)
     spec_file.write_text(source, encoding="utf-8")
+    before = spec_file.read_bytes()
 
     result = import_speckit_feature(feature_dir)
 
@@ -213,6 +262,7 @@ def test_import_speckit_feature_rejects_structurally_incomplete_source(tmp_path:
     assert [(diagnostic.code, diagnostic.severity) for diagnostic in result.diagnostics] == [
         ("source-incomplete", "error")
     ]
+    assert spec_file.read_bytes() == before
 
 
 @pytest.mark.parametrize(
