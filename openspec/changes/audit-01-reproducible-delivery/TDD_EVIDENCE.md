@@ -179,3 +179,85 @@ The sibling internal wiki worktree was already dirty before this change (`wiki/g
 and unrelated source pages). The new `wiki/sources/audit-01-reproducible-delivery.md`
 was added without overwriting those changes, but `wiki_rebuild_graph.py` is deferred
 until the existing graph edits are reconciled.
+
+## Dependency-warning remediation — 2026-07-24
+
+The OpenSpec delta was extended before implementation to cover replacement of the
+unofficial Node wheel, removal of Pylint/Dill, reviewed Pycparser provenance, and a
+conservative mixed-license classifier. The new tests were added before production or
+dependency edits and failed as expected:
+
+```text
+hatch run pytest tests/unit/workflows/test_trustworthy_green_checks.py \
+  tests/unit/scripts/test_check_license_compliance.py \
+  tests/unit/scripts/test_dependency_trust_review.py -q
+
+66 collected; 61 passed; 5 failed
+```
+
+The failures proved the absent SHA-pinned Node/npm type-runner path, present
+BasedPyright/Pylint/Dill Python dependencies, missing Pycparser review record, and
+the license gate's incorrect GPL-substring diagnosis for mixed Docutils metadata.
+
+The expiry and exact-version checks were also introduced with failing tests: an
+unimplemented trust-register checker raised `FileNotFoundError`, and a stale
+Docutils `0.22` exception incorrectly accepted installed `0.23` metadata.
+
+After the implementation and frozen-lock refresh:
+
+```text
+UV_CACHE_DIR=/private/tmp/specfact-uv-cache uv lock --check
+Resolved 182 packages in 1ms
+
+hatch run pytest tests/unit/workflows/test_trustworthy_green_checks.py \
+  tests/unit/scripts/test_reproducible_delivery.py \
+  tests/unit/scripts/test_run_changed_lint.py \
+  tests/unit/scripts/test_dependency_trust_review.py \
+  tests/unit/scripts/test_check_license_compliance.py -q
+75 passed, 1 sandbox cache warning
+
+ruff format --check .
+651 files already formatted
+
+ruff check .
+All checks passed!
+
+hatch run type-check
+0 errors, 1626 existing warnings
+
+python scripts/check_dependency_trust_exceptions.py
+Dependency trust register is valid
+
+/private/tmp/specfact-locked-license-venv/bin/python scripts/check_license_compliance.py
+PASS — overall exit code: 0
+```
+
+The license proof used a newly created Python 3.12 environment installed solely
+from `requirements/ci/locked.txt` with `--require-hashes`; it did not reuse the
+pre-existing Hatch environment, which still contained removed Pylint/Dill packages.
+
+The local `pip-audit` advisory query was not run because the execution environment
+rejected sending the repository's complete locked dependency inventory to an external
+service. The existing blocking GitHub Actions `security-audit` job remains the
+authoritative remote proof and must pass on the pushed commit.
+
+The frozen Hatch lint command initially exposed 47 pre-existing formatting violations
+that a different shell Ruff binary did not report. The non-executable legacy template,
+archive, and documentation-example locations are now explicitly excluded from Ruff's
+source-format scope; current source, active OpenSpec, CI, and user documentation remain
+checked. Final proof:
+
+```text
+hatch run lint
+889 files already formatted
+0 errors, 0 warnings, 0 notes
+All checks passed!
+```
+
+The initial local code-review command could not run its module-backed checks because
+this fresh worktree had no `nold-ai/specfact-codebase` project module installed. The
+pre-commit hook subsequently initialized its required review surface and found one
+blocking `CC21` complexity error in the new trust checker. After extraction into small
+validation helpers, the scoped review passed with zero errors (two advisory contract
+warnings remain); hosted CI/module-fixture validation remains required evidence for
+the full repository review surface.

@@ -121,9 +121,7 @@ dev = [
     "pytest-xdist>=3.8.0",
     "pytest-timeout>=2.3.1",
     "coverage[toml]>=7.7.1",
-    "basedpyright>=1.32.1",
     "isort>=7.0.0",
-    "pylint>=4.0.2",  # GPL-2.0-or-later — dev-only exception (not in module manifests). Phase 2: replace with ruff --select ALL.
     "ruff>=0.14.2",
     "radon>=6.0.1",
     "tomlkit>=0.13.3",  # Style-preserving TOML library (recommended successor to pytoml)
@@ -153,7 +151,6 @@ dev = [
     "bandit>=1.7.0",  # SAST scanner (MIT)
     "pip-licenses>=4.0.0",  # License enumeration for compliance gate (MIT)
     "pip-audit>=2.0.0",  # CVE audit via OSV database (Apache-2.0)
-    # pylint: GPL-2.0-or-later — dev-only exception (not in module manifests). Phase 2: replace with ruff --select ALL.
 ]
 
 scanning = [
@@ -201,8 +198,6 @@ dependencies = [
     "pre-commit",
     # Ensure format/lint tools are available in the hatch env
     "isort>=7.0.0",
-    "basedpyright>=1.32.1",
-    "pylint>=4.0.2",
     "ruff>=0.14.2",
     "radon>=6.0.1",
     "yamllint>=1.37.1",  # GPL-3.0-or-later — dev/test-only exception. Phase 2: replace with non-GPL YAML lint path.
@@ -219,7 +214,6 @@ dependencies = [
     "bandit>=1.7.0",  # SAST scanner (MIT)
     "pip-licenses>=4.0.0",  # License enumeration for compliance gate (MIT)
     "pip-audit>=2.0.0",  # CVE audit via OSV database (Apache-2.0)
-    # pylint: GPL-2.0-or-later — dev-only exception (not in module manifests). Phase 2: replace with ruff --select ALL.
 ]
 
 [tool.hatch.envs.default.scripts]
@@ -233,11 +227,11 @@ refresh-frozen-delivery = "python scripts/refresh_reproducible_delivery.py"
 # Development scripts
 test = "pytest {args}"
 test-cov = "pytest --cov=src --cov-report=term-missing {args}"
-type-check = "basedpyright --project pyproject.toml --pythonpath \"$(python -c 'import sys; print(sys.executable)')\" {args}"
-# basedpyright --level error: suppress warning noise in pre-commit (Block 1 runs `hatch run lint`).
-lint = "ruff format . --check && basedpyright --project pyproject.toml --level error --pythonpath \"$(python -c 'import sys; print(sys.executable)')\" && ruff check . && pylint src tests tools && python scripts/verify_safe_project_writes.py"
+type-check = "bash tools/run_basedpyright.sh --project pyproject.toml --pythonpath \"$(python -c 'import sys; print(sys.executable)')\" {args}"
+# The committed npm lock provides the type runner; error-level output is the CI lint threshold.
+lint = "ruff format . --check && bash tools/run_basedpyright.sh --project pyproject.toml --level error --pythonpath \"$(python -c 'import sys; print(sys.executable)')\" && ruff check . && python scripts/verify_safe_project_writes.py"
 lint-changed = "python scripts/run_changed_lint.py {args}"
-governance = "pylint src tests tools --reports=y --output-format=parseable"
+governance = "ruff check src tests tools"
 format = "ruff check . --fix && ruff format ."
 
 # Code scanning (Semgrep)
@@ -492,7 +486,6 @@ exclude = [
     "/env",
     "/.mypy_cache",
     "/.ruff_cache",
-    "/.pylint.d",
     "/.cache",
     "/.tox",
     "/.eggs",
@@ -581,67 +574,29 @@ filterwarnings = [ # From pytest.ini
 log_cli = true  # From pytest.ini
 log_cli_level = "INFO" # From pytest.ini
 
-[tool.pylint.messages_control]
-disable = [
-    "C0114",  # missing-module-docstring
-    "C0115",  # missing-class-docstring
-    "C0116",  # missing-function-docstring
-    "C0103",  # invalid-name (too restrictive for some cases)
-    # C0330, C0326 removed in pylint 3.x (handled by ruff format)
-    
-    "R0903",  # too-few-public-methods
-    "R0913",  # too-many-arguments (too restrictive for APIs)
-    "R0912",  # too-many-branches
-    "R0915",  # too-many-statements
-    "W0511",  # fixme
-    "C0413",  # wrong-import-position (handled by isort)
-    "E0401",  # unable-to-import (false positives for local modules in pylint)
-    "E0611",  # no-name-in-module (false positives for local modules in pylint)
-    "E1101",  # no-member (false positives for Pydantic/FieldInfo, rich.Progress.tasks)
-    "E0601",  # used-before-assignment (false positives in try/except UTC, tomllib)
-    "E1126",  # invalid-sequence-index (rich TaskID)
-    "E0603",  # undefined-all-variable
-    "E1136",  # unsubscriptable-object
-    "E0110",  # abstract-class-instantiated
-]
-
-[tool.pylint.master]
-# Allow pylint to analyze tools directory and src directory
-init-hook = """
-import sys
-import os
-sys.path.insert(0, 'tools')
-sys.path.insert(0, os.path.join(os.getcwd(), 'src'))
-"""
-
-[tool.pylint.format]
-max-line-length = 120
-
-[tool.pylint.reports]
-output-format = "parseable"
-reports = "no"
-
-[tool.pylint.design]
-max-args = 8  # Allow reasonable number of arguments
-max-locals = 20  # Allow reasonable number of local variables
-max-returns = 8  # Allow reasonable number of return statements
-max-branches = 15  # Allow reasonable number of branches
-max-statements = 60  # Allow reasonable number of statements
-max-parents = 8  # Allow reasonable inheritance depth
-max-attributes = 12  # Allow reasonable number of attributes
-
-[tool.pylint.similarities]
-min-similarity-lines = 6  # Minimum lines for similarity check
-ignore-comments = "yes"
-ignore-docstrings = "yes"
-ignore-imports = "yes"
-
 [tool.ruff]
 line-length = 120
 target-version = "py312"
+extend-exclude = [
+    ".claude",
+    ".codex",
+    ".cursor",
+    ".github/skills",
+    ".vibe",
+    "docs/adapters",
+    "docs/examples",
+    "docs/guides/adapter-development.md",
+    "docs/guides/using-module-security-and-extensions.md",
+    "docs/reference",
+    "docs/technical",
+    "openspec/changes/archive",
+    "openspec/parking-lot",
+    "openspec/specs",
+    "tools/semgrep/README.md",
+]
 
 [tool.ruff.lint]
-# Enable pycodestyle (`E`) and Pyflakes (`F`) codes by default, complementing pylint
+# Enable pycodestyle (`E`) and Pyflakes (`F`) codes in the blocking Ruff baseline.
 select = [
     "E",    # pycodestyle errors
     "W",    # pycodestyle warnings
@@ -661,10 +616,10 @@ select = [
 
 ignore = [
     "E501",  # line too long (handled by ruff format)
-    "C901",  # too complex (leave to pylint for governance)
-    "PLR0913",  # too many arguments (pylint handles this better)
-    "PLR0912",  # too many branches (pylint handles this better)
-    "PLR0915",  # too many statements (pylint handles this better)
+    "C901",  # complexity is covered by the dedicated clean-code gate
+    "PLR0913",  # too many arguments (too restrictive for public APIs)
+    "PLR0912",  # too many branches (covered by clean-code review)
+    "PLR0915",  # too many statements (covered by clean-code review)
     "PLR2004",  # magic value comparison (too restrictive)
     "PLR0911",  # too many return statements (too restrictive)
     "PLR0917",  # too many positional arguments (too restrictive)
@@ -683,8 +638,8 @@ ignore = [
     "NPY",    # NumPy-specific rules (not relevant)
     "AIR",    # airflow (not relevant)
     "PERF",   # perflint (not relevant)
-    "LOG",    # flake8-logging (pylint handles logging better)
-    "G",      # flake8-logging-format (pylint handles logging better)
+    "LOG",    # flake8-logging (not enabled in the repository baseline)
+    "G",      # flake8-logging-format (not enabled in the repository baseline)
     "INP",    # flake8-no-pep420 (too restrictive)
     "SLF",    # flake8-self (too restrictive)
     "SLOT",   # flake8-slots (too restrictive)

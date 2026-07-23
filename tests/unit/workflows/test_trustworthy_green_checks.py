@@ -471,6 +471,31 @@ def test_type_checking_explicitly_selects_pyproject_and_uploads_json() -> None:
     assert "json" in str(upload_step.get("with") or "").lower()
 
 
+def test_type_runner_uses_pinned_node_and_committed_npm_lock() -> None:
+    """BasedPyright must not acquire an executable Node runtime from PyPI."""
+    raw = PR_ORCHESTRATOR.read_text(encoding="utf-8")
+    type_steps = _load_job_steps("type-checking")
+    type_step_text = "\n".join(str(step.get("run", "")) for step in type_steps)
+    assert "actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020" in raw
+    assert "node-version: " in raw
+    assert "npm ci --ignore-scripts --prefix tools/basedpyright" in type_step_text
+    assert (REPO_ROOT / "tools" / "basedpyright" / "package-lock.json").is_file()
+    pyproject_text = PYPROJECT.read_text(encoding="utf-8")
+    assert '"basedpyright' not in pyproject_text
+    assert "nodejs-wheel-binaries" not in (REPO_ROOT / "uv.lock").read_text(encoding="utf-8")
+
+
+def test_blocking_lint_has_no_pylint_or_dill_dependency() -> None:
+    """Ruff replaces Pylint in CI so Dill is absent from the frozen Python graph."""
+    raw = PR_ORCHESTRATOR.read_text(encoding="utf-8")
+    pyproject_text = PYPROJECT.read_text(encoding="utf-8")
+    lock_text = (REPO_ROOT / "uv.lock").read_text(encoding="utf-8")
+    assert "pylint" not in pyproject_text.lower()
+    assert "pylint src tests tools" not in raw
+    assert 'name = "pylint"' not in lock_text
+    assert 'name = "dill"' not in lock_text
+
+
 def test_docs_review_uses_immutable_modules_fixture_and_frozen_environment() -> None:
     """Docs command validation must not silently drift with branch or resolver state."""
     raw = DOCS_REVIEW.read_text(encoding="utf-8")
@@ -593,6 +618,13 @@ def test_pr_orchestrator_package_validation_waits_for_dependency_gates() -> None
     assert isinstance(needs, list), "Expected package-validation needs list"
     assert "license-check" in needs
     assert "security-audit" in needs
+
+
+def test_license_gate_enforces_expiring_dependency_trust_records() -> None:
+    """Flagged dependency exceptions must be checked when their register changes."""
+    raw = PR_ORCHESTRATOR.read_text(encoding="utf-8")
+    assert "ci/dependency-trust-exceptions.json" in raw
+    assert "scripts/check_dependency_trust_exceptions.py" in raw
 
 
 def _assert_pre_commit_cli_quality_block_hooks(by_id: dict[str, dict[str, Any]]) -> None:

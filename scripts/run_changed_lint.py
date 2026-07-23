@@ -9,7 +9,6 @@ from pathlib import Path
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-PYLINT_ROOTS = ("src", "tests", "tools")
 
 
 def _normalize_targets(argv: list[str]) -> list[str]:
@@ -34,10 +33,6 @@ def _normalize_targets(argv: list[str]) -> list[str]:
     return targets
 
 
-def _pylint_targets(targets: list[str]) -> list[str]:
-    return [target for target in targets if target.split("/", 1)[0] in PYLINT_ROOTS]
-
-
 def _run(cmd: list[str]) -> int:
     completed = subprocess.run(cmd, cwd=REPO_ROOT, check=False)
     return int(completed.returncode)
@@ -52,12 +47,19 @@ def main(argv: list[str] | None = None) -> int:
 
     commands: list[list[str]] = [
         ["ruff", "format", "--check", *targets],
-        ["basedpyright", "--level", "error", "--pythonpath", sys.executable, *targets],
+        [
+            "bash",
+            "tools/run_basedpyright.sh",
+            "--project",
+            "pyproject.toml",
+            "--level",
+            "error",
+            "--pythonpath",
+            sys.executable,
+            *targets,
+        ],
         ["ruff", "check", *targets],
     ]
-    pylint_targets = _pylint_targets(targets)
-    if pylint_targets:
-        commands.append(["pylint", *pylint_targets])
     commands.append(["python", "scripts/verify_safe_project_writes.py"])
 
     for cmd in commands:

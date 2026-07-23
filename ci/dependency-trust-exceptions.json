@@ -1,0 +1,13 @@
+{
+  "exceptions": [
+    {
+      "package": "pycparser",
+      "version": "3.0",
+      "source_url": "https://files.pythonhosted.org/packages/0c/c3/44f3fbbfa403ea2a7c779186dc20772604442dde72947e7d01069cbe98e3/pycparser-3.0-py3-none-any.whl",
+      "reviewed_on": "2026-07-24",
+      "expires_on": "2026-10-22",
+      "transitive_path": "specfact-cli -> cryptography -> cffi -> pycparser",
+      "rationale": "Pure-Python C parser required by CFFI. Source and generated parser implementation were manually reviewed after the Socket heuristic alert."
+    }
+  ]
+}

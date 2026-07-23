@@ -14,13 +14,6 @@
 # Phase 2 entries: track removal in SECURITY.md and docs/agent-rules/55-dependency-hygiene.md.
 
 exceptions:
-  - package: pylint
-    license: GPL-2.0-or-later
-    reason: >
-      Root dev env only. Phase 2 removal target (replace with ruff --select ALL
-      once SLF001/W0212 and R0801 gaps are covered). Must NEVER appear in module manifests.
-    scope: dev-only
-
   - package: pygments
     license: BSD-2-Clause
     reason: >
@@ -34,6 +27,15 @@ exceptions:
       Root dev/test environment only. Required for repository YAML linting in
       Hatch/pre-commit/CI until a non-GPL replacement is adopted. Must NEVER
       appear in module manifests.
+    scope: dev-only
+
+  - package: docutils
+    version: "0.23"
+    license: BSD License; GNU General Public License (GPL); Public Domain
+    reason: >
+      Development-only dependency of Twine's readme renderer. Docutils' policy states
+      that most code and documentation is public domain, with file-level permissive
+      licenses for exceptions; this exact mixed metadata is reviewed through 2026-10-22.
     scope: dev-only
 
   - package: semgrep

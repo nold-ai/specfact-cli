@@ -48,7 +48,10 @@ def test_main_runs_changed_scope_tools_in_expected_order(monkeypatch) -> None:
     assert commands == [
         ["ruff", "format", "--check", "src/app.py", "scripts/helper.py", "tests/test_app.py"],
         [
-            "basedpyright",
+            "bash",
+            "tools/run_basedpyright.sh",
+            "--project",
+            "pyproject.toml",
             "--level",
             "error",
             "--pythonpath",
@@ -58,6 +61,5 @@ def test_main_runs_changed_scope_tools_in_expected_order(monkeypatch) -> None:
             "tests/test_app.py",
         ],
         ["ruff", "check", "src/app.py", "scripts/helper.py", "tests/test_app.py"],
-        ["pylint", "src/app.py", "tests/test_app.py"],
         ["python", "scripts/verify_safe_project_writes.py"],
     ]

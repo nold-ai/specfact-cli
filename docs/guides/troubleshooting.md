@@ -794,7 +794,7 @@ When a PR or push runs the **PR Orchestrator** workflow, test and repro output a
    | `coverage-reports`   | Tests (Python 3.12) | Coverage XML for quality gates (when unit tests ran).                     |
    | `compat-py311-logs`  | Compatibility (Python 3.11) | Pytest and coverage XML output from the compat job.                  |
    | `type-check-logs`    | Type Checking (basedpyright) | Full basedpyright type-check output.                              |
-   | `lint-logs`          | Linting (ruff, pylint) | Full lint run output.                                                   |
+   | `lint-logs`          | Linting (ruff, type safety) | Full lint run output.                                             |
    | `quality-gates-logs`| Quality Gates (Advisory) | Coverage percentage and advisory message.                          |
    | `repro-logs`         | Contract-First CI | Full stdout/stderr of `specfact code repro` (`logs/repro/`).                   |
    | `repro-reports`      | Contract-First CI | Repro report YAMLs from `.specfact/reports/enforcement/`.                |

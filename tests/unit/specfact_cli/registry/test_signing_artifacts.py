@@ -1181,7 +1181,7 @@ def test_pr_orchestrator_uses_frozen_setup_instead_of_hatch_bootstrap() -> None:
         pytest.skip("pr-orchestrator workflow not present")
     content = PR_ORCHESTRATOR_WORKFLOW.read_text(encoding="utf-8")
     assert content.count("uses: ./.github/actions/setup-frozen-python") >= 10
-    assert "pip install -e \".[dev]\"" not in content
+    assert 'pip install -e ".[dev]"' not in content
     assert not re.findall(r"pip install[^\n]*hatch[^\n]*", content)
 
 

@@ -53,7 +53,7 @@ and propose a MIT/Apache-2.0/BSD alternative.
 
 ## 2. (A)GPL in dev env extras (MUST DOCUMENT + PHASE 2 PLAN)
 
-GPL packages in dev-only extras (e.g. `pylint`) require:
+GPL packages in dev-only extras require:
 
 1. A `dev-only`-scoped entry in `scripts/license_allowlist.yaml` with a `reason`.
 2. An explicit Phase 2 removal plan in the `reason` field.
@@ -93,6 +93,14 @@ The companion-module fixture at `ci/module-fixture.lock.json` MUST name the exac
 repository and a full, reviewed 40-character commit SHA. Never replace it with a branch,
 tag, or PR-head lookup; update it only with accompanying validation evidence.
 
+The BasedPyright runner is a separate committed npm lock at
+`tools/basedpyright/package-lock.json`. CI SHALL install it with `npm ci --ignore-scripts`
+after a SHA-pinned `actions/setup-node` step; do not add a Python wheel that bundles an
+unofficial Node runtime. Flagged dependencies that remain necessary require an exact
+version, source URL, review date, expiry, and transitive path in
+`ci/dependency-trust-exceptions.json`. Expiry is fail-closed: renew the review or remove
+the package.
+
 ## 5. Required gates before any manifest or dependency change is merged
 
 Run these in order:
@@ -118,7 +126,6 @@ Before adding a new `pip_dependencies` entry to any `module-package.yaml`:
 
 | Package | Current status | Phase 2 action |
 | --- | --- | --- |
-| `pylint` | dev-only (GPL-2.0-or-later) | Replace with `ruff --select ALL` once SLF001/W0212 and R0801 gaps are resolved |
 | `yamllint` | dev-only (GPL-3.0-or-later) | Replace with a non-GPL YAML lint path once CI / pre-commit parity is preserved |
 | `gitpython` | runtime (CVE history) | Replace with `dulwich` adapter (3-file rewrite) |
 

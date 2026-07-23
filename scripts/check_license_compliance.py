@@ -71,12 +71,15 @@ def _validate_allowlist_entry(entry: object, *, index: int, allowlist_path: Path
     pkg = entry_map.get("package")
     lic = entry_map.get("license")
     reason = entry_map.get("reason", "")
+    version = entry_map.get("version")
     if not isinstance(pkg, str) or not pkg.strip():
         raise RuntimeError(f"Allowlist exceptions[{index}] must include non-empty 'package' in {allowlist_path}")
     if not isinstance(lic, str) or not lic.strip():
         raise RuntimeError(f"Allowlist exceptions[{index}] must include non-empty 'license' for package {pkg!r}")
     if not isinstance(reason, str) or not reason.strip():
         raise RuntimeError(f"Allowlist exceptions[{index}] must include non-empty 'reason' for package {pkg!r}")
+    if version is not None and (not isinstance(version, str) or not version.strip()):
+        raise RuntimeError(f"Allowlist exceptions[{index}] has invalid 'version' for package {pkg!r}")
     return cast(dict[str, str], entry_map)
 
 
@@ -181,6 +184,14 @@ def _is_gpl(license_expr: str) -> bool:
 
 
 @beartype
+def _is_mixed_gpl_metadata(license_expr: str) -> bool:
+    """Return whether metadata mixes a GPL token with permissive/public-domain terms."""
+    normalized = license_expr.upper()
+    permissive_markers = ("BSD", "MIT", "APACHE", "PUBLIC DOMAIN", "PSF")
+    return _is_gpl(license_expr) and any(marker in normalized for marker in permissive_markers)
+
+
+@beartype
 def _report_unknown_env_license(name: str, version: str) -> None:
     _emit(f"WARNING: {name}=={version} has no resolvable license — manual review required")
 
@@ -191,6 +202,13 @@ def _allowlist_license_matches_observed(entry_license: str, observed_license: st
     left = entry_license.strip().lower()
     right = observed_license.strip().lower()
     return bool(left) and left == right
+
+
+@beartype
+def _allowlist_version_matches_observed(entry: dict[str, str], observed_version: str) -> bool:
+    """Return whether an optional reviewed version matches installed metadata."""
+    reviewed_version = entry.get("version", "").strip()
+    return not reviewed_version or reviewed_version == observed_version.strip()
 
 
 @beartype
@@ -208,11 +226,30 @@ def _evaluate_env_package(
         return 0
 
     name_lower = name.lower()
+    entries_all = allowlist.get(name_lower, [])
+    entries = [
+        entry
+        for entry in entries_all
+        if _allowlist_license_matches_observed(str(entry.get("license", "")), license_expr)
+        and _allowlist_version_matches_observed(entry, version)
+    ]
+
+    if _is_mixed_gpl_metadata(license_expr):
+        if entries:
+            reasons = "; ".join(
+                str(entry.get("reason", "")).strip() for entry in entries if str(entry.get("reason", "")).strip()
+            )
+            _emit(f"EXCEPTION: {name}=={version} ({license_expr}) — {reasons}")
+            return 0
+        _emit(
+            f"LICENSE CLASSIFICATION REQUIRED: {name}=={version} uses mixed metadata ({license_expr}) — "
+            "add reviewed file-level licensing evidence before acceptance"
+        )
+        return 1
+
     if not _is_gpl(license_expr):
         return 0
 
-    entries_all = allowlist.get(name_lower, [])
-    entries = [e for e in entries_all if _allowlist_license_matches_observed(str(e.get("license", "")), license_expr)]
     if entries:
         reason_parts = [
             str(entry.get("reason", "")).strip() for entry in entries if str(entry.get("reason", "")).strip()

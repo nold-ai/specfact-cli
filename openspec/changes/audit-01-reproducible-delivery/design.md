@@ -15,12 +15,17 @@ The PR orchestrator installs `.[dev]` repeatedly and resolves a companion-module
 3. `ci/module-fixture.lock.json` records the modules repository URL and immutable commit SHA. Runtime jobs checkout that SHA and verify `HEAD` before invoking tests; branch probing remains only in the advisory compatibility workflow.
 4. `pyproject.toml` is the sole basedpyright configuration. `pyrightconfig.json` is removed, commands pass `--project pyproject.toml`, and JSON output is retained as a CI artifact.
 5. The blocking matrix covers Python 3.11, 3.12, and 3.13 for built-wheel smoke. The lower-bound/latest resolver lane runs weekly/manual with a clearly advisory result.
+6. BasedPyright is installed only from `tools/basedpyright/package-lock.json` with `npm ci --ignore-scripts`. CI obtains Node through a SHA-pinned `actions/setup-node` action. The PyPI `basedpyright` and `nodejs-wheel-binaries` packages are not permitted in frozen Python inputs.
+7. Pylint is removed from the frozen CI and Hatch lint stacks. Ruff remains the blocking Python lint authority; the existing Semgrep, Bandit, and clean-code gates retain their independent roles.
+8. A dependency exception records package, exact version, source URL, review date, expiry, rationale, and required transitive path. `pycparser` is permitted only while this record is current. The license scanner fails on explicit GPL/AGPL expressions and rejects ambiguous mixed metadata unless a reviewed classifier record permits it.
 
 ## Risks / Mitigations
 
 - A stale lock blocks CI: provide a documented lock-refresh command and a policy test that detects stale exports.
 - A companion revision becomes incompatible: update the fixture lock in a reviewed PR with cross-repo contract evidence; no moving fallback is permitted in blocking jobs.
 - A tool is absent from the frozen environment: add it to the declared development extra and regenerate the lock, rather than installing it ad hoc.
+- Node/npm bootstrap fails: the type-check job fails before executing BasedPyright; restoring the prior Python package is not an approved rollback because it reintroduces the unofficial binary distribution.
+- A dependency exception expires: CI fails closed and requires a new review rather than silently extending acceptance.
 
 ## Verification strategy
 

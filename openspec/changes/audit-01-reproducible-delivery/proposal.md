@@ -13,12 +13,20 @@ CI and release proof currently resolve unconstrained dependency graphs and can s
 - Keep an explicitly named scheduled lower-bound compatibility lane outside blocking release evidence.
 - Generate deterministic SPDX SBOM evidence from `pip inspect` with repository-owned
   standard-library code; do not add a third-party SBOM generator to delivery CI.
+- Remove the unofficial PyPI-distributed Node runtime from the type-check trust boundary;
+  install BasedPyright from a committed npm lock under a SHA-pinned official Node setup action.
+- Retire Pylint and its `dill` dependency from the frozen CI toolchain, preserving the
+  blocking Ruff checks that replace the CI lint role.
+- Record and enforce a reviewed, expiring source-provenance exception for the required
+  `pycparser` parser dependency; classify mixed license metadata explicitly rather than
+  inferring GPL incompatibility from a substring.
 
 ## Capabilities
 
 ### New Capabilities
 
 - `reproducible-delivery`: frozen dependency resolution, immutable integration fixtures, and reproducibility evidence for CI/release validation.
+- `dependency-trust-review`: reviewed dependency exceptions and conservative license classification for frozen CI dependencies.
 
 ### Modified Capabilities
 
@@ -27,7 +35,7 @@ CI and release proof currently resolve unconstrained dependency graphs and can s
 
 ## Impact
 
-- **Affected areas**: `pyproject.toml`, `uv.lock`, CI workflows, runtime-validation scripts, type-check configuration, and developer/contributor documentation.
+- **Affected areas**: `pyproject.toml`, `uv.lock`, committed npm type-tool lock, CI workflows, runtime-validation scripts, type-check configuration, dependency-license policy, and developer/contributor documentation.
 - **Compatibility**: local Hatch commands remain available; CI/release evidence becomes frozen. The lower-bound/latest compatibility lane is advisory and cannot satisfy release proof.
 - **Rollback**: retain the advisory unconstrained lane, revert the lock and fixture pin in one change, and keep the prior Hatch entry points available.
 - **Documentation impact**: update contributor and CI guidance with lock refresh/review, immutable fixture updates, and type-check authority.

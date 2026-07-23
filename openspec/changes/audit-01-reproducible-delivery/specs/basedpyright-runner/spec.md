@@ -12,6 +12,14 @@ The system SHALL run basedpyright from one authoritative project configuration a
 - **AND** SHALL produce `--outputjson` evidence as a CI artifact
 - **AND** no competing `pyrightconfig.json` SHALL alter the enforced settings.
 
+#### Scenario: CI obtains the type runner from reviewed Node inputs
+
+- **GIVEN** a blocking type-check or lint job
+- **WHEN** it prepares BasedPyright
+- **THEN** it SHALL install the exact package graph from a committed npm lock with lifecycle scripts disabled
+- **AND** SHALL use a SHA-pinned official Node setup action
+- **AND** no Python dependency input SHALL contain `basedpyright` or `nodejs-wheel-binaries`.
+
 #### Scenario: Type error maps to type_safety finding
 
 - **GIVEN** basedpyright JSON output with a type error in `file_a.py`
