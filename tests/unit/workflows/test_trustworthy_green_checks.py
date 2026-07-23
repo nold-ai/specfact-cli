@@ -296,6 +296,14 @@ def test_pr_orchestrator_package_runtime_matrix_commands_are_black_box() -> None
     assert "module list" in raw
 
 
+def test_pr_orchestrator_pipx_runtime_install_does_not_duplicate_no_deps() -> None:
+    """pipx delegates its wheel install to uv, which already supplies ``--no-deps``."""
+    raw = "\n".join(str(step.get("run", "")) for step in _load_job_steps("package-runtime-matrix"))
+    assert 'pipx install --python "$pythonLocation/bin/python" "$WHEEL"' in raw
+    assert '--pip-args="--no-deps"' not in raw
+    assert 'pipx runpip specfact-cli install --require-hashes -r "$GITHUB_WORKSPACE/requirements/ci/locked.txt"' in raw
+
+
 def test_pr_orchestrator_pins_third_party_actions_to_shas() -> None:
     """Required PR workflow actions should use immutable refs, not mutable version tags."""
     raw = PR_ORCHESTRATOR.read_text(encoding="utf-8")
@@ -419,6 +427,13 @@ def test_pr_orchestrator_uses_frozen_resolution_for_blocking_jobs() -> None:
         assert any(step.get("uses") == "./.github/actions/setup-frozen-python" for step in steps), job_id
         job_runs = "\n".join(str(step.get("run", "")) for step in steps)
         assert 'pip install -e ".[dev]"' not in job_runs
+
+
+def test_reproducible_delivery_sbom_evidence_has_no_generator_dependency() -> None:
+    """The delivery trust boundary must not execute an unreviewed SBOM package."""
+    raw = PR_ORCHESTRATOR.read_text(encoding="utf-8")
+    assert "cyclonedx-py" not in raw
+    assert "scripts/render_locked_sbom.py" in raw
 
 
 def test_advisory_dependency_compatibility_lane_cannot_block_delivery() -> None:

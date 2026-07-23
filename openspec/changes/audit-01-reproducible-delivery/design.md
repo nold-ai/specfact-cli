@@ -25,5 +25,8 @@ The PR orchestrator installs `.[dev]` repeatedly and resolves a companion-module
 ## Verification strategy
 
 - Policy tests inspect workflow commands, lock metadata, fixture immutability, and explicit basedpyright project selection.
-- A reproducibility script creates two isolated frozen environments, records normalized `pip inspect` and CycloneDX-compatible SBOM input, and compares digests.
+- A reproducibility script creates two isolated frozen environments, records normalized
+  `pip inspect` and an SPDX 2.3 SBOM rendered by repository-owned standard-library
+  code, and compares digests. This avoids a separate unreviewed SBOM generator in the
+  delivery trust boundary.
 - The package matrix installs the built wheel without dependency resolution and exercises the existing command-runtime smoke suite.

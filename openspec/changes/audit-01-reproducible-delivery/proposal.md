@@ -11,6 +11,8 @@ CI and release proof currently resolve unconstrained dependency graphs and can s
 - Pin cross-repository runtime fixtures to a reviewed modules-repository commit recorded in version control.
 - Make `pyproject.toml` the only basedpyright configuration and require explicit project selection plus a JSON artifact in CI.
 - Keep an explicitly named scheduled lower-bound compatibility lane outside blocking release evidence.
+- Generate deterministic SPDX SBOM evidence from `pip inspect` with repository-owned
+  standard-library code; do not add a third-party SBOM generator to delivery CI.
 
 ## Capabilities
 

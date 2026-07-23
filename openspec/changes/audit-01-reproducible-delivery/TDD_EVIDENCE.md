@@ -80,26 +80,12 @@ locally at `/tmp/specfact-basedpyright.json` for this verification run.
 
 ## Built-wheel evidence
 
-The local frozen proof completed with the committed export:
-
-```text
-uv sync --locked --all-extras
-uv build --wheel
-python -m venv <temporary wheel environment>
-<venv>/bin/python -m pip install --require-hashes -r requirements/ci/locked.txt
-<venv>/bin/python -m pip install --no-deps dist/specfact_cli-0.53.2-py3-none-any.whl
-<venv>/bin/specfact --version
-SpecFact CLI version 0.53.2
-<venv>/bin/cyclonedx-py environment --output-format JSON --output-file <sbom.json>
-```
-
-The blocking `Reproducible Delivery Evidence` CI job repeats this install twice,
-compares normalized package name/version identities and normalized SBOMs, and uploads
-the raw evidence. The local proof compared 197 installed package identities and
-identical normalized SBOMs. `pip inspect` includes installer-specific relationships,
-so those raw reports are retained for diagnosis rather than compared byte-for-byte.
-The 3.11, 3.12, and 3.13 built-wheel matrix is configured as merge-blocking; those
-hosted runners are not available in this local environment.
+The original local wheel proof is superseded by the security remediation below: it
+used `cyclonedx-py`, which is no longer an accepted delivery dependency. The current
+blocking job renders each SBOM from its local `pip inspect` report with
+`scripts/render_locked_sbom.py`, then compares the deterministic SPDX 2.3 documents.
+The 3.11, 3.12, and 3.13 built-wheel matrix remains merge-blocking; hosted proof is
+pending the updated pull-request run.
 
 `ruff format --check .` currently reports formatting violations in unrelated tracked
 documentation/archive files. The four Python files introduced by this change passed
@@ -108,6 +94,84 @@ both scoped `ruff format --check` and `ruff check`; no global reformat was appli
 The final focused policy command used an isolated temporary uv cache because this
 sandbox cannot open the caller's existing `~/.cache/uv` Git metadata. The same
 checker succeeds with that writable cache; CI uses its own writable cache.
+
+## Security remediation evidence — 2026-07-24
+
+Socket Security identified `cyclonedx-bom@7.3.1`, newly added by this change for
+SBOM rendering, as a potential-malware AI signal. The alert was not waived, ignored,
+or resolved. The package was removed rather than accepted as a delivery dependency.
+
+The reproducible-delivery OpenSpec delta was updated and validated before the
+replacement tests were added:
+
+```text
+openspec validate audit-01-reproducible-delivery --strict
+Change 'audit-01-reproducible-delivery' is valid
+
+hatch run pytest tests/unit/scripts/test_reproducible_delivery.py \
+  tests/unit/workflows/test_trustworthy_green_checks.py -q
+41 collected; 38 passed; 3 failed
+```
+
+Two failures proved the missing renderer and the prohibited `cyclonedx-py` workflow
+call. The remaining failure was the pre-existing sandbox restriction on the shared uv
+cache while the test checked the stale export. No production replacement had been
+applied at that point.
+
+After removal and frozen-input refresh:
+
+```text
+hatch run refresh-frozen-delivery
+Resolved 188 packages
+Removed cyclonedx-bom v7.3.1 and its generator-only transitive dependencies
+reproducible delivery inputs are valid
+
+hatch run pytest tests/unit/scripts/test_reproducible_delivery.py \
+  tests/unit/workflows/test_trustworthy_green_checks.py -q
+41 passed
+
+hatch run python tools/smart_test_coverage.py run --level full
+2884 passed, 9 skipped, 2 warnings; coverage 64%
+```
+
+The replacement `scripts/render_locked_sbom.py` uses only the Python standard library
+to render deterministic SPDX 2.3 JSON from each local `pip inspect` report. Existing
+Socket warnings for `dill`, `nodejs-wheel-binaries`, and `pycparser` remain unwaived;
+they are pre-existing dependency paths and require separate review before being
+accepted or changed.
+
+`cyclonedx-python-lib` remains in the frozen export only because the pre-existing
+`pip-audit` development tool depends on it; delivery CI neither invokes it nor uses it
+to render SBOM evidence.
+
+## CI regression evidence — 2026-07-24
+
+GitHub Actions run `30048392658` failed the Package Runtime Matrix pipx launcher
+because pipx delegated to uv with `--no-deps` already present, while the workflow
+also supplied `--pip-args="--no-deps"`. uv rejected the duplicate flag before the
+wheel launcher could be exercised.
+
+The new workflow-policy test was added before the workflow edit:
+
+```text
+hatch run pytest tests/unit/workflows/test_trustworthy_green_checks.py -q
+38 collected; 37 passed; 1 failed
+```
+
+After removing only the redundant pipx argument, while retaining the subsequent
+hash-verified frozen dependency install:
+
+```text
+hatch run pytest tests/unit/scripts/test_reproducible_delivery.py \
+  tests/unit/workflows/test_trustworthy_green_checks.py -q
+42 passed
+
+hatch run lint-workflows
+exit 0
+
+hatch run python scripts/check_reproducible_delivery.py
+reproducible delivery inputs are valid
+```
 
 ## Known environmental limitation
 

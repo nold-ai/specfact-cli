@@ -153,7 +153,6 @@ dev = [
     "bandit>=1.7.0",  # SAST scanner (MIT)
     "pip-licenses>=4.0.0",  # License enumeration for compliance gate (MIT)
     "pip-audit>=2.0.0",  # CVE audit via OSV database (Apache-2.0)
-    "cyclonedx-bom>=6.7.1",  # SPDX-compatible SBOM evidence for locked delivery verification (Apache-2.0)
     # pylint: GPL-2.0-or-later — dev-only exception (not in module manifests). Phase 2: replace with ruff --select ALL.
 ]
 

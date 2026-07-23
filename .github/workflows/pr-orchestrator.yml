@@ -771,7 +771,7 @@ jobs:
           }
 
           if [ "${{ matrix.launcher }}" = "pipx" ]; then
-            pipx install --python "$pythonLocation/bin/python" --pip-args="--no-deps" "$WHEEL"
+            pipx install --python "$pythonLocation/bin/python" "$WHEEL"
             pipx runpip specfact-cli install --require-hashes -r "$GITHUB_WORKSPACE/requirements/ci/locked.txt"
           fi
 
@@ -1119,8 +1119,9 @@ jobs:
             "$VENV/bin/python" -m pip install --no-deps "$WHEEL"
             "$VENV/bin/specfact" --version
             "$VENV/bin/python" -m pip inspect --local > "logs/reproducible-delivery/${run}.json"
-            "$VENV/bin/cyclonedx-py" environment --output-format JSON \
-              --output-file "logs/reproducible-delivery/${run}.sbom.json"
+            python scripts/render_locked_sbom.py \
+              --inspect "logs/reproducible-delivery/${run}.json" \
+              --output "logs/reproducible-delivery/${run}.sbom.json"
           done
           python - \
             "logs/reproducible-delivery/first.json" \

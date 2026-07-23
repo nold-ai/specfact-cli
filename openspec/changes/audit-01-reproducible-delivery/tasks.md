@@ -31,7 +31,11 @@ Per `openspec/config.yaml`, implement in this order: specs, failing tests, produ
 - [x] 4.3 Convert blocking CI/release jobs to frozen environments; build once and install the wheel with `--no-deps`.
 - [x] 4.4 Remove `pyrightconfig.json`; update Hatch/CI commands to pass `--project pyproject.toml` and emit JSON output.
 - [x] 4.5 Add the blocking Python 3.11–3.13 wheel-smoke matrix and the scheduled/manual advisory lower-bound compatibility lane.
+- [x] 4.5.1 Keep the pipx wheel-smoke invocation compatible with uv-backed pipx by
+  avoiding a duplicate `--no-deps` flag while retaining the frozen dependency install.
 - [x] 4.6 Update dependency-hygiene and quality-gate governance plus contributor documentation.
+- [x] 4.7 Remove the unreviewed third-party SBOM generator; render and compare SPDX
+  evidence from `pip inspect` using repository-owned standard-library code.
 
 ## 5. Passing evidence and quality gates
 

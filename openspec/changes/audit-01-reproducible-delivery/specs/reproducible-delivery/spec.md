@@ -47,3 +47,26 @@ The repository SHALL retain a scheduled/manual lower-bound or latest-resolution 
 - **WHEN** the scheduled compatibility lane detects a dependency-resolution failure
 - **THEN** its output SHALL identify the resolved graph and label the result advisory
 - **AND** branch protection SHALL not treat that run as the immutable delivery proof.
+
+### Requirement: Delivery SBOM evidence has no unreviewed generator dependency
+
+Blocking delivery proof SHALL derive deterministic SBOM evidence directly from the
+locked environment's `pip inspect` report using repository-owned, standard-library
+code. It SHALL NOT introduce or execute a separate third-party SBOM generator solely
+to produce reproducibility evidence.
+
+#### Scenario: Two locked wheel installs produce SBOM evidence
+
+- **WHEN** the reproducible-delivery job installs the same built wheel twice from the
+  committed frozen inputs
+- **THEN** it SHALL render an SPDX 2.3 SBOM document from each local `pip inspect`
+  report
+- **AND** the documents SHALL contain a deterministic package name/version inventory
+- **AND** the job SHALL fail if the normalized SBOM documents differ.
+
+#### Scenario: SBOM generator dependency is proposed
+
+- **WHEN** a change proposes a third-party executable solely to render delivery SBOM
+  evidence
+- **THEN** CI policy tests SHALL reject that dependency and workflow invocation until
+  it has been reviewed and explicitly accepted through dependency governance.
