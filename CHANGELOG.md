@@ -10,6 +10,21 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [Unreleased]
+
+### Added
+
+- **Reproducible delivery controls**: frozen `uv` resolution and hash-verified
+  export, immutable companion-module fixture validation, 3.11–3.13 built-wheel
+  smoke coverage, and retained dependency/SBOM evidence.
+
+### Changed
+
+- **CI type authority**: `pyproject.toml` is the single BasedPyright
+  configuration source and CI emits its JSON evidence explicitly.
+
+---
+
 ## [0.53.2] - 2026-07-17
 
 ### Fixed

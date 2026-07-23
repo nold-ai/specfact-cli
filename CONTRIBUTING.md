@@ -42,7 +42,8 @@ This project adheres to the [Code of Conduct](CODE_OF_CONDUCT.md). By participat
 
 ### Prerequisites
 
-- Python 3.10+
+- Python 3.11–3.13
+- [uv](https://docs.astral.sh/uv/) for the frozen project environment
 - Docker (for containerized development)
 - Git
 
@@ -53,15 +54,34 @@ This project adheres to the [Code of Conduct](CODE_OF_CONDUCT.md). By participat
 git clone https://github.com/nold-ai/specfact-cli.git
 cd specfact-cli
 
-# Install dependencies
-pip install -e ".[dev]"
+# Install the committed dependency graph (fails when the lock is stale)
+uv sync --locked --all-extras
 
 # Run contract-first tests
-hatch run contract-test-full
+uv run --locked python tools/contract_first_smart_test.py run --level full
 
 # Run all tests
-hatch test --cover -v
+uv run --locked pytest --cov=src --cov-report=term-missing
 ```
+
+### Frozen delivery inputs
+
+`uv.lock` and `requirements/ci/locked.txt` are committed delivery artifacts. Refresh
+them only after a reviewed dependency declaration change, then include both generated
+files in the same pull request:
+
+```bash
+hatch run refresh-frozen-delivery
+hatch run python scripts/check_reproducible_delivery.py
+```
+
+The blocking CI matrix installs the built wheel with `--no-deps` on Python 3.11, 3.12,
+and 3.13. Its companion-module integration fixture is a reviewed SHA in
+`ci/module-fixture.lock.json`; never substitute a branch name. Scheduled/manual
+lower-bound and latest-resolution checks are advisory diagnostics, not release proof.
+
+BasedPyright reads only `pyproject.toml`. Use `basedpyright --project pyproject.toml`
+when invoking it outside the existing quality scripts.
 
 ### Code Quality Standards
 

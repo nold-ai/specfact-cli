@@ -22,6 +22,7 @@ VERIFY_PYTHON_SCRIPT = REPO_ROOT / "scripts" / "verify-modules-signature.py"
 SIGN_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "sign-modules.yml"
 PR_ORCHESTRATOR_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "pr-orchestrator.yml"
 PUBLISH_PYPI_SCRIPT = REPO_ROOT / ".github" / "workflows" / "scripts" / "check-and-publish-pypi.sh"
+FROZEN_SETUP_ACTION = REPO_ROOT / ".github" / "actions" / "setup-frozen-python" / "action.yml"
 
 
 def _load_pr_orchestrator_jobs() -> dict[str, dict[str, Any]]:
@@ -1174,15 +1175,14 @@ def test_pre_commit_verify_modules_omit_policy_auto_bumps_versions() -> None:
     assert "exec hatch run verify-modules-signature-pr" in content
 
 
-def test_pr_orchestrator_pins_virtualenv_below_21_for_hatch_jobs():
-    """PR orchestrator SHALL pin virtualenv<21 when installing hatch in CI jobs."""
+def test_pr_orchestrator_uses_frozen_setup_instead_of_hatch_bootstrap() -> None:
+    """Blocking delivery jobs SHALL use the shared frozen setup action, not Hatch bootstraps."""
     if not PR_ORCHESTRATOR_WORKFLOW.exists():
         pytest.skip("pr-orchestrator workflow not present")
     content = PR_ORCHESTRATOR_WORKFLOW.read_text(encoding="utf-8")
-    install_commands = re.findall(r"pip install[^\n]*hatch[^\n]*", content)
-    assert install_commands, "Expected at least one pip install hatch command in workflow"
-    for command in install_commands:
-        assert "virtualenv<21" in command, f"Missing virtualenv<21 pin in command: {command}"
+    assert content.count("uses: ./.github/actions/setup-frozen-python") >= 10
+    assert "pip install -e \".[dev]\"" not in content
+    assert not re.findall(r"pip install[^\n]*hatch[^\n]*", content)
 
 
 @pytest.mark.parametrize(
@@ -1219,17 +1219,19 @@ def test_pr_orchestrator_quality_gates_still_depends_on_tests_for_coverage() -> 
     assert set(needs) == {"changes", "tests"}
 
 
-def test_pr_orchestrator_cache_paths_do_not_restore_hatch_virtualenvs() -> None:
-    """PR orchestrator SHALL cache package downloads, not Hatch virtualenv directories."""
-    content = _read_text_or_skip(PR_ORCHESTRATOR_WORKFLOW, reason="pr-orchestrator workflow not present")
-    assert "~/.cache/uv" in content
+def test_frozen_setup_action_caches_only_the_locked_resolver_inputs() -> None:
+    """The shared setup action SHALL cache uv downloads keyed by the committed lock."""
+    content = _read_text_or_skip(FROZEN_SETUP_ACTION, reason="frozen setup action not present")
+    assert "enable-cache: true" in content
+    assert "cache-dependency-glob: uv.lock" in content
+    assert "uv sync --locked --all-extras" in content
     assert "~/.local/share/hatch" not in content
 
 
-def test_publish_script_pins_virtualenv_below_21_for_hatch_build():
-    """PyPI publish script SHALL pin virtualenv<21 when installing hatch."""
+def test_publish_script_uses_the_previously_validated_wheel() -> None:
+    """PyPI publication SHALL validate and publish the CI-built wheel without rebuilding it."""
     content = _read_text_or_skip(PUBLISH_PYPI_SCRIPT, reason="check-and-publish-pypi.sh not present")
-    install_commands = re.findall(r"python -m pip install[^\n]*hatch[^\n]*", content)
-    assert install_commands, "Expected hatch install command in check-and-publish-pypi.sh"
-    for command in install_commands:
-        assert "virtualenv<21" in command, f"Missing virtualenv<21 pin in command: {command}"
+    assert "twine check dist/*" in content
+    assert "twine upload dist/*" in content
+    assert "hatch build" not in content
+    assert "uv build" not in content

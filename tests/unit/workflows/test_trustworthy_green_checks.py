@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 import tomllib
 from pathlib import Path
@@ -22,6 +23,8 @@ PUBLISH_MODULES = REPO_ROOT / ".github" / "workflows" / "publish-modules.yml"
 PRE_COMMIT_CONFIG = REPO_ROOT / ".pre-commit-config.yaml"
 CODERABBIT_CONFIG = REPO_ROOT / ".coderabbit.yaml"
 LEGACY_ACTIONLINT_RUNNER = REPO_ROOT / "scripts" / "run_actionlint.sh"
+MODULE_FIXTURE_LOCK = REPO_ROOT / "ci" / "module-fixture.lock.json"
+UV_LOCK = REPO_ROOT / "uv.lock"
 
 
 def _load_yaml(path: Path) -> dict[str, Any]:
@@ -244,8 +247,8 @@ def test_pr_orchestrator_has_independent_static_analysis_gate() -> None:
 def test_pr_orchestrator_static_analysis_uses_external_tools_only() -> None:
     """Independent SAST must not rely on dogfood review output."""
     raw = "\n".join(str(step.get("run", "")) for step in _load_job_steps("independent-static-analysis"))
-    assert "semgrep-sast" in raw.lower()
-    assert "semgrep-sast-gate" in raw.lower()
+    assert "semgrep scan" in raw.lower()
+    assert "scripts/semgrep_sast_gate.py" in raw.lower()
     assert "tools/semgrep/sast-baseline.json" in raw
     assert "--config auto" not in raw.lower()
     assert "bandit" in raw.lower()
@@ -277,18 +280,19 @@ def test_pr_orchestrator_package_runtime_matrix_uses_built_wheel() -> None:
     assert isinstance(matrix, dict), "package-runtime-matrix strategy must include matrix"
     launchers = matrix.get("launcher")
     assert isinstance(launchers, list)
-    for expected in ("hatch-source", "pip-wheel", "pipx", "uv-run", "uvx"):
+    for expected in ("uv-source", "pip-wheel", "pipx", "uv-run"):
         assert expected in launchers
 
 
 def test_pr_orchestrator_package_runtime_matrix_commands_are_black_box() -> None:
     """Package runtime commands must validate the wheel-backed CLI surface."""
     raw = "\n".join(str(step.get("run", "")) for step in _load_job_steps("package-runtime-matrix"))
-    assert "hatch build" in raw
+    assert "uv build" in raw
     assert "find dist -maxdepth 1 -name '*.whl'" in raw
     assert "pip install -e" not in raw
+    assert "uvx --from" not in raw
     assert "specfact --help" in raw
-    assert "specfact-cli --help" in raw
+    assert "run_specfact_cli --help" in raw
     assert "module list" in raw
 
 
@@ -376,12 +380,12 @@ def test_pr_orchestrator_has_advisory_mutation_baseline() -> None:
     assert "dependency_resolver" in raw
 
 
-def test_pr_orchestrator_contract_first_job_uses_hatch_contract_test() -> None:
-    """Contract-first CI should run scoped contract checks, leaving the full suite to smart-test-full."""
+def test_pr_orchestrator_contract_first_job_uses_frozen_contract_test() -> None:
+    """Contract-first CI should run scoped frozen checks, leaving the full suite to smart-test-full."""
     raw = PR_ORCHESTRATOR.read_text(encoding="utf-8")
-    assert "hatch run contract-test-contracts" in raw
-    assert "hatch run contract-test-exploration-fast" in raw
-    assert "hatch run contract-test 2>&1" not in raw
+    assert "python tools/contract_first_smart_test.py contracts" in raw
+    assert "python tools/contract_first_smart_test.py exploration --crosshair-fast" in raw
+    assert "hatch run contract-test" not in raw
     assert "hatch run specfact repro --verbose --crosshair-required --budget 120" not in raw
 
 
@@ -394,32 +398,86 @@ def test_pr_orchestrator_has_single_full_suite_owner() -> None:
     assert full_suite_runs == ["python tools/smart_test_coverage.py run --level full"]
 
 
-def test_core_ci_checks_out_matching_modules_branch_when_available() -> None:
-    """Core PR CI must validate against the paired modules branch before falling back to dev."""
+def test_core_ci_uses_immutable_modules_fixture() -> None:
+    """Blocking core CI must use a reviewed modules commit rather than a moving branch."""
     raw = PR_ORCHESTRATOR.read_text(encoding="utf-8")
-    assert raw.count("id: modules-ref") >= 4
-    assert raw.count("git ls-remote --exit-code --heads https://github.com/nold-ai/specfact-cli-modules.git") >= 4
-    assert raw.count('echo "ref=dev" >> "$GITHUB_OUTPUT"') >= 4
-    assert raw.count("ref: ${{ steps.modules-ref.outputs.ref }}") >= 4
-    assert "ref: ${{ (github.ref == 'refs/heads/main' || github.head_ref == 'main') && 'main' || 'dev' }}" not in raw
+    assert MODULE_FIXTURE_LOCK.is_file(), "Blocking module validation needs a versioned immutable fixture lock"
+    fixture = json.loads(MODULE_FIXTURE_LOCK.read_text(encoding="utf-8"))
+    assert fixture["repository"] == "nold-ai/specfact-cli-modules"
+    assert re.fullmatch(r"[0-9a-f]{40}", fixture["commit"]), "Fixture refs must be immutable full commit SHAs"
+    assert "ci/module-fixture.lock.json" in raw
+    assert "git ls-remote --exit-code --heads https://github.com/nold-ai/specfact-cli-modules.git" not in raw
+    assert "ref: ${{ steps.modules-ref.outputs.ref }}" not in raw
+    assert "git -C specfact-cli-modules rev-parse HEAD" in raw
 
 
-def test_docs_review_checks_out_matching_modules_branch_when_available() -> None:
-    """Docs command validation must use the same paired modules branch logic as PR CI."""
+def test_pr_orchestrator_uses_frozen_resolution_for_blocking_jobs() -> None:
+    """Blocking CI must install declared dependencies from the committed lock."""
+    assert UV_LOCK.is_file(), "A committed uv.lock is required for reproducible CI"
+    for job_id in ("tests", "package-runtime-matrix", "type-checking", "package-validation", "reproducible-delivery"):
+        steps = _load_job_steps(job_id)
+        assert any(step.get("uses") == "./.github/actions/setup-frozen-python" for step in steps), job_id
+        job_runs = "\n".join(str(step.get("run", "")) for step in steps)
+        assert 'pip install -e ".[dev]"' not in job_runs
+
+
+def test_advisory_dependency_compatibility_lane_cannot_block_delivery() -> None:
+    """Resolver drift evidence is scheduled/advisory rather than release input."""
+    job = _load_jobs()["dependency-compatibility"]
+    assert job.get("continue-on-error") is True
+    assert "schedule" in str(job.get("if", ""))
+    raw = "\n".join(str(step.get("run", "")) for step in _load_job_steps("dependency-compatibility"))
+    assert "uv lock --upgrade" in raw
+
+
+def test_package_runtime_matrix_proves_all_declared_python_versions() -> None:
+    """Locked built-wheel smoke must cover every supported Python interpreter."""
+    job = _load_jobs()["package-runtime-matrix"]
+    strategy = job.get("strategy")
+    assert isinstance(strategy, dict)
+    matrix = strategy.get("matrix")
+    assert isinstance(matrix, dict)
+    assert matrix.get("python-version") == ["3.11", "3.12", "3.13"]
+    raw = "\n".join(str(step.get("run", "")) for step in _load_job_steps("package-runtime-matrix"))
+    assert "--no-deps" in raw
+
+
+def test_type_checking_explicitly_selects_pyproject_and_uploads_json() -> None:
+    """CI must not rely on basedpyright configuration auto-discovery."""
+    assert not (REPO_ROOT / "pyrightconfig.json").exists()
+    basedpyright = tomllib.loads(PYPROJECT.read_text(encoding="utf-8"))["tool"]["basedpyright"]
+    assert basedpyright["include"] == ["src", "tests", "tools"]
+    assert basedpyright["extraPaths"] == ["src"]
+    assert basedpyright["typeCheckingMode"] == "standard"
+    run_clause = str(_find_named_step("type-checking", "Run type checking").get("run") or "")
+    assert "--project pyproject.toml" in run_clause
+    assert "--outputjson" in run_clause
+    upload_step = _find_named_step("type-checking", "Upload type-check logs")
+    assert "json" in str(upload_step.get("with") or "").lower()
+
+
+def test_docs_review_uses_immutable_modules_fixture_and_frozen_environment() -> None:
+    """Docs command validation must not silently drift with branch or resolver state."""
     raw = DOCS_REVIEW.read_text(encoding="utf-8")
-    assert raw.count("id: modules-ref") == 1
-    assert "git ls-remote --exit-code --heads https://github.com/nold-ai/specfact-cli-modules.git" in raw
-    assert 'echo "ref=dev" >> "$GITHUB_OUTPUT"' in raw
-    assert "ref: ${{ steps.modules-ref.outputs.ref }}" in raw
+    assert "ci/module-fixture.lock.json" in raw
+    assert "ref: ${{ steps.modules-fixture.outputs.commit }}" in raw
+    assert "git -C specfact-cli-modules rev-parse HEAD" in raw
+    assert "./.github/actions/setup-frozen-python" in raw
+    assert "pip install" not in raw
+    assert "hatch run" not in raw
+    assert "git ls-remote --exit-code --heads https://github.com/nold-ai/specfact-cli-modules.git" not in raw
 
 
-def test_specfact_contract_workflow_checks_out_matching_modules_branch_when_available() -> None:
-    """Standalone contract validation must resolve installable module commands from paired branches."""
+def test_specfact_contract_workflow_uses_immutable_modules_fixture_and_frozen_environment() -> None:
+    """Standalone contract validation must not drift with branch or resolver state."""
     raw = SPECFACT_WORKFLOW.read_text(encoding="utf-8")
-    assert raw.count("id: modules-ref") == 1
-    assert "git ls-remote --exit-code --heads https://github.com/nold-ai/specfact-cli-modules.git" in raw
-    assert 'echo "ref=dev" >> "$GITHUB_OUTPUT"' in raw
-    assert "ref: ${{ steps.modules-ref.outputs.ref }}" in raw
+    assert "ci/module-fixture.lock.json" in raw
+    assert "ref: ${{ steps.modules-fixture.outputs.commit }}" in raw
+    assert "git -C specfact-cli-modules rev-parse HEAD" in raw
+    assert "./.github/actions/setup-frozen-python" in raw
+    assert "pip install" not in raw
+    assert "pip install -e" not in raw
+    assert "git ls-remote --exit-code --heads https://github.com/nold-ai/specfact-cli-modules.git" not in raw
     assert "SPECFACT_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" in raw
     assert "SPECFACT_MODULES_ROOTS=${GITHUB_WORKSPACE}/specfact-cli-modules/packages" in raw
     assert "ref: ${{ (github.ref == 'refs/heads/main' || github.head_ref == 'main') && 'main' || 'dev' }}" not in raw

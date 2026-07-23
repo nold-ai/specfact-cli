@@ -9,12 +9,15 @@ expertise_level: [advanced]
 doc_owner: specfact-cli
 tracks:
   - pyproject.toml
+  - uv.lock
+  - requirements/ci/locked.txt
+  - ci/module-fixture.lock.json
   - modules/*/module-package.yaml
   - src/specfact_cli/modules/*/module-package.yaml
   - scripts/check_license_compliance.py
   - scripts/license_allowlist.yaml
   - SECURITY.md
-last_reviewed: 2026-04-16
+last_reviewed: 2026-07-23
 exempt: false
 exempt_reason: ""
 id: agent-rules-dependency-hygiene
@@ -69,7 +72,28 @@ They are **never** acceptable in module manifests (see Section 1).
 | LGPL-2.1 / LGPL-3.0 | CONDITIONAL | Allowed when invoked as subprocess (not statically linked); requires `module-manifest` allowlist entry with subprocess justification |
 | GPL-2.0 / GPL-3.0 / AGPL | BLOCKED | Never in module manifests; dev-only with allowlist + Phase 2 plan |
 
-## 4. Required gates before any manifest or dependency change is merged
+## 4. Reproducible dependency inputs (HARD BLOCK)
+
+`uv.lock` and `requirements/ci/locked.txt` are the authoritative frozen inputs for
+blocking delivery jobs. They are generated artifacts, not hand-maintained dependency
+lists. Any change to `pyproject.toml`, either frozen file, or the frozen CI setup action
+MUST include a reviewed refresh and verification:
+
+```bash
+hatch run refresh-frozen-delivery
+hatch run python scripts/check_reproducible_delivery.py
+```
+
+Review the resulting lock diff and the hash-protected export together. Do not use an
+unlocked `pip install`, `uv add`, or resolver fallback in a blocking delivery/release
+job. A temporary compatibility experiment belongs in the scheduled/manual advisory lane
+and cannot replace frozen evidence.
+
+The companion-module fixture at `ci/module-fixture.lock.json` MUST name the exact
+repository and a full, reviewed 40-character commit SHA. Never replace it with a branch,
+tag, or PR-head lookup; update it only with accompanying validation evidence.
+
+## 5. Required gates before any manifest or dependency change is merged
 
 Run these in order:
 
@@ -79,7 +103,7 @@ hatch run security-audit  # pip-audit --desc --strict — review CVEs ≥ CVSS 7
 hatch run bandit-scan     # bandit -r src/ -ll — review and document findings
 ```
 
-## 5. New pip_dependencies in module manifests — checklist
+## 6. New pip_dependencies in module manifests — checklist
 
 Before adding a new `pip_dependencies` entry to any `module-package.yaml`:
 
@@ -90,7 +114,7 @@ Before adding a new `pip_dependencies` entry to any `module-package.yaml`:
 5. Re-sign the module manifest (`hatch run sign-modules`).
 6. Run `hatch run verify-modules-signature` (strict bundle from `module-verify-policy.sh`) — must pass.
 
-## 6. Phase 2 tracking
+## 7. Phase 2 tracking
 
 | Package | Current status | Phase 2 action |
 | --- | --- | --- |
@@ -98,7 +122,7 @@ Before adding a new `pip_dependencies` entry to any `module-package.yaml`:
 | `yamllint` | dev-only (GPL-3.0-or-later) | Replace with a non-GPL YAML lint path once CI / pre-commit parity is preserved |
 | `gitpython` | runtime (CVE history) | Replace with `dulwich` adapter (3-file rewrite) |
 
-## 7. Static license map
+## 8. Static license map
 
 `check_license_compliance.py` uses a static license map for known module
 pip_dependencies to avoid network calls. The mapping lives in

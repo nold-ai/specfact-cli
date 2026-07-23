@@ -82,13 +82,8 @@ if [ "$SHOULD_PUBLISH" = "true" ]; then
     echo "✅ Version $LOCAL_VERSION is newer than PyPI version $PYPI_VERSION"
     echo "🚀 Publishing to PyPI..."
     
-    # Build package
-    # Use hatch build to match the project's configured packaging flow.
-    echo "📦 Building package..."
-    python -m pip install --upgrade "hatch" "virtualenv<21" twine
-    hatch build
-    
-    # Validate package
+    # The release-validation job built and tested this exact artifact. Publishing
+    # must never rebuild it with a potentially different dependency environment.
     echo "🔍 Validating package..."
     twine check dist/*
     

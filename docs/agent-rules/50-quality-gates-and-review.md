@@ -15,7 +15,7 @@ tracks:
   - scripts/verify-modules-signature.py
   - scripts/module-verify-policy.sh
   - docs/agent-rules/**
-last_reviewed: 2026-06-13
+last_reviewed: 2026-07-23
 exempt: false
 exempt_reason: ""
 id: agent-rules-quality-gates-and-review
@@ -44,6 +44,28 @@ depends_on:
 4. `hatch run yaml-lint`
 5. `hatch run contract-test`
 6. `hatch run smart-test`
+
+## Frozen delivery and type-authority gates
+
+When a change touches `pyproject.toml`, `uv.lock`, `requirements/ci/locked.txt`,
+`ci/module-fixture.lock.json`, `.github/actions/setup-frozen-python/`, or delivery CI,
+run and record these additional gates before finalization:
+
+```bash
+hatch run python scripts/check_reproducible_delivery.py
+uv lock --check
+basedpyright --project pyproject.toml --outputjson > /tmp/specfact-basedpyright.json
+```
+
+Blocking delivery CI MUST use the checked-in frozen inputs, build the wheel once, and
+install the wheel with dependency resolution disabled. The 3.11, 3.12, and 3.13
+built-wheel matrix is merge-blocking; scheduled/manual lower-bound and latest-resolution
+checks are advisory only. Attach the normalized installed-package and SBOM evidence from
+the `Reproducible Delivery Evidence` job to the run artifacts.
+
+`pyproject.toml` is the sole BasedPyright authority. Do not add `pyrightconfig.json` or
+invoke BasedPyright without `--project pyproject.toml`; CI JSON results are retained as
+the authoritative type-check artifact.
 
 ## SpecFact code review JSON
 
