@@ -97,9 +97,17 @@ The BasedPyright runner is a separate committed npm lock at
 `tools/basedpyright/package-lock.json`. CI SHALL install it with `npm ci --ignore-scripts`
 after a SHA-pinned `actions/setup-node` step; do not add a Python wheel that bundles an
 unofficial Node runtime. Flagged dependencies that remain necessary require an exact
-version, source URL, review date, expiry, and transitive path in
-`ci/dependency-trust-exceptions.json`. Expiry is fail-closed: renew the review or remove
-the package.
+version, PyPI artifact URL, artifact SHA-256, source-provenance classification, review
+date, expiry, and transitive path in `ci/dependency-trust-exceptions.json`. Expiry is
+fail-closed: renew the review or remove the package. A release with a security or
+obfuscation alert is a block entry, not an exception: the dependency-trust checker rejects
+it even if a record exists and verifies each remaining record against `uv.lock`.
+
+`Dependency Trust Gate` runs for every PR; its matching local pre-commit hook runs before
+a dependency-input commit. Socket Security's `Project Report` and `Pull Request Alerts`
+are required status checks on protected `dev` and `main` branches. Keep both layers: the
+native gate prevents known/reviewed artifact drift, while Socket supplies independent
+obfuscation and supply-chain analysis.
 
 ## 5. Required gates before any manifest or dependency change is merged
 

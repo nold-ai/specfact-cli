@@ -261,3 +261,45 @@ blocking `CC21` complexity error in the new trust checker. After extraction into
 validation helpers, the scoped review passed with zero errors (two advisory contract
 warnings remain); hosted CI/module-fixture validation remains required evidence for
 the full repository review surface.
+
+## Socket obfuscation remediation and CI repair — 2026-07-24
+
+The prior dependency-trust record allowed `pycparser==3.0` after a Socket obfuscation
+alert. This was an inadequate control: a reviewed record must not approve a known-alerted
+release. The following test was added before the policy change and failed as expected:
+
+```text
+tests/unit/scripts/test_dependency_trust_review.py::test_alerted_pycparser_release_is_blocked_even_with_a_review_record
+FAILED: expected `pycparser==3.0 is blocked after a security-obfuscation alert`; got []
+```
+
+The remediation pins `pycparser==2.22`, regenerates `uv.lock` and the hash-protected CI
+export, and records its exact wheel URL and SHA-256. The native policy now blocks the
+alerted `3.0` release even when an exception record exists, and it binds every remaining
+review record to the frozen lock artifact. It is invoked by a staged dependency-input
+pre-commit hook and by the always-run `Dependency Trust Gate` CI job. Socket's project
+and pull-request checks are independently required by the protected `dev` and `main`
+rulesets (verified read-only on 2026-07-24).
+
+The two failed hosted tests were made deterministic: the Typer metavariable assertion is
+case-insensitive and the marketplace-uninstall test isolates the user module root rather
+than reading a CI runner's state. Passing focused proof:
+
+```text
+uv run --locked python -m pytest \
+  tests/unit/scripts/test_dependency_trust_review.py \
+  tests/unit/workflows/test_trustworthy_green_checks.py::test_pr_orchestrator_package_validation_waits_for_dependency_gates \
+  tests/unit/workflows/test_trustworthy_green_checks.py::test_dependency_trust_is_a_standalone_ci_and_pre_commit_gate \
+  tests/unit/cli/test_lean_help_output.py::test_lazy_delegate_missing_option_value_shows_leaf_help \
+  tests/unit/specfact_cli/modules/test_multi_module_install_uninstall.py::test_module_uninstall_multi_missing_first_reports_error_still_uninstalls_rest_exits_nonzero -q
+9 passed
+
+uv run --locked python scripts/check_dependency_trust_exceptions.py
+Dependency trust register is valid
+
+uv run --locked python scripts/check_reproducible_delivery.py
+reproducible delivery inputs are valid
+
+uv lock --check
+Resolved 182 packages
+```

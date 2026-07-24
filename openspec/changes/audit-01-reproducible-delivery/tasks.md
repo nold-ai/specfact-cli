@@ -53,7 +53,8 @@ Per `openspec/config.yaml`, implement in this order: specs, failing tests, produ
 - [x] 6.2.3 Replace the PyPI BasedPyright/Node runtime path with the committed npm type-tool lock and SHA-pinned Node setup.
 - [x] 6.2.4 Remove Pylint/Dill from frozen CI and Hatch lint; prove the Ruff replacement remains blocking.
 - [x] 6.2.5 Add the expiring Pycparser review record and evidence-based mixed-license classifier; repair the failing CI checks.
-- [ ] 6.2.6 Update contributor/security documentation, refresh frozen Python inputs, and run the complete dependency and CI policy gates.
+- [x] 6.2.6 Update contributor/security documentation, refresh frozen Python inputs, and run the complete dependency and CI policy gates.
+- [x] 6.2.7 Replace the Socket-alerted Pycparser 3.0 release, add immutable-artifact provenance binding, and enforce native dependency-trust gates in pre-commit and CI.
 - [ ] 6.3 Commit, push, create a PR to `dev`, link it to issue #651 and project #1, and update issue status to In Progress.
 
 ## Post-merge cleanup

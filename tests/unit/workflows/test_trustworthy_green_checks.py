@@ -618,13 +618,28 @@ def test_pr_orchestrator_package_validation_waits_for_dependency_gates() -> None
     assert isinstance(needs, list), "Expected package-validation needs list"
     assert "license-check" in needs
     assert "security-audit" in needs
+    assert "dependency-trust" in needs
 
 
-def test_license_gate_enforces_expiring_dependency_trust_records() -> None:
-    """Flagged dependency exceptions must be checked when their register changes."""
-    raw = PR_ORCHESTRATOR.read_text(encoding="utf-8")
-    assert "ci/dependency-trust-exceptions.json" in raw
-    assert "scripts/check_dependency_trust_exceptions.py" in raw
+def test_dependency_trust_is_a_standalone_ci_and_pre_commit_gate() -> None:
+    """Known alerted releases must be blocked locally and by a visible CI status."""
+    jobs = _load_jobs()
+    dependency_trust = jobs.get("dependency-trust")
+    assert dependency_trust is not None
+    assert dependency_trust.get("name") == "Dependency Trust Gate"
+    assert "if" not in dependency_trust
+    steps = _load_job_steps("dependency-trust")
+    assert any(step.get("uses") == "./.github/actions/setup-frozen-python" for step in steps)
+    commands = "\n".join(str(step.get("run", "")) for step in steps)
+    assert "scripts/check_dependency_trust_exceptions.py" in commands
+    assert "scripts/check_reproducible_delivery.py" in commands
+
+    hooks = _load_hooks()
+    by_id = {str(hook["id"]): hook for hook in hooks}
+    trust_hook = by_id["dependency-trust-gate"]
+    assert trust_hook.get("pass_filenames") is False
+    assert "scripts/check_dependency_trust_exceptions.py" in str(trust_hook.get("entry", ""))
+    assert "uv\\.lock" in str(trust_hook.get("files", ""))
 
 
 def _assert_pre_commit_cli_quality_block_hooks(by_id: dict[str, dict[str, Any]]) -> None:

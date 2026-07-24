@@ -248,7 +248,10 @@ def test_lazy_delegate_missing_option_value_shows_leaf_help() -> None:
     assert result.exit_code == 2
     assert "Usage: specfact module install" in output
     assert "Option '--scope' requires an argument" in output
-    assert "MODULE_IDS" in output
+    # Typer 0.23 renders the metavariable in lower case on some supported
+    # platform/Python combinations.  The command contract is the argument's
+    # presence, not its presentation casing.
+    assert "module_ids" in output.lower()
 
 
 def test_lazy_delegate_help_falls_back_when_typer_command_build_fails(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -64,6 +64,9 @@ dependencies = [
     "requests>=2.32.3",
     "azure-identity>=1.17.1",
     "cryptography>=43.0.0",
+    # Transitive through CFFI. Keep this exact reviewed release to prevent a
+    # resolver from reintroducing the blocked pycparser 3.0 artifact.
+    "pycparser==2.22",
     "packaging>=24.0",
     # PEP 440 / markers for module installer and registry (do not rely on transitive pins only)
 

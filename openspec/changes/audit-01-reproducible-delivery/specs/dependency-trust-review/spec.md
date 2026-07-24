@@ -8,8 +8,15 @@ The repository SHALL keep a version-specific review record for every flagged fro
 
 - **GIVEN** `pycparser` is present in the frozen Python resolution through `cryptography` and `cffi`
 - **WHEN** CI evaluates dependency trust policy
-- **THEN** a repository-owned record SHALL name its exact version, source artifact, review date, expiry, and transitive path
-- **AND** the policy SHALL fail closed when the record is absent, stale, or version-mismatched.
+- **THEN** a repository-owned record SHALL name its exact version, source artifact, artifact SHA-256, source-provenance classification, review date, expiry, and transitive path
+- **AND** the policy SHALL fail closed when the record is absent, stale, version-mismatched, or does not match the frozen artifact.
+
+#### Scenario: A release has an obfuscation alert
+
+- **GIVEN** an exact frozen package release has been identified by security review or Socket as obfuscated or malicious
+- **WHEN** a developer adds a review record or the frozen lock contains that release
+- **THEN** the native dependency-trust policy SHALL reject the release rather than treating the record as an approval
+- **AND** the pre-commit hook and the `Dependency Trust Gate` CI status SHALL run the same policy.
 
 #### Scenario: Unofficial executable wheel is proposed
 

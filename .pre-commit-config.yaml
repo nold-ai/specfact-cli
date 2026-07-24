@@ -19,6 +19,13 @@ repos:
         pass_filenames: false
         always_run: true
 
+      - id: dependency-trust-gate
+        name: Dependency trust gate (blocked releases and frozen-review binding)
+        entry: python scripts/check_dependency_trust_exceptions.py
+        language: system
+        pass_filenames: false
+        files: ^(pyproject\.toml|uv\.lock|requirements/ci/locked\.txt|ci/dependency-trust-exceptions\.json|scripts/check_dependency_trust_exceptions\.py)$
+
       # Runs only when canonical version files are staged — same scope as pr-orchestrator tests job
       # PyPI step (version_sources_changed). Skips routine commits when local == PyPI after a release.
       - id: check-local-version-ahead-of-pypi
