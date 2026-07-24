@@ -9,8 +9,13 @@ updates:
       timezone: Europe/Berlin
     open-pull-requests-limit: 5
     groups:
-      python-security-updates:
-        dependency-type: all
+      production-security-updates:
+        dependency-type: production
+        update-types:
+          - patch
+          - minor
+      development-security-updates:
+        dependency-type: development
         update-types:
           - patch
           - minor
