@@ -1,4 +1,8 @@
-"""Fail closed when a reviewed dependency-trust exception is malformed or expired."""
+"""Fail closed when a reviewed dependency-trust exception is malformed or expired.
+
+This script executes before ``uv sync`` in CI, so it must remain standard-library
+only.  Do not add runtime contract or validation-library imports here.
+"""
 
 from __future__ import annotations
 
@@ -9,8 +13,6 @@ import tomllib
 from datetime import date
 from pathlib import Path
 from typing import cast
-
-from icontract import ensure
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -159,18 +161,6 @@ def _validate_dates(package_ref: str, *, reviewed_on: date, expires_on: date, cu
     return errors
 
 
-def _returns_error_list(result: list[str]) -> bool:
-    """Contract predicate for deterministic policy validators."""
-    del result
-    return True
-
-
-def _returns_exit_code(result: int) -> bool:
-    """Contract predicate for CI-friendly process results."""
-    return result in (0, 1)
-
-
-@ensure(_returns_error_list)
 def validate_exception_register(register_path: Path, *, today: date | None = None) -> list[str]:
     """Return deterministic policy errors for a dependency-trust exception register."""
     records, errors = _read_exception_records(register_path)
@@ -319,7 +309,6 @@ def _validate_review_records(register_path: Path, locked_packages: dict[str, dic
     return errors
 
 
-@ensure(_returns_error_list)
 def validate_frozen_dependency_policy(
     register_path: Path = DEFAULT_REGISTER,
     lock_path: Path = DEFAULT_UV_LOCK,
@@ -341,7 +330,6 @@ def validate_frozen_dependency_policy(
     return errors
 
 
-@ensure(_returns_exit_code)
 def main() -> int:
     """Print register validation errors and return a CI-friendly exit status."""
     errors = validate_frozen_dependency_policy()

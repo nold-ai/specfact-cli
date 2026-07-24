@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import subprocess
+import sys
 from datetime import date
 from pathlib import Path
 
@@ -19,6 +21,20 @@ def _load_checker():
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
+
+
+def test_checker_runs_before_site_packages_are_available() -> None:
+    """The CI bootstrap check must not import dependencies installed by uv sync."""
+    result = subprocess.run(
+        [sys.executable, "-S", str(CHECKER)],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "Dependency trust register is valid" in result.stdout
 
 
 def test_pycparser_has_current_exact_version_review_record() -> None:

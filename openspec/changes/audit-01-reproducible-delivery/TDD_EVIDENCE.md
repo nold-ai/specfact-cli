@@ -444,3 +444,20 @@ environment because the private signing key is held only by the protected
 repository signing workflow. After the PR branch is pushed, that workflow must
 create the trusted signature commit before strict module-integrity checks and
 the full suite can be recorded as green.
+
+## CI bootstrap trust-check repair — 2026-07-25
+
+The PR's Workflow Lint, Contract Validation, Docs Review, and signature
+verification jobs all failed before dependency synchronization because the
+bootstrap trust checker imported `icontract`. The checker runs before `uv sync`,
+so that import was unavailable by design. The checker is now explicitly
+standard-library-only and has a regression test that runs it with site-packages
+disabled:
+
+```text
+python -S scripts/check_dependency_trust_exceptions.py
+Dependency trust register is valid
+
+tests/unit/scripts/test_dependency_trust_review.py
+11 passed
+```
