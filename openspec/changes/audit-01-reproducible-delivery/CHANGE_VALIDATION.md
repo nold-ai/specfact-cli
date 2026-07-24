@@ -47,6 +47,6 @@ installation, providing a second enforcement boundary.
 
 - Failing-before package metadata test and passing-after command are recorded in
   [TDD_EVIDENCE.md](./TDD_EVIDENCE.md).
-- Strict validation: `openspec validate audit-01-reproducible-delivery --strict`.
+- Strict validation: `hatch run openspec validate audit-01-reproducible-delivery --strict`.
 - Hosted BasedPyright artifact: GitHub Actions run
   [`30132168259`](https://github.com/nold-ai/specfact-cli/actions/runs/30132168259).

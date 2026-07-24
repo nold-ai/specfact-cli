@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 import re
 import tomllib
 from pathlib import Path
@@ -13,6 +14,7 @@ from packaging.requirements import Requirement
 REPO_ROOT = Path(__file__).resolve().parents[3]
 PYPROJECT = REPO_ROOT / "pyproject.toml"
 SETUP_PY = REPO_ROOT / "setup.py"
+ROOT_INIT_PY = REPO_ROOT / "src" / "__init__.py"
 INIT_PY = REPO_ROOT / "src" / "specfact_cli" / "__init__.py"
 
 CORE_MODULE_NAMES = {"init", "module_registry", "upgrade"}
@@ -45,12 +47,54 @@ def _project_version() -> str:
     return version
 
 
-def _project_dependencies() -> set[str]:
+def _project_dependencies() -> list[str]:
     """Return the declared core package dependencies."""
     project = tomllib.loads(PYPROJECT.read_text(encoding="utf-8"))["project"]
     dependencies = project["dependencies"]
     assert isinstance(dependencies, list)
-    return set(dependencies)
+    assert all(isinstance(dependency, str) for dependency in dependencies)
+    return dependencies
+
+
+def _module_version(module_path: Path) -> str:
+    """Return the literal ``__version__`` assignment from a package module."""
+    module = ast.parse(module_path.read_text(encoding="utf-8"), filename=str(module_path))
+    assignments = [
+        statement
+        for statement in module.body
+        if isinstance(statement, ast.Assign)
+        and len(statement.targets) == 1
+        and isinstance(statement.targets[0], ast.Name)
+        and statement.targets[0].id == "__version__"
+    ]
+    assert len(assignments) == 1, f"{module_path} must contain exactly one __version__ assignment"
+    version = assignments[0].value
+    assert isinstance(version, ast.Constant) and isinstance(version.value, str)
+    return version.value
+
+
+def _setup_metadata() -> tuple[str, list[str]]:
+    """Return literal version and dependency values passed to the setup() call."""
+    setup_module = ast.parse(SETUP_PY.read_text(encoding="utf-8"), filename=str(SETUP_PY))
+    setup_calls = [
+        node
+        for node in ast.walk(setup_module)
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "setup"
+    ]
+    assert len(setup_calls) == 1, "setup.py must contain exactly one setup() call"
+    keywords = {keyword.arg: keyword.value for keyword in setup_calls[0].keywords if keyword.arg is not None}
+
+    version = ast.literal_eval(keywords["version"])
+    dependencies = ast.literal_eval(keywords["install_requires"])
+    assert isinstance(version, str)
+    assert isinstance(dependencies, list)
+    assert all(isinstance(dependency, str) for dependency in dependencies)
+    return version, dependencies
+
+
+def _requirements_named(dependencies: list[str], package_name: str) -> list[Requirement]:
+    """Return every parsed dependency declaration for one normalized package name."""
+    return [requirement for dependency in dependencies if (requirement := Requirement(dependency)).name == package_name]
 
 
 def test_pyproject_wheel_packages_exist() -> None:
@@ -89,42 +133,42 @@ def test_pyproject_force_include_does_not_reference_deleted_modules() -> None:
 def test_package_version_sources_are_synchronized() -> None:
     """Canonical package metadata and both import surfaces must share one version."""
     in_pyproject = _project_version()
-    init_text = INIT_PY.read_text(encoding="utf-8")
-    assert f'__version__ = "{in_pyproject}"' in init_text or f"__version__ = '{in_pyproject}'" in init_text
-    setup_text = SETUP_PY.read_text(encoding="utf-8")
-    assert f'version="{in_pyproject}"' in setup_text or f"version='{in_pyproject}'" in setup_text
+    setup_version, _ = _setup_metadata()
+
+    assert _module_version(ROOT_INIT_PY) == in_pyproject
+    assert _module_version(INIT_PY) == in_pyproject
+    assert setup_version == in_pyproject
 
 
 def test_core_dependency_bounds_allow_patched_click_and_typer_releases() -> None:
     """Core requirements must retain the reviewed security version bounds."""
     dependencies = _project_dependencies()
+    _, setup_dependencies = _setup_metadata()
 
-    assert {
+    expected_dependencies = {
         "click>=8.3.3,<9",
         "typer>=0.24.0,<1",
         "pycparser>=2.22,!=3.0.*",
         "rich>=13.5.2,<16.0.0",
-    } <= dependencies
+    }
+    assert expected_dependencies <= set(dependencies)
+    assert dependencies == setup_dependencies
     assert not any(dependency.startswith("opentelemetry-") for dependency in dependencies)
-
-    setup_text = SETUP_PY.read_text(encoding="utf-8")
-    assert all(
-        requirement in setup_text
-        for requirement in ('"click>=8.3.3,<9"', '"typer>=0.24.0,<1"', '"pycparser>=2.22,!=3.0.*"')
-    )
-    assert '"rich>=13.5.2,<16.0.0"' in setup_text
-    assert '"opentelemetry-sdk' not in setup_text
-    assert '"opentelemetry-exporter-otlp-proto-http' not in setup_text
+    assert not any(dependency.startswith("opentelemetry-") for dependency in setup_dependencies)
 
 
 def test_pycparser_requirement_excludes_the_alerted_release_family() -> None:
     """The published requirement must exclude the complete alerted 3.0 family."""
-    dependencies = _project_dependencies()
-    pycparser_requirement = Requirement(next(item for item in dependencies if item.startswith("pycparser")))
-    assert pycparser_requirement.specifier.contains("2.22")
-    assert not pycparser_requirement.specifier.contains("3.0")
-    assert not pycparser_requirement.specifier.contains("3.0.1")
-    assert not pycparser_requirement.specifier.contains("3.0.post1")
+    _, setup_dependencies = _setup_metadata()
+
+    for dependencies in (_project_dependencies(), setup_dependencies):
+        pycparser_requirements = _requirements_named(dependencies, "pycparser")
+        assert len(pycparser_requirements) == 1
+        pycparser_requirement = pycparser_requirements[0]
+        assert pycparser_requirement.specifier.contains("2.22")
+        assert not pycparser_requirement.specifier.contains("3.0")
+        assert not pycparser_requirement.specifier.contains("3.0.1")
+        assert not pycparser_requirement.specifier.contains("3.0.post1")
 
 
 def test_telemetry_dependencies_are_opt_in_extra() -> None:

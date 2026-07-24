@@ -271,6 +271,33 @@ release gate advanced the four synchronized version sources to `0.53.4` and adde
 the matching changelog entry. The full review-fix validation is recorded in
 [`CHANGE_VALIDATION.md`](./CHANGE_VALIDATION.md).
 
+The follow-up CodeRabbit review added four test/documentation-hardening requests.
+Three were valid and were implemented: the validation report now uses the
+repository-managed `hatch run openspec` command; version checks parse literal
+`__version__` assignments and the literal `setup()` keyword values; and the
+dependency checks preserve every declaration, require the pyproject and setup
+lists to match, and reject duplicate `pycparser` declarations. The requested
+evidence-date rollback was not applied because the recorded verification occurred
+on 2026-07-25. This is test/documentation hardening only; it does not change
+runtime behavior or published metadata.
+
+```text
+hatch run pytest tests/unit/packaging/test_core_package_includes.py -q
+9 passed, 1 sandbox cache warning
+
+hatch run openspec validate audit-01-reproducible-delivery --strict
+Change 'audit-01-reproducible-delivery' is valid
+
+hatch run format && hatch run type-check && hatch run lint && hatch run contract-test
+format: 891 files formatted; type-check: 0 errors, 1642 existing warnings;
+lint: 0 errors, 0 warnings; contract scenarios: 21 passed
+
+hatch run python scripts/pre_commit_code_review.py \
+  tests/unit/packaging/test_core_package_includes.py \
+  openspec/changes/audit-01-reproducible-delivery/CHANGE_VALIDATION.md
+Code review summary: 0 finding(s); overall_verdict='PASS'
+```
+
 ## Review remediation evidence — 2026-07-24
 
 Codex and CodeRabbit review feedback was read through the PR review API. The
