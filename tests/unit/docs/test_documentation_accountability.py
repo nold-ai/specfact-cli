@@ -216,5 +216,10 @@ def test_accountability_gate_is_mandatory_locally_and_in_pr_ci() -> None:
 
     steps = docs_workflow["jobs"]["docs-review"]["steps"]
     accountability_step = next(step for step in steps if step.get("name") == "Validate documentation accountability")
-    assert accountability_step["run"] == "hatch run check-documentation-accountability"
+    assert accountability_step["run"] == "python scripts/check-documentation-accountability.py"
+    frozen_setup_index = next(
+        index for index, step in enumerate(steps) if step.get("uses") == "./.github/actions/setup-frozen-python"
+    )
+    accountability_index = steps.index(accountability_step)
+    assert frozen_setup_index < accountability_index
     assert accountability_step.get("continue-on-error", False) is False

@@ -1,8 +1,12 @@
 # dep-license-gate Specification
 
 ## Purpose
-TBD - created by archiving change dep-security-cleanup. Update Purpose after archive.
+
+Define the repository's license-compliance and frozen-advisory gates so CI and local
+contributors reject unapproved (A)GPL dependencies and unreviewed vulnerabilities.
+
 ## Requirements
+
 ### Requirement: Automated license compliance gate
 
 The system SHALL provide a `hatch run license-check` script that scans all installed packages in the active environment and fails if any package carries a GPL-2.0, GPL-3.0, AGPL-3.0, GPL-2.0-or-later, GPL-3.0-or-later, or AGPL-3.0-or-later license that is not present in the project's documented exception allowlist. This gate SHALL be executable in CI and locally.
@@ -66,31 +70,35 @@ The project SHALL maintain a `scripts/license_allowlist.yaml` file that document
 
 ### Requirement: Automated CVE and security audit gate
 
-The system SHALL provide a `hatch run security-audit` script that runs `pip-audit` against the active environment to detect known CVEs in installed packages. The gate SHALL fail if any vulnerability with CVSS score >= 7.0 (high severity) is found.
+The system SHALL provide a `hatch run security-audit` script that runs
+`pip-audit --strict` against the committed hash-protected requirements export,
+not an ambient environment. The gate SHALL fail on every unreviewed known
+advisory; CVSS metadata is reported but SHALL NOT downgrade a finding to a
+warning-only result.
 
 `pip-audit` (MIT, by Python Packaging Authority) is the standard CVE scanning tool for Python packages, backed by the OSV and PyPI vulnerability databases.
 
-#### Scenario: No CVEs found
+#### Scenario: No unreviewed CVEs found
 
 - **WHEN** `hatch run security-audit` is executed
-- **AND** no installed package has a known CVE at high severity
+- **AND** no frozen package has an unreviewed known advisory
 - **THEN** the script SHALL exit with code 0
-- **AND** SHALL print: `Security audit passed. No high-severity vulnerabilities found.`
+- **AND** SHALL print: `Security audit passed. No unreviewed vulnerabilities found in the frozen requirements.`
 
-#### Scenario: High-severity CVE found
+#### Scenario: Any unreviewed CVE found
 
 - **WHEN** `hatch run security-audit` is executed
-- **AND** an installed package has a CVE with CVSS >= 7.0
+- **AND** a frozen package has a known advisory without a matching, unexpired exception
 - **THEN** the script SHALL exit with code 1
 - **AND** SHALL print the package name, version, CVE ID, CVSS score, and description
-- **AND** SHALL print: `ACTION REQUIRED: Update or replace <package>==<version>`
+- **AND** SHALL print an `ACTION REQUIRED` remediation message.
 
-#### Scenario: Low/medium CVE found — warning only
+#### Scenario: Exact temporary advisory exception
 
 - **WHEN** `hatch run security-audit` is executed
-- **AND** an installed package has a CVE with CVSS < 7.0
-- **THEN** the script SHALL print a WARNING with the details
-- **AND** SHALL NOT fail the gate (engineer reviews and decides)
+- **AND** a reviewed exception matches the exact package, version, and advisory ID
+- **THEN** the script SHALL allow only that finding while printing a `WAIVED` record
+- **AND** SHALL fail when the exception lacks mitigation/rationale or is expired.
 
 #### Scenario: pip-audit not available
 
@@ -117,7 +125,7 @@ merging any dependency change.
 
 - **WHEN** any pull request is opened or updated
 - **THEN** the CI workflow SHALL run `hatch run security-audit`
-- **AND** SHALL block merge if any high-severity CVE is found
+- **AND** SHALL block merge if any unreviewed advisory is found
 
 ### Requirement: Agent-rules documentation for dependency hygiene
 

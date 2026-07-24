@@ -1,0 +1,15 @@
+{
+  "exceptions": [
+    {
+      "package": "pycparser",
+      "version": "2.22",
+      "source_url": "https://files.pythonhosted.org/packages/13/a3/a812df4e2dd5696d1f351d58b8fe16a405b234ad2886a0dab9183fb78109/pycparser-2.22-py3-none-any.whl",
+      "artifact_sha256": "c3702b6d3dd8c7abc1afa565d7e63d53a1d0bd86cdc24edd75470f4de499cfcc",
+      "classification": "source-provenance-reviewed",
+      "reviewed_on": "2026-07-23",
+      "expires_on": "2026-10-22",
+      "transitive_path": "specfact-cli -> cryptography -> cffi -> pycparser",
+      "rationale": "Pure-Python C parser required by CFFI. Socket-alerted pycparser 3.0 is blocked; this older release is pinned to the exact PyPI artifact and its frozen digest."
+    }
+  ]
+}

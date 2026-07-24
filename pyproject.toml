@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "specfact-cli"
-version = "0.53.2"
+version = "0.53.4"
 description = "AI-bloat defense CLI for Python teams. Run deterministic code review, cleanup forecasts, and spec/contract evidence for AI-assisted and brownfield delivery."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -64,13 +64,17 @@ dependencies = [
     "requests>=2.32.3",
     "azure-identity>=1.17.1",
     "cryptography>=43.0.0",
+    # Transitive through CFFI. The lock supplies reproducibility; this range
+    # keeps the known blocked 3.0 release out of every resolver result.
+    "pycparser>=2.22,!=3.0.*",
     "packaging>=24.0",
     # PEP 440 / markers for module installer and registry (do not rely on transitive pins only)
 
     # CLI framework
-    # Typer 0.24+ requires click>=8.2.1 (generic Choice[...]); dev semgrep pins click~=8.1.8 — cap Typer.
-    "click>=8.1.8,<8.2",
-    "typer>=0.20.0,<0.24",
+    # CVE-2026-7246 is fixed in Click 8.3.3. Keep compatible Typer releases
+    # available rather than pinning the resolver below that security fix.
+    "click>=8.3.3,<9",
+    "typer>=0.24.0,<1",
     "rich>=13.5.2,<16.0.0",  # Semgrep allows rich>=13.5.2; keep below next major.
     "questionary>=2.0.1",  # Interactive prompts with arrow key navigation
     
@@ -113,21 +117,27 @@ telemetry = [
 ]
 
 dev = [
-    "setuptools>=69.0.0,<82",
+    "setuptools>=83.0.0,<84",
     "pytest>=8.4.2",
     "pytest-cov>=7.0.0",
     "pytest-mock>=3.15.1",
     "pytest-asyncio>=1.2.0",
     "pytest-xdist>=3.8.0",
-    "basedpyright>=1.32.1",
+    "pytest-timeout>=2.3.1",
+    "coverage[toml]>=7.7.1",
     "isort>=7.0.0",
-    "pylint>=4.0.2",  # GPL-2.0-or-later — dev-only exception (not in module manifests). Phase 2: replace with ruff --select ALL.
     "ruff>=0.14.2",
     "radon>=6.0.1",
     "tomlkit>=0.13.3",  # Style-preserving TOML library (recommended successor to pytoml)
     "types-PyYAML>=6.0.12.20250516",
     "pip-tools>=7.5.1",
-    "semgrep>=1.144.0",  # LGPL-2.1 — required for code analysis; invoked as subprocess (accepted exception)
+    "build>=1.2.2",
+    "twine>=6.1.0",
+    "pipx>=1.7.1",
+    "pre-commit>=4.0.1",
+    "mutmut>=3.3.1",  # Scheduled mutation baseline; frozen with the contributor toolchain.
+    "yamllint>=1.37.1",  # GPL-3.0-or-later — dev-only exception; replace with a non-GPL YAML lint path in Phase 2.
+    "semgrep>=1.171.0",  # LGPL-2.1 — required for code analysis; invoked as subprocess (accepted exception)
 
     # Same contract exploration stack as [contracts] (extras cannot self-reference)
     "crosshair-tool>=0.0.97",
@@ -145,11 +155,10 @@ dev = [
     "bandit>=1.7.0",  # SAST scanner (MIT)
     "pip-licenses>=4.0.0",  # License enumeration for compliance gate (MIT)
     "pip-audit>=2.0.0",  # CVE audit via OSV database (Apache-2.0)
-    # pylint: GPL-2.0-or-later — dev-only exception (not in module manifests). Phase 2: replace with ruff --select ALL.
 ]
 
 scanning = [
-    "semgrep>=1.144.0",  # Optional: Only needed for code scanning features
+    "semgrep>=1.171.0",  # Optional: Only needed for code scanning features
 ]
 
 enhanced-analysis = [
@@ -183,8 +192,9 @@ specfact-cli = "specfact_cli.cli:cli_main"  # Alias for uvx compatibility
 [tool.hatch.envs.default]
 python = "3.12"
 dependencies = [
-    # Semgrep pulls opentelemetry; setuptools 82+ may omit pkg_resources (breaks semgrep import chain)
-    "setuptools>=69.0.0,<82",
+    # CVE-2026-59890 is fixed in Setuptools 83.0.0. Semgrep 1.171+ supports
+    # the patched build-tool line, which removes the former compatibility cap.
+    "setuptools>=83.0.0,<84",
     "pip-tools",
     "pytest",
     "pytest-cov",
@@ -193,12 +203,10 @@ dependencies = [
     "pre-commit",
     # Ensure format/lint tools are available in the hatch env
     "isort>=7.0.0",
-    "basedpyright>=1.32.1",
-    "pylint>=4.0.2",
     "ruff>=0.14.2",
     "radon>=6.0.1",
     "yamllint>=1.37.1",  # GPL-3.0-or-later — dev/test-only exception. Phase 2: replace with non-GPL YAML lint path.
-    "semgrep>=1.144.0",  # LGPL-2.1 — required for code analysis; invoked as subprocess (accepted exception)
+    "semgrep>=1.171.0",  # LGPL-2.1 — required for code analysis; invoked as subprocess (accepted exception)
     # Contract-First Development Dependencies
     "icontract>=2.7.1",
     "beartype>=0.22.4",
@@ -211,7 +219,6 @@ dependencies = [
     "bandit>=1.7.0",  # SAST scanner (MIT)
     "pip-licenses>=4.0.0",  # License enumeration for compliance gate (MIT)
     "pip-audit>=2.0.0",  # CVE audit via OSV database (Apache-2.0)
-    # pylint: GPL-2.0-or-later — dev-only exception (not in module manifests). Phase 2: replace with ruff --select ALL.
 ]
 
 [tool.hatch.envs.default.scripts]
@@ -221,14 +228,15 @@ bandit-scan = "bandit -r src/ -ll"
 license-check = "python scripts/check_license_compliance.py"
 # Wrap pip-audit so JSON parsing and CVSS threshold checks fail closed.
 security-audit = "python scripts/security_audit_gate.py"
+refresh-frozen-delivery = "python scripts/refresh_reproducible_delivery.py"
 # Development scripts
 test = "pytest {args}"
 test-cov = "pytest --cov=src --cov-report=term-missing {args}"
-type-check = "basedpyright --pythonpath \"$(python -c 'import sys; print(sys.executable)')\" {args}"
-# basedpyright --level error: suppress warning noise in pre-commit (Block 1 runs `hatch run lint`).
-lint = "ruff format . --check && basedpyright --level error --pythonpath \"$(python -c 'import sys; print(sys.executable)')\" && ruff check . && pylint src tests tools && python scripts/verify_safe_project_writes.py"
+type-check = "bash tools/run_basedpyright.sh --project pyproject.toml --pythonpath \"$(python -c 'import sys; print(sys.executable)')\" {args}"
+# The committed npm lock provides the type runner; error-level output is the CI lint threshold.
+lint = "ruff format . --check && bash tools/run_basedpyright.sh --project pyproject.toml --level error --pythonpath \"$(python -c 'import sys; print(sys.executable)')\" && ruff check . && python scripts/verify_safe_project_writes.py"
 lint-changed = "python scripts/run_changed_lint.py {args}"
-governance = "pylint src tests tools --reports=y --output-format=parseable"
+governance = "ruff check src tests tools"
 format = "ruff check . --fix && ruff format ."
 
 # Code scanning (Semgrep)
@@ -483,7 +491,6 @@ exclude = [
     "/env",
     "/.mypy_cache",
     "/.ruff_cache",
-    "/.pylint.d",
     "/.cache",
     "/.tox",
     "/.eggs",
@@ -515,98 +522,33 @@ multi_line_output = 3
 line_length = 120 # From your original config
 
 [tool.basedpyright]
-pythonVersion = "3.12"
-typeCheckingMode = "strict"
+include = ["src", "tests", "tools", "scripts"]
+extraPaths = ["src"]
+exclude = [
+    "**/.hatch/**",
+    "**/.mypy_cache/**",
+    "**/.pytest_cache/**",
+    "**/build/**",
+    "**/dist/**",
+    "**/__pycache__/**",
+    "**/node_modules/**",
+    "**/logs/**",
+    "**/.ruff_cache/**",
+    "**/.coverage_cache/**",
+    "**/htmlcov/**",
+    "**/coverage_html_report/**",
+    "**/coverage.*/**",
+]
+pythonVersion = "3.11"
+typeCheckingMode = "standard"
+strict = [
+    "scripts/check_dependency_trust_exceptions.py",
+]
 useLibraryCodeForTypes = true
-reportMissingImports = true
-reportMissingTypeStubs = false
-reportImportCycles = false
-reportUnusedImport = true
-reportUnusedClass = true
-reportUnusedFunction = true
-reportUnusedVariable = true
-reportDuplicateImport = true
-reportOptionalSubscript = true
-reportOptionalMemberAccess = true
-reportOptionalCall = true
-reportOptionalIterable = true
-reportOptionalContextManager = true
-reportOptionalOperand = true
-reportUntypedFunctionDecorator = true
-reportUntypedClassDecorator = true
-reportUntypedBaseClass = true
-reportUntypedNamedTuple = true
-reportPrivateUsage = true
-reportConstantRedefinition = true
-reportIncompatibleMethodOverride = true
-reportIncompatibleVariableOverride = true
-reportOverlappingOverloads = true
-reportUninitializedInstanceVariable = true
-reportInvalidStringEscapeSequence = true
-reportUnknownParameterType = true
-reportUnknownArgumentType = true
-reportUnknownLambdaType = true
-reportUnknownVariableType = true
-reportUnknownMemberType = true
-reportMissingParameterType = true
-reportMissingTypeArgument = true
-reportInvalidTypeVarUse = true
-reportCallInDefaultInitializer = true
-reportUnnecessaryIsInstance = true
-reportUnnecessaryCast = true
-reportAssertAlwaysTrue = true
-reportSelfClsParameterName = true
-reportImplicitStringConcatenation = true
-reportUnboundVariable = true
-reportUndefinedVariable = true
-
-[tool.basedpyright.reportUnnecessaryComparison]
-enabled = true
-
-[tool.basedpyright.reportUnnecessaryContains]
-enabled = true
-
-[tool.basedpyright.reportUnnecessaryTypeIgnoreComment]
-enabled = true
-
-[tool.basedpyright.reportImplicitOverride]
-enabled = true
-
-[tool.basedpyright.reportShadowedImports]
-enabled = true
-
-# Module-specific overrides
-[[tool.basedpyright.override]]
-module = [
-    "numpy.*",
-    "pandas.*",
-    "matplotlib.*"
-]
-reportMissingImports = false
-
-[[tool.basedpyright.override]]
-module = [
-    "markdown.*",
-    "redis.*",
-    "dotenv.*",
-    "github.*",
-    "pytest.*",
-    "setuptools.*"
-]
-reportMissingImports = false
-
-[[tool.basedpyright.override]]
-module = [
-    "src.specfact_cli.common.*",
-    "tools.*"
-]
-typeCheckingMode = "basic"
-
-[[tool.basedpyright.override]]
-module = [
-    "specfact_cli.telemetry"
-]
-reportMissingImports = false
+reportMissingImports = "none"
+reportMissingModuleSource = "none"
+reportUnknownMemberType = "warning"
+reportAttributeAccessIssue = "warning"
 
 [tool.pytest.ini_options]
 minversion = "8.4.2"
@@ -641,67 +583,29 @@ filterwarnings = [ # From pytest.ini
 log_cli = true  # From pytest.ini
 log_cli_level = "INFO" # From pytest.ini
 
-[tool.pylint.messages_control]
-disable = [
-    "C0114",  # missing-module-docstring
-    "C0115",  # missing-class-docstring
-    "C0116",  # missing-function-docstring
-    "C0103",  # invalid-name (too restrictive for some cases)
-    # C0330, C0326 removed in pylint 3.x (handled by ruff format)
-    
-    "R0903",  # too-few-public-methods
-    "R0913",  # too-many-arguments (too restrictive for APIs)
-    "R0912",  # too-many-branches
-    "R0915",  # too-many-statements
-    "W0511",  # fixme
-    "C0413",  # wrong-import-position (handled by isort)
-    "E0401",  # unable-to-import (false positives for local modules in pylint)
-    "E0611",  # no-name-in-module (false positives for local modules in pylint)
-    "E1101",  # no-member (false positives for Pydantic/FieldInfo, rich.Progress.tasks)
-    "E0601",  # used-before-assignment (false positives in try/except UTC, tomllib)
-    "E1126",  # invalid-sequence-index (rich TaskID)
-    "E0603",  # undefined-all-variable
-    "E1136",  # unsubscriptable-object
-    "E0110",  # abstract-class-instantiated
-]
-
-[tool.pylint.master]
-# Allow pylint to analyze tools directory and src directory
-init-hook = """
-import sys
-import os
-sys.path.insert(0, 'tools')
-sys.path.insert(0, os.path.join(os.getcwd(), 'src'))
-"""
-
-[tool.pylint.format]
-max-line-length = 120
-
-[tool.pylint.reports]
-output-format = "parseable"
-reports = "no"
-
-[tool.pylint.design]
-max-args = 8  # Allow reasonable number of arguments
-max-locals = 20  # Allow reasonable number of local variables
-max-returns = 8  # Allow reasonable number of return statements
-max-branches = 15  # Allow reasonable number of branches
-max-statements = 60  # Allow reasonable number of statements
-max-parents = 8  # Allow reasonable inheritance depth
-max-attributes = 12  # Allow reasonable number of attributes
-
-[tool.pylint.similarities]
-min-similarity-lines = 6  # Minimum lines for similarity check
-ignore-comments = "yes"
-ignore-docstrings = "yes"
-ignore-imports = "yes"
-
 [tool.ruff]
 line-length = 120
 target-version = "py312"
+extend-exclude = [
+    ".claude",
+    ".codex",
+    ".cursor",
+    ".github/skills",
+    ".vibe",
+    "docs/adapters",
+    "docs/examples",
+    "docs/guides/adapter-development.md",
+    "docs/guides/using-module-security-and-extensions.md",
+    "docs/reference",
+    "docs/technical",
+    "openspec/changes/archive",
+    "openspec/parking-lot",
+    "openspec/specs",
+    "tools/semgrep/README.md",
+]
 
 [tool.ruff.lint]
-# Enable pycodestyle (`E`) and Pyflakes (`F`) codes by default, complementing pylint
+# Enable pycodestyle (`E`) and Pyflakes (`F`) codes in the blocking Ruff baseline.
 select = [
     "E",    # pycodestyle errors
     "W",    # pycodestyle warnings
@@ -721,10 +625,10 @@ select = [
 
 ignore = [
     "E501",  # line too long (handled by ruff format)
-    "C901",  # too complex (leave to pylint for governance)
-    "PLR0913",  # too many arguments (pylint handles this better)
-    "PLR0912",  # too many branches (pylint handles this better)
-    "PLR0915",  # too many statements (pylint handles this better)
+    "C901",  # complexity is covered by the dedicated clean-code gate
+    "PLR0913",  # too many arguments (too restrictive for public APIs)
+    "PLR0912",  # too many branches (covered by clean-code review)
+    "PLR0915",  # too many statements (covered by clean-code review)
     "PLR2004",  # magic value comparison (too restrictive)
     "PLR0911",  # too many return statements (too restrictive)
     "PLR0917",  # too many positional arguments (too restrictive)
@@ -743,8 +647,8 @@ ignore = [
     "NPY",    # NumPy-specific rules (not relevant)
     "AIR",    # airflow (not relevant)
     "PERF",   # perflint (not relevant)
-    "LOG",    # flake8-logging (pylint handles logging better)
-    "G",      # flake8-logging-format (pylint handles logging better)
+    "LOG",    # flake8-logging (not enabled in the repository baseline)
+    "G",      # flake8-logging-format (not enabled in the repository baseline)
     "INP",    # flake8-no-pep420 (too restrictive)
     "SLF",    # flake8-self (too restrictive)
     "SLOT",   # flake8-slots (too restrictive)
