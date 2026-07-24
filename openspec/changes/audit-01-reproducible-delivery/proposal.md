@@ -20,6 +20,10 @@ CI and release proof currently resolve unconstrained dependency graphs and can s
 - Record and enforce a reviewed, expiring source-provenance exception for the required
   `pycparser` parser dependency; classify mixed license metadata explicitly rather than
   inferring GPL incompatibility from a substring.
+- Enforce dependency trust before a CI job synchronizes the lock, bind each reviewed artifact
+  to its exact normalized `uv.lock` package record, and canonicalize denied package identities.
+- Enforce reviewed minimum patched versions for security tools from a checked-in policy before
+  installation; discovery of new upstream releases remains advisory and reviewed.
 
 ## Capabilities
 

@@ -17,11 +17,24 @@ All notable changes to this project will be documented in this file.
 - **Reproducible delivery controls**: frozen `uv` resolution and hash-verified
   export, immutable companion-module fixture validation, 3.11–3.13 built-wheel
   smoke coverage, and retained dependency/SBOM evidence.
+- **Dependency trust and license review**: pre-install blocked-release and
+  reviewed-artifact enforcement, a patched security-tool version floor, and
+  version-scoped mixed-license exceptions.
 
 ### Changed
 
 - **CI type authority**: `pyproject.toml` is the single BasedPyright
   configuration source and CI emits its JSON evidence explicitly.
+
+---
+
+## [0.53.3] - 2026-07-24
+
+### Fixed
+
+- **Security and CLI compatibility**: fail closed on unreviewed frozen-lock
+  advisories, upgrade compatible vulnerable dependencies, and preserve
+  multi-module uninstall continuation with current Typer exits.
 
 ---
 

@@ -20,6 +20,20 @@ The system SHALL run basedpyright from one authoritative project configuration a
 - **AND** SHALL use a SHA-pinned official Node setup action
 - **AND** no Python dependency input SHALL contain `basedpyright` or `nodejs-wheel-binaries`.
 
+#### Scenario: security-boundary scripts use strict diagnostics
+
+- **WHEN** BasedPyright analyzes the pre-install frozen-delivery dependency-trust script
+- **THEN** the authoritative configuration SHALL apply strict diagnostics to that path
+- **AND** Python `3.11` SHALL remain the configured analysis floor because the blocking
+  wheel matrix supports Python 3.11.
+
+#### Scenario: legacy repository-wide type debt is visible
+
+- **WHEN** the repository-wide type gate runs
+- **THEN** the configuration SHALL retain the existing standard-mode baseline and JSON
+  warning evidence until a separately reviewed migration removes that debt
+- **AND** it SHALL NOT exclude the security-boundary scripts from analysis.
+
 #### Scenario: Type error maps to type_safety finding
 
 - **GIVEN** basedpyright JSON output with a type error in `file_a.py`

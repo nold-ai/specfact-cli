@@ -293,6 +293,9 @@ def test_module_uninstall_multi_missing_first_reports_error_still_uninstalls_res
         )
 
     assert uninstalled == ["specfact-code-review"], (
-        "Missing module must not block uninstall of remaining names; got " + repr(uninstalled)
+        "Missing module must not block uninstall of remaining names; got "
+        + repr(uninstalled)
+        + "; CLI output: "
+        + _unstyled(result.output)
     )
     assert result.exit_code == 1, "Overall exit must be non-zero when any name failed"

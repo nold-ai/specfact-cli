@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "specfact-cli"
-version = "0.53.2"
+version = "0.53.3"
 description = "AI-bloat defense CLI for Python teams. Run deterministic code review, cleanup forecasts, and spec/contract evidence for AI-assisted and brownfield delivery."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -64,16 +64,17 @@ dependencies = [
     "requests>=2.32.3",
     "azure-identity>=1.17.1",
     "cryptography>=43.0.0",
-    # Transitive through CFFI. Keep this exact reviewed release to prevent a
-    # resolver from reintroducing the blocked pycparser 3.0 artifact.
-    "pycparser==2.22",
+    # Transitive through CFFI. The lock supplies reproducibility; this range
+    # keeps the known blocked 3.0 release out of every resolver result.
+    "pycparser>=2.22,!=3.0",
     "packaging>=24.0",
     # PEP 440 / markers for module installer and registry (do not rely on transitive pins only)
 
     # CLI framework
-    # Typer 0.24+ requires click>=8.2.1 (generic Choice[...]); dev semgrep pins click~=8.1.8 — cap Typer.
-    "click>=8.1.8,<8.2",
-    "typer>=0.20.0,<0.24",
+    # CVE-2026-7246 is fixed in Click 8.3.3. Keep compatible Typer releases
+    # available rather than pinning the resolver below that security fix.
+    "click>=8.3.3,<9",
+    "typer>=0.24.0,<1",
     "rich>=13.5.2,<16.0.0",  # Semgrep allows rich>=13.5.2; keep below next major.
     "questionary>=2.0.1",  # Interactive prompts with arrow key navigation
     
@@ -116,7 +117,7 @@ telemetry = [
 ]
 
 dev = [
-    "setuptools>=69.0.0,<82",
+    "setuptools>=83.0.0,<84",
     "pytest>=8.4.2",
     "pytest-cov>=7.0.0",
     "pytest-mock>=3.15.1",
@@ -136,7 +137,7 @@ dev = [
     "pre-commit>=4.0.1",
     "mutmut>=3.3.1",  # Scheduled mutation baseline; frozen with the contributor toolchain.
     "yamllint>=1.37.1",  # GPL-3.0-or-later — dev-only exception; replace with a non-GPL YAML lint path in Phase 2.
-    "semgrep>=1.144.0",  # LGPL-2.1 — required for code analysis; invoked as subprocess (accepted exception)
+    "semgrep>=1.171.0",  # LGPL-2.1 — required for code analysis; invoked as subprocess (accepted exception)
 
     # Same contract exploration stack as [contracts] (extras cannot self-reference)
     "crosshair-tool>=0.0.97",
@@ -157,7 +158,7 @@ dev = [
 ]
 
 scanning = [
-    "semgrep>=1.144.0",  # Optional: Only needed for code scanning features
+    "semgrep>=1.171.0",  # Optional: Only needed for code scanning features
 ]
 
 enhanced-analysis = [
@@ -191,8 +192,9 @@ specfact-cli = "specfact_cli.cli:cli_main"  # Alias for uvx compatibility
 [tool.hatch.envs.default]
 python = "3.12"
 dependencies = [
-    # Semgrep pulls opentelemetry; setuptools 82+ may omit pkg_resources (breaks semgrep import chain)
-    "setuptools>=69.0.0,<82",
+    # CVE-2026-59890 is fixed in Setuptools 83.0.0. Semgrep 1.171+ supports
+    # the patched build-tool line, which removes the former compatibility cap.
+    "setuptools>=83.0.0,<84",
     "pip-tools",
     "pytest",
     "pytest-cov",
@@ -204,7 +206,7 @@ dependencies = [
     "ruff>=0.14.2",
     "radon>=6.0.1",
     "yamllint>=1.37.1",  # GPL-3.0-or-later — dev/test-only exception. Phase 2: replace with non-GPL YAML lint path.
-    "semgrep>=1.144.0",  # LGPL-2.1 — required for code analysis; invoked as subprocess (accepted exception)
+    "semgrep>=1.171.0",  # LGPL-2.1 — required for code analysis; invoked as subprocess (accepted exception)
     # Contract-First Development Dependencies
     "icontract>=2.7.1",
     "beartype>=0.22.4",
@@ -520,7 +522,7 @@ multi_line_output = 3
 line_length = 120 # From your original config
 
 [tool.basedpyright]
-include = ["src", "tests", "tools"]
+include = ["src", "tests", "tools", "scripts"]
 extraPaths = ["src"]
 exclude = [
     "**/.hatch/**",
@@ -529,6 +531,7 @@ exclude = [
     "**/build/**",
     "**/dist/**",
     "**/__pycache__/**",
+    "**/node_modules/**",
     "**/logs/**",
     "**/.ruff_cache/**",
     "**/.coverage_cache/**",
@@ -538,6 +541,9 @@ exclude = [
 ]
 pythonVersion = "3.11"
 typeCheckingMode = "standard"
+strict = [
+    "scripts/check_dependency_trust_exceptions.py",
+]
 useLibraryCodeForTypes = true
 reportMissingImports = "none"
 reportMissingModuleSource = "none"

@@ -3,16 +3,20 @@
 from __future__ import annotations
 
 import json
+import re
 import sys
 import tomllib
 from datetime import date
 from pathlib import Path
 from typing import cast
 
+from icontract import ensure
+
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_REGISTER = REPO_ROOT / "ci" / "dependency-trust-exceptions.json"
 DEFAULT_UV_LOCK = REPO_ROOT / "uv.lock"
+DEFAULT_SECURITY_TOOL_FLOORS = REPO_ROOT / "ci" / "security-tool-minimum-versions.json"
 REQUIRED_FIELDS = frozenset(
     {
         "package",
@@ -31,6 +35,44 @@ PROHIBITED_EXECUTABLE_WHEEL_PACKAGES = frozenset({"nodejs-wheel-binaries"})
 # blocked outright: a review record must never turn a known alert into normal
 # delivery input.
 BLOCKED_DEPENDENCY_RELEASES = frozenset({("pycparser", "3.0")})
+PACKAGE_NAME_SEPARATOR = re.compile(r"[-_.]+")
+
+
+def _canonical_package_name(value: str) -> str:
+    """Return the PEP 503 normalized identity used by lock and policy checks."""
+    return PACKAGE_NAME_SEPARATOR.sub("-", value).casefold()
+
+
+def _is_blocked_release(package_name: str, version: str) -> bool:
+    """Return whether a version belongs to a blocked PEP 440 release family."""
+    normalized_version = version.casefold().split("+", maxsplit=1)[0]
+    for blocked_package, blocked_version in BLOCKED_DEPENDENCY_RELEASES:
+        if package_name != blocked_package:
+            continue
+        if normalized_version == blocked_version or normalized_version.startswith(f"{blocked_version}."):
+            return True
+        if any(
+            normalized_version.startswith(f"{blocked_version}{suffix}") for suffix in ("post", "rc", "a", "b", "dev")
+        ):
+            return True
+    return False
+
+
+def _version_components(value: str) -> tuple[int, ...] | None:
+    """Parse the stable numeric version form used by the reviewed tool floor policy."""
+    if not re.fullmatch(r"\d+(?:\.\d+)*", value):
+        return None
+    return tuple(int(component) for component in value.split("."))
+
+
+def _is_below_security_floor(version: str, floor: str) -> bool | None:
+    """Compare stable tool versions without importing dependencies before synchronization."""
+    parsed_version = _version_components(version)
+    parsed_floor = _version_components(floor)
+    if parsed_version is None or parsed_floor is None:
+        return None
+    length = max(len(parsed_version), len(parsed_floor))
+    return parsed_version + (0,) * (length - len(parsed_version)) < parsed_floor + (0,) * (length - len(parsed_floor))
 
 
 def _parse_date(value: object) -> date | None:
@@ -62,7 +104,7 @@ def _record_identity(record: dict[str, object], *, index: int) -> tuple[str, str
     version = record.get("version")
     if not isinstance(package, str) or not package.strip() or not isinstance(version, str) or not version.strip():
         return f"exceptions[{index}] must include non-empty package and version"
-    return package.strip(), version.strip()
+    return _canonical_package_name(package.strip()), version.strip()
 
 
 def _is_nonempty_string(value: object) -> bool:
@@ -92,7 +134,7 @@ def _validate_record(record: object, *, index: int, current_date: date) -> list[
         return [f"{package_ref} missing required fields: {', '.join(missing)}"]
     if package_name in PROHIBITED_EXECUTABLE_WHEEL_PACKAGES:
         return [f"{package_ref} is prohibited from the dependency trust register"]
-    if (package_name.casefold(), version) in BLOCKED_DEPENDENCY_RELEASES:
+    if _is_blocked_release(package_name, version):
         return [f"{package_ref} is blocked after a security-obfuscation alert"]
     source_url = cast(str, record_map["source_url"])
     if not source_url.startswith("https://files.pythonhosted.org/"):
@@ -117,6 +159,18 @@ def _validate_dates(package_ref: str, *, reviewed_on: date, expires_on: date, cu
     return errors
 
 
+def _returns_error_list(result: list[str]) -> bool:
+    """Contract predicate for deterministic policy validators."""
+    del result
+    return True
+
+
+def _returns_exit_code(result: int) -> bool:
+    """Contract predicate for CI-friendly process results."""
+    return result in (0, 1)
+
+
+@ensure(_returns_error_list)
 def validate_exception_register(register_path: Path, *, today: date | None = None) -> list[str]:
     """Return deterministic policy errors for a dependency-trust exception register."""
     records, errors = _read_exception_records(register_path)
@@ -131,30 +185,141 @@ def validate_exception_register(register_path: Path, *, today: date | None = Non
     ]
 
 
-def _read_locked_package_versions(lock_path: Path) -> tuple[dict[str, str], list[str]]:
-    """Read package identities from uv's committed lock without resolving."""
+def _read_locked_packages(lock_path: Path) -> tuple[dict[str, dict[str, object]], list[str]]:
+    """Read normalized lock records from uv's committed lock without resolving."""
     try:
-        payload = tomllib.loads(lock_path.read_text(encoding="utf-8"))
+        raw_payload = tomllib.loads(lock_path.read_text(encoding="utf-8"))
     except (OSError, tomllib.TOMLDecodeError) as exc:
         return {}, [f"could not read frozen lock: {exc}"]
+    payload = cast(dict[str, object], raw_payload)
     packages = payload.get("package")
     if not isinstance(packages, list):
         return {}, ["frozen lock must contain a package list"]
-    versions: dict[str, str] = {}
+    locked_packages: dict[str, dict[str, object]] = {}
     errors: list[str] = []
-    for index, package in enumerate(packages):
+    for index, package in enumerate(cast(list[object], packages)):
         if not isinstance(package, dict):
             errors.append(f"frozen lock package[{index}] must be an object")
             continue
-        name = package.get("name")
-        version = package.get("version")
+        package_map = cast(dict[str, object], package)
+        name = package_map.get("name")
+        version = package_map.get("version")
         if not isinstance(name, str) or not isinstance(version, str):
             errors.append(f"frozen lock package[{index}] must include name and version")
             continue
-        versions[name.casefold()] = version
-    return versions, errors
+        package_name = _canonical_package_name(name)
+        if package_name in locked_packages:
+            errors.append(f"frozen lock contains duplicate normalized package identity: {package_name}")
+            continue
+        locked_packages[package_name] = package_map
+    return locked_packages, errors
 
 
+def _read_security_tool_floors(policy_path: Path = DEFAULT_SECURITY_TOOL_FLOORS) -> tuple[dict[str, str], list[str]]:
+    """Load normalized, locally verifiable security-tool minimum versions."""
+    try:
+        raw_payload = json.loads(policy_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        return {}, [f"could not read security tool floor policy: {exc}"]
+    if not isinstance(raw_payload, dict):
+        return {}, ["security tool floor policy must contain a minimum_versions object"]
+    payload = cast(dict[str, object], raw_payload)
+    minimum_versions = payload.get("minimum_versions")
+    if not isinstance(minimum_versions, dict):
+        return {}, ["security tool floor policy must contain a minimum_versions object"]
+    floors: dict[str, str] = {}
+    errors: list[str] = []
+    for package_name, version in cast(dict[str, object], minimum_versions).items():
+        if not isinstance(version, str) or _version_components(version) is None:
+            errors.append("security tool floor policy entries must use package names and stable numeric versions")
+            continue
+        floors[_canonical_package_name(package_name)] = version
+    return floors, errors
+
+
+def _artifact_values(package: dict[str, object]) -> tuple[set[str], set[str]]:
+    """Return URLs and hashes declared by one exact frozen package record."""
+    urls: set[str] = set()
+    hashes: set[str] = set()
+    artifacts: list[object] = [package.get("sdist")]
+    wheels = package.get("wheels")
+    if isinstance(wheels, list):
+        artifacts.extend(cast(list[object], wheels))
+    for artifact in artifacts:
+        if not isinstance(artifact, dict):
+            continue
+        artifact_map = cast(dict[str, object], artifact)
+        url = artifact_map.get("url")
+        digest = artifact_map.get("hash")
+        if isinstance(url, str):
+            urls.add(url)
+        if isinstance(digest, str):
+            hashes.add(digest)
+    return urls, hashes
+
+
+def _validate_locked_package_policy(
+    locked_packages: dict[str, dict[str, object]], tool_floors: dict[str, str]
+) -> list[str]:
+    """Return policy violations intrinsic to exact frozen package records."""
+    errors: list[str] = []
+    for package_name, package in sorted(locked_packages.items()):
+        version = package.get("version")
+        if not isinstance(version, str):
+            continue
+        if package_name in PROHIBITED_EXECUTABLE_WHEEL_PACKAGES:
+            errors.append(f"{package_name}=={version} is prohibited in the frozen lock")
+        if _is_blocked_release(package_name, version):
+            errors.append(f"{package_name}=={version} is blocked after a security-obfuscation alert")
+        floor = tool_floors.get(package_name)
+        if floor is None:
+            continue
+        below_floor = _is_below_security_floor(version, floor)
+        if below_floor is None:
+            errors.append(f"{package_name}=={version} cannot be compared with reviewed security floor {floor}")
+        elif below_floor:
+            errors.append(f"{package_name}=={version} is below the reviewed security floor {floor}")
+    return errors
+
+
+def _validate_review_record(
+    record: dict[str, object], index: int, locked_packages: dict[str, dict[str, object]]
+) -> list[str]:
+    """Ensure one exception record points to one exact frozen package artifact."""
+    identity = _record_identity(record, index=index)
+    if isinstance(identity, str):
+        return []
+    package_name, version = identity
+    locked_package = locked_packages.get(package_name)
+    if locked_package is None:
+        return [f"{package_name}=={version} does not match frozen lock (absent)"]
+    locked_version = locked_package.get("version")
+    if locked_version != version:
+        return [f"{package_name}=={version} does not match frozen lock ({locked_version or 'absent'})"]
+    errors: list[str] = []
+    source_url = record.get("source_url")
+    artifact_sha256 = record.get("artifact_sha256")
+    urls, hashes = _artifact_values(locked_package)
+    if isinstance(source_url, str) and source_url not in urls:
+        errors.append(f"{package_name}=={version} source artifact is absent from its frozen lock record")
+    if isinstance(artifact_sha256, str) and f"sha256:{artifact_sha256}" not in hashes:
+        errors.append(f"{package_name}=={version} artifact digest is absent from its frozen lock record")
+    return errors
+
+
+def _validate_review_records(register_path: Path, locked_packages: dict[str, dict[str, object]]) -> list[str]:
+    """Validate every review record against the exact frozen lock artifacts."""
+    records, register_errors = _read_exception_records(register_path)
+    if register_errors:
+        return register_errors
+    errors: list[str] = []
+    for index, record in enumerate(records):
+        if isinstance(record, dict):
+            errors.extend(_validate_review_record(cast(dict[str, object], record), index, locked_packages))
+    return errors
+
+
+@ensure(_returns_error_list)
 def validate_frozen_dependency_policy(
     register_path: Path = DEFAULT_REGISTER,
     lock_path: Path = DEFAULT_UV_LOCK,
@@ -163,39 +328,20 @@ def validate_frozen_dependency_policy(
 ) -> list[str]:
     """Reject blocked releases and reviews that do not bind to the frozen lock."""
     errors = validate_exception_register(register_path, today=today)
-    locked_versions, lock_errors = _read_locked_package_versions(lock_path)
+    locked_packages, lock_errors = _read_locked_packages(lock_path)
     errors.extend(lock_errors)
     if lock_errors:
         return errors
-    lock_contents = lock_path.read_text(encoding="utf-8")
-
-    for package_name, version in sorted(BLOCKED_DEPENDENCY_RELEASES):
-        if locked_versions.get(package_name) == version:
-            errors.append(f"{package_name}=={version} is blocked after a security-obfuscation alert")
-
-    records, register_errors = _read_exception_records(register_path)
-    if register_errors:
-        return [*errors, *register_errors]
-    for index, record in enumerate(records):
-        if not isinstance(record, dict):
-            continue
-        identity = _record_identity(cast(dict[str, object], record), index=index)
-        if isinstance(identity, str):
-            continue
-        package_name, version = identity
-        locked_version = locked_versions.get(package_name.casefold())
-        if locked_version != version:
-            errors.append(f"{package_name}=={version} does not match frozen lock ({locked_version or 'absent'})")
-            continue
-        source_url = record.get("source_url")
-        artifact_sha256 = record.get("artifact_sha256")
-        if isinstance(source_url, str) and source_url not in lock_contents:
-            errors.append(f"{package_name}=={version} source artifact is absent from frozen lock")
-        if isinstance(artifact_sha256, str) and f"sha256:{artifact_sha256}" not in lock_contents:
-            errors.append(f"{package_name}=={version} artifact digest is absent from frozen lock")
+    tool_floors, floor_errors = _read_security_tool_floors()
+    errors.extend(floor_errors)
+    if floor_errors:
+        return errors
+    errors.extend(_validate_locked_package_policy(locked_packages, tool_floors))
+    errors.extend(_validate_review_records(register_path, locked_packages))
     return errors
 
 
+@ensure(_returns_exit_code)
 def main() -> int:
     """Print register validation errors and return a CI-friendly exit status."""
     errors = validate_frozen_dependency_policy()

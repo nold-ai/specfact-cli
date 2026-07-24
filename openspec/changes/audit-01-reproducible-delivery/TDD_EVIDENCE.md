@@ -1,6 +1,22 @@
 # TDD evidence — audit-01-reproducible-delivery
 
-All times are Europe/Berlin (2026-07-23).
+All times are Europe/Berlin (2026-07-23 to 2026-07-24).
+
+## Audit metadata
+
+- **Impacted files:** frozen setup action; PR, docs, and contract workflows;
+  dependency-trust, license, refresh, and SBOM scripts; type configuration;
+  pre-commit; reviewed lock metadata; and their focused tests.
+- **Breaking-change scan:** no public CLI, module, or adapter interface changed.
+  Published dependency metadata relaxes `pycparser` from an exact pin to
+  `>=2.22,!=3.0`; the committed lock retains `2.22` and the trust gate blocks
+  the alerted `3.0` family.
+- **Failing artifacts:** terminal output is captured in this evidence under
+  “Security remediation evidence” and “Review remediation evidence”; focused
+  test files are the durable reproductions.
+- **Passing artifacts:** BasedPyright JSON is retained at
+  `/private/tmp/specfact-basedpyright-security.json` for this local run; CI
+  uploads the equivalent JSON, frozen dependency, and SBOM evidence.
 
 ## Failing-first evidence
 
@@ -180,6 +196,109 @@ and unrelated source pages). The new `wiki/sources/audit-01-reproducible-deliver
 was added without overwriting those changes, but `wiki_rebuild_graph.py` is deferred
 until the existing graph edits are reconciled.
 
+## Review remediation evidence — 2026-07-24
+
+Codex and CodeRabbit review feedback was read through the PR review API. The
+actionable CI/security items were implemented before this evidence was recorded:
+unique package-runtime artifact names, frozen pipx installation, portable
+Windows virtualenv PATH, configured Python before fixture parsing, exact
+per-package artifact binding, canonical blocked-release checks, strict type
+checking for the pre-install trust boundary, exact mixed-license exception
+versions, and reviewed Semgrep minimum version enforcement.
+
+At the start of review, `uv.lock` pinned `semgrep==1.170.1`, not `1.70.1`.
+The later locked-advisory remediation below updates it to `1.171.0` and raises
+the checked-in floor accordingly. Pre-commit validates that reviewed floor
+locally; it does not make an unreviewed moving “latest” lookup.
+
+The review also identified repository-wide BasedPyright strict-mode debt. The
+security-critical pre-install trust script now runs under per-path strict
+diagnostics. Other delivery scripts remain in the pre-existing visible JSON
+baseline; converting all existing warnings to strict errors is a separately
+scoped migration, not a safe incidental change to this security repair.
+
+Failing-first regression evidence:
+
+```text
+94 collected; 7 failed
+```
+
+The failures exercised the blocked `pycparser` release-family spelling,
+Semgrep floor downgrade, SBOM PURL omission, duplicate runtime artifacts,
+Windows virtualenv path, missing `scripts/` type scope, and non-frozen
+pre-commit invocation. They were added before the corresponding implementation.
+
+Passing evidence:
+
+```text
+Python 3.12 focused policy suite
+97 passed, 1 sandbox cache warning
+
+bash tools/run_basedpyright.sh --project pyproject.toml --outputjson
+filesAnalyzed: 635; errorCount: 0; warningCount: 1638
+
+uv lock --check
+Resolved 182 packages in 1ms
+
+python scripts/check_dependency_trust_exceptions.py
+Dependency trust register is valid
+```
+
+The sandbox cannot write the worktree's Hatch metadata or default uv cache.
+Focused tests therefore used the existing frozen Hatch Python with an isolated
+`UV_CACHE_DIR`; CI uses its own writable cache and performs the same frozen
+commands.
+
+## Locked advisory audit remediation — 2026-07-24
+
+The prior CVE gate audited the active environment after frozen synchronization
+and treated CVSS below 7.0 as non-blocking. A direct audit of the committed
+`requirements/ci/locked.txt` exposed six advisories in three packages:
+
+```text
+click==8.1.8       PYSEC-2026-2132 / CVE-2026-7246      fixed: 8.3.3
+mcp==1.23.3        PYSEC-2026-3481, -3482, -3483        fixed: 1.28.1
+setuptools==81.0.0 PYSEC-2026-3447 / CVE-2026-59890     fixed: 83.0.0
+```
+
+Failing-first tests changed the security gate contract to audit the frozen
+requirements file in strict mode and fail every advisory, not only high-CVSS
+records. Before implementation, the focused suite reported five expected
+failures for the old runner, old version caps, and old Semgrep floor.
+
+After updating compatible direct constraints and regenerating the frozen inputs:
+
+```text
+uv lock --upgrade-package semgrep
+Updated click v8.1.8 -> v8.4.2
+Updated semgrep v1.170.1 -> v1.171.0
+Updated setuptools v81.0.0 -> v83.0.0
+Updated typer v0.23.1 -> v0.27.0
+
+pytest tests/unit/scripts/test_security_audit_gate.py \
+  tests/unit/packaging/test_core_package_includes.py \
+  tests/unit/scripts/test_dependency_trust_review.py \
+  tests/unit/workflows/test_trustworthy_green_checks.py -q
+74 passed, 1 sandbox cache warning
+```
+
+Semgrep `1.171.0` is the newest available release and declares
+`mcp==1.23.3` exactly; this prevents resolution to the MCP `1.28.1` advisory
+fix. `ci/vulnerability-audit-exceptions.json` therefore records only the three
+exact MCP advisory IDs, their non-reachable server-only scope, mitigation, and
+2026-08-07 expiry. The gate rejects an unknown, mismatched, or expired record.
+
+```text
+python scripts/security_audit_gate.py
+WAIVED: mcp==1.23.3 PYSEC-2026-3481, -3482, -3483
+Security audit passed. No unreviewed vulnerabilities found in the frozen requirements.
+```
+
+The new `frozen-cve-audit` pre-commit hook and blocking CI job invoke this
+same requirements-file gate. Dependabot is configured to propose weekly
+patch/minor Python dependency updates; updates remain reviewable and must pass
+the frozen-delivery and advisory gates before merge.
+
 ## Dependency-warning remediation — 2026-07-24
 
 The OpenSpec delta was extended before implementation to cover replacement of the
@@ -303,3 +422,25 @@ reproducible delivery inputs are valid
 uv lock --check
 Resolved 182 packages
 ```
+
+## Current PR regression repair and signing boundary — 2026-07-24
+
+The complete smart-test run was run before the final repairs and reported two
+failures: a broken link in the new security review document and the
+multi-module uninstall continuation test under Typer 0.27.0. The documentation
+link was corrected and the command now catches `typer.Exit`, which is no
+longer a subclass of Click's exit exception in that Typer release. The exact
+affected regression suite then passed:
+
+```text
+76 passed
+```
+
+The module-registry command change is a signed module asset. Its manifest has
+therefore been patch-bumped from `0.1.32` to `0.1.33` using the repository
+version-only signer, and the feature-branch manifest policy passed. Producing
+the manifest checksum and signature is deliberately not possible in this local
+environment because the private signing key is held only by the protected
+repository signing workflow. After the PR branch is pushed, that workflow must
+create the trusted signature commit before strict module-integrity checks and
+the full suite can be recorded as green.

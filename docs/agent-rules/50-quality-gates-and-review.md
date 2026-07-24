@@ -54,8 +54,21 @@ run and record these additional gates before finalization:
 ```bash
 hatch run python scripts/check_reproducible_delivery.py
 uv lock --check
-basedpyright --project pyproject.toml --outputjson > /tmp/specfact-basedpyright.json
+npm ci --ignore-scripts --prefix tools/basedpyright
+bash tools/run_basedpyright.sh --project pyproject.toml --outputjson > /tmp/specfact-basedpyright.json
 ```
+
+When a dependency input or locked export changes, run the advisory gate against
+the committed requirements graph as well:
+
+```bash
+hatch run security-audit
+```
+
+Every unreviewed advisory blocks the gate. An exception must be exact to the
+package, version, and advisory ID, state a mitigation and expiry, and is not a
+substitute for upgrading when a compatible release exists. Dependabot proposes
+weekly patch/minor updates for review; it does not auto-merge or bypass these gates.
 
 Blocking delivery CI MUST use the checked-in frozen inputs, build the wheel once, and
 install the wheel with dependency resolution disabled. The 3.11, 3.12, and 3.13

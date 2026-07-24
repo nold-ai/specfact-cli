@@ -294,14 +294,26 @@ def test_pr_orchestrator_package_runtime_matrix_commands_are_black_box() -> None
     assert "specfact --help" in raw
     assert "run_specfact_cli --help" in raw
     assert "module list" in raw
+    upload_step = _find_named_step("package-runtime-matrix", "Upload package-runtime matrix logs")
+    assert "${{ matrix.python-version }}" in str(upload_step.get("with") or "")
 
 
-def test_pr_orchestrator_pipx_runtime_install_does_not_duplicate_no_deps() -> None:
-    """pipx delegates its wheel install to uv, which already supplies ``--no-deps``."""
+def test_pr_orchestrator_pipx_runtime_install_is_hash_locked() -> None:
+    """pipx must use pip for the wheel and resolve dependencies only from the frozen export."""
     raw = "\n".join(str(step.get("run", "")) for step in _load_job_steps("package-runtime-matrix"))
-    assert 'pipx install --python "$pythonLocation/bin/python" "$WHEEL"' in raw
-    assert '--pip-args="--no-deps"' not in raw
+    assert "PIPX_DEFAULT_BACKEND=pip" in raw
+    assert 'pipx install --python "$pythonLocation/bin/python" --pip-args="--no-deps" "$WHEEL"' in raw
     assert 'pipx runpip specfact-cli install --require-hashes -r "$GITHUB_WORKSPACE/requirements/ci/locked.txt"' in raw
+
+
+def test_frozen_setup_uses_a_portable_virtual_environment_path() -> None:
+    """Shared setup must expose the locked virtual environment on Windows and POSIX runners."""
+    action = REPO_ROOT / ".github" / "actions" / "setup-frozen-python" / "action.yml"
+    content = action.read_text(encoding="utf-8")
+
+    assert '"$RUNNER_OS" = "Windows"' in content
+    assert ".venv/Scripts" in content
+    assert ".venv/bin" in content
 
 
 def test_pr_orchestrator_pins_third_party_actions_to_shas() -> None:
@@ -461,9 +473,13 @@ def test_type_checking_explicitly_selects_pyproject_and_uploads_json() -> None:
     """CI must not rely on basedpyright configuration auto-discovery."""
     assert not (REPO_ROOT / "pyrightconfig.json").exists()
     basedpyright = tomllib.loads(PYPROJECT.read_text(encoding="utf-8"))["tool"]["basedpyright"]
-    assert basedpyright["include"] == ["src", "tests", "tools"]
+    assert basedpyright["include"] == ["src", "tests", "tools", "scripts"]
     assert basedpyright["extraPaths"] == ["src"]
     assert basedpyright["typeCheckingMode"] == "standard"
+    assert "**/node_modules/**" in basedpyright["exclude"]
+    assert basedpyright["strict"] == [
+        "scripts/check_dependency_trust_exceptions.py",
+    ]
     run_clause = str(_find_named_step("type-checking", "Run type checking").get("run") or "")
     assert "--project pyproject.toml" in run_clause
     assert "--outputjson" in run_clause
@@ -482,15 +498,18 @@ def test_type_runner_uses_pinned_node_and_committed_npm_lock() -> None:
     assert (REPO_ROOT / "tools" / "basedpyright" / "package-lock.json").is_file()
     pyproject_text = PYPROJECT.read_text(encoding="utf-8")
     assert '"basedpyright' not in pyproject_text
-    assert "nodejs-wheel-binaries" not in (REPO_ROOT / "uv.lock").read_text(encoding="utf-8")
+    assert "nodejs-wheel-binaries" not in UV_LOCK.read_text(encoding="utf-8")
 
 
 def test_blocking_lint_has_no_pylint_or_dill_dependency() -> None:
     """Ruff replaces Pylint in CI so Dill is absent from the frozen Python graph."""
     raw = PR_ORCHESTRATOR.read_text(encoding="utf-8")
-    pyproject_text = PYPROJECT.read_text(encoding="utf-8")
-    lock_text = (REPO_ROOT / "uv.lock").read_text(encoding="utf-8")
-    assert "pylint" not in pyproject_text.lower()
+    pyproject = tomllib.loads(PYPROJECT.read_text(encoding="utf-8"))
+    dependencies = list(pyproject["project"].get("dependencies", []))
+    for group in pyproject["project"].get("optional-dependencies", {}).values():
+        dependencies.extend(group)
+    lock_text = UV_LOCK.read_text(encoding="utf-8")
+    assert not any(requirement.lower().startswith("pylint") for requirement in dependencies)
     assert "pylint src tests tools" not in raw
     assert 'name = "pylint"' not in lock_text
     assert 'name = "dill"' not in lock_text
@@ -638,8 +657,33 @@ def test_dependency_trust_is_a_standalone_ci_and_pre_commit_gate() -> None:
     by_id = {str(hook["id"]): hook for hook in hooks}
     trust_hook = by_id["dependency-trust-gate"]
     assert trust_hook.get("pass_filenames") is False
-    assert "scripts/check_dependency_trust_exceptions.py" in str(trust_hook.get("entry", ""))
+    assert trust_hook.get("entry") == "hatch run python scripts/check_dependency_trust_exceptions.py"
     assert "uv\\.lock" in str(trust_hook.get("files", ""))
+
+
+def test_frozen_cve_audit_is_a_standalone_ci_and_pre_commit_gate() -> None:
+    """The advisory database must audit the committed requirements graph, not an ambient environment."""
+    steps = _load_job_steps("security-audit")
+    commands = "\n".join(str(step.get("run", "")) for step in steps)
+    assert "scripts/security_audit_gate.py" in commands
+
+    hooks = _load_hooks()
+    by_id = {str(hook["id"]): hook for hook in hooks}
+    cve_hook = by_id["frozen-cve-audit"]
+    assert cve_hook.get("pass_filenames") is False
+    assert cve_hook.get("entry") == "hatch run security-audit"
+    assert "requirements/ci/locked" in str(cve_hook.get("files", ""))
+    assert "vulnerability-audit-exceptions" in str(cve_hook.get("files", ""))
+
+
+def test_frozen_setup_checks_dependency_trust_before_synchronizing() -> None:
+    """Every shared frozen setup rejects unsafe lock input before installation."""
+    action = REPO_ROOT / ".github" / "actions" / "setup-frozen-python" / "action.yml"
+    content = action.read_text(encoding="utf-8")
+
+    assert content.index("python scripts/check_dependency_trust_exceptions.py") < content.index(
+        "uv sync --locked --all-extras"
+    )
 
 
 def _assert_pre_commit_cli_quality_block_hooks(by_id: dict[str, dict[str, Any]]) -> None:

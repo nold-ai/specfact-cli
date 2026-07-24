@@ -115,7 +115,7 @@ Run these in order:
 
 ```bash
 hatch run license-check   # scripts/check_license_compliance.py — exit 0 required
-hatch run security-audit  # pip-audit --desc --strict — review CVEs ≥ CVSS 7.0
+hatch run security-audit  # audit the frozen requirements; all unreviewed advisories block
 hatch run bandit-scan     # bandit -r src/ -ll — review and document findings
 ```
 

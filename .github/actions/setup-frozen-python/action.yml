@@ -9,9 +9,17 @@ runs:
       with:
         enable-cache: true
         cache-dependency-glob: uv.lock
+    - name: Validate dependency trust before synchronization
+      shell: bash
+      run: python scripts/check_dependency_trust_exceptions.py
     - name: Synchronize frozen project environment
       shell: bash
       run: |
         set -euo pipefail
         uv sync --locked --all-extras
-        echo "${GITHUB_WORKSPACE}/.venv/bin" >> "$GITHUB_PATH"
+        if [ "$RUNNER_OS" = "Windows" ]; then
+          venv_bin="${GITHUB_WORKSPACE}/.venv/Scripts"
+        else
+          venv_bin="${GITHUB_WORKSPACE}/.venv/bin"
+        fi
+        echo "$venv_bin" >> "$GITHUB_PATH"

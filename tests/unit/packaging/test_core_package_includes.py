@@ -95,19 +95,20 @@ def test_setup_py_version_matches_pyproject() -> None:
     assert f'version="{version_in_pyproject}"' in setup_text or f"version='{version_in_pyproject}'" in setup_text
 
 
-def test_core_dependency_bounds_avoid_semgrep_cli_conflicts() -> None:
-    """Core install requirements must not permit known Typer/Semgrep resolver conflicts."""
+def test_core_dependency_bounds_allow_patched_click_and_typer_releases() -> None:
+    """Core install requirements must not cap the resolver below Click's security fix."""
     data = tomllib.loads(PYPROJECT.read_text(encoding="utf-8"))
     dependencies = set(data["project"]["dependencies"])
 
-    assert "click>=8.1.8,<8.2" in dependencies
-    assert "typer>=0.20.0,<0.24" in dependencies
+    assert "click>=8.3.3,<9" in dependencies
+    assert "typer>=0.24.0,<1" in dependencies
     assert "rich>=13.5.2,<16.0.0" in dependencies
     assert not any(dependency.startswith("opentelemetry-") for dependency in dependencies)
 
     setup_text = SETUP_PY.read_text(encoding="utf-8")
-    assert '"click>=8.1.8,<8.2"' in setup_text
-    assert '"typer>=0.20.0,<0.24"' in setup_text
+    assert '"click>=8.3.3,<9"' in setup_text
+    assert '"typer>=0.24.0,<1"' in setup_text
+    assert '"pycparser>=2.22,!=3.0"' in setup_text
     assert '"rich>=13.5.2,<16.0.0"' in setup_text
     assert '"opentelemetry-sdk' not in setup_text
     assert '"opentelemetry-exporter-otlp-proto-http' not in setup_text

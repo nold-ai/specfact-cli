@@ -80,8 +80,9 @@ and 3.13. Its companion-module integration fixture is a reviewed SHA in
 `ci/module-fixture.lock.json`; never substitute a branch name. Scheduled/manual
 lower-bound and latest-resolution checks are advisory diagnostics, not release proof.
 
-BasedPyright reads only `pyproject.toml`. Use `basedpyright --project pyproject.toml`
-when invoking it outside the existing quality scripts.
+BasedPyright reads only `pyproject.toml`. Run `npm ci --ignore-scripts --prefix
+tools/basedpyright` once, then use `bash tools/run_basedpyright.sh --project
+pyproject.toml` outside the existing quality scripts.
 
 ### Code Quality Standards
 

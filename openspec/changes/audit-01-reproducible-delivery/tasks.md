@@ -47,14 +47,19 @@ Per `openspec/config.yaml`, implement in this order: specs, failing tests, produ
 ## 6. Documentation and delivery
 
 - [x] 6.1 Update README/contributor and CI documentation for lock refresh, fixture pin updates, advisory compatibility evidence, and type-check authority.
-- [x] 6.2 Apply the required version/changelog update after the final scope is known (Unreleased; no module asset change requires a module version bump).
-- [x] 6.2.1 Add type-runner and dependency-trust spec deltas; update the internal wiki mirror before implementation.
+- [x] 6.2 Apply the required CLI version/changelog update and module manifest patch bump after the final scope is known.
+- [ ] 6.2.1 Add type-runner and dependency-trust spec deltas; update the internal wiki mirror before implementation (deferred: the sibling wiki graph is already dirty, so it was not rebuilt).
 - [x] 6.2.2 Add failing workflow, dependency-policy, and license-classification tests; record failing evidence.
 - [x] 6.2.3 Replace the PyPI BasedPyright/Node runtime path with the committed npm type-tool lock and SHA-pinned Node setup.
 - [x] 6.2.4 Remove Pylint/Dill from frozen CI and Hatch lint; prove the Ruff replacement remains blocking.
 - [x] 6.2.5 Add the expiring Pycparser review record and evidence-based mixed-license classifier; repair the failing CI checks.
 - [x] 6.2.6 Update contributor/security documentation, refresh frozen Python inputs, and run the complete dependency and CI policy gates.
 - [x] 6.2.7 Replace the Socket-alerted Pycparser 3.0 release, add immutable-artifact provenance binding, and enforce native dependency-trust gates in pre-commit and CI.
+- [x] 6.2.8 Document the Codex Security review, add failing trust-boundary regressions, and
+  remediate pre-install ordering, per-package artifact binding, and canonical package denylisting.
+- [x] 6.2.9 Address actionable Codex and CodeRabbit review findings, including matrix-artifact
+  uniqueness, portable frozen-environment paths, audit-evidence completeness, and security-tool
+  minimum-version enforcement.
 - [ ] 6.3 Commit, push, create a PR to `dev`, link it to issue #651 and project #1, and update issue status to In Progress.
 
 ## Post-merge cleanup

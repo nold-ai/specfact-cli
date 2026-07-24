@@ -21,6 +21,12 @@ def _package_identifier(name: str) -> str:
     return f"SPDXRef-Package-{normalized or 'unnamed'}"
 
 
+def _pypi_purl(name: str, version: str) -> str:
+    """Return the normalized PyPI package URL used by SPDX external references."""
+    normalized_name = re.sub(r"[-_.]+", "-", name).casefold()
+    return f"pkg:pypi/{normalized_name}@{version}"
+
+
 def _package_record(item: object) -> dict[str, str]:
     """Validate one installed-distribution record from ``pip inspect``."""
     if not isinstance(item, dict):
@@ -59,6 +65,13 @@ def render_sbom(inspect_report: dict[str, object]) -> dict[str, object]:
             "SPDXID": _package_identifier(record["name"]),
             "copyrightText": "NOASSERTION",
             "downloadLocation": "NOASSERTION",
+            "externalRefs": [
+                {
+                    "referenceCategory": "PACKAGE-MANAGER",
+                    "referenceLocator": _pypi_purl(record["name"], record["version"]),
+                    "referenceType": "purl",
+                }
+            ],
             "filesAnalyzed": False,
             "licenseConcluded": "NOASSERTION",
             "licenseDeclared": "NOASSERTION",

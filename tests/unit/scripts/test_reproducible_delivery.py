@@ -9,6 +9,8 @@ import sys
 import tomllib
 from pathlib import Path
 
+import pytest
+
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 
@@ -38,6 +40,25 @@ def test_reproducible_delivery_refresh_uses_locked_export_contract() -> None:
     assert "--locked" in refresh
     assert "--no-emit-project" in refresh
     assert "check_reproducible_delivery.py" in refresh
+
+
+def test_reproducible_delivery_refresh_rejects_a_symlinked_output_parent(tmp_path: Path) -> None:
+    """Refresh must not write a generated export through a repository symlink."""
+    refresh_path = REPO_ROOT / "scripts" / "refresh_reproducible_delivery.py"
+    spec = importlib.util.spec_from_file_location("refresh_reproducible_delivery", refresh_path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    repository = tmp_path / "repository"
+    repository.mkdir()
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    requirements = repository / "requirements"
+    requirements.symlink_to(outside, target_is_directory=True)
+    output = requirements / "ci" / "locked.txt"
+
+    with pytest.raises(OSError, match="symlink"):
+        module.validate_locked_export_path(output, repository)
 
 
 def test_locked_sbom_renderer_uses_pip_inspect_without_generator_dependency(tmp_path: Path) -> None:
@@ -77,4 +98,11 @@ def test_locked_sbom_renderer_uses_pip_inspect_without_generator_dependency(tmp_
     assert [(package["name"], package["versionInfo"]) for package in payload["packages"]] == [
         ("another-package", "1.0.0"),
         ("Example-CLI", "2.0.0"),
+    ]
+    assert payload["packages"][0]["externalRefs"] == [
+        {
+            "referenceCategory": "PACKAGE-MANAGER",
+            "referenceLocator": "pkg:pypi/another-package@1.0.0",
+            "referenceType": "purl",
+        }
     ]

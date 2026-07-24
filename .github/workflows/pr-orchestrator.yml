@@ -732,7 +732,8 @@ jobs:
           VENV="$RUNNER_TEMP/specfact-runtime-${{ matrix.launcher }}"
           PIPX_HOME="$RUNNER_TEMP/pipx-home-${{ matrix.launcher }}"
           PIPX_BIN_DIR="$RUNNER_TEMP/pipx-bin-${{ matrix.launcher }}"
-          export PIPX_HOME PIPX_BIN_DIR
+          PIPX_DEFAULT_BACKEND=pip
+          export PIPX_HOME PIPX_BIN_DIR PIPX_DEFAULT_BACKEND
 
           python -m venv "$VENV"
           "$VENV/bin/python" -m pip install --require-hashes -r requirements/ci/locked.txt
@@ -773,7 +774,7 @@ jobs:
           }
 
           if [ "${{ matrix.launcher }}" = "pipx" ]; then
-            pipx install --python "$pythonLocation/bin/python" "$WHEEL"
+            pipx install --python "$pythonLocation/bin/python" --pip-args="--no-deps" "$WHEEL"
             pipx runpip specfact-cli install --require-hashes -r "$GITHUB_WORKSPACE/requirements/ci/locked.txt"
           fi
 
@@ -790,7 +791,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: package-runtime-${{ matrix.launcher }}
+          name: package-runtime-${{ matrix.launcher }}-${{ matrix.python-version }}
           path: logs/package-runtime/
           if-no-files-found: ignore
 
@@ -806,6 +807,11 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: "3.12"
 
       - name: Read immutable module fixture
         id: modules-fixture
@@ -830,11 +836,6 @@ jobs:
           expected="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])')"
           actual="$(git -C specfact-cli-modules rev-parse HEAD)"
           test "$actual" = "$expected"
-
-      - name: Set up Python 3.12
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
-        with:
-          python-version: "3.12"
 
       - name: Set up frozen smoke dependencies
         uses: ./.github/actions/setup-frozen-python
@@ -866,6 +867,11 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
 
+      - name: Set up Python 3.12
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: "3.12"
+
       - name: Read immutable module fixture
         id: modules-fixture
         shell: bash
@@ -889,11 +895,6 @@ jobs:
           expected="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])')"
           actual="$(git -C specfact-cli-modules rev-parse HEAD)"
           test "$actual" = "$expected"
-
-      - name: Set up Python 3.12
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
-        with:
-          python-version: "3.12"
 
       - name: Set up frozen smoke dependencies
         uses: ./.github/actions/setup-frozen-python

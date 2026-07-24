@@ -12,6 +12,7 @@ Technical documentation for contributors and developers working on SpecFact CLI.
 
 - **[Code2Spec Analysis Logic](code2spec-analysis-logic.md)** - AI-first approach for code analysis
 - **[Testing Procedures](testing.md)** - Comprehensive testing guide for contributors
+- **[Dependency Trust Security Review](dependency-trust-security-review.md)** - Findings and remediation evidence for PR #652
 
 ## Developer Tools
 
