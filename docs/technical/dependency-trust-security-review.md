@@ -13,11 +13,26 @@ future public post; it does not claim that an alerted package was malware.
 
 ## Findings and scope
 
-| ID | Severity | Finding | Effect before remediation |
-| --- | --- | --- | --- |
-| CSD-DEP-001 | Medium | The shared frozen-environment action synchronized dependencies before checking the trust register. | A changed lock could install or build a dependency before the policy rejected it. |
-| CSD-DEP-002 | Medium | Review URL and SHA-256 evidence was searched across the entire lock file. | Evidence from a different package record could satisfy a reviewed exception. |
-| CSD-DEP-003 | Medium | The executable-wheel denylist did not normalize package names consistently. | Case, underscore, or dot variants could evade the denylist. |
+### CSD-DEP-001 — Medium
+
+- **Finding:** The shared frozen-environment action synchronized dependencies before
+  checking the trust register.
+- **Effect before remediation:** A changed lock could install or build a dependency
+  before the policy rejected it.
+
+### CSD-DEP-002 — Medium
+
+- **Finding:** Review URL and SHA-256 evidence was searched across the entire lock
+  file.
+- **Effect before remediation:** Evidence from a different package record could
+  satisfy a reviewed exception.
+
+### CSD-DEP-003 — Medium
+
+- **Finding:** The executable-wheel denylist did not normalize package names
+  consistently.
+- **Effect before remediation:** Case, underscore, or dot variants could evade the
+  denylist.
 
 Two defence-in-depth opportunities were also found and are remediated here:
 

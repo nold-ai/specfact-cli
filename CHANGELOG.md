@@ -28,6 +28,16 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.53.4] - 2026-07-25
+
+### Fixed
+
+- **Dependency trust review:** exclude the complete `pycparser` 3.0 release
+  family from published resolver metadata and retain durable CI evidence for
+  review and release validation.
+
+---
+
 ## [0.53.3] - 2026-07-24
 
 ### Fixed

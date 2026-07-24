@@ -7,6 +7,7 @@ import tomllib
 from pathlib import Path
 
 import pytest
+from packaging.requirements import Requirement
 
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -34,6 +35,22 @@ DELETED_17_NAMES = {
     "enforce",
     "patch_mode",
 }
+
+
+def _project_version() -> str:
+    """Return the canonical project version from package metadata."""
+    project = tomllib.loads(PYPROJECT.read_text(encoding="utf-8"))["project"]
+    version = project["version"]
+    assert isinstance(version, str)
+    return version
+
+
+def _project_dependencies() -> set[str]:
+    """Return the declared core package dependencies."""
+    project = tomllib.loads(PYPROJECT.read_text(encoding="utf-8"))["project"]
+    dependencies = project["dependencies"]
+    assert isinstance(dependencies, list)
+    return set(dependencies)
 
 
 def test_pyproject_wheel_packages_exist() -> None:
@@ -69,49 +86,45 @@ def test_pyproject_force_include_does_not_reference_deleted_modules() -> None:
             pytest.fail(f"pyproject force-include must not reference deleted module dir: modules/{name}")
 
 
-def test_pyproject_and_init_version_sync() -> None:
-    """Version in pyproject.toml and src/specfact_cli/__init__.py must match."""
-    raw = PYPROJECT.read_text(encoding="utf-8")
-    in_pyproject = None
-    for line in raw.splitlines():
-        if line.strip().startswith("version"):
-            in_pyproject = line.split("=", 1)[-1].strip().strip('"').strip("'")
-            break
-    assert in_pyproject is not None
+def test_package_version_sources_are_synchronized() -> None:
+    """Canonical package metadata and both import surfaces must share one version."""
+    in_pyproject = _project_version()
     init_text = INIT_PY.read_text(encoding="utf-8")
     assert f'__version__ = "{in_pyproject}"' in init_text or f"__version__ = '{in_pyproject}'" in init_text
-
-
-def test_setup_py_version_matches_pyproject() -> None:
-    """setup.py version must match pyproject.toml."""
-    raw_pyproject = PYPROJECT.read_text(encoding="utf-8")
-    version_in_pyproject = None
-    for line in raw_pyproject.splitlines():
-        if line.strip().startswith("version"):
-            version_in_pyproject = line.split("=", 1)[-1].strip().strip('"').strip("'")
-            break
-    assert version_in_pyproject is not None
     setup_text = SETUP_PY.read_text(encoding="utf-8")
-    assert f'version="{version_in_pyproject}"' in setup_text or f"version='{version_in_pyproject}'" in setup_text
+    assert f'version="{in_pyproject}"' in setup_text or f"version='{in_pyproject}'" in setup_text
 
 
 def test_core_dependency_bounds_allow_patched_click_and_typer_releases() -> None:
-    """Core install requirements must not cap the resolver below Click's security fix."""
-    data = tomllib.loads(PYPROJECT.read_text(encoding="utf-8"))
-    dependencies = set(data["project"]["dependencies"])
+    """Core requirements must retain the reviewed security version bounds."""
+    dependencies = _project_dependencies()
 
-    assert "click>=8.3.3,<9" in dependencies
-    assert "typer>=0.24.0,<1" in dependencies
-    assert "rich>=13.5.2,<16.0.0" in dependencies
+    assert {
+        "click>=8.3.3,<9",
+        "typer>=0.24.0,<1",
+        "pycparser>=2.22,!=3.0.*",
+        "rich>=13.5.2,<16.0.0",
+    } <= dependencies
     assert not any(dependency.startswith("opentelemetry-") for dependency in dependencies)
 
     setup_text = SETUP_PY.read_text(encoding="utf-8")
-    assert '"click>=8.3.3,<9"' in setup_text
-    assert '"typer>=0.24.0,<1"' in setup_text
-    assert '"pycparser>=2.22,!=3.0"' in setup_text
+    assert all(
+        requirement in setup_text
+        for requirement in ('"click>=8.3.3,<9"', '"typer>=0.24.0,<1"', '"pycparser>=2.22,!=3.0.*"')
+    )
     assert '"rich>=13.5.2,<16.0.0"' in setup_text
     assert '"opentelemetry-sdk' not in setup_text
     assert '"opentelemetry-exporter-otlp-proto-http' not in setup_text
+
+
+def test_pycparser_requirement_excludes_the_alerted_release_family() -> None:
+    """The published requirement must exclude the complete alerted 3.0 family."""
+    dependencies = _project_dependencies()
+    pycparser_requirement = Requirement(next(item for item in dependencies if item.startswith("pycparser")))
+    assert pycparser_requirement.specifier.contains("2.22")
+    assert not pycparser_requirement.specifier.contains("3.0")
+    assert not pycparser_requirement.specifier.contains("3.0.1")
+    assert not pycparser_requirement.specifier.contains("3.0.post1")
 
 
 def test_telemetry_dependencies_are_opt_in_extra() -> None:

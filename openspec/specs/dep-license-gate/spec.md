@@ -2,7 +2,8 @@
 
 ## Purpose
 
-TBD - created by archiving change dep-security-cleanup. Update Purpose after archive.
+Define the repository's license-compliance and frozen-advisory gates so CI and local
+contributors reject unapproved (A)GPL dependencies and unreviewed vulnerabilities.
 
 ## Requirements
 

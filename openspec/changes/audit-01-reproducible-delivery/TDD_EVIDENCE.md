@@ -1,6 +1,6 @@
 # TDD evidence — audit-01-reproducible-delivery
 
-All times are Europe/Berlin (2026-07-23 to 2026-07-24).
+All times are Europe/Berlin (2026-07-23 to 2026-07-25).
 
 ## Audit metadata
 
@@ -14,9 +14,10 @@ All times are Europe/Berlin (2026-07-23 to 2026-07-24).
 - **Failing artifacts:** terminal output is captured in this evidence under
   “Security remediation evidence” and “Review remediation evidence”; focused
   test files are the durable reproductions.
-- **Passing artifacts:** BasedPyright JSON is retained at
-  `/private/tmp/specfact-basedpyright-security.json` for this local run; CI
-  uploads the equivalent JSON, frozen dependency, and SBOM evidence.
+- **Passing artifacts:** GitHub Actions run
+  [`30132168259`](https://github.com/nold-ai/specfact-cli/actions/runs/30132168259)
+  retains the `type-check-results` BasedPyright JSON artifact; CI also uploads frozen
+  dependency and SBOM evidence.
 
 ## Failing-first evidence
 
@@ -236,6 +237,39 @@ pip check: exit 0
 
 The local runtime exercise used Python 3.13 on macOS. The updated PR matrix remains
 the required hosted proof for Python 3.11, 3.12, and 3.13.
+
+## Review-comment remediation — 2026-07-25
+
+The remaining PR #652 review threads required a durable BasedPyright artifact
+reference, corrected evidence date range and documentation line length, a real
+license-gate specification purpose, and complete exclusion of the alerted
+`pycparser` 3.0 release family.
+
+The package-metadata regression was changed before the requirement constraints:
+
+```text
+hatch run pytest \
+  tests/unit/packaging/test_core_package_includes.py::test_core_dependency_bounds_allow_patched_click_and_typer_releases -q
+1 failed: pyproject.toml still declared pycparser>=2.22,!=3.0
+```
+
+After changing both published metadata surfaces to `!=3.0.*` and regenerating the
+lock without changing the resolved `pycparser==2.22` artifact:
+
+```text
+uv lock
+Resolved 182 packages
+
+hatch run pytest \
+  tests/unit/packaging/test_core_package_includes.py::test_core_dependency_bounds_allow_patched_click_and_typer_releases -q
+1 passed
+```
+
+The regression proves PEP 440 exclusion of `3.0`, `3.0.1`, and `3.0.post1`, while
+retaining `2.22`. Because the published dependency metadata changed, the required
+release gate advanced the four synchronized version sources to `0.53.4` and added
+the matching changelog entry. The full review-fix validation is recorded in
+[`CHANGE_VALIDATION.md`](./CHANGE_VALIDATION.md).
 
 ## Review remediation evidence — 2026-07-24
 

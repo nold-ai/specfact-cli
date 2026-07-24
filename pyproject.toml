@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "specfact-cli"
-version = "0.53.3"
+version = "0.53.4"
 description = "AI-bloat defense CLI for Python teams. Run deterministic code review, cleanup forecasts, and spec/contract evidence for AI-assisted and brownfield delivery."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -66,7 +66,7 @@ dependencies = [
     "cryptography>=43.0.0",
     # Transitive through CFFI. The lock supplies reproducibility; this range
     # keeps the known blocked 3.0 release out of every resolver result.
-    "pycparser>=2.22,!=3.0",
+    "pycparser>=2.22,!=3.0.*",
     "packaging>=24.0",
     # PEP 440 / markers for module installer and registry (do not rely on transitive pins only)
 
