@@ -298,12 +298,14 @@ def test_pr_orchestrator_package_runtime_matrix_commands_are_black_box() -> None
     assert "${{ matrix.python-version }}" in str(upload_step.get("with") or "")
 
 
-def test_pr_orchestrator_pipx_runtime_install_is_hash_locked() -> None:
-    """pipx must use pip for the wheel and resolve dependencies only from the frozen export."""
+def test_pr_orchestrator_pipx_runtime_install_uses_the_frozen_lock() -> None:
+    """pipx must install dependencies from the reviewed uv lock before the wheel."""
     raw = "\n".join(str(step.get("run", "")) for step in _load_job_steps("package-runtime-matrix"))
     assert "PIPX_DEFAULT_BACKEND=pip" in raw
-    assert 'pipx install --python "$pythonLocation/bin/python" --pip-args="--no-deps" "$WHEEL"' in raw
-    assert 'pipx runpip specfact-cli install --require-hashes -r "$GITHUB_WORKSPACE/requirements/ci/locked.txt"' in raw
+    assert 'PIPX_LOCK="$RUNNER_TEMP/pylock.specfact-deps.toml"' in raw
+    assert 'uv export --locked --format pylock.toml --no-emit-project --output-file "$PIPX_LOCK"' in raw
+    assert 'pipx install --python "$pythonLocation/bin/python" --lock "$PIPX_LOCK" "$WHEEL"' in raw
+    assert "pipx runpip specfact-cli" not in raw
 
 
 def test_frozen_setup_uses_a_portable_virtual_environment_path() -> None:

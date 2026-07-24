@@ -196,6 +196,47 @@ and unrelated source pages). The new `wiki/sources/audit-01-reproducible-deliver
 was added without overwriting those changes, but `wiki_rebuild_graph.py` is deferred
 until the existing graph edits are reconciled.
 
+## Pipx runtime repair — 2026-07-25
+
+GitHub Actions run `30132168259` failed all three pipx matrix jobs (Python 3.11,
+3.12, and 3.13) with `Pipx Internal Error: cannot find package 'azure-identity'
+metadata.` The prior sequence installed the wheel with `--no-deps` and attempted to
+add the frozen dependencies only afterwards; pipx inspects installed package metadata
+before that second command can run.
+
+The focused policy test was updated before the workflow:
+
+```text
+hatch run pytest tests/unit/workflows/test_trustworthy_green_checks.py -q
+44 collected; 43 passed; 1 failed
+```
+
+The pipx lane now exports a temporary PEP 751 `pylock.toml` from the committed
+`uv.lock` with `--no-emit-project`, then supplies it to `pipx install --lock` with
+the built wheel. Pipx installs the locked dependencies first, adds the wheel without
+dependency resolution, and runs `pip check` before exposing the launchers.
+
+Passing local evidence:
+
+```text
+hatch run pytest tests/unit/workflows/test_trustworthy_green_checks.py -q
+44 passed
+
+hatch run lint-workflows
+exit 0
+
+uv export --locked --format pylock.toml --no-emit-project \
+  --output-file /private/tmp/pylock.specfact-deps.toml
+Resolved 182 packages
+
+pipx 1.16.2 install --lock <temporary pylock> <built wheel>
+pip check: exit 0
+/private/tmp/.../specfact --help: exit 0
+```
+
+The local runtime exercise used Python 3.13 on macOS. The updated PR matrix remains
+the required hosted proof for Python 3.11, 3.12, and 3.13.
+
 ## Review remediation evidence — 2026-07-24
 
 Codex and CodeRabbit review feedback was read through the PR review API. The

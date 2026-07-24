@@ -774,8 +774,9 @@ jobs:
           }
 
           if [ "${{ matrix.launcher }}" = "pipx" ]; then
-            pipx install --python "$pythonLocation/bin/python" --pip-args="--no-deps" "$WHEEL"
-            pipx runpip specfact-cli install --require-hashes -r "$GITHUB_WORKSPACE/requirements/ci/locked.txt"
+            PIPX_LOCK="$RUNNER_TEMP/pylock.specfact-deps.toml"
+            uv export --locked --format pylock.toml --no-emit-project --output-file "$PIPX_LOCK" >/dev/null
+            pipx install --python "$pythonLocation/bin/python" --lock "$PIPX_LOCK" "$WHEEL"
           fi
 
           run_specfact --help | tee "logs/package-runtime/${{ matrix.launcher }}/specfact-help.log"
