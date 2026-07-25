@@ -129,6 +129,9 @@ jobs:
       - name: Set up frozen documentation dependencies
         uses: ./.github/actions/setup-frozen-python
 
+      - name: Validate docs dependency security floor
+        run: python -m pytest tests/unit/docs/test_docs_validation_scripts.py::test_docs_json_gem_uses_the_patched_security_floor -q
+
       - name: Validate docs command examples
         run: python scripts/check-docs-commands.py
 

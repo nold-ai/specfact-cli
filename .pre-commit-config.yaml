@@ -48,6 +48,13 @@ repos:
             scripts/security_audit_gate\.py
           )$
 
+      - id: docs-gem-lock-security
+        name: Docs Gem lock security floor
+        entry: hatch run pytest tests/unit/docs/test_docs_validation_scripts.py::test_docs_json_gem_uses_the_patched_security_floor -q
+        language: system
+        pass_filenames: false
+        files: ^(docs/Gemfile|docs/Gemfile\.lock|\.github/dependabot\.yml|tests/unit/docs/test_docs_validation_scripts\.py)$
+
       # Runs only when canonical version files are staged — same scope as pr-orchestrator tests job
       # PyPI step (version_sources_changed). Skips routine commits when local == PyPI after a release.
       - id: check-local-version-ahead-of-pypi

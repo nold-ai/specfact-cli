@@ -21,6 +21,7 @@ SPECFACT_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "specfact.yml"
 SIGN_MODULES = REPO_ROOT / ".github" / "workflows" / "sign-modules.yml"
 PUBLISH_MODULES = REPO_ROOT / ".github" / "workflows" / "publish-modules.yml"
 PRE_COMMIT_CONFIG = REPO_ROOT / ".pre-commit-config.yaml"
+DEPENDABOT_CONFIG = REPO_ROOT / ".github" / "dependabot.yml"
 CODERABBIT_CONFIG = REPO_ROOT / ".coderabbit.yaml"
 LEGACY_ACTIONLINT_RUNNER = REPO_ROOT / "scripts" / "run_actionlint.sh"
 MODULE_FIXTURE_LOCK = REPO_ROOT / "ci" / "module-fixture.lock.json"
@@ -690,6 +691,71 @@ def test_frozen_cve_audit_is_a_standalone_ci_and_pre_commit_gate() -> None:
     assert cve_hook.get("entry") == "hatch run security-audit"
     assert "requirements/ci/locked" in str(cve_hook.get("files", ""))
     assert "vulnerability-audit-exceptions" in str(cve_hook.get("files", ""))
+
+
+def _assert_docs_dependabot_monitoring() -> None:
+    dependabot = _load_yaml(DEPENDABOT_CONFIG)
+    updates = dependabot.get("updates")
+    assert isinstance(updates, list)
+    assert any(
+        isinstance(item, dict) and item.get("package-ecosystem") == "bundler" and item.get("directory") == "/docs"
+        for item in updates
+    )
+
+
+def _docs_review_security_step() -> dict[str, Any]:
+    workflow = _load_yaml(DOCS_REVIEW)
+    jobs = workflow.get("jobs")
+    assert isinstance(jobs, dict)
+    docs_review = jobs.get("docs-review")
+    assert isinstance(docs_review, dict)
+    steps = docs_review.get("steps")
+    assert isinstance(steps, list)
+    security_step = next(
+        (
+            step
+            for step in steps
+            if isinstance(step, dict) and step.get("name") == "Validate docs dependency security floor"
+        ),
+        None,
+    )
+    assert isinstance(security_step, dict)
+    return security_step
+
+
+def _assert_docs_lock_pre_commit_gate() -> None:
+    hooks = {str(hook["id"]): hook for hook in _load_hooks()}
+    docs_lock_hook = hooks["docs-gem-lock-security"]
+    assert "test_docs_json_gem_uses_the_patched_security_floor" in str(docs_lock_hook.get("entry", ""))
+    assert "docs/Gemfile" in str(docs_lock_hook.get("files", ""))
+
+
+def test_docs_ruby_lock_has_dependabot_and_security_floor_gates() -> None:
+    """The docs lock must receive update PRs and enforce known security floors."""
+    _assert_docs_dependabot_monitoring()
+    security_step = _docs_review_security_step()
+    assert "test_docs_json_gem_uses_the_patched_security_floor" in str(security_step.get("run", ""))
+    _assert_docs_lock_pre_commit_gate()
+
+
+def test_semgrep_mcp_server_is_not_invoked_by_project_automation() -> None:
+    """The Semgrep SAST integration must not activate its separately exposed MCP server."""
+    invocation_surfaces = (
+        PYPROJECT,
+        PR_ORCHESTRATOR,
+        REPO_ROOT / "scripts",
+        REPO_ROOT / "src",
+    )
+    for surface in invocation_surfaces:
+        if surface.is_file():
+            contents = surface.read_text(encoding="utf-8")
+        else:
+            contents = "\n".join(
+                path.read_text(encoding="utf-8", errors="ignore")
+                for path in surface.rglob("*")
+                if path.is_file() and path.suffix in {".py", ".sh", ".toml", ".yml", ".yaml"}
+            )
+        assert "semgrep mcp" not in contents.lower(), f"{surface} must not start Semgrep's MCP server"
 
 
 def test_frozen_setup_checks_dependency_trust_before_synchronizing() -> None:

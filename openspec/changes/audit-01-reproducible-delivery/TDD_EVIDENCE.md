@@ -678,3 +678,69 @@ hatch run lint-changed scripts/run_changed_lint.py \
   tests/unit/workflows/test_trustworthy_green_checks.py
 0 errors, 0 warnings, 0 notes
 ```
+
+## Dependabot alert classification and docs lock repair — 2026-07-25
+
+The seven open Dependabot alerts represent two resolved dependency records, not
+seven independent packages. Three high alerts appear twice because
+`mcp==1.23.3` is present in both `uv.lock` and the generated CI export; the
+seventh is Ruby `json==2.17.1.2` in `docs/Gemfile.lock`.
+
+The wheel metadata proof establishes that `mcp` is not a base-package runtime
+requirement. It is transitively installed only when a user selects the published
+`dev` or `scanning` Semgrep extras. PyPI metadata checked on 2026-07-25 confirms
+Semgrep `1.171.0` is the newest upstream release and pins `mcp==1.23.3` exactly;
+the fixed MCP advisory floor is `1.28.1`. The existing exception remains visible,
+exact, and time-bounded while upstream has no compatible release. No `0.53.6`
+release was prepared because it could not truthfully remediate that optional-extra
+dependency.
+
+Upstream Semgrep [PR #11808](https://github.com/semgrep/semgrep/pull/11808)
+contains the matching `mcp==1.28.1` dependency update, but it remained open and
+unreleased when checked on 2026-07-25. The exception must be removed only after
+a released Semgrep version carries that fix and the frozen export verifies it.
+
+The Ruby documentation lock was outside the previous Python-only frozen CVE
+gate and Dependabot configuration. Tests were added before the configuration and
+lock update:
+
+```text
+hatch run pytest tests/unit/docs/test_docs_validation_scripts.py -q
+1 failed, 16 passed
+
+hatch run pytest \
+  tests/unit/workflows/test_trustworthy_green_checks.py::test_docs_ruby_lock_has_dependabot_and_security_floor_gates -q
+1 failed
+```
+
+The docs Gemfile now declares `json>=2.19.9`, the generated lock resolves
+`json==2.21.1`, Dependabot monitors `/docs` as a Bundler project, Docs Review
+runs the focused floor test, and pre-commit runs that same test when the Gemfile,
+lock, Dependabot configuration, or test changes.
+
+```text
+hatch run pytest tests/unit/docs/test_docs_validation_scripts.py \
+  tests/unit/workflows/test_trustworthy_green_checks.py::test_docs_ruby_lock_has_dependabot_and_security_floor_gates -q
+18 passed
+
+Ruby 3.2 / Bundler 2.3.5 isolated Jekyll build
+done
+
+hatch run security-audit
+Security audit passed. No unreviewed vulnerabilities found in the frozen requirements.
+```
+
+A temporary import blocker proved that Semgrep cannot currently run supported
+SAST without the declared MCP dependency: `semgrep scan` imports
+`semgrep.commands.mcp` at CLI startup and then imports `mcp.server`. The project
+therefore does not use an unsupported `--no-deps` installation. A workflow-policy
+test now rejects `semgrep mcp` on every project automation invocation surface,
+preventing the affected server transports from being started accidentally:
+
+```text
+hatch run pytest \
+  tests/unit/workflows/test_trustworthy_green_checks.py::test_semgrep_mcp_server_is_not_invoked_by_project_automation \
+  tests/unit/workflows/test_trustworthy_green_checks.py::test_docs_ruby_lock_has_dependabot_and_security_floor_gates \
+  tests/unit/docs/test_docs_validation_scripts.py -q
+19 passed
+```
