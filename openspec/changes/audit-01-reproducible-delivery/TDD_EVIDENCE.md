@@ -563,3 +563,40 @@ Dependency trust register is valid
 tests/unit/scripts/test_dependency_trust_review.py
 11 passed
 ```
+
+## PR #654 review remediation — 2026-07-25
+
+The review fixes were specified by the existing reproducible-delivery change.
+Tests were added before production changes for fail-closed strict-audit output,
+PEP 440-equivalent blocked-release spellings, bounded `uv` execution, local
+BasedPyright bootstrap, immutable fixture repository validation, lock-sensitive
+license gating, the updated pinned Node action, and omitted multi-module output.
+The initial focused run demonstrated the gaps:
+
+```text
+10 failed, 76 passed
+```
+
+After implementation, the focused regression proof passed:
+
+```text
+hatch run pytest tests/unit/scripts/test_security_audit_gate.py \
+  tests/unit/scripts/test_dependency_trust_review.py \
+  tests/unit/scripts/test_reproducible_delivery.py \
+  tests/unit/scripts/test_run_changed_lint.py \
+  tests/unit/specfact_cli/modules/test_multi_module_install_uninstall.py \
+  tests/unit/workflows/test_trustworthy_green_checks.py -q
+86 passed
+```
+
+The frozen backend is now `hatchling==1.28.0`, included in the frozen dev
+input, and the reproducible-release job builds with `--no-build-isolation`.
+The lock and hash-protected export were regenerated from that reviewed input.
+The complete configured type gate reports no errors; its 1,652 warnings are
+the pre-existing repository baseline and remain non-blocking under the
+configured error-level CI threshold:
+
+```text
+hatch run type-check
+0 errors, 1652 warnings, 0 notes
+```

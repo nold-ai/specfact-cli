@@ -10,6 +10,16 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.53.5] - 2026-07-25
+
+### Fixed
+
+- **Release review hardening**: freeze the Hatchling build backend; fail closed
+  on incomplete strict audits; and extend immutable fixture, license, type, and
+  timeout safeguards.
+
+---
+
 ## [0.53.4] - 2026-07-25
 
 ### Added

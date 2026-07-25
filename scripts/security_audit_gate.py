@@ -29,7 +29,7 @@ import subprocess
 import sys
 from datetime import date
 from pathlib import Path
-from typing import Any, cast
+from typing import TypeAlias, cast
 
 from beartype import beartype
 from icontract import ensure
@@ -42,6 +42,11 @@ _CVSS_KEY_HINTS = frozenset(
     {"cvss", "cvssv3", "cvssv2", "score", "basescore", "base_score"},
 )
 
+# ``type`` aliases require Python 3.12; this CLI still supports Python 3.11.
+JsonScalar: TypeAlias = bool | int | float | str | None  # noqa: UP040
+JsonValue: TypeAlias = JsonScalar | list["JsonValue"] | dict[str, "JsonValue"]  # noqa: UP040
+JsonObject: TypeAlias = dict[str, JsonValue]  # noqa: UP040
+
 
 @beartype
 def _emit(message: str, *, error: bool = False) -> None:
@@ -51,7 +56,7 @@ def _emit(message: str, *, error: bool = False) -> None:
     stream.flush()
 
 
-def _scores_from_leaf_value(val: Any) -> list[float]:
+def _scores_from_leaf_value(val: JsonValue) -> list[float]:
     """Parse a scalar or string leaf that might hold a CVSS number."""
     if isinstance(val, (int, float)):
         return [float(val)]
@@ -61,12 +66,12 @@ def _scores_from_leaf_value(val: Any) -> list[float]:
     return []
 
 
-def _gather_cvss_scores(payload: Any) -> list[float]:
+def _gather_cvss_scores(payload: JsonValue) -> list[float]:
     """Collect numeric CVSS-like scores from a nested JSON structure."""
 
     scores: list[float] = []
 
-    def visit(obj: Any) -> None:
+    def visit(obj: JsonValue) -> None:
         if isinstance(obj, dict):
             for key, val in obj.items():
                 if str(key).lower() in _CVSS_KEY_HINTS:
@@ -81,18 +86,17 @@ def _gather_cvss_scores(payload: Any) -> list[float]:
     return scores
 
 
-def _cvss_for_vuln(vuln: dict[str, Any]) -> float:
+def _cvss_for_vuln(vuln: JsonObject) -> float:
     scores = _gather_cvss_scores(vuln)
     return max(scores) if scores else 0.0
 
 
-@beartype
-def _dependencies_from_pip_audit_json(data: Any) -> list[Any] | None:
+def _dependencies_from_pip_audit_json(data: JsonValue) -> list[JsonValue] | None:
     """Return the dependency list from pip-audit JSON, or None if shape is unknown."""
     if isinstance(data, list):
         return data
     if isinstance(data, dict):
-        deps = cast(dict[str, Any], data).get("dependencies")
+        deps = data.get("dependencies")
         if isinstance(deps, list):
             return deps
     return None
@@ -126,7 +130,7 @@ def _run_pip_audit(requirements_file: str) -> subprocess.CompletedProcess[str] |
         return None
 
 
-def _parse_dependencies_list(proc: subprocess.CompletedProcess[str]) -> tuple[list[Any] | None, int]:
+def _parse_dependencies_list(proc: subprocess.CompletedProcess[str]) -> tuple[list[JsonValue] | None, int]:
     raw = (proc.stdout or "").strip()
     if not raw:
         _emit("ERROR: pip-audit produced no stdout — cannot audit (fail closed)", error=True)
@@ -134,7 +138,7 @@ def _parse_dependencies_list(proc: subprocess.CompletedProcess[str]) -> tuple[li
             _emit(proc.stderr, error=True)
         return None, 1
     try:
-        data = json.loads(raw)
+        data = cast(JsonValue, json.loads(raw))
     except json.JSONDecodeError as exc:
         _emit(f"ERROR: pip-audit JSON parse failed: {exc}", error=True)
         return None, 1
@@ -148,29 +152,30 @@ def _parse_dependencies_list(proc: subprocess.CompletedProcess[str]) -> tuple[li
     return deps, 0
 
 
-def _format_vuln_line(dep_name: str, dep_version: str, vuln: dict[str, Any], cvss: float) -> str:
+def _format_vuln_line(dep_name: str, dep_version: str, vuln: JsonObject, cvss: float) -> str:
     vid = str(vuln.get("id", "?"))
     aliases = vuln.get("aliases") or []
-    desc = (vuln.get("description") or "").replace("\n", " ")[:240]
+    description = vuln.get("description")
+    desc = description.replace("\n", " ")[:240] if isinstance(description, str) else ""
     alias_txt = f" aliases={aliases!r}" if aliases else ""
     return f"FAIL: {dep_name}=={dep_version} vuln={vid} CVSS={cvss:.1f}{alias_txt} {desc}".rstrip()
 
 
-def _read_exception_items(path: Path) -> tuple[list[Any] | None, str | None]:
+def _read_exception_items(path: Path) -> tuple[list[JsonValue] | None, str | None]:
     """Read the exception list, returning one fail-closed error on invalid input."""
     try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
+        payload = cast(JsonValue, json.loads(path.read_text(encoding="utf-8")))
     except (OSError, json.JSONDecodeError) as exc:
         return None, f"could not read vulnerability exception register: {exc}"
     if not isinstance(payload, dict):
         return None, "vulnerability exception register must contain an exceptions list"
-    exception_items = cast(dict[str, Any], payload).get("exceptions")
+    exception_items = payload.get("exceptions")
     if not isinstance(exception_items, list):
         return None, "vulnerability exception register must contain an exceptions list"
     return exception_items, None
 
 
-def _exception_fields(item: dict[str, Any]) -> tuple[str, str, list[str], str, str] | None:
+def _exception_fields(item: JsonObject) -> tuple[str, str, list[str], str, str] | None:
     """Return the fields that make an exception exact and time-bounded."""
     package = item.get("package")
     version = item.get("version")
@@ -185,7 +190,7 @@ def _exception_fields(item: dict[str, Any]) -> tuple[str, str, list[str], str, s
             isinstance(version, str) and bool(version),
             isinstance(vulnerability_ids, list)
             and bool(vulnerability_ids)
-            and all(isinstance(item_id, str) and item_id for item_id in vulnerability_ids),
+            and all(isinstance(item_id, str) and bool(item_id) for item_id in vulnerability_ids),
             isinstance(reviewed_on, str),
             isinstance(expires_on, str),
             isinstance(rationale, str) and bool(rationale),
@@ -197,7 +202,7 @@ def _exception_fields(item: dict[str, Any]) -> tuple[str, str, list[str], str, s
     return cast(tuple[str, str, list[str], str, str], (package, version, vulnerability_ids, reviewed_on, expires_on))
 
 
-def _approved_exception_ids(item: Any, index: int) -> tuple[set[tuple[str, str, str]], str | None]:
+def _approved_exception_ids(item: JsonValue, index: int) -> tuple[set[tuple[str, str, str]], str | None]:
     """Validate one register entry and return its exact approved advisory IDs."""
     if not isinstance(item, dict):
         return set(), f"exceptions[{index}] must be an object"
@@ -232,19 +237,21 @@ def _load_reviewed_exceptions(path: Path) -> tuple[set[tuple[str, str, str]], li
     return approved, errors
 
 
-def _scan_and_print_vulnerabilities(deps: list[Any], approved: set[tuple[str, str, str]]) -> bool:
+def _scan_and_print_vulnerabilities(deps: list[JsonValue], approved: set[tuple[str, str, str]]) -> bool:
     any_unreviewed_vulnerability = False
     for dep in deps:
         if not isinstance(dep, dict) or "skip_reason" in dep:
             continue
-        dep_map = dict[str, Any](dep)
+        dep_map = cast(JsonObject, dep)
         name = dep_map.get("name", "?")
         version = dep_map.get("version", "?")
-        vulns = dep_map.get("vulns") or []
+        vulns = dep_map.get("vulns")
+        if not isinstance(vulns, list):
+            continue
         for vuln in vulns:
             if not isinstance(vuln, dict):
                 continue
-            vuln_map = cast(dict[str, Any], vuln)
+            vuln_map = cast(JsonObject, vuln)
             cvss = _cvss_for_vuln(vuln_map)
             vulnerability_id = str(vuln_map.get("id", "?"))
             if (str(name).casefold(), str(version), vulnerability_id) in approved:
@@ -253,6 +260,26 @@ def _scan_and_print_vulnerabilities(deps: list[Any], approved: set[tuple[str, st
             any_unreviewed_vulnerability = True
             _emit(_format_vuln_line(str(name), str(version), vuln_map, cvss))
     return any_unreviewed_vulnerability
+
+
+def _strict_audit_failed(proc: subprocess.CompletedProcess[str], deps: list[JsonValue]) -> bool:
+    """Report strict-audit incompleteness before accepting advisory exceptions."""
+    skipped = [
+        f"{dep.get('name', '?')}: {dep.get('skip_reason', 'unknown reason')}"
+        for dep in deps
+        if isinstance(dep, dict) and dep.get("skip_reason")
+    ]
+    if skipped:
+        _emit(f"ERROR: strict audit skipped dependency: {'; '.join(skipped)}", error=True)
+        return True
+    has_advisory = any(
+        isinstance(dep, dict) and isinstance(dep.get("vulns"), list) and bool(dep["vulns"]) for dep in deps
+    )
+    if proc.returncode != 0 and not has_advisory:
+        detail = proc.stderr.strip() or "pip-audit returned a nonzero status without advisory data"
+        _emit(f"ERROR: strict audit failed: {detail}", error=True)
+        return True
+    return False
 
 
 def _finalize_audit_exit(any_vuln: bool) -> int:
@@ -281,7 +308,7 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
     return parser.parse_args(argv or [])
 
 
-@ensure(lambda result: result in (0, 1))
+@ensure(lambda result: result in (0, 1))  # pyright: ignore[reportUnknownArgumentType, reportUnknownLambdaType]
 def main(argv: list[str] | None = None) -> int:
     args = _parse_args(argv)
     approved, exception_errors = _load_reviewed_exceptions(Path(args.exceptions))
@@ -294,6 +321,8 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     deps, err = _parse_dependencies_list(proc)
     if err or deps is None:
+        return 1
+    if _strict_audit_failed(proc, deps):
         return 1
     any_vuln = _scan_and_print_vulnerabilities(deps, approved)
     return _finalize_audit_exit(any_vuln)

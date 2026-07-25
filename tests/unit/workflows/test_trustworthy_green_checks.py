@@ -433,6 +433,14 @@ def test_core_ci_uses_immutable_modules_fixture() -> None:
     assert "git -C specfact-cli-modules rev-parse HEAD" in raw
 
 
+def test_license_gate_runs_for_every_frozen_dependency_graph_change() -> None:
+    """Transitive lock/export refreshes must receive the license policy gate."""
+    raw = PR_ORCHESTRATOR.read_text(encoding="utf-8")
+    assert "license_inputs:" in raw
+    assert "uv.lock" in raw
+    assert "requirements/ci/locked.txt" in raw
+
+
 def test_pr_orchestrator_uses_frozen_resolution_for_blocking_jobs() -> None:
     """Blocking CI must install declared dependencies from the committed lock."""
     assert UV_LOCK.is_file(), "A committed uv.lock is required for reproducible CI"
@@ -481,6 +489,9 @@ def test_type_checking_explicitly_selects_pyproject_and_uploads_json() -> None:
     assert "**/node_modules/**" in basedpyright["exclude"]
     assert basedpyright["strict"] == [
         "scripts/check_dependency_trust_exceptions.py",
+        "scripts/check_reproducible_delivery.py",
+        "scripts/refresh_reproducible_delivery.py",
+        "scripts/security_audit_gate.py",
     ]
     run_clause = str(_find_named_step("type-checking", "Run type checking").get("run") or "")
     assert "--project pyproject.toml" in run_clause
@@ -494,7 +505,7 @@ def test_type_runner_uses_pinned_node_and_committed_npm_lock() -> None:
     raw = PR_ORCHESTRATOR.read_text(encoding="utf-8")
     type_steps = _load_job_steps("type-checking")
     type_step_text = "\n".join(str(step.get("run", "")) for step in type_steps)
-    assert "actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020" in raw
+    assert "actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e" in raw
     assert "node-version: " in raw
     assert "npm ci --ignore-scripts --prefix tools/basedpyright" in type_step_text
     assert (REPO_ROOT / "tools" / "basedpyright" / "package-lock.json").is_file()
@@ -521,6 +532,8 @@ def test_docs_review_uses_immutable_modules_fixture_and_frozen_environment() -> 
     """Docs command validation must not silently drift with branch or resolver state."""
     raw = DOCS_REVIEW.read_text(encoding="utf-8")
     assert "ci/module-fixture.lock.json" in raw
+    assert 'repository="$(python -c' in raw
+    assert "steps.modules-fixture.outputs.repository" in raw
     assert "ref: ${{ steps.modules-fixture.outputs.commit }}" in raw
     assert "git -C specfact-cli-modules rev-parse HEAD" in raw
     assert "./.github/actions/setup-frozen-python" in raw
@@ -533,6 +546,8 @@ def test_specfact_contract_workflow_uses_immutable_modules_fixture_and_frozen_en
     """Standalone contract validation must not drift with branch or resolver state."""
     raw = SPECFACT_WORKFLOW.read_text(encoding="utf-8")
     assert "ci/module-fixture.lock.json" in raw
+    assert 'repository="$(python -c' in raw
+    assert "steps.modules-fixture.outputs.repository" in raw
     assert "ref: ${{ steps.modules-fixture.outputs.commit }}" in raw
     assert "git -C specfact-cli-modules rev-parse HEAD" in raw
     assert "./.github/actions/setup-frozen-python" in raw

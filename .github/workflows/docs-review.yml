@@ -92,13 +92,17 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          repository="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["repository"])')"
           commit="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])')"
+          [[ "$repository" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]
+          [[ "$commit" =~ ^[0-9a-f]{40}$ ]]
+          printf 'repository=%s\n' "$repository" >> "$GITHUB_OUTPUT"
           printf 'commit=%s\n' "$commit" >> "$GITHUB_OUTPUT"
 
       - name: Checkout module command sources
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
-          repository: nold-ai/specfact-cli-modules
+          repository: ${{ steps.modules-fixture.outputs.repository }}
           path: specfact-cli-modules
           ref: ${{ steps.modules-fixture.outputs.commit }}
           persist-credentials: false
@@ -107,7 +111,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          expected_repository="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["repository"])')"
           expected="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])')"
+          test "$expected_repository" = "${{ steps.modules-fixture.outputs.repository }}"
           actual="$(git -C specfact-cli-modules rev-parse HEAD)"
           test "$actual" = "$expected"
 

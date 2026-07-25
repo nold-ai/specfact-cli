@@ -40,6 +40,7 @@ def test_main_runs_changed_scope_tools_in_expected_order(monkeypatch) -> None:
     monkeypatch.setattr(
         module, "_normalize_targets", lambda _argv: ["src/app.py", "scripts/helper.py", "tests/test_app.py"]
     )
+    monkeypatch.setattr(module, "BASEDPYRIGHT_BIN", Path("/missing/basedpyright"))
     monkeypatch.setattr(module, "_run", lambda cmd: commands.append(cmd) or 0)
 
     exit_code = module.main(["src/app.py", "scripts/helper.py", "tests/test_app.py"])
@@ -47,6 +48,7 @@ def test_main_runs_changed_scope_tools_in_expected_order(monkeypatch) -> None:
     assert exit_code == 0
     assert commands == [
         ["ruff", "format", "--check", "src/app.py", "scripts/helper.py", "tests/test_app.py"],
+        ["npm", "ci", "--ignore-scripts", "--prefix", "tools/basedpyright"],
         [
             "bash",
             "tools/run_basedpyright.sh",
@@ -63,3 +65,17 @@ def test_main_runs_changed_scope_tools_in_expected_order(monkeypatch) -> None:
         ["ruff", "check", "src/app.py", "scripts/helper.py", "tests/test_app.py"],
         ["python", "scripts/verify_safe_project_writes.py"],
     ]
+
+
+def test_main_reuses_an_existing_pinned_basedpyright_binary(monkeypatch, tmp_path: Path) -> None:
+    module = _load_script_module()
+    commands: list[list[str]] = []
+    binary = tmp_path / "basedpyright"
+    binary.touch()
+
+    monkeypatch.setattr(module, "_normalize_targets", lambda _argv: ["src/app.py"])
+    monkeypatch.setattr(module, "BASEDPYRIGHT_BIN", binary)
+    monkeypatch.setattr(module, "_run", lambda cmd: commands.append(cmd) or 0)
+
+    assert module.main(["src/app.py"]) == 0
+    assert all(command[:2] != ["npm", "ci"] for command in commands)

@@ -20,6 +20,7 @@ UV_LOCK = REPO_ROOT / "uv.lock"
 MODULE_FIXTURE_LOCK = REPO_ROOT / "ci" / "module-fixture.lock.json"
 LOCKED_EXPORT = REPO_ROOT / "requirements" / "ci" / "locked.txt"
 COMMIT_SHA_PATTERN = re.compile(r"^[0-9a-f]{40}$")
+UV_COMMAND_TIMEOUT_SECONDS = 120
 
 
 class ModuleFixtureLock(TypedDict):
@@ -30,7 +31,7 @@ class ModuleFixtureLock(TypedDict):
 
 
 @beartype
-@ensure(lambda result: result is None, "must return None")
+@ensure(lambda result: result is None, "must return None")  # pyright: ignore[reportUnknownArgumentType, reportUnknownLambdaType]
 def verify_module_fixture() -> None:
     """Ensure blocking companion-module validation uses an immutable commit."""
     if not MODULE_FIXTURE_LOCK.is_file():
@@ -51,7 +52,7 @@ def verify_module_fixture() -> None:
 
 
 @beartype
-@ensure(lambda result: result is None, "must return None")
+@ensure(lambda result: result is None, "must return None")  # pyright: ignore[reportUnknownArgumentType, reportUnknownLambdaType]
 def verify_uv_lock() -> None:
     """Ask uv to verify that the lock still matches project metadata."""
     if not UV_LOCK.is_file():
@@ -62,6 +63,7 @@ def verify_uv_lock() -> None:
         check=False,
         capture_output=True,
         text=True,
+        timeout=UV_COMMAND_TIMEOUT_SECONDS,
     )
     if completed.returncode != 0:
         detail = (completed.stderr or completed.stdout).strip()
@@ -69,7 +71,7 @@ def verify_uv_lock() -> None:
 
 
 @beartype
-@ensure(lambda result: result is None, "must return None")
+@ensure(lambda result: result is None, "must return None")  # pyright: ignore[reportUnknownArgumentType, reportUnknownLambdaType]
 def verify_locked_export() -> None:
     """Ensure the pip-compatible CI export is committed and hash-protected."""
     if not LOCKED_EXPORT.is_file():
@@ -94,6 +96,7 @@ def verify_locked_export() -> None:
         check=False,
         capture_output=True,
         text=True,
+        timeout=UV_COMMAND_TIMEOUT_SECONDS,
     )
     if completed.returncode != 0:
         detail = (completed.stderr or completed.stdout).strip()
@@ -111,7 +114,7 @@ def _without_generated_header(contents: str) -> str:
 
 
 @beartype
-@ensure(lambda result: result in {0, 1}, "must return a shell-compatible status")
+@ensure(lambda result: result in {0, 1}, "must return a shell-compatible status")  # pyright: ignore[reportUnknownArgumentType, reportUnknownLambdaType]
 def main(argv: list[str] | None = None) -> int:
     """Run frozen-delivery verification and return a shell-compatible status."""
     parser = argparse.ArgumentParser(description=__doc__)
@@ -120,7 +123,7 @@ def main(argv: list[str] | None = None) -> int:
         verify_uv_lock()
         verify_locked_export()
         verify_module_fixture()
-    except (OSError, ValueError, json.JSONDecodeError) as error:
+    except (OSError, ValueError, json.JSONDecodeError, subprocess.TimeoutExpired) as error:
         sys.stderr.write(f"reproducible delivery check failed: {error}\n")
         return 1
     sys.stdout.write("reproducible delivery inputs are valid\n")

@@ -40,6 +40,25 @@ def test_reproducible_delivery_refresh_uses_locked_export_contract() -> None:
     assert "--locked" in refresh
     assert "--no-emit-project" in refresh
     assert "check_reproducible_delivery.py" in refresh
+    assert "timeout=" in refresh
+    assert "TimeoutExpired" in refresh
+
+
+def test_reproducible_delivery_verifier_bounds_uv_commands_and_fails_closed_on_timeout() -> None:
+    """Frozen-delivery validation must not hang indefinitely on a stalled uv process."""
+    checker = (REPO_ROOT / "scripts" / "check_reproducible_delivery.py").read_text(encoding="utf-8")
+    assert checker.count("timeout=") >= 2
+    assert "subprocess.TimeoutExpired" in checker
+
+
+def test_reproducible_delivery_wheel_build_uses_a_locked_backend() -> None:
+    """The no-isolation wheel proof must use the backend pinned in delivery inputs."""
+    project = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    assert project["build-system"]["requires"] == ["hatchling==1.28.0"]
+    assert "hatchling==1.28.0" in project["project"]["optional-dependencies"]["dev"]
+
+    workflow = (REPO_ROOT / ".github" / "workflows" / "pr-orchestrator.yml").read_text(encoding="utf-8")
+    assert "Build package once\n        run: uv build --wheel --no-build-isolation" in workflow
 
 
 def test_reproducible_delivery_refresh_rejects_a_symlinked_output_parent(tmp_path: Path) -> None:

@@ -48,6 +48,7 @@ def _canonical_package_name(value: str) -> str:
 def _is_blocked_release(package_name: str, version: str) -> bool:
     """Return whether a version belongs to a blocked PEP 440 release family."""
     normalized_version = version.casefold().split("+", maxsplit=1)[0]
+    normalized_version = re.sub(r"(?<=\d)-(?=\d)", ".post", normalized_version)
     for blocked_package, blocked_version in BLOCKED_DEPENDENCY_RELEASES:
         if package_name != blocked_package:
             continue

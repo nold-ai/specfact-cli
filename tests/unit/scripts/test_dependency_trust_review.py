@@ -94,6 +94,15 @@ def test_alerted_pycparser_release_family_is_blocked_with_a_pep440_spelling(tmp_
     assert errors == ["pycparser==3.0.post1 is blocked after a security-obfuscation alert"]
 
 
+def test_alerted_pycparser_release_family_normalizes_equivalent_pep440_spellings() -> None:
+    """Equivalent versions must not bypass the blocked 3.0 release-family policy."""
+    checker = _load_checker()
+
+    assert checker._is_blocked_release("pycparser", "3.0-1")
+    assert checker._is_blocked_release("pycparser", "3.0.post1")
+    assert checker._is_blocked_release("pycparser", "3.0+local")
+
+
 def test_unofficial_executable_wheel_is_not_accepted() -> None:
     """The exception register must not normalize acceptance of executable wheel runtimes."""
     payload = json.loads(TRUST_RECORD.read_text(encoding="utf-8"))

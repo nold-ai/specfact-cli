@@ -80,6 +80,23 @@ def test_main_fail_closed_on_empty_stdout(gate_mod) -> None:
         assert gate_mod.main() == 1
 
 
+def test_main_fails_when_strict_audit_skips_a_dependency(gate_mod, capsys) -> None:
+    """A strict audit cannot report success when any dependency was skipped."""
+    payload = {"dependencies": [{"name": "opaque", "skip_reason": "could not audit"}]}
+    proc = MagicMock(stdout=json.dumps(payload), stderr="", returncode=1)
+    with patch.object(gate_mod.subprocess, "run", return_value=proc):
+        assert gate_mod.main() == 1
+    assert "skipped dependency" in capsys.readouterr().err.lower()
+
+
+def test_main_fails_when_strict_audit_returns_an_unexplained_error(gate_mod, capsys) -> None:
+    """A nonzero strict-audit status without advisories is an audit failure."""
+    proc = MagicMock(stdout=json.dumps({"dependencies": []}), stderr="resolver failed", returncode=1)
+    with patch.object(gate_mod.subprocess, "run", return_value=proc):
+        assert gate_mod.main() == 1
+    assert "strict audit failed" in capsys.readouterr().err.lower()
+
+
 def test_main_fail_closed_when_pip_audit_unavailable(gate_mod) -> None:
     with patch.object(gate_mod.subprocess, "run", side_effect=FileNotFoundError("pip-audit not found")):
         assert gate_mod.main() == 1

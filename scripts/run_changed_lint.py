@@ -9,6 +9,7 @@ from pathlib import Path
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
+BASEDPYRIGHT_BIN = REPO_ROOT / "tools" / "basedpyright" / "node_modules" / ".bin" / "basedpyright"
 
 
 def _normalize_targets(argv: list[str]) -> list[str]:
@@ -38,6 +39,13 @@ def _run(cmd: list[str]) -> int:
     return int(completed.returncode)
 
 
+def _ensure_basedpyright() -> int:
+    """Install the committed type checker only when its pinned executable is absent."""
+    if BASEDPYRIGHT_BIN.is_file():
+        return 0
+    return _run(["npm", "ci", "--ignore-scripts", "--prefix", "tools/basedpyright"])
+
+
 def main(argv: list[str] | None = None) -> int:
     args = list(sys.argv[1:] if argv is None else argv)
     targets = _normalize_targets(args)
@@ -62,10 +70,14 @@ def main(argv: list[str] | None = None) -> int:
     ]
     commands.append(["python", "scripts/verify_safe_project_writes.py"])
 
-    for cmd in commands:
+    for index, cmd in enumerate(commands):
         exit_code = _run(cmd)
         if exit_code != 0:
             return exit_code
+        if index == 0:
+            exit_code = _ensure_basedpyright()
+            if exit_code != 0:
+                return exit_code
     return 0
 
 

@@ -15,8 +15,11 @@ from icontract import ensure
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 LOCKED_EXPORT = REPO_ROOT / "requirements" / "ci" / "locked.txt"
+UV_COMMAND_TIMEOUT_SECONDS = 120
 
 
+@beartype
+@ensure(lambda result: result is None, "must return None")  # pyright: ignore[reportUnknownArgumentType, reportUnknownLambdaType]
 def validate_locked_export_path(output_path: Path, repository_root: Path = REPO_ROOT) -> None:
     """Reject output paths that would traverse a repository-controlled symlink."""
     try:
@@ -41,14 +44,14 @@ def validate_locked_export_path(output_path: Path, repository_root: Path = REPO_
 
 
 @beartype
-@ensure(lambda result: result is None, "must return None")
+@ensure(lambda result: result is None, "must return None")  # pyright: ignore[reportUnknownArgumentType, reportUnknownLambdaType]
 def run(command: list[str]) -> None:
     """Run one checked-in refresh command from the repository root."""
-    subprocess.run(command, cwd=REPO_ROOT, check=True)
+    subprocess.run(command, cwd=REPO_ROOT, check=True, timeout=UV_COMMAND_TIMEOUT_SECONDS)
 
 
 @beartype
-@ensure(lambda result: result in {0, 1}, "must return a shell-compatible status")
+@ensure(lambda result: result in {0, 1}, "must return a shell-compatible status")  # pyright: ignore[reportUnknownArgumentType, reportUnknownLambdaType]
 def main() -> int:
     """Regenerate the lock and hash-protected CI export, then verify both."""
     temporary_export: Path | None = None
@@ -79,7 +82,7 @@ def main() -> int:
         os.replace(temporary_export, LOCKED_EXPORT)
         temporary_export = None
         run([sys.executable, "scripts/check_reproducible_delivery.py"])
-    except (OSError, subprocess.CalledProcessError) as error:
+    except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired) as error:
         sys.stderr.write(f"frozen delivery refresh failed: {error}\n")
         return 1
     finally:

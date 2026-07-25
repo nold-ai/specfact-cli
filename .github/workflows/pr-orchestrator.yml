@@ -52,6 +52,8 @@ jobs:
               - 'pyproject.toml'
             license_inputs:
               - 'pyproject.toml'
+              - 'uv.lock'
+              - 'requirements/ci/locked.txt'
               - 'modules/**/module-package.yaml'
               - 'src/specfact_cli/modules/**/module-package.yaml'
               - 'scripts/check_license_compliance.py'
@@ -975,7 +977,7 @@ jobs:
       - name: Set up frozen type-check dependencies
         uses: ./.github/actions/setup-frozen-python
       - name: Set up reviewed Node runtime
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
         with:
           node-version: "24.16.0"
           cache: npm
@@ -1019,7 +1021,7 @@ jobs:
         uses: ./.github/actions/setup-frozen-python
 
       - name: Set up reviewed Node runtime
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
         with:
           node-version: "24.16.0"
           cache: npm
@@ -1145,7 +1147,7 @@ jobs:
         run: python scripts/check_reproducible_delivery.py
 
       - name: Build package once
-        run: uv build --wheel
+        run: uv build --wheel --no-build-isolation
 
       - name: Prove two locked wheel installs agree
         shell: bash
