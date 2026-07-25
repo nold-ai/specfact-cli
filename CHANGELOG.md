@@ -10,7 +10,7 @@ All notable changes to this project will be documented in this file.
 
 ---
 
-## [Unreleased]
+## [0.53.4] - 2026-07-25
 
 ### Added
 
@@ -25,10 +25,6 @@ All notable changes to this project will be documented in this file.
 
 - **CI type authority**: `pyproject.toml` is the single BasedPyright
   configuration source and CI emits its JSON evidence explicitly.
-
----
-
-## [0.53.4] - 2026-07-25
 
 ### Fixed
 
