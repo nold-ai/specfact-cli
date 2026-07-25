@@ -777,7 +777,7 @@ wheels = [
 
 [[package]]
 name = "hatchling"
-version = "1.28.0"
+version = "1.31.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "packaging" },
@@ -785,9 +785,9 @@ dependencies = [
     { name = "pluggy" },
     { name = "trove-classifiers" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/0b/8e/e480359492affde4119a131da729dd26da742c2c9b604dff74836e47eef9/hatchling-1.28.0.tar.gz", hash = "sha256:4d50b02aece6892b8cd0b3ce6c82cb218594d3ec5836dbde75bf41a21ab004c8", size = 55365, upload-time = "2025-11-27T00:31:13.766Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/25/e2/dfa73fe78f773018dcaebc6d09b819bc10d328ff5a6b4a66efa1e3d71f52/hatchling-1.31.0.tar.gz", hash = "sha256:6b48ad4068a482ed7239b3a8215bc55b47aad3345d58dfc94e553c5d2d46211b", size = 57208, upload-time = "2026-07-08T01:48:32.237Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/0d/a5/48cb7efb8b4718b1a4c0c331e3364a3a33f614ff0d6afd2b93ee883d3c47/hatchling-1.28.0-py3-none-any.whl", hash = "sha256:dc48722b68b3f4bbfa3ff618ca07cdea6750e7d03481289ffa8be1521d18a961", size = 76075, upload-time = "2025-11-27T00:31:12.544Z" },
+    { url = "https://files.pythonhosted.org/packages/64/e2/2c0af0a52d16be74a4f194564fcdc417521ed863e9b65e4bc9052dacba6f/hatchling-1.31.0-py3-none-any.whl", hash = "sha256:aac80bec8b6fe35e8480f1c335be8910fa210a0e6f735a139be205dadcacb544", size = 77747, upload-time = "2026-07-08T01:48:31.024Z" },
 ]
 
 [[package]]
@@ -1859,9 +1859,12 @@ wheels = [
 
 [[package]]
 name = "pycg"
-version = "0.0.7"
+version = "0.0.8"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/63/fb/2ec58cac71b7f8190088487034427518582892486fb0812a3cc4c60f64f1/PyCG-0.0.7.tar.gz", hash = "sha256:b580e6a7038feea0447e6818ea6c41582d9330267b40e7e8c123a065e654cda6", size = 34201, upload-time = "2023-05-31T10:43:27.903Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/98/ce/b438f7066610fd24c03fee5c92dfc8930c5f4e9613480b0e337c7ead2b51/pycg-0.0.8.tar.gz", hash = "sha256:644b4df4346b393ca29450223da12598a6e6ad51fcfb1c218330b774f643a6c1", size = 58703, upload-time = "2023-11-26T06:59:42.624Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/c7/ee/3db86c684ae05d43f0777cc0d3739fd9f000827b4baa774f12ccab3200aa/pycg-0.0.8-py3-none-any.whl", hash = "sha256:90109b8b787d4496c2198576b0bb08ee5872e1a9a1d1ca557cb856c6798ec0da", size = 56979, upload-time = "2023-11-26T06:59:40.376Z" },
+]
 
 [[package]]
 name = "pycparser"
@@ -2861,7 +2864,7 @@ requires-dist = [
     { name = "graphviz", specifier = ">=0.20.1" },
     { name = "graphviz", marker = "extra == 'dev'", specifier = ">=0.20.1" },
     { name = "graphviz", marker = "extra == 'enhanced-analysis'", specifier = ">=0.20.1" },
-    { name = "hatchling", marker = "extra == 'dev'", specifier = "==1.28.0" },
+    { name = "hatchling", marker = "extra == 'dev'", specifier = "==1.31.0" },
     { name = "hypothesis", marker = "extra == 'contracts'", specifier = ">=6.142.4" },
     { name = "hypothesis", marker = "extra == 'dev'", specifier = ">=6.142.4" },
     { name = "icontract", specifier = ">=2.7.1" },
@@ -2879,8 +2882,8 @@ requires-dist = [
     { name = "pip-tools", marker = "extra == 'dev'", specifier = ">=7.5.1" },
     { name = "pipx", marker = "extra == 'dev'", specifier = ">=1.7.1" },
     { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=4.0.1" },
-    { name = "pycg", marker = "extra == 'dev'", specifier = "==0.0.7" },
-    { name = "pycg", marker = "extra == 'enhanced-analysis'", specifier = "==0.0.7" },
+    { name = "pycg", marker = "extra == 'dev'", specifier = "==0.0.8" },
+    { name = "pycg", marker = "extra == 'enhanced-analysis'", specifier = "==0.0.8" },
     { name = "pycparser", specifier = ">=2.22,!=3.0.*" },
     { name = "pydantic", specifier = ">=2.12.3" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.4.2" },

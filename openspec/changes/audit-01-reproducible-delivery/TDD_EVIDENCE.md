@@ -217,8 +217,6 @@ The pipx lane now exports a temporary PEP 751 `pylock.toml` from the committed
 the built wheel. Pipx installs the locked dependencies first, adds the wheel without
 dependency resolution, and runs `pip check` before exposing the launchers.
 
-Passing local evidence:
-
 ```text
 hatch run pytest tests/unit/workflows/test_trustworthy_green_checks.py -q
 44 passed
@@ -237,6 +235,57 @@ pip check: exit 0
 
 The local runtime exercise used Python 3.13 on macOS. The updated PR matrix remains
 the required hosted proof for Python 3.11, 3.12, and 3.13.
+
+## Dependabot frozen-lock repair — 2026-07-25
+
+Dependabot PR [#655](https://github.com/nold-ai/specfact-cli/pull/655) updates the
+development-only build backend from `hatchling==1.28.0` to `1.31.0` and PyCG from
+`0.0.7` to `0.0.8`. Its `Verify Module Signatures`, `Docs Review`, and `Contract
+Validation` workflows all failed before their task-specific checks because their
+shared setup ran `uv sync --locked --all-extras` against a lockfile that still
+described the old pins.
+
+The policy test was updated before the dependency metadata and frozen artifacts:
+
+```text
+hatch run pytest tests/unit/scripts/test_reproducible_delivery.py -q
+2 failed, 6 passed
+```
+
+The two failures required the reviewed Hatchling and PyCG versions across every
+development tool group. After changing only those declared pins and regenerating the
+committed lock and CI export:
+
+```text
+hatch run refresh-frozen-delivery
+Resolved 184 packages
+Updated hatchling v1.28.0 -> v1.31.0
+Updated pycg v0.0.7 -> v0.0.8
+reproducible delivery inputs are valid
+
+hatch run pytest tests/unit/scripts/test_reproducible_delivery.py -q
+8 passed
+
+uv lock --check
+Resolved 184 packages in 3ms
+
+uv sync --locked --all-extras
+Installed hatchling==1.31.0
+Installed pycg==0.0.8
+
+hatch run python scripts/check_reproducible_delivery.py
+reproducible delivery inputs are valid
+
+hatch run python scripts/check_dependency_trust_exceptions.py
+Dependency trust register is valid
+
+hatch run license-check
+PASS — overall exit code: 0
+```
+
+The remediation is applied directly to `dev` as requested; it does not merge or
+modify PR #655's Dependabot branch or `main`. No release version or changelog entry
+is needed because this is a development-only frozen-input repair.
 
 ## Review-comment remediation — 2026-07-25
 

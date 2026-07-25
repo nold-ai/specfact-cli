@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling==1.28.0"]
+requires = ["hatchling==1.31.0"]
 build-backend = "hatchling.build"
 
 [project]
@@ -117,7 +117,7 @@ telemetry = [
 ]
 
 dev = [
-    "hatchling==1.28.0",  # Frozen PEP 517 backend used by delivery wheel builds.
+    "hatchling==1.31.0",  # Frozen PEP 517 backend used by delivery wheel builds.
     "setuptools>=83.0.0,<84",
     "pytest>=8.4.2",
     "pytest-cov>=7.0.0",
@@ -150,7 +150,7 @@ dev = [
     
     # Enhanced Analysis Tools (for local development)
     "graphviz>=0.20.1",  # Graph visualization (requires system Graphviz: apt-get install graphviz)
-    "pycg==0.0.7",  # Python call graph analysis (Apache-2.0; replaces removed GPL-2.0 pyan3; pin avoids 0.0.8)
+    "pycg==0.0.8",  # Python call graph analysis (Apache-2.0; replaces removed GPL-2.0 pyan3).
     # Removed from dev: pyan3 (GPL-2.0) and bearer (wrong PyPI package; SaaS auth, not scanner)
     # syft removed — wrong PyPI package (OpenMined ML framework, not Anchore SBOM)
     "bandit>=1.7.0",  # SAST scanner (MIT)
@@ -164,7 +164,7 @@ scanning = [
 
 enhanced-analysis = [
     "graphviz>=0.20.1",  # Graph visualization (requires system Graphviz: apt-get install graphviz)
-    "pycg==0.0.7",  # Python call graph analysis (Apache-2.0; replaces removed GPL-2.0 pyan3; pin avoids 0.0.8)
+    "pycg==0.0.8",  # Python call graph analysis (Apache-2.0; replaces removed GPL-2.0 pyan3).
     # Removed from enhanced-analysis: pyan3 (GPL-2.0), bearer, and syft (wrong PyPI packages)
 ]
 
@@ -215,7 +215,7 @@ dependencies = [
     "hypothesis>=6.142.4",
     # Enhanced Analysis Tools (for local development)
     "graphviz>=0.20.1",  # Graph visualization (requires system Graphviz: apt-get install graphviz)
-    "pycg==0.0.7",  # Python call graph analysis (Apache-2.0; replaces removed GPL-2.0 pyan3; pin avoids 0.0.8)
+    "pycg==0.0.8",  # Python call graph analysis (Apache-2.0; replaces removed GPL-2.0 pyan3).
     # Removed from Hatch default: pyan3 (GPL-2.0), bearer, and syft (wrong PyPI packages)
     "bandit>=1.7.0",  # SAST scanner (MIT)
     "pip-licenses>=4.0.0",  # License enumeration for compliance gate (MIT)
@@ -355,7 +355,7 @@ dependencies = [
     "yamllint>=1.37.1",  # GPL-3.0-or-later — dev/test-only exception. Phase 2: replace with non-GPL YAML lint path.
     # Enhanced Analysis Tools (for testing)
     "graphviz>=0.20.1",  # Graph visualization (requires system Graphviz: apt-get install graphviz)
-    "pycg==0.0.7",  # Python call graph analysis (Apache-2.0; replaces removed GPL-2.0 pyan3; pin avoids 0.0.8)
+    "pycg==0.0.8",  # Python call graph analysis (Apache-2.0; replaces removed GPL-2.0 pyan3).
     # Removed from Hatch test: pyan3 (GPL-2.0), bearer, and syft (wrong PyPI packages)
     "commentjson>=0.9.0",  # JSONC parser (MIT; replaces json5 for VS Code settings JSONC support)
 ]
