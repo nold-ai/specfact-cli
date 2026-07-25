@@ -734,8 +734,11 @@ A temporary import blocker proved that Semgrep cannot currently run supported
 SAST without the declared MCP dependency: `semgrep scan` imports
 `semgrep.commands.mcp` at CLI startup and then imports `mcp.server`. The project
 therefore does not use an unsupported `--no-deps` installation. A workflow-policy
-test now rejects `semgrep mcp` on every project automation invocation surface,
-preventing the affected server transports from being started accidentally:
+test then rejected `semgrep mcp` across its initial invocation surfaces:
+`pyproject.toml`, the PR Orchestrator workflow, `scripts/`, and `src/`. The
+later remediation below extends that coverage to all GitHub automation and
+pre-commit configuration, preventing the affected server transports from being
+started accidentally:
 
 ```text
 hatch run pytest \
@@ -747,11 +750,12 @@ hatch run pytest \
 
 ## CodeRabbit automation-surface remediation — 2026-07-26
 
-CodeRabbit identified that the `semgrep mcp` policy test did not inspect GitHub
-workflow or composite-action files, nor `.pre-commit-config.yaml`. The policy
-test now scans the complete `.github/` tree and the pre-commit configuration in
-addition to Python, shell, and TOML automation surfaces. This is an
-enforcement-test coverage repair; it does not change Semgrep runtime behavior.
+CodeRabbit identified that the initial `semgrep mcp` policy test did not inspect
+GitHub workflow or composite-action files, nor `.pre-commit-config.yaml`. The
+policy test now scans the complete `.github/` tree and the pre-commit
+configuration in addition to Python, shell, and TOML automation surfaces. This
+is an enforcement-test coverage repair; it does not change Semgrep runtime
+behavior.
 
 ```text
 hatch run pytest \
