@@ -742,7 +742,8 @@ def test_semgrep_mcp_server_is_not_invoked_by_project_automation() -> None:
     """The Semgrep SAST integration must not activate its separately exposed MCP server."""
     invocation_surfaces = (
         PYPROJECT,
-        PR_ORCHESTRATOR,
+        REPO_ROOT / ".github",
+        PRE_COMMIT_CONFIG,
         REPO_ROOT / "scripts",
         REPO_ROOT / "src",
     )

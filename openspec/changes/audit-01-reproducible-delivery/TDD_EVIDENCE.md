@@ -744,3 +744,17 @@ hatch run pytest \
   tests/unit/docs/test_docs_validation_scripts.py -q
 19 passed
 ```
+
+## CodeRabbit automation-surface remediation — 2026-07-26
+
+CodeRabbit identified that the `semgrep mcp` policy test did not inspect GitHub
+workflow or composite-action files, nor `.pre-commit-config.yaml`. The policy
+test now scans the complete `.github/` tree and the pre-commit configuration in
+addition to Python, shell, and TOML automation surfaces. This is an
+enforcement-test coverage repair; it does not change Semgrep runtime behavior.
+
+```text
+hatch run pytest \
+  tests/unit/workflows/test_trustworthy_green_checks.py::test_semgrep_mcp_server_is_not_invoked_by_project_automation -q
+1 passed
+```
