@@ -600,3 +600,32 @@ configured error-level CI threshold:
 hatch run type-check
 0 errors, 1652 warnings, 0 notes
 ```
+
+## PR #654 follow-up review remediation — 2026-07-25
+
+Two newly actionable, non-outdated review threads required an immutable fixture
+identity proof and failure-path coverage for the local BasedPyright bootstrap.
+The workflow assertions were added before the workflow change and failed as
+expected because the lockfile repository value had syntax validation only:
+
+```text
+2 failed, 4 passed
+```
+
+Both checkout workflows now require the exact canonical source repository
+`nold-ai/specfact-cli-modules` before exporting its value or fetching code. The
+lint bootstrap regression suite also proves a failed `npm ci` returns its exit
+status and does not run BasedPyright or later gates. Passing evidence:
+
+```text
+hatch run pytest tests/unit/scripts/test_run_changed_lint.py \
+  tests/unit/workflows/test_trustworthy_green_checks.py::test_docs_review_uses_immutable_modules_fixture_and_frozen_environment \
+  tests/unit/workflows/test_trustworthy_green_checks.py::test_specfact_contract_workflow_uses_immutable_modules_fixture_and_frozen_environment -q
+6 passed
+
+hatch run workflows-lint
+hatch run lint-changed scripts/run_changed_lint.py \
+  tests/unit/scripts/test_run_changed_lint.py \
+  tests/unit/workflows/test_trustworthy_green_checks.py
+0 errors, 0 warnings, 0 notes
+```

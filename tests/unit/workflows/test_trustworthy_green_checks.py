@@ -528,32 +528,31 @@ def test_blocking_lint_has_no_pylint_or_dill_dependency() -> None:
     assert 'name = "dill"' not in lock_text
 
 
-def test_docs_review_uses_immutable_modules_fixture_and_frozen_environment() -> None:
-    """Docs command validation must not silently drift with branch or resolver state."""
-    raw = DOCS_REVIEW.read_text(encoding="utf-8")
+def _assert_immutable_modules_fixture(raw: str) -> None:
+    """Assert the shared immutable module-fixture safeguards for workflow text."""
     assert "ci/module-fixture.lock.json" in raw
     assert 'repository="$(python -c' in raw
+    assert 'test "$repository" = "nold-ai/specfact-cli-modules"' in raw
     assert "steps.modules-fixture.outputs.repository" in raw
     assert "ref: ${{ steps.modules-fixture.outputs.commit }}" in raw
     assert "git -C specfact-cli-modules rev-parse HEAD" in raw
     assert "./.github/actions/setup-frozen-python" in raw
     assert "pip install" not in raw
-    assert "hatch run" not in raw
     assert "git ls-remote --exit-code --heads https://github.com/nold-ai/specfact-cli-modules.git" not in raw
+
+
+def test_docs_review_uses_immutable_modules_fixture_and_frozen_environment() -> None:
+    """Docs command validation must not silently drift with branch or resolver state."""
+    raw = DOCS_REVIEW.read_text(encoding="utf-8")
+    _assert_immutable_modules_fixture(raw)
+    assert "hatch run" not in raw
 
 
 def test_specfact_contract_workflow_uses_immutable_modules_fixture_and_frozen_environment() -> None:
     """Standalone contract validation must not drift with branch or resolver state."""
     raw = SPECFACT_WORKFLOW.read_text(encoding="utf-8")
-    assert "ci/module-fixture.lock.json" in raw
-    assert 'repository="$(python -c' in raw
-    assert "steps.modules-fixture.outputs.repository" in raw
-    assert "ref: ${{ steps.modules-fixture.outputs.commit }}" in raw
-    assert "git -C specfact-cli-modules rev-parse HEAD" in raw
-    assert "./.github/actions/setup-frozen-python" in raw
-    assert "pip install" not in raw
+    _assert_immutable_modules_fixture(raw)
     assert "pip install -e" not in raw
-    assert "git ls-remote --exit-code --heads https://github.com/nold-ai/specfact-cli-modules.git" not in raw
     assert "SPECFACT_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" in raw
     assert "SPECFACT_MODULES_ROOTS=${GITHUB_WORKSPACE}/specfact-cli-modules/packages" in raw
     assert "ref: ${{ (github.ref == 'refs/heads/main' || github.head_ref == 'main') && 'main' || 'dev' }}" not in raw

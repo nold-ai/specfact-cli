@@ -67,6 +67,24 @@ def test_main_runs_changed_scope_tools_in_expected_order(monkeypatch) -> None:
     ]
 
 
+def test_main_stops_when_basedpyright_install_fails(monkeypatch) -> None:
+    module = _load_script_module()
+    commands: list[list[str]] = []
+
+    monkeypatch.setattr(module, "_normalize_targets", lambda _argv: ["src/app.py"])
+    monkeypatch.setattr(module, "BASEDPYRIGHT_BIN", Path("/missing/basedpyright"))
+
+    def fake_run(command: list[str]) -> int:
+        commands.append(command)
+        return 17 if command[:2] == ["npm", "ci"] else 0
+
+    monkeypatch.setattr(module, "_run", fake_run)
+
+    assert module.main(["src/app.py"]) == 17
+    assert commands[-1][:2] == ["npm", "ci"]
+    assert all("tools/run_basedpyright.sh" not in command for command in commands)
+
+
 def test_main_reuses_an_existing_pinned_basedpyright_binary(monkeypatch, tmp_path: Path) -> None:
     module = _load_script_module()
     commands: list[list[str]] = []
