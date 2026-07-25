@@ -31,6 +31,10 @@ on:
       - "scripts/check_version_sources.py"
       - "docs/agent-rules/INDEX.md"
       - "pyproject.toml"
+      - "uv.lock"
+      - "requirements/ci/locked.txt"
+      - "ci/module-fixture.lock.json"
+      - ".github/actions/setup-frozen-python/**"
       - ".github/workflows/docs-review.yml"
   push:
     branches: [main, dev]
@@ -60,6 +64,10 @@ on:
       - "scripts/check_version_sources.py"
       - "docs/agent-rules/INDEX.md"
       - "pyproject.toml"
+      - "uv.lock"
+      - "requirements/ci/locked.txt"
+      - "ci/module-fixture.lock.json"
+      - ".github/actions/setup-frozen-python/**"
       - ".github/workflows/docs-review.yml"
   workflow_dispatch:
 
@@ -75,72 +83,79 @@ jobs:
     name: Docs Review
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: Resolve module command sources ref
-        id: modules-ref
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          persist-credentials: false
+
+      - name: Read immutable module fixture
+        id: modules-fixture
         shell: bash
-        env:
-          CANDIDATE_REF: ${{ github.head_ref || github.ref_name }}
         run: |
-          candidate="${CANDIDATE_REF}"
-          if [ -n "$candidate" ] && git ls-remote --exit-code --heads https://github.com/nold-ai/specfact-cli-modules.git "$candidate" >/dev/null 2>&1; then
-            echo "ref=$candidate" >> "$GITHUB_OUTPUT"
-          else
-            echo "ref=dev" >> "$GITHUB_OUTPUT"
-          fi
+          set -euo pipefail
+          repository="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["repository"])')"
+          commit="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])')"
+          [[ "$repository" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]
+          test "$repository" = "nold-ai/specfact-cli-modules"
+          [[ "$commit" =~ ^[0-9a-f]{40}$ ]]
+          printf 'repository=%s\n' "$repository" >> "$GITHUB_OUTPUT"
+          printf 'commit=%s\n' "$commit" >> "$GITHUB_OUTPUT"
 
       - name: Checkout module command sources
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
-          repository: nold-ai/specfact-cli-modules
+          repository: ${{ steps.modules-fixture.outputs.repository }}
           path: specfact-cli-modules
-          ref: ${{ steps.modules-ref.outputs.ref }}
+          ref: ${{ steps.modules-fixture.outputs.commit }}
           persist-credentials: false
+
+      - name: Verify immutable module fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected_repository="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["repository"])')"
+          expected="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])')"
+          test "$expected_repository" = "${{ steps.modules-fixture.outputs.repository }}"
+          actual="$(git -C specfact-cli-modules rev-parse HEAD)"
+          test "$actual" = "$expected"
 
       - name: Export module command source path
         run: echo "SPECFACT_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" >> "$GITHUB_ENV"
 
       - name: Set up Python 3.12
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
         with:
           python-version: "3.12"
-          cache: "pip"
 
-      - name: Install Hatch
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install hatch
-
-      - name: Create hatch environment
-        run: hatch env create
+      - name: Set up frozen documentation dependencies
+        uses: ./.github/actions/setup-frozen-python
 
       - name: Validate docs command examples
-        run: hatch run check-docs-commands
+        run: python scripts/check-docs-commands.py
 
       - name: Validate generated command overview
-        run: hatch run check-command-overview
+        run: python scripts/generate-command-overview.py --check
 
       - name: Validate generated command contract
-        run: hatch run check-command-contract
+        run: python scripts/check-command-contract.py
 
       - name: Validate documentation accountability
-        run: hatch run check-documentation-accountability
+        run: python scripts/check-documentation-accountability.py
 
       - name: Cross-site links (warn-only; live site may lag deploys)
         continue-on-error: true
-        run: hatch run check-cross-site-links --warn-only
+        run: python scripts/check-cross-site-links.py --warn-only
 
       - name: Validate documentation frontmatter (enforced paths; aligns with local docs-validate / pre-commit)
-        run: hatch run doc-frontmatter-check
+        run: python scripts/check_doc_frontmatter.py
 
       - name: Validate agent-rules applies_when canonical task signals
-        run: hatch run validate-agent-rule-signals
+        run: python scripts/validate_agent_rule_applies_when.py
 
       - name: Run docs review test suites
         run: |
           mkdir -p logs/docs-review
           DOCS_REVIEW_LOG="logs/docs-review/docs-review_$(date -u +%Y%m%d_%H%M%S).log"
-          hatch run pytest tests/unit/docs/ tests/unit/scripts/test_doc_frontmatter/ tests/integration/scripts/test_doc_frontmatter/ -q 2>&1 | tee "$DOCS_REVIEW_LOG"
+          python -m pytest tests/unit/docs/ tests/unit/scripts/test_doc_frontmatter/ tests/integration/scripts/test_doc_frontmatter/ -q 2>&1 | tee "$DOCS_REVIEW_LOG"
           exit "${PIPESTATUS[0]:-$?}"
 
       - name: Upload docs review logs

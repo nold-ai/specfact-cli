@@ -257,7 +257,10 @@ def test_module_uninstall_single_still_works() -> None:
     assert result.exit_code != 2, f"Exit code 2 = CLI arg error: {_unstyled(result.output)}"
 
 
-def test_module_uninstall_multi_missing_first_reports_error_still_uninstalls_rest_exits_nonzero() -> None:
+def test_module_uninstall_multi_missing_first_reports_error_still_uninstalls_rest_exits_nonzero(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """7c.7: If A is not installed, report error, still uninstall B, exit non-zero."""
     uninstalled: list[str] = []
 
@@ -267,6 +270,12 @@ def test_module_uninstall_multi_missing_first_reports_error_still_uninstalls_res
     discovered = [
         MockEntry(MockMetadata("specfact-code-review"), "marketplace"),
     ]
+    # The command probes the user module root before marketplace discovery.
+    # A hosted runner can contain a real module from an earlier job, so isolate
+    # that global process path to make the scenario deterministic.
+    monkeypatch.setattr(
+        "specfact_cli.modules.module_registry.src.commands.USER_MODULES_ROOT", tmp_path / "user-modules"
+    )
 
     with (
         patch(
@@ -284,6 +293,10 @@ def test_module_uninstall_multi_missing_first_reports_error_still_uninstalls_res
         )
 
     assert uninstalled == ["specfact-code-review"], (
-        "Missing module must not block uninstall of remaining names; got " + repr(uninstalled)
+        "Missing module must not block uninstall of remaining names; got "
+        + repr(uninstalled)
+        + "; CLI output: "
+        + _unstyled(result.output)
     )
     assert result.exit_code == 1, "Overall exit must be non-zero when any name failed"
+    assert "specfact-codebase" in _unstyled(result.output)

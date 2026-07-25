@@ -90,6 +90,9 @@ dump.rdb
 package.json
 package-lock.json
 node_modules/
+!tools/basedpyright/
+!tools/basedpyright/package.json
+!tools/basedpyright/package-lock.json
 
 # Internal docs
 docs/internal/

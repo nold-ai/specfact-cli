@@ -9,12 +9,15 @@ expertise_level: [advanced]
 doc_owner: specfact-cli
 tracks:
   - pyproject.toml
+  - uv.lock
+  - requirements/ci/locked.txt
+  - ci/module-fixture.lock.json
   - modules/*/module-package.yaml
   - src/specfact_cli/modules/*/module-package.yaml
   - scripts/check_license_compliance.py
   - scripts/license_allowlist.yaml
   - SECURITY.md
-last_reviewed: 2026-04-16
+last_reviewed: 2026-07-23
 exempt: false
 exempt_reason: ""
 id: agent-rules-dependency-hygiene
@@ -50,7 +53,7 @@ and propose a MIT/Apache-2.0/BSD alternative.
 
 ## 2. (A)GPL in dev env extras (MUST DOCUMENT + PHASE 2 PLAN)
 
-GPL packages in dev-only extras (e.g. `pylint`) require:
+GPL packages in dev-only extras require:
 
 1. A `dev-only`-scoped entry in `scripts/license_allowlist.yaml` with a `reason`.
 2. An explicit Phase 2 removal plan in the `reason` field.
@@ -69,17 +72,54 @@ They are **never** acceptable in module manifests (see Section 1).
 | LGPL-2.1 / LGPL-3.0 | CONDITIONAL | Allowed when invoked as subprocess (not statically linked); requires `module-manifest` allowlist entry with subprocess justification |
 | GPL-2.0 / GPL-3.0 / AGPL | BLOCKED | Never in module manifests; dev-only with allowlist + Phase 2 plan |
 
-## 4. Required gates before any manifest or dependency change is merged
+## 4. Reproducible dependency inputs (HARD BLOCK)
+
+`uv.lock` and `requirements/ci/locked.txt` are the authoritative frozen inputs for
+blocking delivery jobs. They are generated artifacts, not hand-maintained dependency
+lists. Any change to `pyproject.toml`, either frozen file, or the frozen CI setup action
+MUST include a reviewed refresh and verification:
+
+```bash
+hatch run refresh-frozen-delivery
+hatch run python scripts/check_reproducible_delivery.py
+```
+
+Review the resulting lock diff and the hash-protected export together. Do not use an
+unlocked `pip install`, `uv add`, or resolver fallback in a blocking delivery/release
+job. A temporary compatibility experiment belongs in the scheduled/manual advisory lane
+and cannot replace frozen evidence.
+
+The companion-module fixture at `ci/module-fixture.lock.json` MUST name the exact
+repository and a full, reviewed 40-character commit SHA. Never replace it with a branch,
+tag, or PR-head lookup; update it only with accompanying validation evidence.
+
+The BasedPyright runner is a separate committed npm lock at
+`tools/basedpyright/package-lock.json`. CI SHALL install it with `npm ci --ignore-scripts`
+after a SHA-pinned `actions/setup-node` step; do not add a Python wheel that bundles an
+unofficial Node runtime. Flagged dependencies that remain necessary require an exact
+version, PyPI artifact URL, artifact SHA-256, source-provenance classification, review
+date, expiry, and transitive path in `ci/dependency-trust-exceptions.json`. Expiry is
+fail-closed: renew the review or remove the package. A release with a security or
+obfuscation alert is a block entry, not an exception: the dependency-trust checker rejects
+it even if a record exists and verifies each remaining record against `uv.lock`.
+
+`Dependency Trust Gate` runs for every PR; its matching local pre-commit hook runs before
+a dependency-input commit. Socket Security's `Project Report` and `Pull Request Alerts`
+are required status checks on protected `dev` and `main` branches. Keep both layers: the
+native gate prevents known/reviewed artifact drift, while Socket supplies independent
+obfuscation and supply-chain analysis.
+
+## 5. Required gates before any manifest or dependency change is merged
 
 Run these in order:
 
 ```bash
 hatch run license-check   # scripts/check_license_compliance.py — exit 0 required
-hatch run security-audit  # pip-audit --desc --strict — review CVEs ≥ CVSS 7.0
+hatch run security-audit  # audit the frozen requirements; all unreviewed advisories block
 hatch run bandit-scan     # bandit -r src/ -ll — review and document findings
 ```
 
-## 5. New pip_dependencies in module manifests — checklist
+## 6. New pip_dependencies in module manifests — checklist
 
 Before adding a new `pip_dependencies` entry to any `module-package.yaml`:
 
@@ -90,15 +130,14 @@ Before adding a new `pip_dependencies` entry to any `module-package.yaml`:
 5. Re-sign the module manifest (`hatch run sign-modules`).
 6. Run `hatch run verify-modules-signature` (strict bundle from `module-verify-policy.sh`) — must pass.
 
-## 6. Phase 2 tracking
+## 7. Phase 2 tracking
 
 | Package | Current status | Phase 2 action |
 | --- | --- | --- |
-| `pylint` | dev-only (GPL-2.0-or-later) | Replace with `ruff --select ALL` once SLF001/W0212 and R0801 gaps are resolved |
 | `yamllint` | dev-only (GPL-3.0-or-later) | Replace with a non-GPL YAML lint path once CI / pre-commit parity is preserved |
 | `gitpython` | runtime (CVE history) | Replace with `dulwich` adapter (3-file rewrite) |
 
-## 7. Static license map
+## 8. Static license map
 
 `check_license_compliance.py` uses a static license map for known module
 pip_dependencies to avoid network calls. The mapping lives in

@@ -52,10 +52,14 @@ jobs:
               - 'pyproject.toml'
             license_inputs:
               - 'pyproject.toml'
+              - 'uv.lock'
+              - 'requirements/ci/locked.txt'
               - 'modules/**/module-package.yaml'
               - 'src/specfact_cli/modules/**/module-package.yaml'
               - 'scripts/check_license_compliance.py'
+              - 'scripts/check_dependency_trust_exceptions.py'
               - 'scripts/license_allowlist.yaml'
+              - 'ci/dependency-trust-exceptions.json'
               - 'scripts/module_pip_dependencies_licenses.yaml'
             version_sources:
               - 'pyproject.toml'
@@ -135,12 +139,9 @@ jobs:
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
         with:
           python-version: "3.12"
-          cache: "pip"
 
-      - name: Install verifier dependencies
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install pyyaml beartype icontract cryptography cffi
+      - name: Set up frozen verifier dependencies
+        uses: ./.github/actions/setup-frozen-python
 
       - name: Verify bundled module manifests (dev PR relaxed; main boundary strict)
         env:
@@ -192,9 +193,10 @@ jobs:
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
         with:
           python-version: "3.12"
-          cache: "pip"
-          cache-dependency-path: |
-            pyproject.toml
+
+      - name: Set up frozen lint dependencies
+        if: needs.changes.outputs.workflow_changed == 'true' || github.event_name == 'workflow_dispatch'
+        uses: ./.github/actions/setup-frozen-python
 
       - name: Set up Go for actionlint
         if: needs.changes.outputs.workflow_changed == 'true' || github.event_name == 'workflow_dispatch'
@@ -203,11 +205,9 @@ jobs:
           go-version: "1.24"
           cache: false
 
-      - name: Install lint dependencies
+      - name: Install pinned actionlint
         if: needs.changes.outputs.workflow_changed == 'true' || github.event_name == 'workflow_dispatch'
         run: |
-          python -m pip install --upgrade pip
-          pip install "hatch" "virtualenv<21"
           go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.11
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
 
@@ -215,7 +215,7 @@ jobs:
         if: needs.changes.outputs.workflow_changed == 'true' || github.event_name == 'workflow_dispatch'
         run: |
           echo "🔍 Running actionlint for workflow changes..."
-          hatch run lint-workflows
+          bash scripts/run_actionlint.sh
 
   tests:
     name: Tests (Python 3.12)
@@ -239,19 +239,14 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
 
-      - name: Resolve module bundles ref
-        id: modules-ref
+      - name: Read immutable module fixture
+        id: modules-fixture
         if: needs.changes.outputs.skip_expensive_tests_dev_to_main != 'true'
         shell: bash
-        env:
-          CANDIDATE_REF: ${{ github.head_ref || github.ref_name }}
         run: |
-          candidate="${CANDIDATE_REF}"
-          if [ -n "$candidate" ] && git ls-remote --exit-code --heads https://github.com/nold-ai/specfact-cli-modules.git "$candidate" >/dev/null 2>&1; then
-            echo "ref=$candidate" >> "$GITHUB_OUTPUT"
-          else
-            echo "ref=dev" >> "$GITHUB_OUTPUT"
-          fi
+          set -euo pipefail
+          fixture_ref="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])')"
+          echo "ref=${fixture_ref}" >> "$GITHUB_OUTPUT"
 
       - name: Checkout module bundles repo
         if: needs.changes.outputs.skip_expensive_tests_dev_to_main != 'true'
@@ -260,27 +255,30 @@ jobs:
           persist-credentials: false
           repository: nold-ai/specfact-cli-modules
           path: specfact-cli-modules
-          ref: ${{ steps.modules-ref.outputs.ref }}
+          ref: ${{ steps.modules-fixture.outputs.ref }}
 
       - name: Export module bundles path
         if: needs.changes.outputs.skip_expensive_tests_dev_to_main != 'true'
         run: echo "SPECFACT_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" >> "$GITHUB_ENV"
+
+      - name: Verify immutable module fixture
+        if: needs.changes.outputs.skip_expensive_tests_dev_to_main != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])')"
+          actual="$(git -C specfact-cli-modules rev-parse HEAD)"
+          test "$actual" = "$expected"
 
       - name: Set up Python 3.12
         if: needs.changes.outputs.skip_expensive_tests_dev_to_main != 'true'
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
         with:
           python-version: "3.12"
-          cache: "pip"
-          cache-dependency-path: |
-            pyproject.toml
 
-      - name: Install hatch and fallback test dependencies
+      - name: Set up frozen test dependencies
         if: needs.changes.outputs.skip_expensive_tests_dev_to_main != 'true'
-        run: |
-          python -m pip install --upgrade pip
-          pip install "hatch" "virtualenv<21" pipx uv coverage "coverage[toml]" pytest pytest-cov pytest-mock pytest-asyncio pytest-xdist pytest-timeout
-          pip install -e ".[dev]"
+        uses: ./.github/actions/setup-frozen-python
 
       - name: Verify version strings are synchronized
         if: needs.changes.outputs.skip_expensive_tests_dev_to_main != 'true'
@@ -326,17 +324,6 @@ jobs:
             python scripts/check_local_version_ahead_of_pypi.py
           fi
 
-      - name: Cache hatch environments
-        if: needs.changes.outputs.skip_expensive_tests_dev_to_main != 'true'
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae
-        with:
-          path: |
-            ~/.cache/uv
-          key: ${{ runner.os }}-hatch-tests-py312-${{ hashFiles('pyproject.toml', 'src/specfact_cli/modules/*/__init__.py') }}
-          restore-keys: |
-            ${{ runner.os }}-hatch-tests-py312-
-            ${{ runner.os }}-hatch-
-
       - name: Create test output directories
         if: needs.changes.outputs.skip_expensive_tests_dev_to_main != 'true'
         shell: bash
@@ -347,7 +334,7 @@ jobs:
         if: needs.changes.outputs.skip_expensive_tests_dev_to_main != 'true'
         shell: bash
         run: |
-          python scripts/runtime_discovery_smoke.py --launcher direct --launcher hatch-source --launcher pip-editable --launcher pipx --launcher uv-run --launcher uvx
+          python scripts/runtime_discovery_smoke.py --launcher direct --launcher console
 
       - name: Set run_unit_coverage (or skip for dev→main)
         id: detect-unit
@@ -412,18 +399,13 @@ jobs:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           persist-credentials: false
-      - name: Resolve module bundles ref
-        id: modules-ref
+      - name: Read immutable module fixture
+        id: modules-fixture
         shell: bash
-        env:
-          CANDIDATE_REF: ${{ github.head_ref || github.ref_name }}
         run: |
-          candidate="${CANDIDATE_REF}"
-          if [ -n "$candidate" ] && git ls-remote --exit-code --heads https://github.com/nold-ai/specfact-cli-modules.git "$candidate" >/dev/null 2>&1; then
-            echo "ref=$candidate" >> "$GITHUB_OUTPUT"
-          else
-            echo "ref=dev" >> "$GITHUB_OUTPUT"
-          fi
+          set -euo pipefail
+          fixture_ref="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])')"
+          echo "ref=${fixture_ref}" >> "$GITHUB_OUTPUT"
 
       - name: Checkout module bundles repo
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
@@ -431,37 +413,30 @@ jobs:
           persist-credentials: false
           repository: nold-ai/specfact-cli-modules
           path: specfact-cli-modules
-          ref: ${{ steps.modules-ref.outputs.ref }}
+          ref: ${{ steps.modules-fixture.outputs.ref }}
       - name: Export module bundles path
         run: echo "SPECFACT_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" >> "$GITHUB_ENV"
+      - name: Verify immutable module fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])')"
+          actual="$(git -C specfact-cli-modules rev-parse HEAD)"
+          test "$actual" = "$expected"
       - name: Set up Python 3.11
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
         with:
           python-version: "3.11"
-          cache: "pip"
-          cache-dependency-path: |
-            pyproject.toml
-      - name: Install hatch
-        run: |
-          python -m pip install --upgrade pip
-          pip install "hatch" "virtualenv<21"
-      - name: Cache hatch environments
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae
-        with:
-          path: |
-            ~/.cache/uv
-          key: ${{ runner.os }}-hatch-compat-py311-${{ hashFiles('pyproject.toml', 'src/specfact_cli/modules/*/__init__.py') }}
-          restore-keys: |
-            ${{ runner.os }}-hatch-compat-py311-
-            ${{ runner.os }}-hatch-
-      - name: Run Python 3.11 compatibility tests (hatch-test matrix env)
+      - name: Set up frozen compatibility dependencies
+        uses: ./.github/actions/setup-frozen-python
+      - name: Run Python 3.11 compatibility tests
         run: |
           echo "🔁 Python 3.11 compatibility checks"
           mkdir -p logs/compat-py311
           COMPAT_LOG="logs/compat-py311/compat_$(date -u +%Y%m%d_%H%M%S).log"
           {
-            hatch -e hatch-test.py3.11 run run -- -r fEw tests/unit tests/integration
-            hatch -e hatch-test.py3.11 run xml || true
+            python -m pytest -r fEw tests/unit tests/integration
+            python -m coverage xml -o logs/compat-py311/coverage.xml || true
           } 2>&1 | tee "$COMPAT_LOG"
           exit "${PIPESTATUS[0]:-$?}"
       - name: Upload compat-py311 logs
@@ -483,18 +458,13 @@ jobs:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           persist-credentials: false
-      - name: Resolve module bundles ref
-        id: modules-ref
+      - name: Read immutable module fixture
+        id: modules-fixture
         shell: bash
-        env:
-          CANDIDATE_REF: ${{ github.head_ref || github.ref_name }}
         run: |
-          candidate="${CANDIDATE_REF}"
-          if [ -n "$candidate" ] && git ls-remote --exit-code --heads https://github.com/nold-ai/specfact-cli-modules.git "$candidate" >/dev/null 2>&1; then
-            echo "ref=$candidate" >> "$GITHUB_OUTPUT"
-          else
-            echo "ref=dev" >> "$GITHUB_OUTPUT"
-          fi
+          set -euo pipefail
+          fixture_ref="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])')"
+          echo "ref=${fixture_ref}" >> "$GITHUB_OUTPUT"
 
       - name: Checkout module bundles repo
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
@@ -502,29 +472,22 @@ jobs:
           persist-credentials: false
           repository: nold-ai/specfact-cli-modules
           path: specfact-cli-modules
-          ref: ${{ steps.modules-ref.outputs.ref }}
+          ref: ${{ steps.modules-fixture.outputs.ref }}
       - name: Export module bundles path
         run: echo "SPECFACT_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" >> "$GITHUB_ENV"
+      - name: Verify immutable module fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])')"
+          actual="$(git -C specfact-cli-modules rev-parse HEAD)"
+          test "$actual" = "$expected"
       - name: Set up Python 3.12
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
         with:
           python-version: "3.12"
-          cache: "pip"
-          cache-dependency-path: |
-            pyproject.toml
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install "hatch" "virtualenv<21"
-      - name: Cache hatch environments
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae
-        with:
-          path: |
-            ~/.cache/uv
-          key: ${{ runner.os }}-hatch-contract-first-py312-${{ hashFiles('pyproject.toml', 'src/specfact_cli/modules/*/__init__.py') }}
-          restore-keys: |
-            ${{ runner.os }}-hatch-contract-first-py312-
-            ${{ runner.os }}-hatch-
+      - name: Set up frozen contract dependencies
+        uses: ./.github/actions/setup-frozen-python
       - name: Prepare repro log directory
         run: mkdir -p logs/repro
       - name: Run contract validation and exploration
@@ -534,8 +497,8 @@ jobs:
           REPRO_LOG="logs/repro/repro_$(date -u +%Y%m%d_%H%M%S).log"
           echo "Running scoped contract-first validation with required CrossHair... (log: $REPRO_LOG)"
           {
-            hatch run contract-test-contracts
-            hatch run contract-test-exploration-fast
+            python tools/contract_first_smart_test.py contracts
+            python tools/contract_first_smart_test.py exploration --crosshair-fast
           } 2>&1 | tee "$REPRO_LOG"
           exit "${PIPESTATUS[0]:-$?}"
       - name: Upload repro logs
@@ -564,18 +527,13 @@ jobs:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           persist-credentials: false
-      - name: Resolve module command sources ref
-        id: modules-ref
+      - name: Read immutable module fixture
+        id: modules-fixture
         shell: bash
-        env:
-          CANDIDATE_REF: ${{ github.head_ref || github.ref_name }}
         run: |
-          candidate="${CANDIDATE_REF}"
-          if [ -n "$candidate" ] && git ls-remote --exit-code --heads https://github.com/nold-ai/specfact-cli-modules.git "$candidate" >/dev/null 2>&1; then
-            echo "ref=$candidate" >> "$GITHUB_OUTPUT"
-          else
-            echo "ref=dev" >> "$GITHUB_OUTPUT"
-          fi
+          set -euo pipefail
+          fixture_ref="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])')"
+          echo "ref=${fixture_ref}" >> "$GITHUB_OUTPUT"
 
       - name: Checkout module command sources
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
@@ -583,35 +541,39 @@ jobs:
           persist-credentials: false
           repository: nold-ai/specfact-cli-modules
           path: specfact-cli-modules
-          ref: ${{ steps.modules-ref.outputs.ref }}
+          ref: ${{ steps.modules-fixture.outputs.ref }}
       - name: Export module command source path
         run: echo "SPECFACT_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" >> "$GITHUB_ENV"
+      - name: Verify immutable module fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])')"
+          actual="$(git -C specfact-cli-modules rev-parse HEAD)"
+          test "$actual" = "$expected"
       - name: Set up Python 3.12
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
         with:
           python-version: "3.12"
-          cache: "pip"
-          cache-dependency-path: |
-            pyproject.toml
+      - name: Set up frozen CLI validation dependencies
+        uses: ./.github/actions/setup-frozen-python
       - name: Build and install CLI wheel
+        shell: bash
         run: |
+          set -euo pipefail
           echo "Building and installing SpecFact CLI wheel..."
-          python -m pip install --upgrade pip
-          python -m pip install "hatch" "virtualenv<21"
-          hatch build
+          uv build --wheel
           python -m venv "$RUNNER_TEMP/specfact-cli-validation"
-          # shellcheck disable=SC1091
-          source "$RUNNER_TEMP/specfact-cli-validation/bin/activate"
-          pip install dist/*.whl
-          specfact --help
-          specfact-cli --help
-          deactivate
+          "$RUNNER_TEMP/specfact-cli-validation/bin/python" -m pip install --require-hashes -r requirements/ci/locked.txt
+          "$RUNNER_TEMP/specfact-cli-validation/bin/python" -m pip install --no-deps dist/*.whl
+          "$RUNNER_TEMP/specfact-cli-validation/bin/specfact" --help
+          "$RUNNER_TEMP/specfact-cli-validation/bin/specfact-cli" --help
       - name: Validate CLI commands
         run: |
           echo "🔍 Validating CLI commands..."
-          hatch run check-command-overview
-          hatch run check-command-contract
-          hatch run check-docs-commands
+          python scripts/generate-command-overview.py --check
+          python scripts/check-command-contract.py
+          python scripts/check-docs-commands.py
           echo "✅ CLI validation complete"
 
   quality-gates:
@@ -705,26 +667,20 @@ jobs:
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
         with:
           python-version: "3.12"
-          cache: "pip"
-          cache-dependency-path: |
-            pyproject.toml
 
-      - name: Install static-analysis dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install "hatch" "virtualenv<21"
-          pip install -e ".[dev]"
+      - name: Set up frozen static-analysis dependencies
+        uses: ./.github/actions/setup-frozen-python
 
       - name: Run independent Semgrep and Bandit gates
         env:
           SEMGREP_ENABLE_VERSION_CHECK: "0"
         run: |
           mkdir -p logs/static-analysis
-          hatch run semgrep-sast --json --output logs/static-analysis/semgrep.json
-          hatch run semgrep-sast-gate \
+          semgrep scan --config tools/semgrep/sast.yml --json --output logs/static-analysis/semgrep.json
+          python scripts/semgrep_sast_gate.py \
             --results logs/static-analysis/semgrep.json \
             --baseline tools/semgrep/sast-baseline.json
-          hatch run bandit-scan -f json -o logs/static-analysis/bandit.json
+          bandit -r src/ -ll -f json -o logs/static-analysis/bandit.json
 
       - name: Upload independent static-analysis artifacts
         if: always()
@@ -742,7 +698,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        launcher: [hatch-source, pip-wheel, pipx, uv-run, uvx]
+        python-version: ["3.11", "3.12", "3.13"]
+        launcher: [uv-source, pip-wheel, pipx, uv-run]
     permissions:
       contents: read
     steps:
@@ -751,22 +708,17 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
 
-      - name: Set up Python 3.12
+      - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
         with:
-          python-version: "3.12"
-          cache: "pip"
-          cache-dependency-path: |
-            pyproject.toml
+          python-version: ${{ matrix.python-version }}
 
-      - name: Install runtime validation tools
-        run: |
-          python -m pip install --upgrade pip
-          pip install "hatch" "virtualenv<21" pipx uv
+      - name: Set up frozen runtime dependencies
+        uses: ./.github/actions/setup-frozen-python
 
       - name: Build package wheel
         run: |
-          hatch build
+          uv build --wheel
           find dist -maxdepth 1 -name '*.whl' -print -exec ls -lh {} \;
 
       - name: Validate runtime launcher
@@ -780,56 +732,57 @@ jobs:
             exit 1
           fi
           VENV="$RUNNER_TEMP/specfact-runtime-${{ matrix.launcher }}"
+          PIPX_HOME="$RUNNER_TEMP/pipx-home-${{ matrix.launcher }}"
+          PIPX_BIN_DIR="$RUNNER_TEMP/pipx-bin-${{ matrix.launcher }}"
+          PIPX_DEFAULT_BACKEND=pip
+          export PIPX_HOME PIPX_BIN_DIR PIPX_DEFAULT_BACKEND
+
+          python -m venv "$VENV"
+          "$VENV/bin/python" -m pip install --require-hashes -r requirements/ci/locked.txt
+          "$VENV/bin/python" -m pip install --no-deps "$WHEEL"
 
           run_specfact() {
             case "${{ matrix.launcher }}" in
-              hatch-source)
-                hatch run specfact "$@"
+              uv-source)
+                uv run --locked --no-sync specfact "$@"
                 ;;
               pip-wheel)
-                specfact "$@"
+                "$VENV/bin/specfact" "$@"
                 ;;
               pipx)
-                pipx run --python "$pythonLocation/bin/python" --spec "$WHEEL" specfact "$@"
+                "$PIPX_BIN_DIR/specfact" "$@"
                 ;;
               uv-run)
-                uv run --no-project --python "$pythonLocation/bin/python" --with "$WHEEL" specfact "$@"
-                ;;
-              uvx)
-                uvx --from "$WHEEL" specfact "$@"
+                uv run --no-project --no-sync --python "$VENV/bin/python" "$VENV/bin/specfact" "$@"
                 ;;
             esac
           }
 
           run_specfact_cli() {
             case "${{ matrix.launcher }}" in
-              hatch-source)
-                hatch run specfact-cli "$@"
+              uv-source)
+                uv run --locked --no-sync specfact-cli "$@"
                 ;;
               pip-wheel)
-                specfact-cli "$@"
+                "$VENV/bin/specfact-cli" "$@"
                 ;;
               pipx)
-                pipx run --python "$pythonLocation/bin/python" --spec "$WHEEL" specfact-cli "$@"
+                "$PIPX_BIN_DIR/specfact-cli" "$@"
                 ;;
               uv-run)
-                uv run --no-project --python "$pythonLocation/bin/python" --with "$WHEEL" specfact-cli "$@"
-                ;;
-              uvx)
-                uvx --from "$WHEEL" specfact-cli "$@"
+                uv run --no-project --no-sync --python "$VENV/bin/python" "$VENV/bin/specfact-cli" "$@"
                 ;;
             esac
           }
 
-          if [ "${{ matrix.launcher }}" = "pip-wheel" ]; then
-            python -m venv "$VENV"
-            # shellcheck disable=SC1091
-            source "$VENV/bin/activate"
-            pip install "$WHEEL"
+          if [ "${{ matrix.launcher }}" = "pipx" ]; then
+            PIPX_LOCK="$RUNNER_TEMP/pylock.specfact-deps.toml"
+            uv export --locked --format pylock.toml --no-emit-project --output-file "$PIPX_LOCK" >/dev/null
+            pipx install --python "$pythonLocation/bin/python" --lock "$PIPX_LOCK" "$WHEEL"
           fi
 
-          specfact --help >/dev/null 2>&1 || run_specfact --help | tee "logs/package-runtime/${{ matrix.launcher }}/specfact-help.log"
-          specfact-cli --help >/dev/null 2>&1 || run_specfact_cli --help | tee "logs/package-runtime/${{ matrix.launcher }}/specfact-cli-help.log"
+          run_specfact --help | tee "logs/package-runtime/${{ matrix.launcher }}/specfact-help.log"
+          run_specfact_cli --help | tee "logs/package-runtime/${{ matrix.launcher }}/specfact-cli-help.log"
           run_specfact module list --show-origin | tee "logs/package-runtime/${{ matrix.launcher }}/module-list.log"
           run_specfact init ide --help | tee "logs/package-runtime/${{ matrix.launcher }}/init-ide-help.log"
           if run_specfact definitely-not-a-command >"logs/package-runtime/${{ matrix.launcher }}/unknown-command.log" 2>&1; then
@@ -841,7 +794,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: package-runtime-${{ matrix.launcher }}
+          name: package-runtime-${{ matrix.launcher }}-${{ matrix.python-version }}
           path: logs/package-runtime/
           if-no-files-found: ignore
 
@@ -858,18 +811,18 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
 
-      - name: Resolve module bundles ref
-        id: modules-ref
+      - name: Set up Python 3.12
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: "3.12"
+
+      - name: Read immutable module fixture
+        id: modules-fixture
         shell: bash
-        env:
-          CANDIDATE_REF: ${{ github.head_ref || github.ref_name }}
         run: |
-          candidate="${CANDIDATE_REF}"
-          if [ -n "$candidate" ] && git ls-remote --exit-code --heads https://github.com/nold-ai/specfact-cli-modules.git "$candidate" >/dev/null 2>&1; then
-            echo "ref=$candidate" >> "$GITHUB_OUTPUT"
-          else
-            echo "ref=dev" >> "$GITHUB_OUTPUT"
-          fi
+          set -euo pipefail
+          fixture_ref="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])')"
+          echo "ref=${fixture_ref}" >> "$GITHUB_OUTPUT"
 
       - name: Checkout module bundles repo
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
@@ -877,21 +830,18 @@ jobs:
           persist-credentials: false
           repository: nold-ai/specfact-cli-modules
           path: specfact-cli-modules
-          ref: ${{ steps.modules-ref.outputs.ref }}
+          ref: ${{ steps.modules-fixture.outputs.ref }}
 
-      - name: Set up Python 3.12
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
-        with:
-          python-version: "3.12"
-          cache: "pip"
-          cache-dependency-path: |
-            pyproject.toml
-
-      - name: Install smoke dependencies
+      - name: Verify immutable module fixture
+        shell: bash
         run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[dev]"
-          pip install "hatch" "virtualenv<21" pipx uv
+          set -euo pipefail
+          expected="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])')"
+          actual="$(git -C specfact-cli-modules rev-parse HEAD)"
+          test "$actual" = "$expected"
+
+      - name: Set up frozen smoke dependencies
+        uses: ./.github/actions/setup-frozen-python
 
       - name: Run macOS runtime discovery smoke
         shell: bash
@@ -920,18 +870,18 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
 
-      - name: Resolve module bundles ref
-        id: modules-ref
+      - name: Set up Python 3.12
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: "3.12"
+
+      - name: Read immutable module fixture
+        id: modules-fixture
         shell: bash
-        env:
-          CANDIDATE_REF: ${{ github.head_ref || github.ref_name }}
         run: |
-          candidate="${CANDIDATE_REF}"
-          if [ -n "$candidate" ] && git ls-remote --exit-code --heads https://github.com/nold-ai/specfact-cli-modules.git "$candidate" >/dev/null 2>&1; then
-            echo "ref=$candidate" >> "$GITHUB_OUTPUT"
-          else
-            echo "ref=dev" >> "$GITHUB_OUTPUT"
-          fi
+          set -euo pipefail
+          fixture_ref="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])')"
+          echo "ref=${fixture_ref}" >> "$GITHUB_OUTPUT"
 
       - name: Checkout module bundles repo
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
@@ -939,21 +889,18 @@ jobs:
           persist-credentials: false
           repository: nold-ai/specfact-cli-modules
           path: specfact-cli-modules
-          ref: ${{ steps.modules-ref.outputs.ref }}
+          ref: ${{ steps.modules-fixture.outputs.ref }}
 
-      - name: Set up Python 3.12
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
-        with:
-          python-version: "3.12"
-          cache: "pip"
-          cache-dependency-path: |
-            pyproject.toml
-
-      - name: Install smoke dependencies
+      - name: Verify immutable module fixture
         shell: bash
         run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[dev]"
+          set -euo pipefail
+          expected="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])')"
+          actual="$(git -C specfact-cli-modules rev-parse HEAD)"
+          test "$actual" = "$expected"
+
+      - name: Set up frozen smoke dependencies
+        uses: ./.github/actions/setup-frozen-python
 
       - name: Run Windows runtime discovery smoke
         shell: bash
@@ -985,15 +932,9 @@ jobs:
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
         with:
           python-version: "3.12"
-          cache: "pip"
-          cache-dependency-path: |
-            pyproject.toml
 
-      - name: Install mutation dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[dev]"
-          pip install mutmut
+      - name: Set up frozen mutation dependencies
+        uses: ./.github/actions/setup-frozen-python
 
       - name: Run targeted mutation baseline
         run: |
@@ -1033,30 +974,33 @@ jobs:
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
         with:
           python-version: "3.12"
-          cache: "pip"
-          cache-dependency-path: |
-            pyproject.toml
-      - name: Install type-check dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[dev]"
+      - name: Set up frozen type-check dependencies
+        uses: ./.github/actions/setup-frozen-python
+      - name: Set up reviewed Node runtime
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: "24.16.0"
+          cache: npm
+          cache-dependency-path: tools/basedpyright/package-lock.json
+      - name: Install locked BasedPyright
+        run: npm ci --ignore-scripts --prefix tools/basedpyright
       - name: Run type checking
         run: |
           echo "🔍 Running basedpyright type checking..."
           mkdir -p logs/type-check
-          TYPE_CHECK_LOG="logs/type-check/type-check_$(date -u +%Y%m%d_%H%M%S).log"
-          python -m basedpyright --pythonpath "$(python -c 'import sys; print(sys.executable)')" 2>&1 | tee "$TYPE_CHECK_LOG"
-          exit "${PIPESTATUS[0]:-$?}"
+          bash tools/run_basedpyright.sh --project pyproject.toml --outputjson \
+            --pythonpath "$(python -c 'import sys; print(sys.executable)')" \
+            > logs/type-check/basedpyright.json
       - name: Upload type-check logs
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: type-check-logs
-          path: logs/type-check/
+          path: logs/type-check/basedpyright.json
           if-no-files-found: ignore
 
   linting:
-    name: Linting (ruff, pylint, safe-write guard)
+    name: Linting (ruff, type safety, safe-write guard)
     runs-on: ubuntu-latest
     needs: [changes, verify-module-signatures]
     if: needs.changes.outputs.code_changed == 'true' && needs.changes.outputs.skip_expensive_tests_dev_to_main != 'true'
@@ -1072,14 +1016,19 @@ jobs:
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
         with:
           python-version: "3.12"
-          cache: "pip"
-          cache-dependency-path: |
-            pyproject.toml
 
-      - name: Install lint dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[dev]"
+      - name: Set up frozen lint dependencies
+        uses: ./.github/actions/setup-frozen-python
+
+      - name: Set up reviewed Node runtime
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: "24.16.0"
+          cache: npm
+          cache-dependency-path: tools/basedpyright/package-lock.json
+
+      - name: Install locked BasedPyright
+        run: npm ci --ignore-scripts --prefix tools/basedpyright
 
       - name: Run linting
         run: |
@@ -1089,9 +1038,8 @@ jobs:
           {
             set -euo pipefail
             ruff format . --check
-            python -m basedpyright --level error --pythonpath "$(python -c 'import sys; print(sys.executable)')"
+            bash tools/run_basedpyright.sh --project pyproject.toml --level error --pythonpath "$(python -c 'import sys; print(sys.executable)')"
             ruff check .
-            pylint src tests tools
             python scripts/verify_safe_project_writes.py
           } 2>&1 | tee "$LINT_LOG"
           exit "${PIPESTATUS[0]:-$?}"
@@ -1120,19 +1068,35 @@ jobs:
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
         with:
           python-version: "3.12"
-          cache: "pip"
-          cache-dependency-path: |
-            pyproject.toml
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[dev]"
+      - name: Set up frozen license-check dependencies
+        uses: ./.github/actions/setup-frozen-python
 
       - name: Run license compliance gate
         run: |
           echo "🔍 Running license compliance gate..."
           python scripts/check_license_compliance.py
+
+  dependency-trust:
+    name: Dependency Trust Gate
+    runs-on: ubuntu-latest
+    needs: [changes, verify-module-signatures]
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          persist-credentials: false
+
+      - name: Set up frozen dependency-trust dependencies
+        uses: ./.github/actions/setup-frozen-python
+
+      - name: Block flagged and unreviewed frozen artifacts
+        run: python scripts/check_dependency_trust_exceptions.py
+
+      - name: Confirm the locked export matches the reviewed lock
+        run: python scripts/check_reproducible_delivery.py
 
   security-audit:
     name: Security Audit (pip-audit)
@@ -1150,19 +1114,137 @@ jobs:
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
         with:
           python-version: "3.12"
-          cache: "pip"
-          cache-dependency-path: |
-            pyproject.toml
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[dev]"
+      - name: Set up frozen security-audit dependencies
+        uses: ./.github/actions/setup-frozen-python
 
       - name: Run CVE security audit
         run: |
           echo "🔍 Running CVE security audit..."
           python scripts/security_audit_gate.py
+
+  reproducible-delivery:
+    name: Reproducible Delivery Evidence
+    runs-on: ubuntu-latest
+    needs: [changes, verify-module-signatures]
+    if: needs.changes.outputs.code_changed == 'true' || needs.changes.outputs.workflow_changed == 'true'
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          persist-credentials: false
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: "3.12"
+
+      - name: Set up frozen delivery dependencies
+        uses: ./.github/actions/setup-frozen-python
+
+      - name: Verify committed frozen inputs
+        run: python scripts/check_reproducible_delivery.py
+
+      - name: Build package once
+        run: uv build --wheel --no-build-isolation
+
+      - name: Prove two locked wheel installs agree
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p logs/reproducible-delivery
+          WHEEL="$(find dist -maxdepth 1 -name '*.whl' -print -quit)"
+          test -n "$WHEEL"
+          for run in first second; do
+            VENV="$RUNNER_TEMP/specfact-repro-${run}"
+            python -m venv "$VENV"
+            "$VENV/bin/python" -m pip install --require-hashes -r requirements/ci/locked.txt
+            "$VENV/bin/python" -m pip install --no-deps "$WHEEL"
+            "$VENV/bin/specfact" --version
+            "$VENV/bin/python" -m pip inspect --local > "logs/reproducible-delivery/${run}.json"
+            python scripts/render_locked_sbom.py \
+              --inspect "logs/reproducible-delivery/${run}.json" \
+              --output "logs/reproducible-delivery/${run}.sbom.json"
+          done
+          python - \
+            "logs/reproducible-delivery/first.json" \
+            "logs/reproducible-delivery/second.json" \
+            "logs/reproducible-delivery/first.sbom.json" \
+            "logs/reproducible-delivery/second.sbom.json" <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+
+          def stable(path: str) -> str:
+              payload = json.loads(Path(path).read_text(encoding="utf-8"))
+              if isinstance(payload.get("installed"), list):
+                  # ``pip inspect`` includes installer-specific metadata (for
+                  # example, requested-by relationships).  The locked-delivery
+                  # proof compares the resolved package identities; the full
+                  # raw reports remain uploaded as operator evidence.
+                  installed = [
+                      {
+                          "name": item["metadata"]["name"].lower(),
+                          "version": item["metadata"]["version"],
+                      }
+                      for item in payload["installed"]
+                  ]
+                  return json.dumps(
+                      sorted(installed, key=lambda item: item["name"]),
+                      sort_keys=True,
+                      separators=(",", ":"),
+                  )
+              payload.pop("environment", None)
+              payload.pop("serialNumber", None)
+              if isinstance(payload.get("metadata"), dict):
+                  payload["metadata"].pop("timestamp", None)
+              return json.dumps(payload, sort_keys=True, separators=(",", ":"))
+
+          if stable(sys.argv[1]) != stable(sys.argv[2]):
+              raise SystemExit("locked wheel environments differ")
+          if stable(sys.argv[3]) != stable(sys.argv[4]):
+              raise SystemExit("locked wheel SBOMs differ")
+          PY
+
+      - name: Upload reproducible-delivery evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: reproducible-delivery
+          path: logs/reproducible-delivery/
+          if-no-files-found: error
+
+  dependency-compatibility:
+    name: Dependency Compatibility (Advisory)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    continue-on-error: true
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          persist-credentials: false
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: "3.12"
+
+      - name: Set up frozen baseline dependencies
+        uses: ./.github/actions/setup-frozen-python
+
+      - name: Exercise latest and lower-bound resolver lanes
+        shell: bash
+        run: |
+          set -euo pipefail
+          uv lock --upgrade
+          uv sync --locked --all-extras
+          python -m pytest tests/unit -q
+          uv lock --resolution lowest-direct
+          uv sync --locked --all-extras
+          python -m pytest tests/unit -q
 
   package-validation:
     name: Package Validation (uvx/pip)
@@ -1176,10 +1258,12 @@ jobs:
         quality-gates,
         independent-static-analysis,
         package-runtime-matrix,
+        reproducible-delivery,
         type-checking,
         linting,
         license-check,
         security-audit,
+        dependency-trust,
       ]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     permissions:
@@ -1194,19 +1278,14 @@ jobs:
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
         with:
           python-version: "3.12"
-          cache: "pip"
-          cache-dependency-path: |
-            pyproject.toml
 
-      - name: Install build tools
-        run: |
-          python -m pip install --upgrade pip
-          pip install build twine "hatch" "virtualenv<21"
+      - name: Set up frozen release dependencies
+        uses: ./.github/actions/setup-frozen-python
 
       - name: Build package
         run: |
           echo "📦 Building SpecFact CLI package..."
-          hatch build
+          uv build --wheel
           ls -lh dist/
 
       - name: Validate package
@@ -1215,11 +1294,15 @@ jobs:
           twine check dist/*
 
       - name: Test installation
+        shell: bash
         run: |
+          set -euo pipefail
           echo "📥 Testing pip installation..."
-          pip install dist/*.whl
-          specfact --version || echo "⚠️ CLI not yet fully implemented"
-          pip uninstall -y specfact-cli
+          RELEASE_VENV="$RUNNER_TEMP/specfact-release-wheel"
+          python -m venv "$RELEASE_VENV"
+          "$RELEASE_VENV/bin/python" -m pip install --require-hashes -r requirements/ci/locked.txt
+          "$RELEASE_VENV/bin/python" -m pip install --no-deps dist/*.whl
+          "$RELEASE_VENV/bin/specfact" --version
 
       - name: Upload package artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
@@ -1248,16 +1331,15 @@ jobs:
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
         with:
           python-version: "3.12"
-          cache: "pip"
-          cache-dependency-path: |
-            pyproject.toml
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install build twine packaging
-          # Note: tomllib is part of Python 3.11+ standard library
-          # This project requires Python >= 3.11, so no additional TOML library needed
+      - name: Set up frozen publication dependencies
+        uses: ./.github/actions/setup-frozen-python
+
+      - name: Download tested package artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: python-package
+          path: dist
 
       - name: Make script executable
         run: chmod +x .github/workflows/scripts/check-and-publish-pypi.sh
@@ -1318,6 +1400,9 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Set up frozen release signing dependencies
+        uses: ./.github/actions/setup-frozen-python
+
       - name: Make scripts executable
         run: |
           chmod +x .github/workflows/scripts/generate-release-notes.sh
@@ -1337,8 +1422,6 @@ jobs:
             echo "❌ Missing required secret: SPECFACT_MODULE_PRIVATE_SIGN_KEY_PASSPHRASE"
             exit 1
           fi
-          python -m pip install --upgrade pip
-          python -m pip install pyyaml beartype icontract cryptography cffi
           python - <<'PY'
           import beartype
           import cffi

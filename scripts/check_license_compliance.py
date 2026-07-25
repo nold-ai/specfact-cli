@@ -71,12 +71,15 @@ def _validate_allowlist_entry(entry: object, *, index: int, allowlist_path: Path
     pkg = entry_map.get("package")
     lic = entry_map.get("license")
     reason = entry_map.get("reason", "")
+    version = entry_map.get("version")
     if not isinstance(pkg, str) or not pkg.strip():
         raise RuntimeError(f"Allowlist exceptions[{index}] must include non-empty 'package' in {allowlist_path}")
     if not isinstance(lic, str) or not lic.strip():
         raise RuntimeError(f"Allowlist exceptions[{index}] must include non-empty 'license' for package {pkg!r}")
     if not isinstance(reason, str) or not reason.strip():
         raise RuntimeError(f"Allowlist exceptions[{index}] must include non-empty 'reason' for package {pkg!r}")
+    if version is not None and (not isinstance(version, str) or not version.strip()):
+        raise RuntimeError(f"Allowlist exceptions[{index}] has invalid 'version' for package {pkg!r}")
     return cast(dict[str, str], entry_map)
 
 
@@ -181,6 +184,16 @@ def _is_gpl(license_expr: str) -> bool:
 
 
 @beartype
+def _is_mixed_gpl_metadata(license_expr: str) -> bool:
+    """Return whether metadata mixes a GPL token with permissive/public-domain terms."""
+    normalized = license_expr.upper()
+    permissive_markers = ("BSD", "MIT", "APACHE", "PUBLIC DOMAIN", "PSF")
+    license_terms = re.split(r"\s*(?:;|/|\bOR\b|\bAND\b)\s*", normalized)
+    has_gpl_term = any("LGPL" not in term and bool(_GPL_TOKEN_RE.search(term)) for term in license_terms)
+    return has_gpl_term and any(marker in normalized for marker in permissive_markers)
+
+
+@beartype
 def _report_unknown_env_license(name: str, version: str) -> None:
     _emit(f"WARNING: {name}=={version} has no resolvable license — manual review required")
 
@@ -191,6 +204,53 @@ def _allowlist_license_matches_observed(entry_license: str, observed_license: st
     left = entry_license.strip().lower()
     right = observed_license.strip().lower()
     return bool(left) and left == right
+
+
+@beartype
+def _allowlist_version_matches_observed(
+    entry: dict[str, str], observed_version: str, *, require_version: bool = False
+) -> bool:
+    """Return whether a reviewed version matches, with exact version required for mixed metadata."""
+    reviewed_version = entry.get("version", "").strip()
+    if not reviewed_version:
+        return not require_version
+    return reviewed_version == observed_version.strip()
+
+
+@beartype
+def _matching_allowlist_entries(
+    entries: list[dict[str, str]], license_expr: str, version: str, *, require_version: bool = False
+) -> list[dict[str, str]]:
+    """Return reviewed entries matching observed license metadata and version."""
+    return [
+        entry
+        for entry in entries
+        if _allowlist_license_matches_observed(str(entry.get("license", "")), license_expr)
+        and _allowlist_version_matches_observed(entry, version, require_version=require_version)
+    ]
+
+
+@beartype
+def _emit_allowlist_exception(name: str, version: str, license_expr: str, entries: list[dict[str, str]]) -> None:
+    """Report the reviewed rationale for an accepted license exception."""
+    reasons = "; ".join(
+        str(entry.get("reason", "")).strip() for entry in entries if str(entry.get("reason", "")).strip()
+    )
+    _emit(f"EXCEPTION: {name}=={version} ({license_expr}) — {reasons}")
+
+
+@beartype
+def _evaluate_mixed_gpl_metadata(name: str, version: str, license_expr: str, entries: list[dict[str, str]]) -> int:
+    """Require a version-specific review for metadata mixing GPL and permissive terms."""
+    reviewed_entries = _matching_allowlist_entries(entries, license_expr, version, require_version=True)
+    if reviewed_entries:
+        _emit_allowlist_exception(name, version, license_expr, reviewed_entries)
+        return 0
+    _emit(
+        f"LICENSE CLASSIFICATION REQUIRED: {name}=={version} uses mixed metadata ({license_expr}) — "
+        "add reviewed file-level licensing evidence before acceptance"
+    )
+    return 1
 
 
 @beartype
@@ -208,17 +268,17 @@ def _evaluate_env_package(
         return 0
 
     name_lower = name.lower()
+    entries_all = allowlist.get(name_lower, [])
+
+    if _is_mixed_gpl_metadata(license_expr):
+        return _evaluate_mixed_gpl_metadata(name, version, license_expr, entries_all)
+
     if not _is_gpl(license_expr):
         return 0
 
-    entries_all = allowlist.get(name_lower, [])
-    entries = [e for e in entries_all if _allowlist_license_matches_observed(str(e.get("license", "")), license_expr)]
+    entries = _matching_allowlist_entries(entries_all, license_expr, version)
     if entries:
-        reason_parts = [
-            str(entry.get("reason", "")).strip() for entry in entries if str(entry.get("reason", "")).strip()
-        ]
-        reasons = "; ".join(reason_parts)
-        _emit(f"EXCEPTION: {name}=={version} ({license_expr}) — {reasons}")
+        _emit_allowlist_exception(name, version, license_expr, entries)
         return 0
 
     _emit(f"LICENSE VIOLATION: {name}=={version} uses {license_expr} — GPL/AGPL incompatible with Apache-2.0")

@@ -9,7 +9,7 @@ from pathlib import Path
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-PYLINT_ROOTS = ("src", "tests", "tools")
+BASEDPYRIGHT_BIN = REPO_ROOT / "tools" / "basedpyright" / "node_modules" / ".bin" / "basedpyright"
 
 
 def _normalize_targets(argv: list[str]) -> list[str]:
@@ -34,13 +34,16 @@ def _normalize_targets(argv: list[str]) -> list[str]:
     return targets
 
 
-def _pylint_targets(targets: list[str]) -> list[str]:
-    return [target for target in targets if target.split("/", 1)[0] in PYLINT_ROOTS]
-
-
 def _run(cmd: list[str]) -> int:
     completed = subprocess.run(cmd, cwd=REPO_ROOT, check=False)
     return int(completed.returncode)
+
+
+def _ensure_basedpyright() -> int:
+    """Install the committed type checker only when its pinned executable is absent."""
+    if BASEDPYRIGHT_BIN.is_file():
+        return 0
+    return _run(["npm", "ci", "--ignore-scripts", "--prefix", "tools/basedpyright"])
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -52,18 +55,29 @@ def main(argv: list[str] | None = None) -> int:
 
     commands: list[list[str]] = [
         ["ruff", "format", "--check", *targets],
-        ["basedpyright", "--level", "error", "--pythonpath", sys.executable, *targets],
+        [
+            "bash",
+            "tools/run_basedpyright.sh",
+            "--project",
+            "pyproject.toml",
+            "--level",
+            "error",
+            "--pythonpath",
+            sys.executable,
+            *targets,
+        ],
         ["ruff", "check", *targets],
     ]
-    pylint_targets = _pylint_targets(targets)
-    if pylint_targets:
-        commands.append(["pylint", *pylint_targets])
     commands.append(["python", "scripts/verify_safe_project_writes.py"])
 
-    for cmd in commands:
+    for index, cmd in enumerate(commands):
         exit_code = _run(cmd)
         if exit_code != 0:
             return exit_code
+        if index == 0:
+            exit_code = _ensure_basedpyright()
+            if exit_code != 0:
+                return exit_code
     return 0
 
 

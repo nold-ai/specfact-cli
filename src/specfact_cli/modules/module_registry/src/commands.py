@@ -15,7 +15,6 @@ from typing import Annotated, Any, cast
 import typer
 import yaml
 from beartype import beartype
-from click.exceptions import Exit as ClickExit
 from icontract import ensure, require
 from packaging.version import InvalidVersion, Version
 from rich.console import Console
@@ -651,7 +650,7 @@ def uninstall(
         stripped = module_name.strip()
         try:
             _uninstall_single_module(stripped, scope, repo)
-        except ClickExit as exc:
+        except typer.Exit as exc:
             if exc.exit_code not in (0, None):
                 failed = True
     if failed:

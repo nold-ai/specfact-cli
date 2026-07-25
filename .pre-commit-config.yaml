@@ -19,6 +19,35 @@ repos:
         pass_filenames: false
         always_run: true
 
+      - id: dependency-trust-gate
+        name: Dependency trust gate (blocked releases and frozen-review binding)
+        entry: hatch run python scripts/check_dependency_trust_exceptions.py
+        language: system
+        pass_filenames: false
+        files: |
+          (?x)^(
+            pyproject\.toml|
+            uv\.lock|
+            requirements/ci/locked\.txt|
+            ci/dependency-trust-exceptions\.json|
+            ci/security-tool-minimum-versions\.json|
+            scripts/check_dependency_trust_exceptions\.py
+          )$
+
+      - id: frozen-cve-audit
+        name: Frozen CVE audit (exact lock export; reviewed exceptions only)
+        entry: hatch run security-audit
+        language: system
+        pass_filenames: false
+        files: |
+          (?x)^(
+            pyproject\.toml|
+            uv\.lock|
+            requirements/ci/locked\.txt|
+            ci/vulnerability-audit-exceptions\.json|
+            scripts/security_audit_gate\.py
+          )$
+
       # Runs only when canonical version files are staged — same scope as pr-orchestrator tests job
       # PyPI step (version_sources_changed). Skips routine commits when local == PyPI after a release.
       - id: check-local-version-ahead-of-pypi

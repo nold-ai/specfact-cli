@@ -1,0 +1,9 @@
+{
+  "name": "specfact-basedpyright-runner",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Locked CI runner for BasedPyright; never publish this package.",
+  "devDependencies": {
+    "basedpyright": "1.39.9"
+  }
+}

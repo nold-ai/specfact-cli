@@ -55,6 +55,16 @@ _GPL_PIP_LICENSES = json.dumps(
     ]
 )
 
+_MIXED_LICENSE_PIP_LICENSES = json.dumps(
+    [
+        {
+            "Name": "docutils",
+            "Version": "0.23",
+            "License": "BSD License; GNU General Public License (GPL); Public Domain",
+        }
+    ]
+)
+
 
 class TestCleanEnvironmentPasses:
     """Scenario: Installed environment is GPL-clean — gate passes."""
@@ -119,6 +129,71 @@ class TestGplViolationDetected:
         ):
             exit_code = mod.scan_installed_environment(allowlist=allowlist)
         assert exit_code == 1
+
+    def test_mixed_license_metadata_requires_reviewed_classification(self, mod, capsys) -> None:
+        """A GPL token in mixed metadata needs evidence, not a substring verdict."""
+        with patch.object(mod, "_run_pip_licenses", return_value=_MIXED_LICENSE_PIP_LICENSES):
+            exit_code = mod.scan_installed_environment(allowlist={})
+        assert exit_code == 1
+        assert "LICENSE CLASSIFICATION REQUIRED" in capsys.readouterr().out
+
+    def test_allowlist_version_mismatch_does_not_suppress_mixed_metadata(self, mod, capsys) -> None:
+        """A mixed-license exception is valid only for the reviewed package version."""
+        allowlist = {
+            "docutils": [
+                {
+                    "package": "docutils",
+                    "version": "0.22",
+                    "license": "BSD License; GNU General Public License (GPL); Public Domain",
+                    "scope": "dev-only",
+                    "reason": "stale review",
+                }
+            ]
+        }
+        with patch.object(mod, "_run_pip_licenses", return_value=_MIXED_LICENSE_PIP_LICENSES):
+            exit_code = mod.scan_installed_environment(allowlist=allowlist)
+        assert exit_code == 1
+        assert "LICENSE CLASSIFICATION REQUIRED" in capsys.readouterr().out
+
+    def test_empty_allowlist_version_does_not_suppress_mixed_metadata(self, mod, capsys) -> None:
+        """Mixed-license exceptions must always identify the reviewed package version."""
+        allowlist = {
+            "docutils": [
+                {
+                    "package": "docutils",
+                    "version": "",
+                    "license": "BSD License; GNU General Public License (GPL); Public Domain",
+                    "scope": "dev-only",
+                    "reason": "unsafe wildcard",
+                }
+            ]
+        }
+        with patch.object(mod, "_run_pip_licenses", return_value=_MIXED_LICENSE_PIP_LICENSES):
+            exit_code = mod.scan_installed_environment(allowlist=allowlist)
+        assert exit_code == 1
+        assert "LICENSE CLASSIFICATION REQUIRED" in capsys.readouterr().out
+
+    def test_mixed_metadata_with_lgpl_and_gpl_still_requires_review(self, mod) -> None:
+        """An LGPL term cannot mask a separate GPL term in mixed metadata."""
+        assert mod._is_mixed_gpl_metadata("LGPL-2.1-only; GPL-2.0-only; BSD License")
+
+    def test_matching_version_allows_reviewed_mixed_metadata(self, mod, capsys) -> None:
+        """A reviewed package/version pair is the only mixed-metadata acceptance path."""
+        allowlist = {
+            "docutils": [
+                {
+                    "package": "docutils",
+                    "version": "0.23",
+                    "license": "BSD License; GNU General Public License (GPL); Public Domain",
+                    "scope": "dev-only",
+                    "reason": "reviewed",
+                }
+            ]
+        }
+        with patch.object(mod, "_run_pip_licenses", return_value=_MIXED_LICENSE_PIP_LICENSES):
+            exit_code = mod.scan_installed_environment(allowlist=allowlist)
+        assert exit_code == 0
+        assert "EXCEPTION: docutils==0.23" in capsys.readouterr().out
 
 
 class TestAllowlistAccepted:

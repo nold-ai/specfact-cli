@@ -1,0 +1,25 @@
+name: Setup frozen Python environment
+description: Install uv and synchronize the checked-in dependency lock without resolver drift.
+
+runs:
+  using: composite
+  steps:
+    - name: Set up uv
+      uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e
+      with:
+        enable-cache: true
+        cache-dependency-glob: uv.lock
+    - name: Validate dependency trust before synchronization
+      shell: bash
+      run: python scripts/check_dependency_trust_exceptions.py
+    - name: Synchronize frozen project environment
+      shell: bash
+      run: |
+        set -euo pipefail
+        uv sync --locked --all-extras
+        if [ "$RUNNER_OS" = "Windows" ]; then
+          venv_bin="${GITHUB_WORKSPACE}/.venv/Scripts"
+        else
+          venv_bin="${GITHUB_WORKSPACE}/.venv/bin"
+        fi
+        echo "$venv_bin" >> "$GITHUB_PATH"

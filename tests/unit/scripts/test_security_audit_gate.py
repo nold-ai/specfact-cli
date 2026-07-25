@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+from datetime import date, timedelta
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -52,9 +53,9 @@ def test_main_warns_when_cvss_below_threshold(gate_mod, capsys) -> None:
     }
     proc = MagicMock(stdout=json.dumps(payload), stderr="", returncode=1)
     with patch.object(gate_mod.subprocess, "run", return_value=proc):
-        assert gate_mod.main() == 0
+        assert gate_mod.main() == 1
     out = capsys.readouterr().out
-    assert "WARNING" in out
+    assert "ACTION REQUIRED" in out
 
 
 def test_main_fails_when_cvss_at_or_above_threshold(gate_mod, capsys) -> None:
@@ -79,6 +80,23 @@ def test_main_fail_closed_on_empty_stdout(gate_mod) -> None:
         assert gate_mod.main() == 1
 
 
+def test_main_fails_when_strict_audit_skips_a_dependency(gate_mod, capsys) -> None:
+    """A strict audit cannot report success when any dependency was skipped."""
+    payload = {"dependencies": [{"name": "opaque", "skip_reason": "could not audit"}]}
+    proc = MagicMock(stdout=json.dumps(payload), stderr="", returncode=1)
+    with patch.object(gate_mod.subprocess, "run", return_value=proc):
+        assert gate_mod.main() == 1
+    assert "skipped dependency" in capsys.readouterr().err.lower()
+
+
+def test_main_fails_when_strict_audit_returns_an_unexplained_error(gate_mod, capsys) -> None:
+    """A nonzero strict-audit status without advisories is an audit failure."""
+    proc = MagicMock(stdout=json.dumps({"dependencies": []}), stderr="resolver failed", returncode=1)
+    with patch.object(gate_mod.subprocess, "run", return_value=proc):
+        assert gate_mod.main() == 1
+    assert "strict audit failed" in capsys.readouterr().err.lower()
+
+
 def test_main_fail_closed_when_pip_audit_unavailable(gate_mod) -> None:
     with patch.object(gate_mod.subprocess, "run", side_effect=FileNotFoundError("pip-audit not found")):
         assert gate_mod.main() == 1
@@ -101,12 +119,55 @@ def test_main_passes_with_top_level_list_json(gate_mod, capsys) -> None:
     assert "passed" in capsys.readouterr().out.lower()
 
 
-def test_main_runs_pip_audit_with_skip_editable_not_strict(gate_mod) -> None:
+def test_main_audits_the_frozen_requirements_file_in_strict_mode(gate_mod) -> None:
     payload = {"dependencies": [{"name": "requests", "version": "2.0.0", "vulns": []}]}
     proc = MagicMock(stdout=json.dumps(payload), stderr="", returncode=0)
     with patch.object(gate_mod.subprocess, "run", return_value=proc) as run_mock:
         assert gate_mod.main() == 0
     cmd = run_mock.call_args[0][0]
-    assert "--skip-editable" in cmd
-    assert "-S" not in cmd
-    assert "--strict" not in cmd
+    assert "--requirement" in cmd
+    assert "requirements/ci/locked.txt" in cmd
+    assert "--strict" in cmd
+    assert "--disable-pip" in cmd
+    assert "--skip-editable" not in cmd
+
+
+def test_main_rejects_an_unexpected_argument(gate_mod) -> None:
+    with pytest.raises(SystemExit, match="2"):
+        gate_mod.main(["--unknown"])
+
+
+def test_main_allows_only_a_matching_unexpired_reviewed_exception(gate_mod, tmp_path: Path, capsys) -> None:
+    """A non-upgradable transitive advisory needs an exact, short-lived review record."""
+    payload = {
+        "dependencies": [
+            {
+                "name": "mcp",
+                "version": "1.23.3",
+                "vulns": [{"id": "PYSEC-TEST-1", "description": "fixture"}],
+            }
+        ]
+    }
+    exceptions_path = tmp_path / "exceptions.json"
+    exceptions_path.write_text(
+        json.dumps(
+            {
+                "exceptions": [
+                    {
+                        "package": "mcp",
+                        "version": "1.23.3",
+                        "vulnerability_ids": ["PYSEC-TEST-1"],
+                        "reviewed_on": date.today().isoformat(),
+                        "expires_on": (date.today() + timedelta(days=1)).isoformat(),
+                        "rationale": "test fixture",
+                        "mitigation": "test fixture",
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+    proc = MagicMock(stdout=json.dumps(payload), stderr="", returncode=1)
+    with patch.object(gate_mod.subprocess, "run", return_value=proc):
+        assert gate_mod.main(["--exceptions", str(exceptions_path)]) == 0
+    assert "WAIVED" in capsys.readouterr().out

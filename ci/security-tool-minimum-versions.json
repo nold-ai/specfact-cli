@@ -1,0 +1,5 @@
+{
+  "minimum_versions": {
+    "semgrep": "1.171.0"
+  }
+}
