@@ -76,11 +76,22 @@ to `8.4.2`, Setuptools to `83.0.0`, Typer to `0.27.0`, and Semgrep to `1.171.0`.
 A checked-in minimum floor prevents a Semgrep downgrade below `1.171.0`.
 
 The audit found three remaining MCP advisories. They are introduced only by
-Semgrep `1.171.0`, whose published metadata pins `mcp==1.23.3`; the advisory
-fixes require `mcp>=1.28.1`. The repository keeps one exact, expiring exception
-through 2026-08-07: SpecFact does not expose MCP HTTP, SSE, Streamable HTTP,
-WebSocket, or experimental-task server endpoints, and Semgrep is subprocess-only.
-The gate rejects any new advisory, altered package/version/ID, or expired record.
+development-only Semgrep `1.171.0`, whose published metadata pins
+`mcp==1.23.3`; the advisory fixes require `mcp>=1.28.1`. MCP is not declared in
+the base `specfact-cli` wheel dependencies, but it is present in the all-extras
+frozen CI export. Dependabot therefore reports the resolved lock edge even
+though ordinary base-package installs do not receive it. The repository keeps
+one exact, expiring exception through 2026-08-07: SpecFact does not expose MCP
+HTTP, SSE, Streamable HTTP, WebSocket, or experimental-task server endpoints,
+and Semgrep is subprocess-only. Semgrep currently imports its MCP command at
+CLI startup, so a no-dependency installation is unsupported; project policy
+also rejects any `semgrep mcp` invocation. The gate rejects any new advisory,
+altered package/version/ID, or expired record.
+
+Semgrep's upstream [PR #11808](https://github.com/semgrep/semgrep/pull/11808)
+updates this exact pin to `mcp==1.28.1`. It was open and unreleased when this
+review was performed on 2026-07-25, so SpecFact must not consume it until a
+released Semgrep distribution includes the change.
 
 Dependabot opens weekly patch/minor Python update pull requests. It does not
 silently mutate a merged lock: each candidate remains subject to frozen-export,

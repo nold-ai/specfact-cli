@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import re
 import textwrap
 from pathlib import Path
 
@@ -8,6 +9,17 @@ import pytest
 
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
+
+
+def test_docs_json_gem_uses_the_patched_security_floor() -> None:
+    """The documentation-site lock must not reintroduce the alerted json release."""
+    gemfile = (REPO_ROOT / "docs" / "Gemfile").read_text(encoding="utf-8")
+    lockfile = (REPO_ROOT / "docs" / "Gemfile.lock").read_text(encoding="utf-8")
+
+    assert 'gem "json", ">= 2.19.9"' in gemfile
+    match = re.search(r"^    json \(([^)]+)\)$", lockfile, re.MULTILINE)
+    assert match is not None
+    assert tuple(int(part) for part in match.group(1).split(".")) >= (2, 19, 9)
 
 
 def _load_check_docs_commands() -> object:

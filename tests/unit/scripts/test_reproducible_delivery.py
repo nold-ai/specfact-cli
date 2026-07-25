@@ -54,11 +54,24 @@ def test_reproducible_delivery_verifier_bounds_uv_commands_and_fails_closed_on_t
 def test_reproducible_delivery_wheel_build_uses_a_locked_backend() -> None:
     """The no-isolation wheel proof must use the backend pinned in delivery inputs."""
     project = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
-    assert project["build-system"]["requires"] == ["hatchling==1.28.0"]
-    assert "hatchling==1.28.0" in project["project"]["optional-dependencies"]["dev"]
+    assert project["build-system"]["requires"] == ["hatchling==1.31.0"]
+    assert "hatchling==1.31.0" in project["project"]["optional-dependencies"]["dev"]
 
     workflow = (REPO_ROOT / ".github" / "workflows" / "pr-orchestrator.yml").read_text(encoding="utf-8")
     assert "Build package once\n        run: uv build --wheel --no-build-isolation" in workflow
+
+
+def test_reproducible_delivery_pins_pycg_consistently_across_tool_groups() -> None:
+    """All development tool groups must select the reviewed PyCG release."""
+    project = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    optional_dependencies = project["project"]["optional-dependencies"]
+    hatch_dependencies = project["tool"]["hatch"]["envs"]["default"]["dependencies"]
+    hatch_test_dependencies = project["tool"]["hatch"]["envs"]["hatch-test"]["dependencies"]
+
+    assert "pycg==0.0.8" in optional_dependencies["dev"]
+    assert "pycg==0.0.8" in optional_dependencies["enhanced-analysis"]
+    assert "pycg==0.0.8" in hatch_dependencies
+    assert "pycg==0.0.8" in hatch_test_dependencies
 
 
 def test_reproducible_delivery_refresh_rejects_a_symlinked_output_parent(tmp_path: Path) -> None:

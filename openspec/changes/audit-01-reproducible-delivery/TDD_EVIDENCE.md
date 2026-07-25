@@ -217,8 +217,6 @@ The pipx lane now exports a temporary PEP 751 `pylock.toml` from the committed
 the built wheel. Pipx installs the locked dependencies first, adds the wheel without
 dependency resolution, and runs `pip check` before exposing the launchers.
 
-Passing local evidence:
-
 ```text
 hatch run pytest tests/unit/workflows/test_trustworthy_green_checks.py -q
 44 passed
@@ -237,6 +235,57 @@ pip check: exit 0
 
 The local runtime exercise used Python 3.13 on macOS. The updated PR matrix remains
 the required hosted proof for Python 3.11, 3.12, and 3.13.
+
+## Dependabot frozen-lock repair — 2026-07-25
+
+Dependabot PR [#655](https://github.com/nold-ai/specfact-cli/pull/655) updates the
+development-only build backend from `hatchling==1.28.0` to `1.31.0` and PyCG from
+`0.0.7` to `0.0.8`. Its `Verify Module Signatures`, `Docs Review`, and `Contract
+Validation` workflows all failed before their task-specific checks because their
+shared setup ran `uv sync --locked --all-extras` against a lockfile that still
+described the old pins.
+
+The policy test was updated before the dependency metadata and frozen artifacts:
+
+```text
+hatch run pytest tests/unit/scripts/test_reproducible_delivery.py -q
+2 failed, 6 passed
+```
+
+The two failures required the reviewed Hatchling and PyCG versions across every
+development tool group. After changing only those declared pins and regenerating the
+committed lock and CI export:
+
+```text
+hatch run refresh-frozen-delivery
+Resolved 184 packages
+Updated hatchling v1.28.0 -> v1.31.0
+Updated pycg v0.0.7 -> v0.0.8
+reproducible delivery inputs are valid
+
+hatch run pytest tests/unit/scripts/test_reproducible_delivery.py -q
+8 passed
+
+uv lock --check
+Resolved 184 packages in 3ms
+
+uv sync --locked --all-extras
+Installed hatchling==1.31.0
+Installed pycg==0.0.8
+
+hatch run python scripts/check_reproducible_delivery.py
+reproducible delivery inputs are valid
+
+hatch run python scripts/check_dependency_trust_exceptions.py
+Dependency trust register is valid
+
+hatch run license-check
+PASS — overall exit code: 0
+```
+
+The remediation is applied directly to `dev` as requested; it does not merge or
+modify PR #655's Dependabot branch or `main`. No release version or changelog entry
+is needed because this is a development-only frozen-input repair.
 
 ## Review-comment remediation — 2026-07-25
 
@@ -628,4 +677,88 @@ hatch run lint-changed scripts/run_changed_lint.py \
   tests/unit/scripts/test_run_changed_lint.py \
   tests/unit/workflows/test_trustworthy_green_checks.py
 0 errors, 0 warnings, 0 notes
+```
+
+## Dependabot alert classification and docs lock repair — 2026-07-25
+
+The seven open Dependabot alerts represent two resolved dependency records, not
+seven independent packages. Three high alerts appear twice because
+`mcp==1.23.3` is present in both `uv.lock` and the generated CI export; the
+seventh is Ruby `json==2.17.1.2` in `docs/Gemfile.lock`.
+
+The wheel metadata proof establishes that `mcp` is not a base-package runtime
+requirement. It is transitively installed only when a user selects the published
+`dev` or `scanning` Semgrep extras. PyPI metadata checked on 2026-07-25 confirms
+Semgrep `1.171.0` is the newest upstream release and pins `mcp==1.23.3` exactly;
+the fixed MCP advisory floor is `1.28.1`. The existing exception remains visible,
+exact, and time-bounded while upstream has no compatible release. No `0.53.6`
+release was prepared because it could not truthfully remediate that optional-extra
+dependency.
+
+Upstream Semgrep [PR #11808](https://github.com/semgrep/semgrep/pull/11808)
+contains the matching `mcp==1.28.1` dependency update, but it remained open and
+unreleased when checked on 2026-07-25. The exception must be removed only after
+a released Semgrep version carries that fix and the frozen export verifies it.
+
+The Ruby documentation lock was outside the previous Python-only frozen CVE
+gate and Dependabot configuration. Tests were added before the configuration and
+lock update:
+
+```text
+hatch run pytest tests/unit/docs/test_docs_validation_scripts.py -q
+1 failed, 16 passed
+
+hatch run pytest \
+  tests/unit/workflows/test_trustworthy_green_checks.py::test_docs_ruby_lock_has_dependabot_and_security_floor_gates -q
+1 failed
+```
+
+The docs Gemfile now declares `json>=2.19.9`, the generated lock resolves
+`json==2.21.1`, Dependabot monitors `/docs` as a Bundler project, Docs Review
+runs the focused floor test, and pre-commit runs that same test when the Gemfile,
+lock, Dependabot configuration, or test changes.
+
+```text
+hatch run pytest tests/unit/docs/test_docs_validation_scripts.py \
+  tests/unit/workflows/test_trustworthy_green_checks.py::test_docs_ruby_lock_has_dependabot_and_security_floor_gates -q
+18 passed
+
+Ruby 3.2 / Bundler 2.3.5 isolated Jekyll build
+done
+
+hatch run security-audit
+Security audit passed. No unreviewed vulnerabilities found in the frozen requirements.
+```
+
+A temporary import blocker proved that Semgrep cannot currently run supported
+SAST without the declared MCP dependency: `semgrep scan` imports
+`semgrep.commands.mcp` at CLI startup and then imports `mcp.server`. The project
+therefore does not use an unsupported `--no-deps` installation. A workflow-policy
+test then rejected `semgrep mcp` across its initial invocation surfaces:
+`pyproject.toml`, the PR Orchestrator workflow, `scripts/`, and `src/`. The
+later remediation below extends that coverage to all GitHub automation and
+pre-commit configuration, preventing the affected server transports from being
+started accidentally:
+
+```text
+hatch run pytest \
+  tests/unit/workflows/test_trustworthy_green_checks.py::test_semgrep_mcp_server_is_not_invoked_by_project_automation \
+  tests/unit/workflows/test_trustworthy_green_checks.py::test_docs_ruby_lock_has_dependabot_and_security_floor_gates \
+  tests/unit/docs/test_docs_validation_scripts.py -q
+19 passed
+```
+
+## CodeRabbit automation-surface remediation — 2026-07-26
+
+CodeRabbit identified that the initial `semgrep mcp` policy test did not inspect
+GitHub workflow or composite-action files, nor `.pre-commit-config.yaml`. The
+policy test now scans the complete `.github/` tree and the pre-commit
+configuration in addition to Python, shell, and TOML automation surfaces. This
+is an enforcement-test coverage repair; it does not change Semgrep runtime
+behavior.
+
+```text
+hatch run pytest \
+  tests/unit/workflows/test_trustworthy_green_checks.py::test_semgrep_mcp_server_is_not_invoked_by_project_automation -q
+1 passed
 ```
