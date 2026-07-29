@@ -71,3 +71,17 @@ Production changes begin only after this failing evidence.
 - **Passing-after**: staged execution imported one requirement with two valid
   test links, returned `verdict: passed`, and wrote the JSON and Markdown
   reports before the signed commit retry.
+
+## CI runtime correction
+
+- **Timestamp**: 2026-07-29 (Europe/Berlin)
+- **Failing-before**: PR #658's `Requirements evidence` workflow installed the
+  frozen `.venv` successfully, then failed with `hatch: command not found`.
+  The workflow contract was tightened to require the frozen `uv run` form;
+  the focused contract test failed against the `hatch run` invocation.
+- **Passing-after**:
+  `hatch run pytest tests/unit/workflows/test_requirements_evidence_delivery_workflow.py tests/unit/scripts/test_requirements_evidence_delivery_gate.py -q`
+  returned 4 passed; `hatch run yaml-lint .github/workflows/requirements-evidence.yml`
+  passed; and the exact command
+  `SPECFACT_MODULES_REPO=/private/tmp/specfact-cli-modules-2438372 uv run --locked --no-sync specfact requirements evidence --repo-root <worktree> --base-ref origin/dev ...`
+  returned a passed verdict with both reports written.

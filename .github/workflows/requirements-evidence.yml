@@ -75,7 +75,7 @@ jobs:
         id: run-evidence
         continue-on-error: true
         run: |
-          hatch run specfact requirements evidence \
+          uv run --locked --no-sync specfact requirements evidence \
             --repo-root "$GITHUB_WORKSPACE" \
             --base-ref "origin/${{ github.base_ref }}" \
             --output artifacts/requirements-evidence/requirements-evidence.json \

@@ -16,7 +16,8 @@ def _assert_fixture_contract(raw: str) -> None:
 
 
 def _assert_command_contract(raw: str) -> None:
-    assert "specfact requirements evidence" in raw
+    assert "uv run --locked --no-sync specfact requirements evidence" in raw
+    assert "hatch run specfact requirements evidence" not in raw
     assert "--base-ref" in raw
     assert "artifacts/requirements-evidence/requirements-evidence.json" in raw
     assert "artifacts/requirements-evidence/requirements-evidence.md" in raw
