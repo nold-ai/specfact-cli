@@ -10,6 +10,17 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.54.0] - 2026-07-29
+
+### Added
+
+- **Requirements evidence delivery gate**: enforce the released,
+  SHA-pinned Requirements evidence command before Block 2 review and contract
+  checks, retain local JSON/Markdown remediation reports, and publish matching
+  pull-request summaries and artifacts.
+
+---
+
 ## [0.53.5] - 2026-07-25
 
 ### Fixed

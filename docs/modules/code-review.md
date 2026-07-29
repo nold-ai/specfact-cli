@@ -152,10 +152,19 @@ Use the self-review report for SpecFact-specific quality signals, and use Semgre
 
 ## Pre-Commit Review Gate
 
-This repository wires `specfact code review run` into **Block 2** of the modular pre-commit pipeline
+This repository wires delivery checks into **Block 2** of the modular pre-commit pipeline
 (`scripts/pre-commit-quality-checks.sh block2`), configured in `.pre-commit-config.yaml` alongside
 hooks that mirror `specfact-cli-modules` (module verify, format, staged YAML/Markdown/workflow checks,
-`hatch run lint` when Python is staged, then code review + contract tests).
+`hatch run lint` when Python is staged, then Requirements evidence, code review, and contract tests).
+
+When an active `openspec/changes/` source is staged, Block 2 first runs the released
+`specfact requirements evidence --staged` command. It accepts only the exact commit in
+[`ci/module-fixture.lock.json`](../../ci/module-fixture.lock.json): set
+`SPECFACT_MODULES_REPO` to a checkout at that commit before committing. A user-level installed module
+does not replace this fixture check. The hook retains JSON and Markdown remediation reports under
+`.specfact/reports/requirements-evidence/` and stops before code review or contract tests on a red
+verdict. Pull requests run the same command against the base reference and publish both reports as
+the `requirements-evidence` artifact.
 
 Downstream copies can either use the full modular config from this repo or a single hook
 `specfact-smart-checks` pointing at `scripts/pre-commit-smart-checks.sh` (shim → `scripts/pre-commit-quality-checks.sh all`).

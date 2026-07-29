@@ -1,0 +1,5 @@
+requirements:
+  "openspec:requirements-06-evidence-enforcement:requirements-evidence-delivery-gate:requirements-evidence-delivery-enforcement":
+    test_links:
+      - tests/unit/scripts/test_requirements_evidence_delivery_gate.py
+      - tests/unit/workflows/test_requirements_evidence_delivery_workflow.py
