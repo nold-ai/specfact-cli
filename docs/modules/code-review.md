@@ -159,7 +159,7 @@ hooks that mirror `specfact-cli-modules` (module verify, format, staged YAML/Mar
 
 When an active `openspec/changes/` source is staged, Block 2 first runs the released
 `specfact requirements evidence --staged` command. It accepts only the exact commit in
-[`ci/module-fixture.lock.json`](../../ci/module-fixture.lock.json): set
+`ci/module-fixture.lock.json`: set
 `SPECFACT_MODULES_REPO` to a checkout at that commit before committing. A user-level installed module
 does not replace this fixture check. The hook retains JSON and Markdown remediation reports under
 `.specfact/reports/requirements-evidence/` and stops before code review or contract tests on a red
