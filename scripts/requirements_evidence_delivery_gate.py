@@ -72,6 +72,7 @@ def _write_failure_reports(request: EvidenceRequest, message: str) -> None:
                 encoding="utf-8",
             )
     except OSError:
+        # Report writes are best-effort and must not mask the primary failure.
         pass
 
 

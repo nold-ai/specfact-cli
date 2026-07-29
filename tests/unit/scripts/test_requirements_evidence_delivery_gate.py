@@ -21,15 +21,14 @@ class GateModule(Protocol):
 
     EvidenceRequest: Callable[..., object]
 
-    def verify_fixture(
-        self, fixture: dict[str, object], fixture_root: Path, *, git_runner: Callable[..., str]
-    ) -> None: ...
+    def verify_fixture(self, fixture: dict[str, object], fixture_root: Path, *, git_runner: Callable[..., str]) -> None:
+        pass
 
-    def run_evidence_command(
-        self, request: object, fixture_root: Path, *, command_runner: Callable[..., int]
-    ) -> int: ...
+    def run_evidence_command(self, request: object, fixture_root: Path, *, command_runner: Callable[..., int]) -> int:
+        raise NotImplementedError
 
-    def main(self, argv: list[str] | None = None) -> int: ...
+    def main(self, argv: list[str] | None = None) -> int:
+        raise NotImplementedError
 
 
 class CapturedRequest(Protocol):
