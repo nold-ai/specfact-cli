@@ -2086,6 +2086,7 @@
     "source": "specfact_requirements.requirements.commands:app",
     "subcommands": [
       "coverage",
+      "evidence",
       "import",
       "list",
       "validate"
@@ -2101,6 +2102,26 @@
     "options": [
       "--bundle",
       "--format"
+    ],
+    "owner_package": "nold-ai/specfact-requirements",
+    "owner_repo": "nold-ai/specfact-cli-modules",
+    "short_help": "",
+    "source": "specfact_requirements.requirements.commands:app",
+    "subcommands": []
+  },
+  {
+    "arguments": [],
+    "bare_invocation": "executes",
+    "command": "specfact requirements evidence",
+    "deprecated": false,
+    "hidden": false,
+    "install_prerequisite": "specfact module install nold-ai/specfact-requirements",
+    "options": [
+      "--base-ref",
+      "--output",
+      "--repo-root",
+      "--staged",
+      "--summary"
     ],
     "owner_package": "nold-ai/specfact-requirements",
     "owner_repo": "nold-ai/specfact-cli-modules",
