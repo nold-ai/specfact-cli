@@ -8,6 +8,7 @@ import yaml
 
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
+APPROVED_MODULE_COMMIT = "2438372f8e34c96d4e474afa4c66c92a9cee7979"
 
 
 def _step_by_name(workflow: dict[str, object], name: str) -> dict[str, object]:
@@ -27,6 +28,8 @@ def _assert_fixture_contract(workflow: dict[str, object]) -> None:
     export_fixture = _step_by_name(workflow, "Export verified module fixture paths")
     assert "ci/module-fixture.lock.json" in read_fixture["run"]  # type: ignore[index]
     assert "nold-ai/specfact-cli-modules" in read_fixture["run"]  # type: ignore[index]
+    assert f'approved_commit="{APPROVED_MODULE_COMMIT}"' in read_fixture["run"]  # type: ignore[index]
+    assert 'test "$commit" = "$approved_commit"' in read_fixture["run"]  # type: ignore[index]
     assert "rev-parse HEAD" in verify_fixture["run"]  # type: ignore[index]
     assert "SPECFACT_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" in export_fixture["run"]  # type: ignore[index]
     assert "SPECFACT_MODULES_ROOTS=${GITHUB_WORKSPACE}/specfact-cli-modules/packages" in export_fixture["run"]  # type: ignore[index]
@@ -39,6 +42,10 @@ def _assert_command_contract(workflow: dict[str, object]) -> None:
     assert '--base-ref "origin/${EVIDENCE_BASE_BRANCH}"' in run_evidence["run"]  # type: ignore[index]
     assert run_evidence["env"]["EVIDENCE_BASE_BRANCH"]  # type: ignore[index]
     assert "workflow_dispatch" in workflow["on"]  # type: ignore[operator]
+    assert "fallback_required=0" in run_evidence["run"]  # type: ignore[index]
+    assert "fallback_required=1" in run_evidence["run"]  # type: ignore[index]
+    assert 'if [[ "$fallback_required" -eq 1 ]]; then' in run_evidence["run"]  # type: ignore[index]
+    assert "exit 1" in run_evidence["run"]  # type: ignore[index]
 
 
 def _assert_retention_contract(workflow: dict[str, object]) -> None:
