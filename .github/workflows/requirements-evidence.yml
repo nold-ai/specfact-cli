@@ -1,0 +1,124 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+# yamllint disable rule:line-length rule:truthy
+name: Requirements Evidence
+
+on:
+  pull_request:
+    branches: [main, dev]
+    paths:
+      - "openspec/changes/**"
+      - "ci/module-fixture.lock.json"
+      - "scripts/requirements_evidence_delivery_gate.py"
+      - ".github/workflows/requirements-evidence.yml"
+  workflow_dispatch:
+    inputs:
+      base_branch:
+        description: Base branch used to select changed Requirements sources.
+        required: true
+        default: dev
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  requirements-evidence:
+    name: Requirements evidence
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Read immutable module fixture
+        id: modules-fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          repository="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["repository"])')"
+          commit="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])')"
+          [[ "$repository" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]
+          test "$repository" = "nold-ai/specfact-cli-modules"
+          [[ "$commit" =~ ^[0-9a-f]{40}$ ]]
+          printf 'repository=%s\n' "$repository" >> "$GITHUB_OUTPUT"
+          printf 'commit=%s\n' "$commit" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout module bundles repo
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          repository: ${{ steps.modules-fixture.outputs.repository }}
+          path: specfact-cli-modules
+          ref: ${{ steps.modules-fixture.outputs.commit }}
+          persist-credentials: false
+
+      - name: Verify immutable module fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected_repository="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["repository"])')"
+          expected="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])')"
+          test "$expected_repository" = "${{ steps.modules-fixture.outputs.repository }}"
+          actual="$(git -C specfact-cli-modules rev-parse HEAD)"
+          test "$actual" = "$expected"
+
+      - name: Export verified module fixture paths
+        run: |
+          echo "SPECFACT_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" >> "$GITHUB_ENV"
+          echo "SPECFACT_MODULES_ROOTS=${GITHUB_WORKSPACE}/specfact-cli-modules/packages" >> "$GITHUB_ENV"
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: "3.12"
+
+      - name: Set up frozen delivery dependencies
+        uses: ./.github/actions/setup-frozen-python
+
+      - name: Prepare Requirements evidence artifact directory
+        run: mkdir -p artifacts/requirements-evidence
+
+      - name: Run Requirements evidence gate
+        id: run-evidence
+        continue-on-error: true
+        env:
+          EVIDENCE_BASE_BRANCH: ${{ github.event_name == 'pull_request' && github.base_ref || inputs.base_branch || github.event.repository.default_branch }}
+        run: |
+          set +e
+          [[ "$EVIDENCE_BASE_BRANCH" =~ ^[A-Za-z0-9._/-]+$ ]]
+          uv run --locked --no-sync specfact requirements evidence \
+            --repo-root "$GITHUB_WORKSPACE" \
+            --base-ref "origin/${EVIDENCE_BASE_BRANCH}" \
+            --output artifacts/requirements-evidence/requirements-evidence.json \
+            --summary artifacts/requirements-evidence/requirements-evidence.md
+          exit_code=$?
+          set -e
+          if [[ ! -s artifacts/requirements-evidence/requirements-evidence.json ]]; then
+            printf '{"schema_version":1,"verdict":"failed","diagnostic":"Evidence command exited with status %s before writing JSON."}\n' "$exit_code" > artifacts/requirements-evidence/requirements-evidence.json
+          fi
+          if [[ ! -s artifacts/requirements-evidence/requirements-evidence.md ]]; then
+            printf '## Requirements evidence unavailable\n\n- Diagnostic: Evidence command exited with status %s before writing Markdown.\n' "$exit_code" > artifacts/requirements-evidence/requirements-evidence.md
+          fi
+          exit "$exit_code"
+
+      - name: Publish Requirements evidence summary
+        if: always()
+        run: |
+          if [ -f artifacts/requirements-evidence/requirements-evidence.md ]; then
+            cat artifacts/requirements-evidence/requirements-evidence.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload requirements evidence artifact
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: requirements-evidence
+          path: |
+            artifacts/requirements-evidence/requirements-evidence.json
+            artifacts/requirements-evidence/requirements-evidence.md
+          if-no-files-found: warn
+
+      - name: Enforce requirements evidence verdict
+        if: steps.run-evidence.outcome == 'failure'
+        run: exit 1

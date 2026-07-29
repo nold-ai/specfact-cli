@@ -36,9 +36,10 @@ print_block1_overview() {
 print_block2_overview() {
   echo "" >&2
   echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" >&2
-  echo "  specfact-cli pre-commit — Block 2: code review + contract tests" >&2
-  echo "    1/2  code review gate (staged Python under src/, scripts/, tools/, tests/, openspec/changes/)" >&2
-  echo "    2/2  contract-first tests (contract-test-status → hatch run contract-test-contracts)" >&2
+  echo "  specfact-cli pre-commit — Block 2: Requirements evidence + delivery checks" >&2
+  echo "    1/3  Requirements evidence (staged active OpenSpec changes)" >&2
+  echo "    2/3  code review gate (staged Python under src/, scripts/, tools/, tests/, openspec/changes/)" >&2
+  echo "    3/3  contract-first tests (contract-test-status → hatch run contract-test-contracts)" >&2
   echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" >&2
   echo "" >&2
 }
@@ -394,6 +395,51 @@ run_lint_if_staged_python() {
   fi
 }
 
+has_staged_active_openspec_sources() {
+  local file
+  while IFS= read -r file || [[ -n "${file}" ]]; do
+    [[ -z "${file}" ]] && continue
+    case "${file}" in
+      openspec/changes/archive/*) ;;
+      openspec/changes/*) return 0 ;;
+    esac
+  done < <(git diff --cached --name-only --diff-filter=ACMRD -- openspec/changes)
+  return 1
+}
+
+run_requirements_evidence_gate() {
+  local report_dir=".specfact/reports/requirements-evidence"
+  local json_report="${report_dir}/requirements-evidence.json"
+  local markdown_report="${report_dir}/requirements-evidence.md"
+
+  if ! has_staged_active_openspec_sources; then
+    info "📦 Block 2 — Requirements evidence — skipped (no staged active OpenSpec source)"
+    return 0
+  fi
+
+  mkdir -p "${report_dir}"
+  info "📦 Block 2 — Requirements evidence — running released pinned fixture"
+  if hatch run python scripts/requirements_evidence_delivery_gate.py \
+    --repo-root . \
+    --staged \
+    --output "${json_report}" \
+    --summary "${markdown_report}"; then
+    if [[ ! -s "${json_report}" || ! -s "${markdown_report}" ]]; then
+      error "❌ Block 2 — Requirements evidence did not produce both remediation reports"
+      exit 1
+    fi
+    success "✅ Block 2 — Requirements evidence passed (${json_report}; ${markdown_report})"
+  else
+    error "❌ Block 2 — Requirements evidence failed"
+    if [[ -s "${json_report}" && -s "${markdown_report}" ]]; then
+      warn "💡 Review ${json_report} and ${markdown_report}; set SPECFACT_MODULES_REPO to the checkout pinned in ci/module-fixture.lock.json."
+    else
+      warn "💡 Requirements evidence failed before diagnostic reports could be written; inspect the command output and fixture checkout."
+    fi
+    exit 1
+  fi
+}
+
 run_code_review_gate() {
   local review_array=()
   while IFS= read -r line || [[ -n "${line}" ]]; do
@@ -532,13 +578,14 @@ run_block1_lint() {
 
 run_block2() {
   warn "🔍 specfact-cli pre-commit — Block 2 — hook: review + contract tests"
+  print_block2_overview
+  run_requirements_evidence_gate
   run_command_overview_validation_gate
   if check_safe_change; then
     success "✅ Safe change detected — skipping Block 2 (code review + contract tests)"
     info "💡 Only docs (incl. *.mdc), workflow, version files, or allowlisted infra changed"
     exit 0
   fi
-  print_block2_overview
   run_code_review_gate
   check_contract_script_exists
   run_contract_tests_visible
@@ -556,13 +603,14 @@ run_all() {
   run_workflow_lint_if_needed
   run_lint_if_staged_python
   success "✅ Block 1 complete (all stages passed or skipped as expected)"
+  print_block2_overview
+  run_requirements_evidence_gate
   run_command_overview_validation_gate
   if check_safe_change; then
     success "✅ Safe change detected — skipping Block 2 (code review + contract tests)"
     info "💡 Only docs (incl. *.mdc), workflow, version files, or allowlisted infra changed"
     exit 0
   fi
-  print_block2_overview
   run_code_review_gate
   check_contract_script_exists
   run_contract_tests_visible
