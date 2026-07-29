@@ -57,8 +57,10 @@ jobs:
           actual="$(git -C specfact-cli-modules rev-parse HEAD)"
           test "$actual" = "$expected"
 
-      - name: Export verified module fixture path
-        run: echo "SPECFACT_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" >> "$GITHUB_ENV"
+      - name: Export verified module fixture paths
+        run: |
+          echo "SPECFACT_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" >> "$GITHUB_ENV"
+          echo "SPECFACT_MODULES_ROOTS=${GITHUB_WORKSPACE}/specfact-cli-modules/packages" >> "$GITHUB_ENV"
 
       - name: Set up Python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405

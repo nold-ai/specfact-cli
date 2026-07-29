@@ -13,6 +13,7 @@ def _assert_fixture_contract(raw: str) -> None:
     assert "nold-ai/specfact-cli-modules" in raw
     assert "Verify immutable module fixture" in raw
     assert "SPECFACT_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" in raw
+    assert "SPECFACT_MODULES_ROOTS=${GITHUB_WORKSPACE}/specfact-cli-modules/packages" in raw
 
 
 def _assert_command_contract(raw: str) -> None:

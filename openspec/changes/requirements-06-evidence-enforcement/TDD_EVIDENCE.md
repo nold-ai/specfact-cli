@@ -85,3 +85,17 @@ Production changes begin only after this failing evidence.
   passed; and the exact command
   `SPECFACT_MODULES_REPO=/private/tmp/specfact-cli-modules-2438372 uv run --locked --no-sync specfact requirements evidence --repo-root <worktree> --base-ref origin/dev ...`
   returned a passed verdict with both reports written.
+
+## CI fixture-discovery correction
+
+- **Timestamp**: 2026-07-29 (Europe/Berlin)
+- **Failing-before**: After the frozen launcher correction, PR #658 still
+  failed because the runner could not discover `nold-ai/specfact-requirements`
+  from the checked-out fixture. The workflow contract was tightened to require
+  `SPECFACT_MODULES_ROOTS=<fixture>/packages`; the focused test failed before
+  that export existed.
+- **Passing-after**:
+  `hatch run pytest tests/unit/workflows/test_requirements_evidence_delivery_workflow.py tests/unit/scripts/test_requirements_evidence_delivery_gate.py -q`
+  returned 4 passed and the exact frozen command, with an empty `HOME` and both
+  `SPECFACT_MODULES_REPO` and `SPECFACT_MODULES_ROOTS` set to the pinned fixture,
+  returned a passed verdict and wrote both reports.
