@@ -48,11 +48,12 @@ Production changes begin only after this failing evidence.
   - Generated command overview, command-contract, docs-command,
     documentation-accountability, frontmatter, whitespace, and strict OpenSpec
     validation checks.
-- **Incomplete**:
-  - `hatch run contract-test` and `hatch run smart-test` each forced a fresh
-    2,936-test baseline in this worktree and stopped before a final summary in
-    the available execution window. Focused delivery-gate tests remain green;
-    rerun these two full gates from a persistent terminal before PR creation.
+  - `hatch run contract-test` — passed (no modified files; cached baseline).
+  - `hatch run smart-test` — passed: 2,931 passed, 9 skipped, 2 warnings in
+    145.33s; exit 0. The full run log is
+    `logs/tests/test_run_20260729_225301.log`.
+  - PR #658 required CI — passed: Contract Validation, Workflow Lint, and the
+    Python 3.12 full test suite (4m29s), plus the aggregate Quality Gates job.
 
 ## Release preparation
 

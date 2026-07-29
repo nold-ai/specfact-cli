@@ -23,7 +23,7 @@
 
 ## 4. Verification, documentation, and delivery
 
-- [ ] 4.1 Run focused tests, then format, type-check, lint, YAML lint, contract tests, smart tests, and workflow lint; record passing-after evidence.
+- [x] 4.1 Run focused tests, then format, type-check, lint, YAML lint, contract tests, smart tests, and workflow lint; record passing-after evidence.
 - [x] 4.2 Run fresh SpecFact code review JSON and independent Semgrep/Bandit checks; resolve all findings.
 - [x] 4.3 Update affected core delivery and Requirements evidence documentation without duplicating modules command documentation.
 - [x] 4.4 Bump the feature version and changelog after implementation, then verify synchronized version sources and released-fixture integrity.
