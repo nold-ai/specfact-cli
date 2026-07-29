@@ -39,9 +39,11 @@ jobs:
           set -euo pipefail
           repository="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["repository"])')"
           commit="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])')"
+          approved_commit="2438372f8e34c96d4e474afa4c66c92a9cee7979"
           [[ "$repository" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]
           test "$repository" = "nold-ai/specfact-cli-modules"
           [[ "$commit" =~ ^[0-9a-f]{40}$ ]]
+          test "$commit" = "$approved_commit"
           printf 'repository=%s\n' "$repository" >> "$GITHUB_OUTPUT"
           printf 'commit=%s\n' "$commit" >> "$GITHUB_OUTPUT"
 
@@ -94,11 +96,17 @@ jobs:
             --summary artifacts/requirements-evidence/requirements-evidence.md
           exit_code=$?
           set -e
+          fallback_required=0
           if [[ ! -s artifacts/requirements-evidence/requirements-evidence.json ]]; then
             printf '{"schema_version":1,"verdict":"failed","diagnostic":"Evidence command exited with status %s before writing JSON."}\n' "$exit_code" > artifacts/requirements-evidence/requirements-evidence.json
+            fallback_required=1
           fi
           if [[ ! -s artifacts/requirements-evidence/requirements-evidence.md ]]; then
             printf '## Requirements evidence unavailable\n\n- Diagnostic: Evidence command exited with status %s before writing Markdown.\n' "$exit_code" > artifacts/requirements-evidence/requirements-evidence.md
+            fallback_required=1
+          fi
+          if [[ "$fallback_required" -eq 1 ]]; then
+            exit 1
           fi
           exit "$exit_code"
 
