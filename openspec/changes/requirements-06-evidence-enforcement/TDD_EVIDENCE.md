@@ -112,6 +112,16 @@ Production changes begin only after this failing evidence.
   `hatch run pytest tests/unit/scripts/test_requirements_evidence_delivery_gate.py tests/unit/workflows/test_requirements_evidence_delivery_workflow.py tests/unit/docs/test_release_docs_parity.py::test_docs_links_resolve_to_published_docs_targets -q`
   returned 9 passed; `hatch run openspec validate requirements-06-evidence-enforcement --strict`
   and `hatch run yaml-lint .github/workflows/requirements-evidence.yml` passed.
-- **Pending CI evidence**: The complete contract and smart-test gates remain
-  recorded as pending until the PR’s active full-suite job completes; task 4.1
-  is intentionally not marked complete before that result is available.
+- **Full verification evidence**: `hatch run contract-test` and `hatch run
+  smart-test` passed locally; PR #658's Contract Validation, Python 3.12 full
+  test suite, Workflow Lint, and aggregate Quality Gates job also passed.
+
+## Follow-up CodeRabbit remediation
+
+- **Timestamp**: 2026-07-29 (Europe/Berlin)
+- **Failing-before**: The focused gate test preserved a prior passing report
+  after an invalid-fixture failure, allowing stale evidence to be reused.
+- **Passing-after**: The gate resets both report destinations before fixture
+  validation, then writes fresh diagnostics on failure. The focused suite now
+  returns 8 passed, including the stale-report regression and workflow
+  id/order contracts; Ruff and BasedPyright complete with 0 errors.

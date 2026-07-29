@@ -15,6 +15,12 @@ def _step_by_name(workflow: dict[str, object], name: str) -> dict[str, object]:
     return next(step for step in steps if step.get("name") == name)  # type: ignore[union-attr,return-value]
 
 
+def _step_index(workflow: dict[str, object], name: str) -> int:
+    """Return a named step's position in the evidence job."""
+    steps = workflow["jobs"]["requirements-evidence"]["steps"]  # type: ignore[index]
+    return next(index for index, step in enumerate(steps) if step.get("name") == name)  # type: ignore[union-attr]
+
+
 def _assert_fixture_contract(workflow: dict[str, object]) -> None:
     read_fixture = _step_by_name(workflow, "Read immutable module fixture")
     verify_fixture = _step_by_name(workflow, "Verify immutable module fixture")
@@ -28,6 +34,7 @@ def _assert_fixture_contract(workflow: dict[str, object]) -> None:
 
 def _assert_command_contract(workflow: dict[str, object]) -> None:
     run_evidence = _step_by_name(workflow, "Run Requirements evidence gate")
+    assert run_evidence["id"] == "run-evidence"  # type: ignore[index]
     assert "uv run --locked --no-sync specfact requirements evidence" in run_evidence["run"]  # type: ignore[index]
     assert '--base-ref "origin/${EVIDENCE_BASE_BRANCH}"' in run_evidence["run"]  # type: ignore[index]
     assert run_evidence["env"]["EVIDENCE_BASE_BRANCH"]  # type: ignore[index]
@@ -48,6 +55,12 @@ def _assert_retention_contract(workflow: dict[str, object]) -> None:
     ]
     assert enforce["if"] == "steps.run-evidence.outcome == 'failure'"  # type: ignore[index]
     assert enforce["run"] == "exit 1"  # type: ignore[index]
+    assert _step_index(workflow, "Publish Requirements evidence summary") < _step_index(
+        workflow, "Enforce requirements evidence verdict"
+    )
+    assert _step_index(workflow, "Upload requirements evidence artifact") < _step_index(
+        workflow, "Enforce requirements evidence verdict"
+    )
 
 
 def test_requirements_evidence_workflow_uses_the_released_fixture_and_retains_reports() -> None:

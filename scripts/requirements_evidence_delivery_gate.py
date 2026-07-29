@@ -49,6 +49,13 @@ def _git_head(arguments: list[str]) -> str:
     return subprocess.run(arguments, check=True, capture_output=True, text=True).stdout.strip()
 
 
+def _reset_report_paths(request: EvidenceRequest) -> None:
+    """Remove prior evidence so each invocation owns its resulting reports."""
+    for report_path in (request.output_path, request.summary_path):
+        report_path.parent.mkdir(parents=True, exist_ok=True)
+        report_path.unlink(missing_ok=True)
+
+
 def _write_failure_reports(request: EvidenceRequest, message: str) -> None:
     """Write minimal diagnostics without replacing module-owned reports."""
     try:
@@ -176,10 +183,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         summary_path=arguments.summary,
     )
     try:
+        _reset_report_paths(request)
         fixture_root = _fixture_root_from_environment(arguments)
         verify_fixture(_read_fixture_lock(request.repo_root), fixture_root)
         return run_evidence_command(request, fixture_root)
-    except ValueError as error:
+    except (OSError, ValueError) as error:
         _write_failure_reports(request, str(error))
         parser.error(str(error))
     return 2

@@ -32,6 +32,12 @@ class GateModule(Protocol):
     def main(self, argv: list[str] | None = None) -> int: ...
 
 
+class CapturedRequest(Protocol):
+    """Minimal assertion surface retained from a delegated evidence request."""
+
+    selection: tuple[str, str | None]
+
+
 def _load_gate_module() -> GateModule:
     spec = importlib.util.spec_from_file_location("requirements_evidence_delivery_gate", GATE_SCRIPT)
     if spec is None or spec.loader is None:
@@ -157,6 +163,8 @@ def test_main_rejects_invalid_fixture_before_command_execution_and_writes_diagno
     fixture.mkdir()
     json_report = tmp_path / "evidence.json"
     markdown_report = tmp_path / "evidence.md"
+    json_report.write_text('{"verdict":"passed"}\n', encoding="utf-8")
+    markdown_report.write_text("## Previous passing evidence\n", encoding="utf-8")
     invoked = False
 
     def _unexpected_command(*_args: object, **_kwargs: object) -> int:
@@ -183,6 +191,7 @@ def test_main_rejects_invalid_fixture_before_command_execution_and_writes_diagno
     assert not invoked
     assert json.loads(json_report.read_text(encoding="utf-8"))["verdict"] == "failed"
     assert "must target nold-ai/specfact-cli-modules" in markdown_report.read_text(encoding="utf-8")
+    assert "Previous passing evidence" not in markdown_report.read_text(encoding="utf-8")
 
 
 @pytest.mark.parametrize("selection", [("--staged",), ("--base-ref", "origin/dev")])
@@ -223,7 +232,7 @@ def test_main_forwards_selection_and_verified_fixture(
         ]
     )
 
-    request = cast(object, captured["request"])
+    request = cast(CapturedRequest, captured["request"])
     assert result == 0
     assert captured["fixture_root"] == fixture.resolve()
     assert request.selection == (("--staged", None) if selection == ("--staged",) else ("--base-ref", "origin/dev"))
