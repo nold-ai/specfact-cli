@@ -99,3 +99,18 @@ Production changes begin only after this failing evidence.
   returned 4 passed and the exact frozen command, with an empty `HOME` and both
   `SPECFACT_MODULES_REPO` and `SPECFACT_MODULES_ROOTS` set to the pinned fixture,
   returned a passed verdict and wrote both reports.
+
+## CodeRabbit remediation
+
+- **Timestamp**: 2026-07-29 (Europe/Berlin)
+- **Failing-before**: Expanded focused tests failed for the missing exact-SHA
+  check, dirty-fixture rejection, fixture package-root export, diagnostic
+  reports after command-start failure, CLI-boundary coverage, and step-aware
+  workflow contract assertions.
+- **Passing-after**:
+  `hatch run pytest tests/unit/scripts/test_requirements_evidence_delivery_gate.py tests/unit/workflows/test_requirements_evidence_delivery_workflow.py tests/unit/docs/test_release_docs_parity.py::test_docs_links_resolve_to_published_docs_targets -q`
+  returned 9 passed; `hatch run openspec validate requirements-06-evidence-enforcement --strict`
+  and `hatch run yaml-lint .github/workflows/requirements-evidence.yml` passed.
+- **Pending CI evidence**: The complete contract and smart-test gates remain
+  recorded as pending until the PR’s active full-suite job completes; task 4.1
+  is intentionally not marked complete before that result is available.

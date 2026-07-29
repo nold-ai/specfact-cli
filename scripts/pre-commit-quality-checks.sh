@@ -424,10 +424,18 @@ run_requirements_evidence_gate() {
     --staged \
     --output "${json_report}" \
     --summary "${markdown_report}"; then
+    if [[ ! -s "${json_report}" || ! -s "${markdown_report}" ]]; then
+      error "❌ Block 2 — Requirements evidence did not produce both remediation reports"
+      exit 1
+    fi
     success "✅ Block 2 — Requirements evidence passed (${json_report}; ${markdown_report})"
   else
     error "❌ Block 2 — Requirements evidence failed"
-    warn "💡 Review ${json_report} and ${markdown_report}; set SPECFACT_MODULES_REPO to the checkout pinned in ci/module-fixture.lock.json."
+    if [[ -s "${json_report}" && -s "${markdown_report}" ]]; then
+      warn "💡 Review ${json_report} and ${markdown_report}; set SPECFACT_MODULES_REPO to the checkout pinned in ci/module-fixture.lock.json."
+    else
+      warn "💡 Requirements evidence failed before diagnostic reports could be written; inspect the command output and fixture checkout."
+    fi
     exit 1
   fi
 }

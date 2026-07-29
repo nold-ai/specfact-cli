@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import sys
 from collections.abc import Callable
 from pathlib import Path
@@ -28,6 +29,8 @@ class GateModule(Protocol):
         self, request: object, fixture_root: Path, *, command_runner: Callable[..., int]
     ) -> int: ...
 
+    def main(self, argv: list[str] | None = None) -> int: ...
+
 
 def _load_gate_module() -> GateModule:
     spec = importlib.util.spec_from_file_location("requirements_evidence_delivery_gate", GATE_SCRIPT)
@@ -39,7 +42,7 @@ def _load_gate_module() -> GateModule:
     return cast(GateModule, module)
 
 
-def test_verified_fixture_requires_exact_released_identity(tmp_path: Path) -> None:
+def test_verified_fixture_requires_exact_released_identity_and_clean_tree(tmp_path: Path) -> None:
     """Mutable, missing, or wrong-SHA fixture sources must be rejected before execution."""
     module = _load_gate_module()
 
@@ -59,14 +62,28 @@ def test_verified_fixture_requires_exact_released_identity(tmp_path: Path) -> No
             git_runner=lambda *_: "",
         )
 
-    with pytest.raises(ValueError, match="does not match"):  # type: ignore[reportUnknownMemberType]
+    with pytest.raises(ValueError, match="must use approved release commit"):  # type: ignore[reportUnknownMemberType]
+        module.verify_fixture(
+            {
+                "repository": "nold-ai/specfact-cli-modules",
+                "commit": "0000000000000000000000000000000000000000",
+            },
+            tmp_path,
+            git_runner=lambda *_: "0000000000000000000000000000000000000000",
+        )
+
+    with pytest.raises(ValueError, match="must be clean"):  # type: ignore[reportUnknownMemberType]
         module.verify_fixture(
             {
                 "repository": "nold-ai/specfact-cli-modules",
                 "commit": "2438372f8e34c96d4e474afa4c66c92a9cee7979",
             },
             tmp_path,
-            git_runner=lambda *_: "0000000000000000000000000000000000000000",
+            git_runner=lambda arguments: (
+                "2438372f8e34c96d4e474afa4c66c92a9cee7979"
+                if arguments[-2:] == ["rev-parse", "HEAD"]
+                else " M package.py\n"
+            ),
         )
 
 
@@ -97,6 +114,119 @@ def test_staged_red_verdict_keeps_both_report_destinations(tmp_path: Path) -> No
     assert observed == 1
     assert json_report.read_text(encoding="utf-8") == '{"verdict":"failed"}\n'
     assert markdown_report.read_text(encoding="utf-8") == "## Requirements evidence\n"
+
+
+def test_failed_command_writes_missing_diagnostic_reports_and_exports_fixture_roots(tmp_path: Path) -> None:
+    """A startup failure must retain diagnostics and discover only the verified fixture."""
+    module = _load_gate_module()
+    fixture = tmp_path / "fixture"
+    fixture.mkdir()
+    json_report = tmp_path / "reports" / "evidence.json"
+    markdown_report = tmp_path / "reports" / "evidence.md"
+    observed_environment: dict[str, str] = {}
+
+    observed = module.run_evidence_command(
+        module.EvidenceRequest(
+            repo_root=tmp_path,
+            selection=("--base-ref", "origin/dev"),
+            output_path=json_report,
+            summary_path=markdown_report,
+        ),
+        fixture,
+        command_runner=lambda _arguments, environment: (observed_environment.update(environment), 1)[1],
+    )
+
+    assert observed == 1
+    assert observed_environment["SPECFACT_MODULES_REPO"] == str(fixture.resolve())
+    assert observed_environment["SPECFACT_MODULES_ROOTS"] == str((fixture / "packages").resolve())
+    assert json.loads(json_report.read_text(encoding="utf-8"))["verdict"] == "failed"
+    assert "Requirements evidence unavailable" in markdown_report.read_text(encoding="utf-8")
+
+
+def test_main_rejects_invalid_fixture_before_command_execution_and_writes_diagnostics(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """CLI execution must fail closed before delegating an invalid fixture."""
+    module = _load_gate_module()
+    (tmp_path / "ci").mkdir()
+    (tmp_path / "ci" / "module-fixture.lock.json").write_text(
+        json.dumps({"repository": "example/other", "commit": "2438372f8e34c96d4e474afa4c66c92a9cee7979"}),
+        encoding="utf-8",
+    )
+    fixture = tmp_path / "fixture"
+    fixture.mkdir()
+    json_report = tmp_path / "evidence.json"
+    markdown_report = tmp_path / "evidence.md"
+    invoked = False
+
+    def _unexpected_command(*_args: object, **_kwargs: object) -> int:
+        nonlocal invoked
+        invoked = True
+        return 0
+
+    monkeypatch.setenv("SPECFACT_MODULES_REPO", str(fixture))
+    monkeypatch.setattr(module, "run_evidence_command", _unexpected_command)
+
+    with pytest.raises(SystemExit):
+        module.main(
+            [
+                "--repo-root",
+                str(tmp_path),
+                "--staged",
+                "--output",
+                str(json_report),
+                "--summary",
+                str(markdown_report),
+            ]
+        )
+
+    assert not invoked
+    assert json.loads(json_report.read_text(encoding="utf-8"))["verdict"] == "failed"
+    assert "must target nold-ai/specfact-cli-modules" in markdown_report.read_text(encoding="utf-8")
+
+
+@pytest.mark.parametrize("selection", [("--staged",), ("--base-ref", "origin/dev")])
+def test_main_forwards_selection_and_verified_fixture(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, selection: tuple[str, ...]
+) -> None:
+    """CLI boundary must delegate the caller selection only after fixture verification."""
+    module = _load_gate_module()
+    fixture = tmp_path / "fixture"
+    fixture.mkdir()
+    captured: dict[str, object] = {}
+    monkeypatch.setattr(
+        module,
+        "_read_fixture_lock",
+        lambda _repo_root: {
+            "repository": "nold-ai/specfact-cli-modules",
+            "commit": "2438372f8e34c96d4e474afa4c66c92a9cee7979",
+        },
+    )
+    monkeypatch.setattr(module, "verify_fixture", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(
+        module,
+        "run_evidence_command",
+        lambda request, fixture_root: captured.update({"request": request, "fixture_root": fixture_root}) or 0,
+    )
+
+    result = module.main(
+        [
+            "--repo-root",
+            str(tmp_path),
+            "--fixture-root",
+            str(fixture),
+            *selection,
+            "--output",
+            str(tmp_path / "evidence.json"),
+            "--summary",
+            str(tmp_path / "evidence.md"),
+        ]
+    )
+
+    request = cast(object, captured["request"])
+    assert result == 0
+    assert captured["fixture_root"] == fixture.resolve()
+    assert request.selection == (("--staged", None) if selection == ("--staged",) else ("--base-ref", "origin/dev"))
 
 
 def test_pre_commit_places_evidence_before_review_and_contracts() -> None:

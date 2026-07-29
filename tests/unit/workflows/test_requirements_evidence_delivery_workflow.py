@@ -4,38 +4,58 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import yaml
+
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 
 
-def _assert_fixture_contract(raw: str) -> None:
-    assert "ci/module-fixture.lock.json" in raw
-    assert "nold-ai/specfact-cli-modules" in raw
-    assert "Verify immutable module fixture" in raw
-    assert "SPECFACT_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" in raw
-    assert "SPECFACT_MODULES_ROOTS=${GITHUB_WORKSPACE}/specfact-cli-modules/packages" in raw
+def _step_by_name(workflow: dict[str, object], name: str) -> dict[str, object]:
+    steps = workflow["jobs"]["requirements-evidence"]["steps"]  # type: ignore[index]
+    return next(step for step in steps if step.get("name") == name)  # type: ignore[union-attr,return-value]
 
 
-def _assert_command_contract(raw: str) -> None:
-    assert "uv run --locked --no-sync specfact requirements evidence" in raw
-    assert "hatch run specfact requirements evidence" not in raw
-    assert "--base-ref" in raw
-    assert "artifacts/requirements-evidence/requirements-evidence.json" in raw
-    assert "artifacts/requirements-evidence/requirements-evidence.md" in raw
+def _assert_fixture_contract(workflow: dict[str, object]) -> None:
+    read_fixture = _step_by_name(workflow, "Read immutable module fixture")
+    verify_fixture = _step_by_name(workflow, "Verify immutable module fixture")
+    export_fixture = _step_by_name(workflow, "Export verified module fixture paths")
+    assert "ci/module-fixture.lock.json" in read_fixture["run"]  # type: ignore[index]
+    assert "nold-ai/specfact-cli-modules" in read_fixture["run"]  # type: ignore[index]
+    assert "rev-parse HEAD" in verify_fixture["run"]  # type: ignore[index]
+    assert "SPECFACT_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" in export_fixture["run"]  # type: ignore[index]
+    assert "SPECFACT_MODULES_ROOTS=${GITHUB_WORKSPACE}/specfact-cli-modules/packages" in export_fixture["run"]  # type: ignore[index]
 
 
-def _assert_retention_contract(raw: str) -> None:
-    assert "GITHUB_STEP_SUMMARY" in raw
-    assert raw.count("if: always()") >= 2
-    assert raw.index("Upload requirements evidence artifact") < raw.index("Enforce requirements evidence verdict")
+def _assert_command_contract(workflow: dict[str, object]) -> None:
+    run_evidence = _step_by_name(workflow, "Run Requirements evidence gate")
+    assert "uv run --locked --no-sync specfact requirements evidence" in run_evidence["run"]  # type: ignore[index]
+    assert '--base-ref "origin/${EVIDENCE_BASE_BRANCH}"' in run_evidence["run"]  # type: ignore[index]
+    assert run_evidence["env"]["EVIDENCE_BASE_BRANCH"]  # type: ignore[index]
+    assert "workflow_dispatch" in workflow["on"]  # type: ignore[operator]
+
+
+def _assert_retention_contract(workflow: dict[str, object]) -> None:
+    publish = _step_by_name(workflow, "Publish Requirements evidence summary")
+    upload = _step_by_name(workflow, "Upload requirements evidence artifact")
+    enforce = _step_by_name(workflow, "Enforce requirements evidence verdict")
+    assert publish["if"] == "always()"  # type: ignore[index]
+    assert "GITHUB_STEP_SUMMARY" in publish["run"]  # type: ignore[index]
+    assert upload["if"] == "always()"  # type: ignore[index]
+    assert upload["uses"] == "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"  # type: ignore[index]
+    assert upload["with"]["path"].splitlines() == [  # type: ignore[index]
+        "artifacts/requirements-evidence/requirements-evidence.json",
+        "artifacts/requirements-evidence/requirements-evidence.md",
+    ]
+    assert enforce["if"] == "steps.run-evidence.outcome == 'failure'"  # type: ignore[index]
+    assert enforce["run"] == "exit 1"  # type: ignore[index]
 
 
 def test_requirements_evidence_workflow_uses_the_released_fixture_and_retains_reports() -> None:
     """PR enforcement must verify the fixture and publish output before failing red verdicts."""
     workflow = REPO_ROOT / ".github" / "workflows" / "requirements-evidence.yml"
-    raw = workflow.read_text(encoding="utf-8")
+    parsed = yaml.load(workflow.read_text(encoding="utf-8"), Loader=yaml.BaseLoader)
 
-    assert "pull_request:" in raw
-    _assert_fixture_contract(raw)
-    _assert_command_contract(raw)
-    _assert_retention_contract(raw)
+    assert "pull_request" in parsed["on"]
+    _assert_fixture_contract(parsed)
+    _assert_command_contract(parsed)
+    _assert_retention_contract(parsed)

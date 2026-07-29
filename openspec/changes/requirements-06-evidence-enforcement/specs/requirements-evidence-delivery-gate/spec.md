@@ -4,14 +4,17 @@
 
 The core CLI SHALL enforce the released Requirements evidence command before
 code-review and contract delivery gates, using only a SHA-pinned
-`nold-ai/specfact-cli-modules` fixture. Core SHALL preserve the module-owned
-evidence semantics and SHALL retain JSON and Markdown remediation reports for
-both passing and failing runs.
+`nold-ai/specfact-cli-modules` fixture at
+`2438372f8e34c96d4e474afa4c66c92a9cee7979`. Core SHALL preserve the
+module-owned evidence semantics and SHALL retain JSON and Markdown remediation
+reports for both passing and failing runs.
 
 #### Scenario: Reject an unverified or mutable fixture
 
-- **GIVEN** the fixture lock is absent, malformed, points outside the approved
-  modules repository, or does not match the materialized commit
+- **GIVEN** the fixture lock is absent, malformed, points outside
+  `nold-ai/specfact-cli-modules`, names any commit other than
+  `2438372f8e34c96d4e474afa4c66c92a9cee7979`, does not match the materialized
+  commit, or materializes a dirty worktree
 - **WHEN** local or CI requirements evidence enforcement starts
 - **THEN** it fails before executing any module command
 - **AND** it does not use a branch, sibling checkout, or other mutable source

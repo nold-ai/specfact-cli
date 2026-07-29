@@ -52,7 +52,7 @@ existing core CLI signature.
 ## OpenSpec Validation
 
 - **Status**: Pass
-- **Command**: `openspec validate requirements-06-evidence-enforcement --strict`
+- **Command**: `hatch run openspec validate requirements-06-evidence-enforcement --strict`
 - **Issues Found/Fixed**: 0
 
 ## Validation Artifacts

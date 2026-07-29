@@ -141,6 +141,9 @@ Update each proposal first, then run strict OpenSpec validation.
 - `governance-01-evidence-output`
 - `governance-02-exception-management`
 - `cli-val-03-misuse-safety-proof`
+- `requirements-06` as the core delivery gate for released Requirements
+  evidence; it consumes the immutable modules #361 fixture without duplicating
+  module command semantics.
 
 ### Wave 3 - Evidence graph and drift detection
 
@@ -166,9 +169,6 @@ Update each proposal first, then run strict OpenSpec validation.
   2026-07-13 (rescoped, no longer positioned as optional-only).
 - `requirements-04` as the core-owned source-readiness follow-up to
   `openspec-01`; it blocks the paired modules command/persistence patch.
-- `requirements-06` as the delivery-gate follow-up: it consumes the released
-  requirements-evidence fixture from modules #361 and does not duplicate its
-  command semantics.
 - `architecture-02`, `telemetry-01`, and `ai-integration-02` only after pull
   from the validation loop exists.
 

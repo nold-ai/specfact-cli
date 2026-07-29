@@ -11,6 +11,12 @@ on:
       - "scripts/requirements_evidence_delivery_gate.py"
       - ".github/workflows/requirements-evidence.yml"
   workflow_dispatch:
+    inputs:
+      base_branch:
+        description: Base branch used to select changed Requirements sources.
+        required: true
+        default: dev
+        type: string
 
 permissions:
   contents: read
@@ -76,12 +82,25 @@ jobs:
       - name: Run Requirements evidence gate
         id: run-evidence
         continue-on-error: true
+        env:
+          EVIDENCE_BASE_BRANCH: ${{ github.event_name == 'pull_request' && github.base_ref || inputs.base_branch || github.event.repository.default_branch }}
         run: |
+          set +e
+          [[ "$EVIDENCE_BASE_BRANCH" =~ ^[A-Za-z0-9._/-]+$ ]]
           uv run --locked --no-sync specfact requirements evidence \
             --repo-root "$GITHUB_WORKSPACE" \
-            --base-ref "origin/${{ github.base_ref }}" \
+            --base-ref "origin/${EVIDENCE_BASE_BRANCH}" \
             --output artifacts/requirements-evidence/requirements-evidence.json \
             --summary artifacts/requirements-evidence/requirements-evidence.md
+          exit_code=$?
+          set -e
+          if [[ ! -s artifacts/requirements-evidence/requirements-evidence.json ]]; then
+            printf '{"schema_version":1,"verdict":"failed","diagnostic":"Evidence command exited with status %s before writing JSON."}\n' "$exit_code" > artifacts/requirements-evidence/requirements-evidence.json
+          fi
+          if [[ ! -s artifacts/requirements-evidence/requirements-evidence.md ]]; then
+            printf '## Requirements evidence unavailable\n\n- Diagnostic: Evidence command exited with status %s before writing Markdown.\n' "$exit_code" > artifacts/requirements-evidence/requirements-evidence.md
+          fi
+          exit "$exit_code"
 
       - name: Publish Requirements evidence summary
         if: always()
@@ -92,7 +111,7 @@ jobs:
 
       - name: Upload requirements evidence artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: requirements-evidence
           path: |

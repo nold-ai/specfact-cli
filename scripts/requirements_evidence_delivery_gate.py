@@ -16,6 +16,7 @@ from icontract import ensure
 
 
 APPROVED_REPOSITORY = "nold-ai/specfact-cli-modules"
+APPROVED_COMMIT = "2438372f8e34c96d4e474afa4c66c92a9cee7979"
 SHA_PATTERN = re.compile(r"^[0-9a-f]{40}$")
 CommandRunner = Callable[[list[str], dict[str, str]], int]
 GitRunner = Callable[[list[str]], str]
@@ -48,6 +49,25 @@ def _git_head(arguments: list[str]) -> str:
     return subprocess.run(arguments, check=True, capture_output=True, text=True).stdout.strip()
 
 
+def _write_failure_reports(request: EvidenceRequest, message: str) -> None:
+    """Write minimal diagnostics without replacing module-owned reports."""
+    try:
+        request.output_path.parent.mkdir(parents=True, exist_ok=True)
+        request.summary_path.parent.mkdir(parents=True, exist_ok=True)
+        if not request.output_path.exists():
+            request.output_path.write_text(
+                json.dumps({"schema_version": 1, "verdict": "failed", "diagnostic": message}) + "\n",
+                encoding="utf-8",
+            )
+        if not request.summary_path.exists():
+            request.summary_path.write_text(
+                f"## Requirements evidence unavailable\n\n- Diagnostic: {message}\n",
+                encoding="utf-8",
+            )
+    except OSError:
+        pass
+
+
 @beartype
 @ensure(lambda result: result is None)
 def verify_fixture(fixture: Mapping[str, object], fixture_root: Path, *, git_runner: GitRunner = _git_head) -> None:
@@ -58,6 +78,8 @@ def verify_fixture(fixture: Mapping[str, object], fixture_root: Path, *, git_run
         raise ValueError(f"Module fixture must target {APPROVED_REPOSITORY}")
     if not isinstance(commit, str) or SHA_PATTERN.fullmatch(commit) is None:
         raise ValueError("Module fixture commit must be a full immutable SHA")
+    if commit != APPROVED_COMMIT:
+        raise ValueError("Module fixture must use approved release commit")
     if not fixture_root.is_dir():
         raise ValueError(f"Pinned module fixture is unavailable: {fixture_root}")
     try:
@@ -66,6 +88,12 @@ def verify_fixture(fixture: Mapping[str, object], fixture_root: Path, *, git_run
         raise ValueError(f"Cannot verify pinned module fixture: {fixture_root}") from error
     if actual.strip() != commit:
         raise ValueError("Pinned module fixture HEAD does not match ci/module-fixture.lock.json")
+    try:
+        dirty = git_runner(["git", "-C", str(fixture_root), "status", "--porcelain", "--untracked-files=all"])
+    except (OSError, subprocess.SubprocessError) as error:
+        raise ValueError(f"Cannot verify pinned module fixture: {fixture_root}") from error
+    if dirty.strip():
+        raise ValueError("Pinned module fixture must be clean")
 
 
 def _run_command(arguments: list[str], environment: dict[str, str]) -> int:
@@ -98,8 +126,16 @@ def run_evidence_command(
         arguments.append(selection_value)
     environment = dict(os.environ)
     environment["SPECFACT_MODULES_REPO"] = str(fixture_root.resolve())
+    environment["SPECFACT_MODULES_ROOTS"] = str((fixture_root / "packages").resolve())
     environment.pop("SPECFACT_CLI_MODULES_REPO", None)
-    return command_runner(arguments, environment)
+    try:
+        exit_code = command_runner(arguments, environment)
+    except (OSError, subprocess.SubprocessError) as error:
+        _write_failure_reports(request, f"Released evidence command could not start: {error}")
+        return 1
+    if exit_code != 0:
+        _write_failure_reports(request, f"Released evidence command exited with status {exit_code}.")
+    return exit_code
 
 
 def _fixture_root_from_environment(arguments: argparse.Namespace) -> Path:
@@ -133,19 +169,18 @@ def main(argv: Sequence[str] | None = None) -> int:
     """Verify the fixture, then return the released command's exact exit code."""
     parser = _build_parser()
     arguments = parser.parse_args(argv)
+    request = EvidenceRequest(
+        repo_root=arguments.repo_root.resolve(),
+        selection=_selection(arguments),
+        output_path=arguments.output,
+        summary_path=arguments.summary,
+    )
     try:
-        repo_root = arguments.repo_root.resolve()
-        verify_fixture(_read_fixture_lock(repo_root), _fixture_root_from_environment(arguments))
-        return run_evidence_command(
-            EvidenceRequest(
-                repo_root=repo_root,
-                selection=_selection(arguments),
-                output_path=arguments.output,
-                summary_path=arguments.summary,
-            ),
-            _fixture_root_from_environment(arguments),
-        )
+        fixture_root = _fixture_root_from_environment(arguments)
+        verify_fixture(_read_fixture_lock(request.repo_root), fixture_root)
+        return run_evidence_command(request, fixture_root)
     except ValueError as error:
+        _write_failure_reports(request, str(error))
         parser.error(str(error))
     return 2
 
