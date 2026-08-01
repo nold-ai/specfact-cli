@@ -40,6 +40,7 @@ def _assert_command_contract(workflow: dict[str, object]) -> None:
     assert run_evidence["id"] == "run-evidence"  # type: ignore[index]
     assert "uv run --locked --no-sync specfact requirements evidence" in run_evidence["run"]  # type: ignore[index]
     assert '--base-ref "origin/${EVIDENCE_BASE_BRANCH}"' in run_evidence["run"]  # type: ignore[index]
+    assert "--required-maturity planned" in run_evidence["run"]  # type: ignore[index]
     assert run_evidence["env"]["EVIDENCE_BASE_BRANCH"]  # type: ignore[index]
     assert "workflow_dispatch" in workflow["on"]  # type: ignore[operator]
     assert "fallback_required=0" in run_evidence["run"]  # type: ignore[index]

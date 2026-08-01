@@ -35,6 +35,7 @@ class CapturedRequest(Protocol):
     """Minimal assertion surface retained from a delegated evidence request."""
 
     selection: tuple[str, str | None]
+    required_maturity: str
 
 
 def _load_gate_module() -> GateModule:
@@ -119,6 +120,32 @@ def test_staged_red_verdict_keeps_both_report_destinations(tmp_path: Path) -> No
     assert observed == 1
     assert json_report.read_text(encoding="utf-8") == '{"verdict":"failed"}\n'
     assert markdown_report.read_text(encoding="utf-8") == "## Requirements evidence\n"
+
+
+def test_delegated_command_requests_planned_maturity(tmp_path: Path) -> None:
+    """Proposal-only core changes must never be evaluated as implemented delivery."""
+    module = _load_gate_module()
+    fixture = tmp_path / "fixture"
+    fixture.mkdir()
+    captured_arguments: list[str] = []
+    request = module.EvidenceRequest(
+        repo_root=tmp_path,
+        selection=("--staged", None),
+        output_path=tmp_path / "evidence.json",
+        summary_path=tmp_path / "evidence.md",
+    )
+
+    assert (
+        module.run_evidence_command(
+            request,
+            fixture,
+            command_runner=lambda arguments, _environment: captured_arguments.extend(arguments) or 0,
+        )
+        == 0
+    )
+    assert request.required_maturity == "planned"
+    maturity_index = captured_arguments.index("--required-maturity")
+    assert captured_arguments[maturity_index : maturity_index + 2] == ["--required-maturity", "planned"]
 
 
 def test_failed_command_writes_missing_diagnostic_reports_and_exports_fixture_roots(tmp_path: Path) -> None:
@@ -235,6 +262,7 @@ def test_main_forwards_selection_and_verified_fixture(
     assert result == 0
     assert captured["fixture_root"] == fixture.resolve()
     assert request.selection == (("--staged", None) if selection == ("--staged",) else ("--base-ref", "origin/dev"))
+    assert request.required_maturity == "planned"
 
 
 def test_pre_commit_places_evidence_before_review_and_contracts() -> None:

@@ -1,5 +1,74 @@
 ## ADDED Requirements
 
+### Requirement: Lifecycle-Derived Requirements Gate
+
+Core SHALL derive the required evidence maturity from the complete pull-request
+or staged diff and repository policy rather than an author-declared phase. A
+proposal-only change requires `planned` maturity and may pass without test
+execution; its retained report SHALL explicitly state that implementation
+evidence is not yet available. Test-only and production changes SHALL require
+successively stronger accepted, red, and verified evidence.
+
+#### Scenario: Proposal-only change passes readiness without execution
+
+- **GIVEN** a changed OpenSpec proposal with a complete planned requirements
+  mapping and no changed governed production or test path
+- **WHEN** the gate evaluates the diff
+- **THEN** it requires `planned` maturity
+- **AND** it publishes a successful proposal-readiness report
+- **AND** the report labels implementation evidence as not-yet-available
+- **AND** it does not label the change executed, implemented, or verified.
+
+#### Scenario: Mixed or production diff cannot be downgraded
+
+- **GIVEN** a diff containing a proposal mapping and a governed test or
+  production touchpoint
+- **WHEN** the gate evaluates the diff
+- **THEN** it requires the strongest maturity applicable to that touchpoint
+- **AND** a proposal-only mapping cannot cause the product change to pass at
+  `planned` maturity.
+
+### Requirement: Accepted Mapping Before Automation
+
+Core SHALL require acceptance evidence bound to the canonical mapping digest
+before test automation or production implementation. Acceptance may originate
+from a trusted reviewed base branch or a provider-neutral normalized review
+record; proposal-only readiness SHALL expose pending acceptance without
+blocking proposal review.
+
+#### Scenario: Test-only change requires current acceptance
+
+- **GIVEN** a test-only diff mapped to an active requirement source
+- **WHEN** the gate evaluates the diff
+- **THEN** it requires accepted mapping evidence whose digest matches the
+  current mapping
+- **AND** stale, rejected, or unverifiable review evidence blocks automation.
+
+### Requirement: Git-Bound Failing-First Proof
+
+Core SHALL require a runner-generated red proof from a test-only ancestor
+commit before a governed production change can reach verified maturity. The
+proof SHALL bind the commit/tree, merge base, mapping digest, selectors,
+test-file digests, JUnit digest, and toolchain identity. Core SHALL reject
+proof when governed production changed before the red commit or when selectors
+or test files changed after it.
+
+#### Scenario: Production change follows valid red proof
+
+- **GIVEN** a valid test-only ancestor and red proof for the exact mapping and
+  selectors
+- **WHEN** production code changes and the selectors pass at the current HEAD
+- **THEN** the gate reports verified maturity
+- **AND** it preserves both red and final execution provenance.
+
+#### Scenario: Same-commit or stale red proof is rejected
+
+- **GIVEN** tests and production code first appear in the same commit, or a
+  mapped selector/test file changes after the red proof
+- **WHEN** the gate evaluates a governed production diff
+- **THEN** it fails with `tdd-order-unproven` or `stale-red-proof`
+- **AND** it retains diagnostic artifacts before enforcing the verdict.
+
 ### Requirement: Staged Scenario Proof Planning
 
 The core pre-commit gate SHALL invoke only a verified released Requirements

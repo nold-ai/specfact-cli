@@ -92,6 +92,7 @@ jobs:
           uv run --locked --no-sync specfact requirements evidence \
             --repo-root "$GITHUB_WORKSPACE" \
             --base-ref "origin/${EVIDENCE_BASE_BRANCH}" \
+            --required-maturity planned \
             --output artifacts/requirements-evidence/requirements-evidence.json \
             --summary artifacts/requirements-evidence/requirements-evidence.md
           exit_code=$?

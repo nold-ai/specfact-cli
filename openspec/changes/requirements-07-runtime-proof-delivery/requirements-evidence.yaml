@@ -1,0 +1,145 @@
+schema_version: "2"
+requirements:
+  R07-CORE-001:
+    rationale: "Proposal review must distinguish a complete plan from delivered behavior."
+    stakeholder_refs:
+      - "nold-ai/specfact-cli#662"
+    touchpoints:
+      - id: requirements-evidence-workflow
+        kind: ci_workflow
+        locator: ".github/workflows/requirements-evidence.yml"
+    verification_cases:
+      - case_id: R07-CORE-001-S01
+        scenario_id: R07-CORE-001-S01
+        method: test
+        intent: "Prove a proposal-only diff reports planned readiness without execution."
+        observable: "Required and observed maturity plus implementation-evidence status."
+      - case_id: R07-CORE-001-S02
+        scenario_id: R07-CORE-001-S02
+        method: test
+        intent: "Prove production changes cannot be downgraded by proposal files."
+        observable: "Strongest required maturity per governed touchpoint."
+  R07-CORE-002:
+    rationale: "Stakeholder acceptance must precede automated validation and implementation."
+    stakeholder_refs:
+      - "nold-ai/specfact-cli#662"
+    touchpoints:
+      - id: review-evidence-adapter
+        kind: ci_workflow
+        locator: "requirements-proof/review-evidence.json"
+    verification_cases:
+      - case_id: R07-CORE-002-S01
+        scenario_id: R07-CORE-002-S01
+        method: test
+        intent: "Prove stale or absent acceptance blocks test automation."
+        observable: "Acceptance decision bound to the current mapping digest."
+  R07-CORE-003:
+    rationale: "Production behavior needs empirical failing-first proof, not a declared test link."
+    stakeholder_refs:
+      - "nold-ai/specfact-cli#662"
+    touchpoints:
+      - id: red-proof-verifier
+        kind: ci_workflow
+        locator: "requirements-proof/red.json"
+    verification_cases:
+      - case_id: R07-CORE-003-S01
+        scenario_id: R07-CORE-003-S01
+        method: test
+        intent: "Prove final verification follows a matching red ancestor proof."
+        observable: "Bound commit, tree, mapping, selector, and JUnit provenance."
+      - case_id: R07-CORE-003-S02
+        scenario_id: R07-CORE-003-S02
+        method: test
+        intent: "Prove same-commit and stale red evidence is rejected."
+        observable: "tdd-order-unproven or stale-red-proof diagnostic."
+  R07-CORE-004:
+    rationale: "Local feedback must validate planning without pretending to execute tests."
+    stakeholder_refs:
+      - "nold-ai/specfact-cli#662"
+    touchpoints:
+      - id: pre-commit-evidence-gate
+        kind: cli_command
+        locator: "scripts/pre-commit-quality-checks.sh"
+    verification_cases:
+      - case_id: R07-CORE-004-S01
+        scenario_id: R07-CORE-004-S01
+        method: test
+        intent: "Prove staged mapped changes retain a static proof plan."
+        observable: "Index-isolated plan and no execution claim."
+      - case_id: R07-CORE-004-S02
+        scenario_id: R07-CORE-004-S02
+        method: test
+        intent: "Prove unmapped staged interface changes fail before later gates."
+        observable: "Retained remediation report and non-zero verdict."
+      - case_id: R07-CORE-004-S03
+        scenario_id: R07-CORE-004-S03
+        method: test
+        intent: "Prove governed no-impact changes emit an explicit decision."
+        observable: "Reason and changed-path digest without a silent skip."
+  R07-CORE-005:
+    rationale: "CI must execute only validated exact selectors from a trusted plan."
+    stakeholder_refs:
+      - "nold-ai/specfact-cli#662"
+    touchpoints:
+      - id: requirements-proof-executor
+        kind: ci_workflow
+        locator: ".github/workflows/requirements-evidence.yml"
+    verification_cases:
+      - case_id: R07-CORE-005-S01
+        scenario_id: R07-CORE-005-S01
+        method: test
+        intent: "Prove exact selectors are passed through an argument array."
+        observable: "Canonical selector properties in deterministic JUnit output."
+      - case_id: R07-CORE-005-S02
+        scenario_id: R07-CORE-005-S02
+        method: test
+        intent: "Prove unsafe or excessive selector plans are rejected before execution."
+        observable: "Bounded diagnostics and no spawned test process."
+      - case_id: R07-CORE-005-S03
+        scenario_id: R07-CORE-005-S03
+        method: test
+        intent: "Prove incomplete JUnit remains unverified after artifacts are retained."
+        observable: "Uncollected, skipped, errored, or failed selector diagnostic."
+  R07-CORE-006:
+    rationale: "Requirements proof and review are independent delivery signals."
+    stakeholder_refs:
+      - "nold-ai/specfact-cli#662"
+    touchpoints:
+      - id: review-context-handoff
+        kind: ci_workflow
+        locator: "scripts/pre-commit-quality-checks.sh"
+    verification_cases:
+      - case_id: R07-CORE-006-S01
+        scenario_id: R07-CORE-006-S01
+        method: test
+        intent: "Prove finalized proof is passed to review without verdict fusion."
+        observable: "Separate Requirements and review provenance."
+      - case_id: R07-CORE-006-S02
+        scenario_id: R07-CORE-006-S02
+        method: test
+        intent: "Prove a green review cannot override a red Requirements proof."
+        observable: "Independent blocking Requirements verdict."
+      - case_id: R07-CORE-006-S03
+        scenario_id: R07-CORE-006-S03
+        method: test
+        intent: "Prove other quality gates remain independent of Requirements proof."
+        observable: "Separate blocking verdict for each failing gate."
+  R07-CORE-007:
+    rationale: "Every governed pull request needs an auditable terminal Requirements decision."
+    stakeholder_refs:
+      - "nold-ai/specfact-cli#662"
+    touchpoints:
+      - id: proof-artifact-publication
+        kind: ci_workflow
+        locator: ".github/workflows/requirements-evidence.yml"
+    verification_cases:
+      - case_id: R07-CORE-007-S01
+        scenario_id: R07-CORE-007-S01
+        method: test
+        intent: "Prove relevant changes run the Requirements decision despite path filters."
+        observable: "Terminal branch-protection check and retained artifacts."
+      - case_id: R07-CORE-007-S02
+        scenario_id: R07-CORE-007-S02
+        method: test
+        intent: "Prove governed no-impact pull requests publish an explicit skip."
+        observable: "Successful terminal result with bounded skip provenance."

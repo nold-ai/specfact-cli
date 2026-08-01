@@ -16,7 +16,11 @@ behavior before its tests exist and have failed for the expected reason.
 - [x] 1.2 Create core User Story #662; verify labels, project `Todo`, parent
   Feature #374, Epic #258, and native blocked-by relation to modules #368.
 - [ ] 1.3 Before implementation, recheck that #662 is not already `In Progress`
-  elsewhere and that modules #368 has published a signed immutable release.
+  elsewhere and that modules #368/#369 has published the signed immutable
+  `nold-ai/specfact-requirements` 0.4.0 release.
+- [ ] 1.3.1 After that release is on modules `main`, record its exact signed SHA
+  in `ci/module-fixture.lock.json` and every matching fixture allowlist, then
+  manually rerun core PR #663. Do not pre-pin the current feature-branch SHA.
 - [ ] 1.4 Update the internal wiki mirror/graph when the current dirty internal
   checkout is reconciled; do not overwrite its unrelated pending wiki changes.
 

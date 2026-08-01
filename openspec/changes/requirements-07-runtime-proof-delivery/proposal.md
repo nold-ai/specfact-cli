@@ -17,7 +17,8 @@ module-owned scenario test plan to current-run test results and review context.
 - Extend pull-request CI to run for relevant product, contract, test, and
   requirement-source changes; emit an explicit auditable skipped result only
   after a deterministic no-impact decision.
-- Consume only a reviewed, immutable modules #368 release; validate its
+- Consume only the reviewed, signed `nold-ai/specfact-requirements` 0.4.0
+  release from modules #368/#369; validate its
   structured test plan, execute approved exact selectors without shell
   interpretation, retain JUnit output, and delegate reconciliation back to the
   released Requirements command.
@@ -47,8 +48,9 @@ module-owned scenario test plan to current-run test results and review context.
 - Affected documentation: core Requirements evidence adoption and Code Review
   delivery guidance; module command reference remains modules-owned.
 - Dependencies: blocked by modules User Story
-  [#368](https://github.com/nold-ai/specfact-cli-modules/issues/368) and its
-  signed immutable release. Produces a bounded Requirements signal consumable
+  [#368](https://github.com/nold-ai/specfact-cli-modules/issues/368), PR
+  [#369](https://github.com/nold-ai/specfact-cli-modules/pull/369), and the
+  signed immutable `nold-ai/specfact-requirements` 0.4.0 release. Produces a bounded Requirements signal consumable
   by, but does not implement, `validation-02-full-chain-engine`.
 - Rollback: restore the current static evidence gate and remove targeted test
   execution/review context while retaining previously uploaded proof artifacts.
@@ -75,4 +77,4 @@ module-owned scenario test plan to current-run test results and review context.
 - **Blocked By**: [nold-ai/specfact-cli-modules#368](https://github.com/nold-ai/specfact-cli-modules/issues/368) (native GitHub dependency)
 - **Paired Modules Change**: `requirements-07-scenario-runtime-proof`
 - **Repository**: nold-ai/specfact-cli
-- **Last Synced Status**: proposed / Todo (2026-07-30)
+- **Last Synced Status**: proposed / Todo (2026-08-02)

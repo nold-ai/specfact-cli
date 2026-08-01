@@ -30,6 +30,7 @@ class EvidenceRequest:
     selection: tuple[str, str | None]
     output_path: Path
     summary_path: Path
+    required_maturity: str = "planned"
 
 
 def _read_fixture_lock(repo_root: Path) -> dict[str, object]:
@@ -128,6 +129,8 @@ def run_evidence_command(
         str(request.output_path),
         "--summary",
         str(request.summary_path),
+        "--required-maturity",
+        request.required_maturity,
         selection_flag,
     ]
     if selection_value is not None:
