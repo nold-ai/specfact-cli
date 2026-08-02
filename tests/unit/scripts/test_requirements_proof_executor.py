@@ -32,6 +32,12 @@ class ExecutorModule(Protocol):
     ) -> int:
         raise NotImplementedError
 
+    def _run_command(self, arguments: list[str], *, cwd: Path, env: dict[str, str], shell: bool, timeout: int) -> int:
+        raise NotImplementedError
+
+    def main(self, argv: list[str] | None = None) -> int:
+        raise NotImplementedError
+
 
 def _load_executor_module() -> ExecutorModule:
     spec = importlib.util.spec_from_file_location("requirements_proof_executor", EXECUTOR_SCRIPT)
@@ -58,7 +64,9 @@ def _plan(*selectors: str) -> dict[str, object]:
     }
 
 
-def test_executor_accepts_existing_exact_selectors_and_uses_argument_array(tmp_path: Path) -> None:
+def test_executor_accepts_existing_exact_selectors_and_uses_argument_array(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """Only existing exact pytest node IDs may reach the no-shell invocation."""
     module = _load_executor_module()
     test_file = tmp_path / "tests" / "test_proof.py"
@@ -67,6 +75,10 @@ def test_executor_accepts_existing_exact_selectors_and_uses_argument_array(tmp_p
     plan = _plan("tests/test_proof.py::test_selected")
     junit_path = tmp_path / "artifacts" / "proof.xml"
     captured: dict[str, object] = {}
+    monkeypatch.setenv("PYTEST_ADDOPTS", "--collect-only")
+    monkeypatch.setenv("PYTEST_PLUGINS", "untrusted_plugin")
+    monkeypatch.setenv("PYTHONPATH", "/untrusted/python")
+    monkeypatch.setenv("SPECFACT_MODULES_REPO", "/untrusted/modules")
 
     observed = module.execute_plan(
         plan,
@@ -90,6 +102,13 @@ def test_executor_accepts_existing_exact_selectors_and_uses_argument_array(tmp_p
         "--",
         "tests/test_proof.py::test_selected",
     ]
+    environment = captured["env"]
+    assert isinstance(environment, dict)
+    assert environment["PYTEST_DISABLE_PLUGIN_AUTOLOAD"] == "1"
+    assert "PYTEST_ADDOPTS" not in environment
+    assert "PYTEST_PLUGINS" not in environment
+    assert "PYTHONPATH" not in environment
+    assert "SPECFACT_MODULES_REPO" not in environment
 
 
 @pytest.mark.parametrize(
@@ -130,16 +149,67 @@ def test_executor_rejects_duplicate_or_unsupported_plan_entries(tmp_path: Path) 
         )
 
 
-def test_executor_cli_reads_one_plan_and_writes_no_shell_junit_path(tmp_path: Path) -> None:
-    """The command-line adapter accepts the module plan as data, not command text."""
+@pytest.mark.parametrize(
+    "selector",
+    [
+        "tests/test_proof.py::test_selected[param-value]",
+        "tests/test_proof.py::TestProof::test_selected",
+        "tests/test_proof.py::TestProof::test_selected[param-value]",
+    ],
+)
+def test_executor_accepts_module_valid_pytest_node_ids(tmp_path: Path, selector: str) -> None:
+    """Parameterized and class-method node IDs remain exact safe argument values."""
+    module = _load_executor_module()
+    test_file = tmp_path / "tests" / "test_proof.py"
+    test_file.parent.mkdir()
+    test_file.write_text("def test_selected() -> None: pass\n", encoding="utf-8")
+
+    assert module.selectors_from_plan(_plan(selector), tmp_path) == [selector]
+
+
+def test_executor_cli_reads_plan_and_forwards_no_shell_junit_path(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The command-line adapter parses a plan and sends validated arguments without a shell."""
+    module = _load_executor_module()
     test_file = tmp_path / "tests" / "test_proof.py"
     test_file.parent.mkdir()
     test_file.write_text("def test_selected() -> None: pass\n", encoding="utf-8")
     plan_path = tmp_path / "plan.json"
     plan_path.write_text(json.dumps(_plan("tests/test_proof.py::test_selected")), encoding="utf-8")
+    junit_path = tmp_path / "artifacts" / "proof.xml"
+    captured: dict[str, object] = {}
 
-    assert EXECUTOR_SCRIPT.is_file()
-    assert plan_path.is_file()
+    def run_command(arguments: list[str], **kwargs: object) -> int:
+        captured.update({"arguments": arguments, **kwargs})
+        return 0
+
+    monkeypatch.setattr(module, "_run_command", run_command)
+
+    assert module.main(["--plan", str(plan_path), "--repo-root", str(tmp_path), "--junit", str(junit_path)]) == 0
+    assert captured["shell"] is False
+    assert captured["cwd"] == tmp_path
+    assert captured["arguments"] == [
+        sys.executable,
+        "-m",
+        "pytest",
+        "--junitxml",
+        str(junit_path),
+        "-p",
+        "scripts.requirements_proof_pytest_plugin",
+        "--",
+        "tests/test_proof.py::test_selected",
+    ]
+
+
+def test_executor_cli_rejects_malformed_plan_before_spawning(tmp_path: Path) -> None:
+    """Malformed external plan data cannot reach the proof subprocess."""
+    module = _load_executor_module()
+    plan_path = tmp_path / "plan.json"
+    plan_path.write_text("{not-json", encoding="utf-8")
+
+    with pytest.raises(SystemExit, match="cannot read proof plan"):
+        module.main(["--plan", str(plan_path), "--repo-root", str(tmp_path), "--junit", str(tmp_path / "proof.xml")])
 
 
 def test_executor_records_canonical_selector_property_in_junit(tmp_path: Path) -> None:

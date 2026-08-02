@@ -17,8 +17,9 @@ from icontract import ensure
 
 
 MAX_SELECTORS = 100
-SELECTOR_PATTERN = re.compile(r"^[^\s:]+\.py::[A-Za-z_][A-Za-z0-9_]*(?:\[[^\]\r\n]+\])?$")
-FORBIDDEN_SELECTOR_CHARACTERS = frozenset('\r\n\x00`$;&|<>(){}[]*?!\\"')
+SELECTOR_PATTERN = re.compile(r"(?!-)[A-Za-z0-9_./-]+\.py::[A-Za-z0-9_:.\[\]-]+")
+FORBIDDEN_SELECTOR_CHARACTERS = frozenset('\r\n\x00$&;|`<>*?(){}!\\"')
+PROOF_ENVIRONMENT_KEYS = frozenset({"HOME", "LANG", "LC_ALL", "LC_CTYPE", "PATH", "TMPDIR", "VIRTUAL_ENV"})
 
 
 @runtime_checkable
@@ -108,7 +109,8 @@ def execute_plan(
         "--",
         *selectors,
     ]
-    environment = {key: value for key, value in os.environ.items() if key not in {"PYTEST_ADDOPTS", "PYTHONPATH"}}
+    environment = {key: value for key, value in os.environ.items() if key in PROOF_ENVIRONMENT_KEYS}
+    environment["PYTEST_DISABLE_PLUGIN_AUTOLOAD"] = "1"
     return command_runner(arguments, cwd=repo_root, env=environment, shell=False, timeout=600)
 
 
@@ -134,7 +136,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     """Validate the structured plan and return the selected pytest exit code."""
     arguments = _build_parser().parse_args(argv)
     try:
-        return execute_plan(_read_plan(arguments.plan), arguments.repo_root.resolve(), arguments.junit.resolve())
+        return execute_plan(
+            _read_plan(arguments.plan),
+            arguments.repo_root.resolve(),
+            arguments.junit.resolve(),
+            command_runner=_run_command,
+        )
     except (OSError, ValueError, subprocess.SubprocessError) as error:
         raise SystemExit(f"Requirements proof execution rejected: {error}") from error
 

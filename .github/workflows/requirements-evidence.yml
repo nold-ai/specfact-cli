@@ -9,6 +9,9 @@ on:
       - "openspec/changes/**"
       - "ci/module-fixture.lock.json"
       - "scripts/requirements_evidence_delivery_gate.py"
+      - "scripts/requirements_proof_executor.py"
+      - "scripts/requirements_proof_pytest_plugin.py"
+      - "tests/unit/scripts/test_requirements_proof_executor.py"
       - ".github/workflows/requirements-evidence.yml"
   workflow_dispatch:
     inputs:
@@ -89,10 +92,17 @@ jobs:
         run: |
           set +e
           [[ "$EVIDENCE_BASE_BRANCH" =~ ^[A-Za-z0-9._/-]+$ ]]
+          required_maturity=planned
+          changed_paths="$(git diff --name-only "origin/${EVIDENCE_BASE_BRANCH}...HEAD")"
+          if grep -Eq '^(\.github|ci|scripts|src)/' <<< "$changed_paths"; then
+            required_maturity=verified
+          elif grep -Eq '^tests/' <<< "$changed_paths"; then
+            required_maturity=test-authored
+          fi
           uv run --locked --no-sync specfact requirements evidence \
             --repo-root "$GITHUB_WORKSPACE" \
             --base-ref "origin/${EVIDENCE_BASE_BRANCH}" \
-            --required-maturity planned \
+            --required-maturity "$required_maturity" \
             --output artifacts/requirements-evidence/requirements-evidence.json \
             --summary artifacts/requirements-evidence/requirements-evidence.md
           exit_code=$?

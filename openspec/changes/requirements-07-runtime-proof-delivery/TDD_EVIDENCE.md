@@ -110,6 +110,28 @@
 - **Record:** `requirements-proof/review-evidence.json` stores the normalized,
   provider-neutral acceptance payload. Any sidecar edit changes the digest and
   requires a new approval before test-authored planning may proceed.
+
+## Review-fix regression evidence
+
+- **Recorded:** 2026-08-02 (Europe/Berlin)
+- **Failing command:** `hatch run pytest tests/unit/scripts/test_requirements_proof_executor.py tests/unit/workflows/test_requirements_evidence_delivery_workflow.py -q`
+- **Initial result:** 6 failures. The executor rejected module-valid
+  parametrized and class-method node IDs, inherited ambient pytest controls,
+  and its CLI test did not exercise `main()`. The workflow still forced
+  `planned` maturity for governed runtime changes.
+- **Passing command:** `hatch run pytest tests/unit/scripts/test_requirements_evidence_delivery_gate.py tests/unit/scripts/test_requirements_proof_executor.py tests/unit/workflows/test_requirements_evidence_delivery_workflow.py -q`
+- **Result:** 24 focused tests passed.
+- **Proof:** the executor now matches the published module selector contract,
+  uses an explicit environment allowlist with plugin autoload disabled, and
+  has CLI parsing/rejection coverage. CI derives `planned`, `test-authored`,
+  or `verified` maturity from the diff; the fixture-pin invariant is recorded
+  as an OpenSpec `MODIFIED` requirement.
+- **Published-module check:** the pinned fixture accepted the updated sidecar
+  at `planned` maturity with mapping digest
+  `sha256:e0201e196d073e7dc7c6b6fc7c4bbae1d447ac42a51d508e6fd253d799affde8`.
+- **Acceptance limit:** this digest differs from the existing acceptance
+  record, so no higher maturity is claimed until product-owner acceptance is
+  renewed for the new digest.
 - **Validation:** `SPECFACT_MODULES_REPO=/private/tmp/specfact-cli-modules-r07 hatch run specfact requirements evidence --repo-root . --base-ref origin/dev --required-maturity accepted --review-evidence openspec/changes/requirements-07-runtime-proof-delivery/requirements-proof/review-evidence.json --output /private/tmp/r07-accepted.json --summary /private/tmp/r07-accepted.md`
   passed with `required_maturity: accepted` and `observed_maturity: accepted`.
 

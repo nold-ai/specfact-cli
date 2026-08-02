@@ -1,5 +1,23 @@
 schema_version: "2"
 requirements:
+  openspec:requirements-07-runtime-proof-delivery:requirements-evidence-delivery-gate:requirements-evidence-delivery-enforcement:
+    rationale: "The released module fixture must remain immutable while advancing to the published Requirements release."
+    stakeholder_refs:
+      - "nold-ai/specfact-cli#657"
+      - "nold-ai/specfact-cli#662"
+    touchpoints:
+      - id: released-requirements-fixture
+        kind: ci_workflow
+        locator: ".github/workflows/requirements-evidence.yml"
+      - id: fixture-lock
+        kind: config_file
+        locator: "ci/module-fixture.lock.json"
+    verification_cases:
+      - case_id: R07-CORE-008-S01
+        scenario_id: requirements-evidence-delivery-enforcement
+        method: test
+        intent: "Prove only the published immutable Requirements fixture is accepted."
+        observable: "Fixture identity mismatch fails before module execution."
   openspec:requirements-07-runtime-proof-delivery:requirements-runtime-proof-delivery:lifecycle-derived-requirements-gate:
     rationale: "Proposal review must distinguish a complete plan from delivered behavior."
     stakeholder_refs:
@@ -106,7 +124,7 @@ requirements:
       - "nold-ai/specfact-cli#662"
     touchpoints:
       - id: review-context-handoff
-        kind: ci_workflow
+        kind: cli_command
         locator: "scripts/pre-commit-quality-checks.sh"
     verification_cases:
       - case_id: R07-CORE-006-S01
