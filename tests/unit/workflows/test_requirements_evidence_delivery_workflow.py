@@ -38,23 +38,23 @@ def _assert_fixture_contract(workflow: dict[str, object]) -> None:
 def _assert_command_contract(workflow: dict[str, object]) -> None:
     run_evidence = _step_by_name(workflow, "Run Requirements evidence gate")
     assert run_evidence["id"] == "run-evidence"  # type: ignore[index]
-    assert "uv run --locked --no-sync specfact requirements evidence" in run_evidence["run"]  # type: ignore[index]
-    assert '--base-ref "origin/${EVIDENCE_BASE_BRANCH}"' in run_evidence["run"]  # type: ignore[index]
-    assert "required_maturity=planned" in run_evidence["run"]  # type: ignore[index]
-    assert "required_maturity=test-authored" in run_evidence["run"]  # type: ignore[index]
-    assert '--required-maturity "$required_maturity"' in run_evidence["run"]  # type: ignore[index]
-    assert (
-        'if ! changed_paths="$(git diff --name-only "origin/${EVIDENCE_BASE_BRANCH}...HEAD")"; then'
-        in run_evidence["run"]
-    )  # type: ignore[index]
-    assert "--plan-output artifacts/requirements-evidence/requirements-evidence-plan.json" in run_evidence["run"]  # type: ignore[index]
-    assert '--review-evidence "$review_evidence"' in run_evidence["run"]  # type: ignore[index]
+    required_fragments = (
+        "uv run --locked --no-sync specfact requirements evidence",
+        '--base-ref "origin/${EVIDENCE_BASE_BRANCH}"',
+        "required_maturity=planned",
+        "required_maturity=test-authored",
+        '--required-maturity "$required_maturity"',
+        'if ! changed_paths="$(git diff --name-only "origin/${EVIDENCE_BASE_BRANCH}...HEAD")"; then',
+        "--plan-output artifacts/requirements-evidence/requirements-evidence-plan.json",
+        '--review-evidence "$review_evidence"',
+        "fallback_required=0",
+        "fallback_required=1",
+        'if [[ "$fallback_required" -eq 1 ]]; then',
+        "exit 1",
+    )
+    assert all(fragment in run_evidence["run"] for fragment in required_fragments)  # type: ignore[index]
     assert run_evidence["env"]["EVIDENCE_BASE_BRANCH"]  # type: ignore[index]
     assert "workflow_dispatch" in workflow["on"]  # type: ignore[operator]
-    assert "fallback_required=0" in run_evidence["run"]  # type: ignore[index]
-    assert "fallback_required=1" in run_evidence["run"]  # type: ignore[index]
-    assert 'if [[ "$fallback_required" -eq 1 ]]; then' in run_evidence["run"]  # type: ignore[index]
-    assert "exit 1" in run_evidence["run"]  # type: ignore[index]
 
 
 def _assert_retention_contract(workflow: dict[str, object]) -> None:
