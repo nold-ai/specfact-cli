@@ -407,10 +407,23 @@ has_staged_active_openspec_sources() {
   return 1
 }
 
+staged_required_maturity() {
+  local changed_paths
+  changed_paths="$(git diff --cached --name-only --diff-filter=ACMRD)"
+  if grep -Eq '^(\.github|ci|scripts|src)/' <<< "${changed_paths}"; then
+    printf 'verified\n'
+  elif grep -Eq '^tests/' <<< "${changed_paths}"; then
+    printf 'test-authored\n'
+  else
+    printf 'planned\n'
+  fi
+}
+
 run_requirements_evidence_gate() {
   local report_dir=".specfact/reports/requirements-evidence"
   local json_report="${report_dir}/requirements-evidence.json"
   local markdown_report="${report_dir}/requirements-evidence.md"
+  local required_maturity
 
   if ! has_staged_active_openspec_sources; then
     info "📦 Block 2 — Requirements evidence — skipped (no staged active OpenSpec source)"
@@ -418,10 +431,12 @@ run_requirements_evidence_gate() {
   fi
 
   mkdir -p "${report_dir}"
+  required_maturity="$(staged_required_maturity)"
   info "📦 Block 2 — Requirements evidence — running released pinned fixture"
   if hatch run python scripts/requirements_evidence_delivery_gate.py \
     --repo-root . \
     --staged \
+    --required-maturity "$required_maturity" \
     --output "${json_report}" \
     --summary "${markdown_report}"; then
     if [[ ! -s "${json_report}" || ! -s "${markdown_report}" ]]; then

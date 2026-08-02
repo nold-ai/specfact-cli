@@ -41,6 +41,16 @@ class ProofCommand:
     timeout: int
 
 
+def _validate_plan_state(plan: Mapping[str, object]) -> None:
+    """Accept only the released plan report state that authorizes execution."""
+    if (
+        plan.get("schema_version") != "2"
+        or plan.get("gate_decision") != "pass"
+        or plan.get("observed_maturity") != "test-authored"
+    ):
+        raise ValueError("invalid proof plan state")
+
+
 def _plan_cases(plan: Mapping[str, object]) -> list[Mapping[str, object]]:
     nested_plan = plan.get("plan")
     if not isinstance(nested_plan, Mapping):
@@ -95,6 +105,7 @@ def _validate_selector(selector: object, repo_root: Path) -> str:
 @ensure(lambda result: result and len(result) <= MAX_SELECTORS)
 def selectors_from_plan(plan: dict[str, object], repo_root: Path) -> list[str]:
     """Return unique, repository-contained exact pytest selectors from a module plan."""
+    _validate_plan_state(plan)
     selectors: list[str] = []
     for case in _plan_cases(plan):
         if case.get("method") != "test":

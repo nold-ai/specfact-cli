@@ -66,6 +66,9 @@ def _load_executor_module() -> ExecutorModule:
 
 def _plan(*selectors: str) -> dict[str, object]:
     return {
+        "schema_version": "2",
+        "gate_decision": "pass",
+        "observed_maturity": "test-authored",
         "plan": {
             "cases": [
                 {
@@ -75,7 +78,7 @@ def _plan(*selectors: str) -> dict[str, object]:
                 }
                 for selector in selectors
             ]
-        }
+        },
     }
 
 
@@ -177,9 +180,25 @@ def test_executor_rejects_duplicate_or_unsupported_plan_entries(tmp_path: Path) 
         )
     with pytest_runtime.raises(ValueError, match="unsupported runner"):
         module.selectors_from_plan(
-            {"plan": {"cases": [{"method": "test", "selector": {"runner": "unittest", "node_id": "tests/x.py::x"}}]}},
+            {
+                "schema_version": "2",
+                "gate_decision": "pass",
+                "observed_maturity": "test-authored",
+                "plan": {"cases": [{"method": "test", "selector": {"runner": "unittest", "node_id": "tests/x.py::x"}}]},
+            },
             tmp_path,
         )
+
+
+def test_executor_rejects_unsupported_or_nonexecutable_plan_state_before_spawning(tmp_path: Path) -> None:
+    """Only released, passing test-authored plan reports may reach pytest."""
+    module = _load_executor_module()
+    _write_selected_test(tmp_path)
+    for field, value in (("schema_version", "3"), ("gate_decision", "fail"), ("observed_maturity", "planned")):
+        plan = _plan("tests/test_proof.py::test_selected")
+        plan[field] = value
+        with pytest_runtime.raises(ValueError, match="invalid proof plan state"):
+            module.execute_plan(plan, tmp_path, tmp_path / "proof.xml", command_runner=lambda _command: 0)
 
 
 @pytest_runtime.mark.parametrize(
@@ -255,3 +274,18 @@ def test_executor_records_canonical_selector_property_in_junit(tmp_path: Path) -
 
     root = ET.parse(junit_path).getroot()
     assert root.find(".//property[@name='specfact.selector'][@value='" + selector + "']") is not None
+
+
+def test_executor_records_canonical_selector_for_skipped_and_setup_error_cases(tmp_path: Path) -> None:
+    """Reconciliation can identify collected selectors without a call-phase report."""
+    module = _load_executor_module()
+    selectors = (
+        "tests/fixtures/requirements_proof_terminal_states.py::test_skipped_by_proof",
+        "tests/fixtures/requirements_proof_terminal_states.py::TestSetupError::test_unreachable",
+    )
+
+    for index, selector in enumerate(selectors):
+        junit_path = tmp_path / f"requirements-proof-{index}.xml"
+        module.execute_plan(_plan(selector), REPO_ROOT, junit_path)
+        root = ET.parse(junit_path).getroot()
+        assert root.find(".//property[@name='specfact.selector'][@value='" + selector + "']") is not None
