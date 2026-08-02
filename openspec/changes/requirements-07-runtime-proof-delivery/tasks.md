@@ -15,10 +15,10 @@ behavior before its tests exist and have failed for the expected reason.
   from current `origin/dev`; verify branch and clean scope.
 - [x] 1.2 Create core User Story #662; verify labels, project `Todo`, parent
   Feature #374, Epic #258, and native blocked-by relation to modules #368.
-- [ ] 1.3 Before implementation, recheck that #662 is not already `In Progress`
+- [x] 1.3 Before implementation, recheck that #662 is not already `In Progress`
   elsewhere and that modules #368/#369 has published the signed immutable
-  `nold-ai/specfact-requirements` 0.4.0 release.
-- [ ] 1.3.1 After that release is on modules `main`, record its exact signed SHA
+  `nold-ai/specfact-requirements` 0.4.3 release.
+- [x] 1.3.1 After that release is on modules `main`, record its exact signed SHA
   in `ci/module-fixture.lock.json` and every matching fixture allowlist, then
   manually rerun core PR #663. Do not pre-pin the current feature-branch SHA.
 - [ ] 1.4 Update the internal wiki mirror/graph when the current dirty internal
@@ -26,7 +26,7 @@ behavior before its tests exist and have failed for the expected reason.
 
 ## 2. Specification and failing evidence
 
-- [ ] 2.1 Revalidate this change against the released modules #368 public
+- [x] 2.1 Revalidate this change against the released modules #368 public
   plan/reconciliation/review-context contract without duplicating semantics.
 - [ ] 2.2 Add failing staged-gate tests for index isolation, mapped touchpoints,
   exact selectors, no-impact decisions, gate ordering, and report retention.

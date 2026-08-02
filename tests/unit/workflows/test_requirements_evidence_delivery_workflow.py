@@ -8,7 +8,7 @@ import yaml
 
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-APPROVED_MODULE_COMMIT = "2438372f8e34c96d4e474afa4c66c92a9cee7979"
+APPROVED_MODULE_COMMIT = "97e0f917903b09803f48b7d73f56ec9753cf95c7"
 
 
 def _step_by_name(workflow: dict[str, object], name: str) -> dict[str, object]:

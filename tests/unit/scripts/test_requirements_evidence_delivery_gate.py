@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import subprocess
 import sys
 from collections.abc import Callable
 from pathlib import Path
@@ -20,6 +21,8 @@ class GateModule(Protocol):
     """Typed public surface supplied by the file-loaded delivery adapter."""
 
     EvidenceRequest: Callable[..., object]
+
+    def _git_head(self, arguments: list[str]) -> str: ...
 
     def verify_fixture(self, fixture: dict[str, object], fixture_root: Path, *, git_runner: Callable[..., str]) -> None:
         pass
@@ -63,7 +66,7 @@ def test_verified_fixture_requires_exact_released_identity_and_clean_tree(tmp_pa
         ValueError, match="must target nold-ai/specfact-cli-modules"
     ):
         module.verify_fixture(
-            {"repository": "example/other", "commit": "2438372f8e34c96d4e474afa4c66c92a9cee7979"},
+            {"repository": "example/other", "commit": "97e0f917903b09803f48b7d73f56ec9753cf95c7"},
             tmp_path,
             git_runner=lambda *_: "",
         )
@@ -82,15 +85,35 @@ def test_verified_fixture_requires_exact_released_identity_and_clean_tree(tmp_pa
         module.verify_fixture(
             {
                 "repository": "nold-ai/specfact-cli-modules",
-                "commit": "2438372f8e34c96d4e474afa4c66c92a9cee7979",
+                "commit": "97e0f917903b09803f48b7d73f56ec9753cf95c7",
             },
             tmp_path,
             git_runner=lambda arguments: (
-                "2438372f8e34c96d4e474afa4c66c92a9cee7979"
+                "97e0f917903b09803f48b7d73f56ec9753cf95c7"
                 if arguments[-2:] == ["rev-parse", "HEAD"]
                 else " M package.py\n"
             ),
         )
+
+
+def test_fixture_git_lookup_ignores_commit_hook_worktree_environment(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The supplied fixture path must win over Git's commit-hook environment."""
+    module = _load_gate_module()
+    captured_environment: dict[str, str] = {}
+
+    def git_run(_arguments: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+        environment = kwargs["env"]
+        assert isinstance(environment, dict)
+        captured_environment.update(environment)
+        return subprocess.CompletedProcess([], 0, stdout="97e0f917903b09803f48b7d73f56ec9753cf95c7\n")
+
+    monkeypatch.setenv("GIT_DIR", "/unrelated/commit-worktree.git")
+    monkeypatch.setenv("GIT_WORK_TREE", "/unrelated/commit-worktree")
+    monkeypatch.setattr(module.subprocess, "run", git_run)
+
+    assert module._git_head(["git", "-C", "/fixture", "rev-parse", "HEAD"]).startswith("97e0f917")
+    assert "GIT_DIR" not in captured_environment
+    assert "GIT_WORK_TREE" not in captured_environment
 
 
 def test_staged_red_verdict_keeps_both_report_destinations(tmp_path: Path) -> None:
@@ -148,6 +171,38 @@ def test_delegated_command_requests_planned_maturity(tmp_path: Path) -> None:
     assert captured_arguments[maturity_index : maturity_index + 2] == ["--required-maturity", "planned"]
 
 
+def test_delegated_command_forwards_accepted_maturity_and_proof_inputs(tmp_path: Path) -> None:
+    """CI can request accepted planning without the adapter inventing review evidence."""
+    module = _load_gate_module()
+    fixture = tmp_path / "fixture"
+    fixture.mkdir()
+    review_evidence = tmp_path / "review-evidence.json"
+    review_evidence.write_text('{"decision":"accepted"}\n', encoding="utf-8")
+    plan_output = tmp_path / "plan.json"
+    captured_arguments: list[str] = []
+    request = module.EvidenceRequest(
+        repo_root=tmp_path,
+        selection=("--base-ref", "origin/dev"),
+        output_path=tmp_path / "evidence.json",
+        summary_path=tmp_path / "evidence.md",
+        required_maturity="accepted",
+        review_evidence=review_evidence,
+        plan_output=plan_output,
+    )
+
+    assert (
+        module.run_evidence_command(
+            request,
+            fixture,
+            command_runner=lambda arguments, _environment: captured_arguments.extend(arguments) or 0,
+        )
+        == 0
+    )
+    assert captured_arguments[captured_arguments.index("--required-maturity") + 1] == "accepted"
+    assert captured_arguments[captured_arguments.index("--review-evidence") + 1] == str(review_evidence)
+    assert captured_arguments[captured_arguments.index("--plan-output") + 1] == str(plan_output)
+
+
 def test_failed_command_writes_missing_diagnostic_reports_and_exports_fixture_roots(tmp_path: Path) -> None:
     """A startup failure must retain diagnostics and discover only the verified fixture."""
     module = _load_gate_module()
@@ -182,7 +237,7 @@ def test_main_rejects_invalid_fixture_before_command_execution_and_writes_diagno
     module = _load_gate_module()
     (tmp_path / "ci").mkdir()
     (tmp_path / "ci" / "module-fixture.lock.json").write_text(
-        json.dumps({"repository": "example/other", "commit": "2438372f8e34c96d4e474afa4c66c92a9cee7979"}),
+        json.dumps({"repository": "example/other", "commit": "97e0f917903b09803f48b7d73f56ec9753cf95c7"}),
         encoding="utf-8",
     )
     fixture = tmp_path / "fixture"
@@ -234,7 +289,7 @@ def test_main_forwards_selection_and_verified_fixture(
         "_read_fixture_lock",
         lambda _repo_root: {
             "repository": "nold-ai/specfact-cli-modules",
-            "commit": "2438372f8e34c96d4e474afa4c66c92a9cee7979",
+            "commit": "97e0f917903b09803f48b7d73f56ec9753cf95c7",
         },
     )
     monkeypatch.setattr(module, "verify_fixture", lambda *_args, **_kwargs: None)

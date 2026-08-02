@@ -39,7 +39,7 @@ jobs:
           set -euo pipefail
           repository="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["repository"])')"
           commit="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])')"
-          approved_commit="2438372f8e34c96d4e474afa4c66c92a9cee7979"
+          approved_commit="97e0f917903b09803f48b7d73f56ec9753cf95c7"
           [[ "$repository" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]
           test "$repository" = "nold-ai/specfact-cli-modules"
           [[ "$commit" =~ ^[0-9a-f]{40}$ ]]

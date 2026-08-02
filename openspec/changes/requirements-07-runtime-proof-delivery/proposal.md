@@ -17,7 +17,7 @@ module-owned scenario test plan to current-run test results and review context.
 - Extend pull-request CI to run for relevant product, contract, test, and
   requirement-source changes; emit an explicit auditable skipped result only
   after a deterministic no-impact decision.
-- Consume only the reviewed, signed `nold-ai/specfact-requirements` 0.4.0
+- Consume only the reviewed, signed `nold-ai/specfact-requirements` 0.4.3
   release from modules #368/#369; validate its
   structured test plan, execute approved exact selectors without shell
   interpretation, retain JUnit output, and delegate reconciliation back to the
@@ -50,7 +50,7 @@ module-owned scenario test plan to current-run test results and review context.
 - Dependencies: blocked by modules User Story
   [#368](https://github.com/nold-ai/specfact-cli-modules/issues/368), PR
   [#369](https://github.com/nold-ai/specfact-cli-modules/pull/369), and the
-  signed immutable `nold-ai/specfact-requirements` 0.4.0 release. Produces a bounded Requirements signal consumable
+  signed immutable `nold-ai/specfact-requirements` 0.4.3 release. Produces a bounded Requirements signal consumable
   by, but does not implement, `validation-02-full-chain-engine`.
 - Rollback: restore the current static evidence gate and remove targeted test
   execution/review context while retaining previously uploaded proof artifacts.

@@ -7,7 +7,7 @@ base diff, retains JSON/Markdown reports, and fails only after artifacts are
 available. This is the correct delivery boundary, but the report currently
 establishes declared traceability rather than current-run test execution.
 
-Modules #368/#369 will own a two-phase 0.4.0 contract: a structured scenario proof plan
+Modules #368/#369 own the released two-phase 0.4.3 contract: a structured scenario proof plan
 and reconciliation of trusted JUnit results. Core owns safe process execution,
 timeouts, the frozen environment, artifact retention, job ordering, and branch
 protection. Core must not reinterpret Requirements findings or manufacture a
@@ -113,7 +113,7 @@ step exits non-zero.
 
 ## Rollout and Rollback
 
-1. Merge and release modules #368/#369 as signed `nold-ai/specfact-requirements` 0.4.0 with compatibility fixtures.
+1. Modules #368/#369 released signed `nold-ai/specfact-requirements` 0.4.3 with compatibility fixtures.
 2. Record that release's immutable main-branch SHA in `ci/module-fixture.lock.json` and its allowlist before manually rerunning core PR #663; never pre-pin a feature-branch SHA.
 3. Pin that release in core and enable always-reporting advisory proof CI.
 4. Baseline mappings and remediation, then enable strict blocking by profile.

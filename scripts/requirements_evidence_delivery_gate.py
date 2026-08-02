@@ -16,7 +16,7 @@ from icontract import ensure
 
 
 APPROVED_REPOSITORY = "nold-ai/specfact-cli-modules"
-APPROVED_COMMIT = "2438372f8e34c96d4e474afa4c66c92a9cee7979"
+APPROVED_COMMIT = "97e0f917903b09803f48b7d73f56ec9753cf95c7"
 SHA_PATTERN = re.compile(r"^[0-9a-f]{40}$")
 CommandRunner = Callable[[list[str], dict[str, str]], int]
 GitRunner = Callable[[list[str]], str]
@@ -31,6 +31,8 @@ class EvidenceRequest:
     output_path: Path
     summary_path: Path
     required_maturity: str = "planned"
+    review_evidence: Path | None = None
+    plan_output: Path | None = None
 
 
 def _read_fixture_lock(repo_root: Path) -> dict[str, object]:
@@ -47,7 +49,8 @@ def _read_fixture_lock(repo_root: Path) -> dict[str, object]:
 
 def _git_head(arguments: list[str]) -> str:
     """Resolve a fixture checkout's immutable Git revision."""
-    return subprocess.run(arguments, check=True, capture_output=True, text=True).stdout.strip()
+    environment = {key: value for key, value in os.environ.items() if not key.startswith("GIT_")}
+    return subprocess.run(arguments, check=True, capture_output=True, env=environment, text=True).stdout.strip()
 
 
 def _reset_report_paths(request: EvidenceRequest) -> None:
@@ -131,8 +134,12 @@ def run_evidence_command(
         str(request.summary_path),
         "--required-maturity",
         request.required_maturity,
-        selection_flag,
     ]
+    if request.review_evidence is not None:
+        arguments.extend(("--review-evidence", str(request.review_evidence)))
+    if request.plan_output is not None:
+        arguments.extend(("--plan-output", str(request.plan_output)))
+    arguments.append(selection_flag)
     if selection_value is not None:
         arguments.append(selection_value)
     environment = dict(os.environ)
@@ -167,6 +174,18 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--fixture-root", help="Verified local checkout of the pinned modules fixture.")
     parser.add_argument("--output", type=Path, required=True, help="Destination JSON evidence report.")
     parser.add_argument("--summary", type=Path, required=True, help="Destination Markdown evidence report.")
+    parser.add_argument(
+        "--required-maturity",
+        choices=("planned", "accepted", "test-authored", "red", "verified"),
+        default="planned",
+        help="Published lifecycle maturity required for selected evidence.",
+    )
+    parser.add_argument(
+        "--review-evidence",
+        type=Path,
+        help="Accepted provider-neutral record bound to the current mapping digest.",
+    )
+    parser.add_argument("--plan-output", type=Path, help="Destination for the normalized lifecycle plan report.")
     return parser
 
 
@@ -185,6 +204,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         selection=_selection(arguments),
         output_path=arguments.output,
         summary_path=arguments.summary,
+        required_maturity=arguments.required_maturity,
+        review_evidence=arguments.review_evidence,
+        plan_output=arguments.plan_output,
     )
     try:
         _reset_report_paths(request)
