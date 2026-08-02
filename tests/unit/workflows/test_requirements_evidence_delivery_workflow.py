@@ -43,6 +43,12 @@ def _assert_command_contract(workflow: dict[str, object]) -> None:
     assert "required_maturity=planned" in run_evidence["run"]  # type: ignore[index]
     assert "required_maturity=test-authored" in run_evidence["run"]  # type: ignore[index]
     assert '--required-maturity "$required_maturity"' in run_evidence["run"]  # type: ignore[index]
+    assert (
+        'if ! changed_paths="$(git diff --name-only "origin/${EVIDENCE_BASE_BRANCH}...HEAD")"; then'
+        in run_evidence["run"]
+    )  # type: ignore[index]
+    assert "--plan-output artifacts/requirements-evidence/requirements-evidence-plan.json" in run_evidence["run"]  # type: ignore[index]
+    assert '--review-evidence "$review_evidence"' in run_evidence["run"]  # type: ignore[index]
     assert run_evidence["env"]["EVIDENCE_BASE_BRANCH"]  # type: ignore[index]
     assert "workflow_dispatch" in workflow["on"]  # type: ignore[operator]
     assert "fallback_required=0" in run_evidence["run"]  # type: ignore[index]
@@ -62,6 +68,7 @@ def _assert_retention_contract(workflow: dict[str, object]) -> None:
     assert upload["with"]["path"].splitlines() == [  # type: ignore[index]
         "artifacts/requirements-evidence/requirements-evidence.json",
         "artifacts/requirements-evidence/requirements-evidence.md",
+        "artifacts/requirements-evidence/requirements-evidence-plan.json",
     ]
     assert enforce["if"] == "steps.run-evidence.outcome == 'failure'"  # type: ignore[index]
     assert enforce["run"] == "exit 1"  # type: ignore[index]

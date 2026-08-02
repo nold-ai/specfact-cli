@@ -152,9 +152,10 @@ def test_executor_rejects_duplicate_or_unsupported_plan_entries(tmp_path: Path) 
 @pytest.mark.parametrize(
     "selector",
     [
-        "tests/test_proof.py::test_selected[param-value]",
+        "tests/test_proof.py::test_parameterized[param-value]",
+        "tests/test_proof.py::test_parameterized[spec commands-commands0]",
         "tests/test_proof.py::TestProof::test_selected",
-        "tests/test_proof.py::TestProof::test_selected[param-value]",
+        "tests/test_proof.py::TestParameterizedProof::test_selected[param-value]",
     ],
 )
 def test_executor_accepts_module_valid_pytest_node_ids(tmp_path: Path, selector: str) -> None:
@@ -162,7 +163,17 @@ def test_executor_accepts_module_valid_pytest_node_ids(tmp_path: Path, selector:
     module = _load_executor_module()
     test_file = tmp_path / "tests" / "test_proof.py"
     test_file.parent.mkdir()
-    test_file.write_text("def test_selected() -> None: pass\n", encoding="utf-8")
+    test_file.write_text(
+        "import pytest\n\n"
+        "@pytest.mark.parametrize('label', ['first', 'second'], ids=['param-value', 'spec commands-commands0'])\n"
+        "def test_parameterized(label: str) -> None: pass\n\n"
+        "class TestProof:\n"
+        "    def test_selected(self) -> None: pass\n\n"
+        "class TestParameterizedProof:\n"
+        "    @pytest.mark.parametrize('label', ['first'], ids=['param-value'])\n"
+        "    def test_selected(self, label: str) -> None: pass\n",
+        encoding="utf-8",
+    )
 
     assert module.selectors_from_plan(_plan(selector), tmp_path) == [selector]
 

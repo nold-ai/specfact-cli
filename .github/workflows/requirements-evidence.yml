@@ -90,21 +90,33 @@ jobs:
         env:
           EVIDENCE_BASE_BRANCH: ${{ github.event_name == 'pull_request' && github.base_ref || inputs.base_branch || github.event.repository.default_branch }}
         run: |
-          set +e
+          set -e
           [[ "$EVIDENCE_BASE_BRANCH" =~ ^[A-Za-z0-9._/-]+$ ]]
           required_maturity=planned
-          changed_paths="$(git diff --name-only "origin/${EVIDENCE_BASE_BRANCH}...HEAD")"
+          if ! changed_paths="$(git diff --name-only "origin/${EVIDENCE_BASE_BRANCH}...HEAD")"; then
+            printf 'Unable to derive changed paths for %s\n' "$EVIDENCE_BASE_BRANCH" >&2
+            exit 1
+          fi
           if grep -Eq '^(\.github|ci|scripts|src)/' <<< "$changed_paths"; then
             required_maturity=verified
           elif grep -Eq '^tests/' <<< "$changed_paths"; then
             required_maturity=test-authored
           fi
-          uv run --locked --no-sync specfact requirements evidence \
+          evidence_arguments=(
+            uv run --locked --no-sync specfact requirements evidence
             --repo-root "$GITHUB_WORKSPACE" \
             --base-ref "origin/${EVIDENCE_BASE_BRANCH}" \
             --required-maturity "$required_maturity" \
+            --plan-output artifacts/requirements-evidence/requirements-evidence-plan.json \
             --output artifacts/requirements-evidence/requirements-evidence.json \
             --summary artifacts/requirements-evidence/requirements-evidence.md
+          )
+          review_evidence=openspec/changes/requirements-07-runtime-proof-delivery/requirements-proof/review-evidence.json
+          if [[ -f "$review_evidence" ]]; then
+            evidence_arguments+=(--review-evidence "$review_evidence")
+          fi
+          set +e
+          "${evidence_arguments[@]}"
           exit_code=$?
           set -e
           fallback_required=0
@@ -136,6 +148,7 @@ jobs:
           path: |
             artifacts/requirements-evidence/requirements-evidence.json
             artifacts/requirements-evidence/requirements-evidence.md
+            artifacts/requirements-evidence/requirements-evidence-plan.json
           if-no-files-found: warn
 
       - name: Enforce requirements evidence verdict

@@ -129,9 +129,8 @@
 - **Published-module check:** the pinned fixture accepted the updated sidecar
   at `planned` maturity with mapping digest
   `sha256:e0201e196d073e7dc7c6b6fc7c4bbae1d447ac42a51d508e6fd253d799affde8`.
-- **Acceptance limit:** this digest differs from the existing acceptance
-  record, so no higher maturity is claimed until product-owner acceptance is
-  renewed for the new digest.
+- **Acceptance:** product-owner acceptance was renewed for this digest on
+  2026-08-02 and recorded in `requirements-proof/review-evidence.json`.
 - **Validation:** `SPECFACT_MODULES_REPO=/private/tmp/specfact-cli-modules-r07 hatch run specfact requirements evidence --repo-root . --base-ref origin/dev --required-maturity accepted --review-evidence openspec/changes/requirements-07-runtime-proof-delivery/requirements-proof/review-evidence.json --output /private/tmp/r07-accepted.json --summary /private/tmp/r07-accepted.md`
   passed with `required_maturity: accepted` and `observed_maturity: accepted`.
 
@@ -154,3 +153,15 @@
   `accepted` maturity and a passing retained plan report.
 - **Proof:** the adapter transports lifecycle inputs unchanged and continues to
   delegate all Requirements semantics to the verified module release.
+
+## Review follow-up verification
+
+- **Recorded:** 2026-08-02 (Europe/Berlin)
+- **Command:** `hatch run pytest tests/unit/scripts/test_requirements_evidence_delivery_gate.py tests/unit/scripts/test_requirements_proof_executor.py tests/unit/workflows/test_requirements_evidence_delivery_workflow.py -q`
+- **Result:** focused runtime-proof, maturity-selection, plan-retention, and
+  acceptance-forwarding coverage passed.
+- **Proof:** changed-path discovery fails closed before evidence evaluation;
+  CI retains the module-produced plan artifact and supplies the current
+  acceptance record when present. Exact pytest parameter IDs with safe text,
+  including spaces, remain valid no-shell argument values, while path and
+  control-character safeguards continue to reject unsafe selectors.
