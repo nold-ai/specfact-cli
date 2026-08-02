@@ -7,12 +7,11 @@ on:
     branches: [main, dev]
     paths:
       - "openspec/changes/**"
-      - "ci/module-fixture.lock.json"
-      - "scripts/requirements_evidence_delivery_gate.py"
-      - "scripts/requirements_proof_executor.py"
-      - "scripts/requirements_proof_pytest_plugin.py"
-      - "tests/unit/scripts/test_requirements_proof_executor.py"
-      - ".github/workflows/requirements-evidence.yml"
+      - ".github/**"
+      - "ci/**"
+      - "scripts/**"
+      - "src/**"
+      - "tests/**"
   workflow_dispatch:
     inputs:
       base_branch:
@@ -110,23 +109,73 @@ jobs:
           elif grep -Eq '^tests/' <<< "$changed_paths"; then
             required_maturity=test-authored
           fi
+          planning_maturity="$required_maturity"
+          if [[ "$required_maturity" == "verified" ]]; then
+            planning_maturity=test-authored
+          fi
+          selected_change=""
+          mapfile -t changed_changes < <(
+            printf '%s\n' "$changed_paths" \
+              | sed -nE 's#^openspec/changes/([^/]+)/.*#\1#p' \
+              | sort -u
+          )
+          if [[ "${#changed_changes[@]}" -eq 1 ]]; then
+            selected_change="${changed_changes[0]}"
+          fi
           evidence_arguments=(
             uv run --locked --no-sync specfact requirements evidence
             --repo-root "$GITHUB_WORKSPACE" \
             --base-ref "origin/${EVIDENCE_BASE_BRANCH}" \
-            --required-maturity "$required_maturity" \
+            --required-maturity "$planning_maturity" \
             --plan-output artifacts/requirements-evidence/requirements-evidence-plan.json \
             --output artifacts/requirements-evidence/requirements-evidence.json \
             --summary artifacts/requirements-evidence/requirements-evidence.md
           )
-          review_evidence=openspec/changes/requirements-07-runtime-proof-delivery/requirements-proof/review-evidence.json
-          if [[ -f "$review_evidence" ]]; then
-            evidence_arguments+=(--review-evidence "$review_evidence")
+          prior_red_proof=""
+          if [[ -n "$selected_change" ]]; then
+            review_evidence="openspec/changes/${selected_change}/requirements-proof/review-evidence.json"
+            if [[ -f "$review_evidence" ]]; then
+              evidence_arguments+=(--review-evidence "$review_evidence")
+            fi
+            candidate_red_proof="openspec/changes/${selected_change}/requirements-proof/red.json"
+            if [[ -f "$candidate_red_proof" ]]; then
+              prior_red_proof="$candidate_red_proof"
+            fi
           fi
           set +e
           "${evidence_arguments[@]}"
           exit_code=$?
           set -e
+          if [[ "$exit_code" -eq 0 && "$required_maturity" == "verified" ]]; then
+            set +e
+            python scripts/requirements_proof_executor.py \
+              --plan artifacts/requirements-evidence/requirements-evidence-plan.json \
+              --repo-root "$GITHUB_WORKSPACE" \
+              --junit artifacts/requirements-evidence/requirements-proof.xml
+            execution_exit=$?
+            set -e
+            if [[ ! -s artifacts/requirements-evidence/requirements-proof.xml ]]; then
+              write_failure_reports "Requirements proof executor exited with status $execution_exit before writing JUnit."
+              exit_code=1
+            else
+              reconciliation_arguments=(
+                uv run --locked --no-sync specfact requirements reconcile
+                --plan artifacts/requirements-evidence/requirements-evidence-plan.json \
+                --junit artifacts/requirements-evidence/requirements-proof.xml \
+                --run-stage final \
+                --source-ref "$GITHUB_SHA" \
+                --output artifacts/requirements-evidence/requirements-evidence.json \
+                --summary artifacts/requirements-evidence/requirements-evidence.md
+              )
+              if [[ -n "$prior_red_proof" ]]; then
+                reconciliation_arguments+=(--prior-red-proof "$prior_red_proof")
+              fi
+              set +e
+              "${reconciliation_arguments[@]}"
+              exit_code=$?
+              set -e
+            fi
+          fi
           fallback_required=0
           if [[ ! -s artifacts/requirements-evidence/requirements-evidence.json ]]; then
             printf '{"schema_version":1,"verdict":"failed","diagnostic":"Evidence command exited with status %s before writing JSON."}\n' "$exit_code" > artifacts/requirements-evidence/requirements-evidence.json
@@ -157,6 +206,7 @@ jobs:
             artifacts/requirements-evidence/requirements-evidence.json
             artifacts/requirements-evidence/requirements-evidence.md
             artifacts/requirements-evidence/requirements-evidence-plan.json
+            artifacts/requirements-evidence/requirements-proof.xml
           if-no-files-found: warn
 
       - name: Enforce requirements evidence verdict

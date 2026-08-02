@@ -7,13 +7,32 @@ import json
 import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from typing import Protocol, cast
+from typing import Any, Protocol, cast
 
 import pytest
 
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 EXECUTOR_SCRIPT = REPO_ROOT / "scripts" / "requirements_proof_executor.py"
+pytest_runtime = cast(Any, pytest)
+
+
+class MonkeyPatch(Protocol):
+    """Typed subset of pytest's fixture used by these executor contracts."""
+
+    def setenv(self, name: str, value: str) -> None: ...
+
+    def setattr(self, target: object, name: str, value: object) -> None: ...
+
+
+class ProofCommand(Protocol):
+    """Typed command fields observed by the proof-executor unit tests."""
+
+    arguments: list[str]
+    cwd: Path
+    env: dict[str, str]
+    shell: bool
+    timeout: int
 
 
 class ExecutorModule(Protocol):
@@ -27,15 +46,11 @@ class ExecutorModule(Protocol):
         plan: dict[str, object],
         repo_root: Path,
         junit_path: Path,
-        *,
-        command_runner: object | None = None,
+        **kwargs: object,
     ) -> int:
         raise NotImplementedError
 
-    def _run_command(self, arguments: list[str], *, cwd: Path, env: dict[str, str], shell: bool, timeout: int) -> int:
-        raise NotImplementedError
-
-    def main(self, argv: list[str] | None = None) -> int:
+    def main(self, argv: list[str] | None) -> int:
         raise NotImplementedError
 
 
@@ -64,34 +79,15 @@ def _plan(*selectors: str) -> dict[str, object]:
     }
 
 
-def test_executor_accepts_existing_exact_selectors_and_uses_argument_array(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """Only existing exact pytest node IDs may reach the no-shell invocation."""
-    module = _load_executor_module()
+def _write_selected_test(tmp_path: Path) -> None:
     test_file = tmp_path / "tests" / "test_proof.py"
     test_file.parent.mkdir()
     test_file.write_text("def test_selected() -> None: pass\n", encoding="utf-8")
-    plan = _plan("tests/test_proof.py::test_selected")
-    junit_path = tmp_path / "artifacts" / "proof.xml"
-    captured: dict[str, object] = {}
-    monkeypatch.setenv("PYTEST_ADDOPTS", "--collect-only")
-    monkeypatch.setenv("PYTEST_PLUGINS", "untrusted_plugin")
-    monkeypatch.setenv("PYTHONPATH", "/untrusted/python")
-    monkeypatch.setenv("SPECFACT_MODULES_REPO", "/untrusted/modules")
 
-    observed = module.execute_plan(
-        plan,
-        tmp_path,
-        junit_path,
-        command_runner=lambda arguments, **kwargs: captured.update({"arguments": arguments, **kwargs}) or 0,
-    )
 
-    assert observed == 0
-    assert module.selectors_from_plan(plan, tmp_path) == ["tests/test_proof.py::test_selected"]
-    assert captured["shell"] is False
-    assert captured["cwd"] == tmp_path
-    assert captured["arguments"] == [
+def _assert_argument_contract(command: ProofCommand, junit_path: Path) -> None:
+    assert command.shell is False
+    assert command.arguments == [
         sys.executable,
         "-m",
         "pytest",
@@ -102,16 +98,53 @@ def test_executor_accepts_existing_exact_selectors_and_uses_argument_array(
         "--",
         "tests/test_proof.py::test_selected",
     ]
-    environment = captured["env"]
-    assert isinstance(environment, dict)
+
+
+def _assert_environment_contract(command: ProofCommand) -> None:
+    environment = command.env
     assert environment["PYTEST_DISABLE_PLUGIN_AUTOLOAD"] == "1"
-    assert "PYTEST_ADDOPTS" not in environment
-    assert "PYTEST_PLUGINS" not in environment
-    assert "PYTHONPATH" not in environment
-    assert "SPECFACT_MODULES_REPO" not in environment
+    assert not {"PYTEST_ADDOPTS", "PYTEST_PLUGINS", "PYTHONPATH", "SPECFACT_MODULES_REPO"} & environment.keys()
 
 
-@pytest.mark.parametrize(
+def test_executor_accepts_existing_exact_selectors_and_uses_argument_array(
+    tmp_path: Path, monkeypatch: MonkeyPatch
+) -> None:
+    """Only existing exact pytest node IDs may reach the no-shell invocation."""
+    module = _load_executor_module()
+    _write_selected_test(tmp_path)
+    plan = _plan("tests/test_proof.py::test_selected")
+    junit_path = tmp_path / "artifacts" / "proof.xml"
+    captured: ProofCommand | None = None
+
+    for name, value in (
+        ("PYTEST_ADDOPTS", "--collect-only"),
+        ("PYTEST_PLUGINS", "untrusted_plugin"),
+        ("PYTHONPATH", "/untrusted/python"),
+        ("SPECFACT_MODULES_REPO", "/untrusted/modules"),
+    ):
+        monkeypatch.setenv(name, value)
+
+    def capture_command(command: ProofCommand) -> int:
+        nonlocal captured
+        captured = command
+        return 0
+
+    observed = module.execute_plan(
+        plan,
+        tmp_path,
+        junit_path,
+        command_runner=capture_command,
+    )
+
+    assert observed == 0
+    assert module.selectors_from_plan(plan, tmp_path) == ["tests/test_proof.py::test_selected"]
+    assert captured is not None
+    assert captured.cwd == tmp_path
+    _assert_argument_contract(captured, junit_path)
+    _assert_environment_contract(captured)
+
+
+@pytest_runtime.mark.parametrize(
     "selector",
     [
         "/tmp/test_proof.py::test_selected",
@@ -119,16 +152,16 @@ def test_executor_accepts_existing_exact_selectors_and_uses_argument_array(
         "tests/test_proof.py::test_*",
         "-p.py::test_selected",
         "tests/test_proof.py::test_selected;touch pwned",
+        "tests/test_proof.py::test_selected\tinjected",
     ],
 )
 def test_executor_rejects_unsafe_selectors_before_spawning(tmp_path: Path, selector: str) -> None:
     """Path escapes, option injection, globs, and shell syntax are never executable."""
     module = _load_executor_module()
+    _write_selected_test(tmp_path)
 
-    with pytest.raises(ValueError, match="invalid pytest selector"):
-        module.execute_plan(
-            _plan(selector), tmp_path, tmp_path / "proof.xml", command_runner=lambda *_args, **_kwargs: 0
-        )
+    with pytest_runtime.raises(ValueError, match="invalid pytest selector"):
+        module.execute_plan(_plan(selector), tmp_path, tmp_path / "proof.xml", command_runner=lambda _command: 0)
 
 
 def test_executor_rejects_duplicate_or_unsupported_plan_entries(tmp_path: Path) -> None:
@@ -138,18 +171,18 @@ def test_executor_rejects_duplicate_or_unsupported_plan_entries(tmp_path: Path) 
     test_file.parent.mkdir()
     test_file.write_text("def test_selected() -> None: pass\n", encoding="utf-8")
 
-    with pytest.raises(ValueError, match="duplicate pytest selector"):
+    with pytest_runtime.raises(ValueError, match="duplicate pytest selector"):
         module.selectors_from_plan(
             _plan("tests/test_proof.py::test_selected", "tests/test_proof.py::test_selected"), tmp_path
         )
-    with pytest.raises(ValueError, match="unsupported runner"):
+    with pytest_runtime.raises(ValueError, match="unsupported runner"):
         module.selectors_from_plan(
             {"plan": {"cases": [{"method": "test", "selector": {"runner": "unittest", "node_id": "tests/x.py::x"}}]}},
             tmp_path,
         )
 
 
-@pytest.mark.parametrize(
+@pytest_runtime.mark.parametrize(
     "selector",
     [
         "tests/test_proof.py::test_parameterized[param-value]",
@@ -178,9 +211,7 @@ def test_executor_accepts_module_valid_pytest_node_ids(tmp_path: Path, selector:
     assert module.selectors_from_plan(_plan(selector), tmp_path) == [selector]
 
 
-def test_executor_cli_reads_plan_and_forwards_no_shell_junit_path(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_executor_cli_reads_plan_and_forwards_no_shell_junit_path(tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
     """The command-line adapter parses a plan and sends validated arguments without a shell."""
     module = _load_executor_module()
     test_file = tmp_path / "tests" / "test_proof.py"
@@ -189,28 +220,19 @@ def test_executor_cli_reads_plan_and_forwards_no_shell_junit_path(
     plan_path = tmp_path / "plan.json"
     plan_path.write_text(json.dumps(_plan("tests/test_proof.py::test_selected")), encoding="utf-8")
     junit_path = tmp_path / "artifacts" / "proof.xml"
-    captured: dict[str, object] = {}
+    captured: ProofCommand | None = None
 
-    def run_command(arguments: list[str], **kwargs: object) -> int:
-        captured.update({"arguments": arguments, **kwargs})
+    def run_command(command: ProofCommand) -> int:
+        nonlocal captured
+        captured = command
         return 0
 
     monkeypatch.setattr(module, "_run_command", run_command)
 
     assert module.main(["--plan", str(plan_path), "--repo-root", str(tmp_path), "--junit", str(junit_path)]) == 0
-    assert captured["shell"] is False
-    assert captured["cwd"] == tmp_path
-    assert captured["arguments"] == [
-        sys.executable,
-        "-m",
-        "pytest",
-        "--junitxml",
-        str(junit_path),
-        "-p",
-        "scripts.requirements_proof_pytest_plugin",
-        "--",
-        "tests/test_proof.py::test_selected",
-    ]
+    assert captured is not None
+    assert captured.cwd == tmp_path
+    _assert_argument_contract(captured, junit_path)
 
 
 def test_executor_cli_rejects_malformed_plan_before_spawning(tmp_path: Path) -> None:
@@ -219,7 +241,7 @@ def test_executor_cli_rejects_malformed_plan_before_spawning(tmp_path: Path) -> 
     plan_path = tmp_path / "plan.json"
     plan_path.write_text("{not-json", encoding="utf-8")
 
-    with pytest.raises(SystemExit, match="cannot read proof plan"):
+    with pytest_runtime.raises(SystemExit, match="cannot read proof plan"):
         module.main(["--plan", str(plan_path), "--repo-root", str(tmp_path), "--junit", str(tmp_path / "proof.xml")])
 
 

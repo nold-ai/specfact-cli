@@ -9,8 +9,9 @@ import re
 import subprocess
 import sys
 from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
-from typing import Protocol, runtime_checkable
+from typing import Protocol, cast, runtime_checkable
 
 from beartype import beartype
 from icontract import ensure
@@ -26,24 +27,55 @@ PROOF_ENVIRONMENT_KEYS = frozenset({"HOME", "LANG", "LC_ALL", "LC_CTYPE", "PATH"
 class CommandRunner(Protocol):
     """Typed subprocess seam for unit testing the no-shell invocation."""
 
-    def __call__(self, arguments: list[str], *, cwd: Path, env: dict[str, str], shell: bool, timeout: int) -> int: ...
+    def __call__(self, request: ProofCommand) -> int: ...
+
+
+@dataclass(frozen=True)
+class ProofCommand:
+    """Core-owned process inputs for one bounded pytest proof invocation."""
+
+    arguments: list[str]
+    cwd: Path
+    env: dict[str, str]
+    shell: bool
+    timeout: int
 
 
 def _plan_cases(plan: Mapping[str, object]) -> list[Mapping[str, object]]:
     nested_plan = plan.get("plan")
     if not isinstance(nested_plan, Mapping):
         raise ValueError("proof plan must contain a plan object")
+    nested_plan = cast(Mapping[str, object], nested_plan)
     cases = nested_plan.get("cases")
     if not isinstance(cases, list) or not cases:
         raise ValueError("proof plan must contain nonempty cases")
     if any(not isinstance(case, Mapping) for case in cases):
         raise ValueError("proof plan contains an invalid case")
-    return [case for case in cases if isinstance(case, Mapping)]
+    return [cast(Mapping[str, object], case) for case in cases if isinstance(case, Mapping)]
+
+
+def _contains_control_character(value: str) -> bool:
+    """Reject terminal and other ASCII controls before invoking pytest."""
+    return any(ord(character) < 32 or ord(character) == 127 for character in value)
+
+
+def _is_unsafe_node_id(node_id: str) -> bool:
+    """Keep paths relative and reject options, controls, and shell metacharacters."""
+    test_path, _, _ = node_id.partition("::")
+    relative_path = PurePosixPath(test_path)
+    return (
+        relative_path.is_absolute()
+        or ".." in relative_path.parts
+        or node_id.startswith("-")
+        or _contains_control_character(node_id)
+        or any(character in node_id for character in FORBIDDEN_SELECTOR_CHARACTERS)
+    )
 
 
 def _validate_selector(selector: object, repo_root: Path) -> str:
     if not isinstance(selector, Mapping):
         raise ValueError("proof plan contains an invalid pytest selector")
+    selector = cast(Mapping[str, object], selector)
     if selector.get("runner") != "pytest":
         raise ValueError("proof plan contains an unsupported runner")
     node_id = selector.get("node_id")
@@ -51,12 +83,7 @@ def _validate_selector(selector: object, repo_root: Path) -> str:
         raise ValueError("proof plan contains an invalid pytest selector")
     test_path, _, _ = node_id.partition("::")
     relative_path = PurePosixPath(test_path)
-    if (
-        relative_path.is_absolute()
-        or ".." in relative_path.parts
-        or node_id.startswith("-")
-        or any(character in node_id for character in FORBIDDEN_SELECTOR_CHARACTERS)
-    ):
+    if _is_unsafe_node_id(node_id):
         raise ValueError("proof plan contains an invalid pytest selector")
     resolved_path = (repo_root / relative_path).resolve()
     if not resolved_path.is_relative_to(repo_root.resolve()) or not resolved_path.is_file():
@@ -85,8 +112,15 @@ def selectors_from_plan(plan: dict[str, object], repo_root: Path) -> list[str]:
     return selectors
 
 
-def _run_command(arguments: list[str], *, cwd: Path, env: dict[str, str], shell: bool, timeout: int) -> int:
-    return subprocess.run(arguments, check=False, cwd=cwd, env=env, shell=shell, timeout=timeout).returncode
+def _run_command(request: ProofCommand) -> int:
+    return subprocess.run(
+        request.arguments,
+        check=False,
+        cwd=request.cwd,
+        env=request.env,
+        shell=request.shell,
+        timeout=request.timeout,
+    ).returncode
 
 
 @beartype
@@ -111,7 +145,7 @@ def execute_plan(
     ]
     environment = {key: value for key, value in os.environ.items() if key in PROOF_ENVIRONMENT_KEYS}
     environment["PYTEST_DISABLE_PLUGIN_AUTOLOAD"] = "1"
-    return command_runner(arguments, cwd=repo_root, env=environment, shell=False, timeout=600)
+    return command_runner(ProofCommand(arguments, repo_root, environment, shell=False, timeout=600))
 
 
 def _read_plan(plan_path: Path) -> dict[str, object]:
@@ -132,6 +166,8 @@ def _build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+@beartype
+@ensure(lambda result: isinstance(result, int))
 def main(argv: Sequence[str] | None = None) -> int:
     """Validate the structured plan and return the selected pytest exit code."""
     arguments = _build_parser().parse_args(argv)

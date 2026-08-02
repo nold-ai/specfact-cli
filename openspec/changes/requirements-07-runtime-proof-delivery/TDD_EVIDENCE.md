@@ -164,4 +164,39 @@
   CI retains the module-produced plan artifact and supplies the current
   acceptance record when present. Exact pytest parameter IDs with safe text,
   including spaces, remain valid no-shell argument values, while path and
-  control-character safeguards continue to reject unsafe selectors.
+  shell-metacharacter safeguards continue to reject unsafe selectors.
+
+## Failing-before CodeRabbit runtime-delivery findings
+
+- **Recorded:** 2026-08-03 (Europe/Berlin)
+- **Command:** `hatch run pytest tests/unit/scripts/test_requirements_proof_executor.py tests/unit/workflows/test_requirements_evidence_delivery_workflow.py -q`
+- **Result:** failed as expected (2 failures).
+- **Failure:** the executor accepted a tab-containing pytest selector, and the
+  workflow neither covered every governed path nor invoked the plan executor
+  and module reconciler with retained JUnit evidence.
+- **Intent:** reject every control character before subprocess execution and
+  complete the released plan → executor → JUnit → reconciler handoff without
+  hard-coding a specific OpenSpec change's acceptance record.
+
+## Passing-after CodeRabbit runtime-delivery findings
+
+- **Recorded:** 2026-08-03 (Europe/Berlin)
+- **Commands:**
+  - `hatch run pytest tests/unit/scripts/test_requirements_evidence_delivery_gate.py tests/unit/scripts/test_requirements_proof_executor.py tests/unit/workflows/test_requirements_evidence_delivery_workflow.py -q`
+  - `hatch run lint-changed scripts/requirements_proof_executor.py tests/unit/scripts/test_requirements_proof_executor.py tests/unit/workflows/test_requirements_evidence_delivery_workflow.py`
+  - `hatch run yaml-lint .github/workflows/requirements-evidence.yml && hatch run lint-workflows .github/workflows/requirements-evidence.yml`
+  - `openspec validate requirements-07-runtime-proof-delivery --strict`
+- **Result:** 27 focused tests passed; lint, YAML/workflow validation, and
+  strict OpenSpec validation passed.
+- **Proof:** pull requests that touch any governed delivery surface schedule
+  this gate. Verified-maturity changes are configured to obtain a
+  test-authored plan from the change-derived acceptance record, execute a
+  valid plan without a shell, retain JUnit, and reconcile through the pinned
+  module before enforcing its final report. Every ASCII control character is
+  rejected before pytest starts.
+- **Remaining evidence boundary:** a direct pinned-module plan check still
+  reports `missing-selector` for R07-CORE-001 through R07-CORE-008, so this
+  change cannot yet produce an executable plan. After exact selectors are
+  mapped, a valid historical red proof must also exist at the selected
+  change's `requirements-proof/red.json`; without it, final reconciliation
+  remains correctly blocking rather than accepting fabricated evidence.

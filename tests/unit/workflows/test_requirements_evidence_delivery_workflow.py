@@ -46,13 +46,21 @@ def _assert_command_contract(workflow: dict[str, object]) -> None:
         '--base-ref "origin/${EVIDENCE_BASE_BRANCH}"',
         "required_maturity=planned",
         "required_maturity=test-authored",
-        '--required-maturity "$required_maturity"',
+        "planning_maturity=test-authored",
+        '--required-maturity "$planning_maturity"',
+        'review_evidence="openspec/changes/${selected_change}/requirements-proof/review-evidence.json"',
         "write_failure_reports()",
         'write_failure_reports "Invalid evidence base branch: $EVIDENCE_BASE_BRANCH"',
         'if ! changed_paths="$(git diff --name-only "origin/${EVIDENCE_BASE_BRANCH}...HEAD")"; then',
         'write_failure_reports "Unable to derive changed paths for $EVIDENCE_BASE_BRANCH"',
         "--plan-output artifacts/requirements-evidence/requirements-evidence-plan.json",
         '--review-evidence "$review_evidence"',
+        "python scripts/requirements_proof_executor.py",
+        "--junit artifacts/requirements-evidence/requirements-proof.xml",
+        "uv run --locked --no-sync specfact requirements reconcile",
+        "--run-stage final",
+        '--source-ref "$GITHUB_SHA"',
+        '--prior-red-proof "$prior_red_proof"',
         "fallback_required=0",
         "fallback_required=1",
         'if [[ "$fallback_required" -eq 1 ]]; then',
@@ -61,6 +69,18 @@ def _assert_command_contract(workflow: dict[str, object]) -> None:
     assert all(fragment in run_evidence["run"] for fragment in required_fragments)  # type: ignore[index]
     assert run_evidence["env"]["EVIDENCE_BASE_BRANCH"]  # type: ignore[index]
     assert "workflow_dispatch" in workflow["on"]  # type: ignore[operator]
+
+
+def _assert_governed_trigger_contract(workflow: dict[str, object]) -> None:
+    pull_request = workflow["on"]["pull_request"]  # type: ignore[index]
+    assert pull_request["paths"] == [  # type: ignore[index]
+        "openspec/changes/**",
+        ".github/**",
+        "ci/**",
+        "scripts/**",
+        "src/**",
+        "tests/**",
+    ]
 
 
 def _assert_retention_contract(workflow: dict[str, object]) -> None:
@@ -75,6 +95,7 @@ def _assert_retention_contract(workflow: dict[str, object]) -> None:
         "artifacts/requirements-evidence/requirements-evidence.json",
         "artifacts/requirements-evidence/requirements-evidence.md",
         "artifacts/requirements-evidence/requirements-evidence-plan.json",
+        "artifacts/requirements-evidence/requirements-proof.xml",
     ]
     assert enforce["if"] == "steps.run-evidence.outcome == 'failure'"  # type: ignore[index]
     assert enforce["run"] == "exit 1"  # type: ignore[index]
@@ -94,6 +115,7 @@ def test_requirements_evidence_workflow_uses_the_released_fixture_and_retains_re
     assert "pull_request" in parsed["on"]
     _assert_fixture_contract(parsed)
     _assert_command_contract(parsed)
+    _assert_governed_trigger_contract(parsed)
     _assert_retention_contract(parsed)
 
 
