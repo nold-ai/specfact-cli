@@ -200,3 +200,30 @@
   mapped, a valid historical red proof must also exist at the selected
   change's `requirements-proof/red.json`; without it, final reconciliation
   remains correctly blocking rather than accepting fabricated evidence.
+
+## Failing-before CodeRabbit staged and terminal-proof findings
+
+- **Recorded:** 2026-08-03 (Europe/Berlin)
+- **Command:** `hatch run pytest tests/unit/scripts/test_requirements_evidence_delivery_gate.py tests/unit/scripts/test_requirements_proof_executor.py -q`
+- **Result:** failed as expected (3 failures).
+- **Failure:** the staged caller did not derive required maturity, the executor
+  accepted stale/non-executable plan states, and setup-phase JUnit failures
+  lacked their canonical selector property.
+- **Intent:** apply the same maturity policy in local and CI gates, reject
+  untrusted plan states before spawning pytest, and preserve selector identity
+  for every terminal pytest phase.
+
+## Passing-after CodeRabbit staged and terminal-proof findings
+
+- **Recorded:** 2026-08-03 (Europe/Berlin)
+- **Commands:**
+  - `hatch run pytest tests/unit/scripts/test_requirements_evidence_delivery_gate.py tests/unit/scripts/test_requirements_evidence_pre_commit.py tests/unit/scripts/test_requirements_proof_executor.py tests/unit/workflows/test_requirements_evidence_delivery_workflow.py -q`
+  - `hatch run lint-changed scripts/pre-commit-quality-checks.sh scripts/requirements_proof_executor.py scripts/requirements_proof_pytest_plugin.py tests/unit/scripts/test_requirements_evidence_pre_commit.py tests/unit/scripts/test_requirements_proof_executor.py tests/fixtures/requirements_proof_terminal_states.py`
+  - `hatch run python scripts/pre_commit_code_review.py scripts/requirements_proof_executor.py scripts/requirements_proof_pytest_plugin.py tests/unit/scripts/test_requirements_evidence_pre_commit.py tests/unit/scripts/test_requirements_proof_executor.py tests/fixtures/requirements_proof_terminal_states.py`
+- **Result:** 30 focused tests passed; lint and the SpecFact code-review gate
+  passed with zero findings.
+- **Proof:** staged source paths now derive the same `planned`,
+  `test-authored`, or `verified` maturity policy as pull-request paths. The
+  executor admits only a schema-v2, passing, test-authored plan, and the JUnit
+  plugin records every selected node ID on its first report, including skips
+  and setup errors.
