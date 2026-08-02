@@ -49,6 +49,7 @@ def _assert_command_contract(workflow: dict[str, object]) -> None:
         "planning_maturity=test-authored",
         '--required-maturity "$planning_maturity"',
         'review_evidence="openspec/changes/${selected_change}/requirements-proof/review-evidence.json"',
+        "find openspec/changes -path '*/requirements-proof/review-evidence.json' -type f -print",
         "write_failure_reports()",
         'write_failure_reports "Invalid evidence base branch: $EVIDENCE_BASE_BRANCH"',
         'if ! changed_paths="$(git diff --name-only "origin/${EVIDENCE_BASE_BRANCH}...HEAD")"; then',
@@ -58,6 +59,7 @@ def _assert_command_contract(workflow: dict[str, object]) -> None:
         "python scripts/requirements_proof_executor.py",
         "--junit artifacts/requirements-evidence/requirements-proof.xml",
         "uv run --locked --no-sync specfact requirements reconcile",
+        "rm -f artifacts/requirements-evidence/requirements-evidence.json artifacts/requirements-evidence/requirements-evidence.md",
         "--run-stage final",
         '--source-ref "$GITHUB_SHA"',
         '--prior-red-proof "$prior_red_proof"',
@@ -75,6 +77,7 @@ def _assert_governed_trigger_contract(workflow: dict[str, object]) -> None:
     pull_request = workflow["on"]["pull_request"]  # type: ignore[index]
     assert pull_request["paths"] == [  # type: ignore[index]
         "openspec/changes/**",
+        "openspec/specs/**",
         ".github/**",
         "ci/**",
         "scripts/**",
