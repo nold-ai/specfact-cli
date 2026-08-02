@@ -91,9 +91,17 @@ jobs:
           EVIDENCE_BASE_BRANCH: ${{ github.event_name == 'pull_request' && github.base_ref || inputs.base_branch || github.event.repository.default_branch }}
         run: |
           set -e
-          [[ "$EVIDENCE_BASE_BRANCH" =~ ^[A-Za-z0-9._/-]+$ ]]
+          write_failure_reports() {
+            DIAGNOSTIC="$1" python3 -c 'import json, os; from pathlib import Path; report_directory = Path("artifacts/requirements-evidence"); diagnostic = os.environ["DIAGNOSTIC"]; (report_directory / "requirements-evidence.json").write_text(json.dumps({"schema_version": 1, "verdict": "failed", "diagnostic": diagnostic}) + "\n", encoding="utf-8"); (report_directory / "requirements-evidence.md").write_text(f"## Requirements evidence unavailable\n\n- Diagnostic: {diagnostic}\n", encoding="utf-8")'
+          }
+          if [[ ! "$EVIDENCE_BASE_BRANCH" =~ ^[A-Za-z0-9._/-]+$ ]]; then
+            write_failure_reports "Invalid evidence base branch: $EVIDENCE_BASE_BRANCH"
+            printf 'Invalid evidence base branch: %s\n' "$EVIDENCE_BASE_BRANCH" >&2
+            exit 1
+          fi
           required_maturity=planned
           if ! changed_paths="$(git diff --name-only "origin/${EVIDENCE_BASE_BRANCH}...HEAD")"; then
+            write_failure_reports "Unable to derive changed paths for $EVIDENCE_BASE_BRANCH"
             printf 'Unable to derive changed paths for %s\n' "$EVIDENCE_BASE_BRANCH" >&2
             exit 1
           fi

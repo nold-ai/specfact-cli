@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import json
+import os
+import subprocess
 from pathlib import Path
 
 import yaml
@@ -44,7 +47,10 @@ def _assert_command_contract(workflow: dict[str, object]) -> None:
         "required_maturity=planned",
         "required_maturity=test-authored",
         '--required-maturity "$required_maturity"',
+        "write_failure_reports()",
+        'write_failure_reports "Invalid evidence base branch: $EVIDENCE_BASE_BRANCH"',
         'if ! changed_paths="$(git diff --name-only "origin/${EVIDENCE_BASE_BRANCH}...HEAD")"; then',
+        'write_failure_reports "Unable to derive changed paths for $EVIDENCE_BASE_BRANCH"',
         "--plan-output artifacts/requirements-evidence/requirements-evidence-plan.json",
         '--review-evidence "$review_evidence"',
         "fallback_required=0",
@@ -89,3 +95,37 @@ def test_requirements_evidence_workflow_uses_the_released_fixture_and_retains_re
     _assert_fixture_contract(parsed)
     _assert_command_contract(parsed)
     _assert_retention_contract(parsed)
+
+
+def test_requirements_evidence_workflow_writes_reports_before_early_failure(tmp_path: Path) -> None:
+    """Early setup failures must retain diagnostics for summary and artifact publication."""
+    workflow = REPO_ROOT / ".github" / "workflows" / "requirements-evidence.yml"
+    parsed = yaml.load(workflow.read_text(encoding="utf-8"), Loader=yaml.BaseLoader)
+    command = _step_by_name(parsed, "Run Requirements evidence gate")["run"]
+    assert isinstance(command, str)
+
+    cases = (
+        ("invalid branch", "Invalid evidence base branch: invalid branch"),
+        ("missing-base", "Unable to derive changed paths for missing-base"),
+    )
+    for index, (base_branch, expected_diagnostic) in enumerate(cases):
+        work_directory = tmp_path / str(index)
+        report_directory = work_directory / "artifacts" / "requirements-evidence"
+        report_directory.mkdir(parents=True)
+
+        result = subprocess.run(
+            ["bash", "-c", command],
+            cwd=work_directory,
+            env={**os.environ, "EVIDENCE_BASE_BRANCH": base_branch},
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+        assert result.returncode == 1
+        assert json.loads((report_directory / "requirements-evidence.json").read_text(encoding="utf-8")) == {
+            "schema_version": 1,
+            "verdict": "failed",
+            "diagnostic": expected_diagnostic,
+        }
+        assert expected_diagnostic in (report_directory / "requirements-evidence.md").read_text(encoding="utf-8")
