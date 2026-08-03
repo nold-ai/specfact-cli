@@ -6,7 +6,7 @@ gem "jekyll", "~> 4.3"
 gem "minima", "~> 2.5"
 gem "jekyll-feed", "~> 0.12"
 gem "jekyll-redirect-from", "~> 0.16"
-gem "jekyll-relative-links", "~> 0.7"
+gem "jekyll-relative-links", "~> 0.8"
 gem "jekyll-sitemap", "~> 1.4"
 # Keep the documentation build clear of GHSA-x2f5-4prf-w687 / CVE-2026-54696.
 gem "json", ">= 2.19.9"
