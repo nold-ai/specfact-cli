@@ -227,3 +227,28 @@
   executor admits only a schema-v2, passing, test-authored plan, and the JUnit
   plugin records every selected node ID on its first report, including skips
   and setup errors.
+
+## Failing-before unresolved review-thread remediation
+
+- **Recorded:** 2026-08-04 (Europe/Berlin)
+- **Command:** `hatch run pytest tests/unit/scripts/test_requirements_evidence_pre_commit.py -q`
+- **Result:** failed as expected (3 failures).
+- **Failure:** the staged gate skipped governed product-only changes, requested
+  `verified` maturity despite having no JUnit reconciliation path, and every
+  executable mapping case lacked the exact pytest selector required by the
+  published plan contract.
+
+## Passing-after unresolved review-thread remediation
+
+- **Recorded:** 2026-08-04 (Europe/Berlin)
+- **Commands:**
+  - `hatch run pytest tests/unit/scripts/test_requirements_evidence_pre_commit.py tests/unit/scripts/test_requirements_evidence_delivery_gate.py tests/unit/scripts/test_requirements_proof_executor.py tests/unit/workflows/test_requirements_evidence_delivery_workflow.py -q`
+  - `SPECFACT_MODULES_REPO=<pinned-97e0f91-fixture> hatch run python scripts/requirements_evidence_delivery_gate.py --repo-root . --fixture-root <pinned-97e0f91-fixture> --base-ref origin/dev --required-maturity test-authored --review-evidence openspec/changes/requirements-07-runtime-proof-delivery/requirements-proof/review-evidence.json --plan-output /private/tmp/r07-pr663-plan.json --output /private/tmp/r07-pr663-evidence.json --summary /private/tmp/r07-pr663-evidence.md`
+  - `openspec validate requirements-07-runtime-proof-delivery --strict`
+- **Result:** 33 focused tests passed; the pinned public module accepted the
+  renewed mapping digest `sha256:e5ee3649f2fff0fa93adc5ffc7e30f6722616961d15530c511722c2a9d626e73`
+  and emitted a 17-case `test-authored` plan with no findings.
+- **Proof:** local pre-commit checks every staged Requirements-governed path,
+  normalizes execution-required changes to planning-only `test-authored`
+  maturity, and retains no false final-execution claim. Each mapped test case
+  now has a unique, executable pytest node ID.

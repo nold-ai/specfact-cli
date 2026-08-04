@@ -419,28 +419,75 @@ staged_required_maturity() {
   fi
 }
 
+staged_planning_maturity() {
+  # Pre-commit never runs the selected test plan or reconciles JUnit, so its
+  # strongest truthful evidence is an accepted, executable test plan.
+  case "$(staged_required_maturity)" in
+    verified) printf "test-authored\n" ;;
+    *) staged_required_maturity ;;
+  esac
+}
+
+has_staged_requirements_evidence_scope() {
+  local file
+  if has_staged_active_openspec_sources; then
+    return 0
+  fi
+  while IFS= read -r file || [[ -n "${file}" ]]; do
+    [[ -z "${file}" ]] && continue
+    case "${file}" in
+      .github/*|ci/*|scripts/*|src/*|tests/*) return 0 ;;
+    esac
+  done < <(staged_files)
+  return 1
+}
+
 run_requirements_evidence_gate() {
   local report_dir=".specfact/reports/requirements-evidence"
   local json_report="${report_dir}/requirements-evidence.json"
   local markdown_report="${report_dir}/requirements-evidence.md"
+  local plan_report="${report_dir}/requirements-evidence-plan.json"
   local required_maturity
+  local review_evidence=""
+  local -a review_evidence_candidates=()
+  local -a evidence_arguments=()
 
-  if ! has_staged_active_openspec_sources; then
-    info "📦 Block 2 — Requirements evidence — skipped (no staged active OpenSpec source)"
+  if ! has_staged_requirements_evidence_scope; then
+    info "📦 Block 2 — Requirements evidence — skipped (no staged Requirements-governed path)"
     return 0
   fi
 
   mkdir -p "${report_dir}"
-  required_maturity="$(staged_required_maturity)"
+  required_maturity="$(staged_planning_maturity)"
+  if [[ "${required_maturity}" != "planned" ]]; then
+    mapfile -t review_evidence_candidates < <(
+      find openspec/changes -path '*/requirements-proof/review-evidence.json' -type f -print | sort
+    )
+    if [[ ${#review_evidence_candidates[@]} -ne 1 ]]; then
+      error "❌ Block 2 — Requirements evidence needs exactly one active review-evidence record for ${required_maturity} planning"
+      exit 1
+    fi
+    review_evidence="${review_evidence_candidates[0]}"
+  fi
+  evidence_arguments=(
+    --repo-root .
+    --staged
+    --required-maturity "${required_maturity}"
+    --output "${json_report}"
+    --summary "${markdown_report}"
+  )
+  if [[ -n "${review_evidence}" ]]; then
+    evidence_arguments+=(--review-evidence "${review_evidence}" --plan-output "${plan_report}")
+  fi
   info "📦 Block 2 — Requirements evidence — running released pinned fixture"
   if hatch run python scripts/requirements_evidence_delivery_gate.py \
-    --repo-root . \
-    --staged \
-    --required-maturity "$required_maturity" \
-    --output "${json_report}" \
-    --summary "${markdown_report}"; then
+    "${evidence_arguments[@]}"; then
     if [[ ! -s "${json_report}" || ! -s "${markdown_report}" ]]; then
       error "❌ Block 2 — Requirements evidence did not produce both remediation reports"
+      exit 1
+    fi
+    if [[ -n "${review_evidence}" && ! -s "${plan_report}" ]]; then
+      error "❌ Block 2 — Requirements evidence did not produce the required test plan"
       exit 1
     fi
     success "✅ Block 2 — Requirements evidence passed (${json_report}; ${markdown_report})"

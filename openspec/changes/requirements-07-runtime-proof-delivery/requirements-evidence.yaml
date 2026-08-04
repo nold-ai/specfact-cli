@@ -18,6 +18,9 @@ requirements:
         method: test
         intent: "Prove only the published immutable Requirements fixture is accepted."
         observable: "Fixture identity mismatch fails before module execution."
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_requirements_evidence_delivery_gate.py::test_verified_fixture_requires_exact_released_identity_and_clean_tree
   openspec:requirements-07-runtime-proof-delivery:requirements-runtime-proof-delivery:lifecycle-derived-requirements-gate:
     rationale: "Proposal review must distinguish a complete plan from delivered behavior."
     stakeholder_refs:
@@ -32,11 +35,17 @@ requirements:
         method: test
         intent: "Prove a proposal-only diff reports planned readiness without execution."
         observable: "Required and observed maturity plus implementation-evidence status."
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_requirements_evidence_delivery_gate.py::test_delegated_command_requests_planned_maturity
       - case_id: R07-CORE-001-S02
         scenario_id: lifecycle-derived-requirements-gate
         method: test
         intent: "Prove production changes cannot be downgraded by proposal files."
         observable: "Strongest required maturity per governed touchpoint."
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_requirements_evidence_pre_commit.py::test_pre_commit_derives_and_forwards_staged_required_maturity
   openspec:requirements-07-runtime-proof-delivery:requirements-runtime-proof-delivery:accepted-mapping-before-automation:
     rationale: "Stakeholder acceptance must precede automated validation and implementation."
     stakeholder_refs:
@@ -51,6 +60,9 @@ requirements:
         method: test
         intent: "Prove stale or absent acceptance blocks test automation."
         observable: "Acceptance decision bound to the current mapping digest."
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_requirements_evidence_delivery_gate.py::test_delegated_command_forwards_accepted_maturity_and_proof_inputs
   openspec:requirements-07-runtime-proof-delivery:requirements-runtime-proof-delivery:git-bound-failing-first-proof:
     rationale: "Production behavior needs empirical failing-first proof, not a declared test link."
     stakeholder_refs:
@@ -65,11 +77,17 @@ requirements:
         method: test
         intent: "Prove final verification follows a matching red ancestor proof."
         observable: "Bound commit, tree, mapping, selector, and JUnit provenance."
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_requirements_proof_executor.py::test_executor_accepts_existing_exact_selectors_and_uses_argument_array
       - case_id: R07-CORE-003-S02
         scenario_id: git-bound-failing-first-proof
         method: test
         intent: "Prove same-commit and stale red evidence is rejected."
         observable: "tdd-order-unproven or stale-red-proof diagnostic."
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_requirements_proof_executor.py::test_executor_rejects_unsupported_or_nonexecutable_plan_state_before_spawning
   openspec:requirements-07-runtime-proof-delivery:requirements-runtime-proof-delivery:staged-scenario-proof-planning:
     rationale: "Local feedback must validate planning without pretending to execute tests."
     stakeholder_refs:
@@ -84,16 +102,25 @@ requirements:
         method: test
         intent: "Prove staged mapped changes retain a static proof plan."
         observable: "Index-isolated plan and no execution claim."
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_requirements_evidence_delivery_gate.py::test_pre_commit_places_evidence_before_review_and_contracts
       - case_id: R07-CORE-004-S02
         scenario_id: staged-scenario-proof-planning
         method: test
         intent: "Prove unmapped staged interface changes fail before later gates."
         observable: "Retained remediation report and non-zero verdict."
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_requirements_evidence_pre_commit.py::test_pre_commit_runs_planning_evidence_for_governed_product_only_changes
       - case_id: R07-CORE-004-S03
         scenario_id: staged-scenario-proof-planning
         method: test
         intent: "Prove governed no-impact changes emit an explicit decision."
         observable: "Reason and changed-path digest without a silent skip."
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_requirements_evidence_pre_commit.py::test_pre_commit_normalizes_verified_changes_to_test_authored_planning
   openspec:requirements-07-runtime-proof-delivery:requirements-runtime-proof-delivery:safe-pull-request-proof-execution:
     rationale: "CI must execute only validated exact selectors from a trusted plan."
     stakeholder_refs:
@@ -108,16 +135,25 @@ requirements:
         method: test
         intent: "Prove exact selectors are passed through an argument array."
         observable: "Canonical selector properties in deterministic JUnit output."
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_requirements_proof_executor.py::test_executor_accepts_module_valid_pytest_node_ids
       - case_id: R07-CORE-005-S02
         scenario_id: safe-pull-request-proof-execution
         method: test
         intent: "Prove unsafe or excessive selector plans are rejected before execution."
         observable: "Bounded diagnostics and no spawned test process."
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_requirements_proof_executor.py::test_executor_rejects_unsafe_selectors_before_spawning
       - case_id: R07-CORE-005-S03
         scenario_id: safe-pull-request-proof-execution
         method: test
         intent: "Prove incomplete JUnit remains unverified after artifacts are retained."
         observable: "Uncollected, skipped, errored, or failed selector diagnostic."
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_requirements_proof_executor.py::test_executor_records_canonical_selector_for_skipped_and_setup_error_cases
   openspec:requirements-07-runtime-proof-delivery:requirements-runtime-proof-delivery:authoritative-reconciliation-and-review-handoff:
     rationale: "Requirements proof and review are independent delivery signals."
     stakeholder_refs:
@@ -132,16 +168,25 @@ requirements:
         method: test
         intent: "Prove finalized proof is passed to review without verdict fusion."
         observable: "Separate Requirements and review provenance."
+        selector:
+          runner: pytest
+          node_id: tests/unit/workflows/test_requirements_evidence_delivery_workflow.py::test_requirements_evidence_workflow_uses_the_released_fixture_and_retains_reports
       - case_id: R07-CORE-006-S02
         scenario_id: authoritative-reconciliation-and-review-handoff
         method: test
         intent: "Prove a green review cannot override a red Requirements proof."
         observable: "Independent blocking Requirements verdict."
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_requirements_proof_executor.py::test_executor_cli_reads_plan_and_forwards_no_shell_junit_path
       - case_id: R07-CORE-006-S03
         scenario_id: authoritative-reconciliation-and-review-handoff
         method: test
         intent: "Prove other quality gates remain independent of Requirements proof."
         observable: "Separate blocking verdict for each failing gate."
+        selector:
+          runner: pytest
+          node_id: tests/unit/workflows/test_requirements_evidence_delivery_workflow.py::test_requirements_evidence_workflow_writes_reports_before_early_failure
   openspec:requirements-07-runtime-proof-delivery:requirements-runtime-proof-delivery:always-published-requirements-proof-decision:
     rationale: "Every governed pull request needs an auditable terminal Requirements decision."
     stakeholder_refs:
@@ -156,8 +201,14 @@ requirements:
         method: test
         intent: "Prove relevant changes run the Requirements decision despite path filters."
         observable: "Terminal branch-protection check and retained artifacts."
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_requirements_evidence_delivery_gate.py::test_failed_command_writes_missing_diagnostic_reports_and_exports_fixture_roots
       - case_id: R07-CORE-007-S02
         scenario_id: always-published-requirements-proof-decision
         method: test
         intent: "Prove governed no-impact pull requests publish an explicit skip."
         observable: "Successful terminal result with bounded skip provenance."
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_requirements_evidence_delivery_gate.py::test_main_rejects_invalid_fixture_before_command_execution_and_writes_diagnostics
