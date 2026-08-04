@@ -304,3 +304,18 @@
   evidence scope. CI derives paths from `git diff --name-status --find-renames`
   and preserves both rename endpoints before classifying maturity. The focused
   pre-commit/workflow suite passed.
+
+## Failing-and-passing staged artifact and rename remediation
+
+- **Recorded:** 2026-08-05 (Europe/Berlin)
+- **Failure evidence:** `hatch run pytest
+  tests/unit/scripts/test_requirements_evidence_pre_commit.py -q` failed as
+  expected with two failures: a stale plan report could satisfy a later
+  invocation, and local scope/maturity evaluation read only rename
+  destinations.
+- **Fix and proof:** clear the JSON, Markdown, and owned plan reports before
+  every Requirements evidence invocation. A single rename-aware staged-path
+  helper now emits source and destination paths and drives both governed-scope
+  and maturity classification. The focused pre-commit suite passed 14 tests;
+  `bash -n scripts/pre-commit-quality-checks.sh` and the SpecFact code-review
+  gate also passed with zero findings.

@@ -47,6 +47,26 @@ def test_pre_commit_treats_canonical_specs_as_governed_requirement_sources() -> 
     _assert_contains_pre_commit_contract("openspec/specs/*")
 
 
+def test_pre_commit_clears_each_owned_report_before_evidence_invocation() -> None:
+    """A successful call cannot satisfy its report checks with a prior run's plan."""
+    _assert_contains_pre_commit_contract(
+        'rm -f "${json_report}" "${markdown_report}" "${plan_report}"',
+        "if hatch run python scripts/requirements_evidence_delivery_gate.py",
+    )
+
+
+def test_pre_commit_uses_both_rename_paths_for_requirements_scope_and_maturity() -> None:
+    """Renaming governed code away must still trigger the correct evidence decision."""
+    pre_commit = _pre_commit_text()
+    _assert_contains_pre_commit_contract(
+        "staged_evidence_paths()",
+        "git diff --cached --name-status --find-renames --diff-filter=ACMRD",
+        "R*|C*)",
+    )
+    assert pre_commit.count("done < <(staged_evidence_paths)") == 2
+    assert 'changed_paths="$(staged_evidence_paths)"' in pre_commit
+
+
 def test_runtime_proof_mapping_uses_unique_exact_pytest_selectors() -> None:
     """Every executable proof case must be independently runnable from the released plan."""
     sidecar = REPO_ROOT / "openspec/changes/requirements-07-runtime-proof-delivery/requirements-evidence.yaml"

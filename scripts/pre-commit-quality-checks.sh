@@ -50,6 +50,19 @@ staged_files() {
   git diff --cached --name-only --diff-filter=ACMRD
 }
 
+staged_evidence_paths() {
+  local status source_path destination_path
+  while IFS=$'\t' read -r status source_path destination_path || [[ -n "${status}" ]]; do
+    [[ -z "${status}" || -z "${source_path}" ]] && continue
+    printf '%s\n' "${source_path}"
+    case "${status}" in
+      R*|C*)
+        [[ -n "${destination_path}" ]] && printf '%s\n' "${destination_path}"
+        ;;
+    esac
+  done < <(git diff --cached --name-status --find-renames --diff-filter=ACMRD)
+}
+
 has_staged_yaml() {
   local line
   while IFS= read -r line || [[ -n "${line}" ]]; do
@@ -404,13 +417,13 @@ has_staged_active_openspec_sources() {
       openspec/changes/*) return 0 ;;
       openspec/specs/*) return 0 ;;
     esac
-  done < <(git diff --cached --name-only --diff-filter=ACMRD -- openspec/changes)
+  done < <(staged_evidence_paths)
   return 1
 }
 
 staged_required_maturity() {
   local changed_paths
-  changed_paths="$(git diff --cached --name-only --diff-filter=ACMRD)"
+  changed_paths="$(staged_evidence_paths)"
   if grep -Eq '^(\.github|ci|scripts|src)/' <<< "${changed_paths}"; then
     printf 'verified\n'
   elif grep -Eq '^tests/' <<< "${changed_paths}"; then
@@ -439,7 +452,7 @@ has_staged_requirements_evidence_scope() {
     case "${file}" in
       .github/*|ci/*|scripts/*|src/*|tests/*|openspec/specs/*) return 0 ;;
     esac
-  done < <(staged_files)
+  done < <(staged_evidence_paths)
   return 1
 }
 
@@ -459,6 +472,7 @@ run_requirements_evidence_gate() {
   fi
 
   mkdir -p "${report_dir}"
+  rm -f "${json_report}" "${markdown_report}" "${plan_report}"
   required_maturity="$(staged_planning_maturity)"
   if [[ "${required_maturity}" != "planned" ]]; then
     while IFS= read -r candidate || [[ -n "${candidate}" ]]; do
