@@ -10,6 +10,22 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.55.0] - 2026-08-04
+
+### Changed
+
+- **Requirements evidence delivery:** preserve canonical OpenSpec requirement
+  scope locally and classify both source and destination paths for renames in
+  the pull-request evidence gate.
+
+### Fixed
+
+- **Proof and quality gates:** stabilize mapped pytest node collection,
+  preserve portable pre-commit behavior, and raise the published
+  `cryptography` and `GitPython` security floors.
+
+---
+
 ## [0.54.0] - 2026-07-29
 
 ### Added

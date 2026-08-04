@@ -402,6 +402,7 @@ has_staged_active_openspec_sources() {
     case "${file}" in
       openspec/changes/archive/*) ;;
       openspec/changes/*) return 0 ;;
+      openspec/specs/*) return 0 ;;
     esac
   done < <(git diff --cached --name-only --diff-filter=ACMRD -- openspec/changes)
   return 1
@@ -436,7 +437,7 @@ has_staged_requirements_evidence_scope() {
   while IFS= read -r file || [[ -n "${file}" ]]; do
     [[ -z "${file}" ]] && continue
     case "${file}" in
-      .github/*|ci/*|scripts/*|src/*|tests/*) return 0 ;;
+      .github/*|ci/*|scripts/*|src/*|tests/*|openspec/specs/*) return 0 ;;
     esac
   done < <(staged_files)
   return 1
@@ -460,9 +461,10 @@ run_requirements_evidence_gate() {
   mkdir -p "${report_dir}"
   required_maturity="$(staged_planning_maturity)"
   if [[ "${required_maturity}" != "planned" ]]; then
-    mapfile -t review_evidence_candidates < <(
-      find openspec/changes -path '*/requirements-proof/review-evidence.json' -type f -print | sort
-    )
+    while IFS= read -r candidate || [[ -n "${candidate}" ]]; do
+      [[ -z "${candidate}" ]] && continue
+      review_evidence_candidates+=("${candidate}")
+    done < <(find openspec/changes -path '*/requirements-proof/review-evidence.json' -type f -print | sort)
     if [[ ${#review_evidence_candidates[@]} -ne 1 ]]; then
       error "❌ Block 2 — Requirements evidence needs exactly one active review-evidence record for ${required_maturity} planning"
       exit 1

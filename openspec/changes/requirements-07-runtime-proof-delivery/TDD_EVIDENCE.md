@@ -252,3 +252,55 @@
   normalizes execution-required changes to planning-only `test-authored`
   maturity, and retains no false final-execution claim. Each mapped test case
   now has a unique, executable pytest node ID.
+
+## Failing-before final proof collection remediation
+
+- **Recorded:** 2026-08-04 (Europe/Berlin)
+- **Evidence:** PR #663 Requirements Evidence artifact from run `30951457551`.
+- **Result:** final reconciliation failed with two uncollected selectors:
+  `test_executor_accepts_module_valid_pytest_node_ids` and
+  `test_executor_rejects_unsafe_selectors_before_spawning`.
+- **Failure:** each mapped function was parametrized, so JUnit carried only
+  its parameterized child node IDs while the released reconciler required the
+  exact mapped parent node ID.
+- **Intent:** retain full parameter coverage while exposing one stable,
+  exact pytest node ID for each mapped proof case.
+
+## Passing-after final proof collection remediation
+
+- **Recorded:** 2026-08-04 (Europe/Berlin)
+- **Commands:**
+  - `hatch run test tests/unit/scripts/test_requirements_proof_executor.py tests/unit/scripts/test_requirements_evidence_pre_commit.py tests/unit/scripts/test_requirements_evidence_delivery_gate.py tests/unit/workflows/test_requirements_evidence_delivery_workflow.py -q`
+  - `hatch run refresh-frozen-delivery && hatch run python scripts/check_reproducible_delivery.py && hatch run security-audit`
+  - `<pinned-fixture> specfact requirements evidence` → executor →
+    `specfact requirements reconcile --run-stage final`
+- **Result:** 25 focused tests passed; frozen delivery and security-audit
+  gates passed. The 17-case plan executes and reconciles with exactly one
+  remaining finding: `prior-red-proof-missing`.
+- **Proof:** mapped tests now produce one JUnit property per exact parent
+  node ID while retaining every former parameter assertion. `cryptography`
+  is frozen at `50.0.0` and `GitPython` at `3.1.58`, removing the unwaived
+  advisory findings from the committed CI export.
+
+## Failing-and-passing pre-commit portability remediation
+
+- **Recorded:** 2026-08-04 (Europe/Berlin)
+- **Failure evidence:** `hatch run smart-test` completed with exit code `1`;
+  its only failure was
+  `test_pre_commit_quality_markdown_globs_include_mdc`, which rejected the
+  Bash-4-only `mapfile` added to staged Requirements proof planning.
+- **Fix and proof:** replaced `mapfile` with the existing portable
+  `while read` array-collection pattern. The focused pre-commit and delivery
+  tests passed (22 tests), and the subsequent full smart-test suite passed
+  all 2,958 tests (one expected skip), exit code `0`.
+
+## Failing-and-passing review-scope remediation
+
+- **Recorded:** 2026-08-04 (Europe/Berlin)
+- **Failure evidence:** two new PR #663 review findings were reproduced by
+  focused tests: local pre-commit did not govern `openspec/specs/**`, and CI
+  derived maturity only from rename destinations.
+- **Fix and proof:** canonical specifications now enter local Requirements
+  evidence scope. CI derives paths from `git diff --name-status --find-renames`
+  and preserves both rename endpoints before classifying maturity. The focused
+  pre-commit/workflow suite passed.

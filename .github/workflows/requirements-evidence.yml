@@ -100,11 +100,12 @@ jobs:
             exit 1
           fi
           required_maturity=planned
-          if ! changed_paths="$(git diff --name-only "origin/${EVIDENCE_BASE_BRANCH}...HEAD")"; then
+          if ! changed_status="$(git diff --name-status --find-renames "origin/${EVIDENCE_BASE_BRANCH}...HEAD")"; then
             write_failure_reports "Unable to derive changed paths for $EVIDENCE_BASE_BRANCH"
             printf 'Unable to derive changed paths for %s\n' "$EVIDENCE_BASE_BRANCH" >&2
             exit 1
           fi
+          changed_paths="$(printf '%s\n' "$changed_status" | cut -f2-)"
           if grep -Eq '^(\.github|ci|scripts|src)/' <<< "$changed_paths"; then
             required_maturity=verified
           elif grep -Eq '^tests/' <<< "$changed_paths"; then

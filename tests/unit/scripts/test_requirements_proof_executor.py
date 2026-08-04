@@ -147,24 +147,21 @@ def test_executor_accepts_existing_exact_selectors_and_uses_argument_array(
     _assert_environment_contract(captured)
 
 
-@pytest_runtime.mark.parametrize(
-    "selector",
-    [
+def test_executor_rejects_unsafe_selectors_before_spawning(tmp_path: Path) -> None:
+    """Path escapes, option injection, globs, and shell syntax are never executable."""
+    module = _load_executor_module()
+    _write_selected_test(tmp_path)
+
+    for selector in (
         "/tmp/test_proof.py::test_selected",
         "../tests/test_proof.py::test_selected",
         "tests/test_proof.py::test_*",
         "-p.py::test_selected",
         "tests/test_proof.py::test_selected;touch pwned",
         "tests/test_proof.py::test_selected\tinjected",
-    ],
-)
-def test_executor_rejects_unsafe_selectors_before_spawning(tmp_path: Path, selector: str) -> None:
-    """Path escapes, option injection, globs, and shell syntax are never executable."""
-    module = _load_executor_module()
-    _write_selected_test(tmp_path)
-
-    with pytest_runtime.raises(ValueError, match="invalid pytest selector"):
-        module.execute_plan(_plan(selector), tmp_path, tmp_path / "proof.xml", command_runner=lambda _command: 0)
+    ):
+        with pytest_runtime.raises(ValueError, match="invalid pytest selector"):
+            module.execute_plan(_plan(selector), tmp_path, tmp_path / "proof.xml", command_runner=lambda _command: 0)
 
 
 def test_executor_rejects_duplicate_or_unsupported_plan_entries(tmp_path: Path) -> None:
@@ -201,16 +198,7 @@ def test_executor_rejects_unsupported_or_nonexecutable_plan_state_before_spawnin
             module.execute_plan(plan, tmp_path, tmp_path / "proof.xml", command_runner=lambda _command: 0)
 
 
-@pytest_runtime.mark.parametrize(
-    "selector",
-    [
-        "tests/test_proof.py::test_parameterized[param-value]",
-        "tests/test_proof.py::test_parameterized[spec commands-commands0]",
-        "tests/test_proof.py::TestProof::test_selected",
-        "tests/test_proof.py::TestParameterizedProof::test_selected[param-value]",
-    ],
-)
-def test_executor_accepts_module_valid_pytest_node_ids(tmp_path: Path, selector: str) -> None:
+def test_executor_accepts_module_valid_pytest_node_ids(tmp_path: Path) -> None:
     """Parameterized and class-method node IDs remain exact safe argument values."""
     module = _load_executor_module()
     test_file = tmp_path / "tests" / "test_proof.py"
@@ -227,7 +215,13 @@ def test_executor_accepts_module_valid_pytest_node_ids(tmp_path: Path, selector:
         encoding="utf-8",
     )
 
-    assert module.selectors_from_plan(_plan(selector), tmp_path) == [selector]
+    for selector in (
+        "tests/test_proof.py::test_parameterized[param-value]",
+        "tests/test_proof.py::test_parameterized[spec commands-commands0]",
+        "tests/test_proof.py::TestProof::test_selected",
+        "tests/test_proof.py::TestParameterizedProof::test_selected[param-value]",
+    ):
+        assert module.selectors_from_plan(_plan(selector), tmp_path) == [selector]
 
 
 def test_executor_cli_reads_plan_and_forwards_no_shell_junit_path(tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
