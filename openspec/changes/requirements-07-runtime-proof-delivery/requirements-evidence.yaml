@@ -45,7 +45,7 @@ requirements:
         observable: "Strongest required maturity per governed touchpoint."
         selector:
           runner: pytest
-          node_id: tests/unit/scripts/test_requirements_evidence_pre_commit.py::test_pre_commit_derives_and_forwards_staged_required_maturity
+          node_id: tests/unit/scripts/test_requirements_evidence_pre_commit.py::test_pre_commit_derives_maturity_and_governs_product_only_changes
   openspec:requirements-07-runtime-proof-delivery:requirements-runtime-proof-delivery:accepted-mapping-before-automation:
     rationale: "Stakeholder acceptance must precede automated validation and implementation."
     stakeholder_refs:

@@ -1,5 +1,7 @@
 """Contract coverage for staged Requirements maturity selection."""
 
+import subprocess
+import sys
 from pathlib import Path
 from typing import Any, cast
 
@@ -67,6 +69,15 @@ def test_pre_commit_uses_both_rename_paths_for_requirements_scope_and_maturity()
     assert 'changed_paths="$(staged_evidence_paths)"' in pre_commit
 
 
+def test_pre_commit_runs_planning_evidence_for_governed_product_only_changes() -> None:
+    """Requirements evidence runs before later gates for a governed staged product change."""
+    pre_commit = _pre_commit_text()
+    block2 = pre_commit[pre_commit.index("run_block2() {") : pre_commit.index("run_all() {")]
+    assert "has_staged_requirements_evidence_scope()" in pre_commit
+    assert block2.index("run_requirements_evidence_gate") < block2.index("run_code_review_gate")
+    assert block2.index("run_requirements_evidence_gate") < block2.index("run_contract_tests_visible")
+
+
 def test_runtime_proof_mapping_uses_unique_exact_pytest_selectors() -> None:
     """Every executable proof case must be independently runnable from the released plan."""
     sidecar = REPO_ROOT / "openspec/changes/requirements-07-runtime-proof-delivery/requirements-evidence.yaml"
@@ -87,3 +98,24 @@ def test_runtime_proof_mapping_uses_unique_exact_pytest_selectors() -> None:
         assert node_id.startswith("tests/")
         node_ids.append(node_id)
     assert len(set(node_ids)) == len(node_ids)
+
+
+def test_runtime_proof_mapping_selectors_are_collectible() -> None:
+    """Every mapped selector must resolve in the current repository test collection."""
+    sidecar = REPO_ROOT / "openspec/changes/requirements-07-runtime-proof-delivery/requirements-evidence.yaml"
+    mapping = cast(dict[str, Any], yaml.safe_load(sidecar.read_text(encoding="utf-8")))
+    requirements = cast(dict[str, dict[str, list[dict[str, Any]]]], mapping["requirements"])
+    node_ids = [
+        cast(str, cast(dict[str, Any], case["selector"])["node_id"])
+        for requirement in requirements.values()
+        for case in requirement["verification_cases"]
+        if case["method"] == "test"
+    ]
+    result = subprocess.run(
+        [sys.executable, "-m", "pytest", "--collect-only", "-q", *node_ids],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr

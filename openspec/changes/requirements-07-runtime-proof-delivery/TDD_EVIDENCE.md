@@ -319,3 +319,22 @@
   and maturity classification. The focused pre-commit suite passed 14 tests;
   `bash -n scripts/pre-commit-quality-checks.sh` and the SpecFact code-review
   gate also passed with zero findings.
+
+## Failing-and-passing selector and CI rename remediation
+
+- **Recorded:** 2026-08-05 (Europe/Berlin)
+- **Failure evidence:** `hatch run pytest
+  tests/unit/scripts/test_requirements_evidence_pre_commit.py
+  tests/unit/workflows/test_requirements_evidence_delivery_workflow.py -q`
+  failed as expected. Two mapped pytest node IDs were not collectible, and CI
+  retained rename endpoints on one tab-separated line so destination-only
+  governed changes could be classified as `planned`.
+- **Fix and proof:** map the lifecycle scenario to the current maturity test,
+  restore the governed product-only planning regression, and require every
+  mapping selector to collect. CI now splits source and destination paths from
+  `git diff --name-status --find-renames` before classifying maturity. The
+  focused suite passed 11 tests; YAML/workflow lint and the SpecFact code-review
+  gate passed with zero findings.
+- **Acceptance:** product-owner acceptance was renewed on 2026-08-05
+  (Europe/Berlin) for mapping digest
+  `sha256:eb7fdbe5ad8f0b434b72086420d8ada142dc4cf0914b925937443cae2844cd30`.

@@ -105,7 +105,18 @@ jobs:
             printf 'Unable to derive changed paths for %s\n' "$EVIDENCE_BASE_BRANCH" >&2
             exit 1
           fi
-          changed_paths="$(printf '%s\n' "$changed_status" | cut -f2-)"
+          changed_paths=""
+          while IFS=$'\t' read -r status source_path destination_path || [[ -n "$status" ]]; do
+            [[ -z "$source_path" ]] && continue
+            changed_paths+="${source_path}"$'\n'
+            case "$status" in
+              R*|C*)
+                if [[ -n "$destination_path" ]]; then
+                  changed_paths+="${destination_path}"$'\n'
+                fi
+                ;;
+            esac
+          done <<< "$changed_status"
           if grep -Eq '^(\.github|ci|scripts|src)/' <<< "$changed_paths"; then
             required_maturity=verified
           elif grep -Eq '^tests/' <<< "$changed_paths"; then

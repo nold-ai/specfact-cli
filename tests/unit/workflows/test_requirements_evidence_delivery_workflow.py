@@ -53,7 +53,7 @@ def _assert_command_contract(workflow: dict[str, object]) -> None:
         "write_failure_reports()",
         'write_failure_reports "Invalid evidence base branch: $EVIDENCE_BASE_BRANCH"',
         'if ! changed_status="$(git diff --name-status --find-renames "origin/${EVIDENCE_BASE_BRANCH}...HEAD")"; then',
-        'changed_paths="$(printf \'%s\\n\' "$changed_status" | cut -f2-)"',
+        'changed_paths=""',
         'write_failure_reports "Unable to derive changed paths for $EVIDENCE_BASE_BRANCH"',
         "--plan-output artifacts/requirements-evidence/requirements-evidence-plan.json",
         '--review-evidence "$review_evidence"',
@@ -155,3 +155,15 @@ def test_requirements_evidence_workflow_writes_reports_before_early_failure(tmp_
             "diagnostic": expected_diagnostic,
         }
         assert expected_diagnostic in (report_directory / "requirements-evidence.md").read_text(encoding="utf-8")
+
+
+def test_requirements_evidence_workflow_splits_rename_endpoints_before_maturity() -> None:
+    """A renamed production path must retain both source and destination for maturity selection."""
+    workflow = REPO_ROOT / ".github" / "workflows" / "requirements-evidence.yml"
+    parsed = yaml.load(workflow.read_text(encoding="utf-8"), Loader=yaml.BaseLoader)
+    command = _step_by_name(parsed, "Run Requirements evidence gate")["run"]
+    assert isinstance(command, str)
+    assert "while IFS=$'\\t' read -r status source_path destination_path" in command
+    assert "changed_paths+=\"${source_path}\"$'\\n'" in command
+    assert "R*|C*)" in command
+    assert "changed_paths+=\"${destination_path}\"$'\\n'" in command
