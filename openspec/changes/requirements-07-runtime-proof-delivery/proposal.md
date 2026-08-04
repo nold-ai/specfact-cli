@@ -26,6 +26,10 @@ module-owned scenario test plan to current-run test results and review context.
   interface, then run the existing contract gates.
 - Publish the plan, JUnit results, final JSON/Markdown proof, review provenance,
   and concise job summary before enforcing the authoritative verdict.
+- Keep the runtime-discovery smoke registry dependency-aware: it must stage the
+  transitive bundle dependencies declared by the smoke modules, so the pinned
+  module fixture is exercised through the same dependency resolution path as
+  users.
 - Keep Requirements semantics module-owned and keep cross-domain aggregation
   owned by `validation-02-full-chain-engine`.
 
@@ -44,7 +48,8 @@ module-owned scenario test plan to current-run test results and review context.
   workflow or PR orchestrator, immutable fixture lock/verification, frozen test
   execution, artifact upload, and branch-protection documentation.
 - Affected tests: script, selector-safety, staged-index, workflow-contract,
-  JUnit handoff, report-retention, review-order, and failure-order coverage.
+  runtime-discovery dependency-closure, JUnit handoff, report-retention,
+  review-order, and failure-order coverage.
 - Affected documentation: core Requirements evidence adoption and Code Review
   delivery guidance; module command reference remains modules-owned.
 - Dependencies: blocked by modules User Story

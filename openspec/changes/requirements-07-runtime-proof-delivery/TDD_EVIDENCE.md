@@ -352,3 +352,32 @@
   `openspec/changes/archive`; CI also filters archived changed paths before
   deriving a selected change. The focused suite passed all 12 tests, and
   workflow YAML lint passed.
+
+## Failing-before runtime smoke dependency-closure remediation
+
+- **Recorded:** 2026-08-05 (Europe/Berlin)
+- **Command:** `hatch run pytest tests/integration/scripts/test_runtime_discovery_smoke.py::test_local_runtime_registry_includes_transitive_bundle_dependencies -q`
+- **Result:** failed as expected.
+- **Failure:** the isolated registry staged only the three fixed smoke roots,
+  so a `specfact-code-review` manifest declaring
+  `nold-ai/specfact-requirements` could not resolve its dependency during
+  marketplace installation.
+
+## Passing-after runtime smoke dependency-closure remediation
+
+- **Recorded:** 2026-08-05 (Europe/Berlin)
+- **Command:** `hatch run pytest tests/integration/scripts/test_runtime_discovery_smoke.py::test_local_runtime_registry_includes_transitive_bundle_dependencies -q`
+- **Result:** passed (1 test).
+- **Proof:** the temporary runtime-smoke registry now recursively stages every
+  manifest-declared bundle dependency exactly once while retaining the bounded
+  root-module smoke surface.
+- **End-to-end check:** `hatch run python scripts/runtime_discovery_smoke.py
+  --modules-repo /private/tmp/specfact-modules-pr379 --launcher direct` passed
+  against the current read-only Modules #379 worktree. It installed
+  `nold-ai/specfact-requirements` 0.5.1 transitively while installing Code
+  Review, then completed the runtime discovery and IDE checks.
+- **Review:** `specfact code review run` reported zero blocking findings. Its
+  two informational LOC-versus-complexity suggestions require no change: the
+  demo-builder note predates this remediation, and the registry-builder keeps
+  ordered filesystem, integrity, archive, and index-writing steps explicit for
+  auditability rather than collapsing them into less readable helpers.

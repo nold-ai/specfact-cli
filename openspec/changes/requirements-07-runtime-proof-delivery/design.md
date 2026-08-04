@@ -82,6 +82,16 @@ to the same verified module release. The module returns the final authoritative
 Requirements JSON/Markdown proof. Core validates that both reports exist,
 publishes them, and translates only the process exit code into delivery status.
 
+### Build a dependency-complete runtime smoke registry
+
+The runtime-discovery smoke check keeps its explicit root module set so its
+command-surface coverage remains bounded. Before creating its temporary local
+registry, core reads each root manifest and recursively stages every declared
+`bundle_dependencies` entry. This makes the fixture match normal marketplace
+resolution without hard-coding a changing dependency list in core. Malformed or
+missing dependency metadata fails while assembling the isolated fixture, before
+any launcher is exercised.
+
 ### Hand finalized proof to review without verdict fusion
 
 CI invokes the released Code Review interface with the finalized Requirements

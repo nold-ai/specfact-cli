@@ -44,3 +44,13 @@ reports for both passing and failing runs.
   reports
 - **AND** a red verdict fails the delivery gate only after its reports are
   available.
+
+#### Scenario: Runtime smoke registry includes declared bundle dependencies
+
+- **GIVEN** a root module exercised by the runtime-discovery smoke check
+  declares one or more transitive `bundle_dependencies`
+- **WHEN** core builds the smoke check's isolated local registry
+- **THEN** it includes each declared dependency exactly once before a launcher
+  attempts marketplace installation
+- **AND** it fails fixture assembly for malformed or missing dependency
+  metadata rather than reporting a false runtime-resolution failure.

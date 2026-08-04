@@ -37,6 +37,8 @@ behavior before its tests exist and have failed for the expected reason.
   JUnit generation with canonical node-ID properties, reconciliation,
   requirements-aware review handoff, always-uploaded artifacts, and
   independent verdict enforcement.
+- [ ] 2.4.1 Add failing runtime-discovery coverage proving its isolated local
+  registry contains the recursive module bundle-dependency closure.
 - [ ] 2.5 Record commands, timestamps, and expected failures in
   `TDD_EVIDENCE.md` before production edits.
 
@@ -44,6 +46,9 @@ behavior before its tests exist and have failed for the expected reason.
 
 - [ ] 3.1 Pin and verify the signed immutable modules #368 fixture; reject any
   different repository, commit, package release, dirty checkout, or signature.
+- [ ] 3.1.1 Build the runtime-discovery smoke registry from its root modules'
+  declared bundle-dependency closure, while retaining the bounded root
+  command-surface assertions.
 - [ ] 3.2 Extend the local adapter and pre-commit Block 2 to produce and validate
   an index-isolated static proof plan before Code Review and contract tests.
 - [ ] 3.3 Replace narrow pull-request path omission with an always-reporting
