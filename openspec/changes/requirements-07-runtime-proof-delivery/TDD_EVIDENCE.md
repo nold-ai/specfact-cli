@@ -338,3 +338,17 @@
 - **Acceptance:** product-owner acceptance was renewed on 2026-08-05
   (Europe/Berlin) for mapping digest
   `sha256:eb7fdbe5ad8f0b434b72086420d8ada142dc4cf0914b925937443cae2844cd30`.
+
+## Failing-and-passing archived-evidence selection remediation
+
+- **Recorded:** 2026-08-05 (Europe/Berlin)
+- **Failure evidence:** `hatch run test
+  tests/unit/workflows/test_requirements_evidence_delivery_workflow.py
+  tests/unit/scripts/test_requirements_evidence_pre_commit.py` failed as
+  expected with three failures. CI and local pre-commit both discovered
+  `review-evidence.json` records beneath `openspec/changes/archive/`, and CI
+  could derive `archive` as a changed active-change identifier.
+- **Fix and proof:** both record-discovery paths prune
+  `openspec/changes/archive`; CI also filters archived changed paths before
+  deriving a selected change. The focused suite passed all 12 tests, and
+  workflow YAML lint passed.

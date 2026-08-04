@@ -129,6 +129,7 @@ jobs:
           selected_change=""
           mapfile -t changed_changes < <(
             printf '%s\n' "$changed_paths" \
+              | grep -v '^openspec/changes/archive/' \
               | sed -nE 's#^openspec/changes/([^/]+)/.*#\1#p' \
               | sort -u
           )
@@ -137,7 +138,7 @@ jobs:
           fi
           if [[ -z "$selected_change" ]]; then
             mapfile -t active_review_evidence < <(
-              find openspec/changes -path '*/requirements-proof/review-evidence.json' -type f -print | sort
+              find openspec/changes -path 'openspec/changes/archive' -prune -o -path '*/requirements-proof/review-evidence.json' -type f -print | sort
             )
             if [[ "${#active_review_evidence[@]}" -eq 1 ]]; then
               selected_change="${active_review_evidence[0]#openspec/changes/}"

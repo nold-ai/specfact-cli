@@ -478,7 +478,7 @@ run_requirements_evidence_gate() {
     while IFS= read -r candidate || [[ -n "${candidate}" ]]; do
       [[ -z "${candidate}" ]] && continue
       review_evidence_candidates+=("${candidate}")
-    done < <(find openspec/changes -path '*/requirements-proof/review-evidence.json' -type f -print | sort)
+    done < <(find openspec/changes -path 'openspec/changes/archive' -prune -o -path '*/requirements-proof/review-evidence.json' -type f -print | sort)
     if [[ ${#review_evidence_candidates[@]} -ne 1 ]]; then
       error "❌ Block 2 — Requirements evidence needs exactly one active review-evidence record for ${required_maturity} planning"
       exit 1

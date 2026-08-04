@@ -49,7 +49,8 @@ def _assert_command_contract(workflow: dict[str, object]) -> None:
         "planning_maturity=test-authored",
         '--required-maturity "$planning_maturity"',
         'review_evidence="openspec/changes/${selected_change}/requirements-proof/review-evidence.json"',
-        "find openspec/changes -path '*/requirements-proof/review-evidence.json' -type f -print",
+        "grep -v '^openspec/changes/archive/'",
+        "find openspec/changes -path 'openspec/changes/archive' -prune -o -path '*/requirements-proof/review-evidence.json' -type f -print",
         "write_failure_reports()",
         'write_failure_reports "Invalid evidence base branch: $EVIDENCE_BASE_BRANCH"',
         'if ! changed_status="$(git diff --name-status --find-renames "origin/${EVIDENCE_BASE_BRANCH}...HEAD")"; then',
@@ -167,3 +168,17 @@ def test_requirements_evidence_workflow_splits_rename_endpoints_before_maturity(
     assert "changed_paths+=\"${source_path}\"$'\\n'" in command
     assert "R*|C*)" in command
     assert "changed_paths+=\"${destination_path}\"$'\\n'" in command
+
+
+def test_requirements_evidence_workflow_ignores_archived_review_evidence() -> None:
+    """Only active change records may supply CI planning and reconciliation evidence."""
+    workflow = REPO_ROOT / ".github" / "workflows" / "requirements-evidence.yml"
+    parsed = yaml.load(workflow.read_text(encoding="utf-8"), Loader=yaml.BaseLoader)
+    command = _step_by_name(parsed, "Run Requirements evidence gate")["run"]
+    assert isinstance(command, str)
+
+    assert "grep -v '^openspec/changes/archive/'" in command
+    assert (
+        "find openspec/changes -path 'openspec/changes/archive' -prune -o "
+        "-path '*/requirements-proof/review-evidence.json' -type f -print"
+    ) in command

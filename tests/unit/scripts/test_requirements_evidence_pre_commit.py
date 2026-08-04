@@ -35,13 +35,16 @@ def test_pre_commit_derives_maturity_and_governs_product_only_changes() -> None:
 
 def test_pre_commit_normalizes_verified_changes_to_test_authored_planning() -> None:
     """Local pre-commit validates a plan and never claims final execution proof."""
-    _assert_contains_pre_commit_contract(
+    required_fragments = {
         "staged_planning_maturity()",
         'verified) printf "test-authored\\n"',
         'required_maturity="$(staged_planning_maturity)"',
         "requirements-evidence-plan.json",
         "requirements-proof/review-evidence.json",
-    )
+        "find openspec/changes -path 'openspec/changes/archive' -prune -o -path '*/requirements-proof/review-evidence.json' -type f -print",
+    }
+    pre_commit = _pre_commit_text()
+    assert all(fragment in pre_commit for fragment in required_fragments)
 
 
 def test_pre_commit_treats_canonical_specs_as_governed_requirement_sources() -> None:
