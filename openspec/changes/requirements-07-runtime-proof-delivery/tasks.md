@@ -66,7 +66,7 @@ behavior before its tests exist and have failed for the expected reason.
   not parse proof semantics or rewrite its verdict in core.
 - [x] 3.5.1 Generate and pass the R07-only legacy-ledger proof basis after
   verifying the committed evidence-ledger digest; never generate `red.json`.
-- [ ] 3.6 Pass only finalized proof into the released Code Review context input,
+- [x] 3.6 Pass only finalized proof into the released Code Review context input,
   retain both reports, then continue to existing contract/full quality gates.
 - [ ] 3.7 Publish plan, JUnit, finalized JSON/Markdown, review provenance, and
   concise summaries before enforcing any red verdict.

@@ -102,8 +102,10 @@ def _assert_retention_contract(workflow: dict[str, object]) -> None:
         "artifacts/requirements-evidence/requirements-evidence-plan.json",
         "artifacts/requirements-evidence/requirements-proof.xml",
         "artifacts/requirements-evidence/legacy-tdd-evidence.json",
+        "artifacts/requirements-evidence/code-review.json",
     ]
-    assert enforce["if"] == "steps.run-evidence.outcome == 'failure'"  # type: ignore[index]
+    assert "steps.run-evidence.outcome == 'failure'" in enforce["if"]  # type: ignore[index]
+    assert "steps.run-code-review.outcome == 'failure'" in enforce["if"]  # type: ignore[index]
     assert enforce["run"] == "exit 1"  # type: ignore[index]
     assert _step_index(workflow, "Publish Requirements evidence summary") < _step_index(
         workflow, "Enforce requirements evidence verdict"
@@ -199,3 +201,27 @@ def test_requirements_evidence_workflow_uses_digest_bound_legacy_tdd_ledger_for_
     assert 'plan_report.get("plan")' in command
     assert '--legacy-tdd-evidence "$legacy_tdd_evidence"' in command
     assert "proof-basis-ambiguous" not in command
+
+
+def test_requirements_evidence_workflow_hands_final_proof_to_code_review() -> None:
+    """Code Review receives finalized proof context without owning its verdict."""
+    workflow = REPO_ROOT / ".github" / "workflows" / "requirements-evidence.yml"
+    parsed = yaml.load(workflow.read_text(encoding="utf-8"), Loader=yaml.BaseLoader)
+    review = _step_by_name(parsed, "Run Code Review with finalized Requirements context")
+    command = review["run"]
+
+    assert review["if"] == "steps.run-evidence.outcome == 'success'"
+    assert isinstance(command, str)
+    assert "uv run --locked --no-sync specfact code review run" in command
+    assert "--requirements-evidence artifacts/requirements-evidence/requirements-evidence.json" in command
+    assert "--enforcement changed" in command
+    assert "--include-tests" in command
+    assert "--out artifacts/requirements-evidence/code-review.json" in command
+    assert "origin/${EVIDENCE_BASE_BRANCH}...HEAD" in command
+    assert "No changed Python files require Code Review context." in command
+    assert _step_index(parsed, "Run Requirements evidence gate") < _step_index(
+        parsed, "Run Code Review with finalized Requirements context"
+    )
+    assert _step_index(parsed, "Run Code Review with finalized Requirements context") < _step_index(
+        parsed, "Upload requirements evidence artifact"
+    )

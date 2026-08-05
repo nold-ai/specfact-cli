@@ -417,3 +417,29 @@
   retains it as an artifact, and supplies it only when the selected R07 change
   has no normal `red.json`. Normal red-JUnit proof remains the preferred path
   for every other change.
+
+## Failing-before Code Review requirements-context handoff
+
+- **Recorded:** 2026-08-05 (Europe/Berlin)
+- **Command:** `hatch run pytest tests/unit/workflows/test_requirements_evidence_delivery_workflow.py::test_requirements_evidence_workflow_hands_final_proof_to_code_review -q -p no:cacheprovider`
+- **Result:** failed as expected because the Requirements workflow had no Code
+  Review handoff step, so the finalized JSON was only summarized and uploaded.
+- **Intent:** pass the finalized, module-owned Requirements proof to the
+  released Code Review interface as independent context without letting either
+  gate replace the other’s verdict.
+
+## Passing-after Code Review requirements-context handoff
+
+- **Recorded:** 2026-08-05 (Europe/Berlin)
+- **Commands:**
+  - `hatch run pytest tests/unit/workflows/test_requirements_evidence_delivery_workflow.py -q -p no:cacheprovider`
+  - `hatch run yaml-lint .github/workflows/requirements-evidence.yml && hatch run lint-workflows .github/workflows/requirements-evidence.yml`
+  - `<modules-0.5.1-fixture> specfact requirements evidence` → executor →
+    final reconciliation → `specfact code review run --requirements-evidence <final-json>`
+- **Result:** workflow contract, lint, and strict OpenSpec validation passed.
+  The review receives only a complete final Requirements JSON, writes a
+  separate review report, and a failed review remains independently enforcing
+  after the Requirements artifacts are retained.
+- **Acceptance:** product-owner acceptance was renewed on 2026-08-05
+  (Europe/Berlin) for mapping digest
+  `sha256:4e5f8d53718955811aa66cd8d0f8a7446b739ef581a02eb443033791041b2361`.

@@ -270,6 +270,29 @@ jobs:
             cat artifacts/requirements-evidence/requirements-evidence.md >> "$GITHUB_STEP_SUMMARY"
           fi
 
+      - name: Run Code Review with finalized Requirements context
+        id: run-code-review
+        if: steps.run-evidence.outcome == 'success'
+        continue-on-error: true
+        env:
+          EVIDENCE_BASE_BRANCH: ${{ github.event_name == 'pull_request' && github.base_ref || inputs.base_branch || github.event.repository.default_branch }}
+        run: |
+          set -euo pipefail
+          mapfile -t review_paths < <(
+            git diff --name-only "origin/${EVIDENCE_BASE_BRANCH}...HEAD" -- '*.py' '*.pyi' | sort -u
+          )
+          if [[ "${#review_paths[@]}" -eq 0 ]]; then
+            printf 'No changed Python files require Code Review context.\n' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          uv run --locked --no-sync specfact code review run \
+            "${review_paths[@]}" \
+            --include-tests \
+            --enforcement changed \
+            --json \
+            --out artifacts/requirements-evidence/code-review.json \
+            --requirements-evidence artifacts/requirements-evidence/requirements-evidence.json
+
       - name: Upload requirements evidence artifact
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
@@ -281,8 +304,9 @@ jobs:
             artifacts/requirements-evidence/requirements-evidence-plan.json
             artifacts/requirements-evidence/requirements-proof.xml
             artifacts/requirements-evidence/legacy-tdd-evidence.json
+            artifacts/requirements-evidence/code-review.json
           if-no-files-found: warn
 
       - name: Enforce requirements evidence verdict
-        if: steps.run-evidence.outcome == 'failure'
+        if: steps.run-evidence.outcome == 'failure' || steps.run-code-review.outcome == 'failure'
         run: exit 1

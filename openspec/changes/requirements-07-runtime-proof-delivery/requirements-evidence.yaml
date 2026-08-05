@@ -171,8 +171,8 @@ requirements:
       - "nold-ai/specfact-cli#662"
     touchpoints:
       - id: review-context-handoff
-        kind: cli_command
-        locator: "scripts/pre-commit-quality-checks.sh"
+        kind: ci_workflow
+        locator: ".github/workflows/requirements-evidence.yml"
     verification_cases:
       - case_id: R07-CORE-006-S01
         scenario_id: authoritative-reconciliation-and-review-handoff
@@ -181,7 +181,7 @@ requirements:
         observable: "Separate Requirements and review provenance."
         selector:
           runner: pytest
-          node_id: tests/unit/workflows/test_requirements_evidence_delivery_workflow.py::test_requirements_evidence_workflow_uses_the_released_fixture_and_retains_reports
+          node_id: tests/unit/workflows/test_requirements_evidence_delivery_workflow.py::test_requirements_evidence_workflow_hands_final_proof_to_code_review
       - case_id: R07-CORE-006-S02
         scenario_id: authoritative-reconciliation-and-review-handoff
         method: test
