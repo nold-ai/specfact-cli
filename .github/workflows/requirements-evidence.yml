@@ -42,7 +42,7 @@ jobs:
           set -euo pipefail
           repository="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["repository"])')"
           commit="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])')"
-          approved_commit="97e0f917903b09803f48b7d73f56ec9753cf95c7"
+          approved_commit="69f075819be5e1ceca1446b026b0417f19e584ca"
           [[ "$repository" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]
           test "$repository" = "nold-ai/specfact-cli-modules"
           [[ "$commit" =~ ^[0-9a-f]{40}$ ]]
@@ -195,6 +195,52 @@ jobs:
               )
               if [[ -n "$prior_red_proof" ]]; then
                 reconciliation_arguments+=(--prior-red-proof "$prior_red_proof")
+              elif [[ "$selected_change" == "requirements-07-runtime-proof-delivery" ]]; then
+                legacy_tdd_ledger="openspec/changes/${selected_change}/TDD_EVIDENCE.md"
+                legacy_tdd_evidence="artifacts/requirements-evidence/legacy-tdd-evidence.json"
+                if [[ ! -f "$legacy_tdd_ledger" ]]; then
+                  write_failure_reports "Missing approved legacy TDD ledger: $legacy_tdd_ledger"
+                  exit 1
+                fi
+                if ! python3 - "$legacy_tdd_ledger" "artifacts/requirements-evidence/requirements-evidence-plan.json" "$legacy_tdd_evidence" "$selected_change" <<'PY'
+          import hashlib
+          import json
+          import sys
+          from pathlib import Path
+
+          ledger_path = Path(sys.argv[1])
+          plan_path = Path(sys.argv[2])
+          output_path = Path(sys.argv[3])
+          change_id = sys.argv[4]
+          plan_report = json.loads(plan_path.read_text(encoding="utf-8"))
+          plan = plan_report.get("plan")
+          if not isinstance(plan, dict):
+              raise ValueError("Requirements evidence plan is missing")
+          mapping_digest = plan.get("mapping_digest")
+          plan_digest = plan.get("plan_digest")
+          if not isinstance(mapping_digest, str) or not isinstance(plan_digest, str):
+              raise ValueError("Requirements evidence plan lacks digest binding")
+          output_path.write_text(
+              json.dumps(
+                  {
+                      "schema_version": "1",
+                      "kind": "legacy-tdd-ledger",
+                      "change_id": change_id,
+                      "ledger_digest": f"sha256:{hashlib.sha256(ledger_path.read_bytes()).hexdigest()}",
+                      "mapping_digest": mapping_digest,
+                      "plan_digest": plan_digest,
+                  },
+                  sort_keys=True,
+              )
+              + "\n",
+              encoding="utf-8",
+          )
+          PY
+                then
+                  write_failure_reports "Unable to generate the legacy TDD ledger evidence record."
+                  exit 1
+                fi
+                reconciliation_arguments+=(--legacy-tdd-evidence "$legacy_tdd_evidence")
               fi
               set +e
               "${reconciliation_arguments[@]}"
@@ -234,6 +280,7 @@ jobs:
             artifacts/requirements-evidence/requirements-evidence.md
             artifacts/requirements-evidence/requirements-evidence-plan.json
             artifacts/requirements-evidence/requirements-proof.xml
+            artifacts/requirements-evidence/legacy-tdd-evidence.json
           if-no-files-found: warn
 
       - name: Enforce requirements evidence verdict

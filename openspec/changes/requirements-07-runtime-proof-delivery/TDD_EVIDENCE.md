@@ -381,3 +381,39 @@
   demo-builder note predates this remediation, and the registry-builder keeps
   ordered filesystem, integrity, archive, and index-writing steps explicit for
   auditability rather than collapsing them into less readable helpers.
+
+## Failing-before legacy TDD-ledger reconciliation
+
+- **Recorded:** 2026-08-05 (Europe/Berlin)
+- **Commands:**
+  - `hatch run pytest tests/unit/workflows/test_requirements_evidence_delivery_workflow.py -q -p no:cacheprovider`
+  - `hatch run pytest tests/unit/workflows/test_requirements_evidence_delivery_workflow.py::test_requirements_evidence_workflow_uses_digest_bound_legacy_tdd_ledger_for_r07 -q -p no:cacheprovider`
+- **Result:** failed as expected. The first run exposed the obsolete 0.4.3
+  fixture pin and no retained legacy-ledger artifact. The second run exposed
+  that the released evidence CLI writes a wrapper report, with the digest-bound
+  executable plan under its `plan` field.
+- **Intent:** consume the published 0.5.1 reconciliation contract without
+  inventing a historical red-JUnit artifact. The one approved R07 migration
+  must instead hash its existing TDD ledger and bind that record to the exact
+  released plan and mapping digests.
+
+## Passing-after legacy TDD-ledger reconciliation
+
+- **Recorded:** 2026-08-05 (Europe/Berlin)
+- **Commands:**
+  - `hatch run pytest tests/unit/workflows/test_requirements_evidence_delivery_workflow.py tests/unit/scripts/test_requirements_evidence_delivery_gate.py -q -p no:cacheprovider`
+  - `hatch run yaml-lint .github/workflows/requirements-evidence.yml && hatch run lint-workflows .github/workflows/requirements-evidence.yml`
+  - `openspec validate requirements-07-runtime-proof-delivery --strict`
+  - `<modules-0.5.1-fixture> specfact requirements evidence` →
+    `scripts/requirements_proof_executor.py` →
+    `specfact requirements reconcile --run-stage final --legacy-tdd-evidence <digest-bound-record>`
+- **Result:** 15 focused tests, workflow lint, and strict OpenSpec validation
+  passed. The end-to-end reconciliation passed with `observed_maturity:
+  verified`, `implementation_evidence: passing-after-legacy-tdd-ledger`, and
+  `execution_proof.proof_basis: legacy-tdd-ledger`.
+- **Proof:** the workflow pins the immutable merged Modules #379 commit
+  `69f075819be5e1ceca1446b026b0417f19e584ca` (Requirements 0.5.1), creates
+  a record from the committed ledger bytes and the nested released plan,
+  retains it as an artifact, and supplies it only when the selected R07 change
+  has no normal `red.json`. Normal red-JUnit proof remains the preferred path
+  for every other change.

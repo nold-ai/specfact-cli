@@ -5,7 +5,7 @@
 The core CLI SHALL enforce the released Requirements evidence command before
 code-review and contract delivery gates, using only a SHA-pinned
 `nold-ai/specfact-cli-modules` fixture at
-`97e0f917903b09803f48b7d73f56ec9753cf95c7`. Core SHALL preserve the
+`69f075819be5e1ceca1446b026b0417f19e584ca`. Core SHALL preserve the
 module-owned evidence semantics and SHALL retain JSON and Markdown remediation
 reports for both passing and failing runs.
 
@@ -13,7 +13,7 @@ reports for both passing and failing runs.
 
 - **GIVEN** the fixture lock is absent, malformed, points outside
   `nold-ai/specfact-cli-modules`, names any commit other than
-  `97e0f917903b09803f48b7d73f56ec9753cf95c7`, does not match the materialized
+  `69f075819be5e1ceca1446b026b0417f19e584ca`, does not match the materialized
   commit, or materializes a dirty worktree
 - **WHEN** local or CI requirements evidence enforcement starts
 - **THEN** it fails before executing any module command
@@ -44,6 +44,18 @@ reports for both passing and failing runs.
   reports
 - **AND** a red verdict fails the delivery gate only after its reports are
   available.
+
+#### Scenario: Reconcile the approved historical R07 ledger without synthetic red proof
+
+- **GIVEN** the selected change is `requirements-07-runtime-proof-delivery`,
+  its committed `TDD_EVIDENCE.md` contains the historical failing-first record,
+  and the released module produces a final proof plan
+- **WHEN** core reconciles the current JUnit result
+- **THEN** it hashes the ledger and passes a digest-bound
+  `legacy-tdd-ledger` record with the plan and mapping digests to final
+  reconciliation
+- **AND** it does not create or pass a synthetic `red.json`
+- **AND** ordinary changes continue to require the normal red-JUnit proof.
 
 #### Scenario: Runtime smoke registry includes declared bundle dependencies
 

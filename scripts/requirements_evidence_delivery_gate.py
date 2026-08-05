@@ -16,7 +16,7 @@ from icontract import ensure
 
 
 APPROVED_REPOSITORY = "nold-ai/specfact-cli-modules"
-APPROVED_COMMIT = "97e0f917903b09803f48b7d73f56ec9753cf95c7"
+APPROVED_COMMIT = "69f075819be5e1ceca1446b026b0417f19e584ca"
 SHA_PATTERN = re.compile(r"^[0-9a-f]{40}$")
 CommandRunner = Callable[[list[str], dict[str, str]], int]
 GitRunner = Callable[[list[str]], str]

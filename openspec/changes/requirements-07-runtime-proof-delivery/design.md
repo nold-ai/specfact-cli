@@ -7,7 +7,7 @@ base diff, retains JSON/Markdown reports, and fails only after artifacts are
 available. This is the correct delivery boundary, but the report currently
 establishes declared traceability rather than current-run test execution.
 
-Modules #368/#369 own the released two-phase 0.4.3 contract: a structured scenario proof plan
+Modules #379 owns the released two-phase 0.5.1 contract: a structured scenario proof plan
 and reconciliation of trusted JUnit results. Core owns safe process execution,
 timeouts, the frozen environment, artifact retention, job ordering, and branch
 protection. Core must not reinterpret Requirements findings or manufacture a
@@ -82,6 +82,19 @@ to the same verified module release. The module returns the final authoritative
 Requirements JSON/Markdown proof. Core validates that both reports exist,
 publishes them, and translates only the process exit code into delivery status.
 
+### Migrate the historical R07 proof ledger without fabricating red JUnit
+
+Normal delivery remains strict: a new governed production change requires a
+runner-generated, git-bound red JUnit proof. This already-active R07 change is
+the one explicit migration exception. Its historical failing-first evidence is
+recorded in its committed `TDD_EVIDENCE.md`, predating the released red-JUnit
+wire format. Final reconciliation therefore receives a generated
+`legacy-tdd-ledger` record only when the selected change is
+`requirements-07-runtime-proof-delivery`. Core hashes the committed ledger and
+binds that digest plus the module-produced mapping and plan digests to the
+record. It never creates a synthetic red artifact, and it never supplies both
+legacy-ledger and red-JUnit proof bases.
+
 ### Build a dependency-complete runtime smoke registry
 
 The runtime-discovery smoke check keeps its explicit root module set so its
@@ -123,7 +136,7 @@ step exits non-zero.
 
 ## Rollout and Rollback
 
-1. Modules #368/#369 released signed `nold-ai/specfact-requirements` 0.4.3 with compatibility fixtures.
+1. Modules #379 released signed `nold-ai/specfact-requirements` 0.5.1 with compatibility fixtures.
 2. Record that release's immutable main-branch SHA in `ci/module-fixture.lock.json` and its allowlist before manually rerunning core PR #663; never pre-pin a feature-branch SHA.
 3. Pin that release in core and enable always-reporting advisory proof CI.
 4. Baseline mappings and remediation, then enable strict blocking by profile.

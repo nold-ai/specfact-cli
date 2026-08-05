@@ -21,6 +21,9 @@ behavior before its tests exist and have failed for the expected reason.
 - [x] 1.3.1 After that release is on modules `main`, record its exact signed SHA
   in `ci/module-fixture.lock.json` and every matching fixture allowlist, then
   manually rerun core PR #663. Do not pre-pin the current feature-branch SHA.
+- [x] 1.3.2 Pin merged modules PR #379 commit `69f075819be5e1ceca1446b026b0417f19e584ca`
+  and verify its signed Requirements 0.5.1 fixture before enabling the approved
+  legacy-ledger reconciliation exception.
 - [ ] 1.4 Update the internal wiki mirror/graph when the current dirty internal
   checkout is reconciled; do not overwrite its unrelated pending wiki changes.
 
@@ -41,6 +44,8 @@ behavior before its tests exist and have failed for the expected reason.
   registry contains the recursive module bundle-dependency closure.
 - [ ] 2.5 Record commands, timestamps, and expected failures in
   `TDD_EVIDENCE.md` before production edits.
+- [x] 2.5.1 Add a failing workflow contract test for the R07-only,
+  digest-bound `legacy-tdd-ledger` reconciliation path.
 
 ## 3. Core delivery implementation
 
@@ -59,6 +64,8 @@ behavior before its tests exist and have failed for the expected reason.
   and environment limits, and deterministic JUnit output paths.
 - [ ] 3.5 Reconcile plan and JUnit through the pinned public module command; do
   not parse proof semantics or rewrite its verdict in core.
+- [x] 3.5.1 Generate and pass the R07-only legacy-ledger proof basis after
+  verifying the committed evidence-ledger digest; never generate `red.json`.
 - [ ] 3.6 Pass only finalized proof into the released Code Review context input,
   retain both reports, then continue to existing contract/full quality gates.
 - [ ] 3.7 Publish plan, JUnit, finalized JSON/Markdown, review provenance, and

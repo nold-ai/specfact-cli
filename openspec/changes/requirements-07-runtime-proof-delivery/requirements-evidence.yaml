@@ -71,6 +71,9 @@ requirements:
       - id: red-proof-verifier
         kind: ci_workflow
         locator: "requirements-proof/red.json"
+      - id: legacy-tdd-ledger
+        kind: evidence_ledger
+        locator: "TDD_EVIDENCE.md"
     verification_cases:
       - case_id: R07-CORE-003-S01
         scenario_id: git-bound-failing-first-proof
@@ -88,6 +91,14 @@ requirements:
         selector:
           runner: pytest
           node_id: tests/unit/scripts/test_requirements_proof_executor.py::test_executor_rejects_unsupported_or_nonexecutable_plan_state_before_spawning
+      - case_id: R07-CORE-003-S03
+        scenario_id: git-bound-failing-first-proof
+        method: test
+        intent: "Prove the approved R07 historical ledger is digest-bound before final reconciliation."
+        observable: "Legacy ledger basis is passed only for R07 and no synthetic red proof is generated."
+        selector:
+          runner: pytest
+          node_id: tests/unit/workflows/test_requirements_evidence_delivery_workflow.py::test_requirements_evidence_workflow_uses_digest_bound_legacy_tdd_ledger_for_r07
   openspec:requirements-07-runtime-proof-delivery:requirements-runtime-proof-delivery:staged-scenario-proof-planning:
     rationale: "Local feedback must validate planning without pretending to execute tests."
     stakeholder_refs:

@@ -59,7 +59,7 @@ This file is generated from the current CLI command tree. Do not edit by hand.
 | `specfact code review rules init` | nold-ai/specfact-code-review | --ide; args: - | - |  |
 | `specfact code review rules show` | nold-ai/specfact-code-review | -; args: - | - |  |
 | `specfact code review rules update` | nold-ai/specfact-code-review | --ide; args: - | - |  |
-| `specfact code review run` | nold-ai/specfact-code-review | --bug-hunt, --enforcement, --exclude-tests, --fix, --focus, --include-noise, --include-tests, --instructions, --interactive, --json, --level, --mode, --no-tests, --out, --path, --preview-fixes, --scope, --score-only, --suppress-noise, --with-mutation; args: - | - |  |
+| `specfact code review run` | nold-ai/specfact-code-review | --bug-hunt, --enforcement, --exclude-tests, --fix, --focus, --include-noise, --include-tests, --instructions, --interactive, --json, --level, --mode, --no-tests, --out, --path, --preview-fixes, --requirements-evidence, --scope, --score-only, --suppress-noise, --with-mutation; args: - | - |  |
 | `specfact code validate` | nold-ai/specfact-codebase | -; args: - | sidecar |  |
 | `specfact code validate sidecar` | nold-ai/specfact-codebase | -; args: - | init, run |  |
 | `specfact code validate sidecar init` | nold-ai/specfact-codebase | -; args: - | - |  |
@@ -118,7 +118,7 @@ This file is generated from the current CLI command tree. Do not edit by hand.
 | `specfact requirements evidence` | nold-ai/specfact-requirements | --base-ref, --output, --plan-output, --repo-root, --required-maturity, --review-evidence, --staged, --summary; args: - | - |  |
 | `specfact requirements import` | nold-ai/specfact-requirements | --bundle, --format, --from-file, --from-openspec, --from-speckit; args: - | - |  |
 | `specfact requirements list` | nold-ai/specfact-requirements | --bundle, --format, --show-coverage; args: - | - |  |
-| `specfact requirements reconcile` | nold-ai/specfact-requirements | --junit, --output, --plan, --prior-red-proof, --run-stage, --source-ref, --summary; args: - | - |  |
+| `specfact requirements reconcile` | nold-ai/specfact-requirements | --junit, --legacy-tdd-evidence, --output, --plan, --prior-red-proof, --run-stage, --source-ref, --summary; args: - | - |  |
 | `specfact requirements validate` | nold-ai/specfact-requirements | --bundle, --format, --profile; args: - | - |  |
 | `specfact spec` | nold-ai/specfact-spec | --install-completion, --show-completion; args: - | backward-compat, generate-tests, mock, validate |  |
 | `specfact spec backward-compat` | nold-ai/specfact-spec | -; args: - | - |  |

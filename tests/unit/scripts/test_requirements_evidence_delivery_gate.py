@@ -8,6 +8,7 @@ import subprocess
 import sys
 from collections.abc import Callable
 from pathlib import Path
+from types import ModuleType
 from typing import Protocol, cast
 
 import pytest
@@ -15,23 +16,7 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 GATE_SCRIPT = REPO_ROOT / "scripts" / "requirements_evidence_delivery_gate.py"
-
-
-class GateModule(Protocol):
-    """Typed public surface supplied by the file-loaded delivery adapter."""
-
-    EvidenceRequest: Callable[..., object]
-
-    def _git_head(self, arguments: list[str]) -> str: ...
-
-    def verify_fixture(self, fixture: dict[str, object], fixture_root: Path, *, git_runner: Callable[..., str]) -> None:
-        pass
-
-    def run_evidence_command(self, request: object, fixture_root: Path, *, command_runner: Callable[..., int]) -> int:
-        raise NotImplementedError
-
-    def main(self, argv: list[str] | None = None) -> int:
-        raise NotImplementedError
+APPROVED_MODULE_COMMIT = "69f075819be5e1ceca1446b026b0417f19e584ca"
 
 
 class CapturedRequest(Protocol):
@@ -39,6 +24,26 @@ class CapturedRequest(Protocol):
 
     selection: tuple[str, str | None]
     required_maturity: str
+
+
+class GateModule(Protocol):
+    """Typed public surface supplied by the file-loaded delivery adapter."""
+
+    EvidenceRequest: Callable[..., CapturedRequest]
+    subprocess: ModuleType
+
+    def _git_head(self, arguments: list[str]) -> str: ...
+
+    def verify_fixture(self, fixture: dict[str, object], fixture_root: Path, *, git_runner: Callable[..., str]) -> None:
+        pass
+
+    def run_evidence_command(
+        self, request: CapturedRequest, fixture_root: Path, *, command_runner: Callable[..., int]
+    ) -> int:
+        raise NotImplementedError
+
+    def main(self, argv: list[str]) -> int:
+        raise NotImplementedError
 
 
 def _load_gate_module() -> GateModule:
@@ -66,7 +71,7 @@ def test_verified_fixture_requires_exact_released_identity_and_clean_tree(tmp_pa
         ValueError, match="must target nold-ai/specfact-cli-modules"
     ):
         module.verify_fixture(
-            {"repository": "example/other", "commit": "97e0f917903b09803f48b7d73f56ec9753cf95c7"},
+            {"repository": "example/other", "commit": APPROVED_MODULE_COMMIT},
             tmp_path,
             git_runner=lambda *_: "",
         )
@@ -85,13 +90,11 @@ def test_verified_fixture_requires_exact_released_identity_and_clean_tree(tmp_pa
         module.verify_fixture(
             {
                 "repository": "nold-ai/specfact-cli-modules",
-                "commit": "97e0f917903b09803f48b7d73f56ec9753cf95c7",
+                "commit": APPROVED_MODULE_COMMIT,
             },
             tmp_path,
             git_runner=lambda arguments: (
-                "97e0f917903b09803f48b7d73f56ec9753cf95c7"
-                if arguments[-2:] == ["rev-parse", "HEAD"]
-                else " M package.py\n"
+                APPROVED_MODULE_COMMIT if arguments[-2:] == ["rev-parse", "HEAD"] else " M package.py\n"
             ),
         )
 
@@ -105,13 +108,13 @@ def test_fixture_git_lookup_ignores_commit_hook_worktree_environment(monkeypatch
         environment = kwargs["env"]
         assert isinstance(environment, dict)
         captured_environment.update(environment)
-        return subprocess.CompletedProcess([], 0, stdout="97e0f917903b09803f48b7d73f56ec9753cf95c7\n")
+        return subprocess.CompletedProcess([], 0, stdout=f"{APPROVED_MODULE_COMMIT}\n")
 
     monkeypatch.setenv("GIT_DIR", "/unrelated/commit-worktree.git")
     monkeypatch.setenv("GIT_WORK_TREE", "/unrelated/commit-worktree")
     monkeypatch.setattr(module.subprocess, "run", git_run)
 
-    assert module._git_head(["git", "-C", "/fixture", "rev-parse", "HEAD"]).startswith("97e0f917")
+    assert module._git_head(["git", "-C", "/fixture", "rev-parse", "HEAD"]).startswith("69f07581")
     assert "GIT_DIR" not in captured_environment
     assert "GIT_WORK_TREE" not in captured_environment
 
@@ -237,7 +240,7 @@ def test_main_rejects_invalid_fixture_before_command_execution_and_writes_diagno
     module = _load_gate_module()
     (tmp_path / "ci").mkdir()
     (tmp_path / "ci" / "module-fixture.lock.json").write_text(
-        json.dumps({"repository": "example/other", "commit": "97e0f917903b09803f48b7d73f56ec9753cf95c7"}),
+        json.dumps({"repository": "example/other", "commit": APPROVED_MODULE_COMMIT}),
         encoding="utf-8",
     )
     fixture = tmp_path / "fixture"
@@ -289,7 +292,7 @@ def test_main_forwards_selection_and_verified_fixture(
         "_read_fixture_lock",
         lambda _repo_root: {
             "repository": "nold-ai/specfact-cli-modules",
-            "commit": "97e0f917903b09803f48b7d73f56ec9753cf95c7",
+            "commit": APPROVED_MODULE_COMMIT,
         },
     )
     monkeypatch.setattr(module, "verify_fixture", lambda *_args, **_kwargs: None)

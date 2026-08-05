@@ -1016,6 +1016,7 @@
       "--out",
       "--path",
       "--preview-fixes",
+      "--requirements-evidence",
       "--scope",
       "--score-only",
       "--suppress-noise",
@@ -2180,6 +2181,7 @@
     "install_prerequisite": "specfact module install nold-ai/specfact-requirements",
     "options": [
       "--junit",
+      "--legacy-tdd-evidence",
       "--output",
       "--plan",
       "--prior-red-proof",

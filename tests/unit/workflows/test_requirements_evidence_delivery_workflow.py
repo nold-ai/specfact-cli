@@ -11,7 +11,7 @@ import yaml
 
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-APPROVED_MODULE_COMMIT = "97e0f917903b09803f48b7d73f56ec9753cf95c7"
+APPROVED_MODULE_COMMIT = "69f075819be5e1ceca1446b026b0417f19e584ca"
 
 
 def _step_by_name(workflow: dict[str, object], name: str) -> dict[str, object]:
@@ -101,6 +101,7 @@ def _assert_retention_contract(workflow: dict[str, object]) -> None:
         "artifacts/requirements-evidence/requirements-evidence.md",
         "artifacts/requirements-evidence/requirements-evidence-plan.json",
         "artifacts/requirements-evidence/requirements-proof.xml",
+        "artifacts/requirements-evidence/legacy-tdd-evidence.json",
     ]
     assert enforce["if"] == "steps.run-evidence.outcome == 'failure'"  # type: ignore[index]
     assert enforce["run"] == "exit 1"  # type: ignore[index]
@@ -182,3 +183,19 @@ def test_requirements_evidence_workflow_ignores_archived_review_evidence() -> No
         "find openspec/changes -path 'openspec/changes/archive' -prune -o "
         "-path '*/requirements-proof/review-evidence.json' -type f -print"
     ) in command
+
+
+def test_requirements_evidence_workflow_uses_digest_bound_legacy_tdd_ledger_for_r07() -> None:
+    """Only the approved R07 migration may replace historical red-JUnit proof with its ledger."""
+    workflow = REPO_ROOT / ".github" / "workflows" / "requirements-evidence.yml"
+    parsed = yaml.load(workflow.read_text(encoding="utf-8"), Loader=yaml.BaseLoader)
+    command = _step_by_name(parsed, "Run Requirements evidence gate")["run"]
+    assert isinstance(command, str)
+
+    assert 'selected_change" == "requirements-07-runtime-proof-delivery"' in command
+    assert "TDD_EVIDENCE.md" in command
+    assert "legacy-tdd-ledger" in command
+    assert "hashlib.sha256" in command
+    assert 'plan_report.get("plan")' in command
+    assert '--legacy-tdd-evidence "$legacy_tdd_evidence"' in command
+    assert "proof-basis-ambiguous" not in command

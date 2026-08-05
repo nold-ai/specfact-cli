@@ -3,32 +3,32 @@
 **Validation Date:** 2026-08-05 (Europe/Berlin)
 **Change Proposal:** [proposal.md](./proposal.md)
 **Validation Method:** dependency dry-run using a temporary workspace and the
-current source of modules PR #379.
+immutable merged Modules #379 fixture.
 
 ## Executive Summary
 
 - Breaking Changes: 0 detected
 - Dependent Files: 6 direct core integration files
 - Impact Level: Medium
-- Validation Result: Pass with a published-fixture dependency
-- User Decision: Prepare the core integration; do not pin a mutable module
-  branch.
+- Validation Result: Pass
+- User Decision: Pin only the published immutable fixture; do not use a
+  mutable module branch.
 
 ## Dependency Analysis
 
-Modules PR #379 adds an optional `--legacy-tdd-evidence` input to
+Merged Modules PR #379 adds an optional `--legacy-tdd-evidence` input to
 `requirements reconcile`. It accepts a final-stage, digest-bound legacy TDD
 ledger basis when no `--prior-red-proof` is supplied, and rejects the ambiguous
 combination. The option is additive and does not change existing red-JUnit
 reconciliation callers.
 
-Critical core updates remain:
+Required core updates:
 
 - `.github/workflows/requirements-evidence.yml` must verify the legacy ledger
   digest, generate the bounded reconciliation input, and forward it only to
   final reconciliation.
-- `ci/module-fixture.lock.json` and fixture assertions must move only to the
-  signed, published #379 commit once available.
+- `ci/module-fixture.lock.json` and fixture assertions pin only the merged
+  #379 commit `69f075819be5e1ceca1446b026b0417f19e584ca`.
 - Workflow regression tests must cover the valid ledger path and stale or
   ambiguous input rejection.
 - The runtime-discovery smoke registry must derive the recursive
@@ -53,8 +53,9 @@ therefore verify that the record's `ledger_digest` equals the committed
 - **Documentation Impact:** the active change specification and design require
   a narrowly scoped migration exception. No published user documentation is
   affected until the pinned module release is available.
-- **Release Impact:** dependency pin update after the modules release; no core
-  version bump while preparation remains unshipped.
+- **Release Impact:** dependency pin update follows the published modules
+  release; no separate core version bump is required for this workflow-only
+  remediation.
 
 ## OpenSpec Validation
 
