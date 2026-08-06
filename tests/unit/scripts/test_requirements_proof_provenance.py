@@ -90,3 +90,53 @@ def test_git_bound_red_proof_requires_test_only_ancestor_and_unchanged_selector_
     assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=stale_ref) == [
         "stale-red-proof"
     ]
+
+
+def test_git_bound_red_proof_rejects_replayed_or_renamed_production_history(tmp_path: Path) -> None:
+    """Red evidence must follow the current base and retain governed rename sources."""
+    module = _load_provenance_module()
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "delivery.py").write_text("VALUE = 0\n", encoding="utf-8")
+    _commit(tmp_path, "chore: base")
+    test_path = tmp_path / "tests" / "test_proof.py"
+    test_path.parent.mkdir()
+    test_path.write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / "red.json"
+    red_proof_path.write_text(json.dumps(_red_proof(red_ref)), encoding="utf-8")
+    (tmp_path / "src" / "delivery.py").write_text("VALUE = 1\n", encoding="utf-8")
+    current_base_ref = _commit(tmp_path, "fix: apply delivery")
+    (tmp_path / "src" / "other.py").write_text("VALUE = 2\n", encoding="utf-8")
+    final_ref = _commit(tmp_path, "feat: unrelated delivery")
+
+    assert module.validate_prior_red_proof(
+        red_proof_path, tmp_path, base_ref=current_base_ref, final_ref=final_ref
+    ) == ["tdd-order-unproven"]
+
+    rename_root = tmp_path / "rename"
+    rename_root.mkdir()
+    _git(rename_root, "init")
+    _git(rename_root, "config", "user.email", "requirements@example.test")
+    _git(rename_root, "config", "user.name", "Requirements proof")
+    (rename_root / "src").mkdir()
+    (rename_root / "src" / "delivery.py").write_text("VALUE = 0\n", encoding="utf-8")
+    rename_base_ref = _commit(rename_root, "chore: base")
+    (rename_root / "docs").mkdir()
+    _git(rename_root, "mv", "src/delivery.py", "docs/delivery.py")
+    _commit(rename_root, "docs: relocate delivery notes")
+    rename_test_path = rename_root / "tests" / "test_proof.py"
+    rename_test_path.parent.mkdir()
+    rename_test_path.write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    rename_red_ref = _commit(rename_root, "test: add red proof")
+    rename_proof_path = rename_root / "red.json"
+    rename_proof_path.write_text(json.dumps(_red_proof(rename_red_ref)), encoding="utf-8")
+    (rename_root / "src").mkdir(exist_ok=True)
+    (rename_root / "src" / "replacement.py").write_text("VALUE = 1\n", encoding="utf-8")
+    rename_final_ref = _commit(rename_root, "feat: replace delivery")
+
+    assert module.validate_prior_red_proof(
+        rename_proof_path, rename_root, base_ref=rename_base_ref, final_ref=rename_final_ref
+    ) == ["tdd-order-unproven"]

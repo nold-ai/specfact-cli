@@ -83,6 +83,14 @@ requirements:
         selector:
           runner: pytest
           node_id: tests/unit/scripts/test_requirements_proof_provenance.py::test_git_bound_red_proof_requires_test_only_ancestor_and_unchanged_selector_files
+      - case_id: R07-CORE-003-S02
+        scenario_id: git-bound-failing-first-proof
+        method: test
+        intent: "Prove a red proof follows the current base and preserves governed rename sources."
+        observable: "Replayed red evidence and production-to-docs renames are rejected."
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_requirements_proof_provenance.py::test_git_bound_red_proof_rejects_replayed_or_renamed_production_history
       - case_id: R07-CORE-003-S03
         scenario_id: git-bound-failing-first-proof
         method: test
@@ -210,8 +218,8 @@ requirements:
       - case_id: R07-CORE-007-S02
         scenario_id: always-published-requirements-proof-decision
         method: test
-        intent: "Prove governed no-impact pull requests publish an explicit skip."
+        intent: "Prove a governed no-impact pull-request diff publishes an explicit skip."
         observable: "Successful terminal result with bounded skip provenance."
         selector:
           runner: pytest
-          node_id: tests/unit/scripts/test_requirements_evidence_delivery_gate.py::test_main_rejects_invalid_fixture_before_command_execution_and_writes_diagnostics
+          node_id: tests/unit/scripts/test_requirements_evidence_delivery_gate.py::test_released_evidence_publishes_a_bounded_no_impact_pull_request_decision

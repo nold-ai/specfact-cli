@@ -518,3 +518,31 @@
   after it. Product-owner acceptance was renewed for mapping digest
   `sha256:8e14cc71eb0023acd49939979b6831f91eb84aeb99a3007464106380393fa82c`
   while implementing the user-directed review corrections.
+
+## Failing-before Git-bound red replay and no-impact proof remediation
+
+- **Recorded:** 2026-08-06 (Europe/Berlin)
+- **Command:** `hatch run pytest tests/unit/scripts/test_requirements_proof_provenance.py tests/unit/scripts/test_requirements_evidence_delivery_gate.py -q -p no:cacheprovider`
+- **Result:** failed as expected: a red commit already contained in the current
+  base was accepted as valid current proof.
+- **Intent:** prevent historical red evidence from being replayed after the
+  base has advanced, preserve governed source paths when they are renamed away,
+  and execute the released no-impact pull-request decision end to end.
+
+## Passing-after Git-bound red replay and no-impact proof remediation
+
+- **Recorded:** 2026-08-06 (Europe/Berlin)
+- **Commands:**
+  - `hatch run pytest tests/unit/scripts/test_requirements_proof_provenance.py tests/unit/scripts/test_requirements_evidence_delivery_gate.py -q -p no:cacheprovider`
+  - `hatch run format && hatch run lint-changed scripts/requirements_proof_provenance.py tests/unit/scripts/test_requirements_proof_provenance.py tests/unit/scripts/test_requirements_evidence_delivery_gate.py`
+  - `hatch run type-check`
+- **Result:** 13 focused tests passed; formatter and changed-file lint passed;
+  project type-check completed with its existing warning-only baseline; the
+  clean-code review returned zero warnings.
+- **Proof:** normal red reports now require the current PR base to be an
+  ancestor of the red source and inspect both source and destination paths of
+  renames before accepting a test-only pre-red diff. The mapped no-impact test
+  creates a docs-only PR diff against the pinned Requirements 0.5.1 fixture and
+  verifies its successful explicit `skipped`/`no-impact` report. Product-owner
+  acceptance follows the current user-directed review remediation for mapping
+  digest `sha256:53869b32919f5a086aa6e8a96d095c9be0baf5446e4e68dd7ffc04ca48715fb6`.

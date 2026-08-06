@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 import subprocess
 import sys
 from collections.abc import Callable
@@ -38,7 +39,7 @@ class GateModule(Protocol):
         pass
 
     def run_evidence_command(
-        self, request: CapturedRequest, fixture_root: Path, *, command_runner: Callable[..., int]
+        self, request: CapturedRequest, fixture_root: Path, *, command_runner: Callable[..., int] = ...
     ) -> int:
         raise NotImplementedError
 
@@ -54,6 +55,17 @@ def _load_gate_module() -> GateModule:
     sys.modules[spec.name] = module
     spec.loader.exec_module(module)
     return cast(GateModule, module)
+
+
+def _git_output(repo_root: Path, *arguments: str) -> str:
+    result = subprocess.run(
+        ["git", *arguments],
+        cwd=repo_root,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return result.stdout.strip()
 
 
 def test_verified_fixture_requires_exact_released_identity_and_clean_tree(tmp_path: Path) -> None:
@@ -276,6 +288,50 @@ def test_main_rejects_invalid_fixture_before_command_execution_and_writes_diagno
     assert json.loads(json_report.read_text(encoding="utf-8"))["verdict"] == "failed"
     assert "must target nold-ai/specfact-cli-modules" in markdown_report.read_text(encoding="utf-8")
     assert "Previous passing evidence" not in markdown_report.read_text(encoding="utf-8")
+
+
+def test_released_evidence_publishes_a_bounded_no_impact_pull_request_decision(tmp_path: Path) -> None:
+    """A docs-only pull-request diff must retain the released module's explicit skip report."""
+    fixture_root_text = os.environ.get("SPECFACT_MODULES_REPO")
+    if fixture_root_text is None:
+        pytest.skip("requires the pinned modules fixture")
+    fixture_root = Path(fixture_root_text)
+    if not fixture_root.is_dir():
+        pytest.skip("requires the pinned modules fixture")
+    module = _load_gate_module()
+    _git_output(tmp_path, "init")
+    _git_output(tmp_path, "config", "user.email", "requirements@example.test")
+    _git_output(tmp_path, "config", "user.name", "Requirements proof")
+    (tmp_path / "README.md").write_text("# proof\n", encoding="utf-8")
+    _git_output(tmp_path, "add", ".")
+    _git_output(tmp_path, "commit", "--no-gpg-sign", "-m", "chore: base")
+    base_ref = _git_output(tmp_path, "rev-parse", "HEAD")
+    (tmp_path / "docs").mkdir()
+    (tmp_path / "docs" / "guide.md").write_text("# guide\n", encoding="utf-8")
+    _git_output(tmp_path, "add", ".")
+    _git_output(tmp_path, "commit", "--no-gpg-sign", "-m", "docs: add guide")
+    output_path = tmp_path / "evidence.json"
+    summary_path = tmp_path / "evidence.md"
+
+    assert (
+        module.run_evidence_command(
+            module.EvidenceRequest(
+                repo_root=tmp_path,
+                selection=("--base-ref", base_ref),
+                output_path=output_path,
+                summary_path=summary_path,
+            ),
+            fixture_root,
+        )
+        == 0
+    )
+    report = json.loads(output_path.read_text(encoding="utf-8"))
+    assert report["verdict"] == "skipped"
+    assert report["gate_decision"] == "pass"
+    assert report["observed_maturity"] == "no-impact"
+    assert report["delivery_status"] == "no-impact"
+    assert report["sources"] == []
+    assert "no-impact" in summary_path.read_text(encoding="utf-8")
 
 
 @pytest.mark.parametrize("selection", [("--staged",), ("--base-ref", "origin/dev")])

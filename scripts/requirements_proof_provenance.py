@@ -87,8 +87,35 @@ def _is_ancestor(repo_root: Path, ancestor: str, descendant: str) -> bool:
 
 
 def _changed_paths(repo_root: Path, start_ref: str, end_ref: str) -> list[str] | None:
-    result = _git(repo_root, "diff", "--name-only", f"{start_ref}...{end_ref}")
-    return None if result.returncode else [path for path in result.stdout.splitlines() if path]
+    result = _git(repo_root, "diff", "--name-status", "--find-renames", f"{start_ref}...{end_ref}")
+    if result.returncode:
+        return None
+    paths: list[str] = []
+    for line in result.stdout.splitlines():
+        fields = line.split("\t")
+        if len(fields) < 2:
+            return None
+        status, source_path = fields[0], fields[1]
+        paths.append(source_path)
+        if status.startswith(("R", "C")):
+            if len(fields) != 3:
+                return None
+            paths.append(fields[2])
+    return paths
+
+
+def _red_source_precedes_final(repo_root: Path, base_ref: str, source_ref: str, final_ref: str) -> bool:
+    """Require the current base, red source, and final source to form one strict chain."""
+    return (
+        GIT_OBJECT_PATTERN.fullmatch(final_ref) is not None
+        and source_ref != final_ref
+        and _is_ancestor(repo_root, base_ref, source_ref)
+        and _is_ancestor(repo_root, source_ref, final_ref)
+    )
+
+
+def _has_governed_production_path(paths: Sequence[str]) -> bool:
+    return any(path.startswith(GOVERNED_PRODUCTION_PREFIXES) for path in paths)
 
 
 def _file_changed_after_red(repo_root: Path, source_ref: str, final_ref: str, test_path: str) -> bool | None:
@@ -117,14 +144,12 @@ def validate_prior_red_proof(red_proof_path: Path, repo_root: Path, *, base_ref:
         source_ref, selector_paths = _selector_paths(report)
     except ValueError as error:
         return [str(error)]
-    if GIT_OBJECT_PATTERN.fullmatch(final_ref) is None or not _is_ancestor(repo_root, source_ref, final_ref):
-        return ["tdd-order-unproven"]
-    if source_ref == final_ref:
+    if not _red_source_precedes_final(repo_root, base_ref, source_ref, final_ref):
         return ["tdd-order-unproven"]
     paths_before_red = _changed_paths(repo_root, base_ref, source_ref)
     if paths_before_red is None:
         return ["tdd-order-unproven"]
-    if any(path.startswith(GOVERNED_PRODUCTION_PREFIXES) for path in paths_before_red):
+    if _has_governed_production_path(paths_before_red):
         return ["tdd-order-unproven"]
     for test_path in selector_paths:
         if not _test_path_exists_at_ref(repo_root, source_ref, test_path):

@@ -97,10 +97,11 @@ legacy-ledger and red-JUnit proof bases.
 
 The migration reads that ledger with `git show` from the approved immutable
 historical commit, not from the mutable pull-request checkout. Normal red proof
-uses the same core-owned Git boundary: the red report source must be a strict
-ancestor of the final source, must not already contain governed production
-changes since the pull-request merge base, and must retain each selected test
-file unchanged through final reconciliation.
+uses the same core-owned Git boundary: the current pull-request base must be
+an ancestor of the red report source, the red source must be a strict ancestor
+of the final source, and no governed production path (including either endpoint
+of a rename) may change between the base and red source. Each selected test
+file must remain unchanged through final reconciliation.
 
 ### Build a dependency-complete runtime smoke registry
 

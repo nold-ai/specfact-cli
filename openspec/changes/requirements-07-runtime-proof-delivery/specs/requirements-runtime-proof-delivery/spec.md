@@ -47,13 +47,16 @@ blocking proposal review.
 ### Requirement: Git-Bound Failing-First Proof
 
 Core SHALL require a runner-generated red proof from a test-only ancestor
-commit before a governed production change can reach verified maturity. The
+commit after the current pull-request base before a governed production change
+can reach verified maturity. The
 proof SHALL bind the commit/tree, merge base, mapping digest, selectors,
 test-file digests, JUnit digest, and toolchain identity. Core SHALL reject
-proof when governed production changed before the red commit or when selectors
-or test files changed after it. Before forwarding a prior-red report to the
+proof when governed production changed before the red commit, including a
+governed source renamed outside its prefix, or when selectors or test files
+changed after it. Before forwarding a prior-red report to the
 released reconciliation command, core SHALL verify that its source commit is a
-strict ancestor of the final source and that the selected test files remain
+strict ancestor of the final source, the current pull-request base is an
+ancestor of that source, and that the selected test files remain
 unchanged since that source.
 
 #### Scenario: Production change follows valid red proof
