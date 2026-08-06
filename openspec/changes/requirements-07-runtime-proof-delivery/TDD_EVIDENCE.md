@@ -594,3 +594,32 @@
 - **Proof:** the validator consumes `git diff --name-status -z` records and
   decodes each path separately with `surrogateescape`; a tab-containing
   `src/` path is now retained and correctly produces `tdd-order-unproven`.
+
+## Failing-before NUL-delimited workflow path parsing and trigger proof mapping
+
+- **Recorded:** 2026-08-06 (Europe/Berlin)
+- **Command:** `hatch run pytest tests/unit/workflows/test_requirements_evidence_delivery_workflow.py::test_requirements_evidence_workflow_uses_the_released_fixture_and_retains_reports tests/unit/scripts/test_requirements_evidence_pre_commit.py::test_governed_trigger_scenario_uses_the_workflow_trigger_contract -q`
+- **Result:** failed as expected (2 failures).
+- **Failure:** the pull-request workflow parsed text-mode Git name-status
+  output, so quoted tab/newline paths could be misclassified as non-governed.
+  `R07-CORE-007-S01` also selected an adapter failure-report test rather than
+  the workflow trigger and terminal-enforcement contract.
+- **Intent:** make CI maturity classification path-safe and bind the governed
+  trigger scenario to the behavior it claims to prove.
+
+## Passing-after NUL-delimited workflow path parsing and trigger proof mapping
+
+- **Recorded:** 2026-08-06 (Europe/Berlin)
+- **Commands:**
+  - `hatch run pytest tests/unit/workflows/test_requirements_evidence_delivery_workflow.py tests/unit/scripts/test_requirements_evidence_pre_commit.py -q`
+  - `hatch run yaml-lint .github/workflows/requirements-evidence.yml openspec/changes/requirements-07-runtime-proof-delivery/requirements-evidence.yaml`
+  - `hatch run lint-workflows .github/workflows/requirements-evidence.yml`
+  - `openspec validate requirements-07-runtime-proof-delivery --strict`
+- **Result:** 15 workflow/mapping tests, YAML and workflow lint, and strict
+  OpenSpec validation passed.
+- **Proof:** the workflow retains raw NUL-delimited path records in Bash arrays
+  for maturity and active-change selection. `R07-CORE-007-S01` now maps to the
+  workflow contract that asserts pull-request scheduling, retained artifacts,
+  and terminal enforcement.
+- **Acceptance:** product-owner acceptance was renewed in this task for mapping
+  digest `sha256:d5ace9663eeb811b339a7751ad042fbf5d7b981867e596cb6eba599ddbde30a0`.

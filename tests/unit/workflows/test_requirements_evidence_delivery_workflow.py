@@ -58,12 +58,14 @@ def _assert_command_contract(workflow: dict[str, object]) -> None:
         "planning_maturity=test-authored",
         '--required-maturity "$planning_maturity"',
         'review_evidence="openspec/changes/${selected_change}/requirements-proof/review-evidence.json"',
-        "grep -v '^openspec/changes/archive/'",
+        "openspec/changes/archive/*",
         "find openspec/changes -path 'openspec/changes/archive' -prune -o -path '*/requirements-proof/review-evidence.json' -type f -print",
         "write_failure_reports()",
         'write_failure_reports "Invalid evidence base branch: $EVIDENCE_BASE_BRANCH"',
-        'if ! changed_status="$(git diff --name-status --find-renames "origin/${EVIDENCE_BASE_BRANCH}...HEAD")"; then',
-        'changed_paths=""',
+        'changed_status_file="${RUNNER_TEMP}/requirements-evidence-changed-status.z"',
+        'if ! git diff --name-status -z --find-renames "origin/${EVIDENCE_BASE_BRANCH}...HEAD" > "$changed_status_file"; then',
+        "while IFS= read -r -d '' status; do",
+        'done < "$changed_status_file"',
         'write_failure_reports "Unable to derive changed paths for $EVIDENCE_BASE_BRANCH"',
         "--plan-output artifacts/requirements-evidence/requirements-evidence-plan.json",
         '--review-evidence "$review_evidence"',
@@ -181,17 +183,18 @@ def test_requirements_evidence_workflow_splits_rename_endpoints_before_maturity(
     parsed = yaml.load(workflow.read_text(encoding="utf-8"), Loader=yaml.BaseLoader)
     command = _step_by_name(parsed, "Run Requirements evidence gate")["run"]
     assert isinstance(command, str)
-    assert "while IFS=$'\\t' read -r status source_path destination_path" in command
-    assert "changed_paths+=\"${source_path}\"$'\\n'" in command
+    assert "--name-status -z --find-renames" in command
+    assert "while IFS= read -r -d '' status; do" in command
+    assert 'changed_paths+=("$source_path")' in command
     assert "R*|C*)" in command
-    assert "changed_paths+=\"${destination_path}\"$'\\n'" in command
+    assert 'changed_paths+=("$destination_path")' in command
 
 
 def test_requirements_evidence_workflow_ignores_archived_review_evidence() -> None:
     """Only active change records may supply CI planning and reconciliation evidence."""
     command = _run_evidence_command()
 
-    assert "grep -v '^openspec/changes/archive/'" in command
+    assert "openspec/changes/archive/*" in command
     assert (
         "find openspec/changes -path 'openspec/changes/archive' -prune -o "
         "-path '*/requirements-proof/review-evidence.json' -type f -print"

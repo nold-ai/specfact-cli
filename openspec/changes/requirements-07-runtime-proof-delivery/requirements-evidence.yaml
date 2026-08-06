@@ -214,7 +214,7 @@ requirements:
         observable: "Terminal branch-protection check and retained artifacts."
         selector:
           runner: pytest
-          node_id: tests/unit/scripts/test_requirements_evidence_delivery_gate.py::test_failed_command_writes_missing_diagnostic_reports_and_exports_fixture_roots
+          node_id: tests/unit/workflows/test_requirements_evidence_delivery_workflow.py::test_requirements_evidence_workflow_uses_the_released_fixture_and_retains_reports
       - case_id: R07-CORE-007-S02
         scenario_id: always-published-requirements-proof-decision
         method: test

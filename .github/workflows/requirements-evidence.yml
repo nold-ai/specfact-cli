@@ -100,41 +100,61 @@ jobs:
             exit 1
           fi
           required_maturity=planned
-          if ! changed_status="$(git diff --name-status --find-renames "origin/${EVIDENCE_BASE_BRANCH}...HEAD")"; then
+          changed_status_file="${RUNNER_TEMP}/requirements-evidence-changed-status.z"
+          if ! git diff --name-status -z --find-renames "origin/${EVIDENCE_BASE_BRANCH}...HEAD" > "$changed_status_file"; then
             write_failure_reports "Unable to derive changed paths for $EVIDENCE_BASE_BRANCH"
             printf 'Unable to derive changed paths for %s\n' "$EVIDENCE_BASE_BRANCH" >&2
             exit 1
           fi
-          changed_paths=""
-          while IFS=$'\t' read -r status source_path destination_path || [[ -n "$status" ]]; do
-            [[ -z "$source_path" ]] && continue
-            changed_paths+="${source_path}"$'\n'
+          changed_paths=()
+          while IFS= read -r -d '' status; do
+            if ! IFS= read -r -d '' source_path; then
+              write_failure_reports "Unable to parse changed paths for $EVIDENCE_BASE_BRANCH"
+              exit 1
+            fi
+            changed_paths+=("$source_path")
             case "$status" in
               R*|C*)
-                if [[ -n "$destination_path" ]]; then
-                  changed_paths+="${destination_path}"$'\n'
+                if ! IFS= read -r -d '' destination_path; then
+                  write_failure_reports "Unable to parse changed paths for $EVIDENCE_BASE_BRANCH"
+                  exit 1
                 fi
+                changed_paths+=("$destination_path")
                 ;;
             esac
-          done <<< "$changed_status"
-          if grep -Eq '^(\.github|ci|scripts|src)/' <<< "$changed_paths"; then
-            required_maturity=verified
-          elif grep -Eq '^tests/' <<< "$changed_paths"; then
-            required_maturity=test-authored
-          fi
+          done < "$changed_status_file"
+          rm -f "$changed_status_file"
+          for changed_path in "${changed_paths[@]}"; do
+            case "$changed_path" in
+              .github/*|ci/*|scripts/*|src/*)
+                required_maturity=verified
+                break
+                ;;
+              tests/*)
+                required_maturity=test-authored
+                ;;
+            esac
+          done
           planning_maturity="$required_maturity"
           if [[ "$required_maturity" == "verified" ]]; then
             planning_maturity=test-authored
           fi
           selected_change=""
-          mapfile -t changed_changes < <(
-            printf '%s\n' "$changed_paths" \
-              | grep -v '^openspec/changes/archive/' \
-              | sed -nE 's#^openspec/changes/([^/]+)/.*#\1#p' \
-              | sort -u
-          )
-          if [[ "${#changed_changes[@]}" -eq 1 ]]; then
-            selected_change="${changed_changes[0]}"
+          declare -A changed_change_ids=()
+          for changed_path in "${changed_paths[@]}"; do
+            case "$changed_path" in
+              openspec/changes/archive/*)
+                ;;
+              openspec/changes/*/*)
+                relative_change_path="${changed_path#openspec/changes/}"
+                changed_change_ids["${relative_change_path%%/*}"]=1
+                ;;
+            esac
+          done
+          if [[ "${#changed_change_ids[@]}" -eq 1 ]]; then
+            for selected_change in "${!changed_change_ids[@]}"; do
+              :
+            done
           fi
           if [[ -z "$selected_change" ]]; then
             mapfile -t active_review_evidence < <(

@@ -3,7 +3,7 @@
   "decision": "accepted",
   "reviewer_id": "djm81",
   "reviewer_role": "product-owner",
-  "recorded_at": "2026-08-06T20:11:38Z",
+  "recorded_at": "2026-08-06T23:25:42+02:00",
   "reference": "https://github.com/nold-ai/specfact-cli/pull/663",
-  "mapping_digest": "sha256:53869b32919f5a086aa6e8a96d095c9be0baf5446e4e68dd7ffc04ca48715fb6"
+  "mapping_digest": "sha256:d5ace9663eeb811b339a7751ad042fbf5d7b981867e596cb6eba599ddbde30a0"
 }

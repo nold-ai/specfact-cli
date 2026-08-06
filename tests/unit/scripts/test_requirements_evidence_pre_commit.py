@@ -9,6 +9,7 @@ import yaml
 
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
+RUNTIME_PROOF_SIDECAR = REPO_ROOT / "openspec/changes/requirements-07-runtime-proof-delivery/requirements-evidence.yaml"
 
 
 def _pre_commit_text() -> str:
@@ -19,6 +20,11 @@ def _assert_contains_pre_commit_contract(*fragments: str) -> None:
     pre_commit = _pre_commit_text()
     for fragment in fragments:
         assert fragment in pre_commit
+
+
+def _runtime_proof_requirements() -> dict[str, dict[str, list[dict[str, Any]]]]:
+    mapping = cast(dict[str, Any], yaml.safe_load(RUNTIME_PROOF_SIDECAR.read_text(encoding="utf-8")))
+    return cast(dict[str, dict[str, list[dict[str, Any]]]], mapping["requirements"])
 
 
 def test_pre_commit_derives_maturity_and_governs_product_only_changes() -> None:
@@ -83,9 +89,7 @@ def test_pre_commit_runs_planning_evidence_for_governed_product_only_changes() -
 
 def test_runtime_proof_mapping_uses_unique_exact_pytest_selectors() -> None:
     """Every executable proof case must be independently runnable from the released plan."""
-    sidecar = REPO_ROOT / "openspec/changes/requirements-07-runtime-proof-delivery/requirements-evidence.yaml"
-    mapping = cast(dict[str, Any], yaml.safe_load(sidecar.read_text(encoding="utf-8")))
-    requirements = cast(dict[str, dict[str, list[dict[str, Any]]]], mapping["requirements"])
+    requirements = _runtime_proof_requirements()
     cases = [
         case
         for requirement in requirements.values()
@@ -105,9 +109,7 @@ def test_runtime_proof_mapping_uses_unique_exact_pytest_selectors() -> None:
 
 def test_runtime_proof_mapping_selectors_are_collectible() -> None:
     """Every mapped selector must resolve in the current repository test collection."""
-    sidecar = REPO_ROOT / "openspec/changes/requirements-07-runtime-proof-delivery/requirements-evidence.yaml"
-    mapping = cast(dict[str, Any], yaml.safe_load(sidecar.read_text(encoding="utf-8")))
-    requirements = cast(dict[str, dict[str, list[dict[str, Any]]]], mapping["requirements"])
+    requirements = _runtime_proof_requirements()
     node_ids = [
         cast(str, cast(dict[str, Any], case["selector"])["node_id"])
         for requirement in requirements.values()
@@ -122,3 +124,20 @@ def test_runtime_proof_mapping_selectors_are_collectible() -> None:
         check=False,
     )
     assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_governed_trigger_scenario_uses_the_workflow_trigger_contract() -> None:
+    """The governed-trigger proof must exercise scheduling and terminal enforcement."""
+    requirements = _runtime_proof_requirements()
+    case = next(
+        case
+        for requirement in requirements.values()
+        for case in requirement["verification_cases"]
+        if case["case_id"] == "R07-CORE-007-S01"
+    )
+
+    selector = cast(dict[str, str], case["selector"])
+    assert selector["node_id"] == (
+        "tests/unit/workflows/test_requirements_evidence_delivery_workflow.py::"
+        "test_requirements_evidence_workflow_uses_the_released_fixture_and_retains_reports"
+    )
