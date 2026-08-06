@@ -87,20 +87,31 @@ def _is_ancestor(repo_root: Path, ancestor: str, descendant: str) -> bool:
 
 
 def _changed_paths(repo_root: Path, start_ref: str, end_ref: str) -> list[str] | None:
-    result = _git(repo_root, "diff", "--name-status", "--find-renames", f"{start_ref}...{end_ref}")
+    result = subprocess.run(
+        ["git", "diff", "--name-status", "-z", "--find-renames", f"{start_ref}...{end_ref}"],
+        cwd=repo_root,
+        capture_output=True,
+        check=False,
+    )
     if result.returncode:
         return None
+    records = result.stdout.split(b"\0")
+    if records.pop() != b"":
+        return None
     paths: list[str] = []
-    for line in result.stdout.splitlines():
-        fields = line.split("\t")
-        if len(fields) < 2:
+    record_index = 0
+    while record_index < len(records):
+        status = records[record_index]
+        record_index += 1
+        if record_index >= len(records):
             return None
-        status, source_path = fields[0], fields[1]
-        paths.append(source_path)
-        if status.startswith(("R", "C")):
-            if len(fields) != 3:
+        paths.append(records[record_index].decode("utf-8", errors="surrogateescape"))
+        record_index += 1
+        if status.startswith((b"R", b"C")):
+            if record_index >= len(records):
                 return None
-            paths.append(fields[2])
+            paths.append(records[record_index].decode("utf-8", errors="surrogateescape"))
+            record_index += 1
     return paths
 
 

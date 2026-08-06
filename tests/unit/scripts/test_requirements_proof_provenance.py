@@ -140,3 +140,29 @@ def test_git_bound_red_proof_rejects_replayed_or_renamed_production_history(tmp_
     assert module.validate_prior_red_proof(
         rename_proof_path, rename_root, base_ref=rename_base_ref, final_ref=rename_final_ref
     ) == ["tdd-order-unproven"]
+
+
+def test_git_bound_red_proof_rejects_governed_path_with_tab(tmp_path: Path) -> None:
+    """A control character in a governed Git path must not hide its prefix."""
+    module = _load_provenance_module()
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    (tmp_path / "README.md").write_text("# proof\n", encoding="utf-8")
+    base_ref = _commit(tmp_path, "chore: base")
+    unusual_path = tmp_path / "src" / "a\tb.py"
+    unusual_path.parent.mkdir()
+    unusual_path.write_text("VALUE = 1\n", encoding="utf-8")
+    _commit(tmp_path, "feat: add governed path with tab")
+    test_path = tmp_path / "tests" / "test_proof.py"
+    test_path.parent.mkdir()
+    test_path.write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / "red.json"
+    red_proof_path.write_text(json.dumps(_red_proof(red_ref)), encoding="utf-8")
+    (tmp_path / "docs.md").write_text("# final\n", encoding="utf-8")
+    final_ref = _commit(tmp_path, "docs: retain final source")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
+        "tdd-order-unproven"
+    ]

@@ -571,3 +571,26 @@
 - **Proof:** the command substitution now captures stderr (`2>&1`) with the
   provenance result, so `write_failure_reports` records the validator's
   specific rejection finding instead of its generic fallback.
+
+## Failing-before NUL-delimited pre-red path parsing
+
+- **Recorded:** 2026-08-06 (Europe/Berlin)
+- **Command:** `hatch run pytest tests/unit/scripts/test_requirements_proof_provenance.py::test_git_bound_red_proof_rejects_governed_path_with_tab -q`
+- **Result:** failed as expected.
+- **Failure:** text-mode `git diff --name-status` C-quoted a tab-containing
+  `src/` filename. The parser treated the leading quote as part of the path,
+  allowing a governed production change before red proof to bypass the
+  failing-first-order guard.
+- **Intent:** preserve Git path boundaries independently of tabs, newlines,
+  or other valid filename characters.
+
+## Passing-after NUL-delimited pre-red path parsing
+
+- **Recorded:** 2026-08-06 (Europe/Berlin)
+- **Commands:**
+  - `hatch run pytest tests/unit/scripts/test_requirements_proof_provenance.py -q`
+  - `hatch run lint-changed scripts/requirements_proof_provenance.py tests/unit/scripts/test_requirements_proof_provenance.py`
+- **Result:** 3 provenance tests and changed-file lint passed.
+- **Proof:** the validator consumes `git diff --name-status -z` records and
+  decodes each path separately with `surrogateescape`; a tab-containing
+  `src/` path is now retained and correctly produces `tdd-order-unproven`.
