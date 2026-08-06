@@ -57,6 +57,16 @@ reports for both passing and failing runs.
 - **AND** it does not create or pass a synthetic `red.json`
 - **AND** ordinary changes continue to require the normal red-JUnit proof.
 
+#### Scenario: Review only existing Python paths with finalized proof context
+
+- **GIVEN** final Requirements reconciliation succeeds and the pull-request
+  diff includes deleted Python paths
+- **WHEN** CI invokes Code Review with the finalized Requirements JSON
+- **THEN** it passes only still-existing Python paths to the review command
+- **AND** it applies full enforcement to those explicitly diff-selected paths
+- **AND** it retains the separate Code Review report before independently
+  enforcing a failed review verdict.
+
 #### Scenario: Runtime smoke registry includes declared bundle dependencies
 
 - **GIVEN** a root module exercised by the runtime-discovery smoke check

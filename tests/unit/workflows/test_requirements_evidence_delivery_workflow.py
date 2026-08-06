@@ -203,6 +203,22 @@ def test_requirements_evidence_workflow_uses_digest_bound_legacy_tdd_ledger_for_
     assert "proof-basis-ambiguous" not in command
 
 
+def _assert_code_review_handoff_command(command: object) -> None:
+    """Keep the review command contract independently readable and bounded."""
+    assert isinstance(command, str)
+    expected_fragments = (
+        "uv run --locked --no-sync specfact code review run",
+        "--requirements-evidence artifacts/requirements-evidence/requirements-evidence.json",
+        "--enforcement full",
+        "--include-tests",
+        "--out artifacts/requirements-evidence/code-review.json",
+        "origin/${EVIDENCE_BASE_BRANCH}...HEAD",
+        '[[ -f "$review_path" ]]',
+        "No changed Python files require Code Review context.",
+    )
+    assert all(fragment in command for fragment in expected_fragments)
+
+
 def test_requirements_evidence_workflow_hands_final_proof_to_code_review() -> None:
     """Code Review receives finalized proof context without owning its verdict."""
     workflow = REPO_ROOT / ".github" / "workflows" / "requirements-evidence.yml"
@@ -211,14 +227,7 @@ def test_requirements_evidence_workflow_hands_final_proof_to_code_review() -> No
     command = review["run"]
 
     assert review["if"] == "steps.run-evidence.outcome == 'success'"
-    assert isinstance(command, str)
-    assert "uv run --locked --no-sync specfact code review run" in command
-    assert "--requirements-evidence artifacts/requirements-evidence/requirements-evidence.json" in command
-    assert "--enforcement changed" in command
-    assert "--include-tests" in command
-    assert "--out artifacts/requirements-evidence/code-review.json" in command
-    assert "origin/${EVIDENCE_BASE_BRANCH}...HEAD" in command
-    assert "No changed Python files require Code Review context." in command
+    _assert_code_review_handoff_command(command)
     assert _step_index(parsed, "Run Requirements evidence gate") < _step_index(
         parsed, "Run Code Review with finalized Requirements context"
     )

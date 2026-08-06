@@ -443,3 +443,45 @@
 - **Acceptance:** product-owner acceptance was renewed on 2026-08-05
   (Europe/Berlin) for mapping digest
   `sha256:4e5f8d53718955811aa66cd8d0f8a7446b739ef581a02eb443033791041b2361`.
+
+## Failing-before Code Review deleted-path filtering
+
+- **Recorded:** 2026-08-06 (Europe/Berlin)
+- **Command:** `hatch run pytest tests/unit/workflows/test_requirements_evidence_delivery_workflow.py::test_requirements_evidence_workflow_hands_final_proof_to_code_review -q -p no:cacheprovider`
+- **Result:** failed as expected because the workflow did not filter deleted
+  Python paths before passing its explicit review targets to Code Review.
+- **Intent:** ensure a deletion-only or mixed Python pull request reaches the
+  independent review gate with only files present in the Actions checkout.
+
+## Passing-after Code Review deleted-path filtering
+
+- **Recorded:** 2026-08-06 (Europe/Berlin)
+- **Command:** `hatch run pytest tests/unit/workflows/test_requirements_evidence_delivery_workflow.py -q -p no:cacheprovider`
+- **Result:** passed (6 tests).
+- **Proof:** the workflow now builds its explicit review path array only from
+  existing Python files, while retaining the separate review artifact and
+  independent failure enforcement.
+
+## Failing-before Code Review clean-worktree enforcement
+
+- **Recorded:** 2026-08-06 (Europe/Berlin)
+- **Command:** `hatch run pytest tests/unit/workflows/test_requirements_evidence_delivery_workflow.py::test_requirements_evidence_workflow_hands_final_proof_to_code_review -q -p no:cacheprovider`
+- **Result:** failed as expected because the workflow used `--enforcement
+  changed`. The pinned Code Review module derives changed lines from `git diff
+  HEAD`; GitHub Actions checks out a clean PR head, so blocking findings could
+  remain advisory despite the explicit pull-request file list.
+- **Intent:** enforce all blocking findings in the explicitly PR-diff-selected
+  files without broadening the review to unchanged repository files.
+
+## Passing-after Code Review clean-worktree enforcement
+
+- **Recorded:** 2026-08-06 (Europe/Berlin)
+- **Commands:**
+  - `hatch run pytest tests/unit/workflows/test_requirements_evidence_delivery_workflow.py -q -p no:cacheprovider`
+  - `hatch run yaml-lint .github/workflows/requirements-evidence.yml && hatch run lint-workflows .github/workflows/requirements-evidence.yml`
+  - `openspec validate requirements-07-runtime-proof-delivery --strict`
+- **Result:** passed: 6 workflow tests, workflow lint, and strict OpenSpec
+  validation.
+- **Proof:** Code Review now uses `--enforcement full` only after the workflow
+  derives its current pull-request Python file list and filters deleted paths;
+  every blocking finding in that bounded set independently fails the PR.

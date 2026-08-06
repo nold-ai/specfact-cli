@@ -10,6 +10,16 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.55.1] - 2026-08-06
+
+### Fixed
+
+- **Requirements evidence delivery:** review only existing changed Python paths
+  and fully enforce Code Review findings after final Requirements proof is
+  retained.
+
+---
+
 ## [0.55.0] - 2026-08-04
 
 ### Changed
