@@ -485,3 +485,36 @@
 - **Proof:** Code Review now uses `--enforcement full` only after the workflow
   derives its current pull-request Python file list and filters deleted paths;
   every blocking finding in that bounded set independently fails the PR.
+
+## Failing-before immutable legacy ledger and Git-bound red proof remediation
+
+- **Recorded:** 2026-08-06 (Europe/Berlin)
+- **Command:** `hatch run pytest tests/unit/scripts/test_requirements_proof_provenance.py tests/unit/workflows/test_requirements_evidence_delivery_workflow.py -q -p no:cacheprovider`
+- **Result:** failed as expected with three failures: no core Git-bound red
+  proof validator, no immutable historical-ledger source, and no retained
+  approved-ledger artifact.
+- **Intent:** prevent a mutable pull-request `TDD_EVIDENCE.md` from
+  self-attesting the R07 migration exception, and prove that ordinary red proof
+  is test-only, strictly ancestral, and has unchanged selected test files.
+
+## Passing-after immutable legacy ledger and Git-bound red proof remediation
+
+- **Recorded:** 2026-08-06 (Europe/Berlin)
+- **Commands:**
+  - `hatch run pytest tests/unit/scripts/test_requirements_proof_provenance.py tests/unit/workflows/test_requirements_evidence_delivery_workflow.py -q -p no:cacheprovider`
+  - `hatch run yaml-lint .github/workflows/requirements-evidence.yml openspec/changes/requirements-07-runtime-proof-delivery/requirements-evidence.yaml && hatch run lint-workflows .github/workflows/requirements-evidence.yml`
+  - `openspec validate requirements-07-runtime-proof-delivery --strict`
+  - `<modules-0.5.1-fixture> specfact requirements evidence` → executor →
+    final reconciliation with ledger read from
+    `7dcf8b74fa8f904ec20ba9957bd9aa94f9110e5c`
+- **Result:** 7 focused tests, YAML/workflow validation, strict OpenSpec, and
+  the pinned-module end-to-end reconciliation passed. Final evidence reports
+  `observed_maturity: verified` and
+  `implementation_evidence: passing-after-legacy-tdd-ledger`.
+- **Proof:** the workflow reads the approved ledger only with `git show` from
+  the immutable commit and retains those exact bytes as an artifact. For normal
+  red proof, core now rejects non-ancestor or same-commit source refs,
+  production changes before the red source, and any selected test file changed
+  after it. Product-owner acceptance was renewed for mapping digest
+  `sha256:8e14cc71eb0023acd49939979b6831f91eb84aeb99a3007464106380393fa82c`
+  while implementing the user-directed review corrections.

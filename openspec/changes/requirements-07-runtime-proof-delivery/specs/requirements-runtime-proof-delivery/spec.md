@@ -51,7 +51,10 @@ commit before a governed production change can reach verified maturity. The
 proof SHALL bind the commit/tree, merge base, mapping digest, selectors,
 test-file digests, JUnit digest, and toolchain identity. Core SHALL reject
 proof when governed production changed before the red commit or when selectors
-or test files changed after it.
+or test files changed after it. Before forwarding a prior-red report to the
+released reconciliation command, core SHALL verify that its source commit is a
+strict ancestor of the final source and that the selected test files remain
+unchanged since that source.
 
 #### Scenario: Production change follows valid red proof
 

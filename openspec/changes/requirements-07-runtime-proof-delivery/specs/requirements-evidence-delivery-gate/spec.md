@@ -48,12 +48,14 @@ reports for both passing and failing runs.
 #### Scenario: Reconcile the approved historical R07 ledger without synthetic red proof
 
 - **GIVEN** the selected change is `requirements-07-runtime-proof-delivery`,
-  its committed `TDD_EVIDENCE.md` contains the historical failing-first record,
+  the approved immutable commit contains its historical failing-first ledger,
   and the released module produces a final proof plan
 - **WHEN** core reconciles the current JUnit result
-- **THEN** it hashes the ledger and passes a digest-bound
+- **THEN** it reads and hashes the ledger from that approved commit and passes a
+  digest-bound
   `legacy-tdd-ledger` record with the plan and mapping digests to final
   reconciliation
+- **AND** a modified pull-request checkout ledger cannot satisfy the exception
 - **AND** it does not create or pass a synthetic `red.json`
 - **AND** ordinary changes continue to require the normal red-JUnit proof.
 

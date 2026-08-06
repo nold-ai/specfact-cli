@@ -60,6 +60,9 @@ def _assert_command_contract(workflow: dict[str, object]) -> None:
         '--review-evidence "$review_evidence"',
         "python scripts/requirements_proof_executor.py",
         "--junit artifacts/requirements-evidence/requirements-proof.xml",
+        "python scripts/requirements_proof_provenance.py",
+        '--base-ref "origin/${EVIDENCE_BASE_BRANCH}"',
+        '--final-ref "$GITHUB_SHA"',
         "uv run --locked --no-sync specfact requirements reconcile",
         "rm -f artifacts/requirements-evidence/requirements-evidence.json artifacts/requirements-evidence/requirements-evidence.md",
         "--run-stage final",
@@ -101,6 +104,7 @@ def _assert_retention_contract(workflow: dict[str, object]) -> None:
         "artifacts/requirements-evidence/requirements-evidence.md",
         "artifacts/requirements-evidence/requirements-evidence-plan.json",
         "artifacts/requirements-evidence/requirements-proof.xml",
+        "artifacts/requirements-evidence/approved-legacy-tdd-ledger.md",
         "artifacts/requirements-evidence/legacy-tdd-evidence.json",
         "artifacts/requirements-evidence/code-review.json",
     ]
@@ -196,6 +200,8 @@ def test_requirements_evidence_workflow_uses_digest_bound_legacy_tdd_ledger_for_
 
     assert 'selected_change" == "requirements-07-runtime-proof-delivery"' in command
     assert "TDD_EVIDENCE.md" in command
+    assert 'legacy_tdd_ledger_ref="7dcf8b74fa8f904ec20ba9957bd9aa94f9110e5c"' in command
+    assert 'git show "${legacy_tdd_ledger_ref}:${legacy_tdd_ledger}"' in command
     assert "legacy-tdd-ledger" in command
     assert "hashlib.sha256" in command
     assert 'plan_report.get("plan")' in command

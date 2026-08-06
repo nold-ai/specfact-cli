@@ -78,19 +78,11 @@ requirements:
       - case_id: R07-CORE-003-S01
         scenario_id: git-bound-failing-first-proof
         method: test
-        intent: "Prove final verification follows a matching red ancestor proof."
-        observable: "Bound commit, tree, mapping, selector, and JUnit provenance."
+        intent: "Prove core validates a red ancestor before forwarding it to released reconciliation."
+        observable: "A test-only red ancestor passes; a changed selector file is rejected as stale."
         selector:
           runner: pytest
-          node_id: tests/unit/scripts/test_requirements_proof_executor.py::test_executor_accepts_existing_exact_selectors_and_uses_argument_array
-      - case_id: R07-CORE-003-S02
-        scenario_id: git-bound-failing-first-proof
-        method: test
-        intent: "Prove same-commit and stale red evidence is rejected."
-        observable: "tdd-order-unproven or stale-red-proof diagnostic."
-        selector:
-          runner: pytest
-          node_id: tests/unit/scripts/test_requirements_proof_executor.py::test_executor_rejects_unsupported_or_nonexecutable_plan_state_before_spawning
+          node_id: tests/unit/scripts/test_requirements_proof_provenance.py::test_git_bound_red_proof_requires_test_only_ancestor_and_unchanged_selector_files
       - case_id: R07-CORE-003-S03
         scenario_id: git-bound-failing-first-proof
         method: test

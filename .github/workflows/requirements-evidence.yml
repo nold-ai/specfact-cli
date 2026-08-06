@@ -194,15 +194,29 @@ jobs:
                 --summary artifacts/requirements-evidence/requirements-evidence.md
               )
               if [[ -n "$prior_red_proof" ]]; then
+                if ! red_proof_findings="$(python scripts/requirements_proof_provenance.py \
+                  --prior-red-proof "$prior_red_proof" \
+                  --repo-root "$GITHUB_WORKSPACE" \
+                  --base-ref "origin/${EVIDENCE_BASE_BRANCH}" \
+                  --final-ref "$GITHUB_SHA")"; then
+                  write_failure_reports "Red proof provenance rejected: ${red_proof_findings:-tdd-order-unproven}"
+                  exit 1
+                fi
                 reconciliation_arguments+=(--prior-red-proof "$prior_red_proof")
               elif [[ "$selected_change" == "requirements-07-runtime-proof-delivery" ]]; then
                 legacy_tdd_ledger="openspec/changes/${selected_change}/TDD_EVIDENCE.md"
+                legacy_tdd_ledger_ref="7dcf8b74fa8f904ec20ba9957bd9aa94f9110e5c"
+                legacy_tdd_source="artifacts/requirements-evidence/approved-legacy-tdd-ledger.md"
                 legacy_tdd_evidence="artifacts/requirements-evidence/legacy-tdd-evidence.json"
-                if [[ ! -f "$legacy_tdd_ledger" ]]; then
-                  write_failure_reports "Missing approved legacy TDD ledger: $legacy_tdd_ledger"
+                if ! git cat-file -e "${legacy_tdd_ledger_ref}:${legacy_tdd_ledger}"; then
+                  write_failure_reports "Missing approved legacy TDD ledger at $legacy_tdd_ledger_ref"
                   exit 1
                 fi
-                if ! python3 - "$legacy_tdd_ledger" "artifacts/requirements-evidence/requirements-evidence-plan.json" "$legacy_tdd_evidence" "$selected_change" <<'PY'
+                if ! git show "${legacy_tdd_ledger_ref}:${legacy_tdd_ledger}" > "$legacy_tdd_source"; then
+                  write_failure_reports "Unable to load approved legacy TDD ledger at $legacy_tdd_ledger_ref"
+                  exit 1
+                fi
+                if ! python3 - "$legacy_tdd_source" "artifacts/requirements-evidence/requirements-evidence-plan.json" "$legacy_tdd_evidence" "$selected_change" <<'PY'
           import hashlib
           import json
           import sys
@@ -304,6 +318,7 @@ jobs:
             artifacts/requirements-evidence/requirements-evidence.md
             artifacts/requirements-evidence/requirements-evidence-plan.json
             artifacts/requirements-evidence/requirements-proof.xml
+            artifacts/requirements-evidence/approved-legacy-tdd-ledger.md
             artifacts/requirements-evidence/legacy-tdd-evidence.json
             artifacts/requirements-evidence/code-review.json
           if-no-files-found: warn
