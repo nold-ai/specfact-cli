@@ -415,19 +415,6 @@ run_lint_if_staged_python() {
   fi
 }
 
-has_staged_active_openspec_sources() {
-  local file
-  while IFS= read -r -d '' file; do
-    [[ -z "${file}" ]] && continue
-    case "${file}" in
-      openspec/changes/archive/*) ;;
-      openspec/changes/*) return 0 ;;
-      openspec/specs/*) return 0 ;;
-    esac
-  done < <(staged_evidence_paths)
-  return 1
-}
-
 staged_required_maturity() {
   local file maturity="planned"
   while IFS= read -r -d '' file; do
@@ -453,14 +440,8 @@ staged_planning_maturity() {
 
 has_staged_requirements_evidence_scope() {
   local file
-  if has_staged_active_openspec_sources; then
-    return 0
-  fi
   while IFS= read -r -d '' file; do
-    [[ -z "${file}" ]] && continue
-    case "${file}" in
-      .github/*|ci/*|scripts/*|src/*|tests/*|openspec/specs/*) return 0 ;;
-    esac
+    return 0
   done < <(staged_evidence_paths)
   return 1
 }
@@ -476,7 +457,7 @@ run_requirements_evidence_gate() {
   local -a evidence_arguments=()
 
   if ! has_staged_requirements_evidence_scope; then
-    info "📦 Block 2 — Requirements evidence — skipped (no staged Requirements-governed path)"
+    info "📦 Block 2 — Requirements evidence — skipped (no staged path)"
     return 0
   fi
 

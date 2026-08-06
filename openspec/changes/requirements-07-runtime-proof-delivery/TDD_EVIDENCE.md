@@ -723,3 +723,29 @@
   `sha256:eccdf006792d8910c54a773e30967886063b4e30c99c180bc36d7372b1bbd9ef`
   and plan `sha256:27ea6e6bcea0d68d68688b89fc8f89315d213b96918f4f76979484756fd8335e`.
   Code Review now reads `git diff --name-only -z` records.
+
+## Failing-before no-impact scheduling remediation
+
+- **Recorded:** 2026-08-07 (Europe/Berlin)
+- **Command:** `hatch run test -q -p no:cacheprovider tests/unit/workflows/test_requirements_evidence_delivery_workflow.py tests/unit/scripts/test_requirements_evidence_pre_commit.py`
+- **Result:** failed as expected (3 failures, 18 passed).
+- **Failure:** the pull-request workflow used a path filter that prevented
+  docs-only pull requests from publishing the released adapter's no-impact
+  result; local Block 2 similarly skipped docs-only staged paths instead of
+  invoking the adapter.
+- **Intent:** make CI and pre-commit both emit one explicit evidence decision
+  for every nonempty change set, including no-impact changes.
+
+## Passing-after no-impact scheduling remediation
+
+- **Recorded:** 2026-08-07 (Europe/Berlin)
+- **Commands:**
+  - `bash -n scripts/pre-commit-quality-checks.sh`
+  - `hatch run test -q -p no:cacheprovider tests/unit/workflows/test_requirements_evidence_delivery_workflow.py tests/unit/scripts/test_requirements_evidence_pre_commit.py`
+  - `SPECFACT_MODULES_REPO=<immutable-fixture> SPECFACT_MODULES_ROOTS=<immutable-fixture-packages> scripts/pre-commit-quality-checks.sh all`
+- **Result:** Bash syntax validation, 21 focused tests, and the full staged
+  pre-commit pipeline passed with the locked modules fixture.
+- **Proof:** Requirements Evidence now schedules for every pull request to
+  `main` or `dev`, and the pre-commit scope decision accepts every nonempty
+  staged diff. A temporary staged docs-only Git repository proves that local
+  Block 2 reaches the adapter rather than silently skipping the decision.

@@ -92,16 +92,10 @@ def _assert_command_contract(workflow: dict[str, object]) -> None:
 
 
 def _assert_governed_trigger_contract(workflow: dict[str, object]) -> None:
+    """The terminal decision must also run for no-impact pull requests."""
     pull_request = workflow["on"]["pull_request"]  # type: ignore[index]
-    assert pull_request["paths"] == [  # type: ignore[index]
-        "openspec/changes/**",
-        "openspec/specs/**",
-        ".github/**",
-        "ci/**",
-        "scripts/**",
-        "src/**",
-        "tests/**",
-    ]
+    assert pull_request["branches"] == ["main", "dev"]  # type: ignore[index]
+    assert "paths" not in pull_request  # type: ignore[operator]
 
 
 def _assert_retention_contract(workflow: dict[str, object]) -> None:
