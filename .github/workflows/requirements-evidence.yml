@@ -226,6 +226,8 @@ jobs:
               elif [[ "$selected_change" == "requirements-07-runtime-proof-delivery" ]]; then
                 legacy_tdd_ledger="openspec/changes/${selected_change}/TDD_EVIDENCE.md"
                 legacy_tdd_ledger_ref="7dcf8b74fa8f904ec20ba9957bd9aa94f9110e5c"
+                legacy_tdd_mapping_digest="sha256:48cea72eaf1c960159fef4f112a569760cd7bec44e8b49a04b42ec26a8f5e050"
+                legacy_tdd_plan_digest="sha256:03bde8ac1bec904db4f2d9e0824e43bb25b8a47067c174160547ace186c53bad"
                 legacy_tdd_source="artifacts/requirements-evidence/approved-legacy-tdd-ledger.md"
                 legacy_tdd_evidence="artifacts/requirements-evidence/legacy-tdd-evidence.json"
                 if ! git cat-file -e "${legacy_tdd_ledger_ref}:${legacy_tdd_ledger}"; then
@@ -236,7 +238,7 @@ jobs:
                   write_failure_reports "Unable to load approved legacy TDD ledger at $legacy_tdd_ledger_ref"
                   exit 1
                 fi
-                if ! python3 - "$legacy_tdd_source" "artifacts/requirements-evidence/requirements-evidence-plan.json" "$legacy_tdd_evidence" "$selected_change" <<'PY'
+                if ! legacy_tdd_error="$(python3 - "$legacy_tdd_source" "artifacts/requirements-evidence/requirements-evidence-plan.json" "$legacy_tdd_evidence" "$selected_change" "$legacy_tdd_mapping_digest" "$legacy_tdd_plan_digest" <<'PY'
           import hashlib
           import json
           import sys
@@ -246,6 +248,8 @@ jobs:
           plan_path = Path(sys.argv[2])
           output_path = Path(sys.argv[3])
           change_id = sys.argv[4]
+          approved_mapping_digest = sys.argv[5]
+          approved_plan_digest = sys.argv[6]
           plan_report = json.loads(plan_path.read_text(encoding="utf-8"))
           plan = plan_report.get("plan")
           if not isinstance(plan, dict):
@@ -254,6 +258,8 @@ jobs:
           plan_digest = plan.get("plan_digest")
           if not isinstance(mapping_digest, str) or not isinstance(plan_digest, str):
               raise ValueError("Requirements evidence plan lacks digest binding")
+          if mapping_digest != approved_mapping_digest or plan_digest != approved_plan_digest:
+              raise ValueError("Legacy TDD ledger does not cover the current Requirements evidence plan")
           output_path.write_text(
               json.dumps(
                   {
@@ -270,8 +276,8 @@ jobs:
               encoding="utf-8",
           )
           PY
-                then
-                  write_failure_reports "Unable to generate the legacy TDD ledger evidence record."
+                )"; then
+                  write_failure_reports "Legacy TDD ledger binding rejected: ${legacy_tdd_error:-unknown error}"
                   exit 1
                 fi
                 reconciliation_arguments+=(--legacy-tdd-evidence "$legacy_tdd_evidence")

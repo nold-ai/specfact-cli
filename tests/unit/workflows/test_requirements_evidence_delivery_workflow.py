@@ -7,6 +7,7 @@ import os
 import subprocess
 from pathlib import Path
 
+import pytest
 import yaml
 
 
@@ -208,14 +209,23 @@ def test_requirements_evidence_workflow_uses_digest_bound_legacy_tdd_ledger_for_
     command = _step_by_name(parsed, "Run Requirements evidence gate")["run"]
     assert isinstance(command, str)
 
-    assert 'selected_change" == "requirements-07-runtime-proof-delivery"' in command
-    assert "TDD_EVIDENCE.md" in command
-    assert 'legacy_tdd_ledger_ref="7dcf8b74fa8f904ec20ba9957bd9aa94f9110e5c"' in command
-    assert 'git show "${legacy_tdd_ledger_ref}:${legacy_tdd_ledger}"' in command
-    assert "legacy-tdd-ledger" in command
-    assert "hashlib.sha256" in command
-    assert 'plan_report.get("plan")' in command
-    assert '--legacy-tdd-evidence "$legacy_tdd_evidence"' in command
+    legacy_tdd_mapping_digest = "sha256:48cea72eaf1c960159fef4f112a569760cd7bec44e8b49a04b42ec26a8f5e050"
+    required_fragments = (
+        'selected_change" == "requirements-07-runtime-proof-delivery"',
+        "TDD_EVIDENCE.md",
+        'legacy_tdd_ledger_ref="7dcf8b74fa8f904ec20ba9957bd9aa94f9110e5c"',
+        f'legacy_tdd_mapping_digest="{legacy_tdd_mapping_digest}"',
+        'legacy_tdd_plan_digest="sha256:03bde8ac1bec904db4f2d9e0824e43bb25b8a47067c174160547ace186c53bad"',
+        'git show "${legacy_tdd_ledger_ref}:${legacy_tdd_ledger}"',
+        "legacy-tdd-ledger",
+        "hashlib.sha256",
+        'plan_report.get("plan")',
+        "mapping_digest != approved_mapping_digest",
+        "plan_digest != approved_plan_digest",
+        "Legacy TDD ledger does not cover the current Requirements evidence plan",
+        '--legacy-tdd-evidence "$legacy_tdd_evidence"',
+    )
+    assert all(fragment in command for fragment in required_fragments)
     assert "proof-basis-ambiguous" not in command
 
 
@@ -250,3 +260,33 @@ def test_requirements_evidence_workflow_hands_final_proof_to_code_review() -> No
     assert _step_index(parsed, "Run Code Review with finalized Requirements context") < _step_index(
         parsed, "Upload requirements evidence artifact"
     )
+
+
+def _review_and_enforcement_steps() -> tuple[dict[str, object], dict[str, object]]:
+    """Load the two workflow steps that independently govern final PR status."""
+    workflow = REPO_ROOT / ".github" / "workflows" / "requirements-evidence.yml"
+    parsed = yaml.load(workflow.read_text(encoding="utf-8"), Loader=yaml.BaseLoader)
+    return (
+        _step_by_name(parsed, "Run Code Review with finalized Requirements context"),
+        _step_by_name(parsed, "Enforce requirements evidence verdict"),
+    )
+
+
+@pytest.mark.parametrize(
+    ("review_field", "review_value", "terminal_failure"),
+    [
+        ("if", "steps.run-evidence.outcome == 'success'", "steps.run-evidence.outcome == 'failure'"),
+        ("continue-on-error", "true", "steps.run-code-review.outcome == 'failure'"),
+    ],
+    ids=("requirements-failure", "code-review-failure"),
+)
+def test_requirements_evidence_workflow_blocks_each_final_verdict(
+    review_field: str,
+    review_value: str,
+    terminal_failure: str,
+) -> None:
+    """Requirements and Code Review failures remain independently terminal."""
+    review, enforce = _review_and_enforcement_steps()
+
+    assert review[review_field] == review_value
+    assert terminal_failure in enforce["if"]  # type: ignore[index]

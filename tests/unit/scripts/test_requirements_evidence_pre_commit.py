@@ -71,11 +71,33 @@ def test_pre_commit_uses_both_rename_paths_for_requirements_scope_and_maturity()
     pre_commit = _pre_commit_text()
     _assert_contains_pre_commit_contract(
         "staged_evidence_paths()",
-        "git diff --cached --name-status --find-renames --diff-filter=ACMRD",
+        "git diff --cached --name-status -z --find-renames --diff-filter=ACMRD",
+        "while IFS= read -r -d '' status; do",
+        "printf '%s\\0' \"${source_path}\"",
         "R*|C*)",
     )
-    assert pre_commit.count("done < <(staged_evidence_paths)") == 2
-    assert 'changed_paths="$(staged_evidence_paths)"' in pre_commit
+    assert pre_commit.count("done < <(staged_evidence_paths)") == 3
+    assert 'changed_paths="$(staged_evidence_paths)"' not in pre_commit
+
+
+def test_pre_commit_preserves_tabbed_staged_evidence_paths(tmp_path: Path) -> None:
+    """NUL-delimited Git records preserve paths that cannot be parsed line by line."""
+    subprocess.run(["git", "init", "--quiet"], cwd=tmp_path, check=True)
+    staged_path = tmp_path / "src" / "tab\tpath.py"
+    staged_path.parent.mkdir()
+    staged_path.write_text("print('proof')\n", encoding="utf-8")
+    subprocess.run(["git", "add", "--", staged_path.relative_to(tmp_path)], cwd=tmp_path, check=True)
+
+    pre_commit_library = _pre_commit_text().removesuffix('\nmain "$@"\n')
+    result = subprocess.run(
+        ["bash", "-c", f"{pre_commit_library}\nstaged_evidence_paths"],
+        cwd=tmp_path,
+        capture_output=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr.decode()
+    assert result.stdout.split(b"\0") == [b"src/tab\tpath.py", b""]
 
 
 def test_pre_commit_runs_planning_evidence_for_governed_product_only_changes() -> None:
@@ -141,3 +163,25 @@ def test_governed_trigger_scenario_uses_the_workflow_trigger_contract() -> None:
         "tests/unit/workflows/test_requirements_evidence_delivery_workflow.py::"
         "test_requirements_evidence_workflow_uses_the_released_fixture_and_retains_reports"
     )
+
+
+def test_review_handoff_scenarios_use_competing_verdict_enforcement_proofs() -> None:
+    """R07 must prove each independently blocking final verdict at the workflow boundary."""
+    requirements = _runtime_proof_requirements()
+    selectors = {
+        case["case_id"]: cast(dict[str, str], case["selector"])["node_id"]
+        for requirement in requirements.values()
+        for case in requirement["verification_cases"]
+        if case["case_id"] in {"R07-CORE-006-S02", "R07-CORE-006-S03"}
+    }
+
+    assert selectors == {
+        "R07-CORE-006-S02": (
+            "tests/unit/workflows/test_requirements_evidence_delivery_workflow.py::"
+            "test_requirements_evidence_workflow_blocks_each_final_verdict[requirements-failure]"
+        ),
+        "R07-CORE-006-S03": (
+            "tests/unit/workflows/test_requirements_evidence_delivery_workflow.py::"
+            "test_requirements_evidence_workflow_blocks_each_final_verdict[code-review-failure]"
+        ),
+    }

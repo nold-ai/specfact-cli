@@ -189,7 +189,7 @@ requirements:
         observable: "Independent blocking Requirements verdict."
         selector:
           runner: pytest
-          node_id: tests/unit/scripts/test_requirements_proof_executor.py::test_executor_cli_reads_plan_and_forwards_no_shell_junit_path
+          node_id: tests/unit/workflows/test_requirements_evidence_delivery_workflow.py::test_requirements_evidence_workflow_blocks_each_final_verdict[requirements-failure]
       - case_id: R07-CORE-006-S03
         scenario_id: authoritative-reconciliation-and-review-handoff
         method: test
@@ -197,7 +197,7 @@ requirements:
         observable: "Separate blocking verdict for each failing gate."
         selector:
           runner: pytest
-          node_id: tests/unit/workflows/test_requirements_evidence_delivery_workflow.py::test_requirements_evidence_workflow_writes_reports_before_early_failure
+          node_id: tests/unit/workflows/test_requirements_evidence_delivery_workflow.py::test_requirements_evidence_workflow_blocks_each_final_verdict[code-review-failure]
   openspec:requirements-07-runtime-proof-delivery:requirements-runtime-proof-delivery:always-published-requirements-proof-decision:
     rationale: "Every governed pull request needs an auditable terminal Requirements decision."
     stakeholder_refs:

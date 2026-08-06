@@ -52,15 +52,22 @@ staged_files() {
 
 staged_evidence_paths() {
   local status source_path destination_path
-  while IFS=$'\t' read -r status source_path destination_path || [[ -n "${status}" ]]; do
-    [[ -z "${status}" || -z "${source_path}" ]] && continue
-    printf '%s\n' "${source_path}"
+  while IFS= read -r -d '' status; do
+    if ! IFS= read -r -d '' source_path; then
+      error "Unable to read staged source path for ${status}"
+      return 1
+    fi
+    printf '%s\0' "${source_path}"
     case "${status}" in
       R*|C*)
-        [[ -n "${destination_path}" ]] && printf '%s\n' "${destination_path}"
+        if ! IFS= read -r -d '' destination_path; then
+          error "Unable to read staged destination path for ${status}"
+          return 1
+        fi
+        printf '%s\0' "${destination_path}"
         ;;
     esac
-  done < <(git diff --cached --name-status --find-renames --diff-filter=ACMRD)
+  done < <(git diff --cached --name-status -z --find-renames --diff-filter=ACMRD)
 }
 
 has_staged_yaml() {
@@ -410,7 +417,7 @@ run_lint_if_staged_python() {
 
 has_staged_active_openspec_sources() {
   local file
-  while IFS= read -r file || [[ -n "${file}" ]]; do
+  while IFS= read -r -d '' file; do
     [[ -z "${file}" ]] && continue
     case "${file}" in
       openspec/changes/archive/*) ;;
@@ -422,15 +429,17 @@ has_staged_active_openspec_sources() {
 }
 
 staged_required_maturity() {
-  local changed_paths
-  changed_paths="$(staged_evidence_paths)"
-  if grep -Eq '^(\.github|ci|scripts|src)/' <<< "${changed_paths}"; then
-    printf 'verified\n'
-  elif grep -Eq '^tests/' <<< "${changed_paths}"; then
-    printf 'test-authored\n'
-  else
-    printf 'planned\n'
-  fi
+  local file maturity="planned"
+  while IFS= read -r -d '' file; do
+    case "${file}" in
+      .github/*|ci/*|scripts/*|src/*)
+        printf 'verified\n'
+        return 0
+        ;;
+      tests/*) maturity="test-authored" ;;
+    esac
+  done < <(staged_evidence_paths)
+  printf '%s\n' "${maturity}"
 }
 
 staged_planning_maturity() {
@@ -447,7 +456,7 @@ has_staged_requirements_evidence_scope() {
   if has_staged_active_openspec_sources; then
     return 0
   fi
-  while IFS= read -r file || [[ -n "${file}" ]]; do
+  while IFS= read -r -d '' file; do
     [[ -z "${file}" ]] && continue
     case "${file}" in
       .github/*|ci/*|scripts/*|src/*|tests/*|openspec/specs/*) return 0 ;;

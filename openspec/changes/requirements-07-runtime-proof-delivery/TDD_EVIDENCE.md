@@ -623,3 +623,38 @@
   and terminal enforcement.
 - **Acceptance:** product-owner acceptance was renewed in this task for mapping
   digest `sha256:d5ace9663eeb811b339a7751ad042fbf5d7b981867e596cb6eba599ddbde30a0`.
+
+## Failing-before legacy-binding, verdict-mapping, and staged-path remediation
+
+- **Recorded:** 2026-08-06 (Europe/Berlin)
+- **Command:** `hatch run test -q tests/unit/workflows/test_requirements_evidence_delivery_workflow.py tests/unit/scripts/test_requirements_evidence_pre_commit.py`
+- **Result:** failed as expected (3 failures).
+- **Failure:** the R07 fallback wrote the current plan digests beside an
+  immutable historical ledger without proving that ledger covered them; two
+  sidecar cases selected tests unrelated to competing terminal verdicts; and
+  pre-commit decoded text-mode Git name-status records, allowing tabs/newlines
+  to conceal governed staged paths.
+- **Intent:** bind the one permitted historical exception to its approved plan,
+  map each handoff claim to its terminal enforcement proof, and preserve every
+  staged pathname byte through maturity and scope selection.
+
+## Passing-after legacy-binding, verdict-mapping, and staged-path remediation
+
+- **Recorded:** 2026-08-06 (Europe/Berlin)
+- **Commands:**
+  - `hatch run test -q -p no:cacheprovider tests/unit/workflows/test_requirements_evidence_delivery_workflow.py tests/unit/scripts/test_requirements_evidence_pre_commit.py`
+  - `hatch run yaml-lint .github/workflows/requirements-evidence.yml openspec/changes/requirements-07-runtime-proof-delivery/requirements-evidence.yaml && hatch run lint-workflows .github/workflows/requirements-evidence.yml`
+  - `openspec validate requirements-07-runtime-proof-delivery --strict`
+  - `hatch run lint-changed scripts/pre-commit-quality-checks.sh tests/unit/scripts/test_requirements_evidence_pre_commit.py tests/unit/workflows/test_requirements_evidence_delivery_workflow.py`
+  - `hatch run python scripts/pre_commit_code_review.py tests/unit/scripts/test_requirements_evidence_pre_commit.py tests/unit/workflows/test_requirements_evidence_delivery_workflow.py`
+- **Result:** 19 focused tests, YAML/workflow validation, strict OpenSpec,
+  changed-file lint, and the local SpecFact clean-code review passed (zero
+  errors and warnings). A temporary staged Git repository proved that a tabbed
+  `src/` pathname is preserved as a NUL-delimited record.
+- **Proof:** CI rejects the legacy ledger whenever the current mapping or plan
+  differs from the approved historical pair; the two R07 cases now select
+  distinct parametrized workflow checks for Requirements and Code Review
+  terminal failures; and local staged scope/maturity parsing consumes Git
+  `--name-status -z` records, including both rename endpoints.
+- **Acceptance:** product-owner acceptance was renewed in this task for mapping
+  digest `sha256:9dbc87bfb035858400b6b746c51dc926107c1fe444bc8985a351f27bd01f796f`.
