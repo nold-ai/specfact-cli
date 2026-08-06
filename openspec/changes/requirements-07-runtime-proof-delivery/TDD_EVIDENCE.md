@@ -546,3 +546,28 @@
   verifies its successful explicit `skipped`/`no-impact` report. Product-owner
   acceptance follows the current user-directed review remediation for mapping
   digest `sha256:53869b32919f5a086aa6e8a96d095c9be0baf5446e4e68dd7ffc04ca48715fb6`.
+
+## Failing-before red-proof provenance diagnostic retention
+
+- **Recorded:** 2026-08-06 (Europe/Berlin)
+- **Command:** `hatch run pytest tests/unit/workflows/test_requirements_evidence_delivery_workflow.py::test_requirements_evidence_workflow_retains_red_proof_provenance_stderr -q`
+- **Result:** failed as expected.
+- **Failure:** `requirements_proof_provenance.py` emits invalid-red-proof
+  findings on stderr, but the workflow captured stdout only. The retained
+  failure report therefore discarded concrete diagnostics such as
+  `stale-red-proof` and fell back to `tdd-order-unproven`.
+- **Intent:** retain the module-facing proof rejection reason in the workflow
+  artifact and PR summary without changing the validator's command-line
+  interface.
+
+## Passing-after red-proof provenance diagnostic retention
+
+- **Recorded:** 2026-08-06 (Europe/Berlin)
+- **Commands:**
+  - `hatch run pytest tests/unit/workflows/test_requirements_evidence_delivery_workflow.py -q`
+  - `SPECFACT_MODULES_REPO=<modules-0.5.1-fixture> hatch run generate-command-overview`
+- **Result:** 7 workflow tests passed and the generated command artifacts were
+  refreshed against the same immutable module fixture used by the gate.
+- **Proof:** the command substitution now captures stderr (`2>&1`) with the
+  provenance result, so `write_failure_reports` records the validator's
+  specific rejection finding instead of its generic fallback.

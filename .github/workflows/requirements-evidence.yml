@@ -198,7 +198,7 @@ jobs:
                   --prior-red-proof "$prior_red_proof" \
                   --repo-root "$GITHUB_WORKSPACE" \
                   --base-ref "origin/${EVIDENCE_BASE_BRANCH}" \
-                  --final-ref "$GITHUB_SHA")"; then
+                  --final-ref "$GITHUB_SHA" 2>&1)"; then
                   write_failure_reports "Red proof provenance rejected: ${red_proof_findings:-tdd-order-unproven}"
                   exit 1
                 fi

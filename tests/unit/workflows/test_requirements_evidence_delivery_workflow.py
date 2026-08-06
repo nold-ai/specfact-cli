@@ -25,6 +25,15 @@ def _step_index(workflow: dict[str, object], name: str) -> int:
     return next(index for index, step in enumerate(steps) if step.get("name") == name)  # type: ignore[union-attr]
 
 
+def _run_evidence_command() -> str:
+    """Load the shell command that implements the evidence gate."""
+    workflow = REPO_ROOT / ".github" / "workflows" / "requirements-evidence.yml"
+    parsed = yaml.load(workflow.read_text(encoding="utf-8"), Loader=yaml.BaseLoader)
+    command = _step_by_name(parsed, "Run Requirements evidence gate")["run"]
+    assert isinstance(command, str)
+    return command
+
+
 def _assert_fixture_contract(workflow: dict[str, object]) -> None:
     read_fixture = _step_by_name(workflow, "Read immutable module fixture")
     verify_fixture = _step_by_name(workflow, "Verify immutable module fixture")
@@ -63,6 +72,7 @@ def _assert_command_contract(workflow: dict[str, object]) -> None:
         "python scripts/requirements_proof_provenance.py",
         '--base-ref "origin/${EVIDENCE_BASE_BRANCH}"',
         '--final-ref "$GITHUB_SHA"',
+        '--final-ref "$GITHUB_SHA" 2>&1)',
         "uv run --locked --no-sync specfact requirements reconcile",
         "rm -f artifacts/requirements-evidence/requirements-evidence.json artifacts/requirements-evidence/requirements-evidence.md",
         "--run-stage final",
@@ -179,10 +189,7 @@ def test_requirements_evidence_workflow_splits_rename_endpoints_before_maturity(
 
 def test_requirements_evidence_workflow_ignores_archived_review_evidence() -> None:
     """Only active change records may supply CI planning and reconciliation evidence."""
-    workflow = REPO_ROOT / ".github" / "workflows" / "requirements-evidence.yml"
-    parsed = yaml.load(workflow.read_text(encoding="utf-8"), Loader=yaml.BaseLoader)
-    command = _step_by_name(parsed, "Run Requirements evidence gate")["run"]
-    assert isinstance(command, str)
+    command = _run_evidence_command()
 
     assert "grep -v '^openspec/changes/archive/'" in command
     assert (
