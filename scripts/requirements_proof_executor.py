@@ -20,7 +20,19 @@ from icontract import ensure
 MAX_SELECTORS = 100
 SELECTOR_PATTERN = re.compile(r"(?!-)[A-Za-z0-9_./-]+\.py::[^\r\n\x00]+")
 FORBIDDEN_SELECTOR_CHARACTERS = frozenset('\r\n\x00$&;|`<>*?(){}!\\"')
-PROOF_ENVIRONMENT_KEYS = frozenset({"HOME", "LANG", "LC_ALL", "LC_CTYPE", "PATH", "TMPDIR", "VIRTUAL_ENV"})
+PROOF_ENVIRONMENT_KEYS = frozenset(
+    {
+        "HOME",
+        "LANG",
+        "LC_ALL",
+        "LC_CTYPE",
+        "PATH",
+        "SPECFACT_MODULES_REPO",
+        "SPECFACT_MODULES_ROOTS",
+        "TMPDIR",
+        "VIRTUAL_ENV",
+    }
+)
 
 
 @runtime_checkable

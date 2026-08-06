@@ -106,7 +106,9 @@ def _assert_argument_contract(command: ProofCommand, junit_path: Path) -> None:
 def _assert_environment_contract(command: ProofCommand) -> None:
     environment = command.env
     assert environment["PYTEST_DISABLE_PLUGIN_AUTOLOAD"] == "1"
-    assert not {"PYTEST_ADDOPTS", "PYTEST_PLUGINS", "PYTHONPATH", "SPECFACT_MODULES_REPO"} & environment.keys()
+    assert environment["SPECFACT_MODULES_REPO"] == "/verified/modules"
+    assert environment["SPECFACT_MODULES_ROOTS"] == "/verified/modules/packages"
+    assert not {"PYTEST_ADDOPTS", "PYTEST_PLUGINS", "PYTHONPATH"} & environment.keys()
 
 
 def test_executor_accepts_existing_exact_selectors_and_uses_argument_array(
@@ -123,7 +125,8 @@ def test_executor_accepts_existing_exact_selectors_and_uses_argument_array(
         ("PYTEST_ADDOPTS", "--collect-only"),
         ("PYTEST_PLUGINS", "untrusted_plugin"),
         ("PYTHONPATH", "/untrusted/python"),
-        ("SPECFACT_MODULES_REPO", "/untrusted/modules"),
+        ("SPECFACT_MODULES_REPO", "/verified/modules"),
+        ("SPECFACT_MODULES_ROOTS", "/verified/modules/packages"),
     ):
         monkeypatch.setenv(name, value)
 

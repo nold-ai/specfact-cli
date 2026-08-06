@@ -690,3 +690,36 @@
   failing red-proof decision.
 - **Acceptance:** product-owner acceptance was renewed in this task for mapping
   digest `sha256:4e346ea42a4398a2336e10f5550e4a8e1107c9f9e1926a95b33e3748be92dccd`.
+
+## Failing-before fixture-preserving executor and reachable-plan refresh
+
+- **Recorded:** 2026-08-07 (Europe/Berlin)
+- **Command:** `hatch run test -q -p no:cacheprovider tests/unit/scripts/test_requirements_proof_executor.py tests/unit/workflows/test_requirements_evidence_delivery_workflow.py`
+- **Result:** failed as expected (3 failures).
+- **Failure:** the executor stripped the workflow-verified module fixture from
+  child pytest processes, causing fixture-backed mapped selectors to skip;
+  the legacy R07 binding still used a superseded ledger-prefix and nested-plan
+  identity; and Code Review parsed text-mode Git paths, allowing unusual valid
+  Python names to evade its explicit review set.
+- **Intent:** keep only the already-verified fixture variables in the bounded
+  child environment, bind the retained ledger to the current accepted plan,
+  and make Code Review consume raw path records.
+
+## Passing-after fixture-preserving executor and reachable-plan refresh
+
+- **Recorded:** 2026-08-07 (Europe/Berlin)
+- **Commands:**
+  - `hatch run test -q -p no:cacheprovider tests/unit/scripts/test_requirements_proof_executor.py tests/unit/workflows/test_requirements_evidence_delivery_workflow.py`
+  - `SPECFACT_MODULES_REPO=<immutable-fixture> hatch run python scripts/requirements_evidence_delivery_gate.py --repo-root . --base-ref 9ac33e90 --required-maturity test-authored --review-evidence openspec/changes/requirements-07-runtime-proof-delivery/requirements-proof/review-evidence.json --plan-output /private/tmp/r07-test-authored-plan.json ... && hatch run python scripts/requirements_proof_executor.py --plan /private/tmp/r07-test-authored-plan.json --repo-root . --junit /private/tmp/r07-current-proof.xml`
+  - `hatch run lint-changed scripts/requirements_proof_executor.py tests/unit/scripts/test_requirements_proof_executor.py tests/unit/workflows/test_requirements_evidence_delivery_workflow.py && hatch run lint-workflows .github/workflows/requirements-evidence.yml`
+  - `hatch run python scripts/pre_commit_code_review.py scripts/requirements_proof_executor.py tests/unit/scripts/test_requirements_proof_executor.py tests/unit/workflows/test_requirements_evidence_delivery_workflow.py`
+- **Result:** 17 focused tests passed; the current released 18-selector plan
+  executed with 18 passed, 0 skipped, and 0 failed/errored; lint and clean-code
+  review passed with zero errors and warnings.
+- **Proof:** pytest receives only the verified `SPECFACT_MODULES_REPO` and
+  `SPECFACT_MODULES_ROOTS` fixture variables in addition to the existing
+  safe environment. The retained ledger prefix now ends at line 692 with its
+  pinned digest and is bound to nested mapping
+  `sha256:eccdf006792d8910c54a773e30967886063b4e30c99c180bc36d7372b1bbd9ef`
+  and plan `sha256:27ea6e6bcea0d68d68688b89fc8f89315d213b96918f4f76979484756fd8335e`.
+  Code Review now reads `git diff --name-only -z` records.

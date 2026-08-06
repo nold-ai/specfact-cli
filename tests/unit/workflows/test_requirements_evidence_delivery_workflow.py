@@ -209,14 +209,14 @@ def test_requirements_evidence_workflow_uses_digest_bound_legacy_tdd_ledger_for_
     command = _step_by_name(parsed, "Run Requirements evidence gate")["run"]
     assert isinstance(command, str)
 
-    legacy_tdd_mapping_digest = "sha256:48cea72eaf1c960159fef4f112a569760cd7bec44e8b49a04b42ec26a8f5e050"
+    legacy_tdd_mapping_digest = "sha256:eccdf006792d8910c54a773e30967886063b4e30c99c180bc36d7372b1bbd9ef"
     required_fragments = (
         'selected_change" == "requirements-07-runtime-proof-delivery"',
         "TDD_EVIDENCE.md",
-        "legacy_tdd_line_count=419",
-        'legacy_tdd_ledger_digest="sha256:0dcd29355d63855126fe65990aeefaf9b794bf97d6daed751079b0f9a111e308"',
+        "legacy_tdd_line_count=692",
+        'legacy_tdd_ledger_digest="sha256:77c6ac82d1b5756f6099a83f282d0774ae7efa0cb87c45d6f00ec63945b78351"',
         f'legacy_tdd_mapping_digest="{legacy_tdd_mapping_digest}"',
-        'legacy_tdd_plan_digest="sha256:03bde8ac1bec904db4f2d9e0824e43bb25b8a47067c174160547ace186c53bad"',
+        'legacy_tdd_plan_digest="sha256:27ea6e6bcea0d68d68688b89fc8f89315d213b96918f4f76979484756fd8335e"',
         "read_bytes().splitlines(keepends=True)",
         "legacy_tdd_artifact",
         "legacy-tdd-ledger",
@@ -243,6 +243,8 @@ def _assert_code_review_handoff_command(command: object) -> None:
         "--include-tests",
         "--out artifacts/requirements-evidence/code-review.json",
         "origin/${EVIDENCE_BASE_BRANCH}...HEAD",
+        "git diff --name-only -z",
+        "while IFS= read -r -d '' review_path; do",
         '[[ -f "$review_path" ]]',
         "No changed Python files require Code Review context.",
     )
