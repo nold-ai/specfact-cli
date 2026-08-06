@@ -213,10 +213,12 @@ def test_requirements_evidence_workflow_uses_digest_bound_legacy_tdd_ledger_for_
     required_fragments = (
         'selected_change" == "requirements-07-runtime-proof-delivery"',
         "TDD_EVIDENCE.md",
-        'legacy_tdd_ledger_ref="7dcf8b74fa8f904ec20ba9957bd9aa94f9110e5c"',
+        "legacy_tdd_line_count=419",
+        'legacy_tdd_ledger_digest="sha256:0dcd29355d63855126fe65990aeefaf9b794bf97d6daed751079b0f9a111e308"',
         f'legacy_tdd_mapping_digest="{legacy_tdd_mapping_digest}"',
         'legacy_tdd_plan_digest="sha256:03bde8ac1bec904db4f2d9e0824e43bb25b8a47067c174160547ace186c53bad"',
-        'git show "${legacy_tdd_ledger_ref}:${legacy_tdd_ledger}"',
+        "read_bytes().splitlines(keepends=True)",
+        "legacy_tdd_artifact",
         "legacy-tdd-ledger",
         "hashlib.sha256",
         'plan_report.get("plan")',
@@ -226,6 +228,8 @@ def test_requirements_evidence_workflow_uses_digest_bound_legacy_tdd_ledger_for_
         '--legacy-tdd-evidence "$legacy_tdd_evidence"',
     )
     assert all(fragment in command for fragment in required_fragments)
+    assert "git cat-file" not in command
+    assert "git show" not in command
     assert "proof-basis-ambiguous" not in command
 
 

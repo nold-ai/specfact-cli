@@ -185,3 +185,29 @@ def test_review_handoff_scenarios_use_competing_verdict_enforcement_proofs() -> 
             "test_requirements_evidence_workflow_blocks_each_final_verdict[code-review-failure]"
         ),
     }
+
+
+def test_runtime_proof_mapping_uses_released_acceptance_skip_and_reconciliation_proofs() -> None:
+    """R07 scenarios must execute the module behavior claimed by their observable."""
+    requirements = _runtime_proof_requirements()
+    selectors = {
+        case["case_id"]: cast(dict[str, str], case["selector"])["node_id"]
+        for requirement in requirements.values()
+        for case in requirement["verification_cases"]
+        if case["case_id"] in {"R07-CORE-002-S01", "R07-CORE-004-S03", "R07-CORE-005-S03"}
+    }
+
+    assert selectors == {
+        "R07-CORE-002-S01": (
+            "tests/unit/scripts/test_requirements_evidence_delivery_gate.py::"
+            "test_released_evidence_rejects_stale_acceptance"
+        ),
+        "R07-CORE-004-S03": (
+            "tests/unit/scripts/test_requirements_evidence_delivery_gate.py::"
+            "test_released_evidence_publishes_a_bounded_staged_no_impact_decision"
+        ),
+        "R07-CORE-005-S03": (
+            "tests/unit/scripts/test_requirements_evidence_delivery_gate.py::"
+            "test_released_reconciliation_marks_incomplete_junit_unverified"
+        ),
+    }

@@ -62,7 +62,7 @@ requirements:
         observable: "Acceptance decision bound to the current mapping digest."
         selector:
           runner: pytest
-          node_id: tests/unit/scripts/test_requirements_evidence_delivery_gate.py::test_delegated_command_forwards_accepted_maturity_and_proof_inputs
+          node_id: tests/unit/scripts/test_requirements_evidence_delivery_gate.py::test_released_evidence_rejects_stale_acceptance
   openspec:requirements-07-runtime-proof-delivery:requirements-runtime-proof-delivery:git-bound-failing-first-proof:
     rationale: "Production behavior needs empirical failing-first proof, not a declared test link."
     stakeholder_refs:
@@ -131,7 +131,7 @@ requirements:
         observable: "Reason and changed-path digest without a silent skip."
         selector:
           runner: pytest
-          node_id: tests/unit/scripts/test_requirements_evidence_pre_commit.py::test_pre_commit_normalizes_verified_changes_to_test_authored_planning
+          node_id: tests/unit/scripts/test_requirements_evidence_delivery_gate.py::test_released_evidence_publishes_a_bounded_staged_no_impact_decision
   openspec:requirements-07-runtime-proof-delivery:requirements-runtime-proof-delivery:safe-pull-request-proof-execution:
     rationale: "CI must execute only validated exact selectors from a trusted plan."
     stakeholder_refs:
@@ -164,7 +164,7 @@ requirements:
         observable: "Uncollected, skipped, errored, or failed selector diagnostic."
         selector:
           runner: pytest
-          node_id: tests/unit/scripts/test_requirements_proof_executor.py::test_executor_records_canonical_selector_for_skipped_and_setup_error_cases
+          node_id: tests/unit/scripts/test_requirements_evidence_delivery_gate.py::test_released_reconciliation_marks_incomplete_junit_unverified
   openspec:requirements-07-runtime-proof-delivery:requirements-runtime-proof-delivery:authoritative-reconciliation-and-review-handoff:
     rationale: "Requirements proof and review are independent delivery signals."
     stakeholder_refs:

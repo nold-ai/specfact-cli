@@ -658,3 +658,35 @@
   `--name-status -z` records, including both rename endpoints.
 - **Acceptance:** product-owner acceptance was renewed in this task for mapping
   digest `sha256:9dbc87bfb035858400b6b746c51dc926107c1fe444bc8985a351f27bd01f796f`.
+
+## Failing-before reachable-ledger and empirical-proof remediation
+
+- **Recorded:** 2026-08-07 (Europe/Berlin)
+- **Command:** `SPECFACT_MODULES_REPO=<immutable-fixture> hatch run test -q -p no:cacheprovider tests/unit/workflows/test_requirements_evidence_delivery_workflow.py tests/unit/scripts/test_requirements_evidence_pre_commit.py tests/unit/scripts/test_requirements_evidence_delivery_gate.py`
+- **Result:** failed as expected (2 failures).
+- **Failure:** CI depended on a feature-only Git object for the legacy ledger,
+  and three R07 verification cases selected forwarding or static-shell tests
+  rather than exercising stale acceptance, staged no-impact, and incomplete
+  JUnit reconciliation through the released Requirements module.
+- **Intent:** make the historical ledger reachable after a squash merge while
+  retaining an independently pinned digest, and bind each scenario to its
+  actual released enforcement behavior.
+
+## Passing-after reachable-ledger and empirical-proof remediation
+
+- **Recorded:** 2026-08-07 (Europe/Berlin)
+- **Commands:**
+  - `SPECFACT_MODULES_REPO=<immutable-fixture> hatch run test -q -p no:cacheprovider tests/unit/workflows/test_requirements_evidence_delivery_workflow.py tests/unit/scripts/test_requirements_evidence_pre_commit.py tests/unit/scripts/test_requirements_evidence_delivery_gate.py`
+  - `hatch run yaml-lint .github/workflows/requirements-evidence.yml openspec/changes/requirements-07-runtime-proof-delivery/requirements-evidence.yaml && hatch run lint-workflows .github/workflows/requirements-evidence.yml`
+  - `hatch run lint-changed tests/unit/workflows/test_requirements_evidence_delivery_workflow.py tests/unit/scripts/test_requirements_evidence_pre_commit.py tests/unit/scripts/test_requirements_evidence_delivery_gate.py`
+  - `hatch run python scripts/pre_commit_code_review.py tests/unit/workflows/test_requirements_evidence_delivery_workflow.py tests/unit/scripts/test_requirements_evidence_pre_commit.py tests/unit/scripts/test_requirements_evidence_delivery_gate.py`
+- **Result:** 34 focused tests, YAML/workflow validation, changed-file lint,
+  and clean-code review passed with zero errors and warnings.
+- **Proof:** final reconciliation now extracts the committed historical ledger
+  prefix, verifies its pinned SHA-256 digest, and retains those exact bytes as
+  an artifact without requiring an unreachable Git object. New fixture-backed
+  tests prove stale acceptance fails, a staged docs-only diff emits an explicit
+  no-impact report, and skipped JUnit output reconciles to an incomplete,
+  failing red-proof decision.
+- **Acceptance:** product-owner acceptance was renewed in this task for mapping
+  digest `sha256:4e346ea42a4398a2336e10f5550e4a8e1107c9f9e1926a95b33e3748be92dccd`.

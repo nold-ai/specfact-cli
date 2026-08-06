@@ -225,31 +225,35 @@ jobs:
                 reconciliation_arguments+=(--prior-red-proof "$prior_red_proof")
               elif [[ "$selected_change" == "requirements-07-runtime-proof-delivery" ]]; then
                 legacy_tdd_ledger="openspec/changes/${selected_change}/TDD_EVIDENCE.md"
-                legacy_tdd_ledger_ref="7dcf8b74fa8f904ec20ba9957bd9aa94f9110e5c"
+                legacy_tdd_line_count=419
+                legacy_tdd_ledger_digest="sha256:0dcd29355d63855126fe65990aeefaf9b794bf97d6daed751079b0f9a111e308"
                 legacy_tdd_mapping_digest="sha256:48cea72eaf1c960159fef4f112a569760cd7bec44e8b49a04b42ec26a8f5e050"
                 legacy_tdd_plan_digest="sha256:03bde8ac1bec904db4f2d9e0824e43bb25b8a47067c174160547ace186c53bad"
-                legacy_tdd_source="artifacts/requirements-evidence/approved-legacy-tdd-ledger.md"
+                legacy_tdd_artifact="artifacts/requirements-evidence/approved-legacy-tdd-ledger.md"
                 legacy_tdd_evidence="artifacts/requirements-evidence/legacy-tdd-evidence.json"
-                if ! git cat-file -e "${legacy_tdd_ledger_ref}:${legacy_tdd_ledger}"; then
-                  write_failure_reports "Missing approved legacy TDD ledger at $legacy_tdd_ledger_ref"
-                  exit 1
-                fi
-                if ! git show "${legacy_tdd_ledger_ref}:${legacy_tdd_ledger}" > "$legacy_tdd_source"; then
-                  write_failure_reports "Unable to load approved legacy TDD ledger at $legacy_tdd_ledger_ref"
-                  exit 1
-                fi
-                if ! legacy_tdd_error="$(python3 - "$legacy_tdd_source" "artifacts/requirements-evidence/requirements-evidence-plan.json" "$legacy_tdd_evidence" "$selected_change" "$legacy_tdd_mapping_digest" "$legacy_tdd_plan_digest" <<'PY'
+                if ! legacy_tdd_error="$(python3 - "$legacy_tdd_ledger" "$legacy_tdd_line_count" "$legacy_tdd_ledger_digest" "$legacy_tdd_artifact" "artifacts/requirements-evidence/requirements-evidence-plan.json" "$legacy_tdd_evidence" "$selected_change" "$legacy_tdd_mapping_digest" "$legacy_tdd_plan_digest" <<'PY'
           import hashlib
           import json
           import sys
           from pathlib import Path
 
           ledger_path = Path(sys.argv[1])
-          plan_path = Path(sys.argv[2])
-          output_path = Path(sys.argv[3])
-          change_id = sys.argv[4]
-          approved_mapping_digest = sys.argv[5]
-          approved_plan_digest = sys.argv[6]
+          approved_line_count = int(sys.argv[2])
+          approved_ledger_digest = sys.argv[3]
+          ledger_artifact = Path(sys.argv[4])
+          plan_path = Path(sys.argv[5])
+          output_path = Path(sys.argv[6])
+          change_id = sys.argv[7]
+          approved_mapping_digest = sys.argv[8]
+          approved_plan_digest = sys.argv[9]
+          ledger_lines = ledger_path.read_bytes().splitlines(keepends=True)
+          if len(ledger_lines) < approved_line_count:
+              raise ValueError("Approved legacy TDD ledger is incomplete")
+          ledger_bytes = b"".join(ledger_lines[:approved_line_count])
+          ledger_digest = f"sha256:{hashlib.sha256(ledger_bytes).hexdigest()}"
+          if ledger_digest != approved_ledger_digest:
+              raise ValueError("Approved legacy TDD ledger digest does not match")
+          ledger_artifact.write_bytes(ledger_bytes)
           plan_report = json.loads(plan_path.read_text(encoding="utf-8"))
           plan = plan_report.get("plan")
           if not isinstance(plan, dict):
@@ -266,7 +270,7 @@ jobs:
                       "schema_version": "1",
                       "kind": "legacy-tdd-ledger",
                       "change_id": change_id,
-                      "ledger_digest": f"sha256:{hashlib.sha256(ledger_path.read_bytes()).hexdigest()}",
+                      "ledger_digest": ledger_digest,
                       "mapping_digest": mapping_digest,
                       "plan_digest": plan_digest,
                   },

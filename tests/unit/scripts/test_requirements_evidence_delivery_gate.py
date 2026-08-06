@@ -5,6 +5,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+import shutil
 import subprocess
 import sys
 from collections.abc import Callable
@@ -332,6 +333,158 @@ def test_released_evidence_publishes_a_bounded_no_impact_pull_request_decision(t
     assert report["delivery_status"] == "no-impact"
     assert report["sources"] == []
     assert "no-impact" in summary_path.read_text(encoding="utf-8")
+
+
+def _pinned_fixture_root() -> Path:
+    """Return the released fixture required for empirical Requirements tests."""
+    fixture_root_text = os.environ.get("SPECFACT_MODULES_REPO")
+    if fixture_root_text is None:
+        pytest.skip("requires the pinned modules fixture")
+    fixture_root = Path(fixture_root_text)
+    if not fixture_root.is_dir():
+        pytest.skip("requires the pinned modules fixture")
+    return fixture_root
+
+
+def _initialize_evidence_repository(repo_root: Path) -> None:
+    """Create an isolated Git repository accepted by the released selector logic."""
+    _git_output(repo_root, "init")
+    _git_output(repo_root, "config", "user.email", "requirements@example.test")
+    _git_output(repo_root, "config", "user.name", "Requirements proof")
+
+
+def test_released_evidence_rejects_stale_acceptance(tmp_path: Path) -> None:
+    """Released evidence rejects an accepted record whose mapping digest is stale."""
+    fixture_root = _pinned_fixture_root()
+    module = _load_gate_module()
+    change_root = tmp_path / "openspec" / "changes" / "requirements-07-runtime-proof-delivery"
+    change_root.parent.mkdir(parents=True)
+    shutil.copytree(REPO_ROOT / "openspec" / "changes" / "requirements-07-runtime-proof-delivery", change_root)
+    _initialize_evidence_repository(tmp_path)
+    _git_output(tmp_path, "add", ".")
+    _git_output(tmp_path, "commit", "--no-gpg-sign", "-m", "chore: base")
+    sidecar = change_root / "requirements-evidence.yaml"
+    sidecar.write_text(sidecar.read_text(encoding="utf-8") + "\n", encoding="utf-8")
+    _git_output(tmp_path, "add", "--", str(sidecar.relative_to(tmp_path)))
+    review_evidence = tmp_path / "review-evidence.json"
+    review_evidence.write_text(
+        json.dumps(
+            {
+                "decision": "accepted",
+                "reviewer_id": "owner@example.test",
+                "reviewer_role": "product-owner",
+                "recorded_at": "2026-08-07T00:00:00Z",
+                "reference": "review:663",
+                "mapping_digest": f"sha256:{'0' * 64}",
+            }
+        ),
+        encoding="utf-8",
+    )
+    output_path = tmp_path / "evidence.json"
+
+    assert (
+        module.run_evidence_command(
+            module.EvidenceRequest(
+                repo_root=tmp_path,
+                selection=("--staged", None),
+                output_path=output_path,
+                summary_path=tmp_path / "evidence.md",
+                required_maturity="accepted",
+                review_evidence=review_evidence,
+            ),
+            fixture_root,
+        )
+        == 1
+    )
+    assert "acceptance-stale" in json.loads(output_path.read_text(encoding="utf-8"))["sources"][0]["findings"]
+
+
+def test_released_evidence_publishes_a_bounded_staged_no_impact_decision(tmp_path: Path) -> None:
+    """A staged docs-only diff receives the released no-impact report, not a silent skip."""
+    fixture_root = _pinned_fixture_root()
+    module = _load_gate_module()
+    _initialize_evidence_repository(tmp_path)
+    (tmp_path / "README.md").write_text("# proof\n", encoding="utf-8")
+    _git_output(tmp_path, "add", ".")
+    _git_output(tmp_path, "commit", "--no-gpg-sign", "-m", "chore: base")
+    (tmp_path / "docs").mkdir()
+    (tmp_path / "docs" / "guide.md").write_text("# guide\n", encoding="utf-8")
+    _git_output(tmp_path, "add", "--", "docs/guide.md")
+    output_path = tmp_path / "evidence.json"
+
+    assert (
+        module.run_evidence_command(
+            module.EvidenceRequest(
+                repo_root=tmp_path,
+                selection=("--staged", None),
+                output_path=output_path,
+                summary_path=tmp_path / "evidence.md",
+            ),
+            fixture_root,
+        )
+        == 0
+    )
+    report = json.loads(output_path.read_text(encoding="utf-8"))
+    assert report["verdict"] == "skipped"
+    assert report["observed_maturity"] == "no-impact"
+    assert report["sources"] == []
+
+
+def test_released_reconciliation_marks_incomplete_junit_unverified(tmp_path: Path) -> None:
+    """A released reconciler must reject skipped proof output as incomplete red evidence."""
+    fixture_root = _pinned_fixture_root()
+    requirements_source = str(fixture_root / "packages" / "specfact-requirements" / "src")
+    sys.path.insert(0, requirements_source)
+    try:
+        from specfact_requirements.requirements.lifecycle import evaluate_mapping, reconcile_junit
+    finally:
+        sys.path.remove(requirements_source)
+
+    selector = "tests/test_readiness.py::test_unavailable"
+    mapping = {
+        "schema_version": "2",
+        "requirements": {
+            "REQ-001": {
+                "rationale": "Operators need a reliable readiness decision.",
+                "stakeholder_refs": ["issue:663"],
+                "touchpoints": [{"id": "readiness", "kind": "cli_command", "locator": "specfact readiness"}],
+                "verification_cases": [
+                    {
+                        "case_id": "REQ-001-S01",
+                        "scenario_id": "unavailable",
+                        "method": "test",
+                        "intent": "Report unavailable dependencies.",
+                        "observable": "Structured readiness result and exit code.",
+                        "selector": {"runner": "pytest", "node_id": selector},
+                    }
+                ],
+            }
+        },
+    }
+    planned = evaluate_mapping(mapping, required_maturity="planned")
+    plan = evaluate_mapping(
+        mapping,
+        required_maturity="test-authored",
+        review_evidence={
+            "decision": "accepted",
+            "reviewer_id": "owner@example.test",
+            "reviewer_role": "product-owner",
+            "recorded_at": "2026-08-07T00:00:00Z",
+            "reference": "review:663",
+            "mapping_digest": planned["mapping_digest"],
+        },
+    )
+    junit = tmp_path / "skipped.xml"
+    junit.write_text(
+        f'<testsuite><testcase><properties><property name="specfact.selector" value="{selector}"/></properties><skipped/></testcase></testsuite>',
+        encoding="utf-8",
+    )
+
+    report = reconcile_junit(plan, junit, run_stage="red", source_ref="a" * 40)
+
+    assert report["gate_decision"] == "fail"
+    assert report["observed_maturity"] == "incomplete"
+    assert f"red-proof-skipped-not-failed:{selector}" in report["findings"]
 
 
 @pytest.mark.parametrize("selection", [("--staged",), ("--base-ref", "origin/dev")])
