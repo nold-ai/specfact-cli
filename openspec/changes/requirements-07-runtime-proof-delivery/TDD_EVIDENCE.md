@@ -1122,3 +1122,22 @@
 - **Internal wiki follow-up:** the sibling `specfact-cli-internal` checkout was
   unavailable. Update `wiki/sources/requirements-07-runtime-proof-delivery.md`
   and run `python3 scripts/wiki_rebuild_graph.py` from that repository root.
+
+## Post-merge Requirements evidence and plugin-closure remediation
+
+- **Recorded:** 2026-08-09 (UTC)
+- **CI failure:** Requirements Evidence run `31338563041` passed all 18 mapped
+  tests and evidence execution, then failed finalized Code Review after PR #668
+  merged to `dev`.
+- **Review findings:** PR #668 identified that static `pytest_plugins`
+  declarations and repository-local import targets absent at the red source were
+  not included in freshness inputs.
+- **Failing-before command:** `hatch run pytest tests/unit/scripts/test_requirements_proof_provenance.py -k 'changed_pytest_plugin or import_target_added_after_red' -q`
+- **Failing result:** both selected tests failed because post-red plugin changes
+  and newly added local import targets produced no provenance finding.
+- **Passing-after command:** `hatch run pytest tests/unit/scripts/test_requirements_proof_provenance.py -q`
+- **Passing result:** all 27 tests passed after parsing static
+  `pytest_plugins` declarations and retaining possible paths for absent
+  repository-local import targets.
+- **Skipped:** 0 tests.
+- **Environment:** Linux, Python 3.12.13, pytest 9.1.1.

@@ -109,14 +109,55 @@ def _applicable_conftest_paths(test_path: str) -> set[str]:
     return paths
 
 
-def _python_module_path(repo_root: Path, source_ref: str, module_parts: Sequence[str]) -> str | None:
-    """Resolve a repository-local Python module at the red source."""
+def _python_module_paths(repo_root: Path, source_ref: str, module_parts: Sequence[str]) -> set[str]:
+    """Return possible paths for a repository-local module, including an absent target."""
+    if not module_parts or not _test_path_exists_at_ref(repo_root, source_ref, module_parts[0]):
+        return set()
     module_path = PurePosixPath(*module_parts)
-    for candidate in (module_path.with_suffix(".py"), module_path / "__init__.py"):
-        candidate_path = candidate.as_posix()
-        if _test_path_exists_at_ref(repo_root, source_ref, candidate_path):
-            return candidate_path
-    return None
+    return {module_path.with_suffix(".py").as_posix(), (module_path / "__init__.py").as_posix()}
+
+
+def _pytest_plugin_names(tree: ast.AST) -> list[list[str]]:
+    """Return statically declared ``pytest_plugins`` module names."""
+    plugin_names: list[list[str]] = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Assign):
+            continue
+        assigned_names = {target.id for target in node.targets if isinstance(target, ast.Name)}
+        if "pytest_plugins" not in assigned_names:
+            continue
+        try:
+            value = ast.literal_eval(node.value)
+        except (ValueError, TypeError):
+            continue
+        declared_plugins = [value] if isinstance(value, str) else value
+        if isinstance(declared_plugins, (list, tuple)):
+            plugin_names.extend(plugin.split(".") for plugin in declared_plugins if isinstance(plugin, str))
+    return plugin_names
+
+
+def _import_module_names(tree: ast.AST, current_path: str) -> list[list[str]]:
+    """Return imported module names, including relative import candidates."""
+    current_package = list(PurePosixPath(current_path).parent.parts)
+    module_names = _pytest_plugin_names(tree)
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            module_names.extend(alias.name.split(".") for alias in node.names)
+        elif isinstance(node, ast.ImportFrom):
+            parent_parts = current_package[: max(len(current_package) - node.level + 1, 0)] if node.level else []
+            base_parts = parent_parts + (node.module.split(".") if node.module else [])
+            module_names.append(base_parts)
+            module_names.extend(base_parts + alias.name.split(".") for alias in node.names if alias.name != "*")
+    return module_names
+
+
+def _python_tree_at_ref(repo_root: Path, source_ref: str, path: str) -> ast.AST | None:
+    """Parse committed Python source without consulting mutable worktree bytes."""
+    result = _git(repo_root, "show", f"{source_ref}:{path}")
+    try:
+        return ast.parse(result.stdout) if result.returncode == 0 else None
+    except SyntaxError:
+        return None
 
 
 def _imported_python_paths(repo_root: Path, source_ref: str, source_paths: Sequence[str]) -> set[str]:
@@ -125,27 +166,15 @@ def _imported_python_paths(repo_root: Path, source_ref: str, source_paths: Seque
     imported_paths: set[str] = set()
     while pending:
         current_path = pending.pop()
-        result = _git(repo_root, "show", f"{source_ref}:{current_path}")
-        try:
-            tree = ast.parse(result.stdout) if result.returncode == 0 else None
-        except SyntaxError:
-            tree = None
+        tree = _python_tree_at_ref(repo_root, source_ref, current_path)
         if tree is None:
             continue
-        current_package = list(PurePosixPath(current_path).parent.parts)
-        for node in ast.walk(tree):
-            module_names: list[list[str]] = []
-            if isinstance(node, ast.Import):
-                module_names.extend(alias.name.split(".") for alias in node.names)
-            elif isinstance(node, ast.ImportFrom):
-                parent_parts = current_package[: max(len(current_package) - node.level + 1, 0)] if node.level else []
-                base_parts = parent_parts + (node.module.split(".") if node.module else [])
-                module_names.append(base_parts)
-                module_names.extend(base_parts + alias.name.split(".") for alias in node.names if alias.name != "*")
-            for module_parts in module_names:
-                imported_path = _python_module_path(repo_root, source_ref, module_parts)
-                if imported_path is not None and imported_path not in imported_paths:
-                    imported_paths.add(imported_path)
+        for module_parts in _import_module_names(tree, current_path):
+            for imported_path in _python_module_paths(repo_root, source_ref, module_parts):
+                if imported_path in imported_paths:
+                    continue
+                imported_paths.add(imported_path)
+                if _test_path_exists_at_ref(repo_root, source_ref, imported_path):
                     pending.append(imported_path)
     return imported_paths
 
