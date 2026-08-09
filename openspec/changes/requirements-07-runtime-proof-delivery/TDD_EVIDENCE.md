@@ -913,3 +913,9 @@
   fixture a blocking assertion rather than a suite skip.
 - Workflow lint: grouped fixture outputs under one `$GITHUB_OUTPUT` redirect to
   satisfy ShellCheck SC2129.
+
+### Final automated-review hardening
+
+- Bounded committed test-blob reads to 10 MiB with a 30-second subprocess timeout before hashing.
+- Rejected JUnit destinations that overlap the proof plan or any selected test before creating directories or unlinking output.
+- Focused executor and provenance verification passed `25 passed`.

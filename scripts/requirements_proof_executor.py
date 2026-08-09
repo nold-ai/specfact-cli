@@ -154,6 +154,9 @@ def execute_plan(
 ) -> int:
     """Run exact selectors with a deterministic JUnit destination and no shell."""
     selectors = selectors_from_plan(plan, repo_root)
+    selected_paths = {(repo_root / selector.partition("::")[0]).resolve() for selector in selectors}
+    if junit_path.resolve() in selected_paths:
+        raise ValueError("JUnit destination overlaps a selected repository input")
     junit_path.parent.mkdir(parents=True, exist_ok=True)
     junit_path.unlink(missing_ok=True)
     arguments = [
@@ -196,6 +199,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     """Validate the structured plan and return the selected pytest exit code."""
     arguments = _build_parser().parse_args(argv)
     try:
+        if arguments.junit.resolve() == arguments.plan.resolve():
+            raise ValueError("JUnit destination overlaps the proof plan")
         return execute_plan(
             _read_plan(arguments.plan),
             arguments.repo_root.resolve(),

@@ -19,6 +19,7 @@ from icontract import ensure
 
 GIT_OBJECT_PATTERN = re.compile(r"^[0-9a-f]{40}$")
 DIGEST_PATTERN = re.compile(r"^sha256:[0-9a-f]{64}$")
+MAX_TEST_BLOB_BYTES = 10 * 1024 * 1024
 GOVERNED_PRODUCTION_PREFIXES = (
     ".github/",
     "ci/",
@@ -181,11 +182,19 @@ def _test_path_exists_at_ref(repo_root: Path, source_ref: str, test_path: str) -
 
 def _blob_digest_at_ref(repo_root: Path, source_ref: str, test_path: str) -> str | None:
     """Return the digest of committed test bytes without consulting the worktree."""
+    size_result = _git(repo_root, "cat-file", "-s", f"{source_ref}:{test_path}")
+    try:
+        blob_size = int(size_result.stdout.strip())
+    except ValueError:
+        return None
+    if size_result.returncode != 0 or blob_size > MAX_TEST_BLOB_BYTES:
+        return None
     result = subprocess.run(
         ["git", "show", f"{source_ref}:{test_path}"],
         cwd=repo_root,
         capture_output=True,
         check=False,
+        timeout=30,
     )
     return f"sha256:{hashlib.sha256(result.stdout).hexdigest()}" if result.returncode == 0 else None
 

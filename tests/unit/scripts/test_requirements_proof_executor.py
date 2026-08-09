@@ -169,6 +169,19 @@ def test_executor_rejects_unsafe_selectors_before_spawning(tmp_path: Path) -> No
             module.execute_plan(_plan(selector), tmp_path, tmp_path / "proof.xml", command_runner=lambda _command: 0)
 
 
+def test_executor_rejects_junit_destination_that_overlaps_selected_test(tmp_path: Path) -> None:
+    """The executor must not unlink a selected repository input."""
+    module = _load_executor_module()
+    _write_selected_test(tmp_path)
+    selected_test = tmp_path / "tests" / "test_proof.py"
+
+    with pytest_runtime.raises(ValueError, match="overlaps a selected repository input"):
+        module.execute_plan(
+            _plan("tests/test_proof.py::test_selected"), tmp_path, selected_test, command_runner=lambda _command: 0
+        )
+    assert selected_test.exists()
+
+
 def test_executor_rejects_duplicate_or_unsupported_plan_entries(tmp_path: Path) -> None:
     """A plan must contain unique supported pytest selector records."""
     module = _load_executor_module()
