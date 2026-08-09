@@ -162,17 +162,16 @@ def _changed_paths_in_history(repo_root: Path, start_ref: str, end_ref: str) -> 
         return None
     paths: list[str] = []
     for revision in revisions.stdout.splitlines():
+        parents = _git(repo_root, "rev-list", "--parents", "-n", "1", revision).stdout.split()
+        comparison_ref = f"{revision}^2" if len(parents) > 2 else f"{revision}^"
         result = subprocess.run(
             [
                 "git",
-                "diff-tree",
-                "--root",
-                "--no-commit-id",
+                "diff",
                 "--name-status",
                 "-z",
-                "-r",
-                "-m",
                 "--find-renames",
+                comparison_ref,
                 revision,
             ],
             cwd=repo_root,
@@ -188,9 +187,11 @@ def _changed_paths_in_history(repo_root: Path, start_ref: str, end_ref: str) -> 
 
 def _red_source_precedes_final(repo_root: Path, base_ref: str, source_ref: str, final_ref: str) -> bool:
     """Require the current base, red source, and final source to form one strict chain."""
+    resolved_base = _git(repo_root, "rev-parse", base_ref)
     return (
         GIT_OBJECT_PATTERN.fullmatch(final_ref) is not None
-        and source_ref != base_ref
+        and resolved_base.returncode == 0
+        and source_ref != resolved_base.stdout.strip()
         and source_ref != final_ref
         and _is_ancestor(repo_root, base_ref, source_ref)
         and _is_ancestor(repo_root, source_ref, final_ref)

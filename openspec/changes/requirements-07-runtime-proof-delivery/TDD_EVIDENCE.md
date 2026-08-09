@@ -1001,3 +1001,6 @@
   execution stage.
 - **Requirements assignment:** no mapping delta was required. These regressions
   strengthen the mapped safe-execution and Git-bound retained-red scenarios.
+- **Follow-up review:** provenance now resolves symbolic base refs before strict
+  source ordering and evaluates merge commits relative to their updated-base
+  parent so imported base changes are not misclassified as branch production.

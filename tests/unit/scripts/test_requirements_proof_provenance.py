@@ -142,15 +142,16 @@ def test_git_bound_red_proof_rejects_base_commit_as_red_source(tmp_path: Path) -
     test_path.parent.mkdir()
     test_path.write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
     base_ref = _commit(tmp_path, "test: base already contains failure")
+    _git(tmp_path, "branch", "current-base", base_ref)
     red_proof_path = tmp_path / ".git" / "red.json"
     _write_red_proof(red_proof_path, tmp_path, base_ref, base_ref)
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "delivery.py").write_text("VALUE = 1\n", encoding="utf-8")
     final_ref = _commit(tmp_path, "feat: delivery")
 
-    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
-        "tdd-order-unproven"
-    ]
+    assert module.validate_prior_red_proof(
+        red_proof_path, tmp_path, base_ref="refs/heads/current-base", final_ref=final_ref
+    ) == ["tdd-order-unproven"]
 
 
 def test_git_bound_red_proof_rejects_replayed_or_renamed_production_history(tmp_path: Path) -> None:
