@@ -478,11 +478,15 @@ has_staged_requirements_evidence_scope() {
 }
 
 staged_active_change_ids() {
-  local file relative_path
-  local -A change_ids=()
+  local file relative_path change_ids_file
+  change_ids_file="$(mktemp)" || {
+    printf '%s\n' "${STAGED_PATH_ERROR}"
+    return 1
+  }
   while IFS= read -r -d '' file; do
     if [[ "${file}" == "${STAGED_PATH_ERROR}" ]]; then
       error "Unable to enumerate staged paths"
+      rm -f "${change_ids_file}"
       printf '%s\n' "${STAGED_PATH_ERROR}"
       return 1
     fi
@@ -491,17 +495,28 @@ staged_active_change_ids() {
         ;;
       openspec/changes/*/*)
         relative_path="${file#openspec/changes/}"
-        change_ids["${relative_path%%/*}"]=1
+        printf '%s\n' "${relative_path%%/*}" >>"${change_ids_file}"
         ;;
     esac
   done < <(staged_evidence_paths)
-  if [[ ${#change_ids[@]} -gt 0 ]]; then
-    printf '%s\n' "${!change_ids[@]}" | sort
-  fi
+  sort -u "${change_ids_file}"
+  rm -f "${change_ids_file}"
 }
 
 require_index_bound_review_evidence() {
   local review_evidence="$1"
+  local index_mode
+  index_mode="$(git ls-files --stage -- "${review_evidence}" | awk 'NR == 1 { print $1 }')"
+  if [[ "${index_mode}" != "100644" ]] || [[ -L "${review_evidence}" ]] || ! python - "${review_evidence}" <<'PY'
+import sys
+from pathlib import Path
+
+Path(sys.argv[1]).resolve().relative_to(Path.cwd().resolve())
+PY
+  then
+    error "❌ Block 2 — Review evidence must be a regular staged repository file: ${review_evidence}"
+    return 1
+  fi
   if ! git cat-file -e ":${review_evidence}" 2>/dev/null || ! git diff --quiet -- "${review_evidence}"; then
     error "❌ Block 2 — Review evidence must match the staged Git index: ${review_evidence}"
     return 1

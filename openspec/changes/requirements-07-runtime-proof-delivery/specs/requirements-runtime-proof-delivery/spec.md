@@ -59,6 +59,9 @@ released reconciliation command, core SHALL verify that its source commit is a
 strict ancestor of the final source, the current pull-request base is an
 ancestor of that source, and that the selected test files remain
 unchanged since that source.
+The prior-red JSON SHALL be accompanied by a retained JUnit XML artifact whose
+digest matches the execution proof and whose cases contain a failure or error;
+self-reported JSON without that artifact SHALL be rejected.
 
 For `requirements-07-runtime-proof-delivery` only, Core SHALL instead accept
 the historical failing-first ledger from approved immutable commit

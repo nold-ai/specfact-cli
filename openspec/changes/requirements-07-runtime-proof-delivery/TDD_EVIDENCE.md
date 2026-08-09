@@ -876,3 +876,13 @@
 - The same focused command passed `4 passed` after adding the explicit environment allowlist, observable staged-path error handling, public `user_properties` JUnit integration, and manifest-version validation.
 - `bash -n scripts/pre-commit-quality-checks.sh` passed.
 - The internal wiki sibling checkout was unavailable, so dependency-story mirror reconciliation remains the explicit task 1.4 follow-up.
+
+### Follow-up promotion findings
+
+- Failing-before: the focused fixture/pre-commit run failed three tests because
+  the lock had no tree attestation and staged review evidence accepted symlink
+  modes without repository-containment validation.
+- Passing-after: the same focused cases plus provenance and workflow contracts
+  passed `21 passed` after tree binding, Bash 3-compatible staged-change
+  deduplication, regular-file/containment enforcement, and retained failing
+  JUnit digest validation.

@@ -21,6 +21,7 @@ from tests.unit.scripts.requirements_change_support import runtime_proof_change_
 REPO_ROOT = Path(__file__).resolve().parents[3]
 GATE_SCRIPT = REPO_ROOT / "scripts" / "requirements_evidence_delivery_gate.py"
 APPROVED_MODULE_COMMIT = "69f075819be5e1ceca1446b026b0417f19e584ca"
+APPROVED_MODULE_TREE = "5d0b8e66c6cd467e6b1ad9d582e24c66b907e205"
 
 
 class CapturedRequest(Protocol):
@@ -107,10 +108,28 @@ def test_verified_fixture_requires_exact_released_identity_and_clean_tree(tmp_pa
             {
                 "repository": "nold-ai/specfact-cli-modules",
                 "commit": APPROVED_MODULE_COMMIT,
+                "tree": APPROVED_MODULE_TREE,
             },
             tmp_path,
             git_runner=lambda arguments: (
-                APPROVED_MODULE_COMMIT if arguments[-2:] == ["rev-parse", "HEAD"] else " M package.py\n"
+                APPROVED_MODULE_COMMIT
+                if arguments[-2:] == ["rev-parse", "HEAD"]
+                else APPROVED_MODULE_TREE
+                if arguments[-2:] == ["rev-parse", "HEAD^{tree}"]
+                else " M package.py\n"
+            ),
+        )
+
+    with pytest.raises(ValueError, match="tree attestation"):  # type: ignore[reportUnknownMemberType]
+        module.verify_fixture(
+            {
+                "repository": "nold-ai/specfact-cli-modules",
+                "commit": APPROVED_MODULE_COMMIT,
+                "tree": "0" * 40,
+            },
+            tmp_path,
+            git_runner=lambda arguments: (
+                APPROVED_MODULE_COMMIT if arguments[-2:] == ["rev-parse", "HEAD"] else APPROVED_MODULE_TREE
             ),
         )
 

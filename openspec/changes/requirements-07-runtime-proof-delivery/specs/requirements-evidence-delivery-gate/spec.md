@@ -22,10 +22,9 @@ allowlist plus the two fixture-root variables required for module discovery.
 - **AND** it does not use a branch, sibling checkout, or other mutable source
 - **AND** it reports how to obtain the released pinned fixture.
 
-The fixture trust boundary is the immutable, reviewed commit recorded in the
-checked-in lock and materialized by GitHub checkout. Core does not claim an
-independent publisher-signature verification that the fixture format does not
-provide.
+The fixture trust boundary is the immutable, reviewed commit and tree
+attestation recorded in the checked-in lock and materialized by GitHub
+checkout. Core SHALL verify both identities before execution.
 
 #### Scenario: Exclude ambient secrets from released execution
 

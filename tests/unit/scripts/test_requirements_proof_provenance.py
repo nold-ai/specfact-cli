@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import json
 import subprocess
@@ -52,7 +53,7 @@ def _commit(repo_root: Path, message: str) -> str:
     return _git(repo_root, "rev-parse", "HEAD")
 
 
-def _red_proof(source_ref: str) -> dict[str, object]:
+def _red_proof(source_ref: str, junit_digest: str) -> dict[str, object]:
     return {
         "gate_decision": "pass",
         "observed_maturity": "red",
@@ -62,9 +63,19 @@ def _red_proof(source_ref: str) -> dict[str, object]:
             "run_stage": "red",
             "source_ref": source_ref,
             "selectors": ["tests/test_proof.py::test_selected"],
-            "junit_digest": f"sha256:{'c' * 64}",
+            "junit_digest": junit_digest,
         },
     }
+
+
+def _write_red_proof(path: Path, source_ref: str) -> None:
+    junit = (
+        b'<testsuite><testcase><properties><property name="specfact.selector" '
+        b'value="tests/test_proof.py::test_selected"/></properties><failure/></testcase></testsuite>'
+    )
+    path.with_suffix(".xml").write_bytes(junit)
+    digest = f"sha256:{hashlib.sha256(junit).hexdigest()}"
+    path.write_text(json.dumps(_red_proof(source_ref, digest)), encoding="utf-8")
 
 
 def test_git_bound_red_proof_requires_test_only_ancestor_and_unchanged_selector_files(tmp_path: Path) -> None:
@@ -80,7 +91,7 @@ def test_git_bound_red_proof_requires_test_only_ancestor_and_unchanged_selector_
     test_path.write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
     red_ref = _commit(tmp_path, "test: add red proof")
     red_proof_path = tmp_path / "red.json"
-    red_proof_path.write_text(json.dumps(_red_proof(red_ref)), encoding="utf-8")
+    _write_red_proof(red_proof_path, red_ref)
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "delivery.py").write_text("VALUE = 1\n", encoding="utf-8")
     final_ref = _commit(tmp_path, "feat: delivery")
@@ -109,7 +120,7 @@ def test_git_bound_red_proof_rejects_replayed_or_renamed_production_history(tmp_
     test_path.write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
     red_ref = _commit(tmp_path, "test: add red proof")
     red_proof_path = tmp_path / "red.json"
-    red_proof_path.write_text(json.dumps(_red_proof(red_ref)), encoding="utf-8")
+    _write_red_proof(red_proof_path, red_ref)
     (tmp_path / "src" / "delivery.py").write_text("VALUE = 1\n", encoding="utf-8")
     current_base_ref = _commit(tmp_path, "fix: apply delivery")
     (tmp_path / "src" / "other.py").write_text("VALUE = 2\n", encoding="utf-8")
@@ -135,7 +146,7 @@ def test_git_bound_red_proof_rejects_replayed_or_renamed_production_history(tmp_
     rename_test_path.write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
     rename_red_ref = _commit(rename_root, "test: add red proof")
     rename_proof_path = rename_root / "red.json"
-    rename_proof_path.write_text(json.dumps(_red_proof(rename_red_ref)), encoding="utf-8")
+    _write_red_proof(rename_proof_path, rename_red_ref)
     (rename_root / "src").mkdir(exist_ok=True)
     (rename_root / "src" / "replacement.py").write_text("VALUE = 1\n", encoding="utf-8")
     rename_final_ref = _commit(rename_root, "feat: replace delivery")
@@ -162,7 +173,7 @@ def test_git_bound_red_proof_rejects_governed_path_with_tab(tmp_path: Path) -> N
     test_path.write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
     red_ref = _commit(tmp_path, "test: add red proof")
     red_proof_path = tmp_path / "red.json"
-    red_proof_path.write_text(json.dumps(_red_proof(red_ref)), encoding="utf-8")
+    _write_red_proof(red_proof_path, red_ref)
     (tmp_path / "docs.md").write_text("# final\n", encoding="utf-8")
     final_ref = _commit(tmp_path, "docs: retain final source")
 
@@ -200,7 +211,7 @@ def test_git_bound_red_proof_rejects_delivery_input_before_red(tmp_path: Path, d
     test_path.write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
     red_ref = _commit(tmp_path, "test: add red proof")
     red_proof_path = tmp_path / "red.json"
-    red_proof_path.write_text(json.dumps(_red_proof(red_ref)), encoding="utf-8")
+    _write_red_proof(red_proof_path, red_ref)
     (tmp_path / "docs.md").write_text("# final\n", encoding="utf-8")
     final_ref = _commit(tmp_path, "docs: retain final source")
 

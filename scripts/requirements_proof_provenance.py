@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import subprocess
@@ -10,6 +11,7 @@ import sys
 from collections.abc import Sequence
 from pathlib import Path, PurePosixPath
 from typing import cast
+from xml.etree import ElementTree
 
 from beartype import beartype
 from icontract import ensure
@@ -94,6 +96,28 @@ def _selector_paths(report: dict[str, object]) -> tuple[str, list[str]]:
     return source_ref, sorted(paths)
 
 
+def _validate_retained_red_junit(red_proof_path: Path, report: dict[str, object]) -> None:
+    """Bind the released report to a retained failing JUnit artifact."""
+    execution_proof = _validated_execution_proof(report)
+    expected_digest = execution_proof.get("junit_digest")
+    junit_path = red_proof_path.with_suffix(".xml")
+    try:
+        payload = junit_path.read_bytes()
+        root = ElementTree.fromstring(payload)
+    except (OSError, ElementTree.ParseError) as error:
+        raise ValueError("prior-red-proof-invalid") from error
+    actual_digest = f"sha256:{hashlib.sha256(payload).hexdigest()}"
+    if expected_digest != actual_digest or (root.find(".//failure") is None and root.find(".//error") is None):
+        raise ValueError("prior-red-proof-invalid")
+    junit_selectors = {
+        str(property_node.get("value"))
+        for property_node in root.findall(".//property[@name='specfact.selector']")
+        if property_node.get("value") is not None
+    }
+    if junit_selectors != set(_validated_selectors(execution_proof)):
+        raise ValueError("prior-red-proof-invalid")
+
+
 def _is_ancestor(repo_root: Path, ancestor: str, descendant: str) -> bool:
     return _git(repo_root, "merge-base", "--is-ancestor", ancestor, descendant).returncode == 0
 
@@ -164,6 +188,7 @@ def validate_prior_red_proof(red_proof_path: Path, repo_root: Path, *, base_ref:
     """Return deterministic findings when a red report cannot prove failing-first order."""
     try:
         report = _read_red_proof(red_proof_path)
+        _validate_retained_red_junit(red_proof_path, report)
         source_ref, selector_paths = _selector_paths(report)
     except ValueError as error:
         return [str(error)]

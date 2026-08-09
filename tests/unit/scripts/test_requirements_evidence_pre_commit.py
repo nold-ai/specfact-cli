@@ -65,6 +65,17 @@ def test_pre_commit_selects_review_evidence_from_the_staged_change() -> None:
         'git cat-file -e ":${review_evidence}"',
         'git diff --quiet -- "${review_evidence}"',
         "must match the staged Git index",
+        'index_mode="$(git ls-files --stage -- "${review_evidence}"',
+        '[[ "${index_mode}" != "100644" ]]',
+        "resolve().relative_to",
+    )
+    assert "local -A" not in _pre_commit_text()
+
+
+def test_pre_commit_rejects_symlinked_review_evidence() -> None:
+    _assert_contains_pre_commit_contract(
+        '[[ -L "${review_evidence}" ]]',
+        "Review evidence must be a regular staged repository file",
     )
 
 

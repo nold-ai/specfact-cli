@@ -18,6 +18,7 @@ from icontract import ensure
 
 APPROVED_REPOSITORY = "nold-ai/specfact-cli-modules"
 APPROVED_COMMIT = "69f075819be5e1ceca1446b026b0417f19e584ca"
+APPROVED_TREE = "5d0b8e66c6cd467e6b1ad9d582e24c66b907e205"
 SHA_PATTERN = re.compile(r"^[0-9a-f]{40}$")
 ALLOWED_ENVIRONMENT_KEYS = frozenset(
     {
@@ -103,12 +104,15 @@ def verify_fixture(fixture: Mapping[str, object], fixture_root: Path, *, git_run
     """Reject any fixture other than the checked-in released module commit."""
     repository = fixture.get("repository")
     commit = fixture.get("commit")
+    tree = fixture.get("tree")
     if repository != APPROVED_REPOSITORY:
         raise ValueError(f"Module fixture must target {APPROVED_REPOSITORY}")
     if not isinstance(commit, str) or SHA_PATTERN.fullmatch(commit) is None:
         raise ValueError("Module fixture commit must be a full immutable SHA")
     if commit != APPROVED_COMMIT:
         raise ValueError("Module fixture must use approved release commit")
+    if tree != APPROVED_TREE:
+        raise ValueError("Module fixture must use approved tree attestation")
     if not fixture_root.is_dir():
         raise ValueError(f"Pinned module fixture is unavailable: {fixture_root}")
     try:
@@ -117,6 +121,12 @@ def verify_fixture(fixture: Mapping[str, object], fixture_root: Path, *, git_run
         raise ValueError(f"Cannot verify pinned module fixture: {fixture_root}") from error
     if actual.strip() != commit:
         raise ValueError("Pinned module fixture HEAD does not match ci/module-fixture.lock.json")
+    try:
+        actual_tree = git_runner(["git", "-C", str(fixture_root), "rev-parse", "HEAD^{tree}"])
+    except (OSError, subprocess.SubprocessError) as error:
+        raise ValueError(f"Cannot verify pinned module fixture: {fixture_root}") from error
+    if actual_tree.strip() != tree:
+        raise ValueError("Pinned module fixture tree does not match its attestation")
     try:
         dirty = git_runner(["git", "-C", str(fixture_root), "status", "--porcelain", "--untracked-files=all"])
     except (OSError, subprocess.SubprocessError) as error:

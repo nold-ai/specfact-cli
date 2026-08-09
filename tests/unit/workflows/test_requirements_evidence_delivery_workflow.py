@@ -44,6 +44,8 @@ def _assert_fixture_contract(workflow: dict[str, object]) -> None:
     assert f'approved_commit="{APPROVED_MODULE_COMMIT}"' in read_fixture["run"]  # type: ignore[index]
     assert 'test "$commit" = "$approved_commit"' in read_fixture["run"]  # type: ignore[index]
     assert "rev-parse HEAD" in verify_fixture["run"]  # type: ignore[index]
+    assert "5d0b8e66c6cd467e6b1ad9d582e24c66b907e205" in read_fixture["run"]  # type: ignore[index]
+    assert "HEAD^{tree}" in verify_fixture["run"]  # type: ignore[index]
     assert "SPECFACT_MODULES_REPO=${GITHUB_WORKSPACE}/specfact-cli-modules" in export_fixture["run"]  # type: ignore[index]
     assert "SPECFACT_MODULES_ROOTS=${GITHUB_WORKSPACE}/specfact-cli-modules/packages" in export_fixture["run"]  # type: ignore[index]
 
