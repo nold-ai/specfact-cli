@@ -919,3 +919,15 @@
 - Bounded committed test-blob reads to 10 MiB with a 30-second subprocess timeout before hashing.
 - Rejected JUnit destinations that overlap the proof plan or any selected test before creating directories or unlinking output.
 - Focused executor and provenance verification passed `25 passed`.
+
+### Complete Semantic Versioning validation
+
+- **Recorded:** 2026-08-09 (UTC)
+- **Failing-before command:** `uv run --python 3.12 --locked --extra dev python -m pytest -q tests/integration/scripts/test_runtime_discovery_smoke.py::test_local_runtime_registry_rejects_malformed_semver`
+- **Failing result:** all 3 cases failed because the smoke-registry validator
+  accepted a leading-zero core version, a leading-zero numeric prerelease, and
+  an empty prerelease identifier.
+- **Passing-after command:** `uv run --python 3.12 --locked --extra dev python -m pytest -q tests/integration/scripts/test_runtime_discovery_smoke.py::test_local_runtime_registry_rejects_malformed_semver tests/integration/scripts/test_runtime_discovery_smoke.py::test_semver_prerelease_and_suffix_are_valid_for_runtime_registry tests/integration/scripts/test_runtime_discovery_smoke.py::test_local_runtime_registry_rejects_traversal_in_manifest_version`
+- **Passing result:** 5 tests passed.
+- **Proof:** isolated smoke-registry assembly now implements the complete
+  Semantic Versioning 2.0.0 identifier grammar before writing module archives.

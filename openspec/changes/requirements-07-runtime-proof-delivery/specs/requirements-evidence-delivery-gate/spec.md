@@ -92,3 +92,11 @@ checkout. Core SHALL verify both identities before execution.
   attempts marketplace installation
 - **AND** it fails fixture assembly for malformed or missing dependency
   metadata rather than reporting a false runtime-resolution failure.
+
+#### Scenario: Runtime smoke registry accepts only semantic module versions
+
+- **GIVEN** a module manifest used to assemble the isolated smoke registry
+- **WHEN** core validates its version before creating the module archive
+- **THEN** it accepts the complete Semantic Versioning 2.0.0 grammar
+- **AND** it rejects leading zeroes in numeric core or prerelease identifiers,
+  empty identifiers, and other malformed versions before writing an archive.

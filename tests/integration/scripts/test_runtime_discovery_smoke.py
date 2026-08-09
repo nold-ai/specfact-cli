@@ -114,7 +114,7 @@ def test_local_runtime_registry_rejects_traversal_in_manifest_version(tmp_path: 
         smoke._build_local_registry(tmp_path / "workspace", modules_repo)
 
 
-def test_local_runtime_registry_accepts_semver_prerelease_with_build_metadata(tmp_path: Path) -> None:
+def test_semver_prerelease_and_suffix_are_valid_for_runtime_registry(tmp_path: Path) -> None:
     import scripts.runtime_discovery_smoke as smoke
 
     modules_repo = tmp_path / "modules"
@@ -127,6 +127,22 @@ def test_local_runtime_registry_accepts_semver_prerelease_with_build_metadata(tm
         manifest_path.write_text(yaml.safe_dump(manifest), encoding="utf-8")
 
     assert smoke._build_local_registry(tmp_path / "workspace", modules_repo).is_file()
+
+
+@pytest.mark.parametrize("version", ["01.2.3", "1.2.3-01", "1.2.3-alpha..1"])
+def test_local_runtime_registry_rejects_malformed_semver(tmp_path: Path, version: str) -> None:
+    import scripts.runtime_discovery_smoke as smoke
+
+    modules_repo = tmp_path / "modules"
+    for module_id in smoke.MODULE_IDS:
+        _write_module_manifest(modules_repo, module_id.split("/", 1)[1])
+    manifest_path = modules_repo / "packages" / smoke.MODULE_IDS[0].split("/", 1)[1] / "module-package.yaml"
+    manifest = yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
+    manifest["version"] = version
+    manifest_path.write_text(yaml.safe_dump(manifest), encoding="utf-8")
+
+    with pytest.raises(RuntimeError, match="Invalid module version"):
+        smoke._build_local_registry(tmp_path / "workspace", modules_repo)
 
 
 def test_runtime_discovery_smoke_keep_workspace_preserves_directory(
