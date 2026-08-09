@@ -15,6 +15,8 @@ from typing import Protocol, cast
 
 import pytest
 
+from tests.unit.scripts.requirements_change_support import runtime_proof_change_root
+
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 GATE_SCRIPT = REPO_ROOT / "scripts" / "requirements_evidence_delivery_gate.py"
@@ -221,7 +223,9 @@ def test_delegated_command_forwards_accepted_maturity_and_proof_inputs(tmp_path:
     assert captured_arguments[captured_arguments.index("--plan-output") + 1] == str(plan_output)
 
 
-def test_failed_command_writes_missing_diagnostic_reports_and_exports_fixture_roots(tmp_path: Path) -> None:
+def test_failed_command_writes_missing_diagnostic_reports_and_exports_fixture_roots(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     """A startup failure must retain diagnostics and discover only the verified fixture."""
     module = _load_gate_module()
     fixture = tmp_path / "fixture"
@@ -229,6 +233,8 @@ def test_failed_command_writes_missing_diagnostic_reports_and_exports_fixture_ro
     json_report = tmp_path / "reports" / "evidence.json"
     markdown_report = tmp_path / "reports" / "evidence.md"
     observed_environment: dict[str, str] = {}
+    monkeypatch.setenv("PATH", os.environ["PATH"])
+    monkeypatch.setenv("SPECFACT_TEST_SECRET", "must-not-leak")
 
     observed = module.run_evidence_command(
         module.EvidenceRequest(
@@ -244,6 +250,8 @@ def test_failed_command_writes_missing_diagnostic_reports_and_exports_fixture_ro
     assert observed == 1
     assert observed_environment["SPECFACT_MODULES_REPO"] == str(fixture.resolve())
     assert observed_environment["SPECFACT_MODULES_ROOTS"] == str((fixture / "packages").resolve())
+    assert observed_environment["PATH"] == os.environ["PATH"]
+    assert "SPECFACT_TEST_SECRET" not in observed_environment
     assert json.loads(json_report.read_text(encoding="utf-8"))["verdict"] == "failed"
     assert "Requirements evidence unavailable" in markdown_report.read_text(encoding="utf-8")
 
@@ -361,7 +369,7 @@ def test_released_evidence_rejects_stale_acceptance(tmp_path: Path) -> None:
     module = _load_gate_module()
     change_root = tmp_path / "openspec" / "changes" / "requirements-07-runtime-proof-delivery"
     change_root.parent.mkdir(parents=True)
-    shutil.copytree(REPO_ROOT / "openspec" / "changes" / "requirements-07-runtime-proof-delivery", change_root)
+    shutil.copytree(runtime_proof_change_root(REPO_ROOT), change_root)
     _initialize_evidence_repository(tmp_path)
     _git_output(tmp_path, "add", ".")
     _git_output(tmp_path, "commit", "--no-gpg-sign", "-m", "chore: base")

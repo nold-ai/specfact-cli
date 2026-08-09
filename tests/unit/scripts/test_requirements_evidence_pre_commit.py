@@ -7,9 +7,10 @@ from typing import Any, cast
 
 import yaml
 
+from tests.unit.scripts.requirements_change_support import runtime_proof_change_root
+
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-RUNTIME_PROOF_SIDECAR = REPO_ROOT / "openspec/changes/requirements-07-runtime-proof-delivery/requirements-evidence.yaml"
 
 
 def _pre_commit_text() -> str:
@@ -23,7 +24,8 @@ def _assert_contains_pre_commit_contract(*fragments: str) -> None:
 
 
 def _runtime_proof_requirements() -> dict[str, dict[str, list[dict[str, Any]]]]:
-    mapping = cast(dict[str, Any], yaml.safe_load(RUNTIME_PROOF_SIDECAR.read_text(encoding="utf-8")))
+    sidecar = runtime_proof_change_root(REPO_ROOT) / "requirements-evidence.yaml"
+    mapping = cast(dict[str, Any], yaml.safe_load(sidecar.read_text(encoding="utf-8")))
     return cast(dict[str, dict[str, list[dict[str, Any]]]], mapping["requirements"])
 
 
@@ -34,7 +36,7 @@ def test_pre_commit_derives_maturity_and_governs_product_only_changes() -> None:
         'required_maturity="$(staged_planning_maturity)"',
         '--required-maturity "${required_maturity}"',
         "has_staged_requirements_evidence_scope()",
-        "if ! has_staged_requirements_evidence_scope; then",
+        "has_staged_requirements_evidence_scope || scope_status=$?",
     )
 
 
@@ -98,6 +100,26 @@ def test_pre_commit_uses_both_rename_paths_for_requirements_scope_and_maturity()
     )
     assert pre_commit.count("done < <(staged_evidence_paths)") == 3
     assert 'changed_paths="$(staged_evidence_paths)"' not in pre_commit
+
+
+def test_pre_commit_rejects_staged_path_enumeration_failures() -> None:
+    _assert_contains_pre_commit_contract(
+        "STAGED_PATH_ERROR",
+        "printf '%s\\0' \"${STAGED_PATH_ERROR}\"",
+        'if [[ "${file}" == "${STAGED_PATH_ERROR}" ]]',
+        "Unable to enumerate staged paths",
+    )
+
+    pre_commit_library = _pre_commit_text().removesuffix('\nmain "$@"\n')
+    result = subprocess.run(
+        ["bash", "-c", f"{pre_commit_library}\ngit() {{ return 42; }}\nhas_staged_requirements_evidence_scope"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 2
+    assert "Unable to enumerate staged paths" in result.stderr
 
 
 def test_pre_commit_preserves_tabbed_staged_evidence_paths(tmp_path: Path) -> None:

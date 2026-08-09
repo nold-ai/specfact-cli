@@ -863,3 +863,16 @@
 - **Proof:** pre-commit now requires the selected review-evidence blob to exist
   in the Git index and rejects any unstaged content difference before invoking
   the staged Requirements evidence gate.
+
+## 2026-08-09 PR promotion review remediation
+
+### Failing-before
+
+- `hatch run python -m pytest -q tests/unit/scripts/test_requirements_evidence_delivery_gate.py::test_failed_command_writes_missing_diagnostic_reports_and_exports_fixture_roots tests/unit/scripts/test_requirements_evidence_pre_commit.py::test_pre_commit_rejects_staged_path_enumeration_failures tests/unit/scripts/test_requirements_proof_pytest_plugin.py tests/integration/scripts/test_runtime_discovery_smoke.py::test_local_runtime_registry_rejects_traversal_in_manifest_version`
+  failed 4 tests as expected: ambient secrets were forwarded, staged-path failures had no observable sentinel, the selector plugin imported private pytest internals, and an invalid manifest version reached the archive sink.
+
+### Passing-after
+
+- The same focused command passed `4 passed` after adding the explicit environment allowlist, observable staged-path error handling, public `user_properties` JUnit integration, and manifest-version validation.
+- `bash -n scripts/pre-commit-quality-checks.sh` passed.
+- The internal wiki sibling checkout was unavailable, so dependency-story mirror reconciliation remains the explicit task 1.4 follow-up.

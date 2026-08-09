@@ -18,6 +18,7 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m'
+STAGED_PATH_ERROR=$'\x01STAGED_PATH_ERROR'
 
 info() { echo -e "${BLUE}$*${NC}" >&2; }
 success() { echo -e "${GREEN}$*${NC}" >&2; }
@@ -51,23 +52,44 @@ staged_files() {
 }
 
 staged_evidence_paths() {
-  local status source_path destination_path
+  local status source_path destination_path staged_status_file staged_paths_file
+  staged_status_file="$(mktemp)" || {
+    printf '%s\0' "${STAGED_PATH_ERROR}"
+    return 1
+  }
+  staged_paths_file="$(mktemp)" || {
+    rm -f "${staged_status_file}"
+    printf '%s\0' "${STAGED_PATH_ERROR}"
+    return 1
+  }
+  if ! git diff --cached --name-status -z --find-renames --diff-filter=ACMRD >"${staged_status_file}"; then
+    error "Unable to read staged Git status"
+    rm -f "${staged_status_file}" "${staged_paths_file}"
+    printf '%s\0' "${STAGED_PATH_ERROR}"
+    return 1
+  fi
   while IFS= read -r -d '' status; do
     if ! IFS= read -r -d '' source_path; then
       error "Unable to read staged source path for ${status}"
+      rm -f "${staged_status_file}" "${staged_paths_file}"
+      printf '%s\0' "${STAGED_PATH_ERROR}"
       return 1
     fi
-    printf '%s\0' "${source_path}"
+    printf '%s\0' "${source_path}" >>"${staged_paths_file}"
     case "${status}" in
       R*|C*)
         if ! IFS= read -r -d '' destination_path; then
           error "Unable to read staged destination path for ${status}"
+          rm -f "${staged_status_file}" "${staged_paths_file}"
+          printf '%s\0' "${STAGED_PATH_ERROR}"
           return 1
         fi
-        printf '%s\0' "${destination_path}"
+        printf '%s\0' "${destination_path}" >>"${staged_paths_file}"
         ;;
     esac
-  done < <(git diff --cached --name-status -z --find-renames --diff-filter=ACMRD)
+  done <"${staged_status_file}"
+  cat "${staged_paths_file}"
+  rm -f "${staged_status_file}" "${staged_paths_file}"
 }
 
 has_staged_yaml() {
@@ -418,6 +440,11 @@ run_lint_if_staged_python() {
 staged_required_maturity() {
   local file maturity="planned"
   while IFS= read -r -d '' file; do
+    if [[ "${file}" == "${STAGED_PATH_ERROR}" ]]; then
+      error "Unable to enumerate staged paths"
+      printf '%s\n' "${STAGED_PATH_ERROR}"
+      return 1
+    fi
     case "${file}" in
       .github/*|ci/*|scripts/*|src/*|tools/*|pyproject.toml|setup.py|uv.lock|requirements/ci/locked.txt|resources/templates/*|resources/schemas/*|resources/mappings/*|resources/keys/*|modules/bundle-mapper/*)
         printf 'verified\n'
@@ -441,6 +468,10 @@ staged_planning_maturity() {
 has_staged_requirements_evidence_scope() {
   local file
   while IFS= read -r -d '' file; do
+    if [[ "${file}" == "${STAGED_PATH_ERROR}" ]]; then
+      error "Unable to enumerate staged paths"
+      return 2
+    fi
     return 0
   done < <(staged_evidence_paths)
   return 1
@@ -450,6 +481,11 @@ staged_active_change_ids() {
   local file relative_path
   local -A change_ids=()
   while IFS= read -r -d '' file; do
+    if [[ "${file}" == "${STAGED_PATH_ERROR}" ]]; then
+      error "Unable to enumerate staged paths"
+      printf '%s\n' "${STAGED_PATH_ERROR}"
+      return 1
+    fi
     case "${file}" in
       openspec/changes/archive/*)
         ;;
@@ -484,7 +520,11 @@ run_requirements_evidence_gate() {
   local -a review_evidence_candidates=()
   local -a evidence_arguments=()
 
-  if ! has_staged_requirements_evidence_scope; then
+  local scope_status=0
+  has_staged_requirements_evidence_scope || scope_status=$?
+  if [[ ${scope_status} -eq 2 ]]; then
+    exit 1
+  elif [[ ${scope_status} -ne 0 ]]; then
     info "📦 Block 2 — Requirements evidence — skipped (no staged path)"
     return 0
   fi
@@ -492,11 +532,17 @@ run_requirements_evidence_gate() {
   mkdir -p "${report_dir}"
   rm -f "${json_report}" "${markdown_report}" "${plan_report}"
   required_maturity="$(staged_planning_maturity)"
+  if [[ "${required_maturity}" == "${STAGED_PATH_ERROR}" ]]; then
+    exit 1
+  fi
   if [[ "${required_maturity}" != "planned" ]]; then
     while IFS= read -r selected_change || [[ -n "${selected_change}" ]]; do
       [[ -z "${selected_change}" ]] && continue
       staged_change_ids+=("${selected_change}")
     done < <(staged_active_change_ids)
+    if [[ "${staged_change_ids[0]:-}" == "${STAGED_PATH_ERROR}" ]]; then
+      exit 1
+    fi
     if [[ ${#staged_change_ids[@]} -gt 1 ]]; then
       error "❌ Block 2 — Staged Requirements evidence spans multiple active changes"
       exit 1

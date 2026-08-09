@@ -8,6 +8,7 @@ import hashlib
 import json
 import logging
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -23,6 +24,7 @@ from icontract import ensure
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+MODULE_VERSION_PATTERN = re.compile(r"^[0-9]+\.[0-9]+\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?$")
 SRC_ROOT = REPO_ROOT / "src"
 if str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))
@@ -222,6 +224,9 @@ def _build_local_registry(workspace: Path, modules_repo: Path) -> Path:
         if not isinstance(manifest, dict):
             raise RuntimeError(f"Invalid module manifest: {manifest_path}")
         manifest_data = cast(dict[str, Any], manifest)
+        version = manifest_data.get("version")
+        if not isinstance(version, str) or MODULE_VERSION_PATTERN.fullmatch(version) is None:
+            raise RuntimeError(f"Invalid module version in {manifest_path}: {version!r}")
         manifest_data["integrity"] = {
             "checksum": f"sha256:{hashlib.sha256(_module_payload_for_checksum(staged_dir)).hexdigest()}"
         }

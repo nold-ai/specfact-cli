@@ -19,6 +19,22 @@ from icontract import ensure
 APPROVED_REPOSITORY = "nold-ai/specfact-cli-modules"
 APPROVED_COMMIT = "69f075819be5e1ceca1446b026b0417f19e584ca"
 SHA_PATTERN = re.compile(r"^[0-9a-f]{40}$")
+ALLOWED_ENVIRONMENT_KEYS = frozenset(
+    {
+        "HOME",
+        "LANG",
+        "LC_ALL",
+        "LC_CTYPE",
+        "PATH",
+        "PYTHONPATH",
+        "SYSTEMROOT",
+        "TEMP",
+        "TMP",
+        "TMPDIR",
+        "VIRTUAL_ENV",
+        "WINDIR",
+    }
+)
 CommandRunner = Callable[[list[str], dict[str, str]], int]
 GitRunner = Callable[[list[str]], str]
 
@@ -143,7 +159,7 @@ def run_evidence_command(
     arguments.append(selection_flag)
     if selection_value is not None:
         arguments.append(selection_value)
-    environment = dict(os.environ)
+    environment = {key: value for key, value in os.environ.items() if key in ALLOWED_ENVIRONMENT_KEYS}
     environment["SPECFACT_MODULES_REPO"] = str(fixture_root.resolve())
     environment["SPECFACT_MODULES_ROOTS"] = str((fixture_root / "packages").resolve())
     environment.pop("SPECFACT_CLI_MODULES_REPO", None)

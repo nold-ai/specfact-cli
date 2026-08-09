@@ -160,7 +160,7 @@ def test_requirements_evidence_workflow_writes_reports_before_early_failure(tmp_
         result = subprocess.run(
             ["bash", "-c", command],
             cwd=work_directory,
-            env={**os.environ, "EVIDENCE_BASE_BRANCH": base_branch},
+            env={**os.environ, "EVIDENCE_BASE_BRANCH": base_branch, "RUNNER_TEMP": str(work_directory)},
             capture_output=True,
             text=True,
             check=False,

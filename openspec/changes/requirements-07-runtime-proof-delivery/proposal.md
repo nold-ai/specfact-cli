@@ -78,7 +78,7 @@ module-owned scenario test plan to current-run test results and review context.
 - **Parent Epic**: [#258](https://github.com/nold-ai/specfact-cli/issues/258)
 - **Project**: SpecFact CLI (`Todo`)
 - **Extends**: `requirements-06-evidence-enforcement`
-- **Blocked By**: [nold-ai/specfact-cli-modules#368](https://github.com/nold-ai/specfact-cli-modules/issues/368) (native GitHub dependency)
+- **Historical Blocker**: [nold-ai/specfact-cli-modules#368](https://github.com/nold-ai/specfact-cli-modules/issues/368), resolved by merged PR #379 and the pinned Requirements 0.5.1 release
 - **Paired Modules Change**: `requirements-07-scenario-runtime-proof`
 - **Repository**: nold-ai/specfact-cli
 - **Last Synced Status**: proposed / Todo (2026-08-02)

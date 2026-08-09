@@ -99,6 +99,21 @@ def test_local_runtime_registry_includes_transitive_bundle_dependencies(tmp_path
     assert module_ids == {*smoke.MODULE_IDS, "nold-ai/specfact-requirements"}
 
 
+def test_local_runtime_registry_rejects_traversal_in_manifest_version(tmp_path: Path) -> None:
+    import scripts.runtime_discovery_smoke as smoke
+
+    modules_repo = tmp_path / "modules"
+    for module_id in smoke.MODULE_IDS:
+        _write_module_manifest(modules_repo, module_id.split("/", 1)[1])
+    manifest_path = modules_repo / "packages" / smoke.MODULE_IDS[0].split("/", 1)[1] / "module-package.yaml"
+    manifest = yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
+    manifest["version"] = "0.1.0/../../outside"
+    manifest_path.write_text(yaml.safe_dump(manifest), encoding="utf-8")
+
+    with pytest.raises(RuntimeError, match="Invalid module version"):
+        smoke._build_local_registry(tmp_path / "workspace", modules_repo)
+
+
 def test_runtime_discovery_smoke_keep_workspace_preserves_directory(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

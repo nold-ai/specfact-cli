@@ -46,9 +46,10 @@ blocking proposal review.
 
 ### Requirement: Git-Bound Failing-First Proof
 
-Core SHALL require a runner-generated red proof from a test-only ancestor
-commit after the current pull-request base before a governed production change
-can reach verified maturity. The
+Except for the bounded R07 migration described below, Core SHALL require a
+runner-generated red proof from a test-only ancestor commit after the current
+pull-request base before a governed production change can reach verified
+maturity. The
 proof SHALL bind the commit/tree, merge base, mapping digest, selectors,
 test-file digests, JUnit digest, and toolchain identity. Core SHALL reject
 proof when governed production changed before the red commit, including a
@@ -58,6 +59,13 @@ released reconciliation command, core SHALL verify that its source commit is a
 strict ancestor of the final source, the current pull-request base is an
 ancestor of that source, and that the selected test files remain
 unchanged since that source.
+
+For `requirements-07-runtime-proof-delivery` only, Core SHALL instead accept
+the historical failing-first ledger from approved immutable commit
+`69f075819be5e1ceca1446b026b0417f19e584ca` when its ledger digest is bound to
+the current mapping and final-plan digests. Core SHALL use this exception only
+during final reconciliation, SHALL reject a modified checkout ledger, and
+SHALL NOT extend it to any other change.
 
 #### Scenario: Production change follows valid red proof
 

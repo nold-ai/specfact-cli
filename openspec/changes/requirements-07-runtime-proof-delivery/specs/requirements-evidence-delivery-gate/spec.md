@@ -8,6 +8,8 @@ code-review and contract delivery gates, using only a SHA-pinned
 `69f075819be5e1ceca1446b026b0417f19e584ca`. Core SHALL preserve the
 module-owned evidence semantics and SHALL retain JSON and Markdown remediation
 reports for both passing and failing runs.
+Core SHALL pass the released command only an explicit non-secret environment
+allowlist plus the two fixture-root variables required for module discovery.
 
 #### Scenario: Reject an unverified or mutable fixture
 
@@ -19,6 +21,19 @@ reports for both passing and failing runs.
 - **THEN** it fails before executing any module command
 - **AND** it does not use a branch, sibling checkout, or other mutable source
 - **AND** it reports how to obtain the released pinned fixture.
+
+The fixture trust boundary is the immutable, reviewed commit recorded in the
+checked-in lock and materialized by GitHub checkout. Core does not claim an
+independent publisher-signature verification that the fixture format does not
+provide.
+
+#### Scenario: Exclude ambient secrets from released execution
+
+- **GIVEN** the caller environment contains permitted runtime variables and
+  unrelated secret-like variables
+- **WHEN** core invokes the released Requirements evidence command
+- **THEN** permitted runtime variables and the verified fixture roots are present
+- **AND** unrelated ambient variables are absent.
 
 #### Scenario: Block staged delivery after retaining a red report
 
