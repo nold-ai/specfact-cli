@@ -137,6 +137,24 @@ def _assert_retention_contract(workflow: dict[str, object]) -> None:
     )
 
 
+def _assert_prior_red_run_selection(locate: dict[str, object]) -> None:
+    """Retained-proof discovery must inspect all completed, eligible runs."""
+    command = locate["run"]
+    assert isinstance(command, str)
+    required_fragments = (
+        "gh run list",
+        "--status completed",
+        'current_head="$(git rev-parse HEAD)"',
+        '[[ "$head_sha" != "$current_head" ]]',
+        'git merge-base --is-ancestor "origin/${GITHUB_BASE_REF}" "$head_sha"',
+        'git merge-base --is-ancestor "$head_sha" "$current_head"',
+        'execution_proof.get("run_stage") != "red"',
+        "continue",
+    )
+    assert all(fragment in command for fragment in required_fragments)
+    assert "--status failure" not in command
+
+
 def _assert_prior_red_download_contract(workflow: dict[str, object]) -> None:
     """A later PR run must download red evidence from an eligible prior run."""
     locate = _step_by_name(workflow, "Locate retained red proof run")
@@ -145,13 +163,7 @@ def _assert_prior_red_download_contract(workflow: dict[str, object]) -> None:
     assert workflow["permissions"]["actions"] == "read"  # type: ignore[index]
     assert checkout["with"]["ref"] == "${{ github.event.pull_request.head.sha || github.sha }}"  # type: ignore[index]
     assert locate["id"] == "prior-red-run"  # type: ignore[index]
-    assert "gh run list" in locate["run"]  # type: ignore[index]
-    assert 'current_head="$(git rev-parse HEAD)"' in locate["run"]  # type: ignore[index]
-    assert '[[ "$head_sha" != "$current_head" ]]' in locate["run"]  # type: ignore[index]
-    assert 'git merge-base --is-ancestor "origin/${GITHUB_BASE_REF}" "$head_sha"' in locate["run"]  # type: ignore[index]
-    assert 'git merge-base --is-ancestor "$head_sha" "$current_head"' in locate["run"]  # type: ignore[index]
-    assert 'execution_proof.get("run_stage") != "red"' in locate["run"]  # type: ignore[index]
-    assert "continue" in locate["run"]  # type: ignore[index]
+    _assert_prior_red_run_selection(locate)
     assert download["uses"] == "actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c"  # type: ignore[index]
     assert download["with"]["github-token"] == "${{ github.token }}"  # type: ignore[index]
     assert download["with"]["run-id"] == "${{ steps.prior-red-run.outputs.run-id }}"  # type: ignore[index]

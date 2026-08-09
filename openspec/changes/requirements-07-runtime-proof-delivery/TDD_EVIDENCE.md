@@ -852,6 +852,18 @@
 - **Proof:** workflow, staged maturity, and red-proof provenance now classify
   executable repository tooling consistently as production behavior.
 
+## Completed red-run discovery review remediation
+
+- **Recorded:** 2026-08-09 (UTC)
+- **Failing-before command:** `uv run --python 3.12 --locked --extra dev python -m pytest -q tests/unit/workflows/test_requirements_evidence_delivery_workflow.py::test_requirements_evidence_workflow_uses_the_released_fixture_and_retains_reports`
+- **Failing result:** 1 failed because retained-proof discovery filtered for
+  failed workflow conclusions even though valid red-stage reconciliation can
+  complete successfully.
+- **Passing-after command:** `uv run --python 3.12 --locked --extra dev python -m pytest -q tests/unit/workflows/test_requirements_evidence_delivery_workflow.py`
+- **Proof:** discovery now considers every completed prior run and retains the
+  existing authenticated artifact inspection as the authority for selecting a
+  red-stage report.
+
 ## Promotion provenance-binding review remediation
 
 - **Recorded:** 2026-08-09 (UTC)

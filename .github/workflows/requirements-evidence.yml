@@ -124,7 +124,7 @@ jobs:
               --workflow requirements-evidence.yml \
               --branch "$GITHUB_HEAD_REF" \
               --event pull_request \
-              --status failure \
+              --status completed \
               --limit 100 \
               --json databaseId,headSha \
               --jq '.[] | [.databaseId, .headSha] | @tsv'
