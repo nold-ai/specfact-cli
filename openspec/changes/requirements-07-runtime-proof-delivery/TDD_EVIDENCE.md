@@ -749,3 +749,22 @@
   `main` or `dev`, and the pre-commit scope decision accepts every nonempty
   staged diff. A temporary staged docs-only Git repository proves that local
   Block 2 reaches the adapter rather than silently skipping the decision.
+
+## Failing-before delivery-input maturity remediation
+
+- **Recorded:** 2026-08-09 (UTC)
+- **Command:** `hatch run python -m pytest -q tests/unit/workflows/test_requirements_evidence_delivery_workflow.py::test_requirements_evidence_workflow_treats_delivery_inputs_as_production tests/unit/scripts/test_requirements_evidence_delivery_gate.py::test_pre_commit_treats_delivery_inputs_as_production`
+- **Result:** failed as expected (2 failures).
+- **Failure:** root dependency and packaging inputs were not classified as
+  production paths, so they could retain proposal-level Requirements maturity.
+- **Intent:** require verified CI proof, and test-authored pre-commit planning,
+  for the frozen delivery inputs governed by repository policy.
+
+## Passing-after delivery-input maturity remediation
+
+- **Recorded:** 2026-08-09 (UTC)
+- **Command:** `hatch run python -m pytest -q tests/unit/workflows/test_requirements_evidence_delivery_workflow.py tests/unit/scripts/test_requirements_evidence_delivery_gate.py`
+- **Result:** 20 passed, 4 fixture-dependent tests skipped.
+- **Proof:** both CI and staged maturity assignment now classify
+  `pyproject.toml`, `setup.py`, `uv.lock`, and
+  `requirements/ci/locked.txt` as production delivery inputs.

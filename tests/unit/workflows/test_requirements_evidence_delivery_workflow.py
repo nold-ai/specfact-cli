@@ -185,6 +185,13 @@ def test_requirements_evidence_workflow_splits_rename_endpoints_before_maturity(
     assert 'changed_paths+=("$destination_path")' in command
 
 
+def test_requirements_evidence_workflow_treats_delivery_inputs_as_production() -> None:
+    """Dependency and packaging inputs must require verified runtime proof."""
+    command = _run_evidence_command()
+
+    assert "pyproject.toml|setup.py|uv.lock|requirements/ci/locked.txt" in command
+
+
 def test_requirements_evidence_workflow_ignores_archived_review_evidence() -> None:
     """Only active change records may supply CI planning and reconciliation evidence."""
     command = _run_evidence_command()

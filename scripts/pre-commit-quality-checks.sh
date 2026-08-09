@@ -419,7 +419,7 @@ staged_required_maturity() {
   local file maturity="planned"
   while IFS= read -r -d '' file; do
     case "${file}" in
-      .github/*|ci/*|scripts/*|src/*)
+      .github/*|ci/*|scripts/*|src/*|pyproject.toml|setup.py|uv.lock|requirements/ci/locked.txt)
         printf 'verified\n'
         return 0
         ;;

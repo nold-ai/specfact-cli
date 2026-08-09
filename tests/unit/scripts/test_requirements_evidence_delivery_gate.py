@@ -541,3 +541,10 @@ def test_pre_commit_places_evidence_before_review_and_contracts() -> None:
     assert block2.index("run_requirements_evidence_gate") < block2.index("run_code_review_gate")
     assert block2.index("run_requirements_evidence_gate") < block2.index("run_contract_tests_visible")
     assert ".specfact/reports/requirements-evidence" in pre_commit
+
+
+def test_pre_commit_treats_delivery_inputs_as_production() -> None:
+    """Staged dependency and packaging inputs must require production maturity."""
+    pre_commit = (REPO_ROOT / "scripts" / "pre-commit-quality-checks.sh").read_text(encoding="utf-8")
+
+    assert "pyproject.toml|setup.py|uv.lock|requirements/ci/locked.txt" in pre_commit
