@@ -190,6 +190,7 @@ def _red_source_precedes_final(repo_root: Path, base_ref: str, source_ref: str, 
     """Require the current base, red source, and final source to form one strict chain."""
     return (
         GIT_OBJECT_PATTERN.fullmatch(final_ref) is not None
+        and source_ref != base_ref
         and source_ref != final_ref
         and _is_ancestor(repo_root, base_ref, source_ref)
         and _is_ancestor(repo_root, source_ref, final_ref)

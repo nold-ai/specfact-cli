@@ -132,6 +132,27 @@ def test_git_bound_red_proof_requires_test_only_ancestor_and_unchanged_selector_
     ]
 
 
+def test_git_bound_red_proof_rejects_base_commit_as_red_source(tmp_path: Path) -> None:
+    """The red source must be a new test-only commit after the pull-request base."""
+    module = _load_provenance_module()
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    test_path = tmp_path / "tests" / "test_proof.py"
+    test_path.parent.mkdir()
+    test_path.write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    base_ref = _commit(tmp_path, "test: base already contains failure")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, base_ref, base_ref)
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "delivery.py").write_text("VALUE = 1\n", encoding="utf-8")
+    final_ref = _commit(tmp_path, "feat: delivery")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
+        "tdd-order-unproven"
+    ]
+
+
 def test_git_bound_red_proof_rejects_replayed_or_renamed_production_history(tmp_path: Path) -> None:
     """Red evidence must follow the current base and retain governed rename sources."""
     module = _load_provenance_module()

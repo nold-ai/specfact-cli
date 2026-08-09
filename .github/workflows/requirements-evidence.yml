@@ -14,6 +14,7 @@ on:
         type: string
 
 permissions:
+  actions: read
   contents: read
 
 jobs:
@@ -83,11 +84,62 @@ jobs:
       - name: Prepare Requirements evidence artifact directory
         run: mkdir -p artifacts/requirements-evidence
 
+      - name: Locate retained red proof run
+        id: prior-red-run
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          while IFS=$'\t' read -r run_id head_sha; do
+            [[ -n "$run_id" && -n "$head_sha" ]] || continue
+            [[ "$head_sha" != "$GITHUB_SHA" ]] || continue
+            git merge-base --is-ancestor "origin/${GITHUB_BASE_REF}" "$head_sha" || continue
+            git merge-base --is-ancestor "$head_sha" "$GITHUB_SHA" || continue
+            printf 'run-id=%s\n' "$run_id" >> "$GITHUB_OUTPUT"
+            break
+          done < <(
+            gh run list \
+              --workflow requirements-evidence.yml \
+              --branch "$GITHUB_HEAD_REF" \
+              --event pull_request \
+              --status failure \
+              --limit 100 \
+              --json databaseId,headSha \
+              --jq '.[] | [.databaseId, .headSha] | @tsv'
+          )
+
+      - name: Download retained red proof
+        if: steps.prior-red-run.outputs.run-id != ''
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: requirements-evidence
+          path: ${{ runner.temp }}/prior-red-download
+          github-token: ${{ github.token }}
+          run-id: ${{ steps.prior-red-run.outputs.run-id }}
+
+      - name: Prepare retained red proof
+        if: steps.prior-red-run.outputs.run-id != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          download_root="${RUNNER_TEMP}/prior-red-download"
+          proof_root="${RUNNER_TEMP}/prior-red-proof"
+          report="${download_root}/requirements-evidence.json"
+          junit="${download_root}/requirements-proof.xml"
+          if [[ -s "$report" && -s "$junit" ]]; then
+            mkdir -p "$proof_root"
+            cp "$report" "${proof_root}/red.json"
+            cp "$junit" "${proof_root}/red.xml"
+          fi
+
       - name: Run Requirements evidence gate
         id: run-evidence
         continue-on-error: true
         env:
           EVIDENCE_BASE_BRANCH: ${{ github.event_name == 'pull_request' && github.base_ref || inputs.base_branch || github.event.repository.default_branch }}
+          EVIDENCE_FINAL_REF: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           set -e
           write_failure_reports() {
@@ -179,7 +231,7 @@ jobs:
             if [[ -f "$review_evidence" ]]; then
               evidence_arguments+=(--review-evidence "$review_evidence")
             fi
-            candidate_red_proof="openspec/changes/${selected_change}/requirements-proof/red.json"
+            candidate_red_proof="${RUNNER_TEMP}/prior-red-proof/red.json"
             if [[ -f "$candidate_red_proof" ]]; then
               prior_red_proof="$candidate_red_proof"
             fi
@@ -208,7 +260,7 @@ jobs:
                 --plan artifacts/requirements-evidence/requirements-evidence-plan.json \
                 --junit artifacts/requirements-evidence/requirements-proof.xml \
                 --run-stage final \
-                --source-ref "$GITHUB_SHA" \
+                --source-ref "$EVIDENCE_FINAL_REF" \
                 --output artifacts/requirements-evidence/requirements-evidence.json \
                 --summary artifacts/requirements-evidence/requirements-evidence.md
               )
@@ -217,7 +269,7 @@ jobs:
                   --prior-red-proof "$prior_red_proof" \
                   --repo-root "$GITHUB_WORKSPACE" \
                   --base-ref "origin/${EVIDENCE_BASE_BRANCH}" \
-                  --final-ref "$GITHUB_SHA" 2>&1)"; then
+                  --final-ref "$EVIDENCE_FINAL_REF" 2>&1)"; then
                   write_failure_reports "Red proof provenance rejected: ${red_proof_findings:-tdd-order-unproven}"
                   exit 1
                 fi

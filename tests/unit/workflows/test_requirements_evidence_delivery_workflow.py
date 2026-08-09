@@ -80,12 +80,12 @@ def _assert_command_contract(workflow: dict[str, object]) -> None:
         "--junit artifacts/requirements-evidence/requirements-proof.xml",
         "python scripts/requirements_proof_provenance.py",
         '--base-ref "origin/${EVIDENCE_BASE_BRANCH}"',
-        '--final-ref "$GITHUB_SHA"',
-        '--final-ref "$GITHUB_SHA" 2>&1)',
+        '--final-ref "$EVIDENCE_FINAL_REF"',
+        '--final-ref "$EVIDENCE_FINAL_REF" 2>&1)',
         "uv run --locked --no-sync specfact requirements reconcile",
         "rm -f artifacts/requirements-evidence/requirements-evidence.json artifacts/requirements-evidence/requirements-evidence.md",
         "--run-stage final",
-        '--source-ref "$GITHUB_SHA"',
+        '--source-ref "$EVIDENCE_FINAL_REF"',
         '--prior-red-proof "$prior_red_proof"',
         "fallback_required=0",
         "fallback_required=1",
@@ -133,6 +133,29 @@ def _assert_retention_contract(workflow: dict[str, object]) -> None:
     )
 
 
+def _assert_prior_red_artifact_contract(workflow: dict[str, object]) -> None:
+    """A later PR run must consume authenticated red evidence outside its checkout."""
+    locate = _step_by_name(workflow, "Locate retained red proof run")
+    download = _step_by_name(workflow, "Download retained red proof")
+    run_evidence = _step_by_name(workflow, "Run Requirements evidence gate")
+    assert workflow["permissions"]["actions"] == "read"  # type: ignore[index]
+    assert locate["id"] == "prior-red-run"  # type: ignore[index]
+    assert "gh run list" in locate["run"]  # type: ignore[index]
+    assert 'git merge-base --is-ancestor "origin/${GITHUB_BASE_REF}" "$head_sha"' in locate["run"]  # type: ignore[index]
+    assert 'git merge-base --is-ancestor "$head_sha" "$GITHUB_SHA"' in locate["run"]  # type: ignore[index]
+    assert download["uses"] == "actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c"  # type: ignore[index]
+    assert download["with"]["github-token"] == "${{ github.token }}"  # type: ignore[index]
+    assert download["with"]["run-id"] == "${{ steps.prior-red-run.outputs.run-id }}"  # type: ignore[index]
+    assert _step_index(workflow, "Download retained red proof") < _step_index(
+        workflow, "Run Requirements evidence gate"
+    )
+    assert 'candidate_red_proof="${RUNNER_TEMP}/prior-red-proof/red.json"' in run_evidence["run"]  # type: ignore[index]
+    assert run_evidence["env"]["EVIDENCE_FINAL_REF"] == "${{ github.event.pull_request.head.sha || github.sha }}"  # type: ignore[index]
+    assert '--source-ref "$EVIDENCE_FINAL_REF"' in run_evidence["run"]  # type: ignore[index]
+    assert '--final-ref "$EVIDENCE_FINAL_REF"' in run_evidence["run"]  # type: ignore[index]
+    assert "openspec/changes/${selected_change}/requirements-proof/red.json" not in run_evidence["run"]  # type: ignore[index]
+
+
 def test_requirements_evidence_workflow_uses_the_released_fixture_and_retains_reports() -> None:
     """PR enforcement must verify the fixture and publish output before failing red verdicts."""
     workflow = REPO_ROOT / ".github" / "workflows" / "requirements-evidence.yml"
@@ -143,6 +166,7 @@ def test_requirements_evidence_workflow_uses_the_released_fixture_and_retains_re
     _assert_command_contract(parsed)
     _assert_governed_trigger_contract(parsed)
     _assert_retention_contract(parsed)
+    _assert_prior_red_artifact_contract(parsed)
 
 
 def test_requirements_evidence_workflow_writes_reports_before_early_failure(tmp_path: Path) -> None:

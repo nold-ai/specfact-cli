@@ -948,3 +948,18 @@
 - **Passing result:** 5 tests passed.
 - **Proof:** isolated smoke-registry assembly now implements the complete
   Semantic Versioning 2.0.0 identifier grammar before writing module archives.
+
+## Retained red-artifact and strict-base review remediation
+
+- **Recorded:** 2026-08-09 (UTC)
+- **Failing-before command:** `uv run --python 3.12 --locked --extra dev python -m pytest -q tests/unit/workflows/test_requirements_evidence_delivery_workflow.py::test_requirements_evidence_workflow_uses_the_released_fixture_and_retains_reports tests/unit/scripts/test_requirements_proof_provenance.py::test_git_bound_red_proof_rejects_base_commit_as_red_source`
+- **Failing result:** 2 tests failed as expected because the workflow had no
+  authenticated cross-run artifact download and the provenance chain accepted
+  the pull-request base itself as the red source.
+- **Passing-after command:** the same focused command passed `2 passed` after
+  downloading the latest eligible failed run's same-repository artifact into
+  runner temporary storage and requiring the red source to differ from the
+  current base.
+- **Requirements assignment:** no mapping delta was required. The remediation
+  completes the existing Git-bound failing-first proof scenario's retained
+  runner-artifact and strict post-base ancestry requirements.
