@@ -197,7 +197,10 @@ jobs:
               --junit artifacts/requirements-evidence/requirements-proof.xml
             execution_exit=$?
             set -e
-            if [[ ! -s artifacts/requirements-evidence/requirements-proof.xml ]]; then
+            if [[ "$execution_exit" -ne 0 ]]; then
+              write_failure_reports "Requirements proof executor exited with status $execution_exit."
+              exit_code="$execution_exit"
+            elif [[ ! -s artifacts/requirements-evidence/requirements-proof.xml ]]; then
               write_failure_reports "Requirements proof executor exited with status $execution_exit before writing JUnit."
               exit_code=1
             else

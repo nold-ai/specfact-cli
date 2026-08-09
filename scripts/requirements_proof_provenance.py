@@ -18,6 +18,7 @@ from icontract import ensure
 
 
 GIT_OBJECT_PATTERN = re.compile(r"^[0-9a-f]{40}$")
+DIGEST_PATTERN = re.compile(r"^sha256:[0-9a-f]{64}$")
 GOVERNED_PRODUCTION_PREFIXES = (
     ".github/",
     "ci/",
@@ -178,6 +179,67 @@ def _test_path_exists_at_ref(repo_root: Path, source_ref: str, test_path: str) -
     return _git(repo_root, "cat-file", "-e", f"{source_ref}:{test_path}").returncode == 0
 
 
+def _blob_digest_at_ref(repo_root: Path, source_ref: str, test_path: str) -> str | None:
+    """Return the digest of committed test bytes without consulting the worktree."""
+    result = subprocess.run(
+        ["git", "show", f"{source_ref}:{test_path}"],
+        cwd=repo_root,
+        capture_output=True,
+        check=False,
+    )
+    return f"sha256:{hashlib.sha256(result.stdout).hexdigest()}" if result.returncode == 0 else None
+
+
+def _valid_report_digests(report: dict[str, object]) -> bool:
+    """Return whether the report binds both governed input digests."""
+    return all(
+        isinstance(report.get(field), str) and DIGEST_PATTERN.fullmatch(cast(str, report[field])) is not None
+        for field in ("mapping_digest", "plan_digest")
+    )
+
+
+def _validated_toolchain_identity(value: object) -> None:
+    """Reject an incomplete toolchain identity."""
+    if not isinstance(value, dict):
+        raise ValueError("prior-red-proof-invalid")
+    identity = cast(dict[str, object], value)
+    if set(identity) != {"runner", "python", "pytest"} or not all(
+        isinstance(item, str) and item for item in identity.values()
+    ):
+        raise ValueError("prior-red-proof-invalid")
+
+
+def _validated_test_file_digests(value: object, selector_paths: Sequence[str]) -> dict[str, object]:
+    """Return selector-complete test digests or reject the proof."""
+    if not isinstance(value, dict):
+        raise ValueError("prior-red-proof-invalid")
+    digests = cast(dict[str, object], value)
+    if set(digests) != set(selector_paths):
+        raise ValueError("prior-red-proof-invalid")
+    return digests
+
+
+def _validate_execution_bindings(
+    report: dict[str, object], repo_root: Path, base_ref: str, source_ref: str, selector_paths: Sequence[str]
+) -> None:
+    """Verify every source, test, plan, and toolchain binding required by the red-proof contract."""
+    execution_proof = _validated_execution_proof(report)
+    source_tree = execution_proof.get("source_tree")
+    merge_base = execution_proof.get("merge_base")
+    test_file_digests = _validated_test_file_digests(execution_proof.get("test_file_digests"), selector_paths)
+    _validated_toolchain_identity(execution_proof.get("toolchain_identity"))
+    actual_tree = _git(repo_root, "rev-parse", f"{source_ref}^{{tree}}").stdout.strip()
+    actual_merge_base = _git(repo_root, "merge-base", base_ref, source_ref).stdout.strip()
+    if not _valid_report_digests(report) or source_tree != actual_tree or merge_base != actual_merge_base:
+        raise ValueError("prior-red-proof-invalid")
+    for test_path in selector_paths:
+        recorded_digest = test_file_digests.get(test_path)
+        if not isinstance(recorded_digest, str) or recorded_digest != _blob_digest_at_ref(
+            repo_root, source_ref, test_path
+        ):
+            raise ValueError("prior-red-proof-invalid")
+
+
 @beartype
 @ensure(
     lambda result: all(
@@ -194,6 +256,10 @@ def validate_prior_red_proof(red_proof_path: Path, repo_root: Path, *, base_ref:
         return [str(error)]
     if not _red_source_precedes_final(repo_root, base_ref, source_ref, final_ref):
         return ["tdd-order-unproven"]
+    try:
+        _validate_execution_bindings(report, repo_root, base_ref, source_ref, selector_paths)
+    except ValueError as error:
+        return [str(error)]
     paths_before_red = _changed_paths(repo_root, base_ref, source_ref)
     if paths_before_red is None:
         return ["tdd-order-unproven"]

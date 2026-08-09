@@ -76,6 +76,8 @@ def _assert_command_contract(workflow: dict[str, object]) -> None:
         "--plan-output artifacts/requirements-evidence/requirements-evidence-plan.json",
         '--review-evidence "$review_evidence"',
         "python scripts/requirements_proof_executor.py",
+        'if [[ "$execution_exit" -ne 0 ]]; then',
+        'write_failure_reports "Requirements proof executor exited with status $execution_exit."',
         "--junit artifacts/requirements-evidence/requirements-proof.xml",
         "python scripts/requirements_proof_provenance.py",
         '--base-ref "origin/${EVIDENCE_BASE_BRANCH}"',

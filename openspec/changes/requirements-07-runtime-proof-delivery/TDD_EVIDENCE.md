@@ -852,6 +852,23 @@
 - **Proof:** workflow, staged maturity, and red-proof provenance now classify
   executable repository tooling consistently as production behavior.
 
+## Promotion provenance-binding review remediation
+
+- **Recorded:** 2026-08-09 (UTC)
+- **Failing-before command:** `uv run --python 3.12 --locked --extra dev python -m pytest -q tests/unit/scripts/test_requirements_proof_provenance.py -k 'requires_every_execution_binding or rejects_test_digest'`
+- **Failing result:** 5 tests failed as expected because retained red proof did
+  not require source-tree, merge-base, selected-test digest, or toolchain
+  bindings and did not compare the test digest with committed source bytes.
+- **Passing-after command:** `uv run --python 3.12 --locked --extra dev python -m pytest -q tests/unit/scripts/test_requirements_proof_provenance.py tests/unit/scripts/test_requirements_evidence_delivery_gate.py tests/unit/scripts/test_requirements_evidence_pre_commit.py tests/unit/workflows/test_requirements_evidence_delivery_workflow.py`
+- **Passing result:** 50 tests passed and 4 fixture-dependent tests skipped.
+- **Proof:** core now validates mapping and plan digests, the exact source tree
+  and merge base, complete selected-test digests against Git blob bytes, the
+  retained failing JUnit digest and selectors, and structured toolchain
+  identity before forwarding red proof. Executor infrastructure failures also
+  remain failures even when a partial JUnit file exists, staged change-ID
+  writes and sorting fail closed, and fixture-tree mismatch coverage now uses a
+  valid lock attestation with a distinct checked-out tree.
+
 ## Index-bound staged acceptance remediation
 
 - **Recorded:** 2026-08-09 (UTC)

@@ -495,11 +495,21 @@ staged_active_change_ids() {
         ;;
       openspec/changes/*/*)
         relative_path="${file#openspec/changes/}"
-        printf '%s\n' "${relative_path%%/*}" >>"${change_ids_file}"
+        if ! printf '%s\n' "${relative_path%%/*}" >>"${change_ids_file}"; then
+          error "Unable to retain staged change identifiers"
+          rm -f "${change_ids_file}"
+          printf '%s\n' "${STAGED_PATH_ERROR}"
+          return 1
+        fi
         ;;
     esac
   done < <(staged_evidence_paths)
-  sort -u "${change_ids_file}"
+  if ! sort -u "${change_ids_file}"; then
+    error "Unable to sort staged change identifiers"
+    rm -f "${change_ids_file}"
+    printf '%s\n' "${STAGED_PATH_ERROR}"
+    return 1
+  fi
   rm -f "${change_ids_file}"
 }
 

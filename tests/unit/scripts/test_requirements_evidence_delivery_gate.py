@@ -133,6 +133,23 @@ def test_verified_fixture_requires_exact_released_identity_and_clean_tree(tmp_pa
             ),
         )
 
+    with pytest.raises(ValueError, match="tree does not match its attestation"):  # type: ignore[reportUnknownMemberType]
+        module.verify_fixture(
+            {
+                "repository": "nold-ai/specfact-cli-modules",
+                "commit": APPROVED_MODULE_COMMIT,
+                "tree": APPROVED_MODULE_TREE,
+            },
+            tmp_path,
+            git_runner=lambda arguments: (
+                APPROVED_MODULE_COMMIT
+                if arguments[-2:] == ["rev-parse", "HEAD"]
+                else "0" * 40
+                if arguments[-2:] == ["rev-parse", "HEAD^{tree}"]
+                else ""
+            ),
+        )
+
 
 def test_fixture_git_lookup_ignores_commit_hook_worktree_environment(monkeypatch: pytest.MonkeyPatch) -> None:
     """The supplied fixture path must win over Git's commit-hook environment."""
