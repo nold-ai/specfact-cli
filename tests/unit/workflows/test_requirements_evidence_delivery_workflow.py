@@ -137,11 +137,10 @@ def _assert_retention_contract(workflow: dict[str, object]) -> None:
     )
 
 
-def _assert_prior_red_artifact_contract(workflow: dict[str, object]) -> None:
-    """A later PR run must consume authenticated red evidence outside its checkout."""
+def _assert_prior_red_download_contract(workflow: dict[str, object]) -> None:
+    """A later PR run must download red evidence from an eligible prior run."""
     locate = _step_by_name(workflow, "Locate retained red proof run")
     download = _step_by_name(workflow, "Download retained red proof")
-    run_evidence = _step_by_name(workflow, "Run Requirements evidence gate")
     checkout = _step_by_name(workflow, "Checkout")
     assert workflow["permissions"]["actions"] == "read"  # type: ignore[index]
     assert checkout["with"]["ref"] == "${{ github.event.pull_request.head.sha || github.sha }}"  # type: ignore[index]
@@ -155,6 +154,12 @@ def _assert_prior_red_artifact_contract(workflow: dict[str, object]) -> None:
     assert _step_index(workflow, "Download retained red proof") < _step_index(
         workflow, "Run Requirements evidence gate"
     )
+
+
+def _assert_prior_red_artifact_contract(workflow: dict[str, object]) -> None:
+    """The evidence gate must bind downloaded red proof to the checked-out source."""
+    _assert_prior_red_download_contract(workflow)
+    run_evidence = _step_by_name(workflow, "Run Requirements evidence gate")
     assert 'candidate_red_proof="${RUNNER_TEMP}/prior-red-proof/red.json"' in run_evidence["run"]  # type: ignore[index]
     assert run_evidence["env"]["EVIDENCE_FINAL_REF"] == "${{ github.event.pull_request.head.sha || github.sha }}"  # type: ignore[index]
     assert '--source-ref "$EVIDENCE_FINAL_REF"' in run_evidence["run"]  # type: ignore[index]

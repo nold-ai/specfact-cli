@@ -977,3 +977,16 @@
 - **Requirements assignment:** no mapping delta was required. The remediation
   makes the existing two-phase red/final proof and Git-bound source scenarios
   executable in GitHub Actions without changing their contract.
+
+## Promotion clean-code gate remediation
+
+- **Recorded:** 2026-08-09 (UTC)
+- **Failing-before command:** `SPECFACT_MODULES_REPO=/tmp/modules665 SPECFACT_MODULES_ROOTS=/tmp/modules665/packages uv run --locked --no-sync specfact code review run <changed-python-paths> --include-tests --enforcement full --json --out /tmp/code-review.json --requirements-evidence /tmp/final.json`
+- **Failing result:** the full review gate reported one blocking `CC16` finding
+  for the retained-red workflow contract helper and one `CC13` warning for the
+  fixture verifier.
+- **Remediation:** separated Git diagnostic normalization from fixture policy
+  checks and separated prior-run download assertions from proof/source binding
+  assertions without changing either contract.
+- **Requirements assignment:** no mapping delta was required because this is a
+  behavior-preserving clean-code remediation of already mapped delivery gates.

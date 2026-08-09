@@ -97,6 +97,14 @@ def _write_failure_reports(request: EvidenceRequest, message: str) -> None:
         pass
 
 
+def _fixture_git_value(fixture_root: Path, arguments: list[str], *, git_runner: GitRunner) -> str:
+    """Read one fixture Git value while preserving the gate's diagnostic boundary."""
+    try:
+        return git_runner(["git", "-C", str(fixture_root), *arguments]).strip()
+    except (OSError, subprocess.SubprocessError) as error:
+        raise ValueError(f"Cannot verify pinned module fixture: {fixture_root}") from error
+
+
 @beartype
 @ensure(lambda result: result is None)
 def verify_fixture(fixture: Mapping[str, object], fixture_root: Path, *, git_runner: GitRunner = _git_head) -> None:
@@ -114,23 +122,11 @@ def verify_fixture(fixture: Mapping[str, object], fixture_root: Path, *, git_run
         raise ValueError("Module fixture must use approved tree attestation")
     if not fixture_root.is_dir():
         raise ValueError(f"Pinned module fixture is unavailable: {fixture_root}")
-    try:
-        actual = git_runner(["git", "-C", str(fixture_root), "rev-parse", "HEAD"])
-    except (OSError, subprocess.SubprocessError) as error:
-        raise ValueError(f"Cannot verify pinned module fixture: {fixture_root}") from error
-    if actual.strip() != commit:
+    if _fixture_git_value(fixture_root, ["rev-parse", "HEAD"], git_runner=git_runner) != commit:
         raise ValueError("Pinned module fixture HEAD does not match ci/module-fixture.lock.json")
-    try:
-        actual_tree = git_runner(["git", "-C", str(fixture_root), "rev-parse", "HEAD^{tree}"])
-    except (OSError, subprocess.SubprocessError) as error:
-        raise ValueError(f"Cannot verify pinned module fixture: {fixture_root}") from error
-    if actual_tree.strip() != tree:
+    if _fixture_git_value(fixture_root, ["rev-parse", "HEAD^{tree}"], git_runner=git_runner) != tree:
         raise ValueError("Pinned module fixture tree does not match its attestation")
-    try:
-        dirty = git_runner(["git", "-C", str(fixture_root), "status", "--porcelain", "--untracked-files=all"])
-    except (OSError, subprocess.SubprocessError) as error:
-        raise ValueError(f"Cannot verify pinned module fixture: {fixture_root}") from error
-    if dirty.strip():
+    if _fixture_git_value(fixture_root, ["status", "--porcelain", "--untracked-files=all"], git_runner=git_runner):
         raise ValueError("Pinned module fixture must be clean")
 
 
