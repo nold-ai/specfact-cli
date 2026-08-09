@@ -34,7 +34,8 @@ class GateModule(Protocol):
     EvidenceRequest: Callable[..., CapturedRequest]
     subprocess: ModuleType
 
-    def _git_head(self, arguments: list[str]) -> str: ...
+    def _git_head(self, arguments: list[str]) -> str:
+        raise NotImplementedError
 
     def verify_fixture(self, fixture: dict[str, object], fixture_root: Path, *, git_runner: Callable[..., str]) -> None:
         pass

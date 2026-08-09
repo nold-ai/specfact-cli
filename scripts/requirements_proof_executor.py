@@ -39,7 +39,8 @@ PROOF_ENVIRONMENT_KEYS = frozenset(
 class CommandRunner(Protocol):
     """Typed subprocess seam for unit testing the no-shell invocation."""
 
-    def __call__(self, request: ProofCommand) -> int: ...
+    def __call__(self, request: ProofCommand) -> int:
+        raise NotImplementedError
 
 
 @dataclass(frozen=True)

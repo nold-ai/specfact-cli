@@ -20,9 +20,11 @@ pytest_runtime = cast(Any, pytest)
 class MonkeyPatch(Protocol):
     """Typed subset of pytest's fixture used by these executor contracts."""
 
-    def setenv(self, name: str, value: str) -> None: ...
+    def setenv(self, name: str, value: str) -> None:
+        raise NotImplementedError
 
-    def setattr(self, target: object, name: str, value: object) -> None: ...
+    def setattr(self, target: object, name: str, value: object) -> None:
+        raise NotImplementedError
 
 
 class ProofCommand(Protocol):

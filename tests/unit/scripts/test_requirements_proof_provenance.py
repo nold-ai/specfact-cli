@@ -21,7 +21,8 @@ class ProvenanceModule(Protocol):
 
     def validate_prior_red_proof(
         self, red_proof_path: Path, repo_root: Path, *, base_ref: str, final_ref: str
-    ) -> list[str]: ...
+    ) -> list[str]:
+        raise NotImplementedError
 
 
 def _load_provenance_module() -> ProvenanceModule:
