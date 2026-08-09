@@ -104,17 +104,13 @@ jobs:
             if ! gh run download "$run_id" --name requirements-evidence --dir "$candidate_dir"; then
               continue
             fi
-            if ! python3 - "$candidate_dir/requirements-evidence.json" <<'PY'
-          import json
-          import sys
-          from pathlib import Path
-
-          report = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
-          execution_proof = report.get("execution_proof")
-          if not isinstance(execution_proof, dict) or execution_proof.get("run_stage") != "red":
-              raise SystemExit(1)
-          PY
-            then
+            if ! mv "$candidate_dir/requirements-evidence.json" "$candidate_dir/red.json" \
+              || ! mv "$candidate_dir/requirements-proof.xml" "$candidate_dir/red.xml" \
+              || ! python scripts/requirements_proof_provenance.py \
+                --prior-red-proof "$candidate_dir/red.json" \
+                --repo-root . \
+                --base-ref "origin/${GITHUB_BASE_REF}" \
+                --final-ref "$current_head"; then
               continue
             fi
             printf 'run-id=%s\n' "$run_id" >> "$GITHUB_OUTPUT"

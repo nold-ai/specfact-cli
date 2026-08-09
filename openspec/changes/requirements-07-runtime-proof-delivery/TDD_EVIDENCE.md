@@ -1016,3 +1016,30 @@
 - **Follow-up review:** provenance now resolves symbolic base refs before strict
   source ordering and evaluates merge commits relative to their updated-base
   parent so imported base changes are not misclassified as branch production.
+
+## Retained-run candidate authentication review remediation
+
+- **Recorded:** 2026-08-09 (UTC)
+- **Local review baseline:** `origin/main...origin/dev` at `e670ba7`.
+- **Finding:** retained-run discovery accepted the first artifact that merely
+  declared `run_stage: red`; an invalid newer artifact prevented discovery from
+  continuing to an older, fully authenticated red proof.
+- **Failing-before command:** `hatch run python -m pytest -q tests/unit/workflows/test_requirements_evidence_delivery_workflow.py::test_requirements_evidence_workflow_uses_the_released_fixture_and_retains_reports`
+- **Failing result:** 1 test failed because candidate discovery did not invoke
+  the Git-bound provenance validator before selecting a run.
+- **Passing-after command:** `hatch run python -m pytest -q tests/unit/workflows/test_requirements_evidence_delivery_workflow.py tests/unit/scripts/test_requirements_proof_provenance.py`
+- **Passing result:** 27 tests passed. Discovery now selects a run only after
+  its retained JSON/JUnit pair passes the same source, ancestry, digest, and
+  history validation enforced during final reconciliation.
+- **Requirements assignment:** the existing stale-red rejection scenario now
+  explicitly requires invalid candidates to be skipped while older eligible
+  runs remain discoverable; no new requirement surface was added.
+- **Internal wiki follow-up:** the sibling `specfact-cli-internal` checkout was
+  unavailable. Update `wiki/sources/requirements-07-runtime-proof-delivery.md`
+  and run `python3 scripts/wiki_rebuild_graph.py` from that repository root.
+- **Review exceptions:** the focused SpecFact review reported two pre-existing
+  BasedPyright warnings on `pytest.mark.parametrize` at line 338 and one
+  informational length heuristic on the unchanged `_assert_command_contract`
+  helper. They are outside this patch; the helper's explicit fragments preserve
+  readable workflow-domain evidence, and repository-wide type-checking retains
+  those pytest typing warnings without errors.

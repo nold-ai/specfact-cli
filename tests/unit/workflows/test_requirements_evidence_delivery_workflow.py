@@ -148,7 +148,12 @@ def _assert_prior_red_run_selection(locate: dict[str, object]) -> None:
         '[[ "$head_sha" != "$current_head" ]]',
         'git merge-base --is-ancestor "origin/${GITHUB_BASE_REF}" "$head_sha"',
         'git merge-base --is-ancestor "$head_sha" "$current_head"',
-        'execution_proof.get("run_stage") != "red"',
+        'mv "$candidate_dir/requirements-evidence.json" "$candidate_dir/red.json"',
+        'mv "$candidate_dir/requirements-proof.xml" "$candidate_dir/red.xml"',
+        "python scripts/requirements_proof_provenance.py",
+        '--prior-red-proof "$candidate_dir/red.json"',
+        '--base-ref "origin/${GITHUB_BASE_REF}"',
+        '--final-ref "$current_head"',
         "continue",
     )
     assert all(fragment in command for fragment in required_fragments)
