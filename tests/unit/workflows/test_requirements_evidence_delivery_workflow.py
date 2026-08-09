@@ -252,6 +252,17 @@ def test_requirements_evidence_workflow_splits_rename_endpoints_before_maturity(
     assert 'changed_paths+=("$destination_path")' in command
 
 
+def test_requirements_evidence_workflow_fails_when_executor_omits_junit() -> None:
+    """Missing execution proof must fail even when the executor returned zero."""
+    command = _run_evidence_command()
+    missing_junit_branch = command.split(
+        "if [[ ! -s artifacts/requirements-evidence/requirements-proof.xml ]]; then", maxsplit=1
+    )[1].split("else", maxsplit=1)[0]
+
+    assert "exit_code=1" in missing_junit_branch
+    assert 'exit_code="${execution_exit:-1}"' not in missing_junit_branch
+
+
 def test_requirements_evidence_workflow_ignores_archived_review_evidence() -> None:
     """Only active change records may supply CI planning and reconciliation evidence."""
     command = _run_evidence_command()

@@ -270,7 +270,7 @@ jobs:
             set -e
             if [[ ! -s artifacts/requirements-evidence/requirements-proof.xml ]]; then
               write_failure_reports "Requirements proof executor exited with status $execution_exit before writing JUnit."
-              exit_code="${execution_exit:-1}"
+              exit_code=1
             else
               rm -f artifacts/requirements-evidence/requirements-evidence.json artifacts/requirements-evidence/requirements-evidence.md
               failure_diagnostic="Requirements proof reconciliation exited with status $execution_exit before writing reports."

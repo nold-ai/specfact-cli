@@ -132,6 +132,32 @@ def test_git_bound_red_proof_requires_test_only_ancestor_and_unchanged_selector_
     ]
 
 
+@pytest.mark.parametrize("support_path", ["conftest.py", "tests/conftest.py"])
+def test_git_bound_red_proof_rejects_changed_applicable_conftest(tmp_path: Path, support_path: str) -> None:
+    """A fixture or hook change must invalidate an earlier selected-test failure."""
+    module = _load_provenance_module()
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    conftest_path = tmp_path / support_path
+    conftest_path.parent.mkdir(parents=True, exist_ok=True)
+    conftest_path.write_text("VALUE = 'red'\n", encoding="utf-8")
+    base_ref = _commit(tmp_path, "test: add pytest support")
+    test_path = tmp_path / "tests" / "test_proof.py"
+    test_path.parent.mkdir(exist_ok=True)
+    test_path.write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+
+    conftest_path.write_text("VALUE = 'green'\n", encoding="utf-8")
+    final_ref = _commit(tmp_path, "fix: change pytest support")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
+        "stale-red-proof"
+    ]
+
+
 def test_git_bound_red_proof_rejects_base_commit_as_red_source(tmp_path: Path) -> None:
     """The red source must be a new test-only commit after the pull-request base."""
     module = _load_provenance_module()
