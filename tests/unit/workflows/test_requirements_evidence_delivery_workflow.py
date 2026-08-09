@@ -58,6 +58,7 @@ def _assert_command_contract(workflow: dict[str, object]) -> None:
         "required_maturity=test-authored",
         "pyproject.toml|setup.py|uv.lock|requirements/ci/locked.txt",
         "resources/templates/*|resources/schemas/*|resources/mappings/*|resources/keys/*|modules/bundle-mapper/*",
+        ".github/*|ci/*|scripts/*|src/*|tools/*",
         "planning_maturity=test-authored",
         '--required-maturity "$planning_maturity"',
         'review_evidence="openspec/changes/${selected_change}/requirements-proof/review-evidence.json"',

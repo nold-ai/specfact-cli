@@ -553,3 +553,4 @@ def test_pre_commit_treats_delivery_inputs_as_production() -> None:
         "resources/templates/*|resources/schemas/*|resources/mappings/*|resources/keys/*|modules/bundle-mapper/*"
         in pre_commit
     )
+    assert ".github/*|ci/*|scripts/*|src/*|tools/*" in pre_commit

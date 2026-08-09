@@ -179,6 +179,7 @@ def test_git_bound_red_proof_rejects_governed_path_with_tab(tmp_path: Path) -> N
         "resources/mappings/proof.yaml",
         "resources/keys/proof.pub",
         "modules/bundle-mapper/module-package.yaml",
+        "tools/proof_runner.py",
     ],
 )
 def test_git_bound_red_proof_rejects_delivery_input_before_red(tmp_path: Path, delivery_path: str) -> None:

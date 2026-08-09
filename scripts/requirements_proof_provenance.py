@@ -21,6 +21,7 @@ GOVERNED_PRODUCTION_PREFIXES = (
     "ci/",
     "scripts/",
     "src/",
+    "tools/",
     "resources/templates/",
     "resources/schemas/",
     "resources/mappings/",

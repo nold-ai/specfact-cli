@@ -840,3 +840,14 @@
   force-included asset path as production. Staged change collection retains the
   Bash 3.2-compatible read loop required by the repository portability test and
   no longer uses `mapfile`.
+
+## Tooling production-classification review remediation
+
+- **Recorded:** 2026-08-09 (UTC)
+- **Failing-before command:** `uv run --python 3.12 --locked --extra dev python -m pytest -q tests/unit/workflows/test_requirements_evidence_delivery_workflow.py::test_requirements_evidence_workflow_uses_the_released_fixture_and_retains_reports tests/unit/scripts/test_requirements_evidence_delivery_gate.py::test_pre_commit_treats_delivery_inputs_as_production 'tests/unit/scripts/test_requirements_proof_provenance.py::test_git_bound_red_proof_rejects_delivery_input_before_red[tools/proof_runner.py]'`
+- **Failing result:** 2 failed and 1 passed; CI and provenance omitted
+  executable `tools/` behavior.
+- **Passing-after command:** `uv run --python 3.11 --locked --extra dev python -m pytest -q tests/unit/workflows/test_requirements_evidence_delivery_workflow.py::test_requirements_evidence_workflow_uses_the_released_fixture_and_retains_reports tests/unit/scripts/test_requirements_evidence_delivery_gate.py::test_pre_commit_treats_delivery_inputs_as_production 'tests/unit/scripts/test_requirements_proof_provenance.py::test_git_bound_red_proof_rejects_delivery_input_before_red[tools/proof_runner.py]'`
+- **Passing result:** 3 tests passed on Python 3.11.
+- **Proof:** workflow, staged maturity, and red-proof provenance now classify
+  executable repository tooling consistently as production behavior.
