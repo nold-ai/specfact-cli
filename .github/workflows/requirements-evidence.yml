@@ -5,11 +5,6 @@ name: Requirements Evidence
 on:
   pull_request:
     branches: [main, dev]
-    paths:
-      - "openspec/changes/**"
-      - "ci/module-fixture.lock.json"
-      - "scripts/requirements_evidence_delivery_gate.py"
-      - ".github/workflows/requirements-evidence.yml"
   workflow_dispatch:
     inputs:
       base_branch:
@@ -19,6 +14,7 @@ on:
         type: string
 
 permissions:
+  actions: read
   contents: read
 
 jobs:
@@ -29,6 +25,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
           persist-credentials: false
 
@@ -39,13 +36,18 @@ jobs:
           set -euo pipefail
           repository="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["repository"])')"
           commit="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["commit"])')"
-          approved_commit="2438372f8e34c96d4e474afa4c66c92a9cee7979"
+          tree="$(python -c 'import json; print(json.load(open("ci/module-fixture.lock.json", encoding="utf-8"))["tree"])')"
+          approved_commit="69f075819be5e1ceca1446b026b0417f19e584ca"
           [[ "$repository" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]
           test "$repository" = "nold-ai/specfact-cli-modules"
           [[ "$commit" =~ ^[0-9a-f]{40}$ ]]
           test "$commit" = "$approved_commit"
-          printf 'repository=%s\n' "$repository" >> "$GITHUB_OUTPUT"
-          printf 'commit=%s\n' "$commit" >> "$GITHUB_OUTPUT"
+          test "$tree" = "5d0b8e66c6cd467e6b1ad9d582e24c66b907e205"
+          {
+            printf 'repository=%s\n' "$repository"
+            printf 'commit=%s\n' "$commit"
+            printf 'tree=%s\n' "$tree"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Checkout module bundles repo
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
@@ -64,6 +66,8 @@ jobs:
           test "$expected_repository" = "${{ steps.modules-fixture.outputs.repository }}"
           actual="$(git -C specfact-cli-modules rev-parse HEAD)"
           test "$actual" = "$expected"
+          actual_tree="$(git -C specfact-cli-modules rev-parse 'HEAD^{tree}')"
+          test "$actual_tree" = "${{ steps.modules-fixture.outputs.tree }}"
 
       - name: Export verified module fixture paths
         run: |
@@ -81,28 +85,292 @@ jobs:
       - name: Prepare Requirements evidence artifact directory
         run: mkdir -p artifacts/requirements-evidence
 
+      - name: Locate retained red proof run
+        id: prior-red-run
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          current_head="$(git rev-parse HEAD)"
+          while IFS=$'\t' read -r run_id head_sha; do
+            [[ -n "$run_id" && -n "$head_sha" ]] || continue
+            [[ "$head_sha" != "$current_head" ]] || continue
+            git merge-base --is-ancestor "origin/${GITHUB_BASE_REF}" "$head_sha" || continue
+            git merge-base --is-ancestor "$head_sha" "$current_head" || continue
+            candidate_dir="${RUNNER_TEMP}/prior-red-candidate"
+            rm -rf "$candidate_dir"
+            if ! gh run download "$run_id" --name requirements-evidence --dir "$candidate_dir"; then
+              continue
+            fi
+            if ! mv "$candidate_dir/requirements-evidence.json" "$candidate_dir/red.json" \
+              || ! mv "$candidate_dir/requirements-proof.xml" "$candidate_dir/red.xml" \
+              || ! python scripts/requirements_proof_provenance.py \
+                --prior-red-proof "$candidate_dir/red.json" \
+                --repo-root . \
+                --base-ref "origin/${GITHUB_BASE_REF}" \
+                --final-ref "$current_head"; then
+              continue
+            fi
+            printf 'run-id=%s\n' "$run_id" >> "$GITHUB_OUTPUT"
+            break
+          done < <(
+            gh api --method GET --paginate \
+              "repos/${GITHUB_REPOSITORY}/actions/workflows/requirements-evidence.yml/runs" \
+              -f branch="$GITHUB_HEAD_REF" \
+              -f event=pull_request \
+              -f status=completed \
+              -f per_page=100 \
+              --jq '.workflow_runs[] | [.id, .head_sha] | @tsv'
+          )
+
+      - name: Download retained red proof
+        if: steps.prior-red-run.outputs.run-id != ''
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: requirements-evidence
+          path: ${{ runner.temp }}/prior-red-download
+          github-token: ${{ github.token }}
+          run-id: ${{ steps.prior-red-run.outputs.run-id }}
+
+      - name: Prepare retained red proof
+        if: steps.prior-red-run.outputs.run-id != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          download_root="${RUNNER_TEMP}/prior-red-download"
+          proof_root="${RUNNER_TEMP}/prior-red-proof"
+          report="${download_root}/requirements-evidence.json"
+          junit="${download_root}/requirements-proof.xml"
+          if [[ -s "$report" && -s "$junit" ]]; then
+            mkdir -p "$proof_root"
+            cp "$report" "${proof_root}/red.json"
+            cp "$junit" "${proof_root}/red.xml"
+          fi
+
       - name: Run Requirements evidence gate
         id: run-evidence
         continue-on-error: true
         env:
           EVIDENCE_BASE_BRANCH: ${{ github.event_name == 'pull_request' && github.base_ref || inputs.base_branch || github.event.repository.default_branch }}
+          EVIDENCE_FINAL_REF: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
-          set +e
-          [[ "$EVIDENCE_BASE_BRANCH" =~ ^[A-Za-z0-9._/-]+$ ]]
-          uv run --locked --no-sync specfact requirements evidence \
+          set -e
+          write_failure_reports() {
+            DIAGNOSTIC="$1" python3 -c 'import json, os; from pathlib import Path; report_directory = Path("artifacts/requirements-evidence"); diagnostic = os.environ["DIAGNOSTIC"]; (report_directory / "requirements-evidence.json").write_text(json.dumps({"schema_version": 1, "verdict": "failed", "diagnostic": diagnostic}) + "\n", encoding="utf-8"); (report_directory / "requirements-evidence.md").write_text(f"## Requirements evidence unavailable\n\n- Diagnostic: {diagnostic}\n", encoding="utf-8")'
+          }
+          if [[ ! "$EVIDENCE_BASE_BRANCH" =~ ^[A-Za-z0-9._/-]+$ ]]; then
+            write_failure_reports "Invalid evidence base branch: $EVIDENCE_BASE_BRANCH"
+            printf 'Invalid evidence base branch: %s\n' "$EVIDENCE_BASE_BRANCH" >&2
+            exit 1
+          fi
+          required_maturity=planned
+          changed_status_file="${RUNNER_TEMP}/requirements-evidence-changed-status.z"
+          if ! git diff --name-status -z --find-renames "origin/${EVIDENCE_BASE_BRANCH}...HEAD" > "$changed_status_file"; then
+            write_failure_reports "Unable to derive changed paths for $EVIDENCE_BASE_BRANCH"
+            printf 'Unable to derive changed paths for %s\n' "$EVIDENCE_BASE_BRANCH" >&2
+            exit 1
+          fi
+          changed_paths=()
+          while IFS= read -r -d '' status; do
+            if ! IFS= read -r -d '' source_path; then
+              write_failure_reports "Unable to parse changed paths for $EVIDENCE_BASE_BRANCH"
+              exit 1
+            fi
+            changed_paths+=("$source_path")
+            case "$status" in
+              R*|C*)
+                if ! IFS= read -r -d '' destination_path; then
+                  write_failure_reports "Unable to parse changed paths for $EVIDENCE_BASE_BRANCH"
+                  exit 1
+                fi
+                changed_paths+=("$destination_path")
+                ;;
+            esac
+          done < "$changed_status_file"
+          rm -f "$changed_status_file"
+          for changed_path in "${changed_paths[@]}"; do
+            case "$changed_path" in
+              .github/*|ci/*|scripts/*|src/*|tools/*|pyproject.toml|setup.py|uv.lock|requirements/ci/locked.txt|resources/templates/*|resources/schemas/*|resources/mappings/*|resources/keys/*|modules/bundle-mapper/*)
+                required_maturity=verified
+                break
+                ;;
+              tests/*)
+                required_maturity=test-authored
+                ;;
+            esac
+          done
+          planning_maturity="$required_maturity"
+          if [[ "$required_maturity" == "verified" ]]; then
+            planning_maturity=test-authored
+          fi
+          selected_change=""
+          declare -A changed_change_ids=()
+          for changed_path in "${changed_paths[@]}"; do
+            case "$changed_path" in
+              openspec/changes/archive/*)
+                ;;
+              openspec/changes/*/*)
+                relative_change_path="${changed_path#openspec/changes/}"
+                changed_change_ids["${relative_change_path%%/*}"]=1
+                ;;
+            esac
+          done
+          if [[ "${#changed_change_ids[@]}" -eq 1 ]]; then
+            for selected_change in "${!changed_change_ids[@]}"; do
+              :
+            done
+          fi
+          if [[ -z "$selected_change" ]]; then
+            mapfile -t active_review_evidence < <(
+              find openspec/changes -path 'openspec/changes/archive' -prune -o -path '*/requirements-proof/review-evidence.json' -type f -print | sort
+            )
+            if [[ "${#active_review_evidence[@]}" -eq 1 ]]; then
+              selected_change="${active_review_evidence[0]#openspec/changes/}"
+              selected_change="${selected_change%/requirements-proof/review-evidence.json}"
+            fi
+          fi
+          clean_environment=(env -i "HOME=${HOME:-}" "LANG=${LANG:-}" "LC_ALL=${LC_ALL:-}" "LC_CTYPE=${LC_CTYPE:-}" "PATH=${PATH:-}" "RUNNER_TEMP=${RUNNER_TEMP}" "SPECFACT_MODULES_REPO=${SPECFACT_MODULES_REPO}" "SPECFACT_MODULES_ROOTS=${SPECFACT_MODULES_ROOTS}")
+          evidence_arguments=(
+            "${clean_environment[@]}" uv run --locked --no-sync specfact requirements evidence
             --repo-root "$GITHUB_WORKSPACE" \
             --base-ref "origin/${EVIDENCE_BASE_BRANCH}" \
+            --required-maturity "$planning_maturity" \
+            --plan-output artifacts/requirements-evidence/requirements-evidence-plan.json \
             --output artifacts/requirements-evidence/requirements-evidence.json \
             --summary artifacts/requirements-evidence/requirements-evidence.md
+          )
+          prior_red_proof=""
+          if [[ -n "$selected_change" ]]; then
+            review_evidence="openspec/changes/${selected_change}/requirements-proof/review-evidence.json"
+            if [[ -f "$review_evidence" ]]; then
+              evidence_arguments+=(--review-evidence "$review_evidence")
+            fi
+            candidate_red_proof="${RUNNER_TEMP}/prior-red-proof/red.json"
+            if [[ -f "$candidate_red_proof" ]]; then
+              prior_red_proof="$candidate_red_proof"
+            fi
+          fi
+          set +e
+          "${evidence_arguments[@]}"
           exit_code=$?
           set -e
+          failure_diagnostic="Evidence command exited with status $exit_code before writing reports."
+          if [[ "$exit_code" -eq 0 && "$required_maturity" != "planned" ]]; then
+            run_stage=red
+            if [[ "$required_maturity" == "verified" ]]; then
+              run_stage=final
+            fi
+            set +e
+            python scripts/requirements_proof_executor.py \
+              --plan artifacts/requirements-evidence/requirements-evidence-plan.json \
+              --repo-root "$GITHUB_WORKSPACE" \
+              --junit artifacts/requirements-evidence/requirements-proof.xml
+            execution_exit=$?
+            set -e
+            if [[ ! -s artifacts/requirements-evidence/requirements-proof.xml ]]; then
+              write_failure_reports "Requirements proof executor exited with status $execution_exit before writing JUnit."
+              exit_code=1
+            else
+              rm -f artifacts/requirements-evidence/requirements-evidence.json artifacts/requirements-evidence/requirements-evidence.md
+              failure_diagnostic="Requirements proof reconciliation exited with status $execution_exit before writing reports."
+              reconciliation_arguments=(
+                "${clean_environment[@]}" uv run --locked --no-sync specfact requirements reconcile
+                --plan artifacts/requirements-evidence/requirements-evidence-plan.json \
+                --junit artifacts/requirements-evidence/requirements-proof.xml \
+                --run-stage "$run_stage" \
+                --source-ref "$EVIDENCE_FINAL_REF" \
+                --output artifacts/requirements-evidence/requirements-evidence.json \
+                --summary artifacts/requirements-evidence/requirements-evidence.md
+              )
+              if [[ "$run_stage" == "final" && -n "$prior_red_proof" ]]; then
+                if ! red_proof_findings="$(python scripts/requirements_proof_provenance.py \
+                  --prior-red-proof "$prior_red_proof" \
+                  --repo-root "$GITHUB_WORKSPACE" \
+                  --base-ref "origin/${EVIDENCE_BASE_BRANCH}" \
+                  --final-ref "$EVIDENCE_FINAL_REF" 2>&1)"; then
+                  write_failure_reports "Red proof provenance rejected: ${red_proof_findings:-tdd-order-unproven}"
+                  exit 1
+                fi
+                reconciliation_arguments+=(--prior-red-proof "$prior_red_proof")
+              elif [[ "$run_stage" == "final" && "$selected_change" == "requirements-07-runtime-proof-delivery" ]]; then
+                legacy_tdd_ledger="openspec/changes/${selected_change}/TDD_EVIDENCE.md"
+                legacy_tdd_line_count=692
+                legacy_tdd_ledger_digest="sha256:77c6ac82d1b5756f6099a83f282d0774ae7efa0cb87c45d6f00ec63945b78351"
+                legacy_tdd_mapping_digest="sha256:eccdf006792d8910c54a773e30967886063b4e30c99c180bc36d7372b1bbd9ef"
+                legacy_tdd_plan_digest="sha256:27ea6e6bcea0d68d68688b89fc8f89315d213b96918f4f76979484756fd8335e"
+                legacy_tdd_artifact="artifacts/requirements-evidence/approved-legacy-tdd-ledger.md"
+                legacy_tdd_evidence="artifacts/requirements-evidence/legacy-tdd-evidence.json"
+                if ! legacy_tdd_error="$(python3 - "$legacy_tdd_ledger" "$legacy_tdd_line_count" "$legacy_tdd_ledger_digest" "$legacy_tdd_artifact" "artifacts/requirements-evidence/requirements-evidence-plan.json" "$legacy_tdd_evidence" "$selected_change" "$legacy_tdd_mapping_digest" "$legacy_tdd_plan_digest" <<'PY'
+          import hashlib
+          import json
+          import sys
+          from pathlib import Path
+
+          ledger_path = Path(sys.argv[1])
+          approved_line_count = int(sys.argv[2])
+          approved_ledger_digest = sys.argv[3]
+          ledger_artifact = Path(sys.argv[4])
+          plan_path = Path(sys.argv[5])
+          output_path = Path(sys.argv[6])
+          change_id = sys.argv[7]
+          approved_mapping_digest = sys.argv[8]
+          approved_plan_digest = sys.argv[9]
+          ledger_lines = ledger_path.read_bytes().splitlines(keepends=True)
+          if len(ledger_lines) < approved_line_count:
+              raise ValueError("Approved legacy TDD ledger is incomplete")
+          ledger_bytes = b"".join(ledger_lines[:approved_line_count])
+          ledger_digest = f"sha256:{hashlib.sha256(ledger_bytes).hexdigest()}"
+          if ledger_digest != approved_ledger_digest:
+              raise ValueError("Approved legacy TDD ledger digest does not match")
+          ledger_artifact.write_bytes(ledger_bytes)
+          plan_report = json.loads(plan_path.read_text(encoding="utf-8"))
+          plan = plan_report.get("plan")
+          if not isinstance(plan, dict):
+              raise ValueError("Requirements evidence plan is missing")
+          mapping_digest = plan.get("mapping_digest")
+          plan_digest = plan.get("plan_digest")
+          if not isinstance(mapping_digest, str) or not isinstance(plan_digest, str):
+              raise ValueError("Requirements evidence plan lacks digest binding")
+          if mapping_digest != approved_mapping_digest or plan_digest != approved_plan_digest:
+              raise ValueError("Legacy TDD ledger does not cover the current Requirements evidence plan")
+          output_path.write_text(
+              json.dumps(
+                  {
+                      "schema_version": "1",
+                      "kind": "legacy-tdd-ledger",
+                      "change_id": change_id,
+                      "ledger_digest": ledger_digest,
+                      "mapping_digest": mapping_digest,
+                      "plan_digest": plan_digest,
+                  },
+                  sort_keys=True,
+              )
+              + "\n",
+              encoding="utf-8",
+          )
+          PY
+                )"; then
+                  write_failure_reports "Legacy TDD ledger binding rejected: ${legacy_tdd_error:-unknown error}"
+                  exit 1
+                fi
+                reconciliation_arguments+=(--legacy-tdd-evidence "$legacy_tdd_evidence")
+              fi
+              set +e
+              "${reconciliation_arguments[@]}"
+              exit_code=$?
+              set -e
+              failure_diagnostic="Requirements proof reconciliation exited with status $exit_code before writing reports."
+            fi
+          fi
           fallback_required=0
           if [[ ! -s artifacts/requirements-evidence/requirements-evidence.json ]]; then
-            printf '{"schema_version":1,"verdict":"failed","diagnostic":"Evidence command exited with status %s before writing JSON."}\n' "$exit_code" > artifacts/requirements-evidence/requirements-evidence.json
+            printf '{"schema_version":1,"verdict":"failed","diagnostic":"%s"}\n' "$failure_diagnostic" > artifacts/requirements-evidence/requirements-evidence.json
             fallback_required=1
           fi
           if [[ ! -s artifacts/requirements-evidence/requirements-evidence.md ]]; then
-            printf '## Requirements evidence unavailable\n\n- Diagnostic: Evidence command exited with status %s before writing Markdown.\n' "$exit_code" > artifacts/requirements-evidence/requirements-evidence.md
+            printf '## Requirements evidence unavailable\n\n- Diagnostic: %s\n' "$failure_diagnostic" > artifacts/requirements-evidence/requirements-evidence.md
             fallback_required=1
           fi
           if [[ "$fallback_required" -eq 1 ]]; then
@@ -117,6 +385,30 @@ jobs:
             cat artifacts/requirements-evidence/requirements-evidence.md >> "$GITHUB_STEP_SUMMARY"
           fi
 
+      - name: Run Code Review with finalized Requirements context
+        id: run-code-review
+        if: steps.run-evidence.outcome == 'success'
+        continue-on-error: true
+        env:
+          EVIDENCE_BASE_BRANCH: ${{ github.event_name == 'pull_request' && github.base_ref || inputs.base_branch || github.event.repository.default_branch }}
+        run: |
+          set -euo pipefail
+          review_paths=()
+          while IFS= read -r -d '' review_path; do
+            [[ -f "$review_path" ]] && review_paths+=("$review_path")
+          done < <(git diff --name-only -z "origin/${EVIDENCE_BASE_BRANCH}...HEAD" -- '*.py' '*.pyi')
+          if [[ "${#review_paths[@]}" -eq 0 ]]; then
+            printf 'No changed Python files require Code Review context.\n' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          uv run --locked --no-sync specfact code review run \
+            "${review_paths[@]}" \
+            --include-tests \
+            --enforcement full \
+            --json \
+            --out artifacts/requirements-evidence/code-review.json \
+            --requirements-evidence artifacts/requirements-evidence/requirements-evidence.json
+
       - name: Upload requirements evidence artifact
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
@@ -125,8 +417,13 @@ jobs:
           path: |
             artifacts/requirements-evidence/requirements-evidence.json
             artifacts/requirements-evidence/requirements-evidence.md
+            artifacts/requirements-evidence/requirements-evidence-plan.json
+            artifacts/requirements-evidence/requirements-proof.xml
+            artifacts/requirements-evidence/approved-legacy-tdd-ledger.md
+            artifacts/requirements-evidence/legacy-tdd-evidence.json
+            artifacts/requirements-evidence/code-review.json
           if-no-files-found: warn
 
       - name: Enforce requirements evidence verdict
-        if: steps.run-evidence.outcome == 'failure'
+        if: steps.run-evidence.outcome == 'failure' || steps.run-code-review.outcome == 'failure'
         run: exit 1

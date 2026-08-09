@@ -8,6 +8,7 @@ import hashlib
 import json
 import logging
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -23,6 +24,12 @@ from icontract import ensure
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+MODULE_VERSION_PATTERN = re.compile(
+    r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)"
+    r"(?:-((?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)"
+    r"(?:\.(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*))?"
+    r"(?:\+([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?$"
+)
 SRC_ROOT = REPO_ROOT / "src"
 if str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))
@@ -180,6 +187,29 @@ def _module_payload_for_checksum(package_dir: Path) -> bytes:
     return _module_artifact_payload_signed(package_dir)
 
 
+def _module_dependency_closure(modules_repo: Path) -> tuple[str, ...]:
+    """Return smoke roots and their manifest-declared bundle dependencies once each."""
+    from specfact_cli.registry.module_installer import _extract_bundle_dependency_specs
+
+    module_ids: list[str] = []
+    pending: list[str] = list(MODULE_IDS)
+    while pending:
+        module_id = pending.pop(0)
+        if module_id in module_ids:
+            continue
+        bundle_name = module_id.split("/", 1)[1]
+        manifest_path = modules_repo / "packages" / bundle_name / "module-package.yaml"
+        if not manifest_path.is_file():
+            raise RuntimeError(f"Required module manifest not found: {manifest_path}")
+        manifest = yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
+        if not isinstance(manifest, dict):
+            raise RuntimeError(f"Invalid module manifest: {manifest_path}")
+        manifest_data = cast(dict[str, Any], manifest)
+        module_ids.append(module_id)
+        pending.extend(dependency.module_id for dependency in _extract_bundle_dependency_specs(manifest_data))
+    return tuple(module_ids)
+
+
 def _build_local_registry(workspace: Path, modules_repo: Path) -> Path:
     registry = workspace / "local-registry"
     modules_dir = registry / "modules"
@@ -188,7 +218,7 @@ def _build_local_registry(workspace: Path, modules_repo: Path) -> Path:
     staging_dir.mkdir(parents=True)
     entries: list[dict[str, Any]] = []
 
-    for module_id in MODULE_IDS:
+    for module_id in _module_dependency_closure(modules_repo):
         bundle_name = module_id.split("/", 1)[1]
         source_dir = modules_repo / "packages" / bundle_name
         staged_dir = staging_dir / bundle_name
@@ -199,6 +229,9 @@ def _build_local_registry(workspace: Path, modules_repo: Path) -> Path:
         if not isinstance(manifest, dict):
             raise RuntimeError(f"Invalid module manifest: {manifest_path}")
         manifest_data = cast(dict[str, Any], manifest)
+        version = manifest_data.get("version")
+        if not isinstance(version, str) or MODULE_VERSION_PATTERN.fullmatch(version) is None:
+            raise RuntimeError(f"Invalid module version in {manifest_path}: {version!r}")
         manifest_data["integrity"] = {
             "checksum": f"sha256:{hashlib.sha256(_module_payload_for_checksum(staged_dir)).hexdigest()}"
         }

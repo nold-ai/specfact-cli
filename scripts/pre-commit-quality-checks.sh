@@ -18,6 +18,7 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m'
+STAGED_PATH_ERROR=$'\x01STAGED_PATH_ERROR'
 
 info() { echo -e "${BLUE}$*${NC}" >&2; }
 success() { echo -e "${GREEN}$*${NC}" >&2; }
@@ -48,6 +49,47 @@ print_block2_overview() {
 # check_safe_change() and Block 2 logic do not treat it as an empty / "safe" commit.
 staged_files() {
   git diff --cached --name-only --diff-filter=ACMRD
+}
+
+staged_evidence_paths() {
+  local status source_path destination_path staged_status_file staged_paths_file
+  staged_status_file="$(mktemp)" || {
+    printf '%s\0' "${STAGED_PATH_ERROR}"
+    return 1
+  }
+  staged_paths_file="$(mktemp)" || {
+    rm -f "${staged_status_file}"
+    printf '%s\0' "${STAGED_PATH_ERROR}"
+    return 1
+  }
+  if ! git diff --cached --name-status -z --find-renames --diff-filter=ACMRD >"${staged_status_file}"; then
+    error "Unable to read staged Git status"
+    rm -f "${staged_status_file}" "${staged_paths_file}"
+    printf '%s\0' "${STAGED_PATH_ERROR}"
+    return 1
+  fi
+  while IFS= read -r -d '' status; do
+    if ! IFS= read -r -d '' source_path; then
+      error "Unable to read staged source path for ${status}"
+      rm -f "${staged_status_file}" "${staged_paths_file}"
+      printf '%s\0' "${STAGED_PATH_ERROR}"
+      return 1
+    fi
+    printf '%s\0' "${source_path}" >>"${staged_paths_file}"
+    case "${status}" in
+      R*|C*)
+        if ! IFS= read -r -d '' destination_path; then
+          error "Unable to read staged destination path for ${status}"
+          rm -f "${staged_status_file}" "${staged_paths_file}"
+          printf '%s\0' "${STAGED_PATH_ERROR}"
+          return 1
+        fi
+        printf '%s\0' "${destination_path}" >>"${staged_paths_file}"
+        ;;
+    esac
+  done <"${staged_status_file}"
+  cat "${staged_paths_file}"
+  rm -f "${staged_status_file}" "${staged_paths_file}"
 }
 
 has_staged_yaml() {
@@ -395,37 +437,207 @@ run_lint_if_staged_python() {
   fi
 }
 
-has_staged_active_openspec_sources() {
-  local file
-  while IFS= read -r file || [[ -n "${file}" ]]; do
-    [[ -z "${file}" ]] && continue
+staged_required_maturity() {
+  local file maturity="planned"
+  while IFS= read -r -d '' file; do
+    if [[ "${file}" == "${STAGED_PATH_ERROR}" ]]; then
+      error "Unable to enumerate staged paths"
+      printf '%s\n' "${STAGED_PATH_ERROR}"
+      return 1
+    fi
     case "${file}" in
-      openspec/changes/archive/*) ;;
-      openspec/changes/*) return 0 ;;
+      .github/*|ci/*|scripts/*|src/*|tools/*|pyproject.toml|setup.py|uv.lock|requirements/ci/locked.txt|resources/templates/*|resources/schemas/*|resources/mappings/*|resources/keys/*|modules/bundle-mapper/*)
+        printf 'verified\n'
+        return 0
+        ;;
+      tests/*) maturity="test-authored" ;;
     esac
-  done < <(git diff --cached --name-only --diff-filter=ACMRD -- openspec/changes)
+  done < <(staged_evidence_paths)
+  printf '%s\n' "${maturity}"
+}
+
+staged_planning_maturity() {
+  # Pre-commit never runs the selected test plan or reconciles JUnit, so its
+  # strongest truthful evidence is an accepted, executable test plan.
+  case "$(staged_required_maturity)" in
+    verified) printf "test-authored\n" ;;
+    *) staged_required_maturity ;;
+  esac
+}
+
+has_staged_requirements_evidence_scope() {
+  local file
+  while IFS= read -r -d '' file; do
+    if [[ "${file}" == "${STAGED_PATH_ERROR}" ]]; then
+      error "Unable to enumerate staged paths"
+      return 2
+    fi
+    return 0
+  done < <(staged_evidence_paths)
   return 1
+}
+
+staged_active_change_ids() {
+  local file relative_path change_ids_file
+  change_ids_file="$(mktemp)" || {
+    printf '%s\n' "${STAGED_PATH_ERROR}"
+    return 1
+  }
+  while IFS= read -r -d '' file; do
+    if [[ "${file}" == "${STAGED_PATH_ERROR}" ]]; then
+      error "Unable to enumerate staged paths"
+      rm -f "${change_ids_file}"
+      printf '%s\n' "${STAGED_PATH_ERROR}"
+      return 1
+    fi
+    case "${file}" in
+      openspec/changes/archive/*)
+        ;;
+      openspec/changes/*/*)
+        relative_path="${file#openspec/changes/}"
+        if ! printf '%s\n' "${relative_path%%/*}" >>"${change_ids_file}"; then
+          error "Unable to retain staged change identifiers"
+          rm -f "${change_ids_file}"
+          printf '%s\n' "${STAGED_PATH_ERROR}"
+          return 1
+        fi
+        ;;
+    esac
+  done < <(staged_evidence_paths)
+  if ! sort -u "${change_ids_file}"; then
+    error "Unable to sort staged change identifiers"
+    rm -f "${change_ids_file}"
+    printf '%s\n' "${STAGED_PATH_ERROR}"
+    return 1
+  fi
+  rm -f "${change_ids_file}"
+}
+
+branch_active_change_ids() {
+  local base_ref="origin/dev" merge_base relative_path
+  git rev-parse --verify "${base_ref}" >/dev/null 2>&1 || base_ref="origin/main"
+  merge_base="$(git merge-base HEAD "${base_ref}")" || return 1
+  while IFS= read -r relative_path; do
+    case "${relative_path}" in
+      openspec/changes/archive/*) ;;
+      openspec/changes/*/*)
+        relative_path="${relative_path#openspec/changes/}"
+        printf '%s\n' "${relative_path%%/*}"
+        ;;
+    esac
+  done < <(git diff --name-only "${merge_base}...HEAD" -- openspec/changes)
+}
+
+require_index_bound_review_evidence() {
+  local review_evidence="$1"
+  local index_mode
+  index_mode="$(git ls-files --stage -- "${review_evidence}" | awk 'NR == 1 { print $1 }')"
+  if [[ "${index_mode}" != "100644" ]] || [[ -L "${review_evidence}" ]] || ! python - "${review_evidence}" <<'PY'
+import sys
+from pathlib import Path
+
+Path(sys.argv[1]).resolve().relative_to(Path.cwd().resolve())
+PY
+  then
+    error "❌ Block 2 — Review evidence must be a regular staged repository file: ${review_evidence}"
+    return 1
+  fi
+  if ! git cat-file -e ":${review_evidence}" 2>/dev/null || ! git diff --quiet -- "${review_evidence}"; then
+    error "❌ Block 2 — Review evidence must match the staged Git index: ${review_evidence}"
+    return 1
+  fi
 }
 
 run_requirements_evidence_gate() {
   local report_dir=".specfact/reports/requirements-evidence"
   local json_report="${report_dir}/requirements-evidence.json"
   local markdown_report="${report_dir}/requirements-evidence.md"
+  local plan_report="${report_dir}/requirements-evidence-plan.json"
+  local required_maturity
+  local review_evidence=""
+  local selected_change=""
+  local -a staged_change_ids=()
+  local -a review_evidence_candidates=()
+  local -a evidence_arguments=()
 
-  if ! has_staged_active_openspec_sources; then
-    info "📦 Block 2 — Requirements evidence — skipped (no staged active OpenSpec source)"
+  local scope_status=0
+  has_staged_requirements_evidence_scope || scope_status=$?
+  if [[ ${scope_status} -eq 2 ]]; then
+    exit 1
+  elif [[ ${scope_status} -ne 0 ]]; then
+    info "📦 Block 2 — Requirements evidence — skipped (no staged path)"
     return 0
   fi
 
   mkdir -p "${report_dir}"
+  rm -f "${json_report}" "${markdown_report}" "${plan_report}"
+  required_maturity="$(staged_planning_maturity)"
+  if [[ "${required_maturity}" == "${STAGED_PATH_ERROR}" ]]; then
+    exit 1
+  fi
+  if [[ "${required_maturity}" != "planned" ]]; then
+    while IFS= read -r selected_change || [[ -n "${selected_change}" ]]; do
+      [[ -z "${selected_change}" ]] && continue
+      staged_change_ids+=("${selected_change}")
+    done < <(staged_active_change_ids)
+    if [[ "${staged_change_ids[0]:-}" == "${STAGED_PATH_ERROR}" ]]; then
+      exit 1
+    fi
+    if [[ ${#staged_change_ids[@]} -gt 1 ]]; then
+      error "❌ Block 2 — Staged Requirements evidence spans multiple active changes"
+      exit 1
+    elif [[ ${#staged_change_ids[@]} -eq 1 ]]; then
+      selected_change="${staged_change_ids[0]}"
+      review_evidence="openspec/changes/${selected_change}/requirements-proof/review-evidence.json"
+      if [[ ! -f "${review_evidence}" ]]; then
+        error "❌ Block 2 — Staged change ${selected_change} has no review-evidence record for ${required_maturity} planning"
+        exit 1
+      fi
+    else
+      while IFS= read -r selected_change || [[ -n "${selected_change}" ]]; do
+        [[ -z "${selected_change}" ]] && continue
+        staged_change_ids+=("${selected_change}")
+      done < <(branch_active_change_ids | sort -u)
+      if [[ ${#staged_change_ids[@]} -gt 1 ]]; then
+        error "❌ Block 2 — Branch Requirements evidence spans multiple active changes"
+        exit 1
+      elif [[ ${#staged_change_ids[@]} -eq 1 ]]; then
+        selected_change="${staged_change_ids[0]}"
+        review_evidence="openspec/changes/${selected_change}/requirements-proof/review-evidence.json"
+      fi
+    fi
+    if [[ -z "${review_evidence}" ]]; then
+      while IFS= read -r candidate || [[ -n "${candidate}" ]]; do
+        [[ -z "${candidate}" ]] && continue
+        review_evidence_candidates+=("${candidate}")
+      done < <(find openspec/changes -path 'openspec/changes/archive' -prune -o -path '*/requirements-proof/review-evidence.json' -type f -print | sort)
+      if [[ ${#review_evidence_candidates[@]} -ne 1 ]]; then
+        error "❌ Block 2 — Requirements evidence needs exactly one active review-evidence record for ${required_maturity} planning"
+        exit 1
+      fi
+      review_evidence="${review_evidence_candidates[0]}"
+    fi
+    require_index_bound_review_evidence "${review_evidence}" || exit 1
+  fi
+  evidence_arguments=(
+    --repo-root .
+    --staged
+    --required-maturity "${required_maturity}"
+    --output "${json_report}"
+    --summary "${markdown_report}"
+  )
+  if [[ -n "${review_evidence}" ]]; then
+    evidence_arguments+=(--review-evidence "${review_evidence}" --plan-output "${plan_report}")
+  fi
   info "📦 Block 2 — Requirements evidence — running released pinned fixture"
   if hatch run python scripts/requirements_evidence_delivery_gate.py \
-    --repo-root . \
-    --staged \
-    --output "${json_report}" \
-    --summary "${markdown_report}"; then
+    "${evidence_arguments[@]}"; then
     if [[ ! -s "${json_report}" || ! -s "${markdown_report}" ]]; then
       error "❌ Block 2 — Requirements evidence did not produce both remediation reports"
+      exit 1
+    fi
+    if [[ -n "${review_evidence}" && ! -s "${plan_report}" ]]; then
+      error "❌ Block 2 — Requirements evidence did not produce the required test plan"
       exit 1
     fi
     success "✅ Block 2 — Requirements evidence passed (${json_report}; ${markdown_report})"

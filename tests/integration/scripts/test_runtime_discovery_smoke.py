@@ -7,9 +7,27 @@ import sys
 from pathlib import Path
 
 import pytest
+import yaml
 
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
+
+
+def _write_module_manifest(modules_repo: Path, bundle_name: str, dependencies: list[str] | None = None) -> None:
+    package_dir = modules_repo / "packages" / bundle_name
+    package_dir.mkdir(parents=True, exist_ok=True)
+    manifest: dict[str, object] = {
+        "name": bundle_name,
+        "version": "0.1.0",
+        "commands": [],
+        "core_compatibility": ">=0.1.0,<1.0.0",
+    }
+    if dependencies:
+        manifest["bundle_dependencies"] = dependencies
+    (package_dir / "module-package.yaml").write_text(
+        yaml.safe_dump(manifest, sort_keys=False),
+        encoding="utf-8",
+    )
 
 
 def _resolve_modules_repo() -> Path | None:
@@ -60,6 +78,71 @@ def test_runtime_discovery_smoke_direct_launcher() -> None:
 
     assert result.returncode == 0, result.stdout
     assert "runtime-discovery smoke passed for launcher=direct" in result.stdout
+
+
+def test_local_runtime_registry_includes_transitive_bundle_dependencies(tmp_path: Path) -> None:
+    import scripts.runtime_discovery_smoke as smoke
+
+    modules_repo = tmp_path / "modules"
+    for module_id in smoke.MODULE_IDS:
+        _write_module_manifest(modules_repo, module_id.split("/", 1)[1])
+    _write_module_manifest(
+        modules_repo,
+        "specfact-code-review",
+        dependencies=["nold-ai/specfact-requirements"],
+    )
+    _write_module_manifest(modules_repo, "specfact-requirements")
+
+    index_path = smoke._build_local_registry(tmp_path / "workspace", modules_repo)
+    module_ids = {entry["id"] for entry in yaml.safe_load(index_path.read_text(encoding="utf-8"))["modules"]}
+
+    assert module_ids == {*smoke.MODULE_IDS, "nold-ai/specfact-requirements"}
+
+
+def test_local_runtime_registry_rejects_traversal_in_manifest_version(tmp_path: Path) -> None:
+    import scripts.runtime_discovery_smoke as smoke
+
+    modules_repo = tmp_path / "modules"
+    for module_id in smoke.MODULE_IDS:
+        _write_module_manifest(modules_repo, module_id.split("/", 1)[1])
+    manifest_path = modules_repo / "packages" / smoke.MODULE_IDS[0].split("/", 1)[1] / "module-package.yaml"
+    manifest = yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
+    manifest["version"] = "0.1.0/../../outside"
+    manifest_path.write_text(yaml.safe_dump(manifest), encoding="utf-8")
+
+    with pytest.raises(RuntimeError, match="Invalid module version"):
+        smoke._build_local_registry(tmp_path / "workspace", modules_repo)
+
+
+def test_semver_prerelease_and_suffix_are_valid_for_runtime_registry(tmp_path: Path) -> None:
+    import scripts.runtime_discovery_smoke as smoke
+
+    modules_repo = tmp_path / "modules"
+    for module_id in smoke.MODULE_IDS:
+        bundle_name = module_id.split("/", 1)[1]
+        _write_module_manifest(modules_repo, bundle_name)
+        manifest_path = modules_repo / "packages" / bundle_name / "module-package.yaml"
+        manifest = yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
+        manifest["version"] = "0.5.1-rc.1+build.7"
+        manifest_path.write_text(yaml.safe_dump(manifest), encoding="utf-8")
+
+    assert smoke._build_local_registry(tmp_path / "workspace", modules_repo).is_file()
+
+
+@pytest.mark.parametrize("version", ["01.2.3", "1.2.3-01", "1.2.3-alpha..1"])
+def test_local_runtime_registry_rejects_malformed_semver(tmp_path: Path, version: str) -> None:
+    import scripts.runtime_discovery_smoke as smoke
+
+    modules_repo = tmp_path / "modules"
+    for module_id in smoke.MODULE_IDS:
+        _write_module_manifest(modules_repo, module_id.split("/", 1)[1])
+    manifest_path = modules_repo / "packages" / smoke.MODULE_IDS[0].split("/", 1)[1] / "module-package.yaml"
+    manifest = yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
+    manifest["version"] = version
+    manifest_path.write_text(yaml.safe_dump(manifest), encoding="utf-8")
+
+    with pytest.raises(RuntimeError, match="Invalid module version"):
+        smoke._build_local_registry(tmp_path / "workspace", modules_repo)
 
 
 def test_runtime_discovery_smoke_keep_workspace_preserves_directory(

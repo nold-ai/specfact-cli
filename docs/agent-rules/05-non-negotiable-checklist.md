@@ -48,5 +48,10 @@ depends_on:
 - SHALL perform `spec -> tests -> failing evidence -> code -> passing evidence` in that order for behavior changes.
 - SHALL run required verification and quality gates for the touched scope before finalization.
 - SHALL fix SpecFact code review findings, including warnings, unless a rare and explicit exception is documented.
+- SHALL, after pushing code that remedies a GitHub pull-request review finding,
+  add a concise thread reply with the implementing commit and validating evidence,
+  then resolve every thread whose requested change is fully fixed; unresolved,
+  ambiguous, or intentionally deferred findings SHALL remain open with their
+  reason recorded.
 - SHALL enforce module signatures and version bumps when signed module assets or manifests are affected.
 - SHALL preserve existing instructions by moving them to canonical rule files before shortening the bootstrap surfaces.

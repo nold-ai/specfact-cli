@@ -7,6 +7,7 @@ import json
 import os
 import re
 import subprocess
+import sys
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -16,8 +17,24 @@ from icontract import ensure
 
 
 APPROVED_REPOSITORY = "nold-ai/specfact-cli-modules"
-APPROVED_COMMIT = "2438372f8e34c96d4e474afa4c66c92a9cee7979"
+APPROVED_COMMIT = "69f075819be5e1ceca1446b026b0417f19e584ca"
+APPROVED_TREE = "5d0b8e66c6cd467e6b1ad9d582e24c66b907e205"
 SHA_PATTERN = re.compile(r"^[0-9a-f]{40}$")
+ALLOWED_ENVIRONMENT_KEYS = frozenset(
+    {
+        "HOME",
+        "LANG",
+        "LC_ALL",
+        "LC_CTYPE",
+        "PATH",
+        "SYSTEMROOT",
+        "TEMP",
+        "TMP",
+        "TMPDIR",
+        "VIRTUAL_ENV",
+        "WINDIR",
+    }
+)
 CommandRunner = Callable[[list[str], dict[str, str]], int]
 GitRunner = Callable[[list[str]], str]
 
@@ -30,6 +47,9 @@ class EvidenceRequest:
     selection: tuple[str, str | None]
     output_path: Path
     summary_path: Path
+    required_maturity: str = "planned"
+    review_evidence: Path | None = None
+    plan_output: Path | None = None
 
 
 def _read_fixture_lock(repo_root: Path) -> dict[str, object]:
@@ -46,7 +66,8 @@ def _read_fixture_lock(repo_root: Path) -> dict[str, object]:
 
 def _git_head(arguments: list[str]) -> str:
     """Resolve a fixture checkout's immutable Git revision."""
-    return subprocess.run(arguments, check=True, capture_output=True, text=True).stdout.strip()
+    environment = {key: value for key, value in os.environ.items() if not key.startswith("GIT_")}
+    return subprocess.run(arguments, check=True, capture_output=True, env=environment, text=True).stdout.strip()
 
 
 def _reset_report_paths(request: EvidenceRequest) -> None:
@@ -76,31 +97,36 @@ def _write_failure_reports(request: EvidenceRequest, message: str) -> None:
         pass
 
 
+def _fixture_git_value(fixture_root: Path, arguments: list[str], *, git_runner: GitRunner) -> str:
+    """Read one fixture Git value while preserving the gate's diagnostic boundary."""
+    try:
+        return git_runner(["git", "-C", str(fixture_root), *arguments]).strip()
+    except (OSError, subprocess.SubprocessError) as error:
+        raise ValueError(f"Cannot verify pinned module fixture: {fixture_root}") from error
+
+
 @beartype
 @ensure(lambda result: result is None)
 def verify_fixture(fixture: Mapping[str, object], fixture_root: Path, *, git_runner: GitRunner = _git_head) -> None:
     """Reject any fixture other than the checked-in released module commit."""
     repository = fixture.get("repository")
     commit = fixture.get("commit")
+    tree = fixture.get("tree")
     if repository != APPROVED_REPOSITORY:
         raise ValueError(f"Module fixture must target {APPROVED_REPOSITORY}")
     if not isinstance(commit, str) or SHA_PATTERN.fullmatch(commit) is None:
         raise ValueError("Module fixture commit must be a full immutable SHA")
     if commit != APPROVED_COMMIT:
         raise ValueError("Module fixture must use approved release commit")
+    if tree != APPROVED_TREE:
+        raise ValueError("Module fixture must use approved tree attestation")
     if not fixture_root.is_dir():
         raise ValueError(f"Pinned module fixture is unavailable: {fixture_root}")
-    try:
-        actual = git_runner(["git", "-C", str(fixture_root), "rev-parse", "HEAD"])
-    except (OSError, subprocess.SubprocessError) as error:
-        raise ValueError(f"Cannot verify pinned module fixture: {fixture_root}") from error
-    if actual.strip() != commit:
+    if _fixture_git_value(fixture_root, ["rev-parse", "HEAD"], git_runner=git_runner) != commit:
         raise ValueError("Pinned module fixture HEAD does not match ci/module-fixture.lock.json")
-    try:
-        dirty = git_runner(["git", "-C", str(fixture_root), "status", "--porcelain", "--untracked-files=all"])
-    except (OSError, subprocess.SubprocessError) as error:
-        raise ValueError(f"Cannot verify pinned module fixture: {fixture_root}") from error
-    if dirty.strip():
+    if _fixture_git_value(fixture_root, ["rev-parse", "HEAD^{tree}"], git_runner=git_runner) != tree:
+        raise ValueError("Pinned module fixture tree does not match its attestation")
+    if _fixture_git_value(fixture_root, ["status", "--porcelain", "--untracked-files=all"], git_runner=git_runner):
         raise ValueError("Pinned module fixture must be clean")
 
 
@@ -117,9 +143,9 @@ def run_evidence_command(
     """Delegate evidence semantics to the fixture's public command unchanged."""
     selection_flag, selection_value = request.selection
     arguments = [
-        "hatch",
-        "run",
-        "specfact",
+        sys.executable,
+        "-m",
+        "specfact_cli",
         "requirements",
         "evidence",
         "--repo-root",
@@ -128,11 +154,17 @@ def run_evidence_command(
         str(request.output_path),
         "--summary",
         str(request.summary_path),
-        selection_flag,
+        "--required-maturity",
+        request.required_maturity,
     ]
+    if request.review_evidence is not None:
+        arguments.extend(("--review-evidence", str(request.review_evidence)))
+    if request.plan_output is not None:
+        arguments.extend(("--plan-output", str(request.plan_output)))
+    arguments.append(selection_flag)
     if selection_value is not None:
         arguments.append(selection_value)
-    environment = dict(os.environ)
+    environment = {key: value for key, value in os.environ.items() if key in ALLOWED_ENVIRONMENT_KEYS}
     environment["SPECFACT_MODULES_REPO"] = str(fixture_root.resolve())
     environment["SPECFACT_MODULES_ROOTS"] = str((fixture_root / "packages").resolve())
     environment.pop("SPECFACT_CLI_MODULES_REPO", None)
@@ -164,6 +196,18 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--fixture-root", help="Verified local checkout of the pinned modules fixture.")
     parser.add_argument("--output", type=Path, required=True, help="Destination JSON evidence report.")
     parser.add_argument("--summary", type=Path, required=True, help="Destination Markdown evidence report.")
+    parser.add_argument(
+        "--required-maturity",
+        choices=("planned", "accepted", "test-authored", "red", "verified"),
+        default="planned",
+        help="Published lifecycle maturity required for selected evidence.",
+    )
+    parser.add_argument(
+        "--review-evidence",
+        type=Path,
+        help="Accepted provider-neutral record bound to the current mapping digest.",
+    )
+    parser.add_argument("--plan-output", type=Path, help="Destination for the normalized lifecycle plan report.")
     return parser
 
 
@@ -182,6 +226,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         selection=_selection(arguments),
         output_path=arguments.output,
         summary_path=arguments.summary,
+        required_maturity=arguments.required_maturity,
+        review_evidence=arguments.review_evidence,
+        plan_output=arguments.plan_output,
     )
     try:
         _reset_report_paths(request)
