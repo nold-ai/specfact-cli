@@ -1104,3 +1104,21 @@
 - **Internal wiki follow-up:** the sibling `specfact-cli-internal` checkout was
   unavailable. Update `wiki/sources/requirements-07-runtime-proof-delivery.md`
   and run `python3 scripts/wiki_rebuild_graph.py` from that repository root.
+
+## Codex follow-up conftest-import freshness remediation
+
+- **Recorded:** 2026-08-09 (UTC)
+- **Review finding:** PR #667 identified that import traversal started only at
+  selected tests, so a helper imported exclusively by an applicable
+  `conftest.py` could change after red without invalidating retained proof.
+- **Failing-before command:** `hatch run pytest tests/unit/scripts/test_requirements_proof_provenance.py::test_git_bound_red_proof_rejects_changed_support_imported_by_conftest -q`
+- **Failing result:** 1 test failed because the changed helper produced no
+  provenance finding.
+- **Passing-after command:** `hatch run pytest tests/unit/scripts/test_requirements_proof_provenance.py -q`
+- **Passing result:** all 25 tests passed after seeding recursive import
+  traversal with the selected test and every applicable `conftest.py` path.
+- **Skipped:** 0 tests.
+- **Environment:** Linux, Python 3.12.13, pytest 9.1.1.
+- **Internal wiki follow-up:** the sibling `specfact-cli-internal` checkout was
+  unavailable. Update `wiki/sources/requirements-07-runtime-proof-delivery.md`
+  and run `python3 scripts/wiki_rebuild_graph.py` from that repository root.

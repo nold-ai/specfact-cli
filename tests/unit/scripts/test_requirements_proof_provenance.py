@@ -185,6 +185,32 @@ def test_git_bound_red_proof_rejects_changed_imported_test_support(tmp_path: Pat
     ]
 
 
+def test_git_bound_red_proof_rejects_changed_support_imported_by_conftest(tmp_path: Path) -> None:
+    """A helper reached through conftest must remain bound to the red failure."""
+    module = _load_provenance_module()
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    tests_path = tmp_path / "tests"
+    tests_path.mkdir()
+    helper_path = tests_path / "support.py"
+    helper_path.write_text("VALUE = False\n", encoding="utf-8")
+    (tests_path / "conftest.py").write_text("from tests.support import VALUE\n", encoding="utf-8")
+    base_ref = _commit(tmp_path, "test: add pytest support")
+    test_path = tests_path / "test_proof.py"
+    test_path.write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+
+    helper_path.write_text("VALUE = True\n", encoding="utf-8")
+    final_ref = _commit(tmp_path, "fix: change conftest helper")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
+        "stale-red-proof"
+    ]
+
+
 def test_git_bound_red_proof_rejects_symlink_selector(tmp_path: Path) -> None:
     """A selector symlink must not hide mutable target bytes from provenance."""
     module = _load_provenance_module()
