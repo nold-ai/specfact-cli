@@ -1085,3 +1085,22 @@
 - **Passing-after command:** `hatch run pytest tests/unit/scripts/test_requirements_proof_provenance.py tests/unit/workflows/test_requirements_evidence_delivery_workflow.py tests/unit/scripts/test_requirements_evidence_pre_commit.py -q`
 - **Passing result:** 47 tests passed; 0 skipped.
 - **Environment:** Linux, Python 3.12.13, pytest 9.1.1.
+
+## Codex review imported pytest-support freshness remediation
+
+- **Recorded:** 2026-08-09 (UTC)
+- **Review finding:** PR #665 identified that a selected test could import a
+  changed test-support module after the red commit while the retained red proof
+  remained accepted.
+- **Failing-before command:** `hatch run pytest tests/unit/scripts/test_requirements_proof_provenance.py::test_git_bound_red_proof_rejects_changed_imported_test_support -q`
+- **Failing result:** 1 test failed because changing `tests/support.py` after
+  red returned no provenance finding.
+- **Passing-after command:** `hatch run pytest tests/unit/scripts/test_requirements_proof_provenance.py -q`
+- **Passing result:** all 24 tests passed after recursively resolving
+  repository-local Python imports from the red source and including them in
+  post-red freshness checks.
+- **Skipped:** 0 tests.
+- **Environment:** Linux, Python 3.12.13, pytest 9.1.1.
+- **Internal wiki follow-up:** the sibling `specfact-cli-internal` checkout was
+  unavailable. Update `wiki/sources/requirements-07-runtime-proof-delivery.md`
+  and run `python3 scripts/wiki_rebuild_graph.py` from that repository root.
