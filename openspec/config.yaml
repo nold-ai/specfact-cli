@@ -69,8 +69,8 @@ context: |
 # Per-artifact rules (only injected into matching artifacts)
 rules:
   proposal:
-    - Include required sections: Why, What Changes, Capabilities, Impact
-    - Capabilities section is critical: Each capability listed will need a spec file in specs/<capability>/spec.md
+    - "Include required sections: Why, What Changes, Capabilities, Impact"
+    - "Capabilities section is critical: Each capability listed will need a spec file in specs/<capability>/spec.md"
     - Reference existing architecture patterns (Bridge Adapter, Plugin Registry, Sidecar, Multi-Repo)
     - Consider impact on backward compatibility and regression prevention
     - Address offline-first constraint (no cloud dependencies)
@@ -94,7 +94,7 @@ rules:
         local state and MUST NOT be committed. **Pending:** until backlog commands read this cache
         automatically, treat this as contributor/agent workflow (docs + local script), not enforced CLI
         behavior for every `specfact backlog` path.
-    - Source tracking: Only track public repos (specfact-cli, platform-frontend). Skip for internal repos (specfact-cli-internal)
+    - "Source tracking: Only track public repos (specfact-cli, platform-frontend). Skip for internal repos (specfact-cli-internal)"
 
   specs:
     - Use Given/When/Then format for scenarios (each scenario is the source of truth for one or more test cases)
@@ -112,18 +112,19 @@ rules:
     - Include fallback strategies for offline scenarios
 
   tasks:
-    - Enforce SDD+TDD order:
-        - (1) Branch creation (first).
-        - (2) Write/add spec deltas if not already done.
-        - (3) Write tests from spec scenarios—translate each Given/When/Then scenario into test cases;
-          run tests and expect failure (no implementation yet).
-        - (3a) Capture failing-test evidence in `openspec/changes/<change-id>/TDD_EVIDENCE.md`.
-        - (4) Implement code until tests pass and behavior satisfies the spec; code must batch (satisfy)
-          both (a) spec scenarios and (b) tests.
-        - (4a) Capture passing-test evidence in `openspec/changes/<change-id>/TDD_EVIDENCE.md`.
-        - (5) Quality gates (format, lint, type-check).
-        - (6) Documentation research and review (see below).
-        - (7) PR creation (last).
+    - |-
+      Enforce SDD+TDD order:
+      - (1) Branch creation (first).
+      - (2) Write/add spec deltas if not already done.
+      - (3) Write tests from spec scenarios—translate each Given/When/Then scenario into test cases;
+        run tests and expect failure (no implementation yet).
+      - (3a) Capture failing-test evidence in `openspec/changes/<change-id>/TDD_EVIDENCE.md`.
+      - (4) Implement code until tests pass and behavior satisfies the spec; code must batch (satisfy)
+        both (a) spec scenarios and (b) tests.
+      - (4a) Capture passing-test evidence in `openspec/changes/<change-id>/TDD_EVIDENCE.md`.
+      - (5) Quality gates (format, lint, type-check).
+      - (6) Documentation research and review (see below).
+      - (7) PR creation (last).
     - |-
       Documentation research and review (required for every change): Include a task that:
         - (1) Identifies affected documentation: docs/ (reference, guides, adapters, getting-started),
@@ -143,7 +144,7 @@ rules:
       TDD evidence is mandatory: each behavior change must include
       openspec/changes/<change-id>/TDD_EVIDENCE.md with failing-before and passing-after test commands,
       timestamps, and short result summaries.
-    - Include quality gate tasks: format, lint, type-check, test coverage
+    - "Include quality gate tasks: format, lint, type-check, test coverage"
     - |-
       Module signing quality gate (required before PR): Include tasks to
         - (1) run `hatch run ./scripts/verify-modules-signature.py --require-signature`;
@@ -161,19 +162,19 @@ rules:
         - (3) adds a CHANGELOG.md entry under a new [X.Y.Z] - YYYY-MM-DD section with Fixed/Added/Changed
           as appropriate.
         - Place this task after quality gates and documentation, before PR creation.
-    - Include git workflow tasks: branch creation (first task), PR creation (last task)
-    - For public-facing changes in public repos (specfact-cli, platform-frontend):
-        - >-
-          Before GitHub issue creation or parent linking, consult `.specfact/backlog/github_hierarchy_cache.md`;
-          rerun `python scripts/sync_github_hierarchy_cache.py` when the cache is missing or stale. Treat this
-          cache as ephemeral local state, not a committed OpenSpec artifact. **Pending:** wire cache-first
-          lookup into backlog add/sync codepaths when the governance hierarchy-cache work lands end-to-end.
-        - Include GitHub issue creation task with format:
-            - title `[Change] <Brief Description>`
-            - labels `enhancement` and `change-proposal`
-            - body following `.github/ISSUE_TEMPLATE/change_proposal.md` template (Why, What Changes sections from proposal)
-            - footer `*OpenSpec Change Proposal: <change-id>*`
-        - After creation, update proposal.md Source Tracking section with issue number, URL, repository, and status.
+    - "Include git workflow tasks: branch creation (first task), PR creation (last task)"
+    - |-
+      For public-facing changes in public repos (specfact-cli, platform-frontend):
+      - Before GitHub issue creation or parent linking, consult `.specfact/backlog/github_hierarchy_cache.md`;
+        rerun `python scripts/sync_github_hierarchy_cache.py` when the cache is missing or stale. Treat this
+        cache as ephemeral local state, not a committed OpenSpec artifact. **Pending:** wire cache-first
+        lookup into backlog add/sync codepaths when the governance hierarchy-cache work lands end-to-end.
+      - Include GitHub issue creation task with format:
+        - title `[Change] <Brief Description>`
+        - labels `enhancement` and `change-proposal`
+        - body following `.github/ISSUE_TEMPLATE/change_proposal.md` template (Why, What Changes sections from proposal)
+        - footer `*OpenSpec Change Proposal: <change-id>*`
+      - After creation, update proposal.md Source Tracking section with issue number, URL, repository, and status.
     - |-
       SpecFact code review JSON (dogfood, required before PR): Include tasks to
         - (1) Ensure `.specfact/code-review.json` is present and **fresh**: if the file is missing, or its

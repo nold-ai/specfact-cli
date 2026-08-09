@@ -68,3 +68,15 @@ If the linked GitHub issue appears to be `in progress`, **do not** treat that as
 1. If `.specfact/backlog/github_hierarchy_cache.md` is missing, or was last updated **more than about five minutes ago** (or freshness is unknown), run `python scripts/sync_github_hierarchy_cache.py` so local metadata is up to date for this repository.
 2. Re-read the issue state from GitHub (for example via `gh issue view` or the refreshed cache-backed workflow your session uses) and confirm the issue is **still** `in progress`.
 3. Only **after** that verification, if it remains `in progress`, treat it as a blocking ambiguity: pause implementation and ask the user to clarify whether the change is already being worked in another session. Read-only investigation may continue while implementation remains blocked.
+
+## Pull-request review closure ledger
+
+When a pushed commit remedies GitHub pull-request review feedback, re-fetch the
+thread-aware review state before finalizing. For every thread whose requested
+change is fully implemented and validated, reply in that thread with a concise
+ledger entry naming the commit and the relevant tests or gates, then resolve the
+thread. Do this even when GitHub has marked the thread outdated: outdated is not
+evidence of closure. Leave any unfixed, ambiguous, conflicting, or intentionally
+deferred thread unresolved and state why in a concise reply when a response is
+appropriate. Re-fetch once more after the writes and report the remaining
+unresolved threads.

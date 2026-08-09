@@ -1,18 +1,25 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any, cast
 
 import yaml
 
 
+REPO_ROOT = Path(__file__).resolve().parents[3]
+
+
+def _script_text(script_name: str) -> str:
+    return (REPO_ROOT / "scripts" / script_name).read_text(encoding="utf-8")
+
+
 def _quality_script_text() -> str:
-    return (Path(__file__).resolve().parents[3] / "scripts" / "pre-commit-quality-checks.sh").read_text(
-        encoding="utf-8"
-    )
+    return _script_text("pre-commit-quality-checks.sh")
 
 
-def _smart_shim_text() -> str:
-    return (Path(__file__).resolve().parents[3] / "scripts" / "pre-commit-smart-checks.sh").read_text(encoding="utf-8")
+def _assert_script_contains(script: str, *fragments: str) -> None:
+    for fragment in fragments:
+        assert fragment in script
 
 
 def test_pre_commit_markdown_checks_run_autofix_before_lint() -> None:
@@ -54,11 +61,13 @@ def test_pre_commit_runs_code_review_gate_before_contract_tests() -> None:
 
 
 def test_pre_commit_smart_checks_shim_delegates_to_quality_all() -> None:
-    shim = _smart_shim_text()
-    assert "pre-commit-quality-checks.sh" in shim
-    assert 'all "$@"' in shim
-    assert "rev-parse --show-toplevel" in shim
-    assert 'exec bash "${_repo_root}/scripts/pre-commit-quality-checks.sh"' in shim
+    _assert_script_contains(
+        _script_text("pre-commit-smart-checks.sh"),
+        "pre-commit-quality-checks.sh",
+        'all "$@"',
+        "rev-parse --show-toplevel",
+        'exec bash "${_repo_root}/scripts/pre-commit-quality-checks.sh"',
+    )
 
 
 def test_pre_commit_quality_markdown_globs_include_mdc() -> None:
@@ -67,12 +76,13 @@ def test_pre_commit_quality_markdown_globs_include_mdc() -> None:
     assert "mapfile" not in script
     assert "pyproject.toml|setup.py|src/__init__.py" not in script
     assert "*.md|*.mdc|*.rst" in script
-    pre_commit = Path(__file__).resolve().parents[3] / ".pre-commit-config.yaml"
-    data = yaml.safe_load(pre_commit.read_text(encoding="utf-8"))
-    hooks = []
-    for repo in data.get("repos", []):
-        hooks.extend(repo.get("hooks") or [])
-    by_id = {h["id"]: h for h in hooks if isinstance(h, dict) and "id" in h}
+    data = cast(dict[str, Any], yaml.safe_load((REPO_ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8")))
+    hooks = [
+        hook
+        for repo in cast(list[dict[str, Any]], data.get("repos", []))
+        for hook in cast(list[dict[str, Any]], repo.get("hooks", []))
+    ]
+    by_id = {str(hook["id"]): hook for hook in hooks if "id" in hook}
     for hid in ("cli-block1-markdown-fix", "cli-block1-markdown-lint"):
         pat = str(by_id[hid].get("files", ""))
         assert r".(md|mdc)" in pat.replace("\\", "") or "(md|mdc)" in pat
@@ -85,8 +95,10 @@ def test_pre_commit_staged_files_includes_deletions_for_block2() -> None:
 
 
 def test_pre_commit_python_lint_uses_changed_scope_runner() -> None:
-    script = _quality_script_text()
-    assert "staged_python_files()" in script
-    assert 'lint_array+=("${line}")' in script
-    assert "hatch run lint-changed" in script
-    assert '"${lint_array[@]}"' in script
+    _assert_script_contains(
+        _quality_script_text(),
+        "staged_python_files()",
+        'lint_array+=("${line}")',
+        "hatch run lint-changed",
+        '"${lint_array[@]}"',
+    )

@@ -1,0 +1,225 @@
+schema_version: "2"
+requirements:
+  openspec:requirements-07-runtime-proof-delivery:requirements-evidence-delivery-gate:requirements-evidence-delivery-enforcement:
+    rationale: "The released module fixture must remain immutable while advancing to the published Requirements release."
+    stakeholder_refs:
+      - "nold-ai/specfact-cli#657"
+      - "nold-ai/specfact-cli#662"
+    touchpoints:
+      - id: released-requirements-fixture
+        kind: ci_workflow
+        locator: ".github/workflows/requirements-evidence.yml"
+      - id: fixture-lock
+        kind: config_file
+        locator: "ci/module-fixture.lock.json"
+    verification_cases:
+      - case_id: R07-CORE-008-S01
+        scenario_id: requirements-evidence-delivery-enforcement
+        method: test
+        intent: "Prove only the published immutable Requirements fixture is accepted."
+        observable: "Fixture identity mismatch fails before module execution."
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_requirements_evidence_delivery_gate.py::test_verified_fixture_requires_exact_released_identity_and_clean_tree
+  openspec:requirements-07-runtime-proof-delivery:requirements-runtime-proof-delivery:lifecycle-derived-requirements-gate:
+    rationale: "Proposal review must distinguish a complete plan from delivered behavior."
+    stakeholder_refs:
+      - "nold-ai/specfact-cli#662"
+    touchpoints:
+      - id: requirements-evidence-workflow
+        kind: ci_workflow
+        locator: ".github/workflows/requirements-evidence.yml"
+    verification_cases:
+      - case_id: R07-CORE-001-S01
+        scenario_id: lifecycle-derived-requirements-gate
+        method: test
+        intent: "Prove a proposal-only diff reports planned readiness without execution."
+        observable: "Required and observed maturity plus implementation-evidence status."
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_requirements_evidence_delivery_gate.py::test_delegated_command_requests_planned_maturity
+      - case_id: R07-CORE-001-S02
+        scenario_id: lifecycle-derived-requirements-gate
+        method: test
+        intent: "Prove production changes cannot be downgraded by proposal files."
+        observable: "Strongest required maturity per governed touchpoint."
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_requirements_evidence_pre_commit.py::test_pre_commit_derives_maturity_and_governs_product_only_changes
+  openspec:requirements-07-runtime-proof-delivery:requirements-runtime-proof-delivery:accepted-mapping-before-automation:
+    rationale: "Stakeholder acceptance must precede automated validation and implementation."
+    stakeholder_refs:
+      - "nold-ai/specfact-cli#662"
+    touchpoints:
+      - id: review-evidence-adapter
+        kind: ci_workflow
+        locator: "requirements-proof/review-evidence.json"
+    verification_cases:
+      - case_id: R07-CORE-002-S01
+        scenario_id: accepted-mapping-before-automation
+        method: test
+        intent: "Prove stale or absent acceptance blocks test automation."
+        observable: "Acceptance decision bound to the current mapping digest."
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_requirements_evidence_delivery_gate.py::test_released_evidence_rejects_stale_acceptance
+  openspec:requirements-07-runtime-proof-delivery:requirements-runtime-proof-delivery:git-bound-failing-first-proof:
+    rationale: "Production behavior needs empirical failing-first proof, not a declared test link."
+    stakeholder_refs:
+      - "nold-ai/specfact-cli#662"
+    touchpoints:
+      - id: red-proof-verifier
+        kind: ci_workflow
+        locator: "requirements-proof/red.json"
+      - id: legacy-tdd-ledger
+        kind: evidence_ledger
+        locator: "TDD_EVIDENCE.md"
+    verification_cases:
+      - case_id: R07-CORE-003-S01
+        scenario_id: git-bound-failing-first-proof
+        method: test
+        intent: "Prove core validates a red ancestor before forwarding it to released reconciliation."
+        observable: "A test-only red ancestor passes; a changed selector file is rejected as stale."
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_requirements_proof_provenance.py::test_git_bound_red_proof_requires_test_only_ancestor_and_unchanged_selector_files
+      - case_id: R07-CORE-003-S02
+        scenario_id: git-bound-failing-first-proof
+        method: test
+        intent: "Prove a red proof follows the current base and preserves governed rename sources."
+        observable: "Replayed red evidence and production-to-docs renames are rejected."
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_requirements_proof_provenance.py::test_git_bound_red_proof_rejects_replayed_or_renamed_production_history
+      - case_id: R07-CORE-003-S03
+        scenario_id: git-bound-failing-first-proof
+        method: test
+        intent: "Prove the approved R07 historical ledger is digest-bound before final reconciliation."
+        observable: "Legacy ledger basis is passed only for R07 and no synthetic red proof is generated."
+        selector:
+          runner: pytest
+          node_id: tests/unit/workflows/test_requirements_evidence_delivery_workflow.py::test_requirements_evidence_workflow_uses_digest_bound_legacy_tdd_ledger_for_r07
+  openspec:requirements-07-runtime-proof-delivery:requirements-runtime-proof-delivery:staged-scenario-proof-planning:
+    rationale: "Local feedback must validate planning without pretending to execute tests."
+    stakeholder_refs:
+      - "nold-ai/specfact-cli#662"
+    touchpoints:
+      - id: pre-commit-evidence-gate
+        kind: cli_command
+        locator: "scripts/pre-commit-quality-checks.sh"
+    verification_cases:
+      - case_id: R07-CORE-004-S01
+        scenario_id: staged-scenario-proof-planning
+        method: test
+        intent: "Prove staged mapped changes retain a static proof plan."
+        observable: "Index-isolated plan and no execution claim."
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_requirements_evidence_delivery_gate.py::test_pre_commit_places_evidence_before_review_and_contracts
+      - case_id: R07-CORE-004-S02
+        scenario_id: staged-scenario-proof-planning
+        method: test
+        intent: "Prove unmapped staged interface changes fail before later gates."
+        observable: "Retained remediation report and non-zero verdict."
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_requirements_evidence_pre_commit.py::test_pre_commit_runs_planning_evidence_for_governed_product_only_changes
+      - case_id: R07-CORE-004-S03
+        scenario_id: staged-scenario-proof-planning
+        method: test
+        intent: "Prove governed no-impact changes emit an explicit decision."
+        observable: "Reason and changed-path digest without a silent skip."
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_requirements_evidence_delivery_gate.py::test_released_evidence_publishes_a_bounded_staged_no_impact_decision
+  openspec:requirements-07-runtime-proof-delivery:requirements-runtime-proof-delivery:safe-pull-request-proof-execution:
+    rationale: "CI must execute only validated exact selectors from a trusted plan."
+    stakeholder_refs:
+      - "nold-ai/specfact-cli#662"
+    touchpoints:
+      - id: requirements-proof-executor
+        kind: ci_workflow
+        locator: ".github/workflows/requirements-evidence.yml"
+    verification_cases:
+      - case_id: R07-CORE-005-S01
+        scenario_id: safe-pull-request-proof-execution
+        method: test
+        intent: "Prove exact selectors are passed through an argument array."
+        observable: "Canonical selector properties in deterministic JUnit output."
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_requirements_proof_executor.py::test_executor_accepts_module_valid_pytest_node_ids
+      - case_id: R07-CORE-005-S02
+        scenario_id: safe-pull-request-proof-execution
+        method: test
+        intent: "Prove unsafe or excessive selector plans are rejected before execution."
+        observable: "Bounded diagnostics and no spawned test process."
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_requirements_proof_executor.py::test_executor_rejects_unsafe_selectors_before_spawning
+      - case_id: R07-CORE-005-S03
+        scenario_id: safe-pull-request-proof-execution
+        method: test
+        intent: "Prove incomplete JUnit remains unverified after artifacts are retained."
+        observable: "Uncollected, skipped, errored, or failed selector diagnostic."
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_requirements_evidence_delivery_gate.py::test_released_reconciliation_marks_incomplete_junit_unverified
+  openspec:requirements-07-runtime-proof-delivery:requirements-runtime-proof-delivery:authoritative-reconciliation-and-review-handoff:
+    rationale: "Requirements proof and review are independent delivery signals."
+    stakeholder_refs:
+      - "nold-ai/specfact-cli#662"
+    touchpoints:
+      - id: review-context-handoff
+        kind: ci_workflow
+        locator: ".github/workflows/requirements-evidence.yml"
+    verification_cases:
+      - case_id: R07-CORE-006-S01
+        scenario_id: authoritative-reconciliation-and-review-handoff
+        method: test
+        intent: "Prove finalized proof is passed to review without verdict fusion."
+        observable: "Separate Requirements and review provenance."
+        selector:
+          runner: pytest
+          node_id: tests/unit/workflows/test_requirements_evidence_delivery_workflow.py::test_requirements_evidence_workflow_hands_final_proof_to_code_review
+      - case_id: R07-CORE-006-S02
+        scenario_id: authoritative-reconciliation-and-review-handoff
+        method: test
+        intent: "Prove a green review cannot override a red Requirements proof."
+        observable: "Independent blocking Requirements verdict."
+        selector:
+          runner: pytest
+          node_id: tests/unit/workflows/test_requirements_evidence_delivery_workflow.py::test_requirements_evidence_workflow_blocks_each_final_verdict[requirements-failure]
+      - case_id: R07-CORE-006-S03
+        scenario_id: authoritative-reconciliation-and-review-handoff
+        method: test
+        intent: "Prove other quality gates remain independent of Requirements proof."
+        observable: "Separate blocking verdict for each failing gate."
+        selector:
+          runner: pytest
+          node_id: tests/unit/workflows/test_requirements_evidence_delivery_workflow.py::test_requirements_evidence_workflow_blocks_each_final_verdict[code-review-failure]
+  openspec:requirements-07-runtime-proof-delivery:requirements-runtime-proof-delivery:always-published-requirements-proof-decision:
+    rationale: "Every governed pull request needs an auditable terminal Requirements decision."
+    stakeholder_refs:
+      - "nold-ai/specfact-cli#662"
+    touchpoints:
+      - id: proof-artifact-publication
+        kind: ci_workflow
+        locator: ".github/workflows/requirements-evidence.yml"
+    verification_cases:
+      - case_id: R07-CORE-007-S01
+        scenario_id: always-published-requirements-proof-decision
+        method: test
+        intent: "Prove relevant changes run the Requirements decision despite path filters."
+        observable: "Terminal branch-protection check and retained artifacts."
+        selector:
+          runner: pytest
+          node_id: tests/unit/workflows/test_requirements_evidence_delivery_workflow.py::test_requirements_evidence_workflow_uses_the_released_fixture_and_retains_reports
+      - case_id: R07-CORE-007-S02
+        scenario_id: always-published-requirements-proof-decision
+        method: test
+        intent: "Prove a governed no-impact pull-request diff publishes an explicit skip."
+        observable: "Successful terminal result with bounded skip provenance."
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_requirements_evidence_delivery_gate.py::test_released_evidence_publishes_a_bounded_no_impact_pull_request_decision

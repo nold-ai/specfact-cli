@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "specfact-cli"
-version = "0.54.0"
+version = "0.55.1"
 description = "AI-bloat defense CLI for Python teams. Run deterministic code review, cleanup forecasts, and spec/contract evidence for AI-assisted and brownfield delivery."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -63,7 +63,7 @@ dependencies = [
     "PyYAML>=6.0.3",
     "requests>=2.32.3",
     "azure-identity>=1.17.1",
-    "cryptography>=43.0.0",
+    "cryptography>=50.0.0",
     # Transitive through CFFI. The lock supplies reproducibility; this range
     # keeps the known blocked 3.0 release out of every resolver result.
     "pycparser>=2.22,!=3.0.*",
@@ -87,7 +87,7 @@ dependencies = [
     
     # Git operations
     # gitpython: CVE history (CVE-2022-24439, CVE-2023-41040, CVE-2023-40590). Phase 2: replace with dulwich.
-    "gitpython>=3.1.45",
+    "gitpython>=3.1.58",
     
     # YAML utilities
     "ruamel.yaml>=0.18.16",

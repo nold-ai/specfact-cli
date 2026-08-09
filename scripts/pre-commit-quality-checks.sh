@@ -50,6 +50,26 @@ staged_files() {
   git diff --cached --name-only --diff-filter=ACMRD
 }
 
+staged_evidence_paths() {
+  local status source_path destination_path
+  while IFS= read -r -d '' status; do
+    if ! IFS= read -r -d '' source_path; then
+      error "Unable to read staged source path for ${status}"
+      return 1
+    fi
+    printf '%s\0' "${source_path}"
+    case "${status}" in
+      R*|C*)
+        if ! IFS= read -r -d '' destination_path; then
+          error "Unable to read staged destination path for ${status}"
+          return 1
+        fi
+        printf '%s\0' "${destination_path}"
+        ;;
+    esac
+  done < <(git diff --cached --name-status -z --find-renames --diff-filter=ACMRD)
+}
+
 has_staged_yaml() {
   local line
   while IFS= read -r line || [[ -n "${line}" ]]; do
@@ -395,37 +415,121 @@ run_lint_if_staged_python() {
   fi
 }
 
-has_staged_active_openspec_sources() {
-  local file
-  while IFS= read -r file || [[ -n "${file}" ]]; do
-    [[ -z "${file}" ]] && continue
+staged_required_maturity() {
+  local file maturity="planned"
+  while IFS= read -r -d '' file; do
     case "${file}" in
-      openspec/changes/archive/*) ;;
-      openspec/changes/*) return 0 ;;
+      .github/*|ci/*|scripts/*|src/*|tools/*|pyproject.toml|setup.py|uv.lock|requirements/ci/locked.txt|resources/templates/*|resources/schemas/*|resources/mappings/*|resources/keys/*|modules/bundle-mapper/*)
+        printf 'verified\n'
+        return 0
+        ;;
+      tests/*) maturity="test-authored" ;;
     esac
-  done < <(git diff --cached --name-only --diff-filter=ACMRD -- openspec/changes)
+  done < <(staged_evidence_paths)
+  printf '%s\n' "${maturity}"
+}
+
+staged_planning_maturity() {
+  # Pre-commit never runs the selected test plan or reconciles JUnit, so its
+  # strongest truthful evidence is an accepted, executable test plan.
+  case "$(staged_required_maturity)" in
+    verified) printf "test-authored\n" ;;
+    *) staged_required_maturity ;;
+  esac
+}
+
+has_staged_requirements_evidence_scope() {
+  local file
+  while IFS= read -r -d '' file; do
+    return 0
+  done < <(staged_evidence_paths)
   return 1
+}
+
+staged_active_change_ids() {
+  local file relative_path
+  local -A change_ids=()
+  while IFS= read -r -d '' file; do
+    case "${file}" in
+      openspec/changes/archive/*)
+        ;;
+      openspec/changes/*/*)
+        relative_path="${file#openspec/changes/}"
+        change_ids["${relative_path%%/*}"]=1
+        ;;
+    esac
+  done < <(staged_evidence_paths)
+  if [[ ${#change_ids[@]} -gt 0 ]]; then
+    printf '%s\n' "${!change_ids[@]}" | sort
+  fi
 }
 
 run_requirements_evidence_gate() {
   local report_dir=".specfact/reports/requirements-evidence"
   local json_report="${report_dir}/requirements-evidence.json"
   local markdown_report="${report_dir}/requirements-evidence.md"
+  local plan_report="${report_dir}/requirements-evidence-plan.json"
+  local required_maturity
+  local review_evidence=""
+  local selected_change=""
+  local -a staged_change_ids=()
+  local -a review_evidence_candidates=()
+  local -a evidence_arguments=()
 
-  if ! has_staged_active_openspec_sources; then
-    info "📦 Block 2 — Requirements evidence — skipped (no staged active OpenSpec source)"
+  if ! has_staged_requirements_evidence_scope; then
+    info "📦 Block 2 — Requirements evidence — skipped (no staged path)"
     return 0
   fi
 
   mkdir -p "${report_dir}"
+  rm -f "${json_report}" "${markdown_report}" "${plan_report}"
+  required_maturity="$(staged_planning_maturity)"
+  if [[ "${required_maturity}" != "planned" ]]; then
+    while IFS= read -r selected_change || [[ -n "${selected_change}" ]]; do
+      [[ -z "${selected_change}" ]] && continue
+      staged_change_ids+=("${selected_change}")
+    done < <(staged_active_change_ids)
+    if [[ ${#staged_change_ids[@]} -gt 1 ]]; then
+      error "❌ Block 2 — Staged Requirements evidence spans multiple active changes"
+      exit 1
+    elif [[ ${#staged_change_ids[@]} -eq 1 ]]; then
+      selected_change="${staged_change_ids[0]}"
+      review_evidence="openspec/changes/${selected_change}/requirements-proof/review-evidence.json"
+      if [[ ! -f "${review_evidence}" ]]; then
+        error "❌ Block 2 — Staged change ${selected_change} has no review-evidence record for ${required_maturity} planning"
+        exit 1
+      fi
+    else
+      while IFS= read -r candidate || [[ -n "${candidate}" ]]; do
+        [[ -z "${candidate}" ]] && continue
+        review_evidence_candidates+=("${candidate}")
+      done < <(find openspec/changes -path 'openspec/changes/archive' -prune -o -path '*/requirements-proof/review-evidence.json' -type f -print | sort)
+      if [[ ${#review_evidence_candidates[@]} -ne 1 ]]; then
+        error "❌ Block 2 — Requirements evidence needs exactly one active review-evidence record for ${required_maturity} planning"
+        exit 1
+      fi
+      review_evidence="${review_evidence_candidates[0]}"
+    fi
+  fi
+  evidence_arguments=(
+    --repo-root .
+    --staged
+    --required-maturity "${required_maturity}"
+    --output "${json_report}"
+    --summary "${markdown_report}"
+  )
+  if [[ -n "${review_evidence}" ]]; then
+    evidence_arguments+=(--review-evidence "${review_evidence}" --plan-output "${plan_report}")
+  fi
   info "📦 Block 2 — Requirements evidence — running released pinned fixture"
   if hatch run python scripts/requirements_evidence_delivery_gate.py \
-    --repo-root . \
-    --staged \
-    --output "${json_report}" \
-    --summary "${markdown_report}"; then
+    "${evidence_arguments[@]}"; then
     if [[ ! -s "${json_report}" || ! -s "${markdown_report}" ]]; then
       error "❌ Block 2 — Requirements evidence did not produce both remediation reports"
+      exit 1
+    fi
+    if [[ -n "${review_evidence}" && ! -s "${plan_report}" ]]; then
+      error "❌ Block 2 — Requirements evidence did not produce the required test plan"
       exit 1
     fi
     success "✅ Block 2 — Requirements evidence passed (${json_report}; ${markdown_report})"
