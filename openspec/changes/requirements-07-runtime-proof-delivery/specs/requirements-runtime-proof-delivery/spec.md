@@ -161,6 +161,16 @@ retain deterministic JUnit results for module-owned reconciliation.
 - **THEN** the module-owned final report remains red or unproven
 - **AND** core publishes all available artifacts before enforcing failure.
 
+#### Scenario: Retained proof inputs or output are missing or stale
+
+- **GIVEN** a retained red proof whose selected test or an applicable pytest
+  `conftest.py` changes after the red source, or an executor run that leaves no
+  non-empty JUnit artifact
+- **WHEN** pull-request CI validates or executes the Requirements proof
+- **THEN** the proof remains stale or unproven
+- **AND** the Requirements evidence gate exits nonzero after retaining its
+  diagnostic reports.
+
 ### Requirement: Authoritative Reconciliation and Review Handoff
 
 Core SHALL delegate scenario proof reconciliation to the same verified module

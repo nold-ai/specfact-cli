@@ -1057,3 +1057,17 @@
 - **Passing result:** 27 tests passed after switching discovery to the paginated
   GitHub workflow-runs API while retaining branch, event, status, ancestry, and
   provenance filters.
+
+## Codex review proof-input and missing-JUnit remediation
+
+- **Recorded:** 2026-08-09 (UTC)
+- **Failing-before command:** `hatch run pytest tests/unit/scripts/test_requirements_proof_provenance.py tests/unit/workflows/test_requirements_evidence_delivery_workflow.py -q`
+- **Failing result:** 3 tests failed because post-red changes to root and test-tree
+  `conftest.py` files were accepted and a zero-status executor without JUnit left
+  the workflow step successful.
+- **Passing-after command:** the same focused command passed all 30 tests after
+  applicable pytest support paths became stale-proof inputs and missing JUnit
+  forced a nonzero evidence result.
+- **Requirements assignment:** the incomplete-execution scenario now explicitly
+  rejects stale pytest support inputs and successful execution without retained
+  JUnit proof.

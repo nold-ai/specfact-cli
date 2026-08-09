@@ -98,6 +98,16 @@ def _selector_paths(report: dict[str, object]) -> tuple[str, list[str]]:
     return source_ref, sorted(paths)
 
 
+def _applicable_conftest_paths(test_path: str) -> set[str]:
+    """Return root and ancestor pytest support files that can affect a selected test."""
+    parent = PurePosixPath(test_path).parent
+    paths = {"conftest.py"}
+    while parent != PurePosixPath("."):
+        paths.add((parent / "conftest.py").as_posix())
+        parent = parent.parent
+    return paths
+
+
 def _validate_retained_red_junit(red_proof_path: Path, report: dict[str, object]) -> None:
     """Bind the released report to a retained failing JUnit artifact."""
     execution_proof = _validated_execution_proof(report)
@@ -310,7 +320,8 @@ def validate_prior_red_proof(red_proof_path: Path, repo_root: Path, *, base_ref:
     for test_path in selector_paths:
         if not _test_path_exists_at_ref(repo_root, source_ref, test_path):
             return ["prior-red-proof-invalid"]
-        if test_path in paths_after_red:
+        proof_inputs = {test_path, *_applicable_conftest_paths(test_path)}
+        if not proof_inputs.isdisjoint(paths_after_red):
             return ["stale-red-proof"]
     return []
 
