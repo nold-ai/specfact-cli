@@ -100,6 +100,8 @@ def _assert_command_contract(workflow: dict[str, object]) -> None:
     assert 'if [[ "$execution_exit" -ne 0 ]]; then' not in run_evidence["run"]  # type: ignore[index]
     assert run_evidence["env"]["EVIDENCE_BASE_BRANCH"]  # type: ignore[index]
     assert "workflow_dispatch" in workflow["on"]  # type: ignore[operator]
+    assert run_evidence["run"].count("clean_environment=(env -i") == 1  # type: ignore[union-attr]
+    assert run_evidence["run"].count('"${clean_environment[@]}" uv run --locked --no-sync') == 2  # type: ignore[union-attr]
 
 
 def _assert_governed_trigger_contract(workflow: dict[str, object]) -> None:

@@ -231,8 +231,9 @@ jobs:
               selected_change="${selected_change%/requirements-proof/review-evidence.json}"
             fi
           fi
+          clean_environment=(env -i "HOME=${HOME:-}" "LANG=${LANG:-}" "LC_ALL=${LC_ALL:-}" "LC_CTYPE=${LC_CTYPE:-}" "PATH=${PATH:-}" "RUNNER_TEMP=${RUNNER_TEMP}" "SPECFACT_MODULES_REPO=${SPECFACT_MODULES_REPO}" "SPECFACT_MODULES_ROOTS=${SPECFACT_MODULES_ROOTS}")
           evidence_arguments=(
-            uv run --locked --no-sync specfact requirements evidence
+            "${clean_environment[@]}" uv run --locked --no-sync specfact requirements evidence
             --repo-root "$GITHUB_WORKSPACE" \
             --base-ref "origin/${EVIDENCE_BASE_BRANCH}" \
             --required-maturity "$planning_maturity" \
@@ -275,7 +276,7 @@ jobs:
               rm -f artifacts/requirements-evidence/requirements-evidence.json artifacts/requirements-evidence/requirements-evidence.md
               failure_diagnostic="Requirements proof reconciliation exited with status $execution_exit before writing reports."
               reconciliation_arguments=(
-                uv run --locked --no-sync specfact requirements reconcile
+                "${clean_environment[@]}" uv run --locked --no-sync specfact requirements reconcile
                 --plan artifacts/requirements-evidence/requirements-evidence-plan.json \
                 --junit artifacts/requirements-evidence/requirements-proof.xml \
                 --run-stage "$run_stage" \

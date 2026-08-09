@@ -10,6 +10,8 @@ module-owned evidence semantics and SHALL retain JSON and Markdown remediation
 reports for both passing and failing runs.
 Core SHALL pass the released command only an explicit non-secret environment
 allowlist plus the two fixture-root variables required for module discovery.
+Pull-request workflow invocations of both evidence and reconciliation SHALL use
+the same explicit environment boundary.
 
 #### Scenario: Reject an unverified or mutable fixture
 

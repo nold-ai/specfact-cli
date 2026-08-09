@@ -171,6 +171,12 @@ retain deterministic JUnit results for module-owned reconciliation.
 - **AND** the Requirements evidence gate exits nonzero after retaining its
   diagnostic reports.
 
+#### Scenario: A selected test path is a symlink
+
+- **GIVEN** a retained red proof selects a symlink instead of a regular test file
+- **WHEN** core validates its Git-bound execution inputs
+- **THEN** core rejects the proof as invalid rather than hashing only the link target name.
+
 ### Requirement: Authoritative Reconciliation and Review Handoff
 
 Core SHALL delegate scenario proof reconciliation to the same verified module

@@ -71,6 +71,8 @@ def test_pre_commit_selects_review_evidence_from_the_staged_change() -> None:
         'index_mode="$(git ls-files --stage -- "${review_evidence}"',
         '[[ "${index_mode}" != "100644" ]]',
         "resolve().relative_to",
+        "branch_active_change_ids()",
+        "Branch Requirements evidence spans multiple active changes",
     )
     assert "local -A" not in _pre_commit_text()
 

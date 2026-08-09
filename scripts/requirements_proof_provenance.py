@@ -216,6 +216,12 @@ def _test_path_exists_at_ref(repo_root: Path, source_ref: str, test_path: str) -
     return _git(repo_root, "cat-file", "-e", f"{source_ref}:{test_path}").returncode == 0
 
 
+def _test_path_is_regular_at_ref(repo_root: Path, source_ref: str, test_path: str) -> bool:
+    """Reject symlink selectors because pytest follows bytes not bound by their Git blob."""
+    result = _git(repo_root, "ls-tree", source_ref, "--", test_path)
+    return result.returncode == 0 and result.stdout.startswith("100644 blob ")
+
+
 def _blob_digest_at_ref(repo_root: Path, source_ref: str, test_path: str) -> str | None:
     """Return the digest of committed test bytes without consulting the worktree."""
     size_result = _git(repo_root, "cat-file", "-s", f"{source_ref}:{test_path}")
@@ -318,7 +324,9 @@ def validate_prior_red_proof(red_proof_path: Path, repo_root: Path, *, base_ref:
     if paths_after_red is None:
         return ["tdd-order-unproven"]
     for test_path in selector_paths:
-        if not _test_path_exists_at_ref(repo_root, source_ref, test_path):
+        if not _test_path_exists_at_ref(repo_root, source_ref, test_path) or not _test_path_is_regular_at_ref(
+            repo_root, source_ref, test_path
+        ):
             return ["prior-red-proof-invalid"]
         proof_inputs = {test_path, *_applicable_conftest_paths(test_path)}
         if not proof_inputs.isdisjoint(paths_after_red):

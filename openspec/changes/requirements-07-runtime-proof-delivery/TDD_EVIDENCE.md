@@ -1074,3 +1074,14 @@
 - **Requirements assignment:** the incomplete-execution scenario now explicitly
   rejects stale pytest support inputs and successful execution without retained
   JUnit proof.
+
+## Release-review environment, symlink, and branch-scope remediation
+
+- **Recorded:** 2026-08-09T21:46:00Z
+- **Failing-before command:** `hatch run pytest tests/unit/scripts/test_requirements_proof_provenance.py::test_git_bound_red_proof_rejects_symlink_selector tests/unit/workflows/test_requirements_evidence_delivery_workflow.py::test_requirements_evidence_workflow_uses_the_released_fixture_and_retains_reports tests/unit/scripts/test_requirements_evidence_pre_commit.py::test_pre_commit_selects_review_evidence_from_the_staged_change -q`
+- **Failing result:** 3 tests failed because selector symlinks were accepted, CI
+  module commands inherited ambient variables, and production-only staging had
+  no branch-scoped change binding.
+- **Passing-after command:** `hatch run pytest tests/unit/scripts/test_requirements_proof_provenance.py tests/unit/workflows/test_requirements_evidence_delivery_workflow.py tests/unit/scripts/test_requirements_evidence_pre_commit.py -q`
+- **Passing result:** 47 tests passed; 0 skipped.
+- **Environment:** Linux, Python 3.12.13, pytest 9.1.1.

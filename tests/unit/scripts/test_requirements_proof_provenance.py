@@ -158,6 +158,29 @@ def test_git_bound_red_proof_rejects_changed_applicable_conftest(tmp_path: Path,
     ]
 
 
+def test_git_bound_red_proof_rejects_symlink_selector(tmp_path: Path) -> None:
+    """A selector symlink must not hide mutable target bytes from provenance."""
+    module = _load_provenance_module()
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    (tmp_path / "README.md").write_text("# proof\n", encoding="utf-8")
+    base_ref = _commit(tmp_path, "chore: base")
+    target = tmp_path / "tests" / "target.py"
+    target.parent.mkdir()
+    target.write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    (tmp_path / "tests" / "test_proof.py").symlink_to("target.py")
+    red_ref = _commit(tmp_path, "test: add symlink selector")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+    (tmp_path / "delivery.md").write_text("final\n", encoding="utf-8")
+    final_ref = _commit(tmp_path, "fix: final")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
+        "prior-red-proof-invalid"
+    ]
+
+
 def test_git_bound_red_proof_rejects_base_commit_as_red_source(tmp_path: Path) -> None:
     """The red source must be a new test-only commit after the pull-request base."""
     module = _load_provenance_module()

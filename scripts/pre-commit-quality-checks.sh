@@ -513,6 +513,21 @@ staged_active_change_ids() {
   rm -f "${change_ids_file}"
 }
 
+branch_active_change_ids() {
+  local base_ref="origin/dev" merge_base relative_path
+  git rev-parse --verify "${base_ref}" >/dev/null 2>&1 || base_ref="origin/main"
+  merge_base="$(git merge-base HEAD "${base_ref}")" || return 1
+  while IFS= read -r relative_path; do
+    case "${relative_path}" in
+      openspec/changes/archive/*) ;;
+      openspec/changes/*/*)
+        relative_path="${relative_path#openspec/changes/}"
+        printf '%s\n' "${relative_path%%/*}"
+        ;;
+    esac
+  done < <(git diff --name-only "${merge_base}...HEAD" -- openspec/changes)
+}
+
 require_index_bound_review_evidence() {
   local review_evidence="$1"
   local index_mode
@@ -579,6 +594,19 @@ run_requirements_evidence_gate() {
         exit 1
       fi
     else
+      while IFS= read -r selected_change || [[ -n "${selected_change}" ]]; do
+        [[ -z "${selected_change}" ]] && continue
+        staged_change_ids+=("${selected_change}")
+      done < <(branch_active_change_ids | sort -u)
+      if [[ ${#staged_change_ids[@]} -gt 1 ]]; then
+        error "❌ Block 2 — Branch Requirements evidence spans multiple active changes"
+        exit 1
+      elif [[ ${#staged_change_ids[@]} -eq 1 ]]; then
+        selected_change="${staged_change_ids[0]}"
+        review_evidence="openspec/changes/${selected_change}/requirements-proof/review-evidence.json"
+      fi
+    fi
+    if [[ -z "${review_evidence}" ]]; then
       while IFS= read -r candidate || [[ -n "${candidate}" ]]; do
         [[ -z "${candidate}" ]] && continue
         review_evidence_candidates+=("${candidate}")
