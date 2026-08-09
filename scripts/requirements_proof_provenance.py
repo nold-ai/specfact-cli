@@ -119,9 +119,9 @@ def _python_module_path(repo_root: Path, source_ref: str, module_parts: Sequence
     return None
 
 
-def _imported_python_paths(repo_root: Path, source_ref: str, test_path: str) -> set[str]:
-    """Return transitive repository-local Python imports used by a selected test."""
-    pending = [test_path]
+def _imported_python_paths(repo_root: Path, source_ref: str, source_paths: Sequence[str]) -> set[str]:
+    """Return transitive repository-local Python imports used by pytest inputs."""
+    pending = list(source_paths)
     imported_paths: set[str] = set()
     while pending:
         current_path = pending.pop()
@@ -372,10 +372,10 @@ def validate_prior_red_proof(red_proof_path: Path, repo_root: Path, *, base_ref:
             repo_root, source_ref, test_path
         ):
             return ["prior-red-proof-invalid"]
+        pytest_inputs = {test_path, *_applicable_conftest_paths(test_path)}
         proof_inputs = {
-            test_path,
-            *_applicable_conftest_paths(test_path),
-            *_imported_python_paths(repo_root, source_ref, test_path),
+            *pytest_inputs,
+            *_imported_python_paths(repo_root, source_ref, sorted(pytest_inputs)),
         }
         if not proof_inputs.isdisjoint(paths_after_red):
             return ["stale-red-proof"]
