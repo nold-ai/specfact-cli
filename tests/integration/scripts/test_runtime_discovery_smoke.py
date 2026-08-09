@@ -114,6 +114,21 @@ def test_local_runtime_registry_rejects_traversal_in_manifest_version(tmp_path: 
         smoke._build_local_registry(tmp_path / "workspace", modules_repo)
 
 
+def test_local_runtime_registry_accepts_semver_prerelease_with_build_metadata(tmp_path: Path) -> None:
+    import scripts.runtime_discovery_smoke as smoke
+
+    modules_repo = tmp_path / "modules"
+    for module_id in smoke.MODULE_IDS:
+        bundle_name = module_id.split("/", 1)[1]
+        _write_module_manifest(modules_repo, bundle_name)
+        manifest_path = modules_repo / "packages" / bundle_name / "module-package.yaml"
+        manifest = yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
+        manifest["version"] = "0.5.1-rc.1+build.7"
+        manifest_path.write_text(yaml.safe_dump(manifest), encoding="utf-8")
+
+    assert smoke._build_local_registry(tmp_path / "workspace", modules_repo).is_file()
+
+
 def test_runtime_discovery_smoke_keep_workspace_preserves_directory(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
