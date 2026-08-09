@@ -165,7 +165,9 @@ def _parse_name_status_records(payload: bytes) -> list[str] | None:
     return paths
 
 
-def _changed_paths_in_history(repo_root: Path, start_ref: str, end_ref: str) -> list[str] | None:
+def _changed_paths_in_history(
+    repo_root: Path, start_ref: str, end_ref: str, *, merge_parent: int = 2
+) -> list[str] | None:
     """Return paths touched by every commit, including changes later restored."""
     revisions = _git(repo_root, "rev-list", "--reverse", f"{start_ref}..{end_ref}")
     if revisions.returncode:
@@ -173,7 +175,7 @@ def _changed_paths_in_history(repo_root: Path, start_ref: str, end_ref: str) -> 
     paths: list[str] = []
     for revision in revisions.stdout.splitlines():
         parents = _git(repo_root, "rev-list", "--parents", "-n", "1", revision).stdout.split()
-        comparison_ref = f"{revision}^2" if len(parents) > 2 else f"{revision}^"
+        comparison_ref = f"{revision}^{merge_parent}" if len(parents) > 2 else f"{revision}^"
         result = subprocess.run(
             [
                 "git",
@@ -320,7 +322,7 @@ def validate_prior_red_proof(red_proof_path: Path, repo_root: Path, *, base_ref:
         return ["tdd-order-unproven"]
     if _has_governed_production_path(paths_before_red):
         return ["tdd-order-unproven"]
-    paths_after_red = _changed_paths_in_history(repo_root, source_ref, final_ref)
+    paths_after_red = _changed_paths_in_history(repo_root, source_ref, final_ref, merge_parent=1)
     if paths_after_red is None:
         return ["tdd-order-unproven"]
     for test_path in selector_paths:

@@ -181,6 +181,31 @@ def test_git_bound_red_proof_rejects_symlink_selector(tmp_path: Path) -> None:
     ]
 
 
+def test_git_bound_red_proof_accepts_base_merge_after_red(tmp_path: Path) -> None:
+    """Imported base changes must not make an unchanged red selector stale."""
+    module = _load_provenance_module()
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    (tmp_path / "README.md").write_text("# proof\n", encoding="utf-8")
+    base_ref = _commit(tmp_path, "chore: base")
+    _git(tmp_path, "branch", "base-update")
+    test_path = tmp_path / "tests" / "test_proof.py"
+    test_path.parent.mkdir()
+    test_path.write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+    _git(tmp_path, "checkout", "base-update")
+    (tmp_path / "base.md").write_text("updated\n", encoding="utf-8")
+    _commit(tmp_path, "docs: update base")
+    _git(tmp_path, "checkout", "master")
+    _git(tmp_path, "merge", "--no-ff", "base-update", "-m", "merge: update base")
+    final_ref = _git(tmp_path, "rev-parse", "HEAD")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == []
+
+
 def test_git_bound_red_proof_rejects_base_commit_as_red_source(tmp_path: Path) -> None:
     """The red source must be a new test-only commit after the pull-request base."""
     module = _load_provenance_module()
