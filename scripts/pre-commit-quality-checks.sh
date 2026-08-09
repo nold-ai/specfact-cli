@@ -464,6 +464,14 @@ staged_active_change_ids() {
   fi
 }
 
+require_index_bound_review_evidence() {
+  local review_evidence="$1"
+  if ! git cat-file -e ":${review_evidence}" 2>/dev/null || ! git diff --quiet -- "${review_evidence}"; then
+    error "❌ Block 2 — Review evidence must match the staged Git index: ${review_evidence}"
+    return 1
+  fi
+}
+
 run_requirements_evidence_gate() {
   local report_dir=".specfact/reports/requirements-evidence"
   local json_report="${report_dir}/requirements-evidence.json"
@@ -510,6 +518,7 @@ run_requirements_evidence_gate() {
       fi
       review_evidence="${review_evidence_candidates[0]}"
     fi
+    require_index_bound_review_evidence "${review_evidence}" || exit 1
   fi
   evidence_arguments=(
     --repo-root .

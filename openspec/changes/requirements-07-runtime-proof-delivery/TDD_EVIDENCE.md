@@ -851,3 +851,15 @@
 - **Passing result:** 3 tests passed on Python 3.11.
 - **Proof:** workflow, staged maturity, and red-proof provenance now classify
   executable repository tooling consistently as production behavior.
+
+## Index-bound staged acceptance remediation
+
+- **Recorded:** 2026-08-09 (UTC)
+- **Failing-before command:** `uv run --python 3.12 --locked --extra dev python -m pytest -q tests/unit/scripts/test_requirements_evidence_pre_commit.py::test_pre_commit_requires_review_evidence_from_the_index`
+- **Failing result:** 1 failed as expected because pre-commit accepted the
+  working-tree copy of review evidence without proving it matched the index.
+- **Passing-after command:** `uv run --python 3.12 --locked --extra dev python -m pytest -q tests/unit/scripts/test_requirements_evidence_pre_commit.py tests/unit/scripts/test_pre_commit_smart_checks_docs.py`
+- **Passing result:** 23 tests passed.
+- **Proof:** pre-commit now requires the selected review-evidence blob to exist
+  in the Git index and rejects any unstaged content difference before invoking
+  the staged Requirements evidence gate.

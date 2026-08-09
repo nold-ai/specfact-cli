@@ -62,6 +62,16 @@ def test_pre_commit_selects_review_evidence_from_the_staged_change() -> None:
     )
 
 
+def test_pre_commit_requires_review_evidence_from_the_index() -> None:
+    """Working-tree-only acceptance must never authorize a staged evidence run."""
+    _assert_contains_pre_commit_contract(
+        "require_index_bound_review_evidence()",
+        'git cat-file -e ":${review_evidence}"',
+        'git diff --quiet -- "${review_evidence}"',
+        "must match the staged Git index",
+    )
+
+
 def test_pre_commit_treats_canonical_specs_as_governed_requirement_sources() -> None:
     """Archived OpenSpec specifications must receive a local evidence decision."""
     pre_commit = _pre_commit_text()
