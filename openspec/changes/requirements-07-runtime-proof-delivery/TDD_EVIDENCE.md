@@ -963,3 +963,17 @@
 - **Requirements assignment:** no mapping delta was required. The remediation
   completes the existing Git-bound failing-first proof scenario's retained
   runner-artifact and strict post-base ancestry requirements.
+
+## Pull-request red-stage bootstrap and checkout binding
+
+- **Recorded:** 2026-08-09 (UTC)
+- **Failing-before command:** `uv run --python 3.12 --locked --extra dev python -m pytest -q tests/unit/workflows/test_requirements_evidence_delivery_workflow.py::test_requirements_evidence_workflow_uses_the_released_fixture_and_retains_reports`
+- **Failing result:** 1 test failed because test-authored workflow runs skipped
+  execution and reconciliation, reconciliation was fixed to the final stage,
+  and checkout did not select the source ref recorded in proof provenance.
+- **Passing-after command:** the same focused command passed after executing
+  every non-planned proof, selecting `red` for test-authored runs and `final`
+  for verified runs, and checking out the exact PR head or dispatch SHA.
+- **Requirements assignment:** no mapping delta was required. The remediation
+  makes the existing two-phase red/final proof and Git-bound source scenarios
+  executable in GitHub Actions without changing their contract.

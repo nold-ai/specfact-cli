@@ -62,6 +62,10 @@ def _assert_command_contract(workflow: dict[str, object]) -> None:
         "resources/templates/*|resources/schemas/*|resources/mappings/*|resources/keys/*|modules/bundle-mapper/*",
         ".github/*|ci/*|scripts/*|src/*|tools/*",
         "planning_maturity=test-authored",
+        'if [[ "$exit_code" -eq 0 && "$required_maturity" != "planned" ]]; then',
+        "run_stage=red",
+        'if [[ "$required_maturity" == "verified" ]]; then',
+        "run_stage=final",
         '--required-maturity "$planning_maturity"',
         'review_evidence="openspec/changes/${selected_change}/requirements-proof/review-evidence.json"',
         "openspec/changes/archive/*",
@@ -84,7 +88,7 @@ def _assert_command_contract(workflow: dict[str, object]) -> None:
         '--final-ref "$EVIDENCE_FINAL_REF" 2>&1)',
         "uv run --locked --no-sync specfact requirements reconcile",
         "rm -f artifacts/requirements-evidence/requirements-evidence.json artifacts/requirements-evidence/requirements-evidence.md",
-        "--run-stage final",
+        '--run-stage "$run_stage"',
         '--source-ref "$EVIDENCE_FINAL_REF"',
         '--prior-red-proof "$prior_red_proof"',
         "fallback_required=0",
@@ -138,7 +142,9 @@ def _assert_prior_red_artifact_contract(workflow: dict[str, object]) -> None:
     locate = _step_by_name(workflow, "Locate retained red proof run")
     download = _step_by_name(workflow, "Download retained red proof")
     run_evidence = _step_by_name(workflow, "Run Requirements evidence gate")
+    checkout = _step_by_name(workflow, "Checkout")
     assert workflow["permissions"]["actions"] == "read"  # type: ignore[index]
+    assert checkout["with"]["ref"] == "${{ github.event.pull_request.head.sha || github.sha }}"  # type: ignore[index]
     assert locate["id"] == "prior-red-run"  # type: ignore[index]
     assert "gh run list" in locate["run"]  # type: ignore[index]
     assert 'git merge-base --is-ancestor "origin/${GITHUB_BASE_REF}" "$head_sha"' in locate["run"]  # type: ignore[index]

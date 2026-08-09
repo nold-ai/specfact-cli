@@ -25,6 +25,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
           persist-credentials: false
 
@@ -241,7 +242,11 @@ jobs:
           exit_code=$?
           set -e
           failure_diagnostic="Evidence command exited with status $exit_code before writing reports."
-          if [[ "$exit_code" -eq 0 && "$required_maturity" == "verified" ]]; then
+          if [[ "$exit_code" -eq 0 && "$required_maturity" != "planned" ]]; then
+            run_stage=red
+            if [[ "$required_maturity" == "verified" ]]; then
+              run_stage=final
+            fi
             set +e
             python scripts/requirements_proof_executor.py \
               --plan artifacts/requirements-evidence/requirements-evidence-plan.json \
@@ -259,12 +264,12 @@ jobs:
                 uv run --locked --no-sync specfact requirements reconcile
                 --plan artifacts/requirements-evidence/requirements-evidence-plan.json \
                 --junit artifacts/requirements-evidence/requirements-proof.xml \
-                --run-stage final \
+                --run-stage "$run_stage" \
                 --source-ref "$EVIDENCE_FINAL_REF" \
                 --output artifacts/requirements-evidence/requirements-evidence.json \
                 --summary artifacts/requirements-evidence/requirements-evidence.md
               )
-              if [[ -n "$prior_red_proof" ]]; then
+              if [[ "$run_stage" == "final" && -n "$prior_red_proof" ]]; then
                 if ! red_proof_findings="$(python scripts/requirements_proof_provenance.py \
                   --prior-red-proof "$prior_red_proof" \
                   --repo-root "$GITHUB_WORKSPACE" \
@@ -274,7 +279,7 @@ jobs:
                   exit 1
                 fi
                 reconciliation_arguments+=(--prior-red-proof "$prior_red_proof")
-              elif [[ "$selected_change" == "requirements-07-runtime-proof-delivery" ]]; then
+              elif [[ "$run_stage" == "final" && "$selected_change" == "requirements-07-runtime-proof-delivery" ]]; then
                 legacy_tdd_ledger="openspec/changes/${selected_change}/TDD_EVIDENCE.md"
                 legacy_tdd_line_count=692
                 legacy_tdd_ledger_digest="sha256:77c6ac82d1b5756f6099a83f282d0774ae7efa0cb87c45d6f00ec63945b78351"
