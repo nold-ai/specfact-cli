@@ -7,6 +7,7 @@ import json
 import os
 import re
 import subprocess
+import sys
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -121,9 +122,9 @@ def run_evidence_command(
     """Delegate evidence semantics to the fixture's public command unchanged."""
     selection_flag, selection_value = request.selection
     arguments = [
-        "hatch",
-        "run",
-        "specfact",
+        sys.executable,
+        "-m",
+        "specfact_cli",
         "requirements",
         "evidence",
         "--repo-root",

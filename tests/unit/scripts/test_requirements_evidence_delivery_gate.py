@@ -183,6 +183,7 @@ def test_delegated_command_requests_planned_maturity(tmp_path: Path) -> None:
         == 0
     )
     assert request.required_maturity == "planned"
+    assert captured_arguments[:3] == [sys.executable, "-m", "specfact_cli"]
     maturity_index = captured_arguments.index("--required-maturity")
     assert captured_arguments[maturity_index : maturity_index + 2] == ["--required-maturity", "planned"]
 

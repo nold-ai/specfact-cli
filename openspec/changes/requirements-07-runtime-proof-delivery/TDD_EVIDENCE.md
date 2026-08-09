@@ -768,3 +768,23 @@
 - **Proof:** both CI and staged maturity assignment now classify
   `pyproject.toml`, `setup.py`, `uv.lock`, and
   `requirements/ci/locked.txt` as production delivery inputs.
+
+## CI failing evidence for bounded adapter execution
+
+- **Recorded:** 2026-08-09 (UTC)
+- **Evidence:** GitHub Actions run `31303484792`, job `93219952313`.
+- **Result:** failed (3 of 18 mapped selectors).
+- **Failure:** fixture-backed selectors recursively started `hatch run` while
+  already executing inside the bounded proof process. The nested environment
+  returned status 1 before the released command could publish its report.
+- **Intent:** invoke the already-installed CLI interpreter directly while
+  retaining the same public `specfact requirements evidence` boundary.
+
+## Passing-after bounded adapter execution remediation
+
+- **Recorded:** 2026-08-09 (UTC)
+- **Command:** `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 SPECFACT_MODULES_REPO=<immutable-fixture> SPECFACT_MODULES_ROOTS=<immutable-fixture-packages> hatch run python -m pytest -q tests/unit/scripts/test_requirements_evidence_delivery_gate.py -k 'bounded_no_impact or stale_acceptance' -vv -s`
+- **Result:** 2 passed, 13 deselected.
+- **Proof:** the adapter uses the active verified Python interpreter directly;
+  fixture-backed evidence remains successful in the proof executor's bounded
+  pytest environment without recursively entering Hatch.
