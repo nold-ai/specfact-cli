@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import ast
 import hashlib
 import json
 import re
@@ -106,6 +107,47 @@ def _applicable_conftest_paths(test_path: str) -> set[str]:
         paths.add((parent / "conftest.py").as_posix())
         parent = parent.parent
     return paths
+
+
+def _python_module_path(repo_root: Path, source_ref: str, module_parts: Sequence[str]) -> str | None:
+    """Resolve a repository-local Python module at the red source."""
+    module_path = PurePosixPath(*module_parts)
+    for candidate in (module_path.with_suffix(".py"), module_path / "__init__.py"):
+        candidate_path = candidate.as_posix()
+        if _test_path_exists_at_ref(repo_root, source_ref, candidate_path):
+            return candidate_path
+    return None
+
+
+def _imported_python_paths(repo_root: Path, source_ref: str, test_path: str) -> set[str]:
+    """Return transitive repository-local Python imports used by a selected test."""
+    pending = [test_path]
+    imported_paths: set[str] = set()
+    while pending:
+        current_path = pending.pop()
+        result = _git(repo_root, "show", f"{source_ref}:{current_path}")
+        try:
+            tree = ast.parse(result.stdout) if result.returncode == 0 else None
+        except SyntaxError:
+            tree = None
+        if tree is None:
+            continue
+        current_package = list(PurePosixPath(current_path).parent.parts)
+        for node in ast.walk(tree):
+            module_names: list[list[str]] = []
+            if isinstance(node, ast.Import):
+                module_names.extend(alias.name.split(".") for alias in node.names)
+            elif isinstance(node, ast.ImportFrom):
+                parent_parts = current_package[: max(len(current_package) - node.level + 1, 0)] if node.level else []
+                base_parts = parent_parts + (node.module.split(".") if node.module else [])
+                module_names.append(base_parts)
+                module_names.extend(base_parts + alias.name.split(".") for alias in node.names if alias.name != "*")
+            for module_parts in module_names:
+                imported_path = _python_module_path(repo_root, source_ref, module_parts)
+                if imported_path is not None and imported_path not in imported_paths:
+                    imported_paths.add(imported_path)
+                    pending.append(imported_path)
+    return imported_paths
 
 
 def _validate_retained_red_junit(red_proof_path: Path, report: dict[str, object]) -> None:
@@ -330,7 +372,11 @@ def validate_prior_red_proof(red_proof_path: Path, repo_root: Path, *, base_ref:
             repo_root, source_ref, test_path
         ):
             return ["prior-red-proof-invalid"]
-        proof_inputs = {test_path, *_applicable_conftest_paths(test_path)}
+        proof_inputs = {
+            test_path,
+            *_applicable_conftest_paths(test_path),
+            *_imported_python_paths(repo_root, source_ref, test_path),
+        }
         if not proof_inputs.isdisjoint(paths_after_red):
             return ["stale-red-proof"]
     return []
