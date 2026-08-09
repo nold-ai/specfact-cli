@@ -61,7 +61,9 @@ ancestor of that source, and that the selected test files remain
 unchanged since that source.
 The prior-red JSON SHALL be accompanied by a retained JUnit XML artifact whose
 digest matches the execution proof and whose cases contain a failure or error;
-self-reported JSON without that artifact SHALL be rejected.
+self-reported JSON without that artifact SHALL be rejected. Core SHALL also
+reject prior-red JSON or JUnit committed in the pull-request tree; normal red
+proof inputs SHALL come from runner-retained artifacts outside that tree.
 
 For `requirements-07-runtime-proof-delivery` only, Core SHALL instead accept
 the historical failing-first ledger from approved immutable commit

@@ -918,6 +918,23 @@
 
 - Bounded committed test-blob reads to 10 MiB with a 30-second subprocess timeout before hashing.
 - Rejected JUnit destinations that overlap the proof plan or any selected test before creating directories or unlinking output.
+
+## Promotion review remediation: trusted red artifacts, complete history, and failing-result reconciliation
+
+- **Failing-before command:** `uv run --python 3.12 --locked --extra dev python -m pytest -q tests/unit/scripts/test_requirements_proof_provenance.py -k 'changed_and_restored'`
+- **Failing result:** 2 tests failed because endpoint tree diffs hid a governed
+  production edit restored before red and a selected-test edit restored after
+  red.
+- **Additional reviewed gaps:** pull-request-tracked red JSON and JUnit could
+  authenticate one another without a trusted runner boundary, and the workflow
+  replaced ordinary failing-test JUnit before module reconciliation.
+- **Passing-after command:** `uv run --python 3.12 --locked --extra dev python -m pytest -q tests/unit/scripts/test_requirements_proof_provenance.py tests/unit/workflows/test_requirements_evidence_delivery_workflow.py`
+- **Passing result:** 26 passed. Provenance now rejects tracked red artifacts,
+  inspects every commit in both ancestry ranges, and the workflow reconciles
+  every non-empty JUnit report before enforcing its module-owned verdict.
+- **Requirements assignment:** no mapping change was required. These fixes
+  strengthen the existing Git-bound failing-first proof, safe execution, and
+  reconciliation scenarios without adding a new requirement surface.
 - Focused executor and provenance verification passed `25 passed`.
 
 ### Complete Semantic Versioning validation

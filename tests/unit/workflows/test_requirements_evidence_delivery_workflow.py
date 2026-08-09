@@ -76,8 +76,7 @@ def _assert_command_contract(workflow: dict[str, object]) -> None:
         "--plan-output artifacts/requirements-evidence/requirements-evidence-plan.json",
         '--review-evidence "$review_evidence"',
         "python scripts/requirements_proof_executor.py",
-        'if [[ "$execution_exit" -ne 0 ]]; then',
-        'write_failure_reports "Requirements proof executor exited with status $execution_exit."',
+        "if [[ ! -s artifacts/requirements-evidence/requirements-proof.xml ]]; then",
         "--junit artifacts/requirements-evidence/requirements-proof.xml",
         "python scripts/requirements_proof_provenance.py",
         '--base-ref "origin/${EVIDENCE_BASE_BRANCH}"',
@@ -94,6 +93,7 @@ def _assert_command_contract(workflow: dict[str, object]) -> None:
         "exit 1",
     )
     assert all(fragment in run_evidence["run"] for fragment in required_fragments)  # type: ignore[index]
+    assert 'if [[ "$execution_exit" -ne 0 ]]; then' not in run_evidence["run"]  # type: ignore[index]
     assert run_evidence["env"]["EVIDENCE_BASE_BRANCH"]  # type: ignore[index]
     assert "workflow_dispatch" in workflow["on"]  # type: ignore[operator]
 

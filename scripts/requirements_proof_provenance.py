@@ -120,20 +120,22 @@ def _validate_retained_red_junit(red_proof_path: Path, report: dict[str, object]
         raise ValueError("prior-red-proof-invalid")
 
 
+def _artifact_is_tracked(repo_root: Path, artifact_path: Path) -> bool:
+    """Return whether an artifact is controlled by the pull-request Git tree."""
+    try:
+        relative_path = artifact_path.resolve().relative_to(repo_root.resolve())
+    except ValueError:
+        return False
+    return _git(repo_root, "ls-files", "--error-unmatch", "--", relative_path.as_posix()).returncode == 0
+
+
 def _is_ancestor(repo_root: Path, ancestor: str, descendant: str) -> bool:
     return _git(repo_root, "merge-base", "--is-ancestor", ancestor, descendant).returncode == 0
 
 
-def _changed_paths(repo_root: Path, start_ref: str, end_ref: str) -> list[str] | None:
-    result = subprocess.run(
-        ["git", "diff", "--name-status", "-z", "--find-renames", f"{start_ref}...{end_ref}"],
-        cwd=repo_root,
-        capture_output=True,
-        check=False,
-    )
-    if result.returncode:
-        return None
-    records = result.stdout.split(b"\0")
+def _parse_name_status_records(payload: bytes) -> list[str] | None:
+    """Return every path from a NUL-delimited Git name-status stream."""
+    records = payload.split(b"\0")
     if records.pop() != b"":
         return None
     paths: list[str] = []
@@ -153,6 +155,37 @@ def _changed_paths(repo_root: Path, start_ref: str, end_ref: str) -> list[str] |
     return paths
 
 
+def _changed_paths_in_history(repo_root: Path, start_ref: str, end_ref: str) -> list[str] | None:
+    """Return paths touched by every commit, including changes later restored."""
+    revisions = _git(repo_root, "rev-list", "--reverse", f"{start_ref}..{end_ref}")
+    if revisions.returncode:
+        return None
+    paths: list[str] = []
+    for revision in revisions.stdout.splitlines():
+        result = subprocess.run(
+            [
+                "git",
+                "diff-tree",
+                "--root",
+                "--no-commit-id",
+                "--name-status",
+                "-z",
+                "-r",
+                "-m",
+                "--find-renames",
+                revision,
+            ],
+            cwd=repo_root,
+            capture_output=True,
+            check=False,
+        )
+        commit_paths = _parse_name_status_records(result.stdout) if result.returncode == 0 else None
+        if commit_paths is None:
+            return None
+        paths.extend(commit_paths)
+    return paths
+
+
 def _red_source_precedes_final(repo_root: Path, base_ref: str, source_ref: str, final_ref: str) -> bool:
     """Require the current base, red source, and final source to form one strict chain."""
     return (
@@ -165,15 +198,6 @@ def _red_source_precedes_final(repo_root: Path, base_ref: str, source_ref: str, 
 
 def _has_governed_production_path(paths: Sequence[str]) -> bool:
     return any(path in GOVERNED_PRODUCTION_FILES or path.startswith(GOVERNED_PRODUCTION_PREFIXES) for path in paths)
-
-
-def _file_changed_after_red(repo_root: Path, source_ref: str, final_ref: str, test_path: str) -> bool | None:
-    result = _git(repo_root, "diff", "--quiet", source_ref, final_ref, "--", test_path)
-    if result.returncode == 0:
-        return False
-    if result.returncode == 1:
-        return True
-    return None
 
 
 def _test_path_exists_at_ref(repo_root: Path, source_ref: str, test_path: str) -> bool:
@@ -257,6 +281,10 @@ def _validate_execution_bindings(
 )
 def validate_prior_red_proof(red_proof_path: Path, repo_root: Path, *, base_ref: str, final_ref: str) -> list[str]:
     """Return deterministic findings when a red report cannot prove failing-first order."""
+    if _artifact_is_tracked(repo_root, red_proof_path) or _artifact_is_tracked(
+        repo_root, red_proof_path.with_suffix(".xml")
+    ):
+        return ["prior-red-proof-invalid"]
     try:
         report = _read_red_proof(red_proof_path)
         _validate_retained_red_junit(red_proof_path, report)
@@ -269,18 +297,18 @@ def validate_prior_red_proof(red_proof_path: Path, repo_root: Path, *, base_ref:
         _validate_execution_bindings(report, repo_root, base_ref, source_ref, selector_paths)
     except ValueError as error:
         return [str(error)]
-    paths_before_red = _changed_paths(repo_root, base_ref, source_ref)
+    paths_before_red = _changed_paths_in_history(repo_root, base_ref, source_ref)
     if paths_before_red is None:
         return ["tdd-order-unproven"]
     if _has_governed_production_path(paths_before_red):
         return ["tdd-order-unproven"]
+    paths_after_red = _changed_paths_in_history(repo_root, source_ref, final_ref)
+    if paths_after_red is None:
+        return ["tdd-order-unproven"]
     for test_path in selector_paths:
         if not _test_path_exists_at_ref(repo_root, source_ref, test_path):
             return ["prior-red-proof-invalid"]
-        changed = _file_changed_after_red(repo_root, source_ref, final_ref, test_path)
-        if changed is None:
-            return ["tdd-order-unproven"]
-        if changed:
+        if test_path in paths_after_red:
             return ["stale-red-proof"]
     return []
 

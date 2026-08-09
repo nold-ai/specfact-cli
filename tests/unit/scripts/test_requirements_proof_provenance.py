@@ -116,7 +116,7 @@ def test_git_bound_red_proof_requires_test_only_ancestor_and_unchanged_selector_
     test_path.parent.mkdir()
     test_path.write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
     red_ref = _commit(tmp_path, "test: add red proof")
-    red_proof_path = tmp_path / "red.json"
+    red_proof_path = tmp_path / ".git" / "red.json"
     _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "delivery.py").write_text("VALUE = 1\n", encoding="utf-8")
@@ -145,7 +145,7 @@ def test_git_bound_red_proof_rejects_replayed_or_renamed_production_history(tmp_
     test_path.parent.mkdir()
     test_path.write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
     red_ref = _commit(tmp_path, "test: add red proof")
-    red_proof_path = tmp_path / "red.json"
+    red_proof_path = tmp_path / ".git" / "red.json"
     _write_red_proof(red_proof_path, tmp_path, red_ref, original_base_ref)
     (tmp_path / "src" / "delivery.py").write_text("VALUE = 1\n", encoding="utf-8")
     current_base_ref = _commit(tmp_path, "fix: apply delivery")
@@ -171,7 +171,7 @@ def test_git_bound_red_proof_rejects_replayed_or_renamed_production_history(tmp_
     rename_test_path.parent.mkdir()
     rename_test_path.write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
     rename_red_ref = _commit(rename_root, "test: add red proof")
-    rename_proof_path = rename_root / "red.json"
+    rename_proof_path = rename_root / ".git" / "red.json"
     _write_red_proof(rename_proof_path, rename_root, rename_red_ref, rename_base_ref)
     (rename_root / "src").mkdir(exist_ok=True)
     (rename_root / "src" / "replacement.py").write_text("VALUE = 1\n", encoding="utf-8")
@@ -198,13 +198,69 @@ def test_git_bound_red_proof_rejects_governed_path_with_tab(tmp_path: Path) -> N
     test_path.parent.mkdir()
     test_path.write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
     red_ref = _commit(tmp_path, "test: add red proof")
-    red_proof_path = tmp_path / "red.json"
+    red_proof_path = tmp_path / ".git" / "red.json"
     _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
     (tmp_path / "docs.md").write_text("# final\n", encoding="utf-8")
     final_ref = _commit(tmp_path, "docs: retain final source")
 
     assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
         "tdd-order-unproven"
+    ]
+
+
+def test_git_bound_red_proof_rejects_governed_path_changed_and_restored_before_red(tmp_path: Path) -> None:
+    """Intermediate production edits remain production history after a later revert."""
+    module = _load_provenance_module()
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    source_path = tmp_path / "src" / "delivery.py"
+    source_path.parent.mkdir()
+    source_path.write_text("VALUE = 0\n", encoding="utf-8")
+    base_ref = _commit(tmp_path, "chore: base")
+    source_path.write_text("VALUE = 1\n", encoding="utf-8")
+    _commit(tmp_path, "feat: premature delivery")
+    source_path.write_text("VALUE = 0\n", encoding="utf-8")
+    _commit(tmp_path, "revert: restore delivery")
+    test_path = tmp_path / "tests" / "test_proof.py"
+    test_path.parent.mkdir()
+    test_path.write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+    (tmp_path / "docs.md").write_text("# final\n", encoding="utf-8")
+    final_ref = _commit(tmp_path, "docs: retain final source")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
+        "tdd-order-unproven"
+    ]
+
+
+def test_git_bound_red_proof_rejects_test_changed_and_restored_after_red(tmp_path: Path) -> None:
+    """Intermediate selected-test edits make a retained red proof stale after a revert."""
+    module = _load_provenance_module()
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    (tmp_path / "README.md").write_text("# proof\n", encoding="utf-8")
+    base_ref = _commit(tmp_path, "chore: base")
+    test_path = tmp_path / "tests" / "test_proof.py"
+    test_path.parent.mkdir()
+    original_test = "def test_selected() -> None: assert False\n"
+    test_path.write_text(original_test, encoding="utf-8")
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+    test_path.write_text("def test_selected() -> None: assert True\n", encoding="utf-8")
+    _commit(tmp_path, "test: alter selected proof")
+    test_path.write_text(original_test, encoding="utf-8")
+    _commit(tmp_path, "revert: restore selected proof")
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "delivery.py").write_text("VALUE = 1\n", encoding="utf-8")
+    final_ref = _commit(tmp_path, "feat: delivery")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
+        "stale-red-proof"
     ]
 
 
@@ -236,7 +292,7 @@ def test_git_bound_red_proof_rejects_delivery_input_before_red(tmp_path: Path, d
     test_path.parent.mkdir()
     test_path.write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
     red_ref = _commit(tmp_path, "test: add red proof")
-    red_proof_path = tmp_path / "red.json"
+    red_proof_path = tmp_path / ".git" / "red.json"
     _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
     (tmp_path / "docs.md").write_text("# final\n", encoding="utf-8")
     final_ref = _commit(tmp_path, "docs: retain final source")
@@ -259,11 +315,35 @@ def test_git_bound_red_proof_requires_every_execution_binding(tmp_path: Path, mi
     test_path.parent.mkdir()
     test_path.write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
     red_ref = _commit(tmp_path, "test: add red proof")
-    red_proof_path = tmp_path / "red.json"
+    red_proof_path = tmp_path / ".git" / "red.json"
     _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
     report = json.loads(red_proof_path.read_text(encoding="utf-8"))
     del report["execution_proof"][missing_field]
     red_proof_path.write_text(json.dumps(report), encoding="utf-8")
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "delivery.py").write_text("VALUE = 1\n", encoding="utf-8")
+    final_ref = _commit(tmp_path, "feat: delivery")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
+        "prior-red-proof-invalid"
+    ]
+
+
+def test_git_bound_red_proof_rejects_pull_request_tracked_artifacts(tmp_path: Path) -> None:
+    """A report and digest controlled by the pull request are not a trusted run artifact."""
+    module = _load_provenance_module()
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    (tmp_path / "README.md").write_text("# proof\n", encoding="utf-8")
+    base_ref = _commit(tmp_path, "chore: base")
+    test_path = tmp_path / "tests" / "test_proof.py"
+    test_path.parent.mkdir()
+    test_path.write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+    _commit(tmp_path, "test: commit self-reported red artifacts")
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "delivery.py").write_text("VALUE = 1\n", encoding="utf-8")
     final_ref = _commit(tmp_path, "feat: delivery")
@@ -285,7 +365,7 @@ def test_git_bound_red_proof_rejects_test_digest_not_present_at_source(tmp_path:
     test_path.parent.mkdir()
     test_path.write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
     red_ref = _commit(tmp_path, "test: add red proof")
-    red_proof_path = tmp_path / "red.json"
+    red_proof_path = tmp_path / ".git" / "red.json"
     _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
     report = json.loads(red_proof_path.read_text(encoding="utf-8"))
     report["execution_proof"]["test_file_digests"]["tests/test_proof.py"] = f"sha256:{'0' * 64}"
