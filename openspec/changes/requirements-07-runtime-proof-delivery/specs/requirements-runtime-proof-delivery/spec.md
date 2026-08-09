@@ -86,8 +86,8 @@ SHALL NOT extend it to any other change.
   mapped selector/test file changes after the red proof
 - **WHEN** the gate evaluates a governed production diff
 - **THEN** it fails with `tdd-order-unproven` or `stale-red-proof`
-- **AND** retained-run discovery skips invalid red artifacts and continues to
-  older eligible runs
+- **AND** retained-run discovery searches every completed-run page, skips
+  invalid red artifacts, and continues to older eligible runs
 - **AND** it retains diagnostic artifacts before enforcing the verdict.
 
 ### Requirement: Staged Scenario Proof Planning

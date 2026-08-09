@@ -116,14 +116,13 @@ jobs:
             printf 'run-id=%s\n' "$run_id" >> "$GITHUB_OUTPUT"
             break
           done < <(
-            gh run list \
-              --workflow requirements-evidence.yml \
-              --branch "$GITHUB_HEAD_REF" \
-              --event pull_request \
-              --status completed \
-              --limit 100 \
-              --json databaseId,headSha \
-              --jq '.[] | [.databaseId, .headSha] | @tsv'
+            gh api --method GET --paginate \
+              "repos/${GITHUB_REPOSITORY}/actions/workflows/requirements-evidence.yml/runs" \
+              -f branch="$GITHUB_HEAD_REF" \
+              -f event=pull_request \
+              -f status=completed \
+              -f per_page=100 \
+              --jq '.workflow_runs[] | [.id, .head_sha] | @tsv'
           )
 
       - name: Download retained red proof

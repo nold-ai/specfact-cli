@@ -1043,3 +1043,17 @@
   helper. They are outside this patch; the helper's explicit fragments preserve
   readable workflow-domain evidence, and repository-wide type-checking retains
   those pytest typing warnings without errors.
+
+## Retained-run pagination review remediation
+
+- **Recorded:** 2026-08-09 (UTC)
+- **Review finding:** PR #665 discussion `r3745221024` identified that the
+  newest-100 run cap could hide an older eligible red artifact on a long-lived
+  pull request.
+- **Failing-before command:** `hatch run python -m pytest -q tests/unit/workflows/test_requirements_evidence_delivery_workflow.py::test_requirements_evidence_workflow_uses_the_released_fixture_and_retains_reports`
+- **Failing result:** 1 test failed because discovery used bounded
+  `gh run list --limit 100` output rather than paginated workflow-run history.
+- **Passing-after command:** `hatch run python -m pytest -q tests/unit/workflows/test_requirements_evidence_delivery_workflow.py tests/unit/scripts/test_requirements_proof_provenance.py`
+- **Passing result:** 27 tests passed after switching discovery to the paginated
+  GitHub workflow-runs API while retaining branch, event, status, ancestry, and
+  provenance filters.

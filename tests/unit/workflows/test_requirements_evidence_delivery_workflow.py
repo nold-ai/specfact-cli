@@ -142,8 +142,11 @@ def _assert_prior_red_run_selection(locate: dict[str, object]) -> None:
     command = locate["run"]
     assert isinstance(command, str)
     required_fragments = (
-        "gh run list",
-        "--status completed",
+        "gh api --method GET --paginate",
+        '"repos/${GITHUB_REPOSITORY}/actions/workflows/requirements-evidence.yml/runs"',
+        "-f status=completed",
+        "-f per_page=100",
+        "--jq '.workflow_runs[] | [.id, .head_sha] | @tsv'",
         'current_head="$(git rev-parse HEAD)"',
         '[[ "$head_sha" != "$current_head" ]]',
         'git merge-base --is-ancestor "origin/${GITHUB_BASE_REF}" "$head_sha"',
@@ -158,6 +161,7 @@ def _assert_prior_red_run_selection(locate: dict[str, object]) -> None:
     )
     assert all(fragment in command for fragment in required_fragments)
     assert "--status failure" not in command
+    assert "--limit 100" not in command
 
 
 def _assert_prior_red_download_contract(workflow: dict[str, object]) -> None:
