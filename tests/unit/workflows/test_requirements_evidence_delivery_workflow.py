@@ -252,7 +252,7 @@ def test_requirements_evidence_workflow_splits_rename_endpoints_before_maturity(
     assert 'changed_paths+=("$destination_path")' in command
 
 
-def test_requirements_evidence_workflow_fails_when_executor_omits_junit() -> None:
+def test_requirements_evidence_workflow_fails_when_executor_omits_junit(tmp_path: Path) -> None:
     """Missing execution proof must fail even when the executor returned zero."""
     command = _run_evidence_command()
     missing_junit_branch = command.split(
@@ -261,6 +261,17 @@ def test_requirements_evidence_workflow_fails_when_executor_omits_junit() -> Non
 
     assert "exit_code=1" in missing_junit_branch
     assert 'exit_code="${execution_exit:-1}"' not in missing_junit_branch
+    result = subprocess.run(
+        [
+            "bash",
+            "-c",
+            f'write_failure_reports() {{ :; }}\nexecution_exit=0\n{missing_junit_branch}\nexit "$exit_code"',
+        ],
+        cwd=tmp_path,
+        check=False,
+    )
+
+    assert result.returncode != 0
 
 
 def test_requirements_evidence_workflow_ignores_archived_review_evidence() -> None:

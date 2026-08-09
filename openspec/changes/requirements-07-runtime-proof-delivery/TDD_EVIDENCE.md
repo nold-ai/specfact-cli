@@ -1060,14 +1060,17 @@
 
 ## Codex review proof-input and missing-JUnit remediation
 
-- **Recorded:** 2026-08-09 (UTC)
+- **Recorded:** 2026-08-09T21:30:23Z
 - **Failing-before command:** `hatch run pytest tests/unit/scripts/test_requirements_proof_provenance.py tests/unit/workflows/test_requirements_evidence_delivery_workflow.py -q`
 - **Failing result:** 3 tests failed because post-red changes to root and test-tree
   `conftest.py` files were accepted and a zero-status executor without JUnit left
   the workflow step successful.
-- **Passing-after command:** the same focused command passed all 30 tests after
-  applicable pytest support paths became stale-proof inputs and missing JUnit
-  forced a nonzero evidence result.
+- **Passing-after command:** `hatch run pytest tests/unit/scripts/test_requirements_proof_provenance.py tests/unit/workflows/test_requirements_evidence_delivery_workflow.py -q`
+- **Passing result:** all 30 tests passed after applicable pytest support paths
+  became stale-proof inputs and missing JUnit forced a nonzero evidence result.
+- **Skipped:** 0 tests.
+- **Environment:** Linux, Python 3.12.13, pytest 9.1.1; no environmental
+  limitations affected the focused run.
 - **Requirements assignment:** the incomplete-execution scenario now explicitly
   rejects stale pytest support inputs and successful execution without retained
   JUnit proof.
