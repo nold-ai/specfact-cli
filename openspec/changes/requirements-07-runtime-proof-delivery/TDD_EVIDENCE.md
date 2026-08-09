@@ -1086,6 +1086,17 @@
 - **Passing result:** 47 tests passed; 0 skipped.
 - **Environment:** Linux, Python 3.12.13, pytest 9.1.1.
 
+## Namespace-package initializer review remediation
+
+- **Recorded:** 2026-08-09 (UTC)
+- **Failing-before command:** `uv run --python 3.11 --locked --extra dev python -m pytest -q tests/unit/scripts/test_requirements_proof_provenance.py::test_git_bound_red_proof_rejects_added_parent_package_initializer`
+- **Failing result:** 1 failed because adding a previously absent parent
+  `__init__.py` after the red run did not invalidate the proof.
+- **Passing-after command:** `uv run --python 3.11 --locked --extra dev python -m pytest -q tests/unit/scripts/test_requirements_proof_provenance.py`
+- **Passing result:** all 31 provenance tests passed.
+- **Proof:** import provenance now retains every possible parent package
+  initializer path, including namespace-package initializers absent at red.
+
 ## Codex review imported pytest-support freshness remediation
 
 - **Recorded:** 2026-08-09 (UTC)

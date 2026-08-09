@@ -109,7 +109,7 @@ def _applicable_conftest_paths(test_path: str) -> set[str]:
     return paths
 
 
-def _python_module_paths(repo_root: Path, source_ref: str, module_parts: Sequence[str]) -> set[str]:
+def _python_module_paths(module_parts: Sequence[str]) -> set[str]:
     """Return possible paths for a repository-local module, including an absent target."""
     if not module_parts:
         return set()
@@ -117,9 +117,7 @@ def _python_module_paths(repo_root: Path, source_ref: str, module_parts: Sequenc
     paths = {module_path.with_suffix(".py").as_posix(), (module_path / "__init__.py").as_posix()}
     for parent_depth in range(1, len(module_parts)):
         parent_path = PurePosixPath(*module_parts[:parent_depth])
-        initializer = (parent_path / "__init__.py").as_posix()
-        if _test_path_exists_at_ref(repo_root, source_ref, initializer):
-            paths.add(initializer)
+        paths.add((parent_path / "__init__.py").as_posix())
     return paths
 
 
@@ -176,7 +174,7 @@ def _imported_python_paths(repo_root: Path, source_ref: str, source_paths: Seque
         if tree is None:
             continue
         for module_parts in _import_module_names(tree, current_path):
-            for imported_path in _python_module_paths(repo_root, source_ref, module_parts):
+            for imported_path in _python_module_paths(module_parts):
                 if imported_path in imported_paths:
                     continue
                 imported_paths.add(imported_path)

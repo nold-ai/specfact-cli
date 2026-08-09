@@ -315,6 +315,32 @@ def test_git_bound_red_proof_rejects_changed_parent_package_initializer(tmp_path
     ]
 
 
+def test_git_bound_red_proof_rejects_added_parent_package_initializer(tmp_path: Path) -> None:
+    """A namespace package cannot gain executable initialization after the red run."""
+    module = _load_provenance_module()
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    support_path = tmp_path / "support"
+    support_path.mkdir()
+    (support_path / "fixtures.py").write_text("VALUE = False\n", encoding="utf-8")
+    tests_path = tmp_path / "tests"
+    tests_path.mkdir()
+    (tests_path / "conftest.py").write_text("from support.fixtures import VALUE\n", encoding="utf-8")
+    base_ref = _commit(tmp_path, "test: add namespace-package support")
+    (tests_path / "test_proof.py").write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+
+    (support_path / "__init__.py").write_text("VALUE = True\n", encoding="utf-8")
+    final_ref = _commit(tmp_path, "fix: initialize support package")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
+        "stale-red-proof"
+    ]
+
+
 def test_git_bound_red_proof_accepts_executable_regular_selector(tmp_path: Path) -> None:
     """An executable Git blob remains a regular pytest selector rather than a symlink."""
     module = _load_provenance_module()
