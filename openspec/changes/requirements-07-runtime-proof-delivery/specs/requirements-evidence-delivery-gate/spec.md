@@ -32,7 +32,7 @@ checkout. Core SHALL verify both identities before execution.
   unrelated secret-like variables
 - **WHEN** core invokes the released Requirements evidence command
 - **THEN** permitted runtime variables and the verified fixture roots are present
-- **AND** unrelated ambient variables are absent.
+- **AND** unrelated ambient variables and caller-controlled `PYTHONPATH` are absent.
 
 #### Scenario: Block staged delivery after retaining a red report
 

@@ -2,8 +2,6 @@
 
 from pathlib import Path
 
-import pytest
-
 
 def runtime_proof_change_root(repo_root: Path) -> Path:
     """Resolve R07 before or after OpenSpec archival."""
@@ -13,4 +11,4 @@ def runtime_proof_change_root(repo_root: Path) -> Path:
     archived = sorted((repo_root / "openspec/changes/archive").glob("*-requirements-07-runtime-proof-delivery"))
     if archived:
         return archived[-1]
-    raise pytest.skip.Exception("Requirements runtime-proof change fixture is unavailable")
+    raise AssertionError("Requirements runtime-proof change fixture is unavailable from active and archived paths")

@@ -25,6 +25,7 @@ def _assert_contains_pre_commit_contract(*fragments: str) -> None:
 
 def _runtime_proof_requirements() -> dict[str, dict[str, list[dict[str, Any]]]]:
     sidecar = runtime_proof_change_root(REPO_ROOT) / "requirements-evidence.yaml"
+    assert sidecar.is_file(), f"Required R07 mapping fixture is missing: {sidecar}"
     mapping = cast(dict[str, Any], yaml.safe_load(sidecar.read_text(encoding="utf-8")))
     return cast(dict[str, dict[str, list[dict[str, Any]]]], mapping["requirements"])
 

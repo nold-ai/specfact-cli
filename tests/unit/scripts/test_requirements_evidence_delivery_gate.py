@@ -254,6 +254,7 @@ def test_failed_command_writes_missing_diagnostic_reports_and_exports_fixture_ro
     observed_environment: dict[str, str] = {}
     monkeypatch.setenv("PATH", os.environ["PATH"])
     monkeypatch.setenv("SPECFACT_TEST_SECRET", "must-not-leak")
+    monkeypatch.setenv("PYTHONPATH", "/caller-controlled")
 
     observed = module.run_evidence_command(
         module.EvidenceRequest(
@@ -271,6 +272,7 @@ def test_failed_command_writes_missing_diagnostic_reports_and_exports_fixture_ro
     assert observed_environment["SPECFACT_MODULES_ROOTS"] == str((fixture / "packages").resolve())
     assert observed_environment["PATH"] == os.environ["PATH"]
     assert "SPECFACT_TEST_SECRET" not in observed_environment
+    assert "PYTHONPATH" not in observed_environment
     assert json.loads(json_report.read_text(encoding="utf-8"))["verdict"] == "failed"
     assert "Requirements evidence unavailable" in markdown_report.read_text(encoding="utf-8")
 

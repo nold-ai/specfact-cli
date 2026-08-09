@@ -886,3 +886,13 @@
   passed `21 passed` after tree binding, Bash 3-compatible staged-change
   deduplication, regular-file/containment enforcement, and retained failing
   JUnit digest validation.
+
+### Delegated import isolation and release-fixture enforcement
+
+- Failing-before: the focused delegated-environment test failed because a
+  caller-controlled `PYTHONPATH` remained in the released command environment.
+- Passing-after: the focused adapter and R07 mapping tests passed after removing
+  `PYTHONPATH` from the allowlist and making a missing active-or-archived R07
+  fixture a blocking assertion rather than a suite skip.
+- Workflow lint: grouped fixture outputs under one `$GITHUB_OUTPUT` redirect to
+  satisfy ShellCheck SC2129.

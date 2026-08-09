@@ -27,7 +27,6 @@ ALLOWED_ENVIRONMENT_KEYS = frozenset(
         "LC_ALL",
         "LC_CTYPE",
         "PATH",
-        "PYTHONPATH",
         "SYSTEMROOT",
         "TEMP",
         "TMP",

@@ -41,9 +41,11 @@ jobs:
           [[ "$commit" =~ ^[0-9a-f]{40}$ ]]
           test "$commit" = "$approved_commit"
           test "$tree" = "5d0b8e66c6cd467e6b1ad9d582e24c66b907e205"
-          printf 'repository=%s\n' "$repository" >> "$GITHUB_OUTPUT"
-          printf 'commit=%s\n' "$commit" >> "$GITHUB_OUTPUT"
-          printf 'tree=%s\n' "$tree" >> "$GITHUB_OUTPUT"
+          {
+            printf 'repository=%s\n' "$repository"
+            printf 'commit=%s\n' "$commit"
+            printf 'tree=%s\n' "$tree"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Checkout module bundles repo
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
