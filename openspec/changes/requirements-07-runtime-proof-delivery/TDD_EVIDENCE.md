@@ -990,3 +990,14 @@
   assertions without changing either contract.
 - **Requirements assignment:** no mapping delta was required because this is a
   behavior-preserving clean-code remediation of already mapped delivery gates.
+
+## Retained-run selection and repository-output safety remediation
+
+- **Recorded:** 2026-08-09 (UTC)
+- **Failing-before command:** `uv run --locked --no-sync python -m pytest -q tests/unit/scripts/test_requirements_proof_executor.py::test_executor_rejects_existing_repository_file_as_junit_destination tests/unit/workflows/test_requirements_evidence_delivery_workflow.py::test_requirements_evidence_workflow_uses_the_released_fixture_and_retains_reports`
+- **Failing result:** 2 tests failed because an unrelated existing repository
+  file could be unlinked as JUnit output and retained-run discovery compared
+  candidates with the synthetic merge SHA without inspecting the artifact's
+  execution stage.
+- **Requirements assignment:** no mapping delta was required. These regressions
+  strengthen the mapped safe-execution and Git-bound retained-red scenarios.

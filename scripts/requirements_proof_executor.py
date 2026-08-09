@@ -155,8 +155,16 @@ def execute_plan(
     """Run exact selectors with a deterministic JUnit destination and no shell."""
     selectors = selectors_from_plan(plan, repo_root)
     selected_paths = {(repo_root / selector.partition("::")[0]).resolve() for selector in selectors}
-    if junit_path.resolve() in selected_paths:
+    resolved_junit_path = junit_path.resolve()
+    if resolved_junit_path in selected_paths:
         raise ValueError("JUnit destination overlaps a selected repository input")
+    try:
+        resolved_junit_path.relative_to(repo_root.resolve())
+    except ValueError:
+        pass
+    else:
+        if resolved_junit_path.exists():
+            raise ValueError("JUnit destination overlaps an existing repository input")
     junit_path.parent.mkdir(parents=True, exist_ok=True)
     junit_path.unlink(missing_ok=True)
     arguments = [

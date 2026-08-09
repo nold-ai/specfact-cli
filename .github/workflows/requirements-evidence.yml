@@ -93,11 +93,30 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          current_head="$(git rev-parse HEAD)"
           while IFS=$'\t' read -r run_id head_sha; do
             [[ -n "$run_id" && -n "$head_sha" ]] || continue
-            [[ "$head_sha" != "$GITHUB_SHA" ]] || continue
+            [[ "$head_sha" != "$current_head" ]] || continue
             git merge-base --is-ancestor "origin/${GITHUB_BASE_REF}" "$head_sha" || continue
-            git merge-base --is-ancestor "$head_sha" "$GITHUB_SHA" || continue
+            git merge-base --is-ancestor "$head_sha" "$current_head" || continue
+            candidate_dir="${RUNNER_TEMP}/prior-red-candidate"
+            rm -rf "$candidate_dir"
+            if ! gh run download "$run_id" --name requirements-evidence --dir "$candidate_dir"; then
+              continue
+            fi
+            if ! python3 - "$candidate_dir/requirements-evidence.json" <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+
+          report = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+          execution_proof = report.get("execution_proof")
+          if not isinstance(execution_proof, dict) or execution_proof.get("run_stage") != "red":
+              raise SystemExit(1)
+          PY
+            then
+              continue
+            fi
             printf 'run-id=%s\n' "$run_id" >> "$GITHUB_OUTPUT"
             break
           done < <(

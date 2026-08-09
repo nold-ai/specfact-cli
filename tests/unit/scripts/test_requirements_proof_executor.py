@@ -182,6 +182,20 @@ def test_executor_rejects_junit_destination_that_overlaps_selected_test(tmp_path
     assert selected_test.exists()
 
 
+def test_executor_rejects_existing_repository_file_as_junit_destination(tmp_path: Path) -> None:
+    """The executor must not unlink a repository file unrelated to the selected test."""
+    module = _load_executor_module()
+    _write_selected_test(tmp_path)
+    repository_input = tmp_path / "pyproject.toml"
+    repository_input.write_text("[project]\nname = 'proof-target'\n", encoding="utf-8")
+
+    with pytest_runtime.raises(ValueError, match="overlaps an existing repository input"):
+        module.execute_plan(
+            _plan("tests/test_proof.py::test_selected"), tmp_path, repository_input, command_runner=lambda _command: 0
+        )
+    assert repository_input.read_text(encoding="utf-8") == "[project]\nname = 'proof-target'\n"
+
+
 def test_executor_rejects_duplicate_or_unsupported_plan_entries(tmp_path: Path) -> None:
     """A plan must contain unique supported pytest selector records."""
     module = _load_executor_module()
