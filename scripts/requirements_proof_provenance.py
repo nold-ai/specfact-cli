@@ -119,6 +119,25 @@ def _python_module_path(repo_root: Path, source_ref: str, module_parts: Sequence
     return None
 
 
+def _static_pytest_plugin_names(tree: ast.AST) -> list[str]:
+    """Return module names from static ``pytest_plugins`` declarations."""
+    names: list[str] = []
+    for node in ast.walk(tree):
+        value: ast.expr | None = None
+        if (
+            isinstance(node, ast.Assign)
+            and any(isinstance(target, ast.Name) and target.id == "pytest_plugins" for target in node.targets)
+        ) or (
+            isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name) and node.target.id == "pytest_plugins"
+        ):
+            value = node.value
+        if value is None:
+            continue
+        values = value.elts if isinstance(value, (ast.List, ast.Tuple, ast.Set)) else [value]
+        names.extend(item.value for item in values if isinstance(item, ast.Constant) and isinstance(item.value, str))
+    return names
+
+
 def _imported_python_paths(repo_root: Path, source_ref: str, source_paths: Sequence[str]) -> set[str]:
     """Return transitive repository-local Python imports used by pytest inputs."""
     pending = list(source_paths)
@@ -133,6 +152,12 @@ def _imported_python_paths(repo_root: Path, source_ref: str, source_paths: Seque
         if tree is None:
             continue
         current_package = list(PurePosixPath(current_path).parent.parts)
+        plugin_modules = (name.split(".") for name in _static_pytest_plugin_names(tree))
+        for module_parts in plugin_modules:
+            imported_path = _python_module_path(repo_root, source_ref, module_parts)
+            if imported_path is not None and imported_path not in imported_paths:
+                imported_paths.add(imported_path)
+                pending.append(imported_path)
         for node in ast.walk(tree):
             module_names: list[list[str]] = []
             if isinstance(node, ast.Import):

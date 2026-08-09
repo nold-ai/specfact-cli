@@ -1122,3 +1122,18 @@
 - **Internal wiki follow-up:** the sibling `specfact-cli-internal` checkout was
   unavailable. Update `wiki/sources/requirements-07-runtime-proof-delivery.md`
   and run `python3 scripts/wiki_rebuild_graph.py` from that repository root.
+
+## Codex follow-up pytest-plugin freshness remediation
+
+- **Recorded:** 2026-08-09 (UTC)
+- **Review finding:** PR #665 identified that static `pytest_plugins`
+  declarations in an applicable `conftest.py` were not traversed, allowing a
+  registered plugin to change after red without invalidating retained proof.
+- **Failing-before command:** `hatch run pytest tests/unit/scripts/test_requirements_proof_provenance.py::test_git_bound_red_proof_rejects_changed_pytest_plugin_registered_by_conftest -q`
+- **Failing result:** 1 test failed because changing the registered plugin
+  produced no provenance finding.
+- **Passing-after command:** `hatch run pytest tests/unit/scripts/test_requirements_proof_provenance.py -q`
+- **Passing result:** all 26 tests passed after resolving static
+  `pytest_plugins` module names and recursively traversing their local imports.
+- **Skipped:** 0 tests.
+- **Environment:** Linux, Python 3.12.13, pytest 9.1.1.
