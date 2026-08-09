@@ -118,7 +118,7 @@ jobs:
           rm -f "$changed_status_file"
           for changed_path in "${changed_paths[@]}"; do
             case "$changed_path" in
-              .github/*|ci/*|scripts/*|src/*|pyproject.toml|setup.py|uv.lock|requirements/ci/locked.txt)
+              .github/*|ci/*|scripts/*|src/*|pyproject.toml|setup.py|uv.lock|requirements/ci/locked.txt|resources/templates/*|resources/schemas/*|resources/mappings/*|resources/keys/*|modules/bundle-mapper/*)
                 required_maturity=verified
                 break
                 ;;

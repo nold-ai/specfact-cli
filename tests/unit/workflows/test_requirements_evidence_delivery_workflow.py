@@ -56,6 +56,8 @@ def _assert_command_contract(workflow: dict[str, object]) -> None:
         '--base-ref "origin/${EVIDENCE_BASE_BRANCH}"',
         "required_maturity=planned",
         "required_maturity=test-authored",
+        "pyproject.toml|setup.py|uv.lock|requirements/ci/locked.txt",
+        "resources/templates/*|resources/schemas/*|resources/mappings/*|resources/keys/*|modules/bundle-mapper/*",
         "planning_maturity=test-authored",
         '--required-maturity "$planning_maturity"',
         'review_evidence="openspec/changes/${selected_change}/requirements-proof/review-evidence.json"',
@@ -183,13 +185,6 @@ def test_requirements_evidence_workflow_splits_rename_endpoints_before_maturity(
     assert 'changed_paths+=("$source_path")' in command
     assert "R*|C*)" in command
     assert 'changed_paths+=("$destination_path")' in command
-
-
-def test_requirements_evidence_workflow_treats_delivery_inputs_as_production() -> None:
-    """Dependency and packaging inputs must require verified runtime proof."""
-    command = _run_evidence_command()
-
-    assert "pyproject.toml|setup.py|uv.lock|requirements/ci/locked.txt" in command
 
 
 def test_requirements_evidence_workflow_ignores_archived_review_evidence() -> None:

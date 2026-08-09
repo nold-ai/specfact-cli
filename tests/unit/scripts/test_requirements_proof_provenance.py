@@ -9,6 +9,8 @@ import sys
 from pathlib import Path
 from typing import Protocol, cast
 
+import pytest
+
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 PROVENANCE_SCRIPT = REPO_ROOT / "scripts" / "requirements_proof_provenance.py"
@@ -168,7 +170,18 @@ def test_git_bound_red_proof_rejects_governed_path_with_tab(tmp_path: Path) -> N
     ]
 
 
-def test_git_bound_red_proof_rejects_delivery_input_before_red(tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    "delivery_path",
+    [
+        "pyproject.toml",
+        "resources/templates/proof.j2",
+        "resources/schemas/proof.json",
+        "resources/mappings/proof.yaml",
+        "resources/keys/proof.pub",
+        "modules/bundle-mapper/module-package.yaml",
+    ],
+)
+def test_git_bound_red_proof_rejects_delivery_input_before_red(tmp_path: Path, delivery_path: str) -> None:
     """Frozen dependency input changes are production work, even at repository root."""
     module = _load_provenance_module()
     _git(tmp_path, "init")
@@ -176,7 +189,9 @@ def test_git_bound_red_proof_rejects_delivery_input_before_red(tmp_path: Path) -
     _git(tmp_path, "config", "user.name", "Requirements proof")
     (tmp_path / "README.md").write_text("# proof\n", encoding="utf-8")
     base_ref = _commit(tmp_path, "chore: base")
-    (tmp_path / "pyproject.toml").write_text("[project]\nname = 'proof'\n", encoding="utf-8")
+    packaged_path = tmp_path / delivery_path
+    packaged_path.parent.mkdir(parents=True, exist_ok=True)
+    packaged_path.write_text("packaged proof\n", encoding="utf-8")
     _commit(tmp_path, "build: change delivery input")
     test_path = tmp_path / "tests" / "test_proof.py"
     test_path.parent.mkdir()

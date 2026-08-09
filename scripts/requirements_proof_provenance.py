@@ -16,7 +16,17 @@ from icontract import ensure
 
 
 GIT_OBJECT_PATTERN = re.compile(r"^[0-9a-f]{40}$")
-GOVERNED_PRODUCTION_PREFIXES = (".github/", "ci/", "scripts/", "src/")
+GOVERNED_PRODUCTION_PREFIXES = (
+    ".github/",
+    "ci/",
+    "scripts/",
+    "src/",
+    "resources/templates/",
+    "resources/schemas/",
+    "resources/mappings/",
+    "resources/keys/",
+    "modules/bundle-mapper/",
+)
 GOVERNED_PRODUCTION_FILES = {"pyproject.toml", "setup.py", "uv.lock", "requirements/ci/locked.txt"}
 
 

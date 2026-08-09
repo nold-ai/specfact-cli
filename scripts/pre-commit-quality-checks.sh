@@ -419,7 +419,7 @@ staged_required_maturity() {
   local file maturity="planned"
   while IFS= read -r -d '' file; do
     case "${file}" in
-      .github/*|ci/*|scripts/*|src/*|pyproject.toml|setup.py|uv.lock|requirements/ci/locked.txt)
+      .github/*|ci/*|scripts/*|src/*|pyproject.toml|setup.py|uv.lock|requirements/ci/locked.txt|resources/templates/*|resources/schemas/*|resources/mappings/*|resources/keys/*|modules/bundle-mapper/*)
         printf 'verified\n'
         return 0
         ;;
@@ -485,7 +485,10 @@ run_requirements_evidence_gate() {
   rm -f "${json_report}" "${markdown_report}" "${plan_report}"
   required_maturity="$(staged_planning_maturity)"
   if [[ "${required_maturity}" != "planned" ]]; then
-    mapfile -t staged_change_ids < <(staged_active_change_ids)
+    while IFS= read -r selected_change || [[ -n "${selected_change}" ]]; do
+      [[ -z "${selected_change}" ]] && continue
+      staged_change_ids+=("${selected_change}")
+    done < <(staged_active_change_ids)
     if [[ ${#staged_change_ids[@]} -gt 1 ]]; then
       error "❌ Block 2 — Staged Requirements evidence spans multiple active changes"
       exit 1

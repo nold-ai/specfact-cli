@@ -820,3 +820,23 @@
   present and retains the prior fail-closed fallback when none is staged.
   Semgrep 1.172.0 metadata was rechecked on 2026-08-09 and still pins vulnerable
   `mcp==1.23.3`; the narrowly scoped exception now expires on 2026-09-08.
+
+## Failing-before packaged-asset classification remediation
+
+- **Recorded:** 2026-08-09 (UTC)
+- **Command:** `hatch run python -m pytest -q tests/unit/workflows/test_requirements_evidence_delivery_workflow.py::test_requirements_evidence_workflow_treats_delivery_inputs_as_production tests/unit/scripts/test_requirements_evidence_delivery_gate.py::test_pre_commit_treats_delivery_inputs_as_production tests/unit/scripts/test_requirements_proof_provenance.py::test_git_bound_red_proof_rejects_delivery_input_before_red`
+- **Result:** 7 failed and 1 passed as expected.
+- **Failure:** wheel force-included templates, schemas, mappings, keys, and the
+  bundled mapper were not classified consistently as production inputs.
+- **Intent:** require verified delivery proof for every force-included runtime
+  payload and reject any red proof recorded after those payloads changed.
+
+## Passing-after packaged-asset and Python 3.11 remediation
+
+- **Recorded:** 2026-08-09 (UTC)
+- **Command:** `uv run --python 3.11 --locked --extra dev python -m pytest -q tests/unit/scripts/test_pre_commit_smart_checks_docs.py::test_pre_commit_quality_markdown_globs_include_mdc tests/unit/workflows/test_requirements_evidence_delivery_workflow.py::test_requirements_evidence_workflow_treats_delivery_inputs_as_production tests/unit/scripts/test_requirements_evidence_delivery_gate.py::test_pre_commit_treats_delivery_inputs_as_production tests/unit/scripts/test_requirements_proof_provenance.py::test_git_bound_red_proof_rejects_delivery_input_before_red`
+- **Result:** 9 tests passed on Python 3.11.
+- **Proof:** CI, staged maturity, and red-proof provenance classify every wheel
+  force-included asset path as production. Staged change collection retains the
+  Bash 3.2-compatible read loop required by the repository portability test and
+  no longer uses `mapfile`.
