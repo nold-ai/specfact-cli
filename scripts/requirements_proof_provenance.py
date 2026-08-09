@@ -17,6 +17,7 @@ from icontract import ensure
 
 GIT_OBJECT_PATTERN = re.compile(r"^[0-9a-f]{40}$")
 GOVERNED_PRODUCTION_PREFIXES = (".github/", "ci/", "scripts/", "src/")
+GOVERNED_PRODUCTION_FILES = {"pyproject.toml", "setup.py", "uv.lock", "requirements/ci/locked.txt"}
 
 
 def _git(repo_root: Path, *arguments: str) -> subprocess.CompletedProcess[str]:
@@ -126,7 +127,7 @@ def _red_source_precedes_final(repo_root: Path, base_ref: str, source_ref: str, 
 
 
 def _has_governed_production_path(paths: Sequence[str]) -> bool:
-    return any(path.startswith(GOVERNED_PRODUCTION_PREFIXES) for path in paths)
+    return any(path in GOVERNED_PRODUCTION_FILES or path.startswith(GOVERNED_PRODUCTION_PREFIXES) for path in paths)
 
 
 def _file_changed_after_red(repo_root: Path, source_ref: str, final_ref: str, test_path: str) -> bool | None:

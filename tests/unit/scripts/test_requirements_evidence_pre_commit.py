@@ -52,12 +52,22 @@ def test_pre_commit_normalizes_verified_changes_to_test_authored_planning() -> N
     assert all(fragment in pre_commit for fragment in required_fragments)
 
 
+def test_pre_commit_selects_review_evidence_from_the_staged_change() -> None:
+    """Parallel active changes must not make a uniquely staged change ambiguous."""
+    _assert_contains_pre_commit_contract(
+        "staged_active_change_ids()",
+        'selected_change="${staged_change_ids[0]}"',
+        'review_evidence="openspec/changes/${selected_change}/requirements-proof/review-evidence.json"',
+        "Staged Requirements evidence spans multiple active changes",
+    )
+
+
 def test_pre_commit_treats_canonical_specs_as_governed_requirement_sources() -> None:
     """Archived OpenSpec specifications must receive a local evidence decision."""
     pre_commit = _pre_commit_text()
     scope = pre_commit[
         pre_commit.index("has_staged_requirements_evidence_scope() {") : pre_commit.index(
-            "run_requirements_evidence_gate() {"
+            "staged_active_change_ids() {"
         )
     ]
     assert "return 0" in scope
@@ -82,7 +92,7 @@ def test_pre_commit_uses_both_rename_paths_for_requirements_scope_and_maturity()
         "printf '%s\\0' \"${source_path}\"",
         "R*|C*)",
     )
-    assert pre_commit.count("done < <(staged_evidence_paths)") == 2
+    assert pre_commit.count("done < <(staged_evidence_paths)") == 3
     assert 'changed_paths="$(staged_evidence_paths)"' not in pre_commit
 
 

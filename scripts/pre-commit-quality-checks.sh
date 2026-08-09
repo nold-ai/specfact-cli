@@ -446,6 +446,24 @@ has_staged_requirements_evidence_scope() {
   return 1
 }
 
+staged_active_change_ids() {
+  local file relative_path
+  local -A change_ids=()
+  while IFS= read -r -d '' file; do
+    case "${file}" in
+      openspec/changes/archive/*)
+        ;;
+      openspec/changes/*/*)
+        relative_path="${file#openspec/changes/}"
+        change_ids["${relative_path%%/*}"]=1
+        ;;
+    esac
+  done < <(staged_evidence_paths)
+  if [[ ${#change_ids[@]} -gt 0 ]]; then
+    printf '%s\n' "${!change_ids[@]}" | sort
+  fi
+}
+
 run_requirements_evidence_gate() {
   local report_dir=".specfact/reports/requirements-evidence"
   local json_report="${report_dir}/requirements-evidence.json"
@@ -453,6 +471,8 @@ run_requirements_evidence_gate() {
   local plan_report="${report_dir}/requirements-evidence-plan.json"
   local required_maturity
   local review_evidence=""
+  local selected_change=""
+  local -a staged_change_ids=()
   local -a review_evidence_candidates=()
   local -a evidence_arguments=()
 
@@ -465,15 +485,28 @@ run_requirements_evidence_gate() {
   rm -f "${json_report}" "${markdown_report}" "${plan_report}"
   required_maturity="$(staged_planning_maturity)"
   if [[ "${required_maturity}" != "planned" ]]; then
-    while IFS= read -r candidate || [[ -n "${candidate}" ]]; do
-      [[ -z "${candidate}" ]] && continue
-      review_evidence_candidates+=("${candidate}")
-    done < <(find openspec/changes -path 'openspec/changes/archive' -prune -o -path '*/requirements-proof/review-evidence.json' -type f -print | sort)
-    if [[ ${#review_evidence_candidates[@]} -ne 1 ]]; then
-      error "❌ Block 2 — Requirements evidence needs exactly one active review-evidence record for ${required_maturity} planning"
+    mapfile -t staged_change_ids < <(staged_active_change_ids)
+    if [[ ${#staged_change_ids[@]} -gt 1 ]]; then
+      error "❌ Block 2 — Staged Requirements evidence spans multiple active changes"
       exit 1
+    elif [[ ${#staged_change_ids[@]} -eq 1 ]]; then
+      selected_change="${staged_change_ids[0]}"
+      review_evidence="openspec/changes/${selected_change}/requirements-proof/review-evidence.json"
+      if [[ ! -f "${review_evidence}" ]]; then
+        error "❌ Block 2 — Staged change ${selected_change} has no review-evidence record for ${required_maturity} planning"
+        exit 1
+      fi
+    else
+      while IFS= read -r candidate || [[ -n "${candidate}" ]]; do
+        [[ -z "${candidate}" ]] && continue
+        review_evidence_candidates+=("${candidate}")
+      done < <(find openspec/changes -path 'openspec/changes/archive' -prune -o -path '*/requirements-proof/review-evidence.json' -type f -print | sort)
+      if [[ ${#review_evidence_candidates[@]} -ne 1 ]]; then
+        error "❌ Block 2 — Requirements evidence needs exactly one active review-evidence record for ${required_maturity} planning"
+        exit 1
+      fi
+      review_evidence="${review_evidence_candidates[0]}"
     fi
-    review_evidence="${review_evidence_candidates[0]}"
   fi
   evidence_arguments=(
     --repo-root .

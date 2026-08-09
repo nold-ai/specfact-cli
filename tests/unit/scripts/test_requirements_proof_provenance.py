@@ -166,3 +166,27 @@ def test_git_bound_red_proof_rejects_governed_path_with_tab(tmp_path: Path) -> N
     assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
         "tdd-order-unproven"
     ]
+
+
+def test_git_bound_red_proof_rejects_delivery_input_before_red(tmp_path: Path) -> None:
+    """Frozen dependency input changes are production work, even at repository root."""
+    module = _load_provenance_module()
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    (tmp_path / "README.md").write_text("# proof\n", encoding="utf-8")
+    base_ref = _commit(tmp_path, "chore: base")
+    (tmp_path / "pyproject.toml").write_text("[project]\nname = 'proof'\n", encoding="utf-8")
+    _commit(tmp_path, "build: change delivery input")
+    test_path = tmp_path / "tests" / "test_proof.py"
+    test_path.parent.mkdir()
+    test_path.write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / "red.json"
+    red_proof_path.write_text(json.dumps(_red_proof(red_ref)), encoding="utf-8")
+    (tmp_path / "docs.md").write_text("# final\n", encoding="utf-8")
+    final_ref = _commit(tmp_path, "docs: retain final source")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
+        "tdd-order-unproven"
+    ]

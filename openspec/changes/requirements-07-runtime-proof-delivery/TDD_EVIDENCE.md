@@ -788,3 +788,35 @@
 - **Proof:** the adapter uses the active verified Python interpreter directly;
   fixture-backed evidence remains successful in the proof executor's bounded
   pytest environment without recursively entering Hatch.
+
+## Failing-before review and expiring-audit remediation
+
+- **Recorded:** 2026-08-09 (UTC)
+- **Commands and evidence:**
+  - `hatch run python -m pytest -q tests/unit/scripts/test_requirements_proof_provenance.py::test_git_bound_red_proof_rejects_delivery_input_before_red tests/unit/scripts/test_requirements_evidence_pre_commit.py::test_pre_commit_selects_review_evidence_from_the_staged_change`
+  - GitHub Actions run `31303593942`, jobs `93220310934`, `93220310941`,
+    and `93220310936`.
+- **Result:** the focused review tests failed twice as expected; Python 3.11,
+  Python 3.12, and security-audit CI failed after the reviewed MCP exception
+  expired.
+- **Failure:** red-proof provenance did not classify root delivery inputs as
+  production, staged evidence selection treated parallel active changes as
+  ambiguous, and the exact Semgrep/MCP exception reached its fail-closed date.
+- **Intent:** align all production classifiers, bind local acceptance to a
+  uniquely staged active change, and renew the still-unavoidable exact advisory
+  exception only after rechecking the latest Semgrep release metadata.
+
+## Passing-after review and expiring-audit remediation
+
+- **Recorded:** 2026-08-09 (UTC)
+- **Commands:**
+  - `hatch run python -m pytest -q tests/unit/scripts/test_requirements_proof_provenance.py tests/unit/scripts/test_requirements_evidence_pre_commit.py tests/unit/scripts/test_security_audit_gate.py`
+  - `hatch run security-audit`
+  - `bash -n scripts/pre-commit-quality-checks.sh`
+- **Result:** 31 focused tests passed; the frozen dependency audit passed with
+  only the three exact reviewed MCP advisories waived; Bash syntax passed.
+- **Proof:** provenance now rejects all delivery-input paths already governed by
+  CI and pre-commit. Local evidence uses the uniquely staged active change when
+  present and retains the prior fail-closed fallback when none is staged.
+  Semgrep 1.172.0 metadata was rechecked on 2026-08-09 and still pins vulnerable
+  `mcp==1.23.3`; the narrowly scoped exception now expires on 2026-09-08.
