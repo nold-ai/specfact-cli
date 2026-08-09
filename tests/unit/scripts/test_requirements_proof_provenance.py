@@ -262,6 +262,82 @@ def test_git_bound_red_proof_rejects_import_target_added_after_red(tmp_path: Pat
     ]
 
 
+def test_git_bound_red_proof_rejects_wholly_absent_import_target_added_after_red(tmp_path: Path) -> None:
+    """A missing import remains bound even when its root package did not exist at red."""
+    module = _load_provenance_module()
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    tests_path = tmp_path / "tests"
+    tests_path.mkdir()
+    (tests_path / "conftest.py").write_text("from support.fixtures import VALUE\n", encoding="utf-8")
+    base_ref = _commit(tmp_path, "test: add wholly missing pytest support import")
+    test_path = tests_path / "test_proof.py"
+    test_path.write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+
+    support_path = tmp_path / "support"
+    support_path.mkdir()
+    (support_path / "fixtures.py").write_text("VALUE = True\n", encoding="utf-8")
+    final_ref = _commit(tmp_path, "fix: add missing root support package")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
+        "stale-red-proof"
+    ]
+
+
+def test_git_bound_red_proof_rejects_changed_parent_package_initializer(tmp_path: Path) -> None:
+    """Parent package initializers executed during import must remain bound to red."""
+    module = _load_provenance_module()
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    helpers_path = tmp_path / "tests" / "helpers"
+    helpers_path.mkdir(parents=True)
+    (tmp_path / "tests" / "__init__.py").write_text("VALUE = False\n", encoding="utf-8")
+    (helpers_path / "__init__.py").write_text("", encoding="utf-8")
+    (helpers_path / "fixtures.py").write_text("VALUE = False\n", encoding="utf-8")
+    (tmp_path / "tests" / "conftest.py").write_text("from tests.helpers.fixtures import VALUE\n", encoding="utf-8")
+    base_ref = _commit(tmp_path, "test: add packaged pytest support")
+    test_path = tmp_path / "tests" / "test_proof.py"
+    test_path.write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+
+    (tmp_path / "tests" / "__init__.py").write_text("VALUE = True\n", encoding="utf-8")
+    final_ref = _commit(tmp_path, "fix: change parent package initializer")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
+        "stale-red-proof"
+    ]
+
+
+def test_git_bound_red_proof_accepts_executable_regular_selector(tmp_path: Path) -> None:
+    """An executable Git blob remains a regular pytest selector rather than a symlink."""
+    module = _load_provenance_module()
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    (tmp_path / "README.md").write_text("# proof\n", encoding="utf-8")
+    base_ref = _commit(tmp_path, "chore: base")
+    test_path = tmp_path / "tests" / "test_proof.py"
+    test_path.parent.mkdir()
+    test_path.write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    _git(tmp_path, "add", "tests/test_proof.py")
+    _git(tmp_path, "update-index", "--chmod=+x", "tests/test_proof.py")
+    executable_ref = _commit(tmp_path, "test: add executable red selector")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, executable_ref, base_ref)
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "feature.py").write_text("VALUE = 2\n", encoding="utf-8")
+    final_ref = _commit(tmp_path, "fix: implement after executable red selector")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == []
+
+
 def test_git_bound_red_proof_rejects_symlink_selector(tmp_path: Path) -> None:
     """A selector symlink must not hide mutable target bytes from provenance."""
     module = _load_provenance_module()

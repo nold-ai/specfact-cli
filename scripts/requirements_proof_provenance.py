@@ -111,10 +111,16 @@ def _applicable_conftest_paths(test_path: str) -> set[str]:
 
 def _python_module_paths(repo_root: Path, source_ref: str, module_parts: Sequence[str]) -> set[str]:
     """Return possible paths for a repository-local module, including an absent target."""
-    if not module_parts or not _test_path_exists_at_ref(repo_root, source_ref, module_parts[0]):
+    if not module_parts:
         return set()
     module_path = PurePosixPath(*module_parts)
-    return {module_path.with_suffix(".py").as_posix(), (module_path / "__init__.py").as_posix()}
+    paths = {module_path.with_suffix(".py").as_posix(), (module_path / "__init__.py").as_posix()}
+    for parent_depth in range(1, len(module_parts)):
+        parent_path = PurePosixPath(*module_parts[:parent_depth])
+        initializer = (parent_path / "__init__.py").as_posix()
+        if _test_path_exists_at_ref(repo_root, source_ref, initializer):
+            paths.add(initializer)
+    return paths
 
 
 def _pytest_plugin_names(tree: ast.AST) -> list[list[str]]:
@@ -292,7 +298,7 @@ def _test_path_exists_at_ref(repo_root: Path, source_ref: str, test_path: str) -
 def _test_path_is_regular_at_ref(repo_root: Path, source_ref: str, test_path: str) -> bool:
     """Reject symlink selectors because pytest follows bytes not bound by their Git blob."""
     result = _git(repo_root, "ls-tree", source_ref, "--", test_path)
-    return result.returncode == 0 and result.stdout.startswith("100644 blob ")
+    return result.returncode == 0 and result.stdout.startswith(("100644 blob ", "100755 blob "))
 
 
 def _blob_digest_at_ref(repo_root: Path, source_ref: str, test_path: str) -> str | None:

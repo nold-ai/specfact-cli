@@ -1141,3 +1141,20 @@
   repository-local import targets.
 - **Skipped:** 0 tests.
 - **Environment:** Linux, Python 3.12.13, pytest 9.1.1.
+
+## Codex import-package and executable-selector remediation
+
+- **Recorded:** 2026-08-09 (UTC)
+- **Review findings:** PR #665 identified that provenance omitted wholly absent
+  import roots and parent package initializers, and rejected executable regular
+  selector blobs.
+- **Failing-before command:** `hatch run pytest tests/unit/scripts/test_requirements_proof_provenance.py -k 'wholly_absent or parent_package_initializer or executable_regular' -q`
+- **Failing result:** all 3 selected regressions failed before production edits:
+  missing-root additions and changed parent initializers returned no finding,
+  while the executable selector was rejected.
+- **Passing-after command:** `hatch run pytest tests/unit/scripts/test_requirements_proof_provenance.py -q`
+- **Passing result:** all 30 provenance tests passed after retaining absent leaf
+  candidates, binding existing parent initializers, and accepting Git's two
+  regular blob modes while continuing to reject symlinks.
+- **Skipped:** 0 tests.
+- **Environment:** Linux, Python 3.12.13, pytest 9.1.1.
