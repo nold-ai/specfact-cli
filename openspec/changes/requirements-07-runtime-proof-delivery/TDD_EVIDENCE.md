@@ -1086,6 +1086,17 @@
 - **Passing result:** 47 tests passed; 0 skipped.
 - **Environment:** Linux, Python 3.12.13, pytest 9.1.1.
 
+## Namespace-package initializer review remediation
+
+- **Recorded:** 2026-08-09 (UTC)
+- **Failing-before command:** `uv run --python 3.11 --locked --extra dev python -m pytest -q tests/unit/scripts/test_requirements_proof_provenance.py::test_git_bound_red_proof_rejects_added_parent_package_initializer`
+- **Failing result:** 1 failed because adding a previously absent parent
+  `__init__.py` after the red run did not invalidate the proof.
+- **Passing-after command:** `uv run --python 3.11 --locked --extra dev python -m pytest -q tests/unit/scripts/test_requirements_proof_provenance.py`
+- **Passing result:** all 31 provenance tests passed.
+- **Proof:** import provenance now retains every possible parent package
+  initializer path, including namespace-package initializers absent at red.
+
 ## Codex review imported pytest-support freshness remediation
 
 - **Recorded:** 2026-08-09 (UTC)
@@ -1104,3 +1115,57 @@
 - **Internal wiki follow-up:** the sibling `specfact-cli-internal` checkout was
   unavailable. Update `wiki/sources/requirements-07-runtime-proof-delivery.md`
   and run `python3 scripts/wiki_rebuild_graph.py` from that repository root.
+
+## Codex follow-up conftest-import freshness remediation
+
+- **Recorded:** 2026-08-09 (UTC)
+- **Review finding:** PR #667 identified that import traversal started only at
+  selected tests, so a helper imported exclusively by an applicable
+  `conftest.py` could change after red without invalidating retained proof.
+- **Failing-before command:** `hatch run pytest tests/unit/scripts/test_requirements_proof_provenance.py::test_git_bound_red_proof_rejects_changed_support_imported_by_conftest -q`
+- **Failing result:** 1 test failed because the changed helper produced no
+  provenance finding.
+- **Passing-after command:** `hatch run pytest tests/unit/scripts/test_requirements_proof_provenance.py -q`
+- **Passing result:** all 25 tests passed after seeding recursive import
+  traversal with the selected test and every applicable `conftest.py` path.
+- **Skipped:** 0 tests.
+- **Environment:** Linux, Python 3.12.13, pytest 9.1.1.
+- **Internal wiki follow-up:** the sibling `specfact-cli-internal` checkout was
+  unavailable. Update `wiki/sources/requirements-07-runtime-proof-delivery.md`
+  and run `python3 scripts/wiki_rebuild_graph.py` from that repository root.
+
+## Post-merge Requirements evidence and plugin-closure remediation
+
+- **Recorded:** 2026-08-09 (UTC)
+- **CI failure:** Requirements Evidence run `31338563041` passed all 18 mapped
+  tests and evidence execution, then failed finalized Code Review after PR #668
+  merged to `dev`.
+- **Review findings:** PR #668 identified that static `pytest_plugins`
+  declarations and repository-local import targets absent at the red source were
+  not included in freshness inputs.
+- **Failing-before command:** `hatch run pytest tests/unit/scripts/test_requirements_proof_provenance.py -k 'changed_pytest_plugin or import_target_added_after_red' -q`
+- **Failing result:** both selected tests failed because post-red plugin changes
+  and newly added local import targets produced no provenance finding.
+- **Passing-after command:** `hatch run pytest tests/unit/scripts/test_requirements_proof_provenance.py -q`
+- **Passing result:** all 27 tests passed after parsing static
+  `pytest_plugins` declarations and retaining possible paths for absent
+  repository-local import targets.
+- **Skipped:** 0 tests.
+- **Environment:** Linux, Python 3.12.13, pytest 9.1.1.
+
+## Codex import-package and executable-selector remediation
+
+- **Recorded:** 2026-08-09 (UTC)
+- **Review findings:** PR #665 identified that provenance omitted wholly absent
+  import roots and parent package initializers, and rejected executable regular
+  selector blobs.
+- **Failing-before command:** `hatch run pytest tests/unit/scripts/test_requirements_proof_provenance.py -k 'wholly_absent or parent_package_initializer or executable_regular' -q`
+- **Failing result:** all 3 selected regressions failed before production edits:
+  missing-root additions and changed parent initializers returned no finding,
+  while the executable selector was rejected.
+- **Passing-after command:** `hatch run pytest tests/unit/scripts/test_requirements_proof_provenance.py -q`
+- **Passing result:** all 30 provenance tests passed after retaining absent leaf
+  candidates, binding existing parent initializers, and accepting Git's two
+  regular blob modes while continuing to reject symlinks.
+- **Skipped:** 0 tests.
+- **Environment:** Linux, Python 3.12.13, pytest 9.1.1.

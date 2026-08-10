@@ -53,9 +53,10 @@ maturity. The
 proof SHALL bind the commit/tree, merge base, mapping digest, selectors,
 test-file digests, JUnit digest, and toolchain identity. Core SHALL reject
 proof when governed production changed before the red commit, including a
-governed source renamed outside its prefix, or when selectors, their
-repository-local imported Python support modules, or test files changed after
-it. Before forwarding a prior-red report to the
+governed source renamed outside its prefix, or when selectors, applicable
+pytest `conftest.py` files, their repository-local imported Python support
+modules (including statically declared `pytest_plugins` and import targets that
+were absent at red), or test files changed after it. Before forwarding a prior-red report to the
 released reconciliation command, core SHALL verify that its source commit is a
 strict ancestor of the final source, the current pull-request base is an
 ancestor of that source, and that the selected test files remain
@@ -84,8 +85,9 @@ SHALL NOT extend it to any other change.
 #### Scenario: Same-commit or stale red proof is rejected
 
 - **GIVEN** tests and production code first appear in the same commit, or a
-  mapped selector, its repository-local imported Python support module, or its
-  test file changes after the red proof
+  mapped selector, its applicable pytest `conftest.py`, a repository-local
+  Python support module imported or declared as a plugin by either input, an
+  absent local import target is added, or its test file changes after the red proof
 - **WHEN** the gate evaluates a governed production diff
 - **THEN** it fails with `tdd-order-unproven` or `stale-red-proof`
 - **AND** retained-run discovery searches every completed-run page, skips

@@ -298,8 +298,8 @@ def test_requirements_evidence_workflow_uses_digest_bound_legacy_tdd_ledger_for_
     required_fragments = (
         'selected_change" == "requirements-07-runtime-proof-delivery"',
         "TDD_EVIDENCE.md",
-        "legacy_tdd_line_count=692",
-        'legacy_tdd_ledger_digest="sha256:77c6ac82d1b5756f6099a83f282d0774ae7efa0cb87c45d6f00ec63945b78351"',
+        "legacy_tdd_line_count=1143",
+        'legacy_tdd_ledger_digest="sha256:1df90efd2402f14879da7705ab8afbf054eafc0fa71ff7a788df9f3db97b428c"',
         f'legacy_tdd_mapping_digest="{legacy_tdd_mapping_digest}"',
         'legacy_tdd_plan_digest="sha256:27ea6e6bcea0d68d68688b89fc8f89315d213b96918f4f76979484756fd8335e"',
         "read_bytes().splitlines(keepends=True)",
