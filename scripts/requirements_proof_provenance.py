@@ -109,6 +109,16 @@ def _applicable_conftest_paths(test_path: str) -> set[str]:
     return paths
 
 
+def _parent_package_initializer_paths(path: str) -> set[str]:
+    """Return every possible parent package initializer for a Python path."""
+    parent = PurePosixPath(path).parent
+    paths: set[str] = set()
+    while parent != PurePosixPath("."):
+        paths.add((parent / "__init__.py").as_posix())
+        parent = parent.parent
+    return paths
+
+
 def _python_module_paths(module_parts: Sequence[str]) -> set[str]:
     """Return possible paths for a repository-local module, including an absent target."""
     if not module_parts:
@@ -121,17 +131,26 @@ def _python_module_paths(module_parts: Sequence[str]) -> set[str]:
     return paths
 
 
+def _assigned_value(node: ast.AST, name: str) -> ast.AST | None:
+    """Return the value statically assigned to a named variable."""
+    if isinstance(node, ast.Assign) and any(
+        isinstance(target, ast.Name) and target.id == name for target in node.targets
+    ):
+        return node.value
+    if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name) and node.target.id == name:
+        return node.value
+    return None
+
+
 def _pytest_plugin_names(tree: ast.AST) -> list[list[str]]:
     """Return statically declared ``pytest_plugins`` module names."""
     plugin_names: list[list[str]] = []
     for node in ast.walk(tree):
-        if not isinstance(node, ast.Assign):
-            continue
-        assigned_names = {target.id for target in node.targets if isinstance(target, ast.Name)}
-        if "pytest_plugins" not in assigned_names:
+        value_node = _assigned_value(node, "pytest_plugins")
+        if value_node is None:
             continue
         try:
-            value = ast.literal_eval(node.value)
+            value = ast.literal_eval(value_node)
         except (ValueError, TypeError):
             continue
         declared_plugins = [value] if isinstance(value, str) else value
@@ -408,6 +427,7 @@ def validate_prior_red_proof(red_proof_path: Path, repo_root: Path, *, base_ref:
         pytest_inputs = {test_path, *_applicable_conftest_paths(test_path)}
         proof_inputs = {
             *pytest_inputs,
+            *(initializer for path in pytest_inputs for initializer in _parent_package_initializer_paths(path)),
             *_imported_python_paths(repo_root, source_ref, sorted(pytest_inputs)),
         }
         if not proof_inputs.isdisjoint(paths_after_red):

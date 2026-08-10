@@ -1169,3 +1169,24 @@
   regular blob modes while continuing to reject symlinks.
 - **Skipped:** 0 tests.
 - **Environment:** Linux, Python 3.12.13, pytest 9.1.1.
+
+## Codex selector-package and annotated-plugin remediation
+
+- **Recorded:** 2026-08-10 (UTC)
+- **Review findings:** PR #665 identified that provenance omitted package
+  initializers for the selected test and ignored annotated `pytest_plugins`
+  assignments in applicable conftests.
+- **Failing-before command:** `uv run --python 3.11 --locked --extra dev python -m pytest tests/unit/scripts/test_requirements_proof_provenance.py -k 'annotated_pytest_plugin or selector_package_initializer' -q`
+- **Failing result:** both selected regressions failed because adding
+  `tests/__init__.py` or changing a plugin declared with `ast.AnnAssign`
+  returned no provenance finding.
+- **Passing-after command:** `uv run --python 3.11 --locked --extra dev python -m pytest tests/unit/scripts/test_requirements_proof_provenance.py -q`
+- **Passing result:** all 33 provenance tests passed after retaining possible
+  parent initializers for every seeded pytest input and accepting static
+  annotated plugin declarations.
+- **OpenSpec validation:** `uv run --python 3.11 --locked --extra dev openspec validate requirements-07-runtime-proof-delivery --strict` passed.
+- **Skipped:** 0 tests.
+- **Environment:** Linux, Python 3.11.15, pytest 9.1.1.
+- **Internal wiki follow-up:** the sibling `specfact-cli-internal` checkout was
+  unavailable. Update `wiki/sources/requirements-07-runtime-proof-delivery.md`
+  and run `python3 scripts/wiki_rebuild_graph.py` from that repository root.

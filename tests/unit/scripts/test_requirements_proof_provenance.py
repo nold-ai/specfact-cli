@@ -211,7 +211,14 @@ def test_git_bound_red_proof_rejects_changed_support_imported_by_conftest(tmp_pa
     ]
 
 
-def test_git_bound_red_proof_rejects_changed_pytest_plugin(tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    "plugin_declaration",
+    [
+        'pytest_plugins = ("tests.helpers.fixtures",)\n',
+        'pytest_plugins: tuple[str, ...] = ("tests.helpers.fixtures",)\n',
+    ],
+)
+def test_git_bound_red_proof_rejects_changed_pytest_plugin(tmp_path: Path, plugin_declaration: str) -> None:
     """A repository-local pytest plugin must remain bound to the red failure."""
     module = _load_provenance_module()
     _git(tmp_path, "init")
@@ -222,7 +229,7 @@ def test_git_bound_red_proof_rejects_changed_pytest_plugin(tmp_path: Path) -> No
     helpers_path.mkdir(parents=True)
     plugin_path = helpers_path / "fixtures.py"
     plugin_path.write_text("VALUE = False\n", encoding="utf-8")
-    (tests_path / "conftest.py").write_text('pytest_plugins = ("tests.helpers.fixtures",)\n', encoding="utf-8")
+    (tests_path / "conftest.py").write_text(plugin_declaration, encoding="utf-8")
     base_ref = _commit(tmp_path, "test: add pytest plugin")
     test_path = tests_path / "test_proof.py"
     test_path.write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
@@ -335,6 +342,29 @@ def test_git_bound_red_proof_rejects_added_parent_package_initializer(tmp_path: 
 
     (support_path / "__init__.py").write_text("VALUE = True\n", encoding="utf-8")
     final_ref = _commit(tmp_path, "fix: initialize support package")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
+        "stale-red-proof"
+    ]
+
+
+def test_git_bound_red_proof_rejects_added_selector_package_initializer(tmp_path: Path) -> None:
+    """A selected test directory cannot become an executable package after red."""
+    module = _load_provenance_module()
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    (tmp_path / "README.md").write_text("# proof\n", encoding="utf-8")
+    base_ref = _commit(tmp_path, "chore: base")
+    tests_path = tmp_path / "tests"
+    tests_path.mkdir()
+    (tests_path / "test_proof.py").write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+
+    (tests_path / "__init__.py").write_text("VALUE = True\n", encoding="utf-8")
+    final_ref = _commit(tmp_path, "fix: initialize selector package")
 
     assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
         "stale-red-proof"
