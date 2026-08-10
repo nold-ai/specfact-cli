@@ -1190,3 +1190,22 @@
 - **Internal wiki follow-up:** the sibling `specfact-cli-internal` checkout was
   unavailable. Update `wiki/sources/requirements-07-runtime-proof-delivery.md`
   and run `python3 scripts/wiki_rebuild_graph.py` from that repository root.
+
+## Codex package-initializer import traversal remediation
+
+- **Recorded:** 2026-08-10 (UTC)
+- **Review finding:** PR #671 identified that retained parent package
+  initializers were proof inputs but were not traversal roots, allowing a
+  repository-local module imported only by an initializer to change after red.
+- **Failing-before command:** `uv run --python 3.11 --locked --extra dev python -m pytest tests/unit/scripts/test_requirements_proof_provenance.py::test_git_bound_red_proof_rejects_changed_initializer_import -q`
+- **Failing result:** the regression failed because changing
+  `tests/support.py`, imported by `tests/__init__.py`, returned no provenance
+  finding.
+- **Passing-after command:** `uv run --python 3.11 --locked --extra dev python -m pytest tests/unit/scripts/test_requirements_proof_provenance.py -q`
+- **Passing result:** all 34 provenance tests passed after package initializer
+  paths became transitive import traversal roots.
+- **Skipped:** 0 tests.
+- **Environment:** Linux, Python 3.11.15, pytest 9.1.1.
+- **Internal wiki follow-up:** the sibling `specfact-cli-internal` checkout was
+  unavailable. Update `wiki/sources/requirements-07-runtime-proof-delivery.md`
+  and run `python3 scripts/wiki_rebuild_graph.py` from that repository root.
