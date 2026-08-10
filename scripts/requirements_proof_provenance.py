@@ -425,10 +425,13 @@ def validate_prior_red_proof(red_proof_path: Path, repo_root: Path, *, base_ref:
         ):
             return ["prior-red-proof-invalid"]
         pytest_inputs = {test_path, *_applicable_conftest_paths(test_path)}
+        initializer_inputs = {
+            initializer for path in pytest_inputs for initializer in _parent_package_initializer_paths(path)
+        }
+        traversal_inputs = pytest_inputs | initializer_inputs
         proof_inputs = {
-            *pytest_inputs,
-            *(initializer for path in pytest_inputs for initializer in _parent_package_initializer_paths(path)),
-            *_imported_python_paths(repo_root, source_ref, sorted(pytest_inputs)),
+            *traversal_inputs,
+            *_imported_python_paths(repo_root, source_ref, sorted(traversal_inputs)),
         }
         if not proof_inputs.isdisjoint(paths_after_red):
             return ["stale-red-proof"]
