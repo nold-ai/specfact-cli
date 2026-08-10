@@ -1197,15 +1197,84 @@
 - **Review finding:** PR #671 identified that retained parent package
   initializers were proof inputs but were not traversal roots, allowing a
   repository-local module imported only by an initializer to change after red.
-- **Failing-before command:** `uv run --python 3.11 --locked --extra dev python -m pytest tests/unit/scripts/test_requirements_proof_provenance.py::test_git_bound_red_proof_rejects_changed_initializer_import -q`
+- **Failing-before command:**
+
+  ```shell
+  uv run --python 3.11 --locked --extra dev python -m pytest \
+    tests/unit/scripts/test_requirements_proof_provenance.py \
+    -k changed_initializer_import -q
+  ```
+
 - **Failing result:** the regression failed because changing
   `tests/support.py`, imported by `tests/__init__.py`, returned no provenance
   finding.
-- **Passing-after command:** `uv run --python 3.11 --locked --extra dev python -m pytest tests/unit/scripts/test_requirements_proof_provenance.py -q`
+- **Passing-after command:**
+
+  ```shell
+  uv run --python 3.11 --locked --extra dev python -m pytest \
+    tests/unit/scripts/test_requirements_proof_provenance.py -q
+  ```
+
 - **Passing result:** all 34 provenance tests passed after package initializer
   paths became transitive import traversal roots.
+- **Validation gates:** the Ruff, basedpyright, and strict OpenSpec commands
+  recorded for the follow-up below cover both remediations and pass.
 - **Skipped:** 0 tests.
 - **Environment:** Linux, Python 3.11.15, pytest 9.1.1.
 - **Internal wiki follow-up:** the sibling `specfact-cli-internal` checkout was
   unavailable. Update `wiki/sources/requirements-07-runtime-proof-delivery.md`
   and run `python3 scripts/wiki_rebuild_graph.py` from that repository root.
+
+## Codex module-scope pytest plugin remediation
+
+- **Recorded:** 2026-08-10 (UTC)
+- **Review finding:** PR #671 identified that annotated `pytest_plugins`
+  assignments inside functions or classes were incorrectly treated as
+  module-level pytest declarations.
+- **Failing-before command:**
+
+  ```shell
+  uv run --python 3.11 --locked --extra dev python -m pytest \
+    tests/unit/scripts/test_requirements_proof_provenance.py \
+    -k nested_pytest_plugin -q
+  ```
+
+- **Failing result:** both function-local and class-local annotation cases
+  incorrectly returned `stale-red-proof` after the unrelated target changed.
+- **Passing-after command:**
+
+  ```shell
+  uv run --python 3.11 --locked --extra dev python -m pytest \
+    tests/unit/scripts/test_requirements_proof_provenance.py -q
+  ```
+
+- **Passing result:** all 36 provenance tests passed after plugin discovery
+  stopped descending into function and class scopes.
+- **Ruff:**
+
+  ```shell
+  uv run --python 3.11 --locked --extra dev ruff check \
+    scripts/requirements_proof_provenance.py \
+    tests/unit/scripts/test_requirements_proof_provenance.py
+  ```
+
+  Result: all checks passed.
+- **Basedpyright:**
+
+  ```shell
+  uv run --python 3.11 --locked --extra dev basedpyright \
+    --project pyproject.toml scripts/requirements_proof_provenance.py \
+    tests/unit/scripts/test_requirements_proof_provenance.py
+  ```
+
+  Result: 0 errors, 0 warnings, and 0 notes.
+- **OpenSpec validation:**
+
+  ```shell
+  uv run --python 3.11 --locked --extra dev openspec validate \
+    requirements-07-runtime-proof-delivery --strict
+  ```
+
+  Result: the change is valid.
+- **Skipped:** 0 tests.
+- **Environment:** Linux, Python 3.11.15, pytest 9.1.1.

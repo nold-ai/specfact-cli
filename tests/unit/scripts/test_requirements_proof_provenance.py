@@ -245,6 +245,39 @@ def test_git_bound_red_proof_rejects_changed_pytest_plugin(tmp_path: Path, plugi
     ]
 
 
+@pytest.mark.parametrize(
+    "plugin_declaration",
+    [
+        'def helper() -> None:\n    pytest_plugins: tuple[str, ...] = ("tests.helpers.fixtures",)\n',
+        'class Helper:\n    pytest_plugins: tuple[str, ...] = ("tests.helpers.fixtures",)\n',
+    ],
+)
+def test_git_bound_red_proof_ignores_nested_pytest_plugin(
+    tmp_path: Path, plugin_declaration: str
+) -> None:
+    """A local or class annotation does not declare a pytest plugin."""
+    module = _load_provenance_module()
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    tests_path = tmp_path / "tests"
+    helpers_path = tests_path / "helpers"
+    helpers_path.mkdir(parents=True)
+    plugin_path = helpers_path / "fixtures.py"
+    plugin_path.write_text("VALUE = False\n", encoding="utf-8")
+    (tests_path / "conftest.py").write_text(plugin_declaration, encoding="utf-8")
+    base_ref = _commit(tmp_path, "test: add nested plugin-like annotation")
+    (tests_path / "test_proof.py").write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+
+    plugin_path.write_text("VALUE = True\n", encoding="utf-8")
+    final_ref = _commit(tmp_path, "fix: change unrelated plugin-like target")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == []
+
+
 def test_git_bound_red_proof_rejects_import_target_added_after_red(tmp_path: Path) -> None:
     """A missing local import added after red must invalidate collection-error proof."""
     module = _load_provenance_module()

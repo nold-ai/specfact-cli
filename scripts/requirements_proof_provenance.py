@@ -142,10 +142,22 @@ def _assigned_value(node: ast.AST, name: str) -> ast.AST | None:
     return None
 
 
+def _module_scope_nodes(tree: ast.AST) -> list[ast.AST]:
+    """Return nodes executed at module scope without entering nested scopes."""
+    pending = list(ast.iter_child_nodes(tree))
+    nodes: list[ast.AST] = []
+    while pending:
+        node = pending.pop()
+        nodes.append(node)
+        if not isinstance(node, (ast.AsyncFunctionDef, ast.ClassDef, ast.FunctionDef, ast.Lambda)):
+            pending.extend(ast.iter_child_nodes(node))
+    return nodes
+
+
 def _pytest_plugin_names(tree: ast.AST) -> list[list[str]]:
     """Return statically declared ``pytest_plugins`` module names."""
     plugin_names: list[list[str]] = []
-    for node in ast.walk(tree):
+    for node in _module_scope_nodes(tree):
         value_node = _assigned_value(node, "pytest_plugins")
         if value_node is None:
             continue
