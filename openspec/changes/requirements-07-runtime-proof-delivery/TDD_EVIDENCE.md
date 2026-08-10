@@ -1176,10 +1176,10 @@
 - **Review findings:** PR #665 identified that provenance omitted package
   initializers for the selected test and ignored annotated `pytest_plugins`
   assignments in applicable conftests.
-- **Failing-before command:** `uv run --python 3.11 --locked --extra dev python -m pytest tests/unit/scripts/test_requirements_proof_provenance.py -k 'annotated_pytest_plugin or selector_package_initializer' -q`
-- **Failing result:** both selected regressions failed because adding
-  `tests/__init__.py` or changing a plugin declared with `ast.AnnAssign`
-  returned no provenance finding.
+- **Failing-before command:** `uv run --python 3.11 --locked --extra dev python -m pytest tests/unit/scripts/test_requirements_proof_provenance.py -k 'changed_pytest_plugin or selector_package_initializer' -q`
+- **Failing result:** two of the three selected cases failed: adding
+  `tests/__init__.py` and changing a plugin declared with `ast.AnnAssign`
+  returned no provenance finding, while the ordinary assignment case passed.
 - **Passing-after command:** `uv run --python 3.11 --locked --extra dev python -m pytest tests/unit/scripts/test_requirements_proof_provenance.py -q`
 - **Passing result:** all 33 provenance tests passed after retaining possible
   parent initializers for every seeded pytest input and accepting static

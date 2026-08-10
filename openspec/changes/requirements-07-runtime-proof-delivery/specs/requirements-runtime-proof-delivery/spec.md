@@ -167,10 +167,10 @@ retain deterministic JUnit results for module-owned reconciliation.
 
 #### Scenario: Retained proof inputs or output are missing or stale
 
-- **GIVEN** a retained red proof whose selected test, one of its possible parent
-  package initializers or their repository-local imports, an applicable pytest
-  `conftest.py`, or a statically declared pytest plugin changes after the red
-  source, or an executor run that leaves no non-empty JUnit artifact
+- **GIVEN** a retained red proof whose selected test, an applicable pytest
+  `conftest.py`, a possible parent package initializer of either input or its
+  repository-local imports, or a statically declared pytest plugin changes
+  after the red source, or an executor run that leaves no non-empty JUnit artifact
 - **WHEN** pull-request CI validates or executes the Requirements proof
 - **THEN** the proof remains stale or unproven
 - **AND** the Requirements evidence gate exits nonzero after retaining its
