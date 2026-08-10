@@ -1188,6 +1188,37 @@
 - **Skipped:** 0 tests.
 - **Environment:** Linux, Python 3.11.15, pytest 9.1.1.
 
+## Codex nested guard and conditional plugin remediation
+
+- **Recorded:** 2026-08-10 (UTC)
+- **Review findings:** PR #671 identified that executable nested assignments
+  did not invalidate typing-guard aliases and that runtime-dependent plugin
+  branches retained only the last AST branch visited.
+- **Failing-before command:**
+
+  ```shell
+  uv run --python 3.12 --locked --extra dev python -m pytest \
+    tests/unit/scripts/test_requirements_proof_provenance.py \
+    -k 'changed_pytest_plugin or rebound_type_checking' -q
+  ```
+
+- **Failing result:** a nested runtime-true `TYPE_CHECKING` rebinding omitted an
+  executed import, while a conditional plugin binding omitted the true branch.
+- **Passing-after command:**
+
+  ```shell
+  uv run --python 3.12 --locked --extra dev python -m pytest \
+    tests/unit/scripts/test_requirements_proof_provenance.py -q
+  ```
+
+- **Passing result:** all 46 provenance tests passed after conservatively
+  recognizing nested rebindings and retaining the union of possible literal
+  values from runtime-dependent plugin branches.
+- **Validation:** Ruff, basedpyright, strict OpenSpec validation, and changed-file
+  SpecFact code review passed.
+- **Skipped:** 0 tests.
+- **Environment:** Linux, Python 3.12.13, pytest 9.1.1.
+
 ## Codex verified type guards and ordered constants remediation
 
 - **Recorded:** 2026-08-10 (UTC)

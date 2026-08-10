@@ -219,6 +219,7 @@ def test_git_bound_red_proof_rejects_changed_support_imported_by_conftest(tmp_pa
         'pytest_plugins: str = "tests.helpers.fixtures,tests.helpers.other"\n',
         'PLUGINS = ("tests.helpers.fixtures",)\npytest_plugins: tuple[str, ...] = PLUGINS\n',
         'PLUGINS = ("tests.helpers.other",)\nPLUGINS = ("tests.helpers.fixtures",)\npytest_plugins = PLUGINS\n',
+        'FLAG = True\nif FLAG:\n    PLUGINS = ("tests.helpers.fixtures",)\nelse:\n    PLUGINS = ("tests.helpers.other",)\npytest_plugins = PLUGINS\n',
     ],
 )
 def test_git_bound_red_proof_rejects_changed_pytest_plugin(tmp_path: Path, plugin_declaration: str) -> None:
@@ -491,7 +492,9 @@ def _validate_rebound_type_checking_branch(tmp_path: Path) -> list[str]:
     tests_path = tmp_path / "tests"
     tests_path.mkdir()
     (tests_path / "__init__.py").write_text(
-        "from typing import TYPE_CHECKING\nTYPE_CHECKING = True\nif TYPE_CHECKING:\n    import tests.runtime_support\n",
+        "from typing import TYPE_CHECKING\n"
+        "if True:\n    TYPE_CHECKING = True\n"
+        "if TYPE_CHECKING:\n    import tests.runtime_support\n",
         encoding="utf-8",
     )
     (tests_path / "runtime_support.py").write_text("VALUE = False\n", encoding="utf-8")

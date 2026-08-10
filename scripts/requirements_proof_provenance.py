@@ -206,7 +206,9 @@ def _other_import_names(body: Sequence[ast.stmt]) -> set[str]:
 def _verified_type_checking_bindings(tree: ast.AST) -> tuple[set[str], set[str]]:
     """Return unrebound names imported from the typing module."""
     body = tree.body if isinstance(tree, ast.Module) else []
-    rebound_names = _other_import_names(body) | {name for node in body for name, _ in _simple_assignments(node)}
+    rebound_names = _other_import_names(body) | {
+        name for node in ast.walk(tree) for name, _ in _simple_assignments(node)
+    }
     return (
         _imported_type_checking_names(body) - rebound_names,
         _imported_typing_module_names(body) - rebound_names,
@@ -235,12 +237,32 @@ def _module_scope_nodes(tree: ast.AST, *, include_class_bodies: bool = False) ->
     return nodes
 
 
-def _resolved_literal(value_node: ast.AST, constants: dict[str, object]) -> object | None:
-    """Resolve a literal expression or a previously bound literal name."""
+def _conditional_assignment_ids(tree: ast.AST) -> set[int]:
+    """Return assignments under branches whose runtime outcome is unknown."""
+    type_checking_names, typing_module_names = _verified_type_checking_bindings(tree)
+    conditional_ids: set[int] = set()
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.If):
+            continue
+        if _static_condition(node.test, type_checking_names, typing_module_names) is not None:
+            continue
+        conditional_ids.update(
+            id(descendant)
+            for branch_node in (*node.body, *node.orelse)
+            for descendant in ast.walk(branch_node)
+            if _simple_assignments(descendant)
+        )
+    return conditional_ids
+
+
+def _resolved_literals(value_node: ast.AST, constants: dict[str, list[object]]) -> list[object]:
+    """Resolve a literal expression or all possible values of a bound name."""
+    if isinstance(value_node, ast.Name):
+        return constants.get(value_node.id, [])
     try:
-        return constants[value_node.id] if isinstance(value_node, ast.Name) else ast.literal_eval(value_node)
-    except (KeyError, ValueError, TypeError):
-        return None
+        return [ast.literal_eval(value_node)]
+    except (ValueError, TypeError):
+        return []
 
 
 def _plugin_parts(value: object) -> list[list[str]]:
@@ -261,16 +283,23 @@ def _pytest_plugin_names(tree: ast.AST) -> list[list[str]]:
     """Return statically declared ``pytest_plugins`` module names."""
     plugin_names: list[list[str]] = []
     module_nodes = _module_scope_nodes(tree)
-    constants: dict[str, object] = {}
+    conditional_assignment_ids = _conditional_assignment_ids(tree)
+    constants: dict[str, list[object]] = {}
     for node in module_nodes:
         value_node = _assigned_value(node, "pytest_plugins")
         if value_node is not None:
-            plugin_names.extend(_plugin_parts(_resolved_literal(value_node, constants)))
+            for value in _resolved_literals(value_node, constants):
+                plugin_names.extend(_plugin_parts(value))
         for name, assigned_node in _simple_assignments(node):
             try:
-                constants[name] = ast.literal_eval(assigned_node)
+                value = ast.literal_eval(assigned_node)
             except (ValueError, TypeError):
                 constants.pop(name, None)
+                continue
+            if id(node) in conditional_assignment_ids:
+                constants.setdefault(name, []).append(value)
+            else:
+                constants[name] = [value]
     return plugin_names
 
 
