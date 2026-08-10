@@ -220,6 +220,7 @@ def test_git_bound_red_proof_rejects_changed_support_imported_by_conftest(tmp_pa
         'PLUGINS = ("tests.helpers.fixtures",)\npytest_plugins: tuple[str, ...] = PLUGINS\n',
         'PLUGINS = ("tests.helpers.other",)\nPLUGINS = ("tests.helpers.fixtures",)\npytest_plugins = PLUGINS\n',
         'FLAG = True\nif FLAG:\n    PLUGINS = ("tests.helpers.fixtures",)\nelse:\n    PLUGINS = ("tests.helpers.other",)\npytest_plugins = PLUGINS\n',
+        'PLUGINS = ("tests.helpers.fixtures",)\nfor _ in ():\n    PLUGINS = ("tests.helpers.other",)\npytest_plugins = PLUGINS\n',
     ],
 )
 def test_git_bound_red_proof_rejects_changed_pytest_plugin(tmp_path: Path, plugin_declaration: str) -> None:

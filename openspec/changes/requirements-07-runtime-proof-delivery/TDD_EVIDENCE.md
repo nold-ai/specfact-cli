@@ -1188,6 +1188,37 @@
 - **Skipped:** 0 tests.
 - **Environment:** Linux, Python 3.11.15, pytest 9.1.1.
 
+## Codex compound-statement plugin remediation
+
+- **Recorded:** 2026-08-10 (UTC)
+- **Review finding:** PR #671 identified that plugin assignments under loops,
+  exception handling, context managers, and match cases were flattened as if
+  they always executed.
+- **Failing-before command:**
+
+  ```shell
+  uv run --python 3.12 --locked --extra dev python -m pytest \
+    tests/unit/scripts/test_requirements_proof_provenance.py \
+    -k changed_pytest_plugin -q
+  ```
+
+- **Failing result:** an assignment inside an empty loop replaced the plugin
+  constant that actually reached `pytest_plugins`, omitting the active plugin.
+- **Passing-after command:**
+
+  ```shell
+  uv run --python 3.12 --locked --extra dev python -m pytest \
+    tests/unit/scripts/test_requirements_proof_provenance.py -q
+  ```
+
+- **Passing result:** all 47 provenance tests passed after assignments under
+  runtime-dependent compound statements contributed possible values instead of
+  unconditionally replacing prior bindings.
+- **Validation:** Ruff, basedpyright, strict OpenSpec validation, and changed-file
+  SpecFact code review passed.
+- **Skipped:** 0 tests.
+- **Environment:** Linux, Python 3.12.13, pytest 9.1.1.
+
 ## Codex nested guard and conditional plugin remediation
 
 - **Recorded:** 2026-08-10 (UTC)

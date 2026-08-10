@@ -242,13 +242,19 @@ def _conditional_assignment_ids(tree: ast.AST) -> set[int]:
     type_checking_names, typing_module_names = _verified_type_checking_bindings(tree)
     conditional_ids: set[int] = set()
     for node in ast.walk(tree):
-        if not isinstance(node, ast.If):
-            continue
-        if _static_condition(node.test, type_checking_names, typing_module_names) is not None:
+        if isinstance(node, ast.If):
+            if _static_condition(node.test, type_checking_names, typing_module_names) is not None:
+                continue
+            branch_nodes: tuple[ast.stmt, ...] = (*node.body, *node.orelse)
+        elif isinstance(
+            node, (ast.AsyncFor, ast.AsyncWith, ast.For, ast.Match, ast.Try, ast.TryStar, ast.While, ast.With)
+        ):
+            branch_nodes = tuple(child for child in ast.iter_child_nodes(node) if isinstance(child, ast.stmt))
+        else:
             continue
         conditional_ids.update(
             id(descendant)
-            for branch_node in (*node.body, *node.orelse)
+            for branch_node in branch_nodes
             for descendant in ast.walk(branch_node)
             if _simple_assignments(descendant)
         )
