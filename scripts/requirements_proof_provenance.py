@@ -109,12 +109,17 @@ def _ancestor_file_paths(path: str, filename: str) -> set[str]:
     return paths
 
 
-def _python_module_paths(module_parts: Sequence[str]) -> set[str]:
-    """Return possible paths for a repository-local module, including an absent target."""
+def _python_module_target_paths(module_parts: Sequence[str]) -> set[str]:
+    """Return the file and package targets for a repository-local module name."""
     if not module_parts:
         return set()
     module_path = PurePosixPath(*module_parts)
-    paths = {module_path.with_suffix(".py").as_posix(), (module_path / "__init__.py").as_posix()}
+    return {module_path.with_suffix(".py").as_posix(), (module_path / "__init__.py").as_posix()}
+
+
+def _python_module_paths(module_parts: Sequence[str]) -> set[str]:
+    """Return possible paths for a repository-local module, including its parent packages."""
+    paths = _python_module_target_paths(module_parts)
     for parent_depth in range(1, len(module_parts)):
         parent_path = PurePosixPath(*module_parts[:parent_depth])
         paths.add((parent_path / "__init__.py").as_posix())
@@ -217,7 +222,11 @@ def _imported_python_paths(
         if tree is None:
             continue
         ordinary_paths = _discovered_python_paths(_import_module_names(tree, current_path))
-        plugin_paths = _discovered_python_paths(_pytest_plugin_names(tree)) if inspect_pytest_plugins else set()
+        plugin_names = _pytest_plugin_names(tree) if inspect_pytest_plugins else []
+        plugin_paths = _discovered_python_paths(plugin_names)
+        plugin_target_paths = {
+            path for module_parts in plugin_names for path in _python_module_target_paths(module_parts)
+        }
         imported_paths.update(ordinary_paths, plugin_paths)
         pending.extend(
             (imported_path, False)
@@ -225,7 +234,7 @@ def _imported_python_paths(
             if _test_path_exists_at_ref(repo_root, source_ref, imported_path)
         )
         pending.extend(
-            (plugin_path, True)
+            (plugin_path, plugin_path in plugin_target_paths)
             for plugin_path in plugin_paths
             if _test_path_exists_at_ref(repo_root, source_ref, plugin_path)
         )

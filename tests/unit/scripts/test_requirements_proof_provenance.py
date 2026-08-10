@@ -300,6 +300,32 @@ def test_git_bound_red_proof_ignores_plugin_declaration_in_imported_helper(tmp_p
     assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == []
 
 
+def test_git_bound_red_proof_ignores_plugin_declaration_in_plugin_parent(tmp_path: Path) -> None:
+    """A registered plugin's parent initializer cannot register another plugin."""
+    module = _load_provenance_module()
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    plugins_path = tmp_path / "plugins"
+    plugins_path.mkdir()
+    (plugins_path / "__init__.py").write_text('pytest_plugins = ("tests.fake",)\n', encoding="utf-8")
+    (plugins_path / "foo.py").write_text("VALUE = False\n", encoding="utf-8")
+    tests_path = tmp_path / "tests"
+    tests_path.mkdir()
+    (tests_path / "fake.py").write_text("VALUE = False\n", encoding="utf-8")
+    (tests_path / "conftest.py").write_text('pytest_plugins = ("plugins.foo",)\n', encoding="utf-8")
+    base_ref = _commit(tmp_path, "test: add packaged pytest plugin")
+    (tests_path / "test_proof.py").write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+
+    (tests_path / "fake.py").write_text("VALUE = True\n", encoding="utf-8")
+    final_ref = _commit(tmp_path, "fix: change inactive parent plugin target")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == []
+
+
 def test_git_bound_red_proof_rejects_import_target_added_after_red(tmp_path: Path) -> None:
     """A missing local import added after red must invalidate collection-error proof."""
     module = _load_provenance_module()

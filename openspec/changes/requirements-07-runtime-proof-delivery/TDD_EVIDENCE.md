@@ -1188,6 +1188,36 @@
 - **Skipped:** 0 tests.
 - **Environment:** Linux, Python 3.11.15, pytest 9.1.1.
 
+## Codex registered-plugin target remediation
+
+- **Recorded:** 2026-08-10 (UTC)
+- **Review finding:** PR #671 identified that parent package initializers of a
+  registered plugin were incorrectly allowed to declare additional plugins,
+  even though pytest registers only the specifically requested module.
+- **Failing-before command:**
+
+  ```shell
+  uv run --python 3.12 --locked --extra dev python -m pytest \
+    tests/unit/scripts/test_requirements_proof_provenance.py \
+    -k plugin_parent -q
+  ```
+
+- **Failing result:** changing the target of `pytest_plugins` in the registered
+  plugin's parent `__init__.py` incorrectly returned `stale-red-proof`.
+- **Passing-after command:**
+
+  ```shell
+  uv run --python 3.12 --locked --extra dev python -m pytest \
+    tests/unit/scripts/test_requirements_proof_provenance.py -q
+  ```
+
+- **Passing result:** all 40 provenance tests passed after parent initializers
+  remained ordinary import inputs while only the requested file or package
+  target was inspected for recursive plugin declarations.
+- **Validation:** Ruff, basedpyright, and strict OpenSpec validation passed.
+- **Skipped:** 0 tests.
+- **Environment:** Linux, Python 3.12.13, pytest 9.1.1.
+
 ## Codex comma-separated pytest plugin remediation
 
 - **Recorded:** 2026-08-10 (UTC)
