@@ -1188,6 +1188,35 @@
 - **Skipped:** 0 tests.
 - **Environment:** Linux, Python 3.11.15, pytest 9.1.1.
 
+## Codex comma-separated pytest plugin remediation
+
+- **Recorded:** 2026-08-10 (UTC)
+- **Review finding:** PR #671 identified that a supported comma-separated
+  string declaration was resolved as one malformed module path instead of one
+  proof input per declared plugin.
+- **Failing-before command:**
+
+  ```shell
+  uv run --python 3.12 --locked --extra dev python -m pytest \
+    tests/unit/scripts/test_requirements_proof_provenance.py \
+    -k changed_pytest_plugin -q
+  ```
+
+- **Failing result:** the tuple and annotated tuple cases passed, but changing
+  a plugin named in an annotated comma-separated string returned no finding.
+- **Passing-after command:**
+
+  ```shell
+  uv run --python 3.12 --locked --extra dev python -m pytest \
+    tests/unit/scripts/test_requirements_proof_provenance.py -q
+  ```
+
+- **Passing result:** all 39 provenance tests passed after splitting and
+  trimming each comma-separated plugin name before resolving module paths.
+- **Validation:** Ruff, basedpyright, and strict OpenSpec validation passed.
+- **Skipped:** 0 tests.
+- **Environment:** Linux, Python 3.12.13, pytest 9.1.1.
+
 ## Codex root-initializer and plugin-source remediation
 
 - **Recorded:** 2026-08-10 (UTC)

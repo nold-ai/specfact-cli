@@ -157,7 +157,13 @@ def _pytest_plugin_names(tree: ast.AST) -> list[list[str]]:
             continue
         declared_plugins = [value] if isinstance(value, str) else value
         if isinstance(declared_plugins, (list, tuple)):
-            plugin_names.extend(plugin.split(".") for plugin in declared_plugins if isinstance(plugin, str))
+            plugin_names.extend(
+                plugin_name.strip().split(".")
+                for declaration in declared_plugins
+                if isinstance(declaration, str)
+                for plugin_name in declaration.split(",")
+                if plugin_name.strip()
+            )
     return plugin_names
 
 

@@ -171,8 +171,9 @@ retain deterministic JUnit results for module-owned reconciliation.
   `conftest.py`, a possible parent package initializer of either input
   (including the repository-root initializer) or its repository-local imports,
   or a module-level pytest plugin declared by a selected test, applicable
-  `conftest.py`, or registered plugin changes after the red source, or an
-  executor run that leaves no non-empty JUnit artifact
+  `conftest.py`, or registered plugin—including each module in a supported
+  comma-separated declaration—changes after the red source, or an executor run
+  that leaves no non-empty JUnit artifact
 - **WHEN** pull-request CI validates or executes the Requirements proof
 - **THEN** the proof remains stale or unproven
 - **AND** the Requirements evidence gate exits nonzero after retaining its

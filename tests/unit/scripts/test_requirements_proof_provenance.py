@@ -216,6 +216,7 @@ def test_git_bound_red_proof_rejects_changed_support_imported_by_conftest(tmp_pa
     [
         'pytest_plugins = ("tests.helpers.fixtures",)\n',
         'pytest_plugins: tuple[str, ...] = ("tests.helpers.fixtures",)\n',
+        'pytest_plugins: str = "tests.helpers.fixtures,tests.helpers.other"\n',
     ],
 )
 def test_git_bound_red_proof_rejects_changed_pytest_plugin(tmp_path: Path, plugin_declaration: str) -> None:
