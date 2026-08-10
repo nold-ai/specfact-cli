@@ -252,9 +252,7 @@ def test_git_bound_red_proof_rejects_changed_pytest_plugin(tmp_path: Path, plugi
         'class Helper:\n    pytest_plugins: tuple[str, ...] = ("tests.helpers.fixtures",)\n',
     ],
 )
-def test_git_bound_red_proof_ignores_nested_pytest_plugin(
-    tmp_path: Path, plugin_declaration: str
-) -> None:
+def test_git_bound_red_proof_ignores_nested_pytest_plugin(tmp_path: Path, plugin_declaration: str) -> None:
     """A local or class annotation does not declare a pytest plugin."""
     module = _load_provenance_module()
     _git(tmp_path, "init")

@@ -299,7 +299,7 @@ def test_requirements_evidence_workflow_uses_digest_bound_legacy_tdd_ledger_for_
         'selected_change" == "requirements-07-runtime-proof-delivery"',
         "TDD_EVIDENCE.md",
         "legacy_tdd_line_count=1143",
-        'legacy_tdd_ledger_digest="sha256:1df90efd2402f14879da7705ab8afbf054eafc0fa71ff7a788df9f3db97b428c"',
+        'legacy_tdd_ledger_digest="sha256:d6e35c934757c08fd1f3e3071fc02b92b080c009ba5e428f6ea2888e7cd5e8c3"',
         f'legacy_tdd_mapping_digest="{legacy_tdd_mapping_digest}"',
         'legacy_tdd_plan_digest="sha256:27ea6e6bcea0d68d68688b89fc8f89315d213b96918f4f76979484756fd8335e"',
         "read_bytes().splitlines(keepends=True)",

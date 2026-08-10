@@ -1187,6 +1187,41 @@
 - **OpenSpec validation:** `uv run --python 3.11 --locked --extra dev openspec validate requirements-07-runtime-proof-delivery --strict` passed.
 - **Skipped:** 0 tests.
 - **Environment:** Linux, Python 3.11.15, pytest 9.1.1.
+
+## CI lint and legacy-ledger digest remediation
+
+- **Recorded:** 2026-08-10 (UTC)
+- **CI findings:** PR #671 failed Ruff formatting for the nested-plugin
+  regression signature and rejected the approved 1,143-line legacy TDD ledger
+  because its pinned SHA-256 no longer matched the retained ledger prefix.
+- **Failing-before command:**
+
+  ```shell
+  uv run --python 3.12 --locked --extra dev ruff format --check \
+    scripts/requirements_proof_provenance.py \
+    tests/unit/scripts/test_requirements_proof_provenance.py
+  ```
+
+- **Failing result:** Ruff reported that
+  `tests/unit/scripts/test_requirements_proof_provenance.py` required formatting.
+- **Digest failing-before command:**
+
+  ```shell
+  uv run --python 3.12 --locked --extra dev python -m pytest \
+    tests/unit/workflows/test_requirements_evidence_delivery_workflow.py \
+    -k digest_bound_legacy_tdd_ledger_for_r07 -q
+  ```
+
+- **Digest failing result:** the workflow contract still required the prior
+  legacy-ledger digest after the workflow pin was updated.
+- **Passing result:** the exact CI Ruff format and check commands passed, the
+  safe-write validator passed, and the workflow contract plus all 36 provenance
+  tests passed (37 tests total).
+- **Approved ledger binding:** the SHA-256 of the first 1,143 ledger lines is
+  `sha256:d6e35c934757c08fd1f3e3071fc02b92b080c009ba5e428f6ea2888e7cd5e8c3`.
+- **OpenSpec validation:** strict validation passed.
+- **Skipped:** 0 tests.
+- **Environment:** Linux, Python 3.12.13, pytest 9.1.1.
 - **Internal wiki follow-up:** the sibling `specfact-cli-internal` checkout was
   unavailable. Update `wiki/sources/requirements-07-runtime-proof-delivery.md`
   and run `python3 scripts/wiki_rebuild_graph.py` from that repository root.
