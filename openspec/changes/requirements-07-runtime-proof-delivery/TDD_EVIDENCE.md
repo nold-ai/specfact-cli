@@ -1188,6 +1188,35 @@
 - **Skipped:** 0 tests.
 - **Environment:** Linux, Python 3.11.15, pytest 9.1.1.
 
+## Codex lazy initializer import remediation
+
+- **Recorded:** 2026-08-10 (UTC)
+- **Review finding:** PR #671 identified that imports in uncalled initializer
+  function bodies were incorrectly retained as if package import executed them.
+- **Failing-before command:**
+
+  ```shell
+  uv run --python 3.12 --locked --extra dev python -m pytest \
+    tests/unit/scripts/test_requirements_proof_provenance.py \
+    -k lazy_initializer_import -q
+  ```
+
+- **Failing result:** changing a module imported only inside an uncalled
+  `__init__.py` function incorrectly returned `stale-red-proof`.
+- **Passing-after command:**
+
+  ```shell
+  uv run --python 3.12 --locked --extra dev python -m pytest \
+    tests/unit/scripts/test_requirements_proof_provenance.py -q
+  ```
+
+- **Passing result:** all 41 provenance tests passed after import discovery
+  stopped descending into deferred function, async-function, and lambda scopes
+  while continuing to inspect executable class bodies.
+- **Validation:** Ruff, basedpyright, and strict OpenSpec validation passed.
+- **Skipped:** 0 tests.
+- **Environment:** Linux, Python 3.12.13, pytest 9.1.1.
+
 ## Codex registered-plugin target remediation
 
 - **Recorded:** 2026-08-10 (UTC)

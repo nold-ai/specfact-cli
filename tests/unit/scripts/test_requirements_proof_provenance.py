@@ -427,6 +427,30 @@ def test_git_bound_red_proof_rejects_changed_initializer_import(tmp_path: Path) 
     ]
 
 
+def test_git_bound_red_proof_ignores_lazy_initializer_import(tmp_path: Path) -> None:
+    """An import inside an uncalled initializer function is not a proof input."""
+    module = _load_provenance_module()
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    tests_path = tmp_path / "tests"
+    tests_path.mkdir()
+    (tests_path / "__init__.py").write_text(
+        "def load_support() -> None:\n    import tests.lazy_support\n", encoding="utf-8"
+    )
+    (tests_path / "lazy_support.py").write_text("VALUE = False\n", encoding="utf-8")
+    base_ref = _commit(tmp_path, "test: add lazy initializer support")
+    (tests_path / "test_proof.py").write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+
+    (tests_path / "lazy_support.py").write_text("VALUE = True\n", encoding="utf-8")
+    final_ref = _commit(tmp_path, "fix: change lazy initializer support")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == []
+
+
 def test_git_bound_red_proof_rejects_added_parent_package_initializer(tmp_path: Path) -> None:
     """A namespace package cannot gain executable initialization after the red run."""
     module = _load_provenance_module()

@@ -137,14 +137,16 @@ def _assigned_value(node: ast.AST, name: str) -> ast.AST | None:
     return None
 
 
-def _module_scope_nodes(tree: ast.AST) -> list[ast.AST]:
-    """Return nodes executed at module scope without entering nested scopes."""
+def _module_scope_nodes(tree: ast.AST, *, include_class_bodies: bool = False) -> list[ast.AST]:
+    """Return executable module nodes without entering deferred function scopes."""
     pending = list(ast.iter_child_nodes(tree))
     nodes: list[ast.AST] = []
     while pending:
         node = pending.pop()
         nodes.append(node)
-        if not isinstance(node, (ast.AsyncFunctionDef, ast.ClassDef, ast.FunctionDef, ast.Lambda)):
+        deferred_scope = isinstance(node, (ast.AsyncFunctionDef, ast.FunctionDef, ast.Lambda))
+        excluded_class_scope = isinstance(node, ast.ClassDef) and not include_class_bodies
+        if not deferred_scope and not excluded_class_scope:
             pending.extend(ast.iter_child_nodes(node))
     return nodes
 
@@ -176,7 +178,7 @@ def _import_module_names(tree: ast.AST, current_path: str) -> list[list[str]]:
     """Return imported module names, including relative import candidates."""
     current_package = list(PurePosixPath(current_path).parent.parts)
     module_names: list[list[str]] = []
-    for node in ast.walk(tree):
+    for node in _module_scope_nodes(tree, include_class_bodies=True):
         if isinstance(node, ast.Import):
             module_names.extend(alias.name.split(".") for alias in node.names)
         elif isinstance(node, ast.ImportFrom):
