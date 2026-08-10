@@ -99,22 +99,12 @@ def _selector_paths(report: dict[str, object]) -> tuple[str, list[str]]:
     return source_ref, sorted(paths)
 
 
-def _applicable_conftest_paths(test_path: str) -> set[str]:
-    """Return root and ancestor pytest support files that can affect a selected test."""
-    parent = PurePosixPath(test_path).parent
-    paths = {"conftest.py"}
-    while parent != PurePosixPath("."):
-        paths.add((parent / "conftest.py").as_posix())
-        parent = parent.parent
-    return paths
-
-
-def _parent_package_initializer_paths(path: str) -> set[str]:
-    """Return every possible parent package initializer for a Python path."""
+def _ancestor_file_paths(path: str, filename: str) -> set[str]:
+    """Return a root file candidate and the same file beneath every ancestor."""
     parent = PurePosixPath(path).parent
-    paths: set[str] = set()
+    paths = {filename}
     while parent != PurePosixPath("."):
-        paths.add((parent / "__init__.py").as_posix())
+        paths.add((parent / filename).as_posix())
         parent = parent.parent
     return paths
 
@@ -174,7 +164,7 @@ def _pytest_plugin_names(tree: ast.AST) -> list[list[str]]:
 def _import_module_names(tree: ast.AST, current_path: str) -> list[list[str]]:
     """Return imported module names, including relative import candidates."""
     current_package = list(PurePosixPath(current_path).parent.parts)
-    module_names = _pytest_plugin_names(tree)
+    module_names: list[list[str]] = []
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             module_names.extend(alias.name.split(".") for alias in node.names)
@@ -195,22 +185,44 @@ def _python_tree_at_ref(repo_root: Path, source_ref: str, path: str) -> ast.AST 
         return None
 
 
-def _imported_python_paths(repo_root: Path, source_ref: str, source_paths: Sequence[str]) -> set[str]:
+def _discovered_python_paths(module_names: Sequence[Sequence[str]]) -> set[str]:
+    """Return every repository path candidate for discovered module names."""
+    return {path for module_parts in module_names for path in _python_module_paths(module_parts)}
+
+
+def _imported_python_paths(
+    repo_root: Path,
+    source_ref: str,
+    source_paths: Sequence[str],
+    *,
+    pytest_plugin_source_paths: set[str],
+) -> set[str]:
     """Return transitive repository-local Python imports used by pytest inputs."""
-    pending = list(source_paths)
+    pending = [(path, path in pytest_plugin_source_paths) for path in source_paths]
+    traversed_paths: set[tuple[str, bool]] = set()
     imported_paths: set[str] = set()
     while pending:
-        current_path = pending.pop()
+        current_path, inspect_pytest_plugins = pending.pop()
+        traversal = (current_path, inspect_pytest_plugins)
+        if traversal in traversed_paths:
+            continue
+        traversed_paths.add(traversal)
         tree = _python_tree_at_ref(repo_root, source_ref, current_path)
         if tree is None:
             continue
-        for module_parts in _import_module_names(tree, current_path):
-            for imported_path in _python_module_paths(module_parts):
-                if imported_path in imported_paths:
-                    continue
-                imported_paths.add(imported_path)
-                if _test_path_exists_at_ref(repo_root, source_ref, imported_path):
-                    pending.append(imported_path)
+        ordinary_paths = _discovered_python_paths(_import_module_names(tree, current_path))
+        plugin_paths = _discovered_python_paths(_pytest_plugin_names(tree)) if inspect_pytest_plugins else set()
+        imported_paths.update(ordinary_paths, plugin_paths)
+        pending.extend(
+            (imported_path, False)
+            for imported_path in ordinary_paths
+            if _test_path_exists_at_ref(repo_root, source_ref, imported_path)
+        )
+        pending.extend(
+            (plugin_path, True)
+            for plugin_path in plugin_paths
+            if _test_path_exists_at_ref(repo_root, source_ref, plugin_path)
+        )
     return imported_paths
 
 
@@ -436,14 +448,19 @@ def validate_prior_red_proof(red_proof_path: Path, repo_root: Path, *, base_ref:
             repo_root, source_ref, test_path
         ):
             return ["prior-red-proof-invalid"]
-        pytest_inputs = {test_path, *_applicable_conftest_paths(test_path)}
+        pytest_inputs = {test_path, *_ancestor_file_paths(test_path, "conftest.py")}
         initializer_inputs = {
-            initializer for path in pytest_inputs for initializer in _parent_package_initializer_paths(path)
+            initializer for path in pytest_inputs for initializer in _ancestor_file_paths(path, "__init__.py")
         }
         traversal_inputs = pytest_inputs | initializer_inputs
         proof_inputs = {
             *traversal_inputs,
-            *_imported_python_paths(repo_root, source_ref, sorted(traversal_inputs)),
+            *_imported_python_paths(
+                repo_root,
+                source_ref,
+                sorted(traversal_inputs),
+                pytest_plugin_source_paths=pytest_inputs,
+            ),
         }
         if not proof_inputs.isdisjoint(paths_after_red):
             return ["stale-red-proof"]

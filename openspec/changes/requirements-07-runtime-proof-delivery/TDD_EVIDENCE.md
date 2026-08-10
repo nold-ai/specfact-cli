@@ -1188,6 +1188,38 @@
 - **Skipped:** 0 tests.
 - **Environment:** Linux, Python 3.11.15, pytest 9.1.1.
 
+## Codex root-initializer and plugin-source remediation
+
+- **Recorded:** 2026-08-10 (UTC)
+- **Review findings:** PR #671 identified that the repository-root
+  `__init__.py` was absent from proof inputs and that `pytest_plugins`
+  declarations in ordinarily imported helpers were incorrectly treated as
+  active pytest registrations.
+- **Failing-before command:**
+
+  ```shell
+  uv run --python 3.12 --locked --extra dev python -m pytest \
+    tests/unit/scripts/test_requirements_proof_provenance.py \
+    -k 'imported_helper or repository_root_initializer' -q
+  ```
+
+- **Failing result:** changing a helper's plugin-like target incorrectly
+  returned `stale-red-proof`, while adding the repository-root initializer
+  returned no finding.
+- **Passing-after command:**
+
+  ```shell
+  uv run --python 3.12 --locked --extra dev python -m pytest \
+    tests/unit/scripts/test_requirements_proof_provenance.py -q
+  ```
+
+- **Passing result:** all 38 provenance tests passed after retaining the root
+  initializer candidate and limiting plugin discovery to pytest-considered
+  inputs and recursively registered plugins.
+- **Validation:** Ruff, basedpyright, and strict OpenSpec validation passed.
+- **Skipped:** 0 tests.
+- **Environment:** Linux, Python 3.12.13, pytest 9.1.1.
+
 ## CI lint and legacy-ledger digest remediation
 
 - **Recorded:** 2026-08-10 (UTC)
