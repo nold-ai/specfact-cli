@@ -1188,6 +1188,37 @@
 - **Skipped:** 0 tests.
 - **Environment:** Linux, Python 3.11.15, pytest 9.1.1.
 
+## Codex static branches and plugin constants remediation
+
+- **Recorded:** 2026-08-10 (UTC)
+- **Review findings:** PR #671 identified that imports under `if False` and
+  `if TYPE_CHECKING` were treated as executed, while `pytest_plugins` assigned
+  through a simple literal module constant was ignored.
+- **Failing-before command:**
+
+  ```shell
+  uv run --python 3.12 --locked --extra dev python -m pytest \
+    tests/unit/scripts/test_requirements_proof_provenance.py \
+    -k 'changed_pytest_plugin or unreachable_initializer' -q
+  ```
+
+- **Failing result:** the new constant-backed plugin case returned no finding,
+  and changing support imported only by statically false initializer branches
+  incorrectly returned `stale-red-proof`.
+- **Passing-after command:**
+
+  ```shell
+  uv run --python 3.12 --locked --extra dev python -m pytest \
+    tests/unit/scripts/test_requirements_proof_provenance.py -q
+  ```
+
+- **Passing result:** all 43 provenance tests passed after pruning known-false
+  branches and resolving simple literal module constants used by
+  `pytest_plugins`.
+- **Validation:** Ruff, basedpyright, and strict OpenSpec validation passed.
+- **Skipped:** 0 tests.
+- **Environment:** Linux, Python 3.12.13, pytest 9.1.1.
+
 ## Codex lazy initializer import remediation
 
 - **Recorded:** 2026-08-10 (UTC)

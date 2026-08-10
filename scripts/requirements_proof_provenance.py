@@ -137,6 +137,17 @@ def _assigned_value(node: ast.AST, name: str) -> ast.AST | None:
     return None
 
 
+def _static_condition(test: ast.AST) -> bool | None:
+    """Return a known branch condition used during module loading."""
+    if isinstance(test, ast.Constant) and isinstance(test.value, bool):
+        return test.value
+    if isinstance(test, ast.Name) and test.id == "TYPE_CHECKING":
+        return False
+    if isinstance(test, ast.Attribute) and test.attr == "TYPE_CHECKING":
+        return False
+    return None
+
+
 def _module_scope_nodes(tree: ast.AST, *, include_class_bodies: bool = False) -> list[ast.AST]:
     """Return executable module nodes without entering deferred function scopes."""
     pending = list(ast.iter_child_nodes(tree))
@@ -146,21 +157,44 @@ def _module_scope_nodes(tree: ast.AST, *, include_class_bodies: bool = False) ->
         nodes.append(node)
         deferred_scope = isinstance(node, (ast.AsyncFunctionDef, ast.FunctionDef, ast.Lambda))
         excluded_class_scope = isinstance(node, ast.ClassDef) and not include_class_bodies
-        if not deferred_scope and not excluded_class_scope:
-            pending.extend(ast.iter_child_nodes(node))
+        if deferred_scope or excluded_class_scope:
+            continue
+        if isinstance(node, ast.If) and (condition := _static_condition(node.test)) is not None:
+            pending.extend(node.body if condition else node.orelse)
+            continue
+        pending.extend(ast.iter_child_nodes(node))
     return nodes
+
+
+def _literal_module_constants(nodes: Sequence[ast.AST]) -> dict[str, object]:
+    """Return simple module names whose assigned values are Python literals."""
+    constants: dict[str, object] = {}
+    for node in nodes:
+        assignments: list[tuple[str, ast.AST]] = []
+        if isinstance(node, ast.Assign):
+            assignments.extend((target.id, node.value) for target in node.targets if isinstance(target, ast.Name))
+        elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name) and node.value is not None:
+            assignments.append((node.target.id, node.value))
+        for name, value_node in assignments:
+            try:
+                constants[name] = ast.literal_eval(value_node)
+            except (ValueError, TypeError):
+                continue
+    return constants
 
 
 def _pytest_plugin_names(tree: ast.AST) -> list[list[str]]:
     """Return statically declared ``pytest_plugins`` module names."""
     plugin_names: list[list[str]] = []
-    for node in _module_scope_nodes(tree):
+    module_nodes = _module_scope_nodes(tree)
+    constants = _literal_module_constants(module_nodes)
+    for node in module_nodes:
         value_node = _assigned_value(node, "pytest_plugins")
         if value_node is None:
             continue
         try:
-            value = ast.literal_eval(value_node)
-        except (ValueError, TypeError):
+            value = constants[value_node.id] if isinstance(value_node, ast.Name) else ast.literal_eval(value_node)
+        except (KeyError, ValueError, TypeError):
             continue
         declared_plugins = [value] if isinstance(value, str) else value
         if isinstance(declared_plugins, (list, tuple)):
