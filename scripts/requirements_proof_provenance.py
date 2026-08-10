@@ -137,20 +137,86 @@ def _assigned_value(node: ast.AST, name: str) -> ast.AST | None:
     return None
 
 
-def _static_condition(test: ast.AST) -> bool | None:
+def _static_condition(test: ast.AST, type_checking_names: set[str], typing_module_names: set[str]) -> bool | None:
     """Return a known branch condition used during module loading."""
     if isinstance(test, ast.Constant) and isinstance(test.value, bool):
         return test.value
-    if isinstance(test, ast.Name) and test.id == "TYPE_CHECKING":
+    if isinstance(test, ast.Name) and test.id in type_checking_names:
         return False
-    if isinstance(test, ast.Attribute) and test.attr == "TYPE_CHECKING":
+    if (
+        isinstance(test, ast.Attribute)
+        and test.attr == "TYPE_CHECKING"
+        and isinstance(test.value, ast.Name)
+        and test.value.id in typing_module_names
+    ):
         return False
     return None
 
 
+def _simple_assignments(node: ast.AST) -> list[tuple[str, ast.AST]]:
+    """Return direct name assignments made by one module statement."""
+    if isinstance(node, ast.Assign):
+        return [(target.id, node.value) for target in node.targets if isinstance(target, ast.Name)]
+    if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name) and node.value is not None:
+        return [(node.target.id, node.value)]
+    return []
+
+
+def _imported_type_checking_names(body: Sequence[ast.stmt]) -> set[str]:
+    """Return names imported from ``typing.TYPE_CHECKING``."""
+    return {
+        alias.asname or alias.name
+        for node in body
+        if isinstance(node, ast.ImportFrom) and node.module == "typing"
+        for alias in node.names
+        if alias.name == "TYPE_CHECKING"
+    }
+
+
+def _imported_typing_module_names(body: Sequence[ast.stmt]) -> set[str]:
+    """Return local names bound to the ``typing`` module."""
+    return {
+        alias.asname or "typing"
+        for node in body
+        if isinstance(node, ast.Import)
+        for alias in node.names
+        if alias.name == "typing"
+    }
+
+
+def _other_import_names(body: Sequence[ast.stmt]) -> set[str]:
+    """Return local names bound by imports other than typing guards."""
+    direct_imports = {
+        alias.asname or alias.name.split(".")[0]
+        for node in body
+        if isinstance(node, ast.Import)
+        for alias in node.names
+        if alias.name != "typing"
+    }
+    from_imports = {
+        alias.asname or alias.name
+        for node in body
+        if isinstance(node, ast.ImportFrom)
+        for alias in node.names
+        if node.module != "typing" or alias.name != "TYPE_CHECKING"
+    }
+    return direct_imports | from_imports
+
+
+def _verified_type_checking_bindings(tree: ast.AST) -> tuple[set[str], set[str]]:
+    """Return unrebound names imported from the typing module."""
+    body = tree.body if isinstance(tree, ast.Module) else []
+    rebound_names = _other_import_names(body) | {name for node in body for name, _ in _simple_assignments(node)}
+    return (
+        _imported_type_checking_names(body) - rebound_names,
+        _imported_typing_module_names(body) - rebound_names,
+    )
+
+
 def _module_scope_nodes(tree: ast.AST, *, include_class_bodies: bool = False) -> list[ast.AST]:
     """Return executable module nodes without entering deferred function scopes."""
-    pending = list(ast.iter_child_nodes(tree))
+    type_checking_names, typing_module_names = _verified_type_checking_bindings(tree)
+    pending = list(reversed(list(ast.iter_child_nodes(tree))))
     nodes: list[ast.AST] = []
     while pending:
         node = pending.pop()
@@ -159,52 +225,52 @@ def _module_scope_nodes(tree: ast.AST, *, include_class_bodies: bool = False) ->
         excluded_class_scope = isinstance(node, ast.ClassDef) and not include_class_bodies
         if deferred_scope or excluded_class_scope:
             continue
-        if isinstance(node, ast.If) and (condition := _static_condition(node.test)) is not None:
-            pending.extend(node.body if condition else node.orelse)
+        if (
+            isinstance(node, ast.If)
+            and (condition := _static_condition(node.test, type_checking_names, typing_module_names)) is not None
+        ):
+            pending.extend(reversed(node.body if condition else node.orelse))
             continue
-        pending.extend(ast.iter_child_nodes(node))
+        pending.extend(reversed(list(ast.iter_child_nodes(node))))
     return nodes
 
 
-def _literal_module_constants(nodes: Sequence[ast.AST]) -> dict[str, object]:
-    """Return simple module names whose assigned values are Python literals."""
-    constants: dict[str, object] = {}
-    for node in nodes:
-        assignments: list[tuple[str, ast.AST]] = []
-        if isinstance(node, ast.Assign):
-            assignments.extend((target.id, node.value) for target in node.targets if isinstance(target, ast.Name))
-        elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name) and node.value is not None:
-            assignments.append((node.target.id, node.value))
-        for name, value_node in assignments:
-            try:
-                constants[name] = ast.literal_eval(value_node)
-            except (ValueError, TypeError):
-                continue
-    return constants
+def _resolved_literal(value_node: ast.AST, constants: dict[str, object]) -> object | None:
+    """Resolve a literal expression or a previously bound literal name."""
+    try:
+        return constants[value_node.id] if isinstance(value_node, ast.Name) else ast.literal_eval(value_node)
+    except (KeyError, ValueError, TypeError):
+        return None
+
+
+def _plugin_parts(value: object) -> list[list[str]]:
+    """Return normalized module parts from a supported plugin declaration value."""
+    declarations = [value] if isinstance(value, str) else value
+    if not isinstance(declarations, (list, tuple)):
+        return []
+    return [
+        plugin_name.strip().split(".")
+        for declaration in declarations
+        if isinstance(declaration, str)
+        for plugin_name in declaration.split(",")
+        if plugin_name.strip()
+    ]
 
 
 def _pytest_plugin_names(tree: ast.AST) -> list[list[str]]:
     """Return statically declared ``pytest_plugins`` module names."""
     plugin_names: list[list[str]] = []
     module_nodes = _module_scope_nodes(tree)
-    constants = _literal_module_constants(module_nodes)
+    constants: dict[str, object] = {}
     for node in module_nodes:
         value_node = _assigned_value(node, "pytest_plugins")
-        if value_node is None:
-            continue
-        try:
-            value = constants[value_node.id] if isinstance(value_node, ast.Name) else ast.literal_eval(value_node)
-        except (KeyError, ValueError, TypeError):
-            continue
-        declared_plugins = [value] if isinstance(value, str) else value
-        if isinstance(declared_plugins, (list, tuple)):
-            plugin_names.extend(
-                plugin_name.strip().split(".")
-                for declaration in declared_plugins
-                if isinstance(declaration, str)
-                for plugin_name in declaration.split(",")
-                if plugin_name.strip()
-            )
+        if value_node is not None:
+            plugin_names.extend(_plugin_parts(_resolved_literal(value_node, constants)))
+        for name, assigned_node in _simple_assignments(node):
+            try:
+                constants[name] = ast.literal_eval(assigned_node)
+            except (ValueError, TypeError):
+                constants.pop(name, None)
     return plugin_names
 
 

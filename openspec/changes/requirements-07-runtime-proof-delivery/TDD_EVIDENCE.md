@@ -1188,6 +1188,35 @@
 - **Skipped:** 0 tests.
 - **Environment:** Linux, Python 3.11.15, pytest 9.1.1.
 
+## Codex verified type guards and ordered constants remediation
+
+- **Recorded:** 2026-08-10 (UTC)
+- **Review findings:** PR #671 identified that unverified `TYPE_CHECKING` names
+  were always treated as false and that reassigned plugin constants were
+  resolved in reverse rather than execution order.
+- **Failing-before command:**
+
+  ```shell
+  uv run --python 3.12 --locked --extra dev python -m pytest \
+    tests/unit/scripts/test_requirements_proof_provenance.py \
+    -k 'changed_pytest_plugin or rebound_type_checking' -q
+  ```
+
+- **Failing result:** a rebound runtime-true `TYPE_CHECKING` branch was omitted,
+  and the first textual plugin constant value won after reassignment.
+- **Passing-after command:**
+
+  ```shell
+  uv run --python 3.12 --locked --extra dev python -m pytest \
+    tests/unit/scripts/test_requirements_proof_provenance.py -q
+  ```
+
+- **Passing result:** all 45 provenance tests passed after pruning only verified
+  typing guards and resolving literal constants in module execution order.
+- **Validation:** Ruff, basedpyright, and strict OpenSpec validation passed.
+- **Skipped:** 0 tests.
+- **Environment:** Linux, Python 3.12.13, pytest 9.1.1.
+
 ## Codex static branches and plugin constants remediation
 
 - **Recorded:** 2026-08-10 (UTC)

@@ -170,8 +170,9 @@ retain deterministic JUnit results for module-owned reconciliation.
 - **GIVEN** a retained red proof whose selected test, an applicable pytest
   `conftest.py`, a possible parent package initializer of either input
   (including the repository-root initializer) or its statically reachable
-  repository-local imports, or a module-level pytest plugin declared directly
-  or through a static module constant by a selected test, applicable
+  repository-local imports after resolving verified `typing.TYPE_CHECKING`
+  guards, or a module-level pytest plugin declared directly or through the
+  active value of a static module constant by a selected test, applicable
   `conftest.py`, or the specifically registered plugin module—including each
   module in a supported comma-separated declaration—changes after the red
   source, or an executor run that leaves no non-empty JUnit artifact

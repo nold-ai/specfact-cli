@@ -218,6 +218,7 @@ def test_git_bound_red_proof_rejects_changed_support_imported_by_conftest(tmp_pa
         'pytest_plugins: tuple[str, ...] = ("tests.helpers.fixtures",)\n',
         'pytest_plugins: str = "tests.helpers.fixtures,tests.helpers.other"\n',
         'PLUGINS = ("tests.helpers.fixtures",)\npytest_plugins: tuple[str, ...] = PLUGINS\n',
+        'PLUGINS = ("tests.helpers.other",)\nPLUGINS = ("tests.helpers.fixtures",)\npytest_plugins = PLUGINS\n',
     ],
 )
 def test_git_bound_red_proof_rejects_changed_pytest_plugin(tmp_path: Path, plugin_declaration: str) -> None:
@@ -479,6 +480,36 @@ def test_git_bound_red_proof_ignores_unreachable_initializer_imports(tmp_path: P
     final_ref = _commit(tmp_path, "fix: change unreachable initializer support")
 
     assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == []
+
+
+def _validate_rebound_type_checking_branch(tmp_path: Path) -> list[str]:
+    """Build and validate a proof whose typing guard is rebound at runtime."""
+    module = _load_provenance_module()
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    tests_path = tmp_path / "tests"
+    tests_path.mkdir()
+    (tests_path / "__init__.py").write_text(
+        "from typing import TYPE_CHECKING\nTYPE_CHECKING = True\nif TYPE_CHECKING:\n    import tests.runtime_support\n",
+        encoding="utf-8",
+    )
+    (tests_path / "runtime_support.py").write_text("VALUE = False\n", encoding="utf-8")
+    base_ref = _commit(tmp_path, "test: add rebound type-checking import")
+    (tests_path / "test_proof.py").write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+
+    (tests_path / "runtime_support.py").write_text("VALUE = True\n", encoding="utf-8")
+    final_ref = _commit(tmp_path, "fix: change runtime type-checking support")
+
+    return module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref)
+
+
+def test_git_bound_red_proof_tracks_rebound_type_checking_branch(tmp_path: Path) -> None:
+    """A rebound TYPE_CHECKING name cannot make a runtime branch unreachable."""
+    assert _validate_rebound_type_checking_branch(tmp_path) == ["stale-red-proof"]
 
 
 def test_git_bound_red_proof_rejects_added_parent_package_initializer(tmp_path: Path) -> None:
