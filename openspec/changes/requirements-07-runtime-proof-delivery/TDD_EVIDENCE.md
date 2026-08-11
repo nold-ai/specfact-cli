@@ -2174,3 +2174,50 @@ preceding round's own fix.
   `Git-Bound Failing-First Proof` would be structurally cleaner, but the
   scenario also carries the executor's empty-JUnit condition, so the move means
   splitting it — recorded rather than churned this late in review.
+
+## Codex round-14 remediation: parseable symlinks, subscript mutation, module aliases
+
+Three P1 findings against `ae03d4dd`, each reproduced before any production edit.
+All three are second references to something the gate believed it had already
+bound, and each defeated a rule added in an earlier round.
+
+- **A symlink whose link text parses.** The traversal rejected an unreadable
+  input by testing `tree is None`, but `git show` on a symlink returns the link
+  text, and `real_conftest.py` is itself a valid Python attribute expression. It
+  parsed, produced no imports, and the target's own inputs were never bound, so a
+  post-red change to the target passed as fresh proof. `_python_tree_at_ref` now
+  checks the Git mode independently of parsing, so the existing exists-but-
+  unreadable path yields `stale-red-proof`. Parse success can never again stand
+  in for "these are the bytes pytest executes".
+- **Subscript mutation of an aliased list.** `_mutated_name_targets` recognized
+  only method calls, so `PLUGINS = ["tests.old"]; pytest_plugins = PLUGINS;
+  PLUGINS[0] = "tests.active"` left the copied binding reading `tests.old` while
+  pytest loaded `tests.active`. Subscript and attribute writes and deletions are
+  now mutations too, and they propagate to aliases through the identity rule
+  added in round 13.
+- **A typing guard written through a module alias.** `import typing as t;
+  alias = t; alias.TYPE_CHECKING = True` recorded `alias` as mutated while `t`
+  stayed verified, so `if t.TYPE_CHECKING:` was pruned although it executes.
+  Copying a name into another binding now drops the guard outright: once a
+  second reference exists, a write through it is invisible, and tracking the
+  alias graph would only move the boundary rather than close it.
+
+- **Failing-before command:**
+
+  ```shell
+  uv run --python 3.11 --locked --extra dev python -m pytest \
+    tests/unit/scripts/test_requirements_proof_provenance.py -p no:randomly \
+    -k "symlinked_support_input_that_parses or subscript_mutation or \
+    module_alias" -q
+  ```
+
+  Recorded 2026-08-11T22:11:34Z. Result: 3 failed, each accepting evidence the
+  gate must reject.
+- **Passing-after:** 137 passed in that file, and 629 passed / 5 skipped across
+  `tests/unit/{scripts,workflows,tools}` and `tests/integration/scripts`.
+- **Real-repository check:** configuration sources, `pythonpath` roots, and the
+  resolved proof inputs are unchanged at 163 inputs for the 31
+  `tests/unit/scripts` selectors and 2186 for all 333 tracked selectors. The
+  second-reference rule is deliberately blunt — any `alias = typing` drops the
+  guard — so this measurement is what establishes it costs this repository
+  nothing.

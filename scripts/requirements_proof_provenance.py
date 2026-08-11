@@ -520,6 +520,15 @@ def _call_argument_names(node: ast.AST) -> list[str]:
     return [argument.id for argument in arguments if isinstance(argument, ast.Name)]
 
 
+def _second_reference_names(nodes: Sequence[ast.AST]) -> set[str]:
+    """Return names copied into another binding, through which a later write is invisible.
+
+    ``alias = typing`` binds the same module object, so ``alias.TYPE_CHECKING = True``
+    rewrites the guard that ``typing`` also names while recording only ``alias``.
+    """
+    return {value.id for node in nodes for _, value in _name_bindings(node) if isinstance(value, ast.Name)}
+
+
 def _rewrites_attributes(nodes: Sequence[ast.AST]) -> bool:
     """Return whether these nodes rewrite an attribute through the ``setattr`` builtin."""
     return any(
@@ -622,9 +631,11 @@ def _verified_type_checking_bindings(tree: ast.AST, before_line: int | None = No
         | {name for node in nodes for name in _compound_binding_names(node)}
         | _globally_rebound_in(executing_nodes)
     )
-    mutated_guard_names = {name for node in executing_nodes for name in _guard_attribute_targets(node)} | {
-        name for node in executing_nodes for name in _call_argument_names(node)
-    }
+    mutated_guard_names = (
+        {name for node in executing_nodes for name in _guard_attribute_targets(node)}
+        | {name for node in executing_nodes for name in _call_argument_names(node)}
+        | _second_reference_names(executing_nodes)
+    )
     return (
         _imported_type_checking_names(body) - rebound_names,
         _imported_typing_module_names(body) - rebound_names - mutated_guard_names,
@@ -723,13 +734,39 @@ def _import_binding_names(node: ast.AST) -> list[str]:
     return []
 
 
+def _mutation_target_names(target: ast.expr) -> list[str]:
+    """Return the name a subscript or attribute write changes in place."""
+    if isinstance(target, (ast.Attribute, ast.Subscript)) and isinstance(target.value, ast.Name):
+        return [target.value.id]
+    return []
+
+
+def _write_targets(node: ast.AST) -> list[ast.expr]:
+    """Return the targets of one assignment or deletion statement."""
+    if isinstance(node, (ast.Assign, ast.Delete)):
+        return list(node.targets)
+    if isinstance(node, (ast.AnnAssign, ast.AugAssign)):
+        return [node.target]
+    return []
+
+
 def _mutated_name_targets(node: ast.AST) -> list[str]:
-    """Return names this statement mutates in place, whose resulting value is unknown."""
-    return [
-        node.func.value.id
-        for node in ast.walk(node)
-        if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and isinstance(node.func.value, ast.Name)
-    ]
+    """Return names this statement mutates in place, whose resulting value is unknown.
+
+    A method call, a subscript or attribute write, and a deletion all change the object a
+    name is bound to without rebinding the name itself, so a binding copied from it earlier
+    still observes the change.
+    """
+    names: list[str] = []
+    for child in ast.walk(node):
+        if (
+            isinstance(child, ast.Call)
+            and isinstance(child.func, ast.Attribute)
+            and isinstance(child.func.value, ast.Name)
+        ):
+            names.append(child.func.value.id)
+        names.extend(name for target in _write_targets(child) for name in _mutation_target_names(target))
+    return names
 
 
 def _aliased_names(constants: dict[str, list[object]], name: str) -> set[str]:
@@ -809,9 +846,15 @@ def _python_tree_at_ref(repo_root: Path, source_ref: str, path: str) -> ast.AST 
     Source is parsed as bytes so a PEP 263 encoding declaration is honoured rather than
     forcing a UTF-8 decode that would abort the gate on legally encoded modules. Results are
     cached because the content of a path at an immutable ref cannot change during one run.
+
+    The Git mode is checked independently of parsing, because a link text such as
+    ``real_conftest.py`` is itself valid Python and would otherwise parse as an attribute
+    expression while pytest executes the target instead.
     """
     result = _git_bytes(repo_root, "show", f"{source_ref}:{path}")
     if result.returncode != 0 or len(result.stdout) > MAX_TEST_BLOB_BYTES:
+        return None
+    if not _test_path_is_regular_at_ref(repo_root, source_ref, path):
         return None
     try:
         return ast.parse(result.stdout)

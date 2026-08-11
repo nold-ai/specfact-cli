@@ -196,16 +196,20 @@ retain deterministic JUnit results for module-owned reconciliation.
   statically is treated as stale rather than silently ignored, including when a
   loop, context-manager, exception, match, or walrus target rebinds the
   constant it reads, when a mutation reaches the declaration through another
-  name bound to the same object, or when the declaration is bound by an import
-  whose value lives in another module
+  name bound to the same object whether by method call, subscript or attribute
+  write, or deletion, or when the declaration is bound by an import whose value
+  lives in another module
 - **AND** a proof input or configuration source that exists at the red source
   but cannot be read or parsed, because it is oversized, malformed, or a symlink
   whose executed bytes were never inspected, is treated as stale rather than
-  skipped like an absent candidate
+  skipped like an absent candidate, and a symlink is recognized by its Git mode
+  rather than by failing to parse, because a link text such as `support.py` is
+  itself valid Python
 - **AND** a typing guard is trusted only while unmutated, so an attribute write
   to its `TYPE_CHECKING` member, handing the guard module to any call that could
-  rewrite that member, or a `global` rebinding from a class body drops it, a
-  rebinding invalidates only the branches that follow it, and any literal
+  rewrite that member, copying the module into a second binding through which a
+  write would be invisible, or a `global` rebinding from a class body drops it,
+  a rebinding invalidates only the branches that follow it, and any literal
   branch condition is resolved by its truthiness
 - **AND** module state is treated as unverifiable, failing closed for both the
   guard and the plugin declaration, when a module defines a function that can
