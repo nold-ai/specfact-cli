@@ -1625,7 +1625,7 @@
     tests/unit/scripts/test_requirements_proof_provenance.py -q
   ```
 
-- **Passing result:** all 123 provenance tests passed, under both the default
+- **Passing result:** all 128 provenance tests passed, under both the default
   random ordering and `-p no:randomly`.
 - **Reconciliation with `2f893e95`:** that commit landed the last open Codex
   finding by retaining known constant values when a conditional assignment is
@@ -1897,6 +1897,36 @@
   real selectors, the declared plugin stays bound, and no production module is
   bound. 577 passed / 4 skipped across `tests/unit/scripts`,
   `tests/unit/workflows`, and `tests/unit/tools`.
+- **Tenth follow-on Codex round:** four findings against `c87f9a6c`. Three of
+  them — an invoked setter assigning `pytest_plugins` through `global`, an
+  invoked function writing `typing.TYPE_CHECKING`, and a rebinding function
+  reached through an alias — are the same underlying gap: the round-nine call
+  gate resolved call targets by name, one level deep. Rather than add three
+  more shapes, `_unverifiable_module_state` now fails closed structurally: when
+  a module both defines a function that can rebind a global, write a
+  `TYPE_CHECKING` attribute, or assign `pytest_plugins`, **and** calls anything
+  while loading, the guard set is emptied and the plugin declaration raises
+  `stale-red-proof`. This subsumes aliases, wrappers, decorators, and transitive
+  calls without pretending to resolve them, and it removes the by-name call
+  resolution that could only ever cover the shapes it recognised.
+- **Fourth finding, opposite direction:** `_verified_type_checking_bindings`
+  now takes `before_line`, so a rebinding invalidates only the branches that
+  follow it. `if TYPE_CHECKING: import tests.type_support` followed later by
+  `TYPE_CHECKING = True` no longer binds the type-only helper retroactively.
+- **Failing-before (tenth follow-on):** 4 failed — the three invoked-mutation
+  forms and the retroactive invalidation.
+  `test_git_bound_red_proof_tracks_guard_rebound_before_its_branch` passed
+  before and after, locking the case where the rebinding does precede the guard.
+- **Regression net:** all 123 previously added tests continued to pass across
+  both restructures, including the round-ten pair whose two directions the new
+  structural rule had to preserve.
+- **Cost:** per-branch evaluation recomputes bindings for each `if`, so guard
+  analysis is quadratic in module size. Measured against this repository,
+  resolving both real selectors takes 0.62s in total, so the bound is not
+  material at realistic conftest sizes.
+- **Verified on this repository:** both committed `conftest.py` files still
+  resolve their declarations, proof inputs stay at 83 and 108 paths, and no
+  production module is bound. 582 passed / 4 skipped.
 - **Ruff:**
 
   ```shell

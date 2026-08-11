@@ -1830,3 +1830,93 @@ def test_git_bound_red_proof_tracks_called_global_guard_rebinding(tmp_path: Path
     assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
         "stale-red-proof"
     ]
+
+
+@pytest.mark.parametrize(
+    "initializer_source",
+    [
+        # An invoked setter assigns the declaration through `global`.
+        'def configure() -> None:\n    global pytest_plugins\n    pytest_plugins = ("tests.helpers.fixtures",)\nconfigure()\n',
+        # An invoked function mutates the typing guard by attribute.
+        "import typing\ndef enable() -> None:\n    typing.TYPE_CHECKING = True\nenable()\n",
+        # The invoked function is reached through an alias rather than its own name.
+        "from typing import TYPE_CHECKING\n"
+        "def enable() -> None:\n    global TYPE_CHECKING\n    TYPE_CHECKING = True\n"
+        "activate = enable\nactivate()\n",
+    ],
+)
+def test_git_bound_red_proof_rejects_invoked_module_state_mutation(tmp_path: Path, initializer_source: str) -> None:
+    """An invoked function that can change module state leaves it unverifiable, so it fails closed."""
+    module = _load_provenance_module()
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    tests_path = tmp_path / "tests"
+    helpers_path = tests_path / "helpers"
+    helpers_path.mkdir(parents=True)
+    (helpers_path / "fixtures.py").write_text("VALUE = False\n", encoding="utf-8")
+    (tests_path / "conftest.py").write_text(initializer_source, encoding="utf-8")
+    base_ref = _commit(tmp_path, "test: add invoked module-state mutation")
+    (tests_path / "test_proof.py").write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "delivery.py").write_text("VALUE = 1\n", encoding="utf-8")
+    final_ref = _commit(tmp_path, "feat: delivery")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
+        "stale-red-proof"
+    ]
+
+
+def test_git_bound_red_proof_ignores_guard_rebound_after_its_branch(tmp_path: Path) -> None:
+    """A rebinding cannot invalidate a branch that already ran before it."""
+    module = _load_provenance_module()
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    tests_path = tmp_path / "tests"
+    tests_path.mkdir()
+    (tests_path / "__init__.py").write_text(
+        "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n    import tests.type_support\nTYPE_CHECKING = True\n",
+        encoding="utf-8",
+    )
+    (tests_path / "type_support.py").write_text("VALUE = False\n", encoding="utf-8")
+    base_ref = _commit(tmp_path, "test: rebind the guard after its branch")
+    (tests_path / "test_proof.py").write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+
+    (tests_path / "type_support.py").write_text("VALUE = True\n", encoding="utf-8")
+    final_ref = _commit(tmp_path, "chore: change type-only helper")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == []
+
+
+def test_git_bound_red_proof_tracks_guard_rebound_before_its_branch(tmp_path: Path) -> None:
+    """A rebinding that precedes the branch still invalidates the guard."""
+    module = _load_provenance_module()
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    tests_path = tmp_path / "tests"
+    tests_path.mkdir()
+    (tests_path / "__init__.py").write_text(
+        "from typing import TYPE_CHECKING\nTYPE_CHECKING = True\nif TYPE_CHECKING:\n    import tests.runtime_support\n",
+        encoding="utf-8",
+    )
+    (tests_path / "runtime_support.py").write_text("VALUE = False\n", encoding="utf-8")
+    base_ref = _commit(tmp_path, "test: rebind the guard before its branch")
+    (tests_path / "test_proof.py").write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+
+    (tests_path / "runtime_support.py").write_text("VALUE = True\n", encoding="utf-8")
+    final_ref = _commit(tmp_path, "fix: change runtime support")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
+        "stale-red-proof"
+    ]

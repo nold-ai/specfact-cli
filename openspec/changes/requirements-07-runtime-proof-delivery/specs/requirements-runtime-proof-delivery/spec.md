@@ -201,10 +201,13 @@ retain deterministic JUnit results for module-owned reconciliation.
   whose executed bytes were never inspected, is treated as stale rather than
   skipped like an absent candidate
 - **AND** a typing guard is trusted only while unmutated, so an attribute write
-  to its `TYPE_CHECKING` member drops the guard, as does a `global` declaration
-  that rebinds it from a class body or from a function invoked while the module
-  loads, while an uncalled definition does not, and any literal branch condition
-  is resolved by its truthiness
+  to its `TYPE_CHECKING` member or a `global` rebinding from a class body drops
+  it, a rebinding invalidates only the branches that follow it, and any literal
+  branch condition is resolved by its truthiness
+- **AND** module state is treated as unverifiable, failing closed for both the
+  guard and the plugin declaration, when a module defines a function that can
+  rebind a global, write a `TYPE_CHECKING` attribute, or assign `pytest_plugins`
+  and also calls anything while loading
 - **AND** a malformed report field, undecodable or oversized source, or Git
   timeout yields a deterministic finding rather than an unhandled error
 - **AND** the Requirements evidence gate exits nonzero after retaining its

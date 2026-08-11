@@ -500,50 +500,86 @@ def _globally_rebound_in(nodes: Sequence[ast.AST]) -> set[str]:
     return declared & bound
 
 
-def _called_names(nodes: Sequence[ast.AST]) -> set[str]:
-    """Return names invoked directly among the given nodes."""
-    return {node.func.id for node in nodes if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)}
+def _module_state_mutating_functions(tree: ast.AST) -> list[ast.AST]:
+    """Return function definitions whose body can change module state this gate depends on.
+
+    A ``global`` rebinding, a ``TYPE_CHECKING`` attribute write, or a ``pytest_plugins``
+    assignment inside a function all alter what pytest sees once that function runs.
+    """
+    definitions: list[ast.AST] = []
+    for node in ast.walk(tree):
+        if not isinstance(node, (ast.AsyncFunctionDef, ast.FunctionDef)):
+            continue
+        body_nodes = list(ast.walk(node))
+        mutates = (
+            _globally_rebound_in(body_nodes)
+            or any(_guard_attribute_targets(child) for child in body_nodes)
+            or any(name == "pytest_plugins" for child in body_nodes for name, _ in _name_bindings(child))
+        )
+        if mutates:
+            definitions.append(node)
+    return definitions
+
+
+def _calls_during_module_load(tree: ast.AST) -> bool:
+    """Return whether the module invokes anything while it loads."""
+    return any(isinstance(node, ast.Call) for node in _executable_scope_nodes(tree, include_class_bodies=True))
+
+
+def _unverifiable_module_state(tree: ast.AST) -> bool:
+    """Return whether an invoked function could change module state before pytest reads it.
+
+    Resolving which function a module-load call reaches would require following aliases,
+    wrappers, decorators, and transitive calls, and any partial resolution silently accepts
+    the shapes it cannot follow. When a module both defines a state-mutating function and
+    calls anything while loading, the resulting state is therefore treated as unknown.
+    """
+    return bool(_module_state_mutating_functions(tree)) and _calls_during_module_load(tree)
 
 
 def _global_rebound_names(tree: ast.AST) -> set[str]:
     """Return names a ``global`` declaration rebinds while the module loads.
 
-    A class body executes during import, so a ``global`` binding there always applies. A
-    function body applies only when that function is invoked as the module loads, because
-    an uncalled definition never runs and must not drop the guard.
+    A class body executes during import, so a ``global`` binding there always applies.
+    Bindings inside function bodies are covered by ``_unverifiable_module_state`` instead,
+    because whether such a body runs cannot be decided by inspecting call names.
     """
-    executing_nodes = _executable_scope_nodes(tree, include_class_bodies=True)
-    rebound = _globally_rebound_in(executing_nodes)
-    called = _called_names(executing_nodes)
-    for node in ast.walk(tree):
-        if isinstance(node, (ast.AsyncFunctionDef, ast.FunctionDef)) and node.name in called:
-            rebound |= _globally_rebound_in(list(ast.walk(node)))
-    return rebound
+    return _globally_rebound_in(_executable_scope_nodes(tree, include_class_bodies=True))
 
 
-def _verified_type_checking_bindings(tree: ast.AST) -> tuple[set[str], set[str]]:
+def _nodes_before(nodes: Sequence[ast.AST], before_line: int | None) -> list[ast.AST]:
+    """Return the nodes that appear before a source line, or all of them when unbounded."""
+    if before_line is None:
+        return list(nodes)
+    return [node for node in nodes if getattr(node, "lineno", 0) < before_line]
+
+
+def _verified_type_checking_bindings(tree: ast.AST, before_line: int | None = None) -> tuple[set[str], set[str]]:
     """Return unrebound names imported from the typing module.
+
+    A rebinding only invalidates a guard used after it, so ``before_line`` bounds the scan to
+    statements that already ran; an unbounded call sees the whole module.
 
     Rebinding is detected across every node that executes at module load, including loop,
     context-manager, exception, and match targets, so a nested but reachable rebinding
     replaces the guard while a name bound only inside a function, lambda, or class body
     does not — unless a ``global`` declaration makes that binding module-scoped. A module
-    guard is also dropped when its ``TYPE_CHECKING`` attribute is written directly. A guard
-    is trusted only when imported directly at module scope.
+    guard is also dropped when its ``TYPE_CHECKING`` attribute is written directly, and no
+    guard is trusted at all when an invoked function could change module state. A guard is
+    trusted only when imported directly at module scope.
     """
     body = tree.body if isinstance(tree, ast.Module) else []
-    nodes = _executable_scope_nodes(tree)
+    if _unverifiable_module_state(tree):
+        return set(), set()
+    nodes = _nodes_before(_executable_scope_nodes(tree), before_line)
+    executing_nodes = _nodes_before(_executable_scope_nodes(tree, include_class_bodies=True), before_line)
     rebound_names = (
         _other_import_names(nodes)
         | {name for node in nodes for name, _ in _name_bindings(node)}
         | {name for node in nodes for name in _compound_binding_names(node)}
-        | _global_rebound_names(tree)
+        | _globally_rebound_in(executing_nodes)
     )
-    mutated_guard_names = {
-        name
-        for node in _executable_scope_nodes(tree, include_class_bodies=True)
-        for name in _guard_attribute_targets(node)
-    }
+    mutated_guard_names = {name for node in executing_nodes for name in _guard_attribute_targets(node)}
     return (
         _imported_type_checking_names(body) - rebound_names,
         _imported_typing_module_names(body) - rebound_names - mutated_guard_names,
@@ -552,7 +588,6 @@ def _verified_type_checking_bindings(tree: ast.AST) -> tuple[set[str], set[str]]
 
 def _module_scope_nodes(tree: ast.AST, *, include_class_bodies: bool = False) -> list[ast.AST]:
     """Return executable module nodes without entering deferred function scopes."""
-    type_checking_names, typing_module_names = _verified_type_checking_bindings(tree)
     pending = list(reversed(list(ast.iter_child_nodes(tree))))
     nodes: list[ast.AST] = []
     while pending:
@@ -566,7 +601,8 @@ def _module_scope_nodes(tree: ast.AST, *, include_class_bodies: bool = False) ->
             continue
         if (
             isinstance(node, ast.If)
-            and (condition := _static_condition(node.test, type_checking_names, typing_module_names)) is not None
+            and (condition := _static_condition(node.test, *_verified_type_checking_bindings(tree, node.lineno)))
+            is not None
         ):
             pending.extend(reversed(node.body if condition else node.orelse))
             continue
@@ -576,11 +612,10 @@ def _module_scope_nodes(tree: ast.AST, *, include_class_bodies: bool = False) ->
 
 def _conditional_assignment_ids(tree: ast.AST) -> set[int]:
     """Return assignments under branches whose runtime outcome is unknown."""
-    type_checking_names, typing_module_names = _verified_type_checking_bindings(tree)
     conditional_ids: set[int] = set()
     for node in ast.walk(tree):
         if isinstance(node, ast.If):
-            if _static_condition(node.test, type_checking_names, typing_module_names) is not None:
+            if _static_condition(node.test, *_verified_type_checking_bindings(tree, node.lineno)) is not None:
                 continue
             branch_nodes: tuple[ast.stmt, ...] = (*node.body, *node.orelse)
         elif isinstance(
@@ -667,6 +702,8 @@ def _pytest_plugin_names(tree: ast.AST) -> list[list[str]]:
     imported binding, including one a star import may supply, is treated as unresolved
     since its value lives in another module.
     """
+    if _unverifiable_module_state(tree):
+        raise ValueError("stale-red-proof")
     conditional_assignment_ids = _conditional_assignment_ids(tree)
     constants: dict[str, list[object]] = {}
     for node in _module_scope_nodes(tree):
