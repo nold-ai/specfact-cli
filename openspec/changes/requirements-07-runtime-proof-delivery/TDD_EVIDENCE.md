@@ -1625,7 +1625,7 @@
     tests/unit/scripts/test_requirements_proof_provenance.py -q
   ```
 
-- **Passing result:** all 77 provenance tests passed, under both the default
+- **Passing result:** all 85 provenance tests passed, under both the default
   random ordering and `-p no:randomly`.
 - **Reconciliation with `2f893e95`:** that commit landed the last open Codex
   finding by retaining known constant values when a conditional assignment is
@@ -1719,6 +1719,37 @@
 - **No spurious rejection:** resolving proof inputs for three real selectors in
   this repository, individually and together, raises no fail-closed finding, so
   every file in the live traversal graph parses within the bound.
+- **Second follow-on Codex round:** three further findings were raised against
+  `5bb6189c` and are fixed here.
+  `addopts` is now parsed for `-p` plugin names at the red source and those
+  modules are seeded as plugin sources, because `-p` early-loads a module
+  regardless of autoload; `no:` entries disable a plugin and are skipped.
+  `_pytest_plugin_names` now reports only the final possible `pytest_plugins`
+  binding instead of accumulating every historical assignment, so a declaration
+  that a later one overwrites no longer stales the proof; the resolver records
+  `pytest_plugins` through the same constant table as any other name.
+  `_verified_type_checking_bindings` now scans `_executable_scope_nodes` rather
+  than `ast.walk`, so a function-, lambda-, or class-local name no longer counts
+  as rebinding the module guard, while a nested but reachable rebinding still
+  does.
+- **Refactor:** `_toml_pythonpath` and `_ini_pythonpath` collapsed into
+  `_pytest_ini_option` over a cached `_pytest_configuration_sources`, so
+  `pythonpath` and `addopts` share one reader. `_assigned_value_nodes` was
+  removed as unused once the resolver reads bindings directly.
+- **Failing-before (second follow-on):**
+
+  ```shell
+  uv run --python 3.11 --locked --extra dev python -m pytest \
+    tests/unit/scripts/test_requirements_proof_provenance.py -p no:randomly \
+    -k "addopts or overwritten or function_local" -q
+  ```
+
+  Result: 7 failed, 1 passed. The disabled-`-p` guard passed before and after,
+  as a lock on unchanged behavior should.
+- **Verified on this repository:** configured `addopts` yields no `-p` entries,
+  `pythonpath` roots stay `('', 'src', 'tools')`, proof inputs are unchanged at
+  80 and 105 paths for two real selectors, no production module is bound, and
+  the declared plugin remains bound.
 - **Ruff:**
 
   ```shell

@@ -9,6 +9,7 @@ import functools
 import hashlib
 import json
 import re
+import shlex
 import subprocess
 import sys
 import tomllib
@@ -141,27 +142,80 @@ def _pythonpath_entries(value: object) -> list[str]:
     return []
 
 
-def _toml_pythonpath(text: str) -> list[str]:
-    """Return ``pythonpath`` declared under ``[tool.pytest.ini_options]``."""
+def _toml_ini_option(text: str, option: str) -> object | None:
+    """Return one option declared under ``[tool.pytest.ini_options]``."""
     try:
         node: object = tomllib.loads(text)
     except (tomllib.TOMLDecodeError, ValueError):
-        return []
-    for key in ("tool", "pytest", "ini_options", "pythonpath"):
+        return None
+    for key in ("tool", "pytest", "ini_options", option):
         if not isinstance(node, dict):
-            return []
+            return None
         node = cast(dict[str, object], node).get(key)
-    return _pythonpath_entries(node)
+    return node
 
 
-def _ini_pythonpath(text: str, section: str) -> list[str]:
-    """Return ``pythonpath`` declared in an ini-style pytest configuration section."""
+def _pytest_ini_option(text: str, configuration_path: str, option: str) -> object | None:
+    """Return one pytest ini option from a TOML or ini-style configuration source."""
+    section = PYTEST_INI_SECTIONS.get(configuration_path)
+    if section is None:
+        return _toml_ini_option(text, option)
     parser = configparser.ConfigParser()
     try:
         parser.read_string(text)
     except configparser.Error:
+        return None
+    return parser.get(section, option, fallback=None)
+
+
+@functools.cache
+def _pytest_configuration_sources(repo_root: Path, source_ref: str) -> tuple[tuple[str, str], ...]:
+    """Return the readable pytest configuration candidates committed at the red source."""
+    sources: list[tuple[str, str]] = []
+    for path in PYTEST_CONFIGURATION_FILES:
+        result = _git_bytes(repo_root, "show", f"{source_ref}:{path}")
+        if result.returncode != 0 or len(result.stdout) > MAX_TEST_BLOB_BYTES:
+            continue
+        sources.append((path, result.stdout.decode("utf-8", errors="surrogateescape")))
+    return tuple(sources)
+
+
+def _addopts_plugin_names(value: object) -> list[list[str]]:
+    """Return module names early-loaded through ``-p`` in a configured ``addopts`` setting."""
+    if isinstance(value, str):
+        try:
+            tokens = shlex.split(value)
+        except ValueError:
+            return []
+    elif isinstance(value, list):
+        tokens = [token for token in cast(list[object], value) if isinstance(token, str)]
+    else:
         return []
-    return _pythonpath_entries(parser.get(section, "pythonpath", fallback=None))
+    names: list[str] = []
+    expecting_name = False
+    for token in tokens:
+        if expecting_name:
+            names.append(token)
+            expecting_name = False
+        elif token == "-p":
+            expecting_name = True
+        elif token.startswith("-p") and len(token) > 2:
+            names.append(token.removeprefix("-p"))
+    return [name.split(".") for name in names if name and not name.startswith("no:")]
+
+
+@functools.cache
+def _addopts_plugin_module_names(repo_root: Path, source_ref: str) -> tuple[tuple[str, ...], ...]:
+    """Return plugin module names early-loaded by configured ``addopts`` at the red source.
+
+    ``-p name`` loads a plugin module regardless of autoload settings, so a repository-local
+    module named there decides collection exactly as a declared ``pytest_plugins`` entry does.
+    """
+    names: set[tuple[str, ...]] = set()
+    for path, text in _pytest_configuration_sources(repo_root, source_ref):
+        for parts in _addopts_plugin_names(_pytest_ini_option(text, path, "addopts")):
+            names.add(tuple(parts))
+    return tuple(sorted(names))
 
 
 def _safe_module_root(root: str) -> str | None:
@@ -181,13 +235,8 @@ def _pythonpath_roots(repo_root: Path, source_ref: str) -> tuple[str, ...]:
     precedence, because binding a root pytest did not use only widens the proof inputs.
     """
     roots: set[str] = set()
-    for path in PYTEST_CONFIGURATION_FILES:
-        result = _git_bytes(repo_root, "show", f"{source_ref}:{path}")
-        if result.returncode != 0 or len(result.stdout) > MAX_TEST_BLOB_BYTES:
-            continue
-        text = result.stdout.decode("utf-8", errors="surrogateescape")
-        section = PYTEST_INI_SECTIONS.get(path)
-        entries = _ini_pythonpath(text, section) if section else _toml_pythonpath(text)
+    for path, text in _pytest_configuration_sources(repo_root, source_ref):
+        entries = _pythonpath_entries(_pytest_ini_option(text, path, "pythonpath"))
         roots.update(root for entry in entries if (root := _safe_module_root(entry)) is not None)
     return (*REPOSITORY_ROOT_MODULE_ROOTS, *sorted(roots - set(REPOSITORY_ROOT_MODULE_ROOTS)))
 
@@ -230,11 +279,6 @@ def _destructured_targets(target: ast.expr, value: ast.expr) -> list[tuple[str, 
             for binding in _destructured_targets(element, element_value)
         ]
     return []
-
-
-def _assigned_value_nodes(node: ast.AST, name: str) -> list[ast.expr]:
-    """Return every value statically bound to a named variable by one statement."""
-    return [value for bound_name, value in _name_bindings(node) if bound_name == name]
 
 
 def _static_condition(test: ast.AST, type_checking_names: set[str], typing_module_names: set[str]) -> bool | None:
@@ -349,15 +393,33 @@ def _other_import_names(nodes: Sequence[ast.AST]) -> set[str]:
     return direct_imports | from_imports
 
 
+def _executable_scope_nodes(tree: ast.AST) -> list[ast.AST]:
+    """Return nodes that run at module load, without entering deferred or class scopes.
+
+    Function, lambda, and class bodies cannot rebind a module-level name, so names bound
+    there must not count as rebinding the typing guard.
+    """
+    pending = list(ast.iter_child_nodes(tree))
+    nodes: list[ast.AST] = []
+    while pending:
+        node = pending.pop()
+        nodes.append(node)
+        if isinstance(node, (ast.AsyncFunctionDef, ast.ClassDef, ast.FunctionDef, ast.Lambda)):
+            continue
+        pending.extend(ast.iter_child_nodes(node))
+    return nodes
+
+
 def _verified_type_checking_bindings(tree: ast.AST) -> tuple[set[str], set[str]]:
     """Return unrebound names imported from the typing module.
 
-    Rebinding is detected across the whole tree because an assignment or an import anywhere
-    in the module may replace the guard, while a guard is only trusted when it is imported
+    Rebinding is detected across every node that executes at module load, so a nested but
+    reachable assignment or import replaces the guard, while a name bound only inside a
+    function, lambda, or class body does not. A guard is trusted only when imported
     directly at module scope.
     """
     body = tree.body if isinstance(tree, ast.Module) else []
-    nodes = list(ast.walk(tree))
+    nodes = _executable_scope_nodes(tree)
     rebound_names = _other_import_names(nodes) | {name for node in nodes for name, _ in _name_bindings(node)}
     return (
         _imported_type_checking_names(body) - rebound_names,
@@ -450,28 +512,26 @@ def _record_constant(constants: dict[str, list[object]], name: str, value: objec
 def _pytest_plugin_names(tree: ast.AST) -> list[list[str]]:
     """Return statically declared ``pytest_plugins`` module names.
 
-    Raises ``ValueError('stale-red-proof')`` when an active declaration cannot be resolved,
-    because an unverifiable plugin set cannot prove the retained failure is still current.
+    Only the final possible binding is reported, because pytest reads the attribute after
+    the module is imported, so an assignment that a later one overwrites never loads.
+    Raises ``ValueError('stale-red-proof')`` when that binding cannot be resolved, because
+    an unverifiable plugin set cannot prove the retained failure is still current.
     """
-    plugin_names: list[list[str]] = []
-    module_nodes = _module_scope_nodes(tree)
     conditional_assignment_ids = _conditional_assignment_ids(tree)
     constants: dict[str, list[object]] = {}
-    for node in module_nodes:
-        for value_node in _assigned_value_nodes(node, "pytest_plugins"):
-            for value in _resolved_literals(value_node, constants):
-                if value is UNRESOLVED_PLUGIN_VALUE:
-                    raise ValueError("stale-red-proof")
-                plugin_names.extend(_plugin_parts(value))
+    for node in _module_scope_nodes(tree):
         for name, assigned_node in _name_bindings(node):
-            try:
-                value = ast.literal_eval(assigned_node)
-            except (ValueError, TypeError):
-                value = UNRESOLVED_PLUGIN_VALUE
             extends = id(node) in conditional_assignment_ids or bool(_augmented_assignments(node))
-            _record_constant(constants, name, value, extends=extends)
+            for value in _resolved_literals(assigned_node, constants):
+                _record_constant(constants, name, value, extends=extends)
+                extends = True
         for name in _compound_binding_names(node):
             _record_constant(constants, name, UNRESOLVED_PLUGIN_VALUE, extends=True)
+    plugin_names: list[list[str]] = []
+    for value in constants.get("pytest_plugins", []):
+        if value is UNRESOLVED_PLUGIN_VALUE:
+            raise ValueError("stale-red-proof")
+        plugin_names.extend(_plugin_parts(value))
     return plugin_names
 
 
@@ -737,7 +797,8 @@ def _proof_inputs(repo_root: Path, source_ref: str, selector_paths: Sequence[str
     """Return every committed path whose change after the red source would invalidate the proof.
 
     Selectors are resolved together so their shared conftest, initializer, and import graph is
-    traversed once for the whole proof.
+    traversed once for the whole proof. Plugins early-loaded through configured ``addopts``
+    ``-p`` options are seeded alongside them, because pytest loads those modules too.
     """
     pytest_inputs = {
         path for test_path in selector_paths for path in (test_path, *_ancestor_file_paths(test_path, "conftest.py"))
@@ -746,15 +807,24 @@ def _proof_inputs(repo_root: Path, source_ref: str, selector_paths: Sequence[str
         initializer for path in pytest_inputs for initializer in _ancestor_file_paths(path, "__init__.py")
     }
     traversal_inputs = pytest_inputs | initializer_inputs
+    plugin_module_roots = _pythonpath_roots(repo_root, source_ref)
+    addopts_names = _addopts_plugin_module_names(repo_root, source_ref)
+    addopts_paths = _discovered_python_paths(addopts_names, plugin_module_roots)
+    addopts_targets = {
+        path
+        for module_parts in addopts_names
+        for path in _python_module_target_paths(module_parts, plugin_module_roots)
+    }
     return {
         *traversal_inputs,
         *PYTEST_CONFIGURATION_FILES,
+        *addopts_paths,
         *_imported_python_paths(
             repo_root,
             source_ref,
-            sorted(traversal_inputs),
-            pytest_plugin_source_paths=pytest_inputs,
-            plugin_module_roots=_pythonpath_roots(repo_root, source_ref),
+            sorted(traversal_inputs | addopts_paths),
+            pytest_plugin_source_paths=pytest_inputs | addopts_targets,
+            plugin_module_roots=plugin_module_roots,
         ),
     }
 

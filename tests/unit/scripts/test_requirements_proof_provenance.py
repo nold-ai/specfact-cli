@@ -1224,3 +1224,118 @@ def test_git_bound_red_proof_rejects_oversized_proof_input(tmp_path: Path) -> No
     assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
         "stale-red-proof"
     ]
+
+
+@pytest.mark.parametrize(
+    ("configuration_path", "configuration_body"),
+    [
+        ("pyproject.toml", '[tool.pytest.ini_options]\naddopts = "-ra -p tests.localplugin"\n'),
+        ("pyproject.toml", '[tool.pytest.ini_options]\naddopts = ["-ra", "-ptests.localplugin"]\n'),
+        ("pytest.ini", "[pytest]\naddopts = -ra -p tests.localplugin\n"),
+        ("tox.ini", "[pytest]\naddopts = -ra -p tests.localplugin\n"),
+        ("setup.cfg", "[tool:pytest]\naddopts = -ra -p tests.localplugin\n"),
+    ],
+)
+def test_git_bound_red_proof_rejects_changed_addopts_plugin(
+    tmp_path: Path, configuration_path: str, configuration_body: str
+) -> None:
+    """A plugin early-loaded through configured addopts decides collection and must stay bound."""
+    module = _load_provenance_module()
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    (tmp_path / configuration_path).write_text(configuration_body, encoding="utf-8")
+    tests_path = tmp_path / "tests"
+    tests_path.mkdir()
+    (tests_path / "localplugin.py").write_text("VALUE = False\n", encoding="utf-8")
+    base_ref = _commit(tmp_path, "test: add addopts plugin")
+    (tests_path / "test_proof.py").write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+
+    (tests_path / "localplugin.py").write_text("VALUE = True\n", encoding="utf-8")
+    final_ref = _commit(tmp_path, "fix: change addopts plugin")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
+        "stale-red-proof"
+    ]
+
+
+def test_git_bound_red_proof_ignores_disabled_addopts_plugin(tmp_path: Path) -> None:
+    """A `-p no:` entry disables a plugin rather than naming a repository module to bind."""
+    module = _load_provenance_module()
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    (tmp_path / "pyproject.toml").write_text(
+        '[tool.pytest.ini_options]\naddopts = "-p no:cacheprovider"\n', encoding="utf-8"
+    )
+    no_path = tmp_path / "no:cacheprovider.py"
+    no_path.write_text("VALUE = False\n", encoding="utf-8")
+    tests_path = tmp_path / "tests"
+    tests_path.mkdir()
+    base_ref = _commit(tmp_path, "test: add disabled plugin option")
+    (tests_path / "test_proof.py").write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+
+    no_path.write_text("VALUE = True\n", encoding="utf-8")
+    final_ref = _commit(tmp_path, "chore: change unrelated module")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == []
+
+
+def test_git_bound_red_proof_ignores_overwritten_plugin_declaration(tmp_path: Path) -> None:
+    """Only the final pytest_plugins binding loads, so an overwritten declaration must not bind."""
+    module = _load_provenance_module()
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    tests_path = tmp_path / "tests"
+    helpers_path = tests_path / "helpers"
+    helpers_path.mkdir(parents=True)
+    (helpers_path / "obsolete.py").write_text("VALUE = False\n", encoding="utf-8")
+    (helpers_path / "active.py").write_text("VALUE = False\n", encoding="utf-8")
+    (tests_path / "conftest.py").write_text(
+        'pytest_plugins = ("tests.helpers.obsolete",)\npytest_plugins = ("tests.helpers.active",)\n',
+        encoding="utf-8",
+    )
+    base_ref = _commit(tmp_path, "test: overwrite plugin declaration")
+    (tests_path / "test_proof.py").write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+
+    (helpers_path / "obsolete.py").write_text("VALUE = True\n", encoding="utf-8")
+    final_ref = _commit(tmp_path, "chore: change never-loaded plugin")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == []
+
+
+def test_git_bound_red_proof_ignores_function_local_type_checking_rebinding(tmp_path: Path) -> None:
+    """A function-local name cannot rebind the module typing guard, so its branch stays pruned."""
+    module = _load_provenance_module()
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    tests_path = tmp_path / "tests"
+    tests_path.mkdir()
+    (tests_path / "__init__.py").write_text(
+        "from typing import TYPE_CHECKING\n"
+        "def helper() -> None:\n    TYPE_CHECKING = True\n    return None\n"
+        "if TYPE_CHECKING:\n    import tests.typing_only\n",
+        encoding="utf-8",
+    )
+    (tests_path / "typing_only.py").write_text("VALUE = False\n", encoding="utf-8")
+    base_ref = _commit(tmp_path, "test: add function-local guard name")
+    (tests_path / "test_proof.py").write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+
+    (tests_path / "typing_only.py").write_text("VALUE = True\n", encoding="utf-8")
+    final_ref = _commit(tmp_path, "chore: change type-only helper")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == []
