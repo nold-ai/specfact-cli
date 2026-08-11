@@ -598,13 +598,29 @@ def _record_constant(constants: dict[str, list[object]], name: str, value: objec
         constants[name] = [value]
 
 
+def _import_binding_names(node: ast.AST) -> list[str]:
+    """Return names bound by one import statement, whose values are not statically known."""
+    if isinstance(node, ast.Import):
+        return [alias.asname or alias.name.split(".")[0] for alias in node.names]
+    if isinstance(node, ast.ImportFrom):
+        return [alias.asname or alias.name for alias in node.names if alias.name != "*"]
+    return []
+
+
+def _has_star_import(node: ast.AST) -> bool:
+    """Return whether one statement imports an unknown set of names."""
+    return isinstance(node, ast.ImportFrom) and any(alias.name == "*" for alias in node.names)
+
+
 def _pytest_plugin_names(tree: ast.AST) -> list[list[str]]:
     """Return statically declared ``pytest_plugins`` module names.
 
     Only the final possible binding is reported, because pytest reads the attribute after
     the module is imported, so an assignment that a later one overwrites never loads.
     Raises ``ValueError('stale-red-proof')`` when that binding cannot be resolved, because
-    an unverifiable plugin set cannot prove the retained failure is still current.
+    an unverifiable plugin set cannot prove the retained failure is still current. An
+    imported binding, including one a star import may supply, is treated as unresolved
+    since its value lives in another module.
     """
     conditional_assignment_ids = _conditional_assignment_ids(tree)
     constants: dict[str, list[object]] = {}
@@ -616,6 +632,10 @@ def _pytest_plugin_names(tree: ast.AST) -> list[list[str]]:
                 extends = True
         for name in _compound_binding_names(node):
             _record_constant(constants, name, UNRESOLVED_PLUGIN_VALUE, extends=True)
+        for name in _import_binding_names(node):
+            _record_constant(constants, name, UNRESOLVED_PLUGIN_VALUE, extends=False)
+        if _has_star_import(node):
+            _record_constant(constants, "pytest_plugins", UNRESOLVED_PLUGIN_VALUE, extends=True)
     plugin_names: list[list[str]] = []
     for value in constants.get("pytest_plugins", []):
         if value is UNRESOLVED_PLUGIN_VALUE:

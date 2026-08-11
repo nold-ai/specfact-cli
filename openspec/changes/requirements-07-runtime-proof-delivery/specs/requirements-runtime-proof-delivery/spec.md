@@ -192,7 +192,8 @@ retain deterministic JUnit results for module-owned reconciliation.
 - **AND** an active `pytest_plugins` declaration whose value cannot be resolved
   statically is treated as stale rather than silently ignored, including when a
   loop, context-manager, exception, match, or walrus target rebinds the
-  constant it reads
+  constant it reads, or when the declaration is bound by an import whose value
+  lives in another module
 - **AND** a proof input or configuration source that exists at the red source
   but cannot be read or parsed, because it is oversized or malformed, is treated
   as stale rather than skipped like an absent candidate

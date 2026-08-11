@@ -1541,3 +1541,65 @@ def test_git_bound_red_proof_ignores_falsy_literal_guard_imports(tmp_path: Path,
     final_ref = _commit(tmp_path, "chore: change unexecuted helper")
 
     assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == []
+
+
+@pytest.mark.parametrize(
+    "plugin_declaration",
+    [
+        "from tests.names import pytest_plugins\n",
+        "from tests.names import pytest_plugins as pytest_plugins\n",
+        "from tests.names import *\n",
+    ],
+)
+def test_git_bound_red_proof_rejects_imported_pytest_plugins(tmp_path: Path, plugin_declaration: str) -> None:
+    """A pytest_plugins value that lives in another module cannot be resolved, so it fails closed."""
+    module = _load_provenance_module()
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    tests_path = tmp_path / "tests"
+    helpers_path = tests_path / "helpers"
+    helpers_path.mkdir(parents=True)
+    (helpers_path / "fixtures.py").write_text("VALUE = False\n", encoding="utf-8")
+    (tests_path / "names.py").write_text('pytest_plugins = ("tests.helpers.fixtures",)\n', encoding="utf-8")
+    (tests_path / "conftest.py").write_text(plugin_declaration, encoding="utf-8")
+    base_ref = _commit(tmp_path, "test: add imported plugin declaration")
+    (tests_path / "test_proof.py").write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "delivery.py").write_text("VALUE = 1\n", encoding="utf-8")
+    final_ref = _commit(tmp_path, "feat: delivery")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
+        "stale-red-proof"
+    ]
+
+
+def test_git_bound_red_proof_binds_plugins_declared_after_an_import(tmp_path: Path) -> None:
+    """An unrelated import must not stale a conftest whose own plugin declaration is literal."""
+    module = _load_provenance_module()
+    _git(tmp_path, "init")
+    _git(tmp_path, "config", "user.email", "requirements@example.test")
+    _git(tmp_path, "config", "user.name", "Requirements proof")
+    tests_path = tmp_path / "tests"
+    helpers_path = tests_path / "helpers"
+    helpers_path.mkdir(parents=True)
+    (helpers_path / "fixtures.py").write_text("VALUE = False\n", encoding="utf-8")
+    (tests_path / "conftest.py").write_text(
+        'import os\nfrom tests.helpers import fixtures\npytest_plugins = ("tests.helpers.fixtures",)\n',
+        encoding="utf-8",
+    )
+    base_ref = _commit(tmp_path, "test: add literal declaration beside imports")
+    (tests_path / "test_proof.py").write_text("def test_selected() -> None: assert False\n", encoding="utf-8")
+    red_ref = _commit(tmp_path, "test: add red proof")
+    red_proof_path = tmp_path / ".git" / "red.json"
+    _write_red_proof(red_proof_path, tmp_path, red_ref, base_ref)
+
+    (helpers_path / "fixtures.py").write_text("VALUE = True\n", encoding="utf-8")
+    final_ref = _commit(tmp_path, "fix: change declared plugin")
+
+    assert module.validate_prior_red_proof(red_proof_path, tmp_path, base_ref=base_ref, final_ref=final_ref) == [
+        "stale-red-proof"
+    ]

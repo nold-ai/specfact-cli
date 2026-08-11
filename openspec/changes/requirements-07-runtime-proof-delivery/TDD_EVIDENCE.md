@@ -1625,7 +1625,7 @@
     tests/unit/scripts/test_requirements_proof_provenance.py -q
   ```
 
-- **Passing result:** all 110 provenance tests passed, under both the default
+- **Passing result:** all 114 provenance tests passed, under both the default
   random ordering and `-p no:randomly`.
 - **Reconciliation with `2f893e95`:** that commit landed the last open Codex
   finding by retaining known constant values when a conditional assignment is
@@ -1813,6 +1813,25 @@
 - **Verified on this repository:** proof inputs stay at 83 and 108 paths for two
   real selectors, and the committed `pyproject.toml` is 29 KB against the 10 MiB
   bound, so the new fail-closed path is unreachable here.
+- **Sixth follow-on Codex round:** one P1 against `40142261`. A
+  `from tests.names import pytest_plugins` binding was invisible, because the
+  resolver recorded only assignment-like bindings. `_import_binding_names` now
+  records every imported name as unresolved, and `_has_star_import` records
+  `pytest_plugins` as unresolved when a star import could supply it, so both
+  forms fail closed rather than reporting no plugins. Resolving the value would
+  require cross-module analysis; failing closed is the option the finding
+  offered and matches the rule already applied to unevaluable expressions.
+  An import binding replaces rather than extends, so a literal declaration made
+  after an import still resolves normally.
+- **Failing-before (sixth follow-on):** 3 failed — the plain import, the
+  aliased import, and the star import. The fourth case in this round,
+  `test_git_bound_red_proof_binds_plugins_declared_after_an_import`, passed
+  before and after as a lock on the behavior that must not regress.
+- **Verified on this repository:** both committed `conftest.py` files still
+  resolve their declarations statically — `tests/conftest.py` binds
+  `tests.helpers.doc_frontmatter_fixtures` despite carrying imports above the
+  declaration — and proof inputs stay at 83 and 108 paths for two real
+  selectors.
 - **Ruff:**
 
   ```shell
