@@ -6,6 +6,7 @@ from __future__ import annotations
 import ast
 import sys
 from pathlib import Path
+from typing import NamedTuple
 
 from beartype import beartype
 from icontract import ensure, require
@@ -42,24 +43,50 @@ def _register_json_from_func_alias(alias: ast.alias, func_aliases: dict[str, str
     func_aliases[local] = f"json.{alias.name}"
 
 
+def _defers_annotations(node: ast.Module) -> bool:
+    """Return whether PEP 563 leaves this module's annotations unevaluated."""
+    return any(
+        isinstance(stmt, ast.ImportFrom)
+        and stmt.module == "__future__"
+        and any(alias.name == "annotations" for alias in stmt.names)
+        for stmt in node.body
+    )
+
+
+def _argument_slots(args: ast.arguments) -> tuple[ast.arg, ...]:
+    named = (*args.posonlyargs, *args.args, *args.kwonlyargs)
+    variadic = tuple(slot for slot in (args.vararg, args.kwarg) if slot is not None)
+    return (*named, *variadic)
+
+
+class _Scope(NamedTuple):
+    """One name-binding frame; a class body is invisible to the scopes nested in it."""
+
+    is_class_body: bool
+    names: set[str]
+
+
 class _JsonIOShadowVisitor(ast.NodeVisitor):
     """Track json import aliases and whether call targets were shadowed by assignment."""
 
     def __init__(self) -> None:
         self.func_aliases: dict[str, str] = {}
         self.module_locals: set[str] = set()
-        self.shadow_stack: list[set[str]] = [set()]
+        self.scope_stack: list[_Scope] = [_Scope(is_class_body=False, names=set())]
+        self.annotations_evaluated = True
         self.offenders: list[tuple[int, str]] = []
 
-    def _union_shadowed(self) -> set[str]:
-        merged: set[str] = set()
-        for frame in self.shadow_stack:
-            merged |= frame
+    def _visible_shadowed(self) -> set[str]:
+        innermost, *enclosing = reversed(self.scope_stack)
+        merged = set(innermost.names)
+        for scope in enclosing:
+            if not scope.is_class_body:
+                merged |= scope.names
         return merged
 
     def _note_shadow(self, name: str) -> None:
         if name in self.func_aliases or name in self.module_locals:
-            self.shadow_stack[-1].add(name)
+            self.scope_stack[-1].names.add(name)
 
     def _note_optional_vars(self, node: ast.AST) -> None:
         if isinstance(node, ast.Name):
@@ -89,7 +116,8 @@ class _JsonIOShadowVisitor(ast.NodeVisitor):
                         self._note_shadow(elt.id)
 
     def visit_AnnAssign(self, node: ast.AnnAssign) -> None:
-        self.visit(node.annotation)
+        if self.annotations_evaluated:
+            self.visit(node.annotation)
         if node.value is not None:
             self.visit(node.value)
         if isinstance(node.target, ast.Name):
@@ -136,48 +164,91 @@ class _JsonIOShadowVisitor(ast.NodeVisitor):
     def visit_ExceptHandler(self, node: ast.ExceptHandler) -> None:
         if node.type is not None:
             self.visit(node.type)
-        if node.name:
-            self._note_shadow(node.name)
+        name = node.name
+        # Python deletes the `as` target when the handler ends, so it only shadows inside the body.
+        unbinds = bool(name) and name not in self.scope_stack[-1].names
+        if name:
+            self._note_shadow(name)
         for stmt in node.body:
             self.visit(stmt)
+        if name and unbinds:
+            self.scope_stack[-1].names.discard(name)
+
+    def _visit_decorators(self, decorators: list[ast.expr]) -> None:
+        for decorator in decorators:
+            # A decorator that is not itself a call still invokes the name it references.
+            if not isinstance(decorator, ast.Call) and (target := self._json_io_target(decorator)) is not None:
+                self.offenders.append((decorator.lineno, target))
+            self.visit(decorator)
+
+    def _visit_argument_defaults(self, args: ast.arguments) -> None:
+        for default in (*args.defaults, *args.kw_defaults):
+            if default is not None:
+                self.visit(default)
+
+    def _note_parameters(self, args: ast.arguments) -> None:
+        for arg in _argument_slots(args):
+            self._note_shadow(arg.arg)
 
     def visit_FunctionDef(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> None:
-        self.shadow_stack.append(set())
-        for arg in (*getattr(node.args, "posonlyargs", ()), *node.args.args, *node.args.kwonlyargs):
-            self._note_shadow(arg.arg)
-        if node.args.vararg:
-            self._note_shadow(node.args.vararg.arg)
-        if node.args.kwarg:
-            self._note_shadow(node.args.kwarg.arg)
+        # Decorators, defaults, and evaluated annotations run in the enclosing scope, not the body.
+        self._visit_decorators(node.decorator_list)
+        self._visit_argument_defaults(node.args)
+        if self.annotations_evaluated:
+            slots = _argument_slots(node.args)
+            for annotation in (*(slot.annotation for slot in slots), node.returns):
+                if annotation is not None:
+                    self.visit(annotation)
+        self.scope_stack.append(_Scope(is_class_body=False, names=set()))
+        self._note_parameters(node.args)
         for stmt in node.body:
             self.visit(stmt)
-        self.shadow_stack.pop()
+        self.scope_stack.pop()
 
     def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
         self.visit_FunctionDef(node)  # type: ignore[arg-type]
 
+    def visit_Lambda(self, node: ast.Lambda) -> None:
+        self._visit_argument_defaults(node.args)
+        self.scope_stack.append(_Scope(is_class_body=False, names=set()))
+        self._note_parameters(node.args)
+        self.visit(node.body)
+        self.scope_stack.pop()
+
     def visit_ClassDef(self, node: ast.ClassDef) -> None:
-        self.shadow_stack.append(set())
+        self._visit_decorators(node.decorator_list)
+        for base in node.bases:
+            self.visit(base)
+        for keyword in node.keywords:
+            self.visit(keyword.value)
+        self.scope_stack.append(_Scope(is_class_body=True, names=set()))
         for stmt in node.body:
             self.visit(stmt)
-        self.shadow_stack.pop()
+        self.scope_stack.pop()
 
-    def visit_Call(self, node: ast.Call) -> None:
-        shadowed = self._union_shadowed()
-        func = node.func
+    def _json_io_target(self, func: ast.expr) -> str | None:
+        """Return the canonical json I/O name this expression invokes, if any."""
+        shadowed = self._visible_shadowed()
         if isinstance(func, ast.Name) and func.id in self.func_aliases and func.id not in shadowed:
-            self.offenders.append((node.lineno, self.func_aliases[func.id]))
-        elif (
+            return self.func_aliases[func.id]
+        if (
             isinstance(func, ast.Attribute)
             and isinstance(func.value, ast.Name)
             and func.value.id in self.module_locals
             and func.value.id not in shadowed
             and func.attr in _JSON_IO_NAMES
         ):
-            self.offenders.append((node.lineno, f"json.{func.attr}"))
+            return f"json.{func.attr}"
+        return None
+
+    def visit_Call(self, node: ast.Call) -> None:
+        target = self._json_io_target(node.func)
+        if target is not None:
+            self.offenders.append((node.lineno, target))
         self.generic_visit(node)
 
     def visit_Module(self, node: ast.Module) -> None:
+        self.annotations_evaluated = not _defers_annotations(node)
         for stmt in node.body:
             self.visit(stmt)
 
