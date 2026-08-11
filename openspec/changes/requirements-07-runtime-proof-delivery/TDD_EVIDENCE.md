@@ -2110,3 +2110,67 @@ annotations`, since PEP 563 leaves them unevaluated.
 - **Passing-after:** 23 passed across the unit and integration files, and
   `python scripts/verify_safe_project_writes.py` still exits 0 against the real
   `src/specfact_cli/utils/ide_setup.py`.
+
+## Self-review against change intent and mechanics
+
+A review of the accumulated remediation against `proposal.md`,
+`requirements-evidence.yaml`, and `CHANGE_VALIDATION.md` found four issues that
+no reviewer had raised. Three are governance mechanics; one is a defect in the
+preceding round's own fix.
+
+- **The gate script was not a declared touchpoint.** `requirements-evidence.yaml`
+  mapped `git-bound-failing-first-proof` to `requirements-proof/red.json` and
+  `TDD_EVIDENCE.md`, but never to
+  `scripts/requirements_proof_provenance.py` — the file that implements the
+  requirement and carries every line of this remediation. R07 exists to enforce
+  "changed interface -> mapped scenario -> exact selector", so the change was
+  failing its own contract on itself. The script is now a `cli_command`
+  touchpoint, matching the kind already used for
+  `scripts/pre-commit-quality-checks.sh`, which the workflow invokes the same way.
+- **The mapping covered two of the gate's scenarios.** Both provenance
+  verification cases predated this work; the retained-input invariant and the
+  symlinked-selector scenario had none. Five cases (R07-CORE-003-S04 through
+  S08) now bind the configuration source and configured roots, unreadable
+  inputs, unresolvable plugin declarations, guard rewriting, and symlinked
+  selectors. Every mapped selector was checked to collect exactly one test:
+  23 cases collect 23 tests, so no case points at a parametrized family whose
+  bare node ID is not an exact selector. One draft case did — it named the
+  nine-way parametrized `..._rejects_changed_addopts_plugin` — and was replaced
+  before commit.
+- **The requirement restated a proof-input list that had drifted.**
+  `Git-Bound Failing-First Proof` enumerated selectors, `conftest.py` files, and
+  imported support modules, while the retained-proof scenario enumerated a set
+  several rounds larger, including the configuration source, configured roots,
+  `addopts` plugins, and package initializers. The implementation followed the
+  larger one, so the requirement text was normative and wrong. It now names the
+  term and points at the single enumeration.
+- **The round-13 `setattr` rule was defeated by aliasing.** Matching
+  `setattr` by callee name repeated the mistake removed in round 12: with
+  `from builtins import setattr as _set`, or with any helper that receives the
+  module, `_unverifiable_module_state` stayed false and the guarded import was
+  pruned. A function is now state-mutating when it hands a module-level typing
+  binding to any call, tracking the guard by the name it is passed under rather
+  than by the callee's name. The `setattr` check is retained alongside it,
+  because it also covers a rewrite aimed at `pytest_plugins` rather than the
+  guard.
+
+- **Failing-before command:**
+
+  ```shell
+  uv run --python 3.11 --locked --extra dev python -m pytest \
+    tests/unit/scripts/test_requirements_proof_provenance.py -p no:randomly \
+    -k handed_to_a_call -q
+  ```
+
+  Recorded 2026-08-11T22:04:21Z. Result: 1 failed — the aliased rewrite was
+  accepted as fresh proof.
+- **Passing-after:** 134 passed in that file. Re-probing the three rewrite
+  shapes (plain `setattr`, aliased `setattr`, helper receiving the module) now
+  reports unverifiable module state for all three; before the fix only the plain
+  form was caught.
+- **Not changed, and why:** the retained-proof scenario still sits under
+  `Safe Pull-Request Proof Execution` although it governs retained red-proof
+  freshness rather than plan execution. Moving it under
+  `Git-Bound Failing-First Proof` would be structurally cleaner, but the
+  scenario also carries the executor's empty-JUnit condition, so the move means
+  splitting it — recorded rather than churned this late in review.

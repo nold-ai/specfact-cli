@@ -44,10 +44,33 @@ mapping/plan binding, but it cannot read the core repository ledger. Core must
 therefore verify that the record's `ledger_digest` equals the committed
 `TDD_EVIDENCE.md` bytes before invoking the module.
 
+## Post-Review Revalidation (2026-08-11)
+
+Independent review of the failing-first gate found that a retained red proof was
+accepted while inputs pytest actually reads could change after the red source.
+Remediation extended `scripts/requirements_proof_provenance.py` to resolve the
+complete pytest-determining input set and to fail closed on any input it cannot
+read, parse, or statically resolve. Two consequences for this report:
+
+- The gate script is now a declared touchpoint of `git-bound-failing-first-proof`
+  in `requirements-evidence.yaml`. It was previously absent, so this change's own
+  "changed interface -> mapped touchpoint -> exact selector" chain did not cover
+  the file implementing the requirement.
+- The requirement text no longer restates a partial input list. The enumeration
+  exists once, in the retained-proof scenario, because the duplicate had already
+  drifted behind the implementation.
+
+Validation result remains Pass and impact level remains Medium. No public core
+command signature changed, and the resolved proof inputs for this repository are
+unchanged, so the hardening rejects evidence that was previously accepted without
+widening what a valid red-to-green flow must hold stable.
+
 ## Impact Assessment
 
-- **Code Impact:** CI workflow, fixture lock, and the internal
-  runtime-discovery smoke registry; no public core command signature changes.
+- **Code Impact:** CI workflow, fixture lock, the internal runtime-discovery
+  smoke registry, and the red-proof provenance validator
+  `scripts/requirements_proof_provenance.py`; no public core command signature
+  changes.
 - **Test Impact:** workflow contract coverage and evidence-mapping selector
   coverage require additions.
 - **Documentation Impact:** the active change specification and design require

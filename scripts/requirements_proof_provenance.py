@@ -539,10 +539,13 @@ def _globally_rebound_in(nodes: Sequence[ast.AST]) -> set[str]:
 def _module_state_mutating_functions(tree: ast.AST) -> list[ast.AST]:
     """Return function definitions whose body can change module state this gate depends on.
 
-    A ``global`` rebinding, a ``TYPE_CHECKING`` attribute write, a ``setattr`` rewrite, or a
-    ``pytest_plugins`` assignment inside a function all alter what pytest sees once that
-    function runs.
+    A ``global`` rebinding, a ``TYPE_CHECKING`` attribute write, a ``setattr`` rewrite, a
+    call handed the typing module, or a ``pytest_plugins`` assignment inside a function all
+    alter what pytest sees once that function runs. The guard is tracked by the name it is
+    passed under rather than by the callee's name, because an aliased or wrapped rewriter
+    defeats any match on ``setattr`` alone.
     """
+    guard_names = _imported_typing_module_names(tree.body if isinstance(tree, ast.Module) else [])
     definitions: list[ast.AST] = []
     for node in ast.walk(tree):
         if not isinstance(node, (ast.AsyncFunctionDef, ast.FunctionDef)):
@@ -552,6 +555,7 @@ def _module_state_mutating_functions(tree: ast.AST) -> list[ast.AST]:
             _globally_rebound_in(body_nodes)
             or any(_guard_attribute_targets(child) for child in body_nodes)
             or _rewrites_attributes(body_nodes)
+            or any(name in guard_names for child in body_nodes for name in _call_argument_names(child))
             or any(name == "pytest_plugins" for child in body_nodes for name, _ in _name_bindings(child))
         )
         if mutates:

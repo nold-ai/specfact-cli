@@ -53,10 +53,11 @@ maturity. The
 proof SHALL bind the commit/tree, merge base, mapping digest, selectors,
 test-file digests, JUnit digest, and toolchain identity. Core SHALL reject
 proof when governed production changed before the red commit, including a
-governed source renamed outside its prefix, or when selectors, applicable
-pytest `conftest.py` files, their repository-local imported Python support
-modules (including statically declared `pytest_plugins` and import targets that
-were absent at red), or test files changed after it. Before forwarding a prior-red report to the
+governed source renamed outside its prefix, or when any pytest-determining
+input changed after it. Pytest-determining inputs are enumerated once, in the
+retained-proof scenario of Safe Pull-Request Proof Execution; this requirement
+SHALL NOT restate a partial list that could drift from it.
+Before forwarding a prior-red report to the
 released reconciliation command, core SHALL verify that its source commit is a
 strict ancestor of the final source, the current pull-request base is an
 ancestor of that source, and that the selected test files remain
@@ -84,10 +85,8 @@ SHALL NOT extend it to any other change.
 
 #### Scenario: Same-commit or stale red proof is rejected
 
-- **GIVEN** tests and production code first appear in the same commit, or a
-  mapped selector, its applicable pytest `conftest.py`, a repository-local
-  Python support module imported or declared as a plugin by either input, an
-  absent local import target is added, or its test file changes after the red proof
+- **GIVEN** tests and production code first appear in the same commit, or any
+  pytest-determining input of a mapped selector changes after the red proof
 - **WHEN** the gate evaluates a governed production diff
 - **THEN** it fails with `tdd-order-unproven` or `stale-red-proof`
 - **AND** retained-run discovery searches every completed-run page, skips
@@ -211,8 +210,10 @@ retain deterministic JUnit results for module-owned reconciliation.
 - **AND** module state is treated as unverifiable, failing closed for both the
   guard and the plugin declaration, when a module defines a function that can
   rebind a global, write a `TYPE_CHECKING` attribute, rewrite an attribute
-  through `setattr`, or assign `pytest_plugins` and also calls anything while
-  loading
+  through `setattr`, hand the guard module to any call, or assign
+  `pytest_plugins`, and also calls anything while loading
+- **AND** a rewriter is recognized by the guard name it receives rather than by
+  the callee's name, so an aliased or wrapped rewriter cannot evade the rule
 - **AND** a malformed report field, undecodable or oversized source, or Git
   timeout yields a deterministic finding rather than an unhandled error
 - **AND** the Requirements evidence gate exits nonzero after retaining its

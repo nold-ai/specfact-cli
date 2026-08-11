@@ -71,6 +71,9 @@ requirements:
       - id: red-proof-verifier
         kind: ci_workflow
         locator: "requirements-proof/red.json"
+      - id: red-proof-provenance-validator
+        kind: cli_command
+        locator: "scripts/requirements_proof_provenance.py"
       - id: legacy-tdd-ledger
         kind: evidence_ledger
         locator: "TDD_EVIDENCE.md"
@@ -91,6 +94,46 @@ requirements:
         selector:
           runner: pytest
           node_id: tests/unit/scripts/test_requirements_proof_provenance.py::test_git_bound_red_proof_rejects_replayed_or_renamed_production_history
+      - case_id: R07-CORE-003-S04
+        scenario_id: git-bound-failing-first-proof
+        method: test
+        intent: "Prove the pytest configuration source and its configured roots are proof inputs."
+        observable: "A plugin early-loaded through addopts under a configured root stays bound."
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_requirements_proof_provenance.py::test_git_bound_red_proof_normalizes_traversing_pythonpath_root
+      - case_id: R07-CORE-003-S05
+        scenario_id: git-bound-failing-first-proof
+        method: test
+        intent: "Prove a proof input that exists but cannot be read is stale rather than skipped."
+        observable: "A symlinked pytest configuration source yields stale-red-proof."
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_requirements_proof_provenance.py::test_git_bound_red_proof_rejects_symlinked_pytest_configuration
+      - case_id: R07-CORE-003-S06
+        scenario_id: git-bound-failing-first-proof
+        method: test
+        intent: "Prove an unresolvable plugin declaration fails closed instead of binding nothing."
+        observable: "A mutation reaching the declaration through an alias yields stale-red-proof."
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_requirements_proof_provenance.py::test_git_bound_red_proof_tracks_mutation_through_an_earlier_alias
+      - case_id: R07-CORE-003-S07
+        scenario_id: git-bound-failing-first-proof
+        method: test
+        intent: "Prove a typing guard is trusted only while it cannot have been rewritten."
+        observable: "A guard handed to a call inside an invoked function yields stale-red-proof."
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_requirements_proof_provenance.py::test_git_bound_red_proof_tracks_guard_handed_to_a_call_inside_a_function
+      - case_id: R07-CORE-003-S08
+        scenario_id: git-bound-failing-first-proof
+        method: test
+        intent: "Prove a selected symlink is rejected rather than hashed as its link text."
+        observable: "A symlinked selector is rejected as invalid prior-red proof."
+        selector:
+          runner: pytest
+          node_id: tests/unit/scripts/test_requirements_proof_provenance.py::test_git_bound_red_proof_rejects_symlink_selector
       - case_id: R07-CORE-003-S03
         scenario_id: git-bound-failing-first-proof
         method: test
